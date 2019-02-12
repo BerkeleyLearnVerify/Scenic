@@ -1,0 +1,157 @@
+
+import math
+import pytest
+
+from scenic.syntax.translator import InterpreterParseError
+from tests.utils import compileScenic, sampleEgoFrom, sampleParamPFrom
+
+## Scalar operators
+
+# relative heading
+
+def test_relative_heading():
+    p = sampleParamPFrom(
+        'ego = Object facing 30 deg\n'
+        'other = Object facing 65 deg, at 10@10\n'
+        'param p = relative heading of other'
+    )
+    assert p == pytest.approx(math.radians(65 - 30))
+
+def test_relative_heading_no_ego():
+    with pytest.raises(InterpreterParseError):
+        compileScenic('other = Object\n' 'ego = Object at 2@2, facing relative heading of other')
+
+def test_relative_heading_from():
+    ego = sampleEgoFrom('ego = Object facing relative heading of 70 deg from -10 deg')
+    assert ego.heading == pytest.approx(math.radians(70 + 10))
+
+# apparent heading
+
+def test_apparent_heading():
+    p = sampleParamPFrom(
+        'ego = Object facing 30 deg\n'
+        'other = Object facing 65 deg, at 10@10\n'
+        'param p = apparent heading of other'
+    )
+    assert p == pytest.approx(math.radians(65 + 45))
+
+def test_apparent_heading_no_ego():
+    with pytest.raises(InterpreterParseError):
+        compileScenic('other = Object\n' 'ego = Object at 2@2, facing apparent heading of other')
+
+def test_apparent_heading_from():
+    ego = sampleEgoFrom(
+        'OP = OrientedPoint at 10@15, facing -60 deg\n'
+        'ego = Object facing apparent heading of OP from 15@10')
+    assert ego.heading == pytest.approx(math.radians(-60 - 45))
+
+# distance
+
+def test_distance():
+    p = sampleParamPFrom(
+        'ego = Object at 5@10\n'
+        'other = Object at 7@-4\n'
+        'param p = distance to other'
+    )
+    assert p == pytest.approx(math.hypot(7 - 5, -4 - 10))
+
+def test_distance_no_ego():
+    with pytest.raises(InterpreterParseError):
+        compileScenic('other = Object\n' 'ego = Object at 2@2, facing distance to other')
+
+def test_distance_from():
+    ego = sampleEgoFrom('ego = Object with wobble distance from -3@2 to 4@5')
+    assert ego.wobble == pytest.approx(math.hypot(4 - -3, 5 - 2))
+
+# angle
+
+def test_angle():
+    p = sampleParamPFrom(
+        'ego = Object facing 30 deg\n'
+        'other = Object facing 65 deg, at 10@10\n'
+        'param p = angle to other'
+    )
+    assert p == pytest.approx(math.radians(-45))
+
+def test_angle_no_ego():
+    with pytest.raises(InterpreterParseError):
+        compileScenic('other = Object\n' 'ego = Object at 2@2, facing angle to other')
+
+def test_angle_from():
+    ego = sampleEgoFrom('ego = Object facing angle from 2@4 to 3@5')
+    assert ego.heading == pytest.approx(math.radians(-45))
+
+## Boolean operators
+
+# can see
+
+def test_point_can_see_vector():
+    p = sampleParamPFrom(
+        'ego = Object\n'
+        'pt = Point at 10@20, with visibleDistance 5\n'
+        'param p = tuple([pt can see 8@19, pt can see 10@26])'
+    )
+    assert p == (True, False)
+
+def test_point_can_see_object():
+    p = sampleParamPFrom(
+        'ego = Object with width 10, with height 10\n'
+        'other = Object at 35@10\n'
+        'pt = Point at 15@10, with visibleDistance 15\n'
+        'param p = tuple([pt can see ego, pt can see other])'
+    )
+    assert p == (True, False)
+
+def test_oriented_point_can_see_vector():
+    p = sampleParamPFrom(
+        'ego = Object facing -45 deg, with visibleDistance 5, with viewAngle 20 deg\n'
+        'param p = tuple([ego can see 2@2, ego can see 4@4, ego can see 1@0])'
+    )
+    assert p == (True, False, False)
+
+def test_oriented_point_can_see_object():
+    p = sampleParamPFrom(
+        'ego = Object facing -45 deg, with visibleDistance 5, with viewAngle 20 deg\n'
+        'other = Object at 4@4, with width 2, with height 2\n'
+        'other2 = Object at 4@0, with requireVisible False\n'
+        'param p = tuple([ego can see other, ego can see other2])'
+    )
+    assert p == (True, False)
+
+## Heading operators
+
+# at
+
+def test_field_at_vector():
+    ego = sampleEgoFrom(
+        'vf = VectorField("Foo", lambda pos: (3 * pos.x) + pos.y)\n'
+        'ego = Object facing (vf at 0.02 @ -1)'
+    )
+    assert ego.heading == pytest.approx((3 * 0.02) - 1)
+
+# relative to
+
+def test_heading_relative_to_field():
+    ego = sampleEgoFrom(
+        'vf = VectorField("Foo", lambda pos: 3 * pos.x)\n'
+        'ego = Object at 0.07 @ 0, facing 0.5 relative to vf'
+    )
+    assert ego.heading == pytest.approx(0.5 + (3 * 0.07))
+
+def test_field_relative_to_heading():
+    ego = sampleEgoFrom(
+        'vf = VectorField("Foo", lambda pos: 3 * pos.x)\n'
+        'ego = Object at 0.07 @ 0, facing vf relative to 0.5'
+    )
+    assert ego.heading == pytest.approx(0.5 + (3 * 0.07))
+
+def test_field_relative_to_field():
+    ego = sampleEgoFrom(
+        'vf = VectorField("Foo", lambda pos: 3 * pos.x)\n'
+        'ego = Object at 0.07 @ 0, facing vf relative to vf'
+    )
+    assert ego.heading == pytest.approx(2 * (3 * 0.07))
+
+def test_heading_relative_to_heading():
+    ego = sampleEgoFrom('ego = Object facing 0.5 relative to -0.3')
+    assert ego.heading == pytest.approx(0.5 - 0.3)
