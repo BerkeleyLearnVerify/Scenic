@@ -13,6 +13,7 @@ import types
 import importlib
 import importlib.abc
 import importlib.util
+import itertools
 from collections import namedtuple
 from contextlib import contextmanager
 
@@ -135,7 +136,7 @@ def compileStream(stream, namespace, filename='<stream>'):
 
 ## Options
 
-showInternalBacktrace = True	# put False to suppress potentially-misleading info
+showInternalBacktrace = False
 dumpTranslatedPython = False
 dumpFinalAST = False
 verbosity = 1
@@ -670,6 +671,14 @@ class PythonParseError(SyntaxError, ParseError):
 	def fromSyntaxError(cls, exc, lineMap):
 		msg, (filename, lineno, offset, line) = exc.args
 		lineno = lineMap[lineno]
+		try:	# attempt to recover line from original file
+			with open(filename, 'r') as f:
+				line = list(itertools.islice(f, lineno-1, lineno))
+			assert len(line) == 1
+			line = line[0]
+			offset = min(offset, len(line))		# TODO improve?
+		except FileNotFoundError:
+			pass
 		newExc = cls(msg, (filename, lineno, offset, line))
 		return newExc.with_traceback(exc.__traceback__)
 
@@ -678,7 +687,8 @@ def parseTranslatedSource(source, lineMap, filename):
 		tree = parse(source, filename=filename)
 		return tree
 	except SyntaxError as e:
-		raise PythonParseError.fromSyntaxError(e, lineMap) from None
+		cause = e if showInternalBacktrace else None
+		raise PythonParseError.fromSyntaxError(e, lineMap) from cause
 
 ### TRANSLATION PHASE FOUR: modifying the parse tree
 
@@ -862,7 +872,8 @@ def compileTranslatedTree(tree, lineMap, filename):
 	try:
 		return compile(tree, filename, 'exec')
 	except SyntaxError as e:
-		raise PythonParseError.fromSyntaxError(e, lineMap) from None
+		cause = e if showInternalBacktrace else None
+		raise PythonParseError.fromSyntaxError(e, lineMap) from cause
 
 ### TRANSLATION PHASE SIX: Python execution
 

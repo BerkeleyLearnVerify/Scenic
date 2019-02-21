@@ -23,6 +23,8 @@ parser.add_argument('-v', '--verbosity', help='verbosity level (default 1)',
 
 # Debugging options
 debugOpts = parser.add_argument_group('debugging options')
+debugOpts.add_argument('-b', '--full-backtrace', help='show full internal backtraces',
+                       action='store_true')
 debugOpts.add_argument('--dump-python', help='dump translated Python', action='store_true')
 debugOpts.add_argument('--dump-ast', help='dump final AST', action='store_true')
 debugOpts.add_argument('--no-pruning', help='disable pruning', action='store_true')
@@ -35,6 +37,7 @@ parser.add_argument('scenario', help='a Scenic file to run')
 # Parse arguments and set up configuration
 args = parser.parse_args()
 delay = args.delay
+translator.showInternalBacktrace = args.full_backtrace
 translator.dumpTranslatedPython = args.dump_python
 translator.dumpFinalAST = args.dump_ast
 translator.verbosity = args.verbosity

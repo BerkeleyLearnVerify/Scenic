@@ -136,16 +136,23 @@ def qux(foo=None,
 qux()
 """, 7
 
-def checkBugs(bugs, checkTraceback=True):
+def checkBugs(bugs, tmpdir, checkTraceback=True):
+    path = os.path.join(tmpdir, 'test.sc')
     for bug in bugs:
         for program, line in programsWithBug(bug):
             try:
-                compileScenic(program)
+                # write program to file so we can check SyntaxError line correction
+                with open(path, 'w') as f:
+                    f.write(program)
+                scenic.scenarioFromFile(path)
                 print(f'FAILING PROGRAM:\n{program}')
                 pytest.fail(f'Program with buggy statement "{bug}" did not raise error')
             except Exception as e:
                 if isinstance(e, (ParseError, SyntaxError)):
                     assert e.lineno == line, program
+                    if isinstance(e, SyntaxError):
+                        assert e.text.strip() == bug
+                        assert e.offset <= len(e.text)
                 # in Python 3.7+, when we can modify tracebacks, check that the
                 # last frame of the traceback has the correct line number
                 if checkTraceback and sys.version_info >= (3, 7):
@@ -154,29 +161,30 @@ def checkBugs(bugs, checkTraceback=True):
                         tb = tb.tb_next
                     assert tb.tb_lineno == line, f'\n{program}'
 
-def test_line_numbering_early():
+def test_line_numbering_early(tmpdir):
     """Line numbering for parse errors too early to have a full traceback."""
     bugs = (
         'x = 3 << 2',       # caught during token translation
         '4 = 2',            # caught during Python parsing
+        'Point at x y',     # caught during Python parsing (with offset past end of original line)
         'require',          # caught during AST surgery
         'break',            # caught during Python compilation
     )
-    checkBugs(bugs, checkTraceback=False)
+    checkBugs(bugs, tmpdir, checkTraceback=False)
 
-def test_line_numbering_late():
+def test_line_numbering_late(tmpdir):
     """Line numbering for parse errors and exceptions with a full traceback."""
     bugs = (
         'mutate 4',         # caught during Python execution (Scenic parse error)
         'x = _flub__',      # caught during Python execution (Python runtime error)
         'raise Exception',  # caught during Python execution (program exception)
     )
-    checkBugs(bugs)
+    checkBugs(bugs, tmpdir)
 
-def test_line_numbering_double():
+def test_line_numbering_double(tmpdir):
     """Line numbering for errors arising in reused syntax elements."""
     bugs = (
         'x = float(0@0)\n' 'y = 1@2',
         'x = float((0, 10))\n' 'y = (0, 10)',
     )
-    checkBugs(bugs)
+    checkBugs(bugs, tmpdir)
