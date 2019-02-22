@@ -118,6 +118,27 @@ def test_oriented_point_can_see_object():
     )
     assert p == (True, False)
 
+# in
+
+def test_point_in_region():
+    p = sampleParamPFrom(
+        'ego = Object\n'
+        'reg = RectangularRegion(10@5, 0, 4, 2)\n'
+        'ptA = Point at 11@4.5\n'
+        'ptB = Point at 11@3.5\n'
+        'param p = tuple([9@5.5 in reg, 9@7 in reg, ptA in reg, ptB in reg])'
+    )
+    assert p == (True, False, True, False)
+
+def test_object_in_region():
+    p = sampleParamPFrom(
+        'reg = RectangularRegion(10@5, 0, 4, 2)\n'
+        'ego = Object at 11.5@5.5, with width 0.25, with height 0.25\n'
+        'other = Object at 9@4.5, with width 2.5\n'
+        'param p = tuple([ego in reg, other in reg])'
+    )
+    assert p == (True, False)
+
 ## Heading operators
 
 # at

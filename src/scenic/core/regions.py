@@ -15,6 +15,7 @@ from scenic.core.vectors import Vector, OrientedVector, VectorDistribution
 from scenic.core.geometry import RotatedRectangle
 from scenic.core.geometry import sin, cos, hypot, findMinMax, pointIsInCone, averageVectors
 from scenic.core.geometry import headingOfSegment, triangulatePolygon, plotPolygon, polygonUnion
+from scenic.core.type_support import toVector
 
 def toPolygon(thing):
 	if hasattr(thing, 'polygon'):
@@ -70,6 +71,13 @@ class Region(Samplable):
 			if not self.containsPoint(corner):
 				return False
 		return True
+
+	def __contains__(self, thing):
+		from scenic.core.object_types import Object
+		if isinstance(thing, Object):
+			return self.containsObject(thing)
+		vec = toVector(thing, '"X in Y" with X not an Object or a vector')
+		return self.containsPoint(vec)
 
 	def getAABB(self):
 		"""Axis-aligned bounding box for this Region"""
