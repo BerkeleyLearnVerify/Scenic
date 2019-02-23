@@ -176,3 +176,41 @@ def test_field_relative_to_field():
 def test_heading_relative_to_heading():
     ego = sampleEgoFrom('ego = Object facing 0.5 relative to -0.3')
     assert ego.heading == pytest.approx(0.5 - 0.3)
+
+## Vector operators
+
+# offset by
+
+def test_offset_by():
+    ego = sampleEgoFrom('ego = Object at 3@2 offset by -4@10')
+    assert tuple(ego.position) == pytest.approx((-1, 12))
+
+# offset along
+
+def test_offset_along_heading():
+    ego = sampleEgoFrom('ego = Object at 3@2 offset along 45 deg by -4@10')
+    d = 1 / math.sqrt(2)
+    assert tuple(ego.position) == pytest.approx((3 - 10*d - 4*d, 2 + 10*d - 4*d))
+
+def test_offset_along_field():
+    ego = sampleEgoFrom(
+        'vf = VectorField("Foo", lambda pos: 3 deg * pos.x)\n'
+        'ego = Object at 15@7 offset along vf by 2@-3'
+    )
+    d = 1 / math.sqrt(2)
+    assert tuple(ego.position) == pytest.approx((15 + 3*d + 2*d, 7 - 3*d + 2*d))
+
+## Region operators
+
+# visible
+
+def test_visible():
+    scenario = compileScenic(
+        'ego = Object at 100 @ 200, facing -45 deg, \\\n'
+        '             with visibleDistance 10, with viewAngle 90 deg\n'
+        'reg = RectangularRegion(100@205, 0, 10, 10)\n'
+        'param p = Point in visible reg'
+    )
+    for i in range(30):
+        scene, iterations = scenario.generate(maxIterations=100)
+        assert scene.params['p'].x >= 100

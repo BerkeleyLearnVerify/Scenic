@@ -139,7 +139,7 @@ def compileStream(stream, namespace, filename='<stream>'):
 showInternalBacktrace = False
 dumpTranslatedPython = False
 dumpFinalAST = False
-verbosity = 1
+verbosity = 0
 usePruning = True
 
 ## Preamble
