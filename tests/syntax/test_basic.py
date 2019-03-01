@@ -5,6 +5,7 @@ import scenic
 from scenic import scenarioFromString as compileScenic
 from scenic.syntax.translator import InvalidScenarioError, InterpreterParseError
 from scenic.core.object_types import Object
+from tests.utils import sampleParamPFrom
 
 def test_empty():
     with pytest.raises(InvalidScenarioError):
@@ -55,6 +56,13 @@ def test_noninterference():
     assert len(scenario.objects) == 1
     ego2 = scenario.egoObject
     assert ego1 is not ego2
+
+def test_param():
+    p = sampleParamPFrom('ego = Object\n' 'param p = (3, 5)')
+    assert 3 <= p <= 5
+    p = sampleParamPFrom('ego = Object\n' 'param p = [1, 4, 9]')
+    assert type(p) is list
+    assert p == [1, 4, 9]
 
 def test_verbose():
     for verb in range(4):

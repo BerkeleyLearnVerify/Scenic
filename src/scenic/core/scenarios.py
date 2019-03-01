@@ -47,7 +47,8 @@ class Scenario:
 		self.params = dict(params)
 		self.requirements = tuple(requirements)
 		# dependencies must use fixed order for reproducibility
-		self.dependencies = self.objects + tuple(self.params.values()) + tuple(requirementDeps)
+		paramDeps = tuple(p for p in self.params.values() if isinstance(p, Samplable))
+		self.dependencies = self.objects + paramDeps + tuple(requirementDeps)
 
 	def containerOfObject(self, obj):
 		if hasattr(obj, 'regionContainedIn') and obj.regionContainedIn is not None:
@@ -113,6 +114,9 @@ class Scenario:
 
 		# obtained a valid sample; assemble a scene from it
 		sampledObjects = tuple(sample[obj] for obj in objects)
-		sampledParams = { param: sample[value] for param, value in self.params.items() }
+		sampledParams = {
+			param: sample[value] if isinstance(value, Samplable) else value
+			for param, value in self.params.items()
+		}
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams)
 		return scene, iterations
