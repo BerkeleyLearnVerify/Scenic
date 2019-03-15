@@ -10,18 +10,22 @@ from scenic.core.utils import argsToString, RuntimeParseError
 ## Misc
 
 def valueInContext(value, context):
+	"""Evaluate something in the context of an object being constructed."""
 	try:
 		return value.evaluateIn(context)
 	except AttributeError:
 		return value
 
 def dependencies(thing):
+	"""Dependencies which must be sampled before this value."""
 	return getattr(thing, '_dependencies', ())
 
 def needsSampling(thing):
+	"""Whether this value requires sampling or is a constant."""
 	return isinstance(thing, Distribution) or dependencies(thing)
 
 def supportInterval(thing):
+	"""Lower and upper bounds on this value, if known."""
 	if hasattr(thing, 'supportInterval'):
 		return thing.supportInterval()
 	elif isinstance(thing, (int, float)):
@@ -30,14 +34,17 @@ def supportInterval(thing):
 		return None, None
 
 def underlyingFunction(thing):
+	"""Original function underlying a distribution wrapper."""
 	return getattr(thing, '_underlyingFunction', thing)
 
 class RejectionException(Exception):
+	"""Exception used to signal that the sample currently being generated must be rejected."""
 	pass
 
 ## Abstract distributions
 
 class DefaultIdentityDict(dict):
+	"""Dictionary which is the identity map by default."""
 	def __getitem__(self, key):
 		if not isinstance(key, Samplable):		# to allow non-hashable objects
 			return key
@@ -47,6 +54,11 @@ class DefaultIdentityDict(dict):
 		return key
 
 class Samplable:
+	"""Abstract class for values which can be sampled, possibly depending on other values.
+
+	Samplables may specify a proxy object 'self._conditioned' which must have the same
+	distribution as the original after conditioning on the scenario's requirements. This
+	allows transparent conditioning without modifying Samplable fields of immutable objects."""
 	def __init__(self, dependencies):
 		deps = []
 		for dep in dependencies:
@@ -69,6 +81,7 @@ class Samplable:
 		return { q: subsamples[q] for q in quantities }
 
 	def sample(self, subsamples=None):
+		"""Sample this value, optionally given some values already sampled."""
 		if subsamples is None:
 			subsamples = DefaultIdentityDict()
 		for child in self._conditioned._dependencies:
@@ -77,14 +90,19 @@ class Samplable:
 		return self._conditioned.sampleGiven(subsamples)
 
 	def sampleGiven(self, value):
+		"""Sample this value, given values for all its dependencies.
+
+		The default implementation simply returns a dictionary of dependency values.
+		Subclasses must override this method to specify how actual sampling is done."""
 		return DefaultIdentityDict({ dep: value[dep] for dep in self._dependencies })
 
 	def conditionTo(self, value):
+		"""Condition this value to another value with the same conditional distribution."""
 		assert isinstance(value, Samplable)
 		self._conditioned = value
 
 class Distribution(Samplable):
-	"""Abstract class for distributions"""
+	"""Abstract class for distributions."""
 
 	defaultValueType = float
 
@@ -100,6 +118,7 @@ class Distribution(Samplable):
 		self.valueType = valueType
 
 	def clone(self):
+		"""Construct an independent copy of this Distribution."""
 		raise NotImplementedError('clone() not supported by this distribution')
 
 	def evaluateIn(self, context):
@@ -112,12 +131,14 @@ class Distribution(Samplable):
 		pass
 
 	def supportInterval(self):
+		"""Compute lower and upper bounds on the value of this Distribution."""
 		return None, None
 
 	def __getattr__(self, name):
 		return AttributeDistribution(name, self)
 
 	def dependencyTree(self):
+		"""Debugging method to print the dependency tree of a Distribution."""
 		l = [str(self)]
 		for dep in self.dependencies:
 			for line in dep.dependencyTree():

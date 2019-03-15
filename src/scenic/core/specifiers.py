@@ -7,6 +7,7 @@ from scenic.core.utils import RuntimeParseError
 ## Support for lazy evaluation of specifiers
 
 class DelayedArgument(Distribution):
+	"""Specifier arguments requiring other properties to be evaluated first."""
 	def __init__(self, deps, value):
 		super().__init__(value)
 		self.value = value
@@ -17,6 +18,9 @@ class DelayedArgument(Distribution):
 		return DelayedArgument(self.requiredProperties, self.value)
 
 	def evaluateIn(self, context):
+		"""Evaluate this argument in the context of an object being constructed.
+
+		The object must define all of the properties on which this argument depends."""
 		if not self.evaluated:
 			assert all(hasattr(context, dep) for dep in self.requiredProperties)
 			self.value = valueInContext(self.value(context), context)
@@ -30,9 +34,13 @@ class DelayedArgument(Distribution):
 
 	def __call__(self, *args):
 		dargs = [toDelayedArgument(arg) for arg in args]
-		return DelayedArgument(self.requiredProperties.union(*(darg.requiredProperties for darg in dargs)),
-			lambda context: self.evaluateIn(context)(*(darg.evaluateIn(context) for darg in dargs)))
+		props = self.requiredProperties.union(*(darg.requiredProperties for darg in dargs))
+		def value(context):
+			subvalues = (darg.evaluateIn(context) for darg in dargs)
+			return self.evaluateIn(context)(*subvalues)
+		return DelayedArgument(props, value)
 
+# Operators which can be applied to DelayedArguments
 allowedOperators = [
 	'__neg__',
 	'__pos__',
@@ -55,8 +63,11 @@ allowedOperators = [
 def makeDelayedOperatorHandler(op):
 	def handler(self, *args):
 		dargs = [toDelayedArgument(arg) for arg in args]
-		return DelayedArgument(self.requiredProperties.union(*(darg.requiredProperties for darg in dargs)),
-			lambda context: getattr(self.evaluateIn(context), op)(*(darg.evaluateIn(context) for darg in dargs))) 
+		props = self.requiredProperties.union(*(darg.requiredProperties for darg in dargs))
+		def value(context):
+			subvalues = (darg.evaluateIn(context) for darg in dargs)
+			return getattr(self.evaluateIn(context), op)(*subvalues)
+		return DelayedArgument(props, value)
 	return handler
 for op in allowedOperators:
 	setattr(DelayedArgument, op, makeDelayedOperatorHandler(op))
@@ -73,9 +84,11 @@ def requiredProperties(thing):
 
 ## Specifiers themselves
 
-class Specifier(object):
+class Specifier:
+	"""Specifier providing a value for a property given dependencies.
+
+	Any optionally-specified properties are evaluated as attributes of the primary value."""
 	def __init__(self, prop, value, deps=None, optionals={}):
-		super().__init__()
 		self.property = prop
 		self.value = toDelayedArgument(value).copy()	# TODO improve?
 		if deps is None:
@@ -86,6 +99,7 @@ class Specifier(object):
 		self.optionals = optionals
 
 	def applyTo(self, obj, optionals):
+		"""Apply specifier to an object, including the specified optional properties."""
 		val = self.value.evaluateIn(obj)
 		assert not isinstance(val, DelayedArgument)
 		setattr(obj, self.property, val)
@@ -99,6 +113,7 @@ class Specifier(object):
 ## Support for property defaults
 
 class PropertyDefault:
+	"""A default value, possibly with dependencies."""
 	def __init__(self, requiredProperties, attributes, value):
 		self.requiredProperties = requiredProperties
 		self.value = value
@@ -121,6 +136,7 @@ class PropertyDefault:
 			return PropertyDefault(set(), set(), lambda self: value)
 
 	def resolveFor(self, prop, overriddenDefs):
+		"""Create a Specifier for a property from this default and any superclass defaults."""
 		if self.isAdditive:
 			allReqs = self.requiredProperties
 			for other in overriddenDefs:
@@ -134,6 +150,3 @@ class PropertyDefault:
 		else:
 			val = DelayedArgument(self.requiredProperties, self.value)
 		return Specifier(prop, val)
-
-	def makeSpecifier(self):
-		pass
