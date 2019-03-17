@@ -1,15 +1,13 @@
 
 ### Specifiers and associated objects
 
-from scenic.core.distributions import Distribution, valueInContext
 from scenic.core.utils import RuntimeParseError
 
 ## Support for lazy evaluation of specifiers
 
-class DelayedArgument(Distribution):
+class DelayedArgument:
 	"""Specifier arguments requiring other properties to be evaluated first."""
 	def __init__(self, deps, value):
-		super().__init__(value)
 		self.value = value
 		self.requiredProperties = deps
 		self.evaluated = False
@@ -20,7 +18,8 @@ class DelayedArgument(Distribution):
 	def evaluateIn(self, context):
 		"""Evaluate this argument in the context of an object being constructed.
 
-		The object must define all of the properties on which this argument depends."""
+		The object must define all of the properties on which this argument depends.
+		"""
 		if not self.evaluated:
 			assert all(hasattr(context, dep) for dep in self.requiredProperties)
 			self.value = valueInContext(self.value(context), context)
@@ -72,6 +71,13 @@ def makeDelayedOperatorHandler(op):
 for op in allowedOperators:
 	setattr(DelayedArgument, op, makeDelayedOperatorHandler(op))
 
+def valueInContext(value, context):
+	"""Evaluate something in the context of an object being constructed."""
+	try:
+		return value.evaluateIn(context)
+	except AttributeError:
+		return value
+
 def toDelayedArgument(thing):
 	if isinstance(thing, DelayedArgument):
 		return thing
@@ -87,7 +93,8 @@ def requiredProperties(thing):
 class Specifier:
 	"""Specifier providing a value for a property given dependencies.
 
-	Any optionally-specified properties are evaluated as attributes of the primary value."""
+	Any optionally-specified properties are evaluated as attributes of the primary value.
+	"""
 	def __init__(self, prop, value, deps=None, optionals={}):
 		self.property = prop
 		self.value = toDelayedArgument(value).copy()	# TODO improve?

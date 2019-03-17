@@ -5,24 +5,22 @@ import collections
 import itertools
 import random
 
+from scenic.core.specifiers import DelayedArgument, valueInContext
 from scenic.core.utils import argsToString, RuntimeParseError
 
 ## Misc
-
-def valueInContext(value, context):
-	"""Evaluate something in the context of an object being constructed."""
-	try:
-		return value.evaluateIn(context)
-	except AttributeError:
-		return value
 
 def dependencies(thing):
 	"""Dependencies which must be sampled before this value."""
 	return getattr(thing, '_dependencies', ())
 
 def needsSampling(thing):
-	"""Whether this value requires sampling or is a constant."""
-	return isinstance(thing, Distribution) or dependencies(thing)
+	"""Whether this value requires sampling or is a constant.
+
+	We include DelayedArguments since they may evaluate to values requiring sampling.
+	By the time Scenarios are constructed, all DelayedArguments should have been evaluated.
+	"""
+	return isinstance(thing, (Distribution, DelayedArgument)) or dependencies(thing)
 
 def supportInterval(thing):
 	"""Lower and upper bounds on this value, if known."""
@@ -58,7 +56,8 @@ class Samplable:
 
 	Samplables may specify a proxy object 'self._conditioned' which must have the same
 	distribution as the original after conditioning on the scenario's requirements. This
-	allows transparent conditioning without modifying Samplable fields of immutable objects."""
+	allows transparent conditioning without modifying Samplable fields of immutable objects.
+	"""
 	def __init__(self, dependencies):
 		deps = []
 		for dep in dependencies:
@@ -93,13 +92,32 @@ class Samplable:
 		"""Sample this value, given values for all its dependencies.
 
 		The default implementation simply returns a dictionary of dependency values.
-		Subclasses must override this method to specify how actual sampling is done."""
+		Subclasses must override this method to specify how actual sampling is done.
+		"""
 		return DefaultIdentityDict({ dep: value[dep] for dep in self._dependencies })
 
 	def conditionTo(self, value):
 		"""Condition this value to another value with the same conditional distribution."""
 		assert isinstance(value, Samplable)
 		self._conditioned = value
+
+	def evaluateIn(self, context):
+		if self.requiredProperties:
+			self.evaluateInner(context)
+			self.requiredProperties = set()
+			assert all(not isinstance(dep, DelayedArgument) for dep in self._dependencies)
+		return self
+
+	def evaluateInner(self, context):
+		pass
+
+	def dependencyTree(self):
+		"""Debugging method to print the dependency tree of a Samplable."""
+		l = [str(self)]
+		for dep in dependencies(self):
+			for line in dep.dependencyTree():
+				l.append('  ' + line)
+		return l
 
 class Distribution(Samplable):
 	"""Abstract class for distributions."""
@@ -121,29 +139,12 @@ class Distribution(Samplable):
 		"""Construct an independent copy of this Distribution."""
 		raise NotImplementedError('clone() not supported by this distribution')
 
-	def evaluateIn(self, context):
-		if self.requiredProperties:
-			self.evaluateInner(context)
-			self.requiredProperties = set()
-		return self
-
-	def evaluateInner(self, context):
-		pass
-
 	def supportInterval(self):
 		"""Compute lower and upper bounds on the value of this Distribution."""
 		return None, None
 
 	def __getattr__(self, name):
 		return AttributeDistribution(name, self)
-
-	def dependencyTree(self):
-		"""Debugging method to print the dependency tree of a Distribution."""
-		l = [str(self)]
-		for dep in self.dependencies:
-			for line in dep.dependencyTree():
-				l.append('  ' + line)
-		return l
 
 ## Derived distributions
 
@@ -437,7 +438,8 @@ class Options(Distribution):
 			ordered = []
 			for opt, prob in opts.items():
 				if not isinstance(prob, (float, int)):
-					raise RuntimeParseError(f'discrete distribution weight {prob} is not a constant number')
+					raise RuntimeParseError(f'discrete distribution weight {prob}'
+					                        ' is not a constant number')
 				if prob < 0:
 					raise RuntimeParseError(f'discrete distribution weight {prob} is negative')
 				if prob == 0:

@@ -6,7 +6,7 @@ import inspect
 import numpy as np
 
 from scenic.core.distributions import Distribution
-from scenic.core.specifiers import DelayedArgument
+from scenic.core.specifiers import DelayedArgument, valueInContext
 from scenic.core.vectors import Vector
 from scenic.core.utils import RuntimeParseError
 
@@ -85,7 +85,7 @@ def coerceToAny(thing, types, error):
 	for ty in types:
 		if canCoerce(thing, ty):
 			return coerce(thing, ty)
-	print(thing, types)
+	print(f'Failed to coerce {thing} to {types}')
 	raise RuntimeParseError(error)
 
 def toTypes(thing, types, typeError='wrong type'):

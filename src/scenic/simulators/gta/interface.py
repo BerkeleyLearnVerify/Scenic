@@ -14,7 +14,8 @@ import scenic.simulators.gta.messages as messages
 
 from scenic.core.distributions import Samplable, Distribution, TupleDistribution
 from scenic.core.distributions import Range, Normal, Options
-from scenic.core.distributions import valueInContext, distributionMethod
+from scenic.core.distributions import distributionMethod
+from scenic.core.specifiers import valueInContext
 
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import VectorField
