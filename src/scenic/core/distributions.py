@@ -5,7 +5,9 @@ import collections
 import itertools
 import random
 
-from scenic.core.specifiers import DelayedArgument, valueInContext
+from scenic.core.specifiers import (LazilyEvaluable, DelayedArgument,
+                                    requiredProperties, needsLazyEvaluation, valueInContext,
+                                    makeDelayedFunctionCall)
 from scenic.core.utils import argsToString, RuntimeParseError
 
 ## Misc
@@ -15,12 +17,8 @@ def dependencies(thing):
 	return getattr(thing, '_dependencies', ())
 
 def needsSampling(thing):
-	"""Whether this value requires sampling or is a constant.
-
-	We include DelayedArguments since they may evaluate to values requiring sampling.
-	By the time Scenarios are constructed, all DelayedArguments should have been evaluated.
-	"""
-	return isinstance(thing, (Distribution, DelayedArgument)) or dependencies(thing)
+	"""Whether this value requires sampling."""
+	return isinstance(thing, Distribution) or dependencies(thing)
 
 def supportInterval(thing):
 	"""Lower and upper bounds on this value, if known."""
@@ -51,7 +49,7 @@ class DefaultIdentityDict(dict):
 	def __missing__(self, key):
 		return key
 
-class Samplable:
+class Samplable(LazilyEvaluable):
 	"""Abstract class for values which can be sampled, possibly depending on other values.
 
 	Samplables may specify a proxy object 'self._conditioned' which must have the same
@@ -60,9 +58,12 @@ class Samplable:
 	"""
 	def __init__(self, dependencies):
 		deps = []
+		props = set()
 		for dep in dependencies:
-			if needsSampling(dep):
+			if needsSampling(dep) or needsLazyEvaluation(dep):
 				deps.append(dep)
+				props.update(requiredProperties(dep))
+		super().__init__(props)
 		self._dependencies = tuple(deps)	# fixed order for reproducibility
 		self._conditioned = self	# version (partially) conditioned on requirements
 
@@ -102,14 +103,11 @@ class Samplable:
 		self._conditioned = value
 
 	def evaluateIn(self, context):
-		if self.requiredProperties:
-			self.evaluateInner(context)
-			self.requiredProperties = set()
-			assert all(not isinstance(dep, DelayedArgument) for dep in self._dependencies)
-		return self
-
-	def evaluateInner(self, context):
-		pass
+		"""See LazilyEvaluable.evaluateIn."""
+		value = super().evaluateIn(context)
+		# Check that all dependencies have been evaluated
+		assert all(not needsLazyEvaluation(dep) for dep in value._dependencies)
+		return value
 
 	def dependencyTree(self):
 		"""Debugging method to print the dependency tree of a Samplable."""
@@ -125,12 +123,7 @@ class Distribution(Samplable):
 	defaultValueType = float
 
 	def __init__(self, *dependencies, valueType=None):
-		props = set()
-		for dep in dependencies:
-			if hasattr(dep, 'requiredProperties'):
-				props.update(dep.requiredProperties)
 		super().__init__(dependencies)
-		self.requiredProperties = props
 		if valueType is None:
 			valueType = self.defaultValueType
 		self.valueType = valueType
@@ -151,7 +144,7 @@ class Distribution(Samplable):
 class CustomDistribution(Distribution):
 	"""Distribution with a custom sampler given by an arbitrary function"""
 	def __init__(self, sampler, *dependencies, name='CustomDistribution', evaluator=None):
-		super(CustomDistribution, self).__init__(*dependencies)
+		super().__init__(*dependencies)
 		self.sampler = sampler
 		self.name = name
 		self.evaluator = evaluator
@@ -162,7 +155,7 @@ class CustomDistribution(Distribution):
 	def evaluateInner(self, context):
 		if self.evaluator is None:
 			raise NotImplementedError('evaluateIn() not supported by this distribution')
-		self.evaluator(self, context)
+		return self.evaluator(self, context)
 
 	def __str__(self):
 		return f'{self.name}{argsToString(self.dependencies)}'
@@ -170,7 +163,7 @@ class CustomDistribution(Distribution):
 class TupleDistribution(Distribution, collections.abc.Sequence):
 	"""Distributions over tuples"""
 	def __init__(self, *coordinates):
-		super(TupleDistribution, self).__init__(*coordinates)
+		super().__init__(*coordinates)
 		self.coordinates = coordinates
 
 	def __len__(self):
@@ -183,7 +176,8 @@ class TupleDistribution(Distribution, collections.abc.Sequence):
 		return tuple(value[coordinate] for coordinate in self.coordinates)
 
 	def evaluateInner(self, context):
-		self.coordinates = tuple(valueInContext(coord, context) for coord in self.coordinates)
+		coordinates = (valueInContext(coord, context) for coord in self.coordinates)
+		return TupleDistribution(*coordinates)
 
 	def __str__(self):
 		coords = ', '.join(str(c) for c in self.coordinates)
@@ -192,88 +186,116 @@ class TupleDistribution(Distribution, collections.abc.Sequence):
 def toDistribution(val, always=True):
 	if type(val) is tuple:
 		coords = [toDistribution(c, always=True) for c in val]
-		needed = always or any(isinstance(c, Distribution) for c in coords)
+		needed = always or any(needsSampling(c) for c in coords)
 		return TupleDistribution(*coords) if needed else val
 	return val
 
 class FunctionDistribution(Distribution):
 	"""Distribution resulting from passing distributions to a function"""
-	def __init__(self, func, args, support=None):
+	def __init__(self, func, args, kwargs, support=None):
 		args = tuple(toDistribution(arg) for arg in args)
-		super(FunctionDistribution, self).__init__(*args)
+		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
+		super().__init__(*args, *kwargs.values())
 		self.function = func
 		self.arguments = args
+		self.kwargs = kwargs
 		self.support = support
 
 	def sampleGiven(self, value):
 		args = tuple(value[arg] for arg in self.arguments)
-		return self.function(*args)
+		kwargs = { name: value[arg] for name, arg in self.kwargs.items() }
+		return self.function(*args, **kwargs)
 
 	def evaluateInner(self, context):
-		self.function = valueInContext(self.function, context)
-		self.arguments = tuple(valueInContext(arg, context) for arg in self.arguments)
+		function = valueInContext(self.function, context)
+		arguments = tuple(valueInContext(arg, context) for arg in self.arguments)
+		kwargs = { name: valueInContext(arg, context) for name, arg in self.kwargs.items() }
+		return FunctionDistribution(function, arguments, kwargs)
 
 	def supportInterval(self):
 		if self.support is None:
 			return None, None
 		subsupports = (supportInterval(arg) for arg in self.arguments)
-		return self.support(*subsupports)
+		kwss = { name: supportInterval(arg) for name, arg in self.kwargs.items() }
+		return self.support(*subsupports, **kwss)
 
 	def __str__(self):
-		return f'{self.function.__name__}{argsToString(self.arguments)}'
+		args = argsToString(itertools.chain(self.arguments, self.kwargs.items()))
+		return f'{self.function.__name__}{args}'
 
 def distributionFunction(method, support=None):
-	def helper(*args):
+	"""Decorator for wrapping a function so that it can take distributions as arguments."""
+	def helper(*args, **kwargs):
 		args = tuple(toDistribution(arg, always=False) for arg in args)
-		if any(isinstance(arg, Distribution) for arg in args):
-			return FunctionDistribution(method, args, support)
+		kwargs = { name: toDistribution(arg, always=False) for name, arg in kwargs.items() }
+		if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
+			return FunctionDistribution(method, args, kwargs, support)
+		elif any(needsLazyEvaluation(arg) for arg in itertools.chain(args, kwargs.values())):
+			# recursively call this helper (not the original function), since the delayed
+			# arguments may evaluate to distributions, in which case we'll have to make a
+			# FunctionDistribution
+			return makeDelayedFunctionCall(helper, args, kwargs)
 		else:
-			return method(*args)
+			return method(*args, **kwargs)
 	helper._underlyingFunction = method
 	return helper
 
 def monotonicDistributionFunction(method):
-	def support(*subsupports):
+	"""Like distributionFunction, but additionally specifies that the function is monotonic."""
+	def support(*subsupports, **kwss):
 		mins, maxes = zip(*subsupports)
-		l = None if None in mins else method(*mins)
-		r = None if None in maxes else method(*maxes)
+		kwmins = { name: interval[0] for name, interval in kwss.items() }
+		kwmaxes = { name: interval[1] for name, interval in kwss.items() }
+		l = None if None in mins or None in kwmins else method(*mins, **kwmins)
+		r = None if None in maxes or None in kwmaxes else method(*maxes, **kwmaxes)
 		return l, r
 	return distributionFunction(method, support=support)
 
 class MethodDistribution(Distribution):
 	"""Distribution resulting from passing distributions to a method of a fixed object"""
-	def __init__(self, method, obj, args):
+	def __init__(self, method, obj, args, kwargs):
 		args = tuple(toDistribution(arg) for arg in args)
-		super().__init__(*args)
+		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
+		super().__init__(*args, *kwargs.values())
 		self.method = method
 		self.object = obj
 		self.arguments = args
+		self.kwargs = kwargs
 
 	def sampleGiven(self, value):
-		args = [value[arg] for arg in self.arguments]
-		return self.method(self.object, *args)
+		args = (value[arg] for arg in self.arguments)
+		kwargs = { name: value[arg] for name, arg in self.kwargs.items() }
+		return self.method(self.object, *args, **kwargs)
 
 	def evaluateInner(self, context):
-		self.object = valueInContext(self.object, context)
-		self.arguments = tuple(valueInContext(arg, context) for arg in self.arguments)
+		obj = valueInContext(self.object, context)
+		arguments = tuple(valueInContext(arg, context) for arg in self.arguments)
+		kwargs = { name: valueInContext(arg, context) for name, arg in self.kwargs.items() }
+		return MethodDistribution(self.method, obj, arguments, kwargs)
 
 	def __str__(self):
-		return f'{self.object}.{self.method.__name__}{argsToString(self.arguments)}'
+		args = argsToString(itertools.chain(self.arguments, self.kwargs.items()))
+		return f'{self.object}.{self.method.__name__}{args}'
 
 def distributionMethod(method):
-	def helper(self, *args):
+	"""Decorator for wrapping a method so that it can take distributions as arguments."""
+	def helper(self, *args, **kwargs):
 		args = tuple(toDistribution(arg, always=False) for arg in args)
-		if any(needsSampling(arg) for arg in args):
-			return MethodDistribution(method, self, args)
+		kwargs = { name: toDistribution(arg, always=False) for name, arg in kwargs.items() }
+		if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
+			return MethodDistribution(method, self, args, kwargs)
+		elif any(needsLazyEvaluation(arg) for arg in itertools.chain(args, kwargs.values())):
+			# see analogous comment in distributionFunction
+			return makeDelayedFunctionCall(helper, (self,) + args, kwargs)
 		else:
-			return method(self, *args)
+			return method(self, *args, **kwargs)
 	helper._underlyingFunction = method
 	return helper
 
 class AttributeDistribution(Distribution):
 	"""Distribution resulting from accessing an attribute of a distribution"""
 	def __init__(self, attribute, obj):
-		super(AttributeDistribution, self).__init__(obj)
+		super().__init__(obj)
 		self.attribute = attribute
 		self.object = obj
 
@@ -282,7 +304,8 @@ class AttributeDistribution(Distribution):
 		return getattr(obj, self.attribute)
 
 	def evaluateInner(self, context):
-		self.object = valueInContext(self.object, context)
+		obj = valueInContext(self.object, context)
+		return AttributeDistribution(self.attribute, obj)
 
 	def supportInterval(self):
 		obj = self.object
@@ -320,8 +343,9 @@ class OperatorDistribution(Distribution):
 		return result
 
 	def evaluateInner(self, context):
-		self.object = valueInContext(self.object, context)
-		self.operands = tuple(valueInContext(arg, context) for arg in self.operands)
+		obj = valueInContext(self.object, context)
+		operands = tuple(valueInContext(arg, context) for arg in self.operands)
+		return OperatorDistribution(self.operator, obj, operands)
 
 	def supportInterval(self):
 		if self.operator in ('__add__', '__radd__', '__sub__', '__rsub__', '__truediv__'):
@@ -351,6 +375,9 @@ class OperatorDistribution(Distribution):
 	def __str__(self):
 		return f'{self.object}.{self.operator}{argsToString(self.operands)}'
 
+# Operators which can be applied to distributions.
+# Note that we deliberately do not include comparisons and __bool__,
+# since Scenic does not allow control flow to depend on random variables.
 allowedOperators = [
 	'__neg__',
 	'__pos__',
@@ -367,7 +394,7 @@ allowedOperators = [
 	'__len__',
 	'__getitem__',
 	'__call__'
-	]
+]
 def makeOperatorHandler(op):
 	def handler(self, *args):
 		return OperatorDistribution(op, self, args)
@@ -398,8 +425,9 @@ class Range(Distribution):
 		return random.uniform(value[self.low], value[self.high])
 
 	def evaluateInner(self, context):
-		self.low = valueInContext(self.low, context)
-		self.high = valueInContext(self.high, context)
+		low = valueInContext(self.low, context)
+		high = valueInContext(self.high, context)
+		return Range(low, high)
 
 	def __str__(self):
 		return f'Range({self.low}, {self.high})'
@@ -420,8 +448,9 @@ class Normal(Distribution):
 		return random.gauss(value[self.mean], value[self.stddev])
 
 	def evaluateInner(self, context):
-		self.mean = valueInContext(self.mean, context)
-		self.stddev = valueInContext(self.stddev, context)
+		mean = valueInContext(self.mean, context)
+		stddev = valueInContext(self.stddev, context)
+		return Normal(mean, stddev)
 
 	def __str__(self):
 		return f'Normal({self.mean}, {self.stddev})'
@@ -465,7 +494,11 @@ class Options(Distribution):
 		return random.choices(opts, cum_weights=self.cumulativeWeights)[0]
 
 	def evaluateInner(self, context):
-		self.options = [valueInContext(opt, context) for opt in self.options]
+		if self.cumulativeWeights is not None:
+			return Options({ valueInContext(opt, context): wt
+			               for opt, wt in self.weights.items() })
+		else:
+			return Options([valueInContext(opt, context) for opt in self.options])
 
 	def __str__(self):
 		if self.cumulativeWeights is not None:

@@ -5,13 +5,14 @@ import math
 from math import sin, cos
 import random
 import collections
+import itertools
 
 import shapely.geometry
 
 from scenic.core.distributions import Samplable, Distribution, MethodDistribution
 from scenic.core.distributions import needsSampling, makeOperatorHandler
 from scenic.core.distributions import distributionMethod
-from scenic.core.specifiers import valueInContext
+from scenic.core.specifiers import valueInContext, needsLazyEvaluation, makeDelayedFunctionCall
 import scenic.core.utils as utils
 from scenic.core.geometry import normalizeAngle
 
@@ -35,7 +36,7 @@ class CustomVectorDistribution(VectorDistribution):
 	def evaluateInner(self, context):
 		if self.evaluator is None:
 			raise NotImplementedError('evaluateIn() not supported by this distribution')
-		self.evaluator(self, context)
+		return self.evaluator(self, context)
 
 	def __str__(self):
 		deps = utils.argsToString(self.dependencies)
@@ -55,40 +56,45 @@ class VectorOperatorDistribution(VectorDistribution):
 		return op(*rest)
 
 	def evaluateInner(self, context):
-		self.object = valueInContext(self.object, context)
-		self.operands = tuple(valueInContext(arg, context) for arg in self.operands)
+		obj = valueInContext(self.object, context)
+		operands = tuple(valueInContext(arg, context) for arg in self.operands)
+		return VectorOperatorDistribution(self.operator, obj, operands)
 
 	def __str__(self):
 		ops = utils.argsToString(self.operands)
 		return f'{self.object}.{self.operator}{ops}'
 
 class VectorMethodDistribution(VectorDistribution):
-	def __init__(self, method, obj, args):
-		super().__init__(*args)
+	def __init__(self, method, obj, args, kwargs):
+		super().__init__(*args, *kwargs.values())
 		self.method = method
 		self.object = obj
 		self.arguments = args
+		self.kwargs = kwargs
 
 	def sampleGiven(self, value):
-		args = [value[arg] for arg in self.arguments]
-		return self.method(self.object, *args)
+		args = (value[arg] for arg in self.arguments)
+		kwargs = { name: value[arg] for name, arg in self.kwargs.items() }
+		return self.method(self.object, *args, **kwargs)
 
 	def evaluateInner(self, context):
-		self.object = valueInContext(self.object, context)
-		self.arguments = tuple(valueInContext(arg, context) for arg in self.arguments)
+		obj = valueInContext(self.object, context)
+		arguments = tuple(valueInContext(arg, context) for arg in self.arguments)
+		kwargs = { name: valueInContext(arg, context) for name, arg in self.kwargs.items() }
+		return VectorMethodDistribution(self.method, obj, arguments, kwargs)
 
 	def __str__(self):
-		args = utils.argsToString(self.arguments)
+		args = utils.argsToString(itertools.chain(self.arguments, self.kwargs.values()))
 		return f'{self.object}.{self.method.__name__}{args}'
 
 def scalarOperator(method):
 	op = method.__name__
 	setattr(VectorDistribution, op, makeOperatorHandler(op))
-	def handler2(self, *args):
-		if any(needsSampling(arg) for arg in args):
-			return MethodDistribution(method, self, args)
+	def handler2(self, *args, **kwargs):
+		if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
+			return MethodDistribution(method, self, args, kwargs)
 		else:
-			return method(self, *args)
+			return method(self, *args, **kwargs)
 	return handler2
 
 def makeVectorOperatorHandler(op):
@@ -102,17 +108,24 @@ def vectorOperator(method):
 		if needsSampling(self):
 			return VectorOperatorDistribution(op, self, args)
 		elif any(needsSampling(arg) for arg in args):
-			return VectorMethodDistribution(method, self, args)
+			return VectorMethodDistribution(method, self, args, {})
+		elif any(needsLazyEvaluation(arg) for arg in args):
+			# see analogous comment in distributionFunction
+			return makeDelayedFunctionCall(handler2, args, {})
 		else:
 			return method(self, *args)
 	return handler2
 
 def vectorDistributionMethod(method):
-	def helper(self, *args):
-		if any(needsSampling(arg) for arg in args):
-			return VectorMethodDistribution(method, self, args)
+	def helper(self, *args, **kwargs):
+		if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
+			return VectorMethodDistribution(method, self, args, kwargs)
+		elif any(needsLazyEvaluation(arg) for arg in itertools.chain(args, kwargs.values())):
+			# see analogous comment in distributionFunction
+			return makeDelayedFunctionCall(helper, (self,) + args, kwargs)
 		else:
-			return method(self, *args)
+			return method(self, *args, **kwargs)
+	helper._underlyingFunction = method
 	return helper
 
 class Vector(Samplable, collections.abc.Sequence):
@@ -133,6 +146,9 @@ class Vector(Samplable, collections.abc.Sequence):
 
 	def sampleGiven(self, value):
 		return Vector(*(value[coord] for coord in self.coordinates))
+
+	def evaluateInner(self, context):
+		return Vector(*(valueInContext(coord, context) for coord in self.coordinates))
 
 	@vectorOperator
 	def rotatedBy(self, angle):

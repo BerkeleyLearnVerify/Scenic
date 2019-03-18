@@ -1,42 +1,59 @@
 
 ### Specifiers and associated objects
 
+import itertools
+
 from scenic.core.utils import RuntimeParseError
 
 ## Support for lazy evaluation of specifiers
 
-class DelayedArgument:
-	"""Specifier arguments requiring other properties to be evaluated first."""
-	def __init__(self, deps, value):
-		self.value = value
-		self.requiredProperties = deps
-		self.evaluated = False
+class LazilyEvaluable:
+	"""Values which may require evaluation in the context of an object being constructed.
 
-	def copy(self):
-		return DelayedArgument(self.requiredProperties, self.value)
+	If a LazilyEvaluable specifies any properties it depends on, then it cannot be evaluated to a
+	normal value except during the construction of an object which already has values for those
+	properties.
+	"""
+	def __init__(self, requiredProps):
+		self._dependencies = ()		# TODO improve?
+		self._requiredProperties = set(requiredProps)
 
 	def evaluateIn(self, context):
-		"""Evaluate this argument in the context of an object being constructed.
+		"""Evaluate this value in the context of an object being constructed.
 
-		The object must define all of the properties on which this argument depends.
+		The object must define all of the properties on which this value depends.
 		"""
-		if not self.evaluated:
-			assert all(hasattr(context, dep) for dep in self.requiredProperties)
-			self.value = valueInContext(self.value(context), context)
-			self.evaluated = True
-			self.requiredProperties = set()
-		return self.value
+		assert all(hasattr(context, prop) for prop in self._requiredProperties)
+		value = self.evaluateInner(context)
+		assert not needsLazyEvaluation(value)	# value should not require further evaluation
+		return value
+
+	def evaluateInner(self, context):
+		"""Actually evaluate in the given context, which provides all required properties."""
+		return self
+
+class DelayedArgument(LazilyEvaluable):
+	"""Specifier arguments requiring other properties to be evaluated first."""
+	def __init__(self, requiredProps, value):
+		self.value = value
+		super().__init__(requiredProps)
+
+	def evaluateInner(self, context):
+		return self.value(context)
 
 	def __getattr__(self, name):
-		return DelayedArgument(self.requiredProperties,
+		return DelayedArgument(self._requiredProperties,
 			lambda context: getattr(self.evaluateIn(context), name))
 
-	def __call__(self, *args):
+	def __call__(self, *args, **kwargs):
 		dargs = [toDelayedArgument(arg) for arg in args]
-		props = self.requiredProperties.union(*(darg.requiredProperties for darg in dargs))
+		kwdargs = { name: toDelayedArgument(arg) for name, arg in kwargs.items() }
+		subprops = (darg._requiredProperties for darg in itertools.chain(dargs, kwdargs.values()))
+		props = self._requiredProperties.union(*subprops)
 		def value(context):
 			subvalues = (darg.evaluateIn(context) for darg in dargs)
-			return self.evaluateIn(context)(*subvalues)
+			kwsvs = { name: darg.evaluateIn(context) for name, darg in kwdargs.items() }
+			return self.evaluateIn(context)(*subvalues, **kwsvs)
 		return DelayedArgument(props, value)
 
 # Operators which can be applied to DelayedArguments
@@ -62,7 +79,7 @@ allowedOperators = [
 def makeDelayedOperatorHandler(op):
 	def handler(self, *args):
 		dargs = [toDelayedArgument(arg) for arg in args]
-		props = self.requiredProperties.union(*(darg.requiredProperties for darg in dargs))
+		props = self._requiredProperties.union(*(darg._requiredProperties for darg in dargs))
 		def value(context):
 			subvalues = (darg.evaluateIn(context) for darg in dargs)
 			return getattr(self.evaluateIn(context), op)(*subvalues)
@@ -70,6 +87,17 @@ def makeDelayedOperatorHandler(op):
 	return handler
 for op in allowedOperators:
 	setattr(DelayedArgument, op, makeDelayedOperatorHandler(op))
+
+def makeDelayedFunctionCall(func, args, kwargs):
+	dargs = [toDelayedArgument(arg) for arg in args]
+	kwdargs = { name: toDelayedArgument(arg) for name, arg in kwargs.items() }
+	props = set().union(*(darg._requiredProperties
+	                      for darg in itertools.chain(dargs, kwdargs.values())))
+	def value(context):
+		subvalues = (darg.evaluateIn(context) for darg in dargs)
+		kwsubvals = { name: darg.evaluateIn(context) for name, darg in kwdargs.items() }
+		return func(*subvalues, **kwsubvals)
+	return DelayedArgument(props, value)
 
 def valueInContext(value, context):
 	"""Evaluate something in the context of an object being constructed."""
@@ -84,9 +112,12 @@ def toDelayedArgument(thing):
 	return DelayedArgument(set(), lambda context: thing)
 
 def requiredProperties(thing):
-	if hasattr(thing, 'requiredProperties'):
-		return thing.requiredProperties
+	if hasattr(thing, '_requiredProperties'):
+		return thing._requiredProperties
 	return set()
+
+def needsLazyEvaluation(thing):
+	return isinstance(thing, DelayedArgument) or requiredProperties(thing)
 
 ## Specifiers themselves
 
@@ -97,18 +128,19 @@ class Specifier:
 	"""
 	def __init__(self, prop, value, deps=None, optionals={}):
 		self.property = prop
-		self.value = toDelayedArgument(value).copy()	# TODO improve?
+		self.value = toDelayedArgument(value)
 		if deps is None:
 			deps = set()
 		deps |= requiredProperties(value)
-		assert prop not in deps
+		if prop in deps:
+			raise RuntimeParseError(f'specifier for property {prop} depends on itself')
 		self.requiredProperties = deps
 		self.optionals = optionals
 
 	def applyTo(self, obj, optionals):
 		"""Apply specifier to an object, including the specified optional properties."""
 		val = self.value.evaluateIn(obj)
-		assert not isinstance(val, DelayedArgument)
+		assert not needsLazyEvaluation(val)
 		setattr(obj, self.property, val)
 		for opt in optionals:
 			assert opt in self.optionals

@@ -8,7 +8,7 @@ from scenic.core.distributions import Samplable, MethodDistribution, OperatorDis
 from scenic.core.distributions import needsSampling, supportInterval, underlyingFunction
 from scenic.core.object_types import Point, Object
 from scenic.core.geometry import normalizeAngle, polygonUnion, plotPolygon
-from scenic.core.vectors import VectorField, PolygonalVectorField
+from scenic.core.vectors import VectorField, PolygonalVectorField, VectorMethodDistribution
 from scenic.core.workspaces import Workspace
 from scenic.syntax.relations import RelativeHeadingRelation
 import scenic.core.regions as regions
@@ -18,7 +18,7 @@ def currentPropValue(obj, prop):
     return value._conditioned if isinstance(value, Samplable) else value
 
 def isMethodCall(thing, method):
-    if not isinstance(thing, MethodDistribution):
+    if not isinstance(thing, (MethodDistribution, VectorMethodDistribution)):
         return False
     return thing.method is underlyingFunction(method)
 

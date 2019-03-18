@@ -117,7 +117,7 @@ class Constructible(Samplable):
 			val = getattr(self, prop)
 			if needsSampling(val):
 				deps.append(val)
-		Samplable.__init__(self, deps)
+		super().__init__(deps)
 		self.properties = properties
 
 	def sampleGiven(self, value):

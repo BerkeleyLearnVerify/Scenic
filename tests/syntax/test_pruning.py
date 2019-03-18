@@ -12,7 +12,7 @@ def test_containment():
         'ego = Object in workspace'
     )
     # Sampling should only require 1 iteration after pruning
-    xs = [sampleEgo(scenario).position.x for i in range(100)]
+    xs = [sampleEgo(scenario).position.x for i in range(60)]
     assert all(0.5 <= x <= 1.5 for x in xs)
     assert any(0.5 <= x <= 0.7 or 1.3 <= x <= 1.5 for x in xs)
 
@@ -27,6 +27,6 @@ def test_relative_heading():
         'require (relative heading of other) >= 60 deg'     # Forces ego in cell 1, other in cell 2
     )
     # Sampling should only require 1 iteration after pruning
-    xs = [sampleEgo(scenario).position.x for i in range(100)]
+    xs = [sampleEgo(scenario).position.x for i in range(60)]
     assert all(0 <= x <= 10 for x in xs)
     assert any(x > 5 for x in xs)

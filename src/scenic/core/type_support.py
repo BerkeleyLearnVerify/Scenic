@@ -1,12 +1,14 @@
 
 ### Support for checking Scenic types
 
+import sys
 import inspect
 
 import numpy as np
 
 from scenic.core.distributions import Distribution
-from scenic.core.specifiers import DelayedArgument, valueInContext
+from scenic.core.specifiers import (DelayedArgument, valueInContext, requiredProperties,
+                                    needsLazyEvaluation)
 from scenic.core.vectors import Vector
 from scenic.core.utils import RuntimeParseError
 
@@ -85,11 +87,12 @@ def coerceToAny(thing, types, error):
 	for ty in types:
 		if canCoerce(thing, ty):
 			return coerce(thing, ty)
-	print(f'Failed to coerce {thing} to {types}')
+	print(f'Failed to coerce {thing} of type {underlyingType(thing)} to {types}', file=sys.stderr)
 	raise RuntimeParseError(error)
 
 def toTypes(thing, types, typeError='wrong type'):
-	if isinstance(thing, DelayedArgument):
+	if needsLazyEvaluation(thing):
+		# cannot check the type now; create proxy object to check type after evaluation
 		return TypeChecker(thing, types, typeError)
 	else:
 		return coerceToAny(thing, types, typeError)
@@ -107,7 +110,7 @@ def toVector(thing, typeError='non-vector in vector context'):
 	return toType(thing, Vector, typeError)
 
 def valueRequiringEqualTypes(val, thingA, thingB, typeError='type mismatch'):
-	if not isinstance(thingA, DelayedArgument) and not isinstance(thingB, DelayedArgument):
+	if not needsLazyEvaluation(thingA) and not needsLazyEvaluation(thingB):
 		if underlyingType(thingA) is not underlyingType(thingB):
 			raise RuntimeParseError(typeError)
 		return val
@@ -119,7 +122,7 @@ class TypeChecker(DelayedArgument):
 		def check(context):
 			val = arg.evaluateIn(context)
 			return coerceToAny(val, types, error)
-		super().__init__(arg.requiredProperties, check)
+		super().__init__(requiredProperties(arg), check)
 		self.inner = arg
 		self.types = types
 
@@ -134,11 +137,10 @@ class TypeEqualityChecker(DelayedArgument):
 		def check(context):
 			ca = valueInContext(checkA, context)
 			cb = valueInContext(checkB, context)
-			assert not requiredProperties(ca) and not requiredProperties(cb)
 			if underlyingType(ca) is not underlyingType(cb):
 				raise RuntimeParseError(error)
 			return arg.evaluateIn(context)
-		super().__init__(arg.requiredProperties, check)
+		super().__init__(requiredProperties(arg), check)
 		self.inner = arg
 		self.checkA = checkA
 		self.checkB = checkB

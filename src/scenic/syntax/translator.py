@@ -30,6 +30,7 @@ from ast import Load, Store, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, B
 from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Num, Subscript, Index
 
 from scenic.core.distributions import Samplable, needsSampling
+from scenic.core.specifiers import needsLazyEvaluation
 from scenic.core.workspaces import Workspace
 from scenic.core.scenarios import Scenario
 from scenic.core.object_types import Constructible
@@ -947,6 +948,10 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 
 	# extract global parameters
 	namespace['_params'] = veneer.globalParameters
+	for name, value in veneer.globalParameters.items():
+		if needsLazyEvaluation(value):
+			raise InvalidScenarioError(f'parameter {name} uses value {value}'
+			                           ' undefined outside of object definition')
 
 	# extract requirements and create proper closures
 	requirements = veneer.pendingRequirements
@@ -978,6 +983,9 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 		for value in bindings.values():
 			if needsSampling(value):
 				requirementDeps.add(value)
+			if needsLazyEvaluation(value):
+				raise InvalidScenarioError(f'requirement on line {line} uses value {value}'
+				                           ' undefined outside of object definition')
 		if ego is not None:
 			assert isinstance(ego, Samplable)
 			requirementDeps.add(ego)
@@ -985,6 +993,7 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 		finalReqs.append((makeClosure(req, bindings, ego, line), prob))
 
 def constructScenarioFrom(namespace):
+	# extract ego object
 	if namespace['_egoObject'] is None:
 		raise InvalidScenarioError('did not specify ego object')
 
@@ -993,6 +1002,11 @@ def constructScenarioFrom(namespace):
 		workspace = namespace['workspace']
 		if not isinstance(workspace, Workspace):
 			raise InvalidScenarioError(f'workspace {workspace} is not a Workspace')
+		if needsSampling(workspace):
+			raise InvalidScenarioError('workspace must be a fixed region')
+		if needsLazyEvaluation(workspace):
+			raise InvalidScenarioError('workspace uses value undefined '
+			                           'outside of object definition')
 	else:
 		workspace = None
 

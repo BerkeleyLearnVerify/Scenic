@@ -12,6 +12,7 @@ import Polygon as PolygonLib	# TODO remove dependency (see triangulatePolygon)
 
 from scenic.core.distributions import (needsSampling, distributionFunction,
                                        monotonicDistributionFunction)
+from scenic.core.specifiers import needsLazyEvaluation
 import scenic.core.utils as utils
 
 @distributionFunction
@@ -243,7 +244,7 @@ class RotatedRectangle:
 	@property
 	@utils.cached
 	def polygon(self):
-		if needsSampling(self):
+		if needsSampling(self) or needsLazyEvaluation(self):
 			return None		# can only convert fixed Regions to Polygons
 		# TODO refactor???
 		corners = [(x, y) for x, y in self.corners]		# convert Vectors to tuples

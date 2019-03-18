@@ -11,6 +11,7 @@ import shapely.geometry
 import shapely.ops
 
 from scenic.core.distributions import Samplable, RejectionException, needsSampling
+from scenic.core.specifiers import valueInContext
 from scenic.core.vectors import Vector, OrientedVector, VectorDistribution
 from scenic.core.geometry import RotatedRectangle
 from scenic.core.geometry import sin, cos, hypot, findMinMax, pointIsInCone, averageVectors
@@ -126,6 +127,11 @@ class CircularRegion(Region):
 	def sampleGiven(self, value):
 		return CircularRegion(value[self.center], value[self.radius])
 
+	def evaluateInner(self, context):
+		center = valueInContext(self.center, context)
+		radius = valueInContext(self.radius, context)
+		return CircularRegion(center, radius)
+
 	def containsPoint(self, point):
 		point = point.toVector()
 		return point.distanceTo(self.center) <= self.radius
@@ -157,6 +163,13 @@ class SectorRegion(Region):
 	def sampleGiven(self, value):
 		return SectorRegion(value[self.center], value[self.radius],
 			value[self.heading], value[self.angle])
+
+	def evaluateInner(self, context):
+		center = valueInContext(self.center, context)
+		radius = valueInContext(self.radius, context)
+		heading = valueInContext(self.heading, context)
+		angle = valueInContext(self.angle, context)
+		return SectorRegion(center, radius, heading, angle)
 
 	def containsPoint(self, point):
 		point = point.toVector()
@@ -192,6 +205,13 @@ class RectangularRegion(RotatedRectangle, Region):
 	def sampleGiven(self, value):
 		return RectangularRegion(value[self.position], value[self.heading],
 			value[self.width], value[self.height])
+
+	def evaluateInner(self, context):
+		position = valueInContext(self.position, context)
+		heading = valueInContext(self.heading, context)
+		width = valueInContext(self.width, context)
+		height = valueInContext(self.height, context)
+		return RectangularRegion(position, heading, width, height)
 
 	def uniformPointInner(self):
 		hw, hh = self.hw, self.hh
@@ -468,6 +488,11 @@ class IntersectionRegion(Region):
 		regs = (value[reg] for reg in self.regions)
 		return IntersectionRegion(*regs, orientation=value[self.orientation],
 		                          sampler=self.sampler)
+
+	def evaluateInner(self, context):
+		regs = (valueInContext(reg, context) for reg in self.regions)
+		orientation = valueInContext(self.orientation, context)
+		return IntersectionRegion(*regs, orientation=orientation, sampler=self.sampler)
 
 	def containsPoint(self, point):
 		return all(region.containsPoint(point) for region in self.regions)

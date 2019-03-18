@@ -11,7 +11,8 @@ def cached(oldMethod):
     return newMethod
 
 def argsToString(args):
-    joinedArgs = ', '.join(str(a) for a in args)
+    names = (f'{a[0]}={a[1]}' if isinstance(a, tuple) else str(a) for a in args)
+    joinedArgs = ', '.join(names)
     return f'({joinedArgs})'
 
 class ParseError(Exception):

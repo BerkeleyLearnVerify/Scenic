@@ -16,6 +16,13 @@ def test_cyclic_dependency():
     with pytest.raises(InterpreterParseError):
         compileScenic('ego = Object left of 0 @ 0, facing toward 1 @ 1')
 
+def test_lazy_cyclic_dependency():
+    with pytest.raises(InterpreterParseError):
+        compileScenic(
+            'vf = VectorField("Foo", lambda pos: 3 * pos.x)\n'
+            'ego = Object at 0 @ (0 relative to vf)'
+        )
+
 def test_default_dependency():
     ego = sampleEgoFrom('ego = Object facing toward -1 @ 1')
     assert tuple(ego.position) == (0, 0)
