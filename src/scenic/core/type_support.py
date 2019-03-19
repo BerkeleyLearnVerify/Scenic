@@ -17,6 +17,7 @@ from scenic.core.utils import RuntimeParseError
 # coercible to a scalar:
 #   float
 #   int (by conversion to float)
+#	numpy real scalar types (likewise)
 # coercible to a heading:
 #	anything coercible to a scalar
 #	anything with a toHeading() method
@@ -27,11 +28,14 @@ from scenic.core.utils import RuntimeParseError
 #
 # Finally, Distributions are coercible to T iff their valueType is.
 
+## Basic types
+
 class Heading:
 	"""Dummy class used as a target for type coercions to headings."""
 	pass
 
 def underlyingType(thing):
+	"""What type this value ultimately evaluates to, if we can tell."""
 	if isinstance(thing, Distribution):
 		return thing.valueType
 	elif isinstance(thing, TypeChecker) and len(thing.types) == 1:
@@ -40,9 +44,11 @@ def underlyingType(thing):
 		return type(thing)
 
 def isA(thing, ty):
+	"""Does this evaluate to a member of the given Scenic type?"""
 	return issubclass(underlyingType(thing), ty)
 
 def unifyingType(opts):		# TODO improve?
+	"""Most specific type unifying the given types."""
 	types = [underlyingType(opt) for opt in opts]
 	if all(issubclass(ty, (float, int)) for ty in types):
 		return float
@@ -52,7 +58,10 @@ def unifyingType(opts):		# TODO improve?
 			return parent
 	raise RuntimeError(f'broken MRO for types {types}')
 
+## Type coercions (for internal use -- see the type checking API below)
+
 def canCoerceType(typeA, typeB):
+	"""Can values of typeA be coerced into typeB?"""
 	if typeB is float:
 		if issubclass(typeA, (float, int)):
 			return True
@@ -67,10 +76,12 @@ def canCoerceType(typeA, typeB):
 		return issubclass(typeA, typeB)
 
 def canCoerce(thing, ty):
+	"""Can this value be coerced into the given type?"""
 	tt = underlyingType(thing)
 	return canCoerceType(tt, ty)
 
 def coerce(thing, ty):
+	"""Coerce something into the given type."""
 	assert canCoerce(thing, ty), (thing, ty)
 	if isinstance(thing, Distribution):
 		return thing
@@ -84,13 +95,17 @@ def coerce(thing, ty):
 		return thing
 
 def coerceToAny(thing, types, error):
+	"""Coerce something into any of the given types, printing an error if impossible."""
 	for ty in types:
 		if canCoerce(thing, ty):
 			return coerce(thing, ty)
 	print(f'Failed to coerce {thing} of type {underlyingType(thing)} to {types}', file=sys.stderr)
 	raise RuntimeParseError(error)
 
+## Top-level type checking/conversion API
+
 def toTypes(thing, types, typeError='wrong type'):
+	"""Convert something to any of the given types, printing an error if possible."""
 	if needsLazyEvaluation(thing):
 		# cannot check the type now; create proxy object to check type after evaluation
 		return TypeChecker(thing, types, typeError)
@@ -98,24 +113,31 @@ def toTypes(thing, types, typeError='wrong type'):
 		return coerceToAny(thing, types, typeError)
 
 def toType(thing, ty, typeError='wrong type'):
+	"""Convert something to a given type, printing an error if impossible."""
 	return toTypes(thing, (ty,), typeError)
 
 def toScalar(thing, typeError='non-scalar in scalar context'):
+	"""Convert something to a scalar, printing an error if impossible."""
 	return toType(thing, float, typeError)
 
 def toHeading(thing, typeError='non-heading in heading context'):
+	"""Convert something to a heading, printing an error if impossible."""
 	return toType(thing, Heading, typeError)
 
 def toVector(thing, typeError='non-vector in vector context'):
+	"""Convert something to a vector, printing an error if impossible."""
 	return toType(thing, Vector, typeError)
 
 def valueRequiringEqualTypes(val, thingA, thingB, typeError='type mismatch'):
+	"""Return the value, assuming thingA and thingB have the same type."""
 	if not needsLazyEvaluation(thingA) and not needsLazyEvaluation(thingB):
 		if underlyingType(thingA) is not underlyingType(thingB):
 			raise RuntimeParseError(typeError)
 		return val
 	else:
 		return TypeEqualityChecker(val, thingA, thingB, typeError)
+
+## Proxy objects for lazy type checking
 
 class TypeChecker(DelayedArgument):
 	def __init__(self, arg, types, error):

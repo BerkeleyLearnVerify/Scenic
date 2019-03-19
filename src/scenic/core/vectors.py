@@ -17,13 +17,14 @@ import scenic.core.utils as utils
 from scenic.core.geometry import normalizeAngle
 
 class VectorDistribution(Distribution):
+	"""A distribution over Vectors."""
 	defaultValueType = None		# will be set after Vector is defined
 
 	def toVector(self):
 		return self
 
 class CustomVectorDistribution(VectorDistribution):
-	"""Distribution with a custom sampler given by an arbitrary function"""
+	"""Distribution with a custom sampler given by an arbitrary function."""
 	def __init__(self, sampler, *dependencies, name='CustomVectorDistribution', evaluator=None):
 		super().__init__(*dependencies)
 		self.sampler = sampler
@@ -43,6 +44,7 @@ class CustomVectorDistribution(VectorDistribution):
 		return f'{self.name}{deps}'
 
 class VectorOperatorDistribution(VectorDistribution):
+	"""Vector version of OperatorDistribution."""
 	def __init__(self, operator, obj, operands):
 		super().__init__(obj, *operands)
 		self.operator = operator
@@ -65,6 +67,7 @@ class VectorOperatorDistribution(VectorDistribution):
 		return f'{self.object}.{self.operator}{ops}'
 
 class VectorMethodDistribution(VectorDistribution):
+	"""Vector version of MethodDistribution."""
 	def __init__(self, method, obj, args, kwargs):
 		super().__init__(*args, *kwargs.values())
 		self.method = method
@@ -88,6 +91,7 @@ class VectorMethodDistribution(VectorDistribution):
 		return f'{self.object}.{self.method.__name__}{args}'
 
 def scalarOperator(method):
+	"""Decorator for vector operators that yield scalars."""
 	op = method.__name__
 	setattr(VectorDistribution, op, makeOperatorHandler(op))
 	def handler2(self, *args, **kwargs):
@@ -102,6 +106,7 @@ def makeVectorOperatorHandler(op):
 		return VectorOperatorDistribution(op, self, args)
 	return handler
 def vectorOperator(method):
+	"""Decorator for vector operators that yield vectors."""
 	op = method.__name__
 	setattr(VectorDistribution, op, makeVectorOperatorHandler(op))
 	def handler2(self, *args):
@@ -117,6 +122,7 @@ def vectorOperator(method):
 	return handler2
 
 def vectorDistributionMethod(method):
+	"""Decorator for methods that produce vectors. See distributionMethod."""
 	def helper(self, *args, **kwargs):
 		if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
 			return VectorMethodDistribution(method, self, args, kwargs)
@@ -129,6 +135,7 @@ def vectorDistributionMethod(method):
 	return helper
 
 class Vector(Samplable, collections.abc.Sequence):
+	"""A 2D vector, whose coordinates can be distributions."""
 	def __init__(self, x, y):
 		self.coordinates = (x, y)
 		super().__init__(self.coordinates)
@@ -152,6 +159,7 @@ class Vector(Samplable, collections.abc.Sequence):
 
 	@vectorOperator
 	def rotatedBy(self, angle):
+		"""Return a vector equal to this one rotated counterclockwise by the given angle."""
 		x, y = self.x, self.y
 		c, s = cos(angle), sin(angle)
 		return Vector((c * x) - (s * y), (s * x) + (c * y))

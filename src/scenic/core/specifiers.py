@@ -33,7 +33,11 @@ class LazilyEvaluable:
 		return self
 
 class DelayedArgument(LazilyEvaluable):
-	"""Specifier arguments requiring other properties to be evaluated first."""
+	"""Specifier arguments requiring other properties to be evaluated first.
+
+	The value of a DelayedArgument is given by a function mapping the context (object under
+	construction) to a value.
+	"""
 	def __init__(self, requiredProps, value):
 		self.value = value
 		super().__init__(requiredProps)
@@ -89,6 +93,7 @@ for op in allowedOperators:
 	setattr(DelayedArgument, op, makeDelayedOperatorHandler(op))
 
 def makeDelayedFunctionCall(func, args, kwargs):
+	"""Utility function for creating a lazily-evaluated function call."""
 	dargs = [toDelayedArgument(arg) for arg in args]
 	kwdargs = { name: toDelayedArgument(arg) for name, arg in kwargs.items() }
 	props = set().union(*(darg._requiredProperties
