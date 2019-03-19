@@ -35,6 +35,7 @@ from scenic.core.workspaces import Workspace
 from scenic.core.scenarios import Scenario
 from scenic.core.object_types import Constructible
 from scenic.core.utils import ParseError, RuntimeParseError
+from scenic.core.external_params import ExternalSampler
 import scenic.core.pruning as pruning
 import scenic.syntax.veneer as veneer
 import scenic.syntax.relations as relations
@@ -382,6 +383,7 @@ def hooked_import(*args, **kwargs):
 		if veneer.isActive():
 			veneer.allObjects.extend(module._objects)
 			veneer.globalParameters.update(module._params)
+			veneer.externalParameters.extend(module._externalParams)
 			veneer.inheritedReqs.extend(module._requirements)
 	return module
 
@@ -953,6 +955,9 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 			raise InvalidScenarioError(f'parameter {name} uses value {value}'
 			                           ' undefined outside of object definition')
 
+	# extract external parameters
+	namespace['_externalParams'] = tuple(veneer.externalParameters)
+
 	# extract requirements and create proper closures
 	requirements = veneer.pendingRequirements
 	finalReqs = veneer.inheritedReqs
@@ -1010,10 +1015,15 @@ def constructScenarioFrom(namespace):
 	else:
 		workspace = None
 
+	# configure external sampler, if needed
+	params = namespace['_externalParams']
+	externalSampler = ExternalSampler.forParameters(params)
+
 	scenario = Scenario(workspace,
 	                    namespace['_objects'], namespace['_egoObject'],
 	                    namespace['_params'],
-	                    namespace['_requirements'], namespace['_requirementDeps'])
+	                    namespace['_requirements'], namespace['_requirementDeps'],
+	                    externalSampler)
 
 	if usePruning:
 		pruning.prune(scenario, verbosity=verbosity)

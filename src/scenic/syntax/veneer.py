@@ -47,8 +47,10 @@ from scenic.core.distributions import Distribution
 from scenic.core.type_support import isA, toType, toTypes, toScalar, toHeading, toVector
 from scenic.core.type_support import valueRequiringEqualTypes, underlyingType
 from scenic.core.geometry import RotatedRectangle, normalizeAngle, apparentHeadingAtPoint
+from scenic.core.object_types import Constructible
 from scenic.core.specifiers import Specifier, DelayedArgument
 from scenic.core.utils import RuntimeParseError
+from scenic.core.external_params import ExternalParameter
 
 ### Internals
 
@@ -56,6 +58,7 @@ activity = 0
 allObjects = []		# ordered for reproducibility
 egoObject = None
 globalParameters = {}
+externalParameters = []		# ordered for reproducibility
 pendingRequirements = {}
 inheritedReqs = []		# TODO improve handling of these?
 
@@ -67,19 +70,26 @@ def activate():
 	activity += 1
 
 def deactivate():
-	global activity, allObjects, egoObject, globalParameters
+	global activity, allObjects, egoObject, globalParameters, externalParameters
 	global pendingRequirements, inheritedReqs
 	activity -= 1
 	assert activity >= 0
 	allObjects = []
 	egoObject = None
 	globalParameters = {}
+	externalParameters = []
 	pendingRequirements = {}
 	inheritedReqs = []
 
 def registerObject(obj):
 	if activity > 0:
+		assert isinstance(obj, Constructible)
 		allObjects.append(obj)
+
+def registerExternalParameter(value):
+	if activity > 0:
+		assert isinstance(value, ExternalParameter)
+		externalParameters.append(value)
 
 ### Primitive statements and functions
 

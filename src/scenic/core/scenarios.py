@@ -32,7 +32,8 @@ class Scenario:
 	def __init__(self, workspace,
 	             objects, egoObject,
 	             params,
-	             requirements, requirementDeps):
+	             requirements, requirementDeps,
+	             externalSampler):
 		if workspace is None:
 			workspace = Workspace()		# default empty workspace
 		self.workspace = workspace
@@ -46,6 +47,7 @@ class Scenario:
 		self.egoObject = egoObject
 		self.params = dict(params)
 		self.requirements = tuple(requirements)
+		self.externalSampler = externalSampler
 		# dependencies must use fixed order for reproducibility
 		paramDeps = tuple(p for p in self.params.values() if isinstance(p, Samplable))
 		self.dependencies = self.objects + paramDeps + tuple(requirementDeps)
@@ -72,6 +74,8 @@ class Scenario:
 				raise RuntimeError(f'failed to generate scenario in {iterations} iterations')
 			iterations += 1
 			try:
+				if self.externalSampler is not None:
+					self.externalSampler.sample()
 				sample = Samplable.sampleAll(self.dependencies)
 			except RejectionException as e:
 				rejection = e
