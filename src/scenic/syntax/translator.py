@@ -34,7 +34,7 @@ from scenic.core.specifiers import needsLazyEvaluation
 from scenic.core.workspaces import Workspace
 from scenic.core.scenarios import Scenario
 from scenic.core.object_types import Constructible
-from scenic.core.utils import ParseError, RuntimeParseError
+from scenic.core.utils import ParseError, RuntimeParseError, InvalidScenarioError
 from scenic.core.external_params import ExternalSampler
 import scenic.core.pruning as pruning
 import scenic.syntax.veneer as veneer
@@ -940,9 +940,6 @@ def executeCodeIn(code, namespace, lineMap, filename):
 
 ### TRANSLATION PHASE SEVEN: scenario construction
 
-class InvalidScenarioError(Exception):
-	pass
-
 def storeScenarioStateIn(namespace, requirementSyntax, filename):
 	# extract created Objects
 	namespace['_objects'] = tuple(veneer.allObjects)
@@ -1016,12 +1013,13 @@ def constructScenarioFrom(namespace):
 		workspace = None
 
 	# configure external sampler, if needed
-	params = namespace['_externalParams']
-	externalSampler = ExternalSampler.forParameters(params)
+	externalParams = namespace['_externalParams']
+	globalParams = namespace['_params']
+	externalSampler = ExternalSampler.forParameters(externalParams, globalParams)
 
 	scenario = Scenario(workspace,
 	                    namespace['_objects'], namespace['_egoObject'],
-	                    namespace['_params'],
+	                    globalParams,
 	                    namespace['_requirements'], namespace['_requirementDeps'],
 	                    externalSampler)
 

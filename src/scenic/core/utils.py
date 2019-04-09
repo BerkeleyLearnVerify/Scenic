@@ -20,3 +20,6 @@ class ParseError(Exception):
 
 class RuntimeParseError(ParseError):
 	pass
+
+class InvalidScenarioError(Exception):
+    pass

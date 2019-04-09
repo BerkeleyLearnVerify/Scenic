@@ -2,12 +2,17 @@
 from dotmap import DotMap
 
 from scenic.core.distributions import Distribution
+from scenic.core.utils import InvalidScenarioError
 
 class ExternalSampler:
 	@staticmethod
-	def forParameters(params):
+	def forParameters(params, globalParams):
 		if len(params) > 0:
-			return VerifaiSampler(params)   # TODO generalize
+			externalSampler = globalParams.get('externalSampler', VerifaiSampler)
+			if not issubclass(externalSampler, ExternalSampler):
+				raise InvalidScenarioError(f'externalSampler type {externalSampler}'
+				                           ' not subclass of ExternalSampler')
+			return externalSampler(params, globalParams)
 		else:
 			return None
 
@@ -21,9 +26,11 @@ class ExternalSampler:
 		raise NotImplementedError
 
 class VerifaiSampler(ExternalSampler):
-	def __init__(self, params):
+	def __init__(self, params, globalParams):
 		import verifai.features
-		import verifai.samplers
+		import verifai.server
+
+		# construct FeatureSpace
 		self.params = tuple(params)
 		for index, param in enumerate(self.params):
 			if not isinstance(param, VerifaiParameter):
@@ -34,10 +41,15 @@ class VerifaiSampler(ExternalSampler):
 		    f'param{index}': verifai.features.Feature(param.domain)
 		    for index, param in enumerate(self.params)
 		})
-		halton_params = DotMap()
-		halton_params.sample_index = -2
-		halton_params.bases_skipped = 0
-		self.sampler = verifai.samplers.FeatureSampler.haltonSamplerFor(space, halton_params)
+
+		# set up VerifAI sampler
+		samplerType = globalParams.get('verifaiSamplerType', 'halton')
+		samplerParams = globalParams.get('verifaiSamplerParams', None)
+		samplerFunc = globalParams.get('verifaiSamplerFunc', None)
+		_, sampler = verifai.server.choose_sampler(space, samplerType,
+		                                           sampler_params=samplerParams,
+		                                           sampler_func=samplerFunc)
+		self.sampler = sampler
 
 	def nextSample(self):
 		return self.sampler.nextSample()
