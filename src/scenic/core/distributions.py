@@ -161,10 +161,11 @@ class CustomDistribution(Distribution):
 		return f'{self.name}{argsToString(self.dependencies)}'
 
 class TupleDistribution(Distribution, collections.abc.Sequence):
-	"""Distributions over tuples"""
-	def __init__(self, *coordinates):
+	"""Distributions over tuples (or namedtuples, or lists)."""
+	def __init__(self, *coordinates, builder=tuple):
 		super().__init__(*coordinates)
 		self.coordinates = coordinates
+		self.builder = builder
 
 	def __len__(self):
 		return len(self.coordinates)
@@ -173,25 +174,29 @@ class TupleDistribution(Distribution, collections.abc.Sequence):
 		return self.coordinates[index]
 
 	def sampleGiven(self, value):
-		return tuple(value[coordinate] for coordinate in self.coordinates)
+		return self.builder(value[coordinate] for coordinate in self.coordinates)
 
 	def evaluateInner(self, context):
 		coordinates = (valueInContext(coord, context) for coord in self.coordinates)
-		return TupleDistribution(*coordinates)
+		return TupleDistribution(*coordinates, builder=self.builder)
 
 	def __str__(self):
 		coords = ', '.join(str(c) for c in self.coordinates)
-		return f'({coords})'
+		return f'({coords}, builder={self.builder})'
 
-def toDistribution(val, always=True):
+def toDistribution(val):
 	"""Wrap Python data types with Distributions, if necessary.
 
 	For example, tuples containing Samplables need to be converted into TupleDistributions
 	in order to keep track of dependencies properly."""
 	if isinstance(val, (tuple, list)):
-		coords = [toDistribution(c, always=always) for c in val]
-		needed = always or any(needsSampling(c) for c in coords)
-		return TupleDistribution(*coords) if needed else val
+		coords = [toDistribution(c) for c in val]
+		if any(needsSampling(c) for c in coords):
+			if isinstance(val, tuple) and hasattr(val, '_fields'):		# namedtuple
+				builder = type(val)._make
+			else:
+				builder = type(val)
+			return TupleDistribution(*coords, builder=builder)
 	return val
 
 class FunctionDistribution(Distribution):
@@ -230,8 +235,8 @@ class FunctionDistribution(Distribution):
 def distributionFunction(method, support=None):
 	"""Decorator for wrapping a function so that it can take distributions as arguments."""
 	def helper(*args, **kwargs):
-		args = tuple(toDistribution(arg, always=False) for arg in args)
-		kwargs = { name: toDistribution(arg, always=False) for name, arg in kwargs.items() }
+		args = tuple(toDistribution(arg) for arg in args)
+		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
 		if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
 			return FunctionDistribution(method, args, kwargs, support)
 		elif any(needsLazyEvaluation(arg) for arg in itertools.chain(args, kwargs.values())):
@@ -284,8 +289,8 @@ class MethodDistribution(Distribution):
 def distributionMethod(method):
 	"""Decorator for wrapping a method so that it can take distributions as arguments."""
 	def helper(self, *args, **kwargs):
-		args = tuple(toDistribution(arg, always=False) for arg in args)
-		kwargs = { name: toDistribution(arg, always=False) for name, arg in kwargs.items() }
+		args = tuple(toDistribution(arg) for arg in args)
+		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
 		if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
 			return MethodDistribution(method, self, args, kwargs)
 		elif any(needsLazyEvaluation(arg) for arg in itertools.chain(args, kwargs.values())):

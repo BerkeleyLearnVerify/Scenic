@@ -133,7 +133,7 @@ def verbosePrint(msg):
 
 def param(**params):
 	for name, value in params.items():
-		globalParameters[name] = toDistribution(value, always=False)
+		globalParameters[name] = toDistribution(value)
 
 def mutate(*objects):		# TODO update syntax
 	if len(objects) == 0:

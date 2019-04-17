@@ -29,7 +29,7 @@ class Specifier:
 	def applyTo(self, obj, optionals):
 		"""Apply specifier to an object, including the specified optional properties."""
 		val = self.value.evaluateIn(obj)
-		val = toDistribution(val, always=False)
+		val = toDistribution(val)
 		assert not needsLazyEvaluation(val)
 		setattr(obj, self.property, val)
 		for opt in optionals:
