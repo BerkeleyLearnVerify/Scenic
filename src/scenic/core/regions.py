@@ -11,7 +11,7 @@ import shapely.geometry
 import shapely.ops
 
 from scenic.core.distributions import Samplable, RejectionException, needsSampling
-from scenic.core.specifiers import valueInContext
+from scenic.core.lazy_eval import valueInContext
 from scenic.core.vectors import Vector, OrientedVector, VectorDistribution
 from scenic.core.geometry import RotatedRectangle
 from scenic.core.geometry import sin, cos, hypot, findMinMax, pointIsInCone, averageVectors

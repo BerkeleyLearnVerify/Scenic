@@ -1,6 +1,6 @@
 
 from scenic.core.vectors import *
-from scenic.core.specifiers import DelayedArgument, valueInContext, needsLazyEvaluation
+from scenic.core.lazy_eval import DelayedArgument, valueInContext, needsLazyEvaluation
 from scenic.core.distributions import Options, underlyingFunction
 
 def test_distribution_method_encapsulation():

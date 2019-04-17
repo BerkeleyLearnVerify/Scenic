@@ -7,7 +7,7 @@ import math
 import random
 
 from scenic.core.distributions import Samplable, needsSampling
-from scenic.core.specifiers import DelayedArgument, Specifier, PropertyDefault
+from scenic.core.specifiers import Specifier, PropertyDefault
 from scenic.core.vectors import Vector
 from scenic.core.geometry import RotatedRectangle, averageVectors, hypot, min, pointIsInCone
 from scenic.core.regions import CircularRegion, SectorRegion

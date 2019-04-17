@@ -5,9 +5,9 @@ import collections
 import itertools
 import random
 
-from scenic.core.specifiers import (LazilyEvaluable, DelayedArgument,
-                                    requiredProperties, needsLazyEvaluation, valueInContext,
-                                    makeDelayedFunctionCall)
+from scenic.core.lazy_eval import (LazilyEvaluable, DelayedArgument,
+                                   requiredProperties, needsLazyEvaluation, valueInContext,
+                                   makeDelayedFunctionCall)
 from scenic.core.utils import argsToString, RuntimeParseError
 
 ## Misc

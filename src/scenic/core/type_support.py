@@ -7,8 +7,8 @@ import inspect
 import numpy as np
 
 from scenic.core.distributions import Distribution
-from scenic.core.specifiers import (DelayedArgument, valueInContext, requiredProperties,
-                                    needsLazyEvaluation)
+from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
+                                   needsLazyEvaluation)
 from scenic.core.vectors import Vector
 from scenic.core.utils import RuntimeParseError
 

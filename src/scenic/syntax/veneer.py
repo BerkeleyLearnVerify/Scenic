@@ -47,7 +47,9 @@ from scenic.core.distributions import Distribution
 from scenic.core.type_support import isA, toType, toTypes, toScalar, toHeading, toVector
 from scenic.core.type_support import valueRequiringEqualTypes, underlyingType
 from scenic.core.geometry import RotatedRectangle, normalizeAngle, apparentHeadingAtPoint
-from scenic.core.specifiers import Specifier, DelayedArgument
+from scenic.core.object_types import Constructible
+from scenic.core.specifiers import Specifier
+from scenic.core.lazy_eval import DelayedArgument
 from scenic.core.utils import RuntimeParseError
 
 ### Internals
@@ -79,6 +81,7 @@ def deactivate():
 
 def registerObject(obj):
 	if activity > 0:
+		assert isinstance(obj, Constructible)
 		allObjects.append(obj)
 
 ### Primitive statements and functions
