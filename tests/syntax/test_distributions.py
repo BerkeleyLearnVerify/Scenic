@@ -4,7 +4,7 @@ import math
 import random
 
 from scenic.syntax.translator import InterpreterParseError
-from tests.utils import compileScenic, sampleEgo
+from tests.utils import compileScenic, sampleEgo, sampleParamP
 
 ## Utilities
 
@@ -174,6 +174,40 @@ def test_vector_method_lazy_2():
     scenario = lazyTestScenario('vf.followFrom(90 deg @ 0, x, steps=1).y')
     h = sampleEgo(scenario).heading
     assert h == pytest.approx(-1)
+
+## Lists, tuples
+
+def test_list():
+    scenario = compileScenic('ego = Object with foo [3, Uniform(1, 2)]')
+    ts = [sampleEgo(scenario).foo for i in range(60)]
+    assert all(t[0] == 3 for t in ts)
+    assert all(t[1] == 1 or t[1] == 2 for t in ts)
+    assert any(t[1] == 1 for t in ts)
+    assert any(t[1] == 2 for t in ts)
+
+def test_list_param():
+    scenario = compileScenic('ego = Object\n' 'param p = [3, Uniform(1, 2)]')
+    ts = [sampleParamP(scenario) for i in range(60)]
+    assert all(t[0] == 3 for t in ts)
+    assert all(t[1] == 1 or t[1] == 2 for t in ts)
+    assert any(t[1] == 1 for t in ts)
+    assert any(t[1] == 2 for t in ts)
+
+def test_tuple():
+    scenario = compileScenic('ego = Object with foo tuple([3, Uniform(1, 2)])')
+    ts = [sampleEgo(scenario).foo for i in range(60)]
+    assert all(t[0] == 3 for t in ts)
+    assert all(t[1] == 1 or t[1] == 2 for t in ts)
+    assert any(t[1] == 1 for t in ts)
+    assert any(t[1] == 2 for t in ts)
+
+def test_tuple_param():
+    scenario = compileScenic('ego = Object\n' 'param p = tuple([3, Uniform(1, 2)])')
+    ts = [sampleParamP(scenario) for i in range(60)]
+    assert all(t[0] == 3 for t in ts)
+    assert all(t[1] == 1 or t[1] == 2 for t in ts)
+    assert any(t[1] == 1 for t in ts)
+    assert any(t[1] == 2 for t in ts)
 
 ## Reproducibility
 

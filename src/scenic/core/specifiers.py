@@ -5,6 +5,7 @@ import itertools
 
 from scenic.core.lazy_eval import (DelayedArgument, toDelayedArgument, requiredProperties,
                                    needsLazyEvaluation)
+from scenic.core.distributions import toDistribution
 from scenic.core.utils import RuntimeParseError
 
 ## Specifiers themselves
@@ -28,6 +29,7 @@ class Specifier:
 	def applyTo(self, obj, optionals):
 		"""Apply specifier to an object, including the specified optional properties."""
 		val = self.value.evaluateIn(obj)
+		val = toDistribution(val, always=False)
 		assert not needsLazyEvaluation(val)
 		setattr(obj, self.property, val)
 		for opt in optionals:

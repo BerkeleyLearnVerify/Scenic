@@ -43,7 +43,7 @@ from scenic.core.specifiers import PropertyDefault	# TODO remove
 
 # everything that should not be directly accessible from the language is imported here:
 import inspect
-from scenic.core.distributions import Distribution
+from scenic.core.distributions import Distribution, toDistribution
 from scenic.core.type_support import isA, toType, toTypes, toScalar, toHeading, toVector
 from scenic.core.type_support import valueRequiringEqualTypes, underlyingType
 from scenic.core.geometry import RotatedRectangle, normalizeAngle, apparentHeadingAtPoint
@@ -132,7 +132,8 @@ def verbosePrint(msg):
 		print(indent + msg)
 
 def param(**params):
-	globalParameters.update(params)
+	for name, value in params.items():
+		globalParameters[name] = toDistribution(value, always=False)
 
 def mutate(*objects):		# TODO update syntax
 	if len(objects) == 0:

@@ -184,8 +184,12 @@ class TupleDistribution(Distribution, collections.abc.Sequence):
 		return f'({coords})'
 
 def toDistribution(val, always=True):
-	if type(val) is tuple:
-		coords = [toDistribution(c, always=True) for c in val]
+	"""Wrap Python data types with Distributions, if necessary.
+
+	For example, tuples containing Samplables need to be converted into TupleDistributions
+	in order to keep track of dependencies properly."""
+	if isinstance(val, (tuple, list)):
+		coords = [toDistribution(c, always=always) for c in val]
 		needed = always or any(needsSampling(c) for c in coords)
 		return TupleDistribution(*coords) if needed else val
 	return val
