@@ -4,8 +4,8 @@ import time
 import shapely.geometry
 import shapely.geos
 
-from scenic.core.distributions import Samplable, MethodDistribution, OperatorDistribution
-from scenic.core.distributions import needsSampling, supportInterval, underlyingFunction
+from scenic.core.distributions import (Samplable, MethodDistribution, OperatorDistribution,
+                                       needsSampling, supportInterval, underlyingFunction)
 from scenic.core.object_types import Point, Object
 from scenic.core.geometry import normalizeAngle, polygonUnion, plotPolygon
 from scenic.core.vectors import VectorField, PolygonalVectorField, VectorMethodDistribution

@@ -9,10 +9,9 @@ import itertools
 
 import shapely.geometry
 
-from scenic.core.distributions import Samplable, Distribution, MethodDistribution
-from scenic.core.distributions import needsSampling, makeOperatorHandler
-from scenic.core.distributions import distributionMethod
-from scenic.core.specifiers import valueInContext, needsLazyEvaluation, makeDelayedFunctionCall
+from scenic.core.distributions import (Samplable, Distribution, MethodDistribution,
+                                       needsSampling, makeOperatorHandler, distributionMethod)
+from scenic.core.lazy_eval import valueInContext, needsLazyEvaluation, makeDelayedFunctionCall
 import scenic.core.utils as utils
 from scenic.core.geometry import normalizeAngle
 

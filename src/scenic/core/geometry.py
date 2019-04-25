@@ -12,7 +12,7 @@ import Polygon as PolygonLib	# TODO remove dependency (see triangulatePolygon)
 
 from scenic.core.distributions import (needsSampling, distributionFunction,
                                        monotonicDistributionFunction)
-from scenic.core.specifiers import needsLazyEvaluation
+from scenic.core.lazy_eval import needsLazyEvaluation
 import scenic.core.utils as utils
 
 @distributionFunction

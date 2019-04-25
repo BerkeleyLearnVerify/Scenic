@@ -30,7 +30,7 @@ from ast import Load, Store, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, B
 from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Num, Subscript, Index
 
 from scenic.core.distributions import Samplable, needsSampling
-from scenic.core.specifiers import needsLazyEvaluation
+from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.workspaces import Workspace
 from scenic.core.scenarios import Scenario
 from scenic.core.object_types import Constructible

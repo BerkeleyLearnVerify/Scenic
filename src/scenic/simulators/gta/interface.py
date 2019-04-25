@@ -2,6 +2,7 @@
 import math
 import time
 import colorsys
+from collections import namedtuple
 
 import numpy
 import scipy.spatial
@@ -12,10 +13,9 @@ import scenic.simulators.gta.center_detection as center_detection
 import scenic.simulators.gta.img_modf as img_modf
 import scenic.simulators.gta.messages as messages
 
-from scenic.core.distributions import Samplable, Distribution, TupleDistribution
-from scenic.core.distributions import Range, Normal, Options
-from scenic.core.distributions import distributionMethod
-from scenic.core.specifiers import valueInContext
+from scenic.core.distributions import (Samplable, Distribution, Range, Normal, Options,
+                                       distributionMethod, toDistribution)
+from scenic.core.lazy_eval import valueInContext
 
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import VectorField
@@ -221,14 +221,10 @@ CarModel.modelProbs = {
 }
 CarModel.models = { model.name: model for model in CarModel.modelProbs }
 
-class CarColor:
-	@staticmethod
-	def rgb(r, g, b):
-		return (r, g, b)
-
-	@staticmethod
-	def byteToReal(color):
-		return tuple(c / 255.0 for c in color)
+class CarColor(namedtuple('CarColor', ['r', 'g', 'b'])):
+	@classmethod
+	def withBytes(cls, color):
+		return cls._make(c / 255.0 for c in color)
 
 	@staticmethod
 	def realToByte(color):
@@ -236,7 +232,7 @@ class CarColor:
 
 	@staticmethod
 	def uniformColor():
-		return TupleDistribution(Range(0, 1), Range(0, 1), Range(0, 1))
+		return toDistribution(CarColor(Range(0, 1), Range(0, 1), Range(0, 1)))
 
 	@staticmethod
 	def defaultColor():
@@ -253,7 +249,7 @@ class CarColor:
 			(219, 191, 105): 0.02,	# yellow/gold
 			(68, 160, 135): 0.02,	# green
 		}
-		converted = { CarColor.byteToReal(color): prob for color, prob in baseColors.items() }
+		converted = { CarColor.withBytes(color): prob for color, prob in baseColors.items() }
 		baseColor = Options(converted)
 		# TODO improve this?
 		hueNoise = Normal(0, 0.1)
@@ -279,8 +275,8 @@ class NoisyColorDistribution(Distribution):
 
 	def sampleGiven(self, value):
 		bc = value[self.baseColor]
-		return self.addNoiseTo(bc, value[self.hueNoise],
-			value[self.lightNoise], value[self.satNoise])
+		return CarColor(*self.addNoiseTo(bc, value[self.hueNoise],
+		    value[self.lightNoise], value[self.satNoise]))
 
 	def evaluateInner(self, context):
 		self.baseColor = valueInContext(self.baseColor, context)
