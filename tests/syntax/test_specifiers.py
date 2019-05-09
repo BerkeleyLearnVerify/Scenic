@@ -138,7 +138,7 @@ def test_beyond_from():
 
 def test_visible():
     scenario = compileScenic(
-        'ego = Object at 100 @ 200, facing -45 deg, \\\n'
+        'ego = Object at 100 @ 200, facing -45 deg,\n'
         '             with visibleDistance 10, with viewAngle 90 deg\n'
         'ego = Object visible'
     )
@@ -164,7 +164,7 @@ def test_visible_from_point():
 
 def test_visible_from_oriented_point():
     scenario = compileScenic(
-        'op = OrientedPoint at 100 @ 200, facing 45 deg, \\\n'
+        'op = OrientedPoint at 100 @ 200, facing 45 deg,\n'
         '                   with visibleDistance 5, with viewAngle 90 deg\n'
         'ego = Object visible from op'
     )

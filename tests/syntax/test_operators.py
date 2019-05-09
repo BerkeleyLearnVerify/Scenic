@@ -206,7 +206,7 @@ def test_offset_along_field():
 
 def test_visible():
     scenario = compileScenic(
-        'ego = Object at 100 @ 200, facing -45 deg, \\\n'
+        'ego = Object at 100 @ 200, facing -45 deg,\n'
         '             with visibleDistance 10, with viewAngle 90 deg\n'
         'reg = RectangularRegion(100@205, 0, 10, 10)\n'
         'param p = Point in visible reg'

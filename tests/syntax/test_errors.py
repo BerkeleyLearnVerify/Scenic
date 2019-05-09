@@ -120,10 +120,16 @@ def test_incomplete_multiline_string():
 
 def programsWithBug(bug):
     """Some example programs with a hole to place a buggy statement.
-    The hole should be reached during execution, and not be inside a loop."""
+
+    The hole should be reached during execution, and not be inside a loop.
+    """
+    # basic
     yield bug, 1
+    # after ordinary statement
     yield 'y = 12\n' + bug, 2
+    # after import
     yield '\n' 'import time\n' + bug, 3
+    # after explicit line continuation (and in a function)
     yield f"""\
 from time import time
 
@@ -135,6 +141,19 @@ def qux(foo=None,
 
 qux()
 """, 7
+    # after automatic line continuation by parentheses
+    yield f"""\
+x = (1 + 2
+    + 3)
+{bug}
+""", 3
+    # after indented specifier
+    for continuation in ('', '\\', '# comment'):
+        yield f"""\
+ego = Object facing 1, {continuation}
+             at 10@10
+{bug}
+""", 3
 
 def checkBugs(bugs, tmpdir, checkTraceback=True):
     path = os.path.join(tmpdir, 'test.sc')

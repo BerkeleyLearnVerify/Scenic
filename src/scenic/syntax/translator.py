@@ -329,10 +329,9 @@ for token in infixTokens.values():
 	ttype = token[0]
 	assert (ttype is COMMA or ttype in illegalTokens), token
 
-keywords = {constructorStatement} \
-	| internalFunctions | functionStatements \
-	| prefixIncipits | infixIncipits \
-	| replacements.keys()
+keywords = ({constructorStatement}
+	| internalFunctions | functionStatements
+	| replacements.keys())
 
 ### TRANSLATION PHASE ONE: handling imports
 
@@ -500,6 +499,7 @@ class TokenTranslator:
 		newTokens = []
 		functionStack = []
 		inConstructor = False	# inside a constructor or one of its specifiers
+		specifiersIndented = False
 		parenLevel = 0
 		lineCount = 0
 		lastLine = max(1, peek(tokens).start[0]) - 1
@@ -536,6 +536,10 @@ class TokenTranslator:
 				lineCount += 1
 				lineMap[lineCount] = lastLine + 1
 				lastLine = token.start[0]
+			elif ttype == DEDENT and specifiersIndented:
+				# elide dedent corresponding to indented specifiers, if present
+				skip = True
+				specifiersIndented = False
 			elif ttype == NAME:		# the interesting case: all new syntax falls in here
 				function = None
 				argument = None
@@ -646,6 +650,20 @@ class TokenTranslator:
 						functionStack.pop()
 						newTokens.append((RPAR, ')'))
 						context, startLevel = (None, 0) if len(functionStack) == 0 else functionStack[-1]
+					# allow the next specifier to be on the next line, if indented
+					nextToken = peek(tokens)
+					if nextToken.exact_type in (NEWLINE, COMMENT):
+						if nextToken.exact_type == COMMENT:
+							next(tokens)	# consume comment
+							nextToken = peek(tokens)
+						if nextToken.exact_type != NEWLINE:
+							raise TokenParseError(nextToken, 'comma with no specifier following')
+						next(tokens)	# consume newline
+						if not specifiersIndented:
+							nextToken = next(tokens)	# consume indent
+							if nextToken.exact_type != INDENT:
+								raise TokenParseError(nextToken, 'expected indented specifier (extra comma on previous line?)')
+							specifiersIndented = True
 				elif ttype == NEWLINE or ttype == ENDMARKER or ttype == COMMENT:	# end of line
 					inConstructor = False
 					if parenLevel != 0:

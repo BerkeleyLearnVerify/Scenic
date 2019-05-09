@@ -10,7 +10,7 @@ laneShift = (-10, 10)
 wiggle = (-5 deg, 5 deg)
 
 def carAheadOfCar(car, gap, offsetX=0, wiggle=0):
-	pos = OrientedPoint at (front of car) offset by (offsetX @ gap), \
+	pos = OrientedPoint at (front of car) offset by (offsetX @ gap),
 		facing resample(wiggle) relative to roadDirection
 	return Car ahead of pos
 
