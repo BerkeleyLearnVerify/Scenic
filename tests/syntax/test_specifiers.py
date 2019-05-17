@@ -2,11 +2,11 @@
 import math
 import pytest
 
-from scenic.syntax.translator import InterpreterParseError
+from scenic.syntax.translator import InterpreterParseError, InvalidScenarioError
 from scenic.core.vectors import Vector
 from tests.utils import compileScenic, sampleEgoFrom
 
-## Dependencies
+## Dependencies and lazy evaluation
 
 def test_double_specification():
     with pytest.raises(InterpreterParseError):
@@ -31,6 +31,34 @@ def test_default_dependency():
 def test_missing_dependency():
     with pytest.raises(InterpreterParseError):
         compileScenic('Point left of 0 @ 0 by 5\n' 'ego = Object')
+
+def test_lazy_value_in_param():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic(
+            'vf = VectorField("Foo", lambda pos: 3 * pos.x)\n'
+            'param X = 0 relative to vf\n'
+            'ego = Object\n'
+        )
+
+def test_lazy_value_in_requirement():
+    # Case where we can statically detect the use of a lazy value
+    with pytest.raises(InvalidScenarioError):
+        compileScenic(
+            'vf = VectorField("Foo", lambda pos: 3 * pos.x)\n'
+            'x = 0 relative to vf\n'
+            'require x >= 0\n'
+            'ego = Object\n'
+        )
+
+def test_lazy_value_in_requirement_2():
+    # Case where the lazy value is detected during requirement evaluation
+    scenario = compileScenic(
+        'vf = VectorField("Foo", lambda pos: 3 * pos.x)\n'
+        'require 0 relative to vf\n'
+        'ego = Object\n'
+    )
+    with pytest.raises(InterpreterParseError):
+        scenario.generate(maxIterations=1)
 
 ## Generic specifiers
 

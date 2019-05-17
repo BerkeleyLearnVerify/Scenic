@@ -212,6 +212,8 @@ objectSpecifiers = {
 # sanity check: implementations of specifiers actually exist
 for imp in pointSpecifiers.values():
 	assert imp in api, imp
+for imp in orientedPointSpecifiers.values():
+	assert imp in api, imp
 for imp in objectSpecifiers.values():
 	assert imp in api, imp
 
@@ -794,6 +796,9 @@ class ASTSurgeon(NodeTransformer):
 	def visit_Call(self, node):
 		func = node.func
 		if isinstance(func, Name) and func.id == requireStatement:	# Require statement
+			# Soft reqs have 2 arguments, including the probability, which is given as the
+			# first argument by the token translator; so we allow an extra argument here and
+			# validate it later on (in case the user wrongly gives 2 arguments to require).
 			if not (1 <= len(node.args) <= 2):
 				raise self.parseError(node, 'require takes exactly one argument')
 			if len(node.keywords) != 0:
@@ -812,7 +817,9 @@ class ASTSurgeon(NodeTransformer):
 			newArgs = [reqID, closure, lineNum]
 			if len(node.args) == 2:		# get probability for soft requirements
 				prob = node.args[0]
-				assert isinstance(prob, Num)
+				if not isinstance(prob, Num):
+					raise self.parseError(node, 'malformed requirement '
+					                            '(should be a single expression)')
 				newArgs.append(prob)
 			return copy_location(Call(func, newArgs, []), node)
 		else:	# Ordinary function call
@@ -988,10 +995,18 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 				veneer.egoObject = values[ego]
 			# evaluate requirement condition, reporting errors on the correct line
 			try:
-				return req()
+				veneer.evaluatingRequirement = True
+				result = req()
+				assert not needsSampling(result)
+				if needsLazyEvaluation(result):
+					raise RuntimeParseError(f'requirement on line {line} uses value'
+					                        ' undefined outside of object definition')
+				return result
 			except RuntimeParseError as e:
 				cause = e if showInternalBacktrace else None
 				raise InterpreterParseError(e, line) from cause
+			finally:
+				veneer.evaluatingRequirement = False
 		return closure
 	for reqID, (req, bindings, ego, line, prob) in requirements.items():
 		# Check whether requirement implies any relations used for pruning

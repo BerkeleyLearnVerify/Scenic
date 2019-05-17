@@ -116,6 +116,47 @@ def test_incomplete_multiline_string():
     with pytest.raises(TokenParseError):
         compileScenic('x = """foobar\n' 'wog\n')
 
+### Parse errors during Python parsing
+
+def test_incomplete_infix_operator():
+    """Binary infix operator with too few arguments."""
+    with pytest.raises(PythonParseError):
+        compileScenic('x = 3 @')
+    with pytest.raises(PythonParseError):
+        compileScenic('x = 3 at')
+
+### Parse errors during parse tree surgery
+
+## Infix operators
+
+def test_incomplete_infix_package():
+    """Packaged (3+-ary) infix operator with too few arguments."""
+    with pytest.raises(ASTParseError):
+        compileScenic('x = 4 offset along 12')
+
+def test_extra_infix_package():
+    """Packaged (3+-ary) infix operator with too many arguments."""
+    with pytest.raises(ASTParseError):
+        compileScenic('x = 4 at 12 by 17')
+    with pytest.raises(ASTParseError):
+        compileScenic('x = 4 offset along 12 by 17 by 19')
+
+## Ranges
+
+def test_malformed_range():
+    with pytest.raises(ASTParseError):
+        compileScenic('x = (4,)')
+    with pytest.raises(ASTParseError):
+        compileScenic('x = (4, 5, 6)')
+
+## Requirements
+
+def test_multiple_requirements():
+    with pytest.raises(ASTParseError):
+        compileScenic('require True, True')
+    with pytest.raises(ASTParseError):
+        compileScenic('require True, True, True')
+
 ### Line numbering
 
 def programsWithBug(bug):

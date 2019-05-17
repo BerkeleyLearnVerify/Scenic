@@ -55,6 +55,7 @@ from scenic.core.utils import RuntimeParseError
 ### Internals
 
 activity = 0
+evaluatingRequirement = False
 allObjects = []		# ordered for reproducibility
 egoObject = None
 globalParameters = {}
@@ -67,12 +68,14 @@ def isActive():
 def activate():
 	global activity
 	activity += 1
+	assert not evaluatingRequirement
 
 def deactivate():
 	global activity, allObjects, egoObject, globalParameters
 	global pendingRequirements, inheritedReqs
 	activity -= 1
 	assert activity >= 0
+	assert not evaluatingRequirement
 	allObjects = []
 	egoObject = None
 	globalParameters = {}
@@ -81,8 +84,11 @@ def deactivate():
 
 def registerObject(obj):
 	if activity > 0:
+		assert not evaluatingRequirement
 		assert isinstance(obj, Constructible)
 		allObjects.append(obj)
+	elif evaluatingRequirement:
+		raise RuntimeParseError('tried to create an object inside a requirement')
 
 ### Primitive statements and functions
 

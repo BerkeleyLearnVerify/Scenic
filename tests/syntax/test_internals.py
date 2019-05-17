@@ -6,6 +6,7 @@ import scenic.syntax.veneer as veneer
 
 def checkVeneerIsInactive():
     assert veneer.activity == 0
+    assert not veneer.evaluatingRequirement
     assert len(veneer.allObjects) == 0
     assert veneer.egoObject is None
     assert len(veneer.globalParameters) == 0
