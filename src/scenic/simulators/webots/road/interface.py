@@ -260,6 +260,7 @@ class WebotsWorkspace(Workspace):
 
 		# Construct regions
 		allCells = []
+		drivableAreas = []
 		for road in self.roads:
 			assert road.region.polygons.is_valid, (road.waypoints, road.region.points)
 			allCells.extend(road.cells)
@@ -267,37 +268,64 @@ class WebotsWorkspace(Workspace):
 			if crossroad.region is not None:
 				for poly in crossroad.region.polygons:
 					allCells.append((poly, None))
+		if not allCells:
+			raise RuntimeError('Webots world has no drivable geometry!')
 		self.roadDirection = PolygonalVectorField(
 		    'roadDirection', allCells,
 		    headingFunction=lambda pos: 0, defaultHeading=0		# TODO fix
 		)
-		roadPoly = polygonUnion(road.region.polygons for road in self.roads)
-		self.roadsRegion = PolygonalRegion(polygon=roadPoly,
-		                                   orientation=self.roadDirection)
-		crossroadPoly = polygonUnion(cr.region.polygons for cr in self.crossroads
-		                             if cr.region is not None)
-		self.crossroadsRegion = PolygonalRegion(polygon=crossroadPoly,
-		                                        orientation=self.roadDirection)
+		if not self.roads:
+			roadPoly = None
+			self.roadsRegion = nowhere
+		else:
+			roadPoly = polygonUnion(road.region.polygons for road in self.roads)
+			self.roadsRegion = PolygonalRegion(polygon=roadPoly,
+			                                   orientation=self.roadDirection)
+			drivableAreas.append(roadPoly)
+		if not self.crossroads:
+			crossroadPoly = None
+			self.crossroadsRegion = nowhere
+		else:
+			crossroadPoly = polygonUnion(cr.region.polygons
+			                             for cr in self.crossroads
+			                             if cr.region is not None)
+			self.crossroadsRegion = PolygonalRegion(polygon=crossroadPoly,
+			                                        orientation=self.roadDirection)
+			drivableAreas.append(crossroadPoly)
 
 		sidewalks = []
+		walkableAreas = []
 		for road in self.roads:
 			if road.hasLeftSidewalk:
 				sidewalks.append(road.leftSidewalk.polygons)
 			if road.hasRightSidewalk:
 				sidewalks.append(road.rightSidewalk.polygons)
-		sidewalksPoly = polygonUnion(sidewalks)
-		self.sidewalksRegion = regionWithPolygons(sidewalksPoly)
+		if not sidewalks:
+			sidewalksPoly = None
+			self.sidewalksRegion = nowhere
+		else:
+			sidewalksPoly = polygonUnion(sidewalks)
+			self.sidewalksRegion = regionWithPolygons(sidewalksPoly)
+			walkableAreas.append(sidewalksPoly)
 
-		crossingsPoly = polygonUnion(crossing.region.polygons
-		                             for crossing in self.crossings)
-		self.crossingsRegion = regionWithPolygons(crossingsPoly)
+		if not self.crossings:
+			crossingsPoly = None
+			self.crossingsRegion = nowhere
+		else:
+			crossingsPoly = polygonUnion(crossing.region.polygons
+			                             for crossing in self.crossings)
+			self.crossingsRegion = regionWithPolygons(crossingsPoly)
+			walkableAreas.append(crossingsPoly)
 
-		walkablePoly = polygonUnion((sidewalksPoly, crossingsPoly))
-		self.walkableRegion = regionWithPolygons(walkablePoly)
-		drivablePoly = polygonUnion((roadPoly, crossroadPoly))
+		if not walkableAreas:
+			self.walkableRegion = nowhere
+		else:
+			walkablePoly = polygonUnion(walkableAreas)
+			self.walkableRegion = regionWithPolygons(walkablePoly)
+		drivablePoly = polygonUnion(drivableAreas)
 		self.drivableRegion = PolygonalRegion(polygon=drivablePoly,
 		                                      orientation=self.roadDirection)
-		workspacePoly = polygonUnion((drivablePoly, walkablePoly))
+		workspacePoly = polygonUnion(drivableAreas + walkableAreas)
 		self.workspaceRegion = PolygonalRegion(polygon=workspacePoly)
 
 		# Identify various roads and lanes of interest

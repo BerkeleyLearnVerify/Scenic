@@ -5,6 +5,10 @@ def test_basic(loadLocalScenario):
     scenario = loadLocalScenario('crossing.sc')
     scenario.generate(maxIterations=1000)
 
+def test_road_only(loadLocalScenario):
+    scenario = loadLocalScenario('simple.sc')
+    scenario.generate(maxIterations=100)
+
 def test_noninterference(runLocally):
     code = (
         "import scenic.simulators.webots.road.world as world\n"
