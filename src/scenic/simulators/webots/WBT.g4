@@ -47,6 +47,6 @@ Number : '-'? Digit+ ('.' Digit+)? ('e' '-'? Digit+)? ;
 fragment
 Digit : [0-9] ;
 
-String : '"' .*? '"' ;
+String : '"' (~["\\] | '\\"' | '\\\\')* '"' ;
 
 Newline : '\r'? '\n' ;

@@ -3,6 +3,8 @@ WorldInfo {
   info [
     "World generated using the Open Street Map to Webots importer"
     "Author: David Mansolino <david.mansolino@epfl.ch>"
+    "have an escaped quotation mark: \""
+    "and an escaped backslash: \\"
   ]
   northDirection 0 0 1
   gpsCoordinateSystem "WGS84"
