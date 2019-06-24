@@ -3,7 +3,7 @@
 A compiler and scene generator for the Scenic scenario description language, with (partial) interfaces to the Grand Theft Auto V and Webots simulators.
 The _src/scenic_ directory contains the package proper, while the _examples_ directory has many examples of Scenic programs.
 
-For a description of the language and some of its applications, see [this paper](https://math.berkeley.edu/~dfremont/papers/PLDI19.pdf).
+For a description of the language and some of its applications, see [our PLDI 2019 paper](https://arxiv.org/abs/1809.09310).
 Scenic was designed and implemented by Daniel J. Fremont, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia.
 
 If you have any problems using Scenic, please contact Daniel at <dfremont@berkeley.edu> or submit an issue to [our GitHub repository](https://github.com/BerkeleyLearnVerify/Scenic).
