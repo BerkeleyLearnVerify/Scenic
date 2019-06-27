@@ -125,7 +125,23 @@ def test_method_lazy():
         'ego = Object facing Foo().bar((100, 200) * (0 relative to vf))'
     )
     angles = [sampleEgo(scenario).heading for i in range(60)]
-    assert all(-200 <= x <= 100 for x in angles)
+    assert all(-200 <= x <= -100 for x in angles)
+    assert any(x < -150 for x in angles)
+    assert any(-150 < x for x in angles)
+
+def test_method_lazy_2():
+    # See previous comment
+    scenario = compileScenic(
+        'from scenic.core.distributions import distributionMethod\n'
+        'class Foo:\n'
+        '    @distributionMethod\n'
+        '    def bar(self, arg):\n'
+        '        return -arg * (100, 200)\n'
+        'vf = VectorField("Baz", lambda pos: 1 + pos.x)\n'
+        'ego = Object facing Foo().bar(0 relative to vf)'
+    )
+    angles = [sampleEgo(scenario).heading for i in range(60)]
+    assert all(-200 <= x <= -100 for x in angles)
     assert any(x < -150 for x in angles)
     assert any(-150 < x for x in angles)
 
@@ -253,13 +269,13 @@ def test_reproducibility():
 
 def test_shared_dependency():
     scenario = compileScenic(
-        'x = (0, 1)\n'
-        'ego = Object at (x + x) @ 0'
+        'x = (-1, 1)\n'
+        'ego = Object at (x * x) @ 0'
     )
     xs = [sampleEgo(scenario).position.x for i in range(60)]
-    assert all(0 <= x <= 2 for x in xs)
-    assert any(x < 1 for x in xs)
-    assert any(1 < x for x in xs)
+    assert all(0 <= x <= 1 for x in xs)
+    assert any(x < 0.25 for x in xs)
+    assert any(0.25 < x for x in xs)
 
 def test_shared_dependency_lazy():
     scenario = compileScenic(
