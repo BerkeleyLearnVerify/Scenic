@@ -45,7 +45,7 @@ from scenic.core.specifiers import PropertyDefault	# TODO remove
 import inspect
 from scenic.core.distributions import Distribution, toDistribution
 from scenic.core.type_support import isA, toType, toTypes, toScalar, toHeading, toVector
-from scenic.core.type_support import valueRequiringEqualTypes, underlyingType
+from scenic.core.type_support import evaluateRequiringEqualTypes, underlyingType
 from scenic.core.geometry import RotatedRectangle, normalizeAngle, apparentHeadingAtPoint
 from scenic.core.object_types import Constructible
 from scenic.core.specifiers import Specifier
@@ -213,7 +213,8 @@ def RelativeTo(X, Y):
 		else:
 			X = toTypes(X, (Vector, float), '"X relative to Y" with X neither a vector nor scalar')
 			Y = toTypes(Y, (Vector, float), '"X relative to Y" with Y neither a vector nor scalar')
-			return valueRequiringEqualTypes(X + Y, X, Y, '"X relative to Y" with vector and scalar')
+			return evaluateRequiringEqualTypes(lambda: X + Y, X, Y,
+			                                   '"X relative to Y" with vector and scalar')
 
 # <vector> offset along <heading> by <vector>
 # <vector> offset along <field> by <vector>

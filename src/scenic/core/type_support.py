@@ -8,7 +8,7 @@ import numpy as np
 
 from scenic.core.distributions import Distribution
 from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
-                                   needsLazyEvaluation)
+                                   needsLazyEvaluation, toDelayedArgument)
 from scenic.core.vectors import Vector
 from scenic.core.utils import RuntimeParseError
 
@@ -105,7 +105,7 @@ def coerceToAny(thing, types, error):
 ## Top-level type checking/conversion API
 
 def toTypes(thing, types, typeError='wrong type'):
-	"""Convert something to any of the given types, printing an error if possible."""
+	"""Convert something to any of the given types, printing an error if impossible."""
 	if needsLazyEvaluation(thing):
 		# cannot check the type now; create proxy object to check type after evaluation
 		return TypeChecker(thing, types, typeError)
@@ -128,18 +128,23 @@ def toVector(thing, typeError='non-vector in vector context'):
 	"""Convert something to a vector, printing an error if impossible."""
 	return toType(thing, Vector, typeError)
 
-def valueRequiringEqualTypes(val, thingA, thingB, typeError='type mismatch'):
-	"""Return the value, assuming thingA and thingB have the same type."""
+def evaluateRequiringEqualTypes(func, thingA, thingB, typeError='type mismatch'):
+	"""Evaluate the func, assuming thingA and thingB have the same type.
+
+	If func produces a lazy value, it should not have any required properties beyond
+	those of thingA and thingB."""
 	if not needsLazyEvaluation(thingA) and not needsLazyEvaluation(thingB):
 		if underlyingType(thingA) is not underlyingType(thingB):
 			raise RuntimeParseError(typeError)
-		return val
+		return func()
 	else:
-		return TypeEqualityChecker(val, thingA, thingB, typeError)
+		# cannot check the types now; create proxy object to check types after evaluation
+		return TypeEqualityChecker(func, thingA, thingB, typeError)
 
 ## Proxy objects for lazy type checking
 
 class TypeChecker(DelayedArgument):
+	"""Checks that a given lazy value has one of a given list of types."""
 	def __init__(self, arg, types, error):
 		def check(context):
 			val = arg.evaluateIn(context)
@@ -152,18 +157,17 @@ class TypeChecker(DelayedArgument):
 		return f'TypeChecker({self.inner},{self.types})'
 
 class TypeEqualityChecker(DelayedArgument):
-	def __init__(self, arg, checkA, checkB, error):
-		arg = toDelayedArgument(arg)
-		assert requiredProperties(checkA) <= arg.requiredProperties
-		assert requiredProperties(checkB) <= arg.requiredProperties
+	"""Lazily evaluates a function, after checking that two lazy values have the same type."""
+	def __init__(self, func, checkA, checkB, error):
+		props = requiredProperties(checkA) | requiredProperties(checkB)
 		def check(context):
 			ca = valueInContext(checkA, context)
 			cb = valueInContext(checkB, context)
 			if underlyingType(ca) is not underlyingType(cb):
 				raise RuntimeParseError(error)
-			return arg.evaluateIn(context)
-		super().__init__(requiredProperties(arg), check)
-		self.inner = arg
+			return valueInContext(func(), context)
+		super().__init__(props, check)
+		self.inner = func
 		self.checkA = checkA
 		self.checkB = checkB
 
