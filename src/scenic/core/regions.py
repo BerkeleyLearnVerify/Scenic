@@ -140,7 +140,8 @@ class CircularRegion(Region):
 		x, y = self.center
 		r = random.triangular(0, self.radius, self.radius)
 		t = random.uniform(-math.pi, math.pi)
-		return Vector(x + (r * cos(t)), y + (r * sin(t)))
+		pt = Vector(x + (r * cos(t)), y + (r * sin(t)))
+		return self.orient(pt)
 
 	def getAABB(self):
 		x, y = self.center
@@ -183,7 +184,8 @@ class SectorRegion(Region):
 		r = random.triangular(0, maxDist, maxDist)
 		ha = angle / 2.0
 		t = random.uniform(-ha, ha) + (heading + (math.pi / 2))
-		return Vector(x + (r * cos(t)), y + (r * sin(t)))
+		pt = Vector(x + (r * cos(t)), y + (r * sin(t)))
+		return self.orient(pt)
 
 	def __str__(self):
 		return f'SectorRegion({self.center},{self.radius},{self.heading},{self.angle})'
@@ -217,7 +219,8 @@ class RectangularRegion(RotatedRectangle, Region):
 		hw, hh = self.hw, self.hh
 		rx = random.uniform(-hw, hw)
 		ry = random.uniform(-hh, hh)
-		return self.position.offsetRotated(self.heading, Vector(rx, ry))
+		pt = self.position.offsetRotated(self.heading, Vector(rx, ry))
+		return self.orient(pt)
 
 	def getAABB(self):
 		x, y = zip(*self.corners)

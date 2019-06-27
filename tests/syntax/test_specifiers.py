@@ -4,7 +4,7 @@ import pytest
 
 from scenic.syntax.translator import InterpreterParseError, InvalidScenarioError
 from scenic.core.vectors import Vector
-from tests.utils import compileScenic, sampleEgoFrom
+from tests.utils import compileScenic, sampleEgo, sampleEgoFrom
 
 ## Dependencies and lazy evaluation
 
@@ -230,3 +230,31 @@ def test_in_heading():
         assert -50 <= pos.y <= 50
         assert pos.x == pytest.approx(-pos.y)
         assert scene.egoObject.heading == pytest.approx(math.radians(45))
+
+def test_in_mistyped():
+    with pytest.raises(InterpreterParseError):
+        compileScenic('ego = Object in 3@2')
+
+def test_in_distribution():
+    scenario = compileScenic(
+        'ra = RectangularRegion(0@0, 0, 2, 2)\n'
+        'rb = RectangularRegion(10@0, 0, 2, 2)\n'
+        'ego = Object in Uniform(ra, rb)'
+    )
+    xs = [sampleEgo(scenario).position.x for i in range(60)]
+    assert all(-1 <= x <= 1 or 9 <= x <= 11 for x in xs)
+    assert any(x < 5 for x in xs)
+    assert any(x > 5 for x in xs)
+
+def test_in_heading_distribution():
+    scenario = compileScenic(
+        'ra = RectangularRegion(0@0, 0, 2, 2)\n'
+        'ra.orientation = VectorField("foo", lambda pt: 1)\n'
+        'rb = PolylineRegion([0 @ 0, 1 @ 1])\n'
+        'ego = Object in Uniform(ra, rb)'
+    )
+    hs = [sampleEgo(scenario).heading for i in range(60)]
+    h2 = pytest.approx(-math.pi/4)
+    assert all(h == 1 or h == h2 for h in hs)
+    assert any(h == 1 for h in hs)
+    assert any(h == h2 for h in hs)

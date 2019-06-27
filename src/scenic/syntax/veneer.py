@@ -304,13 +304,17 @@ def At(pos):
 
 # in/on <region>
 def In(region):
-	# TODO fix type checking
-	#region = toType(region, Region, 'specifier "in/on R" with R not a Region')
-	if isinstance(region, Distribution):
-		extras = {'heading'}	# TODO fix hack!!!
-	else:
-		extras = {} if region.orientation is None else {'heading'}
+	region = toType(region, Region, 'specifier "in/on R" with R not a Region')
+	extras = {'heading'} if alwaysProvidesOrientation(region) else {}
 	return Specifier('position', Region.uniformPointIn(region), optionals=extras)
+
+def alwaysProvidesOrientation(region):
+	if isinstance(region, Region):
+		return region.orientation is not None
+	elif isinstance(region, Options):
+		return all(alwaysProvidesOrientation(opt) for opt in region.options)
+	else:
+		return False
 
 # beyond <vector> by <scalar-or-vector> from <vector>
 def Beyond(pos, offset, fromPt=None):
