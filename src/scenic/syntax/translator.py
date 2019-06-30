@@ -51,7 +51,7 @@ from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.workspaces import Workspace
 from scenic.core.scenarios import Scenario
 from scenic.core.object_types import Constructible
-from scenic.core.utils import ParseError, RuntimeParseError
+from scenic.core.utils import ParseError, RuntimeParseError, InvalidScenarioError
 import scenic.core.pruning as pruning
 import scenic.syntax.veneer as veneer
 import scenic.syntax.relations as relations
@@ -1017,16 +1017,6 @@ def executePythonFunction(func, lineMap, filename):
 		raise e.with_traceback(tb) from None
 
 ### TRANSLATION PHASE SEVEN: scenario construction
-
-class InvalidScenarioError(Exception):
-	"""Error raised for syntactically-valid but otherwise problematic Scenic programs."""
-	pass
-
-class InconsistentScenarioError(InvalidScenarioError):
-	"""Error for scenarios with inconsistent requirements."""
-	def __init__(self, line, message):
-		self.lineno = line
-		super().__init__('Inconsistent requirement on line ' + str(line) + ': ' + message)
 
 def storeScenarioStateIn(namespace, requirementSyntax, lineMap, filename):
 	"""Post-process an executed Scenic module, extracting state from the veneer."""

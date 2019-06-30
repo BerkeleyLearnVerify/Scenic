@@ -16,7 +16,19 @@ def argsToString(args):
     return f'({joinedArgs})'
 
 class ParseError(Exception):
+    """An error produced by attempting to parse an invalid Scenic program."""
     pass
 
 class RuntimeParseError(ParseError):
-	pass
+    """A Scenic parse error generated during execution of the translated Python."""
+    pass
+
+class InvalidScenarioError(Exception):
+    """Error raised for syntactically-valid but otherwise problematic Scenic programs."""
+    pass
+
+class InconsistentScenarioError(InvalidScenarioError):
+    """Error for scenarios with inconsistent requirements."""
+    def __init__(self, line, message):
+        self.lineno = line
+        super().__init__('Inconsistent requirement on line ' + str(line) + ': ' + message)

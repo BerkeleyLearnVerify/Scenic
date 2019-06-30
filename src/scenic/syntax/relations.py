@@ -7,20 +7,25 @@ from ast import Compare, BinOp, Eq, NotEq, Lt, LtE, Gt, GtE, Call, Add, Sub, Exp
 
 from scenic.core.distributions import needsSampling
 from scenic.core.object_types import Point, Object
-import scenic.syntax.translator as translator
+from scenic.core.utils import InvalidScenarioError, InconsistentScenarioError
 
 def inferRelationsFrom(reqNode, namespace, ego, line, lineMap):
     """Infer relations between objects implied by a requirement."""
     matcher = RequirementMatcher(namespace, lineMap)
-    # Check for relative heading bounds
+
+    inferRelativeHeadingRelations(matcher, reqNode, ego, line)
+    inferDistanceRelations(matcher, reqNode, ego, line)
+
+def inferRelativeHeadingRelations(matcher, reqNode, ego, line):
+    """Infer bounds on relative headings from a requirement."""
     rhMatcher = lambda node: matcher.matchUnaryFunction('RelativeHeading', node)
     allBounds = matcher.matchBounds(reqNode, rhMatcher)
     for target, bounds in allBounds.items():
         if not isinstance(target, Object):
             continue
+        assert target is not ego
         if ego is None:
-            raise translator.InvalidScenarioError('relative heading w.r.t. unassigned '
-                                                  f'ego on line {line}')
+            raise InvalidScenarioError('relative heading w.r.t. unassigned ego on line {line}')
         lower, upper = bounds
         if lower < -math.pi:
             lower = -math.pi
@@ -33,11 +38,39 @@ def inferRelationsFrom(reqNode, namespace, ego, line, lineMap):
         conv = RelativeHeadingRelation(ego, -upper, -lower)
         target._relations.append(conv)
 
-class RelativeHeadingRelation:
-    """Relation bounding an object's relative heading with respect to the ego object."""
+def inferDistanceRelations(matcher, reqNode, ego, line):
+    """Infer bounds on distances from a requirement."""
+    distMatcher = lambda node: matcher.matchUnaryFunction('DistanceFrom', node)
+    allBounds = matcher.matchBounds(reqNode, distMatcher)
+    for target, bounds in allBounds.items():
+        if not isinstance(target, Object):
+            continue
+        assert target is not ego
+        if ego is None:
+            raise InvalidScenarioError('distance w.r.t. unassigned ego on line {line}')
+        lower, upper = bounds
+        if lower < 0:
+            lower = 0
+            if upper == float('inf'):
+                continue    # skip trivial bounds
+        rel = DistanceRelation(target, lower, upper)
+        ego._relations.append(rel)
+        conv = DistanceRelation(ego, lower, upper)
+        target._relations.append(conv)
+
+class BoundRelation:
+    """Abstract relation bounding something about another object."""
     def __init__(self, target, lower, upper):
         self.target = target
         self.lower, self.upper = lower, upper
+
+class RelativeHeadingRelation(BoundRelation):
+    """Relation bounding another object's relative heading with respect to this one."""
+    pass
+
+class DistanceRelation(BoundRelation):
+    """Relation bounding another object's distance from this one."""
+    pass
 
 class RequirementMatcher:
     def __init__(self, namespace, lineMap):
@@ -46,7 +79,7 @@ class RequirementMatcher:
 
     def inconsistencyError(self, node, message):
         line = self.lineMap[node.lineno]
-        raise translator.InconsistentScenarioError(line, message)
+        raise InconsistentScenarioError(line, message)
 
     def matchUnaryFunction(self, name, node):
         """Match a call to a specified unary function, returning the value of its argument."""
