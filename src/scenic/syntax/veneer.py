@@ -123,6 +123,8 @@ def ego(obj=None):
 
 def require(reqID, req, line, prob=1):
 	"""Function implementing the require statement."""
+	if evaluatingRequirement:
+		raise RuntimeParseError('tried to create a requirement inside a requirement')
 	# the translator wrapped the requirement in a lambda to prevent evaluation,
 	# so we need to save the current values of all referenced names; throw in
 	# the ego object too since it can be referred to implicitly
@@ -161,11 +163,15 @@ def verbosePrint(msg):
 
 def param(**params):
 	"""Function implementing the param statement."""
+	if evaluatingRequirement:
+		raise RuntimeParseError('tried to create a global parameter inside a requirement')
 	for name, value in params.items():
 		globalParameters[name] = toDistribution(value)
 
 def mutate(*objects):		# TODO update syntax
 	"""Function implementing the mutate statement."""
+	if evaluatingRequirement:
+		raise RuntimeParseError('used mutate statement inside a requirement')
 	if len(objects) == 0:
 		objects = allObjects
 	for obj in objects:

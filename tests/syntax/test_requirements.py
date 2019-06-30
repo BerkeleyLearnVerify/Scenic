@@ -32,6 +32,21 @@ def test_object_in_requirement():
     with pytest.raises(InterpreterParseError):
         scenario.generate(maxIterations=1)
 
+def test_param_in_requirement():
+    scenario = compileScenic('require param x = 4\n' 'ego = Object')
+    with pytest.raises(InterpreterParseError):
+        scenario.generate(maxIterations=1)
+
+def test_mutate_in_requirement():
+    scenario = compileScenic('require mutate\n' 'ego = Object')
+    with pytest.raises(InterpreterParseError):
+        scenario.generate(maxIterations=1)
+
+def test_require_in_requirement():
+    scenario = compileScenic('require (require True)\n' 'ego = Object')
+    with pytest.raises(InterpreterParseError):
+        scenario.generate(maxIterations=1)
+
 ## Error handling
 
 def test_runtime_parse_error_in_requirement():

@@ -3,7 +3,7 @@ import pytest
 import math
 import random
 
-from scenic.syntax.translator import InterpreterParseError, InvalidScenarioError
+from scenic.syntax.translator import InterpreterParseError, InconsistentScenarioError
 from tests.utils import compileScenic, sampleEgo
 
 def test_containment():
@@ -33,7 +33,7 @@ def test_relative_heading():
 
 def test_relative_heading_inconsistent():
     """A special case where we can detect inconsistency of the requirements."""
-    with pytest.raises(InvalidScenarioError):
+    with pytest.raises(InconsistentScenarioError):
         scenario = compileScenic(
             'ego = Object\n'
             'other = Object at 10@10\n'

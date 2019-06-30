@@ -163,16 +163,18 @@ def programsWithBug(bug):
     """Some example programs with a hole to place a buggy statement.
 
     The hole should be reached during execution, and not be inside a loop.
+    If the hole is replaced by an empty string, the program should compile.
     """
-    # basic
-    yield bug, 1
+    # on first line
+    yield bug + '\nego = Object', 1
     # after ordinary statement
-    yield 'y = 12\n' + bug, 2
+    yield 'ego = Object\n' + bug, 2
     # after import
-    yield '\n' 'import time\n' + bug, 3
+    yield 'ego = Object\n' 'import time\n' + bug, 3
     # after explicit line continuation (and in a function)
     yield f"""\
 from time import time
+ego = Object
 
 def qux(foo=None,
         bar=3):
@@ -181,13 +183,14 @@ def qux(foo=None,
     {bug}
 
 qux()
-""", 7
+""", 8
     # after automatic line continuation by parentheses
     yield f"""\
+ego = Object
 x = (1 + 2
     + 3)
 {bug}
-""", 3
+""", 4
     # after indented specifier
     for continuation in ('', '\\', '# comment'):
         yield f"""\
@@ -196,7 +199,14 @@ ego = Object facing 1, {continuation}
 {bug}
 """, 3
 
-def checkBugs(bugs, tmpdir, checkTraceback=True):
+def test_bug_template_sanity(tmpdir):
+    """Check that the program templates above have the correct form."""
+    # Check that they compile when not injecting a bug
+    for program, line in programsWithBug(''):
+        print(f'TRYING PROGRAM:\n{program}')
+        compileScenic(program)
+
+def checkBugs(bugs, tmpdir, checkTraceback=True, generate=False):
     path = os.path.join(tmpdir, 'test.sc')
     for bug in bugs:
         for program, line in programsWithBug(bug):
@@ -204,7 +214,9 @@ def checkBugs(bugs, tmpdir, checkTraceback=True):
                 # write program to file so we can check SyntaxError line correction
                 with open(path, 'w') as f:
                     f.write(program)
-                scenic.scenarioFromFile(path)
+                scenario = scenic.scenarioFromFile(path)
+                if generate:
+                    scenario.generate(maxIterations=1)
                 print(f'FAILING PROGRAM:\n{program}')
                 pytest.fail(f'Program with buggy statement "{bug}" did not raise error')
             except Exception as e:
@@ -240,6 +252,14 @@ def test_line_numbering_late(tmpdir):
         'raise Exception',  # caught during Python execution (program exception)
     )
     checkBugs(bugs, tmpdir)
+
+def test_line_numbering_generation(tmpdir):
+    """Line numbering for errors and exceptions occuring scene generation."""
+    bugs = (
+        'require mutate',       # Scenic parse error
+        'require _flub__',      # Python runtime error
+    )
+    checkBugs(bugs, tmpdir, generate=True)
 
 def test_line_numbering_double(tmpdir):
     """Line numbering for errors arising in reused syntax elements."""

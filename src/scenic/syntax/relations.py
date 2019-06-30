@@ -146,12 +146,16 @@ class RequirementMatcher:
         return None
 
     def matchConstant(self, node):
+        """Match constant values, i.e. values known prior to sampling."""
         value = self.matchValue(node)
         return None if needsSampling(value) else value
 
     def matchValue(self, node):
-        # This method could have undesirable side-effects, but conditions in
-        # requirements should not have side-effects to begin with
+        """Match any expression which can be evaluated, returning its value.
+
+        This method could have undesirable side-effects, but conditions in
+        requirements should not have side-effects to begin with.
+        """
         try:
             code = compile(Expression(node), '<internal>', 'eval')
             value = eval(code, dict(self.namespace))

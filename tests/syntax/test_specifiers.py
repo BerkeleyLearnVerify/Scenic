@@ -57,7 +57,7 @@ def test_lazy_value_in_requirement_2():
         'require 0 relative to vf\n'
         'ego = Object\n'
     )
-    with pytest.raises(InterpreterParseError):
+    with pytest.raises(InvalidScenarioError):
         scenario.generate(maxIterations=1)
 
 ## Generic specifiers

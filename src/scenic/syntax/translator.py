@@ -1001,8 +1001,13 @@ class InterpreterParseError(ParseError):
 		super().__init__(f'Parse error in line {line}: {exc_name}: {exc}')
 
 def executeCodeIn(code, namespace, lineMap, filename):
+	"""Execute the final translated Python code in the given namespace."""
+	executePythonFunction(lambda: exec(code, namespace), lineMap, filename)
+
+def executePythonFunction(func, lineMap, filename):
+	"""Execute a Python function, giving correct Scenic backtraces for any exceptions."""
 	try:
-		exec(code, namespace)
+		return func()
 	except RuntimeParseError as e:
 		cause = e if showInternalBacktrace else None
 		tb, line = generateTracebackFrom(e, lineMap, filename)
@@ -1044,6 +1049,13 @@ def storeScenarioStateIn(namespace, requirementSyntax, lineMap, filename):
 	namespace['_requirementDeps'] = requirementDeps
 	def makeClosure(req, bindings, ego, line):
 		"""Create a closure testing the requirement in the correct runtime state."""
+		def evaluator():
+			result = req()
+			assert not needsSampling(result)
+			if needsLazyEvaluation(result):
+				raise InvalidScenarioError(f'requirement on line {line} uses value'
+				                           ' undefined outside of object definition')
+			return result
 		def closure(values):
 			# rebind any names referring to sampled objects
 			for name, value in bindings.items():
@@ -1055,17 +1067,10 @@ def storeScenarioStateIn(namespace, requirementSyntax, lineMap, filename):
 			# evaluate requirement condition, reporting errors on the correct line
 			try:
 				veneer.evaluatingRequirement = True
-				result = req()
-				assert not needsSampling(result)
-				if needsLazyEvaluation(result):
-					raise RuntimeParseError(f'requirement on line {line} uses value'
-					                        ' undefined outside of object definition')
-				return result
-			except RuntimeParseError as e:
-				cause = e if showInternalBacktrace else None
-				raise InterpreterParseError(e, line) from cause
+				result = executePythonFunction(evaluator, lineMap, filename)
 			finally:
 				veneer.evaluatingRequirement = False
+			return result
 		return closure
 	for reqID, (req, bindings, ego, line, prob) in requirements.items():
 		# Check whether requirement implies any relations used for pruning
