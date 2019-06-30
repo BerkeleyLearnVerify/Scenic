@@ -1,5 +1,5 @@
 
-"""Extracting relations (for later pruning) from the syntax of requirements"""
+"""Extracting relations (for later pruning) from the syntax of requirements."""
 
 import math
 from collections import defaultdict
@@ -7,9 +7,11 @@ from ast import Compare, BinOp, Eq, NotEq, Lt, LtE, Gt, GtE, Call, Add, Sub, Exp
 
 from scenic.core.distributions import needsSampling
 from scenic.core.object_types import Point, Object
+import scenic.syntax.translator as translator
 
-def inferRelationsFrom(reqNode, namespace, ego, line):
-    matcher = RequirementMatcher(namespace)
+def inferRelationsFrom(reqNode, namespace, ego, line, lineMap):
+    """Infer relations between objects implied by a requirement."""
+    matcher = RequirementMatcher(namespace, lineMap)
     # Check for relative heading bounds
     rhMatcher = lambda node: matcher.matchUnaryFunction('RelativeHeading', node)
     allBounds = matcher.matchBounds(reqNode, rhMatcher)
@@ -17,7 +19,8 @@ def inferRelationsFrom(reqNode, namespace, ego, line):
         if not isinstance(target, Object):
             continue
         if ego is None:
-            raise InvalidScenarioError(f'relative heading w.r.t. unassigned ego on line {line}')
+            raise translator.InvalidScenarioError('relative heading w.r.t. unassigned '
+                                                  f'ego on line {line}')
         lower, upper = bounds
         if lower < -math.pi:
             lower = -math.pi
@@ -31,15 +34,22 @@ def inferRelationsFrom(reqNode, namespace, ego, line):
         target._relations.append(conv)
 
 class RelativeHeadingRelation:
+    """Relation bounding an object's relative heading with respect to the ego object."""
     def __init__(self, target, lower, upper):
         self.target = target
         self.lower, self.upper = lower, upper
 
 class RequirementMatcher:
-    def __init__(self, namespace):
+    def __init__(self, namespace, lineMap):
         self.namespace = namespace
+        self.lineMap = lineMap
+
+    def inconsistencyError(self, node, message):
+        line = self.lineMap[node.lineno]
+        raise translator.InconsistentScenarioError(line, message)
 
     def matchUnaryFunction(self, name, node):
+        """Match a call to a specified unary function, returning the value of its argument."""
         if not (isinstance(node, Call) and isinstance(node.func, Name)
                 and node.func.id == name):
             return None
@@ -50,6 +60,11 @@ class RequirementMatcher:
         return self.matchValue(node.args[0])
 
     def matchBounds(self, node, matchAtom):
+        """Match upper/lower bounds on something matched by the given function.
+
+        Returns a dict of all bounds found, mapping the bounded quantity to a
+        pair (low, high) of lower/upper bounds.
+        """
         if not isinstance(node, Compare):
             return {}
         bounds = defaultdict(lambda: (float('-inf'), float('inf')))
@@ -68,6 +83,7 @@ class RequirementMatcher:
         return bounds
 
     def matchBoundsInner(self, left, right, op, matchAtom):
+        """Extract bounds from a single comparison operator."""
         # Reduce > and >= to < and <=
         if isinstance(op, Gt):
             return self.matchBoundsInner(right, left, Lt(), matchAtom)
@@ -96,13 +112,14 @@ class RequirementMatcher:
         return None, None, None
 
     def matchAbsBounds(self, node, const, op, isUpperBound, matchAtom):
+        """Extract bounds on an atom from a comparison involving its absolute value."""
         if not (isinstance(node, Call) and isinstance(node.func, Name)
                 and node.func.id == 'abs'):
             return None     # not an invocation of abs
         if not isUpperBound and not isinstance(op, Eq):
             return None     # lower bounds on abs value don't bound underlying quantity
         if const < 0:
-            raise RuntimeError('inconsistent require statement')    # TODO improve
+            self.inconsistencyError(node, f'absolute value cannot be negative')
         assert len(node.args) == 1
         arg = node.args[0]
         target = matchAtom(arg)
