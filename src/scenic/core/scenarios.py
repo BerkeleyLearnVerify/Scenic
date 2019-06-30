@@ -3,6 +3,7 @@ import random
 import time
 
 from scenic.core.distributions import Samplable, RejectionException, needsSampling
+from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
 
@@ -114,9 +115,10 @@ class Scenario:
 
 		# obtained a valid sample; assemble a scene from it
 		sampledObjects = tuple(sample[obj] for obj in objects)
-		sampledParams = {
-			param: sample[value] if isinstance(value, Samplable) else value
-			for param, value in self.params.items()
-		}
+		sampledParams = {}
+		for param, value in self.params.items():
+			sampledValue = sample[value] if isinstance(value, Samplable) else value
+			assert not needsLazyEvaluation(sampledValue)
+			sampledParams[param] = sampledValue
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams)
 		return scene, iterations

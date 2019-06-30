@@ -12,6 +12,7 @@ from scenic.core.vectors import Vector
 from scenic.core.geometry import RotatedRectangle, averageVectors, hypot, min, pointIsInCone
 from scenic.core.regions import CircularRegion, SectorRegion
 from scenic.core.type_support import toVector, toScalar
+from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.utils import RuntimeParseError
 
 ## Abstract base class
@@ -39,6 +40,7 @@ class Constructible(Samplable):
 	@classmethod
 	def withProperties(cls, props):
 		assert all(reqProp in props for reqProp in cls.defaults())
+		assert all(not needsLazyEvaluation(val) for val in props.values())
 		specs = (Specifier(prop, val) for prop, val in props.items())
 		return cls(*specs)
 

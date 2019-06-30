@@ -3,7 +3,7 @@ import pytest
 import math
 import random
 
-from scenic.syntax.translator import InterpreterParseError
+from scenic.syntax.translator import InterpreterParseError, InvalidScenarioError
 from tests.utils import compileScenic, sampleEgo, sampleParamP
 
 ## Utilities
@@ -11,7 +11,7 @@ from tests.utils import compileScenic, sampleEgo, sampleParamP
 def lazyTestScenario(expr, offset='0'):
     """Scenario for testing a lazily-evaluated value inside a distribution.
 
-    Here the value 'x' lazily evaluates to 1.
+    Here the value 'x' lazily evaluates to 1 (plus the offset, if any).
     """
     return compileScenic(
         'vf = VectorField("Foo", lambda pos: 2 * pos.x)\n'
@@ -210,6 +210,22 @@ def test_list_param():
     assert all(t[1] == 1 or t[1] == 2 for t in ts)
     assert any(t[1] == 1 for t in ts)
     assert any(t[1] == 2 for t in ts)
+
+def test_list_param_lazy():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic(
+            'vf = VectorField("Foo", lambda pos: 2 * pos.x)\n'
+            'x = 0 relative to vf\n'
+            'param p = Uniform([0, x], [0, x*2])[1]\n'
+            'ego = Object'
+        )
+
+def test_list_object_lazy():
+    scenario = lazyTestScenario('Uniform([0, x], [1, x])[1]', offset='Uniform(0, 1)')
+    hs = [sampleEgo(scenario).heading for i in range(60)]
+    assert all(h == pytest.approx(1) or h == pytest.approx(2) for h in hs)
+    assert any(h == pytest.approx(1) for h in hs)
+    assert any(h == pytest.approx(2) for h in hs)
 
 def test_tuple():
     scenario = compileScenic('ego = Object with foo tuple([3, Uniform(1, 2)])')
