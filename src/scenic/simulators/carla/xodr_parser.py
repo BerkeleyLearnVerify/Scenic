@@ -162,17 +162,13 @@ class Line(Curve):
         # Endpoints of line.
         self.x1 = x0 + length * math.cos(hdg)
         self.y1 = y0 + length * math.sin(hdg)
-        self.points = None
 
     def to_points(self, num=10):
-        if self.points is None:
-            x = np.linspace(self.x0, self.x1, num=num)
-            y = np.linspace(self.y0, self.y1, num=num)
-            s = [np.sqrt((x[i] - self.x0) **2 + (y[i] - self.y0) ** 2)
-                 for i in range(num)]
-            self.points = list(zip(x, y, s))
-        return self.points
-
+        x = np.linspace(self.x0, self.x1, num=num)
+        y = np.linspace(self.y0, self.y1, num=num)
+        s = [np.sqrt((x[i] - self.x0) **2 + (y[i] - self.y0) ** 2)
+             for i in range(num)]
+        return  list(zip(x, y, s))
 
 class Lane():
     def __init__(self, id_, type_, pred=None, succ=None):
@@ -233,7 +229,7 @@ class LaneSection():
         return offsets
 
 
-# Note: RoadLink and Junction are not currently used for get_drivable methods.
+# Note: RoadLink and Junction are not currently used for calculate_geometry methods.
 class RoadLink:
     '''Indicates Roads a and b, with ids id_a and id_b respectively, are connected.'''
     def __init__(self, id_a, id_b, contact_a, contact_b):
@@ -304,6 +300,9 @@ class Road:
         ref_points = []
         for piece in self.ref_line:
             piece_points = piece.to_points(num)
+            if not piece_points:
+                print('???')
+                print(piece)
             if ref_points:
                 piece_points = [(p[0], p[1], p[2] + ref_points[-1][-1][2])
                                 for p in piece_points]
@@ -357,11 +356,20 @@ class Road:
 
         raise RuntimeError('Point not found in piece_polys')
 
-    def calculate_geometry(self, num):
-        '''Populates the sec_lines, sec_polys, sec_lane_polys and drivable_region fields.'''
+    def calc_geometry_for_type(self, lane_types, num):
+        '''Given a list of lane types, returns a tuple of:
+        - List of lists of points along the reference line, with same indexing as self.lane_secs
+        - List of region polygons, with same indexing as self.lane_secs
+        - List of dictionary of lane id to polygon, with same indexing as self.lane_secs
+        - List of polygons for each lane (not necessarily by id, but respecting lane successor/predecessor)
+        - Polygon for entire region.'''
         road_polygons = []
         ref_points = self.get_ref_points(num)
         cur_lane_polys = {}
+        sec_points = []
+        sec_polys = []
+        sec_lane_polys = []
+        lane_polys = []
 
         for i in range(len(self.lane_secs)):
             cur_sec = self.lane_secs[i]
@@ -417,8 +425,8 @@ class Road:
                         if len(cur_sec_points) >= 2:
                             prev_p = cur_sec_points[-2]
                         else:
-                            assert len(self.sec_points) > 0
-                            prev_p = self.sec_points[-1][-1]
+                            assert len(sec_points) > 0
+                            prev_p = sec_points[-1][-1]
 
                         tan_vec = (cur_p[0] - prev_p[0],
                                    cur_p[1] - prev_p[1])
@@ -427,7 +435,7 @@ class Road:
                         continue
                     normal_vec = (-tan_vec[1] / tan_norm, tan_vec[0] / tan_norm)
                     for id_ in offsets.keys():
-                        if cur_sec.get_lane(id_).type_ in DRIVABLE:
+                        if cur_sec.get_lane(id_).type_ in lane_types:
                             if id_ > 0:
                                 prev_id = id_ - 1
                             else:
@@ -444,25 +452,35 @@ class Road:
                                 right_bounds[id_] = [right_bound]
                             else:
                                 right_bounds[id_].append(right_bound)
-            self.sec_points.append(cur_sec_points)
-            self.sec_polys.append(unary_union(cur_sec_polys).buffer(0))
+            sec_points.append(cur_sec_points)
+            sec_polys.append(unary_union(cur_sec_polys).buffer(0))
             for id_ in cur_sec_lane_polys:
                 cur_sec_lane_polys[id_] = unary_union(cur_sec_lane_polys[id_]).buffer(0)
-            self.sec_lane_polys.append(cur_sec_lane_polys)
+            sec_lane_polys.append(cur_sec_lane_polys)
             next_lane_polys = {}
             for id_ in cur_sec_lane_polys:
                 pred_id = cur_sec.get_lane(id_).pred
                 if pred_id and pred_id in cur_lane_polys:
                     next_lane_polys[id_] = cur_lane_polys.pop(pred_id) \
-                        + [cur_sec_lane_polys[id_].buffer(0.001)]
+                        + [cur_sec_lane_polys[id_].buffer(0.5)]
                 else:
                     next_lane_polys[id_] = [cur_sec_lane_polys[id_].buffer(.5)]
             for id_ in cur_lane_polys:
-                self.lane_polys.append(unary_union(cur_lane_polys[id_]).buffer(-.5))
+                lane_polys.append(unary_union(cur_lane_polys[id_]).buffer(-.5))
             cur_lane_polys = next_lane_polys
         for id_ in cur_lane_polys:
-                self.lane_polys.append(unary_union(cur_lane_polys[id_]).buffer(-.5))
-        self.drivable_region = unary_union(self.sec_polys).buffer(0)
+            lane_polys.append(unary_union(cur_lane_polys[id_]).buffer(-.5))
+        union_poly = unary_union(sec_polys).buffer(0)
+        return sec_points, sec_polys, sec_lane_polys, lane_polys, union_poly
+
+    def calculate_geometry(self, num):
+        self.sec_points,\
+            self.sec_polys,\
+            self.sec_lane_polys,\
+            self.lane_polys,\
+            self.drivable_region =\
+                self.calc_geometry_for_type(DRIVABLE, num)
+        _, _, _, _, self.sidewalk_region = self.calc_geometry_for_type(['sidewalk'], num)
 
 class RoadMap:
     def __init__(self):
@@ -476,17 +494,24 @@ class RoadMap:
         for road in self.roads.values():
             road.calculate_geometry(num)
         drivable_polys = {}
+        sidewalk_polys = {}
+        # TODO: Redo this!!!!!!
         for road in self.roads.values():
             self.sec_lane_polys.extend(road.sec_lane_polys)
             self.lane_polys.extend(road.lane_polys)
-            poly = road.drivable_region
-            if poly is None or poly.is_empty:
-                continue
-            assert poly.is_valid, 'Invalid polygon.'
-            drivable_polys[road.id_] = poly.buffer(0.001)
+            drivable_poly = road.drivable_region
+            sidewalk_poly = road.sidewalk_region
+            if not (drivable_poly is None or drivable_poly.is_empty):
+                drivable_polys[road.id_] = drivable_poly.buffer(0.001)
+            if not (sidewalk_poly is None or sidewalk_poly.is_empty):
+                sidewalk_polys[road.id_] = sidewalk_poly.buffer(0.001)
+
 
         self.drivable_region = unary_union(list(drivable_polys.values()))\
-            .buffer(-0.001).buffer(0.5).buffer(0.5)
+            .buffer(-0.001).buffer(0.5).buffer(-0.5)
+        self.sidewalk_region = unary_union(list(sidewalk_polys.values()))\
+            .buffer(-0.001).buffer(0.5).buffer(-0.5)
+
 
     def heading_at(self, point):
         '''Return the road heading at point.'''
