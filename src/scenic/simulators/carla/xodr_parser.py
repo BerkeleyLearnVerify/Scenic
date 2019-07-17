@@ -23,7 +23,7 @@ DRIVABLE = [
 def plot_poly(polygon, c='r'):
     if isinstance(polygon, MultiPolygon) or isinstance(polygon, GeometryCollection):
         for poly in list(polygon):
-            plot_poly(poly)
+            plot_poly(poly, c=c)
     else:
         if not polygon.exterior:
             return
@@ -520,7 +520,8 @@ class RoadMap:
         for road in self.roads.values():
             if point.within(road.drivable_region.buffer(1)):
                 return road.heading_at(point)
-        raise RuntimeError('Point not in RoadMap: ', point)
+        #raise RuntimeError('Point not in RoadMap: ', point)
+        return 0
 
     def plot_line(self, num=500):
         '''Plot center line of road map for sanity check.'''

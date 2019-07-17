@@ -1,5 +1,4 @@
-
-# stub to allow changing the world without having to alter road_model.sc
+# stub to allow changing the map without having to alter road_model.sc
 
 import os.path
 

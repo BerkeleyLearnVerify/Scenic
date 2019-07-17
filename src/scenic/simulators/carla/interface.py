@@ -11,13 +11,16 @@ class CarlaWorkspace(Workspace):
         self.road_map.parse(path)
         self.road_map.calculate_geometry(n)
         drivable_poly = self.road_map.drivable_region
+        sidewalk_poly = self.road_map.sidewalk_region
         self.road_direction = VectorField('Road Direction',
                                           self.road_map.heading_at)
         self.drivable_region = PolygonalRegion(polygon=drivable_poly,
                                                orientation=self.road_direction)
+        self.sidewalk_region = PolygonalRegion(polygon=sidewalk_poly)
 
     def show(self, plt):
         xodr_parser.plot_poly(self.drivable_region.polygons)
+        xodr_parser.plot_poly(self.sidewalk_region.polygons, 'b')
 
     @property
     def minimumZoomSize(self):
