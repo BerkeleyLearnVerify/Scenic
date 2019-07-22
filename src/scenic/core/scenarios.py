@@ -6,6 +6,7 @@ from scenic.core.distributions import Samplable, RejectionException, needsSampli
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
+from scenic.core.utils import InvalidScenarioError
 
 class Scene:
 	"""A scene generated from a Scenic scenario"""
@@ -50,12 +51,47 @@ class Scenario:
 		# dependencies must use fixed order for reproducibility
 		paramDeps = tuple(p for p in self.params.values() if isinstance(p, Samplable))
 		self.dependencies = self.objects + paramDeps + tuple(requirementDeps)
+		self.validate()
 
 	def containerOfObject(self, obj):
 		if hasattr(obj, 'regionContainedIn') and obj.regionContainedIn is not None:
 			return obj.regionContainedIn
 		else:
 			return self.workspace.region
+
+	def validate(self):
+		"""Make some simple static checks for inconsistent built-in requirements."""
+		objects = self.objects
+		staticVisibility = not needsSampling(self.egoObject.visibleRegion)
+		staticBounds = [self.hasStaticBounds(obj) for obj in objects]
+		for i in range(len(objects)):
+			oi = objects[i]
+			# skip objects with unknown positions or bounding boxes
+			if not staticBounds[i]:
+				continue
+			# Require object to be contained in the workspace/valid region
+			container = self.containerOfObject(oi)
+			if not needsSampling(container) and not container.containsObject(oi):
+				raise InvalidScenarioError(f'Object at {oi.position} does not fit in container')
+			# Require object to be visible from the ego object
+			if staticVisibility and oi.requireVisible is True and oi is not self.egoObject:
+				if not self.egoObject.canSee(oi):
+					raise InvalidScenarioError(f'Object at {oi.position} is not visible from ego')
+			# Require object to not intersect another object
+			for j in range(i):
+				oj = objects[j]
+				if not staticBounds[j]:
+					continue
+				if oi.intersects(oj):
+					raise InvalidScenarioError(f'Object at {oi.position} intersects'
+					                           f' object at {oj.position}')
+
+	def hasStaticBounds(self, obj):
+		if needsSampling(obj.position):
+			return False
+		if any(needsSampling(corner) for corner in obj.corners):
+			return False
+		return True
 
 	def generate(self, maxIterations=2000, verbosity=0):
 		objects = self.objects
