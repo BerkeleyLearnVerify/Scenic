@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, MultiPolygon, GeometryCollection, Point
 from shapely.ops import unary_union, snap
 import abc
-from descartes import PolygonPatch
 
 # Lane types on which cars can appear.
 DRIVABLE = [

@@ -4,9 +4,6 @@ import time
 from scenic.simulators.carla.interface import CarlaWorkspace
 from scenic.simulators.carla.map import mapPath
 
-mapPath = 'OpenDrive/Town01.xodr'
-
-# TODO: Write carla_workspace
 workspace = CarlaWorkspace(mapPath)
 
 roadDirection = workspace.road_direction
@@ -20,6 +17,8 @@ constructor Car:
     heading: (roadDirection at self.position) + self.roadDeviation
     roadDeviation: 0
     viewAngle: 90 deg
+    width: 2.5
+    height: 5
 
 constructor Pedestrian:
     regionContainedIn: sidewalk
