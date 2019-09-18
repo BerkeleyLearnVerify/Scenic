@@ -271,6 +271,8 @@ class Road:
         self.sec_polys = []   # List of Polygons, one for each LaneSections.
         self.sec_lane_polys = []    # List of dict of lane id to Polygon for each LaneSection.
         self.lane_polys = []    # List of lane polygons. Not a dict b/c lane id is not unique along road.
+        # Each polygon in lane_polys is the union of connected lane section polygons.
+        # lane_polys is currently not used.
         # Reference line offset:
         self.offset = []    # List of tuple (Poly3, s-coordinate).
         self.drive_on_right = drive_on_right
@@ -351,7 +353,7 @@ class Road:
                     heading += math.pi
                 # Heading 0 is defined differently between OpenDrive and Scenic(?)
                 heading -= math.pi / 2
-                return heading % (2 * math.pi)
+                return (heading + math.pi) % (2 * math.pi) - math.pi
 
         raise RuntimeError('Point not found in piece_polys')
 
@@ -494,7 +496,6 @@ class RoadMap:
             road.calculate_geometry(num)
         drivable_polys = {}
         sidewalk_polys = {}
-        # TODO: Redo this!!!!!!
         for road in self.roads.values():
             self.sec_lane_polys.extend(road.sec_lane_polys)
             self.lane_polys.extend(road.lane_polys)

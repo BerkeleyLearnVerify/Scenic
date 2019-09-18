@@ -17,6 +17,15 @@ class CarlaWorkspace(Workspace):
         self.drivable_region = PolygonalRegion(polygon=drivable_poly,
                                                orientation=self.road_direction)
         self.sidewalk_region = PolygonalRegion(polygon=sidewalk_poly)
+        # lane_sec_dict is dict of road id to list of dict of lane id to PolygonalRegion.
+        self.lane_sec_dict = {}
+        for id_ in self.road_map.roads:
+            lane_dicts = []
+            for d in self.road_map.roads[id_].sec_lane_polys:
+                lane_dicts.append({i: PolygonalRegion(polygon=d[i],
+                                                      orientation=self.road_direction)
+                                   for i in d.keys()})
+            self.lane_sec_dict[id_] = lane_dicts
 
     def show(self, plt):
         xodr_parser.plot_poly(self.drivable_region.polygons)
