@@ -109,3 +109,10 @@ class MoveAction(simulators.Action):
         state = lgsvlObj.state
         state.position = pos
         lgsvlObj.state = state
+
+class FollowWaypointsAction(simulators.Action):
+    def __init__(self, waypoints):
+        self.waypoints = tuple(waypoints)
+
+    def applyTo(self, obj, lgsvlObject):
+        lgsvlObject.follow(self.waypoints)
