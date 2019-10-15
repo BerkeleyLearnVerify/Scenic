@@ -4,6 +4,7 @@
 import collections
 import itertools
 import random
+import math
 
 from scenic.core.lazy_eval import (LazilyEvaluable, DelayedArgument,
                                    requiredProperties, needsLazyEvaluation, valueInContext,
@@ -121,6 +122,16 @@ class Distribution(Samplable):
 	"""Abstract class for distributions."""
 
 	defaultValueType = float
+
+	def __new__(cls, *args, **kwargs):
+		dist = super().__new__(cls)
+		# at runtime, return a sample from the distribution immediately
+		import scenic.syntax.veneer as veneer
+		if veneer.simulationInProgress():
+			dist.__init__(*args, **kwargs)
+			return dist.sample()
+		else:
+			return dist
 
 	def __init__(self, *dependencies, valueType=None):
 		super().__init__(dependencies)
@@ -440,6 +451,32 @@ class Range(Distribution):
 
 	def __str__(self):
 		return f'Range({self.low}, {self.high})'
+
+class DiscreteRange(Distribution):
+	"""Uniform distribution over a range of integers"""
+	def __init__(self, low, high):
+		low = type_support.toScalar(low, f'Range endpoint {low} is not a scalar')
+		high = type_support.toScalar(high, f'Range endpoint {high} is not a scalar')
+		super().__init__(low, high)
+		self.low = low
+		self.high = high
+
+	def __contains__(self, obj):
+		return low <= obj and obj <= high
+
+	def clone(self):
+		return type(self)(self.low, self.high)
+
+	def sampleGiven(self, value):
+		return random.randint(math.ceil(value[self.low]), math.floor(value[self.high]))
+
+	def evaluateInner(self, context):
+		low = valueInContext(self.low, context)
+		high = valueInContext(self.high, context)
+		return DiscreteRange(low, high)
+
+	def __str__(self):
+		return f'DiscreteRange({self.low}, {self.high})'
 
 class Normal(Distribution):
 	"""Normal distribution"""

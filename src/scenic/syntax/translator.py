@@ -49,6 +49,7 @@ from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Num, Subscript, In
 from scenic.core.distributions import Samplable, needsSampling
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.workspaces import Workspace
+from scenic.simulators.simulators import Simulator
 from scenic.core.scenarios import Scenario
 from scenic.core.object_types import Constructible
 from scenic.core.utils import ParseError, RuntimeParseError, InvalidScenarioError
@@ -211,7 +212,7 @@ for imp in functionStatements:
 
 ## Built-in functions
 
-builtinFunctions = { 'resample', 'verbosePrint' }
+builtinFunctions = { 'resample', 'verbosePrint', 'simulation' }
 
 # sanity check: implementations of built-in functions actually exist
 for imp in builtinFunctions:
@@ -350,7 +351,8 @@ allIncipits = prefixIncipits | infixIncipits
 replacements = {	# TODO police the usage of these? could yield bizarre error messages
 	'of': tuple(),
 	'deg': ((STAR, '*'), (NUMBER, '0.01745329252')),
-	'ego': ((NAME, 'ego'), (LPAR, '('), (RPAR, ')'))
+	'ego': ((NAME, 'ego'), (LPAR, '('), (RPAR, ')')),
+	'invoke': ((NAME, 'yield'), (NAME, 'from')),
 }
 
 ## Illegal and reserved syntax
@@ -1098,8 +1100,16 @@ def constructScenarioFrom(namespace):
 	else:
 		workspace = None
 
+	# Extract simulator, if one is specified
+	if 'simulator' in namespace:
+		simulator = namespace['simulator']
+		if not isinstance(simulator, Simulator):
+			raise InvalidScenarioError(f'simulator {simulator} is not a Simulator')
+	else:
+		simulator = None
+
 	# Create Scenario object
-	scenario = Scenario(workspace,
+	scenario = Scenario(workspace, simulator,
 	                    namespace['_objects'], namespace['_egoObject'],
 	                    namespace['_params'],
 	                    namespace['_requirements'], namespace['_requirementDeps'])

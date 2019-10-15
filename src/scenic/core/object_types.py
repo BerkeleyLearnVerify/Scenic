@@ -248,8 +248,10 @@ class Object(OrientedPoint, RotatedRectangle):
 	requireVisible: True
 	regionContainedIn: None
 	cameraOffset: Vector(0, 0)
+	behavior: None
 
 	def __init__(self, *args, **kwargs):
+		object.__setattr__(self, '_dynamicProxy', self)	# proxy for dynamic simulations (if any)
 		super().__init__(*args, **kwargs)
 		import scenic.syntax.veneer as veneer	# TODO improve?
 		veneer.registerObject(self)
@@ -271,6 +273,14 @@ class Object(OrientedPoint, RotatedRectangle):
 		self.visibleRegion = SectorRegion(camera, self.visibleDistance,
 										  self.heading, self.viewAngle)
 		self._relations = []
+
+	def __getattribute__(self, name):
+		proxy = object.__getattribute__(self, '_dynamicProxy')
+		return object.__getattribute__(proxy, name)
+
+	def __setattr__(self, name, value):
+		proxy = object.__getattribute__(self, '_dynamicProxy')
+		object.__setattr__(proxy, name, value)
 
 	def show(self, workspace, plt, highlight=False):
 		if needsSampling(self):
@@ -305,3 +315,9 @@ class Object(OrientedPoint, RotatedRectangle):
 		x, y = zip(*triangle)
 		plt.fill(x, y, "w")
 		plt.plot(x + (x[0],), y + (y[0],), color="k", linewidth=1)
+
+def enableDynamicProxyFor(obj):
+	object.__setattr__(obj, '_dynamicProxy', obj.copyWith())
+
+def disableDynamicProxyFor(obj):
+	object.__setattr__(obj, '_dynamicProxy', obj)

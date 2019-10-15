@@ -34,7 +34,9 @@ walkway = workspace.walkableRegion
 # types of objects
 
 constructor WebotsObject:
-	pass
+	webotsName: 'unspecified_name'
+	webotsObject: None 	# gets filled in at simulation time
+	elevation: None 	# ditto (this is the Webots y coordinate)
 
 constructor Car(WebotsObject):
 	regionContainedIn: road

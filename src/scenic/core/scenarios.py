@@ -10,8 +10,9 @@ from scenic.core.utils import InvalidScenarioError
 
 class Scene:
 	"""A scene generated from a Scenic scenario"""
-	def __init__(self, workspace, objects, egoObject, params):
+	def __init__(self, workspace, simulator, objects, egoObject, params):
 		self.workspace = workspace
+		self.simulator = simulator
 		self.objects = tuple(objects)
 		self.egoObject = egoObject
 		self.params = params
@@ -29,15 +30,22 @@ class Scene:
 			self.workspace.zoomAround(plt, self.objects, expansion=zoom)
 		plt.show(block=block)
 
+	def simulate(self, maxSteps=None, maxIterations=100):
+		"""Run a simulation of this scene."""
+		if self.simulator is None:
+			raise RuntimeError('tried to simulate Scene which does not have a Simulator')
+		return self.simulator.simulate(self, maxSteps=maxSteps, maxIterations=maxIterations)
+
 class Scenario:
 	"""A Scenic scenario"""
-	def __init__(self, workspace,
+	def __init__(self, workspace, simulator,
 	             objects, egoObject,
 	             params,
 	             requirements, requirementDeps):
 		if workspace is None:
 			workspace = Workspace()		# default empty workspace
 		self.workspace = workspace
+		self.simulator = simulator		# simulator for dynamic scenarios
 		ordered = []
 		for obj in objects:
 			ordered.append(obj)
@@ -156,5 +164,5 @@ class Scenario:
 			sampledValue = sample[value] if isinstance(value, Samplable) else value
 			assert not needsLazyEvaluation(sampledValue)
 			sampledParams[param] = sampledValue
-		scene = Scene(self.workspace, sampledObjects, ego, sampledParams)
+		scene = Scene(self.workspace, self.simulator, sampledObjects, ego, sampledParams)
 		return scene, iterations

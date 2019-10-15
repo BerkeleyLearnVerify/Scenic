@@ -8,7 +8,7 @@ global state such as the list of all created Scenic objects.
 
 __all__ = (
 	# Primitive statements and functions
-	'ego', 'require', 'resample', 'param', 'mutate', 'verbosePrint',
+	'ego', 'require', 'resample', 'param', 'mutate', 'verbosePrint', 'simulation',
 	'sin', 'cos', 'hypot', 'max', 'min',
 	# Prefix operators
 	'Visible',
@@ -22,7 +22,7 @@ __all__ = (
 	'Vector', 'VectorField', 'PolygonalVectorField',
 	'Region', 'PointSetRegion', 'RectangularRegion', 'PolygonalRegion', 'PolylineRegion',
 	'Workspace', 'Mutator',
-	'Range', 'Options', 'Uniform', 'Normal',
+	'Range', 'DiscreteRange', 'Options', 'Uniform', 'Normal',
 	# Constructible types
 	'Point', 'OrientedPoint', 'Object',
 	# Specifiers
@@ -40,21 +40,24 @@ from scenic.core.vectors import Vector, VectorField, PolygonalVectorField
 from scenic.core.regions import (Region, PointSetRegion, RectangularRegion,
 	PolygonalRegion, PolylineRegion)
 from scenic.core.workspaces import Workspace
-from scenic.core.distributions import Range, Options, Normal
+from scenic.core.distributions import Range, DiscreteRange, Options, Normal
 Uniform = lambda *opts: Options(opts)		# TODO separate these?
 from scenic.core.object_types import Mutator, Point, OrientedPoint, Object
 from scenic.core.specifiers import PropertyDefault	# TODO remove
 
 # everything that should not be directly accessible from the language is imported here:
 import inspect
-from scenic.core.distributions import Distribution, toDistribution
-from scenic.core.type_support import isA, toType, toTypes, toScalar, toHeading, toVector
-from scenic.core.type_support import evaluateRequiringEqualTypes, underlyingType
+import random
+from scenic.core.distributions import (RejectionException, Distribution, toDistribution,
+                                       needsSampling)
+from scenic.core.type_support import (isA, toType, toTypes, toScalar, toHeading, toVector,
+                                      evaluateRequiringEqualTypes, underlyingType)
 from scenic.core.geometry import RotatedRectangle, normalizeAngle, apparentHeadingAtPoint
 from scenic.core.object_types import Constructible
 from scenic.core.specifiers import Specifier
-from scenic.core.lazy_eval import DelayedArgument
+from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
 from scenic.core.utils import RuntimeParseError
+from scenic.simulators.simulators import RejectSimulationException
 
 ### Internals
 
@@ -65,6 +68,7 @@ egoObject = None
 globalParameters = {}
 pendingRequirements = {}
 inheritedReqs = []		# TODO improve handling of these?
+currentSimulation = None
 
 def isActive():
 	"""Are we in the middle of compiling a Scenic module?
@@ -103,6 +107,22 @@ def registerObject(obj):
 	elif evaluatingRequirement:
 		raise RuntimeParseError('tried to create an object inside a requirement')
 
+def beginSimulation(sim):
+	global currentSimulation, egoObject
+	if isActive():
+		raise RuntimeError('tried to start simulation during Scenic compilation!')
+	assert currentSimulation is None
+	currentSimulation = sim
+	egoObject = sim.scene.egoObject
+
+def endSimulation():
+	global currentSimulation
+	currentSimulation = None
+	egoObject = None
+
+def simulationInProgress():
+	return currentSimulation is not None
+
 ### Primitive statements and functions
 
 def ego(obj=None):
@@ -125,11 +145,21 @@ def require(reqID, req, line, prob=1):
 	"""Function implementing the require statement."""
 	if evaluatingRequirement:
 		raise RuntimeParseError('tried to create a requirement inside a requirement')
-	# the translator wrapped the requirement in a lambda to prevent evaluation,
-	# so we need to save the current values of all referenced names; throw in
-	# the ego object too since it can be referred to implicitly
-	assert reqID not in pendingRequirements
-	pendingRequirements[reqID] = (req, getAllGlobals(req), egoObject, line, prob)
+	if simulation is not None:	# requirement being evaluated at runtime
+		if random.random() <= prob:
+			result = req()
+			assert not needsSampling(result)
+			if needsLazyEvaluation(result):
+				raise InvalidScenarioError(f'requirement on line {line} uses value'
+				                           ' undefined outside of object definition')
+			if not result:
+				raise RejectSimulationException(f'requirement on line {line}')
+	else:	# requirement being defined at compile time
+		# the translator wrapped the requirement in a lambda to prevent evaluation,
+		# so we need to save the current values of all referenced names; throw in
+		# the ego object too since it can be referred to implicitly
+		assert reqID not in pendingRequirements
+		pendingRequirements[reqID] = (req, getAllGlobals(req), egoObject, line, prob)
 
 def getAllGlobals(req, restrictTo=None):
 	"""Find all names the given lambda depends on, along with their current bindings."""
@@ -160,6 +190,12 @@ def verbosePrint(msg):
 	if translator.verbosity >= 1:
 		indent = '  ' * activity if translator.verbosity >= 2 else '  '
 		print(indent + msg)
+
+def simulation():
+	if isActive():
+		raise RuntimeParseError('used simulation() outside a behavior')
+	assert currentSimulation is not None
+	return currentSimulation
 
 def param(**params):
 	"""Function implementing the param statement."""
