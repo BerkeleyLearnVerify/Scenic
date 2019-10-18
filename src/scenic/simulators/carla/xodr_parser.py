@@ -5,7 +5,7 @@ from scipy.special import fresnel
 from scipy.integrate import quad
 from pynverse import inversefunc
 import matplotlib.pyplot as plt
-from shapely.geometry import Polygon, MultiPolygon, GeometryCollection, Point
+from shapely.geometry import Polygon, MultiPolygon, GeometryCollection, Point, MultiPoint
 from shapely.ops import unary_union, snap
 import abc
 
@@ -18,6 +18,9 @@ DRIVABLE = [
     'offRamp',
     'onRamp'
 ]
+
+# Lane types representing sidewalks.
+SIDEWALK = ['sidewalk']
 
 def plot_poly(polygon, c='r'):
     if isinstance(polygon, MultiPolygon) or isinstance(polygon, GeometryCollection):
@@ -169,6 +172,7 @@ class Line(Curve):
              for i in range(num)]
         return  list(zip(x, y, s))
 
+
 class Lane():
     def __init__(self, id_, type_, pred=None, succ=None):
         self.id_ = id_
@@ -189,10 +193,11 @@ class Lane():
 
 
 class LaneSection():
-    def __init__(self, s0):
+    def __init__(self, s0, left_lanes={}, right_lanes={}):
         self.s0 = s0
-        self.left_lanes = {}
-        self.right_lanes = {}
+        self.left_lanes = left_lanes
+        self.right_lanes = right_lanes
+        self.lanes = dict(list(left_lanes.items()) + list(right_lanes.items()))
 
     def get_lane(self, id_):
         if id_ in self.left_lanes:
@@ -276,6 +281,11 @@ class Road:
         # Reference line offset:
         self.offset = []    # List of tuple (Poly3, s-coordinate).
         self.drive_on_right = drive_on_right
+        # Used to fill in gaps between roads:
+        self.start_bounds_left = {}
+        self.start_bounds_right = {}
+        self.end_bounds_left = {}
+        self.end_bounds_right = {}
 
     def get_lane(self, id_, s):
         '''Returns Lane object with id_ at coordinate S along line.'''
@@ -301,9 +311,7 @@ class Road:
         ref_points = []
         for piece in self.ref_line:
             piece_points = piece.to_points(num)
-            if not piece_points:
-                print('???')
-                print(piece)
+            assert piece_points, 'Failed to get piece points'
             if ref_points:
                 piece_points = [(p[0], p[1], p[2] + ref_points[-1][-1][2])
                                 for p in piece_points]
@@ -371,6 +379,8 @@ class Road:
         sec_polys = []
         sec_lane_polys = []
         lane_polys = []
+        last_lefts = None
+        last_rights = None
 
         for i in range(len(self.lane_secs)):
             cur_sec = self.lane_secs[i]
@@ -384,21 +394,32 @@ class Road:
             right_bounds = {}
             cur_sec_lane_polys = {}
             cur_sec_polys = []
-            sec_end = False
+            # Last point in left/right lane boundary line for last road piece:
+            start_of_sec = True
+            end_of_sec = False
 
-            while ref_points and not sec_end:
+            while ref_points and not end_of_sec:
                 if not ref_points[0] or ref_points[0][0][2] >= s_stop:
+                    # Case 1: The current list of ref_points (corresponding to current piece)
+                    # is empty, so we move onto the next list of points.
+                    # Case 2: The s-coordinate has exceeded s_stop, so we should move
+                    # onto the next LaneSection.
+                    # Either way, we collect all the bound points so far into polygons.
                     if not ref_points[0]:
                         ref_points.pop(0)
                     else:
-                       sec_end = True
+                       end_of_sec = True
+                    cur_last_lefts = {}
+                    cur_last_rights = {}
                     for id_ in left_bounds.keys():
+                        # Polygon for piece of lane:
                         bounds = left_bounds[id_] + right_bounds[id_][::-1]
                         if len(bounds) < 3:
                             continue
                         poly = Polygon(bounds).buffer(0)
                         assert poly.is_valid, 'Polygon not valid.'
                         if not poly.is_empty:
+                            plot_poly(poly, 'r')
                             if poly.geom_type == 'MultiPolygon':
                                 poly = MultiPolygon([p for p in list(poly)
                                                      if not p.is_empty and p.exterior])
@@ -409,9 +430,38 @@ class Road:
                                 cur_sec_lane_polys[id_].append(poly)
                             else:
                                 cur_sec_lane_polys[id_] = [poly]
+                        # Polygon for gap between lanes:
+                        if start_of_sec:
+                            prev_id = cur_sec.lanes[id_].pred
+                        else:
+                            prev_id = id_
+                        if last_lefts is not None:
+                            gap_poly = MultiPoint([
+                                last_lefts[prev_id], last_rights[prev_id],
+                                left_bounds[id_][0], right_bounds[id_][0]]).convex_hull
+                            assert gap_poly.is_valid, 'Gap polygon not valid.'
+                            # Assume MultiPolygon cannot result from convex hull.
+                            if gap_poly.geom_type == 'Polygon' and not gap_poly.is_empty:
+                                plot_poly(gap_poly, 'b')
+                                cur_sec_polys.append(gap_poly)
+                                if id_ in cur_sec_lane_polys:
+                                    cur_sec_lane_polys[id_].append(gap_poly)
+                                else:
+                                    cur_sec_lane_polys[id_] = [gap_poly]
+                        cur_last_lefts[id_] = left_bounds[id_][-1]
+                        cur_last_rights[id_] = right_bounds[id_][-1]
+                        if (start_of_sec and i == 0) or not self.start_bounds_left:
+                            self.start_bounds_left[id_] = left_bounds[id_][0]
+                            self.start_bounds_right[id_] = right_bounds[id_][0]
+
                     left_bounds = {}
                     right_bounds = {}
+                    if cur_last_lefts and cur_last_rights:
+                        last_lefts = cur_last_lefts
+                        last_rights = cur_last_rights
+                        start_of_sec = False
                 else:
+                    # print('looping for: ', len(ref_points))
                     cur_p = ref_points[0].pop(0)
                     cur_sec_points.append(cur_p)
                     offsets = cur_sec.get_offsets(cur_p[2])
@@ -432,8 +482,8 @@ class Road:
                         tan_vec = (cur_p[0] - prev_p[0],
                                    cur_p[1] - prev_p[1])
                     tan_norm = np.sqrt(tan_vec[0] ** 2 + tan_vec[1] ** 2)
-                    if tan_norm < 0.01:
-                        continue
+                    # if tan_norm < 0.01:
+                    #     continue
                     normal_vec = (-tan_vec[1] / tan_norm, tan_vec[0] / tan_norm)
                     for id_ in offsets.keys():
                         if cur_sec.get_lane(id_).type_ in lane_types:
@@ -472,16 +522,21 @@ class Road:
         for id_ in cur_lane_polys:
             lane_polys.append(unary_union(cur_lane_polys[id_]).buffer(-.5))
         union_poly = unary_union(sec_polys).buffer(0)
+        if last_lefts and last_rights:
+            self.end_bounds_left.update(last_lefts)
+            self.end_bounds_right.update(last_rights)
         return sec_points, sec_polys, sec_lane_polys, lane_polys, union_poly
 
     def calculate_geometry(self, num):
+        # Note: this also calculates self.start_bounds_left, ,self.start_bounds_right,
+        # self.end_bounds_left, self.end_bounds_right
         self.sec_points,\
             self.sec_polys,\
             self.sec_lane_polys,\
             self.lane_polys,\
             self.drivable_region =\
                 self.calc_geometry_for_type(DRIVABLE, num)
-        _, _, _, _, self.sidewalk_region = self.calc_geometry_for_type(['sidewalk'], num)
+        _, _, _, _, self.sidewalk_region = self.calc_geometry_for_type(SIDEWALK, num)
 
 class RoadMap:
     def __init__(self):
@@ -496,6 +551,8 @@ class RoadMap:
             road.calculate_geometry(num)
         drivable_polys = {}
         sidewalk_polys = {}
+        drivable_gap_polys = []
+        sidewalk_gap_polys = []
         for road in self.roads.values():
             self.sec_lane_polys.extend(road.sec_lane_polys)
             self.lane_polys.extend(road.lane_polys)
@@ -506,6 +563,52 @@ class RoadMap:
             if not (sidewalk_poly is None or sidewalk_poly.is_empty):
                 sidewalk_polys[road.id_] = sidewalk_poly.buffer(0.001)
 
+        for link in self.road_links:
+            road_a = self.roads[link.id_a]
+            road_b = self.roads[link.id_b]
+            assert link.contact_a in ['start', 'end'], 'Invalid link record.'
+            assert link.contact_b in ['start', 'end'], 'Invalid link record.'
+            if link.contact_a == 'start':
+                a_sec = road_a.lane_secs[0]
+                a_bounds_left = road_a.start_bounds_left
+                a_bounds_right = road_a.start_bounds_right
+            else:
+                a_sec = road_a.lane_secs[-1]
+                a_bounds_left = road_a.end_bounds_left
+                a_bounds_right = road_a.end_bounds_right
+            if link.contact_b == 'start':
+                b_bounds_left = road_b.start_bounds_left
+                b_bounds_right = road_b.start_bounds_right
+            else:
+                b_bounds_left = road_b.end_bounds_left
+                b_bounds_right = road_b.end_bounds_right
+            for id_, lane in a_sec.lanes.items():
+                if link.contact_a == 'start':
+                    other_id = lane.pred
+                else:
+                    other_id = lane.succ
+                if other_id not in b_bounds_left or other_id not in b_bounds_right:
+                    continue
+                if id_ not in a_bounds_left or id_ not in a_bounds_right:
+                    # print('road', link.id_a)
+                    # print('contact', link.contact_a)
+                    # print('id_', id_)
+                    # print('bounds', a_bounds_left)
+                    continue
+                gap_poly = MultiPoint([
+                    a_bounds_left[id_], a_bounds_right[id_],
+                    b_bounds_left[other_id], b_bounds_right[other_id]
+                ]).convex_hull
+                if not gap_poly.is_valid:
+                    continue
+                # assert gap_poly.is_valid, 'Gap polygon not valid.'
+                if gap_poly.geom_type == 'Polygon' and not gap_poly.is_empty:
+                    if lane.type_ in DRIVABLE:
+                        drivable_gap_polys.append(gap_poly)
+                        plot_poly(gap_poly, 'g')
+                    elif lane.type_ in SIDEWALK:
+                        sidewalk_gap_polys.append(gap_poly)
+                        plot_poly(gap_poly, 'k')
 
         self.drivable_region = unary_union(list(drivable_polys.values()))\
             .buffer(-0.001).buffer(0.5).buffer(-0.5)
@@ -569,9 +672,9 @@ class RoadMap:
                 pred_elem = link.find('predecessor')
                 succ_elem = link.find('successor')
                 if pred_elem is not None:
-                    pred = pred_elem.get('id')
+                    pred = int(pred_elem.get('id'))
                 if succ_elem is not None:
-                    succ = succ_elem.get('id')
+                    succ = int(succ_elem.get('id'))
             lane = Lane(id_, type_, pred, succ)
             for w in l.iter('width'):
                 w_poly = Poly3(float(w.get('a')),
@@ -591,7 +694,6 @@ class RoadMap:
                                             contact,
                                             link_elem.get('contactPoint')))
         else:
-            return
             assert link_elem.get('elementType') == 'junction', 'Unknown link type'
             junction = int(link_elem.get('elementId'))
             connections = self.junctions[junction].connections
@@ -678,14 +780,18 @@ class RoadMap:
                                    float(offset.get('s'))))
 
             for ls_elem in lanes.iter('laneSection'):
-                lane_sec = LaneSection(float(ls_elem.get('s')))
+                s = ls_elem.get('s')
                 left = ls_elem.find('left')
                 right = ls_elem.find('right')
+                left_lanes = {}
+                right_lanes = {}
+
                 if left is not None:
-                    lane_sec.left_lanes = self.__parse_lanes(left)
+                    left_lanes = self.__parse_lanes(left)
 
                 if right is not None:
-                    lane_sec.right_lanes = self.__parse_lanes(right)
+                    right_lanes = self.__parse_lanes(right)
 
+                lane_sec = LaneSection(float(ls_elem.get('s')), left_lanes, right_lanes)
                 road.lane_secs.append(lane_sec)
             self.roads[road.id_] = road
