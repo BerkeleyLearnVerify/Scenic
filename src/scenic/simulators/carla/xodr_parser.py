@@ -35,6 +35,9 @@ def plot_poly(polygon, c='r'):
             x, y = interior.xy
             plt.plot(x, y, c=c)
 
+def buffer_union(polygons, buf=0.1):
+    return unary_union([p.buffer(buf) for p in polygons]).buffer(-buf)
+
 class Poly3:
     '''Cubic polynomial.'''
     def __init__(self, a, b, c, d):
@@ -417,9 +420,9 @@ class Road:
                         if len(bounds) < 3:
                             continue
                         poly = Polygon(bounds).buffer(0)
-                        assert poly.is_valid, 'Polygon not valid.'
-                        if not poly.is_empty:
-                            plot_poly(poly, 'r')
+                        #assert poly.is_valid, 'Polygon not valid.'
+                        if poly.is_valid and not poly.is_empty:
+                            # plot_poly(poly, 'r')
                             if poly.geom_type == 'MultiPolygon':
                                 poly = MultiPolygon([p for p in list(poly)
                                                      if not p.is_empty and p.exterior])
@@ -436,6 +439,12 @@ class Road:
                         else:
                             prev_id = id_
                         if last_lefts is not None:
+                            if prev_id not in last_lefts:
+                                print('road', self.id_)
+                                print('prev', prev_id)
+                                print(i)
+                                print(last_lefts)
+
                             gap_poly = MultiPoint([
                                 last_lefts[prev_id], last_rights[prev_id],
                                 left_bounds[id_][0], right_bounds[id_][0]]).convex_hull
@@ -443,6 +452,7 @@ class Road:
                             # Assume MultiPolygon cannot result from convex hull.
                             if gap_poly.geom_type == 'Polygon' and not gap_poly.is_empty:
                                 plot_poly(gap_poly, 'b')
+                                gap_poly = gap_poly.buffer(0)
                                 cur_sec_polys.append(gap_poly)
                                 if id_ in cur_sec_lane_polys:
                                     cur_sec_lane_polys[id_].append(gap_poly)
@@ -461,7 +471,6 @@ class Road:
                         last_rights = cur_last_rights
                         start_of_sec = False
                 else:
-                    # print('looping for: ', len(ref_points))
                     cur_p = ref_points[0].pop(0)
                     cur_sec_points.append(cur_p)
                     offsets = cur_sec.get_offsets(cur_p[2])
@@ -477,7 +486,10 @@ class Road:
                             prev_p = cur_sec_points[-2]
                         else:
                             assert len(sec_points) > 0
-                            prev_p = sec_points[-1][-1]
+                            if sec_points[-1]:
+                                prev_p = sec_points[-1][-1]
+                            else:
+                                prev_p = sec_points[-2][-1]
 
                         tan_vec = (cur_p[0] - prev_p[0],
                                    cur_p[1] - prev_p[1])
@@ -504,24 +516,24 @@ class Road:
                             else:
                                 right_bounds[id_].append(right_bound)
             sec_points.append(cur_sec_points)
-            sec_polys.append(unary_union(cur_sec_polys).buffer(0))
+            sec_polys.append(buffer_union(cur_sec_polys))
             for id_ in cur_sec_lane_polys:
-                cur_sec_lane_polys[id_] = unary_union(cur_sec_lane_polys[id_]).buffer(0)
+                cur_sec_lane_polys[id_] = buffer_union(cur_sec_lane_polys[id_])
             sec_lane_polys.append(cur_sec_lane_polys)
             next_lane_polys = {}
             for id_ in cur_sec_lane_polys:
                 pred_id = cur_sec.get_lane(id_).pred
                 if pred_id and pred_id in cur_lane_polys:
                     next_lane_polys[id_] = cur_lane_polys.pop(pred_id) \
-                        + [cur_sec_lane_polys[id_].buffer(0.5)]
+                        + [cur_sec_lane_polys[id_]]
                 else:
-                    next_lane_polys[id_] = [cur_sec_lane_polys[id_].buffer(.5)]
+                    next_lane_polys[id_] = [cur_sec_lane_polys[id_]]
             for id_ in cur_lane_polys:
-                lane_polys.append(unary_union(cur_lane_polys[id_]).buffer(-.5))
+                lane_polys.append(buffer_union(cur_lane_polys[id_]))
             cur_lane_polys = next_lane_polys
         for id_ in cur_lane_polys:
-            lane_polys.append(unary_union(cur_lane_polys[id_]).buffer(-.5))
-        union_poly = unary_union(sec_polys).buffer(0)
+            lane_polys.append(buffer_union(cur_lane_polys[id_]))
+        union_poly = buffer_union(sec_polys)
         if last_lefts and last_rights:
             self.end_bounds_left.update(last_lefts)
             self.end_bounds_right.update(last_rights)
@@ -590,10 +602,6 @@ class RoadMap:
                 if other_id not in b_bounds_left or other_id not in b_bounds_right:
                     continue
                 if id_ not in a_bounds_left or id_ not in a_bounds_right:
-                    # print('road', link.id_a)
-                    # print('contact', link.contact_a)
-                    # print('id_', id_)
-                    # print('bounds', a_bounds_left)
                     continue
                 gap_poly = MultiPoint([
                     a_bounds_left[id_], a_bounds_right[id_],
@@ -605,15 +613,13 @@ class RoadMap:
                 if gap_poly.geom_type == 'Polygon' and not gap_poly.is_empty:
                     if lane.type_ in DRIVABLE:
                         drivable_gap_polys.append(gap_poly)
-                        plot_poly(gap_poly, 'g')
+                        # plot_poly(gap_poly, 'g')
                     elif lane.type_ in SIDEWALK:
                         sidewalk_gap_polys.append(gap_poly)
-                        plot_poly(gap_poly, 'k')
+                        # plot_poly(gap_poly, 'k')
 
-        self.drivable_region = unary_union(list(drivable_polys.values()))\
-            .buffer(-0.001).buffer(0.5).buffer(-0.5)
-        self.sidewalk_region = unary_union(list(sidewalk_polys.values()))\
-            .buffer(-0.001).buffer(0.5).buffer(-0.5)
+        self.drivable_region = buffer_union(list(drivable_polys.values()) + drivable_gap_polys)
+        self.sidewalk_region = buffer_union(list(sidewalk_polys.values()) + sidewalk_gap_polys)
 
 
     def heading_at(self, point):
