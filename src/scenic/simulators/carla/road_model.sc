@@ -4,6 +4,8 @@ import time
 from scenic.simulators.carla.interface import CarlaWorkspace
 from scenic.simulators.carla.map import mapPath
 
+from scenic.simulators.gta.interface import CarColor
+
 workspace = CarlaWorkspace(mapPath)
 
 roadDirection = workspace.road_direction
@@ -22,6 +24,7 @@ constructor Car:
     viewAngle: 90 deg
     width: 2.5
     height: 5
+    color: CarColor.defaultColor()
 
 constructor Pedestrian:
     regionContainedIn: sidewalk
