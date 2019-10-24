@@ -15,9 +15,10 @@ sidewalk = workspace.sidewalk_region
 # lane id to polygon, one dict per lane section.
 laneSectionDict = workspace.lane_sec_dict
 
-param cloudiness = (0, 100)
-param precipitation = (0, 100)
-param precipitation_deposits = precipitation
+precipitation = Options({0: 70,1: 30}) * (0, 100)
+param precipitation = precipitation
+param precipitation_deposits = (precipitation, 100)
+param cloudiness = (precipitation, 100)
 param wind_intensity = (0, 100)
 param sun_azimuth_angle = (0, 360)
 param sun_altitude_angle = (-90, 90)

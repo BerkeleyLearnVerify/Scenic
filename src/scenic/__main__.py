@@ -65,8 +65,6 @@ if args.gather_stats is None:   # Generate scenes interactively until killed
     import matplotlib.pyplot as plt
     while True:
         scene, _ = generateScene()
-        for obj in scene.objects:
-            print(obj.color[0], obj.color[1], obj.color.b)
         if delay is None:
             scene.show(zoom=args.zoom)
         else:
