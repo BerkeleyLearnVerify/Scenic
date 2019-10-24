@@ -15,6 +15,13 @@ sidewalk = workspace.sidewalk_region
 # lane id to polygon, one dict per lane section.
 laneSectionDict = workspace.lane_sec_dict
 
+param cloudiness = (0, 100)
+param precipitation = (0, 100)
+param precipitation_deposits = precipitation
+param wind_intensity = (0, 100)
+param sun_azimuth_angle = (0, 360)
+param sun_altitude_angle = (-90, 90)
+
 # TODO: Get vehicle models, dimensions from Carla
 constructor Car:
     regionContainedIn: road
