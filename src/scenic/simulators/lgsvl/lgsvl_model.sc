@@ -12,8 +12,12 @@ roadDirection = workspace.road_direction
 road = workspace.drivable_region
 sidewalk = workspace.sidewalk_region
 
+constructor LGSVLObject:
+    lgsvlObject: None
+    elevation: None
+
 # TODO: Get vehicle models, dimensions from LGSVL
-constructor Car:
+constructor Car(LGSVLObject):
     regionContainedIn: road
     position: Point on road
     heading: (roadDirection at self.position) + self.roadDeviation
@@ -28,7 +32,7 @@ constructor EgoCar(Car):
     lgsvlName: 'Lincoln2017MKZ (Apollo 5.0)'
     lgsvlAgentType: lgsvl.AgentType.EGO
 
-constructor Pedestrian:
+constructor Pedestrian(LGSVLObject):
     regionContainedIn: sidewalk
     position: Point on sidewalk
     heading: (0, 360) deg

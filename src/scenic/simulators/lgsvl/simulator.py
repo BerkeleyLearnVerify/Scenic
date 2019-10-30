@@ -24,10 +24,15 @@ class LGSVLSimulation(simulators.Simulation):
         self.timeStep = scene.params.get('time_step', 1.0/30)
         self.objects = scene.objects
 
+        # Reset simulator (deletes all existing objects)
+        self.client.reset()
+
         # Create LGSVL objects corresponding to Scenic objects
         self.lgsvlObjects = {}
         for obj in self.objects:
             # Figure out what type of LGSVL object this is
+            if not hasattr(obj, 'lgsvlObject'):
+                continue    # not an LGSVL object
             if not hasattr(obj, 'lgsvlName'):
                 raise RuntimeError(f'object {obj} does not have an lgsvlName property')
             if not hasattr(obj, 'lgsvlAgentType'):
@@ -37,18 +42,16 @@ class LGSVLSimulation(simulators.Simulation):
 
             # Set up position and orientation
             state = lgsvl.AgentState()
-            if not hasattr(obj, 'elevation'):
+            if obj.elevation is None:
                 obj.elevation = self.groundElevationAt(obj.position)
             state.transform.position = utils.scenicToLGSVLPosition(obj.position, obj.elevation)
-            state.transform.rotation.y = utils.scenicToLGSVLRotation(obj.heading)
+            state.transform.rotation = utils.scenicToLGSVLRotation(obj.heading)
 
             # Create LGSVL object
             lgsvlObj = self.client.add_agent(name, agentType, state)
             obj.lgsvlObject = lgsvlObj
 
-        # Reset LGSVL and object controllers
-        self.client.reset()
-        # TODO: reset Apollo somehow???
+        # TODO reset object controllers???
 
     def groundElevationAt(self, pos):
         origin = utils.scenicToLGSVLPosition(pos, 100000)
@@ -63,9 +66,9 @@ class LGSVLSimulation(simulators.Simulation):
             lgsvlObj = obj.lgsvlObject
             state = lgsvlObj.state
             # position, elevation
-            state.position = utils.scenicToLGSVLPosition(obj.position, y=obj.elevation)
+            state.transform.position = utils.scenicToLGSVLPosition(obj.position, y=obj.elevation)
             # heading
-            state.rotation = utils.scenicToLGSVLRotation(obj.heading)
+            state.transform.rotation = utils.scenicToLGSVLRotation(obj.heading)
             # update state
             lgsvlObj.state = state
 
@@ -92,7 +95,7 @@ class LGSVLSimulation(simulators.Simulation):
         # execute actions
         for agent, action in actions.items():
             if action is not None:
-                action.applyTo(agent, agent.lgsvlObject)
+                action.applyTo(agent, agent.lgsvlObject, self)
         # run simulation for one time step
         self.client.run(time_limit=self.timeStep)
         # read back the results of the simulation
@@ -103,16 +106,33 @@ class MoveAction(simulators.Action):
     def __init__(self, offset):
         self.offset = offset
 
-    def applyTo(self, obj, lgsvlObject):
+    def applyTo(self, obj, lgsvlObject, sim):
         pos = obj.position.offsetRotated(obj.heading, self.offset)
         pos = utils.scenicToLGSVLPosition(pos, y=obj.elevation)
-        state = lgsvlObj.state
-        state.position = pos
-        lgsvlObj.state = state
+        state = lgsvlObject.state
+        state.transform.position = pos
+        lgsvlObject.state = state
+
+class SetVelocityAction(simulators.Action):
+    def __init__(self, velocity):
+        self.velocity = utils.scenicToLGSVLPosition(velocity)
+
+    def applyTo(self, obj, lgsvlObject, sim):
+        state = lgsvlObject.state
+        state.velocity = self.velocity
+        lgsvlObject.state = state
 
 class FollowWaypointsAction(simulators.Action):
     def __init__(self, waypoints):
         self.waypoints = tuple(waypoints)
+        self.lastTime = -2
 
-    def applyTo(self, obj, lgsvlObject):
-        lgsvlObject.follow(self.waypoints)
+    def applyTo(self, obj, lgsvlObject, sim):
+        #print(sim.currentTime, self.lastTime)
+        if sim.currentTime is not self.lastTime + 1:
+            lgsvlObject.follow(self.waypoints)
+        self.lastTime = sim.currentTime
+
+class CancelWaypointsAction(simulators.Action):
+    def applyTo(self, obj, lgsvlObject, sim):
+        lgsvlObject.walk_randomly(False)

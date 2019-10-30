@@ -5,11 +5,12 @@ import math
 
 import lgsvl
 
+from scenic.core.vectors import Vector
 from scenic.core.geometry import normalizeAngle
 
 def lgsvlToScenicPosition(pos):
     """Convert LGSVL positions to Scenic positions."""
-    return (pos.x, pos.z)
+    return Vector(pos.x, pos.z)
 
 def lgsvlToScenicElevation(pos):
     """Convert LGSVL positions to Scenic elevations."""
@@ -20,7 +21,7 @@ def scenicToLGSVLPosition(pos, y=0):
     return lgsvl.Vector(x, y, z)
 
 def lgsvlToScenicRotation(rot, tolerance2D=0):
-    if math.abs(rot.x) > tolerance2D or math.abs(rot.z) > tolerance2D:
+    if abs(rot.x) > tolerance2D or abs(rot.z) > tolerance2D:
         return None
     return normalizeAngle(math.radians(rot.y))
 
