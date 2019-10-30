@@ -877,7 +877,7 @@ class ASTSurgeon(NodeTransformer):
 				else:
 					newArgs.append(self.visit(arg))
 			newKeywords = [self.visit(kwarg) for kwarg in node.keywords]
-			return copy_location(Call(func, newArgs, newKeywords), node)
+			return copy_location(Call(self.visit(func), newArgs, newKeywords), node)
 
 	def visit_ClassDef(self, node):
 		"""Process property defaults for Scenic classes."""
