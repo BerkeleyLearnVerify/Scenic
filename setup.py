@@ -12,8 +12,6 @@ setup(name='scenic',
           'scipy',
           'matplotlib',
           'antlr4-python3-runtime',
-          'opencv-python',
-          'pillow',
           'shapely', # had to separately install via conda install shapely
           'Polygon3',
       ],

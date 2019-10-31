@@ -1,17 +1,26 @@
 
 import math
 import time
-import colorsys
-from collections import namedtuple
 
 import numpy
 import scipy.spatial
-import PIL
-import cv2
+
+try:
+	import PIL
+except ModuleNotFoundError as e:
+	raise RuntimeError('GTA scenarios require the PIL module;'
+	                   ' try "pip install pillow"') from e
+
+try:
+	import cv2
+except ModuleNotFoundError as e:
+	raise RuntimeError('GTA scenarios require the cv2 module;'
+	                   ' try "pip install opencv-python"') from e
 
 import scenic.simulators.gta.center_detection as center_detection
 import scenic.simulators.gta.img_modf as img_modf
 import scenic.simulators.gta.messages as messages
+from scenic.simulators.utils.colors import Color as CarColor, NoisyColorDistribution
 
 from scenic.core.distributions import (Samplable, Distribution, Range, Normal, Options,
                                        distributionMethod, toDistribution)
@@ -220,66 +229,3 @@ CarModel.modelProbs = {
 	CarModel('PRANGER', 3.02698, 5.94577): 1
 }
 CarModel.models = { model.name: model for model in CarModel.modelProbs }
-
-class CarColor(namedtuple('CarColor', ['r', 'g', 'b'])):
-	@classmethod
-	def withBytes(cls, color):
-		return cls._make(c / 255.0 for c in color)
-
-	@staticmethod
-	def realToByte(color):
-		return tuple(int(round(255 * c)) for c in color)
-
-	@staticmethod
-	def uniformColor():
-		return toDistribution(CarColor(Range(0, 1), Range(0, 1), Range(0, 1)))
-
-	@staticmethod
-	def defaultColor():
-		"""Base color distribution estimated from 2012 DuPont survey archived at:
-		https://web.archive.org/web/20121229065631/http://www2.dupont.com/Media_Center/en_US/color_popularity/Images_2012/DuPont2012ColorPopularity.pdf"""
-		baseColors = {
-			(248, 248, 248): 0.24,	# white
-			(50, 50, 50): 0.19,		# black
-			(188, 185, 183): 0.16,	# silver
-			(130, 130, 130): 0.15,	# gray
-			(194, 92, 85): 0.10,	# red
-			(75, 119, 157): 0.07,	# blue
-			(197, 166, 134): 0.05,	# brown/beige
-			(219, 191, 105): 0.02,	# yellow/gold
-			(68, 160, 135): 0.02,	# green
-		}
-		converted = { CarColor.withBytes(color): prob for color, prob in baseColors.items() }
-		baseColor = Options(converted)
-		# TODO improve this?
-		hueNoise = Normal(0, 0.1)
-		satNoise = Normal(0, 0.1)
-		lightNoise = Normal(0, 0.1)
-		return NoisyColorDistribution(baseColor, hueNoise, satNoise, lightNoise)
-
-class NoisyColorDistribution(Distribution):
-	def __init__(self, baseColor, hueNoise, satNoise, lightNoise):
-		super().__init__(baseColor, hueNoise, satNoise, lightNoise, valueType=CarColor)
-		self.baseColor = baseColor
-		self.hueNoise = hueNoise
-		self.satNoise = satNoise
-		self.lightNoise = lightNoise
-
-	@staticmethod
-	def addNoiseTo(color, hueNoise, lightNoise, satNoise):
-		hue, lightness, saturation = colorsys.rgb_to_hls(*color)
-		hue = max(0, min(1, hue + hueNoise))
-		lightness = max(0, min(1, lightness + lightNoise))
-		saturation = max(0, min(1, saturation + satNoise))
-		return colorsys.hls_to_rgb(hue, lightness, saturation)
-
-	def sampleGiven(self, value):
-		bc = value[self.baseColor]
-		return CarColor(*self.addNoiseTo(bc, value[self.hueNoise],
-		    value[self.lightNoise], value[self.satNoise]))
-
-	def evaluateInner(self, context):
-		self.baseColor = valueInContext(self.baseColor, context)
-		self.hueNoise = valueInContext(self.hueNoise, context)
-		self.satNoise = valueInContext(self.satNoise, context)
-		self.lightNoise = valueInContext(self.lightNoise, context)

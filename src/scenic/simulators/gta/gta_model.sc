@@ -45,7 +45,7 @@ constructor Car:
 	viewAngle: 80 deg
 	visibleDistance: 30
 	model: CarModel.defaultModel()
-	color: CarColor.defaultColor()
+	color: CarColor.defaultCarColor()
 
 	mutator[additive]: CarColorMutator()
 

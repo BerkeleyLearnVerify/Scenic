@@ -8,7 +8,7 @@ from scenic.simulators.webots.road.world import worldPath
 from scenic.simulators.webots.road.car_models import CarModel, carModels, \
 	modelWithName, smallVehicles
 
-from scenic.simulators.gta.interface import CarColor	# TODO refactor
+from scenic.simulators.utils.colors import Color as CarColor
 
 # Load map and set up workspace
 
@@ -49,7 +49,7 @@ constructor Car(WebotsObject):
 	webotsType: self.model.name
 	viewAngle: 90 deg
 	cameraOffset: 0 @ (self.height / 2)		# camera is at the front
-	color: CarColor.defaultColor()
+	color: CarColor.defaultCarColor()
 
 constructor SmallCar(Car):
 	model: Uniform(*smallVehicles)
@@ -80,7 +80,7 @@ constructor Tractor(Car):
 
 constructor Motorcycle(Car):
 	model: modelWithName['MotorBikeSimple']
-	primaryColor: CarColor.defaultColor()
+	primaryColor: CarColor.defaultCarColor()
 	secondaryColor: CarColor.uniformColor()		# TODO improve
 
 constructor Pedestrian(WebotsObject):
