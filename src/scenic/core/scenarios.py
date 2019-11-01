@@ -7,15 +7,19 @@ from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
 from scenic.core.utils import InvalidScenarioError
+from scenic.syntax.veneer import isABehavior, RequirementType, BoundRequirement
 
 class Scene:
 	"""A scene generated from a Scenic scenario"""
-	def __init__(self, workspace, simulator, objects, egoObject, params):
+	def __init__(self, workspace, simulator, objects, egoObject, params,
+	             alwaysReqs=tuple(), terminationConds=tuple()):
 		self.workspace = workspace
 		self.simulator = simulator
 		self.objects = tuple(objects)
 		self.egoObject = egoObject
 		self.params = params
+		self.alwaysRequirements = tuple(alwaysReqs)
+		self.terminationConditions = tuple(terminationConds)
 
 	def show(self, zoom=None, block=True):
 		"""Render a schematic of the scene for debugging"""
@@ -30,11 +34,12 @@ class Scene:
 			self.workspace.zoomAround(plt, self.objects, expansion=zoom)
 		plt.show(block=block)
 
-	def simulate(self, maxSteps=None, maxIterations=100):
+	def simulate(self, maxSteps=None, maxIterations=100, verbosity=0):
 		"""Run a simulation of this scene."""
 		if self.simulator is None:
 			raise RuntimeError('tried to simulate Scene which does not have a Simulator')
-		return self.simulator.simulate(self, maxSteps=maxSteps, maxIterations=maxIterations)
+		return self.simulator.simulate(self, maxSteps=maxSteps, maxIterations=maxIterations,
+		                               verbosity=verbosity)
 
 class Scenario:
 	"""A Scenic scenario"""
@@ -55,7 +60,21 @@ class Scenario:
 		self.objects = tuple(ordered)
 		self.egoObject = egoObject
 		self.params = dict(params)
-		self.requirements = tuple(requirements)
+		staticReqs, alwaysReqs, terminationConds = [], [], []
+		for req in requirements:
+			if req.ty is RequirementType.require:
+				place = staticReqs
+			elif req.ty is RequirementType.requireAlways:
+				place = alwaysReqs
+			elif req.ty is RequirementType.terminateWhen:
+				place = terminationConds
+			else:
+				raise RuntimeError(f'requirement {req} has unknown type!')
+			place.append(req)
+		self.requirements, self.alwaysRequirements = tuple(staticReqs), tuple(alwaysReqs)
+		self.initialRequirements = self.requirements + self.alwaysRequirements
+		assert all(req.constrainsSampling for req in self.initialRequirements)
+		self.terminationConditions = tuple(terminationConds)
 		# dependencies must use fixed order for reproducibility
 		paramDeps = tuple(p for p in self.params.values() if isinstance(p, Samplable))
 		self.dependencies = self.objects + paramDeps + tuple(requirementDeps)
@@ -105,7 +124,7 @@ class Scenario:
 		objects = self.objects
 
 		# choose which custom requirements will be enforced for this sample
-		activeReqs = [req for req, prob in self.requirements if random.random() <= prob]
+		activeReqs = [req for req in self.initialRequirements if random.random() <= req.prob]
 
 		# do rejection sampling until requirements are satisfied
 		rejection = True
@@ -129,6 +148,10 @@ class Scenario:
 				assert not needsSampling(sampledObj)
 				assert isinstance(sampledObj.position, Vector)
 				sampledObj.heading = float(sampledObj.heading)
+				behavior = sampledObj.behavior
+				if behavior is not None and not isABehavior(behavior):
+					raise InvalidScenarioError(
+					    f'behavior {behavior} of Object {obj} is not a behavior')
 			# Check built-in requirements
 			for i in range(len(objects)):
 				vi = sample[objects[i]]
@@ -153,8 +176,8 @@ class Scenario:
 				continue
 			# Check user-specified requirements
 			for req in activeReqs:
-				if not req(sample):
-					rejection = 'user-specified requirement'
+				if not req.satisfiedBy(sample):
+					rejection = f'user-specified requirement (line {req.line})'
 					break
 
 		# obtained a valid sample; assemble a scene from it
@@ -164,5 +187,8 @@ class Scenario:
 			sampledValue = sample[value] if isinstance(value, Samplable) else value
 			assert not needsLazyEvaluation(sampledValue)
 			sampledParams[param] = sampledValue
-		scene = Scene(self.workspace, self.simulator, sampledObjects, ego, sampledParams)
+		alwaysReqs = (BoundRequirement(req, sample) for req in self.alwaysRequirements)
+		terminationConds = (BoundRequirement(req, sample) for req in self.terminationConditions)
+		scene = Scene(self.workspace, self.simulator, sampledObjects, ego, sampledParams,
+		              alwaysReqs, terminationConds)
 		return scene, iterations

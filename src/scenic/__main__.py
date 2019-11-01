@@ -25,8 +25,11 @@ parser.add_argument('-v', '--verbosity', help='verbosity level (default 1)',
 debugOpts = parser.add_argument_group('debugging options')
 debugOpts.add_argument('-b', '--full-backtrace', help='show full internal backtraces',
                        action='store_true')
-debugOpts.add_argument('--dump-python', help='dump translated Python', action='store_true')
+debugOpts.add_argument('--dump-initial-python', help='dump initial translated Python',
+                       action='store_true')
 debugOpts.add_argument('--dump-ast', help='dump final AST', action='store_true')
+debugOpts.add_argument('--dump-python', help='dump Python equivalent of final AST',
+                       action='store_true')
 debugOpts.add_argument('--no-pruning', help='disable pruning', action='store_true')
 debugOpts.add_argument('--gather-stats', help='collect statistics over this many scenes',
                        type=int, metavar='N')
@@ -38,8 +41,9 @@ parser.add_argument('scenario', help='a Scenic file to run')
 args = parser.parse_args()
 delay = args.delay
 translator.showInternalBacktrace = args.full_backtrace
-translator.dumpTranslatedPython = args.dump_python
+translator.dumpTranslatedPython = args.dump_initial_python
 translator.dumpFinalAST = args.dump_ast
+translator.dumpASTPython = args.dump_python
 translator.verbosity = args.verbosity
 translator.usePruning = not args.no_pruning
 if args.seed is not None:

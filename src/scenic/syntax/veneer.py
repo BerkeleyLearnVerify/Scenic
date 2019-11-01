@@ -8,7 +8,8 @@ global state such as the list of all created Scenic objects.
 
 __all__ = (
 	# Primitive statements and functions
-	'ego', 'require', 'resample', 'param', 'mutate', 'verbosePrint', 'simulation',
+	'ego', 'require', 'resample', 'param', 'mutate', 'verbosePrint',
+	'simulation', 'require_always', 'terminate_when', 'terminate',
 	'sin', 'cos', 'hypot', 'max', 'min',
 	# Prefix operators
 	'Visible',
@@ -48,6 +49,7 @@ from scenic.core.specifiers import PropertyDefault	# TODO remove
 # everything that should not be directly accessible from the language is imported here:
 import inspect
 import random
+import enum
 from scenic.core.distributions import (RejectionException, Distribution, toDistribution,
                                        needsSampling)
 from scenic.core.type_support import (isA, toType, toTypes, toScalar, toHeading, toVector,
@@ -57,7 +59,7 @@ from scenic.core.object_types import Constructible
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
 from scenic.core.utils import RuntimeParseError
-from scenic.simulators.simulators import RejectSimulationException
+from scenic.simulators.simulators import RejectSimulationException, EndSimulationException
 
 ### Internals
 
@@ -69,6 +71,10 @@ globalParameters = {}
 pendingRequirements = {}
 inheritedReqs = []		# TODO improve handling of these?
 currentSimulation = None
+
+## APIs used internally by the rest of Scenic
+
+# Scenic compilation
 
 def isActive():
 	"""Are we in the middle of compiling a Scenic module?
@@ -96,6 +102,8 @@ def deactivate():
 	pendingRequirements = {}
 	inheritedReqs = []
 
+# Object creation
+
 def registerObject(obj):
 	"""Add a Scenic object to the global list of created objects.
 
@@ -106,6 +114,8 @@ def registerObject(obj):
 		allObjects.append(obj)
 	elif evaluatingRequirement:
 		raise RuntimeParseError('tried to create an object inside a requirement')
+
+# Simulations
 
 def beginSimulation(sim):
 	global currentSimulation, egoObject
@@ -122,6 +132,85 @@ def endSimulation():
 
 def simulationInProgress():
 	return currentSimulation is not None
+
+# Requirements
+
+@enum.unique
+class RequirementType(enum.IntEnum):
+	# requirements which must hold during initial sampling
+	require = -1
+	requireAlways = -2
+
+	# requirements used only during simulation
+	terminateWhen = 1
+
+	@property
+	def constrainsSampling(self):
+		return self < 0
+
+class PendingRequirement:
+	def __init__(self, ty, condition, line, prob):
+		self.ty = ty
+		self.condition = condition
+		self.line = line
+		self.prob = prob
+
+		# the translator wrapped the requirement in a lambda to prevent evaluation,
+		# so we need to save the current values of all referenced names; we save
+		# the ego object too since it can be referred to implicitly
+		self.bindings = getAllGlobals(condition)
+		self.egoObject = egoObject
+
+def getAllGlobals(req, restrictTo=None):
+	"""Find all names the given lambda depends on, along with their current bindings."""
+	namespace = req.__globals__
+	if restrictTo is not None and restrictTo is not namespace:
+		return {}
+	externals = inspect.getclosurevars(req)
+	assert not externals.nonlocals		# TODO handle these
+	globs = dict(externals.builtins)
+	for name, value in externals.globals.items():
+		globs[name] = value
+		if inspect.isfunction(value):
+			subglobs = getAllGlobals(value, restrictTo=namespace)
+			for name, value in subglobs.items():
+				if name in globs:
+					assert value is globs[name]
+				else:
+					globs[name] = value
+	return globs
+
+class CompiledRequirement:
+	def __init__(self, pendingReq, closure):
+		self.ty = pendingReq.ty
+		self.closure = closure
+		self.line = pendingReq.line
+		self.prob = pendingReq.prob
+
+	@property
+	def constrainsSampling(self):
+		return self.ty.constrainsSampling
+
+	def satisfiedBy(self, sample):
+		return self.closure(sample)
+
+class BoundRequirement:
+	def __init__(self, compiledReq, sample):
+		self.ty = compiledReq.ty
+		self.closure = compiledReq.closure
+		self.line = compiledReq.line
+		assert compiledReq.prob == 1
+		self.sample = sample
+
+	def isTrue(self):
+		return self.closure(self.sample)
+
+# Behavior management
+
+behaviorIndicator = '__Scenic_behavior'
+
+def isABehavior(thing):
+	return hasattr(thing, behaviorIndicator)
 
 ### Primitive statements and functions
 
@@ -145,7 +234,7 @@ def require(reqID, req, line, prob=1):
 	"""Function implementing the require statement."""
 	if evaluatingRequirement:
 		raise RuntimeParseError('tried to create a requirement inside a requirement')
-	if simulation is not None:	# requirement being evaluated at runtime
+	if currentSimulation is not None:	# requirement being evaluated at runtime
 		if random.random() <= prob:
 			result = req()
 			assert not needsSampling(result)
@@ -155,30 +244,31 @@ def require(reqID, req, line, prob=1):
 			if not result:
 				raise RejectSimulationException(f'requirement on line {line}')
 	else:	# requirement being defined at compile time
-		# the translator wrapped the requirement in a lambda to prevent evaluation,
-		# so we need to save the current values of all referenced names; throw in
-		# the ego object too since it can be referred to implicitly
 		assert reqID not in pendingRequirements
-		pendingRequirements[reqID] = (req, getAllGlobals(req), egoObject, line, prob)
+		pendingRequirements[reqID] = PendingRequirement(RequirementType.require, req,
+		                                                line, prob)
 
-def getAllGlobals(req, restrictTo=None):
-	"""Find all names the given lambda depends on, along with their current bindings."""
-	namespace = req.__globals__
-	if restrictTo is not None and restrictTo is not namespace:
-		return {}
-	externals = inspect.getclosurevars(req)
-	assert not externals.nonlocals		# TODO handle these
-	globs = dict(externals.builtins)
-	for name, value in externals.globals.items():
-		globs[name] = value
-		if inspect.isfunction(value):
-			subglobs = getAllGlobals(value, restrictTo=namespace)
-			for name, value in subglobs.items():
-				if name in globs:
-					assert value is globs[name]
-				else:
-					globs[name] = value
-	return globs
+def require_always(reqID, req, line):
+	"""Function implementing the 'require always' statement."""
+	if evaluatingRequirement:
+		raise RuntimeParseError('tried to use "require always" inside a requirement')
+	elif currentSimulation is not None:
+		raise InvalidScenarioError(f'"require always" inside a behavior on line {line}')
+	else:
+		assert reqID not in pendingRequirements
+		pendingRequirements[reqID] = PendingRequirement(RequirementType.requireAlways, req,
+		                                                line, 1)
+
+def terminate_when(reqID, req, line):
+	"""Function implementing the 'terminate when' statement."""
+	if evaluatingRequirement:
+		raise RuntimeParseError('tried to use "terminate when" inside a requirement')
+	elif currentSimulation is not None:
+		raise InvalidScenarioError(f'"terminate when" inside a behavior on line {line}')
+	else:
+		assert reqID not in pendingRequirements
+		pendingRequirements[reqID] = PendingRequirement(RequirementType.terminateWhen, req,
+		                                                line, 1)
 
 def resample(dist):
 	"""The built-in resample function."""
@@ -196,6 +286,11 @@ def simulation():
 		raise RuntimeParseError('used simulation() outside a behavior')
 	assert currentSimulation is not None
 	return currentSimulation
+
+def terminate():
+	if isActive():
+		raise RuntimeParseError('used terminate statement outside a behavior')
+	raise EndSimulationException
 
 def param(**params):
 	"""Function implementing the param statement."""

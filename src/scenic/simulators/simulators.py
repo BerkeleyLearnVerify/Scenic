@@ -11,10 +11,14 @@ class RejectSimulationException(Exception):
     """Exception indicating a requirement was violated at runtime."""
     pass
 
+class EndSimulationException(Exception):
+    """Exception indicating it is time to end the simulation."""
+    pass
+
 class Simulator:
     """A simulator which can import/execute scenes from Scenic."""
 
-    def simulate(self, scene, maxSteps=None, maxIterations=100):
+    def simulate(self, scene, maxSteps=None, maxIterations=100, verbosity=0):
         """Run a simulation for a given scene."""
 
         # Repeatedly run simulations until we find one satisfying the requirements
@@ -25,7 +29,10 @@ class Simulator:
             try:
                 simulation = self.createSimulation(scene)
                 trajectory = simulation.run(maxSteps)
-            except RejectSimulationException:
+            except RejectSimulationException as e:
+                if verbosity >= 2:
+                    print(f'  Rejected simulation {iterations} at time step '
+                          f'{simulation.currentTime} because of: {e}')
                 continue
             # Completed the simulation without violating a requirement
             return trajectory
@@ -72,15 +79,35 @@ class Simulation:
             # Run simulation
             assert self.currentTime == 0
             while maxSteps is None or self.currentTime < maxSteps:
-                # Run the simulation for a single step
+                # Check if any requirements fail or termination conditions hold
+                for req in self.scene.alwaysRequirements:
+                    if not req.isTrue():
+                        # always requirements should never be violated at time 0, since
+                        # they are enforced during scene sampling
+                        assert self.currentTime > 0
+                        raise RejectSimulationException(f'always requirement (line {req.line})')
+                terminated = False
+                for req in self.scene.terminationConditions:
+                    if req.isTrue():
+                        terminated = True
+                        break
+                if terminated:
+                    break
+                # Compute the actions of the agents in this time step
                 actions = OrderedDict()
                 schedule = self.scheduleForAgents()
                 for agent in schedule:
                     try:
                         action = agent.behavior.send(None)
                     except StopIteration as e:
-                        raise RuntimeError(f'behavior of {agent} ended early') from e
+                        action = None      # behavior ended early; take no action
+                    except EndSimulationException:
+                        terminated = True
+                        break
                     actions[agent] = action
+                if terminated:
+                    break
+                # Run the simulation for a single step
                 nextState = self.step(actions)
                 trajectory.append(nextState)
                 self.currentTime += 1

@@ -44,7 +44,8 @@ from tokenize import INDENT, DEDENT
 import ast
 from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_missing_locations
 from ast import Load, Store, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, BitXor, LShift
-from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Num, Subscript, Index
+from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Num, Subscript, Index, IfExp
+from ast import NamedExpr, Yield, YieldFrom, FunctionDef, Attribute, NameConstant, Assign
 
 from scenic.core.distributions import Samplable, needsSampling
 from scenic.core.lazy_eval import needsLazyEvaluation
@@ -156,6 +157,15 @@ def compileStream(stream, namespace, filename='<stream>'):
 				print(f'### Begin final AST from block {blockNum} of {filename}')
 				print(ast.dump(newTree, include_attributes=True))
 				print('### End final AST')
+			if dumpASTPython:
+				try:
+					import astor
+				except ModuleNotFoundError as e:
+					raise RuntimeError('dumping the Python equivalent of the AST'
+					                   'requires the astor package')
+				print(f'### Begin Python equivalent of final AST from block {blockNum} of {filename}')
+				print(astor.to_source(newTree, add_line_information=True))
+				print('### End Python equivalent of final AST')
 			# Compile the modified tree
 			code = compileTranslatedTree(newTree, lineMap, filename)
 			# Execute it
@@ -176,6 +186,7 @@ def compileStream(stream, namespace, filename='<stream>'):
 showInternalBacktrace = False
 dumpTranslatedPython = False
 dumpFinalAST = False
+dumpASTPython = False
 verbosity = 0
 usePruning = True
 
@@ -204,10 +215,28 @@ for imp in internalFunctions:
 ## Statements implemented by functions
 
 requireStatement = 'require'
-functionStatements = { requireStatement, 'param', 'mutate' }
+requireAlwaysStatement = ('require', 'always')
+terminateWhenStatement = ('terminate', 'when')
+
+functionStatements = { requireStatement, 'param', 'mutate', 'terminate' }
+twoWordFunctionStatements = { requireAlwaysStatement, terminateWhenStatement }
+
+def functionForStatement(tokens):
+	return '_'.join(tokens)
+
+# statements encoding requirements which need special handling
+requirementStatements = (
+    requireStatement,
+    functionForStatement(requireAlwaysStatement),
+    functionForStatement(terminateWhenStatement),
+)
 
 # sanity check: implementations of statements actually exist
 for imp in functionStatements:
+	assert imp in api, imp
+for tokens in twoWordFunctionStatements:
+	assert len(tokens) == 2
+	imp = functionForStatement(tokens)
 	assert imp in api, imp
 
 ## Built-in functions
@@ -264,6 +293,16 @@ functionStatements.update(builtinConstructors)
 for const in builtinConstructors:
 	assert const in api, const
 
+## Behaviors
+
+behaviorStatement = 'behavior'		# statement defining a new behavior
+actionStatement = 'take'			# statement invoking a primitive action
+waitStatement = 'wait'				# statement invoking a no-op action
+
+# these statements are initially processed like functions but
+# are handled specially at the AST surgery stage
+functionStatements.update({actionStatement, waitStatement})
+
 ## Prefix operators
 
 prefixOperators = {
@@ -289,6 +328,7 @@ prefixOperators = {
 assert all(1 <= len(op) <= 2 for op in prefixOperators)
 prefixIncipits = { op[0] for op in prefixOperators }
 assert not any(op in functionStatements for op in prefixIncipits)
+assert not any(op in twoWordFunctionStatements for op in prefixOperators)
 
 # sanity check: implementations of prefix operators actually exist
 for imp in prefixOperators.values():
@@ -328,6 +368,7 @@ for op in infixOperators:
 		tokens = tuple(op.syntax.split(' '))
 		assert 1 <= len(tokens) <= 2, op
 		assert tokens not in infixTokens, op
+		assert tokens not in twoWordFunctionStatements, op
 		infixTokens[tokens] = op.token
 		incipit = tokens[0]
 		assert incipit not in functionStatements, op
@@ -352,7 +393,7 @@ replacements = {	# TODO police the usage of these? could yield bizarre error mes
 	'of': tuple(),
 	'deg': ((STAR, '*'), (NUMBER, '0.01745329252')),
 	'ego': ((NAME, 'ego'), (LPAR, '('), (RPAR, ')')),
-	'invoke': ((NAME, 'yield'), (NAME, 'from')),
+	behaviorStatement: ((NAME, 'async'), (NAME, 'def')),
 }
 
 ## Illegal and reserved syntax
@@ -367,6 +408,10 @@ illegalTokens = {
 for token in infixTokens.values():
 	ttype = token[0]
 	assert (ttype is COMMA or ttype in illegalTokens), token
+
+illegalConstructs = {
+	('async', 'def'),		# used to parse behaviors, so disallowed otherwise
+}
 
 keywords = ({constructorStatement}
 	| internalFunctions | functionStatements
@@ -633,6 +678,10 @@ class TokenTranslator:
 						next(tokens)
 						skip = True
 						matched = True
+					elif not inConstructorContext and twoWords in twoWordFunctionStatements:
+						function = functionForStatement(twoWords)
+						next(tokens)
+						matched = True
 					elif inConstructorContext and tstring == 'with':	# special case for 'with' specifier
 						function = 'With'
 						argument = '"' + nextString + '"'
@@ -649,6 +698,9 @@ class TokenTranslator:
 						function = requireStatement
 						argument = prob.string
 						matched = True
+					elif twoWords in illegalConstructs:
+						construct = ' '.join(twoWords)
+						raise TokenParseError(token, f'Python construct "{construct}" not allowed in Scenic')
 				if not matched:
 					# 2-word constructs don't match; try 1-word
 					oneWord = (tstring,)
@@ -668,6 +720,8 @@ class TokenTranslator:
 						pass
 					elif tstring in keywords:		# some malformed usage
 						raise TokenParseError(token, f'unexpected keyword "{tstring}"')
+					elif tstring in illegalConstructs:
+						raise TokenParseError(token, f'Python construct "{tstring}" not allowed in Scenic')
 					else:
 						pass	# nothing matched; pass through unchanged to Python
 
@@ -756,13 +810,17 @@ def parseTranslatedSource(source, lineMap, filename):
 ### TRANSLATION PHASE FOUR: modifying the parse tree
 
 noArgs = ast.arguments(
+    posonlyargs=[],
 	args=[], vararg=None,
 	kwonlyargs=[], kw_defaults=[],
 	kwarg=None, defaults=[])
 selfArg = ast.arguments(
+    posonlyargs=[],
 	args=[ast.arg(arg='self', annotation=None)], vararg=None,
 	kwonlyargs=[], kw_defaults=[],
 	kwarg=None, defaults=[])
+
+temporaryName = '__Scenic_temporary_name'
 
 class AttributeFinder(NodeVisitor):
 	"""Utility class for finding all referenced attributes of a given name."""
@@ -795,6 +853,7 @@ class ASTSurgeon(NodeTransformer):
 		self.lineMap = lineMap
 		self.constructors = { const for const in constructors }
 		self.requirements = []
+		self.inBehavior = False
 
 	def parseError(self, node, message):
 		line = self.lineMap[node.lineno]
@@ -839,19 +898,21 @@ class ASTSurgeon(NodeTransformer):
 		return copy_location(Call(Name(rangeConstructor, Load()), newElts, []), node)
 
 	def visit_Call(self, node):
-		"""Wrap require statements with lambdas and unpack any argument packages."""
+		"""Handle Scenic constructs parsed as function calls.
+
+		In particular:
+		  * wrap require statements with lambdas;
+		  * handle primitive action invocations inside behaviors;
+		  * unpack argument packages for operators;
+		  * check for sub-behavior invocation inside behaviors."""
 		func = node.func
-		if isinstance(func, Name) and func.id == requireStatement:	# Require statement
+		if isinstance(func, Name) and func.id in requirementStatements:		# require, etc.
 			# Soft reqs have 2 arguments, including the probability, which is given as the
 			# first argument by the token translator; so we allow an extra argument here and
 			# validate it later on (in case the user wrongly gives 2 arguments to require).
-			if not (1 <= len(node.args) <= 2):
-				raise self.parseError(node, 'require takes exactly one argument')
-			if len(node.keywords) != 0:
-				raise self.parseError(node, 'require takes no keyword arguments')
+			numArgs = (1, 2) if func.id == requireStatement else 1
+			self.validateSimpleCall(node, numArgs)
 			cond = node.args[-1]
-			if isinstance(cond, Starred):
-				raise self.parseError(node, 'argument unpacking cannot be used with require')
 			req = self.visit(cond)
 			line = self.lineMap[node.lineno]
 			reqID = Num(len(self.requirements))	# save ID number
@@ -868,6 +929,15 @@ class ASTSurgeon(NodeTransformer):
 					                            '(should be a single expression)')
 				newArgs.append(prob)
 			return copy_location(Call(func, newArgs, []), node)
+		elif isinstance(func, Name) and func.id == actionStatement:		# Action statement
+			self.validateSimpleCall(node, 1, onlyInBehaviors=True)
+			action = node.args[0]
+			# convert to yield
+			return copy_location(Yield(action), node)
+		elif isinstance(func, Name) and func.id == waitStatement:		# Wait statement
+			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
+			# convert to yield
+			return copy_location(Yield(None), node)
 		else:	# Ordinary function call
 			newArgs = []
 			# Translate arguments, unpacking any argument packages
@@ -877,7 +947,79 @@ class ASTSurgeon(NodeTransformer):
 				else:
 					newArgs.append(self.visit(arg))
 			newKeywords = [self.visit(kwarg) for kwarg in node.keywords]
-			return copy_location(Call(self.visit(func), newArgs, newKeywords), node)
+			newFunc = self.visit(func)
+			if self.inBehavior:
+				# Add check for sub-behavior invocation
+				newNode = self.wrapBehaviorCall(newFunc, newArgs, newKeywords)
+			else:
+				newNode = Call(newFunc, newArgs, newKeywords)
+			return copy_location(newNode, node)
+
+	def validateSimpleCall(self, node, numArgs, onlyInBehaviors=False):
+		func = node.func
+		if onlyInBehaviors and not self.inBehavior:
+			raise self.parseError(node, f'"{func}" can only be used in a behavior')
+		if isinstance(numArgs, tuple):
+			assert len(numArgs) == 2
+			low, high = numArgs
+			if not (low <= len(node.args) <= high):
+				raise self.parseError(node, f'"{func}" takes {low}-{high} arguments')
+		elif len(node.args) != numArgs:
+			raise self.parseError(node, f'"{func}" takes exactly {numArgs} arguments')
+		if len(node.keywords) != 0:
+			raise self.parseError(node, f'"{func}" takes no keyword arguments')
+		for arg in node.args:
+			if isinstance(arg, Starred):
+				raise self.parseError(node, f'argument unpacking cannot be used with "{func}"')
+
+	def wrapBehaviorCall(self, func, args, keywords):
+		"""Wraps a function call to handle calling a behavior.
+
+		Specifically, transforms a call of the form:
+			function(args)
+		into:
+			(yield from TEMP(args)) if hasattr(TEMP := function, MARKER) else TEMP(args)
+		where MARKER is a special attribute identifying behaviors and TEMP is a temporary name."""
+		savedFunc = NamedExpr(Name(temporaryName, Store()), func)
+		condition = Call(Name('hasattr', Load()),
+		                 [savedFunc, Str(veneer.behaviorIndicator)],
+		                 []
+		)
+		newCall = Call(Name(temporaryName, Load()), args, keywords)
+		yieldFrom = YieldFrom(newCall)
+		return IfExp(condition, yieldFrom, newCall)
+
+	def visit_AsyncFunctionDef(self, node):
+		"""Process behavior definitions."""
+		if self.inBehavior:
+			raise self.parseError(node, 'cannot define a behavior inside a behavior')
+		# process body
+		self.inBehavior = True
+		newBody = [self.visit(statement) for statement in node.body]
+		self.inBehavior = False
+		# inject implicit 'self' argument
+		newArgs = self.visit(node.args)
+		newArgs.args.insert(0, ast.arg(arg='self', annotation=None))
+		# convert to ordinary function definition
+		newDefn = FunctionDef(node.name,
+		                      newArgs,
+		                      newBody,
+		                      [self.visit(decorator) for decorator in node.decorator_list],
+		                      node.returns)
+		# set special marker attribute
+		marker = Attribute(Name(node.name, Load()), veneer.behaviorIndicator, Store())
+		setMarker = Assign([marker], NameConstant(True))
+		return [copy_location(newDefn, node), copy_location(setMarker, node)]
+
+	def visit_Yield(self, node):
+		if self.inBehavior:
+			raise self.parseError(node, '"yield" is not allowed inside a behavior')
+		return self.generic_visit(node)
+
+	def visit_YieldFrom(self, node):
+		if self.inBehavior:
+			raise self.parseError(node, '"yield from" is not allowed inside a behavior')
+		return self.generic_visit(node)
 
 	def visit_ClassDef(self, node):
 		"""Process property defaults for Scenic classes."""
@@ -1064,10 +1206,13 @@ def storeScenarioStateIn(namespace, requirementSyntax, lineMap, filename):
 				veneer.evaluatingRequirement = False
 			return result
 		return closure
-	for reqID, (req, bindings, ego, line, prob) in requirements.items():
+	for reqID, requirement in requirements.items():
+		bindings, ego = requirement.bindings, requirement.egoObject
+		line = requirement.line
 		# Check whether requirement implies any relations used for pruning
-		reqNode = requirementSyntax[reqID]
-		relations.inferRelationsFrom(reqNode, bindings, ego, line, lineMap)
+		if requirement.ty.constrainsSampling:
+			reqNode = requirementSyntax[reqID]
+			relations.inferRelationsFrom(reqNode, bindings, ego, line, lineMap)
 		# Gather dependencies of the requirement
 		for value in bindings.values():
 			if needsSampling(value):
@@ -1079,7 +1224,8 @@ def storeScenarioStateIn(namespace, requirementSyntax, lineMap, filename):
 			assert isinstance(ego, Samplable)
 			requirementDeps.add(ego)
 		# Construct closure
-		finalReqs.append((makeClosure(req, bindings, ego, line), prob))
+		closure = makeClosure(requirement.condition, bindings, ego, line)
+		finalReqs.append(veneer.CompiledRequirement(requirement, closure))
 
 def constructScenarioFrom(namespace):
 	"""Build a Scenario object from an executed Scenic module."""
