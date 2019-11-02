@@ -28,13 +28,16 @@ class Simulator:
             # Run a single simulation
             try:
                 simulation = self.createSimulation(scene)
-                trajectory = simulation.run(maxSteps)
+                trajectory, terminationReason = simulation.run(maxSteps)
             except RejectSimulationException as e:
                 if verbosity >= 2:
                     print(f'  Rejected simulation {iterations} at time step '
                           f'{simulation.currentTime} because of: {e}')
                 continue
             # Completed the simulation without violating a requirement
+            if verbosity >= 2:
+                print(f'  Simulation {iterations} ended successfully at time step '
+                      f'{simulation.currentTime} because of: {terminationReason}')
             return trajectory
         raise RuntimeError(f'failed to generate valid simulation in {maxIterations} iterations')
 
@@ -75,24 +78,28 @@ class Simulation:
                 agent.behavior = agent.behavior(agent)
                 if not isinstance(agent.behavior, types.GeneratorType):
                     raise RuntimeParseError(f'behavior of {agent} does not invoke any actions')
+            # Initialize monitor coroutines
+            for monitor in self.scene.monitors:
+                monitor.start()
 
             # Run simulation
             assert self.currentTime == 0
+            terminationReason = None
             while maxSteps is None or self.currentTime < maxSteps:
-                # Check if any requirements fail or termination conditions hold
+                # Check if any requirements fail
                 for req in self.scene.alwaysRequirements:
                     if not req.isTrue():
                         # always requirements should never be violated at time 0, since
                         # they are enforced during scene sampling
                         assert self.currentTime > 0
-                        raise RejectSimulationException(f'always requirement (line {req.line})')
-                terminated = False
-                for req in self.scene.terminationConditions:
-                    if req.isTrue():
-                        terminated = True
-                        break
-                if terminated:
-                    break
+                        raise RejectSimulationException(str(req))
+
+                # Run monitors
+                for monitor in self.scene.monitors:
+                    monTermReason = monitor.step()
+                    if monTermReason is not None:
+                        terminationReason = monTermReason
+
                 # Compute the actions of the agents in this time step
                 actions = OrderedDict()
                 schedule = self.scheduleForAgents()
@@ -101,20 +108,31 @@ class Simulation:
                         action = agent.behavior.send(None)
                     except StopIteration as e:
                         action = None      # behavior ended early; take no action
-                    except EndSimulationException:
-                        terminated = True
-                        break
+                    if isinstance(action, EndSimulationException):
+                        terminationReason = str(action)
                     actions[agent] = action
-                if terminated:
+
+                # All requirements have been checked; now safe to terminate if requested by
+                # a behavior/monitor or if a termination condition is met
+                for req in self.scene.terminationConditions:
+                    if req.isTrue():
+                        terminationReason = str(req)
+                if terminationReason is not None:
                     break
+
                 # Run the simulation for a single step
                 nextState = self.step(actions)
                 trajectory.append(nextState)
                 self.currentTime += 1
-            return trajectory
+
+            if terminationReason is None:
+                terminationReason = f'reached time limit ({maxSteps} steps)'
+            return trajectory, terminationReason
         finally:
             for obj in self.scene.objects:
                 disableDynamicProxyFor(obj)
+            for monitor in self.scene.monitors:
+                monitor.stop()
             veneer.endSimulation()
 
     def initialState(self):
@@ -129,8 +147,6 @@ class Simulation:
         """Run the simulation for a step, given the actions of the agents.
 
         Note that actions is an OrderedDict, as the order of actions may matter."""
-        #for agent, action in actions.items():
-        #    print(f'agent {agent} takes action {action}')
         return tuple(actions.values())
 
 class Action:

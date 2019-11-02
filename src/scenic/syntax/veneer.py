@@ -9,7 +9,7 @@ global state such as the list of all created Scenic objects.
 __all__ = (
 	# Primitive statements and functions
 	'ego', 'require', 'resample', 'param', 'mutate', 'verbosePrint',
-	'simulation', 'require_always', 'terminate_when', 'terminate',
+	'simulation', 'require_always', 'terminate_when',
 	'sin', 'cos', 'hypot', 'max', 'min',
 	# Prefix operators
 	'Visible',
@@ -31,8 +31,8 @@ __all__ = (
 	'At', 'In', 'Beyond', 'VisibleFrom', 'VisibleSpec', 'OffsetBy', 'OffsetAlongSpec',
 	'Facing', 'FacingToward', 'ApparentlyFacing',
 	'LeftSpec', 'RightSpec', 'Ahead', 'Behind',
-	# Temporary stuff... # TODO remove
-	'PropertyDefault'
+	# Internal APIs 	# TODO remove?
+	'PropertyDefault', 'registerMonitor', 'makeTerminationAction'
 )
 
 # various Python types and functions used in the language but defined elsewhere
@@ -50,6 +50,7 @@ from scenic.core.specifiers import PropertyDefault	# TODO remove
 import inspect
 import random
 import enum
+import types
 from scenic.core.distributions import (RejectionException, Distribution, toDistribution,
                                        needsSampling)
 from scenic.core.type_support import (isA, toType, toTypes, toScalar, toHeading, toVector,
@@ -70,6 +71,7 @@ egoObject = None
 globalParameters = {}
 pendingRequirements = {}
 inheritedReqs = []		# TODO improve handling of these?
+monitors = []
 currentSimulation = None
 
 ## APIs used internally by the rest of Scenic
@@ -92,7 +94,7 @@ def activate():
 def deactivate():
 	"""Deactivate the veneer after compiling a Scenic module."""
 	global activity, allObjects, egoObject, globalParameters
-	global pendingRequirements, inheritedReqs
+	global pendingRequirements, inheritedReqs, monitors
 	activity -= 1
 	assert activity >= 0
 	assert not evaluatingRequirement
@@ -101,6 +103,7 @@ def deactivate():
 	globalParameters = {}
 	pendingRequirements = {}
 	inheritedReqs = []
+	monitors = []
 
 # Object creation
 
@@ -136,17 +139,17 @@ def simulationInProgress():
 # Requirements
 
 @enum.unique
-class RequirementType(enum.IntEnum):
+class RequirementType(enum.Enum):
 	# requirements which must hold during initial sampling
-	require = -1
-	requireAlways = -2
+	require = 'require'
+	requireAlways = 'require always'
 
 	# requirements used only during simulation
-	terminateWhen = 1
+	terminateWhen = 'terminate when'
 
 	@property
 	def constrainsSampling(self):
-		return self < 0
+		return self is not self.terminateWhen
 
 class PendingRequirement:
 	def __init__(self, ty, condition, line, prob):
@@ -205,12 +208,63 @@ class BoundRequirement:
 	def isTrue(self):
 		return self.closure(self.sample)
 
+	def __str__(self):
+		return f'"{self.ty.value}" on line {self.line}'
+
 # Behavior management
 
 behaviorIndicator = '__Scenic_behavior'
 
 def isABehavior(thing):
 	return hasattr(thing, behaviorIndicator)
+
+def makeTerminationAction(line):
+	assert not isActive()
+	e = EndSimulationException(f'"terminate" on line {line}')
+	e.lineno = line
+	return e
+
+# Monitors
+
+class Monitor:
+	def __init__(self, behavior):
+		assert isABehavior(behavior) and isAMonitorName(behavior.__name__)
+		self.behavior = behavior
+		self.name = monitorName(behavior)
+		self.runningBehavior = None
+
+	def start(self):
+		gen = self.behavior(None)
+		if isinstance(gen, types.GeneratorType):
+			self.runningBehavior = gen
+		else:
+			pass	# monitor has already finished
+
+	def step(self):
+		if self.runningBehavior is None:
+			return False
+		try:
+			action = self.runningBehavior.send(None)
+		except StopIteration:
+			action = None      # monitor ended early
+		if isinstance(action, EndSimulationException):
+			return f'monitor {self.name} (line {action.lineno})'
+		else:
+			return None
+
+	def stop(self):
+		self.runningBehavior = None
+
+monitorPrefix = '_Scenic_monitor_'
+def functionForMonitor(name):
+	return monitorPrefix + name
+def isAMonitorName(name):
+	return name.startswith(monitorPrefix)
+def monitorName(func):
+	return func.__name__[len(monitorPrefix):]
+
+def registerMonitor(behavior):
+	monitors.append(Monitor(behavior))
 
 ### Primitive statements and functions
 
@@ -286,11 +340,6 @@ def simulation():
 		raise RuntimeParseError('used simulation() outside a behavior')
 	assert currentSimulation is not None
 	return currentSimulation
-
-def terminate():
-	if isActive():
-		raise RuntimeParseError('used terminate statement outside a behavior')
-	raise EndSimulationException
 
 def param(**params):
 	"""Function implementing the param statement."""

@@ -45,7 +45,7 @@ import ast
 from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_missing_locations
 from ast import Load, Store, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, BitXor, LShift
 from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Num, Subscript, Index, IfExp
-from ast import NamedExpr, Yield, YieldFrom, FunctionDef, Attribute, NameConstant, Assign
+from ast import NamedExpr, Yield, YieldFrom, FunctionDef, Attribute, NameConstant, Assign, Expr
 
 from scenic.core.distributions import Samplable, needsSampling
 from scenic.core.lazy_eval import needsLazyEvaluation
@@ -218,7 +218,7 @@ requireStatement = 'require'
 requireAlwaysStatement = ('require', 'always')
 terminateWhenStatement = ('terminate', 'when')
 
-functionStatements = { requireStatement, 'param', 'mutate', 'terminate' }
+functionStatements = { requireStatement, 'param', 'mutate' }
 twoWordFunctionStatements = { requireAlwaysStatement, terminateWhenStatement }
 
 def functionForStatement(tokens):
@@ -296,12 +296,14 @@ for const in builtinConstructors:
 ## Behaviors
 
 behaviorStatement = 'behavior'		# statement defining a new behavior
+monitorStatement = 'monitor'		# statement defining a new monitor
 actionStatement = 'take'			# statement invoking a primitive action
 waitStatement = 'wait'				# statement invoking a no-op action
+terminateStatement = 'terminate'	# statement ending the simulation
 
 # these statements are initially processed like functions but
 # are handled specially at the AST surgery stage
-functionStatements.update({actionStatement, waitStatement})
+functionStatements.update({actionStatement, waitStatement, terminateStatement})
 
 ## Prefix operators
 
@@ -413,7 +415,7 @@ illegalConstructs = {
 	('async', 'def'),		# used to parse behaviors, so disallowed otherwise
 }
 
-keywords = ({constructorStatement}
+keywords = ({constructorStatement, monitorStatement}
 	| internalFunctions | functionStatements
 	| replacements.keys())
 
@@ -467,6 +469,7 @@ def hooked_import(*args, **kwargs):
 			veneer.allObjects.extend(module._objects)
 			veneer.globalParameters.update(module._params)
 			veneer.inheritedReqs.extend(module._requirements)
+			veneer.monitors.extend(module._monitors)
 	return module
 
 original_import = builtins.__import__
@@ -530,7 +533,7 @@ class TokenParseError(ParseError):
 	def __init__(self, tokenOrLine, message):
 		line = tokenOrLine.start[0] if hasattr(tokenOrLine, 'start') else tokenOrLine
 		self.lineno = line
-		super().__init__('Parse error in line ' + str(line) + ': ' + message)
+		super().__init__('Parse error on line ' + str(line) + ': ' + message)
 
 class Peekable:
 	"""Utility class to allow iterator lookahead."""
@@ -666,6 +669,19 @@ class TokenTranslator:
 						newTokens.append((NAME, nextString))
 						newTokens.append((LPAR, '('))
 						newTokens.append((NAME, parent))
+						newTokens.append((RPAR, ')'))
+						skip = True
+						matched = True
+					elif startOfLine and tstring == monitorStatement:		# monitor definition
+						if nextToken.type != NAME:
+							raise TokenParseError(nextToken,
+							    f'invalid monitor name "{nextString}"')
+						next(tokens)	# consume name
+						if peek(tokens).exact_type != COLON:
+							raise TokenParseError(nextToken, 'malformed monitor definition')
+						newTokens.extend(((NAME, 'async'), (NAME, 'def')))
+						newTokens.append((NAME, veneer.functionForMonitor(nextString)))
+						newTokens.append((LPAR, '('))
 						newTokens.append((RPAR, ')'))
 						skip = True
 						matched = True
@@ -845,7 +861,7 @@ class ASTParseError(ParseError):
 	"""Parse error occuring during modification of the Python AST."""
 	def __init__(self, line, message):
 		self.lineno = line
-		super().__init__('Parse error in line ' + str(line) + ': ' + message)
+		super().__init__('Parse error on line ' + str(line) + ': ' + message)
 
 class ASTSurgeon(NodeTransformer):
 	def __init__(self, lineMap, constructors):
@@ -930,14 +946,26 @@ class ASTSurgeon(NodeTransformer):
 				newArgs.append(prob)
 			return copy_location(Call(func, newArgs, []), node)
 		elif isinstance(func, Name) and func.id == actionStatement:		# Action statement
+			if not self.inBehavior:
+				raise self.parseError(node, f'can only use {actionStatement} in a behavior')
 			self.validateSimpleCall(node, 1, onlyInBehaviors=True)
 			action = node.args[0]
 			# convert to yield
 			return copy_location(Yield(action), node)
 		elif isinstance(func, Name) and func.id == waitStatement:		# Wait statement
+			if not self.inBehavior:
+				raise self.parseError(node, f'can only use {waitStatement} in a behavior')
 			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
 			# convert to yield
 			return copy_location(Yield(None), node)
+		elif isinstance(func, Name) and func.id == terminateStatement:		# Terminate statement
+			if not self.inBehavior:
+				raise self.parseError(node, f'can only use {terminateStatement} in a behavior')
+			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
+			# convert to yield
+			line = self.lineMap[node.lineno]
+			termination = Call(Name('makeTerminationAction', Load()), [Num(line)], [])
+			return copy_location(Yield(termination), node)
 		else:	# Ordinary function call
 			newArgs = []
 			# Translate arguments, unpacking any argument packages
@@ -978,7 +1006,7 @@ class ASTSurgeon(NodeTransformer):
 		Specifically, transforms a call of the form:
 			function(args)
 		into:
-			(yield from TEMP(args)) if hasattr(TEMP := function, MARKER) else TEMP(args)
+			(yield from TEMP(self, args)) if hasattr(TEMP := function, MARKER) else TEMP(args)
 		where MARKER is a special attribute identifying behaviors and TEMP is a temporary name."""
 		savedFunc = NamedExpr(Name(temporaryName, Store()), func)
 		condition = Call(Name('hasattr', Load()),
@@ -986,7 +1014,9 @@ class ASTSurgeon(NodeTransformer):
 		                 []
 		)
 		newCall = Call(Name(temporaryName, Load()), args, keywords)
-		yieldFrom = YieldFrom(newCall)
+		argsWithSelf = [Name('self', Load())] + args
+		newCallWithSelf = Call(Name(temporaryName, Load()), argsWithSelf, keywords)
+		yieldFrom = YieldFrom(newCallWithSelf)
 		return IfExp(condition, yieldFrom, newCall)
 
 	def visit_AsyncFunctionDef(self, node):
@@ -1007,9 +1037,15 @@ class ASTSurgeon(NodeTransformer):
 		                      [self.visit(decorator) for decorator in node.decorator_list],
 		                      node.returns)
 		# set special marker attribute
-		marker = Attribute(Name(node.name, Load()), veneer.behaviorIndicator, Store())
+		behaviorName = Name(node.name, Load())
+		marker = Attribute(behaviorName, veneer.behaviorIndicator, Store())
 		setMarker = Assign([marker], NameConstant(True))
-		return [copy_location(newDefn, node), copy_location(setMarker, node)]
+		statements = [copy_location(newDefn, node), copy_location(setMarker, node)]
+		# if this is a monitor, register it
+		if veneer.isAMonitorName(node.name):
+			register = Expr(Call(Name('registerMonitor', Load()), [behaviorName], []))
+			statements.append(copy_location(register, node))
+		return statements
 
 	def visit_Yield(self, node):
 		if self.inBehavior:
@@ -1142,7 +1178,7 @@ class InterpreterParseError(ParseError):
 	def __init__(self, exc, line):
 		self.lineno = line
 		exc_name = type(exc).__name__
-		super().__init__(f'Parse error in line {line}: {exc_name}: {exc}')
+		super().__init__(f'Parse error on line {line}: {exc_name}: {exc}')
 
 def executeCodeIn(code, namespace, lineMap, filename):
 	"""Execute the final translated Python code in the given namespace."""
@@ -1227,6 +1263,9 @@ def storeScenarioStateIn(namespace, requirementSyntax, lineMap, filename):
 		closure = makeClosure(requirement.condition, bindings, ego, line)
 		finalReqs.append(veneer.CompiledRequirement(requirement, closure))
 
+	# Extract monitors
+	namespace['_monitors'] = veneer.monitors
+
 def constructScenarioFrom(namespace):
 	"""Build a Scenario object from an executed Scenic module."""
 	# Extract ego object
@@ -1258,7 +1297,8 @@ def constructScenarioFrom(namespace):
 	scenario = Scenario(workspace, simulator,
 	                    namespace['_objects'], namespace['_egoObject'],
 	                    namespace['_params'],
-	                    namespace['_requirements'], namespace['_requirementDeps'])
+	                    namespace['_requirements'], namespace['_requirementDeps'],
+	                    namespace['_monitors'])
 
 	# Prune infeasible parts of the space
 	if usePruning:

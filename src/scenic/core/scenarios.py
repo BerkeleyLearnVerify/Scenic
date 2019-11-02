@@ -12,7 +12,7 @@ from scenic.syntax.veneer import isABehavior, RequirementType, BoundRequirement
 class Scene:
 	"""A scene generated from a Scenic scenario"""
 	def __init__(self, workspace, simulator, objects, egoObject, params,
-	             alwaysReqs=tuple(), terminationConds=tuple()):
+	             alwaysReqs=(), terminationConds=(), monitors=()):
 		self.workspace = workspace
 		self.simulator = simulator
 		self.objects = tuple(objects)
@@ -20,6 +20,7 @@ class Scene:
 		self.params = params
 		self.alwaysRequirements = tuple(alwaysReqs)
 		self.terminationConditions = tuple(terminationConds)
+		self.monitors = tuple(monitors)
 
 	def show(self, zoom=None, block=True):
 		"""Render a schematic of the scene for debugging"""
@@ -46,7 +47,8 @@ class Scenario:
 	def __init__(self, workspace, simulator,
 	             objects, egoObject,
 	             params,
-	             requirements, requirementDeps):
+	             requirements, requirementDeps,
+	             monitors):
 		if workspace is None:
 			workspace = Workspace()		# default empty workspace
 		self.workspace = workspace
@@ -60,6 +62,8 @@ class Scenario:
 		self.objects = tuple(ordered)
 		self.egoObject = egoObject
 		self.params = dict(params)
+		self.monitors = tuple(monitors)
+
 		staticReqs, alwaysReqs, terminationConds = [], [], []
 		for req in requirements:
 			if req.ty is RequirementType.require:
@@ -78,6 +82,7 @@ class Scenario:
 		# dependencies must use fixed order for reproducibility
 		paramDeps = tuple(p for p in self.params.values() if isinstance(p, Samplable))
 		self.dependencies = self.objects + paramDeps + tuple(requirementDeps)
+
 		self.validate()
 
 	def containerOfObject(self, obj):
@@ -190,5 +195,5 @@ class Scenario:
 		alwaysReqs = (BoundRequirement(req, sample) for req in self.alwaysRequirements)
 		terminationConds = (BoundRequirement(req, sample) for req in self.terminationConditions)
 		scene = Scene(self.workspace, self.simulator, sampledObjects, ego, sampledParams,
-		              alwaysReqs, terminationConds)
+		              alwaysReqs, terminationConds, self.monitors)
 		return scene, iterations
