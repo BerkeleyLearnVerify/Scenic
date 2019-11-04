@@ -12,7 +12,6 @@ import abc
 # Lane types on which cars can appear.
 DRIVABLE = [
     'driving',
-    'bidirectional',
     'entry',
     'exit',
     'offRamp',
