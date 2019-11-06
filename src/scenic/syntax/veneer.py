@@ -31,8 +31,10 @@ __all__ = (
 	'At', 'In', 'Beyond', 'VisibleFrom', 'VisibleSpec', 'OffsetBy', 'OffsetAlongSpec',
 	'Facing', 'FacingToward', 'ApparentlyFacing',
 	'LeftSpec', 'RightSpec', 'Ahead', 'Behind',
+	# Exceptions
+	'GuardFailure', 'PreconditionFailure', 'InvariantFailure',
 	# Internal APIs 	# TODO remove?
-	'PropertyDefault', 'registerMonitor', 'makeTerminationAction'
+	'PropertyDefault', 'createBehavior', 'makeTerminationAction'
 )
 
 # various Python types and functions used in the language but defined elsewhere
@@ -60,7 +62,7 @@ from scenic.core.object_types import Constructible
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
 from scenic.core.utils import RuntimeParseError
-from scenic.simulators.simulators import RejectSimulationException, EndSimulationException
+from scenic.simulators.simulators import RejectSimulationException, EndSimulationAction
 
 ### Internals
 
@@ -211,60 +213,82 @@ class BoundRequirement:
 	def __str__(self):
 		return f'"{self.ty.value}" on line {self.line}'
 
-# Behavior management
+# Behaviors
+
+class Behavior:
+	def __init__(self, generator):
+		self.generator = generator
+		self.name = generator.__name__
+		self.runningIterator = None
+
+	def start(self, agent):
+		it = self.generator(self, agent)
+		if isinstance(it, types.GeneratorType):
+			self.runningIterator = it
+			return True
+		else:
+			return False	# behavior did not issue any actions
+
+	def step(self):
+		if self.runningIterator is None:
+			return None
+		try:
+			action = self.runningIterator.send(None)
+		except StopIteration:
+			action = None      # behavior ended early
+		return action
+
+	def stop(self):
+		self.runningIterator = None
+
+	def callSubBehavior(self, sub, agent, *args, **kwargs):
+		assert isABehaviorGenerator(sub)
+		behaviorObj = getattr(sub, behaviorIndicator)
+		yield from sub(behaviorObj, agent, *args, **kwargs)
+
+	def __str__(self):
+		return f'behavior {self.name}'
 
 behaviorIndicator = '__Scenic_behavior'
 
-def isABehavior(thing):
+def isABehaviorGenerator(thing):
 	return hasattr(thing, behaviorIndicator)
+def behaviorObjectFor(generator):
+	return getattr(generator, behaviorIndicator)
+
+def createBehavior(generator):
+	if isAMonitorName(generator.__name__):
+		monitor = Monitor(generator)
+		monitors.append(monitor)
+		return monitor
+	else:
+		return Behavior(generator)
 
 def makeTerminationAction(line):
 	assert not isActive()
-	e = EndSimulationException(f'"terminate" on line {line}')
-	e.lineno = line
-	return e
+	return EndSimulationAction(line)
 
 # Monitors
 
-class Monitor:
-	def __init__(self, behavior):
-		assert isABehavior(behavior) and isAMonitorName(behavior.__name__)
-		self.behavior = behavior
-		self.name = monitorName(behavior)
-		self.runningBehavior = None
+class Monitor(Behavior):
+	def __init__(self, generator):
+		super().__init__(generator)
+		assert isAMonitorName(self.name)
+		self.name = monitorName(self.name)
 
 	def start(self):
-		gen = self.behavior(None)
-		if isinstance(gen, types.GeneratorType):
-			self.runningBehavior = gen
-		else:
-			pass	# monitor has already finished
+		return super().start(None)
 
-	def step(self):
-		if self.runningBehavior is None:
-			return False
-		try:
-			action = self.runningBehavior.send(None)
-		except StopIteration:
-			action = None      # monitor ended early
-		if isinstance(action, EndSimulationException):
-			return f'monitor {self.name} (line {action.lineno})'
-		else:
-			return None
-
-	def stop(self):
-		self.runningBehavior = None
+	def __str__(self):
+		return f'monitor {self.name}'
 
 monitorPrefix = '_Scenic_monitor_'
 def functionForMonitor(name):
 	return monitorPrefix + name
 def isAMonitorName(name):
 	return name.startswith(monitorPrefix)
-def monitorName(func):
-	return func.__name__[len(monitorPrefix):]
-
-def registerMonitor(behavior):
-	monitors.append(Monitor(behavior))
+def monitorName(name):
+	return name[len(monitorPrefix):]
 
 ### Primitive statements and functions
 
@@ -735,3 +759,18 @@ def leftSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
 		val = lambda self: pos.offsetRotated(self.heading, makeOffset(self, dx, dy))
 		new = DelayedArgument({axis, 'heading'}, val)
 	return Specifier('position', new, optionals=extras)
+
+### Exceptions
+
+class GuardFailure(Exception):
+	"""Raised when a guard of a behavior is violated."""
+	pass
+
+class PreconditionFailure(GuardFailure):
+	"""Raised when a precondition fails when invoking a behavior."""
+	pass
+
+class InvariantFailure(GuardFailure):
+	"""Raised when an invariant fails when invoking/resuming a behavior."""
+	pass
+

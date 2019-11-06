@@ -46,6 +46,7 @@ from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_mi
 from ast import Load, Store, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, BitXor, LShift
 from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Num, Subscript, Index, IfExp
 from ast import NamedExpr, Yield, YieldFrom, FunctionDef, Attribute, NameConstant, Assign, Expr
+from ast import Return, Raise, If, UnaryOp, Not
 
 from scenic.core.distributions import Samplable, needsSampling
 from scenic.core.lazy_eval import needsLazyEvaluation
@@ -206,23 +207,46 @@ api = set(veneer.__all__)
 
 rangeConstructor = 'Range'
 createDefault = 'PropertyDefault'
-internalFunctions = { rangeConstructor, createDefault }
+createBehavior = 'createBehavior'
+createTerminationAction = 'makeTerminationAction'
+internalFunctions = { rangeConstructor, createDefault, createBehavior, createTerminationAction }
 
 # sanity check: these functions actually exist
 for imp in internalFunctions:
 	assert imp in api, imp
 
-## Statements implemented by functions
+## Simple statements
+
+paramStatement = 'param'
+mutateStatement = 'mutate'
 
 requireStatement = 'require'
 requireAlwaysStatement = ('require', 'always')
 terminateWhenStatement = ('terminate', 'when')
 
-functionStatements = { requireStatement, 'param', 'mutate' }
-twoWordFunctionStatements = { requireAlwaysStatement, terminateWhenStatement }
+actionStatement = 'take'			# statement invoking a primitive action
+waitStatement = 'wait'				# statement invoking a no-op action
+terminateStatement = 'terminate'	# statement ending the simulation
 
+oneWordStatements = {	# TODO clean up
+	paramStatement, mutateStatement, requireStatement,
+	actionStatement, waitStatement, terminateStatement
+}
+twoWordStatements = { requireAlwaysStatement, terminateWhenStatement }
+
+# statements implemented by functions
+functionStatements = { requireStatement, paramStatement, mutateStatement }
+twoWordFunctionStatements = { requireAlwaysStatement, terminateWhenStatement }
 def functionForStatement(tokens):
 	return '_'.join(tokens)
+
+# sanity check: implementations actually exist
+for imp in functionStatements:
+	assert imp in api, imp
+for tokens in twoWordFunctionStatements:
+	assert len(tokens) == 2
+	imp = functionForStatement(tokens)
+	assert imp in api, imp
 
 # statements encoding requirements which need special handling
 requirementStatements = (
@@ -231,13 +255,9 @@ requirementStatements = (
     functionForStatement(terminateWhenStatement),
 )
 
-# sanity check: implementations of statements actually exist
-for imp in functionStatements:
-	assert imp in api, imp
-for tokens in twoWordFunctionStatements:
-	assert len(tokens) == 2
-	imp = functionForStatement(tokens)
-	assert imp in api, imp
+statementRaiseMarker = '_Scenic_statement_'
+def wrapStatementCall(newTokens):
+	newTokens.extend(((NAME, 'raise'), (NAME, statementRaiseMarker), (NAME, 'from')))
 
 ## Built-in functions
 
@@ -287,23 +307,15 @@ builtinConstructors = {
 	'OrientedPoint': Constructor('OrientedPoint', 'Point', orientedPointSpecifiers),
 	'Object': Constructor('Object', 'OrientedPoint', objectSpecifiers)
 }
-functionStatements.update(builtinConstructors)
 
 # sanity check: built-in constructors actually exist
 for const in builtinConstructors:
 	assert const in api, const
 
-## Behaviors
+## Other compound statements
 
 behaviorStatement = 'behavior'		# statement defining a new behavior
 monitorStatement = 'monitor'		# statement defining a new monitor
-actionStatement = 'take'			# statement invoking a primitive action
-waitStatement = 'wait'				# statement invoking a no-op action
-terminateStatement = 'terminate'	# statement ending the simulation
-
-# these statements are initially processed like functions but
-# are handled specially at the AST surgery stage
-functionStatements.update({actionStatement, waitStatement, terminateStatement})
 
 ## Prefix operators
 
@@ -329,8 +341,8 @@ prefixOperators = {
 }
 assert all(1 <= len(op) <= 2 for op in prefixOperators)
 prefixIncipits = { op[0] for op in prefixOperators }
-assert not any(op in functionStatements for op in prefixIncipits)
-assert not any(op in twoWordFunctionStatements for op in prefixOperators)
+assert not any(op in oneWordStatements for op in prefixIncipits)
+assert not any(op in twoWordStatements for op in prefixOperators)
 
 # sanity check: implementations of prefix operators actually exist
 for imp in prefixOperators.values():
@@ -370,10 +382,10 @@ for op in infixOperators:
 		tokens = tuple(op.syntax.split(' '))
 		assert 1 <= len(tokens) <= 2, op
 		assert tokens not in infixTokens, op
-		assert tokens not in twoWordFunctionStatements, op
+		assert tokens not in twoWordStatements, op
 		infixTokens[tokens] = op.token
 		incipit = tokens[0]
-		assert incipit not in functionStatements, op
+		assert incipit not in oneWordStatements, op
 		infixIncipits.add(incipit)
 	# if necessary, set up map from Python to Scenic semantics
 	imp = op.implementation
@@ -416,7 +428,7 @@ illegalConstructs = {
 }
 
 keywords = ({constructorStatement, monitorStatement}
-	| internalFunctions | functionStatements
+	| internalFunctions | oneWordStatements
 	| replacements.keys())
 
 ### TRANSLATION PHASE ONE: handling imports
@@ -559,19 +571,16 @@ def peek(thing):
 
 class TokenTranslator:
 	def __init__(self, constructors=()):
-		self.functions = set(functionStatements)
 		self.constructors = dict(builtinConstructors)
 		for constructor in constructors:
 			name = constructor.name
 			assert name not in self.constructors
 			self.constructors[name] = constructor
-			self.functions.add(name)
 
 	def createConstructor(self, name, parent, specs={}):
 		if parent is None:
 			parent = 'Object'		# default superclass
 		self.constructors[name] = Constructor(name, parent, specs)
-		self.functions.add(name)
 		return parent
 
 	def specifiersForConstructor(self, const):
@@ -596,7 +605,6 @@ class TokenTranslator:
 		lastLine = max(1, peek(tokens).start[0]) - 1
 		lineMap = { 0: 0 }
 		startOfLine = True		# TODO improve hack?
-		functions = self.functions
 		constructors = self.constructors
 		for token in tokens:
 			ttype = token.exact_type
@@ -694,7 +702,8 @@ class TokenTranslator:
 						next(tokens)
 						skip = True
 						matched = True
-					elif not inConstructorContext and twoWords in twoWordFunctionStatements:
+					elif twoWords in twoWordStatements:	# 2-word statement
+						wrapStatementCall(newTokens)
 						function = functionForStatement(twoWords)
 						next(tokens)
 						matched = True
@@ -711,6 +720,7 @@ class TokenTranslator:
 							    'soft requirement must have constant probability')
 						if next(tokens).exact_type != RSQB:
 							raise TokenParseError(prob, 'malformed soft requirement')
+						wrapStatementCall(newTokens)
 						function = requireStatement
 						argument = prob.string
 						matched = True
@@ -727,7 +737,10 @@ class TokenTranslator:
 						skip = True
 					elif inConstructorContext:		# couldn't match any 1- or 2-word specifier
 						raise TokenParseError(token, f'unknown constructor specifier "{tstring}"')
-					elif tstring in functions:		# built-in function
+					elif tstring in oneWordStatements:	# 1-word statement
+						wrapStatementCall(newTokens)
+						function = tstring
+					elif tstring in self.constructors:	# instance definition
 						function = tstring
 					elif tstring in replacements:	# direct replacement
 						newTokens.extend(replacements[tstring])
@@ -825,6 +838,10 @@ def parseTranslatedSource(source, lineMap, filename):
 
 ### TRANSLATION PHASE FOUR: modifying the parse tree
 
+temporaryName = '_Scenic_temporary_name'
+behaviorArgName = '_Scenic_current_behavior'
+checkInvariantsName = '_Scenic_check_invariants'
+
 noArgs = ast.arguments(
     posonlyargs=[],
 	args=[], vararg=None,
@@ -835,8 +852,11 @@ selfArg = ast.arguments(
 	args=[ast.arg(arg='self', annotation=None)], vararg=None,
 	kwonlyargs=[], kw_defaults=[],
 	kwarg=None, defaults=[])
-
-temporaryName = '__Scenic_temporary_name'
+tempArg = ast.arguments(
+    posonlyargs=[],
+	args=[ast.arg(arg=temporaryName, annotation=None)], vararg=None,
+	kwonlyargs=[], kw_defaults=[],
+	kwarg=None, defaults=[NameConstant(None)])
 
 class AttributeFinder(NodeVisitor):
 	"""Utility class for finding all referenced attributes of a given name."""
@@ -870,6 +890,7 @@ class ASTSurgeon(NodeTransformer):
 		self.constructors = { const for const in constructors }
 		self.requirements = []
 		self.inBehavior = False
+		self.inGuard = False
 
 	def parseError(self, node, message):
 		line = self.lineMap[node.lineno]
@@ -913,16 +934,20 @@ class ASTSurgeon(NodeTransformer):
 		newElts = [self.visit(elt) for elt in node.elts]
 		return copy_location(Call(Name(rangeConstructor, Load()), newElts, []), node)
 
-	def visit_Call(self, node):
-		"""Handle Scenic constructs parsed as function calls.
+	def visit_Raise(self, node):
+		"""Handle Scenic statements encoded as raise statements.
 
 		In particular:
 		  * wrap require statements with lambdas;
 		  * handle primitive action invocations inside behaviors;
-		  * unpack argument packages for operators;
-		  * check for sub-behavior invocation inside behaviors."""
+		  * call the veneer implementations of other statements."""
+		if not isinstance(node.exc, Name) or node.exc.id != statementRaiseMarker:
+			return self.generic_visit(node)		# an ordinary raise statement
+		assert isinstance(node.cause, Call)
+		assert isinstance(node.cause.func, Name)
+		node = self.visit_Call(node.cause, subBehaviorCheck=False) 	# move to inner call
 		func = node.func
-		if isinstance(func, Name) and func.id in requirementStatements:		# require, etc.
+		if func.id in requirementStatements:		# require, terminate when, etc.
 			# Soft reqs have 2 arguments, including the probability, which is given as the
 			# first argument by the token translator; so we allow an extra argument here and
 			# validate it later on (in case the user wrongly gives 2 arguments to require).
@@ -944,44 +969,50 @@ class ASTSurgeon(NodeTransformer):
 					raise self.parseError(node, 'malformed requirement '
 					                            '(should be a single expression)')
 				newArgs.append(prob)
-			return copy_location(Call(func, newArgs, []), node)
-		elif isinstance(func, Name) and func.id == actionStatement:		# Action statement
-			if not self.inBehavior:
-				raise self.parseError(node, f'can only use {actionStatement} in a behavior')
+			return copy_location(Expr(Call(func, newArgs, [])), node)
+		elif func.id == actionStatement:		# Action statement
 			self.validateSimpleCall(node, 1, onlyInBehaviors=True)
 			action = node.args[0]
-			# convert to yield
-			return copy_location(Yield(action), node)
-		elif isinstance(func, Name) and func.id == waitStatement:		# Wait statement
-			if not self.inBehavior:
-				raise self.parseError(node, f'can only use {waitStatement} in a behavior')
+			return self.generateActionInvocation(node, action)
+		elif func.id == waitStatement:		# Wait statement
 			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
-			# convert to yield
-			return copy_location(Yield(None), node)
-		elif isinstance(func, Name) and func.id == terminateStatement:		# Terminate statement
-			if not self.inBehavior:
-				raise self.parseError(node, f'can only use {terminateStatement} in a behavior')
+			return self.generateActionInvocation(node, None)
+		elif func.id == terminateStatement:		# Terminate statement
 			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
-			# convert to yield
 			line = self.lineMap[node.lineno]
-			termination = Call(Name('makeTerminationAction', Load()), [Num(line)], [])
-			return copy_location(Yield(termination), node)
-		else:	# Ordinary function call
-			newArgs = []
-			# Translate arguments, unpacking any argument packages
-			for arg in node.args:
-				if isinstance(arg, BinOp) and isinstance(arg.op, packageNode):
-					newArgs.extend(self.unpack(arg, 2, node))
-				else:
-					newArgs.append(self.visit(arg))
-			newKeywords = [self.visit(kwarg) for kwarg in node.keywords]
-			newFunc = self.visit(func)
-			if self.inBehavior:
-				# Add check for sub-behavior invocation
-				newNode = self.wrapBehaviorCall(newFunc, newArgs, newKeywords)
+			termination = Call(Name(createTerminationAction, Load()), [Num(line)], [])
+			return self.generateActionInvocation(node, termination)
+		else:
+			# statement implemented directly by a function; leave call intact
+			return copy_location(Expr(node), node)
+
+	def generateActionInvocation(self, node, action):
+		invokeAction = Expr(Yield(action))
+		checkInvariants = Expr(Call(Name(checkInvariantsName, Load()), [], []))
+		return [copy_location(invokeAction, node), copy_location(checkInvariants, node)]
+
+	def visit_Call(self, node, subBehaviorCheck=True):
+		"""Handle Scenic syntax and semantics of function calls.
+
+		In particular:
+		  * unpack argument packages for operators;
+		  * check for sub-behavior invocation inside behaviors."""
+		func = node.func
+		newArgs = []
+		# Translate arguments, unpacking any argument packages
+		for arg in node.args:
+			if isinstance(arg, BinOp) and isinstance(arg.op, packageNode):
+				newArgs.extend(self.unpack(arg, 2, node))
 			else:
-				newNode = Call(newFunc, newArgs, newKeywords)
-			return copy_location(newNode, node)
+				newArgs.append(self.visit(arg))
+		newKeywords = [self.visit(kwarg) for kwarg in node.keywords]
+		newFunc = self.visit(func)
+		if subBehaviorCheck and self.inBehavior and not self.inGuard:
+			# Add check for sub-behavior invocation
+			newNode = self.wrapBehaviorCall(newFunc, newArgs, newKeywords)
+		else:
+			newNode = Call(newFunc, newArgs, newKeywords)
+		return copy_location(newNode, node)
 
 	def validateSimpleCall(self, node, numArgs, onlyInBehaviors=False):
 		func = node.func
@@ -1006,45 +1037,99 @@ class ASTSurgeon(NodeTransformer):
 		Specifically, transforms a call of the form:
 			function(args)
 		into:
-			(yield from TEMP(self, args)) if hasattr(TEMP := function, MARKER) else TEMP(args)
-		where MARKER is a special attribute identifying behaviors and TEMP is a temporary name."""
+			(CHECK(yield from CURRENT_BEHAVIOR.callSubBehavior(TEMP, self, args))
+			if hasattr(TEMP := function, MARKER)
+			else TEMP(args))
+		where MARKER is a special attribute identifying behaviors, TEMP is a temporary name,
+		CURRENT_BEHAVIOR is a hidden argument storing the current Behavior object, and
+		CHECK is a function which checks the invariants and returns its argument."""
 		savedFunc = NamedExpr(Name(temporaryName, Store()), func)
 		condition = Call(Name('hasattr', Load()),
 		                 [savedFunc, Str(veneer.behaviorIndicator)],
 		                 []
 		)
-		newCall = Call(Name(temporaryName, Load()), args, keywords)
-		argsWithSelf = [Name('self', Load())] + args
-		newCallWithSelf = Call(Name(temporaryName, Load()), argsWithSelf, keywords)
-		yieldFrom = YieldFrom(newCallWithSelf)
-		return IfExp(condition, yieldFrom, newCall)
+		subHandler = Attribute(Name(behaviorArgName, Load()), 'callSubBehavior', Load())
+		subArgs = [Name(temporaryName, Load()), Name('self', Load())] + args
+		subCall = Call(subHandler, subArgs, keywords)
+		yieldFrom = YieldFrom(subCall)
+		checkedSubCall = Call(Name(checkInvariantsName, Load()), [yieldFrom], [])
+		ordinaryCall = Call(Name(temporaryName, Load()), args, keywords)
+		return IfExp(condition, checkedSubCall, ordinaryCall)
 
 	def visit_AsyncFunctionDef(self, node):
 		"""Process behavior definitions."""
 		if self.inBehavior:
 			raise self.parseError(node, 'cannot define a behavior inside a behavior')
+
 		# process body
 		self.inBehavior = True
-		newBody = [self.visit(statement) for statement in node.body]
+		preconditions = []
+		invariants = []
+		newStatements = []
+		# find precondition and invariant definitions
+		for statement in node.body:
+			if (isinstance(statement, AnnAssign)
+			    and isinstance(statement.target, Name)
+			    and statement.value is None
+			    and statement.simple):
+				group = None
+				if statement.target.id == 'precondition':
+					group = preconditions
+				elif statement.target.id == 'invariant':
+					group = invariants
+				else:
+					raise self.parseError(statement, 'unknown type of behavior attribute')
+				self.inGuard = True
+				test = self.visit(statement.annotation)
+				self.inGuard = False
+				assert isinstance(test, ast.AST)
+				group.append(test)
+			else:
+				newStatement = self.visit(statement)
+				if isinstance(newStatement, ast.AST):
+					newStatements.append(newStatement)
+				else:
+					newStatements.extend(newStatement)
+		# generate precondition checks
+		precondChecks = []
+		for precondition in preconditions:
+			throw = Raise(exc=Name('PreconditionFailure', Load()), cause=None)
+			check = If(test=UnaryOp(Not(), precondition), body=[throw], orelse=[])
+			precondChecks.append(copy_location(check, precondition))
+		# generate invariant checker
+		invChecks = []
+		for invariant in invariants:
+			throw = Raise(exc=Name('InvariantFailure', Load()), cause=None)
+			check = If(test=UnaryOp(Not(), invariant), body=[throw], orelse=[])
+			invChecks.append(copy_location(check, invariant))
+		defineChecker = FunctionDef(checkInvariantsName, tempArg,
+		                            invChecks + [Return(Name(temporaryName, Load()))],
+		                            [], None)
+		callChecker = Expr(Call(Name(checkInvariantsName, Load()), [], []))
+		# assemble new function body
+		newBody = precondChecks + [defineChecker, callChecker] + newStatements
 		self.inBehavior = False
-		# inject implicit 'self' argument
+
+		# add private current behavior argument and implicit 'self' argument
 		newArgs = self.visit(node.args)
-		newArgs.args.insert(0, ast.arg(arg='self', annotation=None))
+		extraArgs = [
+			ast.arg(arg=behaviorArgName, annotation=None),
+			ast.arg(arg='self', annotation=None)
+		]
+		newArgs.args = extraArgs + newArgs.args
 		# convert to ordinary function definition
 		newDefn = FunctionDef(node.name,
 		                      newArgs,
 		                      newBody,
 		                      [self.visit(decorator) for decorator in node.decorator_list],
 		                      node.returns)
-		# set special marker attribute
+
+		# create Behavior object and mark function
 		behaviorName = Name(node.name, Load())
 		marker = Attribute(behaviorName, veneer.behaviorIndicator, Store())
-		setMarker = Assign([marker], NameConstant(True))
+		createBehaviorCall = Call(Name(createBehavior, Load()), [behaviorName], [])
+		setMarker = Assign([marker], createBehaviorCall)
 		statements = [copy_location(newDefn, node), copy_location(setMarker, node)]
-		# if this is a monitor, register it
-		if veneer.isAMonitorName(node.name):
-			register = Expr(Call(Name('registerMonitor', Load()), [behaviorName], []))
-			statements.append(copy_location(register, node))
 		return statements
 
 	def visit_Yield(self, node):

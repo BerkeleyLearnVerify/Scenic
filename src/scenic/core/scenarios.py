@@ -7,7 +7,8 @@ from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
 from scenic.core.utils import InvalidScenarioError
-from scenic.syntax.veneer import isABehavior, RequirementType, BoundRequirement
+from scenic.syntax.veneer import (isABehaviorGenerator, behaviorObjectFor,
+                                  RequirementType, BoundRequirement)
 
 class Scene:
 	"""A scene generated from a Scenic scenario"""
@@ -151,12 +152,17 @@ class Scenario:
 			for obj in objects:
 				sampledObj = sample[obj]
 				assert not needsSampling(sampledObj)
+				# position, heading
 				assert isinstance(sampledObj.position, Vector)
 				sampledObj.heading = float(sampledObj.heading)
+				# behavior
 				behavior = sampledObj.behavior
-				if behavior is not None and not isABehavior(behavior):
-					raise InvalidScenarioError(
-					    f'behavior {behavior} of Object {obj} is not a behavior')
+				if behavior is not None:
+					if not isABehaviorGenerator(behavior):
+						raise InvalidScenarioError(
+						    f'behavior {behavior} of Object {obj} is not a behavior')
+					sampledObj.behavior = behaviorObjectFor(behavior)
+
 			# Check built-in requirements
 			for i in range(len(objects)):
 				vi = sample[objects[i]]

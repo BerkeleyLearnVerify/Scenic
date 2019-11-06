@@ -11,10 +11,6 @@ class RejectSimulationException(Exception):
     """Exception indicating a requirement was violated at runtime."""
     pass
 
-class EndSimulationException(Exception):
-    """Exception indicating it is time to end the simulation."""
-    pass
-
 class Simulator:
     """A simulator which can import/execute scenes from Scenic."""
 
@@ -57,7 +53,8 @@ class Simulation:
     def run(self, maxSteps):
         """Run the simulation.
 
-        Throws a RejectSimulationException if a requirement is violated."""
+        Throws a RejectSimulationException if a requirement is violated.
+        """
         global runningSimulation
 
         trajectory = self.trajectory
@@ -75,9 +72,9 @@ class Simulation:
         try:
             # Initialize behavior coroutines of agents
             for agent in self.agents:
-                agent.behavior = agent.behavior(agent)
-                if not isinstance(agent.behavior, types.GeneratorType):
-                    raise RuntimeParseError(f'behavior of {agent} does not invoke any actions')
+                running = agent.behavior.start(agent)
+                if not running:
+                    raise RuntimeError(f'{agent.behavior} of {agent} does not take any actions')
             # Initialize monitor coroutines
             for monitor in self.scene.monitors:
                 monitor.start()
@@ -96,19 +93,16 @@ class Simulation:
 
                 # Run monitors
                 for monitor in self.scene.monitors:
-                    monTermReason = monitor.step()
-                    if monTermReason is not None:
-                        terminationReason = monTermReason
+                    action = monitor.step()
+                    if isinstance(action, EndSimulationAction):
+                        terminationReason = str(action)
 
                 # Compute the actions of the agents in this time step
                 actions = OrderedDict()
                 schedule = self.scheduleForAgents()
                 for agent in schedule:
-                    try:
-                        action = agent.behavior.send(None)
-                    except StopIteration as e:
-                        action = None      # behavior ended early; take no action
-                    if isinstance(action, EndSimulationException):
+                    action = agent.behavior.step()
+                    if isinstance(action, EndSimulationAction):
                         terminationReason = str(action)
                     actions[agent] = action
 
@@ -131,6 +125,8 @@ class Simulation:
         finally:
             for obj in self.scene.objects:
                 disableDynamicProxyFor(obj)
+            for agent in self.agents:
+                agent.behavior.stop()
             for monitor in self.scene.monitors:
                 monitor.stop()
             veneer.endSimulation()
@@ -152,3 +148,14 @@ class Simulation:
 class Action:
     """An action which can be taken by an agent for one step of a simulation."""
     pass
+
+class EndSimulationAction(Action):
+    """Special action indicating it is time to end the simulation.
+
+    Only for internal use.
+    """
+    def __init__(self, line):
+        self.line = line
+
+    def __str__(self):
+        return f'"terminate" on line {self.line}'

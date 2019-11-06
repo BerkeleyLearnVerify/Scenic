@@ -256,7 +256,7 @@ def test_line_numbering_late(tmpdir):
 def test_line_numbering_generation(tmpdir):
     """Line numbering for errors and exceptions occuring scene generation."""
     bugs = (
-        'require mutate',       # Scenic parse error
+        'ego = 4',       # Scenic parse error
         'require _flub__',      # Python runtime error
     )
     checkBugs(bugs, tmpdir, generate=True)
