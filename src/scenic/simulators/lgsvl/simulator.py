@@ -2,6 +2,7 @@
 import math
 
 import lgsvl
+import dreamview
 
 import scenic.simulators as simulators
 import scenic.simulators.lgsvl.utils as utils
@@ -23,6 +24,7 @@ class LGSVLSimulation(simulators.Simulation):
         self.client = client
         self.timeStep = scene.params.get('time_step', 1.0/30)
         self.objects = scene.objects
+        self.usingApollo = False
 
         # Reset simulator (deletes all existing objects)
         self.client.reset()
@@ -51,15 +53,57 @@ class LGSVLSimulation(simulators.Simulation):
             lgsvlObj = self.client.add_agent(name, agentType, state)
             obj.lgsvlObject = lgsvlObj
 
+            # Initialize Apollo if needed
+            if hasattr(obj, 'apolloVehicle'):
+                self.initApolloFor(obj, lgsvlObj)
+
         # TODO reset object controllers???
 
     def groundElevationAt(self, pos):
         origin = utils.scenicToLGSVLPosition(pos, 100000)
-        result = self.client.raycast(origin, lgsvl.Vector(0, -1, 0))
+        result = self.client.raycast(origin, lgsvl.Vector(0, -1, 0), 1)
         if result is None:
             print(f'WARNING: no ground at position {pos}')
             return 0
         return result.point.y
+
+    def initApolloFor(self, obj, lgsvlObj):
+        """Initialize Apollo for an ego vehicle.
+
+        Uses LG's interface which injects packets into Dreamview."""
+        if self.usingApollo:
+            raise RuntimeError('can only use one Apollo vehicle')
+        self.usingApollo = True
+
+        # connect bridge from LGSVL to Apollo
+        lgsvlObj.connect_bridge(obj.bridgeHost, obj.bridgePort)
+
+        # set up connection and map/vehicle configuration
+        dv = dreamview.Connection(self.client, lgsvlObj)
+        obj.dreamview = dv
+        waitToStabilize = False
+        hdMap = self.scene.params['apolloHDMap']
+        if dv.getCurrentMap() != hdMap:
+            dv.setHDMap(hdMap)
+            waitToStabilize = True
+        if dv.getCurrentVehicle() != obj.apolloVehicle:
+            dv.setVehicle(obj.apolloVehicle)
+            waitToStabilize = True
+
+        # start modules
+        dv.disableModule('Control')
+        for module in obj.apolloModules:
+            dv.enableModule(module)
+        while True:
+            ready = dv.getModuleStatus()
+            if all(ready[module] for module in obj.apolloModules):
+                break
+
+        # wait for Apollo to stabilize, if needed
+        if waitToStabilize:
+            self.client.run(15)
+        dv.enableModule('Control')
+        print('Initialized Apollo.')
 
     def writePropertiesToLGSVL(self):
         for obj in self.objects:
@@ -130,9 +174,24 @@ class FollowWaypointsAction(simulators.Action):
     def applyTo(self, obj, lgsvlObject, sim):
         #print(sim.currentTime, self.lastTime)
         if sim.currentTime is not self.lastTime + 1:
-            lgsvlObject.follow(self.waypoints)
+            agentType = obj.lgsvlAgentType
+            if agentType in (lgsvl.AgentType.NPC, lgsvl.AgentType.PEDESTRIAN):
+                lgsvlObject.follow(self.waypoints)
+            else:
+                raise RuntimeError('used FollowWaypointsAction with'
+                                   f' unsupported agent {lgsvlObject}')
         self.lastTime = sim.currentTime
 
 class CancelWaypointsAction(simulators.Action):
     def applyTo(self, obj, lgsvlObject, sim):
         lgsvlObject.walk_randomly(False)
+
+class SetDestinationAction(simulators.Action):
+    def __init__(self, dest):
+        self.dest = dest
+
+    def applyTo(self, obj, lgsvlObject, sim):
+        print('Setting destination...')
+        obj.dreamview.setDestination(self.dest.x, self.dest.y, self.dest.z,
+                                      coordType=dreamview.CoordType.Unity)
+

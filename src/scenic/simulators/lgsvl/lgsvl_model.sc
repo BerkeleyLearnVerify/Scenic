@@ -31,6 +31,12 @@ constructor Car(LGSVLObject):
 constructor EgoCar(Car):
     lgsvlName: 'Lincoln2017MKZ (Apollo 5.0)'
     lgsvlAgentType: lgsvl.AgentType.EGO
+    apolloVehicle: 'Lincoln2017MKZ'
+    apolloModules: ['Localization', 'Perception', 'Transform', 'Routing',
+                    'Prediction', 'Planning', 'Traffic Light']
+    dreamview: None     # connection to Dreamview (set at runtime)
+    bridgeHost: 'localhost'
+    bridgePort: 9090
 
 constructor Pedestrian(LGSVLObject):
     regionContainedIn: sidewalk
