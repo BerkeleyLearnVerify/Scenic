@@ -233,28 +233,47 @@ class RectangularRegion(RotatedRectangle, Region):
 
 class PolylineRegion(Region):
 	"""Region given by a polyline (chain of line segments)"""
-	def __init__(self, points):
+	def __init__(self, points=None, polyline=None):
 		super().__init__('Polyline', orientation=True)
-		points = tuple(points)
-		if len(points) < 2:
-			raise RuntimeError('tried to create PolylineRegion with < 2 points')
-		self.points = points
-		cumulativeLengths = []
-		total = 0
-		last = points[0]
-		segments = []
-		for point in points[1:]:
-			segments.append((last, point))
-			dx, dy = point[0] - last[0], point[1] - last[1]
-			total += math.hypot(dx, dy)
-			cumulativeLengths.append(total)
-			last = point
-		self.cumulativeLengths = cumulativeLengths
-		self.segments = segments
-		self.lineString = shapely.geometry.LineString(points)
+		if points is not None:
+			points = tuple(points)
+			if len(points) < 2:
+				raise RuntimeError('tried to create PolylineRegion with < 2 points')
+			self.points = points
+			self.lineString = shapely.geometry.LineString(points)
+		elif polyline is not None:
+			self.lineString = polyline
+		else:
+			raise RuntimeError('must specify points or polyline for PolylineRegion')
 		if not self.lineString.is_valid:
 			raise RuntimeError('tried to create PolylineRegion with '
 			                   f'invalid LineString {self.lineString}')
+		self.segments = self.segmentsOf(self.lineString)
+		cumulativeLengths = []
+		total = 0
+		for p, q in self.segments:
+			dx, dy = p[0] - q[0], p[1] - q[1]
+			total += math.hypot(dx, dy)
+			cumulativeLengths.append(total)
+		self.cumulativeLengths = cumulativeLengths
+
+	@classmethod
+	def segmentsOf(cls, lineString):
+		if isinstance(lineString, shapely.geometry.LineString):
+			segments = []
+			points = list(lineString.coords)
+			last = points[0]
+			for point in points[1:]:
+				segments.append((last, point))
+				last = point
+			return segments
+		elif isinstance(lineString, shapely.geometry.MultiLineString):
+			allSegments = []
+			for line in lineString:
+				allSegments.extend(cls.segmentsOf(line))
+			return allSegments
+		else:
+			raise RuntimeError('called segmentsOf on non-linestring')
 
 	def uniformPointInner(self):
 		pointA, pointB = random.choices(self.segments,
