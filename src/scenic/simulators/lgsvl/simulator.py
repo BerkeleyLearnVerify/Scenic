@@ -89,7 +89,13 @@ class LGSVLSimulation(simulators.Simulation):
         if dv.getCurrentVehicle() != obj.apolloVehicle:
             dv.setVehicle(obj.apolloVehicle)
             waitToStabilize = True
+        
+        print('Initializing Apollo...')
 
+        # stop the car to cancel buffered speed from previous simulations
+        cntrl = lgsvl.VehicleControl()
+        cntrl.throttle = 0.0
+        lgsvlObj.apply_control(cntrl, True)
         # start modules
         dv.disableModule('Control')
         for module in obj.apolloModules:
@@ -124,7 +130,7 @@ class LGSVLSimulation(simulators.Simulation):
             obj.position = utils.lgsvlToScenicPosition(state.position)
             obj.elevation = utils.lgsvlToScenicElevation(state.position)
             # heading
-            heading = utils.lgsvlToScenicRotation(state.rotation, tolerance2D=5)
+            heading = utils.lgsvlToScenicRotation(state.rotation, tolerance2D=15)
             if heading is None:
                 raise RuntimeError(f'{lgsvlObj} has non-planar orientation!')
             obj.heading = heading
@@ -189,9 +195,25 @@ class CancelWaypointsAction(simulators.Action):
 class SetDestinationAction(simulators.Action):
     def __init__(self, dest):
         self.dest = dest
+        self.timer = 0
 
     def applyTo(self, obj, lgsvlObject, sim):
-        print('Setting destination...')
-        obj.dreamview.setDestination(self.dest.x, self.dest.y, self.dest.z,
+        if self.timer == 0:
+            print('Setting destination...')
+            z = sim.groundElevationAt(self.dest)
+            obj.dreamview.setDestination(self.dest.x, self.dest.y, z,
                                       coordType=dreamview.CoordType.Unity)
+        # push vehicle for 1 second to start
+        self.timer = self.timer + 1
+        oneSec = int(1.0/sim.timeStep)
+        if self.timer < oneSec:
+            cntrl = lgsvl.VehicleControl()
+            cntrl.throttle = 0.5
+            lgsvlObject.apply_control(cntrl, True)
+        elif self.timer == oneSec:
+            print('Autopilot...')
+            cntrl = lgsvl.VehicleControl()
+            cntrl.throttle = 0.5
+            lgsvlObject.apply_control(cntrl, False)
+        
 
