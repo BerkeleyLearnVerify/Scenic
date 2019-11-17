@@ -368,13 +368,14 @@ class Road:
 
         raise RuntimeError('Point not found in piece_polys')
 
-    def calc_geometry_for_type(self, lane_types, num):
+    def calc_geometry_for_type(self, lane_types, num, calc_gap=False):
         '''Given a list of lane types, returns a tuple of:
         - List of lists of points along the reference line, with same indexing as self.lane_secs
         - List of region polygons, with same indexing as self.lane_secs
         - List of dictionary of lane id to polygon, with same indexing as self.lane_secs
         - List of polygons for each lane (not necessarily by id, but respecting lane successor/predecessor)
-        - Polygon for entire region.'''
+        - Polygon for entire region.
+        If calc_gap=True, fills in gaps between connected roads. This is fairly expensive.'''
         road_polygons = []
         ref_points = self.get_ref_points(num)
         cur_lane_polys = {}
@@ -433,31 +434,31 @@ class Road:
                                 cur_sec_lane_polys[id_].append(poly)
                             else:
                                 cur_sec_lane_polys[id_] = [poly]
-                        # Polygon for gap between lanes:
-                        if start_of_sec:
-                            prev_id = cur_sec.lanes[id_].pred
-                        else:
-                            prev_id = id_
-                        if last_lefts is not None:
-                            if prev_id not in last_lefts:
-                                print('road', self.id_)
-                                print('prev', prev_id)
-                                print(i)
-                                print(last_lefts)
-
-                            gap_poly = MultiPoint([
-                                last_lefts[prev_id], last_rights[prev_id],
-                                left_bounds[id_][0], right_bounds[id_][0]]).convex_hull
-                            assert gap_poly.is_valid, 'Gap polygon not valid.'
-                            # Assume MultiPolygon cannot result from convex hull.
-                            if gap_poly.geom_type == 'Polygon' and not gap_poly.is_empty:
-                                # plot_poly(gap_poly, 'b')
-                                gap_poly = gap_poly.buffer(0)
-                                cur_sec_polys.append(gap_poly)
-                                if id_ in cur_sec_lane_polys:
-                                    cur_sec_lane_polys[id_].append(gap_poly)
-                                else:
-                                    cur_sec_lane_polys[id_] = [gap_poly]
+                        if calc_gap:
+                            # Polygon for gap between lanes:
+                            if start_of_sec:
+                                prev_id = cur_sec.lanes[id_].pred
+                            else:
+                                prev_id = id_
+                            if last_lefts is not None:
+                                if prev_id not in last_lefts:
+                                    print('road', self.id_)
+                                    print('prev', prev_id)
+                                    print(i)
+                                    print(last_lefts)
+                                gap_poly = MultiPoint([
+                                    last_lefts[prev_id], last_rights[prev_id],
+                                    left_bounds[id_][0], right_bounds[id_][0]]).convex_hull
+                                assert gap_poly.is_valid, 'Gap polygon not valid.'
+                                # Assume MultiPolygon cannot result from convex hull.
+                                if gap_poly.geom_type == 'Polygon' and not gap_poly.is_empty:
+                                    # plot_poly(gap_poly, 'b')
+                                    gap_poly = gap_poly.buffer(0)
+                                    cur_sec_polys.append(gap_poly)
+                                    if id_ in cur_sec_lane_polys:
+                                        cur_sec_lane_polys[id_].append(gap_poly)
+                                    else:
+                                        cur_sec_lane_polys[id_] = [gap_poly]
                         cur_last_lefts[id_] = left_bounds[id_][-1]
                         cur_last_rights[id_] = right_bounds[id_][-1]
                         if (start_of_sec and i == 0) or not self.start_bounds_left:
@@ -539,7 +540,7 @@ class Road:
             self.end_bounds_right.update(last_rights)
         return sec_points, sec_polys, sec_lane_polys, lane_polys, union_poly
 
-    def calculate_geometry(self, num):
+    def calculate_geometry(self, num, calc_gap=False):
         # Note: this also calculates self.start_bounds_left, ,self.start_bounds_right,
         # self.end_bounds_left, self.end_bounds_right
         self.sec_points,\
@@ -547,8 +548,8 @@ class Road:
             self.sec_lane_polys,\
             self.lane_polys,\
             self.drivable_region =\
-                self.calc_geometry_for_type(DRIVABLE, num)
-        _, _, _, _, self.sidewalk_region = self.calc_geometry_for_type(SIDEWALK, num)
+                self.calc_geometry_for_type(DRIVABLE, num, calc_gap=calc_gap)
+        _, _, _, _, self.sidewalk_region = self.calc_geometry_for_type(SIDEWALK, num, calc_gap=calc_gap)
 
 class RoadMap:
     def __init__(self):
@@ -558,9 +559,11 @@ class RoadMap:
         self.sec_lane_polys = []
         self.lane_polys = []
 
-    def calculate_geometry(self, num):
+    def calculate_geometry(self, num, calc_gap=False):
+        # If gap=True, fills in gaps between connected roads.
+        # This is fairly expensive.
         for road in self.roads.values():
-            road.calculate_geometry(num)
+            road.calculate_geometry(num, calc_gap=calc_gap)
         drivable_polys = {}
         sidewalk_polys = {}
         drivable_gap_polys = []
@@ -603,20 +606,21 @@ class RoadMap:
                     continue
                 if id_ not in a_bounds_left or id_ not in a_bounds_right:
                     continue
-                gap_poly = MultiPoint([
-                    a_bounds_left[id_], a_bounds_right[id_],
-                    b_bounds_left[other_id], b_bounds_right[other_id]
-                ]).convex_hull
-                if not gap_poly.is_valid:
-                    continue
-                # assert gap_poly.is_valid, 'Gap polygon not valid.'
-                if gap_poly.geom_type == 'Polygon' and not gap_poly.is_empty:
-                    if lane.type_ in DRIVABLE:
-                        drivable_gap_polys.append(gap_poly)
-                        # plot_poly(gap_poly, 'g')
-                    elif lane.type_ in SIDEWALK:
-                        sidewalk_gap_polys.append(gap_poly)
-                        # plot_poly(gap_poly, 'k')
+                if calc_gap:
+                    gap_poly = MultiPoint([
+                        a_bounds_left[id_], a_bounds_right[id_],
+                        b_bounds_left[other_id], b_bounds_right[other_id]
+                    ]).convex_hull
+                    if not gap_poly.is_valid:
+                        continue
+                    # assert gap_poly.is_valid, 'Gap polygon not valid.'
+                    if gap_poly.geom_type == 'Polygon' and not gap_poly.is_empty:
+                        if lane.type_ in DRIVABLE:
+                            drivable_gap_polys.append(gap_poly)
+                            # plot_poly(gap_poly, 'g')
+                        elif lane.type_ in SIDEWALK:
+                            sidewalk_gap_polys.append(gap_poly)
+                            # plot_poly(gap_poly, 'k')
 
         self.drivable_region = buffer_union(list(drivable_polys.values()) + drivable_gap_polys)
         self.sidewalk_region = buffer_union(list(sidewalk_polys.values()) + sidewalk_gap_polys)
