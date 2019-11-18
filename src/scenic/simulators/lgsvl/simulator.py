@@ -3,6 +3,8 @@ import math
 
 import lgsvl
 import dreamview
+import numpy as np
+from scipy import linalg
 
 import scenic.simulators as simulators
 import scenic.simulators.lgsvl.utils as utils
@@ -197,6 +199,7 @@ class SetDestinationAction(simulators.Action):
         self.dest = dest
         self.timer = 0
 
+
     def applyTo(self, obj, lgsvlObject, sim):
         if self.timer == 0:
             print('Setting destination...')
@@ -204,7 +207,6 @@ class SetDestinationAction(simulators.Action):
             obj.dreamview.setDestination(self.dest.x, self.dest.y, z,
                                       coordType=dreamview.CoordType.Unity)
         # push vehicle for 1 second to start
-        self.timer = self.timer + 1
         oneSec = int(1.0/sim.timeStep)
         if self.timer < oneSec:
             cntrl = lgsvl.VehicleControl()
@@ -215,5 +217,8 @@ class SetDestinationAction(simulators.Action):
             cntrl = lgsvl.VehicleControl()
             cntrl.throttle = 0.5
             lgsvlObject.apply_control(cntrl, False)
+        self.timer = self.timer + 1
+
+
         
 
