@@ -145,7 +145,7 @@ def require(reqID, req, line, prob=1):
 	"""Function implementing the require statement."""
 	if evaluatingRequirement:
 		raise RuntimeParseError('tried to create a requirement inside a requirement')
-	if simulation is not None:	# requirement being evaluated at runtime
+	if currentSimulation is not None:	# requirement being evaluated at runtime
 		if random.random() <= prob:
 			result = req()
 			assert not needsSampling(result)
