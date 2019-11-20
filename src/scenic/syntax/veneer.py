@@ -30,6 +30,8 @@ __all__ = (
 	'At', 'In', 'Beyond', 'VisibleFrom', 'VisibleSpec', 'OffsetBy', 'OffsetAlongSpec',
 	'Facing', 'FacingToward', 'ApparentlyFacing',
 	'LeftSpec', 'RightSpec', 'Ahead', 'Behind',
+	# Constants
+	'everywhere', 'nowhere',
 	# Temporary stuff... # TODO remove
 	'PropertyDefault'
 )
@@ -38,7 +40,7 @@ __all__ = (
 from scenic.core.geometry import sin, cos, hypot, max, min
 from scenic.core.vectors import Vector, VectorField, PolygonalVectorField
 from scenic.core.regions import (Region, PointSetRegion, RectangularRegion,
-	PolygonalRegion, PolylineRegion)
+	PolygonalRegion, PolylineRegion, everywhere, nowhere)
 from scenic.core.workspaces import Workspace
 from scenic.core.distributions import Range, Options, Normal
 Uniform = lambda *opts: Options(opts)		# TODO separate these?

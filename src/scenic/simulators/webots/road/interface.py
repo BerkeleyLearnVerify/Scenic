@@ -278,11 +278,16 @@ class WebotsWorkspace(Workspace):
 		if not self.roads:
 			roadPoly = None
 			self.roadsRegion = nowhere
+			self.curbsRegion = nowhere
 		else:
 			roadPoly = polygonUnion(road.region.polygons for road in self.roads)
 			self.roadsRegion = PolygonalRegion(polygon=roadPoly,
 			                                   orientation=self.roadDirection)
 			drivableAreas.append(roadPoly)
+			curbs = [road.leftCurb.lineString for road in self.roads]
+			curbs.extend(road.rightCurb.lineString for road in self.roads)
+			curbLine = shapely.ops.unary_union(curbs)
+			self.curbsRegion = PolylineRegion(polyline=curbLine)
 		if not self.crossroads:
 			crossroadPoly = None
 			self.crossroadsRegion = nowhere

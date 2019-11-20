@@ -3,7 +3,6 @@ Road {
   translation 0 0 0
   name "South 2nd Street"
   id "7854654"
-  endJunction "57802690"
   width 4
   numberOfLanes 1
   speedLimit 13.888889

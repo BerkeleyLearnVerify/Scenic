@@ -25,6 +25,7 @@ workspace = WebotsWorkspace(world)
 
 roadDirection = workspace.roadDirection
 road = workspace.drivableRegion
+curb = workspace.curbsRegion
 intersection = workspace.crossroadsRegion
 nonIntersection = workspace.roadsRegion
 sidewalk = workspace.sidewalksRegion

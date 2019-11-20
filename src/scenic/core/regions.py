@@ -23,6 +23,8 @@ def toPolygon(thing):
 		return thing.polygon
 	if hasattr(thing, 'polygons'):
 		return thing.polygons
+	if hasattr(thing, 'lineString'):
+		return thing.lineString
 	return None
 
 class PointInRegionDistribution(VectorDistribution):
@@ -94,7 +96,7 @@ class Region(Samplable):
 		return f'<Region {self.name}>'
 
 class AllRegion(Region):
-	"""Region consisting of all space"""
+	"""Region consisting of all space."""
 	def intersect(self, other, triedReversed=False):
 		return other
 
@@ -105,8 +107,12 @@ class AllRegion(Region):
 		return True
 
 class EmptyRegion(Region):
+	"""Region containing no points."""
 	def intersect(self, other, triedReversed=False):
 		return self
+
+	def uniformPointInner(self):
+		raise RejectionException(f'sampling empty Region')
 
 	def containsPoint(self, point):
 		return False
@@ -118,11 +124,15 @@ everywhere = AllRegion('everywhere')
 nowhere = EmptyRegion('nowhere')
 
 class CircularRegion(Region):
-	def __init__(self, center, radius):
+	def __init__(self, center, radius, resolution=32):
 		super().__init__('Circle', center, radius)
 		self.center = center.toVector()
 		self.radius = radius
 		self.circumcircle = (self.center, self.radius)
+
+		if not (needsSampling(self.center) or needsSampling(self.radius)):
+			ctr = shapely.geometry.Point(self.center)
+			self.polygon = ctr.buffer(self.radius, resolution=resolution)
 
 	def sampleGiven(self, value):
 		return CircularRegion(value[self.center], value[self.radius])
@@ -152,7 +162,7 @@ class CircularRegion(Region):
 		return f'CircularRegion({self.center}, {self.radius})'
 
 class SectorRegion(Region):
-	def __init__(self, center, radius, heading, angle):
+	def __init__(self, center, radius, heading, angle, resolution=32):
 		super().__init__('Sector', center, radius, heading, angle)
 		self.center = center.toVector()
 		self.radius = radius
@@ -160,6 +170,20 @@ class SectorRegion(Region):
 		self.angle = angle
 		r = (radius / 2) * cos(angle / 2)
 		self.circumcircle = (self.center.offsetRadially(r, heading), r)
+
+		if not any(needsSampling(x) for x in (self.center, radius, heading, angle)):
+			ctr = shapely.geometry.Point(self.center)
+			circle = ctr.buffer(self.radius, resolution=resolution)
+			if angle >= math.tau - 0.001:
+				self.polygon = circle
+			else:
+				mask = shapely.geometry.Polygon([
+				    self.center,
+				    self.center.offsetRadially(radius, heading + angle/2),
+				    self.center.offsetRadially(2*radius, heading),
+				    self.center.offsetRadially(radius, heading - angle/2)
+				])
+				self.polygon = circle & mask
 
 	def sampleGiven(self, value):
 		return SectorRegion(value[self.center], value[self.radius],
@@ -232,29 +256,48 @@ class RectangularRegion(RotatedRectangle, Region):
 		return f'RectangularRegion({self.position},{self.heading},{self.width},{self.height})'
 
 class PolylineRegion(Region):
-	"""Region given by a polyline (chain of line segments)"""
-	def __init__(self, points):
+	"""Region given by one or more polylines (chain of line segments)"""
+	def __init__(self, points=None, polyline=None):
 		super().__init__('Polyline', orientation=True)
-		points = tuple(points)
-		if len(points) < 2:
-			raise RuntimeError('tried to create PolylineRegion with < 2 points')
-		self.points = points
-		cumulativeLengths = []
-		total = 0
-		last = points[0]
-		segments = []
-		for point in points[1:]:
-			segments.append((last, point))
-			dx, dy = point[0] - last[0], point[1] - last[1]
-			total += math.hypot(dx, dy)
-			cumulativeLengths.append(total)
-			last = point
-		self.cumulativeLengths = cumulativeLengths
-		self.segments = segments
-		self.lineString = shapely.geometry.LineString(points)
+		if points is not None:
+			points = tuple(points)
+			if len(points) < 2:
+				raise RuntimeError('tried to create PolylineRegion with < 2 points')
+			self.points = points
+			self.lineString = shapely.geometry.LineString(points)
+		elif polyline is not None:
+			self.lineString = polyline
+		else:
+			raise RuntimeError('must specify points or polyline for PolylineRegion')
 		if not self.lineString.is_valid:
 			raise RuntimeError('tried to create PolylineRegion with '
 			                   f'invalid LineString {self.lineString}')
+		self.segments = self.segmentsOf(self.lineString)
+		cumulativeLengths = []
+		total = 0
+		for p, q in self.segments:
+			dx, dy = p[0] - q[0], p[1] - q[1]
+			total += math.hypot(dx, dy)
+			cumulativeLengths.append(total)
+		self.cumulativeLengths = cumulativeLengths
+
+	@classmethod
+	def segmentsOf(cls, lineString):
+		if isinstance(lineString, shapely.geometry.LineString):
+			segments = []
+			points = list(lineString.coords)
+			last = points[0]
+			for point in points[1:]:
+				segments.append((last, point))
+				last = point
+			return segments
+		elif isinstance(lineString, shapely.geometry.MultiLineString):
+			allSegments = []
+			for line in lineString:
+				allSegments.extend(cls.segmentsOf(line))
+			return allSegments
+		else:
+			raise RuntimeError('called segmentsOf on non-linestring')
 
 	def uniformPointInner(self):
 		pointA, pointB = random.choices(self.segments,
@@ -270,10 +313,11 @@ class PolylineRegion(Region):
 		poly = toPolygon(other)
 		if poly is not None:
 			intersection = self.lineString & poly
-			if not isinstance(intersection, shapely.geometry.LineString):
+			if not isinstance(intersection, (shapely.geometry.LineString,
+			                                 shapely.geometry.MultiLineString)):
 				# TODO handle points!
 				return nowhere
-			return PolylineRegion(tuple(intersection.coords))
+			return PolylineRegion(polyline=intersection)
 		return super().intersect(other, triedReversed)
 
 	def containsPoint(self, point):
@@ -283,8 +327,7 @@ class PolylineRegion(Region):
 		return False
 
 	def getAABB(self):
-		xmin, xmax = findMinMax(p[0] for p in self.points)
-		ymin, ymax = findMinMax(p[1] for p in self.points)
+		xmin, ymin, xmax, ymax = self.lineString.bounds
 		return ((xmin, ymin), (xmax, ymax))
 
 	def show(self, plt, style='r-'):
@@ -292,7 +335,7 @@ class PolylineRegion(Region):
 			plt.plot([pointA[0], pointB[0]], [pointA[1], pointB[1]], style)
 
 	def __str__(self):
-		return f'PolylineRegion({self.points})'
+		return f'PolylineRegion({self.lineString})'
 
 class PolygonalRegion(Region):
 	"""Region given by one or more polygons (possibly with holes)"""
@@ -411,10 +454,11 @@ class PointSetRegion(Region):
 		def sampler(intRegion):
 			o = intRegion.regions[1]
 			center, radius = o.circumcircle
-			possibles = (Vector(*self.kdTree.data[i]) for i in self.kdTree.query_ball_point(center, radius))
+			possibles = (Vector(*self.kdTree.data[i])
+			             for i in self.kdTree.query_ball_point(center, radius))
 			intersection = [p for p in possibles if o.containsPoint(p)]
 			if len(intersection) == 0:
-				raise RejectionException()
+				raise RejectionException(f'empty intersection of Regions {self} and {o}')
 			return self.orient(random.choice(intersection))
 		return IntersectionRegion(self, other, sampler=sampler, orientation=self.orientation)
 
@@ -488,7 +532,20 @@ class IntersectionRegion(Region):
 		self.sampler = sampler
 
 	def sampleGiven(self, value):
-		regs = (value[reg] for reg in self.regions)
+		regs = [value[reg] for reg in self.regions]
+		# Now that regions have been sampled, attempt intersection again in the hopes
+		# there is a specialized sampler to handle it (unless we already have one)
+		if self.sampler is self.genericSampler:
+			failed = False
+			intersection = regs[0]
+			for region in regs[1:]:
+				intersection = intersection.intersect(region)
+				if isinstance(intersection, IntersectionRegion):
+					failed = True
+					break
+			if not failed:
+				intersection.orientation = value[self.orientation]
+				return intersection
 		return IntersectionRegion(*regs, orientation=value[self.orientation],
 		                          sampler=self.sampler)
 
@@ -509,7 +566,8 @@ class IntersectionRegion(Region):
 		point = regs[0].uniformPointInner()
 		for region in regs[1:]:
 			if not region.containsPoint(point):
-				raise RejectionException()
+				raise RejectionException(
+				    f'sampling intersection of Regions {regs[0]} and {region}')
 		return point
 
 	def __str__(self):
