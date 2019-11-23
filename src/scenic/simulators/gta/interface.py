@@ -93,7 +93,7 @@ class Map:
 	@staticmethod
 	def fromFile(path):
 		startTime = time.time()
-		with numpy.load(path) as data:
+		with numpy.load(path, allow_pickle=True) as data:
 			Ax, Ay, Bx, By, sizeX, sizeY = data['misc']
 			m = Map(None, Ax, Ay, Bx, By)
 			m.sizeX, m.sizeY = sizeX, sizeY

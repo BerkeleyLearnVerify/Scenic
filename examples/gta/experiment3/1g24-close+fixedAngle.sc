@@ -8,7 +8,7 @@ param weather = 'EXTRASUNNY'
 
 ego = EgoCar
 
-c = Car offset by (-5, 5) @ (7, 12), \
-	apparently facing 27.0516943340308 deg, \
-	with model CarModel.models['DOMINATOR'], \
-	with color CarColor.byteToReal([187, 162, 157])
+c = Car offset by (-5, 5) @ (7, 12),
+	apparently facing 27.0516943340308 deg,
+	with model CarModel.models['DOMINATOR'],
+	with color CarColor.withBytes([187, 162, 157])

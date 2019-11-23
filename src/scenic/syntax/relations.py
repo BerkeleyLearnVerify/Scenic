@@ -1,5 +1,5 @@
 
-"""Extracting relations (for later pruning) from the syntax of requirements"""
+"""Extracting relations (for later pruning) from the syntax of requirements."""
 
 import math
 from collections import defaultdict
@@ -7,17 +7,25 @@ from ast import Compare, BinOp, Eq, NotEq, Lt, LtE, Gt, GtE, Call, Add, Sub, Exp
 
 from scenic.core.distributions import needsSampling
 from scenic.core.object_types import Point, Object
+from scenic.core.utils import InvalidScenarioError, InconsistentScenarioError
 
-def inferRelationsFrom(reqNode, namespace, ego, line):
-    matcher = RequirementMatcher(namespace)
-    # Check for relative heading bounds
+def inferRelationsFrom(reqNode, namespace, ego, line, lineMap):
+    """Infer relations between objects implied by a requirement."""
+    matcher = RequirementMatcher(namespace, lineMap)
+
+    inferRelativeHeadingRelations(matcher, reqNode, ego, line)
+    inferDistanceRelations(matcher, reqNode, ego, line)
+
+def inferRelativeHeadingRelations(matcher, reqNode, ego, line):
+    """Infer bounds on relative headings from a requirement."""
     rhMatcher = lambda node: matcher.matchUnaryFunction('RelativeHeading', node)
     allBounds = matcher.matchBounds(reqNode, rhMatcher)
     for target, bounds in allBounds.items():
         if not isinstance(target, Object):
             continue
+        assert target is not ego
         if ego is None:
-            raise InvalidScenarioError(f'relative heading w.r.t. unassigned ego on line {line}')
+            raise InvalidScenarioError('relative heading w.r.t. unassigned ego on line {line}')
         lower, upper = bounds
         if lower < -math.pi:
             lower = -math.pi
@@ -30,16 +38,51 @@ def inferRelationsFrom(reqNode, namespace, ego, line):
         conv = RelativeHeadingRelation(ego, -upper, -lower)
         target._relations.append(conv)
 
-class RelativeHeadingRelation:
+def inferDistanceRelations(matcher, reqNode, ego, line):
+    """Infer bounds on distances from a requirement."""
+    distMatcher = lambda node: matcher.matchUnaryFunction('DistanceFrom', node)
+    allBounds = matcher.matchBounds(reqNode, distMatcher)
+    for target, bounds in allBounds.items():
+        if not isinstance(target, Object):
+            continue
+        assert target is not ego
+        if ego is None:
+            raise InvalidScenarioError('distance w.r.t. unassigned ego on line {line}')
+        lower, upper = bounds
+        if lower < 0:
+            lower = 0
+            if upper == float('inf'):
+                continue    # skip trivial bounds
+        rel = DistanceRelation(target, lower, upper)
+        ego._relations.append(rel)
+        conv = DistanceRelation(ego, lower, upper)
+        target._relations.append(conv)
+
+class BoundRelation:
+    """Abstract relation bounding something about another object."""
     def __init__(self, target, lower, upper):
         self.target = target
         self.lower, self.upper = lower, upper
 
+class RelativeHeadingRelation(BoundRelation):
+    """Relation bounding another object's relative heading with respect to this one."""
+    pass
+
+class DistanceRelation(BoundRelation):
+    """Relation bounding another object's distance from this one."""
+    pass
+
 class RequirementMatcher:
-    def __init__(self, namespace):
+    def __init__(self, namespace, lineMap):
         self.namespace = namespace
+        self.lineMap = lineMap
+
+    def inconsistencyError(self, node, message):
+        line = self.lineMap[node.lineno]
+        raise InconsistentScenarioError(line, message)
 
     def matchUnaryFunction(self, name, node):
+        """Match a call to a specified unary function, returning the value of its argument."""
         if not (isinstance(node, Call) and isinstance(node.func, Name)
                 and node.func.id == name):
             return None
@@ -50,6 +93,11 @@ class RequirementMatcher:
         return self.matchValue(node.args[0])
 
     def matchBounds(self, node, matchAtom):
+        """Match upper/lower bounds on something matched by the given function.
+
+        Returns a dict of all bounds found, mapping the bounded quantity to a
+        pair (low, high) of lower/upper bounds.
+        """
         if not isinstance(node, Compare):
             return {}
         bounds = defaultdict(lambda: (float('-inf'), float('inf')))
@@ -68,6 +116,7 @@ class RequirementMatcher:
         return bounds
 
     def matchBoundsInner(self, left, right, op, matchAtom):
+        """Extract bounds from a single comparison operator."""
         # Reduce > and >= to < and <=
         if isinstance(op, Gt):
             return self.matchBoundsInner(right, left, Lt(), matchAtom)
@@ -96,13 +145,14 @@ class RequirementMatcher:
         return None, None, None
 
     def matchAbsBounds(self, node, const, op, isUpperBound, matchAtom):
+        """Extract bounds on an atom from a comparison involving its absolute value."""
         if not (isinstance(node, Call) and isinstance(node.func, Name)
                 and node.func.id == 'abs'):
             return None     # not an invocation of abs
         if not isUpperBound and not isinstance(op, Eq):
             return None     # lower bounds on abs value don't bound underlying quantity
         if const < 0:
-            raise RuntimeError('inconsistent require statement')    # TODO improve
+            self.inconsistencyError(node, f'absolute value cannot be negative')
         assert len(node.args) == 1
         arg = node.args[0]
         target = matchAtom(arg)
@@ -129,12 +179,16 @@ class RequirementMatcher:
         return None
 
     def matchConstant(self, node):
+        """Match constant values, i.e. values known prior to sampling."""
         value = self.matchValue(node)
         return None if needsSampling(value) else value
 
     def matchValue(self, node):
-        # This method could have undesirable side-effects, but conditions in
-        # requirements should not have side-effects to begin with
+        """Match any expression which can be evaluated, returning its value.
+
+        This method could have undesirable side-effects, but conditions in
+        requirements should not have side-effects to begin with.
+        """
         try:
             code = compile(Expression(node), '<internal>', 'eval')
             value = eval(code, dict(self.namespace))

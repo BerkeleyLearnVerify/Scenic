@@ -11,5 +11,7 @@ c = Car visible, with roadDeviation resample(wiggle)
 
 leftRight = Options([1.0, -1.0]) * (1.25, 2.75)
 
-Car beyond c by leftRight @ (4, 10), \
+Car beyond c by leftRight @ (4, 10),
     with roadDeviation resample(wiggle)
+
+Object on visible curb, with regionContainedIn everywhere

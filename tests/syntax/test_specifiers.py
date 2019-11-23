@@ -2,11 +2,11 @@
 import math
 import pytest
 
-from scenic.syntax.translator import InterpreterParseError
+from scenic.syntax.translator import InterpreterParseError, InvalidScenarioError
 from scenic.core.vectors import Vector
-from tests.utils import compileScenic, sampleEgoFrom
+from tests.utils import compileScenic, sampleEgo, sampleEgoFrom
 
-## Dependencies
+## Dependencies and lazy evaluation
 
 def test_double_specification():
     with pytest.raises(InterpreterParseError):
@@ -31,6 +31,34 @@ def test_default_dependency():
 def test_missing_dependency():
     with pytest.raises(InterpreterParseError):
         compileScenic('Point left of 0 @ 0 by 5\n' 'ego = Object')
+
+def test_lazy_value_in_param():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic(
+            'vf = VectorField("Foo", lambda pos: 3 * pos.x)\n'
+            'param X = 0 relative to vf\n'
+            'ego = Object\n'
+        )
+
+def test_lazy_value_in_requirement():
+    # Case where we can statically detect the use of a lazy value
+    with pytest.raises(InvalidScenarioError):
+        compileScenic(
+            'vf = VectorField("Foo", lambda pos: 3 * pos.x)\n'
+            'x = 0 relative to vf\n'
+            'require x >= 0\n'
+            'ego = Object\n'
+        )
+
+def test_lazy_value_in_requirement_2():
+    # Case where the lazy value is detected during requirement evaluation
+    scenario = compileScenic(
+        'vf = VectorField("Foo", lambda pos: 3 * pos.x)\n'
+        'require 0 relative to vf\n'
+        'ego = Object\n'
+    )
+    with pytest.raises(InvalidScenarioError):
+        scenario.generate(maxIterations=1)
 
 ## Generic specifiers
 
@@ -138,7 +166,7 @@ def test_beyond_from():
 
 def test_visible():
     scenario = compileScenic(
-        'ego = Object at 100 @ 200, facing -45 deg, \\\n'
+        'ego = Object at 100 @ 200, facing -45 deg,\n'
         '             with visibleDistance 10, with viewAngle 90 deg\n'
         'ego = Object visible'
     )
@@ -164,7 +192,7 @@ def test_visible_from_point():
 
 def test_visible_from_oriented_point():
     scenario = compileScenic(
-        'op = OrientedPoint at 100 @ 200, facing 45 deg, \\\n'
+        'op = OrientedPoint at 100 @ 200, facing 45 deg,\n'
         '                   with visibleDistance 5, with viewAngle 90 deg\n'
         'ego = Object visible from op'
     )
@@ -202,3 +230,31 @@ def test_in_heading():
         assert -50 <= pos.y <= 50
         assert pos.x == pytest.approx(-pos.y)
         assert scene.egoObject.heading == pytest.approx(math.radians(45))
+
+def test_in_mistyped():
+    with pytest.raises(InterpreterParseError):
+        compileScenic('ego = Object in 3@2')
+
+def test_in_distribution():
+    scenario = compileScenic(
+        'ra = RectangularRegion(0@0, 0, 2, 2)\n'
+        'rb = RectangularRegion(10@0, 0, 2, 2)\n'
+        'ego = Object in Uniform(ra, rb)'
+    )
+    xs = [sampleEgo(scenario).position.x for i in range(60)]
+    assert all(-1 <= x <= 1 or 9 <= x <= 11 for x in xs)
+    assert any(x < 5 for x in xs)
+    assert any(x > 5 for x in xs)
+
+def test_in_heading_distribution():
+    scenario = compileScenic(
+        'ra = RectangularRegion(0@0, 0, 2, 2)\n'
+        'ra.orientation = VectorField("foo", lambda pt: 1)\n'
+        'rb = PolylineRegion([0 @ 0, 1 @ 1])\n'
+        'ego = Object in Uniform(ra, rb)'
+    )
+    hs = [sampleEgo(scenario).heading for i in range(60)]
+    h2 = pytest.approx(-math.pi/4)
+    assert all(h == 1 or h == h2 for h in hs)
+    assert any(h == 1 for h in hs)
+    assert any(h == h2 for h in hs)

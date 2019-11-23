@@ -191,7 +191,7 @@ def toDistribution(val):
 	in order to keep track of dependencies properly."""
 	if isinstance(val, (tuple, list)):
 		coords = [toDistribution(c) for c in val]
-		if any(needsSampling(c) for c in coords):
+		if any(needsSampling(c) or needsLazyEvaluation(c) for c in coords):
 			if isinstance(val, tuple) and hasattr(val, '_fields'):		# namedtuple
 				builder = type(val)._make
 			else:

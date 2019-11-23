@@ -1,4 +1,6 @@
 
+"""Pruning parts of the sample space which violate requirements."""
+
 import math
 import time
 import shapely.geometry
@@ -10,19 +12,24 @@ from scenic.core.object_types import Point, Object
 from scenic.core.geometry import normalizeAngle, polygonUnion, plotPolygon
 from scenic.core.vectors import VectorField, PolygonalVectorField, VectorMethodDistribution
 from scenic.core.workspaces import Workspace
-from scenic.syntax.relations import RelativeHeadingRelation
+from scenic.syntax.relations import RelativeHeadingRelation, DistanceRelation
 import scenic.core.regions as regions
 
+### Utilities
+
 def currentPropValue(obj, prop):
+    """Get the current value of an object's property, taking into account prior pruning."""
     value = getattr(obj, prop)
     return value._conditioned if isinstance(value, Samplable) else value
 
 def isMethodCall(thing, method):
+    """Match calls to a given method, taking into account distribution decorators."""
     if not isinstance(thing, (MethodDistribution, VectorMethodDistribution)):
         return False
     return thing.method is underlyingFunction(method)
 
 def matchInRegion(position):
+    """Match uniform samples from a Region, returning the Region if any."""
     position = position.toVector()
     if isinstance(position, regions.PointInRegionDistribution):
         reg = position.region
@@ -32,6 +39,12 @@ def matchInRegion(position):
     return None
 
 def matchPolygonalField(heading, position):
+    """Match headings defined by a PolygonalVectorField at the given position.
+
+    Matches headings exactly equal to a PolygonalVectorField, or offset by a
+    bounded disturbance. Returns a triplet consisting of the matched field if
+    any, together with lower/upper bounds on the disturbance.
+    """
     if (isMethodCall(heading, VectorField.__getitem__)
         and isinstance(heading.object, PolygonalVectorField)
         and heading.arguments == (position.toVector(),)):
@@ -46,7 +59,15 @@ def matchPolygonalField(heading, position):
                 return field, lower + ol, upper + oh
     return None, 0, 0
 
+### Pruning procedures
+
 def prune(scenario, verbosity=1):
+    """Prune a Scenario, removing infeasible parts of the space.
+
+    This function directly modifies the Distributions used in the Scenario,
+    but leaves the conditional distribution under the scenario's requirements
+    unchanged.
+    """
     if verbosity >= 1:
         print('  Pruning scenario...')
         startTime = time.time()
@@ -58,6 +79,8 @@ def prune(scenario, verbosity=1):
         totalTime = time.time() - startTime
         print(f'  Pruned scenario in {totalTime:.4g} seconds.')
 
+## Pruning based on containment
+
 def pruneContainment(scenario, verbosity):
     """Prune based on the requirement that individual Objects fit within their container.
 
@@ -67,21 +90,21 @@ def pruneContainment(scenario, verbosity):
     """
     for obj in scenario.objects:
         base = matchInRegion(obj.position)
-        if base is None:
+        if base is None:                    # match objects positioned uniformly in a Region
             continue
         basePoly = regions.toPolygon(base)
-        if basePoly is None:
+        if basePoly is None:                # to prune, the Region must be polygonal
             continue
         container = scenario.containerOfObject(obj)
         containerPoly = regions.toPolygon(container)
-        if containerPoly is None:
+        if containerPoly is None:           # the object's container must also be polygonal
             return None
         minRadius, _ = supportInterval(obj.inradius)
-        if minRadius is not None:
+        if minRadius is not None:           # if we can lower bound the radius, erode the container
             containerPoly = containerPoly.buffer(-minRadius)
         elif base is container:
             continue
-        newBasePoly = basePoly & containerPoly
+        newBasePoly = basePoly & containerPoly      # restrict the base Region to the container
         if verbosity >= 1:
             percent = 100 * (1.0 - (newBasePoly.area / basePoly.area))
             print(f'    Region containment constraint pruned {percent:.1f}% of space.')
@@ -90,33 +113,48 @@ def pruneContainment(scenario, verbosity):
         newPos = regions.Region.uniformPointIn(newBase)
         obj.position.conditionTo(newPos)
 
+## Pruning based on orientation
+
 def pruneRelativeHeading(scenario, verbosity):
+    """Prune based on requirements bounding the relative heading of an Object.
+
+    Specifically, if an object O is:
+        * positioned uniformly within a polygonal region B;
+        * aligned to a polygonal vector field F (up to a bounded offset);
+    and another object O' is:
+        * aligned to a polygonal vector field F' (up to a bounded offset);
+        * at most some finite maximum distance from O;
+        * required to have relative heading within a bounded offset of that of O;
+    then we can instead position O uniformly in the subset of B intersecting the cells
+    of F which satisfy the relative heading requirements w.r.t. some cell of F' which
+    is within the distance bound.
+    """
     # Check which objects are (approximately) aligned to polygonal vector fields
     fields = {}
     for obj in scenario.objects:
         field, offsetL, offsetR = matchPolygonalField(obj.heading, obj.position)
         if field is not None:
             fields[obj] = (field, offsetL, offsetR)
-    # Check for relative heading relations
+    # Check for relative heading relations among such objects
     for obj, (field, offsetL, offsetR) in fields.items():
         position = currentPropValue(obj, 'position')
         base = matchInRegion(position)
-        if base is None:
+        if base is None:        # obj must be positioned uniformly in a Region
             continue
         basePoly = regions.toPolygon(base)
-        if basePoly is None:
+        if basePoly is None:    # the Region must be polygonal
             continue
         newBasePoly = basePoly
         for rel in obj._relations:
             if isinstance(rel, RelativeHeadingRelation) and rel.target in fields:
                 tField, tOffsetL, tOffsetR = fields[rel.target]
                 maxDist = maxDistanceBetween(scenario, obj, rel.target)
-                if maxDist is None:
+                if maxDist == float('inf'):     # the distance between the objects must be bounded
                     continue
                 feasible = feasibleRHPolygon(field, offsetL, offsetR,
                                              tField, tOffsetL, tOffsetR,
                                              rel.lower, rel.upper, maxDist)
-                if feasible is None:
+                if feasible is None:    # the RH bounds may be too weak to restrict the space
                     continue
                 try:
                     pruned = newBasePoly & feasible
@@ -133,11 +171,27 @@ def pruneRelativeHeading(scenario, verbosity):
             obj.position.conditionTo(newPos)
 
 def maxDistanceBetween(scenario, obj, target):
-    # TODO also infer from requirements
+    """Upper bound the distance between the given Objects."""
+    # If one of the objects is the ego, use visibility requirements
     ego = scenario.egoObject
-    if not ((obj is ego and target.requireVisible)
-            or (target is ego and obj.requireVisible)):
-        return None
+    if obj is ego and target.requireVisible:
+        visDist = visibilityBound(ego, target)
+    elif target is ego and obj.requireVisible:
+        visDist = visibilityBound(ego, obj)
+    else:
+        visDist = float('inf')
+
+    # Check for any distance bounds implied by user-specified requirements
+    reqDist = float('inf')
+    for rel in obj._relations:
+        if isinstance(rel, DistanceRelation) and rel.target is target:
+            if rel.upper < reqDist:
+                reqDist = rel.upper
+
+    return min(visDist, reqDist)
+
+def visibilityBound(obj, target):
+    """Upper bound the distance from an Object to another it can see."""
     # Upper bound on visible distance is a sum of several terms:
     # 1. obj.visibleDistance
     _, maxVisibleDistance = supportInterval(obj.visibleDistance)
@@ -159,13 +213,14 @@ def maxDistanceBetween(scenario, obj, target):
 def feasibleRHPolygon(field, offsetL, offsetR,
                       tField, tOffsetL, tOffsetR,
                       lowerBound, upperBound, maxDist):
+    """Find where objects aligned to the given fields can satisfy the given RH bounds."""
     if (offsetR - offsetL >= math.tau
         or tOffsetR - tOffsetL >= math.tau
         or upperBound - lowerBound >= math.tau):
         return None
     polygons = []
     expanded = [(poly.buffer(maxDist), heading) for poly, heading in tField.cells]
-    for baseCell, baseHeading in field.cells:
+    for baseCell, baseHeading in field.cells:   # TODO skip cells not contained in base region?
         for expandedTargetCell, targetHeading in expanded:
             lower, upper = relativeHeadingRange(baseHeading, offsetL, offsetR,
                                                 targetHeading, tOffsetL, tOffsetR)
@@ -178,6 +233,7 @@ def feasibleRHPolygon(field, offsetL, offsetR,
 
 def relativeHeadingRange(baseHeading, offsetL, offsetR,
                          targetHeading, tOffsetL, tOffsetR):
+    """Lower/upper bound the possible RH between two headings with bounded disturbances."""
     if baseHeading is None or targetHeading is None:    # heading may not be constant within cell
         return -math.pi, math.pi
     lower = normalizeAngle(baseHeading + offsetL)

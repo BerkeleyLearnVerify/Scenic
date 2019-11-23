@@ -177,6 +177,24 @@ def test_heading_relative_to_heading():
     ego = sampleEgoFrom('ego = Object facing 0.5 relative to -0.3')
     assert ego.heading == pytest.approx(0.5 - 0.3)
 
+def test_heading_relative_to_heading_lazy():
+    ego = sampleEgoFrom(
+        'vf = VectorField("Foo", lambda pos: 0.5)\n'
+        'ego = Object facing 0.5 relative to (0.5 relative to vf)'
+    )
+    assert ego.heading == pytest.approx(1.5)
+
+def test_mistyped_relative_to():
+    with pytest.raises(InterpreterParseError):
+        compileScenic('ego = Object facing 0 relative to 1@2')
+
+def test_mistyped_relative_to_lazy():
+    with pytest.raises(InterpreterParseError):
+        compileScenic(
+            'vf = VectorField("Foo", lambda pos: 0.5)\n'
+            'ego = Object facing 1@2 relative to (0 relative to vf)'
+        )
+
 ## Vector operators
 
 # offset by
@@ -206,7 +224,7 @@ def test_offset_along_field():
 
 def test_visible():
     scenario = compileScenic(
-        'ego = Object at 100 @ 200, facing -45 deg, \\\n'
+        'ego = Object at 100 @ 200, facing -45 deg,\n'
         '             with visibleDistance 10, with viewAngle 90 deg\n'
         'reg = RectangularRegion(100@205, 0, 10, 10)\n'
         'param p = Point in visible reg'

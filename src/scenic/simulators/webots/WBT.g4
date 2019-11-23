@@ -1,3 +1,14 @@
+/* ANTLR 4 grammar for Webots world (.wbt) files.
+
+   This is not a complete grammar, but seems to be adequate for the
+   fragment used by the Webots OSM importer.
+
+   To regenerate WBTLexer.py, WBTParser.py, and WBTVisitor.py, run
+   ANTLR as follows:
+
+   java -jar antlr.jar -no-listener -visitor -Dlanguage=Python3 WBT.g4
+*/
+
 grammar WBT;
 
 world : (node | defn)* ;
@@ -47,6 +58,9 @@ Number : '-'? Digit+ ('.' Digit+)? ('e' '-'? Digit+)? ;
 fragment
 Digit : [0-9] ;
 
-String : '"' .*? '"' ;
+String : '"' Character* '"' ;
+
+fragment
+Character : ~["\\] | '\\"' | '\\\\';
 
 Newline : '\r'? '\n' ;

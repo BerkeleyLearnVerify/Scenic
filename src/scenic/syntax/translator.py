@@ -1,6 +1,23 @@
 
-#### TRANSLATOR
-#### turns a Scenic program into a Scenario object
+"""Translator turning Scenic programs into Scenario objects.
+
+The top-level interface to Scenic is provided by two functions:
+	scenarioFromString -- compile a string of Scenic code;
+	scenarioFromFile -- compile a Scenic file.
+These output a Scenario object, from which scenes can be generated.
+See the documentation for Scenario in 'scenarios.py' for details.
+
+When imported, this module hooks the Python import system so that Scenic
+modules can be imported using the import statement. This is primarily for the
+translator's own use, but you could import Scenic modules from Python to
+inspect them. Because Scenic uses Python's import system, the latter's rules
+for finding modules apply, including the handling of packages.
+
+Scenic is compiled in two main steps: translating the code into Python, and
+executing the resulting Python module to generate a Scenario object encoding
+the objects, distributions, etc. in the scenario. For details, see the function
+'compileStream' below.
+"""
 
 import sys
 import os
@@ -42,10 +59,14 @@ import scenic.syntax.relations as relations
 ### THE TOP LEVEL: compiling a Scenic program
 
 def scenarioFromString(string, filename='<string>'):
+	"""Compile a string of Scenic code into a Scenario.
+
+	The optional filename is used for error messages."""
 	stream = io.BytesIO(string.encode())
-	return scenarioFromStream(stream)
+	return scenarioFromStream(stream, filename=filename)
 
 def scenarioFromFile(path):
+	"""Compile a Scenic file into a Scenario."""
 	if not os.path.exists(path):
 		raise FileNotFoundError(path)
 	fullpath = os.path.realpath(path)
@@ -60,8 +81,11 @@ def scenarioFromFile(path):
 		return scenarioFromStream(stream, filename=fullpath, path=path)
 
 def scenarioFromStream(stream, filename='<stream>', path=None):
+	"""Compile a stream of Scenic code into a Scenario."""
+	# Compile the code as if it were a top-level module
 	with topLevelNamespace(path) as namespace:
 		compileStream(stream, namespace, filename=filename)
+	# Construct a Scenario from the resulting namespace
 	return constructScenarioFrom(namespace)
 
 @contextmanager
@@ -84,6 +108,17 @@ def topLevelNamespace(path=None):
 		del sys.path[0]
 
 def compileStream(stream, namespace, filename='<stream>'):
+	"""Compile a stream of Scenic code and execute it in a namespace.
+
+	The compilation procedure consists of the following main steps:
+		1. Tokenize the input using the Python tokenizer.
+		2. Partition the tokens into blocks separated by import statements.
+		3. Translate Scenic constructions into valid Python syntax.
+		4. Parse the resulting Python code into an AST using the Python parser.
+		5. Modify the AST to achieve the desired semantics for Scenic.
+		6. Compile and execute the modified AST.
+		7. After executing all blocks, extract the global state (e.g. objects).
+	"""
 	if verbosity >= 2:
 		veneer.verbosePrint(f'  Compiling Scenic module from {filename}...')
 		startTime = time.time()
@@ -94,8 +129,8 @@ def compileStream(stream, namespace, filename='<stream>'):
 		line = e.args[1][0] if isinstance(e.args[1], tuple) else e.args[1]
 		raise TokenParseError(line, 'file ended during multiline string or expression')
 	# Partition into blocks with all imports at the end (since imports could
-	# pull in new constructor definitions, which change the way subsequent
-	# tokens are transformed)
+	# pull in new constructor (Scenic class) definitions, which change the way
+	# subsequent tokens are transformed)
 	blocks = partitionByImports(tokens)
 	veneer.activate()
 	try:
@@ -125,7 +160,7 @@ def compileStream(stream, namespace, filename='<stream>'):
 			# Execute it
 			executeCodeIn(code, namespace, lineMap, filename)
 		# Extract scenario state from veneer and store it
-		storeScenarioStateIn(namespace, requirements, filename)
+		storeScenarioStateIn(namespace, requirements, lineMap, filename)
 	finally:
 		veneer.deactivate()
 	if verbosity >= 2:
@@ -211,6 +246,8 @@ objectSpecifiers = {
 
 # sanity check: implementations of specifiers actually exist
 for imp in pointSpecifiers.values():
+	assert imp in api, imp
+for imp in orientedPointSpecifiers.values():
 	assert imp in api, imp
 for imp in objectSpecifiers.values():
 	assert imp in api, imp
@@ -329,10 +366,9 @@ for token in infixTokens.values():
 	ttype = token[0]
 	assert (ttype is COMMA or ttype in illegalTokens), token
 
-keywords = {constructorStatement} \
-	| internalFunctions | functionStatements \
-	| prefixIncipits | infixIncipits \
-	| replacements.keys()
+keywords = ({constructorStatement}
+	| internalFunctions | functionStatements
+	| replacements.keys())
 
 ### TRANSLATION PHASE ONE: handling imports
 
@@ -377,6 +413,7 @@ sys.meta_path.insert(0, ScenicMetaFinder())
 ## Post-import hook to inherit objects, etc. from imported Scenic modules
 
 def hooked_import(*args, **kwargs):
+	"""Version of __import__ hooked by Scenic to capture Scenic modules."""
 	module = original_import(*args, **kwargs)
 	if getattr(module, '_isScenicModule', False):
 		if veneer.isActive():
@@ -392,6 +429,7 @@ builtins.__import__ = hooked_import
 ## Miscellaneous utilities
 
 def partitionByImports(tokens):
+	"""Partition the tokens into blocks ending with import statements."""
 	blocks = []
 	currentBlock = []
 	duringImport = False
@@ -425,6 +463,7 @@ def partitionByImports(tokens):
 	return blocks
 
 def findConstructorsIn(namespace):
+	"""Find all constructors (Scenic classes) defined in a namespace."""
 	constructors = []
 	for name, value in namespace.items():
 		if inspect.isclass(value) and issubclass(value, Constructible):
@@ -441,6 +480,7 @@ def findConstructorsIn(namespace):
 ### TRANSLATION PHASE TWO: translation at the level of tokens
 
 class TokenParseError(ParseError):
+	"""Parse error occurring during token translation."""
 	def __init__(self, tokenOrLine, message):
 		line = tokenOrLine.start[0] if hasattr(tokenOrLine, 'start') else tokenOrLine
 		self.lineno = line
@@ -501,6 +541,7 @@ class TokenTranslator:
 		newTokens = []
 		functionStack = []
 		inConstructor = False	# inside a constructor or one of its specifiers
+		specifiersIndented = False
 		parenLevel = 0
 		lineCount = 0
 		lastLine = max(1, peek(tokens).start[0]) - 1
@@ -537,6 +578,10 @@ class TokenTranslator:
 				lineCount += 1
 				lineMap[lineCount] = lastLine + 1
 				lastLine = token.start[0]
+			elif ttype == DEDENT and specifiersIndented:
+				# elide dedent corresponding to indented specifiers, if present
+				skip = True
+				specifiersIndented = False
 			elif ttype == NAME:		# the interesting case: all new syntax falls in here
 				function = None
 				argument = None
@@ -647,6 +692,20 @@ class TokenTranslator:
 						functionStack.pop()
 						newTokens.append((RPAR, ')'))
 						context, startLevel = (None, 0) if len(functionStack) == 0 else functionStack[-1]
+					# allow the next specifier to be on the next line, if indented
+					nextToken = peek(tokens)
+					if nextToken.exact_type in (NEWLINE, COMMENT):
+						if nextToken.exact_type == COMMENT:
+							next(tokens)	# consume comment
+							nextToken = peek(tokens)
+						if nextToken.exact_type != NEWLINE:
+							raise TokenParseError(nextToken, 'comma with no specifier following')
+						next(tokens)	# consume newline
+						if not specifiersIndented:
+							nextToken = next(tokens)	# consume indent
+							if nextToken.exact_type != INDENT:
+								raise TokenParseError(nextToken, 'expected indented specifier (extra comma on previous line?)')
+							specifiersIndented = True
 				elif ttype == NEWLINE or ttype == ENDMARKER or ttype == COMMENT:	# end of line
 					inConstructor = False
 					if parenLevel != 0:
@@ -669,6 +728,7 @@ class TokenTranslator:
 ### TRANSLATION PHASE THREE: parsing of Python resulting from token translation
 
 class PythonParseError(SyntaxError, ParseError):
+	"""Parse error occurring during Python parsing or compilation."""
 	@classmethod
 	def fromSyntaxError(cls, exc, lineMap):
 		msg, (filename, lineno, offset, line) = exc.args
@@ -704,7 +764,7 @@ selfArg = ast.arguments(
 	kwarg=None, defaults=[])
 
 class AttributeFinder(NodeVisitor):
-	"""utility class for finding all referenced attributes of a given name"""
+	"""Utility class for finding all referenced attributes of a given name."""
 	@staticmethod
 	def find(target, node):
 		af = AttributeFinder(target)
@@ -723,6 +783,7 @@ class AttributeFinder(NodeVisitor):
 		self.visit(val)
 
 class ASTParseError(ParseError):
+	"""Parse error occuring during modification of the Python AST."""
 	def __init__(self, line, message):
 		self.lineno = line
 		super().__init__('Parse error in line ' + str(line) + ': ' + message)
@@ -739,7 +800,7 @@ class ASTSurgeon(NodeTransformer):
 		raise ASTParseError(line, message)
 
 	def unpack(self, arg, expected, node):
-		"""unpacks arguments to ternary (and up) infix operators"""
+		"""Unpack arguments to ternary (and up) infix operators."""
 		assert expected > 0
 		if isinstance(arg, BinOp) and isinstance(arg.op, packageNode):
 			if expected == 1:
@@ -752,6 +813,7 @@ class ASTSurgeon(NodeTransformer):
 			return [self.visit(arg)]
 
 	def visit_BinOp(self, node):
+		"""Convert infix operators to calls to the corresponding Scenic operator implementations."""
 		left = node.left
 		right = node.right
 		op = node.op
@@ -769,14 +831,19 @@ class ASTSurgeon(NodeTransformer):
 		return copy_location(newNode, node)
 
 	def visit_Tuple(self, node):
+		"""Convert pairs into uniform distributions."""
 		if len(node.elts) != 2:
 			raise self.parseError(node, 'interval must have exactly two endpoints')
 		newElts = [self.visit(elt) for elt in node.elts]
 		return copy_location(Call(Name(rangeConstructor, Load()), newElts, []), node)
 
 	def visit_Call(self, node):
+		"""Wrap require statements with lambdas and unpack any argument packages."""
 		func = node.func
 		if isinstance(func, Name) and func.id == requireStatement:	# Require statement
+			# Soft reqs have 2 arguments, including the probability, which is given as the
+			# first argument by the token translator; so we allow an extra argument here and
+			# validate it later on (in case the user wrongly gives 2 arguments to require).
 			if not (1 <= len(node.args) <= 2):
 				raise self.parseError(node, 'require takes exactly one argument')
 			if len(node.keywords) != 0:
@@ -787,7 +854,7 @@ class ASTSurgeon(NodeTransformer):
 			req = self.visit(cond)
 			line = self.lineMap[node.lineno]
 			reqID = Num(len(self.requirements))	# save ID number
-			self.requirements.append(req)	# save condition for later inspection
+			self.requirements.append(req)	# save condition for later inspection when pruning
 			closure = Lambda(noArgs, req)	# enclose requirement in a lambda
 			lineNum = Num(line)				# save line number for error messages
 			copy_location(closure, req)
@@ -795,7 +862,9 @@ class ASTSurgeon(NodeTransformer):
 			newArgs = [reqID, closure, lineNum]
 			if len(node.args) == 2:		# get probability for soft requirements
 				prob = node.args[0]
-				assert isinstance(prob, Num)
+				if not isinstance(prob, Num):
+					raise self.parseError(node, 'malformed requirement '
+					                            '(should be a single expression)')
 				newArgs.append(prob)
 			return copy_location(Call(func, newArgs, []), node)
 		else:	# Ordinary function call
@@ -810,6 +879,7 @@ class ASTSurgeon(NodeTransformer):
 			return copy_location(Call(func, newArgs, newKeywords), node)
 
 	def visit_ClassDef(self, node):
+		"""Process property defaults for Scenic classes."""
 		if node.name in self.constructors:		# constructor definition
 			newBody = []
 			for child in node.body:
@@ -817,6 +887,7 @@ class ASTSurgeon(NodeTransformer):
 				if isinstance(child, AnnAssign):	# default value for property
 					origValue = child.annotation
 					target = child.target
+					# extract any attributes for this property
 					metaAttrs = []
 					if isinstance(target, Subscript):
 						sl = target.slice
@@ -836,7 +907,9 @@ class ASTSurgeon(NodeTransformer):
 						newTarget = Name(target.value.id, Store())
 						copy_location(newTarget, target)
 						target = newTarget
+					# find dependencies of the default value
 					properties = AttributeFinder.find('self', origValue)
+					# create default value object
 					args = [
 						Set([Str(prop) for prop in properties]),
 						Set([Str(attr) for attr in metaAttrs]),
@@ -880,6 +953,7 @@ def compileTranslatedTree(tree, lineMap, filename):
 ### TRANSLATION PHASE SIX: Python execution
 
 def generateTracebackFrom(exc, lineMap, sourceFile, full=False):
+	"""Adjust an exception's traceback to point to the correct line of original Scenic code."""
 	# find last stack frame in the source file
 	tbexc = traceback.TracebackException.from_exception(exc)
 	last = None
@@ -921,14 +995,20 @@ def generateTracebackFrom(exc, lineMap, sourceFile, full=False):
 	return currentTb, lastLine
 
 class InterpreterParseError(ParseError):
+	"""Parse error occuring during Python execution."""
 	def __init__(self, exc, line):
 		self.lineno = line
 		exc_name = type(exc).__name__
 		super().__init__(f'Parse error in line {line}: {exc_name}: {exc}')
 
 def executeCodeIn(code, namespace, lineMap, filename):
+	"""Execute the final translated Python code in the given namespace."""
+	executePythonFunction(lambda: exec(code, namespace), lineMap, filename)
+
+def executePythonFunction(func, lineMap, filename):
+	"""Execute a Python function, giving correct Scenic backtraces for any exceptions."""
 	try:
-		exec(code, namespace)
+		return func()
 	except RuntimeParseError as e:
 		cause = e if showInternalBacktrace else None
 		tb, line = generateTracebackFrom(e, lineMap, filename)
@@ -939,28 +1019,37 @@ def executeCodeIn(code, namespace, lineMap, filename):
 
 ### TRANSLATION PHASE SEVEN: scenario construction
 
-def storeScenarioStateIn(namespace, requirementSyntax, filename):
-	# extract created Objects
+def storeScenarioStateIn(namespace, requirementSyntax, lineMap, filename):
+	"""Post-process an executed Scenic module, extracting state from the veneer."""
+	# Extract created Objects
 	namespace['_objects'] = tuple(veneer.allObjects)
 	namespace['_egoObject'] = veneer.egoObject
 
-	# extract global parameters
+	# Extract global parameters
 	namespace['_params'] = veneer.globalParameters
 	for name, value in veneer.globalParameters.items():
 		if needsLazyEvaluation(value):
 			raise InvalidScenarioError(f'parameter {name} uses value {value}'
 			                           ' undefined outside of object definition')
 
-	# extract external parameters
+	# Extract external parameters
 	namespace['_externalParams'] = tuple(veneer.externalParameters)
 
-	# extract requirements and create proper closures
+	# Extract requirements, scan for relations used for pruning, and create closures
 	requirements = veneer.pendingRequirements
 	finalReqs = veneer.inheritedReqs
 	requirementDeps = set()	# things needing to be sampled to evaluate the requirements
 	namespace['_requirements'] = finalReqs
 	namespace['_requirementDeps'] = requirementDeps
 	def makeClosure(req, bindings, ego, line):
+		"""Create a closure testing the requirement in the correct runtime state."""
+		def evaluator():
+			result = req()
+			assert not needsSampling(result)
+			if needsLazyEvaluation(result):
+				raise InvalidScenarioError(f'requirement on line {line} uses value'
+				                           ' undefined outside of object definition')
+			return result
 		def closure(values):
 			# rebind any names referring to sampled objects
 			for name, value in bindings.items():
@@ -971,15 +1060,16 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 				veneer.egoObject = values[ego]
 			# evaluate requirement condition, reporting errors on the correct line
 			try:
-				return req()
-			except RuntimeParseError as e:
-				cause = e if showInternalBacktrace else None
-				raise InterpreterParseError(e, line) from cause
+				veneer.evaluatingRequirement = True
+				result = executePythonFunction(evaluator, lineMap, filename)
+			finally:
+				veneer.evaluatingRequirement = False
+			return result
 		return closure
 	for reqID, (req, bindings, ego, line, prob) in requirements.items():
 		# Check whether requirement implies any relations used for pruning
 		reqNode = requirementSyntax[reqID]
-		relations.inferRelationsFrom(reqNode, bindings, ego, line)
+		relations.inferRelationsFrom(reqNode, bindings, ego, line, lineMap)
 		# Gather dependencies of the requirement
 		for value in bindings.values():
 			if needsSampling(value):
@@ -994,11 +1084,12 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 		finalReqs.append((makeClosure(req, bindings, ego, line), prob))
 
 def constructScenarioFrom(namespace):
-	# extract ego object
+	"""Build a Scenario object from an executed Scenic module."""
+	# Extract ego object
 	if namespace['_egoObject'] is None:
 		raise InvalidScenarioError('did not specify ego object')
 
-	# extract workspace, if one is specified
+	# Extract workspace, if one is specified
 	if 'workspace' in namespace:
 		workspace = namespace['workspace']
 		if not isinstance(workspace, Workspace):
@@ -1011,11 +1102,13 @@ def constructScenarioFrom(namespace):
 	else:
 		workspace = None
 
+	# Create Scenario object
 	scenario = Scenario(workspace,
 	                    namespace['_objects'], namespace['_egoObject'],
 	                    namespace['_params'], namespace['_externalParams'],
 	                    namespace['_requirements'], namespace['_requirementDeps'])
 
+	# Prune infeasible parts of the space
 	if usePruning:
 		pruning.prune(scenario, verbosity=verbosity)
 

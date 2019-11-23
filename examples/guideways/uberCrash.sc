@@ -23,13 +23,13 @@ aboveIntersection = PolygonalRegion([[-20, 29], [-20, 60], [-5, 60], [-5, 29]])
 justAboveIntersection = PolygonalRegion([[-20, 29], [-20, 34], [-5, 34], [-5, 29]])
 
 # Uber
-ego = Car on uberGuideway.median.intersect(aboveIntersection), \
-		  with speed (30, 50), \
+ego = Car on uberGuideway.median.intersect(aboveIntersection),
+		  with speed (30, 50),
 		  with webotsType 'Uber'
 
 # Turning car
-turningCar = Car on turnGuideway.median.intersect(belowIntersection), \
-				 with delay (0, 3), \
+turningCar = Car on turnGuideway.median.intersect(belowIntersection),
+				 with delay (0, 3),
 				 with webotsType 'TurningCar'
 
 # A car blocking part of the Uber's view

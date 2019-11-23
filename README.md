@@ -3,7 +3,7 @@
 A compiler and scene generator for the Scenic scenario description language, with (partial) interfaces to the Grand Theft Auto V and Webots simulators.
 The _src/scenic_ directory contains the package proper, while the _examples_ directory has many examples of Scenic programs.
 
-For a description of the language and some of its applications, see [this paper](https://arxiv.org/abs/1809.09310).
+For a description of the language and some of its applications, see [our PLDI 2019 paper](https://arxiv.org/abs/1809.09310).
 Scenic was designed and implemented by Daniel J. Fremont, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia.
 
 If you have any problems using Scenic, please contact Daniel at <dfremont@berkeley.edu> or submit an issue to [our GitHub repository](https://github.com/BerkeleyLearnVerify/Scenic).
@@ -12,6 +12,7 @@ If you have any problems using Scenic, please contact Daniel at <dfremont@berkel
 
 * [Installation](#installation)
 * [Basic Usage](#basic-usage)
+* [Interfacing to GTA V](#interfacing-to-gta-v)
 * [Interfacing to New Simulators](#interfacing-to-new-simulators)
 * [License](#license)
 
@@ -48,6 +49,10 @@ python3 -m scenic examples/webots/road/crossing.sc
 python3 -m scenic examples/guideways/uberCrash.sc
 ```
 There are many more examples of Scenic programs in the _examples_ folder.
+
+## Interfacing to GTA V
+
+Interfacing Scenic to GTA V requires a GTA V plugin, which you can find [here](https://github.com/xyyue/scenic2gta).
 
 ## Interfacing to New Simulators
 

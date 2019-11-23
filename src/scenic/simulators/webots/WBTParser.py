@@ -1,48 +1,50 @@
-# Generated from WBT.g4 by ANTLR 4.7.1
+# Generated from WBT.g4 by ANTLR 4.7.2
 # encoding: utf-8
 from antlr4 import *
 from io import StringIO
 from typing.io import TextIO
 import sys
 
+
 def serializedATN():
     with StringIO() as buf:
         buf.write("\3\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786\u5964\3\21")
-        buf.write("n\4\2\t\2\4\3\t\3\4\4\t\4\4\5\t\5\4\6\t\6\4\7\t\7\4\b")
+        buf.write("q\4\2\t\2\4\3\t\3\4\4\t\4\4\5\t\5\4\6\t\6\4\7\t\7\4\b")
         buf.write("\t\b\4\t\t\t\4\n\t\n\4\13\t\13\4\f\t\f\3\2\3\2\7\2\33")
         buf.write("\n\2\f\2\16\2\36\13\2\3\3\3\3\3\3\3\3\3\4\3\4\3\4\3\4")
         buf.write("\3\4\3\4\5\4*\n\4\3\5\3\5\3\5\7\5/\n\5\f\5\16\5\62\13")
         buf.write("\5\3\6\3\6\3\6\3\6\3\6\5\69\n\6\3\7\3\7\3\7\3\7\3\7\5")
         buf.write("\7@\n\7\3\b\6\bC\n\b\r\b\16\bD\3\t\3\t\3\n\3\n\3\n\7\n")
         buf.write("L\n\n\f\n\16\nO\13\n\3\n\5\nR\n\n\3\n\3\n\3\n\3\n\3\n")
-        buf.write("\6\nY\n\n\r\n\16\nZ\3\n\3\n\5\n_\n\n\3\13\5\13b\n\13\3")
-        buf.write("\13\3\13\5\13f\n\13\6\13h\n\13\r\13\16\13i\3\f\3\f\3\f")
-        buf.write("\2\2\r\2\4\6\b\n\f\16\20\22\24\26\2\3\3\2\n\13\2s\2\34")
-        buf.write("\3\2\2\2\4\37\3\2\2\2\6#\3\2\2\2\b\60\3\2\2\2\n8\3\2\2")
-        buf.write("\2\f?\3\2\2\2\16B\3\2\2\2\20F\3\2\2\2\22^\3\2\2\2\24g")
-        buf.write("\3\2\2\2\26k\3\2\2\2\30\33\5\6\4\2\31\33\5\4\3\2\32\30")
-        buf.write("\3\2\2\2\32\31\3\2\2\2\33\36\3\2\2\2\34\32\3\2\2\2\34")
-        buf.write("\35\3\2\2\2\35\3\3\2\2\2\36\34\3\2\2\2\37 \7\3\2\2 !\7")
-        buf.write("\16\2\2!\"\5\6\4\2\"\5\3\2\2\2#$\7\16\2\2$%\7\4\2\2%&")
-        buf.write("\7\21\2\2&\'\5\b\5\2\')\7\5\2\2(*\7\21\2\2)(\3\2\2\2)")
-        buf.write("*\3\2\2\2*\7\3\2\2\2+,\5\n\6\2,-\7\21\2\2-/\3\2\2\2.+")
-        buf.write("\3\2\2\2/\62\3\2\2\2\60.\3\2\2\2\60\61\3\2\2\2\61\t\3")
-        buf.write("\2\2\2\62\60\3\2\2\2\63\64\7\6\2\2\64\65\7\16\2\2\659")
-        buf.write("\5\f\7\2\66\67\7\16\2\2\679\5\f\7\28\63\3\2\2\28\66\3")
-        buf.write("\2\2\29\13\3\2\2\2:@\5\16\b\2;@\5\20\t\2<@\5\22\n\2=@")
-        buf.write("\5\6\4\2>@\5\26\f\2?:\3\2\2\2?;\3\2\2\2?<\3\2\2\2?=\3")
-        buf.write("\2\2\2?>\3\2\2\2@\r\3\2\2\2AC\7\17\2\2BA\3\2\2\2CD\3\2")
-        buf.write("\2\2DB\3\2\2\2DE\3\2\2\2E\17\3\2\2\2FG\7\20\2\2G\21\3")
-        buf.write("\2\2\2HM\7\7\2\2IJ\7\21\2\2JL\5\f\7\2KI\3\2\2\2LO\3\2")
-        buf.write("\2\2MK\3\2\2\2MN\3\2\2\2NQ\3\2\2\2OM\3\2\2\2PR\7\21\2")
-        buf.write("\2QP\3\2\2\2QR\3\2\2\2RS\3\2\2\2S_\7\b\2\2TU\7\7\2\2U")
-        buf.write("X\5\24\13\2VW\7\t\2\2WY\5\24\13\2XV\3\2\2\2YZ\3\2\2\2")
-        buf.write("ZX\3\2\2\2Z[\3\2\2\2[\\\3\2\2\2\\]\7\b\2\2]_\3\2\2\2^")
-        buf.write("H\3\2\2\2^T\3\2\2\2_\23\3\2\2\2`b\7\21\2\2a`\3\2\2\2a")
-        buf.write("b\3\2\2\2bc\3\2\2\2ce\7\17\2\2df\7\21\2\2ed\3\2\2\2ef")
-        buf.write("\3\2\2\2fh\3\2\2\2ga\3\2\2\2hi\3\2\2\2ig\3\2\2\2ij\3\2")
-        buf.write("\2\2j\25\3\2\2\2kl\t\2\2\2l\27\3\2\2\2\20\32\34)\608?")
-        buf.write("DMQZ^aei")
+        buf.write("\6\nY\n\n\r\n\16\nZ\3\n\5\n^\n\n\3\n\3\n\5\nb\n\n\3\13")
+        buf.write("\5\13e\n\13\3\13\3\13\5\13i\n\13\6\13k\n\13\r\13\16\13")
+        buf.write("l\3\f\3\f\3\f\2\2\r\2\4\6\b\n\f\16\20\22\24\26\2\3\3\2")
+        buf.write("\n\13\2w\2\34\3\2\2\2\4\37\3\2\2\2\6#\3\2\2\2\b\60\3\2")
+        buf.write("\2\2\n8\3\2\2\2\f?\3\2\2\2\16B\3\2\2\2\20F\3\2\2\2\22")
+        buf.write("a\3\2\2\2\24j\3\2\2\2\26n\3\2\2\2\30\33\5\6\4\2\31\33")
+        buf.write("\5\4\3\2\32\30\3\2\2\2\32\31\3\2\2\2\33\36\3\2\2\2\34")
+        buf.write("\32\3\2\2\2\34\35\3\2\2\2\35\3\3\2\2\2\36\34\3\2\2\2\37")
+        buf.write(" \7\3\2\2 !\7\16\2\2!\"\5\6\4\2\"\5\3\2\2\2#$\7\16\2\2")
+        buf.write("$%\7\4\2\2%&\7\21\2\2&\'\5\b\5\2\')\7\5\2\2(*\7\21\2\2")
+        buf.write(")(\3\2\2\2)*\3\2\2\2*\7\3\2\2\2+,\5\n\6\2,-\7\21\2\2-")
+        buf.write("/\3\2\2\2.+\3\2\2\2/\62\3\2\2\2\60.\3\2\2\2\60\61\3\2")
+        buf.write("\2\2\61\t\3\2\2\2\62\60\3\2\2\2\63\64\7\6\2\2\64\65\7")
+        buf.write("\16\2\2\659\5\f\7\2\66\67\7\16\2\2\679\5\f\7\28\63\3\2")
+        buf.write("\2\28\66\3\2\2\29\13\3\2\2\2:@\5\16\b\2;@\5\20\t\2<@\5")
+        buf.write("\22\n\2=@\5\6\4\2>@\5\26\f\2?:\3\2\2\2?;\3\2\2\2?<\3\2")
+        buf.write("\2\2?=\3\2\2\2?>\3\2\2\2@\r\3\2\2\2AC\7\17\2\2BA\3\2\2")
+        buf.write("\2CD\3\2\2\2DB\3\2\2\2DE\3\2\2\2E\17\3\2\2\2FG\7\20\2")
+        buf.write("\2G\21\3\2\2\2HM\7\7\2\2IJ\7\21\2\2JL\5\f\7\2KI\3\2\2")
+        buf.write("\2LO\3\2\2\2MK\3\2\2\2MN\3\2\2\2NQ\3\2\2\2OM\3\2\2\2P")
+        buf.write("R\7\21\2\2QP\3\2\2\2QR\3\2\2\2RS\3\2\2\2Sb\7\b\2\2TU\7")
+        buf.write("\7\2\2UX\5\24\13\2VW\7\t\2\2WY\5\24\13\2XV\3\2\2\2YZ\3")
+        buf.write("\2\2\2ZX\3\2\2\2Z[\3\2\2\2[]\3\2\2\2\\^\7\t\2\2]\\\3\2")
+        buf.write("\2\2]^\3\2\2\2^_\3\2\2\2_`\7\b\2\2`b\3\2\2\2aH\3\2\2\2")
+        buf.write("aT\3\2\2\2b\23\3\2\2\2ce\7\21\2\2dc\3\2\2\2de\3\2\2\2")
+        buf.write("ef\3\2\2\2fh\7\17\2\2gi\7\21\2\2hg\3\2\2\2hi\3\2\2\2i")
+        buf.write("k\3\2\2\2jd\3\2\2\2kl\3\2\2\2lj\3\2\2\2lm\3\2\2\2m\25")
+        buf.write("\3\2\2\2no\t\2\2\2o\27\3\2\2\2\21\32\34)\608?DMQZ]adh")
+        buf.write("l")
         return buf.getvalue()
 
 
@@ -98,9 +100,10 @@ class WBTParser ( Parser ):
 
     def __init__(self, input:TokenStream, output:TextIO = sys.stdout):
         super().__init__(input, output)
-        self.checkVersion("4.7.1")
+        self.checkVersion("4.7.2")
         self._interp = ParserATNSimulator(self, self.atn, self.decisionsToDFA, self.sharedContextCache)
         self._predicates = None
+
 
 
 
@@ -126,14 +129,6 @@ class WBTParser ( Parser ):
 
         def getRuleIndex(self):
             return WBTParser.RULE_world
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterWorld" ):
-                listener.enterWorld(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitWorld" ):
-                listener.exitWorld(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitWorld" ):
@@ -181,6 +176,7 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
+
     class DefnContext(ParserRuleContext):
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
@@ -196,14 +192,6 @@ class WBTParser ( Parser ):
 
         def getRuleIndex(self):
             return WBTParser.RULE_defn
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterDefn" ):
-                listener.enterDefn(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitDefn" ):
-                listener.exitDefn(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitDefn" ):
@@ -234,6 +222,7 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
+
     class NodeContext(ParserRuleContext):
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
@@ -255,14 +244,6 @@ class WBTParser ( Parser ):
 
         def getRuleIndex(self):
             return WBTParser.RULE_node
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterNode" ):
-                listener.enterNode(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitNode" ):
-                listener.exitNode(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitNode" ):
@@ -305,6 +286,7 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
+
     class NodeBodyContext(ParserRuleContext):
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
@@ -326,14 +308,6 @@ class WBTParser ( Parser ):
 
         def getRuleIndex(self):
             return WBTParser.RULE_nodeBody
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterNodeBody" ):
-                listener.enterNodeBody(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitNodeBody" ):
-                listener.exitNodeBody(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitNodeBody" ):
@@ -371,6 +345,7 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
+
     class AttributeContext(ParserRuleContext):
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
@@ -386,14 +361,6 @@ class WBTParser ( Parser ):
 
         def getRuleIndex(self):
             return WBTParser.RULE_attribute
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterAttribute" ):
-                listener.enterAttribute(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitAttribute" ):
-                listener.exitAttribute(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitAttribute" ):
@@ -439,6 +406,7 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
+
     class ValueContext(ParserRuleContext):
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
@@ -467,14 +435,6 @@ class WBTParser ( Parser ):
 
         def getRuleIndex(self):
             return WBTParser.RULE_value
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterValue" ):
-                listener.enterValue(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitValue" ):
-                listener.exitValue(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitValue" ):
@@ -529,6 +489,7 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
+
     class VectorContext(ParserRuleContext):
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
@@ -543,14 +504,6 @@ class WBTParser ( Parser ):
 
         def getRuleIndex(self):
             return WBTParser.RULE_vector
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterVector" ):
-                listener.enterVector(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitVector" ):
-                listener.exitVector(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitVector" ):
@@ -588,6 +541,7 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
+
     class StringContext(ParserRuleContext):
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
@@ -599,14 +553,6 @@ class WBTParser ( Parser ):
 
         def getRuleIndex(self):
             return WBTParser.RULE_string
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterString" ):
-                listener.enterString(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitString" ):
-                listener.exitString(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitString" ):
@@ -632,6 +578,7 @@ class WBTParser ( Parser ):
         finally:
             self.exitRule()
         return localctx
+
 
     class ArrayContext(ParserRuleContext):
 
@@ -662,14 +609,6 @@ class WBTParser ( Parser ):
         def getRuleIndex(self):
             return WBTParser.RULE_array
 
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterArray" ):
-                listener.enterArray(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitArray" ):
-                listener.exitArray(self)
-
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitArray" ):
                 return visitor.visitArray(self)
@@ -685,9 +624,9 @@ class WBTParser ( Parser ):
         self.enterRule(localctx, 16, self.RULE_array)
         self._la = 0 # Token type
         try:
-            self.state = 92
+            self.state = 95
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input,10,self._ctx)
+            la_ = self._interp.adaptivePredict(self._input,11,self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 70
@@ -725,19 +664,29 @@ class WBTParser ( Parser ):
                 self.vectorWithNewlines()
                 self.state = 86 
                 self._errHandler.sync(self)
-                _la = self._input.LA(1)
-                while True:
-                    self.state = 84
-                    self.match(WBTParser.T__6)
-                    self.state = 85
-                    self.vectorWithNewlines()
+                _alt = 1
+                while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
+                    if _alt == 1:
+                        self.state = 84
+                        self.match(WBTParser.T__6)
+                        self.state = 85
+                        self.vectorWithNewlines()
+
+                    else:
+                        raise NoViableAltException(self)
                     self.state = 88 
                     self._errHandler.sync(self)
-                    _la = self._input.LA(1)
-                    if not (_la==WBTParser.T__6):
-                        break
+                    _alt = self._interp.adaptivePredict(self._input,9,self._ctx)
 
-                self.state = 90
+                self.state = 91
+                self._errHandler.sync(self)
+                _la = self._input.LA(1)
+                if _la==WBTParser.T__6:
+                    self.state = 90
+                    self.match(WBTParser.T__6)
+
+
+                self.state = 93
                 self.match(WBTParser.T__5)
                 pass
 
@@ -749,6 +698,7 @@ class WBTParser ( Parser ):
         finally:
             self.exitRule()
         return localctx
+
 
     class VectorWithNewlinesContext(ParserRuleContext):
 
@@ -771,14 +721,6 @@ class WBTParser ( Parser ):
         def getRuleIndex(self):
             return WBTParser.RULE_vectorWithNewlines
 
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterVectorWithNewlines" ):
-                listener.enterVectorWithNewlines(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitVectorWithNewlines" ):
-                listener.exitVectorWithNewlines(self)
-
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitVectorWithNewlines" ):
                 return visitor.visitVectorWithNewlines(self)
@@ -795,29 +737,29 @@ class WBTParser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 101 
+            self.state = 104 
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while True:
-                self.state = 95
+                self.state = 98
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if _la==WBTParser.Newline:
-                    self.state = 94
+                    self.state = 97
                     self.match(WBTParser.Newline)
 
 
-                self.state = 97
+                self.state = 100
                 self.match(WBTParser.Number)
-                self.state = 99
+                self.state = 102
                 self._errHandler.sync(self)
-                la_ = self._interp.adaptivePredict(self._input,12,self._ctx)
+                la_ = self._interp.adaptivePredict(self._input,13,self._ctx)
                 if la_ == 1:
-                    self.state = 98
+                    self.state = 101
                     self.match(WBTParser.Newline)
 
 
-                self.state = 103 
+                self.state = 106 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
                 if not (_la==WBTParser.Number or _la==WBTParser.Newline):
@@ -831,6 +773,7 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
+
     class BooleanContext(ParserRuleContext):
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
@@ -840,14 +783,6 @@ class WBTParser ( Parser ):
 
         def getRuleIndex(self):
             return WBTParser.RULE_boolean
-
-        def enterRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "enterBoolean" ):
-                listener.enterBoolean(self)
-
-        def exitRule(self, listener:ParseTreeListener):
-            if hasattr( listener, "exitBoolean" ):
-                listener.exitBoolean(self)
 
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitBoolean" ):
@@ -865,7 +800,7 @@ class WBTParser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 105
+            self.state = 108
             _la = self._input.LA(1)
             if not(_la==WBTParser.T__7 or _la==WBTParser.T__8):
                 self._errHandler.recoverInline(self)

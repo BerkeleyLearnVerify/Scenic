@@ -1,0 +1,53 @@
+#VRML_SIM R2018b utf8
+WorldInfo {
+  info [
+    "World generated using the Open Street Map to Webots importer"
+    "Author: David Mansolino <david.mansolino@epfl.ch>"
+    "have an escaped quotation mark: \""
+    "and an escaped backslash: \\"
+  ]
+  northDirection 0 0 1
+  gpsCoordinateSystem "WGS84"
+  gpsReference 37.93025 -122.367 0
+  lineScale 1
+}
+Viewpoint {
+  orientation 0.048887421819964715 -0.8212923733015455 -0.5684090582885812 3.282632934594101
+  position 81.43437448853226 461.6748843333469 -200.26357670893387
+  near 3
+}
+DEF CAR1 ToyotaPriusSimple {
+  translation 999 999 999
+  color 0 0 0
+  name "vehicle(1)"
+}
+TexturedBackground {
+}
+Supervisor {
+  controller "translator"
+}
+Road {
+  translation -2.904664 0.01 -92.145761
+  name "South 3rd Street(1)"
+  id "7872867_2"
+  width 4
+  numberOfLanes 1
+  speedLimit 13.888889
+  dashedLine []
+  wayPoints [
+    0 0 0
+    -0.405366 0 -151.717356
+    -0.392331 0 -217.093604
+  ]
+  startingAngle [
+    3.139017
+  ]
+  startLine [
+    "textures/road_line_dashed.png"
+    "textures/road_line_triangle.png"
+  ]
+  splineSubdivision 0
+  texture [
+    "textures/road_no_border_line.jpg"
+  ]
+}

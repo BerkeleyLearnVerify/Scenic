@@ -242,10 +242,14 @@ class RotatedRectangle:
 		return False
 
 	@property
-	@utils.cached
 	def polygon(self):
-		if needsSampling(self) or needsLazyEvaluation(self):
+		if any(needsSampling(c) or needsLazyEvaluation(c) for c in self.corners):
 			return None		# can only convert fixed Regions to Polygons
+		return self.getConstantPolygon()
+
+	@utils.cached
+	def getConstantPolygon(self):
+		assert not any(needsSampling(c) or needsLazyEvaluation(c) for c in self.corners)
 		# TODO refactor???
 		corners = [(x, y) for x, y in self.corners]		# convert Vectors to tuples
 		return shapely.geometry.Polygon(corners)

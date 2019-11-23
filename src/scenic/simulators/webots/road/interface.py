@@ -9,6 +9,7 @@ import shapely.geometry
 import shapely.ops
 
 import scenic.simulators.webots.world_parser as world_parser
+from scenic.simulators.webots.common import webotsToScenicPosition, webotsToScenicRotation
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import PolygonalVectorField
 from scenic.core.regions import PolygonalRegion, PolylineRegion, nowhere
@@ -45,7 +46,7 @@ class Road(OSMObject):
 		super().__init__(attrs)
 		self.driveOnLeft = driveOnLeft
 		self.translation = attrs['translation']
-		pts = [np.delete(p + self.translation, 1) for p in attrs['wayPoints']]
+		pts = [np.array(webotsToScenicPosition(p + self.translation)) for p in attrs['wayPoints']]
 		self.waypoints = tuple(cleanChain(pts, 0.05))
 		assert len(self.waypoints) > 1, pts
 		self.width = float(attrs.get('width', 7))
@@ -204,9 +205,10 @@ class Crossroad(OSMObject):
 	def __init__(self, attrs):
 		super().__init__(attrs)
 		self.translation = attrs['translation']
-		points = list(p + self.translation for p in attrs['shape'])
+		points = list(np.array(webotsToScenicPosition(p + self.translation))
+		              for p in attrs['shape'])
 		if len(points) > 0:
-			self.points = [(x, z) for x, y, z in points]
+			self.points = points
 			self.region = PolygonalRegion(self.points)
 		else:
 			verbosePrint(f'WARNING: Crossroad {self.osmID} has empty shape field!')
@@ -222,12 +224,11 @@ class PedestrianCrossing:
 	"""PedestrianCrossing nodes"""
 	def __init__(self, attrs):
 		self.translation = attrs.get('translation', np.array((0, 0, 0)))
-		pos = np.delete(self.translation, 1)
+		pos = np.array(webotsToScenicPosition(self.translation))
 		name = attrs.get('name', '')
-		rotation = attrs.get('rotation', (0, 1, 0, 0))
-		if tuple(rotation[:3]) != (0, 1, 0):
+		self.angle = webotsToScenicRotation(attrs.get('rotation', (0, 1, 0, 0)))
+		if self.angle is None:
 			raise RuntimeError(f'PedestrianCrossing "{name}" is not 2D!')
-		self.angle = float(rotation[3])
 		size = attrs.get('size', (20, 8))
 		self.length, self.width = float(size[0]), float(size[1])
 		self.length += 0.2		# pad length to intersect sidewalks better	# TODO improve?
@@ -260,6 +261,7 @@ class WebotsWorkspace(Workspace):
 
 		# Construct regions
 		allCells = []
+		drivableAreas = []
 		for road in self.roads:
 			assert road.region.polygons.is_valid, (road.waypoints, road.region.points)
 			allCells.extend(road.cells)
@@ -267,37 +269,69 @@ class WebotsWorkspace(Workspace):
 			if crossroad.region is not None:
 				for poly in crossroad.region.polygons:
 					allCells.append((poly, None))
+		if not allCells:
+			raise RuntimeError('Webots world has no drivable geometry!')
 		self.roadDirection = PolygonalVectorField(
 		    'roadDirection', allCells,
 		    headingFunction=lambda pos: 0, defaultHeading=0		# TODO fix
 		)
-		roadPoly = polygonUnion(road.region.polygons for road in self.roads)
-		self.roadsRegion = PolygonalRegion(polygon=roadPoly,
-		                                   orientation=self.roadDirection)
-		crossroadPoly = polygonUnion(cr.region.polygons for cr in self.crossroads
-		                             if cr.region is not None)
-		self.crossroadsRegion = PolygonalRegion(polygon=crossroadPoly,
-		                                        orientation=self.roadDirection)
+		if not self.roads:
+			roadPoly = None
+			self.roadsRegion = nowhere
+			self.curbsRegion = nowhere
+		else:
+			roadPoly = polygonUnion(road.region.polygons for road in self.roads)
+			self.roadsRegion = PolygonalRegion(polygon=roadPoly,
+			                                   orientation=self.roadDirection)
+			drivableAreas.append(roadPoly)
+			curbs = [road.leftCurb.lineString for road in self.roads]
+			curbs.extend(road.rightCurb.lineString for road in self.roads)
+			curbLine = shapely.ops.unary_union(curbs)
+			self.curbsRegion = PolylineRegion(polyline=curbLine)
+		if not self.crossroads:
+			crossroadPoly = None
+			self.crossroadsRegion = nowhere
+		else:
+			crossroadPoly = polygonUnion(cr.region.polygons
+			                             for cr in self.crossroads
+			                             if cr.region is not None)
+			self.crossroadsRegion = PolygonalRegion(polygon=crossroadPoly,
+			                                        orientation=self.roadDirection)
+			drivableAreas.append(crossroadPoly)
 
 		sidewalks = []
+		walkableAreas = []
 		for road in self.roads:
 			if road.hasLeftSidewalk:
 				sidewalks.append(road.leftSidewalk.polygons)
 			if road.hasRightSidewalk:
 				sidewalks.append(road.rightSidewalk.polygons)
-		sidewalksPoly = polygonUnion(sidewalks)
-		self.sidewalksRegion = regionWithPolygons(sidewalksPoly)
+		if not sidewalks:
+			sidewalksPoly = None
+			self.sidewalksRegion = nowhere
+		else:
+			sidewalksPoly = polygonUnion(sidewalks)
+			self.sidewalksRegion = regionWithPolygons(sidewalksPoly)
+			walkableAreas.append(sidewalksPoly)
 
-		crossingsPoly = polygonUnion(crossing.region.polygons
-		                             for crossing in self.crossings)
-		self.crossingsRegion = regionWithPolygons(crossingsPoly)
+		if not self.crossings:
+			crossingsPoly = None
+			self.crossingsRegion = nowhere
+		else:
+			crossingsPoly = polygonUnion(crossing.region.polygons
+			                             for crossing in self.crossings)
+			self.crossingsRegion = regionWithPolygons(crossingsPoly)
+			walkableAreas.append(crossingsPoly)
 
-		walkablePoly = polygonUnion((sidewalksPoly, crossingsPoly))
-		self.walkableRegion = regionWithPolygons(walkablePoly)
-		drivablePoly = polygonUnion((roadPoly, crossroadPoly))
+		if not walkableAreas:
+			self.walkableRegion = nowhere
+		else:
+			walkablePoly = polygonUnion(walkableAreas)
+			self.walkableRegion = regionWithPolygons(walkablePoly)
+		drivablePoly = polygonUnion(drivableAreas)
 		self.drivableRegion = PolygonalRegion(polygon=drivablePoly,
 		                                      orientation=self.roadDirection)
-		workspacePoly = polygonUnion((drivablePoly, walkablePoly))
+		workspacePoly = polygonUnion(drivableAreas + walkableAreas)
 		self.workspaceRegion = PolygonalRegion(polygon=workspacePoly)
 
 		# Identify various roads and lanes of interest
