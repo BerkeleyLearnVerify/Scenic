@@ -35,7 +35,6 @@ from scenic.core.workspaces import Workspace
 from scenic.core.scenarios import Scenario
 from scenic.core.object_types import Constructible
 from scenic.core.utils import ParseError, RuntimeParseError, InvalidScenarioError
-from scenic.core.external_params import ExternalSampler
 import scenic.core.pruning as pruning
 import scenic.syntax.veneer as veneer
 import scenic.syntax.relations as relations
@@ -1012,16 +1011,10 @@ def constructScenarioFrom(namespace):
 	else:
 		workspace = None
 
-	# configure external sampler, if needed
-	externalParams = namespace['_externalParams']
-	globalParams = namespace['_params']
-	externalSampler = ExternalSampler.forParameters(externalParams, globalParams)
-
 	scenario = Scenario(workspace,
 	                    namespace['_objects'], namespace['_egoObject'],
-	                    globalParams,
-	                    namespace['_requirements'], namespace['_requirementDeps'],
-	                    externalSampler)
+	                    namespace['_params'], namespace['_externalParams'],
+	                    namespace['_requirements'], namespace['_requirementDeps'])
 
 	if usePruning:
 		pruning.prune(scenario, verbosity=verbosity)

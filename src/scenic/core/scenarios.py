@@ -3,6 +3,7 @@ import random
 import time
 
 from scenic.core.distributions import Samplable, RejectionException, needsSampling
+from scenic.core.external_params import ExternalSampler
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
 
@@ -31,9 +32,8 @@ class Scenario:
 	"""A Scenic scenario"""
 	def __init__(self, workspace,
 	             objects, egoObject,
-	             params,
-	             requirements, requirementDeps,
-	             externalSampler):
+	             params, externalParams,
+	             requirements, requirementDeps):
 		if workspace is None:
 			workspace = Workspace()		# default empty workspace
 		self.workspace = workspace
@@ -46,8 +46,9 @@ class Scenario:
 		self.objects = tuple(ordered)
 		self.egoObject = egoObject
 		self.params = dict(params)
+		self.externalParams = tuple(externalParams)
 		self.requirements = tuple(requirements)
-		self.externalSampler = externalSampler
+		self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)
 		# dependencies must use fixed order for reproducibility
 		paramDeps = tuple(p for p in self.params.values() if isinstance(p, Samplable))
 		self.dependencies = self.objects + paramDeps + tuple(requirementDeps)
@@ -58,7 +59,7 @@ class Scenario:
 		else:
 			return self.workspace.region
 
-	def generate(self, maxIterations=2000, verbosity=0):
+	def generate(self, maxIterations=2000, verbosity=0, feedback=None):
 		objects = self.objects
 
 		# choose which custom requirements will be enforced for this sample
@@ -68,14 +69,17 @@ class Scenario:
 		rejection = True
 		iterations = 0
 		while rejection is not None:
-			if verbosity >= 2 and iterations > 0:
-				print(f'  Rejected sample {iterations} because of: {rejection}')
+			if iterations > 0:	# rejected the last sample
+				if verbosity >= 2:
+					print(f'  Rejected sample {iterations} because of: {rejection}')
+				if self.externalSampler is not None:
+					feedback = self.externalSampler.rejectionFeedback
 			if iterations >= maxIterations:
 				raise RuntimeError(f'failed to generate scenario in {iterations} iterations')
 			iterations += 1
 			try:
 				if self.externalSampler is not None:
-					self.externalSampler.sample()
+					self.externalSampler.sample(feedback)
 				sample = Samplable.sampleAll(self.dependencies)
 			except RejectionException as e:
 				rejection = e
@@ -124,3 +128,10 @@ class Scenario:
 		}
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams)
 		return scene, iterations
+
+	def resetExternalSampler(self):
+		"""Reset the scenario's external sampler, if any.
+
+		If the Python random seed is reset before calling this function, this
+		should cause the sequence of generated scenes to be deterministic."""
+		self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)

@@ -1,10 +1,12 @@
 
-from dotmap import DotMap
-
 from scenic.core.distributions import Distribution
 from scenic.core.utils import InvalidScenarioError
 
 class ExternalSampler:
+	def __init__(self, params, globalParams):
+		# feedback value passed to external sampler when the last scene was rejected
+		self.rejectionFeedback = globalParams.get('externalSamplerRejectionFeedback')
+
 	@staticmethod
 	def forParameters(params, globalParams):
 		if len(params) > 0:
@@ -16,10 +18,10 @@ class ExternalSampler:
 		else:
 			return None
 
-	def sample(self):
-		self.cachedSample = self.nextSample()
+	def sample(self, feedback):
+		self.cachedSample = self.nextSample(feedback)
 
-	def nextSample(self):
+	def nextSample(self, feedback):
 		raise NotImplementedError
 
 	def valueFor(self, param):
@@ -27,6 +29,7 @@ class ExternalSampler:
 
 class VerifaiSampler(ExternalSampler):
 	def __init__(self, params, globalParams):
+		super().__init__(params, globalParams)
 		import verifai.features
 		import verifai.server
 
@@ -45,14 +48,17 @@ class VerifaiSampler(ExternalSampler):
 		# set up VerifAI sampler
 		samplerType = globalParams.get('verifaiSamplerType', 'halton')
 		samplerParams = globalParams.get('verifaiSamplerParams', None)
-		samplerFunc = globalParams.get('verifaiSamplerFunc', None)
 		_, sampler = verifai.server.choose_sampler(space, samplerType,
-		                                           sampler_params=samplerParams,
-		                                           sampler_func=samplerFunc)
+		                                           sampler_params=samplerParams)
 		self.sampler = sampler
 
-	def nextSample(self):
-		return self.sampler.nextSample()
+		# default rejection feedback is positive so cross-entropy sampler won't update;
+		# for other active samplers an appropriate value should be set manually
+		if self.rejectionFeedback is None:
+			self.rejectionFeedback = 1
+
+	def nextSample(self, feedback):
+		return self.sampler.nextSample(feedback)
 
 	def valueFor(self, param):
 		return self.cachedSample[param.index]
@@ -78,6 +84,16 @@ class VerifaiRange(VerifaiParameter):
 	def __init__(self, low, high):
 		import verifai.features
 		super().__init__(verifai.features.Box([low, high]))
+
+	def sampleGiven(self, value):
+		value = super().sampleGiven(value)
+		assert len(value) == 1
+		return value[0]
+
+class VerifaiDiscreteRange(VerifaiParameter):
+	def __init__(self, low, high):
+		import verifai.features
+		super().__init__(verifai.features.DiscreteBox([low, high]))
 
 	def sampleGiven(self, value):
 		value = super().sampleGiven(value)
