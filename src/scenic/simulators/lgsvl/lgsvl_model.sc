@@ -33,7 +33,7 @@ constructor EgoCar(Car):
     lgsvlAgentType: lgsvl.AgentType.EGO
     apolloVehicle: 'Lincoln2017MKZ'
     apolloModules: ['Localization', 'Perception', 'Transform', 'Routing',
-                    'Prediction', 'Planning', 'Traffic Light']
+                    'Prediction', 'Planning', 'Camera']
     dreamview: None     # connection to Dreamview (set at runtime)
     bridgeHost: 'localhost'
     bridgePort: 9090

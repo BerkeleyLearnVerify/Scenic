@@ -20,6 +20,7 @@ class LGSVLSimulator(simulators.Simulator):
     def createSimulation(self, scene):
         return LGSVLSimulation(scene, self.client)
 
+
 class LGSVLSimulation(simulators.Simulation):
     def __init__(self, scene, client):
         super().__init__(scene)
@@ -27,6 +28,8 @@ class LGSVLSimulation(simulators.Simulation):
         self.timeStep = scene.params.get('time_step', 1.0/30)
         self.objects = scene.objects
         self.usingApollo = False
+        self.data = {}
+        self.collisionOccurred = False
 
         # Reset simulator (deletes all existing objects)
         self.client.reset()
@@ -54,7 +57,9 @@ class LGSVLSimulation(simulators.Simulation):
             # Create LGSVL object
             lgsvlObj = self.client.add_agent(name, agentType, state)
             obj.lgsvlObject = lgsvlObj
-
+            
+            # Initialize Data
+            self.data[obj] = {}
             # Initialize Apollo if needed
             if hasattr(obj, 'apolloVehicle'):
                 self.initApolloFor(obj, lgsvlObj)
@@ -77,6 +82,19 @@ class LGSVLSimulation(simulators.Simulation):
             raise RuntimeError('can only use one Apollo vehicle')
         self.usingApollo = True
 
+        def on_collision(agent1, agent2, contact):
+            if agent1 is not None and agent1.name == lgsvlObj.name:
+                self.data[obj]['collision'] = True
+            if agent2 is not None and agent2.name == lgsvlObj.name:
+                self.data[obj]['collision'] = True
+            if self.data[obj]['collision']:
+                self.collisionOccurred = True
+                print('COLLISION !')
+
+        # Initialize Data
+        self.data[obj]['collision'] = False
+        lgsvlObj.on_collision(on_collision)
+
         # connect bridge from LGSVL to Apollo
         lgsvlObj.connect_bridge(obj.bridgeHost, obj.bridgePort)
 
@@ -86,11 +104,15 @@ class LGSVLSimulation(simulators.Simulation):
         waitToStabilize = False
         hdMap = self.scene.params['apolloHDMap']
         if dv.getCurrentMap() != hdMap:
+            print('previous map:',dv.getCurrentMap())
+            print('current map:',hdMap)
             dv.setHDMap(hdMap)
             waitToStabilize = True
+            print('map updated')
         if dv.getCurrentVehicle() != obj.apolloVehicle:
             dv.setVehicle(obj.apolloVehicle)
             waitToStabilize = True
+            print('vehicle updated')
         
         print('Initializing Apollo...')
 
@@ -100,8 +122,15 @@ class LGSVLSimulation(simulators.Simulation):
         lgsvlObj.apply_control(cntrl, True)
         # start modules
         dv.disableModule('Control')
+        #for module in obj.apolloModules:
+        #    dv.disableModule(module)
+        #self.client.run(5)
+        ready = dv.getModuleStatus()
         for module in obj.apolloModules:
-            dv.enableModule(module)
+            if not ready[module]:
+                dv.enableModule(module)
+                print('Module', module, 'is not ready...')
+                waitToStabilize = True
         while True:
             ready = dv.getModuleStatus()
             if all(ready[module] for module in obj.apolloModules):
@@ -109,8 +138,10 @@ class LGSVLSimulation(simulators.Simulation):
 
         # wait for Apollo to stabilize, if needed
         if waitToStabilize:
-            self.client.run(15)
+            print('waiting to stabilize')
+            self.client.run(25)
         dv.enableModule('Control')
+        self.client.run(15)
         print('Initialized Apollo.')
 
     def writePropertiesToLGSVL(self):
@@ -199,13 +230,13 @@ class SetDestinationAction(simulators.Action):
         self.dest = dest
         self.timer = 0
 
-
     def applyTo(self, obj, lgsvlObject, sim):
         if self.timer == 0:
             print('Setting destination...')
             z = sim.groundElevationAt(self.dest)
             obj.dreamview.setDestination(self.dest.x, self.dest.y, z,
                                       coordType=dreamview.CoordType.Unity)
+
         # push vehicle for 1 second to start
         oneSec = int(1.0/sim.timeStep)
         if self.timer < oneSec:
@@ -220,5 +251,76 @@ class SetDestinationAction(simulators.Action):
         self.timer = self.timer + 1
 
 
+class TrackWaypoints(simulators.Action):
+    def __init__(self, waypoints, cruising_speed = 10):
+        self.waypoints = np.array(waypoints)
+        self.curr_index = 1
+        self.cruising_speed = cruising_speed
+
+    def LQR(v_target, wheelbase, Q, R):
+        A = np.matrix([[0, v_target*(5./18.)], [0, 0]])
+        B = np.matrix([[0], [(v_target/wheelbase)*(5./18.)]])
+        V = np.matrix(linalg.solve_continuous_are(A, B, Q, R))
+        K = np.matrix(linalg.inv(R)*(B.T*V))
+        return K
+
+    def applyTo(self, obj, lgsvlObject, sim):
+        state = lgsvlObject.state
+        pos = state.transform.position
+        rot = state.transform.rotation
+        velocity = state.velocity
+        th, x, y, v = rot.y/180.0*np.pi, pos.x, pos.z, (velocity.x**2 + velocity.z**2)**0.5
+        #print('state:', th, x, y, v)
+        PREDICTIVE_LENGTH = 3
+        MIN_SPEED = 1
+        WHEEL_BASE = 3
+        v = max(MIN_SPEED, v)
+
+        x = x + PREDICTIVE_LENGTH * np.cos(-th+np.pi/2)
+        y = y + PREDICTIVE_LENGTH * np.sin(-th+np.pi/2)
+        #print('car front:', x, y)
+        dists = np.linalg.norm(self.waypoints - np.array([x, y]), axis=1)
+        dist_pos = np.argpartition(dists,1)
+        index = dist_pos[0]
+        if index > self.curr_index and index < len(self.waypoints)-1:
+            self.curr_index = index
+        p1, p2, p3 = self.waypoints[self.curr_index-1], self.waypoints[self.curr_index], self.waypoints[self.curr_index+1]
+
+        p1_a = np.linalg.norm(p1 - np.array([x, y]))
+        p3_a = np.linalg.norm(p3 - np.array([x, y]))
+        p1_p2= np.linalg.norm(p1 - p2)
+        p3_p2= np.linalg.norm(p3 - p2)
+        
+        if p1_a - p1_p2 > p3_a - p3_p2:
+            p1 = p2
+            p2 = p3
+        
+        #print('points:',p1, p2)
+        x1, y1, x2, y2 = p1[0], p1[1], p2[0], p2[1]
+        th_n = -math.atan2(y2-y1,x2-x1)+np.pi/2
+        d_th = (th - th_n + 3*np.pi) % (2*np.pi) - np.pi
+        d_x = (x2-x1)*y - (y2-y1)*x + y2*x1 - y1*x2
+        d_x /= np.linalg.norm(np.array([x1, y1]) - np.array([x2, y2]))
+        #print('d_th, d_x:',d_th, d_x)
+
+
+        K = TrackWaypoints.LQR(v, WHEEL_BASE, np.array([[1, 0], [0, 3]]), np.array([[10]]))
+        u = -K * np.matrix([[-d_x], [d_th]])
+        u = np.double(u)
+        u_steering = min(max(u, -1), 1)
+        
+        K = 1
+        u = -K*(v - self.cruising_speed)
+        u_thrust = min(max(u, -1), 1)
+        
+        #print('u:', u_thrust, u_steering)
+        
+        cntrl = lgsvl.VehicleControl()
+        cntrl.steering = u_steering
+        if u_thrust > 0:
+            cntrl.throttle = u_thrust
+        elif u_thrust < 0.1:
+            cntrl.braking = -u_thrust
+        lgsvlObject.apply_control(cntrl, True)
         
 
