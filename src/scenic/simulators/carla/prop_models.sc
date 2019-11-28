@@ -1,13 +1,14 @@
 trashModels = {
-      'static.prop.garbage01',
-      'static.prop.garbage02',
-      'static.prop.garbage03',
-      'static.prop.garbage04',
-      'static.prop.garbage05',
-      'static.prop.garbage06'
+      'static.prop.trashcan01',
+      'static.prop.trashcan02',
+      'static.prop.trashcan03',
+      'static.prop.trashcan04',
+      'static.prop.trashcan05',
+      'static.prop.trashbag'
 }
 
 coneModels = {
+      'static.prop.constructioncone',
       'static.prop.trafficcone01',
       'static.prop.trafficcone02'
 }
