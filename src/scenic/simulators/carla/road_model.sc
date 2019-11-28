@@ -13,6 +13,7 @@ workspace = CarlaWorkspace(mapPath)
 roadDirection = workspace.road_direction
 road = workspace.drivable_region
 sidewalk = workspace.sidewalk_region
+intersection = workspace.intersection_region
 # laneSectionDict is a dict from road id to a list of dicts from
 # lane id to polygon, one dict per lane section.
 laneSectionDict = workspace.lane_sec_dict

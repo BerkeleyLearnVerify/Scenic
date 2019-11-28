@@ -235,7 +235,6 @@ class LaneSection():
         return offsets
 
 
-# Note: RoadLink and Junction are not currently used for calculate_geometry methods.
 class RoadLink:
     '''Indicates Roads a and b, with ids id_a and id_b respectively, are connected.'''
     def __init__(self, id_a, id_b, contact_a, contact_b):
@@ -557,10 +556,12 @@ class RoadMap:
         self.junctions = {}
         self.sec_lane_polys = []
         self.lane_polys = []
+        self.intersection_region = None
 
-    def calculate_geometry(self, num, calc_gap=False):
-        # If gap=True, fills in gaps between connected roads.
-        # This is fairly expensive.
+    def calculate_geometry(self, num, calc_gap=False, calc_intersect=False):
+        # If calc_gap=True, fills in gaps between connected roads.
+        # If calc_intersect=True, calculates intersection regions.
+        # These are fairly expensive.
         for road in self.roads.values():
             road.calculate_geometry(num, calc_gap=calc_gap)
         drivable_polys = {}
@@ -623,7 +624,24 @@ class RoadMap:
 
         self.drivable_region = buffer_union(list(drivable_polys.values()) + drivable_gap_polys)
         self.sidewalk_region = buffer_union(list(sidewalk_polys.values()) + sidewalk_gap_polys)
+        self.calculate_intersections()
 
+    def calculate_intersections(self):
+        intersect_polys = []
+        for junc in self.junctions.values():
+            junc_roads = set()
+            for conn in junc.connections:
+               junc_roads.add(conn.incoming_id)
+               junc_roads.add(conn.connecting_id)
+            for road_i_idx in junc_roads:
+                for road_j_idx in junc_roads:
+                    if road_i_idx == road_j_idx:
+                        continue
+                    road_i = self.roads[road_i_idx]
+                    road_j = self.roads[road_j_idx]
+                    intersect_polys.append(
+                        road_i.drivable_region.intersection(road_j.drivable_region))
+        self.intersection_region = buffer_union(intersect_polys)
 
     def heading_at(self, point):
         '''Return the road heading at point.'''
