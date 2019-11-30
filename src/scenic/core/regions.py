@@ -17,6 +17,7 @@ from scenic.core.geometry import RotatedRectangle
 from scenic.core.geometry import sin, cos, hypot, findMinMax, pointIsInCone, averageVectors
 from scenic.core.geometry import headingOfSegment, triangulatePolygon, plotPolygon, polygonUnion
 from scenic.core.type_support import toVector
+from scenic.core.utils import cached, areEquivalent
 
 def toPolygon(thing):
 	if hasattr(thing, 'polygon'):
@@ -106,6 +107,12 @@ class AllRegion(Region):
 	def containsObject(self, obj):
 		return True
 
+	def __eq__(self, other):
+		return type(other) is AllRegion
+
+	def __hash__(self):
+		return hash(AllRegion)
+
 class EmptyRegion(Region):
 	"""Region containing no points."""
 	def intersect(self, other, triedReversed=False):
@@ -119,6 +126,12 @@ class EmptyRegion(Region):
 
 	def containsObject(self, obj):
 		return False
+
+	def __eq__(self, other):
+		return type(other) is EmptyRegion
+
+	def __hash__(self):
+		return hash(EmptyRegion)
 
 everywhere = AllRegion('everywhere')
 nowhere = EmptyRegion('nowhere')
@@ -157,6 +170,12 @@ class CircularRegion(Region):
 		x, y = self.center
 		r = self.radius
 		return ((x - r, y - r), (x + r, y + r))
+
+	def isEquivalentTo(self, other):
+		if type(other) is not CircularRegion:
+			return False
+		return (areEquivalent(other.center, self.center)
+		        and areEquivalent(other.radius, self.radius))
 
 	def __str__(self):
 		return f'CircularRegion({self.center}, {self.radius})'
@@ -211,6 +230,14 @@ class SectorRegion(Region):
 		pt = Vector(x + (r * cos(t)), y + (r * sin(t)))
 		return self.orient(pt)
 
+	def isEquivalentTo(self, other):
+		if type(other) is not SectorRegion:
+			return False
+		return (areEquivalent(other.center, self.center)
+		        and areEquivalent(other.radius, self.radius)
+		        and areEquivalent(other.heading, self.heading)
+		        and areEquivalent(other.angle, self.angle))
+
 	def __str__(self):
 		return f'SectorRegion({self.center},{self.radius},{self.heading},{self.angle})'
 
@@ -251,6 +278,14 @@ class RectangularRegion(RotatedRectangle, Region):
 		minx, maxx = findMinMax(x)
 		miny, maxy = findMinMax(y)
 		return ((minx, miny), (maxx, maxy))
+
+	def isEquivalentTo(self, other):
+		if type(other) is not RectangularRegion:
+			return False
+		return (areEquivalent(other.position, self.position)
+		        and areEquivalent(other.heading, self.heading)
+		        and areEquivalent(other.width, self.width)
+		        and areEquivalent(other.height, self.height))
 
 	def __str__(self):
 		return f'RectangularRegion({self.position},{self.heading},{self.width},{self.height})'
@@ -336,6 +371,15 @@ class PolylineRegion(Region):
 
 	def __str__(self):
 		return f'PolylineRegion({self.lineString})'
+
+	def __eq__(self, other):
+		if type(other) is not PolylineRegion:
+			return NotImplemented
+		return (other.lineString == self.lineString)
+
+	@cached
+	def __hash__(self):
+		return hash(str(self.lineString))
 
 class PolygonalRegion(Region):
 	"""Region given by one or more polygons (possibly with holes)"""
@@ -436,10 +480,21 @@ class PolygonalRegion(Region):
 	def __str__(self):
 		return '<PolygonalRegion>'
 
+	def __eq__(self, other):
+		if type(other) is not PolygonalRegion:
+			return NotImplemented
+		return (other.polygons == self.polygons
+		        and other.orientation == self.orientation)
+
+	@cached
+	def __hash__(self):
+		# TODO better way to hash mutable Shapely geometries? (also for PolylineRegion)
+		return hash((str(self.polygons), self.orientation))
+
 class PointSetRegion(Region):
 	def __init__(self, name, points, kdTree=None, orientation=None, tolerance=1e-6):
 		super().__init__(name, orientation=orientation)
-		self.points = list(points)
+		self.points = tuple(points)
 		for point in self.points:
 			if needsSampling(point):
 				raise RuntimeError('only fixed PointSetRegions are supported')
@@ -468,6 +523,16 @@ class PointSetRegion(Region):
 
 	def containsObject(self, obj):
 		raise NotImplementedError()
+
+	def __eq__(self, other):
+		if type(other) is not PointSetRegion:
+			return NotImplemented
+		return (other.name == self.name
+		        and other.points == self.points
+		        and other.orientation == self.orientation)
+
+	def __hash__(self):
+		return hash((self.name, self.points, self.orientation))
 
 class GridRegion(PointSetRegion):
 	"""A Region given by an obstacle grid"""
@@ -523,7 +588,7 @@ class GridRegion(PointSetRegion):
 
 class IntersectionRegion(Region):
 	def __init__(self, *regions, orientation=None, sampler=None):
-		self.regions = list(regions)
+		self.regions = tuple(regions)
 		if len(self.regions) < 2:
 			raise RuntimeError('tried to take intersection of fewer than 2 regions')
 		super().__init__('Intersection', *self.regions, orientation=orientation)
@@ -569,6 +634,12 @@ class IntersectionRegion(Region):
 				raise RejectionException(
 				    f'sampling intersection of Regions {regs[0]} and {region}')
 		return point
+
+	def isEquivalentTo(self, other):
+		if type(other) is not IntersectionRegion:
+			return False
+		return (areEquivalent(set(other.regions), set(self.regions))
+		        and other.orientation == self.orientation)
 
 	def __str__(self):
 		return f'IntersectionRegion({self.regions})'

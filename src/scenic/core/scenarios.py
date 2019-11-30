@@ -7,7 +7,7 @@ from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.external_params import ExternalSampler
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
-from scenic.core.utils import InvalidScenarioError
+from scenic.core.utils import areEquivalent, InvalidScenarioError
 
 class Scene:
 	"""A scene generated from a Scenic scenario"""
@@ -55,6 +55,16 @@ class Scenario:
 		paramDeps = tuple(p for p in self.params.values() if isinstance(p, Samplable))
 		self.dependencies = self.objects + paramDeps + tuple(requirementDeps)
 		self.validate()
+
+	def isEquivalentTo(self, other):
+		if type(other) is not Scenario:
+			return False
+		return (areEquivalent(other.workspace, self.workspace)
+		    and areEquivalent(other.objects, self.objects)
+		    and areEquivalent(other.params, self.params)
+		    and areEquivalent(other.externalParams, self.externalParams)
+		    and areEquivalent(other.requirements, self.requirements)
+		    and other.externalSampler == self.externalSampler)
 
 	def containerOfObject(self, obj):
 		if hasattr(obj, 'regionContainedIn') and obj.regionContainedIn is not None:
