@@ -763,6 +763,10 @@ selfArg = ast.arguments(
 	kwonlyargs=[], kw_defaults=[],
 	kwarg=None, defaults=[])
 
+if sys.version_info >= (3, 8):	# TODO cleaner way to handle this?
+	noArgs.posonlyargs = []
+	selfArg.posonlyargs = []
+
 class AttributeFinder(NodeVisitor):
 	"""Utility class for finding all referenced attributes of a given name."""
 	@staticmethod

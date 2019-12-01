@@ -321,6 +321,8 @@ class PolylineRegion(Region):
 		if isinstance(lineString, shapely.geometry.LineString):
 			segments = []
 			points = list(lineString.coords)
+			if len(points) < 2:
+				raise RuntimeError('LineString has fewer than 2 points')
 			last = points[0]
 			for point in points[1:]:
 				segments.append((last, point))
