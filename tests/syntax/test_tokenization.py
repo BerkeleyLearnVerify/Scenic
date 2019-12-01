@@ -14,18 +14,29 @@ ego = Object with height 2, {continuation}
 ego = Object with height 2, {continuation}
 {indent}with width 3, at 10@20
 ''',
+'''
+ego = Object with height 2, {continuation}
+{indent}#with width 2,{continuation}
+{indent}with width 3
+''',
+'''
+ego = Object with height 2, {continuation}
+# with width 2,{continuation}
+# blah {continuation}
+{indent}with width 3
+'''
 ]
 
-def test_specifier_layout():
+@pytest.mark.parametrize('template', templates)
+@pytest.mark.parametrize('continuation', ('', '\\', '# comment'))
+@pytest.mark.parametrize('indent', ('  ', '    ', '             '))
+@pytest.mark.parametrize('gap', ('', '\n', '# comment\n', '\n# comment\n'))
+def test_specifier_layout(template, continuation, indent, gap):
     """Test legal specifier layouts, with and without line continuations."""
-    for template in templates:
-        for continuation in ('', '\\', '# comment'):
-            for indent in ('  ', '    ', '             '):
-                preamble = template.format(continuation=continuation, indent=indent)
-                for gap in ('', '\n', '# comment\n', '\n# comment\n'):
-                    program = preamble + gap + 'Object at 20@20'
-                    print('TESTING PROGRAM:\n' + program)
-                    compileScenic(program)
+    preamble = template.format(continuation=continuation, indent=indent)
+    program = preamble + gap + 'Object at 20@20'
+    print('TESTING PROGRAM:', program)
+    compileScenic(program)
 
 def test_dangling_specifier_list():
     with pytest.raises(TokenParseError):

@@ -694,18 +694,22 @@ class TokenTranslator:
 						context, startLevel = (None, 0) if len(functionStack) == 0 else functionStack[-1]
 					# allow the next specifier to be on the next line, if indented
 					nextToken = peek(tokens)
-					if nextToken.exact_type in (NEWLINE, COMMENT):
+					specOnNewLine = False
+					while nextToken.exact_type in (NEWLINE, NL, COMMENT):
+						specOnNewLine = True
 						if nextToken.exact_type == COMMENT:
 							next(tokens)	# consume comment
 							nextToken = peek(tokens)
-						if nextToken.exact_type != NEWLINE:
+						if nextToken.exact_type not in (NEWLINE, NL):
 							raise TokenParseError(nextToken, 'comma with no specifier following')
 						next(tokens)	# consume newline
-						if not specifiersIndented:
-							nextToken = next(tokens)	# consume indent
-							if nextToken.exact_type != INDENT:
-								raise TokenParseError(nextToken, 'expected indented specifier (extra comma on previous line?)')
-							specifiersIndented = True
+						nextToken = peek(tokens)
+					if specOnNewLine and not specifiersIndented:
+						nextToken = next(tokens)	# consume indent
+						if nextToken.exact_type != INDENT:
+							raise TokenParseError(nextToken,
+							                      'expected indented specifier (extra comma on previous line?)')
+						specifiersIndented = True
 				elif ttype == NEWLINE or ttype == ENDMARKER or ttype == COMMENT:	# end of line
 					inConstructor = False
 					if parenLevel != 0:
