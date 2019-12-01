@@ -6,7 +6,7 @@ with open('README.md', 'r') as r:
     long_description = r.read()
 
 setup(name='scenic',
-      version='1.0.0b1',
+      version='1.0.0b2',
       install_requires=[
           'numpy',
           'scipy',
@@ -36,6 +36,7 @@ setup(name='scenic',
       classifiers=[
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
         'Development Status :: 4 - Beta',
