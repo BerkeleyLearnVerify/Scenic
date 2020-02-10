@@ -412,9 +412,13 @@ class PolygonalRegion(Region):
 		if points is None and len(self.polygons) == 1 and len(self.polygons[0].interiors) == 0:
 			self.points = tuple(self.polygons[0].exterior.coords[:-1])
 
+		if self.polygons.is_empty:
+			raise RuntimeError('tried to create empty PolygonalRegion')
+
 		triangles = []
 		for polygon in self.polygons:
 			triangles.extend(triangulatePolygon(polygon))
+		assert len(triangles) > 0, self.polygons
 		self.trianglesAndBounds = tuple((tri, tri.bounds) for tri in triangles)
 		areas = (triangle.area for triangle in triangles)
 		self.cumulativeTriangleAreas = tuple(itertools.accumulate(areas))
@@ -435,11 +439,11 @@ class PolygonalRegion(Region):
 		orientation = other.orientation if self.orientation is None else self.orientation
 		if poly is not None:
 			intersection = self.polygons & poly
-			if isinstance(intersection, (shapely.geometry.Polygon,
+			if intersection.is_empty:
+				return nowhere
+			elif isinstance(intersection, (shapely.geometry.Polygon,
 			                             shapely.geometry.MultiPolygon)):
 				return PolygonalRegion(polygon=intersection, orientation=orientation)
-			elif intersection.is_empty:
-				return nowhere
 			elif isinstance(intersection, shapely.geometry.GeometryCollection):
 				polys = []
 				for geom in intersection:
