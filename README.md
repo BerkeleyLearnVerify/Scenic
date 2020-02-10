@@ -20,6 +20,9 @@ If you have any problems using Scenic, please contact Daniel at <dfremont@berkel
 
 You need Python 3.6 or newer.
 The _setup.py_ script will handle installation of dependencies (run `python setup.py install`).
+On Windows, the `shapely` package must currently be installed manually: please follow the instructions [here](https://github.com/Toblerity/Shapely#built-distributions).
+
+
 Some scenarios using OpenStreetMap data require the _pyproj_ package and will prompt you if you don't have it (we haven't listed it as a dependency since there seem to be issues building it for Windows at the moment).
 
 ## Basic Usage
