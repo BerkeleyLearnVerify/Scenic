@@ -36,6 +36,7 @@ constructor Vehicle:
     width: 2
     height: 5
     color: CarColor.defaultColor()
+    agent: 'BrakeAgent'
 
 constructor Car(Vehicle):
     blueprint: Uniform(*carModels)
