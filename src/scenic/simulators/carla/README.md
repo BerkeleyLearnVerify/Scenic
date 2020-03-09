@@ -7,8 +7,8 @@ Currently supported objects are vehicles, pedestrians, and props.
 Vehicles have an `agent` parameter, which specifies the agent to be used to control the vehicle.
 
 Weather parameters are described below. (Descriptions are from the CARLA Python API reference.)
-* `cloudyness` (float)
-   Weather cloudiness. It only affects the RGB camera sensor. Values range from 0 to 100. Note that this parameter is `cloudyness` and not `cloudiness` because of a typo in the CARLA API.
+* `cloudiness` (float)
+   Weather cloudiness. It only affects the RGB camera sensor. Values range from 0 to 100.
 * `precipitation` (float)
    Precipitation amount for controlling rain intensity. It only affects the RGB camera sensor. Values range from 0 to 100.
 * `precipitation_deposits` (float)
