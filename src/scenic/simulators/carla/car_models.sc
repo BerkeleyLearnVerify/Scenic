@@ -7,7 +7,7 @@ carModels = {
       'vehicle.chevrolet.impala',
       'vehicle.citroen.c3',
       'vehicle.dodge_charger.police',
-      'vehicle.ford.mustang',
+      'vehicle.mustang.mustang',
       'vehicle.jeep.wrangler_rubicon',
       'vehicle.lincoln.mkz2017',
       'vehicle.mercedes-benz.coupe',
@@ -27,12 +27,13 @@ bicycleModels = {
 }
 
 motorcycleModels = {
-      'vehicle.harley-davidson.low rider',
+      'vehicle.harley-davidson.low_rider',
       'vehicle.kawasaki.ninja',
       'vehicle.yamaha.yzf',
 }
 
 truckModels = {
-      'vehicle.carlamotors.carlacola'
+      'vehicle.carlamotors.carlacola',
+      'vehicle.tesla.cybertruck'
 }
-              
+
