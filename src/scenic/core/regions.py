@@ -300,6 +300,16 @@ class PolylineRegion(Region):
 			self.points = points
 			self.lineString = shapely.geometry.LineString(points)
 		elif polyline is not None:
+			if isinstance(polyline, shapely.geometry.LineString):
+				if len(polyline.coords) < 2:
+					raise RuntimeError('tried to create PolylineRegion with <2-point LineString')
+			elif isinstance(polyline, shapely.geometry.MultiLineString):
+				if len(polyline) == 0:
+					raise RuntimeError('tried to create PolylineRegion from empty MultiLineString')
+				for line in polyline:
+					assert len(line.coords) >= 2
+			else:
+				raise RuntimeError('tried to create PolylineRegion from non-LineString')
 			self.lineString = polyline
 		else:
 			raise RuntimeError('must specify points or polyline for PolylineRegion')
@@ -349,8 +359,9 @@ class PolylineRegion(Region):
 		poly = toPolygon(other)
 		if poly is not None:
 			intersection = self.lineString & poly
-			if not isinstance(intersection, (shapely.geometry.LineString,
-			                                 shapely.geometry.MultiLineString)):
+			if (intersection.is_empty or
+			    not isinstance(intersection, (shapely.geometry.LineString,
+			                                  shapely.geometry.MultiLineString))):
 				# TODO handle points!
 				return nowhere
 			return PolylineRegion(polyline=intersection)
