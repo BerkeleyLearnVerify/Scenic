@@ -1,5 +1,4 @@
-
-### Specifiers and associated objects
+"""Specifiers and associated objects."""
 
 import itertools
 

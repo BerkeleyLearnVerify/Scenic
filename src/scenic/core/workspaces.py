@@ -1,5 +1,4 @@
-
-### Workspaces
+"""Workspaces."""
 
 from scenic.core.distributions import needsSampling
 from scenic.core.regions import Region, everywhere

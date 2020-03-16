@@ -1,3 +1,4 @@
+"""Scenario and scene objects."""
 
 import random
 import time

@@ -119,12 +119,16 @@ def pruneRelativeHeading(scenario, verbosity):
     """Prune based on requirements bounding the relative heading of an Object.
 
     Specifically, if an object O is:
+
         * positioned uniformly within a polygonal region B;
         * aligned to a polygonal vector field F (up to a bounded offset);
+
     and another object O' is:
+
         * aligned to a polygonal vector field F' (up to a bounded offset);
         * at most some finite maximum distance from O;
         * required to have relative heading within a bounded offset of that of O;
+
     then we can instead position O uniformly in the subset of B intersecting the cells
     of F which satisfy the relative heading requirements w.r.t. some cell of F' which
     is within the distance bound.

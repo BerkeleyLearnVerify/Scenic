@@ -1,3 +1,4 @@
+"""Python library supporting the main Scenic module."""
 
 import time
 import sys

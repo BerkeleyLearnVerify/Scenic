@@ -1,5 +1,5 @@
 
-"""Veneer library, with Python implementations of Scenic language constructs.
+"""Python implementations of Scenic language constructs.
 
 This module is automatically imported by all Scenic programs. In addition to
 defining the built-in functions, operators, specifiers, etc., it also stores
@@ -526,8 +526,9 @@ def Ahead(pos, dist=0):
 	Specifies 'position', depending on 'height'. See other dependencies below.
 
 	Allowed forms:
-		ahead of <oriented point> [by <scalar/vector>] -- optionally specifies 'heading';
-		ahead of <vector> [by <scalar/vector>] -- depends on 'heading'.
+
+	* ``ahead of`` <oriented point> [``by`` <scalar/vector>] -- optionally specifies 'heading';
+	* ``ahead of`` <vector> [``by`` <scalar/vector>] -- depends on 'heading'.
 
 	If the 'by <scalar/vector>' is omitted, zero is used.
 	"""

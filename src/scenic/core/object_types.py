@@ -1,5 +1,4 @@
-
-### Object types
+"""Implementations of the built-in Scenic classes."""
 
 import inspect
 import collections

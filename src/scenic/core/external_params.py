@@ -1,3 +1,4 @@
+"""Support for values which are sampled outside of Scenic."""
 
 from scenic.core.distributions import Distribution
 from scenic.core.utils import InvalidScenarioError

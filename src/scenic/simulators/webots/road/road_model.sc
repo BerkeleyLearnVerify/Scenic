@@ -1,3 +1,4 @@
+"""Scenic world model for traffic scenarios in Webots."""
 
 import math
 import time

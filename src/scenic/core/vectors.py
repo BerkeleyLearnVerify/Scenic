@@ -1,5 +1,4 @@
-
-### Vectors
+"""Scenic vectors and vector fields."""
 
 import math
 from math import sin, cos

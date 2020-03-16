@@ -1,5 +1,4 @@
-
-### Regions
+"""Objects representing regions in space."""
 
 import math
 import random

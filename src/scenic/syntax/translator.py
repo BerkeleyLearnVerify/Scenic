@@ -2,8 +2,10 @@
 """Translator turning Scenic programs into Scenario objects.
 
 The top-level interface to Scenic is provided by two functions:
-	scenarioFromString -- compile a string of Scenic code;
-	scenarioFromFile -- compile a Scenic file.
+
+* scenarioFromString -- compile a string of Scenic code;
+* scenarioFromFile -- compile a Scenic file.
+
 These output a Scenario object, from which scenes can be generated.
 See the documentation for Scenario in 'scenarios.py' for details.
 
@@ -133,6 +135,7 @@ def compileStream(stream, namespace, filename='<stream>'):
 	# subsequent tokens are transformed)
 	blocks = partitionByImports(tokens)
 	veneer.activate()
+	newSourceBlocks = []
 	try:
 		# Execute preamble
 		exec(compile(preamble, '<veneer>', 'exec'), namespace)
@@ -143,6 +146,7 @@ def compileStream(stream, namespace, filename='<stream>'):
 			# Translate tokens to valid Python syntax
 			translator = TokenTranslator(constructors)
 			newSource, lineMap, allConstructors = translator.translate(block)
+			newSourceBlocks.append(newSource)
 			if dumpTranslatedPython:
 				print(f'### Begin translated Python from block {blockNum} of {filename}')
 				print(newSource)
@@ -166,7 +170,8 @@ def compileStream(stream, namespace, filename='<stream>'):
 	if verbosity >= 2:
 		totalTime = time.time() - startTime
 		veneer.verbosePrint(f'  Compiled Scenic module in {totalTime:.4g} seconds.')
-	return namespace
+	allNewSource = '\n'.join(newSourceBlocks)
+	return code, allNewSource
 
 ### TRANSLATION PHASE ZERO: definitions of language elements not already in Python
 
@@ -380,11 +385,12 @@ class ScenicMetaFinder(importlib.abc.MetaPathFinder):
 	def find_spec(self, name, paths, target):
 		if paths is None:
 			paths = sys.path
+			modname = name
 		else:
-			name = name.rpartition('.')[2]
+			modname = name.rpartition('.')[2]
 		for path in paths:
 			for extension in scenicExtensions:
-				filename = name + '.' + extension
+				filename = modname + '.' + extension
 				filepath = os.path.join(path, filename)
 				if os.path.exists(filepath):
 					spec = importlib.util.spec_from_file_location(name, filepath,
@@ -392,7 +398,7 @@ class ScenicMetaFinder(importlib.abc.MetaPathFinder):
 					return spec
 		return None
 
-class ScenicLoader(importlib.abc.Loader):
+class ScenicLoader(importlib.abc.InspectLoader):
 	def __init__(self, filepath, filename):
 		self.filepath = filepath
 		self.filename = filename
@@ -403,9 +409,25 @@ class ScenicLoader(importlib.abc.Loader):
 	def exec_module(self, module):
 		# Read source file and compile it
 		with open(self.filepath, 'rb') as stream:
-			compileStream(stream, module.__dict__, filename=self.filepath)
+			code, source = compileStream(stream, module.__dict__, filename=self.filepath)
 		# Mark as a Scenic module
 		module._isScenicModule = True
+		# Save code and (translated) source for later inspection
+		module._code = code
+		module._source = source
+
+	def is_package(self, fullname):
+		return False
+
+	def get_code(self, fullname):
+		module = importlib.import_module(fullname)
+		assert module._isScenicModule, module
+		return module._code
+
+	def get_source(self, fullname):
+		module = importlib.import_module(fullname)
+		assert module._isScenicModule, module
+		return module._source
 
 # register the meta path finder
 sys.meta_path.insert(0, ScenicMetaFinder())

@@ -1,5 +1,4 @@
-
-### Distributions
+"""Objects representing distributions that can be sampled from."""
 
 import collections
 import itertools

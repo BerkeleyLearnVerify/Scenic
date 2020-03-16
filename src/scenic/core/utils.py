@@ -1,5 +1,4 @@
-
-### Utilities
+"""Assorted utility functions and common exceptions."""
 
 import functools
 
@@ -24,9 +23,11 @@ def areEquivalent(a, b):
     This is only used for debugging, e.g. to check that a Distribution is the
     same before and after pickling. We don't want to define __eq__ for such
     objects since for example two values sampled with the same distribution are
-    equivalent but not semantically identical: the code
+    equivalent but not semantically identical: the code::
+
         X = (0, 1)
         Y = (0, 1)
+
     does not make X and Y always have equal values!"""
     if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
         if len(a) != len(b):

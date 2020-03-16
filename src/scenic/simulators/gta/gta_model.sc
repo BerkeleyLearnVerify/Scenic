@@ -1,3 +1,4 @@
+"""World model for GTA."""
 
 import random
 
@@ -10,10 +11,16 @@ if mapPath is None:
 	raise RuntimeError('need to select GTA map for this scenario')
 m = Map.fromFile(mapPath)
 
+#: Vector field representing the nominal traffic direction at a point on the road
 roadDirection = m.roadDirection
+
+#: Region representing the roads in the GTA map.
 road = m.roadRegion
+
+#: Region representing the curbs in the GTA map.
 curb = m.curbRegion
 
+#: Workspace over the `road` Region.
 workspace = MapWorkspace(m, road)
 
 # Default values for time and weather
@@ -69,8 +76,8 @@ constructor Bus(Car):
 constructor Compact(Car):
 	model: CarModel.models['BLISTA']
 
-# Helper function for making platoons
 def createPlatoonAt(car, numCars, model=None, dist=(2, 8), shift=(-0.5, 0.5), wiggle=0):
+	"""Create a platoon starting from the given car."""
 	cars = [car]
 	lastCar = car
 	for i in range(numCars-1):

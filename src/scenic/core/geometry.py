@@ -1,6 +1,4 @@
-
-#### GEOMETRY
-#### utility functions for geometric computation
+"""Utility functions for geometric computation."""
 
 import math
 import itertools
