@@ -20,11 +20,17 @@ def sampleEgoWithFeedback(scenario, f, numSamples, maxIterations=1):
         feedback = f(ego)
     return egos
 
+def checkCEConvergence(scenario, rangeCheck=(lambda x: x == -1 or x == 1)):
+    f = lambda ego: -1 if ego.position.x > 0 else 1
+    xs = [ego.position.x for ego in sampleEgoWithFeedback(scenario, f, 800)]
+    assert all(rangeCheck(x) for x in xs)
+    assert 22 <= sum(x < 0 for x in xs[:30])
+    assert 143 <= sum(x > 0 for x in xs[200:])
+
 ## Particular samplers
 
 def test_halton():
     scenario = compileScenic(
-        'from scenic.core.external_params import *\n'
         'param verifaiSamplerType = "halton"\n'
         'ego = Object at VerifaiRange(5, 15) @ 0'
     )
@@ -34,7 +40,6 @@ def test_halton():
 
 def test_cross_entropy():
     scenario = compileScenic(
-        'from scenic.core.external_params import *\n'
         'param verifaiSamplerType = "ce"\n'
         'from dotmap import DotMap\n'
         'ce_params = DotMap()\n'
@@ -48,6 +53,42 @@ def test_cross_entropy():
     assert all(5 <= x <= 15 for x in xs)
     assert any(x > 10 for x in xs)
     assert 66 <= sum(x < 10 for x in xs[50:])
+
+def test_cross_entropy_inline():
+    scenario = compileScenic(
+        'param verifaiSamplerType = "ce"\n'
+        'from dotmap import DotMap\n'
+        'param verifaiSamplerParams = DotMap(alpha=0.99)\n'
+        'ego = Object at VerifaiRange(-1, 1, weights=[100, 1]) @ 0'
+    )
+    checkCEConvergence(scenario, rangeCheck=(lambda x: -1 <= x <= 1))
+
+def test_cross_entropy_options():
+    scenario = compileScenic(
+        'param verifaiSamplerType = "ce"\n'
+        'from dotmap import DotMap\n'
+        'param verifaiSamplerParams = DotMap(alpha=0.99)\n'
+        'ego = Object at VerifaiOptions({-1: 100, 1: 1}) @ 0'
+    )
+    checkCEConvergence(scenario)
+
+def test_cross_entropy_prior():
+    scenario = compileScenic(
+        'param verifaiSamplerType = "ce"\n'
+        'from dotmap import DotMap\n'
+        'param verifaiSamplerParams = DotMap(alpha=0.99)\n'
+        'ego = Object at VerifaiParameter.withPrior(Options({-1: 100, 1: 1})) @ 0'
+    )
+    checkCEConvergence(scenario)
+
+def test_cross_entropy_prior_normal():
+    scenario = compileScenic(
+        'param verifaiSamplerType = "ce"\n'
+        'from dotmap import DotMap\n'
+        'param verifaiSamplerParams = DotMap(alpha=0.99)\n'
+        'ego = Object at VerifaiParameter.withPrior(Normal(-1, 0.7)) @ 0'
+    )
+    checkCEConvergence(scenario, rangeCheck=(lambda x: True))
 
 ## Reproducibility
 

@@ -23,6 +23,7 @@ __all__ = (
 	'Region', 'PointSetRegion', 'RectangularRegion', 'PolygonalRegion', 'PolylineRegion',
 	'Workspace', 'Mutator',
 	'Range', 'Options', 'Uniform', 'Normal',
+	'VerifaiParameter', 'VerifaiRange', 'VerifaiDiscreteRange', 'VerifaiOptions',
 	# Constructible types
 	'Point', 'OrientedPoint', 'Object',
 	# Specifiers
@@ -44,6 +45,8 @@ from scenic.core.regions import (Region, PointSetRegion, RectangularRegion,
 from scenic.core.workspaces import Workspace
 from scenic.core.distributions import Range, Options, Normal
 Uniform = lambda *opts: Options(opts)		# TODO separate these?
+from scenic.core.external_params import (VerifaiParameter, VerifaiRange, VerifaiDiscreteRange,
+                                         VerifaiOptions)
 from scenic.core.object_types import Mutator, Point, OrientedPoint, Object
 from scenic.core.specifiers import PropertyDefault	# TODO remove
 

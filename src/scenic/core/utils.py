@@ -1,15 +1,22 @@
 """Assorted utility functions and common exceptions."""
 
 import functools
+import math
+
+sqrt2 = math.sqrt(2)
 
 def cached(oldMethod):
     """Decorator for making a method with no arguments cache its result"""
     storageName = f'_cached_{oldMethod.__name__}'
     @functools.wraps(oldMethod)
     def newMethod(self):
-        if not hasattr(self, storageName):
-            setattr(self, storageName, oldMethod(self))
-        return getattr(self, storageName)
+        try:
+            # Use __getattribute__ for direct lookup in case self is a Distribution
+            return self.__getattribute__(storageName)
+        except AttributeError:
+            value = oldMethod(self)
+            setattr(self, storageName, value)
+            return value
     return newMethod
 
 def argsToString(args):

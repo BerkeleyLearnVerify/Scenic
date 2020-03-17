@@ -4,11 +4,16 @@ import collections
 import itertools
 import functools
 import random
+import math
+import warnings
+
+import numpy
+import scipy
 
 from scenic.core.lazy_eval import (LazilyEvaluable, DelayedArgument,
                                    requiredProperties, needsLazyEvaluation, valueInContext,
                                    makeDelayedFunctionCall)
-from scenic.core.utils import argsToString, areEquivalent, RuntimeParseError
+from scenic.core.utils import argsToString, areEquivalent, RuntimeParseError, cached, sqrt2
 
 ## Misc
 
@@ -131,6 +136,27 @@ class Distribution(Samplable):
 	def clone(self):
 		"""Construct an independent copy of this Distribution."""
 		raise NotImplementedError('clone() not supported by this distribution')
+
+	@property
+	@cached
+	def isPrimitive(self):
+		"""Whether this is a primitive Distribution."""
+		try:
+			self.clone()
+			return True
+		except NotImplementedError:
+			return False
+
+	def bucket(self, buckets=None):
+		"""Construct a bucketed approximation of this Distribution.
+
+		This function factors a given Distribution into a discrete distribution over
+		buckets together with a distribution for each bucket. The argument *buckets*
+		controls how many buckets the domain of the original Distribution is split into.
+		Since the result is an independent distribution, the original must support
+		clone().
+		"""
+		raise NotImplementedError('bucket() not supported by this distribution')
 
 	def supportInterval(self):
 		"""Compute lower and upper bounds on the value of this Distribution."""
@@ -455,9 +481,34 @@ def makeOperatorHandler(op):
 for op in allowedOperators:
 	setattr(Distribution, op, makeOperatorHandler(op))
 
-## Simple distributions
-
 import scenic.core.type_support as type_support
+
+class MultiplexerDistribution(Distribution):
+	"""Distribution selecting among values based on another distribution."""
+
+	def __init__(self, index, options):
+		self.index = index
+		self.options = tuple(toDistribution(opt) for opt in options)
+		assert len(self.options) > 0
+		valueType = type_support.unifyingType(self.options)
+		super().__init__(index, *self.options, valueType=valueType)
+
+	def sampleGiven(self, value):
+		idx = value[self.index]
+		assert 0 <= idx < len(self.options), (idx, len(self.options))
+		return value[self.options[idx]]
+
+	def evaluateInner(self, context):
+		return type(self)(valueInContext(self.index, context),
+		                  (valueInContext(opt, context) for opt in self.options))
+
+	def isEquivalentTo(self, other):
+		if not type(other) == type(self):
+			return False
+		return (areEquivalent(self.index, other.index)
+		        and areEquivalent(self.options, other.options))
+
+## Simple distributions
 
 class Range(Distribution):
 	"""Uniform distribution over a range"""
@@ -473,6 +524,20 @@ class Range(Distribution):
 
 	def clone(self):
 		return type(self)(self.low, self.high)
+
+	def bucket(self, buckets=None):
+		if buckets is None:
+			buckets = 5
+		if not isinstance(buckets, int) or buckets < 1:
+			raise RuntimeError(f'Invalid buckets for Range.bucket: {buckets}')
+		if not isinstance(self.low, float) or not isinstance(self.high, float):
+			raise RuntimeError(f'Cannot bucket Range with non-constant endpoints')
+		endpoints = numpy.linspace(self.low, self.high, buckets+1)
+		ranges = []
+		for i, left in enumerate(endpoints[:-1]):
+			right = endpoints[i+1]
+			ranges.append(Range(left, right))
+		return Options(ranges)
 
 	def sampleGiven(self, value):
 		return random.uniform(value[self.low], value[self.high])
@@ -500,8 +565,53 @@ class Normal(Distribution):
 		self.mean = mean
 		self.stddev = stddev
 
+	@staticmethod
+	def cdf(mean, stddev, x):
+		return (1 + math.erf((x - mean) / (sqrt2 * stddev))) / 2
+
+	@staticmethod
+	def cdfinv(mean, stddev, x):
+		return mean + (sqrt2 * stddev * scipy.special.erfinv(2*x - 1))
+
 	def clone(self):
 		return type(self)(self.mean, self.stddev)
+
+	def bucket(self, buckets=None):
+		if not isinstance(self.stddev, float):		# TODO relax restriction?
+			raise RuntimeError(f'Cannot bucket Normal with non-constant standard deviation')
+		if buckets is None:
+			buckets = 5
+		if isinstance(buckets, int):
+			if buckets < 1:
+				raise RuntimeError(f'Invalid buckets for Normal.bucket: {buckets}')
+			elif buckets == 1:
+				endpoints = []
+			elif buckets == 2:
+				endpoints = [0]
+			else:
+				left = self.stddev * (-(buckets-3)/2 - 0.5)
+				right = self.stddev * ((buckets-3)/2 + 0.5)
+				endpoints = numpy.linspace(left, right, buckets-1)
+		else:
+			endpoints = tuple(buckets)
+			for i, v in enumerate(endpoints[:-1]):
+				if v >= endpoints[i+1]:
+					raise RuntimeError('Non-increasing bucket endpoints for '
+					                   f'Normal.bucket: {endpoints}')
+		if len(endpoints) == 0:
+			return Options([self.clone()])
+		buckets = [(-math.inf, endpoints[0])]
+		buckets.extend((v, endpoints[i+1]) for i, v in enumerate(endpoints[:-1]))
+		buckets.append((endpoints[-1], math.inf))
+		pieces = []
+		probs = []
+		for left, right in buckets:
+			pieces.append(self.mean + TruncatedNormal(0, self.stddev, left, right))
+			prob = (Normal.cdf(0, self.stddev, right)
+			        - Normal.cdf(0, self.stddev, left))
+			probs.append(prob)
+		assert math.isclose(math.fsum(probs), 1), probs
+		return Options(dict(zip(pieces, probs)))
 
 	def sampleGiven(self, value):
 		return random.gauss(value[self.mean], value[self.stddev])
@@ -520,16 +630,128 @@ class Normal(Distribution):
 	def __str__(self):
 		return f'Normal({self.mean}, {self.stddev})'
 
-class Options(Distribution):
+class TruncatedNormal(Normal):
+	"""Truncated normal distribution."""
+	def __init__(self, mean, stddev, low, high):
+		if (not isinstance(low, (float, int))
+		    or not isinstance(high, (float, int))):	# TODO relax restriction?
+			raise RuntimeError('Endpoints of TruncatedNormal must be constant')
+		super().__init__(mean, stddev)
+		self.low = low
+		self.high = high
+
+	def clone(self):
+		return type(self)(self.mean, self.stddev, self.low, self.high)
+
+	def bucket(self, buckets=None):
+		if not isinstance(self.stddev, float):		# TODO relax restriction?
+			raise RuntimeError('Cannot bucket TruncatedNormal with '
+			                   'non-constant standard deviation')
+		if buckets is None:
+			buckets = 5
+		if isinstance(buckets, int):
+			if buckets < 1:
+				raise RuntimeError(f'Invalid buckets for TruncatedNormal.bucket: {buckets}')
+			endpoints = numpy.linspace(self.low, self.high, buckets+1)
+		else:
+			endpoints = tuple(buckets)
+			if len(endpoints) < 2:
+				raise RuntimeError('Too few bucket endpoints for '
+				                   f'TruncatedNormal.bucket: {endpoints}')
+			if endpoints[0] != self.low or endpoints[-1] != self.high:
+				raise RuntimeError(f'TruncatedNormal.bucket endpoints {endpoints} '
+				                   'do not match domain')
+			for i, v in enumerate(endpoints[:-1]):
+				if v >= endpoints[i+1]:
+					raise RuntimeError('Non-increasing bucket endpoints for '
+					                   f'TruncatedNormal.bucket: {endpoints}')
+		pieces, probs = [], []
+		for i, left in enumerate(endpoints[:-1]):
+			right = endpoints[i+1]
+			pieces.append(TruncatedNormal(self.mean, self.stddev, left, right))
+			prob = (Normal.cdf(self.mean, self.stddev, right)
+			        - Normal.cdf(self.mean, self.stddev, left))
+			probs.append(prob)
+		return Options(dict(zip(pieces, probs)))
+
+	def sampleGiven(self, value):
+		# TODO switch to method less prone to underflow?
+		mean, stddev = value[self.mean], value[self.stddev]
+		alpha = (self.low - mean) / stddev
+		beta = (self.high - mean) / stddev
+		alpha_cdf = Normal.cdf(0, 1, alpha)
+		beta_cdf = Normal.cdf(0, 1, beta)
+		if beta_cdf - alpha_cdf < 1e-15:
+			warnings.warn('low precision when sampling TruncatedNormal')
+		unif = random.random()
+		p = alpha_cdf + unif * (beta_cdf - alpha_cdf)
+		return mean + (stddev * Normal.cdfinv(0, 1, p))
+
+	def evaluateInner(self, context):
+		mean = valueInContext(self.mean, context)
+		stddev = valueInContext(self.stddev, context)
+		return TruncatedNormal(mean, stddev, self.low, self.high)
+
+	def isEquivalentTo(self, other):
+		if not type(other) is TruncatedNormal:
+			return False
+		return (areEquivalent(self.mean, other.mean)
+			and areEquivalent(self.stddev, other.stddev)
+			and self.low == other.low and self.high == other.high)
+
+	def __str__(self):
+		return f'TruncatedNormal({self.mean}, {self.stddev}, {self.low}, {self.high})'
+
+class DiscreteRange(Distribution):
+	"""Distribution over a range of integers."""
+	def __init__(self, low, high, weights=None):
+		if not isinstance(low, int):
+			raise RuntimeError(f'DiscreteRange endpoint {low} is not a constant integer')
+		if not isinstance(high, int):
+			raise RuntimeError(f'DiscreteRange endpoint {high} is not a constant integer')
+		if not low <= high:
+			raise RuntimeError(f'DiscreteRange lower bound {low} is above upper bound {high}')
+		if weights is None:
+			weights = (1,) * (high - low + 1)
+		else:
+			weights = tuple(weights)
+			assert len(weights) == high - low + 1
+		super().__init__()
+		self.low = low
+		self.high = high
+		self.weights = weights
+		self.cumulativeWeights = tuple(itertools.accumulate(weights))
+		self.options = tuple(range(low, high+1))
+
+	def __contains__(self, obj):
+		return low <= obj and obj <= high
+
+	def clone(self):
+		return type(self)(self.low, self.high, self.weights)
+
+	def bucket(self, buckets=None):
+		return self.clone()		# already bucketed
+
+	def sampleGiven(self, value):
+		return random.choices(self.options, cum_weights=self.cumulativeWeights)[0]
+
+	def isEquivalentTo(self, other):
+		if not type(other) is DiscreteRange:
+			return False
+		return (self.low == other.low and self.high == other.high
+		        and self.weights == other.weights)
+
+	def __str__(self):
+		return f'DiscreteRange({self.low}, {self.high}, {self.weights})'
+
+class Options(MultiplexerDistribution):
 	"""Distribution over a finite list of options.
 
 	Specified by a dict giving probabilities; otherwise uniform over a given iterable.
 	"""
 	def __init__(self, opts):
 		if isinstance(opts, dict):
-			options = []
-			self.weights = dict()
-			ordered = []
+			options, weights = [], []
 			for opt, prob in opts.items():
 				if not isinstance(prob, (float, int)):
 					raise RuntimeParseError(f'discrete distribution weight {prob}'
@@ -538,42 +760,44 @@ class Options(Distribution):
 					raise RuntimeParseError(f'discrete distribution weight {prob} is negative')
 				if prob == 0:
 					continue
-				opt = toDistribution(opt)
 				options.append(opt)
-				self.weights[opt] = prob
-				ordered.append(prob)
-			self.options = tuple(options)
-			self.cumulativeWeights = tuple(itertools.accumulate(ordered))
+				weights.append(prob)
+			self.optWeights = dict(zip(options, weights))
 		else:
-			self.options = tuple(toDistribution(opt) for opt in opts)
-			self.cumulativeWeights = None
-		if len(self.options) == 0:
+			weights = None
+			options = tuple(opts)
+			self.optWeights = None
+		if len(options) == 0:
 			raise RuntimeParseError('tried to make discrete distribution over empty domain!')
-		valueType = type_support.unifyingType(self.options)
-		super().__init__(*self.options, valueType=valueType)
+
+		index = self.makeSelector(len(options)-1, weights)
+		super().__init__(index, options)
+
+	@staticmethod
+	def makeSelector(n, weights):
+		return DiscreteRange(0, n, weights)
 
 	def clone(self):
-		return type(self)(self.weights if self.cumulativeWeights is not None else self.options)
+		return type(self)(self.optWeights if self.optWeights else self.options)
 
-	def sampleGiven(self, value):
-		opts = [value[opt] for opt in self.options]
-		return random.choices(opts, cum_weights=self.cumulativeWeights)[0]
+	def bucket(self, buckets=None):
+		return self.clone()		# already bucketed
 
 	def evaluateInner(self, context):
-		if self.cumulativeWeights is not None:
-			return Options({ valueInContext(opt, context): wt
-			               for opt, wt in self.weights.items() })
+		if self.optWeights is None:
+			return type(self)(valueInContext(opt, context) for opt in self.options)
 		else:
-			return Options([valueInContext(opt, context) for opt in self.options])
+			return type(self)({valueInContext(opt, context): wt
+			                  for opt, wt in self.optWeights.items() })
 
 	def isEquivalentTo(self, other):
-		if not type(other) == Options:
+		if not type(other) == type(self):
 			return False
-		return (areEquivalent(self.options, other.options)
-			and self.cumulativeWeights == other.cumulativeWeights)
+		return (areEquivalent(self.index, other.index)
+		        and areEquivalent(self.options, other.options))
 
 	def __str__(self):
-		if self.cumulativeWeights is not None:
-			return f'Options({self.weights})'
+		if self.optWeights is not None:
+			return f'{type(self).__name__}({self.optWeights})'
 		else:
-			return f'Options{argsToString(self.options)}'
+			return f'{type(self).__name__}{argsToString(self.options)}'
