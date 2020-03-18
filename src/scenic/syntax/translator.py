@@ -717,7 +717,7 @@ class TokenTranslator:
 					# allow the next specifier to be on the next line, if indented
 					nextToken = peek(tokens)
 					specOnNewLine = False
-					while nextToken.exact_type in (NEWLINE, NL, COMMENT):
+					while nextToken.exact_type in (NEWLINE, NL, COMMENT, ENDMARKER):
 						specOnNewLine = True
 						if nextToken.exact_type == COMMENT:
 							next(tokens)	# consume comment
