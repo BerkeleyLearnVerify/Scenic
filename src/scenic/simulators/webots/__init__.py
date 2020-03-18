@@ -1,4 +1,4 @@
-"""Scenic world models for the Webots simulator.
+"""Scenic world models for the Webots robotics simulator.
 
 This module contains common code for working with Webots, e.g. parsing WBT files.
 World models for particular uses of Webots are in submodules.

@@ -9,5 +9,6 @@ Submodules
    gta
    guideways
    webots
+   xplane
 """
 

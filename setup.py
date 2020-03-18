@@ -1,4 +1,4 @@
-"""This is the setup file"""
+"""Setup file for the scenic package."""
 
 from setuptools import setup, find_packages
 
@@ -6,7 +6,7 @@ with open('README.md', 'r') as r:
     long_description = r.read()
 
 setup(name='scenic',
-      version='1.0.0b2',
+      version='1.1.0b1',
       install_requires=[
           'numpy',
           'scipy',
