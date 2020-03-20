@@ -6,7 +6,7 @@ Submodules
 .. autosummary::
    :toctree: _autosummary
 
-   gta_model
+   model
    interface
    center_detection
    img_modf

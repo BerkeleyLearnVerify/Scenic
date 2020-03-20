@@ -8,7 +8,7 @@ Submodules
 .. autosummary::
    :toctree: _autosummary
 
-   xplane_model
+   model
 
 .. _VerifAI distribution: https://github.com/BerkeleyLearnVerify/VerifAI
 """

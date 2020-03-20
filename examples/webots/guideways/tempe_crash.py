@@ -8,7 +8,7 @@ base = os.path.dirname(__file__)
 jsonPath = os.path.join(base, 'McClintock_DonCarlos_Tempe.json')
 osmPath = os.path.join(base, 'McClintock_DonCarlos_Tempe.osm')
 
-import scenic.simulators.guideways.intersection as gw_int
+import scenic.simulators.webots.guideways.intersection as gw_int
 gw_int.intersectionPath = jsonPath
 
 # figure out coordinate system used by Webots OSM importer

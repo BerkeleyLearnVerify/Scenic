@@ -1,8 +1,8 @@
 
 import json
 
-from scenic.simulators.guideways.interface import Intersection, IntersectionWorkspace
-from scenic.simulators.guideways.intersection import intersectionPath, intersectionOrigin
+from scenic.simulators.webots.guideways.interface import Intersection, IntersectionWorkspace
+from scenic.simulators.webots.guideways.intersection import intersectionPath, intersectionOrigin
 from scenic.simulators.webots.road.car_models import CarModel, carModels, modelWithName
 
 # Load intersection information and set up workspace

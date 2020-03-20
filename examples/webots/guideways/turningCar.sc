@@ -1,7 +1,7 @@
 
 import tempe_crash
 
-from scenic.simulators.guideways.guideways_model import *
+from scenic.simulators.webots.guideways.model import *
 
 # find left-turn guideway
 turnGuideway = None

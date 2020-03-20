@@ -6,6 +6,6 @@ Submodules
 .. autosummary::
    :toctree: _autosummary
 
-   mars_model
+   model
 """
 

@@ -1,7 +1,7 @@
 from scenic.simulators.gta.map import setLocalMap
 setLocalMap(__file__, 'map.npz')
 
-from scenic.simulators.gta.gta_model import *
+from scenic.simulators.gta.model import *
 
 spot = OrientedPoint on curb
 badAngle = Options([1.0, -1.0]) * (10, 20) deg

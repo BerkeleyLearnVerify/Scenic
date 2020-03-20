@@ -17,7 +17,7 @@ def test_noninterference(runLocally):
     code = (
         "import scenic.simulators.webots.road.world as world\n"
         "world.worldPath = 'richmond.wbt'\n"
-        "from scenic.simulators.webots.road.road_model import *\n"
+        "from scenic.simulators.webots.road.model import *\n"
         "ego = Pedestrian"
     )
     with runLocally():

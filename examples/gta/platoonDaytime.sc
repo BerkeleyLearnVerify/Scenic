@@ -1,7 +1,7 @@
 from scenic.simulators.gta.map import setLocalMap
 setLocalMap(__file__, 'map.npz')
 
-from scenic.simulators.gta.gta_model import *
+from scenic.simulators.gta.model import *
 
 param time = (8, 20) * 60	# 8 am to 8 pm
 

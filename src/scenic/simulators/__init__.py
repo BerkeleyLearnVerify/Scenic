@@ -7,7 +7,6 @@ Submodules
    :toctree: _autosummary
 
    gta
-   guideways
    webots
    xplane
 """

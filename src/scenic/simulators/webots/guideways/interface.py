@@ -7,8 +7,7 @@ import re
 try:
 	import pyproj
 except ModuleNotFoundError as e:
-	import sys
-	sys.exit('guideways scenarios require pyproj to be installed')
+	raise RuntimeError('guideways scenarios require pyproj to be installed') from e
 
 import numpy as np
 

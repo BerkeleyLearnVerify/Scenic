@@ -1,7 +1,7 @@
 
 import tempe_crash  # Sets up intersection data
 
-from scenic.simulators.guideways.guideways_model import *
+from scenic.simulators.webots.guideways.model import *
 
 # find various guideways
 uberGuideway = intersection.mainGuideway

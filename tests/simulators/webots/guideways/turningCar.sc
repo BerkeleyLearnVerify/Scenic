@@ -1,8 +1,8 @@
 
-from scenic.simulators.guideways.intersection import setLocalIntersection
+from scenic.simulators.webots.guideways.intersection import setLocalIntersection
 setLocalIntersection(__file__, 'McClintock_DonCarlos_Tempe.json')
 
-from scenic.simulators.guideways.guideways_model import *
+from scenic.simulators.webots.guideways.model import *
 
 # find left-turn guideway
 turnGuideway = None

@@ -1,5 +1,5 @@
 
-from scenic.simulators.webots.mars.mars_model import *
+from scenic.simulators.webots.mars.model import *
 
 ego = Robot at 0 @ -2
 

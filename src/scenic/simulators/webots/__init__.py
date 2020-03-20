@@ -11,6 +11,7 @@ Submodules
 
    mars
    road
+   guideways
    common
    world_parser
 """
