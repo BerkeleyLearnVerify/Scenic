@@ -175,11 +175,15 @@ def verbosePrint(msg):
 		indent = '  ' * activity if translator.verbosity >= 2 else '  '
 		print(indent + msg)
 
-def param(**params):
+def param(*quotedParams, **params):
 	"""Function implementing the param statement."""
 	if evaluatingRequirement:
 		raise RuntimeParseError('tried to create a global parameter inside a requirement')
 	for name, value in params.items():
+		globalParameters[name] = toDistribution(value)
+	assert len(quotedParams) % 2 == 0, quotedParams
+	it = iter(quotedParams)
+	for name, value in zip(it, it):
 		globalParameters[name] = toDistribution(value)
 
 def mutate(*objects):		# TODO update syntax
