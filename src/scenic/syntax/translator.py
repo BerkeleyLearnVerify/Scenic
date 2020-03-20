@@ -39,7 +39,7 @@ from tokenize import NAME, NL, NEWLINE, ENDMARKER, OP, NUMBER, COLON, COMMENT, E
 from tokenize import LPAR, RPAR, LSQB, RSQB, COMMA, DOUBLESLASH, DOUBLESLASHEQUAL
 from tokenize import AT, LEFTSHIFT, RIGHTSHIFT, VBAR, AMPER, TILDE, CIRCUMFLEX, STAR
 from tokenize import LEFTSHIFTEQUAL, RIGHTSHIFTEQUAL, VBAREQUAL, AMPEREQUAL, CIRCUMFLEXEQUAL
-from tokenize import INDENT, DEDENT
+from tokenize import INDENT, DEDENT, STRING
 
 import ast
 from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_missing_locations
@@ -203,7 +203,8 @@ for imp in internalFunctions:
 ## Statements implemented by functions
 
 requireStatement = 'require'
-functionStatements = { requireStatement, 'param', 'mutate' }
+paramStatement = 'param'
+functionStatements = { requireStatement, paramStatement, 'mutate' }
 
 # sanity check: implementations of statements actually exist
 for imp in functionStatements:
@@ -582,7 +583,16 @@ class TokenTranslator:
 				# elide dedent corresponding to indented specifiers, if present
 				skip = True
 				specifiersIndented = False
-			elif ttype == NAME:		# the interesting case: all new syntax falls in here
+			elif ttype == STRING:
+				# special case for global parameters with quoted names:
+				# transform "name"=value into "name", value
+				if (len(functionStack) > 0 and functionStack[-1][0] == paramStatement
+				    and peek(tokens).string == '='):
+					next(tokens)	# consume '='
+					newTokens.append(token[:2])
+					newTokens.append((COMMA, ','))
+					skip = True
+			elif ttype == NAME:		# the interesting case: almost all new syntax falls in here
 				function = None
 				argument = None
 
