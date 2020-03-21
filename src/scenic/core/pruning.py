@@ -105,11 +105,16 @@ def pruneContainment(scenario, verbosity):
         elif base is container:
             continue
         newBasePoly = basePoly & containerPoly      # restrict the base Region to the container
+        if newBasePoly.is_empty:
+            raise InvalidScenarioError(f'Object {obj} does not fit in container')
         if verbosity >= 1:
-            percent = 100 * (1.0 - (newBasePoly.area / basePoly.area))
+            if basePoly.area > 0:
+                ratio = newBasePoly.area / basePoly.area
+            else:
+                ratio = newBasePoly.length / basePoly.length
+            percent = 100 * (1.0 - ratio)
             print(f'    Region containment constraint pruned {percent:.1f}% of space.')
-        newBase = regions.PolygonalRegion(polygon=newBasePoly,
-                                          orientation=base.orientation)
+        newBase = regions.regionFromShapelyObject(newBasePoly, orientation=base.orientation)
         newPos = regions.Region.uniformPointIn(newBase)
         obj.position.conditionTo(newPos)
 

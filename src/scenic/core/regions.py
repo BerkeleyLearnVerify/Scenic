@@ -27,6 +27,14 @@ def toPolygon(thing):
 		return thing.lineString
 	return None
 
+def regionFromShapelyObject(obj, orientation=None):
+	if isinstance(obj, (shapely.geometry.Polygon, shapely.geometry.MultiPolygon)):
+		return PolygonalRegion(polygon=obj, orientation=orientation)
+	elif isinstance(obj, (shapely.geometry.LineString, shapely.geometry.MultiLineString)):
+		return PolylineRegion(polyline=obj, orientation=orientation)
+	else:
+		raise RuntimeError(f'unhandled type of Shapely geometry: {obj}')
+
 class PointInRegionDistribution(VectorDistribution):
 	"""Uniform distribution over points in a Region"""
 	def __init__(self, region):
@@ -291,8 +299,8 @@ class RectangularRegion(RotatedRectangle, Region):
 
 class PolylineRegion(Region):
 	"""Region given by one or more polylines (chain of line segments)"""
-	def __init__(self, points=None, polyline=None):
-		super().__init__('Polyline', orientation=True)
+	def __init__(self, points=None, polyline=None, orientation=True):
+		super().__init__('Polyline', orientation=orientation)
 		if points is not None:
 			points = tuple(points)
 			if len(points) < 2:
