@@ -114,6 +114,7 @@ class Scenario:
 			maxIterations (int): Maximum number of rejection sampling iterations.
 			verbosity (int): Verbosity level.
 			feedback (float): Feedback to pass to external samplers doing active sampling.
+				See :mod:`scenic.core.external_params`.
 
 		Returns:
 			A pair with the sampled `Scene` and the number of iterations used.

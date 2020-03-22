@@ -3,8 +3,8 @@
 .. automodule:: {{ fullname }}
 
    {% if functions or classes or exceptions %}
-   Summary of Members
-   ==================
+   Summary of Module Members
+   =========================
 
    {% block attributes %}
    {% if attributes %}
@@ -53,6 +53,6 @@
    {% endif %}
    {% endblock %}
 
-   Details
-   =======
+   Member Details
+   ==============
    {% endif %}

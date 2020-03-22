@@ -17,7 +17,7 @@ Scenarios using the `scenic.simulators.webots.guideways` model also require the 
 .. note::
 
 	In the past, the ``shapely`` package did not install properly on Windows.
-	If you encounter this issue, try following the instructions `here <https://github.com/Toblerity/Shapely#built-distributions>`_.
+	If you encounter this issue, try installing it manually following the instructions `here <https://github.com/Toblerity/Shapely#built-distributions>`_.
 
 Trying Some Examples
 --------------------

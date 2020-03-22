@@ -55,6 +55,8 @@ default_role = 'any'
 
 add_module_names = False
 autosummary_generate = True
+autodoc_inherit_docstrings = False
+autodoc_member_order = 'bysource'
 napoleon_numpy_docstring = False
 napoleon_use_rtype = False
 

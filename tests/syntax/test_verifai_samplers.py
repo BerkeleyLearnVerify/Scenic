@@ -22,7 +22,7 @@ def sampleEgoWithFeedback(scenario, f, numSamples, maxIterations=1):
 
 def checkCEConvergence(scenario, rangeCheck=(lambda x: x == -1 or x == 1)):
     f = lambda ego: -1 if ego.position.x > 0 else 1
-    xs = [ego.position.x for ego in sampleEgoWithFeedback(scenario, f, 800)]
+    xs = [ego.position.x for ego in sampleEgoWithFeedback(scenario, f, 1200)]
     assert all(rangeCheck(x) for x in xs)
     assert 22 <= sum(x < 0 for x in xs[:30])
     assert 143 <= sum(x > 0 for x in xs[200:])
@@ -90,11 +90,10 @@ def test_cross_entropy_prior_normal():
     )
     checkCEConvergence(scenario, rangeCheck=(lambda x: True))
 
-## Reproducibility
+## Reproducibility and noninterference
 
 def test_reproducibility():
     scenario = compileScenic(
-        'from scenic.core.external_params import *\n'
         'param verifaiSamplerType = "ce"\n'
         'ego = Object at VerifaiRange(-1, 1) @ 0'
     )
@@ -111,3 +110,10 @@ def test_reproducibility():
         base = sampleSequence(seed)
         other = sampleSequence(seed)
         assert base == other
+
+def test_noninterference():
+    for i in range(2):
+        scenario = compileScenic('ego = Object at VerifaiRange(0, 1) @ 0')
+        for j in range(5):
+            scene, iterations = scenario.generate(maxIterations=1)
+            assert len(scenario.externalSampler.cachedSample) == 1

@@ -1,4 +1,100 @@
-"""Support for values which are sampled outside of Scenic."""
+"""Support for values which are sampled outside of Scenic.
+
+External Samplers in General
+============================
+
+External samplers provide a mechanism to use different types of sampling
+techniques, like optimization or quasi-random sampling, from within a Scenic
+program. Ordinary random values in Scenic are instances of `Distribution`;
+this module defines a special subclass, `ExternalParameter`, representing a
+value which is sampled externally. Scenic programs with external parameters
+are handled as follows:
+
+	1. During compilation, all instances of `ExternalParameter` are gathered
+	   together and given to the `ExternalSampler.forParameters` function;
+	   this function creates an appropriate `ExternalSampler`,
+	   whose configuration can be controlled using various global parameters
+	   (``param`` statements).
+
+	2. When sampling a scene, before sampling any other distributions the
+	   :obj:`~ExternalSampler.sample` method of the `ExternalSampler` is
+	   called to sample all the external parameters. For active samplers, this
+	   method passes along the ``feedback`` value given to `Scenario.generate`,
+	   if any.
+
+	3. Once the external parameters have values, the program is equivalent to
+	   one without external parameters, and sampling proceeds as usual. As for
+	   every instance of `Distribution`, the external parameters will have
+	   their :obj:`~Samplable.sampleGiven` method called once all their
+	   dependencies have been sampled; by default this method just returns the
+	   value sampled for this parameter in step (2).
+
+.. note::
+
+	Note that while external parameters, like all instances of `Distribution`,
+	are allowed to have dependencies, they are an exception to the usual rule
+	that dependencies are always sampled before dependents, because the
+	`ExternalSampler.sample` method is called before any other sampling.
+	However, as explained above, the :obj:`~Samplable.sampleGiven` method is
+	called in the proper order and external samplers which need to do sampling
+	based on the values of other distributions can be invoked from it. The
+	two-step mechanism with `ExternalSampler.sample` is provided for samplers
+	which sample the whole space of external parameters at once (e.g. the
+	VerifAI samplers).
+
+Samplers from VerifAI
+=====================
+
+The external sampling mechanism is designed to be extensible. The only built-in
+`ExternalSampler` is the `VerifaiSampler`, which provides access to the
+samplers in the `VerifAI`_ toolkit (which in turn can use Scenic as a modeling
+language).
+
+The `VerifaiSampler` supports several types of external parameters corresponding
+to the primitive distributions: `VerifaiRange` and `VerifaiDiscreteRange` for
+continuous and discrete intervals, and `VerifaiOptions` for discrete sets.
+For example, suppose we write::
+
+	ego = Object at VerifaiRange(5, 15) @ 0
+
+This is equivalent to the ordinary Scenic line ``ego = Object at (5, 15) @ 0``,
+except that the X coordinate of the ego is sampled by VerifAI within the range
+(5, 15) instead of being uniformly distributed over it. By default the
+`VerifaiSampler` uses VerifAI's `Halton`_ sampler, so the range will still be
+covered uniformly but more systematically. If we want to use a different sampler,
+we can set the ``verifaiSamplerType`` global parameter::
+
+	param verifaiSamplerType = 'ce'
+	ego = Object at VerifaiRange(5, 15) @ 0
+
+Now the X coordinate will be sampled using VerifAI's `cross-entropy`_ sampler.
+If we pass a feedback value to `Scenario.generate` which scores the previous
+scene, then the coordinate will not be sampled uniformly but rather converge to
+a distribution concentrated on values minimizing the score. Active samplers like
+cross-entropy can be used for falsification in this way, driving a system toward
+parts of the parameter space where a specification is violated.
+
+The cross-entropy sampler in VerifAI can be started from a non-uniform prior.
+Scenic provides a convenient way to define this prior using the ordinary syntax
+for distributions::
+
+	param verifaiSamplerType = 'ce'
+	ego = Object at VerifaiParameter.withPrior(Normal(10, 3)) @ 0
+
+Now cross-entropy sampling will start from a normal distribution with mean 10
+and standard deviation 3. Priors are restricted to primitive distributions and
+in general may be approximated so that VerifAI can handle them -- see
+`VerifaiParameter.withPrior` for details.
+
+For more information on how to customize the sampler, see `VerifaiSampler`.
+
+.. _VerifAI: https://github.com/BerkeleyLearnVerify/VerifAI
+
+.. _Halton: https://en.wikipedia.org/wiki/Halton_sequence
+
+.. _cross-entropy: https://en.wikipedia.org/wiki/Cross-entropy_method
+
+"""
 
 from dotmap import DotMap
 import numpy
@@ -7,12 +103,33 @@ from scenic.core.distributions import Distribution, Options
 from scenic.core.utils import InvalidScenarioError
 
 class ExternalSampler:
+	"""Abstract class for objects called to sample values for each external parameter.
+
+	Attributes:
+		rejectionFeedback: Value passed to the `sample` method when the last sample was rejected.
+		  This value can be chosen by a Scenic scenario using the global parameter
+		  ``externalSamplerRejectionFeedback``.
+	"""
 	def __init__(self, params, globalParams):
 		# feedback value passed to external sampler when the last scene was rejected
 		self.rejectionFeedback = globalParams.get('externalSamplerRejectionFeedback')
 
 	@staticmethod
 	def forParameters(params, globalParams):
+		"""Create an `ExternalSampler` given the sets of external and global parameters.
+
+		The scenario may explicitly select an external sampler by assigning the global
+		parameter ``externalSampler`` to a subclass of `ExternalSampler`. Otherwise, a
+		`VerifaiSampler` is used by default.
+
+		Args:
+			params (tuple): Tuple listing each `ExternalParameter`.
+			globalParams (dict): Dictionary of global parameters for the `Scenario`.
+			  Note that the values of these parameters may be instances of `Distribution`!
+
+		Returns:
+			An `ExternalSampler` configured for the given parameters.
+		"""
 		if len(params) > 0:
 			externalSampler = globalParams.get('externalSampler', VerifaiSampler)
 			if not issubclass(externalSampler, ExternalSampler):
@@ -23,15 +140,33 @@ class ExternalSampler:
 			return None
 
 	def sample(self, feedback):
+		"""Sample values for all the external parameters.
+
+		Args:
+			feedback: Feedback from the last sample (for active samplers).
+		"""
 		self.cachedSample = self.nextSample(feedback)
 
 	def nextSample(self, feedback):
+		"""Actually do the sampling. Implemented by subclasses."""
 		raise NotImplementedError
 
 	def valueFor(self, param):
+		"""Return the sampled value for a parameter. Implemented by subclasses."""
 		raise NotImplementedError
 
 class VerifaiSampler(ExternalSampler):
+	"""An external sampler exposing the samplers in the VerifAI toolkit.
+
+	The sampler can be configured using the following Scenic global parameters:
+
+		* ``verifaiSamplerType`` -- sampler type (see the ``verifai.server.choose_sampler``
+		  function); the default is ``'halton'``
+		* ``verifaiSamplerParams`` -- ``DotMap`` of options passed to the sampler
+
+	The `VerifaiSampler` supports external parameters which are instances of `VerifaiParameter`.
+	"""
+
 	def __init__(self, params, globalParams):
 		super().__init__(params, globalParams)
 		import verifai.features
@@ -107,20 +242,29 @@ class ExternalParameter(Distribution):
 		veneer.registerExternalParameter(self)
 
 	def sampleGiven(self, value):
+		"""Specialization of  `Samplable.sampleGiven` for external parameters.
+
+		By default, this method simply looks up the value previously sampled by
+		`ExternalSampler.sample`.
+		"""
 		assert self.sampler is not None
 		return self.sampler.valueFor(self)
 
 class VerifaiParameter(ExternalParameter):
+	"""An external parameter sampled using one of VerifAI's samplers."""
+
 	def __init__(self, domain):
 		super().__init__()
 		self.domain = domain
 
 	@staticmethod
 	def withPrior(dist, buckets=None):
-		"""Creates a VerifaiParameter using the given distribution as a (approximate) prior.
+		"""Creates a `VerifaiParameter` using the given distribution as a prior.
 
 		Since the VerifAI cross-entropy sampler currently only supports piecewise-constant
-		distributions, if the prior is not of that form it may be approximated.
+		distributions, if the prior is not of that form it may be approximated. For most
+		built-in distributions, the approximation is exact: for a particular distribution,
+		check its `bucket` method.
 		"""
 		if not dist.isPrimitive:
 			raise RuntimeError('VerifaiParameter.withPrior called on '
@@ -129,6 +273,8 @@ class VerifaiParameter(ExternalParameter):
 		return VerifaiOptions(bucketed.optWeights if bucketed.optWeights else bucketed.options)
 
 class VerifaiRange(VerifaiParameter):
+	"""A :obj:`~scenic.core.distributions.Range` (real interval) sampled by VerifAI."""
+
 	def __init__(self, low, high, buckets=None, weights=None):
 		import verifai.features
 		super().__init__(verifai.features.Box([low, high]))
@@ -151,6 +297,8 @@ class VerifaiRange(VerifaiParameter):
 		return value[0]
 
 class VerifaiDiscreteRange(VerifaiParameter):
+	"""A :obj:`~scenic.core.distributions.DiscreteRange` (integer interval) sampled by VerifAI."""
+
 	def __init__(self, low, high, weights=None):
 		import verifai.features
 		super().__init__(verifai.features.DiscreteBox([low, high]))
@@ -169,6 +317,8 @@ class VerifaiDiscreteRange(VerifaiParameter):
 		return value[0]
 
 class VerifaiOptions(Options):
+	"""An :obj:`~scenic.core.distributions.Options` (discrete set) sampled by VerifAI."""
+
 	@staticmethod
 	def makeSelector(n, weights):
 		return VerifaiDiscreteRange(0, n, weights)

@@ -88,7 +88,7 @@ def activate():
 
 def deactivate():
 	"""Deactivate the veneer after compiling a Scenic module."""
-	global activity, allObjects, egoObject, globalParameters
+	global activity, allObjects, egoObject, globalParameters, externalParameters
 	global pendingRequirements, inheritedReqs
 	activity -= 1
 	assert activity >= 0
