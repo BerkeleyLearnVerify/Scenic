@@ -13,5 +13,8 @@ The documentation is organized by the submodules of the main ``scenic`` module:
    scenic.simulators
    scenic.syntax
 
+The ``scenic`` module itself provides two functions as the top-level interface to Scenic:
+
 .. autofunction:: scenic.scenarioFromFile
 
+.. autofunction:: scenic.scenarioFromString

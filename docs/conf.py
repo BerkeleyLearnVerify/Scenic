@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath('.'))    # for docs-specific code
 import scenic.simulators.gta.map as gta_map
 gta_map.mapPath = '../tests/simulators/gta/map.npz'
 import scenic.simulators.webots.guideways.intersection as gw_int
-gw_int.intersectionPath = '../tests/simulators/guideways/McClintock_DonCarlos_Tempe.json'
+gw_int.intersectionPath = '../tests/simulators/webots/guideways/McClintock_DonCarlos_Tempe.json'
 import scenic.simulators.webots.road.world as wbt_road_world
 wbt_road_world.worldPath = '../tests/simulators/webots/road/simple.wbt'
 
@@ -58,11 +58,11 @@ autosummary_generate = True
 napoleon_numpy_docstring = False
 napoleon_use_rtype = False
 
-autodoc_default_flags = [
-"members",
-"private-members",
-"show-inheritance",
-]
+autodoc_default_options = {
+    'members': None,
+    'private-members': None,
+    'show-inheritance': None,
+}
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -75,3 +75,32 @@ html_theme = 'sphinx_rtd_theme'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+html_css_files = [
+    'custom.css',
+]
+
+# -- Extension for correctly displaying Scenic code --------------------------
+
+def setup(app):
+    app.connect('viewcode-find-source', handle_find_source)
+
+    return { 'parallel_read_safe': True }
+
+import importlib
+from sphinx.pycode import ModuleAnalyzer
+
+def handle_find_source(app, modname):
+    module = importlib.import_module(modname)
+    if not getattr(module, '_isScenicModule', False):
+        return None     # no special handling for Python modules
+
+    # Run usual analysis on the translated source to get tag dictionary
+    try:
+        analyzer = ModuleAnalyzer.for_module(modname)
+        analyzer.find_tags()
+    except Exception:
+        return None     # bail out; viewcode will try analyzing again but oh well
+
+    # Return original Scenic source, plus tags (line numbers will correspond)
+    return module._source, analyzer.tags

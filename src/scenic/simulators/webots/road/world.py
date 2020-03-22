@@ -1,4 +1,4 @@
-"""Stub to allow changing the Webots world without modifying `road_model`."""
+"""Stub to allow changing the Webots world without changing the model."""
 
 import os.path
 

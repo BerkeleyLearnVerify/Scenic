@@ -3,8 +3,9 @@
 This module contains common code for working with Webots, e.g. parsing WBT files.
 World models for particular uses of Webots are in submodules.
 
-Submodules
-==========
+.. raw:: html
+
+   <h2>Submodules</h2>
 
 .. autosummary::
    :toctree: _autosummary

@@ -170,8 +170,21 @@ def cleanChain(chain, tolerance, angleTolerance=0.008):
 	return newChain
 
 def triangulatePolygon(polygon):
-	# TODO replace with another library!
-	# N.B. can't use shapely.ops.triangulate since it doesn't respect edges
+	"""Triangulate the given Shapely polygon.
+
+	Note that we can't use ``shapely.ops.triangulate`` since it triangulates
+	point sets, not polygons (i.e., it doesn't respect edges). We need an
+	algorithm for triangulation of polygons with holes (it doesn't need to be a
+	Delaunay triangulation).
+
+	Args:
+		polygon (shapely.geometry.Polygon): Polygon to triangulate.
+
+	Returns:
+		A list of disjoint (except for edges) triangles whose union is the
+		original polygon.
+	"""
+	# TODO replace Polygon3 (wrapping GPC) with a BSD-compatible library!
 	poly = PolygonLib.Polygon(polygon.exterior.coords)
 	for interior in polygon.interiors:
 		poly.addContour(interior.coords, True)

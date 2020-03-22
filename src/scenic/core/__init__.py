@@ -1,7 +1,8 @@
 """Scenic's core types and associated support code.
 
-Submodules
-==========
+.. raw:: html
+
+   <h2>Submodules</h2>
 
 .. autosummary::
    :toctree: _autosummary

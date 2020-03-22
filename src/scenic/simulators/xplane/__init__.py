@@ -2,8 +2,9 @@
 
 See the `VerifAI distribution`_ for examples of how to use Scenic with X-Plane.
 
-Submodules
-==========
+.. raw:: html
+
+   <h2>Submodules</h2>
 
 .. autosummary::
    :toctree: _autosummary

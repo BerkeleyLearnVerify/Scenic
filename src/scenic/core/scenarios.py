@@ -11,7 +11,7 @@ from scenic.core.vectors import Vector
 from scenic.core.utils import areEquivalent, InvalidScenarioError
 
 class Scene:
-	"""A scene generated from a Scenic scenario"""
+	"""A scene generated from a Scenic scenario."""
 	def __init__(self, workspace, objects, egoObject, params):
 		self.workspace = workspace
 		self.objects = tuple(objects)
@@ -19,7 +19,7 @@ class Scene:
 		self.params = params
 
 	def show(self, zoom=None, block=True):
-		"""Render a schematic of the scene for debugging"""
+		"""Render a schematic of the scene for debugging."""
 		import matplotlib.pyplot as plt
 		# display map
 		self.workspace.show(plt)
@@ -32,7 +32,7 @@ class Scene:
 		plt.show(block=block)
 
 class Scenario:
-	"""A Scenic scenario"""
+	"""A compiled Scenic scenario, from which scenes can be sampled."""
 	def __init__(self, workspace,
 	             objects, egoObject,
 	             params, externalParams,
@@ -108,6 +108,19 @@ class Scenario:
 		return True
 
 	def generate(self, maxIterations=2000, verbosity=0, feedback=None):
+		"""Sample a `Scene` from this scenario.
+
+		Args:
+			maxIterations (int): Maximum number of rejection sampling iterations.
+			verbosity (int): Verbosity level.
+			feedback (float): Feedback to pass to external samplers doing active sampling.
+
+		Returns:
+			A pair with the sampled `Scene` and the number of iterations used.
+
+		Raises:
+			`RejectionException`: if no valid sample is found in **maxIterations** iterations.
+		"""
 		objects = self.objects
 
 		# choose which custom requirements will be enforced for this sample
@@ -123,7 +136,7 @@ class Scenario:
 				if self.externalSampler is not None:
 					feedback = self.externalSampler.rejectionFeedback
 			if iterations >= maxIterations:
-				raise RuntimeError(f'failed to generate scenario in {iterations} iterations')
+				raise RejectionException(f'failed to generate scenario in {iterations} iterations')
 			iterations += 1
 			try:
 				if self.externalSampler is not None:

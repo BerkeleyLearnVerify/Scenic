@@ -1,7 +1,8 @@
 """Scenic world model for Grand Theft Auto V (GTAV).
 
-Submodules
-==========
+.. raw:: html
+
+   <h2>Submodules</h2>
 
 .. autosummary::
    :toctree: _autosummary

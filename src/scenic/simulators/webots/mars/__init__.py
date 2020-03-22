@@ -1,7 +1,8 @@
 """World model for a simple Mars rover example in Webots.
 
-Submodules
-==========
+.. raw:: html
+
+   <h2>Submodules</h2>
 
 .. autosummary::
    :toctree: _autosummary
