@@ -93,7 +93,10 @@ import importlib
 from sphinx.pycode import ModuleAnalyzer
 
 def handle_find_source(app, modname):
-    module = importlib.import_module(modname)
+    try:
+        module = importlib.import_module(modname)
+    except Exception:
+        return None
     if not getattr(module, '_isScenicModule', False):
         return None     # no special handling for Python modules
 
