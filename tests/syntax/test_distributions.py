@@ -28,6 +28,8 @@ def test_options_empty_domain():
         compileScenic('x = Options({})')
     with pytest.raises(InterpreterParseError):
         compileScenic('x = Uniform()')
+    with pytest.raises(InterpreterParseError):
+        compileScenic('x = Discrete({})')
 
 def test_options_invalid_weight():
     with pytest.raises(InterpreterParseError):
@@ -66,10 +68,11 @@ def test_uniform_discrete_lazy():
     assert any(h == pytest.approx(1) for h in hs)
 
 def test_options():
-    scenario = compileScenic('ego = Object at Options({0: 1, 1: 9}) @ 0')
-    xs = [sampleEgo(scenario).position.x for i in range(400)]
-    assert all(x == 0 or x == 1 for x in xs)
-    assert sum(xs) >= 300
+    for name in ('Options', 'Discrete'):
+        scenario = compileScenic(f'ego = Object at {name}({{0: 1, 1: 9}}) @ 0')
+        xs = [sampleEgo(scenario).position.x for i in range(400)]
+        assert all(x == 0 or x == 1 for x in xs)
+        assert sum(xs) >= 300
 
 def test_options_lazy():
     scenario = lazyTestScenario('Options({0: 1, x: 9})')

@@ -22,7 +22,7 @@ __all__ = (
 	'Vector', 'VectorField', 'PolygonalVectorField',
 	'Region', 'PointSetRegion', 'RectangularRegion', 'PolygonalRegion', 'PolylineRegion',
 	'Workspace', 'Mutator',
-	'Range', 'Options', 'Uniform', 'Normal',
+	'Range', 'Options', 'Uniform', 'Discrete', 'Normal',
 	'VerifaiParameter', 'VerifaiRange', 'VerifaiDiscreteRange', 'VerifaiOptions',
 	# Constructible types
 	'Point', 'OrientedPoint', 'Object',
@@ -45,6 +45,7 @@ from scenic.core.regions import (Region, PointSetRegion, RectangularRegion,
 from scenic.core.workspaces import Workspace
 from scenic.core.distributions import Range, Options, Normal
 Uniform = lambda *opts: Options(opts)		# TODO separate these?
+Discrete = Options
 from scenic.core.external_params import (VerifaiParameter, VerifaiRange, VerifaiDiscreteRange,
                                          VerifaiOptions)
 from scenic.core.object_types import Mutator, Point, OrientedPoint, Object
