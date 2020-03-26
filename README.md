@@ -78,6 +78,4 @@ The models are:
 
 ## License
 
-Scenic is distributed under the 3-Clause BSD License. However, it currently uses the [GPC library](http://www.cs.man.ac.uk/~toby/alan/software/) (through the [Polygon3](https://pypi.org/project/Polygon3/) package), which is free only for non-commercial use.
-GPC is used only in the `triangulatePolygon` function in `scenic.core.geometry`, and you can alternatively plug in any algorithm of your choice for triangulation of polygons with holes.
-We plan to replace GPC with a BSD-compatible library in the near future.
+Scenic is distributed under the 3-Clause BSD License.
