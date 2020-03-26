@@ -5,21 +5,21 @@ import shapely.ops
 
 import scenic.core.geometry as geometry
 
-def checkTriangulation(poly):
+def checkTriangulation(poly, prec=1e-6):
     tris = geometry.triangulatePolygon(poly)
     assert all(isinstance(t, shapely.geometry.Polygon) for t in tris)
     assert all(len(t.exterior.coords) == 4 for t in tris)
     assert all(len(t.interiors) == 0 for t in tris)
     # check triangles are (nearly) contained in poly
-    assert all(t.difference(poly).area == pytest.approx(0) for t in tris)
+    assert all(t.difference(poly).area == pytest.approx(0, abs=prec) for t in tris)
     # check triangles are (nearly) disjoint
     for i, t1 in enumerate(tris[:-1]):
         t2 = tris[i+1]
-        assert (t1 & t2).area == pytest.approx(0)
+        assert (t1 & t2).area == pytest.approx(0, abs=prec)
     # check union of triangles is (nearly) identical to poly
     union = shapely.ops.unary_union(tris)
-    assert poly.difference(union).area == pytest.approx(0)
-    assert union.difference(poly).area == pytest.approx(0)
+    assert poly.difference(union).area == pytest.approx(0, abs=prec)
+    assert union.difference(poly).area == pytest.approx(0, abs=prec)
     return tris
 
 def test_triangulation():
