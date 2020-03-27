@@ -11,6 +11,10 @@ def scenicToCarlaRotation(heading):
 	yaw = 180 - math.degrees(heading)  # TODO: make sure this is correct
 	return carla.Rotation(yaw=yaw)
 
+def scenicToCarlaVector3D(measure, z=0):
+	# NOTE: carla.Vector3D used for velocity, acceleration; superclass of carla.Location
+	return carla.Vector3D(measure.x, measure.y, z)
+
 def carlaToScenicPosition(loc):
 	return Vector(loc.x, loc.y)  # TODO: make sure loc.y is correct
 

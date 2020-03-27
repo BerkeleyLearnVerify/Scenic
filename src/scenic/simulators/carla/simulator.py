@@ -22,7 +22,7 @@ class CarlaSimulation(simulators.Simulation):
 	def __init__(self, scene, client):
 		super().__init__(scene)
 		self.client = client
-		self.timeStep = scene.params.get('time_step', 1.0/30)  # TODO: find out what this means
+		self.timeStep = scene.params.get('time_step', 1.0/30)  # TODO: find out what this means -- change settings.fixed_delta_seconds accordingly?
 		
 		# Reloads current world (destroys all actors, except traffic manager instances)
 		self.client.reload_world()
@@ -80,9 +80,9 @@ class CarlaSimulation(simulators.Simulation):
 
 	def step(self, actions):
 		# Execute actions
-		for actor, action in actions.items():
+		for obj, action in actions.items():  # TODO: understand what actions is (type and use case)
 			if action:
-				action.applyTo(actor, actor.carlaActor, self)
+				action.applyTo(obj, obj.carlaActor, self)
 
 		# Run simulation for one timestep
 		self.world.tick()
@@ -91,3 +91,23 @@ class CarlaSimulation(simulators.Simulation):
 		self.readPropertiesFromCarla()
 
 		return self.currentState()
+
+class MoveAction(simulators.Action):
+	def __init__(self, offset):
+		self.offset = offset
+
+	def applyTo(self, obj, carlaActor, sim):
+		pos = obj.position.offsetRotated(obj.heading, self.offset)  # TODO: understand what offsetRotated() does
+		loc = utils.scenicToCarlaLocation(pos, z=obj.elevation)
+		carlaActor.set_location(loc)
+
+class SetVelocityAction(simulators.Action):
+	def __init__(self, velocity):
+		self.velocity = utils.scenicToCarlaVector3D(velocity)
+
+	def applyTo(self, obj, carlaActor, sim):
+		carlaActor.set_velocity(self.velocity)
+
+# TODO: write more primitive action classes
+# - FollowWaypointsAction
+# - CancelWaypointsAction
