@@ -176,16 +176,20 @@ def triangulatePolygon(polygon):
 	for c in polygon.exterior.coords[:-1]:
 		polyline.append(pypoly2tri.shapes.Point(c[0],c[1]))
 	cdt = pypoly2tri.cdt.CDT(polyline)
-	polyline = []
 	for i in polygon.interiors:
+		polyline = []
 		for c in i.coords[:-1]:
 			polyline.append(pypoly2tri.shapes.Point(c[0],c[1]))
 		cdt.AddHole(polyline)
-	triangles = list()
 	cdt.Triangulate()
 
+	triangles = list()
 	for t in cdt.GetTriangles():
-		triangles.append(shapely.geometry.Polygon([(t.GetPoint(0).toTuple()), (t.GetPoint(1).toTuple()), (t.GetPoint(2).toTuple())]))
+		triangles.append(shapely.geometry.Polygon([
+			t.GetPoint(0).toTuple(),
+			t.GetPoint(1).toTuple(),
+			t.GetPoint(2).toTuple()
+		]))
 	return triangles
 
 def plotPolygon(polygon, plt, style='r-'):
