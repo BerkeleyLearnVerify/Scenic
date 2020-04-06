@@ -17,9 +17,12 @@ Table of Contents
 
    quickstart
    tutorial
+   syntax_guide
+   syntax_details
    simulators
    new_simulator
    internals
+   credits
 
 Indices and Tables
 ==================
