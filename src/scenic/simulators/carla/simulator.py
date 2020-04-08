@@ -11,7 +11,7 @@ class CarlaSimulator(simulators.Simulator):
 
 		# Set to synchronous with fixed timestep
 		settings = self.world.get_settings()
-		settings.fixed_delta_seconds = 0.05  # TODO: change later based on scene's timestep?
+		settings.fixed_delta_seconds = 0.05
 		settings.synchronous_mode = True
 		self.world.apply_settings(settings)
 
@@ -23,7 +23,8 @@ class CarlaSimulation(simulators.Simulation):
 		super().__init__(scene)
 		self.client = client
 
-		self.timeStep = scene.params.get('time_step', 1.0/30)  # TODO: find out what this means -- change settings.fixed_delta_seconds accordingly?
+		# Allow changing of timestep
+		self.timeStep = scene.params.get('time_step', 1.0/30)
 		settings = self.world.get_settings()
 		settings.fixed_delta_seconds = scene.params.get('time_step', 1.0/30)
 		self.world.apply_settings(settings)
@@ -33,30 +34,13 @@ class CarlaSimulation(simulators.Simulation):
 
 		# Create Carla actors corresponding to Scenic objects
 		for obj in self.objects:
-			# TODO: check this with implementation of self.objects
-			# Determine type of Carla actor
-			if not hasattr(obj, 'carlaActor'):
-				continue  # not a Carla actor
-			if not hasattr(obj, 'carlaName'):
-				raise RuntimeError(f'Object {obj} does not have carlaName property')
-			if not hasattr(obj, 'carlaActorType'):
-				raise RuntimeError(f'Object {obj} does not have carlaActorType property')
-			if not hasattr(obj, 'carlaActorModel'):
-				raise RuntimeError(f'Object {obj} does not have carlaActorModel property')
-			bpStr = f'{obj.carlaName}.{obj.carlaActorType}.{obj.carlaActorModel}'
-
-			# Set up blueprint and transform
-			blueprint = bpLib.find(bpStr)
-			if blueprint is None:
-				raise RuntimeError(f'Could not find blueprint with id {bpStr}')
+			# Set up transform
 			location = utils.scenicToCarlaLocation(obj.position, obj.elevation)
 			rotation = utils.scenicToCarlaRotation(obj.heading)
 			transform = carla.Transform(location, rotation)
 			
 			# Create Carla actor
-			carlaActor = self.world.spawn_actor(blueprint, transform)
-			if carlaActor is None:
-				raise RuntimeError(f'Could not spawn Carla actor with blueprint={blueprint} and transform={transform}')
+			carlaActor = self.world.try_spawn_actor(obj.blueprint, transform)
 			obj.carlaActor = carlaActor
 
 		self.initState = tuple(obj.position for obj in self.objects)
@@ -105,12 +89,17 @@ class CarlaSimulation(simulators.Simulation):
 
 		return self.currentState()
 
-class MoveAction(simulators.Action):
+################################################
+# Actions available to all carla.Actor objects #
+################################################
+
+class OffsetAction(simulators.Action):
+	'''Teleports actor forward (in direction of its heading) by some offset'''
 	def __init__(self, offset):
 		self.offset = offset
 
 	def applyTo(self, obj, carlaActor, sim):
-		pos = obj.position.offsetRotated(obj.heading, self.offset)  # TODO: understand what offsetRotated() does
+		pos = obj.position.offsetRotated(obj.heading, self.offset) #w.r. t
 		loc = utils.scenicToCarlaLocation(pos, z=obj.elevation)
 		carlaActor.set_location(loc)
 
@@ -121,6 +110,69 @@ class SetVelocityAction(simulators.Action):
 	def applyTo(self, obj, carlaActor, sim):
 		carlaActor.set_velocity(self.velocity)
 
-# TODO: write more primitive action classes
-# - FollowWaypointsAction
-# - CancelWaypointsAction
+#############################################
+# Actions specific to carla.Vehicle objects #
+#############################################
+
+class SetThrottleAction(simulators.Action):
+	def __init__(self, throttle):
+		self.throttle = throttle  # float in range [0.0, 1.0]
+
+	def applyTo(self, obj, vehicle, sim):
+		ctrl = vehicle.get_control()
+		ctrl.throttle = self.throttle
+		vehicle.apply_control(ctrl)
+
+class SetSteerAction(simulators.Action):
+	def __init__(self, steer):
+		self.steer = steer  # float in range [-1.0, 1.0]
+
+	def applyTo(self, obj, vehicle, sim):
+		ctrl = vehicle.get_control()
+		ctrl.steer = self.steer
+		vehicle.apply_control(ctrl)
+
+class SetBrakeAction(simulators.Action):
+	def __init__(self, brake):
+		self.brake = brake  # float in range [0.0, 1.0]
+
+	def applyTo(self, obj, vehicle, sim):
+		ctrl = vehicle.get_control()
+		ctrl.brake = self.brake
+		vehicle.apply_control(ctrl)
+
+class SetHandBrakeAction(simulators.Action):
+	def __init__(self, handBrake):
+		self.handBrake = handBrake  # boolean
+
+	def applyTo(self, obj, vehicle, sim):
+		ctrl = vehicle.get_control()
+		ctrl.hand_brake = self.handBrake
+		vehicle.apply_control(ctrl)
+
+class SetReverseAction(simulators.Action):
+	def __init__(self, reverse):
+		self.reverse = reverse  # boolean
+
+	def applyTo(self, obj, vehicle, sim):
+		ctrl = vehicle.get_control()
+		ctrl.reverse = self.reverse
+		vehicle.apply_control(ctrl)
+
+class SetManualGearShiftAction(simulators.Action):
+	def __init__(self, manualGearShift):
+		self.manualGearShift = manualGearShift  # boolean
+
+	def applyTo(self, obj, vehicle, sim):
+		ctrl = vehicle.get_control()
+		ctrl.manual_gear_shift = self.manualGearShift
+		vehicle.apply_control(ctrl)
+
+class SetGearAction(simulators.Action):
+	def __init__(self, gear):
+		self.gear = gear  # (int) gear number 
+
+	def applyTo(self, obj, vehicle, sim):
+		ctrl = vehicle.get_control()
+		ctrl.gear = self.gear
+		vehicle.apply_control(ctrl)
