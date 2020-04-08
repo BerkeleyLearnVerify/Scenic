@@ -22,20 +22,33 @@ class CarlaSimulation(simulators.Simulation):
 	def __init__(self, scene, client):
 		super().__init__(scene)
 		self.client = client
+
 		self.timeStep = scene.params.get('time_step', 1.0/30)  # TODO: find out what this means -- change settings.fixed_delta_seconds accordingly?
+		settings = self.world.get_settings()
+		settings.fixed_delta_seconds = scene.params.get('time_step', 1.0/30)
+		self.world.apply_settings(settings)
 		
 		# Reloads current world (destroys all actors, except traffic manager instances)
 		self.client.reload_world()
 
 		# Create Carla actors corresponding to Scenic objects
 		for obj in self.objects:
+			# TODO: check this with implementation of self.objects
 			# Determine type of Carla actor
-			if not type(obj) == carla.Actor:
+			if not hasattr(obj, 'carlaActor'):
 				continue  # not a Carla actor
-			# TODO: finish determining type of Carla actor
+			if not hasattr(obj, 'carlaName'):
+				raise RuntimeError(f'Object {obj} does not have carlaName property')
+			if not hasattr(obj, 'carlaActorType'):
+				raise RuntimeError(f'Object {obj} does not have carlaActorType property')
+			if not hasattr(obj, 'carlaActorModel'):
+				raise RuntimeError(f'Object {obj} does not have carlaActorModel property')
+			bpStr = f'{obj.carlaName}.{obj.carlaActorType}.{obj.carlaActorModel}'
 
 			# Set up blueprint and transform
-			blueprint = None  # TODO: figure out blueprint
+			blueprint = bpLib.find(bpStr)
+			if blueprint is None:
+				raise RuntimeError(f'Could not find blueprint with id {bpStr}')
 			location = utils.scenicToCarlaLocation(obj.position, obj.elevation)
 			rotation = utils.scenicToCarlaRotation(obj.heading)
 			transform = carla.Transform(location, rotation)
@@ -80,7 +93,7 @@ class CarlaSimulation(simulators.Simulation):
 
 	def step(self, actions):
 		# Execute actions
-		for obj, action in actions.items():  # TODO: understand what actions is (type and use case)
+		for obj, action in actions.items():
 			if action:
 				action.applyTo(obj, obj.carlaActor, self)
 
