@@ -35,9 +35,9 @@ class CarlaSimulation(simulators.Simulation):
 		# Create Carla actors corresponding to Scenic objects
 		for obj in self.objects:
 			# Set up transform
-			location = utils.scenicToCarlaLocation(obj.position, obj.elevation)
-			rotation = utils.scenicToCarlaRotation(obj.heading)
-			transform = carla.Transform(location, rotation)
+			loc = utils.scenicToCarlaLocation(obj.position, obj.elevation)
+			rot = utils.scenicToCarlaRotation(obj.heading)
+			transform = carla.Transform(loc, rot)
 			
 			# Create Carla actor
 			carlaActor = self.world.try_spawn_actor(obj.blueprint, transform)
@@ -47,27 +47,29 @@ class CarlaSimulation(simulators.Simulation):
 
 	def writePropertiesToCarla(self):
 		for obj in self.objects:
+			# Compute Carla properties
 			carlaActor = obj.carlaActor
-			newLocation = utils.scenicToCarlaLocation(obj.position, z=obj.elevation)
-			newRotation = utils.scenicToCarlaRotation(obj.heading)
-			newTransform = carla.Transform(newLocation, newRotation)
+			newLoc = utils.scenicToCarlaLocation(obj.position, z=obj.elevation)
+			newRot = utils.scenicToCarlaRotation(obj.heading)
+			newTransform = carla.Transform(newLoc, newRot)
 
 			# Update Carla actor properties
 			carlaActor.set_transform(newTransform)
 
 	def readPropertiesFromCarla(self):
 		for obj in self.objects:
+			# Extract Carla properties
 			carlaActor = obj.carlaActor
 			currTransform = carlaActor.get_transform()
-			currLocation = currTransform.location
-			currHeading = utils.carlaToScenicHeading(currTransform.rotation, tolerance2D=5)
-			if currHeading is None:
-				raise RuntimeError(f'{carlaActor} has non-planar orientation')
+			currLoc = currTransform.location
+			currRot = currTransform.rotation
 
 			# Update Scenic object properties
 			obj.position = utils.carlaToScenicPosition(currLocation)
 			obj.elevation = utils.carlaToScenicElevation(currLocation)
-			obj.heading = currHeading
+			obj.heading = utils.carlaToScenicHeading(currTransform.rotation, tolerance2D=5)
+			if obj.heading is None:
+				raise RuntimeError(f'{carlaActor} has non-planar orientation')
 
 	def currentState(self):
 		return tuple(obj.position for obj in self.objects)
@@ -93,6 +95,7 @@ class CarlaSimulation(simulators.Simulation):
 # Actions available to all carla.Actor objects #
 ################################################
 
+# NOTE: Equivalent to LGSVL's MoveAction class
 class OffsetAction(simulators.Action):
 	'''Teleports actor forward (in direction of its heading) by some offset'''
 	def __init__(self, offset):
@@ -103,12 +106,38 @@ class OffsetAction(simulators.Action):
 		loc = utils.scenicToCarlaLocation(pos, z=obj.elevation)
 		carlaActor.set_location(loc)
 
+class SetLocationAction(simulators.Action):
+	def __init__(self, pos):
+		self.pos = pos  # Scenic position
+
+	def applyTo(self, obj, carlaActor, sim):
+		loc = utils.scenicToCarlaLocation(pos, z=obj.elevation)
+		carlaActor.set_location(loc)
+
 class SetVelocityAction(simulators.Action):
 	def __init__(self, velocity):
 		self.velocity = utils.scenicToCarlaVector3D(velocity)
 
 	def applyTo(self, obj, carlaActor, sim):
 		carlaActor.set_velocity(self.velocity)
+
+class SetAngularVelocityAction(simulators.Action):
+	def __init__(self, angularVelocity):
+		self.angularVelocity = angularVelocity
+
+	def applyTo(self, obj, carlaActor, sim):
+		carlaActor.set_angular_velocity(self.angularVelocity)
+
+class SetTransformAction(simulators.Action):
+	def __init__(self, pos, heading):
+		self.pos = pos  # Scenic position
+		self.heading = heading  # Scenic heading
+
+	def applyTo(self, obj, carlaActor, sim):
+		loc = utils.scenicToCarlaLocation(pos, z=obj.elevation)
+		rot = utils.scenicToCarlaRotation(heading)
+		transform = carla.Transform(loc, rot)
+		carlaActor.set_transform(transform)
 
 #############################################
 # Actions specific to carla.Vehicle objects #
