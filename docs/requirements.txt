@@ -39,7 +39,7 @@ scipy==1.4.1
 shapely==1.7.0
 six==1.14.0
 snowballstemmer==2.0.0
-sphinx==3.0.0
+sphinx==3.0.1
 sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2
 sphinxcontrib-htmlhelp==1.0.3
@@ -49,6 +49,6 @@ sphinxcontrib-serializinghtml==1.1.4
 toml==0.10.0
 tox==3.14.6
 urllib3==1.25.8
-virtualenv==20.0.16
+virtualenv==20.0.17
 wcwidth==0.1.9
 zipp==3.1.0; python_version < "3.8"

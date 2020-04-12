@@ -60,15 +60,28 @@ import scenic.syntax.relations as relations
 
 ### THE TOP LEVEL: compiling a Scenic program
 
-def scenarioFromString(string, filename='<string>'):
+def scenarioFromString(string, filename='<string>', cacheImports=False):
 	"""Compile a string of Scenic code into a `Scenario`.
 
 	The optional **filename** is used for error messages."""
 	stream = io.BytesIO(string.encode())
-	return scenarioFromStream(stream, filename=filename)
+	return scenarioFromStream(stream, filename=filename, cacheImports=cacheImports)
 
-def scenarioFromFile(path):
-	"""Compile a Scenic file into a `Scenario`."""
+def scenarioFromFile(path, cacheImports=False):
+	"""Compile a Scenic file into a `Scenario`.
+
+	Args:
+		path (str): path to a Scenic file
+		cacheImports (bool): Whether to cache any imported Scenic modules.
+		  The default behavior is to not do this, so that subsequent attempts
+		  to import such modules will cause them to be recompiled. If it is
+		  safe to cache Scenic modules across multiple compilations, set this
+		  argument to True. Then importing a Scenic module will have the same
+		  behavior as importing a Python module.
+
+	Returns:
+		A `Scenario` object representing the Scenic scenario.
+	"""
 	if not os.path.exists(path):
 		raise FileNotFoundError(path)
 	fullpath = os.path.realpath(path)
@@ -80,13 +93,24 @@ def scenarioFromFile(path):
 	directory, name = os.path.split(head)
 
 	with open(path, 'rb') as stream:
-		return scenarioFromStream(stream, filename=fullpath, path=path)
+		return scenarioFromStream(stream, filename=fullpath, path=path,
+		                          cacheImports=cacheImports)
 
-def scenarioFromStream(stream, filename='<stream>', path=None):
-	"""Compile a stream of Scenic code into a Scenario."""
+def scenarioFromStream(stream, filename='<stream>', path=None, cacheImports=False):
+	"""Compile a stream of Scenic code into a `Scenario`."""
 	# Compile the code as if it were a top-level module
-	with topLevelNamespace(path) as namespace:
-		compileStream(stream, namespace, filename=filename)
+	oldModules = list(sys.modules.keys())
+	try:
+		with topLevelNamespace(path) as namespace:
+			compileStream(stream, namespace, filename=filename)
+	finally:
+		if not cacheImports:
+			toRemove = []
+			for name, module in sys.modules.items():
+				if name not in oldModules and getattr(module, '_isScenicModule', False):
+					toRemove.append(name)
+			for name in toRemove:
+				del sys.modules[name]
 	# Construct a Scenario from the resulting namespace
 	return constructScenarioFrom(namespace)
 
@@ -401,6 +425,7 @@ class ScenicMetaFinder(importlib.abc.MetaPathFinder):
 				filename = modname + '.' + extension
 				filepath = os.path.join(path, filename)
 				if os.path.exists(filepath):
+					filepath = os.path.abspath(filepath)
 					spec = importlib.util.spec_from_file_location(name, filepath,
 						loader=ScenicLoader(filepath, filename))
 					return spec
@@ -1144,15 +1169,17 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 			for name, value in bindings.items():
 				if value in values:
 					namespace[name] = values[value]
-			# rebind ego object, which can be referred to implicitly
-			if ego is not None:
-				veneer.egoObject = values[ego]
 			# evaluate requirement condition, reporting errors on the correct line
 			try:
 				veneer.evaluatingRequirement = True
+				# rebind ego object, which can be referred to implicitly
+				assert veneer.egoObject is None
+				if ego is not None:
+					veneer.egoObject = values[ego]
 				result = executePythonFunction(evaluator, filename)
 			finally:
 				veneer.evaluatingRequirement = False
+				veneer.egoObject = None
 			return result
 		return closure
 	for reqID, (req, bindings, ego, line, prob) in requirements.items():
