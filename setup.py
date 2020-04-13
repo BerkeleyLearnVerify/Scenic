@@ -16,6 +16,7 @@ setup(name='scenic',
           'pillow',
           'shapely', # had to separately install via conda install shapely
           'pypoly2tri',
+          'pynverse',
       ],
       extras_require={
         'pyproj': ['pyproj'], # issue on Windows with Anaconda
