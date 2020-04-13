@@ -5,13 +5,19 @@ Installation
 ------------
 
 Scenic requires **Python 3.6** or newer.
-From the root directory of the Scenic distribution, you can install Scenic by running::
+You can install Scenic from PyPI by simply running::
 
-	pip install .
+	pip install scenic
 
-(add the ``-e`` option if you want an "editable" install where changes you make to the source will immediately take effect)
+Alternatively, you can download or clone the `Scenic repository <https://github.com/BerkeleyLearnVerify/Scenic>`_, which contains examples we'll use below.
+Install `Poetry <https://python-poetry.org/>`_ and then run::
 
-The above procedure should install all of the dependencies which are required to run Scenic.
+	poetry install
+
+This will install Scenic into your current virtual environment (or create a new one if needed).
+If you will be developing Scenic, add the ``-E dev`` option when invoking Poetry.
+
+Either of the options above should install all of the dependencies which are required to run Scenic.
 Scenarios using the `scenic.simulators.webots.guideways` model also require the ``pyproj`` package, and will prompt you if you don't have it.
 
 .. note::
@@ -22,7 +28,7 @@ Scenarios using the `scenic.simulators.webots.guideways` model also require the 
 Trying Some Examples
 --------------------
 
-Scenic comes with many example scenarios, found in the :file:`examples` directory.
+The Scenic repository contains many example scenarios, found in the :file:`examples` directory.
 They are organized by the simulator they are written for, e.g. :abbr:`GTA (Grand Theft Auto V)` or Webots.
 Each simulator has a specialized Scenic interface which requires additional setup (see :doc:`simulators`); however, for convenience Scenic provides an easy way to visualize scenarios without running a simulator.
 Simply run the ``scenic`` module as a script, giving a path to a Scenic file::

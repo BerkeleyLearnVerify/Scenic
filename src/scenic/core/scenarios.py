@@ -11,7 +11,15 @@ from scenic.core.vectors import Vector
 from scenic.core.utils import areEquivalent, InvalidScenarioError
 
 class Scene:
-	"""A scene generated from a Scenic scenario."""
+	"""A scene generated from a Scenic scenario.
+
+	Attributes:
+		objects (tuple(:obj:`~scenic.core.object_types.Object`)): All objects in the
+		  scene. The ``ego`` object is first.
+		egoObject (:obj:`~scenic.core.object_types.Object`): The ``ego`` object.
+		params (dict): Dictionary mapping the name of each global parameter to its value.
+		workspace (:obj:`~scenic.core.workspaces.Workspace`): Workspace for the scenario.
+	"""
 	def __init__(self, workspace, objects, egoObject, params):
 		self.workspace = workspace
 		self.objects = tuple(objects)

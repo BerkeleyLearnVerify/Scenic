@@ -16,7 +16,7 @@ representing distances, angles, etc. as floating-point numbers, which can be sam
 
 Vectors
 -------
-representing positions and offsets in space, constructed from coordinates with the syntax X @ Y (inspired by `Smalltalk <https://wiki.c2.com/?SmalltalkTheLanguageAndItsImplementation>`_). By convention, coordinates are in meters, although the semantics of Scenic does not depend on this. More significantly, the vector syntax is specialized for 2-dimensional space. The 2D assumption dramatically simplifies much of Scenic’s syntax (particularly that dealing with orientations, as we will see below), while still being adequate for a variety of applications. However, it is important to note that the fundamental ideas of Scenic are not specific to 2D, and it would be easy to extend our implementation of the language to support 3D space.
+representing positions and offsets in space, constructed from coordinates with the syntax X @ Y (inspired by `Smalltalk <http://stephane.ducasse.free.fr/FreeBooks/BlueBook/Bluebook.pdf>`_). By convention, coordinates are in meters, although the semantics of Scenic does not depend on this. More significantly, the vector syntax is specialized for 2-dimensional space. The 2D assumption dramatically simplifies much of Scenic’s syntax (particularly that dealing with orientations, as we will see below), while still being adequate for a variety of applications. However, it is important to note that the fundamental ideas of Scenic are not specific to 2D, and it would be easy to extend our implementation of the language to support 3D space.
 
 .. _Headings:
 
@@ -37,8 +37,8 @@ Regions
 representing sets of points in space. Scenic provides a variety of ways to define Regions: rectangles, circular sectors, line segments, polygons, occupancy grids, and explicit lists of points. Regions can have an associated vector field giving points in the region preferred orientations. For example, a Region representing a lane of traffic could have a preferred orientation aligned with the lane, so that we can easily talk about distances along the lane, even if it curves. Another possible use of preferred orientations is to give the surface of an object normal vectors, so that other objects placed on the surface face outward by default.
 
 
-Specifiers for Position
-=======================
+Position Specifiers
+===================
 
 .. _offset along *direction* by *vector*:
 
@@ -64,10 +64,6 @@ beyond *vector* by *vector* [from *vector*]
 --------------------------------------------
 Positions the object at coordinates given by the second vector, in a local coordinate system centered at the first vector and oriented along the line of sight from the ego. For example, beyond taxi by 0 @ 3 means 3 meters directly behind the taxi as viewed by the camera.
 
-
-Specifiers for position and optionally heading
-==============================================
-
 .. _(in | on) *region*:
 
 (in | on) *region*
@@ -85,6 +81,10 @@ Positions the object to the left/right of the given OrientedPoint, depending on 
 following *vectorField* [from *vector* ] for *scalar*
 -----------------------------------------------------
 Positions the object at a point obtained by following the given vector field for the given distance starting from ego (or the position optionally provided with from vector ). Optionally specifies heading to be the heading of the vector field at the resulting point. Uses a forward Euler approximation of the continuous vector field
+
+
+Heading Specifiers
+==================
 
 .. _apparently facing *heading* [from *vector*]:
 

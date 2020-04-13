@@ -17,7 +17,14 @@ from scenic.core.utils import areEquivalent, RuntimeParseError
 ## Abstract base class
 
 class Constructible(Samplable):
-	"""something created by a constructor"""
+	"""Abstract base class for Scenic objects.
+
+	Scenic objects, which are constructed using specifiers, are implemented
+	internally as instances of ordinary Python classes. This abstract class
+	implements the procedure to resolve specifiers and determine values for
+	the properties of an object, as well as several common methods supported
+	by objects.
+	"""
 
 	@classmethod
 	def defaults(cla):		# TODO improve so this need only be done once?
@@ -188,6 +195,7 @@ class HeadingMutator(Mutator):
 ## Point
 
 class Point(Constructible):
+	"""Implementation of the Scenic class ``Point``."""
 	position: Vector(0, 0)
 	width: 0
 	height: 0
@@ -234,6 +242,7 @@ class Point(Constructible):
 ## OrientedPoint
 
 class OrientedPoint(Point):
+	"""Implementation of the Scenic class ``OrientedPoint``."""
 	heading: 0
 	viewAngle: math.tau
 
@@ -262,6 +271,7 @@ class OrientedPoint(Point):
 ## Object
 
 class Object(OrientedPoint, RotatedRectangle):
+	"""Implementation of the Scenic class ``Object``."""
 	width: 1
 	height: 1
 	allowCollisions: False

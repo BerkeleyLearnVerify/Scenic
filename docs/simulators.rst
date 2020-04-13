@@ -32,14 +32,17 @@ We have several interfaces to the `Webots robotics simulator <https://cyberbotic
 	* A more specific interface for traffic scenarios at intersections, using guideways from the `Intelligent Intersections Toolkit <https://github.com/ucbtrans/intelligent_intersection>`_.
 	  See the examples in :file:`examples/webots/guideways` and the documentation of `scenic.simulators.webots.guideways` for details.
 
-**Note:** Our interfaces were written for the R2018 version of Webots, which is not free but has lower hardware requirements than R2019.
-Relatively minor changes would be required to make our interfaces work with the newer `open source versions of Webots <https://github.com/cyberbotics/webots>`_.
-We may get around to porting them eventually; we'd also gladly accept a pull request!
+.. note::
+
+	Our interfaces were written for the R2018 version of Webots, which is not free but has lower hardware requirements than R2019.
+	Relatively minor changes would be required to make our interfaces work with the newer `open source versions of Webots <https://github.com/cyberbotics/webots>`_.
+	We may get around to porting them eventually; we'd also gladly accept a pull request!
 
 X-Plane
 -------
 
-bar
+Our interface to the `X-Plane flight simulator <https://www.x-plane.com>`_ enables using Scenic to describe aircraft taxiing scenarios.
+This interface is part of the VerifAI toolkit; documentation and examples can be found in the `VerifAI repository`_.
 
 .. _our PLDI paper: https://arxiv.org/abs/1809.09310
 
