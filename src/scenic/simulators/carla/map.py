@@ -1,4 +1,4 @@
-# stub to allow changing the map without having to alter road_model.sc
+"""Stub to allow changing the map without having to change the model."""
 
 import os.path
 

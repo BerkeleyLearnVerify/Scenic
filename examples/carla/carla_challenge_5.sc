@@ -1,6 +1,6 @@
 from scenic.simulators.carla.map import setMapPath
 setMapPath(__file__, 'OpenDrive/Town01.xodr')
-from scenic.simulators.carla.road_model import *
+from scenic.simulators.carla.model import *
 
 ego = Car 
 c2 = Car at ego offset by 0 @ (15, 20)

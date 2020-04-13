@@ -1,6 +1,6 @@
 from scenic.simulators.carla.map import setMapPath
 setMapPath(__file__, 'OpenDrive/Town03.xodr')
-from scenic.simulators.carla.road_model import *
+from scenic.simulators.carla.model import *
 
 # Cars on lanes [-2..3] of the first LaneSection of Road 70.
 ego = Car in laneSectionDict[70][0][1]

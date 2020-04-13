@@ -22,6 +22,8 @@ import scenic.simulators.webots.guideways.intersection as gw_int
 gw_int.intersectionPath = '../tests/simulators/webots/guideways/McClintock_DonCarlos_Tempe.json'
 import scenic.simulators.webots.road.world as wbt_road_world
 wbt_road_world.worldPath = '../tests/simulators/webots/road/simple.wbt'
+import scenic.simulators.carla.map as carla_map
+carla_map.mapPath = '../tests/simulators/carla/OpenDrive/Town01.xodr'
 
 # -- Project information -----------------------------------------------------
 

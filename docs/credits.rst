@@ -12,6 +12,7 @@ The Scenic tool has benefitted from code contributions from:
 	* Johnathan Chiu
 	* Francis Indaheng
 	* Martin Jansa (LG Electronics, Inc.)
+	* Wilson Wu
 
 Finally, many other people provided helpful advice and discussions, including:
 

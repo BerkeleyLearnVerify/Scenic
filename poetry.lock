@@ -287,6 +287,14 @@ dev = ["pre-commit", "tox"]
 
 [[package]]
 category = "main"
+description = "Polygon3 is a Python-3 package that handles polygonal shapes in 2D"
+name = "polygon3"
+optional = true
+python-versions = "*"
+version = "3.0.8"
+
+[[package]]
+category = "main"
 description = "library with cross-python path, ini-parsing, io, code, log facilities"
 name = "py"
 optional = true
@@ -300,6 +308,18 @@ name = "pygments"
 optional = true
 python-versions = ">=3.5"
 version = "2.6.1"
+
+[[package]]
+category = "main"
+description = "A library for calculating the numerical inverse of a function"
+name = "pynverse"
+optional = false
+python-versions = "*"
+version = "0.1.4.4"
+
+[package.dependencies]
+numpy = ">=1.6"
+scipy = ">=0.11"
 
 [[package]]
 category = "main"
@@ -642,10 +662,11 @@ testing = ["jaraco.itertools", "func-timeout"]
 
 [extras]
 dev = ["pytest-randomly", "pytest", "sphinx", "tox"]
+gpc_triangulation = ["Polygon3"]
 guideways = ["pyproj"]
 
 [metadata]
-content-hash = "ed2c3ec711c8b95c3943bf695d56b9d105369bff027b1914fd15292a5a05b7d8"
+content-hash = "6fc2cacb2941b7ccb9340f52f14228fdb1ef9522d8f35664d5cb1f72a4fbe07c"
 python-versions = "^3.6"
 
 [metadata.files]
@@ -874,6 +895,21 @@ pluggy = [
     {file = "pluggy-0.13.1-py2.py3-none-any.whl", hash = "sha256:966c145cd83c96502c3c3868f50408687b38434af77734af1e9ca461a4081d2d"},
     {file = "pluggy-0.13.1.tar.gz", hash = "sha256:15b2acde666561e1298d71b523007ed7364de07029219b604cf808bfa1c765b0"},
 ]
+polygon3 = [
+    {file = "Polygon3-3.0.8-cp34-cp34m-win_amd64.whl", hash = "sha256:a8b494c2364a80e0ff5dea74c9cce1b86bd0b94170d171743f4b88be21585874"},
+    {file = "Polygon3-3.0.8-cp35-cp35m-win32.whl", hash = "sha256:889abfe4328cfefa6a7c2cc38f31f48b7c04efeafc197d14461caec168904efc"},
+    {file = "Polygon3-3.0.8-cp35-cp35m-win_amd64.whl", hash = "sha256:aade97636b0b3be32dacb1922a991a5fc0899a9a4ea42bc1780d83c3291bf50c"},
+    {file = "Polygon3-3.0.8-cp36-cp36m-win32.whl", hash = "sha256:b34938ddfb70ddca17b7aae96a5ca66fdf1c1f3ab1df1b4d671e89e7424b1d2f"},
+    {file = "Polygon3-3.0.8-cp36-cp36m-win_amd64.whl", hash = "sha256:ad8f4d5fbef7a9035991f7536505ea016076472668a46943a4a740f856fc68d9"},
+    {file = "Polygon3-3.0.8.linux-x86_64.tar.gz", hash = "sha256:64a9b6ca831da5c307cad0561d35b6da4db42d893bd30ad4875881125ebd22ac"},
+    {file = "Polygon3-3.0.8.tar.gz", hash = "sha256:382aecaf1b550134aa71cc9c0f880a244e0ac5273e05bf898f5a6cde5bff9e2c"},
+    {file = "Polygon3-3.0.8.win-amd64-py3.4.exe", hash = "sha256:d5dd7483c1e2f10958c875c128e11bb3134ed1f997339cd2affca182bc2f8c14"},
+    {file = "Polygon3-3.0.8.win-amd64-py3.5.exe", hash = "sha256:55df14d6c2a15c0bae0f9d8f8701fd28f45499071eb8d1e635b06eafa10be645"},
+    {file = "Polygon3-3.0.8.win-amd64-py3.6.exe", hash = "sha256:d894cebc6c75c373b5b7daf3ba77d61c046bd216d61b62c0df22187f383e421e"},
+    {file = "Polygon3-3.0.8.win32-py3.4.exe", hash = "sha256:7617e743839f84f0b6bb435c2829c917a6480b1b8463fbb7485ff33411b5e8e3"},
+    {file = "Polygon3-3.0.8.win32-py3.5.exe", hash = "sha256:c5ef69c53b1e55dcdf3a7646057e93a8b97a547761f88e98fb6e5e427bc91b98"},
+    {file = "Polygon3-3.0.8.win32-py3.6.exe", hash = "sha256:9ee654da186e9fc9e1ef6f31bd61b5c3ca65fa4dbb9dc9d175ee07ea045157a3"},
+]
 py = [
     {file = "py-1.8.1-py2.py3-none-any.whl", hash = "sha256:c20fdd83a5dbc0af9efd622bee9a5564e278f6380fffcacc43ba6f43db2813b0"},
     {file = "py-1.8.1.tar.gz", hash = "sha256:5e27081401262157467ad6e7f851b7aa402c5852dbcb3dae06768434de5752aa"},
@@ -881,6 +917,10 @@ py = [
 pygments = [
     {file = "Pygments-2.6.1-py3-none-any.whl", hash = "sha256:ff7a40b4860b727ab48fad6360eb351cc1b33cbf9b15a0f689ca5353e9463324"},
     {file = "Pygments-2.6.1.tar.gz", hash = "sha256:647344a061c249a3b74e230c739f434d7ea4d8b1d5f3721bc0f3558049b38f44"},
+]
+pynverse = [
+    {file = "pynverse-0.1.4.4.tar.gz", hash = "sha256:2f9804aa08b01ea9b4ade01234489799a842ded1f50cf1116bf5c59e89271569"},
+    {file = "pynverse-0.1.4.4_v2.tar.gz", hash = "sha256:4c4347f4281e69c38ab4fe4f8e2a3ed3c5981e7fa4fd5c0ebc59189afb08df57"},
 ]
 pyparsing = [
     {file = "pyparsing-2.4.7-py2.py3-none-any.whl", hash = "sha256:ef9d7589ef3c200abe66653d3f1ab1033c3c419ae9b9bdb1240a85b024efc88b"},

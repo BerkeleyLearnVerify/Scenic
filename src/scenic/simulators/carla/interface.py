@@ -1,4 +1,6 @@
-import scenic.simulators.carla.xodr_parser as xodr_parser
+"""Support code for the CARLA world model."""
+
+import scenic.simulators.parsers.xodr_parser as xodr_parser
 from scenic.core.workspaces import Workspace
 from scenic.core.regions import PolygonalRegion
 from scenic.core.vectors import VectorField
@@ -20,6 +22,8 @@ class CarlaWorkspace(Workspace):
         self.sidewalk_region = PolygonalRegion(polygon=sidewalk_poly)
         self.intersection_region = PolygonalRegion(polygon=intersect_poly,
                                                 orientation=self.road_direction)
+        super().__init__()
+
         # lane_sec_dict is dict of road id to list of dict of lane id to PolygonalRegion.
         self.lane_sec_dict = {}
         for id_ in self.road_map.roads:

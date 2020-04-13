@@ -28,6 +28,7 @@ pillow==7.1.1
 pluggy==0.13.1
 py==1.8.1
 pygments==2.6.1
+pynverse==0.1.4.4
 pyparsing==2.4.7
 pypoly2tri==0.0.3
 pytest==5.4.1

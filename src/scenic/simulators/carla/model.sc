@@ -1,3 +1,5 @@
+"""Scenic world model for traffic scenarios in CARLA."""
+
 import math
 import time
 
@@ -18,7 +20,7 @@ intersection = workspace.intersection_region
 # lane id to polygon, one dict per lane section.
 laneSectionDict = workspace.lane_sec_dict
 
-precipitation = Options({0: 70,1: 30}) * (0, 100)
+precipitation = Options({0: 70, 1: 30}) * (0, 100)
 param precipitation = precipitation
 param precipitation_deposits = (precipitation, 100)
 param cloudiness = (precipitation, 100)

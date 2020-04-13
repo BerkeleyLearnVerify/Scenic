@@ -2,6 +2,7 @@
 
 import math
 import itertools
+import warnings
 
 import numpy as np
 import shapely.geometry
@@ -169,6 +170,9 @@ def cleanChain(chain, tolerance, angleTolerance=0.008):
 	newChain.append(newChain[0] if closed else c)
 	return newChain
 
+#: Whether to warn when falling back to pypoly2tri for triangulation
+givePP2TWarning = True
+
 def triangulatePolygon(polygon):
 	"""Triangulate the given Shapely polygon.
 
@@ -177,6 +181,12 @@ def triangulatePolygon(polygon):
 	algorithm for triangulation of polygons with holes (it doesn't need to be a
 	Delaunay triangulation).
 
+	We currently use the GPC library (wrapped by the ``Polygon3`` package) if it is
+	installed. Since it is not free for commercial use, we don't require it as a
+	dependency, falling back on the BSD-compatible ``pypoly2tri`` as needed. In this
+	case we issue a warning, since GPC is more robust and handles large polygons.
+	The warning can be disabled by setting `givePP2TWarning` to ``False``.
+
 	Args:
 		polygon (shapely.geometry.Polygon): Polygon to triangulate.
 
@@ -184,6 +194,17 @@ def triangulatePolygon(polygon):
 		A list of disjoint (except for edges) triangles whose union is the
 		original polygon.
 	"""
+	try:
+		import Polygon
+		return triangulatePolygon_gpc(polygon)
+	except ImportError:
+		pass
+	if givePP2TWarning:
+		warnings.warn('Using pypoly2tri for triangulation; for non-commercial use, consider'
+		              ' installing the faster Polygon3 library')
+	return triangulatePolygon_pypoly2tri(polygon)
+
+def triangulatePolygon_pypoly2tri(polygon):
 	polyline = []
 	for c in polygon.exterior.coords[:-1]:
 		polyline.append(pypoly2tri.shapes.Point(c[0],c[1]))
@@ -193,7 +214,10 @@ def triangulatePolygon(polygon):
 		for c in i.coords[:-1]:
 			polyline.append(pypoly2tri.shapes.Point(c[0],c[1]))
 		cdt.AddHole(polyline)
-	cdt.Triangulate()
+	try:
+		cdt.Triangulate()
+	except RecursionError as e:		# polygon too big for pypoly2tri
+		raise RuntimeError('pypoly2tri unable to triangulate large polygon') from e
 
 	triangles = list()
 	for t in cdt.GetTriangles():
@@ -202,6 +226,22 @@ def triangulatePolygon(polygon):
 			t.GetPoint(1).toTuple(),
 			t.GetPoint(2).toTuple()
 		]))
+	return triangles
+
+def triangulatePolygon_gpc(polygon):
+	import Polygon as PolygonLib
+	poly = PolygonLib.Polygon(polygon.exterior.coords)
+	for interior in polygon.interiors:
+		poly.addContour(interior.coords, True)
+	tristrips = poly.triStrip()
+	triangles = []
+	for strip in tristrips:
+		a, b = strip[:2]
+		for c in strip[2:]:
+			tri = shapely.geometry.Polygon((a, b, c))
+			triangles.append(tri)
+			a = b
+			b = c
 	return triangles
 
 def plotPolygon(polygon, plt, style='r-'):

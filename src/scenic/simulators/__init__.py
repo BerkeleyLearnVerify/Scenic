@@ -7,8 +7,10 @@
 .. autosummary::
    :toctree: _autosummary
 
+   carla
    gta
    webots
    xplane
+   parsers
 """
 
