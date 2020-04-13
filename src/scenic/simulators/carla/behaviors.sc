@@ -2,8 +2,10 @@ import scenic.simulators.carla.actions as actions
 
 behavior TeleportForward():
 ''' Repeatedly teleports actor forward in direction of it heading '''
+	
 	while True:
 		take actions.OffsetAction(0.5)
+
 
 behavior AccelerateThenBrake(accelTime, throttleInc, brakeTime, brakeInc):
 ''' Increase actor's throttle by <throttle> over <accelTime> seconds before increasing actor's brakes by <brake> over <brakeTime> seconds

@@ -19,6 +19,7 @@ class CarlaSimulator(simulators.Simulator):
 	def createSimulation(self, scene):
 		return CarlaSimulation(scene, self.client)
 
+
 class CarlaSimulation(simulators.Simulation):
 	def __init__(self, scene, client):
 		super().__init__(scene)

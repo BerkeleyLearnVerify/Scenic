@@ -17,6 +17,7 @@ class OffsetAction(simulators.Action):
 		loc = utils.scenicToCarlaLocation(pos, z=obj.elevation)
 		carlaActor.set_location(loc)
 
+
 class SetLocationAction(simulators.Action):
 	def __init__(self, pos):
 		self.pos = pos  # Scenic position
@@ -25,6 +26,7 @@ class SetLocationAction(simulators.Action):
 		loc = utils.scenicToCarlaLocation(pos, z=obj.elevation)
 		carlaActor.set_location(loc)
 
+
 class SetVelocityAction(simulators.Action):
 	def __init__(self, velocity):
 		self.velocity = utils.scenicToCarlaVector3D(velocity)
@@ -32,12 +34,14 @@ class SetVelocityAction(simulators.Action):
 	def applyTo(self, obj, carlaActor, sim):
 		carlaActor.set_velocity(self.velocity)
 
+
 class SetAngularVelocityAction(simulators.Action):
 	def __init__(self, angularVelocity):
 		self.angularVelocity = angularVelocity
 
 	def applyTo(self, obj, carlaActor, sim):
 		carlaActor.set_angular_velocity(self.angularVelocity)
+
 
 class SetTransformAction(simulators.Action):
 	def __init__(self, pos, heading):
@@ -49,6 +53,7 @@ class SetTransformAction(simulators.Action):
 		rot = utils.scenicToCarlaRotation(heading)
 		transform = carla.Transform(loc, rot)
 		carlaActor.set_transform(transform)
+
 
 #############################################
 # Actions specific to carla.Vehicle objects #
@@ -63,6 +68,7 @@ class SetThrottleAction(simulators.Action):
 		ctrl.throttle = min(max(self.throttle, 0), 1)  # cut off at range bounds
 		vehicle.apply_control(ctrl)
 
+
 class IncreaseThrottleAction(simulators.Action):
 	def __init__(self, increment):
 		self.increment = increment  # should be positive (but works regardless)
@@ -71,6 +77,7 @@ class IncreaseThrottleAction(simulators.Action):
 		ctrl = vehicle.control()
 		ctrl.throttle = min(max(ctrl.throttle + self.increment, 0), 1)  # cut off at range bounds
 		vehicle.apply_control(ctrl)
+
 
 class DecreaseThrottleAction(simulators.Action):
 	def __init__(self, decrement):
@@ -81,6 +88,7 @@ class DecreaseThrottleAction(simulators.Action):
 		ctrl.throttle = min(max(ctrl.throttle - self.decrement, 0), 1)  # cut off at range bounds
 		vehicle.apply_control(ctrl)
 
+
 class SetSteerAction(simulators.Action):
 	def __init__(self, steer):
 		self.steer = steer  # float in range [-1.0, 1.0]
@@ -89,6 +97,26 @@ class SetSteerAction(simulators.Action):
 		ctrl = vehicle.get_control()
 		ctrl.steer = min(max(self.steer, 0), 1)  # cut off at range bounds
 		vehicle.apply_control(ctrl)
+
+class IncreaseSteerAction(SetBrakeAction):
+	def __init__(self, increment):
+		self.increment = increment  # should be positive (but works regardless)
+
+	def applyTo(self, obj, vehicle, sim):
+		ctrl = vehicle.control()
+		ctrl.steer = min(max(ctrl.steer + self.increment, -1), 1)  # cut off at range bounds
+		vehicle.apply_control(ctrl)
+
+
+class DecreaseSteerAction(SetBrakeAction):
+	def __init__(self, decrement):
+		self.decrement = decrement  # should be positive (but works regardless)
+
+	def applyTo(self, obj, vehicle, sim):
+		ctrl = vehicle.control()
+		ctrl.steer = min(max(ctrl.steer - self.decrement, -1), 1)  # cut off at range bounds
+		vehicle.apply_control(ctrl)
+
 
 class SetBrakeAction(simulators.Action):
 	def __init__(self, brake):
@@ -99,6 +127,7 @@ class SetBrakeAction(simulators.Action):
 		ctrl.brake = min(max(self.brake, 0), 1)  # cut off at range bounds
 		vehicle.apply_control(ctrl)
 
+
 class IncreaseBrakeAction(SetBrakeAction):
 	def __init__(self, increment):
 		self.increment = increment  # should be positive (but works regardless)
@@ -107,6 +136,7 @@ class IncreaseBrakeAction(SetBrakeAction):
 		ctrl = vehicle.control()
 		ctrl.throttle = min(max(ctrl.throttle + self.increment, 0), 1)  # cut off at range bounds
 		vehicle.apply_control(ctrl)
+
 
 class DecreaseBrakeAction(SetBrakeAction):
 	def __init__(self, decrement):
@@ -117,6 +147,7 @@ class DecreaseBrakeAction(SetBrakeAction):
 		ctrl.throttle = min(max(ctrl.throttle - self.decrement, 0), 1)  # cut off at range bounds
 		vehicle.apply_control(ctrl)
 
+
 class SetHandBrakeAction(simulators.Action):
 	def __init__(self, handBrake):
 		self.handBrake = handBrake  # boolean
@@ -125,6 +156,7 @@ class SetHandBrakeAction(simulators.Action):
 		ctrl = vehicle.get_control()
 		ctrl.hand_brake = self.handBrake
 		vehicle.apply_control(ctrl)
+
 
 class SetReverseAction(simulators.Action):
 	def __init__(self, reverse):
@@ -135,6 +167,7 @@ class SetReverseAction(simulators.Action):
 		ctrl.reverse = self.reverse
 		vehicle.apply_control(ctrl)
 
+
 class SetManualGearShiftAction(simulators.Action):
 	def __init__(self, manualGearShift):
 		self.manualGearShift = manualGearShift  # boolean
@@ -143,6 +176,7 @@ class SetManualGearShiftAction(simulators.Action):
 		ctrl = vehicle.get_control()
 		ctrl.manual_gear_shift = self.manualGearShift
 		vehicle.apply_control(ctrl)
+
 
 class SetGearAction(simulators.Action):
 	def __init__(self, gear):
@@ -153,6 +187,7 @@ class SetGearAction(simulators.Action):
 		ctrl.gear = min(max(self.gear, 1), 6)  # cut off at range bounds
 		vehicle.apply_control(ctrl)
 
+
 class IncreaseGearAction(simulators.Action):
 	def __init__(self, increment=1):
 		self.increment = increment  # should be 1
@@ -161,6 +196,7 @@ class IncreaseGearAction(simulators.Action):
 		ctrl = vehicle.get_control()
 		ctr.gear = min(max(ctr.gear + self.increment, 1), 6)  # cut off at range bounds
 		vehicle.apply_control(ctrl)
+
 
 class DecreaseGearAction(simulators.Action):
 	def __init__(self, decrement=1):
