@@ -13,7 +13,7 @@ from scenic.core.geometry import RotatedRectangle, averageVectors, hypot, min, p
 from scenic.core.regions import CircularRegion, SectorRegion
 from scenic.core.type_support import toVector, toScalar
 from scenic.core.lazy_eval import needsLazyEvaluation
-from scenic.core.utils import RuntimeParseError
+from scenic.core.utils import areEquivalent, RuntimeParseError
 
 ## Abstract base class
 
@@ -120,7 +120,7 @@ class Constructible(Samplable):
 			if needsSampling(val):
 				deps.append(val)
 		super().__init__(deps)
-		self.properties = properties
+		self.properties = set(properties)
 
 	def sampleGiven(self, value):
 		return self.withProperties({ prop: value[getattr(self, prop)]
@@ -133,6 +133,11 @@ class Constructible(Samplable):
 		props = self.allProperties()
 		props.update(overrides)
 		return self.withProperties(props)
+
+	def isEquivalentTo(self, other):
+		if type(other) is not type(self):
+			return False
+		return areEquivalent(self.allProperties(), other.allProperties())
 
 	def __str__(self):
 		if hasattr(self, 'properties'):
@@ -156,6 +161,14 @@ class PositionMutator(Mutator):
 		pos = pos + noise
 		return (obj.copyWith(position=pos), True)		# allow further mutation
 
+	def __eq__(self, other):
+		if type(other) is not type(self):
+			return NotImplemented
+		return (other.stddev == self.stddev)
+
+	def __hash__(self):
+		return hash(self.stddev)
+
 class HeadingMutator(Mutator):
 	def __init__(self, stddev):
 		self.stddev = stddev
@@ -164,6 +177,14 @@ class HeadingMutator(Mutator):
 		noise = random.gauss(0, self.stddev)
 		h = obj.heading + noise
 		return (obj.copyWith(heading=h), True)		# allow further mutation
+
+	def __eq__(self, other):
+		if type(other) is not type(self):
+			return NotImplemented
+		return (other.stddev == self.stddev)
+
+	def __hash__(self):
+		return hash(self.stddev)
 
 ## Point
 

@@ -3,12 +3,13 @@
 
 import collections
 import itertools
+import functools
 import random
 
 from scenic.core.lazy_eval import (LazilyEvaluable, DelayedArgument,
                                    requiredProperties, needsLazyEvaluation, valueInContext,
                                    makeDelayedFunctionCall)
-from scenic.core.utils import argsToString, RuntimeParseError
+from scenic.core.utils import argsToString, areEquivalent, RuntimeParseError
 
 ## Misc
 
@@ -31,7 +32,7 @@ def supportInterval(thing):
 
 def underlyingFunction(thing):
 	"""Original function underlying a distribution wrapper."""
-	return getattr(thing, '_underlyingFunction', thing)
+	return getattr(thing, '__wrapped__', thing)
 
 class RejectionException(Exception):
 	"""Exception used to signal that the sample currently being generated must be rejected."""
@@ -137,6 +138,8 @@ class Distribution(Samplable):
 		return None, None
 
 	def __getattr__(self, name):
+		if name.startswith('__') and name.endswith('__'):	# ignore special attributes
+			return super().__getattr__(name)
 		return AttributeDistribution(name, self)
 
 ## Derived distributions
@@ -156,6 +159,13 @@ class CustomDistribution(Distribution):
 		if self.evaluator is None:
 			raise NotImplementedError('evaluateIn() not supported by this distribution')
 		return self.evaluator(self, context)
+
+	def isEquivalentTo(self, other):
+		if not type(other) is CustomDistribution:
+			return False
+		return (self.sampler == other.sampler
+			and self.name == other.name
+			and self.evaluator == other.evaluator)
 
 	def __str__(self):
 		return f'{self.name}{argsToString(self.dependencies)}'
@@ -179,6 +189,12 @@ class TupleDistribution(Distribution, collections.abc.Sequence):
 	def evaluateInner(self, context):
 		coordinates = (valueInContext(coord, context) for coord in self.coordinates)
 		return TupleDistribution(*coordinates, builder=self.builder)
+
+	def isEquivalentTo(self, other):
+		if not type(other) is TupleDistribution:
+			return False
+		return (areEquivalent(self.coordinates, other.coordinates)
+			and self.builder == other.builder)
 
 	def __str__(self):
 		coords = ', '.join(str(c) for c in self.coordinates)
@@ -228,12 +244,21 @@ class FunctionDistribution(Distribution):
 		kwss = { name: supportInterval(arg) for name, arg in self.kwargs.items() }
 		return self.support(*subsupports, **kwss)
 
+	def isEquivalentTo(self, other):
+		if not type(other) is FunctionDistribution:
+			return False
+		return (self.function == other.function
+			and areEquivalent(self.arguments, other.arguments)
+			and areEquivalent(self.kwargs, other.kwargs)
+			and self.support == other.support)
+
 	def __str__(self):
 		args = argsToString(itertools.chain(self.arguments, self.kwargs.items()))
 		return f'{self.function.__name__}{args}'
 
 def distributionFunction(method, support=None):
 	"""Decorator for wrapping a function so that it can take distributions as arguments."""
+	@functools.wraps(method)
 	def helper(*args, **kwargs):
 		args = tuple(toDistribution(arg) for arg in args)
 		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
@@ -246,7 +271,6 @@ def distributionFunction(method, support=None):
 			return makeDelayedFunctionCall(helper, args, kwargs)
 		else:
 			return method(*args, **kwargs)
-	helper._underlyingFunction = method
 	return helper
 
 def monotonicDistributionFunction(method):
@@ -282,12 +306,21 @@ class MethodDistribution(Distribution):
 		kwargs = { name: valueInContext(arg, context) for name, arg in self.kwargs.items() }
 		return MethodDistribution(self.method, obj, arguments, kwargs)
 
+	def isEquivalentTo(self, other):
+		if not type(other) is MethodDistribution:
+			return False
+		return (self.method == other.method
+			and areEquivalent(self.object, other.object)
+			and areEquivalent(self.arguments, other.arguments)
+			and areEquivalent(self.kwargs, other.kwargs))
+
 	def __str__(self):
 		args = argsToString(itertools.chain(self.arguments, self.kwargs.items()))
 		return f'{self.object}.{self.method.__name__}{args}'
 
 def distributionMethod(method):
 	"""Decorator for wrapping a method so that it can take distributions as arguments."""
+	@functools.wraps(method)
 	def helper(self, *args, **kwargs):
 		args = tuple(toDistribution(arg) for arg in args)
 		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
@@ -298,7 +331,6 @@ def distributionMethod(method):
 			return makeDelayedFunctionCall(helper, (self,) + args, kwargs)
 		else:
 			return method(self, *args, **kwargs)
-	helper._underlyingFunction = method
 	return helper
 
 class AttributeDistribution(Distribution):
@@ -325,6 +357,12 @@ class AttributeDistribution(Distribution):
 			r = None if any(sr is None for sr in maxes) else max(maxes)
 			return l, r
 		return None, None
+
+	def isEquivalentTo(self, other):
+		if not type(other) is AttributeDistribution:
+			return False
+		return (self.attribute == other.attribute
+			and areEquivalent(self.object, other.object))
 
 	def __str__(self):
 		return f'{self.object}.{self.attribute}'
@@ -380,6 +418,13 @@ class OperatorDistribution(Distribution):
 					l, r = None, None 	# TODO improve
 			return l, r
 		return None, None
+
+	def isEquivalentTo(self, other):
+		if not type(other) is OperatorDistribution:
+			return False
+		return (self.operator == other.operator
+			and areEquivalent(self.object, other.object)
+			and areEquivalent(self.operands, other.operands))
 
 	def __str__(self):
 		return f'{self.object}.{self.operator}{argsToString(self.operands)}'
@@ -438,6 +483,12 @@ class Range(Distribution):
 		high = valueInContext(self.high, context)
 		return Range(low, high)
 
+	def isEquivalentTo(self, other):
+		if not type(other) is Range:
+			return False
+		return (areEquivalent(self.low, other.low)
+			and areEquivalent(self.high, other.high))
+
 	def __str__(self):
 		return f'Range({self.low}, {self.high})'
 
@@ -461,6 +512,12 @@ class Normal(Distribution):
 		stddev = valueInContext(self.stddev, context)
 		return Normal(mean, stddev)
 
+	def isEquivalentTo(self, other):
+		if not type(other) is Normal:
+			return False
+		return (areEquivalent(self.mean, other.mean)
+			and areEquivalent(self.stddev, other.stddev))
+
 	def __str__(self):
 		return f'Normal({self.mean}, {self.stddev})'
 
@@ -471,7 +528,7 @@ class Options(Distribution):
 	"""
 	def __init__(self, opts):
 		if isinstance(opts, dict):
-			self.options = []
+			options = []
 			self.weights = dict()
 			ordered = []
 			for opt, prob in opts.items():
@@ -483,9 +540,10 @@ class Options(Distribution):
 				if prob == 0:
 					continue
 				opt = toDistribution(opt)
-				self.options.append(opt)
+				options.append(opt)
 				self.weights[opt] = prob
 				ordered.append(prob)
+			self.options = tuple(options)
 			self.cumulativeWeights = tuple(itertools.accumulate(ordered))
 		else:
 			self.options = tuple(toDistribution(opt) for opt in opts)
@@ -508,6 +566,12 @@ class Options(Distribution):
 			               for opt, wt in self.weights.items() })
 		else:
 			return Options([valueInContext(opt, context) for opt in self.options])
+
+	def isEquivalentTo(self, other):
+		if not type(other) == Options:
+			return False
+		return (areEquivalent(self.options, other.options)
+			and self.cumulativeWeights == other.cumulativeWeights)
 
 	def __str__(self):
 		if self.cumulativeWeights is not None:

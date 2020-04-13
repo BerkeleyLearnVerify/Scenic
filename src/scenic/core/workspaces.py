@@ -65,3 +65,11 @@ class Workspace(Region):
 
 	def __str__(self):
 		return f'<Workspace on {self.region}>'
+
+	def __eq__(self, other):
+		if type(other) is not Workspace:
+			return NotImplemented
+		return other.region == self.region
+
+	def __hash__(self):
+		return hash(self.region)
