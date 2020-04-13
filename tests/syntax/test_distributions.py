@@ -281,6 +281,13 @@ def test_reproducibility():
             assert scene.params['foo'] == baseScene.params['foo']
             assert iterations == baseIterations
 
+## Independence
+
+def test_independence():
+    scenario = compileScenic('ego = Object at (0, 1) @ (0, 1)')
+    pos = sampleEgo(scenario).position
+    assert pos.x != pos.y
+
 ## Dependencies and lazy evaluation
 
 def test_shared_dependency():

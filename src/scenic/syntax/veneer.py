@@ -30,6 +30,8 @@ __all__ = (
 	'At', 'In', 'Beyond', 'VisibleFrom', 'VisibleSpec', 'OffsetBy', 'OffsetAlongSpec',
 	'Facing', 'FacingToward', 'ApparentlyFacing',
 	'LeftSpec', 'RightSpec', 'Ahead', 'Behind',
+	# Constants
+	'everywhere', 'nowhere',
 	# Temporary stuff... # TODO remove
 	'PropertyDefault'
 )
@@ -38,7 +40,7 @@ __all__ = (
 from scenic.core.geometry import sin, cos, hypot, max, min
 from scenic.core.vectors import Vector, VectorField, PolygonalVectorField
 from scenic.core.regions import (Region, PointSetRegion, RectangularRegion,
-	PolygonalRegion, PolylineRegion)
+	PolygonalRegion, PolylineRegion, everywhere, nowhere)
 from scenic.core.workspaces import Workspace
 from scenic.core.distributions import Range, Options, Normal
 Uniform = lambda *opts: Options(opts)		# TODO separate these?
@@ -55,6 +57,7 @@ from scenic.core.object_types import Constructible
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument
 from scenic.core.utils import RuntimeParseError
+from scenic.core.external_params import ExternalParameter
 
 ### Internals
 
@@ -63,6 +66,7 @@ evaluatingRequirement = False
 allObjects = []		# ordered for reproducibility
 egoObject = None
 globalParameters = {}
+externalParameters = []		# ordered for reproducibility
 pendingRequirements = {}
 inheritedReqs = []		# TODO improve handling of these?
 
@@ -89,6 +93,7 @@ def deactivate():
 	allObjects = []
 	egoObject = None
 	globalParameters = {}
+	externalParameters = []
 	pendingRequirements = {}
 	inheritedReqs = []
 
@@ -102,6 +107,12 @@ def registerObject(obj):
 		allObjects.append(obj)
 	elif evaluatingRequirement:
 		raise RuntimeParseError('tried to create an object inside a requirement')
+
+def registerExternalParameter(value):
+	"""Register a parameter whose value is given by an external sampler."""
+	if activity > 0:
+		assert isinstance(value, ExternalParameter)
+		externalParameters.append(value)
 
 ### Primitive statements and functions
 
@@ -161,11 +172,15 @@ def verbosePrint(msg):
 		indent = '  ' * activity if translator.verbosity >= 2 else '  '
 		print(indent + msg)
 
-def param(**params):
+def param(*quotedParams, **params):
 	"""Function implementing the param statement."""
 	if evaluatingRequirement:
 		raise RuntimeParseError('tried to create a global parameter inside a requirement')
 	for name, value in params.items():
+		globalParameters[name] = toDistribution(value)
+	assert len(quotedParams) % 2 == 0, quotedParams
+	it = iter(quotedParams)
+	for name, value in zip(it, it):
 		globalParameters[name] = toDistribution(value)
 
 def mutate(*objects):		# TODO update syntax

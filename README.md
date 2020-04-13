@@ -20,6 +20,9 @@ If you have any problems using Scenic, please contact Daniel at <dfremont@berkel
 
 You need Python 3.6 or newer.
 The _setup.py_ script will handle installation of dependencies (run `python setup.py install`).
+On Windows, the `shapely` package must currently be installed manually: please follow the instructions [here](https://github.com/Toblerity/Shapely#built-distributions).
+
+
 Some scenarios using OpenStreetMap data require the _pyproj_ package and will prompt you if you don't have it (we haven't listed it as a dependency since there seem to be issues building it for Windows at the moment).
 
 ## Basic Usage
@@ -75,6 +78,4 @@ The models are:
 
 ## License
 
-Scenic is distributed under the 3-Clause BSD License. However, it currently uses the [GPC library](http://www.cs.man.ac.uk/~toby/alan/software/) (through the [Polygon3](https://pypi.org/project/Polygon3/) package), which is free only for non-commercial use.
-GPC is used only in the `triangulatePolygon` function in `scenic.core.geometry`, and you can alternatively plug in any algorithm of your choice for triangulation of polygons with holes.
-We plan to replace GPC with a BSD-compatible library in the near future.
+Scenic is distributed under the 3-Clause BSD License.

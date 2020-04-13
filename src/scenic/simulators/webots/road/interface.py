@@ -9,6 +9,7 @@ import shapely.geometry
 import shapely.ops
 
 import scenic.simulators.webots.world_parser as world_parser
+from scenic.simulators.webots.common import webotsToScenicPosition, webotsToScenicRotation
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import PolygonalVectorField
 from scenic.core.regions import PolygonalRegion, PolylineRegion, nowhere
@@ -45,7 +46,7 @@ class Road(OSMObject):
 		super().__init__(attrs)
 		self.driveOnLeft = driveOnLeft
 		self.translation = attrs['translation']
-		pts = [np.delete(p + self.translation, 1) for p in attrs['wayPoints']]
+		pts = [np.array(webotsToScenicPosition(p + self.translation)) for p in attrs['wayPoints']]
 		self.waypoints = tuple(cleanChain(pts, 0.05))
 		assert len(self.waypoints) > 1, pts
 		self.width = float(attrs.get('width', 7))
@@ -204,9 +205,10 @@ class Crossroad(OSMObject):
 	def __init__(self, attrs):
 		super().__init__(attrs)
 		self.translation = attrs['translation']
-		points = list(p + self.translation for p in attrs['shape'])
+		points = list(np.array(webotsToScenicPosition(p + self.translation))
+		              for p in attrs['shape'])
 		if len(points) > 0:
-			self.points = [(x, z) for x, y, z in points]
+			self.points = points
 			self.region = PolygonalRegion(self.points)
 		else:
 			verbosePrint(f'WARNING: Crossroad {self.osmID} has empty shape field!')
@@ -222,12 +224,11 @@ class PedestrianCrossing:
 	"""PedestrianCrossing nodes"""
 	def __init__(self, attrs):
 		self.translation = attrs.get('translation', np.array((0, 0, 0)))
-		pos = np.delete(self.translation, 1)
+		pos = np.array(webotsToScenicPosition(self.translation))
 		name = attrs.get('name', '')
-		rotation = attrs.get('rotation', (0, 1, 0, 0))
-		if tuple(rotation[:3]) != (0, 1, 0):
+		self.angle = webotsToScenicRotation(attrs.get('rotation', (0, 1, 0, 0)))
+		if self.angle is None:
 			raise RuntimeError(f'PedestrianCrossing "{name}" is not 2D!')
-		self.angle = float(rotation[3])
 		size = attrs.get('size', (20, 8))
 		self.length, self.width = float(size[0]), float(size[1])
 		self.length += 0.2		# pad length to intersect sidewalks better	# TODO improve?
@@ -277,11 +278,16 @@ class WebotsWorkspace(Workspace):
 		if not self.roads:
 			roadPoly = None
 			self.roadsRegion = nowhere
+			self.curbsRegion = nowhere
 		else:
 			roadPoly = polygonUnion(road.region.polygons for road in self.roads)
 			self.roadsRegion = PolygonalRegion(polygon=roadPoly,
 			                                   orientation=self.roadDirection)
 			drivableAreas.append(roadPoly)
+			curbs = [road.leftCurb.lineString for road in self.roads]
+			curbs.extend(road.rightCurb.lineString for road in self.roads)
+			curbLine = shapely.ops.unary_union(curbs)
+			self.curbsRegion = PolylineRegion(polyline=curbLine)
 		if not self.crossroads:
 			crossroadPoly = None
 			self.crossroadsRegion = nowhere

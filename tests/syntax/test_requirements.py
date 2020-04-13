@@ -3,7 +3,7 @@ import pytest
 
 import scenic
 from scenic import scenarioFromString as compileScenic
-from scenic.syntax.translator import InterpreterParseError
+from scenic.syntax.translator import InterpreterParseError, InvalidScenarioError
 from tests.utils import sampleEgo
 
 ## Basic
@@ -53,3 +53,26 @@ def test_runtime_parse_error_in_requirement():
     scenario = compileScenic('require visible 4\n' 'ego = Object')
     with pytest.raises(InterpreterParseError):
         scenario.generate(maxIterations=1)
+
+## Static violations of built-in requirements
+
+def test_static_containment_violation():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic(
+            'foo = RectangularRegion(0@0, 0, 5, 5)\n'
+            'ego = Object at 10@10, with regionContainedIn foo'
+        )
+
+def test_static_visibility_violation():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic(
+            'ego = Object at 10@0, facing -90 deg, with viewAngle 90 deg\n'
+            'Object at 0@10'
+        )
+
+def test_static_intersection_violation():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic(
+            'ego = Object at 0@0\n'
+            'Object at 1@0'
+        )

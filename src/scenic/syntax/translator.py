@@ -39,7 +39,7 @@ from tokenize import NAME, NL, NEWLINE, ENDMARKER, OP, NUMBER, COLON, COMMENT, E
 from tokenize import LPAR, RPAR, LSQB, RSQB, COMMA, DOUBLESLASH, DOUBLESLASHEQUAL
 from tokenize import AT, LEFTSHIFT, RIGHTSHIFT, VBAR, AMPER, TILDE, CIRCUMFLEX, STAR
 from tokenize import LEFTSHIFTEQUAL, RIGHTSHIFTEQUAL, VBAREQUAL, AMPEREQUAL, CIRCUMFLEXEQUAL
-from tokenize import INDENT, DEDENT
+from tokenize import INDENT, DEDENT, STRING
 
 import ast
 from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_missing_locations
@@ -203,7 +203,8 @@ for imp in internalFunctions:
 ## Statements implemented by functions
 
 requireStatement = 'require'
-functionStatements = { requireStatement, 'param', 'mutate' }
+paramStatement = 'param'
+functionStatements = { requireStatement, paramStatement, 'mutate' }
 
 # sanity check: implementations of statements actually exist
 for imp in functionStatements:
@@ -419,6 +420,7 @@ def hooked_import(*args, **kwargs):
 		if veneer.isActive():
 			veneer.allObjects.extend(module._objects)
 			veneer.globalParameters.update(module._params)
+			veneer.externalParameters.extend(module._externalParams)
 			veneer.inheritedReqs.extend(module._requirements)
 	return module
 
@@ -581,7 +583,16 @@ class TokenTranslator:
 				# elide dedent corresponding to indented specifiers, if present
 				skip = True
 				specifiersIndented = False
-			elif ttype == NAME:		# the interesting case: all new syntax falls in here
+			elif ttype == STRING:
+				# special case for global parameters with quoted names:
+				# transform "name"=value into "name", value
+				if (len(functionStack) > 0 and functionStack[-1][0] == paramStatement
+				    and peek(tokens).string == '='):
+					next(tokens)	# consume '='
+					newTokens.append(token[:2])
+					newTokens.append((COMMA, ','))
+					skip = True
+			elif ttype == NAME:		# the interesting case: almost all new syntax falls in here
 				function = None
 				argument = None
 
@@ -693,18 +704,22 @@ class TokenTranslator:
 						context, startLevel = (None, 0) if len(functionStack) == 0 else functionStack[-1]
 					# allow the next specifier to be on the next line, if indented
 					nextToken = peek(tokens)
-					if nextToken.exact_type in (NEWLINE, COMMENT):
+					specOnNewLine = False
+					while nextToken.exact_type in (NEWLINE, NL, COMMENT):
+						specOnNewLine = True
 						if nextToken.exact_type == COMMENT:
 							next(tokens)	# consume comment
 							nextToken = peek(tokens)
-						if nextToken.exact_type != NEWLINE:
+						if nextToken.exact_type not in (NEWLINE, NL):
 							raise TokenParseError(nextToken, 'comma with no specifier following')
 						next(tokens)	# consume newline
-						if not specifiersIndented:
-							nextToken = next(tokens)	# consume indent
-							if nextToken.exact_type != INDENT:
-								raise TokenParseError(nextToken, 'expected indented specifier (extra comma on previous line?)')
-							specifiersIndented = True
+						nextToken = peek(tokens)
+					if specOnNewLine and not specifiersIndented:
+						nextToken = next(tokens)	# consume indent
+						if nextToken.exact_type != INDENT:
+							raise TokenParseError(nextToken,
+							                      'expected indented specifier (extra comma on previous line?)')
+						specifiersIndented = True
 				elif ttype == NEWLINE or ttype == ENDMARKER or ttype == COMMENT:	# end of line
 					inConstructor = False
 					if parenLevel != 0:
@@ -761,6 +776,10 @@ selfArg = ast.arguments(
 	args=[ast.arg(arg='self', annotation=None)], vararg=None,
 	kwonlyargs=[], kw_defaults=[],
 	kwarg=None, defaults=[])
+
+if sys.version_info >= (3, 8):	# TODO cleaner way to handle this?
+	noArgs.posonlyargs = []
+	selfArg.posonlyargs = []
 
 class AttributeFinder(NodeVisitor):
 	"""Utility class for finding all referenced attributes of a given name."""
@@ -1031,6 +1050,9 @@ def storeScenarioStateIn(namespace, requirementSyntax, lineMap, filename):
 			raise InvalidScenarioError(f'parameter {name} uses value {value}'
 			                           ' undefined outside of object definition')
 
+	# Extract external parameters
+	namespace['_externalParams'] = tuple(veneer.externalParameters)
+
 	# Extract requirements, scan for relations used for pruning, and create closures
 	requirements = veneer.pendingRequirements
 	finalReqs = veneer.inheritedReqs
@@ -1101,7 +1123,7 @@ def constructScenarioFrom(namespace):
 	# Create Scenario object
 	scenario = Scenario(workspace,
 	                    namespace['_objects'], namespace['_egoObject'],
-	                    namespace['_params'],
+	                    namespace['_params'], namespace['_externalParams'],
 	                    namespace['_requirements'], namespace['_requirementDeps'])
 
 	# Prune infeasible parts of the space
