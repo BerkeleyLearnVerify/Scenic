@@ -69,7 +69,7 @@ class Curve:
         return
 
     def rel_to_abs(self, points):
-        '''Convert from relative coordinates of curve to absolute coordinats.
+        '''Convert from relative coordinates of curve to absolute coordinates.
         I.e. rotate counterclockwise by self.hdg and translate by (x0, x1).'''
         def translate(p):
             return (p[0] + self.x0, p[1] + self.y0, p[2])
@@ -149,13 +149,17 @@ class Clothoid(Curve):
             else:
                 points = [(r * np.sin(th), -r + r * np.cos(th), r * th) for th in th_space]
         else:
-            s1 = self.length * self.curv1 / abs(self.curv1 - self.curv0)
-            s0 = self.curv0 * s1 / self.curv1
+            curve_rate = self.length / abs(self.curv1 - self.curv0)
+            s1 = curve_rate * self.curv1
+            s0 = curve_rate * self.curv0
             s_space = np.linspace(s0, s1, num=num)
-            a = 1 / np.sqrt(2 * s1 / self.curv1)
+            a = 1 / np.sqrt(2 * curve_rate)
             points = [fresnel(a * s) + (s,) for s in s_space]
             p0 = points[0]
-            points = [(p[0] - p0[0], p[1] - p0[1], p[2] - s0) for p in points]
+            if s1 > s0:
+                points = [(p[0] - p0[0], p[1] - p0[1], p[2] - s0) for p in points]
+            else:
+                points = [(p[0] - p0[0], p[1] - p0[1], -(p[2] - s0)) for p in points]
         return self.rel_to_abs(points)
 
 
@@ -216,6 +220,9 @@ class LaneSection():
         reference line of lane boundary at coordinate S along line.
         By convention, left lanes have positive width offset and right lanes
         have negative.'''
+        if (s < self.s0):
+            print('s', s)
+            print('s0', self.s0)
         assert s >= self.s0, 'Input s is before lane start position.'
         offsets = {}
         left_lane_ids = sorted(self.left_lanes.keys())
@@ -317,6 +324,10 @@ class Road:
                 piece_points = [(p[0], p[1], p[2] + ref_points[-1][-1][2])
                                 for p in piece_points]
             ref_points.append(piece_points)
+        assert ref_points[0][0][2] >= 0, 'oh no'
+        for l in ref_points:
+            for p in l:
+                assert p[2] >= 0, 'oh no'
         return ref_points
 
     def get_lane_offsets(self, s):
