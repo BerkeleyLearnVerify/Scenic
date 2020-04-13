@@ -7,12 +7,12 @@ import scenic.simulators.carla.utils as utils
 
 # NOTE: Equivalent to LGSVL's MoveAction class
 class OffsetAction(simulators.Action):
-	'''Teleports actor forward (in direction of its heading) by some offset'''
+	''' Teleports actor forward (in direction of its heading) by some offset '''
 	def __init__(self, offset):
 		self.offset = offset
 
 	def applyTo(self, obj, carlaActor, sim):
-		pos = obj.position.offsetRotated(obj.heading, self.offset) #w.r. t
+		pos = obj.position.offsetRotated(obj.heading, self.offset)
 		loc = utils.scenicToCarlaLocation(pos, z=obj.elevation)
 		carlaActor.set_location(loc)
 
