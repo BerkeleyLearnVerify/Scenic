@@ -69,7 +69,7 @@ class Curve:
         return
 
     def rel_to_abs(self, points):
-        '''Convert from relative coordinates of curve to absolute coordinats.
+        '''Convert from relative coordinates of curve to absolute coordinates.
         I.e. rotate counterclockwise by self.hdg and translate by (x0, x1).'''
         def translate(p):
             return (p[0] + self.x0, p[1] + self.y0, p[2])
@@ -149,13 +149,17 @@ class Clothoid(Curve):
             else:
                 points = [(r * np.sin(th), -r + r * np.cos(th), r * th) for th in th_space]
         else:
-            s1 = self.length * self.curv1 / abs(self.curv1 - self.curv0)
-            s0 = self.curv0 * s1 / self.curv1
+            curve_rate = self.length / abs(self.curv1 - self.curv0)
+            s1 = curve_rate * self.curv1
+            s0 = curve_rate * self.curv0
             s_space = np.linspace(s0, s1, num=num)
-            a = 1 / np.sqrt(2 * s1 / self.curv1)
+            a = 1 / np.sqrt(2 * curve_rate)
             points = [fresnel(a * s) + (s,) for s in s_space]
             p0 = points[0]
-            points = [(p[0] - p0[0], p[1] - p0[1], p[2] - s0) for p in points]
+            if s1 > s0:
+                points = [(p[0] - p0[0], p[1] - p0[1], p[2] - s0) for p in points]
+            else:
+                points = [(p[0] - p0[0], p[1] - p0[1], -(p[2] - s0)) for p in points]
         return self.rel_to_abs(points)
 
 
@@ -376,6 +380,11 @@ class Road:
         If calc_gap=True, fills in gaps between connected roads. This is fairly expensive.'''
         road_polygons = []
         ref_points = self.get_ref_points(num)
+        # if self.id_ == 509:
+        #     l = [p for li in ref_points for p in li]
+        #     plt.scatter([p[0] for p in l], [p[1] for p in l])
+        #     l = ref_points[3]
+        #     plt.scatter([p[0] for p in l], [p[1] for p in l])
         cur_lane_polys = {}
         sec_points = []
         sec_polys = []
@@ -399,6 +408,7 @@ class Road:
             # Last point in left/right lane boundary line for last road piece:
             start_of_sec = True
             end_of_sec = False
+            # debug = 0
 
             while ref_points and not end_of_sec:
                 if not ref_points[0] or ref_points[0][0][2] >= s_stop:
@@ -407,6 +417,10 @@ class Road:
                     # Case 2: The s-coordinate has exceeded s_stop, so we should move
                     # onto the next LaneSection.
                     # Either way, we collect all the bound points so far into polygons.
+                    # debug += 1
+                    # if self.id_ == 509:
+                    #     print('len', len(ref_points))
+                    #     print(debug)
                     if not ref_points[0]:
                         ref_points.pop(0)
                     else:
@@ -416,6 +430,7 @@ class Road:
                     for id_ in left_bounds.keys():
                         # Polygon for piece of lane:
                         bounds = left_bounds[id_] + right_bounds[id_][::-1]
+                        # plt.scatter([p[0] for p in bounds], [p[1] for p in bounds])
                         if len(bounds) < 3:
                             continue
                         poly = Polygon(bounds).buffer(0)
@@ -439,11 +454,6 @@ class Road:
                             else:
                                 prev_id = id_
                             if last_lefts is not None:
-                                if prev_id not in last_lefts:
-                                    print('road', self.id_)
-                                    print('prev', prev_id)
-                                    print(i)
-                                    print(last_lefts)
                                 gap_poly = MultiPoint([
                                     last_lefts[prev_id], last_rights[prev_id],
                                     left_bounds[id_][0], right_bounds[id_][0]]).convex_hull
@@ -506,6 +516,9 @@ class Road:
                                           cur_p[1] + normal_vec[1] * offsets[id_]]
                             right_bound = [cur_p[0] + normal_vec[0] * offsets[prev_id],
                                            cur_p[1] + normal_vec[1] * offsets[prev_id]]
+                            # if self.id_ == 509 and debug == 3:
+                            #     plt.plot([left_bound[0], right_bound[0]], [left_bound[1], right_bound[1]])
+                            #     plt.text(left_bound[0], left_bound[1], str(debug))
                             if id_ not in left_bounds:
                                 left_bounds[id_] = [left_bound]
                             else:
