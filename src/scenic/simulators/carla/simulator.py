@@ -8,7 +8,6 @@ class CarlaSimulator(simulators.Simulator):
 		self.client = carla.Client(address, port)
 		self.client.set_timeout(10.0)  # limits networking operations (seconds)
 		self.world = self.client.get_world()
-		self.bpLib = self.world.get_blueprint_library()
 
 		# Set to synchronous with fixed timestep
 		settings = self.world.get_settings()
@@ -24,6 +23,7 @@ class CarlaSimulation(simulators.Simulation):
 	def __init__(self, scene, client):
 		super().__init__(scene)
 		self.client = client
+		self.world = self.client.get_world()
 
 		# Allow changing of timestep
 		self.timeStep = scene.params.get('time_step', 1.0/30)
