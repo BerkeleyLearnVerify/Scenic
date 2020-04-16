@@ -6,7 +6,6 @@ import numpy as np
 from scipy.special import fresnel
 from scipy.integrate import quad
 from pynverse import inversefunc
-import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, MultiPolygon, GeometryCollection, Point, MultiPoint
 from shapely.ops import unary_union, snap
 import abc
@@ -22,19 +21,6 @@ DRIVABLE = [
 
 # Lane types representing sidewalks.
 SIDEWALK = ['sidewalk']
-
-def plot_poly(polygon, c='r'):
-    if isinstance(polygon, MultiPolygon) or isinstance(polygon, GeometryCollection):
-        for poly in list(polygon):
-            plot_poly(poly, c=c)
-    else:
-        if not polygon.exterior:
-            return
-        x, y = polygon.exterior.xy
-        plt.plot(x,y, c=c)
-        for interior in polygon.interiors:
-            x, y = interior.xy
-            plt.plot(x, y, c=c)
 
 def buffer_union(polygons, buf=0.1):
     return unary_union([p.buffer(buf) for p in polygons]).buffer(-buf)
@@ -382,11 +368,6 @@ class Road:
         If calc_gap=True, fills in gaps between connected roads. This is fairly expensive.'''
         road_polygons = []
         ref_points = self.get_ref_points(num)
-        # if self.id_ == 509:
-        #     l = [p for li in ref_points for p in li]
-        #     plt.scatter([p[0] for p in l], [p[1] for p in l])
-        #     l = ref_points[3]
-        #     plt.scatter([p[0] for p in l], [p[1] for p in l])
         cur_lane_polys = {}
         sec_points = []
         sec_polys = []
@@ -410,7 +391,6 @@ class Road:
             # Last point in left/right lane boundary line for last road piece:
             start_of_sec = True
             end_of_sec = False
-            # debug = 0
 
             while ref_points and not end_of_sec:
                 if not ref_points[0] or ref_points[0][0][2] >= s_stop:
@@ -419,10 +399,6 @@ class Road:
                     # Case 2: The s-coordinate has exceeded s_stop, so we should move
                     # onto the next LaneSection.
                     # Either way, we collect all the bound points so far into polygons.
-                    # debug += 1
-                    # if self.id_ == 509:
-                    #     print('len', len(ref_points))
-                    #     print(debug)
                     if not ref_points[0]:
                         ref_points.pop(0)
                     else:
@@ -432,13 +408,10 @@ class Road:
                     for id_ in left_bounds.keys():
                         # Polygon for piece of lane:
                         bounds = left_bounds[id_] + right_bounds[id_][::-1]
-                        # plt.scatter([p[0] for p in bounds], [p[1] for p in bounds])
                         if len(bounds) < 3:
                             continue
                         poly = Polygon(bounds).buffer(0)
-                        #assert poly.is_valid, 'Polygon not valid.'
                         if poly.is_valid and not poly.is_empty:
-                            # plot_poly(poly, 'r')
                             if poly.geom_type == 'MultiPolygon':
                                 poly = MultiPolygon([p for p in list(poly)
                                                      if not p.is_empty and p.exterior])
@@ -518,9 +491,6 @@ class Road:
                                           cur_p[1] + normal_vec[1] * offsets[id_]]
                             right_bound = [cur_p[0] + normal_vec[0] * offsets[prev_id],
                                            cur_p[1] + normal_vec[1] * offsets[prev_id]]
-                            # if self.id_ == 509 and debug == 3:
-                            #     plt.plot([left_bound[0], right_bound[0]], [left_bound[1], right_bound[1]])
-                            #     plt.text(left_bound[0], left_bound[1], str(debug))
                             if id_ not in left_bounds:
                                 left_bounds[id_] = [left_bound]
                             else:
@@ -668,7 +638,7 @@ class RoadMap:
         #raise RuntimeError('Point not in RoadMap: ', point)
         return 0
 
-    def plot_line(self, num=500):
+    def plot_line(self, plt, num=500):
         '''Plot center line of road map for sanity check.'''
         for road in self.roads.values():
             for piece in road.ref_line:
@@ -678,7 +648,7 @@ class RoadMap:
                 plt.plot(x, y, 'b')
         plt.show()
 
-    def plot_lanes(self, num=500):
+    def plot_lanes(self, plt, num=500):
         '''Plot lane boundaries of road map for sanity check.'''
         bounds_x =[]
         bounds_y = []

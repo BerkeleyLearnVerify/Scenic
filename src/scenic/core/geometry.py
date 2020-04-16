@@ -246,10 +246,8 @@ def triangulatePolygon_gpc(polygon):
 
 def plotPolygon(polygon, plt, style='r-'):
 	def plotRing(ring):
-		coords = ring.coords
-		for i, point in enumerate(coords[:-1]):
-			nextPt = coords[i+1]
-			plt.plot([point[0], nextPt[0]], [point[1], nextPt[1]], style)
+		x, y = ring.xy
+		plt.plot(x, y, style)
 	if isinstance(polygon, shapely.geometry.MultiPolygon):
 		polygons = polygon
 	else:

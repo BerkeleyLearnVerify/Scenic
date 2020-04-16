@@ -19,6 +19,8 @@ from scenic.core.type_support import toVector
 from scenic.core.utils import cached, areEquivalent
 
 def toPolygon(thing):
+	if needsSampling(thing):
+		return None
 	if hasattr(thing, 'polygon'):
 		return thing.polygon
 	if hasattr(thing, 'polygons'):
@@ -28,7 +30,10 @@ def toPolygon(thing):
 	return None
 
 def regionFromShapelyObject(obj, orientation=None):
-	if isinstance(obj, (shapely.geometry.Polygon, shapely.geometry.MultiPolygon)):
+	assert obj.is_valid, obj
+	if obj.is_empty:
+		return nowhere
+	elif isinstance(obj, (shapely.geometry.Polygon, shapely.geometry.MultiPolygon)):
 		return PolygonalRegion(polygon=obj, orientation=orientation)
 	elif isinstance(obj, (shapely.geometry.LineString, shapely.geometry.MultiLineString)):
 		return PolylineRegion(polyline=obj, orientation=orientation)
