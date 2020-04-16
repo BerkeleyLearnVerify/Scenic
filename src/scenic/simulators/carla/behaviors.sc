@@ -1,8 +1,5 @@
 import scenic.simulators.carla.actions as actions
 
-# QUESTION: For Scenic syntax, do we include ()? What if behavior requires arguments? Because () not included in Wiki. Are behaviors allowed to even have arguments?
-# NOTE: "Dynamic syntax brainstorming" section uses "def" and "self"
-
 behavior TeleportForwardBehavior():
 ''' Repeatedly teleports actor forward in direction of it heading '''
 	
@@ -27,7 +24,24 @@ behavior AccelerateThenBrakeBehavior(accelTime, throttleInc, brakeTime, brakeInc
 
 behavior LanekeepingBehavior():
 	while True:
-		
+		take actions.AlignSteerToLaneAction()
+
+
+behavior LaneChangeLeftBehavior():
+	pass
+
+
+behavior LaneChangeRightBehavior():
+	pass
+
+
+behavior PassingBehavior():
+	# precondition: there exists a left or right lane
+	try:
+		LaneChangeRightBehavior()
+	interrupt when ... :
+		LaneChangeLeftBehavior()
+	#AccelerateBehavior()
 
 
 # Behavior Brainstorm

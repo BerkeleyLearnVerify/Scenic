@@ -139,7 +139,8 @@ class AlignSteerToLaneAction(simulators.Action)
 
 	def applyTo(self, obj, vehicle, sim):
 		# Compute heading's deviation from lane direction
-		
+		map_ = sim.world.get_map()
+		# TODO: Finish implementation
 
 
 class SetBrakeAction(simulators.Action):

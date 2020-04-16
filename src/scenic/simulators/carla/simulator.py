@@ -3,11 +3,11 @@ import scenic.simulators as simulators
 import scenic.simulators.carla.utils as utils
 
 class CarlaSimulator(simulators.Simulator):
-	def __init__(self, carla_scene, address='localhost', port=2000):
+	def __init__(self, carla_world, address='localhost', port=2000):
 		super().__init__()
 		self.client = carla.Client(address, port)
 		self.client.set_timeout(10.0)  # limits networking operations (seconds)
-		self.world = self.client.get_world()
+		self.world = self.client.load_world(carla_world)
 
 		# Set to synchronous with fixed timestep
 		settings = self.world.get_settings()
