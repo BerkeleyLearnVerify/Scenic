@@ -93,9 +93,13 @@ def pruneContainment(scenario, verbosity):
         base = matchInRegion(obj.position)
         if base is None:                    # match objects positioned uniformly in a Region
             continue
+        if isinstance(base, regions.EmptyRegion):
+            raise InvalidScenarioError(f'Object {obj} placed in empty region')
         basePoly = regions.toPolygon(base)
         if basePoly is None:                # to prune, the Region must be polygonal
             continue
+        if basePoly.is_empty:
+            raise InvalidScenarioError(f'Object {obj} placed in empty region')
         container = scenario.containerOfObject(obj)
         containerPoly = regions.toPolygon(container)
         if containerPoly is None:           # the object's container must also be polygonal

@@ -60,8 +60,7 @@ class Constructible(Samplable):
 		optionals = collections.defaultdict(list)
 		defs = self.defaults()
 		for spec in specifiers:
-			if not isinstance(spec, Specifier):
-				raise RuntimeParseError(f'argument {spec} to {name} is not a specifier')
+			assert isinstance(spec, Specifier), (name, spec)
 			prop = spec.property
 			if prop in properties:
 				raise RuntimeParseError(f'property "{prop}" of {name} specified twice')

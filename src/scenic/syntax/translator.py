@@ -272,6 +272,7 @@ pointSpecifiers = {
 	('right', 'of'): 'RightSpec',
 	('ahead', 'of'): 'Ahead',
 	('behind',): 'Behind',
+	('following',): 'Following',
 }
 orientedPointSpecifiers = {
 	('apparently', 'facing'): 'ApparentlyFacing',
@@ -784,7 +785,7 @@ class TokenTranslator:
 						injectToken(allowedInfixOps[oneWord])
 						skip = True
 					elif inConstructorContext:		# couldn't match any 1- or 2-word specifier
-						raise TokenParseError(token, f'unknown constructor specifier "{tstring}"')
+						raise TokenParseError(token, f'unknown specifier "{tstring}"')
 					elif tstring in functions:		# built-in function
 						callFunction(tstring)
 					elif tstring in replacements:	# direct replacement
@@ -959,6 +960,8 @@ class ASTSurgeon(NodeTransformer):
 
 	def visit_Tuple(self, node):
 		"""Convert pairs into uniform distributions."""
+		if isinstance(node.ctx, Store):
+			return self.generic_visit(node)
 		if len(node.elts) != 2:
 			raise self.parseError(node, 'interval must have exactly two endpoints')
 		newElts = [self.visit(elt) for elt in node.elts]

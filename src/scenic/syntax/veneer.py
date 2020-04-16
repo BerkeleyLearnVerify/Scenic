@@ -31,6 +31,7 @@ __all__ = (
 	'At', 'In', 'Beyond', 'VisibleFrom', 'VisibleSpec', 'OffsetBy', 'OffsetAlongSpec',
 	'Facing', 'FacingToward', 'ApparentlyFacing',
 	'LeftSpec', 'RightSpec', 'Ahead', 'Behind',
+	'Following',
 	# Constants
 	'everywhere', 'nowhere',
 	# Temporary stuff... # TODO remove
@@ -575,3 +576,26 @@ def leftSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
 		val = lambda self: pos.offsetRotated(self.heading, makeOffset(self, dx, dy))
 		new = DelayedArgument({axis, 'heading'}, val)
 	return Specifier('position', new, optionals=extras)
+
+def Following(field, dist, fromPt=None):
+	"""The 'following F [from X] for D' specifier.
+
+	Specifies 'position', and optionally 'heading', with no dependencies.
+
+	Allowed forms:
+		following <field> [from <vector>] for <number>
+
+	If the 'from <vector>' is omitted, the position of ego is used.
+	"""
+	if fromPt is None:
+		fromPt = ego()
+	else:
+		dist, fromPt = fromPt, dist
+	if not isinstance(field, VectorField):
+		raise RuntimeParseError('"following F" specifier with F not a vector field')
+	fromPt = toVector(fromPt, '"following F from X for D" with X not a vector')
+	dist = toScalar(dist, '"following F for D" with D not a number')
+	pos = field.followFrom(fromPt, dist)
+	heading = field[pos]
+	val = OrientedPoint(position=pos, heading=heading)
+	return Specifier('position', val, optionals={'heading'})
