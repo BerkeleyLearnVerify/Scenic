@@ -53,6 +53,7 @@ class PointInRegionDistribution(VectorDistribution):
 		return f'PointIn({self.region})'
 
 class Region(Samplable):
+	"""Abstract class for regions."""
 	def __init__(self, name, *dependencies, orientation=None):
 		super().__init__(dependencies)
 		self.name = name
@@ -62,6 +63,7 @@ class Region(Samplable):
 		return self
 
 	def intersect(self, other, triedReversed=False):
+		"""Get a `Region` representing the intersection of this one with another."""
 		if triedReversed:
 			return IntersectionRegion(self, other)
 		else:
@@ -69,26 +71,38 @@ class Region(Samplable):
 
 	@staticmethod
 	def uniformPointIn(region):
+		"""Get a uniform `Distribution` over points in a `Region`."""
 		return PointInRegionDistribution(region)
 
 	def uniformPoint(self):
+		"""Sample a uniformly-random point in this `Region`.
+
+		Can only be called on fixed Regions with no random parameters.
+		"""
 		assert not needsSampling(self)
 		return self.uniformPointInner()
 
 	def uniformPointInner(self):
+		"""Do the actual random sampling. Implemented by subclasses."""
 		raise NotImplementedError()
 
 	def containsPoint(self, point):
+		"""Check if the `Region` contains a point. Implemented by subclasses."""
 		raise NotImplementedError()
 
 	def containsObject(self, obj):
-		# will need to be overridden for non-convex regions
+		"""Check if the `Region` contains an :obj:`~scenic.core.object_types.Object`.
+
+		The default implementation assumes the `Region` is convex; subclasses must
+		override the method if this is not the case.
+		"""
 		for corner in obj.corners:
 			if not self.containsPoint(corner):
 				return False
 		return True
 
 	def __contains__(self, thing):
+		"""Check if this `Region` contains an object or vector."""
 		from scenic.core.object_types import Object
 		if isinstance(thing, Object):
 			return self.containsObject(thing)
@@ -96,10 +110,11 @@ class Region(Samplable):
 		return self.containsPoint(vec)
 
 	def getAABB(self):
-		"""Axis-aligned bounding box for this Region"""
+		"""Axis-aligned bounding box for this `Region`. Implemented by some subclasses."""
 		raise NotImplementedError()
 
 	def orient(self, vec):
+		"""Orient the given vector along the region's orientation, if any."""
 		if self.orientation is None:
 			return vec
 		else:
@@ -521,6 +536,23 @@ class PolygonalRegion(Region):
 		return hash((str(self.polygons), self.orientation))
 
 class PointSetRegion(Region):
+	"""Region consisting of a set of discrete points.
+
+	No :obj:`~scenic.core.object_types.Object` can be contained in a `PointSetRegion`,
+	since the latter is discrete. (This may not be true for subclasses, e.g.
+	`GridRegion`.)
+
+	Args:
+		name (str): name for debugging
+		points (iterable): set of points comprising the region
+		kdtree (:obj:`scipy.spatial.KDTree`, optional): k-D tree for the points (one will
+		  be computed if none is provided)
+		orientation (:obj:`~scenic.core.vectors.VectorField`, optional): orientation for
+		  the region
+		tolerance (float, optional): distance tolerance for checking whether a point lies
+		  in the region
+	"""
+
 	def __init__(self, name, points, kdTree=None, orientation=None, tolerance=1e-6):
 		super().__init__(name, orientation=orientation)
 		self.points = tuple(points)
@@ -564,7 +596,21 @@ class PointSetRegion(Region):
 		return hash((self.name, self.points, self.orientation))
 
 class GridRegion(PointSetRegion):
-	"""A Region given by an obstacle grid"""
+	"""A Region given by an obstacle grid.
+
+	A point is considered to be in a `GridRegion` if the nearest grid point is
+	not an obstacle.
+
+	Args:
+		name (str): name for debugging
+		grid: 2D list, tuple, or NumPy array of 0s and 1s, where 1 indicates an obstacle
+		  and 0 indicates free space
+		Ax (float): spacing between grid points along X axis
+		Ay (float): spacing between grid points along Y axis
+		Bx (float): X coordinate of leftmost grid column
+		By (float): Y coordinate of lowest grid row
+		orientation (:obj:`~scenic.core.vectors.VectorField`, optional): orientation of region
+	"""
 	def __init__(self, name, grid, Ax, Ay, Bx, By, orientation=None):
 		self.grid = numpy.array(grid)
 		self.sizeY, self.sizeX = self.grid.shape

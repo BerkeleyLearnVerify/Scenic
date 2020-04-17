@@ -305,32 +305,31 @@ class Object(OrientedPoint, RotatedRectangle):
 		if needsSampling(self):
 			raise RuntimeError('tried to show() symbolic Object')
 		pos = self.position
-		mpos = workspace.langToMapCoords(pos)
+		spos = workspace.scenicToSchematicCoords(pos)
 
 		if highlight:
 			# Circle around object
 			rad = 1.5 * max(self.width, self.height)
-			c = plt.Circle(mpos, rad, color='g', fill=False)
+			c = plt.Circle(spos, rad, color='g', fill=False)
 			plt.gca().add_artist(c)
 			# View cone
 			ha = self.viewAngle / 2.0
 			camera = self.position.offsetRotated(self.heading, self.cameraOffset)
-			cpos = workspace.langToMapCoords(camera)
+			cpos = workspace.scenicToSchematicCoords(camera)
 			for angle in (-ha, ha):
 				p = camera.offsetRadially(20, self.heading + angle)
-				edge = [cpos, workspace.langToMapCoords(p)]
+				edge = [cpos, workspace.scenicToSchematicCoords(p)]
 				x, y = zip(*edge)
 				plt.plot(x, y, 'b:')
 
-		corners = [workspace.langToMapCoords(corner) for corner in self.corners]
+		corners = [workspace.scenicToSchematicCoords(corner) for corner in self.corners]
 		x, y = zip(*corners)
 		color = self.color if hasattr(self, 'color') else (1, 0, 0)
 		plt.fill(x, y, color=color)
-		#plt.plot(x + (x[0],), y + (y[0],), color="g", linewidth=1)
 
 		frontMid = averageVectors(corners[0], corners[1])
 		baseTriangle = [frontMid, corners[2], corners[3]]
-		triangle = [averageVectors(p, mpos, weight=0.5) for p in baseTriangle]
+		triangle = [averageVectors(p, spos, weight=0.5) for p in baseTriangle]
 		x, y = zip(*triangle)
 		plt.fill(x, y, "w")
 		plt.plot(x + (x[0],), y + (y[0],), color="k", linewidth=1)

@@ -13,10 +13,6 @@ class Workspace(Region):
 		super().__init__('workspace', orientation=region.orientation)
 		self.region = region
 
-	def langToMapCoords(self, coords):
-		"""Converts language to workspace coordinates"""
-		return coords
-
 	def show(self, plt):
 		"""Render a schematic of the workspace for debugging"""
 		try:
@@ -30,7 +26,7 @@ class Workspace(Region):
 
 	def zoomAround(self, plt, objects, expansion=2):
 		"""Zoom the schematic around the specified objects"""
-		positions = (self.langToMapCoords(obj.position) for obj in objects)
+		positions = (self.scenicToSchematicCoords(obj.position) for obj in objects)
 		x, y = zip(*positions)
 		minx, maxx = findMinMax(x)
 		miny, maxy = findMinMax(y)
@@ -46,6 +42,10 @@ class Workspace(Region):
 	@property
 	def minimumZoomSize(self):
 		return 0
+
+	def scenicToSchematicCoords(self, coords):
+		"""Convert Scenic coordinates to those used for schematic rendering."""
+		return coords
 
 	def uniformPointInner(self):
 		return self.region.uniformPointInner()

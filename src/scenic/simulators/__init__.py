@@ -11,6 +11,6 @@
    gta
    webots
    xplane
-   parsers
+   formats
 """
 
