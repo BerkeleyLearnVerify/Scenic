@@ -1,5 +1,6 @@
 import scenic.simulators.carla.actions as actions
 
+
 behavior TeleportForwardBehavior():
 ''' Repeatedly teleports actor forward in direction of it heading '''
 	
@@ -42,12 +43,3 @@ behavior PassingBehavior():
 	interrupt when ... :
 		LaneChangeLeftBehavior()
 	#AccelerateBehavior()
-
-
-# Behavior Brainstorm
-# -------------------
-# 1. LanekeepingBehavior := Drive forward, changing steering angle as needed to keep in lane
-# 2. LaneChangeBehavior := Change lanes, depending on which adjacent lanes are available
-# 	a) LaneChangeLeftBehavior := Change lanes into adjacent left lane
-#	b) LaneChangeRightBehavior := Change langes into adjacent right lane
-# 3. PassingBehavior := Change lanes, accelerate to pass a car that was in front, then return to original lane

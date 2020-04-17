@@ -2,6 +2,7 @@ import carla
 import scenic.simulators as simulators
 import scenic.simulators.carla.utils as utils
 
+
 class CarlaSimulator(simulators.Simulator):
 	def __init__(self, carla_world, address='localhost', port=2000):
 		super().__init__()

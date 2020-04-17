@@ -2,6 +2,7 @@ import carla
 import scenic.simulators as simulators
 import scenic.simulators.carla.utils as utils
 
+
 ################################################
 # Actions available to all carla.Actor objects #
 ################################################
@@ -131,7 +132,7 @@ class DecreaseSteerAction(simulators.Action):
 		vehicle.apply_control(ctrl)
 
 
-class AlignSteerToLaneAction(simulators.Action)
+class AlignSteerToLaneAction(simulators.Action):
 	''' Sets steer to match lane heading '''
 
 	def __init__(self):

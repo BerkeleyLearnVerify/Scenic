@@ -3,6 +3,7 @@ import math
 from scenic.core.vectors import Vector
 from scenic.core.geometry import normalizeAngle  # TODO: understand what normalizeAngle does
 
+
 def scenicToCarlaLocation(pos, z=0):
 	return carla.Location(pos.x, pos.y, z)
 
