@@ -567,14 +567,10 @@ class RoadMap:
         sidewalk_polys = {}
         drivable_gap_polys = []
         sidewalk_gap_polys = []
-        colors = ['r', 'g', 'b', 'k', 'y', 'm']
-        i = 0
         for road in self.roads.values():
-            i += 1
             self.sec_lane_polys.extend(road.sec_lane_polys)
             self.lane_polys.extend(road.lane_polys)
             drivable_poly = road.drivable_region
-            plot_poly(road.drivable_region, colors[i % 6])
             sidewalk_poly = road.sidewalk_region
             if not (drivable_poly is None or drivable_poly.is_empty):
                 drivable_polys[road.id_] = drivable_poly.buffer(0.001)
