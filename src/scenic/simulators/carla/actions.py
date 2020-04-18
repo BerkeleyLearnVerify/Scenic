@@ -1,6 +1,6 @@
 import carla
-import simulators
-import utils
+import scenic.simulators as simulators
+import scenic.simulators.carla.utils as utils
 
 
 ################################################

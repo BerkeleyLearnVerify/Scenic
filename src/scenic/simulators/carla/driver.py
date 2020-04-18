@@ -1,5 +1,5 @@
 import scenic
-from simulator import CarlaSimulator
+from scenic.simulators.carla.simulator import CarlaSimulator
 
 
 # CHANGEME

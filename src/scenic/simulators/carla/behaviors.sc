@@ -1,4 +1,4 @@
-import actions
+import scenic.simulators.carla.actions as actions
 
 
 behavior TeleportForwardBehavior():
