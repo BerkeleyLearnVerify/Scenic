@@ -1,8 +1,8 @@
 import math
 import xml.etree.ElementTree as ET
 import numpy as np
-from scipy.special import fresnel
 from scipy.integrate import quad
+from scipy.integrate import odeint
 from pynverse import inversefunc
 import matplotlib.pyplot as plt
 from shapely.geometry import Polygon, MultiPolygon, GeometryCollection, Point, MultiPoint
@@ -148,19 +148,17 @@ class Clothoid(Curve):
                 points = [(r * np.sin(th), r - r * np.cos(th), r * th) for th in th_space]
             else:
                 points = [(r * np.sin(th), -r + r * np.cos(th), r * th) for th in th_space]
+            return self.rel_to_abs(points)
+
         else:
-            curve_rate = self.length / abs(self.curv1 - self.curv0)
-            s1 = curve_rate * self.curv1
-            s0 = curve_rate * self.curv0
-            s_space = np.linspace(s0, s1, num=num)
-            a = 1 / np.sqrt(2 * curve_rate)
-            points = [fresnel(a * s) + (s,) for s in s_space]
-            p0 = points[0]
-            if s1 > s0:
-                points = [(p[0] - p0[0], p[1] - p0[1], p[2] - s0) for p in points]
-            else:
-                points = [(p[0] - p0[0], p[1] - p0[1], -(p[2] - s0)) for p in points]
-        return self.rel_to_abs(points)
+            curve_rate = (self.curv1 - self.curv0) / self.length
+            def clothoid_ode(state, s):
+                x, y, theta = state[0], state[1], state[2]
+                return np.array([np.cos(theta), np.sin(theta), self.curv0 + curve_rate * s])
+
+            s_space = np.linspace(0, self.length, num)
+            points = odeint(clothoid_ode, np.array([self.x0,self.y0,self.hdg]), s_space)
+            return [(points[i,0], points[i,1], s_space[i]) for i in range(len(s_space))]
 
 
 class Line(Curve):
@@ -380,11 +378,6 @@ class Road:
         If calc_gap=True, fills in gaps between connected roads. This is fairly expensive.'''
         road_polygons = []
         ref_points = self.get_ref_points(num)
-        # if self.id_ == 509:
-        #     l = [p for li in ref_points for p in li]
-        #     plt.scatter([p[0] for p in l], [p[1] for p in l])
-        #     l = ref_points[3]
-        #     plt.scatter([p[0] for p in l], [p[1] for p in l])
         cur_lane_polys = {}
         sec_points = []
         sec_polys = []
@@ -408,7 +401,6 @@ class Road:
             # Last point in left/right lane boundary line for last road piece:
             start_of_sec = True
             end_of_sec = False
-            # debug = 0
 
             while ref_points and not end_of_sec:
                 if not ref_points[0] or ref_points[0][0][2] >= s_stop:
@@ -417,10 +409,6 @@ class Road:
                     # Case 2: The s-coordinate has exceeded s_stop, so we should move
                     # onto the next LaneSection.
                     # Either way, we collect all the bound points so far into polygons.
-                    # debug += 1
-                    # if self.id_ == 509:
-                    #     print('len', len(ref_points))
-                    #     print(debug)
                     if not ref_points[0]:
                         ref_points.pop(0)
                     else:
@@ -430,13 +418,11 @@ class Road:
                     for id_ in left_bounds.keys():
                         # Polygon for piece of lane:
                         bounds = left_bounds[id_] + right_bounds[id_][::-1]
-                        # plt.scatter([p[0] for p in bounds], [p[1] for p in bounds])
                         if len(bounds) < 3:
                             continue
                         poly = Polygon(bounds).buffer(0)
                         #assert poly.is_valid, 'Polygon not valid.'
                         if poly.is_valid and not poly.is_empty:
-                            # plot_poly(poly, 'r')
                             if poly.geom_type == 'MultiPolygon':
                                 poly = MultiPolygon([p for p in list(poly)
                                                      if not p.is_empty and p.exterior])
@@ -453,7 +439,7 @@ class Road:
                                 prev_id = cur_sec.lanes[id_].pred
                             else:
                                 prev_id = id_
-                            if last_lefts is not None:
+                            if last_lefts is not None and prev_id in last_lefts.keys():
                                 gap_poly = MultiPoint([
                                     last_lefts[prev_id], last_rights[prev_id],
                                     left_bounds[id_][0], right_bounds[id_][0]]).convex_hull
@@ -516,9 +502,6 @@ class Road:
                                           cur_p[1] + normal_vec[1] * offsets[id_]]
                             right_bound = [cur_p[0] + normal_vec[0] * offsets[prev_id],
                                            cur_p[1] + normal_vec[1] * offsets[prev_id]]
-                            # if self.id_ == 509 and debug == 3:
-                            #     plt.plot([left_bound[0], right_bound[0]], [left_bound[1], right_bound[1]])
-                            #     plt.text(left_bound[0], left_bound[1], str(debug))
                             if id_ not in left_bounds:
                                 left_bounds[id_] = [left_bound]
                             else:
