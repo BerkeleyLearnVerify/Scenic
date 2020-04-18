@@ -1,5 +1,5 @@
 import carla
-import scenic.simulators as simulators
+import simulators
 import utils
 
 
