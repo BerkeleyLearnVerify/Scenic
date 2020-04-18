@@ -260,6 +260,8 @@ class Junction:
     def __init__(self, id_):
         self.id_ = id_
         self.connections = []
+        # Ids of roads that are paths within junction:
+        self.paths = []
 
     def add_connection(self, incoming_id, connecting_id, connecting_contact):
         self.connections.append(Junction.Connection(incoming_id,
@@ -423,6 +425,7 @@ class Road:
                         poly = Polygon(bounds).buffer(0)
                         #assert poly.is_valid, 'Polygon not valid.'
                         if poly.is_valid and not poly.is_empty:
+                            # plot_poly(poly)
                             if poly.geom_type == 'MultiPolygon':
                                 poly = MultiPolygon([p for p in list(poly)
                                                      if not p.is_empty and p.exterior])
@@ -564,10 +567,14 @@ class RoadMap:
         sidewalk_polys = {}
         drivable_gap_polys = []
         sidewalk_gap_polys = []
+        colors = ['r', 'g', 'b', 'k', 'y', 'm']
+        i = 0
         for road in self.roads.values():
+            i += 1
             self.sec_lane_polys.extend(road.sec_lane_polys)
             self.lane_polys.extend(road.lane_polys)
             drivable_poly = road.drivable_region
+            plot_poly(road.drivable_region, colors[i % 6])
             sidewalk_poly = road.sidewalk_region
             if not (drivable_poly is None or drivable_poly.is_empty):
                 drivable_polys[road.id_] = drivable_poly.buffer(0.001)
@@ -630,6 +637,10 @@ class RoadMap:
                junc_roads.add(conn.incoming_id)
                junc_roads.add(conn.connecting_id)
             for road_i_idx in junc_roads:
+                if road_i_idx in junc.paths:
+                    road_i = self.roads[road_i_idx]
+                    intersect_polys.append(road_i.drivable_region)
+                    continue
                 for road_j_idx in junc_roads:
                     if road_i_idx == road_j_idx:
                         continue
@@ -740,6 +751,7 @@ class RoadMap:
                 junction.add_connection(int(c.get('incomingRoad')),
                                         int(c.get('connectingRoad')),
                                         c.get('contactPoint'))
+                junction.paths.append(int(c.get('connectingRoad')))
             self.junctions[junction.id_] = junction
 
         for r in root.iter('road'):
