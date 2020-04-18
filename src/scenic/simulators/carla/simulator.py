@@ -1,6 +1,6 @@
 import carla
 import scenic.simulators as simulators
-import scenic.simulators.carla.utils as utils
+import utils
 
 
 class CarlaSimulator(simulators.Simulator):
