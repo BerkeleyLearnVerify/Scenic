@@ -28,7 +28,7 @@ carla_map.mapPath = '../tests/simulators/formats/opendrive/maps/opendrive.org/Cu
 # -- Project information -----------------------------------------------------
 
 project = 'Scenic'
-copyright = '2020, Daniel J. Fremont, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
+copyright = '2020, Daniel J. Fremont.'
 author = 'Daniel J. Fremont, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
 
 
@@ -61,6 +61,7 @@ autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
 napoleon_numpy_docstring = False
 napoleon_use_rtype = False
+napoleon_use_ivar = True
 
 autodoc_default_options = {
     'members': None,
@@ -83,6 +84,60 @@ html_static_path = ['_static']
 html_css_files = [
     'custom.css',
 ]
+
+# -- Monkeypatch to resolve ambiguous references -----------------------------
+
+from sphinx.domains.python import PythonDomain
+orig_find_obj = PythonDomain.find_obj
+
+def find_obj(self, env, modname, classname, name, type, searchmode,
+             *args, **kwargs):
+    results = orig_find_obj(self, env, modname, classname, name, type,
+                            searchmode, *args, **kwargs)
+    if len(results) <= 1:
+        return results
+
+    def score(res):
+        name = res[0]
+        if name.startswith('scenic.syntax.veneer'):
+            return 0
+        else:
+            # score by length of common prefix
+            for i, (c, d) in enumerate(zip(modname, name)):
+                if c != d:
+                    break
+            return i
+
+    scores = [score(res) for res in results]
+    highScore = max(scores)
+    highest = [
+        res for res, score in zip(results, scores)
+        if score == highScore
+    ]
+    return highest
+
+PythonDomain.find_obj = find_obj
+
+# -- Monkeypatch to improve formatting of class/instance attributes ----------
+
+# This is based on code suggested by Michael Goerz at:
+# https://michaelgoerz.net/notes/extending-sphinx-napoleon-docstring-sections.html
+
+from sphinx.ext.napoleon.docstring import GoogleDocstring
+
+def parse_attributes_section(self, section):
+    return self._format_fields('Attributes', self._consume_fields())
+GoogleDocstring._parse_attributes_section = parse_attributes_section
+
+def parse_class_attributes_section(self, section):
+    return self._format_fields('Class Attributes', self._consume_fields())
+GoogleDocstring._parse_class_attributes_section = parse_class_attributes_section
+
+orig_parse = GoogleDocstring._parse
+def parse(self):
+    self._sections['class attributes'] = self._parse_class_attributes_section
+    orig_parse(self)
+GoogleDocstring._parse = parse
 
 # -- Extension for correctly displaying Scenic code --------------------------
 

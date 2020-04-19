@@ -50,7 +50,11 @@ dev = [
 	"pytest",
 	"sphinx",
 	"tox",
+	"pygments",
 ]
+
+[tool.poetry.plugins."pygments.lexers"]
+scenic = "scenic.syntax.pygment:ScenicLexer"
 
 [build-system]
 requires = ["poetry>=0.12"]

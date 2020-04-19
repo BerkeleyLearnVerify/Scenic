@@ -30,6 +30,7 @@ def toPolygon(thing):
 	return None
 
 def regionFromShapelyObject(obj, orientation=None):
+	"""Build a 'Region' from Shapely geometry."""
 	assert obj.is_valid, obj
 	if obj.is_empty:
 		return nowhere
@@ -153,6 +154,9 @@ class EmptyRegion(Region):
 
 	def containsObject(self, obj):
 		return False
+
+	def show(self, plt, style=None):
+		pass
 
 	def __eq__(self, other):
 		return type(other) is EmptyRegion

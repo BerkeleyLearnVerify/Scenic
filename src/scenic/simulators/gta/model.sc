@@ -42,8 +42,18 @@ param weather = Options({
 			'SNOW': 1.25
 			})
 
-# Define custom type of object for cars
 constructor Car:
+	"""Scenic class for cars.
+
+	Attributes:
+		position: The default position is uniformly random over the `road`.
+		heading: The default heading is aligned with `roadDirection`, plus an offset
+		  given by ``roadDeviation``.
+		roadDeviation (float): Relative heading with respect to the road direction
+		  at the `Car`'s position. Used by the default value for ``heading``.
+		model (`CarModel`): Model of the car.
+		color (`CarColor` or RGB tuple): Color of the car.
+	"""
 	position: Point on road
 	heading: (roadDirection at self.position) + self.roadDeviation
 	roadDeviation: 0
@@ -57,6 +67,7 @@ constructor Car:
 	mutator[additive]: CarColorMutator()
 
 class CarColorMutator(Mutator):
+	"""Mutator that adds Gaussian HSL noise to the ``color`` property."""
 	def appliedTo(self, obj):
 		hueNoise = random.gauss(0, 0.05)
 		satNoise = random.gauss(0, 0.05)
@@ -64,16 +75,16 @@ class CarColorMutator(Mutator):
 		color = NoisyColorDistribution.addNoiseTo(obj.color, hueNoise, lightNoise, satNoise)
 		return tuple([obj.copyWith(color=color), True])		# allow further mutation
 
-# Convenience subclass with defaults for ego cars
 constructor EgoCar(Car):
+	"""Convenience subclass with defaults for ego cars."""
 	model: CarModel.egoModel()
 
-# Convenience subclass for buses
 constructor Bus(Car):
+	"""Convenience subclass for buses."""
 	model: CarModel.models['BUS']
 
-# Convenience subclass for compact cars
 constructor Compact(Car):
+	"""Convenience subclass for compact cars."""
 	model: CarModel.models['BLISTA']
 
 def createPlatoonAt(car, numCars, model=None, dist=(2, 8), shift=(-0.5, 0.5), wiggle=0):
