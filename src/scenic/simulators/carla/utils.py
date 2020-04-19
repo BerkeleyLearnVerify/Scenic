@@ -4,7 +4,8 @@ from scenic.core.vectors import Vector
 from scenic.core.geometry import normalizeAngle  # TODO: understand what normalizeAngle does
 
 
-def scenicToCarlaLocation(pos, z=0):
+def scenicToCarlaLocation(pos, z=0.0):
+	z = 0.0 if z is None
 	return carla.Location(pos.x, pos.y, z)
 
 def scenicToCarlaRotation(heading):
@@ -12,8 +13,9 @@ def scenicToCarlaRotation(heading):
 	yaw = 180 - math.degrees(heading)  # TODO: make sure this is correct
 	return carla.Rotation(yaw=yaw)
 
-def scenicToCarlaVector3D(measure, z=0):
+def scenicToCarlaVector3D(measure, z=0.0):
 	# NOTE: carla.Vector3D used for velocity, acceleration; superclass of carla.Location
+	z = 0.0 if z is None
 	return carla.Vector3D(measure.x, measure.y, z)
 
 def carlaToScenicPosition(loc):
