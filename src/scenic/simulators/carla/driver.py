@@ -5,8 +5,8 @@ from scenic.simulators.carla.simulator import CarlaSimulator
 # CHANGEME
 carla_world = 'Town01'
 sc_file_path = 'test.sc'
-address='127.0.0.1'
-port=2000
+address = '127.0.0.1'
+port = 2000
 
 # Create the Simulator
 simulator = CarlaSimulator(carla_world, address=address, port=port)
