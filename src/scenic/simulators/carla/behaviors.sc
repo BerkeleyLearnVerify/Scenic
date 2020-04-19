@@ -5,7 +5,7 @@ behavior StillBehavior():
 	''' Repeatedly teleports actor forward in direction of it heading '''
 
 	while True:
-		take actions.SetLocationAction(self.pos)
+		take actions.SetLocationAction(self.position)
 
 '''
 behavior TeleportForwardBehavior():
