@@ -47,7 +47,7 @@ class CarlaSimulation(simulators.Simulation):
 			transform = carla.Transform(loc, rot)
 			
 			# Create Carla actor
-			carlaActor = self.world.try_spawn_actor(blueprint, transform)
+			carlaActor = self.world.spawn_actor(blueprint, transform)
 			obj.carlaActor = carlaActor
 
 	def writePropertiesToCarla(self):
