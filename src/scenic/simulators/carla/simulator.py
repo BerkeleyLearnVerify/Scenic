@@ -25,6 +25,7 @@ class CarlaSimulation(simulators.Simulation):
 		super().__init__(scene)
 		self.client = client
 		self.world = self.client.get_world()
+		self.blueprintLib = self.world.get_blueprint_library()
 
 		# Allow changing of timestep
 		self.timeStep = scene.params.get('time_step', 1.0/30)
@@ -37,13 +38,16 @@ class CarlaSimulation(simulators.Simulation):
 
 		# Create Carla actors corresponding to Scenic objects
 		for obj in self.objects:
+			# Extract blueprint
+			blueprint = self.blueprintLib.find(obj.blueprint)
+
 			# Set up transform
 			loc = utils.scenicToCarlaLocation(obj.position, obj.elevation)
 			rot = utils.scenicToCarlaRotation(obj.heading)
 			transform = carla.Transform(loc, rot)
 			
 			# Create Carla actor
-			carlaActor = self.world.try_spawn_actor(obj.blueprint, transform)
+			carlaActor = self.world.try_spawn_actor(blueprint, transform)
 			obj.carlaActor = carlaActor
 
 	def writePropertiesToCarla(self):
