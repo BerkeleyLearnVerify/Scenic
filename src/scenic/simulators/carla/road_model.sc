@@ -6,7 +6,7 @@ from scenic.simulators.carla.map import mapPath
 from scenic.simulators.carla.car_models import carModels, bicycleModels, motorcycleModels, truckModels
 from scenic.simulators.carla.prop_models import trashModels, coneModels
 
-from scenic.simulators.gta.interface import CarColor
+#from scenic.simulators.gta.interface import CarColor
 
 workspace = CarlaWorkspace(mapPath)
 
@@ -30,12 +30,13 @@ param sun_altitude_angle = (-90, 90)
 constructor Vehicle:
     regionContainedIn: road
     position: Point on road
+    elevation: None
     heading: (roadDirection at self.position) + self.roadDeviation
     roadDeviation: 0
     viewAngle: 90 deg
     width: 2
     height: 5
-    #color: CarColor.defaultColor()  # TODO: update this! gives errors
+    color: None #CarColor.defaultColor()  # NOTE: gives errors!
     agent: 'BrakeAgent'
 
 constructor Car(Vehicle):
