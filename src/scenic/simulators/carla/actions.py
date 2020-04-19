@@ -27,7 +27,7 @@ class SetLocationAction(simulators.Action):
 		self.pos = pos  # Scenic position
 
 	def applyTo(self, obj, carlaActor, sim):
-		loc = utils.scenicToCarlaLocation(pos, z=obj.elevation)
+		loc = utils.scenicToCarlaLocation(self.pos, z=obj.elevation)
 		carlaActor.set_location(loc)
 
 
