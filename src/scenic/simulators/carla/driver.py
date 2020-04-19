@@ -20,7 +20,7 @@ maxSteps = 20.0 / timestep
 
 # Sample configurations from the scenario and run simulations
 itr = 0
-for _ in range(10):
+for _ in range(9):  # NOTE: fails on 10 b/c of spawn collision
     scene, __ = scenario.generate()
     simulation = simulator.createSimulation(scene)
     simulation.run(maxSteps)

@@ -17,13 +17,7 @@ class CarlaSimulator(simulators.Simulator):
 		self.world.apply_settings(settings)
 
 	def createSimulation(self, scene):
-		sim = CarlaSimulation(scene, self.client)
-
-		# Destroy all actors in world
-		for actor in self.world.get_actors():
-			actor.destroy()
-
-		return sim
+		return CarlaSimulation(scene, self.client)
 
 
 class CarlaSimulation(simulators.Simulation):
