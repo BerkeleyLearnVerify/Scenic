@@ -27,5 +27,5 @@ def carlaToScenicElevation(loc):
 def carlaToScenicHeading(rot, tolerance2D=0):
 	# NOTE: Scenic only defines yaw
 	if abs(rot.pitch) > tolerance2D or abs(rot.roll) > tolerance2D:
-		return None
+		pass#return None
 	return normalizeAngle(math.radians(180 - rot.yaw))  # TODO: make sure this is correct
