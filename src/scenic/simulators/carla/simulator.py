@@ -70,9 +70,9 @@ class CarlaSimulation(simulators.Simulation):
 			currRot = currTransform.rotation
 
 			# Update Scenic object properties
-			obj.position = utils.carlaToScenicPosition(currLocation)
-			obj.elevation = utils.carlaToScenicElevation(currLocation)
-			obj.heading = utils.carlaToScenicHeading(currTransform.rotation, tolerance2D=5)
+			obj.position = utils.carlaToScenicPosition(currLoc)
+			obj.elevation = utils.carlaToScenicElevation(currLoc)
+			obj.heading = utils.carlaToScenicHeading(currRot, tolerance2D=5)
 			if obj.heading is None:
 				raise RuntimeError(f'{carlaActor} has non-planar orientation')
 
