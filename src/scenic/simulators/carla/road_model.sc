@@ -30,14 +30,14 @@ param sun_altitude_angle = (-90, 90)
 constructor Vehicle:
     regionContainedIn: road
     position: Point on road
-    elevation: None
+    elevation: None  # NOTE: placeholder
     heading: (roadDirection at self.position) + self.roadDeviation
     roadDeviation: 0
     viewAngle: 90 deg
     width: 2
     height: 5
-    color: None #CarColor.defaultColor()  # NOTE: gives errors!
-    agent: 'BrakeAgent'
+    color: None  # NOTE: CarColor.defaultColor() gives errors!
+    carlaActor: None  # NOTE: change from agent: 'BrakeAgent'
 
 constructor Car(Vehicle):
     blueprint: Uniform(*carModels)
