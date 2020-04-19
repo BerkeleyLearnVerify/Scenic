@@ -35,7 +35,7 @@ constructor Vehicle:
     viewAngle: 90 deg
     width: 2
     height: 5
-    color: CarColor.defaultColor()
+    #color: CarColor.defaultColor()  # TODO: update this! gives errors
     agent: 'BrakeAgent'
 
 constructor Car(Vehicle):

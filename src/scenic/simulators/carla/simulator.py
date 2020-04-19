@@ -46,8 +46,6 @@ class CarlaSimulation(simulators.Simulation):
 			carlaActor = self.world.try_spawn_actor(obj.blueprint, transform)
 			obj.carlaActor = carlaActor
 
-		self.initState = tuple(obj.position for obj in self.objects)
-
 	def writePropertiesToCarla(self):
 		for obj in self.objects:
 			# Compute Carla properties
@@ -78,7 +76,7 @@ class CarlaSimulation(simulators.Simulation):
 		return tuple(obj.position for obj in self.objects)
 
 	def initialState(self):
-		return self.initState
+		return self.currentState()
 
 	def step(self, actions):
 		# Execute actions
