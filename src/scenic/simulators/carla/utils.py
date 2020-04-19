@@ -5,7 +5,7 @@ from scenic.core.geometry import normalizeAngle  # TODO: understand what normali
 
 
 def scenicToCarlaLocation(pos, z=0.0):
-	z = 0.0 if z is None
+	z = 0.0 if z is None else z
 	return carla.Location(pos.x, pos.y, z)
 
 def scenicToCarlaRotation(heading):
@@ -15,7 +15,7 @@ def scenicToCarlaRotation(heading):
 
 def scenicToCarlaVector3D(measure, z=0.0):
 	# NOTE: carla.Vector3D used for velocity, acceleration; superclass of carla.Location
-	z = 0.0 if z is None
+	z = 0.0 if z is None else z
 	return carla.Vector3D(measure.x, measure.y, z)
 
 def carlaToScenicPosition(loc):
