@@ -4,4 +4,4 @@ setMapPath(__file__, './Town01.xodr')
 from scenic.simulators.carla.road_model import *  # NOTE: Must be after setting map path
 
 
-ego = Car with behavior behaviors.TeleportForwardBehavior
+ego = Car with behavior behaviors.StillBehavior
