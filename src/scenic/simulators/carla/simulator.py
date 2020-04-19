@@ -21,9 +21,7 @@ class CarlaSimulator(simulators.Simulator):
 
 		# Destroy all actors in world
 		for actor in self.world.get_actors():
-			destroyed = actor.destroy()  # boolean
-			if not destroyed:
-				raise RuntimeError(f'Actor with id={actor.id} could not be destroyed.')
+			actor.destroy()
 
 		return sim
 
