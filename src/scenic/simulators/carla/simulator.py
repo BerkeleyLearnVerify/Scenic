@@ -17,7 +17,15 @@ class CarlaSimulator(simulators.Simulator):
 		self.world.apply_settings(settings)
 
 	def createSimulation(self, scene):
-		return CarlaSimulation(scene, self.client)
+		sim = CarlaSimulation(scene, self.client)
+
+		# Destroy all actors in world
+		for actor in self.world.get_actors():
+			destroyed = actor.destroy()  # boolean
+			if not destroyed:
+				raise RuntimeError(f'Actor with id={actor.id} could not be destroyed.')
+
+		return sim
 
 
 class CarlaSimulation(simulators.Simulation):
@@ -47,11 +55,12 @@ class CarlaSimulation(simulators.Simulation):
 			transform = carla.Transform(loc, rot)
 			
 			# Create Carla actor
-			carlaActor = self.world.spawn_actor(blueprint, transform)
+			carlaActor = self.world.spawn_actor(blueprint, transform)  # raises exception if fails
 			obj.carlaActor = carlaActor
 
 	def writePropertiesToCarla(self):
 		for obj in self.objects:
+
 			# Compute Carla properties
 			carlaActor = obj.carlaActor
 			newLoc = utils.scenicToCarlaLocation(obj.position, z=obj.elevation)
@@ -63,6 +72,7 @@ class CarlaSimulation(simulators.Simulation):
 
 	def readPropertiesFromCarla(self):
 		for obj in self.objects:
+
 			# Extract Carla properties
 			carlaActor = obj.carlaActor
 			currTransform = carlaActor.get_transform()
@@ -73,6 +83,8 @@ class CarlaSimulation(simulators.Simulation):
 			obj.position = utils.carlaToScenicPosition(currLoc)
 			obj.elevation = utils.carlaToScenicElevation(currLoc)
 			obj.heading = utils.carlaToScenicHeading(currRot, tolerance2D=5)
+
+			# NOTE: Refer to utils.carlaToScenicHeading
 			if obj.heading is None:
 				raise RuntimeError(f'{carlaActor} has non-planar orientation')
 
