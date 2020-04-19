@@ -21,6 +21,7 @@ from scenic.core.lazy_eval import valueInContext
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import VectorField
 from scenic.core.regions import PointSetRegion, GridRegion
+from scenic.core.object_types import Mutator
 import scenic.core.utils as utils
 from scenic.core.geometry import *
 
@@ -328,3 +329,12 @@ class NoisyColorDistribution(Distribution):
 		self.hueNoise = valueInContext(self.hueNoise, context)
 		self.satNoise = valueInContext(self.satNoise, context)
 		self.lightNoise = valueInContext(self.lightNoise, context)
+
+class CarColorMutator(Mutator):
+	"""Mutator that adds Gaussian HSL noise to the ``color`` property."""
+	def appliedTo(self, obj):
+		hueNoise = random.gauss(0, 0.05)
+		satNoise = random.gauss(0, 0.05)
+		lightNoise = random.gauss(0, 0.05)
+		color = NoisyColorDistribution.addNoiseTo(obj.color, hueNoise, lightNoise, satNoise)
+		return tuple([obj.copyWith(color=color), True])		# allow further mutation

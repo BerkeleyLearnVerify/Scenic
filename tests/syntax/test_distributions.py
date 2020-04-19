@@ -120,7 +120,7 @@ def test_method_lazy():
     # so we need to define our own
     scenario = compileScenic(
         'from scenic.core.distributions import distributionMethod\n'
-        'class Foo:\n'
+        'class Foo(object):\n'
         '    @distributionMethod\n'
         '    def bar(self, arg):\n'
         '        return -arg\n'
@@ -136,7 +136,7 @@ def test_method_lazy_2():
     # See previous comment
     scenario = compileScenic(
         'from scenic.core.distributions import distributionMethod\n'
-        'class Foo:\n'
+        'class Foo(object):\n'
         '    @distributionMethod\n'
         '    def bar(self, arg):\n'
         '        return -arg * (100, 200)\n'

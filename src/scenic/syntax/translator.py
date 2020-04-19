@@ -256,7 +256,10 @@ for imp in builtinFunctions:
 
 ## Constructors and specifiers
 
-constructorStatement = 'constructor'	# statement defining a new constructor
+# statement defining a new constructor (Scenic class);
+# we still recognize 'constructor' for backwards-compatibility
+constructorStatements = ('class', 'constructor')
+
 Constructor = namedtuple('Constructor', ('name', 'parent', 'specifiers'))
 
 pointSpecifiers = {
@@ -404,7 +407,7 @@ for token in infixTokens.values():
 	ttype = token[0]
 	assert (ttype is COMMA or ttype in illegalTokens), token
 
-keywords = ({constructorStatement}
+keywords = (set(constructorStatements)
 	| internalFunctions | functionStatements
 	| replacements.keys())
 
@@ -494,10 +497,15 @@ def partitionByImports(tokens):
 	duringImport = False
 	haveImported = False
 	finishLine = False
+	parenLevel = 0
 	for token in tokens:
 		startNewBlock = False
+		if token.exact_type == LPAR:
+			parenLevel += 1
+		elif token.exact_type == RPAR:
+			parenLevel -= 1
 		if finishLine:
-			if token.type == NEWLINE or token.type == NL:
+			if token.type in (NEWLINE, NL) and parenLevel == 0:
 				finishLine = False
 				if duringImport:
 					duringImport = False
@@ -721,34 +729,45 @@ class TokenTranslator:
 					if startOfLine and tstring == 'for':	# TODO improve hack?
 						matched = True
 						endToken = token
-					elif startOfLine and tstring == constructorStatement:	# constructor definition
+					elif startOfLine and tstring in constructorStatements:	# class definition
 						if nextToken.type != NAME or nextString in keywords:
 							raise TokenParseError(nextToken,
-							    f'invalid constructor name "{nextString}"')
+							    f'invalid class name "{nextString}"')
 						nextToken = next(tokens)	# consume name
 						parent = None
+						pythonClass = False
 						if peek(tokens).exact_type == LPAR:		# superclass specification
 							next(tokens)
 							nextToken = next(tokens)
 							parent = nextToken.string
 							if nextToken.exact_type != NAME or parent in keywords:
 								raise TokenParseError(nextToken,
-								    f'invalid constructor superclass "{parent}"')
+								    f'invalid superclass "{parent}"')
 							if parent not in self.constructors:
-								raise TokenParseError(nextToken,
-								    f'constructor cannot subclass non-object "{parent}"')
-							nextToken = next(tokens)
-							if nextToken.exact_type != RPAR:
-								raise TokenParseError(nextToken,
-								                      'malformed constructor definition')
-						if peek(tokens).exact_type != COLON:
-							raise TokenParseError(nextToken, 'malformed constructor definition')
-						parent = self.createConstructor(nextString, parent)
+								if tstring != 'class':
+									raise TokenParseError(nextToken,
+									    f'superclass "{parent}" is not a Scenic class')
+								# appears to be a Python class definition
+								pythonClass = True
+							else:
+								nextToken = next(tokens)
+								if nextToken.exact_type != RPAR:
+									raise TokenParseError(nextToken,
+									                      'malformed class definition')
 						injectToken((NAME, 'class'), spaceAfter=1)
 						injectToken((NAME, nextString))
 						injectToken((LPAR, '('))
-						injectToken((NAME, parent))
-						injectToken((RPAR, ')'))
+						if pythonClass:		# pass Python class definitions through unchanged
+							while nextToken.exact_type != COLON:
+								injectToken(nextToken)
+								nextToken = next(tokens)
+							injectToken(nextToken)
+						else:
+							if peek(tokens).exact_type != COLON:
+								raise TokenParseError(nextToken, 'malformed class definition')
+							parent = self.createConstructor(nextString, parent)
+							injectToken((NAME, parent))
+							injectToken((RPAR, ')'))
 						skip = True
 						matched = True
 						endToken = nextToken
@@ -1009,7 +1028,7 @@ class ASTSurgeon(NodeTransformer):
 
 	def visit_ClassDef(self, node):
 		"""Process property defaults for Scenic classes."""
-		if node.name in self.constructors:		# constructor definition
+		if node.name in self.constructors:		# Scenic class definition
 			newBody = []
 			for child in node.body:
 				child = self.visit(child)
@@ -1054,7 +1073,8 @@ class ASTSurgeon(NodeTransformer):
 			node.body = newBody
 			return node
 		else:		# ordinary Python class
-			# catch some mistakes where 'class' was used instead of 'constructor'
+			# it's impossible at the moment to define a Python class in a Scenic file,
+			# but we'll leave this check here for future-proofing
 			for base in node.bases:
 				name = None
 				if isinstance(base, Call):
@@ -1062,7 +1082,8 @@ class ASTSurgeon(NodeTransformer):
 				elif isinstance(base, Name):
 					name = base.id
 				if name is not None and name in self.constructors:
-					self.parseError(node, f'must use "{constructorStatement}" to subclass objects')
+					self.parseError(node,
+					                f'Python class {node.name} derives from Scenic class {name}')
 			return self.generic_visit(node)
 
 def translateParseTree(tree, constructors):

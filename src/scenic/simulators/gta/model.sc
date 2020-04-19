@@ -2,8 +2,8 @@
 
 import random
 
-from scenic.simulators.gta.interface import Map, MapWorkspace, GTA, \
-	CarModel, CarColor, NoisyColorDistribution
+from scenic.simulators.gta.interface import (Map, MapWorkspace, GTA,
+	CarModel, CarColor, CarColorMutator)
 
 # Load map and set up regions, etc.
 from scenic.simulators.gta.map import mapPath
@@ -42,7 +42,7 @@ param weather = Options({
 			'SNOW': 1.25
 			})
 
-constructor Car:
+class Car:
 	"""Scenic class for cars.
 
 	Attributes:
@@ -66,24 +66,15 @@ constructor Car:
 
 	mutator[additive]: CarColorMutator()
 
-class CarColorMutator(Mutator):
-	"""Mutator that adds Gaussian HSL noise to the ``color`` property."""
-	def appliedTo(self, obj):
-		hueNoise = random.gauss(0, 0.05)
-		satNoise = random.gauss(0, 0.05)
-		lightNoise = random.gauss(0, 0.05)
-		color = NoisyColorDistribution.addNoiseTo(obj.color, hueNoise, lightNoise, satNoise)
-		return tuple([obj.copyWith(color=color), True])		# allow further mutation
-
-constructor EgoCar(Car):
+class EgoCar(Car):
 	"""Convenience subclass with defaults for ego cars."""
 	model: CarModel.egoModel()
 
-constructor Bus(Car):
+class Bus(Car):
 	"""Convenience subclass for buses."""
 	model: CarModel.models['BUS']
 
-constructor Compact(Car):
+class Compact(Car):
 	"""Convenience subclass for compact cars."""
 	model: CarModel.models['BLISTA']
 

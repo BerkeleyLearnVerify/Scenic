@@ -35,10 +35,10 @@ walkway = workspace.walkableRegion
 
 # types of objects
 
-constructor WebotsObject:
+class WebotsObject:
 	pass
 
-constructor Car(WebotsObject):
+class Car(WebotsObject):
 	regionContainedIn: road
 	position: Point on road
 	heading: (roadDirection at self.position) + self.roadDeviation
@@ -51,39 +51,39 @@ constructor Car(WebotsObject):
 	cameraOffset: 0 @ (self.height / 2)		# camera is at the front
 	color: CarColor.defaultColor()
 
-constructor SmallCar(Car):
+class SmallCar(Car):
 	model: Uniform(*smallVehicles)
 
-constructor BmwX5(Car):
+class BmwX5(Car):
 	model: modelWithName['BmwX5']
 
-constructor CitroenCZero(Car):
+class CitroenCZero(Car):
 	model: modelWithName['CitroenCZero']
 
-constructor LincolnMKZ(Car):
+class LincolnMKZ(Car):
 	model: modelWithName['LincolnMKZ']
 
-constructor RangeRoverSportSVR(Car):
+class RangeRoverSportSVR(Car):
 	model: modelWithName['RangeRoverSportSVR']
 
-constructor ToyotaPrius(Car):
+class ToyotaPrius(Car):
 	model: modelWithName['ToyotaPrius']
 
-constructor Bus(Car):
+class Bus(Car):
 	model: modelWithName['Bus']
 
-constructor Truck(Car):
+class Truck(Car):
 	model: modelWithName['Truck']
 
-constructor Tractor(Car):
+class Tractor(Car):
 	model: modelWithName['Tractor']
 
-constructor Motorcycle(Car):
+class Motorcycle(Car):
 	model: modelWithName['MotorBikeSimple']
 	primaryColor: CarColor.defaultColor()
 	secondaryColor: CarColor.uniformColor()		# TODO improve
 
-constructor Pedestrian(WebotsObject):
+class Pedestrian(WebotsObject):
 	regionContainedIn: walkway
 	position: Point on walkway
 	heading: (0, 360) deg
@@ -93,18 +93,18 @@ constructor Pedestrian(WebotsObject):
 	pantsColor: CarColor.uniformColor()
 	shoesColor: CarColor.uniformColor()
 
-constructor OilBarrel(WebotsObject):
+class OilBarrel(WebotsObject):
 	width: 0.61
 	height: 0.61
 
-constructor SolidBox(WebotsObject):
+class SolidBox(WebotsObject):
 	width: 2
 	height: 2
 
-constructor TrafficCone(WebotsObject):
+class TrafficCone(WebotsObject):
 	width: 0.5
 	height: 0.5
 
-constructor WorkBarrier(WebotsObject):
+class WorkBarrier(WebotsObject):
 	width: 1.2
 	height: 0.4

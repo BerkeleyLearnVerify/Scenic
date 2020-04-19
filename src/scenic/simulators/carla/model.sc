@@ -29,7 +29,7 @@ param sun_azimuth_angle = (0, 360)
 param sun_altitude_angle = (-90, 90)
 
 # TODO: Get vehicle models, dimensions from Carla
-constructor Vehicle:
+class Vehicle:
     regionContainedIn: road
     position: Point on road
     heading: (roadDirection at self.position) + self.roadDeviation
@@ -40,40 +40,40 @@ constructor Vehicle:
     color: CarColor.defaultColor()
     agent: 'BrakeAgent'
 
-constructor Car(Vehicle):
+class Car(Vehicle):
     blueprint: Uniform(*carModels)
 
-constructor Bicycle(Vehicle):
+class Bicycle(Vehicle):
     width: 1
     height: 2
     blueprint: Uniform(*bicycleModels)
 
-constructor Motorcycle(Vehicle):
+class Motorcycle(Vehicle):
     width: 1
     height:2
     blueprint: Uniform(*motorcycleModels)
 
-constructor Truck(Vehicle):
+class Truck(Vehicle):
     width: 3
     height: 7
     blueprint: Uniform(*truckModels)
 
-constructor Pedestrian:
+class Pedestrian:
     regionContainedIn: sidewalk
     position: Point on sidewalk
     heading: (0, 360) deg
     width: 0.5
     height: 0.5
 
-constructor Prop:
+class Prop:
     regionContainedIn: road
     position: Point on road
     heading: (0, 360) deg
     width: 0.5
     height: 0.5
 
-constructor Trash(Prop):
+class Trash(Prop):
     blueprint: Uniform(*trashModels)
 
-constructor Cone(Prop):
+class Cone(Prop):
     blueprint: Uniform(*coneModels)

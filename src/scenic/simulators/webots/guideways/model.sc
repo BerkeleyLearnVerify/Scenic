@@ -21,7 +21,7 @@ roadDirection = workspace.roadDirection		# NOTE: chooses arbitrarily where guide
 
 # Types of objects
 
-constructor Car:
+class Car:
 	regionContainedIn: road
 	position: Point on road
 	heading: roadDirection at self.position
@@ -34,7 +34,7 @@ constructor Car:
 	visibleDistance: 60
 	cameraOffset: 0 @ (self.height / 2)		# camera is at the front
 
-constructor Marker:
+class Marker:
 	width: 0.1
 	height: 0.1
 	allowCollisions: True

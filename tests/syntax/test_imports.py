@@ -68,3 +68,17 @@ def test_inherit_requirements(runLocally):
             assert len(scene.objects) == 2
             constrainedObj = scene.objects[1]
             assert constrainedObj.position.x > 0
+
+def test_import_multiline_1():
+    compileScenic(
+        'from math import factorial, \\\n'
+        '    pow\n'
+        'ego = Object with width pow(factorial(4), 2)'
+    )
+
+def test_import_multiline_2():
+    compileScenic(
+        'from math import (factorial,\n'
+        '  pow)\n'
+        'ego = Object with width pow(factorial(4), 2)'
+    )
