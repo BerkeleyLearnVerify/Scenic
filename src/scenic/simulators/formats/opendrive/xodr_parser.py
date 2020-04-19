@@ -3,8 +3,8 @@
 import math
 import xml.etree.ElementTree as ET
 import numpy as np
-from scipy.special import fresnel
 from scipy.integrate import quad
+from scipy.integrate import odeint
 from pynverse import inversefunc
 from shapely.geometry import Polygon, MultiPolygon, GeometryCollection, Point, MultiPoint
 from shapely.ops import unary_union, snap
@@ -136,19 +136,17 @@ class Clothoid(Curve):
                 points = [(r * np.sin(th), r - r * np.cos(th), r * th) for th in th_space]
             else:
                 points = [(r * np.sin(th), -r + r * np.cos(th), r * th) for th in th_space]
+            return self.rel_to_abs(points)
+
         else:
-            curve_rate = self.length / abs(self.curv1 - self.curv0)
-            s1 = curve_rate * self.curv1
-            s0 = curve_rate * self.curv0
-            s_space = np.linspace(s0, s1, num=num)
-            a = 1 / np.sqrt(2 * curve_rate)
-            points = [fresnel(a * s) + (s,) for s in s_space]
-            p0 = points[0]
-            if s1 > s0:
-                points = [(p[0] - p0[0], p[1] - p0[1], p[2] - s0) for p in points]
-            else:
-                points = [(p[0] - p0[0], p[1] - p0[1], -(p[2] - s0)) for p in points]
-        return self.rel_to_abs(points)
+            curve_rate = (self.curv1 - self.curv0) / self.length
+            def clothoid_ode(state, s):
+                x, y, theta = state[0], state[1], state[2]
+                return np.array([np.cos(theta), np.sin(theta), self.curv0 + curve_rate * s])
+
+            s_space = np.linspace(0, self.length, num)
+            points = odeint(clothoid_ode, np.array([self.x0,self.y0,self.hdg]), s_space)
+            return [(points[i,0], points[i,1], s_space[i]) for i in range(len(s_space))]
 
 
 class Line(Curve):
@@ -250,6 +248,8 @@ class Junction:
     def __init__(self, id_):
         self.id_ = id_
         self.connections = []
+        # Ids of roads that are paths within junction:
+        self.paths = []
 
     def add_connection(self, incoming_id, connecting_id, connecting_contact):
         self.connections.append(Junction.Connection(incoming_id,
@@ -428,7 +428,7 @@ class Road:
                                 prev_id = cur_sec.lanes[id_].pred
                             else:
                                 prev_id = id_
-                            if last_lefts is not None:
+                            if last_lefts is not None and prev_id in last_lefts.keys():
                                 gap_poly = MultiPoint([
                                     last_lefts[prev_id], last_rights[prev_id],
                                     left_bounds[id_][0], right_bounds[id_][0]]).convex_hull
@@ -619,6 +619,10 @@ class RoadMap:
                junc_roads.add(conn.incoming_id)
                junc_roads.add(conn.connecting_id)
             for road_i_idx in junc_roads:
+                if road_i_idx in junc.paths:
+                    road_i = self.roads[road_i_idx]
+                    intersect_polys.append(road_i.drivable_region)
+                    continue
                 for road_j_idx in junc_roads:
                     if road_i_idx == road_j_idx:
                         continue
@@ -729,6 +733,7 @@ class RoadMap:
                 junction.add_connection(int(c.get('incomingRoad')),
                                         int(c.get('connectingRoad')),
                                         c.get('contactPoint'))
+                junction.paths.append(int(c.get('connectingRoad')))
             self.junctions[junction.id_] = junction
 
         for r in root.iter('road'):
