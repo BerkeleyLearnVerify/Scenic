@@ -25,6 +25,14 @@ Scenarios using the `scenic.simulators.webots.guideways` model also require the 
 	In the past, the ``shapely`` package did not install properly on Windows.
 	If you encounter this issue, try installing it manually following the instructions `here <https://github.com/Toblerity/Shapely#built-distributions>`_.
 
+.. note::
+
+	You may also want to install the ``Polygon3`` package to get faster and more robust
+	polygon triangulation. However, this package is based on the `GPC library`_, which is
+	only free for non-commercial use.
+
+.. _GPC library: http://www.cs.man.ac.uk/~toby/gpc/
+
 Trying Some Examples
 --------------------
 
@@ -33,7 +41,7 @@ They are organized by the simulator they are written for, e.g. :abbr:`GTA (Grand
 Each simulator has a specialized Scenic interface which requires additional setup (see :doc:`simulators`); however, for convenience Scenic provides an easy way to visualize scenarios without running a simulator.
 Simply run the ``scenic`` module as a script, giving a path to a Scenic file::
 
-	python -m scenic examples/gta/badlyParkedCar2.sc
+	python -m scenic examples/gta/badlyParkedCar2.scenic
 
 This will compile the Scenic program and sample from it, displaying a schematic of the resulting scene.
 Since this is the badly-parked car example from our GTA case study, you should get something like this:
@@ -47,9 +55,9 @@ This will repeat until you kill the generator (:kbd:`Control-c` in Linux; right-
 Scenarios for the other simulators can be viewed in the same way.
 Here are a few for Webots::
 
-	python -m scenic examples/webots/mars/narrowGoal.sc
-	python -m scenic examples/webots/road/crossing.sc
-	python -m scenic examples/webots/guideways/uberCrash.sc
+	python -m scenic examples/webots/mars/narrowGoal.scenic
+	python -m scenic examples/webots/road/crossing.scenic
+	python -m scenic examples/webots/guideways/uberCrash.scenic
 
 .. image:: images/narrowGoal.png
    :width: 32%

@@ -1,7 +1,7 @@
 
 from scenic.simulators.webots.mars.model import *
 
-ego = Robot at 0 @ -2
+ego = Rover at 0 @ -2
 
 # Bottleneck made of two pipes with a rock in between
 

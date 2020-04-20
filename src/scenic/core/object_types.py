@@ -154,9 +154,24 @@ class Constructible(Samplable):
 ## Mutators
 
 class Mutator:
-	pass
+	"""An object controlling how the ``mutate`` statement affects an `Object`.
+
+	A `Mutator` can be assigned to the ``mutator`` property of an `Object` to
+	control the effect of the ``mutate`` statement. When mutation is enabled
+	for such an object using that statement, the mutator's `appliedTo` method
+	is called to compute a mutated version.
+	"""
+
+	def appliedTo(self, obj):
+		"""Return a mutated copy of the object. Implemented by subclasses."""
+		raise NotImplementedError
 
 class PositionMutator(Mutator):
+	"""Mutator adding Gaussian noise to ``position``. Used by `Point`.
+
+	Attributes:
+		stddev (float): standard deviation of noise
+	"""
 	def __init__(self, stddev):
 		self.stddev = stddev
 
@@ -175,6 +190,11 @@ class PositionMutator(Mutator):
 		return hash(self.stddev)
 
 class HeadingMutator(Mutator):
+	"""Mutator adding Gaussian noise to ``heading``. Used by `OrientedPoint`.
+
+	Attributes:
+		stddev (float): standard deviation of noise
+	"""
 	def __init__(self, stddev):
 		self.stddev = stddev
 
@@ -194,7 +214,18 @@ class HeadingMutator(Mutator):
 ## Point
 
 class Point(Constructible):
-	"""Implementation of the Scenic class ``Point``."""
+	"""Implementation of the Scenic class ``Point``.
+
+	The default mutator for `Point` adds Gaussian noise to ``position`` with
+	a standard deviation given by the ``positionStdDev`` property.
+
+	Attributes:
+		position (`Vector`): Position of the point. Default value is the origin.
+		visibleDistance (float): Distance for ``can see`` operator. Default value 50.
+		width (float): Default value zero (only provided for compatibility with
+		  operators that expect an `Object`).
+		height (float): Default value zero.
+	"""
 	position: Vector(0, 0)
 	width: 0
 	height: 0
@@ -241,7 +272,17 @@ class Point(Constructible):
 ## OrientedPoint
 
 class OrientedPoint(Point):
-	"""Implementation of the Scenic class ``OrientedPoint``."""
+	"""Implementation of the Scenic class ``OrientedPoint``.
+
+	The default mutator for `OrientedPoint` adds Gaussian noise to ``heading``
+	with a standard deviation given by the ``headingStdDev`` property, then
+	applies the mutator for `Point`.
+
+	Attributes:
+		heading (float): Heading of the `OrientedPoint`. Default value 0 (North).
+		viewAngle (float): View cone angle for ``can see`` operator. Default
+		  value :math:`2\\pi`.
+	"""
 	heading: 0
 	viewAngle: math.tau
 
@@ -270,7 +311,23 @@ class OrientedPoint(Point):
 ## Object
 
 class Object(OrientedPoint, RotatedRectangle):
-	"""Implementation of the Scenic class ``Object``."""
+	"""Implementation of the Scenic class ``Object``.
+
+	Attributes:
+		width (float): Width of the object, i.e. extent along its X axis.
+		  Default value 1.
+		height (float): Height of the object, i.e. extent along its Y axis.
+		  Default value 1.
+		allowCollisions (bool): Whether the object is allowed to intersect
+		  other objects. Default value ``False``.
+		requireVisible (bool): Whether the object is required to be visible
+		  from the ``ego`` object. Default value ``True``.
+		regionContainedIn (`Region` or ``None``): A `Region` the object is
+		  required to be contained in. If ``None``, the object need only be
+		  contained in the scenario's workspace.
+		cameraOffset (`Vector`): Position of the camera for the ``can see``
+		  operator, relative to the object's ``position``. Default ``0 @ 0``.
+	"""
 	width: 1
 	height: 1
 	allowCollisions: False

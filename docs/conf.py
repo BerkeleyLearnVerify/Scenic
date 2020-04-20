@@ -100,6 +100,8 @@ def find_obj(self, env, modname, classname, name, type, searchmode,
     def score(res):
         name = res[0]
         if name.startswith('scenic.syntax.veneer'):
+            return -1
+        elif modname is None:
             return 0
         else:
             # score by length of common prefix
