@@ -38,7 +38,6 @@ author = 'Daniel J. Fremont, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alber
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-'recommonmark',
 'sphinx.ext.autodoc',
 'sphinx.ext.autosummary',
 'sphinx.ext.napoleon',
