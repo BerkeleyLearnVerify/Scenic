@@ -121,7 +121,7 @@ class Samplable(LazilyEvaluable):
 class Distribution(Samplable):
 	"""Abstract class for distributions."""
 
-	defaultValueType = float
+	defaultValueType = object
 
 	def __new__(cls, *args, **kwargs):
 		dist = super().__new__(cls)
