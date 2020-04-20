@@ -2,15 +2,15 @@
 from scenic import scenarioFromString as compileScenic
 
 def test_basic(loadLocalScenario):
-    scenario = loadLocalScenario('crossing.sc')
+    scenario = loadLocalScenario('crossing.scenic')
     scenario.generate(maxIterations=1000)
 
 def test_road_only(loadLocalScenario):
-    scenario = loadLocalScenario('simple.sc')
+    scenario = loadLocalScenario('simple.scenic')
     scenario.generate(maxIterations=100)
 
 def test_curb(loadLocalScenario):
-    scenario = loadLocalScenario('curb.sc')
+    scenario = loadLocalScenario('curb.scenic')
     scenario.generate(maxIterations=200)
 
 def test_noninterference(runLocally):

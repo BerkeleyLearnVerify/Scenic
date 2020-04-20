@@ -5,9 +5,9 @@ import pytest
 pytest.importorskip("pyproj")
 
 def test_basic(loadLocalScenario):
-    scenario = loadLocalScenario('basic.sc')
+    scenario = loadLocalScenario('basic.scenic')
     scenario.generate(maxIterations=1000)
 
 def test_turning_car(loadLocalScenario):
-    scenario = loadLocalScenario('turningCar.sc')
+    scenario = loadLocalScenario('turningCar.scenic')
     scenario.generate(maxIterations=1000)
