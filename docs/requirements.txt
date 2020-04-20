@@ -31,6 +31,7 @@ pygments==2.6.1
 pynverse==0.1.4.4
 pyparsing==2.4.7
 pypoly2tri==0.0.3
+pyproj==2.6.0
 pytest==5.4.1
 pytest-randomly==3.3.1
 python-dateutil==2.8.1

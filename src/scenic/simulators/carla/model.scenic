@@ -4,13 +4,13 @@ import math
 import time
 
 from scenic.simulators.carla.interface import CarlaWorkspace
-from scenic.simulators.carla.map import mapPath
+from scenic.simulators.carla.map import mapPath, lanePoints
 from scenic.simulators.carla.car_models import carModels, bicycleModels, motorcycleModels, truckModels
 from scenic.simulators.carla.prop_models import trashModels, coneModels
 
 from scenic.simulators.gta.interface import CarColor
 
-workspace = CarlaWorkspace(mapPath)
+workspace = CarlaWorkspace(mapPath, n=lanePoints)
 
 roadDirection = workspace.road_direction
 road = workspace.drivable_region

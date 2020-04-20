@@ -18,12 +18,16 @@ sys.path.insert(0, os.path.abspath('.'))    # for docs-specific code
 # Set up paths for Scenic maps to enable importing the world models
 import scenic.simulators.gta.map as gta_map
 gta_map.mapPath = '../tests/simulators/gta/map.npz'
+
 import scenic.simulators.webots.guideways.intersection as gw_int
 gw_int.intersectionPath = '../tests/simulators/webots/guideways/McClintock_DonCarlos_Tempe.json'
+
 import scenic.simulators.webots.road.world as wbt_road_world
 wbt_road_world.worldPath = '../tests/simulators/webots/road/simple.wbt'
+
 import scenic.simulators.carla.map as carla_map
 carla_map.mapPath = '../tests/simulators/formats/opendrive/maps/opendrive.org/CulDeSac.xodr'
+carla_map.lanePoints = 2
 
 # -- Project information -----------------------------------------------------
 

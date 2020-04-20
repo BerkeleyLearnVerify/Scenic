@@ -672,12 +672,12 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [extras]
-dev = ["pytest-randomly", "pytest", "sphinx", "sphinx_rtd_theme", "tox"]
+dev = ["pytest-randomly", "pytest", "sphinx", "sphinx_rtd_theme", "tox", "pyproj"]
 gpc_triangulation = ["Polygon3"]
 guideways = ["pyproj"]
 
 [metadata]
-content-hash = "54403b977cdd437b672bb0e371743d3a2c364214932f4d7b44cc916cf028936c"
+content-hash = "9f809efafc940704b89fd9411006669cbd11a9dbcf01ded6cfc81bc4b3b3d712"
 python-versions = "^3.6"
 
 [metadata.files]

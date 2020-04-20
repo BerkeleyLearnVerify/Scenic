@@ -53,6 +53,7 @@ dev = [
 	"sphinx_rtd_theme",
 	"tox",
 	"pygments",
+	"pyproj",	# for running guideways modules
 ]
 
 [tool.poetry.plugins."pygments.lexers"]
