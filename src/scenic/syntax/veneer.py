@@ -1,5 +1,5 @@
 
-"""Veneer library, with Python implementations of Scenic language constructs.
+"""Python implementations of Scenic language constructs.
 
 This module is automatically imported by all Scenic programs. In addition to
 defining the built-in functions, operators, specifiers, etc., it also stores
@@ -22,7 +22,8 @@ __all__ = (
 	'Vector', 'VectorField', 'PolygonalVectorField',
 	'Region', 'PointSetRegion', 'RectangularRegion', 'PolygonalRegion', 'PolylineRegion',
 	'Workspace', 'Mutator',
-	'Range', 'DiscreteRange', 'Options', 'Uniform', 'Normal',
+	'Range', 'DiscreteRange', 'Options', 'Uniform', 'Discrete', 'Normal',
+	'VerifaiParameter', 'VerifaiRange', 'VerifaiDiscreteRange', 'VerifaiOptions',
 	# Constructible types
 	'Point', 'OrientedPoint', 'Object',
 	# Specifiers
@@ -30,6 +31,9 @@ __all__ = (
 	'At', 'In', 'Beyond', 'VisibleFrom', 'VisibleSpec', 'OffsetBy', 'OffsetAlongSpec',
 	'Facing', 'FacingToward', 'ApparentlyFacing',
 	'LeftSpec', 'RightSpec', 'Ahead', 'Behind',
+	'Following',
+	# Constants
+	'everywhere', 'nowhere',
 	# Temporary stuff... # TODO remove
 	'PropertyDefault'
 )
@@ -38,10 +42,13 @@ __all__ = (
 from scenic.core.geometry import sin, cos, hypot, max, min
 from scenic.core.vectors import Vector, VectorField, PolygonalVectorField
 from scenic.core.regions import (Region, PointSetRegion, RectangularRegion,
-	PolygonalRegion, PolylineRegion)
+	PolygonalRegion, PolylineRegion, everywhere, nowhere)
 from scenic.core.workspaces import Workspace
 from scenic.core.distributions import Range, DiscreteRange, Options, Normal
 Uniform = lambda *opts: Options(opts)		# TODO separate these?
+Discrete = Options
+from scenic.core.external_params import (VerifaiParameter, VerifaiRange, VerifaiDiscreteRange,
+                                         VerifaiOptions)
 from scenic.core.object_types import Mutator, Point, OrientedPoint, Object
 from scenic.core.specifiers import PropertyDefault	# TODO remove
 
@@ -51,12 +58,14 @@ import random
 from scenic.core.distributions import (RejectionException, Distribution, toDistribution,
                                        needsSampling)
 from scenic.core.type_support import (isA, toType, toTypes, toScalar, toHeading, toVector,
-                                      evaluateRequiringEqualTypes, underlyingType)
+                                      evaluateRequiringEqualTypes, underlyingType,
+                                      canCoerce, coerce)
 from scenic.core.geometry import RotatedRectangle, normalizeAngle, apparentHeadingAtPoint
 from scenic.core.object_types import Constructible
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
 from scenic.core.utils import RuntimeParseError
+from scenic.core.external_params import ExternalParameter
 from scenic.simulators.simulators import RejectSimulationException
 
 ### Internals
@@ -66,6 +75,7 @@ evaluatingRequirement = False
 allObjects = []		# ordered for reproducibility
 egoObject = None
 globalParameters = {}
+externalParameters = []		# ordered for reproducibility
 pendingRequirements = {}
 inheritedReqs = []		# TODO improve handling of these?
 currentSimulation = None
@@ -85,7 +95,7 @@ def activate():
 
 def deactivate():
 	"""Deactivate the veneer after compiling a Scenic module."""
-	global activity, allObjects, egoObject, globalParameters
+	global activity, allObjects, egoObject, globalParameters, externalParameters
 	global pendingRequirements, inheritedReqs
 	activity -= 1
 	assert activity >= 0
@@ -93,6 +103,7 @@ def deactivate():
 	allObjects = []
 	egoObject = None
 	globalParameters = {}
+	externalParameters = []
 	pendingRequirements = {}
 	inheritedReqs = []
 
@@ -106,6 +117,12 @@ def registerObject(obj):
 		allObjects.append(obj)
 	elif evaluatingRequirement:
 		raise RuntimeParseError('tried to create an object inside a requirement')
+
+def registerExternalParameter(value):
+	"""Register a parameter whose value is given by an external sampler."""
+	if activity > 0:
+		assert isinstance(value, ExternalParameter)
+		externalParameters.append(value)
 
 def beginSimulation(sim):
 	global currentSimulation, egoObject
@@ -197,11 +214,15 @@ def simulation():
 	assert currentSimulation is not None
 	return currentSimulation
 
-def param(**params):
+def param(*quotedParams, **params):
 	"""Function implementing the param statement."""
 	if evaluatingRequirement:
 		raise RuntimeParseError('tried to create a global parameter inside a requirement')
 	for name, value in params.items():
+		globalParameters[name] = toDistribution(value)
+	assert len(quotedParams) % 2 == 0, quotedParams
+	it = iter(quotedParams)
+	for name, value in zip(it, it):
 		globalParameters[name] = toDistribution(value)
 
 def mutate(*objects):		# TODO update syntax
@@ -551,8 +572,9 @@ def Ahead(pos, dist=0):
 	Specifies 'position', depending on 'height'. See other dependencies below.
 
 	Allowed forms:
-		ahead of <oriented point> [by <scalar/vector>] -- optionally specifies 'heading';
-		ahead of <vector> [by <scalar/vector>] -- depends on 'heading'.
+
+	* ``ahead of`` <oriented point> [``by`` <scalar/vector>] -- optionally specifies 'heading';
+	* ``ahead of`` <vector> [``by`` <scalar/vector>] -- depends on 'heading'.
 
 	If the 'by <scalar/vector>' is omitted, zero is used.
 	"""
@@ -575,11 +597,10 @@ def Behind(pos, dist=0):
 
 def leftSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
 	extras = set()
-	dType = underlyingType(dist)
-	if dType is float or dType is int:
-		dx, dy = toComponents(dist)
-	elif dType is Vector:
-		dx, dy = dist
+	if canCoerce(dist, float):
+		dx, dy = toComponents(coerce(dist, float))
+	elif canCoerce(dist, Vector):
+		dx, dy = coerce(dist, Vector)
 	else:
 		raise RuntimeParseError(f'"{syntax} X by D" with D not a number or vector')
 	if isinstance(pos, OrientedPoint):		# TODO too strict?
@@ -591,3 +612,26 @@ def leftSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
 		val = lambda self: pos.offsetRotated(self.heading, makeOffset(self, dx, dy))
 		new = DelayedArgument({axis, 'heading'}, val)
 	return Specifier('position', new, optionals=extras)
+
+def Following(field, dist, fromPt=None):
+	"""The 'following F [from X] for D' specifier.
+
+	Specifies 'position', and optionally 'heading', with no dependencies.
+
+	Allowed forms:
+		following <field> [from <vector>] for <number>
+
+	If the 'from <vector>' is omitted, the position of ego is used.
+	"""
+	if fromPt is None:
+		fromPt = ego()
+	else:
+		dist, fromPt = fromPt, dist
+	if not isinstance(field, VectorField):
+		raise RuntimeParseError('"following F" specifier with F not a vector field')
+	fromPt = toVector(fromPt, '"following F from X for D" with X not a vector')
+	dist = toScalar(dist, '"following F for D" with D not a number')
+	pos = field.followFrom(fromPt, dist)
+	heading = field[pos]
+	val = OrientedPoint(position=pos, heading=heading)
+	return Specifier('position', val, optionals={'heading'})

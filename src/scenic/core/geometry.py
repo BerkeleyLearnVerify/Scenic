@@ -1,14 +1,13 @@
-
-#### GEOMETRY
-#### utility functions for geometric computation
+"""Utility functions for geometric computation."""
 
 import math
 import itertools
+import warnings
 
 import numpy as np
 import shapely.geometry
 import shapely.ops
-import Polygon as PolygonLib	# TODO remove dependency (see triangulatePolygon)
+import pypoly2tri
 
 from scenic.core.distributions import (needsSampling, distributionFunction,
                                        monotonicDistributionFunction)
@@ -171,9 +170,66 @@ def cleanChain(chain, tolerance, angleTolerance=0.008):
 	newChain.append(newChain[0] if closed else c)
 	return newChain
 
+#: Whether to warn when falling back to pypoly2tri for triangulation
+givePP2TWarning = True
+
 def triangulatePolygon(polygon):
-	# TODO replace with another library!
-	# N.B. can't use shapely.ops.triangulate since it doesn't respect edges
+	"""Triangulate the given Shapely polygon.
+
+	Note that we can't use ``shapely.ops.triangulate`` since it triangulates
+	point sets, not polygons (i.e., it doesn't respect edges). We need an
+	algorithm for triangulation of polygons with holes (it doesn't need to be a
+	Delaunay triangulation).
+
+	We currently use the GPC library (wrapped by the ``Polygon3`` package) if it is
+	installed. Since it is not free for commercial use, we don't require it as a
+	dependency, falling back on the BSD-compatible ``pypoly2tri`` as needed. In this
+	case we issue a warning, since GPC is more robust and handles large polygons.
+	The warning can be disabled by setting `givePP2TWarning` to ``False``.
+
+	Args:
+		polygon (shapely.geometry.Polygon): Polygon to triangulate.
+
+	Returns:
+		A list of disjoint (except for edges) triangles whose union is the
+		original polygon.
+	"""
+	try:
+		import Polygon
+		return triangulatePolygon_gpc(polygon)
+	except ImportError:
+		pass
+	if givePP2TWarning:
+		warnings.warn('Using pypoly2tri for triangulation; for non-commercial use, consider'
+		              ' installing the faster Polygon3 library')
+	return triangulatePolygon_pypoly2tri(polygon)
+
+def triangulatePolygon_pypoly2tri(polygon):
+	polyline = []
+	for c in polygon.exterior.coords[:-1]:
+		polyline.append(pypoly2tri.shapes.Point(c[0],c[1]))
+	cdt = pypoly2tri.cdt.CDT(polyline)
+	for i in polygon.interiors:
+		polyline = []
+		for c in i.coords[:-1]:
+			polyline.append(pypoly2tri.shapes.Point(c[0],c[1]))
+		cdt.AddHole(polyline)
+	try:
+		cdt.Triangulate()
+	except RecursionError as e:		# polygon too big for pypoly2tri
+		raise RuntimeError('pypoly2tri unable to triangulate large polygon') from e
+
+	triangles = list()
+	for t in cdt.GetTriangles():
+		triangles.append(shapely.geometry.Polygon([
+			t.GetPoint(0).toTuple(),
+			t.GetPoint(1).toTuple(),
+			t.GetPoint(2).toTuple()
+		]))
+	return triangles
+
+def triangulatePolygon_gpc(polygon):
+	import Polygon as PolygonLib
 	poly = PolygonLib.Polygon(polygon.exterior.coords)
 	for interior in polygon.interiors:
 		poly.addContour(interior.coords, True)
@@ -190,10 +246,8 @@ def triangulatePolygon(polygon):
 
 def plotPolygon(polygon, plt, style='r-'):
 	def plotRing(ring):
-		coords = ring.coords
-		for i, point in enumerate(coords[:-1]):
-			nextPt = coords[i+1]
-			plt.plot([point[0], nextPt[0]], [point[1], nextPt[1]], style)
+		x, y = ring.xy
+		plt.plot(x, y, style)
 	if isinstance(polygon, shapely.geometry.MultiPolygon):
 		polygons = polygon
 	else:

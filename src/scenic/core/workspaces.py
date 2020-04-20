@@ -1,5 +1,4 @@
-
-### Workspaces
+"""Workspaces."""
 
 from scenic.core.distributions import needsSampling
 from scenic.core.regions import Region, everywhere
@@ -14,10 +13,6 @@ class Workspace(Region):
 		super().__init__('workspace', orientation=region.orientation)
 		self.region = region
 
-	def langToMapCoords(self, coords):
-		"""Converts language to workspace coordinates"""
-		return coords
-
 	def show(self, plt):
 		"""Render a schematic of the workspace for debugging"""
 		try:
@@ -31,7 +26,7 @@ class Workspace(Region):
 
 	def zoomAround(self, plt, objects, expansion=2):
 		"""Zoom the schematic around the specified objects"""
-		positions = (self.langToMapCoords(obj.position) for obj in objects)
+		positions = (self.scenicToSchematicCoords(obj.position) for obj in objects)
 		x, y = zip(*positions)
 		minx, maxx = findMinMax(x)
 		miny, maxy = findMinMax(y)
@@ -47,6 +42,10 @@ class Workspace(Region):
 	@property
 	def minimumZoomSize(self):
 		return 0
+
+	def scenicToSchematicCoords(self, coords):
+		"""Convert Scenic coordinates to those used for schematic rendering."""
+		return coords
 
 	def uniformPointInner(self):
 		return self.region.uniformPointInner()
@@ -65,3 +64,11 @@ class Workspace(Region):
 
 	def __str__(self):
 		return f'<Workspace on {self.region}>'
+
+	def __eq__(self, other):
+		if type(other) is not Workspace:
+			return NotImplemented
+		return other.region == self.region
+
+	def __hash__(self):
+		return hash(self.region)

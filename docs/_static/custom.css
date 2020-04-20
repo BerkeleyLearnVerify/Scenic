@@ -1,0 +1,5 @@
+/* Use 4 spaces for tabs in highlighted code */
+pre {tab-size: 4;}
+/* Increase maximum body width to support 100-character lines */
+.wy-nav-content {max-width:900px;}
+

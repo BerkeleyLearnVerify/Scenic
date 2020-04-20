@@ -7,8 +7,8 @@ from scenic.syntax.translator import InvalidScenarioError
 
 def test_import_top_absolute(request):
     base = os.path.dirname(request.fspath)
-    fullpathImports = os.path.join(base, 'imports.sc')
-    fullpathHelper = os.path.join(base, 'helper.sc')
+    fullpathImports = os.path.join(base, 'imports.scenic')
+    fullpathHelper = os.path.join(base, 'helper.scenic')
     scenario = scenarioFromFile(fullpathImports)
     assert len(scenario.requirements) == 0
     scene, iterations = scenario.generate(maxIterations=1)
@@ -28,11 +28,11 @@ def test_import_top_absolute(request):
 
 def test_import_top_relative(request):
     base = os.path.dirname(request.fspath)
-    fullpathHelper = os.path.join(base, 'helper.sc')
+    fullpathHelper = os.path.join(base, 'helper.scenic')
     oldDirectory = os.getcwd()
     os.chdir(base)
     try:
-        scenario = scenarioFromFile('imports.sc')
+        scenario = scenarioFromFile('imports.scenic')
         assert len(scenario.requirements) == 0
         scene, iterations = scenario.generate(maxIterations=1)
         assert len(scene.objects) == 2
@@ -41,7 +41,7 @@ def test_import_top_relative(request):
         assert scene.objects[1].species == 'helpful'
         assert scene.params['thingy'] == 42
         assert scene.params['imports_name'] == '__main__'
-        assert scene.params['imports_file'] == 'imports.sc'
+        assert scene.params['imports_file'] == 'imports.scenic'
         assert scene.params['helper_name'] == 'helper'
         assert scene.params['helper_file'] == fullpathHelper
     finally:
@@ -68,3 +68,17 @@ def test_inherit_requirements(runLocally):
             assert len(scene.objects) == 2
             constrainedObj = scene.objects[1]
             assert constrainedObj.position.x > 0
+
+def test_import_multiline_1():
+    compileScenic(
+        'from math import factorial, \\\n'
+        '    pow\n'
+        'ego = Object with width pow(factorial(4), 2)'
+    )
+
+def test_import_multiline_2():
+    compileScenic(
+        'from math import (factorial,\n'
+        '  pow)\n'
+        'ego = Object with width pow(factorial(4), 2)'
+    )

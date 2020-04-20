@@ -1,5 +1,4 @@
-
-### Support for checking Scenic types
+"""Support for checking Scenic types."""
 
 import sys
 import inspect

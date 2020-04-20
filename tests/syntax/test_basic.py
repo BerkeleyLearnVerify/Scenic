@@ -64,6 +64,10 @@ def test_param():
     assert type(p) is list
     assert p == [1, 4, 9]
 
+def test_quoted_param():
+    p = sampleParamPFrom('ego = Object\n' 'param "p" = (3, 5)')
+    assert 3 <= p <= 5
+
 def test_verbose():
     for verb in range(4):
         scenic.syntax.translator.verbosity = verb

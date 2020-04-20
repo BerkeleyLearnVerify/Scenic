@@ -13,6 +13,7 @@ from scenic.core.geometry import normalizeAngle, polygonUnion, plotPolygon
 from scenic.core.vectors import VectorField, PolygonalVectorField, VectorMethodDistribution
 from scenic.core.workspaces import Workspace
 from scenic.syntax.relations import RelativeHeadingRelation, DistanceRelation
+from scenic.core.utils import InvalidScenarioError
 import scenic.core.regions as regions
 
 ### Utilities
@@ -92,9 +93,13 @@ def pruneContainment(scenario, verbosity):
         base = matchInRegion(obj.position)
         if base is None:                    # match objects positioned uniformly in a Region
             continue
+        if isinstance(base, regions.EmptyRegion):
+            raise InvalidScenarioError(f'Object {obj} placed in empty region')
         basePoly = regions.toPolygon(base)
         if basePoly is None:                # to prune, the Region must be polygonal
             continue
+        if basePoly.is_empty:
+            raise InvalidScenarioError(f'Object {obj} placed in empty region')
         container = scenario.containerOfObject(obj)
         containerPoly = regions.toPolygon(container)
         if containerPoly is None:           # the object's container must also be polygonal
@@ -105,11 +110,16 @@ def pruneContainment(scenario, verbosity):
         elif base is container:
             continue
         newBasePoly = basePoly & containerPoly      # restrict the base Region to the container
+        if newBasePoly.is_empty:
+            raise InvalidScenarioError(f'Object {obj} does not fit in container')
         if verbosity >= 1:
-            percent = 100 * (1.0 - (newBasePoly.area / basePoly.area))
+            if basePoly.area > 0:
+                ratio = newBasePoly.area / basePoly.area
+            else:
+                ratio = newBasePoly.length / basePoly.length
+            percent = 100 * (1.0 - ratio)
             print(f'    Region containment constraint pruned {percent:.1f}% of space.')
-        newBase = regions.PolygonalRegion(polygon=newBasePoly,
-                                          orientation=base.orientation)
+        newBase = regions.regionFromShapelyObject(newBasePoly, orientation=base.orientation)
         newPos = regions.Region.uniformPointIn(newBase)
         obj.position.conditionTo(newPos)
 
@@ -119,12 +129,16 @@ def pruneRelativeHeading(scenario, verbosity):
     """Prune based on requirements bounding the relative heading of an Object.
 
     Specifically, if an object O is:
+
         * positioned uniformly within a polygonal region B;
         * aligned to a polygonal vector field F (up to a bounded offset);
+
     and another object O' is:
+
         * aligned to a polygonal vector field F' (up to a bounded offset);
         * at most some finite maximum distance from O;
         * required to have relative heading within a bounded offset of that of O;
+
     then we can instead position O uniformly in the subset of B intersecting the cells
     of F which satisfy the relative heading requirements w.r.t. some cell of F' which
     is within the distance bound.

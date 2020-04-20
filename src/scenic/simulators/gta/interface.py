@@ -1,3 +1,4 @@
+"""Python supporting code for the GTA model."""
 
 import math
 import time
@@ -20,7 +21,7 @@ except ModuleNotFoundError as e:
 import scenic.simulators.gta.center_detection as center_detection
 import scenic.simulators.gta.img_modf as img_modf
 import scenic.simulators.gta.messages as messages
-from scenic.simulators.utils.colors import Color as CarColor, NoisyColorDistribution
+from scenic.simulators.utils.colors import Color
 
 from scenic.core.distributions import (Samplable, Distribution, Range, Normal, Options,
                                        distributionMethod, toDistribution)
@@ -60,7 +61,7 @@ class GTA:
 	def Vehicle(car):
 		loc3 = GTA.langToGTACoords(car.position)
 		heading = GTA.langToGTAHeading(car.heading)
-		scol = list(CarColor.realToByte(car.color))
+		scol = list(Color.realToByte(car.color))
 		return messages.Vehicle(car.model.name, scol, loc3, heading)
 	
 	@staticmethod
@@ -76,7 +77,18 @@ class GTA:
 ### Map
 
 class Map:
-	"""Represents roads and obstacles in GTA"""
+	"""Represents roads and obstacles in GTA, extracted from a map image.
+
+	This code handles images from the `GTA V Interactive Map <https://gta-5-map.com/>`_,
+	rendered with the "Road" setting.
+
+	Args:
+		imagePath (str): path to image file
+		Ax (float): width of one pixel in GTA coordinates
+		Ay (float): height of one pixel in GTA coordinates
+		Bx (float): GTA X-coordinate of bottom-left corner of image
+		By (float): GTA Y-coordinate of bottom-left corner of image
+	"""
 	def __init__(self, imagePath, Ax, Ay, Bx, By):
 		self.Ax, self.Ay = Ax, Ay
 		self.Bx, self.By = Bx, By
@@ -90,12 +102,16 @@ class Map:
 			self.displayImage = cv2.cvtColor(numpy.array(de), cv2.COLOR_RGB2BGR)
 			# detect edges of roads
 			ed = center_detection.compute_midpoints(img_data=image, kernelsize=5)
-			self.edgeData = { self.mapToLangCoords((x, y)): datum for (y, x), datum in ed.items() }
+			self.edgeData = {
+				self.gridToScenicCoords((x, y)): datum
+				for (y, x), datum in ed.items()
+			}
 			self.orderedCurbPoints = list(self.edgeData.keys())
 			# build k-D tree
 			self.edgeTree = scipy.spatial.cKDTree(self.orderedCurbPoints)
 			# identify points on roads
-			self.roadArray = numpy.array(img_modf.convert_black_white(img_data=image).convert('L'), dtype=int)
+			self.roadArray = numpy.array(img_modf.convert_black_white(img_data=image).convert('L'),
+			                             dtype=int)
 			totalTime = time.time() - startTime
 			verbosePrint(f'Created GTA map from image in {totalTime:.2f} seconds.')
 
@@ -145,18 +161,18 @@ class Map:
 		                      kdTree=self.edgeTree,
 		                      orientation=self.roadDirection)
 
-	def mapToLangCoords(self, point):
+	def gridToScenicCoords(self, point):
 		x, y = point[0], point[1]
 		return ((self.Ax * x) + self.Bx, (self.Ay * y) + self.By)
 
-	def mapToLangHeading(self, heading):
+	def gridToScenicHeading(self, heading):
 		return heading - (math.pi / 2)
 
-	def langToMapCoords(self, point):
+	def scenicToGridCoords(self, point):
 		x, y = point[0], point[1]
 		return ((x - self.Bx) / self.Ax, (y - self.By) / self.Ay)
 
-	def langToMapHeading(self, heading):
+	def scenicToGridHeading(self, heading):
 		return heading + (math.pi / 2)
 
 	@distributionMethod
@@ -165,7 +181,7 @@ class Map:
 		distance, location = self.edgeTree.query(point)
 		closest = tuple(self.edgeTree.data[location])
 		# get direction of edge
-		return self.mapToLangHeading(self.edgeData[closest].tangent)
+		return self.gridToScenicHeading(self.edgeData[closest].tangent)
 
 	def show(self, plt):
 		plt.imshow(self.displayImage)
@@ -176,8 +192,8 @@ class MapWorkspace(Workspace):
 		super().__init__(region)
 		self.map = mappy
 
-	def langToMapCoords(self, coords):
-		return self.map.langToMapCoords(coords)
+	def scenicToSchematicCoords(self, coords):
+		return self.map.scenicToGridCoords(coords)
 
 	def show(self, plt):
 		plt.gca().set_aspect('equal')
@@ -190,6 +206,18 @@ class MapWorkspace(Workspace):
 ### Car models and colors
 
 class CarModel:
+	"""A model of car in GTA.
+
+	Attributes:
+		name (str): name of model in GTA
+		width (float): width of this model of car
+		height (float): height of this model of car
+		viewAngle (float): view angle in radians (default is 90 degrees)
+
+	Class Attributes:
+		models: dict mapping model names to the corresponding `CarModel`
+	"""
+
 	def __init__(self, name, width, height, viewAngle=math.radians(90)):
 		super(CarModel, self).__init__()
 		self.name = name
