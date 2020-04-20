@@ -8,6 +8,7 @@ from scipy import linalg
 
 import scenic.simulators as simulators
 import scenic.simulators.lgsvl.utils as utils
+import scenic.syntax.veneer as veneer
 from scenic.core.vectors import Vector
 
 class LGSVLSimulator(simulators.Simulator):
@@ -208,6 +209,16 @@ class SetVelocityAction(simulators.Action):
 class FollowWaypointsAction(simulators.Action):
     def __init__(self, waypoints):
         self.waypoints = tuple(waypoints)
+        if not isinstance(self.waypoints[0], lgsvl.DriveWaypoint):
+            pts = []
+            for wp in self.waypoints:
+                elev = veneer.simulation().groundElevationAt(wp)
+                pos = utils.scenicToLGSVLPosition(wp, y=elev)
+                rot = utils.scenicToLGSVLRotation(wp.heading)
+                pt = lgsvl.DriveWaypoint(pos, wp.speed, rot)
+                pts.append(pt)
+            self.waypoints = tuple(pts)
+
         self.lastTime = -2
 
     def applyTo(self, obj, lgsvlObject, sim):

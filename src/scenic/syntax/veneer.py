@@ -55,6 +55,7 @@ from scenic.core.specifiers import PropertyDefault	# TODO remove
 # everything that should not be directly accessible from the language is imported here:
 import inspect
 import random
+from collections import defaultdict
 from scenic.core.distributions import (RejectionException, Distribution, toDistribution,
                                        needsSampling)
 from scenic.core.type_support import (isA, toType, toTypes, toScalar, toHeading, toVector,
@@ -76,7 +77,7 @@ allObjects = []		# ordered for reproducibility
 egoObject = None
 globalParameters = {}
 externalParameters = []		# ordered for reproducibility
-pendingRequirements = {}
+pendingRequirements = defaultdict(list)
 inheritedReqs = []		# TODO improve handling of these?
 currentSimulation = None
 
@@ -104,7 +105,7 @@ def deactivate():
 	egoObject = None
 	globalParameters = {}
 	externalParameters = []
-	pendingRequirements = {}
+	pendingRequirements = defaultdict(list)
 	inheritedReqs = []
 
 def registerObject(obj):
@@ -175,8 +176,8 @@ def require(reqID, req, line, prob=1):
 		# the translator wrapped the requirement in a lambda to prevent evaluation,
 		# so we need to save the current values of all referenced names; throw in
 		# the ego object too since it can be referred to implicitly
-		assert reqID not in pendingRequirements
-		pendingRequirements[reqID] = (req, getAllGlobals(req), egoObject, line, prob)
+		data = (req, getAllGlobals(req), egoObject, line, prob)
+		pendingRequirements[reqID].append(data)
 
 def getAllGlobals(req, restrictTo=None):
 	"""Find all names the given lambda depends on, along with their current bindings."""

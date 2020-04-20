@@ -3,21 +3,25 @@ import time
 
 import lgsvl
 
-from scenic.simulators.carla.interface import CarlaWorkspace
+from scenic.simulators.formats.opendrive import OpenDriveWorkspace
 from scenic.simulators.lgsvl.map import mapPath
 
-workspace = CarlaWorkspace(mapPath)     # TODO improve
+# Load map and set up various useful regions, etc.
+
+workspace = OpenDriveWorkspace(mapPath)
 
 roadDirection = workspace.road_direction
 road = workspace.drivable_region
 sidewalk = workspace.sidewalk_region
 
-constructor LGSVLObject:
+## LGSVL objects
+
+class LGSVLObject:
     lgsvlObject: None
     elevation: None
 
 # TODO: Get vehicle models, dimensions from LGSVL
-constructor Car(LGSVLObject):
+class Car(LGSVLObject):
     regionContainedIn: road
     position: Point on road
     heading: (roadDirection at self.position) + self.roadDeviation
@@ -25,10 +29,11 @@ constructor Car(LGSVLObject):
     viewAngle: 90 deg
     width: 2.5
     height: 5
+    requireVisible: False
     lgsvlName: 'Sedan'
     lgsvlAgentType: lgsvl.AgentType.NPC
 
-constructor EgoCar(Car):
+class EgoCar(Car):
     lgsvlName: 'Lincoln2017MKZ (Apollo 5.0)'
     lgsvlAgentType: lgsvl.AgentType.EGO
     apolloVehicle: 'Lincoln2017MKZ'
@@ -38,7 +43,7 @@ constructor EgoCar(Car):
     bridgeHost: 'localhost'
     bridgePort: 9090
 
-constructor Pedestrian(LGSVLObject):
+class Pedestrian(LGSVLObject):
     regionContainedIn: sidewalk
     position: Point on sidewalk
     heading: (0, 360) deg
@@ -46,3 +51,9 @@ constructor Pedestrian(LGSVLObject):
     height: 0.5
     lgsvlName: 'Bob'
     lgsvlAgentType: lgsvl.AgentType.PEDESTRIAN
+
+## Utility classes
+
+class Waypoint(OrientedPoint):
+    heading: roadDirection at self.position
+    speed: 10

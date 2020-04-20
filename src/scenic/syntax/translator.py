@@ -742,7 +742,7 @@ class TokenTranslator:
 							next(tokens)
 							nextToken = next(tokens)
 							parent = nextToken.string
-							if nextToken.exact_type != NAME or parent in keywords:
+							if nextToken.exact_type != NAME:
 								raise TokenParseError(nextToken,
 								    f'invalid superclass "{parent}"')
 							if parent not in self.constructors:
@@ -1208,22 +1208,23 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 				veneer.egoObject = None
 			return result
 		return closure
-	for reqID, (req, bindings, ego, line, prob) in requirements.items():
-		# Check whether requirement implies any relations used for pruning
+	for reqID, invocations in requirements.items():
 		reqNode = requirementSyntax[reqID]
-		relations.inferRelationsFrom(reqNode, bindings, ego, line)
-		# Gather dependencies of the requirement
-		for value in bindings.values():
-			if needsSampling(value):
-				requirementDeps.add(value)
-			if needsLazyEvaluation(value):
-				raise InvalidScenarioError(f'requirement on line {line} uses value {value}'
-				                           ' undefined outside of object definition')
-		if ego is not None:
-			assert isinstance(ego, Samplable)
-			requirementDeps.add(ego)
-		# Construct closure
-		finalReqs.append((makeClosure(req, bindings, ego, line), prob))
+		for req, bindings, ego, line, prob in invocations:
+			# Check whether requirement implies any relations used for pruning
+			relations.inferRelationsFrom(reqNode, bindings, ego, line)
+			# Gather dependencies of the requirement
+			for value in bindings.values():
+				if needsSampling(value):
+					requirementDeps.add(value)
+				if needsLazyEvaluation(value):
+					raise InvalidScenarioError(f'requirement on line {line} uses value {value}'
+					                           ' undefined outside of object definition')
+			if ego is not None:
+				assert isinstance(ego, Samplable)
+				requirementDeps.add(ego)
+			# Construct closure
+			finalReqs.append((makeClosure(req, bindings, ego, line), prob))
 
 def constructScenarioFrom(namespace):
 	"""Build a Scenario object from an executed Scenic module."""

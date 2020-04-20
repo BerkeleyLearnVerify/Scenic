@@ -711,10 +711,7 @@ class RoadMap:
                                             link_elem.get('contactPoint')))
         else:
             assert link_elem.get('elementType') == 'junction', 'Unknown link type'
-            eid = link_elem.get('elementId')
-            if eid is None:
-                return
-            junction = int(eid)
+            junction = int(link_elem.get('elementId'))
             connections = self.junctions[junction].connections
             for c in connections:
                 if c.incoming_id == road_id:
