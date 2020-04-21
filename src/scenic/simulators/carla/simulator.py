@@ -2,7 +2,7 @@ import carla
 import pygame
 import scenic.simulators as simulators
 import scenic.simulators.carla.hud as hud
-import scenic.simulators.carla.utils as utils
+import scenic.simulators.carla.visuals as visuals
 
 
 class CarlaSimulator(simulators.Simulator):
@@ -40,6 +40,19 @@ class CarlaSimulation(simulators.Simulation):
 		# Reloads current world (destroys all actors, except traffic manager instances)
 		self.client.reload_world()
 
+		# Setup HUD
+		self.render = render
+		if self.render:
+			self.displayDim = (1280, 720)
+			self.displayClock = pygame.time.Clock()
+			self.camTransform = 0
+			self.hud = visuals.HUD(*self.displayDim)
+			self.display = pygame.display.set_mode(
+				self.displayDim,
+				pygame.HWSURFACE | pygame.DOUBLEBUF
+			)
+			self.cameraManager = None
+
 		# Create Carla actors corresponding to Scenic objects
 		for obj in self.objects:
 			# Extract blueprint
@@ -54,10 +67,16 @@ class CarlaSimulation(simulators.Simulation):
 			carlaActor = self.world.spawn_actor(blueprint, transform)  # raises exception if fails
 			obj.carlaActor = carlaActor
 
-		# Setup HUD rendering
-		if render:
-			self.displayDim = (1280, 720)
-			self.displayClock = pygame.time.Clock()
+			# Setup camera manager for ego
+			if self.render and obj is self.objects[0]:  # from carla_scenic_taks.py
+				camIndex = 0
+				camPosIndex = 0
+				self.cameraManager = visuals.CameraManager(carlaActor, self.hud)
+				self.cameraManager._transform_index = camPosIndex
+	            self.cameraManager.set_sensor(camIndex, notify=False)
+	            self.cameraManager.set_transform(self.cam_transform)
+	            actorType = visuals.get_actor_display_name(carlaActor)
+	            self.hud.notification(actorType)
 
 	def writePropertiesToCarla(self):
 		for obj in self.objects:
@@ -103,6 +122,12 @@ class CarlaSimulation(simulators.Simulation):
 
 		# Run simulation for one timestep
 		self.world.tick()
+
+		# Render simulation
+		if self.render:
+			self.hud.tick(self.world, self.displayClock)  # TODO: self.world may be wrong
+			self.cameraManager.render(self.display)
+			self.hud.render(self.display)
 
 		# Read back the results of the simulation
 		self.readPropertiesFromCarla()

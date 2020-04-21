@@ -1,4 +1,5 @@
 import scenic
+import pygame
 from scenic.simulators.carla.simulator import CarlaSimulator
 
 
@@ -25,4 +26,5 @@ for _ in range(10):
     scene, __ = scenario.generate()
     simulation = simulator.createSimulation(scene)
     simulation.run(maxSteps)
+    pygame.quit()
     print('DONE')
