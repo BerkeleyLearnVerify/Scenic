@@ -8,7 +8,7 @@ behavior StillBehavior():
 		take actions.SetLocationAction(self.position)
 
 
-bheavior MoveBehavior():
+behavior MoveBehavior():
 	''' Repeatedly sets actor velocity to 0.5 '''
 
 	while True:
