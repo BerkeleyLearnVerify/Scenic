@@ -7,9 +7,10 @@ carla_world = 'Town01'
 sc_file_path = 'test.sc'
 address = '127.0.0.1'
 port = 2000
+render = True  # visualization mode ON/OFF
 
 # Create the Simulator
-simulator = CarlaSimulator(carla_world, address=address, port=port)
+simulator = CarlaSimulator(carla_world, address=address, port=port, render=render)
 
 # Load Scenic scenario
 scenario = scenic.scenarioFromFile(sc_file_path)

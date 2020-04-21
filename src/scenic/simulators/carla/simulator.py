@@ -1,10 +1,12 @@
 import carla
+import pygame
 import scenic.simulators as simulators
+import scenic.simulators.carla.hud as hud
 import scenic.simulators.carla.utils as utils
 
 
 class CarlaSimulator(simulators.Simulator):
-	def __init__(self, carla_world, address='localhost', port=2000):
+	def __init__(self, carla_world, address='127.0.0.1', port=2000, render=True):
 		super().__init__()
 		self.client = carla.Client(address, port)
 		self.client.set_timeout(10.0)  # limits networking operations (seconds)
@@ -16,12 +18,14 @@ class CarlaSimulator(simulators.Simulator):
 		settings.synchronous_mode = True
 		self.world.apply_settings(settings)
 
+		self.render = render  # visualization mode ON/OFF
+
 	def createSimulation(self, scene):
-		return CarlaSimulation(scene, self.client)
+		return CarlaSimulation(scene, self.client, self.render)
 
 
 class CarlaSimulation(simulators.Simulation):
-	def __init__(self, scene, client):
+	def __init__(self, scene, client, render):
 		super().__init__(scene)
 		self.client = client
 		self.world = self.client.get_world()
@@ -49,6 +53,11 @@ class CarlaSimulation(simulators.Simulation):
 			# Create Carla actor
 			carlaActor = self.world.spawn_actor(blueprint, transform)  # raises exception if fails
 			obj.carlaActor = carlaActor
+
+		# Setup HUD rendering
+		if render:
+			self.displayDim = (1280, 720)
+			self.displayClock = pygame.time.Clock()
 
 	def writePropertiesToCarla(self):
 		for obj in self.objects:

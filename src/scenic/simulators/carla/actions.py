@@ -38,6 +38,7 @@ class SetVelocityAction(simulators.Action):
 		self.velocity = velocity
 
 	def applyTo(self, obj, carlaActor, sim):
+		print(obj.heading)
 		xVel = self.velocity * math.cos(obj.heading)
 		yVel = self.velocity * math.sin(obj.heading)
 		newVel = utils.scalarToCarlaVector3D(xVel, yVel)
