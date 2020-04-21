@@ -11,6 +11,7 @@ def scenicToCarlaLocation(pos, z=0.0):
 def scenicToCarlaRotation(heading):
 	# NOTE: Scenic in degrees counterclockwise from forward vector
 	yaw = 180 - math.degrees(heading)  # TODO: make sure this is correct
+	#yaw = -obj.heading * 180 / math.pi - 90  # Wilson's calculation from VerifiedAI/verifai/simulators/carla/carla_scenic_task.py
 	return carla.Rotation(yaw=yaw)
 
 def scenicToCarlaVector3D(measure, z=0.0):
