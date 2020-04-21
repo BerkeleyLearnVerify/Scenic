@@ -1,3 +1,4 @@
+import math
 import carla
 import scenic.simulators as simulators
 import scenic.simulators.carla.utils as utils
@@ -34,10 +35,13 @@ class SetLocationAction(simulators.Action):
 class SetVelocityAction(simulators.Action):
 	def __init__(self, velocity):
 		super().__init__()
-		self.velocity = utils.scenicToCarlaVector3D(velocity)
+		self.velocity = velocity
 
 	def applyTo(self, obj, carlaActor, sim):
-		carlaActor.set_velocity(self.velocity)
+		xVel = self.velocity * math.cos(obj.heading)
+		yVel = self.velocity * math.sin(obj.heading)
+		newVel = utils.scalarToCarlaVector3D(xVel, yVel)
+		carlaActor.set_velocity(newVel)
 
 
 class SetAngularVelocityAction(simulators.Action):
@@ -46,7 +50,10 @@ class SetAngularVelocityAction(simulators.Action):
 		self.angularVelocity = angularVelocity
 
 	def applyTo(self, obj, carlaActor, sim):
-		carlaActor.set_angular_velocity(self.angularVelocity)
+		xAngularVel = self.angularVelocity * math.cos(obj.heading)
+		yAngularVel = self.angularVelocity * math.sin(obj.heading)
+		newAngularVel = utils.scalarToCarlaVector3D(xAngularVel, yAngularVel)
+		carlaActor.set_angular_velocity(newAngularVel)
 
 
 class SetTransformAction(simulators.Action):

@@ -7,6 +7,13 @@ behavior StillBehavior():
 	while True:
 		take actions.SetLocationAction(self.position)
 
+
+bheavior MoveBehavior():
+	''' Repeatedly sets actor velocity to 0.5 '''
+
+	while True:
+		take actions.SetVelocityAction(0.5)
+
 '''
 behavior TeleportForwardBehavior():
 	Repeatedly teleports actor forward in direction of it heading
