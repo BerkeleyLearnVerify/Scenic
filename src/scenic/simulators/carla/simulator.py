@@ -68,7 +68,11 @@ class CarlaSimulation(simulators.Simulation):
 			transform = carla.Transform(loc, rot)
 			
 			# Create Carla actor
-			carlaActor = self.world.spawn_actor(blueprint, transform)  # raises exception if fails
+			carlaActor = self.world.try_spawn_actor(blueprint, transform)
+			if carlaActor is None:
+				print(f'Unable to spawn object {obj} at position {obj.position}')
+				self.objects.remove(obj)
+				continue  # spawn collision
 			obj.carlaActor = carlaActor
 
 			# Check if ego (from carla_scenic_taks.py)
