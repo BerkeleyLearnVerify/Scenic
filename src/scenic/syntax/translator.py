@@ -1016,6 +1016,7 @@ class ASTSurgeon(NodeTransformer):
 				newArgs.append(prob)
 			return copy_location(Call(func, newArgs, []), node)
 		else:	# Ordinary function call
+			newFunc = self.visit(func)
 			newArgs = []
 			# Translate arguments, unpacking any argument packages
 			for arg in node.args:
@@ -1024,7 +1025,7 @@ class ASTSurgeon(NodeTransformer):
 				else:
 					newArgs.append(self.visit(arg))
 			newKeywords = [self.visit(kwarg) for kwarg in node.keywords]
-			return copy_location(Call(func, newArgs, newKeywords), node)
+			return copy_location(Call(newFunc, newArgs, newKeywords), node)
 
 	def visit_ClassDef(self, node):
 		"""Process property defaults for Scenic classes."""
