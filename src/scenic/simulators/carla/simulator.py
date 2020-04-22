@@ -1,7 +1,6 @@
 import carla
 import pygame
 import scenic.simulators as simulators
-import scenic.simulators.carla.hud as hud
 import scenic.simulators.carla.visuals as visuals
 
 
