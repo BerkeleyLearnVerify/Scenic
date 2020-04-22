@@ -26,6 +26,7 @@
 
 import datetime
 import math
+import weakref
 import pygame
 import numpy as np
 import carla
