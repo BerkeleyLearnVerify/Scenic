@@ -46,14 +46,18 @@ class CarlaSimulation(simulators.Simulation):
 			self.displayDim = (1280, 720)
 			self.displayClock = pygame.time.Clock()
 			self.camTransform = 0
+			pygame.init()
+			pygame.font.init()
 			self.hud = visuals.HUD(*self.displayDim)
 			self.display = pygame.display.set_mode(
 				self.displayDim,
 				pygame.HWSURFACE | pygame.DOUBLEBUF
 			)
 			self.cameraManager = None
+			self.collisionSensor = None
 
 		# Create Carla actors corresponding to Scenic objects
+		self.ego = None
 		for obj in self.objects:
 			# Extract blueprint
 			blueprint = self.blueprintLib.find(obj.blueprint)
@@ -67,16 +71,20 @@ class CarlaSimulation(simulators.Simulation):
 			carlaActor = self.world.spawn_actor(blueprint, transform)  # raises exception if fails
 			obj.carlaActor = carlaActor
 
-			# Setup camera manager for ego
-			if self.render and obj is self.objects[0]:  # from carla_scenic_taks.py
-				camIndex = 0
-				camPosIndex = 0
-				self.cameraManager = visuals.CameraManager(carlaActor, self.hud)
-				self.cameraManager._transform_index = camPosIndex
-	            self.cameraManager.set_sensor(camIndex, notify=False)
-	            self.cameraManager.set_transform(self.cam_transform)
-	            actorType = visuals.get_actor_display_name(carlaActor)
-	            self.hud.notification(actorType)
+			# Check if ego (from carla_scenic_taks.py)
+			if obj is self.objects[0]:
+				self.ego = obj
+
+				# Setup camera manager and collision sensor for ego
+				if self.render:
+					camIndex = 0
+					camPosIndex = 0
+					self.cameraManager = visuals.CameraManager(self.world, carlaActor, self.hud)
+					self.cameraManager._transform_index = camPosIndex
+					self.cameraManager.set_sensor(camIndex, notify=False)
+					self.cameraManager.set_transform(self.cam_transform)
+
+					self.collisionSensor = visuals.CollisionSensor(self.world, carlaActor, hud=self.hud)
 
 	def writePropertiesToCarla(self):
 		for obj in self.objects:
@@ -125,7 +133,7 @@ class CarlaSimulation(simulators.Simulation):
 
 		# Render simulation
 		if self.render:
-			self.hud.tick(self.world, self.displayClock)  # TODO: self.world may be wrong
+			self.hud.tick(self.world, self.ego, self.collisionSensor, self.displayClock)  # TODO: self.world may be wrong
 			self.cameraManager.render(self.display)
 			self.hud.render(self.display)
 

@@ -23,6 +23,7 @@
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
 import datetime
 import math
 import pygame
@@ -40,17 +41,15 @@ def get_actor_display_name(actor, truncate=250):
 # ==============================================================================
 
 class HUD(object):
-	def __init__(self, width, height, show_hud=False):
+	def __init__(self, width, height):
 		self.dim = (width, height)
-		self._show_info = show_hud
-		if self._show_info:
-			font = pygame.font.Font(pygame.font.get_default_font(), 20)
-			fonts = [x for x in pygame.font.get_fonts() if 'mono' in x]
-			default_font = 'ubuntumono'
-			mono = default_font if default_font in fonts else fonts[0]
-			mono = pygame.font.match_font(mono)
-			self._font_mono = pygame.font.Font(mono, 14)
-			self._notifications = FadingText(font, (width, 40), (0, height - 40))
+		font = pygame.font.Font(pygame.font.get_default_font(), 20)
+		fonts = [x for x in pygame.font.get_fonts() if 'mono' in x]
+		default_font = 'ubuntumono'
+		mono = default_font if default_font in fonts else fonts[0]
+		mono = pygame.font.match_font(mono)
+		self._font_mono = pygame.font.Font(mono, 14)
+		self._notifications = FadingText(font, (width, 40), (0, height - 40))
 		self.server_fps = 0
 		self.frame = 0
 		self.simulation_time = 0
@@ -63,20 +62,17 @@ class HUD(object):
 		self.frame = timestamp.frame
 		self.simulation_time = timestamp.elapsed_seconds
 
-	def tick(self, world, clock):
-		if not self._show_info:
-			return
-		if world.ego.actor is None:
-			# Ego not spawned yet
-			return
-		t = world.ego.actor.get_transform()
-		v = world.ego.actor.get_velocity()
-		c = world.ego.actor.get_control()
+	def tick(self, world, ego, collisionSensor, clock):
+		if ego.carlaActor is None:
+			return  # ego not spawned yet
+		t = ego.carlaActor.get_transform()
+		v = ego.carlaActor.get_velocity()
+		c = ego.carlaActor.get_control()
 		heading = 'N' if abs(t.rotation.yaw) < 89.5 else ''
 		heading += 'S' if abs(t.rotation.yaw) > 90.5 else ''
 		heading += 'E' if 179.5 > t.rotation.yaw > 0.5 else ''
 		heading += 'W' if -0.5 > t.rotation.yaw > -179.5 else ''
-		colhist = world.ego.collision_sensor.get_collision_history()
+		colhist = collisionSensor.get_collision_history()
 		collision = [colhist[x + self.frame - 200] for x in range(0, 200)]
 		max_col = max(1.0, max(collision))
 		collision = [x / max_col for x in collision]
@@ -84,7 +80,7 @@ class HUD(object):
 		self._info_text = [
 			'Server:  % 16d FPS' % self.server_fps,
 			'',
-			'Vehicle: % 20s' % get_actor_display_name(world.ego.actor, truncate=20),
+			'Vehicle: % 20s' % get_actor_display_name(ego.carlaActor, truncate=20),
 			'Map:	 % 20s' % world.map.name,
 			'Simulation time: % 12s' % datetime.timedelta(seconds=int(self.simulation_time)),
 			'',
@@ -110,63 +106,47 @@ class HUD(object):
 			self._info_text += ['Nearby vehicles:']
 			distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
 			vehicles = [(distance(x.get_location()), x)
-						for x in vehicles if x.id != world.ego.actor.id]
+						for x in vehicles if x.id != ego.carlaActor.id]
 			for d, vehicle in sorted(vehicles):
 				if d > 200.0:
 					break
 				vehicle_type = get_actor_display_name(vehicle, truncate=22)
 				self._info_text.append('% 4dm %s' % (d, vehicle_type))
-		# self._notifications.tick(world, clock)
-		pass
-
-	def toggle_info(self):
-		self._show_info = not self._show_info
-
-	def notification(self, text, seconds=2.0):		
-		# self._notifications.set_text(text, seconds=seconds)
-		pass
-
-	def error(self, text):
-		# self._notifications.set_text('Error: %s' % text, (255, 0, 0))
-		pass
 
 	def render(self, display):
-		if self._show_info:
-			info_surface = pygame.Surface((220, self.dim[1]))
-			info_surface.set_alpha(100)
-			display.blit(info_surface, (0, 0))
-			v_offset = 4
-			bar_h_offset = 100
-			bar_width = 106
-			for item in self._info_text:
-				if v_offset + 18 > self.dim[1]:
-					break
-				if isinstance(item, list):
-					if len(item) > 1:
-						points = [(x + 8, v_offset + 8 + (1.0 - y) * 30) for x, y in enumerate(item)]
-						pygame.draw.lines(display, (255, 136, 0), False, points, 2)
-					item = None
-					v_offset += 18
-				elif isinstance(item, tuple):
-					if isinstance(item[1], bool):
-						rect = pygame.Rect((bar_h_offset, v_offset + 8), (6, 6))
-						pygame.draw.rect(display, (255, 255, 255), rect, 0 if item[1] else 1)
-					else:
-						rect_border = pygame.Rect((bar_h_offset, v_offset + 8), (bar_width, 6))
-						pygame.draw.rect(display, (255, 255, 255), rect_border, 1)
-						f = (item[1] - item[2]) / (item[3] - item[2])
-						if item[2] < 0.0:
-							rect = pygame.Rect((bar_h_offset + f * (bar_width - 6), v_offset + 8), (6, 6))
-						else:
-							rect = pygame.Rect((bar_h_offset, v_offset + 8), (f * bar_width, 6))
-						pygame.draw.rect(display, (255, 255, 255), rect)
-					item = item[0]
-				if item: # At this point has to be a str.
-					surface = self._font_mono.render(item, True, (255, 255, 255))
-					display.blit(surface, (8, v_offset))
+		info_surface = pygame.Surface((220, self.dim[1]))
+		info_surface.set_alpha(100)
+		display.blit(info_surface, (0, 0))
+		v_offset = 4
+		bar_h_offset = 100
+		bar_width = 106
+		for item in self._info_text:
+			if v_offset + 18 > self.dim[1]:
+				break
+			if isinstance(item, list):
+				if len(item) > 1:
+					points = [(x + 8, v_offset + 8 + (1.0 - y) * 30) for x, y in enumerate(item)]
+					pygame.draw.lines(display, (255, 136, 0), False, points, 2)
+				item = None
 				v_offset += 18
-		# self._notifications.render(display)
-		pass
+			elif isinstance(item, tuple):
+				if isinstance(item[1], bool):
+					rect = pygame.Rect((bar_h_offset, v_offset + 8), (6, 6))
+					pygame.draw.rect(display, (255, 255, 255), rect, 0 if item[1] else 1)
+				else:
+					rect_border = pygame.Rect((bar_h_offset, v_offset + 8), (bar_width, 6))
+					pygame.draw.rect(display, (255, 255, 255), rect_border, 1)
+					f = (item[1] - item[2]) / (item[3] - item[2])
+					if item[2] < 0.0:
+						rect = pygame.Rect((bar_h_offset + f * (bar_width - 6), v_offset + 8), (6, 6))
+					else:
+						rect = pygame.Rect((bar_h_offset, v_offset + 8), (f * bar_width, 6))
+					pygame.draw.rect(display, (255, 255, 255), rect)
+				item = item[0]
+			if item: # At this point has to be a str
+				surface = self._font_mono.render(item, True, (255, 255, 255))
+				display.blit(surface, (8, v_offset))
+			v_offset += 18
 
 
 # ==============================================================================
@@ -198,14 +178,59 @@ class FadingText(object):
 
 
 # ==============================================================================
+# -- CollisionSensor -----------------------------------------------------------
+# ==============================================================================
+
+class CollisionSensor(object):
+    def __init__(self, world, actor, hud=None):
+        self.sensor = None
+        self._history = []
+        self._actor = actor
+        self._actor_mass = actor.get_physics_control().mass
+        self._hud = hud
+        self._world = world
+        bp = self._world.get_blueprint_library().find('sensor.other.collision')
+        self.sensor = self._world.spawn_actor(bp, carla.Transform(), attach_to=self._actor)
+        # Pass the lambda a weak reference to self to avoid circular reference
+        weak_self = weakref.ref(self)
+        self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event))
+
+    def get_collision_speeds(self):
+        '''Convert collision intensities from momentem (kg*m/s) to speed (km/h).'''
+        return [(c[0], 3.6 * c[1] / self._actor_mass)
+                         for c in self._history]
+
+    def get_collision_history(self):
+        history = collections.defaultdict(int)
+        for frame, intensity in self._history:
+            history[frame] += intensity
+        return history
+
+    @staticmethod
+    def _on_collision(weak_self, event):
+        self = weak_self()
+        if not self:
+            return
+        actor_type = get_actor_display_name(event.other_actor)
+        if self._hud:
+            self._hud.notification('Collision with %r, id = %d'
+                                   % (actor_type, event.other_actor.id))
+        impulse = event.normal_impulse
+        intensity = math.sqrt(impulse.x ** 2 + impulse.y ** 2 + impulse.z ** 2)
+        self._history.append((event.frame, intensity))
+        if len(self._history) > 4000:
+            self._history.pop(0)
+
+
+# ==============================================================================
 # -- CameraManager -------------------------------------------------------------
 # ==============================================================================
 
 class CameraManager(object):
-	def __init__(self, parent_actor, hud):
+	def __init__(self, world, actor, hud):
 		self.sensor = None
 		self._surface = None
-		self._parent = parent_actor
+		self._actor = actor
 		self._hud = hud
 		self._recording = False
 		self.images = []
@@ -222,8 +247,8 @@ class CameraManager(object):
 			['sensor.camera.semantic_segmentation', cc.CityScapesPalette,
 			 'Camera Semantic Segmentation (CityScapes Palette)'],
 			['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)']]
-		world = self._parent.get_world()
-		bp_library = world.get_blueprint_library()
+		self._world = world
+		bp_library = self._world.get_blueprint_library()
 		for item in self._sensors:
 			bp = bp_library.find(item[0])
 			if item[0].startswith('sensor.camera'):
@@ -239,7 +264,7 @@ class CameraManager(object):
 		self._transform_index = idx
 		self.sensor.set_transform(self._camera_transforms[self._transform_index])
 
-	def set_sensor(self, index, notify=True):
+	def set_sensor(self, index):
 		index = index % len(self._sensors)
 		needs_respawn = True if self._index is None \
 			else self._sensors[index][0] != self._sensors[self._index][0]
@@ -247,24 +272,14 @@ class CameraManager(object):
 			if self.sensor is not None:
 				self.sensor.destroy()
 				self._surface = None
-			self.sensor = self._parent.get_world().spawn_actor(
+			self.sensor = self._world.spawn_actor(
 				self._sensors[index][-1],
 				self._camera_transforms[self._transform_index],
-				attach_to=self._parent)
-			# We need to pass the lambda a weak reference to self to avoid
-			# circular reference.
+				attach_to=self._actor)
+			# Pass lambda a weak reference to self to avoid circular reference
 			weak_self = weakref.ref(self)
 			self.sensor.listen(lambda image: CameraManager._parse_image(weak_self, image))
-		if notify:
-			self._hud.notification(self._sensors[index][2])
 		self._index = index
-
-	def next_sensor(self):
-		self.set_sensor(self._index + 1)
-
-	def toggle_recording(self):
-		self._recording = not self._recording
-		self._hud.notification('Recording %s' % ('On' if self._recording else 'Off'))
 
 	def render(self, display):
 		if self._surface is not None:
