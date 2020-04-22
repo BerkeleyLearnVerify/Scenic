@@ -54,7 +54,7 @@ class CarlaSimulation(simulators.Simulation):
 				pygame.HWSURFACE | pygame.DOUBLEBUF
 			)
 			self.cameraManager = None
-			self.collisionSensor = None
+			#self.collisionSensor = None
 
 		# Create Carla actors corresponding to Scenic objects
 		self.ego = None
@@ -84,7 +84,7 @@ class CarlaSimulation(simulators.Simulation):
 					self.cameraManager.set_sensor(camIndex)
 					self.cameraManager.set_transform(self.camTransform)
 
-					self.collisionSensor = visuals.CollisionSensor(self.world, carlaActor, hud=self.hud)
+					#self.collisionSensor = visuals.CollisionSensor(self.world, carlaActor, hud=self.hud)
 
 	def writePropertiesToCarla(self):
 		for obj in self.objects:
@@ -133,7 +133,7 @@ class CarlaSimulation(simulators.Simulation):
 
 		# Render simulation
 		if self.render:
-			self.hud.tick(self.world, self.ego, self.collisionSensor, self.displayClock)  # TODO: self.world may be wrong
+			self.hud.tick(self.world, self.ego, self.displayClock)  # NOTE: Removed self.collisionSensor from args
 			self.cameraManager.render(self.display)
 			self.hud.render(self.display)
 

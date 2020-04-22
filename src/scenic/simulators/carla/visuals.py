@@ -63,7 +63,8 @@ class HUD(object):
 		self.frame = timestamp.frame
 		self.simulation_time = timestamp.elapsed_seconds
 
-	def tick(self, world, ego, collisionSensor, clock):
+	# NOTE: Removed collisionSensor from args
+	def tick(self, world, ego, clock):
 		if ego.carlaActor is None:
 			return  # ego not spawned yet
 		t = ego.carlaActor.get_transform()
@@ -73,10 +74,10 @@ class HUD(object):
 		heading += 'S' if abs(t.rotation.yaw) > 90.5 else ''
 		heading += 'E' if 179.5 > t.rotation.yaw > 0.5 else ''
 		heading += 'W' if -0.5 > t.rotation.yaw > -179.5 else ''
-		colhist = collisionSensor.get_collision_history()
-		collision = [colhist[x + self.frame - 200] for x in range(0, 200)]
-		max_col = max(1.0, max(collision))
-		collision = [x / max_col for x in collision]
+		#colhist = collisionSensor.get_collision_history()
+		#collision = [colhist[x + self.frame - 200] for x in range(0, 200)]
+		#max_col = max(1.0, max(collision))
+		#collision = [x / max_col for x in collision]
 		vehicles = world.get_actors().filter('vehicle.*')
 		self._info_text = [
 			'Server:  % 16d FPS' % self.server_fps,
@@ -98,8 +99,8 @@ class HUD(object):
 			('Manual:', c.manual_gear_shift),
 			'Gear:		%s' % {-1: 'R', 0: 'N'}.get(c.gear, c.gear),
 			'',
-			'Collision:',
-			collision,
+			#'Collision:',
+			#collision,
 			'',
 			'Number of vehicles: % 8d' % len(vehicles)
 		]
