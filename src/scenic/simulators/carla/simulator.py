@@ -81,7 +81,7 @@ class CarlaSimulation(simulators.Simulation):
 					camPosIndex = 0
 					self.cameraManager = visuals.CameraManager(self.world, carlaActor, self.hud)
 					self.cameraManager._transform_index = camPosIndex
-					self.cameraManager.set_sensor(camIndex, notify=False)
+					self.cameraManager.set_sensor(camIndex)
 					self.cameraManager.set_transform(self.cam_transform)
 
 					self.collisionSensor = visuals.CollisionSensor(self.world, carlaActor, hud=self.hud)
