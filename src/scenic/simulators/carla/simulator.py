@@ -138,6 +138,7 @@ class CarlaSimulation(simulators.Simulation):
 			self.hud.tick(self.world, self.ego, self.displayClock)  # NOTE: Removed self.collisionSensor from args
 			self.cameraManager.render(self.display)
 			self.hud.render(self.display)
+			pygame.display.flip()
 
 		# Read back the results of the simulation
 		self.readPropertiesFromCarla()

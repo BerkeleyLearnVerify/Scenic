@@ -1,7 +1,7 @@
 import carla
 import math
 from scenic.core.vectors import Vector
-from scenic.core.geometry import normalizeAngle  # TODO: understand what normalizeAngle does
+from scenic.core.geometry import normalizeAngle
 
 
 def scenicToCarlaLocation(pos, z=0.0):
