@@ -3,7 +3,7 @@ import math
 from scenic.core.vectors import Vector
 from scenic.core.geometry import normalizeAngle
 
-def snapToGround(self, world, location):
+def snapToGround(world, location):
 	"""Mutates @location to have the same z-coordinate as the nearest waypoint in @world."""
 	waypoint = self.world.get_map().get_waypoint(location)
 	location.z = waypoint.transform.location.z + 1
