@@ -3,30 +3,37 @@ import math
 from scenic.core.vectors import Vector
 from scenic.core.geometry import normalizeAngle
 
+def snapToGround(self, world, location):
+	"""Mutates @location to have the same z-coordinate as the nearest waypoint in @world."""
+	waypoint = self.world.get_map().get_waypoint(location)
+	location.z = waypoint.transform.location.z + 1
+	return location
 
-def scenicToCarlaLocation(pos, z=0.0):
-	z = 0.0 if z is None else z
-	return carla.Location(pos.x, pos.y, z)
+def scenicToCarlaLocation(pos, z=0.0, world=None):
+	if world is not None:
+		return snapToGround(world, carla.Location(pos.x, -pos.y, 0.0))
+	elif z is not None:
+		return carla.Location(pos.x, -pos.y, z)
+	else:
+		return carla.Location(pos.x, -pos.y, 0.0)
 
 def scenicToCarlaRotation(heading):
-	# NOTE: Scenic in radians counterclockwise from forward vector
-	yaw = 180 - math.degrees(heading)  # TODO: make sure this is correct
-	#yaw = -heading * 180 / math.pi - 90  # Wilson's calculation from VerifiedAI/verifai/simulators/carla/carla_scenic_task.py
+	yaw = -heading * 180 / math.pi - 90
 	return carla.Rotation(yaw=yaw)
 
 def scalarToCarlaVector3D(x, y, z=0.0):
-	# NOTE: carla.Vector3D used for velocity, acceleration; superclass of carla.Location
+	# NOTE: Used for velocity, acceleration; superclass of carla.Location
 	z = 0.0 if z is None else z
 	return carla.Vector3D(x, y, z)
 
 def carlaToScenicPosition(loc):
-	return Vector(loc.x, loc.y)  # TODO: make sure loc.y is correct
+	return Vector(loc.x, -loc.y)
 
 def carlaToScenicElevation(loc):
-	return loc.z  # TODO: make sure this is correct
+	return loc.z
 
 def carlaToScenicHeading(rot, tolerance2D=0):
 	# NOTE: Scenic only defines yaw
 	if abs(rot.pitch) > tolerance2D or abs(rot.roll) > tolerance2D:
-		pass#return None
+		pass #return None
 	return normalizeAngle(math.radians(180 - rot.yaw))  # TODO: make sure this is correct

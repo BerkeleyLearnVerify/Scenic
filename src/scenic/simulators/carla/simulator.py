@@ -63,7 +63,7 @@ class CarlaSimulation(simulators.Simulation):
 			blueprint = self.blueprintLib.find(obj.blueprint)
 
 			# Set up transform
-			loc = utils.scenicToCarlaLocation(obj.position, obj.elevation)
+			loc = utils.scenicToCarlaLocation(obj.position, world=self.world)
 			rot = utils.scenicToCarlaRotation(obj.heading)
 			transform = carla.Transform(loc, rot)
 			
@@ -85,8 +85,6 @@ class CarlaSimulation(simulators.Simulation):
 					self.cameraManager._transform_index = camPosIndex
 					self.cameraManager.set_sensor(camIndex)
 					self.cameraManager.set_transform(self.camTransform)
-
-					#self.collisionSensor = visuals.CollisionSensor(self.world, carlaActor, hud=self.hud)
 
 	def writePropertiesToCarla(self):
 		for obj in self.objects:
