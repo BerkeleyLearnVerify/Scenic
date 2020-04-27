@@ -24,7 +24,7 @@ def scenicToCarlaRotation(heading):
 def scalarToCarlaVector3D(x, y, z=0.0):
 	# NOTE: Used for velocity, acceleration; superclass of carla.Location
 	z = 0.0 if z is None else z
-	return carla.Vector3D(x, -y, z)
+	return carla.Vector3D(x, y, z)
 
 def carlaToScenicPosition(loc):
 	return Vector(loc.x, -loc.y)
