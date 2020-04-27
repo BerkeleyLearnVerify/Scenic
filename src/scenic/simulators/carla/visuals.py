@@ -63,7 +63,6 @@ class HUD(object):
 		self.frame = timestamp.frame
 		self.simulation_time = timestamp.elapsed_seconds
 
-	# NOTE: Removed collisionSensor from args
 	def tick(self, world, ego, clock):
 		if ego.carlaActor is None:
 			return  # ego not spawned yet

@@ -135,7 +135,7 @@ class CarlaSimulation(simulators.Simulation):
 
 		# Render simulation
 		if self.render:
-			self.hud.tick(self.world, self.ego, self.displayClock)  # NOTE: Removed self.collisionSensor from args
+			self.hud.tick(self.world, self.ego, self.displayClock)
 			self.cameraManager.render(self.display)
 			self.hud.render(self.display)
 			pygame.display.flip()
