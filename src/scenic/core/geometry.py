@@ -148,7 +148,7 @@ def cleanPolygon(poly, tolerance, holeTolerance):
 	assert newPoly.is_valid, newPoly
 	return newPoly
 
-def cleanChain(chain, tolerance, angleTolerance=0.008):
+def cleanChain(chain, tolerance=0, angleTolerance=0.008):
 	if len(chain) <= 2:
 		return chain
 	closed = (tuple(chain[0]) == tuple(chain[-1]))

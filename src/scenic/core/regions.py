@@ -70,6 +70,13 @@ class Region(Samplable):
 		else:
 			return other.intersect(self, triedReversed=True)
 
+	def union(self, other):
+		"""Get a `Region` representing the union of this one with another.
+
+		Not supported by all region types.
+		"""
+		raise NotImplementedError
+
 	@staticmethod
 	def uniformPointIn(region):
 		"""Get a uniform `Distribution` over points in a `Region`."""
@@ -85,11 +92,11 @@ class Region(Samplable):
 
 	def uniformPointInner(self):
 		"""Do the actual random sampling. Implemented by subclasses."""
-		raise NotImplementedError()
+		raise NotImplementedError
 
 	def containsPoint(self, point):
 		"""Check if the `Region` contains a point. Implemented by subclasses."""
-		raise NotImplementedError()
+		raise NotImplementedError
 
 	def containsObject(self, obj):
 		"""Check if the `Region` contains an :obj:`~scenic.core.object_types.Object`.
@@ -112,7 +119,7 @@ class Region(Samplable):
 
 	def getAABB(self):
 		"""Axis-aligned bounding box for this `Region`. Implemented by some subclasses."""
-		raise NotImplementedError()
+		raise NotImplementedError
 
 	def orient(self, vec):
 		"""Orient the given vector along the region's orientation, if any."""
@@ -343,6 +350,7 @@ class PolylineRegion(Region):
 			else:
 				raise RuntimeError('tried to create PolylineRegion from non-LineString')
 			self.lineString = polyline
+			self.points = None
 		else:
 			raise RuntimeError('must specify points or polyline for PolylineRegion')
 		if not self.lineString.is_valid:
@@ -356,6 +364,12 @@ class PolylineRegion(Region):
 			total += math.hypot(dx, dy)
 			cumulativeLengths.append(total)
 		self.cumulativeLengths = cumulativeLengths
+		if self.points is None:
+			pts = []
+			for p, q in self.segments:
+				pts.append(p)
+			pts.append(q)
+			self.points = pts
 
 	@classmethod
 	def segmentsOf(cls, lineString):
@@ -412,6 +426,14 @@ class PolylineRegion(Region):
 	def show(self, plt, style='r-'):
 		for pointA, pointB in self.segments:
 			plt.plot([pointA[0], pointB[0]], [pointA[1], pointB[1]], style)
+
+	def __getitem__(self, i):
+		"""Get the ith point along this polyline.
+
+		If the region consists of multiple polylines, this order is linear
+		along each polyline but arbitrary across different polylines.
+		"""
+		return self.points[i]
 
 	def __str__(self):
 		return f'PolylineRegion({self.lineString})'
@@ -506,6 +528,14 @@ class PolygonalRegion(Region):
 		if not poly:
 			raise RuntimeError(f'cannot take union of PolygonalRegion with {other}')
 		union = polygonUnion((self.polygons, poly))
+		return PolygonalRegion(polygon=union)
+
+	@staticmethod
+	def unionAll(regions):
+		polys = [toPolygon(reg) for reg in regions]
+		if any(not poly for poly in polys):
+			raise RuntimeError(f'cannot take union of regions {regions}')
+		union = polygonUnion(polys)
 		return PolygonalRegion(polygon=union)
 
 	def containsPoint(self, point):
