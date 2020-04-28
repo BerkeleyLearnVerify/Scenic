@@ -18,7 +18,7 @@ def scenicToCarlaLocation(pos, z=0.0, world=None):
 		return carla.Location(pos.x, -pos.y, 0.0)
 
 def scenicToCarlaRotation(heading):
-	yaw = -heading * 180 / math.pi - 90
+	yaw = math.degrees(-heading) - 90
 	return carla.Rotation(yaw=yaw)
 
 def scalarToCarlaVector3D(x, y, z=0.0):
@@ -32,8 +32,8 @@ def carlaToScenicPosition(loc):
 def carlaToScenicElevation(loc):
 	return loc.z
 
-def carlaToScenicHeading(rot, tolerance2D=0):
+def carlaToScenicHeading(rot, tolerance2D=5.0):
 	# NOTE: Scenic only defines yaw
 	if abs(rot.pitch) > tolerance2D or abs(rot.roll) > tolerance2D:
-		pass #return None
-	return normalizeAngle(math.radians(180 - rot.yaw))  # TODO: make sure this is correct
+		return None
+	return normalizeAngle(-math.radians(rot.yaw + 90))

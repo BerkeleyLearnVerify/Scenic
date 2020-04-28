@@ -10,7 +10,7 @@ import scenic.simulators.carla.utils as utils
 
 # NOTE: Equivalent to LGSVL's MoveAction class
 class OffsetAction(simulators.Action):
-	''' Teleports actor forward (in direction of its heading) by some offset '''
+	"""Teleports actor forward (in direction of its heading) by some offset."""
 	
 	def __init__(self, offset):
 		super().__init__()
@@ -38,8 +38,9 @@ class SetVelocityAction(simulators.Action):
 		self.velocity = velocity
 
 	def applyTo(self, obj, carlaActor, sim):
-		xVel = self.velocity * math.cos(obj.heading)
-		yVel = self.velocity * math.sin(obj.heading)
+		currRot = utils.scenicToCarlaRotation(obj.heading)
+		xVel = self.velocity * math.cos(currRot)
+		yVel = self.velocity * math.sin(currRot)
 		newVel = utils.scalarToCarlaVector3D(xVel, yVel)
 		carlaActor.set_velocity(newVel)
 

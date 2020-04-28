@@ -110,7 +110,7 @@ class CarlaSimulation(simulators.Simulation):
 			# Update Scenic object properties
 			obj.position = utils.carlaToScenicPosition(currLoc)
 			obj.elevation = utils.carlaToScenicElevation(currLoc)
-			obj.heading = utils.carlaToScenicHeading(currRot, tolerance2D=5)
+			obj.heading = utils.carlaToScenicHeading(currRot, tolerance2D=5.0)
 
 			# NOTE: Refer to utils.carlaToScenicHeading
 			if obj.heading is None:
