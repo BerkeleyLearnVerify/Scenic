@@ -122,8 +122,9 @@ def pointIsInCone(point, base, heading, angle):
 	va = viewAngleToPoint(point, base, heading)
 	return (abs(va) <= angle / 2.0)
 
-def polygonUnion(polys, tolerance=0.05, holeTolerance=0.002):
-	union = shapely.ops.unary_union(list(polys))
+def polygonUnion(polys, buf=0, tolerance=0, holeTolerance=0.002):
+	buffered = [poly.buffer(buf) for poly in polys]
+	union = shapely.ops.unary_union(buffered).buffer(-buf)
 	assert union.is_valid, union
 	if tolerance > 0:
 		if isinstance(union, shapely.geometry.MultiPolygon):

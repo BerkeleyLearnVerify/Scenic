@@ -70,12 +70,15 @@ class Region(Samplable):
 		else:
 			return other.intersect(self, triedReversed=True)
 
-	def union(self, other):
+	def union(self, other, triedReversed=False):
 		"""Get a `Region` representing the union of this one with another.
 
 		Not supported by all region types.
 		"""
-		raise NotImplementedError
+		if triedReversed:
+			raise NotImplementedError
+		else:
+			return other.union(self, triedReversed=True)
 
 	@staticmethod
 	def uniformPointIn(region):
@@ -152,6 +155,9 @@ class EmptyRegion(Region):
 	"""Region containing no points."""
 	def intersect(self, other, triedReversed=False):
 		return self
+
+	def union(self, other, triedReversed=False):
+		return other
 
 	def uniformPointInner(self):
 		raise RejectionException(f'sampling empty Region')
@@ -523,19 +529,24 @@ class PolygonalRegion(Region):
 				raise RuntimeError('unhandled type of polygon intersection')
 		return super().intersect(other, triedReversed)
 
-	def union(self, other):
+	def union(self, other, triedReversed=False, buf=0):
 		poly = toPolygon(other)
 		if not poly:
-			raise RuntimeError(f'cannot take union of PolygonalRegion with {other}')
-		union = polygonUnion((self.polygons, poly))
+			return super().union(other, triedReversed)
+		union = polygonUnion((self.polygons, poly), buf=buf)
 		return PolygonalRegion(polygon=union)
 
 	@staticmethod
-	def unionAll(regions):
-		polys = [toPolygon(reg) for reg in regions]
+	def unionAll(regions, buf=0):
+		polys = []
+		for reg in regions:
+			if reg != nowhere:
+				polys.append(toPolygon(reg))
+		if not polys:
+			return nowhere
 		if any(not poly for poly in polys):
 			raise RuntimeError(f'cannot take union of regions {regions}')
-		union = polygonUnion(polys)
+		union = polygonUnion(polys, buf=buf)
 		return PolygonalRegion(polygon=union)
 
 	def containsPoint(self, point):
