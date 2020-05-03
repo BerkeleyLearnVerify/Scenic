@@ -3,10 +3,10 @@ import time
 
 from scenic.simulators.carla.interface import CarlaWorkspace
 from scenic.simulators.carla.map import mapPath
-from scenic.simulators.carla.car_models import carModels, bicycleModels, motorcycleModels, truckModels
+from scenic.simulators.carla.vehicle_models import carModels, bicycleModels, motorcycleModels, truckModels
 from scenic.simulators.carla.prop_models import trashModels, coneModels
+from scenic.simulators.carla.walker_models import walkerModels
 
-#from scenic.simulators.gta.interface import CarColor
 
 workspace = CarlaWorkspace(mapPath)
 
@@ -26,53 +26,68 @@ param wind_intensity = (0, 100)
 param sun_azimuth_angle = (0, 360)
 param sun_altitude_angle = (-90, 90)
 
-# TODO: Get vehicle models, dimensions from Carla
-constructor Vehicle:
+
+constructor CarlaActor:
+	carlaActor: None
+	blueprint: None
+	color: None
+	position: None
+	elevation: None
+	heading: None
+
+
+constructor Vehicle(CarlaActor):
     regionContainedIn: road
     position: Point on road
-    elevation: None  # NOTE: placeholder
     heading: (roadDirection at self.position) + self.roadDeviation
     roadDeviation: 0
     viewAngle: 90 deg
     width: 2
     height: 5
-    color: None  # NOTE: CarColor.defaultColor() gives errors!
-    carlaActor: None  # NOTE: change from agent: 'BrakeAgent'
+
 
 constructor Car(Vehicle):
     blueprint: Uniform(*carModels)
+
 
 constructor Bicycle(Vehicle):
     width: 1
     height: 2
     blueprint: Uniform(*bicycleModels)
 
+
 constructor Motorcycle(Vehicle):
     width: 1
     height:2
     blueprint: Uniform(*motorcycleModels)
+
 
 constructor Truck(Vehicle):
     width: 3
     height: 7
     blueprint: Uniform(*truckModels)
 
-constructor Pedestrian:
+
+constructor Pedestrian(CarlaActor):
     regionContainedIn: sidewalk
     position: Point on sidewalk
     heading: (0, 360) deg
     width: 0.5
     height: 0.5
+    blueprint: Uniform(*walkerModels)
 
-constructor Prop:
+
+constructor Prop(CarlaActor):
     regionContainedIn: road
     position: Point on road
     heading: (0, 360) deg
     width: 0.5
     height: 0.5
 
+
 constructor Trash(Prop):
     blueprint: Uniform(*trashModels)
+
 
 constructor Cone(Prop):
     blueprint: Uniform(*coneModels)
