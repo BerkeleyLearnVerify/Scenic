@@ -5,4 +5,5 @@ from scenic.simulators.carla.carla_model import *  # NOTE: Must be after setting
 
 
 obstacle = Pedestrian with behavior behaviors.WalkForwardBehavior
-ego = Car with behavior behaviors.MoveBehavior
+ego = Car with behavior behaviors.AccelerateForwardBehavior
+#otherCar = Car with behavior behaviors.AccelerateBackwardBehavior
