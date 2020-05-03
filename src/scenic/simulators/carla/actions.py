@@ -38,9 +38,9 @@ class SetVelocityAction(simulators.Action):
 		self.velocity = velocity
 
 	def applyTo(self, obj, carlaActor, sim):
-		currRot = utils.scenicToCarlaRotation(obj.heading)
-		xVel = self.velocity * math.cos(currRot)
-		yVel = self.velocity * math.sin(currRot)
+		currYaw = utils.scenicToCarlaRotation(obj.heading).yaw
+		xVel = self.velocity * math.cos(currYaw)
+		yVel = self.velocity * math.sin(currYaw)
 		newVel = utils.scalarToCarlaVector3D(xVel, yVel)
 		carlaActor.set_velocity(newVel)
 
