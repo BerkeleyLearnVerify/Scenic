@@ -63,7 +63,7 @@ class HUD(object):
 		self.frame = timestamp.frame
 		self.simulation_time = timestamp.elapsed_seconds
 
-	def tick(self, world, ego, clock):
+	def tick(self, world, ego, clock, showLabels=True):
 		if ego.carlaActor is None:
 			return  # ego not spawned yet
 		t = ego.carlaActor.get_transform()
