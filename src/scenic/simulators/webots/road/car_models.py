@@ -1,3 +1,4 @@
+"""Car models built into Webots."""
 
 import collections
 

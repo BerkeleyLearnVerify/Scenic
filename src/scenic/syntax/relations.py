@@ -9,9 +9,9 @@ from scenic.core.distributions import needsSampling
 from scenic.core.object_types import Point, Object
 from scenic.core.utils import InvalidScenarioError, InconsistentScenarioError
 
-def inferRelationsFrom(reqNode, namespace, ego, line, lineMap):
+def inferRelationsFrom(reqNode, namespace, ego, line):
     """Infer relations between objects implied by a requirement."""
-    matcher = RequirementMatcher(namespace, lineMap)
+    matcher = RequirementMatcher(namespace)
 
     inferRelativeHeadingRelations(matcher, reqNode, ego, line)
     inferDistanceRelations(matcher, reqNode, ego, line)
@@ -73,13 +73,11 @@ class DistanceRelation(BoundRelation):
     pass
 
 class RequirementMatcher:
-    def __init__(self, namespace, lineMap):
+    def __init__(self, namespace):
         self.namespace = namespace
-        self.lineMap = lineMap
 
     def inconsistencyError(self, node, message):
-        line = self.lineMap[node.lineno]
-        raise InconsistentScenarioError(line, message)
+        raise InconsistentScenarioError(node.lineno, message)
 
     def matchUnaryFunction(self, name, node):
         """Match a call to a specified unary function, returning the value of its argument."""

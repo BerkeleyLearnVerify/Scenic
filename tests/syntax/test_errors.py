@@ -24,39 +24,33 @@ def test_bad_extension(tmpdir):
 
 ## Operators used in Python but not Scenic
 
-def test_illegal_operators():
-    # Unary operators
+@pytest.mark.parametrize('op', ('~',))
+def test_illegal_unary_operators(op):
     with pytest.raises(TokenParseError):
-        compileScenic('x = ~2')
-    # Binary operators
-    binops = ('<<', '>>', '|', '&', '^', '//')
-    for op in binops:
-        try:
-            compileScenic(f'x = 3 {op} 2')
-            pytest.fail(f'Illegal operator {op} did not raise ParseError')
-        except TokenParseError:
-            pass
+        compileScenic(f'x = {op}2')
+
+@pytest.mark.parametrize('op', ('<<', '>>', '|', '&', '^', '//'))
+def test_illegal_binary_operators(op):
+    # Basic usage
+    with pytest.raises(TokenParseError):
+        compileScenic(f'x = 3 {op} 2')
     # Augmented assignments
-    for op in binops:
-        try:
-            compileScenic(f'x {op}= 4')
-            pytest.fail(f'Illegal augmented assigment {op}= did not raise ParseError')
-        except TokenParseError:
-            pass
+    with pytest.raises(TokenParseError):
+        compileScenic(f'x {op}= 4')
 
 ## Constructor definitions
 
 badNames = ('', '3', '+', 'Range')
 
-def test_illegal_constructor_name():
-    for name in badNames:
-        with pytest.raises(TokenParseError):
-            compileScenic(f'constructor {name}:\n' '    pass')
+@pytest.mark.parametrize('name', badNames)
+def test_illegal_constructor_name(name):
+    with pytest.raises(TokenParseError):
+        compileScenic(f'constructor {name}:\n' '    pass')
 
-def test_illegal_constructor_superclass():
-    for name in badNames:
-        with pytest.raises(TokenParseError):
-            compileScenic(f'constructor Foo({name}):\n' '    pass')
+@pytest.mark.parametrize('name', badNames)
+def test_illegal_constructor_superclass(name):
+    with pytest.raises(TokenParseError):
+        compileScenic(f'constructor Foo({name}):\n' '    pass')
 
 def test_constructor_python_superclass():
     with pytest.raises(TokenParseError):
@@ -159,21 +153,28 @@ def test_multiple_requirements():
 
 ### Line numbering
 
-def programsWithBug(bug):
-    """Some example programs with a hole to place a buggy statement.
-
-    The hole should be reached during execution, and not be inside a loop.
-    If the hole is replaced by an empty string, the program should compile.
-    """
-    # on first line
-    yield bug + '\nego = Object', 1
-    # after ordinary statement
-    yield 'ego = Object\n' + bug, 2
-    # after import
-    yield 'ego = Object\n' 'import time\n' + bug, 3
-    # after explicit line continuation (and in a function)
-    yield f"""\
-from time import time
+# Some example programs with a hole to place a buggy statement.
+#
+# The hole should be reached during execution, and not be inside a loop.
+# If the hole is replaced by an empty string, the program should compile.
+# Each entry in the list is a pair, with the first element being the line
+# number the error should be reported on.
+templates = [
+(1,     # on first line
+'''{bug}
+ego = Object'''
+),
+(2,     # after ordinary statement
+'''ego = Object
+{bug}'''
+),
+(3,     # after import
+'''ego = Object
+import time
+{bug}'''
+),
+(8,     # after explicit line continuation (and in a function)
+'''from time import time
 ego = Object
 
 def qux(foo=None,
@@ -183,88 +184,97 @@ def qux(foo=None,
     {bug}
 
 qux()
-""", 8
-    # after automatic line continuation by parentheses
-    yield f"""\
-ego = Object
+'''
+),
+(4,     # after automatic line continuation by parentheses
+'''ego = Object
 x = (1 + 2
-    + 3)
+     + 3)
 {bug}
-""", 4
-    # after indented specifier
-    for continuation in ('', '\\', '# comment'):
-        yield f"""\
+'''
+),
+]
+
+indentedSpecTemplate = '''\
 ego = Object facing 1, {continuation}
              at 10@10
-{bug}
-""", 3
+{{bug}}
+'''
+for continuation in ('', '\\', '# comment'):
+    templates.append((3, indentedSpecTemplate.format(continuation=continuation)))
 
-def test_bug_template_sanity(tmpdir):
+@pytest.mark.parametrize('template', templates)
+def test_bug_template_sanity(template, tmpdir):
     """Check that the program templates above have the correct form."""
+    line, program = template
+    program = program.format(bug='')
     # Check that they compile when not injecting a bug
-    for program, line in programsWithBug(''):
-        print(f'TRYING PROGRAM:\n{program}')
-        compileScenic(program)
+    print(f'TRYING PROGRAM:\n{program}')
+    compileScenic(program)
 
-def checkBugs(bugs, tmpdir, checkTraceback=True, generate=False):
+def checkBug(bug, template, tmpdir, checkTraceback=True, generate=False):
     path = os.path.join(tmpdir, 'test.sc')
-    for bug in bugs:
-        for program, line in programsWithBug(bug):
-            try:
-                # write program to file so we can check SyntaxError line correction
-                with open(path, 'w') as f:
-                    f.write(program)
-                scenario = scenic.scenarioFromFile(path)
-                if generate:
-                    scenario.generate(maxIterations=1)
-                print(f'FAILING PROGRAM:\n{program}')
-                pytest.fail(f'Program with buggy statement "{bug}" did not raise error')
-            except Exception as e:
-                if isinstance(e, (ParseError, SyntaxError)):
-                    assert e.lineno == line, program
-                    if isinstance(e, SyntaxError):
-                        assert e.text.strip() == bug
-                        assert e.offset <= len(e.text)
-                # in Python 3.7+, when we can modify tracebacks, check that the
-                # last frame of the traceback has the correct line number
-                if checkTraceback and sys.version_info >= (3, 7):
-                    tb = sys.exc_info()[2]
-                    while tb.tb_next is not None:
-                        tb = tb.tb_next
-                    assert tb.tb_lineno == line, f'\n{program}'
+    line, program = template
+    program = program.format(bug=bug)
+    print(f'TRYING PROGRAM:\n{program}')
+    try:
+        # write program to file so we can check SyntaxError line correction
+        with open(path, 'w') as f:
+            f.write(program)
+        scenario = scenic.scenarioFromFile(path)
+        if generate:
+            scenario.generate(maxIterations=1)
+        pytest.fail(f'Program with buggy statement "{bug}" did not raise error')
+    except Exception as e:
+        if isinstance(e, (ParseError, SyntaxError)):
+            assert e.lineno == line, program
+            if isinstance(e, SyntaxError):
+                assert e.text.strip() == bug
+                assert e.offset <= len(e.text)
+        # in Python 3.7+, when we can modify tracebacks, check that the
+        # last frame of the traceback has the correct line number
+        if checkTraceback and sys.version_info >= (3, 7):
+            tb = sys.exc_info()[2]
+            while tb.tb_next is not None:
+                tb = tb.tb_next
+            assert tb.tb_lineno == line
 
-def test_line_numbering_early(tmpdir):
+@pytest.mark.parametrize('bug', (
+    'x = 3 << 2',       # caught during token translation
+    '4 = 2',            # caught during Python parsing
+    'Point at x y',     # caught during Python parsing (with offset past end of original line)
+    'require',          # caught during AST surgery
+    'break',            # caught during Python compilation
+))
+@pytest.mark.parametrize('template', templates)
+def test_line_numbering_early(bug, template, tmpdir):
     """Line numbering for parse errors too early to have a full traceback."""
-    bugs = (
-        'x = 3 << 2',       # caught during token translation
-        '4 = 2',            # caught during Python parsing
-        'Point at x y',     # caught during Python parsing (with offset past end of original line)
-        'require',          # caught during AST surgery
-        'break',            # caught during Python compilation
-    )
-    checkBugs(bugs, tmpdir, checkTraceback=False)
+    checkBug(bug, template, tmpdir, checkTraceback=False)
 
-def test_line_numbering_late(tmpdir):
+@pytest.mark.parametrize('bug', (
+    'mutate 4',         # caught during Python execution (Scenic parse error)
+    'x = _flub__',      # caught during Python execution (Python runtime error)
+    'raise Exception',  # caught during Python execution (program exception)
+))
+@pytest.mark.parametrize('template', templates)
+def test_line_numbering_late(bug, template, tmpdir):
     """Line numbering for parse errors and exceptions with a full traceback."""
-    bugs = (
-        'mutate 4',         # caught during Python execution (Scenic parse error)
-        'x = _flub__',      # caught during Python execution (Python runtime error)
-        'raise Exception',  # caught during Python execution (program exception)
-    )
-    checkBugs(bugs, tmpdir)
+    checkBug(bug, template, tmpdir)
 
-def test_line_numbering_generation(tmpdir):
+@pytest.mark.parametrize('bug', (
+    'require mutate',       # Scenic parse error
+    'require _flub__',      # Python runtime error
+))
+@pytest.mark.parametrize('template', templates)
+def test_line_numbering_generation(bug, template, tmpdir):
     """Line numbering for errors and exceptions occuring scene generation."""
-    bugs = (
-        'ego = 4',       # Scenic parse error
-        'require _flub__',      # Python runtime error
-    )
-    checkBugs(bugs, tmpdir, generate=True)
+    checkBug(bug, template, tmpdir, generate=True)
 
-def test_line_numbering_double(tmpdir):
+@pytest.mark.parametrize('bug', (
+    'x = float(0@0)\n' 'y = 1@2',
+    'x = float((0, 10))\n' 'y = (0, 10)',
+))
+@pytest.mark.parametrize('template', templates)
+def test_line_numbering_double(bug, template, tmpdir):
     """Line numbering for errors arising in reused syntax elements."""
-    bugs = (
-        'x = float(0@0)\n' 'y = 1@2',
-        'x = float((0, 10))\n' 'y = (0, 10)',
-    )
-    checkBugs(bugs, tmpdir)
+    checkBug(bug, template, tmpdir)

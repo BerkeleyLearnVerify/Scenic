@@ -1,17 +1,27 @@
+"""Scenario and scene objects."""
 
 import random
 import time
 
 from scenic.core.distributions import Samplable, RejectionException, needsSampling
 from scenic.core.lazy_eval import needsLazyEvaluation
+from scenic.core.external_params import ExternalSampler
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
-from scenic.core.utils import InvalidScenarioError
+from scenic.core.utils import areEquivalent, InvalidScenarioError
 from scenic.syntax.veneer import (isABehaviorGenerator, behaviorObjectFor,
                                   RequirementType, BoundRequirement)
 
 class Scene:
-	"""A scene generated from a Scenic scenario"""
+	"""A scene generated from a Scenic scenario.
+
+	Attributes:
+		objects (tuple(:obj:`~scenic.core.object_types.Object`)): All objects in the
+		  scene. The ``ego`` object is first.
+		egoObject (:obj:`~scenic.core.object_types.Object`): The ``ego`` object.
+		params (dict): Dictionary mapping the name of each global parameter to its value.
+		workspace (:obj:`~scenic.core.workspaces.Workspace`): Workspace for the scenario.
+    """
 	def __init__(self, workspace, simulator, objects, egoObject, params,
 	             alwaysReqs=(), terminationConds=(), monitors=()):
 		self.workspace = workspace
@@ -24,7 +34,7 @@ class Scene:
 		self.monitors = tuple(monitors)
 
 	def show(self, zoom=None, block=True):
-		"""Render a schematic of the scene for debugging"""
+		"""Render a schematic of the scene for debugging."""
 		import matplotlib.pyplot as plt
 		# display map
 		self.workspace.show(plt)
@@ -44,12 +54,12 @@ class Scene:
 		                               verbosity=verbosity)
 
 class Scenario:
-	"""A Scenic scenario"""
+	"""A compiled Scenic scenario, from which scenes can be sampled."""
 	def __init__(self, workspace, simulator,
 	             objects, egoObject,
-	             params,
-	             requirements, requirementDeps,
-	             monitors):
+	             params, externalParams,
+                 requirements, requirementDeps,
+                 monitors):
 		if workspace is None:
 			workspace = Workspace()		# default empty workspace
 		self.workspace = workspace
@@ -63,6 +73,8 @@ class Scenario:
 		self.objects = tuple(ordered)
 		self.egoObject = egoObject
 		self.params = dict(params)
+		self.externalParams = tuple(externalParams)
+		self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)
 		self.monitors = tuple(monitors)
 
 		staticReqs, alwaysReqs, terminationConds = [], [], []
@@ -85,6 +97,16 @@ class Scenario:
 		self.dependencies = self.objects + paramDeps + tuple(requirementDeps)
 
 		self.validate()
+
+	def isEquivalentTo(self, other):
+		if type(other) is not Scenario:
+			return False
+		return (areEquivalent(other.workspace, self.workspace)
+		    and areEquivalent(other.objects, self.objects)
+		    and areEquivalent(other.params, self.params)
+		    and areEquivalent(other.externalParams, self.externalParams)
+		    and areEquivalent(other.requirements, self.requirements)
+		    and other.externalSampler == self.externalSampler)
 
 	def containerOfObject(self, obj):
 		if hasattr(obj, 'regionContainedIn') and obj.regionContainedIn is not None:
@@ -126,7 +148,21 @@ class Scenario:
 			return False
 		return True
 
-	def generate(self, maxIterations=2000, verbosity=0):
+	def generate(self, maxIterations=2000, verbosity=0, feedback=None):
+		"""Sample a `Scene` from this scenario.
+
+		Args:
+			maxIterations (int): Maximum number of rejection sampling iterations.
+			verbosity (int): Verbosity level.
+			feedback (float): Feedback to pass to external samplers doing active sampling.
+				See :mod:`scenic.core.external_params`.
+
+		Returns:
+			A pair with the sampled `Scene` and the number of iterations used.
+
+		Raises:
+			`RejectionException`: if no valid sample is found in **maxIterations** iterations.
+		"""
 		objects = self.objects
 
 		# choose which custom requirements will be enforced for this sample
@@ -136,12 +172,17 @@ class Scenario:
 		rejection = True
 		iterations = 0
 		while rejection is not None:
-			if verbosity >= 2 and iterations > 0:
-				print(f'  Rejected sample {iterations} because of: {rejection}')
+			if iterations > 0:	# rejected the last sample
+				if verbosity >= 2:
+					print(f'  Rejected sample {iterations} because of: {rejection}')
+				if self.externalSampler is not None:
+					feedback = self.externalSampler.rejectionFeedback
 			if iterations >= maxIterations:
-				raise RuntimeError(f'failed to generate scenario in {iterations} iterations')
+				raise RejectionException(f'failed to generate scenario in {iterations} iterations')
 			iterations += 1
 			try:
+				if self.externalSampler is not None:
+					self.externalSampler.sample(feedback)
 				sample = Samplable.sampleAll(self.dependencies)
 			except RejectionException as e:
 				rejection = e
@@ -203,3 +244,10 @@ class Scenario:
 		scene = Scene(self.workspace, self.simulator, sampledObjects, ego, sampledParams,
 		              alwaysReqs, terminationConds, self.monitors)
 		return scene, iterations
+
+	def resetExternalSampler(self):
+		"""Reset the scenario's external sampler, if any.
+
+		If the Python random seed is reset before calling this function, this
+		should cause the sequence of generated scenes to be deterministic."""
+		self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)

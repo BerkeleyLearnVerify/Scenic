@@ -6,8 +6,10 @@ from collections import namedtuple
 
 from scenic.core.distributions import Distribution, Range, Normal, Options, toDistribution
 from scenic.core.lazy_eval import valueInContext
+from scenic.core.object_types import Mutator
 
 class Color(namedtuple('Color', ['r', 'g', 'b'])):
+	"""A color as an RGB tuple."""
 	@classmethod
 	def withBytes(cls, color):
 		return cls._make(c / 255.0 for c in color)
@@ -18,12 +20,19 @@ class Color(namedtuple('Color', ['r', 'g', 'b'])):
 
 	@staticmethod
 	def uniformColor():
+		"""Return a uniformly random color."""
 		return toDistribution(Color(Range(0, 1), Range(0, 1), Range(0, 1)))
 
 	@staticmethod
 	def defaultCarColor():
-		"""Base color distribution estimated from 2012 DuPont survey archived at:
-		https://web.archive.org/web/20121229065631/http://www2.dupont.com/Media_Center/en_US/color_popularity/Images_2012/DuPont2012ColorPopularity.pdf"""
+		"""Default color distribution for cars.
+
+		The distribution starts with a base distribution over 9 discrete colors,
+		then adds Gaussian HSL noise. The base distribution uses color popularity
+		statistics from a `2012 DuPont survey`_.
+
+		.. _2012 DuPont survey: https://web.archive.org/web/20121229065631/http://www2.dupont.com/Media_Center/en_US/color_popularity/Images_2012/DuPont2012ColorPopularity.pdf
+		"""
 		baseColors = {
 			(248, 248, 248): 0.24,	# white
 			(50, 50, 50): 0.19,		# black
@@ -44,6 +53,15 @@ class Color(namedtuple('Color', ['r', 'g', 'b'])):
 		return NoisyColorDistribution(baseColor, hueNoise, satNoise, lightNoise)
 
 class NoisyColorDistribution(Distribution):
+	"""A distribution given by HSL noise around a base color.
+
+	Arguments:
+		baseColor (RGB tuple): base color
+		hueNoise (float): noise to add to base hue
+		satNoise (float): noise to add to base saturation
+		lightNoise (float): noise to add to base lightness
+	"""
+
 	def __init__(self, baseColor, hueNoise, satNoise, lightNoise):
 		super().__init__(baseColor, hueNoise, satNoise, lightNoise, valueType=Color)
 		self.baseColor = baseColor
@@ -69,3 +87,12 @@ class NoisyColorDistribution(Distribution):
 		self.hueNoise = valueInContext(self.hueNoise, context)
 		self.satNoise = valueInContext(self.satNoise, context)
 		self.lightNoise = valueInContext(self.lightNoise, context)
+
+class ColorMutator(Mutator):
+	"""Mutator that adds Gaussian HSL noise to the ``color`` property."""
+	def appliedTo(self, obj):
+		hueNoise = random.gauss(0, 0.05)
+		satNoise = random.gauss(0, 0.05)
+		lightNoise = random.gauss(0, 0.05)
+		color = NoisyColorDistribution.addNoiseTo(obj.color, hueNoise, lightNoise, satNoise)
+		return tuple([obj.copyWith(color=color), True])		# allow further mutation

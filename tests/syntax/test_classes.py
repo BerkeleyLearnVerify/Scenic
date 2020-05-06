@@ -3,32 +3,49 @@ import math
 import pytest
 
 from scenic import scenarioFromString as compileScenic
-from scenic.syntax.translator import ASTParseError, InterpreterParseError
+from scenic.syntax.translator import TokenParseError, ASTParseError, InterpreterParseError
 
 def test_wrong_class_statement():
-    with pytest.raises(ASTParseError):
+    with pytest.raises(TokenParseError):
         compileScenic(
-            'class Foo(Point):\n'
+            'constructor Foo(object):\n'
             '    pass'
         )
-    with pytest.raises(ASTParseError):
+    with pytest.raises(TokenParseError):
         compileScenic(
-            'constructor Foo:\n'
-            '    pass\n'
-            'class Bar(Foo):\n'
+            'import collections\n'
+            'constructor Foo(collections.defaultdict):\n'
             '    pass'
         )
+
+def test_old_constructor_statement():
+    compileScenic(
+        'constructor Foo:\n'
+        '    blah: 19 @ -3\n'
+        'ego = Foo with blah 12\n'
+    )
+
+def test_python_class():
+    scenario = compileScenic(
+        'class Foo(object):\n'
+        '    def __init__(self, x):\n'
+        '         self.x = x\n'
+        'ego = Object with width Foo(4).x'
+    )
+    scene, iterations = scenario.generate(maxIterations=1)
+    ego = scene.egoObject
+    assert ego.width == 4
 
 def test_invalid_attribute():
     with pytest.raises(InterpreterParseError):
         compileScenic(
-            'constructor Foo:\n'
+            'class Foo:\n'
             '    blah[baloney_attr]: 4'
         )
 
 def test_property_simple():
     scenario = compileScenic(
-        'constructor Foo:\n'
+        'class Foo:\n'
         '    position: 3 @ 9\n'
         '    flubber: -12\n'
         'ego = Foo'
@@ -41,9 +58,9 @@ def test_property_simple():
 
 def test_property_inheritance():
     scenario = compileScenic(
-        'constructor Foo:\n'
+        'class Foo:\n'
         '    flubber: -12\n'
-        'constructor Bar(Foo):\n'
+        'class Bar(Foo):\n'
         '    flubber: 7\n'
         'ego = Bar'
     )
