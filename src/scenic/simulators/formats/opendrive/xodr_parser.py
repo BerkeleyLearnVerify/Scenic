@@ -1,6 +1,7 @@
 """Parser for OpenDRIVE (.xodr) files."""
 
 import math
+import itertools
 import xml.etree.ElementTree as ET
 import numpy as np
 from scipy.integrate import quad
@@ -9,6 +10,11 @@ from pynverse import inversefunc
 from shapely.geometry import Polygon, MultiPolygon, GeometryCollection, Point, MultiPoint
 from shapely.ops import unary_union, snap
 import abc
+from collections import defaultdict
+
+from scenic.core.regions import PolygonalRegion, PolylineRegion
+from scenic.core.geometry import polygonUnion, cleanChain, plotPolygon
+from scenic.simulators.domains.driving import roads as roadDomain
 
 # Lane types on which cars can appear.
 DRIVABLE = [
@@ -22,8 +28,8 @@ DRIVABLE = [
 # Lane types representing sidewalks.
 SIDEWALK = ['sidewalk']
 
-def buffer_union(polygons, buf=0.1):
-    return unary_union([p.buffer(buf) for p in polygons]).buffer(-buf)
+def buffer_union(polys, buf=0):
+    return polygonUnion(polys, buf=buf, tolerance=0)
 
 class Poly3:
     '''Cubic polynomial.'''
@@ -172,6 +178,10 @@ class Lane():
         self.type_ = type_
         self.pred = pred
         self.succ = succ
+        self.left_bounds = []    # to be filled in later
+        self.right_bounds = []
+        self.centerline = []
+        self.parent_lane_poly = None
 
     def width_at(self, s):
         # S here is relative to start of LaneSection this lane is in.
@@ -189,6 +199,8 @@ class LaneSection():
         self.s0 = s0
         self.left_lanes = left_lanes
         self.right_lanes = right_lanes
+        self.left_lane_ids = sorted(self.left_lanes.keys())
+        self.right_lane_ids = sorted(self.right_lanes.keys(), reverse=True)
         self.lanes = dict(list(left_lanes.items()) + list(right_lanes.items()))
 
     def get_lane(self, id_):
@@ -208,16 +220,14 @@ class LaneSection():
         have negative.'''
         assert s >= self.s0, 'Input s is before lane start position.'
         offsets = {}
-        left_lane_ids = sorted(self.left_lanes.keys())
-        right_lane_ids = sorted(self.right_lanes.keys(), reverse=True)
-        for lane_id in left_lane_ids:
-            if lane_id - 1 in left_lane_ids:
+        for lane_id in self.left_lane_ids:
+            if lane_id - 1 in self.left_lane_ids:
                 offsets[lane_id] = offsets[lane_id - 1] \
                     + self.left_lanes[lane_id].width_at(s - self.s0)
             else:
                 offsets[lane_id] = self.left_lanes[lane_id].width_at(s - self.s0)
-        for lane_id in right_lane_ids:
-            if lane_id + 1 in right_lane_ids:
+        for lane_id in self.right_lane_ids:
+            if lane_id + 1 in self.right_lane_ids:
                 offsets[lane_id] = offsets[lane_id + 1] \
                     - self.right_lanes[lane_id].width_at(s - self.s0)
             else:
@@ -238,30 +248,35 @@ class RoadLink:
 
 class Junction:
     class Connection:
-        def __init__(self, incoming_id, connecting_id, connecting_contact):
+        def __init__(self, incoming_id, connecting_id, connecting_contact, lane_links):
             self.incoming_id = incoming_id
             # id of connecting road
             self.connecting_id = connecting_id
             # contact point ('start' or 'end') on connecting road
             self.connecting_contact = connecting_contact
+            # dict mapping incoming to connecting lane ids (empty = identity mapping)
+            self.lane_links = lane_links
 
-    def __init__(self, id_):
+    def __init__(self, id_, name):
         self.id_ = id_
+        self.name = name
         self.connections = []
         # Ids of roads that are paths within junction:
         self.paths = []
+        self.poly = None
 
-    def add_connection(self, incoming_id, connecting_id, connecting_contact):
-        self.connections.append(Junction.Connection(incoming_id,
-                                                    connecting_id,
-                                                    connecting_contact))
-
+    def add_connection(self, incoming_id, connecting_id, connecting_contact, lane_links):
+        conn = Junction.Connection(incoming_id, connecting_id, connecting_contact, lane_links)
+        self.connections.append(conn)
 
 class Road:
-    def __init__(self, name, id_, length, drive_on_right=True):
+    def __init__(self, name, id_, length, junction, drive_on_right=True):
         self.name = name
         self.id_ = id_
         self.length = length
+        self.junction = junction if junction != '-1' else None
+        self.predecessor = None
+        self.successor = None
         self.lane_secs = []    # List of LaneSection objects.
         self.ref_line = []    # List of Curve objects defining reference line.
         # NOTE: sec_points, sec_polys, sec_lane_polys should be ordered according to lane_secs.
@@ -363,14 +378,19 @@ class Road:
         - List of lists of points along the reference line, with same indexing as self.lane_secs
         - List of region polygons, with same indexing as self.lane_secs
         - List of dictionary of lane id to polygon, with same indexing as self.lane_secs
+        - List of dictionary of lane id to left edge, with same indexing as self.lane_secs
+        - List of dictionary of lane id to right edge, with same indexing as self.lane_secs
         - List of polygons for each lane (not necessarily by id, but respecting lane successor/predecessor)
         - Polygon for entire region.
         If calc_gap=True, fills in gaps between connected roads. This is fairly expensive.'''
         road_polygons = []
         ref_points = self.get_ref_points(num)
+        self.ref_line_points = list(itertools.chain.from_iterable(ref_points))
         cur_lane_polys = {}
         sec_points = []
         sec_polys = []
+        sec_lane_lefts = []
+        sec_lane_rights = []
         sec_lane_polys = []
         lane_polys = []
         last_lefts = None
@@ -384,9 +404,9 @@ class Road:
                 s_stop = next_sec.s0
             else:
                 s_stop = float('inf')
-            left_bounds = {}
-            right_bounds = {}
-            cur_sec_lane_polys = {}
+            left_bounds = defaultdict(list)
+            right_bounds = defaultdict(list)
+            cur_sec_lane_polys = defaultdict(list)
             cur_sec_polys = []
             # Last point in left/right lane boundary line for last road piece:
             start_of_sec = True
@@ -418,10 +438,7 @@ class Road:
                                 cur_sec_polys.extend(list(poly))
                             else:
                                 cur_sec_polys.append(poly)
-                            if id_ in cur_sec_lane_polys:
-                                cur_sec_lane_polys[id_].append(poly)
-                            else:
-                                cur_sec_lane_polys[id_] = [poly]
+                            cur_sec_lane_polys[id_].append(poly)
                         if calc_gap:
                             # Polygon for gap between lanes:
                             if start_of_sec:
@@ -438,18 +455,17 @@ class Road:
                                     # plot_poly(gap_poly, 'b')
                                     gap_poly = gap_poly.buffer(0)
                                     cur_sec_polys.append(gap_poly)
-                                    if id_ in cur_sec_lane_polys:
-                                        cur_sec_lane_polys[id_].append(gap_poly)
-                                    else:
-                                        cur_sec_lane_polys[id_] = [gap_poly]
+                                    cur_sec_lane_polys[id_].append(gap_poly)
                         cur_last_lefts[id_] = left_bounds[id_][-1]
                         cur_last_rights[id_] = right_bounds[id_][-1]
                         if (start_of_sec and i == 0) or not self.start_bounds_left:
                             self.start_bounds_left[id_] = left_bounds[id_][0]
                             self.start_bounds_right[id_] = right_bounds[id_][0]
 
-                    left_bounds = {}
-                    right_bounds = {}
+                    sec_lane_lefts.append(left_bounds)
+                    sec_lane_rights.append(right_bounds)
+                    left_bounds = defaultdict(list)
+                    right_bounds = defaultdict(list)
                     if cur_last_lefts and cur_last_rights:
                         last_lefts = cur_last_lefts
                         last_rights = cur_last_rights
@@ -482,7 +498,8 @@ class Road:
                     #     continue
                     normal_vec = (-tan_vec[1] / tan_norm, tan_vec[0] / tan_norm)
                     for id_ in offsets.keys():
-                        if cur_sec.get_lane(id_).type_ in lane_types:
+                        lane = cur_sec.get_lane(id_)
+                        if lane.type_ in lane_types:
                             if id_ > 0:
                                 prev_id = id_ - 1
                             else:
@@ -491,14 +508,14 @@ class Road:
                                           cur_p[1] + normal_vec[1] * offsets[id_]]
                             right_bound = [cur_p[0] + normal_vec[0] * offsets[prev_id],
                                            cur_p[1] + normal_vec[1] * offsets[prev_id]]
-                            if id_ not in left_bounds:
-                                left_bounds[id_] = [left_bound]
-                            else:
-                                left_bounds[id_].append(left_bound)
-                            if id_ not in right_bounds:
-                                right_bounds[id_] = [right_bound]
-                            else:
-                                right_bounds[id_].append(right_bound)
+                            halfway = (offsets[id_] + offsets[prev_id]) / 2
+                            centerline = [cur_p[0] + normal_vec[0] * halfway,
+                                          cur_p[1] + normal_vec[1] * halfway]
+                            left_bounds[id_].append(left_bound)
+                            right_bounds[id_].append(right_bound)
+                            lane.left_bounds.append(left_bound)
+                            lane.right_bounds.append(right_bound)
+                            lane.centerline.append(centerline)
             sec_points.append(cur_sec_points)
             sec_polys.append(buffer_union(cur_sec_polys))
             for id_ in cur_sec_lane_polys:
@@ -513,29 +530,270 @@ class Road:
                 else:
                     next_lane_polys[id_] = [cur_sec_lane_polys[id_]]
             for id_ in cur_lane_polys:
-                lane_polys.append(buffer_union(cur_lane_polys[id_]))
+                poly = buffer_union(cur_lane_polys[id_])
+                lane_polys.append(poly)
+                cur_sec.get_lane(id_).parent_lane_poly = poly
             cur_lane_polys = next_lane_polys
         for id_ in cur_lane_polys:
-            lane_polys.append(buffer_union(cur_lane_polys[id_]))
+            poly = buffer_union(cur_lane_polys[id_])
+            lane_polys.append(poly)
+            cur_sec.get_lane(id_).parent_lane_poly = poly
         union_poly = buffer_union(sec_polys)
         if last_lefts and last_rights:
             self.end_bounds_left.update(last_lefts)
             self.end_bounds_right.update(last_rights)
-        return sec_points, sec_polys, sec_lane_polys, lane_polys, union_poly
+        return (sec_points, sec_polys, sec_lane_polys, sec_lane_lefts, sec_lane_rights,
+                lane_polys, union_poly)
 
     def calculate_geometry(self, num, calc_gap=False):
-        # Note: this also calculates self.start_bounds_left, ,self.start_bounds_right,
+        # Note: this also calculates self.start_bounds_left, self.start_bounds_right,
         # self.end_bounds_left, self.end_bounds_right
-        self.sec_points,\
-            self.sec_polys,\
-            self.sec_lane_polys,\
-            self.lane_polys,\
-            self.drivable_region =\
+        (self.sec_points, self.sec_polys, self.sec_lane_polys, lefts, rights,
+         self.lane_polys, self.drivable_region) =\
                 self.calc_geometry_for_type(DRIVABLE, num, calc_gap=calc_gap)
-        _, _, _, _, self.sidewalk_region = self.calc_geometry_for_type(SIDEWALK, num, calc_gap=calc_gap)
+
+        for i, sec in enumerate(self.lane_secs):
+            rightmost = sec.right_lane_ids[-1]
+            sec.right_edge = rights[i][rightmost]
+            leftmost = sec.left_lane_ids[-1] if sec.left_lane_ids else rightmost
+            sec.left_edge = lefts[i][leftmost]
+
+        _, _, _, _, _, _, self.sidewalk_region = \
+            self.calc_geometry_for_type(SIDEWALK, num, calc_gap=calc_gap)
+
+    def toScenicRoad(self):
+        assert self.sec_points
+        # Create lane and road sections
+        roadSections = []
+        last_section = None
+        for sec, pts, sec_poly, lane_polys in zip(self.lane_secs, self.sec_points,
+                                                  self.sec_polys, self.sec_lane_polys):
+            laneSections = {}
+            for id_, lane in sec.lanes.items():
+                succ = None     # will set this later
+                if last_section and lane.pred:
+                    pred = last_section.lanesByOpenDriveID[lane.pred]
+                else:
+                    pred = lane.pred    # will correct inter-road links later
+                left, center, right = lane.left_bounds, lane.centerline, lane.right_bounds
+                if id_ > 0:     # backward lane
+                    left, center, right = reversed(left), reversed(center), reversed(right)
+                    succ, pred = pred, succ
+                section = roadDomain.LaneSection(
+                    polygon=lane_polys[id_],
+                    centerline=PolylineRegion(center),
+                    leftEdge=PolylineRegion(left),
+                    rightEdge=PolylineRegion(right),
+                    successor=succ,
+                    predecessor=pred,
+                    lane=None,      # will set these later
+                    group=None,
+                    road=None,
+                    openDriveID=id_,
+                    isForward=id_ < 0
+                )
+                laneSections[id_] = section
+            section = roadDomain.RoadSection(
+                polygon=sec_poly,
+                centerline=PolylineRegion(pts),
+                leftEdge=PolylineRegion(sec.left_edge),
+                rightEdge=PolylineRegion(sec.right_edge),
+                successor=None,
+                predecessor=last_section,
+                road=None,  # will set later
+                lanesByOpenDriveID=laneSections
+            )
+            roadSections.append(section)
+            last_section = section
+
+        # Connect sections to their successors
+        next_section = None
+        for sec, section in reversed(list(zip(self.lane_secs, roadSections))):
+            if next_section is None:
+                next_section = section
+                for id_, lane in sec.lanes.items():
+                    newLane = section.lanesByOpenDriveID[id_]
+                    succ = lane.succ    # will correct inter-road links later
+                    if newLane.isForward:
+                        newLane.successor = succ
+                    else:
+                        newLane.predecessor = succ
+                continue
+            section.successor = next_section
+            for id_, lane in sec.lanes.items():
+                newLane = section.lanesByOpenDriveID[id_]
+                succ = next_section.lanesByOpenDriveID.get(lane.succ)
+                if newLane.isForward:
+                    newLane.successor = succ
+                else:
+                    newLane.predecessor = succ
+
+        # Connect lane sections to adjacent lane sections
+        for section in roadSections:
+            lanes = section.lanesByOpenDriveID
+            for id_, lane in lanes.items():
+                leftID = id_ + 1 if id_ != -1 else 1
+                rightID = id_ - 1 if id_ != 1 else -1
+                lane.laneToLeft = lanes.get(leftID)
+                lane.laneToRight = lanes.get(rightID)
+                if self.drive_on_right:
+                    if leftID != 1:
+                        lane.fasterLane = lane.laneToLeft
+                    if rightID != -1:
+                        lane.slowerLane = lane.laneToRight
+                else:
+                    if leftID != 1:
+                        lane.slowerLane = lane.laneToLeft
+                    if rightID != -1:
+                        lane.fasterLane = lane.laneToRight
+                adj = []
+                if lane.laneToLeft:
+                    adj.append(lane.laneToLeft)
+                if lane.laneToRight:
+                    adj.append(lane.laneToRight)
+                lane.adjacentLanes = tuple(adj)
+
+        # Gather lane sections into lanes
+        forwardLanes, backwardLanes = [], []
+        for roadSection in roadSections:
+            for laneSection in roadSection.lanes:
+                laneSection._visited = False
+        for roadSection, sec in zip(roadSections, self.lane_secs):
+            for laneSection in roadSection.lanes:
+                if not laneSection._visited:     # start of new lane
+                    sections = []
+                    leftPoints, rightPoints, centerPoints = [], [], []
+                    while True:
+                        sections.append(laneSection)
+                        leftPoints.extend(laneSection.leftEdge.points)
+                        rightPoints.extend(laneSection.rightEdge.points)
+                        centerPoints.extend(laneSection.centerline.points)
+                        laneSection._visited = True
+                        nextSection = laneSection.successor
+                        if (not nextSection
+                            or not isinstance(nextSection, roadDomain.LaneSection)
+                            or nextSection._visited):
+                            break
+                        laneSection = nextSection
+                    ls = sec.get_lane(laneSection.openDriveID)
+                    assert ls.parent_lane_poly
+                    leftEdge = PolylineRegion(cleanChain(leftPoints))
+                    rightEdge = PolylineRegion(cleanChain(rightPoints))
+                    centerline = PolylineRegion(cleanChain(centerPoints))
+                    lane = roadDomain.Lane(
+                        polygon=ls.parent_lane_poly,
+                        centerline=centerline,
+                        leftEdge=leftEdge,
+                        rightEdge=rightEdge,
+                        group=None,
+                        road=None,
+                        sections=tuple(sections)
+                    )
+                    for section in sections:
+                        section.lane = lane
+                    (forwardLanes if laneSection.isForward else backwardLanes).append(lane)
+        lanes = forwardLanes + backwardLanes
+
+        # Compute lane adjacencies
+        for lane in lanes:
+            adj = []
+            for section in lane.sections:
+                adj.extend(sec.lane for sec in section.adjacentLanes)
+            lane.adjacentLanes = tuple(adj)
+
+        # Create lane groups
+        def getEdges(forward):
+            sec = roadSections[0]
+            startLanes = sec.forwardLanes if forward else sec.backwardLanes
+            leftPoints = []
+            current = startLanes[-1]
+            while current and isinstance(current, roadDomain.LaneSection):
+                if current.laneToLeft and current.laneToLeft.isForward == forward:
+                    current = current.laneToLeft
+                leftPoints.extend(current.leftEdge.points)
+                current = current.successor
+            leftEdge = PolylineRegion(cleanChain(leftPoints))
+            rightPoints = []
+            current = startLanes[0]
+            while current and isinstance(current, roadDomain.LaneSection):
+                if current.laneToRight and current.laneToRight.isForward == forward:
+                    current = current.laneToRight
+                rightPoints.extend(current.rightEdge.points)
+                current = current.successor
+            rightEdge = PolylineRegion(cleanChain(rightPoints))
+            middleLane = startLanes[len(startLanes)//2].lane     # rather arbitrary
+            return leftEdge, middleLane.centerline, rightEdge
+
+        leftEdge, centerline, rightEdge = getEdges(forward=True)
+        forwardGroup = roadDomain.LaneGroup(
+            polygon=buffer_union(lane.polygon for lane in forwardLanes),
+            centerline=centerline,
+            leftEdge=leftEdge,
+            rightEdge=rightEdge,
+            road=None,
+            lanes=tuple(forwardLanes),
+            sidewalk=None,      # TODO add these!
+            bikeLane=None
+        )
+        if backwardLanes:
+            leftEdge, centerline, rightEdge = getEdges(forward=False)
+            backwardGroup = roadDomain.LaneGroup(
+                polygon=buffer_union(lane.polygon for lane in backwardLanes),
+                centerline=centerline,
+                leftEdge=leftEdge,
+                rightEdge=rightEdge,
+                road=None,
+                lanes=tuple(backwardLanes),
+                sidewalk=None,      # TODO add these!
+                bikeLane=None
+            )
+        else:
+            backwardGroup = None
+
+        # Create road
+        rightEdge = forwardGroup.rightEdge
+        if backwardGroup:
+            leftEdge = backwardGroup.rightEdge
+        else:
+            leftEdge = forwardGroup.leftEdge
+        road = roadDomain.Road(
+            name=self.name,
+            id=self.id_,
+            polygon=self.drivable_region,
+            centerline=PolylineRegion(self.ref_line_points),
+            leftEdge=leftEdge,
+            rightEdge=rightEdge,
+            lanes=lanes,
+            forwardLanes=forwardGroup,
+            backwardLanes=backwardGroup,
+            sections=roadSections,
+            crossings=(),       # TODO add these!
+        )
+
+        # Set up parent references
+        forwardGroup.road = road
+        if backwardGroup:
+            backwardGroup.road = road
+        for section in roadSections:
+            section.road = road
+        for lane in forwardLanes:
+            lane.group = forwardGroup
+            lane.road = road
+            for sec in lane.sections:
+                sec.group = forwardGroup
+                sec.road = road
+        for lane in backwardLanes:
+            lane.group = backwardGroup
+            lane.road = road
+            for sec in lane.sections:
+                sec.group = backwardGroup
+                sec.road = road
+
+        return road
 
 class RoadMap:
-    def __init__(self):
+    def __init__(self, tolerance=0.05):
+        self.tolerance = tolerance
         self.roads = {}
         self.road_links = []
         self.junctions = {}
@@ -615,21 +873,24 @@ class RoadMap:
         intersect_polys = []
         for junc in self.junctions.values():
             junc_roads = set()
+            junc_polys = []
             for conn in junc.connections:
                junc_roads.add(conn.incoming_id)
                junc_roads.add(conn.connecting_id)
             for road_i_idx in junc_roads:
                 if road_i_idx in junc.paths:
                     road_i = self.roads[road_i_idx]
-                    intersect_polys.append(road_i.drivable_region)
+                    junc_polys.append(road_i.drivable_region)
                     continue
                 for road_j_idx in junc_roads:
                     if road_i_idx == road_j_idx:
                         continue
                     road_i = self.roads[road_i_idx]
                     road_j = self.roads[road_j_idx]
-                    intersect_polys.append(
-                        road_i.drivable_region.intersection(road_j.drivable_region))
+                    poly = road_i.drivable_region.intersection(road_j.drivable_region)
+                    junc_polys.append(poly)
+            junc.poly = buffer_union(junc_polys)
+            intersect_polys.extend(junc_polys)
         self.intersection_region = buffer_union(intersect_polys)
 
     def heading_at(self, point):
@@ -701,9 +962,10 @@ class RoadMap:
             lanes[id_] = lane
         return lanes
 
-    def __parse_link(self, link_elem, road_id, contact):
+    def __parse_link(self, link_elem, road, contact):
         if link_elem is None:
             return
+        road_id = road.id_
         if link_elem.get('elementType') == 'road':
             self.road_links.append(RoadLink(road_id,
                                             int(link_elem.get('elementId')),
@@ -712,6 +974,10 @@ class RoadMap:
         else:
             assert link_elem.get('elementType') == 'junction', 'Unknown link type'
             junction = int(link_elem.get('elementId'))
+            if contact == 'start':
+                road.predecessor = junction
+            else:
+                road.successor = junction
             connections = self.junctions[junction].connections
             for c in connections:
                 if c.incoming_id == road_id:
@@ -728,22 +994,30 @@ class RoadMap:
             raise RuntimeError(f'{path} does not appear to be an OpenDRIVE file')
 
         for j in root.iter('junction'):
-            junction = Junction(int(j.get('id')))
+            junction = Junction(int(j.get('id')), j.get('name'))
             for c in j.iter('connection'):
+                ty = c.get('type', 'default')
+                if ty != 'default':
+                    raise RuntimeError(f'unhandled "{ty}" type of junction connection')
+                lane_links = {}
+                for l in c.iter('laneLink'):
+                    lane_links[int(l.get('from'))] = int(l.get('to'))
                 junction.add_connection(int(c.get('incomingRoad')),
                                         int(c.get('connectingRoad')),
-                                        c.get('contactPoint'))
+                                        c.get('contactPoint'),
+                                        lane_links)
                 junction.paths.append(int(c.get('connectingRoad')))
             self.junctions[junction.id_] = junction
 
         for r in root.iter('road'):
+            road = Road(r.get('name'), int(r.get('id')), float(r.get('length')),
+                        r.get('junction'))
             link = r.find('link')
             if link is not None:
                 pred_elem = link.find('predecessor')
                 succ_elem = link.find('successor')
-                self.__parse_link(pred_elem, int(r.get('id')), 'start')
-                self.__parse_link(succ_elem, int(r.get('id')), 'end')
-            road = Road(r.get('name'), int(r.get('id')), float(r.get('length')))
+                self.__parse_link(pred_elem, road, 'start')
+                self.__parse_link(succ_elem, road, 'end')
 
             # Parse planView:
             plan_view = r.find('planView')
@@ -812,3 +1086,168 @@ class RoadMap:
                 lane_sec = LaneSection(float(ls_elem.get('s')), left_lanes, right_lanes)
                 road.lane_secs.append(lane_sec)
             self.roads[road.id_] = road
+
+    def toScenicNetwork(self):
+        assert self.intersection_region is not None
+
+        # Convert roads
+        mainRoads, connectingRoads, roads = {}, {}, {}
+        for id_, road in self.roads.items():
+            newRoad = road.toScenicRoad()
+            (connectingRoads if road.junction else mainRoads)[id_] = newRoad
+            roads[id_] = newRoad
+
+        # Hook up inter-road links
+        for link in self.road_links:
+            if link.id_b in connectingRoads:
+                continue    # actually a road-to-junction link; handled later
+            roadA, roadB = roads[link.id_a], roads[link.id_b]
+            if link.contact_a == 'start':
+                secA = roadA.sections[0]
+                forwardA = True
+            else:
+                secA = roadA.sections[-1]
+                forwardA = False
+            if link.contact_b == 'start':
+                secB = roadB.sections[0]
+                forwardB = True
+            else:
+                secB = roadB.sections[-1]
+                forwardB = False
+            if forwardA:
+                roadA.predecessor = roadB
+            else:
+                roadA.successor = roadB
+            def connectLanes(A, forward, B):
+                lanesB = B.lanesByOpenDriveID
+                for laneA in A.lanes:
+                    if laneA.isForward == forwardA:
+                        pred = laneA.predecessor
+                        if pred is None:
+                            continue
+                        assert pred in lanesB
+                        laneB = lanesB[pred]
+                        laneA.predecessor = laneB
+                        laneA.lane.predecessor = laneB.lane
+                        laneA.lane.group.predecessor = laneB.lane.group
+                    else:
+                        succ = laneA.successor
+                        if succ is None:
+                            continue
+                        assert succ in lanesB
+                        laneB = lanesB[succ]
+                        laneA.successor = laneB
+                        laneA.lane.successor = laneB.lane
+                        laneA.lane.group.successor = laneB.lane.group
+            connectLanes(secA, forwardA, secB)
+
+        # Hook up connecting road links and create intersections
+        intersections = {}
+        for jid, junction in self.junctions.items():
+            assert junction.poly is not None
+
+            # Gather all lanes involved in the junction's connections
+            allIncomingLanes, allOutgoingLanes = [], []
+            allRoads, seenRoads = [], set()
+            for connection in junction.connections:
+                # Find possible incoming lanes for this connection
+                incomingID = connection.incoming_id
+                incomingRoad = mainRoads[incomingID]
+                if incomingID not in seenRoads:
+                    allRoads.append(incomingRoad)
+                    seenRoads.add(incomingID)
+                oldRoad = self.roads[incomingID]
+                incomingSection = None
+                if oldRoad.predecessor == jid:
+                    incomingSection = incomingRoad.sections[0]
+                if oldRoad.successor == jid:
+                    assert incomingSection is None
+                    incomingSection = incomingRoad.sections[-1]
+                assert incomingSection is not None
+                incomingLaneIDs = incomingSection.lanesByOpenDriveID
+
+                # Connect incoming lanes to connecting road
+                connectingRoad = connectingRoads[connection.connecting_id]
+                assert connection.connecting_contact == 'start'     # TODO other case possible?
+                connectingSection = connectingRoad.sections[0]
+                lane_links = connection.lane_links
+                if lane_links:
+                    assert all(lane in incomingLaneIDs for lane in lane_links)
+                else:   # all lanes connect to that with the same id
+                    lane_links = { l: l for l in incomingLaneIDs }
+                for fromID, toID in lane_links.items():
+                    # Link incoming lane to connecting road
+                    fromLane = incomingSection.lanesByOpenDriveID[fromID]
+                    toLane = connectingSection.lanesByOpenDriveID[toID]
+                    if fromLane.lane not in allIncomingLanes:
+                        allIncomingLanes.append(fromLane.lane)
+                    fromLane.successor = toLane
+                    fromLane.lane.successor = toLane.lane
+                    toLane.predecessor = fromLane
+                    toLane.lane.predecessor = fromLane.lane
+
+                    # Collect outgoing lane and road
+                    # TODO why is it allowed for this not to exist?
+                    outgoingLane = toLane.lane.successor
+                    if outgoingLane is not None:
+                        if outgoingLane not in allOutgoingLanes:
+                            allOutgoingLanes.append(outgoingLane)
+                        outgoingRoad = outgoingLane.road
+                        if outgoingRoad.id not in seenRoads:
+                            allRoads.append(outgoingRoad)
+                            seenRoads.add(outgoingRoad.id)
+
+            # Create intersection
+            intersection = roadDomain.Intersection(
+                polygon=junction.poly,
+                name=junction.name,
+                id=jid,
+                roads=tuple(allRoads),
+                incomingLanes=tuple(allIncomingLanes),
+                outgoingLanes=tuple(allOutgoingLanes),
+                crossings=(),       # TODO add these
+            )
+            intersections[jid] = intersection
+
+        # Hook up road-intersection links
+        for rid, oldRoad in self.roads.items():
+            newRoad = roads[rid]
+            if oldRoad.predecessor:
+                intersection = intersections[oldRoad.predecessor]
+                newRoad.predecessor = intersection
+                newRoad.sections[0].predecessor = intersection
+                if newRoad.backwardLanes:
+                    newRoad.backwardLanes.successor = intersection
+            if oldRoad.successor:
+                intersection = intersections[oldRoad.successor]
+                newRoad.successor = intersection
+                newRoad.sections[-1].successor = intersection
+                newRoad.forwardLanes.successor = intersection
+
+        # Gather all network elements
+        roads = tuple(mainRoads.values())
+        groups = [road.forwardLanes for road in roads]
+        for road in roads:
+            if road.backwardLanes:
+                groups.append(road.backwardLanes)
+        lanes = [lane for road in roads for lane in road.lanes]
+        intersections = tuple(intersections.values())
+        crossings = ()      # TODO add these
+        sidewalks = ()
+
+        def combine(regions):
+            return PolygonalRegion.unionAll(regions, buf=self.tolerance)
+
+        return roadDomain.Network(
+            roads=roads,
+            laneGroups=tuple(groups),
+            lanes=lanes,
+            intersections=intersections,
+            crossings=crossings,
+            sidewalks=sidewalks,
+            roadRegion=combine(roads),
+            laneRegion=combine(lanes),
+            intersectionRegion=combine(intersections),
+            crossingRegion=combine(crossings),
+            sidewalkRegion=combine(sidewalks)
+        )
