@@ -51,21 +51,22 @@ from scenic.core.distributions import Range, DiscreteRange, Options, Normal
 Uniform = lambda *opts: Options(opts)		# TODO separate these?
 Discrete = Options
 from scenic.core.external_params import (VerifaiParameter, VerifaiRange, VerifaiDiscreteRange,
-                                         VerifaiOptions)
+										 VerifaiOptions)
 from scenic.core.object_types import Mutator, Point, OrientedPoint, Object
 from scenic.core.specifiers import PropertyDefault	# TODO remove
 
 # everything that should not be directly accessible from the language is imported here:
 import inspect
+import sys
 import random
 import enum
 import types
 from collections import defaultdict
 from scenic.core.distributions import (RejectionException, Distribution, toDistribution,
-                                       needsSampling)
+									   needsSampling)
 from scenic.core.type_support import (isA, toType, toTypes, toScalar, toHeading, toVector,
-                                      evaluateRequiringEqualTypes, underlyingType,
-                                      canCoerce, coerce)
+									  evaluateRequiringEqualTypes, underlyingType,
+									  canCoerce, coerce)
 from scenic.core.geometry import RotatedRectangle, normalizeAngle, apparentHeadingAtPoint
 from scenic.core.object_types import Constructible
 from scenic.core.specifiers import Specifier
@@ -85,6 +86,7 @@ externalParameters = []		# ordered for reproducibility
 pendingRequirements = defaultdict(list)
 inheritedReqs = []		# TODO improve handling of these?
 monitors = []
+behaviors = []
 currentSimulation = None
 
 ## APIs used internally by the rest of Scenic
@@ -107,7 +109,7 @@ def activate():
 def deactivate():
 	"""Deactivate the veneer after compiling a Scenic module."""
 	global activity, allObjects, egoObject, globalParameters, externalParameters
-	global pendingRequirements, inheritedReqs, monitors
+	global pendingRequirements, inheritedReqs, monitors, behaviors
 	activity -= 1
 	assert activity >= 0
 	assert not evaluatingRequirement
@@ -118,13 +120,15 @@ def deactivate():
 	pendingRequirements = defaultdict(list)
 	inheritedReqs = []
 	monitors = []
+	behaviors = []
 
 # Object creation
 
 def registerObject(obj):
 	"""Add a Scenic object to the global list of created objects.
 
-	This is called by the Object constructor."""
+	This is called by the Object constructor.
+	"""
 	if activity > 0:
 		assert not evaluatingRequirement
 		assert isinstance(obj, Constructible)
@@ -149,6 +153,11 @@ def beginSimulation(sim):
 	assert currentSimulation is None
 	currentSimulation = sim
 	egoObject = sim.scene.egoObject
+
+	# rebind globals that could be referenced by behaviors to their sampled values
+	for modName, (originalNS, sampledNS) in sim.scene.behaviorNamespaces.items():
+		originalNS.clear()
+		originalNS.update(sampledNS)
 
 def endSimulation():
 	global currentSimulation
@@ -241,6 +250,10 @@ class Behavior:
 		self.name = generator.__name__
 		self.runningIterator = None
 
+		# Save all global names used so we can rebind them with sampled values later
+		self.module = generator.__module__
+		self.globalNamespace = generator.__globals__
+
 	def start(self, agent):
 		it = self.generator(self, agent)
 		if isinstance(it, types.GeneratorType):
@@ -278,11 +291,12 @@ def behaviorObjectFor(generator):
 
 def createBehavior(generator):
 	if isAMonitorName(generator.__name__):
-		monitor = Monitor(generator)
-		monitors.append(monitor)
-		return monitor
+		behavior = Monitor(generator)
+		monitors.append(behavior)
 	else:
-		return Behavior(generator)
+		behavior = Behavior(generator)
+	behaviors.append(behavior)
+	return behavior
 
 def makeTerminationAction(line):
 	assert not isActive()
@@ -338,13 +352,13 @@ def require(reqID, req, line, prob=1):
 			assert not needsSampling(result)
 			if needsLazyEvaluation(result):
 				raise InvalidScenarioError(f'requirement on line {line} uses value'
-				                           ' undefined outside of object definition')
+										   ' undefined outside of object definition')
 			if not result:
 				raise RejectSimulationException(f'requirement on line {line}')
 	else:	# requirement being defined at compile time
 		assert reqID not in pendingRequirements
 		pendingRequirements[reqID] = PendingRequirement(RequirementType.require, req,
-		                                                line, prob)
+														line, prob)
 
 def require_always(reqID, req, line):
 	"""Function implementing the 'require always' statement."""
@@ -355,7 +369,7 @@ def require_always(reqID, req, line):
 	else:
 		assert reqID not in pendingRequirements
 		pendingRequirements[reqID] = PendingRequirement(RequirementType.requireAlways, req,
-		                                                line, 1)
+														line, 1)
 
 def terminate_when(reqID, req, line):
 	"""Function implementing the 'terminate when' statement."""
@@ -366,7 +380,7 @@ def terminate_when(reqID, req, line):
 	else:
 		assert reqID not in pendingRequirements
 		pendingRequirements[reqID] = PendingRequirement(RequirementType.terminateWhen, req,
-		                                                line, 1)
+														line, 1)
 
 def resample(dist):
 	"""The built-in resample function."""
@@ -477,7 +491,7 @@ def RelativeTo(X, Y):
 			X = toTypes(X, (Vector, float), '"X relative to Y" with X neither a vector nor scalar')
 			Y = toTypes(Y, (Vector, float), '"X relative to Y" with Y neither a vector nor scalar')
 			return evaluateRequiringEqualTypes(lambda: X + Y, X, Y,
-			                                   '"X relative to Y" with vector and scalar')
+											   '"X relative to Y" with vector and scalar')
 
 def OffsetAlong(X, H, Y):
 	"""The 'X offset along H by Y' polymorphic operator.
@@ -681,7 +695,7 @@ def Facing(heading):
 	"""
 	if isinstance(heading, VectorField):
 		return Specifier('heading', DelayedArgument({'position'},
-		                                            lambda self: heading[self.position]))
+													lambda self: heading[self.position]))
 	else:
 		heading = toHeading(heading, 'specifier "facing X" with X not a heading or vector field')
 		return Specifier('heading', heading)
@@ -693,7 +707,7 @@ def FacingToward(pos):
 	"""
 	pos = toVector(pos, 'specifier "facing toward X" with X not a vector')
 	return Specifier('heading', DelayedArgument({'position'},
-	                                            lambda self: self.position.angleTo(pos)))
+												lambda self: self.position.angleTo(pos)))
 
 def ApparentlyFacing(heading, fromPt=None):
 	"""The 'apparently facing <heading> [from <vector>]' specifier.
@@ -721,7 +735,7 @@ def LeftSpec(pos, dist=0):
 	If the 'by <scalar/vector>' is omitted, zero is used.
 	"""
 	return leftSpecHelper('left of', pos, dist, 'width', lambda dist: (dist, 0),
-	                      lambda self, dx, dy: Vector(-self.width / 2 - dx, dy))
+						  lambda self, dx, dy: Vector(-self.width / 2 - dx, dy))
 
 def RightSpec(pos, dist=0):
 	"""The 'right of X [by Y]' polymorphic specifier.
@@ -735,7 +749,7 @@ def RightSpec(pos, dist=0):
 	If the 'by <scalar/vector>' is omitted, zero is used.
 	"""
 	return leftSpecHelper('right of', pos, dist, 'width', lambda dist: (dist, 0),
-	                      lambda self, dx, dy: Vector(self.width / 2 + dx, dy))
+						  lambda self, dx, dy: Vector(self.width / 2 + dx, dy))
 
 def Ahead(pos, dist=0):
 	"""The 'ahead of X [by Y]' polymorphic specifier.
@@ -750,7 +764,7 @@ def Ahead(pos, dist=0):
 	If the 'by <scalar/vector>' is omitted, zero is used.
 	"""
 	return leftSpecHelper('ahead of', pos, dist, 'height', lambda dist: (0, dist),
-	                      lambda self, dx, dy: Vector(dx, self.height / 2 + dy))
+						  lambda self, dx, dy: Vector(dx, self.height / 2 + dy))
 
 def Behind(pos, dist=0):
 	"""The 'behind X [by Y]' polymorphic specifier.
@@ -764,7 +778,7 @@ def Behind(pos, dist=0):
 	If the 'by <scalar/vector>' is omitted, zero is used.
 	"""
 	return leftSpecHelper('behind', pos, dist, 'height', lambda dist: (0, dist),
-	                      lambda self, dx, dy: Vector(dx, -self.height / 2 - dy))
+						  lambda self, dx, dy: Vector(dx, -self.height / 2 - dy))
 
 def leftSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
 	extras = set()

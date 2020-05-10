@@ -23,7 +23,7 @@ class Scene:
 		workspace (:obj:`~scenic.core.workspaces.Workspace`): Workspace for the scenario.
     """
 	def __init__(self, workspace, simulator, objects, egoObject, params,
-	             alwaysReqs=(), terminationConds=(), monitors=()):
+	             alwaysReqs=(), terminationConds=(), monitors=(), behaviorNamespaces={}):
 		self.workspace = workspace
 		self.simulator = simulator
 		self.objects = tuple(objects)
@@ -32,6 +32,7 @@ class Scene:
 		self.alwaysRequirements = tuple(alwaysReqs)
 		self.terminationConditions = tuple(terminationConds)
 		self.monitors = tuple(monitors)
+		self.behaviorNamespaces = behaviorNamespaces
 
 	def show(self, zoom=None, block=True):
 		"""Render a schematic of the scene for debugging."""
@@ -59,7 +60,7 @@ class Scenario:
 	             objects, egoObject,
 	             params, externalParams,
                  requirements, requirementDeps,
-                 monitors):
+                 monitors, behaviorNamespaces):
 		if workspace is None:
 			workspace = Workspace()		# default empty workspace
 		self.workspace = workspace
@@ -76,6 +77,7 @@ class Scenario:
 		self.externalParams = tuple(externalParams)
 		self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)
 		self.monitors = tuple(monitors)
+		self.behaviorNamespaces = behaviorNamespaces
 
 		staticReqs, alwaysReqs, terminationConds = [], [], []
 		for req in requirements:
@@ -94,7 +96,12 @@ class Scenario:
 		self.terminationConditions = tuple(terminationConds)
 		# dependencies must use fixed order for reproducibility
 		paramDeps = tuple(p for p in self.params.values() if isinstance(p, Samplable))
-		self.dependencies = self.objects + paramDeps + tuple(requirementDeps)
+		behaviorDeps = []
+		for namespace in self.behaviorNamespaces.values():
+			for value in namespace.values():
+				if isinstance(value, Samplable):
+					behaviorDeps.append(value)
+		self.dependencies = self.objects + paramDeps + tuple(requirementDeps) + tuple(behaviorDeps)
 
 		self.validate()
 
@@ -236,13 +243,17 @@ class Scenario:
 		sampledObjects = tuple(sample[obj] for obj in objects)
 		sampledParams = {}
 		for param, value in self.params.items():
-			sampledValue = sample[value] if isinstance(value, Samplable) else value
+			sampledValue = sample[value]
 			assert not needsLazyEvaluation(sampledValue)
 			sampledParams[param] = sampledValue
+		sampledNamespaces = {}
+		for modName, namespace in self.behaviorNamespaces.items():
+			sampledNamespace = { name: sample[value] for name, value in namespace.items() }
+			sampledNamespaces[modName] = (namespace, sampledNamespace)
 		alwaysReqs = (BoundRequirement(req, sample) for req in self.alwaysRequirements)
 		terminationConds = (BoundRequirement(req, sample) for req in self.terminationConditions)
 		scene = Scene(self.workspace, self.simulator, sampledObjects, ego, sampledParams,
-		              alwaysReqs, terminationConds, self.monitors)
+		              alwaysReqs, terminationConds, self.monitors, sampledNamespaces)
 		return scene, iterations
 
 	def resetExternalSampler(self):

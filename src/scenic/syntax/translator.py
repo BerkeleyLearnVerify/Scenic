@@ -33,7 +33,7 @@ import importlib
 import importlib.abc
 import importlib.util
 import itertools
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from contextlib import contextmanager
 
 import tokenize
@@ -1090,7 +1090,8 @@ class ASTSurgeon(NodeTransformer):
 		In particular:
 		  * wrap require statements with lambdas;
 		  * handle primitive action invocations inside behaviors;
-		  * call the veneer implementations of other statements."""
+		  * call the veneer implementations of other statements.
+		"""
 		if not isinstance(node.exc, Name) or node.exc.id != statementRaiseMarker:
 			return self.generic_visit(node)		# an ordinary raise statement
 		assert isinstance(node.cause, Call)
@@ -1144,7 +1145,8 @@ class ASTSurgeon(NodeTransformer):
 
 		In particular:
 		  * unpack argument packages for operators;
-		  * check for sub-behavior invocation inside behaviors."""
+		  * check for sub-behavior invocation inside behaviors.
+		"""
 		func = node.func
 		newArgs = []
 		# Translate arguments, unpacking any argument packages
@@ -1190,7 +1192,8 @@ class ASTSurgeon(NodeTransformer):
 			else TEMP(args))
 		where MARKER is a special attribute identifying behaviors, TEMP is a temporary name,
 		CURRENT_BEHAVIOR is a hidden argument storing the current Behavior object, and
-		CHECK is a function which checks the invariants and returns its argument."""
+		CHECK is a function which checks the invariants and returns its argument.
+		"""
 		savedFunc = NamedExpr(Name(temporaryName, Store()), func)
 		condition = Call(Name('hasattr', Load()),
 		                 [savedFunc, Str(veneer.behaviorIndicator)],
@@ -1494,6 +1497,16 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 	# Extract monitors
 	namespace['_monitors'] = veneer.monitors
 
+	# Gather all global namespaces which could be referred to by behaviors
+	behaviorNamespaces = {}
+	for behavior in veneer.behaviors:
+		modName = behavior.module
+		if modName not in behaviorNamespaces:
+			behaviorNamespaces[modName] = behavior.globalNamespace
+		else:
+			assert behaviorNamespaces[modName] is behavior.globalNamespace
+	namespace['_behaviorNamespaces'] = behaviorNamespaces
+
 def constructScenarioFrom(namespace):
 	"""Build a Scenario object from an executed Scenic module."""
 	# Extract ego object
@@ -1526,7 +1539,7 @@ def constructScenarioFrom(namespace):
 	                    namespace['_objects'], namespace['_egoObject'],
 	                    namespace['_params'], namespace['_externalParams'],
 	                    namespace['_requirements'], namespace['_requirementDeps'],
-                        namespace['_monitors'])
+                        namespace['_monitors'], namespace['_behaviorNamespaces'])
 
 	# Prune infeasible parts of the space
 	if usePruning:

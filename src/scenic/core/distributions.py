@@ -83,7 +83,7 @@ class Samplable(LazilyEvaluable):
 		for q in quantities:
 			if q not in subsamples:
 				subsamples[q] = q.sample(subsamples) if isinstance(q, Samplable) else q
-		return { q: subsamples[q] for q in quantities }
+		return subsamples
 
 	def sample(self, subsamples=None):
 		"""Sample this value, optionally given some values already sampled."""
