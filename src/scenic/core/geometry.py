@@ -122,24 +122,56 @@ def pointIsInCone(point, base, heading, angle):
 	va = viewAngleToPoint(point, base, heading)
 	return (abs(va) <= angle / 2.0)
 
+def distanceToLine(point, a, b):
+	lx, ly = b[0] - a[0], b[1] - a[1]
+	norm = math.hypot(lx, ly)
+	nx, ny = -ly/norm, lx/norm
+	px, py = point[0] - a[0], point[1] - a[1]
+	return abs((px * nx) + (py * ny))
+
 def polygonUnion(polys, buf=0, tolerance=0, holeTolerance=0.002):
+	if not polys:
+		return shapely.geometry.Polygon()
 	buffered = [poly.buffer(buf) for poly in polys]
 	union = shapely.ops.unary_union(buffered).buffer(-buf)
 	assert union.is_valid, union
 	if tolerance > 0:
-		if isinstance(union, shapely.geometry.MultiPolygon):
-			polys = [cleanPolygon(poly, tolerance, holeTolerance) for poly in union]
-			union = shapely.ops.unary_union(polys)
-		else:
-			union = cleanPolygon(union, tolerance, holeTolerance)
-	assert union.is_valid, union
+		union = cleanPolygon(union, tolerance, holeTolerance)
+		assert union.is_valid, union
+		#checkPolygon(union, tolerance)
 	return union
 
-def cleanPolygon(poly, tolerance, holeTolerance):
-	exterior = cleanChain(poly.exterior.coords, tolerance)
-	assert len(exterior) >= 3
+def checkPolygon(poly, tolerance):
+	def checkPolyline(pl):
+		for i, p in enumerate(pl[:-1]):
+			q = pl[i+1]
+			dx, dy = q[0] - p[0], q[1] - p[1]
+			assert math.hypot(dx, dy) >= tolerance
+	if isinstance(poly, shapely.geometry.MultiPolygon):
+		for p in poly:
+			checkPolygon(p, tolerance)
+	else:
+		checkPolyline(poly.exterior.coords)
+		for i in poly.interiors:
+			checkPolyline(i.coords)
+
+def cleanPolygon(poly, tolerance, holeTolerance=0):
+	if holeTolerance == 0:
+		holeTolerance = tolerance * tolerance
+	if poly.is_empty:
+		return poly
+	elif holeTolerance > 0 and poly.area <= holeTolerance:
+		return shapely.geometry.Polygon()
+	elif isinstance(poly, shapely.geometry.MultiPolygon):
+		polys = [cleanPolygon(p, tolerance, holeTolerance) for p in poly]
+		poly = shapely.ops.unary_union(polys)
+		assert poly.is_valid, poly
+		return poly
+	exterior = poly.exterior.simplify(tolerance)
+	exterior = cleanChain(exterior.coords, tolerance)
 	ints = []
 	for interior in poly.interiors:
+		interior = interior.simplify(tolerance)
 		interior = cleanChain(interior.coords, tolerance)
 		if len(interior) >= 3:
 			hole = shapely.geometry.Polygon(interior)
@@ -149,26 +181,32 @@ def cleanPolygon(poly, tolerance, holeTolerance):
 	assert newPoly.is_valid, newPoly
 	return newPoly
 
-def cleanChain(chain, tolerance=0, angleTolerance=0.008):
-	if len(chain) <= 2:
+def cleanChain(chain, tolerance=0, collinearTolerance=1e-6):
+	if len(chain) <= 3:
 		return chain
 	closed = (tuple(chain[0]) == tuple(chain[-1]))
 	tol2 = tolerance * tolerance
-	# collapse hooks
-	chain = np.array(chain)
-	a, b = chain[-1], chain[0]
-	newChain = []
-	for c in chain[1:]:
+	# collapse hooks and collinear points
+	if closed:
+		a = chain[-2]
+		b = chain[0]
+		ci = 1
+		newChain = []
+	else:
+		a = chain[0]
+		b = chain[1]
+		ci = 2
+		newChain = [a]
+	for c in chain[ci:]:
 		dx, dy = c[0] - a[0], c[1] - a[1]
-		if (dx * dx) + (dy * dy) > tol2:
+		if ((dx * dx) + (dy * dy) > tol2
+		    and distanceToLine(b, a, c) > collinearTolerance):
 			newChain.append(b)
 			a = b
 			b = c
 		else:
 			b = c
-	if len(newChain) == 0:
-		return newChain
-	newChain.append(newChain[0] if closed else c)
+	newChain.append(c)
 	return newChain
 
 #: Whether to warn when falling back to pypoly2tri for triangulation

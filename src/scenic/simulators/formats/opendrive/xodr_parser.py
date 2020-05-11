@@ -13,7 +13,7 @@ import abc
 from collections import defaultdict
 
 from scenic.core.regions import PolygonalRegion, PolylineRegion
-from scenic.core.geometry import polygonUnion, cleanChain, plotPolygon
+from scenic.core.geometry import polygonUnion, cleanPolygon, cleanChain, plotPolygon
 from scenic.simulators.domains.driving import roads as roadDomain
 
 # Lane types on which cars can appear.
@@ -28,8 +28,8 @@ DRIVABLE = [
 # Lane types representing sidewalks.
 SIDEWALK = ['sidewalk']
 
-def buffer_union(polys, buf=0):
-    return polygonUnion(polys, buf=buf, tolerance=0)
+def buffer_union(polys, tolerance=0.01):
+    return polygonUnion(polys, buf=tolerance, tolerance=tolerance)
 
 class Poly3:
     '''Cubic polynomial.'''
@@ -373,7 +373,7 @@ class Road:
 
         raise RuntimeError('Point not found in piece_polys')
 
-    def calc_geometry_for_type(self, lane_types, num, calc_gap=False):
+    def calc_geometry_for_type(self, lane_types, num, tolerance, calc_gap=False):
         '''Given a list of lane types, returns a tuple of:
         - List of lists of points along the reference line, with same indexing as self.lane_secs
         - List of region polygons, with same indexing as self.lane_secs
@@ -431,7 +431,8 @@ class Road:
                         if len(bounds) < 3:
                             continue
                         poly = Polygon(bounds).buffer(0)
-                        if poly.is_valid and not poly.is_empty:
+                        if poly.is_valid and poly.area >= 0.001:
+                            poly = cleanPolygon(poly, tolerance=tolerance)
                             if poly.geom_type == 'MultiPolygon':
                                 poly = MultiPolygon([p for p in list(poly)
                                                      if not p.is_empty and p.exterior])
@@ -450,10 +451,9 @@ class Road:
                                     last_lefts[prev_id], last_rights[prev_id],
                                     left_bounds[id_][0], right_bounds[id_][0]]).convex_hull
                                 assert gap_poly.is_valid, 'Gap polygon not valid.'
+                                gap_poly = cleanPolygon(gap_poly.buffer(0))
                                 # Assume MultiPolygon cannot result from convex hull.
                                 if gap_poly.geom_type == 'Polygon' and not gap_poly.is_empty:
-                                    # plot_poly(gap_poly, 'b')
-                                    gap_poly = gap_poly.buffer(0)
                                     cur_sec_polys.append(gap_poly)
                                     cur_sec_lane_polys[id_].append(gap_poly)
                         cur_last_lefts[id_] = left_bounds[id_][-1]
@@ -517,9 +517,10 @@ class Road:
                             lane.right_bounds.append(right_bound)
                             lane.centerline.append(centerline)
             sec_points.append(cur_sec_points)
-            sec_polys.append(buffer_union(cur_sec_polys))
+            sec_polys.append(buffer_union(cur_sec_polys, tolerance=tolerance))
             for id_ in cur_sec_lane_polys:
-                cur_sec_lane_polys[id_] = buffer_union(cur_sec_lane_polys[id_])
+                cur_sec_lane_polys[id_] = buffer_union(cur_sec_lane_polys[id_],
+                                                       tolerance=tolerance)
             sec_lane_polys.append(cur_sec_lane_polys)
             next_lane_polys = {}
             for id_ in cur_sec_lane_polys:
@@ -530,27 +531,27 @@ class Road:
                 else:
                     next_lane_polys[id_] = [cur_sec_lane_polys[id_]]
             for id_ in cur_lane_polys:
-                poly = buffer_union(cur_lane_polys[id_])
+                poly = buffer_union(cur_lane_polys[id_], tolerance=tolerance)
                 lane_polys.append(poly)
                 cur_sec.get_lane(id_).parent_lane_poly = poly
             cur_lane_polys = next_lane_polys
         for id_ in cur_lane_polys:
-            poly = buffer_union(cur_lane_polys[id_])
+            poly = buffer_union(cur_lane_polys[id_], tolerance=tolerance)
             lane_polys.append(poly)
             cur_sec.get_lane(id_).parent_lane_poly = poly
-        union_poly = buffer_union(sec_polys)
+        union_poly = buffer_union(sec_polys, tolerance=tolerance)
         if last_lefts and last_rights:
             self.end_bounds_left.update(last_lefts)
             self.end_bounds_right.update(last_rights)
         return (sec_points, sec_polys, sec_lane_polys, sec_lane_lefts, sec_lane_rights,
                 lane_polys, union_poly)
 
-    def calculate_geometry(self, num, calc_gap=False):
+    def calculate_geometry(self, num, tolerance, calc_gap=False):
         # Note: this also calculates self.start_bounds_left, self.start_bounds_right,
         # self.end_bounds_left, self.end_bounds_right
         (self.sec_points, self.sec_polys, self.sec_lane_polys, lefts, rights,
          self.lane_polys, self.drivable_region) =\
-                self.calc_geometry_for_type(DRIVABLE, num, calc_gap=calc_gap)
+                self.calc_geometry_for_type(DRIVABLE, num, tolerance, calc_gap=calc_gap)
 
         for i, sec in enumerate(self.lane_secs):
             rightmost = sec.right_lane_ids[-1]
@@ -559,9 +560,9 @@ class Road:
             sec.left_edge = lefts[i][leftmost]
 
         _, _, _, _, _, _, self.sidewalk_region = \
-            self.calc_geometry_for_type(SIDEWALK, num, calc_gap=calc_gap)
+            self.calc_geometry_for_type(SIDEWALK, num, tolerance, calc_gap=calc_gap)
 
-    def toScenicRoad(self):
+    def toScenicRoad(self, tolerance):
         assert self.sec_points
         # Create lane and road sections
         roadSections = []
@@ -726,7 +727,8 @@ class Road:
 
         leftEdge, centerline, rightEdge = getEdges(forward=True)
         forwardGroup = roadDomain.LaneGroup(
-            polygon=buffer_union(lane.polygon for lane in forwardLanes),
+            polygon=buffer_union((lane.polygon for lane in forwardLanes),
+                                 tolerance=tolerance),
             centerline=centerline,
             leftEdge=leftEdge,
             rightEdge=rightEdge,
@@ -738,7 +740,8 @@ class Road:
         if backwardLanes:
             leftEdge, centerline, rightEdge = getEdges(forward=False)
             backwardGroup = roadDomain.LaneGroup(
-                polygon=buffer_union(lane.polygon for lane in backwardLanes),
+                polygon=buffer_union((lane.polygon for lane in backwardLanes),
+                                     tolerance=tolerance),
                 centerline=centerline,
                 leftEdge=leftEdge,
                 rightEdge=rightEdge,
@@ -792,8 +795,10 @@ class Road:
         return road
 
 class RoadMap:
-    def __init__(self, tolerance=0.05):
-        self.tolerance = tolerance
+    defaultTolerance = 0.05
+
+    def __init__(self, tolerance=None):
+        self.tolerance = self.defaultTolerance if tolerance is None else tolerance
         self.roads = {}
         self.road_links = []
         self.junctions = {}
@@ -806,7 +811,7 @@ class RoadMap:
         # If calc_intersect=True, calculates intersection regions.
         # These are fairly expensive.
         for road in self.roads.values():
-            road.calculate_geometry(num, calc_gap=calc_gap)
+            road.calculate_geometry(num, calc_gap=calc_gap, tolerance=self.tolerance)
         drivable_polys = {}
         sidewalk_polys = {}
         drivable_gap_polys = []
@@ -865,8 +870,10 @@ class RoadMap:
                             sidewalk_gap_polys.append(gap_poly)
                             # plot_poly(gap_poly, 'k')
 
-        self.drivable_region = buffer_union(list(drivable_polys.values()) + drivable_gap_polys)
-        self.sidewalk_region = buffer_union(list(sidewalk_polys.values()) + sidewalk_gap_polys)
+        self.drivable_region = buffer_union(list(drivable_polys.values()) + drivable_gap_polys,
+                                            tolerance=self.tolerance)
+        self.sidewalk_region = buffer_union(list(sidewalk_polys.values()) + sidewalk_gap_polys,
+                                            tolerance=self.tolerance)
         self.calculate_intersections()
 
     def calculate_intersections(self):
@@ -889,9 +896,9 @@ class RoadMap:
                     road_j = self.roads[road_j_idx]
                     poly = road_i.drivable_region.intersection(road_j.drivable_region)
                     junc_polys.append(poly)
-            junc.poly = buffer_union(junc_polys)
+            junc.poly = buffer_union(junc_polys, tolerance=self.tolerance)
             intersect_polys.extend(junc_polys)
-        self.intersection_region = buffer_union(intersect_polys)
+        self.intersection_region = buffer_union(intersect_polys, tolerance=self.tolerance)
 
     def heading_at(self, point):
         '''Return the road heading at point.'''
@@ -1093,7 +1100,7 @@ class RoadMap:
         # Convert roads
         mainRoads, connectingRoads, roads = {}, {}, {}
         for id_, road in self.roads.items():
-            newRoad = road.toScenicRoad()
+            newRoad = road.toScenicRoad(tolerance=self.tolerance)
             (connectingRoads if road.junction else mainRoads)[id_] = newRoad
             roads[id_] = newRoad
 

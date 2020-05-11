@@ -6,10 +6,10 @@ from scenic.core.regions import regionFromShapelyObject, nowhere
 from scenic.core.vectors import VectorField
 
 class OpenDriveWorkspace(Workspace):
-    def __init__(self, path, n=20):
+    def __init__(self, path, n=20, tolerance=None):
         '''Initialize from OpenDRIVE file at @path, with
         @n points per lane section reference line.'''
-        self.road_map = RoadMap()
+        self.road_map = RoadMap(tolerance=tolerance)
         self.road_map.parse(path)
         self.road_map.calculate_geometry(n, calc_intersect=True)
         drivable_poly = self.road_map.drivable_region

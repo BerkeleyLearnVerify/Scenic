@@ -3,7 +3,7 @@
 from scenic.simulators.domains.driving.workspace import DrivingWorkspace
 import scenic.simulators.domains.driving.network as networkModule
 
-from scenic.simulators.gta.interface import CarColor    # TODO refactor
+from scenic.simulators.utils.colors import Color
 
 network = networkModule.network
 workspace = DrivingWorkspace(network)
@@ -25,4 +25,4 @@ class Vehicle:
 class Car(Vehicle):
     width: 2
     height: 4.5
-    color: CarColor.defaultColor()
+    color: Color.defaultCarColor()
