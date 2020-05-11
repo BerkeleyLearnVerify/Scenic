@@ -451,7 +451,7 @@ class Road:
                                     last_lefts[prev_id], last_rights[prev_id],
                                     left_bounds[id_][0], right_bounds[id_][0]]).convex_hull
                                 assert gap_poly.is_valid, 'Gap polygon not valid.'
-                                gap_poly = cleanPolygon(gap_poly.buffer(0))
+                                gap_poly = cleanPolygon(gap_poly.buffer(0), tolerance=tolerance)
                                 # Assume MultiPolygon cannot result from convex hull.
                                 if gap_poly.geom_type == 'Polygon' and not gap_poly.is_empty:
                                     cur_sec_polys.append(gap_poly)

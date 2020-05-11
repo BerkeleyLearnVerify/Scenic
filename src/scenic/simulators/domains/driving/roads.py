@@ -320,11 +320,11 @@ class Network:
             raise RuntimeError(f'unknown type of road network file {path}')
 
     @classmethod
-    def fromOpenDrive(cls, path, ref_points=20, tolerance=0.05):
+    def fromOpenDrive(cls, path, ref_points=20, tolerance=0.05, fill_gaps=True):
         import scenic.simulators.formats.opendrive.xodr_parser as xodr_parser
         road_map = xodr_parser.RoadMap(tolerance=tolerance)
         road_map.parse(path)
-        road_map.calculate_geometry(ref_points, calc_intersect=True)
+        road_map.calculate_geometry(ref_points, calc_gap=fill_gaps, calc_intersect=True)
         return road_map.toScenicNetwork()
 
 ## FOR LATER

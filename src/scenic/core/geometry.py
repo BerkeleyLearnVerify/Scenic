@@ -169,11 +169,13 @@ def cleanPolygon(poly, tolerance, holeTolerance=0):
 		return poly
 	exterior = poly.exterior.simplify(tolerance)
 	exterior = cleanChain(exterior.coords, tolerance)
+	if len(exterior) <= 3:
+		return shapely.geometry.Polygon()
 	ints = []
 	for interior in poly.interiors:
 		interior = interior.simplify(tolerance)
 		interior = cleanChain(interior.coords, tolerance)
-		if len(interior) >= 3:
+		if len(interior) >= 4:
 			hole = shapely.geometry.Polygon(interior)
 			if hole.area > holeTolerance:
 				ints.append(interior)
@@ -181,12 +183,30 @@ def cleanPolygon(poly, tolerance, holeTolerance=0):
 	assert newPoly.is_valid, newPoly
 	return newPoly
 
-def cleanChain(chain, tolerance=0, collinearTolerance=1e-6):
-	if len(chain) <= 3:
-		return chain
+def cleanChain(chain, tolerance=1e-6):
 	closed = (tuple(chain[0]) == tuple(chain[-1]))
+	minLength = 4 if closed else 3
+	if len(chain) <= minLength:
+		return chain
 	tol2 = tolerance * tolerance
+	# collapse nearby points (since Shapely's simplify method doesn't always do this)
+	a = chain[0]
+	newChain = [a]
+	for b in chain[1:]:
+		dx, dy = b[0] - a[0], b[1] - a[1]
+		if (dx * dx) + (dy * dy) > tol2:
+			newChain.append(b)
+			a = b
+	if closed:
+		b = chain[0]
+		dx, dy = b[0] - a[0], b[1] - a[1]
+		if (dx * dx) + (dy * dy) <= tol2:
+			newChain.pop()
+		newChain.append(chain[0])
+	if len(newChain) <= minLength:
+		return newChain
 	# collapse hooks and collinear points
+	chain = newChain
 	if closed:
 		a = chain[-2]
 		b = chain[0]
@@ -200,7 +220,7 @@ def cleanChain(chain, tolerance=0, collinearTolerance=1e-6):
 	for c in chain[ci:]:
 		dx, dy = c[0] - a[0], c[1] - a[1]
 		if ((dx * dx) + (dy * dy) > tol2
-		    and distanceToLine(b, a, c) > collinearTolerance):
+		    and distanceToLine(b, a, c) > tolerance):
 			newChain.append(b)
 			a = b
 			b = c
