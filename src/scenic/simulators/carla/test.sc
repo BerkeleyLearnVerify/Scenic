@@ -4,6 +4,6 @@ setMapPath(__file__, './Town01.xodr')
 from scenic.simulators.carla.carla_model import *  # NOTE: Must be after setting map path
 
 
-ego = Car with behavior behaviors.LanekeepingBehavior
-#otherCar = Car with behavior behaviors.AccelerateBackwardBehavior
+ego = Car with behavior behaviors.AccelerateForwardBehavior
+otherCar = Car with behavior behaviors.AccelerateForwardBehavior
 #obstacle = Pedestrian with behavior behaviors.WalkForwardBehavior

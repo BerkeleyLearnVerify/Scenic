@@ -11,9 +11,9 @@ behavior LanekeepingBehavior():
 	take actions.SetHandBrakeAction(False)
 	take actions.SetThrottleAction(0.5)
 	while True:
-		delta = self.heading - self.roadDirection
-		print(delta)
-		take actions.SetSteerAction(0.1)
+		delta = 1
+		#delta = self.heading - roadDirection
+		take actions.SetSteerAction(delta)
 
 behavior WalkForwardBehavior():
 	take actions.SetVelocityAction(0.5)
