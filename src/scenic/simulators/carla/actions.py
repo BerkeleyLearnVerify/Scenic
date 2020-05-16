@@ -76,28 +76,32 @@ class SetTransformAction(simulators.Action):
 
 class SetThrottleAction(simulators.Action):
 	def __init__(self, throttle):
+		assert 0.0 <= throttle <= 1.0, \
+			'Throttle must be a float in range [0.0, 1.0].'
 		super().__init__()
-		self.throttle = throttle  # float in range [0.0, 1.0]
+		self.throttle = throttle
 
 	def applyTo(self, obj, vehicle, sim):
 		ctrl = vehicle.get_control()
-		ctrl.throttle = min(max(self.throttle, 0), 1)  # cut off at range bounds
+		ctrl.throttle = self.throttle
 		vehicle.apply_control(ctrl)
 
 
 class SetSteerAction(simulators.Action):
 	def __init__(self, steer):
+		assert -1.0 <= steer <= 1.0, \
+			'Steer must be a float in range [-1.0, 1.0].'
 		super().__init__()
-		self.steer = steer  # float in range [-1.0, 1.0]
+		self.steer = steer
 
 	def applyTo(self, obj, vehicle, sim):
 		ctrl = vehicle.get_control()
-		ctrl.steer = min(max(self.steer, 0), 1)  # cut off at range bounds
+		ctrl.steer = self.steer
 		vehicle.apply_control(ctrl)
 
 
 class AlignSteerToLaneAction(simulators.Action):
-	''' Sets steer to match lane heading '''
+	'''Sets steer to match lane heading.'''
 
 	def __init__(self):
 		super().__init__()
@@ -110,19 +114,23 @@ class AlignSteerToLaneAction(simulators.Action):
 
 class SetBrakeAction(simulators.Action):
 	def __init__(self, brake):
+		assert 0.0 <= brake <= 1.0, \
+			'Brake must be a float in range [0.0, 1.0].'
 		super().__init__()
-		self.brake = brake  # float in range [0.0, 1.0]
+		self.brake = brake
 
 	def applyTo(self, obj, vehicle, sim):
 		ctrl = vehicle.get_control()
-		ctrl.brake = min(max(self.brake, 0), 1)  # cut off at range bounds
+		ctrl.brake = self.brake
 		vehicle.apply_control(ctrl)
 
 
 class SetHandBrakeAction(simulators.Action):
 	def __init__(self, handBrake):
+		assert isinstance(handBrake, bool), \
+			'Hand brake must be a boolean.'
 		super().__init__()
-		self.handBrake = handBrake  # boolean
+		self.handBrake = handBrake
 
 	def applyTo(self, obj, vehicle, sim):
 		ctrl = vehicle.get_control()
@@ -132,8 +140,10 @@ class SetHandBrakeAction(simulators.Action):
 
 class SetReverseAction(simulators.Action):
 	def __init__(self, reverse):
+		assert isinstance(reverse, bool), \
+			'Reverse must be a boolean.'
 		super().__init__()
-		self.reverse = reverse  # boolean
+		self.reverse = reverse
 
 	def applyTo(self, obj, vehicle, sim):
 		ctrl = vehicle.get_control()
@@ -143,6 +153,8 @@ class SetReverseAction(simulators.Action):
 
 class SetManualGearShiftAction(simulators.Action):
 	def __init__(self, manualGearShift):
+		assert isinstance(manualGearShift, bool), \
+			'Manual gear shift must be a boolean.'
 		super().__init__()
 		self.manualGearShift = manualGearShift  # boolean
 
@@ -154,12 +166,13 @@ class SetManualGearShiftAction(simulators.Action):
 
 class SetGearAction(simulators.Action):
 	def __init__(self, gear):
+		# TODO: assert statement
 		super().__init__()
-		self.gear = gear  # int in range [1, 6]
+		self.gear = gear
 
 	def applyTo(self, obj, vehicle, sim):
 		ctrl = vehicle.get_control()
-		ctrl.gear = min(max(self.gear, 1), 6)  # cut off at range bounds
+		ctrl.gear = self.gear
 		vehicle.apply_control(ctrl)
 
 
@@ -169,21 +182,24 @@ class SetGearAction(simulators.Action):
 
 class SetSpeedAction(simulators.Action):
 	def __init__(self, speed):
-		assert speed >= 0, 'Speed must be a non-negative float.'
+		assert speed >= 0.0, \
+			'Speed must be a non-negative float.'
 		super().__init__()
 		self.speed = speed  # float
 
 	def applyTo(self, obj, walker, sim):
 		ctrl = walker.get_control()
-		ctrl.speed = speed
+		ctrl.speed = self.speed
 		walker.apply_control(ctrl)
 
 class SetJumpAction(simulators.Action):
-	def __init__(self, jumpt):
+	def __init__(self, jump):
+		assert isinstance(jump, bool), \
+			'Jump must be a boolean.'
 		super().__init__()
 		self.jump = jump  # boolean
 
 	def applyTo(self, obj, walker, sim):
 		ctrl = walker.get_control()
-		ctrl.jump = jump
+		ctrl.jump = self.jump
 		walker.apply_control(ctrl)
