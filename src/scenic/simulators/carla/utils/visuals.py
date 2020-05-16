@@ -23,7 +23,6 @@
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
 import datetime
 import math
 import weakref
@@ -36,6 +35,7 @@ from carla import ColorConverter as cc
 def get_actor_display_name(actor, truncate=250):
     name = ' '.join(actor.type_id.replace('_', '.').title().split('.')[1:])
     return (name[:truncate-1] + u'\u2026') if len(name) > truncate else name
+
 
 # ==============================================================================
 # -- HUD -----------------------------------------------------------------
@@ -66,43 +66,58 @@ class HUD(object):
 	def tick(self, world, ego, clock, showLabels=True):
 		if ego.carlaActor is None:
 			return  # ego not spawned yet
+
 		t = ego.carlaActor.get_transform()
 		v = ego.carlaActor.get_velocity()
 		c = ego.carlaActor.get_control()
+
 		heading = 'N' if abs(t.rotation.yaw) < 89.5 else ''
 		heading += 'S' if abs(t.rotation.yaw) > 90.5 else ''
 		heading += 'E' if 179.5 > t.rotation.yaw > 0.5 else ''
 		heading += 'W' if -0.5 > t.rotation.yaw > -179.5 else ''
+
 		#colhist = collisionSensor.get_collision_history()
 		#collision = [colhist[x + self.frame - 200] for x in range(0, 200)]
 		#max_col = max(1.0, max(collision))
 		#collision = [x / max_col for x in collision]
+
 		vehicles = world.get_actors().filter('vehicle.*')
+		pedestrians = world.get_actors().filter('walker.pedestrian.*')
+
 		self._info_text = [
 			'Server:  % 16d FPS' % self.server_fps,
-			'',
-			'Vehicle: % 20s' % get_actor_display_name(ego.carlaActor, truncate=20),
 			'Map:	 % 20s' % world.get_map().name,
 			'Simulation time: % 12s' % datetime.timedelta(seconds=int(self.simulation_time)),
+			'',
+			'Number of vehicles: % 8d' % len(vehicles)
+			'Number of pedestrians: % 8d' % len(pedestrians)
+			'',
+			'Ego: % 20s' % get_actor_display_name(ego.carlaActor, truncate=20),
 			'',
 			'Speed:   % 15.0f km/h' % (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)),
 			u'Heading:% 16.0f\N{DEGREE SIGN} % 2s' % (t.rotation.yaw, heading),
 			'Location:% 20s' % ('(% 5.1f, % 5.1f)' % (t.location.x, t.location.y)),
 			'Height:  % 18.0f m' % t.location.z,
-			'',
-			('Throttle:', c.throttle, 0.0, 1.0),
-			('Steer:', c.steer, -1.0, 1.0),
-			('Brake:', c.brake, 0.0, 1.0),
-			('Reverse:', c.reverse),
-			('Hand brake:', c.hand_brake),
-			('Manual:', c.manual_gear_shift),
-			'Gear:		%s' % {-1: 'R', 0: 'N'}.get(c.gear, c.gear),
-			'',
-			#'Collision:',
-			#collision,
-			'',
-			'Number of vehicles: % 8d' % len(vehicles)
 		]
+
+		try:
+			_control_text = [
+				'',
+				'Throttle:', c.throttle, 0.0, 1.0,
+				'Steer:', c.steer, -1.0, 1.0,
+				'Brake:', c.brake, 0.0, 1.0,
+				'Reverse:', c.reverse,
+				'Hand brake:', c.hand_brake,
+				'Manual:', c.manual_gear_shift,
+				'Gear:		%s' % {-1: 'R', 0: 'N'}.get(c.gear, c.gear),
+				#'',
+				#'Collision:', collision,
+			]
+		except:
+			_control_text = []
+		finally:
+			self._info_text.append(_control_text)
+
 		if len(vehicles) > 1:
 			self._info_text += ['Nearby vehicles:']
 			distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
