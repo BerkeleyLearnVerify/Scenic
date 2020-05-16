@@ -9,7 +9,6 @@ import scenic.simulators.carla.utils.utils as utils
 # Actions available to all carla.Actor objects #
 ################################################
 
-# NOTE: Equivalent to LGSVL's MoveAction class
 class OffsetAction(simulators.Action):
 	"""Teleports actor forward (in direction of its heading) by some offset."""
 	
@@ -86,28 +85,6 @@ class SetThrottleAction(simulators.Action):
 		vehicle.apply_control(ctrl)
 
 
-class IncreaseThrottleAction(simulators.Action):
-	def __init__(self, increment):
-		super().__init__()
-		self.increment = increment  # should be positive (but works regardless)
-
-	def applyTo(self, obj, vehicle, sim):
-		ctrl = vehicle.control()
-		ctrl.throttle = min(max(ctrl.throttle + self.increment, 0), 1)  # cut off at range bounds
-		vehicle.apply_control(ctrl)
-
-
-class DecreaseThrottleAction(simulators.Action):
-	def __init__(self, decrement):
-		super().__init__()
-		self.decrement = decrement  # should be positive (but works regardless)
-
-	def applyTo(self, obj, vehicle, sim):
-		ctrl = vehicle.control()
-		ctrl.throttle = min(max(ctrl.throttle - self.decrement, 0), 1)  # cut off at range bounds
-		vehicle.apply_control(ctrl)
-
-
 class SetSteerAction(simulators.Action):
 	def __init__(self, steer):
 		super().__init__()
@@ -116,28 +93,6 @@ class SetSteerAction(simulators.Action):
 	def applyTo(self, obj, vehicle, sim):
 		ctrl = vehicle.get_control()
 		ctrl.steer = min(max(self.steer, 0), 1)  # cut off at range bounds
-		vehicle.apply_control(ctrl)
-
-
-class IncreaseSteerAction(simulators.Action):
-	def __init__(self, increment):
-		super().__init__()
-		self.increment = increment  # should be positive (but works regardless)
-
-	def applyTo(self, obj, vehicle, sim):
-		ctrl = vehicle.control()
-		ctrl.steer = min(max(ctrl.steer + self.increment, -1), 1)  # cut off at range bounds
-		vehicle.apply_control(ctrl)
-
-
-class DecreaseSteerAction(simulators.Action):
-	def __init__(self, decrement):
-		super().__init__()
-		self.decrement = decrement  # should be positive (but works regardless)
-
-	def applyTo(self, obj, vehicle, sim):
-		ctrl = vehicle.control()
-		ctrl.steer = min(max(ctrl.steer - self.decrement, -1), 1)  # cut off at range bounds
 		vehicle.apply_control(ctrl)
 
 
@@ -161,28 +116,6 @@ class SetBrakeAction(simulators.Action):
 	def applyTo(self, obj, vehicle, sim):
 		ctrl = vehicle.get_control()
 		ctrl.brake = min(max(self.brake, 0), 1)  # cut off at range bounds
-		vehicle.apply_control(ctrl)
-
-
-class IncreaseBrakeAction(simulators.Action):
-	def __init__(self, increment):
-		super().__init__()
-		self.increment = increment  # should be positive (but works regardless)
-
-	def applyTo(self, obj, vehicle, sim):
-		ctrl = vehicle.control()
-		ctrl.throttle = min(max(ctrl.throttle + self.increment, 0), 1)  # cut off at range bounds
-		vehicle.apply_control(ctrl)
-
-
-class DecreaseBrakeAction(simulators.Action):
-	def __init__(self, decrement):
-		super().__init__()
-		self.decrement = decrement  # should be positive (but works regardless)
-
-	def applyTo(self, obj, vehicle, sim):
-		ctrl = vehicle.control()
-		ctrl.throttle = min(max(ctrl.throttle - self.decrement, 0), 1)  # cut off at range bounds
 		vehicle.apply_control(ctrl)
 
 
@@ -230,23 +163,27 @@ class SetGearAction(simulators.Action):
 		vehicle.apply_control(ctrl)
 
 
-class IncreaseGearAction(simulators.Action):
-	def __init__(self, increment=1):
+#################################################
+# Actions available to all carla.Walker objects #
+#################################################
+
+class SetSpeedAction(simulators.Action):
+	def __init__(self, speed):
+		assert speed >= 0, 'Speed must be a non-negative float.'
 		super().__init__()
-		self.increment = increment  # should be 1
+		self.speed = speed  # float
 
-	def applyTo(self, obj, vehicle, sim):
-		ctrl = vehicle.get_control()
-		ctr.gear = min(max(ctr.gear + self.increment, 1), 6)  # cut off at range bounds
-		vehicle.apply_control(ctrl)
+	def applyTo(self, obj, walker, sim):
+		ctrl = walker.get_control()
+		ctrl.speed = speed
+		walker.apply_control(ctrl)
 
-
-class DecreaseGearAction(simulators.Action):
-	def __init__(self, decrement=1):
+class SetJumpAction(simulators.Action):
+	def __init__(self, jumpt):
 		super().__init__()
-		self.decrement = decrement  # should be 1
+		self.jump = jump  # boolean
 
-	def applyTo(self, obj, vehicle, sim):
-		ctrl = vehicle.get_control()
-		ctrl.gear = min(max(ctrl.gear - self.decrement, 1), 6)  # cut off at range bounds
-		vehicle.apply_control(ctrl)
+	def applyTo(self, obj, walker, sim):
+		ctrl = walker.get_control()
+		ctrl.jump = jump
+		walker.apply_control(ctrl)

@@ -16,4 +16,4 @@ behavior LanekeepingBehavior():
 		take actions.SetSteerAction(delta)
 
 behavior WalkForwardBehavior():
-	take actions.SetVelocityAction(0.5)
+	take actions.SetSpeedAction(0.5)
