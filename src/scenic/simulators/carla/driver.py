@@ -1,17 +1,18 @@
 import scenic
 import pygame
+
 from scenic.simulators.carla.simulator import CarlaSimulator
 
 
 # CHANGEME
-carla_world = 'Town01'
+map_path = 'maps/Town01'
 sc_file_path = 'test.sc'
 address = '127.0.0.1'
 port = 2000
 render = True  # visualization mode ON/OFF
 
 # Create the Simulator
-simulator = CarlaSimulator(carla_world, address=address, port=port, render=render)
+simulator = CarlaSimulator(map_path, address=address, port=port, render=render)
 
 # Load Scenic scenario
 scenario = scenic.scenarioFromFile(sc_file_path)

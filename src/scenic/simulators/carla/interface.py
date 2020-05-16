@@ -1,6 +1,5 @@
 """Support code for the CARLA world model."""
 
-
 from scenic.simulators.formats.opendrive import OpenDriveWorkspace
 
 

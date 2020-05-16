@@ -2,6 +2,7 @@
 
 import os.path
 
+
 mapPath = None
 lanePoints = 20
 

@@ -2,16 +2,16 @@ import carla
 import pygame
 
 import scenic.simulators as simulators
-import scenic.simulators.carla.utils as utils
-import scenic.simulators.carla.visuals as visuals
+import scenic.simulators.carla.utils.utils as utils
+import scenic.simulators.carla.utils.visuals as visuals
 
 
 class CarlaSimulator(simulators.Simulator):
-	def __init__(self, carla_world, address='127.0.0.1', port=2000, render=True):
+	def __init__(self, map_path, address='127.0.0.1', port=2000, render=True):
 		super().__init__()
 		self.client = carla.Client(address, port)
 		self.client.set_timeout(10.0)  # limits networking operations (seconds)
-		self.world = self.client.load_world(carla_world)
+		self.world = self.client.load_world(map_path)
 
 		# Set to synchronous with fixed timestep
 		settings = self.world.get_settings()

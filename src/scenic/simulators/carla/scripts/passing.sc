@@ -1,9 +1,9 @@
 import scenic.simulators.carla.actions as actions
 from scenic.core.geometry import subtractVectors
 
-from scenic.simulators.carla.map import setMapPath
-setMapPath(__file__, './Town01.xodr')
-from scenic.simulators.carla.road_model import *
+from scenic.simulators.carla.maps.map import setMapPath
+setMapPath(__file__, '../maps/Town01.xodr')
+from scenic.simulators.carla.models.model import *
 
 
 # ============================================================================

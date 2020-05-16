@@ -1,14 +1,13 @@
 """Scenic world model for traffic scenarios in CARLA."""
 
-
 import math
 import time
 
 from scenic.simulators.carla.interface import CarlaWorkspace
-from scenic.simulators.carla.map import mapPath, lanePoints
-from scenic.simulators.carla.vehicle_models import carModels, bicycleModels, motorcycleModels, truckModels
-from scenic.simulators.carla.prop_models import trashModels, coneModels
-from scenic.simulators.carla.walker_models import walkerModels
+from scenic.simulators.carla.maps.map import mapPath, lanePoints
+from scenic.simulators.carla.models.vehicle_models import carModels, bicycleModels, motorcycleModels, truckModels
+from scenic.simulators.carla.models.prop_models import trashModels, coneModels
+from scenic.simulators.carla.models.walker_models import walkerModels
 
 from scenic.simulators.utils.colors import Color
 
