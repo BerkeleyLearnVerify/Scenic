@@ -1,6 +1,6 @@
 See example Scenic programs for CARLA at `Scenic/examples/carla`.
 
-To use these programs with CARLA, see the Verifai CARLA interface in `VerifiedAI/verifai/simulators/carla/` of the VerifiedAI repository. An example for usage with Scenic is in `VerifiedAI/examples/carla/scenic/`.
+To use these programs with CARLA, run `python3.8 driver.py`. You can change parameters for map path, scenic script, address, port, and HUD in `driver.py`.
 
 Currently supported objects are vehicles, pedestrians, and props.
 
