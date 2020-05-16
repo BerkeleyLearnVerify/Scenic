@@ -1,12 +1,11 @@
-
-### Support for checking Scenic types
+"""Support for checking Scenic types."""
 
 import sys
 import inspect
 
 import numpy as np
 
-from scenic.core.distributions import Distribution
+from scenic.core.distributions import Distribution, RejectionException
 from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
                                    needsLazyEvaluation, toDelayedArgument)
 from scenic.core.vectors import Vector
@@ -78,7 +77,18 @@ def canCoerceType(typeA, typeB):
 def canCoerce(thing, ty):
 	"""Can this value be coerced into the given type?"""
 	tt = underlyingType(thing)
-	return canCoerceType(tt, ty)
+	if canCoerceType(tt, ty):
+		return True
+	elif isinstance(thing, Distribution) and tt is object:
+		# unable to statically determine valueType of distribution; try
+		# sampling a value and checking its type
+		try:
+			value = thing.sample()
+			return canCoerce(value, ty)
+		except RejectionException:
+			return True		# fall back on type-checking at runtime
+	else:
+		return False
 
 def coerce(thing, ty):
 	"""Coerce something into the given type."""

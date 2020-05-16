@@ -3,7 +3,7 @@ import pytest
 
 import scenic
 from scenic import scenarioFromString as compileScenic
-from scenic.syntax.translator import InterpreterParseError, InvalidScenarioError
+from scenic.syntax.translator import InterpreterParseError, InvalidScenarioError, PythonParseError
 from tests.utils import sampleEgo
 
 ## Basic
@@ -33,19 +33,16 @@ def test_object_in_requirement():
         scenario.generate(maxIterations=1)
 
 def test_param_in_requirement():
-    scenario = compileScenic('require param x = 4\n' 'ego = Object')
-    with pytest.raises(InterpreterParseError):
-        scenario.generate(maxIterations=1)
+    with pytest.raises(PythonParseError):
+        compileScenic('require param x = 4\n' 'ego = Object')
 
 def test_mutate_in_requirement():
-    scenario = compileScenic('require mutate\n' 'ego = Object')
-    with pytest.raises(InterpreterParseError):
-        scenario.generate(maxIterations=1)
+    with pytest.raises(PythonParseError):
+        compileScenic('require mutate\n' 'ego = Object')
 
 def test_require_in_requirement():
-    scenario = compileScenic('require (require True)\n' 'ego = Object')
-    with pytest.raises(InterpreterParseError):
-        scenario.generate(maxIterations=1)
+    with pytest.raises(PythonParseError):
+        compileScenic('require (require True)\n' 'ego = Object')
 
 ## Error handling
 

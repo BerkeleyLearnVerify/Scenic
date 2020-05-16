@@ -1,18 +1,29 @@
+"""Scenario and scene objects."""
 
 import random
 import time
 
 from scenic.core.distributions import Samplable, RejectionException, needsSampling
 from scenic.core.lazy_eval import needsLazyEvaluation
+from scenic.core.external_params import ExternalSampler
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
-from scenic.core.utils import InvalidScenarioError
-from scenic.syntax.veneer import isABehavior, RequirementType, BoundRequirement
+from scenic.core.utils import areEquivalent, InvalidScenarioError
+from scenic.syntax.veneer import (isABehaviorGenerator, behaviorObjectFor,
+                                  RequirementType, BoundRequirement)
 
 class Scene:
-	"""A scene generated from a Scenic scenario"""
+	"""A scene generated from a Scenic scenario.
+
+	Attributes:
+		objects (tuple(:obj:`~scenic.core.object_types.Object`)): All objects in the
+		  scene. The ``ego`` object is first.
+		egoObject (:obj:`~scenic.core.object_types.Object`): The ``ego`` object.
+		params (dict): Dictionary mapping the name of each global parameter to its value.
+		workspace (:obj:`~scenic.core.workspaces.Workspace`): Workspace for the scenario.
+    """
 	def __init__(self, workspace, simulator, objects, egoObject, params,
-	             alwaysReqs=tuple(), terminationConds=tuple()):
+	             alwaysReqs=(), terminationConds=(), monitors=(), behaviorNamespaces={}):
 		self.workspace = workspace
 		self.simulator = simulator
 		self.objects = tuple(objects)
@@ -20,9 +31,11 @@ class Scene:
 		self.params = params
 		self.alwaysRequirements = tuple(alwaysReqs)
 		self.terminationConditions = tuple(terminationConds)
+		self.monitors = tuple(monitors)
+		self.behaviorNamespaces = behaviorNamespaces
 
 	def show(self, zoom=None, block=True):
-		"""Render a schematic of the scene for debugging"""
+		"""Render a schematic of the scene for debugging."""
 		import matplotlib.pyplot as plt
 		# display map
 		self.workspace.show(plt)
@@ -42,11 +55,12 @@ class Scene:
 		                               verbosity=verbosity)
 
 class Scenario:
-	"""A Scenic scenario"""
+	"""A compiled Scenic scenario, from which scenes can be sampled."""
 	def __init__(self, workspace, simulator,
 	             objects, egoObject,
-	             params,
-	             requirements, requirementDeps):
+	             params, externalParams,
+                 requirements, requirementDeps,
+                 monitors, behaviorNamespaces):
 		if workspace is None:
 			workspace = Workspace()		# default empty workspace
 		self.workspace = workspace
@@ -60,6 +74,11 @@ class Scenario:
 		self.objects = tuple(ordered)
 		self.egoObject = egoObject
 		self.params = dict(params)
+		self.externalParams = tuple(externalParams)
+		self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)
+		self.monitors = tuple(monitors)
+		self.behaviorNamespaces = behaviorNamespaces
+
 		staticReqs, alwaysReqs, terminationConds = [], [], []
 		for req in requirements:
 			if req.ty is RequirementType.require:
@@ -77,8 +96,24 @@ class Scenario:
 		self.terminationConditions = tuple(terminationConds)
 		# dependencies must use fixed order for reproducibility
 		paramDeps = tuple(p for p in self.params.values() if isinstance(p, Samplable))
-		self.dependencies = self.objects + paramDeps + tuple(requirementDeps)
+		behaviorDeps = []
+		for namespace in self.behaviorNamespaces.values():
+			for value in namespace.values():
+				if isinstance(value, Samplable):
+					behaviorDeps.append(value)
+		self.dependencies = self.objects + paramDeps + tuple(requirementDeps) + tuple(behaviorDeps)
+
 		self.validate()
+
+	def isEquivalentTo(self, other):
+		if type(other) is not Scenario:
+			return False
+		return (areEquivalent(other.workspace, self.workspace)
+		    and areEquivalent(other.objects, self.objects)
+		    and areEquivalent(other.params, self.params)
+		    and areEquivalent(other.externalParams, self.externalParams)
+		    and areEquivalent(other.requirements, self.requirements)
+		    and other.externalSampler == self.externalSampler)
 
 	def containerOfObject(self, obj):
 		if hasattr(obj, 'regionContainedIn') and obj.regionContainedIn is not None:
@@ -120,7 +155,21 @@ class Scenario:
 			return False
 		return True
 
-	def generate(self, maxIterations=2000, verbosity=0):
+	def generate(self, maxIterations=2000, verbosity=0, feedback=None):
+		"""Sample a `Scene` from this scenario.
+
+		Args:
+			maxIterations (int): Maximum number of rejection sampling iterations.
+			verbosity (int): Verbosity level.
+			feedback (float): Feedback to pass to external samplers doing active sampling.
+				See :mod:`scenic.core.external_params`.
+
+		Returns:
+			A pair with the sampled `Scene` and the number of iterations used.
+
+		Raises:
+			`RejectionException`: if no valid sample is found in **maxIterations** iterations.
+		"""
 		objects = self.objects
 
 		# choose which custom requirements will be enforced for this sample
@@ -130,12 +179,17 @@ class Scenario:
 		rejection = True
 		iterations = 0
 		while rejection is not None:
-			if verbosity >= 2 and iterations > 0:
-				print(f'  Rejected sample {iterations} because of: {rejection}')
+			if iterations > 0:	# rejected the last sample
+				if verbosity >= 2:
+					print(f'  Rejected sample {iterations} because of: {rejection}')
+				if self.externalSampler is not None:
+					feedback = self.externalSampler.rejectionFeedback
 			if iterations >= maxIterations:
-				raise RuntimeError(f'failed to generate scenario in {iterations} iterations')
+				raise RejectionException(f'failed to generate scenario in {iterations} iterations')
 			iterations += 1
 			try:
+				if self.externalSampler is not None:
+					self.externalSampler.sample(feedback)
 				sample = Samplable.sampleAll(self.dependencies)
 			except RejectionException as e:
 				rejection = e
@@ -146,12 +200,17 @@ class Scenario:
 			for obj in objects:
 				sampledObj = sample[obj]
 				assert not needsSampling(sampledObj)
+				# position, heading
 				assert isinstance(sampledObj.position, Vector)
 				sampledObj.heading = float(sampledObj.heading)
+				# behavior
 				behavior = sampledObj.behavior
-				if behavior is not None and not isABehavior(behavior):
-					raise InvalidScenarioError(
-					    f'behavior {behavior} of Object {obj} is not a behavior')
+				if behavior is not None:
+					if not isABehaviorGenerator(behavior):
+						raise InvalidScenarioError(
+						    f'behavior {behavior} of Object {obj} is not a behavior')
+					sampledObj.behavior = behaviorObjectFor(behavior)
+
 			# Check built-in requirements
 			for i in range(len(objects)):
 				vi = sample[objects[i]]
@@ -184,11 +243,22 @@ class Scenario:
 		sampledObjects = tuple(sample[obj] for obj in objects)
 		sampledParams = {}
 		for param, value in self.params.items():
-			sampledValue = sample[value] if isinstance(value, Samplable) else value
+			sampledValue = sample[value]
 			assert not needsLazyEvaluation(sampledValue)
 			sampledParams[param] = sampledValue
+		sampledNamespaces = {}
+		for modName, namespace in self.behaviorNamespaces.items():
+			sampledNamespace = { name: sample[value] for name, value in namespace.items() }
+			sampledNamespaces[modName] = (namespace, sampledNamespace)
 		alwaysReqs = (BoundRequirement(req, sample) for req in self.alwaysRequirements)
 		terminationConds = (BoundRequirement(req, sample) for req in self.terminationConditions)
 		scene = Scene(self.workspace, self.simulator, sampledObjects, ego, sampledParams,
-		              alwaysReqs, terminationConds)
+		              alwaysReqs, terminationConds, self.monitors, sampledNamespaces)
 		return scene, iterations
+
+	def resetExternalSampler(self):
+		"""Reset the scenario's external sampler, if any.
+
+		If the Python random seed is reset before calling this function, this
+		should cause the sequence of generated scenes to be deterministic."""
+		self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)

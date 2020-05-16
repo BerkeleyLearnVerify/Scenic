@@ -1,14 +1,13 @@
-
-#### GEOMETRY
-#### utility functions for geometric computation
+"""Utility functions for geometric computation."""
 
 import math
 import itertools
+import warnings
 
 import numpy as np
 import shapely.geometry
 import shapely.ops
-import Polygon as PolygonLib	# TODO remove dependency (see triangulatePolygon)
+import pypoly2tri
 
 from scenic.core.distributions import (needsSampling, distributionFunction,
                                        monotonicDistributionFunction)
@@ -123,25 +122,60 @@ def pointIsInCone(point, base, heading, angle):
 	va = viewAngleToPoint(point, base, heading)
 	return (abs(va) <= angle / 2.0)
 
-def polygonUnion(polys, tolerance=0.05, holeTolerance=0.002):
-	union = shapely.ops.unary_union(list(polys))
+def distanceToLine(point, a, b):
+	lx, ly = b[0] - a[0], b[1] - a[1]
+	norm = math.hypot(lx, ly)
+	nx, ny = -ly/norm, lx/norm
+	px, py = point[0] - a[0], point[1] - a[1]
+	return abs((px * nx) + (py * ny))
+
+def polygonUnion(polys, buf=0, tolerance=0, holeTolerance=0.002):
+	if not polys:
+		return shapely.geometry.Polygon()
+	buffered = [poly.buffer(buf) for poly in polys]
+	union = shapely.ops.unary_union(buffered).buffer(-buf)
 	assert union.is_valid, union
 	if tolerance > 0:
-		if isinstance(union, shapely.geometry.MultiPolygon):
-			polys = [cleanPolygon(poly, tolerance, holeTolerance) for poly in union]
-			union = shapely.ops.unary_union(polys)
-		else:
-			union = cleanPolygon(union, tolerance, holeTolerance)
-	assert union.is_valid, union
+		union = cleanPolygon(union, tolerance, holeTolerance)
+		assert union.is_valid, union
+		#checkPolygon(union, tolerance)
 	return union
 
-def cleanPolygon(poly, tolerance, holeTolerance):
-	exterior = cleanChain(poly.exterior.coords, tolerance)
-	assert len(exterior) >= 3
+def checkPolygon(poly, tolerance):
+	def checkPolyline(pl):
+		for i, p in enumerate(pl[:-1]):
+			q = pl[i+1]
+			dx, dy = q[0] - p[0], q[1] - p[1]
+			assert math.hypot(dx, dy) >= tolerance
+	if isinstance(poly, shapely.geometry.MultiPolygon):
+		for p in poly:
+			checkPolygon(p, tolerance)
+	else:
+		checkPolyline(poly.exterior.coords)
+		for i in poly.interiors:
+			checkPolyline(i.coords)
+
+def cleanPolygon(poly, tolerance, holeTolerance=0):
+	if holeTolerance == 0:
+		holeTolerance = tolerance * tolerance
+	if poly.is_empty:
+		return poly
+	elif holeTolerance > 0 and poly.area <= holeTolerance:
+		return shapely.geometry.Polygon()
+	elif isinstance(poly, shapely.geometry.MultiPolygon):
+		polys = [cleanPolygon(p, tolerance, holeTolerance) for p in poly]
+		poly = shapely.ops.unary_union(polys)
+		assert poly.is_valid, poly
+		return poly
+	exterior = poly.exterior.simplify(tolerance)
+	exterior = cleanChain(exterior.coords, tolerance)
+	if len(exterior) <= 3:
+		return shapely.geometry.Polygon()
 	ints = []
 	for interior in poly.interiors:
+		interior = interior.simplify(tolerance)
 		interior = cleanChain(interior.coords, tolerance)
-		if len(interior) >= 3:
+		if len(interior) >= 4:
 			hole = shapely.geometry.Polygon(interior)
 			if hole.area > holeTolerance:
 				ints.append(interior)
@@ -149,31 +183,112 @@ def cleanPolygon(poly, tolerance, holeTolerance):
 	assert newPoly.is_valid, newPoly
 	return newPoly
 
-def cleanChain(chain, tolerance, angleTolerance=0.008):
-	if len(chain) <= 2:
-		return chain
+def cleanChain(chain, tolerance=1e-6):
 	closed = (tuple(chain[0]) == tuple(chain[-1]))
+	minLength = 4 if closed else 3
+	if len(chain) <= minLength:
+		return chain
 	tol2 = tolerance * tolerance
-	# collapse hooks
-	chain = np.array(chain)
-	a, b = chain[-1], chain[0]
-	newChain = []
-	for c in chain[1:]:
-		dx, dy = c[0] - a[0], c[1] - a[1]
+	# collapse nearby points (since Shapely's simplify method doesn't always do this)
+	a = chain[0]
+	newChain = [a]
+	for b in chain[1:]:
+		dx, dy = b[0] - a[0], b[1] - a[1]
 		if (dx * dx) + (dy * dy) > tol2:
+			newChain.append(b)
+			a = b
+	if closed:
+		b = chain[0]
+		dx, dy = b[0] - a[0], b[1] - a[1]
+		if (dx * dx) + (dy * dy) <= tol2:
+			newChain.pop()
+		newChain.append(chain[0])
+	if len(newChain) <= minLength:
+		return newChain
+	# collapse hooks and collinear points
+	chain = newChain
+	if closed:
+		a = chain[-2]
+		b = chain[0]
+		ci = 1
+		newChain = []
+	else:
+		a = chain[0]
+		b = chain[1]
+		ci = 2
+		newChain = [a]
+	for c in chain[ci:]:
+		dx, dy = c[0] - a[0], c[1] - a[1]
+		if ((dx * dx) + (dy * dy) > tol2
+		    and distanceToLine(b, a, c) > tolerance):
 			newChain.append(b)
 			a = b
 			b = c
 		else:
 			b = c
-	if len(newChain) == 0:
-		return newChain
-	newChain.append(newChain[0] if closed else c)
+	newChain.append(c)
 	return newChain
 
+#: Whether to warn when falling back to pypoly2tri for triangulation
+givePP2TWarning = True
+
 def triangulatePolygon(polygon):
-	# TODO replace with another library!
-	# N.B. can't use shapely.ops.triangulate since it doesn't respect edges
+	"""Triangulate the given Shapely polygon.
+
+	Note that we can't use ``shapely.ops.triangulate`` since it triangulates
+	point sets, not polygons (i.e., it doesn't respect edges). We need an
+	algorithm for triangulation of polygons with holes (it doesn't need to be a
+	Delaunay triangulation).
+
+	We currently use the GPC library (wrapped by the ``Polygon3`` package) if it is
+	installed. Since it is not free for commercial use, we don't require it as a
+	dependency, falling back on the BSD-compatible ``pypoly2tri`` as needed. In this
+	case we issue a warning, since GPC is more robust and handles large polygons.
+	The warning can be disabled by setting `givePP2TWarning` to ``False``.
+
+	Args:
+		polygon (shapely.geometry.Polygon): Polygon to triangulate.
+
+	Returns:
+		A list of disjoint (except for edges) triangles whose union is the
+		original polygon.
+	"""
+	try:
+		import Polygon
+		return triangulatePolygon_gpc(polygon)
+	except ImportError:
+		pass
+	if givePP2TWarning:
+		warnings.warn('Using pypoly2tri for triangulation; for non-commercial use, consider'
+		              ' installing the faster Polygon3 library')
+	return triangulatePolygon_pypoly2tri(polygon)
+
+def triangulatePolygon_pypoly2tri(polygon):
+	polyline = []
+	for c in polygon.exterior.coords[:-1]:
+		polyline.append(pypoly2tri.shapes.Point(c[0],c[1]))
+	cdt = pypoly2tri.cdt.CDT(polyline)
+	for i in polygon.interiors:
+		polyline = []
+		for c in i.coords[:-1]:
+			polyline.append(pypoly2tri.shapes.Point(c[0],c[1]))
+		cdt.AddHole(polyline)
+	try:
+		cdt.Triangulate()
+	except RecursionError as e:		# polygon too big for pypoly2tri
+		raise RuntimeError('pypoly2tri unable to triangulate large polygon') from e
+
+	triangles = list()
+	for t in cdt.GetTriangles():
+		triangles.append(shapely.geometry.Polygon([
+			t.GetPoint(0).toTuple(),
+			t.GetPoint(1).toTuple(),
+			t.GetPoint(2).toTuple()
+		]))
+	return triangles
+
+def triangulatePolygon_gpc(polygon):
+	import Polygon as PolygonLib
 	poly = PolygonLib.Polygon(polygon.exterior.coords)
 	for interior in polygon.interiors:
 		poly.addContour(interior.coords, True)
@@ -190,10 +305,8 @@ def triangulatePolygon(polygon):
 
 def plotPolygon(polygon, plt, style='r-'):
 	def plotRing(ring):
-		coords = ring.coords
-		for i, point in enumerate(coords[:-1]):
-			nextPt = coords[i+1]
-			plt.plot([point[0], nextPt[0]], [point[1], nextPt[1]], style)
+		x, y = ring.xy
+		plt.plot(x, y, style)
 	if isinstance(polygon, shapely.geometry.MultiPolygon):
 		polygons = polygon
 	else:

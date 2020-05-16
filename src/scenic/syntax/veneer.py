@@ -1,5 +1,5 @@
 
-"""Veneer library, with Python implementations of Scenic language constructs.
+"""Python implementations of Scenic language constructs.
 
 This module is automatically imported by all Scenic programs. In addition to
 defining the built-in functions, operators, specifiers, etc., it also stores
@@ -9,7 +9,7 @@ global state such as the list of all created Scenic objects.
 __all__ = (
 	# Primitive statements and functions
 	'ego', 'require', 'resample', 'param', 'mutate', 'verbosePrint',
-	'simulation', 'require_always', 'terminate_when', 'terminate',
+	'simulation', 'require_always', 'terminate_when',
 	'sin', 'cos', 'hypot', 'max', 'min',
 	# Prefix operators
 	'Visible',
@@ -23,7 +23,8 @@ __all__ = (
 	'Vector', 'VectorField', 'PolygonalVectorField',
 	'Region', 'PointSetRegion', 'RectangularRegion', 'PolygonalRegion', 'PolylineRegion',
 	'Workspace', 'Mutator',
-	'Range', 'DiscreteRange', 'Options', 'Uniform', 'Normal',
+	'Range', 'DiscreteRange', 'Options', 'Uniform', 'Discrete', 'Normal',
+	'VerifaiParameter', 'VerifaiRange', 'VerifaiDiscreteRange', 'VerifaiOptions',
 	# Constructible types
 	'Point', 'OrientedPoint', 'Object',
 	# Specifiers
@@ -31,35 +32,48 @@ __all__ = (
 	'At', 'In', 'Beyond', 'VisibleFrom', 'VisibleSpec', 'OffsetBy', 'OffsetAlongSpec',
 	'Facing', 'FacingToward', 'ApparentlyFacing',
 	'LeftSpec', 'RightSpec', 'Ahead', 'Behind',
-	# Temporary stuff... # TODO remove
-	'PropertyDefault'
+	'Following',
+	# Constants
+	'everywhere', 'nowhere',
+	# Exceptions
+	'GuardFailure', 'PreconditionFailure', 'InvariantFailure',
+	# Internal APIs 	# TODO remove?
+	'PropertyDefault', 'createBehavior', 'makeTerminationAction'
 )
 
 # various Python types and functions used in the language but defined elsewhere
 from scenic.core.geometry import sin, cos, hypot, max, min
 from scenic.core.vectors import Vector, VectorField, PolygonalVectorField
 from scenic.core.regions import (Region, PointSetRegion, RectangularRegion,
-	PolygonalRegion, PolylineRegion)
+	PolygonalRegion, PolylineRegion, everywhere, nowhere)
 from scenic.core.workspaces import Workspace
 from scenic.core.distributions import Range, DiscreteRange, Options, Normal
 Uniform = lambda *opts: Options(opts)		# TODO separate these?
+Discrete = Options
+from scenic.core.external_params import (VerifaiParameter, VerifaiRange, VerifaiDiscreteRange,
+										 VerifaiOptions)
 from scenic.core.object_types import Mutator, Point, OrientedPoint, Object
 from scenic.core.specifiers import PropertyDefault	# TODO remove
 
 # everything that should not be directly accessible from the language is imported here:
 import inspect
+import sys
 import random
 import enum
+import types
+from collections import defaultdict
 from scenic.core.distributions import (RejectionException, Distribution, toDistribution,
-                                       needsSampling)
+									   needsSampling)
 from scenic.core.type_support import (isA, toType, toTypes, toScalar, toHeading, toVector,
-                                      evaluateRequiringEqualTypes, underlyingType)
+									  evaluateRequiringEqualTypes, underlyingType,
+									  canCoerce, coerce)
 from scenic.core.geometry import RotatedRectangle, normalizeAngle, apparentHeadingAtPoint
 from scenic.core.object_types import Constructible
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
 from scenic.core.utils import RuntimeParseError
-from scenic.simulators.simulators import RejectSimulationException, EndSimulationException
+from scenic.core.external_params import ExternalParameter
+from scenic.simulators.simulators import RejectSimulationException, EndSimulationAction
 
 ### Internals
 
@@ -68,8 +82,11 @@ evaluatingRequirement = False
 allObjects = []		# ordered for reproducibility
 egoObject = None
 globalParameters = {}
-pendingRequirements = {}
+externalParameters = []		# ordered for reproducibility
+pendingRequirements = defaultdict(list)
 inheritedReqs = []		# TODO improve handling of these?
+monitors = []
+behaviors = []
 currentSimulation = None
 
 ## APIs used internally by the rest of Scenic
@@ -91,29 +108,41 @@ def activate():
 
 def deactivate():
 	"""Deactivate the veneer after compiling a Scenic module."""
-	global activity, allObjects, egoObject, globalParameters
-	global pendingRequirements, inheritedReqs
+	global activity, allObjects, egoObject, globalParameters, externalParameters
+	global pendingRequirements, inheritedReqs, monitors, behaviors
 	activity -= 1
 	assert activity >= 0
 	assert not evaluatingRequirement
 	allObjects = []
 	egoObject = None
 	globalParameters = {}
-	pendingRequirements = {}
+	externalParameters = []
+	pendingRequirements = defaultdict(list)
 	inheritedReqs = []
+	monitors = []
+	behaviors = []
 
 # Object creation
 
 def registerObject(obj):
 	"""Add a Scenic object to the global list of created objects.
 
-	This is called by the Object constructor."""
+	This is called by the Object constructor.
+	"""
 	if activity > 0:
 		assert not evaluatingRequirement
 		assert isinstance(obj, Constructible)
 		allObjects.append(obj)
 	elif evaluatingRequirement:
 		raise RuntimeParseError('tried to create an object inside a requirement')
+
+# External parameter creation
+
+def registerExternalParameter(value):
+	"""Register a parameter whose value is given by an external sampler."""
+	if activity > 0:
+		assert isinstance(value, ExternalParameter)
+		externalParameters.append(value)
 
 # Simulations
 
@@ -124,6 +153,11 @@ def beginSimulation(sim):
 	assert currentSimulation is None
 	currentSimulation = sim
 	egoObject = sim.scene.egoObject
+
+	# rebind globals that could be referenced by behaviors to their sampled values
+	for modName, (originalNS, sampledNS) in sim.scene.behaviorNamespaces.items():
+		originalNS.clear()
+		originalNS.update(sampledNS)
 
 def endSimulation():
 	global currentSimulation
@@ -136,17 +170,17 @@ def simulationInProgress():
 # Requirements
 
 @enum.unique
-class RequirementType(enum.IntEnum):
+class RequirementType(enum.Enum):
 	# requirements which must hold during initial sampling
-	require = -1
-	requireAlways = -2
+	require = 'require'
+	requireAlways = 'require always'
 
 	# requirements used only during simulation
-	terminateWhen = 1
+	terminateWhen = 'terminate when'
 
 	@property
 	def constrainsSampling(self):
-		return self < 0
+		return self is not self.terminateWhen
 
 class PendingRequirement:
 	def __init__(self, ty, condition, line, prob):
@@ -205,12 +239,90 @@ class BoundRequirement:
 	def isTrue(self):
 		return self.closure(self.sample)
 
-# Behavior management
+	def __str__(self):
+		return f'"{self.ty.value}" on line {self.line}'
+
+# Behaviors
+
+class Behavior:
+	def __init__(self, generator):
+		self.generator = generator
+		self.name = generator.__name__
+		self.runningIterator = None
+
+		# Save all global names used so we can rebind them with sampled values later
+		self.module = generator.__module__
+		self.globalNamespace = generator.__globals__
+
+	def start(self, agent):
+		it = self.generator(self, agent)
+		if isinstance(it, types.GeneratorType):
+			self.runningIterator = it
+			return True
+		else:
+			return False	# behavior did not issue any actions
+
+	def step(self):
+		if self.runningIterator is None:
+			return None
+		try:
+			action = self.runningIterator.send(None)
+		except StopIteration:
+			action = None      # behavior ended early
+		return action
+
+	def stop(self):
+		self.runningIterator = None
+
+	def callSubBehavior(self, sub, agent, *args, **kwargs):
+		assert isABehaviorGenerator(sub)
+		behaviorObj = getattr(sub, behaviorIndicator)
+		yield from sub(behaviorObj, agent, *args, **kwargs)
+
+	def __str__(self):
+		return f'behavior {self.name}'
 
 behaviorIndicator = '__Scenic_behavior'
 
-def isABehavior(thing):
+def isABehaviorGenerator(thing):
 	return hasattr(thing, behaviorIndicator)
+def behaviorObjectFor(generator):
+	return getattr(generator, behaviorIndicator)
+
+def createBehavior(generator):
+	if isAMonitorName(generator.__name__):
+		behavior = Monitor(generator)
+		monitors.append(behavior)
+	else:
+		behavior = Behavior(generator)
+	behaviors.append(behavior)
+	return behavior
+
+def makeTerminationAction(line):
+	assert not isActive()
+	return EndSimulationAction(line)
+
+# Monitors
+
+class Monitor(Behavior):
+	def __init__(self, generator):
+		super().__init__(generator)
+		assert isAMonitorName(self.name)
+		self.name = monitorName(self.name)
+
+	def start(self):
+		return super().start(None)
+
+	def __str__(self):
+		return f'monitor {self.name}'
+
+monitorPrefix = '_Scenic_monitor_'
+def functionForMonitor(name):
+	return monitorPrefix + name
+def isAMonitorName(name):
+	return name.startswith(monitorPrefix)
+def monitorName(name):
+	return name[len(monitorPrefix):]
 
 ### Primitive statements and functions
 
@@ -240,13 +352,13 @@ def require(reqID, req, line, prob=1):
 			assert not needsSampling(result)
 			if needsLazyEvaluation(result):
 				raise InvalidScenarioError(f'requirement on line {line} uses value'
-				                           ' undefined outside of object definition')
+										   ' undefined outside of object definition')
 			if not result:
 				raise RejectSimulationException(f'requirement on line {line}')
 	else:	# requirement being defined at compile time
 		assert reqID not in pendingRequirements
 		pendingRequirements[reqID] = PendingRequirement(RequirementType.require, req,
-		                                                line, prob)
+														line, prob)
 
 def require_always(reqID, req, line):
 	"""Function implementing the 'require always' statement."""
@@ -257,7 +369,7 @@ def require_always(reqID, req, line):
 	else:
 		assert reqID not in pendingRequirements
 		pendingRequirements[reqID] = PendingRequirement(RequirementType.requireAlways, req,
-		                                                line, 1)
+														line, 1)
 
 def terminate_when(reqID, req, line):
 	"""Function implementing the 'terminate when' statement."""
@@ -268,7 +380,7 @@ def terminate_when(reqID, req, line):
 	else:
 		assert reqID not in pendingRequirements
 		pendingRequirements[reqID] = PendingRequirement(RequirementType.terminateWhen, req,
-		                                                line, 1)
+														line, 1)
 
 def resample(dist):
 	"""The built-in resample function."""
@@ -287,16 +399,15 @@ def simulation():
 	assert currentSimulation is not None
 	return currentSimulation
 
-def terminate():
-	if isActive():
-		raise RuntimeParseError('used terminate statement outside a behavior')
-	raise EndSimulationException
-
-def param(**params):
+def param(*quotedParams, **params):
 	"""Function implementing the param statement."""
 	if evaluatingRequirement:
 		raise RuntimeParseError('tried to create a global parameter inside a requirement')
 	for name, value in params.items():
+		globalParameters[name] = toDistribution(value)
+	assert len(quotedParams) % 2 == 0, quotedParams
+	it = iter(quotedParams)
+	for name, value in zip(it, it):
 		globalParameters[name] = toDistribution(value)
 
 def mutate(*objects):		# TODO update syntax
@@ -380,7 +491,7 @@ def RelativeTo(X, Y):
 			X = toTypes(X, (Vector, float), '"X relative to Y" with X neither a vector nor scalar')
 			Y = toTypes(Y, (Vector, float), '"X relative to Y" with Y neither a vector nor scalar')
 			return evaluateRequiringEqualTypes(lambda: X + Y, X, Y,
-			                                   '"X relative to Y" with vector and scalar')
+											   '"X relative to Y" with vector and scalar')
 
 def OffsetAlong(X, H, Y):
 	"""The 'X offset along H by Y' polymorphic operator.
@@ -584,7 +695,7 @@ def Facing(heading):
 	"""
 	if isinstance(heading, VectorField):
 		return Specifier('heading', DelayedArgument({'position'},
-		                                            lambda self: heading[self.position]))
+													lambda self: heading[self.position]))
 	else:
 		heading = toHeading(heading, 'specifier "facing X" with X not a heading or vector field')
 		return Specifier('heading', heading)
@@ -596,7 +707,7 @@ def FacingToward(pos):
 	"""
 	pos = toVector(pos, 'specifier "facing toward X" with X not a vector')
 	return Specifier('heading', DelayedArgument({'position'},
-	                                            lambda self: self.position.angleTo(pos)))
+												lambda self: self.position.angleTo(pos)))
 
 def ApparentlyFacing(heading, fromPt=None):
 	"""The 'apparently facing <heading> [from <vector>]' specifier.
@@ -624,7 +735,7 @@ def LeftSpec(pos, dist=0):
 	If the 'by <scalar/vector>' is omitted, zero is used.
 	"""
 	return leftSpecHelper('left of', pos, dist, 'width', lambda dist: (dist, 0),
-	                      lambda self, dx, dy: Vector(-self.width / 2 - dx, dy))
+						  lambda self, dx, dy: Vector(-self.width / 2 - dx, dy))
 
 def RightSpec(pos, dist=0):
 	"""The 'right of X [by Y]' polymorphic specifier.
@@ -638,7 +749,7 @@ def RightSpec(pos, dist=0):
 	If the 'by <scalar/vector>' is omitted, zero is used.
 	"""
 	return leftSpecHelper('right of', pos, dist, 'width', lambda dist: (dist, 0),
-	                      lambda self, dx, dy: Vector(self.width / 2 + dx, dy))
+						  lambda self, dx, dy: Vector(self.width / 2 + dx, dy))
 
 def Ahead(pos, dist=0):
 	"""The 'ahead of X [by Y]' polymorphic specifier.
@@ -646,13 +757,14 @@ def Ahead(pos, dist=0):
 	Specifies 'position', depending on 'height'. See other dependencies below.
 
 	Allowed forms:
-		ahead of <oriented point> [by <scalar/vector>] -- optionally specifies 'heading';
-		ahead of <vector> [by <scalar/vector>] -- depends on 'heading'.
+
+	* ``ahead of`` <oriented point> [``by`` <scalar/vector>] -- optionally specifies 'heading';
+	* ``ahead of`` <vector> [``by`` <scalar/vector>] -- depends on 'heading'.
 
 	If the 'by <scalar/vector>' is omitted, zero is used.
 	"""
 	return leftSpecHelper('ahead of', pos, dist, 'height', lambda dist: (0, dist),
-	                      lambda self, dx, dy: Vector(dx, self.height / 2 + dy))
+						  lambda self, dx, dy: Vector(dx, self.height / 2 + dy))
 
 def Behind(pos, dist=0):
 	"""The 'behind X [by Y]' polymorphic specifier.
@@ -666,15 +778,14 @@ def Behind(pos, dist=0):
 	If the 'by <scalar/vector>' is omitted, zero is used.
 	"""
 	return leftSpecHelper('behind', pos, dist, 'height', lambda dist: (0, dist),
-	                      lambda self, dx, dy: Vector(dx, -self.height / 2 - dy))
+						  lambda self, dx, dy: Vector(dx, -self.height / 2 - dy))
 
 def leftSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
 	extras = set()
-	dType = underlyingType(dist)
-	if dType is float or dType is int:
-		dx, dy = toComponents(dist)
-	elif dType is Vector:
-		dx, dy = dist
+	if canCoerce(dist, float):
+		dx, dy = toComponents(coerce(dist, float))
+	elif canCoerce(dist, Vector):
+		dx, dy = coerce(dist, Vector)
 	else:
 		raise RuntimeParseError(f'"{syntax} X by D" with D not a number or vector')
 	if isinstance(pos, OrientedPoint):		# TODO too strict?
@@ -686,3 +797,41 @@ def leftSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
 		val = lambda self: pos.offsetRotated(self.heading, makeOffset(self, dx, dy))
 		new = DelayedArgument({axis, 'heading'}, val)
 	return Specifier('position', new, optionals=extras)
+
+def Following(field, dist, fromPt=None):
+	"""The 'following F [from X] for D' specifier.
+
+	Specifies 'position', and optionally 'heading', with no dependencies.
+
+	Allowed forms:
+		following <field> [from <vector>] for <number>
+
+	If the 'from <vector>' is omitted, the position of ego is used.
+	"""
+	if fromPt is None:
+		fromPt = ego()
+	else:
+		dist, fromPt = fromPt, dist
+	if not isinstance(field, VectorField):
+		raise RuntimeParseError('"following F" specifier with F not a vector field')
+	fromPt = toVector(fromPt, '"following F from X for D" with X not a vector')
+	dist = toScalar(dist, '"following F for D" with D not a number')
+	pos = field.followFrom(fromPt, dist)
+	heading = field[pos]
+	val = OrientedPoint(position=pos, heading=heading)
+	return Specifier('position', val, optionals={'heading'})
+
+### Exceptions
+
+class GuardFailure(Exception):
+	"""Raised when a guard of a behavior is violated."""
+	pass
+
+class PreconditionFailure(GuardFailure):
+	"""Raised when a precondition fails when invoking a behavior."""
+	pass
+
+class InvariantFailure(GuardFailure):
+	"""Raised when an invariant fails when invoking/resuming a behavior."""
+	pass
+

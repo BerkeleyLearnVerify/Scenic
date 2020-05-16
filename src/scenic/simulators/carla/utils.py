@@ -1,7 +1,9 @@
 import carla
 import math
+
 from scenic.core.vectors import Vector
 from scenic.core.geometry import normalizeAngle
+
 
 def snapToGround(world, location):
 	"""Mutates @location to have the same z-coordinate as the nearest waypoint in @world."""

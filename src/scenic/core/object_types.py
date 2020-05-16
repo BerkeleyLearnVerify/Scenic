@@ -1,5 +1,4 @@
-
-### Object types
+"""Implementations of the built-in Scenic classes."""
 
 import inspect
 import collections
@@ -13,12 +12,19 @@ from scenic.core.geometry import RotatedRectangle, averageVectors, hypot, min, p
 from scenic.core.regions import CircularRegion, SectorRegion
 from scenic.core.type_support import toVector, toScalar
 from scenic.core.lazy_eval import needsLazyEvaluation
-from scenic.core.utils import RuntimeParseError
+from scenic.core.utils import areEquivalent, RuntimeParseError
 
 ## Abstract base class
 
 class Constructible(Samplable):
-	"""something created by a constructor"""
+	"""Abstract base class for Scenic objects.
+
+	Scenic objects, which are constructed using specifiers, are implemented
+	internally as instances of ordinary Python classes. This abstract class
+	implements the procedure to resolve specifiers and determine values for
+	the properties of an object, as well as several common methods supported
+	by objects.
+	"""
 
 	@classmethod
 	def defaults(cla):		# TODO improve so this need only be done once?
@@ -54,8 +60,7 @@ class Constructible(Samplable):
 		optionals = collections.defaultdict(list)
 		defs = self.defaults()
 		for spec in specifiers:
-			if not isinstance(spec, Specifier):
-				raise RuntimeParseError(f'argument {spec} to {name} is not a specifier')
+			assert isinstance(spec, Specifier), (name, spec)
 			prop = spec.property
 			if prop in properties:
 				raise RuntimeParseError(f'property "{prop}" of {name} specified twice')
@@ -120,7 +125,7 @@ class Constructible(Samplable):
 			if needsSampling(val):
 				deps.append(val)
 		super().__init__(deps)
-		self.properties = properties
+		self.properties = set(properties)
 
 	def sampleGiven(self, value):
 		return self.withProperties({ prop: value[getattr(self, prop)]
@@ -134,6 +139,11 @@ class Constructible(Samplable):
 		props.update(overrides)
 		return self.withProperties(props)
 
+	def isEquivalentTo(self, other):
+		if type(other) is not type(self):
+			return False
+		return areEquivalent(self.allProperties(), other.allProperties())
+
 	def __str__(self):
 		if hasattr(self, 'properties'):
 			allProps = { prop: getattr(self, prop) for prop in self.properties }
@@ -144,9 +154,24 @@ class Constructible(Samplable):
 ## Mutators
 
 class Mutator:
-	pass
+	"""An object controlling how the ``mutate`` statement affects an `Object`.
+
+	A `Mutator` can be assigned to the ``mutator`` property of an `Object` to
+	control the effect of the ``mutate`` statement. When mutation is enabled
+	for such an object using that statement, the mutator's `appliedTo` method
+	is called to compute a mutated version.
+	"""
+
+	def appliedTo(self, obj):
+		"""Return a mutated copy of the object. Implemented by subclasses."""
+		raise NotImplementedError
 
 class PositionMutator(Mutator):
+	"""Mutator adding Gaussian noise to ``position``. Used by `Point`.
+
+	Attributes:
+		stddev (float): standard deviation of noise
+	"""
 	def __init__(self, stddev):
 		self.stddev = stddev
 
@@ -156,7 +181,20 @@ class PositionMutator(Mutator):
 		pos = pos + noise
 		return (obj.copyWith(position=pos), True)		# allow further mutation
 
+	def __eq__(self, other):
+		if type(other) is not type(self):
+			return NotImplemented
+		return (other.stddev == self.stddev)
+
+	def __hash__(self):
+		return hash(self.stddev)
+
 class HeadingMutator(Mutator):
+	"""Mutator adding Gaussian noise to ``heading``. Used by `OrientedPoint`.
+
+	Attributes:
+		stddev (float): standard deviation of noise
+	"""
 	def __init__(self, stddev):
 		self.stddev = stddev
 
@@ -165,9 +203,29 @@ class HeadingMutator(Mutator):
 		h = obj.heading + noise
 		return (obj.copyWith(heading=h), True)		# allow further mutation
 
+	def __eq__(self, other):
+		if type(other) is not type(self):
+			return NotImplemented
+		return (other.stddev == self.stddev)
+
+	def __hash__(self):
+		return hash(self.stddev)
+
 ## Point
 
 class Point(Constructible):
+	"""Implementation of the Scenic class ``Point``.
+
+	The default mutator for `Point` adds Gaussian noise to ``position`` with
+	a standard deviation given by the ``positionStdDev`` property.
+
+	Attributes:
+		position (`Vector`): Position of the point. Default value is the origin.
+		visibleDistance (float): Distance for ``can see`` operator. Default value 50.
+		width (float): Default value zero (only provided for compatibility with
+		  operators that expect an `Object`).
+		height (float): Default value zero.
+	"""
 	position: Vector(0, 0)
 	width: 0
 	height: 0
@@ -214,6 +272,17 @@ class Point(Constructible):
 ## OrientedPoint
 
 class OrientedPoint(Point):
+	"""Implementation of the Scenic class ``OrientedPoint``.
+
+	The default mutator for `OrientedPoint` adds Gaussian noise to ``heading``
+	with a standard deviation given by the ``headingStdDev`` property, then
+	applies the mutator for `Point`.
+
+	Attributes:
+		heading (float): Heading of the `OrientedPoint`. Default value 0 (North).
+		viewAngle (float): View cone angle for ``can see`` operator. Default
+		  value :math:`2\\pi`.
+	"""
 	heading: 0
 	viewAngle: math.tau
 
@@ -242,6 +311,23 @@ class OrientedPoint(Point):
 ## Object
 
 class Object(OrientedPoint, RotatedRectangle):
+	"""Implementation of the Scenic class ``Object``.
+
+	Attributes:
+		width (float): Width of the object, i.e. extent along its X axis.
+		  Default value 1.
+		height (float): Height of the object, i.e. extent along its Y axis.
+		  Default value 1.
+		allowCollisions (bool): Whether the object is allowed to intersect
+		  other objects. Default value ``False``.
+		requireVisible (bool): Whether the object is required to be visible
+		  from the ``ego`` object. Default value ``True``.
+		regionContainedIn (`Region` or ``None``): A `Region` the object is
+		  required to be contained in. If ``None``, the object need only be
+		  contained in the scenario's workspace.
+		cameraOffset (`Vector`): Position of the camera for the ``can see``
+		  operator, relative to the object's ``position``. Default ``0 @ 0``.
+	"""
 	width: 1
 	height: 1
 	allowCollisions: False
@@ -286,32 +372,31 @@ class Object(OrientedPoint, RotatedRectangle):
 		if needsSampling(self):
 			raise RuntimeError('tried to show() symbolic Object')
 		pos = self.position
-		mpos = workspace.langToMapCoords(pos)
+		spos = workspace.scenicToSchematicCoords(pos)
 
 		if highlight:
 			# Circle around object
 			rad = 1.5 * max(self.width, self.height)
-			c = plt.Circle(mpos, rad, color='g', fill=False)
+			c = plt.Circle(spos, rad, color='g', fill=False)
 			plt.gca().add_artist(c)
 			# View cone
 			ha = self.viewAngle / 2.0
 			camera = self.position.offsetRotated(self.heading, self.cameraOffset)
-			cpos = workspace.langToMapCoords(camera)
+			cpos = workspace.scenicToSchematicCoords(camera)
 			for angle in (-ha, ha):
 				p = camera.offsetRadially(20, self.heading + angle)
-				edge = [cpos, workspace.langToMapCoords(p)]
+				edge = [cpos, workspace.scenicToSchematicCoords(p)]
 				x, y = zip(*edge)
 				plt.plot(x, y, 'b:')
 
-		corners = [workspace.langToMapCoords(corner) for corner in self.corners]
+		corners = [workspace.scenicToSchematicCoords(corner) for corner in self.corners]
 		x, y = zip(*corners)
 		color = self.color if hasattr(self, 'color') else (1, 0, 0)
 		plt.fill(x, y, color=color)
-		#plt.plot(x + (x[0],), y + (y[0],), color="g", linewidth=1)
 
 		frontMid = averageVectors(corners[0], corners[1])
 		baseTriangle = [frontMid, corners[2], corners[3]]
-		triangle = [averageVectors(p, mpos, weight=0.5) for p in baseTriangle]
+		triangle = [averageVectors(p, spos, weight=0.5) for p in baseTriangle]
 		x, y = zip(*triangle)
 		plt.fill(x, y, "w")
 		plt.plot(x + (x[0],), y + (y[0],), color="k", linewidth=1)

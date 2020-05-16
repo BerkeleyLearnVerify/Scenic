@@ -1,11 +1,11 @@
-
-### Vectors
+"""Scenic vectors and vector fields."""
 
 import math
 from math import sin, cos
 import random
 import collections
 import itertools
+import functools
 
 import shapely.geometry
 
@@ -93,6 +93,8 @@ def scalarOperator(method):
 	"""Decorator for vector operators that yield scalars."""
 	op = method.__name__
 	setattr(VectorDistribution, op, makeOperatorHandler(op))
+
+	@functools.wraps(method)
 	def handler2(self, *args, **kwargs):
 		if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
 			return MethodDistribution(method, self, args, kwargs)
@@ -108,6 +110,8 @@ def vectorOperator(method):
 	"""Decorator for vector operators that yield vectors."""
 	op = method.__name__
 	setattr(VectorDistribution, op, makeVectorOperatorHandler(op))
+
+	@functools.wraps(method)
 	def handler2(self, *args):
 		if needsSampling(self):
 			return VectorOperatorDistribution(op, self, args)
@@ -122,6 +126,7 @@ def vectorOperator(method):
 
 def vectorDistributionMethod(method):
 	"""Decorator for methods that produce vectors. See distributionMethod."""
+	@functools.wraps(method)
 	def helper(self, *args, **kwargs):
 		if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
 			return VectorMethodDistribution(method, self, args, kwargs)
@@ -130,7 +135,6 @@ def vectorDistributionMethod(method):
 			return makeDelayedFunctionCall(helper, (self,) + args, kwargs)
 		else:
 			return method(self, *args, **kwargs)
-	helper._underlyingFunction = method
 	return helper
 
 class Vector(Samplable, collections.abc.Sequence):
@@ -207,6 +211,14 @@ class Vector(Samplable, collections.abc.Sequence):
 	def __repr__(self):
 		return f'({self.x} @ {self.y})'
 
+	def __eq__(self, other):
+		if type(other) is not Vector:
+			return NotImplemented
+		return other.coordinates == self.coordinates
+
+	def __hash__(self):
+		return hash(self.coordinates)
+
 VectorDistribution.defaultValueType = Vector
 
 class OrientedVector(Vector):
@@ -216,6 +228,15 @@ class OrientedVector(Vector):
 
 	def toHeading(self):
 		return self.heading
+
+	def __eq__(self, other):
+		if type(other) is not OrientedVector:
+			return NotImplemented
+		return (other.coordinates == self.coordinates
+		    and other.heading == self.heading)
+
+	def __hash__(self):
+		return hash((self.coordinates, self.heading))
 
 class VectorField:
 	def __init__(self, name, value):

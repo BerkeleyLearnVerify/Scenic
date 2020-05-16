@@ -2,25 +2,34 @@
 from scenic import scenarioFromString as compileScenic
 
 def test_basic(loadLocalScenario):
-    scenario = loadLocalScenario('crossing.sc')
+    scenario = loadLocalScenario('crossing.scenic')
     scenario.generate(maxIterations=1000)
 
 def test_road_only(loadLocalScenario):
-    scenario = loadLocalScenario('simple.sc')
+    scenario = loadLocalScenario('simple.scenic')
     scenario.generate(maxIterations=100)
+
+def test_curb(loadLocalScenario):
+    scenario = loadLocalScenario('curb.scenic')
+    scenario.generate(maxIterations=200)
 
 def test_noninterference(runLocally):
     code = (
         "import scenic.simulators.webots.road.world as world\n"
-        "world.worldPath = 'richmond.wbt'\n"
-        "from scenic.simulators.webots.road.road_model import *\n"
+        "world.worldPath = '{world}'\n"
+        "from scenic.simulators.webots.road.model import *\n"
         "ego = Pedestrian"
     )
     with runLocally():
-        scenario = compileScenic(code)
+        scenario = compileScenic(code.format(world='richmond.wbt'))
         assert len(scenario.objects) == 1
         roads1 = scenario.workspace.roads
-        scenario = compileScenic(code)
+        assert len(roads1) > 1
+        scenario = compileScenic(code.format(world='simple.wbt'))
         assert len(scenario.objects) == 1
         roads2 = scenario.workspace.roads
-        assert len(roads1) == len(roads2)
+        assert len(roads2) == 1
+        scenario = compileScenic(code.format(world='richmond.wbt'))
+        assert len(scenario.objects) == 1
+        roads3 = scenario.workspace.roads
+        assert len(roads1) == len(roads3)
