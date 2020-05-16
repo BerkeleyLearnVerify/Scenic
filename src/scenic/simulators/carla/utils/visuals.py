@@ -89,8 +89,8 @@ class HUD(object):
 			'Map:	 % 20s' % world.get_map().name,
 			'Simulation time: % 12s' % datetime.timedelta(seconds=int(self.simulation_time)),
 			'',
-			'Number of vehicles: % 8d' % len(vehicles)
-			'Number of pedestrians: % 8d' % len(pedestrians)
+			'Number of vehicles: % 8d' % len(vehicles),
+			'Number of pedestrians: % 8d' % len(pedestrians),
 			'',
 			'Ego: % 20s' % get_actor_display_name(ego.carlaActor, truncate=20),
 			'',
