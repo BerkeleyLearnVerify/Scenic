@@ -1,10 +1,8 @@
-See example Scenic programs for CARLA at `Scenic/examples/carla`.
+To use these programs with CARLA, run `python3.8 driver.py`. You can change parameters for map path, scenic script, address, port, and HUD in `driver.py`. See example Scenic programs for CARLA at `Scenic/examples/carla`.
 
-To use these programs with CARLA, run `python3.8 driver.py`. You can change parameters for map path, scenic script, address, port, and HUD in `driver.py`.
+---
 
 Currently supported objects are vehicles, pedestrians, and props.
-
-Vehicles have an `agent` parameter, which specifies the agent to be used to control the vehicle.
 
 Weather parameters are described below. (Descriptions are from the CARLA Python API reference.)
 * `cloudiness` (float)
