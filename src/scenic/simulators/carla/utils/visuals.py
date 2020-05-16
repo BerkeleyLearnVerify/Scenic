@@ -96,19 +96,19 @@ class HUD(object):
 			'',
 			'Speed:   % 15.0f km/h' % (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)),
 			u'Heading:% 16.0f\N{DEGREE SIGN} % 2s' % (t.rotation.yaw, heading),
-			'Location:% 20s' % ('(% 5.1f, % 5.1f)' % (t.location.x, t.location.y)),
+			'Location:% 20s' % ('(% 5.3f, % 5.3f)' % (t.location.x, t.location.y)),
 			'Height:  % 18.0f m' % t.location.z,
 		]
 
 		try:
 			_control_text = [
 				'',
-				'Throttle:', c.throttle, 0.0, 1.0,
-				'Steer:', c.steer, -1.0, 1.0,
-				'Brake:', c.brake, 0.0, 1.0,
-				'Reverse:', c.reverse,
-				'Hand brake:', c.hand_brake,
-				'Manual:', c.manual_gear_shift,
+				('Throttle:', c.throttle, 0.0, 1.0),
+				('Steer:', c.steer, -1.0, 1.0),
+				('Brake:', c.brake, 0.0, 1.0),
+				('Reverse:', c.reverse),
+				('Hand brake:', c.hand_brake),
+				('Manual:', c.manual_gear_shift),
 				'Gear:		%s' % {-1: 'R', 0: 'N'}.get(c.gear, c.gear),
 				#'',
 				#'Collision:', collision,
@@ -116,7 +116,7 @@ class HUD(object):
 		except:
 			_control_text = []
 		finally:
-			self._info_text.append(_control_text)
+			self._info_text.extend(_control_text)
 
 		if len(vehicles) > 1:
 			self._info_text += ['Nearby vehicles:']
