@@ -3,24 +3,22 @@
 import math
 import time
 
-from scenic.simulators.carla.interface import CarlaWorkspace
-from scenic.simulators.carla.maps.map import mapPath, lanePoints
+import scenic.simulators.domains.driving.model as baseModel
+
 from scenic.simulators.carla.models.vehicle_models import carModels, bicycleModels, motorcycleModels, truckModels
-from scenic.simulators.carla.models.prop_models import trashModels, coneModels
 from scenic.simulators.carla.models.walker_models import walkerModels
+from scenic.simulators.carla.models.prop_models import trashModels, coneModels
 
 from scenic.simulators.utils.colors import Color
 
 
-workspace = CarlaWorkspace(mapPath, n=lanePoints)
+workspace = baseModel.workspace
 
-roadDirection = workspace.road_direction
-road = workspace.drivable_region
-sidewalk = workspace.sidewalk_region
-intersection = workspace.intersection_region
-# laneSectionDict is a dict from road id to a list of dicts from
-# lane id to polygon, one dict per lane section.
-laneSectionDict = workspace.lane_sec_dict
+network = baseModel.network
+road = baseModel.road
+roadDirection = baseModel.roadDirection
+sidewalk = baseModel.sidewalk
+intersection = baseModel.intersection
 
 precipitation = Options({0: 70, 1: 30}) * (0, 100)
 param precipitation = precipitation
