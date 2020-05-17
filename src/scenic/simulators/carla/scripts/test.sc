@@ -1,7 +1,7 @@
 import scenic.simulators.carla.scripts.behaviors as behaviors
 
 from scenic.simulators.domains.driving.network import loadNetwork
-loadNetwork('../maps/Town01.xodr')
+loadNetwork('/home/carla_challenge/Downloads/Town01.xodr')
 
 from scenic.simulators.carla.models.model import *
 
