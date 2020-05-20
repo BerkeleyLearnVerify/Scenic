@@ -10,12 +10,21 @@ You can install Scenic from PyPI by simply running::
 	pip install scenic
 
 Alternatively, you can download or clone the `Scenic repository <https://github.com/BerkeleyLearnVerify/Scenic>`_, which contains examples we'll use below.
-Install `Poetry <https://python-poetry.org/>`_ and then run::
+Install `Poetry <https://python-poetry.org/>`_, activate the `virtual environment <https://docs.python.org/3/tutorial/venv.html>`_ in which you would like to run Scenic, and then run::
 
 	poetry install
 
-This will install Scenic into your current virtual environment (or create a new one if needed).
 If you will be developing Scenic, add the ``-E dev`` option when invoking Poetry.
+
+.. note::
+
+	If you are not already using a virtual environment, ``poetry install`` will create one.
+	In this case, you will need to prefix your commands with ``poetry run`` in order for them
+	to be executed inside the environment. For instance, to run Scenic on an example you will
+	need to use a command like::
+
+		poetry run python -m scenic examples/gta/badlyParkedCar2.scenic
+
 
 Either of the options above should install all of the dependencies which are required to run Scenic.
 Scenarios using the `scenic.simulators.webots.guideways` model also require the ``pyproj`` package, and will prompt you if you don't have it.
