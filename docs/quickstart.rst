@@ -19,12 +19,8 @@ If you will be developing Scenic, add the ``-E dev`` option when invoking Poetry
 .. note::
 
 	If you are not already using a virtual environment, ``poetry install`` will create one.
-	In this case, you will need to prefix your commands with ``poetry run`` in order for them
-	to be executed inside the environment. For instance, to run Scenic on an example you will
-	need to use a command like::
-
-		poetry run python -m scenic examples/gta/badlyParkedCar2.scenic
-
+	You can then run ``poetry shell`` to create a terminal inside the environment for running
+	the commands below.
 
 Either of the options above should install all of the dependencies which are required to run Scenic.
 Scenarios using the `scenic.simulators.webots.guideways` model also require the ``pyproj`` package, and will prompt you if you don't have it.
