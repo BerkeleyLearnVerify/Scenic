@@ -27,9 +27,9 @@ Scenarios using the `scenic.simulators.webots.guideways` model also require the 
 
 .. note::
 
-	You may also want to install the ``Polygon3`` package to get faster and more robust
-	polygon triangulation. However, this package is based on the `GPC library`_, which is
-	only free for non-commercial use.
+	You may also want to install the ``Polygon3`` package (``pip install Polygon3``) to get
+	faster and more robust polygon triangulation. However, this package is based on the
+	`GPC library`_, which is only free for non-commercial use.
 
 .. _GPC library: http://www.cs.man.ac.uk/~toby/gpc/
 

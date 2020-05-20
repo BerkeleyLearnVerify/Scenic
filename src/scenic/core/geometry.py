@@ -209,7 +209,7 @@ def triangulatePolygon(polygon):
 		pass
 	if givePP2TWarning:
 		warnings.warn('Using pypoly2tri for triangulation; for non-commercial use, consider'
-		              ' installing the faster Polygon3 library')
+		              ' installing the faster Polygon3 library (pip install Polygon3)')
 	return triangulatePolygon_pypoly2tri(polygon)
 
 def triangulatePolygon_pypoly2tri(polygon):
@@ -225,7 +225,8 @@ def triangulatePolygon_pypoly2tri(polygon):
 	try:
 		cdt.Triangulate()
 	except RecursionError:		# polygon too big for pypoly2tri
-		raise TriangulationError('pypoly2tri unable to triangulate large polygon')
+		raise TriangulationError('pypoly2tri unable to triangulate large polygon; for '
+		                         'non-commercial use, try "pip install Polygon3"')
 
 	triangles = list()
 	for t in cdt.GetTriangles():
