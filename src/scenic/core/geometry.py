@@ -132,6 +132,9 @@ def distanceToLine(point, a, b):
 def polygonUnion(polys, buf=0, tolerance=0, holeTolerance=0.002):
 	if not polys:
 		return shapely.geometry.Polygon()
+	polys = list(polys)
+	if len(polys) == 1:
+		return polys[0]
 	buffered = [poly.buffer(buf) for poly in polys]
 	union = shapely.ops.unary_union(buffered).buffer(-buf)
 	assert union.is_valid, union
@@ -204,6 +207,8 @@ def cleanChain(chain, tolerance=1e-6):
 			newChain.pop()
 		newChain.append(chain[0])
 	if len(newChain) <= minLength:
+		if not closed:
+			newChain.append(chain[-1])
 		return newChain
 	# collapse hooks and collinear points
 	chain = newChain
