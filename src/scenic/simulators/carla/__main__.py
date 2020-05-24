@@ -3,9 +3,9 @@ import pygame
 
 from scenic.simulators.carla.simulator import CarlaSimulator
 
+
 # ==============================================================================
 # -- Parameters: CHANGEME ------------------------------------------------------
-
 carla_map = 'Town01'
 sc_file_path = 'scripts/test.sc'
 
@@ -16,8 +16,8 @@ render = True  # for HUD visualization
 
 numSimulations = 10
 maxSteps = 100
-
 # ==============================================================================
+
 
 simulator = CarlaSimulator(carla_map, address, port, render=render)
 scenario = scenic.scenarioFromFile(sc_file_path)

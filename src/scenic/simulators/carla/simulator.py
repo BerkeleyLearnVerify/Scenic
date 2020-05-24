@@ -15,8 +15,8 @@ class CarlaSimulator(simulators.Simulator):
 
 		# Set to synchronous with fixed timestep
 		settings = self.world.get_settings()
-		settings.fixed_delta_seconds = 0.05
 		settings.synchronous_mode = True
+		settings.fixed_delta_seconds = 0.1  # NOTE: Should not exceed 0.1
 		self.world.apply_settings(settings)
 
 		self.render = render  # visualization mode ON/OFF
@@ -31,14 +31,8 @@ class CarlaSimulation(simulators.Simulation):
 		self.client = client
 		self.world = self.client.get_world()
 		self.blueprintLib = self.world.get_blueprint_library()
-
-		# Allow changing of timestep
-		self.timeStep = scene.params.get('time_step', 1.0/30)
-		settings = self.world.get_settings()
-		settings.fixed_delta_seconds = scene.params.get('time_step', 1.0/30)
-		self.world.apply_settings(settings)
 		
-		# Reloads current world (destroys all actors, except traffic manager instances)
+		# Reloads current world: destroys all actors, except traffic manager instances
 		self.client.reload_world()
 
 		# Setup HUD
@@ -55,7 +49,6 @@ class CarlaSimulation(simulators.Simulation):
 				pygame.HWSURFACE | pygame.DOUBLEBUF
 			)
 			self.cameraManager = None
-			#self.collisionSensor = None
 
 		# Create Carla actors corresponding to Scenic objects
 		self.ego = None
