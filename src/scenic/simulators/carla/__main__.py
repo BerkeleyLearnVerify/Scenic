@@ -19,7 +19,7 @@ maxSteps = 100
 
 # ==============================================================================
 
-simulator = CarlaSimulator(carla_map, address=address, port=port, render=render)
+simulator = CarlaSimulator(carla_map, address, port, render=render)
 scenario = scenic.scenarioFromFile(sc_file_path)
 
 for _ in range(numSimulations):
