@@ -77,23 +77,29 @@ class LinearElement(NetworkElement):
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
         if self.orientation is None:
-            # Default orientation: align along nearest segment of centerline
-            def headingAt(point):
-                pts = [Vector(pt[0], pt[1]) for pt in self.centerline.points]
-                distances = [point.distanceTo(pt) for pt in pts]
-                i, closest = min(enumerate(pts), key=lambda i_pt: distances[i_pt[0]])
-                if i == 0:
-                    j = 1
-                elif i == len(self.centerline.points)-1:
-                    j = i
-                    i -= 1
-                elif distances[i+1] >= distances[i-1]:
-                    j = i+1
-                else:
-                    j = i
-                    i -= 1
-                return pts[i].angleTo(pts[j])
-            self.orientation = VectorField(self.name, headingAt)
+            self.orientation = VectorField(self.name, self.defaultHeadingAt)
+
+    def defaultHeadingAt(self, point):
+        """Default orientation for this LinearElement.
+
+        In general, we align along the nearest segment of the centerline.
+        For roads, lane groups, etc., we align along the orientation of the
+        lane containing the point.
+        """
+        pts = [Vector(pt[0], pt[1]) for pt in self.centerline.points]
+        distances = [point.distanceTo(pt) for pt in pts]
+        i, closest = min(enumerate(pts), key=lambda i_pt: distances[i_pt[0]])
+        if i == 0:
+            j = 1
+        elif i == len(self.centerline.points)-1:
+            j = i
+            i -= 1
+        elif distances[i+1] >= distances[i-1]:
+            j = i+1
+        else:
+            j = i
+            i -= 1
+        return pts[i].angleTo(pts[j])
 
     def nominalDirectionsAt(point: Vector) -> Tuple[float]:
         """Get nominal traffic direction(s) at a point in this element.
@@ -115,8 +121,8 @@ class Road(LinearElement):
 
     Lanes are grouped into 1 or 2 LaneGroups:
         * forwardLanes: the lanes going the same direction as the road
-        * backwardLanes: the lanes going the opposite direction; None if
-            this is a 1-way road
+        * backwardLanes: the lanes going the opposite direction
+    One of these may be None if there are no lanes in that direction.
 
     Because of splits and mergers, the Lanes of a Road do not necessarily start
     or end at the same point as the Road. Such intermediate branching points
@@ -124,11 +130,18 @@ class Road(LinearElement):
     the configuration of lanes is fixed.
     """
     lanes: Tuple[Lane]
-    forwardLanes: LaneGroup     # lanes aligned with the direction of the road
+    forwardLanes: Union[LaneGroup, None]    # lanes aligned with the direction of the road
     backwardLanes: Union[LaneGroup, None]   # lanes going the other direction
     sections: Tuple[RoadSection]    # sections in order from start to end
 
     crossings: Tuple[PedestrianCrossing] = ()    # ordered from start to end
+
+    def defaultHeadingAt(self, point):
+        if self.forwardLanes and self.forwardLanes.containsPoint(point):
+            return self.forwardLanes.orientation[point]
+        if self.backwardLanes and self.backwardLanes.containsPoint(point):
+            return self.backwardLanes.orientation[point]
+        return super().defaultHeadingAt(point)
 
     def sectionAt(point: Vector) -> Union[RoadSection, None]:
         """Get the RoadSection passing through a given point."""
@@ -138,6 +151,10 @@ class Road(LinearElement):
 
     def shiftLanes(point: Vector, offset: int) -> Union[Vector, None]:
         """Find the point equivalent to this one but shifted over some # of lanes."""
+
+    @property
+    def is1Way(self):
+        return self.forwardLanes is None or self.backwardLanes is None
 
 @attr.s(auto_attribs=True, kw_only=True)
 class LaneGroup(LinearElement):
@@ -149,6 +166,12 @@ class LaneGroup(LinearElement):
     # associated elements not actually part of this group
     sidewalk: Union[Sidewalk, None] = None
     bikeLane: Union[Lane, None] = None
+
+    def defaultHeadingAt(self, point):
+        for lane in self.lanes:
+            if lane.containsPoint(point):
+                return lane.orientation[point]
+        return super().defaultHeadingAt(point)
 
 @attr.s(auto_attribs=True, kw_only=True)
 class Lane(LinearElement):
@@ -191,7 +214,7 @@ class RoadSection(LinearElement):
                 if i == 0:
                     continue
                 if i not in self.lanesByOpenDriveID:
-                    raise RuntimeError('missing OpenDrive lane')
+                    continue
                 (forward if i < 0 else backward).append(self.lanesByOpenDriveID[i])
             self.forwardLanes = tuple(forward)
             self.backwardLanes = tuple(backward)
@@ -203,6 +226,12 @@ class RoadSection(LinearElement):
             for i, lane in enumerate(self.backwardLanes, start=1):
                 ids[i] = lane
             self.lanesByOpenDriveID = ids
+
+    def defaultHeadingAt(self, point):
+        for lane in self.lanes:
+            if lane.containsPoint(point):
+                return lane.orientation[point]
+        return super().defaultHeadingAt(point)
 
 @attr.s(auto_attribs=True, kw_only=True)
 class LaneSection(LinearElement):

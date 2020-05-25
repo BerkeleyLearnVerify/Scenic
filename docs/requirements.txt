@@ -1,7 +1,8 @@
 alabaster==0.7.12
 antlr4-python3-runtime==4.8
-appdirs==1.4.3
-atomicwrites==1.3.0; sys_platform == "win32"
+appdirs==1.4.4
+astor==0.8.1
+atomicwrites==1.4.0; sys_platform == "win32"
 attrs==19.3.0
 babel==2.8.0
 certifi==2020.4.5.1
@@ -10,38 +11,38 @@ colorama==0.4.3; sys_platform == "win32" or platform_system == "Windows"
 cycler==0.10.0
 distlib==0.3.0
 docutils==0.16
-dotmap==1.3.13
+dotmap==1.3.14
 filelock==3.0.12
 idna==2.9
 imagesize==1.2.0
 importlib-metadata==1.6.0; python_version < "3.8"
-importlib-resources==1.4.0; python_version < "3.7"
+importlib-resources==1.5.0; python_version < "3.7"
 jinja2==2.11.2
 kiwisolver==1.2.0
 markupsafe==1.1.1
 matplotlib==3.2.1
-more-itertools==8.2.0
-numpy==1.18.3
+more-itertools==8.3.0
+numpy==1.18.4
 opencv-python==4.2.0.34
-packaging==20.3
-pillow==7.1.1
+packaging==20.4
+pillow==7.1.2
 pluggy==0.13.1
 py==1.8.1
 pygments==2.6.1
 pynverse==0.1.4.4
 pyparsing==2.4.7
 pypoly2tri==0.0.3
-pyproj==2.6.0
-pytest==5.4.1
+pyproj==2.6.1.post1
+pytest==5.4.2
 pytest-randomly==3.3.1
 python-dateutil==2.8.1
-pytz==2019.3
+pytz==2020.1
 requests==2.23.0
 scipy==1.4.1
 shapely==1.7.0
-six==1.14.0
+six==1.15.0
 snowballstemmer==2.0.0
-sphinx==3.0.2
+sphinx==3.0.3
 sphinx-rtd-theme==0.4.3
 sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2
@@ -49,9 +50,9 @@ sphinxcontrib-htmlhelp==1.0.3
 sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.4
-toml==0.10.0
-tox==3.14.6
+toml==0.10.1
+tox==3.15.1
 urllib3==1.25.9
-virtualenv==20.0.18
+virtualenv==20.0.21
 wcwidth==0.1.9
 zipp==3.1.0; python_version < "3.8"
