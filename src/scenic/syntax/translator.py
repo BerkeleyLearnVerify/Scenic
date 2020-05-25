@@ -48,7 +48,7 @@ from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_mi
 from ast import Load, Store, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, BitXor, LShift
 from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Num, Subscript, Index, IfExp
 from ast import NamedExpr, Yield, YieldFrom, FunctionDef, Attribute, NameConstant, Assign, Expr
-from ast import Return, Raise, If, UnaryOp, Not
+from ast import Return, Raise, If, UnaryOp, Not, ClassDef
 
 from scenic.core.distributions import Samplable, needsSampling
 from scenic.core.lazy_eval import needsLazyEvaluation
@@ -243,9 +243,9 @@ api = set(veneer.__all__)
 
 rangeConstructor = 'Range'
 createDefault = 'PropertyDefault'
-createBehavior = 'createBehavior'
+behaviorClass = 'Behavior'
 createTerminationAction = 'makeTerminationAction'
-internalFunctions = { rangeConstructor, createDefault, createBehavior, createTerminationAction }
+internalFunctions = { rangeConstructor, createDefault, behaviorClass, createTerminationAction }
 
 # sanity check: these functions actually exist
 for imp in internalFunctions:
@@ -541,6 +541,7 @@ def hooked_import(*args, **kwargs):
 			veneer.globalParameters.update(module._params)
 			veneer.externalParameters.extend(module._externalParams)
 			veneer.inheritedReqs.extend(module._requirements)
+			veneer.behaviors.extend(module._behaviors)
 			veneer.monitors.extend(module._monitors)
 	return module
 
@@ -1188,15 +1189,15 @@ class ASTSurgeon(NodeTransformer):
 			function(args)
 		into:
 			(CHECK(yield from CURRENT_BEHAVIOR.callSubBehavior(TEMP, self, args))
-			if hasattr(TEMP := function, MARKER)
+			if isinstance(TEMP := function, Behavior)
 			else TEMP(args))
-		where MARKER is a special attribute identifying behaviors, TEMP is a temporary name,
+		where TEMP is a temporary name,
 		CURRENT_BEHAVIOR is a hidden argument storing the current Behavior object, and
 		CHECK is a function which checks the invariants and returns its argument.
 		"""
 		savedFunc = NamedExpr(Name(temporaryName, Store()), func)
-		condition = Call(Name('hasattr', Load()),
-		                 [savedFunc, Str(veneer.behaviorIndicator)],
+		condition = Call(Name('isinstance', Load()),
+		                 [savedFunc, Name(behaviorClass, Load())],
 		                 []
 		)
 		subHandler = Attribute(Name(behaviorArgName, Load()), 'callSubBehavior', Load())
@@ -1268,20 +1269,19 @@ class ASTSurgeon(NodeTransformer):
 			ast.arg(arg='self', annotation=None)
 		]
 		newArgs.args = extraArgs + newArgs.args
-		# convert to ordinary function definition
-		newDefn = FunctionDef(node.name,
-		                      newArgs,
-		                      newBody,
-		                      [self.visit(decorator) for decorator in node.decorator_list],
-		                      node.returns)
 
-		# create Behavior object and mark function
-		behaviorName = Name(node.name, Load())
-		marker = Attribute(behaviorName, veneer.behaviorIndicator, Store())
-		createBehaviorCall = Call(Name(createBehavior, Load()), [behaviorName], [])
-		setMarker = Assign([marker], createBehaviorCall)
-		statements = [copy_location(newDefn, node), copy_location(setMarker, node)]
-		return statements
+		# convert to class definition
+		decorators = [self.visit(decorator) for decorator in node.decorator_list]
+		genDefn = FunctionDef('makeGenerator', newArgs, newBody, decorators, node.returns)
+		name = node.name
+		if veneer.isAMonitorName(name):
+			superclass = monitorClass
+			name = veneer.monitorName(name)
+		else:
+			superclass = behaviorClass
+		newDefn = ClassDef(name, [Name(superclass, Load())], [], [genDefn], [])
+
+		return copy_location(newDefn, node)
 
 	def visit_Yield(self, node):
 		if self.inBehavior:
@@ -1464,13 +1464,14 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 			try:
 				veneer.evaluatingRequirement = True
 				# rebind ego object, which can be referred to implicitly
-				assert veneer.egoObject is None
+				oldEgo = veneer.egoObject
+				assert veneer.currentSimulation or veneer.egoObject is None
 				if ego is not None:
 					veneer.egoObject = values[ego]
 				result = executePythonFunction(evaluator, filename)
 			finally:
 				veneer.evaluatingRequirement = False
-				veneer.egoObject = None
+				veneer.egoObject = oldEgo
 			return result
 		return closure
 	for reqID, requirement in requirements.items():

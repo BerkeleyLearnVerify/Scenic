@@ -38,7 +38,7 @@ __all__ = (
 	# Exceptions
 	'GuardFailure', 'PreconditionFailure', 'InvariantFailure',
 	# Internal APIs 	# TODO remove?
-	'PropertyDefault', 'createBehavior', 'makeTerminationAction'
+	'PropertyDefault', 'Behavior', 'makeTerminationAction'
 )
 
 # various Python types and functions used in the language but defined elsewhere
@@ -245,17 +245,29 @@ class BoundRequirement:
 # Behaviors
 
 class Behavior:
-	def __init__(self, generator):
-		self.generator = generator
-		self.name = generator.__name__
+	def __init__(self, *args, **kwargs):
+		# Validate arguments to the behavior
+		sig = inspect.signature(self.makeGenerator)
+		try:
+			sig.bind(None, *args, **kwargs)
+		except TypeError as e:
+			raise RuntimeParseError(str(e)) from e
+		self.args = args
+		self.kwargs = kwargs
+
 		self.runningIterator = None
 
 		# Save all global names used so we can rebind them with sampled values later
-		self.module = generator.__module__
-		self.globalNamespace = generator.__globals__
+		self.module = self.makeGenerator.__module__
+		self.globalNamespace = self.makeGenerator.__globals__
+
+		self.register()
+
+	def register(self):
+		behaviors.append(self)
 
 	def start(self, agent):
-		it = self.generator(self, agent)
+		it = self.makeGenerator(agent, *self.args, **self.kwargs)
 		if isinstance(it, types.GeneratorType):
 			self.runningIterator = it
 			return True
@@ -274,29 +286,17 @@ class Behavior:
 	def stop(self):
 		self.runningIterator = None
 
-	def callSubBehavior(self, sub, agent, *args, **kwargs):
-		assert isABehaviorGenerator(sub)
-		behaviorObj = getattr(sub, behaviorIndicator)
-		yield from sub(behaviorObj, agent, *args, **kwargs)
+	def callSubBehavior(self, subcls, agent, *args, **kwargs):
+		assert isinstance(subcls, Behavior)
+		sub = subcls(*args, **kwargs)
+		if not sub.start(agent):
+			return
+		yield from sub.runningIterator
 
 	def __str__(self):
-		return f'behavior {self.name}'
+		return f'behavior {self.__name__}'
 
 behaviorIndicator = '__Scenic_behavior'
-
-def isABehaviorGenerator(thing):
-	return hasattr(thing, behaviorIndicator)
-def behaviorObjectFor(generator):
-	return getattr(generator, behaviorIndicator)
-
-def createBehavior(generator):
-	if isAMonitorName(generator.__name__):
-		behavior = Monitor(generator)
-		monitors.append(behavior)
-	else:
-		behavior = Behavior(generator)
-	behaviors.append(behavior)
-	return behavior
 
 def makeTerminationAction(line):
 	assert not isActive()
@@ -305,16 +305,11 @@ def makeTerminationAction(line):
 # Monitors
 
 class Monitor(Behavior):
-	def __init__(self, generator):
-		super().__init__(generator)
-		assert isAMonitorName(self.name)
-		self.name = monitorName(self.name)
+	def register(self):
+		monitors.append(self)
 
 	def start(self):
 		return super().start(None)
-
-	def __str__(self):
-		return f'monitor {self.name}'
 
 monitorPrefix = '_Scenic_monitor_'
 def functionForMonitor(name):
@@ -336,6 +331,8 @@ def ego(obj=None):
 	if obj is None:
 		if egoObject is None:
 			raise RuntimeParseError('referred to ego object not yet assigned')
+	elif currentSimulation is not None:
+		raise RuntimeParseError('tried to assign ego during a simulation')
 	elif not isinstance(obj, Object):
 		raise RuntimeParseError('tried to make non-object the ego object')
 	else:

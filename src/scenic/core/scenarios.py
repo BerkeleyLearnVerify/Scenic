@@ -9,8 +9,7 @@ from scenic.core.external_params import ExternalSampler
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
 from scenic.core.utils import areEquivalent, InvalidScenarioError
-from scenic.syntax.veneer import (isABehaviorGenerator, behaviorObjectFor,
-                                  RequirementType, BoundRequirement)
+from scenic.syntax.veneer import Behavior, RequirementType, BoundRequirement
 
 class Scene:
 	"""A scene generated from a Scenic scenario.
@@ -206,10 +205,12 @@ class Scenario:
 				# behavior
 				behavior = sampledObj.behavior
 				if behavior is not None:
-					if not isABehaviorGenerator(behavior):
+					if isinstance(behavior, type) and issubclass(behavior, Behavior):
+						behavior = behavior()
+						sampledObj.behavior = behavior
+					if not isinstance(behavior, Behavior):
 						raise InvalidScenarioError(
 						    f'behavior {behavior} of Object {obj} is not a behavior')
-					sampledObj.behavior = behaviorObjectFor(behavior)
 
 			# Check built-in requirements
 			for i in range(len(objects)):
