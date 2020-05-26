@@ -1,4 +1,7 @@
+"""CARLA Challenge #4."""
+
 import scenic.simulators.carla.actions as actions
+
 from scenic.core.geometry import subtractVectors
 
 from scenic.simulators.domains.driving.network import loadNetwork
@@ -62,7 +65,8 @@ behavior EgoBehavior(obstacle, brakeDist=5.0):
 # ============================================================================
 
 '''
-Ego encounters an unexpected obstacle and must perform and emergency brake or avoidance maneuver. Based on 2019 Carla Challenge Traffic Scenario 04.
+Ego encounters an unexpected obstacle and must perform and emergency brake or avoidance maneuver. 
+Based on 2019 Carla Challenge Traffic Scenario 04.
 
 In this visualization, let: 
 	P := Pedestrian walking on crosswalk.

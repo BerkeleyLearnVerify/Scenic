@@ -1,3 +1,5 @@
+"""CARLA Challenge #5."""
+
 import scenic.simulators.carla.actions as actions
 
 from scenic.core.geometry import subtractVectors
@@ -11,7 +13,7 @@ from scenic.simulators.carla.models.model import *
 # ============================================================================
 # -- BEHAVIORS ---------------------------------------------------------------
 # ============================================================================
-
+'''
 behavior FollowWaypointsBehavior(waypoints, threshold=0.01):
 	"""Folllow waypoints at a constant speed."""
 	assert threshold >= 0, 'Cannot have a negative threshold.'
@@ -27,7 +29,7 @@ behavior FollowWaypointsBehavior(waypoints, threshold=0.01):
 behavior DriveLaneBehavior():
 	"""Drive along centerline of current lane at a constant speed."""
 	
-	currLane = Network.get_lane_at(self.position)
+	currLane = network.get_lane_at(self.position)
 	remainingLaneWaypoints = list(currLane.centerline)
 
 	# NOTE: All vehicle spawns should be at a waypoint in its current lane
@@ -46,7 +48,7 @@ behavior LaneChangeBehavior(newLane, steer=0.2, threshold=0.01):
 	assert 0.0 < steer <= 1.0,\
 		'(Absolute value of) steer must be in range (0.0, 1.0].'
 
-	currLane = Network.get_lane_at(self.position)
+	currLane = network.get_lane_at(self.position)
 
 	assert newLane is currLane.laneToLeft \
 		or newLane is currLane.laneToRight, \
@@ -90,7 +92,7 @@ behavior DecelerateBehavior(newSpeed, brake=0.2):
 behavior PassingBehavior(carToPass, newLane, minDist=5.0):
 	assert minDist > 0.0, 'Minimum distance must be positive.'
 
-	oldLane = Network.get_lane_at(self.position)
+	oldLane = network.get_lane_at(self.position)
 	oldSpeed = self.speed
 
 	while distance from self to carToPass > minDist:
@@ -105,14 +107,15 @@ behavior PassingBehavior(carToPass, newLane, minDist=5.0):
 	
 	while True:
 		DriveLaneBehavior()
-
+'''
 
 # ============================================================================
 # -- SCENARIO ----------------------------------------------------------------
 # ============================================================================
 
-'''
-Ego encounters an unexpected obstacle and must perform and emergency brake or avoidance maneuver. Based on 2019 Carla Challenge Traffic Scenario 05.
+"""
+Ego encounters an unexpected obstacle and must perform and emergency brake or avoidance maneuver.
+Based on 2019 Carla Challenge Traffic Scenario 05.
 
 In this visualization, let: 
 	V := Slow vehicle that ego wants to pass.
@@ -121,25 +124,32 @@ In this visualization, let:
 		   then returning ot its original lane (i=3).
 
 -----------------------
-initLane   E_1  V  E_3
+initLane    E_1  V  E_3
 -----------------------
-rightLane	   E_2	 
+rightLane	    E_2	 
 -----------------------
-'''
+"""
 
+# NOTE: List comprehension do not work in Scenic.
+laneSecsWithRightLane = []
+for lane in network.lanes:
+	for laneSec in lane.sections:
+		if laneSec.laneToRight is not None:
+			laneSecsWithRightLane.append(laneSec)
 
-lanesWithRightLane = [lane for lane in Network.lanes if lane.laneToRight is not None]
+assert len(laneSecsWithRightLane) > 0, \
+	'No lane sections with adjacent right lane in network.'
 
-assert len(lanesWithRightLane) > 0, 'No lanes with right lanes in network.'
+initLaneSec = Uniform(laneSecsWithRightLane)
+rightLaneSec = initLaneSec.laneToRight
+# FIXME: figure out what a PolylineRegion is and how to use it
+print(initLaneSec.centerline)
+midLaneWaypoint = len(initLaneSec.centerline) / 2
 
-initLane = Uniform(lanesWithRightLane)
-rightLane = initLane.laneToRight
-midLaneWaypoint = len(initLane.centerline) / 2
+slowCar = Car on midLaneWaypoint#,
+	#with behavior DriveLaneBehavior,
+	#with speed (5, 10)
 
-slowCar = Car on midLaneWaypoint,
-	with behavior DriveLaneBehavior,
-	with speed (5, 10)
-
-ego = Car on initLane.centerline[],
-	with behavior PassingBehavior(slowCar, rightLane, minDist=5.0),
-	with speed (10, 15)
+ego = Car on initLaneSec.centerline[0]#,
+	#with behavior PassingBehavior(slowCar, rightLane, minDist=5.0),
+	#with speed (10, 15)

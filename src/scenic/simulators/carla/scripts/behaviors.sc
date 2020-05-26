@@ -17,3 +17,9 @@ behavior LanekeepingBehavior():
 
 behavior WalkForwardBehavior():
 	take actions.SetSpeedAction(0.5)
+
+behavior A(x):
+	take actions.SetThrottleAction(x)
+
+behavior B():
+	take actions.SetThrottleAction(0.7)
