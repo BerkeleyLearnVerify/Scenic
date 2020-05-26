@@ -242,6 +242,7 @@ def checkBug(bug, template, tmpdir, checkTraceback=True, generate=False):
 @pytest.mark.parametrize('bug', (
     'x = 3 << 2',       # caught during token translation
     '4 = 2',            # caught during Python parsing
+    'require mutate',   # caught during Python parsing
     'Point at x y',     # caught during Python parsing (with offset past end of original line)
     'require',          # caught during AST surgery
     'break',            # caught during Python compilation
@@ -262,7 +263,6 @@ def test_line_numbering_late(bug, template, tmpdir):
     checkBug(bug, template, tmpdir)
 
 @pytest.mark.parametrize('bug', (
-    'require mutate',       # Scenic parse error
     'require _flub__',      # Python runtime error
 ))
 @pytest.mark.parametrize('template', templates)

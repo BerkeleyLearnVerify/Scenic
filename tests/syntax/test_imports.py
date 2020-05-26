@@ -69,6 +69,13 @@ def test_inherit_requirements(runLocally):
             constrainedObj = scene.objects[1]
             assert constrainedObj.position.x > 0
 
+def test_inherit_constructors(runLocally):
+    with runLocally():
+        scenario = compileScenic(
+            'from helper import Caerbannog\n'
+            'ego = Caerbannog'
+        )
+
 def test_import_multiline_1():
     compileScenic(
         'from math import factorial, \\\n'

@@ -307,9 +307,10 @@ for imp in builtinFunctions:
 # we still recognize 'constructor' for backwards-compatibility
 constructorStatements = ('class', 'constructor')
 
-Constructor = namedtuple('Constructor', ('name', 'parent', 'specifiers'))
+Constructor = namedtuple('Constructor', ('name', 'parent'))
 
-pointSpecifiers = {
+builtinSpecifiers = {
+	# position
 	('visible', 'from'): 'VisibleFrom',
 	('offset', 'by'): 'OffsetBy',
 	('offset', 'along'): 'OffsetAlongSpec',
@@ -323,27 +324,21 @@ pointSpecifiers = {
 	('ahead', 'of'): 'Ahead',
 	('behind',): 'Behind',
 	('following',): 'Following',
-}
-orientedPointSpecifiers = {
+
+	# heading
 	('apparently', 'facing'): 'ApparentlyFacing',
 	('facing', 'toward'): 'FacingToward',
 	('facing',): 'Facing'
 }
-objectSpecifiers = {
-}
 
 # sanity check: implementations of specifiers actually exist
-for imp in pointSpecifiers.values():
-	assert imp in api, imp
-for imp in orientedPointSpecifiers.values():
-	assert imp in api, imp
-for imp in objectSpecifiers.values():
+for imp in builtinSpecifiers.values():
 	assert imp in api, imp
 
 builtinConstructors = {
-	'Point': Constructor('Point', None, pointSpecifiers),
-	'OrientedPoint': Constructor('OrientedPoint', 'Point', orientedPointSpecifiers),
-	'Object': Constructor('Object', 'OrientedPoint', objectSpecifiers)
+	'Point': Constructor('Point', None),
+	'OrientedPoint': Constructor('OrientedPoint', 'Point'),
+	'Object': Constructor('Object', 'OrientedPoint')
 }
 
 # sanity check: built-in constructors actually exist
@@ -601,7 +596,7 @@ def findConstructorsIn(namespace):
 				if issubclass(base, Constructible):
 					assert parent is None
 					parent = base
-			constructors.append(Constructor(name, parent.__name__, {}))
+			constructors.append(Constructor(name, parent.__name__))
 	return constructors
 
 ### TRANSLATION PHASE TWO: translation at the level of tokens
@@ -648,20 +643,20 @@ class TokenTranslator:
 			assert name not in self.constructors
 			self.constructors[name] = constructor
 
-	def createConstructor(self, name, parent, specs={}):
+	def createConstructor(self, name, parent):
 		if parent is None:
 			parent = 'Object'		# default superclass
-		self.constructors[name] = Constructor(name, parent, specs)
+		self.constructors[name] = Constructor(name, parent)
 		return parent
 
 	def specifiersForConstructor(self, const):
-		name, parent, specs = self.constructors[const]
-		if parent is None:
-			return specs
+		# Currently all specifiers can be used with any constructor;
+		# I'm leaving this here in case we later allow custom specifiers to be inherited
+		name, parent = self.constructors[const]
+		if parent is None or parent not in self.constructors:
+			return builtinSpecifiers
 		else:
-			ps = dict(self.specifiersForConstructor(parent))
-			ps.update(specs)
-			return ps
+			return self.specifiersForConstructor(parent)
 
 	def translate(self, tokens):
 		"""Do the actual translation of the token stream."""
@@ -1496,6 +1491,7 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 		finalReqs.append(veneer.CompiledRequirement(requirement, closure))
 
 	# Extract monitors
+	namespace['_behaviors'] = veneer.behaviors
 	namespace['_monitors'] = veneer.monitors
 
 	# Gather all global namespaces which could be referred to by behaviors
