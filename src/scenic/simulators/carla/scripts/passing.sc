@@ -130,26 +130,66 @@ rightLane	    E_2
 -----------------------
 """
 
+behavior SlowCarBehavior():
+	take actions.SetThrottleAction(0.3)
+
+behavior EgoBehavior():
+	take actions.SetThrottleAction(0.6)
+	for _ in range(30):
+		take None
+	print('Ego changing lanes left')
+	# lane change left
+	take actions.SetSteerAction(-0.3)
+	for _ in range(5):
+		take None
+	take actions.SetSteerAction(0.2)
+	for _ in range(6):
+		take None
+	take actions.SetSteerAction(0)
+	for _ in range(30):
+		take None
+	take actions.SetThrottleAction(0.4)
+	print('Ego changing lanes right')
+	# lane change right
+	take actions.SetSteerAction(0.3)
+	for _ in range(3):
+		take None
+	take actions.SetSteerAction(-0.3)
+	for _ in range(4):
+		take None
+	take actions.SetSteerAction(0)
+
+
+slowCar = Car with behavior SlowCarBehavior
+ego = Car behind slowCar by 20, with behavior EgoBehavior
+
+'''
+print(network.crossings)
 # NOTE: List comprehension do not work in Scenic.
 laneSecsWithRightLane = []
 for lane in network.lanes:
 	for laneSec in lane.sections:
 		if laneSec.laneToRight is not None:
 			laneSecsWithRightLane.append(laneSec)
-
+print(len(laneSecsWithRightLane))
 assert len(laneSecsWithRightLane) > 0, \
 	'No lane sections with adjacent right lane in network.'
 
 initLaneSec = Uniform(laneSecsWithRightLane)
 rightLaneSec = initLaneSec.laneToRight
-# FIXME: figure out what a PolylineRegion is and how to use it
-print(initLaneSec.centerline)
-midLaneWaypoint = len(initLaneSec.centerline) / 2
+#midpt = round(len(initLaneSec.centerline.points) / 2)
 
-slowCar = Car on midLaneWaypoint#,
-	#with behavior DriveLaneBehavior,
-	#with speed (5, 10)
-
-ego = Car on initLaneSec.centerline[0]#,
+#NOTE: flipping definition order to accomodate "behind" not generating scenario
+print(type(network.lanes))
+l = None
+for lane in network.lanes:
+	l = lane
+	break
+ego = Car on lane#,
 	#with behavior PassingBehavior(slowCar, rightLane, minDist=5.0),
 	#with speed (10, 15)
+
+#slowCar = Car ahead of ego by 10#,
+	#with behavior DriveLaneBehavior,
+	#with speed (5, 10)
+'''

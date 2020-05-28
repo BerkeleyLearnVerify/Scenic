@@ -180,6 +180,23 @@ class SetGearAction(simulators.Action):
 # Actions available to all carla.Walker objects #
 #################################################
 
+class SetRelativeDirectionAction(simulators.Action):
+	'''Offsets direction counterclockwise relative to walker's forward vector.'''
+
+	def __init__(self, offset, degrees=False):
+		super().__init__()
+		self.offset = math.radians(offset) if degrees else offset
+
+	def applyTo(self, obj, walker, sim):
+		ctrl = walker.get_control()
+		currDir = ctrl.direction
+		sinOffset, cosOffset = math.cos(self.offset), math.sin(self.offset)
+		newX = currDir.x * cosOffset - currDir.y * sinOffset
+		newY = currDir.x * sinOffset + currDir.y * cosOffset
+		ctrl.direction = utils.scalarToCarlaVector3D(newX, newY, currDir.z)
+		walker.apply_control(ctrl)
+
+
 class SetSpeedAction(simulators.Action):
 	def __init__(self, speed):
 		assert speed >= 0.0, \
@@ -191,6 +208,7 @@ class SetSpeedAction(simulators.Action):
 		ctrl = walker.get_control()
 		ctrl.speed = self.speed
 		walker.apply_control(ctrl)
+
 
 class SetJumpAction(simulators.Action):
 	def __init__(self, jump):

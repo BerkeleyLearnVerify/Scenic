@@ -13,7 +13,7 @@ from scenic.simulators.carla.models.model import *
 # ============================================================================
 # -- BEHAVIORS ---------------------------------------------------------------
 # ============================================================================
-
+'''
 behavior FollowWaypointsBehavior(waypoints, threshold=0.01):
 	"""Folllow waypoints at a constant speed."""
 	assert threshold >= 0, 'Cannot have a negative threshold.'
@@ -58,7 +58,7 @@ behavior EgoBehavior(obstacle, brakeDist=5.0):
 			SuddenBrakeBehavior()
 		else:
 			DriveLaneBehavior()
-
+'''
 
 # ============================================================================
 # -- SCENARIO ----------------------------------------------------------------
@@ -81,6 +81,17 @@ In this visualization, let:
 ---------|P|---------
 '''
 
+behavior CrossStreetBehavior():
+	take actions.SetRelativeDirectionAction(90, degrees=True)
+	take None
+	take actions.SetSpeedAction(0.2)
+
+
+c = Car
+ego = Pedestrian on network.sidewalkRegion, with behavior CrossStreetBehavior
+
+
+'''
 intersectingRoad = None
 while intersectingRoad is None:
 	crossing = Uniform(Network.crossings)
@@ -109,3 +120,4 @@ assert pointBeforeCrosswalk is not None, \
 ego = Car at pointBeforeCrosswalk,
 	with behavior behaviors.EgoBehavior(obstacle, brakeDist=5.0),
 	with speed(10, 20)
+	'''
