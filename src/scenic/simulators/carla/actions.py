@@ -25,7 +25,7 @@ class OffsetAction(simulators.Action):
 class SetLocationAction(simulators.Action):
 	def __init__(self, pos):
 		super().__init__()
-		self.pos = pos  # Scenic position
+		self.pos = pos  # NOTE: Must translate to Carla coords
 
 	def applyTo(self, obj, carlaActor, sim):
 		loc = utils.scenicToCarlaLocation(self.pos, z=obj.elevation)
@@ -33,26 +33,35 @@ class SetLocationAction(simulators.Action):
 
 
 class SetVelocityAction(simulators.Action):
-	def __init__(self, velocity):
+	def __init__(self, xVel, yVel, zVel=0):
 		super().__init__()
-		self.velocity = velocity
+		self.xVel = xVel
+		self.yVel = yVel
+		self.zVel = zVel
 
 	def applyTo(self, obj, carlaActor, sim):
-		currYaw = utils.scenicToCarlaRotation(obj.heading).yaw
-		xVel = self.velocity * math.cos(currYaw)
-		yVel = self.velocity * math.sin(currYaw)
-		newVel = utils.scalarToCarlaVector3D(xVel, yVel)
+		newVel = utils.scalarToCarlaVector3D(xVel, yVel, zVel)
+		carlaActor.set_velocity(newVel) 
+
+
+class SetSpeedAction(simulators.Action):
+	def __init__(self, speed):
+		super().__init__()
+		self.speed = speed
+
+	def applyTo(self, obj, carlaActor, sim):
+		newVel = utils.scenicSpeedToCarlaVelocity(speed, carlaActor.heading)
 		carlaActor.set_velocity(newVel)
 
 
 class SetAngularVelocityAction(simulators.Action):
-	def __init__(self, angularVelocity):
+	def __init__(self, angularVel):
 		super().__init__()
-		self.angularVelocity = angularVelocity
+		self.angularVel = angularVel
 
 	def applyTo(self, obj, carlaActor, sim):
-		xAngularVel = self.angularVelocity * math.cos(obj.heading)
-		yAngularVel = self.angularVelocity * math.sin(obj.heading)
+		xAngularVel = self.angularVel * math.cos(obj.heading)
+		yAngularVel = self.angularVel * math.sin(obj.heading)
 		newAngularVel = utils.scalarToCarlaVector3D(xAngularVel, yAngularVel)
 		carlaActor.set_angular_velocity(newAngularVel)
 

@@ -1,12 +1,13 @@
 """CARLA Challenge #5."""
 
-import scenic.simulators.carla.actions as actions
+import random
 
 from scenic.core.geometry import subtractVectors
+from scenic.core.vectors import Vector
 
+import scenic.simulators.carla.actions as actions
 from scenic.simulators.domains.driving.network import loadNetwork
 loadNetwork('/home/carla_challenge/Downloads/Town01.xodr')
-
 from scenic.simulators.carla.models.model import *
 
 
@@ -130,66 +131,27 @@ rightLane	    E_2
 -----------------------
 """
 
-behavior SlowCarBehavior():
-	take actions.SetThrottleAction(0.3)
-
-behavior EgoBehavior():
-	take actions.SetThrottleAction(0.6)
-	for _ in range(30):
-		take None
-	print('Ego changing lanes left')
-	# lane change left
-	take actions.SetSteerAction(-0.3)
-	for _ in range(5):
-		take None
-	take actions.SetSteerAction(0.2)
-	for _ in range(6):
-		take None
-	take actions.SetSteerAction(0)
-	for _ in range(30):
-		take None
-	take actions.SetThrottleAction(0.4)
-	print('Ego changing lanes right')
-	# lane change right
-	take actions.SetSteerAction(0.3)
-	for _ in range(3):
-		take None
-	take actions.SetSteerAction(-0.3)
-	for _ in range(4):
-		take None
-	take actions.SetSteerAction(0)
-
-
-slowCar = Car with behavior SlowCarBehavior
-ego = Car behind slowCar by 20, with behavior EgoBehavior
-
-'''
-print(network.crossings)
 # NOTE: List comprehension do not work in Scenic.
-laneSecsWithRightLane = []
+laneSecsWithLeftLane = []
 for lane in network.lanes:
 	for laneSec in lane.sections:
-		if laneSec.laneToRight is not None:
-			laneSecsWithRightLane.append(laneSec)
-print(len(laneSecsWithRightLane))
-assert len(laneSecsWithRightLane) > 0, \
-	'No lane sections with adjacent right lane in network.'
+		if laneSec.laneToLeft is not None:
+			laneSecsWithLeftLane.append(laneSec)
 
-initLaneSec = Uniform(laneSecsWithRightLane)
-rightLaneSec = initLaneSec.laneToRight
-#midpt = round(len(initLaneSec.centerline.points) / 2)
+assert len(laneSecsWithLeftLane) > 0, \
+	'No lane sections with adjacent left lane in network.'
 
-#NOTE: flipping definition order to accomodate "behind" not generating scenario
-print(type(network.lanes))
-l = None
-for lane in network.lanes:
-	l = lane
-	break
-ego = Car on lane#,
-	#with behavior PassingBehavior(slowCar, rightLane, minDist=5.0),
-	#with speed (10, 15)
+initLaneSec = random.choice(laneSecsWithLeftLane)
+leftLaneSec = initLaneSec.laneToLeft
 
-#slowCar = Car ahead of ego by 10#,
+midPt = round(len(initLaneSec.centerline.points) / 2)
+spawnPt = initLaneSec.centerline[midPt]
+spawnVec = Vector(spawnPt[0], spawnPt[1])
+
+slowCar = Car at spawnVec,
+	with speed 10#,
 	#with behavior DriveLaneBehavior,
-	#with speed (5, 10)
-'''
+
+ego = Car behind slowCar by 20, 
+	with speed 10#,
+	#with behavior PassingBehavior(slowCar, rightLane, minDist=5.0),

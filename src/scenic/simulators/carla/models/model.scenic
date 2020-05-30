@@ -33,6 +33,7 @@ class CarlaActor:
     carlaActor: None
     blueprint: None
     elevation: None
+    speed: None
     color: None
 
 

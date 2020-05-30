@@ -66,6 +66,12 @@ class CarlaSimulation(simulators.Simulation):
 			if carlaActor is None:
 				raise RuntimeError(f'Unable to spawn object {type(obj)} at position {obj.position}, likely from a spawn collision')
 			carlaActor.apply_control(carla.VehicleControl())  # set default controls
+
+			# Set Carla actor's initial speed (if specified)
+			if obj.speed is not None:
+				equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
+				carlaActor.set_velocity(equivVel)
+
 			obj.carlaActor = carlaActor
 
 			# Check if ego (from carla_scenic_taks.py)
@@ -81,18 +87,6 @@ class CarlaSimulation(simulators.Simulation):
 					self.cameraManager.set_sensor(camIndex)
 					self.cameraManager.set_transform(self.camTransform)
 
-	def writePropertiesToCarla(self):
-		for obj in self.objects:
-
-			# Compute Carla properties
-			carlaActor = obj.carlaActor
-			newLoc = utils.scenicToCarlaLocation(obj.position, z=obj.elevation)
-			newRot = utils.scenicToCarlaRotation(obj.heading)
-			newTransform = carla.Transform(newLoc, newRot)
-
-			# Update Carla actor properties
-			carlaActor.set_transform(newTransform)
-
 	def readPropertiesFromCarla(self):
 		for obj in self.objects:
 
@@ -101,11 +95,13 @@ class CarlaSimulation(simulators.Simulation):
 			currTransform = carlaActor.get_transform()
 			currLoc = currTransform.location
 			currRot = currTransform.rotation
+			currVel = carlaActor.get_velocity()
 
 			# Update Scenic object properties
 			obj.position = utils.carlaToScenicPosition(currLoc)
 			obj.elevation = utils.carlaToScenicElevation(currLoc)
 			obj.heading = utils.carlaToScenicHeading(currRot, tolerance2D=5.0)
+			obj.speed = utils.carlaVelocityToScenicSpeed(currVel)
 
 			# NOTE: Refer to utils.carlaToScenicHeading
 			if obj.heading is None:
