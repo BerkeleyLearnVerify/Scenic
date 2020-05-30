@@ -141,17 +141,45 @@ for lane in network.lanes:
 assert len(laneSecsWithLeftLane) > 0, \
 	'No lane sections with adjacent left lane in network.'
 
-initLaneSec = random.choice(laneSecsWithLeftLane)
+#initLaneSec = random.choice(laneSecsWithLeftLane)
+initLaneSec = laneSecsWithLeftLane[22] # NOTE: Hard coded for testing
 leftLaneSec = initLaneSec.laneToLeft
 
-midPt = round(len(initLaneSec.centerline.points) / 2)
-spawnPt = initLaneSec.centerline[midPt]
+spawnPt = initLaneSec.centerline[3]
 spawnVec = Vector(spawnPt[0], spawnPt[1])
 
-slowCar = Car at spawnVec,
-	with speed 10#,
-	#with behavior DriveLaneBehavior,
 
-ego = Car behind slowCar by 20, 
-	with speed 10#,
-	#with behavior PassingBehavior(slowCar, rightLane, minDist=5.0),
+behavior SlowCarBehavior():
+	take actions.SetThrottleAction(0.3)
+
+behavior EgoBehavior():
+	take actions.SetThrottleAction(0.6)
+	for _ in range(9):
+		take None
+	print('Ego changing lanes left')
+	take actions.SetSteerAction(-0.5)
+	for _ in range(8):
+		take None
+	take actions.SetSteerAction(0.3)
+	for _ in range(8):
+		take None
+	take actions.SetSteerAction(0)
+	for _ in range(25):
+		take None
+	print('Ego changing lanes right')
+	take actions.SetSteerAction(0.4)
+	for _ in range(6):
+		take None
+	take actions.SetSteerAction(-0.2)
+	for _ in range(8):
+		take None
+	take actions.SetSteerAction(0)
+
+
+slowCar = Car at spawnVec,
+	with speed 5,
+	with behavior SlowCarBehavior
+
+ego = Car behind slowCar by 10, 
+	with speed 10,
+	with behavior EgoBehavior
