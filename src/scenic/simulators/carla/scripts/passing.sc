@@ -157,21 +157,21 @@ behavior EgoBehavior():
 	for _ in range(9):
 		take None
 	print('Ego changing lanes left')
-	take actions.SetSteerAction(-0.5)
+	take actions.SetSteerAction(-0.55)
 	for _ in range(8):
 		take None
 	take actions.SetSteerAction(0.3)
-	for _ in range(8):
+	for _ in range(9):
 		take None
 	take actions.SetSteerAction(0)
-	for _ in range(25):
+	for _ in range(20):
 		take None
 	print('Ego changing lanes right')
-	take actions.SetSteerAction(0.4)
+	take actions.SetSteerAction(0.3)
 	for _ in range(6):
 		take None
-	take actions.SetSteerAction(-0.2)
-	for _ in range(8):
+	take actions.SetSteerAction(-0.3)
+	for _ in range(6):
 		take None
 	take actions.SetSteerAction(0)
 
@@ -181,5 +181,5 @@ slowCar = Car at spawnVec,
 	with behavior SlowCarBehavior
 
 ego = Car behind slowCar by 10, 
-	with speed 10,
+	with speed 12,
 	with behavior EgoBehavior

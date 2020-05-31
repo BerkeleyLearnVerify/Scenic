@@ -15,7 +15,7 @@ port = 2000
 render = True  # for HUD visualization
 
 numSimulations = 10
-maxSteps = 120
+maxSteps = 100
 # ==============================================================================
 
 
