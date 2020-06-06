@@ -7,7 +7,7 @@ from scenic.simulators.carla.simulator import CarlaSimulator
 # ==============================================================================
 # -- Parameters: CHANGEME ------------------------------------------------------
 carla_map = 'Town01'
-sc_file_path = 'scripts/passing.sc'
+sc_file_path = 'scripts/naivePassing.sc'
 
 address = '127.0.0.1'
 port = 2000
