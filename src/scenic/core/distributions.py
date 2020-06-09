@@ -51,6 +51,11 @@ class DefaultIdentityDict(dict):
 			return key
 		return super().__getitem__(key)
 
+	def __contains__(self, key):
+		if not isinstance(key, Samplable):		# to allow non-hashable objects
+			return True
+		return super().__contains__(key)
+
 	def __missing__(self, key):
 		return key
 
