@@ -145,9 +145,17 @@ class Road(LinearElement):
 
     def sectionAt(point: Vector) -> Union[RoadSection, None]:
         """Get the RoadSection passing through a given point."""
+        for section in self.sections:
+            if section.containsPoint(point):
+                return section
+        return None
 
     def laneAt(point: Vector) -> Union[Lane, None]:
         """Get the lane passing through a given point."""
+        for lane in self.lanes:
+            if lane.containsPoint(point):
+                return lane
+        return None
 
     def shiftLanes(point: Vector, offset: int) -> Union[Vector, None]:
         """Find the point equivalent to this one but shifted over some # of lanes."""
@@ -355,6 +363,33 @@ class Network:
         road_map.parse(path)
         road_map.calculate_geometry(ref_points, calc_gap=fill_gaps, calc_intersect=True)
         return road_map.toScenicNetwork()
+
+    def elementAt(point: Vector) -> Union[NetworkElement, None]:
+        road = self.roadAt(point)
+        if road is not None:
+            return road
+        return self.intersectionAt(point)
+
+    def roadAt(point: Vector) -> Union[Road, None]:
+        """Get the road passing through a given point."""
+        for road in self.roads:
+            if road.containsPoint(point):
+                return road
+        return None
+
+    def laneAt(point: Vector) -> Union[Lane, None]:
+        """Get the lane passing through a given point."""
+        for lane in self.lanes:
+            if lane.containsPoint(point):
+                return lane
+        return None
+
+    def intersectionAt(point: Vector) -> Union[Intersection, None]:
+        """Get the intersection at a given point."""
+        for intersection in self.intersections:
+            if intersection.containsPoint(point):
+                return intersection
+        return None
 
 ## FOR LATER
 
