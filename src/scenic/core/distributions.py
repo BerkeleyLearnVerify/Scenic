@@ -47,14 +47,16 @@ class RejectionException(Exception):
 class DefaultIdentityDict(dict):
 	"""Dictionary which is the identity map by default."""
 	def __getitem__(self, key):
-		if not isinstance(key, Samplable):		# to allow non-hashable objects
+		try:
+			return super().__getitem__(key)
+		except TypeError:	# to allow non-hashable objects
 			return key
-		return super().__getitem__(key)
 
 	def __contains__(self, key):
-		if not isinstance(key, Samplable):		# to allow non-hashable objects
+		try:
+			return super().__contains__(key)
+		except TypeError:	# to allow non-hashable objects
 			return True
-		return super().__contains__(key)
 
 	def __missing__(self, key):
 		return key
