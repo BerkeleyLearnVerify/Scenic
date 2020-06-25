@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-from scenic.syntax import buildParser
+from src.scenic.syntax import buildParser
 
 ## Fixtures for use in tests
 
