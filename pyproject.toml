@@ -32,7 +32,8 @@ opencv-python = "^4.2.0"
 numpy = "^1.18.2"
 pillow = "^7.1.1"
 pynverse = "^0.1.4"
-pygame = "^1.9.6"
+pygame = "^2.0.0.dev6"
+attrs = "^19.3.0"
 
 Polygon3 = {version = "^3.0.8", optional = true}
 

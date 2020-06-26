@@ -1,11 +1,10 @@
 """Scenic script for testing purposes only."""
 
-import scenic.simulators.carla.behaviors as behaviors
-
 from scenic.simulators.domains.driving.network import loadLocalNetwork
 loadLocalNetwork(__file__, '../OpenDrive/Town01.xodr')
 
 from scenic.simulators.carla.model import *
+import scenic.simulators.carla.behaviors as behaviors
 
 simulator = CarlaSimulator('Town01')
 
