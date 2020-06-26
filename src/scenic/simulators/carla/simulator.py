@@ -1,4 +1,9 @@
-import carla
+
+try:
+	import carla
+except ImportError as e:
+	raise RuntimeError('CARLA scenarios require the "carla" Python package') from e
+
 import pygame
 
 import scenic.simulators as simulators
@@ -7,16 +12,17 @@ import scenic.simulators.carla.utils.visuals as visuals
 
 
 class CarlaSimulator(simulators.Simulator):
-	def __init__(self, carla_map, address, port, render=True):
+	def __init__(self, carla_map, address='127.0.0.1', port=2000, timeout=10, render=True,
+	             timestep=0.1):
 		super().__init__()
 		self.client = carla.Client(address, port)
-		self.client.set_timeout(10.0)  # limits networking operations (seconds)
+		self.client.set_timeout(timeout)  # limits networking operations (seconds)
 		self.world = self.client.load_world(carla_map)
 
 		# Set to synchronous with fixed timestep
 		settings = self.world.get_settings()
 		settings.synchronous_mode = True
-		settings.fixed_delta_seconds = 0.1  # NOTE: Should not exceed 0.1
+		settings.fixed_delta_seconds = timestep  # NOTE: Should not exceed 0.1
 		self.world.apply_settings(settings)
 
 		self.render = render  # visualization mode ON/OFF
