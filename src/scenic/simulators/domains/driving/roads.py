@@ -370,27 +370,27 @@ class Network:
         road_map.calculate_geometry(ref_points, calc_gap=fill_gaps, calc_intersect=True)
         return road_map.toScenicNetwork()
 
-    def elementAt(point: Vector) -> Union[NetworkElement, None]:
+    def elementAt(self, point: Vector) -> Union[NetworkElement, None]:
         road = self.roadAt(point)
         if road is not None:
             return road
         return self.intersectionAt(point)
 
-    def roadAt(point: Vector) -> Union[Road, None]:
+    def roadAt(self, point: Vector) -> Union[Road, None]:
         """Get the road passing through a given point."""
         for road in self.roads:
             if road.containsPoint(point):
                 return road
         return None
 
-    def laneAt(point: Vector) -> Union[Lane, None]:
+    def laneAt(self, point: Vector) -> Union[Lane, None]:
         """Get the lane passing through a given point."""
         for lane in self.lanes:
             if lane.containsPoint(point):
                 return lane
         return None
 
-    def intersectionAt(point: Vector) -> Union[Intersection, None]:
+    def intersectionAt(self, point: Vector) -> Union[Intersection, None]:
         """Get the intersection at a given point."""
         for intersection in self.intersections:
             if intersection.containsPoint(point):
