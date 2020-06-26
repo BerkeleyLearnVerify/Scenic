@@ -12,7 +12,7 @@ behavior LanekeepingBehavior(gain=0.1):
 	take actions.SetHandBrakeAction(False)
 	take actions.SetThrottleAction(0.5)
 	while True:
-		delta = self.heading relative to roadDirection
+		delta = self.heading relative to (roadDirection at self.position)
 		take actions.SetSteerAction(-gain * delta)
 
 behavior WalkForwardBehavior():
