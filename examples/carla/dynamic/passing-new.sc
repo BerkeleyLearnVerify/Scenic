@@ -132,14 +132,14 @@ rightLane	    E_2
 
 # Find all lane sections which have an adjacent lane to their left
 
-laneSecs = network.laneSections.filter(lambda ls: ls.laneToLeft)
+laneSecs = list(filter(lambda ls: ls.laneToLeft, network.laneSections))
 
 assert len(laneSecs) > 0, \
 	'No lane sections with adjacent left lane in network.'
 
 # Pick a random lane section
 
-initLaneSec = Uniform(laneSecs)
+initLaneSec = Uniform(*laneSecs)
 leftLaneSec = initLaneSec.laneToLeft
 
 # Create cars
