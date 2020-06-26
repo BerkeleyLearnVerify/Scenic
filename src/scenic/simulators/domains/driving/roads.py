@@ -101,7 +101,7 @@ class LinearElement(NetworkElement):
             i -= 1
         return pts[i].angleTo(pts[j])
 
-    def nominalDirectionsAt(point: Vector) -> Tuple[float]:
+    def nominalDirectionsAt(self, point: Vector) -> Tuple[float]:
         """Get nominal traffic direction(s) at a point in this element.
 
         There must be at least one such direction. If there are multiple, we
@@ -109,7 +109,7 @@ class LinearElement(NetworkElement):
         (So 'Object in element' will align by default to that orientation.)
         """
 
-    def flowFrom(point: Vector, distance: float) -> Vector:
+    def flowFrom(self, point: Vector, distance: float) -> Vector:
         """Advance a point along this element by a given distance.
 
         Equivalent to 'follow element.orientation from point for distance'.
@@ -143,21 +143,21 @@ class Road(LinearElement):
             return self.backwardLanes.orientation[point]
         return super().defaultHeadingAt(point)
 
-    def sectionAt(point: Vector) -> Union[RoadSection, None]:
+    def sectionAt(self, point: Vector) -> Union[RoadSection, None]:
         """Get the RoadSection passing through a given point."""
         for section in self.sections:
             if section.containsPoint(point):
                 return section
         return None
 
-    def laneAt(point: Vector) -> Union[Lane, None]:
+    def laneAt(self, point: Vector) -> Union[Lane, None]:
         """Get the lane passing through a given point."""
         for lane in self.lanes:
             if lane.containsPoint(point):
                 return lane
         return None
 
-    def shiftLanes(point: Vector, offset: int) -> Union[Vector, None]:
+    def shiftLanes(self, point: Vector, offset: int) -> Union[Vector, None]:
         """Find the point equivalent to this one but shifted over some # of lanes."""
 
     @property
@@ -260,7 +260,7 @@ class LaneSection(LinearElement):
     fasterLane: Union[LaneSection, None] = None   # faster/slower adjacent lane, if it exists;
     slowerLane: Union[LaneSection, None] = None   # could be to left or right depending on country
 
-    def shiftedBy(offset: int) -> Union[LaneSection, None]:
+    def shiftedBy(self, offset: int) -> Union[LaneSection, None]:
         """Find the lane a given number of lanes over from this lane."""
 
 @attr.s(auto_attribs=True, kw_only=True)
