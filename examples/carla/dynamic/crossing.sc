@@ -87,7 +87,7 @@ behavior CrossStreetBehavior():
 
 
 c = Car
-ego = Pedestrian on network.sidewalkRegion, with behavior CrossStreetBehavior
+ego = Pedestrian on visible sidewalk, with behavior CrossStreetBehavior
 
 
 '''
