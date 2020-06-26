@@ -14,7 +14,8 @@ import abc
 from collections import defaultdict
 
 from scenic.core.regions import PolygonalRegion, PolylineRegion
-from scenic.core.geometry import polygonUnion, cleanPolygon, cleanChain, plotPolygon
+from scenic.core.geometry import (polygonUnion, cleanPolygon, cleanChain, plotPolygon,
+                                  averageVectors)
 from scenic.simulators.domains.driving import roads as roadDomain
 
 # Lane types on which cars can appear.
@@ -527,8 +528,9 @@ class Road:
             sec_points.append(cur_sec_points)
             sec_polys.append(buffer_union(cur_sec_polys, tolerance=tolerance))
             for id_ in cur_sec_lane_polys:
-                cur_sec_lane_polys[id_] = buffer_union(cur_sec_lane_polys[id_],
-                                                       tolerance=tolerance)
+                poly = buffer_union(cur_sec_lane_polys[id_], tolerance=tolerance)
+                cur_sec_lane_polys[id_] = poly
+                cur_sec.get_lane(id_).poly = poly
             sec_lane_polys.append(dict(cur_sec_lane_polys))
             next_lane_polys = {}
             for id_ in cur_sec_lane_polys:
@@ -597,6 +599,7 @@ class Road:
         # Create lane and road sections
         roadSections = []
         last_section = None
+        sidewalkSections = defaultdict(list)
         for sec, pts, sec_poly, lane_polys in zip(self.lane_secs, self.sec_points,
                                                   self.sec_polys, self.sec_lane_polys):
             assert sec.drivable_lanes
@@ -638,6 +641,51 @@ class Road:
             )
             roadSections.append(section)
             last_section = section
+
+            for id_, lane in sec.sidewalk_lanes.items():
+                sidewalkSections[id_].append(lane)
+
+        # Build sidewalks
+        forwardSidewalks, backwardSidewalks = [], []
+        for id_ in sidewalkSections:
+            if id_ > 0:
+                forwardSidewalks.append(id_)
+            else:
+                backwardSidewalks.append(id_)
+
+        def makeSidewalk(laneIDs):
+            if not laneIDs:
+                return None
+            leftmost, rightmost = max(laneIDs), min(laneIDs)
+            if len(laneIDs) != leftmost-rightmost+1:
+                raise RuntimeError(f'road {self.id_} has sidewalks in the middle of the road')
+            if leftmost < 0:
+                leftSecs, rightSecs = sidewalkSections[leftmost], sidewalkSections[rightmost]
+            else:
+                leftSecs = reversed(sidewalkSections[rightmost])
+                rightSecs = reversed(sidewalkSections[leftmost])
+            leftPoints = list(itertools.chain(*(sec.left_bounds for sec in leftSecs)))
+            rightPoints = list(itertools.chain(*(sec.right_bounds for sec in rightSecs)))
+            if len(leftPoints) != len(rightPoints):
+                raise RuntimeError(f'unable to align sidewalks for road {self.id_}')
+            centerPoints = list(averageVectors(l, r) for l, r in zip(leftPoints, rightPoints))
+
+            leftEdge = PolylineRegion(cleanChain(leftPoints))
+            rightEdge = PolylineRegion(cleanChain(rightPoints))
+            centerline = PolylineRegion(cleanChain(centerPoints))
+            allPolys = (sec.poly for id_ in laneIDs for sec in sidewalkSections[id_])
+            sidewalk = roadDomain.Sidewalk(
+                polygon=buffer_union(allPolys, tolerance=tolerance),
+                centerline=centerline,
+                leftEdge=leftEdge,
+                rightEdge=rightEdge,
+                road=None,
+                crossings=()    # TODO add crosswalks
+            )
+            return sidewalk
+
+        forwardSidewalk = makeSidewalk(forwardSidewalks)
+        backwardSidewalk = makeSidewalk(backwardSidewalks)
 
         # Connect sections to their successors
         next_section = None
@@ -770,7 +818,7 @@ class Road:
                 rightEdge=rightEdge,
                 road=None,
                 lanes=tuple(forwardLanes),
-                sidewalk=None,      # TODO add these!
+                sidewalk=forwardSidewalk,
                 bikeLane=None
             )
         else:
@@ -785,7 +833,7 @@ class Road:
                 rightEdge=rightEdge,
                 road=None,
                 lanes=tuple(backwardLanes),
-                sidewalk=None,      # TODO add these!
+                sidewalk=backwardSidewalk,
                 bikeLane=None
             )
         else:
@@ -1293,7 +1341,11 @@ class RoadMap:
         lanes = [lane for road in roads for lane in road.lanes]
         intersections = tuple(intersections.values())
         crossings = ()      # TODO add these
-        sidewalks = ()
+        sidewalks = []
+        for group in groups:
+            sidewalk = group.sidewalk
+            if sidewalk:
+                sidewalks.append(sidewalk)
 
         def combine(regions):
             return PolygonalRegion.unionAll(regions, buf=self.tolerance)
@@ -1304,7 +1356,7 @@ class RoadMap:
             lanes=lanes,
             intersections=intersections,
             crossings=crossings,
-            sidewalks=sidewalks,
+            sidewalks=tuple(sidewalks),
             roadRegion=combine(roads),
             laneRegion=combine(lanes),
             intersectionRegion=combine(intersections),

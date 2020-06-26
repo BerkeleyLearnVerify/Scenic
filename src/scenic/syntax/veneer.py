@@ -61,9 +61,10 @@ import sys
 import random
 import enum
 import types
+import itertools
 from collections import defaultdict
-from scenic.core.distributions import (RejectionException, Distribution, toDistribution,
-									   needsSampling)
+from scenic.core.distributions import (Samplable, RejectionException, Distribution,
+                                       toDistribution, needsSampling)
 from scenic.core.type_support import (isA, toType, toTypes, toScalar, toHeading, toVector,
 									  evaluateRequiringEqualTypes, underlyingType,
 									  canCoerce, coerce)
@@ -105,6 +106,7 @@ def activate():
 	global activity
 	activity += 1
 	assert not evaluatingRequirement
+	assert currentSimulation is None
 
 def deactivate():
 	"""Deactivate the veneer after compiling a Scenic module."""
@@ -113,6 +115,7 @@ def deactivate():
 	activity -= 1
 	assert activity >= 0
 	assert not evaluatingRequirement
+	assert currentSimulation is None
 	allObjects = []
 	egoObject = None
 	globalParameters = {}
@@ -160,7 +163,7 @@ def beginSimulation(sim):
 		originalNS.update(sampledNS)
 
 def endSimulation():
-	global currentSimulation
+	global currentSimulation, egoObject
 	currentSimulation = None
 	egoObject = None
 
@@ -244,7 +247,7 @@ class BoundRequirement:
 
 # Behaviors
 
-class Behavior:
+class Behavior(Samplable):
 	def __init__(self, *args, **kwargs):
 		# Validate arguments to the behavior
 		sig = inspect.signature(self.makeGenerator)
@@ -254,14 +257,21 @@ class Behavior:
 			raise RuntimeParseError(str(e)) from e
 		self.args = args
 		self.kwargs = kwargs
+		super().__init__(itertools.chain(self.args, self.kwargs.values()))
 
 		self.runningIterator = None
 
-		# Save all global names used so we can rebind them with sampled values later
-		self.module = self.makeGenerator.__module__
-		self.globalNamespace = self.makeGenerator.__globals__
+		if isActive():	# during compilation, not sampling
+			# Save all global names used so we can rebind them with sampled values later
+			self.module = self.makeGenerator.__module__
+			self.globalNamespace = self.makeGenerator.__globals__
 
-		self.register()
+			self.register()
+
+	def sampleGiven(self, value):
+		args = (value[arg] for arg in self.args)
+		kwargs = { name: value[val] for name, val in self.kwargs.items() }
+		return type(self)(*args, **kwargs)
 
 	def register(self):
 		behaviors.append(self)

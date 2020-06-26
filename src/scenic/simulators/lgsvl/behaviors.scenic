@@ -4,22 +4,8 @@ from scenic.simulators.lgsvl.simulator import FollowWaypointsAction, SetDestinat
 
 ## Behaviors
 
-def DriveTo(target):
-    def behavior(self):
-        nonlocal target
-        action = SetDestinationAction(target)
-        invoke DoForever(action)
-    return behavior
+behavior DriveTo(target):
+    take SetDestinationAction(target)
 
-def FollowWaypoints(waypoints):
-    def behavior(self):
-        nonlocal waypoints
-        action = FollowWaypointsAction(waypoints)
-        invoke DoForever(action)
-    return behavior
-
-## Utilities
-
-def DoForever(action):
-    while True:
-        yield action
+behavior FollowWaypoints(waypoints):
+    take FollowWaypointsAction(waypoints)
