@@ -1,5 +1,6 @@
-import scenic.simulators.carla.actions as actions
 
+import scenic.simulators.carla.actions as actions
+from scenic.simulators.carla.model import roadDirection
 
 behavior AccelerateForwardBehavior():
 	take actions.SetReverseAction(False)
