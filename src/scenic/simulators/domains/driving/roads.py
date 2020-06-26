@@ -300,6 +300,9 @@ class Network:
     crossings: Tuple[PedestrianCrossing]
     sidewalks: Tuple[Sidewalk]
 
+    roadSections: Tuple[RoadSection] = None
+    laneSections: Tuple[LaneSection] = None
+
     driveOnLeft: bool = False
 
     # convenience regions aggregated from various types of network elements
@@ -315,6 +318,9 @@ class Network:
     roadDirection: VectorField = None
 
     def __attrs_post_init__(self):
+        self.roadSections = tuple(sec for road in self.roads for sec in road.sections)
+        self.laneSections = tuple(sec for lane in self.lanes for sec in lane.sections)
+
         if self.roadRegion is None:
             self.roadRegion = PolygonalRegion.unionAll(self.roads)
         if self.laneRegion is None:
