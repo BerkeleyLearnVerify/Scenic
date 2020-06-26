@@ -147,7 +147,7 @@ leftLaneSec = initLaneSec.laneToLeft
 behavior SlowCarBehavior():
 	take actions.SetThrottleAction(0.3)
 
-slowCar = Car on initLaneSec.centerline
+slowCar = Car on initLaneSec.centerline,
 	with speed 5,
 	with behavior SlowCarBehavior
 
