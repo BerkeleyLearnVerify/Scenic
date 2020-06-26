@@ -11,7 +11,7 @@ simulator = CarlaSimulator('Town01')
 
 ego = Car with behavior behaviors.ConstantThrottleBehavior(0.5)
 
-otherCar = Car ahead of ego,
+otherCar = Car ahead of ego by 10,
     with behavior behaviors.ConstantThrottleBehavior(0.7)
 
 obstacle = Pedestrian with behavior behaviors.WalkForwardBehavior

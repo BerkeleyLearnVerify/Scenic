@@ -71,7 +71,7 @@ class CarlaSimulation(simulators.Simulation):
 			carlaActor = self.world.try_spawn_actor(blueprint, transform)
 			if carlaActor is None:
 				raise RuntimeError(f'Unable to spawn object {type(obj)} at position {obj.position}, likely from a spawn collision')
-			carlaActor.apply_control(carla.VehicleControl())  # set default controls
+			#carlaActor.apply_control(carla.VehicleControl())  # set default controls
 
 			# Set Carla actor's initial speed (if specified)
 			if obj.speed is not None:
