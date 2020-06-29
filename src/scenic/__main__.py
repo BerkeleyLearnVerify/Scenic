@@ -8,6 +8,7 @@ import argparse
 import random
 
 import scenic.syntax.translator as translator
+from scenic.simulators import SimulationCreationError
 
 parser = argparse.ArgumentParser(prog='scenic',
                                  usage='scenic [-h] [options] scenario',
@@ -77,7 +78,12 @@ def runSimulation(scene):
     startTime = time.time()
     if args.verbosity >= 1:
         print('  Beginning simulation...')
-    scene.simulate(maxSteps=args.time, verbosity=args.verbosity)
+    try:
+        scene.simulate(maxSteps=args.time, verbosity=args.verbosity)
+    except SimulationCreationError as e:
+        if args.verbosity >= 1:
+            print(f'  Failed to create simulation: {e}')
+        return
     if args.verbosity >= 1:
         totalTime = time.time() - startTime
         print(f'  Ran simulation in {totalTime:.4g} seconds.')

@@ -14,4 +14,5 @@
    formats
 """
 
-from .simulators import Simulator, Simulation, Action, RejectSimulationException
+from .simulators import (Simulator, Simulation, Action, SimulationCreationError,
+                         RejectSimulationException)

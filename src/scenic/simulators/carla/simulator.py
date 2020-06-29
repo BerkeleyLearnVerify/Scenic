@@ -70,7 +70,7 @@ class CarlaSimulation(simulators.Simulation):
 			# Create Carla actor
 			carlaActor = self.world.try_spawn_actor(blueprint, transform)
 			if carlaActor is None:
-				raise simulators.RejectSimulationException(
+				raise simulators.SimulationCreationError(
 				    f'Unable to spawn object {type(obj)} at position {obj.position}, '
 				    'likely from a spawn collision'
 				)

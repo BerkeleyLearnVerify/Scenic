@@ -7,6 +7,10 @@ from collections import OrderedDict
 from scenic.core.object_types import enableDynamicProxyFor, disableDynamicProxyFor
 from scenic.core.utils import RuntimeParseError
 
+class SimulationCreationError(Exception):
+    """Exception indicating a simulation could not be run from the given scene."""
+    pass
+
 class RejectSimulationException(Exception):
     """Exception indicating a requirement was violated at runtime."""
     pass
@@ -23,17 +27,12 @@ class Simulator:
             iterations += 1
             # Run a single simulation
             try:
-                simulation = None
                 simulation = self.createSimulation(scene)
                 trajectory, terminationReason = simulation.run(maxSteps, verbosity=verbosity)
             except RejectSimulationException as e:
                 if verbosity >= 2:
-                    if simulation is not None:
-                        print(f'  Rejected simulation {iterations} at time step '
-                              f'{simulation.currentTime} because of: {e}')
-                    else:
-                        print(f'  Rejected simulation {iterations} during initialization '
-                              f'because of: {e}')
+                    print(f'  Rejected simulation {iterations} at time step '
+                          f'{simulation.currentTime} because of: {e}')
                 continue
             # Completed the simulation without violating a requirement
             if verbosity >= 2:
