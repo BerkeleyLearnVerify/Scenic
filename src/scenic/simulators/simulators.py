@@ -23,12 +23,17 @@ class Simulator:
             iterations += 1
             # Run a single simulation
             try:
+                simulation = None
                 simulation = self.createSimulation(scene)
                 trajectory, terminationReason = simulation.run(maxSteps, verbosity=verbosity)
             except RejectSimulationException as e:
                 if verbosity >= 2:
-                    print(f'  Rejected simulation {iterations} at time step '
-                          f'{simulation.currentTime} because of: {e}')
+                    if simulation is not None:
+                        print(f'  Rejected simulation {iterations} at time step '
+                              f'{simulation.currentTime} because of: {e}')
+                    else:
+                        print(f'  Rejected simulation {iterations} during initialization '
+                              f'because of: {e}')
                 continue
             # Completed the simulation without violating a requirement
             if verbosity >= 2:
