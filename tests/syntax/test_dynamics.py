@@ -60,6 +60,22 @@ def test_behavior_reuse_2():
     action1, action2 = actions[0]
     assert action1 != action2
 
+# Nesting (sub-behaviors)
+
+def test_behavior_nesting():
+    scenario = compileScenic(
+        'behavior Foo(a):\n'
+        '    take a\n'
+        '    take a\n'
+        'behavior Bar():\n'
+        '    take 1\n'
+        '    Foo(2)\n'
+        '    take 3\n'
+        'ego = Object with behavior Bar\n'
+    )
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (1, 2, 2, 3)
+
 # Interrupts
 
 def test_interrupt():

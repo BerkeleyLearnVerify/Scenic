@@ -1443,14 +1443,14 @@ class ASTSurgeon(NodeTransformer):
 			function(args)
 		into:
 			(CHECK(yield from CURRENT_BEHAVIOR.callSubBehavior(TEMP, self, args))
-			if isinstance(TEMP := function, Behavior)
+			if issubclass(TEMP := function, Behavior)
 			else TEMP(args))
 		where TEMP is a temporary name,
 		CURRENT_BEHAVIOR is a hidden argument storing the current Behavior object, and
 		CHECK is a function which checks the invariants and returns its argument.
 		"""
 		savedFunc = NamedExpr(Name(temporaryName, Store()), func)
-		condition = Call(Name('isinstance', Load()),
+		condition = Call(Name('issubclass', Load()),
 		                 [savedFunc, Name(behaviorClass, Load())],
 		                 []
 		)

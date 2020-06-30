@@ -305,7 +305,7 @@ class Behavior(Samplable):
 		self.runningIterator = None
 
 	def callSubBehavior(self, subcls, agent, *args, **kwargs):
-		assert isinstance(subcls, Behavior)
+		assert issubclass(subcls, Behavior)
 		sub = subcls(*args, **kwargs)
 		if not sub.start(agent):
 			return
