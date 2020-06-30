@@ -1156,6 +1156,21 @@ class ASTSurgeon(NodeTransformer):
 		else:
 			return [self.visit(arg)]
 
+	def visit(self, node):
+		if isinstance(node, ast.AST):
+			return super().visit(node)
+		elif isinstance(node, list):
+			newStatements = []
+			for statement in node:
+				newStatement = self.visit(statement)
+				if isinstance(newStatement, ast.AST):
+					newStatements.append(newStatement)
+				else:
+					newStatements.extend(newStatement)
+			return newStatements
+		else:
+			raise RuntimeError(f'unknown object {node} encountered during AST surgery')
+
 	def visit_BinOp(self, node):
 		"""Convert infix operators to calls to the corresponding Scenic operator implementations."""
 		left = node.left
@@ -1280,13 +1295,7 @@ class ASTSurgeon(NodeTransformer):
 		self.usedBreakOrContinue = False
 
 		def makeInterruptBlock(name, body):
-			newBody = []
-			for statement in body:
-				newStatement = self.visit(statement)
-				if isinstance(newStatement, ast.AST):
-					newBody.append(newStatement)
-				else:
-					newBody.extend(newStatement)
+			newBody = self.visit(body)
 			allLocals = LocalFinder.findIn(newBody)
 			if allLocals:
 				newBody.insert(0, Nonlocal(list(allLocals)))
@@ -1343,7 +1352,7 @@ class ASTSurgeon(NodeTransformer):
 		# Construct overall try-except statement
 		if exceptionHandlers or node.finalbody:
 			newTry = Try(statements,
-			             exceptionHandlers,
+			             [self.visit(handler) for handler in exceptionHandlers],
 			             self.visit(node.orelse),
 			             self.visit(node.finalbody))
 			return copy_location(newTry, node)
