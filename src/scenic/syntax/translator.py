@@ -245,8 +245,11 @@ api = set(veneer.__all__)
 rangeConstructor = 'Range'
 createDefault = 'PropertyDefault'
 behaviorClass = 'Behavior'
+behaviorChecker = 'isABehavior'
 createTerminationAction = 'makeTerminationAction'
-internalFunctions = { rangeConstructor, createDefault, behaviorClass, createTerminationAction }
+internalFunctions = {
+	rangeConstructor, createDefault, behaviorClass, behaviorChecker, createTerminationAction,
+}
 
 # sanity check: these functions actually exist
 for imp in internalFunctions:
@@ -1452,17 +1455,14 @@ class ASTSurgeon(NodeTransformer):
 			function(args)
 		into:
 			(CHECK(yield from CURRENT_BEHAVIOR.callSubBehavior(TEMP, self, args))
-			if issubclass(TEMP := function, Behavior)
+			if isABehavior(TEMP := function)
 			else TEMP(args))
 		where TEMP is a temporary name,
 		CURRENT_BEHAVIOR is a hidden argument storing the current Behavior object, and
 		CHECK is a function which checks the invariants and returns its argument.
 		"""
 		savedFunc = NamedExpr(Name(temporaryName, Store()), func)
-		condition = Call(Name('issubclass', Load()),
-		                 [savedFunc, Name(behaviorClass, Load())],
-		                 []
-		)
+		condition = Call(Name(behaviorChecker, Load()), [savedFunc], [])
 		subHandler = Attribute(Name(behaviorArgName, Load()), 'callSubBehavior', Load())
 		subArgs = [Name(temporaryName, Load()), Name('self', Load())] + args
 		subCall = Call(subHandler, subArgs, keywords)

@@ -47,6 +47,20 @@ def test_terminate():
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (1,)
 
+def test_terminate_when():
+    scenario = compileScenic("""
+        flag = False
+        behavior Foo():
+            global flag
+            take 1
+            flag = True
+            take 2
+        ego = Object with behavior Foo
+        terminate when flag
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=3)
+    assert tuple(actions) == (1,)
+
 # Reuse
 
 def test_behavior_reuse():

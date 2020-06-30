@@ -38,7 +38,7 @@ __all__ = (
 	# Exceptions
 	'GuardFailure', 'PreconditionFailure', 'InvariantFailure',
 	# Internal APIs 	# TODO remove?
-	'PropertyDefault', 'Behavior', 'makeTerminationAction',
+	'PropertyDefault', 'Behavior', 'isABehavior', 'makeTerminationAction',
 	'BlockConclusion', 'runTryInterrupt',
 )
 
@@ -315,6 +315,9 @@ class Behavior(Samplable):
 		return f'behavior {self.__name__}'
 
 behaviorIndicator = '__Scenic_behavior'
+
+def isABehavior(thing):
+	return isinstance(thing, type) and issubclass(thing, Behavior)
 
 def makeTerminationAction(line):
 	assert not isActive()
