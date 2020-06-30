@@ -1,4 +1,6 @@
 
+import sys
+
 from scenic import scenarioFromString as compileScenic
 from scenic.simulators.simulators import Simulator
 import scenic.syntax.veneer as veneer
@@ -64,3 +66,14 @@ def checkVeneerIsInactive():
     assert len(veneer.inheritedReqs) == 0
     assert len(veneer.behaviors) == 0
     assert len(veneer.monitors) == 0
+
+## Error checking utilities
+
+def checkErrorLineNumber(line, exc_info=None):
+    if exc_info is None:
+        tb = sys.exc_info()[2]
+    else:
+        tb = exc_info.tb
+    while tb.tb_next is not None:
+        tb = tb.tb_next
+    assert tb.tb_lineno == line

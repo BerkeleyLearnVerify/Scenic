@@ -1305,7 +1305,9 @@ class ASTSurgeon(NodeTransformer):
 			conditionNames.append(conditionName)
 
 			statements.append(makeInterruptBlock(handlerName, block))
+			self.inGuard = True
 			checker = Lambda(noArgs, self.visit(condition))
+			self.inGuard = False
 			defChecker = Assign([Name(conditionName, Store())], checker)
 			statements.append(defChecker)
 

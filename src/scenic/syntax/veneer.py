@@ -90,6 +90,7 @@ inheritedReqs = []		# TODO improve handling of these?
 monitors = []
 behaviors = []
 currentSimulation = None
+evaluatingGuard = False
 
 ## APIs used internally by the rest of Scenic
 
@@ -107,6 +108,7 @@ def activate():
 	global activity
 	activity += 1
 	assert not evaluatingRequirement
+	assert not evaluatingGuard
 	assert currentSimulation is None
 
 def deactivate():
@@ -116,6 +118,7 @@ def deactivate():
 	activity -= 1
 	assert activity >= 0
 	assert not evaluatingRequirement
+	assert not evaluatingGuard
 	assert currentSimulation is None
 	allObjects = []
 	egoObject = None
@@ -250,6 +253,10 @@ class BoundRequirement:
 
 class Behavior(Samplable):
 	def __init__(self, *args, **kwargs):
+		if evaluatingGuard:
+			raise RuntimeParseError(
+			    'tried to call behavior from inside guard or interrupt condition')
+
 		# Validate arguments to the behavior
 		sig = inspect.signature(self.makeGenerator)
 		try:
@@ -372,7 +379,12 @@ class InterruptBlock:
 
 	@property
 	def isEnabled(self):
-		return bool(self.condition())
+		global evaluatingGuard
+		try:
+			evaluatingGuard = True
+			return bool(self.condition())
+		finally:
+			evaluatingGuard = False
 
 	@property
 	def isRunning(self):
