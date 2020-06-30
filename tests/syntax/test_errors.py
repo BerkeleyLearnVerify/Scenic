@@ -9,6 +9,8 @@ from scenic import scenarioFromString as compileScenic
 from scenic.syntax.translator import (ParseError, TokenParseError,
     PythonParseError, ASTParseError, InterpreterParseError)
 
+from tests.utils import checkErrorLineNumber
+
 ### File errors
 
 def test_missing_file():
@@ -234,10 +236,7 @@ def checkBug(bug, template, tmpdir, checkTraceback=True, generate=False):
         # in Python 3.7+, when we can modify tracebacks, check that the
         # last frame of the traceback has the correct line number
         if checkTraceback and sys.version_info >= (3, 7):
-            tb = sys.exc_info()[2]
-            while tb.tb_next is not None:
-                tb = tb.tb_next
-            assert tb.tb_lineno == line
+            checkErrorLineNumber(line)
 
 @pytest.mark.parametrize('bug', (
     'x = 3 << 2',       # caught during token translation

@@ -47,8 +47,9 @@ import ast
 from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_missing_locations
 from ast import Load, Store, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, BitXor, LShift
 from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Num, Subscript, Index, IfExp
-from ast import NamedExpr, Yield, YieldFrom, FunctionDef, Attribute, NameConstant, Assign, Expr
-from ast import Return, Raise, If, UnaryOp, Not, ClassDef
+from ast import NamedExpr, Yield, YieldFrom, FunctionDef, Attribute, Constant, Assign, Expr
+from ast import Return, Raise, If, UnaryOp, Not, ClassDef, Nonlocal, Global, Compare, Is, Try
+from ast import Break, Continue
 
 from scenic.core.distributions import Samplable, needsSampling
 from scenic.core.lazy_eval import needsLazyEvaluation
@@ -251,6 +252,14 @@ internalFunctions = { rangeConstructor, createDefault, behaviorClass, createTerm
 for imp in internalFunctions:
 	assert imp in api, imp
 
+## Built-in functions
+
+builtinFunctions = { 'resample', 'verbosePrint', 'simulation' }
+
+# sanity check: implementations of built-in functions actually exist
+for imp in builtinFunctions:
+	assert imp in api, imp
+
 ## Simple statements
 
 paramStatement = 'param'
@@ -263,10 +272,12 @@ terminateWhenStatement = ('terminate', 'when')
 actionStatement = 'take'			# statement invoking a primitive action
 waitStatement = 'wait'				# statement invoking a no-op action
 terminateStatement = 'terminate'	# statement ending the simulation
+abortStatement = 'abort'			# statement ending a try-interrupt statement
 
 oneWordStatements = {	# TODO clean up
 	paramStatement, mutateStatement, requireStatement,
-	actionStatement, waitStatement, terminateStatement
+	actionStatement, waitStatement, terminateStatement,
+	abortStatement
 }
 twoWordStatements = { requireAlwaysStatement, terminateWhenStatement }
 
@@ -292,14 +303,14 @@ requirementStatements = (
 )
 
 statementRaiseMarker = '_Scenic_statement_'
+def wrapStatementCall(newTokens):
+	newTokens.extend(((NAME, 'raise'), (NAME, statementRaiseMarker), (NAME, 'from')))
 
-## Built-in functions
+## Try-interrupt blocks
 
-builtinFunctions = { 'resample', 'verbosePrint', 'simulation' }
+interruptWhenStatement = ('interrupt', 'when')
 
-# sanity check: implementations of built-in functions actually exist
-for imp in builtinFunctions:
-	assert imp in api, imp
+interruptExceptMarker = '_Scenic_interrupt_'
 
 ## Constructors and specifiers
 
@@ -848,6 +859,11 @@ class TokenTranslator:
 						advance()	# consume second word
 						skip = True
 						matched = True
+					elif twoWords == interruptWhenStatement:	# special case for interrupt when
+						injectToken((NAME, 'except'), spaceAfter=1)
+						callFunction(interruptExceptMarker)
+						advance()	# consume second word
+						matched = True
 					elif twoWords in twoWordStatements:	# 2-word statement
 						wrapStatementCall()
 						function = functionForStatement(twoWords)
@@ -940,9 +956,18 @@ class TokenTranslator:
 					inConstructor = False
 					if parenLevel != 0:
 						raise TokenParseError(token, 'unmatched parens/brackets')
+					interrupt = False
+					if functionStack and functionStack[0][0] == interruptExceptMarker:
+						lastToken = newTokens[-1]
+						if lastToken[1] != ':':
+							raise TokenParseError(nextToken, 'expected colon for interrupt')
+						newTokens.pop()		# remove colon for now
+						interrupt = True
 					while len(functionStack) > 0:
 						functionStack.pop()
 						injectToken((RPAR, ')'))
+					if interrupt:
+						injectToken((COLON, ':'))
 
 			# Output token unchanged, unless handled above
 			if not skip:
@@ -987,6 +1012,13 @@ def parseTranslatedSource(source, filename):
 temporaryName = '_Scenic_temporary_name'
 behaviorArgName = '_Scenic_current_behavior'
 checkInvariantsName = '_Scenic_check_invariants'
+interruptPrefix = '_Scenic_interrupt'
+
+abortFlag = Attribute(Name('BlockConclusion', Load()), 'ABORT', Load())
+breakFlag = Attribute(Name('BlockConclusion', Load()), 'BREAK', Load())
+continueFlag = Attribute(Name('BlockConclusion', Load()), 'CONTINUE', Load())
+returnFlag = Attribute(Name('BlockConclusion', Load()), 'RETURN', Load())
+finishedFlag = Attribute(Name('BlockConclusion', Load()), 'FINISHED', Load())
 
 noArgs = ast.arguments(
     posonlyargs=[],
@@ -1002,7 +1034,16 @@ tempArg = ast.arguments(
     posonlyargs=[],
 	args=[ast.arg(arg=temporaryName, annotation=None)], vararg=None,
 	kwonlyargs=[], kw_defaults=[],
-	kwarg=None, defaults=[NameConstant(None)])
+	kwarg=None, defaults=[Constant(None)])
+initialBehaviorArgs = [
+	ast.arg(arg=behaviorArgName, annotation=None),
+	ast.arg(arg='self', annotation=None)
+]
+onlyBehaviorArgs = ast.arguments(
+    posonlyargs=[],
+    args=initialBehaviorArgs, vararg=None,
+    kwonlyargs=[], kw_defaults=[],
+    kwarg=None, defaults=[])
 
 class AttributeFinder(NodeVisitor):
 	"""Utility class for finding all referenced attributes of a given name."""
@@ -1023,6 +1064,64 @@ class AttributeFinder(NodeVisitor):
 			self.attributes.add(node.attr)
 		self.visit(val)
 
+class LocalFinder(NodeVisitor):
+	"""Utility class for finding all local variables of a code block."""
+	@staticmethod
+	def findIn(block):
+		lf = LocalFinder()
+		for statement in block:
+			lf.visit(statement)
+		return lf.names - lf.globals - lf.nonlocals
+
+	def __init__(self):
+		self.names = set()
+		self.globals = set()
+		self.nonlocals = set()
+
+	def visit_Global(self, node):
+		self.globals |= node.names
+
+	def visit_Nonlocal(self, node):
+		self.nonlocals |= node.names
+
+	def visit_FunctionDef(self, node):
+		self.names.add(node.name)
+		self.visit(node.args)
+		for decorator in node.decorator_list:
+			self.visit(decorator)
+		if node.returns is not None:
+			self.visit(node.returns)
+		# do not visit body; it's another block
+
+	def visit_Lambda(self, node):
+		self.visit(node.args)
+		# do not visit body; it's another block
+
+	def visit_ClassDef(self, node):
+		self.names.add(node.name)
+		for child in itertools.chain(node.bases, node.keywords, node.decorator_list):
+			self.visit(child)
+		# do not visit body; it's another block
+
+	def visit_Import(self, node):
+		for alias in node.names:
+			bound = alias.asname
+			if bound is None:
+				bound = alias.name
+			self.names.add(bound)
+
+	def visit_ImportFrom(self, node):
+		self.visit_Import(node)
+
+	def visit_Name(self, node):
+		if isinstance(node.ctx, Store):
+			self.names.add(node.id)
+
+	def visit_ExceptHandler(self, node):
+		if node.name is not None:
+			self.names.add(node.name)
+		self.generic_visit(node)
+
 class ASTParseError(ParseError):
 	"""Parse error occuring during modification of the Python AST."""
 	def __init__(self, line, message):
@@ -1036,6 +1135,10 @@ class ASTSurgeon(NodeTransformer):
 		self.requirements = []
 		self.inBehavior = False
 		self.inGuard = False
+		self.inTryInterrupt = False
+		self.inInterruptBlock = False
+		self.inLoop = False
+		self.usedBreakOrContinue = False
 
 	def parseError(self, node, message):
 		raise ASTParseError(node.lineno, message)
@@ -1052,6 +1155,21 @@ class ASTSurgeon(NodeTransformer):
 			raise self.parseError(node, 'gave too few arguments to infix operator')
 		else:
 			return [self.visit(arg)]
+
+	def visit(self, node):
+		if isinstance(node, ast.AST):
+			return super().visit(node)
+		elif isinstance(node, list):
+			newStatements = []
+			for statement in node:
+				newStatement = self.visit(statement)
+				if isinstance(newStatement, ast.AST):
+					newStatements.append(newStatement)
+				else:
+					newStatements.extend(newStatement)
+			return newStatements
+		else:
+			raise RuntimeError(f'unknown object {node} encountered during AST surgery')
 
 	def visit_BinOp(self, node):
 		"""Convert infix operators to calls to the corresponding Scenic operator implementations."""
@@ -1127,14 +1245,164 @@ class ASTSurgeon(NodeTransformer):
 			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
 			termination = Call(Name(createTerminationAction, Load()), [Num(node.lineno)], [])
 			return self.generateActionInvocation(node, termination)
+		elif func.id == abortStatement:		# abort statement for try-interrupt statements
+			if not self.inTryInterrupt:
+				raise self.parseError(node, '"abort" outside of try-interrupt statement')
+			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
+			return copy_location(Return(abortFlag), node)
 		else:
 			# statement implemented directly by a function; leave call intact
 			return copy_location(Expr(node), node)
 
 	def generateActionInvocation(self, node, action):
+		# if self.inInterruptBlock:
+		# 	# Capture current bindings of locals to transfer to other blocks
+		# 	action = Tuple([action, Call(Name('locals', Load()), [], [])], Load())
 		invokeAction = Expr(Yield(action))
 		checkInvariants = Expr(Call(Name(checkInvariantsName, Load()), [], []))
 		return [copy_location(invokeAction, node), copy_location(checkInvariants, node)]
+
+	def visit_Try(self, node):
+		"""Handle try-interrupt blocks."""
+		interrupts = []
+		exceptionHandlers = []
+		for handler in node.handlers:
+			ty = handler.type
+			if (isinstance(ty, Call) and isinstance(ty.func, Name)
+			    and ty.func.id == interruptExceptMarker):
+				assert handler.name is None
+				if len(ty.args) != 1:
+					raise self.parseError(handler, '"interrupt when" takes a single expression')
+				interrupts.append((ty.args[0], handler.body))
+			else:
+				exceptionHandlers.append(handler)
+		if not interrupts:		# an ordinary try-except block
+			return self.generic_visit(node)
+
+		# Add dead copy of all interrupts to ensure all local variables defined inside
+		# the body and handlers are also defined as locals in the top-level function
+		statements = []
+		oldInTryInterrupt = self.inTryInterrupt
+		if not self.inTryInterrupt:
+			deadcopy = If(Constant(False), [node], [])
+			statements.append(deadcopy)
+			self.inTryInterrupt = True
+
+		# Construct body
+		oldInInterruptBlock, oldInLoop = self.inInterruptBlock, self.inLoop
+		self.inInterruptBlock = True
+		self.inLoop = False
+		self.usedBreakOrContinue = False
+
+		def makeInterruptBlock(name, body):
+			newBody = self.visit(body)
+			allLocals = LocalFinder.findIn(newBody)
+			if allLocals:
+				newBody.insert(0, Nonlocal(list(allLocals)))
+			newBody.append(Return(finishedFlag))
+			return FunctionDef(name, onlyBehaviorArgs, newBody, [], None)
+
+		bodyName = f'{interruptPrefix}_body'
+		statements.append(makeInterruptBlock(bodyName, node.body))
+
+		# Construct interrupt handlers and condition checkers
+		handlerNames, conditionNames = [], []
+		for i, (condition, block) in enumerate(interrupts):
+			handlerName = f'{interruptPrefix}_handler_{i}'
+			handlerNames.append(handlerName)
+			conditionName = f'{interruptPrefix}_condition_{i}'
+			conditionNames.append(conditionName)
+
+			statements.append(makeInterruptBlock(handlerName, block))
+			self.inGuard = True
+			checker = Lambda(noArgs, self.visit(condition))
+			self.inGuard = False
+			defChecker = Assign([Name(conditionName, Store())], checker)
+			statements.append(defChecker)
+
+		self.inInterruptBlock, self.inLoop = oldInInterruptBlock, oldInLoop
+		self.inTryInterrupt = oldInTryInterrupt
+
+		# Prepare tuples of interrupt conditions and handlers
+		# (in order from high priority to low, so reversed relative to the syntax)
+		conditions = Tuple([Name(n, Load()) for n in reversed(conditionNames)], Load())
+		handlers = Tuple([Name(n, Load()) for n in reversed(handlerNames)], Load())
+
+		# Construct code to execute the try-interrupt statement
+		args = [
+			Name(behaviorArgName, Load()),
+			Name('self', Load()),
+			Name(bodyName, Load()),
+			conditions,
+			handlers
+		]
+		callRuntime = Call(Name('runTryInterrupt', Load()), args, [])
+		runTI = Assign([Name(temporaryName, Store())], YieldFrom(callRuntime))
+		statements.append(runTI)
+		result = Name(temporaryName, Load())
+		if self.usedBreakOrContinue:
+			test = Compare(result, [Is()], [breakFlag])
+			statements.append(If(test, [Break()], []))
+			test = Compare(result, [Is()], [continueFlag])
+			statements.append(If(test, [Continue()], []))
+		test = Compare(result, [Is()], [returnFlag])
+		retCheck = If(test, [Return(Attribute(result, 'return_value', Load()))], [])
+		statements.append(retCheck)
+
+		# Construct overall try-except statement
+		if exceptionHandlers or node.finalbody:
+			newTry = Try(statements,
+			             [self.visit(handler) for handler in exceptionHandlers],
+			             self.visit(node.orelse),
+			             self.visit(node.finalbody))
+			return copy_location(newTry, node)
+		else:
+			return statements
+
+	def visit_For(self, node):
+		old = self.inLoop
+		self.inLoop = True
+		newNode = self.generic_visit(node)
+		self.inLoop = old
+		return newNode
+
+	def visit_While(self, node):
+		old = self.inLoop
+		self.inLoop = True
+		newNode = self.generic_visit(node)
+		self.inLoop = old
+		return newNode
+
+	def visit_FunctionDef(self, node):
+		oldInLoop, oldInInterruptBlock = self.inLoop, self.inInterruptBlock
+		self.inLoop, self.inInterruptBlock = False, False
+		newNode = self.generic_visit(node)
+		self.inLoop, self.inInterruptBlock = oldInLoop, oldInInterruptBlock
+		return newNode
+
+	def visit_Break(self, node):
+		if self.inInterruptBlock and not self.inLoop:
+			self.usedBreakOrContinue = True
+			newNode = Return(breakFlag)
+			return copy_location(newNode, node)
+		else:
+			return self.generic_visit(node)
+
+	def visit_Continue(self, node):
+		if self.inInterruptBlock and not self.inLoop:
+			self.usedBreakOrContinue = True
+			newNode = Return(continueFlag)
+			return copy_location(newNode, node)
+		else:
+			return self.generic_visit(node)
+
+	def visit_Return(self, node):
+		if self.inInterruptBlock:
+			value = Constant(None) if node.value is None else node.value
+			ret = Return(Call(returnFlag, [value], []))
+			return copy_location(ret, node)
+		else:
+			return self.generic_visit(node)
 
 	def visit_Call(self, node, subBehaviorCheck=True):
 		"""Handle Scenic syntax and semantics of function calls.
@@ -1184,14 +1452,14 @@ class ASTSurgeon(NodeTransformer):
 			function(args)
 		into:
 			(CHECK(yield from CURRENT_BEHAVIOR.callSubBehavior(TEMP, self, args))
-			if isinstance(TEMP := function, Behavior)
+			if issubclass(TEMP := function, Behavior)
 			else TEMP(args))
 		where TEMP is a temporary name,
 		CURRENT_BEHAVIOR is a hidden argument storing the current Behavior object, and
 		CHECK is a function which checks the invariants and returns its argument.
 		"""
 		savedFunc = NamedExpr(Name(temporaryName, Store()), func)
-		condition = Call(Name('isinstance', Load()),
+		condition = Call(Name('issubclass', Load()),
 		                 [savedFunc, Name(behaviorClass, Load())],
 		                 []
 		)
@@ -1210,6 +1478,8 @@ class ASTSurgeon(NodeTransformer):
 
 		# process body
 		self.inBehavior = True
+		oldInLoop = self.inLoop
+		self.inLoop = False
 		preconditions = []
 		invariants = []
 		newStatements = []
@@ -1252,18 +1522,17 @@ class ASTSurgeon(NodeTransformer):
 		defineChecker = FunctionDef(checkInvariantsName, tempArg,
 		                            invChecks + [Return(Name(temporaryName, Load()))],
 		                            [], None)
+		spot = Attribute(Name(behaviorArgName, Load()), 'checkInvariants', Store())
+		saveChecker = Assign([spot], Name(checkInvariantsName, Load()))
 		callChecker = Expr(Call(Name(checkInvariantsName, Load()), [], []))
 		# assemble new function body
-		newBody = precondChecks + [defineChecker, callChecker] + newStatements
+		newBody = precondChecks + [defineChecker, saveChecker, callChecker] + newStatements
 		self.inBehavior = False
+		self.inLoop = oldInLoop
 
 		# add private current behavior argument and implicit 'self' argument
 		newArgs = self.visit(node.args)
-		extraArgs = [
-			ast.arg(arg=behaviorArgName, annotation=None),
-			ast.arg(arg='self', annotation=None)
-		]
-		newArgs.args = extraArgs + newArgs.args
+		newArgs.args = initialBehaviorArgs + newArgs.args
 
 		# convert to class definition
 		decorators = [self.visit(decorator) for decorator in node.decorator_list]

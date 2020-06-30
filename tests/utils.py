@@ -1,9 +1,18 @@
 
-from scenic import scenarioFromString as compileScenic
+import sys
+import inspect
+
+from scenic import scenarioFromString
 from scenic.simulators.simulators import Simulator
 import scenic.syntax.veneer as veneer
 
 ## Scene generation utilities
+
+# Compilation
+
+def compileScenic(code):
+    code = inspect.cleandoc(code)   # to allow indenting code to line up with test function
+    return scenarioFromString(code)
 
 # Static scenes
 
@@ -64,3 +73,14 @@ def checkVeneerIsInactive():
     assert len(veneer.inheritedReqs) == 0
     assert len(veneer.behaviors) == 0
     assert len(veneer.monitors) == 0
+
+## Error checking utilities
+
+def checkErrorLineNumber(line, exc_info=None):
+    if exc_info is None:
+        tb = sys.exc_info()[2]
+    else:
+        tb = exc_info.tb
+    while tb.tb_next is not None:
+        tb = tb.tb_next
+    assert tb.tb_lineno == line
