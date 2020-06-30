@@ -38,7 +38,8 @@ __all__ = (
 	# Exceptions
 	'GuardFailure', 'PreconditionFailure', 'InvariantFailure',
 	# Internal APIs 	# TODO remove?
-	'PropertyDefault', 'Behavior', 'makeTerminationAction'
+	'PropertyDefault', 'Behavior', 'makeTerminationAction',
+	'BlockConclusion', 'runTryInterrupt',
 )
 
 # various Python types and functions used in the language but defined elsewhere
@@ -328,6 +329,67 @@ def isAMonitorName(name):
 	return name.startswith(monitorPrefix)
 def monitorName(name):
 	return name[len(monitorPrefix):]
+
+# Try-interrupt blocks
+
+def runTryInterrupt(behavior, agent, body, conditions, handlers):
+	body = InterruptBlock(None, body)
+	interrupts = [InterruptBlock(c, h) for c, h in zip(conditions, handlers)]
+	while True:
+		# find next block to run, if any
+		block = body
+		for interrupt in interrupts:
+			if interrupt.isEnabled or interrupt.isRunning:
+				block = interrupt
+				break
+		result, concluded = block.step(behavior, agent)
+		if concluded:
+			if result is BlockConclusion.FINISHED and block is not body:
+				continue 	# interrupt handler finished
+			else:
+				return result 	# entire try-interrupt statement will terminate
+		else:
+			yield result
+			behavior.checkInvariants()
+
+@enum.unique
+class BlockConclusion(enum.Enum):
+	FINISHED = enum.auto()
+	ABORT = enum.auto()
+	RETURN = enum.auto()
+	BREAK = enum.auto()
+	CONTINUE = enum.auto()
+
+	def __call__(self, value):
+		self.return_value = value
+		return self
+
+class InterruptBlock:
+	def __init__(self, condition, body):
+		self.condition = condition
+		self.body = body
+		self.runningIterator = None
+
+	@property
+	def isEnabled(self):
+		return bool(self.condition())
+
+	@property
+	def isRunning(self):
+		return self.runningIterator is not None
+
+	def step(self, behavior, agent):
+		if not self.runningIterator:
+			it = self.body(behavior, agent)
+			if not isinstance(it, types.GeneratorType):
+				return (it, True)
+			self.runningIterator = it
+		try:
+			result = self.runningIterator.send(None)
+			return (result, False)
+		except StopIteration as e:
+			self.runningIterator = None
+			return (e.value, True)
 
 ### Primitive statements and functions
 
