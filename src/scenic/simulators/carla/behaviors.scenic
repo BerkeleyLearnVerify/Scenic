@@ -1,25 +1,22 @@
-import scenic.simulators.carla.actions as actions
 
+import scenic.simulators.carla.actions as actions
+from scenic.simulators.carla.model import roadDirection
 
 behavior AccelerateForwardBehavior():
 	take actions.SetReverseAction(False)
 	take actions.SetHandBrakeAction(False)
 	take actions.SetThrottleAction(0.5)
 
-behavior LanekeepingBehavior():
+behavior LanekeepingBehavior(gain=0.1):
 	take actions.SetReverseAction(False)
 	take actions.SetHandBrakeAction(False)
 	take actions.SetThrottleAction(0.5)
 	while True:
-		delta = 1
-		#delta = self.heading - roadDirection
-		take actions.SetSteerAction(delta)
+		delta = self.heading relative to (roadDirection at self.position)
+		take actions.SetSteerAction(-gain * delta)
 
 behavior WalkForwardBehavior():
 	take actions.SetSpeedAction(0.5)
 
-behavior A(x):
-	take actions.SetThrottleAction(x)
-
-behavior B():
-	take actions.SetThrottleAction(0.7)
+behavior ConstantThrottleBehavior(x):
+    take actions.SetThrottleAction(x)

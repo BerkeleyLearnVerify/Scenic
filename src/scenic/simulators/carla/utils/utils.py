@@ -33,10 +33,9 @@ def scenicToCarlaRotation(heading):
 
 
 def scenicSpeedToCarlaVelocity(speed, heading):
-	# NOTE: Dividing by 3 based on empirical observations...
 	currYaw = scenicToCarlaRotation(heading).yaw
-	xVel = speed * math.cos(currYaw) / 3
-	yVel = speed * math.sin(currYaw) / 3
+	xVel = speed * math.cos(currYaw)
+	yVel = speed * math.sin(currYaw)
 	return scalarToCarlaVector3D(xVel, yVel)
 
 

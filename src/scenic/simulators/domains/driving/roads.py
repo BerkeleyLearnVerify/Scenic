@@ -101,7 +101,7 @@ class LinearElement(NetworkElement):
             i -= 1
         return pts[i].angleTo(pts[j])
 
-    def nominalDirectionsAt(point: Vector) -> Tuple[float]:
+    def nominalDirectionsAt(self, point: Vector) -> Tuple[float]:
         """Get nominal traffic direction(s) at a point in this element.
 
         There must be at least one such direction. If there are multiple, we
@@ -109,7 +109,7 @@ class LinearElement(NetworkElement):
         (So 'Object in element' will align by default to that orientation.)
         """
 
-    def flowFrom(point: Vector, distance: float) -> Vector:
+    def flowFrom(self, point: Vector, distance: float) -> Vector:
         """Advance a point along this element by a given distance.
 
         Equivalent to 'follow element.orientation from point for distance'.
@@ -143,21 +143,21 @@ class Road(LinearElement):
             return self.backwardLanes.orientation[point]
         return super().defaultHeadingAt(point)
 
-    def sectionAt(point: Vector) -> Union[RoadSection, None]:
+    def sectionAt(self, point: Vector) -> Union[RoadSection, None]:
         """Get the RoadSection passing through a given point."""
         for section in self.sections:
             if section.containsPoint(point):
                 return section
         return None
 
-    def laneAt(point: Vector) -> Union[Lane, None]:
+    def laneAt(self, point: Vector) -> Union[Lane, None]:
         """Get the lane passing through a given point."""
         for lane in self.lanes:
             if lane.containsPoint(point):
                 return lane
         return None
 
-    def shiftLanes(point: Vector, offset: int) -> Union[Vector, None]:
+    def shiftLanes(self, point: Vector, offset: int) -> Union[Vector, None]:
         """Find the point equivalent to this one but shifted over some # of lanes."""
 
     @property
@@ -260,7 +260,7 @@ class LaneSection(LinearElement):
     fasterLane: Union[LaneSection, None] = None   # faster/slower adjacent lane, if it exists;
     slowerLane: Union[LaneSection, None] = None   # could be to left or right depending on country
 
-    def shiftedBy(offset: int) -> Union[LaneSection, None]:
+    def shiftedBy(self, offset: int) -> Union[LaneSection, None]:
         """Find the lane a given number of lanes over from this lane."""
 
 @attr.s(auto_attribs=True, kw_only=True)
@@ -308,6 +308,9 @@ class Network:
     crossings: Tuple[PedestrianCrossing]
     sidewalks: Tuple[Sidewalk]
 
+    roadSections: Tuple[RoadSection] = None
+    laneSections: Tuple[LaneSection] = None
+
     driveOnLeft: bool = False
 
     # convenience regions aggregated from various types of network elements
@@ -323,6 +326,9 @@ class Network:
     roadDirection: VectorField = None
 
     def __attrs_post_init__(self):
+        self.roadSections = tuple(sec for road in self.roads for sec in road.sections)
+        self.laneSections = tuple(sec for lane in self.lanes for sec in lane.sections)
+
         if self.roadRegion is None:
             self.roadRegion = PolygonalRegion.unionAll(self.roads)
         if self.laneRegion is None:
@@ -364,27 +370,27 @@ class Network:
         road_map.calculate_geometry(ref_points, calc_gap=fill_gaps, calc_intersect=True)
         return road_map.toScenicNetwork()
 
-    def elementAt(point: Vector) -> Union[NetworkElement, None]:
+    def elementAt(self, point: Vector) -> Union[NetworkElement, None]:
         road = self.roadAt(point)
         if road is not None:
             return road
         return self.intersectionAt(point)
 
-    def roadAt(point: Vector) -> Union[Road, None]:
+    def roadAt(self, point: Vector) -> Union[Road, None]:
         """Get the road passing through a given point."""
         for road in self.roads:
             if road.containsPoint(point):
                 return road
         return None
 
-    def laneAt(point: Vector) -> Union[Lane, None]:
+    def laneAt(self, point: Vector) -> Union[Lane, None]:
         """Get the lane passing through a given point."""
         for lane in self.lanes:
             if lane.containsPoint(point):
                 return lane
         return None
 
-    def intersectionAt(point: Vector) -> Union[Intersection, None]:
+    def intersectionAt(self, point: Vector) -> Union[Intersection, None]:
         """Get the intersection at a given point."""
         for intersection in self.intersections:
             if intersection.containsPoint(point):

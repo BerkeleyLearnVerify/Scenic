@@ -94,7 +94,7 @@ class HUD(object):
 			'',
 			'Ego: % 20s' % get_actor_display_name(ego.carlaActor, truncate=20),
 			'',
-			'Speed:   % 15.0f km/h' % (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)),
+			'Speed:   % 15.0f m/s' % math.sqrt(v.x**2 + v.y**2 + v.z**2),
 			u'Heading:% 16.0f\N{DEGREE SIGN} % 2s' % (t.rotation.yaw, heading),
 			'Location:% 20s' % ('(% 5.3f, % 5.3f)' % (t.location.x, t.location.y)),
 			'Height:  % 18.0f m' % t.location.z,
@@ -212,9 +212,8 @@ class CollisionSensor(object):
         self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event))
 
     def get_collision_speeds(self):
-        '''Convert collision intensities from momentem (kg*m/s) to speed (km/h).'''
-        return [(c[0], 3.6 * c[1] / self._actor_mass)
-                         for c in self._history]
+        '''Convert collision intensities from momentem (kg*m/s) to speed (m/s).'''
+        return [(c[0], c[1] / self._actor_mass) for c in self._history]
 
     def get_collision_history(self):
         history = collections.defaultdict(int)

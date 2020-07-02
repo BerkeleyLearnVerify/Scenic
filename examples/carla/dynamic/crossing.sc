@@ -2,13 +2,12 @@
 
 import scenic.simulators.carla.actions as actions
 
-from scenic.core.geometry import subtractVectors
+from scenic.simulators.domains.driving.network import loadLocalNetwork
+loadLocalNetwork(__file__, '../OpenDrive/Town01.xodr')
 
-from scenic.simulators.domains.driving.network import loadNetwork
-loadNetwork('/home/carla_challenge/Downloads/Town01.xodr')
+from scenic.simulators.carla.model import *
 
-from scenic.simulators.carla.models.model import *
-
+simulator = CarlaSimulator('Town01')
 
 # ============================================================================
 # -- BEHAVIORS ---------------------------------------------------------------
@@ -20,7 +19,7 @@ behavior FollowWaypointsBehavior(waypoints, threshold=0.01):
 
 	for i in range(len(waypoints) - 1):
 		currWaypoint, nextWaypoint = waypoints[i], waypoints[i+1]
-		newVel = self.speed * subtractVectors(nextWaypoint, currWaypoint)
+		newVel = self.speed * (nextWaypoint - currWaypoint)
 		take actions.SetVelocityAction(newVel)
 		while distance from self to nextWaypoint > threshold:
 			take None
@@ -88,7 +87,7 @@ behavior CrossStreetBehavior():
 
 
 c = Car
-ego = Pedestrian on network.sidewalkRegion, with behavior CrossStreetBehavior
+ego = Pedestrian on visible sidewalk, with behavior CrossStreetBehavior
 
 
 '''

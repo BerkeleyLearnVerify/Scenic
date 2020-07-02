@@ -8,6 +8,7 @@ import argparse
 import random
 
 import scenic.syntax.translator as translator
+from scenic.simulators import SimulationCreationError
 
 parser = argparse.ArgumentParser(prog='scenic',
                                  usage='scenic [-h] [options] scenario',
@@ -20,6 +21,14 @@ parser.add_argument('-z', '--zoom', help='zoom expansion factor', type=float, de
 parser.add_argument('-s', '--seed', help='random seed', type=int)
 parser.add_argument('-v', '--verbosity', help='verbosity level (default 1)',
                     type=int, choices=(0, 1, 2, 3), default=1)
+
+# Simulation options
+simOpts = parser.add_argument_group('simulation options')
+simOpts.add_argument('-S', '--simulate', help='run simulations from scenes', action='store_true')
+simOpts.add_argument('--time', help='time bound for simulations (default none)',
+                     type=int, default=None)
+simOpts.add_argument('--count', help='number of simulations to run (default infinity)',
+                     type=int, default=0)
 
 # Debugging options
 debugOpts = parser.add_argument_group('debugging options')
@@ -65,16 +74,37 @@ def generateScene():
         print(f'  Generated scene in {iterations} iterations, {totalTime:.4g} seconds.')
     return scene, iterations
 
+def runSimulation(scene):
+    startTime = time.time()
+    if args.verbosity >= 1:
+        print('  Beginning simulation...')
+    try:
+        scene.simulate(maxSteps=args.time, verbosity=args.verbosity)
+    except SimulationCreationError as e:
+        if args.verbosity >= 1:
+            print(f'  Failed to create simulation: {e}')
+        return
+    if args.verbosity >= 1:
+        totalTime = time.time() - startTime
+        print(f'  Ran simulation in {totalTime:.4g} seconds.')
+
 if args.gather_stats is None:   # Generate scenes interactively until killed
     import matplotlib.pyplot as plt
+    i = 0
     while True:
         scene, _ = generateScene()
-        if delay is None:
-            scene.show(zoom=args.zoom)
+        i += 1
+        if args.simulate:
+            runSimulation(scene)
+            if 0 < args.count <= i:
+                break
         else:
-            scene.show(zoom=args.zoom, block=False)
-            plt.pause(delay)
-            plt.clf()
+            if delay is None:
+                scene.show(zoom=args.zoom)
+            else:
+                scene.show(zoom=args.zoom, block=False)
+                plt.pause(delay)
+                plt.clf()
 else:   # Gather statistics over the specified number of scenes
     its = []
     startTime = time.time()

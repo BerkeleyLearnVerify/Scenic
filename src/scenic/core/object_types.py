@@ -145,6 +145,12 @@ class Constructible(Samplable):
 		return areEquivalent(self.allProperties(), other.allProperties())
 
 	def __str__(self):
+		if hasattr(self, 'properties') and 'name' in self.properties:
+			return self.name
+		else:
+			return super().__repr__()
+
+	def __repr__(self):
 		if hasattr(self, 'properties'):
 			allProps = { prop: getattr(self, prop) for prop in self.properties }
 		else:

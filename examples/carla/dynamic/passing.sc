@@ -6,10 +6,11 @@ from scenic.core.geometry import subtractVectors
 from scenic.core.vectors import Vector
 
 import scenic.simulators.carla.actions as actions
-from scenic.simulators.domains.driving.network import loadNetwork
-loadNetwork('/home/carla_challenge/Downloads/Town01.xodr')
-from scenic.simulators.carla.models.model import *
+from scenic.simulators.domains.driving.network import loadLocalNetwork
+loadLocalNetwork(__file__, '../OpenDrive/Town01.xodr')
+from scenic.simulators.carla.model import *
 
+simulator = CarlaSimulator('Town01')
 
 # ============================================================================
 # -- BEHAVIORS ---------------------------------------------------------------

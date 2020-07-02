@@ -7,6 +7,10 @@ from collections import OrderedDict
 from scenic.core.object_types import enableDynamicProxyFor, disableDynamicProxyFor
 from scenic.core.utils import RuntimeParseError
 
+class SimulationCreationError(Exception):
+    """Exception indicating a simulation could not be run from the given scene."""
+    pass
+
 class RejectSimulationException(Exception):
     """Exception indicating a requirement was violated at runtime."""
     pass
@@ -24,7 +28,7 @@ class Simulator:
             # Run a single simulation
             try:
                 simulation = self.createSimulation(scene)
-                trajectory, terminationReason = simulation.run(maxSteps)
+                trajectory, terminationReason = simulation.run(maxSteps, verbosity=verbosity)
             except RejectSimulationException as e:
                 if verbosity >= 2:
                     print(f'  Rejected simulation {iterations} at time step '
@@ -50,7 +54,7 @@ class Simulation:
         self.trajectory = [self.initialState()]
         self.currentTime = 0
 
-    def run(self, maxSteps):
+    def run(self, maxSteps, verbosity=0):
         """Run the simulation.
 
         Throws a RejectSimulationException if a requirement is violated.
@@ -83,6 +87,9 @@ class Simulation:
             assert self.currentTime == 0
             terminationReason = None
             while maxSteps is None or self.currentTime < maxSteps:
+                if verbosity >= 3:
+                    print(f'    Time step {self.currentTime}:')
+
                 # Check if any requirements fail
                 for req in self.scene.alwaysRequirements:
                     if not req.isTrue():
@@ -105,6 +112,8 @@ class Simulation:
                     if isinstance(action, EndSimulationAction):
                         terminationReason = str(action)
                     actions[agent] = action
+                    if verbosity >= 3:
+                        print(f'      Agent {agent} takes action {action}')
 
                 # All requirements have been checked; now safe to terminate if requested by
                 # a behavior/monitor or if a termination condition is met

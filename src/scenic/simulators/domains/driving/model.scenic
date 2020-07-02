@@ -26,3 +26,12 @@ class Car(Vehicle):
     width: 2
     height: 4.5
     color: Color.defaultCarColor()
+
+class Pedestrian:
+    regionContainedIn: network.walkableRegion
+    position: Point on network.walkableRegion
+    heading: (0, 360) deg
+    viewAngle: 90 deg
+    width: 0.75
+    height: 0.75
+    color: [0, 0.5, 1]

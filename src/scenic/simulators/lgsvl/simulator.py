@@ -212,8 +212,8 @@ class FollowWaypointsAction(simulators.Action):
         if not isinstance(self.waypoints[0], lgsvl.DriveWaypoint):
             pts = []
             for wp in self.waypoints:
-                elev = veneer.simulation().groundElevationAt(wp)
-                pos = utils.scenicToLGSVLPosition(wp, y=elev)
+                elev = veneer.simulation().groundElevationAt(wp.position)
+                pos = utils.scenicToLGSVLPosition(wp.position, y=elev)
                 rot = utils.scenicToLGSVLRotation(wp.heading)
                 pt = lgsvl.DriveWaypoint(pos, wp.speed, rot)
                 pts.append(pt)

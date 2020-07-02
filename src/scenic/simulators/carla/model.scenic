@@ -1,13 +1,9 @@
 """Scenic world model for traffic scenarios in CARLA."""
 
-import math
-import time
-
 import scenic.simulators.domains.driving.model as baseModel
 
-from scenic.simulators.carla.models.vehicle_models import carModels, bicycleModels, motorcycleModels, truckModels
-from scenic.simulators.carla.models.walker_models import walkerModels
-from scenic.simulators.carla.models.prop_models import trashModels, coneModels
+import scenic.simulators.carla.blueprints as blueprints
+from scenic.simulators.carla.simulator import CarlaSimulator    # for use in scenarios
 
 from scenic.simulators.utils.colors import Color
 
@@ -49,25 +45,25 @@ class Vehicle(CarlaActor):
 
 
 class Car(Vehicle):
-    blueprint: Uniform(*carModels)
+    blueprint: Uniform(*blueprints.carModels)
 
 
 class Bicycle(Vehicle):
     width: 1
     height: 2
-    blueprint: Uniform(*bicycleModels)
+    blueprint: Uniform(*blueprints.bicycleModels)
 
 
 class Motorcycle(Vehicle):
     width: 1
     height:2
-    blueprint: Uniform(*motorcycleModels)
+    blueprint: Uniform(*blueprints.motorcycleModels)
 
 
 class Truck(Vehicle):
     width: 3
     height: 7
-    blueprint: Uniform(*truckModels)
+    blueprint: Uniform(*blueprints.truckModels)
 
 
 class Pedestrian(CarlaActor):
@@ -76,7 +72,7 @@ class Pedestrian(CarlaActor):
     heading: (0, 360) deg
     width: 0.5
     height: 0.5
-    blueprint: Uniform(*walkerModels)
+    blueprint: Uniform(*blueprints.walkerModels)
 
 
 class Prop(CarlaActor):
@@ -88,8 +84,8 @@ class Prop(CarlaActor):
 
 
 class Trash(Prop):
-    blueprint: Uniform(*trashModels)
+    blueprint: Uniform(*blueprints.trashModels)
 
 
 class Cone(Prop):
-    blueprint: Uniform(*coneModels)
+    blueprint: Uniform(*blueprints.coneModels)
