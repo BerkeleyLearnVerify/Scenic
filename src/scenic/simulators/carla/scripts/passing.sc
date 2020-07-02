@@ -14,7 +14,7 @@ from scenic.simulators.carla.models.model import *
 # ============================================================================
 # -- BEHAVIORS ---------------------------------------------------------------
 # ============================================================================
-'''
+
 behavior FollowWaypointsBehavior(waypoints, threshold=0.01):
 	"""Folllow waypoints at a constant speed."""
 	assert threshold >= 0, 'Cannot have a negative threshold.'
@@ -23,12 +23,13 @@ behavior FollowWaypointsBehavior(waypoints, threshold=0.01):
 		currWaypoint, nextWaypoint = waypoints[i], waypoints[i+1]
 		newVel = self.speed * subtractVectors(nextWaypoint, currWaypoint)
 		take actions.SetVelocityAction(newVel)
-		while distance from self to nextWaypoint > threshold:
+		while (distance from self to nextWaypoint) > threshold:
 			take None
 
 
 behavior DriveLaneBehavior():
 	"""Drive along centerline of current lane at a constant speed."""
+	print("DriveLaneBehavior()")
 	
 	currLane = network.get_lane_at(self.position)
 	remainingLaneWaypoints = list(currLane.centerline)
@@ -44,10 +45,119 @@ behavior DriveLaneBehavior():
 	FollowWaypointsBehavior(remainingLaneWaypoints, threshold=0.01)
 
 
-behavior LaneChangeBehavior(newLane, steer=0.2, threshold=0.01):
+
+
+behavior AccelerateBehavior(newSpeed, throttle=0.2):
+	assert 0.0 < throttle <= 1.0, 'Throttle must be in range (0.0, 1.0].'
+	print("AccelerateBehavior()")
+
+	take actions.SetThrottleAction(throttle)
+	while self.speed < newSpeed:
+		take None
+	take actions.SetThrottleAction(0.0)
+
+
+behavior DecelerateBehavior(newSpeed, brake=0.2):
+	assert 0.0 < brake <= 1.0, 'Brake must be in range (0.0, 1.0].'
+	print("DecelerateBehavior()")
+
+	take actions.SetBrakeAction(brake)
+	while self.speed > newSpeed:
+		take None
+	take actions.SetBrakeAction(0.0)
+
+
+behavior PassingBehavior(carToPass, oldLane, newLane, spawnPt, minDist=5.0):
+	assert minDist > 0.0, 'Minimum distance must be positive.'
+
+	take actions.SetManualFirstGearShiftAction()
+	take actions.SetManualGearShiftAction(False)
+	take actions.SetThrottleAction(0.4)
+
+	SubBehavior(newLane, steer=0.2, threshold=0.01)
+
+
+# ============================================================================
+# -- Lane Change Behavior-----------------------------------------------------
+# ============================================================================
+
+	steer = 0.2
+	threshold = 0.01
+
+	# print('applesauce')
 	assert threshold >= 0, 'Cannot have a negative threshold.'
 	assert 0.0 < steer <= 1.0,\
 		'(Absolute value of) steer must be in range (0.0, 1.0].'
+
+	print("LaneChangeBehavior()")
+
+	# currLane = network.laneAt(self.position)
+	position = Vector(self.position[0], self.position[1])
+	currLane = None
+	print("self.position is: ", self.position)
+	if oldLane.containsPoint(self.position):
+		print("okk..")
+
+	for lane in network.lanes:
+		for section in lane.sections:
+			# for point in section.centerline:
+			# 	if point[0] == spawnPt[0] and point[1] == spawnPt[1]:
+			# 		print("ohhhhhhhhh myyyyyyyy")
+			if section.containsPoint(spawnPt):
+				currLane = section
+		# else:
+		# 	print("geepers")
+
+	assert newLane is currLane.laneToLeft \
+		or newLane is currLane.laneToRight, \
+		'Lane to change is not adjacent to current lane.'
+
+	if newLane is currLane.laneToLeft:
+		steer *= -1.0
+		adjacentEdge = currLane.laneToLeft.rightEdge
+	else:
+		adjacentEdge = currLane.laneToRight.leftEdge
+
+	take actions.SetSteerAction(steer)
+	while (distance from self to adjacentEdge) > threshold:
+		take None
+
+	take actions.SetSteerAction(-steer)
+	while (distance from self to newLane.centerline) > threshold:
+		take None
+
+	take actions.SetSteerAction(0.0)
+
+# ============================================================================
+# -- Lane Change Behavior End ------------------------------------------------
+# ============================================================================
+
+	print("PassingBehavior()")
+
+	# oldLane = network.get_lane_at(self.position)
+	# oldSpeed = self.speed
+
+	# while (distance from self to carToPass) > minDist:
+	# 	print("entering while loop")
+	# 	DriveLaneBehavior()
+	
+	# LaneChangeBehavior(newLane, steer=0.2, threshold=0.01)
+	# Q: how to extract y-pos in local coord system?
+	# while self.position.y < carToPass.position.y + minDist:
+	# 	AccelerateBehavior(self.speed + 5.0, throttle=0.2)
+	# LaneChangeBehavior(oldLane, steer=0.2, threshold=0.01)
+	# DecelerateBehavior(oldSpeed, brake=0.2)
+	
+	# while True:
+	# 	DriveLaneBehavior()
+
+behavior SubBehavior(newLane, steer=0.2, threshold=0.01):
+	print('applesauce')
+	assert threshold >= 0, 'Cannot have a negative threshold.'
+	assert 0.0 < steer <= 1.0,\
+		'(Absolute value of) steer must be in range (0.0, 1.0].'
+
+	print("LaneChangeBehavior()")
 
 	currLane = network.get_lane_at(self.position)
 
@@ -62,53 +172,14 @@ behavior LaneChangeBehavior(newLane, steer=0.2, threshold=0.01):
 		adjacentEdge = currLane.laneToRight.rightEdge
 
 	take actions.SetSteerAction(steer)
-	while distance from self to adjacentEdge > threshold:
+	while (distance from self to adjacentEdge) > threshold:
 		take None
 
 	take actions.SetSteerAction(-steer)
-	while distance from self to newLane.centerline > threshold:
+	while (distance from self to newLane.centerline) > threshold:
 		take None
 
 	take actions.SetSteerAction(0.0)
-
-
-behavior AccelerateBehavior(newSpeed, throttle=0.2):
-	assert 0.0 < throttle <= 1.0, 'Throttle must be in range (0.0, 1.0].'
-
-	take actions.SetThrottleAction(throttle)
-	while self.speed < newSpeed:
-		take None
-	take actions.SetThrottleAction(0.0)
-
-
-behavior DecelerateBehavior(newSpeed, brake=0.2):
-	assert 0.0 < brake <= 1.0, 'Brake must be in range (0.0, 1.0].'
-
-	take actions.SetBrakeAction(brake)
-	while self.speed > newSpeed:
-		take None
-	take actions.SetBrakeAction(0.0)
-
-
-behavior PassingBehavior(carToPass, newLane, minDist=5.0):
-	assert minDist > 0.0, 'Minimum distance must be positive.'
-
-	oldLane = network.get_lane_at(self.position)
-	oldSpeed = self.speed
-
-	while distance from self to carToPass > minDist:
-		DriveLaneBehavior()
-	
-	LaneChangeBehavior(newLane, steer=0.2, threshold=0.01)
-	# Q: how to extract y-pos in local coord system?
-	while self.position.y < carToPass.position.y + minDist:
-		AccelerateBehavior(self.speed + 5.0, throttle=0.2)
-	LaneChangeBehavior(oldLane, steer=0.2, threshold=0.01)
-	DecelerateBehavior(oldSpeed, brake=0.2)
-	
-	while True:
-		DriveLaneBehavior()
-'''
 
 # ============================================================================
 # -- SCENARIO ----------------------------------------------------------------
@@ -141,45 +212,38 @@ for lane in network.lanes:
 assert len(laneSecsWithLeftLane) > 0, \
 	'No lane sections with adjacent left lane in network.'
 
-#initLaneSec = random.choice(laneSecsWithLeftLane)
+# initLaneSec = Options(laneSecsWithLeftLane)
 initLaneSec = laneSecsWithLeftLane[22] # NOTE: Hard coded for testing
+currentLane = initLaneSec.lane
 leftLaneSec = initLaneSec.laneToLeft
 
 spawnPt = initLaneSec.centerline[3]
 spawnVec = Vector(spawnPt[0], spawnPt[1])
 
+print(spawnPt)
+
+
+# for lane in laneSecsWithLeftLane:
+# 	if lane.containsPoint(spawnPt):
+# 		currentLane = lane
+
+# initLaneSec = None
+
+# for section in currentLane.sections:
+# 	if section.containsPoint(spawnVec):
+# 		initLaneSec = section
+
 
 behavior SlowCarBehavior():
+	take actions.SetManualFirstGearShiftAction()
+	take actions.SetManualGearShiftAction(False)
 	take actions.SetThrottleAction(0.3)
-
-behavior EgoBehavior():
-	take actions.SetThrottleAction(0.6)
-	for _ in range(9):
-		take None
-	print('Ego changing lanes left')
-	take actions.SetSteerAction(-0.55)
-	for _ in range(8):
-		take None
-	take actions.SetSteerAction(0.3)
-	for _ in range(9):
-		take None
-	take actions.SetSteerAction(0)
-	for _ in range(20):
-		take None
-	print('Ego changing lanes right')
-	take actions.SetSteerAction(0.3)
-	for _ in range(6):
-		take None
-	take actions.SetSteerAction(-0.3)
-	for _ in range(6):
-		take None
-	take actions.SetSteerAction(0)
 
 
 slowCar = Car at spawnVec,
-	with speed 5,
+	with speed 0,
 	with behavior SlowCarBehavior
 
-ego = Car behind slowCar by 10, 
-	with speed 12,
-	with behavior EgoBehavior
+ego = Car behind slowCar by 10,
+	with speed 0,
+	with behavior PassingBehavior(slowCar, currentLane, leftLaneSec, spawnPt)

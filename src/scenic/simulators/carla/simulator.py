@@ -12,6 +12,7 @@ class CarlaSimulator(simulators.Simulator):
 		self.client = carla.Client(address, port)
 		self.client.set_timeout(10.0)  # limits networking operations (seconds)
 		self.world = self.client.load_world(carla_map)
+		self.map = carla_map
 
 		# Set to synchronous with fixed timestep
 		settings = self.world.get_settings()
@@ -22,19 +23,20 @@ class CarlaSimulator(simulators.Simulator):
 		self.render = render  # visualization mode ON/OFF
 
 	def createSimulation(self, scene):
-		return CarlaSimulation(scene, self.client, self.render)
+		return CarlaSimulation(scene, self.client, self.render, self.map)
 
 
 class CarlaSimulation(simulators.Simulation):
-	def __init__(self, scene, client, render):
+	def __init__(self, scene, client, render, map):
 		super().__init__(scene)
 		self.client = client
+		self.client.load_world(map)
 		self.world = self.client.get_world()
 		self.blueprintLib = self.world.get_blueprint_library()
 		
 		# Reloads current world: destroys all actors, except traffic manager instances
-		self.client.reload_world()
-
+		# self.client.reload_world()
+		
 		# Setup HUD
 		self.render = render
 		if self.render:
@@ -68,9 +70,9 @@ class CarlaSimulation(simulators.Simulation):
 			carlaActor.apply_control(carla.VehicleControl())  # set default controls
 
 			# Set Carla actor's initial speed (if specified)
-			if obj.speed is not None:
-				equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
-				carlaActor.set_velocity(equivVel)
+			# if obj.speed is not None:
+			# 	equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
+			# 	carlaActor.set_velocity(equivVel)
 
 			obj.carlaActor = carlaActor
 
@@ -96,6 +98,7 @@ class CarlaSimulation(simulators.Simulation):
 			currLoc = currTransform.location
 			currRot = currTransform.rotation
 			currVel = carlaActor.get_velocity()
+			# print(carlaActor.get_acceleration())
 
 			# Update Scenic object properties
 			obj.position = utils.carlaToScenicPosition(currLoc)
@@ -118,15 +121,17 @@ class CarlaSimulation(simulators.Simulation):
 		for obj, action in actions.items():
 			if action:
 				action.applyTo(obj, obj.carlaActor, self)
+			# if obj.carlaActor.get_control().throttle > 0:
+			# 	print(obj.carlaActor.get_acceleration())
 
 		# Run simulation for one timestep
 		self.world.tick()
 
 		# Render simulation
 		if self.render:
-			self.hud.tick(self.world, self.ego, self.displayClock)
+			# self.hud.tick(self.world, self.ego, self.displayClock)
 			self.cameraManager.render(self.display)
-			self.hud.render(self.display)
+			# self.hud.render(self.display)
 			pygame.display.flip()
 
 		# Read back the results of the simulation

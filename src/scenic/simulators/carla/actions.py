@@ -88,12 +88,15 @@ class SetThrottleAction(simulators.Action):
 		assert 0.0 <= throttle <= 1.0, \
 			'Throttle must be a float in range [0.0, 1.0].'
 		super().__init__()
+		# print(self.throttle)
 		self.throttle = throttle
+		# print("The value of the throttle is: ", self.throttle)
 
 	def applyTo(self, obj, vehicle, sim):
 		ctrl = vehicle.get_control()
 		ctrl.throttle = self.throttle
 		vehicle.apply_control(ctrl)
+		print("The applied throttle is: ", vehicle.get_control().throttle)
 
 
 class SetSteerAction(simulators.Action):
@@ -183,6 +186,17 @@ class SetGearAction(simulators.Action):
 		ctrl = vehicle.get_control()
 		ctrl.gear = self.gear
 		vehicle.apply_control(ctrl)
+
+class SetManualFirstGearShiftAction(simulators.Action):
+	def __init__(self):
+		super().__init__()
+		self.manualGearShift = True  # boolean
+
+	def applyTo(self, obj, vehicle, sim):
+		ctrl = vehicle.get_control()
+		ctrl.manual_gear_shift = self.manualGearShift
+		ctrl.gear = 1
+		vehicle.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
 
 
 #################################################
