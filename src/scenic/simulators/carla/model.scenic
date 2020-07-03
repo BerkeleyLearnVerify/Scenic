@@ -3,7 +3,11 @@
 import scenic.simulators.domains.driving.model as baseModel
 
 import scenic.simulators.carla.blueprints as blueprints
-from scenic.simulators.carla.simulator import CarlaSimulator    # for use in scenarios
+
+try:
+    from scenic.simulators.carla.simulator import CarlaSimulator    # for use in scenarios
+except ModuleNotFoundError:
+    pass    # for convenience when testing without the carla package
 
 from scenic.simulators.utils.colors import Color
 

@@ -2,7 +2,7 @@
 try:
 	import carla
 except ImportError as e:
-	raise RuntimeError('CARLA scenarios require the "carla" Python package') from e
+	raise ModuleNotFoundError('CARLA scenarios require the "carla" Python package') from e
 
 import pygame
 
