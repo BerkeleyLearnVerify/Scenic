@@ -178,6 +178,8 @@ class Vector(Samplable, collections.abc.Sequence):
 
 	@scalarOperator
 	def distanceTo(self, other):
+		if not isinstance(other, Vector):
+			return other.distanceTo(self)
 		dx, dy = other.toVector() - self
 		return math.hypot(dx, dy)
 

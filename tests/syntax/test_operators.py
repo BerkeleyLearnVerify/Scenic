@@ -63,6 +63,14 @@ def test_distance_from():
     ego = sampleEgoFrom('ego = Object with wobble distance from -3@2 to 4@5')
     assert ego.wobble == pytest.approx(math.hypot(4 - -3, 5 - 2))
 
+def test_distance_to_region():
+    p = sampleParamPFrom("""
+        r = CircularRegion(10@5, 3)
+        ego = Object at 13@9
+        param p = distance to r
+    """)
+    assert p == pytest.approx(2)
+
 # angle
 
 def test_angle():

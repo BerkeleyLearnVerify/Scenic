@@ -9,7 +9,8 @@ import scipy.spatial
 import shapely.geometry
 import shapely.ops
 
-from scenic.core.distributions import Samplable, RejectionException, needsSampling
+from scenic.core.distributions import (Samplable, RejectionException, needsSampling,
+                                       distributionFunction)
 from scenic.core.lazy_eval import valueInContext
 from scenic.core.vectors import Vector, OrientedVector, VectorDistribution
 from scenic.core.geometry import RotatedRectangle
@@ -120,6 +121,9 @@ class Region(Samplable):
 		vec = toVector(thing, '"X in Y" with X not an Object or a vector')
 		return self.containsPoint(vec)
 
+	def distanceTo(self, point):
+		raise NotImplementedError
+
 	def getAABB(self):
 		"""Axis-aligned bounding box for this `Region`. Implemented by some subclasses."""
 		raise NotImplementedError
@@ -145,6 +149,9 @@ class AllRegion(Region):
 	def containsObject(self, obj):
 		return True
 
+	def distanceTo(self, point):
+		return 0
+
 	def __eq__(self, other):
 		return type(other) is AllRegion
 
@@ -167,6 +174,9 @@ class EmptyRegion(Region):
 
 	def containsObject(self, obj):
 		return False
+
+	def distanceTo(self, point):
+		return float('inf')
 
 	def show(self, plt, style=None):
 		pass
@@ -202,6 +212,9 @@ class CircularRegion(Region):
 	def containsPoint(self, point):
 		point = point.toVector()
 		return point.distanceTo(self.center) <= self.radius
+
+	def distanceTo(self, point):
+		return max(0, point.distanceTo(self.center) - self.radius)
 
 	def uniformPointInner(self):
 		x, y = self.center
@@ -425,6 +438,10 @@ class PolylineRegion(Region):
 	def containsObject(self, obj):
 		return False
 
+	@distributionFunction
+	def distanceTo(self, point):
+		return self.lineString.distance(shapely.geometry.Point(point))
+
 	def getAABB(self):
 		xmin, ymin, xmax, ymax = self.lineString.bounds
 		return ((xmin, ymin), (xmax, ymax))
@@ -559,6 +576,10 @@ class PolygonalRegion(Region):
 		# TODO improve boundary handling?
 		return self.polygons.contains(objPoly)
 
+	@distributionFunction
+	def distanceTo(self, point):
+		return self.polygons.distance(shapely.geometry.Point(point))
+
 	def getAABB(self):
 		xmin, xmax, ymin, ymax = self.polygons.bounds
 		return ((xmin, ymin), (xmax, ymax))
@@ -629,6 +650,11 @@ class PointSetRegion(Region):
 
 	def containsObject(self, obj):
 		raise NotImplementedError()
+
+	@distributionFunction
+	def distanceTo(self, point):
+		distance, _ = self.kdTree.query(point)
+		return distance
 
 	def __eq__(self, other):
 		if type(other) is not PointSetRegion:

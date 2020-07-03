@@ -21,7 +21,8 @@ __all__ = (
 	'DistanceFrom', 'AngleTo', 'AngleFrom', 'Follow', 'CanSee',
 	# Primitive types
 	'Vector', 'VectorField', 'PolygonalVectorField',
-	'Region', 'PointSetRegion', 'RectangularRegion', 'PolygonalRegion', 'PolylineRegion',
+	'Region', 'PointSetRegion', 'RectangularRegion', 'CircularRegion', 'SectorRegion',
+	'PolygonalRegion', 'PolylineRegion',
 	'Workspace', 'Mutator',
 	'Range', 'DiscreteRange', 'Options', 'Uniform', 'Discrete', 'Normal',
 	'VerifaiParameter', 'VerifaiRange', 'VerifaiDiscreteRange', 'VerifaiOptions',
@@ -46,7 +47,8 @@ __all__ = (
 from scenic.core.geometry import sin, cos, hypot, max, min
 from scenic.core.vectors import Vector, VectorField, PolygonalVectorField
 from scenic.core.regions import (Region, PointSetRegion, RectangularRegion,
-	PolygonalRegion, PolylineRegion, everywhere, nowhere)
+	CircularRegion, SectorRegion, PolygonalRegion, PolylineRegion,
+	everywhere, nowhere)
 from scenic.core.workspaces import Workspace
 from scenic.core.distributions import Range, DiscreteRange, Options, Normal
 Uniform = lambda *opts: Options(opts)		# TODO separate these?
@@ -627,14 +629,20 @@ def ApparentHeading(X, Y=None):
 	return apparentHeadingAtPoint(X.position, X.heading, Y)
 
 def DistanceFrom(X, Y=None):
-	"""The 'distance from <vector> [to <vector>]' operator.
+	"""The ``distance from {X} to {Y}`` polymorphic operator.
 
-	If the 'to <vector>' is omitted, the position of ego is used.
+	Allowed forms:
+
+	* ``distance from`` <vector> [``to`` <vector>]
+	* ``distance from`` <region> [``to`` <vector>]
+	* ``distance from`` <vector> ``to`` <region>
+
+	If the ``to <vector>`` is omitted, the position of ego is used.
 	"""
-	X = toVector(X, '"distance from X to Y" with X not a vector')
+	X = toTypes(X, (Vector, Region), '"distance from X to Y" with X neither a vector nor region')
 	if Y is None:
 		Y = ego()
-	Y = toVector(Y, '"distance from X to Y" with Y not a vector')
+	Y = toTypes(Y, (Vector, Region), '"distance from X to Y" with Y neither a vector nor region')
 	return X.distanceTo(Y)
 
 def AngleTo(X):
