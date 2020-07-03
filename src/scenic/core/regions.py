@@ -439,7 +439,7 @@ class PolylineRegion(Region):
 		If the region consists of multiple polylines, this order is linear
 		along each polyline but arbitrary across different polylines.
 		"""
-		return self.points[i]
+		return Vector(*self.points[i])
 
 	def __str__(self):
 		return f'PolylineRegion({self.lineString})'
