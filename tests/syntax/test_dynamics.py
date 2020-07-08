@@ -101,6 +101,47 @@ def test_behavior_nesting():
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, 2, 2, 3)
 
+def test_behavior_calls():
+    """Ordinary function calls inside behaviors should still work."""
+    scenario = compileScenic("""
+        def func(a, *b, c=0, d=1, **e):
+            return [a, len(b), c, d, len(e)]
+        behavior Foo():
+            take func(4, 5, 6, blah=4, c=10)
+        ego = Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=1)
+    assert tuple(actions) == ([4, 2, 10, 1, 1],)
+
+def test_behavior_calls_nested():
+    """Nested function calls inside behaviors should still work."""
+    scenario = compileScenic("""
+        def funcA(x):
+            return x+1
+        def funcB(x):
+            return x*2
+        behavior Foo():
+            take funcA(funcB(5))
+        ego = Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=1)
+    assert tuple(actions) == (11,)
+
+def test_behavior_calls_side_effects():
+    scenario = compileScenic("""
+        x = 0
+        def func():
+            global x
+            x += 1
+            return x
+        behavior Foo():
+            while True:
+                take func()
+        ego = Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (1, 2, 3, 4)
+
 ## Interrupts
 
 # Basic
