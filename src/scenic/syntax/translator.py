@@ -1070,11 +1070,15 @@ class AttributeFinder(NodeVisitor):
 class LocalFinder(NodeVisitor):
 	"""Utility class for finding all local variables of a code block."""
 	@staticmethod
-	def findIn(block):
+	def findIn(block, ignoreTemporaries=True):
 		lf = LocalFinder()
 		for statement in block:
 			lf.visit(statement)
-		return lf.names - lf.globals - lf.nonlocals
+		if ignoreTemporaries:
+			names = set(name for name in lf.names if not name.startswith(temporaryName))
+		else:
+			names = lf.names
+		return names - lf.globals - lf.nonlocals
 
 	def __init__(self):
 		self.names = set()
@@ -1142,6 +1146,7 @@ class ASTSurgeon(NodeTransformer):
 		self.inInterruptBlock = False
 		self.inLoop = False
 		self.usedBreakOrContinue = False
+		self.callDepth = 0
 
 	def parseError(self, node, message):
 		raise ASTParseError(node.lineno, message)
@@ -1417,6 +1422,7 @@ class ASTSurgeon(NodeTransformer):
 		func = node.func
 		newArgs = []
 		# Translate arguments, unpacking any argument packages
+		self.callDepth += 1
 		for arg in node.args:
 			if isinstance(arg, BinOp) and isinstance(arg.op, packageNode):
 				newArgs.extend(self.unpack(arg, 2, node))
@@ -1424,6 +1430,7 @@ class ASTSurgeon(NodeTransformer):
 				newArgs.append(self.visit(arg))
 		newKeywords = [self.visit(kwarg) for kwarg in node.keywords]
 		newFunc = self.visit(func)
+		self.callDepth -= 1
 		if subBehaviorCheck and self.inBehavior and not self.inGuard:
 			# Add check for sub-behavior invocation
 			newNode = self.wrapBehaviorCall(newFunc, newArgs, newKeywords)
@@ -1454,21 +1461,46 @@ class ASTSurgeon(NodeTransformer):
 		Specifically, transforms a call of the form:
 			function(args)
 		into:
-			(CHECK(yield from CURRENT_BEHAVIOR.callSubBehavior(TEMP, self, args))
-			if isABehavior(TEMP := function)
-			else TEMP(args))
-		where TEMP is a temporary name,
-		CURRENT_BEHAVIOR is a hidden argument storing the current Behavior object, and
+			(CHECK(yield from BEHAVIOR.callSubBehavior(TEMP, self, TEMP2))
+			if isABehavior(TEMP := function, TEMP2 := args)
+			else TEMP(TEMP2))
+		where TEMP and TEMP2 are temporary names (we actually save each argument),
+		BEHAVIOR is a hidden argument storing the current Behavior object, and
 		CHECK is a function which checks the invariants and returns its argument.
+
+		The := expressions are necessary to prevent unexpected behavior if the expression
+		'function' has side effects, and exponential blowup for nested function calls. We
+		use separate temporary names for each nesting depth, in case 'args' contains
+		further wrapped function calls.
 		"""
-		savedFunc = NamedExpr(Name(temporaryName, Store()), func)
-		condition = Call(Name(behaviorChecker, Load()), [savedFunc], [])
+		newArgs, savedArgs = [], []
+		for i, arg in enumerate(args):
+			name = f'{temporaryName}_arg_{self.callDepth}_{i}'
+			if isinstance(arg, Starred):
+				newArg = Starred(NamedExpr(Name(name, Store()), arg.value), arg.ctx)
+				savedArg = Starred(Name(name, Load()), Load())
+			else:
+				newArg = NamedExpr(Name(name, Store()), arg)
+				savedArg = Name(name, Load())
+			newArgs.append(newArg)
+			savedArgs.append(savedArg)
+		newKwargs, savedKwargs = [], []
+		for i, arg in enumerate(keywords):
+			name = f'{temporaryName}_kwarg_{self.callDepth}_{i}'
+			newArg = ast.keyword(arg.arg, NamedExpr(Name(name, Store()), arg.value))
+			newKwargs.append(newArg)
+			savedKwargs.append(ast.keyword(arg.arg, Name(name, Load())))
+
+		name = f'{temporaryName}_func_{self.callDepth}'
+		savedFunc = NamedExpr(Name(name, Store()), func)
+		condition = Call(Name(behaviorChecker, Load()), [savedFunc] + newArgs, newKwargs)
 		subHandler = Attribute(Name(behaviorArgName, Load()), 'callSubBehavior', Load())
-		subArgs = [Name(temporaryName, Load()), Name('self', Load())] + args
-		subCall = Call(subHandler, subArgs, keywords)
+
+		subArgs = [Name(name, Load()), Name('self', Load())] + savedArgs
+		subCall = Call(subHandler, subArgs, savedKwargs)
 		yieldFrom = YieldFrom(subCall)
 		checkedSubCall = Call(Name(checkInvariantsName, Load()), [yieldFrom], [])
-		ordinaryCall = Call(Name(temporaryName, Load()), args, keywords)
+		ordinaryCall = Call(Name(name, Load()), savedArgs, savedKwargs)
 		return IfExp(condition, checkedSubCall, ordinaryCall)
 
 	def visit_AsyncFunctionDef(self, node):

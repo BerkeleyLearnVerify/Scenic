@@ -318,7 +318,11 @@ class Behavior(Samplable):
 
 behaviorIndicator = '__Scenic_behavior'
 
-def isABehavior(thing):
+def isABehavior(thing, /, *args, **kwargs):
+	"""Check if the first argument is a Behavior.
+
+	The extra arguments are for implementation convenience and are not used.
+	"""
 	return isinstance(thing, type) and issubclass(thing, Behavior)
 
 def makeTerminationAction(line):
