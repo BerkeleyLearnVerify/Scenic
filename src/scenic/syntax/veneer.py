@@ -39,7 +39,7 @@ __all__ = (
 	# Exceptions
 	'GuardFailure', 'PreconditionFailure', 'InvariantFailure',
 	# Internal APIs 	# TODO remove?
-	'PropertyDefault', 'Behavior', 'isABehavior', 'makeTerminationAction',
+	'PropertyDefault', 'Behavior', 'Monitor', 'isABehavior', 'makeTerminationAction',
 	'BlockConclusion', 'runTryInterrupt',
 )
 
@@ -254,6 +254,10 @@ class BoundRequirement:
 # Behaviors
 
 class Behavior(Samplable):
+	def __init_subclass__(cls):
+		if cls.__module__ is not __name__:
+			behaviors.append(cls)
+
 	def __init__(self, *args, **kwargs):
 		if evaluatingGuard:
 			raise RuntimeParseError(
@@ -271,20 +275,10 @@ class Behavior(Samplable):
 
 		self.runningIterator = None
 
-		if isActive():	# during compilation, not sampling
-			# Save all global names used so we can rebind them with sampled values later
-			self.module = self.makeGenerator.__module__
-			self.globalNamespace = self.makeGenerator.__globals__
-
-			self.register()
-
 	def sampleGiven(self, value):
 		args = (value[arg] for arg in self.args)
 		kwargs = { name: value[val] for name, val in self.kwargs.items() }
 		return type(self)(*args, **kwargs)
-
-	def register(self):
-		behaviors.append(self)
 
 	def start(self, agent):
 		it = self.makeGenerator(agent, *self.args, **self.kwargs)
@@ -332,8 +326,9 @@ def makeTerminationAction(line):
 # Monitors
 
 class Monitor(Behavior):
-	def register(self):
-		monitors.append(self)
+	def __init_subclass__(cls):
+		super().__init_subclass__()
+		monitors.append(cls)
 
 	def start(self):
 		return super().start(None)

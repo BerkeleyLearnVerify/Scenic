@@ -25,6 +25,40 @@ def test_behavior_random_argument():
     actions3 = sampleEgoActionsFromScene(scene2)
     assert actions1 != actions3
 
+# Globals
+
+def test_behavior_globals_read():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take other.position.x
+        ego = Object with behavior Foo
+        other = Object at (10, 20) @ 15
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=2)
+    assert len(actions) == 2
+    assert 10 <= actions[0] <= 20
+    assert actions[0] == actions[1]
+
+def test_behavior_globals_write():
+    scenario = compileScenic("""
+        glob = 0
+        behavior Foo():
+            global glob
+            while True:
+                take 0
+                glob = 2
+        behavior Bar():
+            while True:
+                take (glob < 1)
+        other = Object with behavior Foo
+        ego = Object at 10@10, with behavior Bar
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=3)
+    assert len(actions) == 3
+    assert actions[0] == True
+    assert actions[2] == False
+
 # Termination
 
 def test_behavior_end_early():
@@ -100,6 +134,65 @@ def test_behavior_nesting():
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, 2, 2, 3)
+
+def test_behavior_calls():
+    """Ordinary function calls inside behaviors should still work."""
+    scenario = compileScenic("""
+        def func(a, *b, c=0, d=1, **e):
+            return [a, len(b), c, d, len(e)]
+        behavior Foo():
+            take func(4, 5, 6, blah=4, c=10)
+        ego = Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=1)
+    assert tuple(actions) == ([4, 2, 10, 1, 1],)
+
+def test_behavior_calls_nested():
+    """Nested function calls inside behaviors should still work."""
+    scenario = compileScenic("""
+        def funcA(x):
+            return x+1
+        def funcB(x):
+            return x*2
+        behavior Foo():
+            take funcA(funcB(5))
+        ego = Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=1)
+    assert tuple(actions) == (11,)
+
+def test_behavior_calls_side_effects():
+    scenario = compileScenic("""
+        x = 0
+        def func():
+            global x
+            x += 1
+            return x
+        behavior Foo():
+            while True:
+                take func()
+        ego = Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (1, 2, 3, 4)
+
+## Monitors
+
+def test_monitor():
+    scenario = compileScenic("""
+        monitor Monitor:
+            while True:
+                if ego.blah >= 3:
+                    terminate
+                wait
+        behavior Foo():
+            while True:
+                take self.blah
+                self.blah += 1
+        ego = Object with blah 0, with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=5)
+    assert tuple(actions) == (0, 1, 2, 3)
 
 ## Interrupts
 

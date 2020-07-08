@@ -75,7 +75,7 @@ class Scenario:
 		self.params = dict(params)
 		self.externalParams = tuple(externalParams)
 		self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)
-		self.monitors = tuple(monitors)
+		self.monitors = tuple(monitor() for monitor in monitors)
 		self.behaviorNamespaces = behaviorNamespaces
 
 		staticReqs, alwaysReqs, terminationConds = [], [], []

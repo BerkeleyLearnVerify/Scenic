@@ -245,6 +245,7 @@ api = set(veneer.__all__)
 rangeConstructor = 'Range'
 createDefault = 'PropertyDefault'
 behaviorClass = 'Behavior'
+monitorClass = 'Monitor'
 behaviorChecker = 'isABehavior'
 createTerminationAction = 'makeTerminationAction'
 internalFunctions = {
@@ -844,14 +845,14 @@ class TokenTranslator:
 						if nextToken.type != NAME:
 							raise TokenParseError(nextToken,
 							    f'invalid monitor name "{nextString}"')
-						advance()	# consume name
-						if peek(tokens).exact_type != COLON:
-							raise TokenParseError(nextToken, 'malformed monitor definition')
-						injectToken((NAME, 'async'))
-						injectToken((NAME, 'def'))
+						injectToken((NAME, 'async'), spaceAfter=1)
+						injectToken((NAME, 'def'), spaceAfter=1)
 						injectToken((NAME, veneer.functionForMonitor(nextString)))
 						injectToken((LPAR, '('))
 						injectToken((RPAR, ')'))
+						advance()	# consume name
+						if peek(tokens).exact_type != COLON:
+							raise TokenParseError(nextToken, 'malformed monitor definition')
 						skip = True
 						matched = True
 					elif twoWords in allowedPrefixOps:	# 2-word prefix operator
@@ -1795,14 +1796,16 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 	namespace['_behaviors'] = veneer.behaviors
 	namespace['_monitors'] = veneer.monitors
 
-	# Gather all global namespaces which could be referred to by behaviors
+	# Gather all global namespaces which could be referred to by behaviors;
+	# we'll need to rebind any sampled values in them at runtime
 	behaviorNamespaces = {}
 	for behavior in veneer.behaviors:
-		modName = behavior.module
+		modName = behavior.__module__
+		globalNamespace = behavior.makeGenerator.__globals__
 		if modName not in behaviorNamespaces:
-			behaviorNamespaces[modName] = behavior.globalNamespace
+			behaviorNamespaces[modName] = globalNamespace
 		else:
-			assert behaviorNamespaces[modName] is behavior.globalNamespace
+			assert behaviorNamespaces[modName] is globalNamespace
 	namespace['_behaviorNamespaces'] = behaviorNamespaces
 
 def constructScenarioFrom(namespace):
