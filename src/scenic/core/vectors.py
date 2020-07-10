@@ -188,6 +188,22 @@ class Vector(Samplable, collections.abc.Sequence):
 		dx, dy = other.toVector() - self
 		return normalizeAngle(math.atan2(dy, dx) - (math.pi / 2))
 
+	@scalarOperator
+	def angleWith(self, other):
+		"""Compute the signed angle between self and other.
+
+		The angle is positive if other is counterclockwise of self (considering
+		the smallest possible rotation to align them).
+		"""
+		x, y = self.x, self.y
+		ox, oy = other.x, other.y
+		return normalizeAngle(math.atan2(oy, ox) - math.atan2(y, x))
+
+	@vectorOperator
+	def normalized(self):
+		l = math.hypot(*self.coordinates)
+		return Vector(*(coord/l for coord in self.coordinates))
+
 	@vectorOperator
 	def __add__(self, other):
 		return Vector(self[0] + other[0], self[1] + other[1])

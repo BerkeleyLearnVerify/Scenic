@@ -1257,6 +1257,7 @@ class RoadMap:
             # Gather all lanes involved in the junction's connections
             allIncomingLanes, allOutgoingLanes = [], []
             allRoads, seenRoads = [], set()
+            maneuversForLane = defaultdict(list)
             for connection in junction.connections:
                 # Find possible incoming lanes for this connection
                 incomingID = connection.incoming_id
@@ -1305,6 +1306,21 @@ class RoadMap:
                             allRoads.append(outgoingRoad)
                             seenRoads.add(outgoingRoad.id)
 
+                        # TODO future OpenDRIVE extension annotating left/right turns?
+                        maneuver = roadDomain.Maneuver(
+                            startLane=fromLane.lane,
+                            connectingLane=toLane.lane,
+                            endLane=outgoingLane
+                        )
+                        maneuversForLane[fromLane.lane].append(maneuver)
+
+            # Gather maneuvers
+            allManeuvers = []
+            for lane, maneuvers in maneuversForLane.items():
+                assert lane.maneuvers == ()
+                lane.maneuvers = tuple(maneuvers)
+                allManeuvers.extend(maneuvers)
+
             # Create intersection
             intersection = roadDomain.Intersection(
                 polygon=junction.poly,
@@ -1313,6 +1329,7 @@ class RoadMap:
                 roads=tuple(allRoads),
                 incomingLanes=tuple(allIncomingLanes),
                 outgoingLanes=tuple(allOutgoingLanes),
+                maneuvers=tuple(allManeuvers),
                 crossings=(),       # TODO add these
             )
             intersections[jid] = intersection
@@ -1346,6 +1363,13 @@ class RoadMap:
             sidewalk = group.sidewalk
             if sidewalk:
                 sidewalks.append(sidewalk)
+
+        # Add dummy maneuvers for lanes which merge/turn into another lane
+        for lane in lanes:
+            if not lane.maneuvers and lane.successor:
+                maneuver = roadDomain.Maneuver(type=roadDomain.ManeuverType.STRAIGHT,
+                                               startLane=lane, endLane=lane.successor)
+                lane.maneuvers = (maneuver,)
 
         def combine(regions):
             return PolygonalRegion.unionAll(regions, buf=self.tolerance)

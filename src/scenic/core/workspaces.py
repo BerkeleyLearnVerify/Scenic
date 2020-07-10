@@ -24,15 +24,15 @@ class Workspace(Region):
 		plt.ylim(ymin, ymax)
 		plt.gca().set_aspect('equal')
 
-	def zoomAround(self, plt, objects, expansion=2):
+	def zoomAround(self, plt, objects, expansion=1):
 		"""Zoom the schematic around the specified objects"""
 		positions = (self.scenicToSchematicCoords(obj.position) for obj in objects)
 		x, y = zip(*positions)
 		minx, maxx = findMinMax(x)
 		miny, maxy = findMinMax(y)
-		sx = expansion * (maxx - minx)
-		sy = expansion * (maxy - miny)
-		s = max(sx, sy, self.minimumZoomSize) / 2.0
+		sx = expansion * max(self.minimumZoomSize, 2 * (maxx - minx))
+		sy = expansion * max(self.minimumZoomSize, 2 * (maxy - miny))
+		s = max(sx, sy) / 2.0
 		s += max(max(obj.width, obj.height) for obj in objects)	# TODO improve
 		cx = (maxx + minx) / 2.0
 		cy = (maxy + miny) / 2.0

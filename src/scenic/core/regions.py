@@ -349,8 +349,8 @@ class RectangularRegion(RotatedRectangle, Region):
 
 class PolylineRegion(Region):
 	"""Region given by one or more polylines (chain of line segments)"""
-	def __init__(self, points=None, polyline=None, orientation=True):
-		super().__init__('Polyline', orientation=orientation)
+	def __init__(self, points=None, polyline=None, orientation=True, name='Polyline'):
+		super().__init__(name, orientation=orientation)
 		if points is not None:
 			points = tuple(points)
 			if len(points) < 2:
@@ -458,6 +458,9 @@ class PolylineRegion(Region):
 		"""
 		return Vector(*self.points[i])
 
+	def __len__(self):
+		return len(self.points)
+
 	def __str__(self):
 		return f'PolylineRegion({self.lineString})'
 
@@ -472,8 +475,8 @@ class PolylineRegion(Region):
 
 class PolygonalRegion(Region):
 	"""Region given by one or more polygons (possibly with holes)"""
-	def __init__(self, points=None, polygon=None, orientation=None):
-		super().__init__('Polygon', orientation=orientation)
+	def __init__(self, points=None, polygon=None, orientation=None, name='Polygon'):
+		super().__init__(name, orientation=orientation)
 		if polygon is None and points is None:
 			raise RuntimeError('must specify points or polygon for PolygonalRegion')
 		if polygon is None:
