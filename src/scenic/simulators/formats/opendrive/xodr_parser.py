@@ -1333,6 +1333,8 @@ class RoadMap:
                 crossings=(),       # TODO add these
             )
             intersections[jid] = intersection
+            for maneuver in allManeuvers:
+                object.__setattr__(maneuver, 'intersection', intersection)
 
         # Hook up road-intersection links
         for rid, oldRoad in self.roads.items():

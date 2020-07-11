@@ -71,6 +71,10 @@ class Region(Samplable):
 		else:
 			return other.intersect(self, triedReversed=True)
 
+	def intersects(self, other):
+		"""Check if this `Region` intersects another."""
+		raise NotImplementedError
+
 	def union(self, other, triedReversed=False):
 		"""Get a `Region` representing the union of this one with another.
 
@@ -432,6 +436,13 @@ class PolylineRegion(Region):
 			return PolylineRegion(polyline=intersection)
 		return super().intersect(other, triedReversed)
 
+	def intersects(self, other):
+		poly = toPolygon(other)
+		if poly is not None:
+			intersection = self.lineString & poly
+			return not intersection.is_empty
+		return super().intersects(other)
+
 	def containsPoint(self, point):
 		return self.lineString.intersects(shapely.geometry.Point(point))
 
@@ -548,6 +559,13 @@ class PolygonalRegion(Region):
 				# TODO handle points, lines
 				raise RuntimeError('unhandled type of polygon intersection')
 		return super().intersect(other, triedReversed)
+
+	def intersects(self, other):
+		poly = toPolygon(other)
+		if poly is not None:
+			intersection = self.polygons & poly
+			return not intersection.is_empty
+		return super().intersects(other)
 
 	def union(self, other, triedReversed=False, buf=0):
 		poly = toPolygon(other)

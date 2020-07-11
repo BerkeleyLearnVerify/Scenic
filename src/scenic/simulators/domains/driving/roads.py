@@ -13,6 +13,7 @@ from shapely.geometry import Polygon, MultiPolygon
 from scenic.core.vectors import Vector, VectorField
 from scenic.core.regions import PolygonalRegion, PolylineRegion
 from scenic.core.object_types import Point
+import scenic.core.utils as utils
 
 ## Typing
 
@@ -58,12 +59,16 @@ class ManeuverType(enum.Enum):
         else:
             return ManeuverType.STRAIGHT
 
-@attr.s(auto_attribs=True, kw_only=True, eq=True, frozen=True)
+@attr.s(auto_attribs=True, kw_only=True, eq=False)
 class Maneuver:
     type: ManeuverType = None      # left turn, right turn, straight, etc.
     startLane: Lane
     endLane: Lane
-    connectingLane: Union[Lane, None] = None    # None if startLane directly merges into endLane
+
+    # the following attributes are None if startLane directly merges into endLane,
+    # rather than connecting via a maneuver through an intersection
+    connectingLane: Union[Lane, None] = None
+    intersection: Union[Intersection, None] = None
 
     def __attrs_post_init__(self):
         assert self.type is ManeuverType.STRAIGHT or self.connectingLane is not None
@@ -71,6 +76,18 @@ class Maneuver:
         if self.type is None:   # unknown maneuver type; need to guess from geometry
             ty = ManeuverType.guessTypeFromLanes(self.startLane, self.endLane, self.connectingLane)
             object.__setattr__(self, 'type', ty)
+
+    @property
+    @utils.cached
+    def conflictingManeuvers(self) -> Tuple[Maneuver]:
+        guideway = self.connectingLane
+        start = self.startLane
+        conflicts = []
+        for maneuver in self.intersection.maneuvers:
+            if (maneuver.startLane is not start
+                and maneuver.connectingLane.intersects(guideway)):
+                conflicts.append(maneuver)
+        return tuple(conflicts)
 
 ## Road networks
 
