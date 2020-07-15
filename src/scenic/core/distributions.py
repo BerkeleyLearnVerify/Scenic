@@ -5,6 +5,7 @@ import itertools
 import functools
 import random
 import math
+import typing
 import warnings
 
 import numpy
@@ -246,7 +247,8 @@ def toDistribution(val):
 	"""Wrap Python data types with Distributions, if necessary.
 
 	For example, tuples containing Samplables need to be converted into TupleDistributions
-	in order to keep track of dependencies properly."""
+	in order to keep track of dependencies properly.
+	"""
 	if isinstance(val, (tuple, list)):
 		coords = [toDistribution(c) for c in val]
 		if any(needsSampling(c) or needsLazyEvaluation(c) for c in coords):
@@ -259,10 +261,12 @@ def toDistribution(val):
 
 class FunctionDistribution(Distribution):
 	"""Distribution resulting from passing distributions to a function"""
-	def __init__(self, func, args, kwargs, support=None):
+	def __init__(self, func, args, kwargs, support=None, valueType=None):
 		args = tuple(toDistribution(arg) for arg in args)
 		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
-		super().__init__(*args, *kwargs.values())
+		if valueType is None:
+			valueType = typing.get_type_hints(func).get('return')
+		super().__init__(*args, *kwargs.values(), valueType=valueType)
 		self.function = func
 		self.arguments = args
 		self.kwargs = kwargs
@@ -298,14 +302,14 @@ class FunctionDistribution(Distribution):
 		args = argsToString(itertools.chain(self.arguments, self.kwargs.items()))
 		return f'{self.function.__name__}{args}'
 
-def distributionFunction(method, support=None):
+def distributionFunction(method, support=None, valueType=None):
 	"""Decorator for wrapping a function so that it can take distributions as arguments."""
 	@functools.wraps(method)
 	def helper(*args, **kwargs):
 		args = tuple(toDistribution(arg) for arg in args)
 		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
 		if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
-			return FunctionDistribution(method, args, kwargs, support)
+			return FunctionDistribution(method, args, kwargs, support, valueType)
 		elif any(needsLazyEvaluation(arg) for arg in itertools.chain(args, kwargs.values())):
 			# recursively call this helper (not the original function), since the delayed
 			# arguments may evaluate to distributions, in which case we'll have to make a
@@ -315,7 +319,7 @@ def distributionFunction(method, support=None):
 			return method(*args, **kwargs)
 	return helper
 
-def monotonicDistributionFunction(method):
+def monotonicDistributionFunction(method, valueType=None):
 	"""Like distributionFunction, but additionally specifies that the function is monotonic."""
 	def support(*subsupports, **kwss):
 		mins, maxes = zip(*subsupports)
@@ -324,7 +328,7 @@ def monotonicDistributionFunction(method):
 		l = None if None in mins or None in kwmins else method(*mins, **kwmins)
 		r = None if None in maxes or None in kwmaxes else method(*maxes, **kwmaxes)
 		return l, r
-	return distributionFunction(method, support=support)
+	return distributionFunction(method, support=support, valueType=valueType)
 
 class MethodDistribution(Distribution):
 	"""Distribution resulting from passing distributions to a method of a fixed object"""
