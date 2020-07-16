@@ -3,8 +3,9 @@
 import sys
 import inspect
 import numbers
+import typing
 
-from scenic.core.distributions import Distribution, RejectionException
+from scenic.core.distributions import Distribution, RejectionException, StarredDistribution
 from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
                                    needsLazyEvaluation, toDelayedArgument)
 from scenic.core.vectors import Vector
@@ -47,7 +48,19 @@ def isA(thing, ty):
 
 def unifyingType(opts):		# TODO improve?
 	"""Most specific type unifying the given types."""
-	types = [underlyingType(opt) for opt in opts]
+	types = []
+	for opt in opts:
+		if isinstance(opt, StarredDistribution):
+			ty = underlyingType(opt)
+			typeargs = typing.get_args(ty)
+			if typeargs == ():
+				types.append(ty)
+			else:
+				for ty in typeargs:
+					if ty is not Ellipsis:
+						types.append(ty)
+		else:
+			types.append(underlyingType(opt))
 	if all(issubclass(ty, (float, int)) for ty in types):
 		return float
 	mro = inspect.getmro(types[0])

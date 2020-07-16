@@ -1264,9 +1264,6 @@ class ASTSurgeon(NodeTransformer):
 			return copy_location(Expr(node), node)
 
 	def generateActionInvocation(self, node, action):
-		# if self.inInterruptBlock:
-		# 	# Capture current bindings of locals to transfer to other blocks
-		# 	action = Tuple([action, Call(Name('locals', Load()), [], [])], Load())
 		invokeAction = Expr(Yield(action))
 		checkInvariants = Expr(Call(Name(checkInvariantsName, Load()), [], []))
 		return [copy_location(invokeAction, node), copy_location(checkInvariants, node)]
@@ -1418,15 +1415,23 @@ class ASTSurgeon(NodeTransformer):
 
 		In particular:
 		  * unpack argument packages for operators;
+		  * check for iterable unpacking applied to distributions;
 		  * check for sub-behavior invocation inside behaviors.
 		"""
 		func = node.func
 		newArgs = []
 		# Translate arguments, unpacking any argument packages
 		self.callDepth += 1
+		wrappedStar = False
 		for arg in node.args:
 			if isinstance(arg, BinOp) and isinstance(arg.op, packageNode):
 				newArgs.extend(self.unpack(arg, 2, node))
+			elif isinstance(arg, Starred) and not self.inBehavior:
+				wrappedStar = True
+				checkedVal = Call(Name('wrapStarredValue', Load()),
+				                  [self.visit(arg.value), Num(arg.value.lineno)],
+				                  [])
+				newArgs.append(Starred(checkedVal, Load()))
 			else:
 				newArgs.append(self.visit(arg))
 		newKeywords = [self.visit(kwarg) for kwarg in node.keywords]
@@ -1435,6 +1440,8 @@ class ASTSurgeon(NodeTransformer):
 		if subBehaviorCheck and self.inBehavior and not self.inGuard:
 			# Add check for sub-behavior invocation
 			newNode = self.wrapBehaviorCall(newFunc, newArgs, newKeywords)
+		elif wrappedStar:
+			newNode = Call(Name('callWithStarArgs', Load()), [newFunc] + newArgs, newKeywords)
 		else:
 			newNode = Call(newFunc, newArgs, newKeywords)
 		return copy_location(newNode, node)
