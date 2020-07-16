@@ -607,7 +607,12 @@ class Road:
             for id_, lane in sec.drivable_lanes.items():
                 succ = None     # will set this later
                 if last_section and lane.pred:
-                    pred = last_section.lanesByOpenDriveID[lane.pred]
+                    if lane.pred in last_section.lanesByOpenDriveID:
+                        pred = last_section.lanesByOpenDriveID[lane.pred]
+                    else:
+                        warnings.warn(f'road {self.id_} section {len(roadSections)} '
+                                      f'lane {id_} has a non-drivable predecessor')
+                        pred = None
                 else:
                     pred = lane.pred    # will correct inter-road links later
                 left, center, right = lane.left_bounds, lane.centerline, lane.right_bounds
@@ -697,7 +702,7 @@ class Road:
                     if newLane.isForward:
                         newLane.successor = lane.succ   # will correct inter-road links later
                     else:
-                        newLane.predecessor = lane.pred
+                        newLane.predecessor = lane.succ
                 continue
             section.successor = next_section
             for id_, lane in sec.drivable_lanes.items():
@@ -705,7 +710,7 @@ class Road:
                 if newLane.isForward:
                     newLane.successor = next_section.lanesByOpenDriveID.get(lane.succ)
                 else:
-                    newLane.predecessor = next_section.lanesByOpenDriveID.get(lane.pred)
+                    newLane.predecessor = next_section.lanesByOpenDriveID.get(lane.succ)
             next_section = section
 
         # Connect lane sections to adjacent lane sections
@@ -1276,17 +1281,19 @@ class RoadMap:
                 incomingLaneIDs = incomingSection.lanesByOpenDriveID
 
                 # Connect incoming lanes to connecting road
-                connectingRoad = connectingRoads[connection.connecting_id]
+                connectingID = connection.connecting_id
+                connectingRoad = connectingRoads[connectingID]
                 assert connection.connecting_contact == 'start'     # TODO other case possible?
                 connectingSection = connectingRoad.sections[0]
                 lane_links = connection.lane_links
-                if lane_links:
-                    assert all(lane in incomingLaneIDs for lane in lane_links)
-                else:   # all lanes connect to that with the same id
+                if not lane_links:   # all lanes connect to that with the same id
                     lane_links = { l: l for l in incomingLaneIDs }
-                for fromID, toID in lane_links.items():
+                for fromID, fromLane in incomingLaneIDs.items():
                     # Link incoming lane to connecting road
-                    fromLane = incomingSection.lanesByOpenDriveID[fromID]
+                    # (we only handle lanes in incomingLaneIDs, thus skipping non-drivable lanes)
+                    if fromID not in lane_links:
+                        continue    # lane not linked by this connection
+                    toID = lane_links[fromID]
                     toLane = connectingSection.lanesByOpenDriveID[toID]
                     if fromLane.lane not in allIncomingLanes:
                         allIncomingLanes.append(fromLane.lane)
@@ -1298,7 +1305,10 @@ class RoadMap:
                     # Collect outgoing lane and road
                     # TODO why is it allowed for this not to exist?
                     outgoingLane = toLane.lane.successor
-                    if outgoingLane is not None:
+                    if outgoingLane is None:
+                        warnings.warn(f'connecting road {connectingID} lane {toLane} '
+                                      'has no successor lane')
+                    else:
                         if outgoingLane not in allOutgoingLanes:
                             allOutgoingLanes.append(outgoingLane)
                         outgoingRoad = outgoingLane.road

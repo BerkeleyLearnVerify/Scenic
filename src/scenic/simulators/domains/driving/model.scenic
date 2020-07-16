@@ -14,7 +14,38 @@ intersection = network.intersectionRegion
 
 roadDirection = network.roadDirection
 
-class Vehicle:
+class DrivingObject:
+    """Abstract class providing convenience methods for objects in a road network."""
+
+    @property
+    def lane(self):
+        return network.laneAt(self)
+
+    @property
+    def laneSection(self):
+        return network.laneSectionAt(self)
+
+    @property
+    def laneGroup(self):
+        return network.laneGroupAt(self)
+
+    @property
+    def road(self):
+        return network.roadAt(self)
+
+    @property
+    def intersection(self):
+        return network.intersectionAt(self)
+
+    @property
+    def crossing(self):
+        return network.crossingAt(self)
+
+    @property
+    def element(self):
+        return network.elementAt(self)
+
+class Vehicle(DrivingObject):
     regionContainedIn: road
     position: Point on road
     heading: (roadDirection at self.position) + self.roadDeviation
@@ -27,7 +58,7 @@ class Car(Vehicle):
     height: 4.5
     color: Color.defaultCarColor()
 
-class Pedestrian:
+class Pedestrian(DrivingObject):
     regionContainedIn: network.walkableRegion
     position: Point on network.walkableRegion
     heading: (0, 360) deg

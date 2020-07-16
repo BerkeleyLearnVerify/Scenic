@@ -10,6 +10,7 @@ import pathlib
 import attr
 from shapely.geometry import Polygon, MultiPolygon
 
+from scenic.core.distributions import distributionFunction
 from scenic.core.vectors import Vector, VectorField
 from scenic.core.regions import PolygonalRegion, PolylineRegion
 from scenic.core.object_types import Point
@@ -123,6 +124,7 @@ class NetworkElement(PolygonalRegion):
     def __attrs_post_init__(self):
         super().__init__(polygon=self.polygon, orientation=self.orientation, name=self.name)
 
+    @distributionFunction
     def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[float]:
         """Get nominal traffic direction(s) at a point in this element.
 
@@ -187,6 +189,7 @@ class LinearElement(NetworkElement):
             i -= 1
         return pts[i].angleTo(pts[j])
 
+    @distributionFunction
     def flowFrom(self, point: Vectorlike, distance: float,
                  steps: Union[int, None] = None,
                  stepSize: Union[float, None] = None) -> Vector:
@@ -233,6 +236,7 @@ class Road(LinearElement):
             return self.backwardLanes.orientation[point]
         return super().defaultHeadingAt(point)
 
+    @distributionFunction
     def sectionAt(self, point: Vectorlike) -> Union[RoadSection, None]:
         """Get the RoadSection passing through a given point."""
         point = toVector(point)
@@ -241,12 +245,14 @@ class Road(LinearElement):
                 return section
         return None
 
+    @distributionFunction
     def laneSectionAt(self, point: Vectorlike) -> Union[LaneSection, None]:
         """Get the LaneSection passing through a given point."""
         point = toVector(point)
         lane = self.laneAt(point)
         return None if lane is None else lane.sectionAt(point)
 
+    @distributionFunction
     def laneAt(self, point: Vectorlike) -> Union[Lane, None]:
         """Get the lane passing through a given point."""
         point = toVector(point)
@@ -255,15 +261,17 @@ class Road(LinearElement):
                 return lane
         return None
 
+    @distributionFunction
     def laneGroupAt(self, point: Vectorlike) -> Union[LaneGroup, None]:
         """Get the LaneGroup passing through a given point."""
         point = toVector(point)
-        if forwardLanes and forwardLanes.containsPoint(point):
-            return forwardLanes
-        if backwardLanes and backwardLanes.containsPoint(point):
-            return backwardLanes
+        if self.forwardLanes and self.forwardLanes.containsPoint(point):
+            return self.forwardLanes
+        if self.backwardLanes and self.backwardLanes.containsPoint(point):
+            return self.backwardLanes
         return None
 
+    @distributionFunction
     def crossingAt(self, point: Vectorlike) -> Union[PedestrianCrossing, None]:
         """Get the PedestrianCrossing passing through a given point."""
         point = toVector(point)
@@ -272,6 +280,7 @@ class Road(LinearElement):
                 return crossing
         return None
 
+    @distributionFunction
     def shiftLanes(self, point: Vectorlike, offset: int) -> Union[Vector, None]:
         """Find the point equivalent to this one but shifted over some # of lanes."""
         raise NotImplementedError   # TODO implement this
@@ -310,6 +319,7 @@ class Lane(LinearElement):
 
     maneuvers: Tuple[Maneuver] = ()     # possible maneuvers upon reaching the end of this lane
 
+    @distributionFunction
     def sectionAt(self, point: Vectorlike) -> Union[LaneSection, None]:
         """Get the LaneSection passing through a given point."""
         point = toVector(point)
@@ -369,6 +379,7 @@ class RoadSection(LinearElement):
                 return lane.orientation[point]
         return super().defaultHeadingAt(point)
 
+    @distributionFunction
     def laneAt(self, point: Vectorlike) -> Union[LaneSection, None]:
         """Get the lane section passing through a given point."""
         point = toVector(point)
@@ -396,6 +407,7 @@ class LaneSection(LinearElement):
     fasterLane: Union[LaneSection, None] = None   # faster/slower adjacent lane, if it exists;
     slowerLane: Union[LaneSection, None] = None   # could be to left or right depending on country
 
+    @distributionFunction
     def shiftedBy(self, offset: int) -> Union[LaneSection, None]:
         """Find the lane a given number of lanes over from this lane."""
         current = self
@@ -440,6 +452,7 @@ class Intersection(NetworkElement):
     def is4Way(self):
         return len(self.roads) == 4
 
+    @distributionFunction
     def maneuversAt(self, point: Vectorlike) -> Set[Maneuver]:
         """Get all maneuvers possible at a given point in the intersection."""
         point = toVector(point)
@@ -449,6 +462,7 @@ class Intersection(NetworkElement):
                 possible.add(maneuver)
         return possible
 
+    @distributionFunction
     def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[float]:
         point = toVector(point)
         directions = []
@@ -534,6 +548,7 @@ class Network:
         road_map.calculate_geometry(ref_points, calc_gap=fill_gaps, calc_intersect=True)
         return road_map.toScenicNetwork()
 
+    @distributionFunction
     def elementAt(self, point: Vectorlike) -> Union[NetworkElement, None]:
         point = toVector(point)
         road = self.roadAt(point)
@@ -541,6 +556,7 @@ class Network:
             return road
         return self.intersectionAt(point)
 
+    @distributionFunction
     def roadAt(self, point: Vectorlike) -> Union[Road, None]:
         """Get the road passing through a given point."""
         point = toVector(point)
@@ -558,24 +574,28 @@ class Network:
                 return lane
         return None
 
+    @distributionFunction
     def laneSectionAt(self, point: Vectorlike) -> Union[LaneSection, None]:
         """Get the LaneSection passing through a given point."""
         point = toVector(point)
         lane = self.laneAt(point)
         return None if lane is None else lane.sectionAt(point)
 
+    @distributionFunction
     def laneGroupAt(self, point: Vectorlike) -> Union[LaneGroup, None]:
         """Get the LaneGroup passing through a given point."""
         point = toVector(point)
         road = self.roadAt(point)
         return None if road is None else road.laneGroupAt(point)
 
+    @distributionFunction
     def crossingAt(self, point: Vectorlike) -> Union[PedestrianCrossing, None]:
         """Get the PedestrianCrossing passing through a given point."""
         point = toVector(point)
         road = self.roadAt(point)
         return None if road is None else road.crossingAt(point)
 
+    @distributionFunction
     def intersectionAt(self, point: Vectorlike) -> Union[Intersection, None]:
         """Get the intersection at a given point."""
         point = toVector(point)
@@ -584,6 +604,7 @@ class Network:
                 return intersection
         return None
 
+    @distributionFunction
     def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[float]:
         """Get nominal traffic direction(s) at a given point, if any."""
         inter = self.intersectionAt(point)

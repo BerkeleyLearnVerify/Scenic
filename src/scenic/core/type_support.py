@@ -2,8 +2,7 @@
 
 import sys
 import inspect
-
-import numpy as np
+import numbers
 
 from scenic.core.distributions import Distribution, RejectionException
 from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
@@ -62,11 +61,7 @@ def unifyingType(opts):		# TODO improve?
 def canCoerceType(typeA, typeB):
 	"""Can values of typeA be coerced into typeB?"""
 	if typeB is float:
-		if issubclass(typeA, (float, int)):
-			return True
-		if issubclass(typeA, np.number) and not issubclass(typeA, np.complexfloating):
-			return True
-		return False
+		return issubclass(typeA, numbers.Real)
 	elif typeB is Heading:
 		return canCoerceType(typeA, float) or hasattr(typeA, 'toHeading')
 	elif typeB is Vector:

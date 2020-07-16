@@ -15,15 +15,15 @@ from scenic.core.lazy_eval import needsLazyEvaluation
 import scenic.core.utils as utils
 
 @distributionFunction
-def sin(x):
+def sin(x) -> float:
 	return math.sin(x)
 
 @distributionFunction
-def cos(x):
+def cos(x) -> float:
 	return math.cos(x)
 
 @monotonicDistributionFunction
-def hypot(x, y):
+def hypot(x, y) -> float:
 	return math.hypot(x, y)
 
 @monotonicDistributionFunction
