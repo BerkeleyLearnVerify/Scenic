@@ -14,6 +14,7 @@ from scenic.core.vectors import Vector, VectorField
 from scenic.core.regions import PolygonalRegion, PolylineRegion
 from scenic.core.object_types import Point
 import scenic.core.utils as utils
+from scenic.core.distributions import distributionFunction
 
 ## Typing
 
@@ -548,6 +549,7 @@ class Network:
                 return road
         return None
 
+    @distributionFunction
     def laneAt(self, point: Vectorlike) -> Union[Lane, None]:
         """Get the lane passing through a given point."""
         point = toVector(point)

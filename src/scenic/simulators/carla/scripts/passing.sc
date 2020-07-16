@@ -1,6 +1,7 @@
 """CARLA Challenge #5."""
 
 import random
+import math
 
 from scenic.core.geometry import subtractVectors
 from scenic.core.vectors import Vector
@@ -72,9 +73,9 @@ behavior PassingBehavior(carToPass, oldLane, newLane, spawnPt, minDist=5.0):
 
 	take actions.SetManualFirstGearShiftAction()
 	take actions.SetManualGearShiftAction(False)
-	take actions.SetThrottleAction(0.4)
+	take actions.SetThrottleAction(0.7)
 
-	LaneChangeBehavior(newLane, steer=0.2, threshold=0.01)
+	LaneChangeBehavior(newLane, steer=0.2, threshold=0.1)
 	print("PassingBehavior()")
 
 	# oldLane = network.get_lane_at(self.position)
@@ -94,7 +95,7 @@ behavior PassingBehavior(carToPass, oldLane, newLane, spawnPt, minDist=5.0):
 	# while True:
 	# 	DriveLaneBehavior()
 
-behavior LaneChangeBehavior(newLane, steer=0.2, threshold=0.01):
+behavior LaneChangeBehavior(newLane, steer=0.2, threshold=0.1):
 	print('applesauce1')
 	assert threshold >= 0, 'Cannot have a negative threshold.'
 	assert 0.0 < steer <= 1.0,\
@@ -106,12 +107,17 @@ behavior LaneChangeBehavior(newLane, steer=0.2, threshold=0.01):
 	position = Vector(self.position[0], self.position[1])
 	currLane = None
 
-	for lane in network.lanes:
-		for section in lane.sections:
-			if section.containsPoint(position):
-				print("Point exists on map")
-		# else:
-		# 	print("Point does not exist on map")
+	while currLane is None:
+		if network.laneAt(position):
+			print("Hacker voice: I'm in")
+			for lane in network.lanes:
+				for section in lane.sections:
+					if position in section:
+						currLane = section
+		else:
+			# take actions.SetThrottleAction(0.4)
+			wait
+			position = self.position
 
 	assert newLane is currLane.laneToLeft \
 		or newLane is currLane.laneToRight, \
@@ -124,14 +130,25 @@ behavior LaneChangeBehavior(newLane, steer=0.2, threshold=0.01):
 		adjacentEdge = currLane.laneToRight.leftEdge
 
 	take actions.SetSteerAction(steer)
+	print("threshold is: ", threshold)
 	while (distance from self to adjacentEdge) > threshold:
+		# print(distance from self to adjacentEdge)
+		take None
+
+	while (distance to newLane.centerline) > (10 * threshold):
+		print(distance to newLane.centerline)
 		take None
 
 	take actions.SetSteerAction(-steer)
-	while (distance from self to newLane.centerline) > threshold:
+	refPoint = (Point on newLane.centerline).toVector() #compare to roadDirection of the position of the car
+	print(refPoint)
+	while not isParallel(newLane.road.defaultHeadingAt(refPoint), threshold):
+		print(relative heading of newLane.road.defaultHeadingAt(refPoint))
 		take None
 
 	take actions.SetSteerAction(0.0)
+
+
 
 # ============================================================================
 # -- SCENARIO ----------------------------------------------------------------
@@ -153,6 +170,14 @@ initLane    E_1  V  E_3
 rightLane	    E_2	 
 -----------------------
 """
+
+def isParallel(heading2, threshold, heading1 = None):
+	if heading1 is None:
+		result = not (relative heading of heading2) > threshold and (relative heading of heading2) < (math.pi - threshold)
+		print(result)
+		return result
+	else:
+		return (relative heading of heading2 from heading1) > threshold and (relative heading of heading2 from heading1) < (math.pi - threshold)
 
 # NOTE: List comprehension do not work in Scenic.
 laneSecsWithLeftLane = []
@@ -192,10 +217,15 @@ behavior SlowCarBehavior():
 	take actions.SetThrottleAction(0.3)
 
 
-slowCar = Car at spawnVec,
+slowCar = Car at spawnPt,
 	with speed 0,
 	with behavior SlowCarBehavior
 
 ego = Car behind slowCar by 10,
 	with speed 0,
 	with behavior PassingBehavior(slowCar, currentLane, leftLaneSec, spawnPt)
+
+
+# Future improvements:
+#	stablize after changing lanes
+# 	merge back into the other lane
