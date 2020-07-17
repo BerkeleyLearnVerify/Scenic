@@ -726,10 +726,14 @@ def alwaysProvidesOrientation(region):
 	"""Whether a Region or distribution over Regions always provides an orientation."""
 	if isinstance(region, Region):
 		return region.orientation is not None
-	elif isinstance(region, Options):
-		return all(alwaysProvidesOrientation(opt) for opt in region.options)
-	else:
-		return False
+	elif (isinstance(region, Options)
+	      and all(alwaysProvidesOrientation(opt) for opt in region.options)):
+		return True
+	else:	# TODO improve somehow?
+		try:
+			return region.sample().orientation is not None
+		except RejectionException:
+			return False
 
 def Beyond(pos, offset, fromPt=None):
 	"""The 'beyond X by Y [from Z]' polymorphic specifier.
