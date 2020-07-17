@@ -165,8 +165,6 @@ def cleanPolygon(poly, tolerance, holeTolerance=0, minHullLenRatio=0.9):
 		holeTolerance = tolerance * tolerance
 	if poly.is_empty:
 		return poly
-	elif holeTolerance > 0 and poly.is_valid and poly.area <= holeTolerance:
-		return shapely.geometry.Polygon()
 	elif isinstance(poly, shapely.geometry.MultiPolygon):
 		polys = [cleanPolygon(p, tolerance, holeTolerance) for p in poly]
 		poly = shapely.ops.unary_union(polys)

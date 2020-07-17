@@ -523,11 +523,13 @@ class Network:
             self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
 
         if self.roadDirection is None:
-            def headingAt(point):
-                point = toVector(point)
-                road = self.roadAt(point)
-                return 0 if road is None else road.orientation[point]
-            self.roadDirection = VectorField('roadDirection', headingAt)
+            self.roadDirection = VectorField('roadDirection', self._defaultRoadDirection)
+
+    def _defaultRoadDirection(self, point):
+        """Default value for the roadDirection vector field."""
+        point = toVector(point)
+        road = self.roadAt(point)
+        return 0 if road is None else road.orientation[point]
 
     @classmethod
     def fromFile(cls, path, **kwargs):
