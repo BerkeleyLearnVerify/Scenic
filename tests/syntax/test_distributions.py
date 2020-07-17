@@ -230,6 +230,14 @@ def test_list_object_lazy():
     assert any(h == pytest.approx(1) for h in hs)
     assert any(h == pytest.approx(2) for h in hs)
 
+def test_list_nested():
+    scenario = compileScenic("""
+        mylist = Uniform(list(range(1000)), [1000])
+        ego = Object with foo Uniform(*mylist)
+    """)
+    vs = [sampleEgo(scenario).foo for i in range(60)]
+    assert 5 <= sum((v == 1000) for v in vs) <= 55
+
 def test_tuple():
     scenario = compileScenic('ego = Object with foo tuple([3, Uniform(1, 2)])')
     ts = [sampleEgo(scenario).foo for i in range(60)]

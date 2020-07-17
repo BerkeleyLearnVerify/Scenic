@@ -39,6 +39,15 @@ def underlyingFunction(thing):
 	"""Original function underlying a distribution wrapper."""
 	return getattr(thing, '__wrapped__', thing)
 
+def canUnpackDistributions(func):
+	"""Whether the function supports iterable unpacking of distributions."""
+	return getattr(func, '_canUnpackDistributions', False)
+
+def unpacksDistributions(func):
+	"""Decorator indicating the function supports iterable unpacking of distributions."""
+	func._canUnpackDistributions = True
+	return func
+
 class RejectionException(Exception):
 	"""Exception used to signal that the sample currently being generated must be rejected."""
 	pass
@@ -185,6 +194,9 @@ class Distribution(Samplable):
 			return super().__getattr__(name)
 		return AttributeDistribution(name, self)
 
+	def __iter__(self):
+		raise TypeError(f'distribution {self} is not iterable')
+
 ## Derived distributions
 
 class CustomDistribution(Distribution):
@@ -225,6 +237,9 @@ class TupleDistribution(Distribution, collections.abc.Sequence):
 
 	def __getitem__(self, index):
 		return self.coordinates[index]
+
+	def __iter__(self):
+		yield from self.coordinates
 
 	def sampleGiven(self, value):
 		return self.builder(value[coordinate] for coordinate in self.coordinates)
@@ -273,7 +288,18 @@ class FunctionDistribution(Distribution):
 		self.support = support
 
 	def sampleGiven(self, value):
-		args = tuple(value[arg] for arg in self.arguments)
+		args = []
+		for arg in self.arguments:
+			if isinstance(arg, StarredDistribution):
+				val = value[arg]
+				try:
+					iter(val)
+				except TypeError:	# TODO improve backtrace
+					raise TypeError(f"'{type(val).__name__}' object on line {arg.lineno} "
+					                "is not iterable") from None
+				args.extend(val)
+			else:
+				args.append(value[arg])
 		kwargs = { name: value[arg] for name, arg in self.kwargs.items() }
 		return self.function(*args, **kwargs)
 
@@ -304,6 +330,7 @@ class FunctionDistribution(Distribution):
 
 def distributionFunction(method, support=None, valueType=None):
 	"""Decorator for wrapping a function so that it can take distributions as arguments."""
+	@unpacksDistributions
 	@functools.wraps(method)
 	def helper(*args, **kwargs):
 		args = tuple(toDistribution(arg) for arg in args)
@@ -330,6 +357,23 @@ def monotonicDistributionFunction(method, valueType=None):
 		return l, r
 	return distributionFunction(method, support=support, valueType=valueType)
 
+class StarredDistribution(Distribution):
+	"""A placeholder for the iterable unpacking operator * applied to a distribution."""
+	def __init__(self, value, lineno):
+		assert isinstance(value, Distribution)
+		self.value = value
+		self.lineno = lineno	# for error handling when unpacking fails
+		super().__init__(value, valueType=value.valueType)
+
+	def sampleGiven(self, value):
+		return value[self.value]
+
+	def evaluateInner(self, context):
+		return StarredDistribution(valueInContext(self.value, context))
+
+	def __str__(self):
+		return f'*{self.value}'
+
 class MethodDistribution(Distribution):
 	"""Distribution resulting from passing distributions to a method of a fixed object"""
 	def __init__(self, method, obj, args, kwargs):
@@ -342,7 +386,12 @@ class MethodDistribution(Distribution):
 		self.kwargs = kwargs
 
 	def sampleGiven(self, value):
-		args = (value[arg] for arg in self.arguments)
+		args = []
+		for arg in self.arguments:
+			if isinstance(arg, StarredDistribution):
+				args.extend(value[arg.value])
+			else:
+				args.append(value[arg])
 		kwargs = { name: value[arg] for name, arg in self.kwargs.items() }
 		return self.method(self.object, *args, **kwargs)
 
@@ -366,6 +415,7 @@ class MethodDistribution(Distribution):
 
 def distributionMethod(method):
 	"""Decorator for wrapping a method so that it can take distributions as arguments."""
+	@unpacksDistributions
 	@functools.wraps(method)
 	def helper(self, *args, **kwargs):
 		args = tuple(toDistribution(arg) for arg in args)
@@ -822,3 +872,46 @@ class Options(MultiplexerDistribution):
 			return f'{type(self).__name__}({self.optWeights})'
 		else:
 			return f'{type(self).__name__}{argsToString(self.options)}'
+
+@unpacksDistributions
+def Uniform(*opts):
+	"""Uniform distribution over a finite list of options.
+
+	Implemented as an instance of `Options` when the set of options is known
+	statically, and an instance of `UniformDistribution` otherwise.
+	"""
+	if any(isinstance(opt, StarredDistribution) for opt in opts):
+		return UniformDistribution(opts)
+	else:
+		return Options(opts)
+
+class UniformDistribution(Distribution):
+	"""Uniform distribution over a variable number of options.
+
+	See `Options` for the more common uniform distribution over a fixed number
+	of options. This class is for the special case where iterable unpacking is
+	applied to a distribution, so that the number of options is unknown at
+	compile time.
+	"""
+	def __init__(self, opts):
+		self.options = opts
+		valueType = type_support.unifyingType(self.options)
+		super().__init__(*self.options, valueType=valueType)
+
+	def sampleGiven(self, value):
+		opts = []
+		for opt in self.options:
+			if isinstance(opt, StarredDistribution):
+				opts.extend(value[opt])
+			else:
+				opts.append(value[opt])
+		if not opts:
+			raise RuntimeError('tried to create uniform distribution over empty domain')
+		return random.choice(opts)
+
+	def evaluateInner(self, context):
+		opts = tuple(valueInContext(opt, context) for opt in self.options)
+		return UniformDistribution(opts)
+
+	def __str__(self):
+		return f'UniformDistribution({self.options})'

@@ -14,6 +14,7 @@ from scenic.core.distributions import distributionFunction
 from scenic.core.vectors import Vector, VectorField
 from scenic.core.regions import PolygonalRegion, PolylineRegion
 from scenic.core.object_types import Point
+import scenic.core.geometry as geometry
 import scenic.core.utils as utils
 from scenic.core.distributions import distributionFunction
 
@@ -163,6 +164,10 @@ class LinearElement(NetworkElement):
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
+        # don't check centerline here since it can lie inside a median, for example
+        # (TODO reconsider the decision to have polygon only include drivable areas?)
+        assert self.containsRegion(self.leftEdge, tolerance=0.5)
+        assert self.containsRegion(self.rightEdge, tolerance=0.5)
         if self.orientation is None:
             self.orientation = VectorField(self.name, self.defaultHeadingAt)
 
@@ -174,20 +179,8 @@ class LinearElement(NetworkElement):
         lane containing the point.
         """
         point = toVector(point)
-        pts = list(self.centerline)
-        distances = [point.distanceTo(pt) for pt in pts]
-        i, closest = min(enumerate(pts), key=lambda i_pt: distances[i_pt[0]])
-        if i == 0:
-            j = 1
-        elif i == len(self.centerline)-1:
-            j = i
-            i -= 1
-        elif distances[i+1] >= distances[i-1]:
-            j = i+1
-        else:
-            j = i
-            i -= 1
-        return pts[i].angleTo(pts[j])
+        start, end = self.centerline.nearestSegmentTo(point)
+        return start.angleTo(end)
 
     @distributionFunction
     def flowFrom(self, point: Vectorlike, distance: float,
@@ -206,6 +199,12 @@ class LinearElement(NetworkElement):
                 stepSize = 5
             steps = min(4, int((distance / stepSize) + 1))
         return self.orientation.followFrom(toVector(point), distance, steps=steps)
+
+class ContainsCenterline:
+    """Mixin which asserts that the centerline is contained in the polygon."""
+    def __attrs_post_init__(self):
+        super().__attrs_post_init__()
+        assert self.containsRegion(self.centerline, tolerance=0.5)
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Road(LinearElement):
@@ -308,7 +307,7 @@ class LaneGroup(LinearElement):
         return super().defaultHeadingAt(point)
 
 @attr.s(auto_attribs=True, kw_only=True, eq=False, repr=False)
-class Lane(LinearElement):
+class Lane(ContainsCenterline, LinearElement):
     """A lane for cars, bicycles, or other vehicles."""
 
     group: LaneGroup            # parent lane group
@@ -389,7 +388,7 @@ class RoadSection(LinearElement):
         return None
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
-class LaneSection(LinearElement):
+class LaneSection(ContainsCenterline, LinearElement):
     """Part of a lane in a single RoadSection."""
 
     lane: Lane          # parent lane
@@ -421,12 +420,12 @@ class LaneSection(LinearElement):
         return current
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
-class Sidewalk(LinearElement):
+class Sidewalk(ContainsCenterline, LinearElement):
     road: Road
     crossings: Tuple[PedestrianCrossing]
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
-class PedestrianCrossing(LinearElement):
+class PedestrianCrossing(ContainsCenterline, LinearElement):
     parent: Union[Road, Intersection]
     startSidewalk: Sidewalk
     endSidewalk: Sidewalk
@@ -614,6 +613,14 @@ class Network:
         if road is not None:
             return road.nominalDirectionsAt(point)
         return ()
+
+    def show(self, plt):
+        """Render a schematic of the road network for debugging."""
+        self.drivableRegion.show(plt, style='r')
+        for lane in self.lanes:
+            lane.show(plt, style='r--')
+        self.walkableRegion.show(plt, style='b')
+        self.intersectionRegion.show(plt, style='g')
 
 ## FOR LATER
 

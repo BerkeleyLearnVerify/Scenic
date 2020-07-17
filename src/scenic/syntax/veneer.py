@@ -40,7 +40,7 @@ __all__ = (
 	'GuardFailure', 'PreconditionFailure', 'InvariantFailure',
 	# Internal APIs 	# TODO remove?
 	'PropertyDefault', 'Behavior', 'Monitor', 'isABehavior', 'makeTerminationAction',
-	'BlockConclusion', 'runTryInterrupt',
+	'BlockConclusion', 'runTryInterrupt', 'wrapStarredValue', 'callWithStarArgs',
 )
 
 # various Python types and functions used in the language but defined elsewhere
@@ -50,8 +50,7 @@ from scenic.core.regions import (Region, PointSetRegion, RectangularRegion,
 	CircularRegion, SectorRegion, PolygonalRegion, PolylineRegion,
 	everywhere, nowhere)
 from scenic.core.workspaces import Workspace
-from scenic.core.distributions import Range, DiscreteRange, Options, Normal
-Uniform = lambda *opts: Options(opts)		# TODO separate these?
+from scenic.core.distributions import Range, DiscreteRange, Options, Uniform, Normal
 Discrete = Options
 from scenic.core.external_params import (VerifaiParameter, VerifaiRange, VerifaiDiscreteRange,
 										 VerifaiOptions)
@@ -67,7 +66,8 @@ import types
 import itertools
 from collections import defaultdict
 from scenic.core.distributions import (Samplable, RejectionException, Distribution,
-                                       toDistribution, needsSampling)
+                                       TupleDistribution, StarredDistribution, toDistribution,
+                                       needsSampling, canUnpackDistributions, distributionFunction)
 from scenic.core.type_support import (isA, toType, toTypes, toScalar, toHeading, toVector,
 									  evaluateRequiringEqualTypes, underlyingType,
 									  canCoerce, coerce)
@@ -152,6 +152,22 @@ def registerExternalParameter(value):
 	if activity > 0:
 		assert isinstance(value, ExternalParameter)
 		externalParameters.append(value)
+
+# Function call support
+
+def wrapStarredValue(value, lineno):
+	if isinstance(value, TupleDistribution) or not needsSampling(value):
+		return value
+	elif isinstance(value, Distribution):
+		return [StarredDistribution(value, lineno)]
+	else:
+		raise RuntimeParseError(f'iterable unpacking cannot be applied to {value}')
+
+def callWithStarArgs(func, /, *args, **kwargs):
+	if not canUnpackDistributions(func):
+		# wrap function to delay evaluation until starred distributions are sampled
+		func = distributionFunction(func)
+	return func(*args, **kwargs)
 
 # Simulations
 
@@ -710,10 +726,14 @@ def alwaysProvidesOrientation(region):
 	"""Whether a Region or distribution over Regions always provides an orientation."""
 	if isinstance(region, Region):
 		return region.orientation is not None
-	elif isinstance(region, Options):
-		return all(alwaysProvidesOrientation(opt) for opt in region.options)
-	else:
-		return False
+	elif (isinstance(region, Options)
+	      and all(alwaysProvidesOrientation(opt) for opt in region.options)):
+		return True
+	else:	# TODO improve somehow?
+		try:
+			return region.sample().orientation is not None
+		except RejectionException:
+			return False
 
 def Beyond(pos, offset, fromPt=None):
 	"""The 'beyond X by Y [from Z]' polymorphic specifier.

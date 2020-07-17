@@ -10,9 +10,9 @@ import shapely.geometry
 import shapely.ops
 
 from scenic.core.distributions import (Samplable, RejectionException, needsSampling,
-                                       distributionFunction)
+                                       distributionMethod)
 from scenic.core.lazy_eval import valueInContext
-from scenic.core.vectors import Vector, OrientedVector, VectorDistribution
+from scenic.core.vectors import Vector, OrientedVector, VectorDistribution, VectorField
 from scenic.core.geometry import RotatedRectangle
 from scenic.core.geometry import sin, cos, hypot, findMinMax, pointIsInCone, averageVectors
 from scenic.core.geometry import headingOfSegment, triangulatePolygon, plotPolygon, polygonUnion
@@ -354,6 +354,11 @@ class RectangularRegion(RotatedRectangle, Region):
 class PolylineRegion(Region):
 	"""Region given by one or more polylines (chain of line segments)"""
 	def __init__(self, points=None, polyline=None, orientation=True, name='Polyline'):
+		if orientation is True:
+			orientation = VectorField('Polyline', self.defaultOrientation)
+			self.usingDefaultOrientation = True
+		else:
+			self.usingDefaultOrientation = False
 		super().__init__(name, orientation=orientation)
 		if points is not None:
 			points = tuple(points)
@@ -401,8 +406,9 @@ class PolylineRegion(Region):
 			points = list(lineString.coords)
 			if len(points) < 2:
 				raise RuntimeError('LineString has fewer than 2 points')
-			last = points[0]
+			last = Vector(*points[0][:2])
 			for point in points[1:]:
+				point = Vector(*point[:2])
 				segments.append((last, point))
 				last = point
 			return segments
@@ -414,12 +420,16 @@ class PolylineRegion(Region):
 		else:
 			raise RuntimeError('called segmentsOf on non-linestring')
 
+	def defaultOrientation(self, point):
+		start, end = self.nearestSegmentTo(point)
+		return start.angleTo(end)
+
 	def uniformPointInner(self):
 		pointA, pointB = random.choices(self.segments,
 		                                cum_weights=self.cumulativeLengths)[0]
 		interpolation = random.random()
 		x, y = averageVectors(pointA, pointB, weight=interpolation)
-		if self.orientation is True:
+		if self.usingDefaultOrientation:
 			return OrientedVector(x, y, headingOfSegment(pointA, pointB))
 		else:
 			return self.orient(Vector(x, y))
@@ -449,9 +459,22 @@ class PolylineRegion(Region):
 	def containsObject(self, obj):
 		return False
 
-	@distributionFunction
+	@distributionMethod
 	def distanceTo(self, point):
 		return self.lineString.distance(shapely.geometry.Point(point))
+
+	@distributionMethod
+	def project(self, point):
+		return shapely.ops.nearest_points(self.lineString, shapely.geometry.Point(point))[0]
+
+	@distributionMethod
+	def nearestSegmentTo(self, point):
+		dist = self.lineString.project(shapely.geometry.Point(point))
+		# TODO optimize?
+		for segment, cumLen in zip(self.segments, self.cumulativeLengths):
+			if dist <= cumLen:
+				return segment
+		return segment 		# just in case we get here due to rounding error
 
 	def getAABB(self):
 		xmin, ymin, xmax, ymax = self.lineString.bounds
@@ -597,7 +620,13 @@ class PolygonalRegion(Region):
 		# TODO improve boundary handling?
 		return self.polygons.contains(objPoly)
 
-	@distributionFunction
+	def containsRegion(self, other, tolerance=0):
+		poly = toPolygon(other)
+		if poly is None:
+			raise RuntimeError('cannot test inclusion of {other} in PolygonalRegion')
+		return self.polygons.buffer(tolerance).contains(poly)
+
+	@distributionMethod
 	def distanceTo(self, point):
 		return self.polygons.distance(shapely.geometry.Point(point))
 
@@ -672,7 +701,7 @@ class PointSetRegion(Region):
 	def containsObject(self, obj):
 		raise NotImplementedError()
 
-	@distributionFunction
+	@distributionMethod
 	def distanceTo(self, point):
 		distance, _ = self.kdTree.query(point)
 		return distance

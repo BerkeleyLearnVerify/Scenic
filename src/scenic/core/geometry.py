@@ -85,29 +85,19 @@ def positionRelativeToPoint(point, heading, offset):
 def headingOfSegment(pointA, pointB):
 	ax, ay = pointA
 	bx, by = pointB
-	return math.atan2(by - ay, bx - ax) - (math.pi / 2.0)
+	return normalizeAngle(math.atan2(by - ay, bx - ax) - (math.pi / 2.0))
 
 def viewAngleToPoint(point, base, heading):
 	x, y = base
 	ox, oy = point
 	a = math.atan2(oy - y, ox - x) - (heading + (math.pi / 2.0))
-	if a < -math.pi:
-		a += math.tau
-	elif a > math.pi:
-		a -= math.tau
-	assert -math.pi <= a and a <= math.pi
-	return a
+	return normalizeAngle(a)
 
 def apparentHeadingAtPoint(point, heading, base):
 	x, y = base
 	ox, oy = point
 	a = (heading + (math.pi / 2.0)) - math.atan2(oy - y, ox - x)
-	if a < -math.pi:
-		a += math.tau
-	elif a > math.pi:
-		a -= math.tau
-	assert -math.pi <= a and a <= math.pi
-	return a
+	return normalizeAngle(a)
 
 def circumcircleOfAnnulus(center, heading, angle, minDist, maxDist):
 	m = (minDist + maxDist) / 2.0
@@ -128,6 +118,18 @@ def distanceToLine(point, a, b):
 	nx, ny = -ly/norm, lx/norm
 	px, py = point[0] - a[0], point[1] - a[1]
 	return abs((px * nx) + (py * ny))
+
+def distanceToSegment(point, a, b):
+	lx, ly = b[0] - a[0], b[1] - a[1]
+	px, py = point[0] - a[0], point[1] - a[1]
+	proj = (px * lx) + (py * ly)
+	if proj < 0:
+		return math.hypot(px, py)
+	lnorm = math.hypot(lx, ly)
+	if proj > lnorm * lnorm:
+		return math.hypot(px - lx, py - ly)
+	else:
+		return abs((py * lx) - (px * ly)) / lnorm
 
 def polygonUnion(polys, buf=0, tolerance=0, holeTolerance=0.002):
 	if not polys:
@@ -158,12 +160,12 @@ def checkPolygon(poly, tolerance):
 		for i in poly.interiors:
 			checkPolyline(i.coords)
 
-def cleanPolygon(poly, tolerance, holeTolerance=0):
+def cleanPolygon(poly, tolerance, holeTolerance=0, minHullLenRatio=0.9):
 	if holeTolerance == 0:
 		holeTolerance = tolerance * tolerance
 	if poly.is_empty:
 		return poly
-	elif holeTolerance > 0 and poly.area <= holeTolerance:
+	elif holeTolerance > 0 and poly.is_valid and poly.area <= holeTolerance:
 		return shapely.geometry.Polygon()
 	elif isinstance(poly, shapely.geometry.MultiPolygon):
 		polys = [cleanPolygon(p, tolerance, holeTolerance) for p in poly]
@@ -171,8 +173,12 @@ def cleanPolygon(poly, tolerance, holeTolerance=0):
 		assert poly.is_valid, poly
 		return poly
 	exterior = poly.exterior.simplify(tolerance)
-	exterior = cleanChain(exterior.coords, tolerance)
-	if len(exterior) <= 3:
+	newExterior = cleanChain(exterior.coords, tolerance)
+	if len(newExterior) <= 3:
+		# attempt to save very thin polygons that would get reduced to a single point
+		hull = exterior.convex_hull
+		if hull.length >= minHullLenRatio * exterior.length:
+			return hull
 		return shapely.geometry.Polygon()
 	ints = []
 	for interior in poly.interiors:
@@ -182,9 +188,26 @@ def cleanPolygon(poly, tolerance, holeTolerance=0):
 			hole = shapely.geometry.Polygon(interior)
 			if hole.area > holeTolerance:
 				ints.append(interior)
-	newPoly = shapely.geometry.Polygon(exterior, ints)
+	newPoly = shapely.geometry.Polygon(newExterior, ints)
+	if not newPoly.is_valid:
+		# last-ditch attempt to salvage polygon by splitting across self-intersections
+		ext = splitSelfIntersections(newPoly.exterior, minArea=holeTolerance)
+		holes = [splitSelfIntersections(hole, minArea=holeTolerance) for hole in newPoly.interiors]
+		newPoly = ext.difference(shapely.ops.unary_union(holes))
 	assert newPoly.is_valid, newPoly
 	return newPoly
+
+def splitSelfIntersections(chain, minArea=0, minRelArea=0.05, minHullLenRatio=0.9):
+	ls = shapely.geometry.LineString(chain)
+	parts = list(shapely.ops.polygonize(shapely.ops.unary_union(ls)))
+	total = sum(part.area for part in parts)
+	if total < minArea:
+		# attempt to save very thin polygons that could get thrown out by polygonize
+		hull = ls.convex_hull
+		if hull.length >= minHullLenRatio * ls.length:
+			return hull
+	kept = [part for part in parts if part.area >= minArea or (part.area / total) >= minRelArea]
+	return shapely.geometry.MultiPolygon(kept)
 
 def cleanChain(chain, tolerance=1e-6):
 	closed = (tuple(chain[0]) == tuple(chain[-1]))
@@ -312,6 +335,8 @@ def plotPolygon(polygon, plt, style='r-'):
 	def plotRing(ring):
 		x, y = ring.xy
 		plt.plot(x, y, style)
+	if polygon.is_empty:
+		return
 	if isinstance(polygon, shapely.geometry.MultiPolygon):
 		polygons = polygon
 	else:
