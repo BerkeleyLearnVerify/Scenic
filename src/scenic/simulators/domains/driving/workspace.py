@@ -9,9 +9,7 @@ class DrivingWorkspace(Workspace):
         super().__init__()
 
     def show(self, plt):
-        self.network.drivableRegion.show(plt)
-        self.network.walkableRegion.show(plt, style='b')
-        self.network.intersectionRegion.show(plt, style='g')
+        self.network.show(plt)
 
     @property
     def minimumZoomSize(self):
