@@ -31,7 +31,7 @@ DRIVABLE = [
 SIDEWALK = ['sidewalk']
 
 def buffer_union(polys, tolerance=0.01):
-    return polygonUnion(polys, buf=tolerance, tolerance=tolerance)
+    return polygonUnion(polys, buf=tolerance, tolerance=0)
 
 class Poly3:
     '''Cubic polynomial.'''
@@ -431,13 +431,13 @@ class Road:
                     cur_last_rights = {}
                     for id_ in left_bounds.keys():
                         # Polygon for piece of lane:
-                        left = cleanChain(left_bounds[id_], tolerance=tolerance)
-                        right = cleanChain(right_bounds[id_][::-1], tolerance=tolerance)
+                        left = left_bounds[id_]
+                        right = right_bounds[id_][::-1]
                         bounds = left + right
                         if len(bounds) < 3:
                             continue
-                        poly = Polygon(bounds).buffer(0)
-                        if poly.is_valid and poly.area >= 0.001:
+                        poly = cleanPolygon(Polygon(bounds), tolerance)
+                        if not poly.is_empty:
                             if poly.geom_type == 'MultiPolygon':
                                 poly = MultiPolygon([p for p in list(poly)
                                                      if not p.is_empty and p.exterior])
@@ -617,13 +617,13 @@ class Road:
                     pred = lane.pred    # will correct inter-road links later
                 left, center, right = lane.left_bounds, lane.centerline, lane.right_bounds
                 if id_ > 0:     # backward lane
-                    left, center, right = reversed(left), reversed(center), reversed(right)
+                    left, center, right = right[::-1], center[::-1], left[::-1]
                     succ, pred = pred, succ
                 section = roadDomain.LaneSection(
                     polygon=lane_polys[id_],
-                    centerline=PolylineRegion(center),
-                    leftEdge=PolylineRegion(left),
-                    rightEdge=PolylineRegion(right),
+                    centerline=PolylineRegion(cleanChain(center)),
+                    leftEdge=PolylineRegion(cleanChain(left)),
+                    rightEdge=PolylineRegion(cleanChain(right)),
                     successor=succ,
                     predecessor=pred,
                     lane=None,      # will set these later
@@ -636,9 +636,9 @@ class Road:
                 laneSections[id_] = section
             section = roadDomain.RoadSection(
                 polygon=sec_poly,
-                centerline=PolylineRegion(pts),
-                leftEdge=PolylineRegion(sec.left_edge),
-                rightEdge=PolylineRegion(sec.right_edge),
+                centerline=PolylineRegion(cleanChain(pts)),
+                leftEdge=PolylineRegion(cleanChain(sec.left_edge)),
+                rightEdge=PolylineRegion(cleanChain(sec.right_edge)),
                 successor=None,
                 predecessor=last_section,
                 road=None,  # will set later
@@ -746,15 +746,13 @@ class Road:
         for roadSection, sec in zip(roadSections, self.lane_secs):
             for laneSection in roadSection.lanes:
                 if not laneSection._visited:     # start of new lane
+                    forward = laneSection.isForward
                     sections = []
-                    leftPoints, rightPoints, centerPoints = [], [], []
                     while True:
                         sections.append(laneSection)
-                        leftPoints.extend(laneSection.leftEdge.points)
-                        rightPoints.extend(laneSection.rightEdge.points)
-                        centerPoints.extend(laneSection.centerline.points)
                         laneSection._visited = True
-                        if laneSection.isForward:
+                        assert laneSection.isForward == forward
+                        if forward:
                             nextSection = laneSection.successor
                         else:
                             nextSection = laneSection.predecessor
@@ -765,6 +763,14 @@ class Road:
                         laneSection = nextSection
                     ls = laneSection._original_lane
                     assert ls.parent_lane_poly
+
+                    if not forward:
+                        sections = tuple(reversed(sections))
+                    leftPoints, rightPoints, centerPoints = [], [], []
+                    for section in sections:
+                        leftPoints.extend(section.leftEdge.points)
+                        rightPoints.extend(section.rightEdge.points)
+                        centerPoints.extend(section.centerline.points)
                     leftEdge = PolylineRegion(cleanChain(leftPoints))
                     rightEdge = PolylineRegion(cleanChain(rightPoints))
                     centerline = PolylineRegion(cleanChain(centerPoints))
@@ -779,7 +785,7 @@ class Road:
                     )
                     for section in sections:
                         section.lane = lane
-                    (forwardLanes if laneSection.isForward else backwardLanes).append(lane)
+                    (forwardLanes if forward else backwardLanes).append(lane)
         lanes = forwardLanes + backwardLanes
         assert lanes
 

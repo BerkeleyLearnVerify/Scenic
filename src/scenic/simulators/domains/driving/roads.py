@@ -14,6 +14,7 @@ from scenic.core.distributions import distributionFunction
 from scenic.core.vectors import Vector, VectorField
 from scenic.core.regions import PolygonalRegion, PolylineRegion
 from scenic.core.object_types import Point
+import scenic.core.geometry as geometry
 import scenic.core.utils as utils
 
 ## Typing
@@ -162,6 +163,9 @@ class LinearElement(NetworkElement):
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
+        assert self.containsRegion(self.centerline, tolerance=0.5)
+        assert self.containsRegion(self.leftEdge, tolerance=0.5)
+        assert self.containsRegion(self.rightEdge, tolerance=0.5)
         if self.orientation is None:
             self.orientation = VectorField(self.name, self.defaultHeadingAt)
 
@@ -173,20 +177,8 @@ class LinearElement(NetworkElement):
         lane containing the point.
         """
         point = toVector(point)
-        pts = list(self.centerline)
-        distances = [point.distanceTo(pt) for pt in pts]
-        i, closest = min(enumerate(pts), key=lambda i_pt: distances[i_pt[0]])
-        if i == 0:
-            j = 1
-        elif i == len(self.centerline)-1:
-            j = i
-            i -= 1
-        elif distances[i+1] >= distances[i-1]:
-            j = i+1
-        else:
-            j = i
-            i -= 1
-        return pts[i].angleTo(pts[j])
+        start, end = self.centerline.nearestSegmentTo(point)
+        return start.angleTo(end)
 
     @distributionFunction
     def flowFrom(self, point: Vectorlike, distance: float,
