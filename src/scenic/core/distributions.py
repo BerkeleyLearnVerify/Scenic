@@ -371,6 +371,9 @@ class StarredDistribution(Distribution):
 	def evaluateInner(self, context):
 		return StarredDistribution(valueInContext(self.value, context))
 
+	def __str__(self):
+		return f'*{self.value}'
+
 class MethodDistribution(Distribution):
 	"""Distribution resulting from passing distributions to a method of a fixed object"""
 	def __init__(self, method, obj, args, kwargs):
@@ -909,3 +912,6 @@ class UniformDistribution(Distribution):
 	def evaluateInner(self, context):
 		opts = tuple(valueInContext(opt, context) for opt in self.options)
 		return UniformDistribution(opts)
+
+	def __str__(self):
+		return f'UniformDistribution({self.options})'
