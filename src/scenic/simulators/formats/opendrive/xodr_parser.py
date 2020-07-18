@@ -31,7 +31,7 @@ DRIVABLE = [
 SIDEWALK = ['sidewalk']
 
 def buffer_union(polys, tolerance=0.01):
-    return polygonUnion(polys, buf=tolerance, tolerance=0)
+    return polygonUnion(polys, buf=tolerance, tolerance=tolerance)
 
 class Poly3:
     '''Cubic polynomial.'''
@@ -192,8 +192,9 @@ class Lane():
             ind += 1
         assert self.width[ind][1] <= s, 'No matching width entry found.'
         w_poly, s_off = self.width[ind]
-        assert(w_poly.eval_at(s - s_off) >= 0), 'Negative width!'
-        return w_poly.eval_at(s - s_off)
+        w = w_poly.eval_at(s - s_off)
+        assert w >= 0, 'Negative width!'
+        return w
 
 
 class LaneSection():
@@ -311,7 +312,7 @@ class Road:
         if not self.offset:
             return 0
         ind = 0
-        while ind + 1 < len(self.offset) and self.offset[ind + 1][1] < s:
+        while ind + 1 < len(self.offset) and self.offset[ind + 1][1] <= s:
             ind += 1
         return self.offset[ind][0].eval_at(s)
 

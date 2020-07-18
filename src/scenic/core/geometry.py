@@ -160,14 +160,20 @@ def checkPolygon(poly, tolerance):
 		for i in poly.interiors:
 			checkPolyline(i.coords)
 
-def cleanPolygon(poly, tolerance, holeTolerance=0, minHullLenRatio=0.9):
+def cleanPolygon(poly, tolerance, holeTolerance=0, minRelArea=0.05, minHullLenRatio=0.9):
 	if holeTolerance == 0:
 		holeTolerance = tolerance * tolerance
 	if poly.is_empty:
 		return poly
 	elif isinstance(poly, shapely.geometry.MultiPolygon):
 		polys = [cleanPolygon(p, tolerance, holeTolerance) for p in poly]
-		poly = shapely.ops.unary_union(polys)
+		total = sum(poly.area for poly in polys)
+		kept = []
+		for poly in polys:
+			area = poly.area
+			if area >= holeTolerance or area >= minRelArea * total:
+				kept.append(poly)
+		poly = shapely.ops.unary_union(kept)
 		assert poly.is_valid, poly
 		return poly
 	exterior = poly.exterior.simplify(tolerance)
@@ -189,13 +195,18 @@ def cleanPolygon(poly, tolerance, holeTolerance=0, minHullLenRatio=0.9):
 	newPoly = shapely.geometry.Polygon(newExterior, ints)
 	if not newPoly.is_valid:
 		# last-ditch attempt to salvage polygon by splitting across self-intersections
-		ext = splitSelfIntersections(newPoly.exterior, minArea=holeTolerance)
-		holes = [splitSelfIntersections(hole, minArea=holeTolerance) for hole in newPoly.interiors]
+		ext = splitSelfIntersections(newPoly.exterior, minArea=holeTolerance,
+		                             minRelArea=minRelArea, minHullLenRatio=minHullLenRatio)
+		holes = [
+			splitSelfIntersections(hole, minArea=holeTolerance,
+			                       minRelArea=minRelArea, minHullLenRatio=minHullLenRatio)
+			for hole in newPoly.interiors
+		]
 		newPoly = ext.difference(shapely.ops.unary_union(holes))
 	assert newPoly.is_valid, newPoly
 	return newPoly
 
-def splitSelfIntersections(chain, minArea=0, minRelArea=0.05, minHullLenRatio=0.9):
+def splitSelfIntersections(chain, minArea, minRelArea, minHullLenRatio):
 	ls = shapely.geometry.LineString(chain)
 	parts = list(shapely.ops.polygonize(shapely.ops.unary_union(ls)))
 	total = sum(part.area for part in parts)
@@ -207,7 +218,7 @@ def splitSelfIntersections(chain, minArea=0, minRelArea=0.05, minHullLenRatio=0.
 	kept = [part for part in parts if part.area >= minArea or (part.area / total) >= minRelArea]
 	return shapely.geometry.MultiPolygon(kept)
 
-def cleanChain(chain, tolerance=1e-6):
+def cleanChain(chain, tolerance=1e-6, lineTolerance=1e-6):
 	closed = (tuple(chain[0]) == tuple(chain[-1]))
 	minLength = 4 if closed else 3
 	if len(chain) <= minLength:
@@ -231,7 +242,7 @@ def cleanChain(chain, tolerance=1e-6):
 		if not closed:
 			newChain.append(chain[-1])
 		return newChain
-	# collapse hooks and collinear points
+	# collapse collinear points
 	chain = newChain
 	if closed:
 		a = chain[-2]
@@ -245,8 +256,7 @@ def cleanChain(chain, tolerance=1e-6):
 		newChain = [a]
 	for c in chain[ci:]:
 		dx, dy = c[0] - a[0], c[1] - a[1]
-		if ((dx * dx) + (dy * dy) > tol2
-		    and distanceToLine(b, a, c) > tolerance):
+		if distanceToLine(b, a, c) > lineTolerance:
 			newChain.append(b)
 			a = b
 			b = c
