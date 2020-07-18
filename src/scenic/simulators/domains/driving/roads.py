@@ -6,6 +6,9 @@ import math
 from typing import FrozenSet, Union, Tuple, Optional
 import itertools
 import pathlib
+import bz2
+import pickle
+import pickletools
 
 import attr
 from shapely.geometry import Polygon, MultiPolygon
@@ -109,8 +112,9 @@ class NetworkElement(PolygonalRegion):
     polygon: Union[Polygon, MultiPolygon]
     orientation: Optional[VectorField] = None
 
-    name: str = ''
-    id: Optional[str] = None    # unique identifier from underlying format
+    name: str = ''      # human-readable name, if any
+    uid: str = None     # unique identifier; from underlying format, if possible
+    id: Optional[str] = None    # identifier from underlying format, if any
 
     ## Traffic info
 
@@ -122,7 +126,21 @@ class NetworkElement(PolygonalRegion):
     tags: FrozenSet[str] = frozenset()
 
     def __attrs_post_init__(self):
+        assert self.uid is not None or self.id is not None
+        if self.uid is None:
+            self.uid = self.id
+
         super().__init__(polygon=self.polygon, orientation=self.orientation, name=self.name)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        # replace links to network elements by placeholders to prevent deep
+        # recursions during pickling; as a result of this, only entire `Network`
+        # objects can be properly unpickled
+        for key, value in state.items():
+            if isinstance(value, NetworkElement):
+                state[key] = ElementPlaceholder(value.uid)
+        return state
 
     @distributionFunction
     def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[float]:
@@ -135,10 +153,18 @@ class NetworkElement(PolygonalRegion):
         return (self.orientation[toVector(point)],)
 
     def __repr__(self):
-        return (
-            f'<{type(self).__name__} at {hex(id(self))} '
-            f'with name="{self.name}", id="{self.id}">'
-        )
+        s = f'<{type(self).__name__} at {hex(id(self))}; '
+        if self.name:
+            s += f'name="{self.name}", '
+        if self.id and self.id != self.uid:
+            s += f'id="{self.id}", '
+        s += f'uid="{self.uid}">'
+        return s
+
+class ElementPlaceholder:
+    """Placeholder for a link to a pickled `NetworkElement`."""
+    def __init__(self, uid):
+        self.uid = uid
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class LinearElement(NetworkElement):
@@ -477,6 +503,8 @@ class Intersection(NetworkElement):
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Network:
     """A road network."""
+    elements: Dict[str, NetworkElement]     # indexed by unique ID
+
     # TODO change these to frozensets once everything is hashable?
     roads: Tuple[Road]
     laneGroups: Tuple[LaneGroup]
@@ -503,6 +531,9 @@ class Network:
     roadDirection: VectorField = None
 
     def __attrs_post_init__(self):
+        for uid, elem in self.elements.items():
+            assert elem.uid == uid
+
         self.roadSections = tuple(sec for road in self.roads for sec in road.sections)
         self.laneSections = tuple(sec for lane in self.lanes for sec in lane.sections)
 
@@ -531,14 +562,52 @@ class Network:
         road = self.roadAt(point)
         return 0 if road is None else road.orientation[point]
 
+    pickledExt = '.snet'
+
     @classmethod
-    def fromFile(cls, path, **kwargs):
+    def fromFile(cls, path, useCache=True, writeCache=True, **kwargs):
         path = pathlib.Path(path)
         ext = path.suffix
-        if ext == '.xodr':
-            return cls.fromOpenDrive(path, **kwargs)
+
+        handlers = {    # in order of decreasing priority
+            cls.pickledExt: cls.fromPickle,     # pickled native representation
+            '.xodr': cls.fromOpenDrive,         # OpenDRIVE
+        }
+
+        if ext:
+            if useCache:
+                # use pickled version of network if it exists
+                newPath = path.with_suffix(cls.pickledExt)
+                if newPath.exists():
+                    path = newPath
+                    ext = cls.pickledExt
         else:
+            # no extension was given; search through possible formats
+            for ext in handlers:
+                newPath = path.with_suffix(ext)
+                if newPath.exists():
+                    path = newPath
+                    break
+
+        if ext not in handlers:
             raise RuntimeError(f'unknown type of road network file {path}')
+
+        network = handlers[ext](path, **kwargs)
+        if writeCache and ext is not cls.pickledExt:
+            network.dumpPickle(path.with_suffix(cls.pickledExt))
+        return network
+
+    @classmethod
+    def fromPickle(cls, path):
+        with bz2.open(path, 'rb') as f:
+            network = pickle.load(f)
+        # Reconnect links between network elements
+        for elem in network.elements.values():
+            state = elem.__dict__
+            for key, value in state.items():
+                if isinstance(value, ElementPlaceholder):
+                    state[key] = network.elements[value.uid]
+        return network
 
     @classmethod
     def fromOpenDrive(cls, path, ref_points=20, tolerance=0.05, fill_gaps=True):
@@ -547,6 +616,15 @@ class Network:
         road_map.parse(path)
         road_map.calculate_geometry(ref_points, calc_gap=fill_gaps, calc_intersect=True)
         return road_map.toScenicNetwork()
+
+    def dumpPickle(self, path):
+        path = pathlib.Path(path)
+        if not path.suffix:
+            path = path.with_suffix(self.pickledExt)
+        with bz2.open(path, 'wb') as f:
+            data = pickle.dumps(self)
+            data = pickletools.optimize(data)
+            f.write(data)
 
     @distributionFunction
     def elementAt(self, point: Vectorlike) -> Union[NetworkElement, None]:
