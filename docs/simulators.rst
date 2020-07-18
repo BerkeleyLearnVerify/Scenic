@@ -7,6 +7,14 @@ On this page we list interfaces that we and others have developed; if you have a
 .. contents:: Supported Simulators:
    :local:
 
+
+CARLA
+-----
+
+Our interface to the `CARLA <https://carla.org/>`_ simulator enables using Scenic to describe autonomous driving scenarios.
+This interface is part of the VerifAI toolkit; documentation and examples can be found in the `VerifAI repository`_ (the Scenic repository also has several other example scenarios).
+
+
 Grand Theft Auto V
 ------------------
 
@@ -15,6 +23,13 @@ Many examples using the interface (including all scenarios from the paper) can b
 See the paper and `scenic.simulators.gta` for documentation.
 
 Importing scenes into GTA V and capturing rendered images requires a GTA V plugin, which you can find `here <https://github.com/xyyue/scenic2gta>`_.
+
+
+LGSVL (coming soon)
+-------------------
+
+We have developed an interface to the `LGSVL Simulator <https://www.lgsvlsimulator.com/>`_ for autonomous driving, used in our :ref:`ITSC 2020 <ITSC2020>` paper.
+This interface will be released shortly.
 
 
 Webots
@@ -37,6 +52,7 @@ We have several interfaces to the `Webots robotics simulator <https://cyberbotic
 	Our interfaces were written for the R2018 version of Webots, which is not free but has lower hardware requirements than R2019.
 	Relatively minor changes would be required to make our interfaces work with the newer `open source versions of Webots <https://github.com/cyberbotics/webots>`_.
 	We may get around to porting them eventually; we'd also gladly accept a pull request!
+
 
 X-Plane
 -------

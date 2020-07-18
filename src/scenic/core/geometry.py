@@ -258,6 +258,14 @@ def cleanChain(chain, tolerance=1e-6):
 #: Whether to warn when falling back to pypoly2tri for triangulation
 givePP2TWarning = True
 
+class TriangulationError(RuntimeError):
+	"""Signals that the installed triangulation libraries are insufficient.
+
+	Specifically, raised when pypoly2tri hits the recursion limit trying to
+	triangulate a large polygon.
+	"""
+	pass
+
 def triangulatePolygon(polygon):
 	"""Triangulate the given Shapely polygon.
 
@@ -286,7 +294,7 @@ def triangulatePolygon(polygon):
 		pass
 	if givePP2TWarning:
 		warnings.warn('Using pypoly2tri for triangulation; for non-commercial use, consider'
-		              ' installing the faster Polygon3 library')
+		              ' installing the faster Polygon3 library (pip install Polygon3)')
 	return triangulatePolygon_pypoly2tri(polygon)
 
 def triangulatePolygon_pypoly2tri(polygon):
@@ -301,8 +309,9 @@ def triangulatePolygon_pypoly2tri(polygon):
 		cdt.AddHole(polyline)
 	try:
 		cdt.Triangulate()
-	except RecursionError as e:		# polygon too big for pypoly2tri
-		raise RuntimeError('pypoly2tri unable to triangulate large polygon') from e
+	except RecursionError:		# polygon too big for pypoly2tri
+		raise TriangulationError('pypoly2tri unable to triangulate large polygon; for '
+		                         'non-commercial use, try "pip install Polygon3"')
 
 	triangles = list()
 	for t in cdt.GetTriangles():
