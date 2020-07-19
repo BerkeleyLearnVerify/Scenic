@@ -10,26 +10,32 @@ You can install Scenic from PyPI by simply running::
 	pip install scenic
 
 Alternatively, you can download or clone the `Scenic repository <https://github.com/BerkeleyLearnVerify/Scenic>`_, which contains examples we'll use below.
-Install `Poetry <https://python-poetry.org/>`_ and then run::
+Install `Poetry <https://python-poetry.org/>`_, activate the `virtual environment <https://docs.python.org/3/tutorial/venv.html>`_ in which you would like to run Scenic, and then run::
 
 	poetry install
 
-This will install Scenic into your current virtual environment (or create a new one if needed).
 If you will be developing Scenic, add the ``-E dev`` option when invoking Poetry.
+
+.. note::
+
+	If you are not already using a virtual environment, ``poetry install`` will create one.
+	You can then run ``poetry shell`` to create a terminal inside the environment for running
+	the commands below.
 
 Either of the options above should install all of the dependencies which are required to run Scenic.
 Scenarios using the `scenic.simulators.webots.guideways` model also require the ``pyproj`` package, and will prompt you if you don't have it.
 
 .. note::
-
+        For Windows, we recommend using `bashonwindows (the Windows subsystem for Linux) <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ on Windows 10.  Instructions for installing poetry on bashonwindows can be found `here <https://python-poetry.org/docs/#osx-linux-bashonwindows-install-instructions>`_.
+        
 	In the past, the ``shapely`` package did not install properly on Windows.
 	If you encounter this issue, try installing it manually following the instructions `here <https://github.com/Toblerity/Shapely#built-distributions>`_.
 
 .. note::
 
-	You may also want to install the ``Polygon3`` package to get faster and more robust
-	polygon triangulation. However, this package is based on the `GPC library`_, which is
-	only free for non-commercial use.
+	You may also want to install the ``Polygon3`` package (``pip install Polygon3``) to get
+	faster and more robust polygon triangulation. However, this package is based on the
+	`GPC library`_, which is only free for non-commercial use.
 
 .. _GPC library: http://www.cs.man.ac.uk/~toby/gpc/
 

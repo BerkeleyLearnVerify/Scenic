@@ -6,6 +6,7 @@ A Scenic program defines a distribution over *scenes*, configurations of physica
 
 Scenic was designed and implemented by Daniel J. Fremont, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia.
 For a description of the language and some of its applications, see `our PLDI 2019 paper <https://arxiv.org/abs/1809.09310>`_; a more in-depth discussion is in Chapters 5 and 8 of `this thesis <https://people.ucsc.edu/~dfremont/papers/thesis.pdf>`_.
+Our :doc:`publications <publications>` page lists additional papers using Scenic.
 
 If you have any problems using Scenic, please submit an issue to `our GitHub repository <https://github.com/BerkeleyLearnVerify/Scenic>`_ or contact Daniel at dfremont@ucsc.edu.
 
@@ -22,6 +23,7 @@ Table of Contents
    simulators
    new_simulator
    internals
+   publications
    credits
 
 Indices and Tables

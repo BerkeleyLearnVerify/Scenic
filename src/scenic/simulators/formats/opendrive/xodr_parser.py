@@ -31,7 +31,7 @@ DRIVABLE = [
 SIDEWALK = ['sidewalk']
 
 def buffer_union(polys, tolerance=0.01):
-    return polygonUnion(polys, buf=tolerance, tolerance=0)
+    return polygonUnion(polys, buf=tolerance, tolerance=tolerance)
 
 class Poly3:
     '''Cubic polynomial.'''
@@ -192,8 +192,9 @@ class Lane():
             ind += 1
         assert self.width[ind][1] <= s, 'No matching width entry found.'
         w_poly, s_off = self.width[ind]
-        assert(w_poly.eval_at(s - s_off) >= 0), 'Negative width!'
-        return w_poly.eval_at(s - s_off)
+        w = w_poly.eval_at(s - s_off)
+        assert w >= 0, 'Negative width!'
+        return w
 
 
 class LaneSection():
@@ -311,7 +312,7 @@ class Road:
         if not self.offset:
             return 0
         ind = 0
-        while ind + 1 < len(self.offset) and self.offset[ind + 1][1] < s:
+        while ind + 1 < len(self.offset) and self.offset[ind + 1][1] <= s:
             ind += 1
         return self.offset[ind][0].eval_at(s)
 
@@ -598,6 +599,7 @@ class Road:
 
     def toScenicRoad(self, tolerance):
         assert self.sec_points
+        allElements = []
         # Create lane and road sections
         roadSections = []
         last_section = None
@@ -622,6 +624,7 @@ class Road:
                     left, center, right = right[::-1], center[::-1], left[::-1]
                     succ, pred = pred, succ
                 section = roadDomain.LaneSection(
+                    id=f'road{self.id_}_sec{len(roadSections)}_lane{id_}',
                     polygon=lane_polys[id_],
                     centerline=PolylineRegion(cleanChain(center)),
                     leftEdge=PolylineRegion(cleanChain(left)),
@@ -636,7 +639,9 @@ class Road:
                 )
                 section._original_lane = lane
                 laneSections[id_] = section
+                allElements.append(section)
             section = roadDomain.RoadSection(
+                id=f'road{self.id_}_sec{len(roadSections)}',
                 polygon=sec_poly,
                 centerline=PolylineRegion(cleanChain(pts)),
                 leftEdge=PolylineRegion(cleanChain(sec.left_edge)),
@@ -647,6 +652,7 @@ class Road:
                 lanesByOpenDriveID=laneSections
             )
             roadSections.append(section)
+            allElements.append(section)
             last_section = section
 
             for id_, lane in sec.sidewalk_lanes.items():
@@ -690,6 +696,7 @@ class Road:
                         for id_ in range(rightmost, leftmost+1)
                         for sec in sidewalkSections[id_])
             sidewalk = roadDomain.Sidewalk(
+                id=f'road{self.id_}_sidewalk({leftmost},{rightmost})',
                 polygon=buffer_union(allPolys, tolerance=tolerance),
                 centerline=centerline,
                 leftEdge=leftEdge,
@@ -697,6 +704,7 @@ class Road:
                 road=None,
                 crossings=()    # TODO add crosswalks
             )
+            allElements.append(sidewalk)
             return sidewalk
 
         forwardSidewalk = makeSidewalk(forwardSidewalks)
@@ -749,6 +757,7 @@ class Road:
                 lane.adjacentLanes = tuple(adj)
 
         # Gather lane sections into lanes
+        nextID = 0
         forwardLanes, backwardLanes = [], []
         for roadSection in roadSections:
             for laneSection in roadSection.lanes:
@@ -785,6 +794,7 @@ class Road:
                     rightEdge = PolylineRegion(cleanChain(rightPoints))
                     centerline = PolylineRegion(cleanChain(centerPoints))
                     lane = roadDomain.Lane(
+                        id=f'road{self.id_}_lane{nextID}',
                         polygon=ls.parent_lane_poly,
                         centerline=centerline,
                         leftEdge=leftEdge,
@@ -793,9 +803,11 @@ class Road:
                         road=None,
                         sections=tuple(sections)
                     )
+                    nextID += 1
                     for section in sections:
                         section.lane = lane
                     (forwardLanes if forward else backwardLanes).append(lane)
+                    allElements.append(lane)
         lanes = forwardLanes + backwardLanes
         assert lanes
 
@@ -832,6 +844,7 @@ class Road:
         if forwardLanes:
             leftEdge, centerline, rightEdge = getEdges(forward=True)
             forwardGroup = roadDomain.LaneGroup(
+                id=f'road{self.id_}_forward',
                 polygon=buffer_union((lane.polygon for lane in forwardLanes),
                                      tolerance=tolerance),
                 centerline=centerline,
@@ -842,11 +855,13 @@ class Road:
                 sidewalk=forwardSidewalk,
                 bikeLane=None
             )
+            allElements.append(forwardGroup)
         else:
             forwardGroup = None
         if backwardLanes:
             leftEdge, centerline, rightEdge = getEdges(forward=False)
             backwardGroup = roadDomain.LaneGroup(
+                id=f'road{self.id_}_backward',
                 polygon=buffer_union((lane.polygon for lane in backwardLanes),
                                      tolerance=tolerance),
                 centerline=centerline,
@@ -857,6 +872,7 @@ class Road:
                 sidewalk=backwardSidewalk,
                 bikeLane=None
             )
+            allElements.append(backwardGroup)
         else:
             backwardGroup = None
 
@@ -871,6 +887,7 @@ class Road:
             leftEdge = forwardGroup.leftEdge
         road = roadDomain.Road(
             name=self.name,
+            uid=f'road{self.id_}',      # need prefix to prevent collisions with intersections
             id=self.id_,
             polygon=self.drivable_region,
             centerline=PolylineRegion(self.ref_line_points),
@@ -882,6 +899,7 @@ class Road:
             sections=roadSections,
             crossings=(),       # TODO add these!
         )
+        allElements.append(road)
 
         # Set up parent references
         if forwardGroup:
@@ -905,7 +923,7 @@ class Road:
                 sec.road = road
                 del sec._original_lane
 
-        return road
+        return road, allElements
 
 class RoadMap:
     defaultTolerance = 0.05
@@ -1256,12 +1274,23 @@ class RoadMap:
     def toScenicNetwork(self):
         assert self.intersection_region is not None
 
+        # Prepare registry of network elements
+        allElements = {}
+        def register(element):
+            assert element.uid is not None
+            assert element.uid not in allElements, element.uid
+            allElements[element.uid] = element
+        def registerAll(elements):
+            for elt in elements:
+                register(elt)
+
         # Convert roads
         mainRoads, connectingRoads, roads = {}, {}, {}
         for id_, road in self.roads.items():
             if road.drivable_region.is_empty:
                 continue    # not actually a road you can drive on
-            newRoad = road.toScenicRoad(tolerance=self.tolerance)
+            newRoad, elts = road.toScenicRoad(tolerance=self.tolerance)
+            registerAll(elts)
             (connectingRoads if road.junction else mainRoads)[id_] = newRoad
             roads[id_] = newRoad
 
@@ -1417,6 +1446,7 @@ class RoadMap:
             intersection = roadDomain.Intersection(
                 polygon=junction.poly,
                 name=junction.name,
+                uid=f'intersection{jid}',   # need prefix to prevent collisions with roads
                 id=jid,
                 roads=tuple(allRoads),
                 incomingLanes=tuple(allIncomingLanes),
@@ -1424,6 +1454,7 @@ class RoadMap:
                 maneuvers=tuple(allManeuvers),
                 crossings=(),       # TODO add these
             )
+            register(intersection)
             intersections[jid] = intersection
             for maneuver in allManeuvers:
                 object.__setattr__(maneuver, 'intersection', intersection)
@@ -1474,6 +1505,7 @@ class RoadMap:
             return PolygonalRegion.unionAll(regions, buf=self.tolerance)
 
         return roadDomain.Network(
+            elements=allElements,
             roads=roads,
             laneGroups=tuple(groups),
             lanes=lanes,
