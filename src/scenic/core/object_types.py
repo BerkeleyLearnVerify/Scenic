@@ -342,8 +342,15 @@ class Object(OrientedPoint, RotatedRectangle):
 	cameraOffset: Vector(0, 0)
 	behavior: None
 
+	def __new__(cls, *args, **kwargs):
+		obj = super().__new__(cls)
+		# The _dynamicProxy attribute stores a mutable copy of the object used during
+		# simulations, intercepting all attribute accesses to the original object;
+		# we set this attribute very early to prevent problems during unpickling.
+		object.__setattr__(obj, '_dynamicProxy', obj)
+		return obj
+
 	def __init__(self, *args, **kwargs):
-		object.__setattr__(self, '_dynamicProxy', self)	# proxy for dynamic simulations (if any)
 		super().__init__(*args, **kwargs)
 		import scenic.syntax.veneer as veneer	# TODO improve?
 		veneer.registerObject(self)
