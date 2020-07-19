@@ -503,6 +503,13 @@ class Intersection(NetworkElement):
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Network:
     """A road network."""
+
+    #: Version number for the road network format. Should be incremented
+    #: whenever attributes of `Network`, `NetworkElement`, etc. are changed,
+    #: so that cached networks will be properly regenerated (rather than being
+    #: unpickled in an inconsistent state and causing errors later).
+    formatVersion = 1
+
     elements: Dict[str, NetworkElement]     # indexed by unique ID
 
     # TODO change these to frozensets once everything is hashable?
@@ -535,6 +542,7 @@ class Network:
     roadDirection: VectorField = None
 
     def __attrs_post_init__(self):
+        self.formatVersion = self.formatVersion     # copy class var to instance
         for uid, elem in self.elements.items():
             assert elem.uid == uid
 
@@ -579,22 +587,25 @@ class Network:
             '.xodr': cls.fromOpenDrive,         # OpenDRIVE
         }
 
-        if ext:
-            if useCache:
-                # use pickled version of network if it exists
-                newPath = path.with_suffix(cls.pickledExt)
-                if newPath.exists():
-                    path = newPath
-                    ext = cls.pickledExt
-        else:
-            # no extension was given; search through possible formats
+        if useCache:    # use pickled version of network if it exists
+            newPath = path.with_suffix(cls.pickledExt)
+            if newPath.exists():
+                try:
+                    return cls.fromPickle(newPath)
+                except pickle.UnpicklingError:
+                    pass    # give up on cache; fall through to original file
+
+        if not ext:     # no extension was given; search through possible formats
+            found = False
             for ext in handlers:
                 newPath = path.with_suffix(ext)
                 if newPath.exists():
                     path = newPath
+                    found = True
                     break
-
-        if ext not in handlers:
+            if not found:
+                raise FileNotFoundError(f'no readable maps found for path {path}')
+        elif ext not in handlers:
             raise RuntimeError(f'unknown type of road network file {path}')
 
         network = handlers[ext](path, **kwargs)
@@ -606,6 +617,10 @@ class Network:
     def fromPickle(cls, path):
         with bz2.open(path, 'rb') as f:
             network = pickle.load(f)
+        version = getattr(network, 'formatVersion', None)
+        if version != cls.formatVersion:
+            raise pickle.UnpicklingError(f'{cls.pickledExt} file is too old; '
+                                         'regenerate it from the original map')
         # Reconnect links between network elements
         for elem in network.elements.values():
             state = elem.__dict__
