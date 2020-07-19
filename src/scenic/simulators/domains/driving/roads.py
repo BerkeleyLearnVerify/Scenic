@@ -506,9 +506,13 @@ class Network:
     elements: Dict[str, NetworkElement]     # indexed by unique ID
 
     # TODO change these to frozensets once everything is hashable?
-    roads: Tuple[Road]
+    roads: Tuple[Road]              # ordinary roads
+    connectingRoads: Tuple[Road]    # roads inside intersections
+    allRoads: Tuple[Road] = None    # both kinds of roads
+
     laneGroups: Tuple[LaneGroup]
     lanes: Tuple[Lane]
+
     intersections: Tuple[Intersection]
     crossings: Tuple[PedestrianCrossing]
     sidewalks: Tuple[Sidewalk]
@@ -534,6 +538,7 @@ class Network:
         for uid, elem in self.elements.items():
             assert elem.uid == uid
 
+        self.allRoads = self.roads + self.connectingRoads
         self.roadSections = tuple(sec for road in self.roads for sec in road.sections)
         self.laneSections = tuple(sec for lane in self.lanes for sec in lane.sections)
 
@@ -629,16 +634,16 @@ class Network:
     @distributionFunction
     def elementAt(self, point: Vectorlike) -> Union[NetworkElement, None]:
         point = toVector(point)
-        road = self.roadAt(point)
-        if road is not None:
-            return road
-        return self.intersectionAt(point)
+        intersection = self.intersectionAt(point)
+        if intersection is not None:
+            return intersection
+        return self.roadAt(point)
 
     @distributionFunction
     def roadAt(self, point: Vectorlike) -> Union[Road, None]:
         """Get the road passing through a given point."""
         point = toVector(point)
-        for road in self.roads:
+        for road in self.allRoads:
             if road.containsPoint(point):
                 return road
         return None
@@ -695,10 +700,13 @@ class Network:
 
     def show(self, plt):
         """Render a schematic of the road network for debugging."""
+        self.walkableRegion.show(plt, style='-', color='#00A0FF')
         self.drivableRegion.show(plt, style='r')
+        for road in self.roads:
+            for lane in road.lanes:
+                lane.show(plt, style='r--')
         for lane in self.lanes:
-            lane.show(plt, style='r--')
-        self.walkableRegion.show(plt, style='b')
+            lane.centerline.show(plt, style=':', color='#A0A0A0')
         self.intersectionRegion.show(plt, style='g')
 
 ## FOR LATER

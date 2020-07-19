@@ -348,20 +348,29 @@ def triangulatePolygon_gpc(polygon):
 			b = c
 	return triangles
 
-def plotPolygon(polygon, plt, style='r-'):
-	def plotRing(ring):
-		x, y = ring.xy
-		plt.plot(x, y, style)
+def plotPolygon(polygon, plt, style='r-', **kwargs):
+	def plotCoords(chain):
+		x, y = chain.xy
+		plt.plot(x, y, style, **kwargs)
 	if polygon.is_empty:
 		return
-	if isinstance(polygon, shapely.geometry.MultiPolygon):
+	if isinstance(polygon, (shapely.geometry.MultiPolygon,
+	                        shapely.geometry.MultiLineString,
+	                        shapely.geometry.MultiPoint,
+	                        shapely.geometry.collection.GeometryCollection)):
 		polygons = polygon
 	else:
 		polygons = [polygon]
 	for polygon in polygons:
-		plotRing(polygon.exterior)
-		for ring in polygon.interiors:
-			plotRing(ring)
+		if isinstance(polygon, shapely.geometry.Polygon):
+			plotCoords(polygon.exterior)
+			for ring in polygon.interiors:
+				plotCoords(ring)
+		elif isinstance(polygon, (shapely.geometry.LineString, shapely.geometry.LinearRing,
+		                          shapely.geometry.Point)):
+			plotCoords(polygon)
+		else:
+			raise RuntimeError(f'unknown kind of shapely geometry {polygon}')
 
 class RotatedRectangle:
 	"""mixin providing collision detection for rectangular objects and regions"""

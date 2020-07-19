@@ -464,6 +464,19 @@ class PolylineRegion(Region):
 		return self.lineString.distance(shapely.geometry.Point(point))
 
 	@distributionMethod
+	def signedDistanceTo(self, point):
+		"""Compute the signed distance of the PolylineRegion to a point.
+
+		The distance is positive if the point is left of the nearest segment,
+		and negative otherwise.
+		"""
+		dist = self.distanceTo(point)
+		start, end = self.nearestSegmentTo(point)
+		rp = point - start
+		tangent = end - start
+		return dist if tangent.angleWith(rp) >= 0 else -dist
+
+	@distributionMethod
 	def project(self, point):
 		return shapely.ops.nearest_points(self.lineString, shapely.geometry.Point(point))[0]
 
@@ -480,9 +493,8 @@ class PolylineRegion(Region):
 		xmin, ymin, xmax, ymax = self.lineString.bounds
 		return ((xmin, ymin), (xmax, ymax))
 
-	def show(self, plt, style='r-'):
-		for pointA, pointB in self.segments:
-			plt.plot([pointA[0], pointB[0]], [pointA[1], pointB[1]], style)
+	def show(self, plt, style='r-', **kwargs):
+		plotPolygon(self.lineString, plt, style=style, **kwargs)
 
 	def __getitem__(self, i):
 		"""Get the ith point along this polyline.
@@ -634,8 +646,8 @@ class PolygonalRegion(Region):
 		xmin, xmax, ymin, ymax = self.polygons.bounds
 		return ((xmin, ymin), (xmax, ymax))
 
-	def show(self, plt, style='r-'):
-		plotPolygon(self.polygons, plt, style=style)
+	def show(self, plt, style='r-', **kwargs):
+		plotPolygon(self.polygons, plt, style=style, **kwargs)
 
 	def __str__(self):
 		return '<PolygonalRegion>'

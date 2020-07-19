@@ -1479,13 +1479,15 @@ class RoadMap:
 
         # Gather all network elements
         roads = tuple(mainRoads.values())
+        connectingRoads = tuple(connectingRoads.values())
+        allRoads = roads + connectingRoads
         groups = []
-        for road in roads:
+        for road in allRoads:
             if road.forwardLanes:
                 groups.append(road.forwardLanes)
             if road.backwardLanes:
                 groups.append(road.backwardLanes)
-        lanes = [lane for road in roads for lane in road.lanes]
+        lanes = [lane for road in allRoads for lane in road.lanes]
         intersections = tuple(intersections.values())
         crossings = ()      # TODO add these
         sidewalks = []
@@ -1507,6 +1509,7 @@ class RoadMap:
         return roadDomain.Network(
             elements=allElements,
             roads=roads,
+            connectingRoads=connectingRoads,
             laneGroups=tuple(groups),
             lanes=lanes,
             intersections=intersections,
