@@ -432,7 +432,7 @@ class Road:
                        end_of_sec = True
                     cur_last_lefts = {}
                     cur_last_rights = {}
-                    for id_ in left_bounds.keys():
+                    for id_ in left_bounds:
                         # Polygon for piece of lane:
                         left = left_bounds[id_]
                         right = right_bounds[id_][::-1]
@@ -484,7 +484,7 @@ class Road:
                     cur_sec_points.append(cur_p)
                     offsets = cur_sec.get_offsets(cur_p[2])
                     offsets[0] = 0
-                    for id_ in offsets.keys():
+                    for id_ in offsets:
                         offsets[id_] += self.get_ref_line_offset(cur_p[2])
                     if ref_points[0]:
                         next_p = ref_points[0][0]
@@ -506,7 +506,7 @@ class Road:
                     # if tan_norm < 0.01:
                     #     continue
                     normal_vec = (-tan_vec[1] / tan_norm, tan_vec[0] / tan_norm)
-                    for id_ in offsets.keys():
+                    for id_ in offsets:
                         lane = cur_sec.get_lane(id_)
                         if lane.type_ in lane_types:
                             if id_ > 0:
@@ -517,6 +517,8 @@ class Road:
                                           cur_p[1] + normal_vec[1] * offsets[id_]]
                             right_bound = [cur_p[0] + normal_vec[0] * offsets[prev_id],
                                            cur_p[1] + normal_vec[1] * offsets[prev_id]]
+                            if id_ < 0:
+                                left_bound, right_bound = right_bound, left_bound
                             halfway = (offsets[id_] + offsets[prev_id]) / 2
                             centerline = [cur_p[0] + normal_vec[0] * halfway,
                                           cur_p[1] + normal_vec[1] * halfway]
@@ -672,19 +674,24 @@ class Road:
             leftmost, rightmost = max(laneIDs), min(laneIDs)
             if len(laneIDs) != leftmost-rightmost+1:
                 warnings.warn(f'ignoring sidewalks in the middle of road {self.id_}')
+            leftPoints, rightPoints = [], []
             if leftmost < 0:
                 leftmost = rightmost
                 while leftmost+1 in laneIDs:
                     leftmost = leftmost+1
                 leftSecs, rightSecs = sidewalkSections[leftmost], sidewalkSections[rightmost]
+                for leftSec, rightSec in zip(leftSecs, rightSecs):
+                    leftPoints.extend(leftSec.left_bounds)
+                    rightPoints.extend(rightSec.right_bounds)
             else:
                 rightmost = leftmost
                 while rightmost-1 in laneIDs:
                     rightmost = rightmost-1
-                leftSecs = reversed(sidewalkSections[rightmost])
-                rightSecs = reversed(sidewalkSections[leftmost])
-            leftPoints = list(itertools.chain(*(sec.left_bounds for sec in leftSecs)))
-            rightPoints = list(itertools.chain(*(sec.right_bounds for sec in rightSecs)))
+                leftSecs = reversed(sidewalkSections[leftmost])
+                rightSecs = reversed(sidewalkSections[rightmost])
+                for leftSec, rightSec in zip(leftSecs, rightSecs):
+                    leftPoints.extend(reversed(rightSec.right_bounds))
+                    rightPoints.extend(reversed(leftSec.left_bounds))
             if len(leftPoints) != len(rightPoints):
                 raise RuntimeError(f'unable to align sidewalks for road {self.id_}')
             centerPoints = list(averageVectors(l, r) for l, r in zip(leftPoints, rightPoints))
@@ -735,20 +742,27 @@ class Road:
         for section in roadSections:
             lanes = section.lanesByOpenDriveID
             for id_, lane in lanes.items():
-                leftID = id_ + 1 if id_ != -1 else 1
-                rightID = id_ - 1 if id_ != 1 else -1
+                if id_ < -1:
+                    leftID = id_ + 1
+                elif id_ == -1:
+                    leftID = 1
+                elif id_ == 1:
+                    leftID = -1
+                else:
+                    leftID = id_ - 1
+                rightID = id_ - 1 if id_ < 0 else id_ + 1
                 lane.laneToLeft = lanes.get(leftID)
                 lane.laneToRight = lanes.get(rightID)
                 if self.drive_on_right:
-                    if leftID != 1:
-                        lane.fasterLane = lane.laneToLeft
-                    if rightID != -1:
-                        lane.slowerLane = lane.laneToRight
+                    lane.fasterLane = lane.laneToLeft
+                    lane.slowerLane = lane.laneToRight
                 else:
-                    if leftID != 1:
-                        lane.slowerLane = lane.laneToLeft
-                    if rightID != -1:
-                        lane.fasterLane = lane.laneToRight
+                    lane.slowerLane = lane.laneToLeft
+                    lane.fasterLane = lane.laneToRight
+                if lane.fasterLane and lane.fasterLane.isForward != lane.isForward:
+                    lane.fasterLane = None
+                if lane.slowerLane and lane.slowerLane.isForward != lane.isForward:
+                    lane.slowerLane = None
                 adj = []
                 if lane.laneToLeft:
                     adj.append(lane.laneToLeft)
@@ -820,10 +834,14 @@ class Road:
 
         # Create lane groups
         def getEdges(forward):
-            sec = roadSections[0]
-            startLanes = sec.forwardLanes if forward else sec.backwardLanes
+            if forward:
+                sec = roadSections[0]
+                startLanes = sec.forwardLanes
+            else:
+                sec = roadSections[-1]
+                startLanes = sec.backwardLanes
             leftPoints = []
-            current = startLanes[-1]
+            current = startLanes[-1]    # get leftmost lane of the first section
             while current and isinstance(current, roadDomain.LaneSection):
                 if current.laneToLeft and current.laneToLeft.isForward == forward:
                     current = current.laneToLeft
@@ -831,7 +849,7 @@ class Road:
                 current = current.successor
             leftEdge = PolylineRegion(cleanChain(leftPoints))
             rightPoints = []
-            current = startLanes[0]
+            current = startLanes[0]     # get rightmost lane of the first section
             while current and isinstance(current, roadDomain.LaneSection):
                 if current.laneToRight and current.laneToRight.isForward == forward:
                     current = current.laneToRight
@@ -877,10 +895,11 @@ class Road:
             backwardGroup = None
 
         # Create road
+        assert forwardGroup or backwardGroup
         if forwardGroup:
             rightEdge = forwardGroup.rightEdge
         else:
-            rightEdge = backwardGroup
+            rightEdge = backwardGroup.leftEdge
         if backwardGroup:
             leftEdge = backwardGroup.rightEdge
         else:

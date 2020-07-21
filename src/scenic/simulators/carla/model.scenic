@@ -17,6 +17,7 @@ workspace = baseModel.workspace
 network = baseModel.network
 road = baseModel.road
 roadDirection = baseModel.roadDirection
+curb = baseModel.curb
 sidewalk = baseModel.sidewalk
 intersection = baseModel.intersection
 

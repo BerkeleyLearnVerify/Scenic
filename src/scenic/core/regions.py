@@ -67,7 +67,12 @@ class Region(Samplable):
 	def intersect(self, other, triedReversed=False):
 		"""Get a `Region` representing the intersection of this one with another."""
 		if triedReversed:
-			return IntersectionRegion(self, other)
+			orientation = self.orientation
+			if orientation is None:
+				orientation = other.orientation
+			elif other.orientation is not None:
+				orientation = None 		# would be ambiguous, so pick no orientation
+			return IntersectionRegion(self, other, orientation=orientation)
 		else:
 			return other.intersect(self, triedReversed=True)
 
@@ -453,6 +458,24 @@ class PolylineRegion(Region):
 			return not intersection.is_empty
 		return super().intersects(other)
 
+	@staticmethod
+	def unionAll(regions):
+		regions = tuple(regions)
+		if not regions:
+			return nowhere
+		if any(not isinstance(region, PolylineRegion) for region in regions):
+			raise RuntimeError(f'cannot take Polyline union of regions {regions}')
+		# take union by collecting LineStrings, to preserve the order of points
+		strings = []
+		for region in regions:
+			string = region.lineString
+			if isinstance(string, shapely.geometry.MultiLineString):
+				strings.extend(string)
+			else:
+				strings.append(string)
+		newString = shapely.geometry.MultiLineString(strings)
+		return PolylineRegion(polyline=newString)
+
 	def containsPoint(self, point):
 		return self.lineString.intersects(shapely.geometry.Point(point))
 
@@ -488,6 +511,19 @@ class PolylineRegion(Region):
 			if dist <= cumLen:
 				return segment
 		return segment 		# just in case we get here due to rounding error
+
+	def pointAlongBy(self, distance, normalized=False):
+		pt = self.lineString.interpolate(distance, normalized=normalized)
+		return Vector(pt.x, pt.y)
+
+	def equallySpacedPoints(self, spacing, normalized=False):
+		if normalized:
+			spacing *= self.length
+		return [self.pointAlongBy(d) for d in numpy.arange(0, self.length, spacing)]
+
+	@property
+	def length(self):
+		return self.lineString.length
 
 	def getAABB(self):
 		xmin, ymin, xmax, ymax = self.lineString.bounds

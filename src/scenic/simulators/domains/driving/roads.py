@@ -176,6 +176,9 @@ class LinearElement(NetworkElement):
     LinearElements have a direction, namely from the first point on their centerline
     to the last point. This is called 'forward', even for 2-way roads. The 'left' and
     'right' edges are interpreted with respect to this direction.
+
+    The left/right edges are oriented along the direction of traffic near them; so
+    for 2-way roads they will point opposite directions.
     """
 
     # Geometric info (on top of the overall polygon from PolygonalRegion)
@@ -189,7 +192,8 @@ class LinearElement(NetworkElement):
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
-        # don't check centerline here since it can lie inside a median, for example
+        # Check that left and right edges lie inside the element.
+        # (don't check centerline here since it can lie inside a median, for example)
         # (TODO reconsider the decision to have polygon only include drivable areas?)
         assert self.containsRegion(self.leftEdge, tolerance=0.5)
         assert self.containsRegion(self.rightEdge, tolerance=0.5)
@@ -508,7 +512,7 @@ class Network:
     #: whenever attributes of `Network`, `NetworkElement`, etc. are changed,
     #: so that cached networks will be properly regenerated (rather than being
     #: unpickled in an inconsistent state and causing errors later).
-    formatVersion = 1
+    formatVersion = 2
 
     elements: Dict[str, NetworkElement]     # indexed by unique ID
 
@@ -537,6 +541,7 @@ class Network:
     intersectionRegion: PolygonalRegion = None
     crossingRegion: PolygonalRegion = None
     sidewalkRegion: PolygonalRegion = None
+    curbRegion: PolylineRegion = None
 
     # traffic flow vector field aggregated over all roads (0 elsewhere)
     roadDirection: VectorField = None
@@ -565,6 +570,13 @@ class Network:
             self.drivableRegion = self.laneRegion.union(self.intersectionRegion)
         if self.walkableRegion is None:
             self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
+
+        if self.curbRegion is None:
+            edges = []
+            for road in self.roads:
+                edges.append(road.leftEdge)
+                edges.append(road.rightEdge)
+            self.curbRegion = PolylineRegion.unionAll(edges)
 
         if self.roadDirection is None:
             self.roadDirection = VectorField('roadDirection', self._defaultRoadDirection)
@@ -716,11 +728,25 @@ class Network:
     def show(self, plt):
         """Render a schematic of the road network for debugging."""
         self.walkableRegion.show(plt, style='-', color='#00A0FF')
-        self.drivableRegion.show(plt, style='r')
         for road in self.roads:
-            for lane in road.lanes:
-                lane.show(plt, style='r--')
-        for lane in self.lanes:
+            road.show(plt, style='r-')
+            for lane in road.lanes:     # will loop only over lanes of main roads
+                lane.leftEdge.show(plt, style='r--')
+                lane.rightEdge.show(plt, style='r--')
+
+                # Draw arrows indicating road direction
+                if lane.centerline.length >= 40:
+                    pts = lane.centerline.equallySpacedPoints(20)
+                else:
+                    pts = [lane.centerline.pointAlongBy(0.5, normalized=True)]
+                hs = [lane.centerline.orientation[pt] for pt in pts]
+                x, y = zip(*pts)
+                u = [math.cos(h + (math.pi/2)) for h in hs]
+                v = [math.sin(h + (math.pi/2)) for h in hs]
+                plt.quiver(x, y, u, v,
+                           pivot='middle', headlength=4.5,
+                           scale=0.06, units='dots', color='#A0A0A0')
+        for lane in self.lanes:     # draw centerlines of all lanes (including connecting)
             lane.centerline.show(plt, style=':', color='#A0A0A0')
         self.intersectionRegion.show(plt, style='g')
 

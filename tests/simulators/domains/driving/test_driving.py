@@ -77,3 +77,11 @@ def test_intersection(cached_maps):
         assert intersection is not None
         directions = intersection.nominalDirectionsAt(ego)
         assert any(ego.heading == pytest.approx(direction) for direction in directions)
+
+def test_curb(cached_maps):
+    scenario = compileDrivingScenario(cached_maps, """
+        ego = Car
+        spot = OrientedPoint on visible curb
+        Car left of spot by 0.25
+    """)
+    sampleScene(scenario, maxIterations=1000)
