@@ -9,6 +9,7 @@ import pygame
 import scenic.simulators as simulators
 import scenic.simulators.carla.utils.utils as utils
 import scenic.simulators.carla.utils.visuals as visuals
+import time
 
 
 class CarlaSimulator(simulators.Simulator):
@@ -71,22 +72,25 @@ class CarlaSimulation(simulators.Simulation):
 			print(blueprint)
 			transform = carla.Transform(loc, rot)
 			
-			# Create Carla actor
+			# # Create Carla actor
 			carlaActor = self.world.try_spawn_actor(blueprint, transform)
 			if carlaActor is None:
 				raise simulators.SimulationCreationError(
 				    f'Unable to spawn object {type(obj)} at position {obj.position}, '
 				    f'likely from a spawn collision. Of model {obj.blueprint} '
 				)
+
 			if isinstance(carlaActor, carla.Vehicle):
-				carlaActor.apply_control(carla.VehicleControl())  # set default controls
+				# carlaActor.apply_control(carla.VehicleControl())  # set default controls
+				carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
 			elif isinstance(carlaActor, carla.Walker):
 				carlaActor.apply_control(carla.WalkerControl())
 
-			# Set Carla actor's initial speed (if specified)
-			# if obj.speed is not None:
-			# 	equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
-			# 	carlaActor.set_velocity(equivVel)
+			# #create by batch
+			# batch = []
+			# equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
+			# print(equivVel)
+			# batch.append(carla.command.SpawnActor(blueprint, transform, carlaActor).then(carla.command.ApplyVelocity(carla.command.FutureActor, equivVel)))
 
 			obj.carlaActor = carlaActor
 
@@ -102,6 +106,21 @@ class CarlaSimulation(simulators.Simulation):
 					self.cameraManager._transform_index = camPosIndex
 					self.cameraManager.set_sensor(camIndex)
 					self.cameraManager.set_transform(self.camTransform)
+
+		self.world.tick() ## allowing manualgearshift to take effect 
+
+		for obj in self.objects:
+			if isinstance(obj.carlaActor, carla.Vehicle):
+				# carlaActor.apply_control(carla.VehicleControl())  # set default controls
+				obj.carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=False))
+
+		self.world.tick()
+
+		# Set Carla actor's initial speed (if specified)
+		for obj in self.objects:
+			if obj.speed is not None:
+				equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
+				obj.carlaActor.set_velocity(equivVel)
 
 	def readPropertiesFromCarla(self):
 		for obj in self.objects:
@@ -135,6 +154,7 @@ class CarlaSimulation(simulators.Simulation):
 		for obj, action in actions.items():
 			if action:
 				action.applyTo(obj, obj.carlaActor, self)
+
 			# if obj.carlaActor.get_control().throttle > 0:
 			# 	print(obj.carlaActor.get_acceleration())
 

@@ -67,7 +67,12 @@ class Region(Samplable):
 	def intersect(self, other, triedReversed=False):
 		"""Get a `Region` representing the intersection of this one with another."""
 		if triedReversed:
-			return IntersectionRegion(self, other)
+			orientation = self.orientation
+			if orientation is None:
+				orientation = other.orientation
+			elif other.orientation is not None:
+				orientation = None 		# would be ambiguous, so pick no orientation
+			return IntersectionRegion(self, other, orientation=orientation)
 		else:
 			return other.intersect(self, triedReversed=True)
 
@@ -453,6 +458,24 @@ class PolylineRegion(Region):
 			return not intersection.is_empty
 		return super().intersects(other)
 
+	@staticmethod
+	def unionAll(regions):
+		regions = tuple(regions)
+		if not regions:
+			return nowhere
+		if any(not isinstance(region, PolylineRegion) for region in regions):
+			raise RuntimeError(f'cannot take Polyline union of regions {regions}')
+		# take union by collecting LineStrings, to preserve the order of points
+		strings = []
+		for region in regions:
+			string = region.lineString
+			if isinstance(string, shapely.geometry.MultiLineString):
+				strings.extend(string)
+			else:
+				strings.append(string)
+		newString = shapely.geometry.MultiLineString(strings)
+		return PolylineRegion(polyline=newString)
+
 	def containsPoint(self, point):
 		return self.lineString.intersects(shapely.geometry.Point(point))
 
@@ -462,6 +485,19 @@ class PolylineRegion(Region):
 	@distributionMethod
 	def distanceTo(self, point):
 		return self.lineString.distance(shapely.geometry.Point(point))
+
+	@distributionMethod
+	def signedDistanceTo(self, point):
+		"""Compute the signed distance of the PolylineRegion to a point.
+
+		The distance is positive if the point is left of the nearest segment,
+		and negative otherwise.
+		"""
+		dist = self.distanceTo(point)
+		start, end = self.nearestSegmentTo(point)
+		rp = point - start
+		tangent = end - start
+		return dist if tangent.angleWith(rp) >= 0 else -dist
 
 	@distributionMethod
 	def project(self, point):
@@ -476,13 +512,25 @@ class PolylineRegion(Region):
 				return segment
 		return segment 		# just in case we get here due to rounding error
 
+	def pointAlongBy(self, distance, normalized=False):
+		pt = self.lineString.interpolate(distance, normalized=normalized)
+		return Vector(pt.x, pt.y)
+
+	def equallySpacedPoints(self, spacing, normalized=False):
+		if normalized:
+			spacing *= self.length
+		return [self.pointAlongBy(d) for d in numpy.arange(0, self.length, spacing)]
+
+	@property
+	def length(self):
+		return self.lineString.length
+
 	def getAABB(self):
 		xmin, ymin, xmax, ymax = self.lineString.bounds
 		return ((xmin, ymin), (xmax, ymax))
 
-	def show(self, plt, style='r-'):
-		for pointA, pointB in self.segments:
-			plt.plot([pointA[0], pointB[0]], [pointA[1], pointB[1]], style)
+	def show(self, plt, style='r-', **kwargs):
+		plotPolygon(self.lineString, plt, style=style, **kwargs)
 
 	def __getitem__(self, i):
 		"""Get the ith point along this polyline.
@@ -634,8 +682,8 @@ class PolygonalRegion(Region):
 		xmin, xmax, ymin, ymax = self.polygons.bounds
 		return ((xmin, ymin), (xmax, ymax))
 
-	def show(self, plt, style='r-'):
-		plotPolygon(self.polygons, plt, style=style)
+	def show(self, plt, style='r-', **kwargs):
+		plotPolygon(self.polygons, plt, style=style, **kwargs)
 
 	def __str__(self):
 		return '<PolygonalRegion>'

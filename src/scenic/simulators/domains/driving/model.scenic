@@ -9,6 +9,7 @@ network = networkModule.network
 workspace = DrivingWorkspace(network)
 
 road = network.drivableRegion
+curb = network.curbRegion
 sidewalk = network.sidewalkRegion
 intersection = network.intersectionRegion
 

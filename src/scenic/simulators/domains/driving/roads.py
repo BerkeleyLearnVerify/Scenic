@@ -177,6 +177,9 @@ class LinearElement(NetworkElement):
     LinearElements have a direction, namely from the first point on their centerline
     to the last point. This is called 'forward', even for 2-way roads. The 'left' and
     'right' edges are interpreted with respect to this direction.
+
+    The left/right edges are oriented along the direction of traffic near them; so
+    for 2-way roads they will point opposite directions.
     """
 
     # Geometric info (on top of the overall polygon from PolygonalRegion)
@@ -190,7 +193,8 @@ class LinearElement(NetworkElement):
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
-        # don't check centerline here since it can lie inside a median, for example
+        # Check that left and right edges lie inside the element.
+        # (don't check centerline here since it can lie inside a median, for example)
         # (TODO reconsider the decision to have polygon only include drivable areas?)
         assert self.containsRegion(self.leftEdge, tolerance=0.5)
         assert self.containsRegion(self.rightEdge, tolerance=0.5)
@@ -504,12 +508,23 @@ class Intersection(NetworkElement):
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Network:
     """A road network."""
+
+    #: Version number for the road network format. Should be incremented
+    #: whenever attributes of `Network`, `NetworkElement`, etc. are changed,
+    #: so that cached networks will be properly regenerated (rather than being
+    #: unpickled in an inconsistent state and causing errors later).
+    formatVersion = 2
+
     elements: Dict[str, NetworkElement]     # indexed by unique ID
 
     # TODO change these to frozensets once everything is hashable?
-    roads: Tuple[Road]
+    roads: Tuple[Road]              # ordinary roads
+    connectingRoads: Tuple[Road]    # roads inside intersections
+    allRoads: Tuple[Road] = None    # both kinds of roads
+
     laneGroups: Tuple[LaneGroup]
     lanes: Tuple[Lane]
+
     intersections: Tuple[Intersection]
     crossings: Tuple[PedestrianCrossing]
     sidewalks: Tuple[Sidewalk]
@@ -527,14 +542,17 @@ class Network:
     intersectionRegion: PolygonalRegion = None
     crossingRegion: PolygonalRegion = None
     sidewalkRegion: PolygonalRegion = None
+    curbRegion: PolylineRegion = None
 
     # traffic flow vector field aggregated over all roads (0 elsewhere)
     roadDirection: VectorField = None
 
     def __attrs_post_init__(self):
+        self.formatVersion = self.formatVersion     # copy class var to instance
         for uid, elem in self.elements.items():
             assert elem.uid == uid
 
+        self.allRoads = self.roads + self.connectingRoads
         self.roadSections = tuple(sec for road in self.roads for sec in road.sections)
         self.laneSections = tuple(sec for lane in self.lanes for sec in lane.sections)
 
@@ -553,6 +571,13 @@ class Network:
             self.drivableRegion = self.laneRegion.union(self.intersectionRegion)
         if self.walkableRegion is None:
             self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
+
+        if self.curbRegion is None:
+            edges = []
+            for road in self.roads:
+                edges.append(road.leftEdge)
+                edges.append(road.rightEdge)
+            self.curbRegion = PolylineRegion.unionAll(edges)
 
         if self.roadDirection is None:
             self.roadDirection = VectorField('roadDirection', self._defaultRoadDirection)
@@ -575,22 +600,25 @@ class Network:
             '.xodr': cls.fromOpenDrive,         # OpenDRIVE
         }
 
-        if ext:
-            if useCache:
-                # use pickled version of network if it exists
-                newPath = path.with_suffix(cls.pickledExt)
-                if newPath.exists():
-                    path = newPath
-                    ext = cls.pickledExt
-        else:
-            # no extension was given; search through possible formats
+        if useCache:    # use pickled version of network if it exists
+            newPath = path.with_suffix(cls.pickledExt)
+            if newPath.exists():
+                try:
+                    return cls.fromPickle(newPath)
+                except pickle.UnpicklingError:
+                    pass    # give up on cache; fall through to original file
+
+        if not ext:     # no extension was given; search through possible formats
+            found = False
             for ext in handlers:
                 newPath = path.with_suffix(ext)
                 if newPath.exists():
                     path = newPath
+                    found = True
                     break
-
-        if ext not in handlers:
+            if not found:
+                raise FileNotFoundError(f'no readable maps found for path {path}')
+        elif ext not in handlers:
             raise RuntimeError(f'unknown type of road network file {path}')
 
         network = handlers[ext](path, **kwargs)
@@ -602,6 +630,10 @@ class Network:
     def fromPickle(cls, path):
         with bz2.open(path, 'rb') as f:
             network = pickle.load(f)
+        version = getattr(network, 'formatVersion', None)
+        if version != cls.formatVersion:
+            raise pickle.UnpicklingError(f'{cls.pickledExt} file is too old; '
+                                         'regenerate it from the original map')
         # Reconnect links between network elements
         for elem in network.elements.values():
             state = elem.__dict__
@@ -630,16 +662,16 @@ class Network:
     @distributionFunction
     def elementAt(self, point: Vectorlike) -> Union[NetworkElement, None]:
         point = toVector(point)
-        road = self.roadAt(point)
-        if road is not None:
-            return road
-        return self.intersectionAt(point)
+        intersection = self.intersectionAt(point)
+        if intersection is not None:
+            return intersection
+        return self.roadAt(point)
 
     @distributionFunction
     def roadAt(self, point: Vectorlike) -> Union[Road, None]:
         """Get the road passing through a given point."""
         point = toVector(point)
-        for road in self.roads:
+        for road in self.allRoads:
             if road.containsPoint(point):
                 return road
         return None
@@ -696,10 +728,27 @@ class Network:
 
     def show(self, plt):
         """Render a schematic of the road network for debugging."""
-        self.drivableRegion.show(plt, style='r')
-        for lane in self.lanes:
-            lane.show(plt, style='r--')
-        self.walkableRegion.show(plt, style='b')
+        self.walkableRegion.show(plt, style='-', color='#00A0FF')
+        for road in self.roads:
+            road.show(plt, style='r-')
+            for lane in road.lanes:     # will loop only over lanes of main roads
+                lane.leftEdge.show(plt, style='r--')
+                lane.rightEdge.show(plt, style='r--')
+
+                # Draw arrows indicating road direction
+                if lane.centerline.length >= 40:
+                    pts = lane.centerline.equallySpacedPoints(20)
+                else:
+                    pts = [lane.centerline.pointAlongBy(0.5, normalized=True)]
+                hs = [lane.centerline.orientation[pt] for pt in pts]
+                x, y = zip(*pts)
+                u = [math.cos(h + (math.pi/2)) for h in hs]
+                v = [math.sin(h + (math.pi/2)) for h in hs]
+                plt.quiver(x, y, u, v,
+                           pivot='middle', headlength=4.5,
+                           scale=0.06, units='dots', color='#A0A0A0')
+        for lane in self.lanes:     # draw centerlines of all lanes (including connecting)
+            lane.centerline.show(plt, style=':', color='#A0A0A0')
         self.intersectionRegion.show(plt, style='g')
 
 ## FOR LATER

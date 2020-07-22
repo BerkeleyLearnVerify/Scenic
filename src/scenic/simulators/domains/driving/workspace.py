@@ -13,4 +13,4 @@ class DrivingWorkspace(Workspace):
 
     @property
     def minimumZoomSize(self):
-        return 40
+        return 20

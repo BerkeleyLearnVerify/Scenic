@@ -383,8 +383,6 @@ class Road:
         - List of lists of points along the reference line, with same indexing as self.lane_secs
         - List of region polygons, with same indexing as self.lane_secs
         - List of dictionary of lane id to polygon, with same indexing as self.lane_secs
-        - List of dictionary of lane id to left edge, with same indexing as self.lane_secs
-        - List of dictionary of lane id to right edge, with same indexing as self.lane_secs
         - List of polygons for each lane (not necessarily by id, but respecting lane successor/predecessor)
         - Polygon for entire region.
         If calc_gap=True, fills in gaps between connected roads. This is fairly expensive.'''
@@ -394,12 +392,11 @@ class Road:
         cur_lane_polys = {}
         sec_points = []
         sec_polys = []
-        sec_lane_lefts = []
-        sec_lane_rights = []
         sec_lane_polys = []
         lane_polys = []
         last_lefts = None
         last_rights = None
+        cur_p = None
 
         for i in range(len(self.lane_secs)):
             cur_sec = self.lane_secs[i]
@@ -411,32 +408,38 @@ class Road:
                 s_stop = float('inf')
             left_bounds = defaultdict(list)
             right_bounds = defaultdict(list)
-            left_edges = defaultdict(list)
-            right_edges = defaultdict(list)
             cur_sec_lane_polys = defaultdict(list)
             cur_sec_polys = []
-            # Last point in left/right lane boundary line for last road piece:
-            start_of_sec = True
             end_of_sec = False
 
             while ref_points and not end_of_sec:
-                if not ref_points[0] or ref_points[0][0][2] >= s_stop:
-                    # Case 1: The current list of ref_points (corresponding to current piece)
-                    # is empty, so we move onto the next list of points.
+                if not ref_points[0]:
+                    ref_points.pop(0)
+                if not ref_points or (cur_p and cur_p[2] >= s_stop):
+                    # Case 1: We have processed the entire reference line.
                     # Case 2: The s-coordinate has exceeded s_stop, so we should move
                     # onto the next LaneSection.
                     # Either way, we collect all the bound points so far into polygons.
-                    if not ref_points[0]:
-                        ref_points.pop(0)
-                    else:
-                       end_of_sec = True
+                    end_of_sec = True
                     cur_last_lefts = {}
                     cur_last_rights = {}
-                    for id_ in left_bounds.keys():
+                    for id_ in left_bounds:
                         # Polygon for piece of lane:
                         left = left_bounds[id_]
                         right = right_bounds[id_][::-1]
                         bounds = left + right
+
+                        lane = cur_sec.lanes[id_]
+                        prev_id = lane.pred
+                        if last_lefts is not None and prev_id in last_lefts:
+                            pred = self.lane_secs[i-1].get_lane(prev_id)
+                            sleft, sright = pred.left_bounds[-1], pred.right_bounds[-1]
+                            bounds.append(sright)
+                            bounds.append(sleft)
+                            lane.left_bounds.insert(0, sleft)
+                            lane.right_bounds.insert(0, sright)
+                            lane.centerline.insert(0, pred.centerline[-1])
+
                         if len(bounds) < 3:
                             continue
                         poly = cleanPolygon(Polygon(bounds), tolerance)
@@ -448,44 +451,25 @@ class Road:
                             else:
                                 cur_sec_polys.append(poly)
                             cur_sec_lane_polys[id_].append(poly)
-                        if calc_gap:
-                            # Polygon for gap between lanes:
-                            if start_of_sec:
-                                prev_id = cur_sec.lanes[id_].pred
-                            else:
-                                prev_id = id_
-                            if last_lefts is not None and prev_id in last_lefts.keys():
-                                gap_poly = MultiPoint([
-                                    last_lefts[prev_id], last_rights[prev_id],
-                                    left_bounds[id_][0], right_bounds[id_][0]]).convex_hull
-                                assert gap_poly.is_valid, 'Gap polygon not valid.'
-                                gap_poly = cleanPolygon(gap_poly.buffer(0), tolerance=tolerance)
-                                # Assume MultiPolygon cannot result from convex hull.
-                                if gap_poly.geom_type == 'Polygon' and not gap_poly.is_empty:
-                                    cur_sec_polys.append(gap_poly)
-                                    cur_sec_lane_polys[id_].append(gap_poly)
                         cur_last_lefts[id_] = left_bounds[id_][-1]
                         cur_last_rights[id_] = right_bounds[id_][-1]
-                        if (start_of_sec and i == 0) or not self.start_bounds_left:
+                        if i == 0 or not self.start_bounds_left:
                             self.start_bounds_left[id_] = left_bounds[id_][0]
                             self.start_bounds_right[id_] = right_bounds[id_][0]
 
-                    for id_ in left_bounds:
-                        left_edges[id_].extend(left_bounds[id_])
-                        right_edges[id_].extend(right_bounds[id_])
                     left_bounds = defaultdict(list)
                     right_bounds = defaultdict(list)
                     if cur_last_lefts and cur_last_rights:
                         last_lefts = cur_last_lefts
                         last_rights = cur_last_rights
-                        start_of_sec = False
                 else:
                     cur_p = ref_points[0].pop(0)
                     cur_sec_points.append(cur_p)
-                    offsets = cur_sec.get_offsets(cur_p[2])
+                    s = min(cur_p[2], max(cur_sec.s0, s_stop - 1e-6))
+                    offsets = cur_sec.get_offsets(s)
                     offsets[0] = 0
-                    for id_ in offsets.keys():
-                        offsets[id_] += self.get_ref_line_offset(cur_p[2])
+                    for id_ in offsets:
+                        offsets[id_] += self.get_ref_line_offset(s)
                     if ref_points[0]:
                         next_p = ref_points[0][0]
                         tan_vec = (next_p[0] - cur_p[0],
@@ -506,7 +490,7 @@ class Road:
                     # if tan_norm < 0.01:
                     #     continue
                     normal_vec = (-tan_vec[1] / tan_norm, tan_vec[0] / tan_norm)
-                    for id_ in offsets.keys():
+                    for id_ in offsets:
                         lane = cur_sec.get_lane(id_)
                         if lane.type_ in lane_types:
                             if id_ > 0:
@@ -517,6 +501,8 @@ class Road:
                                           cur_p[1] + normal_vec[1] * offsets[id_]]
                             right_bound = [cur_p[0] + normal_vec[0] * offsets[prev_id],
                                            cur_p[1] + normal_vec[1] * offsets[prev_id]]
+                            if id_ < 0:
+                                left_bound, right_bound = right_bound, left_bound
                             halfway = (offsets[id_] + offsets[prev_id]) / 2
                             centerline = [cur_p[0] + normal_vec[0] * halfway,
                                           cur_p[1] + normal_vec[1] * halfway]
@@ -525,8 +511,6 @@ class Road:
                             lane.left_bounds.append(left_bound)
                             lane.right_bounds.append(right_bound)
                             lane.centerline.append(centerline)
-            sec_lane_lefts.append(left_edges)
-            sec_lane_rights.append(right_edges)
             assert len(cur_sec_points) >= 2, i
             sec_points.append(cur_sec_points)
             sec_polys.append(buffer_union(cur_sec_polys, tolerance=tolerance))
@@ -556,13 +540,12 @@ class Road:
         if last_lefts and last_rights:
             self.end_bounds_left.update(last_lefts)
             self.end_bounds_right.update(last_rights)
-        return (sec_points, sec_polys, sec_lane_polys, sec_lane_lefts, sec_lane_rights,
-                lane_polys, union_poly)
+        return (sec_points, sec_polys, sec_lane_polys, lane_polys, union_poly)
 
     def calculate_geometry(self, num, tolerance, calc_gap=False):
         # Note: this also calculates self.start_bounds_left, self.start_bounds_right,
         # self.end_bounds_left, self.end_bounds_right
-        (self.sec_points, self.sec_polys, self.sec_lane_polys, lefts, rights,
+        (self.sec_points, self.sec_polys, self.sec_lane_polys,
          self.lane_polys, self.drivable_region) =\
                 self.calc_geometry_for_type(DRIVABLE, num, tolerance, calc_gap=calc_gap)
 
@@ -580,21 +563,21 @@ class Road:
             rightmost = None
             for id_ in itertools.chain(reversed(sec.right_lane_ids), sec.left_lane_ids):
                 if id_ in sec.drivable_lanes:
-                    rightmost = id_
+                    rightmost = sec.lanes[id_]
                     break
             assert rightmost is not None, i
             leftmost = None
             for id_ in itertools.chain(reversed(sec.left_lane_ids), sec.right_lane_ids):
                 if id_ in sec.drivable_lanes:
-                    leftmost = id_
+                    leftmost = sec.lanes[id_]
                     break
             assert leftmost is not None, i
-            sec.left_edge = lefts[i][leftmost]
+            sec.left_edge = leftmost.left_bounds
             assert len(sec.left_edge) >= 2
-            sec.right_edge = rights[i][rightmost]
+            sec.right_edge = rightmost.right_bounds
             assert len(sec.right_edge) >= 2
 
-        _, _, _, _, _, _, self.sidewalk_region = \
+        _, _, _, _, self.sidewalk_region = \
             self.calc_geometry_for_type(SIDEWALK, num, tolerance, calc_gap=calc_gap)
 
     def toScenicRoad(self, tolerance):
@@ -672,19 +655,24 @@ class Road:
             leftmost, rightmost = max(laneIDs), min(laneIDs)
             if len(laneIDs) != leftmost-rightmost+1:
                 warnings.warn(f'ignoring sidewalks in the middle of road {self.id_}')
+            leftPoints, rightPoints = [], []
             if leftmost < 0:
                 leftmost = rightmost
                 while leftmost+1 in laneIDs:
                     leftmost = leftmost+1
                 leftSecs, rightSecs = sidewalkSections[leftmost], sidewalkSections[rightmost]
+                for leftSec, rightSec in zip(leftSecs, rightSecs):
+                    leftPoints.extend(leftSec.left_bounds)
+                    rightPoints.extend(rightSec.right_bounds)
             else:
                 rightmost = leftmost
                 while rightmost-1 in laneIDs:
                     rightmost = rightmost-1
-                leftSecs = reversed(sidewalkSections[rightmost])
-                rightSecs = reversed(sidewalkSections[leftmost])
-            leftPoints = list(itertools.chain(*(sec.left_bounds for sec in leftSecs)))
-            rightPoints = list(itertools.chain(*(sec.right_bounds for sec in rightSecs)))
+                leftSecs = reversed(sidewalkSections[leftmost])
+                rightSecs = reversed(sidewalkSections[rightmost])
+                for leftSec, rightSec in zip(leftSecs, rightSecs):
+                    leftPoints.extend(reversed(rightSec.right_bounds))
+                    rightPoints.extend(reversed(leftSec.left_bounds))
             if len(leftPoints) != len(rightPoints):
                 raise RuntimeError(f'unable to align sidewalks for road {self.id_}')
             centerPoints = list(averageVectors(l, r) for l, r in zip(leftPoints, rightPoints))
@@ -735,20 +723,27 @@ class Road:
         for section in roadSections:
             lanes = section.lanesByOpenDriveID
             for id_, lane in lanes.items():
-                leftID = id_ + 1 if id_ != -1 else 1
-                rightID = id_ - 1 if id_ != 1 else -1
+                if id_ < -1:
+                    leftID = id_ + 1
+                elif id_ == -1:
+                    leftID = 1
+                elif id_ == 1:
+                    leftID = -1
+                else:
+                    leftID = id_ - 1
+                rightID = id_ - 1 if id_ < 0 else id_ + 1
                 lane.laneToLeft = lanes.get(leftID)
                 lane.laneToRight = lanes.get(rightID)
                 if self.drive_on_right:
-                    if leftID != 1:
-                        lane.fasterLane = lane.laneToLeft
-                    if rightID != -1:
-                        lane.slowerLane = lane.laneToRight
+                    lane.fasterLane = lane.laneToLeft
+                    lane.slowerLane = lane.laneToRight
                 else:
-                    if leftID != 1:
-                        lane.slowerLane = lane.laneToLeft
-                    if rightID != -1:
-                        lane.fasterLane = lane.laneToRight
+                    lane.slowerLane = lane.laneToLeft
+                    lane.fasterLane = lane.laneToRight
+                if lane.fasterLane and lane.fasterLane.isForward != lane.isForward:
+                    lane.fasterLane = None
+                if lane.slowerLane and lane.slowerLane.isForward != lane.isForward:
+                    lane.slowerLane = None
                 adj = []
                 if lane.laneToLeft:
                     adj.append(lane.laneToLeft)
@@ -820,10 +815,14 @@ class Road:
 
         # Create lane groups
         def getEdges(forward):
-            sec = roadSections[0]
-            startLanes = sec.forwardLanes if forward else sec.backwardLanes
+            if forward:
+                sec = roadSections[0]
+                startLanes = sec.forwardLanes
+            else:
+                sec = roadSections[-1]
+                startLanes = sec.backwardLanes
             leftPoints = []
-            current = startLanes[-1]
+            current = startLanes[-1]    # get leftmost lane of the first section
             while current and isinstance(current, roadDomain.LaneSection):
                 if current.laneToLeft and current.laneToLeft.isForward == forward:
                     current = current.laneToLeft
@@ -831,7 +830,7 @@ class Road:
                 current = current.successor
             leftEdge = PolylineRegion(cleanChain(leftPoints))
             rightPoints = []
-            current = startLanes[0]
+            current = startLanes[0]     # get rightmost lane of the first section
             while current and isinstance(current, roadDomain.LaneSection):
                 if current.laneToRight and current.laneToRight.isForward == forward:
                     current = current.laneToRight
@@ -877,10 +876,11 @@ class Road:
             backwardGroup = None
 
         # Create road
+        assert forwardGroup or backwardGroup
         if forwardGroup:
             rightEdge = forwardGroup.rightEdge
         else:
-            rightEdge = backwardGroup
+            rightEdge = backwardGroup.leftEdge
         if backwardGroup:
             leftEdge = backwardGroup.rightEdge
         else:
@@ -1479,13 +1479,15 @@ class RoadMap:
 
         # Gather all network elements
         roads = tuple(mainRoads.values())
+        connectingRoads = tuple(connectingRoads.values())
+        allRoads = roads + connectingRoads
         groups = []
-        for road in roads:
+        for road in allRoads:
             if road.forwardLanes:
                 groups.append(road.forwardLanes)
             if road.backwardLanes:
                 groups.append(road.backwardLanes)
-        lanes = [lane for road in roads for lane in road.lanes]
+        lanes = [lane for road in allRoads for lane in road.lanes]
         intersections = tuple(intersections.values())
         crossings = ()      # TODO add these
         sidewalks = []
@@ -1507,6 +1509,7 @@ class RoadMap:
         return roadDomain.Network(
             elements=allElements,
             roads=roads,
+            connectingRoads=connectingRoads,
             laneGroups=tuple(groups),
             lanes=lanes,
             intersections=intersections,

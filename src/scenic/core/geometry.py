@@ -216,7 +216,7 @@ def splitSelfIntersections(chain, minArea, minRelArea, minHullLenRatio):
 		if hull.length >= minHullLenRatio * ls.length:
 			return hull
 	kept = [part for part in parts if part.area >= minArea or (part.area / total) >= minRelArea]
-	return shapely.geometry.MultiPolygon(kept)
+	return shapely.ops.unary_union(kept)
 
 def cleanChain(chain, tolerance=1e-6, lineTolerance=1e-6):
 	closed = (tuple(chain[0]) == tuple(chain[-1]))
@@ -256,7 +256,7 @@ def cleanChain(chain, tolerance=1e-6, lineTolerance=1e-6):
 		newChain = [a]
 	for c in chain[ci:]:
 		dx, dy = c[0] - a[0], c[1] - a[1]
-		if distanceToLine(b, a, c) > lineTolerance:
+		if dx == dy == 0 or distanceToLine(b, a, c) > lineTolerance:
 			newChain.append(b)
 			a = b
 			b = c
@@ -348,20 +348,29 @@ def triangulatePolygon_gpc(polygon):
 			b = c
 	return triangles
 
-def plotPolygon(polygon, plt, style='r-'):
-	def plotRing(ring):
-		x, y = ring.xy
-		plt.plot(x, y, style)
+def plotPolygon(polygon, plt, style='r-', **kwargs):
+	def plotCoords(chain):
+		x, y = chain.xy
+		plt.plot(x, y, style, **kwargs)
 	if polygon.is_empty:
 		return
-	if isinstance(polygon, shapely.geometry.MultiPolygon):
+	if isinstance(polygon, (shapely.geometry.MultiPolygon,
+	                        shapely.geometry.MultiLineString,
+	                        shapely.geometry.MultiPoint,
+	                        shapely.geometry.collection.GeometryCollection)):
 		polygons = polygon
 	else:
 		polygons = [polygon]
 	for polygon in polygons:
-		plotRing(polygon.exterior)
-		for ring in polygon.interiors:
-			plotRing(ring)
+		if isinstance(polygon, shapely.geometry.Polygon):
+			plotCoords(polygon.exterior)
+			for ring in polygon.interiors:
+				plotCoords(ring)
+		elif isinstance(polygon, (shapely.geometry.LineString, shapely.geometry.LinearRing,
+		                          shapely.geometry.Point)):
+			plotCoords(polygon)
+		else:
+			raise RuntimeError(f'unknown kind of shapely geometry {polygon}')
 
 class RotatedRectangle:
 	"""mixin providing collision detection for rectangular objects and regions"""
