@@ -216,7 +216,7 @@ def splitSelfIntersections(chain, minArea, minRelArea, minHullLenRatio):
 		if hull.length >= minHullLenRatio * ls.length:
 			return hull
 	kept = [part for part in parts if part.area >= minArea or (part.area / total) >= minRelArea]
-	return shapely.geometry.MultiPolygon(kept)
+	return shapely.ops.unary_union(kept)
 
 def cleanChain(chain, tolerance=1e-6, lineTolerance=1e-6):
 	closed = (tuple(chain[0]) == tuple(chain[-1]))
@@ -256,7 +256,7 @@ def cleanChain(chain, tolerance=1e-6, lineTolerance=1e-6):
 		newChain = [a]
 	for c in chain[ci:]:
 		dx, dy = c[0] - a[0], c[1] - a[1]
-		if distanceToLine(b, a, c) > lineTolerance:
+		if dx == dy == 0 or distanceToLine(b, a, c) > lineTolerance:
 			newChain.append(b)
 			a = b
 			b = c
