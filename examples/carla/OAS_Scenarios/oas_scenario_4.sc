@@ -9,7 +9,6 @@ from scenic.simulators.carla.model import *
 
 
 simulator = CarlaSimulator('Town01')
-
 MAX_BREAK_THRESHOLD = 1
 
 behavior FollowLane(target_speed=20):
@@ -30,44 +29,41 @@ behavior CollisionAvoidance(safety_distance=10, brake_intensity=0.3):
 
 
 behavior FollowLeadCar(safety_distance=10):
+	
+	FollowLane(25)
+	# try: 
+	# 	FollowLane(25)
 
-	# take actions.SetManualFirstGearShiftAction()
-	# take actions.SetManualGearShiftAction(False)
-
-	try: 
-		FollowLane(25)
-
-	interrupt when ((distance to other) < safety_distance):
-		CollisionAvoidance(brake_intensity=0.9)
+	# interrupt when ((distance to other) < safety_distance):
+	# 	CollisionAvoidance(brake_intensity=0.9)
 
 
-behavior TerminateAfterTime(time_threshold=5):
-	start_time = time.time()
+# behavior TerminateAfterTime(time_threshold=5):
+# 	start_time = time.time()
 
-	while time.time() - start_time < time_threshold:
-		wait
+# 	while time.time() - start_time < time_threshold:
+# 		wait
 
-	terminate when True
+# 	terminate when True
 
-behavior LeadCarSuddenlyStops():
-	# take actions.SetManualFirstGearShiftAction()
-	# take actions.SetManualGearShiftAction(False)
-	sudden_stop_time = (5, 8)
+# behavior LeadCarSuddenlyStops():
 
-	start_time = time.time()
+# 	sudden_stop_time = (5, 8)
+# 	start_time = time.time()
 
-	try:
-		FollowLane(25)
+# 	try:
+# 		FollowLane(25)
 
-	interrupt when time.time()-start_time > sudden_stop_time: 
-		take actions.SetBrakeAction(MAX_BREAK_THRESHOLD)
-		TerminateAfterTime()
+# 	interrupt when time.time()-start_time > sudden_stop_time: 
+# 		take actions.SetBrakeAction(MAX_BREAK_THRESHOLD)
+# 		TerminateAfterTime()
 
 
-# roads = network.roads
-# ego = Car on roads[1],
-# 		with behavior FollowLeadCar(10),
-# 		with blueprint 'vehicle.tesla.model3'
+roads = network.roads
+select_road = Uniform(*roads)
+ego = Car on select_road,
+		with behavior FollowLeadCar(10),
+		with blueprint 'vehicle.tesla.model3'
 
 # other = Car ahead of ego by 10,
 # 		with behavior LeadCarSuddenlyStops

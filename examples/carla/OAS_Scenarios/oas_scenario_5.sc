@@ -29,9 +29,6 @@ behavior CollisionAvoidance(safety_distance=10, brake_intensity=1):
 
 behavior FollowLeadCar(safety_distance=10):
 
-	# take actions.SetManualFirstGearShiftAction()
-	# take actions.SetManualGearShiftAction(False)
-
 	try: 
 		FollowLane(25)
 
@@ -41,10 +38,7 @@ behavior FollowLeadCar(safety_distance=10):
 
 behavior LeadCarSuddenlyStopsAndGo():
 
-	# take actions.SetManualFirstGearShiftAction()
-	# take actions.SetManualGearShiftAction(False)
 	sudden_stop_time = (3, 6)
-
 	start_time = time.time()
 
 	try:

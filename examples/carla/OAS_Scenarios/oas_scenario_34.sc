@@ -79,4 +79,4 @@ other = Car on L_startLane.centerline,
 		with blueprint 'vehicle.tesla.model3',
 		with behavior FollowTrajectoryBehavior(target_speed=5, trajectory=L_centerlines)
 
-# require that other car reaches the intersection before the ego car
+# require that ego car reaches the intersection before the other car

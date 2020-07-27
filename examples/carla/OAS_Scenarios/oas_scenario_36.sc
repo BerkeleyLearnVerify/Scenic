@@ -8,6 +8,7 @@ from scenic.simulators.domains.driving.roads import ManeuverType
 loadNetwork('/home/carla_challenge/Downloads/Town03.xodr')
 
 from scenic.simulators.carla.model import *
+from scenic.simulators.carla.behaviors import *
 simulator = CarlaSimulator('Town03')
 
 MAX_BREAK_THRESHOLD = 1
@@ -19,14 +20,16 @@ for r in network.roads:
 		twoLane_roads.append(r)
 
 selected_road = Uniform(*twoLane_roads)
-lane = selected_road.lanes[1]
+# print(len(*selected_road.lanes))
+lane = Uniform(*selected_road.lanes)
 
-ego = Car on lane
+ego = Car on lane,
+		with behavior FollowLaneBehavior(target_speed = 15, network = network)
 
 spot = OrientedPoint on visible curb
 perturbation_angle = (-10, 10) deg
 
-parkedCar = Car at (left of spot),
+parkedCar = Car left of (spot offset by -0.5 @ 0),
 				facing perturbation_angle relative to roadDirection
 
 doubleParkedCar = Car at (left of parkedCar)
