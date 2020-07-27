@@ -21,7 +21,7 @@ behavior FollowLane(target_speed=20):
 		cte = nearest_line_segment.signedDistanceTo(self.position)
 		take actions.FollowLaneAction(target_speed, cte)
 
-behavior CollisionAvoidance(safety_distance=10, brake_intensity=0.3):
+behavior CollisionAvoidance(safety_distance=10, brake_intensity=1):
 	while (distance to other) < safety_distance:
 		print("ego applying break!")
 		take actions.SetBrakeAction(brake_intensity)
@@ -29,8 +29,8 @@ behavior CollisionAvoidance(safety_distance=10, brake_intensity=0.3):
 
 behavior FollowLeadCar(safety_distance=10):
 
-	take actions.SetManualFirstGearShiftAction()
-	take actions.SetManualGearShiftAction(False)
+	# take actions.SetManualFirstGearShiftAction()
+	# take actions.SetManualGearShiftAction(False)
 
 	try: 
 		FollowLane(25)
@@ -41,9 +41,9 @@ behavior FollowLeadCar(safety_distance=10):
 
 behavior LeadCarSuddenlyStopsAndGo():
 
-	take actions.SetManualFirstGearShiftAction()
-	take actions.SetManualGearShiftAction(False)
-	sudden_stop_time = (5, 8)
+	# take actions.SetManualFirstGearShiftAction()
+	# take actions.SetManualGearShiftAction(False)
+	sudden_stop_time = (3, 6)
 
 	start_time = time.time()
 
@@ -61,7 +61,8 @@ ego = Car on roads[1],
 		with blueprint 'vehicle.tesla.model3'
 
 other = Car ahead of ego by 10,
-		with behavior LeadCarSuddenlyStopsAndGo
+		with behavior LeadCarSuddenlyStopsAndGo,
+		with blueprint 'vehicle.tesla.model3'
 
 #current_time = time.time()
 #terminate when (time.time()-current_time > TERMINATE_TIME)

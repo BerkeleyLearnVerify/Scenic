@@ -18,13 +18,12 @@ behavior FollowWayPoints(target_speed=20, waypoints = None):
 
 	take actions.SetManualFirstGearShiftAction()
 	take actions.SetManualGearShiftAction(False)
-
+	
 	while True:
 		nearest_line_points = waypoints.nearestSegmentTo(self.position)
 		nearest_line_segment = PolylineRegion(nearest_line_points)
 		cte = nearest_line_segment.signedDistanceTo(self.position)
 		take actions.FollowLaneAction(target_speed, cte)
-
 
 fourWayIntersections = []
 for intersection in network.intersections:
@@ -44,9 +43,6 @@ straight_maneuver = straight_manuevers[0]
 startLane = straight_maneuver.startLane
 connectingLane = straight_maneuver.connectingLane
 endLane = straight_maneuver.endLane
-
-print("startLane: ", startLane.centerline.points)
-print("connectingLane: ", connectingLane.centerline.points)
 
 def concatenateCenterlines(centerlines=[]):
 

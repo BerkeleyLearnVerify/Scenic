@@ -7,10 +7,14 @@ from scenic.simulators.carla.simulator import CarlaSimulator
 # ==============================================================================
 # -- Parameters: CHANGEME ------------------------------------------------------
 carla_map = 'Town01'
+<<<<<<< Updated upstream
 sc_file_path = 'scripts/CARLA_Scenarios/challenge9.sc'
 #sc_file_path = 'scripts/naivePassing.sc'
 
 
+=======
+sc_file_path = 'scripts/naivePassing.sc'
+>>>>>>> Stashed changes
 
 address = '127.0.0.1'
 port = 2000

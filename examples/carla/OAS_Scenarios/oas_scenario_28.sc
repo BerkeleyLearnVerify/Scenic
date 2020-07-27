@@ -13,7 +13,6 @@ simulator = CarlaSimulator('Town01')
 MAX_BREAK_THRESHOLD = 1
 TERMINATE_TIME = 20
 
-
 def concatenateCenterlines(centerlines=[]):
 	line = []
 	if centerlines != []:
@@ -28,27 +27,24 @@ def concatenateCenterlines(centerlines=[]):
 behavior FollowWayPoints(target_speed=20, waypoints = None):
 	assert waypoints is not None
 
-	take actions.SetManualFirstGearShiftAction()
-	take actions.SetManualGearShiftAction(False)
+	followLane = actions.FollowLaneAction(target_speed, cte)
 
 	while True:
 		nearest_line_points = waypoints.nearestSegmentTo(self.position)
 		nearest_line_segment = PolylineRegion(nearest_line_points)
 		cte = nearest_line_segment.signedDistanceTo(self.position)
-		take actions.FollowLaneAction(target_speed, cte)
+		take followLane
 
 
 behavior LeftTurn(target_speed=20, waypoints = None):
 	assert waypoints is not None
-
-	take actions.SetManualFirstGearShiftAction()
-	take actions.SetManualGearShiftAction(False)
+	followLane = actions.FollowLaneAction(target_speed, cte)
 
 	while True:
 		nearest_line_points = waypoints.nearestSegmentTo(self.position)
 		nearest_line_segment = PolylineRegion(nearest_line_points)
 		cte = nearest_line_segment.signedDistanceTo(self.position)
-		take actions.FollowLaneAction(target_speed, cte)
+		take followLane
 
 
 threeWayIntersections = []

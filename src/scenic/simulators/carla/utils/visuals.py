@@ -247,7 +247,7 @@ class CameraManager(object):
 		self._surface = None
 		self._actor = actor
 		self._hud = hud
-		self._recording = False
+		self._recording = True
 		self.images = []
 		self._camera_transforms = [
 			carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
