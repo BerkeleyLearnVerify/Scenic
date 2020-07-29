@@ -138,7 +138,7 @@ class Simulation:
                 agent.behavior.stop()
             for monitor in self.scene.monitors:
                 monitor.stop()
-            veneer.endSimulation()
+            veneer.endSimulation(self)
 
     def initialState(self):
         """Return the initial state of the simulation."""

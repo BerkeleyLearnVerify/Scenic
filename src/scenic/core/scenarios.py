@@ -250,7 +250,7 @@ class Scenario:
 		sampledNamespaces = {}
 		for modName, namespace in self.behaviorNamespaces.items():
 			sampledNamespace = { name: sample[value] for name, value in namespace.items() }
-			sampledNamespaces[modName] = (namespace, sampledNamespace)
+			sampledNamespaces[modName] = (namespace, sampledNamespace, namespace.copy())
 		alwaysReqs = (BoundRequirement(req, sample) for req in self.alwaysRequirements)
 		terminationConds = (BoundRequirement(req, sample) for req in self.terminationConditions)
 		scene = Scene(self.workspace, self.simulator, sampledObjects, ego, sampledParams,

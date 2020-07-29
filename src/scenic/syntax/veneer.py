@@ -180,14 +180,18 @@ def beginSimulation(sim):
 	egoObject = sim.scene.egoObject
 
 	# rebind globals that could be referenced by behaviors to their sampled values
-	for modName, (originalNS, sampledNS) in sim.scene.behaviorNamespaces.items():
-		originalNS.clear()
-		originalNS.update(sampledNS)
+	for modName, (namespace, sampledNS, originalNS) in sim.scene.behaviorNamespaces.items():
+		namespace.clear()
+		namespace.update(sampledNS)
 
-def endSimulation():
+def endSimulation(sim):
 	global currentSimulation, egoObject
 	currentSimulation = None
 	egoObject = None
+
+	for modName, (namespace, sampledNS, originalNS) in sim.scene.behaviorNamespaces.items():
+		namespace.clear()
+		namespace.update(originalNS)
 
 def simulationInProgress():
 	return currentSimulation is not None
@@ -324,7 +328,7 @@ class Behavior(Samplable):
 		yield from sub.runningIterator
 
 	def __str__(self):
-		return f'behavior {self.__name__}'
+		return f'behavior {self.__class__.__name__}'
 
 behaviorIndicator = '__Scenic_behavior'
 

@@ -1806,13 +1806,19 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 	# Gather all global namespaces which could be referred to by behaviors;
 	# we'll need to rebind any sampled values in them at runtime
 	behaviorNamespaces = {}
+	def registerNamespace(modName, ns):
+		if modName not in behaviorNamespaces:
+			behaviorNamespaces[modName] = ns
+		else:
+			assert behaviorNamespaces[modName] is ns
+		for name, value in ns.items():
+			if isinstance(value, types.ModuleType) and getattr(value, '_isScenicModule', False):
+				registerNamespace(value.__name__, value.__dict__)
 	for behavior in veneer.behaviors:
 		modName = behavior.__module__
 		globalNamespace = behavior.makeGenerator.__globals__
-		if modName not in behaviorNamespaces:
-			behaviorNamespaces[modName] = globalNamespace
-		else:
-			assert behaviorNamespaces[modName] is globalNamespace
+		registerNamespace(modName, globalNamespace)
+
 	namespace['_behaviorNamespaces'] = behaviorNamespaces
 
 def constructScenarioFrom(namespace):
