@@ -26,14 +26,14 @@ def concatenateCenterlines(centerlines=[]):
 	return regionFromShapelyObject(LineString(line))
 
 
-behavior EgoBehavior(target_speed=20, trajectory = None):
+behavior EgoBehavior(thresholdDistance, target_speed=20, trajectory = None):
 	assert trajectory is not None
 	brakeIntensity = 0.7
 
 	try: 
 		FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
 
-	interrupt when distanceToAnyCars(car=self, thresholdDistance=10):
+	interrupt when distanceToAnyCars(car=self, thresholdDistance=thresholdDistance):
 		take actions.SetBrakeAction(brakeIntensity)
 
 
@@ -46,37 +46,33 @@ for intersection in network.intersections:
 intersection = threeWayIntersections[5]
 maneuvers = intersection.maneuvers
 
-straight_manuevers = []
-for m in maneuvers:
-	if m.type == ManeuverType.STRAIGHT:
-		straight_manuevers.append(m)
-
-straight_maneuver = straight_manuevers[0]
-startLane = straight_maneuver.startLane
-connectingLane = straight_maneuver.connectingLane
-endLane = straight_maneuver.endLane
-
-centerlines = [startLane.centerline, connectingLane.centerline, endLane.centerline]
-
-
 leftTurn_manuevers = []
 for m in maneuvers:
 	if m.type == ManeuverType.LEFT_TURN:
 		leftTurn_manuevers.append(m)
 
+leftTurn_maneuver = leftTurn_manuevers[1]
+ego_L_startLane = leftTurn_maneuver.startLane
+ego_L_connectingLane = leftTurn_maneuver.connectingLane
+ego_L_endLane = leftTurn_maneuver.endLane
+
+ego_L_centerlines = [ego_L_startLane.centerline, ego_L_connectingLane.centerline, ego_L_endLane.centerline]
+
+
 leftTurn_maneuver = leftTurn_manuevers[0]
-L_startLane = leftTurn_maneuver.startLane
-L_connectingLane = leftTurn_maneuver.connectingLane
-L_endLane = leftTurn_maneuver.endLane
+other_L_startLane = leftTurn_maneuver.startLane
+other_L_connectingLane = leftTurn_maneuver.connectingLane
+other_L_endLane = leftTurn_maneuver.endLane
 
-L_centerlines = [L_startLane.centerline, L_connectingLane.centerline, L_endLane.centerline]
+other_L_centerlines = [other_L_startLane.centerline, other_L_connectingLane.centerline, other_L_endLane.centerline]
 
-ego = Car on startLane.centerline,
+ego = Car on ego_L_startLane.centerline,
 		with blueprint 'vehicle.tesla.model3',
-		with behavior EgoBehavior(target_speed=15, trajectory=centerlines)
+		with behavior EgoBehavior(target_speed=10, trajectory=ego_L_centerlines, thresholdDistance = 20)
 
-other = Car on L_startLane.centerline,
+other = Car on other_L_startLane.centerline,
 		with blueprint 'vehicle.tesla.model3',
-		with behavior FollowTrajectoryBehavior(target_speed=5, trajectory=L_centerlines)
+		with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=other_L_centerlines)
 
-# require that other car reaches the intersection before the ego car
+
+# require that ego car reaches the intersection before the other car

@@ -137,6 +137,7 @@ class SetBrakeAction(simulators.Action):
 
 	def applyTo(self, obj, vehicle, sim):
 		ctrl = vehicle.get_control()
+		ctrl.throttle = 0
 		ctrl.brake = self.brake
 		vehicle.apply_control(ctrl)
 
@@ -258,7 +259,7 @@ class FollowLaneAction(simulators.Action):
 	low level control a vehicle from client side
 	"""
 
-	def __init__(self, target_speed, cte, args_lateral=None, args_longitudinal=None, max_throttle=0.75, max_brake=0.3, max_steering=0.8):
+	def __init__(self, throttle, current_steer, past_steer, args_lateral=None, args_longitudinal=None, max_throttle=0.5, max_brake=0.5, max_steering=0.8):
 		"""
 		Constructor method.
 
@@ -279,10 +280,11 @@ class FollowLaneAction(simulators.Action):
 		self.max_brake = max_brake
 		self.max_throt = max_throttle
 		self.max_steer = max_steering
-		self.target_speed = target_speed
-		self.cte = cte
 		self.args_longitudinal = args_longitudinal
 		self.args_lateral = args_lateral
+		self.throttle = throttle
+		self.current_steer = current_steer
+		self.past_steer = past_steer
 
 	def applyTo(self, obj, vehicle, sim):
 		"""
@@ -294,39 +296,41 @@ class FollowLaneAction(simulators.Action):
 			:param waypoint: target location encoded as a waypoint
 			:return: distance (in meters) to the waypoint
 		"""
-		past_steering = vehicle.get_control().steer
+		# past_steering = vehicle.get_control().steer
 
-		if self.args_longitudinal!=None:
-			_lon_controller = PIDLongitudinalController(vehicle, **self.args_longitudinal)
-		else:
-			_lon_controller = PIDLongitudinalController(vehicle)
+		# if self.args_longitudinal!=None:
+		# 	_lon_controller = PIDLongitudinalController(vehicle, **self.args_longitudinal)
+		# else:
+		# 	_lon_controller = PIDLongitudinalController(vehicle)
 
-		if self.args_lateral!=None:
-			_lat_controller = PIDLateralController(vehicle, **self.args_lateral)
-		else: 
-			_lat_controller = PIDLateralController(vehicle)
+		# if self.args_lateral!=None:
+		# 	_lat_controller = PIDLateralController(vehicle, **self.args_lateral)
+		# else: 
+		# 	_lat_controller = PIDLateralController(vehicle)
 
-		acceleration = _lon_controller.run_step(self.target_speed)
-		current_steering = _lat_controller.run_step(self.cte)
+		# acceleration = _lon_controller.run_step(self.target_speed)
+		# current_steering = _lat_controller.run_step(self.cte)
+
 		control = carla.VehicleControl()
-		if acceleration >= 0.0:
-			control.throttle = min(acceleration, self.max_throt)
+
+		if self.throttle >= 0.0:
+			control.throttle = min(self.throttle, self.max_throt)
 			control.brake = 0.0
 		else:
 			control.throttle = 0.0
-			control.brake = min(abs(acceleration), self.max_brake)
+			control.brake = min(abs(self.throttle), self.max_brake)
 
 		# Steering regulation: changes cannot happen abruptly, can't steer too much.
 
-		if current_steering > past_steering + 0.1:
-		    current_steering = past_steering + 0.1
-		elif current_steering < past_steering - 0.1:
-		    current_steering = past_steering - 0.1
+		if self.current_steer > self.past_steer + 0.1:
+		    self.current_steer = self.past_steer + 0.1
+		elif self.current_steer < self.past_steer - 0.1:
+		    self.current_steer = self.past_steer - 0.1
 
-		if current_steering >= 0:
-		    steering = min(self.max_steer, current_steering)
+		if self.current_steer >= 0:
+		    steering = min(self.max_steer, self.current_steer)
 		else:
-		    steering = max(-self.max_steer, current_steering)
+		    steering = max(-self.max_steer, self.current_steer)
 
 		print("steer: ", steering)
 		print("throttle: ", control.throttle)
@@ -334,7 +338,6 @@ class FollowLaneAction(simulators.Action):
 		control.steer = steering
 		control.hand_brake = False
 		control.manual_gear_shift = False
-
 		vehicle.apply_control(control)
 
 
@@ -344,7 +347,7 @@ class PIDLongitudinalController():
 	"""
 
 
-	def __init__(self, vehicle, K_P=0.1, K_D=0.0, K_I=0, dt=0.1):
+	def __init__(self, vehicle, K_P=0.5, K_D=0.1, K_I=0.2, dt=0.1):
 		"""
 		Constructor method.
 
@@ -360,30 +363,16 @@ class PIDLongitudinalController():
 		self._k_i = K_I
 		self._dt = dt
 		self._error_buffer = deque(maxlen=10)
+		print("PIDLongitudinalController Instantiated")
 
-	def run_step(self, target_speed, debug=False):
+	def run_step(self, speed_error, debug=False):
 		"""
 		Execute one step of longitudinal control to reach a given target speed.
-
-			:param target_speed: target speed in Km/h
-			:param debug: boolean for debugging
-			:return: throttle control
-		"""
-		current_speed = get_speed(self.vehicle)
-
-		if debug:
-			print('Current speed = {}'.format(current_speed))
-
-		return self._pid_control(target_speed, current_speed)
-
-	def _pid_control(self, target_speed, current_speed):
-		"""
 		Estimate the throttle/brake of the vehicle based on the PID equations
-			:param target_speed:  target speed in Km/h
-			:param current_speed: current speed of the vehicle in Km/h
+			:param speed_error:  target speed - current speed (in Km/h)
 			:return: throttle/brake control
 		"""
-		error = target_speed - current_speed
+		error = speed_error
 		self._error_buffer.append(error)
 
 		if len(self._error_buffer) >= 2:
@@ -400,8 +389,8 @@ class PIDLateralController():
 	PIDLateralController implements lateral control using a PID.
 	"""
 
-	def __init__(self, vehicle, K_P=0.01, K_D=0.000001, K_I=0.1, dt=0.1):
-	# def __init__(self, vehicle, K_P=0.5, K_D=0.0, K_I=0.0, dt=0.1):
+	# def __init__(self, vehicle, K_P=0.01, K_D=0.000001, K_I=0.1, dt=0.1):
+	def __init__(self, vehicle, K_P=0.01, K_D=0.01, K_I=0, dt=0.1):
 		"""
 		Constructor method. 0.0000005
 
@@ -424,6 +413,7 @@ class PIDLateralController():
 		self.current_time = time.time()
 		self.last_time = self.current_time
 		self.output = 0
+		print("PIDLateralController Instantiated")
 
 	def run_step(self, cte):
 		"""

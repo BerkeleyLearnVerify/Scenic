@@ -5,14 +5,15 @@ from shapely.geometry import LineString
 from scenic.core.regions import regionFromShapelyObject
 from scenic.simulators.domains.driving.network import loadNetwork
 from scenic.simulators.domains.driving.roads import ManeuverType
-loadNetwork('/home/carla_challenge/Downloads/Town03.xodr')
+loadNetwork('/home/carla_challenge/Downloads/Town01.xodr')
 
 from scenic.simulators.carla.model import *
-simulator = CarlaSimulator('Town03')
+from scenic.simulators.carla.behaviors import *
+
+simulator = CarlaSimulator('Town01')
 
 MAX_BREAK_THRESHOLD = 1
 TERMINATE_TIME = 20
-
 
 def concatenateCenterlines(centerlines=[]):
 	line = []
@@ -25,17 +26,15 @@ def concatenateCenterlines(centerlines=[]):
 	return regionFromShapelyObject(LineString(line))
 
 
-behavior FollowWayPoints(target_speed=20, waypoints = None):
-	assert waypoints is not None
+behavior EgoBehavior(thresholdDistance, target_speed=20, trajectory = None):
+	assert trajectory is not None
+	brakeIntensity = 0.7
 
-	take actions.SetManualFirstGearShiftAction()
-	take actions.SetManualGearShiftAction(False)
+	try: 
+		FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
 
-	while True:
-		nearest_line_points = waypoints.nearestSegmentTo(self.position)
-		nearest_line_segment = PolylineRegion(nearest_line_points)
-		cte = nearest_line_segment.signedDistanceTo(self.position)
-		take actions.FollowLaneAction(target_speed, cte)
+	interrupt when distanceToAnyCars(car=self, thresholdDistance=thresholdDistance):
+		take actions.SetBrakeAction(brakeIntensity)
 
 
 threeWayIntersections = []
@@ -47,35 +46,33 @@ for intersection in network.intersections:
 intersection = threeWayIntersections[5]
 maneuvers = intersection.maneuvers
 
-straight_manuevers = []
+leftTurn_manuevers = []
 for m in maneuvers:
-	if m.type == ManeuverType.STRAIGHT:
-		straight_manuevers.append(m)
+	if m.type == ManeuverType.LEFT_TURN:
+		leftTurn_manuevers.append(m)
 
-straight_maneuver = straight_manuevers[0]
-startLane = straight_maneuver.startLane
-connectingLane = straight_maneuver.connectingLane
-endLane = straight_maneuver.endLane
+leftTurn_maneuver = leftTurn_manuevers[1]
+ego_L_startLane = leftTurn_maneuver.startLane
+ego_L_connectingLane = leftTurn_maneuver.connectingLane
+ego_L_endLane = leftTurn_maneuver.endLane
 
-centerlines = [startLane.centerline, connectingLane.centerline, endLane.centerline]
+ego_L_centerlines = [ego_L_startLane.centerline, ego_L_connectingLane.centerline, ego_L_endLane.centerline]
 
 
-rightTurn_manuevers = []
-for m in maneuvers:
-	if m.type == ManeuverType.RIGHT_TURN:
-		rightTurn_manuevers.append(m)
+leftTurn_maneuver = leftTurn_manuevers[0]
+other_L_startLane = leftTurn_maneuver.startLane
+other_L_connectingLane = leftTurn_maneuver.connectingLane
+other_L_endLane = leftTurn_maneuver.endLane
 
-rightTurn_maneuver = rightTurn_manuevers[1]
-R_startLane = rightTurn_maneuver.startLane
-R_connectingLane = rightTurn_maneuver.connectingLane
-R_endLane = rightTurn_maneuver.endLane
+other_L_centerlines = [other_L_startLane.centerline, other_L_connectingLane.centerline, other_L_endLane.centerline]
 
-R_centerlines = [R_startLane.centerline, R_connectingLane.centerline, R_endLane.centerline]
-
-ego = Car on startLane.centerline,
+ego = Car on ego_L_startLane.centerline,
 		with blueprint 'vehicle.tesla.model3',
-		with behavior FollowWayPoints(target_speed=25, waypoints=concatenateCenterlines(centerlines))
+		with behavior EgoBehavior(target_speed=10, trajectory=ego_L_centerlines, thresholdDistance = 20)
 
-other = Car on R_startLane.centerline,
+other = Car on other_L_startLane.centerline,
 		with blueprint 'vehicle.tesla.model3',
-		with behavior FollowWayPoints(target_speed=5, waypoints=concatenateCenterlines(R_centerlines))
+		with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=other_L_centerlines)
+
+
+# require that other car reaches the intersection before the ego car
