@@ -289,8 +289,8 @@ class Behavior(Samplable):
 			sig.bind(None, *args, **kwargs)
 		except TypeError as e:
 			raise RuntimeParseError(str(e)) from e
-		self.args = args
-		self.kwargs = kwargs
+		self.args = tuple(toDistribution(arg) for arg in args)
+		self.kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
 		super().__init__(itertools.chain(self.args, self.kwargs.values()))
 
 		self.runningIterator = None

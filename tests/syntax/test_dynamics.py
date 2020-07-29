@@ -25,6 +25,21 @@ def test_behavior_random_argument():
     actions3 = sampleEgoActionsFromScene(scene2)
     assert actions1 != actions3
 
+def test_behavior_random_argument_list():
+    scenario = compileScenic(
+        'behavior Foo(arg):\n'
+        '    take arg[1]\n'
+        'ego = Object with behavior Foo([-5, (10, 25)])'
+    )
+    scene = sampleScene(scenario)
+    actions1 = sampleEgoActionsFromScene(scene)
+    assert 10 <= actions1[0] <= 25
+    actions2 = sampleEgoActionsFromScene(scene)
+    assert actions1 == actions2
+    scene2 = sampleScene(scenario)
+    actions3 = sampleEgoActionsFromScene(scene2)
+    assert actions1 != actions3
+
 # Globals
 
 def test_behavior_globals_read():
