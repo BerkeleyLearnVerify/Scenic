@@ -51,7 +51,7 @@ from ast import NamedExpr, Yield, YieldFrom, FunctionDef, Attribute, Constant, A
 from ast import Return, Raise, If, UnaryOp, Not, ClassDef, Nonlocal, Global, Compare, Is, Try
 from ast import Break, Continue
 
-from scenic.core.distributions import Samplable, needsSampling
+from scenic.core.distributions import Samplable, needsSampling, toDistribution
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.workspaces import Workspace
 from scenic.simulators.simulators import Simulator
@@ -1814,6 +1814,11 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 		for name, value in ns.items():
 			if isinstance(value, types.ModuleType) and getattr(value, '_isScenicModule', False):
 				registerNamespace(value.__name__, value.__dict__)
+			else:
+				# Convert values requiring sampling to Distributions
+				dval = toDistribution(value)
+				if dval is not value:
+					ns[name] = dval
 	for behavior in veneer.behaviors:
 		modName = behavior.__module__
 		globalNamespace = behavior.makeGenerator.__globals__

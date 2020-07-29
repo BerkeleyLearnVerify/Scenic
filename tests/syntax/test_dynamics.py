@@ -60,6 +60,22 @@ def test_behavior_globals_read_module(runLocally):
         assert len(actions2) == 1
         assert actions2[0] != actions1[0]
 
+def test_behavior_globals_read_list():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take foo[1]
+        ego = Object with behavior Foo
+        foo = [5, (10, 20)]
+    """)
+    actions1 = sampleEgoActions(scenario, maxSteps=2)
+    assert len(actions1) == 2
+    assert 10 <= actions1[0] <= 20
+    assert actions1[0] == actions1[1]
+    actions2 = sampleEgoActions(scenario, maxSteps=1)
+    assert len(actions2) == 1
+    assert actions2[0] != actions1[0]
+
 def test_behavior_globals_write():
     scenario = compileScenic("""
         glob = 0
