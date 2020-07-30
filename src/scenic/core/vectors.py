@@ -220,6 +220,17 @@ class Vector(Samplable, collections.abc.Sequence):
 	def __rsub__(self, other):
 		return Vector(other[0] - self[0], other[1] - self[1])
 
+	@vectorOperator
+	def __mul__(self, other):
+		return Vector(*(coord*other for coord in self.coordinates))
+
+	def __rmul__(self, other):
+		return self.__mul__(other)
+
+	@vectorOperator
+	def __truediv__(self, other):
+		return Vector(*(coord/other for coord in self.coordinates))
+
 	def __len__(self):
 		return len(self.coordinates)
 
