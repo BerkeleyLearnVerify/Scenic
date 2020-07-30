@@ -750,6 +750,11 @@ class Network:
         for lane in self.lanes:     # draw centerlines of all lanes (including connecting)
             lane.centerline.show(plt, style=':', color='#A0A0A0')
         self.intersectionRegion.show(plt, style='g')
+        # for intersection in self.intersections:
+        #     for i, lane in enumerate(intersection.incomingLanes):
+        #         x, y = lane.centerline[-1]
+        #         plt.plot([x], [y], '*b')
+        #         plt.annotate(str(i), (x, y))
 
 ## FOR LATER
 
