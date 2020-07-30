@@ -1,10 +1,6 @@
 # stub to allow changing the map without having to alter lgsvl_model.sc
 
-import os.path
+from scenic.simulators.domains.driving.network import loadNetwork, loadLocalNetwork
 
-mapPath = None
+setMapPath = loadLocalNetwork   # for backwards compatibility
 
-def setMapPath(module, relpath):
-    global mapPath
-    base = os.path.dirname(module)
-    mapPath = os.path.join(base, relpath)

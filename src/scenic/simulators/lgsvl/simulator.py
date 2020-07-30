@@ -2,7 +2,6 @@
 import math
 
 import lgsvl
-import dreamview
 import numpy as np
 from scipy import linalg
 
@@ -62,7 +61,7 @@ class LGSVLSimulation(simulators.Simulation):
             # Initialize Data
             self.data[obj] = {}
             # Initialize Apollo if needed
-            if hasattr(obj, 'apolloVehicle'):
+            if getattr(obj, 'apolloVehicle', None):
                 self.initApolloFor(obj, lgsvlObj)
 
         # TODO reset object controllers???
@@ -100,6 +99,7 @@ class LGSVLSimulation(simulators.Simulation):
         lgsvlObj.connect_bridge(obj.bridgeHost, obj.bridgePort)
 
         # set up connection and map/vehicle configuration
+        import dreamview
         dv = dreamview.Connection(self.client, lgsvlObj)
         obj.dreamview = dv
         waitToStabilize = False
@@ -245,6 +245,7 @@ class SetDestinationAction(simulators.Action):
         if self.timer == 0:
             print('Setting destination...')
             z = sim.groundElevationAt(self.dest)
+            import dreamview
             obj.dreamview.setDestination(self.dest.x, self.dest.y, z,
                                       coordType=dreamview.CoordType.Unity)
 

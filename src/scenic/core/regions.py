@@ -187,7 +187,7 @@ class EmptyRegion(Region):
 	def distanceTo(self, point):
 		return float('inf')
 
-	def show(self, plt, style=None):
+	def show(self, plt, style=None, **kwargs):
 		pass
 
 	def __eq__(self, other):

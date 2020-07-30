@@ -3,20 +3,25 @@ import time
 
 import lgsvl
 
-from scenic.simulators.formats.opendrive import OpenDriveWorkspace
-from scenic.simulators.lgsvl.map import mapPath
+import scenic.simulators.domains.driving.model as baseModel
+from scenic.simulators.domains.driving.model import DrivingObject
+
+from scenic.simulators.lgsvl.simulator import LGSVLSimulator
 
 # Load map and set up various useful regions, etc.
 
-workspace = OpenDriveWorkspace(mapPath)
+workspace = baseModel.workspace
 
-roadDirection = workspace.road_direction
-road = workspace.drivable_region
-sidewalk = workspace.sidewalk_region
+network = baseModel.network
+road = baseModel.road
+roadDirection = baseModel.roadDirection
+curb = baseModel.curb
+sidewalk = baseModel.sidewalk
+intersection = baseModel.intersection
 
 ## LGSVL objects
 
-class LGSVLObject:
+class LGSVLObject(DrivingObject):
     lgsvlObject: None
     elevation: None
 
@@ -34,6 +39,10 @@ class Car(LGSVLObject):
     lgsvlAgentType: lgsvl.AgentType.NPC
 
 class EgoCar(Car):
+    lgsvlName: 'Lincoln2017MKZ (Apollo 5.0)'
+    lgsvlAgentType: lgsvl.AgentType.EGO
+
+class ApolloCar(EgoCar):
     lgsvlName: 'Lincoln2017MKZ (Apollo 5.0)'
     lgsvlAgentType: lgsvl.AgentType.EGO
     apolloVehicle: 'Lincoln2017MKZ'
