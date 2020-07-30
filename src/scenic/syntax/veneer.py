@@ -144,6 +144,8 @@ def registerObject(obj):
 		allObjects.append(obj)
 	elif evaluatingRequirement:
 		raise RuntimeParseError('tried to create an object inside a requirement')
+	elif currentSimulation is not None:
+		raise InvalidScenarioError('tried to create an object inside a behavior')
 
 # External parameter creation
 

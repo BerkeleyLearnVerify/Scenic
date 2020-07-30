@@ -4,7 +4,7 @@ import math
 import random
 
 from scenic.syntax.translator import InterpreterParseError, InvalidScenarioError
-from tests.utils import compileScenic, sampleEgo, sampleParamP
+from tests.utils import compileScenic, sampleScene, sampleEgo, sampleParamP
 
 ## Utilities
 
@@ -333,3 +333,15 @@ def test_inside_delayed_argument():
     assert any(h == 1.2 for h in hs)
     assert any(h == pytest.approx(0) for h in hs)
     assert any(h == pytest.approx(2) for h in hs)
+
+## Typechecking
+
+def test_object_expression():
+    scenario = compileScenic("""
+        v = Uniform((Object at (-2,-1) @ 0), Object at (1,2) @ 5).position.x
+        ego = Object facing v, at 0 @ 10
+        require abs(v) > 1.5
+    """)
+    for i in range(3):
+        scene = sampleScene(scenario, maxIterations=50)
+        assert len(scene.objects) == 3

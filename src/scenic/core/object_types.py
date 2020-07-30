@@ -48,13 +48,13 @@ class Constructible(Samplable):
 		assert all(reqProp in props for reqProp in cls.defaults())
 		assert all(not needsLazyEvaluation(val) for val in props.values())
 		specs = (Specifier(prop, val) for prop, val in props.items())
-		return cls(*specs)
+		return cls(*specs, _internal=True)
 
-	def __init__(self, *args, **kwargs):
+	def __init__(self, *args, _internal=False, **kwargs):
 		# Validate specifiers
 		name = type(self).__name__
 		specifiers = list(args)
-		for prop, val in kwargs.items():
+		for prop, val in kwargs.items():	# kwargs supported for internal use
 			specifiers.append(Specifier(prop, val))
 		properties = dict()
 		optionals = collections.defaultdict(list)
@@ -126,6 +126,13 @@ class Constructible(Samplable):
 				deps.append(val)
 		super().__init__(deps)
 		self.properties = set(properties)
+
+		# Possibly register this object
+		if not _internal:
+			self._register()
+
+	def _register(self):
+		pass	# do nothing by default; may be overridden by subclasses
 
 	def sampleGiven(self, value):
 		return self.withProperties({ prop: value[getattr(self, prop)]
@@ -352,8 +359,6 @@ class Object(OrientedPoint, RotatedRectangle):
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		import scenic.syntax.veneer as veneer	# TODO improve?
-		veneer.registerObject(self)
 		self.hw = hw = self.width / 2
 		self.hh = hh = self.height / 2
 		self.radius = hypot(hw, hh)	# circumcircle; for collision detection
@@ -372,6 +377,10 @@ class Object(OrientedPoint, RotatedRectangle):
 		self.visibleRegion = SectorRegion(camera, self.visibleDistance,
 										  self.heading, self.viewAngle)
 		self._relations = []
+
+	def _register(self):
+		import scenic.syntax.veneer as veneer	# TODO improve?
+		veneer.registerObject(self)
 
 	def __getattribute__(self, name):
 		proxy = object.__getattribute__(self, '_dynamicProxy')
