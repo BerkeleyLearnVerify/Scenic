@@ -284,6 +284,13 @@ class VectorField:
 			pos = pos.offsetRadially(step, self[pos])
 		return pos
 
+	@staticmethod
+	def forUnionOf(regions):
+		if any(reg.orientation for reg in regions):
+			return PiecewiseVectorField('Union', regions)
+		else:
+			return None
+
 	def __str__(self):
 		return f'<{type(self).__name__} {self.name}>'
 
@@ -307,3 +314,17 @@ class PolygonalVectorField(VectorField):
 		if self.defaultHeading is not None:
 			return self.defaultHeading
 		raise RuntimeError(f'evaluated PolygonalVectorField at undefined point {pos}')
+
+class PiecewiseVectorField(VectorField):
+	def __init__(self, name, regions, defaultHeading=None):
+		self.regions = tuple(regions)
+		self.defaultHeading = defaultHeading
+		super().__init__(name, self.valueAt)
+
+	def valueAt(self, point):
+		for region in self.regions:
+			if region.containsPoint(point) and region.orientation:
+				return region.orientation[point]
+		if self.defaultHeading is not None:
+			return self.defaultHeading
+		raise RuntimeError(f'evaluated PiecewiseVectorField at undefined point {point}')

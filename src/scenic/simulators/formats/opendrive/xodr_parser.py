@@ -194,7 +194,8 @@ class Lane():
         assert self.width[ind][1] <= s, 'No matching width entry found.'
         w_poly, s_off = self.width[ind]
         w = w_poly.eval_at(s - s_off)
-        assert w >= 0, 'Negative width!'
+        if w < 0:
+            raise RuntimeError('OpenDRIVE lane has negative width')
         return w
 
 
@@ -1433,7 +1434,8 @@ class RoadMap:
                         maneuver = roadDomain.Maneuver(
                             startLane=fromLane.lane,
                             connectingLane=toLane.lane,
-                            endLane=outgoingLane
+                            endLane=outgoingLane,
+                            intersection=None   # will be patched once the Intersection is created
                         )
                         maneuversForLane[fromLane.lane].append(maneuver)
 

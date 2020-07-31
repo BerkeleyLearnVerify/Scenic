@@ -643,20 +643,23 @@ class PolygonalRegion(Region):
 		if not poly:
 			return super().union(other, triedReversed)
 		union = polygonUnion((self.polygons, poly), buf=buf)
-		return PolygonalRegion(polygon=union)
+		orientation = VectorField.forUnionOf((self, other))
+		return PolygonalRegion(polygon=union, orientation=orientation)
 
 	@staticmethod
 	def unionAll(regions, buf=0):
-		polys = []
+		regs, polys = [], []
 		for reg in regions:
 			if reg != nowhere:
+				regs.append(reg)
 				polys.append(toPolygon(reg))
 		if not polys:
 			return nowhere
 		if any(not poly for poly in polys):
 			raise RuntimeError(f'cannot take union of regions {regions}')
 		union = polygonUnion(polys, buf=buf)
-		return PolygonalRegion(polygon=union)
+		orientation = VectorField.forUnionOf(regs)
+		return PolygonalRegion(polygon=union, orientation=orientation)
 
 	def containsPoint(self, point):
 		return self.polygons.intersects(shapely.geometry.Point(point))
