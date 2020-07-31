@@ -513,7 +513,7 @@ class Network:
     #: whenever attributes of `Network`, `NetworkElement`, etc. are changed,
     #: so that cached networks will be properly regenerated (rather than being
     #: unpickled in an inconsistent state and causing errors later).
-    formatVersion = 2
+    formatVersion = 3
 
     elements: Dict[str, NetworkElement]     # indexed by unique ID
 
