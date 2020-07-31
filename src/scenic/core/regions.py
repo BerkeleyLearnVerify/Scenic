@@ -51,6 +51,13 @@ class PointInRegionDistribution(VectorDistribution):
 	def sampleGiven(self, value):
 		return value[self.region].uniformPointInner()
 
+	@property
+	def heading(self):
+		if self.region.orientation is not None:
+			return self.region.orientation[self]
+		else:
+			return 0
+
 	def __str__(self):
 		return f'PointIn({self.region})'
 

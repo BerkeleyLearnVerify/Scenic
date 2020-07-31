@@ -274,7 +274,7 @@ class VectorField:
 		self.valueType = float
 
 	@distributionMethod
-	def __getitem__(self, pos):
+	def __getitem__(self, pos) -> float:
 		return self.value(pos)
 
 	@vectorDistributionMethod
