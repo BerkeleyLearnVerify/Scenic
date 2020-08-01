@@ -532,8 +532,7 @@ def mutate(*objects):		# TODO update syntax
 
 def Visible(region):
 	"""The 'visible <region>' operator."""
-	if not isinstance(region, Region):
-		raise RuntimeParseError('"visible X" with X not a Region')
+	region = toType(region, Region, '"visible X" with X not a Region')
 	return region.intersect(ego().visibleRegion)
 
 # front of <object>, etc.

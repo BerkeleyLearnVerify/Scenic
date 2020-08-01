@@ -255,11 +255,11 @@ class CircularRegion(Region):
 
 class SectorRegion(Region):
 	def __init__(self, center, radius, heading, angle, resolution=32):
-		super().__init__('Sector', center, radius, heading, angle)
 		self.center = center.toVector()
 		self.radius = radius
 		self.heading = heading
 		self.angle = angle
+		super().__init__('Sector', self.center, radius, heading, angle)
 		r = (radius / 2) * cos(angle / 2)
 		self.circumcircle = (self.center.offsetRadially(r, heading), r)
 
@@ -667,6 +667,10 @@ class PolygonalRegion(Region):
 		union = polygonUnion(polys, buf=buf)
 		orientation = VectorField.forUnionOf(regs)
 		return PolygonalRegion(polygon=union, orientation=orientation)
+
+	@property
+	def boundary(self):
+		return PolylineRegion(polyline=self.polygons.boundary)
 
 	def containsPoint(self, point):
 		return self.polygons.intersects(shapely.geometry.Point(point))
