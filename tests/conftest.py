@@ -3,11 +3,6 @@ import os.path
 from contextlib import contextmanager
 import pytest
 
-import scenic.core.geometry
-
-# suppress warning about using pypoly2tri
-scenic.core.geometry.givePP2TWarning = False
-
 @pytest.fixture
 def loadLocalScenario(request):
     import scenic

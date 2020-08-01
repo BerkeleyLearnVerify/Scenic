@@ -7,7 +7,6 @@ import warnings
 import numpy as np
 import shapely.geometry
 import shapely.ops
-import pypoly2tri
 
 from scenic.core.distributions import (needsSampling, distributionFunction,
                                        monotonicDistributionFunction)
@@ -265,9 +264,6 @@ def cleanChain(chain, tolerance=1e-6, lineTolerance=1e-6):
 	newChain.append(c)
 	return newChain
 
-#: Whether to warn when falling back to pypoly2tri for triangulation
-givePP2TWarning = True
-
 class TriangulationError(RuntimeError):
 	"""Signals that the installed triangulation libraries are insufficient.
 
@@ -284,11 +280,9 @@ def triangulatePolygon(polygon):
 	algorithm for triangulation of polygons with holes (it doesn't need to be a
 	Delaunay triangulation).
 
-	We currently use the GPC library (wrapped by the ``Polygon3`` package) if it is
-	installed. Since it is not free for commercial use, we don't require it as a
-	dependency, falling back on the BSD-compatible ``pypoly2tri`` as needed. In this
-	case we issue a warning, since GPC is more robust and handles large polygons.
-	The warning can be disabled by setting `givePP2TWarning` to ``False``.
+	We use ``mapbox_earcut`` by default. If it is not installed, we allow fallback to
+	``pypoly2tri`` for historical reasons (we originally used the GPC library, which is
+	not free for commercial use, falling back to ``pypoly2tri`` if not installed).
 
 	Args:
 		polygon (shapely.geometry.Polygon): Polygon to triangulate.
@@ -298,16 +292,18 @@ def triangulatePolygon(polygon):
 		original polygon.
 	"""
 	try:
-		import Polygon
-		return triangulatePolygon_gpc(polygon)
+		return triangulatePolygon_mapbox(polygon)
 	except ImportError:
 		pass
-	if givePP2TWarning:
-		warnings.warn('Using pypoly2tri for triangulation; for non-commercial use, consider'
-		              ' installing the faster Polygon3 library (pip install Polygon3)')
-	return triangulatePolygon_pypoly2tri(polygon)
+	try:
+		return triangulatePolygon_pypoly2tri(polygon)
+	except ImportError:
+		pass
+	raise RuntimeError('no triangulation libraries installed '
+	                   '(did you uninstall mapbox_earcut?)')
 
 def triangulatePolygon_pypoly2tri(polygon):
+	import pypoly2tri
 	polyline = []
 	for c in polygon.exterior.coords[:-1]:
 		polyline.append(pypoly2tri.shapes.Point(c[0],c[1]))
@@ -332,20 +328,25 @@ def triangulatePolygon_pypoly2tri(polygon):
 		]))
 	return triangles
 
-def triangulatePolygon_gpc(polygon):
-	import Polygon as PolygonLib
-	poly = PolygonLib.Polygon(polygon.exterior.coords)
+def triangulatePolygon_mapbox(polygon):
+	import mapbox_earcut
+	vertices, rings = [], []
+	ring = polygon.exterior.coords[:-1]		# despite 'ring' name, actually need a chain
+	vertices.extend(ring)
+	rings.append(len(vertices))
 	for interior in polygon.interiors:
-		poly.addContour(interior.coords, True)
-	tristrips = poly.triStrip()
+		ring = interior.coords[:-1]
+		vertices.extend(ring)
+		rings.append(len(vertices))
+	vertices = np.array(vertices, dtype=np.float64)
+	rings = np.array(rings)
+	result = mapbox_earcut.triangulate_float64(vertices, rings)
+
 	triangles = []
-	for strip in tristrips:
-		a, b = strip[:2]
-		for c in strip[2:]:
-			tri = shapely.geometry.Polygon((a, b, c))
-			triangles.append(tri)
-			a = b
-			b = c
+	points = vertices[result]
+	its = [iter(points)] * 3
+	for triple in zip(*its):
+		triangles.append(shapely.geometry.Polygon(triple))
 	return triangles
 
 def plotPolygon(polygon, plt, style='r-', **kwargs):
