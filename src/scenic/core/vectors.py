@@ -10,7 +10,7 @@ import functools
 import shapely.geometry
 
 from scenic.core.distributions import (Samplable, Distribution, MethodDistribution,
-                                       needsSampling, makeOperatorHandler, distributionMethod)
+    needsSampling, makeOperatorHandler, distributionMethod, RejectionException)
 from scenic.core.lazy_eval import valueInContext, needsLazyEvaluation, makeDelayedFunctionCall
 import scenic.core.utils as utils
 from scenic.core.geometry import normalizeAngle
@@ -313,7 +313,7 @@ class PolygonalVectorField(VectorField):
 				return self.headingFunction(pos) if heading is None else heading
 		if self.defaultHeading is not None:
 			return self.defaultHeading
-		raise RuntimeError(f'evaluated PolygonalVectorField at undefined point {pos}')
+		raise RejectionException(f'evaluated PolygonalVectorField at undefined point')
 
 class PiecewiseVectorField(VectorField):
 	def __init__(self, name, regions, defaultHeading=None):
@@ -327,4 +327,4 @@ class PiecewiseVectorField(VectorField):
 				return region.orientation[point]
 		if self.defaultHeading is not None:
 			return self.defaultHeading
-		raise RuntimeError(f'evaluated PiecewiseVectorField at undefined point {point}')
+		raise RejectionException(f'evaluated PiecewiseVectorField at undefined point')
