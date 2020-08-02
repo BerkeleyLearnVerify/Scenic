@@ -92,6 +92,7 @@ def canCoerce(thing, ty):
 		# sampling a value and checking its type
 		try:
 			value = thing.sample()
+			thing.valueType = type(value)	# to speed up future type checks
 			return canCoerce(value, ty)
 		except RejectionException:
 			return True		# fall back on type-checking at runtime

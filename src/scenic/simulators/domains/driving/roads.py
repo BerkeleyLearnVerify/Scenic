@@ -473,6 +473,7 @@ class Intersection(NetworkElement):
         super().__attrs_post_init__()
         for maneuver in self.maneuvers:
             assert maneuver.connectingLane, maneuver
+            assert self.containsRegion(maneuver.connectingLane, tolerance=0.5)
 
     @property
     def is3Way(self):
