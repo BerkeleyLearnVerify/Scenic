@@ -509,12 +509,6 @@ class Intersection(NetworkElement):
 class Network:
     """A road network."""
 
-    #: Version number for the road network format. Should be incremented
-    #: whenever attributes of `Network`, `NetworkElement`, etc. are changed,
-    #: so that cached networks will be properly regenerated (rather than being
-    #: unpickled in an inconsistent state and causing errors later).
-    formatVersion = 3
-
     elements: Dict[str, NetworkElement]     # indexed by unique ID
 
     # TODO change these to frozensets once everything is hashable?
@@ -548,7 +542,7 @@ class Network:
     roadDirection: VectorField = None
 
     def __attrs_post_init__(self):
-        self.formatVersion = self.formatVersion     # copy class var to instance
+        self.formatVersion = self.currentFormatVersion()
         for uid, elem in self.elements.items():
             assert elem.uid == uid
 
@@ -591,6 +585,17 @@ class Network:
     pickledExt = '.snet'
 
     @classmethod
+    def currentFormatVersion(cls):
+        """Version number for the road network format.
+
+        Should be incremented whenever attributes of `Network`, `NetworkElement`, etc.
+        or the underlying Regions are changed, so that cached networks will be properly
+        regenerated (rather than being unpickled in an inconsistent state and causing
+        errors later).
+        """
+        return 3
+
+    @classmethod
     def fromFile(cls, path, useCache=True, writeCache=True, **kwargs):
         path = pathlib.Path(path)
         ext = path.suffix
@@ -631,7 +636,7 @@ class Network:
         with bz2.open(path, 'rb') as f:
             network = pickle.load(f)
         version = getattr(network, 'formatVersion', None)
-        if version != cls.formatVersion:
+        if version != cls.currentFormatVersion():
             raise pickle.UnpicklingError(f'{cls.pickledExt} file is too old; '
                                          'regenerate it from the original map')
         # Reconnect links between network elements
@@ -654,9 +659,9 @@ class Network:
         path = pathlib.Path(path)
         if not path.suffix:
             path = path.with_suffix(self.pickledExt)
+        data = pickle.dumps(self)
+        data = pickletools.optimize(data)
         with bz2.open(path, 'wb') as f:
-            data = pickle.dumps(self)
-            data = pickletools.optimize(data)
             f.write(data)
 
     @distributionFunction
