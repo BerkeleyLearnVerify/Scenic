@@ -33,6 +33,7 @@ def cached_maps(tmpdir_factory):
         paths[localMap] = newPath
     return paths
 
+@pytest.mark.slow
 @pytest.mark.parametrize("path", maps)
 def test_opendrive(path, cached_maps):
     try:

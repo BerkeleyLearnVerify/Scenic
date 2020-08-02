@@ -1,5 +1,7 @@
 
-from scenic import scenarioFromString as compileScenic
+import pytest
+
+from tests.utils import compileScenic
 
 def test_basic(loadLocalScenario):
     scenario = loadLocalScenario('crossing.scenic')
@@ -13,6 +15,7 @@ def test_curb(loadLocalScenario):
     scenario = loadLocalScenario('curb.scenic')
     scenario.generate(maxIterations=200)
 
+@pytest.mark.slow
 def test_noninterference(runLocally):
     code = (
         "import scenic.simulators.webots.road.world as world\n"
