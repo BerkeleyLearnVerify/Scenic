@@ -524,6 +524,16 @@ class ScenicLoader(importlib.abc.InspectLoader):
 		module._source = source
 		module._pythonSource = pythonSource
 
+		# If we're in the process of compiling another Scenic module, inherit
+		# objects, parameters, etc. from this one
+		if veneer.isActive():
+			veneer.allObjects.extend(module._objects)
+			veneer.globalParameters.update(module._params)
+			veneer.externalParameters.extend(module._externalParams)
+			veneer.inheritedReqs.extend(module._requirements)
+			veneer.behaviors.extend(module._behaviors)
+			veneer.monitors.extend(module._monitors)
+
 	def is_package(self, fullname):
 		return False
 
@@ -539,24 +549,6 @@ class ScenicLoader(importlib.abc.InspectLoader):
 
 # register the meta path finder
 sys.meta_path.insert(0, ScenicMetaFinder())
-
-## Post-import hook to inherit objects, etc. from imported Scenic modules
-
-def hooked_import(*args, **kwargs):
-	"""Version of __import__ hooked by Scenic to capture Scenic modules."""
-	module = original_import(*args, **kwargs)
-	if getattr(module, '_isScenicModule', False):
-		if veneer.isActive():
-			veneer.allObjects.extend(module._objects)
-			veneer.globalParameters.update(module._params)
-			veneer.externalParameters.extend(module._externalParams)
-			veneer.inheritedReqs.extend(module._requirements)
-			veneer.behaviors.extend(module._behaviors)
-			veneer.monitors.extend(module._monitors)
-	return module
-
-original_import = builtins.__import__
-builtins.__import__ = hooked_import
 
 ## Miscellaneous utilities
 
