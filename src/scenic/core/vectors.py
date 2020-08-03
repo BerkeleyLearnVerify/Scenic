@@ -268,17 +268,25 @@ class OrientedVector(Vector):
 		return hash((self.coordinates, self.heading))
 
 class VectorField:
-	def __init__(self, name, value):
+	def __init__(self, name, value, minSteps=4, defaultStepSize=5):
 		self.name = name
 		self.value = value
 		self.valueType = float
+		self.minSteps = minSteps	# minimum number of 'follow' steps, if not specified
+		self.defaultStepSize = defaultStepSize
 
 	@distributionMethod
 	def __getitem__(self, pos) -> float:
 		return self.value(pos)
 
 	@vectorDistributionMethod
-	def followFrom(self, pos, dist, steps=4):
+	def followFrom(self, pos, dist, steps=None, stepSize=None):
+		if steps is None:
+			steps = self.minSteps
+			stepSize = self.defaultStepSize if stepSize is None else stepSize
+			if stepSize is not None:
+				steps = max(steps, int((dist / stepSize) + 1))
+
 		step = dist / steps
 		for i in range(steps):
 			pos = pos.offsetRadially(step, self[pos])

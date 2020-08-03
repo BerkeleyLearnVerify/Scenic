@@ -215,7 +215,7 @@ class LinearElement(NetworkElement):
     @distributionFunction
     def flowFrom(self, point: Vectorlike, distance: float,
                  steps: Union[int, None] = None,
-                 stepSize: Union[float, None] = None) -> Vector:
+                 stepSize: Union[float, None] = 5) -> Vector:
         """Advance a point along this element by a given distance.
 
         Equivalent to 'follow element.orientation from point for distance', but
@@ -224,11 +224,8 @@ class LinearElement(NetworkElement):
         the 'steps' and 'stepSize' parameters if they can compute the flow
         exactly.
         """
-        if steps is None:
-            if stepSize is None:
-                stepSize = 5
-            steps = min(4, int((distance / stepSize) + 1))
-        return self.orientation.followFrom(toVector(point), distance, steps=steps)
+        return self.orientation.followFrom(toVector(point), distance,
+                                           steps=steps, stepSize=None)
 
 class ContainsCenterline:
     """Mixin which asserts that the centerline is contained in the polygon."""
