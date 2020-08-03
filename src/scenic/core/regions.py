@@ -788,6 +788,7 @@ class PointSetRegion(Region):
 		        and other.points == self.points
 		        and other.orientation == self.orientation)
 
+	@cached
 	def __hash__(self):
 		return hash((self.name, self.points, self.orientation))
 

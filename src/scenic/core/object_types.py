@@ -256,11 +256,14 @@ class Point(Constructible):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.position = toVector(self.position, f'"position" of {self} not a vector')
-		self.corners = (self.position,)
 
 	@cached_property
 	def visibleRegion(self):
 		return CircularRegion(self.position, self.visibleDistance)
+
+	@cached_property
+	def corners(self):
+		return (self.position,)
 
 	def toVector(self):
 		return self.position.toVector()
@@ -371,12 +374,6 @@ class Object(OrientedPoint, RotatedRectangle):
 		self.hh = hh = self.height / 2
 		self.radius = hypot(hw, hh)	# circumcircle; for collision detection
 		self.inradius = min(hw, hh)	# incircle; for collision detection
-		self.corners = (
-		    self.relativePosition(Vector(hw, hh)),
-		    self.relativePosition(Vector(-hw, hh)),
-		    self.relativePosition(Vector(-hw, -hh)),
-		    self.relativePosition(Vector(hw, -hh))
-		)
 
 		self._relations = []
 
@@ -428,6 +425,16 @@ class Object(OrientedPoint, RotatedRectangle):
 	def visibleRegion(self):
 		camera = self.position.offsetRotated(self.heading, self.cameraOffset)
 		return SectorRegion(camera, self.visibleDistance, self.heading, self.viewAngle)
+
+	@cached_property
+	def corners(self):
+		hw, hh = self.hw, self.hh
+		return (
+			self.relativePosition(Vector(hw, hh)),
+			self.relativePosition(Vector(-hw, hh)),
+			self.relativePosition(Vector(-hw, -hh)),
+			self.relativePosition(Vector(hw, -hh))
+		)
 
 	def show(self, workspace, plt, highlight=False):
 		if needsSampling(self):

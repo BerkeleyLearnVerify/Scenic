@@ -11,7 +11,7 @@ import shapely.ops
 from scenic.core.distributions import (needsSampling, distributionFunction,
                                        monotonicDistributionFunction)
 from scenic.core.lazy_eval import needsLazyEvaluation
-import scenic.core.utils as utils
+from scenic.core.utils import cached_property
 
 @distributionFunction
 def sin(x) -> float:
@@ -376,50 +376,30 @@ def plotPolygon(polygon, plt, style='r-', **kwargs):
 class RotatedRectangle:
 	"""mixin providing collision detection for rectangular objects and regions"""
 	def containsPoint(self, point):
-		diff = point - self.position.toVector()
-		x, y = diff.rotatedBy(-self.heading)
-		return abs(x) <= self.hw and abs(y) <= self.hh
+		pt = shapely.geometry.Point(point)
+		return self.polygon.intersects(pt)
 
 	def intersects(self, rect):
-		if not isinstance(rect, RotatedRectangle):
-			raise RuntimeError(f'tried to intersect RotatedRectangle with {type(rect)}')
-		# Quick check by bounding circles
-		dx, dy = rect.position.toVector() - self.position.toVector()
-		rr = self.radius + rect.radius
-		if (dx * dx) + (dy * dy) > (rr * rr):
-			return False
-		# Check for separating line parallel to our edges
-		if self.edgeSeparates(self, rect):
-			return False
-		# Check for separating line parallel to rect's edges
-		if self.edgeSeparates(rect, self):
-			return False
-		return True
+		return self.polygon.intersects(rect.polygon)
+
+	@cached_property
+	def polygon(self):
+		position, heading, hw, hh = self.position, self.heading, self.hw, self.hh
+		if any(needsSampling(c) or needsLazyEvaluation(c)
+		       for c in (position, heading, hw, hh)):
+			return None		# can only convert fixed Regions to Polygons
+		corners = RotatedRectangle.makeCorners(position.x, position.y, heading, hw, hh)
+		return shapely.geometry.Polygon(corners)
 
 	@staticmethod
-	def edgeSeparates(rectA, rectB):
-		"""Whether an edge of rectA separates it from rectB"""
-		base = rectA.position.toVector()
-		rot = -rectA.heading
-		rc = [(corner - base).rotatedBy(rot) for corner in rectB.corners]
-		x, y = zip(*rc)
-		minx, maxx = findMinMax(x)
-		miny, maxy = findMinMax(y)
-		if maxx < -rectA.hw or rectA.hw < minx:
-			return True
-		if maxy < -rectA.hh or rectA.hh < miny:
-			return True
-		return False
-
-	@property
-	def polygon(self):
-		if any(needsSampling(c) or needsLazyEvaluation(c) for c in self.corners):
-			return None		# can only convert fixed Regions to Polygons
-		return self.getConstantPolygon()
-
-	@utils.cached
-	def getConstantPolygon(self):
-		assert not any(needsSampling(c) or needsLazyEvaluation(c) for c in self.corners)
-		# TODO refactor???
-		corners = [(x, y) for x, y in self.corners]		# convert Vectors to tuples
-		return shapely.geometry.Polygon(corners)
+	def makeCorners(px, py, heading, hw, hh):
+		s, c = sin(heading), cos(heading)
+		s_hw, c_hw = s*hw, c*hw
+		s_hh, c_hh = s*hh, c*hh
+		corners = (
+			(px + c_hw - s_hh, py + s_hw + c_hh),
+			(px - c_hw - s_hh, py - s_hw + c_hh),
+			(px - c_hw + s_hh, py - s_hw - c_hh),
+			(px + c_hw + s_hh, py + s_hw - c_hh)
+		)
+		return corners

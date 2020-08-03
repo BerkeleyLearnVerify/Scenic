@@ -71,7 +71,7 @@ from scenic.core.distributions import (Samplable, RejectionException, Distributi
 from scenic.core.type_support import (isA, toType, toTypes, toScalar, toHeading, toVector,
 									  evaluateRequiringEqualTypes, underlyingType,
 									  canCoerce, coerce)
-from scenic.core.geometry import RotatedRectangle, normalizeAngle, apparentHeadingAtPoint
+from scenic.core.geometry import normalizeAngle, apparentHeadingAtPoint
 from scenic.core.object_types import Constructible
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
@@ -735,9 +735,10 @@ def alwaysProvidesOrientation(region):
 	elif (isinstance(region, Options)
 	      and all(alwaysProvidesOrientation(opt) for opt in region.options)):
 		return True
-	else:	# TODO improve somehow?
+	else:	# TODO improve somehow!
 		try:
-			return region.sample().orientation is not None
+			sample = region.sample()
+			return sample.orientation is not None or sample is nowhere
 		except RejectionException:
 			return False
 
