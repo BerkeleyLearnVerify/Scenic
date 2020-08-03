@@ -46,6 +46,13 @@ def cached(oldMethod):
             return value
 
     return wrapper
+def cached_property(oldMethod):
+    return property(cached(oldMethod))
+
+def argsToString(args):
+    names = (f'{a[0]}={a[1]}' if isinstance(a, tuple) else str(a) for a in args)
+    joinedArgs = ', '.join(names)
+    return f'({joinedArgs})'
 
 
 _methodCaches = weakref.WeakKeyDictionary()

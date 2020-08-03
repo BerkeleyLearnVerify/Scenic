@@ -71,7 +71,7 @@ from scenic.core.type_support import (
     toVector,
     underlyingType,
 )
-from scenic.core.utils import DefaultIdentityDict, cached_method, cached_property
+from scenic.core.utils import DefaultIdentityDict, cached_method, cached_property, RuntimeParseError
 from scenic.core.vectors import (
     Orientation,
     Vector,
@@ -531,18 +531,17 @@ class Constructible(Samplable):
             dumpAsScenicCode(getattr(self, prop), stream)
 
     def __str__(self):
-        if hasattr(self, "properties") and "name" in self._propertiesSet:
+        if hasattr(self, 'properties') and 'name' in self.properties:
             return self.name
         else:
-            return f"unnamed {self.__class__.__name__}"
+            return super().__repr__()
 
     def __repr__(self):
-        if hasattr(self, "properties"):
-            allProps = {prop: getattr(self, prop) for prop in self.properties}
+        if hasattr(self, 'properties'):
+            allProps = { prop: getattr(self, prop) for prop in self.properties }
         else:
-            allProps = "<under construction>"
-        return f"{type(self).__name__}({allProps})"
-
+            allProps = '<under construction>'
+        return f'{type(self).__name__}({allProps})'
 
 ## Mutators
 
