@@ -285,7 +285,7 @@ class VectorField:
 			steps = self.minSteps
 			stepSize = self.defaultStepSize if stepSize is None else stepSize
 			if stepSize is not None:
-				steps = max(steps, int((dist / stepSize) + 1))
+				steps = max(steps, math.ceil(dist / stepSize))
 
 		step = dist / steps
 		for i in range(steps):

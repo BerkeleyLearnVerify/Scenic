@@ -226,6 +226,18 @@ def test_offset_along_field():
     d = 1 / math.sqrt(2)
     assert tuple(ego.position) == pytest.approx((15 + 3*d + 2*d, 7 - 3*d + 2*d))
 
+# follow
+
+def test_follow():
+    ego = sampleEgoFrom("""
+        vf = VectorField("Foo", lambda pos: 90 deg * (pos.x + pos.y - 1),
+                         minSteps=4, defaultStepSize=1)
+        p = follow vf from 1@1 for 4
+        ego = Object at p, facing p.heading
+    """)
+    assert tuple(ego.position) == pytest.approx((-1, 3))
+    assert ego.heading == pytest.approx(math.radians(90))
+
 ## Region operators
 
 # visible

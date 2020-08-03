@@ -258,3 +258,12 @@ def test_in_heading_distribution():
     assert all(h == 1 or h == h2 for h in hs)
     assert any(h == 1 for h in hs)
     assert any(h == h2 for h in hs)
+
+def test_following():
+    ego = sampleEgoFrom("""
+        vf = VectorField("Foo", lambda pos: 90 deg * (pos.x + pos.y - 1),
+                         minSteps=4, defaultStepSize=1)
+        ego = Object following vf from 1@1 for 4
+    """)
+    assert tuple(ego.position) == pytest.approx((-1, 3))
+    assert ego.heading == pytest.approx(math.radians(90))
