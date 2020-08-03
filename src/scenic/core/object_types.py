@@ -12,7 +12,7 @@ from scenic.core.geometry import RotatedRectangle, averageVectors, hypot, min, p
 from scenic.core.regions import CircularRegion, SectorRegion
 from scenic.core.type_support import toVector, toScalar
 from scenic.core.lazy_eval import needsLazyEvaluation
-from scenic.core.utils import areEquivalent, RuntimeParseError
+from scenic.core.utils import areEquivalent, cached_property, RuntimeParseError
 
 ## Abstract base class
 
@@ -26,11 +26,10 @@ class Constructible(Samplable):
 	by objects.
 	"""
 
-	@classmethod
-	def defaults(cla):		# TODO improve so this need only be done once?
+	def __init_subclass__(cls):
 		# find all defaults provided by the class or its superclasses
 		allDefs = collections.defaultdict(list)
-		for sc in inspect.getmro(cla):
+		for sc in inspect.getmro(cls):
 			if hasattr(sc, '__annotations__'):
 				for prop, value in sc.__annotations__.items():
 					allDefs[prop].append(PropertyDefault.forValue(value))
@@ -41,16 +40,23 @@ class Constructible(Samplable):
 			primary, rest = defs[0], defs[1:]
 			spec = primary.resolveFor(prop, rest)
 			resolvedDefs[prop] = spec
-		return resolvedDefs
+		cls.defaults = resolvedDefs
 
 	@classmethod
 	def withProperties(cls, props):
-		assert all(reqProp in props for reqProp in cls.defaults())
-		assert all(not needsLazyEvaluation(val) for val in props.values())
-		specs = (Specifier(prop, val) for prop, val in props.items())
-		return cls(*specs, _internal=True)
+		assert all(reqProp in props for reqProp in cls.defaults)
+		return cls(_internal=True, **props)
 
 	def __init__(self, *args, _internal=False, **kwargs):
+		if _internal:	# Object is being constructed internally; use fast path
+			assert not args
+			for prop, value in kwargs.items():
+				assert not needsLazyEvaluation(value), (prop, value)
+				object.__setattr__(self, prop, value)
+			super().__init__(kwargs.values())
+			self.properties = set(kwargs.keys())
+			return
+
 		# Validate specifiers
 		name = type(self).__name__
 		specifiers = list(args)
@@ -58,7 +64,7 @@ class Constructible(Samplable):
 			specifiers.append(Specifier(prop, val))
 		properties = dict()
 		optionals = collections.defaultdict(list)
-		defs = self.defaults()
+		defs = self.__class__.defaults
 		for spec in specifiers:
 			assert isinstance(spec, Specifier), (name, spec)
 			prop = spec.property
@@ -122,14 +128,12 @@ class Constructible(Samplable):
 		for prop in properties:
 			assert hasattr(self, prop)
 			val = getattr(self, prop)
-			if needsSampling(val):
-				deps.append(val)
+			deps.append(val)
 		super().__init__(deps)
 		self.properties = set(properties)
 
 		# Possibly register this object
-		if not _internal:
-			self._register()
+		self._register()
 
 	def _register(self):
 		pass	# do nothing by default; may be overridden by subclasses
@@ -253,7 +257,10 @@ class Point(Constructible):
 		super().__init__(*args, **kwargs)
 		self.position = toVector(self.position, f'"position" of {self} not a vector')
 		self.corners = (self.position,)
-		self.visibleRegion = CircularRegion(self.position, self.visibleDistance)
+
+	@cached_property
+	def visibleRegion(self):
+		return CircularRegion(self.position, self.visibleDistance)
 
 	def toVector(self):
 		return self.position.toVector()
@@ -306,17 +313,18 @@ class OrientedPoint(Point):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.heading = toScalar(self.heading, f'"heading" of {self} not a scalar')
-		self.visibleRegion = SectorRegion(self.position, self.visibleDistance,
-										  self.heading, self.viewAngle)
+
+	@cached_property
+	def visibleRegion(self):
+		return SectorRegion(self.position, self.visibleDistance,
+		                    self.heading, self.viewAngle)
 
 	def relativize(self, vec):
 		pos = self.relativePosition(vec)
 		return OrientedPoint(position=pos, heading=self.heading)
 
-	def relativePosition(self, x, y=None):
-		vec = x if y is None else Vector(x, y)
-		pos = self.position.offsetRotated(self.heading, vec)
-		return OrientedPoint(position=pos, heading=self.heading)
+	def relativePosition(self, vec):
+		return self.position.offsetRotated(self.heading, vec)
 
 	def toHeading(self):
 		return self.heading
@@ -363,19 +371,13 @@ class Object(OrientedPoint, RotatedRectangle):
 		self.hh = hh = self.height / 2
 		self.radius = hypot(hw, hh)	# circumcircle; for collision detection
 		self.inradius = min(hw, hh)	# incircle; for collision detection
-		self.left = self.relativePosition(-hw, 0)
-		self.right = self.relativePosition(hw, 0)
-		self.front = self.relativePosition(0, hh)
-		self.back = self.relativePosition(0, -hh)
-		self.frontLeft = self.relativePosition(-hw, hh)
-		self.frontRight = self.relativePosition(hw, hh)
-		self.backLeft = self.relativePosition(-hw, -hh)
-		self.backRight = self.relativePosition(hw, -hh)
-		self.corners = (self.frontRight.toVector(), self.frontLeft.toVector(),
-			self.backLeft.toVector(), self.backRight.toVector())
-		camera = self.position.offsetRotated(self.heading, self.cameraOffset)
-		self.visibleRegion = SectorRegion(camera, self.visibleDistance,
-										  self.heading, self.viewAngle)
+		self.corners = (
+		    self.relativePosition(Vector(hw, hh)),
+		    self.relativePosition(Vector(-hw, hh)),
+		    self.relativePosition(Vector(-hw, -hh)),
+		    self.relativePosition(Vector(hw, -hh))
+		)
+
 		self._relations = []
 
 	def _register(self):
@@ -389,6 +391,43 @@ class Object(OrientedPoint, RotatedRectangle):
 	def __setattr__(self, name, value):
 		proxy = object.__getattribute__(self, '_dynamicProxy')
 		object.__setattr__(proxy, name, value)
+
+	@cached_property
+	def left(self):
+		return self.relativize(Vector(-self.hw, 0))
+
+	@cached_property
+	def right(self):
+		return self.relativize(Vector(self.hw, 0))
+
+	@cached_property
+	def front(self):
+		return self.relativize(Vector(0, self.hh))
+
+	@cached_property
+	def back(self):
+		return self.relativize(Vector(0, -self.hh))
+
+	@cached_property
+	def frontLeft(self):
+		return self.relativize(Vector(-self.hw, self.hh))
+
+	@cached_property
+	def frontRight(self):
+		return self.relativize(Vector(self.hw, self.hh))
+
+	@cached_property
+	def backLeft(self):
+		return self.relativize(Vector(-self.hw, -self.hh))
+
+	@cached_property
+	def backRight(self):
+		return self.relativize(Vector(self.hw, -self.hh))
+
+	@cached_property
+	def visibleRegion(self):
+		camera = self.position.offsetRotated(self.heading, self.cameraOffset)
+		return SectorRegion(camera, self.visibleDistance, self.heading, self.viewAngle)
 
 	def show(self, workspace, plt, highlight=False):
 		if needsSampling(self):
