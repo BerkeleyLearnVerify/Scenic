@@ -1,5 +1,7 @@
 """Scenic vectors and vector fields."""
 
+from __future__ import annotations
+
 import math
 from math import sin, cos
 import random
@@ -10,7 +12,8 @@ import functools
 import shapely.geometry
 
 from scenic.core.distributions import (Samplable, Distribution, MethodDistribution,
-    needsSampling, makeOperatorHandler, distributionMethod, RejectionException)
+    needsSampling, makeOperatorHandler, distributionMethod, distributionFunction,
+	RejectionException)
 from scenic.core.lazy_eval import valueInContext, needsLazyEvaluation, makeDelayedFunctionCall
 import scenic.core.utils as utils
 from scenic.core.geometry import normalizeAngle
@@ -254,6 +257,11 @@ class OrientedVector(Vector):
 	def __init__(self, x, y, heading):
 		super().__init__(x, y)
 		self.heading = heading
+
+	@staticmethod
+	@distributionFunction
+	def make(position, heading) -> OrientedVector:
+		return OrientedVector(*position, heading)
 
 	def toHeading(self):
 		return self.heading

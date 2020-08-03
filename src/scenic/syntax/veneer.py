@@ -936,7 +936,7 @@ def Following(field, dist, fromPt=None):
 	dist = toScalar(dist, '"following F for D" with D not a number')
 	pos = field.followFrom(fromPt, dist)
 	heading = field[pos]
-	val = OrientedVector(*pos, heading)
+	val = OrientedVector.make(pos, heading)
 	return Specifier('position', val, optionals={'heading'})
 
 ### Exceptions
