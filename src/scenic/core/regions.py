@@ -429,7 +429,7 @@ class PolylineRegion(Region):
 				raise RuntimeError('LineString has fewer than 2 points')
 			last = Vector(*points[0][:2])
 			for point in points[1:]:
-				point = Vector(*point[:2])
+				point = point[:2]
 				segments.append((last, point))
 				last = point
 			return segments
@@ -525,8 +525,9 @@ class PolylineRegion(Region):
 		# TODO optimize?
 		for segment, cumLen in zip(self.segments, self.cumulativeLengths):
 			if dist <= cumLen:
-				return segment
-		return segment 		# just in case we get here due to rounding error
+				break
+		# FYI, could also get here if loop runs to completion due to rounding error
+		return (Vector(*segment[0]), Vector(*segment[1]))
 
 	def pointAlongBy(self, distance, normalized=False):
 		pt = self.lineString.interpolate(distance, normalized=normalized)
