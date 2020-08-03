@@ -267,3 +267,11 @@ def test_following():
     """)
     assert tuple(ego.position) == pytest.approx((-1, 3))
     assert ego.heading == pytest.approx(math.radians(90))
+
+def test_following_random():
+    ego = sampleEgoFrom("""
+        vf = VectorField('Foo', lambda pos: -90 deg)
+        x = (1, 2)
+        ego = Object following vf from 1@2 for x, facing x
+    """)
+    assert tuple(ego.position) == pytest.approx((1+ego.heading, 2))

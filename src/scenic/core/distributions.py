@@ -11,9 +11,8 @@ import warnings
 import numpy
 import scipy
 
-from scenic.core.lazy_eval import (LazilyEvaluable, DelayedArgument,
-                                   requiredProperties, needsLazyEvaluation, valueInContext,
-                                   makeDelayedFunctionCall)
+from scenic.core.lazy_eval import (LazilyEvaluable,
+    requiredProperties, needsLazyEvaluation, valueInContext, makeDelayedFunctionCall)
 from scenic.core.utils import argsToString, areEquivalent, RuntimeParseError, cached, sqrt2
 
 ## Misc
