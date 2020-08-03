@@ -45,7 +45,7 @@ class SetReverse(simulators.Action):
 
 	def applyTo(self, obj, lgsvlObject, sim):
 		cntrl = lgsvl.VehicleControl()
-		ctrl.reverse = self.reverse
+		cntrl.reverse = self.reverse
 		lgsvlObject.apply_control(cntrl, True)
 
 class MoveAction(simulators.Action):
