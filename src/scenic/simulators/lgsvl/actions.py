@@ -8,6 +8,7 @@ from scenic.core.simulators import Action
 import scenic.simulators.lgsvl.utils as utils
 import scenic.syntax.veneer as veneer
 from scenic.core.vectors import Vector
+from collections import deque
 
 
 class SetThrottleAction(Action):
@@ -142,7 +143,84 @@ class SetDestinationAction(Action):
 		self.timer = self.timer + 1
 
 
-class TrackWaypoints(Action):
+
+
+class FollowLaneAction(simulators.Action):
+	"""
+	VehiclePIDController is the combination of two PID controllers
+	(lateral and longitudinal) to perform the
+	low level control a vehicle from client side
+	"""
+
+	def __init__(self, throttle, current_steer, past_steer, args_lateral=None, args_longitudinal=None, max_throttle=0.5, max_brake=0.5, max_steering=0.8):
+		"""
+		Constructor method.
+
+		:param vehicle: actor to apply to local planner logic onto
+		:param args_lateral: dictionary of arguments to set the lateral PID controller
+		using the following semantics:
+			K_P -- Proportional term
+			K_D -- Differential term
+			K_I -- Integral term
+		:param args_longitudinal: dictionary of arguments to set the longitudinal
+		PID controller using the following semantics:
+			K_P -- Proportional term
+			K_D -- Differential term
+			K_I -- Integral term
+		"""
+		super().__init__()
+
+		self.max_brake = max_brake
+		self.max_throt = max_throttle
+		self.max_steer = max_steering
+		self.args_longitudinal = args_longitudinal
+		self.args_lateral = args_lateral
+		self.throttle = throttle
+		self.current_steer = current_steer
+		self.past_steer = past_steer
+
+	def applyTo(self, obj, lgsvlObject, sim):
+		"""
+		Execute one step of control invoking both lateral and longitudinal
+		PID controllers to reach a target waypoint
+		at a given target_speed.
+
+			:param target_speed: desired vehicle speed
+			:param waypoint: target location encoded as a waypoint
+			:return: distance (in meters) to the waypoint
+		"""
+	
+		control = lgsvl.VehicleControl()
+
+		if self.throttle >= 0.0:
+			control.throttle = min(self.throttle, self.max_throt)
+			control.brake = 0.0
+		else:
+			control.throttle = 0.0
+			control.brake = min(abs(self.throttle), self.max_brake)
+
+		# Steering regulation: changes cannot happen abruptly, can't steer too much.
+
+		if self.current_steer > self.past_steer + 0.1:
+		    self.current_steer = self.past_steer + 0.1
+		elif self.current_steer < self.past_steer - 0.1:
+		    self.current_steer = self.past_steer - 0.1
+
+		if self.current_steer >= 0:
+		    steering = min(self.max_steer, self.current_steer)
+		else:
+		    steering = max(-self.max_steer, self.current_steer)
+
+		print("steer: ", steering)
+		print("throttle: ", control.throttle)
+		print("brake: ", control.brake)
+		control.steer = steering
+		control.hand_brake = False
+		lgsvlObject.apply_control(control, True)
+
+
+
+class TrackWaypoints(simulators.Action):
 	def __init__(self, waypoints, cruising_speed = 10):
 		self.waypoints = np.array(waypoints)
 		self.curr_index = 1

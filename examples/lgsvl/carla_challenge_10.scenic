@@ -62,17 +62,15 @@ behavior actorCarBehavior(egoAtStop):
 	speedup = (0, 1)
 	smallDistance = (2, 5)
 	while egoAtStop == False:
-		print("go")
+
 		# if close to intersection, stop quickly (actor must stop first)
 		if ((distance from actorCar to intersection) <= smallDistance):
 			take actions.SetThrottleAction(0.0)
 			take actions.SetBrakeAction(1)
-			print("stop")
 
 			# if ego is stopped, actor will go
 			if ((distance from ego to intersection) <= smallDistance):
 				egoAtStop = True
-				print("ego is stopped")
 				
 			else: # wait for ego to stop
 				take actions.SetThrottleAction(0.0)
