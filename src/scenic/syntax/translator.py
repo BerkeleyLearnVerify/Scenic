@@ -1133,6 +1133,7 @@ class ASTSurgeon(NodeTransformer):
 		super().__init__()
 		self.constructors = set(constructors.keys())
 		self.requirements = []
+		self.inRequire = False
 		self.inBehavior = False
 		self.inGuard = False
 		self.inTryInterrupt = False
@@ -1211,7 +1212,7 @@ class ASTSurgeon(NodeTransformer):
 			return self.generic_visit(node)		# an ordinary raise statement
 		assert isinstance(node.cause, Call)
 		assert isinstance(node.cause.func, Name)
-		node = self.visit_Call(node.cause, subBehaviorCheck=False) 	# move to inner call
+		node = node.cause 	# move to inner call
 		func = node.func
 		if func.id in requirementStatements:		# require, terminate when, etc.
 			# Soft reqs have 2 arguments, including the probability, which is given as the
@@ -1220,7 +1221,10 @@ class ASTSurgeon(NodeTransformer):
 			numArgs = (1, 2) if func.id == requireStatement else 1
 			self.validateSimpleCall(node, numArgs)
 			cond = node.args[-1]
+			assert not self.inRequire
+			self.inRequire = True
 			req = self.visit(cond)
+			self.inRequire = False
 			reqID = Num(len(self.requirements))	# save ID number
 			self.requirements.append(req)		# save condition for later inspection when pruning
 			closure = Lambda(noArgs, req)		# enclose requirement in a lambda
@@ -1237,7 +1241,7 @@ class ASTSurgeon(NodeTransformer):
 			return copy_location(Expr(Call(func, newArgs, [])), node)
 		elif func.id == actionStatement:		# Action statement
 			self.validateSimpleCall(node, 1, onlyInBehaviors=True)
-			action = node.args[0]
+			action = self.visit(node.args[0])
 			return self.generateActionInvocation(node, action)
 		elif func.id == waitStatement:		# Wait statement
 			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
@@ -1253,7 +1257,8 @@ class ASTSurgeon(NodeTransformer):
 			return copy_location(Return(abortFlag), node)
 		else:
 			# statement implemented directly by a function; leave call intact
-			return copy_location(Expr(node), node)
+			newCall = self.visit_Call(node, subBehaviorCheck=False)
+			return copy_location(Expr(newCall), node)
 
 	def generateActionInvocation(self, node, action):
 		invokeAction = Expr(Yield(action))
@@ -1429,14 +1434,16 @@ class ASTSurgeon(NodeTransformer):
 		newKeywords = [self.visit(kwarg) for kwarg in node.keywords]
 		newFunc = self.visit(func)
 		self.callDepth -= 1
-		if subBehaviorCheck and self.inBehavior and not self.inGuard:
+		if subBehaviorCheck and self.inBehavior and not self.inGuard and not self.inRequire:
 			# Add check for sub-behavior invocation
 			newNode = self.wrapBehaviorCall(newFunc, newArgs, newKeywords)
 		elif wrappedStar:
 			newNode = Call(Name('callWithStarArgs', Load()), [newFunc] + newArgs, newKeywords)
 		else:
 			newNode = Call(newFunc, newArgs, newKeywords)
-		return copy_location(newNode, node)
+		newNode = copy_location(newNode, node)
+		ast.fix_missing_locations(newNode)
+		return newNode
 
 	def validateSimpleCall(self, node, numArgs, onlyInBehaviors=False):
 		func = node.func
