@@ -227,6 +227,32 @@ def test_behavior_calls_side_effects():
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, 2, 3, 4)
 
+# Requirements
+
+def test_behavior_require():
+    scenario = compileScenic("""
+        behavior Foo():
+            x = (-1, 1)
+            require x > 0
+            take x
+        ego = Object with behavior Foo
+    """)
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=30)
+        assert actions[0] > 0
+
+def test_behavior_require_call():
+    scenario = compileScenic("""
+        behavior Foo():
+            x = Uniform([], [1, 2])
+            require len(x) > 0
+            take x
+        ego = Object with behavior Foo
+    """)
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=30)
+        assert actions[0] == [1, 2]
+
 ## Monitors
 
 def test_monitor():
