@@ -11,6 +11,7 @@ __all__ = (
 	'ego', 'require', 'resample', 'param', 'mutate', 'verbosePrint',
 	'simulation', 'require_always', 'terminate_when',
 	'sin', 'cos', 'hypot', 'max', 'min',
+	'filter',
 	# Prefix operators
 	'Visible',
 	'Front', 'Back', 'Left', 'Right',
@@ -58,6 +59,7 @@ from scenic.core.object_types import Mutator, Point, OrientedPoint, Object
 from scenic.core.specifiers import PropertyDefault	# TODO remove
 
 # everything that should not be directly accessible from the language is imported here:
+import builtins
 import inspect
 import sys
 import random
@@ -528,6 +530,10 @@ def mutate(*objects):		# TODO update syntax
 		if not isinstance(obj, Object):
 			raise RuntimeParseError('"mutate X" with X not an object')
 		obj.mutationEnabled = True
+
+@distributionFunction
+def filter(function, iterable):
+	return list(builtins.filter(function, iterable))
 
 ### Prefix operators
 

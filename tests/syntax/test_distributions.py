@@ -238,6 +238,16 @@ def test_list_nested():
     vs = [sampleEgo(scenario).foo for i in range(60)]
     assert 5 <= sum((v == 1000) for v in vs) <= 55
 
+def test_list_filtered():
+    scenario = compileScenic("""
+        mylist = [(-10, -5), (3, 7), (-1, 1)]
+        filtered = filter(lambda x: x > 0, mylist)
+        ego = Object with foo Uniform(*filtered)
+    """)
+    vs = [sampleEgo(scenario).foo for i in range(60)]
+    assert all(v > 0 for v in vs)
+    assert any(v < 1 for v in vs)
+
 def test_tuple():
     scenario = compileScenic('ego = Object with foo tuple([3, Uniform(1, 2)])')
     ts = [sampleEgo(scenario).foo for i in range(60)]
