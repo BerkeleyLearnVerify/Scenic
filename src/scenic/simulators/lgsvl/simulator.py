@@ -5,6 +5,7 @@ import scenic.simulators as simulators
 import scenic.simulators.lgsvl.utils as utils
 import scenic.syntax.veneer as veneer
 from scenic.core.vectors import Vector
+import math
 
 class LGSVLSimulator(simulators.Simulator):
     def __init__(self, lgsvl_scene, address='localhost', port=8181, alwaysReload=False):
@@ -164,6 +165,9 @@ class LGSVLSimulation(simulators.Simulation):
             if heading is None:
                 raise RuntimeError(f'{lgsvlObj} has non-planar orientation!')
             obj.heading = heading
+            # speed
+            vel = utils.lgsvlToScenicPosition(state.velocity)
+            obj.speed = math.hypot(*vel)
 
     def currentState(self):
         return tuple(obj.position for obj in self.objects)

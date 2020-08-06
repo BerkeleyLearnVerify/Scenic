@@ -24,6 +24,7 @@ intersection = baseModel.intersection
 class LGSVLObject(DrivingObject):
     lgsvlObject: None
     elevation: None
+    speed: 0
 
 # TODO: Get vehicle models, dimensions from LGSVL
 class Car(LGSVLObject):
