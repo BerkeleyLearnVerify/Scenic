@@ -193,6 +193,9 @@ class Distribution(Samplable):
 			return super().__getattr__(name)
 		return AttributeDistribution(name, self)
 
+	def __call__(self, *args):
+		return OperatorDistribution('__call__', self, args)
+
 	def __iter__(self):
 		raise TypeError(f'distribution {self} is not iterable')
 
@@ -461,14 +464,24 @@ class AttributeDistribution(Distribution):
 		return (self.attribute == other.attribute
 			and areEquivalent(self.object, other.object))
 
+	def __call__(self, *args):
+		vty = self.object.valueType
+		if vty is not object and (func := getattr(vty, self.attribute, None)):
+			if isinstance(func, property):
+				func = func.fget
+			retTy = typing.get_type_hints(func).get('return')
+		else:
+			retTy = None
+		return OperatorDistribution('__call__', self, args, valueType=retTy)
+
 	def __str__(self):
 		return f'{self.object}.{self.attribute}'
 
 class OperatorDistribution(Distribution):
 	"""Distribution resulting from applying an operator to one or more distributions"""
-	def __init__(self, operator, obj, operands):
+	def __init__(self, operator, obj, operands, valueType=None):
 		operands = tuple(toDistribution(arg) for arg in operands)
-		super().__init__(obj, *operands)
+		super().__init__(obj, *operands, valueType=valueType)
 		self.operator = operator
 		self.object = obj
 		self.operands = operands
@@ -544,7 +557,6 @@ allowedOperators = [
 	'__round__',
 	'__len__',
 	'__getitem__',
-	'__call__'
 ]
 def makeOperatorHandler(op):
 	def handler(self, *args):

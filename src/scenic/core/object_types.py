@@ -123,6 +123,13 @@ class Constructible(Samplable):
 		for spec in order:
 			spec.applyTo(self, optionalsForSpec[spec])
 
+		# Normalize types of built-in properties
+		self.properties = set(properties)
+		if 'position' in properties:
+			self.position = toVector(self.position, f'"position" of {self} not a vector')
+		if 'heading' in properties:
+			self.heading = toScalar(self.heading, f'"heading" of {self} not a scalar')
+
 		# Set up dependencies
 		deps = []
 		for prop in properties:
@@ -130,7 +137,6 @@ class Constructible(Samplable):
 			val = getattr(self, prop)
 			deps.append(val)
 		super().__init__(deps)
-		self.properties = set(properties)
 
 		# Possibly register this object
 		self._register()
@@ -253,10 +259,6 @@ class Point(Constructible):
 							 lambda self: PositionMutator(self.positionStdDev))
 	positionStdDev: 1
 
-	def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
-		self.position = toVector(self.position, f'"position" of {self} not a vector')
-
 	@cached_property
 	def visibleRegion(self):
 		return CircularRegion(self.position, self.visibleDistance)
@@ -265,10 +267,10 @@ class Point(Constructible):
 	def corners(self):
 		return (self.position,)
 
-	def toVector(self):
-		return self.position.toVector()
+	def toVector(self) -> Vector:
+		return self.position
 
-	def canSee(self, other):	# TODO improve approximation?
+	def canSee(self, other) -> bool:	# TODO improve approximation?
 		for corner in other.corners:
 			if self.visibleRegion.containsPoint(corner):
 				return True
@@ -313,10 +315,6 @@ class OrientedPoint(Point):
 		lambda self: HeadingMutator(self.headingStdDev))
 	headingStdDev: math.radians(5)
 
-	def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
-		self.heading = toScalar(self.heading, f'"heading" of {self} not a scalar')
-
 	@cached_property
 	def visibleRegion(self):
 		return SectorRegion(self.position, self.visibleDistance,
@@ -329,7 +327,7 @@ class OrientedPoint(Point):
 	def relativePosition(self, vec):
 		return self.position.offsetRotated(self.heading, vec)
 
-	def toHeading(self):
+	def toHeading(self) -> float:
 		return self.heading
 
 ## Object

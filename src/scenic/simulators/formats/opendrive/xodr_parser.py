@@ -1355,9 +1355,17 @@ class RoadMap:
             allRoads, seenRoads = [], set()
             maneuversForLane = defaultdict(list)
             for connection in junction.connections:
-                # Find possible incoming lanes for this connection
                 incomingID = connection.incoming_id
-                incomingRoad = mainRoads[incomingID]
+                incomingRoad = mainRoads.get(incomingID)
+                if not incomingRoad:
+                    continue    # incoming road has no drivable lanes; skip it
+
+                connectingID = connection.connecting_id
+                connectingRoad = connectingRoads.get(connectingID)
+                if not connectingRoad:
+                    continue    # connecting road has no drivable lanes; skip it
+
+                # Find possible incoming lanes for this connection
                 if incomingID not in seenRoads:
                     allRoads.append(incomingRoad)
                     seenRoads.add(incomingID)
@@ -1382,8 +1390,6 @@ class RoadMap:
                     assert len(incomingLaneIDs) == len(newIDs)
 
                 # Connect incoming lanes to connecting road
-                connectingID = connection.connecting_id
-                connectingRoad = connectingRoads[connectingID]
                 if connection.connecting_contact == 'start':
                     connectingSection = connectingRoad.sections[0]
                     remapping = self.roads[connectingID].remappedStartLanes   # could be None
