@@ -5,7 +5,8 @@ import inspect
 import numbers
 import typing
 
-from scenic.core.distributions import Distribution, RejectionException, StarredDistribution
+from scenic.core.distributions import (Distribution, RejectionException, StarredDistribution,
+                                       distributionFunction)
 from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
                                    needsLazyEvaluation, toDelayedArgument)
 from scenic.core.vectors import Vector
@@ -103,15 +104,24 @@ def coerce(thing, ty):
 	"""Coerce something into the given type."""
 	assert canCoerce(thing, ty), (thing, ty)
 	if isinstance(thing, Distribution):
-		return thing
+		if issubclass(thing.valueType, ty):
+			return thing
+		elif ty is float:
+			return coerceToFloat(thing)
+		elif ty is Heading and issubclass(thing.valueType, float):
+			return thing
 	if ty is float:
 		return float(thing)
 	elif ty is Heading:
-		return thing.toHeading() if hasattr(thing, 'toHeading') else float(thing)
+		return thing.toHeading() if hasattr(thing, 'toHeading') else coerceToFloat(thing)
 	elif ty is Vector:
 		return thing.toVector()
 	else:
 		return thing
+
+@distributionFunction
+def coerceToFloat(thing) -> float:
+	return float(thing)
 
 def coerceToAny(thing, types, error):
 	"""Coerce something into any of the given types, printing an error if impossible."""
