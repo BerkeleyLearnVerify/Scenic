@@ -7,15 +7,7 @@ from shapely.geometry import LineString
 import math
 
 def concatenateCenterlines(centerlines=[]):
-
-	line = []
-	if centerlines != []:
-		for centerline in centerlines:
-			for point in centerline:
-				if point not in line:
-					line.append(point)
-
-	return regionFromShapelyObject(LineString(line))
+	return PolylineRegion.unionAll(centerlines)
 
 def distance(pos1, pos2):
 	""" pos1, pos2 = (x,y) """
@@ -69,13 +61,11 @@ behavior FollowLaneBehavior(target_speed = 25, network = None):
 			current_speed = self.speed
 		else:
 			current_speed = 0
-			print("self.speed is None")
+			#print("self.speed is None")
 
-		print("current_speed: ", self.speed)
+		#print("current_speed: ", self.speed)
 
-		nearest_line_points = network.laneAt(self).centerline.nearestSegmentTo(self.position)
-		nearest_line_segment = PolylineRegion(nearest_line_points)
-		cte = nearest_line_segment.signedDistanceTo(self.position)
+		cte = network.laneAt(self).centerline.signedDistanceTo(self.position)
 		speed_error = target_speed - current_speed
 
 		# compute throttle : Longitudinal Control
@@ -108,9 +98,7 @@ behavior FollowTrajectoryBehavior(target_speed = 25, trajectory = None):
 			print("self.speed is None")
 		print("current_speed: ", self.speed)
 
-		nearest_line_points = trajectory_line.nearestSegmentTo(self.position)
-		nearest_line_segment = PolylineRegion(nearest_line_points)
-		cte = nearest_line_segment.signedDistanceTo(self.position)
+		cte = trajectory_line.signedDistanceTo(self.position)
 		speed_error = target_speed - current_speed
 
 		# compute throttle : Longitudinal Control

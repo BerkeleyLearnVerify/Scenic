@@ -557,6 +557,20 @@ class PolylineRegion(Region):
 		"""
 		return Vector(*self.points[i])
 
+	def __add__(self, other):
+		if not isinstance(other, PolylineRegion):
+			return NotImplemented
+		# take union by collecting LineStrings, to preserve the order of points
+		strings = []
+		for region in (self, other):
+			string = region.lineString
+			if isinstance(string, shapely.geometry.MultiLineString):
+				strings.extend(string)
+			else:
+				strings.append(string)
+		newString = shapely.geometry.MultiLineString(strings)
+		return PolylineRegion(polyline=newString)
+
 	def __len__(self):
 		return len(self.points)
 
