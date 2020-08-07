@@ -145,7 +145,7 @@ class SetDestinationAction(Action):
 
 
 
-class FollowLaneAction(simulators.Action):
+class FollowLaneAction(Action):
 	"""
 	VehiclePIDController is the combination of two PID controllers
 	(lateral and longitudinal) to perform the
@@ -194,10 +194,10 @@ class FollowLaneAction(simulators.Action):
 
 		if self.throttle >= 0.0:
 			control.throttle = min(self.throttle, self.max_throt)
-			control.brake = 0.0
+			control.braking = 0.0
 		else:
 			control.throttle = 0.0
-			control.brake = min(abs(self.throttle), self.max_brake)
+			control.braking = min(abs(self.throttle), self.max_brake)
 
 		# Steering regulation: changes cannot happen abruptly, can't steer too much.
 
@@ -211,9 +211,6 @@ class FollowLaneAction(simulators.Action):
 		else:
 		    steering = max(-self.max_steer, self.current_steer)
 
-		print("steer: ", steering)
-		print("throttle: ", control.throttle)
-		print("brake: ", control.brake)
 		control.steer = steering
 		control.hand_brake = False
 		lgsvlObject.apply_control(control, True)

@@ -60,8 +60,6 @@ behavior FollowTrajectoryBehavior(target_speed = 25, trajectory = None):
 			current_speed = self.speed
 		else:
 			current_speed = 0
-			print("self.speed is None")
-		print("current_speed: ", self.speed)
 
 		nearest_line_points = trajectory_line.nearestSegmentTo(self.position)
 		nearest_line_segment = PolylineRegion(nearest_line_points)
