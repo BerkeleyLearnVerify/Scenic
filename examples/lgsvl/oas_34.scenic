@@ -85,6 +85,8 @@ other = EgoCar behind edge by (3, 8),
 		with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=L_centerlines),
 		with regionContainedIn None
 
+require 5 <= (distance to intersection) <= 25
+
 terminate when ego in endLane
 
 # require that ego car reaches the intersection before the other car
