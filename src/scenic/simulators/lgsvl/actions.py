@@ -28,7 +28,7 @@ class SetBrakeAction(simulators.Action):
 
 	def applyTo(self, obj, lgsvlObject, sim):
 		cntrl = lgsvl.VehicleControl()
-		cntrl.brake = self.brake
+		cntrl.braking = self.brake
 		cntrl.throttle = 0
 		lgsvlObject.apply_control(cntrl, True)
 
@@ -38,7 +38,7 @@ class SetSteerAction(simulators.Action):
 
 	def applyTo(self, obj, lgsvlObject, sim):
 		cntrl = lgsvl.VehicleControl()
-		cntrl.steer = self.steer
+		cntrl.steering = self.steer
 		lgsvlObject.apply_control(cntrl, True)
 
 class SetReverse(simulators.Action):
@@ -191,10 +191,10 @@ class FollowLaneAction(simulators.Action):
 
 		if self.throttle >= 0.0:
 			control.throttle = min(self.throttle, self.max_throt)
-			control.brake = 0.0
+			control.braking = 0.0
 		else:
 			control.throttle = 0.0
-			control.brake = min(abs(self.throttle), self.max_brake)
+			control.braking = min(abs(self.throttle), self.max_brake)
 
 		# Steering regulation: changes cannot happen abruptly, can't steer too much.
 
@@ -208,11 +208,8 @@ class FollowLaneAction(simulators.Action):
 		else:
 		    steering = max(-self.max_steer, self.current_steer)
 
-		print("steer: ", steering)
-		print("throttle: ", control.throttle)
-		print("brake: ", control.brake)
-		control.steer = steering
-		control.hand_brake = False
+		control.steering = steering
+		control.handbrake = False
 		lgsvlObject.apply_control(control, True)
 
 
@@ -315,7 +312,6 @@ class PIDLongitudinalController():
 		self._k_i = K_I
 		self._dt = dt
 		self._error_buffer = deque(maxlen=10)
-		print("PIDLongitudinalController Instantiated")
 
 	def run_step(self, speed_error, debug=False):
 		"""
@@ -342,7 +338,7 @@ class PIDLateralController():
 	"""
 
 	# def __init__(self, vehicle, K_P=0.01, K_D=0.000001, K_I=0.1, dt=0.1):
-	def __init__(self, vehicle, K_P=0.01, K_D=0.01, K_I=0, dt=0.1):
+	def __init__(self, vehicle, K_P=0.3, K_D=0.2, K_I=0, dt=0.1):
 		"""
 		Constructor method. 0.0000005
 
@@ -365,7 +361,6 @@ class PIDLateralController():
 		self.current_time = time.time()
 		self.last_time = self.current_time
 		self.output = 0
-		print("PIDLateralController Instantiated")
 
 	def run_step(self, cte):
 		"""
@@ -395,7 +390,6 @@ class PIDLateralController():
 		self.current_time = time.time()
 		delta_time = self.current_time - self.last_time
 		delta_error = error - self.last_error
-		print("delta_time: ", delta_time)
 
 		# if (delta_time >= self.sample_time):
 		self.PTerm = self.Kp * error
@@ -415,6 +409,5 @@ class PIDLateralController():
 		self.last_error = error
 
 		self.output = self.PTerm + (self.Ki * self.ITerm) + (self.Kd * self.DTerm)
-		print("cte: ", cte)
 
 		return np.clip(self.output, -1, 1)

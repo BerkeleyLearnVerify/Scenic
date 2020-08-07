@@ -80,7 +80,7 @@ ego = EgoCar on startLane.centerline,
 		with behavior EgoBehavior(target_speed=15, trajectory=centerlines)
 
 edge = OrientedPoint at L_startLane.centerline[-1], facing L_startLane.centerline.orientation
-other = EgoCar behind edge by 3,
+other = EgoCar behind edge by (3, 8),
 		with blueprint 'vehicle.tesla.model3',
 		with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=L_centerlines),
 		with regionContainedIn None
