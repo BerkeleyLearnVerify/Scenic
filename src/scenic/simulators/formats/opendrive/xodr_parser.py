@@ -194,9 +194,9 @@ class Lane():
         assert self.width[ind][1] <= s, 'No matching width entry found.'
         w_poly, s_off = self.width[ind]
         w = w_poly.eval_at(s - s_off)
-        if w < 0:
+        if w < -1e-6:    # allow for numerical error
             raise RuntimeError('OpenDRIVE lane has negative width')
-        return w
+        return max(w, 0)
 
 
 class LaneSection():
@@ -467,7 +467,7 @@ class Road:
                 else:
                     cur_p = ref_points[0].pop(0)
                     cur_sec_points.append(cur_p)
-                    s = min(cur_p[2], max(cur_sec.s0, s_stop - 1e-6))
+                    s = min(max(cur_p[2], cur_sec.s0), s_stop - 1e-6)
                     offsets = cur_sec.get_offsets(s)
                     offsets[0] = 0
                     for id_ in offsets:
@@ -1108,10 +1108,11 @@ class RoadMap:
             return
         road_id = road.id_
         if link_elem.get('elementType') == 'road':
-            self.road_links.append(RoadLink(road_id,
-                                            int(link_elem.get('elementId')),
-                                            contact,
-                                            link_elem.get('contactPoint')))
+            id_b = int(link_elem.get('elementId'))
+            contact_b = link_elem.get('contactPoint')
+            link = RoadLink(road_id, id_b, contact, contact_b)
+            self.road_links.append(link)
+            return link
         else:
             assert link_elem.get('elementType') == 'junction', 'Unknown link type'
             junction = int(link_elem.get('elementId'))
@@ -1150,6 +1151,7 @@ class RoadMap:
                 junction.paths.append(int(c.get('connectingRoad')))
             self.junctions[junction.id_] = junction
 
+        self.elidedRoads = {}
         for r in root.iter('road'):
             road = Road(r.get('name'), int(r.get('id')), float(r.get('length')),
                         r.get('junction'))
@@ -1157,8 +1159,26 @@ class RoadMap:
             if link is not None:
                 pred_elem = link.find('predecessor')
                 succ_elem = link.find('successor')
-                self.__parse_link(pred_elem, road, 'start')
-                self.__parse_link(succ_elem, road, 'end')
+                pred_link = self.__parse_link(pred_elem, road, 'start')
+                succ_link = self.__parse_link(succ_elem, road, 'end')
+            else:
+                pred_link = succ_link = None
+
+            if road.length < self.tolerance:
+                warnings.warn(f'road {road.id_} has length {road.length}; eliding it')
+                assert road.junction is None
+                self.elidedRoads[road.id_] = road
+                if pred_link:
+                    road.predecessor = pred_link.id_b
+                    road.predecessorContact = pred_link.contact_b
+                else:
+                    road.predecessorContact = None
+                if succ_link:
+                    road.successor = succ_link.id_b
+                    road.successorContact = succ_link.contact_b
+                else:
+                    road.successorContact = None
+                continue
 
             # Parse planView:
             plan_view = r.find('planView')
@@ -1210,11 +1230,12 @@ class RoadMap:
             lastCurve = curves[0][1]
             refLine = []
             for s0, curve in curves[1:]:
-                if s0 < lastS:
+                l = s0 - lastS
+                if l < 0:
                     raise RuntimeError(f'planView of road {road.id_} is not in order')
-                elif s0 == lastS:
-                    warnings.warn(f'road {road.id_} reference line has a length-0 geometry; '
-                                  'skipping it')
+                elif l < 1e-6:
+                    warnings.warn(f'road {road.id_} reference line has a geometry of '
+                                  f'length {l}; skipping it')
                 else:
                     refLine.append(lastCurve)
                 lastS = s0
@@ -1234,10 +1255,12 @@ class RoadMap:
             last_s = float('-inf')
             for ls_elem in lanes.iter('laneSection'):
                 s = float(ls_elem.get('s'))
-                assert s >= last_s
+                l = s - last_s
+                assert l >= 0
                 badSec = None
-                if s == last_s:
-                    warnings.warn(f'road {road.id_} has a length-0 lane section; skipping it')
+                if l < 1e-6:
+                    warnings.warn(f'road {road.id_} has a lane section of '
+                                  f'length {l}; skipping it')
 
                     # delete the length-0 section and re-link lanes appropriately
                     badSec = road.lane_secs.pop()
@@ -1274,6 +1297,24 @@ class RoadMap:
                 road.lane_secs.append(lane_sec)
             self.roads[road.id_] = road
 
+        # Handle links to/from elided roads
+        new_links = []
+        for link in self.road_links:
+            if link.id_a in self.elidedRoads:
+                continue
+            if link.id_b in self.elidedRoads:
+                elided = self.elidedRoads[link.id_b]
+                if link.contact_b == 'start':
+                    link.id_b = elided.successor
+                    link.contact_b = elided.successorContact
+                else:
+                    link.id_b = elided.predecessor
+                    link.contact_b = elided.predecessorContact
+                if link.contact_b is None:
+                    continue    # link to intersection
+            new_links.append(link)
+        self.road_links = new_links
+
     def toScenicNetwork(self):
         assert self.intersection_region is not None
 
@@ -1303,45 +1344,43 @@ class RoadMap:
                 continue    # actually a road-to-junction link; handled later
             if link.id_a not in roads or link.id_b not in roads:
                 continue    # may link non-drivable roads we haven't parsed; ignore it
+
+            # Work out connectivity of roads and adjacent sections
             roadA, roadB = roads[link.id_a], roads[link.id_b]
             if link.contact_a == 'start':
                 secA = roadA.sections[0]
+                roadA.predecessor = roadB
                 forwardA = True
             else:
                 secA = roadA.sections[-1]
+                roadA.successor = roadB
                 forwardA = False
             if link.contact_b == 'start':
                 secB = roadB.sections[0]
-                forwardB = True
             else:
                 secB = roadB.sections[-1]
-                forwardB = False
-            if forwardA:
-                roadA.predecessor = roadB
-            else:
-                roadA.successor = roadB
-            def connectLanes(A, forward, B):
-                lanesB = B.lanesByOpenDriveID
-                for laneA in A.lanes:
-                    if laneA.isForward == forwardA:
-                        pred = laneA.predecessor
-                        if pred is None:
-                            continue
-                        assert pred in lanesB
-                        laneB = lanesB[pred]
-                        laneA.predecessor = laneB
-                        laneA.lane.predecessor = laneB.lane
-                        laneA.lane.group.predecessor = laneB.lane.group
-                    else:
-                        succ = laneA.successor
-                        if succ is None:
-                            continue
-                        assert succ in lanesB
-                        laneB = lanesB[succ]
-                        laneA.successor = laneB
-                        laneA.lane.successor = laneB.lane
-                        laneA.lane.group.successor = laneB.lane.group
-            connectLanes(secA, forwardA, secB)
+
+            # Connect corresponding lanes
+            lanesB = secB.lanesByOpenDriveID
+            for laneA in secA.lanes:
+                if laneA.isForward == forwardA:
+                    pred = laneA.predecessor
+                    if pred is None:
+                        continue
+                    assert pred in lanesB
+                    laneB = lanesB[pred]
+                    laneA.predecessor = laneB
+                    laneA.lane.predecessor = laneB.lane
+                    laneA.lane.group.predecessor = laneB.lane.group
+                else:
+                    succ = laneA.successor
+                    if succ is None:
+                        continue
+                    assert succ in lanesB
+                    laneB = lanesB[succ]
+                    laneA.successor = laneB
+                    laneA.lane.successor = laneB.lane
+                    laneA.lane.group.successor = laneB.lane.group
 
         # Hook up connecting road links and create intersections
         intersections = {}

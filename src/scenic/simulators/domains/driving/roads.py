@@ -1,14 +1,16 @@
 
 from __future__ import annotations  # allow forward references for type annotations
 
+import io
 import enum
 import math
 from typing import FrozenSet, Union, Tuple, Optional
 import itertools
 import pathlib
-import bz2
+import gzip
 import pickle
-import pickletools
+import time
+import struct
 
 import attr
 from shapely.geometry import Polygon, MultiPolygon
@@ -20,8 +22,9 @@ from scenic.core.object_types import Point
 import scenic.core.geometry as geometry
 import scenic.core.utils as utils
 from scenic.core.distributions import distributionFunction
+from scenic.syntax.veneer import verbosePrint
 
-## Typing
+## Typing and utilities
 
 # TODO allow additional types which are coercible to vectors?
 Vectorlike = Union[Vector, Point]
@@ -30,6 +33,26 @@ def toVector(thing: Vectorlike) -> Vector:
     if not hasattr(thing, 'toVector'):
         raise TypeError(f'argument {thing} is not a vector')
     return thing.toVector()
+
+class ElementReferencer:
+    """Mixin class to improve pickling of classes that reference network elements."""
+    def __getstate__(self):
+        if hasattr(super(), '__getstate__'):
+            state = super().__getstate__()
+        else:
+            state = self.__dict__.copy()
+        # replace links to network elements by placeholders to prevent deep
+        # recursions during pickling; as a result of this, only entire `Network`
+        # objects can be properly unpickled
+        for key, value in state.items():
+            if isinstance(value, NetworkElement):
+                state[key] = ElementPlaceholder(value.uid)
+        return state
+
+class ElementPlaceholder:
+    """Placeholder for a link to a pickled `NetworkElement`."""
+    def __init__(self, uid):
+        self.uid = uid
 
 ## Metadata
 
@@ -66,7 +89,7 @@ class ManeuverType(enum.Enum):
             return ManeuverType.STRAIGHT
 
 @attr.s(auto_attribs=True, kw_only=True, eq=False)
-class Maneuver:
+class Maneuver(ElementReferencer):
     type: ManeuverType = None      # left turn, right turn, straight, etc.
     startLane: Lane
     endLane: Lane
@@ -98,7 +121,7 @@ class Maneuver:
 ## Road networks
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
-class NetworkElement(PolygonalRegion):
+class NetworkElement(ElementReferencer, PolygonalRegion):
     """Abstract class for part of a road network.
 
     Includes roads, lane groups, lanes, sidewalks, pedestrian crossings,
@@ -133,16 +156,6 @@ class NetworkElement(PolygonalRegion):
 
         super().__init__(polygon=self.polygon, orientation=self.orientation, name=self.name)
 
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        # replace links to network elements by placeholders to prevent deep
-        # recursions during pickling; as a result of this, only entire `Network`
-        # objects can be properly unpickled
-        for key, value in state.items():
-            if isinstance(value, NetworkElement):
-                state[key] = ElementPlaceholder(value.uid)
-        return state
-
     @distributionFunction
     def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[float]:
         """Get nominal traffic direction(s) at a point in this element.
@@ -161,11 +174,6 @@ class NetworkElement(PolygonalRegion):
             s += f'id="{self.id}", '
         s += f'uid="{self.uid}">'
         return s
-
-class ElementPlaceholder:
-    """Placeholder for a link to a pickled `NetworkElement`."""
-    def __init__(self, uid):
-        self.uid = uid
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class LinearElement(NetworkElement):
@@ -540,7 +548,6 @@ class Network:
     roadDirection: VectorField = None
 
     def __attrs_post_init__(self):
-        self.formatVersion = self.currentFormatVersion()
         for uid, elem in self.elements.items():
             assert elem.uid == uid
 
@@ -586,12 +593,12 @@ class Network:
     def currentFormatVersion(cls):
         """Version number for the road network format.
 
-        Should be incremented whenever attributes of `Network`, `NetworkElement`, etc.
-        or the underlying Regions are changed, so that cached networks will be properly
-        regenerated (rather than being unpickled in an inconsistent state and causing
-        errors later).
+        Should be incremented whenever attributes of `Network`, `NetworkElement`, etc.,
+        attributes of the underlying Regions, or the serialization process itself are
+        changed, so that cached networks will be properly regenerated (rather than being
+        unpickled in an inconsistent state and causing errors later).
         """
-        return 3
+        return 4
 
     @classmethod
     def fromFile(cls, path, useCache=True, writeCache=True, **kwargs):
@@ -607,8 +614,14 @@ class Network:
             newPath = path.with_suffix(cls.pickledExt)
             if newPath.exists():
                 try:
-                    return cls.fromPickle(newPath)
+                    startTime = time.time()
+                    verbosePrint('Loading cached version of road network...')
+                    network = cls.fromPickle(newPath)
+                    totalTime = time.time() - startTime
+                    verbosePrint(f'Loaded cached network in {totalTime:.2f} seconds.')
+                    return network
                 except pickle.UnpicklingError:
+                    verbosePrint('Unable to load cached network (old or corrupted).')
                     pass    # give up on cache; fall through to original file
 
         if not ext:     # no extension was given; search through possible formats
@@ -626,41 +639,60 @@ class Network:
 
         network = handlers[ext](path, **kwargs)
         if writeCache and ext is not cls.pickledExt:
+            verbosePrint(f'Caching road network in {cls.pickledExt} file.')
             network.dumpPickle(path.with_suffix(cls.pickledExt))
         return network
 
     @classmethod
     def fromPickle(cls, path):
-        with bz2.open(path, 'rb') as f:
-            network = pickle.load(f)
-        version = getattr(network, 'formatVersion', None)
-        if version != cls.currentFormatVersion():
-            raise pickle.UnpicklingError(f'{cls.pickledExt} file is too old; '
-                                         'regenerate it from the original map')
+        with open(path, 'rb') as f:
+            versionField = f.read(4)
+            if len(versionField) != 4:
+                raise pickle.UnpicklingError(f'{cls.pickledExt} file is corrupted')
+            version = struct.unpack('<I', versionField)
+            if version[0] != cls.currentFormatVersion():
+                raise pickle.UnpicklingError(f'{cls.pickledExt} file is too old; '
+                                             'regenerate it from the original map')
+            with gzip.open(f) as gf:
+                network = pickle.load(gf)
+
         # Reconnect links between network elements
-        for elem in network.elements.values():
-            state = elem.__dict__
+        def reconnect(thing):
+            state = thing.__dict__
             for key, value in state.items():
                 if isinstance(value, ElementPlaceholder):
                     state[key] = network.elements[value.uid]
+        for elem in network.elements.values():
+            reconnect(elem)
+        for elem in itertools.chain(network.lanes, network.intersections):
+            for maneuver in elem.maneuvers:
+                reconnect(maneuver)
         return network
 
     @classmethod
     def fromOpenDrive(cls, path, ref_points=20, tolerance=0.05, fill_gaps=True):
         import scenic.simulators.formats.opendrive.xodr_parser as xodr_parser
         road_map = xodr_parser.RoadMap(tolerance=tolerance)
+        startTime = time.time()
+        verbosePrint('Parsing OpenDRIVE file...')
         road_map.parse(path)
+        verbosePrint('Computing road geometry... (this may take a while)')
         road_map.calculate_geometry(ref_points, calc_gap=fill_gaps, calc_intersect=True)
-        return road_map.toScenicNetwork()
+        network = road_map.toScenicNetwork()
+        totalTime = time.time() - startTime
+        verbosePrint(f'Finished loading OpenDRIVE map in {totalTime:.2f} seconds.')
+        return network
 
     def dumpPickle(self, path):
         path = pathlib.Path(path)
         if not path.suffix:
             path = path.with_suffix(self.pickledExt)
+        version = struct.pack('<I', self.currentFormatVersion())
         data = pickle.dumps(self)
-        data = pickletools.optimize(data)
-        with bz2.open(path, 'wb') as f:
-            f.write(data)
+        with open(path, 'wb') as f:
+            f.write(version)    # uncompressed in case we change compression schemes later
+            with gzip.open(f, 'wb') as gf:
+                gf.write(data)
 
     @distributionFunction
     def elementAt(self, point: Vectorlike) -> Union[NetworkElement, None]:

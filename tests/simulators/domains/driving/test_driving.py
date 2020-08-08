@@ -3,22 +3,29 @@ import os
 import glob
 import pytest
 import shutil
+import inspect
 
 from tests.utils import compileScenic, sampleScene, sampleEgo
 from scenic.core.geometry import TriangulationError
 
-template = """
-        from scenic.simulators.domains.driving.network import loadNetwork
-        loadNetwork('{map}', useCache={cache})
-        from scenic.simulators.domains.driving.model import *
-        {firstLine}
-"""
+template = inspect.cleandoc("""
+    from scenic.simulators.domains.driving.network import loadNetwork
+    loadNetwork('{map}', useCache={cache})
+    from scenic.simulators.domains.driving.model import *
+""")
 
-def compileDrivingScenario(cached_maps, code='', firstLine='', useCache=True,
+basicScenario = inspect.cleandoc("""
+    lane = Uniform(*network.lanes)
+    ego = Car in lane
+    Car on visible lane.centerline
+""")
+
+def compileDrivingScenario(cached_maps, code='', useCache=True,
                            path='tests/simulators/formats/opendrive/maps/CARLA/Town01.xodr'):
     path = cached_maps[path]
-    preamble = template.format(map=path, firstLine=firstLine, cache=useCache)
-    return compileScenic(preamble + code)
+    preamble = template.format(map=path, cache=useCache)
+    whole = preamble + '\n' + inspect.cleandoc(code)
+    return compileScenic(whole)
 
 maps = glob.glob('tests/simulators/formats/opendrive/maps/**/*.xodr')
 
@@ -39,11 +46,11 @@ def test_opendrive(path, cached_maps):
     try:
         # First, try the original .xodr file
         scenario = compileDrivingScenario(cached_maps, path=path,
-                                          firstLine='ego = Car', useCache=False)
+                                          code=basicScenario, useCache=False)
         sampleScene(scenario, maxIterations=1000)
         # Second, try the cached version of the network
         scenario = compileDrivingScenario(cached_maps, path=path,
-                                          firstLine='ego = Car', useCache=True)
+                                          code=basicScenario, useCache=True)
         sampleScene(scenario, maxIterations=1000)
     except TriangulationError:
         pytest.skip('need better triangulation library to run this test')
@@ -86,3 +93,20 @@ def test_curb(cached_maps):
         Car left of spot by 0.25
     """)
     sampleScene(scenario, maxIterations=1000)
+
+def test_caching(cached_maps):
+    """Test caching of road networks.
+
+    In particular, make sure that links between network elements and maneuvers
+    are properly reconnected after unpickling.
+    """
+    for cache in (False, True):
+        scenario = compileDrivingScenario(cached_maps, """
+            lanes = filter(lambda l: l.successor, network.lanes)
+            lane = Uniform(*lanes)
+            ego = Car on lane
+            Car on ego.lane.successor.centerline, with requireVisible False
+            Car on ego.lane.maneuvers[0].endLane.centerline, with requireVisible False
+        """, useCache=cache,
+        path='tests/simulators/formats/opendrive/maps/opendrive.org/CulDeSac.xodr')
+        sampleScene(scenario, maxIterations=1000)
