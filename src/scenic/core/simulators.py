@@ -5,7 +5,7 @@ import types
 from collections import OrderedDict
 
 from scenic.core.object_types import enableDynamicProxyFor, disableDynamicProxyFor
-from scenic.core.utils import RuntimeParseError
+from scenic.core.errors import RuntimeParseError
 
 class SimulationCreationError(Exception):
     """Exception indicating a simulation could not be run from the given scene."""

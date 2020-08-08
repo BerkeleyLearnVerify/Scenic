@@ -13,7 +13,8 @@ import scipy
 
 from scenic.core.lazy_eval import (LazilyEvaluable,
     requiredProperties, needsLazyEvaluation, valueInContext, makeDelayedFunctionCall)
-from scenic.core.utils import argsToString, areEquivalent, RuntimeParseError, cached, sqrt2
+from scenic.core.utils import argsToString, areEquivalent, cached, sqrt2
+from scenic.core.errors import RuntimeParseError
 
 ## Misc
 

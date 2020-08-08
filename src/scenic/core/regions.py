@@ -59,7 +59,7 @@ class PointInRegionDistribution(VectorDistribution):
 		else:
 			return 0
 
-	def __str__(self):
+	def __repr__(self):
 		return f'PointIn({self.region})'
 
 class Region(Samplable):
@@ -152,7 +152,7 @@ class Region(Samplable):
 		else:
 			return OrientedVector(vec.x, vec.y, self.orientation[vec])
 
-	def __str__(self):
+	def __repr__(self):
 		return f'<Region {self.name}>'
 
 class AllRegion(Region):
@@ -254,7 +254,7 @@ class CircularRegion(Region):
 		return (areEquivalent(other.center, self.center)
 		        and areEquivalent(other.radius, self.radius))
 
-	def __str__(self):
+	def __repr__(self):
 		return f'CircularRegion({self.center}, {self.radius})'
 
 class SectorRegion(Region):
@@ -320,7 +320,7 @@ class SectorRegion(Region):
 		        and areEquivalent(other.heading, self.heading)
 		        and areEquivalent(other.angle, self.angle))
 
-	def __str__(self):
+	def __repr__(self):
 		return f'SectorRegion({self.center},{self.radius},{self.heading},{self.angle})'
 
 class RectangularRegion(RotatedRectangle, Region):
@@ -369,7 +369,7 @@ class RectangularRegion(RotatedRectangle, Region):
 		        and areEquivalent(other.width, self.width)
 		        and areEquivalent(other.height, self.height))
 
-	def __str__(self):
+	def __repr__(self):
 		return f'RectangularRegion({self.position},{self.heading},{self.width},{self.height})'
 
 class PolylineRegion(Region):
@@ -574,7 +574,7 @@ class PolylineRegion(Region):
 	def __len__(self):
 		return len(self.points)
 
-	def __str__(self):
+	def __repr__(self):
 		return f'PolylineRegion({self.lineString})'
 
 	def __eq__(self, other):
@@ -727,7 +727,7 @@ class PolygonalRegion(Region):
 	def show(self, plt, style='r-', **kwargs):
 		plotPolygon(self.polygons, plt, style=style, **kwargs)
 
-	def __str__(self):
+	def __repr__(self):
 		return '<PolygonalRegion>'
 
 	def __eq__(self, other):
@@ -933,5 +933,5 @@ class IntersectionRegion(Region):
 		return (areEquivalent(set(other.regions), set(self.regions))
 		        and other.orientation == self.orientation)
 
-	def __str__(self):
+	def __repr__(self):
 		return f'IntersectionRegion({self.regions})'

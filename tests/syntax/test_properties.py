@@ -2,11 +2,11 @@
 import pytest
 import numpy as np
 
-from scenic.syntax.translator import InterpreterParseError
+from scenic.core.errors import RuntimeParseError
 from tests.utils import compileScenic, sampleEgoFrom
 
 def test_position_wrong_type():
-    with pytest.raises(InterpreterParseError):
+    with pytest.raises(RuntimeParseError):
         compileScenic('ego = Object with position 4')
 
 def test_position_oriented_point():
@@ -24,7 +24,7 @@ def test_position_numpy_types():
     assert tuple(ego.position) == pytest.approx((3.4, 7))
 
 def test_heading_wrong_type():
-    with pytest.raises(InterpreterParseError):
+    with pytest.raises(RuntimeParseError):
         compileScenic('ego = Object with heading 4 @ 1')
 
 def test_heading_numpy_types():

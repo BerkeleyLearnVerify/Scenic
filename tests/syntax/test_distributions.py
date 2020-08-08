@@ -3,7 +3,7 @@ import pytest
 import math
 import random
 
-from scenic.syntax.translator import InterpreterParseError, InvalidScenarioError
+from scenic.core.errors import RuntimeParseError, InvalidScenarioError
 from tests.utils import compileScenic, sampleScene, sampleEgo, sampleParamP
 
 ## Utilities
@@ -22,27 +22,27 @@ def lazyTestScenario(expr, offset='0'):
 ## Options and Uniform
 
 def test_options_empty_domain():
-    with pytest.raises(InterpreterParseError):
+    with pytest.raises(RuntimeParseError):
         compileScenic('x = Options([])')
-    with pytest.raises(InterpreterParseError):
+    with pytest.raises(RuntimeParseError):
         compileScenic('x = Options({})')
-    with pytest.raises(InterpreterParseError):
+    with pytest.raises(RuntimeParseError):
         compileScenic('x = Uniform()')
-    with pytest.raises(InterpreterParseError):
+    with pytest.raises(RuntimeParseError):
         compileScenic('x = Discrete({})')
 
 def test_options_invalid_weight():
-    with pytest.raises(InterpreterParseError):
+    with pytest.raises(RuntimeParseError):
         compileScenic('x = Options({0: 1, 1: -2})')
-    with pytest.raises(InterpreterParseError):
+    with pytest.raises(RuntimeParseError):
         compileScenic('x = Options({0: 1, 1: []})')
-    with pytest.raises(InterpreterParseError):
+    with pytest.raises(RuntimeParseError):
         compileScenic('x = Options({0: 1, 1: (3, 5)})')
 
 def test_uniform_interval_wrong_type():
-    with pytest.raises(InterpreterParseError):
+    with pytest.raises(RuntimeParseError):
         compileScenic('x = ([], 4)')
-    with pytest.raises(InterpreterParseError):
+    with pytest.raises(RuntimeParseError):
         compileScenic('x = (-10, [])')
 
 def test_uniform_interval():
@@ -330,7 +330,7 @@ def test_shared_dependency_lazy():
         'other = Object at -1 @ 0, facing x'
     )
     for i in range(60):
-        scene, iterations = scenario.generate(maxIterations=1)
+        scene = sampleScene(scenario, maxIterations=1)
         egoH = scene.objects[0].heading
         assert 2 <= egoH <= 3
         otherH = scene.objects[1].heading

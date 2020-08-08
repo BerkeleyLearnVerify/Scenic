@@ -10,7 +10,7 @@ from scenic.core.distributions import (Distribution, RejectionException, Starred
 from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
                                    needsLazyEvaluation, toDelayedArgument)
 from scenic.core.vectors import Vector
-from scenic.core.utils import RuntimeParseError
+from scenic.core.errors import RuntimeParseError
 
 # Typing and coercion rules:
 #

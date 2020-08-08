@@ -5,7 +5,7 @@ import itertools
 from scenic.core.lazy_eval import (DelayedArgument, toDelayedArgument, requiredProperties,
                                    needsLazyEvaluation)
 from scenic.core.distributions import toDistribution
-from scenic.core.utils import RuntimeParseError
+from scenic.core.errors import RuntimeParseError
 
 ## Specifiers themselves
 

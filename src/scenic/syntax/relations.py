@@ -7,7 +7,7 @@ from ast import Compare, BinOp, Eq, NotEq, Lt, LtE, Gt, GtE, Call, Add, Sub, Exp
 
 from scenic.core.distributions import needsSampling
 from scenic.core.object_types import Point, Object
-from scenic.core.utils import InvalidScenarioError, InconsistentScenarioError
+from scenic.core.errors import InvalidScenarioError, InconsistentScenarioError
 
 def inferRelationsFrom(reqNode, namespace, ego, line):
     """Infer relations between objects implied by a requirement."""

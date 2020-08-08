@@ -13,7 +13,7 @@ from scenic.core.geometry import normalizeAngle, polygonUnion, plotPolygon
 from scenic.core.vectors import VectorField, PolygonalVectorField, VectorMethodDistribution
 from scenic.core.workspaces import Workspace
 from scenic.syntax.relations import RelativeHeadingRelation, DistanceRelation
-from scenic.core.utils import InvalidScenarioError
+from scenic.core.errors import InvalidScenarioError
 import scenic.core.regions as regions
 
 ### Utilities

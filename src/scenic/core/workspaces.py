@@ -3,7 +3,7 @@
 from scenic.core.distributions import needsSampling
 from scenic.core.regions import Region, everywhere
 from scenic.core.geometry import findMinMax
-from scenic.core.utils import RuntimeParseError
+from scenic.core.errors import RuntimeParseError
 
 class Workspace(Region):
 	"""A workspace describing the fixed world of a scenario"""

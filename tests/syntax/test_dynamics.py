@@ -1,7 +1,7 @@
 
 import pytest
 
-from scenic.core.utils import RuntimeParseError
+from scenic.core.errors import RuntimeParseError
 
 from tests.utils import (compileScenic, sampleScene, sampleActions, sampleEgoActions,
                          sampleEgoActionsFromScene, checkErrorLineNumber)

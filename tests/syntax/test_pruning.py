@@ -3,8 +3,7 @@ import pytest
 import math
 import random
 
-from scenic.syntax.translator import InterpreterParseError
-from scenic.core.utils import InconsistentScenarioError
+from scenic.core.errors import RuntimeParseError, InconsistentScenarioError
 from tests.utils import compileScenic, sampleEgo
 
 def test_containment():

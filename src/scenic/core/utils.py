@@ -1,4 +1,4 @@
-"""Assorted utility functions and common exceptions."""
+"""Assorted utility functions."""
 
 import functools
 import math
@@ -38,7 +38,8 @@ def areEquivalent(a, b):
         X = (0, 1)
         Y = (0, 1)
 
-    does not make X and Y always have equal values!"""
+    does not make X and Y always have equal values!
+    """
     if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
         if len(a) != len(b):
             return False
@@ -79,21 +80,3 @@ def areEquivalent(a, b):
         return b.isEquivalentTo(a)
     else:
         return a == b
-
-class ParseError(Exception):
-    """An error produced by attempting to parse an invalid Scenic program."""
-    pass
-
-class RuntimeParseError(ParseError):
-    """A Scenic parse error generated during execution of the translated Python."""
-    pass
-
-class InvalidScenarioError(Exception):
-    """Error raised for syntactically-valid but otherwise problematic Scenic programs."""
-    pass
-
-class InconsistentScenarioError(InvalidScenarioError):
-    """Error for scenarios with inconsistent requirements."""
-    def __init__(self, line, message):
-        self.lineno = line
-        super().__init__('Inconsistent requirement on line ' + str(line) + ': ' + message)

@@ -3,15 +3,17 @@ import sys
 import inspect
 
 from scenic import scenarioFromString
-from scenic.simulators.simulators import Simulator
+from scenic.core.simulators import Simulator
 import scenic.syntax.veneer as veneer
 
 ## Scene generation utilities
 
 # Compilation
 
-def compileScenic(code):
-    code = inspect.cleandoc(code)   # to allow indenting code to line up with test function
+def compileScenic(code, removeIndentation=True):
+    if removeIndentation:
+        # to allow indenting code to line up with test function
+        code = inspect.cleandoc(code)
     return scenarioFromString(code)
 
 # Static scenes

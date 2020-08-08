@@ -77,10 +77,10 @@ from scenic.core.geometry import normalizeAngle, apparentHeadingAtPoint
 from scenic.core.object_types import Constructible
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
-from scenic.core.utils import RuntimeParseError
+from scenic.core.errors import RuntimeParseError
 from scenic.core.vectors import OrientedVector
 from scenic.core.external_params import ExternalParameter
-from scenic.simulators.simulators import RejectSimulationException, EndSimulationAction
+from scenic.core.simulators import RejectSimulationException, EndSimulationAction
 
 ### Internals
 
@@ -326,6 +326,7 @@ class Behavior(Samplable):
 			action = self.runningIterator.send(None)
 		except StopIteration:
 			action = None      # behavior ended early
+			self.runningIterator = None
 		finally:
 			currentBehavior = oldBehavior
 		return action

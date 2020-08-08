@@ -100,7 +100,7 @@ from dotmap import DotMap
 import numpy
 
 from scenic.core.distributions import Distribution, Options
-from scenic.core.utils import InvalidScenarioError
+from scenic.core.errors import InvalidScenarioError
 
 class ExternalSampler:
 	"""Abstract class for objects called to sample values for each external parameter.

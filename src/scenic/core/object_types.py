@@ -12,7 +12,8 @@ from scenic.core.geometry import RotatedRectangle, averageVectors, hypot, min, p
 from scenic.core.regions import CircularRegion, SectorRegion
 from scenic.core.type_support import toVector, toScalar
 from scenic.core.lazy_eval import needsLazyEvaluation
-from scenic.core.utils import areEquivalent, cached_property, RuntimeParseError
+from scenic.core.utils import areEquivalent, cached_property
+from scenic.core.errors import RuntimeParseError
 
 ## Abstract base class
 
