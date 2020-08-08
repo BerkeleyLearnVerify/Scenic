@@ -95,6 +95,7 @@ inheritedReqs = []		# TODO improve handling of these?
 monitors = []
 behaviors = []
 currentSimulation = None
+currentBehavior = None
 evaluatingGuard = False
 
 ## APIs used internally by the rest of Scenic
@@ -190,8 +191,9 @@ def beginSimulation(sim):
 		namespace.update(sampledNS)
 
 def endSimulation(sim):
-	global currentSimulation, egoObject
+	global currentSimulation, currentBehavior, egoObject
 	currentSimulation = None
+	currentBehavior = None
 	egoObject = None
 
 	for modName, (namespace, sampledNS, originalNS) in sim.scene.behaviorNamespaces.items():
@@ -306,6 +308,7 @@ class Behavior(Samplable):
 		return type(self)(*args, **kwargs)
 
 	def start(self, agent):
+		self.agent = agent
 		it = self.makeGenerator(agent, *self.args, **self.kwargs)
 		if isinstance(it, types.GeneratorType):
 			self.runningIterator = it
@@ -314,23 +317,35 @@ class Behavior(Samplable):
 			return False	# behavior did not issue any actions
 
 	def step(self):
+		global currentBehavior
 		if self.runningIterator is None:
 			return None
+		oldBehavior = currentBehavior
 		try:
+			currentBehavior = self
 			action = self.runningIterator.send(None)
 		except StopIteration:
 			action = None      # behavior ended early
+		finally:
+			currentBehavior = oldBehavior
 		return action
 
 	def stop(self):
+		self.agent = None
 		self.runningIterator = None
 
 	def callSubBehavior(self, subcls, agent, *args, **kwargs):
+		global currentBehavior
 		assert issubclass(subcls, Behavior)
 		sub = subcls(*args, **kwargs)
 		if not sub.start(agent):
 			return
-		yield from sub.runningIterator
+		try:
+			currentBehavior = sub
+			yield from sub.runningIterator
+		finally:
+			sub.stop()
+			currentBehavior = self
 
 	def __str__(self):
 		return f'behavior {self.__class__.__name__}'

@@ -74,7 +74,7 @@ class PropertyDefault:
 				for other in overriddenDefs:
 					allVals.append(other.value(context))
 				return tuple(allVals)
-			val = DelayedArgument(allReqs, concatenator)
+			val = DelayedArgument(allReqs, concatenator, _internal=True)
 		else:
-			val = DelayedArgument(self.requiredProperties, self.value)
+			val = DelayedArgument(self.requiredProperties, self.value, _internal=True)
 		return Specifier(prop, val)

@@ -73,6 +73,8 @@ def checkVeneerIsInactive():
     assert len(veneer.inheritedReqs) == 0
     assert len(veneer.behaviors) == 0
     assert len(veneer.monitors) == 0
+    assert veneer.currentSimulation is None
+    assert veneer.currentBehavior is None
 
 ## Error checking utilities
 
