@@ -15,7 +15,7 @@ from collections import defaultdict
 
 from scenic.core.regions import PolygonalRegion, PolylineRegion
 from scenic.core.geometry import (polygonUnion, cleanPolygon, cleanChain, plotPolygon,
-                                  averageVectors)
+                                  removeHoles, averageVectors)
 from scenic.core.vectors import Vector
 from scenic.simulators.domains.driving import roads as roadDomain
 
@@ -931,7 +931,7 @@ class Road:
 class RoadMap:
     defaultTolerance = 0.05
 
-    def __init__(self, tolerance=None):
+    def __init__(self, tolerance=None, fill_intersections=True):
         self.tolerance = self.defaultTolerance if tolerance is None else tolerance
         self.roads = {}
         self.road_links = []
@@ -939,6 +939,7 @@ class RoadMap:
         self.sec_lane_polys = []
         self.lane_polys = []
         self.intersection_region = None
+        self.fill_intersections = fill_intersections
 
     def calculate_geometry(self, num, calc_gap=False, calc_intersect=False):
         # If calc_gap=True, fills in gaps between connected roads.
@@ -1013,25 +1014,13 @@ class RoadMap:
     def calculate_intersections(self):
         intersect_polys = []
         for junc in self.junctions.values():
-            junc_roads = set()
-            junc_polys = []
-            for conn in junc.connections:
-               junc_roads.add(conn.incoming_id)
-               junc_roads.add(conn.connecting_id)
-            for road_i_idx in junc_roads:
-                if road_i_idx in junc.paths:
-                    road_i = self.roads[road_i_idx]
-                    junc_polys.append(road_i.drivable_region)
-                    continue
-                for road_j_idx in junc_roads:
-                    if road_i_idx == road_j_idx:
-                        continue
-                    road_i = self.roads[road_i_idx]
-                    road_j = self.roads[road_j_idx]
-                    poly = road_i.drivable_region.intersection(road_j.drivable_region)
-                    junc_polys.append(poly)
-            junc.poly = buffer_union(junc_polys, tolerance=self.tolerance)
-            intersect_polys.extend(junc_polys)
+            junc_polys = [self.roads[i].drivable_region for i in junc.paths]
+            assert junc_polys, junc
+            union = buffer_union(junc_polys, tolerance=self.tolerance)
+            if self.fill_intersections:
+                union = removeHoles(union)
+            junc.poly = union
+            intersect_polys.append(union)
         self.intersection_region = buffer_union(intersect_polys, tolerance=self.tolerance)
 
     def heading_at(self, point):
@@ -1116,6 +1105,8 @@ class RoadMap:
         else:
             assert link_elem.get('elementType') == 'junction', 'Unknown link type'
             junction = int(link_elem.get('elementId'))
+            if junction not in self.junctions:
+                return    # junction had no connecting roads, so we skipped it
             if contact == 'start':
                 road.predecessor = junction
             else:
@@ -1149,6 +1140,9 @@ class RoadMap:
                                         c.get('contactPoint'),
                                         lane_links)
                 junction.paths.append(int(c.get('connectingRoad')))
+            if not junction.paths:
+                warnings.warn(f'junction {junction.id_} has no connecting roads; skipping it')
+                continue
             self.junctions[junction.id_] = junction
 
         self.elidedRoads = {}
