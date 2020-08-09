@@ -289,17 +289,20 @@ def runFile(path):
     sampleActionsFromScene(scene, maxSteps=2)
 
 @pytest.mark.parametrize('bug', (
-    'x = 3 << 2',       # caught during token translation
-    '4 = 2',            # caught during Python parsing
-    'require mutate',   # caught during Python parsing
-    'Point at x y',     # caught during Python parsing (with offset past end of original line)
-    'require',          # caught during AST surgery
-    'terminate 4',      # caught during AST surgery (handled differently inside behaviors)
-    'break',            # caught during Python compilation
-    '4 at 0',           # caught during Python execution (Scenic parse error)
-    'x = _flub__',      # caught during Python execution (Python runtime error)
-    'raise Exception',  # caught during Python execution (program exception)
-    'require _flub__',  # caught during scene generation (Python error in requirement)
+    # BUGGY CODE                    ERROR CAUGHT DURING:
+    'x = 3 << 2',                   # token translation
+    '4 = 2',                        # Python parsing
+    'require mutate',               # Python parsing
+    'Point at x y',                 # Python parsing (with offset past end of original line)
+    'require',                      # AST surgery
+    'terminate 4',                  # AST surgery (handled differently inside behaviors)
+    'break',                        # Python compilation
+    '4 at 0',                       # Python execution (Scenic parse error)
+    'x = _flub__',                  # Python execution (Python runtime error)
+    'raise Exception',              # Python execution (program exception)
+    'Object at Uniform(0@0, 4)'     # sampling
+    'require 4 at 0',               # requirement evaluation (Scenic parse error)
+    'require _flub__',              # requirement evaluation (Python runtime error)
 ))
 @pytest.mark.parametrize('template', templates + dynamicTemplates)
 def test_line_numbering(bug, template, tmpdir, pytestconfig):

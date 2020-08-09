@@ -69,7 +69,9 @@ class ASTParseError(ScenicSyntaxError):
 
 class RuntimeParseError(ScenicSyntaxError):
     """A Scenic parse error generated during execution of the translated Python."""
-    pass
+    def __init__(self, msg, loc=None):
+        super().__init__(msg)
+        self.loc = loc
 
 class InvalidScenarioError(ScenicError):
     """Error raised for syntactically-valid but otherwise problematic Scenic programs."""
@@ -93,12 +95,13 @@ def excepthook(ty, value, tb):
     pseudoSyntaxError = (issubclass(ty, ScenicSyntaxError)
                          and not issubclass(ty, RuntimeParseError))
     if issubclass(ty, ScenicError):
-        name = ty.__name__
+        if issubclass(ty, ScenicSyntaxError) and not showInternalBacktrace:
+            name = 'ScenicSyntaxError'
+        else:
+            name = ty.__name__
         if pseudoSyntaxError:
             # hack to get format_exception_only to format this like a bona fide SyntaxError
             bases = (SyntaxError,)
-            if not showInternalBacktrace:
-                name = 'ScenicSyntaxError'
         else:
             bases = ty.__bases__
         formatTy = type(name, bases, {})
@@ -108,7 +111,9 @@ def excepthook(ty, value, tb):
         formatTy = ty
 
     if issubclass(ty, SyntaxError) or (pseudoSyntaxError and not showInternalBacktrace):
-        strings.extend(traceback.format_exception_only(formatTy, value))
+        pass    # no backtrace for these types of errors
+    elif issubclass(ty, RuntimeParseError) and value.loc and not showInternalBacktrace:
+        strings.extend(traceback.format_list([value.loc]))
     else:
         summary = traceback.extract_tb(tb)
         if showInternalBacktrace:
@@ -126,7 +131,7 @@ def excepthook(ty, value, tb):
                 elif includeFrame(frame):
                     filtered.append(frame)
         strings.extend(traceback.format_list(filtered))
-        strings.extend(traceback.format_exception_only(formatTy, value))
+    strings.extend(traceback.format_exception_only(formatTy, value))
     message = ''.join(strings)
     print(message, end='', file=sys.stderr)
 
@@ -146,6 +151,13 @@ def callBeginningScenicTrace(func):
     running Scenic programs from the command line.
     """
     return func()
+
+def saveErrorLocation():
+    stack = traceback.extract_stack()
+    for frame in reversed(stack):
+        if includeFrame(frame):
+            return frame
+    return None
 
 ## Utilities
 
