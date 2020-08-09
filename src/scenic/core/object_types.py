@@ -10,7 +10,7 @@ from scenic.core.specifiers import Specifier, PropertyDefault
 from scenic.core.vectors import Vector
 from scenic.core.geometry import RotatedRectangle, averageVectors, hypot, min, pointIsInCone
 from scenic.core.regions import CircularRegion, SectorRegion
-from scenic.core.type_support import toVector, toScalar
+from scenic.core.type_support import toVector, toHeading
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.utils import areEquivalent, cached_property
 from scenic.core.errors import RuntimeParseError
@@ -129,7 +129,7 @@ class Constructible(Samplable):
 		if 'position' in properties:
 			self.position = toVector(self.position, f'"position" of {self} not a vector')
 		if 'heading' in properties:
-			self.heading = toScalar(self.heading, f'"heading" of {self} not a scalar')
+			self.heading = toHeading(self.heading, f'"heading" of {self} not a heading')
 
 		# Set up dependencies
 		deps = []
@@ -201,7 +201,6 @@ class PositionMutator(Mutator):
 
 	def appliedTo(self, obj):
 		noise = Vector(random.gauss(0, self.stddev), random.gauss(0, self.stddev))
-		pos = toVector(obj.position, '"position" not a vector')
 		pos = pos + noise
 		return (obj.copyWith(position=pos), True)		# allow further mutation
 

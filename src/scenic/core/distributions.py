@@ -191,7 +191,7 @@ class Distribution(Samplable):
 
 	def __getattr__(self, name):
 		if name.startswith('__') and name.endswith('__'):	# ignore special attributes
-			return super().__getattr__(name)
+			return object.__getattribute__(self, name)
 		return AttributeDistribution(name, self)
 
 	def __call__(self, *args):
@@ -482,10 +482,18 @@ class OperatorDistribution(Distribution):
 	"""Distribution resulting from applying an operator to one or more distributions"""
 	def __init__(self, operator, obj, operands, valueType=None):
 		operands = tuple(toDistribution(arg) for arg in operands)
+		if valueType is None:
+			valueType = self.inferType(obj, operator)
 		super().__init__(obj, *operands, valueType=valueType)
 		self.operator = operator
 		self.object = obj
 		self.operands = operands
+
+	@staticmethod
+	def inferType(obj, operator):
+		if issubclass(obj.valueType, (float, int)):
+			return float
+		return None
 
 	def sampleGiven(self, value):
 		first = value[self.object]
@@ -600,7 +608,7 @@ class Range(Distribution):
 	def __init__(self, low, high):
 		low = type_support.toScalar(low, f'Range endpoint {low} is not a scalar')
 		high = type_support.toScalar(high, f'Range endpoint {high} is not a scalar')
-		super().__init__(low, high)
+		super().__init__(low, high, valueType=float)
 		self.low = low
 		self.high = high
 
@@ -646,7 +654,7 @@ class Normal(Distribution):
 	def __init__(self, mean, stddev):
 		mean = type_support.toScalar(mean, f'Normal mean {mean} is not a scalar')
 		stddev = type_support.toScalar(stddev, f'Normal stddev {stddev} is not a scalar')
-		super().__init__(mean, stddev)
+		super().__init__(mean, stddev, valueType=float)
 		self.mean = mean
 		self.stddev = stddev
 
@@ -801,7 +809,7 @@ class DiscreteRange(Distribution):
 		else:
 			weights = tuple(weights)
 			assert len(weights) == high - low + 1
-		super().__init__()
+		super().__init__(valueType=int)
 		self.low = low
 		self.high = high
 		self.weights = weights

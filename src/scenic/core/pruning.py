@@ -31,7 +31,6 @@ def isMethodCall(thing, method):
 
 def matchInRegion(position):
     """Match uniform samples from a Region, returning the Region if any."""
-    position = position.toVector()
     if isinstance(position, regions.PointInRegionDistribution):
         reg = position.region
         if isinstance(reg, Workspace):
@@ -48,7 +47,7 @@ def matchPolygonalField(heading, position):
     """
     if (isMethodCall(heading, VectorField.__getitem__)
         and isinstance(heading.object, PolygonalVectorField)
-        and heading.arguments == (position.toVector(),)):
+        and heading.arguments == (position,)):
         return heading.object, 0, 0
     elif isinstance(heading, OperatorDistribution) and heading.operator in ('__add__', '__radd__'):
         field, lower, upper = matchPolygonalField(heading.object, position)

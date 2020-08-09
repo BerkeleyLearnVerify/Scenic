@@ -1,6 +1,7 @@
 """Scenic world model for traffic scenarios in CARLA."""
 
 import scenic.simulators.domains.driving.model as baseModel
+from scenic.simulators.domains.driving.model import DrivingObject
 
 import scenic.simulators.carla.blueprints as blueprints
 
@@ -30,7 +31,7 @@ param sun_azimuth_angle = (0, 360)
 param sun_altitude_angle = (-90, 90)
 
 
-class CarlaActor:
+class CarlaActor(DrivingObject):
     carlaActor: None
     blueprint: None
     elevation: None

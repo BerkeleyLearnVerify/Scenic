@@ -4,13 +4,13 @@ import math
 import lgsvl
 import numpy as np
 from scipy import linalg
-import scenic.simulators as simulators
+from scenic.core.simulators import Action
 import scenic.simulators.lgsvl.utils as utils
 import scenic.syntax.veneer as veneer
 from scenic.core.vectors import Vector
 
 
-class SetThrottleAction(simulators.Action):
+class SetThrottleAction(Action):
 	def __init__(self, throttle):
 		self.throttle = throttle
 
@@ -20,26 +20,26 @@ class SetThrottleAction(simulators.Action):
 		lgsvlObject.apply_control(cntrl, True)
 
 
-class SetBrakeAction(simulators.Action):
+class SetBrakeAction(Action):
 	def __init__(self, brake):
 		self.brake = brake
 
 	def applyTo(self, obj, lgsvlObject, sim):
 		cntrl = lgsvl.VehicleControl()
-		cntrl.brake = self.brake
+		cntrl.braking = self.brake
 		cntrl.throttle = 0
 		lgsvlObject.apply_control(cntrl, True)
 
-class SetSteerAction(simulators.Action):
+class SetSteerAction(Action):
 	def __init__(self, steer):
 		self.steer = steer
 
 	def applyTo(self, obj, lgsvlObject, sim):
 		cntrl = lgsvl.VehicleControl()
-		cntrl.steer = self.steer
+		cntrl.steering = self.steer
 		lgsvlObject.apply_control(cntrl, True)
 
-class SetReverse(simulators.Action):
+class SetReverse(Action):
 	def __init__(self, steer):
 		self.reverse = reverse
 
@@ -48,7 +48,7 @@ class SetReverse(simulators.Action):
 		cntrl.reverse = self.reverse
 		lgsvlObject.apply_control(cntrl, True)
 
-class MoveAction(simulators.Action):
+class MoveAction(Action):
 	def __init__(self, offset):
 		self.offset = offset
 
@@ -59,7 +59,7 @@ class MoveAction(simulators.Action):
 		state.transform.position = pos
 		lgsvlObject.state = state
 
-class SetVelocityAction(simulators.Action):
+class SetVelocityAction(Action):
 	def __init__(self, velocity):
 		self.velocity = utils.scenicToLGSVLPosition(velocity)
 
@@ -68,7 +68,7 @@ class SetVelocityAction(simulators.Action):
 		state.velocity = self.velocity
 		lgsvlObject.state = state
 
-class SetSpeedAction(simulators.Action):
+class SetSpeedAction(Action):
 	def __init__(self, speed):
 		self.speed = speed
 
@@ -81,7 +81,7 @@ class SetSpeedAction(simulators.Action):
 
 
 
-class FollowWaypointsAction(simulators.Action):
+class FollowWaypointsAction(Action):
 	def __init__(self, waypoints):
 		self.waypoints = tuple(waypoints)
 		if not isinstance(self.waypoints[0], lgsvl.DriveWaypoint):
@@ -107,11 +107,11 @@ class FollowWaypointsAction(simulators.Action):
 								   f' unsupported agent {lgsvlObject}')
 		self.lastTime = sim.currentTime
 
-class CancelWaypointsAction(simulators.Action):
+class CancelWaypointsAction(Action):
 	def applyTo(self, obj, lgsvlObject, sim):
 		lgsvlObject.walk_randomly(False)
 
-class SetDestinationAction(simulators.Action):
+class SetDestinationAction(Action):
 	def __init__(self, dest):
 		self.dest = dest
 		self.timer = 0
@@ -138,7 +138,7 @@ class SetDestinationAction(simulators.Action):
 		self.timer = self.timer + 1
 
 
-class TrackWaypoints(simulators.Action):
+class TrackWaypoints(Action):
 	def __init__(self, waypoints, cruising_speed = 10):
 		self.waypoints = np.array(waypoints)
 		self.curr_index = 1

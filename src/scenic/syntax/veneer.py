@@ -512,12 +512,12 @@ def resample(dist):
 	"""The built-in resample function."""
 	return dist.clone() if isinstance(dist, Distribution) else dist
 
-def verbosePrint(msg):
+def verbosePrint(msg, file=sys.stdout):
 	"""Built-in function printing a message when the verbosity is >0."""
 	import scenic.syntax.translator as translator
 	if translator.verbosity >= 1:
 		indent = '  ' * activity if translator.verbosity >= 2 else '  '
-		print(indent + msg)
+		print(indent + msg, file=file)
 
 def simulation():
 	if isActive():

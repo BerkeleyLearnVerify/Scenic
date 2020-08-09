@@ -59,7 +59,7 @@ from scenic.core.scenarios import Scenario
 from scenic.core.object_types import Constructible
 import scenic.core.errors as errors
 from scenic.core.errors import (TokenParseError, PythonParseError, ASTParseError,
-                                RuntimeParseError, InvalidScenarioError)
+                                InvalidScenarioError)
 import scenic.core.pruning as pruning
 import scenic.syntax.veneer as veneer
 import scenic.syntax.relations as relations
