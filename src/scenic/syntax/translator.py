@@ -46,7 +46,7 @@ from tokenize import INDENT, DEDENT, STRING
 import ast
 from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_missing_locations
 from ast import Load, Store, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, BitXor, LShift
-from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Num, Subscript, Index, IfExp
+from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Subscript, Index, IfExp
 from ast import NamedExpr, Yield, YieldFrom, FunctionDef, Attribute, Constant, Assign, Expr
 from ast import Return, Raise, If, UnaryOp, Not, ClassDef, Nonlocal, Global, Compare, Is, Try
 from ast import Break, Continue
@@ -272,6 +272,7 @@ paramStatement = 'param'
 mutateStatement = 'mutate'
 
 requireStatement = 'require'
+softRequirement = 'require_soft'	# not actually a statement, but a marker for the parser
 requireAlwaysStatement = ('require', 'always')
 terminateWhenStatement = ('terminate', 'when')
 
@@ -317,7 +318,7 @@ behavioralImps = { functionForStatement(s) for s in behavioralStatements }
 
 # statements encoding requirements which need special handling
 requirementStatements = (
-    requireStatement,
+    requireStatement, softRequirement,
     functionForStatement(requireAlwaysStatement),
     functionForStatement(terminateWhenStatement),
 )
@@ -887,11 +888,14 @@ class TokenTranslator:
 							raise self.parseError(nextToken,
 							    'soft requirement must have constant probability')
 						prob = nextToken.string
+						if not 0 <= float(prob) <= 1:
+							raise self.parseError(nextToken,
+							                      'probability must be between 0 and 1')
 						nextToken = next(tokens)
 						if nextToken.exact_type != RSQB:
 							raise self.parseError(nextToken, 'malformed soft requirement')
 						wrapStatementCall()
-						callFunction(requireStatement, argument=prob)
+						callFunction(softRequirement, argument=prob)
 						endToken = nextToken
 					elif twoWords in illegalConstructs:
 						construct = ' '.join(twoWords)
@@ -1208,28 +1212,29 @@ class ASTSurgeon(NodeTransformer):
 			statement = statementForImp[func.id]
 			raise self.parseError(node, f'"{statement}" cannot be used in a behavior')
 		if func.id in requirementStatements:		# require, terminate when, etc.
-			# Soft reqs have 2 arguments, including the probability, which is given as the
-			# first argument by the token translator; so we allow an extra argument here and
-			# validate it later on (in case the user wrongly gives 2 arguments to require).
-			numArgs = (1, 2) if func.id == requireStatement else 1
+			if func.id == softRequirement:
+				func.id = requireStatement
+				numArgs = 2
+				if len(node.args) != 2:
+					self.parseError(node, f'"require" takes exactly 1 argument')
+			else:
+				numArgs = 1
 			self.validateSimpleCall(node, numArgs)
 			cond = node.args[-1]
 			assert not self.inRequire
 			self.inRequire = True
 			req = self.visit(cond)
 			self.inRequire = False
-			reqID = Num(len(self.requirements))	# save ID number
+			reqID = Constant(len(self.requirements), None)	# save ID number
 			self.requirements.append(req)		# save condition for later inspection when pruning
 			closure = Lambda(noArgs, req)		# enclose requirement in a lambda
-			lineNum = Num(node.lineno)			# save line number for error messages
+			lineNum = Constant(node.lineno, None)			# save line number for error messages
 			copy_location(closure, req)
 			copy_location(lineNum, req)
 			newArgs = [reqID, closure, lineNum]
-			if len(node.args) == 2:		# get probability for soft requirements
+			if numArgs == 2:		# get probability for soft requirements
 				prob = node.args[0]
-				if not isinstance(prob, Num):
-					raise self.parseError(node, 'malformed requirement '
-					                            '(should be a single expression)')
+				assert isinstance(prob, Constant) and isinstance(prob.value, (float, int))
 				newArgs.append(prob)
 			return copy_location(Expr(Call(func, newArgs, [])), node)
 		elif func.id == actionStatement:		# Action statement
@@ -1241,7 +1246,8 @@ class ASTSurgeon(NodeTransformer):
 			return self.generateActionInvocation(node, None)
 		elif func.id == terminateStatement:		# Terminate statement
 			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
-			termination = Call(Name(createTerminationAction, Load()), [Num(node.lineno)], [])
+			termination = Call(Name(createTerminationAction, Load()),
+			                   [Constant(node.lineno, None)], [])
 			return self.generateActionInvocation(node, termination)
 		elif func.id == abortStatement:		# abort statement for try-interrupt statements
 			if not self.inTryInterrupt:
@@ -1419,7 +1425,7 @@ class ASTSurgeon(NodeTransformer):
 			elif isinstance(arg, Starred) and not self.inBehavior:
 				wrappedStar = True
 				checkedVal = Call(Name('wrapStarredValue', Load()),
-				                  [self.visit(arg.value), Num(arg.value.lineno)],
+				                  [self.visit(arg.value), Constant(arg.value.lineno, None)],
 				                  [])
 				newArgs.append(Starred(checkedVal, Load()))
 			else:
@@ -1449,7 +1455,7 @@ class ASTSurgeon(NodeTransformer):
 			if not (low <= len(node.args) <= high):
 				raise self.parseError(node, f'"{name}" takes {low}-{high} arguments')
 		elif len(node.args) != numArgs:
-			raise self.parseError(node, f'"{name}" takes exactly {numArgs} arguments')
+			raise self.parseError(node, f'"{name}" takes exactly {numArgs} argument(s)')
 		if len(node.keywords) != 0:
 			raise self.parseError(node, f'"{name}" takes no keyword arguments')
 		for arg in node.args:
