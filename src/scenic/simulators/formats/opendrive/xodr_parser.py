@@ -1572,6 +1572,7 @@ class RoadMap:
             intersections=intersections,
             crossings=crossings,
             sidewalks=tuple(sidewalks),
+            tolerance=self.tolerance,
             roadRegion=combine(roads),
             laneRegion=combine(lanes),
             intersectionRegion=combine(intersections),

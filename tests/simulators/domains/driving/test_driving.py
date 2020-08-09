@@ -104,7 +104,7 @@ def test_caching(cached_maps):
         scenario = compileDrivingScenario(cached_maps, """
             lanes = filter(lambda l: l.successor, network.lanes)
             lane = Uniform(*lanes)
-            ego = Car on lane
+            ego = Car on lane, with foo lane.network.lanes
             Car on ego.lane.successor.centerline, with requireVisible False
             Car on ego.lane.maneuvers[0].endLane.centerline, with requireVisible False
         """, useCache=cache,
