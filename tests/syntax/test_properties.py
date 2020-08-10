@@ -33,3 +33,10 @@ def test_heading_numpy_types():
         ego = Object with heading np.single(3.4)
     """)
     assert ego.heading == pytest.approx(3.4)
+
+def test_left():
+    ego = sampleEgoFrom("""
+        other = Object with width 4
+        ego = Object at other.left offset by 0@5
+    """)
+    assert tuple(ego.position) == pytest.approx((-2, 5))

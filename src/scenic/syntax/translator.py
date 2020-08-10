@@ -395,10 +395,10 @@ prefixOperators = {
 	('front', 'right'): 'FrontRight',
 	('back', 'left'): 'BackLeft',
 	('back', 'right'): 'BackRight',
-	('front',): 'Front',
-	('back',): 'Back',
-	('left',): 'Left',
-	('right',): 'Right',
+	('front', 'of'): 'Front',
+	('back', 'of'): 'Back',
+	('left', 'of'): 'Left',
+	('right', 'of'): 'Right',
 	('follow',): 'Follow',
 	('visible',): 'Visible'
 }
