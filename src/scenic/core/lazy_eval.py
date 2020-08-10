@@ -122,10 +122,10 @@ def valueInContext(value, context):
 	except AttributeError:
 		return value
 
-def toDelayedArgument(thing):
+def toDelayedArgument(thing, internal=False):
 	if isinstance(thing, DelayedArgument):
 		return thing
-	return DelayedArgument(set(), lambda context: thing)
+	return DelayedArgument(set(), lambda context: thing, _internal=internal)
 
 def requiredProperties(thing):
 	if hasattr(thing, '_requiredProperties'):

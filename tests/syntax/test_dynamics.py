@@ -6,6 +6,32 @@ from scenic.core.errors import RuntimeParseError
 from tests.utils import (compileScenic, sampleScene, sampleActions, sampleEgoActions,
                          sampleEgoActionsFromScene, checkErrorLineNumber)
 
+## Dynamic state
+
+def test_dynamic_property():
+    scenario = compileScenic("""
+        behavior Foo():
+            for i in range(3):
+                self.position = self.position + 1@0
+                wait
+        ego = Object with behavior Foo
+        terminate when ego.position.x >= 3
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=3)
+    assert len(actions) == 2
+
+def test_dynamic_derived_property():
+    scenario = compileScenic("""
+        behavior Foo():
+            for i in range(3):
+                self.position = self.position + 0@1
+                wait
+        ego = Object with behavior Foo
+        terminate when ego.left.position.y >= 3
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=3)
+    assert len(actions) == 2
+
 ## Behaviors
 
 # Arguments

@@ -69,10 +69,6 @@ class Simulation:
         import scenic.syntax.veneer as veneer
         veneer.beginSimulation(self)
 
-        # Set up mutable proxies for all objects
-        for obj in self.scene.objects:
-            enableDynamicProxyFor(obj)
-
         try:
             # Initialize behavior coroutines of agents
             for agent in self.agents:
@@ -89,6 +85,10 @@ class Simulation:
             while maxSteps is None or self.currentTime < maxSteps:
                 if verbosity >= 3:
                     print(f'    Time step {self.currentTime}:')
+
+                # Set up new mutable proxies for all objects
+                for obj in self.scene.objects:
+                    enableDynamicProxyFor(obj)
 
                 # Check if any requirements fail
                 for req in self.scene.alwaysRequirements:

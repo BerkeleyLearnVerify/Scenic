@@ -62,7 +62,7 @@ class Constructible(Samplable):
 		name = type(self).__name__
 		specifiers = list(args)
 		for prop, val in kwargs.items():	# kwargs supported for internal use
-			specifiers.append(Specifier(prop, val))
+			specifiers.append(Specifier(prop, val, internal=True))
 		properties = dict()
 		optionals = collections.defaultdict(list)
 		defs = self.__class__.defaults

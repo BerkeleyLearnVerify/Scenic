@@ -14,9 +14,9 @@ class Specifier:
 
 	Any optionally-specified properties are evaluated as attributes of the primary value.
 	"""
-	def __init__(self, prop, value, deps=None, optionals={}):
+	def __init__(self, prop, value, deps=None, optionals={}, internal=False):
 		self.property = prop
-		self.value = toDelayedArgument(value)
+		self.value = toDelayedArgument(value, internal)
 		if deps is None:
 			deps = set()
 		deps |= requiredProperties(value)
