@@ -319,17 +319,17 @@ class Behavior(Samplable):
 	def step(self):
 		global currentBehavior
 		if self.runningIterator is None:
-			return None
+			return ()		# behavior ended in an earlier step
 		oldBehavior = currentBehavior
 		try:
 			currentBehavior = self
-			action = self.runningIterator.send(None)
+			actions = self.runningIterator.send(None)
 		except StopIteration:
-			action = None      # behavior ended early
+			actions = ()	# behavior ended early
 			self.runningIterator = None
 		finally:
 			currentBehavior = oldBehavior
-		return action
+		return actions
 
 	def stop(self):
 		self.agent = None

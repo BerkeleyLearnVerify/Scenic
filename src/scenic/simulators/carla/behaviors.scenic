@@ -1,17 +1,19 @@
 
-import scenic.simulators.carla.actions as actions
-from scenic.simulators.carla.model import roadDirection
+import math
+
 from scenic.simulators.domains.driving.roads import ManeuverType
 from scenic.core.regions import regionFromShapelyObject
-from shapely.geometry import LineString
-import math
+
+from scenic.simulators.carla.actions import *
+import scenic.simulators.carla.controllers as controllers
+from scenic.simulators.carla.model import roadDirection
 
 def concatenateCenterlines(centerlines=[]):
 	return PolylineRegion.unionAll(centerlines)
 
 def distance(pos1, pos2):
 	""" pos1, pos2 = (x,y) """
-	return math.sqrt(math.pow(pos1[0]-pos2[0],2) + math.pow(pos1[1]-pos2[1],2))
+	return math.hypot(pos1[0]-pos2[0], pos1[1]-pos2[1])
 
 def distanceToAnyCars(car, thresholdDistance):
 	""" returns boolean """
@@ -25,48 +27,33 @@ def distanceToAnyCars(car, thresholdDistance):
 	return False
 
 behavior AccelerateForwardBehavior():
-	take actions.SetReverseAction(False)
-	take actions.SetHandBrakeAction(False)
-	take actions.SetThrottleAction(0.5)
+	take SetReverseAction(False), SetHandBrakeAction(False), SetThrottleAction(0.5)
 
 behavior LanekeepingBehavior(gain=0.1):
-	take actions.SetReverseAction(False)
-	take actions.SetHandBrakeAction(False)
-	take actions.SetThrottleAction(0.5)
+	take SetReverseAction(False), SetHandBrakeAction(False), SetThrottleAction(0.5)
 
 	while True:
 		delta = self.heading relative to (roadDirection at self.position)
-		take actions.SetSteerAction(-gain * delta)
-
+		take SetSteerAction(-gain * delta)
 
 behavior WalkForwardBehavior():
-	take actions.SetSpeedAction(0.5)
-
+	take SetSpeedAction(0.5)
 
 behavior ConstantThrottleBehavior(x):
-    take actions.SetThrottleAction(x)
+    take SetThrottleAction(x)
 
 
 behavior FollowLaneBehavior(target_speed = 25, network = None):
-	assert network is not None
 
 	# instantiate longitudinal and latitudinal pid controllers
-	_lon_controller = actions.PIDLongitudinalController(self)
-	_lat_controller = actions.PIDLateralController(self)
+	dt = simulation().timestep
+	_lon_controller = controllers.PIDLongitudinalController(dt=dt)
+	_lat_controller = controllers.PIDLateralController(dt=dt)
 	past_steer_angle = 0
 
 	while True:
-
-		if self.speed is not None:
-			current_speed = self.speed
-		else:
-			current_speed = 0
-			#print("self.speed is None")
-
-		#print("current_speed: ", self.speed)
-
-		cte = network.laneAt(self).centerline.signedDistanceTo(self.position)
-		speed_error = target_speed - current_speed
+		cte = self.lane.centerline.signedDistanceTo(self.position)
+		speed_error = target_speed - self.speed
 
 		# compute throttle : Longitudinal Control
 		throttle = _lon_controller.run_step(speed_error)
@@ -74,11 +61,11 @@ behavior FollowLaneBehavior(target_speed = 25, network = None):
 		# compute steering : Latitudinal Control
 		current_steer_angle = _lat_controller.run_step(cte)
 
-		take actions.FollowLaneAction(throttle=throttle, current_steer=current_steer_angle, past_steer=past_steer_angle)
-		# take actions.FollowLaneAction(throttle=throttle, current_steer=0, past_steer=0)
+		take FollowLaneAction(throttle=throttle,
+		                      current_steer=current_steer_angle,
+		                      past_steer=past_steer_angle)
 		past_steer_angle = current_steer_angle
 
-	
 
 behavior FollowTrajectoryBehavior(target_speed = 25, trajectory = None):
 	assert trajectory is not None
@@ -86,20 +73,14 @@ behavior FollowTrajectoryBehavior(target_speed = 25, trajectory = None):
 	trajectory_line = concatenateCenterlines(trajectory)
 
 	# instantiate longitudinal and latitudinal pid controllers
-	_lon_controller = actions.PIDLongitudinalController(self)
-	_lat_controller = actions.PIDLateralController(self)
+	dt = simulation().timestep
+	_lon_controller = actions.PIDLongitudinalController(dt=dt)
+	_lat_controller = actions.PIDLateralController(dt=dt)
 	past_steer_angle = 0
 
 	while True:
-		if self.speed is not None:
-			current_speed = self.speed
-		else:
-			current_speed = 0
-			print("self.speed is None")
-		print("current_speed: ", self.speed)
-
 		cte = trajectory_line.signedDistanceTo(self.position)
-		speed_error = target_speed - current_speed
+		speed_error = target_speed - self.speed
 
 		# compute throttle : Longitudinal Control
 		throttle = _lon_controller.run_step(speed_error)
@@ -107,7 +88,8 @@ behavior FollowTrajectoryBehavior(target_speed = 25, trajectory = None):
 		# compute steering : Latitudinal Control
 		current_steer_angle = _lat_controller.run_step(cte)
 
-		take actions.FollowLaneAction(throttle=throttle, current_steer=current_steer_angle, past_steer=past_steer_angle)
-		# take actions.FollowLaneAction(throttle=throttle, current_steer=0, past_steer=0)
+		take FollowLaneAction(throttle=throttle,
+		                      current_steer=current_steer_angle,
+		                      past_steer=past_steer_angle)
 		past_steer_angle = current_steer_angle
 

@@ -16,7 +16,20 @@ intersection = network.intersectionRegion
 roadDirection = network.roadDirection
 
 class DrivingObject:
-    """Abstract class providing convenience methods for objects in a road network."""
+    """Abstract class for objects in a road network.
+
+    Provides convenience properties for the lane, road, intersection, etc. at the
+    object's current position (if any).
+
+    Also defines the 'elevation' property as a standard way to access the Z
+    component of an object's position, since the Scenic built-in property
+    'position' is only 2D. If 'elevation' is set to `None`, the simulator is
+    responsible for choosing an appropriate Z coordinate so that the object is
+    on the ground, then updating the property. 2D simulators should set the
+    property to zero.
+    """
+
+    elevation[dynamic]: None
 
     @property
     def lane(self):

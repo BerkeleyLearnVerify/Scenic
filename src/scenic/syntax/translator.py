@@ -1238,12 +1238,12 @@ class ASTSurgeon(NodeTransformer):
 				newArgs.append(prob)
 			return copy_location(Expr(Call(func, newArgs, [])), node)
 		elif func.id == actionStatement:		# Action statement
-			self.validateSimpleCall(node, 1, onlyInBehaviors=True)
-			action = self.visit(node.args[0])
+			self.validateSimpleCall(node, (1, None), onlyInBehaviors=True)
+			action = Tuple(self.visit(node.args), Load())
 			return self.generateActionInvocation(node, action)
 		elif func.id == waitStatement:		# Wait statement
 			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
-			return self.generateActionInvocation(node, None)
+			return self.generateActionInvocation(node, Constant((), None))
 		elif func.id == terminateStatement:		# Terminate statement
 			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
 			termination = Call(Name(createTerminationAction, Load()),
@@ -1452,8 +1452,10 @@ class ASTSurgeon(NodeTransformer):
 		if isinstance(numArgs, tuple):
 			assert len(numArgs) == 2
 			low, high = numArgs
-			if not (low <= len(node.args) <= high):
-				raise self.parseError(node, f'"{name}" takes {low}-{high} arguments')
+			if high is not None and len(node.args) > high:
+				raise self.parseError(node, f'"{name}" takes at most {high} argument(s)')
+			if len(node.args) < low:
+				raise self.parseError(node, f'"{name}" takes at least {low} argument(s)')
 		elif len(node.args) != numArgs:
 			raise self.parseError(node, f'"{name}" takes exactly {numArgs} argument(s)')
 		if len(node.keywords) != 0:

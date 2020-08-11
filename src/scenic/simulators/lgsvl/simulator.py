@@ -1,9 +1,12 @@
 
+import math
+import warnings
+
 import lgsvl
 
 import scenic.core.simulators as simulators
 import scenic.simulators.lgsvl.utils as utils
-import scenic.syntax.veneer as veneer
+from scenic.syntax.veneer import verbosePrint
 from scenic.core.vectors import Vector
 
 class LGSVLSimulator(simulators.Simulator):
@@ -45,9 +48,10 @@ class LGSVLSimulation(simulators.Simulation):
 
             # Set up position and orientation
             state = lgsvl.AgentState()
-            if obj.elevation is None:
-                obj.elevation = self.groundElevationAt(obj.position)
-            state.transform.position = utils.scenicToLGSVLPosition(obj.position, obj.elevation)
+            elevation = obj.elevation
+            if elevation is None:
+                elevation = self.groundElevationAt(obj.position)
+            state.transform.position = utils.scenicToLGSVLPosition(obj.position, elevation)
             state.transform.rotation = utils.scenicToLGSVLRotation(obj.heading)
 
             # Create LGSVL object
@@ -60,20 +64,19 @@ class LGSVLSimulation(simulators.Simulation):
             if getattr(obj, 'apolloVehicle', None):
                 self.initApolloFor(obj, lgsvlObj)
 
-        # TODO reset object controllers???
-
     def groundElevationAt(self, pos):
         origin = utils.scenicToLGSVLPosition(pos, 100000)
         result = self.client.raycast(origin, lgsvl.Vector(0, -1, 0), 1)
         if result is None:
-            print(f'WARNING: no ground at position {pos}')
+            warnings.warn(f'no ground at position {pos}')
             return 0
         return result.point.y
 
     def initApolloFor(self, obj, lgsvlObj):
         """Initialize Apollo for an ego vehicle.
 
-        Uses LG's interface which injects packets into Dreamview."""
+        Uses LG's interface which injects packets into Dreamview.
+        """
         if self.usingApollo:
             raise RuntimeError('can only use one Apollo vehicle')
         self.usingApollo = True
@@ -85,7 +88,6 @@ class LGSVLSimulation(simulators.Simulation):
                 self.data[obj]['collision'] = True
             if self.data[obj]['collision']:
                 self.collisionOccurred = True
-                print('COLLISION !')
 
         # Initialize Data
         self.data[obj]['collision'] = False
@@ -101,17 +103,13 @@ class LGSVLSimulation(simulators.Simulation):
         waitToStabilize = False
         hdMap = self.scene.params['apolloHDMap']
         if dv.getCurrentMap() != hdMap:
-            print('previous map:',dv.getCurrentMap())
-            print('current map:',hdMap)
             dv.setHDMap(hdMap)
             waitToStabilize = True
-            print('map updated')
         if dv.getCurrentVehicle() != obj.apolloVehicle:
             dv.setVehicle(obj.apolloVehicle)
             waitToStabilize = True
-            print('vehicle updated')
         
-        print('Initializing Apollo...')
+        verbosePrint('Initializing Apollo...')
 
         # stop the car to cancel buffered speed from previous simulations
         cntrl = lgsvl.VehicleControl()
@@ -119,14 +117,11 @@ class LGSVLSimulation(simulators.Simulation):
         lgsvlObj.apply_control(cntrl, True)
         # start modules
         dv.disableModule('Control')
-        #for module in obj.apolloModules:
-        #    dv.disableModule(module)
-        #self.client.run(5)
         ready = dv.getModuleStatus()
         for module in obj.apolloModules:
             if not ready[module]:
                 dv.enableModule(module)
-                print('Module', module, 'is not ready...')
+                verbosePrint(f'Module {module} is not ready...')
                 waitToStabilize = True
         while True:
             ready = dv.getModuleStatus()
@@ -135,50 +130,29 @@ class LGSVLSimulation(simulators.Simulation):
 
         # wait for Apollo to stabilize, if needed
         if waitToStabilize:
-            print('waiting to stabilize')
+            verbosePrint('Waiting for Apollo to stabilize...')
             self.client.run(25)
         dv.enableModule('Control')
         self.client.run(15)
-        print('Initialized Apollo.')
+        verbosePrint('Initialized Apollo.')
 
-    def writePropertiesToLGSVL(self):
-        for obj in self.objects:
-            lgsvlObj = obj.lgsvlObject
-            state = lgsvlObj.state
-            # position, elevation
-            state.transform.position = utils.scenicToLGSVLPosition(obj.position, y=obj.elevation)
-            # heading
-            state.transform.rotation = utils.scenicToLGSVLRotation(obj.heading)
-            # update state
-            lgsvlObj.state = state
-
-    def readPropertiesFromLGSVL(self):
-        for obj in self.objects:
-            lgsvlObj = obj.lgsvlObject
-            state = lgsvlObj.state
-            # position, elevation
-            obj.position = utils.lgsvlToScenicPosition(state.position)
-            obj.elevation = utils.lgsvlToScenicElevation(state.position)
-            # heading
-            heading = utils.lgsvlToScenicRotation(state.rotation, tolerance2D=15)
-            if heading is None:
-                raise RuntimeError(f'{lgsvlObj} has non-planar orientation!')
-            obj.heading = heading
-
-    def currentState(self):
-        return tuple(obj.position for obj in self.objects)
-
-    def initialState(self):
-        return self.currentState()
-
-    def step(self, actions):
-        # execute actions
-        for agent, action in actions.items():
-            if action is not None:
-                action.applyTo(agent, agent.lgsvlObject, self)
-        # run simulation for one time step
+    def step(self):
         self.client.run(time_limit=self.timeStep)
-        # read back the results of the simulation
-        self.readPropertiesFromLGSVL()
-        return self.currentState()
+
+    def getProperties(self, obj, properties):
+        lgsvlObj = obj.lgsvlObject
+        state = lgsvlObj.state
+
+        velocity = utils.lgsvlToScenicPosition(state.velocity)
+        speed = math.hypot(*velocity)
+
+        values = dict(
+            position=utils.lgsvlToScenicPosition(state.position),
+            elevation=utils.lgsvlToScenicElevation(state.position),
+            heading=utils.lgsvlToScenicRotation(state.rotation),
+            velocity=velocity,
+            speed=speed,
+            angularSpeed=utils.lgsvlToScenicAngularSpeed(state.rotation),
+        )
+        return values
 

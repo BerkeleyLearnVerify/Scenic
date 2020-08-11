@@ -1,6 +1,5 @@
 """Implementations of the built-in Scenic classes."""
 
-import inspect
 import collections
 import math
 import random
@@ -28,24 +27,31 @@ class Constructible(Samplable):
 	"""
 
 	def __init_subclass__(cls):
+		super().__init_subclass__()
 		# find all defaults provided by the class or its superclasses
 		allDefs = collections.defaultdict(list)
-		for sc in inspect.getmro(cls):
-			if hasattr(sc, '__annotations__'):
+		for sc in cls.__mro__:
+			if issubclass(sc, Constructible) and hasattr(sc, '__annotations__'):
 				for prop, value in sc.__annotations__.items():
 					allDefs[prop].append(PropertyDefault.forValue(value))
 
-		# resolve conflicting defaults
+		# resolve conflicting defaults and gather dynamic properties
 		resolvedDefs = {}
+		dyns = []
 		for prop, defs in allDefs.items():
 			primary, rest = defs[0], defs[1:]
 			spec = primary.resolveFor(prop, rest)
 			resolvedDefs[prop] = spec
-		cls.defaults = resolvedDefs
+
+			if any(defn.isDynamic for defn in defs):
+				dyns.append(prop)
+		cls._defaults = resolvedDefs
+		cls._dynamicProperties = tuple(dyns)
 
 	@classmethod
 	def withProperties(cls, props):
-		assert all(reqProp in props for reqProp in cls.defaults)
+		assert all(reqProp in props for reqProp in cls._defaults)
+		assert all(not needsLazyEvaluation(val) for val in props.values())
 		return cls(_internal=True, **props)
 
 	def __init__(self, *args, _internal=False, **kwargs):
@@ -59,13 +65,13 @@ class Constructible(Samplable):
 			return
 
 		# Validate specifiers
-		name = type(self).__name__
+		name = self.__class__.__name__
 		specifiers = list(args)
 		for prop, val in kwargs.items():	# kwargs supported for internal use
 			specifiers.append(Specifier(prop, val, internal=True))
 		properties = dict()
 		optionals = collections.defaultdict(list)
-		defs = self.__class__.defaults
+		defs = self.__class__._defaults
 		for spec in specifiers:
 			assert isinstance(spec, Specifier), (name, spec)
 			prop = spec.property
@@ -121,15 +127,9 @@ class Constructible(Samplable):
 		assert len(order) == len(specifiers)
 
 		# Evaluate and apply specifiers
+		self.properties = set()		# will be filled by calls to _specify below
 		for spec in order:
 			spec.applyTo(self, optionalsForSpec[spec])
-
-		# Normalize types of built-in properties
-		self.properties = set(properties)
-		if 'position' in properties:
-			self.position = toVector(self.position, f'"position" of {self} not a vector')
-		if 'heading' in properties:
-			self.heading = toHeading(self.heading, f'"heading" of {self} not a heading')
 
 		# Set up dependencies
 		deps = []
@@ -141,6 +141,18 @@ class Constructible(Samplable):
 
 		# Possibly register this object
 		self._register()
+
+	def _specify(self, prop, value):
+		assert prop not in self.properties
+
+		# Normalize types of some built-in properties
+		if prop == 'position':
+			value = toVector(value, f'"position" of {self} not a vector')
+		elif prop == 'heading':
+			value = toHeading(value, f'"heading" of {self} not a heading')
+
+		self.properties.add(prop)
+		object.__setattr__(self, prop, value)
 
 	def _register(self):
 		pass	# do nothing by default; may be overridden by subclasses
@@ -166,7 +178,7 @@ class Constructible(Samplable):
 		if hasattr(self, 'properties') and 'name' in self.properties:
 			return self.name
 		else:
-			return super().__repr__()
+			return self.__repr__()
 
 	def __repr__(self):
 		if hasattr(self, 'properties'):
@@ -249,7 +261,7 @@ class Point(Constructible):
 		  operators that expect an `Object`).
 		height (float): Default value zero.
 	"""
-	position: Vector(0, 0)
+	position: PropertyDefault((), {'dynamic'}, lambda self: Vector(0, 0))
 	width: 0
 	height: 0
 	visibleDistance: 50
@@ -308,7 +320,7 @@ class OrientedPoint(Point):
 		viewAngle (float): View cone angle for ``can see`` operator. Default
 		  value :math:`2\\pi`.
 	"""
-	heading: 0
+	heading: PropertyDefault((), {'dynamic'}, lambda self: 0)
 	viewAngle: math.tau
 
 	mutator: PropertyDefault({'headingStdDev'}, {'additive'},
@@ -352,10 +364,17 @@ class Object(OrientedPoint, RotatedRectangle):
 	"""
 	width: 1
 	height: 1
+
 	allowCollisions: False
 	requireVisible: True
 	regionContainedIn: None
 	cameraOffset: Vector(0, 0)
+
+	velocity: PropertyDefault(('speed', 'heading'), {'dynamic'},
+	                          lambda self: Vector(0, self.speed).rotatedBy(self.heading))
+	speed: PropertyDefault((), {'dynamic'}, lambda self: 0)
+	angularSpeed: PropertyDefault((), {'dynamic'}, lambda self: 0)
+
 	behavior: None
 
 	def __new__(cls, *args, **kwargs):
@@ -469,6 +488,9 @@ class Object(OrientedPoint, RotatedRectangle):
 
 def enableDynamicProxyFor(obj):
 	object.__setattr__(obj, '_dynamicProxy', obj.copyWith())
+
+def setDynamicProxyFor(obj, proxy):
+	object.__setattr__(obj, '_dynamicProxy', proxy)
 
 def disableDynamicProxyFor(obj):
 	object.__setattr__(obj, '_dynamicProxy', obj)

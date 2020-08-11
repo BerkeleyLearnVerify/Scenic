@@ -14,45 +14,46 @@ class SetThrottleAction(Action):
 	def __init__(self, throttle):
 		self.throttle = throttle
 
-	def applyTo(self, obj, lgsvlObject, sim):
+	def applyTo(self, obj, sim):
 		cntrl = lgsvl.VehicleControl()
 		cntrl.throttle = self.throttle
-		lgsvlObject.apply_control(cntrl, True)
+		obj.lgsvlObject.apply_control(cntrl, True)
 
 
 class SetBrakeAction(Action):
 	def __init__(self, brake):
 		self.brake = brake
 
-	def applyTo(self, obj, lgsvlObject, sim):
+	def applyTo(self, obj, sim):
 		cntrl = lgsvl.VehicleControl()
 		cntrl.braking = self.brake
 		cntrl.throttle = 0
-		lgsvlObject.apply_control(cntrl, True)
+		obj.lgsvlObject.apply_control(cntrl, True)
 
 class SetSteerAction(Action):
 	def __init__(self, steer):
 		self.steer = steer
 
-	def applyTo(self, obj, lgsvlObject, sim):
+	def applyTo(self, obj, sim):
 		cntrl = lgsvl.VehicleControl()
 		cntrl.steering = self.steer
-		lgsvlObject.apply_control(cntrl, True)
+		obj.lgsvlObject.apply_control(cntrl, True)
 
 class SetReverse(Action):
 	def __init__(self, steer):
 		self.reverse = reverse
 
-	def applyTo(self, obj, lgsvlObject, sim):
+	def applyTo(self, obj, sim):
 		cntrl = lgsvl.VehicleControl()
 		cntrl.reverse = self.reverse
-		lgsvlObject.apply_control(cntrl, True)
+		obj.lgsvlObject.apply_control(cntrl, True)
 
 class MoveAction(Action):
 	def __init__(self, offset):
 		self.offset = offset
 
-	def applyTo(self, obj, lgsvlObject, sim):
+	def applyTo(self, obj, sim):
+		lgsvlObject = obj.lgsvlObject
 		pos = obj.position.offsetRotated(obj.heading, self.offset)
 		pos = utils.scenicToLGSVLPosition(pos, y=obj.elevation)
 		state = lgsvlObject.state
@@ -63,7 +64,8 @@ class SetVelocityAction(Action):
 	def __init__(self, velocity):
 		self.velocity = utils.scenicToLGSVLPosition(velocity)
 
-	def applyTo(self, obj, lgsvlObject, sim):
+	def applyTo(self, obj, sim):
+		lgsvlObject = obj.lgsvlObject
 		state = lgsvlObject.state
 		state.velocity = self.velocity
 		lgsvlObject.state = state
@@ -72,7 +74,8 @@ class SetSpeedAction(Action):
 	def __init__(self, speed):
 		self.speed = speed
 
-	def applyTo(self, obj, lgsvlObject, sim):
+	def applyTo(self, obj, sim):
+		lgsvlObject = obj.lgsvlObject
 		vel = Vector(0, self.speed).rotatedBy(obj.heading)
 		velocity = utils.scenicToLGSVLPosition(vel)
 		state = lgsvlObject.state
@@ -96,29 +99,31 @@ class FollowWaypointsAction(Action):
 
 		self.lastTime = -2
 
-	def applyTo(self, obj, lgsvlObject, sim):
-		#print(sim.currentTime, self.lastTime)
+	def canBeTakenBy(self, agent):
+		return agent.lgsvlAgentType in (lgsvl.AgentType.NPC, lgsvl.AgentType.PEDESTRIAN)
+
+	def applyTo(self, obj, sim):
 		if sim.currentTime is not self.lastTime + 1:
-			agentType = obj.lgsvlAgentType
-			if agentType in (lgsvl.AgentType.NPC, lgsvl.AgentType.PEDESTRIAN):
-				lgsvlObject.follow(self.waypoints)
-			else:
-				raise RuntimeError('used FollowWaypointsAction with'
-								   f' unsupported agent {lgsvlObject}')
+			obj.lgsvlObject.follow(self.waypoints)
 		self.lastTime = sim.currentTime
 
 class CancelWaypointsAction(Action):
-	def applyTo(self, obj, lgsvlObject, sim):
-		lgsvlObject.walk_randomly(False)
+	def canBeTakenBy(self, agent):
+		return agent.lgsvlAgentType in (lgsvl.AgentType.NPC, lgsvl.AgentType.PEDESTRIAN)
+
+	def applyTo(self, obj, sim):
+		obj.lgsvlObject.walk_randomly(False)
 
 class SetDestinationAction(Action):
 	def __init__(self, dest):
 		self.dest = dest
 		self.timer = 0
 
-	def applyTo(self, obj, lgsvlObject, sim):
+	def canBeTakenBy(self, agent):
+		return bool(getattr(agent, 'dreamview', False))
+
+	def applyTo(self, obj, sim):
 		if self.timer == 0:
-			print('Setting destination...')
 			z = sim.groundElevationAt(self.dest)
 			import dreamview
 			obj.dreamview.setDestination(self.dest.x, self.dest.y, z,
@@ -129,12 +134,11 @@ class SetDestinationAction(Action):
 		if self.timer < oneSec:
 			cntrl = lgsvl.VehicleControl()
 			cntrl.throttle = 0.5
-			lgsvlObject.apply_control(cntrl, True)
+			obj.lgsvlObject.apply_control(cntrl, True)
 		elif self.timer == oneSec:
-			print('Autopilot...')
 			cntrl = lgsvl.VehicleControl()
 			cntrl.throttle = 0.5
-			lgsvlObject.apply_control(cntrl, False)
+			obj.lgsvlObject.apply_control(cntrl, False)
 		self.timer = self.timer + 1
 
 
@@ -144,6 +148,9 @@ class TrackWaypoints(Action):
 		self.curr_index = 1
 		self.cruising_speed = cruising_speed
 
+	def canBeTakenBy(self, agent):
+		return agent.lgsvlAgentType is lgsvl.AgentType.EGO
+
 	def LQR(v_target, wheelbase, Q, R):
 		A = np.matrix([[0, v_target*(5./18.)], [0, 0]])
 		B = np.matrix([[0], [(v_target/wheelbase)*(5./18.)]])
@@ -151,7 +158,8 @@ class TrackWaypoints(Action):
 		K = np.matrix(linalg.inv(R)*(B.T*V))
 		return K
 
-	def applyTo(self, obj, lgsvlObject, sim):
+	def applyTo(self, obj, sim):
+		lgsvlObject = obj.lgsvlObject
 		state = lgsvlObject.state
 		pos = state.transform.position
 		rot = state.transform.rotation

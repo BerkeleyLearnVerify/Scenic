@@ -65,13 +65,12 @@ class Scenario:
 			workspace = Workspace()		# default empty workspace
 		self.workspace = workspace
 		self.simulator = simulator		# simulator for dynamic scenarios
+		# make ego the first object, while otherwise preserving order
 		ordered = []
 		for obj in objects:
-			ordered.append(obj)
-			if obj is egoObject:	# make ego the first object
-				ordered[0], ordered[-1] = ordered[-1], ordered[0]
-		assert ordered[0] is egoObject
-		self.objects = tuple(ordered)
+			if obj is not egoObject:
+				ordered.append(obj)
+		self.objects = (egoObject,) + tuple(ordered)
 		self.egoObject = egoObject
 		self.params = dict(params)
 		self.externalParams = tuple(externalParams)

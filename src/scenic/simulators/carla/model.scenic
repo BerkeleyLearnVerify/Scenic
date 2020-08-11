@@ -34,8 +34,6 @@ param sun_altitude_angle = (-90, 90)
 class CarlaActor(DrivingObject):
     carlaActor: None
     blueprint: None
-    elevation: None
-    speed: None
     color: None
 
 
