@@ -50,7 +50,7 @@ class Scene:
 	def simulate(self, maxSteps=None, maxIterations=100, verbosity=0):
 		"""Run a simulation of this scene."""
 		if self.simulator is None:
-			raise RuntimeError('tried to simulate Scene which does not have a Simulator')
+			raise RuntimeError('tried to simulate scene which does not have a simulator defined')
 		return self.simulator.simulate(self, maxSteps=maxSteps, maxIterations=maxIterations,
 		                               verbosity=verbosity)
 

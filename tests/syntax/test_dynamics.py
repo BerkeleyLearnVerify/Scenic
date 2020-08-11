@@ -209,6 +209,37 @@ def test_terminate_when():
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (1,)
 
+# Requirements
+
+def test_behavior_require():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take self.foo
+                require self.foo < 0
+        ego = Object with foo (-1, 1), with behavior Foo
+    """)
+    for i in range(50):
+        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=1, maxScenes=50)
+        assert len(actions) == 2
+        assert actions[0] < 0
+        assert actions[0] == actions[1]
+
+def test_behavior_require_2():
+    scenario = compileScenic("""
+        behavior Foo():
+            x = (-1, 1)
+            while True:
+                take x
+                require x < 0
+        ego = Object with behavior Foo
+    """)
+    for i in range(50):
+        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=50, maxScenes=1)
+        assert len(actions) == 2
+        assert actions[0] < 0
+        assert actions[0] == actions[1]
+
 # Reuse
 
 def test_behavior_reuse():

@@ -39,21 +39,30 @@ def sampleParamPFrom(code, maxIterations=1):
 
 # Dynamic simulations
 
-def sampleEgoActions(scenario, maxIterations=1, maxSteps=1):
-    scene, iterations = generateChecked(scenario, maxIterations)
-    return sampleEgoActionsFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps)
+def sampleEgoActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
+    allActions = sampleActions(scenario, maxIterations=maxIterations,
+                               maxSteps=maxSteps, maxScenes=maxScenes)
+    return [actions[0] for actions in allActions]
 
 def sampleEgoActionsFromScene(scene, maxIterations=1, maxSteps=1):
     allActions = sampleActionsFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps)
+    if allActions is None:
+        return None
     return [actions[0] for actions in allActions]
 
-def sampleActions(scenario, maxIterations=1, maxSteps=1):
-    scene, iterations = generateChecked(scenario, maxIterations)
-    return sampleActionsFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps)
+def sampleActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
+    for i in range(maxScenes):
+        scene, iterations = generateChecked(scenario, maxIterations)
+        result = sampleActionsFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps)
+        if result is not None:
+            return result
+    assert False, f'unable to find successful simulation over {maxScenes} scenes'
 
 def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1):
     sim = Simulator()
     traj = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
+    if traj is None:
+        return None
     return traj[1:]
 
 # Helpers

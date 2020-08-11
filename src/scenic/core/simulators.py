@@ -39,7 +39,7 @@ class Simulator:
                 print(f'  Simulation {iterations} ended successfully at time step '
                       f'{simulation.currentTime} because of: {terminationReason}')
             return trajectory
-        raise RuntimeError(f'failed to generate valid simulation in {maxIterations} iterations')
+        return None
 
     def createSimulation(self, scene):
         return Simulation(scene)
