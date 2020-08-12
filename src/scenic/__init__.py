@@ -8,6 +8,8 @@
    :toctree: _autosummary
 
    core
+   domains
+   formats
    simulators
    syntax
 """

@@ -1,89 +1,14 @@
-# added equivalent actions from carla, for lgsvl
+"""Actions for agents in the LGSVL model."""
 
 import math
+
 import lgsvl
 import numpy as np
 from scipy import linalg
-from scenic.core.simulators import Action
+
+from scenic.domains.driving.actions import *	# Most actions imported here
 import scenic.simulators.lgsvl.utils as utils
 import scenic.syntax.veneer as veneer
-from scenic.core.vectors import Vector
-from collections import deque
-
-
-class SetThrottleAction(Action):
-	def __init__(self, throttle):
-		self.throttle = throttle
-
-	def applyTo(self, obj, sim):
-		cntrl = lgsvl.VehicleControl()
-		cntrl.throttle = self.throttle
-		obj.lgsvlObject.apply_control(cntrl, True)
-
-
-class SetBrakeAction(Action):
-	def __init__(self, brake):
-		self.brake = brake
-
-	def applyTo(self, obj, sim):
-		cntrl = lgsvl.VehicleControl()
-		cntrl.braking = self.brake
-		cntrl.throttle = 0
-		obj.lgsvlObject.apply_control(cntrl, True)
-
-class SetSteerAction(Action):
-	def __init__(self, steer):
-		self.steer = steer
-
-	def applyTo(self, obj, sim):
-		cntrl = lgsvl.VehicleControl()
-		cntrl.steering = self.steer
-		obj.lgsvlObject.apply_control(cntrl, True)
-
-class SetReverse(Action):
-	def __init__(self, steer):
-		self.reverse = reverse
-
-	def applyTo(self, obj, sim):
-		cntrl = lgsvl.VehicleControl()
-		cntrl.reverse = self.reverse
-		obj.lgsvlObject.apply_control(cntrl, True)
-
-class MoveAction(Action):
-	def __init__(self, offset):
-		self.offset = offset
-
-	def applyTo(self, obj, sim):
-		lgsvlObject = obj.lgsvlObject
-		pos = obj.position.offsetRotated(obj.heading, self.offset)
-		pos = utils.scenicToLGSVLPosition(pos, y=obj.elevation)
-		state = lgsvlObject.state
-		state.transform.position = pos
-		lgsvlObject.state = state
-
-class SetVelocityAction(Action):
-	def __init__(self, velocity):
-		self.velocity = utils.scenicToLGSVLPosition(velocity)
-
-	def applyTo(self, obj, sim):
-		lgsvlObject = obj.lgsvlObject
-		state = lgsvlObject.state
-		state.velocity = self.velocity
-		lgsvlObject.state = state
-
-class SetSpeedAction(Action):
-	def __init__(self, speed):
-		self.speed = speed
-
-	def applyTo(self, obj, sim):
-		lgsvlObject = obj.lgsvlObject
-		vel = Vector(0, self.speed).rotatedBy(obj.heading)
-		velocity = utils.scenicToLGSVLPosition(vel)
-		state = lgsvlObject.state
-		state.velocity = velocity
-		lgsvlObject.state = state
-
-
 
 class FollowWaypointsAction(Action):
 	def __init__(self, waypoints):
@@ -128,96 +53,18 @@ class SetDestinationAction(Action):
 			z = sim.groundElevationAt(self.dest)
 			import dreamview
 			obj.dreamview.setDestination(self.dest.x, self.dest.y, z,
-									  coordType=dreamview.CoordType.Unity)
+			                             coordType=dreamview.CoordType.Unity)
 
 		# push vehicle for 1 second to start
-		oneSec = int(1.0/sim.timeStep)
+		oneSec = int(1.0/sim.timestep)
 		if self.timer < oneSec:
-			cntrl = lgsvl.VehicleControl()
-			cntrl.throttle = 0.5
-			obj.lgsvlObject.apply_control(cntrl, True)
+			obj.control.throttle = 0.5
 		elif self.timer == oneSec:
-			cntrl = lgsvl.VehicleControl()
-			cntrl.throttle = 0.5
-			obj.lgsvlObject.apply_control(cntrl, False)
+			obj.control.throttle = 0.5
+			obj._stickyControl = False
 		self.timer = self.timer + 1
 
-
-
-
-class FollowLaneAction(Action):
-	"""
-	VehiclePIDController is the combination of two PID controllers
-	(lateral and longitudinal) to perform the
-	low level control a vehicle from client side
-	"""
-
-	def __init__(self, throttle, current_steer, past_steer, args_lateral=None, args_longitudinal=None, max_throttle=0.5, max_brake=0.5, max_steering=0.8):
-		"""
-		Constructor method.
-
-		:param vehicle: actor to apply to local planner logic onto
-		:param args_lateral: dictionary of arguments to set the lateral PID controller
-		using the following semantics:
-			K_P -- Proportional term
-			K_D -- Differential term
-			K_I -- Integral term
-		:param args_longitudinal: dictionary of arguments to set the longitudinal
-		PID controller using the following semantics:
-			K_P -- Proportional term
-			K_D -- Differential term
-			K_I -- Integral term
-		"""
-		super().__init__()
-
-		self.max_brake = max_brake
-		self.max_throt = max_throttle
-		self.max_steer = max_steering
-		self.args_longitudinal = args_longitudinal
-		self.args_lateral = args_lateral
-		self.throttle = throttle
-		self.current_steer = current_steer
-		self.past_steer = past_steer
-
-	def applyTo(self, obj, lgsvlObject, sim):
-		"""
-		Execute one step of control invoking both lateral and longitudinal
-		PID controllers to reach a target waypoint
-		at a given target_speed.
-
-			:param target_speed: desired vehicle speed
-			:param waypoint: target location encoded as a waypoint
-			:return: distance (in meters) to the waypoint
-		"""
-	
-		control = lgsvl.VehicleControl()
-
-		if self.throttle >= 0.0:
-			control.throttle = min(self.throttle, self.max_throt)
-			control.braking = 0.0
-		else:
-			control.throttle = 0.0
-			control.braking = min(abs(self.throttle), self.max_brake)
-
-		# Steering regulation: changes cannot happen abruptly, can't steer too much.
-
-		if self.current_steer > self.past_steer + 0.1:
-		    self.current_steer = self.past_steer + 0.1
-		elif self.current_steer < self.past_steer - 0.1:
-		    self.current_steer = self.past_steer - 0.1
-
-		if self.current_steer >= 0:
-		    steering = min(self.max_steer, self.current_steer)
-		else:
-		    steering = max(-self.max_steer, self.current_steer)
-
-		control.steer = steering
-		control.hand_brake = False
-		lgsvlObject.apply_control(control, True)
-
-
-
-class TrackWaypoints(simulators.Action):
+class TrackWaypointsAction(Action):
 	def __init__(self, waypoints, cruising_speed = 10):
 		self.waypoints = np.array(waypoints)
 		self.curr_index = 1

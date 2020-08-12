@@ -3,10 +3,11 @@ import time
 
 import lgsvl
 
-import scenic.simulators.domains.driving.model as baseModel
-from scenic.simulators.domains.driving.model import DrivingObject
-
+import scenic.domains.driving.model as baseModel
+from scenic.domains.driving.model import DrivingObject, Vehicle, Pedestrian, Steers, Walks
 from scenic.simulators.lgsvl.simulator import LGSVLSimulator
+import scenic.simulators.lgsvl.utils as utils
+from scenic.simulators.lgsvl.actions import *
 
 # Load map and set up various useful regions, etc.
 
@@ -24,22 +25,53 @@ intersection = baseModel.intersection
 class LGSVLObject(DrivingObject):
     lgsvlObject: None
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._state = None      # used internally to accumulate state updates
+        self._stateUpdated = False
+
+    def setPosition(self, pos, elevation):
+        self._state.position = utils.scenicToLGSVLPosition(pos, elevation)
+        self._stateUpdated = True
+
+    def setVelocity(self, vel):
+        self._state.velocity = utils.scenicToLGSVLPosition(vel)
+        self._stateUpdated = True
+
 # TODO: Get vehicle models, dimensions from LGSVL
-class Car(LGSVLObject):
-    regionContainedIn: road
-    position: Point on road
-    heading: (roadDirection at self.position) + self.roadDeviation
-    roadDeviation: 0
-    viewAngle: 90 deg
-    width: 2.5
-    height: 5
-    requireVisible: False
+class Car(Vehicle, LGSVLObject):
     lgsvlName: 'Sedan'
     lgsvlAgentType: lgsvl.AgentType.NPC
 
-class EgoCar(Car):
+class EgoCar(Car, Steers):
     lgsvlName: 'Lincoln2017MKZ (Apollo 5.0)'
     lgsvlAgentType: lgsvl.AgentType.EGO
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._control = None    # used internally to accumulate control updates
+
+    @property
+    def control(self):
+        if self._control is None:
+            self._control = lgsvl.VehicleControl()
+            self._stickyControl = True
+        return self._control
+
+    def setThrottle(self, throttle):
+        self.control.throttle = throttle
+
+    def setSteering(self, steering):
+        self.control.steering = steering
+
+    def setBraking(self, braking):
+        self.control.braking = braking
+
+    def setHandbrake(self, handbrake):
+        self.control.handbrake = handbrake
+
+    def setReverse(self, reverse):
+        self.control.reverse = reverse
 
 class ApolloCar(EgoCar):
     lgsvlName: 'Lincoln2017MKZ (Apollo 5.0)'
@@ -51,14 +83,15 @@ class ApolloCar(EgoCar):
     bridgeHost: 'localhost'
     bridgePort: 9090
 
-class Pedestrian(LGSVLObject):
-    regionContainedIn: sidewalk
-    position: Point on sidewalk
-    heading: (0, 360) deg
-    width: 0.5
-    height: 0.5
+class Pedestrian(Pedestrian, LGSVLObject, Walks):
     lgsvlName: 'Bob'
     lgsvlAgentType: lgsvl.AgentType.PEDESTRIAN
+
+    def setWalkingDirection(self, heading):
+        super().setWalkingDirection(heading)    # TODO use better implementation?
+
+    def setWalkingSpeed(self, speed):
+        super().setWalkingSpeed(speed)
 
 ## Utility classes
 

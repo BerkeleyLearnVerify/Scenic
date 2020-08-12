@@ -589,7 +589,7 @@ class Network:
         changed, so that cached networks will be properly regenerated (rather than being
         unpickled in an inconsistent state and causing errors later).
         """
-        return 6
+        return 7
 
     @classmethod
     def fromFile(cls, path, useCache=True, writeCache=True, **kwargs):
@@ -665,7 +665,7 @@ class Network:
     @classmethod
     def fromOpenDrive(cls, path, ref_points=20, tolerance=0.05,
                       fill_gaps=True, fill_intersections=True):
-        import scenic.simulators.formats.opendrive.xodr_parser as xodr_parser
+        import scenic.formats.opendrive.xodr_parser as xodr_parser
         road_map = xodr_parser.RoadMap(tolerance=tolerance,
                                        fill_intersections=fill_intersections)
         startTime = time.time()

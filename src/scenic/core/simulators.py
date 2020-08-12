@@ -178,12 +178,12 @@ class Simulation:
                 return False
         return True
 
-    def executeActions(self, actions):
+    def executeActions(self, allActions):
         """Execute the actions selected by the agents.
 
-        Note that actions is an OrderedDict, as the order of actions may matter.
+        Note that ``allActions`` is an OrderedDict, as the order of actions may matter.
         """
-        for agent, actions in actions.items():
+        for agent, actions in allActions.items():
             for action in actions:
                 action.applyTo(agent, self)
 

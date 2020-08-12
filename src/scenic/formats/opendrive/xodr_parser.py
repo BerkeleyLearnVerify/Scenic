@@ -17,7 +17,7 @@ from scenic.core.regions import PolygonalRegion, PolylineRegion
 from scenic.core.geometry import (polygonUnion, cleanPolygon, cleanChain, plotPolygon,
                                   removeHoles, averageVectors)
 from scenic.core.vectors import Vector
-from scenic.simulators.domains.driving import roads as roadDomain
+from scenic.domains.driving import roads as roadDomain
 
 # Lane types on which cars can appear.
 DRIVABLE = [

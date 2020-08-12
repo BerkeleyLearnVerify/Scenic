@@ -1,9 +1,13 @@
 """Scenic world model for scenarios using the generic driving domain."""
 
-from scenic.simulators.domains.driving.workspace import DrivingWorkspace
-import scenic.simulators.domains.driving.network as networkModule
+from abc import ABC, abstractmethod
+
+from scenic.domains.driving.workspace import DrivingWorkspace
+import scenic.domains.driving.network as networkModule
 
 from scenic.simulators.utils.colors import Color
+
+## Various useful objects and regions
 
 network = networkModule.network
 workspace = DrivingWorkspace(network)
@@ -14,6 +18,8 @@ sidewalk = network.sidewalkRegion
 intersection = network.intersectionRegion
 
 roadDirection = network.roadDirection
+
+## Standard object types
 
 class DrivingObject:
     """Abstract class for objects in a road network.
@@ -30,6 +36,10 @@ class DrivingObject:
     """
 
     elevation[dynamic]: None
+
+    requireVisible: False
+
+    # Convenience properties
 
     @property
     def lane(self):
@@ -59,18 +69,26 @@ class DrivingObject:
     def element(self):
         return network.elementAt(self)
 
+    # Simulator interface implemented by subclasses
+
+    def setPosition(self, pos, elevation):
+        raise NotImplementedError
+
+    def setVelocity(self, vel):
+        raise NotImplementedError
+
 class Vehicle(DrivingObject):
     regionContainedIn: road
     position: Point on road
     heading: (roadDirection at self.position) + self.roadDeviation
     roadDeviation: 0
     viewAngle: 90 deg
-    color: [1, 0, 0]
-
-class Car(Vehicle):
     width: 2
     height: 4.5
     color: Color.defaultCarColor()
+
+class Car(Vehicle):
+    pass
 
 class Pedestrian(DrivingObject):
     regionContainedIn: network.walkableRegion
@@ -80,3 +98,50 @@ class Pedestrian(DrivingObject):
     width: 0.75
     height: 0.75
     color: [0, 0.5, 1]
+
+# Mixin classes indicating support for various types of actions
+
+class Steers(ABC):
+    @abstractmethod
+    def setThrottle(self, throttle): pass
+
+    @abstractmethod
+    def setSteering(self, steering): pass
+
+    @abstractmethod
+    def setBraking(self, braking): pass
+
+    @abstractmethod
+    def setHandbrake(self, handbrake): pass
+
+    @abstractmethod
+    def setReverse(self, reverse): pass
+
+class Walks(ABC):
+    """Mixin class for agents which can walk with a given direction and speed.
+
+    We provide a simplistic implementation which directly sets the velocity of the agent.
+    This implementation needs to be explicitly opted-into, since simulators may provide a
+    more sophisticated API that properly animates pedestrians.
+    """
+    @abstractmethod
+    def setWalkingDirection(self, heading):
+        velocity = Vector(0, self.speed).rotatedBy(heading)
+        self.setVelocity(velocity)
+
+    @abstractmethod
+    def setWalkingSpeed(self, speed):
+        velocity = speed * self.velocity.normalized()
+        self.setVelocity(velocity)
+
+## Utility functions
+
+def distanceToAnyCars(car, thresholdDistance):
+    """ returns boolean """
+    objects = simulation().objects
+    for obj in objects:
+        if obj is car or not isinstance(obj, Vehicle):
+            continue
+        if (distance from car to obj) < thresholdDistance:
+            return True
+    return False

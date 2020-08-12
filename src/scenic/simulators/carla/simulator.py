@@ -6,12 +6,12 @@ except ImportError as e:
 
 import pygame
 
-import scenic.core.simulators as simulators
+from scenic.domain.driving.simulators import DrivingSimulator, DrivingSimulation
 import scenic.simulators.carla.utils.utils as utils
 import scenic.simulators.carla.utils.visuals as visuals
 
 
-class CarlaSimulator(simulators.Simulator):
+class CarlaSimulator(DrivingSimulator):
 	def __init__(self, carla_map, address='127.0.0.1', port=2000, timeout=10, render=True,
 				 timestep=0.1):
 		super().__init__()
@@ -33,7 +33,7 @@ class CarlaSimulator(simulators.Simulator):
 		return CarlaSimulation(scene, self.client, self.render, self.map, self.timestep)
 
 
-class CarlaSimulation(simulators.Simulation):
+class CarlaSimulation(DrivingSimulation):
 	def __init__(self, scene, client, render, map, timestep):
 		super().__init__(scene, timestep=timestep)
 		self.client = client
@@ -114,6 +114,16 @@ class CarlaSimulation(simulators.Simulation):
 			if obj.speed is not None:
 				equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
 				obj.carlaActor.set_velocity(equivVel)
+
+	def executeActions(self, allActions):
+		super().executeActions(allActions)
+
+		# Apply control updates which were accumulated while executing the actions
+		for obj in self.agents:
+			ctrl = obj._control
+			if ctrl is not None:
+				obj.carlaActor.apply_control(ctrl)
+				obj._control = None
 
 	def step(self):
 		# Run simulation for one timestep

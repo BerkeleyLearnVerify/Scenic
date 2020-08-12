@@ -12,7 +12,7 @@ def snapToGround(world, location):
 	return location
 
 
-def scalarToCarlaVector3D(x, y, z=0.0):
+def scenicToCarlaVector3D(x, y, z=0.0):
 	# NOTE: Used for velocity, acceleration; superclass of carla.Location
 	z = 0.0 if z is None else z
 	return carla.Vector3D(x, y, z)

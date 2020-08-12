@@ -337,7 +337,7 @@ interruptExceptMarker = '_Scenic_interrupt_'
 # we still recognize 'constructor' for backwards-compatibility
 constructorStatements = ('class', 'constructor')
 
-Constructor = namedtuple('Constructor', ('name', 'parent'))
+Constructor = namedtuple('Constructor', ('name', 'bases'))
 
 builtinSpecifiers = {
 	# position
@@ -613,12 +613,11 @@ def findConstructorsIn(namespace):
 		if inspect.isclass(value) and issubclass(value, Constructible):
 			if name in builtinConstructors:
 				continue
-			parent = None
+			parents = []
 			for base in value.__bases__:
 				if issubclass(base, Constructible):
-					assert parent is None
-					parent = base
-			constructors.append(Constructor(name, parent.__name__))
+					parents.append(base.__name__)
+			constructors.append(Constructor(name, parents))
 	return constructors
 
 ### TRANSLATION PHASE TWO: translation at the level of tokens
@@ -662,20 +661,16 @@ class TokenTranslator:
 	def parseError(self, tokenOrLine, message):
 		return TokenParseError(tokenOrLine, self.filename, message)
 
-	def createConstructor(self, name, parent):
-		if parent is None:
-			parent = 'Object'		# default superclass
-		self.constructors[name] = Constructor(name, parent)
-		return parent
+	def createConstructor(self, name, parents):
+		parents = tuple(parents)
+		assert parents
+		self.constructors[name] = Constructor(name, parents)
 
 	def specifiersForConstructor(self, const):
 		# Currently all specifiers can be used with any constructor;
 		# I'm leaving this here in case we later allow custom specifiers to be inherited
-		name, parent = self.constructors[const]
-		if parent is None or parent not in self.constructors:
-			return builtinSpecifiers
-		else:
-			return self.specifiersForConstructor(parent)
+		return builtinSpecifiers
+		#name, parents = self.constructors[const]
 
 	def translate(self, tokens):
 		"""Do the actual translation of the token stream."""
@@ -808,40 +803,36 @@ class TokenTranslator:
 							raise self.parseError(nextToken,
 							    f'invalid class name "{nextString}"')
 						nextToken = next(tokens)	# consume name
-						parent = None
-						pythonClass = False
+						bases, scenicParents = [], []
 						if peek(tokens).exact_type == LPAR:		# superclass specification
 							next(tokens)
-							nextToken = next(tokens)
-							parent = nextToken.string
-							if nextToken.exact_type != NAME:
+							while (nextToken := next(tokens)).exact_type != RPAR:
+								base = nextToken.string
+								if nextToken.exact_type != NAME:
+									raise self.parseError(nextToken,
+									    f'invalid superclass "{base}"')
+								bases.append(base)
+								if base in self.constructors:
+									scenicParents.append(base)
+								if peek(tokens).exact_type == COMMA:
+									next(tokens)
+							if not scenicParents and tstring != 'class':
 								raise self.parseError(nextToken,
-								    f'invalid superclass "{parent}"')
-							if parent not in self.constructors:
-								if tstring != 'class':
-									raise self.parseError(nextToken,
-									    f'superclass "{parent}" is not a Scenic class')
-								# appears to be a Python class definition
-								pythonClass = True
-							else:
-								nextToken = next(tokens)
-								if nextToken.exact_type != RPAR:
-									raise self.parseError(nextToken,
-									                      'malformed class definition')
+								    f'Scenic class definition with no Scenic superclasses')
+						if peek(tokens).exact_type != COLON:
+							raise self.parseError(peek(tokens), 'malformed class definition')
+						if not bases:
+							bases = scenicParents = ('Object',)		# default superclass
+						if scenicParents:
+							self.createConstructor(nextString, scenicParents)
 						injectToken((NAME, 'class'), spaceAfter=1)
 						injectToken((NAME, nextString))
 						injectToken((LPAR, '('))
-						if pythonClass:		# pass Python class definitions through unchanged
-							while nextToken.exact_type != COLON:
-								injectToken(nextToken)
-								nextToken = next(tokens)
-							injectToken(nextToken)
-						else:
-							if peek(tokens).exact_type != COLON:
-								raise self.parseError(nextToken, 'malformed class definition')
-							parent = self.createConstructor(nextString, parent)
-							injectToken((NAME, parent))
-							injectToken((RPAR, ')'))
+						injectToken((NAME, bases[0]))
+						for base in bases[1:]:
+							injectToken((COMMA, ','), spaceAfter=1)
+							injectToken((NAME, base))
+						injectToken((RPAR, ')'))
 						skip = True
 						matched = True
 						endToken = nextToken

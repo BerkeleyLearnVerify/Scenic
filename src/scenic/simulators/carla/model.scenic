@@ -1,7 +1,7 @@
 """Scenic world model for traffic scenarios in CARLA."""
 
-import scenic.simulators.domains.driving.model as baseModel
-from scenic.simulators.domains.driving.model import DrivingObject
+import scenic.domains.driving.model as baseModel
+from scenic.domains.driving.model import DrivingObject, Vehicle, Pedestrian, Steers, Walks
 
 import scenic.simulators.carla.blueprints as blueprints
 
@@ -36,16 +36,38 @@ class CarlaActor(DrivingObject):
     blueprint: None
     color: None
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._control = None    # used internally to accumulate control updates
 
-class Vehicle(CarlaActor):
-    regionContainedIn: road
-    position: Point on road
-    heading: (roadDirection at self.position) + self.roadDeviation
-    roadDeviation: 0
-    viewAngle: 90 deg
-    width: 2
-    height: 5
-    color: Color.defaultCarColor()
+    @property
+    def control(self):
+        if self._control is None:
+            self._control = self.carlaActor.get_control()
+        return self._control
+
+    def setPosition(self, pos, elevation):
+        self.carlaActor.set_location(utils.scenicToCarlaLocation(pos, elevation))
+
+    def setVelocity(self, vel):
+        self.carlaActor.set_velocity(utils.scenicToCarlaVector3D(*vel))
+
+
+class Vehicle(Vehicle, CarlaActor, Steers):
+    def setThrottle(self, throttle):
+        self.control.throttle = throttle
+
+    def setSteering(self, steering):
+        self.control.steer = steering
+
+    def setBraking(self, braking):
+        self.control.brake = braking
+
+    def setHandbrake(self, handbrake):
+        self.control.hand_brake = handbrake
+
+    def setReverse(self, reverse):
+        self.control.reverse = reverse
 
 
 class Car(Vehicle):
@@ -70,13 +92,18 @@ class Truck(Vehicle):
     blueprint: Uniform(*blueprints.truckModels)
 
 
-class Pedestrian(CarlaActor):
-    regionContainedIn: sidewalk
-    position: Point on sidewalk
-    heading: (0, 360) deg
+class Pedestrian(Pedestrian, CarlaActor, Walks):
     width: 0.5
     height: 0.5
     blueprint: Uniform(*blueprints.walkerModels)
+
+    def setWalkingDirection(self, heading):
+        direction = Vector(0, self.speed).rotatedBy(heading)
+        zComp = self.control.direction.z
+        self.control.direction = utils.scenicToCarlaVector3D(*direction, zComp)
+
+    def setWalkingSpeed(self, speed):
+        self.control.speed = speed
 
 
 class Prop(CarlaActor):

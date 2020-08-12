@@ -22,10 +22,9 @@ class LGSVLSimulator(simulators.Simulator):
 
 class LGSVLSimulation(simulators.Simulation):
     def __init__(self, scene, client):
-        super().__init__(scene)
+        timestep = scene.params.get('time_step', 1.0/10)
+        super().__init__(scene, timestep=timestep)
         self.client = client
-        self.timeStep = scene.params.get('time_step', 1.0/30)
-        self.objects = scene.objects
         self.usingApollo = False
         self.data = {}
         self.collisionOccurred = False
@@ -136,12 +135,26 @@ class LGSVLSimulation(simulators.Simulation):
         self.client.run(15)
         verbosePrint('Initialized Apollo.')
 
+    def executeActions(self, allActions):
+        super().executeActions(allActions)
+
+        # Apply state/control updates which were accumulated while executing the actions
+        for obj in self.agents:
+            if obj._stateUpdated:
+                obj.lgsvlObject.state = obj._state
+                obj._stateUpdated = False
+            ctrl = obj._control
+            if ctrl is not None:
+                obj.lgsvlObject.apply_control(ctrl, obj._stickyControl)
+                obj._control = None
+
     def step(self):
-        self.client.run(time_limit=self.timeStep)
+        self.client.run(time_limit=self.timestep)
 
     def getProperties(self, obj, properties):
         lgsvlObj = obj.lgsvlObject
         state = lgsvlObj.state
+        obj.state = state   # cache state for subsequent updates
 
         velocity = utils.lgsvlToScenicPosition(state.velocity)
         speed = math.hypot(*velocity)
@@ -155,4 +168,3 @@ class LGSVLSimulation(simulators.Simulation):
             angularSpeed=utils.lgsvlToScenicAngularSpeed(state.rotation),
         )
         return values
-
