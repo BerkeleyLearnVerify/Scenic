@@ -2,15 +2,12 @@
 
 from scenic.simulators.lgsvl.simulator import LGSVLSimulator
 from scenic.simulators.lgsvl.map import setMapPath
-setMapPath(__file__, 'maps/borregasave.xodr')
+setMapPath(__file__, 'maps/cubetown.xodr')
 from scenic.simulators.lgsvl.model import *
 from scenic.simulators.lgsvl.behaviors import *
 
-simulator = LGSVLSimulator('BorregasAve')
+simulator = LGSVLSimulator('CubeTown')
 param time_step = 1.0/10
-
-MAX_BREAK_THRESHOLD = 1
-TERMINATE_TIME = 20
 
 fourLane = []
 for i in network.intersections:
@@ -46,6 +43,7 @@ ego_L_endLane = leftTurn_maneuver.endLane
 ego_L_centerlines = [ego_L_startLane.centerline, ego_L_connectingLane.centerline, ego_L_endLane.centerline]
 
 
+# PLACEMENT
 ego = EgoCar on ego_L_startLane.centerline,
 		with blueprint 'vehicle.tesla.model3',
 		with behavior FollowTrajectoryBehavior(target_speed=10, trajectory=ego_L_centerlines)
