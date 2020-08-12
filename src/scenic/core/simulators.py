@@ -5,7 +5,7 @@ import types
 from collections import OrderedDict
 
 from scenic.core.object_types import enableDynamicProxyFor, disableDynamicProxyFor
-from scenic.core.utils import RuntimeParseError
+from scenic.core.errors import RuntimeParseError
 
 class SimulationCreationError(Exception):
     """Exception indicating a simulation could not be run from the given scene."""
@@ -39,7 +39,7 @@ class Simulator:
                 print(f'  Simulation {iterations} ended successfully at time step '
                       f'{simulation.currentTime} because of: {terminationReason}')
             return trajectory
-        raise RuntimeError(f'failed to generate valid simulation in {maxIterations} iterations')
+        return None
 
     def createSimulation(self, scene):
         return Simulation(scene)
@@ -69,10 +69,6 @@ class Simulation:
         import scenic.syntax.veneer as veneer
         veneer.beginSimulation(self)
 
-        # Set up mutable proxies for all objects
-        for obj in self.scene.objects:
-            enableDynamicProxyFor(obj)
-
         try:
             # Initialize behavior coroutines of agents
             for agent in self.agents:
@@ -89,6 +85,10 @@ class Simulation:
             while maxSteps is None or self.currentTime < maxSteps:
                 if verbosity >= 3:
                     print(f'    Time step {self.currentTime}:')
+
+                # Set up new mutable proxies for all objects
+                for obj in self.scene.objects:
+                    enableDynamicProxyFor(obj)
 
                 # Check if any requirements fail
                 for req in self.scene.alwaysRequirements:

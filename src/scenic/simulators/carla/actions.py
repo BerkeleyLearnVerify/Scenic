@@ -2,7 +2,7 @@ import math
 import carla
 import time
 
-import scenic.simulators as simulators
+from scenic.core.simulators import Action
 import scenic.simulators.carla.utils.utils as utils
 
 import numpy as np
@@ -13,7 +13,7 @@ from collections import deque
 # Actions available to all carla.Actor objects #
 ################################################
 
-class OffsetAction(simulators.Action):
+class OffsetAction(Action):
 	"""Teleports actor forward (in direction of its heading) by some offset."""
 	
 	def __init__(self, offset):
@@ -26,7 +26,7 @@ class OffsetAction(simulators.Action):
 		carlaActor.set_location(loc)
 
 
-class SetLocationAction(simulators.Action):
+class SetLocationAction(Action):
 	def __init__(self, pos):
 		super().__init__()
 		self.pos = pos  # NOTE: Must translate to Carla coords
@@ -36,7 +36,7 @@ class SetLocationAction(simulators.Action):
 		carlaActor.set_location(loc)
 
 
-class SetVelocityAction(simulators.Action):
+class SetVelocityAction(Action):
 	def __init__(self, xVel, yVel, zVel=0):
 		super().__init__()
 		self.xVel = xVel
@@ -48,7 +48,7 @@ class SetVelocityAction(simulators.Action):
 		carlaActor.set_velocity(newVel) 
 
 
-class SetSpeedAction(simulators.Action):
+class SetSpeedAction(Action):
 	def __init__(self, speed):
 		super().__init__()
 		self.speed = speed
@@ -58,7 +58,7 @@ class SetSpeedAction(simulators.Action):
 		carlaActor.set_velocity(newVel)
 
 
-class SetAngularVelocityAction(simulators.Action):
+class SetAngularVelocityAction(Action):
 	def __init__(self, angularVel):
 		super().__init__()
 		self.angularVel = angularVel
@@ -70,7 +70,7 @@ class SetAngularVelocityAction(simulators.Action):
 		carlaActor.set_angular_velocity(newAngularVel)
 
 
-class SetTransformAction(simulators.Action):
+class SetTransformAction(Action):
 	def __init__(self, pos, heading):
 		super().__init__()
 		self.pos = pos  # Scenic position
@@ -87,7 +87,7 @@ class SetTransformAction(simulators.Action):
 # Actions specific to carla.Vehicle objects #
 #############################################
 
-class SetThrottleAction(simulators.Action):
+class SetThrottleAction(Action):
 	def __init__(self, throttle):
 		assert 0.0 <= throttle <= 1.0, \
 			'Throttle must be a float in range [0.0, 1.0].'
@@ -100,10 +100,10 @@ class SetThrottleAction(simulators.Action):
 		ctrl = vehicle.get_control()
 		ctrl.throttle = self.throttle
 		vehicle.apply_control(ctrl)
-		print("The applied throttle is: ", vehicle.get_control().throttle)
+		#print("The applied throttle is: ", vehicle.get_control().throttle)
 
 
-class SetSteerAction(simulators.Action):
+class SetSteerAction(Action):
 	def __init__(self, steer):
 		assert -1.0 <= steer <= 1.0, \
 			'Steer must be a float in range [-1.0, 1.0].'
@@ -116,7 +116,7 @@ class SetSteerAction(simulators.Action):
 		vehicle.apply_control(ctrl)
 
 
-class AlignSteerToLaneAction(simulators.Action):
+class AlignSteerToLaneAction(Action):
 	'''Sets steer to match lane heading.'''
 
 	def __init__(self):
@@ -128,7 +128,7 @@ class AlignSteerToLaneAction(simulators.Action):
 		# TODO: Finish implementation
 
 
-class SetBrakeAction(simulators.Action):
+class SetBrakeAction(Action):
 	def __init__(self, brake):
 		assert 0.0 <= brake <= 1.0, \
 			'Brake must be a float in range [0.0, 1.0].'
@@ -142,7 +142,7 @@ class SetBrakeAction(simulators.Action):
 		vehicle.apply_control(ctrl)
 
 
-class SetHandBrakeAction(simulators.Action):
+class SetHandBrakeAction(Action):
 	def __init__(self, handBrake):
 		assert isinstance(handBrake, bool), \
 			'Hand brake must be a boolean.'
@@ -155,7 +155,7 @@ class SetHandBrakeAction(simulators.Action):
 		vehicle.apply_control(ctrl)
 
 
-class SetReverseAction(simulators.Action):
+class SetReverseAction(Action):
 	def __init__(self, reverse):
 		assert isinstance(reverse, bool), \
 			'Reverse must be a boolean.'
@@ -168,7 +168,7 @@ class SetReverseAction(simulators.Action):
 		vehicle.apply_control(ctrl)
 
 
-class SetManualGearShiftAction(simulators.Action):
+class SetManualGearShiftAction(Action):
 	def __init__(self, manualGearShift):
 		assert isinstance(manualGearShift, bool), \
 			'Manual gear shift must be a boolean.'
@@ -181,7 +181,7 @@ class SetManualGearShiftAction(simulators.Action):
 		vehicle.apply_control(ctrl)
 
 
-class SetGearAction(simulators.Action):
+class SetGearAction(Action):
 	def __init__(self, gear):
 		# TODO: assert statement
 		super().__init__()
@@ -192,7 +192,7 @@ class SetGearAction(simulators.Action):
 		ctrl.gear = self.gear
 		vehicle.apply_control(ctrl)
 
-class SetManualFirstGearShiftAction(simulators.Action):
+class SetManualFirstGearShiftAction(Action):
 	def __init__(self):
 		super().__init__()
 		self.manualGearShift = True  # boolean
@@ -208,7 +208,7 @@ class SetManualFirstGearShiftAction(simulators.Action):
 # Actions available to all carla.Walker objects #
 #################################################
 
-class SetRelativeDirectionAction(simulators.Action):
+class SetRelativeDirectionAction(Action):
 	'''Offsets direction counterclockwise relative to walker's forward vector.'''
 
 	def __init__(self, offset, degrees=False):
@@ -225,7 +225,7 @@ class SetRelativeDirectionAction(simulators.Action):
 		walker.apply_control(ctrl)
 
 
-class SetSpeedAction(simulators.Action):
+class SetSpeedAction(Action):
 	def __init__(self, speed):
 		assert speed >= 0.0, \
 			'Speed must be a non-negative float.'
@@ -238,7 +238,7 @@ class SetSpeedAction(simulators.Action):
 		walker.apply_control(ctrl)
 
 
-class SetJumpAction(simulators.Action):
+class SetJumpAction(Action):
 	def __init__(self, jump):
 		assert isinstance(jump, bool), \
 			'Jump must be a boolean.'
@@ -252,7 +252,7 @@ class SetJumpAction(simulators.Action):
 
 
 
-class FollowLaneAction(simulators.Action):
+class FollowLaneAction(Action):
 	"""
 	VehiclePIDController is the combination of two PID controllers
 	(lateral and longitudinal) to perform the
@@ -332,9 +332,9 @@ class FollowLaneAction(simulators.Action):
 		else:
 		    steering = max(-self.max_steer, self.current_steer)
 
-		print("steer: ", steering)
-		print("throttle: ", control.throttle)
-		print("brake: ", control.brake)
+		#print("steer: ", steering)
+		#print("throttle: ", control.throttle)
+		#print("brake: ", control.brake)
 		control.steer = steering
 		control.hand_brake = False
 		control.manual_gear_shift = False
@@ -363,7 +363,7 @@ class PIDLongitudinalController():
 		self._k_i = K_I
 		self._dt = dt
 		self._error_buffer = deque(maxlen=10)
-		print("PIDLongitudinalController Instantiated")
+		#print("PIDLongitudinalController Instantiated")
 
 	def run_step(self, speed_error, debug=False):
 		"""
@@ -390,7 +390,7 @@ class PIDLateralController():
 	"""
 
 	# def __init__(self, vehicle, K_P=0.01, K_D=0.000001, K_I=0.1, dt=0.1):
-	def __init__(self, vehicle, K_P=0.01, K_D=0.01, K_I=0, dt=0.1):
+	def __init__(self, vehicle, K_P=0.3, K_D=0.2, K_I=0, dt=0.1):
 		"""
 		Constructor method. 0.0000005
 
@@ -413,7 +413,7 @@ class PIDLateralController():
 		self.current_time = time.time()
 		self.last_time = self.current_time
 		self.output = 0
-		print("PIDLateralController Instantiated")
+		#print("PIDLateralController Instantiated")
 
 	def run_step(self, cte):
 		"""
@@ -443,7 +443,7 @@ class PIDLateralController():
 		self.current_time = time.time()
 		delta_time = self.current_time - self.last_time
 		delta_error = error - self.last_error
-		print("delta_time: ", delta_time)
+		#print("delta_time: ", delta_time)
 
 		# if (delta_time >= self.sample_time):
 		self.PTerm = self.Kp * error

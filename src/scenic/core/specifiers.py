@@ -5,7 +5,7 @@ import itertools
 from scenic.core.lazy_eval import (DelayedArgument, toDelayedArgument, requiredProperties,
                                    needsLazyEvaluation)
 from scenic.core.distributions import toDistribution
-from scenic.core.utils import RuntimeParseError
+from scenic.core.errors import RuntimeParseError
 
 ## Specifiers themselves
 
@@ -14,9 +14,9 @@ class Specifier:
 
 	Any optionally-specified properties are evaluated as attributes of the primary value.
 	"""
-	def __init__(self, prop, value, deps=None, optionals={}):
+	def __init__(self, prop, value, deps=None, optionals={}, internal=False):
 		self.property = prop
-		self.value = toDelayedArgument(value)
+		self.value = toDelayedArgument(value, internal)
 		if deps is None:
 			deps = set()
 		deps |= requiredProperties(value)
@@ -74,7 +74,7 @@ class PropertyDefault:
 				for other in overriddenDefs:
 					allVals.append(other.value(context))
 				return tuple(allVals)
-			val = DelayedArgument(allReqs, concatenator)
+			val = DelayedArgument(allReqs, concatenator, _internal=True)
 		else:
-			val = DelayedArgument(self.requiredProperties, self.value)
+			val = DelayedArgument(self.requiredProperties, self.value, _internal=True)
 		return Specifier(prop, val)

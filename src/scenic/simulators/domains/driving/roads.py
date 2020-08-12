@@ -1,14 +1,17 @@
 
 from __future__ import annotations  # allow forward references for type annotations
 
+import io
 import enum
 import math
-from typing import FrozenSet, Union, Tuple, Optional
+from typing import FrozenSet, Union, Tuple, Optional, Sequence, List
 import itertools
 import pathlib
-import bz2
+import gzip
 import pickle
-import pickletools
+import time
+import struct
+import weakref
 
 import attr
 from shapely.geometry import Polygon, MultiPolygon
@@ -20,8 +23,9 @@ from scenic.core.object_types import Point
 import scenic.core.geometry as geometry
 import scenic.core.utils as utils
 from scenic.core.distributions import distributionFunction
+from scenic.syntax.veneer import verbosePrint
 
-## Typing
+## Typing and utilities
 
 # TODO allow additional types which are coercible to vectors?
 Vectorlike = Union[Vector, Point]
@@ -30,6 +34,26 @@ def toVector(thing: Vectorlike) -> Vector:
     if not hasattr(thing, 'toVector'):
         raise TypeError(f'argument {thing} is not a vector')
     return thing.toVector()
+
+class ElementReferencer:
+    """Mixin class to improve pickling of classes that reference network elements."""
+    def __getstate__(self):
+        if hasattr(super(), '__getstate__'):
+            state = super().__getstate__()
+        else:
+            state = self.__dict__.copy()
+        # replace links to network elements by placeholders to prevent deep
+        # recursions during pickling; as a result of this, only entire `Network`
+        # objects can be properly unpickled
+        for key, value in state.items():
+            if isinstance(value, NetworkElement):
+                state[key] = ElementPlaceholder(value.uid)
+        return state
+
+class ElementPlaceholder:
+    """Placeholder for a link to a pickled `NetworkElement`."""
+    def __init__(self, uid):
+        self.uid = uid
 
 ## Metadata
 
@@ -66,7 +90,7 @@ class ManeuverType(enum.Enum):
             return ManeuverType.STRAIGHT
 
 @attr.s(auto_attribs=True, kw_only=True, eq=False)
-class Maneuver:
+class Maneuver(ElementReferencer):
     type: ManeuverType = None      # left turn, right turn, straight, etc.
     startLane: Lane
     endLane: Lane
@@ -98,7 +122,7 @@ class Maneuver:
 ## Road networks
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
-class NetworkElement(PolygonalRegion):
+class NetworkElement(ElementReferencer, PolygonalRegion):
     """Abstract class for part of a road network.
 
     Includes roads, lane groups, lanes, sidewalks, pedestrian crossings,
@@ -116,6 +140,7 @@ class NetworkElement(PolygonalRegion):
     name: str = ''      # human-readable name, if any
     uid: str = None     # unique identifier; from underlying format, if possible
     id: Optional[str] = None    # identifier from underlying format, if any
+    network: Network = None     # link to parent network
 
     ## Traffic info
 
@@ -133,16 +158,6 @@ class NetworkElement(PolygonalRegion):
 
         super().__init__(polygon=self.polygon, orientation=self.orientation, name=self.name)
 
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        # replace links to network elements by placeholders to prevent deep
-        # recursions during pickling; as a result of this, only entire `Network`
-        # objects can be properly unpickled
-        for key, value in state.items():
-            if isinstance(value, NetworkElement):
-                state[key] = ElementPlaceholder(value.uid)
-        return state
-
     @distributionFunction
     def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[float]:
         """Get nominal traffic direction(s) at a point in this element.
@@ -153,6 +168,11 @@ class NetworkElement(PolygonalRegion):
         """
         return (self.orientation[toVector(point)],)
 
+    def __getstate__(self):
+        state = super().__getstate__()
+        del state['network']    # do not pickle weak reference to parent network
+        return state
+
     def __repr__(self):
         s = f'<{type(self).__name__} at {hex(id(self))}; '
         if self.name:
@@ -161,11 +181,6 @@ class NetworkElement(PolygonalRegion):
             s += f'id="{self.id}", '
         s += f'uid="{self.uid}">'
         return s
-
-class ElementPlaceholder:
-    """Placeholder for a link to a pickled `NetworkElement`."""
-    def __init__(self, uid):
-        self.uid = uid
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class LinearElement(NetworkElement):
@@ -250,26 +265,31 @@ class Road(LinearElement):
     lanes: Tuple[Lane]
     forwardLanes: Union[LaneGroup, None]    # lanes aligned with the direction of the road
     backwardLanes: Union[LaneGroup, None]   # lanes going the other direction
+    laneGroups: Tuple[LaneGroup] = None
     sections: Tuple[RoadSection]    # sections in order from start to end
 
     crossings: Tuple[PedestrianCrossing] = ()    # ordered from start to end
 
+    def __attrs_post_init__(self):
+        super().__attrs_post_init__()
+        lgs = []
+        if self.forwardLanes:
+            lgs.append(self.forwardLanes)
+        if self.backwardLanes:
+            lgs.append(self.backwardLanes)
+        self.laneGroups = tuple(lgs)
+
     def defaultHeadingAt(self, point):
         point = toVector(point)
-        if self.forwardLanes and self.forwardLanes.containsPoint(point):
-            return self.forwardLanes.orientation[point]
-        if self.backwardLanes and self.backwardLanes.containsPoint(point):
-            return self.backwardLanes.orientation[point]
+        group = self.laneGroupAt(point)
+        if group:
+            return group.orientation[point]
         return super().defaultHeadingAt(point)
 
     @distributionFunction
     def sectionAt(self, point: Vectorlike) -> Union[RoadSection, None]:
         """Get the RoadSection passing through a given point."""
-        point = toVector(point)
-        for section in self.sections:
-            if section.containsPoint(point):
-                return section
-        return None
+        return self.network.findPointIn(point, self.sections)
 
     @distributionFunction
     def laneSectionAt(self, point: Vectorlike) -> Union[LaneSection, None]:
@@ -281,30 +301,17 @@ class Road(LinearElement):
     @distributionFunction
     def laneAt(self, point: Vectorlike) -> Union[Lane, None]:
         """Get the lane passing through a given point."""
-        point = toVector(point)
-        for lane in self.lanes:
-            if lane.containsPoint(point):
-                return lane
-        return None
+        return self.network.findPointIn(point, self.lanes)
 
     @distributionFunction
     def laneGroupAt(self, point: Vectorlike) -> Union[LaneGroup, None]:
         """Get the LaneGroup passing through a given point."""
-        point = toVector(point)
-        if self.forwardLanes and self.forwardLanes.containsPoint(point):
-            return self.forwardLanes
-        if self.backwardLanes and self.backwardLanes.containsPoint(point):
-            return self.backwardLanes
-        return None
+        return self.network.findPointIn(point, self.laneGroups)
 
     @distributionFunction
     def crossingAt(self, point: Vectorlike) -> Union[PedestrianCrossing, None]:
         """Get the PedestrianCrossing passing through a given point."""
-        point = toVector(point)
-        for crossing in self.crossings:
-            if crossing.containsPoint(point):
-                return crossing
-        return None
+        return self.network.findPointIn(point, self.crossings)
 
     @distributionFunction
     def shiftLanes(self, point: Vectorlike, offset: int) -> Union[Vector, None]:
@@ -328,10 +335,15 @@ class LaneGroup(LinearElement):
 
     def defaultHeadingAt(self, point):
         point = toVector(point)
-        for lane in self.lanes:
-            if lane.containsPoint(point):
-                return lane.orientation[point]
+        lane = self.laneAt(point)
+        if lane:
+            return lane.orientation[point]
         return super().defaultHeadingAt(point)
+
+    @distributionFunction
+    def laneAt(self, point: Vectorlike) -> Union[Lane, None]:
+        """Get the lane passing through a given point."""
+        return self.network.findPointIn(point, self.lanes)
 
 @attr.s(auto_attribs=True, kw_only=True, eq=False, repr=False)
 class Lane(ContainsCenterline, LinearElement):
@@ -348,11 +360,7 @@ class Lane(ContainsCenterline, LinearElement):
     @distributionFunction
     def sectionAt(self, point: Vectorlike) -> Union[LaneSection, None]:
         """Get the LaneSection passing through a given point."""
-        point = toVector(point)
-        for section in self.sections:
-            if section.containsPoint(point):
-                return section
-        return None
+        return self.network.findPointIn(point, self.sections)
 
     # TODO remove hack; freeze all these classes
     __hash__ = object.__hash__
@@ -400,19 +408,15 @@ class RoadSection(LinearElement):
 
     def defaultHeadingAt(self, point):
         point = toVector(point)
-        for lane in self.lanes:
-            if lane.containsPoint(point):
-                return lane.orientation[point]
+        lane = self.laneAt(point)
+        if lane:
+            return lane.orientation[point]
         return super().defaultHeadingAt(point)
 
     @distributionFunction
     def laneAt(self, point: Vectorlike) -> Union[LaneSection, None]:
         """Get the lane section passing through a given point."""
-        point = toVector(point)
-        for lane in self.lanes:
-            if lane.containsPoint(point):
-                return lane
-        return None
+        return self.network.findPointIn(point, self.lanes)
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class LaneSection(ContainsCenterline, LinearElement):
@@ -480,24 +484,16 @@ class Intersection(NetworkElement):
         return len(self.roads) == 4
 
     @distributionFunction
-    def maneuversAt(self, point: Vectorlike) -> Set[Maneuver]:
+    def maneuversAt(self, point: Vectorlike) -> List[Maneuver]:
         """Get all maneuvers possible at a given point in the intersection."""
-        point = toVector(point)
-        possible = set()
-        for maneuver in self.maneuvers:
-            if maneuver.connectingLane.containsPoint(point):
-                possible.add(maneuver)
-        return possible
+        return self.network.findPointInAll(point, self.maneuvers,
+                                           key=lambda m: m.connectingLane)
 
     @distributionFunction
-    def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[float]:
+    def nominalDirectionsAt(self, point: Vectorlike) -> List[float]:
         point = toVector(point)
-        directions = []
-        for maneuver in self.maneuvers:
-            lane = maneuver.connectingLane
-            if lane.containsPoint(point):
-                directions.append(lane.orientation[point])
-        return tuple(directions)
+        maneuvers = self.maneuversAt(point)
+        return [m.connectingLane.orientation[point] for m in maneuvers]
 
     ## FOR LATER
 
@@ -525,6 +521,7 @@ class Network:
     laneSections: Tuple[LaneSection] = None
 
     driveOnLeft: bool = False
+    tolerance: float = 0        # tolerance for testing inclusion in elements
 
     # convenience regions aggregated from various types of network elements
     drivableRegion: PolygonalRegion = None
@@ -540,9 +537,10 @@ class Network:
     roadDirection: VectorField = None
 
     def __attrs_post_init__(self):
-        self.formatVersion = self.currentFormatVersion()
+        proxy = weakref.proxy(self)
         for uid, elem in self.elements.items():
             assert elem.uid == uid
+            elem.network = proxy
 
         self.allRoads = self.roads + self.connectingRoads
         self.roadSections = tuple(sec for road in self.roads for sec in road.sections)
@@ -586,12 +584,12 @@ class Network:
     def currentFormatVersion(cls):
         """Version number for the road network format.
 
-        Should be incremented whenever attributes of `Network`, `NetworkElement`, etc.
-        or the underlying Regions are changed, so that cached networks will be properly
-        regenerated (rather than being unpickled in an inconsistent state and causing
-        errors later).
+        Should be incremented whenever attributes of `Network`, `NetworkElement`, etc.,
+        attributes of the underlying Regions, or the serialization process itself are
+        changed, so that cached networks will be properly regenerated (rather than being
+        unpickled in an inconsistent state and causing errors later).
         """
-        return 3
+        return 6
 
     @classmethod
     def fromFile(cls, path, useCache=True, writeCache=True, **kwargs):
@@ -607,8 +605,14 @@ class Network:
             newPath = path.with_suffix(cls.pickledExt)
             if newPath.exists():
                 try:
-                    return cls.fromPickle(newPath)
+                    startTime = time.time()
+                    verbosePrint('Loading cached version of road network...')
+                    network = cls.fromPickle(newPath)
+                    totalTime = time.time() - startTime
+                    verbosePrint(f'Loaded cached network in {totalTime:.2f} seconds.')
+                    return network
                 except pickle.UnpicklingError:
+                    verbosePrint('Unable to load cached network (old or corrupted).')
                     pass    # give up on cache; fall through to original file
 
         if not ext:     # no extension was given; search through possible formats
@@ -626,41 +630,93 @@ class Network:
 
         network = handlers[ext](path, **kwargs)
         if writeCache and ext is not cls.pickledExt:
+            verbosePrint(f'Caching road network in {cls.pickledExt} file.')
             network.dumpPickle(path.with_suffix(cls.pickledExt))
         return network
 
     @classmethod
     def fromPickle(cls, path):
-        with bz2.open(path, 'rb') as f:
-            network = pickle.load(f)
-        version = getattr(network, 'formatVersion', None)
-        if version != cls.currentFormatVersion():
-            raise pickle.UnpicklingError(f'{cls.pickledExt} file is too old; '
-                                         'regenerate it from the original map')
+        with open(path, 'rb') as f:
+            versionField = f.read(4)
+            if len(versionField) != 4:
+                raise pickle.UnpicklingError(f'{cls.pickledExt} file is corrupted')
+            version = struct.unpack('<I', versionField)
+            if version[0] != cls.currentFormatVersion():
+                raise pickle.UnpicklingError(f'{cls.pickledExt} file is too old; '
+                                             'regenerate it from the original map')
+            with gzip.open(f) as gf:
+                network = pickle.load(gf)
+
         # Reconnect links between network elements
-        for elem in network.elements.values():
-            state = elem.__dict__
+        def reconnect(thing):
+            state = thing.__dict__
             for key, value in state.items():
                 if isinstance(value, ElementPlaceholder):
                     state[key] = network.elements[value.uid]
+        proxy = weakref.proxy(network)
+        for elem in network.elements.values():
+            reconnect(elem)
+            elem.network = proxy
+        for elem in itertools.chain(network.lanes, network.intersections):
+            for maneuver in elem.maneuvers:
+                reconnect(maneuver)
         return network
 
     @classmethod
-    def fromOpenDrive(cls, path, ref_points=20, tolerance=0.05, fill_gaps=True):
+    def fromOpenDrive(cls, path, ref_points=20, tolerance=0.05,
+                      fill_gaps=True, fill_intersections=True):
         import scenic.simulators.formats.opendrive.xodr_parser as xodr_parser
-        road_map = xodr_parser.RoadMap(tolerance=tolerance)
+        road_map = xodr_parser.RoadMap(tolerance=tolerance,
+                                       fill_intersections=fill_intersections)
+        startTime = time.time()
+        verbosePrint('Parsing OpenDRIVE file...')
         road_map.parse(path)
+        verbosePrint('Computing road geometry... (this may take a while)')
         road_map.calculate_geometry(ref_points, calc_gap=fill_gaps, calc_intersect=True)
-        return road_map.toScenicNetwork()
+        network = road_map.toScenicNetwork()
+        totalTime = time.time() - startTime
+        verbosePrint(f'Finished loading OpenDRIVE map in {totalTime:.2f} seconds.')
+        return network
 
     def dumpPickle(self, path):
         path = pathlib.Path(path)
         if not path.suffix:
             path = path.with_suffix(self.pickledExt)
+        version = struct.pack('<I', self.currentFormatVersion())
         data = pickle.dumps(self)
-        data = pickletools.optimize(data)
-        with bz2.open(path, 'wb') as f:
-            f.write(data)
+        with open(path, 'wb') as f:
+            f.write(version)    # uncompressed in case we change compression schemes later
+            with gzip.open(f, 'wb') as gf:
+                gf.write(data)
+
+    def findPointIn(self, point: Vectorlike,
+                    elems: Sequence[NetworkElement]) -> Union[NetworkElement, None]:
+        """Find the first of the given elements containing the point.
+
+        Elements which *actually* contain the point have priority; if none contain the
+        point, then we search again allowing an error of up to `tolerance`.
+        """
+        point = toVector(point)
+        for element in elems:
+            if element.containsPoint(point):
+                return element
+        if self.tolerance > 0:
+            for element in elems:
+                if element.distanceTo(point) <= self.tolerance:
+                    return element
+        return None
+
+    def findPointInAll(self, point, things, key=lambda e: e):
+        point = toVector(point)
+        found = []
+        for thing in things:
+            if key(thing).containsPoint(point):
+                found.append(thing)
+        if not found and self.tolerance > 0:
+            for thing in things:
+                if key(thing).distanceTo(point) <= self.tolerance:
+                    found.append(thing)
+        return found
 
     @distributionFunction
     def elementAt(self, point: Vectorlike) -> Union[NetworkElement, None]:
@@ -673,20 +729,12 @@ class Network:
     @distributionFunction
     def roadAt(self, point: Vectorlike) -> Union[Road, None]:
         """Get the road passing through a given point."""
-        point = toVector(point)
-        for road in self.allRoads:
-            if road.containsPoint(point):
-                return road
-        return None
+        return self.findPointIn(point, self.allRoads)
 
     @distributionFunction
     def laneAt(self, point: Vectorlike) -> Union[Lane, None]:
         """Get the lane passing through a given point."""
-        point = toVector(point)
-        for lane in self.lanes:
-            if lane.containsPoint(point):
-                return lane
-        return None
+        return self.findPointIn(point, self.lanes)
 
     @distributionFunction
     def laneSectionAt(self, point: Vectorlike) -> Union[LaneSection, None]:
@@ -712,11 +760,7 @@ class Network:
     @distributionFunction
     def intersectionAt(self, point: Vectorlike) -> Union[Intersection, None]:
         """Get the intersection at a given point."""
-        point = toVector(point)
-        for intersection in self.intersections:
-            if intersection.containsPoint(point):
-                return intersection
-        return None
+        return self.findPointIn(point, self.intersections)
 
     @distributionFunction
     def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[float]:

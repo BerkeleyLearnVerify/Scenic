@@ -5,11 +5,12 @@ import inspect
 import numbers
 import typing
 
-from scenic.core.distributions import Distribution, RejectionException, StarredDistribution
+from scenic.core.distributions import (Distribution, RejectionException, StarredDistribution,
+                                       distributionFunction)
 from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
                                    needsLazyEvaluation, toDelayedArgument)
 from scenic.core.vectors import Vector
-from scenic.core.utils import RuntimeParseError
+from scenic.core.errors import RuntimeParseError, saveErrorLocation
 
 # Typing and coercion rules:
 #
@@ -29,7 +30,7 @@ from scenic.core.utils import RuntimeParseError
 
 ## Basic types
 
-class Heading:
+class Heading(float):
 	"""Dummy class used as a target for type coercions to headings."""
 	pass
 
@@ -61,7 +62,7 @@ def unifyingType(opts):		# TODO improve?
 						types.append(ty)
 		else:
 			types.append(underlyingType(opt))
-	if all(issubclass(ty, (float, int)) for ty in types):
+	if all(issubclass(ty, numbers.Real) for ty in types):
 		return float
 	mro = inspect.getmro(types[0])
 	for parent in mro:
@@ -73,6 +74,10 @@ def unifyingType(opts):		# TODO improve?
 
 def canCoerceType(typeA, typeB):
 	"""Can values of typeA be coerced into typeB?"""
+	if typing.get_origin(typeA) is typing.Union:
+		# only raise an error now if none of the possible types will work;
+		# we'll do more careful checking at runtime
+		return any(canCoerceType(ty, typeB) for ty in typing.get_args(typeA))
 	if typeB is float:
 		return issubclass(typeA, numbers.Real)
 	elif typeB is Heading:
@@ -88,37 +93,86 @@ def canCoerce(thing, ty):
 	if canCoerceType(tt, ty):
 		return True
 	elif isinstance(thing, Distribution) and tt is object:
-		# unable to statically determine valueType of distribution; try
-		# sampling a value and checking its type
-		try:
-			value = thing.sample()
-			thing.valueType = type(value)	# to speed up future type checks
-			return canCoerce(value, ty)
-		except RejectionException:
-			return True		# fall back on type-checking at runtime
+		return True		# fall back on type-checking at runtime
 	else:
 		return False
 
-def coerce(thing, ty):
+def coerce(thing, ty, error=None):
 	"""Coerce something into the given type."""
 	assert canCoerce(thing, ty), (thing, ty)
-	if isinstance(thing, Distribution):
-		return thing
+
+	realType = ty
 	if ty is float:
-		return float(thing)
+		coercer = coerceToFloat
 	elif ty is Heading:
-		return thing.toHeading() if hasattr(thing, 'toHeading') else float(thing)
+		coercer = coerceToHeading
+		ty = numbers.Real
+		realType = float
 	elif ty is Vector:
-		return thing.toVector()
+		coercer = coerceToVector
+	else:
+		coercer = None
+
+	if isinstance(thing, Distribution):
+		vt = thing.valueType
+		if typing.get_origin(vt) is typing.Union:
+			possibleTypes = typing.get_args(vt)
+		else:
+			possibleTypes = (vt,)
+		if all(issubclass(possible, ty) for possible in possibleTypes):
+			return thing 	# no coercion necessary
+		else:
+			return TypecheckedDistribution(thing, realType, error, coercer=coercer)
+	elif coercer:
+		return coercer(thing)
 	else:
 		return thing
+
+def coerceToFloat(thing) -> float:
+	return float(thing)
+
+def coerceToHeading(thing) -> float:
+	if hasattr(thing, 'toHeading'):
+		return thing.toHeading()
+	return float(thing)
+
+def coerceToVector(thing) -> Vector:
+	return thing.toVector()
+
+class TypecheckedDistribution(Distribution):
+	def __init__(self, dist, ty, errorMessage, coercer=None):
+		super().__init__(dist, valueType=ty)
+		self.dist = dist
+		if not errorMessage:
+			errorMessage = 'wrong type'
+		self.errorMessage = errorMessage
+		self.coercer = coercer
+		self.loc = saveErrorLocation()
+
+	def sampleGiven(self, value):
+		val = value[self.dist]
+		if self.coercer:
+			if canCoerceType(type(val), self.valueType):
+				return self.coercer(val)
+		elif isinstance(val, self.valueType):
+			return val
+		suffix = f' (expected {self.valueType.__name__}, got {type(val).__name__})'
+		raise RuntimeParseError(self.errorMessage + suffix, self.loc)
+
+	def conditionTo(self, value):
+		self.dist.conditionTo(value)
+
+	def __repr__(self):
+		return f'TypecheckedDistribution({self.dist}, {self.valueType})'
 
 def coerceToAny(thing, types, error):
 	"""Coerce something into any of the given types, printing an error if impossible."""
 	for ty in types:
 		if canCoerce(thing, ty):
-			return coerce(thing, ty)
-	print(f'Failed to coerce {thing} of type {underlyingType(thing)} to {types}', file=sys.stderr)
+			return coerce(thing, ty, error)
+	from scenic.syntax.veneer import verbosePrint
+	verbosePrint(f'Failed to coerce {thing} of type {underlyingType(thing)} to {types}',
+	             file=sys.stderr)
 	raise RuntimeParseError(error)
 
 ## Top-level type checking/conversion API

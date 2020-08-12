@@ -1,7 +1,7 @@
 
 import lgsvl
 
-import scenic.simulators as simulators
+import scenic.core.simulators as simulators
 import scenic.simulators.lgsvl.utils as utils
 import scenic.syntax.veneer as veneer
 from scenic.core.vectors import Vector

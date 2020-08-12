@@ -25,7 +25,7 @@ def lgsvlToScenicRotation(rot, tolerance2D=0):
         return None
     if abs(rot.z) > tolerance2D and abs(rot.z - 360) > tolerance2D:
         return None
-    return normalizeAngle(math.radians(rot.y))
+    return normalizeAngle(-math.radians(rot.y))
 
 def scenicToLGSVLRotation(heading):
     return lgsvl.Vector(0, -math.degrees(heading), 0)

@@ -8,27 +8,39 @@ import argparse
 import random
 
 import scenic.syntax.translator as translator
-from scenic.simulators import SimulationCreationError
+import scenic.core.errors as errors
+from scenic.core.simulators import SimulationCreationError
 
-parser = argparse.ArgumentParser(prog='scenic',
-                                 usage='scenic [-h] [options] scenario',
-                                 description='Interactively sample from a Scenic scenario.')
+parser = argparse.ArgumentParser(prog='scenic', add_help=False,
+                                 usage='scenic [-h | --help] [options] scenario',
+                                 description='Sample from a Scenic scenario, optionally '
+                                             'running dynamic simulations.')
 
-# Options
-parser.add_argument('-d', '--delay', help='loop automatically with this delay (in seconds)',
-                    type=float)
-parser.add_argument('-z', '--zoom', help='zoom expansion factor', type=float, default=2)
-parser.add_argument('-s', '--seed', help='random seed', type=int)
-parser.add_argument('-v', '--verbosity', help='verbosity level (default 1)',
-                    type=int, choices=(0, 1, 2, 3), default=1)
+mainOptions = parser.add_argument_group('main options')
+mainOptions.add_argument('-S', '--simulate', action='store_true',
+                         help='run dynamic simulations from scenes '
+                              'instead of simply showing diagrams of scenes')
+mainOptions.add_argument('-s', '--seed', help='random seed', type=int)
+mainOptions.add_argument('-v', '--verbosity', help='verbosity level (default 1)',
+                         type=int, choices=(0, 1, 2, 3), default=1)
+
 
 # Simulation options
-simOpts = parser.add_argument_group('simulation options')
-simOpts.add_argument('-S', '--simulate', help='run simulations from scenes', action='store_true')
+simOpts = parser.add_argument_group('dynamic simulation options')
 simOpts.add_argument('--time', help='time bound for simulations (default none)',
                      type=int, default=None)
-simOpts.add_argument('--count', help='number of simulations to run (default infinity)',
+simOpts.add_argument('--count', help='number of successful simulations to run (default infinity)',
                      type=int, default=0)
+simOpts.add_argument('--max-sims-per-scene', type=int, default=1, metavar='N',
+                     help='max # of rejected simulations before sampling a new scene (default 1)')
+
+# Interactive rendering options
+intOptions = parser.add_argument_group('static scene diagramming options')
+intOptions.add_argument('-d', '--delay', type=float,
+                        help='loop automatically with this delay (in seconds) '
+                             'instead of waiting for the user to close the diagram')
+intOptions.add_argument('-z', '--zoom', help='zoom expansion factor (default 1)',
+                        type=float, default=1)
 
 # Debugging options
 debugOpts = parser.add_argument_group('debugging options')
@@ -40,8 +52,11 @@ debugOpts.add_argument('--dump-ast', help='dump final AST', action='store_true')
 debugOpts.add_argument('--dump-python', help='dump Python equivalent of final AST',
                        action='store_true')
 debugOpts.add_argument('--no-pruning', help='disable pruning', action='store_true')
-debugOpts.add_argument('--gather-stats', help='collect statistics over this many scenes',
-                       type=int, metavar='N')
+debugOpts.add_argument('--gather-stats', type=int, metavar='N',
+                       help='collect timing statistics over this many scenes')
+
+parser.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
+                    help=argparse.SUPPRESS)
 
 # Positional arguments
 parser.add_argument('scenario', help='a Scenic file to run')
@@ -49,26 +64,32 @@ parser.add_argument('scenario', help='a Scenic file to run')
 # Parse arguments and set up configuration
 args = parser.parse_args()
 delay = args.delay
-translator.showInternalBacktrace = args.full_backtrace
+errors.showInternalBacktrace = args.full_backtrace
 translator.dumpTranslatedPython = args.dump_initial_python
 translator.dumpFinalAST = args.dump_ast
 translator.dumpASTPython = args.dump_python
 translator.verbosity = args.verbosity
 translator.usePruning = not args.no_pruning
-if args.seed is not None:
+if args.seed is not None and args.verbosity >= 1:
     print(f'Using random seed = {args.seed}')
     random.seed(args.seed)
 
 # Load scenario from file
-print('Beginning scenario construction...')
+if args.verbosity >= 1:
+    print('Beginning scenario construction...')
 startTime = time.time()
-scenario = translator.scenarioFromFile(args.scenario)
+scenario = errors.callBeginningScenicTrace(
+    lambda: translator.scenarioFromFile(args.scenario)
+)
 totalTime = time.time() - startTime
-print(f'Scenario constructed in {totalTime:.2f} seconds.')
+if args.verbosity >= 1:
+    print(f'Scenario constructed in {totalTime:.2f} seconds.')
 
 def generateScene():
     startTime = time.time()
-    scene, iterations = scenario.generate(verbosity=args.verbosity)
+    scene, iterations = errors.callBeginningScenicTrace(
+        lambda: scenario.generate(verbosity=args.verbosity)
+    )
     if args.verbosity >= 1:
         totalTime = time.time() - startTime
         print(f'  Generated scene in {iterations} iterations, {totalTime:.4g} seconds.')
@@ -79,25 +100,30 @@ def runSimulation(scene):
     if args.verbosity >= 1:
         print('  Beginning simulation...')
     try:
-        scene.simulate(maxSteps=args.time, verbosity=args.verbosity)
+        result = errors.callBeginningScenicTrace(
+            lambda: scene.simulate(maxSteps=args.time, verbosity=args.verbosity,
+                                   maxIterations=args.max_sims_per_scene)
+        )
     except SimulationCreationError as e:
         if args.verbosity >= 1:
             print(f'  Failed to create simulation: {e}')
-        return
+        return False
     if args.verbosity >= 1:
         totalTime = time.time() - startTime
         print(f'  Ran simulation in {totalTime:.4g} seconds.')
+    return result is not None
 
 if args.gather_stats is None:   # Generate scenes interactively until killed
     import matplotlib.pyplot as plt
-    i = 0
+    successCount = 0
     while True:
         scene, _ = generateScene()
-        i += 1
         if args.simulate:
-            runSimulation(scene)
-            if 0 < args.count <= i:
-                break
+            success = runSimulation(scene)
+            if success:
+                successCount += 1
+                if 0 < args.count <= successCount:
+                    break
         else:
             if delay is None:
                 scene.show(zoom=args.zoom)

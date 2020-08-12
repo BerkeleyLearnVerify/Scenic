@@ -13,7 +13,8 @@ import scipy
 
 from scenic.core.lazy_eval import (LazilyEvaluable,
     requiredProperties, needsLazyEvaluation, valueInContext, makeDelayedFunctionCall)
-from scenic.core.utils import argsToString, areEquivalent, RuntimeParseError, cached, sqrt2
+from scenic.core.utils import argsToString, areEquivalent, cached, sqrt2
+from scenic.core.errors import RuntimeParseError
 
 ## Misc
 
@@ -190,8 +191,11 @@ class Distribution(Samplable):
 
 	def __getattr__(self, name):
 		if name.startswith('__') and name.endswith('__'):	# ignore special attributes
-			return super().__getattr__(name)
+			return object.__getattribute__(self, name)
 		return AttributeDistribution(name, self)
+
+	def __call__(self, *args):
+		return OperatorDistribution('__call__', self, args)
 
 	def __iter__(self):
 		raise TypeError(f'distribution {self} is not iterable')
@@ -461,17 +465,35 @@ class AttributeDistribution(Distribution):
 		return (self.attribute == other.attribute
 			and areEquivalent(self.object, other.object))
 
+	def __call__(self, *args):
+		vty = self.object.valueType
+		if vty is not object and (func := getattr(vty, self.attribute, None)):
+			if isinstance(func, property):
+				func = func.fget
+			retTy = typing.get_type_hints(func).get('return')
+		else:
+			retTy = None
+		return OperatorDistribution('__call__', self, args, valueType=retTy)
+
 	def __str__(self):
 		return f'{self.object}.{self.attribute}'
 
 class OperatorDistribution(Distribution):
 	"""Distribution resulting from applying an operator to one or more distributions"""
-	def __init__(self, operator, obj, operands):
+	def __init__(self, operator, obj, operands, valueType=None):
 		operands = tuple(toDistribution(arg) for arg in operands)
-		super().__init__(obj, *operands)
+		if valueType is None:
+			valueType = self.inferType(obj, operator)
+		super().__init__(obj, *operands, valueType=valueType)
 		self.operator = operator
 		self.object = obj
 		self.operands = operands
+
+	@staticmethod
+	def inferType(obj, operator):
+		if issubclass(obj.valueType, (float, int)):
+			return float
+		return None
 
 	def sampleGiven(self, value):
 		first = value[self.object]
@@ -544,7 +566,6 @@ allowedOperators = [
 	'__round__',
 	'__len__',
 	'__getitem__',
-	'__call__'
 ]
 def makeOperatorHandler(op):
 	def handler(self, *args):
@@ -587,7 +608,7 @@ class Range(Distribution):
 	def __init__(self, low, high):
 		low = type_support.toScalar(low, f'Range endpoint {low} is not a scalar')
 		high = type_support.toScalar(high, f'Range endpoint {high} is not a scalar')
-		super().__init__(low, high)
+		super().__init__(low, high, valueType=float)
 		self.low = low
 		self.high = high
 
@@ -633,7 +654,7 @@ class Normal(Distribution):
 	def __init__(self, mean, stddev):
 		mean = type_support.toScalar(mean, f'Normal mean {mean} is not a scalar')
 		stddev = type_support.toScalar(stddev, f'Normal stddev {stddev} is not a scalar')
-		super().__init__(mean, stddev)
+		super().__init__(mean, stddev, valueType=float)
 		self.mean = mean
 		self.stddev = stddev
 
@@ -788,7 +809,7 @@ class DiscreteRange(Distribution):
 		else:
 			weights = tuple(weights)
 			assert len(weights) == high - low + 1
-		super().__init__()
+		super().__init__(valueType=int)
 		self.low = low
 		self.high = high
 		self.weights = weights

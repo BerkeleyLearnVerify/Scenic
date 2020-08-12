@@ -8,7 +8,8 @@ from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.external_params import ExternalSampler
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
-from scenic.core.utils import areEquivalent, InvalidScenarioError
+from scenic.core.utils import areEquivalent
+from scenic.core.errors import InvalidScenarioError
 from scenic.syntax.veneer import Behavior, RequirementType, BoundRequirement
 
 class Scene:
@@ -49,7 +50,7 @@ class Scene:
 	def simulate(self, maxSteps=None, maxIterations=100, verbosity=0):
 		"""Run a simulation of this scene."""
 		if self.simulator is None:
-			raise RuntimeError('tried to simulate Scene which does not have a Simulator')
+			raise RuntimeError('tried to simulate scene which does not have a simulator defined')
 		return self.simulator.simulate(self, maxSteps=maxSteps, maxIterations=maxIterations,
 		                               verbosity=verbosity)
 

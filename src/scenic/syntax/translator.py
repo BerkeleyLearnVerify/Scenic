@@ -25,7 +25,6 @@ import sys
 import os
 import io
 import builtins
-import traceback
 import time
 import inspect
 import types
@@ -33,6 +32,7 @@ import importlib
 import importlib.abc
 import importlib.util
 import itertools
+import pathlib
 from collections import namedtuple, defaultdict
 from contextlib import contextmanager
 
@@ -46,7 +46,7 @@ from tokenize import INDENT, DEDENT, STRING
 import ast
 from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_missing_locations
 from ast import Load, Store, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, BitXor, LShift
-from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Num, Subscript, Index, IfExp
+from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Subscript, Index, IfExp
 from ast import NamedExpr, Yield, YieldFrom, FunctionDef, Attribute, Constant, Assign, Expr
 from ast import Return, Raise, If, UnaryOp, Not, ClassDef, Nonlocal, Global, Compare, Is, Try
 from ast import Break, Continue
@@ -54,10 +54,12 @@ from ast import Break, Continue
 from scenic.core.distributions import Samplable, needsSampling, toDistribution
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.workspaces import Workspace
-from scenic.simulators.simulators import Simulator
+from scenic.core.simulators import Simulator
 from scenic.core.scenarios import Scenario
 from scenic.core.object_types import Constructible
-from scenic.core.utils import ParseError, RuntimeParseError, InvalidScenarioError
+import scenic.core.errors as errors
+from scenic.core.errors import (TokenParseError, PythonParseError, ASTParseError,
+                                InvalidScenarioError)
 import scenic.core.pruning as pruning
 import scenic.syntax.veneer as veneer
 import scenic.syntax.relations as relations
@@ -162,7 +164,7 @@ def compileStream(stream, namespace, filename='<stream>'):
 		tokens = list(tokenize.tokenize(stream.readline))
 	except tokenize.TokenError as e:
 		line = e.args[1][0] if isinstance(e.args[1], tuple) else e.args[1]
-		raise TokenParseError(line, 'file ended during multiline string or expression')
+		raise TokenParseError(line, filename, 'file ended during multiline string or expression')
 	# Partition into blocks with all imports at the end (since imports could
 	# pull in new constructor (Scenic class) definitions, which change the way
 	# subsequent tokens are transformed)
@@ -178,9 +180,10 @@ def compileStream(stream, namespace, filename='<stream>'):
 			constructors = findConstructorsIn(namespace)
 			# Translate tokens to valid Python syntax
 			startLine = max(1, block[0][2][0])
-			translator = TokenTranslator(constructors)
+			translator = TokenTranslator(constructors, filename)
 			newSource, allConstructors = translator.translate(block)
-			trimmed = newSource[2*(startLine-1):]	# remove blank lines used to align errors
+			trimmed = newSource[2*(startLine-1):]	# fix up blank lines used to align errors
+			newSource = '\n'*(startLine-1) + trimmed
 			newSourceBlocks.append(trimmed)
 			if dumpTranslatedPython:
 				print(f'### Begin translated Python from block {blockNum} of {filename}')
@@ -189,7 +192,7 @@ def compileStream(stream, namespace, filename='<stream>'):
 			# Parse the translated source
 			tree = parseTranslatedSource(newSource, filename)
 			# Modify the parse tree to produce the correct semantics
-			newTree, requirements = translateParseTree(tree, allConstructors)
+			newTree, requirements = translateParseTree(tree, allConstructors, filename)
 			if dumpFinalAST:
 				print(f'### Begin final AST from block {blockNum} of {filename}')
 				print(ast.dump(newTree, include_attributes=True))
@@ -206,7 +209,7 @@ def compileStream(stream, namespace, filename='<stream>'):
 			# Compile the modified tree
 			code = compileTranslatedTree(newTree, filename)
 			# Execute it
-			executeCodeIn(code, namespace, filename)
+			executeCodeIn(code, namespace)
 		# Extract scenario state from veneer and store it
 		storeScenarioStateIn(namespace, requirements, filename)
 	finally:
@@ -221,7 +224,6 @@ def compileStream(stream, namespace, filename='<stream>'):
 
 ## Options
 
-showInternalBacktrace = False
 dumpTranslatedPython = False
 dumpFinalAST = False
 dumpASTPython = False
@@ -270,6 +272,7 @@ paramStatement = 'param'
 mutateStatement = 'mutate'
 
 requireStatement = 'require'
+softRequirement = 'require_soft'	# not actually a statement, but a marker for the parser
 requireAlwaysStatement = ('require', 'always')
 terminateWhenStatement = ('terminate', 'when')
 
@@ -289,7 +292,14 @@ twoWordStatements = { requireAlwaysStatement, terminateWhenStatement }
 functionStatements = { requireStatement, paramStatement, mutateStatement }
 twoWordFunctionStatements = { requireAlwaysStatement, terminateWhenStatement }
 def functionForStatement(tokens):
-	return '_'.join(tokens)
+	return '_'.join(tokens) if isinstance(tokens, tuple) else tokens
+def nameForStatement(tokens):
+	return ' '.join(tokens) if isinstance(tokens, tuple) else tokens
+
+statementForImp = {
+	functionForStatement(s): nameForStatement(s)
+	for s in functionStatements | twoWordStatements
+}
 
 # sanity check: implementations actually exist
 for imp in functionStatements:
@@ -299,16 +309,21 @@ for tokens in twoWordFunctionStatements:
 	imp = functionForStatement(tokens)
 	assert imp in api, imp
 
+# statements allowed inside behaviors
+behavioralStatements = {
+	requireStatement, actionStatement, waitStatement,
+	terminateStatement, abortStatement
+}
+behavioralImps = { functionForStatement(s) for s in behavioralStatements }
+
 # statements encoding requirements which need special handling
 requirementStatements = (
-    requireStatement,
+    requireStatement, softRequirement,
     functionForStatement(requireAlwaysStatement),
     functionForStatement(terminateWhenStatement),
 )
 
 statementRaiseMarker = '_Scenic_statement_'
-def wrapStatementCall(newTokens):
-	newTokens.extend(((NAME, 'raise'), (NAME, statementRaiseMarker), (NAME, 'from')))
 
 ## Try-interrupt blocks
 
@@ -380,10 +395,10 @@ prefixOperators = {
 	('front', 'right'): 'FrontRight',
 	('back', 'left'): 'BackLeft',
 	('back', 'right'): 'BackRight',
-	('front',): 'Front',
-	('back',): 'Back',
-	('left',): 'Left',
-	('right',): 'Right',
+	('front', 'of'): 'Front',
+	('back', 'of'): 'Back',
+	('left', 'of'): 'Left',
+	('right', 'of'): 'Right',
 	('follow',): 'Follow',
 	('visible',): 'Visible'
 }
@@ -608,13 +623,6 @@ def findConstructorsIn(namespace):
 
 ### TRANSLATION PHASE TWO: translation at the level of tokens
 
-class TokenParseError(ParseError):
-	"""Parse error occurring during token translation."""
-	def __init__(self, tokenOrLine, message):
-		line = tokenOrLine.start[0] if hasattr(tokenOrLine, 'start') else tokenOrLine
-		self.lineno = line
-		super().__init__('Parse error on line ' + str(line) + ': ' + message)
-
 class Peekable:
 	"""Utility class to allow iterator lookahead."""
 	def __init__(self, gen):
@@ -643,12 +651,16 @@ class TokenTranslator:
 	This is a stateful process because constructor (Scenic class) definitions
 	change the way subsequent code is parsed.
 	"""
-	def __init__(self, constructors=()):
+	def __init__(self, constructors=(), filename='<unknown>'):
 		self.constructors = dict(builtinConstructors)
 		for constructor in constructors:
 			name = constructor.name
 			assert name not in self.constructors
 			self.constructors[name] = constructor
+		self.filename = filename
+
+	def parseError(self, tokenOrLine, message):
+		return TokenParseError(tokenOrLine, self.filename, message)
 
 	def createConstructor(self, name, parent):
 		if parent is None:
@@ -753,7 +765,7 @@ class TokenTranslator:
 
 			# Catch Python operators that can't be used in Scenic
 			if ttype in illegalTokens:
-				raise TokenParseError(token, f'illegal operator "{tstring}"')
+				raise self.parseError(token, f'illegal operator "{tstring}"')
 
 			# Determine which operators are allowed in current context
 			context, startLevel = functionStack[-1] if functionStack else (None, None)
@@ -793,7 +805,7 @@ class TokenTranslator:
 						endToken = token
 					elif startOfLine and tstring in constructorStatements:	# class definition
 						if nextToken.type != NAME or nextString in keywords:
-							raise TokenParseError(nextToken,
+							raise self.parseError(nextToken,
 							    f'invalid class name "{nextString}"')
 						nextToken = next(tokens)	# consume name
 						parent = None
@@ -803,18 +815,18 @@ class TokenTranslator:
 							nextToken = next(tokens)
 							parent = nextToken.string
 							if nextToken.exact_type != NAME:
-								raise TokenParseError(nextToken,
+								raise self.parseError(nextToken,
 								    f'invalid superclass "{parent}"')
 							if parent not in self.constructors:
 								if tstring != 'class':
-									raise TokenParseError(nextToken,
+									raise self.parseError(nextToken,
 									    f'superclass "{parent}" is not a Scenic class')
 								# appears to be a Python class definition
 								pythonClass = True
 							else:
 								nextToken = next(tokens)
 								if nextToken.exact_type != RPAR:
-									raise TokenParseError(nextToken,
+									raise self.parseError(nextToken,
 									                      'malformed class definition')
 						injectToken((NAME, 'class'), spaceAfter=1)
 						injectToken((NAME, nextString))
@@ -826,7 +838,7 @@ class TokenTranslator:
 							injectToken(nextToken)
 						else:
 							if peek(tokens).exact_type != COLON:
-								raise TokenParseError(nextToken, 'malformed class definition')
+								raise self.parseError(nextToken, 'malformed class definition')
 							parent = self.createConstructor(nextString, parent)
 							injectToken((NAME, parent))
 							injectToken((RPAR, ')'))
@@ -835,7 +847,7 @@ class TokenTranslator:
 						endToken = nextToken
 					elif startOfLine and tstring == monitorStatement:		# monitor definition
 						if nextToken.type != NAME:
-							raise TokenParseError(nextToken,
+							raise self.parseError(nextToken,
 							    f'invalid monitor name "{nextString}"')
 						injectToken((NAME, 'async'), spaceAfter=1)
 						injectToken((NAME, 'def'), spaceAfter=1)
@@ -844,7 +856,7 @@ class TokenTranslator:
 						injectToken((RPAR, ')'))
 						advance()	# consume name
 						if peek(tokens).exact_type != COLON:
-							raise TokenParseError(nextToken, 'malformed monitor definition')
+							raise self.parseError(nextToken, 'malformed monitor definition')
 						skip = True
 						matched = True
 					elif twoWords in allowedPrefixOps:	# 2-word prefix operator
@@ -873,18 +885,21 @@ class TokenTranslator:
 						next(tokens)	# consume '['
 						nextToken = next(tokens)
 						if nextToken.exact_type != NUMBER:
-							raise TokenParseError(nextToken,
+							raise self.parseError(nextToken,
 							    'soft requirement must have constant probability')
 						prob = nextToken.string
+						if not 0 <= float(prob) <= 1:
+							raise self.parseError(nextToken,
+							                      'probability must be between 0 and 1')
 						nextToken = next(tokens)
 						if nextToken.exact_type != RSQB:
-							raise TokenParseError(nextToken, 'malformed soft requirement')
+							raise self.parseError(nextToken, 'malformed soft requirement')
 						wrapStatementCall()
-						callFunction(requireStatement, argument=prob)
+						callFunction(softRequirement, argument=prob)
 						endToken = nextToken
 					elif twoWords in illegalConstructs:
 						construct = ' '.join(twoWords)
-						raise TokenParseError(token,
+						raise self.parseError(token,
 						                      f'Python construct "{construct}" not allowed in Scenic')
 				if not matched:
 					# 2-word constructs don't match; try 1-word
@@ -896,7 +911,7 @@ class TokenTranslator:
 						injectToken(allowedInfixOps[oneWord])
 						skip = True
 					elif inConstructorContext:		# couldn't match any 1- or 2-word specifier
-						raise TokenParseError(token, f'unknown specifier "{tstring}"')
+						raise self.parseError(token, f'unknown specifier "{tstring}"')
 					elif tstring in oneWordStatements:		# 1-word statement
 						wrapStatementCall()
 						callFunction(tstring)
@@ -909,9 +924,9 @@ class TokenTranslator:
 					elif startOfLine and tstring == 'from':		# special case to allow 'from X import Y'
 						pass
 					elif tstring in keywords:		# some malformed usage
-						raise TokenParseError(token, f'unexpected keyword "{tstring}"')
+						raise self.parseError(token, f'unexpected keyword "{tstring}"')
 					elif tstring in illegalConstructs:
-						raise TokenParseError(token, f'Python construct "{tstring}" not allowed in Scenic')
+						raise self.parseError(token, f'Python construct "{tstring}" not allowed in Scenic')
 					else:
 						pass	# nothing matched; pass through unchanged to Python
 
@@ -938,25 +953,25 @@ class TokenTranslator:
 							advance(skip=False)		# preserve comment
 							nextToken = peek(tokens)
 						if nextToken.exact_type not in (NEWLINE, NL):
-							raise TokenParseError(nextToken, 'comma with no specifier following')
+							raise self.parseError(nextToken, 'comma with no specifier following')
 						advance(skip=False)		# preserve newline
 						nextToken = peek(tokens)
 					if specOnNewLine and not specifiersIndented:
 						nextToken = next(tokens)		# consume indent
 						if nextToken.exact_type != INDENT:
-							raise TokenParseError(nextToken,
+							raise self.parseError(nextToken,
 							                      'expected indented specifier (extra comma on previous line?)')
 						injectToken(nextToken)
 						specifiersIndented = True
 				elif ttype == NEWLINE or ttype == ENDMARKER or ttype == COMMENT:	# end of line
 					inConstructor = False
 					if parenLevel != 0:
-						raise TokenParseError(token, 'unmatched parens/brackets')
+						raise self.parseError(token, 'unmatched parens/brackets')
 					interrupt = False
 					if functionStack and functionStack[0][0] == interruptExceptMarker:
 						lastToken = newTokens[-1]
 						if lastToken[1] != ':':
-							raise TokenParseError(nextToken, 'expected colon for interrupt')
+							raise self.parseError(nextToken, 'expected colon for interrupt')
 						newTokens.pop()		# remove colon for now
 						interrupt = True
 					while len(functionStack) > 0:
@@ -979,29 +994,12 @@ class TokenTranslator:
 
 ### TRANSLATION PHASE THREE: parsing of Python resulting from token translation
 
-class PythonParseError(SyntaxError, ParseError):
-	"""Parse error occurring during Python parsing or compilation."""
-	@classmethod
-	def fromSyntaxError(cls, exc):
-		msg, (filename, lineno, offset, line) = exc.args
-		try:	# attempt to recover line from original file
-			with open(filename, 'r') as f:
-				line = list(itertools.islice(f, lineno-1, lineno))
-			assert len(line) == 1
-			line = line[0]
-			offset = min(offset, len(line))		# TODO improve?
-		except FileNotFoundError:
-			pass
-		newExc = cls(msg, (filename, lineno, offset, line))
-		return newExc.with_traceback(exc.__traceback__)
-
 def parseTranslatedSource(source, filename):
 	try:
 		tree = parse(source, filename=filename)
 		return tree
 	except SyntaxError as e:
-		cause = e if showInternalBacktrace else None
-		raise PythonParseError.fromSyntaxError(e) from cause
+		raise PythonParseError(e) from None
 
 ### TRANSLATION PHASE FOUR: modifying the parse tree
 
@@ -1122,16 +1120,11 @@ class LocalFinder(NodeVisitor):
 			self.names.add(node.name)
 		self.generic_visit(node)
 
-class ASTParseError(ParseError):
-	"""Parse error occuring during modification of the Python AST."""
-	def __init__(self, line, message):
-		self.lineno = line
-		super().__init__('Parse error on line ' + str(line) + ': ' + message)
-
 class ASTSurgeon(NodeTransformer):
-	def __init__(self, constructors):
+	def __init__(self, constructors, filename):
 		super().__init__()
 		self.constructors = set(constructors.keys())
+		self.filename = filename
 		self.requirements = []
 		self.inRequire = False
 		self.inBehavior = False
@@ -1143,7 +1136,7 @@ class ASTSurgeon(NodeTransformer):
 		self.callDepth = 0
 
 	def parseError(self, node, message):
-		raise ASTParseError(node.lineno, message)
+		raise ASTParseError(node, message, self.filename)
 
 	def unpack(self, arg, expected, node):
 		"""Unpack arguments to ternary (and up) infix operators."""
@@ -1214,29 +1207,34 @@ class ASTSurgeon(NodeTransformer):
 		assert isinstance(node.cause.func, Name)
 		node = node.cause 	# move to inner call
 		func = node.func
+		assert isinstance(func, Name)
+		if self.inBehavior and func.id not in behavioralImps:
+			statement = statementForImp[func.id]
+			raise self.parseError(node, f'"{statement}" cannot be used in a behavior')
 		if func.id in requirementStatements:		# require, terminate when, etc.
-			# Soft reqs have 2 arguments, including the probability, which is given as the
-			# first argument by the token translator; so we allow an extra argument here and
-			# validate it later on (in case the user wrongly gives 2 arguments to require).
-			numArgs = (1, 2) if func.id == requireStatement else 1
+			if func.id == softRequirement:
+				func.id = requireStatement
+				numArgs = 2
+				if len(node.args) != 2:
+					self.parseError(node, f'"require" takes exactly 1 argument')
+			else:
+				numArgs = 1
 			self.validateSimpleCall(node, numArgs)
 			cond = node.args[-1]
 			assert not self.inRequire
 			self.inRequire = True
 			req = self.visit(cond)
 			self.inRequire = False
-			reqID = Num(len(self.requirements))	# save ID number
+			reqID = Constant(len(self.requirements), None)	# save ID number
 			self.requirements.append(req)		# save condition for later inspection when pruning
 			closure = Lambda(noArgs, req)		# enclose requirement in a lambda
-			lineNum = Num(node.lineno)			# save line number for error messages
+			lineNum = Constant(node.lineno, None)			# save line number for error messages
 			copy_location(closure, req)
 			copy_location(lineNum, req)
 			newArgs = [reqID, closure, lineNum]
-			if len(node.args) == 2:		# get probability for soft requirements
+			if numArgs == 2:		# get probability for soft requirements
 				prob = node.args[0]
-				if not isinstance(prob, Num):
-					raise self.parseError(node, 'malformed requirement '
-					                            '(should be a single expression)')
+				assert isinstance(prob, Constant) and isinstance(prob.value, (float, int))
 				newArgs.append(prob)
 			return copy_location(Expr(Call(func, newArgs, [])), node)
 		elif func.id == actionStatement:		# Action statement
@@ -1248,7 +1246,8 @@ class ASTSurgeon(NodeTransformer):
 			return self.generateActionInvocation(node, None)
 		elif func.id == terminateStatement:		# Terminate statement
 			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
-			termination = Call(Name(createTerminationAction, Load()), [Num(node.lineno)], [])
+			termination = Call(Name(createTerminationAction, Load()),
+			                   [Constant(node.lineno, None)], [])
 			return self.generateActionInvocation(node, termination)
 		elif func.id == abortStatement:		# abort statement for try-interrupt statements
 			if not self.inTryInterrupt:
@@ -1426,7 +1425,7 @@ class ASTSurgeon(NodeTransformer):
 			elif isinstance(arg, Starred) and not self.inBehavior:
 				wrappedStar = True
 				checkedVal = Call(Name('wrapStarredValue', Load()),
-				                  [self.visit(arg.value), Num(arg.value.lineno)],
+				                  [self.visit(arg.value), Constant(arg.value.lineno, None)],
 				                  [])
 				newArgs.append(Starred(checkedVal, Load()))
 			else:
@@ -1447,20 +1446,21 @@ class ASTSurgeon(NodeTransformer):
 
 	def validateSimpleCall(self, node, numArgs, onlyInBehaviors=False):
 		func = node.func
+		name = func.id
 		if onlyInBehaviors and not self.inBehavior:
-			raise self.parseError(node, f'"{func}" can only be used in a behavior')
+			raise self.parseError(node, f'"{name}" can only be used in a behavior')
 		if isinstance(numArgs, tuple):
 			assert len(numArgs) == 2
 			low, high = numArgs
 			if not (low <= len(node.args) <= high):
-				raise self.parseError(node, f'"{func}" takes {low}-{high} arguments')
+				raise self.parseError(node, f'"{name}" takes {low}-{high} arguments')
 		elif len(node.args) != numArgs:
-			raise self.parseError(node, f'"{func}" takes exactly {numArgs} arguments')
+			raise self.parseError(node, f'"{name}" takes exactly {numArgs} argument(s)')
 		if len(node.keywords) != 0:
-			raise self.parseError(node, f'"{func}" takes no keyword arguments')
+			raise self.parseError(node, f'"{name}" takes no keyword arguments')
 		for arg in node.args:
 			if isinstance(arg, Starred):
-				raise self.parseError(node, f'argument unpacking cannot be used with "{func}"')
+				raise self.parseError(node, f'argument unpacking cannot be used with "{name}"')
 
 	def wrapBehaviorCall(self, func, args, keywords):
 		"""Wraps a function call to handle calling a behavior.
@@ -1656,9 +1656,9 @@ class ASTSurgeon(NodeTransformer):
 					                f'Python class {node.name} derives from Scenic class {name}')
 			return self.generic_visit(node)
 
-def translateParseTree(tree, constructors):
+def translateParseTree(tree, constructors, filename):
 	"""Modify the Python AST to produce the desired Scenic semantics."""
-	surgeon = ASTSurgeon(constructors)
+	surgeon = ASTSurgeon(constructors, filename)
 	tree = fix_missing_locations(surgeon.visit(tree))
 	return tree, surgeon.requirements
 
@@ -1668,62 +1668,13 @@ def compileTranslatedTree(tree, filename):
 	try:
 		return compile(tree, filename, 'exec')
 	except SyntaxError as e:
-		cause = e if showInternalBacktrace else None
-		raise PythonParseError.fromSyntaxError(e) from cause
+		raise PythonParseError(e) from None
 
 ### TRANSLATION PHASE SIX: Python execution
 
-def generateTracebackFrom(exc, sourceFile):
-	"""Trim an exception's traceback to the last line of Scenic code."""
-	# find last stack frame in the source file
-	tbexc = traceback.TracebackException.from_exception(exc)
-	last = None
-	tbs = []
-	currentTb = exc.__traceback__
-	for depth, frame in enumerate(tbexc.stack):
-		assert currentTb is not None
-		tbs.append(currentTb)
-		currentTb = currentTb.tb_next
-		if frame.filename == sourceFile:
-			last = depth
-	assert last is not None
-
-	# create new trimmed traceback
-	lastTb = tbs[last]
-	lastLine = lastTb.tb_lineno
-	tbs = tbs[:last]
-	try:
-		currentTb = types.TracebackType(None, lastTb.tb_frame,
-		                                lastTb.tb_lasti, lastLine)
-	except TypeError:
-		# Python 3.6 does not allow creation of traceback objects, so we just
-		# return the original traceback
-		return exc.__traceback__, lastLine
-
-	for tb in reversed(tbs):
-		currentTb = types.TracebackType(currentTb, tb.tb_frame,
-		                                tb.tb_lasti, tb.tb_lineno)
-	return currentTb, lastLine
-
-class InterpreterParseError(ParseError):
-	"""Parse error occuring during Python execution."""
-	def __init__(self, exc, line):
-		self.lineno = line
-		exc_name = type(exc).__name__
-		super().__init__(f'Parse error on line {line}: {exc_name}: {exc}')
-
-def executeCodeIn(code, namespace, filename):
+def executeCodeIn(code, namespace):
 	"""Execute the final translated Python code in the given namespace."""
-	executePythonFunction(lambda: exec(code, namespace), filename)
-
-def executePythonFunction(func, filename):
-	"""Execute a Python function, giving correct Scenic backtraces for any exceptions."""
-	try:
-		return func()
-	except RuntimeParseError as e:
-		cause = e if showInternalBacktrace else None
-		tb, line = generateTracebackFrom(e, filename)
-		raise InterpreterParseError(e, line).with_traceback(tb) from cause
+	exec(code, namespace)
 
 ### TRANSLATION PHASE SEVEN: scenario construction
 
@@ -1771,7 +1722,7 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 				assert veneer.currentSimulation or veneer.egoObject is None
 				if ego is not None:
 					veneer.egoObject = values[ego]
-				result = executePythonFunction(evaluator, filename)
+				result = evaluator()
 			finally:
 				veneer.evaluatingRequirement = False
 				veneer.egoObject = oldEgo

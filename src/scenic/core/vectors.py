@@ -147,14 +147,14 @@ class Vector(Samplable, collections.abc.Sequence):
 		super().__init__(self.coordinates)
 
 	@property
-	def x(self):
+	def x(self) -> float:
 		return self.coordinates[0]
 
 	@property
-	def y(self):
+	def y(self) -> float:
 		return self.coordinates[1]
 
-	def toVector(self):
+	def toVector(self) -> Vector:
 		return self
 
 	def sampleGiven(self, value):
@@ -164,35 +164,35 @@ class Vector(Samplable, collections.abc.Sequence):
 		return Vector(*(valueInContext(coord, context) for coord in self.coordinates))
 
 	@vectorOperator
-	def rotatedBy(self, angle):
+	def rotatedBy(self, angle) -> Vector:
 		"""Return a vector equal to this one rotated counterclockwise by the given angle."""
 		x, y = self.x, self.y
 		c, s = cos(angle), sin(angle)
 		return Vector((c * x) - (s * y), (s * x) + (c * y))
 
 	@vectorOperator
-	def offsetRotated(self, heading, offset):
+	def offsetRotated(self, heading, offset) -> Vector:
 		ro = offset.rotatedBy(heading)
 		return self + ro
 
 	@vectorOperator
-	def offsetRadially(self, radius, heading):
+	def offsetRadially(self, radius, heading) -> Vector:
 		return self.offsetRotated(heading, Vector(0, radius))
 
 	@scalarOperator
-	def distanceTo(self, other):
+	def distanceTo(self, other) -> float:
 		if not isinstance(other, Vector):
 			return other.distanceTo(self)
 		dx, dy = other.toVector() - self
 		return math.hypot(dx, dy)
 
 	@scalarOperator
-	def angleTo(self, other):
+	def angleTo(self, other) -> float:
 		dx, dy = other.toVector() - self
 		return normalizeAngle(math.atan2(dy, dx) - (math.pi / 2))
 
 	@scalarOperator
-	def angleWith(self, other):
+	def angleWith(self, other) -> float:
 		"""Compute the signed angle between self and other.
 
 		The angle is positive if other is counterclockwise of self (considering
@@ -203,35 +203,35 @@ class Vector(Samplable, collections.abc.Sequence):
 		return normalizeAngle(math.atan2(oy, ox) - math.atan2(y, x))
 
 	@vectorOperator
-	def normalized(self):
+	def normalized(self) -> Vector:
 		l = math.hypot(*self.coordinates)
 		return Vector(*(coord/l for coord in self.coordinates))
 
 	@vectorOperator
-	def __add__(self, other):
+	def __add__(self, other) -> Vector:
 		return Vector(self[0] + other[0], self[1] + other[1])
 
 	@vectorOperator
-	def __radd__(self, other):
+	def __radd__(self, other) -> Vector:
 		return Vector(self[0] + other[0], self[1] + other[1])
 
 	@vectorOperator
-	def __sub__(self, other):
+	def __sub__(self, other) -> Vector:
 		return Vector(self[0] - other[0], self[1] - other[1])
 
 	@vectorOperator
-	def __rsub__(self, other):
+	def __rsub__(self, other) -> Vector:
 		return Vector(other[0] - self[0], other[1] - self[1])
 
 	@vectorOperator
-	def __mul__(self, other):
+	def __mul__(self, other) -> Vector:
 		return Vector(*(coord*other for coord in self.coordinates))
 
-	def __rmul__(self, other):
+	def __rmul__(self, other) -> Vector:
 		return self.__mul__(other)
 
 	@vectorOperator
-	def __truediv__(self, other):
+	def __truediv__(self, other) -> Vector:
 		return Vector(*(coord/other for coord in self.coordinates))
 
 	def __len__(self):

@@ -1,10 +1,36 @@
 
 import pytest
 
-from scenic.core.utils import RuntimeParseError
+from scenic.core.errors import RuntimeParseError
 
 from tests.utils import (compileScenic, sampleScene, sampleActions, sampleEgoActions,
                          sampleEgoActionsFromScene, checkErrorLineNumber)
+
+## Dynamic state
+
+def test_dynamic_property():
+    scenario = compileScenic("""
+        behavior Foo():
+            for i in range(3):
+                self.position = self.position + 1@0
+                wait
+        ego = Object with behavior Foo
+        terminate when ego.position.x >= 3
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=3)
+    assert len(actions) == 2
+
+def test_dynamic_derived_property():
+    scenario = compileScenic("""
+        behavior Foo():
+            for i in range(3):
+                self.position = self.position + 0@1
+                wait
+        ego = Object with behavior Foo
+        terminate when ego.left.position.y >= 3
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=3)
+    assert len(actions) == 2
 
 ## Behaviors
 
@@ -110,14 +136,51 @@ def test_behavior_globals_write():
     assert actions[0] == True
     assert actions[2] == False
 
+# Implicit self
+
+def test_behavior_self():
+    scenario = compileScenic("""
+        behavior Foo():
+            take self.bar
+        ego = Object with behavior Foo, with bar 3
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=1)
+    assert tuple(actions) == (3,)
+
+def test_behavior_lazy():
+    scenario = compileScenic("""
+        vf = VectorField("Foo", lambda pos: pos.x)
+        behavior Foo():
+            take 1 relative to vf
+        ego = Object at 0.5@0, with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=1)
+    assert tuple(actions) == (pytest.approx(1.5),)
+
+def test_behavior_lazy_nested():
+    scenario = compileScenic("""
+        vf = VectorField("Foo", lambda pos: pos.x)
+        behavior Foo():
+            Bar()
+            take -1 relative to vf
+        behavior Bar():
+            take 1 relative to vf
+        behavior Baz():
+            Bar(); Bar()
+        Object at -10@0, with behavior Baz
+        ego = Object at 0.5@0, with behavior Foo
+    """)
+    actions = sampleActions(scenario, maxSteps=2)
+    assert tuple(actions) == (pytest.approx((1.5, -9)), pytest.approx((-0.5, -9)))
+
 # Termination
 
 def test_behavior_end_early():
-    scenario = compileScenic(
-        'behavior Foo():\n'
-        '    take 5\n'
-        'ego = Object with behavior Foo'
-    )
+    scenario = compileScenic("""
+        behavior Foo():
+            take 5
+        ego = Object with behavior Foo
+    """)
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (5, None, None)
 
@@ -145,6 +208,37 @@ def test_terminate_when():
     """)
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (1,)
+
+# Requirements
+
+def test_behavior_require():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take self.foo
+                require self.foo < 0
+        ego = Object with foo (-1, 1), with behavior Foo
+    """)
+    for i in range(50):
+        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=1, maxScenes=50)
+        assert len(actions) == 2
+        assert actions[0] < 0
+        assert actions[0] == actions[1]
+
+def test_behavior_require_2():
+    scenario = compileScenic("""
+        behavior Foo():
+            x = (-1, 1)
+            while True:
+                take x
+                require x < 0
+        ego = Object with behavior Foo
+    """)
+    for i in range(50):
+        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=50, maxScenes=1)
+        assert len(actions) == 2
+        assert actions[0] < 0
+        assert actions[0] == actions[1]
 
 # Reuse
 

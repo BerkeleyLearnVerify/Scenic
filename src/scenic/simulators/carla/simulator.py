@@ -6,10 +6,9 @@ except ImportError as e:
 
 import pygame
 
-import scenic.simulators as simulators
+import scenic.core.simulators as simulators
 import scenic.simulators.carla.utils.utils as utils
 import scenic.simulators.carla.utils.visuals as visuals
-import time
 
 
 class CarlaSimulator(simulators.Simulator):

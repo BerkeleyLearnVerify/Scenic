@@ -59,7 +59,7 @@ class PointInRegionDistribution(VectorDistribution):
 		else:
 			return 0
 
-	def __str__(self):
+	def __repr__(self):
 		return f'PointIn({self.region})'
 
 class Region(Samplable):
@@ -152,7 +152,7 @@ class Region(Samplable):
 		else:
 			return OrientedVector(vec.x, vec.y, self.orientation[vec])
 
-	def __str__(self):
+	def __repr__(self):
 		return f'<Region {self.name}>'
 
 class AllRegion(Region):
@@ -254,7 +254,7 @@ class CircularRegion(Region):
 		return (areEquivalent(other.center, self.center)
 		        and areEquivalent(other.radius, self.radius))
 
-	def __str__(self):
+	def __repr__(self):
 		return f'CircularRegion({self.center}, {self.radius})'
 
 class SectorRegion(Region):
@@ -320,7 +320,7 @@ class SectorRegion(Region):
 		        and areEquivalent(other.heading, self.heading)
 		        and areEquivalent(other.angle, self.angle))
 
-	def __str__(self):
+	def __repr__(self):
 		return f'SectorRegion({self.center},{self.radius},{self.heading},{self.angle})'
 
 class RectangularRegion(RotatedRectangle, Region):
@@ -369,7 +369,7 @@ class RectangularRegion(RotatedRectangle, Region):
 		        and areEquivalent(other.width, self.width)
 		        and areEquivalent(other.height, self.height))
 
-	def __str__(self):
+	def __repr__(self):
 		return f'RectangularRegion({self.position},{self.heading},{self.width},{self.height})'
 
 class PolylineRegion(Region):
@@ -557,10 +557,24 @@ class PolylineRegion(Region):
 		"""
 		return Vector(*self.points[i])
 
+	def __add__(self, other):
+		if not isinstance(other, PolylineRegion):
+			return NotImplemented
+		# take union by collecting LineStrings, to preserve the order of points
+		strings = []
+		for region in (self, other):
+			string = region.lineString
+			if isinstance(string, shapely.geometry.MultiLineString):
+				strings.extend(string)
+			else:
+				strings.append(string)
+		newString = shapely.geometry.MultiLineString(strings)
+		return PolylineRegion(polyline=newString)
+
 	def __len__(self):
 		return len(self.points)
 
-	def __str__(self):
+	def __repr__(self):
 		return f'PolylineRegion({self.lineString})'
 
 	def __eq__(self, other):
@@ -713,7 +727,7 @@ class PolygonalRegion(Region):
 	def show(self, plt, style='r-', **kwargs):
 		plotPolygon(self.polygons, plt, style=style, **kwargs)
 
-	def __str__(self):
+	def __repr__(self):
 		return '<PolygonalRegion>'
 
 	def __eq__(self, other):
@@ -726,6 +740,11 @@ class PolygonalRegion(Region):
 	def __hash__(self):
 		# TODO better way to hash mutable Shapely geometries? (also for PolylineRegion)
 		return hash((str(self.polygons), self.orientation))
+
+	def __getstate__(self):
+		state = self.__dict__.copy()
+		state.pop('_cached_prepared', None)		# prepared geometries are not picklable
+		return state
 
 class PointSetRegion(Region):
 	"""Region consisting of a set of discrete points.
@@ -914,5 +933,5 @@ class IntersectionRegion(Region):
 		return (areEquivalent(set(other.regions), set(self.regions))
 		        and other.orientation == self.orientation)
 
-	def __str__(self):
+	def __repr__(self):
 		return f'IntersectionRegion({self.regions})'

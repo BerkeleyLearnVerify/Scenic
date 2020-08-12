@@ -2,12 +2,12 @@
 import pytest
 
 import scenic
-from scenic import scenarioFromString as compileScenic
-from scenic.core.utils import InvalidScenarioError
+from scenic.core.errors import InvalidScenarioError
+from tests.utils import compileScenic, sampleScene
 
 def test_everywhere():
     scenario = compileScenic('ego = Object with regionContainedIn everywhere')
-    scenario.generate(maxIterations=1)
+    sampleScene(scenario, maxIterations=1)
 
 def test_nowhere():
     with pytest.raises(InvalidScenarioError):
@@ -20,4 +20,4 @@ def test_polygonal_empty_intersection():
         'Object in visible r1, with requireVisible False'
     )
     for i in range(30):
-        scenario.generate(maxIterations=1000)
+        sampleScene(scenario, maxIterations=1000)
