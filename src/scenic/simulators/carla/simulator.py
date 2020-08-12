@@ -4,16 +4,18 @@ try:
 except ImportError as e:
 	raise ModuleNotFoundError('CARLA scenarios require the "carla" Python package') from e
 
+import math
+
 import pygame
 
-from scenic.domain.driving.simulators import DrivingSimulator, DrivingSimulation
+from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
 import scenic.simulators.carla.utils.utils as utils
 import scenic.simulators.carla.utils.visuals as visuals
 
 
 class CarlaSimulator(DrivingSimulator):
-	def __init__(self, carla_map, address='127.0.0.1', port=2000, timeout=10, render=True,
-				 timestep=0.1):
+	def __init__(self, carla_map, address='127.0.0.1', port=2000, timeout=10,
+		         render=True, record=False, timestep=0.1):
 		super().__init__()
 		self.client = carla.Client(address, port)
 		self.client.set_timeout(timeout)  # limits networking operations (seconds)
@@ -28,13 +30,15 @@ class CarlaSimulator(DrivingSimulator):
 		self.world.apply_settings(settings)
 
 		self.render = render  # visualization mode ON/OFF
+		self.record = record  # whether to save images to disk
 
 	def createSimulation(self, scene):
-		return CarlaSimulation(scene, self.client, self.render, self.map, self.timestep)
+		return CarlaSimulation(scene, self.client, self.map, self.timestep,
+							   render=self.render, record=self.record)
 
 
 class CarlaSimulation(DrivingSimulation):
-	def __init__(self, scene, client, render, map, timestep):
+	def __init__(self, scene, client, map, timestep, render, record):
 		super().__init__(scene, timestep=timestep)
 		self.client = client
 		self.client.load_world(map)
@@ -46,6 +50,7 @@ class CarlaSimulation(DrivingSimulation):
 		
 		# Setup HUD
 		self.render = render
+		self.record = record
 		if self.render:
 			self.displayDim = (1280, 720)
 			self.displayClock = pygame.time.Clock()
@@ -100,6 +105,7 @@ class CarlaSimulation(DrivingSimulation):
 					self.cameraManager._transform_index = camPosIndex
 					self.cameraManager.set_sensor(camIndex)
 					self.cameraManager.set_transform(self.camTransform)
+					self.cameraManager._recording = self.record
 
 		self.world.tick() ## allowing manualgearshift to take effect 
 

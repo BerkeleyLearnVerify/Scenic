@@ -1753,6 +1753,7 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 			behaviorNamespaces[modName] = ns
 		else:
 			assert behaviorNamespaces[modName] is ns
+			return
 		for name, value in ns.items():
 			if isinstance(value, types.ModuleType) and getattr(value, '_isScenicModule', False):
 				registerNamespace(value.__name__, value.__dict__)

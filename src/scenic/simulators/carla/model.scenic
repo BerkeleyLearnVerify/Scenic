@@ -1,8 +1,8 @@
 """Scenic world model for traffic scenarios in CARLA."""
 
-import scenic.domains.driving.model as baseModel
-from scenic.domains.driving.model import DrivingObject, Vehicle, Pedestrian, Steers, Walks
+from scenic.domains.driving.model import *
 
+from scenic.simulators.carla.actions import *
 import scenic.simulators.carla.blueprints as blueprints
 
 try:
@@ -12,15 +12,6 @@ except ModuleNotFoundError:
 
 from scenic.simulators.utils.colors import Color
 
-
-workspace = baseModel.workspace
-
-network = baseModel.network
-road = baseModel.road
-roadDirection = baseModel.roadDirection
-curb = baseModel.curb
-sidewalk = baseModel.sidewalk
-intersection = baseModel.intersection
 
 precipitation = Options({0: 70, 1: 30}) * (0, 100)
 param precipitation = precipitation
@@ -73,7 +64,8 @@ class Vehicle(Vehicle, CarlaActor, Steers):
 class Car(Vehicle):
     blueprint: Uniform(*blueprints.carModels)
 
-NPCCar = Car    # no distinction between these in CARLA
+class NPCCar(Car):  # no distinction between these in CARLA
+    pass
 
 class Bicycle(Vehicle):
     width: 1

@@ -2,8 +2,9 @@ import math
 
 import carla
 
-from scenic.domain.driving.actions import *
+from scenic.domains.driving.actions import *
 import scenic.simulators.carla.utils.utils as utils
+import scenic.simulators.carla.model as carlaModel
 
 ################################################
 # Actions available to all carla.Actor objects #
@@ -36,6 +37,10 @@ class SetTransformAction(Action):	# TODO eliminate
 #############################################
 # Actions specific to carla.Vehicle objects #
 #############################################
+
+class VehicleAction(Action):
+	def canBeTakenBy(self, agent):
+		return isinstance(agent, carlaModel.Vehicle)
 
 class SetManualGearShiftAction(VehicleAction):
 	def __init__(self, manualGearShift):
@@ -72,6 +77,10 @@ class SetManualFirstGearShiftAction(VehicleAction):	# TODO eliminate
 #################################################
 # Actions available to all carla.Walker objects #
 #################################################
+
+class PedestrianAction(Action):
+	def canBeTakenBy(self, agent):
+		return isinstance(agent, carlaModel.Pedestrian)
 
 class SetJumpAction(PedestrianAction):
 	def __init__(self, jump):
