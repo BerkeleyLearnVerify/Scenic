@@ -69,6 +69,13 @@ def test_dangling_specifier_list_2():
     with pytest.raises(TokenParseError):
         translator.translate(tokens)
 
+def test_constructor_ended_by_paren():
+    compileScenic("""
+        ego = Object
+        x = (Object at 5@5)
+        mutate ego, x
+    """)
+
 def test_incipit_as_name():
     """Incipits of operators are not keywords and can be used as names.
 

@@ -3,45 +3,36 @@ import time
 
 import lgsvl
 
-import scenic.domains.driving.model as baseModel
-from scenic.domains.driving.model import DrivingObject, Vehicle, Pedestrian, Steers, Walks
+from scenic.domains.driving.model import *
 from scenic.simulators.lgsvl.simulator import LGSVLSimulator
 import scenic.simulators.lgsvl.utils as utils
 from scenic.simulators.lgsvl.actions import *
 
-# Load map and set up various useful regions, etc.
-
-workspace = baseModel.workspace
-
-network = baseModel.network
-road = baseModel.road
-roadDirection = baseModel.roadDirection
-curb = baseModel.curb
-sidewalk = baseModel.sidewalk
-intersection = baseModel.intersection
-
 ## LGSVL objects
 
 class LGSVLObject(DrivingObject):
-    lgsvlObject: None
+    lgsvlObject: None   # corresponding lgsvl.Agent object
+    state: None     # LGSVL state, used internally to accumulate state updates
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._state = None      # used internally to accumulate state updates
         self._stateUpdated = False
 
     def setPosition(self, pos, elevation):
-        self._state.position = utils.scenicToLGSVLPosition(pos, elevation)
+        self.state.position = utils.scenicToLGSVLPosition(pos, elevation)
         self._stateUpdated = True
 
     def setVelocity(self, vel):
-        self._state.velocity = utils.scenicToLGSVLPosition(vel)
+        self.state.velocity = utils.scenicToLGSVLPosition(vel)
         self._stateUpdated = True
 
 # TODO: Get vehicle models, dimensions from LGSVL
-class Car(Vehicle, LGSVLObject):
-    lgsvlName: 'Sedan'
-    lgsvlAgentType: lgsvl.AgentType.NPC
+class Vehicle(Vehicle, LGSVLObject):
+    pass
+
+class Car(Vehicle):
+    def __new__(cls, *args, **kwargs):
+        return super().__new__(EgoCar, *args, **kwargs)
 
 class EgoCar(Car, Steers):
     lgsvlName: 'Lincoln2017MKZ (Apollo 5.0)'
@@ -82,6 +73,10 @@ class ApolloCar(EgoCar):
     dreamview: None     # connection to Dreamview (set at runtime)
     bridgeHost: 'localhost'
     bridgePort: 9090
+
+class NPCCar(NPCCar, Vehicle):
+    lgsvlName: 'Sedan'
+    lgsvlAgentType: lgsvl.AgentType.NPC
 
 class Pedestrian(Pedestrian, LGSVLObject, Walks):
     lgsvlName: 'Bob'

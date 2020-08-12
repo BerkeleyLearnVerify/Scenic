@@ -677,7 +677,6 @@ class TokenTranslator:
 		tokens = Peekable(tokens)
 		newTokens = []
 		functionStack = []
-		inConstructor = False	# inside a constructor or one of its specifiers
 		specifiersIndented = False
 		parenLevel = 0
 		row, col = 0, 0		# position of next token to write out
@@ -766,7 +765,6 @@ class TokenTranslator:
 			context, startLevel = functionStack[-1] if functionStack else (None, None)
 			inConstructorContext = (context in constructors and parenLevel == startLevel)
 			if inConstructorContext:
-				inConstructor = True
 				allowedPrefixOps = self.specifiersForConstructor(context)
 				allowedInfixOps = dict()
 			else:
@@ -906,7 +904,8 @@ class TokenTranslator:
 					elif tstring in oneWordStatements:		# 1-word statement
 						wrapStatementCall()
 						callFunction(tstring)
-					elif tstring in self.constructors:      # instance definition
+					elif (tstring in self.constructors
+						  and peek(tokens).exact_type != RPAR):      # instance definition
 						callFunction(tstring)
 					elif tstring in replacements:	# direct replacement
 						for tok in replacements[tstring]:
@@ -928,6 +927,7 @@ class TokenTranslator:
 					functionStack.pop()
 					injectToken((RPAR, ')'))
 					context, startLevel = (None, 0) if len(functionStack) == 0 else functionStack[-1]
+				inConstructor = any(context in constructors for context, sl in functionStack)
 				if inConstructor and parenLevel == startLevel and ttype == COMMA:		# starting a new specifier
 					while functionStack and context not in constructors:
 						functionStack.pop()
@@ -955,7 +955,6 @@ class TokenTranslator:
 						injectToken(nextToken)
 						specifiersIndented = True
 				elif ttype == NEWLINE or ttype == ENDMARKER or ttype == COMMENT:	# end of line
-					inConstructor = False
 					if parenLevel != 0:
 						raise self.parseError(token, 'unmatched parens/brackets')
 					interrupt = False

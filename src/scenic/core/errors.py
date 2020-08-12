@@ -20,6 +20,7 @@ showInternalBacktrace = False
 hiddenFolders = [
     pathlib.Path(scenic.core.__file__).parent,      # scenic.core submodules
     pathlib.Path(scenic.syntax.__file__).parent,    # scenic.syntax submodules
+    '<frozen importlib._bootstrap>',
 ]
 
 ## Exceptions
@@ -136,6 +137,8 @@ def excepthook(ty, value, tb):
     print(message, end='', file=sys.stderr)
 
 def includeFrame(frame):
+    if frame.filename in hiddenFolders:
+        return False
     parents = pathlib.Path(frame.filename).parents
     return not any(folder in parents for folder in hiddenFolders)
 

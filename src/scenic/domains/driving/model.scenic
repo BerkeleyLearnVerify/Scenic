@@ -4,12 +4,17 @@ from abc import ABC, abstractmethod
 
 from scenic.domains.driving.workspace import DrivingWorkspace
 import scenic.domains.driving.network as networkModule
+from scenic.domains.driving.roads import ManeuverType
 
 from scenic.simulators.utils.colors import Color
 
 ## Various useful objects and regions
 
 network = networkModule.network
+if not network:
+    raise RuntimeError('need to load road network before importing driving model '
+                       '(call scenic.domains.driving.network.loadNetwork)')
+
 workspace = DrivingWorkspace(network)
 
 road = network.drivableRegion
@@ -88,6 +93,10 @@ class Vehicle(DrivingObject):
     color: Color.defaultCarColor()
 
 class Car(Vehicle):
+    pass
+
+class NPCCar(Car):
+    """Car for which accurate physics is not required."""
     pass
 
 class Pedestrian(DrivingObject):

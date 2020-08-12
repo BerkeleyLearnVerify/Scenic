@@ -12,9 +12,11 @@ from scenic.core.vectors import Vector
 class LGSVLSimulator(simulators.Simulator):
     def __init__(self, lgsvl_scene, address='localhost', port=8181, alwaysReload=False):
         super().__init__()
+        verbosePrint('Connecting to LGSVL Simulator...')
         self.client = lgsvl.Simulator(address=address, port=port)
         if alwaysReload or self.client.current_scene != lgsvl_scene:
             self.client.load(scene=lgsvl_scene)
+        verbosePrint('Map loaded in simulator.')
 
     def createSimulation(self, scene):
         return LGSVLSimulation(scene, self.client)
@@ -141,10 +143,9 @@ class LGSVLSimulation(simulators.Simulation):
         # Apply state/control updates which were accumulated while executing the actions
         for obj in self.agents:
             if obj._stateUpdated:
-                obj.lgsvlObject.state = obj._state
+                obj.lgsvlObject.state = obj.state
                 obj._stateUpdated = False
-            ctrl = obj._control
-            if ctrl is not None:
+            if (ctrl := getattr(obj, '_control', None)) is not None:
                 obj.lgsvlObject.apply_control(ctrl, obj._stickyControl)
                 obj._control = None
 

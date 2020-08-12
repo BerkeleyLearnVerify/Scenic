@@ -2,14 +2,10 @@
 # Definition: While performing a maneuver, the ego-vehicle finds an obstacle / unexpected entity on the road and must perform an emergency brake or an avoidance maneuver. 
 # ego at intersection where a maneuver is available, ego takes any turn. obstacle is stationary according to sheets... but i want it to move
 
-import lgsvl
-import scenic.simulators.lgsvl.actions as actions
-import time
 from scenic.simulators.lgsvl.simulator import LGSVLSimulator
 from scenic.simulators.lgsvl.map import setMapPath
 setMapPath(__file__, 'maps/borregasave.xodr')
 from scenic.simulators.lgsvl.model import *
-import scenic.simulators.domains.driving.roads as roads
 
 simulator = LGSVLSimulator('BorregasAve')
 param time_step = 1.0/10
@@ -42,17 +38,16 @@ behavior CrossingBehavior():
 			egoSpeed = ego.speed
 		walkSpeed = randomSpeedup + ((egoSpeed * walkDist) / egoDist)
 		if(egoDist <= startWalkingDist):
-			take actions.SetSpeedAction(30)
+			take SetSpeedAction(30)
 		else:
-			take actions.SetSpeedAction(0.0)
+			take SetSpeedAction(0.0)
 
 behavior EgoBehavior():
 	throttleStrength = (0, 1)
 	while True:
 		gain = 0.1
 		delta = self.heading relative to turn.connectingLane.centerline.orientation
-		take actions.SetSteerAction(-gain * delta)
-		take actions.SetThrottleAction(throttleStrength)
+		take SetSteerAction(-gain * delta), SetThrottleAction(throttleStrength)
 
 
 # PLACEMENT

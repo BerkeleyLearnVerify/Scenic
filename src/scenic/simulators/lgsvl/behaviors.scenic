@@ -1,6 +1,7 @@
 """Behaviors for dynamic agents in LGSVL."""
 
-from scenic.simulators.lgsvl.actions import FollowWaypointsAction, SetDestinationAction
+from scenic.domains.driving.behaviors import *	# use all common driving behaviors
+from scenic.simulators.lgsvl.actions import *
 
 behavior DriveTo(target):
 	action = SetDestinationAction(target)

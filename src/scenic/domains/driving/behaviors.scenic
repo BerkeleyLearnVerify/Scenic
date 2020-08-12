@@ -1,5 +1,6 @@
 
-from simulators.domains.driving.actions import *
+import scenic.domains.driving.controllers as controllers
+from scenic.domains.driving.actions import *
 
 behavior ConstantThrottleBehavior(x):
     while True:
@@ -36,8 +37,8 @@ behavior FollowTrajectoryBehavior(target_speed = 25, trajectory = None):
 
     # instantiate longitudinal and latitudinal pid controllers
     dt = simulation().timestep
-    _lon_controller = actions.PIDLongitudinalController(dt=dt)
-    _lat_controller = actions.PIDLateralController(dt=dt)
+    _lon_controller = controllers.PIDLongitudinalController(dt=dt)
+    _lat_controller = controllers.PIDLateralController(dt=dt)
     past_steer_angle = 0
 
     while True:

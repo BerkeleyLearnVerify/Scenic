@@ -6,7 +6,7 @@ from collections import OrderedDict
 
 from scenic.core.object_types import (enableDynamicProxyFor, setDynamicProxyFor,
                                       disableDynamicProxyFor)
-from scenic.core.errors import RuntimeParseError
+from scenic.core.errors import RuntimeParseError, InvalidScenarioError
 from scenic.core.vectors import Vector
 
 class SimulationCreationError(Exception):
@@ -41,7 +41,7 @@ class Simulator:
                 print(f'  Simulation {iterations} ended successfully at time step '
                       f'{simulation.currentTime} because of: {result.terminationReason}')
             return result
-        raise None
+        return None
 
     def createSimulation(self, scene):
         return Simulation(scene)

@@ -26,6 +26,7 @@ __all__ = (
 	'PolygonalRegion', 'PolylineRegion',
 	'Workspace', 'Mutator',
 	'Range', 'DiscreteRange', 'Options', 'Uniform', 'Discrete', 'Normal',
+	'TruncatedNormal',
 	'VerifaiParameter', 'VerifaiRange', 'VerifaiDiscreteRange', 'VerifaiOptions',
 	# Constructible types
 	'Point', 'OrientedPoint', 'Object',
@@ -51,7 +52,8 @@ from scenic.core.regions import (Region, PointSetRegion, RectangularRegion,
 	CircularRegion, SectorRegion, PolygonalRegion, PolylineRegion,
 	everywhere, nowhere)
 from scenic.core.workspaces import Workspace
-from scenic.core.distributions import Range, DiscreteRange, Options, Uniform, Normal
+from scenic.core.distributions import (Range, DiscreteRange, Options, Uniform, Normal,
+	TruncatedNormal)
 Discrete = Options
 from scenic.core.external_params import (VerifaiParameter, VerifaiRange, VerifaiDiscreteRange,
 										 VerifaiOptions)
@@ -149,7 +151,7 @@ def registerObject(obj):
 	elif evaluatingRequirement:
 		raise RuntimeParseError('tried to create an object inside a requirement')
 	elif currentSimulation is not None:
-		raise InvalidScenarioError('tried to create an object inside a behavior')
+		raise RuntimeParseError('tried to create an object inside a behavior')
 
 # External parameter creation
 
@@ -477,8 +479,8 @@ def require(reqID, req, line, prob=1):
 			result = req()
 			assert not needsSampling(result)
 			if needsLazyEvaluation(result):
-				raise InvalidScenarioError(f'requirement on line {line} uses value'
-										   ' undefined outside of object definition')
+				raise RuntimeParseError(f'requirement on line {line} uses value'
+										' undefined outside of object definition')
 			if not result:
 				raise RejectSimulationException(f'requirement on line {line}')
 	else:	# requirement being defined at compile time
@@ -491,7 +493,7 @@ def require_always(reqID, req, line):
 	if evaluatingRequirement:
 		raise RuntimeParseError('tried to use "require always" inside a requirement')
 	elif currentSimulation is not None:
-		raise InvalidScenarioError(f'"require always" inside a behavior on line {line}')
+		raise RuntimeParseError(f'"require always" inside a behavior on line {line}')
 	else:
 		assert reqID not in pendingRequirements
 		pendingRequirements[reqID] = PendingRequirement(RequirementType.requireAlways, req,
@@ -502,7 +504,7 @@ def terminate_when(reqID, req, line):
 	if evaluatingRequirement:
 		raise RuntimeParseError('tried to use "terminate when" inside a requirement')
 	elif currentSimulation is not None:
-		raise InvalidScenarioError(f'"terminate when" inside a behavior on line {line}')
+		raise RuntimeParseError(f'"terminate when" inside a behavior on line {line}')
 	else:
 		assert reqID not in pendingRequirements
 		pendingRequirements[reqID] = PendingRequirement(RequirementType.terminateWhen, req,

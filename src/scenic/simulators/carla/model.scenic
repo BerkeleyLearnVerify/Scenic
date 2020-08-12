@@ -73,6 +73,7 @@ class Vehicle(Vehicle, CarlaActor, Steers):
 class Car(Vehicle):
     blueprint: Uniform(*blueprints.carModels)
 
+NPCCar = Car    # no distinction between these in CARLA
 
 class Bicycle(Vehicle):
     width: 1
