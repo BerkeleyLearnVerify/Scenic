@@ -2,7 +2,7 @@
 import pytest
 
 import scenic
-from scenic.core.errors import RuntimeParseError, InvalidScenarioError, PythonParseError
+from scenic.core.errors import ScenicSyntaxError, InvalidScenarioError
 from tests.utils import compileScenic, sampleScene, sampleEgo
 
 ## Basic
@@ -32,25 +32,25 @@ def test_object_in_requirement():
         require Object
         ego = Object
     """)
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(ScenicSyntaxError):
         sampleScene(scenario, maxIterations=1)
 
 def test_param_in_requirement():
-    with pytest.raises(PythonParseError):
+    with pytest.raises(ScenicSyntaxError):
         compileScenic("""
             require param x = 4
             ego = Object
         """)
 
 def test_mutate_in_requirement():
-    with pytest.raises(PythonParseError):
+    with pytest.raises(ScenicSyntaxError):
         compileScenic("""
             require mutate
             ego = Object
         """)
 
 def test_require_in_requirement():
-    with pytest.raises(PythonParseError):
+    with pytest.raises(ScenicSyntaxError):
         compileScenic("""
             require (require True)
             ego = Object
@@ -63,7 +63,7 @@ def test_runtime_parse_error_in_requirement():
         require visible 4
         ego = Object
     """)
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(ScenicSyntaxError):
         sampleScene(scenario, maxIterations=1)
 
 ## Static violations of built-in requirements

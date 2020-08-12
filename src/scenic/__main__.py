@@ -85,6 +85,9 @@ totalTime = time.time() - startTime
 if args.verbosity >= 1:
     print(f'Scenario constructed in {totalTime:.2f} seconds.')
 
+if args.simulate:
+    simulator = scenario.getSimulator()
+
 def generateScene():
     startTime = time.time()
     scene, iterations = errors.callBeginningScenicTrace(
@@ -101,8 +104,8 @@ def runSimulation(scene):
         print('  Beginning simulation...')
     try:
         result = errors.callBeginningScenicTrace(
-            lambda: scene.simulate(maxSteps=args.time, verbosity=args.verbosity,
-                                   maxIterations=args.max_sims_per_scene)
+            lambda: simulator.simulate(scene, maxSteps=args.time, verbosity=args.verbosity,
+                                       maxIterations=args.max_sims_per_scene)
         )
     except SimulationCreationError as e:
         if args.verbosity >= 1:

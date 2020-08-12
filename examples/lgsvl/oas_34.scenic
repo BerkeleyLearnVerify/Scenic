@@ -1,14 +1,11 @@
 # 3 way intersection. ego going straight. ego has right of way, but actor blocking it. 
 
 from scenic.simulators.lgsvl.simulator import LGSVLSimulator
-from scenic.simulators.lgsvl.map import setMapPath
-setMapPath(__file__, 'maps/borregasave.xodr')
+from scenic.simulators.lgsvl.map import loadLocalNetwork
+loadLocalNetwork(__file__, 'maps/borregasave.xodr')
 from scenic.simulators.lgsvl.model import *
 
-from scenic.domains.driving.roads import ManeuverType
-from scenic.simulators.lgsvl.behaviors import *
-
-simulator = LGSVLSimulator('BorregasAve')
+simulator LGSVLSimulator('BorregasAve')
 param time_step = 1.0/10
 
 MAX_BREAK_THRESHOLD = 1

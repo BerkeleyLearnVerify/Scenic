@@ -16,8 +16,8 @@ rightLane	    E_2
 -----------------------
 """
 
-from scenic.domains.driving.network import loadNetwork
-loadNetwork('../OpenDrive/Town01.xodr')
+from scenic.domains.driving.network import loadLocalNetwork
+loadLocalNetwork(__file__, '../OpenDrive/Town01.xodr')
 from scenic.simulators.carla.model import *
 
 

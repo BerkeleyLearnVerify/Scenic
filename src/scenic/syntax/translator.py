@@ -281,15 +281,20 @@ waitStatement = 'wait'				# statement invoking a no-op action
 terminateStatement = 'terminate'	# statement ending the simulation
 abortStatement = 'abort'			# statement ending a try-interrupt statement
 
+simulatorStatement = 'simulator'
+
 oneWordStatements = {	# TODO clean up
 	paramStatement, mutateStatement, requireStatement,
 	actionStatement, waitStatement, terminateStatement,
-	abortStatement
+	abortStatement, simulatorStatement
 }
 twoWordStatements = { requireAlwaysStatement, terminateWhenStatement }
 
 # statements implemented by functions
-functionStatements = { requireStatement, paramStatement, mutateStatement }
+functionStatements = {
+	requireStatement, paramStatement, mutateStatement,
+	simulatorStatement
+}
 twoWordFunctionStatements = { requireAlwaysStatement, terminateWhenStatement }
 def functionForStatement(tokens):
 	return '_'.join(tokens) if isinstance(tokens, tuple) else tokens
@@ -490,9 +495,12 @@ illegalConstructs = {
 	('async', 'def'),		# used to parse behaviors, so disallowed otherwise
 }
 
-keywords = (set(constructorStatements) | {monitorStatement}
-	| internalFunctions | oneWordStatements
-	| replacements.keys())
+keywords = (
+	set(constructorStatements)
+	| (oneWordStatements - {simulatorStatement})
+	| internalFunctions
+	| replacements.keys()
+)
 
 ### TRANSLATION PHASE ONE: handling imports
 
@@ -568,13 +576,20 @@ sys.meta_path.insert(0, ScenicMetaFinder())
 ## Miscellaneous utilities
 
 def partitionByImports(tokens):
-	"""Partition the tokens into blocks ending with import statements."""
+	"""Partition the tokens into blocks ending with import statements.
+
+	We avoid splitting top-level try-except statements, to allow the pattern of trying
+	to import an optional module and catching an ImportError. If someone tries to define
+	objects inside such a statement, woe unto them.
+	"""
 	blocks = []
 	currentBlock = []
 	duringImport = False
+	seenTry = False
 	haveImported = False
 	finishLine = False
 	parenLevel = 0
+	tokens = Peekable(tokens)
 	for token in tokens:
 		startNewBlock = False
 		if token.exact_type == LPAR:
@@ -590,13 +605,21 @@ def partitionByImports(tokens):
 		else:
 			assert not duringImport
 			finishLine = True
-			if token.type == NAME and token.string == 'import' or token.string == 'from':
-				duringImport = True
-			elif token.type in (NEWLINE, NL, COMMENT, ENCODING):
+			if token.type in (DEDENT, NEWLINE, NL, COMMENT, ENCODING):
 				finishLine = False
-			elif haveImported:
-				# could use new constructors; needs to be in a new block
-				startNewBlock = True
+				if (seenTry and token.type == DEDENT and token.start[1] == 0
+				    and peek(tokens).string not in ('except', 'else', 'finally')):
+					seenTry = False
+					haveImported = True 	# just in case the try contained imports
+			elif token.start[1] == 0:
+				if token.string == 'import' or token.string == 'from':
+					duringImport = True
+				else:
+					if haveImported:
+						# could use new constructors; needs to be in a new block
+						startNewBlock = True
+					if token.string == 'try':
+						seenTry = True
 		if startNewBlock:
 			blocks.append(currentBlock)
 			currentBlock = [token]
@@ -681,7 +704,7 @@ class TokenTranslator:
 		parenLevel = 0
 		row, col = 0, 0		# position of next token to write out
 		orow, ocol = 0, 0	# end of last token in the original source
-		startOfLine = True		# TODO improve hack?
+		startOfLine = True
 		constructors = self.constructors
 
 		for token in tokens:
@@ -856,12 +879,13 @@ class TokenTranslator:
 						advance()	# consume second word
 						skip = True
 						matched = True
-					elif twoWords == interruptWhenStatement:	# special case for interrupt when
+					elif startOfLine and twoWords == interruptWhenStatement:
+						# special case for interrupt when
 						injectToken((NAME, 'except'), spaceAfter=1)
 						callFunction(interruptExceptMarker)
 						advance()	# consume second word
 						matched = True
-					elif twoWords in twoWordStatements:	# 2-word statement
+					elif startOfLine and twoWords in twoWordStatements:	# 2-word statement
 						wrapStatementCall()
 						function = functionForStatement(twoWords)
 						callFunction(function)
@@ -870,7 +894,8 @@ class TokenTranslator:
 					elif inConstructorContext and tstring == 'with':	# special case for 'with' specifier
 						callFunction('With', argument=f'"{nextString}"')
 						advance()	# consume property name
-					elif tstring == requireStatement and nextString == '[':		# special case for require[p]
+					elif startOfLine and tstring == requireStatement and nextString == '[':
+						# special case for require[p]
 						next(tokens)	# consume '['
 						nextToken = next(tokens)
 						if nextToken.exact_type != NUMBER:
@@ -901,7 +926,7 @@ class TokenTranslator:
 						skip = True
 					elif inConstructorContext:		# couldn't match any 1- or 2-word specifier
 						raise self.parseError(token, f'unknown specifier "{tstring}"')
-					elif tstring in oneWordStatements:		# 1-word statement
+					elif startOfLine and tstring in oneWordStatements:		# 1-word statement
 						wrapStatementCall()
 						callFunction(tstring)
 					elif (tstring in self.constructors
@@ -1227,6 +1252,11 @@ class ASTSurgeon(NodeTransformer):
 				assert isinstance(prob, Constant) and isinstance(prob.value, (float, int))
 				newArgs.append(prob)
 			return copy_location(Expr(Call(func, newArgs, [])), node)
+		elif func.id == simulatorStatement:
+			self.validateSimpleCall(node, 1)
+			sim = self.visit(node.args[0])
+			closure = copy_location(Lambda(noArgs, sim), sim)
+			return copy_location(Expr(Call(func, [closure], [])), node)
 		elif func.id == actionStatement:		# Action statement
 			self.validateSimpleCall(node, (1, None), onlyInBehaviors=True)
 			action = Tuple(self.visit(node.args), Load())
@@ -1741,7 +1771,8 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 		closure = makeClosure(requirement.condition, bindings, ego, line)
 		finalReqs.append(veneer.CompiledRequirement(requirement, closure))
 
-	# Extract monitors
+	# Extract simulator, behaviors, and monitors
+	namespace['_simulatorFactory'] = veneer.simulatorFactory
 	namespace['_behaviors'] = veneer.behaviors
 	namespace['_monitors'] = veneer.monitors
 
@@ -1788,16 +1819,8 @@ def constructScenarioFrom(namespace):
 	else:
 		workspace = None
 
-	# Extract simulator, if one is specified
-	if 'simulator' in namespace:
-		simulator = namespace['simulator']
-		if not isinstance(simulator, Simulator):
-			raise InvalidScenarioError(f'simulator {simulator} is not a Simulator')
-	else:
-		simulator = None
-
 	# Create Scenario object
-	scenario = Scenario(workspace, simulator,
+	scenario = Scenario(workspace, namespace['_simulatorFactory'],
 	                    namespace['_objects'], namespace['_egoObject'],
 	                    namespace['_params'], namespace['_externalParams'],
 	                    namespace['_requirements'], namespace['_requirementDeps'],

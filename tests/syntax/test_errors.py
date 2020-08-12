@@ -292,7 +292,7 @@ def runFile(path):
     # BUGGY CODE                    ERROR CAUGHT DURING:
     'x = 3 << 2',                   # token translation
     '4 = 2',                        # Python parsing
-    'require mutate',               # Python parsing
+    '3 relative to',                # Python parsing
     'Point at x y',                 # Python parsing (with offset past end of original line)
     'require',                      # AST surgery
     'terminate 4',                  # AST surgery (handled differently inside behaviors)

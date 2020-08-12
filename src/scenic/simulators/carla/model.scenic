@@ -2,13 +2,17 @@
 
 from scenic.domains.driving.model import *
 
-from scenic.simulators.carla.actions import *
 import scenic.simulators.carla.blueprints as blueprints
 
 try:
     from scenic.simulators.carla.simulator import CarlaSimulator    # for use in scenarios
+    from scenic.simulators.carla.actions import *
+    from scenic.simulators.carla.behaviors import *
 except ModuleNotFoundError:
-    pass    # for convenience when testing without the carla package
+    # for convenience when testing without the carla package
+    import warnings
+    warnings.warn('the "carla" package is not installed; '
+                  'will not be able to run dynamic simulations')
 
 from scenic.simulators.utils.colors import Color
 

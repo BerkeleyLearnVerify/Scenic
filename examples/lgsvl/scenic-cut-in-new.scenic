@@ -1,10 +1,10 @@
 
 from scenic.simulators.lgsvl.simulator import LGSVLSimulator
-from scenic.simulators.lgsvl.map import setMapPath
-setMapPath(__file__, 'maps/Straight2LaneSame.xodr')
+from scenic.simulators.lgsvl.map import loadLocalNetwork
+loadLocalNetwork(__file__, 'maps/Straight2LaneSame.xodr')
 from scenic.simulators.lgsvl.model import *
 
-simulator = LGSVLSimulator('Straight2LaneSame')
+simulator LGSVLSimulator('Straight2LaneSame')
 param apolloHDMap = 'Straight2LaneSame'
 param time_step = 1.0/2
 

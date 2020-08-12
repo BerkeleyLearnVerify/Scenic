@@ -5,7 +5,7 @@ loadLocalNetwork(__file__, '../OpenDrive/Town01.xodr')
 
 from scenic.simulators.carla.model import *
 
-simulator = CarlaSimulator('Town01')
+simulator CarlaSimulator('Town01')
 
 
 # ============================================================================

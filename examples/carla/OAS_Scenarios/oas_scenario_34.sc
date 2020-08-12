@@ -1,11 +1,10 @@
 
-from scenic.domains.driving.network import loadNetwork
-loadNetwork('../OpenDrive/Town01.xodr')
+from scenic.domains.driving.network import loadLocalNetwork
+loadLocalNetwork(__file__, '../OpenDrive/Town01.xodr')
 
 from scenic.simulators.carla.model import *
-from scenic.simulators.carla.behaviors import *
 
-simulator = CarlaSimulator('Town01')
+simulator CarlaSimulator('Town01')
 
 MAX_BREAK_THRESHOLD = 1
 TERMINATE_TIME = 20

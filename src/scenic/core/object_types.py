@@ -213,7 +213,7 @@ class PositionMutator(Mutator):
 
 	def appliedTo(self, obj):
 		noise = Vector(random.gauss(0, self.stddev), random.gauss(0, self.stddev))
-		pos = pos + noise
+		pos = obj.position + noise
 		return (obj.copyWith(position=pos), True)		# allow further mutation
 
 	def __eq__(self, other):

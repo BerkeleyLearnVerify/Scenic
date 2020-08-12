@@ -22,10 +22,9 @@ class Scene:
 		params (dict): Dictionary mapping the name of each global parameter to its value.
 		workspace (:obj:`~scenic.core.workspaces.Workspace`): Workspace for the scenario.
     """
-	def __init__(self, workspace, simulator, objects, egoObject, params,
+	def __init__(self, workspace, objects, egoObject, params,
 	             alwaysReqs=(), terminationConds=(), monitors=(), behaviorNamespaces={}):
 		self.workspace = workspace
-		self.simulator = simulator
 		self.objects = tuple(objects)
 		self.egoObject = egoObject
 		self.params = params
@@ -46,13 +45,6 @@ class Scene:
 		if zoom != None:
 			self.workspace.zoomAround(plt, self.objects, expansion=zoom)
 		plt.show(block=block)
-
-	def simulate(self, maxSteps=None, maxIterations=100, verbosity=0):
-		"""Run a simulation of this scene."""
-		if self.simulator is None:
-			raise RuntimeError('tried to simulate scene which does not have a simulator defined')
-		return self.simulator.simulate(self, maxSteps=maxSteps, maxIterations=maxIterations,
-		                               verbosity=verbosity)
 
 class Scenario:
 	"""A compiled Scenic scenario, from which scenes can be sampled."""
@@ -253,7 +245,7 @@ class Scenario:
 			sampledNamespaces[modName] = (namespace, sampledNamespace, namespace.copy())
 		alwaysReqs = (BoundRequirement(req, sample) for req in self.alwaysRequirements)
 		terminationConds = (BoundRequirement(req, sample) for req in self.terminationConditions)
-		scene = Scene(self.workspace, self.simulator, sampledObjects, ego, sampledParams,
+		scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
 		              alwaysReqs, terminationConds, self.monitors, sampledNamespaces)
 		return scene, iterations
 
@@ -263,3 +255,8 @@ class Scenario:
 		If the Python random seed is reset before calling this function, this
 		should cause the sequence of generated scenes to be deterministic."""
 		self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)
+
+	def getSimulator(self):
+		if self.simulator is None:
+			raise RuntimeError('scenario does not specify a simulator')
+		return self.simulator()

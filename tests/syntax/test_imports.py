@@ -89,6 +89,27 @@ def test_multiple_imports(runLocally):
         scene = sampleScene(scenario)
         assert len(scene.objects) == 2
 
+def test_import_in_try(runLocally):
+    with runLocally():
+        scenario = compileScenic("""
+            try:
+                from helper import Caerbannog
+                x = 12
+            finally:
+                y = 4
+            ego = Caerbannog at x @ y
+        """)
+
+def test_import_in_except(runLocally):
+    with runLocally():
+        scenario = compileScenic("""
+            try:
+                import __non_ex_ist_ent___
+            except ImportError:
+                from helper import Caerbannog
+            ego = Caerbannog
+        """)
+
 def test_import_multiline_1():
     compileScenic(
         'from math import factorial, \\\n'

@@ -9,7 +9,7 @@ global state such as the list of all created Scenic objects.
 __all__ = (
 	# Primitive statements and functions
 	'ego', 'require', 'resample', 'param', 'mutate', 'verbosePrint',
-	'simulation', 'require_always', 'terminate_when',
+	'simulator', 'simulation', 'require_always', 'terminate_when',
 	'sin', 'cos', 'hypot', 'max', 'min',
 	'filter',
 	# Prefix operators
@@ -96,6 +96,7 @@ pendingRequirements = defaultdict(list)
 inheritedReqs = []		# TODO improve handling of these?
 monitors = []
 behaviors = []
+simulatorFactory = None
 currentSimulation = None
 currentBehavior = None
 evaluatingGuard = False
@@ -122,7 +123,7 @@ def activate():
 def deactivate():
 	"""Deactivate the veneer after compiling a Scenic module."""
 	global activity, allObjects, egoObject, globalParameters, externalParameters
-	global pendingRequirements, inheritedReqs, monitors, behaviors
+	global pendingRequirements, inheritedReqs, simulatorFactory, monitors, behaviors
 	activity -= 1
 	assert activity >= 0
 	assert not evaluatingRequirement
@@ -134,6 +135,7 @@ def deactivate():
 	externalParameters = []
 	pendingRequirements = defaultdict(list)
 	inheritedReqs = []
+	simulatorFactory = None
 	monitors = []
 	behaviors = []
 
@@ -527,6 +529,14 @@ def simulation():
 	assert currentSimulation is not None
 	return currentSimulation
 
+def simulator(sim):
+	global simulatorFactory
+	simulatorFactory = sim
+
+@distributionFunction
+def filter(function, iterable):
+	return list(builtins.filter(function, iterable))
+
 def param(*quotedParams, **params):
 	"""Function implementing the param statement."""
 	if evaluatingRequirement:
@@ -548,10 +558,6 @@ def mutate(*objects):		# TODO update syntax
 		if not isinstance(obj, Object):
 			raise RuntimeParseError('"mutate X" with X not an object')
 		obj.mutationEnabled = True
-
-@distributionFunction
-def filter(function, iterable):
-	return list(builtins.filter(function, iterable))
 
 ### Prefix operators
 

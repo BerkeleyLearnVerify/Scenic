@@ -5,7 +5,7 @@ from scenic.simulators.lgsvl.map import setMapPath
 setMapPath(__file__, 'maps/cubetown.xodr')
 from scenic.simulators.lgsvl.model import *
 
-simulator = LGSVLSimulator('CubeTown')
+simulator LGSVLSimulator('CubeTown')
 timestep = 1.0/10
 param time_step = timestep
 

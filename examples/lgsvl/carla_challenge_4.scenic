@@ -7,7 +7,7 @@ from scenic.simulators.lgsvl.map import setMapPath
 setMapPath(__file__, 'maps/borregasave.xodr')
 from scenic.simulators.lgsvl.model import *
 
-simulator = LGSVLSimulator('BorregasAve')
+simulator LGSVLSimulator('BorregasAve')
 param time_step = 1.0/10
 
 # CONSTANTS

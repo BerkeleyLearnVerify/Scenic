@@ -4,7 +4,7 @@ import pytest
 import scenic
 from scenic.core.errors import InvalidScenarioError, RuntimeParseError
 from scenic.core.object_types import Object
-from tests.utils import compileScenic, sampleScene, sampleParamPFrom
+from tests.utils import compileScenic, sampleScene, sampleEgo, sampleParamPFrom
 
 def test_empty():
     with pytest.raises(InvalidScenarioError):
@@ -66,6 +66,16 @@ def test_param():
 def test_quoted_param():
     p = sampleParamPFrom('ego = Object\n' 'param "p" = (3, 5)')
     assert 3 <= p <= 5
+
+def test_mutate():
+    scenario = compileScenic("""
+        ego = Object at 3@1, facing 0
+        mutate
+    """)
+    ego1 = sampleEgo(scenario)
+    assert ego1.position.x != pytest.approx(3)
+    assert ego1.position.y != pytest.approx(1)
+    assert ego1.heading != pytest.approx(0)
 
 def test_verbose():
     for verb in range(4):

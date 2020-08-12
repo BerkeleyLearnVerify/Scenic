@@ -4,7 +4,8 @@
 from scenic.domains.driving.network import loadLocalNetwork
 loadLocalNetwork(__file__, 'maps/borregasave.xodr')
 from scenic.simulators.lgsvl.model import *
-simulator = LGSVLSimulator('BorregasAve')
+
+simulator LGSVLSimulator('BorregasAve')
 
 
 

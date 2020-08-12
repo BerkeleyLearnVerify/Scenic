@@ -1,12 +1,25 @@
-import math
-import time
-
-import lgsvl
+"""Scenic world model for the LGSVL Simulator."""
 
 from scenic.domains.driving.model import *
-from scenic.simulators.lgsvl.simulator import LGSVLSimulator
-import scenic.simulators.lgsvl.utils as utils
-from scenic.simulators.lgsvl.actions import *
+
+try:
+    import lgsvl
+    EGO_TYPE = lgsvl.AgentType.EGO
+    NPC_TYPE = lgsvl.AgentType.NPC
+    PEDESTRIAN_TYPE = lgsvl.AgentType.PEDESTRIAN
+    from scenic.simulators.lgsvl.simulator import LGSVLSimulator
+    from scenic.simulators.lgsvl.actions import *
+    from scenic.simulators.lgsvl.behaviors import *
+    import scenic.simulators.lgsvl.utils as utils
+except ModuleNotFoundError:
+    # to allow generating static scenes without having the lgsvl package installed
+    EGO_TYPE = 'EGO'
+    NPC_TYPE = 'NPC'
+    PEDESTRIAN_TYPE = 'PEDESTRIAN'
+
+    import warnings
+    warnings.warn('the "lgsvl" package is not installed; '
+                  'will not be able to run dynamic simulations')
 
 ## LGSVL objects
 
@@ -36,7 +49,7 @@ class Car(Vehicle):
 
 class EgoCar(Car, Steers):
     lgsvlName: 'Lincoln2017MKZ (Apollo 5.0)'
-    lgsvlAgentType: lgsvl.AgentType.EGO
+    lgsvlAgentType: EGO_TYPE
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -66,21 +79,21 @@ class EgoCar(Car, Steers):
 
 class ApolloCar(EgoCar):
     lgsvlName: 'Lincoln2017MKZ (Apollo 5.0)'
-    lgsvlAgentType: lgsvl.AgentType.EGO
     apolloVehicle: 'Lincoln2017MKZ'
     apolloModules: ['Localization', 'Perception', 'Transform', 'Routing',
                     'Prediction', 'Planning', 'Camera']
-    dreamview: None     # connection to Dreamview (set at runtime)
     bridgeHost: 'localhost'
     bridgePort: 9090
 
+    dreamview: None     # connection to Dreamview (set at runtime)
+
 class NPCCar(NPCCar, Vehicle):
     lgsvlName: 'Sedan'
-    lgsvlAgentType: lgsvl.AgentType.NPC
+    lgsvlAgentType: NPC_TYPE
 
 class Pedestrian(Pedestrian, LGSVLObject, Walks):
     lgsvlName: 'Bob'
-    lgsvlAgentType: lgsvl.AgentType.PEDESTRIAN
+    lgsvlAgentType: PEDESTRIAN_TYPE
 
     def setWalkingDirection(self, heading):
         super().setWalkingDirection(heading)    # TODO use better implementation?
