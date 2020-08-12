@@ -10,5 +10,7 @@
    model
    network
    roads
+   behaviors
+   controllers
    workspace
 """

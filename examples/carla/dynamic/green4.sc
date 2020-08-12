@@ -1,12 +1,3 @@
-import scenic.simulators.carla.actions as actions
-
-from scenic.core.geometry import subtractVectors
-
-from scenic.simulators.domains.driving.network import loadNetwork
-loadNetwork('/home/carla_challenge/Downloads/Town01.xodr')
-
-from scenic.simulators.carla.model import *
-
 
 """
 Ego encounters an unexpected obstacle and must perform and emergency brake or avoidance maneuver.
@@ -25,25 +16,22 @@ rightLane	    E_2
 -----------------------
 """
 
+from scenic.domains.driving.network import loadNetwork
+loadNetwork('../OpenDrive/Town01.xodr')
+from scenic.simulators.carla.model import *
+
+
 DELAY_TIME_1 = 1 # the delay time for ego
 DELAY_TIME_2 = 40 #the delay time for the slow car
 FOLLOWING_DISTANCE = 13 #normally 10, 40 when DELAY_TIME is 25, 50 to prevent collisions
 
 
 behavior SlowCarBehavior():
-	take actions.SetManualFirstGearShiftAction()
-	take actions.SetManualGearShiftAction(False)
-	take actions.SetThrottleAction(0.1)
-	print("zoom")
+	take SetThrottleAction(0.1)
 
 
 behavior EgoBehavior():
-	# take actions.SetSteerAction(0.3)
-	# counter = 0
-	take actions.SetManualFirstGearShiftAction()
-	take actions.SetManualGearShiftAction(False)
-
-	take actions.SetThrottleAction(0.6)
+	take SetThrottleAction(0.6)
 
 spawnAreas = []
 pedAreas = []

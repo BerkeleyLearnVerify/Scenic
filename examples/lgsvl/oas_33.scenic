@@ -1,16 +1,9 @@
 # 3 way intersection. ego goes straight. not specified.
-import lgsvl
-from scenic.core.distributions import TruncatedNormal
-import scenic.simulators.lgsvl.actions as actions
+
 from scenic.simulators.lgsvl.simulator import LGSVLSimulator
 from scenic.simulators.lgsvl.map import setMapPath
 setMapPath(__file__, 'maps/borregasave.xodr')
 from scenic.simulators.lgsvl.model import *
-import scenic.simulators.domains.driving.roads as roads
-import time
-from shapely.geometry import LineString
-from scenic.core.regions import regionFromShapelyObject
-from scenic.simulators.domains.driving.roads import ManeuverType
 from scenic.simulators.lgsvl.behaviors import *
 
 simulator = LGSVLSimulator('BorregasAve')
@@ -18,16 +11,6 @@ param time_step = 1.0/10
 
 MAX_BREAK_THRESHOLD = 1
 TERMINATE_TIME = 20
-
-def concatenateCenterlines(centerlines=[]):
-	line = []
-	if centerlines != []:
-		for centerline in centerlines:
-			for point in centerline:
-				if point not in line:
-					line.append(point)
-
-	return regionFromShapelyObject(LineString(line))
 
 
 behavior EgoBehavior(target_speed=20, trajectory = None):
@@ -38,7 +21,7 @@ behavior EgoBehavior(target_speed=20, trajectory = None):
 		FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
 
 	interrupt when distanceToAnyCars(car=self, thresholdDistance=10):
-		take actions.SetBrakeAction(brakeIntensity)
+		take SetBrakeAction(brakeIntensity)
 
 
 fourLane = []

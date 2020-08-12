@@ -202,6 +202,10 @@ class Vector(Samplable, collections.abc.Sequence):
 		ox, oy = other.x, other.y
 		return normalizeAngle(math.atan2(oy, ox) - math.atan2(y, x))
 
+	@scalarOperator
+	def norm(self) -> float:
+		return math.hypot(*self.coordinates)
+
 	@vectorOperator
 	def normalized(self) -> Vector:
 		l = math.hypot(*self.coordinates)

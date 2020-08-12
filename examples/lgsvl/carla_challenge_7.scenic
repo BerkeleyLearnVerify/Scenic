@@ -1,13 +1,10 @@
 # Traffic Scenario 07: Crossing traffic running a red light at an intersection
 # Definition: Ego-vehicle is going straight at an intersection but a crossing vehicle runs a red light, forcing the ego-vehicle to perform a collision avoidance maneuver. 
 
-from scenic.simulators.domains.driving.roads import *
-from scenic.core.distributions import TruncatedNormal
-import scenic.simulators.carla.actions as actions
-from scenic.simulators.domains.driving.network import loadLocalNetwork
-loadLocalNetwork(__file__, '../OpenDrive/Town05.xodr')
-from scenic.simulators.carla.model import *
-simulator = CarlaSimulator('Town05')
+from scenic.domains.driving.network import loadLocalNetwork
+loadLocalNetwork(__file__, 'maps/borregasave.xodr')
+from scenic.simulators.lgsvl.model import *
+simulator = LGSVLSimulator('BorregasAve')
 
 
 
@@ -28,9 +25,11 @@ intersection = Uniform(*fourLane)
 lane1 = intersection.incomingLanes[index1]
 lane2 = intersection.incomingLanes[index2]
 
+require len(filter(lambda m: m.type == ManeuverType.STRAIGHT, lane1.maneuvers)) > 0
+
 pos1 = (OrientedPoint at lane1.centerline[-1]) offset by (-2, 2) @ 0 # at last stretch of centerline, off center by at most 2
 pos2 = (OrientedPoint at lane2.centerline[-1]) offset by (-2, 2) @ 0
-	
+
 
 # BEHAVIORS
 behavior actorCarBehavior():
@@ -44,37 +43,25 @@ behavior actorCarBehavior():
 	throttleStrength = (0.7, 1)
 	gain = 0.1
 	print("turn", turn)
-	take actions.SetManualFirstGearShiftAction()
-	take actions.SetManualGearShiftAction(False)
-	breakpoint()
 	while ((actorCar in intersection) == False):
 	
 		print("in first part")
 		delta = self.heading relative to (roadDirection at lane2.centerline[-1])
-		take actions.SetSteerAction(-gain * delta)
-		
-		# take actions.FollowLaneAction()
-		take actions.SetReverseAction(False)
-		take actions.SetBrakeAction(0)
-		take actions.SetThrottleAction(throttleStrength)
+		take SetSteerAction(-gain * delta), SetReverseAction(False), SetBrakeAction(0), SetThrottleAction(throttleStrength)
 
 	print("in second part")
 	while (actorCar in intersection):
 		# actor starts when ego starts, stops when ego stops.
 		if (ego.speed > 0):
 			delta = self.heading relative to turn.connectingLane.centerline.orientation
-			take actions.SetReverseAction(False)
-			take actions.SetSteerAction(-gain * delta)
-			take actions.SetBrakeAction(0)
-			take actions.SetThrottleAction(throttleStrength)
+			take SetReverseAction(False), SetSteerAction(-gain * delta), SetBrakeAction(0), SetThrottleAction(throttleStrength)
 
 		else:
-			take actions.SetThrottleAction(0.0)
-			take actions.SetBrakeAction(1)
+			take SetThrottleAction(0.0), SetBrakeAction(1)
 
 behavior egoBehavior():
 	while True:
-		take actions.SetThrottleAction(0.4) # hard coded for testing
+		take SetThrottleAction(0.4) # hard coded for testing
 
 
 # PLACEMENT

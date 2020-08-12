@@ -337,7 +337,7 @@ interruptExceptMarker = '_Scenic_interrupt_'
 # we still recognize 'constructor' for backwards-compatibility
 constructorStatements = ('class', 'constructor')
 
-Constructor = namedtuple('Constructor', ('name', 'parent'))
+Constructor = namedtuple('Constructor', ('name', 'bases'))
 
 builtinSpecifiers = {
 	# position
@@ -613,12 +613,11 @@ def findConstructorsIn(namespace):
 		if inspect.isclass(value) and issubclass(value, Constructible):
 			if name in builtinConstructors:
 				continue
-			parent = None
+			parents = []
 			for base in value.__bases__:
 				if issubclass(base, Constructible):
-					assert parent is None
-					parent = base
-			constructors.append(Constructor(name, parent.__name__))
+					parents.append(base.__name__)
+			constructors.append(Constructor(name, parents))
 	return constructors
 
 ### TRANSLATION PHASE TWO: translation at the level of tokens
@@ -662,27 +661,22 @@ class TokenTranslator:
 	def parseError(self, tokenOrLine, message):
 		return TokenParseError(tokenOrLine, self.filename, message)
 
-	def createConstructor(self, name, parent):
-		if parent is None:
-			parent = 'Object'		# default superclass
-		self.constructors[name] = Constructor(name, parent)
-		return parent
+	def createConstructor(self, name, parents):
+		parents = tuple(parents)
+		assert parents
+		self.constructors[name] = Constructor(name, parents)
 
 	def specifiersForConstructor(self, const):
 		# Currently all specifiers can be used with any constructor;
 		# I'm leaving this here in case we later allow custom specifiers to be inherited
-		name, parent = self.constructors[const]
-		if parent is None or parent not in self.constructors:
-			return builtinSpecifiers
-		else:
-			return self.specifiersForConstructor(parent)
+		return builtinSpecifiers
+		#name, parents = self.constructors[const]
 
 	def translate(self, tokens):
 		"""Do the actual translation of the token stream."""
 		tokens = Peekable(tokens)
 		newTokens = []
 		functionStack = []
-		inConstructor = False	# inside a constructor or one of its specifiers
 		specifiersIndented = False
 		parenLevel = 0
 		row, col = 0, 0		# position of next token to write out
@@ -771,7 +765,6 @@ class TokenTranslator:
 			context, startLevel = functionStack[-1] if functionStack else (None, None)
 			inConstructorContext = (context in constructors and parenLevel == startLevel)
 			if inConstructorContext:
-				inConstructor = True
 				allowedPrefixOps = self.specifiersForConstructor(context)
 				allowedInfixOps = dict()
 			else:
@@ -808,40 +801,36 @@ class TokenTranslator:
 							raise self.parseError(nextToken,
 							    f'invalid class name "{nextString}"')
 						nextToken = next(tokens)	# consume name
-						parent = None
-						pythonClass = False
+						bases, scenicParents = [], []
 						if peek(tokens).exact_type == LPAR:		# superclass specification
 							next(tokens)
-							nextToken = next(tokens)
-							parent = nextToken.string
-							if nextToken.exact_type != NAME:
+							while (nextToken := next(tokens)).exact_type != RPAR:
+								base = nextToken.string
+								if nextToken.exact_type != NAME:
+									raise self.parseError(nextToken,
+									    f'invalid superclass "{base}"')
+								bases.append(base)
+								if base in self.constructors:
+									scenicParents.append(base)
+								if peek(tokens).exact_type == COMMA:
+									next(tokens)
+							if not scenicParents and tstring != 'class':
 								raise self.parseError(nextToken,
-								    f'invalid superclass "{parent}"')
-							if parent not in self.constructors:
-								if tstring != 'class':
-									raise self.parseError(nextToken,
-									    f'superclass "{parent}" is not a Scenic class')
-								# appears to be a Python class definition
-								pythonClass = True
-							else:
-								nextToken = next(tokens)
-								if nextToken.exact_type != RPAR:
-									raise self.parseError(nextToken,
-									                      'malformed class definition')
+								    f'Scenic class definition with no Scenic superclasses')
+						if peek(tokens).exact_type != COLON:
+							raise self.parseError(peek(tokens), 'malformed class definition')
+						if not bases:
+							bases = scenicParents = ('Object',)		# default superclass
+						if scenicParents:
+							self.createConstructor(nextString, scenicParents)
 						injectToken((NAME, 'class'), spaceAfter=1)
 						injectToken((NAME, nextString))
 						injectToken((LPAR, '('))
-						if pythonClass:		# pass Python class definitions through unchanged
-							while nextToken.exact_type != COLON:
-								injectToken(nextToken)
-								nextToken = next(tokens)
-							injectToken(nextToken)
-						else:
-							if peek(tokens).exact_type != COLON:
-								raise self.parseError(nextToken, 'malformed class definition')
-							parent = self.createConstructor(nextString, parent)
-							injectToken((NAME, parent))
-							injectToken((RPAR, ')'))
+						injectToken((NAME, bases[0]))
+						for base in bases[1:]:
+							injectToken((COMMA, ','), spaceAfter=1)
+							injectToken((NAME, base))
+						injectToken((RPAR, ')'))
 						skip = True
 						matched = True
 						endToken = nextToken
@@ -915,7 +904,8 @@ class TokenTranslator:
 					elif tstring in oneWordStatements:		# 1-word statement
 						wrapStatementCall()
 						callFunction(tstring)
-					elif tstring in self.constructors:      # instance definition
+					elif (tstring in self.constructors
+						  and peek(tokens).exact_type != RPAR):      # instance definition
 						callFunction(tstring)
 					elif tstring in replacements:	# direct replacement
 						for tok in replacements[tstring]:
@@ -937,6 +927,7 @@ class TokenTranslator:
 					functionStack.pop()
 					injectToken((RPAR, ')'))
 					context, startLevel = (None, 0) if len(functionStack) == 0 else functionStack[-1]
+				inConstructor = any(context in constructors for context, sl in functionStack)
 				if inConstructor and parenLevel == startLevel and ttype == COMMA:		# starting a new specifier
 					while functionStack and context not in constructors:
 						functionStack.pop()
@@ -964,7 +955,6 @@ class TokenTranslator:
 						injectToken(nextToken)
 						specifiersIndented = True
 				elif ttype == NEWLINE or ttype == ENDMARKER or ttype == COMMENT:	# end of line
-					inConstructor = False
 					if parenLevel != 0:
 						raise self.parseError(token, 'unmatched parens/brackets')
 					interrupt = False
@@ -1238,12 +1228,12 @@ class ASTSurgeon(NodeTransformer):
 				newArgs.append(prob)
 			return copy_location(Expr(Call(func, newArgs, [])), node)
 		elif func.id == actionStatement:		# Action statement
-			self.validateSimpleCall(node, 1, onlyInBehaviors=True)
-			action = self.visit(node.args[0])
+			self.validateSimpleCall(node, (1, None), onlyInBehaviors=True)
+			action = Tuple(self.visit(node.args), Load())
 			return self.generateActionInvocation(node, action)
 		elif func.id == waitStatement:		# Wait statement
 			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
-			return self.generateActionInvocation(node, None)
+			return self.generateActionInvocation(node, Constant((), None))
 		elif func.id == terminateStatement:		# Terminate statement
 			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
 			termination = Call(Name(createTerminationAction, Load()),
@@ -1452,8 +1442,10 @@ class ASTSurgeon(NodeTransformer):
 		if isinstance(numArgs, tuple):
 			assert len(numArgs) == 2
 			low, high = numArgs
-			if not (low <= len(node.args) <= high):
-				raise self.parseError(node, f'"{name}" takes {low}-{high} arguments')
+			if high is not None and len(node.args) > high:
+				raise self.parseError(node, f'"{name}" takes at most {high} argument(s)')
+			if len(node.args) < low:
+				raise self.parseError(node, f'"{name}" takes at least {low} argument(s)')
 		elif len(node.args) != numArgs:
 			raise self.parseError(node, f'"{name}" takes exactly {numArgs} argument(s)')
 		if len(node.keywords) != 0:
@@ -1761,6 +1753,7 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 			behaviorNamespaces[modName] = ns
 		else:
 			assert behaviorNamespaces[modName] is ns
+			return
 		for name, value in ns.items():
 			if isinstance(value, types.ModuleType) and getattr(value, '_isScenicModule', False):
 				registerNamespace(value.__name__, value.__dict__)

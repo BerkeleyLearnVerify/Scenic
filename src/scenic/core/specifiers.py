@@ -30,10 +30,10 @@ class Specifier:
 		val = self.value.evaluateIn(obj)
 		val = toDistribution(val)
 		assert not needsLazyEvaluation(val)
-		setattr(obj, self.property, val)
+		obj._specify(self.property, val)
 		for opt in optionals:
 			assert opt in self.optionals
-			setattr(obj, opt, getattr(val, opt))
+			obj._specify(opt, getattr(val, opt))
 
 	def __str__(self):
 		return f'<Specifier of {self.property}>'
@@ -43,7 +43,7 @@ class Specifier:
 class PropertyDefault:
 	"""A default value, possibly with dependencies."""
 	def __init__(self, requiredProperties, attributes, value):
-		self.requiredProperties = requiredProperties
+		self.requiredProperties = set(requiredProperties)
 		self.value = value
 
 		def enabled(thing, default):
@@ -53,6 +53,7 @@ class PropertyDefault:
 			else:
 				return default
 		self.isAdditive = enabled('additive', False)
+		self.isDynamic = enabled('dynamic', False)
 		for attr in attributes:
 			raise RuntimeParseError(f'unknown property attribute "{attr}"')
 

@@ -4,21 +4,24 @@ try:
 except ImportError as e:
 	raise ModuleNotFoundError('CARLA scenarios require the "carla" Python package') from e
 
+import math
+
 import pygame
 
-import scenic.core.simulators as simulators
+from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
 import scenic.simulators.carla.utils.utils as utils
 import scenic.simulators.carla.utils.visuals as visuals
 
 
-class CarlaSimulator(simulators.Simulator):
-	def __init__(self, carla_map, address='127.0.0.1', port=2000, timeout=10, render=True,
-	             timestep=0.1):
+class CarlaSimulator(DrivingSimulator):
+	def __init__(self, carla_map, address='127.0.0.1', port=2000, timeout=10,
+		         render=True, record=False, timestep=0.1):
 		super().__init__()
 		self.client = carla.Client(address, port)
 		self.client.set_timeout(timeout)  # limits networking operations (seconds)
 		self.world = self.client.load_world(carla_map)
 		self.map = carla_map
+		self.timestep = timestep
 
 		# Set to synchronous with fixed timestep
 		settings = self.world.get_settings()
@@ -27,14 +30,16 @@ class CarlaSimulator(simulators.Simulator):
 		self.world.apply_settings(settings)
 
 		self.render = render  # visualization mode ON/OFF
+		self.record = record  # whether to save images to disk
 
 	def createSimulation(self, scene):
-		return CarlaSimulation(scene, self.client, self.render, self.map)
+		return CarlaSimulation(scene, self.client, self.map, self.timestep,
+							   render=self.render, record=self.record)
 
 
-class CarlaSimulation(simulators.Simulation):
-	def __init__(self, scene, client, render, map):
-		super().__init__(scene)
+class CarlaSimulation(DrivingSimulation):
+	def __init__(self, scene, client, map, timestep, render, record):
+		super().__init__(scene, timestep=timestep)
 		self.client = client
 		self.client.load_world(map)
 		self.world = self.client.get_world()
@@ -45,6 +50,7 @@ class CarlaSimulation(simulators.Simulation):
 		
 		# Setup HUD
 		self.render = render
+		self.record = record
 		if self.render:
 			self.displayDim = (1280, 720)
 			self.displayClock = pygame.time.Clock()
@@ -62,25 +68,19 @@ class CarlaSimulation(simulators.Simulation):
 		self.ego = None
 		for obj in self.objects:
 			# Extract blueprint
-			print(obj.blueprint)
 			blueprint = self.blueprintLib.find(obj.blueprint)
 
 			# Set up transform
-			loc = utils.scenicToCarlaLocation(obj.position, world=self.world)
+			loc = utils.scenicToCarlaLocation(obj.position, z=obj.elevation, world=self.world)
 			rot = utils.scenicToCarlaRotation(obj.heading)
-			print(blueprint)
 			transform = carla.Transform(loc, rot)
 			
-			# # Create Carla actor
+			# Create Carla actor
 			carlaActor = self.world.try_spawn_actor(blueprint, transform)
 			if carlaActor is None:
-				raise simulators.SimulationCreationError(
-				    f'Unable to spawn object {type(obj)} at position {obj.position}, '
-				    f'likely from a spawn collision. Of model {obj.blueprint} '
-				)
+				raise simulators.SimulationCreationError(f'Unable to spawn object {obj}')
 
 			if isinstance(carlaActor, carla.Vehicle):
-				# carlaActor.apply_control(carla.VehicleControl())  # set default controls
 				carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
 			elif isinstance(carlaActor, carla.Walker):
 				carlaActor.apply_control(carla.WalkerControl())
@@ -97,7 +97,7 @@ class CarlaSimulation(simulators.Simulation):
 			if obj is self.objects[0]:
 				self.ego = obj
 
-				# Setup camera manager and collision sensor for ego
+				# Set up camera manager and collision sensor for ego
 				if self.render:
 					camIndex = 0
 					camPosIndex = 0
@@ -105,12 +105,12 @@ class CarlaSimulation(simulators.Simulation):
 					self.cameraManager._transform_index = camPosIndex
 					self.cameraManager.set_sensor(camIndex)
 					self.cameraManager.set_transform(self.camTransform)
+					self.cameraManager._recording = self.record
 
 		self.world.tick() ## allowing manualgearshift to take effect 
 
 		for obj in self.objects:
 			if isinstance(obj.carlaActor, carla.Vehicle):
-				# carlaActor.apply_control(carla.VehicleControl())  # set default controls
 				obj.carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=False))
 
 		self.world.tick()
@@ -121,42 +121,17 @@ class CarlaSimulation(simulators.Simulation):
 				equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
 				obj.carlaActor.set_velocity(equivVel)
 
-	def readPropertiesFromCarla(self):
-		for obj in self.objects:
+	def executeActions(self, allActions):
+		super().executeActions(allActions)
 
-			# Extract Carla properties
-			carlaActor = obj.carlaActor
-			currTransform = carlaActor.get_transform()
-			currLoc = currTransform.location
-			currRot = currTransform.rotation
-			currVel = carlaActor.get_velocity()
-			# print(carlaActor.get_acceleration())
+		# Apply control updates which were accumulated while executing the actions
+		for obj in self.agents:
+			ctrl = obj._control
+			if ctrl is not None:
+				obj.carlaActor.apply_control(ctrl)
+				obj._control = None
 
-			# Update Scenic object properties
-			obj.position = utils.carlaToScenicPosition(currLoc)
-			obj.elevation = utils.carlaToScenicElevation(currLoc)
-			obj.heading = utils.carlaToScenicHeading(currRot, tolerance2D=5.0)
-			obj.speed = utils.carlaVelocityToScenicSpeed(currVel)
-
-			# NOTE: Refer to utils.carlaToScenicHeading
-			if obj.heading is None:
-				raise RuntimeError(f'{carlaActor} has non-planar orientation')
-
-	def currentState(self):
-		return tuple(obj.position for obj in self.objects)
-
-	def initialState(self):
-		return self.currentState()
-
-	def step(self, actions):
-		# Execute actions
-		for obj, action in actions.items():
-			if action:
-				action.applyTo(obj, obj.carlaActor, self)
-
-			# if obj.carlaActor.get_control().throttle > 0:
-			# 	print(obj.carlaActor.get_acceleration())
-
+	def step(self):
 		# Run simulation for one timestep
 		self.world.tick()
 
@@ -167,7 +142,25 @@ class CarlaSimulation(simulators.Simulation):
 			# self.hud.render(self.display)
 			pygame.display.flip()
 
-		# Read back the results of the simulation
-		self.readPropertiesFromCarla()
+	def getProperties(self, obj, properties):
+		# Extract Carla properties
+		carlaActor = obj.carlaActor
+		currTransform = carlaActor.get_transform()
+		currLoc = currTransform.location
+		currRot = currTransform.rotation
+		currVel = carlaActor.get_velocity()
+		currAngVel = carlaActor.get_angular_velocity()
 
-		return self.currentState()
+		# Prepare Scenic object properties
+		velocity = utils.carlaToScenicPosition(currVel)
+		speed = math.hypot(*velocity)
+
+		values = dict(
+			position=utils.carlaToScenicPosition(currLoc),
+			elevation=utils.carlaToScenicElevation(currLoc),
+			heading=utils.carlaToScenicHeading(currRot),
+			velocity=velocity,
+			speed=speed,
+			angularSpeed=utils.carlaToScenicAngularSpeed(currAngVel),
+		)
+		return values

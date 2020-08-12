@@ -2,15 +2,10 @@
 # Definition: Ego-vehicle needs to negotiate with other vehicles to cross an unsignalized intersection. In this situation it is assumed that the first to enter the intersection has priority. 
 # actor arrives at 4 way intersection before ego, has right of way. crosses intersection before ego.
 
-import lgsvl
-from scenic.core.distributions import TruncatedNormal
-import scenic.simulators.lgsvl.actions as actions
 from scenic.simulators.lgsvl.simulator import LGSVLSimulator
 from scenic.simulators.lgsvl.map import setMapPath
 setMapPath(__file__, 'maps/borregasave.xodr')
 from scenic.simulators.lgsvl.model import *
-from scenic.simulators.domains.driving.roads import *
-from scenic.simulators.lgsvl.behaviors import *
 
 simulator = LGSVLSimulator('BorregasAve')
 param time_step = 1.0/10
@@ -55,8 +50,7 @@ behavior EgoBehavior(target_speed=20, trajectory = None):
 		FollowTrajectoryBehavior(target_speed = 15, trajectory = lines1)
 		
 	interrupt when ((distance from ego to intersection) <= smallDistance):
-		take actions.SetBrakeAction(1)
-		take actions.SetThrottleAction(0.0)
+		take SetBrakeAction(1), SetThrottleAction(0.0)
 		if(ego.speed <= 0.7):
 			while (True):
 				egoChicken(target_speed = 15, trajectory = egoTrajectory)
@@ -67,7 +61,7 @@ behavior egoChicken(target_speed = 15, trajectory = None):
 	try:
 		FollowTrajectoryBehavior(target_speed = target_speed, trajectory = trajectory)
 	interrupt when ((distance from ego to actorCar) <= 4):
-		take actions.SetBrakeAction(brakeIntensity)
+		take SetBrakeAction(brakeIntensity)
 
 behavior actorCarBehavior(egoAtStop):
 	randomBehavior = Uniform(*PossibleBehaviors)
@@ -82,8 +76,7 @@ behavior actorCarBehavior(egoAtStop):
 			print("starting random behavior: ", randomBehavior)
 			randomBehavior()
 		print("stopping")
-		take actions.SetBrakeAction(1)
-		take actions.SetThrottleAction(0.0)
+		take SetBrakeAction(1), SetThrottleAction(0.0)
 		if ((ego.speed <= 0.7) and ((distance from ego to intersection) <= smallDistance)): # if ego is stopped, actor will go
 			egoAtStop = True
 			print("ego at stop point")
@@ -99,16 +92,12 @@ behavior chickenBehavior(target_speed=20, trajectory = actorTrajectory):
 	
 	interrupt when ((actorCar in intersection) and (ego in intersection) and ((ego.speed < 0.2)) or ((distance from actorCar to ego) <= 5)): # actor starts when ego starts, stops when ego stops.
 		print("interrupted")
-		take actions.SetReverseAction(False)
-		take actions.SetThrottleAction(0.0)
-		take actions.SetBrakeAction(brakeIntensity)
+		take SetReverseAction(False), SetThrottleAction(0.0), SetBrakeAction(brakeIntensity)
 
 
 behavior neverMoveBehavior():
 	while True:
-		take actions.SetReverseAction(False)
-		take actions.SetThrottleAction(0.0)
-		take actions.SetBrakeAction(1)
+		take SetThrottleAction(0.0), SetBrakeAction(1)
 
 behavior conflictingStopBehavior(target_speed=20, trajectory = actorTrajectory): 	# actor begins doing its turn, but then stops in the intersection
 	assert trajectory is not None
@@ -122,11 +111,10 @@ behavior conflictingStopBehavior(target_speed=20, trajectory = actorTrajectory):
 	
 	interrupt when ((distance from ego to actorCar) <= randomDist):
 		print("interrupted")
-		take actions.SetThrottleAction(0.0)
-		take actions.SetBrakeAction(brakeIntensity)
+		take SetThrottleAction(0.0), SetBrakeAction(brakeIntensity)
 
 behavior turnBehavior():
-	take actions.SetReverseAction(False)
+	take SetReverseAction(False)
 	turn = actorTurn
 	brakeIntensity = (0.6, 0.8)
 	turnSpeed = (10,15)
@@ -136,6 +124,7 @@ behavior turnBehavior():
 
 	interrupt when((distance from actorCar to actorTrajectory[1][-1]) <= 1): #kinda arbitrary. just needed to interrupt.
 		print("done")
+		abort
 
 #PossibleBehaviors = [neverMoveBehavior, turnBehavior, conflictingStopBehavior, chickenBehavior]
 PossibleBehaviors = [chickenBehavior]

@@ -3,11 +3,11 @@ import os
 import glob
 import pytest
 
-from scenic.simulators.formats.opendrive import OpenDriveWorkspace
+from scenic.formats.opendrive import OpenDriveWorkspace
 from scenic.core.geometry import TriangulationError
 
 oldDir = os.getcwd()
-os.chdir('tests/simulators/formats/opendrive')
+os.chdir('tests/formats/opendrive')
 maps = glob.glob('maps/**/*.xodr')
 os.chdir(oldDir)
 

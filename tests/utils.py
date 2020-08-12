@@ -3,7 +3,7 @@ import sys
 import inspect
 
 from scenic import scenarioFromString
-from scenic.core.simulators import Simulator
+from scenic.core.simulators import DummySimulator
 import scenic.syntax.veneer as veneer
 
 ## Scene generation utilities
@@ -39,31 +39,44 @@ def sampleParamPFrom(code, maxIterations=1):
 
 # Dynamic simulations
 
-def sampleEgoActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
-    allActions = sampleActions(scenario, maxIterations=maxIterations,
-                               maxSteps=maxSteps, maxScenes=maxScenes)
+def sampleEgoActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1, singleAction=True):
+    allActions = sampleActions(scenario, maxIterations, maxSteps, maxScenes,
+                               singleAction, asMapping=False)
     return [actions[0] for actions in allActions]
 
-def sampleEgoActionsFromScene(scene, maxIterations=1, maxSteps=1):
-    allActions = sampleActionsFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps)
+def sampleEgoActionsFromScene(scene, maxIterations=1, maxSteps=1, singleAction=True):
+    allActions = sampleActionsFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps,
+                                        singleAction=singleAction, asMapping=False)
     if allActions is None:
         return None
     return [actions[0] for actions in allActions]
 
-def sampleActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
+def sampleActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
+                  singleAction=True, asMapping=False):
     for i in range(maxScenes):
         scene, iterations = generateChecked(scenario, maxIterations)
-        result = sampleActionsFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps)
-        if result is not None:
-            return result
+        actions = sampleActionsFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps,
+                                         singleAction=singleAction, asMapping=asMapping)
+        if actions is not None:
+            return actions
     assert False, f'unable to find successful simulation over {maxScenes} scenes'
 
-def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1):
-    sim = Simulator()
-    traj = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
-    if traj is None:
+def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1,
+                           singleAction=True, asMapping=False):
+    sim = DummySimulator()
+    result = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
+    if not result:
         return None
-    return traj[1:]
+    actionSequence = result.actions
+    if singleAction:
+        for i, allActions in enumerate(actionSequence):
+            for agent, actions in allActions.items():
+                assert len(actions) <= 1
+                allActions[agent] = actions[0] if actions else None
+    if asMapping:
+        return actionSequence
+    else:
+        return [tuple(actions.values()) for actions in actionSequence]
 
 # Helpers
 

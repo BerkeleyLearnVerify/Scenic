@@ -1,10 +1,8 @@
-import lgsvl
 
 from scenic.simulators.lgsvl.simulator import LGSVLSimulator
 from scenic.simulators.lgsvl.map import setMapPath
 setMapPath(__file__, 'maps/Straight2LaneSame.xodr')
 from scenic.simulators.lgsvl.model import *
-from scenic.simulators.lgsvl.behaviors import DriveTo, FollowWaypoints
 
 simulator = LGSVLSimulator('Straight2LaneSame')
 param apolloHDMap = 'Straight2LaneSame'

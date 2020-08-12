@@ -1,17 +1,9 @@
 # 3 way intersection. ego goes straight. actor has right of way.
 
-import lgsvl
-from scenic.core.distributions import TruncatedNormal
-import scenic.simulators.lgsvl.actions as actions
 from scenic.simulators.lgsvl.simulator import LGSVLSimulator
 from scenic.simulators.lgsvl.map import setMapPath
 setMapPath(__file__, 'maps/cubetown.xodr')
 from scenic.simulators.lgsvl.model import *
-import scenic.simulators.domains.driving.roads as roads
-import time
-from shapely.geometry import LineString
-from scenic.core.regions import regionFromShapelyObject
-from scenic.simulators.domains.driving.roads import ManeuverType
 from scenic.simulators.lgsvl.behaviors import *
 
 simulator = LGSVLSimulator('CubeTown')
@@ -24,16 +16,6 @@ TERMINATE_TIME = 20
 space = [2,3,4,5]
 
 # GEOMETRY
-def concaenateCenterlines(centerlines=[]):
-	line = []
-	if centerlines != []:
-		for centerline in centerlines:
-			for point in centerline:
-				if point not in line:
-					line.append(point)
-
-	return regionFromShapelyObject(LineString(line))
-
 
 threeWayIntersections = filter(lambda i: i.is3Way, network.intersections)
 intersection = Uniform(*threeWayIntersections)
@@ -69,7 +51,7 @@ behavior EgoBehavior(target_speed=20, trajectory = None):
 		FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
 
 	interrupt when distanceToAnyCars(car=self, thresholdDistance=10):
-		take actions.SetBrakeAction(brakeIntensity)
+		take SetBrakeAction(brakeIntensity)
 
 
 # PLACEMENT

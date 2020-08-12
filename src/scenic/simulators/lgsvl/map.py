@@ -1,6 +1,6 @@
-# stub to allow changing the map without having to alter lgsvl_model.sc
+# stub to allow changing the map without having to alter the model
 
-from scenic.simulators.domains.driving.network import loadNetwork, loadLocalNetwork
+from scenic.domains.driving.network import loadNetwork, loadLocalNetwork
 
 setMapPath = loadLocalNetwork   # for backwards compatibility
 

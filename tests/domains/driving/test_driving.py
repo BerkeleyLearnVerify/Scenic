@@ -9,9 +9,9 @@ from tests.utils import compileScenic, sampleScene, sampleEgo
 from scenic.core.geometry import TriangulationError
 
 template = inspect.cleandoc("""
-    from scenic.simulators.domains.driving.network import loadNetwork
+    from scenic.domains.driving.network import loadNetwork
     loadNetwork('{map}', useCache={cache})
-    from scenic.simulators.domains.driving.model import *
+    from scenic.domains.driving.model import *
 """)
 
 basicScenario = inspect.cleandoc("""
@@ -21,13 +21,13 @@ basicScenario = inspect.cleandoc("""
 """)
 
 def compileDrivingScenario(cached_maps, code='', useCache=True,
-                           path='tests/simulators/formats/opendrive/maps/CARLA/Town01.xodr'):
+                           path='tests/formats/opendrive/maps/CARLA/Town01.xodr'):
     path = cached_maps[path]
     preamble = template.format(map=path, cache=useCache)
     whole = preamble + '\n' + inspect.cleandoc(code)
     return compileScenic(whole)
 
-maps = glob.glob('tests/simulators/formats/opendrive/maps/**/*.xodr')
+maps = glob.glob('tests/formats/opendrive/maps/**/*.xodr')
 
 @pytest.fixture(scope='session')
 def cached_maps(tmpdir_factory):
@@ -108,5 +108,5 @@ def test_caching(cached_maps):
             Car on ego.lane.successor.centerline, with requireVisible False
             Car on ego.lane.maneuvers[0].endLane.centerline, with requireVisible False
         """, useCache=cache,
-        path='tests/simulators/formats/opendrive/maps/opendrive.org/CulDeSac.xodr')
+        path='tests/formats/opendrive/maps/opendrive.org/CulDeSac.xodr')
         sampleScene(scenario, maxIterations=1000)
