@@ -9,183 +9,143 @@ from scenic.simulators.lgsvl.simulator import LGSVLSimulator
 from scenic.simulators.lgsvl.map import setMapPath
 setMapPath(__file__, 'maps/borregasave.xodr')
 from scenic.simulators.lgsvl.model import *
-import scenic.simulators.domains.driving.roads as roads
+from scenic.simulators.domains.driving.roads import *
+from scenic.simulators.lgsvl.behaviors import *
 
 simulator = LGSVLSimulator('BorregasAve')
 param time_step = 1.0/10
 
 # CONSTANTS
-fourLane = []
-for i in network.intersections:
-	if (len(i.incomingLanes) >= 8):
-		fourLane.append(i)
+fourLane = filter(lambda i: i.is4Way, network.intersections)
+intersection = Uniform(*fourLane)
 
-intersection = Uniform(*fourLane) # ensure that it has a conflicting behavior, starts from conflicting lane. reformat?
-index1 = Uniform(0, 1, 2, 3)
-index2 = Uniform(0, 1, 2, 3)
-require index1 != index2
+straight_maneuvers = filter(lambda m: m.type == ManeuverType.STRAIGHT, intersection.maneuvers)
+egoManeuver = Uniform(*straight_maneuvers)
+
+randomType = Uniform(*[ManeuverType.STRAIGHT, ManeuverType.LEFT_TURN, ManeuverType.RIGHT_TURN])
+conflicting_maneuvers = filter(lambda  m: m.type == ManeuverType.LEFT_TURN, egoManeuver.conflictingManeuvers) # hard coded. should be m.type == randomType
+actorTurn = Uniform(*conflicting_maneuvers)
+
 
 egoAtStop = False
 
 
 # GEOMETRY
-lane1 = intersection.incomingLanes[index1]
-lane2 = intersection.incomingLanes[index2]
+lane1 = egoManeuver.startLane
+lane2 = actorTurn.startLane
 
+lines1 = [egoManeuver.startLane.centerline, egoManeuver.connectingLane.centerline, egoManeuver.endLane.centerline]
+lines2 = [actorTurn.startLane.centerline, actorTurn.connectingLane.centerline, actorTurn.endLane.centerline]
+
+egoTrajectory = [egoManeuver.connectingLane.centerline, egoManeuver.endLane.centerline]
+actorTrajectory = [actorTurn.connectingLane.centerline, actorTurn.endLane.centerline]
 
 pos1 = (OrientedPoint at lane1.centerline[-1]) offset by (-2, 2) @ 0 
 pos2 = (OrientedPoint at lane2.centerline[-1]) offset by (-2, 2) @ 0
 
-egoDist = TruncatedNormal(8, 2, 3, 10) # mean, stddev, low, high
-actorDist = TruncatedNormal(5, 1, 1, 8) # start ego and actor at similar distances from intersection. actor closer.
+egoDist = (8,12)
+actorDist = (5, 7)
 
 
-# BEHAVIOR
+# BEHAVIORS
 
-behavior egoBehavior():
-	gain = 0.1
-	throttleStrength = (0.8, 1)
-	for i in lane1.maneuvers:
-		if i.type == roads.ManeuverType.STRAIGHT: 
-			egoManeuver = i
-			break
-	turn = egoManeuver		
-	while True:
-		delta = self.heading relative to turn.connectingLane.centerline.orientation 
-		take actions.SetSteerAction(-gain * delta)
-		take actions.SetBrakeAction(0)
-		take actions.SetThrottleAction(throttleStrength)
+behavior EgoBehavior(target_speed=20, trajectory = None):
+	smallDistance = (5, 6)
+	try: 
+		FollowTrajectoryBehavior(target_speed = 15, trajectory = lines1)
+		
+	interrupt when ((distance from ego to intersection) <= smallDistance):
+		take actions.SetBrakeAction(1)
+		take actions.SetThrottleAction(0.0)
+		if(ego.speed <= 0.7):
+			while (True):
+				egoChicken(target_speed = 15, trajectory = egoTrajectory)
+
+behavior egoChicken(target_speed = 15, trajectory = None):
+	brakeIntensity = (0.9, 1.0)
+	assert trajectory is not None
+	try:
+		FollowTrajectoryBehavior(target_speed = target_speed, trajectory = trajectory)
+	interrupt when ((distance from ego to actorCar) <= 4):
+		take actions.SetBrakeAction(brakeIntensity)
 
 behavior actorCarBehavior(egoAtStop):
-	turn = Uniform(*lane2.maneuvers) # not necessarily conflicting
-	throttleStrength = (0, 1)
-	speedup = (0, 1)
-	smallDistance = (2, 5)
-	while egoAtStop == False:
-		print("go")
-		# if close to intersection, stop quickly (actor must stop first)
-		if ((distance from actorCar to intersection) <= smallDistance):
-			take actions.SetThrottleAction(0.0)
-			take actions.SetBrakeAction(1)
-			print("stop")
-
-			# if ego is stopped, actor will go
-			if ((distance from ego to intersection) <= smallDistance):
-				egoAtStop = True
-				print("ego is stopped")
-				
-			else: # wait for ego to stop
-				take actions.SetThrottleAction(0.0)
-				take actions.SetBrakeAction(1)
-	   
-		else: # drive to intersction
-			take actions.SetSpeedAction(ego.speed + speedup) #actor is faster than ego
-			take actions.SetBrakeAction(0)
-	
 	randomBehavior = Uniform(*PossibleBehaviors)
-	print("randomBeh:", randomBehavior)
-	while egoAtStop:
-		randomBehavior()
-
-behavior chickenBehavior():
-	for i in lane1.maneuvers:
-		if i.type == roads.ManeuverType.STRAIGHT: 
-			egoManeuver = i
-			break
-			
-	#turn = Uniform(*egoManeuver.conflictingManeuvers) # make sure the actor can do them
-	turnList = []
-	for i in egoManeuver.conflictingManeuvers:
-		if i.startLane == lane2:
-			turnList.append(i)
-	require len(turnList) >= 1
-	turn = Uniform(*turnList)
-
-	throttleStrength = (0.7, 1)
-	gain = 0.1
-	print("turn", turn)
-	take actions.SetManualFirstGearShiftAction()
-	take actions.SetManualGearShiftAction(False)
-	breakpoint()
-	while ((actorCar in intersection) == False):
-	
-		print("in first part")
-		delta = self.heading relative to (roadDirection at lane2.centerline[-1])
-		take actions.SetSteerAction(-gain * delta)
+	print("random behavior will be: ", randomBehavior)
+	speedup = (0,1)
+	smallDistance = (2, 3)
+	try: 
+		FollowTrajectoryBehavior(target_speed = 15, trajectory = lines2)
+		print("moving")
+	interrupt when ((distance from actorCar to intersection) <= smallDistance):
+		while (egoAtStop):
+			print("starting random behavior: ", randomBehavior)
+			randomBehavior()
+		print("stopping")
+		take actions.SetBrakeAction(1)
+		take actions.SetThrottleAction(0.0)
+		if ((ego.speed <= 0.7) and ((distance from ego to intersection) <= smallDistance)): # if ego is stopped, actor will go
+			egoAtStop = True
+			print("ego at stop point")
 		
-		# take actions.FollowLaneAction()
+
+
+behavior chickenBehavior(target_speed=20, trajectory = actorTrajectory):
+	assert trajectory is not None
+	brakeIntensity = (0.6, 0.8)
+
+	try: 
+		FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
+	
+	interrupt when ((actorCar in intersection) and (ego in intersection) and ((ego.speed < 0.2)) or ((distance from actorCar to ego) <= 5)): # actor starts when ego starts, stops when ego stops.
+		print("interrupted")
 		take actions.SetReverseAction(False)
-		take actions.SetBrakeAction(0)
-		take actions.SetThrottleAction(throttleStrength)
+		take actions.SetThrottleAction(0.0)
+		take actions.SetBrakeAction(brakeIntensity)
 
-	print("in second part")
-	while (actorCar in intersection):
-		# actor starts when ego starts, stops when ego stops.
-		if (ego.speed > 0):
-			delta = self.heading relative to turn.connectingLane.centerline.orientation
-			take actions.SetReverseAction(False)
-			take actions.SetSteerAction(-gain * delta)
-			take actions.SetBrakeAction(0)
-			take actions.SetThrottleAction(throttleStrength)
-
-		else:
-			take actions.SetThrottleAction(0.0)
-			take actions.SetBrakeAction(1)
 
 behavior neverMoveBehavior():
 	while True:
+		take actions.SetReverseAction(False)
 		take actions.SetThrottleAction(0.0)
 		take actions.SetBrakeAction(1)
 
-behavior conflictingStopBehavior():
-	gain = 0.1
-	# actor begins doing its turn, but then stops in the intersection
-	for i in lane1.maneuvers:
-		if i.type == roads.ManeuverType.STRAIGHT: 
-			egoManeuver = i
-			break
-			
-	turn = Uniform(*egoManeuver.conflictingManeuvers)
-	throttleStrength = (0.5, 1)
-	startPoint = actorCar.position
-	randomDist = (3, 8)
-	while ((distance from actorCar to startPoint) <= randomDist):
-		delta = self.heading relative to turn.connectingLane.centerline.orientation
-		take actions.SetReverseAction(False)
-		take actions.SetSteerAction(-gain * delta)
-		take actions.SetBrakeAction(0)
-		take actions.SetThrottleAction(throttleStrength)
+behavior conflictingStopBehavior(target_speed=20, trajectory = actorTrajectory): 	# actor begins doing its turn, but then stops in the intersection
+	assert trajectory is not None
+	take actions.SetReverseAction(False)
+	turn = actorTurn
+	randomDist = (3, 5)
+	brakeIntensity = (0.6, 0.8)
+
+	try: 
+		FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
+	
+	interrupt when ((distance from ego to actorCar) <= randomDist):
+		print("interrupted")
+		take actions.SetThrottleAction(0.0)
+		take actions.SetBrakeAction(brakeIntensity)
 
 behavior turnBehavior():
-	gain = 0.1
-	turn = Uniform(*lane2.maneuvers)
-	throttleStrength = (0, 1)
-	speedup = (0, 1)
-	startTurn = False
+	take actions.SetReverseAction(False)
+	turn = actorTurn
+	brakeIntensity = (0.6, 0.8)
+	turnSpeed = (10,15)
 
-	while (startTurn == False):
-		if(actorCar in intersection): 
-			startTurn = True
-		else:
-			delta = self.heading relative to (roadDirection at lane2.centerline[-1])
-			take actions.SetSteerAction(-gain * delta)
-			
-			# take actions.FollowLaneAction()
-			take actions.SetReverseAction(False)
-			take actions.SetBrakeAction(0)
-			take actions.SetThrottleAction(throttleStrength)
-	while startTurn:
-		delta = self.heading relative to turn.connectingLane.centerline.orientation # do I need to do something with connections?
-		take actions.SetSteerAction(-gain * delta)
-		take actions.SetBrakeAction(0)
-		take actions.SetThrottleAction(throttleStrength)
+	try: 
+		FollowTrajectoryBehavior(target_speed=turnSpeed, trajectory=actorTrajectory)
+
+	interrupt when((distance from actorCar to actorTrajectory[1][-1]) <= 1): #kinda arbitrary. just needed to interrupt.
+		print("done")
 
 #PossibleBehaviors = [neverMoveBehavior, turnBehavior, conflictingStopBehavior, chickenBehavior]
 PossibleBehaviors = [chickenBehavior]
 
 # PLACEMENT
 ego = EgoCar following roadDirection from pos1 by -egoDist,
-	with behavior egoBehavior
+	with behavior EgoBehavior(target_speed=15, trajectory=lines1)
 
 actorCar = EgoCar following roadDirection from pos2 by -actorDist,
 	with behavior actorCarBehavior(egoAtStop)
+
+terminate when (ego in egoManeuver.endLane)
+terminate when (actorCar in actorTurn.endLane)
