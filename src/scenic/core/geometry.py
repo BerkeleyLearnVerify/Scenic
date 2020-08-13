@@ -33,7 +33,8 @@ def max(*args):
 def min(*args):
 	return __builtins__['min'](*args)
 
-def normalizeAngle(angle):
+@distributionFunction
+def normalizeAngle(angle) -> float:
 	while angle > math.pi:
 		angle -= math.tau
 	while angle < -math.pi:

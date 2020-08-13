@@ -54,22 +54,23 @@ class RejectionException(Exception):
 
 ## Abstract distributions
 
-class DefaultIdentityDict(dict):
-	"""Dictionary which is the identity map by default."""
+class DefaultIdentityDict:
+	"""Dictionary which is the identity map by default.
+
+	The map works on all objects, even unhashable ones, but doesn't support all
+	of the standard mapping operations.
+	"""
+	def __init__(self):
+		self.storage = {}
+
 	def __getitem__(self, key):
-		try:
-			return super().__getitem__(key)
-		except TypeError:	# to allow non-hashable objects
-			return key
+		return self.storage.get(id(key), key)
+
+	def __setitem__(self, key, value):
+		self.storage[id(key)] = value
 
 	def __contains__(self, key):
-		try:
-			return super().__contains__(key)
-		except TypeError:	# to allow non-hashable objects
-			return True
-
-	def __missing__(self, key):
-		return key
+		return id(key) in self.storage
 
 class Samplable(LazilyEvaluable):
 	"""Abstract class for values which can be sampled, possibly depending on other values.
@@ -199,6 +200,26 @@ class Distribution(Samplable):
 
 	def __iter__(self):
 		raise TypeError(f'distribution {self} is not iterable')
+
+	def _comparisonError(self, other):
+		raise RuntimeParseError('random values cannot be compared '
+		                        '(and control flow cannot depend on them)')
+
+	__lt__ = _comparisonError
+	__le__ = _comparisonError
+	__gt__ = _comparisonError
+	__ge__ = _comparisonError
+	__eq__ = _comparisonError
+	__ne__ = _comparisonError
+
+	def __hash__(self):		# need to explicitly define since we overrode __eq__
+		return id(self)
+
+	def __len__(self):
+		raise RuntimeParseError('cannot take the len of a random value')
+
+	def __bool__(self):
+		raise RuntimeParseError('control flow cannot depend on a random value')
 
 ## Derived distributions
 
@@ -551,7 +572,7 @@ class OperatorDistribution(Distribution):
 # Operators which can be applied to distributions.
 # Note that we deliberately do not include comparisons and __bool__,
 # since Scenic does not allow control flow to depend on random variables.
-allowedOperators = [
+allowedOperators = (
 	'__neg__',
 	'__pos__',
 	'__abs__',
@@ -564,9 +585,8 @@ allowedOperators = [
 	'__divmod__', '__rdivmod__',
 	'__pow__', '__rpow__',
 	'__round__',
-	'__len__',
 	'__getitem__',
-]
+)
 def makeOperatorHandler(op):
 	def handler(self, *args):
 		return OperatorDistribution(op, self, args)
