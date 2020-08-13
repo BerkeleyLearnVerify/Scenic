@@ -1,12 +1,10 @@
 # 3 way intersection. ego going straight. ego has right of way, but actor blocking it. 
 
-from scenic.simulators.lgsvl.simulator import LGSVLSimulator
-from scenic.simulators.lgsvl.map import loadLocalNetwork
-loadLocalNetwork(__file__, 'maps/cubetown.xodr')
-from scenic.simulators.lgsvl.model import *
-
-simulator LGSVLSimulator('CubeTown')
+param map = localPath('maps/cubetown.xodr')
+param lgsvl_map = 'CubeTown'
 param time_step = 1.0/10
+
+model scenic.simulators.lgsvl.model
 
 #CONSTANTS 
 MAX_BREAK_THRESHOLD = 1
@@ -20,14 +18,16 @@ intersection = Uniform(*threeWayIntersections)
 
 straight_maneuvers = filter(lambda m: m.type == ManeuverType.STRAIGHT, intersection.maneuvers)
 straight_maneuver = Uniform(*straight_maneuvers)
+startLane = straight_maneuver.startLane
 
-centerlines = straight_maneuver.startLane.centerline, straight_maneuver.connectingLane.centerline, straight_maneuver.endLane.centerline]
+centerlines = [straight_maneuver.startLane.centerline, straight_maneuver.connectingLane.centerline, straight_maneuver.endLane.centerline]
 egoStart = (OrientedPoint at startLane.centerline[-1]) offset by (-2, 2) @ 0 
 
 # --
 
 conflicting_lefts = filter(lambda m: m.type == ManeuverType.LEFT_TURN, straight_maneuver.conflictingManeuvers)
 leftTurn_maneuver = Uniform(*conflicting_lefts)
+L_startLane = leftTurn_maneuver.startLane
 
 L_centerlines = [leftTurn_maneuver.startLane.centerline, leftTurn_maneuver.connectingLane.centerline, leftTurn_maneuver.endLane.centerline]
 actorStart = (OrientedPoint at L_startLane.centerline[-1]) offset by (-2, 2) @ 0 

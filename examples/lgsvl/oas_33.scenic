@@ -1,12 +1,10 @@
 # 3 way intersection. ego goes straight. not specified.
 
-from scenic.simulators.lgsvl.simulator import LGSVLSimulator
-from scenic.simulators.lgsvl.map import setMapPath
-setMapPath(__file__, 'maps/borregasave.xodr')
-from scenic.simulators.lgsvl.model import *
-
-simulator LGSVLSimulator('BorregasAve')
+param map = localPath('maps/borregasave.xodr')
+param lgsvl_map = 'BorregasAve'
 param time_step = 1.0/10
+
+model scenic.simulators.lgsvl.model
 
 MAX_BREAK_THRESHOLD = 1
 TERMINATE_TIME = 20

@@ -2,13 +2,11 @@
 # Definition: While performing a maneuver, the ego-vehicle finds an obstacle / unexpected entity on the road and must perform an emergency brake or an avoidance maneuver. 
 # ego at intersection where a maneuver is available, ego takes any turn. obstacle is stationary according to sheets... but i want it to move
 
-from scenic.simulators.lgsvl.simulator import LGSVLSimulator
-from scenic.simulators.lgsvl.map import setMapPath
-setMapPath(__file__, 'maps/borregasave.xodr')
-from scenic.simulators.lgsvl.model import *
-
-simulator LGSVLSimulator('BorregasAve')
+param map = localPath('maps/borregasave.xodr')
+param lgsvl_map = 'BorregasAve'
 param time_step = 1.0/10
+
+model scenic.simulators.lgsvl.model
 
 # CONSTANTS
 index1 = Uniform(0, 1, 2, 3)

@@ -1,12 +1,10 @@
 # 3 way intersection. ego turns left. nothing else specified?
 
-from scenic.simulators.lgsvl.simulator import LGSVLSimulator
-from scenic.simulators.lgsvl.map import loadLocalNetwork
-loadLocalNetwork(__file__, 'maps/cubetown.xodr')
-from scenic.simulators.lgsvl.model import *
-
-simulator LGSVLSimulator('CubeTown')
+param map = localPath('maps/cubetown.xodr')
+param lgsvl_map = 'CubeTown'
 param time_step = 1.0/10
+
+model scenic.simulators.lgsvl.model
 
 fourLane = []
 for i in network.intersections:

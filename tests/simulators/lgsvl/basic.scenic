@@ -1,5 +1,5 @@
-from scenic.simulators.lgsvl.map import loadLocalNetwork
-loadLocalNetwork(__file__, '../../formats/opendrive/maps/LGSVL/cubetown.xodr')
+param map = localPath('../../formats/opendrive/maps/LGSVL/cubetown.xodr')
+param lgsvl_map = 'CubeTown'
 from scenic.simulators.lgsvl.model import *
 
 ego = Car in intersection

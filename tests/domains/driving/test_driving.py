@@ -9,9 +9,9 @@ from tests.utils import compileScenic, sampleScene, sampleEgo
 from scenic.core.geometry import TriangulationError
 
 template = inspect.cleandoc("""
-    from scenic.domains.driving.network import loadNetwork
-    loadNetwork('{map}', useCache={cache})
-    from scenic.domains.driving.model import *
+    param map = '{map}'
+    param map_options = dict(useCache={cache})
+    model scenic.domains.driving.model
 """)
 
 basicScenario = inspect.cleandoc("""

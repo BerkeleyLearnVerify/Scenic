@@ -2,15 +2,11 @@
 # Definition: Ego-vehicle needs to negotiate with other vehicles to cross an unsignalized intersection. In this situation it is assumed that the first to enter the intersection has priority. 
 # actor arrives at 4 way intersection before ego, has right of way. crosses intersection before ego.
 
-from scenic.simulators.lgsvl.simulator import LGSVLSimulator
-from scenic.simulators.lgsvl.map import setMapPath
-setMapPath(__file__, 'maps/borregasave.xodr')
-from scenic.simulators.lgsvl.model import *
-from scenic.simulators.lgsvl.behaviors import *
-import matplotlib.pyplot as plt
-
-simulator LGSVLSimulator('BorregasAve')
+param map = localPath('maps/borregasave.xodr')
+param lgsvl_map = 'BorregasAve'
 param time_step = 1.0/10
+
+model scenic.simulators.lgsvl.model
 
 # CONSTANTS
 fourLane = filter(lambda i: i.is4Way, network.intersections)
@@ -90,9 +86,6 @@ behavior chickenBehavior(target_speed=20, trajectory = actorTrajectory):
 	assert trajectory is not None
 	brakeIntensity = (0.6, 0.8)
 
-	network.show(plt)
-	actorTurn.connectingLane.centerline.show(plt, 'b')
-	plt.show()
 	try: 
 		FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
 	

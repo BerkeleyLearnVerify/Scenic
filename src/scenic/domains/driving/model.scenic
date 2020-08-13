@@ -3,19 +3,22 @@
 from abc import ABC, abstractmethod
 
 from scenic.domains.driving.workspace import DrivingWorkspace
-import scenic.domains.driving.network as networkModule
-from scenic.domains.driving.roads import ManeuverType
+from scenic.domains.driving.roads import ManeuverType, Network
 
 from scenic.simulators.utils.colors import Color
 
-## Various useful objects and regions
+## Load map and set up workspace
 
-network = networkModule.network
-if not network:
-    raise RuntimeError('need to load road network before importing driving model '
-                       '(call scenic.domains.driving.network.loadNetwork)')
+if 'map' not in globalParameters:
+    raise RuntimeError('need to specify map before importing driving model '
+                       '(set the global parameter "map")')
+if 'map_options' not in globalParameters:
+    param map_options = {}
+network = Network.fromFile(globalParameters.map, **globalParameters.map_options)
 
 workspace = DrivingWorkspace(network)
+
+## Various useful objects and regions
 
 road = network.drivableRegion
 curb = network.curbRegion

@@ -1,13 +1,10 @@
 
-
-from scenic.simulators.lgsvl.simulator import LGSVLSimulator
-from scenic.simulators.lgsvl.map import setMapPath
-setMapPath(__file__, 'maps/cubetown.xodr')
-from scenic.simulators.lgsvl.model import *
-
-simulator LGSVLSimulator('CubeTown')
+param map = localPath('maps/cubetown.xodr')
+param lgsvl_map = 'CubeTown'
 timestep = 1.0/10
 param time_step = timestep
+
+model scenic.simulators.lgsvl.model
 
 
 MAX_BRAKE_THRESHOLD = 1

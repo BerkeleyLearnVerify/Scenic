@@ -1,8 +1,9 @@
 """Lead vehicle cuts in. Ego slows down and follows lead vehicle."""
 
-from scenic.domains.driving.network import loadLocalNetwork
-loadLocalNetwork(__file__, '../OpenDrive/Town01.xodr')
-from scenic.simulators.carla.model import *
+param map = localPath('../OpenDrive/Town01.xodr')
+param carla_map = 'Town01'
+
+model scenic.simulators.carla.model
 
 
 # ============================================================================
@@ -34,17 +35,8 @@ behavior EgoBehavior(leadCar, slowDownDist=5.0):
 		else:
 			take None
 
-laneSecs = []
-for lane in network.lanes:
-	for sec in lane.sections:
-		laneSecs.append(sec)
-
-# initLaneSec = Options(laneSecs)
-# egoPt = Options(initLaneSec.centerline)
-
-# Hard code for testing
-initLaneSec = laneSecs[50]
-egoPt = initLaneSec.centerline[5]
+initLaneSec = Uniform(*network.laneSections)
+egoPt = OrientedPoint on initLaneSec.centerline
 
 spot = OrientedPoint following roadDirection from egoPt by (10, 20)
 spotLane = network.laneAt(spot)

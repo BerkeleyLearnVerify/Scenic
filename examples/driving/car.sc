@@ -1,6 +1,6 @@
-from scenic.simulators.domains.driving.network import loadNetwork
-loadNetwork('maps/cubetown.xodr')
 
-from scenic.simulators.domains.driving.model import *
+param map = localPath('../../tests/formats/opendrive/maps/CARLA/Town01.xodr')
+
+from scenic.domains.driving.model import *
 
 ego = Car

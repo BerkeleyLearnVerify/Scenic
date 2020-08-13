@@ -1,11 +1,9 @@
 """Lead vehicle cuts in. Ego slows down and follows lead vehicle."""
 
-from scenic.domains.driving.network import loadLocalNetwork
-loadLocalNetwork(__file__, '../OpenDrive/Town01.xodr')
+param map = localPath('../OpenDrive/Town01.xodr')
+param carla_map = 'Town01'
 
-from scenic.simulators.carla.model import *
-
-simulator CarlaSimulator('Town01')
+model scenic.simulators.carla.model
 
 
 # ============================================================================

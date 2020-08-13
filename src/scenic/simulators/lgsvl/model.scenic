@@ -1,6 +1,7 @@
 """Scenic world model for the LGSVL Simulator."""
 
 from scenic.domains.driving.model import *
+from scenic.simulators.lgsvl.behaviors import *
 
 try:
     import lgsvl
@@ -9,7 +10,6 @@ try:
     PEDESTRIAN_TYPE = lgsvl.AgentType.PEDESTRIAN
     from scenic.simulators.lgsvl.simulator import LGSVLSimulator
     from scenic.simulators.lgsvl.actions import *
-    from scenic.simulators.lgsvl.behaviors import *
     import scenic.simulators.lgsvl.utils as utils
 except ModuleNotFoundError:
     # to allow generating static scenes without having the lgsvl package installed
@@ -20,6 +20,15 @@ except ModuleNotFoundError:
     import warnings
     warnings.warn('the "lgsvl" package is not installed; '
                   'will not be able to run dynamic simulations')
+
+    def LGSVLSimulator(*args, **kwargs):
+        raise RuntimeError('the "lgsvl" package is required to run simulations '
+                           'from this scenario')
+
+if 'lgsvl_map' not in globalParameters:
+    raise RuntimeError('need to specify map before importing LGSVL model '
+                       '(set the global parameter "lgsvl_map")')
+simulator LGSVLSimulator(globalParameters.lgsvl_map)
 
 ## LGSVL objects
 

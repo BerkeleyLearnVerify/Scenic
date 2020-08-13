@@ -66,18 +66,21 @@ import scenic.syntax.relations as relations
 
 ### THE TOP LEVEL: compiling a Scenic program
 
-def scenarioFromString(string, filename='<string>', cacheImports=False):
+def scenarioFromString(string, params={}, model=None, filename='<string>', cacheImports=False):
 	"""Compile a string of Scenic code into a `Scenario`.
 
 	The optional **filename** is used for error messages."""
 	stream = io.BytesIO(string.encode())
-	return scenarioFromStream(stream, filename=filename, cacheImports=cacheImports)
+	return scenarioFromStream(stream, params=params, model=model,
+	                          filename=filename, cacheImports=cacheImports)
 
-def scenarioFromFile(path, cacheImports=False):
+def scenarioFromFile(path, params={}, model=None, cacheImports=False):
 	"""Compile a Scenic file into a `Scenario`.
 
 	Args:
 		path (str): path to a Scenic file
+		params (dict): global parameters to override
+		model (str): Scenic module to use as world model
 		cacheImports (bool): Whether to cache any imported Scenic modules.
 		  The default behavior is to not do this, so that subsequent attempts
 		  to import such modules will cause them to be recompiled. If it is
@@ -99,16 +102,17 @@ def scenarioFromFile(path, cacheImports=False):
 	directory, name = os.path.split(head)
 
 	with open(path, 'rb') as stream:
-		return scenarioFromStream(stream, filename=fullpath, path=path,
-		                          cacheImports=cacheImports)
+		return scenarioFromStream(stream, params=params, model=model,
+		                          filename=fullpath, path=path, cacheImports=cacheImports)
 
-def scenarioFromStream(stream, filename='<stream>', path=None, cacheImports=False):
+def scenarioFromStream(stream, params={}, model=None,
+                       filename='<stream>', path=None, cacheImports=False):
 	"""Compile a stream of Scenic code into a `Scenario`."""
 	# Compile the code as if it were a top-level module
 	oldModules = list(sys.modules.keys())
 	try:
 		with topLevelNamespace(path) as namespace:
-			compileStream(stream, namespace, filename=filename)
+			compileStream(stream, namespace, params=params, model=model, filename=filename)
 	finally:
 		if not cacheImports:
 			toRemove = []
@@ -139,7 +143,7 @@ def topLevelNamespace(path=None):
 	finally:
 		del sys.path[0]
 
-def compileStream(stream, namespace, filename='<stream>'):
+def compileStream(stream, namespace, params={}, model=None, filename='<stream>'):
 	"""Compile a stream of Scenic code and execute it in a namespace.
 
 	The compilation procedure consists of the following main steps:
@@ -169,11 +173,12 @@ def compileStream(stream, namespace, filename='<stream>'):
 	# pull in new constructor (Scenic class) definitions, which change the way
 	# subsequent tokens are transformed)
 	blocks = partitionByImports(tokens)
-	veneer.activate()
+	veneer.activate(params, model)
 	newSourceBlocks = []
 	try:
 		# Execute preamble
 		exec(compile(preamble, '<veneer>', 'exec'), namespace)
+		namespace[namespaceReference] = namespace
 		# Execute each block
 		for blockNum, block in enumerate(blocks):
 			# Find all custom constructors defined so far (possibly imported)
@@ -260,11 +265,21 @@ for imp in internalFunctions:
 
 ## Built-in functions
 
-builtinFunctions = { 'resample', 'verbosePrint', 'simulation' }
+builtinFunctions = { 'resample', 'verbosePrint', 'simulation', 'localPath' }
 
 # sanity check: implementations of built-in functions actually exist
 for imp in builtinFunctions:
 	assert imp in api, imp
+
+## Built-in names (values which cannot be overwritten)
+
+globalParametersName = 'globalParameters'
+
+builtinNames = { globalParametersName }
+
+# sanity check: built-in names actually exist
+for name in builtinNames:
+	assert name in api, name
 
 ## Simple statements
 
@@ -281,6 +296,9 @@ waitStatement = 'wait'				# statement invoking a no-op action
 terminateStatement = 'terminate'	# statement ending the simulation
 abortStatement = 'abort'			# statement ending a try-interrupt statement
 
+modelStatement = 'model'
+namespaceReference = '_Scenic_module_namespace'		# used in the implementation of 'model'
+
 simulatorStatement = 'simulator'
 
 oneWordStatements = {	# TODO clean up
@@ -293,7 +311,7 @@ twoWordStatements = { requireAlwaysStatement, terminateWhenStatement }
 # statements implemented by functions
 functionStatements = {
 	requireStatement, paramStatement, mutateStatement,
-	simulatorStatement
+	modelStatement, simulatorStatement
 }
 twoWordFunctionStatements = { requireAlwaysStatement, terminateWhenStatement }
 def functionForStatement(tokens):
@@ -551,7 +569,7 @@ class ScenicLoader(importlib.abc.InspectLoader):
 		# objects, parameters, etc. from this one
 		if veneer.isActive():
 			veneer.allObjects.extend(module._objects)
-			veneer.globalParameters.update(module._params)
+			veneer._globalParameters.update(getattr(module, globalParametersName))
 			veneer.externalParameters.extend(module._externalParams)
 			veneer.inheritedReqs.extend(module._requirements)
 			veneer.behaviors.extend(module._behaviors)
@@ -612,7 +630,7 @@ def partitionByImports(tokens):
 					seenTry = False
 					haveImported = True 	# just in case the try contained imports
 			elif token.start[1] == 0:
-				if token.string == 'import' or token.string == 'from':
+				if token.string in ('import', 'from', modelStatement):
 					duringImport = True
 				else:
 					if haveImported:
@@ -929,6 +947,20 @@ class TokenTranslator:
 					elif startOfLine and tstring in oneWordStatements:		# 1-word statement
 						wrapStatementCall()
 						callFunction(tstring)
+					elif token.start[1] == 0 and tstring == modelStatement:		# model statement
+						components = []
+						while peek(tokens).exact_type not in (COMMENT, NEWLINE):
+							nextToken = next(tokens)
+							if nextToken.exact_type != NAME and nextToken.string != '.':
+								raise self.parseError(nextToken, 'invalid module name')
+							components.append(nextToken.string)
+						if not components:
+							raise self.parseError(token, 'model statement is missing module name')
+						components.append("'")
+						literal = "'" + ''.join(components)
+						callFunction(modelStatement, argument=namespaceReference)
+						injectToken((STRING, literal))
+						skip = True
 					elif (tstring in self.constructors
 						  and peek(tokens).exact_type != RPAR):      # instance definition
 						callFunction(tstring)
@@ -1180,6 +1212,12 @@ class ASTSurgeon(NodeTransformer):
 			return newStatements
 		else:
 			raise RuntimeError(f'unknown object {node} encountered during AST surgery')
+
+	def visit_Name(self, node):
+		if node.id in builtinNames:
+			if not isinstance(node.ctx, Load):
+				raise self.parseError(node, f'unexpected keyword "{node.id}"')
+		return node
 
 	def visit_BinOp(self, node):
 		"""Convert infix operators to calls to the corresponding Scenic operator implementations."""
@@ -1707,8 +1745,9 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 	namespace['_egoObject'] = veneer.egoObject
 
 	# Extract global parameters
-	namespace['_params'] = veneer.globalParameters
-	for name, value in veneer.globalParameters.items():
+	savedParams = veneer.globalParameters._clone_table()
+	namespace[globalParametersName] = savedParams
+	for name, value in savedParams.items():
 		if needsLazyEvaluation(value):
 			raise InvalidScenarioError(f'parameter {name} uses value {value}'
 			                           ' undefined outside of object definition')
@@ -1822,7 +1861,7 @@ def constructScenarioFrom(namespace):
 	# Create Scenario object
 	scenario = Scenario(workspace, namespace['_simulatorFactory'],
 	                    namespace['_objects'], namespace['_egoObject'],
-	                    namespace['_params'], namespace['_externalParams'],
+	                    namespace[globalParametersName], namespace['_externalParams'],
 	                    namespace['_requirements'], namespace['_requirementDeps'],
                         namespace['_monitors'], namespace['_behaviorNamespaces'])
 

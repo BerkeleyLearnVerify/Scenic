@@ -3,19 +3,26 @@
 from scenic.domains.driving.model import *
 
 import scenic.simulators.carla.blueprints as blueprints
+from scenic.simulators.carla.behaviors import *
+from scenic.simulators.utils.colors import Color
 
 try:
     from scenic.simulators.carla.simulator import CarlaSimulator    # for use in scenarios
     from scenic.simulators.carla.actions import *
-    from scenic.simulators.carla.behaviors import *
 except ModuleNotFoundError:
     # for convenience when testing without the carla package
     import warnings
     warnings.warn('the "carla" package is not installed; '
                   'will not be able to run dynamic simulations')
 
-from scenic.simulators.utils.colors import Color
+    def CarlaSimulator(*args, **kwargs):
+        raise RuntimeError('the "carla" package is required to run simulations '
+                           'from this scenario')
 
+if 'carla_map' not in globalParameters:
+    raise RuntimeError('need to specify map before importing CARLA model '
+                       '(set the global parameter "carla_map")')
+simulator CarlaSimulator(globalParameters.carla_map)
 
 precipitation = Options({0: 70, 1: 30}) * (0, 100)
 param precipitation = precipitation

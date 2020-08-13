@@ -1,12 +1,11 @@
 
-from scenic.simulators.lgsvl.simulator import LGSVLSimulator
-from scenic.simulators.lgsvl.map import loadLocalNetwork
-loadLocalNetwork(__file__, 'maps/Straight2LaneSame.xodr')
-from scenic.simulators.lgsvl.model import *
-
-simulator LGSVLSimulator('Straight2LaneSame')
+param map = localPath('maps/Straight2LaneSame.xodr')
+param lgsvl_map = 'Straight2LaneSame'
 param apolloHDMap = 'Straight2LaneSame'
 param time_step = 1.0/2
+
+model scenic.simulators.lgsvl.model
+
 
 egoStartPos = OrientedPoint on road
 egoDestination = follow roadDirection from egoStartPos for 100

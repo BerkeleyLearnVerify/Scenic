@@ -14,7 +14,10 @@ def compileScenic(code, removeIndentation=True):
     if removeIndentation:
         # to allow indenting code to line up with test function
         code = inspect.cleandoc(code)
-    return scenarioFromString(code)
+    checkVeneerIsInactive()
+    scenario = scenarioFromString(code)
+    checkVeneerIsInactive()
+    return scenario
 
 # Static scenes
 
@@ -89,14 +92,17 @@ def generateChecked(scenario, maxIterations):
 def checkVeneerIsInactive():
     assert veneer.activity == 0
     assert not veneer.evaluatingRequirement
-    assert len(veneer.allObjects) == 0
+    assert not veneer.allObjects
     assert veneer.egoObject is None
-    assert len(veneer.globalParameters) == 0
-    assert len(veneer.externalParameters) == 0
-    assert len(veneer.pendingRequirements) == 0
-    assert len(veneer.inheritedReqs) == 0
-    assert len(veneer.behaviors) == 0
-    assert len(veneer.monitors) == 0
+    assert not veneer._globalParameters
+    assert not veneer.lockedParameters
+    assert not veneer.lockedModel
+    assert not veneer.externalParameters
+    assert not veneer.pendingRequirements
+    assert not veneer.inheritedReqs
+    assert not veneer.behaviors
+    assert not veneer.monitors
+    assert not veneer.simulatorFactory
     assert veneer.currentSimulation is None
     assert veneer.currentBehavior is None
 

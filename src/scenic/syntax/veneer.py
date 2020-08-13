@@ -8,8 +8,8 @@ global state such as the list of all created Scenic objects.
 
 __all__ = (
 	# Primitive statements and functions
-	'ego', 'require', 'resample', 'param', 'mutate', 'verbosePrint',
-	'simulator', 'simulation', 'require_always', 'terminate_when',
+	'ego', 'require', 'resample', 'param', 'globalParameters', 'mutate', 'verbosePrint',
+	'localPath', 'model', 'simulator', 'simulation', 'require_always', 'terminate_when',
 	'sin', 'cos', 'hypot', 'max', 'min',
 	'filter',
 	# Prefix operators
@@ -62,10 +62,14 @@ from scenic.core.specifiers import PropertyDefault	# TODO remove
 
 # everything that should not be directly accessible from the language is imported here:
 import builtins
+import collections.abc
+import importlib
 import inspect
 import sys
 import random
 import enum
+import os.path
+import traceback
 import types
 import itertools
 from collections import defaultdict
@@ -79,7 +83,7 @@ from scenic.core.geometry import normalizeAngle, apparentHeadingAtPoint
 from scenic.core.object_types import Constructible
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
-from scenic.core.errors import RuntimeParseError
+from scenic.core.errors import RuntimeParseError, InvalidScenarioError
 from scenic.core.vectors import OrientedVector
 from scenic.core.external_params import ExternalParameter
 from scenic.core.simulators import RejectSimulationException, EndSimulationAction
@@ -90,7 +94,9 @@ activity = 0
 evaluatingRequirement = False
 allObjects = []		# ordered for reproducibility
 egoObject = None
-globalParameters = {}
+_globalParameters = {}
+lockedParameters = set()
+lockedModel = None
 externalParameters = []		# ordered for reproducibility
 pendingRequirements = defaultdict(list)
 inheritedReqs = []		# TODO improve handling of these?
@@ -112,9 +118,15 @@ def isActive():
 	Scenic modules."""
 	return activity > 0
 
-def activate():
+def activate(paramOverrides={}, modelOverride=None):
 	"""Activate the veneer when beginning to compile a Scenic module."""
-	global activity
+	global activity, _globalParameters, lockedParameters, lockedModel
+	if paramOverrides or modelOverride:
+		assert activity == 0
+		_globalParameters.update(paramOverrides)
+		lockedParameters = set(paramOverrides)
+		lockedModel = modelOverride
+
 	activity += 1
 	assert not evaluatingRequirement
 	assert not evaluatingGuard
@@ -122,7 +134,8 @@ def activate():
 
 def deactivate():
 	"""Deactivate the veneer after compiling a Scenic module."""
-	global activity, allObjects, egoObject, globalParameters, externalParameters
+	global activity, allObjects, egoObject, _globalParameters, lockedParameters, lockedModel
+	global externalParameters
 	global pendingRequirements, inheritedReqs, simulatorFactory, monitors, behaviors
 	activity -= 1
 	assert activity >= 0
@@ -131,13 +144,17 @@ def deactivate():
 	assert currentSimulation is None
 	allObjects = []
 	egoObject = None
-	globalParameters = {}
+	_globalParameters.clear()	# keep same object so proxy will still work
 	externalParameters = []
 	pendingRequirements = defaultdict(list)
 	inheritedReqs = []
-	simulatorFactory = None
 	monitors = []
 	behaviors = []
+
+	if activity == 0:
+		lockedParameters = set()
+		lockedModel = None
+		simulatorFactory = None
 
 # Object creation
 
@@ -523,6 +540,11 @@ def verbosePrint(msg, file=sys.stdout):
 		indent = '  ' * activity if translator.verbosity >= 2 else '  '
 		print(indent + msg, file=file)
 
+def localPath(relpath):
+	filename = traceback.extract_stack(limit=2)[0].filename
+	base = os.path.dirname(filename)
+	return os.path.join(base, relpath)
+
 def simulation():
 	if isActive():
 		raise RuntimeParseError('used simulation() outside a behavior')
@@ -533,6 +555,21 @@ def simulator(sim):
 	global simulatorFactory
 	simulatorFactory = sim
 
+def model(namespace, modelName):
+	if lockedModel is not None:
+		modelName = lockedModel
+	try:
+		module = importlib.import_module(modelName)
+	except ImportError as e:
+		raise InvalidScenarioError(f'could not import world model {modelName}') from None
+	if (names := module.__dict__.get('__all__', None)) is not None:
+		for name in names:
+			namespace[name] = getattr(module, name)
+	else:
+		for name, value in module.__dict__.items():
+			if not name.startswith('_'):
+				namespace[name] = value
+
 @distributionFunction
 def filter(function, iterable):
 	return list(builtins.filter(function, iterable))
@@ -542,11 +579,35 @@ def param(*quotedParams, **params):
 	if evaluatingRequirement:
 		raise RuntimeParseError('tried to create a global parameter inside a requirement')
 	for name, value in params.items():
-		globalParameters[name] = toDistribution(value)
+		if name not in lockedParameters:
+			_globalParameters[name] = toDistribution(value)
 	assert len(quotedParams) % 2 == 0, quotedParams
 	it = iter(quotedParams)
 	for name, value in zip(it, it):
-		globalParameters[name] = toDistribution(value)
+		if name not in lockedParameters:
+			_globalParameters[name] = toDistribution(value)
+
+class ParameterTableProxy(collections.abc.Mapping):
+	def __init__(self, map):
+		self._internal_map = map
+
+	def __getitem__(self, name):
+		return self._internal_map[name]
+
+	def __iter__(self):
+		return iter(self._internal_map)
+
+	def __len__(self):
+		return len(self._internal_map)
+
+	def __getattr__(self, name):
+		return self.__getitem__(name)	# allow namedtuple-like access
+
+	def _clone_table(self):
+		return ParameterTableProxy(self._internal_map.copy())
+
+#: built-in name for accessing the global parameters
+globalParameters = ParameterTableProxy(_globalParameters)
 
 def mutate(*objects):		# TODO update syntax
 	"""Function implementing the mutate statement."""

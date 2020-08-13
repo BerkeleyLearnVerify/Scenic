@@ -1,13 +1,9 @@
 """CARLA Challenge #4."""
 
-import scenic.simulators.carla.actions as actions
+param map = localPath('../OpenDrive/Town01.xodr')
+param carla_map = 'Town01'
 
-from scenic.simulators.domains.driving.network import loadLocalNetwork
-loadLocalNetwork(__file__, '../OpenDrive/Town01.xodr')
-
-from scenic.simulators.carla.model import *
-
-simulator = CarlaSimulator('Town01')
+model scenic.simulators.carla.model
 
 # ============================================================================
 # -- BEHAVIORS ---------------------------------------------------------------
@@ -81,13 +77,11 @@ In this visualization, let:
 '''
 
 behavior CrossStreetBehavior():
-	take actions.SetRelativeDirectionAction(90, degrees=True)
-	take None
-	take actions.SetSpeedAction(0.2)
+	take SetRelativeDirectionAction(90, degrees=True), SetSpeedAction(0.2)
 
 
-c = Car
-ego = Pedestrian on visible sidewalk, with behavior CrossStreetBehavior
+ego = Car
+Pedestrian on visible sidewalk, with behavior CrossStreetBehavior
 
 
 '''

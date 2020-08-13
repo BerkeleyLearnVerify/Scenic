@@ -1,7 +1,11 @@
 """Behaviors for dynamic agents in LGSVL."""
 
 from scenic.domains.driving.behaviors import *	# use all common driving behaviors
-from scenic.simulators.lgsvl.actions import *
+
+try:
+    from scenic.simulators.lgsvl.actions import *
+except ModuleNotFoundError:
+    pass    # ignore; error will be caught later if user attempts to run a simulation
 
 behavior DriveTo(target):
 	action = SetDestinationAction(target)

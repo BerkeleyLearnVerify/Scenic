@@ -1,12 +1,9 @@
 # ego turns left. ego has right of way but actor takes it (goes straight)
 
-from scenic.simulators.lgsvl.simulator import LGSVLSimulator
-from scenic.simulators.lgsvl.map import loadLocalNetwork
-loadLocalNetwork(__file__, 'maps/cubetown.xodr')
-from scenic.simulators.lgsvl.model import *
+param map = localPath('maps/cubetown.xodr')
+param lgsvl_map = 'CubeTown'
 
-simulator LGSVLSimulator('CubeTown')
-param time_step = 1.0/10
+model scenic.simulators.lgsvl.model
 
 # CONSTANTS
 space = [2,3,4,5]

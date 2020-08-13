@@ -1,5 +1,6 @@
-from scenic.simulators.carla.map import loadLocalNetwork
-loadLocalNetwork(__file__, '../../formats/opendrive/maps/CARLA/Town01.xodr')
+
+param map = localPath('../../formats/opendrive/maps/CARLA/Town01.xodr')
+param carla_map = 'Town01'
 from scenic.simulators.carla.model import *
 
 ego = Car in intersection

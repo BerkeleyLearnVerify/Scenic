@@ -1,11 +1,11 @@
 # 3 way intersection. ego goes straight. actor has right of way.
 
-from scenic.simulators.lgsvl.map import loadLocalNetwork
-loadLocalNetwork(__file__, 'maps/cubetown.xodr')
-from scenic.simulators.lgsvl.model import *
 
-simulator LGSVLSimulator('CubeTown')
+param map = localPath('maps/cubetown.xodr')
+param lgsvl_map = 'CubeTown'
 param time_step = 1.0/10
+
+model scenic.simulators.lgsvl.model
 
 # CONSTANTS
 space = [2,3,4,5]

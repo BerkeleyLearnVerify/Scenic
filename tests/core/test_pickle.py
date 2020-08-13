@@ -11,7 +11,7 @@ from scenic.core.object_types import Object
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument
 from scenic.core.utils import areEquivalent
-from scenic import scenarioFromString as compileScenic
+from tests.utils import compileScenic
 
 def tryPickling(thing, checkEquivalence=True):
     pickled = dill.dumps(thing)

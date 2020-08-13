@@ -1,11 +1,8 @@
-import scenic.simulators.carla.actions as actions
 
-from scenic.simulators.domains.driving.network import loadLocalNetwork
-loadLocalNetwork(__file__, '../OpenDrive/Town01.xodr')
+param map = localPath('../OpenDrive/Town01.xodr')
+param carla_map = 'Town01'
 
-from scenic.simulators.carla.model import *
-
-simulator = CarlaSimulator('Town01')
+model scenic.simulators.carla.model
 
 """
 Ego encounters an unexpected obstacle and must perform and emergency brake or avoidance maneuver.
@@ -42,46 +39,40 @@ behavior FastCarBehavior():
 	# # take actions.SetThrottleAction(0.0)
 	# # for _ in range(DELAY_TIME_2):
 	# 	# take None
-	take actions.SetManualFirstGearShiftAction()
-	take actions.SetManualGearShiftAction(False)
 
 	#TODO: Add a buffer
-	take actions.SetThrottleAction(0.9)
+	take SetThrottleAction(0.9)
 	print("zoom")
 
 behavior SlowCarBehavior():
-	take actions.SetManualFirstGearShiftAction()
-	take actions.SetManualGearShiftAction(False)
-	take actions.SetThrottleAction(0.1)
+	take SetThrottleAction(0.1)
 	print("zoom")
 
 
 behavior EgoBehavior():
 	# take actions.SetSteerAction(0.3)
 	# counter = 0
-	take actions.SetManualFirstGearShiftAction()
-	take actions.SetManualGearShiftAction(False)
 
-	take actions.SetThrottleAction(0.6)
+	take SetThrottleAction(0.6)
 	for _ in range(9):
 		take None
 	print('Ego changing lanes left')
-	take actions.SetSteerAction(-0.55)
+	take SetSteerAction(-0.55)
 	for _ in range(8):
 		take None
-	take actions.SetSteerAction(0.3)
+	take SetSteerAction(0.3)
 	for _ in range(9):
 		take None
-	take actions.SetSteerAction(0)
+	take SetSteerAction(0)
 	for _ in range(20):
 		take None
-	take actions.SetSteerAction(0.3)
+	take SetSteerAction(0.3)
 	for _ in range(6):
 		take None
-	take actions.SetSteerAction(-0.3)
+	take SetSteerAction(-0.3)
 	for _ in range(6):
 		take None
-	take actions.SetSteerAction(0)
+	take SetSteerAction(0)
 
 # NOTE: List comprehension do not work in Scenic.
 laneSecsWithLeftLane = []
@@ -94,13 +85,9 @@ assert len(laneSecsWithLeftLane) > 0, \
 	'No lane sections with adjacent left lane in network.'
 
 initLaneSec = Options(laneSecsWithLeftLane)
-# initLaneSec = laneSecsWithLeftLane[22] # NOTE: Hard coded for testing
 leftLaneSec = initLaneSec.laneToLeft
 
-spawnPt = initLaneSec.centerline[3]  # NOTE: Hard coded for testing
-spawnVec = Vector(spawnPt[0], spawnPt[1])
-
-slowCar = Car at spawnVec,
+slowCar = Car on initLaneSec.centerline,
 	with speed 0,
 	with behavior SlowCarBehavior
 

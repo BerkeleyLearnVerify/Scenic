@@ -1,13 +1,11 @@
 # Traffic Scenario 07: Crossing traffic running a red light at an intersection
 # Definition: Ego-vehicle is going straight at an intersection but a crossing vehicle runs a red light, forcing the ego-vehicle to perform a collision avoidance maneuver. 
 
-from scenic.domains.driving.network import loadLocalNetwork
-loadLocalNetwork(__file__, 'maps/borregasave.xodr')
-from scenic.simulators.lgsvl.model import *
+param map = localPath('maps/borregasave.xodr')
+param lgsvl_map = 'BorregasAve'
+param time_step = 1.0/10
 
-simulator LGSVLSimulator('BorregasAve')
-
-
+model scenic.simulators.lgsvl.model
 
 # CONSTANTS
 index1 = Uniform(0, 1, 2, 3)

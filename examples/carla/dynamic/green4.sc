@@ -16,9 +16,10 @@ rightLane	    E_2
 -----------------------
 """
 
-from scenic.domains.driving.network import loadLocalNetwork
-loadLocalNetwork(__file__, '../OpenDrive/Town01.xodr')
-from scenic.simulators.carla.model import *
+param map = localPath('../OpenDrive/Town01.xodr')
+param carla_map = 'Town01'
+
+model scenic.simulators.carla.model
 
 
 DELAY_TIME_1 = 1 # the delay time for ego

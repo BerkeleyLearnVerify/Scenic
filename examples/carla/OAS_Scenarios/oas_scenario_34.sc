@@ -1,10 +1,9 @@
 
-from scenic.domains.driving.network import loadLocalNetwork
-loadLocalNetwork(__file__, '../OpenDrive/Town01.xodr')
+param map = localPath('../OpenDrive/Town01.xodr')
+param carla_map = 'Town01'
 
-from scenic.simulators.carla.model import *
+model scenic.simulators.carla.model
 
-simulator CarlaSimulator('Town01')
 
 MAX_BREAK_THRESHOLD = 1
 TERMINATE_TIME = 20

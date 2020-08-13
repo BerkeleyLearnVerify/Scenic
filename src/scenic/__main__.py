@@ -23,7 +23,9 @@ mainOptions.add_argument('-S', '--simulate', action='store_true',
 mainOptions.add_argument('-s', '--seed', help='random seed', type=int)
 mainOptions.add_argument('-v', '--verbosity', help='verbosity level (default 1)',
                          type=int, choices=(0, 1, 2, 3), default=1)
-
+mainOptions.add_argument('-p', '--param', help='override a global parameter',
+                         nargs=2, default=[], action='append', metavar=('PARAM', 'VALUE'))
+mainOptions.add_argument('-m', '--model', help='specify a Scenic world model', default=None)
 
 # Simulation options
 simOpts = parser.add_argument_group('dynamic simulation options')
@@ -44,6 +46,8 @@ intOptions.add_argument('-z', '--zoom', help='zoom expansion factor (default 1)'
 
 # Debugging options
 debugOpts = parser.add_argument_group('debugging options')
+debugOpts.add_argument('--show-params', help='show values of global parameters',
+                       action='store_true')
 debugOpts.add_argument('-b', '--full-backtrace', help='show full internal backtraces',
                        action='store_true')
 debugOpts.add_argument('--dump-initial-python', help='dump initial translated Python',
@@ -79,14 +83,16 @@ if args.verbosity >= 1:
     print('Beginning scenario construction...')
 startTime = time.time()
 scenario = errors.callBeginningScenicTrace(
-    lambda: translator.scenarioFromFile(args.scenario)
+    lambda: translator.scenarioFromFile(args.scenario,
+                                        params=dict(args.param),
+                                        model=args.model)
 )
 totalTime = time.time() - startTime
 if args.verbosity >= 1:
     print(f'Scenario constructed in {totalTime:.2f} seconds.')
 
 if args.simulate:
-    simulator = scenario.getSimulator()
+    simulator = errors.callBeginningScenicTrace(scenario.getSimulator)
 
 def generateScene():
     startTime = time.time()
@@ -96,6 +102,9 @@ def generateScene():
     if args.verbosity >= 1:
         totalTime = time.time() - startTime
         print(f'  Generated scene in {iterations} iterations, {totalTime:.4g} seconds.')
+        if args.show_params:
+            for param, value in scene.params.items():
+                print(f'    Parameter "{param}": {value}')
     return scene, iterations
 
 def runSimulation(scene):
