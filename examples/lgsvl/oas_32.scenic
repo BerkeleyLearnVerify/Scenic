@@ -41,10 +41,10 @@ ego_L_centerlines = [ego_L_startLane.centerline, ego_L_connectingLane.centerline
 
 
 # PLACEMENT
-ego = EgoCar on ego_L_startLane.centerline,
+ego = Car on ego_L_startLane.centerline,
 		with blueprint 'vehicle.tesla.model3',
 		with behavior FollowTrajectoryBehavior(target_speed=10, trajectory=ego_L_centerlines)
 
-other = EgoCar on startLane.centerline,
+other = Car on startLane.centerline,
 		with blueprint 'vehicle.tesla.model3',
 		with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=centerlines)

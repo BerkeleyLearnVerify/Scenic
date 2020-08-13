@@ -6,6 +6,7 @@ from collections import OrderedDict
 
 from scenic.core.object_types import (enableDynamicProxyFor, setDynamicProxyFor,
                                       disableDynamicProxyFor)
+from scenic.core.distributions import RejectionException
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError
 from scenic.core.vectors import Vector
 
@@ -31,7 +32,7 @@ class Simulator:
             try:
                 simulation = self.createSimulation(scene)
                 result = simulation.run(maxSteps, verbosity=verbosity)
-            except RejectSimulationException as e:
+            except (RejectSimulationException, RejectionException) as e:
                 if verbosity >= 2:
                     print(f'  Rejected simulation {iterations} at time step '
                           f'{simulation.currentTime} because of: {e}')

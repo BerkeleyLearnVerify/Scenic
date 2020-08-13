@@ -8,20 +8,9 @@ model scenic.simulators.lgsvl.model
 
 
 MAX_BRAKE_THRESHOLD = 1
-TERMINATE_TIME = 15 / timestep
-STOP_LENGTH = 5 / timestep
+TERMINATE_TIME = 30 / timestep
+STOP_LENGTH = int(5 / timestep)
 
-
-behavior FollowLane(target_speed=20):
-
-	""" Follow the lane that the vehicle is currently on """
-	# target_speed = 25 # km/hr
-	while True:
-		take SetThrottleAction(0.5)
-		# nearest_line_points = network.laneAt(self).centerline.nearestSegmentTo(self.position)
-		# nearest_line_segment = PolylineRegion(nearest_line_points)
-		# cte = nearest_line_segment.signedDistanceTo(self.position)
-		# take actions.FollowLaneAction(target_speed, cte)
 
 behavior CollisionAvoidance(safety_distance=10, brake_intensity=1):
 	while (distance to other) < safety_distance:
@@ -31,7 +20,7 @@ behavior CollisionAvoidance(safety_distance=10, brake_intensity=1):
 behavior FollowLeadCar(safety_distance=10):
 
 	try: 
-		FollowLane(25)
+		FollowLaneBehavior(target_speed=25)
 
 	interrupt when ((distance to other) < safety_distance):
 		CollisionAvoidance()
@@ -40,25 +29,26 @@ behavior FollowLeadCar(safety_distance=10):
 behavior LeadCarSuddenlyStopsAndGo():
 
 	sudden_stop_time = (3, 6) * 10
-
+	last_stop = 0
 	try:
-		FollowLane(25)
+		FollowLaneBehavior(target_speed=25)
 
-	interrupt when (simulation().currentTime > sudden_stop_time
-					and simulation().currentTime < sudden_stop_time+STOP_LENGTH):
-		# TODO: Unnatural to enforce time constraint
-		take SetBrakeAction(MAX_BRAKE_THRESHOLD), SetThrottleAction(0)
+	interrupt when simulation().currentTime - last_stop > sudden_stop_time:
+		for i in range(STOP_LENGTH):
+			take SetBrakeAction(MAX_BRAKE_THRESHOLD), SetThrottleAction(0)
+		last_stop = simulation().currentTime
 
 
 
-ego = EgoCar with behavior FollowLeadCar(10),
+ego = Car with behavior FollowLeadCar(10),
 		with blueprint 'vehicle.tesla.model3'
 
-other = EgoCar ahead of ego by 10,		
+other = Car ahead of ego by 10,
 		with behavior LeadCarSuddenlyStopsAndGo,
 		with blueprint 'vehicle.tesla.model3'
 	
 require (Point ahead of ego by 100) in road
 
-
+terminate when ego.lane is None
+terminate when other.lane is None
 terminate when simulation().currentTime > TERMINATE_TIME

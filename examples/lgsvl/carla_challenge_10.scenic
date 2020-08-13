@@ -9,6 +9,9 @@ param time_step = 1.0/10
 model scenic.simulators.lgsvl.model
 
 # CONSTANTS
+
+MAX_TIME = 20 / globalParameters.time_step
+
 fourLane = filter(lambda i: i.is4Way, network.intersections)
 intersection = Uniform(*fourLane)
 
@@ -129,11 +132,12 @@ PossibleBehaviors = [neverMoveBehavior, turnBehavior, conflictingStopBehavior, c
 #PossibleBehaviors = [chickenBehavior]
 
 # PLACEMENT
-ego = EgoCar following roadDirection from pos1 by -egoDist,
+ego = Car following roadDirection from pos1 by -egoDist,
 	with behavior EgoBehavior(target_speed=15, trajectory=lines1)
 
-actorCar = EgoCar following roadDirection from pos2 by -actorDist,
+actorCar = Car following roadDirection from pos2 by -actorDist,
 	with behavior actorCarBehavior(egoAtStop)
 
-terminate when (ego in egoManeuver.endLane)
-terminate when (actorCar in actorTurn.endLane)
+terminate when ego in egoManeuver.endLane
+terminate when actorCar in actorTurn.endLane
+terminate when simulation().currentTime > MAX_TIME

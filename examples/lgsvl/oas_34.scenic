@@ -6,9 +6,9 @@ param time_step = 1.0/10
 
 model scenic.simulators.lgsvl.model
 
-#CONSTANTS 
+#CONSTANTS
 MAX_BREAK_THRESHOLD = 1
-TERMINATE_TIME = 20
+TERMINATE_TIME = 20 / globalParameters.time_step
 space = [2,3,4,5]
 
 
@@ -46,14 +46,15 @@ behavior EgoBehavior(target_speed=20, trajectory = None):
 
 
 # PLACEMENT 
-ego = EgoCar following roadDirection from egoStart by -Uniform(*space),
+ego = Car following roadDirection from egoStart by -Uniform(*space),
 		with blueprint 'vehicle.tesla.model3',
 		with behavior EgoBehavior(target_speed=15, trajectory=centerlines)
 
-other = EgoCar following roadDirection from actorStart by -Uniform(*space),
+other = Car following roadDirection from actorStart by -Uniform(*space),
 		with blueprint 'vehicle.tesla.model3',
 		with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=L_centerlines)
 
-#terminate when (ego in straight_maneuver.endLane)
+terminate when ego in straight_maneuver.endLane
+terminate when simulation().currentTime > TERMINATE_TIME
 
 # require that ego car reaches the intersection before the other car

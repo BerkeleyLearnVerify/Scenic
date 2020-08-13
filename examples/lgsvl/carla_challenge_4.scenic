@@ -9,6 +9,7 @@ param time_step = 1.0/10
 model scenic.simulators.lgsvl.model
 
 # CONSTANTS
+TERMINATE_TIME = 20 / globalParameters.time_step
 index1 = Uniform(0, 1, 2, 3)
 
 # GEOMETRY
@@ -21,6 +22,7 @@ intersection = Uniform(*fourLane)
 lane = intersection.incomingLanes[index1]
 pos = (OrientedPoint at lane.centerline[-1]) offset by (-2, 2) @ 0 # at last stretch of centerline, off center by at most 2
 turn = Uniform(*lane.maneuvers)
+trajectory = [turn.startLane.centerline, turn.connectingLane.centerline, turn.endLane.centerline]
 pt = Point on turn.connectingLane.centerline # point in the ego's path that the pedestrian should walk towards
 
 # BEHAVIOR
@@ -41,15 +43,15 @@ behavior CrossingBehavior():
 			take SetSpeedAction(0.0)
 
 behavior EgoBehavior():
-	throttleStrength = (0, 1)
-	while True:
-		gain = 0.1
-		delta = self.heading relative to turn.connectingLane.centerline.orientation
-		take SetSteerAction(-gain * delta), SetThrottleAction(throttleStrength)
+	brakeIntensity = (0.7, 1)
+	try:
+		FollowTrajectoryBehavior(target_speed=(20, 30), trajectory=trajectory)
+	interrupt when (distance to p) < 10:
+		take SetThrottleAction(0), SetBrakeAction(brakeIntensity)
 
 
 # PLACEMENT
-ego = EgoCar at pos, facing roadDirection, with speed 5, with behavior EgoBehavior
+ego = Car at pos, facing roadDirection, with speed 5, with behavior EgoBehavior
 
 # change this - crossings added
 # (using intersection boundary for LGSVL version since maps have no sidewalks)
@@ -59,4 +61,5 @@ p = Pedestrian at walkerSpawn offset by (-2,2) @ (-2,2),
 	with regionContainedIn None,
 	with behavior CrossingBehavior
 
-
+terminate when ego in turn.endLane
+terminate when simulation().currentTime > TERMINATE_TIME

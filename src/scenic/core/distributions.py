@@ -948,7 +948,7 @@ class UniformDistribution(Distribution):
 			else:
 				opts.append(value[opt])
 		if not opts:
-			raise RuntimeError('tried to create uniform distribution over empty domain')
+			raise RejectionException('uniform distribution over empty domain')
 		return random.choice(opts)
 
 	def evaluateInner(self, context):

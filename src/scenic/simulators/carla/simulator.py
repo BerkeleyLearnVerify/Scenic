@@ -9,6 +9,7 @@ import math
 import pygame
 
 from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
+from scenic.core.simulators import SimulationCreationError
 import scenic.simulators.carla.utils.utils as utils
 import scenic.simulators.carla.utils.visuals as visuals
 
@@ -78,7 +79,7 @@ class CarlaSimulation(DrivingSimulation):
 			# Create Carla actor
 			carlaActor = self.world.try_spawn_actor(blueprint, transform)
 			if carlaActor is None:
-				raise simulators.SimulationCreationError(f'Unable to spawn object {obj}')
+				raise SimulationCreationError(f'Unable to spawn object {obj}')
 
 			if isinstance(carlaActor, carla.Vehicle):
 				carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))

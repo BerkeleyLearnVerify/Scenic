@@ -49,10 +49,10 @@ behavior EgoBehavior(target_speed=20, trajectory = None):
 
 
 # PLACEMENT
-ego = EgoCar following roadDirection from egoStart by -Uniform(*space),
+ego = Car following roadDirection from egoStart by -Uniform(*space),
 		with blueprint 'vehicle.tesla.model3',
 		with behavior EgoBehavior(target_speed=15, trajectory=centerlines)
 
-other = EgoCar following roadDirection from actorStart by -Uniform(*space),
+other = Car following roadDirection from actorStart by -Uniform(*space),
 		with blueprint 'vehicle.tesla.model3',
 		with behavior FollowTrajectoryBehavior(target_speed=5, trajectory=L_centerlines)
