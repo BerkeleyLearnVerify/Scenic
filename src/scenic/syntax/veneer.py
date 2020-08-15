@@ -13,7 +13,7 @@ __all__ = (
 	'sin', 'cos', 'hypot', 'max', 'min',
 	'filter',
 	# Prefix operators
-	'Visible',
+	'Visible', 'NotVisible',
 	'Front', 'Back', 'Left', 'Right',
 	'FrontLeft', 'FrontRight', 'BackLeft', 'BackRight',
 	# Infix operators
@@ -626,6 +626,11 @@ def Visible(region):
 	"""The 'visible <region>' operator."""
 	region = toType(region, Region, '"visible X" with X not a Region')
 	return region.intersect(ego().visibleRegion)
+
+def NotVisible(region):
+	"""The 'not visible <region>' operator."""
+	region = toType(region, Region, '"not visible X" with X not a Region')
+	return region.difference(ego().visibleRegion)
 
 # front of <object>, etc.
 ops = (

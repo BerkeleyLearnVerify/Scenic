@@ -259,9 +259,23 @@ def test_visible():
     scenario = compileScenic("""
         ego = Object at 100 @ 200, facing -45 deg,
                      with visibleDistance 10, with viewAngle 90 deg
-        reg = RectangularRegion(100@205, 0, 10, 10)
+        reg = RectangularRegion(100@205, 0, 10, 20)
         param p = Point in visible reg
     """)
     for i in range(30):
         p = sampleParamP(scenario, maxIterations=100)
         assert p.x >= 100
+        assert p.y >= 200
+        assert math.hypot(p.x - 100, p.y - 200) <= 10
+
+def test_not_visible():
+    scenario = compileScenic("""
+        ego = Object at 100 @ 200, facing -45 deg,
+                     with visibleDistance 30, with viewAngle 90 deg
+        reg = RectangularRegion(100@200, 0, 10, 10)
+        param p = Point in not visible reg
+    """)
+    ps = [sampleParamP(scenario, maxIterations=100) for i in range(50)]
+    assert all(p.x <= 100 or p.y <= 200 for p in ps)
+    assert any(p.x > 100 for p in ps)
+    assert any(p.y > 200 for p in ps)

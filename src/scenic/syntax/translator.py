@@ -424,7 +424,8 @@ prefixOperators = {
 	('left', 'of'): 'Left',
 	('right', 'of'): 'Right',
 	('follow',): 'Follow',
-	('visible',): 'Visible'
+	('visible',): 'Visible',
+	('not', 'visible'): 'NotVisible',
 }
 assert all(1 <= len(op) <= 2 for op in prefixOperators)
 prefixIncipits = { op[0] for op in prefixOperators }
