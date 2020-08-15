@@ -24,6 +24,10 @@ def compileScenic(code, removeIndentation=True):
 def sampleScene(scenario, maxIterations=1):
     return generateChecked(scenario, maxIterations)[0]
 
+def sampleSceneFrom(code, maxIterations=1):
+    scenario = compileScenic(code)
+    return sampleScene(scenario, maxIterations=maxIterations)
+
 def sampleEgo(scenario, maxIterations=1):
     scene, iterations = generateChecked(scenario, maxIterations)
     return scene.egoObject
