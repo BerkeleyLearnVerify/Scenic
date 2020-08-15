@@ -5,7 +5,6 @@ import random
 import itertools
 
 import numpy
-import scipy.spatial
 import shapely.geometry
 import shapely.ops
 import shapely.prepared
@@ -770,6 +769,7 @@ class PointSetRegion(Region):
 		for point in self.points:
 			if needsSampling(point):
 				raise RuntimeError('only fixed PointSetRegions are supported')
+		import scipy.spatial	# slow import not often needed
 		self.kdTree = scipy.spatial.cKDTree(self.points) if kdTree is None else kdTree
 		self.orientation = orientation
 		self.tolerance = tolerance
