@@ -68,3 +68,17 @@ def test_property_inheritance():
     ego = scene.egoObject
     assert type(ego).__name__ == 'Bar'
     assert ego.flubber == 7
+
+def test_isinstance_issubclass():
+    scenario = compileScenic("""
+        class Foo: pass
+        ego = Foo
+        if isinstance(ego, Foo):
+            other = Object at 10@0
+        if not isinstance(other, Foo):
+            Object at 20@0
+        if issubclass(Foo, Point):
+            Object at 30@0
+    """)
+    scene = sampleScene(scenario)
+    assert len(scene.objects) == 4

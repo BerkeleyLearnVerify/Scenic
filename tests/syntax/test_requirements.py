@@ -75,6 +75,13 @@ def test_static_containment_violation():
             ego = Object at 10@10, with regionContainedIn foo
         """)
 
+def test_static_empty_container():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic("""
+            foo = PolylineRegion([0@0, 1@1]).intersect(PolylineRegion([1@0, 2@1]))
+            ego = Object at (0, 2) @ (0, 1), with regionContainedIn foo
+        """)
+
 def test_static_visibility_violation():
     with pytest.raises(InvalidScenarioError):
         compileScenic("""

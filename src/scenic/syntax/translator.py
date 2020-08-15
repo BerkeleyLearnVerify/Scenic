@@ -38,7 +38,7 @@ from contextlib import contextmanager
 
 import tokenize
 from tokenize import NAME, NL, NEWLINE, ENDMARKER, OP, NUMBER, COLON, COMMENT, ENCODING
-from tokenize import LPAR, RPAR, LSQB, RSQB, COMMA, DOUBLESLASH, DOUBLESLASHEQUAL
+from tokenize import LPAR, RPAR, LSQB, RSQB, RBRACE, COMMA, DOUBLESLASH, DOUBLESLASHEQUAL
 from tokenize import AT, LEFTSHIFT, RIGHTSHIFT, VBAR, AMPER, TILDE, CIRCUMFLEX, STAR
 from tokenize import LEFTSHIFTEQUAL, RIGHTSHIFTEQUAL, VBAREQUAL, AMPEREQUAL, CIRCUMFLEXEQUAL
 from tokenize import INDENT, DEDENT, STRING
@@ -962,7 +962,8 @@ class TokenTranslator:
 						injectToken((STRING, literal))
 						skip = True
 					elif (tstring in self.constructors
-						  and peek(tokens).exact_type != RPAR):      # instance definition
+						  and peek(tokens).exact_type not in (RPAR, RSQB, RBRACE, COMMA)):
+						# instance definition
 						callFunction(tstring)
 					elif tstring in replacements:	# direct replacement
 						for tok in replacements[tstring]:
