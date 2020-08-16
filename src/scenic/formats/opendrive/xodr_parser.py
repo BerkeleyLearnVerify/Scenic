@@ -708,17 +708,17 @@ class Road:
                 for id_, lane in sec.drivable_lanes.items():
                     newLane = section.lanesByOpenDriveID[id_]
                     if newLane.isForward:
-                        newLane.successor = lane.succ   # will correct inter-road links later
+                        newLane._successor = lane.succ   # will correct inter-road links later
                     else:
-                        newLane.predecessor = lane.succ
+                        newLane._predecessor = lane.succ
                 continue
-            section.successor = next_section
+            section._successor = next_section
             for id_, lane in sec.drivable_lanes.items():
                 newLane = section.lanesByOpenDriveID[id_]
                 if newLane.isForward:
-                    newLane.successor = next_section.lanesByOpenDriveID.get(lane.succ)
+                    newLane._successor = next_section.lanesByOpenDriveID.get(lane.succ)
                 else:
-                    newLane.predecessor = next_section.lanesByOpenDriveID.get(lane.succ)
+                    newLane._predecessor = next_section.lanesByOpenDriveID.get(lane.succ)
             next_section = section
 
         # Connect lane sections to adjacent lane sections
@@ -769,9 +769,9 @@ class Road:
                         laneSection._visited = True
                         assert laneSection.isForward == forward
                         if forward:
-                            nextSection = laneSection.successor
+                            nextSection = laneSection._successor
                         else:
-                            nextSection = laneSection.predecessor
+                            nextSection = laneSection._predecessor
                         if (not nextSection
                             or not isinstance(nextSection, roadDomain.LaneSection)
                             or nextSection._visited):
@@ -829,7 +829,7 @@ class Road:
                 if current.laneToLeft and current.laneToLeft.isForward == forward:
                     current = current.laneToLeft
                 leftPoints.extend(current.leftEdge.points)
-                current = current.successor
+                current = current._successor
             leftEdge = PolylineRegion(cleanChain(leftPoints))
             rightPoints = []
             current = startLanes[0]     # get rightmost lane of the first section
@@ -837,7 +837,7 @@ class Road:
                 if current.laneToRight and current.laneToRight.isForward == forward:
                     current = current.laneToRight
                 rightPoints.extend(current.rightEdge.points)
-                current = current.successor
+                current = current._successor
             rightEdge = PolylineRegion(cleanChain(rightPoints))
             middleLane = startLanes[len(startLanes)//2].lane     # rather arbitrary
             return leftEdge, middleLane.centerline, rightEdge
@@ -1343,11 +1343,11 @@ class RoadMap:
             roadA, roadB = roads[link.id_a], roads[link.id_b]
             if link.contact_a == 'start':
                 secA = roadA.sections[0]
-                roadA.predecessor = roadB
+                roadA._predecessor = roadB
                 forwardA = True
             else:
                 secA = roadA.sections[-1]
-                roadA.successor = roadB
+                roadA._successor = roadB
                 forwardA = False
             if link.contact_b == 'start':
                 secB = roadB.sections[0]
@@ -1358,23 +1358,23 @@ class RoadMap:
             lanesB = secB.lanesByOpenDriveID
             for laneA in secA.lanes:
                 if laneA.isForward == forwardA:
-                    pred = laneA.predecessor
+                    pred = laneA._predecessor
                     if pred is None:
                         continue
                     assert pred in lanesB
                     laneB = lanesB[pred]
-                    laneA.predecessor = laneB
-                    laneA.lane.predecessor = laneB.lane
-                    laneA.lane.group.predecessor = laneB.lane.group
+                    laneA._predecessor = laneB
+                    laneA.lane._predecessor = laneB.lane
+                    laneA.lane.group._predecessor = laneB.lane.group
                 else:
-                    succ = laneA.successor
+                    succ = laneA._successor
                     if succ is None:
                         continue
                     assert succ in lanesB
                     laneB = lanesB[succ]
-                    laneA.successor = laneB
-                    laneA.lane.successor = laneB.lane
-                    laneA.lane.group.successor = laneB.lane.group
+                    laneA._successor = laneB
+                    laneA.lane._successor = laneB.lane
+                    laneA.lane.group._successor = laneB.lane.group
 
         # Hook up connecting road links and create intersections
         intersections = {}
@@ -1450,14 +1450,14 @@ class RoadMap:
                     toLane = connectingLaneIDs[toID]
                     if fromLane.lane not in allIncomingLanes:
                         allIncomingLanes.append(fromLane.lane)
-                    fromLane.successor = toLane
-                    fromLane.lane.successor = toLane.lane
-                    toLane.predecessor = fromLane
-                    toLane.lane.predecessor = fromLane.lane
+                    fromLane._successor = toLane
+                    fromLane.lane._successor = toLane.lane
+                    toLane._predecessor = fromLane
+                    toLane.lane._predecessor = fromLane.lane
 
                     # Collect outgoing lane and road
                     # TODO why is it allowed for this not to exist?
-                    outgoingLane = toLane.lane.successor
+                    outgoingLane = toLane.lane._successor
                     if outgoingLane is None:
                         warnings.warn(f'connecting road {connectingID} lane {toLane} '
                                       'has no successor lane')
@@ -1523,16 +1523,16 @@ class RoadMap:
             newRoad = roads[rid]
             if oldRoad.predecessor:
                 intersection = intersections[oldRoad.predecessor]
-                newRoad.predecessor = intersection
-                newRoad.sections[0].predecessor = intersection
+                newRoad._predecessor = intersection
+                newRoad.sections[0]._predecessor = intersection
                 if newRoad.backwardLanes:
-                    newRoad.backwardLanes.successor = intersection
+                    newRoad.backwardLanes._successor = intersection
             if oldRoad.successor:
                 intersection = intersections[oldRoad.successor]
-                newRoad.successor = intersection
-                newRoad.sections[-1].successor = intersection
+                newRoad._successor = intersection
+                newRoad.sections[-1]._successor = intersection
                 if newRoad.forwardLanes:
-                    newRoad.forwardLanes.successor = intersection
+                    newRoad.forwardLanes._successor = intersection
 
         # Gather all network elements
         roads = tuple(mainRoads.values())
@@ -1555,9 +1555,9 @@ class RoadMap:
 
         # Add dummy maneuvers for lanes which merge/turn into another lane
         for lane in lanes:
-            if not lane.maneuvers and lane.successor:
+            if not lane.maneuvers and lane._successor:
                 maneuver = roadDomain.Maneuver(type=roadDomain.ManeuverType.STRAIGHT,
-                                               startLane=lane, endLane=lane.successor)
+                                               startLane=lane, endLane=lane._successor)
                 lane.maneuvers = (maneuver,)
 
         def combine(regions):
