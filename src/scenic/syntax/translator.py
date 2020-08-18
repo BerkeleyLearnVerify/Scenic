@@ -42,7 +42,7 @@ from tokenize import NAME, NL, NEWLINE, ENDMARKER, OP, NUMBER, COLON, COMMENT, E
 from tokenize import LPAR, RPAR, LSQB, RSQB, RBRACE, COMMA, DOUBLESLASH, DOUBLESLASHEQUAL
 from tokenize import AT, LEFTSHIFT, RIGHTSHIFT, VBAR, AMPER, TILDE, CIRCUMFLEX, STAR
 from tokenize import LEFTSHIFTEQUAL, RIGHTSHIFTEQUAL, VBAREQUAL, AMPEREQUAL, CIRCUMFLEXEQUAL
-from tokenize import INDENT, DEDENT, STRING
+from tokenize import INDENT, DEDENT, STRING, SEMI
 
 import ast
 from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_missing_locations
@@ -296,6 +296,7 @@ actionStatement = 'take'			# statement invoking a primitive action
 waitStatement = 'wait'				# statement invoking a no-op action
 terminateStatement = 'terminate'	# statement ending the simulation
 abortStatement = 'abort'			# statement ending a try-interrupt statement
+invokeStatement = 'do'				# statement invoking a behavior or scenario
 
 modelStatement = 'model'
 namespaceReference = '_Scenic_module_namespace'		# used in the implementation of 'model'
@@ -305,7 +306,7 @@ simulatorStatement = 'simulator'
 oneWordStatements = {	# TODO clean up
 	paramStatement, mutateStatement, requireStatement,
 	actionStatement, waitStatement, terminateStatement,
-	abortStatement, simulatorStatement
+	abortStatement, invokeStatement, simulatorStatement
 }
 twoWordStatements = { requireAlwaysStatement, terminateWhenStatement }
 
@@ -336,7 +337,7 @@ for tokens in twoWordFunctionStatements:
 # statements allowed inside behaviors
 behavioralStatements = {
 	requireStatement, actionStatement, waitStatement,
-	terminateStatement, abortStatement
+	terminateStatement, abortStatement, invokeStatement,
 }
 behavioralImps = { functionForStatement(s) for s in behavioralStatements }
 
@@ -732,6 +733,7 @@ class TokenTranslator:
 		row, col = 0, 0		# position of next token to write out
 		orow, ocol = 0, 0	# end of last token in the original source
 		startOfLine = True
+		startOfStatement = True 	# position where a (simple) statement could begin
 		constructors = self.constructors
 
 		for token in tokens:
@@ -904,7 +906,7 @@ class TokenTranslator:
 					elif twoWords in allowedPrefixOps:	# 2-word prefix operator
 						callFunction(allowedPrefixOps[twoWords])
 						advance()	# consume second word
-					elif not startOfLine and twoWords in allowedInfixOps:	# 2-word infix operator
+					elif not startOfStatement and twoWords in allowedInfixOps:	# 2-word infix operator
 						injectToken(allowedInfixOps[twoWords])
 						advance()	# consume second word
 						skip = True
@@ -915,7 +917,7 @@ class TokenTranslator:
 						callFunction(interruptExceptMarker)
 						advance()	# consume second word
 						matched = True
-					elif startOfLine and twoWords in twoWordStatements:	# 2-word statement
+					elif startOfStatement and twoWords in twoWordStatements:	# 2-word statement
 						wrapStatementCall()
 						function = functionForStatement(twoWords)
 						callFunction(function)
@@ -924,7 +926,7 @@ class TokenTranslator:
 					elif inConstructorContext and tstring == 'with':	# special case for 'with' specifier
 						callFunction('With', argument=f'"{nextString}"')
 						advance()	# consume property name
-					elif startOfLine and tstring == requireStatement and nextString == '[':
+					elif startOfStatement and tstring == requireStatement and nextString == '[':
 						# special case for require[p]
 						next(tokens)	# consume '['
 						nextToken = next(tokens)
@@ -951,12 +953,12 @@ class TokenTranslator:
 					oneWord = (tstring,)
 					if oneWord in allowedPrefixOps:		# 1-word prefix operator
 						callFunction(allowedPrefixOps[oneWord])
-					elif not startOfLine and oneWord in allowedInfixOps:	# 1-word infix operator
+					elif not startOfStatement and oneWord in allowedInfixOps:	# 1-word infix operator
 						injectToken(allowedInfixOps[oneWord])
 						skip = True
 					elif inConstructorContext:		# couldn't match any 1- or 2-word specifier
 						raise self.parseError(token, f'unknown specifier "{tstring}"')
-					elif startOfLine and tstring in oneWordStatements:		# 1-word statement
+					elif startOfStatement and tstring in oneWordStatements:		# 1-word statement
 						wrapStatementCall()
 						callFunction(tstring)
 					elif token.start[1] == 0 and tstring == modelStatement:		# model statement
@@ -1024,7 +1026,7 @@ class TokenTranslator:
 							                      'expected indented specifier (extra comma on previous line?)')
 						injectToken(nextToken)
 						specifiersIndented = True
-				elif ttype == NEWLINE or ttype == ENDMARKER or ttype == COMMENT:	# end of line
+				elif ttype in (NEWLINE, ENDMARKER, COMMENT, SEMI):	# end of line or statement
 					if parenLevel != 0:
 						raise self.parseError(token, 'unmatched parens/brackets')
 					interrupt = False
@@ -1046,6 +1048,7 @@ class TokenTranslator:
 			else:
 				moveBeyond(endToken)
 			startOfLine = (ttype in (ENCODING, NEWLINE, NL, INDENT, DEDENT))
+			startOfStatement = startOfLine or (ttype == SEMI)
 
 		rewrittenSource = tokenize.untokenize(newTokens)
 		if not isinstance(rewrittenSource, str):	# TODO improve?
@@ -1308,18 +1311,25 @@ class ASTSurgeon(NodeTransformer):
 			sim = self.visit(node.args[0])
 			closure = copy_location(Lambda(noArgs, sim), sim)
 			return copy_location(Expr(Call(func, [closure], [])), node)
+		elif func.id == invokeStatement:		# Sub-behavior or sub-scenario statement
+			self.validateSimpleCall(node, (1, None), onlyInBehaviors=True)
+			subHandler = Attribute(Name(behaviorArgName, Load()), 'callSubBehavior', Load())
+			args = [self.visit(arg) for arg in node.args]
+			subArgs = [Name('self', Load())] + args
+			subRunner = Call(subHandler, subArgs, [])
+			return self.generateInvocation(node, subRunner, invoker=YieldFrom)
 		elif func.id == actionStatement:		# Action statement
 			self.validateSimpleCall(node, (1, None), onlyInBehaviors=True)
 			action = Tuple(self.visit(node.args), Load())
-			return self.generateActionInvocation(node, action)
+			return self.generateInvocation(node, action)
 		elif func.id == waitStatement:		# Wait statement
 			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
-			return self.generateActionInvocation(node, Constant((), None))
+			return self.generateInvocation(node, Constant((), None))
 		elif func.id == terminateStatement:		# Terminate statement
 			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
 			termination = Call(Name(createTerminationAction, Load()),
 			                   [Constant(node.lineno, None)], [])
-			return self.generateActionInvocation(node, termination)
+			return self.generateInvocation(node, termination)
 		elif func.id == abortStatement:		# abort statement for try-interrupt statements
 			if not self.inTryInterrupt:
 				raise self.parseError(node, '"abort" outside of try-interrupt statement')
@@ -1327,11 +1337,32 @@ class ASTSurgeon(NodeTransformer):
 			return copy_location(Return(abortFlag), node)
 		else:
 			# statement implemented directly by a function; leave call intact
-			newCall = self.visit_Call(node, subBehaviorCheck=False)
+			newCall = self.visit_Call(node)
 			return copy_location(Expr(newCall), node)
 
-	def generateActionInvocation(self, node, action):
-		invokeAction = Expr(Yield(action))
+	def validateSimpleCall(self, node, numArgs, onlyInBehaviors=False):
+		func = node.func
+		name = func.id
+		if onlyInBehaviors and not self.inBehavior:
+			raise self.parseError(node, f'"{name}" can only be used in a behavior')
+		if isinstance(numArgs, tuple):
+			assert len(numArgs) == 2
+			low, high = numArgs
+			if high is not None and len(node.args) > high:
+				raise self.parseError(node, f'"{name}" takes at most {high} argument(s)')
+			if len(node.args) < low:
+				raise self.parseError(node, f'"{name}" takes at least {low} argument(s)')
+		elif len(node.args) != numArgs:
+			raise self.parseError(node, f'"{name}" takes exactly {numArgs} argument(s)')
+		if len(node.keywords) != 0:
+			raise self.parseError(node, f'"{name}" takes no keyword arguments')
+		for arg in node.args:
+			if isinstance(arg, Starred):
+				raise self.parseError(node, f'argument unpacking cannot be used with "{name}"')
+
+	def generateInvocation(self, node, actionlike, invoker=Yield):
+		"""Generate an invocation of an action, behavior, or scenario."""
+		invokeAction = Expr(invoker(actionlike))
 		checkInvariants = Expr(Call(Name(checkInvariantsName, Load()), [], []))
 		return [copy_location(invokeAction, node), copy_location(checkInvariants, node)]
 
@@ -1477,13 +1508,12 @@ class ASTSurgeon(NodeTransformer):
 		else:
 			return self.generic_visit(node)
 
-	def visit_Call(self, node, subBehaviorCheck=True):
+	def visit_Call(self, node):
 		"""Handle Scenic syntax and semantics of function calls.
 
 		In particular:
 		  * unpack argument packages for operators;
-		  * check for iterable unpacking applied to distributions;
-		  * check for sub-behavior invocation inside behaviors.
+		  * check for iterable unpacking applied to distributions.
 		"""
 		func = node.func
 		newArgs = []
@@ -1504,84 +1534,13 @@ class ASTSurgeon(NodeTransformer):
 		newKeywords = [self.visit(kwarg) for kwarg in node.keywords]
 		newFunc = self.visit(func)
 		self.callDepth -= 1
-		if subBehaviorCheck and self.inBehavior and not self.inGuard and not self.inRequire:
-			# Add check for sub-behavior invocation
-			newNode = self.wrapBehaviorCall(newFunc, newArgs, newKeywords)
-		elif wrappedStar:
+		if wrappedStar:
 			newNode = Call(Name('callWithStarArgs', Load()), [newFunc] + newArgs, newKeywords)
 		else:
 			newNode = Call(newFunc, newArgs, newKeywords)
 		newNode = copy_location(newNode, node)
 		ast.fix_missing_locations(newNode)
 		return newNode
-
-	def validateSimpleCall(self, node, numArgs, onlyInBehaviors=False):
-		func = node.func
-		name = func.id
-		if onlyInBehaviors and not self.inBehavior:
-			raise self.parseError(node, f'"{name}" can only be used in a behavior')
-		if isinstance(numArgs, tuple):
-			assert len(numArgs) == 2
-			low, high = numArgs
-			if high is not None and len(node.args) > high:
-				raise self.parseError(node, f'"{name}" takes at most {high} argument(s)')
-			if len(node.args) < low:
-				raise self.parseError(node, f'"{name}" takes at least {low} argument(s)')
-		elif len(node.args) != numArgs:
-			raise self.parseError(node, f'"{name}" takes exactly {numArgs} argument(s)')
-		if len(node.keywords) != 0:
-			raise self.parseError(node, f'"{name}" takes no keyword arguments')
-		for arg in node.args:
-			if isinstance(arg, Starred):
-				raise self.parseError(node, f'argument unpacking cannot be used with "{name}"')
-
-	def wrapBehaviorCall(self, func, args, keywords):
-		"""Wraps a function call to handle calling a behavior.
-
-		Specifically, transforms a call of the form:
-			function(args)
-		into:
-			(CHECK(yield from BEHAVIOR.callSubBehavior(TEMP, self, TEMP2))
-			if isABehavior(TEMP := function, TEMP2 := args)
-			else TEMP(TEMP2))
-		where TEMP and TEMP2 are temporary names (we actually save each argument),
-		BEHAVIOR is a hidden argument storing the current Behavior object, and
-		CHECK is a function which checks the invariants and returns its argument.
-
-		The := expressions are necessary to prevent unexpected behavior if the expression
-		'function' has side effects, and exponential blowup for nested function calls. We
-		use separate temporary names for each nesting depth, in case 'args' contains
-		further wrapped function calls.
-		"""
-		newArgs, savedArgs = [], []
-		for i, arg in enumerate(args):
-			name = f'{temporaryName}_arg_{self.callDepth}_{i}'
-			if isinstance(arg, Starred):
-				newArg = Starred(NamedExpr(Name(name, Store()), arg.value), arg.ctx)
-				savedArg = Starred(Name(name, Load()), Load())
-			else:
-				newArg = NamedExpr(Name(name, Store()), arg)
-				savedArg = Name(name, Load())
-			newArgs.append(newArg)
-			savedArgs.append(savedArg)
-		newKwargs, savedKwargs = [], []
-		for i, arg in enumerate(keywords):
-			name = f'{temporaryName}_kwarg_{self.callDepth}_{i}'
-			newArg = ast.keyword(arg.arg, NamedExpr(Name(name, Store()), arg.value))
-			newKwargs.append(newArg)
-			savedKwargs.append(ast.keyword(arg.arg, Name(name, Load())))
-
-		name = f'{temporaryName}_func_{self.callDepth}'
-		savedFunc = NamedExpr(Name(name, Store()), func)
-		condition = Call(Name(behaviorChecker, Load()), [savedFunc] + newArgs, newKwargs)
-		subHandler = Attribute(Name(behaviorArgName, Load()), 'callSubBehavior', Load())
-
-		subArgs = [Name(name, Load()), Name('self', Load())] + savedArgs
-		subCall = Call(subHandler, subArgs, savedKwargs)
-		yieldFrom = YieldFrom(subCall)
-		checkedSubCall = Call(Name(checkInvariantsName, Load()), [yieldFrom], [])
-		ordinaryCall = Call(Name(name, Load()), savedArgs, savedKwargs)
-		return IfExp(condition, checkedSubCall, ordinaryCall)
 
 	def visit_AsyncFunctionDef(self, node):
 		"""Process behavior definitions."""

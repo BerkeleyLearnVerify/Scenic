@@ -356,10 +356,10 @@ class Behavior(Samplable):
 		self.agent = None
 		self.runningIterator = None
 
-	def callSubBehavior(self, subcls, agent, *args, **kwargs):
+	def callSubBehavior(self, agent, sub):
 		global currentBehavior
-		assert issubclass(subcls, Behavior)
-		sub = subcls(*args, **kwargs)
+		if not isinstance(sub, Behavior):
+			raise RuntimeParseError(f'expected a behavior, got {sub}')
 		if not sub.start(agent):
 			return
 		try:
