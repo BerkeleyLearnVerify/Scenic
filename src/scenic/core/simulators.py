@@ -220,8 +220,11 @@ class Simulation:
 
 class DummySimulator(Simulator):
     """Simulator which does nothing, for debugging purposes."""
+    def __init__(self, timestep=1):
+        self.timestep = timestep
+
     def createSimulation(self, scene):
-        return DummySimulation(scene)
+        return DummySimulation(scene, timestep=self.timestep)
 
 class DummySimulation(Simulation):
     def actionsAreCompatible(self, agent, actions):

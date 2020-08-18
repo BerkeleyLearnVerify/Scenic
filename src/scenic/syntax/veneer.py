@@ -43,6 +43,7 @@ __all__ = (
 	# Internal APIs 	# TODO remove?
 	'PropertyDefault', 'Behavior', 'Monitor', 'isABehavior', 'makeTerminationAction',
 	'BlockConclusion', 'runTryInterrupt', 'wrapStarredValue', 'callWithStarArgs',
+	'Modifier',
 )
 
 # various Python types and functions used in the language but defined elsewhere
@@ -71,6 +72,7 @@ import enum
 import os.path
 import traceback
 import types
+import typing
 import itertools
 from collections import defaultdict
 from scenic.core.distributions import (Samplable, RejectionException, Distribution,
@@ -356,10 +358,33 @@ class Behavior(Samplable):
 		self.agent = None
 		self.runningIterator = None
 
-	def callSubBehavior(self, agent, sub):
-		global currentBehavior
+	def callSubBehavior(self, agent, sub, modifier=None):
 		if not isinstance(sub, Behavior):
 			raise RuntimeParseError(f'expected a behavior, got {sub}')
+		if modifier:
+			if modifier.name == 'for':	# do X for Y [seconds | steps]
+				timeLimit = modifier.value
+				if not isinstance(timeLimit, (float, int)):
+					raise RuntimeParseError('"do X for Y" with Y not a number')
+				assert modifier.terminator in (None, 'seconds', 'steps')
+				if modifier.terminator != 'steps':
+					timeLimit /= currentSimulation.timestep
+				startTime = currentSimulation.currentTime
+				condition = lambda: currentSimulation.currentTime - startTime >= timeLimit
+			elif modifier.name == 'until':	# do X until Y
+				condition = modifier.value
+			else:
+				raise RuntimeError(f'internal parsing error: impossible modifier {modifier}')
+
+			def body(behavior, agent):
+				yield from self.invokeInner(agent, sub)
+			handler = lambda behavior, agent: BlockConclusion.ABORT
+			yield from runTryInterrupt(self, agent, body, [condition], [handler])
+		else:
+			yield from self.invokeInner(agent, sub)
+
+	def invokeInner(self, agent, sub):
+		global currentBehavior
 		if not sub.start(agent):
 			return
 		try:
@@ -468,6 +493,13 @@ class InterruptBlock:
 		except StopIteration as e:
 			self.runningIterator = None
 			return (e.value, True)
+
+### Parsing support
+
+class Modifier(typing.NamedTuple):
+	name: str
+	value: typing.Any
+	terminator: typing.Optional[str] = None
 
 ### Primitive statements and functions
 

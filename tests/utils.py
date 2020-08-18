@@ -46,31 +46,34 @@ def sampleParamPFrom(code, maxIterations=1):
 
 # Dynamic simulations
 
-def sampleEgoActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1, singleAction=True):
+def sampleEgoActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
+                     singleAction=True, timestep=1):
     allActions = sampleActions(scenario, maxIterations, maxSteps, maxScenes,
-                               singleAction, asMapping=False)
+                               singleAction, asMapping=False, timestep=timestep)
     return [actions[0] for actions in allActions]
 
-def sampleEgoActionsFromScene(scene, maxIterations=1, maxSteps=1, singleAction=True):
+def sampleEgoActionsFromScene(scene, maxIterations=1, maxSteps=1, singleAction=True, timestep=1):
     allActions = sampleActionsFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps,
-                                        singleAction=singleAction, asMapping=False)
+                                        singleAction=singleAction, asMapping=False,
+                                        timestep=timestep)
     if allActions is None:
         return None
     return [actions[0] for actions in allActions]
 
 def sampleActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
-                  singleAction=True, asMapping=False):
+                  singleAction=True, asMapping=False, timestep=1):
     for i in range(maxScenes):
         scene, iterations = generateChecked(scenario, maxIterations)
         actions = sampleActionsFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps,
-                                         singleAction=singleAction, asMapping=asMapping)
+                                         singleAction=singleAction, asMapping=asMapping,
+                                         timestep=timestep)
         if actions is not None:
             return actions
     assert False, f'unable to find successful simulation over {maxScenes} scenes'
 
 def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1,
-                           singleAction=True, asMapping=False):
-    sim = DummySimulator()
+                           singleAction=True, asMapping=False, timestep=1):
+    sim = DummySimulator(timestep=timestep)
     result = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
     if not result:
         return None

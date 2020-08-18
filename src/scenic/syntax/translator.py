@@ -437,6 +437,23 @@ assert not any(op in twoWordStatements for op in prefixOperators)
 for imp in prefixOperators.values():
 	assert imp in api, imp
 
+## Modifiers
+
+class ModifierInfo(typing.NamedTuple):
+	name: str
+	terminators: typing.Tuple[str]
+	contexts: typing.Optional[typing.Tuple[str]] = ()
+
+modifiers = (
+	ModifierInfo('for', ('seconds', 'steps'), (invokeStatement,)),
+	ModifierInfo('until', (), (invokeStatement,)),
+)
+
+modifierNames = {}
+for mod in modifiers:
+	assert mod.name not in modifierNames, mod
+	modifierNames[mod.name] = mod
+
 ## Infix operators
 
 # pseudo-operator for encoding argument packages for (3+)-ary ops
@@ -494,8 +511,7 @@ for op in infixOperators:
 			assert imp == oldName, (op, oldName)
 		else:
 			infixImplementations[node] = (op.arity, imp)
-
-allIncipits = prefixIncipits | infixIncipits
+generalInfixOps = { tokens: op.token for tokens, op in infixTokens.items() if not op.contexts }
 
 ## Direct syntax replacements
 
@@ -728,6 +744,7 @@ class TokenTranslator:
 		tokens = Peekable(tokens)
 		newTokens = []
 		functionStack = []
+		context, startLevel = None, None
 		specifiersIndented = False
 		parenLevel = 0
 		row, col = 0, 0		# position of next token to write out
@@ -794,16 +811,22 @@ class TokenTranslator:
 				else:
 					injectToken(nextToken)
 				return nextToken
-			def callFunction(function, argument=None):
+			def callFunction(function, argument=None, implementation=None):
 				nonlocal skip, matched, functionStack
 				functionStack.append((function, parenLevel))
-				injectToken((NAME, function))
+				implementation = function if implementation is None else implementation
+				injectToken((NAME, implementation))
 				injectToken((LPAR, '('))
 				if argument is not None:
-					injectToken((NAME, argument))
+					injectToken(argument)
 					injectToken((COMMA, ','))
 				skip = True
 				matched = True
+			def popFunction():
+				nonlocal context, startLevel
+				functionStack.pop()
+				injectToken((RPAR, ')'))
+				context, startLevel = (None, 0) if len(functionStack) == 0 else functionStack[-1]
 			def wrapStatementCall():
 				injectToken((NAME, 'raise'), spaceAfter=1)
 				injectToken((NAME, statementRaiseMarker), spaceAfter=1)
@@ -814,17 +837,27 @@ class TokenTranslator:
 				raise self.parseError(token, f'illegal operator "{tstring}"')
 
 			# Determine which operators are allowed in current context
+			allowedPrefixOps = prefixOperators
 			allowedInfixOps = dict()
+			allowedModifiers = dict()
+			allowedTerminators = set()
+			inConstructorContext = False
 			context, startLevel = functionStack[-1] if functionStack else (None, None)
-			contextActive = (parenLevel == startLevel)
-			inConstructorContext = (contextActive and context in constructors)
-			if inConstructorContext:
-				allowedPrefixOps = self.specifiersForConstructor(context)
+			if parenLevel == startLevel:
+				if context in constructors:
+					inConstructorContext = True
+					allowedPrefixOps = self.specifiersForConstructor(context)
+				else:
+					for opTokens, op in infixTokens.items():
+						if not op.contexts or context in op.contexts:
+							allowedInfixOps[opTokens] = op.token
+					for name, mod in modifierNames.items():
+						if not mod.contexts or context in mod.contexts:
+							allowedModifiers[name] = mod.name
+					if context in modifierNames:
+						allowedTerminators = modifierNames[context].terminators
 			else:
-				allowedPrefixOps = prefixOperators
-				for opTokens, op in infixTokens.items():
-					if not op.contexts or (contextActive and context in op.contexts):
-						allowedInfixOps[opTokens] = op.token
+				allowedInfixOps = generalInfixOps
 
 			# Parse next token
 			if ttype == LPAR or ttype == LSQB:		# keep track of nesting level
@@ -924,7 +957,7 @@ class TokenTranslator:
 						advance()   # consume second word
 						matched = True
 					elif inConstructorContext and tstring == 'with':	# special case for 'with' specifier
-						callFunction('With', argument=f'"{nextString}"')
+						callFunction('With', argument=(STRING, f'"{nextString}"'))
 						advance()	# consume property name
 					elif startOfStatement and tstring == requireStatement and nextString == '[':
 						# special case for require[p]
@@ -941,7 +974,7 @@ class TokenTranslator:
 						if nextToken.exact_type != RSQB:
 							raise self.parseError(nextToken, 'malformed soft requirement')
 						wrapStatementCall()
-						callFunction(softRequirement, argument=prob)
+						callFunction(softRequirement, argument=(NUMBER, prob))
 						endToken = nextToken
 					elif twoWords in illegalConstructs:
 						construct = ' '.join(twoWords)
@@ -958,6 +991,16 @@ class TokenTranslator:
 						skip = True
 					elif inConstructorContext:		# couldn't match any 1- or 2-word specifier
 						raise self.parseError(token, f'unknown specifier "{tstring}"')
+					elif not startOfStatement and tstring in allowedModifiers:
+						injectToken((COMMA, ','))
+						callFunction(tstring, argument=(STRING, f'"{tstring}"'),
+						             implementation='Modifier')
+						skip = True
+					elif not startOfStatement and tstring in allowedTerminators:
+						injectToken((COMMA, ','))
+						injectToken((STRING, f'"{tstring}"'))
+						popFunction()
+						skip = True
 					elif startOfStatement and tstring in oneWordStatements:		# 1-word statement
 						wrapStatementCall()
 						callFunction(tstring)
@@ -972,7 +1015,7 @@ class TokenTranslator:
 							raise self.parseError(token, 'model statement is missing module name')
 						components.append("'")
 						literal = "'" + ''.join(components)
-						callFunction(modelStatement, argument=namespaceReference)
+						callFunction(modelStatement, argument=(NAME, namespaceReference))
 						injectToken((STRING, literal))
 						skip = True
 					elif (tstring in self.constructors
@@ -996,15 +1039,11 @@ class TokenTranslator:
 			if len(functionStack) > 0:
 				context, startLevel = functionStack[-1]
 				while parenLevel < startLevel:		# we've closed all parens for the current function
-					functionStack.pop()
-					injectToken((RPAR, ')'))
-					context, startLevel = (None, 0) if len(functionStack) == 0 else functionStack[-1]
+					popFunction()
 				inConstructor = any(context in constructors for context, sl in functionStack)
 				if inConstructor and parenLevel == startLevel and ttype == COMMA:		# starting a new specifier
 					while functionStack and context not in constructors:
-						functionStack.pop()
-						injectToken((RPAR, ')'))
-						context, startLevel = (None, 0) if len(functionStack) == 0 else functionStack[-1]
+						popFunction()
 					# allow the next specifier to be on the next line, if indented
 					injectToken(token)		# emit comma immediately
 					skip = True
@@ -1312,9 +1351,28 @@ class ASTSurgeon(NodeTransformer):
 			closure = copy_location(Lambda(noArgs, sim), sim)
 			return copy_location(Expr(Call(func, [closure], [])), node)
 		elif func.id == invokeStatement:		# Sub-behavior or sub-scenario statement
-			self.validateSimpleCall(node, (1, None), onlyInBehaviors=True)
+			seenModifier = False
+			invoked = []
+			args = []
+			for arg in node.args:
+				if (isinstance(arg, Call) and isinstance(arg.func, Name)
+				    and arg.func.id == 'Modifier'):
+					if seenModifier:
+						self.parseError(arg,
+						    f'incompatible qualifiers for "{invokeStatement}" statement')
+					seenModifier = True
+					assert len(arg.args) >= 2
+					assert isinstance(arg.args[0], Constant)
+					if arg.args[0].value == 'until':
+						arg.args[1] = Lambda(noArgs, arg.args[1])
+				elif seenModifier:
+					self.parseError(arg, f'malformed "{invokeStatement}" statement')
+				else:
+					invoked.append(arg)
+				args.append(self.visit(arg))
+			maxInvoked = 1 if self.inBehavior else None
+			self.validateSimpleCall(node, (1, maxInvoked), onlyInBehaviors=True, args=invoked)
 			subHandler = Attribute(Name(behaviorArgName, Load()), 'callSubBehavior', Load())
-			args = [self.visit(arg) for arg in node.args]
 			subArgs = [Name('self', Load())] + args
 			subRunner = Call(subHandler, subArgs, [])
 			return self.generateInvocation(node, subRunner, invoker=YieldFrom)
@@ -1340,23 +1398,24 @@ class ASTSurgeon(NodeTransformer):
 			newCall = self.visit_Call(node)
 			return copy_location(Expr(newCall), node)
 
-	def validateSimpleCall(self, node, numArgs, onlyInBehaviors=False):
+	def validateSimpleCall(self, node, numArgs, onlyInBehaviors=False, args=None):
 		func = node.func
 		name = func.id
 		if onlyInBehaviors and not self.inBehavior:
 			raise self.parseError(node, f'"{name}" can only be used in a behavior')
+		args = node.args if args is None else args
 		if isinstance(numArgs, tuple):
 			assert len(numArgs) == 2
 			low, high = numArgs
-			if high is not None and len(node.args) > high:
+			if high is not None and len(args) > high:
 				raise self.parseError(node, f'"{name}" takes at most {high} argument(s)')
-			if len(node.args) < low:
+			if len(args) < low:
 				raise self.parseError(node, f'"{name}" takes at least {low} argument(s)')
-		elif len(node.args) != numArgs:
+		elif len(args) != numArgs:
 			raise self.parseError(node, f'"{name}" takes exactly {numArgs} argument(s)')
 		if len(node.keywords) != 0:
 			raise self.parseError(node, f'"{name}" takes no keyword arguments')
-		for arg in node.args:
+		for arg in args:
 			if isinstance(arg, Starred):
 				raise self.parseError(node, f'argument unpacking cannot be used with "{name}"')
 

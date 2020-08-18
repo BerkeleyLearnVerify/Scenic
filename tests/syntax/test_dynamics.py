@@ -1,7 +1,7 @@
 
 import pytest
 
-from scenic.core.errors import RuntimeParseError
+from scenic.core.errors import RuntimeParseError, ScenicSyntaxError
 
 from tests.utils import (compileScenic, sampleScene, sampleActions, sampleActionsFromScene,
                          sampleEgoActions, sampleEgoActionsFromScene, checkErrorLineNumber)
@@ -293,18 +293,76 @@ def test_behavior_ordering_default():
 # Nesting (sub-behaviors)
 
 def test_behavior_nesting():
-    scenario = compileScenic(
-        'behavior Foo(a):\n'
-        '    take a\n'
-        '    take a\n'
-        'behavior Bar():\n'
-        '    take 1\n'
-        '    do Foo(2)\n'
-        '    take 3\n'
-        'ego = Object with behavior Bar\n'
-    )
+    scenario = compileScenic("""
+        behavior Foo(a):
+            take a
+            take a
+        behavior Bar():
+            take 1
+            do Foo(2)
+            take 3
+        ego = Object with behavior Bar
+    """)
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, 2, 2, 3)
+
+def test_subbehavior_for_steps():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take 1
+        behavior Bar():
+            do Foo() for 3 steps
+            take 2
+        ego = Object with behavior Bar
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (1, 1, 1, 2)
+
+def test_subbehavior_for_time():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take 1
+        behavior Bar():
+            do Foo() for 3 seconds
+            take 2
+        ego = Object with behavior Bar
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=7, timestep=0.5)
+    assert tuple(actions) == (1, 1, 1, 1, 1, 1, 2)
+
+def test_subbehavior_until():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take 1
+        behavior Bar():
+            do Foo() until simulation().currentTime == 2
+            take 2
+        ego = Object with behavior Bar
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (1, 1, 2, None)
+
+def test_behavior_invoke_mistyped():
+    scenario = compileScenic("""
+        behavior Foo():
+            do 12
+        ego = Object with behavior Foo
+    """)
+    with pytest.raises(RuntimeParseError):
+        sampleActions(scenario)
+
+def test_behavior_invoke_multiple():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            behavior Foo():
+                take 5
+            behavior Bar():
+                do Foo(), Foo()
+            ego = Object with behavior Bar
+        """)
 
 def test_behavior_calls():
     """Ordinary function calls inside behaviors should still work."""
