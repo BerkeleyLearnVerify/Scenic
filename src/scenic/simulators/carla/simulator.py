@@ -6,10 +6,15 @@ except ImportError as e:
 
 import math
 
+from scenic.syntax.translator import verbosity
+if verbosity == 0:	# suppress pygame advertisement at zero verbosity
+	import os
+	os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
 import pygame
 
 from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
 from scenic.core.simulators import SimulationCreationError
+from scenic.syntax.veneer import verbosePrint
 import scenic.simulators.carla.utils.utils as utils
 import scenic.simulators.carla.utils.visuals as visuals
 
@@ -18,6 +23,7 @@ class CarlaSimulator(DrivingSimulator):
 	def __init__(self, carla_map, address='127.0.0.1', port=2000, timeout=10,
 		         render=True, record=False, timestep=0.1):
 		super().__init__()
+		verbosePrint('Connecting to CARLA...')
 		self.client = carla.Client(address, port)
 		self.client.set_timeout(timeout)  # limits networking operations (seconds)
 		self.world = self.client.load_world(carla_map)
@@ -29,6 +35,7 @@ class CarlaSimulator(DrivingSimulator):
 		settings.synchronous_mode = True
 		settings.fixed_delta_seconds = timestep  # NOTE: Should not exceed 0.1
 		self.world.apply_settings(settings)
+		verbosePrint('Map loaded in simulator.')
 
 		self.render = render  # visualization mode ON/OFF
 		self.record = record  # whether to save images to disk

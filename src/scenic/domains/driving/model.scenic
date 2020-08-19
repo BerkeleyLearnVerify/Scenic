@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 
 from scenic.domains.driving.workspace import DrivingWorkspace
 from scenic.domains.driving.roads import ManeuverType, Network
+from scenic.domains.driving.actions import *
+from scenic.domains.driving.behaviors import *
 
 from scenic.simulators.utils.colors import Color
 
