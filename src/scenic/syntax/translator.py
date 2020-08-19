@@ -274,9 +274,7 @@ for imp in builtinFunctions:
 
 ## Built-in names (values which cannot be overwritten)
 
-globalParametersName = 'globalParameters'
-
-builtinNames = { globalParametersName }
+builtinNames = set()
 
 # sanity check: built-in names actually exist
 for name in builtinNames:
@@ -502,6 +500,7 @@ replacements = {	# TODO police the usage of these? could yield bizarre error mes
 	'of': tuple(),
 	'deg': ((STAR, '*'), (NUMBER, '0.01745329252')),
 	'ego': ((NAME, 'ego'), (LPAR, '('), (RPAR, ')')),
+	'globalParameters': ((NAME, 'globalParameters'), (LPAR, '('), (RPAR, ')')),
 	behaviorStatement: ((NAME, 'async'), (NAME, 'def')),
 }
 
@@ -578,7 +577,6 @@ class ScenicLoader(importlib.abc.InspectLoader):
 		# objects, parameters, etc. from this one
 		if veneer.isActive():
 			veneer.allObjects.extend(module._objects)
-			veneer._globalParameters.update(getattr(module, globalParametersName))
 			veneer.externalParameters.extend(module._externalParams)
 			veneer.inheritedReqs.extend(module._requirements)
 			veneer.behaviors.extend(module._behaviors)
@@ -1758,8 +1756,8 @@ def storeScenarioStateIn(namespace, requirementSyntax, filename):
 	namespace['_egoObject'] = veneer.egoObject
 
 	# Extract global parameters
-	savedParams = veneer.globalParameters._clone_table()
-	namespace[globalParametersName] = savedParams
+	savedParams = veneer.globalParameters()._clone_table()
+	namespace['_params'] = savedParams
 	for name, value in savedParams.items():
 		if needsLazyEvaluation(value):
 			raise InvalidScenarioError(f'parameter {name} uses value {value}'
@@ -1874,7 +1872,7 @@ def constructScenarioFrom(namespace):
 	# Create Scenario object
 	scenario = Scenario(workspace, namespace['_simulatorFactory'],
 	                    namespace['_objects'], namespace['_egoObject'],
-	                    namespace[globalParametersName], namespace['_externalParams'],
+	                    namespace['_params'], namespace['_externalParams'],
 	                    namespace['_requirements'], namespace['_requirementDeps'],
                         namespace['_monitors'], namespace['_behaviorNamespaces'])
 

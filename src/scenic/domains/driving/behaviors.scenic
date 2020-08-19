@@ -1,10 +1,17 @@
 
 import scenic.domains.driving.controllers as controllers
 from scenic.domains.driving.actions import *
+import scenic.domains.driving.model as model
 
 behavior ConstantThrottleBehavior(x):
     while True:
         take SetThrottleAction(x), SetReverseAction(False), SetHandBrakeAction(False)
+
+behavior DriveAvoidingCollisions(target_speed=25, avoidance_threshold=10):
+    try:
+        FollowLaneBehavior(target_speed=target_speed)
+    interrupt when self.distanceToClosest(model.Vehicle) <= avoidance_threshold:
+        take SetThrottleAction(0), SetBrakeAction(1)
 
 behavior FollowLaneBehavior(target_speed=25, network=None, lane=None):
 

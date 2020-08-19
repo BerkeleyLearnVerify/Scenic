@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 
 from scenic.domains.driving.workspace import DrivingWorkspace
 from scenic.domains.driving.roads import ManeuverType, Network
+from scenic.domains.driving.actions import *
+from scenic.domains.driving.behaviors import *
 
 from scenic.core.distributions import RejectionException
 from scenic.simulators.utils.colors import Color
@@ -77,6 +79,19 @@ class DrivingObject:
     @property
     def element(self):
         return network.elementAt(self, reject='object is not on any network element')
+
+    # Utility functions
+
+    def distanceToClosest(self, type_):
+        objects = simulation().objects
+        minDist = float('inf')
+        for obj in objects:
+            if not isinstance(obj, type_):
+                continue
+            d = distance from self to obj
+            if 0 < d < minDist:
+                minDist = d
+        return minDist
 
     # Simulator interface implemented by subclasses
 

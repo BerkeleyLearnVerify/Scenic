@@ -144,7 +144,6 @@ def deactivate():
 	assert currentSimulation is None
 	allObjects = []
 	egoObject = None
-	_globalParameters.clear()	# keep same object so proxy will still work
 	externalParameters = []
 	pendingRequirements = defaultdict(list)
 	inheritedReqs = []
@@ -152,6 +151,7 @@ def deactivate():
 	behaviors = []
 
 	if activity == 0:
+		_globalParameters = {}
 		lockedParameters = set()
 		lockedModel = None
 		simulatorFactory = None
@@ -606,8 +606,8 @@ class ParameterTableProxy(collections.abc.Mapping):
 	def _clone_table(self):
 		return ParameterTableProxy(self._internal_map.copy())
 
-#: built-in name for accessing the global parameters
-globalParameters = ParameterTableProxy(_globalParameters)
+def globalParameters():
+	return ParameterTableProxy(_globalParameters)
 
 def mutate(*objects):		# TODO update syntax
 	"""Function implementing the mutate statement."""

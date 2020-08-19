@@ -12,6 +12,7 @@ from scenic.core.vectors import Vector
 from scenic.core.utils import areEquivalent
 from scenic.core.errors import InvalidScenarioError
 from scenic.syntax.veneer import Behavior, RequirementType, BoundRequirement
+import scenic.syntax.veneer as veneer
 
 class Scene:
 	"""A scene generated from a Scenic scenario.
@@ -263,4 +264,9 @@ class Scenario:
 	def getSimulator(self):
 		if self.simulator is None:
 			raise RuntimeError('scenario does not specify a simulator')
-		return self.simulator()
+		try:
+			assert not veneer._globalParameters		# TODO improve hack!
+			veneer._globalParameters = dict(self.params)
+			return self.simulator()
+		finally:
+			veneer._globalParameters = {}
