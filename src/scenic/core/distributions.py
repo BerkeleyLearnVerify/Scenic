@@ -9,7 +9,6 @@ import typing
 import warnings
 
 import numpy
-import scipy
 
 from scenic.core.lazy_eval import (LazilyEvaluable,
     requiredProperties, needsLazyEvaluation, valueInContext, makeDelayedFunctionCall)
@@ -684,6 +683,7 @@ class Normal(Distribution):
 
 	@staticmethod
 	def cdfinv(mean, stddev, x):
+		import scipy	# slow import not often needed
 		return mean + (sqrt2 * stddev * scipy.special.erfinv(2*x - 1))
 
 	def clone(self):

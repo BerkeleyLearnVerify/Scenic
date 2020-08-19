@@ -7,6 +7,7 @@ import inspect
 
 from tests.utils import compileScenic, sampleScene, sampleEgo
 from scenic.core.geometry import TriangulationError
+from scenic.core.distributions import RejectionException
 
 template = inspect.cleandoc("""
     param map = '{map}'
@@ -70,7 +71,12 @@ def test_elements_at(cached_maps):
     ego = scene.egoObject
     for param in ('element', 'road', 'lane', 'laneSection', 'laneGroup', 'crossing',
                   'intersection'):
-        assert scene.params[param] is getattr(ego, param), param
+        val = scene.params[param]
+        if val is None:
+            with pytest.raises(RejectionException):
+                getattr(ego, param)
+        else:
+            assert val is getattr(ego, param), param
 
 def test_intersection(cached_maps):
     scenario = compileDrivingScenario(cached_maps, """
@@ -102,7 +108,7 @@ def test_caching(cached_maps):
     """
     for cache in (False, True):
         scenario = compileDrivingScenario(cached_maps, """
-            lanes = filter(lambda l: l.successor, network.lanes)
+            lanes = filter(lambda l: l._successor, network.lanes)
             lane = Uniform(*lanes)
             ego = Car on lane, with foo lane.network.lanes
             Car on ego.lane.successor.centerline, with requireVisible False

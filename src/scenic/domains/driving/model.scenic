@@ -7,6 +7,7 @@ from scenic.domains.driving.roads import ManeuverType, Network
 from scenic.domains.driving.actions import *
 from scenic.domains.driving.behaviors import *
 
+from scenic.core.distributions import RejectionException
 from scenic.simulators.utils.colors import Color
 
 ## Load map and set up workspace
@@ -53,31 +54,31 @@ class DrivingObject:
 
     @property
     def lane(self):
-        return network.laneAt(self)
+        return network.laneAt(self, reject='object is not in a lane')
 
     @property
     def laneSection(self):
-        return network.laneSectionAt(self)
+        return network.laneSectionAt(self, reject='object is not in a lane')
 
     @property
     def laneGroup(self):
-        return network.laneGroupAt(self)
+        return network.laneGroupAt(self, reject='object is not in a lane')
 
     @property
     def road(self):
-        return network.roadAt(self)
+        return network.roadAt(self, reject='object is not on a road')
 
     @property
     def intersection(self):
-        return network.intersectionAt(self)
+        return network.intersectionAt(self, reject='object is not in an intersection')
 
     @property
     def crossing(self):
-        return network.crossingAt(self)
+        return network.crossingAt(self, reject='object is not in a crossing')
 
     @property
     def element(self):
-        return network.elementAt(self)
+        return network.elementAt(self, reject='object is not on any network element')
 
     # Simulator interface implemented by subclasses
 

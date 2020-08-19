@@ -28,6 +28,7 @@ import builtins
 import time
 import inspect
 import types
+import typing
 import importlib
 import importlib.abc
 import importlib.util
@@ -38,7 +39,7 @@ from contextlib import contextmanager
 
 import tokenize
 from tokenize import NAME, NL, NEWLINE, ENDMARKER, OP, NUMBER, COLON, COMMENT, ENCODING
-from tokenize import LPAR, RPAR, LSQB, RSQB, COMMA, DOUBLESLASH, DOUBLESLASHEQUAL
+from tokenize import LPAR, RPAR, LSQB, RSQB, RBRACE, COMMA, DOUBLESLASH, DOUBLESLASHEQUAL
 from tokenize import AT, LEFTSHIFT, RIGHTSHIFT, VBAR, AMPER, TILDE, CIRCUMFLEX, STAR
 from tokenize import LEFTSHIFTEQUAL, RIGHTSHIFTEQUAL, VBAREQUAL, AMPEREQUAL, CIRCUMFLEXEQUAL
 from tokenize import INDENT, DEDENT, STRING
@@ -421,7 +422,8 @@ prefixOperators = {
 	('left', 'of'): 'Left',
 	('right', 'of'): 'Right',
 	('follow',): 'Follow',
-	('visible',): 'Visible'
+	('visible',): 'Visible',
+	('not', 'visible'): 'NotVisible',
 }
 assert all(1 <= len(op) <= 2 for op in prefixOperators)
 prefixIncipits = { op[0] for op in prefixOperators }
@@ -438,7 +440,14 @@ for imp in prefixOperators.values():
 packageToken = (RIGHTSHIFT, '>>')
 packageNode = RShift
 
-InfixOp = namedtuple('InfixOp', ('syntax', 'implementation', 'arity', 'token', 'node'))
+class InfixOp(typing.NamedTuple):
+	syntax: str
+	implementation: typing.Optional[str]
+	arity: int
+	token: typing.Tuple[int, str]
+	node: ast.AST
+	contexts: typing.Optional[typing.Tuple[str]] = ()
+
 infixOperators = (
 	# existing Python operators with new semantics
 	InfixOp('@', 'Vector', 2, None, MatMult),
@@ -452,7 +461,7 @@ infixOperators = (
 
 	# just syntactic conveniences, not really operators
 	InfixOp('from', None, 2, (COMMA, ','), None),
-	InfixOp('for', None, 2, (COMMA, ','), None),
+	InfixOp('for', None, 2, (COMMA, ','), None, ('Follow', 'Following')),
 	InfixOp('to', None, 2, (COMMA, ','), None),
 	InfixOp('by', None, 2, packageToken, None)
 )
@@ -467,7 +476,7 @@ for op in infixOperators:
 		assert 1 <= len(tokens) <= 2, op
 		assert tokens not in infixTokens, op
 		assert tokens not in twoWordStatements, op
-		infixTokens[tokens] = op.token
+		infixTokens[tokens] = op
 		incipit = tokens[0]
 		assert incipit not in oneWordStatements, op
 		infixIncipits.add(incipit)
@@ -504,9 +513,9 @@ illegalTokens = {
 }
 
 # sanity check: stand-in tokens for infix operators must be illegal
-for token in infixTokens.values():
-	ttype = token[0]
-	assert (ttype is COMMA or ttype in illegalTokens), token
+for op in infixTokens.values():
+	ttype = op.token[0]
+	assert (ttype is COMMA or ttype in illegalTokens), op
 
 illegalConstructs = {
 	('async', 'def'),		# used to parse behaviors, so disallowed otherwise
@@ -801,14 +810,17 @@ class TokenTranslator:
 				raise self.parseError(token, f'illegal operator "{tstring}"')
 
 			# Determine which operators are allowed in current context
+			allowedInfixOps = dict()
 			context, startLevel = functionStack[-1] if functionStack else (None, None)
-			inConstructorContext = (context in constructors and parenLevel == startLevel)
+			contextActive = (parenLevel == startLevel)
+			inConstructorContext = (contextActive and context in constructors)
 			if inConstructorContext:
 				allowedPrefixOps = self.specifiersForConstructor(context)
-				allowedInfixOps = dict()
 			else:
 				allowedPrefixOps = prefixOperators
-				allowedInfixOps = infixTokens
+				for opTokens, op in infixTokens.items():
+					if not op.contexts or (contextActive and context in op.contexts):
+						allowedInfixOps[opTokens] = op.token
 
 			# Parse next token
 			if ttype == LPAR or ttype == LSQB:		# keep track of nesting level
@@ -960,7 +972,8 @@ class TokenTranslator:
 						injectToken((STRING, literal))
 						skip = True
 					elif (tstring in self.constructors
-						  and peek(tokens).exact_type != RPAR):      # instance definition
+						  and peek(tokens).exact_type not in (RPAR, RSQB, RBRACE, COMMA)):
+						# instance definition
 						callFunction(tstring)
 					elif tstring in replacements:	# direct replacement
 						for tok in replacements[tstring]:

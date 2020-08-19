@@ -6,6 +6,7 @@ import time
 from scenic.core.distributions import Samplable, RejectionException, needsSampling
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.external_params import ExternalSampler
+from scenic.core.regions import EmptyRegion
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
 from scenic.core.utils import areEquivalent
@@ -119,11 +120,14 @@ class Scenario:
 		staticBounds = [self.hasStaticBounds(obj) for obj in objects]
 		for i in range(len(objects)):
 			oi = objects[i]
+			container = self.containerOfObject(oi)
+			# Trivial case where container is empty
+			if isinstance(container, EmptyRegion):
+				raise InvalidScenarioError(f'Container region of {oi} is empty')
 			# skip objects with unknown positions or bounding boxes
 			if not staticBounds[i]:
 				continue
 			# Require object to be contained in the workspace/valid region
-			container = self.containerOfObject(oi)
 			if not needsSampling(container) and not container.containsObject(oi):
 				raise InvalidScenarioError(f'Object at {oi.position} does not fit in container')
 			# Require object to be visible from the ego object

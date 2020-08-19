@@ -22,8 +22,10 @@ from scenic.core.regions import PolygonalRegion, PolylineRegion
 from scenic.core.object_types import Point
 import scenic.core.geometry as geometry
 import scenic.core.utils as utils
-from scenic.core.distributions import distributionFunction
+from scenic.core.errors import InvalidScenarioError
+from scenic.core.distributions import RejectionException, distributionFunction
 from scenic.syntax.veneer import verbosePrint
+import scenic.syntax.veneer as veneer
 
 ## Typing and utilities
 
@@ -34,6 +36,17 @@ def toVector(thing: Vectorlike) -> Vector:
     if not hasattr(thing, 'toVector'):
         raise TypeError(f'argument {thing} is not a vector')
     return thing.toVector()
+
+def rejectSample(message):
+    if veneer.isActive():
+        raise InvalidScenarioError(message)
+    else:
+        raise RejectionException(message)
+
+def rejectIfNonexistent(element, name='network element'):
+    if element is None:
+        rejectSample(f'requested {name} does not exist')
+    return element
 
 class ElementReferencer:
     """Mixin class to improve pickling of classes that reference network elements."""
@@ -203,8 +216,16 @@ class LinearElement(NetworkElement):
     rightEdge: PolylineRegion
 
     # Links to next/previous element
-    successor: Union[NetworkElement, None] = None   # going forward
-    predecessor: Union[NetworkElement, None] = None # going backward
+    _successor: Union[NetworkElement, None] = None   # going forward
+    _predecessor: Union[NetworkElement, None] = None # going backward
+
+    @property
+    def successor(self):
+        return rejectIfNonexistent(self._successor, 'successor')
+
+    @property
+    def predecessor(self):
+        return rejectIfNonexistent(self._predecessor, 'predecessor')
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
@@ -287,31 +308,31 @@ class Road(LinearElement):
         return super().defaultHeadingAt(point)
 
     @distributionFunction
-    def sectionAt(self, point: Vectorlike) -> Union[RoadSection, None]:
+    def sectionAt(self, point: Vectorlike, reject=False) -> Union[RoadSection, None]:
         """Get the RoadSection passing through a given point."""
-        return self.network.findPointIn(point, self.sections)
+        return self.network.findPointIn(point, self.sections, reject)
 
     @distributionFunction
-    def laneSectionAt(self, point: Vectorlike) -> Union[LaneSection, None]:
+    def laneSectionAt(self, point: Vectorlike, reject=False) -> Union[LaneSection, None]:
         """Get the LaneSection passing through a given point."""
         point = toVector(point)
-        lane = self.laneAt(point)
+        lane = self.laneAt(point, reject=reject)
         return None if lane is None else lane.sectionAt(point)
 
     @distributionFunction
-    def laneAt(self, point: Vectorlike) -> Union[Lane, None]:
+    def laneAt(self, point: Vectorlike, reject=False) -> Union[Lane, None]:
         """Get the lane passing through a given point."""
-        return self.network.findPointIn(point, self.lanes)
+        return self.network.findPointIn(point, self.lanes, reject)
 
     @distributionFunction
-    def laneGroupAt(self, point: Vectorlike) -> Union[LaneGroup, None]:
+    def laneGroupAt(self, point: Vectorlike, reject=False) -> Union[LaneGroup, None]:
         """Get the LaneGroup passing through a given point."""
-        return self.network.findPointIn(point, self.laneGroups)
+        return self.network.findPointIn(point, self.laneGroups, reject)
 
     @distributionFunction
-    def crossingAt(self, point: Vectorlike) -> Union[PedestrianCrossing, None]:
+    def crossingAt(self, point: Vectorlike, reject=False) -> Union[PedestrianCrossing, None]:
         """Get the PedestrianCrossing passing through a given point."""
-        return self.network.findPointIn(point, self.crossings)
+        return self.network.findPointIn(point, self.crossings, reject)
 
     @distributionFunction
     def shiftLanes(self, point: Vectorlike, offset: int) -> Union[Vector, None]:
@@ -341,9 +362,9 @@ class LaneGroup(LinearElement):
         return super().defaultHeadingAt(point)
 
     @distributionFunction
-    def laneAt(self, point: Vectorlike) -> Union[Lane, None]:
+    def laneAt(self, point: Vectorlike, reject=False) -> Union[Lane, None]:
         """Get the lane passing through a given point."""
-        return self.network.findPointIn(point, self.lanes)
+        return self.network.findPointIn(point, self.lanes, reject)
 
 @attr.s(auto_attribs=True, kw_only=True, eq=False, repr=False)
 class Lane(ContainsCenterline, LinearElement):
@@ -358,9 +379,9 @@ class Lane(ContainsCenterline, LinearElement):
     maneuvers: Tuple[Maneuver] = ()     # possible maneuvers upon reaching the end of this lane
 
     @distributionFunction
-    def sectionAt(self, point: Vectorlike) -> Union[LaneSection, None]:
+    def sectionAt(self, point: Vectorlike, reject=False) -> Union[LaneSection, None]:
         """Get the LaneSection passing through a given point."""
-        return self.network.findPointIn(point, self.sections)
+        return self.network.findPointIn(point, self.sections, reject)
 
     # TODO remove hack; freeze all these classes
     __hash__ = object.__hash__
@@ -414,9 +435,9 @@ class RoadSection(LinearElement):
         return super().defaultHeadingAt(point)
 
     @distributionFunction
-    def laneAt(self, point: Vectorlike) -> Union[LaneSection, None]:
+    def laneAt(self, point: Vectorlike, reject=False) -> Union[LaneSection, None]:
         """Get the lane section passing through a given point."""
-        return self.network.findPointIn(point, self.lanes)
+        return self.network.findPointIn(point, self.lane, reject)
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class LaneSection(ContainsCenterline, LinearElement):
@@ -431,11 +452,11 @@ class LaneSection(ContainsCenterline, LinearElement):
 
     adjacentLanes: Tuple[LaneSection] = ()     # adjacent lanes of same type, if any
 
-    laneToLeft: Union[LaneSection, None] = None   # adjacent lane of same type to the left, if any
-    laneToRight: Union[LaneSection, None] = None
+    _laneToLeft: Union[LaneSection, None] = None   # adjacent lane of same type to the left, if any
+    _laneToRight: Union[LaneSection, None] = None
 
-    fasterLane: Union[LaneSection, None] = None   # faster/slower adjacent lane, if it exists;
-    slowerLane: Union[LaneSection, None] = None   # could be to left or right depending on country
+    _fasterLane: Union[LaneSection, None] = None   # faster/slower adjacent lane, if it exists;
+    _slowerLane: Union[LaneSection, None] = None   # could be to left or right depending on country
 
     @distributionFunction
     def shiftedBy(self, offset: int) -> Union[LaneSection, None]:
@@ -589,7 +610,7 @@ class Network:
         changed, so that cached networks will be properly regenerated (rather than being
         unpickled in an inconsistent state and causing errors later).
         """
-        return 7
+        return 8
 
     @classmethod
     def fromFile(cls, path, useCache=True, writeCache=True, **kwargs):
@@ -690,11 +711,14 @@ class Network:
                 gf.write(data)
 
     def findPointIn(self, point: Vectorlike,
-                    elems: Sequence[NetworkElement]) -> Union[NetworkElement, None]:
+                    elems: Sequence[NetworkElement],
+                    reject: Union[bool, str]) -> Union[NetworkElement, None]:
         """Find the first of the given elements containing the point.
 
         Elements which *actually* contain the point have priority; if none contain the
-        point, then we search again allowing an error of up to `tolerance`.
+        point, then we search again allowing an error of up to `tolerance`. If there are
+        still no matches, we return None, unless ``reject`` is true, in which case we
+        reject the current sample.
         """
         point = toVector(point)
         for element in elems:
@@ -704,6 +728,12 @@ class Network:
             for element in elems:
                 if element.distanceTo(point) <= self.tolerance:
                     return element
+        if reject:
+            if isinstance(reject, str):
+                message = reject
+            else:
+                message = 'requested element does not exist'
+            rejectSample(message)
         return None
 
     def findPointInAll(self, point, things, key=lambda e: e):
@@ -719,56 +749,58 @@ class Network:
         return found
 
     @distributionFunction
-    def elementAt(self, point: Vectorlike) -> Union[NetworkElement, None]:
+    def elementAt(self, point: Vectorlike, reject=False) -> Union[NetworkElement, None]:
         point = toVector(point)
         intersection = self.intersectionAt(point)
         if intersection is not None:
             return intersection
-        return self.roadAt(point)
+        return self.roadAt(point, reject=reject)
 
     @distributionFunction
-    def roadAt(self, point: Vectorlike) -> Union[Road, None]:
+    def roadAt(self, point: Vectorlike, reject=False) -> Union[Road, None]:
         """Get the road passing through a given point."""
-        return self.findPointIn(point, self.allRoads)
+        return self.findPointIn(point, self.allRoads, reject)
 
     @distributionFunction
-    def laneAt(self, point: Vectorlike) -> Union[Lane, None]:
+    def laneAt(self, point: Vectorlike, reject=False) -> Union[Lane, None]:
         """Get the lane passing through a given point."""
-        return self.findPointIn(point, self.lanes)
+        return self.findPointIn(point, self.lanes, reject)
 
     @distributionFunction
-    def laneSectionAt(self, point: Vectorlike) -> Union[LaneSection, None]:
+    def laneSectionAt(self, point: Vectorlike, reject=False) -> Union[LaneSection, None]:
         """Get the LaneSection passing through a given point."""
         point = toVector(point)
-        lane = self.laneAt(point)
+        lane = self.laneAt(point, reject=reject)
         return None if lane is None else lane.sectionAt(point)
 
     @distributionFunction
-    def laneGroupAt(self, point: Vectorlike) -> Union[LaneGroup, None]:
+    def laneGroupAt(self, point: Vectorlike, reject=False) -> Union[LaneGroup, None]:
         """Get the LaneGroup passing through a given point."""
         point = toVector(point)
-        road = self.roadAt(point)
-        return None if road is None else road.laneGroupAt(point)
+        road = self.roadAt(point, reject=reject)
+        return None if road is None else road.laneGroupAt(point, reject=reject)
 
     @distributionFunction
-    def crossingAt(self, point: Vectorlike) -> Union[PedestrianCrossing, None]:
+    def crossingAt(self, point: Vectorlike,
+                   reject=False) -> Union[PedestrianCrossing, None]:
         """Get the PedestrianCrossing passing through a given point."""
         point = toVector(point)
-        road = self.roadAt(point)
-        return None if road is None else road.crossingAt(point)
+        road = self.roadAt(point, reject=reject)
+        return None if road is None else road.crossingAt(point, reject=reject)
 
     @distributionFunction
-    def intersectionAt(self, point: Vectorlike) -> Union[Intersection, None]:
+    def intersectionAt(self, point: Vectorlike,
+                       reject=False) -> Union[Intersection, None]:
         """Get the intersection at a given point."""
-        return self.findPointIn(point, self.intersections)
+        return self.findPointIn(point, self.intersections, reject)
 
     @distributionFunction
-    def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[float]:
+    def nominalDirectionsAt(self, point: Vectorlike, reject=False) -> Tuple[float]:
         """Get nominal traffic direction(s) at a given point, if any."""
         inter = self.intersectionAt(point)
         if inter is not None:
             return inter.nominalDirectionsAt(point)
-        road = self.roadAt(point)
+        road = self.roadAt(point, reject=reject)
         if road is not None:
             return road.nominalDirectionsAt(point)
         return ()

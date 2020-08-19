@@ -5,7 +5,6 @@ import random
 import itertools
 
 import numpy
-import scipy.spatial
 import shapely.geometry
 import shapely.ops
 import shapely.prepared
@@ -87,6 +86,12 @@ class Region(Samplable):
 	def intersects(self, other):
 		"""Check if this `Region` intersects another."""
 		raise NotImplementedError
+
+	def difference(self, other):
+		"""Get a `Region` representing the difference of this one and another."""
+		if isinstance(other, EmptyRegion):
+			return self
+		return DifferenceRegion(self, other)
 
 	def union(self, other, triedReversed=False):
 		"""Get a `Region` representing the union of this one with another.
@@ -474,6 +479,18 @@ class PolylineRegion(Region):
 			return not intersection.is_empty
 		return super().intersects(other)
 
+	def difference(self, other):
+		poly = toPolygon(other)
+		if poly is not None:
+			diff = self.lineString - poly
+			if (diff.is_empty or
+			    not isinstance(diff, (shapely.geometry.LineString,
+			                          shapely.geometry.MultiLineString))):
+				# TODO handle points!
+				return nowhere
+			return PolylineRegion(polyline=diff)
+		return super().difference(other)
+
 	@staticmethod
 	def unionAll(regions):
 		regions = tuple(regions)
@@ -637,6 +654,30 @@ class PolygonalRegion(Region):
 			if triangle.intersects(shapely.geometry.Point(x, y)):
 				return self.orient(Vector(x, y))
 
+	def difference(self, other):
+		poly = toPolygon(other)
+		if poly is not None:
+			diff = self.polygons - poly
+			if diff.is_empty:
+				return nowhere
+			elif isinstance(diff, (shapely.geometry.Polygon,
+			                       shapely.geometry.MultiPolygon)):
+				return PolygonalRegion(polygon=diff, orientation=self.orientation)
+			elif isinstance(diff, shapely.geometry.GeometryCollection):
+				polys = []
+				for geom in diff:
+					if isinstance(geom, shapely.geometry.Polygon):
+						polys.append(geom)
+				if len(polys) == 0:
+					# TODO handle points, lines
+					raise RuntimeError('unhandled type of polygon difference')
+				diff = shapely.geometry.MultiPolygon(polys)
+				return PolygonalRegion(polygon=diff, orientation=self.orientation)
+			else:
+				# TODO handle points, lines
+				raise RuntimeError('unhandled type of polygon difference')
+		return super().difference(other)
+
 	def intersect(self, other, triedReversed=False):
 		poly = toPolygon(other)
 		orientation = other.orientation if self.orientation is None else self.orientation
@@ -770,6 +811,7 @@ class PointSetRegion(Region):
 		for point in self.points:
 			if needsSampling(point):
 				raise RuntimeError('only fixed PointSetRegions are supported')
+		import scipy.spatial	# slow import not often needed
 		self.kdTree = scipy.spatial.cKDTree(self.points) if kdTree is None else kdTree
 		self.orientation = orientation
 		self.tolerance = tolerance
@@ -935,3 +977,55 @@ class IntersectionRegion(Region):
 
 	def __repr__(self):
 		return f'IntersectionRegion({self.regions})'
+
+class DifferenceRegion(Region):
+	def __init__(self, regionA, regionB, sampler=None):
+		self.regionA, self.regionB = regionA, regionB
+		super().__init__('Difference', regionA, regionB, orientation=regionA.orientation)
+		if sampler is None:
+			sampler = self.genericSampler
+		self.sampler = sampler
+
+	def sampleGiven(self, value):
+		regionA, regionB = value[self.regionA], value[self.regionB]
+		# Now that regions have been sampled, attempt difference again in the hopes
+		# there is a specialized sampler to handle it (unless we already have one)
+		if self.sampler is self.genericSampler:
+			diff = regionA.difference(regionB)
+			if not isinstance(diff, DifferenceRegion):
+				diff.orientation = value[self.orientation]
+				return diff
+		return DifferenceRegion(regionA, regionB, orientation=value[self.orientation],
+		                        sampler=self.sampler)
+
+	def evaluateInner(self, context):
+		regionA = valueInContext(self.regionA, context)
+		regionB = valueInContext(self.regionB, context)
+		orientation = valueInContext(self.orientation, context)
+		return DifferenceRegion(regionA, regionB, orientation=orientation,
+		                        sampler=self.sampler)
+
+	def containsPoint(self, point):
+		return regionA.containsPoint(point) and not regionB.containsPoint(point)
+
+	def uniformPointInner(self):
+		return self.orient(self.sampler(self))
+
+	@staticmethod
+	def genericSampler(difference):
+		regionA, regionB = difference.regionA, difference.regionB
+		point = regionA.uniformPointInner()
+		if regionB.containsPoint(point):
+			raise RejectionException(
+			    f'sampling difference of Regions {regionA} and {regionB}')
+		return point
+
+	def isEquivalentTo(self, other):
+		if type(other) is not DifferenceRegion:
+			return False
+		return (areEquivalent(self.regionA, other.regionA)
+		        and areEquivalent(self.regionB, other.regionB)
+		        and other.orientation == self.orientation)
+
+	def __repr__(self):
+		return f'DifferenceRegion({self.regionA}, {self.regionB})'
