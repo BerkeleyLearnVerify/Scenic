@@ -1,9 +1,9 @@
 
 import scenic.domains.driving.controllers as controllers
 from scenic.domains.driving.actions import *
-import scenic.domains.driving.model as model
+# import scenic.domains.driving.model as model
+from scenic.domains.driving.model import Vehicle, network
 from scenic.simulators.carla.blueprints import *
-from scenic.simulators.carla.model import *
 from scenic.domains.driving.roads import ManeuverType
 from scenic.core.regions import regionFromShapelyObject
 from shapely.geometry import LineString
@@ -16,7 +16,7 @@ behavior ConstantThrottleBehavior(x):
 behavior DriveAvoidingCollisions(target_speed=25, avoidance_threshold=10):
     try:
         FollowLaneBehavior(target_speed=target_speed)
-    interrupt when self.distanceToClosest(model.Vehicle) <= avoidance_threshold:
+    interrupt when self.distanceToClosest(Vehicle) <= avoidance_threshold:
         take SetThrottleAction(0), SetBrakeAction(1)
 
 def concatenateCenterlines(centerlines=[]):
