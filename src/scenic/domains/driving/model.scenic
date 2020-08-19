@@ -80,6 +80,19 @@ class DrivingObject:
     def element(self):
         return network.elementAt(self, reject='object is not on any network element')
 
+    # Utility functions
+
+    def distanceToClosest(self, type_):
+        objects = simulation().objects
+        minDist = float('inf')
+        for obj in objects:
+            if not isinstance(obj, type_):
+                continue
+            d = distance from self to obj
+            if 0 < d < minDist:
+                minDist = d
+        return minDist
+
     # Simulator interface implemented by subclasses
 
     def setPosition(self, pos, elevation):

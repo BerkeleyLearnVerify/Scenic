@@ -1,12 +1,19 @@
 
 import scenic.domains.driving.controllers as controllers
 from scenic.domains.driving.actions import *
+import scenic.domains.driving.model as model
 
 behavior ConstantThrottleBehavior(x):
     while True:
         take SetThrottleAction(x), SetReverseAction(False), SetHandBrakeAction(False)
 
-behavior FollowLaneBehavior(target_speed = 25, network = None):
+behavior DriveAvoidingCollisions(target_speed=25, avoidance_threshold=10):
+    try:
+        FollowLaneBehavior(target_speed=target_speed)
+    interrupt when self.distanceToClosest(model.Vehicle) <= avoidance_threshold:
+        take SetThrottleAction(0), SetBrakeAction(1)
+
+behavior FollowLaneBehavior(target_speed=25, network=None, lane=None):
 
     # instantiate longitudinal and latitudinal pid controllers
     dt = simulation().timestep
@@ -15,7 +22,8 @@ behavior FollowLaneBehavior(target_speed = 25, network = None):
     past_steer_angle = 0
 
     while True:
-        cte = self.lane.centerline.signedDistanceTo(self.position)
+        targetLane = lane if lane else self.lane
+        cte = targetLane.centerline.signedDistanceTo(self.position)
         speed_error = target_speed - self.speed
 
         # compute throttle : Longitudinal Control
