@@ -11,7 +11,6 @@ from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
 from scenic.core.utils import areEquivalent
 from scenic.core.errors import InvalidScenarioError
-from scenic.syntax.veneer import Behavior, RequirementType, BoundRequirement
 import scenic.syntax.veneer as veneer
 
 class Scene:
@@ -25,15 +24,18 @@ class Scene:
 		workspace (:obj:`~scenic.core.workspaces.Workspace`): Workspace for the scenario.
     """
 	def __init__(self, workspace, objects, egoObject, params,
-	             alwaysReqs=(), terminationConds=(), monitors=(), behaviorNamespaces={}):
+	             alwaysReqs=(), terminationConds=(), termScenarioConds=(), monitors=(),
+	             behaviorNamespaces={}, dynamicScenario=None):
 		self.workspace = workspace
 		self.objects = tuple(objects)
 		self.egoObject = egoObject
 		self.params = params
 		self.alwaysRequirements = tuple(alwaysReqs)
 		self.terminationConditions = tuple(terminationConds)
+		self.terminateScenarioConditions = tuple(termScenarioConds)
 		self.monitors = tuple(monitors)
 		self.behaviorNamespaces = behaviorNamespaces
+		self.dynamicScenario = dynamicScenario
 
 	def show(self, zoom=None, block=True):
 		"""Render a schematic of the scene for debugging."""
@@ -54,7 +56,8 @@ class Scenario:
 	             objects, egoObject,
 	             params, externalParams,
                  requirements, requirementDeps,
-                 monitors, behaviorNamespaces):
+                 monitors, behaviorNamespaces,
+                 dynamicScenario):
 		if workspace is None:
 			workspace = Workspace()		# default empty workspace
 		self.workspace = workspace
@@ -64,29 +67,22 @@ class Scenario:
 		for obj in objects:
 			if obj is not egoObject:
 				ordered.append(obj)
-		self.objects = (egoObject,) + tuple(ordered)
+		self.objects = (egoObject,) + tuple(ordered) if egoObject else tuple(ordered)
 		self.egoObject = egoObject
 		self.params = dict(params)
 		self.externalParams = tuple(externalParams)
 		self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)
-		self.monitors = tuple(monitor() for monitor in monitors)
+		self.monitors = tuple(monitors)
 		self.behaviorNamespaces = behaviorNamespaces
+		self.dynamicScenario = dynamicScenario
 
 		staticReqs, alwaysReqs, terminationConds = [], [], []
-		for req in requirements:
-			if req.ty is RequirementType.require:
-				place = staticReqs
-			elif req.ty is RequirementType.requireAlways:
-				place = alwaysReqs
-			elif req.ty is RequirementType.terminateWhen:
-				place = terminationConds
-			else:
-				raise RuntimeError(f'requirement {req} has unknown type!')
-			place.append(req)
-		self.requirements, self.alwaysRequirements = tuple(staticReqs), tuple(alwaysReqs)
+		self.requirements = tuple(dynamicScenario._requirements)	# TODO clean up
+		self.alwaysRequirements = tuple(dynamicScenario._alwaysRequirements)
+		self.terminationConditions = tuple(dynamicScenario._terminationConditions)
+		self.terminateScenarioConditions = tuple(dynamicScenario._terminateScenarioConditions)
 		self.initialRequirements = self.requirements + self.alwaysRequirements
 		assert all(req.constrainsSampling for req in self.initialRequirements)
-		self.terminationConditions = tuple(terminationConds)
 		# dependencies must use fixed order for reproducibility
 		paramDeps = tuple(p for p in self.params.values() if isinstance(p, Samplable))
 		behaviorDeps = []
@@ -117,7 +113,7 @@ class Scenario:
 	def validate(self):
 		"""Make some simple static checks for inconsistent built-in requirements."""
 		objects = self.objects
-		staticVisibility = not needsSampling(self.egoObject.visibleRegion)
+		staticVisibility = self.egoObject and not needsSampling(self.egoObject.visibleRegion)
 		staticBounds = [self.hasStaticBounds(obj) for obj in objects]
 		for i in range(len(objects)):
 			oi = objects[i]
@@ -202,10 +198,10 @@ class Scenario:
 				# behavior
 				behavior = sampledObj.behavior
 				if behavior is not None:
-					if isinstance(behavior, type) and issubclass(behavior, Behavior):
+					if isinstance(behavior, type) and issubclass(behavior, veneer.Behavior):
 						behavior = behavior()
 						sampledObj.behavior = behavior
-					if not isinstance(behavior, Behavior):
+					if not isinstance(behavior, veneer.Behavior):
 						raise InvalidScenarioError(
 						    f'behavior {behavior} of Object {obj} is not a behavior')
 
@@ -248,10 +244,14 @@ class Scenario:
 		for modName, namespace in self.behaviorNamespaces.items():
 			sampledNamespace = { name: sample[value] for name, value in namespace.items() }
 			sampledNamespaces[modName] = (namespace, sampledNamespace, namespace.copy())
-		alwaysReqs = (BoundRequirement(req, sample) for req in self.alwaysRequirements)
-		terminationConds = (BoundRequirement(req, sample) for req in self.terminationConditions)
+		alwaysReqs = (veneer.BoundRequirement(req, sample) for req in self.alwaysRequirements)
+		terminationConds = (veneer.BoundRequirement(req, sample)
+		                    for req in self.terminationConditions)
+		termScenarioConds = (veneer.BoundRequirement(req, sample)
+		                     for req in self.terminateScenarioConditions)
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
-		              alwaysReqs, terminationConds, self.monitors, sampledNamespaces)
+		              alwaysReqs, terminationConds, termScenarioConds, self.monitors,
+		              sampledNamespaces, self.dynamicScenario)
 		return scene, iterations
 
 	def resetExternalSampler(self):

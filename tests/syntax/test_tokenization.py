@@ -76,6 +76,12 @@ def test_constructor_ended_by_paren():
         mutate ego, x
     """)
 
+def test_semicolon_separating_statements():
+    compileScenic("""
+        ego = Object
+        param p = distance to 3@4; require ego.position.x >= 0
+    """)
+
 def test_list_comprehension():
     scene = sampleSceneFrom("""
         xs = [3*i + (0, 1) for i in range(10)]

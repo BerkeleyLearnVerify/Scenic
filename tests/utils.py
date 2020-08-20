@@ -46,31 +46,34 @@ def sampleParamPFrom(code, maxIterations=1):
 
 # Dynamic simulations
 
-def sampleEgoActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1, singleAction=True):
+def sampleEgoActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
+                     singleAction=True, timestep=1):
     allActions = sampleActions(scenario, maxIterations, maxSteps, maxScenes,
-                               singleAction, asMapping=False)
+                               singleAction, asMapping=False, timestep=timestep)
     return [actions[0] for actions in allActions]
 
-def sampleEgoActionsFromScene(scene, maxIterations=1, maxSteps=1, singleAction=True):
+def sampleEgoActionsFromScene(scene, maxIterations=1, maxSteps=1, singleAction=True, timestep=1):
     allActions = sampleActionsFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps,
-                                        singleAction=singleAction, asMapping=False)
+                                        singleAction=singleAction, asMapping=False,
+                                        timestep=timestep)
     if allActions is None:
         return None
     return [actions[0] for actions in allActions]
 
 def sampleActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
-                  singleAction=True, asMapping=False):
+                  singleAction=True, asMapping=False, timestep=1):
     for i in range(maxScenes):
         scene, iterations = generateChecked(scenario, maxIterations)
         actions = sampleActionsFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps,
-                                         singleAction=singleAction, asMapping=asMapping)
+                                         singleAction=singleAction, asMapping=asMapping,
+                                         timestep=timestep)
         if actions is not None:
             return actions
     assert False, f'unable to find successful simulation over {maxScenes} scenes'
 
 def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1,
-                           singleAction=True, asMapping=False):
-    sim = DummySimulator()
+                           singleAction=True, asMapping=False, timestep=1):
+    sim = DummySimulator(timestep=timestep)
     result = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
     if not result:
         return None
@@ -95,20 +98,16 @@ def generateChecked(scenario, maxIterations):
 
 def checkVeneerIsInactive():
     assert veneer.activity == 0
+    assert not veneer.scenarioStack
+    assert not veneer.currentScenario
     assert not veneer.evaluatingRequirement
-    assert not veneer.allObjects
-    assert veneer.egoObject is None
+    assert not veneer.evaluatingGuard
+    assert not veneer.scenarios
     assert not veneer._globalParameters
     assert not veneer.lockedParameters
     assert not veneer.lockedModel
-    assert not veneer.externalParameters
-    assert not veneer.pendingRequirements
-    assert not veneer.inheritedReqs
-    assert not veneer.behaviors
-    assert not veneer.monitors
-    assert not veneer.simulatorFactory
-    assert veneer.currentSimulation is None
-    assert veneer.currentBehavior is None
+    assert not veneer.currentSimulation
+    assert not veneer.currentBehavior
 
 ## Error checking utilities
 

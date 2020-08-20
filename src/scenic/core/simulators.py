@@ -30,8 +30,8 @@ class Simulator:
             iterations += 1
             # Run a single simulation
             try:
-                simulation = self.createSimulation(scene)
-                result = simulation.run(maxSteps, verbosity=verbosity)
+                simulation = self.createSimulation(scene, verbosity=verbosity)
+                result = simulation.run(maxSteps)
             except (RejectSimulationException, RejectionException) as e:
                 if verbosity >= 2:
                     print(f'  Rejected simulation {iterations} at time step '
@@ -44,21 +44,22 @@ class Simulator:
             return result
         return None
 
-    def createSimulation(self, scene):
-        return Simulation(scene)
+    def createSimulation(self, scene, verbosity=0):
+        return Simulation(scene, verbosity=verbosity)
 
 class Simulation:
     """A single simulation run, possibly in progress."""
 
-    def __init__(self, scene, timestep=1):
+    def __init__(self, scene, timestep=1, verbosity=0):
         self.scene = scene
-        self.objects = scene.objects
-        self.agents = tuple(obj for obj in scene.objects if obj.behavior is not None)
+        self.objects = list(scene.objects)
+        self.agents = list(obj for obj in scene.objects if obj.behavior is not None)
         self.trajectory = [self.currentState()]
         self.currentTime = 0
         self.timestep = timestep
+        self.verbosity = verbosity
 
-    def run(self, maxSteps, verbosity=0):
+    def run(self, maxSteps):
         """Run the simulation.
 
         Throws a RejectSimulationException if a requirement is violated.
@@ -73,16 +74,12 @@ class Simulation:
 
         import scenic.syntax.veneer as veneer
         veneer.beginSimulation(self)
+        dynamicScenario = self.scene.dynamicScenario
 
         try:
-            # Initialize behavior coroutines of agents
-            for agent in self.agents:
-                running = agent.behavior.start(agent)
-                if not running:
-                    raise RuntimeError(f'{agent.behavior} of {agent} does not take any actions')
-            # Initialize monitor coroutines
-            for monitor in self.scene.monitors:
-                monitor.start()
+            # Initialize dynamic scenario
+            dynamicScenario._prepare()
+            dynamicScenario._start()
 
             # Update all objects in case the simulator has adjusted any dynamic
             # properties during setup
@@ -92,25 +89,19 @@ class Simulation:
             assert self.currentTime == 0
             terminationReason = None
             while maxSteps is None or self.currentTime < maxSteps:
-                if verbosity >= 3:
+                if self.verbosity >= 3:
                     print(f'    Time step {self.currentTime}:')
 
+                # Run compose blocks of compositional scenarios
+                terminationReason = dynamicScenario._step()
+
                 # Check if any requirements fail
-                for req in self.scene.alwaysRequirements:
-                    if not req.isTrue():
-                        # always requirements should never be violated at time 0, since
-                        # they are enforced during scene sampling
-                        assert self.currentTime > 0
-                        raise RejectSimulationException(str(req))
+                dynamicScenario._checkAlwaysRequirements()
 
                 # Run monitors
-                for monitor in self.scene.monitors:
-                    action = monitor.step()
-                    if isinstance(action, EndSimulationAction):
-                        terminationReason = str(action)
-                        break
-                if terminationReason is not None:
-                    break
+                newReason = dynamicScenario._runMonitors()
+                if newReason is not None:
+                    terminationReason = newReason
 
                 # Compute the actions of the agents in this time step
                 allActions = OrderedDict()
@@ -119,28 +110,25 @@ class Simulation:
                     actions = agent.behavior.step()
                     if isinstance(actions, EndSimulationAction):
                         terminationReason = str(actions)
-                        break
+                        continue
                     assert isinstance(actions, tuple)
-                    actions = tuple(a for a in actions if a is not None)
                     if not self.actionsAreCompatible(agent, actions):
                         raise InvalidScenarioError(f'agent {agent} tried incompatible '
                                                    f' action(s) {actions}')
                     allActions[agent] = actions
-                    if verbosity >= 3:
-                        print(f'      Agent {agent} takes action(s) {actions}')
-                if terminationReason is not None:
-                    break
 
                 # All requirements have been checked; now safe to terminate if requested by
                 # a behavior/monitor or if a termination condition is met
-                for req in self.scene.terminationConditions:
-                    if req.isTrue():
-                        terminationReason = str(req)
-                        break
+                if terminationReason is not None:
+                    break
+                terminationReason = dynamicScenario._checkTerminationConditions()
                 if terminationReason is not None:
                     break
 
                 # Execute the actions
+                if self.verbosity >= 3:
+                    for agent, actions in allActions.items():
+                        print(f'      Agent {agent} takes action(s) {actions}')
                 self.executeActions(allActions)
 
                 # Run the simulation for a single step and read its state back into Scenic
@@ -164,6 +152,18 @@ class Simulation:
             for monitor in self.scene.monitors:
                 monitor.stop()
             veneer.endSimulation(self)
+
+    def createObject(self, obj):
+        """Dynamically create an object."""
+        if self.verbosity >= 3:
+            print(f'      Creating object {obj}')
+        self.objects.append(obj)
+        if obj.behavior:
+            self.agents.append(obj)
+
+    def createObjectInSimulator(self, obj):
+        """Create the given object in the simulator."""
+        raise NotImplementedError
 
     def scheduleForAgents(self):
         """Return the order for the agents to run in the next time step."""
@@ -220,10 +220,16 @@ class Simulation:
 
 class DummySimulator(Simulator):
     """Simulator which does nothing, for debugging purposes."""
-    def createSimulation(self, scene):
-        return DummySimulation(scene)
+    def __init__(self, timestep=1):
+        self.timestep = timestep
+
+    def createSimulation(self, scene, verbosity=0):
+        return DummySimulation(scene, timestep=self.timestep, verbosity=verbosity)
 
 class DummySimulation(Simulation):
+    def createObjectInSimulator(self, obj):
+        pass
+
     def actionsAreCompatible(self, agent, actions):
         return True
 
@@ -256,6 +262,17 @@ class EndSimulationAction(Action):
     def __str__(self):
         return f'"terminate" on line {self.line}'
 
+class EndScenarioAction(Action):
+    """Special action indicating it is time to end the current scenario.
+
+    Only for internal use.
+    """
+    def __init__(self, line):
+        self.line = line
+
+    def __str__(self):
+        return f'"terminate scenario" on line {self.line}'
+
 class SimulationResult:
     """Result of running a simulation."""
     def __init__(self, trajectory, actions, terminationReason):
@@ -263,4 +280,4 @@ class SimulationResult:
         assert self.trajectory
         self.finalState = self.trajectory[-1]
         self.actions = tuple(actions)
-        self.terminationReason = terminationReason
+        self.terminationReason = str(terminationReason)

@@ -74,6 +74,7 @@ def unifyingType(opts):		# TODO improve?
 
 def canCoerceType(typeA, typeB):
 	"""Can values of typeA be coerced into typeB?"""
+	import scenic.syntax.veneer as veneer	# TODO improve
 	if typing.get_origin(typeA) is typing.Union:
 		# only raise an error now if none of the possible types will work;
 		# we'll do more careful checking at runtime
@@ -84,6 +85,8 @@ def canCoerceType(typeA, typeB):
 		return canCoerceType(typeA, float) or hasattr(typeA, 'toHeading')
 	elif typeB is Vector:
 		return hasattr(typeA, 'toVector')
+	elif typeB is veneer.Behavior:
+		return issubclass(typeA, typeB) or typeA in (type, type(None))
 	else:
 		return issubclass(typeA, typeB)
 
@@ -101,6 +104,7 @@ def coerce(thing, ty, error=None):
 	"""Coerce something into the given type."""
 	assert canCoerce(thing, ty), (thing, ty)
 
+	import scenic.syntax.veneer as veneer	# TODO improve?
 	realType = ty
 	if ty is float:
 		coercer = coerceToFloat
@@ -110,6 +114,8 @@ def coerce(thing, ty, error=None):
 		realType = float
 	elif ty is Vector:
 		coercer = coerceToVector
+	elif ty is veneer.Behavior:
+		coercer = coerceToBehavior
 	else:
 		coercer = None
 
@@ -138,6 +144,14 @@ def coerceToHeading(thing) -> float:
 
 def coerceToVector(thing) -> Vector:
 	return thing.toVector()
+
+def coerceToBehavior(thing):
+	import scenic.syntax.veneer as veneer	# TODO improve
+	if thing is None or isinstance(thing, veneer.Behavior):
+		return thing
+	else:
+		assert issubclass(thing, veneer.Behavior)
+		return thing()
 
 class TypecheckedDistribution(Distribution):
 	def __init__(self, dist, ty, errorMessage, coercer=None):

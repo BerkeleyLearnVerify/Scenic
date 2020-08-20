@@ -40,14 +40,15 @@ class CarlaSimulator(DrivingSimulator):
 		self.render = render  # visualization mode ON/OFF
 		self.record = record  # whether to save images to disk
 
-	def createSimulation(self, scene):
+	def createSimulation(self, scene, verbosity=0):
 		return CarlaSimulation(scene, self.client, self.map, self.timestep,
-							   render=self.render, record=self.record)
+							   render=self.render, record=self.record,
+							   verbosity=verbosity)
 
 
 class CarlaSimulation(DrivingSimulation):
-	def __init__(self, scene, client, map, timestep, render, record):
-		super().__init__(scene, timestep=timestep)
+	def __init__(self, scene, client, map, timestep, render, record, verbosity=0):
+		super().__init__(scene, timestep=timestep, verbosity=verbosity)
 		self.client = client
 		self.client.load_world(map)
 		self.world = self.client.get_world()

@@ -18,14 +18,14 @@ class LGSVLSimulator(simulators.Simulator):
             self.client.load(scene=lgsvl_scene)
         verbosePrint('Map loaded in simulator.')
 
-    def createSimulation(self, scene):
-        return LGSVLSimulation(scene, self.client)
+    def createSimulation(self, scene, verbosity=0):
+        return LGSVLSimulation(scene, self.client, verbosity=verbosity)
 
 
 class LGSVLSimulation(simulators.Simulation):
-    def __init__(self, scene, client):
+    def __init__(self, scene, client, verbosity=0):
         timestep = scene.params.get('time_step', 1.0/10)
-        super().__init__(scene, timestep=timestep)
+        super().__init__(scene, timestep=timestep, verbosity=verbosity)
         self.client = client
         self.usingApollo = False
         self.data = {}
@@ -145,7 +145,8 @@ class LGSVLSimulation(simulators.Simulation):
             if obj._stateUpdated:
                 obj.lgsvlObject.state = obj.state
                 obj._stateUpdated = False
-            if (ctrl := getattr(obj, '_control', None)) is not None:
+            ctrl = getattr(obj, '_control', None)
+            if ctrl is not None:
                 obj.lgsvlObject.apply_control(ctrl, obj._stickyControl)
                 obj._control = None
 
