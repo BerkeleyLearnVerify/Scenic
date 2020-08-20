@@ -1,56 +1,39 @@
+import matplotlib.pyplot as plt
 
-import scenic.simulators.carla.actions as actions
-import random
-from scenic.core.geometry import subtractVectors
-from scenic.core.vectors import Vector
-from scenic.simulators.domains.driving.network import loadNetwork
-loadNetwork('/home/carla_challenge/Downloads/Town01.xodr')
+from scenic.domains.driving.network import loadNetwork
+loadNetwork('/home/carla_challenge/Desktop/Carla/Dynamic-Scenic/Scenic-devel-099/examples/carla/OpenDrive/Town01.xodr')
 
-from scenic.simulators.carla.model import *
-from scenic.core.regions import PolygonalRegion, PolylineRegion
-import math
-import numpy as np
+param map = localPath('../OpenDrive/Town01.xodr')
+param carla_map = 'Town01'
 
-simulator = CarlaSimulator('Town01')
+from scenic.domains.driving.behaviors import *
+# from scenic.simulators.carla.model import *
+
+model scenic.domains.driving.model
 	
+SAFETY_DISTANCE = 10
+INITIAL_DISTANCE_APART = -10
 
-behavior FollowLaneBehavior(target_speed=20):
-
-	take actions.SetManualFirstGearShiftAction()
-	take actions.SetManualGearShiftAction(False)
-
-	""" Follow the lane that the vehicle is currently on """
-	# target_speed = 25 # km/hr
-
-	while True:
-		nearest_line_points = network.laneAt(self).centerline.nearestSegmentTo(self.position)
-		nearest_line_segment = PolylineRegion(nearest_line_points)
-		cte = nearest_line_segment.signedDistanceTo(self.position)
-		take actions.FollowLaneAction(target_speed, cte)
-
-behavior CollisionAvoidance(safety_distance=10, brake_intensity=0.3):
-	while (distance to other) < safety_distance:
-		print("ego applying break!")
-		take actions.SetBrakeAction(brake_intensity)
+behavior CollisionAvoidance(brake_intensity=0.3):
+	while distanceToAnyObjs(self, SAFETY_DISTANCE):
+		take SetBrakeAction(brake_intensity)
 
 
-behavior FollowLeadCarBehavior(safety_distance=10):
-
-	take actions.SetManualFirstGearShiftAction()
-	take actions.SetManualGearShiftAction(False)
+behavior FollowLeadCarBehavior():
 
 	try: 
-		FollowLaneBehavior(25)
+		FollowLaneBehavior()
 
-	interrupt when ((distance to other) < safety_distance):
+	interrupt when distanceToAnyObjs(self, SAFETY_DISTANCE):
 		CollisionAvoidance()
 
 
 roads = network.roads
+select_road = Uniform(*roads)
+select_lane = Uniform(*select_road.lanes)
 
-ego = Car on roads[1],
-		with behavior FollowLeadCarBehavior(10),
-		with blueprint 'vehicle.tesla.model3'
+other = Car on select_lane.centerline,
+		with behavior FollowLaneBehavior()
 
-other = Car ahead of ego by 10,
-		with behavior FollowLaneBehavior
+ego = Car following roadDirection from other by INITIAL_DISTANCE_APART,
+		with behavior FollowLeadCarBehavior()

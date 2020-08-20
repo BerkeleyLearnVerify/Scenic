@@ -1,31 +1,36 @@
+from scenic.domains.driving.network import loadNetwork
+loadNetwork('/home/carla_challenge/Desktop/Carla/Dynamic-Scenic/Scenic-devel-099/examples/carla/OpenDrive/Town01.xodr')
 
-import scenic.simulators.carla.actions as actions
-import time
-from shapely.geometry import LineString
-from scenic.core.regions import regionFromShapelyObject
-from scenic.simulators.domains.driving.network import loadNetwork
-from scenic.simulators.domains.driving.roads import ManeuverType
-loadNetwork('/home/carla_challenge/Downloads/Town01.xodr')
+param map = localPath('../OpenDrive/Town05.xodr')
+param carla_map = 'Town05'
 
-from scenic.simulators.carla.model import *
-from scenic.simulators.carla.behaviors import *
+from scenic.domains.driving.behaviors import *
 
-simulator = CarlaSimulator('Town01')
+model scenic.domains.driving.model
 
-MAX_BREAK_THRESHOLD = 1
-TERMINATE_TIME = 20
+# 3 way intersection. ego car turns left. actor has right of way.
 
-def concatenateCenterlines(centerlines=[]):
-	line = []
-	if centerlines != []:
-		for centerline in centerlines:
-			for point in centerline:
-				if point not in line:
-					line.append(point)
+# CONSTANTS
+space = [2,3,4,5]
 
-	return regionFromShapelyObject(LineString(line))
+# GEOMETRY
+threeWayIntersections = filter(lambda i: i.is3Way, network.intersections)
+intersection = Uniform(*threeWayIntersections)
+
+left_maneuvers = filter(lambda m: m.type == ManeuverType.LEFT_TURN, intersection.maneuvers)
+ego_maneuver = Uniform(*left_maneuvers)
+ego_L_centerlines = [ego_maneuver.startLane.centerline, ego_maneuver.connectingLane.centerline, ego_maneuver.endLane.centerline]
+egoStart = (OrientedPoint at ego_maneuver.startLane.centerline[-1]) offset by (-2, 2) @ 0 
+
+# ---
+
+conflicting_left = filter(lambda m: m.type == ManeuverType.LEFT_TURN, ego_maneuver.conflictingManeuvers)
+actor_maneuver = Uniform(*conflicting_left)
+actor_centerlines = [actor_maneuver.startLane.centerline, actor_maneuver.connectingLane.centerline, actor_maneuver.endLane.centerline]
+actorStart = actor_maneuver.startLane.centerline[-1]
 
 
+# BEHAVIOR
 behavior EgoBehavior(thresholdDistance, target_speed=20, trajectory = None):
 	assert trajectory is not None
 	brakeIntensity = 0.7
@@ -34,45 +39,17 @@ behavior EgoBehavior(thresholdDistance, target_speed=20, trajectory = None):
 		FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
 
 	interrupt when distanceToAnyCars(car=self, thresholdDistance=thresholdDistance):
-		take actions.SetBrakeAction(brakeIntensity)
+		take SetBrakeAction(brakeIntensity)
 
 
-threeWayIntersections = []
-for intersection in network.intersections:
-	if intersection.is3Way:
-		threeWayIntersections.append(intersection)
-
-# intersection = Uniform(*fourWayIntersections)
-intersection = threeWayIntersections[5]
-maneuvers = intersection.maneuvers
-
-leftTurn_manuevers = []
-for m in maneuvers:
-	if m.type == ManeuverType.LEFT_TURN:
-		leftTurn_manuevers.append(m)
-
-leftTurn_maneuver = leftTurn_manuevers[1]
-ego_L_startLane = leftTurn_maneuver.startLane
-ego_L_connectingLane = leftTurn_maneuver.connectingLane
-ego_L_endLane = leftTurn_maneuver.endLane
-
-ego_L_centerlines = [ego_L_startLane.centerline, ego_L_connectingLane.centerline, ego_L_endLane.centerline]
-
-
-leftTurn_maneuver = leftTurn_manuevers[0]
-other_L_startLane = leftTurn_maneuver.startLane
-other_L_connectingLane = leftTurn_maneuver.connectingLane
-other_L_endLane = leftTurn_maneuver.endLane
-
-other_L_centerlines = [other_L_startLane.centerline, other_L_connectingLane.centerline, other_L_endLane.centerline]
-
-ego = Car on ego_L_startLane.centerline,
+# PLACEMENT
+ego = Car following roadDirection from egoStart by -Uniform(*space),
 		with blueprint 'vehicle.tesla.model3',
 		with behavior EgoBehavior(target_speed=10, trajectory=ego_L_centerlines, thresholdDistance = 20)
 
-other = Car on other_L_startLane.centerline,
+other = Car following roadDirection from actorStart by -Uniform(*space),
 		with blueprint 'vehicle.tesla.model3',
-		with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=other_L_centerlines)
+		with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=actor_centerlines)
 
 
 # require that other car reaches the intersection before the ego car

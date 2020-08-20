@@ -1,38 +1,19 @@
+from scenic.domains.driving.network import loadNetwork
+loadNetwork('/home/carla_challenge/Desktop/Carla/Dynamic-Scenic/Scenic-devel-099/examples/carla/OpenDrive/Town01.xodr')
 
-import scenic.simulators.carla.actions as actions
-import time
-from shapely.geometry import LineString
-from scenic.core.regions import regionFromShapelyObject
-from scenic.simulators.domains.driving.network import loadNetwork
-from scenic.simulators.domains.driving.roads import ManeuverType
-loadNetwork('/home/carla_challenge/Downloads/Town01.xodr')
+param map = localPath('../OpenDrive/Town10HD.xodr')
+param carla_map = 'Town10HD'
 
-from scenic.simulators.carla.model import *
-from scenic.simulators.carla.behaviors import *
+from scenic.domains.driving.behaviors import *
 
-simulator = CarlaSimulator('Town01')
+model scenic.domains.driving.model
 
-MAX_BREAK_THRESHOLD = 1
-TERMINATE_TIME = 20
+fourLane = []
+for i in network.intersections:
+	if (len(i.incomingLanes) >= 8):
+		fourLane.append(i)
 
-def concatenateCenterlines(centerlines=[]):
-	line = []
-	if centerlines != []:
-		for centerline in centerlines:
-			for point in centerline:
-				if point not in line:
-					line.append(point)
-
-	return regionFromShapelyObject(LineString(line))
-
-
-threeWayIntersections = []
-for intersection in network.intersections:
-	if intersection.is3Way:
-		threeWayIntersections.append(intersection)
-
-# intersection = Uniform(*fourWayIntersections)
-intersection = threeWayIntersections[5]
+intersection = fourLane[0] # hard coded so I don't have to fix the double-sampling
 maneuvers = intersection.maneuvers
 
 straight_manuevers = []
@@ -61,6 +42,7 @@ ego_L_endLane = leftTurn_maneuver.endLane
 ego_L_centerlines = [ego_L_startLane.centerline, ego_L_connectingLane.centerline, ego_L_endLane.centerline]
 
 
+# PLACEMENT
 ego = Car on ego_L_startLane.centerline,
 		with blueprint 'vehicle.tesla.model3',
 		with behavior FollowTrajectoryBehavior(target_speed=10, trajectory=ego_L_centerlines)
@@ -68,4 +50,3 @@ ego = Car on ego_L_startLane.centerline,
 other = Car on startLane.centerline,
 		with blueprint 'vehicle.tesla.model3',
 		with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=centerlines)
-

@@ -1,70 +1,46 @@
+from scenic.domains.driving.network import loadNetwork
+loadNetwork('/home/carla_challenge/Desktop/Carla/Dynamic-Scenic/Scenic-devel-099/examples/carla/OpenDrive/Town01.xodr')
 
-import scenic.simulators.carla.actions as actions
-import time
+param map = localPath('../OpenDrive/Town01.xodr')
+param carla_map = 'Town01'
 
-from scenic.simulators.domains.driving.network import loadNetwork
-loadNetwork('/home/carla_challenge/Downloads/Town01.xodr')
+from scenic.domains.driving.behaviors import *
+# from scenic.simulators.carla.model import *
 
-from scenic.simulators.carla.model import *
+model scenic.domains.driving.model
 
-
-simulator = CarlaSimulator('Town01')
 MAX_BREAK_THRESHOLD = 1
+SAFETY_DISTANCE = 10
+INITIAL_DISTANCE_APART = -1*Uniform(5, 10)
+STEPS_PER_SEC = 10
 
-behavior FollowLane(target_speed=20):
-
-	""" Follow the lane that the vehicle is currently on """
-	# target_speed = 25 # km/hr
-
-	while True:
-		nearest_line_points = network.laneAt(self).centerline.nearestSegmentTo(self.position)
-		nearest_line_segment = PolylineRegion(nearest_line_points)
-		cte = nearest_line_segment.signedDistanceTo(self.position)
-		take actions.FollowLaneAction(target_speed, cte)
-
-behavior CollisionAvoidance(safety_distance=10, brake_intensity=0.3):
-	while (distance to other) < safety_distance:
-		print("ego applying break!")
-		take actions.SetBrakeAction(brake_intensity)
+behavior LeadCarBehavior():
+	try:
+		FollowLaneBehavior()
+	interrupt when simulation().currentTime > 5 * STEPS_PER_SEC:
+		take SetBrakeAction(MAX_BREAK_THRESHOLD)
 
 
-behavior FollowLeadCar(safety_distance=10):
-	
-	FollowLane(25)
-	# try: 
-	# 	FollowLane(25)
-
-	# interrupt when ((distance to other) < safety_distance):
-	# 	CollisionAvoidance(brake_intensity=0.9)
+behavior CollisionAvoidance():
+	while distanceToAnyObjs(self, SAFETY_DISTANCE):
+		take SetBrakeAction(MAX_BREAK_THRESHOLD)
 
 
-# behavior TerminateAfterTime(time_threshold=5):
-# 	start_time = time.time()
+behavior FollowLeadCarBehavior():
 
-# 	while time.time() - start_time < time_threshold:
-# 		wait
+	try: 
+		FollowLaneBehavior()
 
-# 	terminate when True
-
-# behavior LeadCarSuddenlyStops():
-
-# 	sudden_stop_time = (5, 8)
-# 	start_time = time.time()
-
-# 	try:
-# 		FollowLane(25)
-
-# 	interrupt when time.time()-start_time > sudden_stop_time: 
-# 		take actions.SetBrakeAction(MAX_BREAK_THRESHOLD)
-# 		TerminateAfterTime()
+	interrupt when distanceToAnyObjs(self, SAFETY_DISTANCE):
+		CollisionAvoidance()
 
 
 roads = network.roads
 select_road = Uniform(*roads)
-ego = Car on select_road,
-		with behavior FollowLeadCar(10),
-		with blueprint 'vehicle.tesla.model3'
+select_lane = Uniform(*select_road.lanes)
 
-# other = Car ahead of ego by 10,
-# 		with behavior LeadCarSuddenlyStops
+other = Car on select_lane.centerline,
+		with behavior LeadCarBehavior()
 
+ego = Car following roadDirection from other by INITIAL_DISTANCE_APART,
+		with behavior FollowLeadCarBehavior()
