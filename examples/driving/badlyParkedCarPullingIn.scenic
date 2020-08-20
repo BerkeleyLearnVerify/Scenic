@@ -7,7 +7,7 @@ model scenic.domains.driving.model
 behavior PullIntoRoad():
     while (distance from self to ego) > 15:
         wait
-    FollowLaneBehavior(lane=ego.lane)
+    FollowLaneBehavior(laneToFollow=ego.lane)
 
 ego = Car with behavior DriveAvoidingCollisions(avoidance_threshold=5)
 

@@ -1,8 +1,7 @@
 
 import scenic.domains.driving.controllers as controllers
 from scenic.domains.driving.actions import *
-# import scenic.domains.driving.model as model
-from scenic.domains.driving.model import Vehicle, network
+import scenic.domains.driving.model as _model
 from scenic.simulators.carla.blueprints import *
 from scenic.domains.driving.roads import ManeuverType
 from scenic.core.regions import regionFromShapelyObject
@@ -16,7 +15,7 @@ behavior ConstantThrottleBehavior(x):
 behavior DriveAvoidingCollisions(target_speed=25, avoidance_threshold=10):
     try:
         FollowLaneBehavior(target_speed=target_speed)
-    interrupt when self.distanceToClosest(Vehicle) <= avoidance_threshold:
+    interrupt when self.distanceToClosest(_model.Vehicle) <= avoidance_threshold:
         take SetThrottleAction(0), SetBrakeAction(1)
 
 def concatenateCenterlines(centerlines=[]):
@@ -30,6 +29,7 @@ def distanceToAnyObjs(vehicle, thresholdDistance):
     """ checks whether there exists any obj
     (1) in front of the vehicle, (2) on the same lane, (3) within thresholdDistance """
     objects = simulation().objects
+    network = _model.network
     for obj in objects:
         if not (vehicle can see obj):
             continue
@@ -48,7 +48,7 @@ behavior AccelerateForwardBehavior():
     take SetThrottleAction(0.5)
 
 behavior WalkForwardBehavior():
-    current_sidewalk = network.sidewalkAt(self.position)
+    current_sidewalk = _model.network.sidewalkAt(self.position)
     end_point = Uniform(*current_sidewalk.centerline.points)
     end_vec = end_point[0] @ end_point[1]
     normal_vec = Vector.normalized(end_vec)
@@ -65,7 +65,7 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None):
     past_steer_angle = 0
     past_speed = 0 # making an assumption here that the agent starts from zero speed
     if laneToFollow is None:
-        current_lane = network.laneAt(self)
+        current_lane = self.lane
     else:
         current_lane = laneToFollow
 

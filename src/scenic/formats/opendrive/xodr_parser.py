@@ -734,23 +734,23 @@ class Road:
                 else:
                     leftID = id_ - 1
                 rightID = id_ - 1 if id_ < 0 else id_ + 1
-                lane.laneToLeft = lanes.get(leftID)
-                lane.laneToRight = lanes.get(rightID)
+                lane._laneToLeft = lanes.get(leftID)
+                lane._laneToRight = lanes.get(rightID)
                 if self.drive_on_right:
-                    lane.fasterLane = lane.laneToLeft
-                    lane.slowerLane = lane.laneToRight
+                    lane._fasterLane = lane._laneToLeft
+                    lane._slowerLane = lane._laneToRight
                 else:
-                    lane.slowerLane = lane.laneToLeft
-                    lane.fasterLane = lane.laneToRight
-                if lane.fasterLane and lane.fasterLane.isForward != lane.isForward:
-                    lane.fasterLane = None
-                if lane.slowerLane and lane.slowerLane.isForward != lane.isForward:
-                    lane.slowerLane = None
+                    lane._slowerLane = lane._laneToLeft
+                    lane._fasterLane = lane._laneToRight
+                if lane._fasterLane and lane._fasterLane.isForward != lane.isForward:
+                    lane._fasterLane = None
+                if lane._slowerLane and lane._slowerLane.isForward != lane.isForward:
+                    lane._slowerLane = None
                 adj = []
-                if lane.laneToLeft:
-                    adj.append(lane.laneToLeft)
-                if lane.laneToRight:
-                    adj.append(lane.laneToRight)
+                if lane._laneToLeft:
+                    adj.append(lane._laneToLeft)
+                if lane._laneToRight:
+                    adj.append(lane._laneToRight)
                 lane.adjacentLanes = tuple(adj)
 
         # Gather lane sections into lanes
@@ -826,16 +826,16 @@ class Road:
             leftPoints = []
             current = startLanes[-1]    # get leftmost lane of the first section
             while current and isinstance(current, roadDomain.LaneSection):
-                if current.laneToLeft and current.laneToLeft.isForward == forward:
-                    current = current.laneToLeft
+                if current._laneToLeft and current._laneToLeft.isForward == forward:
+                    current = current._laneToLeft
                 leftPoints.extend(current.leftEdge.points)
                 current = current._successor
             leftEdge = PolylineRegion(cleanChain(leftPoints))
             rightPoints = []
             current = startLanes[0]     # get rightmost lane of the first section
             while current and isinstance(current, roadDomain.LaneSection):
-                if current.laneToRight and current.laneToRight.isForward == forward:
-                    current = current.laneToRight
+                if current._laneToRight and current._laneToRight.isForward == forward:
+                    current = current._laneToRight
                 rightPoints.extend(current.rightEdge.points)
                 current = current._successor
             rightEdge = PolylineRegion(cleanChain(rightPoints))
@@ -1549,7 +1549,7 @@ class RoadMap:
         crossings = ()      # TODO add these
         sidewalks = []
         for group in groups:
-            sidewalk = group.sidewalk
+            sidewalk = group._sidewalk
             if sidewalk:
                 sidewalks.append(sidewalk)
 

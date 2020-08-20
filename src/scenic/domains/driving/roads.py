@@ -351,8 +351,16 @@ class LaneGroup(LinearElement):
     lanes: Tuple[Lane]  # partially ordered, with lane 0 being closest to the curb
 
     # associated elements not actually part of this group
-    sidewalk: Union[Sidewalk, None] = None
-    bikeLane: Union[Lane, None] = None
+    _sidewalk: Union[Sidewalk, None] = None
+    _bikeLane: Union[Lane, None] = None
+
+    @property
+    def sidewalk(self):
+        return rejectIfNonexistent(self._sidewalk, 'sidewalk')
+
+    @property
+    def bikeLane(self):
+        return rejectIfNonexistent(self._bikeLane, 'bike lane')
 
     def defaultHeadingAt(self, point):
         point = toVector(point)
@@ -457,6 +465,22 @@ class LaneSection(ContainsCenterline, LinearElement):
 
     _fasterLane: Union[LaneSection, None] = None   # faster/slower adjacent lane, if it exists;
     _slowerLane: Union[LaneSection, None] = None   # could be to left or right depending on country
+
+    @property
+    def laneToLeft(self):
+        return rejectIfNonexistent(self._laneToLeft, 'lane to left')
+
+    @property
+    def laneToRight(self):
+        return rejectIfNonexistent(self._laneToRight, 'lane to right')
+
+    @property
+    def fasterLane(self):
+        return rejectIfNonexistent(self._fasterLane, 'faster lane')
+
+    @property
+    def slowerLane(self):
+        return rejectIfNonexistent(self._slowerLane, 'slower lane')
 
     @distributionFunction
     def shiftedBy(self, offset: int) -> Union[LaneSection, None]:
@@ -610,7 +634,7 @@ class Network:
         changed, so that cached networks will be properly regenerated (rather than being
         unpickled in an inconsistent state and causing errors later).
         """
-        return 8
+        return 9
 
     @classmethod
     def fromFile(cls, path, useCache=True, writeCache=True, **kwargs):
