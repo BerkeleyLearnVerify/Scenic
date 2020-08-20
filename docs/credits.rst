@@ -7,9 +7,9 @@ Scenic is primarily maintained by Daniel J. Fremont.
 
 The Scenic project was started at UC Berkeley in Sanjit Seshia's research group.
 
-The language was developed by Daniel J. Fremont, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia.
+The language was initially developed by Daniel J. Fremont, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia.
 
-Edward Kim assisted in putting together this documentation.
+Edward Kim assisted in putting together this documentation and extending the language to dynamic scenarios.
 
 The Scenic tool has benefitted from code contributions from:
 

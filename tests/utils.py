@@ -98,20 +98,16 @@ def generateChecked(scenario, maxIterations):
 
 def checkVeneerIsInactive():
     assert veneer.activity == 0
+    assert not veneer.scenarioStack
+    assert not veneer.currentScenario
     assert not veneer.evaluatingRequirement
-    assert not veneer.allObjects
-    assert veneer.egoObject is None
+    assert not veneer.evaluatingGuard
+    assert not veneer.scenarios
     assert not veneer._globalParameters
     assert not veneer.lockedParameters
     assert not veneer.lockedModel
-    assert not veneer.externalParameters
-    assert not veneer.pendingRequirements
-    assert not veneer.inheritedReqs
-    assert not veneer.behaviors
-    assert not veneer.monitors
-    assert not veneer.simulatorFactory
-    assert veneer.currentSimulation is None
-    assert veneer.currentBehavior is None
+    assert not veneer.currentSimulation
+    assert not veneer.currentBehavior
 
 ## Error checking utilities
 

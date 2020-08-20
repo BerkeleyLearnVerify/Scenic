@@ -9,7 +9,7 @@ from scenic.core.specifiers import Specifier, PropertyDefault
 from scenic.core.vectors import Vector
 from scenic.core.geometry import RotatedRectangle, averageVectors, hypot, min, pointIsInCone
 from scenic.core.regions import CircularRegion, SectorRegion
-from scenic.core.type_support import toVector, toHeading
+from scenic.core.type_support import toVector, toHeading, toType
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.utils import areEquivalent, cached_property
 from scenic.core.errors import RuntimeParseError
@@ -178,7 +178,7 @@ class Constructible(Samplable):
 		if hasattr(self, 'properties') and 'name' in self.properties:
 			return self.name
 		else:
-			return self.__repr__()
+			return f'unnamed {self.__class__.__name__}'
 
 	def __repr__(self):
 		if hasattr(self, 'properties'):
@@ -393,6 +393,13 @@ class Object(OrientedPoint, RotatedRectangle):
 		self.inradius = min(hw, hh)	# incircle; for collision detection
 
 		self._relations = []
+
+	def _specify(self, prop, value):
+		# Normalize types of some built-in properties
+		if prop == 'behavior':
+			import scenic.syntax.veneer as veneer	# TODO improve?
+			value = toType(value, veneer.Behavior, f'"behavior" of {self} not a behavior')
+		super()._specify(prop, value)
 
 	def _register(self):
 		import scenic.syntax.veneer as veneer	# TODO improve?

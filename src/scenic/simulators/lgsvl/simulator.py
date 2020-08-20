@@ -145,7 +145,8 @@ class LGSVLSimulation(simulators.Simulation):
             if obj._stateUpdated:
                 obj.lgsvlObject.state = obj.state
                 obj._stateUpdated = False
-            if (ctrl := getattr(obj, '_control', None)) is not None:
+            ctrl = getattr(obj, '_control', None)
+            if ctrl is not None:
                 obj.lgsvlObject.apply_control(ctrl, obj._stickyControl)
                 obj._control = None
 

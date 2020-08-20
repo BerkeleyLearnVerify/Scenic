@@ -26,6 +26,8 @@ class Workspace(Region):
 
 	def zoomAround(self, plt, objects, expansion=1):
 		"""Zoom the schematic around the specified objects"""
+		if not objects:
+			return
 		positions = (self.scenicToSchematicCoords(obj.position) for obj in objects)
 		x, y = zip(*positions)
 		minx, maxx = findMinMax(x)

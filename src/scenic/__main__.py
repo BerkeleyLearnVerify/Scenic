@@ -12,7 +12,7 @@ import scenic.core.errors as errors
 from scenic.core.simulators import SimulationCreationError
 
 parser = argparse.ArgumentParser(prog='scenic', add_help=False,
-                                 usage='scenic [-h | --help] [options] scenario',
+                                 usage='scenic [-h | --help] [options] FILE',
                                  description='Sample from a Scenic scenario, optionally '
                                              'running dynamic simulations.')
 
@@ -26,6 +26,8 @@ mainOptions.add_argument('-v', '--verbosity', help='verbosity level (default 1)'
 mainOptions.add_argument('-p', '--param', help='override a global parameter',
                          nargs=2, default=[], action='append', metavar=('PARAM', 'VALUE'))
 mainOptions.add_argument('-m', '--model', help='specify a Scenic world model', default=None)
+mainOptions.add_argument('--scenario', default=None,
+                         help='name of scenario to run (if file contains multiple)')
 
 # Simulation options
 simOpts = parser.add_argument_group('dynamic simulation options')
@@ -63,7 +65,7 @@ parser.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
                     help=argparse.SUPPRESS)
 
 # Positional arguments
-parser.add_argument('scenario', help='a Scenic file to run')
+parser.add_argument('scenicFile', help='a Scenic file to run')
 
 # Parse arguments and set up configuration
 args = parser.parse_args()
@@ -83,9 +85,10 @@ if args.verbosity >= 1:
     print('Beginning scenario construction...')
 startTime = time.time()
 scenario = errors.callBeginningScenicTrace(
-    lambda: translator.scenarioFromFile(args.scenario,
+    lambda: translator.scenarioFromFile(args.scenicFile,
                                         params=dict(args.param),
-                                        model=args.model)
+                                        model=args.model,
+                                        scenario=args.scenario)
 )
 totalTime = time.time() - startTime
 if args.verbosity >= 1:
