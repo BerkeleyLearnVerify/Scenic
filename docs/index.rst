@@ -18,6 +18,7 @@ Table of Contents
 
    quickstart
    tutorial
+   tutorial_dynamic
    syntax_guide
    syntax_details
    simulators
