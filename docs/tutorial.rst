@@ -1,5 +1,5 @@
-Scenic Tutorial
-===============
+Tutorial on Static Scenario
+============================
 
 This tutorial motivates and illustrates the main features of Scenic, focusing on aspects
 of the language that make it particularly well-suited for describing geometric scenarios.

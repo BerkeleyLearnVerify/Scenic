@@ -12,7 +12,18 @@ CARLA
 -----
 
 Our interface to the `CARLA <https://carla.org/>`_ simulator enables using Scenic to describe autonomous driving scenarios.
-This interface is part of the VerifAI toolkit; documentation and examples can be found in the `VerifAI repository`_ (the Scenic repository also has several other example scenarios).
+This interface is part of the VerifAI toolkit; documentation and examples can be found in the `VerifAI repository`_ (the Scenic repository also has several other example scenarios). Please follow the following instruction to install Carla and interface it with Scenic. 
+
+1. Install the latest Carla (tested version 0.9.9 so far) from the `Release Page <https://github.com/carla-simulator/carla/releases>`_.
+2. Install Scenic in your python virtual environment as instructed in :doc:`quickstart`.
+3. Within the same python virtual environment, please install Carla's Python API by executing the following command in the terminal commandline::
+
+	easy_install \PATH_TO_CARLA_FOLDER\PythonAPI\carla\dist\carla-0.9.9-py3.7-linux-x86_64.egg
+
+The exact name of the ``.egg`` file may vary depending on minor version of the Carla you installed. If different, please use the name of the egg file for python version 3. The PythonAPI package should be installed as ``carla`` package. For validation, if you execute ``pip list`` on terminal ``carla`` should be listed.
+
+To instantiate the Carla simulator, please run ``.\CarlaUE4.sh`` in your terminal. This bash file should be located at the root of your Carla folder. 
+If not, please search for it within your Carla folder. Once the Carla simulator is instantiated, please open another terminal window and follow the :doc:`Trying Some Examples<quickstart>`
 
 
 Grand Theft Auto V

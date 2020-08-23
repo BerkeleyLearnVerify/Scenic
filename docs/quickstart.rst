@@ -77,7 +77,9 @@ Learning More
 
 Depending on what you'd like to do with Scenic, different parts of the documentation may be helpful:
 
-	* If you want to learn how to write Scenic programs, see the :doc:`tutorial <tutorial>`.
+	* If you want to learn how to write Scenic programs to describe static environments, see the :doc:`Tutorial on Static Scenario<tutorial>`.
+
+	* If you want to learn how to write Scenic programs to describe dynamic environments, see the :doc:`Tutorial on Dynamic Scenario<tutorial_dynamic>`.
 
 	* If you want to use Scenic with a simulator, see the :doc:`Supported Simulators page<simulators>` (which also describes how to interface Scenic to a new simulator, if the one you want isn't listed).
 
