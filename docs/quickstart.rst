@@ -4,7 +4,7 @@ Getting Started with Scenic
 Installation
 ------------
 
-Scenic requires **Python 3.6** or newer.
+Scenic requires **Python 3.8** or newer.
 You can install Scenic from PyPI by simply running::
 
 	pip install scenic
@@ -15,6 +15,12 @@ Install `Poetry <https://python-poetry.org/>`_, activate the `virtual environmen
 	poetry install
 
 If you will be developing Scenic, add the ``-E dev`` option when invoking Poetry.
+If you get an error, saying that your machine does not have a compatible version, this means that you do not have python version 3.6 or newer. 
+In this case, you can use ``pyenv`` to install upper version of python by executing ``pyenv install 3.8.2``. You can choose any version of python above 3.8.0. 
+
+Then, specify to poetry which python environment to use with ``poetry env use /full/path/to/python`` in terminal. For example, on OSX, the path to python installed with pyenv was ``~/.pyenv/versions/3.8.2/bin/python3.8``. 
+Afterwards, you can execute ``poetry install``.
+
 
 .. note::
 

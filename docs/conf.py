@@ -25,9 +25,9 @@ gw_int.intersectionPath = '../tests/simulators/webots/guideways/McClintock_DonCa
 import scenic.simulators.webots.road.world as wbt_road_world
 wbt_road_world.worldPath = '../tests/simulators/webots/road/simple.wbt'
 
-import scenic.simulators.carla.map as carla_map
-carla_map.mapPath = '../tests/simulators/formats/opendrive/maps/opendrive.org/CulDeSac.xodr'
-carla_map.lanePoints = 2
+# import scenic.simulators.carla.map as carla_map
+# carla_map.mapPath = '../tests/simulators/formats/opendrive/maps/opendrive.org/CulDeSac.xodr'
+# carla_map.lanePoints = 2
 
 # -- Project information -----------------------------------------------------
 
