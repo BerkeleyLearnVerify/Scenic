@@ -36,11 +36,9 @@ See the paper and `scenic.simulators.gta` for documentation.
 Importing scenes into GTA V and capturing rendered images requires a GTA V plugin, which you can find `here <https://github.com/xyyue/scenic2gta>`_.
 
 
-LGSVL (coming soon)
--------------------
-
-We have developed an interface to the `LGSVL Simulator <https://www.lgsvlsimulator.com/>`_ for autonomous driving, used in our :ref:`ITSC 2020 <ITSC2020>` paper.
-This interface will be released shortly.
+LGSVL
+-----
+We have developed an interface to the LGSVL simulator for autonomous driving, used in our :ref:`ITSC 2020 <ITSC2020>` paper. Please install the simulator from the `LGSVL Simulator <https://www.lgsvlsimulator.com/>`_ website. Then, within your python virutal environment where you installed Scenic, please also install LGSVL's python API package from `source <https://github.com/lgsvl/PythonAPI>`_. 
 
 
 Webots
