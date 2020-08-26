@@ -1,13 +1,16 @@
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
-from scenic.domains.driving.network import loadNetwork
-loadNetwork('/home/carla_challenge/Desktop/Carla/Dynamic-Scenic/Scenic-devel-099/examples/carla/OpenDrive/Town01.xodr')
+# from scenic.domains.driving.network import loadNetwork
+# loadNetwork('/home/carla_challenge/Desktop/Carla/Dynamic-Scenic/Scenic-devel-099/examples/carla/OpenDrive/Town01.xodr')
 
-param map = localPath('../OpenDrive/Town01.xodr')
-param carla_map = 'Town01'
+# param map = localPath('../OpenDrive/Town01.xodr')
+# param carla_map = 'Town01'
 
-from scenic.domains.driving.behaviors import *
+# from scenic.domains.driving.behaviors import *
 # from scenic.simulators.carla.model import *
+
+param map = localPath('../../lgsvl/maps/cubetown.xodr')
+param lgsvl_map = 'CubeTown'
 
 model scenic.domains.driving.model
 	

@@ -79,7 +79,7 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None):
     nearby_intersection = current_lane.maneuvers[0].intersection
 
     # check whether self agent is vehicle:
-    if self.blueprint:
+    if hasattr(self, 'blueprint'):
         is_vehicle = self.blueprint in carModels
     else:
         # assume it is a car
@@ -105,7 +105,16 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None):
 
         if not entering_intersection and (distance from self.position to nearby_intersection) < TRIGGER_DISTANCE_TO_SLOWDOWN:
             entering_intersection = True
-            select_maneuver = Uniform(*current_lane.maneuvers)
+            straight_manuevers = filter(lambda i: i.type == ManeuverType.STRAIGHT, current_lane.maneuvers)
+
+            if len(straight_manuevers) > 0:
+                select_maneuver = Uniform(*straight_manuevers)
+            else:
+                if len(current_lane.maneuvers) > 0:
+                    select_maneuver = Uniform(*current_lane.maneuvers)
+                else:
+                    take SetBrakeAction()
+                    break
 
             # assumption: there always will be a maneuver
             if select_maneuver.connectingLane != None:
@@ -151,7 +160,7 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
     trajectory_line = concatenateCenterlines(trajectory)
 
     # check whether self agent is vehicle:
-    if self.blueprint:
+    if hasattr(self, 'blueprint'):
         is_vehicle = self.blueprint in carModels
     else:
         # assume it is a car

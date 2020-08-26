@@ -1,11 +1,16 @@
-from scenic.domains.driving.network import loadNetwork
-loadNetwork('/home/carla_challenge/Desktop/Carla/Dynamic-Scenic/Scenic-devel-099/examples/carla/OpenDrive/Town01.xodr')
+# from scenic.domains.driving.network import loadNetwork
+# loadNetwork('/home/carla_challenge/Desktop/Carla/Dynamic-Scenic/Scenic-devel-099/examples/carla/OpenDrive/Town01.xodr')
 
-param map = localPath('../OpenDrive/Town01.xodr')
-param carla_map = 'Town01'
+# param map = localPath('../OpenDrive/Town01.xodr')
+# param carla_map = 'Town01'
 
-from scenic.domains.driving.behaviors import *
-# from scenic.simulators.carla.model import *
+# from scenic.domains.driving.behaviors import *
+# # from scenic.simulators.carla.model import *
+
+# model scenic.domains.driving.model
+
+param map = localPath('../../lgsvl/maps/cubetown.xodr')
+param lgsvl_map = 'CubeTown'
 
 model scenic.domains.driving.model
 
@@ -15,7 +20,6 @@ PARKING_SIDEWALK_OFFSET_RANGE = 2
 CUT_IN_TRIGGER_DISTANCE = Uniform(10, 12)
 
 behavior CutInBehavior(laneToFollow):
-	print("OTHER LOCATION: ", self.position)
 	while (distance from self to ego) > CUT_IN_TRIGGER_DISTANCE:
 		wait
 
@@ -27,9 +31,6 @@ behavior CollisionAvoidance():
 
 
 behavior EgoBehavior():
-
-	print("EGO LOCATION: ", self.position)
-
 	try: 
 		FollowLaneBehavior()
 
