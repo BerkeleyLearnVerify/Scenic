@@ -24,7 +24,7 @@ class Scene:
 		workspace (:obj:`~scenic.core.workspaces.Workspace`): Workspace for the scenario.
     """
 	def __init__(self, workspace, objects, egoObject, params,
-	             alwaysReqs=(), terminationConds=(), termScenarioConds=(), monitors=(),
+	             alwaysReqs=(), terminationConds=(), termSimulationConds=(), monitors=(),
 	             behaviorNamespaces={}, dynamicScenario=None):
 		self.workspace = workspace
 		self.objects = tuple(objects)
@@ -32,7 +32,7 @@ class Scene:
 		self.params = params
 		self.alwaysRequirements = tuple(alwaysReqs)
 		self.terminationConditions = tuple(terminationConds)
-		self.terminateScenarioConditions = tuple(termScenarioConds)
+		self.terminateSimulationConditions = tuple(termSimulationConds)
 		self.monitors = tuple(monitors)
 		self.behaviorNamespaces = behaviorNamespaces
 		self.dynamicScenario = dynamicScenario
@@ -80,7 +80,7 @@ class Scenario:
 		self.requirements = tuple(dynamicScenario._requirements)	# TODO clean up
 		self.alwaysRequirements = tuple(dynamicScenario._alwaysRequirements)
 		self.terminationConditions = tuple(dynamicScenario._terminationConditions)
-		self.terminateScenarioConditions = tuple(dynamicScenario._terminateScenarioConditions)
+		self.terminateSimulationConditions = tuple(dynamicScenario._terminateSimulationConditions)
 		self.initialRequirements = self.requirements + self.alwaysRequirements
 		assert all(req.constrainsSampling for req in self.initialRequirements)
 		# dependencies must use fixed order for reproducibility
@@ -197,13 +197,9 @@ class Scenario:
 				sampledObj.heading = float(sampledObj.heading)
 				# behavior
 				behavior = sampledObj.behavior
-				if behavior is not None:
-					if isinstance(behavior, type) and issubclass(behavior, veneer.Behavior):
-						behavior = behavior()
-						sampledObj.behavior = behavior
-					if not isinstance(behavior, veneer.Behavior):
-						raise InvalidScenarioError(
-						    f'behavior {behavior} of Object {obj} is not a behavior')
+				if behavior is not None and not isinstance(behavior, veneer.Behavior):
+					raise InvalidScenarioError(
+						f'behavior {behavior} of Object {obj} is not a behavior')
 
 			# Check built-in requirements
 			for i in range(len(objects)):
@@ -247,10 +243,10 @@ class Scenario:
 		alwaysReqs = (veneer.BoundRequirement(req, sample) for req in self.alwaysRequirements)
 		terminationConds = (veneer.BoundRequirement(req, sample)
 		                    for req in self.terminationConditions)
-		termScenarioConds = (veneer.BoundRequirement(req, sample)
-		                     for req in self.terminateScenarioConditions)
+		termSimulationConds = (veneer.BoundRequirement(req, sample)
+		                       for req in self.terminateSimulationConditions)
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
-		              alwaysReqs, terminationConds, termScenarioConds, self.monitors,
+		              alwaysReqs, terminationConds, termSimulationConds, self.monitors,
 		              sampledNamespaces, self.dynamicScenario)
 		return scene, iterations
 

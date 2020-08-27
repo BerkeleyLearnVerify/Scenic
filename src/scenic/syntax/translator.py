@@ -254,11 +254,10 @@ createDefault = 'PropertyDefault'
 scenarioClass = 'DynamicScenario'
 behaviorClass = 'Behavior'
 monitorClass = 'Monitor'
-behaviorChecker = 'isABehavior'
 createTerminationAction = 'makeTerminationAction'
 internalFunctions = {
 	rangeConstructor, createDefault, scenarioClass,
-	behaviorClass, behaviorChecker, createTerminationAction,
+	behaviorClass, createTerminationAction,
 }
 
 # sanity check: these functions actually exist
@@ -292,6 +291,7 @@ requireStatement = 'require'
 softRequirement = 'require_soft'	# not actually a statement, but a marker for the parser
 requireAlwaysStatement = ('require', 'always')
 terminateWhenStatement = ('terminate', 'when')
+terminateSimulationWhenStatement = ('terminate', 'simulation', 'when')
 
 actionStatement = 'take'			# statement invoking a primitive action
 waitStatement = 'wait'				# statement invoking a no-op action
@@ -310,6 +310,12 @@ oneWordStatements = {	# TODO clean up
 	abortStatement, invokeStatement, simulatorStatement
 }
 twoWordStatements = { requireAlwaysStatement, terminateWhenStatement }
+threeWordStatements = { terminateSimulationWhenStatement }
+
+threeWordIncipits = { tokens[:2]: tokens[2] for tokens in threeWordStatements } # TODO improve
+for incipit, last in threeWordIncipits.items():
+	for tok2 in twoWordStatements:
+		assert tok2 != incipit, (tok2, last)
 
 # statements implemented by functions
 functionStatements = {
@@ -317,6 +323,7 @@ functionStatements = {
 	modelStatement, simulatorStatement
 }
 twoWordFunctionStatements = { requireAlwaysStatement, terminateWhenStatement }
+threeWordFunctionStatements = { terminateSimulationWhenStatement }
 def functionForStatement(tokens):
 	return '_'.join(tokens) if isinstance(tokens, tuple) else tokens
 def nameForStatement(tokens):
@@ -332,6 +339,10 @@ for imp in functionStatements:
 	assert imp in api, imp
 for tokens in twoWordFunctionStatements:
 	assert len(tokens) == 2
+	imp = functionForStatement(tokens)
+	assert imp in api, imp
+for tokens in threeWordFunctionStatements:
+	assert len(tokens) == 3
 	imp = functionForStatement(tokens)
 	assert imp in api, imp
 
@@ -537,6 +548,10 @@ replacements = {	# TODO police the usage of these? could yield bizarre error mes
 	'globalParameters': ((NAME, 'globalParameters'), (LPAR, '('), (RPAR, ')')),
 }
 
+twoWordReplacements = {
+	('initial', 'scenario'): ((NAME, 'in_initial_scenario'), (LPAR, '('), (RPAR, ')')),
+}
+
 ## Illegal and reserved syntax
 
 illegalTokens = {
@@ -568,7 +583,7 @@ keywords = (
 scenicExtensions = ('sc', 'scenic')
 
 class ScenicMetaFinder(importlib.abc.MetaPathFinder):
-	def find_spec(self, name, paths, target):
+	def find_spec(self, name, paths, target=None):
 		if paths is None:
 			paths = sys.path
 			modname = name
@@ -977,6 +992,18 @@ class TokenTranslator:
 						callFunction(interruptExceptMarker)
 						advance()	# consume second word
 						matched = True
+					elif startOfStatement and twoWords in threeWordIncipits:	# 3-word statement
+						advance()	# consume second word
+						endToken = advance()	# consume third word
+						thirdWord = endToken.tstring
+						expected = threeWordIncipits[twoWords]
+						if thirdWord != expected:
+							self.parseError(endToken,
+							                f'expected "{expected}", got "{thirdWord}"')
+						wrapStatementCall()
+						function = functionForStatement(twoWords + (thirdWord,))
+						callFunction(function)
+						matched = True
 					elif startOfStatement and twoWords in twoWordStatements:	# 2-word statement
 						wrapStatementCall()
 						function = functionForStatement(twoWords)
@@ -1002,6 +1029,11 @@ class TokenTranslator:
 						wrapStatementCall()
 						callFunction(softRequirement, argument=(NUMBER, prob))
 						endToken = nextToken
+					elif twoWords in twoWordReplacements:	# 2-word direct replacement
+						for tok in twoWordReplacements[twoWords]:
+							injectToken(tok, spaceAfter=1)
+						advance()	# consume second word
+						skip = True
 					elif twoWords in illegalConstructs:
 						construct = ' '.join(twoWords)
 						self.parseError(token,
@@ -1895,15 +1927,77 @@ def executeCodeIn(code, namespace):
 
 def storeScenarioStateIn(namespace, requirementSyntax):
 	"""Post-process an executed Scenic module, extracting state from the veneer."""
-	scenario = veneer.currentScenario
-	namespace['_scenarios'] = tuple(veneer.scenarios)
-	if (not scenario._objects and not scenario._globalParameters
-		and not scenario._requirements and len(veneer.scenarios) == 1):	# TODO improve?
-		scenario = veneer.scenarios[0]()
-		scenario._prepare()
 
-	scenario._complete(namespace, requirementSyntax)
+	# Save requirement syntax and other module-level information
+	moduleScenario = veneer.currentScenario
+	bns = gatherBehaviorNamespacesFrom(moduleScenario._behaviors)
+	def handle(scenario):
+		scenario._requirementSyntax = requirementSyntax
+		scenario._simulatorFactory = staticmethod(veneer.simulatorFactory)
+		scenario._behaviorNamespaces = bns
+	handle(moduleScenario)
+	namespace['_scenarios'] = tuple(veneer.scenarios)
+	for scenarioClass in veneer.scenarios:
+		handle(scenarioClass)
+
+	# Select top-level scenario for this module
+	useModuleScenario = True
+	if (not moduleScenario._objects and not moduleScenario._globalParameters
+		and not moduleScenario._requirements and len(veneer.scenarios) == 1):	# TODO improve?
+		soleScenario = veneer.scenarios[0]
+		sig = inspect.signature(soleScenario)
+		try:
+			sig.bind()	# Check if we can instantiate scenario with no arguments
+			useModuleScenario = False
+		except TypeError:
+			pass
+	if useModuleScenario:
+		scenario = moduleScenario
+		reqNamespace = namespace
+	else:
+		scenario = soleScenario()
+		scenario._prepare()		# Run setup block of scenario to create objects, etc.
+		reqNamespace = scenario.__dict__
+
+	# Extract requirements, scan for relations used for pruning, and create closures
+	scenario._compileRequirements(reqNamespace)
+
+	# Save global parameters
+	for name, value in veneer._globalParameters.items():
+		if needsLazyEvaluation(value):
+			raise InvalidScenarioError(f'parameter {name} uses value {value}'
+									   ' undefined outside of object definition')
+	scenario._globalParameters = dict(veneer._globalParameters)
+	scenario._simulatorFactory = veneer.simulatorFactory
+
 	namespace['_scenario'] = scenario
+
+def gatherBehaviorNamespacesFrom(behaviors):
+	"""Gather any global namespaces which could be referred to by behaviors.
+
+	We'll need to rebind any sampled values in them at runtime.
+	"""
+	behaviorNamespaces = {}
+	def registerNamespace(modName, ns):
+		if modName not in behaviorNamespaces:
+			behaviorNamespaces[modName] = ns
+		else:
+			assert behaviorNamespaces[modName] is ns
+			return
+		for name, value in ns.items():
+			if (isinstance(value, types.ModuleType)
+				and getattr(value, '_isScenicModule', False)):
+				registerNamespace(value.__name__, value.__dict__)
+			else:
+				# Convert values requiring sampling to Distributions
+				dval = toDistribution(value)
+				if dval is not value:
+					ns[name] = dval
+	for behavior in behaviors:
+		modName = behavior.__module__
+		globalNamespace = behavior.makeGenerator.__globals__
+		registerNamespace(modName, globalNamespace)
+	return behaviorNamespaces
 
 def constructScenarioFrom(namespace, scenarioName=None):
 	"""Build a Scenario object from an executed Scenic module."""
@@ -1911,9 +2005,15 @@ def constructScenarioFrom(namespace, scenarioName=None):
 		ty = namespace.get(scenarioName, None)
 		if not (isinstance(ty, type) and issubclass(ty, veneer.DynamicScenario)):
 			raise RuntimeError(f'no scenario "{scenarioName}" found')
+		sig = inspect.signature(ty)
+		try:
+			sig.bind()
+		except TypeError:
+			raise RuntimeError(f'cannot instantiate scenario "{scenarioName}"'
+			                   ' with no arguments') from None
+
 		innerScenario = ty()
 		innerScenario._prepare()
-		innerScenario._complete(namespace)
 	elif len(namespace['_scenarios']) > 1:
 		raise RuntimeError('multiple choices for scenario to run '
 		                   '(specify using the --scenario option)')

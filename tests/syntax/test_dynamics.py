@@ -17,8 +17,8 @@ def test_dynamic_property():
         ego = Object with behavior Foo
         terminate when ego.position.x >= 3
     """)
-    actions = sampleEgoActions(scenario, maxSteps=3)
-    assert len(actions) == 2
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert len(actions) == 3
 
 def test_dynamic_derived_property():
     scenario = compileScenic("""
@@ -29,8 +29,8 @@ def test_dynamic_derived_property():
         ego = Object with behavior Foo
         terminate when ego.left.position.y >= 3
     """)
-    actions = sampleEgoActions(scenario, maxSteps=3)
-    assert len(actions) == 2
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert len(actions) == 3
 
 ## Behaviors
 
@@ -207,7 +207,7 @@ def test_terminate_when():
         terminate when flag
     """)
     actions = sampleEgoActions(scenario, maxSteps=3)
-    assert tuple(actions) == (1,)
+    assert tuple(actions) == (1, 2)
 
 # Requirements
 

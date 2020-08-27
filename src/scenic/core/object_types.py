@@ -178,7 +178,7 @@ class Constructible(Samplable):
 		if hasattr(self, 'properties') and 'name' in self.properties:
 			return self.name
 		else:
-			return f'unnamed {self.__class__.__name__}'
+			return f'unnamed {self.__class__.__name__} ({id(self)})'
 
 	def __repr__(self):
 		if hasattr(self, 'properties'):
@@ -376,6 +376,7 @@ class Object(OrientedPoint, RotatedRectangle):
 	angularSpeed: PropertyDefault((), {'dynamic'}, lambda self: 0)
 
 	behavior: None
+	lastActions: None
 
 	def __new__(cls, *args, **kwargs):
 		obj = super().__new__(cls)

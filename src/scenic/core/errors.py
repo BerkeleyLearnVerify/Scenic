@@ -14,7 +14,9 @@ import scenic.syntax
 ## Configuration
 
 #: whether or not to elide Scenic's innards from backtraces
-showInternalBacktrace = False
+# Set to True by default so that any errors during import of the scenic module
+# will get full backtraces; the scenic module's __init__.py sets it to False
+showInternalBacktrace = True
 
 #: folders elided from backtraces when `showInternalBacktrace` is false
 hiddenFolders = [

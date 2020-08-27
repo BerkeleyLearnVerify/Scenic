@@ -10,6 +10,7 @@ __all__ = (
 	# Primitive statements and functions
 	'ego', 'require', 'resample', 'param', 'globalParameters', 'mutate', 'verbosePrint',
 	'localPath', 'model', 'simulator', 'simulation', 'require_always', 'terminate_when',
+	'terminate_simulation_when', 'in_initial_scenario',
 	'sin', 'cos', 'hypot', 'max', 'min',
 	'filter',
 	# Prefix operators
@@ -41,7 +42,7 @@ __all__ = (
 	# Exceptions
 	'GuardFailure', 'PreconditionFailure', 'InvariantFailure',
 	# Internal APIs 	# TODO remove?
-	'PropertyDefault', 'Behavior', 'Monitor', 'isABehavior', 'makeTerminationAction',
+	'PropertyDefault', 'Behavior', 'Monitor', 'makeTerminationAction',
 	'BlockConclusion', 'runTryInterrupt', 'wrapStarredValue', 'callWithStarArgs',
 	'Modifier', 'DynamicScenario'
 )
@@ -90,6 +91,7 @@ from scenic.core.vectors import OrientedVector
 from scenic.core.external_params import ExternalParameter
 from scenic.core.simulators import (RejectSimulationException, EndSimulationAction,
                                     EndScenarioAction)
+from scenic.core.utils import argsToString
 from scenic.core.workspaces import Workspace
 from scenic.core.scenarios import Scenario
 import scenic.syntax.relations as relations
@@ -105,6 +107,8 @@ _globalParameters = {}
 lockedParameters = set()
 lockedModel = None
 currentSimulation = None
+inInitialScenario = True
+runningScenarios = set()
 currentBehavior = None
 simulatorFactory = None
 evaluatingGuard = False
@@ -202,14 +206,19 @@ def callWithStarArgs(func, /, *args, **kwargs):
 # Simulations
 
 def beginSimulation(sim):
-	global currentSimulation, currentScenario
+	global currentSimulation, currentScenario, inInitialScenario, runningScenarios
+	global _globalParameters
 	if isActive():
 		raise RuntimeError('tried to start simulation during Scenic compilation!')
 	assert currentSimulation is None
 	assert currentScenario is None
+	assert not scenarioStack
 	currentSimulation = sim
+	inInitialScenario = True
 	currentScenario = sim.scene.dynamicScenario
+	runningScenarios = {currentScenario}
 	currentScenario._bindTo(sim.scene)
+	_globalParameters = dict(sim.scene.params)
 
 	# rebind globals that could be referenced by behaviors to their sampled values
 	for modName, (namespace, sampledNS, originalNS) in sim.scene.behaviorNamespaces.items():
@@ -217,10 +226,13 @@ def beginSimulation(sim):
 		namespace.update(sampledNS)
 
 def endSimulation(sim):
-	global currentSimulation, currentScenario, currentBehavior
+	global currentSimulation, currentScenario, currentBehavior, runningScenarios
+	global _globalParameters
 	currentSimulation = None
 	currentScenario = None
+	runningScenarios = set()
 	currentBehavior = None
+	_globalParameters = {}
 
 	for modName, (namespace, sampledNS, originalNS) in sim.scene.behaviorNamespaces.items():
 		namespace.clear()
@@ -239,7 +251,7 @@ class RequirementType(enum.Enum):
 
 	# requirements used only during simulation
 	terminateWhen = 'terminate when'
-	terminateScenarioWhen = 'terminate scenario when'
+	terminateSimulationWhen = 'terminate simulation when'
 
 	@property
 	def constrainsSampling(self):
@@ -365,6 +377,29 @@ class BoundRequirement:
 	def __str__(self):
 		return f'"{self.ty.value}" on line {self.line}'
 
+class DynamicRequirement:
+	def __init__(self, ty, condition, line):
+		self.ty = ty
+		self.line = line
+
+		global currentScenario
+		scenario = currentScenario
+		def closure():
+			global currentScenario
+			oldScenario = currentScenario
+			currentScenario = scenario
+			try:
+				return condition()
+			finally:
+				currentScenario = oldScenario
+		self.closure = closure
+
+	def isTrue(self):
+		return self.closure()
+
+	def __str__(self):
+		return f'"{self.ty.value}" on line {self.line}'
+
 # Scenarios
 
 class Invocable:
@@ -404,6 +439,9 @@ class DynamicScenario(Invocable):
 	def __init_subclass__(cls, *args, **kwargs):
 		scenarios.append(cls)
 
+	_requirementSyntax = None 	# overridden by subclasses
+	_simulatorFactory = None
+
 	def __init__(self, *args, **kwargs):
 		super().__init__()
 		self._args = args
@@ -417,16 +455,16 @@ class DynamicScenario(Invocable):
 		self._requirements = []
 		self._requirementDeps = set()	# things needing to be sampled to evaluate the requirements
 
-		self._simulatorFactory = None
 		self._agents = []
 		self._monitors = []
 		self._behaviors = []
 		self._alwaysRequirements = []
 		self._terminationConditions = []
-		self._terminateScenarioConditions = []
+		self._terminateSimulationConditions = []
 
 		self._subScenarios = []
 		self._endWithBehaviors = False
+		self._prepared = False
 
 	@classmethod
 	def _dummy(cls, filename):
@@ -434,6 +472,7 @@ class DynamicScenario(Invocable):
 		scenario._setup = None
 		scenario._compose = None
 		scenario._filename = filename 	# for debugging
+		scenario._prepared = True
 		return scenario
 
 	@property
@@ -442,25 +481,33 @@ class DynamicScenario(Invocable):
 
 	@property
 	def objects(self):
-		return self._objects
+		return tuple(self._objects)
 
 	def _bindTo(self, scene):
 		self._ego = scene.egoObject
-		self._objects = scene.objects
-		self._agents = tuple(obj for obj in scene.objects if obj.behavior is not None)
+		self._objects = list(scene.objects)
+		self._agents = [obj for obj in scene.objects if obj.behavior is not None]
 		self._alwaysRequirements = scene.alwaysRequirements
 		self._terminationConditions = scene.terminationConditions
-		self._terminateScenarioConditions = scene.terminateScenarioConditions
+		self._terminateSimulationConditions = scene.terminateSimulationConditions
 
 	def _prepare(self):
-		global currentScenario
+		assert not self._prepared
+		self._prepared = True
+		if currentSimulation:
+			verbosePrint(f'Starting scenario {self}', level=3)
+
+		global currentScenario, inInitialScenario
 		oldScenario = currentScenario
+		if oldScenario is not None:
+			self._ego = oldScenario._ego	# inherit ego from parent
 		currentScenario = self
 		try:
 			# Execute setup block
 			if self._setup is not None:
 				locs = self._setup(self, None, *self._args, **self._kwargs)
 				self.__dict__.update(locs)	# save locals as if they were in class scope
+				inInitialScenario = False
 
 			# Start compose block
 			if self._compose is not None:
@@ -472,16 +519,17 @@ class DynamicScenario(Invocable):
 			currentScenario = oldScenario
 
 	def _start(self):
+		assert self._prepared
+
 		global currentScenario
 		oldScenario = currentScenario
 		currentScenario = self
+		runningScenarios.add(self)
 		try:
 			# Initialize behavior coroutines of agents
 			for agent in self._agents:
 				assert isinstance(agent.behavior, Behavior), agent.behavior
-				running = agent.behavior.start(agent)
-				if not running:
-					raise RuntimeError(f'{agent.behavior} of {agent} does not take any actions')
+				agent.behavior.start(agent)
 			# Initialize monitor coroutines
 			for monitor in self._monitors:
 				monitor.start()
@@ -489,33 +537,47 @@ class DynamicScenario(Invocable):
 			currentScenario = oldScenario
 
 	def _step(self):
+		global currentScenario
+		oldScenario = currentScenario
+
 		# Execute compose block, if any
 		composeDone = False
 		if self._runningIterator is None:
 			composeDone = True		# compose block ended in an earlier step
 		else:
+			currentScenario = self
 			try:
 				result = self._runningIterator.send(None)
 				if isinstance(result, (EndSimulationAction, EndScenarioAction)):
-					return result
+					return self._stop(result)
 			except StopIteration:
 				self._runningIterator = None
 				composeDone = True
+			finally:
+				currentScenario = oldScenario
 
-		# If the compose block finished and there are no behaviors to run, we're done
-		if composeDone:
-			if self._endWithBehaviors:
-				done = all(agent.behavior._isFinished for agent in self._agents)
-			else:
-				done = not self._agents
-			if done:
-				return 'finished compose block'
+		# If there is a compose block and it has finished, we're done
+		if self._compose is not None and composeDone:
+			return self._stop('finished compose block')
+
+		# Optionally end when all our agents' behaviors have ended
+		if self._endWithBehaviors:
+			if all(agent.behavior._isFinished for agent in self._agents):
+				return self._stop('all behaviors finished')
 
 		# Otherwise, check if any termination conditions apply
-		for req in self._terminateScenarioConditions:
+		for req in self._terminationConditions:
 			if req.isTrue():
-				return req
+				return self._stop(req)
+
+		# Scenario will not terminate yet
 		return None
+
+	def _stop(self, reason):
+		verbosePrint(f'Stopping scenario {self} because of: {reason}', level=3)
+		runningScenarios.remove(self)
+		self._runningIterator = None
+		return reason
 
 	def _invokeInner(self, agent, subs):
 		for sub in subs:
@@ -560,8 +622,8 @@ class DynamicScenario(Invocable):
 				terminationReason = subreason
 		return terminationReason
 
-	def _checkTerminationConditions(self):
-		for req in self._terminationConditions:
+	def _checkSimulationTerminationConditions(self):
+		for req in self._terminateSimulationConditions:
 			if req.isTrue():
 				return req
 		return None
@@ -588,71 +650,32 @@ class DynamicScenario(Invocable):
 		if currentSimulation:
 			currentSimulation.createObject(obj)
 
-	def _complete(self, namespace, requirementSyntax=None):
-		# Save global parameters
-		for name, value in _globalParameters.items():
-			if needsLazyEvaluation(value):
-				raise InvalidScenarioError(f'parameter {name} uses value {value}'
-										   ' undefined outside of object definition')
-		self._globalParameters.update(_globalParameters)
-		self._simulatorFactory = simulatorFactory
-
-		# Extract requirements, scan for relations used for pruning, and create closures
-		self._compileRequirements(namespace, requirementSyntax)
-
-		# Gather all global namespaces which could be referred to by behaviors;
-		# we'll need to rebind any sampled values in them at runtime
-		self._gatherBehaviorNamespaces()
-
-	def _compileRequirements(self, namespace, requirementSyntax):
+	def _compileRequirements(self, namespace):
+		requirementSyntax = self._requirementSyntax
+		assert requirementSyntax is not None
 		for reqID, requirement in self._pendingRequirements.items():
 			syntax = requirementSyntax[reqID] if requirementSyntax else None
 			compiledReq = requirement.compile(namespace, self, syntax)
 
-			if compiledReq.ty is RequirementType.require:
-				place = self._requirements
-			elif compiledReq.ty is RequirementType.requireAlways:
-				place = self._alwaysRequirements
-			elif compiledReq.ty is RequirementType.terminateWhen:
-				place = self._terminationConditions
-			elif compiledReq.ty is RequirementType.terminateScenarioWhen:
-				place = self._terminateScenarioConditions
-			else:
-				raise RuntimeError(f'internal error: requirement {compiledReq} has unknown type!')
-
-			place.append(compiledReq)
+			self._addRequirement(compiledReq)
 			self._requirementDeps.update(compiledReq.dependencies)
 
-	def _gatherBehaviorNamespaces(self):
-		behaviorNamespaces = {}
-		def registerNamespace(modName, ns):
-			if modName not in behaviorNamespaces:
-				behaviorNamespaces[modName] = ns
-			else:
-				assert behaviorNamespaces[modName] is ns
-				return
-			for name, value in ns.items():
-				if (isinstance(value, types.ModuleType)
-					and getattr(value, '_isScenicModule', False)):
-					registerNamespace(value.__name__, value.__dict__)
-				else:
-					# Convert values requiring sampling to Distributions
-					dval = toDistribution(value)
-					if dval is not value:
-						ns[name] = dval
-		for behavior in self._behaviors:
-			modName = behavior.__module__
-			globalNamespace = behavior.makeGenerator.__globals__
-			registerNamespace(modName, globalNamespace)
-		# for scenario in self._scenarios:
-		# 	modName = scenario.__module__
-		# 	globalNamespace = scenario.setup.__globals__
-		# 	registerNamespace(modName, globalNamespace)
-		# 	localNamespace = scenario.__dict__
-		# 	registerNamespace(scenario.__qualname__, localNamespace)
-		self._behaviorNamespaces = behaviorNamespaces
+	def _addRequirement(self, req):
+		if req.ty is RequirementType.require:
+			place = self._requirements
+		elif req.ty is RequirementType.requireAlways:
+			place = self._alwaysRequirements
+		elif req.ty is RequirementType.terminateWhen:
+			place = self._terminationConditions
+		elif req.ty is RequirementType.terminateSimulationWhen:
+			place = self._terminateSimulationConditions
+		else:
+			raise RuntimeError(f'internal error: requirement {req} has unknown type!')
+		place.append(req)
 
 	def _toScenario(self, namespace):
+		assert self._prepared
+
 		if self._ego is None and self._compose is None:
 			raise InvalidScenarioError('did not specify ego object')
 
@@ -678,7 +701,8 @@ class DynamicScenario(Invocable):
 		return scenario
 
 	def __str__(self):
-		return f'scenario {self.__class__.__name__}'
+		args = argsToString(itertools.chain(self._args, self._kwargs.items()))
+		return self.__class__.__name__ + args
 
 # Behaviors
 
@@ -688,6 +712,9 @@ class Behavior(Invocable, Samplable):
 			currentScenario._behaviors.append(cls)
 
 	def __init__(self, *args, **kwargs):
+		if not inspect.isgeneratorfunction(self.makeGenerator):
+			raise RuntimeParseError(f'{self} does not take any actions')
+
 		# Validate arguments to the behavior
 		sig = inspect.signature(self.makeGenerator)
 		try:
@@ -706,24 +733,17 @@ class Behavior(Invocable, Samplable):
 
 	def start(self, agent):
 		self.agent = agent
-		it = self.makeGenerator(agent, *self.args, **self.kwargs)
-		if isinstance(it, types.GeneratorType):
-			self._runningIterator = it
-			return True
-		else:
-			return False	# behavior did not issue any actions
+		self._runningIterator = self.makeGenerator(agent, *self.args, **self.kwargs)
 
 	def step(self):
+		assert self._runningIterator
 		global currentBehavior
-		if self._runningIterator is None:
-			return ()		# behavior ended in an earlier step
 		oldBehavior = currentBehavior
 		try:
 			currentBehavior = self
 			actions = self._runningIterator.send(None)
 		except StopIteration:
 			actions = ()	# behavior ended early
-			self._runningIterator = None
 		finally:
 			currentBehavior = oldBehavior
 		return actions
@@ -742,8 +762,7 @@ class Behavior(Invocable, Samplable):
 		sub = subs[0]
 		if not isinstance(sub, Behavior):
 			raise RuntimeParseError(f'expected a behavior, got {sub}')
-		if not sub.start(agent):
-			return
+		sub.start(agent)
 		try:
 			currentBehavior = sub
 			yield from sub._runningIterator
@@ -752,16 +771,8 @@ class Behavior(Invocable, Samplable):
 			currentBehavior = self
 
 	def __str__(self):
-		return f'behavior {self.__class__.__name__}'
-
-behaviorIndicator = '__Scenic_behavior'
-
-def isABehavior(thing, /, *args, **kwargs):
-	"""Check if the first argument is a Behavior.
-
-	The extra arguments are for implementation convenience and are not used.
-	"""
-	return isinstance(thing, type) and issubclass(thing, Behavior)
+		args = argsToString(itertools.chain(self.args, self.kwargs.items()))
+		return self.__class__.__name__ + args
 
 def makeTerminationAction(line):
 	assert not isActive()
@@ -874,6 +885,9 @@ def ego(obj=None):
 		raise RuntimeParseError('tried to make non-object the ego object')
 	else:
 		currentScenario._ego = obj
+		for scenario in runningScenarios:
+			if scenario._ego is None:
+				scenario._ego = obj
 	return egoObject
 
 def require(reqID, req, line, prob=1):
@@ -896,35 +910,45 @@ def require(reqID, req, line, prob=1):
 
 def require_always(reqID, req, line):
 	"""Function implementing the 'require always' statement."""
-	if evaluatingRequirement:
-		raise RuntimeParseError('tried to use "require always" inside a requirement')
-	elif currentSimulation is not None:
-		raise RuntimeParseError(f'"require always" inside a behavior on line {line}')
-	else:
-		assert reqID not in currentScenario._pendingRequirements
-		preq = PendingRequirement(RequirementType.requireAlways, req, line, 1)
-		currentScenario._pendingRequirements[reqID] = preq
+	makeRequirement(RequirementType.requireAlways, reqID, req, line)
 
 def terminate_when(reqID, req, line):
 	"""Function implementing the 'terminate when' statement."""
+	makeRequirement(RequirementType.terminateWhen, reqID, req, line)
+
+def terminate_simulation_when(reqID, req, line):
+	"""Function implementing the 'terminate simulation when' statement."""
+	makeRequirement(RequirementType.terminateSimulationWhen, reqID, req, line)
+
+def makeRequirement(ty, reqID, req, line):
 	if evaluatingRequirement:
-		raise RuntimeParseError('tried to use "terminate when" inside a requirement')
+		raise RuntimeParseError(f'tried to use "{ty.value}" inside a requirement')
+	elif currentBehavior is not None:
+		raise RuntimeParseError(f'"{ty.value}" inside a behavior on line {line}')
 	elif currentSimulation is not None:
-		raise RuntimeParseError(f'"terminate when" inside a behavior on line {line}')
-	else:
+		assert ty is not RequirementType.require
+		dreq = DynamicRequirement(ty, req, line)
+		currentScenario._addRequirement(dreq)
+	else:	# requirement being defined at compile time
 		assert reqID not in currentScenario._pendingRequirements
-		preq = PendingRequirement(RequirementType.terminateWhen, req, line, 1)
+		preq = PendingRequirement(ty, req, line, 1)
 		currentScenario._pendingRequirements[reqID] = preq
 
 def resample(dist):
 	"""The built-in resample function."""
 	return dist.clone() if isinstance(dist, Distribution) else dist
 
-def verbosePrint(msg, file=sys.stdout):
-	"""Built-in function printing a message when the verbosity is >0."""
+def verbosePrint(msg, file=sys.stdout, level=1):
+	"""Built-in function printing a message when the verbosity is >0.
+
+	(Or when the verbosity exceeds the specified level.)
+	"""
 	import scenic.syntax.translator as translator
-	if translator.verbosity >= 1:
-		indent = '  ' * activity if translator.verbosity >= 2 else '  '
+	if translator.verbosity >= level:
+		if currentSimulation:
+			indent = '      ' if translator.verbosity >= 3 else '  '
+		else:
+			indent = '  ' * activity if translator.verbosity >= 2 else '  '
 		print(indent + msg, file=file)
 
 def localPath(relpath):
@@ -941,6 +965,10 @@ def simulation():
 def simulator(sim):
 	global simulatorFactory
 	simulatorFactory = sim
+
+def in_initial_scenario():
+	assert currentSimulation is not None
+	return inInitialScenario
 
 def model(namespace, modelName):
 	if lockedModel is not None:

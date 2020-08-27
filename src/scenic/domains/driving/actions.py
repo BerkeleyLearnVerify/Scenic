@@ -4,7 +4,7 @@ import math
 
 from scenic.core.vectors import Vector
 from scenic.core.simulators import Action
-import scenic.domains.driving.model as drivingModel
+import scenic.domains.driving.model as _model
 
 ## Actions available to all agents
 
@@ -43,7 +43,7 @@ class SetSpeedAction(Action):
 
 class SteeringAction(Action):
 	def canBeTakenBy(self, agent):
-		return isinstance(agent, drivingModel.Steers)
+		return isinstance(agent, _model.Steers)
 
 class SetThrottleAction(SteeringAction):
 	def __init__(self, throttle):
@@ -149,7 +149,7 @@ class FollowLaneAction(SteeringAction):	# TODO rename this!
 
 class WalkingAction(Action):
 	def canBeTakenBy(self, agent):
-		return isinstance(agent, drivingModel.Walks)
+		return isinstance(agent, _model.Walks)
 
 class SetWalkingDirectionAction(WalkingAction):
 	def __init__(self, heading):

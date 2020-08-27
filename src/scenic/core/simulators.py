@@ -11,7 +11,10 @@ from scenic.core.errors import RuntimeParseError, InvalidScenarioError
 from scenic.core.vectors import Vector
 
 class SimulationCreationError(Exception):
-    """Exception indicating a simulation could not be run from the given scene."""
+    """Exception indicating a simulation could not be run from the given scene.
+
+    Can also be issued during a simulation if dynamic object creation fails.
+    """
     pass
 
 class RejectSimulationException(Exception):
@@ -78,7 +81,6 @@ class Simulation:
 
         try:
             # Initialize dynamic scenario
-            dynamicScenario._prepare()
             dynamicScenario._start()
 
             # Update all objects in case the simulator has adjusted any dynamic
@@ -103,25 +105,31 @@ class Simulation:
                 if newReason is not None:
                     terminationReason = newReason
 
+                # "Always" and scenario-level requirements have been checked;
+                # now safe to terminate if the top-level scenario has finished
+                # or a monitor requested termination
+                if terminationReason is not None:
+                    break
+                terminationReason = dynamicScenario._checkSimulationTerminationConditions()
+                if terminationReason is not None:
+                    break
+
                 # Compute the actions of the agents in this time step
                 allActions = OrderedDict()
                 schedule = self.scheduleForAgents()
                 for agent in schedule:
-                    actions = agent.behavior.step()
+                    behavior = agent.behavior
+                    if not behavior._runningIterator:   # TODO remove hack
+                        behavior.start(agent)
+                    actions = behavior.step()
                     if isinstance(actions, EndSimulationAction):
                         terminationReason = str(actions)
-                        continue
+                        break
                     assert isinstance(actions, tuple)
                     if not self.actionsAreCompatible(agent, actions):
                         raise InvalidScenarioError(f'agent {agent} tried incompatible '
                                                    f' action(s) {actions}')
                     allActions[agent] = actions
-
-                # All requirements have been checked; now safe to terminate if requested by
-                # a behavior/monitor or if a termination condition is met
-                if terminationReason is not None:
-                    break
-                terminationReason = dynamicScenario._checkTerminationConditions()
                 if terminationReason is not None:
                     break
 
@@ -157,12 +165,17 @@ class Simulation:
         """Dynamically create an object."""
         if self.verbosity >= 3:
             print(f'      Creating object {obj}')
+        self.createObjectInSimulator(obj)
         self.objects.append(obj)
         if obj.behavior:
             self.agents.append(obj)
 
     def createObjectInSimulator(self, obj):
-        """Create the given object in the simulator."""
+        """Create the given object in the simulator.
+
+        Implemented by subclasses, and called through `createObject`. Should raise
+        SimulationCreationError if creating the object fails.
+        """
         raise NotImplementedError
 
     def scheduleForAgents(self):
@@ -188,6 +201,7 @@ class Simulation:
         for agent, actions in allActions.items():
             for action in actions:
                 action.applyTo(agent, self)
+            agent.lastActions = actions
 
     def step(self):
         """Run the simulation for one step and return the next trajectory element."""
@@ -196,13 +210,21 @@ class Simulation:
     def updateObjects(self):
         """Update the positions and other properties of objects from the simulation."""
         for obj in self.objects:
+            # Get latest values of dynamic properties from simulation
             properties = obj._dynamicProperties
             values = self.getProperties(obj, properties)
             assert set(properties) == set(values), set(properties) ^ set(values)
 
+            # Preserve some other properties which are assigned internally by Scenic
+            for prop in self.mutableProperties(obj):
+                values[prop] = getattr(obj, prop)
+
             # Make a new copy of the object to ensure that computed properties like
             # visibleRegion, etc. are recomputed
             setDynamicProxyFor(obj, obj.copyWith(**values))
+
+    def mutableProperties(self, obj):
+        return {'lastActions', 'behavior'}
 
     def getProperties(self, obj, properties):
         """Read the values of the given properties of the object from the simulation."""
@@ -233,8 +255,9 @@ class DummySimulation(Simulation):
     def actionsAreCompatible(self, agent, actions):
         return True
 
-    def executeActions(self, actions):
-        pass
+    def executeActions(self, allActions):
+        for agent, actions in allActions.items():
+            agent.lastActions = actions
 
     def step(self):
         pass
