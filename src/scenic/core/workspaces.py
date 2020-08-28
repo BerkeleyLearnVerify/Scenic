@@ -35,7 +35,7 @@ class Workspace(Region):
 		sx = expansion * max(self.minimumZoomSize, 2 * (maxx - minx))
 		sy = expansion * max(self.minimumZoomSize, 2 * (maxy - miny))
 		s = max(sx, sy) / 2.0
-		s += max(max(obj.width, obj.height) for obj in objects)	# TODO improve
+		s += max(max(obj.width, obj.length) for obj in objects)	# TODO improve
 		cx = (maxx + minx) / 2.0
 		cy = (maxy + miny) / 2.0
 		plt.xlim(cx - s, cx + s)

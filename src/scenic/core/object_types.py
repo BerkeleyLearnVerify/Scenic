@@ -259,11 +259,11 @@ class Point(Constructible):
 		visibleDistance (float): Distance for ``can see`` operator. Default value 50.
 		width (float): Default value zero (only provided for compatibility with
 		  operators that expect an `Object`).
-		height (float): Default value zero.
+		length (float): Default value zero.
 	"""
 	position: PropertyDefault((), {'dynamic'}, lambda self: Vector(0, 0))
 	width: 0
-	height: 0
+	length: 0
 	visibleDistance: 50
 
 	mutationEnabled: False
@@ -350,7 +350,7 @@ class Object(OrientedPoint, RotatedRectangle):
 	Attributes:
 		width (float): Width of the object, i.e. extent along its X axis.
 		  Default value 1.
-		height (float): Height of the object, i.e. extent along its Y axis.
+		length (float): Length of the object, i.e. extent along its Y axis.
 		  Default value 1.
 		allowCollisions (bool): Whether the object is allowed to intersect
 		  other objects. Default value ``False``.
@@ -363,7 +363,7 @@ class Object(OrientedPoint, RotatedRectangle):
 		  operator, relative to the object's ``position``. Default ``0 @ 0``.
 	"""
 	width: 1
-	height: 1
+	length: 1
 
 	allowCollisions: False
 	requireVisible: True
@@ -389,9 +389,9 @@ class Object(OrientedPoint, RotatedRectangle):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.hw = hw = self.width / 2
-		self.hh = hh = self.height / 2
-		self.radius = hypot(hw, hh)	# circumcircle; for collision detection
-		self.inradius = min(hw, hh)	# incircle; for collision detection
+		self.hl = hl = self.length / 2
+		self.radius = hypot(hw, hl)	# circumcircle; for collision detection
+		self.inradius = min(hw, hl)	# incircle; for collision detection
 
 		self._relations = []
 
@@ -424,27 +424,27 @@ class Object(OrientedPoint, RotatedRectangle):
 
 	@cached_property
 	def front(self):
-		return self.relativize(Vector(0, self.hh))
+		return self.relativize(Vector(0, self.hl))
 
 	@cached_property
 	def back(self):
-		return self.relativize(Vector(0, -self.hh))
+		return self.relativize(Vector(0, -self.hl))
 
 	@cached_property
 	def frontLeft(self):
-		return self.relativize(Vector(-self.hw, self.hh))
+		return self.relativize(Vector(-self.hw, self.hl))
 
 	@cached_property
 	def frontRight(self):
-		return self.relativize(Vector(self.hw, self.hh))
+		return self.relativize(Vector(self.hw, self.hl))
 
 	@cached_property
 	def backLeft(self):
-		return self.relativize(Vector(-self.hw, -self.hh))
+		return self.relativize(Vector(-self.hw, -self.hl))
 
 	@cached_property
 	def backRight(self):
-		return self.relativize(Vector(self.hw, -self.hh))
+		return self.relativize(Vector(self.hw, -self.hl))
 
 	@cached_property
 	def visibleRegion(self):
@@ -453,12 +453,12 @@ class Object(OrientedPoint, RotatedRectangle):
 
 	@cached_property
 	def corners(self):
-		hw, hh = self.hw, self.hh
+		hw, hl = self.hw, self.hl
 		return (
-			self.relativePosition(Vector(hw, hh)),
-			self.relativePosition(Vector(-hw, hh)),
-			self.relativePosition(Vector(-hw, -hh)),
-			self.relativePosition(Vector(hw, -hh))
+			self.relativePosition(Vector(hw, hl)),
+			self.relativePosition(Vector(-hw, hl)),
+			self.relativePosition(Vector(-hw, -hl)),
+			self.relativePosition(Vector(hw, -hl))
 		)
 
 	def show(self, workspace, plt, highlight=False):
@@ -469,7 +469,7 @@ class Object(OrientedPoint, RotatedRectangle):
 
 		if highlight:
 			# Circle around object
-			rad = 1.5 * max(self.width, self.height)
+			rad = 1.5 * max(self.width, self.length)
 			c = plt.Circle(spos, rad, color='g', fill=False)
 			plt.gca().add_artist(c)
 			# View cone

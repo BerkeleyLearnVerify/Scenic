@@ -21,8 +21,8 @@ leftEdge = OrientedPoint at bottleneck offset by -halfGap @ 0,
 rightEdge = OrientedPoint at bottleneck offset by halfGap @ 0,
 	facing Range(-120, -60) deg relative to bottleneck.heading
 
-Pipe ahead of leftEdge, with height Range(1, 2)
-Pipe ahead of rightEdge, with height Range(1, 2)
+Pipe ahead of leftEdge, with length Range(1, 2)
+Pipe ahead of rightEdge, with length Range(1, 2)
 
 # Other junk because why not?
 

@@ -80,25 +80,25 @@ class NPCCar(Car):  # no distinction between these in CARLA
 
 class Bicycle(Vehicle):
     width: 1
-    height: 2
+    length: 2
     blueprint: Uniform(*blueprints.bicycleModels)
 
 
 class Motorcycle(Vehicle):
     width: 1
-    height:2
+    length:2
     blueprint: Uniform(*blueprints.motorcycleModels)
 
 
 class Truck(Vehicle):
     width: 3
-    height: 7
+    length: 7
     blueprint: Uniform(*blueprints.truckModels)
 
 
 class Pedestrian(Pedestrian, CarlaActor, Walks):
     width: 0.5
-    height: 0.5
+    length: 0.5
     blueprint: Uniform(*blueprints.walkerModels)
 
     def setWalkingDirection(self, heading):
@@ -115,7 +115,7 @@ class Prop(CarlaActor):
     position: Point on road
     heading: Range(0, 360) deg
     width: 0.5
-    height: 0.5
+    length: 0.5
 
 
 class Trash(Prop):

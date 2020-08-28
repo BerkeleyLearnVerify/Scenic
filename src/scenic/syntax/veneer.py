@@ -1384,7 +1384,7 @@ def RightSpec(pos, dist=0):
 def Ahead(pos, dist=0):
 	"""The 'ahead of X [by Y]' polymorphic specifier.
 
-	Specifies 'position', depending on 'height'. See other dependencies below.
+	Specifies 'position', depending on 'length'. See other dependencies below.
 
 	Allowed forms:
 
@@ -1393,13 +1393,13 @@ def Ahead(pos, dist=0):
 
 	If the 'by <scalar/vector>' is omitted, zero is used.
 	"""
-	return leftSpecHelper('ahead of', pos, dist, 'height', lambda dist: (0, dist),
-						  lambda self, dx, dy: Vector(dx, self.height / 2 + dy))
+	return leftSpecHelper('ahead of', pos, dist, 'length', lambda dist: (0, dist),
+						  lambda self, dx, dy: Vector(dx, self.length / 2 + dy))
 
 def Behind(pos, dist=0):
 	"""The 'behind X [by Y]' polymorphic specifier.
 
-	Specifies 'position', depending on 'height'. See other dependencies below.
+	Specifies 'position', depending on 'length'. See other dependencies below.
 
 	Allowed forms:
 		behind <oriented point> [by <scalar/vector>] -- optionally specifies 'heading';
@@ -1407,8 +1407,8 @@ def Behind(pos, dist=0):
 
 	If the 'by <scalar/vector>' is omitted, zero is used.
 	"""
-	return leftSpecHelper('behind', pos, dist, 'height', lambda dist: (0, dist),
-						  lambda self, dx, dy: Vector(dx, -self.height / 2 - dy))
+	return leftSpecHelper('behind', pos, dist, 'length', lambda dist: (0, dist),
+						  lambda self, dx, dy: Vector(dx, -self.length / 2 - dy))
 
 def leftSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
 	extras = set()

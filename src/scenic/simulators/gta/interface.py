@@ -211,18 +211,18 @@ class CarModel:
 	Attributes:
 		name (str): name of model in GTA
 		width (float): width of this model of car
-		height (float): height of this model of car
+		length (float): length of this model of car
 		viewAngle (float): view angle in radians (default is 90 degrees)
 
 	Class Attributes:
 		models: dict mapping model names to the corresponding `CarModel`
 	"""
 
-	def __init__(self, name, width, height, viewAngle=math.radians(90)):
+	def __init__(self, name, width, length, viewAngle=math.radians(90)):
 		super(CarModel, self).__init__()
 		self.name = name
 		self.width = width
-		self.height = height
+		self.length = length
 		self.viewAngle = viewAngle
 
 	@classmethod

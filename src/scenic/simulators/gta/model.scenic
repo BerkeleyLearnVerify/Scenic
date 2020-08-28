@@ -59,7 +59,7 @@ class Car:
 	heading: (roadDirection at self.position) + self.roadDeviation
 	roadDeviation: 0
 	width: self.model.width
-	height: self.model.height
+	length: self.model.length
 	viewAngle: 80 deg
 	visibleDistance: 30
 	model: CarModel.defaultModel()

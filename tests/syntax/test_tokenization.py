@@ -8,21 +8,21 @@ from tests.utils import compileScenic, sampleEgoFrom, sampleSceneFrom
 
 templates = [
 '''
-ego = Object with height 2, {continuation}
+ego = Object with length 2, {continuation}
 {indent}with width 3, {continuation}
 {indent}at 10@20
 ''',
 '''
-ego = Object with height 2, {continuation}
+ego = Object with length 2, {continuation}
 {indent}with width 3, at 10@20
 ''',
 '''
-ego = Object with height 2, {continuation}
+ego = Object with length 2, {continuation}
 {indent}#with width 2,{continuation}
 {indent}with width 3
 ''',
 '''
-ego = Object with height 2, {continuation}
+ego = Object with length 2, {continuation}
 # with width 2,{continuation}
 # blah {continuation}
 {indent}with width 3
