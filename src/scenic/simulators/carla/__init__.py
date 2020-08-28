@@ -1,14 +1,8 @@
 """Scenic world model for the CARLA driving simulator.
 
-This model is designed to be used with the CARLA interface to the VerifAI toolkit.
-See the `VerifAI repository <https://github.com/BerkeleyLearnVerify/VerifAI>`_ for
-further documentation and examples.
-
 The model currently supports vehicles, pedestrians, and props.
-Vehicles have an ``agent`` parameter, which specifies the agent to be used to control
-the vehicle.
 
-In addition, the model uses several global parameters to control weather (descriptions
+The model uses several global parameters to control weather (descriptions
 are from the CARLA Python API reference):
 
     * ``cloudiness`` (float):
@@ -32,8 +26,7 @@ are from the CARLA Python API reference):
    :toctree: _autosummary
 
    model
-   map
-   interface
-   car_models
-   prop_models
+   actions
+   behaviors
+   simulator
 """

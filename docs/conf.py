@@ -25,15 +25,21 @@ gw_int.intersectionPath = '../tests/simulators/webots/guideways/McClintock_DonCa
 import scenic.simulators.webots.road.world as wbt_road_world
 wbt_road_world.worldPath = '../tests/simulators/webots/road/simple.wbt'
 
-import scenic.simulators.carla.map as carla_map
-carla_map.mapPath = '../tests/simulators/formats/opendrive/maps/opendrive.org/CulDeSac.xodr'
-carla_map.lanePoints = 2
+# Hack to set global parameters needed to import the driving domain models
+import scenic.syntax.veneer as veneer
+veneer.activate(paramOverrides=dict(
+    map='../tests/formats/opendrive/maps/opendrive.org/CulDeSac.xodr',
+    carla_map='blah',
+    lgsvl_map='blah',
+))
+import scenic.simulators.carla.model
+import scenic.simulators.lgsvl.model
 
 # -- Project information -----------------------------------------------------
 
 project = 'Scenic'
 copyright = '2020, Daniel J. Fremont.'
-author = 'Daniel J. Fremont, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
+author = 'Daniel J. Fremont, Tommaso Dreossi, Shromona Ghosh, Edward Kim, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
 
 
 # -- General configuration ---------------------------------------------------
@@ -62,6 +68,7 @@ add_module_names = False
 autosummary_generate = True
 autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
+autodoc_mock_imports = ['carla', 'lgsvl']
 napoleon_numpy_docstring = False
 napoleon_use_rtype = False
 napoleon_use_ivar = True

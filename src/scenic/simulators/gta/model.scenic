@@ -53,7 +53,7 @@ class Car:
 		roadDeviation (float): Relative heading with respect to the road direction
 		  at the `Car`'s position. Used by the default value for ``heading``.
 		model (`CarModel`): Model of the car.
-		color (`Color` or RGB tuple): Color of the car.
+		color (:obj:`Color` or RGB tuple): Color of the car.
 	"""
 	position: Point on road
 	heading: (roadDirection at self.position) + self.roadDeviation
