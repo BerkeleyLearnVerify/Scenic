@@ -24,4 +24,4 @@ def test_unpacking_distribution():
 
 def test_unpacking_distribution_2():
     with pytest.raises(TypeError):
-        sampleEgoFrom('ego = Object with foo max(*(1,2))')
+        sampleEgoFrom('ego = Object with foo max(*Range(1,2))')

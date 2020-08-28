@@ -33,5 +33,5 @@ initLaneSec = Options(laneSecs)
 ego = Car on initLaneSec.centerline,
 	with behavior EgoBehavior
 
-leadCar = Car following roadDirection by (10, 20),
+leadCar = Car following roadDirection by Range(10, 20),
 	with behavior LeadBehavior

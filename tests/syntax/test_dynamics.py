@@ -40,7 +40,7 @@ def test_behavior_random_argument():
     scenario = compileScenic(
         'behavior Foo(arg):\n'
         '    take arg\n'
-        'ego = Object with behavior Foo((10, 25))'
+        'ego = Object with behavior Foo(Range(10, 25))'
     )
     scene = sampleScene(scenario)
     actions1 = sampleEgoActionsFromScene(scene)
@@ -55,7 +55,7 @@ def test_behavior_random_argument_list():
     scenario = compileScenic(
         'behavior Foo(arg):\n'
         '    take arg[1]\n'
-        'ego = Object with behavior Foo([-5, (10, 25)])'
+        'ego = Object with behavior Foo([-5, Range(10, 25)])'
     )
     scene = sampleScene(scenario)
     actions1 = sampleEgoActionsFromScene(scene)
@@ -74,7 +74,7 @@ def test_behavior_globals_read():
             while True:
                 take other.position.x
         ego = Object with behavior Foo
-        other = Object at (10, 20) @ 15
+        other = Object at Range(10, 20) @ 15
     """)
     actions1 = sampleEgoActions(scenario, maxSteps=2)
     assert len(actions1) == 2
@@ -107,7 +107,7 @@ def test_behavior_globals_read_list():
             while True:
                 take foo[1]
         ego = Object with behavior Foo
-        foo = [5, (10, 20)]
+        foo = [5, Range(10, 20)]
     """)
     actions1 = sampleEgoActions(scenario, maxSteps=2)
     assert len(actions1) == 2
@@ -217,7 +217,7 @@ def test_behavior_require():
             while True:
                 take self.foo
                 require self.foo < 0
-        ego = Object with foo (-1, 1), with behavior Foo
+        ego = Object with foo Range(-1, 1), with behavior Foo
     """)
     for i in range(50):
         actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=1, maxScenes=50)
@@ -228,7 +228,7 @@ def test_behavior_require():
 def test_behavior_require_2():
     scenario = compileScenic("""
         behavior Foo():
-            x = (-1, 1)
+            x = Range(-1, 1)
             while True:
                 take x
                 require x < 0
@@ -256,7 +256,7 @@ def test_behavior_reuse():
 def test_behavior_reuse_2():
     scenario = compileScenic(
         'behavior Foo():\n'
-        '    take (-10, 10)\n'
+        '    take Range(-10, 10)\n'
         'ego = Object with behavior Foo\n'
         'Object at 10@10, with behavior Foo'
     )
@@ -410,7 +410,7 @@ def test_behavior_calls_side_effects():
 def test_behavior_require():
     scenario = compileScenic("""
         behavior Foo():
-            x = (-1, 1)
+            x = Range(-1, 1)
             require x > 0
             take x
         ego = Object with behavior Foo

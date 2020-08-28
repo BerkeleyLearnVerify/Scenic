@@ -57,14 +57,17 @@ def test_noninterference():
     assert ego1 is not ego2
 
 def test_param():
-    p = sampleParamPFrom('ego = Object\n' 'param p = (3, 5)')
+    p = sampleParamPFrom('ego = Object\n' 'param p = Range(3, 5)')
     assert 3 <= p <= 5
     p = sampleParamPFrom('ego = Object\n' 'param p = [1, 4, 9]')
     assert type(p) is list
     assert p == [1, 4, 9]
+    p = sampleParamPFrom('ego = Object\n' 'param p = (1, 4)')
+    assert type(p) is tuple
+    assert p == (1, 4)
 
 def test_quoted_param():
-    p = sampleParamPFrom('ego = Object\n' 'param "p" = (3, 5)')
+    p = sampleParamPFrom('ego = Object\n' 'param "p" = Range(3, 5)')
     assert 3 <= p <= 5
 
 def test_mutate():

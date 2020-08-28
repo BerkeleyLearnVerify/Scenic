@@ -8,9 +8,9 @@ simulator LGSVLSimulator('BorregasAve')
 param time_step = 1.0/10
 
 # CONSTANTS
-uberSpeed = (30, 50)
-turnSpeed = (20, 25)
-brakeIntensity = (0.6, 0.8)
+uberSpeed = Range(30, 50)
+turnSpeed = Range(20, 25)
+brakeIntensity = Range(0.6, 0.8)
 
 # LANES 
 fourLane = filter(lambda i: i.is4Way, network.intersections)
@@ -33,16 +33,16 @@ actorStart = actorTurn.startLane
 stationaryLane = egoStartLane.sections[-1].laneToLeft
 
 # POSITIONS
-pos1 = (OrientedPoint at stationaryLane.centerline[-1]) offset by (-2, 2) @ 0 
-pos2 = (OrientedPoint at stationaryLane.centerline[-1]) offset by (-2, 2) @ 0
-dist1 = (1, 5)
-dist2 = (10, 15)
+pos1 = (OrientedPoint at stationaryLane.centerline[-1]) offset by Range(-2, 2) @ 0 
+pos2 = (OrientedPoint at stationaryLane.centerline[-1]) offset by Range(-2, 2) @ 0
+dist1 = Range(1, 5)
+dist2 = Range(10, 15)
 
-egoPos = (OrientedPoint at egoStartLane.centerline[-1]) offset by (-2, 2) @ 0 
-egoDist = (20, 25)
+egoPos = (OrientedPoint at egoStartLane.centerline[-1]) offset by Range(-2, 2) @ 0 
+egoDist = Range(20, 25)
 
-actorPos = (OrientedPoint at actorStart.centerline[-1]) offset by (-2, 2) @ 0 
-actorDist = (2, 5)
+actorPos = (OrientedPoint at actorStart.centerline[-1]) offset by Range(-2, 2) @ 0 
+actorDist = Range(2, 5)
 
 # trajectories
 egoTrajectory = [egoManeuver.startLane.centerline, egoManeuver.connectingLane.centerline, egoManeuver.endLane.centerline]

@@ -249,14 +249,13 @@ api = set(veneer.__all__)
 
 ## Functions used internally
 
-rangeConstructor = 'Range'
 createDefault = 'PropertyDefault'
 scenarioClass = 'DynamicScenario'
 behaviorClass = 'Behavior'
 monitorClass = 'Monitor'
 createTerminationAction = 'makeTerminationAction'
 internalFunctions = {
-	rangeConstructor, createDefault, scenarioClass,
+	createDefault, scenarioClass,
 	behaviorClass, createTerminationAction,
 }
 
@@ -1360,15 +1359,6 @@ class ASTSurgeon(NodeTransformer):
 		else:	# all other operators have the Python semantics
 			newNode = BinOp(self.visit(left), op, self.visit(right))
 		return copy_location(newNode, node)
-
-	def visit_Tuple(self, node):
-		"""Convert pairs into uniform distributions."""
-		if isinstance(node.ctx, Store):
-			return self.generic_visit(node)
-		if len(node.elts) != 2:
-			self.parseError(node, 'interval must have exactly two endpoints')
-		newElts = [self.visit(elt) for elt in node.elts]
-		return copy_location(Call(Name(rangeConstructor, Load()), newElts, []), node)
 
 	def visit_Raise(self, node):
 		"""Handle Scenic statements encoded as raise statements.

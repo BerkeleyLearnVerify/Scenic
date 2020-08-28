@@ -16,10 +16,14 @@ ego = EgoCar at egoStartPos,
 
 npcStartPos = egoStartPos offset by -3.5 @ 0
 
-npcWP0 = Waypoint at npcStartPos, with speed (6, 10)
-npcWP1 = Waypoint following roadDirection from npcStartPos for 50, with speed (6, 10)
-npcWP2 = Waypoint following roadDirection from egoStartPos for 75, with speed (6, 10)
-npcWP3 = Waypoint following roadDirection from egoStartPos for 100, with speed 0
+npcWP0 = Waypoint at npcStartPos,
+    with speed Range(6, 10)
+npcWP1 = Waypoint following roadDirection from npcStartPos for 50,
+    with speed Range(6, 10)
+npcWP2 = Waypoint following roadDirection from egoStartPos for 75,
+    with speed Range(6, 10)
+npcWP3 = Waypoint following roadDirection from egoStartPos for 100,
+    with speed 0
 waypoints = [npcWP0, npcWP1, npcWP2, npcWP3]
 
 #for waypoint in waypoints:

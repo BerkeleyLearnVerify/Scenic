@@ -35,7 +35,7 @@ lane = selected_road.lanes[1]
 ego = Car on lane
 
 spot = OrientedPoint on visible curb
-perturbation_angle = (-10, 10) deg
+perturbation_angle = Range(-10, 10) deg
 
 parkedCar = Car at (left of spot),
 				facing perturbation_angle relative to roadDirection

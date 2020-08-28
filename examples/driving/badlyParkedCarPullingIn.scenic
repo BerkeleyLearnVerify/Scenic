@@ -13,7 +13,7 @@ ego = Car with behavior DriveAvoidingCollisions(avoidance_threshold=5)
 
 rightCurb = ego.laneGroup.rightEdge
 spot = OrientedPoint on visible rightCurb
-badAngle = Uniform(1.0, -1.0) * (10, 20) deg
+badAngle = Uniform(1.0, -1.0) * Range(10, 20) deg
 parkedCar = Car left of spot by 0.5,
                 facing badAngle relative to roadDirection,
                 with behavior PullIntoRoad

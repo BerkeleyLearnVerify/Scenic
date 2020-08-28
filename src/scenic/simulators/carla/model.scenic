@@ -24,13 +24,13 @@ if 'carla_map' not in globalParameters:
                        '(set the global parameter "carla_map")')
 simulator CarlaSimulator(globalParameters.carla_map)
 
-precipitation = Options({0: 70, 1: 30}) * (0, 100)
+precipitation = Options({0: 70, 1: 30}) * Range(0, 100)
 param precipitation = precipitation
-param precipitation_deposits = (precipitation, 100)
-param cloudiness = (precipitation, 100)
-param wind_intensity = (0, 100)
-param sun_azimuth_angle = (0, 360)
-param sun_altitude_angle = (-90, 90)
+param precipitation_deposits = Range(precipitation, 100)
+param cloudiness = Range(precipitation, 100)
+param wind_intensity = Range(0, 100)
+param sun_azimuth_angle = Range(0, 360)
+param sun_altitude_angle = Range(-90, 90)
 
 
 class CarlaActor(DrivingObject):
@@ -113,7 +113,7 @@ class Pedestrian(Pedestrian, CarlaActor, Walks):
 class Prop(CarlaActor):
     regionContainedIn: road
     position: Point on road
-    heading: (0, 360) deg
+    heading: Range(0, 360) deg
     width: 0.5
     height: 0.5
 

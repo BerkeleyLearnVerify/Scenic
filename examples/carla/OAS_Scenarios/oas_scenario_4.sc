@@ -48,7 +48,7 @@ behavior FollowLeadCar(safety_distance=10):
 
 # behavior LeadCarSuddenlyStops():
 
-# 	sudden_stop_time = (5, 8)
+# 	sudden_stop_time = Range(5, 8)
 # 	start_time = time.time()
 
 # 	try:

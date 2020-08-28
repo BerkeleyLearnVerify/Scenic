@@ -88,7 +88,7 @@ class Motorcycle(Car):
 class Pedestrian(WebotsObject):
 	regionContainedIn: walkway
 	position: Point on walkway
-	heading: (0, 360) deg
+	heading: Range(0, 360) deg
 	width: 0.5
 	height: 0.5
 	shirtColor: CarColor.uniformColor()

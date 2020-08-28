@@ -6,12 +6,13 @@ from scenic.simulators.webots.road.model import *
 
 depth = 4
 laneGap = 3.5
-carGap = (1, 3)
-laneShift = (-2, 2)
-wiggle = (-5 deg, 5 deg)
+carGap = Range(1, 3)
+laneShift = Range(-2, 2)
+wiggle = Range(-5 deg, 5 deg)
 
 # Helper function for making platoons
-def createPlatoonAt(car, numCars, model=None, dist=(2, 8), shift=(-0.5, 0.5), wiggle=0):
+def createPlatoonAt(car, numCars, model=None, dist=Range(2, 8),
+                    shift=Range(-0.5, 0.5), wiggle=0):
 	cars = [car]
 	lastCar = car
 	for i in range(numCars-1):

@@ -84,7 +84,7 @@ def test_semicolon_separating_statements():
 
 def test_list_comprehension():
     scene = sampleSceneFrom("""
-        xs = [3*i + (0, 1) for i in range(10)]
+        xs = [3*i + Range(0, 1) for i in range(10)]
         [(Object at x@0) for x in xs]
         ego = Object at -4@2
     """)

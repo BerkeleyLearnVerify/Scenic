@@ -26,8 +26,8 @@ lane2 = intersection.incomingLanes[index2]
 
 require len(filter(lambda m: m.type == ManeuverType.STRAIGHT, lane1.maneuvers)) > 0
 
-pos1 = (OrientedPoint at lane1.centerline[-1]) offset by (-2, 2) @ 0 # at last stretch of centerline, off center by at most 2
-pos2 = (OrientedPoint at lane2.centerline[-1]) offset by (-2, 2) @ 0
+pos1 = (OrientedPoint at lane1.centerline[-1]) offset by Range(-2, 2) @ 0 # at last stretch of centerline, off center by at most 2
+pos2 = (OrientedPoint at lane2.centerline[-1]) offset by Range(-2, 2) @ 0
 
 
 # BEHAVIORS
@@ -39,7 +39,7 @@ behavior actorCarBehavior():
 			break
 
 	turn = Uniform(*egoManeuver.conflictingManeuvers)
-	throttleStrength = (0.7, 1)
+	throttleStrength = Range(0.7, 1)
 	gain = 0.1
 	print("turn", turn)
 	while ((actorCar in intersection) == False):
@@ -64,11 +64,11 @@ behavior egoBehavior():
 
 
 # PLACEMENT
-ego = Car following roadDirection from pos1 by (-5, -3), # behind the position by at most 5
+ego = Car following roadDirection from pos1 by Range(-5, -3), # behind the position by at most 5
 	with speed 3,
 	with behavior egoBehavior
 
-actorCar = Car following roadDirection from pos2 by (-5, -3),
+actorCar = Car following roadDirection from pos2 by Range(-5, -3),
 	with behavior actorCarBehavior,
 	with speed 4
 

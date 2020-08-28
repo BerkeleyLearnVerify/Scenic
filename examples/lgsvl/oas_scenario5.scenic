@@ -28,7 +28,7 @@ behavior FollowLeadCar(safety_distance=10):
 
 behavior LeadCarSuddenlyStopsAndGo():
 
-	sudden_stop_time = (3, 6) * 10
+	sudden_stop_time = Range(3, 6) * 10
 	last_stop = 0
 	try:
 		FollowLaneBehavior(target_speed=25)

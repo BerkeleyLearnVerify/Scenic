@@ -21,4 +21,4 @@ lane = selected_road.lanes[1]
 ego = Car on lane.centerline
 
 oncomingCar = Car on selected_road.backwardLanes[0].centerline
-bicyclist = Bicycle ahead of oncomingCar by (5, 10) # meters
+bicyclist = Bicycle ahead of oncomingCar by Range(5, 10) # meters

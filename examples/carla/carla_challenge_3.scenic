@@ -17,8 +17,8 @@ ideal = OrientedPoint on lane.centerline
 
 # BEHAVIOR
 behavior CrossingBehavior():
-	randomSpeedup = (0, 1)
-	startWalkingDist = (10, 15)
+	randomSpeedup = Range(0, 1)
+	startWalkingDist = Range(10, 15)
 	
 	while True:
 		egoDist = distance from ego to pt
@@ -37,7 +37,7 @@ behavior CrossingBehavior():
 ego = Car at ideal offset by resample(dist) @ 0,
 	with speed 0
 
-pt = Point following roadDirection from ego by (10, 30) # point in the ego's path that the pedestrian should walk towards
+pt = Point following roadDirection from ego by Range(10, 30) # point in the ego's path that the pedestrian should walk towards
 
 p = Pedestrian on visible sidewalk,
 	facing toward pt, 

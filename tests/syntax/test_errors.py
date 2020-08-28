@@ -42,7 +42,7 @@ def test_illegal_binary_operators(op):
 
 ## Constructor definitions
 
-badNames = ('', '3', '+', 'Range')
+badNames = ('', '3', '+', 'Behavior')
 
 @pytest.mark.parametrize('name', badNames)
 def test_illegal_constructor_name(name):
@@ -89,8 +89,6 @@ def test_undefined_specifier():
 ## Illegal usages of keywords
 
 def test_reserved_functions():
-    with pytest.raises(TokenParseError):
-        compileScenic('Range(4, 6)')
     with pytest.raises(TokenParseError):
         compileScenic('PropertyDefault()')
 
@@ -140,10 +138,10 @@ def test_extra_infix_package():
 ## Ranges
 
 def test_malformed_range():
-    with pytest.raises(ASTParseError):
-        compileScenic('x = (4,)')
-    with pytest.raises(ASTParseError):
-        compileScenic('x = (4, 5, 6)')
+    with pytest.raises(TypeError):
+        compileScenic('x = Range(4,)')
+    with pytest.raises(TypeError):
+        compileScenic('x = Range(4, 5, 6)')
 
 ## Requirements
 
@@ -319,7 +317,7 @@ def test_line_numbering_dynamic(bug, template, tmpdir, pytestconfig):
 
 @pytest.mark.parametrize('bug', (
     'x = float(0@0)\n' 'y = 1@2',
-    'x = float((0, 10))\n' 'y = (0, 10)',
+    'x = float(Range(0, 10))\n' 'y = Range(0, 10)',
 ))
 @pytest.mark.parametrize('template', templates)
 def test_line_numbering_double(bug, template, tmpdir, pytestconfig):

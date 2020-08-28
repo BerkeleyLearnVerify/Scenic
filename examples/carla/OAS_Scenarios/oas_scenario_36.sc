@@ -27,7 +27,7 @@ ego = Car on lane,
 		with behavior FollowLaneBehavior(target_speed = 15, network = network)
 
 spot = OrientedPoint on visible curb
-perturbation_angle = (-10, 10) deg
+perturbation_angle = Range(-10, 10) deg
 
 parkedCar = Car left of (spot offset by -0.5 @ 0),
 				facing perturbation_angle relative to roadDirection

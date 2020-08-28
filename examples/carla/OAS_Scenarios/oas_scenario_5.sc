@@ -38,7 +38,7 @@ behavior FollowLeadCar(safety_distance=10):
 
 behavior LeadCarSuddenlyStopsAndGo():
 
-	sudden_stop_time = (3, 6)
+	sudden_stop_time = Range(3, 6)
 	start_time = time.time()
 
 	try:

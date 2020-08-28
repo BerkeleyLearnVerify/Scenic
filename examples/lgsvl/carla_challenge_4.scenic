@@ -20,14 +20,14 @@ for i in network.intersections:
 
 intersection = Uniform(*fourLane)
 lane = intersection.incomingLanes[index1]
-pos = (OrientedPoint at lane.centerline[-1]) offset by (-2, 2) @ 0 # at last stretch of centerline, off center by at most 2
+pos = (OrientedPoint at lane.centerline[-1]) offset by Range(-2, 2) @ 0 # at last stretch of centerline, off center by at most 2
 turn = Uniform(*lane.maneuvers)
 trajectory = [turn.startLane.centerline, turn.connectingLane.centerline, turn.endLane.centerline]
 pt = Point on turn.connectingLane.centerline # point in the ego's path that the pedestrian should walk towards
 
 # BEHAVIOR
 behavior CrossingBehavior():
-	randomSpeedup = (0, 1)
+	randomSpeedup = Range(0, 1)
 	startWalkingDist = 100#(10, 15)
 	while True:
 		egoDist = distance from ego to pt
@@ -43,7 +43,7 @@ behavior CrossingBehavior():
 			take SetSpeedAction(0.0)
 
 behavior EgoBehavior():
-	brakeIntensity = (0.7, 1)
+	brakeIntensity = Range(0.7, 1)
 	try:
 		FollowTrajectoryBehavior(target_speed=(20, 30), trajectory=trajectory)
 	interrupt when (distance to p) < 10:
@@ -56,7 +56,7 @@ ego = Car at pos, facing roadDirection, with speed 5, with behavior EgoBehavior
 # change this - crossings added
 # (using intersection boundary for LGSVL version since maps have no sidewalks)
 walkerSpawn = Point on visible intersection.boundary
-p = Pedestrian at walkerSpawn offset by (-2,2) @ (-2,2),
+p = Pedestrian at walkerSpawn offset by Range(-2,2) @ Range(-2,2),
 	facing toward pt,
 	with regionContainedIn None,
 	with behavior CrossingBehavior

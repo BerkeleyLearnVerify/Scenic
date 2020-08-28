@@ -19,4 +19,4 @@ selected_road = Uniform(*twoLane_roads)
 lane = selected_road.lanes[1]
 
 ego = Car on lane.centerline
-biker = Bicycle ahead of ego by (5, 10) # meters
+biker = Bicycle ahead of ego by Range(5, 10) # meters

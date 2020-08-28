@@ -9,7 +9,7 @@ from tests.utils import compileScenic, sampleScene, sampleEgo
 
 def test_requirement():
     scenario = compileScenic("""
-        ego = Object at (-10, 10) @ 0
+        ego = Object at Range(-10, 10) @ 0
         require ego.position.x >= 0
     """)
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
@@ -18,7 +18,7 @@ def test_requirement():
 @pytest.mark.slow
 def test_soft_requirement():
     scenario = compileScenic("""
-        ego = Object at (-10, 10) @ 0
+        ego = Object at Range(-10, 10) @ 0
         require[0.9] ego.position.x >= 0
     """)
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(350)]
@@ -79,7 +79,7 @@ def test_static_empty_container():
     with pytest.raises(InvalidScenarioError):
         compileScenic("""
             foo = PolylineRegion([0@0, 1@1]).intersect(PolylineRegion([1@0, 2@1]))
-            ego = Object at (0, 2) @ (0, 1), with regionContainedIn foo
+            ego = Object at Range(0, 2) @ Range(0, 1), with regionContainedIn foo
         """)
 
 def test_static_visibility_violation():

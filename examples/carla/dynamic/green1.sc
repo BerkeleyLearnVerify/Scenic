@@ -38,14 +38,14 @@ behavior EgoBehavior(leadCar, slowDownDist=5.0):
 initLaneSec = Uniform(*network.laneSections)
 egoPt = OrientedPoint on initLaneSec.centerline
 
-spot = OrientedPoint following roadDirection from egoPt by (10, 20)
+spot = OrientedPoint following roadDirection from egoPt by Range(10, 20)
 spotLane = network.laneAt(spot)
 parkingSpot = OrientedPoint on spotLane.rightEdge
 
 leadCar = Car left of spot by 0.25,
 	with regionContainedIn None
 
-ego = Car behind leadCar by (20, 30),
+ego = Car behind leadCar by Range(20, 30),
 	with behavior EgoBehavior(leadCar, slowDownDist=5.0),
 	with regionContainedIn None,
-	with speed (10, 20)
+	with speed Range(10, 20)

@@ -16,7 +16,7 @@ def test_nowhere():
 def test_polygonal_empty_intersection():
     scenario = compileScenic(
         'r1 = PolygonalRegion([0@0, 10@0, 10@10, 0@10])\n'
-        'ego = Object at -10@0, facing (-90, 0) deg, with viewAngle 60 deg\n'
+        'ego = Object at -10@0, facing Range(-90, 0) deg, with viewAngle 60 deg\n'
         'Object in visible r1, with requireVisible False'
     )
     for i in range(30):

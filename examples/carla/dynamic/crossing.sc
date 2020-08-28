@@ -95,7 +95,7 @@ while intersectingRoad is None:
 			intersectingRoad = road
 			obstacle = Pedestrian at crossing.centerline[0],
 				with behavior FollowWaypointsBehavior(crossing.centerline),
-				with speed (2, 4)  # Q: is "self.speed" already part of Scenic syntax?
+				with speed Range(2, 4)  # Q: is "self.speed" already part of Scenic syntax?
 			break
 
 MIN_SPAWN_DIST = 15

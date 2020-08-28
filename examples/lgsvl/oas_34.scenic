@@ -21,7 +21,7 @@ straight_maneuver = Uniform(*straight_maneuvers)
 startLane = straight_maneuver.startLane
 
 centerlines = [straight_maneuver.startLane.centerline, straight_maneuver.connectingLane.centerline, straight_maneuver.endLane.centerline]
-egoStart = (OrientedPoint at startLane.centerline[-1]) offset by (-2, 2) @ 0 
+egoStart = (OrientedPoint at startLane.centerline[-1]) offset by Range(-2, 2) @ 0 
 
 # --
 
@@ -30,7 +30,7 @@ leftTurn_maneuver = Uniform(*conflicting_lefts)
 L_startLane = leftTurn_maneuver.startLane
 
 L_centerlines = [leftTurn_maneuver.startLane.centerline, leftTurn_maneuver.connectingLane.centerline, leftTurn_maneuver.endLane.centerline]
-actorStart = (OrientedPoint at L_startLane.centerline[-1]) offset by (-2, 2) @ 0 
+actorStart = (OrientedPoint at L_startLane.centerline[-1]) offset by Range(-2, 2) @ 0 
 
 
 # BEHAVIORS

@@ -121,7 +121,7 @@ class NPCCar(Car):
 class Pedestrian(DrivingObject):
     regionContainedIn: network.walkableRegion
     position: Point on network.walkableRegion
-    heading: (0, 360) deg
+    heading: Range(0, 360) deg
     viewAngle: 90 deg
     width: 0.75
     height: 0.75
