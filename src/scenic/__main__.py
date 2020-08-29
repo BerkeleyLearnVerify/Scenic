@@ -6,6 +6,7 @@ import sys
 import time
 import argparse
 import random
+import importlib.metadata
 
 import scenic.syntax.translator as translator
 import scenic.core.errors as errors
@@ -52,6 +53,9 @@ debugOpts.add_argument('--show-params', help='show values of global parameters',
                        action='store_true')
 debugOpts.add_argument('-b', '--full-backtrace', help='show full internal backtraces',
                        action='store_true')
+ver = importlib.metadata.version('scenic')
+debugOpts.add_argument('--version', action='version', version=f'Scenic {ver}',
+                       help='print Scenic version information and exit')
 debugOpts.add_argument('--dump-initial-python', help='dump initial translated Python',
                        action='store_true')
 debugOpts.add_argument('--dump-ast', help='dump final AST', action='store_true')
@@ -65,7 +69,7 @@ parser.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
                     help=argparse.SUPPRESS)
 
 # Positional arguments
-parser.add_argument('scenicFile', help='a Scenic file to run')
+parser.add_argument('scenicFile', help='a Scenic file to run', metavar='FILE')
 
 # Parse arguments and set up configuration
 args = parser.parse_args()
@@ -157,3 +161,6 @@ else:   # Gather statistics over the specified number of scenes
     print(f'Sampled {len(its)} scenes in {totalTime:.2f} seconds.')
     print(f'Average iterations/scene: {sum(its)/count}')
     print(f'Average time/scene: {totalTime/count:.2f} seconds.')
+
+def dummy():    # for the 'scenic' entry point to call after importing this module
+    pass

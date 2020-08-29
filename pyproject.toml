@@ -58,6 +58,9 @@ dev = [
 	"pyproj",	# for running guideways modules
 ]
 
+[tool.poetry.scripts]
+scenic = 'scenic.__main__:dummy'
+
 [tool.poetry.plugins."pygments.lexers"]
 scenic = "scenic.syntax.pygment:ScenicLexer"
 
