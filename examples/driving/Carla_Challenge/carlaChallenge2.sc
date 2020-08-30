@@ -1,10 +1,11 @@
-model scenic.domains.driving.model
-
 """
 Leading vehicle decelerates suddently due to an obstacle and 
 ego-vehicle must react, performing an emergency brake or an avoidance maneuver.
 Based on 2019 Carla Challenge Traffic Scenario 02.
 """
+param map = localPath('../../carla/OpenDrive/Town01.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town01'
+model scenic.domains.driving.model
 
 #CONSTANTS
 EGO_SPEED = 10
@@ -40,13 +41,15 @@ behavior LeadingCarBehavior(speed=10):
 
 #GEOMETRY
 lane = Uniform(*network.lanes)
-lanesec = Uniform(*lane.sections)
 
 #PLACEMENT
-obstacle = Car on lanesec
+obstacle = Truck on lane
 
-leadCar = Car following roadDirection from obstacle by LEADCAR_TO_OBSTACLE,
+leadCar = Car following roadDirection from obstacle for LEADCAR_TO_OBSTACLE,
 	with behavior LeadingCarBehavior(LEAD_CAR_SPEED)
 
-ego = Car following roadDirection from leadCar by EGO_TO_LEADCAR,
+ego = Car following roadDirection from leadCar for EGO_TO_LEADCAR,
 	with behavior EgoBehavior(EGO_SPEED)
+
+
+""" Note: The scenario may fail if the leadCar or the ego get past the intersection while following the roadDirection """

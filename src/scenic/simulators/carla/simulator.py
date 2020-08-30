@@ -78,6 +78,8 @@ class CarlaSimulation(DrivingSimulation):
 			# Extract blueprint
 			blueprint = self.blueprintLib.find(obj.blueprint)
 
+			print("blueprint: ", blueprint)
+
 			# Set up transform
 			loc = utils.scenicToCarlaLocation(obj.position, z=obj.elevation, world=self.world)
 			rot = utils.scenicToCarlaRotation(obj.heading)
@@ -92,12 +94,6 @@ class CarlaSimulation(DrivingSimulation):
 				carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
 			elif isinstance(carlaActor, carla.Walker):
 				carlaActor.apply_control(carla.WalkerControl())
-
-			# #create by batch
-			# batch = []
-			# equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
-			# print(equivVel)
-			# batch.append(carla.command.SpawnActor(blueprint, transform, carlaActor).then(carla.command.ApplyVelocity(carla.command.FutureActor, equivVel)))
 
 			obj.carlaActor = carlaActor
 

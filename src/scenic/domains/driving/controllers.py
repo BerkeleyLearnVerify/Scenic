@@ -2,6 +2,7 @@
 from collections import deque
 
 import numpy as np
+import scipy.linalg as linalg
 
 class PIDLongitudinalController:
 	"""
@@ -114,3 +115,17 @@ class PIDLateralController:
 		#print("cte: ", cte)
 
 		return np.clip(self.output, -1, 1)
+
+class LQR:
+	def __init__(self,v_target, wheelbase, Q, R):
+		self.v_target = v_target
+		self.wheelbase = wheelbase
+		self.Q = Q
+		self.R = R
+
+	def run_step(self):
+		A = np.matrix([[0, self.v_target*(5./18.)], [0, 0]])
+		B = np.matrix([[0], [(self.v_target/self.wheelbase)*(5./18.)]])
+		V = np.matrix(linalg.solve_continuous_are(A, B, self.Q, self.R))
+		K = np.matrix(linalg.inv(self.R)*(B.T*V))
+		return K

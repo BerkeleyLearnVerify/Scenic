@@ -1,50 +1,33 @@
+""" Scenario Description
+At 3-way intersection, ego turns left and the other car goes straight
+"""
+
+param map = localPath('../../carla/OpenDrive/Town07.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town07'
 model scenic.domains.driving.model
 
-fourLane = []
-for i in network.intersections:
-	if (len(i.incomingLanes) >= 8):
-		fourLane.append(i)
+threeWayIntersections = filter(lambda i: i.is3Way, network.intersections)
+intersection = Uniform(*threeWayIntersections)
 
-assert len(fourLane) > 0, \
-	'No four way intersections.'
-
-intersection = Uniform(*fourLane)
-maneuvers = intersection.maneuvers
-
-straight_manuevers = []
-for m in maneuvers:
-	if m.type == ManeuverType.STRAIGHT:
-		straight_manuevers.append(m)
-
-assert len(straight_manuevers) > 0, \
-	'No available straight maneuvers on four way intersections.'
-
-straight_maneuver = Uniform(*straight_manuevers)
+straight_maneuvers = filter(lambda m: m.type == ManeuverType.STRAIGHT, intersection.maneuvers)
+straight_maneuver = Uniform(*straight_maneuvers)
 startLane = straight_maneuver.startLane
 connectingLane = straight_maneuver.connectingLane
 endLane = straight_maneuver.endLane
+centerlines = [startLane, connectingLane, endLane]
 
-centerlines = [startLane.centerline, connectingLane.centerline, endLane.centerline]
 
-
-leftTurn_manuevers = []
-for m in maneuvers:
-	if m.type == ManeuverType.LEFT_TURN:
-		leftTurn_manuevers.append(m)
-
-leftTurn_maneuver = leftTurn_manuevers[1]
+leftTurn_manuevers = filter(lambda m: m.type == ManeuverType.LEFT_TURN, straight_maneuver.conflictingManeuvers)
+leftTurn_maneuver = Uniform(*leftTurn_manuevers)
 ego_L_startLane = leftTurn_maneuver.startLane
 ego_L_connectingLane = leftTurn_maneuver.connectingLane
 ego_L_endLane = leftTurn_maneuver.endLane
-
-ego_L_centerlines = [ego_L_startLane.centerline, ego_L_connectingLane.centerline, ego_L_endLane.centerline]
+ego_L_centerlines = [ego_L_startLane, ego_L_connectingLane, ego_L_endLane]
 
 
 # PLACEMENT
 ego = Car on ego_L_startLane.centerline,
-		with blueprint 'vehicle.tesla.model3',
-		with behavior FollowTrajectoryBehavior(target_speed=10, trajectory=ego_L_centerlines)
+		with behavior FollowTrajectoryBehavior(target_speed=8, trajectory=ego_L_centerlines)
 
 other = Car on startLane.centerline,
-		with blueprint 'vehicle.tesla.model3',
-		with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=centerlines)
+		with behavior FollowTrajectoryBehavior(target_speed=10, trajectory=centerlines)

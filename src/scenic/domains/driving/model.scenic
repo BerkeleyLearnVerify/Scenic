@@ -106,7 +106,7 @@ class Vehicle(DrivingObject):
     position: Point on road
     heading: (roadDirection at self.position) + self.roadDeviation
     roadDeviation: 0
-    viewAngle: 90 deg
+    viewAngle: 130 deg
     width: 2
     height: 4.5
     color: Color.defaultCarColor()

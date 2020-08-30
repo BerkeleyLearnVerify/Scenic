@@ -1,12 +1,16 @@
+""" Scenario Description
+At three-way intersection. 
+ego goes straight. actor takes a turn first because it is closer to the intersection.
+"""
+param map = localPath('../../carla/OpenDrive/Town07.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town07'
 model scenic.domains.driving.model
-
-
-# 3 way intersection. ego goes straight. actor has right of way.
 
 param time_step = 1.0/10
 
-# CONSTANTS
-space = [2,3,4,5]
+# Constants
+EGO_OFFSET = -1 *(15,20)
+OTHERCAR_OFFSET = -1* (1,3)
 
 # GEOMETRY
 threeWayIntersections = filter(lambda i: i.is3Way, network.intersections)
@@ -19,8 +23,9 @@ startLane = straight_maneuver.startLane
 connectingLane = straight_maneuver.connectingLane
 endLane = straight_maneuver.endLane
 
-centerlines = [startLane.centerline, connectingLane.centerline, endLane.centerline]
-egoStart = (OrientedPoint at startLane.centerline[-1]) offset by (-2, 2) @ 0 
+centerlines = [startLane, connectingLane, endLane]
+intersection_edge = startLane.centerline[-1]
+egoStartPoint = OrientedPoint at intersection_edge
 
 # --
 
@@ -31,26 +36,27 @@ L_startLane = leftTurn_maneuver.startLane
 L_connectingLane = leftTurn_maneuver.connectingLane
 L_endLane = leftTurn_maneuver.endLane
 
-L_centerlines = [L_startLane.centerline, L_connectingLane.centerline, L_endLane.centerline]
-actorStart = (OrientedPoint at L_startLane.centerline[-1]) offset by (-2, 2) @ 0 
+L_centerlines = [L_startLane, L_connectingLane, L_endLane]
+
+L_intersection_edge = L_startLane.centerline[-1]
+actorStartPoint = OrientedPoint at L_intersection_edge
 
 # BEHAVIOR
-behavior EgoBehavior(target_speed=20, trajectory = None):
+behavior EgoBehavior(target_speed=10, trajectory = None):
 	assert trajectory is not None
 	brakeIntensity = 0.7
 
 	try: 
-		FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
+		FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
 
-	interrupt when distanceToAnyCars(car=self, thresholdDistance=10):
+	interrupt when distanceToAnyCars(car=self, thresholdDistance=15):
 		take SetBrakeAction(brakeIntensity)
 
 
 # PLACEMENT
-ego = Car following roadDirection from egoStart by -Uniform(*space),
-		with blueprint 'vehicle.tesla.model3',
-		with behavior EgoBehavior(target_speed=15, trajectory=centerlines)
+ego = Car following roadDirection from egoStartPoint for EGO_OFFSET,
+		with behavior EgoBehavior(target_speed=10, trajectory=centerlines)
 
-other = Car following roadDirection from actorStart by -Uniform(*space),
-		with blueprint 'vehicle.tesla.model3',
-		with behavior FollowTrajectoryBehavior(target_speed=5, trajectory=L_centerlines)
+other = Car following roadDirection from actorStartPoint for OTHERCAR_OFFSET,
+		with behavior FollowTrajectoryBehavior(target_speed=10, trajectory=L_centerlines),
+		with blueprint 'vehicle.seat.leon'

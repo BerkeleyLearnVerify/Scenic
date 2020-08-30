@@ -28,6 +28,20 @@ def distance(pos1, pos2):
 
 def distanceToAnyObjs(vehicle, thresholdDistance):
     """ checks whether there exists any obj
+    (1) in front of the vehicle, (2) within thresholdDistance """
+    objects = simulation().objects
+    for obj in objects:
+        if not (vehicle can see obj):
+            continue
+        if distance(vehicle.position, obj.position) < 0.1:
+            # this means obj==vehicle
+            pass
+        elif distance(vehicle.position, obj.position) < thresholdDistance:
+            return True
+    return False
+
+def distanceToObjsInLane(vehicle, thresholdDistance):
+    """ checks whether there exists any obj
     (1) in front of the vehicle, (2) on the same lane, (3) within thresholdDistance """
     objects = simulation().objects
     for obj in objects:
@@ -157,7 +171,11 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
     assert trajectory is not None
     assert isinstance(trajectory, list)
 
-    trajectory_line = concatenateCenterlines(trajectory)
+    brakeIntensity = 1.0
+    distanceToEndpoint = 5 # meters
+
+    traj_centerline = [traj.centerline for traj in trajectory]
+    trajectory_centerline = concatenateCenterlines(traj_centerline)
 
     # check whether self agent is vehicle:
     if hasattr(self, 'blueprint'):
@@ -171,30 +189,103 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
     # instantiate longitudinal and latitudinal pid controllers
     if is_vehicle:
         _lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-        _lat_controller = controllers.PIDLateralController(K_P=0.2, K_D=0.1, K_I=0, dt=dt)
+        _lat_controller = controllers.PIDLateralController(K_P=0.3, K_D=0.2, K_I=0, dt=dt)
 
     else:
         _lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
         _lat_controller = controllers.PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
 
     past_steer_angle = 0
+    traj_endpoint = trajectory[-1].centerline[-1]
+    reachedEndOfTraj = False
 
     while True:
-        if self.speed is not None:
-            current_speed = self.speed
+        if (distance from self to traj_endpoint) < distanceToEndpoint:
+            reachedEndOfTraj = True
+
+        if not reachedEndOfTraj:
+            if self.speed is not None:
+                current_speed = self.speed
+            else:
+                current_speed = 0
+
+            cte = trajectory_centerline.signedDistanceTo(self.position)
+            speed_error = target_speed - current_speed
+
+            # compute throttle : Longitudinal Control
+            throttle = _lon_controller.run_step(speed_error)
+
+            # compute steering : Latitudinal Control
+            current_steer_angle = _lat_controller.run_step(cte)
+
+            take FollowLaneAction(throttle=throttle, current_steer=current_steer_angle, past_steer=past_steer_angle)
+            past_steer_angle = current_steer_angle
         else:
-            current_speed = 0
+            take FollowLaneBehavior()
 
-        cte = trajectory_line.signedDistanceTo(self.position)
-        speed_error = target_speed - current_speed
 
-        # compute throttle : Longitudinal Control
-        throttle = _lon_controller.run_step(speed_error)
+behavior LaneChangeBehavior(laneToSwitch, target_speed=10):
+    brakeIntensity = 1.0
+    distanceToEndpoint = 5 # meters
+    is_oppositeTrafficLane = network.laneSectionAt(self).isForward is not laneToSwitch.isForward
 
-        # compute steering : Latitudinal Control
-        current_steer_angle = _lat_controller.run_step(cte)
+    traj_centerline = [laneToSwitch.centerline]
+    trajectory_centerline = concatenateCenterlines(traj_centerline)
 
-        take FollowLaneAction(throttle=throttle, current_steer=current_steer_angle, past_steer=past_steer_angle)
-        past_steer_angle = current_steer_angle
+    # check whether self agent is vehicle:
+    if hasattr(self, 'blueprint'):
+        if (self.blueprint in carModels) or (self.blueprint in truckModels):
+            is_vehicle = True
+        else:
+            is_vehicle = False
+    else:
+        # assume it is a car
+        is_vehicle = True
 
+    dt = simulation().timestep
+
+    # instantiate longitudinal and latitudinal pid controllers
+    if is_vehicle:
+        _lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+        _lat_controller = controllers.PIDLateralController(K_P=0.1, K_D=0.1, K_I=0, dt=dt)
+
+    else:
+        _lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+        _lat_controller = controllers.PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.0, dt=dt)
+
+    past_steer_angle = 0
+
+    if not is_oppositeTrafficLane:
+        traj_endpoint = laneToSwitch.centerline[-1]
+    else:
+        traj_endpoint = laneToSwitch.centerline[0]
+
+    reachedEndOfTraj = False
+
+    while True:
+        if not reachedEndOfTraj and (distance from self to traj_endpoint) < distanceToEndpoint:
+            reachedEndOfTraj = True
+
+        if not reachedEndOfTraj:
+            if self.speed is not None:
+                current_speed = self.speed
+            else:
+                current_speed = 0
+
+            cte = trajectory_centerline.signedDistanceTo(self.position)
+            if is_oppositeTrafficLane:
+                cte = -cte
+
+            speed_error = target_speed - current_speed
+
+            # compute throttle : Longitudinal Control
+            throttle = _lon_controller.run_step(speed_error)
+
+            # compute steering : Latitudinal Control
+            current_steer_angle = _lat_controller.run_step(cte)
+
+            take FollowLaneAction(throttle=throttle, current_steer=current_steer_angle, past_steer=past_steer_angle)
+            past_steer_angle = current_steer_angle
+        else:
+            FollowLaneBehavior()
 
