@@ -34,6 +34,18 @@ def test_dynamic_derived_property():
 
 ## Behaviors
 
+# Various errors
+
+def test_behavior_no_actions():
+    with pytest.raises(ScenicSyntaxError):
+        scenario = compileScenic("""
+            behavior Foo():
+                take 1
+            behavior Bar():
+                Foo()   # forgot to use 'do'
+            ego = Object with behavior Bar
+        """)
+
 # Arguments
 
 def test_behavior_random_argument():
@@ -209,37 +221,6 @@ def test_terminate_when():
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (1, 2)
 
-# Requirements
-
-def test_behavior_require():
-    scenario = compileScenic("""
-        behavior Foo():
-            while True:
-                take self.foo
-                require self.foo < 0
-        ego = Object with foo Range(-1, 1), with behavior Foo
-    """)
-    for i in range(50):
-        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=1, maxScenes=50)
-        assert len(actions) == 2
-        assert actions[0] < 0
-        assert actions[0] == actions[1]
-
-def test_behavior_require_2():
-    scenario = compileScenic("""
-        behavior Foo():
-            x = Range(-1, 1)
-            while True:
-                take x
-                require x < 0
-        ego = Object with behavior Foo
-    """)
-    for i in range(50):
-        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=50, maxScenes=1)
-        assert len(actions) == 2
-        assert actions[0] < 0
-        assert actions[0] == actions[1]
-
 # Reuse
 
 def test_behavior_reuse():
@@ -411,13 +392,30 @@ def test_behavior_require():
     scenario = compileScenic("""
         behavior Foo():
             x = Range(-1, 1)
-            require x > 0
-            take x
+            while True:
+                take x
+                require x < 0
         ego = Object with behavior Foo
     """)
-    for i in range(30):
-        actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=30)
-        assert actions[0] > 0
+    for i in range(50):
+        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=50, maxScenes=1)
+        assert len(actions) == 2
+        assert actions[0] < 0
+        assert actions[0] == actions[1]
+
+def test_behavior_require_scene():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take self.foo
+                require self.foo < 0
+        ego = Object with foo Range(-1, 1), with behavior Foo
+    """)
+    for i in range(50):
+        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=1, maxScenes=50)
+        assert len(actions) == 2
+        assert actions[0] < 0
+        assert actions[0] == actions[1]
 
 def test_behavior_require_call():
     scenario = compileScenic("""

@@ -712,8 +712,11 @@ class Behavior(Invocable, Samplable):
 			currentScenario._behaviors.append(cls)
 
 	def __init__(self, *args, **kwargs):
+		self.args = tuple(toDistribution(arg) for arg in args)
+		self.kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
 		if not inspect.isgeneratorfunction(self.makeGenerator):
-			raise RuntimeParseError(f'{self} does not take any actions')
+			raise RuntimeParseError(f'{self} does not take any actions'
+			                        ' (perhaps you forgot to use "take" or "do"?)')
 
 		# Validate arguments to the behavior
 		sig = inspect.signature(self.makeGenerator)
@@ -721,8 +724,6 @@ class Behavior(Invocable, Samplable):
 			sig.bind(None, *args, **kwargs)
 		except TypeError as e:
 			raise RuntimeParseError(str(e)) from e
-		self.args = tuple(toDistribution(arg) for arg in args)
-		self.kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
 		Samplable.__init__(self, itertools.chain(self.args, self.kwargs.values()))
 		Invocable.__init__(self)
 
