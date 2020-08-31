@@ -20,10 +20,10 @@ behavior CollisionAvoidance(safety_distance=10, brake_intensity=1):
 behavior FollowLeadCar(safety_distance=10):
 
 	try: 
-		FollowLaneBehavior(target_speed=25)
+		do FollowLaneBehavior(target_speed=25)
 
 	interrupt when ((distance to other) < safety_distance):
-		CollisionAvoidance()
+		do CollisionAvoidance()
 
 
 behavior LeadCarSuddenlyStopsAndGo():
@@ -31,7 +31,7 @@ behavior LeadCarSuddenlyStopsAndGo():
 	sudden_stop_time = Range(3, 6) * 10
 	last_stop = 0
 	try:
-		FollowLaneBehavior(target_speed=25)
+		do FollowLaneBehavior(target_speed=25)
 
 	interrupt when simulation().currentTime - last_stop > sudden_stop_time:
 		for i in range(STOP_LENGTH):

@@ -52,7 +52,7 @@ actorTrajectory = [actorTurn.startLane.centerline, actorTurn.connectingLane.cent
 # BEHAVIORS
 behavior actorCarBehavior(target_speed, trajectory, brake):
 	try: 
-		FollowTrajectoryBehavior(target_speed = turnSpeed, trajectory = actorTrajectory)
+		do FollowTrajectoryBehavior(target_speed = turnSpeed, trajectory = actorTrajectory)
 
 	interrupt when(actor in actorTurn.endLane):
 		take SetThrottleAction(0.0), SetBrakeAction(brakeIntensity)

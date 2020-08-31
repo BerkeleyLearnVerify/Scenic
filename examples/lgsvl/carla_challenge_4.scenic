@@ -45,7 +45,7 @@ behavior CrossingBehavior():
 behavior EgoBehavior():
 	brakeIntensity = Range(0.7, 1)
 	try:
-		FollowTrajectoryBehavior(target_speed=(20, 30), trajectory=trajectory)
+		do FollowTrajectoryBehavior(target_speed=(20, 30), trajectory=trajectory)
 	interrupt when (distance to p) < 10:
 		take SetThrottleAction(0), SetBrakeAction(brakeIntensity)
 
