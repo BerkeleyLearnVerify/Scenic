@@ -52,11 +52,7 @@ class LGSVLObject(DrivingObject):
 class Vehicle(Vehicle, LGSVLObject):
     pass
 
-class Car(Vehicle):
-    def __new__(cls, *args, **kwargs):
-        return super().__new__(EgoCar, *args, **kwargs)
-
-class EgoCar(Car, Steers):
+class EgoCar(Vehicle, Steers):
     lgsvlName: 'Lincoln2017MKZ (Apollo 5.0)'
     lgsvlAgentType: EGO_TYPE
 
@@ -85,6 +81,9 @@ class EgoCar(Car, Steers):
 
     def setReverse(self, reverse):
         self.control.reverse = reverse
+
+# A plain Car is an EgoCar so that the Steers protocol is supported
+(Car) = (EgoCar)
 
 class ApolloCar(EgoCar):
     lgsvlName: 'Lincoln2017MKZ (Apollo 5.0)'
