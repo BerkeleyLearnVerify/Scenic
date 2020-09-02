@@ -54,7 +54,10 @@ class Vehicle(Vehicle, LGSVLObject):
 
 class Car(Vehicle):
     def __new__(cls, *args, **kwargs):
-        return super().__new__(EgoCar, *args, **kwargs)
+        obj = super().__new__(EgoCar, *args, **kwargs)
+        if not isinstance(obj, cls):
+            obj.__init__(*args, **kwargs)
+        return obj
 
 class EgoCar(Car, Steers):
     lgsvlName: 'Lincoln2017MKZ (Apollo 5.0)'
