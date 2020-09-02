@@ -43,7 +43,7 @@ behavior LeadingCarBehavior(speed=10):
 lane = Uniform(*network.lanes)
 
 #PLACEMENT
-obstacle = Car on lane
+obstacle = Truck on lane
 
 leadCar = Car following roadDirection from obstacle for LEADCAR_TO_OBSTACLE,
 	with behavior LeadingCarBehavior(LEAD_CAR_SPEED)

@@ -11,7 +11,7 @@ behavior CutInBehavior(laneToFollow):
 	while (distance from self to ego) > CUT_IN_TRIGGER_DISTANCE:
 		wait
 
-	FollowLaneBehavior(laneToFollow = laneToFollow)
+	do FollowLaneBehavior(laneToFollow = laneToFollow)
 
 behavior CollisionAvoidance():
 	while distanceToAnyObjs(self, SAFETY_DISTANCE):
@@ -20,10 +20,10 @@ behavior CollisionAvoidance():
 
 behavior EgoBehavior():
 	try: 
-		FollowLaneBehavior()
+		do FollowLaneBehavior()
 
 	interrupt when distanceToAnyObjs(self, SAFETY_DISTANCE):
-		CollisionAvoidance()
+		do CollisionAvoidance()
 
 
 roads = network.roads

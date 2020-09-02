@@ -17,10 +17,10 @@ behavior CollisionAvoidance(brake_intensity=0.3):
 behavior FollowLeadCarBehavior():
 
 	try: 
-		FollowLaneBehavior()
+		do FollowLaneBehavior()
 
 	interrupt when distanceToAnyObjs(self, SAFETY_DISTANCE):
-		CollisionAvoidance()
+		do CollisionAvoidance()
 
 
 roads = network.roads

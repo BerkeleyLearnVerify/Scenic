@@ -32,7 +32,7 @@ behavior EgoBehavior(thresholdDistance, target_speed=10, trajectory = None):
 	brakeIntensity = 0.7
 
 	try: 
-		FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
+		do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
 
 	interrupt when distanceToAnyCars(car=self, thresholdDistance=thresholdDistance):
 		take SetBrakeAction(brakeIntensity)

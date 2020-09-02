@@ -7,7 +7,7 @@ STEPS_PER_SEC = 10
 
 behavior LeadCarBehavior():
 	try:
-		FollowLaneBehavior()
+		do FollowLaneBehavior()
 	interrupt when 5 * STEPS_PER_SEC < simulation().currentTime and simulation().currentTime < 6 * STEPS_PER_SEC:
 		take SetBrakeAction(MAX_BREAK_THRESHOLD)
 
@@ -19,10 +19,10 @@ behavior CollisionAvoidance():
 behavior FollowLeadCarBehavior():
 
 	try: 
-		FollowLaneBehavior()
+		do FollowLaneBehavior()
 
 	interrupt when distanceToAnyObjs(self, SAFETY_DISTANCE):
-		CollisionAvoidance()
+		do CollisionAvoidance()
 
 
 roads = network.roads

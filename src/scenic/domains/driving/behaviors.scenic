@@ -14,7 +14,7 @@ behavior ConstantThrottleBehavior(x):
 
 behavior DriveAvoidingCollisions(target_speed=25, avoidance_threshold=10):
     try:
-        FollowLaneBehavior(target_speed=target_speed)
+        do FollowLaneBehavior(target_speed=target_speed)
     interrupt when self.distanceToClosest(_model.Vehicle) <= avoidance_threshold:
         take SetThrottleAction(0), SetBrakeAction(1)
 
@@ -72,7 +72,8 @@ behavior WalkForwardBehavior():
 behavior ConstantThrottleBehavior(x):
     take SetThrottleAction(x)
 
-behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None):
+behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTraffic=False):
+    print("FOLLOW LANE BEHAVIOR")
     ## Follow's the lane on which the vehicle is at 
     ## As the vehicle reaches an intersection, any route (eg. straigth or turn maneuver) is randomly selected and followed
     
@@ -153,6 +154,8 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None):
         nearest_line_points = current_centerline.nearestSegmentTo(self.position)
         nearest_line_segment = PolylineRegion(nearest_line_points)
         cte = nearest_line_segment.signedDistanceTo(self.position)
+        if is_oppositeTraffic:
+            cte = -cte
 
         speed_error = target_speed - current_speed
 
@@ -221,16 +224,18 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
             take FollowLaneAction(throttle=throttle, current_steer=current_steer_angle, past_steer=past_steer_angle)
             past_steer_angle = current_steer_angle
         else:
-            take FollowLaneBehavior()
+            do FollowLaneBehavior()
 
 
-behavior LaneChangeBehavior(laneToSwitch, target_speed=10):
+behavior LaneChangeBehavior(laneSectionToSwitch, is_oppositeTraffic=False, target_speed=10,):
+    print("LANE CHANGE BEHAVIOR")
     brakeIntensity = 1.0
-    distanceToEndpoint = 5 # meters
-    is_oppositeTrafficLane = network.laneSectionAt(self).isForward is not laneToSwitch.isForward
+    distanceToEndpoint = 3 # meters
 
-    traj_centerline = [laneToSwitch.centerline]
+    current_lane = laneSectionToSwitch.lane
+    traj_centerline = [current_lane.centerline]
     trajectory_centerline = concatenateCenterlines(traj_centerline)
+    nearby_intersection = current_lane.maneuvers[0].intersection
 
     # check whether self agent is vehicle:
     if hasattr(self, 'blueprint'):
@@ -255,37 +260,55 @@ behavior LaneChangeBehavior(laneToSwitch, target_speed=10):
 
     past_steer_angle = 0
 
-    if not is_oppositeTrafficLane:
-        traj_endpoint = laneToSwitch.centerline[-1]
+    if not is_oppositeTraffic:
+        traj_endpoint = current_lane.centerline[-1]
     else:
-        traj_endpoint = laneToSwitch.centerline[0]
-
-    reachedEndOfTraj = False
+        traj_endpoint = current_lane.centerline[0]
 
     while True:
-        if not reachedEndOfTraj and (distance from self to traj_endpoint) < distanceToEndpoint:
-            reachedEndOfTraj = True
+        if abs(trajectory_centerline.signedDistanceTo(self.position)) < 0.1:
+            break        
+        if (distance from self to nearby_intersection) < distanceToEndpoint:
+            straight_manuevers = filter(lambda i: i.type == ManeuverType.STRAIGHT, current_lane.maneuvers)
 
-        if not reachedEndOfTraj:
-            if self.speed is not None:
-                current_speed = self.speed
+            if len(straight_manuevers) > 0:
+                select_maneuver = Uniform(*straight_manuevers)
             else:
-                current_speed = 0
+                if len(current_lane.maneuvers) > 0:
+                    select_maneuver = Uniform(*current_lane.maneuvers)
+                else:
+                    take SetBrakeAction()
+                    break
 
-            cte = trajectory_centerline.signedDistanceTo(self.position)
-            if is_oppositeTrafficLane:
-                cte = -cte
+            # assumption: there always will be a maneuver
+            if select_maneuver.connectingLane != None:
+                trajectory_centerline = concatenateCenterlines([trajectory_centerline, select_maneuver.connectingLane.centerline, \
+                    select_maneuver.endLane.centerline])
+            else:
+                trajectory_centerline = concatenateCenterlines([trajectory_centerline, select_maneuver.endLane.centerline])
 
-            speed_error = target_speed - current_speed
+            current_lane = select_maneuver.endLane
 
-            # compute throttle : Longitudinal Control
-            throttle = _lon_controller.run_step(speed_error)
-
-            # compute steering : Latitudinal Control
-            current_steer_angle = _lat_controller.run_step(cte)
-
-            take FollowLaneAction(throttle=throttle, current_steer=current_steer_angle, past_steer=past_steer_angle)
-            past_steer_angle = current_steer_angle
+        if self.speed is not None:
+            current_speed = self.speed
         else:
-            FollowLaneBehavior()
+            current_speed = 0
+
+        cte = trajectory_centerline.signedDistanceTo(self.position)
+        if is_oppositeTraffic: # [bypass] when crossing over the yellowline to opposite traffic lane 
+            cte = -cte
+
+        speed_error = target_speed - current_speed
+
+        # compute throttle : Longitudinal Control
+        throttle = _lon_controller.run_step(speed_error)
+
+        # compute steering : Latitudinal Control
+        current_steer_angle = _lat_controller.run_step(cte)
+
+        take FollowLaneAction(throttle=throttle, current_steer=current_steer_angle, past_steer=past_steer_angle)
+        past_steer_angle = current_steer_angle
+
+    print("breaking off of LaneChangeBehavior")
+
 

@@ -31,7 +31,7 @@ initLaneSec = Uniform(*initLane.sections)
 #PLACEMENT
 spawnPt = OrientedPoint on initLaneSec.centerline
 
-obstacle = Car at spawnPt offset by CAR_POSITION_OFFSET @ 0
+obstacle = Motorcycle at spawnPt offset by CAR_POSITION_OFFSET @ 0
 
 ego = Car following roadDirection from spawnPt for EGO_TO_OBSTACLE,
 	with behavior EgoBehavior(EGO_SPEED)

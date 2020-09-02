@@ -5,7 +5,7 @@ Based on CARLA Challenge Scenario 6:
 https://carlachallenge.org/challenge/nhtsa/
 """
 
-param map = localPath('../../carla/OpenDrive/Town07.xodr')  # or other CARLA map that definitely works
+param map = localPath('../OpenDrive/Town07.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town07'
 model scenic.domains.driving.model
 
@@ -18,7 +18,7 @@ DIST_THRESHOLD = 12
 YIELD_THRESHOLD = 5
 BLOCKING_CAR_DIST = Range(10, 20)
 BREAK_INTENSITY = 0.8
-BYPASS_DIST = 10
+BYPASS_DIST = 5
 DIST_BTW_BLOCKING_ONCOMING_CARS = 10
 DIST_TO_INTERSECTION = 10
 
@@ -26,13 +26,11 @@ DIST_TO_INTERSECTION = 10
 behavior EgoBehavior(path):
 	current_lane = network.laneAt(self)
 	laneChangeCompleted = False
-	bypassed = False
 
 	try:
 		do FollowLaneBehavior(EGO_SPEED, laneToFollow=current_lane)
 
 	interrupt when (distance to blockingCar) < DIST_THRESHOLD and not laneChangeCompleted:
-		print("FIRST INTERRUPT")
 		if ego can see oncomingCar:
 			take SetBrakeAction(BREAK_INTENSITY)
 		elif (distance to oncomingCar) > YIELD_THRESHOLD:
@@ -41,12 +39,10 @@ behavior EgoBehavior(path):
 		else:
 			wait
 
-	interrupt when (blockingCar can see ego) and (distance to blockingCar) > BYPASS_DIST and not bypassed:
-		print("SECOND INTERRUPT")
+	interrupt when (blockingCar can see ego) and (distance from blockingCar to ego) < BYPASS_DIST:
 		current_laneSection = network.laneSectionAt(self)
 		rightLaneSec = current_laneSection._laneToLeft
 		do LaneChangeBehavior(rightLaneSec, is_oppositeTraffic=False, target_speed=EGO_SPEED)
-		bypassed = True
 
 
 #OTHER BEHAVIORS
@@ -77,8 +73,9 @@ oncomingCar = Car on leftLaneSec.centerline,
 	with behavior OncomingCarBehavior()
 
 ego = Car at spawnPt,
-	with behavior EgoBehavior(leftLaneSec)
-	
+	with behavior EgoBehavior(leftLaneSec),
+	with blueprint 'vehicle.toyota.prius'
+
 blockingCar = Car following roadDirection from ego for BLOCKING_CAR_DIST,
 				with viewAngle 90 deg
 
