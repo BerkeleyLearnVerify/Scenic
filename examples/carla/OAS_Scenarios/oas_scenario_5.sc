@@ -39,6 +39,22 @@ behavior FollowLeadCarBehavior():
 		CollisionAvoidance()
 
 
+<<<<<<< HEAD
+=======
+behavior LeadCarSuddenlyStopsAndGo():
+
+	sudden_stop_time = Range(3, 6)
+	start_time = time.time()
+
+	try:
+		FollowLane(25)
+
+	interrupt when (time.time()-start_time > sudden_stop_time) and (time.time()-start_time < sudden_stop_time+1): 
+		# Unnatural to enforce time constraint
+		take actions.SetBrakeAction(MAX_BREAK_THRESHOLD)
+
+
+>>>>>>> dynamics2
 roads = network.roads
 select_road = Uniform(*roads)
 select_lane = Uniform(*select_road.lanes)

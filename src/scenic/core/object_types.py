@@ -9,7 +9,7 @@ from scenic.core.specifiers import Specifier, PropertyDefault
 from scenic.core.vectors import Vector
 from scenic.core.geometry import RotatedRectangle, averageVectors, hypot, min, pointIsInCone
 from scenic.core.regions import CircularRegion, SectorRegion
-from scenic.core.type_support import toVector, toHeading
+from scenic.core.type_support import toVector, toHeading, toType
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.utils import areEquivalent, cached_property
 from scenic.core.errors import RuntimeParseError
@@ -178,7 +178,7 @@ class Constructible(Samplable):
 		if hasattr(self, 'properties') and 'name' in self.properties:
 			return self.name
 		else:
-			return self.__repr__()
+			return f'unnamed {self.__class__.__name__} ({id(self)})'
 
 	def __repr__(self):
 		if hasattr(self, 'properties'):
@@ -259,11 +259,11 @@ class Point(Constructible):
 		visibleDistance (float): Distance for ``can see`` operator. Default value 50.
 		width (float): Default value zero (only provided for compatibility with
 		  operators that expect an `Object`).
-		height (float): Default value zero.
+		length (float): Default value zero.
 	"""
 	position: PropertyDefault((), {'dynamic'}, lambda self: Vector(0, 0))
 	width: 0
-	height: 0
+	length: 0
 	visibleDistance: 50
 
 	mutationEnabled: False
@@ -350,7 +350,7 @@ class Object(OrientedPoint, RotatedRectangle):
 	Attributes:
 		width (float): Width of the object, i.e. extent along its X axis.
 		  Default value 1.
-		height (float): Height of the object, i.e. extent along its Y axis.
+		length (float): Length of the object, i.e. extent along its Y axis.
 		  Default value 1.
 		allowCollisions (bool): Whether the object is allowed to intersect
 		  other objects. Default value ``False``.
@@ -363,7 +363,7 @@ class Object(OrientedPoint, RotatedRectangle):
 		  operator, relative to the object's ``position``. Default ``0 @ 0``.
 	"""
 	width: 1
-	height: 1
+	length: 1
 
 	allowCollisions: False
 	requireVisible: True
@@ -376,6 +376,7 @@ class Object(OrientedPoint, RotatedRectangle):
 	angularSpeed: PropertyDefault((), {'dynamic'}, lambda self: 0)
 
 	behavior: None
+	lastActions: None
 
 	def __new__(cls, *args, **kwargs):
 		obj = super().__new__(cls)
@@ -388,11 +389,18 @@ class Object(OrientedPoint, RotatedRectangle):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.hw = hw = self.width / 2
-		self.hh = hh = self.height / 2
-		self.radius = hypot(hw, hh)	# circumcircle; for collision detection
-		self.inradius = min(hw, hh)	# incircle; for collision detection
+		self.hl = hl = self.length / 2
+		self.radius = hypot(hw, hl)	# circumcircle; for collision detection
+		self.inradius = min(hw, hl)	# incircle; for collision detection
 
 		self._relations = []
+
+	def _specify(self, prop, value):
+		# Normalize types of some built-in properties
+		if prop == 'behavior':
+			import scenic.syntax.veneer as veneer	# TODO improve?
+			value = toType(value, veneer.Behavior, f'"behavior" of {self} not a behavior')
+		super()._specify(prop, value)
 
 	def _register(self):
 		import scenic.syntax.veneer as veneer	# TODO improve?
@@ -416,27 +424,27 @@ class Object(OrientedPoint, RotatedRectangle):
 
 	@cached_property
 	def front(self):
-		return self.relativize(Vector(0, self.hh))
+		return self.relativize(Vector(0, self.hl))
 
 	@cached_property
 	def back(self):
-		return self.relativize(Vector(0, -self.hh))
+		return self.relativize(Vector(0, -self.hl))
 
 	@cached_property
 	def frontLeft(self):
-		return self.relativize(Vector(-self.hw, self.hh))
+		return self.relativize(Vector(-self.hw, self.hl))
 
 	@cached_property
 	def frontRight(self):
-		return self.relativize(Vector(self.hw, self.hh))
+		return self.relativize(Vector(self.hw, self.hl))
 
 	@cached_property
 	def backLeft(self):
-		return self.relativize(Vector(-self.hw, -self.hh))
+		return self.relativize(Vector(-self.hw, -self.hl))
 
 	@cached_property
 	def backRight(self):
-		return self.relativize(Vector(self.hw, -self.hh))
+		return self.relativize(Vector(self.hw, -self.hl))
 
 	@cached_property
 	def visibleRegion(self):
@@ -445,12 +453,12 @@ class Object(OrientedPoint, RotatedRectangle):
 
 	@cached_property
 	def corners(self):
-		hw, hh = self.hw, self.hh
+		hw, hl = self.hw, self.hl
 		return (
-			self.relativePosition(Vector(hw, hh)),
-			self.relativePosition(Vector(-hw, hh)),
-			self.relativePosition(Vector(-hw, -hh)),
-			self.relativePosition(Vector(hw, -hh))
+			self.relativePosition(Vector(hw, hl)),
+			self.relativePosition(Vector(-hw, hl)),
+			self.relativePosition(Vector(-hw, -hl)),
+			self.relativePosition(Vector(hw, -hl))
 		)
 
 	def show(self, workspace, plt, highlight=False):
@@ -461,7 +469,7 @@ class Object(OrientedPoint, RotatedRectangle):
 
 		if highlight:
 			# Circle around object
-			rad = 1.5 * max(self.width, self.height)
+			rad = 1.5 * max(self.width, self.length)
 			c = plt.Circle(spos, rad, color='g', fill=False)
 			plt.gca().add_artist(c)
 			# View cone

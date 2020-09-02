@@ -24,20 +24,20 @@ justAboveIntersection = PolygonalRegion([[-20, 29], [-20, 34], [-5, 34], [-5, 29
 
 # Uber
 ego = Car on uberGuideway.median.intersect(aboveIntersection),
-		  with speed (30, 50),
+		  with speed Range(30, 50),
 		  with webotsType 'Uber'
 
 # Turning car
 turningCar = Car on turnGuideway.median.intersect(belowIntersection),
-				 with delay (0, 3),
+				 with delay Range(0, 3),
 				 with webotsType 'TurningCar'
 
 # A car blocking part of the Uber's view
-laneNoise = (-0.5, 0.5)
+laneNoise = Range(-0.5, 0.5)
 spot = OrientedPoint on blockingGuideway.median.intersect(justAboveIntersection)
 Car at spot offset by laneNoise @ 0
 
 # Another car behind that
-spot2 = OrientedPoint at spot offset by 0 @ (-5, -8)
+spot2 = OrientedPoint at spot offset by 0 @ Range(-5, -8)
 Car at spot2 offset by laneNoise @ 0
 

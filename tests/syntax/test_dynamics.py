@@ -1,7 +1,7 @@
 
 import pytest
 
-from scenic.core.errors import RuntimeParseError
+from scenic.core.errors import RuntimeParseError, ScenicSyntaxError
 
 from tests.utils import (compileScenic, sampleScene, sampleActions, sampleActionsFromScene,
                          sampleEgoActions, sampleEgoActionsFromScene, checkErrorLineNumber)
@@ -17,8 +17,8 @@ def test_dynamic_property():
         ego = Object with behavior Foo
         terminate when ego.position.x >= 3
     """)
-    actions = sampleEgoActions(scenario, maxSteps=3)
-    assert len(actions) == 2
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert len(actions) == 3
 
 def test_dynamic_derived_property():
     scenario = compileScenic("""
@@ -29,10 +29,22 @@ def test_dynamic_derived_property():
         ego = Object with behavior Foo
         terminate when ego.left.position.y >= 3
     """)
-    actions = sampleEgoActions(scenario, maxSteps=3)
-    assert len(actions) == 2
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert len(actions) == 3
 
 ## Behaviors
+
+# Various errors
+
+def test_behavior_no_actions():
+    with pytest.raises(ScenicSyntaxError):
+        scenario = compileScenic("""
+            behavior Foo():
+                take 1
+            behavior Bar():
+                Foo()   # forgot to use 'do'
+            ego = Object with behavior Bar
+        """)
 
 # Arguments
 
@@ -40,7 +52,7 @@ def test_behavior_random_argument():
     scenario = compileScenic(
         'behavior Foo(arg):\n'
         '    take arg\n'
-        'ego = Object with behavior Foo((10, 25))'
+        'ego = Object with behavior Foo(Range(10, 25))'
     )
     scene = sampleScene(scenario)
     actions1 = sampleEgoActionsFromScene(scene)
@@ -55,7 +67,7 @@ def test_behavior_random_argument_list():
     scenario = compileScenic(
         'behavior Foo(arg):\n'
         '    take arg[1]\n'
-        'ego = Object with behavior Foo([-5, (10, 25)])'
+        'ego = Object with behavior Foo([-5, Range(10, 25)])'
     )
     scene = sampleScene(scenario)
     actions1 = sampleEgoActionsFromScene(scene)
@@ -74,7 +86,7 @@ def test_behavior_globals_read():
             while True:
                 take other.position.x
         ego = Object with behavior Foo
-        other = Object at (10, 20) @ 15
+        other = Object at Range(10, 20) @ 15
     """)
     actions1 = sampleEgoActions(scenario, maxSteps=2)
     assert len(actions1) == 2
@@ -107,7 +119,7 @@ def test_behavior_globals_read_list():
             while True:
                 take foo[1]
         ego = Object with behavior Foo
-        foo = [5, (10, 20)]
+        foo = [5, Range(10, 20)]
     """)
     actions1 = sampleEgoActions(scenario, maxSteps=2)
     assert len(actions1) == 2
@@ -161,12 +173,12 @@ def test_behavior_lazy_nested():
     scenario = compileScenic("""
         vf = VectorField("Foo", lambda pos: pos.x)
         behavior Foo():
-            Bar()
+            do Bar()
             take -1 relative to vf
         behavior Bar():
             take 1 relative to vf
         behavior Baz():
-            Bar(); Bar()
+            do Bar(); do Bar()
         Object at -10@0, with behavior Baz
         ego = Object at 0.5@0, with behavior Foo
     """)
@@ -207,38 +219,7 @@ def test_terminate_when():
         terminate when flag
     """)
     actions = sampleEgoActions(scenario, maxSteps=3)
-    assert tuple(actions) == (1,)
-
-# Requirements
-
-def test_behavior_require():
-    scenario = compileScenic("""
-        behavior Foo():
-            while True:
-                take self.foo
-                require self.foo < 0
-        ego = Object with foo (-1, 1), with behavior Foo
-    """)
-    for i in range(50):
-        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=1, maxScenes=50)
-        assert len(actions) == 2
-        assert actions[0] < 0
-        assert actions[0] == actions[1]
-
-def test_behavior_require_2():
-    scenario = compileScenic("""
-        behavior Foo():
-            x = (-1, 1)
-            while True:
-                take x
-                require x < 0
-        ego = Object with behavior Foo
-    """)
-    for i in range(50):
-        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=50, maxScenes=1)
-        assert len(actions) == 2
-        assert actions[0] < 0
-        assert actions[0] == actions[1]
+    assert tuple(actions) == (1, 2)
 
 # Reuse
 
@@ -256,7 +237,7 @@ def test_behavior_reuse():
 def test_behavior_reuse_2():
     scenario = compileScenic(
         'behavior Foo():\n'
-        '    take (-10, 10)\n'
+        '    take Range(-10, 10)\n'
         'ego = Object with behavior Foo\n'
         'Object at 10@10, with behavior Foo'
     )
@@ -293,18 +274,76 @@ def test_behavior_ordering_default():
 # Nesting (sub-behaviors)
 
 def test_behavior_nesting():
-    scenario = compileScenic(
-        'behavior Foo(a):\n'
-        '    take a\n'
-        '    take a\n'
-        'behavior Bar():\n'
-        '    take 1\n'
-        '    Foo(2)\n'
-        '    take 3\n'
-        'ego = Object with behavior Bar\n'
-    )
+    scenario = compileScenic("""
+        behavior Foo(a):
+            take a
+            take a
+        behavior Bar():
+            take 1
+            do Foo(2)
+            take 3
+        ego = Object with behavior Bar
+    """)
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, 2, 2, 3)
+
+def test_subbehavior_for_steps():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take 1
+        behavior Bar():
+            do Foo() for 3 steps
+            take 2
+        ego = Object with behavior Bar
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (1, 1, 1, 2)
+
+def test_subbehavior_for_time():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take 1
+        behavior Bar():
+            do Foo() for 3 seconds
+            take 2
+        ego = Object with behavior Bar
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=7, timestep=0.5)
+    assert tuple(actions) == (1, 1, 1, 1, 1, 1, 2)
+
+def test_subbehavior_until():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take 1
+        behavior Bar():
+            do Foo() until simulation().currentTime == 2
+            take 2
+        ego = Object with behavior Bar
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (1, 1, 2, None)
+
+def test_behavior_invoke_mistyped():
+    scenario = compileScenic("""
+        behavior Foo():
+            do 12
+        ego = Object with behavior Foo
+    """)
+    with pytest.raises(RuntimeParseError):
+        sampleActions(scenario)
+
+def test_behavior_invoke_multiple():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            behavior Foo():
+                take 5
+            behavior Bar():
+                do Foo(), Foo()
+            ego = Object with behavior Bar
+        """)
 
 def test_behavior_calls():
     """Ordinary function calls inside behaviors should still work."""
@@ -352,14 +391,31 @@ def test_behavior_calls_side_effects():
 def test_behavior_require():
     scenario = compileScenic("""
         behavior Foo():
-            x = (-1, 1)
-            require x > 0
-            take x
+            x = Range(-1, 1)
+            while True:
+                take x
+                require x < 0
         ego = Object with behavior Foo
     """)
-    for i in range(30):
-        actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=30)
-        assert actions[0] > 0
+    for i in range(50):
+        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=50, maxScenes=1)
+        assert len(actions) == 2
+        assert actions[0] < 0
+        assert actions[0] == actions[1]
+
+def test_behavior_require_scene():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take self.foo
+                require self.foo < 0
+        ego = Object with foo Range(-1, 1), with behavior Foo
+    """)
+    for i in range(50):
+        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=1, maxScenes=50)
+        assert len(actions) == 2
+        assert actions[0] < 0
+        assert actions[0] == actions[1]
 
 def test_behavior_require_call():
     scenario = compileScenic("""
@@ -396,73 +452,73 @@ def test_monitor():
 # Basic
 
 def test_interrupt():
-    scenario = compileScenic(
-        'behavior Foo():\n'
-        '    try:\n'
-        '        while True:\n'
-        '            take 1\n'
-        '    interrupt when simulation().currentTime % 3 == 2:\n'
-        '        take 2\n'
-        'ego = Object with behavior Foo'
-    )
+    scenario = compileScenic("""
+        behavior Foo():
+            try:
+                while True:
+                    take 1
+            interrupt when simulation().currentTime % 3 == 2:
+                take 2
+        ego = Object with behavior Foo
+    """)
     actions = sampleEgoActions(scenario, maxSteps=6)
     assert tuple(actions) == (1, 1, 2, 1, 1, 2)
 
 def test_interrupt_first():
-    scenario = compileScenic(
-        'behavior Foo():\n'
-        '    try:\n'
-        '        while True:\n'
-        '            take 1\n'
-        '    interrupt when simulation().currentTime == 0:\n'
-        '        take 2\n'
-        'ego = Object with behavior Foo'
-    )
+    scenario = compileScenic("""
+        behavior Foo():
+            try:
+                while True:
+                    take 1
+            interrupt when simulation().currentTime == 0:
+                take 2
+        ego = Object with behavior Foo
+    """)
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (2, 1, 1)
 
 def test_interrupt_priority():
-    scenario = compileScenic(
-        'behavior Foo():\n'
-        '    try:\n'
-        '        while True:\n'
-        '            take 1\n'
-        '    interrupt when simulation().currentTime <= 1:\n'
-        '        take 2\n'
-        '    interrupt when simulation().currentTime == 0:\n'
-        '        take 3\n'
-        'ego = Object with behavior Foo'
-    )
+    scenario = compileScenic("""
+        behavior Foo():
+            try:
+                while True:
+                    take 1
+            interrupt when simulation().currentTime <= 1:
+                take 2
+            interrupt when simulation().currentTime == 0:
+                take 3
+        ego = Object with behavior Foo
+    """)
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (3, 2, 1)
 
 def test_interrupt_interrupted():
-    scenario = compileScenic(
-        'behavior Foo():\n'
-        '    try:\n'
-        '        while True:\n'
-        '            take 1\n'
-        '    interrupt when simulation().currentTime <= 1:\n'
-        '        take 2\n'
-        '        take 3\n'
-        '    interrupt when simulation().currentTime == 1:\n'
-        '        take 4\n'
-        'ego = Object with behavior Foo'
-    )
+    scenario = compileScenic("""
+        behavior Foo():
+            try:
+                while True:
+                    take 1
+            interrupt when simulation().currentTime <= 1:
+                take 2
+                take 3
+            interrupt when simulation().currentTime == 1:
+                take 4
+        ego = Object with behavior Foo
+    """)
     actions = sampleEgoActions(scenario, maxSteps=5)
     assert tuple(actions) == (2, 4, 3, 1, 1)
 
 def test_interrupt_actionless():
-    scenario = compileScenic(
-        'behavior Foo():\n'
-        '    i = 0\n'
-        '    try:\n'
-        '        for i in range(3):\n'
-        '            take 1\n'
-        '    interrupt when i == 1:\n'
-        '        i = 2\n'
-        'ego = Object with behavior Foo'
-    )
+    scenario = compileScenic("""
+        behavior Foo():
+            i = 0
+            try:
+                for i in range(3):
+                    take 1
+            interrupt when i == 1:
+                i = 2
+        ego = Object with behavior Foo
+    """)
     actions = sampleEgoActions(scenario, maxSteps=5)
     assert tuple(actions) == (1, 1, 1, None, None)
 
@@ -530,7 +586,7 @@ def test_interrupt_nested():
                 take 2
         behavior Bar():
             try:
-                Foo()
+                do Foo()
             interrupt when simulation().currentTime == 1:
                 take 3
         ego = Object with behavior Bar
@@ -549,7 +605,7 @@ def test_interrupt_nested_2():
                 take 3
         behavior Bar():
             try:
-                Foo()
+                do Foo()
             interrupt when simulation().currentTime == 2:
                 take 4
         ego = Object with behavior Bar
@@ -661,27 +717,27 @@ def test_interrupt_abort():
 # Errors
 
 def test_interrupt_unassigned_local():
-    scenario = compileScenic(
-        'behavior Foo():\n'
-        '    try:\n'
-        '        i = 0\n'
-        '        take 1\n'
-        '    interrupt when i == 1:\n'
-        '        i = 2\n'
-        'ego = Object with behavior Foo'
-    )
+    scenario = compileScenic("""
+        behavior Foo():
+            try:
+                i = 0
+                take 1
+            interrupt when i == 1:
+                i = 2
+        ego = Object with behavior Foo
+    """)
     with pytest.raises(NameError) as exc_info:
         sampleEgoActions(scenario, maxSteps=1)
     checkErrorLineNumber(5, exc_info)
 
 def test_interrupt_guard_subbehavior():
-    scenario = compileScenic(
-        'behavior Foo():\n'
-        '    try:\n'
-        '        take 1\n'
-        '    interrupt when Foo():\n'
-        '        wait\n'
-        'ego = Object with behavior Foo'
-    )
+    scenario = compileScenic("""
+        behavior Foo():
+            try:
+                take 1
+            interrupt when Foo():
+                wait
+        ego = Object with behavior Foo
+    """)
     with pytest.raises(RuntimeParseError):
         sampleEgoActions(scenario, maxSteps=1)

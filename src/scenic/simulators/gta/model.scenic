@@ -25,7 +25,7 @@ curb = m.curbRegion
 workspace = MapWorkspace(m, road)
 
 # Default values for time and weather
-param time = (0 * 60, 24 * 60)	# 0000 to 2400 hours
+param time = Range(0 * 60, 24 * 60)	# 0000 to 2400 hours
 param weather = Options({
 			'NEUTRAL': 5,
 			'CLEAR': 15,
@@ -53,13 +53,13 @@ class Car:
 		roadDeviation (float): Relative heading with respect to the road direction
 		  at the `Car`'s position. Used by the default value for ``heading``.
 		model (`CarModel`): Model of the car.
-		color (`Color` or RGB tuple): Color of the car.
+		color (:obj:`Color` or RGB tuple): Color of the car.
 	"""
 	position: Point on road
 	heading: (roadDirection at self.position) + self.roadDeviation
 	roadDeviation: 0
 	width: self.model.width
-	height: self.model.height
+	length: self.model.length
 	viewAngle: 80 deg
 	visibleDistance: 30
 	model: CarModel.defaultModel()
@@ -79,7 +79,8 @@ class Compact(Car):
 	"""Convenience subclass for compact cars."""
 	model: CarModel.models['BLISTA']
 
-def createPlatoonAt(car, numCars, model=None, dist=(2, 8), shift=(-0.5, 0.5), wiggle=0):
+def createPlatoonAt(car, numCars, model=None, dist=Range(2, 8),
+                    shift=Range(-0.5, 0.5), wiggle=0):
 	"""Create a platoon starting from the given car."""
 	cars = [car]
 	lastCar = car

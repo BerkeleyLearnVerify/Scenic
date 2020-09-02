@@ -329,34 +329,34 @@ class SectorRegion(Region):
 		return f'SectorRegion({self.center},{self.radius},{self.heading},{self.angle})'
 
 class RectangularRegion(RotatedRectangle, Region):
-	def __init__(self, position, heading, width, height):
-		super().__init__('Rectangle', position, heading, width, height)
+	def __init__(self, position, heading, width, length):
+		super().__init__('Rectangle', position, heading, width, length)
 		self.position = position.toVector()
 		self.heading = heading
 		self.width = width
-		self.height = height
+		self.length = length
 		self.hw = hw = width / 2
-		self.hh = hh = height / 2
-		self.radius = hypot(hw, hh)		# circumcircle; for collision detection
+		self.hl = hl = length / 2
+		self.radius = hypot(hw, hl)		# circumcircle; for collision detection
 		self.corners = tuple(position.offsetRotated(heading, Vector(*offset))
-			for offset in ((hw, hh), (-hw, hh), (-hw, -hh), (hw, -hh)))
+			for offset in ((hw, hl), (-hw, hl), (-hw, -hl), (hw, -hl)))
 		self.circumcircle = (self.position, self.radius)
 
 	def sampleGiven(self, value):
 		return RectangularRegion(value[self.position], value[self.heading],
-			value[self.width], value[self.height])
+			value[self.width], value[self.length])
 
 	def evaluateInner(self, context):
 		position = valueInContext(self.position, context)
 		heading = valueInContext(self.heading, context)
 		width = valueInContext(self.width, context)
-		height = valueInContext(self.height, context)
-		return RectangularRegion(position, heading, width, height)
+		length = valueInContext(self.length, context)
+		return RectangularRegion(position, heading, width, length)
 
 	def uniformPointInner(self):
-		hw, hh = self.hw, self.hh
+		hw, hl = self.hw, self.hl
 		rx = random.uniform(-hw, hw)
-		ry = random.uniform(-hh, hh)
+		ry = random.uniform(-hl, hl)
 		pt = self.position.offsetRotated(self.heading, Vector(rx, ry))
 		return self.orient(pt)
 
@@ -372,10 +372,10 @@ class RectangularRegion(RotatedRectangle, Region):
 		return (areEquivalent(other.position, self.position)
 		        and areEquivalent(other.heading, self.heading)
 		        and areEquivalent(other.width, self.width)
-		        and areEquivalent(other.height, self.height))
+		        and areEquivalent(other.length, self.length))
 
 	def __repr__(self):
-		return f'RectangularRegion({self.position},{self.heading},{self.width},{self.height})'
+		return f'RectangularRegion({self.position},{self.heading},{self.width},{self.length})'
 
 class PolylineRegion(Region):
 	"""Region given by one or more polylines (chain of line segments)"""

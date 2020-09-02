@@ -116,7 +116,7 @@ def test_point_can_see_vector():
 
 def test_point_can_see_object():
     p = sampleParamPFrom("""
-        ego = Object with width 10, with height 10
+        ego = Object with width 10, with length 10
         other = Object at 35@10
         pt = Point at 15@10, with visibleDistance 15
         param p = tuple([pt can see ego, pt can see other])
@@ -133,7 +133,7 @@ def test_oriented_point_can_see_vector():
 def test_oriented_point_can_see_object():
     p = sampleParamPFrom("""
         ego = Object facing -45 deg, with visibleDistance 5, with viewAngle 20 deg
-        other = Object at 4@4, with width 2, with height 2
+        other = Object at 4@4, with width 2, with length 2
         other2 = Object at 4@0, with requireVisible False
         param p = tuple([ego can see other, ego can see other2])
     """)
@@ -154,7 +154,7 @@ def test_point_in_region():
 def test_object_in_region():
     p = sampleParamPFrom("""
         reg = RectangularRegion(10@5, 0, 4, 2)
-        ego = Object at 11.5@5.5, with width 0.25, with height 0.25
+        ego = Object at 11.5@5.5, with width 0.25, with length 0.25
         other = Object at 9@4.5, with width 2.5
         param p = tuple([ego in reg, other in reg])
     """)

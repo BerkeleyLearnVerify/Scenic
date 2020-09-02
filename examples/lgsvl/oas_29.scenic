@@ -16,7 +16,7 @@ intersection = Uniform(*threeWayIntersections)
 left_maneuvers = filter(lambda m: m.type == ManeuverType.LEFT_TURN, intersection.maneuvers)
 ego_maneuver = Uniform(*left_maneuvers)
 ego_L_centerlines = [ego_maneuver.startLane.centerline, ego_maneuver.connectingLane.centerline, ego_maneuver.endLane.centerline]
-egoStart = (OrientedPoint at ego_maneuver.startLane.centerline[-1]) offset by (-2, 2) @ 0 
+egoStart = (OrientedPoint at ego_maneuver.startLane.centerline[-1]) offset by Range(-2, 2) @ 0 
 
 # ---
 
@@ -32,7 +32,7 @@ behavior EgoBehavior(thresholdDistance, target_speed=20, trajectory = None):
 	brakeIntensity = 0.7
 
 	try: 
-		FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
+		do FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
 
 	interrupt when distanceToAnyCars(car=self, thresholdDistance=thresholdDistance):
 		take SetBrakeAction(brakeIntensity)

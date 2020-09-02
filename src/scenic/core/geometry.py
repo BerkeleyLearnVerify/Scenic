@@ -394,22 +394,22 @@ class RotatedRectangle:
 
 	@cached_property
 	def polygon(self):
-		position, heading, hw, hh = self.position, self.heading, self.hw, self.hh
+		position, heading, hw, hl = self.position, self.heading, self.hw, self.hl
 		if any(needsSampling(c) or needsLazyEvaluation(c)
-		       for c in (position, heading, hw, hh)):
+		       for c in (position, heading, hw, hl)):
 			return None		# can only convert fixed Regions to Polygons
-		corners = RotatedRectangle.makeCorners(position.x, position.y, heading, hw, hh)
+		corners = RotatedRectangle.makeCorners(position.x, position.y, heading, hw, hl)
 		return shapely.geometry.Polygon(corners)
 
 	@staticmethod
-	def makeCorners(px, py, heading, hw, hh):
+	def makeCorners(px, py, heading, hw, hl):
 		s, c = sin(heading), cos(heading)
 		s_hw, c_hw = s*hw, c*hw
-		s_hh, c_hh = s*hh, c*hh
+		s_hl, c_hl = s*hl, c*hl
 		corners = (
-			(px + c_hw - s_hh, py + s_hw + c_hh),
-			(px - c_hw - s_hh, py - s_hw + c_hh),
-			(px - c_hw + s_hh, py - s_hw - c_hh),
-			(px + c_hw + s_hh, py + s_hw - c_hh)
+			(px + c_hw - s_hl, py + s_hw + c_hl),
+			(px - c_hw - s_hl, py - s_hw + c_hl),
+			(px - c_hw + s_hl, py - s_hw - c_hl),
+			(px + c_hw + s_hl, py + s_hw - c_hl)
 		)
 		return corners

@@ -121,7 +121,7 @@ def test_right_of_vector_by():
 def test_ahead_of_vector():
     ego = sampleEgoFrom('ego = Object ahead of 10 @ 20, facing 90 deg')
     assert tuple(ego.position) == pytest.approx((9.5, 20))
-    ego = sampleEgoFrom('ego = Object ahead of 10 @ 20, with height 10')
+    ego = sampleEgoFrom('ego = Object ahead of 10 @ 20, with length 10')
     assert tuple(ego.position) == pytest.approx((10, 25))
 
 def test_ahead_of_vector_by():
@@ -133,7 +133,7 @@ def test_ahead_of_vector_by():
 def test_behind_vector():
     ego = sampleEgoFrom('ego = Object behind 10 @ 20, facing 90 deg')
     assert tuple(ego.position) == pytest.approx((10.5, 20))
-    ego = sampleEgoFrom('ego = Object behind 10 @ 20, with height 10')
+    ego = sampleEgoFrom('ego = Object behind 10 @ 20, with length 10')
     assert tuple(ego.position) == pytest.approx((10, 15))
 
 def test_behind_vector_by():
@@ -271,7 +271,7 @@ def test_following():
 def test_following_random():
     ego = sampleEgoFrom("""
         vf = VectorField('Foo', lambda pos: -90 deg)
-        x = (1, 2)
+        x = Range(1, 2)
         ego = Object following vf from 1@2 for x, facing x
     """)
     assert tuple(ego.position) == pytest.approx((1+ego.heading, 2))

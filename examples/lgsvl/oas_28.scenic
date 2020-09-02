@@ -22,7 +22,7 @@ connectingLane = straight_maneuver.connectingLane
 endLane = straight_maneuver.endLane
 
 centerlines = [startLane.centerline, connectingLane.centerline, endLane.centerline]
-egoStart = (OrientedPoint at startLane.centerline[-1]) offset by (-2, 2) @ 0 
+egoStart = (OrientedPoint at startLane.centerline[-1]) offset by Range(-2, 2) @ 0 
 
 # --
 
@@ -34,7 +34,7 @@ L_connectingLane = leftTurn_maneuver.connectingLane
 L_endLane = leftTurn_maneuver.endLane
 
 L_centerlines = [L_startLane.centerline, L_connectingLane.centerline, L_endLane.centerline]
-actorStart = (OrientedPoint at L_startLane.centerline[-1]) offset by (-2, 2) @ 0 
+actorStart = (OrientedPoint at L_startLane.centerline[-1]) offset by Range(-2, 2) @ 0 
 
 # BEHAVIOR
 behavior EgoBehavior(target_speed=20, trajectory = None):
@@ -42,7 +42,7 @@ behavior EgoBehavior(target_speed=20, trajectory = None):
 	brakeIntensity = 0.7
 
 	try: 
-		FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
+		do FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
 
 	interrupt when distanceToAnyCars(car=self, thresholdDistance=10):
 		take SetBrakeAction(brakeIntensity)

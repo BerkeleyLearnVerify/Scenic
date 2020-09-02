@@ -34,8 +34,34 @@ behavior FollowLeadCarBehavior():
 	try: 
 		FollowLaneBehavior()
 
+<<<<<<< HEAD
 	interrupt when distanceToAnyObjs(self, SAFETY_DISTANCE):
 		CollisionAvoidance()
+=======
+	# interrupt when ((distance to other) < safety_distance):
+	# 	CollisionAvoidance(brake_intensity=0.9)
+
+
+# behavior TerminateAfterTime(time_threshold=5):
+# 	start_time = time.time()
+
+# 	while time.time() - start_time < time_threshold:
+# 		wait
+
+# 	terminate when True
+
+# behavior LeadCarSuddenlyStops():
+
+# 	sudden_stop_time = Range(5, 8)
+# 	start_time = time.time()
+
+# 	try:
+# 		FollowLane(25)
+
+# 	interrupt when time.time()-start_time > sudden_stop_time: 
+# 		take actions.SetBrakeAction(MAX_BREAK_THRESHOLD)
+# 		TerminateAfterTime()
+>>>>>>> dynamics2
 
 
 roads = network.roads

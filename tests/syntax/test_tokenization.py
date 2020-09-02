@@ -8,21 +8,21 @@ from tests.utils import compileScenic, sampleEgoFrom, sampleSceneFrom
 
 templates = [
 '''
-ego = Object with height 2, {continuation}
+ego = Object with length 2, {continuation}
 {indent}with width 3, {continuation}
 {indent}at 10@20
 ''',
 '''
-ego = Object with height 2, {continuation}
+ego = Object with length 2, {continuation}
 {indent}with width 3, at 10@20
 ''',
 '''
-ego = Object with height 2, {continuation}
+ego = Object with length 2, {continuation}
 {indent}#with width 2,{continuation}
 {indent}with width 3
 ''',
 '''
-ego = Object with height 2, {continuation}
+ego = Object with length 2, {continuation}
 # with width 2,{continuation}
 # blah {continuation}
 {indent}with width 3
@@ -76,9 +76,15 @@ def test_constructor_ended_by_paren():
         mutate ego, x
     """)
 
+def test_semicolon_separating_statements():
+    compileScenic("""
+        ego = Object
+        param p = distance to 3@4; require ego.position.x >= 0
+    """)
+
 def test_list_comprehension():
     scene = sampleSceneFrom("""
-        xs = [3*i + (0, 1) for i in range(10)]
+        xs = [3*i + Range(0, 1) for i in range(10)]
         [(Object at x@0) for x in xs]
         ego = Object at -4@2
     """)

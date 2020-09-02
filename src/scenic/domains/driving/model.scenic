@@ -108,7 +108,7 @@ class Vehicle(DrivingObject):
     roadDeviation: 0
     viewAngle: 130 deg
     width: 2
-    height: 4.5
+    length: 4.5
     color: Color.defaultCarColor()
 
 class Car(Vehicle):
@@ -121,10 +121,10 @@ class NPCCar(Car):
 class Pedestrian(DrivingObject):
     regionContainedIn: network.walkableRegion
     position: Point on network.walkableRegion
-    heading: (0, 360) deg
+    heading: Range(0, 360) deg
     viewAngle: 90 deg
     width: 0.75
-    height: 0.75
+    length: 0.75
     color: [0, 0.5, 1]
 
 # Mixin classes indicating support for various types of actions

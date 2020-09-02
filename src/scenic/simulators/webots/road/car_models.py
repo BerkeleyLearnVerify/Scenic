@@ -2,7 +2,7 @@
 
 import collections
 
-CarModel = collections.namedtuple('CarModel', ('name', 'width', 'height'))
+CarModel = collections.namedtuple('CarModel', ('name', 'width', 'length'))
 carModels = {
 	CarModel('BmwX5', 2, 4.75),
 	CarModel('CitroenCZero', 1.5, 3.5),

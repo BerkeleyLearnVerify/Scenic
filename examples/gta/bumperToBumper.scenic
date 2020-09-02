@@ -5,9 +5,9 @@ from scenic.simulators.gta.model import *
 
 depth = 4
 laneGap = 3.5
-carGap = (1, 3)
-laneShift = (-2, 2)
-wiggle = (-5 deg, 5 deg)
+carGap = Range(1, 3)
+laneShift = Range(-2, 2)
+wiggle = Range(-5 deg, 5 deg)
 
 def carAheadOfCar(car, gap, offsetX=0, wiggle=0):
 	pos = OrientedPoint at (front of car) offset by (offsetX @ gap),

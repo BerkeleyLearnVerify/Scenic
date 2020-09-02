@@ -39,31 +39,31 @@ lines2 = [actorTurn.startLane.centerline, actorTurn.connectingLane.centerline, a
 egoTrajectory = [egoManeuver.connectingLane.centerline, egoManeuver.endLane.centerline]
 actorTrajectory = [actorTurn.connectingLane.centerline, actorTurn.endLane.centerline]
 
-pos1 = (OrientedPoint at lane1.centerline[-1]) offset by (-2, 2) @ 0 
-pos2 = (OrientedPoint at lane2.centerline[-1]) offset by (-2, 2) @ 0
+pos1 = (OrientedPoint at lane1.centerline[-1]) offset by Range(-2, 2) @ 0 
+pos2 = (OrientedPoint at lane2.centerline[-1]) offset by Range(-2, 2) @ 0
 
-egoDist = (8,12)
-actorDist = (5, 7)
+egoDist = Range(8,12)
+actorDist = Range(5, 7)
 
 
 # BEHAVIORS
 
 behavior EgoBehavior(target_speed=20, trajectory = None):
-	smallDistance = (5, 6)
+	smallDistance = Range(5, 6)
 	try: 
-		FollowTrajectoryBehavior(target_speed = 15, trajectory = lines1)
+		do FollowTrajectoryBehavior(target_speed = 15, trajectory = lines1)
 		
 	interrupt when ((distance from ego to intersection) <= smallDistance):
 		take SetBrakeAction(1), SetThrottleAction(0.0)
 		if(ego.speed <= 0.7):
 			while (True):
-				egoChicken(target_speed = 15, trajectory = egoTrajectory)
+				do egoChicken(target_speed = 15, trajectory = egoTrajectory)
 
 behavior egoChicken(target_speed = 15, trajectory = None):
-	brakeIntensity = (0.9, 1.0)
+	brakeIntensity = Range(0.9, 1.0)
 	assert trajectory is not None
 	try:
-		FollowTrajectoryBehavior(target_speed = target_speed, trajectory = trajectory)
+		do FollowTrajectoryBehavior(target_speed = target_speed, trajectory = trajectory)
 	interrupt when ((distance from ego to actorCar) <= 8):
 		take SetBrakeAction(brakeIntensity)
 
@@ -71,15 +71,15 @@ behavior actorCarBehavior(egoAtStop):
 	print("actor turn: ", actorTurn.type)
 	randomBehavior = Uniform(*PossibleBehaviors)
 	print("random behavior will be: ", randomBehavior)
-	speedup = (0,1)
-	smallDistance = (2, 3)
+	speedup = Range(0,1)
+	smallDistance = Range(2, 3)
 	try: 
-		FollowTrajectoryBehavior(target_speed = 15, trajectory = lines2)
+		do FollowTrajectoryBehavior(target_speed = 15, trajectory = lines2)
 		print("moving")
 	interrupt when ((distance from actorCar to intersection) <= smallDistance):
 		while (egoAtStop):
 			print("starting random behavior: ", randomBehavior)
-			randomBehavior()
+			do randomBehavior()
 		print("actor stopping")
 		take SetBrakeAction(1), SetThrottleAction(0.0)
 		if (ego.speed <= 0.7): # if ego is stopped, actor will go
@@ -90,10 +90,10 @@ behavior actorCarBehavior(egoAtStop):
 
 behavior chickenBehavior(target_speed=20, trajectory = actorTrajectory):
 	assert trajectory is not None
-	brakeIntensity = (0.6, 0.8)
+	brakeIntensity = Range(0.6, 0.8)
 
 	try: 
-		FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
+		do FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
 	
 	interrupt when ((ego.speed < 0.2) or ((distance from actorCar to ego) <= 7)): # actor starts when ego starts, stops when ego stops.
 		print("interrupted")
@@ -108,11 +108,11 @@ behavior conflictingStopBehavior(target_speed=20, trajectory = actorTrajectory):
 	assert trajectory is not None
 	take SetReverseAction(False)
 	turn = actorTurn
-	randomDist = (3, 5)
-	brakeIntensity = (0.6, 0.8)
+	randomDist = Range(3, 5)
+	brakeIntensity = Range(0.6, 0.8)
 
 	try: 
-		FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
+		do FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
 	
 	interrupt when ((distance from ego to actorCar) <= randomDist):
 		print("interrupted")
@@ -121,13 +121,13 @@ behavior conflictingStopBehavior(target_speed=20, trajectory = actorTrajectory):
 behavior turnBehavior():
 	take SetReverseAction(False)
 	turn = actorTurn
-	brakeIntensity = (0.6, 0.8)
-	turnSpeed = (10,15)
+	brakeIntensity = Range(0.6, 0.8)
+	turnSpeed = Range(10,15)
 
 	try: 
-		FollowTrajectoryBehavior(target_speed=turnSpeed, trajectory=actorTrajectory)
+		do FollowTrajectoryBehavior(target_speed=turnSpeed, trajectory=actorTrajectory)
 
-	interrupt when((distance from actorCar to actorTrajectory[1][-1]) <= 1): # just needed to interrupt.
+	interrupt when (distance from actorCar to actorTrajectory[1][-1]) <= 1: # just needed to interrupt.
 		print("done")
 		abort
 

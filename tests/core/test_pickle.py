@@ -34,7 +34,5 @@ def test_pickle_object():
     tryPickling(obj)
 
 def test_pickle_scenario():
-    scenario = compileScenic(
-        'ego = Object with width (1, 2)#, left of 4 @ (-2, 2)\n'
-    )
+    scenario = compileScenic('ego = Object with width Range(1, 2)')
     tryPickling(scenario)

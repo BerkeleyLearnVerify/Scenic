@@ -1,10 +1,10 @@
-import math
+import math as _math
 
-import carla
+import carla as _carla
 
 from scenic.domains.driving.actions import *
-import scenic.simulators.carla.utils.utils as utils
-import scenic.simulators.carla.model as carlaModel
+import scenic.simulators.carla.utils.utils as _utils
+import scenic.simulators.carla.model as _carlaModel
 
 ################################################
 # Actions available to all carla.Actor objects #
@@ -17,9 +17,9 @@ class SetAngularVelocityAction(Action):
 		self.angularVel = angularVel
 
 	def applyTo(self, obj, sim):
-		xAngularVel = self.angularVel * math.cos(obj.heading)
-		yAngularVel = self.angularVel * math.sin(obj.heading)
-		newAngularVel = utils.scalarToCarlaVector3D(xAngularVel, yAngularVel)
+		xAngularVel = self.angularVel * _math.cos(obj.heading)
+		yAngularVel = self.angularVel * _math.sin(obj.heading)
+		newAngularVel = _utils.scalarToCarlaVector3D(xAngularVel, yAngularVel)
 		obj.carlaActor.set_angular_velocity(newAngularVel)
 
 class SetTransformAction(Action):	# TODO eliminate
@@ -28,9 +28,9 @@ class SetTransformAction(Action):	# TODO eliminate
 		self.heading = heading
 
 	def applyTo(self, obj, sim):
-		loc = utils.scenicToCarlaLocation(pos, z=obj.elevation)
-		rot = utils.scenicToCarlaRotation(heading)
-		transform = carla.Transform(loc, rot)
+		loc = _utils.scenicToCarlaLocation(pos, z=obj.elevation)
+		rot = _utils.scenicToCarlaRotation(heading)
+		transform = _carla.Transform(loc, rot)
 		obj.carlaActor.set_transform(transform)
 
 
@@ -40,7 +40,7 @@ class SetTransformAction(Action):	# TODO eliminate
 
 class VehicleAction(Action):
 	def canBeTakenBy(self, agent):
-		return isinstance(agent, carlaModel.Vehicle)
+		return isinstance(agent, _carlaModel.Vehicle)
 
 class SetManualGearShiftAction(VehicleAction):
 	def __init__(self, manualGearShift):
@@ -70,7 +70,7 @@ class SetGearAction(VehicleAction):
 
 class SetManualFirstGearShiftAction(VehicleAction):	# TODO eliminate
 	def applyTo(self, obj, sim):
-		ctrl = carla.VehicleControl(manual_gear_shift=True, gear=1)
+		ctrl = _carla.VehicleControl(manual_gear_shift=True, gear=1)
 		obj.carlaActor.apply_control(ctrl)
 
 
@@ -80,7 +80,7 @@ class SetManualFirstGearShiftAction(VehicleAction):	# TODO eliminate
 
 class PedestrianAction(Action):
 	def canBeTakenBy(self, agent):
-		return isinstance(agent, carlaModel.Pedestrian)
+		return isinstance(agent, _carlaModel.Pedestrian)
 
 class SetJumpAction(PedestrianAction):
 	def __init__(self, jump):

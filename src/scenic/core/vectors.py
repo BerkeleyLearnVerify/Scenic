@@ -248,9 +248,12 @@ class Vector(Samplable, collections.abc.Sequence):
 		return f'({self.x} @ {self.y})'
 
 	def __eq__(self, other):
-		if type(other) is not Vector:
+		if isinstance(other, Vector):
+			return other.coordinates == self.coordinates
+		elif isinstance(other, (tuple, list)):
+			return tuple(other) == self.coordinates
+		else:
 			return NotImplemented
-		return other.coordinates == self.coordinates
 
 	def __hash__(self):
 		return hash(self.coordinates)

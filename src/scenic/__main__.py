@@ -6,13 +6,14 @@ import sys
 import time
 import argparse
 import random
+import importlib.metadata
 
 import scenic.syntax.translator as translator
 import scenic.core.errors as errors
 from scenic.core.simulators import SimulationCreationError
 
 parser = argparse.ArgumentParser(prog='scenic', add_help=False,
-                                 usage='scenic [-h | --help] [options] scenario',
+                                 usage='scenic [-h | --help] [options] FILE',
                                  description='Sample from a Scenic scenario, optionally '
                                              'running dynamic simulations.')
 
@@ -26,6 +27,8 @@ mainOptions.add_argument('-v', '--verbosity', help='verbosity level (default 1)'
 mainOptions.add_argument('-p', '--param', help='override a global parameter',
                          nargs=2, default=[], action='append', metavar=('PARAM', 'VALUE'))
 mainOptions.add_argument('-m', '--model', help='specify a Scenic world model', default=None)
+mainOptions.add_argument('--scenario', default=None,
+                         help='name of scenario to run (if file contains multiple)')
 
 # Simulation options
 simOpts = parser.add_argument_group('dynamic simulation options')
@@ -50,6 +53,9 @@ debugOpts.add_argument('--show-params', help='show values of global parameters',
                        action='store_true')
 debugOpts.add_argument('-b', '--full-backtrace', help='show full internal backtraces',
                        action='store_true')
+ver = importlib.metadata.version('scenic')
+debugOpts.add_argument('--version', action='version', version=f'Scenic {ver}',
+                       help='print Scenic version information and exit')
 debugOpts.add_argument('--dump-initial-python', help='dump initial translated Python',
                        action='store_true')
 debugOpts.add_argument('--dump-ast', help='dump final AST', action='store_true')
@@ -63,7 +69,7 @@ parser.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
                     help=argparse.SUPPRESS)
 
 # Positional arguments
-parser.add_argument('scenario', help='a Scenic file to run')
+parser.add_argument('scenicFile', help='a Scenic file to run', metavar='FILE')
 
 # Parse arguments and set up configuration
 args = parser.parse_args()
@@ -83,9 +89,10 @@ if args.verbosity >= 1:
     print('Beginning scenario construction...')
 startTime = time.time()
 scenario = errors.callBeginningScenicTrace(
-    lambda: translator.scenarioFromFile(args.scenario,
+    lambda: translator.scenarioFromFile(args.scenicFile,
                                         params=dict(args.param),
-                                        model=args.model)
+                                        model=args.model,
+                                        scenario=args.scenario)
 )
 totalTime = time.time() - startTime
 if args.verbosity >= 1:
@@ -154,3 +161,6 @@ else:   # Gather statistics over the specified number of scenes
     print(f'Sampled {len(its)} scenes in {totalTime:.2f} seconds.')
     print(f'Average iterations/scene: {sum(its)/count}')
     print(f'Average time/scene: {totalTime/count:.2f} seconds.')
+
+def dummy():    # for the 'scenic' entry point to call after importing this module
+    pass

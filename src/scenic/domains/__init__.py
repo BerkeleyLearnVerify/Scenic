@@ -8,5 +8,4 @@
    :toctree: _autosummary
 
    driving
-   formats
 """

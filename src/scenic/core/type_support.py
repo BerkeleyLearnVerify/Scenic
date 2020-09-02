@@ -15,13 +15,12 @@ from scenic.core.errors import RuntimeParseError, saveErrorLocation
 # Typing and coercion rules:
 #
 # coercible to a scalar:
-#   float
-#   int (by conversion to float)
-#	numpy real scalar types (likewise)
+#   instances of numbers.Real (by calling float())
 # coercible to a heading:
 #	anything coercible to a scalar
 #	anything with a toHeading() method
 # coercible to a Vector:
+#   tuples/lists of length 2
 #   anything with a toVector() method
 # coercible to an object of type T:
 #   instances of T
@@ -74,6 +73,7 @@ def unifyingType(opts):		# TODO improve?
 
 def canCoerceType(typeA, typeB):
 	"""Can values of typeA be coerced into typeB?"""
+	import scenic.syntax.veneer as veneer	# TODO improve
 	if typing.get_origin(typeA) is typing.Union:
 		# only raise an error now if none of the possible types will work;
 		# we'll do more careful checking at runtime
@@ -83,7 +83,9 @@ def canCoerceType(typeA, typeB):
 	elif typeB is Heading:
 		return canCoerceType(typeA, float) or hasattr(typeA, 'toHeading')
 	elif typeB is Vector:
-		return hasattr(typeA, 'toVector')
+		return issubclass(typeA, (tuple, list)) or hasattr(typeA, 'toVector')
+	elif typeB is veneer.Behavior:
+		return issubclass(typeA, typeB) or typeA in (type, type(None))
 	else:
 		return issubclass(typeA, typeB)
 
@@ -97,10 +99,11 @@ def canCoerce(thing, ty):
 	else:
 		return False
 
-def coerce(thing, ty, error=None):
+def coerce(thing, ty, error='wrong type'):
 	"""Coerce something into the given type."""
 	assert canCoerce(thing, ty), (thing, ty)
 
+	import scenic.syntax.veneer as veneer	# TODO improve?
 	realType = ty
 	if ty is float:
 		coercer = coerceToFloat
@@ -110,6 +113,8 @@ def coerce(thing, ty, error=None):
 		realType = float
 	elif ty is Vector:
 		coercer = coerceToVector
+	elif ty is veneer.Behavior:
+		coercer = coerceToBehavior
 	else:
 		coercer = None
 
@@ -124,9 +129,15 @@ def coerce(thing, ty, error=None):
 		else:
 			return TypecheckedDistribution(thing, realType, error, coercer=coercer)
 	elif coercer:
-		return coercer(thing)
+		try:
+			return coercer(thing)
+		except CoercionFailure as e:
+			raise RuntimeParseError(f'{error} ({e.args[0]})') from None
 	else:
 		return thing
+
+class CoercionFailure(Exception):
+	pass
 
 def coerceToFloat(thing) -> float:
 	return float(thing)
@@ -137,26 +148,44 @@ def coerceToHeading(thing) -> float:
 	return float(thing)
 
 def coerceToVector(thing) -> Vector:
-	return thing.toVector()
+	if isinstance(thing, (tuple, list)):
+		l = len(thing)
+		if l != 2:
+			raise CoercionFailure('expected 2D vector, got '
+			                      f'{type(thing).__name__} of length {l}')
+		return Vector(*thing)
+	else:
+		return thing.toVector()
+
+def coerceToBehavior(thing):
+	import scenic.syntax.veneer as veneer	# TODO improve
+	if thing is None or isinstance(thing, veneer.Behavior):
+		return thing
+	else:
+		assert issubclass(thing, veneer.Behavior)
+		return thing()
 
 class TypecheckedDistribution(Distribution):
 	def __init__(self, dist, ty, errorMessage, coercer=None):
 		super().__init__(dist, valueType=ty)
 		self.dist = dist
-		if not errorMessage:
-			errorMessage = 'wrong type'
 		self.errorMessage = errorMessage
 		self.coercer = coercer
 		self.loc = saveErrorLocation()
 
 	def sampleGiven(self, value):
 		val = value[self.dist]
+		suffix = None
 		if self.coercer:
 			if canCoerceType(type(val), self.valueType):
-				return self.coercer(val)
+				try:
+					return self.coercer(val)
+				except CoercionFailure as e:
+					suffix = f' ({e.args[0]})'
 		elif isinstance(val, self.valueType):
 			return val
-		suffix = f' (expected {self.valueType.__name__}, got {type(val).__name__})'
+		if suffix is None:
+			suffix = f' (expected {self.valueType.__name__}, got {type(val).__name__})'
 		raise RuntimeParseError(self.errorMessage + suffix, self.loc)
 
 	def conditionTo(self, value):

@@ -1,14 +1,9 @@
 """CARLA Challenge #4."""
 
-import scenic.simulators.carla.actions as actions
+param map = localPath('../OpenDrive/Town01.xodr')
+param carla_map = 'Town01'
 
-from scenic.core.geometry import subtractVectors
-
-from scenic.simulators.domains.driving.network import loadNetwork
-loadNetwork('/home/carla_challenge/Downloads/Town01.xodr')
-
-from scenic.simulators.carla.models.model import *
-
+model scenic.simulators.carla.model
 
 # ============================================================================
 # -- BEHAVIORS ---------------------------------------------------------------
@@ -20,7 +15,7 @@ behavior FollowWaypointsBehavior(waypoints, threshold=0.01):
 
 	for i in range(len(waypoints) - 1):
 		currWaypoint, nextWaypoint = waypoints[i], waypoints[i+1]
-		newVel = self.speed * subtractVectors(nextWaypoint, currWaypoint)
+		newVel = self.speed * (nextWaypoint - currWaypoint)
 		take actions.SetVelocityAction(newVel)
 		while distance from self to nextWaypoint > threshold:
 			take None
@@ -82,13 +77,11 @@ In this visualization, let:
 '''
 
 behavior CrossStreetBehavior():
-	take actions.SetRelativeDirectionAction(90, degrees=True)
-	take None
-	take actions.SetSpeedAction(0.2)
+	take SetRelativeDirectionAction(90, degrees=True), SetSpeedAction(0.2)
 
 
-c = Car
-ego = Pedestrian on network.sidewalkRegion, with behavior CrossStreetBehavior
+ego = Car
+Pedestrian on visible sidewalk, with behavior CrossStreetBehavior
 
 
 '''
@@ -102,7 +95,7 @@ while intersectingRoad is None:
 			intersectingRoad = road
 			obstacle = Pedestrian at crossing.centerline[0],
 				with behavior FollowWaypointsBehavior(crossing.centerline),
-				with speed (2, 4)  # Q: is "self.speed" already part of Scenic syntax?
+				with speed Range(2, 4)  # Q: is "self.speed" already part of Scenic syntax?
 			break
 
 MIN_SPAWN_DIST = 15
