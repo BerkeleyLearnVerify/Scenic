@@ -7,11 +7,6 @@ param map = localPath('../../carla/OpenDrive/Town01.xodr')  # or other CARLA map
 param carla_map = 'Town01'
 model scenic.domains.driving.model
 
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town01.xodr')
-param carla_map = 'Town01'
-
-model scenic.domains.driving.model
-
 #CONSTANTS
 EGO_SPEED = 10
 LEAD_CAR_SPEED = 10
