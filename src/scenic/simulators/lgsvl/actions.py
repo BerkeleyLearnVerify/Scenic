@@ -8,6 +8,7 @@ from scipy import linalg
 
 from scenic.domains.driving.actions import *	# Most actions imported here
 import scenic.simulators.lgsvl.utils as utils
+from scenic.core.type_support import toVector
 import scenic.syntax.veneer as veneer
 
 class FollowWaypointsAction(Action):
@@ -42,7 +43,7 @@ class CancelWaypointsAction(Action):
 
 class SetDestinationAction(Action):
 	def __init__(self, dest):
-		self.dest = dest
+		self.dest = toVector(dest)
 		self.timer = 0
 
 	def canBeTakenBy(self, agent):
