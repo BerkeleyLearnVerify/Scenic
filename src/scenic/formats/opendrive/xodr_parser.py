@@ -19,18 +19,6 @@ from scenic.core.geometry import (polygonUnion, cleanPolygon, cleanChain, plotPo
 from scenic.core.vectors import Vector
 from scenic.domains.driving import roads as roadDomain
 
-# Lane types on which cars can appear.
-DRIVABLE = [
-    'driving',
-    'entry',
-    'exit',
-    'offRamp',
-    'onRamp'
-]
-
-# Lane types representing sidewalks.
-SIDEWALK = ['sidewalk']
-
 def buffer_union(polys, tolerance=0.01):
     return polygonUnion(polys, buf=tolerance, tolerance=tolerance)
 
@@ -544,21 +532,26 @@ class Road:
             self.end_bounds_right.update(last_rights)
         return (sec_points, sec_polys, sec_lane_polys, lane_polys, union_poly)
 
-    def calculate_geometry(self, num, tolerance, calc_gap=False):
+    def calculate_geometry(self, num, tolerance, calc_gap, drivable_lane_types,
+                           sidewalk_lane_types, shoulder_lane_types):
         # Note: this also calculates self.start_bounds_left, self.start_bounds_right,
         # self.end_bounds_left, self.end_bounds_right
         (self.sec_points, self.sec_polys, self.sec_lane_polys,
-         self.lane_polys, self.drivable_region) =\
-                self.calc_geometry_for_type(DRIVABLE, num, tolerance, calc_gap=calc_gap)
+         self.lane_polys, self.drivable_region) = self.calc_geometry_for_type(
+            drivable_lane_types, num, tolerance, calc_gap=calc_gap)
 
         for i, sec in enumerate(self.lane_secs):
             sec.drivable_lanes = {}
             sec.sidewalk_lanes = {}
+            sec.shoulder_lanes = {}
             for id_, lane in sec.lanes.items():
-                if lane.type_ in DRIVABLE:
+                ty = lane.type_
+                if ty in drivable_lane_types:
                     sec.drivable_lanes[id_] = lane
-                elif lane.type_ in SIDEWALK:
+                elif ty in sidewalk_lane_types:
                     sec.sidewalk_lanes[id_] = lane
+                elif ty in shoulder_lane_types:
+                    sec.shoulder_lanes[id_] = lane
             if not sec.drivable_lanes:
                 continue
 
@@ -579,8 +572,11 @@ class Road:
             sec.right_edge = rightmost.right_bounds
             assert len(sec.right_edge) >= 2
 
-        _, _, _, _, self.sidewalk_region = \
-            self.calc_geometry_for_type(SIDEWALK, num, tolerance, calc_gap=calc_gap)
+        _, _, _, _, self.sidewalk_region = self.calc_geometry_for_type(
+            sidewalk_lane_types, num, tolerance, calc_gap=calc_gap)
+
+        _, _, _, _, self.shoulder_region = self.calc_geometry_for_type(
+            shoulder_lane_types, num, tolerance, calc_gap=calc_gap)
 
     def toScenicRoad(self, tolerance):
         assert self.sec_points
@@ -589,6 +585,7 @@ class Road:
         roadSections = []
         last_section = None
         sidewalkSections = defaultdict(list)
+        shoulderSections = defaultdict(list)
         for sec, pts, sec_poly, lane_polys in zip(self.lane_secs, self.sec_points,
                                                   self.sec_polys, self.sec_lane_polys):
             assert sec.drivable_lanes
@@ -642,27 +639,28 @@ class Road:
 
             for id_, lane in sec.sidewalk_lanes.items():
                 sidewalkSections[id_].append(lane)
+            for id_, lane in sec.shoulder_lanes.items():
+                shoulderSections[id_].append(lane)
 
-        # Build sidewalks
+        # Build sidewalks and shoulders
+        # TODO improve this!
         forwardSidewalks, backwardSidewalks = [], []
+        forwardShoulders, backwardShoulders = [], []
         for id_ in sidewalkSections:
-            if id_ > 0:
-                forwardSidewalks.append(id_)
-            else:
-                backwardSidewalks.append(id_)
+            (forwardSidewalks if id_ < 0 else backwardSidewalks).append(id_)
+        for id_ in shoulderSections:
+            (forwardShoulders if id_ < 0 else backwardShoulders).append(id_)
 
-        def makeSidewalk(laneIDs):
-            if not laneIDs:
-                return None
+        def combineSections(laneIDs, sections, name):
             leftmost, rightmost = max(laneIDs), min(laneIDs)
             if len(laneIDs) != leftmost-rightmost+1:
-                warnings.warn(f'ignoring sidewalks in the middle of road {self.id_}')
+                warnings.warn(f'ignoring {name} in the middle of road {self.id_}')
             leftPoints, rightPoints = [], []
             if leftmost < 0:
                 leftmost = rightmost
                 while leftmost+1 in laneIDs:
                     leftmost = leftmost+1
-                leftSecs, rightSecs = sidewalkSections[leftmost], sidewalkSections[rightmost]
+                leftSecs, rightSecs = sections[leftmost], sections[rightmost]
                 for leftSec, rightSec in zip(leftSecs, rightSecs):
                     leftPoints.extend(leftSec.left_bounds)
                     rightPoints.extend(rightSec.right_bounds)
@@ -670,24 +668,40 @@ class Road:
                 rightmost = leftmost
                 while rightmost-1 in laneIDs:
                     rightmost = rightmost-1
-                leftSecs = reversed(sidewalkSections[leftmost])
-                rightSecs = reversed(sidewalkSections[rightmost])
+                leftSecs = reversed(sections[leftmost])
+                rightSecs = reversed(sections[rightmost])
                 for leftSec, rightSec in zip(leftSecs, rightSecs):
                     leftPoints.extend(reversed(rightSec.right_bounds))
                     rightPoints.extend(reversed(leftSec.left_bounds))
-            if len(leftPoints) != len(rightPoints):
-                raise RuntimeError(f'unable to align sidewalks for road {self.id_}')
-            centerPoints = list(averageVectors(l, r) for l, r in zip(leftPoints, rightPoints))
-
             leftEdge = PolylineRegion(cleanChain(leftPoints))
             rightEdge = PolylineRegion(cleanChain(rightPoints))
+
+            # Heuristically create some kind of reasonable centerline
+            if len(leftPoints) == len(rightPoints):
+                centerPoints = list(averageVectors(l, r) for l, r in zip(leftPoints, rightPoints))
+            else:
+                num = max(len(leftPoints), len(rightPoints))
+                centerPoints = []
+                for d in np.linspace(0, 1, num):
+                    l = leftEdge.lineString.interpolate(d, normalized=True)
+                    r = rightEdge.lineString.interpolate(d, normalized=True)
+                    centerPoints.append(averageVectors(l.coords[0], r.coords[0]))
             centerline = PolylineRegion(cleanChain(centerPoints))
             allPolys = (sec.poly
                         for id_ in range(rightmost, leftmost+1)
-                        for sec in sidewalkSections[id_])
+                        for sec in sections[id_])
+            union = buffer_union(allPolys, tolerance=tolerance)
+            id_ = f'road{self.id_}_{name}({leftmost},{rightmost})'
+            return id_, union, centerline, leftEdge, rightEdge
+
+        def makeSidewalk(laneIDs):
+            if not laneIDs:
+                return None
+            id_, union, centerline, leftEdge, rightEdge = combineSections(
+                laneIDs, sidewalkSections, 'sidewalk')
             sidewalk = roadDomain.Sidewalk(
-                id=f'road{self.id_}_sidewalk({leftmost},{rightmost})',
-                polygon=buffer_union(allPolys, tolerance=tolerance),
+                id=id_,
+                polygon=union,
                 centerline=centerline,
                 leftEdge=leftEdge,
                 rightEdge=rightEdge,
@@ -699,6 +713,25 @@ class Road:
 
         forwardSidewalk = makeSidewalk(forwardSidewalks)
         backwardSidewalk = makeSidewalk(backwardSidewalks)
+
+        def makeShoulder(laneIDs):
+            if not laneIDs:
+                return None
+            id_, union, centerline, leftEdge, rightEdge = combineSections(
+                laneIDs, shoulderSections, 'shoulder')
+            shoulder = roadDomain.Shoulder(
+                id=id_,
+                polygon=union,
+                centerline=centerline,
+                leftEdge=leftEdge,
+                rightEdge=rightEdge,
+                road=None,
+            )
+            allElements.append(shoulder)
+            return shoulder
+
+        forwardShoulder = makeShoulder(forwardShoulders)
+        backwardShoulder = makeShoulder(backwardShoulders)
 
         # Connect sections to their successors
         next_section = None
@@ -853,8 +886,11 @@ class Road:
                 rightEdge=rightEdge,
                 road=None,
                 lanes=tuple(forwardLanes),
+                curb=(forwardShoulder.rightEdge if forwardShoulder else rightEdge),
                 sidewalk=forwardSidewalk,
-                bikeLane=None
+                bikeLane=None,
+                shoulder=forwardShoulder,
+                opposite=None,
             )
             allElements.append(forwardGroup)
         else:
@@ -870,10 +906,15 @@ class Road:
                 rightEdge=rightEdge,
                 road=None,
                 lanes=tuple(backwardLanes),
+                curb=(backwardShoulder.rightEdge if backwardShoulder else rightEdge),
                 sidewalk=backwardSidewalk,
-                bikeLane=None
+                bikeLane=None,
+                shoulder=backwardShoulder,
+                opposite=forwardGroup,
             )
             allElements.append(backwardGroup)
+            if forwardGroup:
+                forwardGroup._opposite = backwardGroup
         else:
             backwardGroup = None
 
@@ -907,8 +948,18 @@ class Road:
         # Set up parent references
         if forwardGroup:
             forwardGroup.road = road
+            if forwardGroup._sidewalk:
+                forwardGroup._sidewalk.road = road
+            if forwardGroup._shoulder:
+                forwardGroup._shoulder.road = road
+                forwardGroup._shoulder.group = forwardGroup
         if backwardGroup:
             backwardGroup.road = road
+            if backwardGroup._sidewalk:
+                backwardGroup._sidewalk.road = road
+            if backwardGroup._shoulder:
+                backwardGroup._shoulder.road = road
+                backwardGroup._shoulder.group = backwardGroup
         for section in roadSections:
             section.road = road
         for lane in forwardLanes:
@@ -931,7 +982,11 @@ class Road:
 class RoadMap:
     defaultTolerance = 0.05
 
-    def __init__(self, tolerance=None, fill_intersections=True):
+    def __init__(self, tolerance=None, fill_intersections=True,
+                 drivable_lane_types=('driving', 'entry', 'exit', 'offRamp', 'onRamp',
+                                      'connectingRamp'),
+                 sidewalk_lane_types=('sidewalk',),
+                 shoulder_lane_types=('shoulder', 'parking', 'stop', 'border')):
         self.tolerance = self.defaultTolerance if tolerance is None else tolerance
         self.roads = {}
         self.road_links = []
@@ -940,76 +995,91 @@ class RoadMap:
         self.lane_polys = []
         self.intersection_region = None
         self.fill_intersections = fill_intersections
+        self.drivable_lane_types = drivable_lane_types
+        self.sidewalk_lane_types = sidewalk_lane_types
+        self.shoulder_lane_types = shoulder_lane_types
 
-    def calculate_geometry(self, num, calc_gap=False, calc_intersect=False):
+    def calculate_geometry(self, num, calc_gap=False, calc_intersect=True):
         # If calc_gap=True, fills in gaps between connected roads.
         # If calc_intersect=True, calculates intersection regions.
         # These are fairly expensive.
         for road in self.roads.values():
-            road.calculate_geometry(num, calc_gap=calc_gap, tolerance=self.tolerance)
-        drivable_polys = {}
-        sidewalk_polys = {}
-        drivable_gap_polys = []
-        sidewalk_gap_polys = []
-        for road in self.roads.values():
+            road.calculate_geometry(num, calc_gap=calc_gap, tolerance=self.tolerance,
+                                    drivable_lane_types=self.drivable_lane_types,
+                                    sidewalk_lane_types=self.sidewalk_lane_types,
+                                    shoulder_lane_types=self.shoulder_lane_types)
             self.sec_lane_polys.extend(road.sec_lane_polys)
             self.lane_polys.extend(road.lane_polys)
-            drivable_poly = road.drivable_region
-            sidewalk_poly = road.sidewalk_region
-            if not (drivable_poly is None or drivable_poly.is_empty):
-                drivable_polys[road.id_] = drivable_poly.buffer(0.001)
-            if not (sidewalk_poly is None or sidewalk_poly.is_empty):
-                sidewalk_polys[road.id_] = sidewalk_poly.buffer(0.001)
 
-        for link in self.road_links:
-            road_a = self.roads[link.id_a]
-            road_b = self.roads[link.id_b]
-            assert link.contact_a in ['start', 'end'], 'Invalid link record.'
-            assert link.contact_b in ['start', 'end'], 'Invalid link record.'
-            if link.contact_a == 'start':
-                a_sec = road_a.lane_secs[0]
-                a_bounds_left = road_a.start_bounds_left
-                a_bounds_right = road_a.start_bounds_right
-            else:
-                a_sec = road_a.lane_secs[-1]
-                a_bounds_left = road_a.end_bounds_left
-                a_bounds_right = road_a.end_bounds_right
-            if link.contact_b == 'start':
-                b_bounds_left = road_b.start_bounds_left
-                b_bounds_right = road_b.start_bounds_right
-            else:
-                b_bounds_left = road_b.end_bounds_left
-                b_bounds_right = road_b.end_bounds_right
-            for id_, lane in a_sec.lanes.items():
+        if calc_gap:
+            drivable_polys = []
+            sidewalk_polys = []
+            shoulder_polys = []
+            for road in self.roads.values():
+                drivable_poly = road.drivable_region
+                sidewalk_poly = road.sidewalk_region
+                shoulder_poly = road.shoulder_region
+                if not (drivable_poly is None or drivable_poly.is_empty):
+                    drivable_polys.append(drivable_poly)
+                if not (sidewalk_poly is None or sidewalk_poly.is_empty):
+                    sidewalk_polys.append(sidewalk_poly)
+                if not (shoulder_poly is None or shoulder_poly.is_empty):
+                    shoulder_polys.append(shoulder_poly)
+
+            for link in self.road_links:
+                road_a = self.roads[link.id_a]
+                road_b = self.roads[link.id_b]
+                assert link.contact_a in ['start', 'end'], 'Invalid link record.'
+                assert link.contact_b in ['start', 'end'], 'Invalid link record.'
                 if link.contact_a == 'start':
-                    other_id = lane.pred
+                    a_sec = road_a.lane_secs[0]
+                    a_bounds_left = road_a.start_bounds_left
+                    a_bounds_right = road_a.start_bounds_right
                 else:
-                    other_id = lane.succ
-                if other_id not in b_bounds_left or other_id not in b_bounds_right:
-                    continue
-                if id_ not in a_bounds_left or id_ not in a_bounds_right:
-                    continue
-                if calc_gap:
+                    a_sec = road_a.lane_secs[-1]
+                    a_bounds_left = road_a.end_bounds_left
+                    a_bounds_right = road_a.end_bounds_right
+                if link.contact_b == 'start':
+                    b_bounds_left = road_b.start_bounds_left
+                    b_bounds_right = road_b.start_bounds_right
+                else:
+                    b_bounds_left = road_b.end_bounds_left
+                    b_bounds_right = road_b.end_bounds_right
+
+                for id_, lane in a_sec.lanes.items():
+                    if link.contact_a == 'start':
+                        other_id = lane.pred
+                    else:
+                        other_id = lane.succ
+                    if other_id not in b_bounds_left or other_id not in b_bounds_right:
+                        continue
+                    if id_ not in a_bounds_left or id_ not in a_bounds_right:
+                        continue
+
                     gap_poly = MultiPoint([
                         a_bounds_left[id_], a_bounds_right[id_],
                         b_bounds_left[other_id], b_bounds_right[other_id]
                     ]).convex_hull
                     if not gap_poly.is_valid:
                         continue
-                    # assert gap_poly.is_valid, 'Gap polygon not valid.'
                     if gap_poly.geom_type == 'Polygon' and not gap_poly.is_empty:
-                        if lane.type_ in DRIVABLE:
-                            drivable_gap_polys.append(gap_poly)
-                            # plot_poly(gap_poly, 'g')
-                        elif lane.type_ in SIDEWALK:
-                            sidewalk_gap_polys.append(gap_poly)
-                            # plot_poly(gap_poly, 'k')
+                        if lane.type_ in self.drivable_lane_types:
+                            drivable_polys.append(gap_poly)
+                        elif lane.type_ in self.sidewalk_lane_types:
+                            sidewalk_polys.append(gap_poly)
+                        elif lane.type_ in self.shoulder_lane_types:
+                            shoulder_polys.append(gap_poly)
+        else:
+            drivable_polys = [road.drivable_region for road in self.roads.values()]
+            sidewalk_polys = [road.sidewalk_region for road in self.roads.values()]
+            shoulder_polys = [road.shoulder_region for road in self.roads.values()]
 
-        self.drivable_region = buffer_union(list(drivable_polys.values()) + drivable_gap_polys,
-                                            tolerance=self.tolerance)
-        self.sidewalk_region = buffer_union(list(sidewalk_polys.values()) + sidewalk_gap_polys,
-                                            tolerance=self.tolerance)
-        self.calculate_intersections()
+        self.drivable_region = buffer_union(drivable_polys, tolerance=self.tolerance)
+        self.sidewalk_region = buffer_union(sidewalk_polys, tolerance=self.tolerance)
+        self.shoulder_region = buffer_union(shoulder_polys, tolerance=self.tolerance)
+
+        if calc_intersect:
+            self.calculate_intersections()
 
     def calculate_intersections(self):
         intersect_polys = []
@@ -1547,11 +1617,14 @@ class RoadMap:
         lanes = [lane for road in allRoads for lane in road.lanes]
         intersections = tuple(intersections.values())
         crossings = ()      # TODO add these
-        sidewalks = []
+        sidewalks, shoulders = [], []
         for group in groups:
             sidewalk = group._sidewalk
             if sidewalk:
                 sidewalks.append(sidewalk)
+            shoulder = group._shoulder
+            if shoulder:
+                shoulders.append(shoulder)
 
         # Add dummy maneuvers for lanes which merge/turn into another lane
         for lane in lanes:
@@ -1572,6 +1645,7 @@ class RoadMap:
             intersections=intersections,
             crossings=crossings,
             sidewalks=tuple(sidewalks),
+            shoulders=tuple(shoulders),
             tolerance=self.tolerance,
             roadRegion=combine(roads),
             laneRegion=combine(lanes),

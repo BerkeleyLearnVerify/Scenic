@@ -350,10 +350,13 @@ class LaneGroup(LinearElement):
 
     road: Road          # parent road
     lanes: Tuple[Lane]  # partially ordered, with lane 0 being closest to the curb
+    curb: PolylineRegion
 
     # associated elements not actually part of this group
     _sidewalk: Union[Sidewalk, None] = None
     _bikeLane: Union[Lane, None] = None
+    _shoulder: Union[Shoulder, None] = None
+    _opposite: Union[LaneGroup, None] = None
 
     @property
     def sidewalk(self):
@@ -362,6 +365,14 @@ class LaneGroup(LinearElement):
     @property
     def bikeLane(self):
         return rejectIfNonexistent(self._bikeLane, 'bike lane')
+
+    @property
+    def shoulder(self):
+        return rejectIfNonexistent(self._shoulder, 'shoulder')
+
+    @property
+    def opposite(self):
+        return rejectIfNonexistent(self._opposite, 'opposite lane group')
 
     def defaultHeadingAt(self, point):
         point = toVector(point)
@@ -508,6 +519,10 @@ class PedestrianCrossing(ContainsCenterline, LinearElement):
     endSidewalk: Sidewalk
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
+class Shoulder(ContainsCenterline, LinearElement):
+    road: Road
+
+@attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Intersection(NetworkElement):
     roads: Tuple[Road]     # in some order, preserving adjacency
     incomingLanes: Tuple[Lane]
@@ -562,6 +577,7 @@ class Network:
     intersections: Tuple[Intersection]
     crossings: Tuple[PedestrianCrossing]
     sidewalks: Tuple[Sidewalk]
+    shoulders: Tuple[Shoulder]
 
     roadSections: Tuple[RoadSection] = None
     laneSections: Tuple[LaneSection] = None
@@ -578,6 +594,7 @@ class Network:
     crossingRegion: PolygonalRegion = None
     sidewalkRegion: PolygonalRegion = None
     curbRegion: PolylineRegion = None
+    shoulderRegion: PolygonalRegion = None
 
     # traffic flow vector field aggregated over all roads (0 elsewhere)
     roadDirection: VectorField = None
@@ -602,6 +619,8 @@ class Network:
             self.crossingRegion = PolygonalRegion.unionAll(self.crossings)
         if self.sidewalkRegion is None:
             self.sidewalkRegion = PolygonalRegion.unionAll(self.sidewalks)
+        if self.shoulderRegion is None:
+            self.shoulderRegion = PolygonalRegion.unionAll(self.shoulders)
 
         if self.drivableRegion is None:
             self.drivableRegion = self.laneRegion.union(self.intersectionRegion)
@@ -610,9 +629,8 @@ class Network:
 
         if self.curbRegion is None:
             edges = []
-            for road in self.roads:
-                edges.append(road.leftEdge)
-                edges.append(road.rightEdge)
+            for group in self.laneGroups:
+                edges.append(group.curb)
             self.curbRegion = PolylineRegion.unionAll(edges)
 
         if self.roadDirection is None:
@@ -635,7 +653,7 @@ class Network:
         changed, so that cached networks will be properly regenerated (rather than being
         unpickled in an inconsistent state and causing errors later).
         """
-        return 10
+        return 11
 
     class DigestMismatchError(Exception):
         pass
@@ -861,6 +879,7 @@ class Network:
     def show(self, plt):
         """Render a schematic of the road network for debugging."""
         self.walkableRegion.show(plt, style='-', color='#00A0FF')
+        self.shoulderRegion.show(plt, style='-', color='#606060')
         for road in self.roads:
             road.show(plt, style='r-')
             for lane in road.lanes:     # will loop only over lanes of main roads
