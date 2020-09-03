@@ -3,6 +3,7 @@ from __future__ import annotations  # allow forward references for type annotati
 
 import io
 import enum
+import hashlib
 import math
 from typing import FrozenSet, Union, Tuple, Optional, Sequence, List
 import itertools
@@ -349,10 +350,13 @@ class LaneGroup(LinearElement):
 
     road: Road          # parent road
     lanes: Tuple[Lane]  # partially ordered, with lane 0 being closest to the curb
+    curb: PolylineRegion
 
     # associated elements not actually part of this group
     _sidewalk: Union[Sidewalk, None] = None
     _bikeLane: Union[Lane, None] = None
+    _shoulder: Union[Shoulder, None] = None
+    _opposite: Union[LaneGroup, None] = None
 
     @property
     def sidewalk(self):
@@ -361,6 +365,14 @@ class LaneGroup(LinearElement):
     @property
     def bikeLane(self):
         return rejectIfNonexistent(self._bikeLane, 'bike lane')
+
+    @property
+    def shoulder(self):
+        return rejectIfNonexistent(self._shoulder, 'shoulder')
+
+    @property
+    def opposite(self):
+        return rejectIfNonexistent(self._opposite, 'opposite lane group')
 
     def defaultHeadingAt(self, point):
         point = toVector(point)
@@ -507,6 +519,10 @@ class PedestrianCrossing(ContainsCenterline, LinearElement):
     endSidewalk: Sidewalk
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
+class Shoulder(ContainsCenterline, LinearElement):
+    road: Road
+
+@attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Intersection(NetworkElement):
     roads: Tuple[Road]     # in some order, preserving adjacency
     incomingLanes: Tuple[Lane]
@@ -561,6 +577,7 @@ class Network:
     intersections: Tuple[Intersection]
     crossings: Tuple[PedestrianCrossing]
     sidewalks: Tuple[Sidewalk]
+    shoulders: Tuple[Shoulder]
 
     roadSections: Tuple[RoadSection] = None
     laneSections: Tuple[LaneSection] = None
@@ -577,6 +594,7 @@ class Network:
     crossingRegion: PolygonalRegion = None
     sidewalkRegion: PolygonalRegion = None
     curbRegion: PolylineRegion = None
+    shoulderRegion: PolygonalRegion = None
 
     # traffic flow vector field aggregated over all roads (0 elsewhere)
     roadDirection: VectorField = None
@@ -601,6 +619,8 @@ class Network:
             self.crossingRegion = PolygonalRegion.unionAll(self.crossings)
         if self.sidewalkRegion is None:
             self.sidewalkRegion = PolygonalRegion.unionAll(self.sidewalks)
+        if self.shoulderRegion is None:
+            self.shoulderRegion = PolygonalRegion.unionAll(self.shoulders)
 
         if self.drivableRegion is None:
             self.drivableRegion = self.laneRegion.union(self.intersectionRegion)
@@ -609,9 +629,8 @@ class Network:
 
         if self.curbRegion is None:
             edges = []
-            for road in self.roads:
-                edges.append(road.leftEdge)
-                edges.append(road.rightEdge)
+            for group in self.laneGroups:
+                edges.append(group.curb)
             self.curbRegion = PolylineRegion.unionAll(edges)
 
         if self.roadDirection is None:
@@ -634,7 +653,10 @@ class Network:
         changed, so that cached networks will be properly regenerated (rather than being
         unpickled in an inconsistent state and causing errors later).
         """
-        return 9
+        return 11
+
+    class DigestMismatchError(Exception):
+        pass
 
     @classmethod
     def fromFile(cls, path, useCache=True, writeCache=True, **kwargs):
@@ -642,23 +664,13 @@ class Network:
         ext = path.suffix
 
         handlers = {    # in order of decreasing priority
-            cls.pickledExt: cls.fromPickle,     # pickled native representation
             '.xodr': cls.fromOpenDrive,         # OpenDRIVE
-        }
 
-        if useCache:    # use pickled version of network if it exists
-            newPath = path.with_suffix(cls.pickledExt)
-            if newPath.exists():
-                try:
-                    startTime = time.time()
-                    verbosePrint('Loading cached version of road network...')
-                    network = cls.fromPickle(newPath)
-                    totalTime = time.time() - startTime
-                    verbosePrint(f'Loaded cached network in {totalTime:.2f} seconds.')
-                    return network
-                except pickle.UnpicklingError:
-                    verbosePrint('Unable to load cached network (old or corrupted).')
-                    pass    # give up on cache; fall through to original file
+            # Pickled native representation; this is the lowest priority, since original
+            # maps should take precedence, but if the pickled version exists and matches
+            # the original, we'll use it.
+            cls.pickledExt: cls.fromPickle
+        }
 
         if not ext:     # no extension was given; search through possible formats
             found = False
@@ -673,38 +685,30 @@ class Network:
         elif ext not in handlers:
             raise RuntimeError(f'unknown type of road network file {path}')
 
-        network = handlers[ext](path, **kwargs)
-        if writeCache and ext is not cls.pickledExt:
-            verbosePrint(f'Caching road network in {cls.pickledExt} file.')
-            network.dumpPickle(path.with_suffix(cls.pickledExt))
-        return network
+        # If we don't have an underlying map file, return the pickled version directly
+        if ext == cls.pickledExt:
+            return cls.fromPickle(path)
 
-    @classmethod
-    def fromPickle(cls, path):
+        # Otherwise, hash the underlying file to detect when the pickle is outdated
         with open(path, 'rb') as f:
-            versionField = f.read(4)
-            if len(versionField) != 4:
-                raise pickle.UnpicklingError(f'{cls.pickledExt} file is corrupted')
-            version = struct.unpack('<I', versionField)
-            if version[0] != cls.currentFormatVersion():
-                raise pickle.UnpicklingError(f'{cls.pickledExt} file is too old; '
-                                             'regenerate it from the original map')
-            with gzip.open(f) as gf:
-                network = pickle.load(gf)
+            data = f.read()
+        digest = hashlib.blake2b(data).digest()
 
-        # Reconnect links between network elements
-        def reconnect(thing):
-            state = thing.__dict__
-            for key, value in state.items():
-                if isinstance(value, ElementPlaceholder):
-                    state[key] = network.elements[value.uid]
-        proxy = weakref.proxy(network)
-        for elem in network.elements.values():
-            reconnect(elem)
-            elem.network = proxy
-        for elem in itertools.chain(network.lanes, network.intersections):
-            for maneuver in elem.maneuvers:
-                reconnect(maneuver)
+        # By default, use the pickled version if it exists and is not outdated
+        pickledPath = path.with_suffix(cls.pickledExt)
+        if useCache and pickledPath.exists():
+            try:
+                return cls.fromPickle(pickledPath, originalDigest=digest)
+            except pickle.UnpicklingError:
+                verbosePrint('Unable to load cached network (old format or corrupted).')
+            except cls.DigestMismatchError:
+                verbosePrint('Cached network does not match original file; ignoring it.')
+
+        # Not using the pickled version; parse the original file based on its extension
+        network = handlers[ext](path, **kwargs)
+        if writeCache:
+            verbosePrint(f'Caching road network in {cls.pickledExt} file.')
+            network.dumpPickle(path.with_suffix(cls.pickledExt), digest)
         return network
 
     @classmethod
@@ -723,7 +727,49 @@ class Network:
         verbosePrint(f'Finished loading OpenDRIVE map in {totalTime:.2f} seconds.')
         return network
 
-    def dumpPickle(self, path):
+    @classmethod
+    def fromPickle(cls, path, originalDigest=None):
+        startTime = time.time()
+        verbosePrint('Loading cached version of road network...')
+
+        with open(path, 'rb') as f:
+            versionField = f.read(4)
+            if len(versionField) != 4:
+                raise pickle.UnpicklingError(f'{cls.pickledExt} file is corrupted')
+            version = struct.unpack('<I', versionField)
+            if version[0] != cls.currentFormatVersion():
+                raise pickle.UnpicklingError(f'{cls.pickledExt} file is too old; '
+                                             'regenerate it from the original map')
+            digest = f.read(64)
+            if len(digest) != 64:
+                raise pickle.UnpicklingError(f'{cls.pickledExt} file is corrupted')
+            if originalDigest and originalDigest != digest:
+                raise cls.DigestMismatchError(
+                    f'{cls.pickledExt} file does not correspond to the original map; '
+                    ' regenerate it'
+                )
+            with gzip.open(f) as gf:
+                network = pickle.load(gf)
+
+        # Reconnect links between network elements
+        def reconnect(thing):
+            state = thing.__dict__
+            for key, value in state.items():
+                if isinstance(value, ElementPlaceholder):
+                    state[key] = network.elements[value.uid]
+        proxy = weakref.proxy(network)
+        for elem in network.elements.values():
+            reconnect(elem)
+            elem.network = proxy
+        for elem in itertools.chain(network.lanes, network.intersections):
+            for maneuver in elem.maneuvers:
+                reconnect(maneuver)
+
+        totalTime = time.time() - startTime
+        verbosePrint(f'Loaded cached network in {totalTime:.2f} seconds.')
+        return network
+
+    def dumpPickle(self, path, digest):
         path = pathlib.Path(path)
         if not path.suffix:
             path = path.with_suffix(self.pickledExt)
@@ -731,6 +777,7 @@ class Network:
         data = pickle.dumps(self)
         with open(path, 'wb') as f:
             f.write(version)    # uncompressed in case we change compression schemes later
+            f.write(digest)     # uncompressed for quick lookup
             with gzip.open(f, 'wb') as gf:
                 gf.write(data)
 
@@ -832,6 +879,7 @@ class Network:
     def show(self, plt):
         """Render a schematic of the road network for debugging."""
         self.walkableRegion.show(plt, style='-', color='#00A0FF')
+        self.shoulderRegion.show(plt, style='-', color='#606060')
         for road in self.roads:
             road.show(plt, style='r-')
             for lane in road.lanes:     # will loop only over lanes of main roads

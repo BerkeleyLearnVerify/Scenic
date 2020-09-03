@@ -5,4 +5,4 @@ model scenic.domains.driving.model
 
 ego = Car
 
-Pedestrian visible
+Pedestrian on visible ego.oppositeLaneGroup.sidewalk

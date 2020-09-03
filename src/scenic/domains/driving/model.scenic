@@ -26,6 +26,8 @@ workspace = DrivingWorkspace(network)
 road = network.drivableRegion
 curb = network.curbRegion
 sidewalk = network.sidewalkRegion
+shoulder = network.shoulderRegion
+roadOrShoulder = road.union(shoulder)
 intersection = network.intersectionRegion
 roadDirection = network.roadDirection
 
@@ -62,6 +64,10 @@ class DrivingObject:
     @property
     def laneGroup(self):
         return network.laneGroupAt(self, reject='object is not in a lane')
+
+    @property
+    def oppositeLaneGroup(self):
+        return self.laneGroup.opposite
 
     @property
     def road(self):
@@ -101,7 +107,7 @@ class DrivingObject:
         raise NotImplementedError
 
 class Vehicle(DrivingObject):
-    regionContainedIn: road
+    regionContainedIn: roadOrShoulder
     position: Point on road
     heading: (roadDirection at self.position) + self.roadDeviation
     roadDeviation: 0
