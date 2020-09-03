@@ -263,8 +263,12 @@ class DummySimulation(Simulation):
         pass
 
     def getProperties(self, obj, properties):
-        return dict(position=obj.position, heading=obj.heading,
+        vals = dict(position=obj.position, heading=obj.heading,
                     velocity=Vector(0, 0), speed=0, angularSpeed=0)
+        for prop in properties:
+            if prop not in vals:
+                vals[prop] = None
+        return vals
 
 class Action:
     """An action which can be taken by an agent for one step of a simulation."""

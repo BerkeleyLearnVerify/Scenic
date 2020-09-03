@@ -240,6 +240,8 @@ def cleanChain(chain, tolerance=1e-6, lineTolerance=1e-6):
 		newChain.append(chain[0])
 	if len(newChain) <= minLength:
 		if not closed:
+			if len(newChain) > 1:
+				newChain.pop()
 			newChain.append(chain[-1])
 		return newChain
 	# collapse collinear points

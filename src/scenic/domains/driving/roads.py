@@ -651,9 +651,10 @@ class Network:
         Should be incremented whenever attributes of `Network`, `NetworkElement`, etc.,
         attributes of the underlying Regions, or the serialization process itself are
         changed, so that cached networks will be properly regenerated (rather than being
-        unpickled in an inconsistent state and causing errors later).
+        unpickled in an inconsistent state and causing errors later). Changes to the map
+        geometry calculations should be included, even if the format itself is unchanged.
         """
-        return 11
+        return 12
 
     class DigestMismatchError(Exception):
         pass
