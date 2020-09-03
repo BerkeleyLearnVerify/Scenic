@@ -29,7 +29,6 @@ sidewalk = network.sidewalkRegion
 shoulder = network.shoulderRegion
 roadOrShoulder = road.union(shoulder)
 intersection = network.intersectionRegion
-
 roadDirection = network.roadDirection
 
 ## Standard object types
