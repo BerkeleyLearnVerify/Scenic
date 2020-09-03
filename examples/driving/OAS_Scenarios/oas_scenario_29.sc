@@ -6,8 +6,8 @@ param carla_map = 'Town01'
 model scenic.domains.driving.model
 
 # Constants
-EGO_OFFSET = -1 *(15,20)
-OTHERCAR_OFFSET = -1* (1,3)
+EGO_OFFSET = -1 * Range(15,20)
+OTHERCAR_OFFSET = -1* Range(1,3)
 
 # GEOMETRY
 threeWayIntersections = filter(lambda i: i.is3Way, network.intersections)
@@ -33,8 +33,9 @@ behavior EgoBehavior(thresholdDistance, target_speed=10, trajectory = None):
 
 	try: 
 		do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
+		terminate
 
-	interrupt when distanceToAnyCars(car=self, thresholdDistance=thresholdDistance):
+	interrupt when distanceToAnyObjs(vehicle=self, thresholdDistance=thresholdDistance):
 		take SetBrakeAction(brakeIntensity)
 
 
@@ -43,6 +44,4 @@ ego = Car following roadDirection from egoStart for EGO_OFFSET,
 		with behavior EgoBehavior(target_speed=10, trajectory=ego_L_centerlines, thresholdDistance = 20)
 
 other = Car following roadDirection from actorStart for OTHERCAR_OFFSET,
-		with behavior FollowTrajectoryBehavior(target_speed=10, trajectory=actor_centerlines),
-		with blueprint 'vehicle.audi.a2'
-
+		with behavior FollowTrajectoryBehavior(target_speed=10, trajectory=actor_centerlines)

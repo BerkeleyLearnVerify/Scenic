@@ -27,7 +27,6 @@ road = network.drivableRegion
 curb = network.curbRegion
 sidewalk = network.sidewalkRegion
 intersection = network.intersectionRegion
-
 roadDirection = network.roadDirection
 
 ## Standard object types

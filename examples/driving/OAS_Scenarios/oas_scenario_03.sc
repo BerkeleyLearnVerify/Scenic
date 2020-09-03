@@ -27,8 +27,10 @@ roads = network.roads
 select_road = Uniform(*roads)
 select_lane = Uniform(*select_road.lanes)
 
-other = Car on select_lane.centerline,
+leadCar = Car on select_lane.centerline,
 		with behavior FollowLaneBehavior()
 
-ego = Car following roadDirection from other for INITIAL_DISTANCE_APART,
+ego = Car following roadDirection from leadCar for INITIAL_DISTANCE_APART,
 		with behavior FollowLeadCarBehavior()
+
+# require (distance from leadCar to intersection) < 20
