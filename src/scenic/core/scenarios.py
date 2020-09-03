@@ -40,6 +40,7 @@ class Scene:
 	def show(self, zoom=None, block=True):
 		"""Render a schematic of the scene for debugging."""
 		import matplotlib.pyplot as plt
+		plt.gca().set_aspect('equal')
 		# display map
 		self.workspace.show(plt)
 		# draw objects
