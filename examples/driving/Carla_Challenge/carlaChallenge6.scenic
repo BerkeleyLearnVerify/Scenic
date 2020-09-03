@@ -18,9 +18,9 @@ DIST_THRESHOLD = 12
 YIELD_THRESHOLD = 5
 BLOCKING_CAR_DIST = Range(10, 20)
 BREAK_INTENSITY = 0.8
-BYPASS_DIST = 10
+BYPASS_DIST = 5
 DIST_BTW_BLOCKING_ONCOMING_CARS = 10
-DIST_TO_INTERSECTION = 10
+DIST_TO_INTERSECTION = 15
 
 #EGO BEHAVIOR
 behavior EgoBehavior(path):
@@ -32,17 +32,16 @@ behavior EgoBehavior(path):
 		do FollowLaneBehavior(EGO_SPEED, laneToFollow=current_lane)
 
 	interrupt when (distance to blockingCar) < DIST_THRESHOLD and not laneChangeCompleted:
-		print("FIRST INTERRUPT")
 		if ego can see oncomingCar:
 			take SetBrakeAction(BREAK_INTENSITY)
 		elif (distance to oncomingCar) > YIELD_THRESHOLD:
 			do LaneChangeBehavior(path, is_oppositeTraffic=True, target_speed=EGO_SPEED)
+			do FollowLaneBehavior(EGO_SPEED, is_oppositeTraffic=True) until (distance to blockingCar) > BYPASS_DIST
 			laneChangeCompleted = True
 		else:
 			wait
 
 	interrupt when (blockingCar can see ego) and (distance to blockingCar) > BYPASS_DIST and not bypassed:
-		print("SECOND INTERRUPT")
 		current_laneSection = network.laneSectionAt(self)
 		rightLaneSec = current_laneSection._laneToLeft
 		do LaneChangeBehavior(rightLaneSec, is_oppositeTraffic=False, target_speed=EGO_SPEED)

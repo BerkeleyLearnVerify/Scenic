@@ -2,9 +2,11 @@
 At 3-way intersection, ego turns left and the other car goes straight
 """
 
-param map = localPath('../../carla/OpenDrive/Town07.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town07'
+param map = localPath('../../carla/OpenDrive/Town03.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town03'
 model scenic.domains.driving.model
+
+SAFE_DIST = 15
 
 threeWayIntersections = filter(lambda i: i.is3Way, network.intersections)
 intersection = Uniform(*threeWayIntersections)
@@ -24,10 +26,26 @@ ego_L_connectingLane = leftTurn_maneuver.connectingLane
 ego_L_endLane = leftTurn_maneuver.endLane
 ego_L_centerlines = [ego_L_startLane, ego_L_connectingLane, ego_L_endLane]
 
+behavior FollowTrafficBehavior(target_speed, trajectory):
+	do FollowTrajectoryBehavior(target_speed, trajectory)
+	terminate
+
+
+behavior SafeBehavior(thresholdDistance, target_speed=10, trajectory = None):
+	assert trajectory is not None
+	brakeIntensity = 0.7
+
+	try: 
+		do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
+		terminate
+
+	interrupt when distanceToObjsInLane(vehicle=self, thresholdDistance=thresholdDistance):
+		take SetBrakeAction(brakeIntensity)
 
 # PLACEMENT
 ego = Car on ego_L_startLane.centerline,
-		with behavior FollowTrajectoryBehavior(target_speed=8, trajectory=ego_L_centerlines)
+		with behavior SafeBehavior(SAFE_DIST,target_speed=8, trajectory=ego_L_centerlines)
 
 other = Car on startLane.centerline,
-		with behavior FollowTrajectoryBehavior(target_speed=10, trajectory=centerlines)
+		with behavior FollowTrafficBehavior(target_speed=10, trajectory=centerlines)
+

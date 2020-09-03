@@ -8,8 +8,10 @@ param carla_map = 'Town01'
 model scenic.domains.driving.model
 
 # Constants
-EGO_OFFSET = -1 *(1,3)
-OTHERCAR_OFFSET = -1* (10,15)
+EGO_OFFSET = -1 * Range(1,5)
+OTHERCAR_OFFSET = -1* Range(10,15)
+SPEED = 10
+SAFE_DIST = Range(10,15)
 
 # GEOMETRY
 threeWayIntersections = filter(lambda i: i.is3Way, network.intersections)
@@ -29,21 +31,26 @@ actorStart = actor_maneuver.startLane.centerline[-1]
 
 
 # BEHAVIORS
-behavior EgoBehavior(thresholdDistance, target_speed=10, trajectory = None):
+behavior SafeBehavior(thresholdDistance, target_speed=10, trajectory = None):
 	assert trajectory is not None
 	brakeIntensity = 0.7
 
 	try: 
 		do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
+		terminate
 
 	interrupt when distanceToObjsInLane(vehicle=self, thresholdDistance=thresholdDistance):
 		take SetBrakeAction(brakeIntensity)
 
+behavior EgoBehavior(target_speed, trajectory):
+	do FollowTrajectoryBehavior(target_speed, trajectory)
+	terminate
 
 # PLACEMENT
 ego = Car following roadDirection from egoStart for EGO_OFFSET,
-		with behavior EgoBehavior(target_speed=10, trajectory=ego_L_centerlines, thresholdDistance = 10)
+		with behavior EgoBehavior(target_speed=SPEED, trajectory=ego_L_centerlines)
 
 other = Car following roadDirection from actorStart for OTHERCAR_OFFSET,
-		with behavior FollowTrajectoryBehavior(target_speed=10, trajectory=actor_centerlines)
+		with behavior SafeBehavior(target_speed=SPEED, trajectory=actor_centerlines, \
+			thresholdDistance = SAFE_DIST)
 
