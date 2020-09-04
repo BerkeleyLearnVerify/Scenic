@@ -59,13 +59,16 @@ def test_opendrive(path, cached_maps):
 def test_elements_at(cached_maps):
     scenario = compileDrivingScenario(cached_maps, """
         ego = Car
-        param element = network.elementAt(ego)
-        param road = network.roadAt(ego)
-        param lane = network.laneAt(ego)
-        param laneSection = network.laneSectionAt(ego)
-        param laneGroup = network.laneGroupAt(ego)
-        param crossing = network.crossingAt(ego)
-        param intersection = network.intersectionAt(ego)
+        posTuple = (ego.position.x, ego.position.y)
+        # functions should accept Points, Vectors, and tuples
+        for spot in (ego, ego.position, posTuple):
+            param element = network.elementAt(spot)
+            param road = network.roadAt(spot)
+            param lane = network.laneAt(spot)
+            param laneSection = network.laneSectionAt(spot)
+            param laneGroup = network.laneGroupAt(spot)
+            param crossing = network.crossingAt(spot)
+            param intersection = network.intersectionAt(spot)
     """)
     scene = sampleScene(scenario, maxIterations=1000)
     ego = scene.egoObject

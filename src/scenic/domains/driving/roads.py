@@ -5,6 +5,7 @@ import io
 import enum
 import hashlib
 import math
+import numbers
 from typing import FrozenSet, Union, Tuple, Optional, Sequence, List
 import itertools
 import pathlib
@@ -25,18 +26,17 @@ import scenic.core.geometry as geometry
 import scenic.core.utils as utils
 from scenic.core.errors import InvalidScenarioError
 from scenic.core.distributions import RejectionException, distributionFunction
+import scenic.core.type_support as type_support
 from scenic.syntax.veneer import verbosePrint
 import scenic.syntax.veneer as veneer
 
 ## Typing and utilities
 
 # TODO allow additional types which are coercible to vectors?
-Vectorlike = Union[Vector, Point]
+Vectorlike = Union[Vector, Point, Tuple[numbers.Real, numbers.Real]]
 
 def toVector(thing: Vectorlike) -> Vector:
-    if not hasattr(thing, 'toVector'):
-        raise TypeError(f'argument {thing} is not a vector')
-    return thing.toVector()
+    return type_support.toVector(thing)
 
 def rejectSample(message):
     if veneer.isActive():
