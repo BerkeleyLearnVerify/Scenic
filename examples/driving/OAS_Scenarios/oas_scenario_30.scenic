@@ -3,8 +3,8 @@
 the other car in a different traffic direction turns left
 """
 
-param map = localPath('../../carla/OpenDrive/Town01.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town01'
+param map = localPath('../../carla/OpenDrive/Town10HD.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town10HD'
 model scenic.domains.driving.model
 
 # Constants

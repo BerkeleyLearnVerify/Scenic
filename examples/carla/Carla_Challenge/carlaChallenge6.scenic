@@ -5,7 +5,7 @@ Based on CARLA Challenge Scenario 6:
 https://carlachallenge.org/challenge/nhtsa/
 """
 
-param map = localPath('../../carla/OpenDrive/Town07.xodr')  # or other CARLA map that definitely works
+param map = localPath('../OpenDrive/Town07.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town07'
 model scenic.domains.driving.model
 
@@ -14,9 +14,9 @@ model scenic.domains.driving.model
 ONCOMING_THROTTLE = 0.6
 EGO_SPEED = 7
 ONCOMING_CAR_SPEED = 10
-DIST_THRESHOLD = 12
+DIST_THRESHOLD = 13
 YIELD_THRESHOLD = 5
-BLOCKING_CAR_DIST = Range(10, 20)
+BLOCKING_CAR_DIST = Range(15, 20)
 BREAK_INTENSITY = 0.8
 BYPASS_DIST = 5
 DIST_BTW_BLOCKING_ONCOMING_CARS = 10

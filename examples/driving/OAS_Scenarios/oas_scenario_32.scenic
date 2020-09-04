@@ -2,8 +2,8 @@
 At 3-way intersection, ego turns left and the other car goes straight
 """
 
-param map = localPath('../../carla/OpenDrive/Town03.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town03'
+param map = localPath('../../carla/OpenDrive/Town10HD.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town10HD'
 model scenic.domains.driving.model
 
 SAFE_DIST = 15

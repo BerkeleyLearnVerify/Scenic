@@ -78,6 +78,8 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
 
     if current_lane.maneuvers != ():
         nearby_intersection = current_lane.maneuvers[0].intersection
+        if nearby_intersection == None:
+            nearby_intersection = current_lane.centerline[-1]
     else:
         nearby_intersection = current_lane.centerline[-1]
 
@@ -133,6 +135,8 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
 
             if current_lane.maneuvers != ():
                 nearby_intersection = current_lane.maneuvers[0].intersection
+                if nearby_intersection == None:
+                    nearby_intersection = current_lane.centerline[-1]
             else:
                 nearby_intersection = current_lane.centerline[-1]
 
@@ -198,6 +202,8 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
     
     if trajectory[-1].maneuvers != None:
         end_intersection = trajectory[-1].maneuvers[0].intersection
+        if end_intersection == None:
+            end_intersection = trajectory[-1].centerline[-1]
     else:
         end_intersection = trajectory[-1].centerline[-1]
     
@@ -295,6 +301,8 @@ behavior LaneChangeBehavior(laneSectionToSwitch, is_oppositeTraffic=False, targe
 
     if current_lane.maneuvers != ():
         nearby_intersection = current_lane.maneuvers[0].intersection
+        if nearby_intersection == None:
+            nearby_intersection = current_lane.centerline[-1]
     else:
         nearby_intersection = current_lane.centerline[-1]
 

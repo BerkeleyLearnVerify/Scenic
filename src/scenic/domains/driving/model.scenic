@@ -186,10 +186,10 @@ def withinDistanceToAnyObjs(vehicle, thresholdDistance):
     for obj in objects:
         if not (vehicle can see obj):
             continue
-        if distance(vehicle.position, obj.position) < 0.1:
+        if (distance from vehicle.position to obj.position) < 0.1:
             # this means obj==vehicle
             pass
-        elif distance(vehicle.position, obj.position) < thresholdDistance:
+        elif (distance from vehicle.position to obj.position) < thresholdDistance:
             return True
     return False
 
@@ -197,15 +197,14 @@ def withinDistanceToObjsInLane(vehicle, thresholdDistance):
     """ checks whether there exists any obj
     (1) in front of the vehicle, (2) on the same lane, (3) within thresholdDistance """
     objects = simulation().objects
-    network = _model.network
     for obj in objects:
         if not (vehicle can see obj):
             continue
         if not (network.laneAt(vehicle) == network.laneAt(obj) or network.intersectionAt(vehicle)==network.intersectionAt(obj)):
             continue
-        if distance(vehicle.position, obj.position) < 0.1:
+        if (distance from vehicle.position to obj.position) < 0.1:
             # this means obj==vehicle
             pass
-        elif distance(vehicle.position, obj.position) < thresholdDistance:
+        elif (distance from vehicle.position to obj.position) < thresholdDistance:
             return True
     return False

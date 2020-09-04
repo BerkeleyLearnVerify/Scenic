@@ -3,7 +3,7 @@ Ego-vehicle is going straight at an intersection but a crossing vehicle
 runs a red light, forcing the ego-vehicle to perform a collision avoidance maneuver.
 Based on 2019 Carla Challenge Traffic Scenario 07.
 """
-param map = localPath('../../carla/OpenDrive/Town05.xodr')  # or other CARLA map that definitely works
+param map = localPath('../OpenDrive/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
 model scenic.domains.driving.model
 
