@@ -1,6 +1,7 @@
 """ Scenario Description
 Voyage OAS Scenario Unique ID: 2-2-XX-CF-STR-CAR:Pa>E:03
-The car ahead of ego that is badly parked over the sidewalk cuts into ego vehicle's lane. 
+The car ahead of ego that is badly parked over the sidewalk cuts into ego vehicle's lane.
+This scenario may fail if there exists any obstacle (e.g. fences) on the sidewalk 
 """
 
 
