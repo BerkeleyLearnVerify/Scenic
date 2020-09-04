@@ -94,7 +94,6 @@ behavior ConstantThrottleBehavior(x):
     take SetThrottleAction(x)
 
 behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTraffic=False):
-    print("FOLLOW LANE BEHAVIOR")
     ## Follow's the lane on which the vehicle is at 
     ## As the vehicle reaches an intersection, any route (eg. straigth or turn maneuver) is randomly selected and followed
     
@@ -114,7 +113,6 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
     TARGET_SPEED_FOR_TURNING = 5 # KM/H
     TRIGGER_DISTANCE_TO_SLOWDOWN = 10 # FOR TURNING AT INTERSECTIONS
 
-    print("current_lane.maneuvers: ", current_lane.maneuvers)
     if current_lane.maneuvers != ():
         nearby_intersection = current_lane.maneuvers[0].intersection
     else:
@@ -149,7 +147,6 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
         if not entering_intersection and (distance from self.position to nearby_intersection) < TRIGGER_DISTANCE_TO_SLOWDOWN:
             entering_intersection = True
             intersection_passed = False
-            # print("All possible maneuvers: ", current_lane.maneuvers)
             straight_manuevers = filter(lambda i: i.type == ManeuverType.STRAIGHT, current_lane.maneuvers)
 
             if len(straight_manuevers) > 0:
@@ -180,14 +177,6 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
                 in_turning_lane = True
                 target_speed = TARGET_SPEED_FOR_TURNING
 
-                print("VEHICLE ABOUT TO TURN & SWITCH TO TURNING PID")
-                # if is_vehicle: # Switch to PID controller for turning
-                #     _lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-                #     _lat_controller = controllers.PIDLateralController(K_P=0.3, K_D=0.2, K_I=0, dt=dt)
-
-                # else:
-                #     _lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
-                #     _lat_controller = controllers.PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
                 do TurnBehavior(trajectory = current_centerline)
 
 
@@ -196,7 +185,6 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
             in_turning_lane = False
             entering_intersection = False 
             target_speed = original_target_speed
-            print("VEHICLE IS ENTERING ENDLANE & SWITCH TO LANEFOLLOWING PID")
             _lon_controller, _lat_controller = setLaneFollowingPIDControllers(is_vehicle, dt)
             
         nearest_line_points = current_centerline.nearestSegmentTo(self.position)
@@ -221,8 +209,6 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
 behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
     assert trajectory is not None
     assert isinstance(trajectory, list)
-
-    print("trajectory: ", trajectory)
 
     brakeIntensity = 1.0
     distanceToEndpoint = 5 # meters
@@ -250,11 +236,9 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
     
     while True:
         if self in _model.network.intersectionRegion:
-            print("IN INTERSECTION: TURNING")
             do TurnBehavior(trajectory_centerline)
 
         if (distance from self to end_intersection) < distanceToEndpoint:
-            print("distance to endpoint reached")
             break
 
         if self.speed is not None:
@@ -273,10 +257,8 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
 
         take FollowLaneAction(throttle=throttle, current_steer=current_steer_angle, past_steer=past_steer_angle)
         past_steer_angle = current_steer_angle
-    print("FollowTrajectoryBehavior had finished")
 
 behavior TurnBehavior(trajectory, target_speed=6):
-    print("TurnBehavior Executes")
 
     if isinstance(trajectory, PolylineRegion):
         trajectory_centerline = trajectory
@@ -320,11 +302,8 @@ behavior TurnBehavior(trajectory, target_speed=6):
         take FollowLaneAction(throttle=throttle, current_steer=current_steer_angle, past_steer=past_steer_angle)
         past_steer_angle = current_steer_angle
     
-    print("Turn Behavior ended")
-
 
 behavior LaneChangeBehavior(laneSectionToSwitch, is_oppositeTraffic=False, target_speed=10):
-    print("LANE CHANGE BEHAVIOR")
     brakeIntensity = 1.0
     distanceToEndpoint = 3 # meters
 
@@ -344,7 +323,7 @@ behavior LaneChangeBehavior(laneSectionToSwitch, is_oppositeTraffic=False, targe
         else:
             is_vehicle = False
     else:
-        # assume it is a car
+        # assume it is a car`
         is_vehicle = True
 
     dt = simulation().timestep
@@ -408,7 +387,5 @@ behavior LaneChangeBehavior(laneSectionToSwitch, is_oppositeTraffic=False, targe
 
         take FollowLaneAction(throttle=throttle, current_steer=current_steer_angle, past_steer=past_steer_angle)
         past_steer_angle = current_steer_angle
-
-    print("breaking off of LaneChangeBehavior")
 
 
