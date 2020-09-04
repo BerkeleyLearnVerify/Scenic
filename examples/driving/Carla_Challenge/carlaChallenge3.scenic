@@ -21,7 +21,7 @@ behavior EgoBehavior(speed=10):
 	try:
 		do FollowLaneBehavior(speed)
 
-	interrupt when distanceToAnyObjs(self, EGO_BRAKING_THRESHOLD):
+	interrupt when withinDistanceToAnyObjs(self, EGO_BRAKING_THRESHOLD):
 		take SetBrakeAction(BRAKE_ACTION)
 
 #GEOMETRY

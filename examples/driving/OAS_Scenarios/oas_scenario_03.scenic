@@ -10,7 +10,7 @@ SAFETY_DISTANCE = 10
 INITIAL_DISTANCE_APART = -10
 
 behavior CollisionAvoidance(brake_intensity=0.3):
-	while distanceToAnyObjs(self, SAFETY_DISTANCE):
+	while withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
 		take SetBrakeAction(brake_intensity)
 
 
@@ -19,7 +19,7 @@ behavior FollowLeadCarBehavior():
 	try: 
 		do FollowLaneBehavior()
 
-	interrupt when distanceToAnyObjs(self, SAFETY_DISTANCE):
+	interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
 		do CollisionAvoidance()
 
 

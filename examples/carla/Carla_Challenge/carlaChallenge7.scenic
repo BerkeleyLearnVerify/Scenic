@@ -25,7 +25,7 @@ behavior EgoBehavior(trajectory):
 	
 	try:
 		do FollowTrajectoryBehavior(trajectory=trajectory)
-	interrupt when distanceToAnyObjs(self, SAFETY_DISTANCE):
+	interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
 		take SetBrakeAction(BRAKE_INTENSITY)
 
 

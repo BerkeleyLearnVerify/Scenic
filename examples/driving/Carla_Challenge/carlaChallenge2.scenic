@@ -27,7 +27,7 @@ behavior EgoBehavior(speed=10):
 	try: 
 		do FollowLaneBehavior(speed)
 
-	interrupt when distanceToAnyCars(self, EGO_BRAKING_THRESHOLD):
+	interrupt when withinDistanceToAnyCars(self, EGO_BRAKING_THRESHOLD):
 		take SetBrakeAction(BRAKE_ACTION)
 
 #LEAD CAR BEHAVIOR: Follow lane, and brake after passing a threshold distance to obstacle
@@ -36,7 +36,7 @@ behavior LeadingCarBehavior(speed=10):
 	try: 
 		do FollowLaneBehavior(speed)
 
-	interrupt when distanceToAnyCars(self, LEADCAR_BRAKING_THRESHOLD):
+	interrupt when withinDistanceToAnyCars(self, LEADCAR_BRAKING_THRESHOLD):
 		take SetBrakeAction(BRAKE_ACTION)
 
 #GEOMETRY

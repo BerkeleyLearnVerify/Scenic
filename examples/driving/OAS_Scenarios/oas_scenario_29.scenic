@@ -35,7 +35,7 @@ behavior EgoBehavior(thresholdDistance, target_speed=10, trajectory = None):
 		do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
 		terminate
 
-	interrupt when distanceToAnyObjs(vehicle=self, thresholdDistance=thresholdDistance):
+	interrupt when withinDistanceToAnyObjs(vehicle=self, thresholdDistance=thresholdDistance):
 		take SetBrakeAction(brakeIntensity)
 
 

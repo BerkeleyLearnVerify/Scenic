@@ -16,7 +16,7 @@ behavior CutInBehavior(laneToFollow, target_speed):
 	do FollowLaneBehavior(laneToFollow = laneToFollow, target_speed=target_speed)
 
 behavior CollisionAvoidance():
-	while distanceToAnyObjs(self, SAFETY_DISTANCE):
+	while withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
 		take SetBrakeAction(MAX_BREAK_THRESHOLD)
 
 
@@ -24,13 +24,12 @@ behavior EgoBehavior(target_speed):
 	try: 
 		do FollowLaneBehavior(target_speed=target_speed)
 
-	interrupt when distanceToAnyObjs(self, SAFETY_DISTANCE):
+	interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
 		do CollisionAvoidance()
 
 
 roads = network.roads
 select_road = Uniform(*roads)
-# select_lane = Uniform(*select_road.lanes)
 ego_lane = select_road.lanes[0]
 
 ego = Car on ego_lane.centerline,

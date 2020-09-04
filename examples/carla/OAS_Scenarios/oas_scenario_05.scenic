@@ -14,7 +14,7 @@ behavior LeadCarBehavior():
 		take SetBrakeAction(MAX_BREAK_THRESHOLD)
 
 behavior CollisionAvoidance():
-	while distanceToAnyObjs(self, SAFETY_DISTANCE):
+	while withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
 		take SetBrakeAction(MAX_BREAK_THRESHOLD)
 
 
@@ -23,7 +23,7 @@ behavior FollowLeadCarBehavior():
 	try: 
 		do FollowLaneBehavior()
 
-	interrupt when distanceToAnyObjs(self, SAFETY_DISTANCE):
+	interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
 		do CollisionAvoidance()
 
 

@@ -169,12 +169,43 @@ class Walks(ABC):
 
 ## Utility functions
 
-def distanceToAnyCars(car, thresholdDistance):
+def withinDistanceToAnyCars(car, thresholdDistance):
     """ returns boolean """
     objects = simulation().objects
     for obj in objects:
         if obj is car or not isinstance(obj, Vehicle):
             continue
         if (distance from car to obj) < thresholdDistance:
+            return True
+    return False
+
+def withinDistanceToAnyObjs(vehicle, thresholdDistance):
+    """ checks whether there exists any obj
+    (1) in front of the vehicle, (2) within thresholdDistance """
+    objects = simulation().objects
+    for obj in objects:
+        if not (vehicle can see obj):
+            continue
+        if distance(vehicle.position, obj.position) < 0.1:
+            # this means obj==vehicle
+            pass
+        elif distance(vehicle.position, obj.position) < thresholdDistance:
+            return True
+    return False
+
+def withinDistanceToObjsInLane(vehicle, thresholdDistance):
+    """ checks whether there exists any obj
+    (1) in front of the vehicle, (2) on the same lane, (3) within thresholdDistance """
+    objects = simulation().objects
+    network = _model.network
+    for obj in objects:
+        if not (vehicle can see obj):
+            continue
+        if not (network.laneAt(vehicle) == network.laneAt(obj) or network.intersectionAt(vehicle)==network.intersectionAt(obj)):
+            continue
+        if distance(vehicle.position, obj.position) < 0.1:
+            # this means obj==vehicle
+            pass
+        elif distance(vehicle.position, obj.position) < thresholdDistance:
             return True
     return False

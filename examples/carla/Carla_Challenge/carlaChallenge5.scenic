@@ -20,7 +20,7 @@ behavior EgoBehavior(leftpath, origpath=[]):
 	try: 
 		do FollowLaneBehavior(EGO_SPEED)
 
-	interrupt when distanceToAnyObjs(self, DIST_THRESHOLD) and not laneChangeCompleted:
+	interrupt when withinDistanceToAnyObjs(self, DIST_THRESHOLD) and not laneChangeCompleted:
 		do LaneChangeBehavior(laneSectionToSwitch=leftpath, target_speed=10)
 		laneChangeCompleted = True
 
