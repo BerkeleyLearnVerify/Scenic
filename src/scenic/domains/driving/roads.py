@@ -629,8 +629,11 @@ class Network:
 
         if self.curbRegion is None:
             edges = []
-            for group in self.laneGroups:
-                edges.append(group.curb)
+            for road in self.roads:     # only include curbs of ordinary roads
+                if road.forwardLanes:
+                    edges.append(road.forwardLanes.curb)
+                if road.backwardLanes:
+                    edges.append(road.backwardLanes.curb)
             self.curbRegion = PolylineRegion.unionAll(edges)
 
         if self.roadDirection is None:
@@ -654,7 +657,7 @@ class Network:
         unpickled in an inconsistent state and causing errors later). Changes to the map
         geometry calculations should be included, even if the format itself is unchanged.
         """
-        return 12
+        return 13
 
     class DigestMismatchError(Exception):
         pass
