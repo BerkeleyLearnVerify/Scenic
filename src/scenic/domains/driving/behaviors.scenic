@@ -113,7 +113,13 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
     original_target_speed = target_speed
     TARGET_SPEED_FOR_TURNING = 5 # KM/H
     TRIGGER_DISTANCE_TO_SLOWDOWN = 10 # FOR TURNING AT INTERSECTIONS
-    nearby_intersection = current_lane.maneuvers[0].intersection
+
+    print("current_lane.maneuvers: ", current_lane.maneuvers)
+    if current_lane.maneuvers != ():
+        nearby_intersection = current_lane.maneuvers[0].intersection
+    else:
+        nearby_intersection = current_lane.centerline[-1]
+
 
     # check whether self agent is vehicle:
     if hasattr(self, 'blueprint'):
@@ -164,7 +170,11 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
 
             current_lane = select_maneuver.endLane
             end_lane = current_lane
-            nearby_intersection = current_lane.maneuvers[0].intersection
+
+            if current_lane.maneuvers != ():
+                nearby_intersection = current_lane.maneuvers[0].intersection
+            else:
+                nearby_intersection = current_lane.centerline[-1]
 
             if select_maneuver.type != ManeuverType.STRAIGHT:
                 in_turning_lane = True
@@ -232,10 +242,12 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
 
     # instantiate longitudinal and latitudinal pid controllers
     past_steer_angle = 0
-    end_intersection = trajectory[-1].maneuvers[0].intersection
-    print("trajectory[-1].maneuvers: ", trajectory[-1].maneuvers)
-    print("end_intersection: ", end_intersection)
-
+    
+    if trajectory[-1].maneuvers != None:
+        end_intersection = trajectory[-1].maneuvers[0].intersection
+    else:
+        end_intersection = trajectory[-1].centerline[-1]
+    
     while True:
         if self in _model.network.intersectionRegion:
             print("IN INTERSECTION: TURNING")
@@ -319,7 +331,11 @@ behavior LaneChangeBehavior(laneSectionToSwitch, is_oppositeTraffic=False, targe
     current_lane = laneSectionToSwitch.lane
     traj_centerline = [current_lane.centerline]
     trajectory_centerline = concatenateCenterlines(traj_centerline)
-    nearby_intersection = current_lane.maneuvers[0].intersection
+
+    if current_lane.maneuvers != ():
+        nearby_intersection = current_lane.maneuvers[0].intersection
+    else:
+        nearby_intersection = current_lane.centerline[-1]
 
     # check whether self agent is vehicle:
     if hasattr(self, 'blueprint'):
