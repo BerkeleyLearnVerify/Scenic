@@ -1,5 +1,11 @@
-param map = localPath('../OpenDrive/Town10HD.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town10HD'
+""" Scenario Description
+Voyage OAS Scenario Unique ID: 2-2-XX-CF-STR-CAR:Pa>E:03
+The car ahead of ego that is badly parked over the sidewalk cuts into ego vehicle's lane. 
+"""
+
+
+param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town01.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town01'
 model scenic.domains.driving.model
 
 MAX_BREAK_THRESHOLD = 1

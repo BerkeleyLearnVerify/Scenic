@@ -1,8 +1,11 @@
 """ Scenario Description
-At three-way intersection. 
-ego goes straight. actor takes a turn first because it is closer to the intersection.
+Voyage OAS Scenario Unique ID: 3-2-ESW-I-STR-CAR:S>W:02
+At three-way intersection. The ego vehicle goes straight. 
+The other car, on the other leg of the intersection, takes a left turn first 
+because it is closer to the intersection.
 """
-param map = localPath('../../carla/OpenDrive/Town05.xodr')  # or other CARLA map that definitely works
+
+param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
 model scenic.domains.driving.model
 

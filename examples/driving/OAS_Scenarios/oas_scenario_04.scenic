@@ -1,4 +1,9 @@
-param map = localPath('../../carla/OpenDrive/Town07.xodr')  # or other CARLA map that definitely works
+""" Scenario Description
+Voyage OAS Scenario Unique ID: 2-2-XX-CF-STR-CAR:01
+The ego vehicle follows the lead car which suddenly stops
+"""
+
+param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town07'
 model scenic.domains.driving.model
 
@@ -20,7 +25,6 @@ behavior CollisionAvoidance():
 
 
 behavior FollowLeadCarBehavior():
-
 	try: 
 		do FollowLaneBehavior()
 

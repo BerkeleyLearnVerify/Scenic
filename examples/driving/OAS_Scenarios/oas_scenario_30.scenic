@@ -1,9 +1,11 @@
 """ Scenario Description
-3 way intersection. ego turns left. ego has the right of way.
-the other car in a different traffic direction turns left
+Voyage OAS Scenario Unique ID: 3-2-NWS-I-L-CAR:S>W:01
+At 3 way intersection. The ego car turns left. 
+The other car approaches from a different leg of the intersection to make a left turn, but
+ego has the right of the way because it is closer to the intersection.
 """
 
-param map = localPath('../../carla/OpenDrive/Town10HD.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town10HD.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town10HD'
 model scenic.domains.driving.model
 

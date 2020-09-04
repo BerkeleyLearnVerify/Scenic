@@ -1,9 +1,10 @@
 """ Scenario Description
-ego vehicle follows the lead car
+Voyage OAS Scenario Unique ID: 2-2-XX-CF-STR-CAR
+The ego vehicle follows the lead car
 """
 
-param map = localPath('../../carla/OpenDrive/Town01.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town01'
+param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town04.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town04'
 model scenic.domains.driving.model
 	
 SAFETY_DISTANCE = 10
