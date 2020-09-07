@@ -14,9 +14,13 @@ import scenic.syntax
 ## Configuration
 
 #: Whether or not to elide Scenic's innards from backtraces.
+#:
+#: Set to True by default so that any errors during import of the scenic module
+#: will get full backtraces; the :mod:`scenic` module's *__init__.py* sets it to False.
 showInternalBacktrace = True
-# Set to True by default so that any errors during import of the scenic module
-# will get full backtraces; the scenic module's __init__.py sets it to False
+
+#: Whether or not to do post-mortem debugging of uncaught exceptions.
+postMortemDebugging = False
 
 #: Folders elided from backtraces when :obj:`showInternalBacktrace` is false.
 hiddenFolders = [
@@ -137,6 +141,11 @@ def excepthook(ty, value, tb):
     strings.extend(traceback.format_exception_only(formatTy, value))
     message = ''.join(strings)
     print(message, end='', file=sys.stderr)
+
+    if postMortemDebugging:
+        print('Uncaught exception. Entering post-mortem debugging')
+        import pdb
+        pdb.post_mortem(tb)
 
 def includeFrame(frame):
     if frame.filename in hiddenFolders:
