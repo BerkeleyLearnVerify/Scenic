@@ -1,8 +1,8 @@
-"""
-Ego-vehicle is performing a right turn at an intersection, yielding to crossing traffic.
+""" Scenario Description
 Based on 2019 Carla Challenge Traffic Scenario 09.
+Ego-vehicle is performing a right turn at an intersection, yielding to crossing traffic.
 """
-param map = localPath('../OpenDrive/Town05.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
 model scenic.domains.driving.model
 

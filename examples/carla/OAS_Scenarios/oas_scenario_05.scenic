@@ -1,4 +1,9 @@
-param map = localPath('../OpenDrive/Town01.xodr')  # or other CARLA map that definitely works
+""" Scenario Description
+Voyage OAS Scenario Unique ID: 2-2-XX-CF-STR-CAR:Pa>E:03
+The lead car suddenly stops and then resumes moving forward
+"""
+
+param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town01.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town01'
 model scenic.domains.driving.model
 
