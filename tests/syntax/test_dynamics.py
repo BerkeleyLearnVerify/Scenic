@@ -34,6 +34,48 @@ def test_dynamic_derived_property():
 
 ## Behaviors
 
+# Basic
+
+def test_behavior_actions():
+    scenario = compileScenic("""
+        behavior Foo():
+            take 3
+            take 5
+        ego = Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=2)
+    assert tuple(actions) == (3, 5)
+
+def test_behavior_multiple_actions():
+    scenario = compileScenic("""
+        behavior Foo():
+            take 1, 4, 9
+            take 5
+        ego = Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=2, singleAction=False)
+    assert tuple(actions) == ((1, 4, 9), (5,))
+
+def test_behavior_tuple_actions():
+    scenario = compileScenic("""
+        behavior Foo():
+            take (1, 4, 9)
+            take 5
+        ego = Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=2, singleAction=False)
+    assert tuple(actions) == ((1, 4, 9), (5,))
+
+def test_behavior_list_actions():
+    scenario = compileScenic("""
+        behavior Foo():
+            take [1, 4, 9]
+            take 5
+        ego = Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=2, singleAction=False)
+    assert tuple(actions) == ((1, 4, 9), (5,))
+
 # Various errors
 
 def test_behavior_no_actions():
@@ -351,7 +393,7 @@ def test_behavior_calls():
         def func(a, *b, c=0, d=1, **e):
             return [a, len(b), c, d, len(e)]
         behavior Foo():
-            take func(4, 5, 6, blah=4, c=10)
+            take [func(4, 5, 6, blah=4, c=10)]
         ego = Object with behavior Foo
     """)
     actions = sampleEgoActions(scenario, maxSteps=1)
@@ -422,7 +464,7 @@ def test_behavior_require_call():
         behavior Foo():
             x = Uniform([], [1, 2])
             require len(x) > 0
-            take x
+            take [x]
         ego = Object with behavior Foo
     """)
     for i in range(30):

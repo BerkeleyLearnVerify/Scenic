@@ -126,6 +126,8 @@ class Simulation:
                         terminationReason = str(actions)
                         break
                     assert isinstance(actions, tuple)
+                    if len(actions) == 1 and isinstance(actions[0], (list, tuple)):
+                        actions = tuple(actions[0])
                     if not self.actionsAreCompatible(agent, actions):
                         raise InvalidScenarioError(f'agent {agent} tried incompatible '
                                                    f' action(s) {actions}')
