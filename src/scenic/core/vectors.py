@@ -283,11 +283,19 @@ class OrientedVector(Vector):
 		return hash((self.coordinates, self.heading))
 
 class VectorField:
+	"""A vector field, providing a heading at every point.
+
+	Arguments:
+		name (str): name for debugging.
+		value: function computing the heading at the given `Vector`.
+		minSteps (int): Minimum number of steps for `followFrom`; default 4.
+		defaultStepSize (float): Default step size for `followFrom`; default 5.
+	"""
 	def __init__(self, name, value, minSteps=4, defaultStepSize=5):
 		self.name = name
 		self.value = value
 		self.valueType = float
-		self.minSteps = minSteps	# minimum number of 'follow' steps, if not specified
+		self.minSteps = minSteps
 		self.defaultStepSize = defaultStepSize
 
 	@distributionMethod
@@ -296,6 +304,20 @@ class VectorField:
 
 	@vectorDistributionMethod
 	def followFrom(self, pos, dist, steps=None, stepSize=None):
+		"""Follow the field from a point for a given distance.
+
+		Uses the forward Euler approximation, covering the given distance with
+		equal-size steps. The number of steps can be given manually, or computed
+		automatically from a desired step size.
+
+		Arguments:
+			pos (`Vector`): point to start from.
+			dist (float): distance to travel.
+			steps (int): number of steps to take, or :obj:`None` to compute the number of
+				steps based on the distance (default :obj:`None`).
+			stepSize (float): length used to compute how many steps to take, or
+				:obj:`None` to use the field's default step size.
+		"""
 		if steps is None:
 			steps = self.minSteps
 			stepSize = self.defaultStepSize if stepSize is None else stepSize
@@ -309,6 +331,10 @@ class VectorField:
 
 	@staticmethod
 	def forUnionOf(regions):
+		"""Creates a `PiecewiseVectorField` from the union of the given regions.
+
+		If none of the regions have an orientation, returns :obj:`None` instead.
+		"""
 		if any(reg.orientation for reg in regions):
 			return PiecewiseVectorField('Union', regions)
 		else:
@@ -318,6 +344,18 @@ class VectorField:
 		return f'<{type(self).__name__} {self.name}>'
 
 class PolygonalVectorField(VectorField):
+	"""A piecewise-constant vector field defined over polygonal cells.
+
+	Arguments:
+		name (str): name for debugging.
+		cells: a sequence of cells, with each cell being a pair consisting of a Shapely
+			geometry and a heading. If the heading is :obj:`None`, we call the given
+			**headingFunction** for points in the cell instead.
+		headingFunction: function computing the heading for points in cells without
+			specified headings, if any (default :obj:`None`).
+		defaultHeading: heading for points not contained in any cell (default
+			:obj:`None`, meaning reject such points).
+	"""
 	def __init__(self, name, cells, headingFunction=None, defaultHeading=None):
 		self.cells = tuple(cells)
 		if headingFunction is None and defaultHeading is not None:
@@ -339,6 +377,19 @@ class PolygonalVectorField(VectorField):
 		raise RejectionException(f'evaluated PolygonalVectorField at undefined point')
 
 class PiecewiseVectorField(VectorField):
+	"""A vector field defined by patching together several regions.
+
+	The heading at a point is determined by checking each region in turn to see if it has
+	an orientation and contains the point, returning the corresponding heading if so. If
+	we get through all the regions, then we return the **defaultHeading**, if any, and
+	otherwise reject the scene.
+
+	Arguments:
+		name (str): name for debugging.
+		regions (sequence of `Region` objects): the regions making up the field.
+		defaultHeading (float): the heading for points not in any region with an
+			orientation (default :obj:`None`, meaning reject such points).
+	"""
 	def __init__(self, name, regions, defaultHeading=None):
 		self.regions = tuple(regions)
 		self.defaultHeading = defaultHeading

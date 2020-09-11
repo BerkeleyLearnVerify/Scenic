@@ -7,7 +7,7 @@ This is a more specialized version of the :doc:`scenic.simulators.webots.road` m
    <h2>Submodules</h2>
 
 .. autosummary::
-   :toctree: _autosummary
+   :toctree:
 
    model
    intersection

@@ -1,7 +1,7 @@
-"""Interface to the CARLA driving simulator.
+"""Interface to the LGSVL driving simulator.
 
-This interface has been tested with `CARLA <https://carla.org/>`_ version 0.9.9.
-It supports dynamic scenarios involving vehicles, pedestrians, and props.
+This interface has been tested with `LGSVL <https://www.lgsvlsimulator.com/>`_ version
+2020.06. It supports dynamic scenarios involving vehicles and pedestrians.
 
 The interface implements the :obj:`scenic.domains.driving` abstract domain, so any
 object types, behaviors, utility functions, etc. from that domain may be used freely.
@@ -17,4 +17,5 @@ object types, behaviors, utility functions, etc. from that domain may be used fr
    actions
    behaviors
    simulator
+   utils
 """

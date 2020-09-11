@@ -1,11 +1,17 @@
-# Copyright (c) # Copyright (c) 2018-2020 CVC.
-#
-# This work is licensed under the terms of the MIT license.
-# For a copy, see <https://opensource.org/licenses/MIT>.
+"""Actions for dynamic agents in the driving domain.
 
-"""The Lateral/Longitudinal PID controllers are adapted from CARLA's PID controllers """
+These actions are automatically imported when using the driving domain.
 
-"""Actions for dynamic agents in the driving domain."""
+The `RegulatedControlAction` is based on code from the `CARLA`_ project, licensed under
+the following terms:
+
+	Copyright (c) 2018-2020 CVC.
+
+	This work is licensed under the terms of the MIT license.
+	For a copy, see <https://opensource.org/licenses/MIT>.
+
+.. _CARLA: https://carla.org/
+"""
 
 import math
 
@@ -53,6 +59,7 @@ class SteeringAction(Action):
 		return isinstance(agent, _model.Steers)
 
 class SetThrottleAction(SteeringAction):
+	"""Set the throttle."""
 	def __init__(self, throttle):
 		if not 0.0 <= throttle <= 1.0:
 			raise RuntimeError('Throttle must be a float in range [0.0, 1.0].')
@@ -97,60 +104,40 @@ class SetReverseAction(SteeringAction):
 	def applyTo(self, obj, sim):
 		obj.setReverse(self.reverse)
 
-class FollowLaneAction(SteeringAction):	# TODO rename this!
+class RegulatedControlAction(SteeringAction):
+	"""Regulated control of throttle, braking, and steering.
+
+	Controls throttle and braking using one signal that may be positive or negative.
+	Useful with simple controllers that output a single value.
 	"""
-	VehiclePIDController is the combination of two PID controllers
-	(lateral and longitudinal) to perform the
-	low level control a vehicle from client side
-	"""
 
-	def __init__(self, throttle, current_steer, past_steer,
-				 max_throttle=0.5, max_brake=0.5, max_steering=0.8):
-		"""
-		Constructor method.
-
-		:param args_lateral: dictionary of arguments to set the lateral PID controller
-		using the following semantics:
-			K_P -- Proportional term
-			K_D -- Differential term
-			K_I -- Integral term
-		:param args_longitudinal: dictionary of arguments to set the longitudinal
-		PID controller using the following semantics:
-			K_P -- Proportional term
-			K_D -- Differential term
-			K_I -- Integral term
-		"""
-
-		self.max_brake = max_brake
-		self.max_throt = max_throttle
-		self.max_steer = max_steering
-		self.throttle = throttle
-		self.current_steer = current_steer
-		self.past_steer = past_steer
-
-	def applyTo(self, obj, sim):
-		if self.throttle > 0:
-			throttle = min(self.throttle, self.max_throt)
+	def __init__(self, throttle, steer, past_steer,
+				 max_throttle=0.5, max_brake=0.5, max_steer=0.8):
+		if throttle > 0:
+			throttle = min(throttle, max_throttle)
 			brake = 0
 		else:
 			throttle = 0
-			brake = min(abs(self.throttle), self.max_brake)
+			brake = min(abs(throttle), max_brake)
 
 		# Steering regulation: changes cannot happen abruptly, can't steer too much.
 
-		if self.current_steer > self.past_steer + 0.1:
-			self.current_steer = self.past_steer + 0.1
-		elif self.current_steer < self.past_steer - 0.1:
-			self.current_steer = self.past_steer - 0.1
+		if steer > past_steer + 0.1:
+			steer = past_steer + 0.1
+		elif steer < past_steer - 0.1:
+			steer = past_steer - 0.1
 
-		if self.current_steer >= 0:
-			steering = min(self.max_steer, self.current_steer)
+		if steer >= 0:
+			steer = min(max_steering, steer)
 		else:
-			steering = max(-self.max_steer, self.current_steer)
+			steer = max(-max_steering, steer)
 
-		obj.setThrottle(throttle)
-		obj.setBraking(brake)
-		obj.setSteering(steering)
+		self.throttle, self.brake, self.steer = throttle, brake, steer
+
+	def applyTo(self, obj, sim):
+		obj.setThrottle(self.throttle)
+		obj.setBraking(self.brake)
+		obj.setSteering(self.steer)
 
 ## Actions available to agents that can walk
 

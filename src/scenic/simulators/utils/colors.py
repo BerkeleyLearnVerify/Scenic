@@ -1,5 +1,9 @@
 
-"""Color type (used for car colors in GTA and Webots)."""
+"""A basic color type.
+
+This used for example to represent car colors in the abstract driving domain,
+as well as in the interfaces to GTA and Webots.
+"""
 
 import colorsys
 from collections import namedtuple

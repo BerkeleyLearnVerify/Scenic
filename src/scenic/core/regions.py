@@ -13,7 +13,7 @@ from scenic.core.distributions import (Samplable, RejectionException, needsSampl
                                        distributionMethod)
 from scenic.core.lazy_eval import valueInContext
 from scenic.core.vectors import Vector, OrientedVector, VectorDistribution, VectorField
-from scenic.core.geometry import RotatedRectangle
+from scenic.core.geometry import _RotatedRectangle
 from scenic.core.geometry import sin, cos, hypot, findMinMax, pointIsInCone, averageVectors
 from scenic.core.geometry import headingOfSegment, triangulatePolygon, plotPolygon, polygonUnion
 from scenic.core.type_support import toVector
@@ -157,8 +157,17 @@ class Region(Samplable):
 		else:
 			return OrientedVector(vec.x, vec.y, self.orientation[vec])
 
+	def __str__(self):
+		s = f'<{type(self).__name__}'
+		if self.name:
+			s += f' {self.name}'
+		return s + '>'
+
 	def __repr__(self):
-		return f'<Region {self.name}>'
+		s = f'<{type(self).__name__}'
+		if self.name:
+			s += f' {self.name}'
+		return s + f' at {hex(id(self))}>'
 
 class AllRegion(Region):
 	"""Region consisting of all space."""
@@ -213,8 +222,8 @@ everywhere = AllRegion('everywhere')
 nowhere = EmptyRegion('nowhere')
 
 class CircularRegion(Region):
-	def __init__(self, center, radius, resolution=32):
-		super().__init__('Circle', center, radius)
+	def __init__(self, center, radius, resolution=32, name=None):
+		super().__init__(name, center, radius)
 		self.center = center.toVector()
 		self.radius = radius
 		self.circumcircle = (self.center, self.radius)
@@ -227,12 +236,14 @@ class CircularRegion(Region):
 		return ctr.buffer(self.radius, resolution=self.resolution)
 
 	def sampleGiven(self, value):
-		return CircularRegion(value[self.center], value[self.radius])
+		return CircularRegion(value[self.center], value[self.radius],
+		                      name=self.name, resolution=self.resolution)
 
 	def evaluateInner(self, context):
 		center = valueInContext(self.center, context)
 		radius = valueInContext(self.radius, context)
-		return CircularRegion(center, radius)
+		return CircularRegion(center, radius,
+		                      name=self.name, resolution=self.resolution)
 
 	def containsPoint(self, point):
 		point = point.toVector()
@@ -263,12 +274,12 @@ class CircularRegion(Region):
 		return f'CircularRegion({self.center}, {self.radius})'
 
 class SectorRegion(Region):
-	def __init__(self, center, radius, heading, angle, resolution=32):
+	def __init__(self, center, radius, heading, angle, resolution=32, name=None):
 		self.center = center.toVector()
 		self.radius = radius
 		self.heading = heading
 		self.angle = angle
-		super().__init__('Sector', self.center, radius, heading, angle)
+		super().__init__(name, self.center, radius, heading, angle)
 		r = (radius / 2) * cos(angle / 2)
 		self.circumcircle = (self.center.offsetRadially(r, heading), r)
 		self.resolution = resolution
@@ -293,14 +304,16 @@ class SectorRegion(Region):
 
 	def sampleGiven(self, value):
 		return SectorRegion(value[self.center], value[self.radius],
-			value[self.heading], value[self.angle])
+			value[self.heading], value[self.angle],
+			name=self.name, resolution=self.resolution)
 
 	def evaluateInner(self, context):
 		center = valueInContext(self.center, context)
 		radius = valueInContext(self.radius, context)
 		heading = valueInContext(self.heading, context)
 		angle = valueInContext(self.angle, context)
-		return SectorRegion(center, radius, heading, angle)
+		return SectorRegion(center, radius, heading, angle,
+		                    name=self.name, resolution=self.resolution)
 
 	def containsPoint(self, point):
 		point = point.toVector()
@@ -328,9 +341,9 @@ class SectorRegion(Region):
 	def __repr__(self):
 		return f'SectorRegion({self.center},{self.radius},{self.heading},{self.angle})'
 
-class RectangularRegion(RotatedRectangle, Region):
-	def __init__(self, position, heading, width, length):
-		super().__init__('Rectangle', position, heading, width, length)
+class RectangularRegion(_RotatedRectangle, Region):
+	def __init__(self, position, heading, width, length, name=None):
+		super().__init__(name, position, heading, width, length)
 		self.position = position.toVector()
 		self.heading = heading
 		self.width = width
@@ -344,14 +357,16 @@ class RectangularRegion(RotatedRectangle, Region):
 
 	def sampleGiven(self, value):
 		return RectangularRegion(value[self.position], value[self.heading],
-			value[self.width], value[self.length])
+			value[self.width], value[self.length],
+			name=self.name)
 
 	def evaluateInner(self, context):
 		position = valueInContext(self.position, context)
 		heading = valueInContext(self.heading, context)
 		width = valueInContext(self.width, context)
 		length = valueInContext(self.length, context)
-		return RectangularRegion(position, heading, width, length)
+		return RectangularRegion(position, heading, width, length,
+		                         name=self.name)
 
 	def uniformPointInner(self):
 		hw, hl = self.hw, self.hl
@@ -379,7 +394,7 @@ class RectangularRegion(RotatedRectangle, Region):
 
 class PolylineRegion(Region):
 	"""Region given by one or more polylines (chain of line segments)"""
-	def __init__(self, points=None, polyline=None, orientation=True, name='Polyline'):
+	def __init__(self, points=None, polyline=None, orientation=True, name=None):
 		if orientation is True:
 			orientation = VectorField('Polyline', self.defaultOrientation)
 			self.usingDefaultOrientation = True
@@ -605,7 +620,7 @@ class PolylineRegion(Region):
 
 class PolygonalRegion(Region):
 	"""Region given by one or more polygons (possibly with holes)"""
-	def __init__(self, points=None, polygon=None, orientation=None, name='Polygon'):
+	def __init__(self, points=None, polygon=None, orientation=None, name=None):
 		super().__init__(name, orientation=orientation)
 		if polygon is None and points is None:
 			raise RuntimeError('must specify points or polygon for PolygonalRegion')
@@ -769,7 +784,7 @@ class PolygonalRegion(Region):
 		plotPolygon(self.polygons, plt, style=style, **kwargs)
 
 	def __repr__(self):
-		return '<PolygonalRegion>'
+		return f'PolygonalRegion({self.polygons})'
 
 	def __eq__(self, other):
 		if type(other) is not PolygonalRegion:
@@ -801,7 +816,7 @@ class PointSetRegion(Region):
 		  be computed if none is provided)
 		orientation (:obj:`~scenic.core.vectors.VectorField`, optional): orientation for
 		  the region
-		tolerance (float, optional): distance tolerance for checking whether a point lies
+		tolerance (float; optional): distance tolerance for checking whether a point lies
 		  in the region
 	"""
 
@@ -921,11 +936,11 @@ class GridRegion(PointSetRegion):
 		return True
 
 class IntersectionRegion(Region):
-	def __init__(self, *regions, orientation=None, sampler=None):
+	def __init__(self, *regions, orientation=None, sampler=None, name=None):
 		self.regions = tuple(regions)
 		if len(self.regions) < 2:
 			raise RuntimeError('tried to take intersection of fewer than 2 regions')
-		super().__init__('Intersection', *self.regions, orientation=orientation)
+		super().__init__(name, *self.regions, orientation=orientation)
 		if sampler is None:
 			sampler = self.genericSampler
 		self.sampler = sampler
@@ -946,12 +961,13 @@ class IntersectionRegion(Region):
 				intersection.orientation = value[self.orientation]
 				return intersection
 		return IntersectionRegion(*regs, orientation=value[self.orientation],
-		                          sampler=self.sampler)
+		                          sampler=self.sampler, name=self.name)
 
 	def evaluateInner(self, context):
 		regs = (valueInContext(reg, context) for reg in self.regions)
 		orientation = valueInContext(self.orientation, context)
-		return IntersectionRegion(*regs, orientation=orientation, sampler=self.sampler)
+		return IntersectionRegion(*regs, orientation=orientation, sampler=self.sampler,
+		                          name=self.name)
 
 	def containsPoint(self, point):
 		return all(region.containsPoint(point) for region in self.regions)
@@ -979,9 +995,9 @@ class IntersectionRegion(Region):
 		return f'IntersectionRegion({self.regions})'
 
 class DifferenceRegion(Region):
-	def __init__(self, regionA, regionB, sampler=None):
+	def __init__(self, regionA, regionB, sampler=None, name=None):
 		self.regionA, self.regionB = regionA, regionB
-		super().__init__('Difference', regionA, regionB, orientation=regionA.orientation)
+		super().__init__(name, regionA, regionB, orientation=regionA.orientation)
 		if sampler is None:
 			sampler = self.genericSampler
 		self.sampler = sampler
@@ -996,14 +1012,14 @@ class DifferenceRegion(Region):
 				diff.orientation = value[self.orientation]
 				return diff
 		return DifferenceRegion(regionA, regionB, orientation=value[self.orientation],
-		                        sampler=self.sampler)
+		                        sampler=self.sampler, name=self.name)
 
 	def evaluateInner(self, context):
 		regionA = valueInContext(self.regionA, context)
 		regionB = valueInContext(self.regionB, context)
 		orientation = valueInContext(self.orientation, context)
 		return DifferenceRegion(regionA, regionB, orientation=orientation,
-		                        sampler=self.sampler)
+		                        sampler=self.sampler, name=self.name)
 
 	def containsPoint(self, point):
 		return regionA.containsPoint(point) and not regionB.containsPoint(point)

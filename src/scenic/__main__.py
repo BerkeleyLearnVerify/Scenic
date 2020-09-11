@@ -13,7 +13,7 @@ import scenic.core.errors as errors
 from scenic.core.simulators import SimulationCreationError
 
 parser = argparse.ArgumentParser(prog='scenic', add_help=False,
-                                 usage='scenic [-h | --help] [options] FILE',
+                                 usage='scenic [-h | --help] [options] FILE [options]',
                                  description='Sample from a Scenic scenario, optionally '
                                              'running dynamic simulations.')
 

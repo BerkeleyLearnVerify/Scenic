@@ -1,3 +1,7 @@
+"""Library of useful behaviors for dynamic agents in driving scenarios.
+
+These behaviors are automatically imported when using the driving domain.
+"""
 
 import scenic.domains.driving.controllers as controllers
 from scenic.domains.driving.actions import *
@@ -34,17 +38,18 @@ behavior DriveAvoidingCollisions(target_speed=25, avoidance_threshold=10):
         take SetThrottleAction(0), SetBrakeAction(1)
 
 behavior AccelerateForwardBehavior():
-    take SetReverseAction(False)
-    take SetHandBrakeAction(False)
-    take SetThrottleAction(0.5)
+    take SetReverseAction(False), SetHandBrakeAction(False), SetThrottleAction(0.5)
 
 behavior WalkForwardBehavior():
+    """Walk forward behavior for pedestrians.
+
+    It will uniformly randomly choose either end of the sidewalk that the pedestrian is on, and have the pedestrian walk towards the endpoint.
+    """
     current_sidewalk = _model.network.sidewalkAt(self.position)
     end_point = Uniform(*current_sidewalk.centerline.points)
     end_vec = end_point[0] @ end_point[1]
     normal_vec = Vector.normalized(end_vec)
-    take WalkTowardsAction(goal_position=normal_vec)
-    take SetSpeedAction(speed=1)
+    take WalkTowardsAction(goal_position=normal_vec), SetSpeedAction(speed=1)
 
 behavior ConstantThrottleBehavior(x):
     take SetThrottleAction(x)
@@ -58,6 +63,9 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
 
     This behavior does not terminate. A recommended use of the behavior is to accompany it with condition,
     e.g. do FollowLaneBehavior() until ...
+
+    :param target_speed: Its unit is in m/s. By default, it is set to 10 m/s
+    :param laneToFollow: If the lane to follow is different from the lane that the vehicle is on, this parameter can be used to specify that lane. By default, this variable will be set to None, which means that the vehicle will follow the lane that it is currently on.
     """
 
     past_steer_angle = 0
@@ -170,12 +178,15 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
         past_steer_angle = current_steer_angle
         past_speed = current_speed
 
-        take FollowLaneAction(throttle=throttle, current_steer=current_steer_angle, past_steer=past_steer_angle)
+        take RegulatedControlAction(throttle, current_steer_angle, past_steer_angle)
 
     
 behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
     """ 
-    Follows the given trajectory. The behavior terminates once the end of the trajectory is reached. 
+    Follows the given trajectory. The behavior terminates once the end of the trajectory is reached.
+
+    :param target_speed: Its unit is in m/s. By default, it is set to 10 m/s
+    :param trajectory: It is a list of sequential lanes to track, from the lane that the vehicle is initially on to the lane it should end up on.  
     """
 
     assert trajectory is not None
@@ -228,7 +239,7 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
         # compute steering : Latitudinal Control
         current_steer_angle = _lat_controller.run_step(cte)
 
-        take FollowLaneAction(throttle=throttle, current_steer=current_steer_angle, past_steer=past_steer_angle)
+        take RegulatedControlAction(throttle, current_steer_angle, past_steer_angle)
         past_steer_angle = current_steer_angle
 
 
@@ -279,7 +290,7 @@ behavior TurnBehavior(trajectory, target_speed=6):
         # compute steering : Latitudinal Control
         current_steer_angle = _lat_controller.run_step(cte)
 
-        take FollowLaneAction(throttle=throttle, current_steer=current_steer_angle, past_steer=past_steer_angle)
+        take RegulatedControlAction(throttle, current_steer_angle, past_steer_angle)
         past_steer_angle = current_steer_angle
     
 
@@ -375,7 +386,5 @@ behavior LaneChangeBehavior(laneSectionToSwitch, is_oppositeTraffic=False, targe
         # compute steering : Latitudinal Control
         current_steer_angle = _lat_controller.run_step(cte)
 
-        take FollowLaneAction(throttle=throttle, current_steer=current_steer_angle, past_steer=past_steer_angle)
+        take RegulatedControlAction(throttle, current_steer_angle, past_steer_angle)
         past_steer_angle = current_steer_angle
-
-

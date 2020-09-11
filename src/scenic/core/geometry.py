@@ -385,7 +385,7 @@ def plotPolygon(polygon, plt, style='r-', **kwargs):
 		else:
 			raise RuntimeError(f'unknown kind of shapely geometry {polygon}')
 
-class RotatedRectangle:
+class _RotatedRectangle:
 	"""mixin providing collision detection for rectangular objects and regions"""
 	def containsPoint(self, point):
 		pt = shapely.geometry.Point(point)
@@ -400,7 +400,7 @@ class RotatedRectangle:
 		if any(needsSampling(c) or needsLazyEvaluation(c)
 		       for c in (position, heading, hw, hl)):
 			return None		# can only convert fixed Regions to Polygons
-		corners = RotatedRectangle.makeCorners(position.x, position.y, heading, hw, hl)
+		corners = _RotatedRectangle.makeCorners(position.x, position.y, heading, hw, hl)
 		return shapely.geometry.Polygon(corners)
 
 	@staticmethod

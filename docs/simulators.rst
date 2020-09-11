@@ -1,7 +1,9 @@
+..  _simulators:
+
 Supported Simulators
 ====================
 
-Scenic is designed to be easily interfaced to any simulator (see :doc:`new_simulator`).
+Scenic is designed to be easily interfaced to any simulator (see :ref:`new_simulator`).
 On this page we list interfaces that we and others have developed; if you have a new interface, let us know and we'll list it here!
 
 .. contents:: Supported Simulators:
@@ -15,7 +17,7 @@ Our interface to the `CARLA <https://carla.org/>`_ simulator enables using Sceni
 This interface is part of the VerifAI toolkit; documentation and examples can be found in the `VerifAI repository`_ (the Scenic repository also has several other example scenarios). Please follow the following instruction to install Carla and interface it with Scenic. 
 
 1. Install the latest Carla (tested version 0.9.9 so far) from the `Release Page <https://github.com/carla-simulator/carla/releases>`_.
-2. Install Scenic in your python virtual environment as instructed in :doc:`quickstart`.
+2. Install Scenic in your python virtual environment as instructed in :ref:`quickstart`.
 3. Within the same python virtual environment, please install Carla's Python API by executing the following command in the terminal commandline::
 
 	easy_install \PATH_TO_CARLA_FOLDER\PythonAPI\carla\dist\carla-0.9.9-py3.7-linux-x86_64.egg
@@ -23,7 +25,7 @@ This interface is part of the VerifAI toolkit; documentation and examples can be
 The exact name of the ``.egg`` file may vary depending on minor version of the Carla you installed. If different, please use the name of the egg file for python version 3. The PythonAPI package should be installed as ``carla`` package. For validation, if you execute ``pip list`` on terminal ``carla`` should be listed.
 
 To instantiate the Carla simulator, please run ``.\CarlaUE4.sh`` in your terminal. This bash file should be located at the root of your Carla folder. 
-If not, please search for it within your Carla folder. Once the Carla simulator is instantiated, please open another terminal window and follow the :doc:`Trying Some Examples<quickstart>`
+If not, please search for it within your Carla folder. Once the Carla simulator is instantiated, please open another terminal window and follow the :ref:`quickstart` instructions.
 
 
 Grand Theft Auto V
@@ -33,12 +35,12 @@ The interface to `Grand Theft Auto V <https://www.rockstargames.com/V/>`_, used 
 Many examples using the interface (including all scenarios from the paper) can be found in :file:`examples/gta`.
 See the paper and `scenic.simulators.gta` for documentation.
 
-Importing scenes into GTA V and capturing rendered images requires a GTA V plugin, which you can find `here <https://github.com/xyyue/scenic2gta>`_.
+Importing scenes into GTA V and capturing rendered images requires a GTA V plugin, which you can find `here <https://github.com/xyyue/scenic2gta>`__.
 
 
 LGSVL
 -----
-We have developed an interface to the LGSVL simulator for autonomous driving, used in our :ref:`ITSC 2020 <ITSC2020>` paper. Please install the simulator from the `LGSVL Simulator <https://www.lgsvlsimulator.com/>`_ website. Then, within your python virutal environment where you installed Scenic, please also install LGSVL's python API package from `source <https://github.com/lgsvl/PythonAPI>`_. 
+We have developed an interface to the LGSVL simulator for autonomous driving, used in our `ITSC 2020 <ITSC2020>`__ paper. Please install the simulator from the `LGSVL Simulator <https://www.lgsvlsimulator.com/>`_ website. Then, within your python virutal environment where you installed Scenic, please also install LGSVL's python API package from `source <https://github.com/lgsvl/PythonAPI>`__. 
 
 
 Webots

@@ -1,3 +1,14 @@
+"""Library for representing road network geometry and traffic information.
+
+A road network is represented by an instance of the :obj:`Network` class, which can
+be created from a map file using :obj:`Network.fromFile`.
+
+.. note::
+
+    This library is a prototype under active development. We will try not to make
+    backwards-incompatible changes, but the API may not be entirely stable. Some
+    network information, such as traffic signals, has not yet been made available.
+"""
 
 from __future__ import annotations  # allow forward references for type annotations
 
@@ -18,7 +29,7 @@ import weakref
 import attr
 from shapely.geometry import Polygon, MultiPolygon
 
-from scenic.core.distributions import distributionFunction
+from scenic.core.distributions import distributionFunction, distributionMethod
 from scenic.core.vectors import Vector, VectorField
 from scenic.core.regions import PolygonalRegion, PolylineRegion
 from scenic.core.object_types import Point
@@ -32,25 +43,29 @@ import scenic.syntax.veneer as veneer
 
 ## Typing and utilities
 
-# TODO allow additional types which are coercible to vectors?
+#: Alias for types which can be interpreted as positions in Scenic, including vectors,
+#: instances of `Point` and `Object`, and pairs of numbers.
 Vectorlike = Union[Vector, Point, Tuple[numbers.Real, numbers.Real]]
 
-def toVector(thing: Vectorlike) -> Vector:
+def _toVector(thing: Vectorlike) -> Vector:
     return type_support.toVector(thing)
 
-def rejectSample(message):
+def _rejectSample(message):
     if veneer.isActive():
         raise InvalidScenarioError(message)
     else:
         raise RejectionException(message)
 
-def rejectIfNonexistent(element, name='network element'):
+def _rejectIfNonexistent(element, name='network element'):
     if element is None:
-        rejectSample(f'requested {name} does not exist')
+        _rejectSample(f'requested {name} does not exist')
     return element
 
-class ElementReferencer:
-    """Mixin class to improve pickling of classes that reference network elements."""
+class _ElementReferencer:
+    """Mixin class to improve pickling of classes that reference network elements.
+
+    :meta private:
+    """
     def __getstate__(self):
         if hasattr(super(), '__getstate__'):
             state = super().__getstate__()
@@ -61,11 +76,14 @@ class ElementReferencer:
         # objects can be properly unpickled
         for key, value in state.items():
             if isinstance(value, NetworkElement):
-                state[key] = ElementPlaceholder(value.uid)
+                state[key] = _ElementPlaceholder(value.uid)
         return state
 
-class ElementPlaceholder:
-    """Placeholder for a link to a pickled `NetworkElement`."""
+class _ElementPlaceholder:
+    """Placeholder for a link to a pickled `NetworkElement`.
+
+    :meta private:
+    """
     def __init__(self, uid):
         self.uid = uid
 
@@ -73,19 +91,22 @@ class ElementPlaceholder:
 
 @enum.unique
 class VehicleType(enum.Enum):
+    """A type of vehicle, including pedestrians. Used to classify lanes."""
     CAR = 1
     BICYCLE = 2
     PEDESTRIAN = 3
 
 @enum.unique
 class ManeuverType(enum.Enum):
+    """A type of `Maneuver`, e.g., going straight or turning left."""
     STRAIGHT = enum.auto()
     LEFT_TURN = enum.auto()
     RIGHT_TURN = enum.auto()
     U_TURN = enum.auto()
 
     @staticmethod
-    def guessTypeFromLanes(start, end, connecting, turnThreshold=math.radians(20)):
+    def guessTypeFromLanes(start: Lane, end: Lane, connecting: Lane,
+                           turnThreshold: float = math.radians(20)):
         """For formats lacking turn information, guess it from the geometry."""
         if connecting is None:
             return ManeuverType.STRAIGHT
@@ -104,7 +125,12 @@ class ManeuverType(enum.Enum):
             return ManeuverType.STRAIGHT
 
 @attr.s(auto_attribs=True, kw_only=True, eq=False)
-class Maneuver(ElementReferencer):
+class Maneuver(_ElementReferencer):
+    """A maneuver which can be taken upon reaching the end of a lane.
+
+    Attributes:
+        type (ManeuverType): type of maneuver (straight, left turn, etc.)
+    """
     type: ManeuverType = None      # left turn, right turn, straight, etc.
     startLane: Lane
     endLane: Lane
@@ -136,14 +162,16 @@ class Maneuver(ElementReferencer):
 ## Road networks
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
-class NetworkElement(ElementReferencer, PolygonalRegion):
-    """Abstract class for part of a road network.
+class NetworkElement(_ElementReferencer, PolygonalRegion):
+    """NetworkElement()
+
+    Abstract class for part of a road network.
 
     Includes roads, lane groups, lanes, sidewalks, pedestrian crossings,
     and intersections.
 
-    This is a subclass of Region, so you can do things like 'Car in lane'
-    or 'Car on road' if 'lane' and 'road' are elements, as well as computing
+    This is a subclass of `Region`, so you can do things like ``Car in lane``
+    or ``Car on road`` if ``lane`` and ``road`` are elements, as well as computing
     distances to an element, etc.
     """
 
@@ -151,18 +179,20 @@ class NetworkElement(ElementReferencer, PolygonalRegion):
     polygon: Union[Polygon, MultiPolygon]
     orientation: Optional[VectorField] = None
 
-    name: str = ''      # human-readable name, if any
-    uid: str = None     # unique identifier; from underlying format, if possible
-    id: Optional[str] = None    # identifier from underlying format, if any
-    network: Network = None     # link to parent network
+    name: str = ''      #: Human-readable name, if any.
+    #: Unique identifier; from underlying format, if possible.
+    #: (In OpenDRIVE, for example, ids are not necessarily unique, so we invent our own.)
+    uid: str = None
+    id: Optional[str] = None    #: Identifier from underlying format, if any.
+    network: Network = None     #: Link to parent network.
 
     ## Traffic info
 
-    #: which vehicles (car, bicycle, etc.) can be here
+    #: Which types of vehicles (car, bicycle, etc.) can be here.
     vehicleTypes: FrozenSet[VehicleType] = frozenset([VehicleType.CAR])
-    #: may be inherited from parent
+    #: Optional speed limit, which may be inherited from parent.
     speedLimit: Union[float, None] = None
-    #: 'roundabout', etc.
+    #: Uninterpreted semantic tags, e.g. 'roundabout'.
     tags: FrozenSet[str] = frozenset()
 
     def __attrs_post_init__(self):
@@ -177,10 +207,10 @@ class NetworkElement(ElementReferencer, PolygonalRegion):
         """Get nominal traffic direction(s) at a point in this element.
 
         There must be at least one such direction. If there are multiple, we
-        pick one arbitrarily to be the orientation of the element as a Region.
-        (So 'Object in element' will align by default to that orientation.)
+        pick one arbitrarily to be the orientation of the element as a `Region`.
+        (So ``Object in element`` will align by default to that orientation.)
         """
-        return (self.orientation[toVector(point)],)
+        return (self.orientation[_toVector(point)],)
 
     def __getstate__(self):
         state = super().__getstate__()
@@ -198,7 +228,9 @@ class NetworkElement(ElementReferencer, PolygonalRegion):
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class LinearElement(NetworkElement):
-    """A part of a road network with (mostly) linear 1- or 2-way flow.
+    """LinearElement()
+
+    A part of a road network with (mostly) linear 1- or 2-way flow.
 
     Includes roads, lane groups, lanes, sidewalks, and pedestrian crossings,
     but not intersections.
@@ -222,11 +254,11 @@ class LinearElement(NetworkElement):
 
     @property
     def successor(self):
-        return rejectIfNonexistent(self._successor, 'successor')
+        return _rejectIfNonexistent(self._successor, 'successor')
 
     @property
     def predecessor(self):
-        return rejectIfNonexistent(self._predecessor, 'predecessor')
+        return _rejectIfNonexistent(self._predecessor, 'predecessor')
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
@@ -245,7 +277,7 @@ class LinearElement(NetworkElement):
         For roads, lane groups, etc., we align along the orientation of the
         lane containing the point.
         """
-        point = toVector(point)
+        point = _toVector(point)
         start, end = self.centerline.nearestSegmentTo(point)
         return start.angleTo(end)
 
@@ -261,27 +293,34 @@ class LinearElement(NetworkElement):
         the 'steps' and 'stepSize' parameters if they can compute the flow
         exactly.
         """
-        return self.orientation.followFrom(toVector(point), distance,
+        return self.orientation.followFrom(_toVector(point), distance,
                                            steps=steps, stepSize=None)
 
-class ContainsCenterline:
-    """Mixin which asserts that the centerline is contained in the polygon."""
+class _ContainsCenterline:
+    """Mixin which asserts that the centerline is contained in the polygon.
+
+    :meta private:
+    """
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
         assert self.containsRegion(self.centerline, tolerance=0.5)
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Road(LinearElement):
-    """A road consisting of one or more lanes.
+    """Road()
 
-    Lanes are grouped into 1 or 2 LaneGroups:
-        * forwardLanes: the lanes going the same direction as the road
-        * backwardLanes: the lanes going the opposite direction
+    A road consisting of one or more lanes.
+
+    Lanes are grouped into 1 or 2 instances of `LaneGroup`:
+
+        * **forwardLanes**: the lanes going the same direction as the road
+        * **backwardLanes**: the lanes going the opposite direction
+
     One of these may be None if there are no lanes in that direction.
 
-    Because of splits and mergers, the Lanes of a Road do not necessarily start
-    or end at the same point as the Road. Such intermediate branching points
-    cause the Road to be partitioned into multiple RoadSections, within which
+    Because of splits and mergers, the Lanes of a `Road` do not necessarily start
+    or end at the same point as the `Road`. Such intermediate branching points
+    cause the `Road` to be partitioned into multiple road sections, within which
     the configuration of lanes is fixed.
     """
     lanes: Tuple[Lane]
@@ -302,7 +341,7 @@ class Road(LinearElement):
         self.laneGroups = tuple(lgs)
 
     def defaultHeadingAt(self, point):
-        point = toVector(point)
+        point = _toVector(point)
         group = self.laneGroupAt(point)
         if group:
             return group.orientation[point]
@@ -316,7 +355,7 @@ class Road(LinearElement):
     @distributionFunction
     def laneSectionAt(self, point: Vectorlike, reject=False) -> Union[LaneSection, None]:
         """Get the LaneSection passing through a given point."""
-        point = toVector(point)
+        point = _toVector(point)
         lane = self.laneAt(point, reject=reject)
         return None if lane is None else lane.sectionAt(point)
 
@@ -346,36 +385,46 @@ class Road(LinearElement):
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class LaneGroup(LinearElement):
-    """A group of parallel lanes with the same type and direction."""
+    """LaneGroup()
 
-    road: Road          # parent road
-    lanes: Tuple[Lane]  # partially ordered, with lane 0 being closest to the curb
+    A group of parallel lanes with the same type and direction.
+    """
+
+    road: Road          #: Parent road.
+    lanes: Tuple[Lane]  #: Lanes, partially ordered with lane 0 being closest to the curb.
+
+    #: Region representing the associated curb, which is not necessarily adjacent if
+    #: there are parking lanes or some other kind of shoulder.
     curb: PolylineRegion
 
     # associated elements not actually part of this group
-    _sidewalk: Union[Sidewalk, None] = None
+    _sidewalk: Union[Sidewalk, None] = None     #: Adjacent sidewalk, if any.
     _bikeLane: Union[Lane, None] = None
-    _shoulder: Union[Shoulder, None] = None
+    _shoulder: Union[Shoulder, None] = None     #: Adjacent shoulder, if any.
+    #: Opposite lane group of the same road, if any.
     _opposite: Union[LaneGroup, None] = None
 
     @property
     def sidewalk(self):
-        return rejectIfNonexistent(self._sidewalk, 'sidewalk')
+        """The adjacent sidewalk; rejects if there is none."""
+        return _rejectIfNonexistent(self._sidewalk, 'sidewalk')
 
     @property
     def bikeLane(self):
-        return rejectIfNonexistent(self._bikeLane, 'bike lane')
+        return _rejectIfNonexistent(self._bikeLane, 'bike lane')
 
     @property
     def shoulder(self):
-        return rejectIfNonexistent(self._shoulder, 'shoulder')
+        """The adjacent shoulder; rejects if there is none."""
+        return _rejectIfNonexistent(self._shoulder, 'shoulder')
 
     @property
     def opposite(self):
-        return rejectIfNonexistent(self._opposite, 'opposite lane group')
+        """The opposite lane group of the same road; rejects if there is none."""
+        return _rejectIfNonexistent(self._opposite, 'opposite lane group')
 
     def defaultHeadingAt(self, point):
-        point = toVector(point)
+        point = _toVector(point)
         lane = self.laneAt(point)
         if lane:
             return lane.orientation[point]
@@ -383,12 +432,15 @@ class LaneGroup(LinearElement):
 
     @distributionFunction
     def laneAt(self, point: Vectorlike, reject=False) -> Union[Lane, None]:
-        """Get the lane passing through a given point."""
+        """Get the `Lane` passing through a given point."""
         return self.network.findPointIn(point, self.lanes, reject)
 
 @attr.s(auto_attribs=True, kw_only=True, eq=False, repr=False)
-class Lane(ContainsCenterline, LinearElement):
-    """A lane for cars, bicycles, or other vehicles."""
+class Lane(_ContainsCenterline, LinearElement):
+    """Lane()
+
+    A lane for cars, bicycles, or other vehicles.
+    """
 
     group: LaneGroup            # parent lane group
     road: Road                  # grandparent road
@@ -408,7 +460,9 @@ class Lane(ContainsCenterline, LinearElement):
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class RoadSection(LinearElement):
-    """Part of a road with a fixed number of lanes.
+    """RoadSection()
+
+    Part of a road with a fixed number of lanes.
 
     A RoadSection has a fixed number of lanes: when a lane begins or ends, we
     move to a new section (which will be the successor of the current one).
@@ -448,7 +502,7 @@ class RoadSection(LinearElement):
             self.lanesByOpenDriveID = ids
 
     def defaultHeadingAt(self, point):
-        point = toVector(point)
+        point = _toVector(point)
         lane = self.laneAt(point)
         if lane:
             return lane.orientation[point]
@@ -460,39 +514,62 @@ class RoadSection(LinearElement):
         return self.network.findPointIn(point, self.lane, reject)
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
-class LaneSection(ContainsCenterline, LinearElement):
-    """Part of a lane in a single RoadSection."""
+class LaneSection(_ContainsCenterline, LinearElement):
+    """LaneSection()
 
-    lane: Lane          # parent lane
-    group: LaneGroup    # grandparent group
-    road: Road          # great-grandparent road
+    Part of a lane in a single `RoadSection`.
 
-    openDriveID: int        # ID number as in OpenDRIVE (positive left of center, negative right)
-    isForward: bool = True  # whether aligned with parent road
+    Since the lane configuration in a `RoadSection` is fixed, a `LaneSection` can have
+    at most one adjacent lane to left or right. These are accessible using the
+    `laneToLeft` and `laneToRight` properties, which for convenience reject the
+    simulation if the desired lane does not exist. If rejection is not desired (for
+    example if you want to handle the case where there is no lane to the left yourself),
+    you can use the `_laneToLeft` and `_laneToRight` properties instead.
+    """
 
-    adjacentLanes: Tuple[LaneSection] = ()     # adjacent lanes of same type, if any
+    lane: Lane          #: Parent lane.
+    group: LaneGroup    #: Grandparent lane group.
+    road: Road          #: Great-grandparent road.
 
-    _laneToLeft: Union[LaneSection, None] = None   # adjacent lane of same type to the left, if any
+    #: ID number as in OpenDRIVE (number of lanes to left of center, with 1 being the
+    # first lane left of the centerline and -1 being the first lane to the right).
+    openDriveID: int
+    #: Whether this lane has the same direction as its parent road.
+    isForward: bool = True
+
+    #: Adjacent lanes of the same type, if any.
+    adjacentLanes: Tuple[LaneSection] = ()
+
+    #: Adjacent lane of same type to the left, if any.
+    _laneToLeft: Union[LaneSection, None] = None
+    #: Adjacent lane of same type to the right, if any.
     _laneToRight: Union[LaneSection, None] = None
 
-    _fasterLane: Union[LaneSection, None] = None   # faster/slower adjacent lane, if it exists;
-    _slowerLane: Union[LaneSection, None] = None   # could be to left or right depending on country
+    #: Faster adjacent lane of same type, if any.
+    #: Could be to left or right depending on the country.
+    _fasterLane: Union[LaneSection, None] = None
+    #: Slower adjacent lane of same type, if any.
+    _slowerLane: Union[LaneSection, None] = None
 
     @property
     def laneToLeft(self):
-        return rejectIfNonexistent(self._laneToLeft, 'lane to left')
+        """The adjacent lane of the same type to the left; rejects if there is none."""
+        return _rejectIfNonexistent(self._laneToLeft, 'lane to left')
 
     @property
     def laneToRight(self):
-        return rejectIfNonexistent(self._laneToRight, 'lane to right')
+        """The adjacent lane of the same type to the right; rejects if there is none."""
+        return _rejectIfNonexistent(self._laneToRight, 'lane to right')
 
     @property
     def fasterLane(self):
-        return rejectIfNonexistent(self._fasterLane, 'faster lane')
+        """The faster adjacent lane of the same type; rejects if there is none."""
+        return _rejectIfNonexistent(self._fasterLane, 'faster lane')
 
     @property
     def slowerLane(self):
-        return rejectIfNonexistent(self._slowerLane, 'slower lane')
+        """The slower adjacent lane of the same type; rejects if there is none."""
+        return _rejectIfNonexistent(self._slowerLane, 'slower lane')
 
     @distributionFunction
     def shiftedBy(self, offset: int) -> Union[LaneSection, None]:
@@ -508,22 +585,38 @@ class LaneSection(ContainsCenterline, LinearElement):
         return current
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
-class Sidewalk(ContainsCenterline, LinearElement):
+class Sidewalk(_ContainsCenterline, LinearElement):
+    """Sidewalk()
+
+    A sidewalk.
+    """
     road: Road
     crossings: Tuple[PedestrianCrossing]
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
-class PedestrianCrossing(ContainsCenterline, LinearElement):
+class PedestrianCrossing(_ContainsCenterline, LinearElement):
+    """PedestrianCrossing()
+
+    A pedestrian crossing (crosswalk).
+    """
     parent: Union[Road, Intersection]
     startSidewalk: Sidewalk
     endSidewalk: Sidewalk
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
-class Shoulder(ContainsCenterline, LinearElement):
+class Shoulder(_ContainsCenterline, LinearElement):
+    """Shoulder()
+
+    A shoulder of a road, including parking lanes by default.
+    """
     road: Road
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Intersection(NetworkElement):
+    """Intersection()
+
+    An intersection where multiple roads meet.
+    """
     roads: Tuple[Road]     # in some order, preserving adjacency
     incomingLanes: Tuple[Lane]
     outgoingLanes: Tuple[Lane]
@@ -547,12 +640,12 @@ class Intersection(NetworkElement):
     @distributionFunction
     def maneuversAt(self, point: Vectorlike) -> List[Maneuver]:
         """Get all maneuvers possible at a given point in the intersection."""
-        return self.network.findPointInAll(point, self.maneuvers,
-                                           key=lambda m: m.connectingLane)
+        return self.network._findPointInAll(point, self.maneuvers,
+                                            key=lambda m: m.connectingLane)
 
     @distributionFunction
     def nominalDirectionsAt(self, point: Vectorlike) -> List[float]:
-        point = toVector(point)
+        point = _toVector(point)
         maneuvers = self.maneuversAt(point)
         return [m.connectingLane.orientation[point] for m in maneuvers]
 
@@ -562,28 +655,47 @@ class Intersection(NetworkElement):
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Network:
-    """A road network."""
+    """Network()
 
-    elements: Dict[str, NetworkElement]     # indexed by unique ID
+    A road network.
 
-    # TODO change these to frozensets once everything is hashable?
-    roads: Tuple[Road]              # ordinary roads
-    connectingRoads: Tuple[Road]    # roads inside intersections
-    allRoads: Tuple[Road] = None    # both kinds of roads
+    Networks are composed of roads, intersections, sidewalks, etc., which are all
+    instances of `NetworkElement`.
+    """
 
+    #: All network elements, indexed by unique ID.
+    elements: Dict[str, NetworkElement]
+
+    #: All ordinary roads in the network (i.e. those not part of an intersection).
+    roads: Tuple[Road]
+    #: All roads connecting one exit of an intersection to another.
+    connectingRoads: Tuple[Road]
+    #: All roads of either type.
+    allRoads: Tuple[Road] = None
+
+    #: All lane groups in the network.
     laneGroups: Tuple[LaneGroup]
+    #: All lanes in the network.
     lanes: Tuple[Lane]
 
+    #: All intersections in the network.
     intersections: Tuple[Intersection]
+    #: All pedestrian crossings in the network.
     crossings: Tuple[PedestrianCrossing]
+    #: All sidewalks in the network.
     sidewalks: Tuple[Sidewalk]
+    #: All shoulders in the network (by default, includes parking lanes).
     shoulders: Tuple[Shoulder]
 
+    #: All sections of ordinary roads in the network.
     roadSections: Tuple[RoadSection] = None
+    #: All sections of lanes in the network.
     laneSections: Tuple[LaneSection] = None
 
+    #: Whether or not cars drive on the left in this network.
     driveOnLeft: bool = False
-    tolerance: float = 0        # tolerance for testing inclusion in elements
+    #: Distance tolerance for testing inclusion in network elements.
+    tolerance: float = 0
 
     # convenience regions aggregated from various types of network elements
     drivableRegion: PolygonalRegion = None
@@ -596,7 +708,7 @@ class Network:
     curbRegion: PolylineRegion = None
     shoulderRegion: PolygonalRegion = None
 
-    # traffic flow vector field aggregated over all roads (0 elsewhere)
+    #: Traffic flow vector field aggregated over all roads (0 elsewhere).
     roadDirection: VectorField = None
 
     def __attrs_post_init__(self):
@@ -637,18 +749,23 @@ class Network:
             self.curbRegion = PolylineRegion.unionAll(edges)
 
         if self.roadDirection is None:
+            # TODO replace with a PolygonalVectorField for better pruning
             self.roadDirection = VectorField('roadDirection', self._defaultRoadDirection)
 
     def _defaultRoadDirection(self, point):
-        """Default value for the roadDirection vector field."""
-        point = toVector(point)
+        """Default value for the `roadDirection` vector field.
+
+        :meta private:
+        """
+        point = _toVector(point)
         road = self.roadAt(point)
         return 0 if road is None else road.orientation[point]
 
+    #: File extension for cached versions of processed networks.
     pickledExt = '.snet'
 
     @classmethod
-    def currentFormatVersion(cls):
+    def _currentFormatVersion(cls):
         """Version number for the road network format.
 
         Should be incremented whenever attributes of `Network`, `NetworkElement`, etc.,
@@ -656,14 +773,43 @@ class Network:
         changed, so that cached networks will be properly regenerated (rather than being
         unpickled in an inconsistent state and causing errors later). Changes to the map
         geometry calculations should be included, even if the format itself is unchanged.
+
+        :meta private:
         """
-        return 13
+        return 14
 
     class DigestMismatchError(Exception):
+        """Exception raised when loading a cached map not matching the original file."""
         pass
 
     @classmethod
     def fromFile(cls, path, useCache=True, writeCache=True, **kwargs):
+        """Create a `Network` from a map file.
+
+        This function calls an appropriate parsing routine based on the extension of the
+        given file. Supported map formats are:
+
+            * OpenDRIVE (``.xodr``): `Network.fromOpenDrive`
+
+        See the functions listed above for format-specific options to this function.
+        If no file extension is given in **path**, this function searches for any file
+        with the given name in one of the formats above (in order).
+
+        Args:
+            path: A string or other :term:`path-like object` giving a path to a file.
+                If no file extension is included, we search for any file type we know how
+                to parse.
+            useCache (bool): Whether to use a cached version of the map, if one exists
+                and matches the given map file (default true; note that if the map file
+                changes, the cached version will still not be used).
+            writeCache (bool): Whether to save a cached version of the processed map
+                after parsing has finished (default true).
+            kwargs: Additional keyword arguments specific to particular map formats.
+
+        Raises:
+            FileNotFoundError: no readable map was found at the given path.
+            ValueError: the given map is of an unknown format.
+        """
         path = pathlib.Path(path)
         ext = path.suffix
 
@@ -687,7 +833,7 @@ class Network:
             if not found:
                 raise FileNotFoundError(f'no readable maps found for path {path}')
         elif ext not in handlers:
-            raise RuntimeError(f'unknown type of road network file {path}')
+            raise ValueError(f'unknown type of road network file {path}')
 
         # If we don't have an underlying map file, return the pickled version directly
         if ext == cls.pickledExt:
@@ -718,6 +864,17 @@ class Network:
     @classmethod
     def fromOpenDrive(cls, path, ref_points=20, tolerance=0.05,
                       fill_gaps=True, fill_intersections=True):
+        """Create a `Network` from an OpenDRIVE file.
+
+        Args:
+            path: Path to the file, as in `Network.fromFile`.
+            ref_points (int): Number of points to discretize continuous reference lines
+                into.
+            tolerance (float): Tolerance for merging nearby geometries.
+            fill_gaps (bool): Whether to attempt to fill gaps between adjacent lanes.
+            fill_intersections (bool): Whether to attempt to fill gaps inside
+                intersections.
+        """
         import scenic.formats.opendrive.xodr_parser as xodr_parser
         road_map = xodr_parser.RoadMap(tolerance=tolerance,
                                        fill_intersections=fill_intersections)
@@ -741,7 +898,7 @@ class Network:
             if len(versionField) != 4:
                 raise pickle.UnpicklingError(f'{cls.pickledExt} file is corrupted')
             version = struct.unpack('<I', versionField)
-            if version[0] != cls.currentFormatVersion():
+            if version[0] != cls._currentFormatVersion():
                 raise pickle.UnpicklingError(f'{cls.pickledExt} file is too old; '
                                              'regenerate it from the original map')
             digest = f.read(64)
@@ -759,7 +916,7 @@ class Network:
         def reconnect(thing):
             state = thing.__dict__
             for key, value in state.items():
-                if isinstance(value, ElementPlaceholder):
+                if isinstance(value, _ElementPlaceholder):
                     state[key] = network.elements[value.uid]
         proxy = weakref.proxy(network)
         for elem in network.elements.values():
@@ -777,7 +934,7 @@ class Network:
         path = pathlib.Path(path)
         if not path.suffix:
             path = path.with_suffix(self.pickledExt)
-        version = struct.pack('<I', self.currentFormatVersion())
+        version = struct.pack('<I', self._currentFormatVersion())
         data = pickle.dumps(self)
         with open(path, 'wb') as f:
             f.write(version)    # uncompressed in case we change compression schemes later
@@ -785,17 +942,18 @@ class Network:
             with gzip.open(f, 'wb') as gf:
                 gf.write(data)
 
+    @distributionMethod
     def findPointIn(self, point: Vectorlike,
                     elems: Sequence[NetworkElement],
                     reject: Union[bool, str]) -> Union[NetworkElement, None]:
         """Find the first of the given elements containing the point.
 
         Elements which *actually* contain the point have priority; if none contain the
-        point, then we search again allowing an error of up to `tolerance`. If there are
-        still no matches, we return None, unless ``reject`` is true, in which case we
+        point, then we search again allowing an error of up to **tolerance**. If there
+        are still no matches, we return None, unless **reject** is true, in which case we
         reject the current sample.
         """
-        point = toVector(point)
+        point = _toVector(point)
         for element in elems:
             if element.containsPoint(point):
                 return element
@@ -808,11 +966,11 @@ class Network:
                 message = reject
             else:
                 message = 'requested element does not exist'
-            rejectSample(message)
+            _rejectSample(message)
         return None
 
-    def findPointInAll(self, point, things, key=lambda e: e):
-        point = toVector(point)
+    def _findPointInAll(self, point, things, key=lambda e: e):
+        point = _toVector(point)
         found = []
         for thing in things:
             if key(thing).containsPoint(point):
@@ -823,55 +981,65 @@ class Network:
                     found.append(thing)
         return found
 
-    @distributionFunction
+    @distributionMethod
     def elementAt(self, point: Vectorlike, reject=False) -> Union[NetworkElement, None]:
-        point = toVector(point)
+        """Get the highest-level `NetworkElement` at a given point, if any.
+
+        If the point lies in an `Intersection`, we return that; otherwise if the point
+        lies in a `Road`, we return that; otherwise we return :obj:`None`, or reject the
+        simulation if **reject** is true (default false).
+        """
+        point = _toVector(point)
         intersection = self.intersectionAt(point)
         if intersection is not None:
             return intersection
         return self.roadAt(point, reject=reject)
 
-    @distributionFunction
+    @distributionMethod
     def roadAt(self, point: Vectorlike, reject=False) -> Union[Road, None]:
-        """Get the road passing through a given point."""
+        """Get the `Road` passing through a given point."""
         return self.findPointIn(point, self.allRoads, reject)
 
-    @distributionFunction
+    @distributionMethod
     def laneAt(self, point: Vectorlike, reject=False) -> Union[Lane, None]:
-        """Get the lane passing through a given point."""
+        """Get the `Lane` passing through a given point."""
         return self.findPointIn(point, self.lanes, reject)
 
-    @distributionFunction
+    @distributionMethod
     def laneSectionAt(self, point: Vectorlike, reject=False) -> Union[LaneSection, None]:
-        """Get the LaneSection passing through a given point."""
-        point = toVector(point)
+        """Get the `LaneSection` passing through a given point."""
+        point = _toVector(point)
         lane = self.laneAt(point, reject=reject)
         return None if lane is None else lane.sectionAt(point)
 
-    @distributionFunction
+    @distributionMethod
     def laneGroupAt(self, point: Vectorlike, reject=False) -> Union[LaneGroup, None]:
-        """Get the LaneGroup passing through a given point."""
-        point = toVector(point)
+        """Get the `LaneGroup` passing through a given point."""
+        point = _toVector(point)
         road = self.roadAt(point, reject=reject)
         return None if road is None else road.laneGroupAt(point, reject=reject)
 
-    @distributionFunction
+    @distributionMethod
     def crossingAt(self, point: Vectorlike,
                    reject=False) -> Union[PedestrianCrossing, None]:
-        """Get the PedestrianCrossing passing through a given point."""
-        point = toVector(point)
+        """Get the `PedestrianCrossing` passing through a given point."""
+        point = _toVector(point)
         road = self.roadAt(point, reject=reject)
         return None if road is None else road.crossingAt(point, reject=reject)
 
-    @distributionFunction
+    @distributionMethod
     def intersectionAt(self, point: Vectorlike,
                        reject=False) -> Union[Intersection, None]:
-        """Get the intersection at a given point."""
+        """Get the `Intersection` at a given point."""
         return self.findPointIn(point, self.intersections, reject)
 
-    @distributionFunction
+    @distributionMethod
     def nominalDirectionsAt(self, point: Vectorlike, reject=False) -> Tuple[float]:
-        """Get nominal traffic direction(s) at a given point, if any."""
+        """Get the nominal traffic direction(s) at a given point, if any.
+
+        There can be more than one such direction in an intersection, for example: a car
+        at a given point could be going straight, turning left, etc.
+        """
         inter = self.intersectionAt(point)
         if inter is not None:
             return inter.nominalDirectionsAt(point)
@@ -880,8 +1048,13 @@ class Network:
             return road.nominalDirectionsAt(point)
         return ()
 
-    def show(self, plt):
-        """Render a schematic of the road network for debugging."""
+    def show(self):
+        """Render a schematic of the road network for debugging.
+
+        If you call this function directly, you'll need to subsequently call
+        ``matplotlib.pyplot.show()`` to actually display the diagram.
+        """
+        import matplotlib.pyplot as plt
         self.walkableRegion.show(plt, style='-', color='#00A0FF')
         self.shoulderRegion.show(plt, style='-', color='#606060')
         for road in self.roads:

@@ -5,7 +5,7 @@
    <h2>Submodules</h2>
 
 .. autosummary::
-   :toctree: _autosummary
+   :toctree:
 
    workspace
    xodr_parser

@@ -7,7 +7,8 @@ import random
 from scenic.core.distributions import Samplable, needsSampling
 from scenic.core.specifiers import Specifier, PropertyDefault
 from scenic.core.vectors import Vector
-from scenic.core.geometry import RotatedRectangle, averageVectors, hypot, min, pointIsInCone
+from scenic.core.geometry import (_RotatedRectangle, averageVectors, hypot, min,
+                                  pointIsInCone)
 from scenic.core.regions import CircularRegion, SectorRegion
 from scenic.core.type_support import toVector, toHeading, toType
 from scenic.core.lazy_eval import needsLazyEvaluation
@@ -16,7 +17,7 @@ from scenic.core.errors import RuntimeParseError
 
 ## Abstract base class
 
-class Constructible(Samplable):
+class _Constructible(Samplable):
 	"""Abstract base class for Scenic objects.
 
 	Scenic objects, which are constructed using specifiers, are implemented
@@ -31,7 +32,7 @@ class Constructible(Samplable):
 		# find all defaults provided by the class or its superclasses
 		allDefs = collections.defaultdict(list)
 		for sc in cls.__mro__:
-			if issubclass(sc, Constructible) and hasattr(sc, '__annotations__'):
+			if issubclass(sc, _Constructible) and hasattr(sc, '__annotations__'):
 				for prop, value in sc.__annotations__.items():
 					allDefs[prop].append(PropertyDefault.forValue(value))
 
@@ -248,18 +249,23 @@ class HeadingMutator(Mutator):
 
 ## Point
 
-class Point(Constructible):
-	"""Implementation of the Scenic class ``Point``.
+class Point(_Constructible):
+	"""Implementation of the Scenic base class ``Point``.
 
 	The default mutator for `Point` adds Gaussian noise to ``position`` with
 	a standard deviation given by the ``positionStdDev`` property.
 
-	Attributes:
-		position (`Vector`): Position of the point. Default value is the origin.
+	Properties:
+		position (`Vector`; dynamic): Position of the point. Default value is the origin.
 		visibleDistance (float): Distance for ``can see`` operator. Default value 50.
 		width (float): Default value zero (only provided for compatibility with
 		  operators that expect an `Object`).
 		length (float): Default value zero.
+
+	.. note::
+
+		If you're looking into Scenic's internals, note that `Point` is actually a
+		subclass of the internal Python class `_Constructible`.
 	"""
 	position: PropertyDefault((), {'dynamic'}, lambda self: Vector(0, 0))
 	width: 0
@@ -315,8 +321,9 @@ class OrientedPoint(Point):
 	with a standard deviation given by the ``headingStdDev`` property, then
 	applies the mutator for `Point`.
 
-	Attributes:
-		heading (float): Heading of the `OrientedPoint`. Default value 0 (North).
+	Properties:
+		heading (float; dynamic): Heading of the `OrientedPoint`. Default value 0
+			(North).
 		viewAngle (float): View cone angle for ``can see`` operator. Default
 		  value :math:`2\\pi`.
 	"""
@@ -344,10 +351,12 @@ class OrientedPoint(Point):
 
 ## Object
 
-class Object(OrientedPoint, RotatedRectangle):
+class Object(OrientedPoint, _RotatedRectangle):
 	"""Implementation of the Scenic class ``Object``.
 
-	Attributes:
+	This is the default base class for Scenic classes.
+
+	Properties:
 		width (float): Width of the object, i.e. extent along its X axis.
 		  Default value 1.
 		length (float): Length of the object, i.e. extent along its Y axis.
@@ -361,6 +370,15 @@ class Object(OrientedPoint, RotatedRectangle):
 		  contained in the scenario's workspace.
 		cameraOffset (`Vector`): Position of the camera for the ``can see``
 		  operator, relative to the object's ``position``. Default ``0 @ 0``.
+
+		speed (float; dynamic): Speed in dynamic simulations. Default value 0.
+		velocity (`Vector`; *dynamic*): Velocity in dynamic simulations. Default value is
+			the velocity determined by ``self.speed`` and ``self.heading``.
+		angularSpeed (float; *dynamic*): Angular speed in dynamic simulations. Default
+			value 0.
+
+		behavior: Behavior for dynamic agents, if any (see :ref:`dynamics`). Default
+			value ``None``.
 	"""
 	width: 1
 	length: 1
@@ -399,7 +417,8 @@ class Object(OrientedPoint, RotatedRectangle):
 		# Normalize types of some built-in properties
 		if prop == 'behavior':
 			import scenic.syntax.veneer as veneer	# TODO improve?
-			value = toType(value, veneer.Behavior, f'"behavior" of {self} not a behavior')
+			value = toType(value, veneer.Behavior,
+			               f'"behavior" of {self} not a behavior')
 		super()._specify(prop, value)
 
 	def _register(self):

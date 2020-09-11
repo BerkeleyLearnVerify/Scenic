@@ -1,16 +1,22 @@
-Tutorial on Static Scenario
-============================
+..  _tutorial:
+
+Scenic Tutorial
+===============
 
 This tutorial motivates and illustrates the main features of Scenic, focusing on aspects
 of the language that make it particularly well-suited for describing geometric scenarios.
 Throughout, we use examples from our case study using Scenic to generate traffic scenes
 in GTA V to test and train autonomous cars [F19]_.
 
+We'll focus here on the *spatial* aspects of scenarios; for adding *temporal* dynamics to a scenario, see our page on :ref:`dynamics`.
+
 Classes, Objects, and Geometry
 ------------------------------
 
 To start, suppose we want scenes of one car viewed from another on the road. We can write
 this very concisely in Scenic:
+
+.. py:currentmodule:: scenic.simulators.gta.model
 
 .. code-block:: scenic
 	:linenos:
@@ -33,7 +39,7 @@ momentarily).
 Finally, line 3 creates a second `Car`. Compiling this scenario with Scenic, sampling a
 scene from it, and importing the scene into GTA V yields an image like this:
 
-.. figure:: images/simplest2.jpg
+.. figure:: /images/simplest2.jpg
   :width: 80%
   :figclass: align-center
   :alt: Simple car scenario image.
@@ -72,13 +78,19 @@ object more specifically. For example,
 .. code-block:: scenic
 	:linenos:
 
-	Car offset by (-10, 10) @ (20, 40)
+	Car offset by Range(-10, 10) @ Range(20, 40)
 
 creates a car that is 20--40 meters ahead of the camera (the ``ego``), and up to 10
 meters to the left or right, while still using the default heading (namely, being aligned
-with the road). Here the interval notation :samp:`({X}, {Y})` creates a uniform
-distribution on the interval, and :samp:`{X} @ {Y}` creates a vector from *xy*
-coordinates (as in Smalltalk [GR83]_).
+with the road). Here :samp:`Range({X}, {Y})` creates a uniform distribution on the
+interval between :samp:`{X}` and :samp:`{Y}`, and :samp:`{X} @ {Y}` creates a vector from
+*xy* coordinates as in Smalltalk [GR83]_. If you prefer, you can give a list or tuple of
+*xy* coordinates instead, e.g.,
+
+.. code-block:: scenic
+	:linenos:
+
+	Car offset by (Range(-10, 10), Range(20, 40))
 
 Local Coordinate Systems
 ------------------------
@@ -96,8 +108,8 @@ We could write
 .. code-block:: scenic
 	:linenos:
 
-	Car offset by (-10, 10) @ (20, 40),
-	    facing (-5, 5) deg
+	Car offset by Range(-10, 10) @ Range(20, 40),
+	    facing Range(-5, 5) deg
 
 but this is not quite what we want, since this sets the orientation of the car in
 *global* coordinates. Thus the car will end up facing within 5° of North, rather than
@@ -108,19 +120,19 @@ variety of local coordinate systems:
 .. code-block::scenic
 	:linenos:
 
-	Car offset by (-10, 10) @ (20, 40),
-	    facing (-5, 5) deg relative to roadDirection
+	Car offset by Range(-10, 10) @ Range(20, 40),
+	    facing Range(-5, 5) deg relative to roadDirection
 
 If instead we want the heading to be relative to that of the ego car, so that the two
-cars are (roughly) aligned, we can simply write ``(-5, 5) deg relative to ego``.
+cars are (roughly) aligned, we can simply write ``Range(-5, 5) deg relative to ego``.
 
 Notice that since ``roadDirection`` is a vector field, it defines a different local
 coordinate system at each point in space: at different points on the map, roads point
 different directions! Thus an expression like ``15 deg relative to field`` does not
 define a unique heading. The example above works because Scenic knows that the
-expression ``(-5, 5) deg relative to roadDirection`` depends on a reference position, and
-automatically uses the ``position`` of the `Car` being defined. This is a feature of
-Scenic's system of *specifiers*, which we explain next.
+expression ``Range(-5, 5) deg relative to roadDirection`` depends on a reference
+position, and automatically uses the ``position`` of the `Car` being defined. This is a
+feature of Scenic's system of *specifiers*, which we explain next.
 
 Readable, Flexible Specifiers
 -----------------------------
@@ -229,7 +241,7 @@ interestingly, we could produce a scenario for *badly*-parked cars by adding two
 	:linenos:
 
 	spot = OrientedPoint on visible curb
-	badAngle = Uniform(1, -1) * (10, 20) deg
+	badAngle = Uniform(1, -1) * Range(10, 20) deg
 	Car left of spot by 0.25,
 	    facing badAngle relative to roadDirection
 
@@ -237,7 +249,7 @@ This will yield cars parked 10-20° off from the direction of the curb, as seen 
 image below. This example illustrates how specifiers greatly enhance Scenic's flexibility
 and modularity.
 
-.. figure:: images/badlyParked1.jpg
+.. figure:: /images/badlyParked1.jpg
   :width: 80%
   :figclass: align-center
   :alt: Badly-parked car image.
@@ -268,7 +280,7 @@ car headed roughly towards the camera, while still facing the nominal road direc
 	:linenos:
 
 	ego = Car on road
-	car2 = Car offset by (-10, 10) @ (20, 40), with viewAngle 30 deg
+	car2 = Car offset by Range(-10, 10) @ Range(20, 40), with viewAngle 30 deg
 	require car2 can see ego
 
 Here we have used the :samp:`{X} can see {Y}` predicate, which in this case is checking
@@ -343,7 +355,7 @@ simulator (`scenic.simulators.webots.mars.model`) which defines the (empty) work
 and several types of objects: the `Rover` itself, the `Goal` (represented by a flag), and
 debris classes `Rock`, `BigRock`, and `Pipe`. `Rock` and `BigRock` have fixed sizes, and
 the rover can climb over them; `Pipe` cannot be climbed over, and can represent a pipe of
-arbitrary length, controlled by the ``height`` property (which corresponds to Scenic's
+arbitrary length, controlled by the ``length`` property (which corresponds to Scenic's
 *y* axis).
 
 .. code-block:: scenic
@@ -358,7 +370,7 @@ other side of the workspace:
 	:lineno-start: 2
 
 	ego = Rover at 0 @ -2
-	goal = Goal at (-2, 2) @ (2, 2.5)
+	goal = Goal at Range(-2, 2) @ Range(2, 2.5)
 
 Next we pick a position for the bottleneck, requiring it to lie roughly on the way from
 the robot to its goal, and place a rock there.
@@ -366,8 +378,8 @@ the robot to its goal, and place a rock there.
 .. code-block:: scenic
 	:lineno-start: 4
 
-	bottleneck = OrientedPoint offset by (-1.5, 1.5) @ (0.5, 1.5),
-	                           facing (-30, 30) deg
+	bottleneck = OrientedPoint offset by Range(-1.5, 1.5) @ Range(0.5, 1.5),
+	                           facing Range(-30, 30) deg
 	require abs((angle to goal) - (angle to bottleneck)) <= 10 deg
 	BigRock at bottleneck
 
@@ -382,11 +394,11 @@ to pass between:
 
 	halfGapWidth = (1.2 * ego.width) / 2
 	leftEnd = OrientedPoint left of bottleneck by halfGapWidth,
-	                        facing (60, 120) deg relative to bottleneck
+	                        facing Range(60, 120) deg relative to bottleneck
 	rightEnd = OrientedPoint right of bottleneck by halfGapWidth,
-	                         facing (-120, -60) deg relative to bottleneck
-	Pipe ahead of leftEnd, with height (1, 2)
-	Pipe ahead of rightEnd, with height (1, 2)
+	                         facing Range(-120, -60) deg relative to bottleneck
+	Pipe ahead of leftEnd, with length Range(1, 2)
+	Pipe ahead of rightEnd, with length Range(1, 2)
 
 Finally, to make the scenario slightly more interesting, we add several additional
 obstacles, positioned either on the far side of the bottleneck or anywhere at random
@@ -395,8 +407,8 @@ obstacles, positioned either on the far side of the bottleneck or anywhere at ra
 .. code-block:: scenic
 	:lineno-start: 15
 
-	BigRock beyond bottleneck by (-0.5, 0.5) @ (0.5, 1)
-	BigRock beyond bottleneck by (-0.5, 0.5) @ (0.5, 1)
+	BigRock beyond bottleneck by Range(-0.5, 0.5) @ Range(0.5, 1)
+	BigRock beyond bottleneck by Range(-0.5, 0.5) @ Range(0.5, 1)
 	Pipe
 	Rock
 	Rock
@@ -406,18 +418,18 @@ This completes the scenario, which can also be found in the Scenic repository un
 :file:`examples/webots/mars/narrowGoal.scenic`. Several scenes generated from the
 scenario and visualized in Webots are shown below.
 
-.. figure:: images/mars1.jpg
+.. figure:: /images/mars1.jpg
   :width: 80%
   :figclass: align-center
   :alt: Mars rover scenario image.
 
   A scene sampled from the Mars rover scenario, rendered in Webots.
 
-.. image:: images/mars3.jpg
+.. image:: /images/mars3.jpg
    :width: 32%
-.. image:: images/mars4.jpg
+.. image:: /images/mars4.jpg
    :width: 32%
-.. image:: images/mars5.jpg
+.. image:: /images/mars5.jpg
    :width: 32%
 
 Further Reading
@@ -426,25 +438,28 @@ Further Reading
 This tutorial illustrated the syntax of Scenic through several simple examples. Much more
 complex scenarios are possible, such as the platoon and bumper-to-bumper traffic GTA V
 scenarios shown below. For many further examples using a variety of simulators, see the
-:file:`examples` folder, as well as the links in the :doc:`simulators` page.
+:file:`examples` folder, as well as the links in the :ref:`simulators` page.
 
-.. image:: images/platoon2.jpg
+.. image:: /images/platoon2.jpg
    :width: 32%
-.. image:: images/platoon3.jpg
+.. image:: /images/platoon3.jpg
    :width: 32%
-.. image:: images/platoon4.jpg
+.. image:: /images/platoon4.jpg
    :width: 32%
 
-.. image:: images/btb1.jpg
+.. image:: /images/btb1.jpg
    :width: 32%
-.. image:: images/btb3.jpg
+.. image:: /images/btb3.jpg
    :width: 32%
-.. image:: images/btb4.jpg
+.. image:: /images/btb4.jpg
    :width: 32%
+
+Our page on :ref:`dynamics` describes how to define scenarios
+with dynamic agents that move or take other actions over time.
 
 For a comprehensive overview of Scenic's syntax, including details on all specifiers,
 operators, distributions, statements, and built-in classes, see the
-:doc:`syntax_details`. Our :doc:`syntax_guide` summarizes all of these language
+:ref:`syntax_details`. Our :ref:`syntax_guide` summarizes all of these language
 constructs in convenient tables with links to the detailed documentation.
 
 .. rubric:: Footnotes

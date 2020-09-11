@@ -1,4 +1,4 @@
-"""World model for a simple Mars rover example in Webots.
+"""Various utilities useful across multiple simulators.
 
 .. raw:: html
 
@@ -7,6 +7,5 @@
 .. autosummary::
    :toctree:
 
-   model
+   colors
 """
-

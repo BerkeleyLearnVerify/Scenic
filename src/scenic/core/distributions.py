@@ -919,7 +919,7 @@ class Options(MultiplexerDistribution):
 def Uniform(*opts):
 	"""Uniform distribution over a finite list of options.
 
-	Implemented as an instance of `Options` when the set of options is known
+	Implemented as an instance of :obj:`Options` when the set of options is known
 	statically, and an instance of `UniformDistribution` otherwise.
 	"""
 	if any(isinstance(opt, StarredDistribution) for opt in opts):
@@ -930,7 +930,7 @@ def Uniform(*opts):
 class UniformDistribution(Distribution):
 	"""Uniform distribution over a variable number of options.
 
-	See `Options` for the more common uniform distribution over a fixed number
+	See :obj:`Options` for the more common uniform distribution over a fixed number
 	of options. This class is for the special case where iterable unpacking is
 	applied to a distribution, so that the number of options is unknown at
 	compile time.

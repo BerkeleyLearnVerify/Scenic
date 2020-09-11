@@ -1,8 +1,10 @@
-Guide to Scenic Syntax
-======================
+..  _syntax_guide:
+
+Syntax Guide
+============
 
 This page summarizes the syntax of Scenic (excluding syntax inherited from Python).
-For more details, click the links for individual language constructs to go to the corresponding section of the :doc:`syntax_details`.
+For more details, click the links for individual language constructs to go to the corresponding section of the :ref:`syntax_details`.
 
 
 Primitive Data Types

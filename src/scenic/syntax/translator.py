@@ -54,7 +54,7 @@ from ast import Break, Continue, AsyncFunctionDef, Pass
 
 from scenic.core.distributions import Samplable, needsSampling, toDistribution
 from scenic.core.lazy_eval import needsLazyEvaluation
-from scenic.core.object_types import Constructible
+from scenic.core.object_types import _Constructible
 import scenic.core.errors as errors
 from scenic.core.errors import (TokenParseError, PythonParseError, ASTParseError,
 								InvalidScenarioError)
@@ -701,12 +701,12 @@ def findConstructorsIn(namespace):
 	"""Find all constructors (Scenic classes) defined in a namespace."""
 	constructors = []
 	for name, value in namespace.items():
-		if inspect.isclass(value) and issubclass(value, Constructible):
+		if inspect.isclass(value) and issubclass(value, _Constructible):
 			if name in builtinConstructors:
 				continue
 			parents = []
 			for base in value.__bases__:
-				if issubclass(base, Constructible):
+				if issubclass(base, _Constructible):
 					parents.append(base.__name__)
 			constructors.append(Constructor(name, parents))
 	return constructors
@@ -1749,8 +1749,16 @@ class ASTSurgeon(NodeTransformer):
 		preconditions = []
 		invariants = []
 		newStatements = []
+		# preserve docstring, if any
+		if (isinstance(node.body[0], Expr) and isinstance(node.body[0].value, Constant)
+		    and isinstance(node.body[0].value.value, str)):
+			docstring = [node.body[0]]
+			oldStatements = node.body[1:]
+		else:
+			docstring = []
+			oldStatements = node.body
 		# find precondition and invariant definitions
-		for statement in node.body:
+		for statement in oldStatements:
 			if (isinstance(statement, AnnAssign)
 				and isinstance(statement.target, Name)
 				and statement.value is None
@@ -1776,13 +1784,13 @@ class ASTSurgeon(NodeTransformer):
 		# generate precondition checks
 		precondChecks = []
 		for precondition in preconditions:
-			throw = Raise(exc=Name('PreconditionFailure', Load()), cause=None)
+			throw = Raise(exc=Name('PreconditionViolation', Load()), cause=None)
 			check = If(test=UnaryOp(Not(), precondition), body=[throw], orelse=[])
 			precondChecks.append(copy_location(check, precondition))
 		# generate invariant checker
 		invChecks = []
 		for invariant in invariants:
-			throw = Raise(exc=Name('InvariantFailure', Load()), cause=None)
+			throw = Raise(exc=Name('InvariantViolation', Load()), cause=None)
 			check = If(test=UnaryOp(Not(), invariant), body=[throw], orelse=[])
 			invChecks.append(copy_location(check, invariant))
 		defineChecker = FunctionDef(checkInvariantsName, tempArg,
@@ -1802,13 +1810,14 @@ class ASTSurgeon(NodeTransformer):
 		# convert to class definition
 		decorators = [self.visit(decorator) for decorator in node.decorator_list]
 		genDefn = FunctionDef('makeGenerator', newArgs, newBody, decorators, node.returns)
+		classBody = docstring + [genDefn]
 		name = node.name
 		if veneer.isAMonitorName(name):
 			superclass = monitorClass
 			name = veneer.monitorName(name)
 		else:
 			superclass = behaviorClass
-		newDefn = ClassDef(name, [Name(superclass, Load())], [], [genDefn], [])
+		newDefn = ClassDef(name, [Name(superclass, Load())], [], classBody, [])
 
 		return copy_location(newDefn, node)
 

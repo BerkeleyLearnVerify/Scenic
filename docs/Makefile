@@ -15,7 +15,7 @@ help:
 .PHONY: help Makefile
 
 clean:
-	rm -rf _autosummary
+	rm -rf modules
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 # Catch-all target: route all unknown targets to Sphinx using the new

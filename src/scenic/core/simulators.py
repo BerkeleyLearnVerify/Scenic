@@ -273,7 +273,7 @@ class DummySimulation(Simulation):
         return vals
 
 class Action:
-    """An action which can be taken by an agent for one step of a simulation."""
+    """An :term:`action` which can be taken by an agent for one step of a simulation."""
     def canBeTakenBy(self, agent):
         return True
 
