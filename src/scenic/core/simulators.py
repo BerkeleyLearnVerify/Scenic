@@ -126,6 +126,8 @@ class Simulation:
                         terminationReason = str(actions)
                         break
                     assert isinstance(actions, tuple)
+                    if len(actions) == 1 and isinstance(actions[0], (list, tuple)):
+                        actions = tuple(actions[0])
                     if not self.actionsAreCompatible(agent, actions):
                         raise InvalidScenarioError(f'agent {agent} tried incompatible '
                                                    f' action(s) {actions}')
@@ -271,7 +273,7 @@ class DummySimulation(Simulation):
         return vals
 
 class Action:
-    """An action which can be taken by an agent for one step of a simulation."""
+    """An :term:`action` which can be taken by an agent for one step of a simulation."""
     def canBeTakenBy(self, agent):
         return True
 

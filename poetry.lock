@@ -615,7 +615,7 @@ dev = ["pytest-randomly", "pytest", "sphinx", "sphinx_rtd_theme", "tox", "astor"
 guideways = ["pyproj"]
 
 [metadata]
-content-hash = "f67e6747ba842f744d40f7371db7705af95dfefd50ea07098d7b8d943eb4cfd5"
+content-hash = "d2b2f6ca00fd7724685a249552cfa2ff14f5f34871dccb4ab6894914c9a5efd2"
 python-versions = "^3.8"
 
 [metadata.files]

@@ -1,10 +1,11 @@
-"""
+""" Scenario Description
+Based on 2019 Carla Challenge Traffic Scenario 02.
 Leading vehicle decelerates suddently due to an obstacle and 
 ego-vehicle must react, performing an emergency brake or an avoidance maneuver.
-Based on 2019 Carla Challenge Traffic Scenario 02.
+Note: The scenario may fail if the leadCar or the ego get past the intersection while following the roadDirection
 """
-param map = localPath('../../carla/OpenDrive/Town01.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town01'
+param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town07'
 model scenic.domains.driving.model
 
 #CONSTANTS
@@ -27,7 +28,7 @@ behavior EgoBehavior(speed=10):
 	try: 
 		do FollowLaneBehavior(speed)
 
-	interrupt when distanceToAnyCars(self, EGO_BRAKING_THRESHOLD):
+	interrupt when withinDistanceToAnyCars(self, EGO_BRAKING_THRESHOLD):
 		take SetBrakeAction(BRAKE_ACTION)
 
 #LEAD CAR BEHAVIOR: Follow lane, and brake after passing a threshold distance to obstacle
@@ -36,7 +37,7 @@ behavior LeadingCarBehavior(speed=10):
 	try: 
 		do FollowLaneBehavior(speed)
 
-	interrupt when distanceToAnyCars(self, LEADCAR_BRAKING_THRESHOLD):
+	interrupt when withinDistanceToAnyCars(self, LEADCAR_BRAKING_THRESHOLD):
 		take SetBrakeAction(BRAKE_ACTION)
 
 #GEOMETRY
@@ -52,4 +53,3 @@ ego = Car following roadDirection from leadCar for EGO_TO_LEADCAR,
 	with behavior EgoBehavior(EGO_SPEED)
 
 
-""" Note: The scenario may fail if the leadCar or the ego get past the intersection while following the roadDirection """

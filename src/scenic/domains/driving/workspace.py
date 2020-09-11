@@ -9,7 +9,7 @@ class DrivingWorkspace(Workspace):
         super().__init__()
 
     def show(self, plt):
-        self.network.show(plt)
+        self.network.show()
 
     @property
     def minimumZoomSize(self):

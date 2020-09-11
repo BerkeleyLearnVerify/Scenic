@@ -40,7 +40,7 @@ __all__ = (
 	# Constants
 	'everywhere', 'nowhere',
 	# Exceptions
-	'GuardFailure', 'PreconditionFailure', 'InvariantFailure',
+	'GuardViolation', 'PreconditionViolation', 'InvariantViolation',
 	# Internal APIs 	# TODO remove?
 	'PropertyDefault', 'Behavior', 'Monitor', 'makeTerminationAction',
 	'BlockConclusion', 'runTryInterrupt', 'wrapStarredValue', 'callWithStarArgs',
@@ -83,7 +83,7 @@ from scenic.core.type_support import (isA, toType, toTypes, toScalar, toHeading,
 									  evaluateRequiringEqualTypes, underlyingType,
 									  canCoerce, coerce)
 from scenic.core.geometry import normalizeAngle, apparentHeadingAtPoint
-from scenic.core.object_types import Constructible
+from scenic.core.object_types import _Constructible
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError
@@ -176,7 +176,7 @@ def registerObject(obj):
 		raise RuntimeParseError('tried to create an object inside a behavior')
 	elif activity > 0 or currentScenario:
 		assert not evaluatingRequirement
-		assert isinstance(obj, Constructible)
+		assert isinstance(obj, _Constructible)
 		currentScenario._registerObject(obj)
 
 # External parameter creation
@@ -1454,15 +1454,19 @@ def Following(field, dist, fromPt=None):
 
 ### Exceptions
 
-class GuardFailure(Exception):
-	"""Raised when a guard of a behavior is violated."""
+class GuardViolation(Exception):
+	"""Abstract exception raised when a guard of a behavior is violated.
+
+	This will never be raised directly; either of the subclasses `PreconditionViolation`
+	or `InvariantViolation` will be used, as appropriate.
+	"""
 	pass
 
-class PreconditionFailure(GuardFailure):
-	"""Raised when a precondition fails when invoking a behavior."""
+class PreconditionViolation(GuardViolation):
+	"""Raised when a precondition is violated when invoking a behavior."""
 	pass
 
-class InvariantFailure(GuardFailure):
-	"""Raised when an invariant fails when invoking/resuming a behavior."""
+class InvariantViolation(GuardViolation):
+	"""Raised when an invariant is violated when invoking/resuming a behavior."""
 	pass
 

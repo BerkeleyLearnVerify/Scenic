@@ -22,7 +22,6 @@ class Workspace(Region):
 		((xmin, ymin), (xmax, ymax)) = aabb
 		plt.xlim(xmin, xmax)
 		plt.ylim(ymin, ymax)
-		plt.gca().set_aspect('equal')
 
 	def zoomAround(self, plt, objects, expansion=1):
 		"""Zoom the schematic around the specified objects"""

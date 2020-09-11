@@ -347,7 +347,6 @@ class WebotsWorkspace(Workspace):
 		super().__init__(self.workspaceRegion)
 
 	def show(self, plt):
-		plt.gca().set_aspect('equal')
 		self.drivableRegion.show(plt)
 		for road in self.roads:
 			road.show(plt)

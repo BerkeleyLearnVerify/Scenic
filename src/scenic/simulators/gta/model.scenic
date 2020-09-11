@@ -46,7 +46,7 @@ param weather = Options({
 class Car:
 	"""Scenic class for cars.
 
-	Attributes:
+	Properties:
 		position: The default position is uniformly random over the `road`.
 		heading: The default heading is aligned with `roadDirection`, plus an offset
 		  given by ``roadDeviation``.

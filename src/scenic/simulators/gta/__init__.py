@@ -5,7 +5,7 @@
    <h2>Submodules</h2>
 
 .. autosummary::
-   :toctree: _autosummary
+   :toctree:
 
    model
    interface

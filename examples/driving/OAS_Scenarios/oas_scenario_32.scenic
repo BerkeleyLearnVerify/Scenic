@@ -1,9 +1,11 @@
 """ Scenario Description
-At 3-way intersection, ego turns left and the other car goes straight
+Voyage OAS Scenario Unique ID: 3-2-W-I-L-CAR:N>S
+At 3-way intersection, ego turns left and the other car on a different leg of the
+intersection goes straight. There is no requirement on which vehicle has the right of the way.
 """
 
-param map = localPath('../../carla/OpenDrive/Town03.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town03'
+param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town10HD.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town10HD'
 model scenic.domains.driving.model
 
 SAFE_DIST = 15
@@ -39,7 +41,7 @@ behavior SafeBehavior(thresholdDistance, target_speed=10, trajectory = None):
 		do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
 		terminate
 
-	interrupt when distanceToObjsInLane(vehicle=self, thresholdDistance=thresholdDistance):
+	interrupt when withinDistanceToObjsInLane(vehicle=self, thresholdDistance=thresholdDistance):
 		take SetBrakeAction(brakeIntensity)
 
 # PLACEMENT

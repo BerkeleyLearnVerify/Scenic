@@ -196,7 +196,6 @@ class MapWorkspace(Workspace):
 		return self.map.scenicToGridCoords(coords)
 
 	def show(self, plt):
-		plt.gca().set_aspect('equal')
 		return self.map.show(plt)
 
 	@property

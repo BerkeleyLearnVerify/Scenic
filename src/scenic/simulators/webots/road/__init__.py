@@ -7,7 +7,7 @@ This model handles Webots world files generated from Open Street Map data using 
    <h2>Submodules</h2>
 
 .. autosummary::
-   :toctree: _autosummary
+   :toctree:
 
    model
    world

@@ -1,8 +1,11 @@
 """ Scenario Description
-At 3 way intersection. ego car turns left. actor takes a turn first because it is closer to the intersection.
+Voyage OAS Scenario Unique ID: 3-2-NSW-I-L-CAR:S>W:02
+At 3 way intersection. The ego car turns left. 
+The other car, on a different leg of the intersection, 
+has the right of the way and makes a left turn first because it is closer to the intersection.
 """
-param map = localPath('../../carla/OpenDrive/Town01.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town01'
+param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town05'
 model scenic.domains.driving.model
 
 # Constants
@@ -35,7 +38,7 @@ behavior EgoBehavior(thresholdDistance, target_speed=10, trajectory = None):
 		do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
 		terminate
 
-	interrupt when distanceToAnyObjs(vehicle=self, thresholdDistance=thresholdDistance):
+	interrupt when withinDistanceToAnyObjs(vehicle=self, thresholdDistance=thresholdDistance):
 		take SetBrakeAction(brakeIntensity)
 
 

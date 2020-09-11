@@ -1,9 +1,9 @@
-"""
+""" Scenario Description
+Based on 2019 Carla Challenge Traffic Scenario 03.
 Leading vehicle decelerates suddenly due to an obstacle and 
 ego-vehicle must react, performing an emergency brake or an avoidance maneuver.
-Based on 2019 Carla Challenge Traffic Scenario 03.
 """
-param map = localPath('../../carla/OpenDrive/Town01.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town01.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town01'
 model scenic.domains.driving.model
 
@@ -21,7 +21,7 @@ behavior EgoBehavior(speed=10):
 	try:
 		do FollowLaneBehavior(speed)
 
-	interrupt when distanceToAnyObjs(self, EGO_BRAKING_THRESHOLD):
+	interrupt when withinDistanceToAnyObjs(self, EGO_BRAKING_THRESHOLD):
 		take SetBrakeAction(BRAKE_ACTION)
 
 #GEOMETRY

@@ -21,7 +21,7 @@ kiwisolver==1.2.0
 mapbox-earcut==0.12.10
 markupsafe==1.1.1
 matplotlib==3.3.1
-more-itertools==8.4.0
+more-itertools==8.5.0
 numpy==1.19.1
 opencv-python==4.2.0.34
 packaging==20.4
@@ -51,6 +51,6 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.4
 toml==0.10.1
-tox==3.19.0
+tox==3.20.0
 urllib3==1.25.10
 virtualenv==20.0.31

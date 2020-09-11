@@ -8,7 +8,7 @@ World models for particular uses of Webots are in submodules.
    <h2>Submodules</h2>
 
 .. autosummary::
-   :toctree: _autosummary
+   :toctree:
 
    mars
    road

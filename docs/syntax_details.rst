@@ -1,7 +1,8 @@
+..  _syntax_details:
 
-***********************
-Scenic Syntax Reference
-***********************
+****************
+Syntax Reference
+****************
 
 Primitive Data Types
 ====================

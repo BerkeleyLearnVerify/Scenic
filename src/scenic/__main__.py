@@ -13,7 +13,7 @@ import scenic.core.errors as errors
 from scenic.core.simulators import SimulationCreationError
 
 parser = argparse.ArgumentParser(prog='scenic', add_help=False,
-                                 usage='scenic [-h | --help] [options] FILE',
+                                 usage='scenic [-h | --help] [options] FILE [options]',
                                  description='Sample from a Scenic scenario, optionally '
                                              'running dynamic simulations.')
 
@@ -53,6 +53,8 @@ debugOpts.add_argument('--show-params', help='show values of global parameters',
                        action='store_true')
 debugOpts.add_argument('-b', '--full-backtrace', help='show full internal backtraces',
                        action='store_true')
+debugOpts.add_argument('--pdb', action='store_true',
+                       help='enter interactive debugger on errors (implies "-b")')
 ver = importlib.metadata.version('scenic')
 debugOpts.add_argument('--version', action='version', version=f'Scenic {ver}',
                        help='print Scenic version information and exit')
@@ -75,6 +77,9 @@ parser.add_argument('scenicFile', help='a Scenic file to run', metavar='FILE')
 args = parser.parse_args()
 delay = args.delay
 errors.showInternalBacktrace = args.full_backtrace
+if args.pdb:
+    errors.postMortemDebugging = True
+    errors.showInternalBacktrace = True
 translator.dumpTranslatedPython = args.dump_initial_python
 translator.dumpFinalAST = args.dump_ast
 translator.dumpASTPython = args.dump_python

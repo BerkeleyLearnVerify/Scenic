@@ -14,18 +14,20 @@ from scenic.core.errors import InvalidScenarioError
 import scenic.syntax.veneer as veneer
 
 class Scene:
-	"""A scene generated from a Scenic scenario.
+	"""Scene()
+
+	A scene generated from a Scenic scenario.
 
 	Attributes:
-		objects (tuple(:obj:`~scenic.core.object_types.Object`)): All objects in the
+		objects (tuple of :obj:`~scenic.core.object_types.Object`): All objects in the
 		  scene. The ``ego`` object is first.
 		egoObject (:obj:`~scenic.core.object_types.Object`): The ``ego`` object.
 		params (dict): Dictionary mapping the name of each global parameter to its value.
 		workspace (:obj:`~scenic.core.workspaces.Workspace`): Workspace for the scenario.
-    """
+	"""
 	def __init__(self, workspace, objects, egoObject, params,
-	             alwaysReqs=(), terminationConds=(), termSimulationConds=(), monitors=(),
-	             behaviorNamespaces={}, dynamicScenario=None):
+				 alwaysReqs=(), terminationConds=(), termSimulationConds=(), monitors=(),
+				 behaviorNamespaces={}, dynamicScenario=None):
 		self.workspace = workspace
 		self.objects = tuple(objects)
 		self.egoObject = egoObject
@@ -40,6 +42,7 @@ class Scene:
 	def show(self, zoom=None, block=True):
 		"""Render a schematic of the scene for debugging."""
 		import matplotlib.pyplot as plt
+		plt.gca().set_aspect('equal')
 		# display map
 		self.workspace.show(plt)
 		# draw objects
@@ -51,13 +54,16 @@ class Scene:
 		plt.show(block=block)
 
 class Scenario:
-	"""A compiled Scenic scenario, from which scenes can be sampled."""
+	"""Scenario()
+
+	A compiled Scenic scenario, from which scenes can be sampled.
+	"""
 	def __init__(self, workspace, simulator,
-	             objects, egoObject,
-	             params, externalParams,
-                 requirements, requirementDeps,
-                 monitors, behaviorNamespaces,
-                 dynamicScenario):
+				 objects, egoObject,
+				 params, externalParams,
+				 requirements, requirementDeps,
+				 monitors, behaviorNamespaces,
+				 dynamicScenario):
 		if workspace is None:
 			workspace = Workspace()		# default empty workspace
 		self.workspace = workspace
@@ -98,11 +104,11 @@ class Scenario:
 		if type(other) is not Scenario:
 			return False
 		return (areEquivalent(other.workspace, self.workspace)
-		    and areEquivalent(other.objects, self.objects)
-		    and areEquivalent(other.params, self.params)
-		    and areEquivalent(other.externalParams, self.externalParams)
-		    and areEquivalent(other.requirements, self.requirements)
-		    and other.externalSampler == self.externalSampler)
+			and areEquivalent(other.objects, self.objects)
+			and areEquivalent(other.params, self.params)
+			and areEquivalent(other.externalParams, self.externalParams)
+			and areEquivalent(other.requirements, self.requirements)
+			and other.externalSampler == self.externalSampler)
 
 	def containerOfObject(self, obj):
 		if hasattr(obj, 'regionContainedIn') and obj.regionContainedIn is not None:
@@ -111,7 +117,10 @@ class Scenario:
 			return self.workspace.region
 
 	def validate(self):
-		"""Make some simple static checks for inconsistent built-in requirements."""
+		"""Make some simple static checks for inconsistent built-in requirements.
+
+		:meta private:
+		"""
 		objects = self.objects
 		staticVisibility = self.egoObject and not needsSampling(self.egoObject.visibleRegion)
 		staticBounds = [self.hasStaticBounds(obj) for obj in objects]
@@ -138,7 +147,7 @@ class Scenario:
 					continue
 				if oi.intersects(oj):
 					raise InvalidScenarioError(f'Object at {oi.position} intersects'
-					                           f' object at {oj.position}')
+											   f' object at {oj.position}')
 
 	def hasStaticBounds(self, obj):
 		if needsSampling(obj.position):
@@ -242,12 +251,12 @@ class Scenario:
 			sampledNamespaces[modName] = (namespace, sampledNamespace, namespace.copy())
 		alwaysReqs = (veneer.BoundRequirement(req, sample) for req in self.alwaysRequirements)
 		terminationConds = (veneer.BoundRequirement(req, sample)
-		                    for req in self.terminationConditions)
+							for req in self.terminationConditions)
 		termSimulationConds = (veneer.BoundRequirement(req, sample)
-		                       for req in self.terminateSimulationConditions)
+							   for req in self.terminateSimulationConditions)
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
-		              alwaysReqs, terminationConds, termSimulationConds, self.monitors,
-		              sampledNamespaces, self.dynamicScenario)
+					  alwaysReqs, terminationConds, termSimulationConds, self.monitors,
+					  sampledNamespaces, self.dynamicScenario)
 		return scene, iterations
 
 	def resetExternalSampler(self):
