@@ -11,7 +11,7 @@ from scenic.core.object_types import Object
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument
 from scenic.core.utils import areEquivalent
-from scenic import scenarioFromString as compileScenic
+from tests.utils import compileScenic
 
 def tryPickling(thing, checkEquivalence=True):
     pickled = dill.dumps(thing)
@@ -34,7 +34,5 @@ def test_pickle_object():
     tryPickling(obj)
 
 def test_pickle_scenario():
-    scenario = compileScenic(
-        'ego = Object with width (1, 2)#, left of 4 @ (-2, 2)\n'
-    )
+    scenario = compileScenic('ego = Object with width Range(1, 2)')
     tryPickling(scenario)

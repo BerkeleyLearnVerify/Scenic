@@ -34,7 +34,21 @@ class DelayedArgument(LazilyEvaluable):
 	The value of a DelayedArgument is given by a function mapping the context (object under
 	construction) to a value.
 	"""
-	def __init__(self, requiredProps, value):
+	def __new__(cls, *args, _internal=False, **kwargs):
+		darg = super().__new__(cls)
+		if _internal:
+			return darg
+		# at runtime, evaluate immediately in the context of the current agent
+		import scenic.syntax.veneer as veneer
+		if veneer.simulationInProgress() and veneer.currentBehavior:
+			behavior = veneer.currentBehavior
+			assert behavior.agent
+			darg.__init__(*args, **kwargs)
+			return darg.evaluateIn(behavior.agent)
+		else:
+			return darg
+
+	def __init__(self, requiredProps, value, _internal=False):
 		self.value = value
 		super().__init__(requiredProps)
 
@@ -107,10 +121,10 @@ def valueInContext(value, context):
 	except AttributeError:
 		return value
 
-def toDelayedArgument(thing):
+def toDelayedArgument(thing, internal=False):
 	if isinstance(thing, DelayedArgument):
 		return thing
-	return DelayedArgument(set(), lambda context: thing)
+	return DelayedArgument(set(), lambda context: thing, _internal=internal)
 
 def requiredProperties(thing):
 	if hasattr(thing, '_requiredProperties'):

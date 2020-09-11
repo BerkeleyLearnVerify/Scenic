@@ -28,14 +28,14 @@ class Car:
 	webotsType: self.model.name
 	model: modelWithName['ToyotaPrius']
 	width: self.model.width
-	height: self.model.height
+	length: self.model.length
 	requireVisible: False
 	viewAngle: 90 deg
 	visibleDistance: 60
-	cameraOffset: 0 @ (self.height / 2)		# camera is at the front
+	cameraOffset: 0 @ (self.length / 2)		# camera is at the front
 
 class Marker:
 	width: 0.1
-	height: 0.1
+	length: 0.1
 	allowCollisions: True
 	requireVisible: False

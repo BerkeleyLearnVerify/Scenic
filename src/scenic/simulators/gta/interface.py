@@ -2,17 +2,26 @@
 
 import math
 import time
-import colorsys
-from collections import namedtuple
 
 import numpy
 import scipy.spatial
-import PIL
-import cv2
+
+try:
+	import PIL
+except ModuleNotFoundError as e:
+	raise RuntimeError('GTA scenarios require the PIL module;'
+	                   ' try "pip install pillow"') from e
+
+try:
+	import cv2
+except ModuleNotFoundError as e:
+	raise RuntimeError('GTA scenarios require the cv2 module;'
+	                   ' try "pip install opencv-python"') from e
 
 import scenic.simulators.gta.center_detection as center_detection
 import scenic.simulators.gta.img_modf as img_modf
 import scenic.simulators.gta.messages as messages
+from scenic.simulators.utils.colors import Color
 
 from scenic.core.distributions import (Samplable, Distribution, Range, Normal, Options,
                                        distributionMethod, toDistribution)
@@ -21,7 +30,6 @@ from scenic.core.lazy_eval import valueInContext
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import VectorField
 from scenic.core.regions import PointSetRegion, GridRegion
-from scenic.core.object_types import Mutator
 import scenic.core.utils as utils
 from scenic.core.geometry import *
 
@@ -53,7 +61,7 @@ class GTA:
 	def Vehicle(car):
 		loc3 = GTA.langToGTACoords(car.position)
 		heading = GTA.langToGTAHeading(car.heading)
-		scol = list(CarColor.realToByte(car.color))
+		scol = list(Color.realToByte(car.color))
 		return messages.Vehicle(car.model.name, scol, loc3, heading)
 	
 	@staticmethod
@@ -188,7 +196,6 @@ class MapWorkspace(Workspace):
 		return self.map.scenicToGridCoords(coords)
 
 	def show(self, plt):
-		plt.gca().set_aspect('equal')
 		return self.map.show(plt)
 
 	@property
@@ -203,18 +210,18 @@ class CarModel:
 	Attributes:
 		name (str): name of model in GTA
 		width (float): width of this model of car
-		height (float): height of this model of car
+		length (float): length of this model of car
 		viewAngle (float): view angle in radians (default is 90 degrees)
 
 	Class Attributes:
 		models: dict mapping model names to the corresponding `CarModel`
 	"""
 
-	def __init__(self, name, width, height, viewAngle=math.radians(90)):
+	def __init__(self, name, width, length, viewAngle=math.radians(90)):
 		super(CarModel, self).__init__()
 		self.name = name
 		self.width = width
-		self.height = height
+		self.length = length
 		self.viewAngle = viewAngle
 
 	@classmethod
@@ -249,92 +256,3 @@ CarModel.modelProbs = {
 	CarModel('PRANGER', 3.02698, 5.94577): 1
 }
 CarModel.models = { model.name: model for model in CarModel.modelProbs }
-
-class CarColor(namedtuple('CarColor', ['r', 'g', 'b'])):
-	"""A car color as an RGB tuple."""
-	@classmethod
-	def withBytes(cls, color):
-		return cls._make(c / 255.0 for c in color)
-
-	@staticmethod
-	def realToByte(color):
-		return tuple(int(round(255 * c)) for c in color)
-
-	@staticmethod
-	def uniformColor():
-		"""Return a uniformly random color."""
-		return toDistribution(CarColor(Range(0, 1), Range(0, 1), Range(0, 1)))
-
-	@staticmethod
-	def defaultColor():
-		"""Default color distribution for cars.
-
-		The distribution starts with a base distribution over 9 discrete colors,
-		then adds Gaussian HSL noise. The base distribution uses color popularity
-		statistics from a `2012 DuPont survey`_.
-
-		.. _2012 DuPont survey: https://web.archive.org/web/20121229065631/http://www2.dupont.com/Media_Center/en_US/color_popularity/Images_2012/DuPont2012ColorPopularity.pdf
-		"""
-		baseColors = {
-			(248, 248, 248): 0.24,	# white
-			(50, 50, 50): 0.19,		# black
-			(188, 185, 183): 0.16,	# silver
-			(130, 130, 130): 0.15,	# gray
-			(194, 92, 85): 0.10,	# red
-			(75, 119, 157): 0.07,	# blue
-			(197, 166, 134): 0.05,	# brown/beige
-			(219, 191, 105): 0.02,	# yellow/gold
-			(68, 160, 135): 0.02,	# green
-		}
-		converted = { CarColor.withBytes(color): prob for color, prob in baseColors.items() }
-		baseColor = Options(converted)
-		# TODO improve this?
-		hueNoise = Normal(0, 0.1)
-		satNoise = Normal(0, 0.1)
-		lightNoise = Normal(0, 0.1)
-		return NoisyColorDistribution(baseColor, hueNoise, satNoise, lightNoise)
-
-class NoisyColorDistribution(Distribution):
-	"""A distribution given by HSL noise around a base color.
-
-	Arguments:
-		baseColor (RGB tuple): base color
-		hueNoise (float): noise to add to base hue
-		satNoise (float): noise to add to base saturation
-		lightNoise (float): noise to add to base lightness
-	"""
-
-	def __init__(self, baseColor, hueNoise, satNoise, lightNoise):
-		super().__init__(baseColor, hueNoise, satNoise, lightNoise, valueType=CarColor)
-		self.baseColor = baseColor
-		self.hueNoise = hueNoise
-		self.satNoise = satNoise
-		self.lightNoise = lightNoise
-
-	@staticmethod
-	def addNoiseTo(color, hueNoise, lightNoise, satNoise):
-		hue, lightness, saturation = colorsys.rgb_to_hls(*color)
-		hue = max(0, min(1, hue + hueNoise))
-		lightness = max(0, min(1, lightness + lightNoise))
-		saturation = max(0, min(1, saturation + satNoise))
-		return colorsys.hls_to_rgb(hue, lightness, saturation)
-
-	def sampleGiven(self, value):
-		bc = value[self.baseColor]
-		return CarColor(*self.addNoiseTo(bc, value[self.hueNoise],
-		    value[self.lightNoise], value[self.satNoise]))
-
-	def evaluateInner(self, context):
-		self.baseColor = valueInContext(self.baseColor, context)
-		self.hueNoise = valueInContext(self.hueNoise, context)
-		self.satNoise = valueInContext(self.satNoise, context)
-		self.lightNoise = valueInContext(self.lightNoise, context)
-
-class CarColorMutator(Mutator):
-	"""Mutator that adds Gaussian HSL noise to the ``color`` property."""
-	def appliedTo(self, obj):
-		hueNoise = random.gauss(0, 0.05)
-		satNoise = random.gauss(0, 0.05)
-		lightNoise = random.gauss(0, 0.05)
-		color = NoisyColorDistribution.addNoiseTo(obj.color, hueNoise, lightNoise, satNoise)
-		return tuple([obj.copyWith(color=color), True])		# allow further mutation

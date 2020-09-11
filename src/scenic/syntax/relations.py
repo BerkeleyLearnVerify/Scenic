@@ -7,7 +7,7 @@ from ast import Compare, BinOp, Eq, NotEq, Lt, LtE, Gt, GtE, Call, Add, Sub, Exp
 
 from scenic.core.distributions import needsSampling
 from scenic.core.object_types import Point, Object
-from scenic.core.utils import InvalidScenarioError, InconsistentScenarioError
+from scenic.core.errors import InvalidScenarioError, InconsistentScenarioError
 
 def inferRelationsFrom(reqNode, namespace, ego, line):
     """Infer relations between objects implied by a requirement."""
@@ -20,7 +20,7 @@ def inferRelativeHeadingRelations(matcher, reqNode, ego, line):
     """Infer bounds on relative headings from a requirement."""
     rhMatcher = lambda node: matcher.matchUnaryFunction('RelativeHeading', node)
     allBounds = matcher.matchBounds(reqNode, rhMatcher)
-    for target, bounds in allBounds.items():
+    for target, bounds in allBounds:
         if not isinstance(target, Object):
             continue
         assert target is not ego
@@ -42,7 +42,7 @@ def inferDistanceRelations(matcher, reqNode, ego, line):
     """Infer bounds on distances from a requirement."""
     distMatcher = lambda node: matcher.matchUnaryFunction('DistanceFrom', node)
     allBounds = matcher.matchBounds(reqNode, distMatcher)
-    for target, bounds in allBounds.items():
+    for target, bounds in allBounds:
         if not isinstance(target, Object):
             continue
         assert target is not ego
@@ -93,25 +93,28 @@ class RequirementMatcher:
     def matchBounds(self, node, matchAtom):
         """Match upper/lower bounds on something matched by the given function.
 
-        Returns a dict of all bounds found, mapping the bounded quantity to a
+        Returns a list of all bounds found, pairing the bounded quantity with a
         pair (low, high) of lower/upper bounds.
         """
         if not isinstance(node, Compare):
             return {}
         bounds = defaultdict(lambda: (float('-inf'), float('inf')))
+        targets = {}
         first = node.left
         for second, op in zip(node.comparators, node.ops):
             lower, upper, target = self.matchBoundsInner(first, second, op, matchAtom)
             first = second
             if target is None:
                 continue
-            bestLower, bestUpper = bounds[target]
+            targetID = id(target)    # use id to support unhashable types
+            targets[targetID] = target
+            bestLower, bestUpper = bounds[targetID]
             if lower is not None and lower > bestLower:
                 bestLower = lower
             if upper is not None and upper < bestUpper:
                 bestUpper = upper
-            bounds[target] = (bestLower, bestUpper)
-        return bounds
+            bounds[targetID] = (bestLower, bestUpper)
+        return [(target, bounds[id_]) for id_, target in targets.items()]
 
     def matchBoundsInner(self, left, right, op, matchAtom):
         """Extract bounds from a single comparison operator."""

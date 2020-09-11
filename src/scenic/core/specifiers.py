@@ -5,7 +5,7 @@ import itertools
 from scenic.core.lazy_eval import (DelayedArgument, toDelayedArgument, requiredProperties,
                                    needsLazyEvaluation)
 from scenic.core.distributions import toDistribution
-from scenic.core.utils import RuntimeParseError
+from scenic.core.errors import RuntimeParseError
 
 ## Specifiers themselves
 
@@ -14,9 +14,9 @@ class Specifier:
 
 	Any optionally-specified properties are evaluated as attributes of the primary value.
 	"""
-	def __init__(self, prop, value, deps=None, optionals={}):
+	def __init__(self, prop, value, deps=None, optionals={}, internal=False):
 		self.property = prop
-		self.value = toDelayedArgument(value)
+		self.value = toDelayedArgument(value, internal)
 		if deps is None:
 			deps = set()
 		deps |= requiredProperties(value)
@@ -30,10 +30,10 @@ class Specifier:
 		val = self.value.evaluateIn(obj)
 		val = toDistribution(val)
 		assert not needsLazyEvaluation(val)
-		setattr(obj, self.property, val)
+		obj._specify(self.property, val)
 		for opt in optionals:
 			assert opt in self.optionals
-			setattr(obj, opt, getattr(val, opt))
+			obj._specify(opt, getattr(val, opt))
 
 	def __str__(self):
 		return f'<Specifier of {self.property}>'
@@ -43,7 +43,7 @@ class Specifier:
 class PropertyDefault:
 	"""A default value, possibly with dependencies."""
 	def __init__(self, requiredProperties, attributes, value):
-		self.requiredProperties = requiredProperties
+		self.requiredProperties = set(requiredProperties)
 		self.value = value
 
 		def enabled(thing, default):
@@ -53,6 +53,7 @@ class PropertyDefault:
 			else:
 				return default
 		self.isAdditive = enabled('additive', False)
+		self.isDynamic = enabled('dynamic', False)
 		for attr in attributes:
 			raise RuntimeParseError(f'unknown property attribute "{attr}"')
 
@@ -74,7 +75,7 @@ class PropertyDefault:
 				for other in overriddenDefs:
 					allVals.append(other.value(context))
 				return tuple(allVals)
-			val = DelayedArgument(allReqs, concatenator)
+			val = DelayedArgument(allReqs, concatenator, _internal=True)
 		else:
-			val = DelayedArgument(self.requiredProperties, self.value)
+			val = DelayedArgument(self.requiredProperties, self.value, _internal=True)
 		return Specifier(prop, val)

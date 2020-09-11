@@ -5,9 +5,10 @@
    <h2>Submodules</h2>
 
 .. autosummary::
-   :toctree: _autosummary
+   :toctree:
 
    distributions
+   errors
    external_params
    geometry
    lazy_eval
@@ -15,6 +16,7 @@
    pruning
    regions
    scenarios
+   simulators
    specifiers
    type_support
    utils

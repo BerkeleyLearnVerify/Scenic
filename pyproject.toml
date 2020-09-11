@@ -1,11 +1,12 @@
 [tool.poetry]
 name = "scenic"
-version = "1.1.0"
+version = "2.0.0b1"
 description = "The Scenic scenario description language."
 authors = [
 	"Daniel Fremont <dfremont@ucsc.edu>",
 	"Tommaso Dreossi",
 	"Shromona Ghosh",
+	"Edward Kim",
 	"Xiangyu Yue",
 	"Alberto L. Sangiovanni-Vincentelli",
 	"Sanjit A. Seshia"
@@ -21,30 +22,30 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = "^3.8"
 dotmap = "^1.3.13"
 shapely = "^1.7.0"
-pypoly2tri = "^0.0.3"
+mapbox_earcut = "^0.12.10"
 matplotlib = "^3.2.1"
 scipy = "^1.4.1"
 antlr4-python3-runtime = "~4.8"
-opencv-python = "^4.2.0"
+opencv-python = "~4.2.0.34"
 numpy = "^1.18.2"
 pillow = "^7.1.1"
 pynverse = "^0.1.4"
-
-Polygon3 = {version = "^3.0.8", optional = true}
+pygame = "^2.0.0.dev6"
+attrs = "^19.3.0"
 
 pyproj = {version = "^2.6.0", optional = true}
 
 pytest-randomly = {version = "^3.2.1", optional = true}
-pytest = {version = "^5.4.1", optional = true}
-sphinx = {version = "^3.0.0", optional = true}
+pytest = {version = "^6.0.0", optional = true}
+sphinx = {version = "^3.1.0", optional = true}
 tox = {version = "^3.14.0", optional = true}
 sphinx_rtd_theme = {version = "^0.4.3", optional = true}
+astor = {version = "^0.8.1", optional = true}
 
 [tool.poetry.extras]
-gpc_triangulation = ["Polygon3"]
 guideways = ["pyproj"]
 dev = [
 	"pytest-randomly",
@@ -53,8 +54,12 @@ dev = [
 	"sphinx_rtd_theme",
 	"tox",
 	"pygments",
+	"astor",
 	"pyproj",	# for running guideways modules
 ]
+
+[tool.poetry.scripts]
+scenic = 'scenic.__main__:dummy'
 
 [tool.poetry.plugins."pygments.lexers"]
 scenic = "scenic.syntax.pygment:ScenicLexer"

@@ -9,7 +9,7 @@ from scenic.simulators.webots.road.world import worldPath
 from scenic.simulators.webots.road.car_models import CarModel, carModels, \
 	modelWithName, smallVehicles
 
-from scenic.simulators.gta.interface import CarColor	# TODO refactor
+from scenic.simulators.utils.colors import Color as CarColor
 
 # Load map and set up workspace
 
@@ -36,7 +36,9 @@ walkway = workspace.walkableRegion
 # types of objects
 
 class WebotsObject:
-	pass
+	webotsName: 'unspecified_name'
+	webotsObject: None 	# gets filled in at simulation time
+	elevation: None 	# ditto (this is the Webots y coordinate)
 
 class Car(WebotsObject):
 	regionContainedIn: road
@@ -45,11 +47,11 @@ class Car(WebotsObject):
 	roadDeviation: 0
 	model: Uniform(*carModels)
 	width: self.model.width
-	height: self.model.height
+	length: self.model.length
 	webotsType: self.model.name
 	viewAngle: 90 deg
-	cameraOffset: 0 @ (self.height / 2)		# camera is at the front
-	color: CarColor.defaultColor()
+	cameraOffset: 0 @ (self.length / 2)		# camera is at the front
+	color: CarColor.defaultCarColor()
 
 class SmallCar(Car):
 	model: Uniform(*smallVehicles)
@@ -80,31 +82,31 @@ class Tractor(Car):
 
 class Motorcycle(Car):
 	model: modelWithName['MotorBikeSimple']
-	primaryColor: CarColor.defaultColor()
+	primaryColor: CarColor.defaultCarColor()
 	secondaryColor: CarColor.uniformColor()		# TODO improve
 
 class Pedestrian(WebotsObject):
 	regionContainedIn: walkway
 	position: Point on walkway
-	heading: (0, 360) deg
+	heading: Range(0, 360) deg
 	width: 0.5
-	height: 0.5
+	length: 0.5
 	shirtColor: CarColor.uniformColor()
 	pantsColor: CarColor.uniformColor()
 	shoesColor: CarColor.uniformColor()
 
 class OilBarrel(WebotsObject):
 	width: 0.61
-	height: 0.61
+	length: 0.61
 
 class SolidBox(WebotsObject):
 	width: 2
-	height: 2
+	length: 2
 
 class TrafficCone(WebotsObject):
 	width: 0.5
-	height: 0.5
+	length: 0.5
 
 class WorkBarrier(WebotsObject):
 	width: 1.2
-	height: 0.4
+	length: 0.4
