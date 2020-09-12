@@ -71,6 +71,7 @@ autosummary_generate = True
 autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
 autodoc_mock_imports = ['carla', 'lgsvl']
+autodoc_typehints = 'description'
 napoleon_numpy_docstring = False
 napoleon_use_rtype = False
 napoleon_use_ivar = True
@@ -319,3 +320,13 @@ def generate_autosummary_content(name, obj, parent,
                                              modname=modname, qualname=qualname)
 
 as_gen.generate_autosummary_content = generate_autosummary_content
+
+# -- Monkeypatch to fix bug in autodoc (temporarily) -------------------------
+
+from sphinx.ext.autodoc import Documenter, Options
+
+orig_init = Documenter.__init__
+def __init__(self, *args, **kwargs):
+    orig_init(self, *args, **kwargs)
+    self.options = Options(self.options)
+Documenter.__init__ = __init__

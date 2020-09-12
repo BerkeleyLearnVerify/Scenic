@@ -7,9 +7,9 @@ from math import sin, cos
 import random
 import collections
 import itertools
-import functools
 
 import shapely.geometry
+import wrapt
 
 from scenic.core.distributions import (Samplable, Distribution, MethodDistribution,
     needsSampling, makeOperatorHandler, distributionMethod, distributionFunction,
@@ -97,13 +97,13 @@ def scalarOperator(method):
 	op = method.__name__
 	setattr(VectorDistribution, op, makeOperatorHandler(op))
 
-	@functools.wraps(method)
-	def handler2(self, *args, **kwargs):
+	@wrapt.decorator
+	def wrapper(wrapped, instance, args, kwargs):
 		if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
-			return MethodDistribution(method, self, args, kwargs)
+			return MethodDistribution(method, instance, args, kwargs)
 		else:
-			return method(self, *args, **kwargs)
-	return handler2
+			return wrapped(*args, **kwargs)
+	return wrapper(method)
 
 def makeVectorOperatorHandler(op):
 	def handler(self, *args):
@@ -114,31 +114,36 @@ def vectorOperator(method):
 	op = method.__name__
 	setattr(VectorDistribution, op, makeVectorOperatorHandler(op))
 
-	@functools.wraps(method)
-	def handler2(self, *args):
-		if needsSampling(self):
-			return VectorOperatorDistribution(op, self, args)
-		elif any(needsSampling(arg) for arg in args):
-			return VectorMethodDistribution(method, self, args, {})
-		elif any(needsLazyEvaluation(arg) for arg in args):
-			# see analogous comment in distributionFunction
-			return makeDelayedFunctionCall(handler2, args, {})
-		else:
-			return method(self, *args)
-	return handler2
+	@wrapt.decorator
+	def wrapper(wrapped, instance, args, kwargs):
+		def helper(*args):
+			if needsSampling(instance):
+				return VectorOperatorDistribution(op, instance, args)
+			elif any(needsSampling(arg) for arg in args):
+				return VectorMethodDistribution(method, instance, args, {})
+			elif any(needsLazyEvaluation(arg) for arg in args):
+				# see analogous comment in distributionFunction
+				return makeDelayedFunctionCall(helper, args, {})
+			else:
+				return wrapped(*args)
+		return helper(*args)
+	return wrapper(method)
 
 def vectorDistributionMethod(method):
 	"""Decorator for methods that produce vectors. See distributionMethod."""
-	@functools.wraps(method)
-	def helper(self, *args, **kwargs):
-		if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
-			return VectorMethodDistribution(method, self, args, kwargs)
-		elif any(needsLazyEvaluation(arg) for arg in itertools.chain(args, kwargs.values())):
-			# see analogous comment in distributionFunction
-			return makeDelayedFunctionCall(helper, (self,) + args, kwargs)
-		else:
-			return method(self, *args, **kwargs)
-	return helper
+	@wrapt.decorator
+	def wrapper(wrapped, instance, args, kwargs):
+		def helper(*args, **kwargs):
+			if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
+				return VectorMethodDistribution(method, instance, args, kwargs)
+			elif any(needsLazyEvaluation(arg)
+			         for arg in itertools.chain(args, kwargs.values())):
+				# see analogous comment in distributionFunction
+				return makeDelayedFunctionCall(helper, args, kwargs)
+			else:
+				return wrapped(*args, **kwargs)
+		return helper(*args, **kwargs)
+	return wrapper(method)
 
 class Vector(Samplable, collections.abc.Sequence):
 	"""A 2D vector, whose coordinates can be distributions."""

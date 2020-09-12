@@ -238,6 +238,14 @@ def test_list_nested():
     vs = [sampleEgo(scenario).foo for i in range(60)]
     assert 5 <= sum((v == 1000) for v in vs) <= 55
 
+def test_list_nested_argument():
+    scenario = compileScenic("""
+        mylist = Uniform(list(range(1000)), [1, 1, 1, 1, 2000])
+        ego = Object with foo max(*mylist)
+    """)
+    vs = [sampleEgo(scenario).foo for i in range(60)]
+    assert 5 <= sum((v == 2000) for v in vs) <= 55
+
 def test_list_filtered():
     scenario = compileScenic("""
         mylist = [Range(-10, -5), Range(3, 7), Range(-1, 1)]

@@ -43,8 +43,9 @@ import scenic.syntax.veneer as veneer
 
 ## Typing and utilities
 
-#: Alias for types which can be interpreted as positions in Scenic, including vectors,
-#: instances of `Point` and `Object`, and pairs of numbers.
+#: Alias for types which can be interpreted as positions in Scenic.
+#:
+#: This includes instances of `Point` and `Object`, and pairs of numbers.
 Vectorlike = Union[Vector, Point, Tuple[numbers.Real, numbers.Real]]
 
 def _toVector(thing: Vectorlike) -> Vector:
@@ -99,15 +100,22 @@ class VehicleType(enum.Enum):
 @enum.unique
 class ManeuverType(enum.Enum):
     """A type of `Maneuver`, e.g., going straight or turning left."""
-    STRAIGHT = enum.auto()
-    LEFT_TURN = enum.auto()
-    RIGHT_TURN = enum.auto()
-    U_TURN = enum.auto()
+    STRAIGHT = enum.auto()      #: Straight, including one lane merging into another.
+    LEFT_TURN = enum.auto()     #: Left turn.
+    RIGHT_TURN = enum.auto()    #: Right turn.
+    U_TURN = enum.auto()        #: U-turn.
 
     @staticmethod
-    def guessTypeFromLanes(start: Lane, end: Lane, connecting: Lane,
+    def guessTypeFromLanes(start: Lane, end: Lane, connecting: Union[Lane, None],
                            turnThreshold: float = math.radians(20)):
-        """For formats lacking turn information, guess it from the geometry."""
+        """For formats lacking turn information, guess it from the geometry.
+
+        Arguments:
+            start: starting lane of the maneuver.
+            end: ending lane of the maneuver.
+            connecting: connecting lane of the maneuver, if any.
+            turnThreshold: angle beyond which to consider a maneuver a turn.
+        """
         if connecting is None:
             return ManeuverType.STRAIGHT
         if end.road is start.road:
@@ -126,18 +134,20 @@ class ManeuverType(enum.Enum):
 
 @attr.s(auto_attribs=True, kw_only=True, eq=False)
 class Maneuver(_ElementReferencer):
-    """A maneuver which can be taken upon reaching the end of a lane.
+    """Maneuver()
 
-    Attributes:
-        type (ManeuverType): type of maneuver (straight, left turn, etc.)
+    A maneuver which can be taken upon reaching the end of a lane.
     """
-    type: ManeuverType = None      # left turn, right turn, straight, etc.
-    startLane: Lane
-    endLane: Lane
+    type: ManeuverType = None   #: type of maneuver (straight, left turn, etc.)
+    startLane: Lane             #: starting lane of the maneuver
+    endLane: Lane               #: ending lane of the maneuver
 
     # the following attributes are None if startLane directly merges into endLane,
     # rather than connecting via a maneuver through an intersection
+
+    #: connecting lane from the start to the end lane, if any (`None` for lane mergers)
     connectingLane: Union[Lane, None] = None
+    #: intersection where the maneuver takes place, if any (`None` for lane mergers)
     intersection: Union[Intersection, None] = None
 
     def __attrs_post_init__(self):
@@ -150,6 +160,9 @@ class Maneuver(_ElementReferencer):
     @property
     @utils.cached
     def conflictingManeuvers(self) -> Tuple[Maneuver]:
+        """Tuple[Maneuver]: Maneuvers whose connecting lanes intersect this one's."""
+        if not self.connectingLane:
+            return ()
         guideway = self.connectingLane
         start = self.startLane
         conflicts = []
@@ -268,14 +281,16 @@ class LinearElement(NetworkElement):
         assert self.containsRegion(self.leftEdge, tolerance=0.5)
         assert self.containsRegion(self.rightEdge, tolerance=0.5)
         if self.orientation is None:
-            self.orientation = VectorField(self.name, self.defaultHeadingAt)
+            self.orientation = VectorField(self.name, self._defaultHeadingAt)
 
-    def defaultHeadingAt(self, point):
+    def _defaultHeadingAt(self, point):
         """Default orientation for this LinearElement.
 
         In general, we align along the nearest segment of the centerline.
         For roads, lane groups, etc., we align along the orientation of the
         lane containing the point.
+
+        :meta private:
         """
         point = _toVector(point)
         start, end = self.centerline.nearestSegmentTo(point)
@@ -284,17 +299,25 @@ class LinearElement(NetworkElement):
     @distributionFunction
     def flowFrom(self, point: Vectorlike, distance: float,
                  steps: Union[int, None] = None,
-                 stepSize: Union[float, None] = 5) -> Vector:
+                 stepSize: float = 5) -> Vector:
         """Advance a point along this element by a given distance.
 
-        Equivalent to 'follow element.orientation from point for distance', but
+        Equivalent to ``follow element.orientation from point for distance``, but
         possibly more accurate. The default implementation uses the forward
         Euler approximation with a step size of 5 meters; subclasses may ignore
-        the 'steps' and 'stepSize' parameters if they can compute the flow
+        the **steps** and **stepSize** parameters if they can compute the flow
         exactly.
+
+        Arguments:
+            point: point to start from.
+            distance: distance to travel.
+            steps: number of steps to take, or :obj:`None` to compute the
+                number of steps based on the distance (default :obj:`None`).
+            stepSize: length used to compute how many steps to take, if **steps** is not
+                specified (default 5 meters).
         """
         return self.orientation.followFrom(_toVector(point), distance,
-                                           steps=steps, stepSize=None)
+                                           steps=steps, stepSize=stepSize)
 
 class _ContainsCenterline:
     """Mixin which asserts that the centerline is contained in the polygon.
@@ -340,38 +363,38 @@ class Road(LinearElement):
             lgs.append(self.backwardLanes)
         self.laneGroups = tuple(lgs)
 
-    def defaultHeadingAt(self, point):
+    def _defaultHeadingAt(self, point):
         point = _toVector(point)
         group = self.laneGroupAt(point)
         if group:
             return group.orientation[point]
-        return super().defaultHeadingAt(point)
+        return super()._defaultHeadingAt(point)
 
     @distributionFunction
     def sectionAt(self, point: Vectorlike, reject=False) -> Union[RoadSection, None]:
-        """Get the RoadSection passing through a given point."""
+        """Get the `RoadSection` passing through a given point."""
         return self.network.findPointIn(point, self.sections, reject)
 
     @distributionFunction
     def laneSectionAt(self, point: Vectorlike, reject=False) -> Union[LaneSection, None]:
-        """Get the LaneSection passing through a given point."""
+        """Get the `LaneSection` passing through a given point."""
         point = _toVector(point)
         lane = self.laneAt(point, reject=reject)
         return None if lane is None else lane.sectionAt(point)
 
     @distributionFunction
     def laneAt(self, point: Vectorlike, reject=False) -> Union[Lane, None]:
-        """Get the lane passing through a given point."""
+        """Get the `Lane` passing through a given point."""
         return self.network.findPointIn(point, self.lanes, reject)
 
     @distributionFunction
     def laneGroupAt(self, point: Vectorlike, reject=False) -> Union[LaneGroup, None]:
-        """Get the LaneGroup passing through a given point."""
+        """Get the `LaneGroup` passing through a given point."""
         return self.network.findPointIn(point, self.laneGroups, reject)
 
     @distributionFunction
     def crossingAt(self, point: Vectorlike, reject=False) -> Union[PedestrianCrossing, None]:
-        """Get the PedestrianCrossing passing through a given point."""
+        """Get the :obj:`.PedestrianCrossing` passing through a given point."""
         return self.network.findPointIn(point, self.crossings, reject)
 
     @distributionFunction
@@ -380,7 +403,7 @@ class Road(LinearElement):
         raise NotImplementedError   # TODO implement this
 
     @property
-    def is1Way(self):
+    def is1Way(self) -> bool:
         return self.forwardLanes is None or self.backwardLanes is None
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
@@ -405,30 +428,30 @@ class LaneGroup(LinearElement):
     _opposite: Union[LaneGroup, None] = None
 
     @property
-    def sidewalk(self):
+    def sidewalk(self) -> Sidewalk:
         """The adjacent sidewalk; rejects if there is none."""
         return _rejectIfNonexistent(self._sidewalk, 'sidewalk')
 
     @property
-    def bikeLane(self):
+    def bikeLane(self) -> Lane:
         return _rejectIfNonexistent(self._bikeLane, 'bike lane')
 
     @property
-    def shoulder(self):
+    def shoulder(self) -> Shoulder:
         """The adjacent shoulder; rejects if there is none."""
         return _rejectIfNonexistent(self._shoulder, 'shoulder')
 
     @property
-    def opposite(self):
+    def opposite(self) -> LaneGroup:
         """The opposite lane group of the same road; rejects if there is none."""
         return _rejectIfNonexistent(self._opposite, 'opposite lane group')
 
-    def defaultHeadingAt(self, point):
+    def _defaultHeadingAt(self, point):
         point = _toVector(point)
         lane = self.laneAt(point)
         if lane:
             return lane.orientation[point]
-        return super().defaultHeadingAt(point)
+        return super()._defaultHeadingAt(point)
 
     @distributionFunction
     def laneAt(self, point: Vectorlike, reject=False) -> Union[Lane, None]:
@@ -501,12 +524,12 @@ class RoadSection(LinearElement):
                 ids[i] = lane
             self.lanesByOpenDriveID = ids
 
-    def defaultHeadingAt(self, point):
+    def _defaultHeadingAt(self, point):
         point = _toVector(point)
         lane = self.laneAt(point)
         if lane:
             return lane.orientation[point]
-        return super().defaultHeadingAt(point)
+        return super()._defaultHeadingAt(point)
 
     @distributionFunction
     def laneAt(self, point: Vectorlike, reject=False) -> Union[LaneSection, None]:
@@ -552,22 +575,22 @@ class LaneSection(_ContainsCenterline, LinearElement):
     _slowerLane: Union[LaneSection, None] = None
 
     @property
-    def laneToLeft(self):
+    def laneToLeft(self) -> LaneSection:
         """The adjacent lane of the same type to the left; rejects if there is none."""
         return _rejectIfNonexistent(self._laneToLeft, 'lane to left')
 
     @property
-    def laneToRight(self):
+    def laneToRight(self) -> LaneSection:
         """The adjacent lane of the same type to the right; rejects if there is none."""
         return _rejectIfNonexistent(self._laneToRight, 'lane to right')
 
     @property
-    def fasterLane(self):
+    def fasterLane(self) -> LaneSection:
         """The faster adjacent lane of the same type; rejects if there is none."""
         return _rejectIfNonexistent(self._fasterLane, 'faster lane')
 
     @property
-    def slowerLane(self):
+    def slowerLane(self) -> LaneSection:
         """The slower adjacent lane of the same type; rejects if there is none."""
         return _rejectIfNonexistent(self._slowerLane, 'slower lane')
 
@@ -631,10 +654,12 @@ class Intersection(NetworkElement):
             assert self.containsRegion(maneuver.connectingLane, tolerance=0.5)
 
     @property
-    def is3Way(self):
+    def is3Way(self) -> bool:
+        """bool: Whether or not this is a 3-way intersection."""
         return len(self.roads) == 3
     @property
-    def is4Way(self):
+    def is4Way(self) -> bool:
+        """bool: Whether or not this is a 4-way intersection."""
         return len(self.roads) == 4
 
     @distributionFunction
@@ -776,14 +801,14 @@ class Network:
 
         :meta private:
         """
-        return 14
+        return 15
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
         pass
 
     @classmethod
-    def fromFile(cls, path, useCache=True, writeCache=True, **kwargs):
+    def fromFile(cls, path, useCache:bool = True, writeCache:bool = True, **kwargs):
         """Create a `Network` from a map file.
 
         This function calls an appropriate parsing routine based on the extension of the
@@ -799,10 +824,10 @@ class Network:
             path: A string or other :term:`path-like object` giving a path to a file.
                 If no file extension is included, we search for any file type we know how
                 to parse.
-            useCache (bool): Whether to use a cached version of the map, if one exists
+            useCache: Whether to use a cached version of the map, if one exists
                 and matches the given map file (default true; note that if the map file
                 changes, the cached version will still not be used).
-            writeCache (bool): Whether to save a cached version of the processed map
+            writeCache: Whether to save a cached version of the processed map
                 after parsing has finished (default true).
             kwargs: Additional keyword arguments specific to particular map formats.
 
@@ -862,17 +887,17 @@ class Network:
         return network
 
     @classmethod
-    def fromOpenDrive(cls, path, ref_points=20, tolerance=0.05,
-                      fill_gaps=True, fill_intersections=True):
+    def fromOpenDrive(cls, path, ref_points:int = 20, tolerance:float = 0.05,
+                      fill_gaps:bool = True, fill_intersections:bool = True):
         """Create a `Network` from an OpenDRIVE file.
 
         Args:
             path: Path to the file, as in `Network.fromFile`.
-            ref_points (int): Number of points to discretize continuous reference lines
+            ref_points: Number of points to discretize continuous reference lines
                 into.
-            tolerance (float): Tolerance for merging nearby geometries.
-            fill_gaps (bool): Whether to attempt to fill gaps between adjacent lanes.
-            fill_intersections (bool): Whether to attempt to fill gaps inside
+            tolerance: Tolerance for merging nearby geometries.
+            fill_gaps: Whether to attempt to fill gaps between adjacent lanes.
+            fill_intersections: Whether to attempt to fill gaps inside
                 intersections.
         """
         import scenic.formats.opendrive.xodr_parser as xodr_parser
