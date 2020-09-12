@@ -1,23 +1,25 @@
 """Assorted utility functions."""
 
-import functools
 import math
+
+import wrapt
 
 sqrt2 = math.sqrt(2)
 
 def cached(oldMethod):
     """Decorator for making a method with no arguments cache its result"""
     storageName = f'_cached_{oldMethod.__name__}'
-    @functools.wraps(oldMethod)
-    def newMethod(self):
+    @wrapt.decorator
+    def wrapper(wrapped, instance, args, kwargs):
+        self = args[0]
         try:
             # Use __getattribute__ for direct lookup in case self is a Distribution
             return self.__getattribute__(storageName)
         except AttributeError:
-            value = oldMethod(self)
+            value = wrapped(self)
             setattr(self, storageName, value)
             return value
-    return newMethod
+    return wrapper(oldMethod)
 
 def cached_property(oldMethod):
     return property(cached(oldMethod))

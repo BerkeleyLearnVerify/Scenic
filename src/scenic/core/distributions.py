@@ -2,13 +2,13 @@
 
 import collections
 import itertools
-import functools
 import random
 import math
 import typing
 import warnings
 
 import numpy
+import wrapt
 
 from scenic.core.lazy_eval import (LazilyEvaluable,
     requiredProperties, needsLazyEvaluation, valueInContext, makeDelayedFunctionCall)
@@ -36,7 +36,8 @@ def supportInterval(thing):
 
 def underlyingFunction(thing):
 	"""Original function underlying a distribution wrapper."""
-	return getattr(thing, '__wrapped__', thing)
+	func = getattr(thing, '__wrapped__', thing)
+	return getattr(func, '__func__', func)
 
 def canUnpackDistributions(func):
 	"""Whether the function supports iterable unpacking of distributions."""
@@ -351,23 +352,30 @@ class FunctionDistribution(Distribution):
 		args = argsToString(itertools.chain(self.arguments, self.kwargs.items()))
 		return f'{self.function.__name__}{args}'
 
-def distributionFunction(method, support=None, valueType=None):
+def distributionFunction(wrapped=None, *, support=None, valueType=None):
 	"""Decorator for wrapping a function so that it can take distributions as arguments."""
+	if wrapped is None:		# written without arguments as @distributionFunction
+		return lambda wrapped: distributionFunction(wrapped,
+		                                            support=support, valueType=valueType)
+
 	@unpacksDistributions
-	@functools.wraps(method)
-	def helper(*args, **kwargs):
-		args = tuple(toDistribution(arg) for arg in args)
-		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
-		if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
-			return FunctionDistribution(method, args, kwargs, support, valueType)
-		elif any(needsLazyEvaluation(arg) for arg in itertools.chain(args, kwargs.values())):
-			# recursively call this helper (not the original function), since the delayed
-			# arguments may evaluate to distributions, in which case we'll have to make a
-			# FunctionDistribution
-			return makeDelayedFunctionCall(helper, args, kwargs)
-		else:
-			return method(*args, **kwargs)
-	return helper
+	@wrapt.decorator
+	def wrapper(wrapped, instance, args, kwargs):
+		def helper(*args, **kwargs):
+			args = tuple(toDistribution(arg) for arg in args)
+			kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
+			if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
+				return FunctionDistribution(wrapped, args, kwargs, support, valueType)
+			elif any(needsLazyEvaluation(arg)
+			         for arg in itertools.chain(args, kwargs.values())):
+				# recursively call this helper (not the original function), since the
+				# delayed arguments may evaluate to distributions, in which case we'll
+				# have to make a FunctionDistribution
+				return makeDelayedFunctionCall(helper, args, kwargs)
+			else:
+				return wrapped(*args, **kwargs)
+		return helper(*args, **kwargs)
+	return wrapper(wrapped)
 
 def monotonicDistributionFunction(method, valueType=None):
 	"""Like distributionFunction, but additionally specifies that the function is monotonic."""
@@ -441,18 +449,21 @@ class MethodDistribution(Distribution):
 def distributionMethod(method):
 	"""Decorator for wrapping a method so that it can take distributions as arguments."""
 	@unpacksDistributions
-	@functools.wraps(method)
-	def helper(self, *args, **kwargs):
-		args = tuple(toDistribution(arg) for arg in args)
-		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
-		if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
-			return MethodDistribution(method, self, args, kwargs)
-		elif any(needsLazyEvaluation(arg) for arg in itertools.chain(args, kwargs.values())):
-			# see analogous comment in distributionFunction
-			return makeDelayedFunctionCall(helper, (self,) + args, kwargs)
-		else:
-			return method(self, *args, **kwargs)
-	return helper
+	@wrapt.decorator
+	def wrapper(wrapped, instance, args, kwargs):
+		def helper(*args, **kwargs):
+			args = tuple(toDistribution(arg) for arg in args)
+			kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
+			if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
+				return MethodDistribution(method, instance, args, kwargs)
+			elif any(needsLazyEvaluation(arg)
+			         for arg in itertools.chain(args, kwargs.values())):
+				# see analogous comment in distributionFunction
+				return makeDelayedFunctionCall(helper, args, kwargs)
+			else:
+				return wrapped(*args, **kwargs)
+		return helper(*args, **kwargs)
+	return wrapper(method)
 
 class AttributeDistribution(Distribution):
 	"""Distribution resulting from accessing an attribute of a distribution"""
