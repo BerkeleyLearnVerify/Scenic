@@ -185,7 +185,7 @@ def registerExternalParameter(value):
 	"""Register a parameter whose value is given by an external sampler."""
 	if activity > 0:
 		assert isinstance(value, ExternalParameter)
-		externalParameters.append(value)
+		currentScenario._externalParameters.append(value)
 
 # Function call support
 

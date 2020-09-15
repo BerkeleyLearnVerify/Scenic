@@ -6,7 +6,11 @@ import pytest
 from tests.utils import compileScenic, sampleEgo, sampleParamP
 
 # Skip tests if verifai not installed
-pytest.importorskip('verifai')
+# (to try to catch errors inside verifai, don't use "pytest.importorskip")
+try:
+    import verifai
+except ModuleNotFoundError:
+    pytest.skip('verifai package not installed', allow_module_level=True)
 
 ## Utilities
 
