@@ -288,6 +288,11 @@ class Pedestrian(DrivingObject):
 # Mixin classes indicating support for various types of actions
 
 class Steers(ABC):
+    """Mixin protocol for agents which can steer.
+
+    Specifically, agents must support throttling, braking, steering, setting the hand
+    brake, and going into reverse.
+    """
     @abstractmethod
     def setThrottle(self, throttle): pass
 
@@ -304,7 +309,7 @@ class Steers(ABC):
     def setReverse(self, reverse): pass
 
 class Walks(ABC):
-    """Mixin class for agents which can walk with a given direction and speed.
+    """Mixin protocol for agents which can walk with a given direction and speed.
 
     We provide a simplistic implementation which directly sets the velocity of the agent.
     This implementation needs to be explicitly opted-into, since simulators may provide a
