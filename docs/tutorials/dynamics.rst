@@ -154,7 +154,7 @@ following lines:
         interrupt when self.timeToCollision() < 5:
             do CollisionAvoidance()
 
-Here, the car begins by lane-following, switching to passing if there is a car or other
+Here, the car begins by lane following, switching to passing if there is a car or other
 obstacle too close ahead. During *either* of those two sub-behaviors, if the time to
 collision gets too low, we switch to collision avoidance. Once the ``CollisionAvoidance``
 behavior completes, we will resume whichever behavior was interrupted earlier. If we were
@@ -172,7 +172,7 @@ until a condition is met without resuming it afterward, we can write:
         try:
             do FollowLaneBehavior()
         interrupt when (distance from self to intersection) < 10:
-            abort    # cancel lane-following
+            abort    # cancel lane following
         do WaitForTrafficLightBehavior()
         do TurnLeftBehavior()
 
@@ -216,7 +216,7 @@ area, we can write:
             haveBraked = True
 
 With this behavior, ``Drive`` operates as it did before, interrupts firing as appropriate
-to switch between lane-following, passing, and collision avoidance. But during any of
+to switch between lane following, passing, and collision avoidance. But during any of
 these sub-behaviors, if the car enters the ``targetRegion`` it will immediately brake for
 5 seconds, then pick up where it left off.
 
@@ -339,8 +339,8 @@ road. We can add any number of such preconditions; like ordinary requirements, v
 any precondition causes the simulation to be rejected.
 
 Since behaviors can be interrupted, it is possible for a behavior to resume execution in
-a state it doesn't expect: imagine a car which is lane-following, but then swerves onto
-the shoulder to avoid an accident; naïvely resuming lane-following, we find we are no
+a state it doesn't expect: imagine a car which is lane following, but then swerves onto
+the shoulder to avoid an accident; naïvely resuming lane following, we find we are no
 longer in a lane. To catch such situations, Scenic allows us to define *invariants* which
 are checked at every time step during the execution of a behavior, not just when it
 begins running. These are written similarly to preconditions:
@@ -370,12 +370,12 @@ like this:
             except InvariantViolation:   # FollowLaneBehavior has failed
                 do GetBackOntoRoad()
 
-When any object comes within 5 meters, we suspend lane-following and switch to collision-
+When any object comes within 5 meters, we suspend lane following and switch to collision
 avoidance. When the ``CollisionAvoidance`` behavior completes, ``FollowLaneBehavior``
 will be resumed; if its invariant fails because we are no longer on the road, we catch
 the resulting `InvariantViolation` exception and run a ``GetBackOntoRoad`` behavior to
 restore the invariant. The whole ``try`` statement then completes, so the outermost loop
-iterates and we begin lane-following once again.
+iterates and we begin lane following once again.
 
 Terminating the Scenario
 ------------------------
