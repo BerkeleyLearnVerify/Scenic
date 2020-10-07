@@ -51,9 +51,6 @@ behavior WalkForwardBehavior():
     normal_vec = Vector.normalized(end_vec)
     take WalkTowardsAction(goal_position=normal_vec), SetSpeedAction(speed=1)
 
-behavior ConstantThrottleBehavior(x):
-    take SetThrottleAction(x)
-
 behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTraffic=False):
     """ 
     Follow's the lane on which the vehicle is at, unless the laneToFollow is specified.
