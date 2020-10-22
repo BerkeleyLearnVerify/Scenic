@@ -4,9 +4,9 @@ version = "2.0.0b1"
 description = "The Scenic scenario description language."
 authors = [
 	"Daniel Fremont <dfremont@ucsc.edu>",
+	"Edward Kim",
 	"Tommaso Dreossi",
 	"Shromona Ghosh",
-	"Edward Kim",
 	"Xiangyu Yue",
 	"Alberto L. Sangiovanni-Vincentelli",
 	"Sanjit A. Seshia"
