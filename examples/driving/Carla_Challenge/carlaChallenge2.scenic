@@ -46,7 +46,7 @@ behavior LeadingCarBehavior(speed=10):
 # Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
 # 'network' is the 'class Network' object in roads.py
 
-# make sure to put '*' to uniformly randomly select from all elements of the list, 'lanes'
+# make sure to put '*' to uniformly randomly select from all elements of the list, 'network.lanes'
 lane = Uniform(*network.lanes)
 
 ##OBJECT PLACEMENT
