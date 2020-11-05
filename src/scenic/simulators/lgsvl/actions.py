@@ -52,9 +52,9 @@ class SetDestinationAction(Action):
 	def applyTo(self, obj, sim):
 		if self.timer == 0:
 			z = sim.groundElevationAt(self.dest)
-			import dreamview
-			obj.dreamview.setDestination(self.dest.x, self.dest.y, z,
-			                             coordType=dreamview.CoordType.Unity)
+			import lgsvl.dreamview as dreamview
+			obj.dreamview.set_destination(self.dest.x, self.dest.y, z,
+			                             coord_type=dreamview.CoordType.Unity)
 
 		# push vehicle for 1 second to start
 		oneSec = int(1.0/sim.timestep)

@@ -98,16 +98,16 @@ class LGSVLSimulation(simulators.Simulation):
         lgsvlObj.connect_bridge(obj.bridgeHost, obj.bridgePort)
 
         # set up connection and map/vehicle configuration
-        import dreamview
+        import lgsvl.dreamview as dreamview
         dv = dreamview.Connection(self.client, lgsvlObj)
         obj.dreamview = dv
         waitToStabilize = False
         hdMap = self.scene.params['apolloHDMap']
-        if dv.getCurrentMap() != hdMap:
-            dv.setHDMap(hdMap)
+        if dv.get_current_map() != hdMap:
+            dv.set_hd_map(hdMap)
             waitToStabilize = True
-        if dv.getCurrentVehicle() != obj.apolloVehicle:
-            dv.setVehicle(obj.apolloVehicle)
+        if dv.get_current_vehicle() != obj.apolloVehicle:
+            dv.set_vehicle(obj.apolloVehicle)
             waitToStabilize = True
         
         verbosePrint('Initializing Apollo...')
@@ -117,15 +117,15 @@ class LGSVLSimulation(simulators.Simulation):
         cntrl.throttle = 0.0
         lgsvlObj.apply_control(cntrl, True)
         # start modules
-        dv.disableModule('Control')
-        ready = dv.getModuleStatus()
+        dv.disable_module('Control')
+        ready = dv.get_module_status()
         for module in obj.apolloModules:
             if not ready[module]:
-                dv.enableModule(module)
+                dv.enable_module(module)
                 verbosePrint(f'Module {module} is not ready...')
                 waitToStabilize = True
         while True:
-            ready = dv.getModuleStatus()
+            ready = dv.get_module_status()
             if all(ready[module] for module in obj.apolloModules):
                 break
 
@@ -133,7 +133,7 @@ class LGSVLSimulation(simulators.Simulation):
         if waitToStabilize:
             verbosePrint('Waiting for Apollo to stabilize...')
             self.client.run(25)
-        dv.enableModule('Control')
+        dv.enable_module('Control')
         self.client.run(15)
         verbosePrint('Initialized Apollo.')
 
