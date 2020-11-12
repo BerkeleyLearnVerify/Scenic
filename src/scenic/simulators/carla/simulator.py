@@ -124,7 +124,7 @@ class CarlaSimulation(DrivingSimulation):
 		for obj in self.objects:
 			if obj.speed is not None:
 				equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
-				obj.carlaActor.set_velocity(equivVel)
+				obj.carlaActor.set_target_velocity(equivVel)
 
 	def executeActions(self, allActions):
 		super().executeActions(allActions)
