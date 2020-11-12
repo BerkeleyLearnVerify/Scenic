@@ -143,3 +143,19 @@ class Trash(Prop):
 
 class Cone(Prop):
     blueprint: Uniform(*blueprints.coneModels)
+
+
+class Debris(Prop):
+    blueprint: Uniform(*blueprints.debrisModels)
+
+
+class VendingMachine(Prop):
+    blueprint: Uniform(*blueprints.vendingMachineModels)
+
+
+class Chair(Prop):
+    blueprint: Uniform(*blueprints.chairModels)
+
+
+class BusStop(Prop):
+    blueprint: Uniform(*blueprints.busStopsModels)

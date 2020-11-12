@@ -58,6 +58,24 @@ coneModels = {
       'static.prop.trafficcone02'
 }
 
+debrisModels = {
+      'static.prop.dirtdebris01',
+      'static.prop.dirtdebris02',
+      'static.prop.dirtdebris03'
+}
+
+vendingMachineModels = {
+      'static.prop.vendingmachine'
+}
+
+chairModels = {
+      'static.prop.plasticchair'
+}
+
+busStopModels = {
+      'static.prop.busstop'
+}
+
 ## Walker blueprints
 
 walkerModels = {
