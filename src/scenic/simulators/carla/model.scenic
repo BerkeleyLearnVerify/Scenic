@@ -22,6 +22,7 @@ are from the CARLA Python API reference):
 from scenic.domains.driving.model import *
 
 import scenic.simulators.carla.blueprints as blueprints
+import scenic.simulators.carla.utils.utils as utils
 from scenic.simulators.carla.behaviors import *
 from scenic.simulators.utils.colors import Color
 

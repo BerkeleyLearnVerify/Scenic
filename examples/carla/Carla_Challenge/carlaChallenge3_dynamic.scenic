@@ -40,12 +40,17 @@ lane = Uniform(*network.lanes)
 spot = OrientedPoint on lane.centerline,
     facing roadDirection
 
-# vendingMachine = VendingMachine at spot offset by Range(2.5, 3) @ 0
+vending_spot = OrientedPoint following roadDirection from spot for -3,
+    facing roadDirection
 
 pedestrian = Pedestrian right of spot by 3,
-    with heading (90 deg relative to roadDirection),
+    with heading 90 deg relative to spot.heading,
     with regionContainedIn None,
     with behavior PedestrianBehavior(PEDESTRIAN_SPEED)
+
+vending_machine = VendingMachine right of vending_spot by 3,
+    with heading -90 deg relative to vending_spot.heading,
+    with regionContainedIn None
 
 ego = Car following roadDirection from spot for Range(-30, -20),
     with blueprint EGO_MODEL,
