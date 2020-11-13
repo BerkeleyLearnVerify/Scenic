@@ -8,7 +8,7 @@ emergency brake or an avoidance maneuver.
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town01.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town01'
-model scenic.domains.driving.model
+model scenic.simulators.carla.model
 
 ## CONSTANTS
 EGO_MODEL = "vehicle.lincoln.mkz2017"
@@ -42,8 +42,8 @@ ego = Car in maneuver.startLane.centerline,
 
 spotBicycle = OrientedPoint in maneuver.endLane.centerline,
     facing roadDirection
-bicycle = Bicycle at spotBicycle offset by 2.5@0,
-    with heading 90 relative to spotBicycle.heading,
+bicycle = Bicycle at spotBicycle offset by 3.5@0,
+    with heading 90 deg relative to spotBicycle.heading,
     with behavior BicycleBehavior(THROTTLE_ACTION),
     with regionContainedIn None
 
