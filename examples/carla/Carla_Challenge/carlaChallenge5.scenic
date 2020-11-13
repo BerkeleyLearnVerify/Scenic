@@ -6,8 +6,8 @@ which is moving too slowly.
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town05'
+param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town03.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town03'
 model scenic.simulators.carla.model #located in scenic/simulators/carla/model.scenic
 
 ## CONSTANTS
@@ -17,21 +17,25 @@ EGO_SPEED = 10
 LEAD_CAR_SPEED = 3
 
 DIST_THRESHOLD = 15
-BYPASS_DIST = 50
-
+BYPASS_DIST = 25
 
 ## BEHAVIORS
-behavior EgoBehavior(leftpath, speed=10):
-    laneChangeCompleted = False
-
+behavior EgoBehavior(speed=10):
     try: 
-        # do FollowLaneBehavior(speed, laneToFollow=current_lane)
-        do FollowLaneBehavior(speed, laneToFollow=network.laneAt(self))
+        do FollowLaneBehavior(speed)
 
-    interrupt when withinDistanceToAnyObjs(self, DIST_THRESHOLD) and not laneChangeCompleted:
-        do LaneChangeBehavior(laneSectionToSwitch=leftpath, target_speed=speed)
-        do FollowLaneBehavior(speed, laneToFollow=leftpath) until (distance to lead) > BYPASS_DIST
-        laneChangeCompleted = True
+    interrupt when withinDistanceToAnyObjs(self, DIST_THRESHOLD):
+        # change to left (overtaking)
+        left_section = self.laneSection.laneToLeft
+        is_opposite = self.laneSection.isForward != left_section.isForward 
+        do LaneChangeBehavior(laneSectionToSwitch=left_section, is_oppositeTraffic=is_opposite, target_speed=speed)
+        do FollowLaneBehavior(speed, is_oppositeTraffic=is_opposite, laneToFollow=left_section.lane) until (distance to lead) > BYPASS_DIST
+
+        # change to right
+        right_section = self.laneSection.laneToRight
+        do LaneChangeBehavior(laneSectionToSwitch=right_section, target_speed=speed)
+        do FollowLaneBehavior(speed) for 5 seconds
+        terminate
 
 behavior LeadingCarBehavior(speed=3):
     do FollowLaneBehavior(speed)
@@ -40,20 +44,15 @@ behavior LeadingCarBehavior(speed=3):
 # Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
 # 'network' is the 'class Network' object in roads.py
 
-laneSecsWithLeftLane = filter(lambda s: s._laneToLeft is not None, network.laneSections)
-assert len(laneSecsWithLeftLane) > 0, \
-    'No lane sections with adjacent left lane in network.'
+lane = Uniform(*network.lanes)
 
-# make sure to put '*' to uniformly randomly select from all elements of the list
-laneSection = Uniform(*laneSecsWithLeftLane)
-
-ego = Car on laneSection.centerline,
+ego = Car on lane.centerline,
     with blueprint EGO_MODEL,
-    with behavior EgoBehavior(laneSection._laneToLeft, EGO_SPEED)
+    with behavior EgoBehavior(EGO_SPEED)
 
 lead = Car following roadDirection from ego for Range(10, 25),
     with behavior LeadingCarBehavior(LEAD_CAR_SPEED)
 
-require (distance from ego to intersection) > 100
-require (distance from lead to intersection) > 100
-require (laneSection._laneToLeft is not None)
+require (distance from ego to intersection) > 50
+require (distance from lead to intersection) > 50
+require always (lead.laneSection._laneToLeft is not None) and (lead.laneSection.isForward == lead.laneSection._laneToLeft.isForward)

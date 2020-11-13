@@ -37,11 +37,8 @@ behavior PedestrianBehavior(speed=3):
 # make sure to put '*' to uniformly randomly select from all elements of the list, 'network.lanes'
 lane = Uniform(*network.lanes)
 
-spot = OrientedPoint on lane.centerline,
-    facing roadDirection
-
-vending_spot = OrientedPoint following roadDirection from spot for -3,
-    facing roadDirection
+spot = OrientedPoint on lane.centerline
+vending_spot = OrientedPoint following roadDirection from spot for -3
 
 pedestrian = Pedestrian right of spot by 3,
     with heading 90 deg relative to spot.heading,
