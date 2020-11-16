@@ -10,11 +10,8 @@ param carla_map = 'Town05'
 model scenic.simulators.carla.model #located in scenic/simulators/carla/model.scenic
 
 # CONSTANTS
-DELAY_TIME_1 = 1 # the delay time for ego
-DELAY_TIME_2 = 40 # the delay time for the slow car
-FOLLOWING_DISTANCE = 13 # normally 10, 40 when DELAY_TIME is 25, 50 to prevent collisions
-DISTANCE_TO_INTERSECTION1 = Uniform(10, 15) * -1
-DISTANCE_TO_INTERSECTION2 = Uniform(15, 20) * -1
+EGO_DISTANCE_TO_INTERSECTION = Uniform(10, 15) * -1
+ADV_DISTANCE_TO_INTERSECTION = Uniform(15, 20) * -1
 SAFETY_DISTANCE = 20
 BRAKE_INTENSITY = 1.0
 
@@ -61,11 +58,11 @@ adv_end_section = adv_maneuver.endLane.sections[0]
 ego_spawn_pt = ego_start_lane.centerline[-1] 
 adv_spawn_pt = adv_start_lane.centerline[-1]
 
-ego = Car following roadDirection from ego_spawn_pt for DISTANCE_TO_INTERSECTION2,
+ego = Car following roadDirection from ego_spawn_pt for EGO_DISTANCE_TO_INTERSECTION,
 	with behavior EgoBehavior(ego_trajectory),
 	with blueprint 'vehicle.tesla.model3'
 
-crossing_car = Car following roadDirection from adv_spawn_pt for DISTANCE_TO_INTERSECTION1,
+adversary = Car following roadDirection from adv_spawn_pt for ADV_DISTANCE_TO_INTERSECTION,
 	with behavior CrossingCarBehavior(adv_trajectory)
 
 require (ego_start_section.laneToLeft == adv_end_section)  # make sure the ego and adversary are spawned in opposite lanes
