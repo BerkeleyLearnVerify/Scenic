@@ -34,31 +34,38 @@ behavior EgoBehavior(trajectory):
 # Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
 # 'network' is the 'class Network' object in roads.py
 
-spawnAreas = []
-
 # The meaning of filter() function is explained in examples/carla/Carla_Challenge/carlaChallenge7.scenic
 fourWayIntersection = filter(lambda i: i.is4Way, network.intersections)
 
 # make sure to put '*' to uniformly randomly select from all elements of the list
 intersec = Uniform(*fourWayIntersection)
-startLane = Uniform(*intersec.incomingLanes)
-straight_maneuvers = filter(lambda i: i.type == ManeuverType.STRAIGHT, startLane.maneuvers)
-straight_maneuver = Uniform(*straight_maneuvers)
-straight_trajectory = [straight_maneuver.startLane, straight_maneuver.connectingLane, straight_maneuver.endLane]
+ego_start_lane = Uniform(*intersec.incomingLanes)
 
-conflicting_leftTurn_maneuvers = filter(lambda i: i.type == ManeuverType.LEFT_TURN, straight_maneuver.conflictingManeuvers)
-ego_leftTurn_maneuver = Uniform(*conflicting_leftTurn_maneuvers)
-ego_startLane = ego_leftTurn_maneuver.startLane
-ego_trajectory = [ego_leftTurn_maneuver.startLane, ego_leftTurn_maneuver.connectingLane, \
-								ego_leftTurn_maneuver.endLane]
+# Get the ego manuever
+ego_maneuvers = filter(lambda i: i.type == ManeuverType.LEFT_TURN, ego_start_lane.maneuvers)
+ego_maneuver = Uniform(*ego_maneuvers)
+ego_trajectory = [ego_maneuver.startLane, ego_maneuver.connectingLane, ego_maneuver.endLane]
 
+ego_start_section = ego_maneuver.startLane.sections[-1]
+
+# Get the adversary maneuver
+adv_maneuvers = filter(lambda i: i.type == ManeuverType.STRAIGHT, ego_maneuver.conflictingManeuvers)
+adv_maneuver = Uniform(*adv_maneuvers)
+adv_trajectory = [adv_maneuver.startLane, adv_maneuver.connectingLane, adv_maneuver.endLane]
+
+adv_start_lane = adv_maneuver.startLane
+adv_end_section = adv_maneuver.endLane.sections[0]
 
 ## OBJECT PLACEMENT
-spwPt = startLane.centerline[-1] # '-1' index gives startLane's center endpoint from the list of centerpoints in 'centerline'
-csm_spwPt = ego_startLane.centerline[-1]
+# Use the -1' index to get the last endpoint from the list of centerpoints in 'centerline'
+ego_spawn_pt = ego_start_lane.centerline[-1] 
+adv_spawn_pt = adv_start_lane.centerline[-1]
 
-crossing_car = Car following roadDirection from spwPt for DISTANCE_TO_INTERSECTION1,
-				with behavior CrossingCarBehavior(trajectory = straight_trajectory)
+ego = Car following roadDirection from ego_spawn_pt for DISTANCE_TO_INTERSECTION2,
+	with behavior EgoBehavior(ego_trajectory),
+	with blueprint 'vehicle.tesla.model3'
 
-ego = Car following roadDirection from csm_spwPt for DISTANCE_TO_INTERSECTION2,
-				with behavior EgoBehavior(ego_trajectory)
+crossing_car = Car following roadDirection from adv_spawn_pt for DISTANCE_TO_INTERSECTION1,
+	with behavior CrossingCarBehavior(adv_trajectory)
+
+require (ego_start_section.laneToLeft == adv_end_section)  # make sure the ego and adversary are spawned in opposite lanes
