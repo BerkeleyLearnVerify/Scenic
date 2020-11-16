@@ -22,6 +22,7 @@ are from the CARLA Python API reference):
 from scenic.domains.driving.model import *
 
 import scenic.simulators.carla.blueprints as blueprints
+import scenic.simulators.carla.utils.utils as utils
 from scenic.simulators.carla.behaviors import *
 from scenic.simulators.utils.colors import Color
 
@@ -71,7 +72,7 @@ class CarlaActor(DrivingObject):
         self.carlaActor.set_location(utils.scenicToCarlaLocation(pos, elevation))
 
     def setVelocity(self, vel):
-        self.carlaActor.set_velocity(utils.scenicToCarlaVector3D(*vel))
+        self.carlaActor.set_target_velocity(utils.scenicToCarlaVector3D(*vel))
 
 
 class Vehicle(Vehicle, CarlaActor, Steers):
@@ -143,3 +144,19 @@ class Trash(Prop):
 
 class Cone(Prop):
     blueprint: Uniform(*blueprints.coneModels)
+
+
+class Debris(Prop):
+    blueprint: Uniform(*blueprints.debrisModels)
+
+
+class VendingMachine(Prop):
+    blueprint: Uniform(*blueprints.vendingMachineModels)
+
+
+class Chair(Prop):
+    blueprint: Uniform(*blueprints.chairModels)
+
+
+class BusStop(Prop):
+    blueprint: Uniform(*blueprints.busStopsModels)
