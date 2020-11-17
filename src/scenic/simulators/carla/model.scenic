@@ -160,3 +160,71 @@ class Chair(Prop):
 
 class BusStop(Prop):
     blueprint: Uniform(*blueprints.busStopsModels)
+
+
+class Advertisement(Prop):
+    blueprint: Uniform(*blueprints.advertisementModels)
+
+
+class Garbage(Prop):
+    blueprint: Uniform(*blueprints.garbageModels)
+
+
+class Container(Prop):
+    blueprint: Uniform(*blueprints.containerModels)
+
+
+class Table(Prop):
+    blueprint: Uniform(*blueprints.tableModels)
+
+
+class Barrier(Prop):
+    blueprint: Uniform(*blueprints.barrierModels)
+
+
+class PlantPot(Prop):
+    blueprint: Uniform(*blueprints.plantpotModels)
+
+
+class Mailbox(Prop):
+    blueprint: Uniform(*blueprints.mailboxModels)
+
+
+class Gnome(Prop):
+    blueprint: Uniform(*blueprints.gnomeModels)
+
+
+class CreasedBox(Prop):
+    blueprint: Uniform(*blueprints.creasedboxModels)
+
+
+class Case(Prop):
+    blueprint: Uniform(*blueprints.caseModels)
+
+
+class Box(Prop):
+    blueprint: Uniform(*blueprints.boxModels)
+
+
+class Bench(Prop):
+    blueprint: Uniform(*blueprints.benchModels)
+
+
+class Barrel(Prop):
+    blueprint: Uniform(*blueprints.barrelModels)
+
+
+class ATM(Prop):
+    blueprint: Uniform(*blueprints.atmModels)
+
+
+class Kiosk(Prop):
+    blueprint: Uniform(*blueprints.kioskModels)
+
+
+class IronPlate(Prop):
+    blueprint: Uniform(*blueprints.ironplateModels)
+
+
+class TrafficWarning(Prop):
+    blueprint: Uniform(*blueprints.trafficwarningModels)

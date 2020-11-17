@@ -49,7 +49,7 @@ trashModels = {
       'static.prop.trashcan03',
       'static.prop.trashcan04',
       'static.prop.trashcan05',
-      'static.prop.trashbag'
+      'static.prop.bin'
 }
 
 coneModels = {
@@ -76,6 +76,105 @@ busStopModels = {
       'static.prop.busstop'
 }
 
+advertisementModels = {
+      'static.prop.advertisement',
+      'static.prop.streetsign',
+      'static.prop.streetsign01',
+      'static.prop.streetsign04'
+}
+
+garbageModels = {
+      'static.prop.colacan',
+      'static.prop.garbage01',
+      'static.prop.garbage02',
+      'static.prop.garbage03',
+      'static.prop.garbage04',
+      'static.prop.garbage05',
+      'static.prop.garbage06',
+      'static.prop.plasticbag',
+      'static.prop.trashbag'
+}
+
+containerModels = {
+      'static.prop.container',
+      'static.prop.clothcontainer',
+      'static.prop.glasscontainer'
+}
+
+tableModels = {
+      'static.prop.table',
+      'static.prop.plastictable'
+}
+
+barrierModels = {
+      'static.prop.streetbarrier',
+      'static.prop.chainbarrier',
+      'static.prop.chainbarrierend'
+}
+
+plantpotModels = {
+      'static.prop.plantpot01',
+      'static.prop.plantpot02',
+      'static.prop.plantpot03',
+      'static.prop.plantpot04',
+      'static.prop.plantpot05',
+      'static.prop.plantpot06',
+      'static.prop.plantpot07',
+      'static.prop.plantpot08'
+}
+
+mailboxModels = {
+      'static.prop.mailbox'
+}
+
+gnomeModels = {
+      'static.prop.gnome'
+}
+
+creasedboxModels = {
+      'static.prop.creasedbox01',
+      'static.prop.creasedbox02',
+      'static.prop.creasedbox03'
+}
+
+caseModels = {
+      'static.prop.travelcase',
+      'static.prop.briefcase',
+      'static.prop.guitarcase'
+}
+
+boxModels = {
+      'static.prop.box01',
+      'static.prop.box02',
+      'static.prop.box03'
+}
+
+benchModels = {
+      'static.prop.bench01',
+      'static.prop.bench02',
+      'static.prop.bench03'
+}
+
+barrelModels = {
+      'static.prop.barrel'
+}
+
+atmModels = {
+      'static.prop.atm'
+}
+
+kioskModels = {
+      'static.prop.kiosk_01'
+}
+
+ironplateModels = {
+      'static.prop.ironplank'
+}
+
+trafficwarningModels = {
+      'static.prop.trafficwarning'
+}
+
 ## Walker blueprints
 
 walkerModels = {
@@ -94,3 +193,4 @@ walkerModels = {
       'walker.pedestrian.0013',
       'walker.pedestrian.0014'
 }
+
