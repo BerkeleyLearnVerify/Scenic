@@ -78,9 +78,9 @@ busStopModels = {
 
 advertisementModels = {
       'static.prop.advertisement',
-      'static.prop.streetsign04',
+      'static.prop.streetsign',
       'static.prop.streetsign01',
-      'static.prop.streetsign'
+      'static.prop.streetsign04'
 }
 
 garbageModels = {
@@ -193,6 +193,4 @@ walkerModels = {
       'walker.pedestrian.0013',
       'walker.pedestrian.0014'
 }
-
-
 

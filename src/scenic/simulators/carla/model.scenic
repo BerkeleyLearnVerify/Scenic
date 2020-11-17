@@ -206,7 +206,7 @@ class Box(Prop):
     blueprint: Uniform(*blueprints.boxModels)
 
 
-class Box(Prop):
+class Bench(Prop):
     blueprint: Uniform(*blueprints.benchModels)
 
 
