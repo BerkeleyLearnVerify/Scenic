@@ -28,7 +28,7 @@ behavior PedestrianBehavior(speed=3):
 
     while True:
         take SetWalkingSpeedAction(speed)
-        take SetWalkingDirectionAction(90)
+        # take SetWalkingDirectionAction(90)
 
 ## DEFINING SPATIAL RELATIONS
 # Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
