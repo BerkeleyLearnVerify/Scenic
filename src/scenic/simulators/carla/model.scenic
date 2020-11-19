@@ -57,6 +57,8 @@ class CarlaActor(DrivingObject):
     carlaActor: None
     blueprint: None
     color: None
+    altitude: 0.5
+    physics: True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -122,7 +124,8 @@ class Pedestrian(Pedestrian, CarlaActor, Walks):
     blueprint: Uniform(*blueprints.walkerModels)
 
     def setWalkingDirection(self, heading):
-        direction = Vector(0, self.speed).rotatedBy(heading)
+        forward = self.carlaActor.get_transform().get_forward_vector()
+        direction = Vector(forward.x, forward.y).rotatedBy(heading)
         zComp = self.control.direction.z
         self.control.direction = utils.scenicToCarlaVector3D(*direction, zComp)
 
@@ -136,6 +139,7 @@ class Prop(CarlaActor):
     heading: Range(0, 360) deg
     width: 0.5
     length: 0.5
+    altitude: 0
 
 
 class Trash(Prop):
@@ -148,6 +152,7 @@ class Cone(Prop):
 
 class Debris(Prop):
     blueprint: Uniform(*blueprints.debrisModels)
+    physics: False
 
 
 class VendingMachine(Prop):
@@ -196,6 +201,7 @@ class Gnome(Prop):
 
 class CreasedBox(Prop):
     blueprint: Uniform(*blueprints.creasedboxModels)
+    physics: False
 
 
 class Case(Prop):
@@ -224,6 +230,7 @@ class Kiosk(Prop):
 
 class IronPlate(Prop):
     blueprint: Uniform(*blueprints.ironplateModels)
+    physics: False
 
 
 class TrafficWarning(Prop):

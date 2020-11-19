@@ -85,11 +85,14 @@ class CarlaSimulation(DrivingSimulation):
 			loc = utils.scenicToCarlaLocation(obj.position, z=obj.elevation, world=self.world)
 			rot = utils.scenicToCarlaRotation(obj.heading)
 			transform = carla.Transform(loc, rot)
+			transform.location.z += obj.altitude
 			
 			# Create Carla actor
 			carlaActor = self.world.try_spawn_actor(blueprint, transform)
 			if carlaActor is None:
 				raise SimulationCreationError(f'Unable to spawn object {obj}')
+
+			carlaActor.set_simulate_physics(obj.physics)
 
 			if isinstance(carlaActor, carla.Vehicle):
 				carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
