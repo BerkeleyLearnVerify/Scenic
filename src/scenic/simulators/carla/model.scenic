@@ -80,6 +80,8 @@ class CarlaActor(DrivingObject):
 
 
 class Vehicle(Vehicle, CarlaActor, Steers):
+    autopilot: False
+
     def setThrottle(self, throttle):
         self.control.throttle = throttle
 

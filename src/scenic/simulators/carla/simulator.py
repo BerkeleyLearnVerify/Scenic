@@ -57,7 +57,10 @@ class CarlaSimulation(DrivingSimulation):
 		
 		# Reloads current world: destroys all actors, except traffic manager instances
 		# self.client.reload_world()
-		
+
+		self.tm = self.client.get_trafficmanager()
+		self.tm.set_synchronous_mode(True)
+
 		# Setup HUD
 		self.render = render
 		self.record = record
@@ -94,6 +97,7 @@ class CarlaSimulation(DrivingSimulation):
 				raise SimulationCreationError(f'Unable to spawn object {obj}')
 
 			carlaActor.set_simulate_physics(obj.physics)
+			carlaActor.set_autopilot(obj.autopilot, self.tm.get_port())
 
 			if isinstance(carlaActor, carla.Vehicle):
 				carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
