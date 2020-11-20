@@ -9,10 +9,19 @@ param carla_map = 'Town05'
 model scenic.simulators.carla.model #located in scenic/simulators/carla/model.scenic
 
 # CONSTANTS
-EGO_DISTANCE_TO_INTERSECTION = Uniform(10, 15) * -1
+EGO_DISTANCE_TO_INTERSECTION = Uniform(25, 30) * -1
 ADV_DISTANCE_TO_INTERSECTION = Uniform(15, 20) * -1
 SAFETY_DISTANCE = 20
 BRAKE_INTENSITY = 1.0
+
+## MONITORS
+monitor TrafficLights:
+   while True:
+       if withinDistanceToTrafficLight(ego, 100):
+           setClosestTrafficLightStatus(ego, "red")
+       if withinDistanceToTrafficLight(adversary, 100):
+           setClosestTrafficLightStatus(adversary, "green")
+       wait
 
 ## DEFINING BEHAVIORS
 behavior CrossingCarBehavior(trajectory):

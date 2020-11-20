@@ -15,6 +15,16 @@ ADV_DISTANCE_TO_INTERSECTION = Uniform(15, 20) * -1
 SAFETY_DISTANCE = 20
 BRAKE_INTENSITY = 1.0
 
+## MONITORS
+monitor TrafficLights:
+   while True:
+       if withinDistanceToTrafficLight(ego, 100):
+           setClosestTrafficLightStatus(ego, "green")
+       if withinDistanceToTrafficLight(adversary, 100):
+           setClosestTrafficLightStatus(adversary, "green")
+       wait
+
+
 ## DEFINING BEHAVIORS
 behavior CrossingCarBehavior(trajectory):
 	do FollowTrajectoryBehavior(trajectory = trajectory)
