@@ -32,7 +32,7 @@ behavior EgoBehaviorTL(speed=10):
 #    changed = False
 #    try:
 #        do FollowLaneBehavior(speed)
-#    interrupt when withinDistanceToTrafficLight(self, 15):
+#    interrupt when withinDistanceToTrafficLight(self, 15) and not changed:
 #        take SetTrafficLightAction("green")
 #        changed = True
 
@@ -48,4 +48,4 @@ ego = Car on lane.centerline,
     with behavior EgoBehaviorTL(EGO_SPEED)
 
 require (distance from ego to intersection) < 50
-require (ego._intersection is None)
+require (distance from ego to intersection) > 5

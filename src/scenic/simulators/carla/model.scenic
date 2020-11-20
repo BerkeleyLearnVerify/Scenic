@@ -248,7 +248,7 @@ def _getClosestLandmark(vehicle, type, distance=100):
         return None
 
     world = simulation().world
-    waypoint = world.get_map().get_waypoint(vehicle.carlaActor.get_transform().location)
+    waypoint = simulation().map.get_waypoint(vehicle.carlaActor.get_transform().location)
     landmarks = waypoint.get_landmarks_of_type(distance, type)
 
     if landmarks:

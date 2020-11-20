@@ -52,6 +52,7 @@ class CarlaSimulation(DrivingSimulation):
 		self.client = client
 		self.client.load_world(map)
 		self.world = self.client.get_world()
+		self.map = self.world.get_map()
 		self.blueprintLib = self.world.get_blueprint_library()
 		
 		# Reloads current world: destroys all actors, except traffic manager instances
