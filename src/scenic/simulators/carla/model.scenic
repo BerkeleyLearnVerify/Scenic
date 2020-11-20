@@ -57,7 +57,7 @@ class CarlaActor(DrivingObject):
     carlaActor: None
     blueprint: None
     color: None
-    altitude: 0.5
+    elevation: 0.5
     physics: True
 
     def __init__(self, *args, **kwargs):
@@ -139,7 +139,7 @@ class Prop(CarlaActor):
     heading: Range(0, 360) deg
     width: 0.5
     length: 0.5
-    altitude: 0
+    elevation: 0
 
 
 class Trash(Prop):
