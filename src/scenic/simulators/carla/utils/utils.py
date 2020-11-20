@@ -1,5 +1,6 @@
 import carla
 import math
+import string
 
 from scenic.core.vectors import Vector
 from scenic.core.geometry import normalizeAngle
@@ -47,3 +48,18 @@ def carlaToScenicHeading(rot):
 
 def carlaToScenicAngularSpeed(vel):
 	return -math.radians(vel.y)
+
+
+_scenicToCarlaMap = {
+	"red": carla.TrafficLightState.Red,
+	"green": carla.TrafficLightState.Green,
+	"yellow": carla.TrafficLightState.Yellow,
+	"off": carla.TrafficLightState.Off,
+	"unknown": carla.TrafficLightState.Unknown,
+}
+
+def scenicToCarlaTrafficLightStatus(status):
+	return _scenicToCarlaMap.get(status, None)
+
+def carlaToScenicTrafficLightStatus(status):
+	return str(status).lower()
