@@ -5,7 +5,7 @@ The ego-vehicle encounters an obstacle / unexpected entity on the road and must 
 emergency brake or an avoidance maneuver.
 """
 # SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
 

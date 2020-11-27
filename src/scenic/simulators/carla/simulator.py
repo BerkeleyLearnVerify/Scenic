@@ -97,10 +97,12 @@ class CarlaSimulation(DrivingSimulation):
 				raise SimulationCreationError(f'Unable to spawn object {obj}')
 
 			carlaActor.set_simulate_physics(obj.physics)
-			carlaActor.set_autopilot(obj.autopilot, self.tm.get_port())
 
 			if isinstance(carlaActor, carla.Vehicle):
-				carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
+				if obj.autopilot:
+					carlaActor.set_autopilot(obj.autopilot, self.tm.get_port())
+				else:
+					carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
 			elif isinstance(carlaActor, carla.Walker):
 				carlaActor.apply_control(carla.WalkerControl())
 
