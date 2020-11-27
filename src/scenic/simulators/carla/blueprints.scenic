@@ -2,7 +2,7 @@
 
 ## Vehicle blueprints
 
-carModels = {# for speed = 10
+carModels = [# for speed = 10
       'vehicle.audi.a2', # Lateral PID:  K_P=0.3, K_D=0.2, K_I=0
       'vehicle.audi.etron', # K_P=0.3, K_D=0.2, K_I=0
       'vehicle.audi.tt',
@@ -22,68 +22,68 @@ carModels = {# for speed = 10
       'vehicle.tesla.model3', ## K_P=0.3, K_D=0.2, K_I=0
       'vehicle.toyota.prius',
       'vehicle.volkswagen.t2'
-}
+]
 
-bicycleModels = {
+bicycleModels = [
       'vehicle.bh.crossbike',
       'vehicle.diamondback.century',
       'vehicle.gazelle.omafiets',
-}
+]
 
-motorcycleModels = {
+motorcycleModels = [
       # 'vehicle.harley-davidson.low_rider',
       'vehicle.kawasaki.ninja',
       'vehicle.yamaha.yzf',
-}
+]
 
-truckModels = {
+truckModels = [
       'vehicle.carlamotors.carlacola',
       'vehicle.tesla.cybertruck'
-}
+]
 
 ## Prop blueprints
 
-trashModels = {
+trashModels = [
       'static.prop.trashcan01',
       'static.prop.trashcan02',
       'static.prop.trashcan03',
       'static.prop.trashcan04',
       'static.prop.trashcan05',
       'static.prop.bin'
-}
+]
 
-coneModels = {
+coneModels = [
       'static.prop.constructioncone',
       'static.prop.trafficcone01',
       'static.prop.trafficcone02'
-}
+]
 
-debrisModels = {
+debrisModels = [
       'static.prop.dirtdebris01',
       'static.prop.dirtdebris02',
       'static.prop.dirtdebris03'
-}
+]
 
-vendingMachineModels = {
+vendingMachineModels = [
       'static.prop.vendingmachine'
-}
+]
 
-chairModels = {
+chairModels = [
       'static.prop.plasticchair'
-}
+]
 
-busStopModels = {
+busStopModels = [
       'static.prop.busstop'
-}
+]
 
-advertisementModels = {
+advertisementModels = [
       'static.prop.advertisement',
       'static.prop.streetsign',
       'static.prop.streetsign01',
       'static.prop.streetsign04'
-}
+]
 
-garbageModels = {
+garbageModels = [
       'static.prop.colacan',
       'static.prop.garbage01',
       'static.prop.garbage02',
@@ -93,26 +93,26 @@ garbageModels = {
       'static.prop.garbage06',
       'static.prop.plasticbag',
       'static.prop.trashbag'
-}
+]
 
-containerModels = {
+containerModels = [
       'static.prop.container',
       'static.prop.clothcontainer',
       'static.prop.glasscontainer'
-}
+]
 
-tableModels = {
+tableModels = [
       'static.prop.table',
       'static.prop.plastictable'
-}
+]
 
-barrierModels = {
+barrierModels = [
       'static.prop.streetbarrier',
       'static.prop.chainbarrier',
       'static.prop.chainbarrierend'
-}
+]
 
-plantpotModels = {
+plantpotModels = [
       'static.prop.plantpot01',
       'static.prop.plantpot02',
       'static.prop.plantpot03',
@@ -121,63 +121,63 @@ plantpotModels = {
       'static.prop.plantpot06',
       'static.prop.plantpot07',
       'static.prop.plantpot08'
-}
+]
 
-mailboxModels = {
+mailboxModels = [
       'static.prop.mailbox'
-}
+]
 
-gnomeModels = {
+gnomeModels = [
       'static.prop.gnome'
-}
+]
 
-creasedboxModels = {
+creasedboxModels = [
       'static.prop.creasedbox01',
       'static.prop.creasedbox02',
       'static.prop.creasedbox03'
-}
+]
 
-caseModels = {
+caseModels = [
       'static.prop.travelcase',
       'static.prop.briefcase',
       'static.prop.guitarcase'
-}
+]
 
-boxModels = {
+boxModels = [
       'static.prop.box01',
       'static.prop.box02',
       'static.prop.box03'
-}
+]
 
-benchModels = {
+benchModels = [
       'static.prop.bench01',
       'static.prop.bench02',
       'static.prop.bench03'
-}
+]
 
-barrelModels = {
+barrelModels = [
       'static.prop.barrel'
-}
+]
 
-atmModels = {
+atmModels = [
       'static.prop.atm'
-}
+]
 
-kioskModels = {
+kioskModels = [
       'static.prop.kiosk_01'
-}
+]
 
-ironplateModels = {
+ironplateModels = [
       'static.prop.ironplank'
-}
+]
 
-trafficwarningModels = {
+trafficwarningModels = [
       'static.prop.trafficwarning'
-}
+]
 
 ## Walker blueprints
 
-walkerModels = {
+walkerModels = [
       'walker.pedestrian.0001',
       'walker.pedestrian.0002',
       'walker.pedestrian.0003',
@@ -192,5 +192,5 @@ walkerModels = {
       'walker.pedestrian.0012',
       'walker.pedestrian.0013',
       'walker.pedestrian.0014'
-}
+]
 
