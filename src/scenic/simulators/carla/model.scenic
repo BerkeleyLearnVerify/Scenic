@@ -19,6 +19,8 @@ are from the CARLA Python API reference):
       Altitude angle of the sun in degrees. Values range from -90 to 90 (where 0 degrees is the horizon).
 """
 
+import builtins
+
 from scenic.domains.driving.model import *
 
 import scenic.simulators.carla.blueprints as blueprints
@@ -57,6 +59,8 @@ class CarlaActor(DrivingObject):
     carlaActor: None
     blueprint: None
     color: None
+    elevation: 0.5
+    physics: True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -76,6 +80,8 @@ class CarlaActor(DrivingObject):
 
 
 class Vehicle(Vehicle, CarlaActor, Steers):
+    autopilot: False
+
     def setThrottle(self, throttle):
         self.control.throttle = throttle
 
@@ -91,6 +97,8 @@ class Vehicle(Vehicle, CarlaActor, Steers):
     def setReverse(self, reverse):
         self.control.reverse = reverse
 
+    def _getClosestTrafficLight(self, distance=100):
+        return _getClosestTrafficLight(self, distance)
 
 class Car(Vehicle):
     blueprint: Uniform(*blueprints.carModels)
@@ -122,7 +130,8 @@ class Pedestrian(Pedestrian, CarlaActor, Walks):
     blueprint: Uniform(*blueprints.walkerModels)
 
     def setWalkingDirection(self, heading):
-        direction = Vector(0, self.speed).rotatedBy(heading)
+        forward = self.carlaActor.get_transform().get_forward_vector()
+        direction = Vector(forward.x, forward.y).rotatedBy(heading)
         zComp = self.control.direction.z
         self.control.direction = utils.scenicToCarlaVector3D(*direction, zComp)
 
@@ -136,6 +145,7 @@ class Prop(CarlaActor):
     heading: Range(0, 360) deg
     width: 0.5
     length: 0.5
+    elevation: 0
 
 
 class Trash(Prop):
@@ -148,6 +158,7 @@ class Cone(Prop):
 
 class Debris(Prop):
     blueprint: Uniform(*blueprints.debrisModels)
+    physics: False
 
 
 class VendingMachine(Prop):
@@ -196,6 +207,7 @@ class Gnome(Prop):
 
 class CreasedBox(Prop):
     blueprint: Uniform(*blueprints.creasedboxModels)
+    physics: False
 
 
 class Case(Prop):
@@ -224,7 +236,55 @@ class Kiosk(Prop):
 
 class IronPlate(Prop):
     blueprint: Uniform(*blueprints.ironplateModels)
+    physics: False
 
 
 class TrafficWarning(Prop):
     blueprint: Uniform(*blueprints.trafficwarningModels)
+
+
+## Utility functions
+
+def _getClosestLandmark(vehicle, type, distance=100):
+    if vehicle._intersection is not None:
+        return None
+
+    waypoint = simulation().map.get_waypoint(vehicle.carlaActor.get_transform().location)
+    landmarks = waypoint.get_landmarks_of_type(distance, type)
+
+    if landmarks:
+        return builtins.min(landmarks, key=lambda l: l.distance)
+    return None
+
+def _getClosestTrafficLight(vehicle, distance=100):
+    landmark = _getClosestLandmark(vehicle, type="1000001", distance=distance)
+    if landmark is not None:
+        return simulation().world.get_traffic_light(landmark)
+    return None
+
+def withinDistanceToRedYellowTrafficLight(vehicle, thresholdDistance):
+    traffic_light = _getClosestTrafficLight(vehicle, distance=thresholdDistance)
+    if traffic_light is not None and str(traffic_light.state) in ("Red", "Yellow"):
+        return True
+    return False
+
+def withinDistanceToTrafficLight(vehicle, thresholdDistance):
+    traffic_light = _getClosestTrafficLight(vehicle, distance=thresholdDistance)
+    if traffic_light is not None:
+        return True
+    return False
+
+def getClosestTrafficLightStatus(vehicle, distance=100):
+    traffic_light = _getClosestTrafficLight(vehicle, distance)
+    if traffic_light is not None:
+        return utils.carlaToScenicTrafficLightStatus(traffic_light.state)
+    return "None"
+
+def setClosestTrafficLightStatus(vehicle, color, distance=100):
+    color = utils.scenicToCarlaTrafficLightStatus(color)
+    if color is None:
+        raise RuntimeError('Color must be red/yellow/green/off/unknown.')
+    
+    traffic_light = _getClosestTrafficLight(vehicle, distance)
+    if traffic_light is not None:
+        traffic_light.set_state(color)

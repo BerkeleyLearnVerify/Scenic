@@ -74,6 +74,29 @@ class SetManualFirstGearShiftAction(VehicleAction):	# TODO eliminate
 		obj.carlaActor.apply_control(ctrl)
 
 
+class SetTrafficLightAction(VehicleAction):
+	"""Set the traffic light to desired color. It will only
+	take effect if the car is within the bounding box of the light.
+	If group is set to true, then all nearby traffic light will be changed.
+
+	Arguments:
+		color: the string red/yellow/green/off/unknown
+		distance: the maximum distance to search for traffic lights from the current position
+		type: the type of traffic lights to search
+	"""
+	def __init__(self, color, distance=100, group=False):
+		self.color = _utils.scenicToCarlaTrafficLightStatus(color)
+		if color is None:
+			raise RuntimeError('Color must be red/yellow/green/off/unknown.')
+		self.distance = distance
+		self.type = type
+		self.group = group
+
+	def applyTo(self, obj, sim):
+		traffic_light = obj._getClosestTrafficLight()
+		if traffic_light is not None:
+			traffic_light.set_state(self.color)
+
 #################################################
 # Actions available to all carla.Walker objects #
 #################################################

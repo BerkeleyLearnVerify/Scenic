@@ -52,11 +52,15 @@ class CarlaSimulation(DrivingSimulation):
 		self.client = client
 		self.client.load_world(map)
 		self.world = self.client.get_world()
+		self.map = self.world.get_map()
 		self.blueprintLib = self.world.get_blueprint_library()
 		
 		# Reloads current world: destroys all actors, except traffic manager instances
 		# self.client.reload_world()
-		
+
+		self.tm = self.client.get_trafficmanager()
+		self.tm.set_synchronous_mode(True)
+
 		# Setup HUD
 		self.render = render
 		self.record = record
@@ -85,14 +89,20 @@ class CarlaSimulation(DrivingSimulation):
 			loc = utils.scenicToCarlaLocation(obj.position, z=obj.elevation, world=self.world)
 			rot = utils.scenicToCarlaRotation(obj.heading)
 			transform = carla.Transform(loc, rot)
-			
+			transform.location.z += obj.elevation
+
 			# Create Carla actor
 			carlaActor = self.world.try_spawn_actor(blueprint, transform)
 			if carlaActor is None:
 				raise SimulationCreationError(f'Unable to spawn object {obj}')
 
+			carlaActor.set_simulate_physics(obj.physics)
+
 			if isinstance(carlaActor, carla.Vehicle):
-				carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
+				if obj.autopilot:
+					carlaActor.set_autopilot(obj.autopilot, self.tm.get_port())
+				else:
+					carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
 			elif isinstance(carlaActor, carla.Walker):
 				carlaActor.apply_control(carla.WalkerControl())
 

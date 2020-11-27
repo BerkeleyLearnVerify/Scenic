@@ -1,5 +1,6 @@
 import carla
 import math
+import string
 
 from scenic.core.vectors import Vector
 from scenic.core.geometry import normalizeAngle
@@ -8,7 +9,6 @@ from scenic.core.geometry import normalizeAngle
 def snapToGround(world, location):
 	"""Mutates @location to have the same z-coordinate as the nearest waypoint in @world."""
 	waypoint = world.get_map().get_waypoint(location)
-	location.z = waypoint.transform.location.z + 0.5
 	return location
 
 
@@ -48,3 +48,18 @@ def carlaToScenicHeading(rot):
 
 def carlaToScenicAngularSpeed(vel):
 	return -math.radians(vel.y)
+
+
+_scenicToCarlaMap = {
+	"red": carla.TrafficLightState.Red,
+	"green": carla.TrafficLightState.Green,
+	"yellow": carla.TrafficLightState.Yellow,
+	"off": carla.TrafficLightState.Off,
+	"unknown": carla.TrafficLightState.Unknown,
+}
+
+def scenicToCarlaTrafficLightStatus(status):
+	return _scenicToCarlaMap.get(status, None)
+
+def carlaToScenicTrafficLightStatus(status):
+	return str(status).lower()
