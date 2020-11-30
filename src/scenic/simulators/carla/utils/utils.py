@@ -9,7 +9,7 @@ from scenic.core.geometry import normalizeAngle
 def snapToGround(world, location):
 	"""Mutates @location to have the same z-coordinate as the nearest waypoint in @world."""
 	waypoint = world.get_map().get_waypoint(location)
-	return location
+	return waypoint.transform.location
 
 
 def scenicToCarlaVector3D(x, y, z=0.0):
