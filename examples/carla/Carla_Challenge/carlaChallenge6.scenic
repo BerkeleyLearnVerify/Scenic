@@ -7,7 +7,7 @@ using the opposite lane, yielding to oncoming traffic.
 #SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town07'
-model scenic.simulators.carla.model #located in scenic/simulators/carla/model.scenic
+model scenic.simulators.carla.model
 
 #CONSTANTS
 EGO_SPEED = 7
