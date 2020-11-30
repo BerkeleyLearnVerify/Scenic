@@ -45,6 +45,14 @@ class CarlaSimulator(DrivingSimulator):
 							   render=self.render, record=self.record,
 							   verbosity=verbosity)
 
+	def destroy(self):
+		settings = self.world.get_settings()
+		settings.synchronous_mode = False
+		settings.fixed_delta_seconds = None
+		self.world.apply_settings(settings)
+
+		super(CarlaSimulator, self).destroy()
+
 
 class CarlaSimulation(DrivingSimulation):
 	def __init__(self, scene, client, map, timestep, render, record, verbosity=0):
@@ -94,6 +102,7 @@ class CarlaSimulation(DrivingSimulation):
 			carlaActor = self.world.try_spawn_actor(blueprint, transform)
 			if carlaActor is None:
 				raise SimulationCreationError(f'Unable to spawn object {obj}')
+			obj.carlaActor = carlaActor
 
 			carlaActor.set_simulate_physics(obj.physics)
 
@@ -104,8 +113,6 @@ class CarlaSimulation(DrivingSimulation):
 					carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
 			elif isinstance(carlaActor, carla.Walker):
 				carlaActor.apply_control(carla.WalkerControl())
-
-			obj.carlaActor = carlaActor
 
 			# Check if ego (from carla_scenic_taks.py)
 			if obj is self.objects[0]:
@@ -134,11 +141,6 @@ class CarlaSimulation(DrivingSimulation):
 			if obj.speed is not None:
 				equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
 				obj.carlaActor.set_target_velocity(equivVel)
-
-	def __del__(self):
-		for obj in self.objects:
-			obj.carlaActor.destroy()
-		self.cameraManager.destroy_sensor()
 
 	def executeActions(self, allActions):
 		super().executeActions(allActions)
@@ -183,3 +185,12 @@ class CarlaSimulation(DrivingSimulation):
 			angularSpeed=utils.carlaToScenicAngularSpeed(currAngVel),
 		)
 		return values
+
+	def destroy(self):
+		for obj in self.objects:
+			if obj.carlaActor is not None:
+				obj.carlaActor.destroy()
+		if hasattr(self, "cameraManager"):
+			self.cameraManager.destroy_sensor()
+
+		super(CarlaSimulation, self).destroy()

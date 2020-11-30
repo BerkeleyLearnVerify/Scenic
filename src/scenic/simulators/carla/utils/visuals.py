@@ -330,5 +330,6 @@ class CameraManager(object):
 		self.images.append(image)
 
 	def destroy_sensor(self):
-		self.sensor.stop()
-		self.sensor.destroy()
+		if self.sensor is not None:
+			self.sensor.stop()
+			self.sensor.destroy()
