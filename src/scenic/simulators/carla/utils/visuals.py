@@ -328,3 +328,7 @@ class CameraManager(object):
 		if self._recording:
 			image.save_to_disk('_out/%08d' % image.frame)
 		self.images.append(image)
+
+	def destroy_sensor(self):
+		self.sensor.stop()
+		self.sensor.destroy()

@@ -50,7 +50,6 @@ class CarlaSimulation(DrivingSimulation):
 	def __init__(self, scene, client, map, timestep, render, record, verbosity=0):
 		super().__init__(scene, timestep=timestep, verbosity=verbosity)
 		self.client = client
-		self.client.load_world(map)
 		self.world = self.client.get_world()
 		self.map = self.world.get_map()
 		self.blueprintLib = self.world.get_blueprint_library()
@@ -135,6 +134,11 @@ class CarlaSimulation(DrivingSimulation):
 			if obj.speed is not None:
 				equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
 				obj.carlaActor.set_target_velocity(equivVel)
+
+	def __del__(self):
+		for obj in self.objects:
+			obj.carlaActor.destroy()
+		self.cameraManager.destroy_sensor()
 
 	def executeActions(self, allActions):
 		super().executeActions(allActions)
