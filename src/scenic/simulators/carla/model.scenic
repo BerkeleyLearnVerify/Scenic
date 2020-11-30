@@ -245,6 +245,15 @@ class TrafficWarning(Prop):
 
 ## Utility functions
 
+def freezeTrafficLights():
+    """ Freezes all traffic lights in the scene. Frozen traffic lights can be modified by the user
+    but the time will not update them until unfrozen. """
+    simulation().world.freeze_all_traffic_lights(True)
+
+def unfreezeTrafficLights():
+    """ Unfreezes all traffic lights in the scene. """
+    simulation().world.freeze_all_traffic_lights(False)
+
 def _getClosestLandmark(vehicle, type, distance=100):
     if vehicle._intersection is not None:
         return None
