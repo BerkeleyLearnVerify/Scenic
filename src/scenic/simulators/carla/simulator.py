@@ -93,7 +93,7 @@ class CarlaSimulation(DrivingSimulation):
 			print("blueprint: ", blueprint)
 
 			# Set up transform
-			loc = utils.scenicToCarlaLocation(obj.position, z=obj.elevation, world=self.world)
+			loc = utils.scenicToCarlaLocation(obj.position, world=self.world)
 			rot = utils.scenicToCarlaRotation(obj.heading)
 			transform = carla.Transform(loc, rot)
 			transform.location.z += obj.elevation
