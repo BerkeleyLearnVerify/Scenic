@@ -30,6 +30,9 @@ class CarlaSimulator(DrivingSimulator):
 		self.map = carla_map
 		self.timestep = timestep
 
+		self.tm = self.client.get_trafficmanager()
+		self.tm.set_synchronous_mode(True)
+
 		# Set to synchronous with fixed timestep
 		settings = self.world.get_settings()
 		settings.synchronous_mode = True
@@ -41,7 +44,7 @@ class CarlaSimulator(DrivingSimulator):
 		self.record = record  # whether to save images to disk
 
 	def createSimulation(self, scene, verbosity=0):
-		return CarlaSimulation(scene, self.client, self.map, self.timestep,
+		return CarlaSimulation(scene, self.client, self.tm, self.timestep,
 							   render=self.render, record=self.record,
 							   verbosity=verbosity)
 
@@ -50,23 +53,22 @@ class CarlaSimulator(DrivingSimulator):
 		settings.synchronous_mode = False
 		settings.fixed_delta_seconds = None
 		self.world.apply_settings(settings)
+		self.tm.set_synchronous_mode(False)
 
 		super(CarlaSimulator, self).destroy()
 
 
 class CarlaSimulation(DrivingSimulation):
-	def __init__(self, scene, client, map, timestep, render, record, verbosity=0):
+	def __init__(self, scene, client, tm, timestep, render, record, verbosity=0):
 		super().__init__(scene, timestep=timestep, verbosity=verbosity)
 		self.client = client
 		self.world = self.client.get_world()
 		self.map = self.world.get_map()
 		self.blueprintLib = self.world.get_blueprint_library()
+		self.tm = tm
 		
 		# Reloads current world: destroys all actors, except traffic manager instances
 		# self.client.reload_world()
-
-		self.tm = self.client.get_trafficmanager()
-		self.tm.set_synchronous_mode(True)
 
 		# Setup HUD
 		self.render = render

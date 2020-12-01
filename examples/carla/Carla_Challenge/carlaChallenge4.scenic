@@ -20,7 +20,7 @@ behavior EgoBehavior(trajectory):
     try:
         do FollowTrajectoryBehavior(trajectory = trajectory)
 
-    interrupt when withinDistanceToAnyCars(self, SAFETY_DISTANCE):
+    interrupt when withinDistanceToObjsInLane(self, SAFETY_DISTANCE):
         take SetBrakeAction(BRAKE_ACTION)
 
 behavior BicycleBehavior(throttle):
