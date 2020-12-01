@@ -40,15 +40,24 @@ class Simulator:
                     print(f'  Rejected simulation {iterations} at time step '
                           f'{simulation.currentTime} because of: {e}')
                 continue
+            except KeyboardInterrupt:
+                if "simulation" in locals():
+                    simulation.destroy()
+                raise
+
             # Completed the simulation without violating a requirement
             if verbosity >= 2:
                 print(f'  Simulation {iterations} ended successfully at time step '
                       f'{simulation.currentTime} because of: {result.terminationReason}')
+            simulation.destroy()
             return result
         return None
 
     def createSimulation(self, scene, verbosity=0):
         return Simulation(scene, verbosity=verbosity)
+
+    def destroy(self):
+        pass
 
 class Simulation:
     """A single simulation run, possibly in progress."""
@@ -241,6 +250,9 @@ class Simulation:
         The default implementation returns a tuple of the positions of all objects.
         """
         return tuple(obj.position for obj in self.objects)
+
+    def destroy(self):
+        pass
 
 class DummySimulator(Simulator):
     """Simulator which does nothing, for debugging purposes."""
