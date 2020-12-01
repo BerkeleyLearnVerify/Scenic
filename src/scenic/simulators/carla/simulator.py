@@ -109,6 +109,8 @@ class CarlaSimulation(DrivingSimulation):
 	def createObjectInSimulator(self, obj):
 		# Extract blueprint
 		blueprint = self.blueprintLib.find(obj.blueprint)
+		if obj.rolename is not None:
+			blueprint.set_attribute('role_name', obj.rolename)
 
 		# Set up transform
 		loc = utils.scenicToCarlaLocation(obj.position, z=obj.elevation, world=self.world)
@@ -172,3 +174,13 @@ class CarlaSimulation(DrivingSimulation):
 			angularSpeed=utils.carlaToScenicAngularSpeed(currAngVel),
 		)
 		return values
+
+	def destroy(self):
+		for obj in self.objects:
+			if obj.carlaActor is not None:
+				obj.carlaActor.destroy()
+		if hasattr(self, "cameraManager"):
+			self.cameraManager.destroy_sensor()
+
+		self.world.tick()
+		super(CarlaSimulation, self).destroy()
