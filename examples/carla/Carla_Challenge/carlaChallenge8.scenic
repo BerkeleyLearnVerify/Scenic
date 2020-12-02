@@ -10,7 +10,7 @@ param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
 # CONSTANTS
-EGO_DISTANCE_TO_INTERSECTION = Uniform(10, 15) * -1
+EGO_DISTANCE_TO_INTERSECTION = Uniform(25, 30) * -1
 ADV_DISTANCE_TO_INTERSECTION = Uniform(15, 20) * -1
 SAFETY_DISTANCE = 20
 BRAKE_INTENSITY = 1.0
@@ -69,8 +69,7 @@ ego_spawn_pt = ego_start_lane.centerline[-1]
 adv_spawn_pt = adv_start_lane.centerline[-1]
 
 ego = Car following roadDirection from ego_spawn_pt for EGO_DISTANCE_TO_INTERSECTION,
-	with behavior EgoBehavior(ego_trajectory),
-	with blueprint 'vehicle.tesla.model3'
+	with behavior EgoBehavior(ego_trajectory)
 
 adversary = Car following roadDirection from adv_spawn_pt for ADV_DISTANCE_TO_INTERSECTION,
 	with behavior CrossingCarBehavior(adv_trajectory)

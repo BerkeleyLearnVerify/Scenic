@@ -26,7 +26,8 @@ behavior EgoBehavior(trajectory):
 behavior BicycleBehavior(throttle):
     while (distance from ego to self) > 15:
         wait
-    take SetThrottleAction(throttle)
+    do ConstantThrottleBehavior(throttle) for 15 seconds
+    terminate
 
 ## GEOMETRY
 
