@@ -50,7 +50,7 @@ from ast import Load, Store, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, B
 from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Subscript, Index, IfExp
 from ast import NamedExpr, Yield, YieldFrom, FunctionDef, Attribute, Constant, Assign, Expr
 from ast import Return, Raise, If, UnaryOp, Not, ClassDef, Nonlocal, Global, Compare, Is, Try
-from ast import Break, Continue, AsyncFunctionDef, Pass
+from ast import Break, Continue, AsyncFunctionDef, Pass, While
 
 from scenic.core.distributions import Samplable, needsSampling, toDistribution
 from scenic.core.lazy_eval import needsLazyEvaluation
@@ -428,7 +428,7 @@ scenarioMarker = '_Scenic_scenario_'	# not a statement, but a marker for the par
 # Scenario blocks
 setupBlock = 'setup'
 composeBlock = 'compose'
-scenarioBlocks = { setupBlock, composeBlock }
+scenarioBlocks = { setupBlock, composeBlock, 'precondition', 'invariant' }
 
 ## Prefix operators
 
@@ -1690,6 +1690,7 @@ class ASTSurgeon(NodeTransformer):
 		# Extract named blocks from scenario body, if any
 		simple = False	# simple scenario with no blocks
 		setup, compose = None, None
+		preconditions, invariants = [], []
 		for statement in node.body:
 			if isinstance(statement, AsyncFunctionDef):
 				if statement.name == setupBlock:
@@ -1705,14 +1706,18 @@ class ASTSurgeon(NodeTransformer):
 					if compose:
 						self.parseError(statement,
 							f'scenario contains multiple "{composeBlock}" blocks')
-					self.inCompose = self.inBehavior = True
-					defineChecker = FunctionDef(checkInvariantsName, tempArg,
-					                            [Return(Name(temporaryName, Load()))], [], None)
-					newBody = [defineChecker] + self.visit(statement.body)
-					newDef = FunctionDef('_compose', args, newBody,
-					                     [Name(id='staticmethod', ctx=Load())], None)
-					self.inCompose = self.inBehavior = False
-					compose = copy_location(newDef, statement)
+					compose = statement
+				elif statement.name in ('precondition', 'invariant'):
+					if len(statement.body) != 1 or not isinstance(statement.body[0], Expr):
+						self.parseError(statement.body[0], f'malformed precondition/invariant')
+					self.inGuard = True
+					test = self.visit(statement.body[0].value)
+					self.inGuard = False
+					assert isinstance(test, ast.AST)
+					if statement.name == 'precondition':
+						preconditions.append(test)
+					else:
+						invariants.append(test)
 				else:
 					simple = True
 			else:
@@ -1730,7 +1735,22 @@ class ASTSurgeon(NodeTransformer):
 			setup = copy_location(newDef, node)
 		if not setup:
 			setup = Assign([Name('_setup', Store())], Constant(None, None))
-		if not compose:
+		if compose or preconditions or invariants:
+			self.inCompose = self.inBehavior = True
+			preamble = self.makeBehaviorPreamble(preconditions, invariants)
+			if compose:
+				body = self.visit(compose.body)
+			else:
+				# generate no-op compose block to ensure invariants are checked
+				wait = self.generateInvocation(node, Constant((), None))
+				body = [While(Constant(True, None), wait, [])]
+				compose = node 	# for copy_location below
+			newBody = preamble + body
+			newDef = FunctionDef('_compose', args, newBody,
+			                     [Name(id='staticmethod', ctx=Load())], None)
+			self.inCompose = self.inBehavior = False
+			compose = copy_location(newDef, compose)
+		else:
 			compose = Assign([Name('_compose', Store())], Constant(None, None))
 		body = [setup, compose]
 		newDef = ClassDef(name, [Name(scenarioClass, Load())], [], body, [])
@@ -1781,25 +1801,8 @@ class ASTSurgeon(NodeTransformer):
 					newStatements.append(newStatement)
 				else:
 					newStatements.extend(newStatement)
-		# generate precondition checks
-		precondChecks = []
-		for precondition in preconditions:
-			throw = Raise(exc=Name('PreconditionViolation', Load()), cause=None)
-			check = If(test=UnaryOp(Not(), precondition), body=[throw], orelse=[])
-			precondChecks.append(copy_location(check, precondition))
-		# generate invariant checker
-		invChecks = []
-		for invariant in invariants:
-			throw = Raise(exc=Name('InvariantViolation', Load()), cause=None)
-			check = If(test=UnaryOp(Not(), invariant), body=[throw], orelse=[])
-			invChecks.append(copy_location(check, invariant))
-		defineChecker = FunctionDef(checkInvariantsName, tempArg,
-									invChecks + [Return(Name(temporaryName, Load()))], [], None)
-		spot = Attribute(Name(behaviorArgName, Load()), 'checkInvariants', Store())
-		saveChecker = Assign([spot], Name(checkInvariantsName, Load()))
-		callChecker = Expr(Call(Name(checkInvariantsName, Load()), [], []))
-		# assemble new function body
-		newBody = precondChecks + [defineChecker, saveChecker, callChecker] + newStatements
+
+		newBody = self.makeBehaviorPreamble(preconditions, invariants) + newStatements
 		self.inBehavior = False
 		self.inLoop = oldInLoop
 
@@ -1820,6 +1823,28 @@ class ASTSurgeon(NodeTransformer):
 		newDefn = ClassDef(name, [Name(superclass, Load())], [], classBody, [])
 
 		return copy_location(newDefn, node)
+
+	def makeBehaviorPreamble(self, preconditions, invariants):
+		# generate precondition checks
+		precondChecks = []
+		for precondition in preconditions:
+			throw = Raise(exc=Name('PreconditionViolation', Load()), cause=None)
+			check = If(test=UnaryOp(Not(), precondition), body=[throw], orelse=[])
+			precondChecks.append(copy_location(check, precondition))
+		# generate invariant checker
+		invChecks = []
+		for invariant in invariants:
+			throw = Raise(exc=Name('InvariantViolation', Load()), cause=None)
+			check = If(test=UnaryOp(Not(), invariant), body=[throw], orelse=[])
+			invChecks.append(copy_location(check, invariant))
+		defineChecker = FunctionDef(checkInvariantsName, tempArg,
+									invChecks + [Return(Name(temporaryName, Load()))], [], None)
+		spot = Attribute(Name(behaviorArgName, Load()), 'checkInvariants', Store())
+		saveChecker = Assign([spot], Name(checkInvariantsName, Load()))
+		callChecker = Expr(Call(Name(checkInvariantsName, Load()), [], []))
+		# assemble function body preamble
+		preamble = precondChecks + [defineChecker, saveChecker, callChecker]
+		return preamble
 
 	def visit_Yield(self, node):
 		if self.inCompose:
