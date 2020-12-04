@@ -1961,10 +1961,14 @@ def storeScenarioStateIn(namespace, requirementSyntax):
 
 	# Save requirement syntax and other module-level information
 	moduleScenario = veneer.currentScenario
+	factory = veneer.simulatorFactory
 	bns = gatherBehaviorNamespacesFrom(moduleScenario._behaviors)
 	def handle(scenario):
 		scenario._requirementSyntax = requirementSyntax
-		scenario._simulatorFactory = staticmethod(veneer.simulatorFactory)
+		if isinstance(scenario, type):
+			scenario._simulatorFactory = staticmethod(factory)
+		else:
+			scenario._simulatorFactory = factory
 		scenario._behaviorNamespaces = bns
 	handle(moduleScenario)
 	namespace['_scenarios'] = tuple(veneer.scenarios)
