@@ -11,7 +11,8 @@ from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
 from scenic.core.utils import areEquivalent
 from scenic.core.errors import InvalidScenarioError
-import scenic.syntax.veneer as veneer
+from scenic.core.dynamics import Behavior
+from scenic.core.requirements import BoundRequirement
 
 class Scene:
 	"""Scene()
@@ -206,7 +207,7 @@ class Scenario:
 				sampledObj.heading = float(sampledObj.heading)
 				# behavior
 				behavior = sampledObj.behavior
-				if behavior is not None and not isinstance(behavior, veneer.Behavior):
+				if behavior is not None and not isinstance(behavior, Behavior):
 					raise InvalidScenarioError(
 						f'behavior {behavior} of Object {obj} is not a behavior')
 
@@ -249,10 +250,10 @@ class Scenario:
 		for modName, namespace in self.behaviorNamespaces.items():
 			sampledNamespace = { name: sample[value] for name, value in namespace.items() }
 			sampledNamespaces[modName] = (namespace, sampledNamespace, namespace.copy())
-		alwaysReqs = (veneer.BoundRequirement(req, sample) for req in self.alwaysRequirements)
-		terminationConds = (veneer.BoundRequirement(req, sample)
+		alwaysReqs = (BoundRequirement(req, sample) for req in self.alwaysRequirements)
+		terminationConds = (BoundRequirement(req, sample)
 							for req in self.terminationConditions)
-		termSimulationConds = (veneer.BoundRequirement(req, sample)
+		termSimulationConds = (BoundRequirement(req, sample)
 							   for req in self.terminateSimulationConditions)
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
 					  alwaysReqs, terminationConds, termSimulationConds, self.monitors,
@@ -269,9 +270,5 @@ class Scenario:
 	def getSimulator(self):
 		if self.simulator is None:
 			raise RuntimeError('scenario does not specify a simulator')
-		try:
-			assert not veneer._globalParameters		# TODO improve hack!
-			veneer._globalParameters = dict(self.params)
-			return self.simulator()
-		finally:
-			veneer._globalParameters = {}
+		import scenic.syntax.veneer as veneer
+		return veneer.instantiateSimulator(self.simulator, self.params)

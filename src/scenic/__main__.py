@@ -122,7 +122,7 @@ def generateScene():
 def runSimulation(scene):
     startTime = time.time()
     if args.verbosity >= 1:
-        print('  Beginning simulation...')
+        print(f'  Beginning simulation of {scene.dynamicScenario}...')
     try:
         result = errors.callBeginningScenicTrace(
             lambda: simulator.simulate(scene, maxSteps=args.time, verbosity=args.verbosity,

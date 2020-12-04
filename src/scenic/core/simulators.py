@@ -7,6 +7,7 @@ from collections import OrderedDict
 from scenic.core.object_types import (enableDynamicProxyFor, setDynamicProxyFor,
                                       disableDynamicProxyFor)
 from scenic.core.distributions import RejectionException
+import scenic.core.dynamics as dynamics
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError
 from scenic.core.vectors import Vector
 
@@ -24,7 +25,8 @@ class RejectSimulationException(Exception):
 class Simulator:
     """A simulator which can import/execute scenes from Scenic."""
 
-    def simulate(self, scene, maxSteps=None, maxIterations=100, verbosity=0):
+    def simulate(self, scene, maxSteps=None, maxIterations=100, verbosity=0,
+                 raiseGuardViolations=False):
         """Run a simulation for a given scene."""
 
         # Repeatedly run simulations until we find one satisfying the requirements
@@ -35,11 +37,14 @@ class Simulator:
             try:
                 simulation = self.createSimulation(scene, verbosity=verbosity)
                 result = simulation.run(maxSteps)
-            except (RejectSimulationException, RejectionException) as e:
+            except (RejectSimulationException, RejectionException, dynamics.GuardViolation) as e:
                 if verbosity >= 2:
                     print(f'  Rejected simulation {iterations} at time step '
                           f'{simulation.currentTime} because of: {e}')
-                continue
+                if raiseGuardViolations and isinstance(e, dynamics.GuardViolation):
+                    raise
+                else:
+                    continue
             # Completed the simulation without violating a requirement
             if verbosity >= 2:
                 print(f'  Simulation {iterations} ended successfully at time step '

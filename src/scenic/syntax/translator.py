@@ -58,6 +58,7 @@ from scenic.core.object_types import _Constructible
 import scenic.core.errors as errors
 from scenic.core.errors import (TokenParseError, PythonParseError, ASTParseError,
 								InvalidScenarioError)
+import scenic.core.dynamics as dynamics
 import scenic.core.pruning as pruning
 import scenic.syntax.veneer as veneer
 
@@ -173,7 +174,7 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>')
 	# pull in new constructor (Scenic class) definitions, which change the way
 	# subsequent tokens are transformed)
 	blocks = partitionByImports(tokens)
-	veneer.activate(params, model, filename)
+	veneer.activate(params, model, filename, namespace)
 	newSourceBlocks = []
 	try:
 		# Execute preamble
@@ -969,7 +970,7 @@ class TokenTranslator:
 							self.parseError(nextToken, f'invalid monitor name "{nextString}"')
 						injectToken((NAME, 'async'), spaceAfter=1)
 						injectToken((NAME, 'def'), spaceAfter=1)
-						injectToken((NAME, veneer.functionForMonitor(nextString)))
+						injectToken((NAME, dynamics.functionForMonitor(nextString)))
 						injectToken((LPAR, '('))
 						injectToken((RPAR, ')'))
 						advance()	# consume name
@@ -1815,9 +1816,9 @@ class ASTSurgeon(NodeTransformer):
 		genDefn = FunctionDef('makeGenerator', newArgs, newBody, decorators, node.returns)
 		classBody = docstring + [genDefn]
 		name = node.name
-		if veneer.isAMonitorName(name):
+		if dynamics.isAMonitorName(name):
 			superclass = monitorClass
-			name = veneer.monitorName(name)
+			name = dynamics.monitorName(name)
 		else:
 			superclass = behaviorClass
 		newDefn = ClassDef(name, [Name(superclass, Load())], [], classBody, [])
@@ -1828,13 +1829,19 @@ class ASTSurgeon(NodeTransformer):
 		# generate precondition checks
 		precondChecks = []
 		for precondition in preconditions:
-			throw = Raise(exc=Name('PreconditionViolation', Load()), cause=None)
+			call = Call(Name('PreconditionViolation', Load()),
+			            [Name(behaviorArgName, Load()), Constant(precondition.lineno, None)],
+			            [])
+			throw = Raise(exc=call, cause=None)
 			check = If(test=UnaryOp(Not(), precondition), body=[throw], orelse=[])
 			precondChecks.append(copy_location(check, precondition))
 		# generate invariant checker
 		invChecks = []
 		for invariant in invariants:
-			throw = Raise(exc=Name('InvariantViolation', Load()), cause=None)
+			call = Call(Name('InvariantViolation', Load()),
+			            [Name(behaviorArgName, Load()), Constant(invariant.lineno, None)],
+			            [])
+			throw = Raise(exc=call, cause=None)
 			check = If(test=UnaryOp(Not(), invariant), body=[throw], orelse=[])
 			invChecks.append(copy_location(check, invariant))
 		defineChecker = FunctionDef(checkInvariantsName, tempArg,
@@ -1964,37 +1971,20 @@ def storeScenarioStateIn(namespace, requirementSyntax):
 	for scenarioClass in veneer.scenarios:
 		handle(scenarioClass)
 
-	# Select top-level scenario for this module
-	useModuleScenario = True
-	if (not moduleScenario._objects and not moduleScenario._globalParameters
-		and not moduleScenario._requirements and len(veneer.scenarios) == 1):	# TODO improve?
-		soleScenario = veneer.scenarios[0]
-		sig = inspect.signature(soleScenario)
-		try:
-			sig.bind()	# Check if we can instantiate scenario with no arguments
-			useModuleScenario = False
-		except TypeError:
-			pass
-	if useModuleScenario:
-		scenario = moduleScenario
-		reqNamespace = namespace
-	else:
-		scenario = soleScenario()
-		scenario._prepare()		# Run setup block of scenario to create objects, etc.
-		reqNamespace = scenario.__dict__
-
 	# Extract requirements, scan for relations used for pruning, and create closures
-	scenario._compileRequirements(reqNamespace)
+	# (only for top-level scenario; modular scenarios will be handled when instantiated)
+	moduleScenario._compileRequirements()
 
 	# Save global parameters
 	for name, value in veneer._globalParameters.items():
 		if needsLazyEvaluation(value):
 			raise InvalidScenarioError(f'parameter {name} uses value {value}'
 									   ' undefined outside of object definition')
-	scenario._globalParameters = dict(veneer._globalParameters)
-	scenario._simulatorFactory = veneer.simulatorFactory
+	for scenario in veneer.scenarios:
+		scenario._bindGlobals(veneer._globalParameters)
+	moduleScenario._bindGlobals(veneer._globalParameters)
 
-	namespace['_scenario'] = scenario
+	namespace['_scenario'] = moduleScenario
 
 def gatherBehaviorNamespacesFrom(behaviors):
 	"""Gather any global namespaces which could be referred to by behaviors.
@@ -2027,16 +2017,15 @@ def constructScenarioFrom(namespace, scenarioName=None):
 	"""Build a Scenario object from an executed Scenic module."""
 	if scenarioName:
 		ty = namespace.get(scenarioName, None)
-		if not (isinstance(ty, type) and issubclass(ty, veneer.DynamicScenario)):
+		if not (isinstance(ty, type) and issubclass(ty, dynamics.DynamicScenario)):
 			raise RuntimeError(f'no scenario "{scenarioName}" found')
-		sig = inspect.signature(ty)
-		try:
-			sig.bind()
-		except TypeError:
+		if ty._requiresArguments():
 			raise RuntimeError(f'cannot instantiate scenario "{scenarioName}"'
 			                   ' with no arguments') from None
 
 		innerScenario = ty()
+		# Execute setup block (if any) to create objects and requirements;
+		# extract any requirements and scan for relations used for pruning
 		innerScenario._prepare()
 	elif len(namespace['_scenarios']) > 1:
 		raise RuntimeError('multiple choices for scenario to run '
