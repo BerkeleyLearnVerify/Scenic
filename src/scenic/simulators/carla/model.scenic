@@ -41,7 +41,13 @@ except ModuleNotFoundError:
 if 'carla_map' not in globalParameters:
     raise RuntimeError('need to specify map before importing CARLA model '
                        '(set the global parameter "carla_map")')
-simulator CarlaSimulator(globalParameters.carla_map)
+if 'render' not in globalParameters:
+    param render = True
+else:
+    if globalParameters.render not in ['0', '1']:
+        raise ValueError("render param must be either 0 or 1")
+
+simulator CarlaSimulator(globalParameters.carla_map, render=bool(int(globalParameters.render)))
 
 precipitation = Options({0: 70, 1: 30}) * Range(0, 100)
 param precipitation = precipitation
