@@ -109,6 +109,8 @@ class CarlaSimulation(DrivingSimulation):
 	def createObjectInSimulator(self, obj):
 		# Extract blueprint
 		blueprint = self.blueprintLib.find(obj.blueprint)
+		if blueprint.has_attribute('is_invincible'):
+			blueprint.set_attribute('is_invincible', 'False')
 
 		# Set up transform
 		loc = utils.scenicToCarlaLocation(obj.position, z=obj.elevation, world=self.world)
