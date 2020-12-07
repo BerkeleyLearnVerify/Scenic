@@ -125,6 +125,9 @@ class CarlaSimulation(DrivingSimulation):
 		if obj.rolename is not None:
 			blueprint.set_attribute('role_name', obj.rolename)
 
+		if blueprint.has_attribute('is_invincible'):
+			blueprint.set_attribute('is_invincible', 'False')
+
 		# Set up transform
 		loc = utils.scenicToCarlaLocation(obj.position, world=self.world, blueprint=obj.blueprint)
 		rot = utils.scenicToCarlaRotation(obj.heading)
