@@ -119,6 +119,7 @@ class Pedestrian(Pedestrian, CarlaActor, Walks):
     width: 0.5
     length: 0.5
     blueprint: Uniform(*blueprints.walkerModels)
+    carlaController: None
 
     def setWalkingDirection(self, heading):
         direction = Vector(0, self.speed).rotatedBy(heading)

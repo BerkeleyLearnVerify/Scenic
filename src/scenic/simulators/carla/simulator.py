@@ -109,26 +109,41 @@ class CarlaSimulation(DrivingSimulation):
 	def createObjectInSimulator(self, obj):
 		# Extract blueprint
 		blueprint = self.blueprintLib.find(obj.blueprint)
+		if obj.rolename is not None:
+			blueprint.set_attribute('role_name', obj.rolename)
+
+		# set walker as not invincible
 		if blueprint.has_attribute('is_invincible'):
 			blueprint.set_attribute('is_invincible', 'False')
 
+		print("blueprint: ", blueprint)
+
 		# Set up transform
-		loc = utils.scenicToCarlaLocation(obj.position, z=obj.elevation, world=self.world)
+		loc = utils.scenicToCarlaLocation(obj.position, world=self.world)
 		rot = utils.scenicToCarlaRotation(obj.heading)
 		transform = carla.Transform(loc, rot)
+		transform.location.z += obj.elevation
 
 		# Create Carla actor
 		carlaActor = self.world.try_spawn_actor(blueprint, transform)
 		if carlaActor is None:
+			self.destroy()
 			raise SimulationCreationError(f'Unable to spawn object {obj}')
+		obj.carlaActor = carlaActor
+
+		carlaActor.set_simulate_physics(obj.physics)
 
 		if isinstance(carlaActor, carla.Vehicle):
-			# TODO manual gear shift issue? (see above)
-			carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=False, gear=1))
+			carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
 		elif isinstance(carlaActor, carla.Walker):
 			carlaActor.apply_control(carla.WalkerControl())
-
-		obj.carlaActor = carlaActor
+			# spawn walker controller
+			controller_bp = self.blueprintLib.find('controller.ai.walker')
+			controller = self.world.try_spawn_actor(controller_bp, carla.Transform(), carlaActor)
+			if controller is None:
+				self.destroy()
+				raise SimulationCreationError(f'Unable to spawn carla controller for object {obj}')
+			obj.carlaController = controller
 		return carlaActor
 
 	def executeActions(self, allActions):
@@ -174,3 +189,16 @@ class CarlaSimulation(DrivingSimulation):
 			angularSpeed=utils.carlaToScenicAngularSpeed(currAngVel),
 		)
 		return values
+
+	def destroy(self):
+		for obj in self.objects:
+			if obj.carlaActor is not None:
+				if isinstance(obj.carlaActor, carla.Walker):
+					obj.carlaController.stop()
+					obj.carlaController.destroy()
+				obj.carlaActor.destroy()
+		if hasattr(self, "cameraManager"):
+			self.cameraManager.destroy_sensor()
+
+		self.world.tick()
+		super(CarlaSimulation, self).destroy()
