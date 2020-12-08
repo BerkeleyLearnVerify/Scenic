@@ -6,9 +6,18 @@ try:
 except ModuleNotFoundError:
     pass    # ignore; error will be caught later if user attempts to run a simulation
 
-behavior WalkForwardBehavior():
+behavior AutopilotBehavior():
+	self.carlaActor.set_autopilot(True, simulation().tm.get_port())
 	while True:
 		take SetSpeedAction(0.5)
 
-behavior AutopilotBehavior():
-	take SetAutopilotAction(enabled=True)
+behavior WalkForwardBehavior(speed=0.5):
+	take SetWalkingDirectionAction(0)
+	take SetWalkingSpeedAction(speed)
+
+behavior WalkBehavior(maxSpeed=1.4):
+	self.carlaController.start()
+	self.carlaController.go_to_location(simulation().world.get_random_location_from_navigation())
+	self.carlaController.set_max_speed(maxSpeed)
+	while True:
+		wait

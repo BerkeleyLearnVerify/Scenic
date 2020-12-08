@@ -26,7 +26,7 @@ behavior PedestrianBehavior(speed=3):
     while (distance from self to ego) > THRESHOLD:
         wait
 
-    take SetWalkingDirectionAction(self.heading), SetWalkingSpeedAction(speed)
+    do WalkForwardBehavior(speed)
 
 ## DEFINING SPATIAL RELATIONS
 # Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure

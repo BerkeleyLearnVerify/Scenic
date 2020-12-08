@@ -57,6 +57,7 @@ class CarlaActor(DrivingObject):
     carlaActor: None
     rolename: None   # This attribute can be used to differentiate specific actors during runtime
     blueprint: None
+    rolename: None
     color: None
     physics: True
 
@@ -125,6 +126,7 @@ class Pedestrian(Pedestrian, CarlaActor, Walks):
     width: 0.5
     length: 0.5
     blueprint: Uniform(*blueprints.walkerModels)
+    carlaController: None
 
     def setWalkingDirection(self, heading):
         direction = Vector(0, 1).rotatedBy(heading)
