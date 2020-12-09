@@ -10,7 +10,7 @@ __all__ = (
 	# Primitive statements and functions
 	'ego', 'require', 'resample', 'param', 'globalParameters', 'mutate', 'verbosePrint',
 	'localPath', 'model', 'simulator', 'simulation', 'require_always', 'terminate_when',
-	'terminate_simulation_when', 'in_initial_scenario',
+	'terminate_simulation_when', 'terminate_after', 'in_initial_scenario',
 	'sin', 'cos', 'hypot', 'max', 'min',
 	'filter',
 	# Prefix operators
@@ -369,7 +369,7 @@ def require(reqID, req, line, prob=1):
 				raise RejectSimulationException(f'requirement on line {line}')
 	else:	# requirement being defined at compile time
 		currentScenario._addRequirement(requirements.RequirementType.require,
-		                                reqID, req, line, prob)
+                                        reqID, req, line, prob)
 
 def require_always(reqID, req, line):
 	"""Function implementing the 'require always' statement."""
@@ -382,7 +382,7 @@ def terminate_when(reqID, req, line):
 def terminate_simulation_when(reqID, req, line):
 	"""Function implementing the 'terminate simulation when' statement."""
 	makeRequirement(requirements.RequirementType.terminateSimulationWhen,
-	                reqID, req, line)
+                    reqID, req, line)
 
 def makeRequirement(ty, reqID, req, line):
 	if evaluatingRequirement:
@@ -393,6 +393,13 @@ def makeRequirement(ty, reqID, req, line):
 		currentScenario._addDynamicRequirement(ty, req, line)
 	else:	# requirement being defined at compile time
 		currentScenario._addRequirement(ty, reqID, req, line, 1)
+
+def terminate_after(timeLimit, terminator=None):
+	if not isinstance(timeLimit, (float, int)):
+		raise RuntimeParseError('"terminate after N" with N not a number')
+	assert terminator in (None, 'seconds', 'steps')
+	inSeconds = (terminator != 'steps')
+	currentScenario._setTimeLimit(timeLimit, inSeconds=inSeconds)
 
 def resample(dist):
 	"""The built-in resample function."""

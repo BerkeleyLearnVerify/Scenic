@@ -80,8 +80,13 @@ class DynamicScenario(Invocable):
 
         self._subScenarios = []
         self._endWithBehaviors = False
+        self._timeLimit = None
+        self._timeLimitIsInSeconds = False
         self._prepared = False
         self._dummyNamespace = None
+
+        self._timeLimitInSteps = None   # computed at simulation time
+        self._elapsedTime = 0
 
     @classmethod
     def _dummy(cls, filename, namespace):
@@ -147,6 +152,12 @@ class DynamicScenario(Invocable):
     def _start(self):
         assert self._prepared
 
+        # Compute time limit now that we know the simulation timestep
+        self._elapsedTime = 0
+        self._timeLimitInSteps = self._timeLimit
+        if self._timeLimitIsInSeconds:
+            self._timeLimitInSteps /= veneer.currentSimulation.timestep
+
         veneer.startScenario(self)
         with veneer.executeInScenario(self):
             # Start compose block
@@ -165,6 +176,11 @@ class DynamicScenario(Invocable):
                 monitor.start()
 
     def _step(self):
+        # Check if we have reached the time limit, if any
+        if self._timeLimitInSteps is not None and self._elapsedTime >= self._timeLimitInSteps:
+            return self._stop('reached time limit')
+        self._elapsedTime += 1
+
         # Execute compose block, if any
         composeDone = False
         if self._runningIterator is None:
@@ -188,7 +204,7 @@ class DynamicScenario(Invocable):
             if all(agent.behavior._isFinished for agent in self._agents):
                 return self._stop('all behaviors finished')
 
-        # Otherwise, check if any termination conditions apply
+        # Check if any termination conditions apply
         for req in self._terminationConditions:
             if req.isTrue():
                 return self._stop(req)
@@ -305,6 +321,10 @@ class DynamicScenario(Invocable):
         else:
             raise RuntimeError(f'internal error: requirement {req} has unknown type!')
         place.append(req)
+
+    def _setTimeLimit(self, timeLimit, inSeconds=True):
+        self._timeLimit = timeLimit
+        self._timeLimitIsInSeconds = inSeconds
 
     def _toScenario(self, namespace):
         assert self._prepared

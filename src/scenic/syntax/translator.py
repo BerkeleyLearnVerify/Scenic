@@ -292,6 +292,7 @@ softRequirement = 'require_soft'	# not actually a statement, but a marker for th
 requireAlwaysStatement = ('require', 'always')
 terminateWhenStatement = ('terminate', 'when')
 terminateSimulationWhenStatement = ('terminate', 'simulation', 'when')
+terminateAfterStatement = ('terminate', 'after')
 
 actionStatement = 'take'			# statement invoking a primitive action
 waitStatement = 'wait'				# statement invoking a no-op action
@@ -309,7 +310,9 @@ oneWordStatements = {	# TODO clean up
 	actionStatement, waitStatement, terminateStatement,
 	abortStatement, invokeStatement, simulatorStatement
 }
-twoWordStatements = { requireAlwaysStatement, terminateWhenStatement }
+twoWordStatements = {
+	requireAlwaysStatement, terminateWhenStatement, terminateAfterStatement,
+}
 threeWordStatements = { terminateSimulationWhenStatement }
 
 threeWordIncipits = { tokens[:2]: tokens[2] for tokens in threeWordStatements } # TODO improve
@@ -322,7 +325,9 @@ functionStatements = {
 	requireStatement, paramStatement, mutateStatement,
 	modelStatement, simulatorStatement
 }
-twoWordFunctionStatements = { requireAlwaysStatement, terminateWhenStatement }
+twoWordFunctionStatements = {
+	requireAlwaysStatement, terminateWhenStatement, terminateAfterStatement,
+}
 threeWordFunctionStatements = { terminateSimulationWhenStatement }
 def functionForStatement(tokens):
 	return '_'.join(tokens) if isinstance(tokens, tuple) else tokens
@@ -463,7 +468,7 @@ assert not any(op in twoWordStatements for op in prefixOperators)
 for imp in prefixOperators.values():
 	assert imp in api, imp
 
-## Modifiers
+## Modifiers and terminators
 
 class ModifierInfo(typing.NamedTuple):
 	name: str
@@ -479,6 +484,10 @@ modifierNames = {}
 for mod in modifiers:
 	assert mod.name not in modifierNames, mod
 	modifierNames[mod.name] = mod
+
+terminatorsForStatements = {
+	functionForStatement(terminateAfterStatement): ('seconds', 'steps'),
+}
 
 ## Infix operators
 
@@ -881,6 +890,8 @@ class TokenTranslator:
 							allowedModifiers[name] = mod.name
 					if context in modifierNames:
 						allowedTerminators = modifierNames[context].terminators
+					elif context in terminatorsForStatements:
+						allowedTerminators = terminatorsForStatements[context]
 			else:
 				allowedInfixOps = generalInfixOps
 
@@ -2019,6 +2030,7 @@ def gatherBehaviorNamespacesFrom(behaviors):
 
 def constructScenarioFrom(namespace, scenarioName=None):
 	"""Build a Scenario object from an executed Scenic module."""
+	modularScenarios = namespace['_scenarios']
 	if scenarioName:
 		ty = namespace.get(scenarioName, None)
 		if not (isinstance(ty, type) and issubclass(ty, dynamics.DynamicScenario)):
@@ -2027,16 +2039,20 @@ def constructScenarioFrom(namespace, scenarioName=None):
 			raise RuntimeError(f'cannot instantiate scenario "{scenarioName}"'
 			                   ' with no arguments') from None
 
-		innerScenario = ty()
-		# Execute setup block (if any) to create objects and requirements;
-		# extract any requirements and scan for relations used for pruning
-		innerScenario._prepare()
-	elif len(namespace['_scenarios']) > 1:
+		dynScenario = ty()
+	elif len(modularScenarios) > 1:
 		raise RuntimeError('multiple choices for scenario to run '
 		                   '(specify using the --scenario option)')
+	elif modularScenarios and not modularScenarios[0]._requiresArguments():
+		dynScenario = modularScenarios[0]()
 	else:
-		innerScenario = namespace['_scenario']
-	scenario = innerScenario._toScenario(namespace)
+		dynScenario = namespace['_scenario']
+
+	if not dynScenario._prepared:	# true for all except top-level scenarios
+		# Execute setup block (if any) to create objects and requirements;
+		# extract any requirements and scan for relations used for pruning
+		dynScenario._prepare()
+	scenario = dynScenario._toScenario(namespace)
 
 	# Prune infeasible parts of the space
 	if usePruning:

@@ -72,8 +72,6 @@ class Simulation:
 
         Throws a RejectSimulationException if a requirement is violated.
         """
-        global runningSimulation
-
         trajectory = self.trajectory
         if self.currentTime > 0:
             raise RuntimeError('tried to run a Simulation which has already run')

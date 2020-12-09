@@ -1,3 +1,9 @@
+"""Tests for imports of Scenic modules.
+
+Note that this is different from modular scenarios defined using the 'scenario'
+statement. This file simply tests imports of old-style Scenic modules; the new
+system of modular scenarios is tested in 'test_modular.py'.
+"""
 
 import os.path
 import pytest
