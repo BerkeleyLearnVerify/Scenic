@@ -119,7 +119,7 @@ class SetJumpAction(PedestrianAction):
 
 class SetWalkAction(PedestrianAction):
 	def __init__(self, enabled, maxSpeed=1.4):
-		if not isinstance(enabled, int):
+		if not isinstance(enabled, bool):
 			raise RuntimeError('Enabled must be a boolean.')
 		self.enabled = enabled
 		self.maxSpeed = maxSpeed
