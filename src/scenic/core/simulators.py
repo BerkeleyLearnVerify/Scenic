@@ -1,6 +1,7 @@
 
 """Interface between Scenic and simulators."""
 
+import time
 import types
 from collections import OrderedDict
 

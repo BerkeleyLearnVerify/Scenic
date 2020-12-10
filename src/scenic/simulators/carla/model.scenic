@@ -51,6 +51,8 @@ param wind_intensity = Range(0, 100)
 param sun_azimuth_angle = Range(0, 360)
 param sun_altitude_angle = Range(-90, 90)
 
+# car.carlaActor.collision_sensor.___
+
 
 class CarlaActor(DrivingObject):
     carlaActor: None
