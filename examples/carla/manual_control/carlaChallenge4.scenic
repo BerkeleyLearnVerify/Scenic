@@ -12,15 +12,11 @@ model scenic.simulators.carla.model
 
 ## CONSTANTS
 EGO_MODEL = "vehicle.lincoln.mkz2017"
-THROTTLE_ACTION = 1.0
-BRAKE_ACTION = 1.0
-SAFETY_DISTANCE = 10
+BICYCLE_MIN_SPEED = 1
+THRESHOLD = 15
 
-behavior BicycleBehavior(throttle):
-    while (distance from ego to self) > 15:
-        wait
-    do ConstantThrottleBehavior(throttle) for 15 seconds
-    terminate
+behavior BicycleBehavior(speed=3, threshold=15):
+    do CrossingBehavior(ego, speed, threshold)
 
 ## GEOMETRY
 
@@ -38,8 +34,9 @@ spotBicycle = OrientedPoint in maneuver.endLane.centerline,
     facing roadDirection
 bicycle = Bicycle at spotBicycle offset by 3.5@0,
     with heading 90 deg relative to spotBicycle.heading,
-    with behavior BicycleBehavior(THROTTLE_ACTION),
+    with behavior BicycleBehavior(BICYCLE_MIN_SPEED, THRESHOLD),
     with regionContainedIn None
 
-require (distance from ego to intersec) < 25 and (distance from ego to intersec) > 10
-require (distance from bicycle to intersec) < 10 and (distance from bicycle to intersec) > 5
+require (distance to intersec) in Range(10,25)
+require (distance from bicycle to intersec) in Range(5, 10)
+terminate when (distance to spot) > 50

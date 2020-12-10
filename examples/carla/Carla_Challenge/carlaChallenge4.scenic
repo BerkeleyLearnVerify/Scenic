@@ -25,11 +25,8 @@ behavior EgoBehavior(trajectory):
     interrupt when withinDistanceToObjsInLane(self, SAFETY_DISTANCE):
         take SetBrakeAction(BRAKE_ACTION)
 
-behavior BicycleBehavior(throttle):
-    while (distance to self) > 15:
-        wait
-    do ConstantThrottleBehavior(throttle) for 15 seconds
-    terminate
+behavior BicycleBehavior(speed=3, threshold=15):
+    do CrossingBehavior(ego, speed, threshold)
 
 ## DEFINING SPATIAL RELATIONS
 # make sure to put '*' to uniformly randomly select from all elements of the list
@@ -46,8 +43,9 @@ spotBicycle = OrientedPoint in maneuver.endLane.centerline,
     facing roadDirection
 bicycle = Bicycle at spotBicycle offset by 3.5@0,
     with heading 90 deg relative to spotBicycle.heading,
-    with behavior BicycleBehavior(THROTTLE_ACTION),
+    with behavior BicycleBehavior(BICYCLE_MIN_SPEED, THRESHOLD),
     with regionContainedIn None
 
 require (distance to intersec) in Range(10, 25)
 require (distance from bicycle to intersec) in Range(10, 15)
+terminate when (distance to spot) > 50
