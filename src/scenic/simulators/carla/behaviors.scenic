@@ -9,9 +9,5 @@ except ModuleNotFoundError:
 behavior AutopilotBehavior():
 	take SetAutopilotAction(True)
 
-behavior WalkForwardBehavior(speed=0.5):
-	take SetWalkingDirectionAction(self.heading)
-	take SetWalkingSpeedAction(speed)
-
 behavior WalkBehavior(maxSpeed=1.4):
 	take SetWalkAction(True, maxSpeed)
