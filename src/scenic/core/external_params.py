@@ -139,13 +139,13 @@ class ExternalSampler:
 		else:
 			return None
 
-	def sample(self, feedback):
+	def sample(self, feedback, update=True):
 		"""Sample values for all the external parameters.
 
 		Args:
 			feedback: Feedback from the last sample (for active samplers).
 		"""
-		self.cachedSample = self.nextSample(feedback)
+		self.cachedSample, self.cachedInfo = self.nextSample(feedback)
 
 	def nextSample(self, feedback):
 		"""Actually do the sampling. Implemented by subclasses."""
@@ -226,9 +226,17 @@ class VerifaiSampler(ExternalSampler):
 		# for other active samplers an appropriate value should be set manually
 		if self.rejectionFeedback is None:
 			self.rejectionFeedback = 1
+		self.cachedSample = None
 
 	def nextSample(self, feedback):
 		return self.sampler.nextSample(feedback)
+
+	def update(self, sample, info, rho):
+		# print(f'Here; sampler is {self.sampler}')
+		self.sampler.update(sample, info, rho)
+
+	def getSample(self):
+		return self.sampler.getSample()
 
 	def valueFor(self, param):
 		return self.cachedSample[param.index]
