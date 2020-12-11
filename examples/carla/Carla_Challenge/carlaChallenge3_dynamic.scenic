@@ -13,14 +13,18 @@ model scenic.simulators.carla.model
 # CONSTANTS
 EGO_MODEL = "vehicle.lincoln.mkz2017"
 EGO_SPEED = 10
+SAFETY_DISTANCE = 10
+BRAKE_INTENSITY = 1.0
 
-PEDESTRIAN_SPEED = 5
-
-THRESHOLD = 15
+PEDESTRIAN_MIN_SPEED = 1.0
+THRESHOLD = 20
 
 # EGO BEHAVIOR: Follow lane and brake when reaches threshold distance to obstacle
 behavior EgoBehavior(speed=10):
-    do FollowLaneBehavior(speed)
+    try:
+        do FollowLaneBehavior(target_speed=speed)
+    interrupt when withinDistanceToObjsInLane(self, SAFETY_DISTANCE):
+        take SetBrakeAction(BRAKE_INTENSITY)
 
 behavior PedestrianBehavior(speed=3):
     while (distance from self to ego) > THRESHOLD:
@@ -51,4 +55,5 @@ ego = Car following roadDirection from spot for Range(-30, -20),
     with blueprint EGO_MODEL,
     with behavior EgoBehavior(EGO_SPEED)
 
-require (distance to intersection) > 20
+require (distance to intersection) > 75
+terminate when (distance to spot) > 50

@@ -13,7 +13,7 @@ model scenic.simulators.carla.model
 ## CONSTANTS
 EGO_MODEL = "vehicle.lincoln.mkz2017"
 EGO_SPEED = 10
-EGO_BRAKING_THRESHOLD = 10
+EGO_BRAKING_THRESHOLD = 12
 
 BRAKE_ACTION = 1.0
 
@@ -37,8 +37,9 @@ spawnPt = OrientedPoint on lane.centerline
 
 obstacle = Trash at spawnPt offset by Range(1, -1) @ 0
 
-ego = Car following roadDirection from spawnPt for Range(-30, -20),
-        with blueprint EGO_MODEL,
-	with behavior EgoBehavior(EGO_SPEED)
+ego = Car following roadDirection from spawnPt for Range(-50, -30),
+    with blueprint EGO_MODEL,
+    with behavior EgoBehavior(EGO_SPEED)
 
-require (distance to intersection) > 100
+require (distance to intersection) > 75
+terminate when ego.speed < 0.1 and (distance to obstacle) < 15

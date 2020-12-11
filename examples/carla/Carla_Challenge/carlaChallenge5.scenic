@@ -1,8 +1,7 @@
 """ Scenario Description
 Traffic Scenario 05.
 Lane changing to evade slow leading vehicle.
-The ego-vehicle performs a lane changing to evade a leading vehicle,
-which is moving too slowly.
+The ego-vehicle performs a lane changing to evade a leading vehicle, which is moving too slowly.
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
@@ -17,7 +16,7 @@ EGO_SPEED = 10
 LEAD_CAR_SPEED = 3
 
 DIST_THRESHOLD = 15
-BYPASS_DIST = 25
+BYPASS_DIST = 15
 
 ## BEHAVIORS
 behavior EgoBehavior(speed=10):

@@ -643,7 +643,7 @@ class Range(Distribution):
 		self.high = high
 
 	def __contains__(self, obj):
-		return low <= obj and obj <= high
+		return self.low <= obj and obj <= self.high
 
 	def clone(self):
 		return type(self)(self.low, self.high)

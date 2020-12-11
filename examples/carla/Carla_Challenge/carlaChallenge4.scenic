@@ -12,10 +12,12 @@ model scenic.simulators.carla.model
 
 ## CONSTANTS
 EGO_MODEL = "vehicle.lincoln.mkz2017"
-THROTTLE_ACTION = 1.0
+BICYCLE_MIN_SPEED = 1.5
+THRESHOLD = 18
 BRAKE_ACTION = 1.0
 SAFETY_DISTANCE = 10
 
+## DEFINING BEHAVIORS
 behavior EgoBehavior(trajectory):
     try:
         do FollowTrajectoryBehavior(trajectory = trajectory)
@@ -29,8 +31,7 @@ behavior BicycleBehavior(throttle):
     do ConstantThrottleBehavior(throttle) for 15 seconds
     terminate
 
-## GEOMETRY
-
+## DEFINING SPATIAL RELATIONS
 # make sure to put '*' to uniformly randomly select from all elements of the list
 intersec = Uniform(*network.intersections)
 startLane = Uniform(*intersec.incomingLanes)
@@ -48,5 +49,5 @@ bicycle = Bicycle at spotBicycle offset by 3.5@0,
     with behavior BicycleBehavior(THROTTLE_ACTION),
     with regionContainedIn None
 
-require (distance to intersec) < 25 and (distance to intersec) > 10
-require (distance from bicycle to intersec) < 10 and (distance from bicycle to intersec) > 5
+require (distance to intersec) in Range(10, 25)
+require (distance from bicycle to intersec) in Range(10, 15)

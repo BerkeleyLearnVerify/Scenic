@@ -1,22 +1,24 @@
 """ Scenario Description
-Based on CARLA Challenge Scenario 6: https://carlachallenge.org/challenge/nhtsa/
-Ego-vehicle must go around a blocking object
-using the opposite lane, yielding to oncoming traffic.
+Traffic Scenario 06.
+Vehicle passing dealing with oncoming traffic.
+The ego-vehicle must go around a blocking object using the opposite lane, yielding to oncoming
+traffic
 """
 
-#SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
+## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town07'
 model scenic.simulators.carla.model
 
-#CONSTANTS
+## CONSTANTS
+EGO_MODEL = "vehicle.lincoln.mkz2017"
 EGO_SPEED = 7
 ONCOMING_CAR_SPEED = 10
 BLOCKING_CAR_DIST = Range(15, 20)
 BREAK_INTENSITY = 0.8
 DIST_THRESHOLD = 13
 
-##DEFINING BEHAVIORS
+## DEFINING BEHAVIORS
 behavior EgoBehavior():
     current_lane = ego.lane
     current_lane_sec = ego.laneSection
@@ -41,7 +43,7 @@ behavior EgoBehavior():
 behavior OncomingCarBehavior():
     do FollowLaneBehavior(ONCOMING_CAR_SPEED)
 
-##DEFINING SPATIAL RELATIONS
+## DEFINING SPATIAL RELATIONS
 # Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
 # 'network' is the 'class Network' object in roads.py
 
@@ -54,18 +56,18 @@ assert len(lanes_with_left_lane) > 0, \
 ego_lane_sec = Uniform(*lanes_with_left_lane)
 opp_lane_sec = ego_lane_sec._laneToLeft
 
-##OBJECT PLACEMENT
+## OBJECT PLACEMENT
 oncomingCar = Car on opp_lane_sec.centerline,
     with behavior OncomingCarBehavior()
 
 ego = Car on ego_lane_sec.centerline,
+    with blueprint EGO_MODEL,
     with behavior EgoBehavior()
 
 blockingCar = Car following roadDirection for BLOCKING_CAR_DIST,
     with viewAngle 90 deg
 
 ## EXPLICIT HARD CONSTRAINTS
-#Make sure the oncoming Car is at a visible section of the lane
 require blockingCar can see oncomingCar
 require (distance from blockingCar to oncomingCar) < 10
 require (distance from blockingCar to intersection) > 10
