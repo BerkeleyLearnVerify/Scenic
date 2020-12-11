@@ -45,7 +45,7 @@ for i in network.intersections:
     if i.is4Way:
         fourWayIntersection.append(i)
 """
-fourWayIntersection = filter(lambda i: i.is4Way, network.intersections)
+fourWayIntersection = filter(lambda i: i.is4Way and i.isSignalized, network.intersections)
 
 # make sure to put '*' to uniformly randomly select from all elements of the list
 intersec = Uniform(*fourWayIntersection)
