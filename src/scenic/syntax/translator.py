@@ -46,7 +46,7 @@ from tokenize import INDENT, DEDENT, STRING, SEMI
 
 import ast
 from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_missing_locations
-from ast import Load, Store, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, BitXor, LShift
+from ast import Load, Store, Del, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, BitXor, LShift
 from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Subscript, Index, IfExp
 from ast import NamedExpr, Yield, YieldFrom, FunctionDef, Attribute, Constant, Assign, Expr
 from ast import Return, Raise, If, UnaryOp, Not, ClassDef, Nonlocal, Global, Compare, Is, Try
@@ -1258,10 +1258,10 @@ class LocalFinder(NodeVisitor):
 		self.nonlocals = set()
 
 	def visit_Global(self, node):
-		self.globals |= node.names
+		self.globals.update(node.names)
 
 	def visit_Nonlocal(self, node):
-		self.nonlocals |= node.names
+		self.nonlocals.update(node.names)
 
 	def visit_FunctionDef(self, node):
 		self.names.add(node.name)
@@ -1293,7 +1293,7 @@ class LocalFinder(NodeVisitor):
 		self.visit_Import(node)
 
 	def visit_Name(self, node):
-		if isinstance(node.ctx, Store):
+		if isinstance(node.ctx, (Store, Del)):
 			self.names.add(node.id)
 
 	def visit_ExceptHandler(self, node):
@@ -1695,10 +1695,11 @@ class ASTSurgeon(NodeTransformer):
 		if self.inBehavior:
 			self.parseError(node, 'cannot define a scenario inside a behavior')
 
-		name = node.name[len(scenarioMarker):]
+		# Set up arguments for setup block (also inherited by compose block)
 		args = node.args
 		args.args = initialBehaviorArgs + args.args
 		args = self.visit(args)
+
 		# Extract named blocks from scenario body, if any
 		simple = False	# simple scenario with no blocks
 		setup, compose = None, None
@@ -1709,11 +1710,7 @@ class ASTSurgeon(NodeTransformer):
 					if setup:
 						self.parseError(statement,
 							f'scenario contains multiple "{setupBlock}" blocks')
-					returnLocals = Return(Call(Name('locals', Load()), [], []))
-					newBody = self.visit(statement.body) + [returnLocals]
-					newDef = FunctionDef('_setup', args, newBody,
-										 [Name(id='staticmethod', ctx=Load())], None)
-					setup = copy_location(newDef, statement)
+					setup = statement
 				elif statement.name == composeBlock:
 					if compose:
 						self.parseError(statement,
@@ -1740,31 +1737,55 @@ class ASTSurgeon(NodeTransformer):
 				self.parseError(setup, f'simple scenario cannot have a "{setupBlock}" block')
 			if compose:
 				self.parseError(compose, f'simple scenario cannot have a "{composeBlock}" block')
-			returnLocals = Return(Call(Name('locals', Load()), [], []))
-			newBody = self.visit(node.body) + [returnLocals]
-			newDef = FunctionDef('_setup', args, newBody,
-								 [Name(id='staticmethod', ctx=Load())], None)
-			setup = copy_location(newDef, node)
-		if not setup:
-			setup = Assign([Name('_setup', Store())], Constant(None, None))
+			if preconditions or invariants:
+				self.parseError(node, f'simple scenario cannot have preconditions/invariants')
+
+		# Construct compose block
 		if compose or preconditions or invariants:
 			self.inCompose = self.inBehavior = True
 			preamble = self.makeBehaviorPreamble(preconditions, invariants)
 			if compose:
 				body = self.visit(compose.body)
+				if setup:
+					# make all locals in compose block actually use scope of setup block
+					# (the compose definition will be placed inside the setup function)
+					setupLocals = LocalFinder.findIn(setup.body)
+					composeLocals = LocalFinder.findIn(body)
+					commonLocals = setupLocals & composeLocals
+					if commonLocals:
+						body.insert(0, Nonlocal(list(commonLocals)))
 			else:
 				# generate no-op compose block to ensure invariants are checked
 				wait = self.generateInvocation(node, Constant((), None))
 				body = [While(Constant(True, None), wait, [])]
 				compose = node 	# for copy_location below
 			newBody = preamble + body
-			newDef = FunctionDef('_compose', args, newBody,
-			                     [Name(id='staticmethod', ctx=Load())], None)
+			newDef = FunctionDef('_compose', noArgs, newBody, [], None)
 			self.inCompose = self.inBehavior = False
 			compose = copy_location(newDef, compose)
 		else:
 			compose = Assign([Name('_compose', Store())], Constant(None, None))
-		body = [setup, compose]
+
+		# Construct setup block
+		if setup:
+			oldBody = setup.body
+			oldLoc = setup
+		elif simple:
+			oldBody = node.body
+			oldLoc = node
+		else:
+			oldBody = []
+			oldLoc = node
+		getLocals = Call(Name('locals', Load()), [], [])
+		returnStmt = Return(getLocals)
+		newBody = self.visit(oldBody) + [compose, returnStmt]
+		newDef = FunctionDef('_setup', args, newBody,
+							 [Name(id='staticmethod', ctx=Load())], None)
+		setup = copy_location(newDef, oldLoc)
+
+		# Assemble scenario definition
+		name = node.name[len(scenarioMarker):]
+		body = [setup]
 		newDef = ClassDef(name, [Name(scenarioClass, Load())], [], body, [])
 		return copy_location(newDef, node)
 

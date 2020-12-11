@@ -165,7 +165,7 @@ class DynamicScenario(Invocable):
                 if not inspect.isgeneratorfunction(self._compose):
                     from scenic.syntax.translator import composeBlock
                     raise RuntimeParseError(f'"{composeBlock}" does not invoke any scenarios')
-                self._runningIterator = self._compose(self, None, *self._args, **self._kwargs)
+                self._runningIterator = self._compose()
 
             # Initialize behavior coroutines of agents
             for agent in self._agents:

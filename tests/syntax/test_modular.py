@@ -16,6 +16,13 @@ def test_single_scenario():
     """)
     assert tuple(ego.position) == (1, 2)
 
+def test_simple_scenario():
+    ego = sampleEgoFrom("""
+        scenario Main():
+            ego = Object at (1, 2)
+    """)
+    assert tuple(ego.position) == (1, 2)
+
 def test_requirement():
     scenario = compileScenic("""
         scenario Main():
@@ -59,3 +66,47 @@ def test_sequential_composition():
     assert tuple(trajectory[1][0]) == (1, 0)
     assert tuple(trajectory[2][0]) == (1, 0)
     assert tuple(trajectory[2][1]) == (5, 0)
+
+def test_shared_scope_read():
+    scenario = compileScenic("""
+        scenario Main():
+            setup:
+                y = 3
+            compose:
+                do Sub(y)
+        scenario Sub(x):
+            ego = Object at x @ 0
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario)
+    assert len(trajectory) == 2
+    assert len(trajectory[1]) == 1
+    assert tuple(trajectory[1][0]) == (3, 0)
+
+def test_shared_scope_write():
+    scenario = compileScenic("""
+        scenario Main():
+            setup:
+                y = 3
+            compose:
+                y = 4
+                do Sub(y)
+        scenario Sub(x):
+            ego = Object at x @ 0
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario)
+    assert len(trajectory) == 2
+    assert len(trajectory[1]) == 1
+    assert tuple(trajectory[1][0]) == (4, 0)
+
+def test_shared_scope_del():
+    scenario = compileScenic("""
+        scenario Main():
+            setup:
+                y = 3
+            compose:
+                del y
+                do Sub()
+        scenario Sub():
+            ego = Object
+    """, scenario='Main')
+    sampleTrajectory(scenario)
