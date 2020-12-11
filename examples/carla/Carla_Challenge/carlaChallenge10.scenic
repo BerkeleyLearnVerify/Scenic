@@ -32,7 +32,7 @@ behavior EgoBehavior(speed, trajectory):
 # Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
 # 'network' is the 'class Network' object in roads.py
 
-fourWayIntersection = filter(lambda i: i.is4Way, network.intersections)
+fourWayIntersection = filter(lambda i: i.is4Way and not i.isSignalized, network.intersections)
 
 # make sure to put '*' to uniformly randomly select from all elements of the list
 intersec = Uniform(*fourWayIntersection)
