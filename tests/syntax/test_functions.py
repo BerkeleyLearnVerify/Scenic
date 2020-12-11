@@ -3,6 +3,20 @@ import pytest
 
 from tests.utils import compileScenic, sampleEgoFrom
 
+# Built-in functions
+
+def test_max_min():
+    ego = sampleEgoFrom("""
+        a = Range(0, 1)
+        b = Range(0, 1)
+        ego = Object with foo max(a, b), with bar min(a, b)
+    """)
+    assert ego.foo >= ego.bar
+    ego = sampleEgoFrom('ego = Object with foo min([], default=Range(1,2))')
+    assert 1 <= ego.foo <= 2
+    ego = sampleEgoFrom('ego = Object with foo min(1, 2, key=lambda x: -x)')
+    assert ego.foo == 2
+
 # Iterable and dictionary unpacking
 
 def test_unpacking():
