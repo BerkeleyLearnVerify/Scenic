@@ -1,6 +1,6 @@
 These files are from the CARLA project, under the MIT license.
 
-Copyright (c) 2017 Computer Vision Center (CVC) at the Universitat Autonoma de
+Copyright (c) 2017-2020 Computer Vision Center (CVC) at the Universitat Autonoma de
 Barcelona (UAB).
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

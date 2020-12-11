@@ -270,6 +270,7 @@ class Road:
         self.junction = junction if junction != '-1' else None
         self.predecessor = None
         self.successor = None
+        self.signals = []    # List of Signal objects.
         self.lane_secs = []    # List of LaneSection objects.
         self.ref_line = []    # List of Curve objects defining reference line.
         # NOTE: sec_points, sec_polys, sec_lane_polys should be ordered according to lane_secs.
@@ -918,6 +919,18 @@ class Road:
         else:
             backwardGroup = None
 
+        # Create signal
+        roadSignals = []
+        for i, signal_ in enumerate(self.signals):
+            signal = roadDomain.Signal(
+                uid=f'signal{signal_.id_}_{self.id_}_{i}',
+                openDriveID=signal_.id_,
+                country=signal_.country,
+                type=signal_.type_
+            )
+            roadSignals.append(signal)
+            allElements.append(signal)
+
         # Create road
         assert forwardGroup or backwardGroup
         if forwardGroup:
@@ -941,6 +954,7 @@ class Road:
             forwardLanes=forwardGroup,
             backwardLanes=backwardGroup,
             sections=roadSections,
+            signals=tuple(roadSignals),
             crossings=(),       # TODO add these!
         )
         allElements.append(road)
@@ -978,6 +992,28 @@ class Road:
                 del sec._original_lane
 
         return road, allElements
+
+class Signal:
+    '''Traffic lights, stop signs, etc.'''
+    def __init__(self, id_, country, type_, subtype, orientation, validity=None):
+        self.id_ = id_
+        self.country = country
+        self.type_ = type_
+        self.subtype = subtype
+        self.orientation = orientation
+        self.validity = validity
+
+    def is_valid(self):
+        return self.validity is None or self.validity != [0, 0]
+
+class SignalReference:
+    def __init__(self, id_, orientation, validity=None):
+        self.id_ = id_
+        self.validity = validity
+        self.orientation = orientation
+
+    def is_valid(self):
+        return self.validity is None or self.validity != [0, 0]
 
 class RoadMap:
     defaultTolerance = 0.05
@@ -1189,6 +1225,27 @@ class RoadMap:
                                                     contact,
                                                     c.connecting_contact))
 
+    def __parse_signal_validity(self, validity_elem):
+        if validity_elem is None:
+            return None
+        return [int(validity_elem.get('fromLane')), int(validity_elem.get('toLane'))]
+
+    def __parse_signal(self, signal_elem):
+        return Signal(
+            signal_elem.get('id'),
+            signal_elem.get('country'),
+            signal_elem.get('type'),
+            signal_elem.get('subtype'),
+            signal_elem.get('orientation'),
+            self.__parse_signal_validity(signal_elem.find('validity'))
+        )
+
+    def __parse_signal_reference(self, signal_reference_elem):
+        return SignalReference(
+            signal_reference_elem.get('id'),
+            signal_reference_elem.get('orientation'),
+            self.__parse_signal_validity(signal_reference_elem.find('validity'))
+        )
 
     def parse(self, path):
         tree = ET.parse(path)
@@ -1196,6 +1253,7 @@ class RoadMap:
         if root.tag != 'OpenDRIVE':
             raise RuntimeError(f'{path} does not appear to be an OpenDRIVE file')
 
+        # parse junctions
         for j in root.iter('junction'):
             junction = Junction(int(j.get('id')), j.get('name'))
             for c in j.iter('connection'):
@@ -1215,6 +1273,16 @@ class RoadMap:
                 continue
             self.junctions[junction.id_] = junction
 
+        # Creating temporal signals container to resolve referenced signals.
+        _temp_signals = {}
+        for r in root.iter('road'):
+            signals = r.find('signals')
+            if signals is not None:
+                for s in signals.iter('signal'):
+                    signal = self.__parse_signal(s)
+                    _temp_signals[signal.id_] = signal
+
+        # parse roads
         self.elidedRoads = {}
         for r in root.iter('road'):
             road = Road(r.get('name'), int(r.get('id')), float(r.get('length')),
@@ -1359,6 +1427,29 @@ class RoadMap:
                             lane.pred = badSec.lanes[lane.pred].pred
 
                 road.lane_secs.append(lane_sec)
+
+            # parse signals
+            signals = r.find('signals')
+            if signals is not None:
+                for s in signals.iter('signal'):
+                    signal = self.__parse_signal(s)
+                    if signal.is_valid():
+                        road.signals.append(signal)
+
+                for s in signals.iter('signalReference'):
+                    signalReference = self.__parse_signal_reference(s)
+                    if signalReference.is_valid():
+                        referencedSignal = _temp_signals[signalReference.id_]
+                        signal = Signal(
+                            referencedSignal.id_,
+                            referencedSignal.country,
+                            referencedSignal.type_,
+                            referencedSignal.subtype,
+                            signalReference.orientation,
+                            signalReference.validity
+                        )
+                        road.signals.append(signal)
+
             self.roads[road.id_] = road
 
         # Handle links to/from elided roads
@@ -1456,6 +1547,7 @@ class RoadMap:
             # Gather all lanes involved in the junction's connections
             allIncomingLanes, allOutgoingLanes = [], []
             allRoads, seenRoads = [], set()
+            allSignals, seenSignals = [], set()
             maneuversForLane = defaultdict(list)
             for connection in junction.connections:
                 incomingID = connection.incoming_id
@@ -1467,6 +1559,11 @@ class RoadMap:
                 connectingRoad = connectingRoads.get(connectingID)
                 if not connectingRoad:
                     continue    # connecting road has no drivable lanes; skip it
+
+                for signal in connectingRoad.signals:
+                    if signal.openDriveID not in seenSignals:
+                        allSignals.append(signal)
+                        seenSignals.add(signal.openDriveID)
 
                 # Find possible incoming lanes for this connection
                 if incomingID not in seenRoads:
@@ -1579,6 +1676,7 @@ class RoadMap:
                 incomingLanes=cyclicOrder(allIncomingLanes, contactStart=False),
                 outgoingLanes=cyclicOrder(allOutgoingLanes, contactStart=True),
                 maneuvers=tuple(allManeuvers),
+                signals=tuple(allSignals),
                 crossings=(),       # TODO add these
             )
             register(intersection)
