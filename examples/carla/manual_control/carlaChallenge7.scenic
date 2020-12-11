@@ -8,10 +8,9 @@ forcing the ego-vehicle to avoid the collision.
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
-model scenic.simulators.carla.model #located in scenic/simulators/carla/model.scenic
+model scenic.simulators.carla.model
 
 ## CONSTANTS
-EGO_MODEL = "vehicle.lincoln.mkz2017"
 EGO_INTER_DIST = [15, 20]
 ADV_INTER_DIST = [10, 15]
 EGO_SPEED = 10
@@ -30,15 +29,10 @@ monitor TrafficLights:
 
 ## DEFINING BEHAVIORS
 behavior AdversaryBehavior(trajectory):
+    while (ego.speed < 0.1):
+        wait
     do FollowTrajectoryBehavior(trajectory = trajectory)
     terminate
-
-behavior EgoBehavior(speed, trajectory):
-    try:
-        do FollowTrajectoryBehavior(target_speed=speed, trajectory=trajectory)
-        do FollowLaneBehavior(target_speed=speed)
-    interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
-        take SetBrakeAction(BRAKE_INTENSITY)
 
 ## DEFINING SPATIAL RELATIONS
 # Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
@@ -73,8 +67,7 @@ adv_spawn_pt = OrientedPoint in adv_maneuver.startLane.centerline
 # The referenceable types of vehicles supported in carla are listed in scenic/simulators/carla/model.scenic
 # For each vehicle type, the supported models are listed in scenic/simulators/carla/blueprints.scenic
 ego = Car at ego_spawn_pt,
-    with blueprint EGO_MODEL,
-    with behavior EgoBehavior(EGO_SPEED, ego_trajectory)
+    with rolename "hero"
 
 adversary = Car at adv_spawn_pt,
     with behavior AdversaryBehavior(adv_trajectory)

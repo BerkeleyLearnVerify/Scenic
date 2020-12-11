@@ -1,6 +1,7 @@
 """ Scenario Description
-Based on 2019 Carla Challenge Traffic Scenario 05.
-Ego-vehicle performs a lane changing to evade a leading vehicle, which is moving too slowly.
+Traffic Scenario 05.
+Lane changing to evade slow leading vehicle.
+The ego-vehicle performs a lane changing to evade a leading vehicle, which is moving too slowly.
 """
 
 #SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
