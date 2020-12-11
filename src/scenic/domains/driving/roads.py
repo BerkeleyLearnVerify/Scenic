@@ -478,6 +478,11 @@ class Lane(_ContainsCenterline, LinearElement):
         """Get the LaneSection passing through a given point."""
         return self.network.findPointIn(point, self.sections, reject)
 
+    def intersects(self, other):
+        if isinstance(other, Lane):
+            return self.centerline.intersects(other.centerline)
+        return super().intersects(other)
+
     # TODO remove hack; freeze all these classes
     __hash__ = object.__hash__
 
