@@ -26,14 +26,13 @@ behavior EgoBehavior(speed=10):
 
     interrupt when withinDistanceToAnyObjs(self, DIST_THRESHOLD):
         # change to left (overtaking)
-        left_section = self.laneSection.laneToLeft
-        is_opposite = self.laneSection.isForward != left_section.isForward 
-        do LaneChangeBehavior(laneSectionToSwitch=left_section, is_oppositeTraffic=is_opposite, target_speed=speed)
-        do FollowLaneBehavior(speed, is_oppositeTraffic=is_opposite, laneToFollow=left_section.lane) until (distance to lead) > BYPASS_DIST
+        faster_lane = self.laneSection.fasterLane
+        do LaneChangeBehavior(laneSectionToSwitch=faster_lane, target_speed=speed)
+        do FollowLaneBehavior(speed, laneToFollow=faster_lane.lane) until (distance to lead) > BYPASS_DIST
 
         # change to right
-        right_section = self.laneSection.laneToRight
-        do LaneChangeBehavior(laneSectionToSwitch=right_section, target_speed=speed)
+        slower_lane = self.laneSection.slowerLane
+        do LaneChangeBehavior(laneSectionToSwitch=slower_lane, target_speed=speed)
         do FollowLaneBehavior(speed) for 5 seconds
         terminate
 
@@ -50,9 +49,9 @@ ego = Car on lane.centerline,
     with blueprint EGO_MODEL,
     with behavior EgoBehavior(EGO_SPEED)
 
-lead = Car following roadDirection from ego for Range(10, 25),
+lead = Car following roadDirection for Range(10, 25),
     with behavior LeadingCarBehavior(LEAD_CAR_SPEED)
 
-require (distance from ego to intersection) > 50
+require (distance to intersection) > 50
 require (distance from lead to intersection) > 50
-require always (lead.laneSection._laneToLeft is not None) and (lead.laneSection.isForward == lead.laneSection._laneToLeft.isForward)
+require always (lead.laneSection._fasterLane is not None)

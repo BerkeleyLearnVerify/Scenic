@@ -26,8 +26,7 @@ behavior PedestrianBehavior(speed=3):
     while (distance from self to ego) > THRESHOLD:
         wait
 
-    take SetWalkingDirectionAction(0)
-    take SetWalkingSpeedAction(speed)
+    take SetWalkingDirectionAction(self.heading), SetWalkingSpeedAction(speed)
 
 ## DEFINING SPATIAL RELATIONS
 # Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
@@ -52,4 +51,4 @@ ego = Car following roadDirection from spot for Range(-30, -20),
     with blueprint EGO_MODEL,
     with behavior EgoBehavior(EGO_SPEED)
 
-require (distance from ego to intersection) > 50
+require (distance to intersection) > 50

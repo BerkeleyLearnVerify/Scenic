@@ -122,7 +122,7 @@ def generateScene():
 def runSimulation(scene):
     startTime = time.time()
     if args.verbosity >= 1:
-        print('  Beginning simulation...')
+        print(f'  Beginning simulation of {scene.dynamicScenario}...')
     try:
         result = errors.callBeginningScenicTrace(
             lambda: simulator.simulate(scene, maxSteps=args.time, verbosity=args.verbosity,
@@ -169,6 +169,9 @@ try:
         print(f'Average time/scene: {totalTime/count:.2f} seconds.')
 
 except KeyboardInterrupt:
+    pass
+
+finally:
     if args.simulate:
         simulator.destroy()
 

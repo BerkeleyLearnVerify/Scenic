@@ -30,7 +30,7 @@ for i in range(40):
     spot = OrientedPoint on lane.centerline
 
     background_car = Car at spot,
-        with autopilot True
+        with behavior AutopilotBehavior()
     background_activity.append(background_car)
 
 ego = Car following roadDirection from spot for Range(-30, -20),

@@ -19,8 +19,6 @@ are from the CARLA Python API reference):
       Altitude angle of the sun in degrees. Values range from -90 to 90 (where 0 degrees is the horizon).
 """
 
-import builtins
-
 from scenic.domains.driving.model import *
 
 import scenic.simulators.carla.blueprints as blueprints
@@ -80,7 +78,6 @@ class CarlaActor(DrivingObject):
 
 
 class Vehicle(Vehicle, CarlaActor, Steers):
-    autopilot: False
 
     def setThrottle(self, throttle):
         self.control.throttle = throttle
@@ -130,8 +127,7 @@ class Pedestrian(Pedestrian, CarlaActor, Walks):
     blueprint: Uniform(*blueprints.walkerModels)
 
     def setWalkingDirection(self, heading):
-        forward = self.carlaActor.get_transform().get_forward_vector()
-        direction = Vector(forward.x, forward.y).rotatedBy(heading)
+        direction = Vector(0, 1).rotatedBy(heading)
         zComp = self.control.direction.z
         self.control.direction = utils.scenicToCarlaVector3D(*direction, zComp)
 
@@ -262,10 +258,11 @@ def _getClosestLandmark(vehicle, type, distance=100):
     landmarks = waypoint.get_landmarks_of_type(distance, type)
 
     if landmarks:
-        return builtins.min(landmarks, key=lambda l: l.distance)
+        return min(landmarks, key=lambda l: l.distance)
     return None
 
 def _getClosestTrafficLight(vehicle, distance=100):
+    """Returns the closest traffic light affecting 'vehicle', up to a maximum of 'distance'"""
     landmark = _getClosestLandmark(vehicle, type="1000001", distance=distance)
     if landmark is not None:
         return simulation().world.get_traffic_light(landmark)

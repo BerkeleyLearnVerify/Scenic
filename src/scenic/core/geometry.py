@@ -26,12 +26,12 @@ def hypot(x, y) -> float:
 	return math.hypot(x, y)
 
 @monotonicDistributionFunction
-def max(*args):
-	return __builtins__['max'](*args)
+def max(*args, **kwargs):
+	return __builtins__['max'](*args, **kwargs)
 
 @monotonicDistributionFunction
-def min(*args):
-	return __builtins__['min'](*args)
+def min(*args, **kwargs):
+	return __builtins__['min'](*args, **kwargs)
 
 @distributionFunction
 def normalizeAngle(angle) -> float:

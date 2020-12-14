@@ -41,4 +41,4 @@ ego = Car following roadDirection from spawnPt for Range(-30, -20),
         with blueprint EGO_MODEL,
 	with behavior EgoBehavior(EGO_SPEED)
 
-require (distance from ego to intersection) > 100
+require (distance to intersection) > 100

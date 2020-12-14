@@ -10,12 +10,12 @@ import scenic.syntax.veneer as veneer
 
 # Compilation
 
-def compileScenic(code, removeIndentation=True):
+def compileScenic(code, removeIndentation=True, scenario=None):
     if removeIndentation:
         # to allow indenting code to line up with test function
         code = inspect.cleandoc(code)
     checkVeneerIsInactive()
-    scenario = scenarioFromString(code)
+    scenario = scenarioFromString(code, scenario=scenario)
     checkVeneerIsInactive()
     return scenario
 
@@ -24,8 +24,8 @@ def compileScenic(code, removeIndentation=True):
 def sampleScene(scenario, maxIterations=1):
     return generateChecked(scenario, maxIterations)[0]
 
-def sampleSceneFrom(code, maxIterations=1):
-    scenario = compileScenic(code)
+def sampleSceneFrom(code, maxIterations=1, scenario=None):
+    scenario = compileScenic(code, scenario=scenario)
     return sampleScene(scenario, maxIterations=maxIterations)
 
 def sampleEgo(scenario, maxIterations=1):
@@ -87,6 +87,22 @@ def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1,
         return actionSequence
     else:
         return [tuple(actions.values()) for actions in actionSequence]
+
+def sampleTrajectory(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
+    for i in range(maxScenes):
+        scene, iterations = generateChecked(scenario, maxIterations)
+        trajectory = sampleTrajectoryFromScene(scene, maxIterations=maxIterations,
+                                               maxSteps=maxSteps)
+        if trajectory is not None:
+            return trajectory
+    assert False, f'unable to find successful simulation over {maxScenes} scenes'
+
+def sampleTrajectoryFromScene(scene, maxIterations=1, maxSteps=1):
+    sim = DummySimulator(timestep=1)
+    result = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
+    if not result:
+        return None
+    return result.trajectory
 
 # Helpers
 

@@ -29,7 +29,7 @@ behavior EgoBehavior():
 
         try:
             do LaneChangeBehavior(left_lane_sec, is_oppositeTraffic=True, target_speed=EGO_SPEED)
-            do FollowLaneBehavior(EGO_SPEED, is_oppositeTraffic=True) until (distance from ego to blockingCar) > DIST_THRESHOLD
+            do FollowLaneBehavior(EGO_SPEED, is_oppositeTraffic=True) until (distance to blockingCar) > DIST_THRESHOLD
 
         interrupt when ego can see oncomingCar:
             take SetBrakeAction(BREAK_INTENSITY)
@@ -61,7 +61,7 @@ oncomingCar = Car on opp_lane_sec.centerline,
 ego = Car on ego_lane_sec.centerline,
     with behavior EgoBehavior()
 
-blockingCar = Car following roadDirection from ego for BLOCKING_CAR_DIST,
+blockingCar = Car following roadDirection for BLOCKING_CAR_DIST,
     with viewAngle 90 deg
 
 ## EXPLICIT HARD CONSTRAINTS

@@ -53,4 +53,4 @@ ego = Car following roadDirection from leadCar for Range(-10, -5),
         with blueprint EGO_MODEL,
         with behavior EgoBehavior(EGO_SPEED)
 
-require (distance from ego to intersection) > 100
+require (distance to intersection) > 100

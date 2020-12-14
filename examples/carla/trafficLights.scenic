@@ -47,5 +47,5 @@ ego = Car on lane.centerline,
     with blueprint EGO_MODEL,
     with behavior EgoBehaviorTL(EGO_SPEED)
 
-require (distance from ego to intersection) < 50
-require (distance from ego to intersection) > 5
+require (distance to intersection) < 50
+require (distance to intersection) > 5

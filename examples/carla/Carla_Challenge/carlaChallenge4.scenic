@@ -24,7 +24,7 @@ behavior EgoBehavior(trajectory):
         take SetBrakeAction(BRAKE_ACTION)
 
 behavior BicycleBehavior(throttle):
-    while (distance from ego to self) > 15:
+    while (distance to self) > 15:
         wait
     do ConstantThrottleBehavior(throttle) for 15 seconds
     terminate
@@ -48,5 +48,5 @@ bicycle = Bicycle at spotBicycle offset by 3.5@0,
     with behavior BicycleBehavior(THROTTLE_ACTION),
     with regionContainedIn None
 
-require (distance from ego to intersec) < 25 and (distance from ego to intersec) > 10
+require (distance to intersec) < 25 and (distance to intersec) > 10
 require (distance from bicycle to intersec) < 10 and (distance from bicycle to intersec) > 5

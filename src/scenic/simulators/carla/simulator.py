@@ -55,7 +55,7 @@ class CarlaSimulator(DrivingSimulator):
 		self.world.apply_settings(settings)
 		self.tm.set_synchronous_mode(False)
 
-		super(CarlaSimulator, self).destroy()
+		super().destroy()
 
 
 class CarlaSimulation(DrivingSimulation):
@@ -89,32 +89,7 @@ class CarlaSimulation(DrivingSimulation):
 		# Create Carla actors corresponding to Scenic objects
 		self.ego = None
 		for obj in self.objects:
-			# Extract blueprint
-			blueprint = self.blueprintLib.find(obj.blueprint)
-
-			print("blueprint: ", blueprint)
-
-			# Set up transform
-			loc = utils.scenicToCarlaLocation(obj.position, world=self.world)
-			rot = utils.scenicToCarlaRotation(obj.heading)
-			transform = carla.Transform(loc, rot)
-			transform.location.z += obj.elevation
-
-			# Create Carla actor
-			carlaActor = self.world.try_spawn_actor(blueprint, transform)
-			if carlaActor is None:
-				raise SimulationCreationError(f'Unable to spawn object {obj}')
-			obj.carlaActor = carlaActor
-
-			carlaActor.set_simulate_physics(obj.physics)
-
-			if isinstance(carlaActor, carla.Vehicle):
-				if obj.autopilot:
-					carlaActor.set_autopilot(obj.autopilot, self.tm.get_port())
-				else:
-					carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
-			elif isinstance(carlaActor, carla.Walker):
-				carlaActor.apply_control(carla.WalkerControl())
+			carlaActor = self.createObjectInSimulator(obj)
 
 			# Check if ego (from carla_scenic_taks.py)
 			if obj is self.objects[0]:
@@ -130,7 +105,7 @@ class CarlaSimulation(DrivingSimulation):
 					self.cameraManager.set_transform(self.camTransform)
 					self.cameraManager._recording = self.record
 
-		self.world.tick() ## allowing manualgearshift to take effect 
+		self.world.tick() ## allowing manualgearshift to take effect 	# TODO still need this?
 
 		for obj in self.objects:
 			if isinstance(obj.carlaActor, carla.Vehicle):
@@ -143,6 +118,32 @@ class CarlaSimulation(DrivingSimulation):
 			if obj.speed is not None:
 				equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
 				obj.carlaActor.set_target_velocity(equivVel)
+
+	def createObjectInSimulator(self, obj):
+		# Extract blueprint
+		blueprint = self.blueprintLib.find(obj.blueprint)
+
+		print("blueprint: ", blueprint)
+
+		# Set up transform
+		loc = utils.scenicToCarlaLocation(obj.position, world=self.world)
+		rot = utils.scenicToCarlaRotation(obj.heading)
+		transform = carla.Transform(loc, rot)
+		transform.location.z += obj.elevation
+
+		# Create Carla actor
+		carlaActor = self.world.try_spawn_actor(blueprint, transform)
+		if carlaActor is None:
+			raise SimulationCreationError(f'Unable to spawn object {obj}')
+		obj.carlaActor = carlaActor
+
+		carlaActor.set_simulate_physics(obj.physics)
+
+		if isinstance(carlaActor, carla.Vehicle):
+			carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
+		elif isinstance(carlaActor, carla.Walker):
+			carlaActor.apply_control(carla.WalkerControl())
+		return carlaActor
 
 	def executeActions(self, allActions):
 		super().executeActions(allActions)
@@ -191,8 +192,10 @@ class CarlaSimulation(DrivingSimulation):
 	def destroy(self):
 		for obj in self.objects:
 			if obj.carlaActor is not None:
+				if isinstance(obj.carlaActor, carla.Vehicle):
+					obj.carlaActor.set_autopilot(False, self.tm.get_port())
 				obj.carlaActor.destroy()
-		if hasattr(self, "cameraManager"):
+		if self.render and self.cameraManager:
 			self.cameraManager.destroy_sensor()
 
-		super(CarlaSimulation, self).destroy()
+		super().destroy()

@@ -1,6 +1,5 @@
 import carla
 import math
-import string
 
 from scenic.core.vectors import Vector
 from scenic.core.geometry import normalizeAngle
@@ -15,7 +14,7 @@ def snapToGround(world, location):
 def scenicToCarlaVector3D(x, y, z=0.0):
 	# NOTE: Used for velocity, acceleration; superclass of carla.Location
 	z = 0.0 if z is None else z
-	return carla.Vector3D(x, y, z)
+	return carla.Vector3D(x, -y, z)
 
 
 def scenicToCarlaLocation(pos, z=None, world=None):
