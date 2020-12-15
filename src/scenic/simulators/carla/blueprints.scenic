@@ -7,15 +7,15 @@ carModels = {# for speed = 10
       'vehicle.audi.etron', # K_P=0.3, K_D=0.2, K_I=0
       'vehicle.audi.tt',
       'vehicle.bmw.grandtourer',
-      # 'vehicle.bmw.isetta', # current PID controller not work 
+      'vehicle.bmw.isetta', # current PID controller not work 
       'vehicle.chevrolet.impala',
       'vehicle.citroen.c3',
       'vehicle.dodge_charger.police',
-      'vehicle.mustang.mustang',
-      # 'vehicle.jeep.wrangler_rubicon',  # current PID controller not work 
+      'vehicle.jeep.wrangler_rubicon',  # current PID controller not work 
       'vehicle.lincoln.mkz2017',
-      # 'vehicle.mercedes-benz.coupe',
+      'vehicle.mercedes-benz.coupe',
       'vehicle.mini.cooperst',
+      'vehicle.mustang.mustang',
       'vehicle.nissan.micra',
       'vehicle.nissan.patrol',
       'vehicle.seat.leon',
@@ -31,7 +31,7 @@ bicycleModels = {
 }
 
 motorcycleModels = {
-      # 'vehicle.harley-davidson.low_rider',
+      'vehicle.harley-davidson.low_rider',
       'vehicle.kawasaki.ninja',
       'vehicle.yamaha.yzf',
 }
