@@ -47,7 +47,7 @@ if 'port' not in globalParameters:
 if 'timeout' not in globalParameters:
     param timeout = 10
 if 'render' not in globalParameters:
-    param render = True
+    param render = '1'
 else:
     if globalParameters.render not in ['0', '1']:
         raise ValueError('render param must be either 0 or 1')

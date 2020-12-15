@@ -65,9 +65,10 @@ class CarlaSimulation(DrivingSimulation):
 	def __init__(self, scene, client, tm, timestep, render, record, scenario_number, verbosity=0):
 		super().__init__(scene, timestep=timestep, verbosity=verbosity)
 		self.client = client
-		self.client.load_world(map)
 		self.world = self.client.get_world()
+		self.map = self.world.get_map()
 		self.blueprintLib = self.world.get_blueprint_library()
+		self.tm = tm
 		
 		# Reloads current world: destroys all actors, except traffic manager instances
 		# self.client.reload_world()
