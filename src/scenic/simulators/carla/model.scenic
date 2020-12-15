@@ -39,24 +39,36 @@ except ModuleNotFoundError:
                            'from this scenario')
 
 if 'carla_map' not in globalParameters:
-    raise RuntimeError('need to specify map before importing CARLA model '
-                       '(set the global parameter "carla_map")')
+    param carla_map = None
+if 'address' not in globalParameters:
+    param address = '127.0.0.1'
+if 'port' not in globalParameters:
+    param port = 2000
+if 'timeout' not in globalParameters:
+    param timeout = 10
 if 'render' not in globalParameters:
     param render = True
 else:
     if globalParameters.render not in ['0', '1']:
-        raise ValueError("render param must be either 0 or 1")
+        raise ValueError('render param must be either 0 or 1')
+if 'record' not in globalParameters:
+    param record = ''
+if 'timestep' not in globalParameters:
+    param timestep = 0.1
+if 'weather' not in globalParameters:
+    param weather = None
 
-simulator CarlaSimulator(globalParameters.carla_map, render=bool(int(globalParameters.render)))
-
-precipitation = Options({0: 70, 1: 30}) * Range(0, 100)
-param precipitation = precipitation
-param precipitation_deposits = Range(precipitation, 100)
-param cloudiness = Range(precipitation, 100)
-param wind_intensity = Range(0, 100)
-param sun_azimuth_angle = Range(0, 360)
-param sun_altitude_angle = Range(-90, 90)
-
+simulator CarlaSimulator(
+    carla_map=globalParameters.carla_map,
+    map_path=globalParameters.map,
+    address=globalParameters.address,
+    port=int(globalParameters.port),
+    timeout=int(globalParameters.timeout),
+    render=bool(int(globalParameters.render)),
+    record=globalParameters.record,
+    timestep=float(globalParameters.timestep),
+    weather=globalParameters.weather
+)
 
 class CarlaActor(DrivingObject):
     carlaActor: None

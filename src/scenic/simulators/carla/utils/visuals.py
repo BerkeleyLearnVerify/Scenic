@@ -247,7 +247,6 @@ class CameraManager(object):
 		self._surface = None
 		self._actor = actor
 		self._hud = hud
-		self._recording = True
 		self.images = []
 		self._camera_transforms = [
 			carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
@@ -325,6 +324,4 @@ class CameraManager(object):
 			array = array[:, :, :3]
 			array = array[:, :, ::-1]
 			self._surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
-		if self._recording:
-			image.save_to_disk('_out/%08d' % image.frame)
 		self.images.append(image)

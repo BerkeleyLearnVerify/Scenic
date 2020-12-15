@@ -5,6 +5,7 @@ except ImportError as e:
 	raise ModuleNotFoundError('CARLA scenarios require the "carla" Python package') from e
 
 import math
+import os
 
 from scenic.syntax.translator import verbosity
 if verbosity == 0:	# suppress pygame advertisement at zero verbosity
@@ -20,15 +21,27 @@ import scenic.simulators.carla.utils.visuals as visuals
 
 
 class CarlaSimulator(DrivingSimulator):
-	def __init__(self, carla_map, address='127.0.0.1', port=2000, timeout=10,
-		         render=True, record=False, timestep=0.1):
+	def __init__(self, carla_map, map_path, address='127.0.0.1', port=2000, timeout=10,
+		         render=True, record='', timestep=0.1, weather=None):
 		super().__init__()
 		verbosePrint('Connecting to CARLA...')
 		self.client = carla.Client(address, port)
 		self.client.set_timeout(timeout)  # limits networking operations (seconds)
-		self.world = self.client.load_world(carla_map)
-		self.map = carla_map
+		if carla_map is not None:
+			self.world = self.client.load_world(carla_map)
+		else:
+			with open(map_path) as odr_file:
+				self.world = self.client.generate_opendrive_world(odr_file.read())
 		self.timestep = timestep
+
+		if weather is not None:
+			if isinstance(weather, str):
+				self.world.set_weather(getattr(carla.WeatherParameters, weather))
+			elif isinstance(weather, dict):
+				self.world.set_weather(carla.WeatherParameters(**weather))
+
+		self.tm = self.client.get_trafficmanager()
+		self.tm.set_synchronous_mode(True)
 
 		# Set to synchronous with fixed timestep
 		settings = self.world.get_settings()
@@ -38,16 +51,18 @@ class CarlaSimulator(DrivingSimulator):
 		verbosePrint('Map loaded in simulator.')
 
 		self.render = render  # visualization mode ON/OFF
-		self.record = record  # whether to save images to disk
+		self.record = record  # whether to use the carla recorder
+		self.scenario_number = 0  # Number of the scenario executed
 
 	def createSimulation(self, scene, verbosity=0):
-		return CarlaSimulation(scene, self.client, self.map, self.timestep,
+		self.scenario_number += 1
+		return CarlaSimulation(scene, self.client, self.tm, self.timestep,
 							   render=self.render, record=self.record,
-							   verbosity=verbosity)
+							   scenario_number=self.scenario_number, verbosity=verbosity)
 
 
 class CarlaSimulation(DrivingSimulation):
-	def __init__(self, scene, client, map, timestep, render, record, verbosity=0):
+	def __init__(self, scene, client, tm, timestep, render, record, scenario_number, verbosity=0):
 		super().__init__(scene, timestep=timestep, verbosity=verbosity)
 		self.client = client
 		self.client.load_world(map)
@@ -60,6 +75,7 @@ class CarlaSimulation(DrivingSimulation):
 		# Setup HUD
 		self.render = render
 		self.record = record
+		self.scenario_number = scenario_number
 		if self.render:
 			self.displayDim = (1280, 720)
 			self.displayClock = pygame.time.Clock()
@@ -72,6 +88,12 @@ class CarlaSimulation(DrivingSimulation):
 				pygame.HWSURFACE | pygame.DOUBLEBUF
 			)
 			self.cameraManager = None
+
+		if self.record:
+			if not os.path.exists(self.record):
+				os.mkdir(self.record)
+			name = "{}/scenario{}.log".format(self.record, self.scenario_number)
+			self.client.start_recorder(name)
 
 		# Create Carla actors corresponding to Scenic objects
 		self.ego = None
@@ -90,7 +112,6 @@ class CarlaSimulation(DrivingSimulation):
 					self.cameraManager._transform_index = camPosIndex
 					self.cameraManager.set_sensor(camIndex)
 					self.cameraManager.set_transform(self.camTransform)
-					self.cameraManager._recording = self.record
 
 		self.world.tick() ## allowing manualgearshift to take effect 	# TODO still need this?
 
@@ -172,3 +193,18 @@ class CarlaSimulation(DrivingSimulation):
 			angularSpeed=utils.carlaToScenicAngularSpeed(currAngVel),
 		)
 		return values
+
+	def destroy(self):
+		for obj in self.objects:
+			if obj.carlaActor is not None:
+				if isinstance(obj.carlaActor, carla.Walker):
+					obj.carlaController.stop()
+					obj.carlaController.destroy()
+				obj.carlaActor.destroy()
+		if hasattr(self, "cameraManager"):
+			self.cameraManager.destroy_sensor()
+
+		self.client.stop_recorder()
+
+		self.world.tick()
+		super(CarlaSimulation, self).destroy()
