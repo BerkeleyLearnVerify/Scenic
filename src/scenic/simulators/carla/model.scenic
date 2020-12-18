@@ -56,7 +56,22 @@ if 'record' not in globalParameters:
 if 'timestep' not in globalParameters:
     param timestep = 0.1
 if 'weather' not in globalParameters:
-    param weather = None
+    param weather = Uniform(Options([
+        'ClearNoon',
+        'CloudyNoon',
+        'WetNoon',
+        'WetCloudyNoon',
+        'SoftRainNoon',
+        'MidRainyNoon',
+        'HardRainNoon',
+        'ClearSunset',
+        'CloudySunset',
+        'WetSunset',
+        'WetCloudySunset',
+        'SoftRainSunset',
+        'MidRainSunset',
+        'HardRainSunset'
+    ]))
 
 simulator CarlaSimulator(
     carla_map=globalParameters.carla_map,
@@ -66,8 +81,7 @@ simulator CarlaSimulator(
     timeout=int(globalParameters.timeout),
     render=bool(int(globalParameters.render)),
     record=globalParameters.record,
-    timestep=float(globalParameters.timestep),
-    weather=globalParameters.weather
+    timestep=float(globalParameters.timestep)
 )
 
 class CarlaActor(DrivingObject):

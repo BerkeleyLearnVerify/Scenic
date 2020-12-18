@@ -22,7 +22,7 @@ import scenic.simulators.carla.utils.visuals as visuals
 
 class CarlaSimulator(DrivingSimulator):
 	def __init__(self, carla_map, map_path, address='127.0.0.1', port=2000, timeout=10,
-		         render=True, record='', timestep=0.1, weather=None):
+		         render=True, record='', timestep=0.1):
 		super().__init__()
 		verbosePrint('Connecting to CARLA...')
 		self.client = carla.Client(address, port)
@@ -36,12 +36,6 @@ class CarlaSimulator(DrivingSimulator):
 			else:
 				raise RuntimeError(f'CARLA only supports OpenDrive maps')
 		self.timestep = timestep
-
-		if weather is not None:
-			if isinstance(weather, str):
-				self.world.set_weather(getattr(carla.WeatherParameters, weather))
-			elif isinstance(weather, dict):
-				self.world.set_weather(carla.WeatherParameters(**weather))
 
 		self.tm = self.client.get_trafficmanager()
 		self.tm.set_synchronous_mode(True)
@@ -73,6 +67,13 @@ class CarlaSimulation(DrivingSimulation):
 		self.blueprintLib = self.world.get_blueprint_library()
 		self.tm = tm
 		
+		weather = scene.params.get("weather")
+		if weather is not None:
+			if isinstance(weather, str):
+				self.world.set_weather(getattr(carla.WeatherParameters, weather))
+			elif isinstance(weather, dict):
+				self.world.set_weather(carla.WeatherParameters(**weather))
+
 		# Reloads current world: destroys all actors, except traffic manager instances
 		# self.client.reload_world()
 		
