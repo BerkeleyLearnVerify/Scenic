@@ -30,8 +30,11 @@ class CarlaSimulator(DrivingSimulator):
 		if carla_map is not None:
 			self.world = self.client.load_world(carla_map)
 		else:
-			with open(map_path) as odr_file:
-				self.world = self.client.generate_opendrive_world(odr_file.read())
+			if map_path.endswith('.xodr'):
+				with open(map_path) as odr_file:
+					self.world = self.client.generate_opendrive_world(odr_file.read())
+			else:
+				raise RuntimeError(f'CARLA only supports OpenDrive maps')
 		self.timestep = timestep
 
 		if weather is not None:
