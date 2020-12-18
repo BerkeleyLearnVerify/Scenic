@@ -168,7 +168,7 @@ class Maneuver(_ElementReferencer):
         conflicts = []
         for maneuver in self.intersection.maneuvers:
             if (maneuver.startLane is not start
-                and maneuver.connectingLane.intersects(guideway)):
+                and maneuver.connectingLane.intersects(guideway.centerline)):
                 conflicts.append(maneuver)
         return tuple(conflicts)
 
@@ -477,11 +477,6 @@ class Lane(_ContainsCenterline, LinearElement):
     def sectionAt(self, point: Vectorlike, reject=False) -> Union[LaneSection, None]:
         """Get the LaneSection passing through a given point."""
         return self.network.findPointIn(point, self.sections, reject)
-
-    def intersects(self, other):
-        if isinstance(other, Lane):
-            return self.centerline.intersects(other.centerline)
-        return super().intersects(other)
 
     # TODO remove hack; freeze all these classes
     __hash__ = object.__hash__

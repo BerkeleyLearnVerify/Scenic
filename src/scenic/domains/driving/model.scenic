@@ -361,8 +361,11 @@ def withinDistanceToObjsInLane(vehicle, thresholdDistance):
         if (distance from vehicle.position to obj.position) < 0.1:
             # this means obj==vehicle
             continue
-        if (network.intersectionAt(vehicle) is not None and network.intersectionAt(vehicle)==network.intersectionAt(obj)) or \
-            network.intersectionAt(vehicle) is None and network.laneAt(vehicle) == network.laneAt(obj):
-            if (distance from vehicle.position to obj.position) < thresholdDistance:
-                return True
+        inter = network.intersectionAt(vehicle)
+        if inter and inter != network.intersectionAt(obj):    # different intersections
+            continue
+        if not inter and network.laneAt(vehicle) != network.laneAt(obj):    # different lanes
+            continue
+        if (distance from vehicle to obj) < thresholdDistance:
+            return True
     return False
