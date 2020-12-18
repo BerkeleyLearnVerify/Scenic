@@ -57,7 +57,6 @@ class CarlaActor(DrivingObject):
     carlaActor: None
     blueprint: None
     color: None
-    elevation: 0.5
     physics: True
 
     def __init__(self, *args, **kwargs):
@@ -141,8 +140,7 @@ class Prop(CarlaActor):
     heading: Range(0, 360) deg
     width: 0.5
     length: 0.5
-    elevation: 0
-
+    physics: False
 
 class Trash(Prop):
     blueprint: Uniform(*blueprints.trashModels)
@@ -154,7 +152,6 @@ class Cone(Prop):
 
 class Debris(Prop):
     blueprint: Uniform(*blueprints.debrisModels)
-    physics: False
 
 
 class VendingMachine(Prop):
@@ -203,7 +200,6 @@ class Gnome(Prop):
 
 class CreasedBox(Prop):
     blueprint: Uniform(*blueprints.creasedboxModels)
-    physics: False
 
 
 class Case(Prop):
@@ -232,7 +228,6 @@ class Kiosk(Prop):
 
 class IronPlate(Prop):
     blueprint: Uniform(*blueprints.ironplateModels)
-    physics: False
 
 
 class TrafficWarning(Prop):

@@ -126,10 +126,9 @@ class CarlaSimulation(DrivingSimulation):
 		print("blueprint: ", blueprint)
 
 		# Set up transform
-		loc = utils.scenicToCarlaLocation(obj.position, world=self.world)
+		loc = utils.scenicToCarlaLocation(obj.position, world=self.world, blueprint=obj.blueprint)
 		rot = utils.scenicToCarlaRotation(obj.heading)
 		transform = carla.Transform(loc, rot)
-		transform.location.z += obj.elevation
 
 		# Create Carla actor
 		carlaActor = self.world.try_spawn_actor(blueprint, transform)
