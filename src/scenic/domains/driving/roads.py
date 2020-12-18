@@ -168,7 +168,7 @@ class Maneuver(_ElementReferencer):
         conflicts = []
         for maneuver in self.intersection.maneuvers:
             if (maneuver.startLane is not start
-                and maneuver.connectingLane.intersects(guideway.centerline)):
+                and maneuver.connectingLane.centerline.intersects(guideway.centerline)):
                 conflicts.append(maneuver)
         return tuple(conflicts)
 
