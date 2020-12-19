@@ -154,6 +154,7 @@ class CarlaSimulation(DrivingSimulation):
 		# Create Carla actor
 		carlaActor = self.world.try_spawn_actor(blueprint, transform)
 		if carlaActor is None:
+			self.destroy()
 			raise SimulationCreationError(f'Unable to spawn object {obj}')
 
 		if isinstance(carlaActor, carla.Vehicle):
