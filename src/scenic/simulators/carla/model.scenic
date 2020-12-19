@@ -56,7 +56,7 @@ if 'record' not in globalParameters:
 if 'timestep' not in globalParameters:
     param timestep = 0.1
 if 'weather' not in globalParameters:
-    param weather = Uniform(Options([
+    param weather = Uniform(
         'ClearNoon',
         'CloudyNoon',
         'WetNoon',
@@ -71,7 +71,7 @@ if 'weather' not in globalParameters:
         'SoftRainSunset',
         'MidRainSunset',
         'HardRainSunset'
-    ]))
+    )
 
 simulator CarlaSimulator(
     carla_map=globalParameters.carla_map,
