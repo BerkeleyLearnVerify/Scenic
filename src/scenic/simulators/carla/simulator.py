@@ -123,8 +123,6 @@ class CarlaSimulation(DrivingSimulation):
 		# Extract blueprint
 		blueprint = self.blueprintLib.find(obj.blueprint)
 
-		print("blueprint: ", blueprint)
-
 		# Set up transform
 		loc = utils.scenicToCarlaLocation(obj.position, world=self.world, blueprint=obj.blueprint)
 		rot = utils.scenicToCarlaRotation(obj.heading)
