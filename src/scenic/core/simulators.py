@@ -55,6 +55,9 @@ class Simulator:
     def createSimulation(self, scene, verbosity=0):
         return Simulation(scene, verbosity=verbosity)
 
+    def destroy(self):
+        pass
+
 class Simulation:
     """A single simulation run, possibly in progress."""
 
@@ -158,6 +161,7 @@ class Simulation:
             result = SimulationResult(trajectory, actionSequence, terminationReason)
             return result
         finally:
+            self.destroy()
             for obj in self.scene.objects:
                 disableDynamicProxyFor(obj)
             for agent in self.agents:
@@ -244,6 +248,10 @@ class Simulation:
         The default implementation returns a tuple of the positions of all objects.
         """
         return tuple(obj.position for obj in self.objects)
+
+    def destroy(self):
+        """Perform any cleanup necessary to reset the simulator after a simulation."""
+        pass
 
 class DummySimulator(Simulator):
     """Simulator which does nothing, for debugging purposes."""
