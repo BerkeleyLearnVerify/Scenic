@@ -142,29 +142,6 @@ class CarlaSimulation(DrivingSimulation):
 			carlaActor.apply_control(carla.WalkerControl())
 		return carlaActor
 
-	def createObjectInSimulator(self, obj):
-		# Extract blueprint
-		blueprint = self.blueprintLib.find(obj.blueprint)
-
-		# Set up transform
-		loc = utils.scenicToCarlaLocation(obj.position, z=obj.elevation, world=self.world)
-		rot = utils.scenicToCarlaRotation(obj.heading)
-		transform = carla.Transform(loc, rot)
-
-		# Create Carla actor
-		carlaActor = self.world.try_spawn_actor(blueprint, transform)
-		if carlaActor is None:
-			raise SimulationCreationError(f'Unable to spawn object {obj}')
-
-		if isinstance(carlaActor, carla.Vehicle):
-			# TODO manual gear shift issue? (see above)
-			carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=False, gear=1))
-		elif isinstance(carlaActor, carla.Walker):
-			carlaActor.apply_control(carla.WalkerControl())
-
-		obj.carlaActor = carlaActor
-		return carlaActor
-
 	def executeActions(self, allActions):
 		super().executeActions(allActions)
 

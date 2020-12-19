@@ -10,7 +10,7 @@ def snapToGround(world, location, blueprint):
 	waypoint = world.get_map().get_waypoint(location)
 	# patch to avoid the spawn error issue with vehicles and walkers.
 	z_offset = 0
-	if blueprint is not None and "vehicle" in blueprint or "walker" in blueprint:
+	if blueprint is not None and ("vehicle" in blueprint or "walker" in blueprint):
 		z_offset = 0.5
 
 	location.z = waypoint.transform.location.z + z_offset
