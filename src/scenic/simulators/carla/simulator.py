@@ -57,6 +57,15 @@ class CarlaSimulator(DrivingSimulator):
 							   render=self.render, record=self.record,
 							   scenario_number=self.scenario_number, verbosity=verbosity)
 
+	def destroy(self):
+		settings = self.world.get_settings()
+		settings.synchronous_mode = False
+		settings.fixed_delta_seconds = None
+		self.world.apply_settings(settings)
+		self.tm.set_synchronous_mode(False)
+
+		super().destroy()
+
 
 class CarlaSimulation(DrivingSimulation):
 	def __init__(self, scene, client, tm, timestep, render, record, scenario_number, verbosity=0):
@@ -76,7 +85,7 @@ class CarlaSimulation(DrivingSimulation):
 
 		# Reloads current world: destroys all actors, except traffic manager instances
 		# self.client.reload_world()
-		
+
 		# Setup HUD
 		self.render = render
 		self.record = record
@@ -130,29 +139,30 @@ class CarlaSimulation(DrivingSimulation):
 		for obj in self.objects:
 			if obj.speed is not None:
 				equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
-				obj.carlaActor.set_velocity(equivVel)
+				obj.carlaActor.set_target_velocity(equivVel)
 
 	def createObjectInSimulator(self, obj):
 		# Extract blueprint
 		blueprint = self.blueprintLib.find(obj.blueprint)
 
 		# Set up transform
-		loc = utils.scenicToCarlaLocation(obj.position, z=obj.elevation, world=self.world)
+		loc = utils.scenicToCarlaLocation(obj.position, world=self.world, blueprint=obj.blueprint)
 		rot = utils.scenicToCarlaRotation(obj.heading)
 		transform = carla.Transform(loc, rot)
 
 		# Create Carla actor
 		carlaActor = self.world.try_spawn_actor(blueprint, transform)
 		if carlaActor is None:
+			self.destroy()
 			raise SimulationCreationError(f'Unable to spawn object {obj}')
+		obj.carlaActor = carlaActor
+
+		carlaActor.set_simulate_physics(obj.physics)
 
 		if isinstance(carlaActor, carla.Vehicle):
-			# TODO manual gear shift issue? (see above)
-			carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=False, gear=1))
+			carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
 		elif isinstance(carlaActor, carla.Walker):
 			carlaActor.apply_control(carla.WalkerControl())
-
-		obj.carlaActor = carlaActor
 		return carlaActor
 
 	def executeActions(self, allActions):
@@ -202,14 +212,16 @@ class CarlaSimulation(DrivingSimulation):
 	def destroy(self):
 		for obj in self.objects:
 			if obj.carlaActor is not None:
-				if isinstance(obj.carlaActor, carla.Walker):
+				if isinstance(obj.carlaActor, carla.Vehicle):
+					obj.carlaActor.set_autopilot(False, self.tm.get_port())
+        if isinstance(obj.carlaActor, carla.Walker):
 					obj.carlaController.stop()
 					obj.carlaController.destroy()
 				obj.carlaActor.destroy()
-		if hasattr(self, "cameraManager"):
+		if self.render and self.cameraManager:
 			self.cameraManager.destroy_sensor()
 
 		self.client.stop_recorder()
 
 		self.world.tick()
-		super(CarlaSimulation, self).destroy()
+		super().destroy()

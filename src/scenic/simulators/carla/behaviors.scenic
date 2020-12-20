@@ -9,3 +9,6 @@ except ModuleNotFoundError:
 behavior WalkForwardBehavior():
 	while True:
 		take SetSpeedAction(0.5)
+
+behavior AutopilotBehavior():
+	take SetAutopilotAction(enabled=True)
