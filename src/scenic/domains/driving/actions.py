@@ -116,7 +116,7 @@ class SetHandBrakeAction(SteeringAction):
 	def __init__(self, handBrake: bool):
 		if not isinstance(handBrake, bool):
 			raise RuntimeError('Hand brake must be a boolean.')
-		self.handbrake = handbrake
+		self.handbrake = handBrake
 
 	def applyTo(self, obj, sim):
 		obj.setHandbrake(self.handbrake)
