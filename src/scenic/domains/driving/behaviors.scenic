@@ -258,7 +258,7 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
             end_intersection = trajectory[-1].centerline[-1]
     else:
         end_intersection = trajectory[-1].centerline[-1]
-    
+
     while True:
         if self in _model.network.intersectionRegion:
             do TurnBehavior(trajectory_centerline)

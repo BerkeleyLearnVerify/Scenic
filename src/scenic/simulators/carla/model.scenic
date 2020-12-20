@@ -22,6 +22,7 @@ are from the CARLA Python API reference):
 from scenic.domains.driving.model import *
 
 import scenic.simulators.carla.blueprints as blueprints
+import scenic.simulators.carla.utils.utils as utils
 from scenic.simulators.carla.behaviors import *
 from scenic.simulators.utils.colors import Color
 
@@ -56,6 +57,7 @@ class CarlaActor(DrivingObject):
     carlaActor: None
     blueprint: None
     color: None
+    physics: True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -71,10 +73,11 @@ class CarlaActor(DrivingObject):
         self.carlaActor.set_location(utils.scenicToCarlaLocation(pos, elevation))
 
     def setVelocity(self, vel):
-        self.carlaActor.set_velocity(utils.scenicToCarlaVector3D(*vel))
+        self.carlaActor.set_target_velocity(utils.scenicToCarlaVector3D(*vel))
 
 
 class Vehicle(Vehicle, CarlaActor, Steers):
+
     def setThrottle(self, throttle):
         self.control.throttle = throttle
 
@@ -90,6 +93,8 @@ class Vehicle(Vehicle, CarlaActor, Steers):
     def setReverse(self, reverse):
         self.control.reverse = reverse
 
+    def _getClosestTrafficLight(self, distance=100):
+        return _getClosestTrafficLight(self, distance)
 
 class Car(Vehicle):
     blueprint: Uniform(*blueprints.carModels)
@@ -121,7 +126,7 @@ class Pedestrian(Pedestrian, CarlaActor, Walks):
     blueprint: Uniform(*blueprints.walkerModels)
 
     def setWalkingDirection(self, heading):
-        direction = Vector(0, self.speed).rotatedBy(heading)
+        direction = Vector(0, 1).rotatedBy(heading)
         zComp = self.control.direction.z
         self.control.direction = utils.scenicToCarlaVector3D(*direction, zComp)
 
@@ -135,7 +140,7 @@ class Prop(CarlaActor):
     heading: Range(0, 360) deg
     width: 0.5
     length: 0.5
-
+    physics: False
 
 class Trash(Prop):
     blueprint: Uniform(*blueprints.trashModels)
@@ -143,3 +148,144 @@ class Trash(Prop):
 
 class Cone(Prop):
     blueprint: Uniform(*blueprints.coneModels)
+
+
+class Debris(Prop):
+    blueprint: Uniform(*blueprints.debrisModels)
+
+
+class VendingMachine(Prop):
+    blueprint: Uniform(*blueprints.vendingMachineModels)
+
+
+class Chair(Prop):
+    blueprint: Uniform(*blueprints.chairModels)
+
+
+class BusStop(Prop):
+    blueprint: Uniform(*blueprints.busStopsModels)
+
+
+class Advertisement(Prop):
+    blueprint: Uniform(*blueprints.advertisementModels)
+
+
+class Garbage(Prop):
+    blueprint: Uniform(*blueprints.garbageModels)
+
+
+class Container(Prop):
+    blueprint: Uniform(*blueprints.containerModels)
+
+
+class Table(Prop):
+    blueprint: Uniform(*blueprints.tableModels)
+
+
+class Barrier(Prop):
+    blueprint: Uniform(*blueprints.barrierModels)
+
+
+class PlantPot(Prop):
+    blueprint: Uniform(*blueprints.plantpotModels)
+
+
+class Mailbox(Prop):
+    blueprint: Uniform(*blueprints.mailboxModels)
+
+
+class Gnome(Prop):
+    blueprint: Uniform(*blueprints.gnomeModels)
+
+
+class CreasedBox(Prop):
+    blueprint: Uniform(*blueprints.creasedboxModels)
+
+
+class Case(Prop):
+    blueprint: Uniform(*blueprints.caseModels)
+
+
+class Box(Prop):
+    blueprint: Uniform(*blueprints.boxModels)
+
+
+class Bench(Prop):
+    blueprint: Uniform(*blueprints.benchModels)
+
+
+class Barrel(Prop):
+    blueprint: Uniform(*blueprints.barrelModels)
+
+
+class ATM(Prop):
+    blueprint: Uniform(*blueprints.atmModels)
+
+
+class Kiosk(Prop):
+    blueprint: Uniform(*blueprints.kioskModels)
+
+
+class IronPlate(Prop):
+    blueprint: Uniform(*blueprints.ironplateModels)
+
+
+class TrafficWarning(Prop):
+    blueprint: Uniform(*blueprints.trafficwarningModels)
+
+
+## Utility functions
+
+def freezeTrafficLights():
+    """ Freezes all traffic lights in the scene. Frozen traffic lights can be modified by the user
+    but the time will not update them until unfrozen. """
+    simulation().world.freeze_all_traffic_lights(True)
+
+def unfreezeTrafficLights():
+    """ Unfreezes all traffic lights in the scene. """
+    simulation().world.freeze_all_traffic_lights(False)
+
+def _getClosestLandmark(vehicle, type, distance=100):
+    if vehicle._intersection is not None:
+        return None
+
+    waypoint = simulation().map.get_waypoint(vehicle.carlaActor.get_transform().location)
+    landmarks = waypoint.get_landmarks_of_type(distance, type)
+
+    if landmarks:
+        return min(landmarks, key=lambda l: l.distance)
+    return None
+
+def _getClosestTrafficLight(vehicle, distance=100):
+    """Returns the closest traffic light affecting 'vehicle', up to a maximum of 'distance'"""
+    landmark = _getClosestLandmark(vehicle, type="1000001", distance=distance)
+    if landmark is not None:
+        return simulation().world.get_traffic_light(landmark)
+    return None
+
+def withinDistanceToRedYellowTrafficLight(vehicle, thresholdDistance):
+    traffic_light = _getClosestTrafficLight(vehicle, distance=thresholdDistance)
+    if traffic_light is not None and str(traffic_light.state) in ("Red", "Yellow"):
+        return True
+    return False
+
+def withinDistanceToTrafficLight(vehicle, thresholdDistance):
+    traffic_light = _getClosestTrafficLight(vehicle, distance=thresholdDistance)
+    if traffic_light is not None:
+        return True
+    return False
+
+def getClosestTrafficLightStatus(vehicle, distance=100):
+    traffic_light = _getClosestTrafficLight(vehicle, distance)
+    if traffic_light is not None:
+        return utils.carlaToScenicTrafficLightStatus(traffic_light.state)
+    return "None"
+
+def setClosestTrafficLightStatus(vehicle, color, distance=100):
+    color = utils.scenicToCarlaTrafficLightStatus(color)
+    if color is None:
+        raise RuntimeError('Color must be red/yellow/green/off/unknown.')
+    
+    traffic_light = _getClosestTrafficLight(vehicle, distance)
+    if traffic_light is not None:
+        traffic_light.set_state(color)
