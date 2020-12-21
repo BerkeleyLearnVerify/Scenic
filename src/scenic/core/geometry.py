@@ -268,7 +268,9 @@ def cleanChain(chain, tolerance=1e-6, lineTolerance=1e-6):
 	return newChain
 
 def removeHoles(polygon):
-	if isinstance(polygon, shapely.geometry.MultiPolygon):
+	if polygon.is_empty:
+		return polygon
+	elif isinstance(polygon, shapely.geometry.MultiPolygon):
 		polys = (removeHoles(poly) for poly in polygon)
 		poly = shapely.geometry.MultiPolygon(polys)
 		assert poly.is_valid, poly
