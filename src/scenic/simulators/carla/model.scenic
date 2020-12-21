@@ -55,6 +55,7 @@ param sun_altitude_angle = Range(-90, 90)
 
 class CarlaActor(DrivingObject):
     carlaActor: None
+    rolename: None   # This attribute can be used to differentiate specific actors during runtime
     blueprint: None
     color: None
     physics: True
