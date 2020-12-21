@@ -22,16 +22,23 @@ behavior EgoBehavior(speed=10):
 # Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
 # 'network' is the 'class Network' object in roads.py 
 
-background_activity = []
-for i in range(40):
-
-    # make sure to put '*' to uniformly randomly select from all elements of the list, 'network.lanes'
+# Background activity
+background_vehicles = []
+for _ in range(25):
     lane = Uniform(*network.lanes)
     spot = OrientedPoint on lane.centerline
 
     background_car = Car at spot,
         with behavior AutopilotBehavior()
-    background_activity.append(background_car)
+    background_vehicles.append(background_car)
+
+background_walkers = []
+for _ in range(10):
+    sideWalk = Uniform(*network.sidewalks)
+    background_walker = Pedestrian in sideWalk,
+        with behavior WalkBehavior()
+    background_walkers.append(background_walker)
+
 
 ego = Car following roadDirection from spot for Range(-30, -20),
     with blueprint EGO_MODEL,

@@ -50,6 +50,7 @@ Use ARROWS or WASD keys for control.
     ESC          : quit
 """
 
+
 from __future__ import print_function
 
 # ==============================================================================
@@ -164,7 +165,7 @@ class World(object):
                     print("Ego vehicle found")
                     self.player = vehicle
                     break
-        
+
         self.player_name = self.player.type_id
 
         # Set up the sensors.
@@ -174,7 +175,9 @@ class World(object):
 
     def tick(self, clock):
         if len(self.world.get_actors().filter(self.player_name)) < 1:
-            return False
+            self.player = None
+            self.destroy()
+            self.restart()
 
         self.hud.tick(self, clock)
         return True

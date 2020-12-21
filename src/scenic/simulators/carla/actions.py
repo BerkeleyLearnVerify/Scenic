@@ -125,6 +125,23 @@ class SetJumpAction(PedestrianAction):
 		ctrl.jump = self.jump
 		walker.apply_control(ctrl)
 
+class SetWalkAction(PedestrianAction):
+	def __init__(self, enabled, maxSpeed=1.4):
+		if not isinstance(enabled, bool):
+			raise RuntimeError('Enabled must be a boolean.')
+		self.enabled = enabled
+		self.maxSpeed = maxSpeed
+
+	def applyTo(self, obj, sim):
+		controller = obj.carlaController
+		if self.enabled:
+			controller.start()
+			controller.go_to_location(sim.world.get_random_location_from_navigation())
+			controller.set_max_speed(self.maxSpeed)
+		else:
+			controller.stop()
+
+
 class TrackWaypointsAction(Action):
 	def __init__(self, waypoints, cruising_speed = 10):
 		self.waypoints = np.array(waypoints)

@@ -8,6 +8,7 @@ its original lane.
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town01.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town01'
+param render = '0'
 model scenic.simulators.carla.model
 
 ## CONSTANTS
@@ -30,5 +31,5 @@ debris1 = Debris following roadDirection for Range(10, 20)
 debris2 = Debris following roadDirection from debris1 for Range(5, 10)
 debris3 = Debris following roadDirection from debris2 for Range(5, 10)
 
-require (distance from ego to intersection) > 50
+require (distance to intersection) > 50
 terminate when (distance from debris3 to ego) > 10 and (distance to start) > 50

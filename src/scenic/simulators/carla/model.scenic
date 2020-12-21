@@ -115,14 +115,14 @@ class CarlaActor(DrivingObject):
     Properties:
         carlaActor (dynamic): Set during simulations to the ``carla.Actor`` representing this
             object.
+        blueprint (str): Identifier of the CARLA blueprint specifying the type of object.
         rolename (str): Can be used to differentiate specific actors during runtime. Default
             value ``None``.
-        blueprint (str): Identifier of the CARLA blueprint specifying the type of object.
         physics (bool): Whether physics is enabled for this object in CARLA. Default true.
     """
     carlaActor: None
-    rolename: None
     blueprint: None
+    rolename: None
     color: None
     physics: True
 
@@ -205,6 +205,7 @@ class Pedestrian(Pedestrian, CarlaActor, Walks):
     width: 0.5
     length: 0.5
     blueprint: Uniform(*blueprints.walkerModels)
+    carlaController: None
 
     def setWalkingDirection(self, heading):
         direction = Vector(0, 1).rotatedBy(heading)
@@ -334,6 +335,33 @@ def freezeTrafficLights():
 def unfreezeTrafficLights():
     """Unfreezes all traffic lights in the scene."""
     simulation().world.freeze_all_traffic_lights(False)
+
+def setAllIntersectionTrafficLightsStatus(intersection, color):
+    for signal in intersection.signals:
+        if signal.isTrafficLight:
+            setTrafficLightStatus(signal, color)
+
+def setTrafficLightStatus(signal, color):
+    if not signal.isTrafficLight:
+        raise RuntimeError('The provided signal is not a traffic light')
+    color = utils.scenicToCarlaTrafficLightStatus(color)
+    if color is None:
+        raise RuntimeError('Color must be red/yellow/green/off/unknown.')
+    landmarks = simulation().map.get_all_landmarks_from_id(signal.openDriveID)
+    if landmarks:
+        traffic_light = simulation().world.get_traffic_light(landmarks[0])
+        if traffic_light is not None:
+            traffic_light.set_state(color)
+
+def getTrafficLightStatus(signal):
+    if not signal.isTrafficLight:
+        raise RuntimeError('The provided signal is not a traffic light')
+    landmarks = simulation().map.get_all_landmarks_from_id(signal.openDriveID)
+    if landmarks:
+        traffic_light = simulation().world.get_traffic_light(landmarks[0])
+        if traffic_light is not None:
+            return utils.carlaToScenicTrafficLightStatus(traffic_light.state)
+    return "None"
 
 def _getClosestLandmark(vehicle, type, distance=100):
     if vehicle._intersection is not None:
