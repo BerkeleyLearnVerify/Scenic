@@ -214,9 +214,6 @@ class CarlaSimulation(DrivingSimulation):
 			if obj.carlaActor is not None:
 				if isinstance(obj.carlaActor, carla.Vehicle):
 					obj.carlaActor.set_autopilot(False, self.tm.get_port())
-				if isinstance(obj.carlaActor, carla.Walker):
-					obj.carlaController.stop()
-					obj.carlaController.destroy()
 				obj.carlaActor.destroy()
 		if self.render and self.cameraManager:
 			self.cameraManager.destroy_sensor()
