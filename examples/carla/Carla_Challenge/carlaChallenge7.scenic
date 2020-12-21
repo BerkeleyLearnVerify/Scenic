@@ -29,7 +29,6 @@ monitor TrafficLights:
 ## DEFINING BEHAVIORS
 behavior AdversaryBehavior(trajectory):
     do FollowTrajectoryBehavior(trajectory=trajectory)
-    terminate
 
 behavior EgoBehavior(speed, trajectory):
     try:

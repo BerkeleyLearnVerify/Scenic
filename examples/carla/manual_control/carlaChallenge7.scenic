@@ -30,7 +30,6 @@ behavior AdversaryBehavior(trajectory):
     while (ego.speed < 0.1):
         wait
     do FollowTrajectoryBehavior(trajectory=trajectory)
-    terminate
 
 ## DEFINING SPATIAL RELATIONS
 # Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
