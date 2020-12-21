@@ -28,7 +28,7 @@ monitor TrafficLights:
 
 ## DEFINING BEHAVIORS
 behavior AdversaryBehavior(trajectory):
-    do FollowTrajectoryBehavior(trajectory = trajectory)
+    do FollowTrajectoryBehavior(trajectory=trajectory)
     terminate
 
 behavior EgoBehavior(speed, trajectory):
@@ -41,7 +41,6 @@ behavior EgoBehavior(speed, trajectory):
 ## DEFINING SPATIAL RELATIONS
 # Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
 # 'network' is the 'class Network' object in roads.py
-spawnAreas = []
 
 """The filter() is Scenic's built-in function equivalent to the following for-loop
 fourWayIntersection = []
@@ -78,4 +77,5 @@ adversary = Car at adv_spawn_pt,
     with behavior AdversaryBehavior(adv_trajectory)
 
 require (distance to intersec) in Range(15, 20)
-require (distance from adversary to intersec) in Range(10,15)
+require (distance from adversary to intersec) in Range(10, 15)
+terminate when (distance to ego_spawn_pt) > 70

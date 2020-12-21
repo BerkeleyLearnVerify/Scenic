@@ -28,8 +28,7 @@ monitor TrafficLights:
 
 ## DEFINING BEHAVIORS
 behavior AdversaryBehavior(trajectory):
-    do FollowTrajectoryBehavior(trajectory = trajectory)
-    terminate
+    do FollowTrajectoryBehavior(trajectory=trajectory)
 
 behavior EgoBehavior(speed, trajectory):
     try:
@@ -78,3 +77,4 @@ adversary = Car at adv_spawn_pt,
 require (ego_start_section.laneToLeft == adv_end_section)  # make sure the ego and adversary are spawned in opposite lanes
 require (distance to intersec) in Range(25, 30)
 require (distance from adversary to intersec) in Range(15, 20)
+terminate when (distance to ego_spawn_pt) > 70
