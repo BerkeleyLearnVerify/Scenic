@@ -19,8 +19,8 @@ BRAKE_ACTION = 1.0
 
 ## DEFINING BEHAVIORS
 # EGO BEHAVIOR: Follow lane, and brake after passing a threshold distance to the leading car
-behavior EgoBehavior(speed=10):	
-    try: 
+behavior EgoBehavior(speed=10):
+    try:
         do FollowLaneBehavior(speed)
 
     interrupt when withinDistanceToAnyObjs(self, EGO_BRAKING_THRESHOLD):

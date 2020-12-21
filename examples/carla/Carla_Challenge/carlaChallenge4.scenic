@@ -35,7 +35,8 @@ startLane = Uniform(*intersec.incomingLanes)
 maneuver = Uniform(*startLane.maneuvers)
 ego_trajectory = [maneuver.startLane, maneuver.connectingLane, maneuver.endLane]
 
-ego = Car in maneuver.startLane.centerline,
+spot = OrientedPoint in maneuver.startLane.centerline
+ego = Car at spot,
     with blueprint EGO_MODEL,
     with behavior EgoBehavior(trajectory = ego_trajectory)
 
