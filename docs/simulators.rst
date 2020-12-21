@@ -17,7 +17,7 @@ Our interface to the `CARLA <https://carla.org/>`_ simulator enables using Sceni
 The interface supports dynamic scenarios written using the CARLA world model (:obj:`scenic.simulators.carla.model`) as well as scenarios using the cross-platform :ref:`driving_domain`.
 To use the interface, please follow these instructions:
 
-1. Install the latest version of CARLA (we've tested version 0.9.9) from the `CARLA Release Page <https://github.com/carla-simulator/carla/releases>`_.
+1. Install the latest version of CARLA (we've tested versions 0.9.9, 0.9.10, and 0.9.11) from the `CARLA Release Page <https://github.com/carla-simulator/carla/releases>`_.
 2. Install Scenic in your Python virtual environment as instructed in :ref:`quickstart`.
 3. Within the same virtual environment, install CARLA's Python API by executing the following command:
 
@@ -26,10 +26,11 @@ To use the interface, please follow these instructions:
 	$ easy_install /PATH_TO_CARLA_FOLDER/PythonAPI/carla/dist/carla-0.9.9-py3.7-linux-x86_64.egg
 
 The exact name of the ``.egg`` file may vary depending on the version of CARLA you installed; make sure to use the file for Python 3, not 2.
-To check that the Python API was correctly installed, check that the ``carla`` package is listed when running :command:`pip list`.
+You may get an error message saying ``Could not find suitable distribution``, which you can ignore.
+Instead, check that the ``carla`` package was correctly installed by running :command:`pip show carla`.
 
 To start CARLA, run the command :command:`./CarlaUE4.sh` in your CARLA folder.
-Once CARLA is running, you can run dynamic Scenic scenarios following the instructions in :ref:`dynamics`.
+Once CARLA is running, you can run dynamic Scenic scenarios following the instructions in :ref:`the dynamics tutorial <dynamics_running_examples>`.
 
 .. note::
 

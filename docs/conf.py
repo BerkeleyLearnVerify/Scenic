@@ -160,8 +160,13 @@ def parse_properties_section(self, section):
     return self._format_fields('Properties', self._consume_fields())
 GoogleDocstring._parse_properties_section = parse_properties_section
 
+def parse_global_params_section(self, section):
+    return self._format_fields('Global Parameters', self._consume_fields())
+GoogleDocstring._parse_global_params_section = parse_global_params_section
+
 orig_parse = GoogleDocstring._parse
 def parse(self):
+    self._sections['global parameters'] = self._parse_global_params_section
     self._sections['class attributes'] = self._parse_class_attributes_section
     self._sections['properties'] = self._parse_properties_section
     orig_parse(self)

@@ -1,3 +1,4 @@
+"""Simulator interface for CARLA."""
 
 try:
 	import carla
@@ -21,8 +22,9 @@ import scenic.simulators.carla.utils.visuals as visuals
 
 
 class CarlaSimulator(DrivingSimulator):
+	"""Implementation of `Simulator` for CARLA."""
 	def __init__(self, carla_map, map_path, address='127.0.0.1', port=2000, timeout=10,
-		         render=True, record='', timestep=0.1):
+				 render=True, record='', timestep=0.1):
 		super().__init__()
 		verbosePrint('Connecting to CARLA...')
 		self.client = carla.Client(address, port)

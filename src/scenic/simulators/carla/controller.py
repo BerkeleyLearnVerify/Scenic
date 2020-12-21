@@ -61,9 +61,9 @@ class VehiclePIDController():
         PID controllers to reach a target waypoint
         at a given target_speed.
 
-            :param target_speed: desired vehicle speed
-            :param waypoint: target location encoded as a waypoint
-            :return: distance (in meters) to the waypoint
+        :param target_speed: desired vehicle speed
+        :param waypoint: target location encoded as a waypoint
+        :return: distance (in meters) to the waypoint
         """
 
         acceleration = self._lon_controller.run_step(target_speed)
@@ -184,8 +184,8 @@ class PIDLateralController():
 
             :param waypoint: target waypoint
             :return: steering control in the range [-1, 1] where:
-            -1 maximum steering to left
-            +1 maximum steering to right
+                -1 maximum steering to left
+                +1 maximum steering to right
         """
         return self._pid_control(waypoint, self._vehicle.get_transform())
 

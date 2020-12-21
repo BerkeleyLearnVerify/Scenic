@@ -2,6 +2,7 @@
 
 ## Vehicle blueprints
 
+#: blueprints for cars
 carModels = [# for speed = 10
       'vehicle.audi.a2',
       'vehicle.audi.etron',
@@ -24,18 +25,21 @@ carModels = [# for speed = 10
       'vehicle.volkswagen.t2'
 ]
 
+#: blueprints for bicycles
 bicycleModels = [
       'vehicle.bh.crossbike',
       'vehicle.diamondback.century',
       'vehicle.gazelle.omafiets',
 ]
 
+#: blueprints for motorcycles
 motorcycleModels = [
       'vehicle.harley-davidson.low_rider',
       'vehicle.kawasaki.ninja',
       'vehicle.yamaha.yzf',
 ]
 
+#: blueprints for trucks
 truckModels = [
       'vehicle.carlamotors.carlacola',
       'vehicle.tesla.cybertruck'
@@ -43,6 +47,7 @@ truckModels = [
 
 ## Prop blueprints
 
+#: blueprints for trash cans
 trashModels = [
       'static.prop.trashcan01',
       'static.prop.trashcan02',
@@ -52,30 +57,36 @@ trashModels = [
       'static.prop.bin'
 ]
 
+#: blueprints for traffic cones
 coneModels = [
       'static.prop.constructioncone',
       'static.prop.trafficcone01',
       'static.prop.trafficcone02'
 ]
 
+#: blueprints for road debris
 debrisModels = [
       'static.prop.dirtdebris01',
       'static.prop.dirtdebris02',
       'static.prop.dirtdebris03'
 ]
 
+#: blueprints for vending machines
 vendingMachineModels = [
       'static.prop.vendingmachine'
 ]
 
+#: blueprints for chairs
 chairModels = [
       'static.prop.plasticchair'
 ]
 
+#: blueprints for bus stops
 busStopModels = [
       'static.prop.busstop'
 ]
 
+#: blueprints for roadside billboards
 advertisementModels = [
       'static.prop.advertisement',
       'static.prop.streetsign',
@@ -83,6 +94,7 @@ advertisementModels = [
       'static.prop.streetsign04'
 ]
 
+#: blueprints for pieces of trash
 garbageModels = [
       'static.prop.colacan',
       'static.prop.garbage01',
@@ -95,23 +107,27 @@ garbageModels = [
       'static.prop.trashbag'
 ]
 
+#: blueprints for containers
 containerModels = [
       'static.prop.container',
       'static.prop.clothcontainer',
       'static.prop.glasscontainer'
 ]
 
+#: blueprints for tables
 tableModels = [
       'static.prop.table',
       'static.prop.plastictable'
 ]
 
+#: blueprints for traffic barriers
 barrierModels = [
       'static.prop.streetbarrier',
       'static.prop.chainbarrier',
       'static.prop.chainbarrierend'
 ]
 
+#: blueprints for flowerpots
 plantpotModels = [
       'static.prop.plantpot01',
       'static.prop.plantpot02',
@@ -123,60 +139,72 @@ plantpotModels = [
       'static.prop.plantpot08'
 ]
 
+#: blueprints for mailboxes
 mailboxModels = [
       'static.prop.mailbox'
 ]
 
+#: blueprints for garden gnomes
 gnomeModels = [
       'static.prop.gnome'
 ]
 
+#: blueprints for creased boxes
 creasedboxModels = [
       'static.prop.creasedbox01',
       'static.prop.creasedbox02',
       'static.prop.creasedbox03'
 ]
 
+#: blueprints for briefcases, suitcases, etc.
 caseModels = [
       'static.prop.travelcase',
       'static.prop.briefcase',
       'static.prop.guitarcase'
 ]
 
+#: blueprints for boxes
 boxModels = [
       'static.prop.box01',
       'static.prop.box02',
       'static.prop.box03'
 ]
 
+#: blueprints for benches
 benchModels = [
       'static.prop.bench01',
       'static.prop.bench02',
       'static.prop.bench03'
 ]
 
+#: blueprints for barrels
 barrelModels = [
       'static.prop.barrel'
 ]
 
+#: blueprints for ATMs
 atmModels = [
       'static.prop.atm'
 ]
 
+#: blueprints for kiosks
 kioskModels = [
       'static.prop.kiosk_01'
 ]
 
+#: blueprints for iron plates
 ironplateModels = [
       'static.prop.ironplank'
 ]
 
+#: blueprints for traffic warning signs
 trafficwarningModels = [
       'static.prop.trafficwarning'
 ]
 
 ## Walker blueprints
 
+#: blueprints for pedestrians
 walkerModels = [
       'walker.pedestrian.0001',
       'walker.pedestrian.0002',

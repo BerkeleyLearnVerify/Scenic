@@ -1,3 +1,4 @@
+"""Simulator interface for LGSVL."""
 
 import math
 import warnings

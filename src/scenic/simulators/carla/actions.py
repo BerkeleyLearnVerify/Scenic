@@ -1,3 +1,5 @@
+"""Actions for dynamic agents in CARLA scenarios."""
+
 import math as _math
 
 import carla as _carla
