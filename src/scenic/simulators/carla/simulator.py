@@ -5,6 +5,7 @@ except ImportError as e:
 	raise ModuleNotFoundError('CARLA scenarios require the "carla" Python package') from e
 
 import math
+import os
 
 from scenic.syntax.translator import verbosity
 if verbosity == 0:	# suppress pygame advertisement at zero verbosity
@@ -20,14 +21,20 @@ import scenic.simulators.carla.utils.visuals as visuals
 
 
 class CarlaSimulator(DrivingSimulator):
-	def __init__(self, carla_map, address='127.0.0.1', port=2000, timeout=10,
-		         render=True, record=False, timestep=0.1):
+	def __init__(self, carla_map, map_path, address='127.0.0.1', port=2000, timeout=10,
+		         render=True, record='', timestep=0.1):
 		super().__init__()
 		verbosePrint('Connecting to CARLA...')
 		self.client = carla.Client(address, port)
 		self.client.set_timeout(timeout)  # limits networking operations (seconds)
-		self.world = self.client.load_world(carla_map)
-		self.map = carla_map
+		if carla_map is not None:
+			self.world = self.client.load_world(carla_map)
+		else:
+			if map_path.endswith('.xodr'):
+				with open(map_path) as odr_file:
+					self.world = self.client.generate_opendrive_world(odr_file.read())
+			else:
+				raise RuntimeError(f'CARLA only supports OpenDrive maps')
 		self.timestep = timestep
 
 		self.tm = self.client.get_trafficmanager()
@@ -41,12 +48,14 @@ class CarlaSimulator(DrivingSimulator):
 		verbosePrint('Map loaded in simulator.')
 
 		self.render = render  # visualization mode ON/OFF
-		self.record = record  # whether to save images to disk
+		self.record = record  # whether to use the carla recorder
+		self.scenario_number = 0  # Number of the scenario executed
 
 	def createSimulation(self, scene, verbosity=0):
+		self.scenario_number += 1
 		return CarlaSimulation(scene, self.client, self.tm, self.timestep,
 							   render=self.render, record=self.record,
-							   verbosity=verbosity)
+							   scenario_number=self.scenario_number, verbosity=verbosity)
 
 	def destroy(self):
 		settings = self.world.get_settings()
@@ -59,7 +68,7 @@ class CarlaSimulator(DrivingSimulator):
 
 
 class CarlaSimulation(DrivingSimulation):
-	def __init__(self, scene, client, tm, timestep, render, record, verbosity=0):
+	def __init__(self, scene, client, tm, timestep, render, record, scenario_number, verbosity=0):
 		super().__init__(scene, timestep=timestep, verbosity=verbosity)
 		self.client = client
 		self.world = self.client.get_world()
@@ -67,12 +76,20 @@ class CarlaSimulation(DrivingSimulation):
 		self.blueprintLib = self.world.get_blueprint_library()
 		self.tm = tm
 		
+		weather = scene.params.get("weather")
+		if weather is not None:
+			if isinstance(weather, str):
+				self.world.set_weather(getattr(carla.WeatherParameters, weather))
+			elif isinstance(weather, dict):
+				self.world.set_weather(carla.WeatherParameters(**weather))
+
 		# Reloads current world: destroys all actors, except traffic manager instances
 		# self.client.reload_world()
 
 		# Setup HUD
 		self.render = render
 		self.record = record
+		self.scenario_number = scenario_number
 		if self.render:
 			self.displayDim = (1280, 720)
 			self.displayClock = pygame.time.Clock()
@@ -85,6 +102,12 @@ class CarlaSimulation(DrivingSimulation):
 				pygame.HWSURFACE | pygame.DOUBLEBUF
 			)
 			self.cameraManager = None
+
+		if self.record:
+			if not os.path.exists(self.record):
+				os.mkdir(self.record)
+			name = "{}/scenario{}.log".format(self.record, self.scenario_number)
+			self.client.start_recorder(name)
 
 		# Create Carla actors corresponding to Scenic objects
 		self.ego = None
@@ -103,7 +126,6 @@ class CarlaSimulation(DrivingSimulation):
 					self.cameraManager._transform_index = camPosIndex
 					self.cameraManager.set_sensor(camIndex)
 					self.cameraManager.set_transform(self.camTransform)
-					self.cameraManager._recording = self.record
 
 		self.world.tick() ## allowing manualgearshift to take effect 	# TODO still need this?
 
@@ -117,7 +139,10 @@ class CarlaSimulation(DrivingSimulation):
 		for obj in self.objects:
 			if obj.speed is not None:
 				equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
-				obj.carlaActor.set_target_velocity(equivVel)
+				if hasattr(obj.carlaActor, 'set_target_velocity'):
+					obj.carlaActor.set_target_velocity(equivVel)
+				else:
+					obj.carlaActor.set_velocity(equivVel)
 
 	def createObjectInSimulator(self, obj):
 		# Extract blueprint
@@ -211,6 +236,8 @@ class CarlaSimulation(DrivingSimulation):
 				obj.carlaActor.destroy()
 		if self.render and self.cameraManager:
 			self.cameraManager.destroy_sensor()
+
+		self.client.stop_recorder()
 
 		self.world.tick()
 		super().destroy()
