@@ -12,10 +12,12 @@ model scenic.simulators.carla.model
 
 ## CONSTANTS
 EGO_MODEL = "vehicle.lincoln.mkz2017"
-THROTTLE_ACTION = 1.0
+BICYCLE_MIN_SPEED = 1.5
+THRESHOLD = 18
 BRAKE_ACTION = 1.0
 SAFETY_DISTANCE = 10
 
+## DEFINING BEHAVIORS
 behavior EgoBehavior(trajectory):
     try:
         do FollowTrajectoryBehavior(trajectory = trajectory)
@@ -23,21 +25,18 @@ behavior EgoBehavior(trajectory):
     interrupt when withinDistanceToObjsInLane(self, SAFETY_DISTANCE):
         take SetBrakeAction(BRAKE_ACTION)
 
-behavior BicycleBehavior(throttle):
-    while (distance to self) > 15:
-        wait
-    do ConstantThrottleBehavior(throttle) for 15 seconds
-    terminate
+behavior BicycleBehavior(speed=3, threshold=15):
+    do CrossingBehavior(ego, speed, threshold)
 
-## GEOMETRY
-
+## DEFINING SPATIAL RELATIONS
 # make sure to put '*' to uniformly randomly select from all elements of the list
 intersec = Uniform(*network.intersections)
 startLane = Uniform(*intersec.incomingLanes)
 maneuver = Uniform(*startLane.maneuvers)
 ego_trajectory = [maneuver.startLane, maneuver.connectingLane, maneuver.endLane]
 
-ego = Car in maneuver.startLane.centerline,
+spot = OrientedPoint in maneuver.startLane.centerline
+ego = Car at spot,
     with blueprint EGO_MODEL,
     with behavior EgoBehavior(trajectory = ego_trajectory)
 
@@ -45,8 +44,9 @@ spotBicycle = OrientedPoint in maneuver.endLane.centerline,
     facing roadDirection
 bicycle = Bicycle at spotBicycle offset by 3.5@0,
     with heading 90 deg relative to spotBicycle.heading,
-    with behavior BicycleBehavior(THROTTLE_ACTION),
+    with behavior BicycleBehavior(BICYCLE_MIN_SPEED, THRESHOLD),
     with regionContainedIn None
 
-require (distance to intersec) < 25 and (distance to intersec) > 10
-require (distance from bicycle to intersec) < 10 and (distance from bicycle to intersec) > 5
+require 10 <= (distance to intersec) <= 15
+require 10 <= (distance from bicycle to intersec) <= 15
+terminate when (distance to spot) > 50
