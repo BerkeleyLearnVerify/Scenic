@@ -46,5 +46,6 @@ ego = Car following roadDirection from spot for Range(-30, -20),
     with blueprint EGO_MODEL,
     with rolename "hero"
 
-require (distance from ego to intersection) > 50
+require (distance to intersection) > 50
+require always (ego.laneSection._slowerLane is None)
 terminate when (distance to spot) > 50
