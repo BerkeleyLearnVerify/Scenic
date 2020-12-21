@@ -30,7 +30,6 @@ monitor TrafficLights:
 ## DEFINING BEHAVIORS
 behavior AdversaryBehavior(trajectory):
     do FollowTrajectoryBehavior(trajectory = trajectory)
-    terminate
 
 behavior EgoBehavior(speed, trajectory):
     try:
@@ -74,3 +73,4 @@ adversary = Car at adv_spawn_pt,
 require (ego_maneuver.endLane == adv_maneuver.endLane)
 require (distance to intersec) in Range(30, 35)
 require (distance from adversary to intersec) in Range(10, 15)
+terminate when (distance to start) > 100
