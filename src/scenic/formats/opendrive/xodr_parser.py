@@ -6,7 +6,7 @@ import warnings
 import xml.etree.ElementTree as ET
 import numpy as np
 from scipy.integrate import quad
-from scipy.integrate import odeint
+from scipy.integrate import solve_ivp
 from pynverse import inversefunc
 from shapely.geometry import Polygon, MultiPolygon, GeometryCollection, Point, MultiPoint
 from shapely.ops import unary_union, snap
@@ -44,27 +44,42 @@ class Curve:
         self.x0 = x0
         self.y0 = y0
         self.hdg = hdg    # In radians counterclockwise, 0 at positive x-axis.
+        self.cos_hdg, self.sin_hdg = math.cos(hdg), math.sin(hdg)
         self.length = length
 
-    @abc.abstractmethod
-    def to_points(self, num):
+    def to_points(self, num, extra_points=[]):
         '''Sample NUM evenly-spaced points from curve.
+
         Points are tuples of (x, y, s) with (x, y) absolute coordinates
-        and s the arc length along the curve.'''
+        and s the arc length along the curve. Additional points at s values in
+        extra_points are included if they are contained in the curve (unless
+        they are extremely close to one of the equally-spaced points).
+        '''
+        s_vals = []
+        extras = itertools.chain(extra_points, itertools.repeat(float('inf')))
+        next_extra = next(extras)
+        last_s = 0
+        for s in np.linspace(0, self.length, num=num):
+            while next_extra <= s:
+                if last_s + 1e-6 < next_extra < s - 1e-6:
+                    s_vals.append(next_extra)
+                next_extra = next(extras)
+            s_vals.append(s)
+            last_s = s
+        return [self.point_at(s) for s in s_vals]
+
+    @abc.abstractmethod
+    def point_at(self, s):
+        '''Get an (x, y, s) point along the curve at the given s coordinate.'''
         return
 
-    def rel_to_abs(self, points):
+    def rel_to_abs(self, point):
         '''Convert from relative coordinates of curve to absolute coordinates.
         I.e. rotate counterclockwise by self.hdg and translate by (x0, x1).'''
-        def translate(p):
-            return (p[0] + self.x0, p[1] + self.y0, p[2])
-
-        def rotate(p):
-            return (np.cos(self.hdg) * p[0] - np.sin(self.hdg) * p[1],
-                    np.sin(self.hdg) * p[0] + np.cos(self.hdg) * p[1],
-                    p[2])
-
-        return [translate(rotate(p)) for p in points]
+        x, y, s = point
+        return (self.x0 + self.cos_hdg * x - self.sin_hdg * y,
+                self.y0 + self.sin_hdg * x + self.cos_hdg * y,
+                s)
 
 
 class Cubic(Curve):
@@ -74,14 +89,14 @@ class Cubic(Curve):
         super().__init__(x0, y0, hdg, length)
         self.poly = Poly3(a, b, c, d)
 
-    def to_points(self, num):
-        def arclength(s):
-            d_arc = lambda x: np.sqrt(1 + self.poly.grad_at(x) ** 2)
-            return quad(d_arc, 0, s)[0]
+    def arclength(self, u):
+        d_arc = lambda x: np.sqrt(1 + self.poly.grad_at(x) ** 2)
+        return quad(d_arc, 0, u)[0]
 
-        s1 = inversefunc(arclength, self.length).tolist()
-        points = [(s, self.poly.eval_at(s), arclength(s)) for s in np.linspace(0, s1, num=num)]
-        return self.rel_to_abs(points)
+    def point_at(self, s):
+        u = inversefunc(self.arclength, s)[0]
+        pt = (s, self.poly.eval_at(u), s)
+        return self.rel_to_abs(pt)
 
 
 class ParamCubic(Curve):
@@ -97,17 +112,15 @@ class ParamCubic(Curve):
         self.v_poly = Poly3(av, bv, cv, dv)
         self.p_range = p_range if p_range else 1
 
-    def to_points(self, num):
-        def eval_poly(s):
-            return (self.u_poly.eval_at(s), self.v_poly.eval_at(s))
+    def arclength(self, p):
+        d_arc = lambda x: math.hypot(self.u_poly.grad_at(x),
+                                     self.v_poly.grad_at(x))
+        return quad(d_arc, 0, p)[0]
 
-        def arclength(s):
-            d_arc = lambda x: np.sqrt(self.u_poly.grad_at(s) ** 2
-                                      + self.v_poly.grad_at(s))
-            return quad(d_arc, 0, s)[0]
-
-        points = [eval_poly(s) + (arclength(s),) for s in np.linspace(0, self.p_range, num=num)]
-        return self.rel_to_abs(points)
+    def point_at(self, s):
+        p = inversefunc(self.arclength, s)[0]
+        pt = (self.u_poly.eval_at(p), self.v_poly.eval_at(p), s)
+        return self.rel_to_abs(pt)
 
 
 class Clothoid(Curve):
@@ -118,33 +131,34 @@ class Clothoid(Curve):
         # Initial and final curvature.
         self.curv0 = curv0
         self.curv1 = curv1
+        self.curve_rate = (curv1 - curv0) / length
+        self.a = abs(curv0)
+        self.r = 1 / self.a if curv0 != 0 else 1    # value not used if curv0 == 0
+        self.ode_init = np.array([x0, y0, hdg])
 
-    def to_points(self, num):
+    def point_at(self, s):
         # Generate a origin-centered clothoid with zero curvature at origin,
         # then translate/rotate the relevant segment.
-        # Arcs are just a degenerate clothiod:
+        # Arcs are just a degenerate clothoid:
         if self.curv0 == self.curv1:
-            r = 1 / abs(self.curv0)
-            theta = self.length / r
-            th_space = np.linspace(0, theta, num=num)
             if self.curv0 == 0:
-                points = [(x, 0, x) for x in np.linspace(0, self.length, num=num)]
-            elif self.curv0 > 0:
-                points = [(r * np.sin(th), r - r * np.cos(th), r * th) for th in th_space]
+                pt = (s, 0, s)
             else:
-                points = [(r * np.sin(th), -r + r * np.cos(th), r * th) for th in th_space]
-            return self.rel_to_abs(points)
-
+                r = self.r
+                th = s * self.a
+                if self.curv0 > 0:
+                    pt = (r * math.sin(th), r - r * math.cos(th), s)
+                else:
+                    pt = (r * math.sin(th), -r + r * math.cos(th), s)
+            return self.rel_to_abs(pt)
         else:
-            curve_rate = (self.curv1 - self.curv0) / self.length
-            def clothoid_ode(state, s):
-                x, y, theta = state[0], state[1], state[2]
-                return np.array([np.cos(theta), np.sin(theta), self.curv0 + curve_rate * s])
-
-            s_space = np.linspace(0, self.length, num)
-            points = odeint(clothoid_ode, np.array([self.x0,self.y0,self.hdg]), s_space)
-            return [(points[i,0], points[i,1], s_space[i]) for i in range(len(s_space))]
-
+            def clothoid_ode(s, state):
+                x, y, theta = state
+                return np.array([math.cos(theta), math.sin(theta),
+                                self.curv0 + (self.curve_rate * s)])
+            sol = solve_ivp(clothoid_ode, (0, s), self.ode_init)
+            x, y, hdg = sol.y[:,-1]
+            return (x, y, s)
 
 class Line(Curve):
     '''A line segment between (x0, y0) and (x1, y1).'''
@@ -154,12 +168,8 @@ class Line(Curve):
         self.x1 = x0 + length * math.cos(hdg)
         self.y1 = y0 + length * math.sin(hdg)
 
-    def to_points(self, num=10):
-        x = np.linspace(self.x0, self.x1, num=num)
-        y = np.linspace(self.y0, self.y1, num=num)
-        s = [np.sqrt((x[i] - self.x0) **2 + (y[i] - self.y0) ** 2)
-             for i in range(num)]
-        return  list(zip(x, y, s))
+    def point_at(self, s):
+        return self.rel_to_abs((s, 0, s))
 
 
 class Lane():
@@ -305,7 +315,9 @@ class Road:
         ind = 0
         while ind + 1 < len(self.offset) and self.offset[ind + 1][1] <= s:
             ind += 1
-        return self.offset[ind][0].eval_at(s)
+        poly, s0 = self.offset[ind]
+        assert s >= s0
+        return poly.eval_at(s - s0)
 
     def get_ref_points(self, num):
         '''Returns list of list of points for each piece of ref_line.
@@ -313,13 +325,17 @@ class Road:
         constructed into Polygon separately then unioned afterwards to avoid
         self-intersecting lines.'''
         ref_points = []
+        transition_points = [sec.s0 for sec in self.lane_secs[1:]]
+        last_s = 0
         for piece in self.ref_line:
-            piece_points = piece.to_points(num)
+            piece_points = piece.to_points(num, extra_points=transition_points)
             assert piece_points, 'Failed to get piece points'
             if ref_points:
-                piece_points = [(p[0], p[1], p[2] + ref_points[-1][-1][2])
+                last_s = ref_points[-1][-1][2]
+                piece_points = [(p[0], p[1], p[2] + last_s)
                                 for p in piece_points]
             ref_points.append(piece_points)
+            transition_points = [s - last_s for s in transition_points if s > last_s]
         return ref_points
 
     def get_lane_offsets(self, s):
@@ -420,17 +436,6 @@ class Road:
                         right = right_bounds[id_][::-1]
                         bounds = left + right
 
-                        lane = cur_sec.lanes[id_]
-                        prev_id = lane.pred
-                        if last_lefts is not None and prev_id in last_lefts:
-                            pred = self.lane_secs[i-1].get_lane(prev_id)
-                            sleft, sright = pred.left_bounds[-1], pred.right_bounds[-1]
-                            bounds.append(sright)
-                            bounds.append(sleft)
-                            lane.left_bounds.insert(0, sleft)
-                            lane.right_bounds.insert(0, sright)
-                            lane.centerline.insert(0, pred.centerline[-1])
-
                         if len(bounds) < 3:
                             continue
                         poly = cleanPolygon(Polygon(bounds), tolerance)
@@ -454,15 +459,15 @@ class Road:
                         last_lefts = cur_last_lefts
                         last_rights = cur_last_rights
                 else:
-                    cur_p = ref_points[0].pop(0)
+                    cur_p = ref_points[0][0]
                     cur_sec_points.append(cur_p)
                     s = min(max(cur_p[2], cur_sec.s0), s_stop - 1e-6)
                     offsets = cur_sec.get_offsets(s)
                     offsets[0] = 0
                     for id_ in offsets:
                         offsets[id_] += self.get_ref_line_offset(s)
-                    if ref_points[0]:
-                        next_p = ref_points[0][0]
+                    if len(ref_points[0]) > 1:
+                        next_p = ref_points[0][1]
                         tan_vec = (next_p[0] - cur_p[0],
                                    next_p[1] - cur_p[1])
                     else:
@@ -471,16 +476,24 @@ class Road:
                         else:
                             assert len(sec_points) > 0
                             if sec_points[-1]:
-                                prev_p = sec_points[-1][-1]
+                                assert sec_points[-1][-1] == cur_p
+                                prev_p = sec_points[-1][-2]
                             else:
-                                prev_p = sec_points[-2][-1]
+                                prev_p = sec_points[-2][-2]
 
                         tan_vec = (cur_p[0] - prev_p[0],
                                    cur_p[1] - prev_p[1])
-                    tan_norm = np.sqrt(tan_vec[0] ** 2 + tan_vec[1] ** 2)
-                    # if tan_norm < 0.01:
-                    #     continue
+                    tan_norm = math.hypot(tan_vec[0], tan_vec[1])
+                    assert tan_norm > 1e-10
                     normal_vec = (-tan_vec[1] / tan_norm, tan_vec[0] / tan_norm)
+                    if cur_p[2] < s_stop:
+                        # if at end of section, keep current point to be included in
+                        # the next section as well; otherwise remove it
+                        ref_points[0].pop(0)
+                    elif len(ref_points[0]) == 1 and len(ref_points) > 1:
+                        # also get rid of point if this is the last point of the current geometry and
+                        # and there is another geometry following
+                        ref_points[0].pop(0)
                     for id_ in offsets:
                         lane = cur_sec.get_lane(id_)
                         if lane.type_ in lane_types:
@@ -521,7 +534,7 @@ class Road:
             for id_ in cur_lane_polys:
                 poly = buffer_union(cur_lane_polys[id_], tolerance=tolerance)
                 lane_polys.append(poly)
-                cur_sec.get_lane(id_).parent_lane_poly = poly
+                self.lane_secs[i-1].get_lane(id_).parent_lane_poly = poly
             cur_lane_polys = next_lane_polys
         for id_ in cur_lane_polys:
             poly = buffer_union(cur_lane_polys[id_], tolerance=tolerance)
@@ -1022,7 +1035,8 @@ class RoadMap:
                  drivable_lane_types=('driving', 'entry', 'exit', 'offRamp', 'onRamp',
                                       'connectingRamp'),
                  sidewalk_lane_types=('sidewalk',),
-                 shoulder_lane_types=('shoulder', 'parking', 'stop', 'border')):
+                 shoulder_lane_types=('shoulder', 'parking', 'stop', 'border'),
+                 elide_short_roads=False):
         self.tolerance = self.defaultTolerance if tolerance is None else tolerance
         self.roads = {}
         self.road_links = []
@@ -1034,6 +1048,7 @@ class RoadMap:
         self.drivable_lane_types = drivable_lane_types
         self.sidewalk_lane_types = sidewalk_lane_types
         self.shoulder_lane_types = shoulder_lane_types
+        self.elide_short_roads = elide_short_roads
 
     def calculate_geometry(self, num, calc_gap=False, calc_intersect=True):
         # If calc_gap=True, fills in gaps between connected roads.
@@ -1125,6 +1140,7 @@ class RoadMap:
             union = buffer_union(junc_polys, tolerance=self.tolerance)
             if self.fill_intersections:
                 union = removeHoles(union)
+            assert union.is_valid
             junc.poly = union
             intersect_polys.append(union)
         self.intersection_region = buffer_union(intersect_polys, tolerance=self.tolerance)
@@ -1297,20 +1313,23 @@ class RoadMap:
                 pred_link = succ_link = None
 
             if road.length < self.tolerance:
-                warnings.warn(f'road {road.id_} has length {road.length}; eliding it')
-                assert road.junction is None
-                self.elidedRoads[road.id_] = road
-                if pred_link:
-                    road.predecessor = pred_link.id_b
-                    road.predecessorContact = pred_link.contact_b
-                else:
-                    road.predecessorContact = None
-                if succ_link:
-                    road.successor = succ_link.id_b
-                    road.successorContact = succ_link.contact_b
-                else:
-                    road.successorContact = None
-                continue
+                warnings.warn(f'road {road.id_} has length shorter than tolerance;'
+                              'geometry may contain artifacts')
+                if self.elide_short_roads:
+                    warnings.warn(f'attempting to elide road {road.id_} of length {road.length}')
+                    assert road.junction is None
+                    self.elidedRoads[road.id_] = road
+                    if pred_link:
+                        road.predecessor = pred_link.id_b
+                        road.predecessorContact = pred_link.contact_b
+                    else:
+                        road.predecessorContact = None
+                    if succ_link:
+                        road.successor = succ_link.id_b
+                        road.successorContact = succ_link.contact_b
+                    else:
+                        road.successorContact = None
+                    continue
 
             # Parse planView:
             plan_view = r.find('planView')
@@ -1363,6 +1382,8 @@ class RoadMap:
             refLine = []
             for s0, curve in curves[1:]:
                 l = s0 - lastS
+                if abs(lastCurve.length - l) > 1e-6:
+                    raise RuntimeError(f'planView of road {road.id_} has inconsistent length')
                 if l < 0:
                     raise RuntimeError(f'planView of road {road.id_} is not in order')
                 elif l < 1e-6:
@@ -1372,7 +1393,15 @@ class RoadMap:
                     refLine.append(lastCurve)
                 lastS = s0
                 lastCurve = curve
-            refLine.append(lastCurve)
+            if refLine and lastCurve.length < 1e-6:
+                warnings.warn(f'road {road.id_} reference line has a geometry of '
+                              f'length {lastCurve.length}; skipping it')
+            else:
+                # even if the last curve is shorter than the threshold, we'll keep it if
+                # it is the only curve; getting rid of the road entirely is handled by
+                # road elision above
+                refLine.append(lastCurve)
+            assert refLine
             road.ref_line = refLine
 
             # Parse lanes:
@@ -1384,12 +1413,7 @@ class RoadMap:
                                          float(offset.get('d'))),
                                    float(offset.get('s'))))
 
-            last_s = float('-inf')
-            for ls_elem in lanes.iter('laneSection'):
-                s = float(ls_elem.get('s'))
-                l = s - last_s
-                assert l >= 0
-                badSec = None
+            def popLastSectionIfShort(l):
                 if l < 1e-6:
                     warnings.warn(f'road {road.id_} has a lane section of '
                                   f'length {l}; skipping it')
@@ -1406,6 +1430,16 @@ class RoadMap:
                             road.remappedStartLanes = { l: l for l in badSec.lanes }
                         for start, current in road.remappedStartLanes.items():
                             road.remappedStartLanes[start] = badSec.lanes[current].succ
+                    return badSec
+                else:
+                    return None
+
+            last_s = float('-inf')
+            for ls_elem in lanes.iter('laneSection'):
+                s = float(ls_elem.get('s'))
+                l = s - last_s
+                assert l >= 0
+                badSec = popLastSectionIfShort(l)
 
                 last_s = s
                 left = ls_elem.find('left')
@@ -1450,6 +1484,9 @@ class RoadMap:
                         )
                         road.signals.append(signal)
 
+            if len(road.lane_secs) > 1:
+                popLastSectionIfShort(road.length - s)
+            assert road.lane_secs
             self.roads[road.id_] = road
 
         # Handle links to/from elided roads
@@ -1543,6 +1580,9 @@ class RoadMap:
             if not junction.connections:
                 continue
             assert junction.poly is not None
+            if junction.poly.is_empty:
+                warnings.warn(f'skipping empty junction {jid}')
+                continue
 
             # Gather all lanes involved in the junction's connections
             allIncomingLanes, allOutgoingLanes = [], []
@@ -1626,7 +1666,7 @@ class RoadMap:
                     # TODO why is it allowed for this not to exist?
                     outgoingLane = toLane.lane._successor
                     if outgoingLane is None:
-                        warnings.warn(f'connecting road {connectingID} lane {toLane} '
+                        warnings.warn(f'connecting road {connectingID} lane {toID} '
                                       'has no successor lane')
                     else:
                         if outgoingLane not in allOutgoingLanes:

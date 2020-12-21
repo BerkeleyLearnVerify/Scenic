@@ -823,7 +823,7 @@ class Network:
 
         :meta private:
         """
-        return 15
+        return 16
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
@@ -910,7 +910,8 @@ class Network:
 
     @classmethod
     def fromOpenDrive(cls, path, ref_points:int = 20, tolerance:float = 0.05,
-                      fill_gaps:bool = True, fill_intersections:bool = True):
+                      fill_gaps:bool = True, fill_intersections:bool = True,
+                      elide_short_roads:bool = False):
         """Create a `Network` from an OpenDRIVE file.
 
         Args:
@@ -921,10 +922,13 @@ class Network:
             fill_gaps: Whether to attempt to fill gaps between adjacent lanes.
             fill_intersections: Whether to attempt to fill gaps inside
                 intersections.
+            elide_short_roads: Whether to attempt to fix geometry artifacts by
+                eliding roads with length less than **tolerance**.
         """
         import scenic.formats.opendrive.xodr_parser as xodr_parser
         road_map = xodr_parser.RoadMap(tolerance=tolerance,
-                                       fill_intersections=fill_intersections)
+                                       fill_intersections=fill_intersections,
+                                       elide_short_roads=elide_short_roads)
         startTime = time.time()
         verbosePrint('Parsing OpenDRIVE file...')
         road_map.parse(path)
