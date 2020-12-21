@@ -144,6 +144,8 @@ class CarlaSimulation(DrivingSimulation):
 	def createObjectInSimulator(self, obj):
 		# Extract blueprint
 		blueprint = self.blueprintLib.find(obj.blueprint)
+		if obj.rolename is not None:
+			blueprint.set_attribute('role_name', obj.rolename)
 
 		# Set up transform
 		loc = utils.scenicToCarlaLocation(obj.position, world=self.world, blueprint=obj.blueprint)

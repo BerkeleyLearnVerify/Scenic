@@ -22,13 +22,13 @@ are from the CARLA Python API reference):
 from scenic.domains.driving.model import *
 
 import scenic.simulators.carla.blueprints as blueprints
-import scenic.simulators.carla.utils.utils as utils
 from scenic.simulators.carla.behaviors import *
 from scenic.simulators.utils.colors import Color
 
 try:
     from scenic.simulators.carla.simulator import CarlaSimulator    # for use in scenarios
     from scenic.simulators.carla.actions import *
+    import scenic.simulators.carla.utils.utils as _utils
 except ModuleNotFoundError:
     # for convenience when testing without the carla package
     import warnings
@@ -87,6 +87,7 @@ simulator CarlaSimulator(
 
 class CarlaActor(DrivingObject):
     carlaActor: None
+    rolename: None   # This attribute can be used to differentiate specific actors during runtime
     blueprint: None
     color: None
     physics: True
@@ -102,10 +103,10 @@ class CarlaActor(DrivingObject):
         return self._control
 
     def setPosition(self, pos, elevation):
-        self.carlaActor.set_location(utils.scenicToCarlaLocation(pos, elevation))
+        self.carlaActor.set_location(_utils.scenicToCarlaLocation(pos, elevation))
 
     def setVelocity(self, vel):
-        self.carlaActor.set_target_velocity(utils.scenicToCarlaVector3D(*vel))
+        self.carlaActor.set_target_velocity(_utils.scenicToCarlaVector3D(*vel))
 
 
 class Vehicle(Vehicle, CarlaActor, Steers):
@@ -160,7 +161,7 @@ class Pedestrian(Pedestrian, CarlaActor, Walks):
     def setWalkingDirection(self, heading):
         direction = Vector(0, 1).rotatedBy(heading)
         zComp = self.control.direction.z
-        self.control.direction = utils.scenicToCarlaVector3D(*direction, zComp)
+        self.control.direction = _utils.scenicToCarlaVector3D(*direction, zComp)
 
     def setWalkingSpeed(self, speed):
         self.control.speed = speed
@@ -310,11 +311,11 @@ def withinDistanceToTrafficLight(vehicle, thresholdDistance):
 def getClosestTrafficLightStatus(vehicle, distance=100):
     traffic_light = _getClosestTrafficLight(vehicle, distance)
     if traffic_light is not None:
-        return utils.carlaToScenicTrafficLightStatus(traffic_light.state)
+        return _utils.carlaToScenicTrafficLightStatus(traffic_light.state)
     return "None"
 
 def setClosestTrafficLightStatus(vehicle, color, distance=100):
-    color = utils.scenicToCarlaTrafficLightStatus(color)
+    color = _utils.scenicToCarlaTrafficLightStatus(color)
     if color is None:
         raise RuntimeError('Color must be red/yellow/green/off/unknown.')
     

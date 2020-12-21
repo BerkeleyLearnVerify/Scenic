@@ -352,6 +352,8 @@ class Road(LinearElement):
     laneGroups: Tuple[LaneGroup] = None
     sections: Tuple[RoadSection]    # sections in order from start to end
 
+    signals: Tuple[Signal]
+
     crossings: Tuple[PedestrianCrossing] = ()    # ordered from start to end
 
     def __attrs_post_init__(self):
@@ -645,6 +647,8 @@ class Intersection(NetworkElement):
     outgoingLanes: Tuple[Lane]
     maneuvers: Tuple[Maneuver]  # all possible maneuvers through the intersection
 
+    signals: Tuple[Signal]
+
     crossings: Tuple[PedestrianCrossing]    # also ordered to preserve adjacency
 
     def __attrs_post_init__(self):
@@ -662,6 +666,11 @@ class Intersection(NetworkElement):
         """bool: Whether or not this is a 4-way intersection."""
         return len(self.roads) == 4
 
+    @property
+    def isSignalized(self) -> bool:
+        """bool: Whether or not this is a signalized intersection."""
+        return len(self.signals) > 0
+
     @distributionFunction
     def maneuversAt(self, point: Vectorlike) -> List[Maneuver]:
         """Get all maneuvers possible at a given point in the intersection."""
@@ -674,9 +683,23 @@ class Intersection(NetworkElement):
         maneuvers = self.maneuversAt(point)
         return [m.connectingLane.orientation[point] for m in maneuvers]
 
-    ## FOR LATER
+@attr.s(auto_attribs=True, kw_only=True, repr=False)
+class Signal:
+    """Traffic lights, stop signs, etc."""
+    # WARNING: Signal parsing is a work in progress and the API is likely to change in the future.
 
-    # signals: Tuple[Union[Signal, None]]
+    uid: str = None
+    #: ID number as in OpenDRIVE (unique ID of the signal within the database)
+    openDriveID: int
+    #: Country code of the signal
+    country: str
+    #: Type identifier according to country code.
+    type: str
+
+    @property
+    def isTrafficLight(self) -> bool:
+        """bool: Whether or not this signal is a traffic light."""
+        return self.type == "1000001"
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Network:
@@ -801,7 +824,7 @@ class Network:
 
         :meta private:
         """
-        return 15
+        return 16
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
@@ -888,7 +911,8 @@ class Network:
 
     @classmethod
     def fromOpenDrive(cls, path, ref_points:int = 20, tolerance:float = 0.05,
-                      fill_gaps:bool = True, fill_intersections:bool = True):
+                      fill_gaps:bool = True, fill_intersections:bool = True,
+                      elide_short_roads:bool = False):
         """Create a `Network` from an OpenDRIVE file.
 
         Args:
@@ -899,10 +923,13 @@ class Network:
             fill_gaps: Whether to attempt to fill gaps between adjacent lanes.
             fill_intersections: Whether to attempt to fill gaps inside
                 intersections.
+            elide_short_roads: Whether to attempt to fix geometry artifacts by
+                eliding roads with length less than **tolerance**.
         """
         import scenic.formats.opendrive.xodr_parser as xodr_parser
         road_map = xodr_parser.RoadMap(tolerance=tolerance,
-                                       fill_intersections=fill_intersections)
+                                       fill_intersections=fill_intersections,
+                                       elide_short_roads=elide_short_roads)
         startTime = time.time()
         verbosePrint('Parsing OpenDRIVE file...')
         road_map.parse(path)
@@ -1108,8 +1135,3 @@ class Network:
         #         x, y = lane.centerline[-1]
         #         plt.plot([x], [y], '*b')
         #         plt.annotate(str(i), (x, y))
-
-## FOR LATER
-
-# class Signal:
-#     """Traffic lights, stop signs, etc."""

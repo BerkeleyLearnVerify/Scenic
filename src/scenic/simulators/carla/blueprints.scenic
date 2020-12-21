@@ -3,23 +3,23 @@
 ## Vehicle blueprints
 
 carModels = [# for speed = 10
-      'vehicle.audi.a2', # Lateral PID:  K_P=0.3, K_D=0.2, K_I=0
-      'vehicle.audi.etron', # K_P=0.3, K_D=0.2, K_I=0
+      'vehicle.audi.a2',
+      'vehicle.audi.etron',
       'vehicle.audi.tt',
       'vehicle.bmw.grandtourer',
-      # 'vehicle.bmw.isetta', # current PID controller not work 
+      'vehicle.bmw.isetta',
       'vehicle.chevrolet.impala',
       'vehicle.citroen.c3',
       'vehicle.dodge_charger.police',
-      'vehicle.mustang.mustang',
-      # 'vehicle.jeep.wrangler_rubicon',  # current PID controller not work 
+      'vehicle.jeep.wrangler_rubicon', 
       'vehicle.lincoln.mkz2017',
-      # 'vehicle.mercedes-benz.coupe',
+      'vehicle.mercedes-benz.coupe',
       'vehicle.mini.cooperst',
+      'vehicle.mustang.mustang',
       'vehicle.nissan.micra',
       'vehicle.nissan.patrol',
       'vehicle.seat.leon',
-      'vehicle.tesla.model3', ## K_P=0.3, K_D=0.2, K_I=0
+      'vehicle.tesla.model3',
       'vehicle.toyota.prius',
       'vehicle.volkswagen.t2'
 ]
@@ -31,7 +31,7 @@ bicycleModels = [
 ]
 
 motorcycleModels = [
-      # 'vehicle.harley-davidson.low_rider',
+      'vehicle.harley-davidson.low_rider',
       'vehicle.kawasaki.ninja',
       'vehicle.yamaha.yzf',
 ]
