@@ -8,12 +8,10 @@ forcing the ego-vehicle to avoid the collision.
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
-model scenic.simulators.carla.model #located in scenic/simulators/carla/model.scenic
+model scenic.simulators.carla.model
 
 ## CONSTANTS
 EGO_MODEL = "vehicle.lincoln.mkz2017"
-EGO_INTER_DIST = [15, 20]
-ADV_INTER_DIST = [10, 15]
 EGO_SPEED = 10
 SAFETY_DISTANCE = 20
 BRAKE_INTENSITY = 1.0
@@ -79,5 +77,5 @@ ego = Car at ego_spawn_pt,
 adversary = Car at adv_spawn_pt,
     with behavior AdversaryBehavior(adv_trajectory)
 
-require (distance from ego to intersec) > EGO_INTER_DIST[0] and (distance from ego to intersec) < EGO_INTER_DIST[1]
-require (distance from adversary to intersec) > ADV_INTER_DIST[0] and (distance from adversary to intersec) < ADV_INTER_DIST[1]
+require (distance to intersec) in Range(15, 20)
+require (distance from adversary to intersec) in Range(10, 15)

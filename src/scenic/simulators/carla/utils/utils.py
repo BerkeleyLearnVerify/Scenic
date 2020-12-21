@@ -8,14 +8,13 @@ from scenic.core.geometry import normalizeAngle
 def snapToGround(world, location):
 	"""Mutates @location to have the same z-coordinate as the nearest waypoint in @world."""
 	waypoint = world.get_map().get_waypoint(location)
-	location.z = waypoint.transform.location.z + 0.5
-	return location
+	return carla.Location(location.x, location.y, waypoint.transform.location.z)
 
 
 def scenicToCarlaVector3D(x, y, z=0.0):
 	# NOTE: Used for velocity, acceleration; superclass of carla.Location
 	z = 0.0 if z is None else z
-	return carla.Vector3D(x, y, z)
+	return carla.Vector3D(x, -y, z)
 
 
 def scenicToCarlaLocation(pos, z=None, world=None):
@@ -48,3 +47,18 @@ def carlaToScenicHeading(rot):
 
 def carlaToScenicAngularSpeed(vel):
 	return -math.radians(vel.y)
+
+
+_scenicToCarlaMap = {
+	"red": carla.TrafficLightState.Red,
+	"green": carla.TrafficLightState.Green,
+	"yellow": carla.TrafficLightState.Yellow,
+	"off": carla.TrafficLightState.Off,
+	"unknown": carla.TrafficLightState.Unknown,
+}
+
+def scenicToCarlaTrafficLightStatus(status):
+	return _scenicToCarlaMap.get(status, None)
+
+def carlaToScenicTrafficLightStatus(status):
+	return str(status).lower()

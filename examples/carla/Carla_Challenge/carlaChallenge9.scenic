@@ -7,7 +7,7 @@ The ego-vehicle is performing a right turn at an intersection, yielding to cross
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
-model scenic.simulators.carla.model #located in scenic/simulators/carla/model.scenic
+model scenic.simulators.carla.model
 
 ## CONSTANTS
 EGO_MODEL = "vehicle.lincoln.mkz2017"
@@ -43,24 +43,22 @@ behavior EgoBehavior(speed, trajectory):
 # Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
 # 'network' is the 'class Network' object in roads.py
 
-spawnAreas = []
-
 # The meaning of filter() function is explained in examples/carla/Carla_Challenge/carlaChallenge7.scenic
 fourWayIntersection = filter(lambda i: i.is4Way and i.isSignalized, network.intersections)
 
 # make sure to put '*' to uniformly randomly select from all elements of the list
 intersec = Uniform(*fourWayIntersection)
-startLane = Uniform(*intersec.incomingLanes)
-straight_maneuvers = filter(lambda i: i.type == ManeuverType.STRAIGHT, startLane.maneuvers)
-straight_maneuver = Uniform(*straight_maneuvers)
-straight_trajectory = [straight_maneuver.startLane, straight_maneuver.connectingLane, straight_maneuver.endLane]
+ego_start_lane = Uniform(*intersec.incomingLanes)
 
-conflicting_rightTurn_maneuvers = filter(lambda i: i.type == ManeuverType.RIGHT_TURN, straight_maneuver.conflictingManeuvers)
-ego_rightTurn_maneuver = Uniform(*conflicting_rightTurn_maneuvers)
-ego_startLane = ego_rightTurn_maneuver.startLane
-ego_trajectory = [ego_rightTurn_maneuver.startLane, ego_rightTurn_maneuver.connectingLane, \
-								ego_rightTurn_maneuver.endLane]
+ego_maneuvers = filter(lambda i: i.type == ManeuverType.RIGHT_TURN, ego_start_lane.maneuvers)
+ego_maneuver = Uniform(*ego_maneuvers)
+ego_trajectory = [ego_maneuver.startLane, ego_maneuver.connectingLane, ego_maneuver.endLane]
 
+adv_maneuvers = filter(lambda i: i.type == ManeuverType.STRAIGHT, ego_maneuver.conflictingManeuvers)
+adv_maneuver = Uniform(*adv_maneuvers)
+adv_trajectory = [adv_maneuver.startLane, adv_maneuver.connectingLane, adv_maneuver.endLane]
+
+adv_start_lane = adv_maneuver.startLane
 
 ## OBJECT PLACEMENT
 ego_spawn_pt = OrientedPoint in ego_maneuver.startLane.centerline
@@ -74,5 +72,5 @@ adversary = Car at adv_spawn_pt,
     with behavior AdversaryBehavior(adv_trajectory)
 
 require (ego_maneuver.endLane == adv_maneuver.endLane)
-require (distance from ego to intersec) > EGO_INTER_DIST[0] and (distance from ego to intersec) < EGO_INTER_DIST[1]
-require (distance from adversary to intersec) > ADV_INTER_DIST[0] and (distance from adversary to intersec) < ADV_INTER_DIST[1]
+require (distance to intersec) in Range(30, 35)
+require (distance from adversary to intersec) in Range(10, 15)

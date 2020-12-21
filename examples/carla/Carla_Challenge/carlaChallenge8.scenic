@@ -12,8 +12,6 @@ model scenic.simulators.carla.model
 
 ## CONSTANTS
 EGO_MODEL = "vehicle.lincoln.mkz2017"
-EGO_INTER_DIST = [25, 30]
-ADV_INTER_DIST = [15, 20]
 EGO_SPEED = 10
 SAFETY_DISTANCE = 20
 BRAKE_INTENSITY = 1.0
@@ -78,5 +76,5 @@ adversary = Car at adv_spawn_pt,
     with behavior AdversaryBehavior(adv_trajectory)
 
 require (ego_start_section.laneToLeft == adv_end_section)  # make sure the ego and adversary are spawned in opposite lanes
-require (distance from ego to intersec) > EGO_INTER_DIST[0] and (distance from ego to intersec) < EGO_INTER_DIST[1]
-require (distance from adversary to intersec) > ADV_INTER_DIST[0] and (distance from adversary to intersec) < ADV_INTER_DIST[1]
+require (distance to intersec) in Range(25, 30)
+require (distance from adversary to intersec)in Range(15, 20)

@@ -21,7 +21,6 @@ BRAKE_INTENSITY = 1.0
 ##DEFINING BEHAVIORS
 behavior AdversaryBehavior(trajectory):
     do FollowTrajectoryBehavior(trajectory = trajectory)
-    terminate
 
 behavior EgoBehavior(speed, trajectory):
     try:
@@ -58,5 +57,6 @@ ego = Car at ego_spawn_pt,
 adversary = Car at adv_spawn_pt,
     with behavior AdversaryBehavior(adv_trajectory)
 
-require (distance from ego to intersec) > EGO_INTER_DIST[0] and (distance from ego to intersec) < EGO_INTER_DIST[1]
-require (distance from adversary to intersec) > ADV_INTER_DIST[0] and (distance from adversary to intersec) < ADV_INTER_DIST[1]
+require (distance to intersec) in Range(15, 20)
+require (distance from adversary to intersec) in Range(15, 20)
+terminate when (distance to start) > 100
