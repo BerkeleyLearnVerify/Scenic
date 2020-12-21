@@ -69,6 +69,6 @@ blockingCar = Car following roadDirection for BLOCKING_CAR_DIST,
 
 ## EXPLICIT HARD CONSTRAINTS
 require blockingCar can see oncomingCar
-require (distance from blockingCar to oncomingCar) in Range(5, 15)
+require 5 <= (distance from blockingCar to oncomingCar) <= 15
 require (distance from blockingCar to intersection) > 50
 require (ego.laneSection.isForward != oncomingCar.laneSection.isForward)

@@ -39,6 +39,6 @@ bicycle = Bicycle at spotBicycle offset by 3.5@0,
     with behavior BicycleBehavior(BICYCLE_MIN_SPEED, THRESHOLD),
     with regionContainedIn None
 
-require (distance to intersec) in Range(10,25)
-require (distance from bicycle to intersec) in Range(5, 10)
+require 10 <= (distance to intersec) <= 25
+require 5 <= (distance from bicycle to intersec) <= 10
 terminate when (distance to spot) > 50

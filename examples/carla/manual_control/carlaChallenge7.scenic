@@ -63,6 +63,6 @@ ego = Car at ego_spawn_pt,
 adversary = Car at adv_spawn_pt,
     with behavior AdversaryBehavior(adv_trajectory)
 
-require (distance to intersec) in Range(15, 20)
-require (distance from adversary to intersec) in Range(10, 15)
+require 15 <= (distance to intersec) <= 20
+require 10 <= (distance from adversary to intersec) <= 15
 terminate when (distance to ego_spawn_pt) > 70

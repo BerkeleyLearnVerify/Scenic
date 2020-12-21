@@ -69,6 +69,6 @@ adversary = Car at adv_spawn_pt,
     with behavior AdversaryBehavior(adv_trajectory)
 
 require (ego_maneuver.endLane == adv_maneuver.endLane)
-require (distance to intersec) in Range(30, 35)
-require (distance from adversary to intersec) in Range(10, 15)
+require 30 <= (distance to intersec) <= 35
+require 10 <= (distance from adversary to intersec) <= 15
 terminate when (distance to ego_spawn_pt) > 70
