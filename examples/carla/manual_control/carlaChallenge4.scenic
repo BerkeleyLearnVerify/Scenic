@@ -8,6 +8,7 @@ emergency brake or an avoidance maneuver.
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town01.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town01'
+param render = '0'
 model scenic.simulators.carla.model
 
 ## CONSTANTS
@@ -26,7 +27,8 @@ startLane = Uniform(*intersec.incomingLanes)
 maneuver = Uniform(*startLane.maneuvers)
 ego_trajectory = [maneuver.startLane, maneuver.connectingLane, maneuver.endLane]
 
-ego = Car in maneuver.startLane.centerline,
+spot = OrientedPoint in maneuver.startLane.centerline
+ego = Car at spot,
     with blueprint EGO_MODEL,
     with rolename 'hero'
 

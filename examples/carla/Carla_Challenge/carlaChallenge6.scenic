@@ -6,8 +6,8 @@ traffic
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town07'
+param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town01.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town01'
 model scenic.simulators.carla.model
 
 ## CONSTANTS
@@ -16,7 +16,7 @@ EGO_SPEED = 7
 ONCOMING_CAR_SPEED = 10
 BLOCKING_CAR_DIST = Range(15, 20)
 BREAK_INTENSITY = 0.8
-DIST_THRESHOLD = 13
+DIST_THRESHOLD = 15
 
 ## DEFINING BEHAVIORS
 behavior EgoBehavior():
@@ -69,6 +69,6 @@ blockingCar = Car following roadDirection for BLOCKING_CAR_DIST,
 
 ## EXPLICIT HARD CONSTRAINTS
 require blockingCar can see oncomingCar
-require (distance from blockingCar to oncomingCar) < 10
-require (distance from blockingCar to intersection) > 10
+require (distance from blockingCar to oncomingCar) in Range(5, 15)
+require (distance from blockingCar to intersection) > 50
 require (ego.laneSection.isForward != oncomingCar.laneSection.isForward)
