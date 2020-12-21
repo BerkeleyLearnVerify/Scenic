@@ -23,10 +23,11 @@ behavior CrossingBehavior(reference_actor, min_speed=1, threshold=10, final_spee
     This behavior dynamically controls the speed of an actor that will perpendicularly (or close to)
     cross the road, so that it arrives at a spot in the road at the same time as a reference actor.
 
-    min_speed: minimum speed of the crossing actor. As this is a type of "synchronization action",
-        a minimum speed is needed, to allow the actor to keep moving even if the reference actor has stopped
-    threshold: starting distance at which the crossing actor starts moving
-    final_speed: speed of the crossing actor after the reference one surpasses it
+    Args:
+        min_speed (float): minimum speed of the crossing actor. As this is a type of "synchronization action",
+            a minimum speed is needed, to allow the actor to keep moving even if the reference actor has stopped
+        threshold (float): starting distance at which the crossing actor starts moving
+        final_speed (float): speed of the crossing actor after the reference one surpasses it
     """
 
     if not final_speed:
