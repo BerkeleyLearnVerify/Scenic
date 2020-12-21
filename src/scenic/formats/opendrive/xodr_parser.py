@@ -1465,13 +1465,13 @@ class RoadMap:
             # parse signals
             signals = r.find('signals')
             if signals is not None:
-                for s in signals.iter('signal'):
-                    signal = self.__parse_signal(s)
+                for signal_elem in signals.iter('signal'):
+                    signal = self.__parse_signal(signal_elem)
                     if signal.is_valid():
                         road.signals.append(signal)
 
-                for s in signals.iter('signalReference'):
-                    signalReference = self.__parse_signal_reference(s)
+                for signal_ref_elem in signals.iter('signalReference'):
+                    signalReference = self.__parse_signal_reference(signal_ref_elem)
                     if signalReference.is_valid():
                         referencedSignal = _temp_signals[signalReference.id_]
                         signal = Signal(
