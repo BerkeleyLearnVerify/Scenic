@@ -49,30 +49,6 @@ def setLaneChangingPIDControllers(is_vehicle, dt):
     return lon_controller, lat_controller
 
 
-def setTurnPIDControllers(is_vehicle, dt):
-    if is_vehicle:
-        lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-        lat_controller = controllers.PIDLateralController(K_P=0.5, K_D=0.1, K_I=0, dt=dt)
-
-    else:
-        lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
-        lat_controller = controllers.PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
-
-    return lon_controller, lat_controller
-
-
-def setLaneChangingPIDControllers(is_vehicle, dt):
-    if is_vehicle:
-        lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-        lat_controller = controllers.PIDLateralController(K_P=0.08, K_D=0.1, K_I=0, dt=dt)
-
-    else:
-        lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
-        lat_controller = controllers.PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.0, dt=dt)
-
-    return lon_controller, lat_controller
-
-
 behavior ConstantThrottleBehavior(x):
     while True:
         take SetThrottleAction(x), SetReverseAction(False), SetHandBrakeAction(False)
