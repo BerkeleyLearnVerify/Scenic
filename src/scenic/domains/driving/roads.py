@@ -686,6 +686,7 @@ class Intersection(NetworkElement):
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Signal:
     """Traffic lights, stop signs, etc."""
+    # WARNING: Signal parsing is a work in progress and the API is likely to change in the future.
 
     uid: str = None
     #: ID number as in OpenDRIVE (unique ID of the signal within the database)
