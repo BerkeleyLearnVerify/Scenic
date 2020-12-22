@@ -43,8 +43,7 @@ from scenic.simulators.utils.colors import Color
 if 'map' not in globalParameters:
     raise RuntimeError('need to specify map before importing driving model '
                        '(set the global parameter "map")')
-if 'map_options' not in globalParameters:
-    param map_options = {}
+param map_options = {}
 
 #: The road network being used for the scenario, as a `Network` object.
 network : Network = Network.fromFile(globalParameters.map, **globalParameters.map_options)

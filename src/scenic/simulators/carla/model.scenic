@@ -64,40 +64,31 @@ except ModuleNotFoundError:
         raise RuntimeError('the "carla" package is required to run simulations '
                            'from this scenario')
 
-if 'carla_map' not in globalParameters:
-    param carla_map = None
-if 'address' not in globalParameters:
-    param address = '127.0.0.1'
-if 'port' not in globalParameters:
-    param port = 2000
-if 'timeout' not in globalParameters:
-    param timeout = 10
-if 'render' not in globalParameters:
-    param render = 1
-else:
-    if globalParameters.render not in [0, 1]:
-        raise ValueError('render param must be either 0 or 1')
-if 'record' not in globalParameters:
-    param record = ''
-if 'timestep' not in globalParameters:
-    param timestep = 0.1
-if 'weather' not in globalParameters:
-    param weather = Uniform(
-        'ClearNoon',
-        'CloudyNoon',
-        'WetNoon',
-        'WetCloudyNoon',
-        'SoftRainNoon',
-        'MidRainyNoon',
-        'HardRainNoon',
-        'ClearSunset',
-        'CloudySunset',
-        'WetSunset',
-        'WetCloudySunset',
-        'SoftRainSunset',
-        'MidRainSunset',
-        'HardRainSunset'
-    )
+param carla_map = None
+param address = '127.0.0.1'
+param port = 2000
+param timeout = 10
+param render = 1
+if globalParameters.render not in [0, 1]:
+    raise ValueError('render param must be either 0 or 1')
+param record = ''
+param timestep = 0.1
+param weather = Uniform(
+    'ClearNoon',
+    'CloudyNoon',
+    'WetNoon',
+    'WetCloudyNoon',
+    'SoftRainNoon',
+    'MidRainyNoon',
+    'HardRainNoon',
+    'ClearSunset',
+    'CloudySunset',
+    'WetSunset',
+    'WetCloudySunset',
+    'SoftRainSunset',
+    'MidRainSunset',
+    'HardRainSunset'
+)
 
 simulator CarlaSimulator(
     carla_map=globalParameters.carla_map,

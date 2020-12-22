@@ -101,6 +101,7 @@ evaluatingRequirement = False
 _globalParameters = {}
 lockedParameters = set()
 lockedModel = None
+loadingModel = False
 currentSimulation = None
 inInitialScenario = True
 runningScenarios = set()
@@ -437,12 +438,18 @@ def in_initial_scenario():
 	return inInitialScenario
 
 def model(namespace, modelName):
+	global loadingModel
+	if loadingModel:
+		raise RuntimeParseError(f'Scenic world model itself uses the "model" statement')
 	if lockedModel is not None:
 		modelName = lockedModel
 	try:
+		loadingModel = True
 		module = importlib.import_module(modelName)
 	except ModuleNotFoundError:
 		raise InvalidScenarioError(f'could not import world model {modelName}') from None
+	finally:
+		loadingModel = False
 	names = module.__dict__.get('__all__', None)
 	if names is not None:
 		for name in names:
@@ -458,12 +465,13 @@ def filter(function, iterable):
 
 def param(*quotedParams, **params):
 	"""Function implementing the param statement."""
+	global loadingModel
 	if evaluatingRequirement:
 		raise RuntimeParseError('tried to create a global parameter inside a requirement')
 	elif currentSimulation is not None:
 		raise RuntimeParseError('tried to create a global parameter during a simulation')
 	for name, value in params.items():
-		if name not in lockedParameters:
+		if name not in lockedParameters and (not loadingModel or name not in _globalParameters):
 			_globalParameters[name] = toDistribution(value)
 	assert len(quotedParams) % 2 == 0, quotedParams
 	it = iter(quotedParams)
