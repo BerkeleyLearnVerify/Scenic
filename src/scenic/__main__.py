@@ -80,6 +80,17 @@ errors.showInternalBacktrace = args.full_backtrace
 if args.pdb:
     errors.postMortemDebugging = True
     errors.showInternalBacktrace = True
+params = {}
+for name, value in args.param:
+    # Convert params to ints or floats if possible
+    try:
+        value = int(value)
+    except ValueError:
+        try:
+            value = float(value)
+        except ValueError:
+            pass
+    params[name] = value
 translator.dumpTranslatedPython = args.dump_initial_python
 translator.dumpFinalAST = args.dump_ast
 translator.dumpASTPython = args.dump_python
@@ -95,7 +106,7 @@ if args.verbosity >= 1:
 startTime = time.time()
 scenario = errors.callBeginningScenicTrace(
     lambda: translator.scenarioFromFile(args.scenicFile,
-                                        params=dict(args.param),
+                                        params=params,
                                         model=args.model,
                                         scenario=args.scenario)
 )

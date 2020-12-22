@@ -30,8 +30,9 @@ Global Parameters:
     timeout (float): Maximum time to wait when attempting to connect to CARLA, in
         seconds. Default is 10.
 
-    render (str): Whether or not to have CARLA create a window showing the
-        simulations from the point of view of the ego object. Default '1'.
+    render (int): Whether or not to have CARLA create a window showing the
+        simulations from the point of view of the ego object: 1 for yes, 0
+        for no. Default 1.
     record (str): If nonempty, folder in which to save CARLA record files for
         replaying the simulations.
 
@@ -72,9 +73,9 @@ if 'port' not in globalParameters:
 if 'timeout' not in globalParameters:
     param timeout = 10
 if 'render' not in globalParameters:
-    param render = '1'
+    param render = 1
 else:
-    if globalParameters.render not in ['0', '1']:
+    if globalParameters.render not in [0, 1]:
         raise ValueError('render param must be either 0 or 1')
 if 'record' not in globalParameters:
     param record = ''
@@ -104,7 +105,7 @@ simulator CarlaSimulator(
     address=globalParameters.address,
     port=int(globalParameters.port),
     timeout=int(globalParameters.timeout),
-    render=bool(int(globalParameters.render)),
+    render=bool(globalParameters.render),
     record=globalParameters.record,
     timestep=float(globalParameters.timestep)
 )
