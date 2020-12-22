@@ -446,8 +446,11 @@ def model(namespace, modelName):
 	try:
 		loadingModel = True
 		module = importlib.import_module(modelName)
-	except ModuleNotFoundError:
-		raise InvalidScenarioError(f'could not import world model {modelName}') from None
+	except ModuleNotFoundError as e:
+		if e.name == modelName:
+			raise InvalidScenarioError(f'could not import world model {modelName}') from None
+		else:
+			raise
 	finally:
 		loadingModel = False
 	names = module.__dict__.get('__all__', None)

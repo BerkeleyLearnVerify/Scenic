@@ -1,5 +1,6 @@
 """Common exceptions and error handling."""
 
+import importlib
 import itertools
 import pathlib
 import traceback
@@ -26,7 +27,8 @@ postMortemDebugging = False
 hiddenFolders = [
     pathlib.Path(scenic.core.__file__).parent,      # scenic.core submodules
     pathlib.Path(scenic.syntax.__file__).parent,    # scenic.syntax submodules
-    '<frozen importlib._bootstrap>',
+    '<frozen importlib._bootstrap>',                # parts of importlib used internally
+    pathlib.Path(importlib.__file__).parent,
 ]
 
 ## Exceptions
