@@ -47,6 +47,14 @@ intOptions.add_argument('-d', '--delay', type=float,
 intOptions.add_argument('-z', '--zoom', help='zoom expansion factor (default 1)',
                         type=float, default=1)
 
+# Recording options
+recOptions = parser.add_argument_group('simulation recording options')
+recOptions.add_argument('-r', '--record', help='enable recording of simulations',
+                        action='store_true')
+recOptions.add_argument('--sensors', help='path to sensor configuration file')
+recOptions.add_argument('--recording_dir',
+                        help='directory in which to save recorded data', default='./')
+
 # Debugging options
 debugOpts = parser.add_argument_group('debugging options')
 debugOpts.add_argument('--show-params', help='show values of global parameters',
@@ -116,6 +124,7 @@ if args.verbosity >= 1:
 
 if args.simulate:
     simulator = errors.callBeginningScenicTrace(scenario.getSimulator)
+    simulator.toggle_recording_sensors(args.record)
 
 def generateScene():
     startTime = time.time()
@@ -137,7 +146,9 @@ def runSimulation(scene):
     try:
         result = errors.callBeginningScenicTrace(
             lambda: simulator.simulate(scene, maxSteps=args.time, verbosity=args.verbosity,
-                                       maxIterations=args.max_sims_per_scene)
+                                       maxIterations=args.max_sims_per_scene,
+                                       save_dir=args.recording_dir,
+                                       sensor_config=args.sensors)
         )
     except SimulationCreationError as e:
         if args.verbosity >= 1:

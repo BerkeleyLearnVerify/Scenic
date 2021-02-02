@@ -26,7 +26,7 @@ class Simulator:
     """A simulator which can import/execute scenes from Scenic."""
 
     def simulate(self, scene, maxSteps=None, maxIterations=100, verbosity=0,
-                 raiseGuardViolations=False):
+                 raiseGuardViolations=False, save_dir='./', sensor_config=None):
         """Run a simulation for a given scene."""
 
         # Repeatedly run simulations until we find one satisfying the requirements
@@ -37,6 +37,21 @@ class Simulator:
             try:
                 simulation = self.createSimulation(scene, verbosity=verbosity)
                 result = simulation.run(maxSteps)
+                if self.is_recording_sensors():
+                    # Create a subdirectory for the current simulation run
+                    # Name of subdirectory is the next available index in save_dir
+                    subdir_names = [dir_name for dir_name in os.listdir(save_dir) if os.path.isdir(os.path.join(save_dir, dir_name))]
+                    subdir_names = [s for s in subdir_names if s.isdigit()]
+                    subdir_idxes = sorted([int(s) for s in subdir_names])
+
+                    if len(subdir_idxes) == 0:
+                        next_subdir_idx = 0
+                    else:
+                        next_subdir_idx = max(subdir_idxes) + 1
+                    
+                    next_subdir_path = os.path.join(save_dir, str(next_subdir_idx))
+                    os.mkdir(next_subdir_path)
+                    simulation.save_recordings(next_subdir_path)
             except (RejectSimulationException, RejectionException, dynamics.GuardViolation) as e:
                 if verbosity >= 2:
                     print(f'  Rejected simulation {iterations} at time step '
@@ -57,6 +72,12 @@ class Simulator:
 
     def destroy(self):
         pass
+
+    def toggle_recording_sensors(self, record):
+        raise NotImplementedError
+
+    def is_recording_sensors(self):
+        return False
 
 class Simulation:
     """A single simulation run, possibly in progress."""

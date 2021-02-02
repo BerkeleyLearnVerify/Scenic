@@ -24,7 +24,7 @@ import scenic.simulators.carla.utils.visuals as visuals
 class CarlaSimulator(DrivingSimulator):
 	"""Implementation of `Simulator` for CARLA."""
 	def __init__(self, carla_map, map_path, address='127.0.0.1', port=2000, timeout=10,
-				 render=True, record='', timestep=0.1):
+				 render=True, record='', record_sensors=False, timestep=0.1):
 		super().__init__()
 		verbosePrint('Connecting to CARLA...')
 		self.client = carla.Client(address, port)
@@ -51,13 +51,15 @@ class CarlaSimulator(DrivingSimulator):
 
 		self.render = render  # visualization mode ON/OFF
 		self.record = record  # whether to use the carla recorder
+		self.record_sensors = record_sensors # whether to record sensor data to disk
 		self.scenario_number = 0  # Number of the scenario executed
 
-	def createSimulation(self, scene, verbosity=0):
+	def createSimulation(self, scene, verbosity=0, sensor_config=None):
 		self.scenario_number += 1
 		return CarlaSimulation(scene, self.client, self.tm, self.timestep,
-							   render=self.render, record=self.record,
-							   scenario_number=self.scenario_number, verbosity=verbosity)
+							   render=self.render, record=self.record, record_sensors=self.record_sensors,
+							   scenario_number=self.scenario_number, verbosity=verbosity,
+							   sensor_config=sensor_config)
 
 	def destroy(self):
 		settings = self.world.get_settings()
@@ -68,9 +70,14 @@ class CarlaSimulator(DrivingSimulator):
 
 		super().destroy()
 
+	def toggle_recording_sensors(self, record_sensors):
+		self.record_sensors = record_sensors
+
+	def is_recording_sensors(self):
+		return self.record_sensors
 
 class CarlaSimulation(DrivingSimulation):
-	def __init__(self, scene, client, tm, timestep, render, record, scenario_number, verbosity=0):
+	def __init__(self, scene, client, tm, timestep, render, record, record_sensors, scenario_number, verbosity=0, sensor_config=None):
 		super().__init__(scene, timestep=timestep, verbosity=verbosity)
 		self.client = client
 		self.world = self.client.get_world()
