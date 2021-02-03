@@ -3,6 +3,7 @@
 
 import types
 from collections import OrderedDict
+import os
 
 from scenic.core.object_types import (enableDynamicProxyFor, setDynamicProxyFor,
                                       disableDynamicProxyFor)
@@ -35,7 +36,7 @@ class Simulator:
             iterations += 1
             # Run a single simulation
             try:
-                simulation = self.createSimulation(scene, verbosity=verbosity)
+                simulation = self.createSimulation(scene, verbosity=verbosity, sensor_config=sensor_config)
                 result = simulation.run(maxSteps)
                 if self.is_recording_sensors():
                     # Create a subdirectory for the current simulation run

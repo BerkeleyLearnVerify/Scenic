@@ -7,9 +7,11 @@
 
 import carla
 
+import copy
 import cv2
 import json
 import numpy as np
+import os
 
 try:
     import pygame
@@ -35,7 +37,7 @@ class BBoxUtil(object):
     """
 
     @staticmethod
-    def get_bounding_boxes(vehicles, camera):
+    def get_3d_bounding_boxes_projected(vehicles, camera):
         """
         Creates 3D bounding boxes based on carla vehicle list and camera.
         """
@@ -46,17 +48,41 @@ class BBoxUtil(object):
         return bounding_boxes
 
     @staticmethod
-    def get_3d_bounding_boxes(vehicles, camera):
+    def get_3d_bounding_boxes(vehicles, ego):
+        """
+        Creates 3D bounding boxes of vehicles relative to ego.
+        """
+
         bounding_boxes = []
 
         for vehicle in vehicles:
             bb_cords = BBoxUtil._create_bb_points(vehicle)
-            cords_x_y_z = BBoxUtil._vehicle_to_sensor(bb_cords, vehicle, camera)[:3, :]
-            cords_y_minus_z_x = np.concatenate([cords_x_y_z[1, :], -cords_x_y_z[2, :], cords_x_y_z[0, :]])
-            bbox = np.transpose(np.dot(camera.calibration, cords_y_minus_z_x))
+            bbox = BBoxUtil._vehicle_to_ego(bb_cords, vehicle, ego)[:3, :]
+            bbox = np.transpose(bbox)
             bounding_boxes.append(bbox)
 
         return bounding_boxes
+
+    @staticmethod
+    def _vehicle_to_ego(cords, vehicle, ego):
+        """
+        Transforms coordinates of a vehicle bounding box to ego.
+        """
+
+        world_cord = BBoxUtil._vehicle_to_world(cords, vehicle)
+        ego_cord = BBoxUtil._world_to_ego(world_cord, ego)
+        return ego_cord
+
+    @staticmethod
+    def _world_to_ego(cords, ego):
+        """
+        Transforms world coordinates to ego.
+        """
+
+        ego_world_matrix = BBoxUtil.get_matrix(ego.carlaActor.get_transform())
+        world_ego_matrix = np.linalg.inv(ego_world_matrix)
+        ego_cords = np.dot(ego_world_matrix, cords)
+        return ego_cords
 
     @staticmethod
     def get_2d_bounding_boxes(bounding_boxes_3d):
@@ -241,7 +267,6 @@ class BBoxRecording:
     def get_frame(self, frame_idx):
         return self.frames[frame_idx]
 
-    @staticmethod
     def import_from_file(filepath):
         with open(filepath, 'r') as f:
             json_data = json.load(f)
@@ -268,7 +293,6 @@ class VideoRecording:
     def get_frame(self, frame_idx):
         return self.frames[frame_idx]
 
-    @staticmethod
     def import_from_file(filepath):
         stream = cv2.VideoCapture(filepath)
         num_frames = int(stream.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -292,7 +316,7 @@ class VideoRecording:
         out = cv2.VideoWriter(
             filepath,
             cv2.VideoWriter_fourcc(*'mp4v'),
-            30.0,
+            15.0,
             (frame_width, frame_height),
             True
         )
@@ -302,9 +326,9 @@ class VideoRecording:
 
         out.release()
 
-class LidarRecording:
+class FrameRecording:
     def __init__(self, frames=None):
-        # Each frame is a list of classified lidar points
+        # Each frame is a list of data, be it classified lidar points, radar, etc.
         self.frames = []
         if frames is not None:
             self.frames = frames
@@ -315,12 +339,11 @@ class LidarRecording:
     def get_frame(self, frame_idx):
         return self.frames[frame_idx]
 
-    @staticmethod
     def import_from_file(filepath):
         with open(filepath, 'r') as f:
             json_data = json.load(f)
 
-        return LidarRecording(json_data)
+        return FrameRecording(json_data)
 
     def save(self, filepath):
         with open(filepath, 'w') as f:
