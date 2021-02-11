@@ -57,25 +57,29 @@ This file is another JSON file that lets you configure the number, placement, an
 {
    [
 	{
-		"name": "cam", // each sensor must have an associated unique name
+		"name": "cam",
 		"type": "rgb",
-		"transform": [0, 0, 2.4], // sensor xyz coordinates with respect to ego vehicle
+		"transform": {
+			"location": [0, 0, 2.4]
+		},
 		"settings": {
-			"VIEW_WIDTH": 1280, // horizontal resolution in pixels
-			"VIEW_HEIGHT": 720, // vertical resolution in pixels
-			"VIEW_FOV": 90 // horizontal field of view
+			"VIEW_WIDTH": 1280,
+			"VIEW_HEIGHT": 720,
+			"VIEW_FOV": 90
 		}
 	},
 	{
 		"name": "lidar",
 		"type": "lidar",
-		"transform": [0, 0, 2.4], // sensor xyz coordinates with respect to ego vehicle
+		"transform": {
+			"location": [0, 0, 2.4]
+		},
 		"settings": {
-			"PPS": 400000, // number of points to record per second
+			"PPS": 400000,
 			"UPPER_FOV": 15.0,
-			"LOWER_FOV": -25.0, // combined 40 degree field of view
-			"RANGE": 40, // range of sensor in meters
-			"ROTATION_FREQUENCY": 18.0 // frequency of rotation per second (should be close to simulation fps)
+			"LOWER_FOV": -25.0,
+			"RANGE": 40,
+			"ROTATION_FREQUENCY": 18.0
 		}
 	}
 ]
@@ -142,7 +146,7 @@ draw_bbox_3d(frame['bboxes'], sensor_config.get('cam'), frame['cam']['rgb'], 'fr
     * Returns all sensor data recorded at a particular frame index (time step). For example, if we recorded with an RGB camera named "cam" and a lidar sensor named "lidar", then this function would return:
 ```
 {
-	"bboxes": [list of 3D bounding boxes],
+	"bboxes": [list of 3D bounding boxes indexed by object type],
 	"cam": {
 		"rgb": image as numpy array,
 		"depth": image as numpy array,

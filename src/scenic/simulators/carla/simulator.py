@@ -185,7 +185,6 @@ class CarlaSimulation(DrivingSimulation):
 							rgb_buffer = sensor_dict['rgb_buffer']
 							rgb_cam.listen(lambda x: self.process_rgb_image(x, rgb_buffer))
 							sensor_dict['rgb_cam_obj'] = rgb_cam
-							self.rgb_cam = rgb_cam
 
 							bp = self.world.get_blueprint_library().find('sensor.camera.depth')
 							bp.set_attribute('image_size_x', str(VIEW_WIDTH))
@@ -346,7 +345,7 @@ class CarlaSimulation(DrivingSimulation):
 
 			for obj_class, obj_list in classified_actors.items():
 				# Get bounding boxes relative to ego
-				bounding_boxes_3d = rec_utils.BBoxUtil.get_3d_bounding_boxes(obj_list, self.ego, self.rgb_cam)
+				bounding_boxes_3d = rec_utils.BBoxUtil.get_3d_bounding_boxes(obj_list, self.ego)
 				# Convert numpy matrices to lists
 				bboxes[obj_class] = [bbox.tolist() for bbox in bounding_boxes_3d]
 

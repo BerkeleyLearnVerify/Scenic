@@ -42,7 +42,7 @@ class BBoxUtil(object):
         return bounding_boxes
 
     @staticmethod
-    def get_3d_bounding_boxes(vehicles, ego, sensor):
+    def get_3d_bounding_boxes(vehicles, ego):
         """
         Creates 3D bounding boxes of vehicles relative to ego.
         """
