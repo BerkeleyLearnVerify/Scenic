@@ -158,9 +158,9 @@ def get_bbox_3d_projected(bboxes, sensor):
 
 			# Transform bounding box coords from ego to sensor
 			sensor_to_ego = np.eye(4)
-			# sensor_to_ego[0, 3] = sensor['transform']['location'][0]
-			# sensor_to_ego[1, 3] = sensor['transform']['location'][1]
-			# sensor_to_ego[2, 3] = sensor['transform']['location'][2]
+			sensor_to_ego[0, 3] = sensor['transform']['location'][0]
+			sensor_to_ego[1, 3] = sensor['transform']['location'][1]
+			sensor_to_ego[2, 3] = sensor['transform']['location'][2]
 			ego_to_sensor = np.linalg.inv(sensor_to_ego)
 
 			cords_x_y_z = np.dot(ego_to_sensor, cords_x_y_z_1)[:3]

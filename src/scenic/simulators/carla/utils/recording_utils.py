@@ -24,12 +24,6 @@ try:
 except ImportError:
     pass
 
-VIEW_WIDTH = 1280.0
-VIEW_HEIGHT = 720.0
-VIEW_FOV = 90.0
-
-BB_COLOR = (248, 64, 24)
-
 class BBoxUtil(object):
     """
     This is a module responsible for creating 3D bounding boxes and drawing them
@@ -48,7 +42,7 @@ class BBoxUtil(object):
         return bounding_boxes
 
     @staticmethod
-    def get_3d_bounding_boxes(vehicles, ego):
+    def get_3d_bounding_boxes(vehicles, ego, sensor):
         """
         Creates 3D bounding boxes of vehicles relative to ego.
         """
@@ -59,6 +53,7 @@ class BBoxUtil(object):
             bb_cords = BBoxUtil._create_bb_points(vehicle)
             bbox = BBoxUtil._vehicle_to_ego(bb_cords, vehicle, ego)[:3, :]
             bbox = np.transpose(bbox)
+
             bounding_boxes.append(bbox)
 
         return bounding_boxes
@@ -68,7 +63,7 @@ class BBoxUtil(object):
         """
         Transforms coordinates of a vehicle bounding box to ego.
         """
-
+        
         world_cord = BBoxUtil._vehicle_to_world(cords, vehicle)
         ego_cord = BBoxUtil._world_to_ego(world_cord, ego)
         return ego_cord
@@ -81,7 +76,7 @@ class BBoxUtil(object):
 
         ego_world_matrix = BBoxUtil.get_matrix(ego.carlaActor.get_transform())
         world_ego_matrix = np.linalg.inv(ego_world_matrix)
-        ego_cords = np.dot(ego_world_matrix, cords)
+        ego_cords = np.dot(world_ego_matrix, cords)
         return ego_cords
 
     @staticmethod
@@ -110,6 +105,11 @@ class BBoxUtil(object):
         """
         Draws bounding boxes on pygame display.
         """
+
+        VIEW_WIDTH = 1280.0
+        VIEW_HEIGHT = 720.0
+
+        BB_COLOR = (248, 64, 24)
 
         bb_surface = pygame.Surface((VIEW_WIDTH, VIEW_HEIGHT))
         bb_surface.set_colorkey((0, 0, 0))
