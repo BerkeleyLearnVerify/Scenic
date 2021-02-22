@@ -94,7 +94,7 @@ class Cubic(Curve):
         return quad(d_arc, 0, u)[0]
 
     def point_at(self, s):
-        u = inversefunc(self.arclength, s)[0]
+        u = float(inversefunc(self.arclength, s))
         pt = (s, self.poly.eval_at(u), s)
         return self.rel_to_abs(pt)
 
@@ -118,7 +118,7 @@ class ParamCubic(Curve):
         return quad(d_arc, 0, p)[0]
 
     def point_at(self, s):
-        p = inversefunc(self.arclength, s)[0]
+        p = float(inversefunc(self.arclength, s))
         pt = (self.u_poly.eval_at(p), self.v_poly.eval_at(p), s)
         return self.rel_to_abs(pt)
 
@@ -1359,7 +1359,7 @@ class RoadMap:
                         float(curve_elem.get('d'))
                     curve = Cubic(x0, y0, hdg, length, a, b, c, d)
                 elif curve_elem.tag == 'paramPoly3':
-                    au, bu, cu, du, av, bv, cv, dv, p_range = \
+                    au, bu, cu, du, av, bv, cv, dv = \
                         float(curve_elem.get('aU')), \
                         float(curve_elem.get('bU')), \
                         float(curve_elem.get('cU')), \
@@ -1367,8 +1367,13 @@ class RoadMap:
                         float(curve_elem.get('aV')), \
                         float(curve_elem.get('bV')), \
                         float(curve_elem.get('cV')), \
-                        float(curve_elem.get('dV')), \
-                        float(curve_elem.get('pRange'))
+                        float(curve_elem.get('dV'))
+                    p_range = curve_elem.get('pRange')
+                    if p_range and p_range != 'normalized':
+                        # TODO support arcLength
+                        raise RuntimeError('unsupported pRange for paramPoly3')
+                    else:
+                        p_range = 1
                     curve = ParamCubic(x0, y0, hdg, length,
                                        au, bu, cu, du, av, bv,
                                        cv, dv, p_range)
@@ -1382,7 +1387,7 @@ class RoadMap:
             refLine = []
             for s0, curve in curves[1:]:
                 l = s0 - lastS
-                if abs(lastCurve.length - l) > 1e-6:
+                if abs(lastCurve.length - l) > 1e-4:
                     raise RuntimeError(f'planView of road {road.id_} has inconsistent length')
                 if l < 0:
                     raise RuntimeError(f'planView of road {road.id_} is not in order')
