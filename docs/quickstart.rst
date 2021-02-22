@@ -48,6 +48,9 @@ Installing via either :command:`pip` or Poetry will install all of the dependenc
 	On some platforms, in particular OS X, you may get an error during the installation of `pygame <https://www.pygame.org/>`_ due to missing SDL files.
 	Try installing `SDL <https://www.libsdl.org/>`_: on OS X, if you use `Homebrew <https://brew.sh/>`_ you can simply run :command:`brew install sdl`.
 
+	On OS X you may also get an error during the installation of `Pillow <https://pillow.readthedocs.io/en/stable/>`_ due to missing zlib or jpeg libraries.
+	If you use Homebrew, you can install these with :command:`brew install zlib` and :command:`brew install libjpeg`.
+
 
 Trying Some Examples
 --------------------
