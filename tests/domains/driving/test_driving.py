@@ -9,6 +9,9 @@ from tests.utils import compileScenic, sampleScene, sampleEgo
 from scenic.core.geometry import TriangulationError
 from scenic.core.distributions import RejectionException
 
+# Suppress all warnings from OpenDRIVE parser
+pytestmark = pytest.mark.filterwarnings("ignore::scenic.formats.opendrive.OpenDriveWarning")
+
 template = inspect.cleandoc("""
     param map = '{map}'
     param map_options = dict(useCache={cache})

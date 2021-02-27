@@ -12,3 +12,4 @@
 """
 
 from .workspace import OpenDriveWorkspace
+from .xodr_parser import OpenDriveWarning
