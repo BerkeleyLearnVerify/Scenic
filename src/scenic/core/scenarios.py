@@ -146,6 +146,8 @@ class Scenario:
 				oj = objects[j]
 				if not staticBounds[j]:
 					continue
+				if oj.allowCollisions and oi.allowCollisions:
+					continue
 				if oi.intersects(oj):
 					raise InvalidScenarioError(f'Object at {oi.position} intersects'
 											   f' object at {oj.position}')
@@ -226,6 +228,8 @@ class Scenario:
 				# Require object to not intersect another object
 				for j in range(i):
 					vj = sample[objects[j]]
+					if vj.allowCollisions and vi.allowCollisions:
+						continue
 					if vi.intersects(vj):
 						rejection = 'object intersection'
 						break
