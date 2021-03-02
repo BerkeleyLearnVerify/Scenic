@@ -31,7 +31,7 @@ bicycleModels = {
 }
 
 motorcycleModels = {
-      'vehicle.harley-davidson.low_rider',
+      # 'vehicle.harley-davidson.low_rider',
       'vehicle.kawasaki.ninja',
       'vehicle.yamaha.yzf',
 }

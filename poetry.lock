@@ -1,46 +1,4 @@
 [[package]]
-name = "aiohttp"
-version = "3.7.3"
-description = "Async http client/server framework (asyncio)"
-category = "main"
-optional = false
-python-versions = ">=3.6"
-
-[package.dependencies]
-async-timeout = ">=3.0,<4.0"
-attrs = ">=17.3.0"
-chardet = ">=2.0,<4.0"
-multidict = ">=4.5,<7.0"
-typing-extensions = ">=3.6.5"
-yarl = ">=1.0,<2.0"
-
-[package.extras]
-speedups = ["aiodns", "brotlipy", "cchardet"]
-
-[[package]]
-name = "aiohttp-cors"
-version = "0.7.0"
-description = "CORS support for aiohttp"
-category = "main"
-optional = false
-python-versions = "*"
-
-[package.dependencies]
-aiohttp = ">=1.1"
-
-[[package]]
-name = "aioredis"
-version = "1.3.1"
-description = "asyncio (PEP 3156) Redis support"
-category = "main"
-optional = false
-python-versions = "*"
-
-[package.dependencies]
-async-timeout = "*"
-hiredis = "*"
-
-[[package]]
 name = "alabaster"
 version = "0.7.12"
 description = "A configurable sidebar-enabled Sphinx theme"
@@ -71,14 +29,6 @@ description = "Read/rewrite/write Python ASTs"
 category = "main"
 optional = true
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
-
-[[package]]
-name = "async-timeout"
-version = "3.0.1"
-description = "Timeout context manager for asyncio programs"
-category = "main"
-optional = false
-python-versions = ">=3.5.3"
 
 [[package]]
 name = "atomicwrites"
@@ -157,6 +107,10 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
+optional = true
+python-versions = "*"
+
+[[package]]
 name = "colorama"
 version = "0.4.4"
 description = "Cross-platform colored terminal text."
@@ -174,6 +128,16 @@ python-versions = "*"
 
 [package.dependencies]
 colorama = {version = "*", markers = "platform_system == \"Windows\""}
+
+[[package]]
+name = "cycler"
+version = "0.10.0"
+description = "Composable style cycles"
+category = "main"
+optional = false
+python-versions = "*"
+optional = true
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
 name = "cycler"
@@ -316,6 +280,18 @@ version = "2.10"
 description = "Internationalized Domain Names in Applications (IDNA)"
 category = "main"
 optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+
+[[package]]
+optional = true
+python-versions = "*"
+
+[[package]]
+name = "idna"
+version = "2.10"
+description = "Internationalized Domain Names in Applications (IDNA)"
+category = "main"
+optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
 [[package]]
@@ -468,6 +444,20 @@ description = "Wrapper package for OpenCV python bindings."
 category = "main"
 optional = false
 python-versions = "*"
+name = "numpy"
+version = "1.19.2"
+description = "NumPy is the fundamental package for array computing with Python."
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
+name = "opencv-python"
+version = "4.2.0.34"
+description = "Wrapper package for OpenCV python bindings."
+category = "main"
+optional = false
+python-versions = "*"
 
 [package.dependencies]
 numpy = ">=1.11.1"
@@ -574,6 +564,43 @@ pyasn1 = ">=0.4.6,<0.5.0"
 [[package]]
 name = "pygame"
 version = "2.0.0.dev22"
+optional = true
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+
+[package.dependencies]
+pyparsing = ">=2.0.2"
+six = "*"
+
+[[package]]
+name = "pillow"
+version = "7.2.0"
+description = "Python Imaging Library (Fork)"
+category = "main"
+optional = false
+python-versions = ">=3.5"
+
+[[package]]
+name = "pluggy"
+version = "0.13.1"
+description = "plugin and hook calling mechanisms for python"
+category = "main"
+optional = true
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+
+[package.extras]
+dev = ["pre-commit", "tox"]
+
+[[package]]
+name = "py"
+version = "1.9.0"
+description = "library with cross-python path, ini-parsing, io, code, log facilities"
+category = "main"
+optional = true
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+
+[[package]]
+name = "pygame"
+version = "2.0.0.dev18"
 description = "Python Game Development"
 category = "main"
 optional = false
@@ -736,6 +763,16 @@ version = "2.24.0"
 description = "Python HTTP for Humans."
 category = "main"
 optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+optional = true
+python-versions = "*"
+
+[[package]]
+name = "requests"
+version = "2.24.0"
+description = "Python HTTP for Humans."
+category = "main"
+optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [package.dependencies]
@@ -961,7 +998,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4"
 [package.extras]
 brotli = ["brotlipy (>=0.6.0)"]
 secure = ["pyOpenSSL (>=0.14)", "cryptography (>=1.3.4)", "idna (>=2.0.0)", "certifi", "ipaddress"]
-socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
+socks = ["PySocks (>=1.5.6,<1.5.7 || >1.5.7,<2.0)"]
 
 [[package]]
 name = "virtualenv"
