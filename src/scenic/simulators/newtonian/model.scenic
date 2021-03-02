@@ -45,7 +45,7 @@ if 'render' not in globalParameters:
     render = False
 else:
     render = globalParameters.render
-simulator NewtonianSimulator(globalParameters.carla_map, render=render)
+simulator NewtonianSimulator(globalParameters.map, render=render)
 
 class NewtonianActor(DrivingObject):
 
@@ -86,5 +86,10 @@ class Vehicle(Vehicle, NewtonianActor):
 
     pass
 
-class Car(Vehicle):
+class Car(Vehicle, Steers):
     pass
+
+class Debris:
+	"""Abstract class for debris scattered randomly in the workspace."""
+	position: Point in workspace
+	heading: Range(0, 360) deg

@@ -283,6 +283,8 @@ class VerifaiParameter(ExternalParameter):
 class VerifaiRange(VerifaiParameter):
 	"""A :obj:`~scenic.core.distributions.Range` (real interval) sampled by VerifAI."""
 
+	defaultValueType = float
+
 	def __init__(self, low, high, buckets=None, weights=None):
 		import verifai.features
 		super().__init__(verifai.features.Box([low, high]))
@@ -306,6 +308,8 @@ class VerifaiRange(VerifaiParameter):
 
 class VerifaiDiscreteRange(VerifaiParameter):
 	"""A :obj:`~scenic.core.distributions.DiscreteRange` (integer interval) sampled by VerifAI."""
+
+	defaultValueType = float
 
 	def __init__(self, low, high, weights=None):
 		import verifai.features
