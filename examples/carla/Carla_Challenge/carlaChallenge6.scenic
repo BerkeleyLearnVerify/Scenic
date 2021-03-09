@@ -4,10 +4,10 @@ Ego-vehicle must go around a blocking object
 using the opposite lane, yielding to oncoming traffic.
 """
 
-#SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town07'
-model scenic.simulators.carla.model #located in scenic/simulators/carla/model.scenic
+model scenic.domains.driving.model
+
 
 #CONSTANTS
 ONCOMING_THROTTLE = 0.6
@@ -21,7 +21,7 @@ BYPASS_DIST = 5
 DIST_BTW_BLOCKING_ONCOMING_CARS = 10
 DIST_TO_INTERSECTION = 15
 
-##DEFINING BEHAVIORS
+#EGO BEHAVIOR
 behavior EgoBehavior(path):
 	current_lane = network.laneAt(self)
 	laneChangeCompleted = False
@@ -47,16 +47,14 @@ behavior EgoBehavior(path):
 		bypassed = True
 
 
+#OTHER BEHAVIORS
 behavior OncomingCarBehavior(path = []):
 	do FollowLaneBehavior(ONCOMING_CAR_SPEED)
 
-##DEFINING SPATIAL RELATIONS
-# Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
-# 'network' is the 'class Network' object in roads.py
+#GEOMETRY
 
-# Find lanes that have a lane to their left in the opposite direction
+#Find lanes that have a lane to their left in the opposite direction
 laneSecsWithLeftLane = []
-
 for lane in network.lanes:
 	for laneSec in lane.sections:
 		if laneSec._laneToLeft is not None:
@@ -67,13 +65,12 @@ assert len(laneSecsWithLeftLane) > 0, \
 	'No lane sections with adjacent left lane with opposing \
 	traffic direction in network.'
 
-# make sure to put '*' to uniformly randomly select from all elements of the list
 initLaneSec = Uniform(*laneSecsWithLeftLane)
 leftLaneSec = initLaneSec._laneToLeft
 
 spawnPt = OrientedPoint on initLaneSec.centerline
 
-##OBJECT PLACEMENT
+#PLACEMENT
 oncomingCar = Car on leftLaneSec.centerline,
 	with behavior OncomingCarBehavior()
 
@@ -83,7 +80,6 @@ ego = Car at spawnPt,
 blockingCar = Car following roadDirection from ego for BLOCKING_CAR_DIST,
 				with viewAngle 90 deg
 
-## EXPLICIT HARD CONSTRAINTS
 #Make sure the oncoming Car is at a visible section of the lane
 require blockingCar can see oncomingCar
 require (distance from blockingCar to oncomingCar) < DIST_BTW_BLOCKING_ONCOMING_CARS

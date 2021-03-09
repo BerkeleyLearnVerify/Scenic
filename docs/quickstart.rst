@@ -43,12 +43,6 @@ Installing via either :command:`pip` or Poetry will install all of the dependenc
 	In the past, the ``shapely`` package did not install properly on Windows.
 	If you encounter this issue, try installing it manually following the instructions `here <https://github.com/Toblerity/Shapely#built-distributions>`__.
 
-.. note::
-
-	On some platforms, in particular OS X, you may get an error during the installation of `pygame <https://www.pygame.org/>`_ due to missing SDL files.
-	Try installing `SDL <https://www.libsdl.org/>`_: on OS X, if you use `Homebrew <https://brew.sh/>`_ you can simply run :command:`brew install sdl`.
-
-
 Trying Some Examples
 --------------------
 
