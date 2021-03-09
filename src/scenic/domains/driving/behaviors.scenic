@@ -73,22 +73,21 @@ behavior WalkForwardBehavior():
     normal_vec = Vector.normalized(end_vec)
     take WalkTowardsAction(goal_position=normal_vec), SetSpeedAction(speed=1)
 
+behavior ConstantThrottleBehavior(x):
+    take SetThrottleAction(x)
 
 behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTraffic=False):
     """ 
     Follow's the lane on which the vehicle is at, unless the laneToFollow is specified.
     Once the vehicle reaches an intersection, by default, the vehicle will take the straight route.
     If straight route is not available, then any availble turn route will be taken, uniformly randomly. 
-    If turning at the intersection, the vehicle will slow down to make the turn, safely, and resume initial speed upon exiting the intersection.
+    If turning at the intersection, the vehicle will slow down to make the turn, safely. 
 
     This behavior does not terminate. A recommended use of the behavior is to accompany it with condition,
     e.g. do FollowLaneBehavior() until ...
 
-    Arguments:
-        target_speed: Its unit is in m/s. By default, it is set to 10 m/s
-        laneToFollow: If the lane to follow is different from the lane that the vehicle is on,
-            this parameter can be used to specify that lane. By default, this variable will be
-            set to None, which means that the vehicle will follow the lane that it is currently on.
+    :param target_speed: Its unit is in m/s. By default, it is set to 10 m/s
+    :param laneToFollow: If the lane to follow is different from the lane that the vehicle is on, this parameter can be used to specify that lane. By default, this variable will be set to None, which means that the vehicle will follow the lane that it is currently on.
     """
 
     past_steer_angle = 0

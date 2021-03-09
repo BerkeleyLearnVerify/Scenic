@@ -1,59 +1,57 @@
-alabaster==0.7.12; python_version >= "3.5"
+alabaster==0.7.12
 antlr4-python3-runtime==4.8
-appdirs==1.4.4; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0"
-astor==0.8.1; (python_version >= "2.7" and python_full_version < "3.0.0") or (python_full_version >= "3.4.0")
-atomicwrites==1.4.0; python_version >= "3.6" and python_full_version < "3.0.0" and sys_platform == "win32" or sys_platform == "win32" and python_version >= "3.6" and python_full_version >= "3.4.0"
-attrs==19.3.0; (python_version >= "2.7" and python_full_version < "3.0.0") or (python_full_version >= "3.4.0")
-babel==2.9.0; python_version >= "3.5" and python_full_version < "3.0.0" or python_full_version >= "3.4.0" and python_version >= "3.5"
-certifi==2020.12.5; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.6"
-chardet==4.0.0; python_version >= "3.5" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.5"
-colorama==0.4.4; python_version >= "3.6" and python_full_version < "3.0.0" and sys_platform == "win32" and platform_system == "Windows" or sys_platform == "win32" and python_version >= "3.6" and python_full_version >= "3.5.0" and platform_system == "Windows"
-cycler==0.10.0; python_version >= "3.7"
-distlib==0.3.1; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0"
-docutils==0.16; python_version >= "3.5" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.5"
-dotmap==1.3.23
-filelock==3.0.12; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0"
-idna==2.10; python_version >= "3.5" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.5"
-imagesize==1.2.0; python_version >= "3.5" and python_full_version < "3.0.0" or python_full_version >= "3.4.0" and python_version >= "3.5"
-importlib-metadata==3.10.1; python_version < "3.8" and python_version >= "3.6" and (python_version >= "3.6" and python_full_version < "3.0.0" and python_version < "3.8" or python_full_version >= "3.5.0" and python_version < "3.8" and python_version >= "3.6") and (python_version >= "3.6" and python_full_version < "3.0.0" and python_version < "3.8" or python_full_version >= "3.4.0" and python_version >= "3.6" and python_version < "3.8") or python_version >= "3.7" and python_version < "3.8"
-iniconfig==1.1.1; python_version >= "3.6"
-jinja2==2.11.3; python_version >= "3.5" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.5"
-kiwisolver==1.3.1; python_version >= "3.7"
+appdirs==1.4.4
+astor==0.8.1
+atomicwrites==1.4.0; sys_platform == "win32"
+attrs==19.3.0
+babel==2.8.0
+certifi==2020.6.20
+chardet==3.0.4
+colorama==0.4.3; sys_platform == "win32" or platform_system == "Windows"
+cycler==0.10.0
+distlib==0.3.1
+docutils==0.16
+dotmap==1.3.17
+filelock==3.0.12
+idna==2.10
+imagesize==1.2.0
+iniconfig==1.0.1
+jinja2==2.11.2
+kiwisolver==1.2.0
 mapbox-earcut==0.12.10
-markupsafe==1.1.1; python_version >= "3.5" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.5"
-matplotlib==3.4.1; python_version >= "3.7"
-numpy==1.20.2; python_version >= "3.7"
-opencv-python==4.5.1.48; python_version >= "3.6"
-packaging==20.9; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.6"
-pillow==8.2.0; python_version >= "3.6"
-pluggy==0.13.1; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.6"
-py==1.10.0; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.6"
-pygame==2.0.1
-pygments==2.8.1; python_version >= "3.5"
+markupsafe==1.1.1
+matplotlib==3.3.1
+more-itertools==8.5.0
+numpy==1.19.1
+opencv-python==4.2.0.34
+packaging==20.4
+pillow==7.2.0
+pluggy==0.13.1
+py==1.9.0
+pygame==2.0.0.dev10
+pygments==2.6.1
 pynverse==0.1.4.4
-pyparsing==2.4.7; python_version >= "3.7" and python_full_version < "3.0.0" or python_full_version >= "3.4.0" and python_version >= "3.7"
-pyproj==3.0.1; python_version >= "3.6"
-pytest-randomly==3.7.0; python_version >= "3.6"
-pytest==6.2.3; python_version >= "3.6"
-python-dateutil==2.8.1; python_version >= "3.7" and python_full_version < "3.0.0" or python_full_version >= "3.3.0" and python_version >= "3.7"
-pytz==2021.1; python_version >= "3.5" and python_full_version < "3.0.0" or python_full_version >= "3.4.0" and python_version >= "3.5"
-requests==2.25.1; python_version >= "3.5" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.5"
-scipy==1.6.1; python_version >= "3.7"
+pyparsing==2.4.7
+pyproj==2.6.1.post1
+pytest==6.0.1
+pytest-randomly==3.4.1
+python-dateutil==2.8.1
+pytz==2020.1
+requests==2.24.0
+scipy==1.5.2
 shapely==1.7.1
-six==1.15.0; python_version >= "3.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.7"
-snowballstemmer==2.1.0; python_version >= "3.5"
+six==1.15.0
+snowballstemmer==2.0.0
+sphinx==3.2.1
 sphinx-rtd-theme==0.4.3
-sphinx==3.5.4; python_version >= "3.5"
-sphinxcontrib-applehelp==1.0.2; python_version >= "3.5"
-sphinxcontrib-devhelp==1.0.2; python_version >= "3.5"
-sphinxcontrib-htmlhelp==1.0.3; python_version >= "3.5"
-sphinxcontrib-jsmath==1.0.1; python_version >= "3.5"
-sphinxcontrib-qthelp==1.0.3; python_version >= "3.5"
-sphinxcontrib-serializinghtml==1.1.4; python_version >= "3.5"
-toml==0.10.2; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.6"
-tox==3.23.0; (python_version >= "2.7" and python_full_version < "3.0.0") or (python_full_version >= "3.5.0")
-typing-extensions==3.7.4.3; python_version >= "3.7" and python_version < "3.8"
-urllib3==1.26.4; python_version >= "3.5" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version < "4" and python_version >= "3.5"
-virtualenv==20.4.3; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0"
+sphinxcontrib-applehelp==1.0.2
+sphinxcontrib-devhelp==1.0.2
+sphinxcontrib-htmlhelp==1.0.3
+sphinxcontrib-jsmath==1.0.1
+sphinxcontrib-qthelp==1.0.3
+sphinxcontrib-serializinghtml==1.1.4
+toml==0.10.1
+tox==3.20.0
+urllib3==1.25.10
+virtualenv==20.0.31
 wrapt==1.12.1
-zipp==3.4.1; python_version >= "3.7" and python_version < "3.8"

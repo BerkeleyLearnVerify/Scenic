@@ -1,74 +1,52 @@
 """ Scenario Description
-Traffic Scenario 09.
-Right turn at an intersection with crossing traffic.
-The ego-vehicle is performing a right turn at an intersection, yielding to crossing traffic.
+Based on 2019 Carla Challenge Traffic Scenario 09.
+Ego-vehicle is performing a right turn at an intersection, yielding to crossing traffic.
 """
-
-## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
-model scenic.simulators.carla.model
+model scenic.domains.driving.model
 
-## CONSTANTS
-EGO_MODEL = "vehicle.lincoln.mkz2017"
-EGO_SPEED = 10
+DELAY_TIME_1 = 1 # the delay time for ego
+DELAY_TIME_2 = 40 # the delay time for the slow car
+FOLLOWING_DISTANCE = 13 # normally 10, 40 when DELAY_TIME is 25, 50 to prevent collisions
+
+DISTANCE_TO_INTERSECTION1 = Uniform(10, 15) * -1
+DISTANCE_TO_INTERSECTION2 = Uniform(15, 20) * -1
 SAFETY_DISTANCE = 20
 BRAKE_INTENSITY = 1.0
 
-## MONITORS
-monitor TrafficLights:
-    freezeTrafficLights()
-    while True:
-        if withinDistanceToTrafficLight(ego, 100):
-            setClosestTrafficLightStatus(ego, "red")
-        if withinDistanceToTrafficLight(adversary, 100):
-            setClosestTrafficLightStatus(adversary, "green")
-        wait
 
-## DEFINING BEHAVIORS
-behavior AdversaryBehavior(trajectory):
-    do FollowTrajectoryBehavior(trajectory=trajectory)
+behavior CrossingCarBehavior(trajectory):
+	do FollowTrajectoryBehavior(trajectory = trajectory)
+	terminate
 
-behavior EgoBehavior(speed, trajectory):
-    try:
-        do FollowTrajectoryBehavior(target_speed=speed, trajectory=trajectory)
-        do FollowLaneBehavior(target_speed=speed)
-    interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
-        take SetBrakeAction(BRAKE_INTENSITY)
+behavior EgoBehavior(trajectory):
+	try :
+		do FollowTrajectoryBehavior(trajectory=trajectory)
+	interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
+		take SetBrakeAction(BRAKE_INTENSITY)
 
-## DEFINING SPATIAL RELATIONS
-# Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
-# 'network' is the 'class Network' object in roads.py
 
-# The meaning of filter() function is explained in examples/carla/Carla_Challenge/carlaChallenge7.scenic
-fourWayIntersection = filter(lambda i: i.is4Way and i.isSignalized, network.intersections)
-
-# make sure to put '*' to uniformly randomly select from all elements of the list
+spawnAreas = []
+fourWayIntersection = filter(lambda i: i.is4Way, network.intersections)
 intersec = Uniform(*fourWayIntersection)
-ego_start_lane = Uniform(*intersec.incomingLanes)
 
-ego_maneuvers = filter(lambda i: i.type == ManeuverType.RIGHT_TURN, ego_start_lane.maneuvers)
-ego_maneuver = Uniform(*ego_maneuvers)
-ego_trajectory = [ego_maneuver.startLane, ego_maneuver.connectingLane, ego_maneuver.endLane]
+startLane = Uniform(*intersec.incomingLanes)
+straight_maneuvers = filter(lambda i: i.type == ManeuverType.STRAIGHT, startLane.maneuvers)
+straight_maneuver = Uniform(*straight_maneuvers)
+straight_trajectory = [straight_maneuver.startLane, straight_maneuver.connectingLane, straight_maneuver.endLane]
 
-adv_maneuvers = filter(lambda i: i.type == ManeuverType.STRAIGHT, ego_maneuver.conflictingManeuvers)
-adv_maneuver = Uniform(*adv_maneuvers)
-adv_trajectory = [adv_maneuver.startLane, adv_maneuver.connectingLane, adv_maneuver.endLane]
+conflicting_rightTurn_maneuvers = filter(lambda i: i.type == ManeuverType.RIGHT_TURN, straight_maneuver.conflictingManeuvers)
+ego_rightTurn_maneuver = Uniform(*conflicting_rightTurn_maneuvers)
+ego_startLane = ego_rightTurn_maneuver.startLane
+ego_trajectory = [ego_rightTurn_maneuver.startLane, ego_rightTurn_maneuver.connectingLane, \
+								ego_rightTurn_maneuver.endLane]
 
-adv_start_lane = adv_maneuver.startLane
+spwPt = startLane.centerline[-1]
+csm_spwPt = ego_startLane.centerline[-1]
 
-## OBJECT PLACEMENT
-ego_spawn_pt = OrientedPoint in ego_maneuver.startLane.centerline
-adv_spawn_pt = OrientedPoint in adv_maneuver.startLane.centerline
+crossing_car = Car following roadDirection from spwPt for DISTANCE_TO_INTERSECTION1,
+				with behavior CrossingCarBehavior(trajectory = straight_trajectory)
 
-ego = Car at ego_spawn_pt,
-    with blueprint EGO_MODEL,
-    with behavior EgoBehavior(EGO_SPEED, ego_trajectory)
-
-adversary = Car at adv_spawn_pt,
-    with behavior AdversaryBehavior(adv_trajectory)
-
-require (ego_maneuver.endLane == adv_maneuver.endLane)
-require 30 <= (distance to intersec) <= 35
-require 10 <= (distance from adversary to intersec) <= 15
-terminate when (distance to ego_spawn_pt) > 70
+ego = Car following roadDirection from csm_spwPt for DISTANCE_TO_INTERSECTION2,
+				with behavior EgoBehavior(ego_trajectory)
