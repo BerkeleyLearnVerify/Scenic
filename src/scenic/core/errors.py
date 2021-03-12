@@ -1,5 +1,6 @@
 """Common exceptions and error handling."""
 
+import importlib
 import itertools
 import pathlib
 import traceback
@@ -26,7 +27,8 @@ postMortemDebugging = False
 hiddenFolders = [
     pathlib.Path(scenic.core.__file__).parent,      # scenic.core submodules
     pathlib.Path(scenic.syntax.__file__).parent,    # scenic.syntax submodules
-    '<frozen importlib._bootstrap>',
+    '<frozen importlib._bootstrap>',                # parts of importlib used internally
+    pathlib.Path(importlib.__file__).parent,
 ]
 
 ## Exceptions
@@ -60,8 +62,9 @@ class TokenParseError(ScenicSyntaxError):
 class PythonParseError(ScenicSyntaxError):
     """Parse error occurring during Python parsing or compilation."""
     def __init__(self, exc):
-        self.msg, (self.filename, self.lineno, offset, text) = exc.args
-        self.text, self.offset = getText(self.filename, self.lineno, text, offset)
+        self.msg = exc.args[0]
+        self.filename, self.lineno = exc.filename, exc.lineno
+        self.text, self.offset = getText(self.filename, self.lineno, exc.text, exc.offset)
         super().__init__(self.msg)
         self.with_traceback(exc.__traceback__)
 

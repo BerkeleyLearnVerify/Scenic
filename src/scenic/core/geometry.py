@@ -26,12 +26,12 @@ def hypot(x, y) -> float:
 	return math.hypot(x, y)
 
 @monotonicDistributionFunction
-def max(*args):
-	return __builtins__['max'](*args)
+def max(*args, **kwargs):
+	return __builtins__['max'](*args, **kwargs)
 
 @monotonicDistributionFunction
-def min(*args):
-	return __builtins__['min'](*args)
+def min(*args, **kwargs):
+	return __builtins__['min'](*args, **kwargs)
 
 @distributionFunction
 def normalizeAngle(angle) -> float:
@@ -268,7 +268,9 @@ def cleanChain(chain, tolerance=1e-6, lineTolerance=1e-6):
 	return newChain
 
 def removeHoles(polygon):
-	if isinstance(polygon, shapely.geometry.MultiPolygon):
+	if polygon.is_empty:
+		return polygon
+	elif isinstance(polygon, shapely.geometry.MultiPolygon):
 		polys = (removeHoles(poly) for poly in polygon)
 		poly = shapely.geometry.MultiPolygon(polys)
 		assert poly.is_valid, poly

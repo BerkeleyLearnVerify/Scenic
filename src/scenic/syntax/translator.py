@@ -46,11 +46,11 @@ from tokenize import INDENT, DEDENT, STRING, SEMI
 
 import ast
 from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_missing_locations
-from ast import Load, Store, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, BitXor, LShift
+from ast import Load, Store, Del, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, BitXor, LShift
 from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Subscript, Index, IfExp
 from ast import NamedExpr, Yield, YieldFrom, FunctionDef, Attribute, Constant, Assign, Expr
 from ast import Return, Raise, If, UnaryOp, Not, ClassDef, Nonlocal, Global, Compare, Is, Try
-from ast import Break, Continue, AsyncFunctionDef, Pass
+from ast import Break, Continue, AsyncFunctionDef, Pass, While
 
 from scenic.core.distributions import Samplable, needsSampling, toDistribution
 from scenic.core.lazy_eval import needsLazyEvaluation
@@ -58,6 +58,7 @@ from scenic.core.object_types import _Constructible
 import scenic.core.errors as errors
 from scenic.core.errors import (TokenParseError, PythonParseError, ASTParseError,
 								InvalidScenarioError)
+import scenic.core.dynamics as dynamics
 import scenic.core.pruning as pruning
 import scenic.syntax.veneer as veneer
 
@@ -173,7 +174,7 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>')
 	# pull in new constructor (Scenic class) definitions, which change the way
 	# subsequent tokens are transformed)
 	blocks = partitionByImports(tokens)
-	veneer.activate(params, model, filename)
+	veneer.activate(params, model, filename, namespace)
 	newSourceBlocks = []
 	try:
 		# Execute preamble
@@ -291,6 +292,7 @@ softRequirement = 'require_soft'	# not actually a statement, but a marker for th
 requireAlwaysStatement = ('require', 'always')
 terminateWhenStatement = ('terminate', 'when')
 terminateSimulationWhenStatement = ('terminate', 'simulation', 'when')
+terminateAfterStatement = ('terminate', 'after')
 
 actionStatement = 'take'			# statement invoking a primitive action
 waitStatement = 'wait'				# statement invoking a no-op action
@@ -308,7 +310,9 @@ oneWordStatements = {	# TODO clean up
 	actionStatement, waitStatement, terminateStatement,
 	abortStatement, invokeStatement, simulatorStatement
 }
-twoWordStatements = { requireAlwaysStatement, terminateWhenStatement }
+twoWordStatements = {
+	requireAlwaysStatement, terminateWhenStatement, terminateAfterStatement,
+}
 threeWordStatements = { terminateSimulationWhenStatement }
 
 threeWordIncipits = { tokens[:2]: tokens[2] for tokens in threeWordStatements } # TODO improve
@@ -321,7 +325,9 @@ functionStatements = {
 	requireStatement, paramStatement, mutateStatement,
 	modelStatement, simulatorStatement
 }
-twoWordFunctionStatements = { requireAlwaysStatement, terminateWhenStatement }
+twoWordFunctionStatements = {
+	requireAlwaysStatement, terminateWhenStatement, terminateAfterStatement,
+}
 threeWordFunctionStatements = { terminateSimulationWhenStatement }
 def functionForStatement(tokens):
 	return '_'.join(tokens) if isinstance(tokens, tuple) else tokens
@@ -428,7 +434,7 @@ scenarioMarker = '_Scenic_scenario_'	# not a statement, but a marker for the par
 # Scenario blocks
 setupBlock = 'setup'
 composeBlock = 'compose'
-scenarioBlocks = { setupBlock, composeBlock }
+scenarioBlocks = { setupBlock, composeBlock, 'precondition', 'invariant' }
 
 ## Prefix operators
 
@@ -462,7 +468,7 @@ assert not any(op in twoWordStatements for op in prefixOperators)
 for imp in prefixOperators.values():
 	assert imp in api, imp
 
-## Modifiers
+## Modifiers and terminators
 
 class ModifierInfo(typing.NamedTuple):
 	name: str
@@ -478,6 +484,10 @@ modifierNames = {}
 for mod in modifiers:
 	assert mod.name not in modifierNames, mod
 	modifierNames[mod.name] = mod
+
+terminatorsForStatements = {
+	functionForStatement(terminateAfterStatement): ('seconds', 'steps'),
+}
 
 ## Infix operators
 
@@ -880,6 +890,8 @@ class TokenTranslator:
 							allowedModifiers[name] = mod.name
 					if context in modifierNames:
 						allowedTerminators = modifierNames[context].terminators
+					elif context in terminatorsForStatements:
+						allowedTerminators = terminatorsForStatements[context]
 			else:
 				allowedInfixOps = generalInfixOps
 
@@ -969,7 +981,7 @@ class TokenTranslator:
 							self.parseError(nextToken, f'invalid monitor name "{nextString}"')
 						injectToken((NAME, 'async'), spaceAfter=1)
 						injectToken((NAME, 'def'), spaceAfter=1)
-						injectToken((NAME, veneer.functionForMonitor(nextString)))
+						injectToken((NAME, dynamics.functionForMonitor(nextString)))
 						injectToken((LPAR, '('))
 						injectToken((RPAR, ')'))
 						advance()	# consume name
@@ -1246,10 +1258,10 @@ class LocalFinder(NodeVisitor):
 		self.nonlocals = set()
 
 	def visit_Global(self, node):
-		self.globals |= node.names
+		self.globals.update(node.names)
 
 	def visit_Nonlocal(self, node):
-		self.nonlocals |= node.names
+		self.nonlocals.update(node.names)
 
 	def visit_FunctionDef(self, node):
 		self.names.add(node.name)
@@ -1281,7 +1293,7 @@ class LocalFinder(NodeVisitor):
 		self.visit_Import(node)
 
 	def visit_Name(self, node):
-		if isinstance(node.ctx, Store):
+		if isinstance(node.ctx, (Store, Del)):
 			self.names.add(node.id)
 
 	def visit_ExceptHandler(self, node):
@@ -1683,36 +1695,38 @@ class ASTSurgeon(NodeTransformer):
 		if self.inBehavior:
 			self.parseError(node, 'cannot define a scenario inside a behavior')
 
-		name = node.name[len(scenarioMarker):]
+		# Set up arguments for setup block (also inherited by compose block)
 		args = node.args
 		args.args = initialBehaviorArgs + args.args
 		args = self.visit(args)
+
 		# Extract named blocks from scenario body, if any
 		simple = False	# simple scenario with no blocks
 		setup, compose = None, None
+		preconditions, invariants = [], []
 		for statement in node.body:
 			if isinstance(statement, AsyncFunctionDef):
 				if statement.name == setupBlock:
 					if setup:
 						self.parseError(statement,
 							f'scenario contains multiple "{setupBlock}" blocks')
-					returnLocals = Return(Call(Name('locals', Load()), [], []))
-					newBody = self.visit(statement.body) + [returnLocals]
-					newDef = FunctionDef('_setup', args, newBody,
-										 [Name(id='staticmethod', ctx=Load())], None)
-					setup = copy_location(newDef, statement)
+					setup = statement
 				elif statement.name == composeBlock:
 					if compose:
 						self.parseError(statement,
 							f'scenario contains multiple "{composeBlock}" blocks')
-					self.inCompose = self.inBehavior = True
-					defineChecker = FunctionDef(checkInvariantsName, tempArg,
-					                            [Return(Name(temporaryName, Load()))], [], None)
-					newBody = [defineChecker] + self.visit(statement.body)
-					newDef = FunctionDef('_compose', args, newBody,
-					                     [Name(id='staticmethod', ctx=Load())], None)
-					self.inCompose = self.inBehavior = False
-					compose = copy_location(newDef, statement)
+					compose = statement
+				elif statement.name in ('precondition', 'invariant'):
+					if len(statement.body) != 1 or not isinstance(statement.body[0], Expr):
+						self.parseError(statement.body[0], f'malformed precondition/invariant')
+					self.inGuard = True
+					test = self.visit(statement.body[0].value)
+					self.inGuard = False
+					assert isinstance(test, ast.AST)
+					if statement.name == 'precondition':
+						preconditions.append(test)
+					else:
+						invariants.append(test)
 				else:
 					simple = True
 			else:
@@ -1723,16 +1737,55 @@ class ASTSurgeon(NodeTransformer):
 				self.parseError(setup, f'simple scenario cannot have a "{setupBlock}" block')
 			if compose:
 				self.parseError(compose, f'simple scenario cannot have a "{composeBlock}" block')
-			returnLocals = Return(Call(Name('locals', Load()), [], []))
-			newBody = self.visit(node.body) + [returnLocals]
-			newDef = FunctionDef('_setup', args, newBody,
-								 [Name(id='staticmethod', ctx=Load())], None)
-			setup = copy_location(newDef, node)
-		if not setup:
-			setup = Assign([Name('_setup', Store())], Constant(None, None))
-		if not compose:
+			if preconditions or invariants:
+				self.parseError(node, f'simple scenario cannot have preconditions/invariants')
+
+		# Construct compose block
+		if compose or preconditions or invariants:
+			self.inCompose = self.inBehavior = True
+			preamble = self.makeBehaviorPreamble(preconditions, invariants)
+			if compose:
+				body = self.visit(compose.body)
+				if setup:
+					# make all locals in compose block actually use scope of setup block
+					# (the compose definition will be placed inside the setup function)
+					setupLocals = LocalFinder.findIn(setup.body)
+					composeLocals = LocalFinder.findIn(body)
+					commonLocals = setupLocals & composeLocals
+					if commonLocals:
+						body.insert(0, Nonlocal(list(commonLocals)))
+			else:
+				# generate no-op compose block to ensure invariants are checked
+				wait = self.generateInvocation(node, Constant((), None))
+				body = [While(Constant(True, None), wait, [])]
+				compose = node 	# for copy_location below
+			newBody = preamble + body
+			newDef = FunctionDef('_compose', noArgs, newBody, [], None)
+			self.inCompose = self.inBehavior = False
+			compose = copy_location(newDef, compose)
+		else:
 			compose = Assign([Name('_compose', Store())], Constant(None, None))
-		body = [setup, compose]
+
+		# Construct setup block
+		if setup:
+			oldBody = setup.body
+			oldLoc = setup
+		elif simple:
+			oldBody = node.body
+			oldLoc = node
+		else:
+			oldBody = []
+			oldLoc = node
+		getLocals = Call(Name('locals', Load()), [], [])
+		returnStmt = Return(getLocals)
+		newBody = self.visit(oldBody) + [compose, returnStmt]
+		newDef = FunctionDef('_setup', args, newBody,
+							 [Name(id='staticmethod', ctx=Load())], None)
+		setup = copy_location(newDef, oldLoc)
+
+		# Assemble scenario definition
+		name = node.name[len(scenarioMarker):]
+		body = [setup]
 		newDef = ClassDef(name, [Name(scenarioClass, Load())], [], body, [])
 		return copy_location(newDef, node)
 
@@ -1781,25 +1834,8 @@ class ASTSurgeon(NodeTransformer):
 					newStatements.append(newStatement)
 				else:
 					newStatements.extend(newStatement)
-		# generate precondition checks
-		precondChecks = []
-		for precondition in preconditions:
-			throw = Raise(exc=Name('PreconditionViolation', Load()), cause=None)
-			check = If(test=UnaryOp(Not(), precondition), body=[throw], orelse=[])
-			precondChecks.append(copy_location(check, precondition))
-		# generate invariant checker
-		invChecks = []
-		for invariant in invariants:
-			throw = Raise(exc=Name('InvariantViolation', Load()), cause=None)
-			check = If(test=UnaryOp(Not(), invariant), body=[throw], orelse=[])
-			invChecks.append(copy_location(check, invariant))
-		defineChecker = FunctionDef(checkInvariantsName, tempArg,
-									invChecks + [Return(Name(temporaryName, Load()))], [], None)
-		spot = Attribute(Name(behaviorArgName, Load()), 'checkInvariants', Store())
-		saveChecker = Assign([spot], Name(checkInvariantsName, Load()))
-		callChecker = Expr(Call(Name(checkInvariantsName, Load()), [], []))
-		# assemble new function body
-		newBody = precondChecks + [defineChecker, saveChecker, callChecker] + newStatements
+
+		newBody = self.makeBehaviorPreamble(preconditions, invariants) + newStatements
 		self.inBehavior = False
 		self.inLoop = oldInLoop
 
@@ -1812,14 +1848,42 @@ class ASTSurgeon(NodeTransformer):
 		genDefn = FunctionDef('makeGenerator', newArgs, newBody, decorators, node.returns)
 		classBody = docstring + [genDefn]
 		name = node.name
-		if veneer.isAMonitorName(name):
+		if dynamics.isAMonitorName(name):
 			superclass = monitorClass
-			name = veneer.monitorName(name)
+			name = dynamics.monitorName(name)
 		else:
 			superclass = behaviorClass
 		newDefn = ClassDef(name, [Name(superclass, Load())], [], classBody, [])
 
 		return copy_location(newDefn, node)
+
+	def makeBehaviorPreamble(self, preconditions, invariants):
+		# generate precondition checks
+		precondChecks = []
+		for precondition in preconditions:
+			call = Call(Name('PreconditionViolation', Load()),
+			            [Name(behaviorArgName, Load()), Constant(precondition.lineno, None)],
+			            [])
+			throw = Raise(exc=call, cause=None)
+			check = If(test=UnaryOp(Not(), precondition), body=[throw], orelse=[])
+			precondChecks.append(copy_location(check, precondition))
+		# generate invariant checker
+		invChecks = []
+		for invariant in invariants:
+			call = Call(Name('InvariantViolation', Load()),
+			            [Name(behaviorArgName, Load()), Constant(invariant.lineno, None)],
+			            [])
+			throw = Raise(exc=call, cause=None)
+			check = If(test=UnaryOp(Not(), invariant), body=[throw], orelse=[])
+			invChecks.append(copy_location(check, invariant))
+		defineChecker = FunctionDef(checkInvariantsName, tempArg,
+									invChecks + [Return(Name(temporaryName, Load()))], [], None)
+		spot = Attribute(Name(behaviorArgName, Load()), 'checkInvariants', Store())
+		saveChecker = Assign([spot], Name(checkInvariantsName, Load()))
+		callChecker = Expr(Call(Name(checkInvariantsName, Load()), [], []))
+		# assemble function body preamble
+		preamble = precondChecks + [defineChecker, saveChecker, callChecker]
+		return preamble
 
 	def visit_Yield(self, node):
 		if self.inCompose:
@@ -1868,9 +1932,8 @@ class ASTSurgeon(NodeTransformer):
 				metaAttrs = []
 				if isinstance(target, Subscript):
 					sl = target.slice
-					if not isinstance(sl, Index):
-						self.parseError(sl, 'malformed attributes for property default')
-					sl = sl.value
+					if isinstance(sl, Index):	# needed for compatibility with Python 3.8 and earlier
+						sl = sl.value
 					if isinstance(sl, Name):
 						metaAttrs.append(sl.id)
 					elif isinstance(sl, Tuple):
@@ -1929,47 +1992,34 @@ def storeScenarioStateIn(namespace, requirementSyntax):
 
 	# Save requirement syntax and other module-level information
 	moduleScenario = veneer.currentScenario
+	factory = veneer.simulatorFactory
 	bns = gatherBehaviorNamespacesFrom(moduleScenario._behaviors)
 	def handle(scenario):
 		scenario._requirementSyntax = requirementSyntax
-		scenario._simulatorFactory = staticmethod(veneer.simulatorFactory)
+		if isinstance(scenario, type):
+			scenario._simulatorFactory = staticmethod(factory)
+		else:
+			scenario._simulatorFactory = factory
 		scenario._behaviorNamespaces = bns
 	handle(moduleScenario)
 	namespace['_scenarios'] = tuple(veneer.scenarios)
 	for scenarioClass in veneer.scenarios:
 		handle(scenarioClass)
 
-	# Select top-level scenario for this module
-	useModuleScenario = True
-	if (not moduleScenario._objects and not moduleScenario._globalParameters
-		and not moduleScenario._requirements and len(veneer.scenarios) == 1):	# TODO improve?
-		soleScenario = veneer.scenarios[0]
-		sig = inspect.signature(soleScenario)
-		try:
-			sig.bind()	# Check if we can instantiate scenario with no arguments
-			useModuleScenario = False
-		except TypeError:
-			pass
-	if useModuleScenario:
-		scenario = moduleScenario
-		reqNamespace = namespace
-	else:
-		scenario = soleScenario()
-		scenario._prepare()		# Run setup block of scenario to create objects, etc.
-		reqNamespace = scenario.__dict__
-
 	# Extract requirements, scan for relations used for pruning, and create closures
-	scenario._compileRequirements(reqNamespace)
+	# (only for top-level scenario; modular scenarios will be handled when instantiated)
+	moduleScenario._compileRequirements()
 
 	# Save global parameters
 	for name, value in veneer._globalParameters.items():
 		if needsLazyEvaluation(value):
 			raise InvalidScenarioError(f'parameter {name} uses value {value}'
 									   ' undefined outside of object definition')
-	scenario._globalParameters = dict(veneer._globalParameters)
-	scenario._simulatorFactory = veneer.simulatorFactory
+	for scenario in veneer.scenarios:
+		scenario._bindGlobals(veneer._globalParameters)
+	moduleScenario._bindGlobals(veneer._globalParameters)
 
-	namespace['_scenario'] = scenario
+	namespace['_scenario'] = moduleScenario
 
 def gatherBehaviorNamespacesFrom(behaviors):
 	"""Gather any global namespaces which could be referred to by behaviors.
@@ -2000,25 +2050,29 @@ def gatherBehaviorNamespacesFrom(behaviors):
 
 def constructScenarioFrom(namespace, scenarioName=None):
 	"""Build a Scenario object from an executed Scenic module."""
+	modularScenarios = namespace['_scenarios']
 	if scenarioName:
 		ty = namespace.get(scenarioName, None)
-		if not (isinstance(ty, type) and issubclass(ty, veneer.DynamicScenario)):
+		if not (isinstance(ty, type) and issubclass(ty, dynamics.DynamicScenario)):
 			raise RuntimeError(f'no scenario "{scenarioName}" found')
-		sig = inspect.signature(ty)
-		try:
-			sig.bind()
-		except TypeError:
+		if ty._requiresArguments():
 			raise RuntimeError(f'cannot instantiate scenario "{scenarioName}"'
 			                   ' with no arguments') from None
 
-		innerScenario = ty()
-		innerScenario._prepare()
-	elif len(namespace['_scenarios']) > 1:
+		dynScenario = ty()
+	elif len(modularScenarios) > 1:
 		raise RuntimeError('multiple choices for scenario to run '
 		                   '(specify using the --scenario option)')
+	elif modularScenarios and not modularScenarios[0]._requiresArguments():
+		dynScenario = modularScenarios[0]()
 	else:
-		innerScenario = namespace['_scenario']
-	scenario = innerScenario._toScenario(namespace)
+		dynScenario = namespace['_scenario']
+
+	if not dynScenario._prepared:	# true for all except top-level scenarios
+		# Execute setup block (if any) to create objects and requirements;
+		# extract any requirements and scan for relations used for pruning
+		dynScenario._prepare()
+	scenario = dynScenario._toScenario(namespace)
 
 	# Prune infeasible parts of the space
 	if usePruning:

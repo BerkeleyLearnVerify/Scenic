@@ -1,3 +1,4 @@
+"""Simulator interface for LGSVL."""
 
 import math
 import warnings
@@ -35,35 +36,37 @@ class LGSVLSimulation(simulators.Simulation):
         self.client.reset()
 
         # Create LGSVL objects corresponding to Scenic objects
-        self.lgsvlObjects = {}
         for obj in self.objects:
-            # Figure out what type of LGSVL object this is
             if not hasattr(obj, 'lgsvlObject'):
                 continue    # not an LGSVL object
-            if not hasattr(obj, 'lgsvlName'):
-                raise RuntimeError(f'object {obj} does not have an lgsvlName property')
-            if not hasattr(obj, 'lgsvlAgentType'):
-                raise RuntimeError(f'object {obj} does not have an lgsvlAgentType property')
-            name = obj.lgsvlName
-            agentType = obj.lgsvlAgentType
+            self.createObjectInSimulator(obj)
 
-            # Set up position and orientation
-            state = lgsvl.AgentState()
-            elevation = obj.elevation
-            if elevation is None:
-                elevation = self.groundElevationAt(obj.position)
-            state.transform.position = utils.scenicToLGSVLPosition(obj.position, elevation)
-            state.transform.rotation = utils.scenicToLGSVLRotation(obj.heading)
+    def createObjectInSimulator(self, obj):
+        # Figure out what type of LGSVL object this is
+        if not hasattr(obj, 'lgsvlName'):
+            raise RuntimeError(f'object {obj} does not have an lgsvlName property')
+        if not hasattr(obj, 'lgsvlAgentType'):
+            raise RuntimeError(f'object {obj} does not have an lgsvlAgentType property')
+        name = obj.lgsvlName
+        agentType = obj.lgsvlAgentType
 
-            # Create LGSVL object
-            lgsvlObj = self.client.add_agent(name, agentType, state)
-            obj.lgsvlObject = lgsvlObj
-            
-            # Initialize Data
-            self.data[obj] = {}
-            # Initialize Apollo if needed
-            if getattr(obj, 'apolloVehicle', None):
-                self.initApolloFor(obj, lgsvlObj)
+        # Set up position and orientation
+        state = lgsvl.AgentState()
+        elevation = obj.elevation
+        if elevation is None:
+            elevation = self.groundElevationAt(obj.position)
+        state.transform.position = utils.scenicToLGSVLPosition(obj.position, elevation)
+        state.transform.rotation = utils.scenicToLGSVLRotation(obj.heading)
+
+        # Create LGSVL object
+        lgsvlObj = self.client.add_agent(name, agentType, state)
+        obj.lgsvlObject = lgsvlObj
+
+        # Initialize Data
+        self.data[obj] = {}
+        # Initialize Apollo if needed
+        if getattr(obj, 'apolloVehicle', None):
+            self.initApolloFor(obj, lgsvlObj)
 
     def groundElevationAt(self, pos):
         origin = utils.scenicToLGSVLPosition(pos, 100000)

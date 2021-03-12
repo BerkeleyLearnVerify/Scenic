@@ -16,13 +16,35 @@ def concatenateCenterlines(centerlines=[]):
     return PolylineRegion.unionAll(centerlines)
 
 def setLaneFollowingPIDControllers(is_vehicle, dt):
-    if is_vehicle: # Switch to LaneFollowing PID Controller
+    if is_vehicle:
         lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
         lat_controller = controllers.PIDLateralController(K_P=0.2, K_D=0.1, K_I=0, dt=dt)
 
     else:
         lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
         lat_controller = controllers.PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
+
+    return lon_controller, lat_controller
+
+def setTurnPIDControllers(is_vehicle, dt):
+    if is_vehicle:
+        lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+        lat_controller = controllers.PIDLateralController(K_P=0.8, K_D=0.2, K_I=0, dt=dt)
+
+    else:
+        lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+        lat_controller = controllers.PIDLateralController(K_P=0.4, K_D=0.1, K_I=0.0, dt=dt)
+
+    return lon_controller, lat_controller
+
+def setLaneChangingPIDControllers(is_vehicle, dt):
+    if is_vehicle:
+        lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+        lat_controller = controllers.PIDLateralController(K_P=0.08, K_D=0.3, K_I=0, dt=dt)
+
+    else:
+        lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+        lat_controller = controllers.PIDLateralController(K_P=0.1, K_D=0.3, K_I=0.0, dt=dt)
 
     return lon_controller, lat_controller
 
@@ -102,13 +124,7 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
     dt = simulation().timestep
     
     # instantiate longitudinal and latitudinal pid controllers
-    if is_vehicle:
-        _lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-        _lat_controller = controllers.PIDLateralController(K_P=0.2, K_D=0.1, K_I=0, dt=dt)
-
-    else:
-        _lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
-        _lat_controller = controllers.PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
+    _lon_controller, _lat_controller = setLaneFollowingPIDControllers(is_vehicle, dt)
 
     while True:
 
@@ -161,7 +177,7 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
             entering_intersection = False 
             target_speed = original_target_speed
             _lon_controller, _lat_controller = setLaneFollowingPIDControllers(is_vehicle, dt)
-            
+
         nearest_line_points = current_centerline.nearestSegmentTo(self.position)
         nearest_line_segment = PolylineRegion(nearest_line_points)
         cte = nearest_line_segment.signedDistanceTo(self.position)
@@ -175,12 +191,12 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
 
         # compute steering : Latitudinal Control
         current_steer_angle = _lat_controller.run_step(cte)
+
+        take RegulatedControlAction(throttle, current_steer_angle, past_steer_angle)
         past_steer_angle = current_steer_angle
         past_speed = current_speed
 
-        take RegulatedControlAction(throttle, current_steer_angle, past_steer_angle)
 
-    
 behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
     """ 
     Follows the given trajectory. The behavior terminates once the end of the trajectory is reached.
@@ -217,7 +233,7 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
             end_intersection = trajectory[-1].centerline[-1]
     else:
         end_intersection = trajectory[-1].centerline[-1]
-    
+
     while True:
         if self in _model.network.intersectionRegion:
             do TurnBehavior(trajectory_centerline)
@@ -264,16 +280,10 @@ behavior TurnBehavior(trajectory, target_speed=6):
         # assume it is a car
         is_vehicle = True
 
-    if is_vehicle:
-        _lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-        _lat_controller = controllers.PIDLateralController(K_P=0.5, K_D=0.1, K_I=0, dt=dt)
-
-    else:
-        _lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
-        _lat_controller = controllers.PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
+    # instantiate longitudinal and latitudinal pid controllers
+    _lon_controller, _lat_controller = setTurnPIDControllers(is_vehicle, dt)
 
     past_steer_angle = 0
-   
 
     while self in _model.network.intersectionRegion:
         if self.speed is not None:
@@ -292,7 +302,6 @@ behavior TurnBehavior(trajectory, target_speed=6):
 
         take RegulatedControlAction(throttle, current_steer_angle, past_steer_angle)
         past_steer_angle = current_steer_angle
-    
 
 
 behavior LaneChangeBehavior(laneSectionToSwitch, is_oppositeTraffic=False, target_speed=10):
@@ -330,13 +339,7 @@ behavior LaneChangeBehavior(laneSectionToSwitch, is_oppositeTraffic=False, targe
     dt = simulation().timestep
 
     # instantiate longitudinal and latitudinal pid controllers
-    if is_vehicle:
-        _lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-        _lat_controller = controllers.PIDLateralController(K_P=0.08, K_D=0.1, K_I=0, dt=dt)
-
-    else:
-        _lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
-        _lat_controller = controllers.PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.0, dt=dt)
+    _lon_controller, _lat_controller = setLaneChangingPIDControllers(is_vehicle, dt)
 
     past_steer_angle = 0
 
