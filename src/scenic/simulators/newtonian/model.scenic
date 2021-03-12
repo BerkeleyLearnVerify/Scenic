@@ -42,7 +42,7 @@ if 'carla_map' not in globalParameters:
     raise RuntimeError('need to specify map before importing CARLA model '
                        '(set the global parameter "carla_map")')
 if 'render' not in globalParameters:
-    render = False
+    render = True
 else:
     render = globalParameters.render
 simulator NewtonianSimulator(globalParameters.map, render=render)
