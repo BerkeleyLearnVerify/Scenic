@@ -19,7 +19,7 @@ print(f'current_dir = {current_dir}')
 
 WIDTH = 1280
 HEIGHT = 800
-max_acceleration = 5.6 # in m/s, seems to be a pretty reasonable value
+MAX_ACCELERATION = 5.6 # in m/s, seems to be a pretty reasonable value
 
 class NewtonianSimulator(DrivingSimulator):
     """Simulator which does nothing, for debugging purposes."""
@@ -28,7 +28,6 @@ class NewtonianSimulator(DrivingSimulator):
         self.timestep = timestep
         self.render = render
         self.network = Network.fromFile(self.carla_map)
-        # time.sleep(10)
 
     def createSimulation(self, scene, verbosity=0):
         return NewtonianSimulation(scene, self.network, timestep=self.timestep, verbosity=verbosity, render=self.render)
@@ -75,6 +74,8 @@ class NewtonianSimulation(DrivingSimulation):
     def parse_network(self):
         self.network_polygons = []
         for element in self.network.elements.values():
+            if not hasattr(element, 'polygon'):
+                continue
             if isinstance(element.polygon, shapely.geometry.multipolygon.MultiPolygon):
                 all_polygons = list(element.polygon)
             else:
@@ -115,7 +116,7 @@ class NewtonianSimulation(DrivingSimulation):
 
     def step(self):
         for obj in self.objects:
-            acceleration = obj.throttle * max_acceleration
+            acceleration = obj.throttle * MAX_ACCELERATION
             obj.velocity += Vector(0, acceleration * self.timestep)
             if obj.steer:
                 turning_radius = obj.length / sin(obj.steer * np.pi / 2)

@@ -172,6 +172,19 @@ class Maneuver(_ElementReferencer):
                 conflicts.append(maneuver)
         return tuple(conflicts)
 
+    @property
+    @utils.cached
+    def reverseManeuvers(self) -> Tuple[Maneuver]:
+    	"""Tuple[Maneuver]: Maneuvers whose start and end roads are the reverse of this one's."""
+    	start = self.startLane.road
+    	end = self.endLane.road
+    	reverses = []
+    	for maneuver in self.intersection.maneuvers:
+    		if (maneuver.startLane.road is end
+    			and maneuver.endLane.road is start):
+    			reverses.append(maneuver)
+    	return tuple(reverses)
+
 ## Road networks
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False)
