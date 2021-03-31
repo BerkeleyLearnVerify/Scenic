@@ -1,3 +1,6 @@
+# Poetry lock file
+poetry.lock
+
 # Scenic cache files
 *.snet
 
