@@ -8,9 +8,17 @@ try:
 except ModuleNotFoundError:
     pass    # ignore; error will be caught later if user attempts to run a simulation
 
-behavior AutopilotBehavior():
-    """Behavior causing a vehicle to use CARLA's built-in autopilot."""
-    take SetAutopilotAction(True)
+behavior AutopilotBehavior(ignore_lights_percentage=0, vehicle_percentage_speed_difference=30):
+    """
+    Behavior causing a vehicle to use CARLA's built-in autopilot. 
+    This also, optionally, allows setting some [TrafficManager](https://carla.readthedocs.io/en/latest/python_api/#carlatrafficmanager) parameters.
+
+    Args:
+        ignore_lights_percentage(float): Between 0 and 100. Amount of times traffic lights will be ignored.
+        vehicle_percentage_speed_difference(float): Percentage difference between intended speed and the current limit. Can be negative to exceed the limit.
+    
+    """
+    take SetAutopilotAction(True, ignore_lights_percentage, vehicle_percentage_speed_difference)
 
 behavior WalkForwardBehavior(speed=0.5):
 	take SetWalkingDirectionAction(self.heading), SetWalkingSpeedAction(speed)

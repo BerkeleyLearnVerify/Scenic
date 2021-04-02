@@ -96,13 +96,26 @@ class SetTrafficLightAction(VehicleAction):
 			traffic_light.set_state(self.color)
 
 class SetAutopilotAction(VehicleAction):
-	def __init__(self, enabled):
+	def __init__(self, enabled, ignore_lights_percentage=0, vehicle_percentage_speed_difference=30):
+		"""Enable or Disable the Autopilot for the current agent. Also allows to set certain TrafficManager 
+		parameters to configure the Autopilot behavior.
+		The default values of the Traffic Manager parameters are set to their Carla defaults
+		
+		Arguments
+			:param enabled: True if you want to turn on autopilot
+			:param ignore_lights_percentage: Between 0 and 100. Amount of times traffic lights will be ignored.
+			:param vehicle_percentage_speed_difference: Percentage difference between intended speed and the current limit. Can be negative to exceed the limit.
+		"""
 		if not isinstance(enabled, bool):
 			raise RuntimeError('Enabled must be a boolean.')
 		self.enabled = enabled
+		self.ignore_lights_percentage = ignore_lights_percentage
+		self.vehicle_percentage_speed_difference = vehicle_percentage_speed_difference
 
 	def applyTo(self, obj, sim):
 		vehicle = obj.carlaActor
+		sim.tm.ignore_lights_percentage(vehicle, self.ignore_lights_percentage)
+		sim.tm.vehicle_percentage_speed_difference(vehicle, self.vehicle_percentage_speed_difference)
 		vehicle.set_autopilot(self.enabled, sim.tm.get_port())
 
 #################################################
