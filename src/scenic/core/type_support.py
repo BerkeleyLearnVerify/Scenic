@@ -11,6 +11,7 @@ from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProp
                                    needsLazyEvaluation)
 from scenic.core.vectors import Vector
 from scenic.core.errors import RuntimeParseError, saveErrorLocation
+from scenic.core.utils import get_type_origin, get_type_args
 
 # Typing and coercion rules:
 #
@@ -52,7 +53,7 @@ def unifyingType(opts):		# TODO improve?
 	for opt in opts:
 		if isinstance(opt, StarredDistribution):
 			ty = underlyingType(opt)
-			typeargs = typing.get_args(ty)
+			typeargs = get_type_args(ty)
 			if typeargs == ():
 				types.append(ty)
 			else:
@@ -74,10 +75,10 @@ def unifyingType(opts):		# TODO improve?
 def canCoerceType(typeA, typeB):
 	"""Can values of typeA be coerced into typeB?"""
 	import scenic.syntax.veneer as veneer	# TODO improve
-	if typing.get_origin(typeA) is typing.Union:
+	if get_type_origin(typeA) is typing.Union:
 		# only raise an error now if none of the possible types will work;
 		# we'll do more careful checking at runtime
-		return any(canCoerceType(ty, typeB) for ty in typing.get_args(typeA))
+		return any(canCoerceType(ty, typeB) for ty in get_type_args(typeA))
 	if typeB is float:
 		return issubclass(typeA, numbers.Real)
 	elif typeB is Heading:
@@ -120,8 +121,8 @@ def coerce(thing, ty, error='wrong type'):
 
 	if isinstance(thing, Distribution):
 		vt = thing.valueType
-		if typing.get_origin(vt) is typing.Union:
-			possibleTypes = typing.get_args(vt)
+		if get_type_origin(vt) is typing.Union:
+			possibleTypes = get_type_args(vt)
 		else:
 			possibleTypes = (vt,)
 		if all(issubclass(possible, ty) for possible in possibleTypes):

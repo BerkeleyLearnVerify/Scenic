@@ -6,7 +6,11 @@ import sys
 import time
 import argparse
 import random
-import importlib.metadata
+
+if sys.version_info >= (3, 8):
+    from importlib import metadata
+else:
+    import importlib_metadata as metadata
 
 import scenic.syntax.translator as translator
 import scenic.core.errors as errors
@@ -55,7 +59,7 @@ debugOpts.add_argument('-b', '--full-backtrace', help='show full internal backtr
                        action='store_true')
 debugOpts.add_argument('--pdb', action='store_true',
                        help='enter interactive debugger on errors (implies "-b")')
-ver = importlib.metadata.version('scenic')
+ver = metadata.version('scenic')
 debugOpts.add_argument('--version', action='version', version=f'Scenic {ver}',
                        help='print Scenic version information and exit')
 debugOpts.add_argument('--dump-initial-python', help='dump initial translated Python',

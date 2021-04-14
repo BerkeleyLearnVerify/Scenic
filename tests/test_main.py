@@ -27,7 +27,8 @@ def runAndGetP(tmpdir, program, options=[], addEgo=True):
     lines = result.stdout.splitlines()
     value = None
     for line in lines:
-        if match := paramPattern.match(line):
+        match = paramPattern.match(line)
+        if match:
             assert value is None
             value = match.group(1)
     assert value is not None

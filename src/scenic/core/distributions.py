@@ -480,12 +480,13 @@ class AttributeDistribution(Distribution):
 
 	def __call__(self, *args):
 		vty = self.object.valueType
-		if vty is not object and (func := getattr(vty, self.attribute, None)):
-			if isinstance(func, property):
-				func = func.fget
-			retTy = typing.get_type_hints(func).get('return')
-		else:
-			retTy = None
+		retTy = None
+		if vty is not object:
+			func = getattr(vty, self.attribute, None)
+			if func:
+				if isinstance(func, property):
+					func = func.fget
+				retTy = typing.get_type_hints(func).get('return')
 		return OperatorDistribution('__call__', self, args, valueType=retTy)
 
 	def __str__(self):
