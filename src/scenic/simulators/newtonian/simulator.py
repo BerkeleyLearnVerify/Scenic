@@ -10,12 +10,12 @@ from scenic.syntax.veneer import verbosePrint
 from scenic.core.vectors import Vector
 import scenic.simulators.newtonian.utils.utils as utils
 from scenic.domains.driving.roads import Network
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 import time
 
 import pathlib
 current_dir = pathlib.Path(__file__).parent.absolute()
-print(f'current_dir = {current_dir}')
 
 WIDTH = 1280
 HEIGHT = 800
