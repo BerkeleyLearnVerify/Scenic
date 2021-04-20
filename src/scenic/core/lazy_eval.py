@@ -2,9 +2,6 @@
 """Support for lazy evaluation of expressions and specifiers."""
 
 import itertools
-import types
-
-from scenic.core.utils import DefaultIdentityDict
 
 class LazilyEvaluable:
 	"""Values which may require evaluation in the context of an object being constructed.
@@ -22,25 +19,14 @@ class LazilyEvaluable:
 
 		The object must define all of the properties on which this value depends.
 		"""
-		cache = context._evaluated		# cache of lazy values already evaluated in this context
-		if self in cache:
-			return cache[self]	# avoid making a new evaluated copy of this value
 		assert all(hasattr(context, prop) for prop in self._requiredProperties)
 		value = self.evaluateInner(context)
 		assert not needsLazyEvaluation(value)	# value should not require further evaluation
-		cache[self] = value
 		return value
 
 	def evaluateInner(self, context):
 		"""Actually evaluate in the given context, which provides all required properties."""
 		return self
-
-	@staticmethod
-	def makeContext(**props):
-		"""Make a context with the given properties for testing purposes."""
-		context = types.SimpleNamespace(**props)
-		context._evaluated = DefaultIdentityDict()
-		return context
 
 class DelayedArgument(LazilyEvaluable):
 	"""Specifier arguments requiring other properties to be evaluated first.
@@ -55,13 +41,10 @@ class DelayedArgument(LazilyEvaluable):
 		# at runtime, evaluate immediately in the context of the current agent
 		import scenic.syntax.veneer as veneer
 		if veneer.simulationInProgress() and veneer.currentBehavior:
-			agent = veneer.currentBehavior.agent
-			assert agent
+			behavior = veneer.currentBehavior
+			assert behavior.agent
 			darg.__init__(*args, **kwargs)
-			agent._evaluated = DefaultIdentityDict()
-			value = darg.evaluateIn(agent)
-			del agent._evaluated
-			return value
+			return darg.evaluateIn(behavior.agent)
 		else:
 			return darg
 
@@ -77,11 +60,13 @@ class DelayedArgument(LazilyEvaluable):
 			lambda context: getattr(self.evaluateIn(context), name))
 
 	def __call__(self, *args, **kwargs):
-		subprops = (requiredProperties(arg) for arg in itertools.chain(args, kwargs.values()))
+		dargs = [toDelayedArgument(arg) for arg in args]
+		kwdargs = { name: toDelayedArgument(arg) for name, arg in kwargs.items() }
+		subprops = (darg._requiredProperties for darg in itertools.chain(dargs, kwdargs.values()))
 		props = self._requiredProperties.union(*subprops)
 		def value(context):
-			subvalues = (valueInContext(arg, context) for arg in args)
-			kwsvs = { name: valueInContext(arg, context) for name, arg in kwargs.items() }
+			subvalues = (darg.evaluateIn(context) for darg in dargs)
+			kwsvs = { name: darg.evaluateIn(context) for name, darg in kwdargs.items() }
 			return self.evaluateIn(context)(*subvalues, **kwsvs)
 		return DelayedArgument(props, value)
 
@@ -107,9 +92,10 @@ allowedOperators = [
 ]
 def makeDelayedOperatorHandler(op):
 	def handler(self, *args):
-		props = self._requiredProperties.union(*(requiredProperties(arg) for arg in args))
+		dargs = [toDelayedArgument(arg) for arg in args]
+		props = self._requiredProperties.union(*(darg._requiredProperties for darg in dargs))
 		def value(context):
-			subvalues = (valueInContext(arg, context) for arg in args)
+			subvalues = (darg.evaluateIn(context) for darg in dargs)
 			return getattr(self.evaluateIn(context), op)(*subvalues)
 		return DelayedArgument(props, value)
 	return handler
@@ -118,26 +104,32 @@ for op in allowedOperators:
 
 def makeDelayedFunctionCall(func, args, kwargs):
 	"""Utility function for creating a lazily-evaluated function call."""
-	props = set().union(*(requiredProperties(arg)
-	                      for arg in itertools.chain(args, kwargs.values())))
+	dargs = [toDelayedArgument(arg) for arg in args]
+	kwdargs = { name: toDelayedArgument(arg) for name, arg in kwargs.items() }
+	props = set().union(*(darg._requiredProperties
+	                      for darg in itertools.chain(dargs, kwdargs.values())))
 	def value(context):
-		subvalues = (valueInContext(arg, context) for arg in args)
-		kwsubvals = { name: valueInContext(arg, context) for name, arg in kwargs.items() }
+		subvalues = (darg.evaluateIn(context) for darg in dargs)
+		kwsubvals = { name: darg.evaluateIn(context) for name, darg in kwdargs.items() }
 		return func(*subvalues, **kwsubvals)
 	return DelayedArgument(props, value)
 
 def valueInContext(value, context):
 	"""Evaluate something in the context of an object being constructed."""
-	if isinstance(value, LazilyEvaluable):
+	try:
 		return value.evaluateIn(context)
-	else:
+	except AttributeError:
 		return value
 
+def toDelayedArgument(thing, internal=False):
+	if isinstance(thing, DelayedArgument):
+		return thing
+	return DelayedArgument(set(), lambda context: thing, _internal=internal)
+
 def requiredProperties(thing):
-	if isinstance(thing, LazilyEvaluable):
+	if hasattr(thing, '_requiredProperties'):
 		return thing._requiredProperties
-	else:
-		return set()
+	return set()
 
 def needsLazyEvaluation(thing):
 	return isinstance(thing, DelayedArgument) or requiredProperties(thing)

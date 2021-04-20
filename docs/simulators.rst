@@ -14,27 +14,18 @@ CARLA
 -----
 
 Our interface to the `CARLA <https://carla.org/>`_ simulator enables using Scenic to describe autonomous driving scenarios.
-The interface supports dynamic scenarios written using the CARLA world model (:obj:`scenic.simulators.carla.model`) as well as scenarios using the cross-platform :ref:`driving_domain`.
-To use the interface, please follow these instructions:
+This interface is part of the VerifAI toolkit; documentation and examples can be found in the `VerifAI repository`_ (the Scenic repository also has several other example scenarios). Please follow the following instruction to install Carla and interface it with Scenic. 
 
-1. Install the latest version of CARLA (we've tested versions 0.9.9, 0.9.10, and 0.9.11) from the `CARLA Release Page <https://github.com/carla-simulator/carla/releases>`_.
-2. Install Scenic in your Python virtual environment as instructed in :ref:`quickstart`.
-3. Within the same virtual environment, install CARLA's Python API by executing the following command:
+1. Install the latest Carla (tested version 0.9.9 so far) from the `Release Page <https://github.com/carla-simulator/carla/releases>`_.
+2. Install Scenic in your python virtual environment as instructed in :ref:`quickstart`.
+3. Within the same python virtual environment, please install Carla's Python API by executing the following command in the terminal commandline::
 
-.. code-block:: console
+	easy_install \PATH_TO_CARLA_FOLDER\PythonAPI\carla\dist\carla-0.9.9-py3.7-linux-x86_64.egg
 
-	$ easy_install /PATH_TO_CARLA_FOLDER/PythonAPI/carla/dist/carla-0.9.9-py3.7-linux-x86_64.egg
+The exact name of the ``.egg`` file may vary depending on minor version of the Carla you installed. If different, please use the name of the egg file for python version 3. The PythonAPI package should be installed as ``carla`` package. For validation, if you execute ``pip list`` on terminal ``carla`` should be listed.
 
-The exact name of the ``.egg`` file may vary depending on the version of CARLA you installed; make sure to use the file for Python 3, not 2.
-You may get an error message saying ``Could not find suitable distribution``, which you can ignore.
-Instead, check that the ``carla`` package was correctly installed by running :command:`pip show carla`.
-
-To start CARLA, run the command :command:`./CarlaUE4.sh` in your CARLA folder.
-Once CARLA is running, you can run dynamic Scenic scenarios following the instructions in :ref:`the dynamics tutorial <dynamics_running_examples>`.
-
-.. note::
-
-	If you are using Scenic 1.x, there is an older CARLA interface which works with static Scenic scenarios and so requires agent behaviors to be written in plain Python. This interface is part of the VerifAI toolkit; documentation and examples can be found in the `VerifAI repository`_.
+To instantiate the Carla simulator, please run ``.\CarlaUE4.sh`` in your terminal. This bash file should be located at the root of your Carla folder. 
+If not, please search for it within your Carla folder. Once the Carla simulator is instantiated, please open another terminal window and follow the :ref:`quickstart` instructions.
 
 
 Grand Theft Auto V
@@ -49,14 +40,8 @@ Importing scenes into GTA V and capturing rendered images requires a GTA V plugi
 
 LGSVL
 -----
+We have developed an interface to the LGSVL simulator for autonomous driving, used in our `ITSC 2020 <ITSC2020>`__ paper. Please install the simulator from the `LGSVL Simulator <https://www.lgsvlsimulator.com/>`_ website. Then, within your python virutal environment where you installed Scenic, please also install LGSVL's python API package from `source <https://github.com/lgsvl/PythonAPI>`__. 
 
-We have developed an interface to the LGSVL simulator for autonomous driving, used in our `ITSC 2020 <ITSC2020>`__ paper.
-The interface supports dynamic scenarios written using the LGSVL world model (:obj:`scenic.simulators.lgsvl.model`) as well as scenarios using the cross-platform :ref:`driving_domain`.
-
-To use the interface, first install the simulator from the `LGSVL Simulator <https://www.lgsvlsimulator.com/>`_ website.
-Then, within the Python virtual environment where you installed Scenic, install LGSVL's Python API package from `source <https://github.com/lgsvl/PythonAPI>`__.
-
-An example of how to run a dynamic Scenic scenario in LGSVL is given in :ref:`dynamics`.
 
 Webots
 ------

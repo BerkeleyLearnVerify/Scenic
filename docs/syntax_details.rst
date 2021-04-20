@@ -171,10 +171,7 @@ Imports a Scenic or Python module. This statement behaves as in Python, but when
 
 param *identifier* = *value*, . . .
 ---------------------------------------
-Defines global parameters of the scenario. These have no semantics in Scenic, simply having their values included as part of the generated scene, but provide a general-purpose way to encode arbitrary global information.
-If multiple ``param`` statements define parameters with the same name, the last statement takes precedence, except that Scenic world models imported using the ``model`` statement do not override existing values for global parameters.
-This allows models to define default values for parameters which can be overridden by particular scenarios.
-Global parameters can also be overridden at the command line using the :option:`--param` option.
+Defines global parameters of the scenario. These have no semantics in Scenic, simply having their values included as part of the generated scene, but provide a general-purpose way to encode arbitrary global information
 
 .. _require *boolean*:
 

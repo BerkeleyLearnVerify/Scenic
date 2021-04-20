@@ -1,56 +1,53 @@
 """ Scenario Description
-Traffic Scenario 05.
-Lane changing to evade slow leading vehicle.
-The ego-vehicle performs a lane changing to evade a leading vehicle, which is moving too slowly.
+Based on 2019 Carla Challenge Traffic Scenario 05.
+Ego-vehicle performs a lane changing to evade a leading vehicle, which is moving too slowly.
 """
+param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
+param carla_map = 'Town05'
+model scenic.domains.driving.model
 
-## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town03.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town03'
-model scenic.simulators.carla.model
-
-## CONSTANTS
-EGO_MODEL = "vehicle.lincoln.mkz2017"
+#CONSTANTS
 EGO_SPEED = 10
-
-LEAD_CAR_SPEED = 3
-
+SLOW_CAR_SPEED = 6
+EGO_TO_BICYCLE = 10
 DIST_THRESHOLD = 15
-BYPASS_DIST = 15
 
-## BEHAVIORS
-behavior EgoBehavior(speed=10):
-    try: 
-        do FollowLaneBehavior(speed)
+#EGO BEHAVIOR: Follow lane, then perform a lane change
+behavior EgoBehavior(leftpath, origpath=[]):
+	laneChangeCompleted = False
 
-    interrupt when withinDistanceToAnyObjs(self, DIST_THRESHOLD):
-        # change to left (overtaking)
-        faster_lane = self.laneSection.fasterLane
-        do LaneChangeBehavior(laneSectionToSwitch=faster_lane, target_speed=speed)
-        do FollowLaneBehavior(speed, laneToFollow=faster_lane.lane) until (distance to lead) > BYPASS_DIST
+	try: 
+		do FollowLaneBehavior(EGO_SPEED)
 
-        # change to right
-        slower_lane = self.laneSection.slowerLane
-        do LaneChangeBehavior(laneSectionToSwitch=slower_lane, target_speed=speed)
-        do FollowLaneBehavior(speed) for 5 seconds
-        terminate
+	interrupt when withinDistanceToAnyObjs(self, DIST_THRESHOLD) and not laneChangeCompleted:
+		do LaneChangeBehavior(laneSectionToSwitch=leftpath, target_speed=10)
+		laneChangeCompleted = True
 
-behavior LeadingCarBehavior(speed=3):
-    do FollowLaneBehavior(speed)
+#OTHER BEHAVIOR
+behavior SlowCarBehavior():
+	do FollowLaneBehavior(SLOW_CAR_SPEED)
 
-## DEFINING SPATIAL RELATIONS
-# Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
-# 'network' is the 'class Network' object in roads.py
+#GEOMETRY
+laneSecsWithRightLane = []
+for lane in network.lanes:
+	for laneSec in lane.sections:
+		if laneSec._laneToRight != None:
+			laneSecsWithRightLane.append(laneSec)
 
-lane = Uniform(*network.lanes)
+assert len(laneSecsWithRightLane) > 0, \
+	'No lane sections with adjacent left lane in network.'
 
-ego = Car on lane.centerline,
-    with blueprint EGO_MODEL,
-    with behavior EgoBehavior(EGO_SPEED)
+initLaneSec = Uniform(*laneSecsWithRightLane)
+rightLane = initLaneSec._laneToRight
 
-lead = Car following roadDirection for Range(10, 25),
-    with behavior LeadingCarBehavior(LEAD_CAR_SPEED)
+#PLACEMENT
+spawnPt = OrientedPoint on initLaneSec.centerline
 
-require (distance to intersection) > 50
-require (distance from lead to intersection) > 50
-require always (lead.laneSection._fasterLane is not None)
+ego = Car at spawnPt,
+	with behavior EgoBehavior(rightLane, [initLaneSec])
+
+cyclist = Car following roadDirection from ego for EGO_TO_BICYCLE,
+	with behavior SlowCarBehavior()
+
+require (distance from ego to intersection) > 10
+require (distance from cyclist to intersection) > 10

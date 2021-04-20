@@ -19,8 +19,7 @@ General Scenario Control
 .. option:: -p <param> <value>, --param <param> <value>
 
 	Specify the value of a global parameter. This assignment overrides any
-	``param`` statements in the scenario. If the given value can be interpreted as an
-	int or float, it is; otherwise it is kept as a string.
+	``param`` statements in the scenario.
 
 Dynamic Simulations
 -------------------

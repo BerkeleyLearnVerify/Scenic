@@ -11,7 +11,6 @@ The main paper on Scenic is:
 	| :t:`Scenic: A Language for Scenario Specification and Scene Generation`.
 	| Fremont, Dreossi, Ghosh, Yue, Sangiovanni-Vincentelli, and Seshia.
 	| PLDI 2019. [`full version <https://arxiv.org/abs/1809.09310>`_]
-	| (see also the `extended preprint <https://arxiv.org/abs/2010.06580>`_ on Scenic 2.0)
 
 An expanded version of this paper appears as Chapters 5 and 8 of this thesis:
 
@@ -35,14 +34,13 @@ We have also used Scenic in several industrial case studies:
 
 	| :t:`Formal Analysis and Redesign of a Neural Network-Based Aircraft Taxiing System with VerifAI`.
 	| Fremont, Chiu, Margineantu, Osipychev, and Seshia.
-	| `CAV 2020 <https://people.eecs.berkeley.edu/~sseshia/pubs/b2hd-fremont-cav20.html>`_.
+	| CAV 2020 (to appear). [`arXiv preprint <https://arxiv.org/abs/2005.07173>`__]
 
 	.. _ITSC2020:
 
 	| :t:`Formal Scenario-Based Testing of Autonomous Vehicles: From Simulation to the Real World`.
 	| Fremont, Kim, Pant, Seshia, Acharya, Bruso, Wells, Lemke, Lu, and Mehta.
-	| `ITSC 2020 <https://people.eecs.berkeley.edu/~sseshia/pubs/b2hd-fremont-itsc20.html>`_.
-	| [See also `this white paper <https://gomentumstation.net/wp-content/uploads/2020/03/AAA-UCB-LG-AV-Testing-Project-Whitepaper-Final-2020-7-15.pdf>`_ and `associated blog post <https://gomentumstation.net/blog-2020-03-26/>`_]
+	| ITSC 2020 (to appear). [`arXiv preprint <https://arxiv.org/abs/2003.07739>`__]
 
 
 Other Papers Building on Scenic
@@ -50,4 +48,4 @@ Other Papers Building on Scenic
 
 	| :t:`A Programmatic and Semantic Approach to Explaining and Debugging Neural Network Based Object Detectors`.
 	| Kim, Gopinath, Pasareanu, and Seshia.
-	| `CVPR 2020 <https://people.eecs.berkeley.edu/~sseshia/pubs/b2hd-kim-cvpr20.html>`_.
+	| CVPR 2020 (to appear). [`arXiv preprint <https://arxiv.org/abs/1912.00289>`__]

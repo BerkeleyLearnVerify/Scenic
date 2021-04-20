@@ -8,7 +8,7 @@ import typing
 from scenic.core.distributions import (Distribution, RejectionException, StarredDistribution,
                                        distributionFunction)
 from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
-                                   needsLazyEvaluation)
+                                   needsLazyEvaluation, toDelayedArgument)
 from scenic.core.vectors import Vector
 from scenic.core.errors import RuntimeParseError, saveErrorLocation
 

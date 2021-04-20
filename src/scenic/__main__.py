@@ -80,17 +80,6 @@ errors.showInternalBacktrace = args.full_backtrace
 if args.pdb:
     errors.postMortemDebugging = True
     errors.showInternalBacktrace = True
-params = {}
-for name, value in args.param:
-    # Convert params to ints or floats if possible
-    try:
-        value = int(value)
-    except ValueError:
-        try:
-            value = float(value)
-        except ValueError:
-            pass
-    params[name] = value
 translator.dumpTranslatedPython = args.dump_initial_python
 translator.dumpFinalAST = args.dump_ast
 translator.dumpASTPython = args.dump_python
@@ -106,7 +95,7 @@ if args.verbosity >= 1:
 startTime = time.time()
 scenario = errors.callBeginningScenicTrace(
     lambda: translator.scenarioFromFile(args.scenicFile,
-                                        params=params,
+                                        params=dict(args.param),
                                         model=args.model,
                                         scenario=args.scenario)
 )
@@ -133,7 +122,7 @@ def generateScene():
 def runSimulation(scene):
     startTime = time.time()
     if args.verbosity >= 1:
-        print(f'  Beginning simulation of {scene.dynamicScenario}...')
+        print('  Beginning simulation...')
     try:
         result = errors.callBeginningScenicTrace(
             lambda: simulator.simulate(scene, maxSteps=args.time, verbosity=args.verbosity,
@@ -148,43 +137,35 @@ def runSimulation(scene):
         print(f'  Ran simulation in {totalTime:.4g} seconds.')
     return result is not None
 
-try:
-    if args.gather_stats is None:   # Generate scenes interactively until killed
-        import matplotlib.pyplot as plt
-        successCount = 0
-        while True:
-            scene, _ = generateScene()
-            if args.simulate:
-                success = runSimulation(scene)
-                if success:
-                    successCount += 1
-                    if 0 < args.count <= successCount:
-                        break
+if args.gather_stats is None:   # Generate scenes interactively until killed
+    import matplotlib.pyplot as plt
+    successCount = 0
+    while True:
+        scene, _ = generateScene()
+        if args.simulate:
+            success = runSimulation(scene)
+            if success:
+                successCount += 1
+                if 0 < args.count <= successCount:
+                    break
+        else:
+            if delay is None:
+                scene.show(zoom=args.zoom)
             else:
-                if delay is None:
-                    scene.show(zoom=args.zoom)
-                else:
-                    scene.show(zoom=args.zoom, block=False)
-                    plt.pause(delay)
-                    plt.clf()
-    else:   # Gather statistics over the specified number of scenes
-        its = []
-        startTime = time.time()
-        while len(its) < args.gather_stats:
-            scene, iterations = generateScene()
-            its.append(iterations)
-        totalTime = time.time() - startTime
-        count = len(its)
-        print(f'Sampled {len(its)} scenes in {totalTime:.2f} seconds.')
-        print(f'Average iterations/scene: {sum(its)/count}')
-        print(f'Average time/scene: {totalTime/count:.2f} seconds.')
-
-except KeyboardInterrupt:
-    pass
-
-finally:
-    if args.simulate:
-        simulator.destroy()
+                scene.show(zoom=args.zoom, block=False)
+                plt.pause(delay)
+                plt.clf()
+else:   # Gather statistics over the specified number of scenes
+    its = []
+    startTime = time.time()
+    while len(its) < args.gather_stats:
+        scene, iterations = generateScene()
+        its.append(iterations)
+    totalTime = time.time() - startTime
+    count = len(its)
+    print(f'Sampled {len(its)} scenes in {totalTime:.2f} seconds.')
+    print(f'Average iterations/scene: {sum(its)/count}')
+    print(f'Average time/scene: {totalTime/count:.2f} seconds.')
 
 def dummy():    # for the 'scenic' entry point to call after importing this module
     pass

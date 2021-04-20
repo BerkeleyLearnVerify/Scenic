@@ -412,8 +412,6 @@ the scenario once the ego spends 30 time steps in an intersection:
     ``terminate`` statement but another behavior uses ``require`` with a false condition,
     the simulation will be rejected rather than terminated.
 
-..  _dynamics_running_examples:
-
 Trying Some Examples
 --------------------
 
@@ -424,7 +422,7 @@ in :file:`examples/driving` in particular are designed to use Scenic's abstract
 find details on how to install the simulators in our :ref:`simulators` page; they should
 work on both Linux and Windows (but not macOS, at the moment).
 
-Once you have a simulator installed, you can try running one of our examples: let's take
+Once you have a simulator installed, you can try running one of an example: let's take
 :file:`examples/driving/badlyParkedCarPullingIn.scenic`, which implements the "a
 badly-parked car, which pulls into the road as the ego car approaches" scenario we
 mentioned above. To start out, you can run it like any other Scenic scenario to get the

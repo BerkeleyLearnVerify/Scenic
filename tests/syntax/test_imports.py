@@ -1,16 +1,10 @@
-"""Tests for imports of Scenic modules.
-
-Note that this is different from modular scenarios defined using the 'scenario'
-statement. This file simply tests imports of old-style Scenic modules; the new
-system of modular scenarios is tested in 'test_modular.py'.
-"""
 
 import os.path
 import pytest
 
 from scenic import scenarioFromFile
 from scenic.syntax.translator import InvalidScenarioError
-from tests.utils import compileScenic, sampleScene, sampleSceneFrom
+from tests.utils import compileScenic, sampleScene
 
 def test_import_top_absolute(request):
     base = os.path.dirname(request.fspath)
@@ -129,19 +123,3 @@ def test_import_multiline_2():
         '  pow)\n'
         'ego = Object with width pow(factorial(4), 2)'
     )
-
-def test_import_override_param():
-    scene = sampleSceneFrom("""
-        param helper_file = 'foo'
-        import tests.syntax.helper
-        ego = Object
-    """)
-    assert scene.params['helper_file'] != 'foo'
-
-def test_model_not_override_param():
-    scene = sampleSceneFrom("""
-        param helper_file = 'foo'
-        model tests.syntax.helper
-        ego = Object
-    """)
-    assert scene.params['helper_file'] == 'foo'

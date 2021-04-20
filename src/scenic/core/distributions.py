@@ -12,7 +12,7 @@ import wrapt
 
 from scenic.core.lazy_eval import (LazilyEvaluable,
     requiredProperties, needsLazyEvaluation, valueInContext, makeDelayedFunctionCall)
-from scenic.core.utils import DefaultIdentityDict, argsToString, areEquivalent, cached, sqrt2
+from scenic.core.utils import argsToString, areEquivalent, cached, sqrt2
 from scenic.core.errors import RuntimeParseError
 
 ## Misc
@@ -53,6 +53,24 @@ class RejectionException(Exception):
 	pass
 
 ## Abstract distributions
+
+class DefaultIdentityDict:
+	"""Dictionary which is the identity map by default.
+
+	The map works on all objects, even unhashable ones, but doesn't support all
+	of the standard mapping operations.
+	"""
+	def __init__(self):
+		self.storage = {}
+
+	def __getitem__(self, key):
+		return self.storage.get(id(key), key)
+
+	def __setitem__(self, key, value):
+		self.storage[id(key)] = value
+
+	def __contains__(self, key):
+		return id(key) in self.storage
 
 class Samplable(LazilyEvaluable):
 	"""Abstract class for values which can be sampled, possibly depending on other values.
@@ -108,7 +126,7 @@ class Samplable(LazilyEvaluable):
 		self._conditioned = value
 
 	def evaluateIn(self, context):
-		"""See `LazilyEvaluable.evaluateIn`."""
+		"""See LazilyEvaluable.evaluateIn."""
 		value = super().evaluateIn(context)
 		# Check that all dependencies have been evaluated
 		assert all(not needsLazyEvaluation(dep) for dep in value._dependencies)
@@ -382,7 +400,7 @@ class StarredDistribution(Distribution):
 		return value[self.value]
 
 	def evaluateInner(self, context):
-		return StarredDistribution(valueInContext(self.value, context), self.lineno)
+		return StarredDistribution(valueInContext(self.value, context))
 
 	def __str__(self):
 		return f'*{self.value}'
@@ -625,7 +643,7 @@ class Range(Distribution):
 		self.high = high
 
 	def __contains__(self, obj):
-		return self.low <= obj and obj <= self.high
+		return low <= obj and obj <= high
 
 	def clone(self):
 		return type(self)(self.low, self.high)

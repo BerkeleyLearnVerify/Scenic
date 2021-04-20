@@ -278,10 +278,6 @@ class OrientedVector(Vector):
 	def toHeading(self):
 		return self.heading
 
-	def evaluateInner(self, context):
-		hdg = valueInContext(self.heading, context)
-		return OrientedVector(*(valueInContext(coord, context) for coord in self.coordinates), hdg)
-
 	def __eq__(self, other):
 		if type(other) is not OrientedVector:
 			return NotImplemented

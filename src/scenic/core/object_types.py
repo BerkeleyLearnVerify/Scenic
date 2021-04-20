@@ -12,7 +12,7 @@ from scenic.core.geometry import (_RotatedRectangle, averageVectors, hypot, min,
 from scenic.core.regions import CircularRegion, SectorRegion
 from scenic.core.type_support import toVector, toHeading, toType
 from scenic.core.lazy_eval import needsLazyEvaluation
-from scenic.core.utils import DefaultIdentityDict, areEquivalent, cached_property
+from scenic.core.utils import areEquivalent, cached_property
 from scenic.core.errors import RuntimeParseError
 
 ## Abstract base class
@@ -129,10 +129,8 @@ class _Constructible(Samplable):
 
 		# Evaluate and apply specifiers
 		self.properties = set()		# will be filled by calls to _specify below
-		self._evaluated = DefaultIdentityDict()		# temporary cache for lazily-evaluated values
 		for spec in order:
 			spec.applyTo(self, optionalsForSpec[spec])
-		del self._evaluated
 
 		# Set up dependencies
 		deps = []
@@ -434,10 +432,6 @@ class Object(OrientedPoint, _RotatedRectangle):
 	def __setattr__(self, name, value):
 		proxy = object.__getattribute__(self, '_dynamicProxy')
 		object.__setattr__(proxy, name, value)
-
-	def __delattr__(self, name):
-		proxy = object.__getattribute__(self, '_dynamicProxy')
-		object.__delattr__(proxy, name)
 
 	@cached_property
 	def left(self):

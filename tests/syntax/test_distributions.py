@@ -330,19 +330,7 @@ def test_shared_dependency():
     assert any(x < 0.25 for x in xs)
     assert any(0.25 < x for x in xs)
 
-def test_shared_dependency_lazy_1():
-    scenario = compileScenic("""
-        vf = VectorField("Foo", lambda pos: 2 * pos.x)
-        x = 1 relative to vf
-        y = Uniform(0, x)
-        ego = Object with foo y, with bar y
-    """)
-    for i in range(60):
-        ego = sampleEgo(scenario)
-        assert ego.foo == 0 or ego.foo == 1
-        assert ego.foo == ego.bar
-
-def test_shared_dependency_lazy_2():
+def test_shared_dependency_lazy():
     scenario = compileScenic(
         'vf = VectorField("Foo", lambda pos: 2 * pos.x)\n'
         'x = Range(0, 1) relative to vf\n'

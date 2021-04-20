@@ -21,9 +21,6 @@ The Scenic tool and example scenarios have benefitted from code contributions fr
 	* Ellen Kalvan
 	* Martin Jansa (LG Electronics, Inc.)
 	* Kevin Li
-	* Guillermo López
-	* Shalin Mehta
-	* Joel Moriana
 	* Gaurav Rao
 	* Matthew Rhea
 	* Jay Shenoy
@@ -35,8 +32,8 @@ Finally, many other people provided helpful advice and discussions, including:
 	* Alastair Donaldson
 	* Andrew Gordon
 	* Steve Lemke
+	* Shalin Mehta
 	* Jonathan Ragan-Kelley
 	* Sriram Rajamani
-	* German Ros
 	* Marcell Vazquez-Chanlatte
 
