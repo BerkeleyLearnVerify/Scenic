@@ -1,6 +1,7 @@
 """Behaviors for dynamic agents in CARLA scenarios."""
 
 from scenic.domains.driving.behaviors import *	# use common driving behaviors
+import scenic.domains.driving.model as _model
 
 try:
     from scenic.simulators.carla.actions import *

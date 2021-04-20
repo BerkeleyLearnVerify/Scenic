@@ -3,7 +3,7 @@ import pytest
 
 import scenic
 from scenic.core.errors import ScenicSyntaxError, InvalidScenarioError
-from tests.utils import compileScenic, sampleScene, sampleEgo
+from tests.utils import compileScenic, sampleScene, sampleSceneFrom, sampleEgo
 
 ## Basic
 
@@ -66,6 +66,56 @@ def test_runtime_parse_error_in_requirement():
     with pytest.raises(ScenicSyntaxError):
         sampleScene(scenario, maxIterations=1)
 
+## Enforcement of built-in requirements
+
+def test_containment_requirement():
+    scenario = compileScenic("""
+        foo = RectangularRegion(0@0, 0, 10, 10)
+        ego = Object at Range(0, 10) @ 0, with regionContainedIn foo
+    """)
+    xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
+    assert all(0 <= x <= 5 for x in xs)
+
+def test_visibility_requirement():
+    scenario = compileScenic("""
+        ego = Object with visibleDistance 10, with viewAngle 90 deg, facing 45 deg
+        other = Object at Range(-10, 10) @ 0
+    """)
+    xs = [sampleScene(scenario, maxIterations=60).objects[1].position.x for i in range(60)]
+    assert all(-10 <= x <= 0.5 for x in xs)
+
+def test_visibility_requirement_disabled():
+    scenario = compileScenic("""
+        ego = Object with visibleDistance 10, with viewAngle 90 deg, facing 45 deg
+        other = Object at Range(-10, 10) @ 0, with requireVisible False
+    """)
+    xs = [sampleScene(scenario, maxIterations=60).objects[1].position.x for i in range(60)]
+    assert any(x > 0.5 for x in xs)
+
+def test_intersection_requirement():
+    scenario = compileScenic("""
+        ego = Object at Range(0, 2) @ 0
+        other = Object
+    """)
+    xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
+    assert all(x >= 1 for x in xs)
+
+def test_intersection_requirement_disabled_1():
+    scenario = compileScenic("""
+        ego = Object at Range(0, 2) @ 0, with allowCollisions True
+        other = Object
+    """)
+    xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
+    assert any(x < 1 for x in xs)
+
+def test_intersection_requirement_disabled_2():
+    scenario = compileScenic("""
+        ego = Object at Range(0, 2) @ 0
+        other = Object with allowCollisions True
+    """)
+    xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
+    assert any(x < 1 for x in xs)
+
 ## Static violations of built-in requirements
 
 def test_static_containment_violation():
@@ -89,9 +139,21 @@ def test_static_visibility_violation():
             Object at 0@10
         """)
 
+def test_static_visibility_violation_disabled():
+    sampleSceneFrom("""
+        ego = Object at 10@0, facing -90 deg, with viewAngle 90 deg
+        Object at 0@10, with requireVisible False
+    """)
+
 def test_static_intersection_violation():
     with pytest.raises(InvalidScenarioError):
         compileScenic("""
             ego = Object at 0@0
             Object at 1@0
         """)
+
+def test_static_intersection_violation_disabled():
+    sampleSceneFrom("""
+        ego = Object at 0@0
+        Object at 1@0, with allowCollisions True
+    """)
