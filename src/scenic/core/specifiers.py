@@ -2,7 +2,7 @@
 
 import itertools
 
-from scenic.core.lazy_eval import (DelayedArgument, toDelayedArgument, requiredProperties,
+from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
                                    needsLazyEvaluation)
 from scenic.core.distributions import toDistribution
 from scenic.core.errors import RuntimeParseError
@@ -16,7 +16,7 @@ class Specifier:
 	"""
 	def __init__(self, prop, value, deps=None, optionals={}, internal=False):
 		self.property = prop
-		self.value = toDelayedArgument(value, internal)
+		self.value = value
 		if deps is None:
 			deps = set()
 		deps |= requiredProperties(value)
@@ -27,7 +27,7 @@ class Specifier:
 
 	def applyTo(self, obj, optionals):
 		"""Apply specifier to an object, including the specified optional properties."""
-		val = self.value.evaluateIn(obj)
+		val = valueInContext(self.value, obj)
 		val = toDistribution(val)
 		assert not needsLazyEvaluation(val)
 		obj._specify(self.property, val)
