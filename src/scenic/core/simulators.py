@@ -160,7 +160,8 @@ class Simulation:
             if terminationReason is None:
                 terminationReason = f'reached time limit ({maxSteps} steps)'
             result = SimulationResult(trajectory, actionSequence, terminationReason)
-            return result
+            self.result = result
+            return self
         finally:
             self.destroy()
             for obj in self.scene.objects:

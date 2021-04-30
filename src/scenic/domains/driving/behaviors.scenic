@@ -144,7 +144,7 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
                 if len(current_lane.maneuvers) > 0:
                     select_maneuver = Uniform(*current_lane.maneuvers)
                 else:
-                    take SetBrakeAction()
+                    take SetBrakeAction(1.0)
                     break
 
             # assumption: there always will be a maneuver
@@ -360,7 +360,7 @@ behavior LaneChangeBehavior(laneSectionToSwitch, is_oppositeTraffic=False, targe
                 if len(current_lane.maneuvers) > 0:
                     select_maneuver = Uniform(*current_lane.maneuvers)
                 else:
-                    take SetBrakeAction()
+                    take SetBrakeAction(1.0)
                     break
 
             # assumption: there always will be a maneuver

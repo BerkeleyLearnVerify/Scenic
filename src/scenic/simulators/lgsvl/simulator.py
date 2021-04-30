@@ -4,6 +4,7 @@ import math
 import warnings
 
 import lgsvl
+import time
 
 import scenic.core.simulators as simulators
 import scenic.simulators.lgsvl.utils as utils
@@ -61,6 +62,7 @@ class LGSVLSimulation(simulators.Simulation):
         # Create LGSVL object
         lgsvlObj = self.client.add_agent(name, agentType, state)
         obj.lgsvlObject = lgsvlObj
+        time.sleep(5)
 
         # Initialize Data
         self.data[obj] = {}
@@ -86,6 +88,7 @@ class LGSVLSimulation(simulators.Simulation):
         self.usingApollo = True
 
         def on_collision(agent1, agent2, contact):
+            print(f'Ego collided; lgsvlObj.name = {lgsvlObj.name}')
             if agent1 is not None and agent1.name == lgsvlObj.name:
                 self.data[obj]['collision'] = True
             if agent2 is not None and agent2.name == lgsvlObj.name:
@@ -101,44 +104,44 @@ class LGSVLSimulation(simulators.Simulation):
         lgsvlObj.connect_bridge(obj.bridgeHost, obj.bridgePort)
 
         # set up connection and map/vehicle configuration
-        import dreamview
+        from lgsvl import dreamview
         dv = dreamview.Connection(self.client, lgsvlObj)
         obj.dreamview = dv
         waitToStabilize = False
         hdMap = self.scene.params['apolloHDMap']
-        if dv.getCurrentMap() != hdMap:
-            dv.setHDMap(hdMap)
-            waitToStabilize = True
-        if dv.getCurrentVehicle() != obj.apolloVehicle:
-            dv.setVehicle(obj.apolloVehicle)
-            waitToStabilize = True
+        # if dv.get_current_map() != hdMap:
+        dv.set_hd_map(hdMap)
+        waitToStabilize = True
+        # if dv.get_current_vehicle() != obj.apolloVehicle:
+        dv.set_vehicle(obj.apolloVehicle)
+        waitToStabilize = True
         
-        verbosePrint('Initializing Apollo...')
+        # verbosePrint('Initializing Apollo...')
 
-        # stop the car to cancel buffered speed from previous simulations
-        cntrl = lgsvl.VehicleControl()
-        cntrl.throttle = 0.0
-        lgsvlObj.apply_control(cntrl, True)
-        # start modules
-        dv.disableModule('Control')
-        ready = dv.getModuleStatus()
-        for module in obj.apolloModules:
-            if not ready[module]:
-                dv.enableModule(module)
-                verbosePrint(f'Module {module} is not ready...')
-                waitToStabilize = True
-        while True:
-            ready = dv.getModuleStatus()
-            if all(ready[module] for module in obj.apolloModules):
-                break
+        # # stop the car to cancel buffered speed from previous simulations
+        # cntrl = lgsvl.VehicleControl()
+        # cntrl.throttle = 0.0
+        # lgsvlObj.apply_control(cntrl, True)
+        # # start modules
+        # dv.disable_module('Control')
+        # ready = dv.get_module_status()
+        # for module in obj.apolloModules:
+        #     if not ready[module]:
+        #         dv.enable_module(module)
+        #         verbosePrint(f'Module {module} is not ready...')
+        #         waitToStabilize = True
+        # while True:
+        #     ready = dv.get_module_status()
+        #     if all(ready[module] for module in obj.apolloModules):
+        #         break
 
         # wait for Apollo to stabilize, if needed
-        if waitToStabilize:
-            verbosePrint('Waiting for Apollo to stabilize...')
-            self.client.run(25)
-        dv.enableModule('Control')
-        self.client.run(15)
-        verbosePrint('Initialized Apollo.')
+        # if waitToStabilize:
+        #     verbosePrint('Waiting for Apollo to stabilize...')
+        #     self.client.run(25)
+        # dv.enable_module('Control')
+        # self.client.run(15)
+        # verbosePrint('Initialized Apollo.')
 
     def executeActions(self, allActions):
         super().executeActions(allActions)
