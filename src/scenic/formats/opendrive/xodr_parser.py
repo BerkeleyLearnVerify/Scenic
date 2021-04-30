@@ -19,6 +19,12 @@ from scenic.core.geometry import (polygonUnion, cleanPolygon, cleanChain, plotPo
 from scenic.core.vectors import Vector
 from scenic.domains.driving import roads as roadDomain
 
+class OpenDriveWarning(UserWarning):
+    pass
+
+def warn(message):
+    warnings.warn(message, OpenDriveWarning, stacklevel=2)
+
 def buffer_union(polys, tolerance=0.01):
     return polygonUnion(polys, buf=tolerance, tolerance=tolerance)
 
@@ -610,8 +616,8 @@ class Road:
                     if lane.pred in last_section.lanesByOpenDriveID:
                         pred = last_section.lanesByOpenDriveID[lane.pred]
                     else:
-                        warnings.warn(f'road {self.id_} section {len(roadSections)} '
-                                      f'lane {id_} has a non-drivable predecessor')
+                        warn(f'road {self.id_} section {len(roadSections)} '
+                             f'lane {id_} has a non-drivable predecessor')
                         pred = None
                 else:
                     pred = lane.pred    # will correct inter-road links later
@@ -668,7 +674,7 @@ class Road:
         def combineSections(laneIDs, sections, name):
             leftmost, rightmost = max(laneIDs), min(laneIDs)
             if len(laneIDs) != leftmost-rightmost+1:
-                warnings.warn(f'ignoring {name} in the middle of road {self.id_}')
+                warn(f'ignoring {name} in the middle of road {self.id_}')
             leftPoints, rightPoints = [], []
             if leftmost < 0:
                 leftmost = rightmost
@@ -1285,7 +1291,7 @@ class RoadMap:
                                         lane_links)
                 junction.paths.append(int(c.get('connectingRoad')))
             if not junction.paths:
-                warnings.warn(f'junction {junction.id_} has no connecting roads; skipping it')
+                warn(f'junction {junction.id_} has no connecting roads; skipping it')
                 continue
             self.junctions[junction.id_] = junction
 
@@ -1313,10 +1319,10 @@ class RoadMap:
                 pred_link = succ_link = None
 
             if road.length < self.tolerance:
-                warnings.warn(f'road {road.id_} has length shorter than tolerance;'
-                              'geometry may contain artifacts')
+                warn(f'road {road.id_} has length shorter than tolerance;'
+                     ' geometry may contain artifacts')
                 if self.elide_short_roads:
-                    warnings.warn(f'attempting to elide road {road.id_} of length {road.length}')
+                    warn(f'attempting to elide road {road.id_} of length {road.length}')
                     assert road.junction is None
                     self.elidedRoads[road.id_] = road
                     if pred_link:
@@ -1392,15 +1398,15 @@ class RoadMap:
                 if l < 0:
                     raise RuntimeError(f'planView of road {road.id_} is not in order')
                 elif l < 1e-6:
-                    warnings.warn(f'road {road.id_} reference line has a geometry of '
-                                  f'length {l}; skipping it')
+                    warn(f'road {road.id_} reference line has a geometry of '
+                         f'length {l}; skipping it')
                 else:
                     refLine.append(lastCurve)
                 lastS = s0
                 lastCurve = curve
             if refLine and lastCurve.length < 1e-6:
-                warnings.warn(f'road {road.id_} reference line has a geometry of '
-                              f'length {lastCurve.length}; skipping it')
+                warn(f'road {road.id_} reference line has a geometry of '
+                     f'length {lastCurve.length}; skipping it')
             else:
                 # even if the last curve is shorter than the threshold, we'll keep it if
                 # it is the only curve; getting rid of the road entirely is handled by
@@ -1420,8 +1426,7 @@ class RoadMap:
 
             def popLastSectionIfShort(l):
                 if l < 1e-6:
-                    warnings.warn(f'road {road.id_} has a lane section of '
-                                  f'length {l}; skipping it')
+                    warn(f'road {road.id_} has a lane section of length {l}; skipping it')
 
                     # delete the length-0 section and re-link lanes appropriately
                     badSec = road.lane_secs.pop()
@@ -1586,7 +1591,7 @@ class RoadMap:
                 continue
             assert junction.poly is not None
             if junction.poly.is_empty:
-                warnings.warn(f'skipping empty junction {jid}')
+                warn(f'skipping empty junction {jid}')
                 continue
 
             # Gather all lanes involved in the junction's connections
@@ -1671,8 +1676,7 @@ class RoadMap:
                     # TODO why is it allowed for this not to exist?
                     outgoingLane = toLane.lane._successor
                     if outgoingLane is None:
-                        warnings.warn(f'connecting road {connectingID} lane {toID} '
-                                      'has no successor lane')
+                        warn(f'connecting road {connectingID} lane {toID} has no successor lane')
                     else:
                         if outgoingLane not in allOutgoingLanes:
                             allOutgoingLanes.append(outgoingLane)

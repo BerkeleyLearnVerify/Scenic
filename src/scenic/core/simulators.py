@@ -70,6 +70,7 @@ class Simulation:
         self.currentTime = 0
         self.timestep = timestep
         self.verbosity = verbosity
+        self.worker_num = 0
 
     def run(self, maxSteps):
         """Run the simulation.

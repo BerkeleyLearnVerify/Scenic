@@ -196,11 +196,11 @@ def wrapStarredValue(value, lineno):
 	else:
 		raise RuntimeParseError(f'iterable unpacking cannot be applied to {value}')
 
-def callWithStarArgs(func, /, *args, **kwargs):
-	if not canUnpackDistributions(func):
+def callWithStarArgs(_func_to_call, *args, **kwargs):
+	if not canUnpackDistributions(_func_to_call):
 		# wrap function to delay evaluation until starred distributions are sampled
-		func = distributionFunction(func)
-	return func(*args, **kwargs)
+		_func_to_call = distributionFunction(_func_to_call)
+	return _func_to_call(*args, **kwargs)
 
 # Simulations
 
