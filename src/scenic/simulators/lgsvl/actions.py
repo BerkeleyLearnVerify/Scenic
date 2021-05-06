@@ -39,7 +39,7 @@ class FollowWaypointsAction(Action):
 # 		return agent.lgsvlAgentType == lgsvl.AgentType.PEDESTRIAN
 
 # 	def applyTo(self, obj, sim):
-		
+
 
 class CancelWaypointsAction(Action):
 	def canBeTakenBy(self, agent):
@@ -60,9 +60,6 @@ class SetDestinationAction(Action):
 		if self.timer == 0:
 			z = sim.groundElevationAt(self.dest)
 			# from lgsvl import dreamview
-			print(obj.position, obj.lgsvlObject.transform, self.dest)
-			gps_coords = sim.client.map_to_gps(lgsvl.Transform(position=lgsvl.Vector(self.dest.x, -7, self.dest.y)))
-			print(gps_coords)
 			modules = [
 			    'Localization',
 			    'Third Party Perception',
