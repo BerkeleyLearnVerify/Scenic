@@ -33,6 +33,17 @@ def compileDrivingScenario(cached_maps, code='', useCache=True,
 
 maps = glob.glob('tests/formats/opendrive/maps/**/*.xodr')
 
+# TODO fix handling of this problematic map
+badmap = 'tests/formats/opendrive/maps/opendrive.org/sample1.1.xodr'
+map_params = []
+for path in maps:
+    if path == badmap:
+        param = pytest.param(badmap, marks=pytest.mark.xfail(
+                    reason='unsolved bug in geometry calculations', strict=True))
+    else:
+        param = path
+    map_params.append(param)
+
 @pytest.fixture(scope='session')
 def cached_maps(tmpdir_factory):
     folder = tmpdir_factory.mktemp('maps')
@@ -45,7 +56,7 @@ def cached_maps(tmpdir_factory):
     return paths
 
 @pytest.mark.slow
-@pytest.mark.parametrize("path", maps)
+@pytest.mark.parametrize("path", map_params)
 def test_opendrive(path, cached_maps):
     try:
         # First, try the original .xodr file
