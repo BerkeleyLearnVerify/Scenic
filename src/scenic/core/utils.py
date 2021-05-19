@@ -5,15 +5,15 @@ import math
 import sys
 import typing
 
-import wrapt
+import decorator
 
 sqrt2 = math.sqrt(2)
 
 def cached(oldMethod):
     """Decorator for making a method with no arguments cache its result"""
     storageName = f'_cached_{oldMethod.__name__}'
-    @wrapt.decorator
-    def wrapper(wrapped, instance, args, kwargs):
+    @decorator.decorator
+    def wrapper(wrapped, *args, **kwargs):
         self = args[0]
         try:
             # Use __getattribute__ for direct lookup in case self is a Distribution

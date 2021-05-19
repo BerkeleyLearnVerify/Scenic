@@ -35,7 +35,7 @@ pillow = "^8.1.1"
 pynverse = "^0.1.4"
 pygame = "^2.0.1"
 attrs = "^19.3.0"
-wrapt = "^1.12.1"
+decorator = "^5.0.9"
 importlib_metadata = { version = "^3.7", python = "~3.7" }
 
 pyproj = {version = "^3.0.0", optional = true}
