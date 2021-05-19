@@ -120,6 +120,12 @@ def scenarioFromStream(stream, params={}, model=None, scenario=None,
 			for name, module in sys.modules.items():
 				if name not in oldModules and getattr(module, '_isScenicModule', False):
 					toRemove.append(name)
+				elif (name.startswith(('scenic.domains.', 'scenic.simulators.'))
+				      and any(getattr(val, '_isScenicModule', False)
+				              for val in module.__dict__.values())):
+					# TODO improve this heuristic? not safe in general to keep any modules
+					# with references to Scenic modules, but detecting such references is hard.
+					toRemove.append(name)
 			for name in toRemove:
 				del sys.modules[name]
 	# Construct a Scenario from the resulting namespace
