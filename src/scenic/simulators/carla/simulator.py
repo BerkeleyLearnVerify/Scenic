@@ -160,7 +160,12 @@ class CarlaSimulation(DrivingSimulation):
 		loc = utils.scenicToCarlaLocation(obj.position, world=self.world, blueprint=obj.blueprint)
 		rot = utils.scenicToCarlaRotation(obj.heading)
 		transform = carla.Transform(loc, rot)
-
+		
+		# Set the color
+		c = obj.color
+		c_str = f'{int(c.r*255)},{int(c.g*255)},{int(c.b*255)}'
+		blueprint.set_attribute('color', c_str)
+		
 		# Create Carla actor
 		carlaActor = self.world.try_spawn_actor(blueprint, transform)
 		if carlaActor is None:
@@ -171,6 +176,8 @@ class CarlaSimulation(DrivingSimulation):
 		carlaActor.set_simulate_physics(obj.physics)
 
 		if isinstance(carlaActor, carla.Vehicle):
+			obj.width = carlaActor.bounding_box.extent.y * 2
+			obj.length = carlaActor.bounding_box.extent.x * 2
 			carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
 		elif isinstance(carlaActor, carla.Walker):
 			carlaActor.apply_control(carla.WalkerControl())
