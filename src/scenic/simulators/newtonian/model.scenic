@@ -13,8 +13,8 @@ from scenic.simulators.newtonian.simulator import NewtonianSimulator    # for us
 from scenic.simulators.newtonian.actions import *
 
 if 'map' not in globalParameters:
-    raise RuntimeError('need to specify map before importing CARLA model '
-                       '(set the global parameter "carla_map")')
+    raise RuntimeError('need to specify map before importing Newtonian simulator model '
+                       '(set the global parameter "map")')
 if 'render' not in globalParameters:
     render = True
 else:
