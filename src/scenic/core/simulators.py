@@ -37,7 +37,7 @@ class Simulator:
             # Run a single simulation
             try:
                 simulation = self.createSimulation(scene, verbosity=verbosity)
-                result = simulation.run(maxSteps)
+                simulation.run(maxSteps)
             except (RejectSimulationException, RejectionException, dynamics.GuardViolation) as e:
                 if verbosity >= 2:
                     print(f'  Rejected simulation {iterations} at time step '
@@ -49,8 +49,8 @@ class Simulator:
             # Completed the simulation without violating a requirement
             if verbosity >= 2:
                 print(f'  Simulation {iterations} ended successfully at time step '
-                      f'{simulation.currentTime} because of: {result.terminationReason}')
-            return result
+                      f'{simulation.currentTime} because of: {simulation.result.terminationReason}')
+            return simulation
         return None
 
     def createSimulation(self, scene, verbosity=0):
