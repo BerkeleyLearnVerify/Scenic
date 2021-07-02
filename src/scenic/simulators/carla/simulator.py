@@ -26,8 +26,7 @@ class CarlaSimulator(DrivingSimulator):
 	def __init__(self, carla_map, map_path, address='127.0.0.1', port=2000, timeout=10,
 				 render=True, record='', timestep=0.1):
 		super().__init__()
-		print(f'Connecting to CARLA on port {port}')
-		verbosePrint('Connecting to CARLA...')
+		verbosePrint('Connecting to CARLA on port {port}')
 		self.client = carla.Client(address, port)
 		self.client.set_timeout(timeout)  # limits networking operations (seconds)
 		if carla_map is not None:

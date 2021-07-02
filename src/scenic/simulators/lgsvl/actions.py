@@ -34,13 +34,6 @@ class FollowWaypointsAction(Action):
 			obj.lgsvlObject.follow(self.waypoints)
 		self.lastTime = sim.currentTime
 
-# class SetWalkAction(Action):
-# 	def canBeTakenBy(self, agent):
-# 		return agent.lgsvlAgentType == lgsvl.AgentType.PEDESTRIAN
-
-# 	def applyTo(self, obj, sim):
-		
-
 class CancelWaypointsAction(Action):
 	def canBeTakenBy(self, agent):
 		return agent.lgsvlAgentType in (lgsvl.AgentType.NPC, lgsvl.AgentType.PEDESTRIAN)
@@ -58,25 +51,7 @@ class SetDestinationAction(Action):
 
 	def applyTo(self, obj, sim):
 		if self.timer == 0:
-			z = sim.groundElevationAt(self.dest)
-			# from lgsvl import dreamview
-			print(obj.position, obj.lgsvlObject.transform, self.dest)
-			gps_coords = sim.client.map_to_gps(lgsvl.Transform(position=lgsvl.Vector(self.dest.x, -7, self.dest.y)))
-			print(gps_coords)
-			modules = [
-			    'Localization',
-			    'Third Party Perception',
-			    'Transform',
-			    'Routing',
-			    'Prediction',
-			    'Planning',
-			    'Camera',
-			    'Traffic Light',
-			    'Control'
-			]
-			obj.dreamview.setup_apollo(self.dest.x, self.dest.y, modules)
-			# obj.dreamview.set_destination(self.dest.x, self.dest.y, z,
-			                             # coord_type=dreamview.CoordType.Unity)
+			obj.dreamview.setup_apollo(self.dest.x, self.dest.y, obj.apolloModules)
 
 		# push vehicle for 1 second to start
 		oneSec = int(1.0/sim.timestep)

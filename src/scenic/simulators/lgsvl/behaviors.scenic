@@ -12,8 +12,8 @@ behavior DriveTo(target):
 	while True:
 		take action
 
-# behavior WalkBehavior(maxSpeed=1.4):
-# 	take SetWalkAction(True, maxSpeed)
+behavior WalkBehavior(maxSpeed=1.4):
+	take SetWalkAction(True, maxSpeed)
 
 behavior FollowWaypoints(waypoints):
 	action = FollowWaypointsAction(waypoints)
