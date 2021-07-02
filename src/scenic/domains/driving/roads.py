@@ -175,7 +175,7 @@ class Maneuver(_ElementReferencer):
     @property
     @utils.cached
     def reverseManeuvers(self) -> Tuple[Maneuver]:
-    	"""Tuple[Maneuver]: Maneuvers whose start and end roads are the reverse of this one's."""
+    	"""Maneuvers whose start and end roads are the reverse of this one's."""
     	start = self.startLane.road
     	end = self.endLane.road
     	reverses = []
