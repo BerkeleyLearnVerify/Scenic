@@ -160,7 +160,7 @@ class Maneuver(_ElementReferencer):
     @property
     @utils.cached
     def conflictingManeuvers(self) -> Tuple[Maneuver]:
-        """Tuple[Maneuver]: Maneuvers whose connecting lanes intersect this one's."""
+        """Maneuvers whose connecting lanes intersect this one's."""
         if not self.connectingLane:
             return ()
         guideway = self.connectingLane

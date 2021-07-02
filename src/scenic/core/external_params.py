@@ -139,7 +139,7 @@ class ExternalSampler:
 		else:
 			return None
 
-	def sample(self, feedback, update=True):
+	def sample(self, feedback):
 		"""Sample values for all the external parameters.
 
 		Args:
@@ -232,7 +232,6 @@ class VerifaiSampler(ExternalSampler):
 		return self.sampler.nextSample(feedback)
 
 	def update(self, sample, info, rho):
-		# print(f'Here; sampler is {self.sampler}')
 		self.sampler.update(sample, info, rho)
 
 	def getSample(self):
