@@ -24,10 +24,9 @@ import scenic.simulators.carla.utils.visuals as visuals
 class CarlaSimulator(DrivingSimulator):
 	"""Implementation of `Simulator` for CARLA."""
 	def __init__(self, carla_map, map_path, address='127.0.0.1', port=2000, timeout=10,
-				 render=True, record='', timestep=0.1):
+				 render=True, record='', timestep=0.1, traffic_manager_port=None):
 		super().__init__()
-		print(f'Connecting to CARLA on port {port}')
-		verbosePrint('Connecting to CARLA...')
+		verbosePrint('Connecting to CARLA on port {port}')
 		self.client = carla.Client(address, port)
 		self.client.set_timeout(timeout)  # limits networking operations (seconds)
 		if carla_map is not None:
@@ -40,7 +39,9 @@ class CarlaSimulator(DrivingSimulator):
 				raise RuntimeError(f'CARLA only supports OpenDrive maps')
 		self.timestep = timestep
 
-		self.tm = self.client.get_trafficmanager(port + 6000)
+		if traffic_manager_port is None:
+			traffic_manager_port = port + 6000
+		self.tm = self.client.get_trafficmanager(traffic_manager_port)
 		self.tm.set_synchronous_mode(True)
 
 		# Set to synchronous with fixed timestep

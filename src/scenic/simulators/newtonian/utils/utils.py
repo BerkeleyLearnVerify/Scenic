@@ -5,11 +5,7 @@ from scenic.core.geometry import normalizeAngle
 
 
 def vectorFromHeading(heading):
-	angle = -heading - math.pi/2
-	return Vector(
-		math.cos(angle),
-		math.sin(angle)
-	)
+	return Vector(0, 1).rotatedBy(heading)
 
 def angularSpeedFromSteer(steer, speed, length):
 	return speed * math.tan(steer) / length

@@ -10,7 +10,10 @@ from scenic.syntax.veneer import verbosePrint
 from scenic.core.vectors import Vector
 import scenic.simulators.newtonian.utils.utils as utils
 from scenic.domains.driving.roads import Network
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+from scenic.syntax.translator import verbosity
+if verbosity == 0:	# suppress pygame advertisement at zero verbosity
+	import os
+	os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
 import pygame
 import time
 

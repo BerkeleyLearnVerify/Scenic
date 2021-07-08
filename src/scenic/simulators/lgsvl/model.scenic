@@ -90,8 +90,17 @@ class EgoCar(Vehicle, Steers):
 class ApolloCar(EgoCar):
     lgsvlName: LINCOLN_MODULAR
     apolloVehicle: 'Lincoln2017MKZ LGSVL'
-    apolloModules: ['Localization', 'Transform', 'Routing',
-                    'Prediction', 'Planning', 'Camera', 'Third Party Perception']
+    apolloModules: [
+        'Localization',
+        'Third Party Perception',
+        'Transform',
+        'Routing',
+        'Prediction',
+        'Planning',
+        'Camera',
+        'Traffic Light',
+        'Control'
+	]
     bridgeHost: 'localhost'
     bridgePort: 9090
 
