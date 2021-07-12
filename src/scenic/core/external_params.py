@@ -145,7 +145,7 @@ class ExternalSampler:
 		Args:
 			feedback: Feedback from the last sample (for active samplers).
 		"""
-		self.cachedSample = self.nextSample(feedback)
+		self.cachedSample, self.cachedInfo = self.nextSample(feedback)
 
 	def nextSample(self, feedback):
 		"""Actually do the sampling. Implemented by subclasses."""
@@ -226,9 +226,16 @@ class VerifaiSampler(ExternalSampler):
 		# for other active samplers an appropriate value should be set manually
 		if self.rejectionFeedback is None:
 			self.rejectionFeedback = 1
+		self.cachedSample = None
 
 	def nextSample(self, feedback):
 		return self.sampler.nextSample(feedback)
+
+	def update(self, sample, info, rho):
+		self.sampler.update(sample, info, rho)
+
+	def getSample(self):
+		return self.sampler.getSample()
 
 	def valueFor(self, param):
 		return self.cachedSample[param.index]
@@ -275,6 +282,8 @@ class VerifaiParameter(ExternalParameter):
 class VerifaiRange(VerifaiParameter):
 	"""A :obj:`~scenic.core.distributions.Range` (real interval) sampled by VerifAI."""
 
+	defaultValueType = float
+
 	def __init__(self, low, high, buckets=None, weights=None):
 		import verifai.features
 		super().__init__(verifai.features.Box([low, high]))
@@ -298,6 +307,8 @@ class VerifaiRange(VerifaiParameter):
 
 class VerifaiDiscreteRange(VerifaiParameter):
 	"""A :obj:`~scenic.core.distributions.DiscreteRange` (integer interval) sampled by VerifAI."""
+
+	defaultValueType = float
 
 	def __init__(self, low, high, weights=None):
 		import verifai.features

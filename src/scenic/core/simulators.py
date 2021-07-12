@@ -1,6 +1,7 @@
 
 """Interface between Scenic and simulators."""
 
+import time
 import types
 from collections import OrderedDict
 
@@ -36,7 +37,7 @@ class Simulator:
             # Run a single simulation
             try:
                 simulation = self.createSimulation(scene, verbosity=verbosity)
-                result = simulation.run(maxSteps)
+                simulation.run(maxSteps)
             except (RejectSimulationException, RejectionException, dynamics.GuardViolation) as e:
                 if verbosity >= 2:
                     print(f'  Rejected simulation {iterations} at time step '
@@ -48,8 +49,8 @@ class Simulator:
             # Completed the simulation without violating a requirement
             if verbosity >= 2:
                 print(f'  Simulation {iterations} ended successfully at time step '
-                      f'{simulation.currentTime} because of: {result.terminationReason}')
-            return result
+                      f'{simulation.currentTime} because of: {simulation.result.terminationReason}')
+            return simulation
         return None
 
     def createSimulation(self, scene, verbosity=0):
@@ -69,6 +70,7 @@ class Simulation:
         self.currentTime = 0
         self.timestep = timestep
         self.verbosity = verbosity
+        self.worker_num = 0
 
     def run(self, maxSteps):
         """Run the simulation.
@@ -159,7 +161,8 @@ class Simulation:
             if terminationReason is None:
                 terminationReason = f'reached time limit ({maxSteps} steps)'
             result = SimulationResult(trajectory, actionSequence, terminationReason)
-            return result
+            self.result = result
+            return self
         finally:
             self.destroy()
             for obj in self.scene.objects:

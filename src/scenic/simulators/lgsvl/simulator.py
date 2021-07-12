@@ -4,6 +4,7 @@ import math
 import warnings
 
 import lgsvl
+import time
 
 import scenic.core.simulators as simulators
 import scenic.simulators.lgsvl.utils as utils
@@ -101,44 +102,12 @@ class LGSVLSimulation(simulators.Simulation):
         lgsvlObj.connect_bridge(obj.bridgeHost, obj.bridgePort)
 
         # set up connection and map/vehicle configuration
-        import dreamview
+        from lgsvl import dreamview
         dv = dreamview.Connection(self.client, lgsvlObj)
         obj.dreamview = dv
-        waitToStabilize = False
         hdMap = self.scene.params['apolloHDMap']
-        if dv.getCurrentMap() != hdMap:
-            dv.setHDMap(hdMap)
-            waitToStabilize = True
-        if dv.getCurrentVehicle() != obj.apolloVehicle:
-            dv.setVehicle(obj.apolloVehicle)
-            waitToStabilize = True
-        
-        verbosePrint('Initializing Apollo...')
-
-        # stop the car to cancel buffered speed from previous simulations
-        cntrl = lgsvl.VehicleControl()
-        cntrl.throttle = 0.0
-        lgsvlObj.apply_control(cntrl, True)
-        # start modules
-        dv.disableModule('Control')
-        ready = dv.getModuleStatus()
-        for module in obj.apolloModules:
-            if not ready[module]:
-                dv.enableModule(module)
-                verbosePrint(f'Module {module} is not ready...')
-                waitToStabilize = True
-        while True:
-            ready = dv.getModuleStatus()
-            if all(ready[module] for module in obj.apolloModules):
-                break
-
-        # wait for Apollo to stabilize, if needed
-        if waitToStabilize:
-            verbosePrint('Waiting for Apollo to stabilize...')
-            self.client.run(25)
-        dv.enableModule('Control')
-        self.client.run(15)
-        verbosePrint('Initialized Apollo.')
+        dv.set_hd_map(hdMap)
+        dv.set_vehicle(obj.apolloVehicle)
 
     def executeActions(self, allActions):
         super().executeActions(allActions)

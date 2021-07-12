@@ -12,6 +12,11 @@ def lgsvlToScenicPosition(pos):
     """Convert LGSVL positions to Scenic positions."""
     return Vector(pos.x, pos.z)
 
+def gpsToScenicPosition(northing, easting):
+    """Convert GPS positions to Scenic positions."""
+    pos = lgsvl.map_from_gps(northing, easting)
+    return Vector(pos.x, pos.z)
+
 def lgsvlToScenicElevation(pos):
     """Convert LGSVL positions to Scenic elevations."""
     return pos.y

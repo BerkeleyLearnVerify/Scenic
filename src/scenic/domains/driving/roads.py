@@ -160,7 +160,7 @@ class Maneuver(_ElementReferencer):
     @property
     @utils.cached
     def conflictingManeuvers(self) -> Tuple[Maneuver]:
-        """Tuple[Maneuver]: Maneuvers whose connecting lanes intersect this one's."""
+        """Maneuvers whose connecting lanes intersect this one's."""
         if not self.connectingLane:
             return ()
         guideway = self.connectingLane
@@ -171,6 +171,19 @@ class Maneuver(_ElementReferencer):
                 and maneuver.connectingLane.centerline.intersects(guideway.centerline)):
                 conflicts.append(maneuver)
         return tuple(conflicts)
+
+    @property
+    @utils.cached
+    def reverseManeuvers(self) -> Tuple[Maneuver]:
+    	"""Maneuvers whose start and end roads are the reverse of this one's."""
+    	start = self.startLane.road
+    	end = self.endLane.road
+    	reverses = []
+    	for maneuver in self.intersection.maneuvers:
+    		if (maneuver.startLane.road is end
+    			and maneuver.endLane.road is start):
+    			reverses.append(maneuver)
+    	return tuple(reverses)
 
 ## Road networks
 
