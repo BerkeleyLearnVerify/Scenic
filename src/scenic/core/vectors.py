@@ -8,8 +8,8 @@ import random
 import collections
 import itertools
 
+import decorator
 import shapely.geometry
-import wrapt
 
 from scenic.core.distributions import (Samplable, Distribution, MethodDistribution,
     needsSampling, makeOperatorHandler, distributionMethod, distributionFunction,
@@ -97,12 +97,12 @@ def scalarOperator(method):
 	op = method.__name__
 	setattr(VectorDistribution, op, makeOperatorHandler(op))
 
-	@wrapt.decorator
-	def wrapper(wrapped, instance, args, kwargs):
+	@decorator.decorator
+	def wrapper(wrapped, instance, *args, **kwargs):
 		if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
 			return MethodDistribution(method, instance, args, kwargs)
 		else:
-			return wrapped(*args, **kwargs)
+			return wrapped(instance, *args, **kwargs)
 	return wrapper(method)
 
 def makeVectorOperatorHandler(op):
@@ -114,8 +114,8 @@ def vectorOperator(method):
 	op = method.__name__
 	setattr(VectorDistribution, op, makeVectorOperatorHandler(op))
 
-	@wrapt.decorator
-	def wrapper(wrapped, instance, args, kwargs):
+	@decorator.decorator
+	def wrapper(wrapped, instance, *args, **kwargs):
 		def helper(*args):
 			if needsSampling(instance):
 				return VectorOperatorDistribution(op, instance, args)
@@ -125,14 +125,14 @@ def vectorOperator(method):
 				# see analogous comment in distributionFunction
 				return makeDelayedFunctionCall(helper, args, {})
 			else:
-				return wrapped(*args)
+				return wrapped(instance, *args)
 		return helper(*args)
 	return wrapper(method)
 
 def vectorDistributionMethod(method):
 	"""Decorator for methods that produce vectors. See distributionMethod."""
-	@wrapt.decorator
-	def wrapper(wrapped, instance, args, kwargs):
+	@decorator.decorator
+	def wrapper(wrapped, instance, *args, **kwargs):
 		def helper(*args, **kwargs):
 			if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
 				return VectorMethodDistribution(method, instance, args, kwargs)
@@ -141,7 +141,7 @@ def vectorDistributionMethod(method):
 				# see analogous comment in distributionFunction
 				return makeDelayedFunctionCall(helper, args, kwargs)
 			else:
-				return wrapped(*args, **kwargs)
+				return wrapped(instance, *args, **kwargs)
 		return helper(*args, **kwargs)
 	return wrapper(method)
 
