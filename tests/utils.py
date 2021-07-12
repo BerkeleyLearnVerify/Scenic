@@ -74,10 +74,10 @@ def sampleActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
 def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1,
                            singleAction=True, asMapping=False, timestep=1):
     sim = DummySimulator(timestep=timestep)
-    result = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
-    if not result:
+    simulation = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
+    if not simulation:
         return None
-    actionSequence = result.actions
+    actionSequence = simulation.result.actions
     if singleAction:
         for i, allActions in enumerate(actionSequence):
             for agent, actions in allActions.items():
@@ -99,10 +99,10 @@ def sampleTrajectory(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
 
 def sampleTrajectoryFromScene(scene, maxIterations=1, maxSteps=1):
     sim = DummySimulator(timestep=1)
-    result = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
-    if not result:
+    simulation = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
+    if not simulation:
         return None
-    return result.trajectory
+    return simulation.result.trajectory
 
 # Helpers
 

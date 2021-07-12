@@ -1,28 +1,26 @@
-"""Scenic world model for traffic scenarios in CPU-based Newtonian simulator.
+"""Scenic world model for traffic scenarios in the Newtonian simulator.
 
-The model currently supports vehicles and map parsing by providing the 'map' parameter
-as a path to the OpenDrive map file to be used.
+This model implements the basic :obj:`~scenic.domains.driving.model.Car` class from the
+:obj:`scenic.domains.driving` domain.
+Vehicles support the basic actions and behaviors from the driving domain.
+
+A path to a map file for the scenario should be provided as the ``map`` global parameter;
+see the driving domain's documentation for details.
 """
 
-from scenic.domains.driving.model import *
+from scenic.domains.driving.model import *  # includes basic actions and behaviors
 
-from scenic.simulators.newtonian.behaviors import *
 from scenic.simulators.utils.colors import Color
 
 from scenic.simulators.newtonian.simulator import NewtonianSimulator    # for use in scenarios
-from scenic.simulators.newtonian.actions import *
 
-if 'map' not in globalParameters:
-    raise RuntimeError('need to specify map before importing Newtonian simulator model '
-                       '(set the global parameter "map")')
 if 'render' not in globalParameters:
     render = True
 else:
     render = globalParameters.render
-simulator NewtonianSimulator(globalParameters.map, render=render)
+simulator NewtonianSimulator(network, render=render)
 
 class NewtonianActor(DrivingObject):
-
     position: None
     velocity: None
     throttle: 0
@@ -57,7 +55,6 @@ class NewtonianActor(DrivingObject):
         self.reverse = reverse
 
 class Vehicle(Vehicle, NewtonianActor):
-
     pass
 
 class Car(Vehicle, Steers):

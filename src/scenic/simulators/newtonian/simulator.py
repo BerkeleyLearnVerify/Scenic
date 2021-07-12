@@ -1,3 +1,5 @@
+"""Newtonian simulator implementation."""
+
 import numpy as np
 import math
 from math import sin, radians, degrees, copysign
@@ -25,12 +27,11 @@ HEIGHT = 800
 MAX_ACCELERATION = 5.6 # in m/s, seems to be a pretty reasonable value
 
 class NewtonianSimulator(DrivingSimulator):
-    """Simulator which does nothing, for debugging purposes."""
-    def __init__(self, carla_map, timestep=0.1, render=False):
-        self.carla_map = carla_map
+    """Implementation of `Simulator` for the Newtonian simulator."""
+    def __init__(self, network, timestep=0.1, render=False):
         self.timestep = timestep
         self.render = render
-        self.network = Network.fromFile(self.carla_map)
+        self.network = network
 
     def createSimulation(self, scene, verbosity=0):
         return NewtonianSimulation(scene, self.network, timestep=self.timestep, verbosity=verbosity, render=self.render)
@@ -42,7 +43,7 @@ class NewtonianSimulation(DrivingSimulation):
         self.network = network
         self.ego = self.objects[0]
 
-        # Set Carla actor's initial speed (if specified)
+        # Set actor's initial velocity (if specified)
         for obj in self.objects:
             if obj.speed is not None:
                 equivVel = obj.speed*utils.vectorFromHeading(obj.heading)
