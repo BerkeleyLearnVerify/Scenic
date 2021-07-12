@@ -89,14 +89,6 @@ class NewtonianSimulation(DrivingSimulation):
                     screenPoints = map(self.scenicToScreenVal, poly.exterior.coords)
                     self.network_polygons.append(list(screenPoints))
 
-    def toScreenVal(self, pos):
-        x, y = pos.x, pos.y
-        min_x, max_x = self.x_window
-        min_y, max_y = self.y_window
-        x_prop = (x - min_x) / (max_x - min_x)
-        y_prop = (y - min_y) / (max_y - min_y)
-        return int(x_prop * WIDTH), HEIGHT - 1 - int(y_prop * HEIGHT)
-    
     def scenicToScreenVal(self, pos):
         x, y = pos
         min_x, max_x = self.x_window
@@ -121,13 +113,14 @@ class NewtonianSimulation(DrivingSimulation):
     def step(self):
         for obj in self.objects:
             acceleration = obj.throttle * MAX_ACCELERATION
-            obj.velocity += Vector(0, acceleration * self.timestep)
+            obj.speed += acceleration * self.timestep
+            obj.velocity = Vector(0, obj.speed).rotatedBy(obj.heading)
             if obj.steer:
                 turning_radius = obj.length / sin(obj.steer * np.pi / 2)
-                angular_velocity = obj.velocity.y / turning_radius
+                angular_velocity = obj.speed / turning_radius
             else:
                 angular_velocity = 0
-            obj.position += obj.velocity.rotatedBy(obj.heading) * self.timestep
+            obj.position += obj.velocity * self.timestep
             obj.heading -= angular_velocity * self.timestep
         if self.render:
             self.draw_objects()
@@ -144,8 +137,8 @@ class NewtonianSimulation(DrivingSimulation):
             neg_vec = Vector(w / 2, h / 2)
             heading_vec = Vector(0, 10).rotatedBy(obj.heading)
             dx, dy = int(heading_vec.x), -int(heading_vec.y)
-            x, y = self.toScreenVal(obj.position)
-            rect_x, rect_y = self.toScreenVal(obj.position + pos_vec)
+            x, y = self.scenicToScreenVal(obj.position)
+            rect_x, rect_y = self.scenicToScreenVal(obj.position + pos_vec)
             self.rotated_car = pygame.transform.rotate(self.car, obj.heading * 180 / np.pi)
             self.screen.blit(self.rotated_car, (rect_x, rect_y))
         pygame.display.update()
