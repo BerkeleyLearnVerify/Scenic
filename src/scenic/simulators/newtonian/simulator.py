@@ -24,7 +24,8 @@ current_dir = pathlib.Path(__file__).parent.absolute()
 
 WIDTH = 1280
 HEIGHT = 800
-MAX_ACCELERATION = 5.6 # in m/s, seems to be a pretty reasonable value
+MAX_ACCELERATION = 5.6 # in m/s2, seems to be a pretty reasonable value
+MAX_BRAKING = 4.6
 
 class NewtonianSimulator(DrivingSimulator):
     """Implementation of `Simulator` for the Newtonian simulator."""
@@ -112,7 +113,12 @@ class NewtonianSimulation(DrivingSimulation):
 
     def step(self):
         for obj in self.objects:
-            acceleration = obj.throttle * MAX_ACCELERATION
+            if obj.hand_brake:
+                acceleration = -MAX_BRAKING
+            elif obj.brake > 0:
+                acceleration = -obj.brake * MAX_BRAKING
+            else:
+                acceleration = obj.throttle * MAX_ACCELERATION
             obj.speed += acceleration * self.timestep
             obj.velocity = Vector(0, obj.speed).rotatedBy(obj.heading)
             if obj.steer:
