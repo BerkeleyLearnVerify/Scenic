@@ -299,6 +299,8 @@ waitStatement = 'wait'				# statement invoking a no-op action
 terminateStatement = 'terminate'	# statement ending the simulation
 abortStatement = 'abort'			# statement ending a try-interrupt statement
 invokeStatement = 'do'				# statement invoking a behavior or scenario
+invocationSchedules = ('choose', 'shuffle')
+invokeVariants = { (invokeStatement, sched) for sched in invocationSchedules }
 
 modelStatement = 'model'
 namespaceReference = '_Scenic_module_namespace'		# used in the implementation of 'model'
@@ -312,6 +314,7 @@ oneWordStatements = {	# TODO clean up
 }
 twoWordStatements = {
 	requireAlwaysStatement, terminateWhenStatement, terminateAfterStatement,
+	*invokeVariants,
 }
 threeWordStatements = { terminateSimulationWhenStatement }
 
@@ -354,14 +357,14 @@ for tokens in threeWordFunctionStatements:
 # statements allowed inside behaviors
 behavioralStatements = {
 	requireStatement, actionStatement, waitStatement,
-	terminateStatement, abortStatement, invokeStatement,
+	terminateStatement, abortStatement, invokeStatement, *invokeVariants,
 }
 behavioralImps = { functionForStatement(s) for s in behavioralStatements }
 
 # statements allowed inside scenario composition blocks
 compositionalStatements = {
 	requireStatement, waitStatement, terminateStatement, abortStatement,
-	invokeStatement,
+	invokeStatement, *invokeVariants,
 }
 compositionalImps = { functionForStatement(s) for s in compositionalStatements }
 
@@ -1186,7 +1189,8 @@ def parseTranslatedSource(source, filename):
 
 temporaryName = '_Scenic_temporary_name'
 behaviorArgName = '_Scenic_current_behavior'
-checkInvariantsName = '_Scenic_check_invariants'
+checkPreconditionsName = 'checkPreconditions'
+checkInvariantsName = 'checkInvariants'
 interruptPrefix = '_Scenic_interrupt'
 
 abortFlag = Attribute(Name('BlockConclusion', Load()), 'ABORT', Load())
@@ -1427,7 +1431,17 @@ class ASTSurgeon(NodeTransformer):
 			sim = self.visit(node.args[0])
 			closure = copy_location(Lambda(noArgs, sim), sim)
 			return copy_location(Expr(Call(func, [closure], [])), node)
-		elif func.id == invokeStatement:		# Sub-behavior or sub-scenario statement
+		elif (func.id == invokeStatement
+		      or func.id.startswith(invokeStatement + '_')):
+			# Sub-behavior or sub-scenario statement
+			if func.id.startswith(invokeStatement + '_'):
+				stmt = statementForImp[func.id]
+				schedule = func.id[len(invokeStatement)+1:]
+				assert '_' not in schedule
+				keywords = [ast.keyword('schedule', Constant(schedule))]
+			else:
+				stmt = func.id
+				keywords = []
 			seenModifier = False
 			invoked = []
 			args = []
@@ -1436,7 +1450,7 @@ class ASTSurgeon(NodeTransformer):
 					and arg.func.id == 'Modifier'):
 					if seenModifier:
 						self.parseError(arg,
-							f'incompatible qualifiers for "{invokeStatement}" statement')
+							f'incompatible qualifiers for "{stmt}" statement')
 					seenModifier = True
 					assert len(arg.args) >= 2
 					mod = arg.args[0]
@@ -1446,14 +1460,14 @@ class ASTSurgeon(NodeTransformer):
 						arg.args[1] = Lambda(noArgs, arg.args[1])
 					args.append(self.visit(arg))
 				elif seenModifier:
-					self.parseError(arg, f'malformed "{invokeStatement}" statement')
+					self.parseError(arg, f'malformed "{stmt}" statement')
 				else:
 					invoked.append(self.visit(arg))
 			maxInvoked = 1 if self.inBehavior and not self.inCompose else None
 			self.validateSimpleCall(node, (1, maxInvoked), onlyInBehaviors=True, args=invoked)
 			subHandler = Attribute(Name(behaviorArgName, Load()), '_invokeSubBehavior', Load())
 			subArgs = [Name('self', Load()), Tuple(invoked, Load())] + args
-			subRunner = Call(subHandler, subArgs, [])
+			subRunner = Call(subHandler, subArgs, keywords)
 			return self.generateInvocation(node, subRunner, invoker=YieldFrom)
 		elif func.id == actionStatement:		# Action statement
 			if self.inCompose:
@@ -1503,7 +1517,10 @@ class ASTSurgeon(NodeTransformer):
 	def generateInvocation(self, node, actionlike, invoker=Yield):
 		"""Generate an invocation of an action, behavior, or scenario."""
 		invokeAction = Expr(invoker(actionlike))
-		checkInvariants = Expr(Call(Name(checkInvariantsName, Load()), [], []))
+		checker = Attribute(Name(behaviorArgName, Load()), checkInvariantsName, Load())
+		args = Starred(Attribute(Name(behaviorArgName, Load()), '_args', Load()), Load())
+		kwargs = ast.keyword(None, Attribute(Name(behaviorArgName, Load()), '_kwargs', Load()))
+		checkInvariants = Expr(Call(checker, [Name('self', Load()), args], [kwargs]))
 		return [copy_location(invokeAction, node), copy_location(checkInvariants, node)]
 
 	def visit_Try(self, node):
@@ -1752,9 +1769,9 @@ class ASTSurgeon(NodeTransformer):
 				self.parseError(node, f'simple scenario cannot have preconditions/invariants')
 
 		# Construct compose block
+		self.inCompose = self.inBehavior = True
+		guardCheckers = self.makeGuardCheckers(args, preconditions, invariants)
 		if compose or preconditions or invariants:
-			self.inCompose = self.inBehavior = True
-			preamble = self.makeBehaviorPreamble(preconditions, invariants)
 			if compose:
 				body = self.visit(compose.body)
 				if setup:
@@ -1770,12 +1787,11 @@ class ASTSurgeon(NodeTransformer):
 				wait = self.generateInvocation(node, Constant(()))
 				body = [While(Constant(True), wait, [])]
 				compose = node 	# for copy_location below
-			newBody = preamble + body
-			newDef = FunctionDef('_compose', noArgs, newBody, [], None)
-			self.inCompose = self.inBehavior = False
+			newDef = FunctionDef('_compose', noArgs, body, [], None)
 			compose = copy_location(newDef, compose)
 		else:
 			compose = Assign([Name('_compose', Store())], Constant(None))
+		self.inCompose = self.inBehavior = False
 
 		# Construct setup block
 		if setup:
@@ -1796,7 +1812,7 @@ class ASTSurgeon(NodeTransformer):
 
 		# Assemble scenario definition
 		name = node.name[len(scenarioMarker):]
-		body = [setup]
+		body = guardCheckers + [setup]
 		newDef = ClassDef(name, [Name(scenarioClass, Load())], [], body, [])
 		return copy_location(newDef, node)
 
@@ -1805,6 +1821,10 @@ class ASTSurgeon(NodeTransformer):
 			self.parseError(node, f'cannot define a behavior inside a {composeBlock} block')
 		if self.inBehavior:
 			self.parseError(node, 'cannot define a behavior inside a behavior')
+
+		# add private current behavior argument and implicit 'self' argument
+		newArgs = self.visit(node.args)
+		newArgs.args = initialBehaviorArgs + newArgs.args
 
 		# process body
 		self.inBehavior = True
@@ -1845,19 +1865,15 @@ class ASTSurgeon(NodeTransformer):
 					newStatements.append(newStatement)
 				else:
 					newStatements.extend(newStatement)
-
-		newBody = self.makeBehaviorPreamble(preconditions, invariants) + newStatements
+		guardCheckers = self.makeGuardCheckers(newArgs, preconditions, invariants)
+		newBody = newStatements
 		self.inBehavior = False
 		self.inLoop = oldInLoop
-
-		# add private current behavior argument and implicit 'self' argument
-		newArgs = self.visit(node.args)
-		newArgs.args = initialBehaviorArgs + newArgs.args
 
 		# convert to class definition
 		decorators = [self.visit(decorator) for decorator in node.decorator_list]
 		genDefn = FunctionDef('makeGenerator', newArgs, newBody, decorators, node.returns)
-		classBody = docstring + [genDefn]
+		classBody = docstring + guardCheckers + [genDefn]
 		name = node.name
 		if dynamics.isAMonitorName(name):
 			superclass = monitorClass
@@ -1868,8 +1884,8 @@ class ASTSurgeon(NodeTransformer):
 
 		return copy_location(newDefn, node)
 
-	def makeBehaviorPreamble(self, preconditions, invariants):
-		# generate precondition checks
+	def makeGuardCheckers(self, args, preconditions, invariants):
+		# generate precondition checker
 		precondChecks = []
 		for precondition in preconditions:
 			call = Call(Name('PreconditionViolation', Load()),
@@ -1878,6 +1894,11 @@ class ASTSurgeon(NodeTransformer):
 			throw = Raise(exc=call, cause=None)
 			check = If(test=UnaryOp(Not(), precondition), body=[throw], orelse=[])
 			precondChecks.append(copy_location(check, precondition))
+		definePChecker = FunctionDef(checkPreconditionsName, args,
+									precondChecks + [ast.Pass()], [], None)
+		#spot = Attribute(Name(behaviorArgName, Load()), 'checkPreconditions', Store())
+		#savePChecker = Assign([spot], Name(checkPreconditionsName, Load()))
+		#callPChecker = Expr(Call(Name(checkPreconditionsName, Load()), [], []))
 		# generate invariant checker
 		invChecks = []
 		for invariant in invariants:
@@ -1887,13 +1908,16 @@ class ASTSurgeon(NodeTransformer):
 			throw = Raise(exc=call, cause=None)
 			check = If(test=UnaryOp(Not(), invariant), body=[throw], orelse=[])
 			invChecks.append(copy_location(check, invariant))
-		defineChecker = FunctionDef(checkInvariantsName, tempArg,
-									invChecks + [Return(Name(temporaryName, Load()))], [], None)
-		spot = Attribute(Name(behaviorArgName, Load()), 'checkInvariants', Store())
-		saveChecker = Assign([spot], Name(checkInvariantsName, Load()))
-		callChecker = Expr(Call(Name(checkInvariantsName, Load()), [], []))
+		defineIChecker = FunctionDef(checkInvariantsName, args,
+		                             invChecks + [ast.Pass()], [], None)
+		# spot = Attribute(Name(behaviorArgName, Load()), 'checkInvariants', Store())
+		# saveIChecker = Assign([spot], Name(checkInvariantsName, Load()))
+		# callIChecker = Expr(Call(Name(checkInvariantsName, Load()), [], []))
 		# assemble function body preamble
-		preamble = precondChecks + [defineChecker, saveChecker, callChecker]
+		preamble = [
+			definePChecker,# savePChecker, callPChecker,
+			defineIChecker,# saveIChecker, callIChecker,
+		]
 		return preamble
 
 	def visit_Yield(self, node):
