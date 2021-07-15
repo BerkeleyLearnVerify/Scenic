@@ -2106,7 +2106,7 @@ def constructScenarioFrom(namespace, scenarioName=None):
 	if not dynScenario._prepared:	# true for all except top-level scenarios
 		# Execute setup block (if any) to create objects and requirements;
 		# extract any requirements and scan for relations used for pruning
-		dynScenario._prepare()
+		dynScenario._prepare(delayPreconditionCheck=True)
 	scenario = dynScenario._toScenario(namespace)
 
 	# Prune infeasible parts of the space

@@ -89,11 +89,14 @@ class Invocable:
     def _invokeInner(self, agent, subs):
         raise NotImplementedError
 
+    def _checkAllPreconditions(self):
+        self.checkPreconditions(None, *self._args, **self._kwargs)
+        self.checkInvariants(None, *self._args, **self._kwargs)
+
     @property
     def _isEnabled(self):
         try:
-            self.checkPreconditions(None, *self._args, **self._kwargs)
-            self.checkInvariants(None, *self._args, **self._kwargs)
+            self._checkAllPreconditions()
             return True
         except GuardViolation:
             return False
@@ -127,6 +130,7 @@ class DynamicScenario(Invocable):
         self._timeLimit = None
         self._timeLimitIsInSeconds = False
         self._prepared = False
+        self._delayingPreconditionCheck = False
         self._dummyNamespace = None
 
         self._timeLimitInSteps = None   # computed at simulation time
@@ -174,15 +178,17 @@ class DynamicScenario(Invocable):
         self._terminationConditions = scene.terminationConditions
         self._terminateSimulationConditions = scene.terminateSimulationConditions
 
-    def _prepare(self):
+    def _prepare(self, delayPreconditionCheck=False):
         assert not self._prepared
         self._prepared = True
 
         veneer.prepareScenario(self)
         with veneer.executeInScenario(self, inheritEgo=True):
             # Check preconditions and invariants
-            self.checkPreconditions(None, *self._args, **self._kwargs)
-            self.checkInvariants(None, *self._args, **self._kwargs)
+            if delayPreconditionCheck:
+                self._delayingPreconditionCheck = True
+            else:
+                self._checkAllPreconditions()
 
             # Execute setup block
             if self._setup is not None:
@@ -199,6 +205,10 @@ class DynamicScenario(Invocable):
 
     def _start(self):
         assert self._prepared
+
+        # Check preconditions if they could not be checked earlier
+        if self._delayingPreconditionCheck:
+            self._checkAllPreconditions()
 
         # Compute time limit now that we know the simulation timestep
         self._elapsedTime = 0
