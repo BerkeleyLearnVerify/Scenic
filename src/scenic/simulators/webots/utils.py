@@ -19,7 +19,7 @@ def scenicToWebotsPosition(pos, y=0):
 def webotsToScenicRotation(rot, tolerance2D=0):
     axis = np.array(rot[:3])
     angle = rot[3]
-    if np.linalg.norm(axis - (0, 1, 0)) > tolerance2D:
+    if tolerance2D is not None and np.linalg.norm(axis - (0, 1, 0)) > tolerance2D:
         return None
     return normalizeAngle(angle + math.pi)
 

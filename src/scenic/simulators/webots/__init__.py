@@ -18,3 +18,4 @@ World models for particular uses of Webots are in submodules.
 """
 
 from .common import scenicToWebotsPosition, scenicToWebotsRotation
+from .simulator import WebotsSimulator
