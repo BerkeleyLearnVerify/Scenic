@@ -6,7 +6,7 @@ import inspect
 import itertools
 import types
 
-from scenic.core.distributions import Samplable, toDistribution, needsSampling
+from scenic.core.distributions import Samplable, Options, toDistribution, needsSampling
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.requirements import (RequirementType, PendingRequirement,
@@ -23,9 +23,47 @@ class Invocable:
         if veneer.evaluatingGuard:
             raise RuntimeParseError(
                 'tried to invoke behavior/scenario from inside guard or interrupt condition')
+        self._args = args
+        self._kwargs = kwargs
         self._runningIterator = None
 
-    def _invokeSubBehavior(self, agent, subs, modifier=None):
+    def _invokeSubBehavior(self, agent, subs, modifier=None, schedule=None):
+        def pickEnabledInvocable(opts):
+            enabled = {}
+            if isinstance(opts, dict):
+                for sub, weight in opts.items():
+                    if sub._isEnabled:
+                        enabled[sub] = weight
+            else:
+                for sub in opts:
+                    if sub._isEnabled:
+                        enabled[sub] = 1
+            if not enabled:
+                raise RejectSimulationException('deadlock in "do choose/shuffle"')
+            if len(enabled) == 1:
+                choice = list(enabled)[0]
+            else:
+                choice = Options(enabled)
+            return choice
+
+        scheduler = None
+        if schedule == 'choose':
+            if len(subs) == 1 and isinstance(subs[0], dict):
+                subs = subs[0]
+            subs = (pickEnabledInvocable(subs),)
+        elif schedule == 'shuffle':
+            def scheduler():
+                left = set(subs)
+                while left:
+                    choice = pickEnabledInvocable(left)
+                    left.remove(choice)
+                    yield from self._invokeInner(agent, (choice,))
+        else:
+            assert schedule is None
+        if not scheduler:
+            def scheduler():
+                yield from self._invokeInner(agent, subs)
+
         if modifier:
             if modifier.name == 'for':  # do X for Y [seconds | steps]
                 timeLimit = modifier.value
@@ -42,14 +80,26 @@ class Invocable:
                 raise RuntimeError(f'internal parsing error: impossible modifier {modifier}')
 
             def body(behavior, agent):
-                yield from self._invokeInner(agent, subs)
+                yield from scheduler()
             handler = lambda behavior, agent: BlockConclusion.ABORT
             yield from runTryInterrupt(self, agent, body, [condition], [handler])
         else:
-            yield from self._invokeInner(agent, subs)
+            yield from scheduler()
 
     def _invokeInner(self, agent, subs):
         raise NotImplementedError
+
+    def _checkAllPreconditions(self):
+        self.checkPreconditions(None, *self._args, **self._kwargs)
+        self.checkInvariants(None, *self._args, **self._kwargs)
+
+    @property
+    def _isEnabled(self):
+        try:
+            self._checkAllPreconditions()
+            return True
+        except GuardViolation:
+            return False
 
 class DynamicScenario(Invocable):
     def __init_subclass__(cls, *args, **kwargs):
@@ -60,10 +110,7 @@ class DynamicScenario(Invocable):
     _globalParameters = None
 
     def __init__(self, *args, **kwargs):
-        super().__init__()
-        self._args = args
-        self._kwargs = kwargs
-
+        super().__init__(*args, **kwargs)
         self._ego = None
         self._objects = []      # ordered for reproducibility
         self._externalParameters = []
@@ -83,6 +130,7 @@ class DynamicScenario(Invocable):
         self._timeLimit = None
         self._timeLimitIsInSeconds = False
         self._prepared = False
+        self._delayingPreconditionCheck = False
         self._dummyNamespace = None
 
         self._timeLimitInSteps = None   # computed at simulation time
@@ -130,12 +178,18 @@ class DynamicScenario(Invocable):
         self._terminationConditions = scene.terminationConditions
         self._terminateSimulationConditions = scene.terminateSimulationConditions
 
-    def _prepare(self):
+    def _prepare(self, delayPreconditionCheck=False):
         assert not self._prepared
         self._prepared = True
 
         veneer.prepareScenario(self)
         with veneer.executeInScenario(self, inheritEgo=True):
+            # Check preconditions and invariants
+            if delayPreconditionCheck:
+                self._delayingPreconditionCheck = True
+            else:
+                self._checkAllPreconditions()
+
             # Execute setup block
             if self._setup is not None:
                 locs = self._setup(self, None, *self._args, **self._kwargs)
@@ -151,6 +205,10 @@ class DynamicScenario(Invocable):
 
     def _start(self):
         assert self._prepared
+
+        # Check preconditions if they could not be checked earlier
+        if self._delayingPreconditionCheck:
+            self._checkAllPreconditions()
 
         # Compute time limit now that we know the simulation timestep
         self._elapsedTime = 0
@@ -381,11 +439,8 @@ class Behavior(Invocable, Samplable):
             veneer.currentScenario._behaviors.append(cls)
 
     def __init__(self, *args, **kwargs):
-        self.args = tuple(toDistribution(arg) for arg in args)
-        self.kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
-        if not inspect.isgeneratorfunction(self.makeGenerator):
-            raise RuntimeParseError(f'{self} does not take any actions'
-                                    ' (perhaps you forgot to use "take" or "do"?)')
+        args = tuple(toDistribution(arg) for arg in args)
+        kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
 
         # Validate arguments to the behavior
         sig = inspect.signature(self.makeGenerator)
@@ -393,17 +448,21 @@ class Behavior(Invocable, Samplable):
             sig.bind(None, *args, **kwargs)
         except TypeError as e:
             raise RuntimeParseError(str(e)) from e
-        Samplable.__init__(self, itertools.chain(self.args, self.kwargs.values()))
-        Invocable.__init__(self)
+        Samplable.__init__(self, itertools.chain(args, kwargs.values()))
+        Invocable.__init__(self, *args, **kwargs)
+
+        if not inspect.isgeneratorfunction(self.makeGenerator):
+            raise RuntimeParseError(f'{self} does not take any actions'
+                                    ' (perhaps you forgot to use "take" or "do"?)')
 
     def sampleGiven(self, value):
-        args = (value[arg] for arg in self.args)
-        kwargs = { name: value[val] for name, val in self.kwargs.items() }
+        args = (value[arg] for arg in self._args)
+        kwargs = { name: value[val] for name, val in self._kwargs.items() }
         return type(self)(*args, **kwargs)
 
     def start(self, agent):
         self.agent = agent
-        self._runningIterator = self.makeGenerator(agent, *self.args, **self.kwargs)
+        self._runningIterator = self.makeGenerator(agent, *self._args, **self._kwargs)
 
     def step(self):
         assert self._runningIterator
@@ -435,7 +494,7 @@ class Behavior(Invocable, Samplable):
                 sub.stop()
 
     def __str__(self):
-        args = argsToString(itertools.chain(self.args, self.kwargs.items()))
+        args = argsToString(itertools.chain(self._args, self._kwargs.items()))
         return self.__class__.__name__ + args
 
 def makeTerminationAction(line):
@@ -505,7 +564,7 @@ def runTryInterrupt(behavior, agent, body, conditions, handlers):
                 return result   # entire try-interrupt statement will terminate
         else:
             yield result
-            behavior.checkInvariants()
+            behavior.checkInvariants(None, *behavior._args, **behavior._kwargs)
 
 @enum.unique
 class BlockConclusion(enum.Enum):

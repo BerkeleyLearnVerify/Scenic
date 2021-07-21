@@ -47,6 +47,7 @@ class Simulator:
                 else:
                     continue
             # Completed the simulation without violating a requirement
+            result = simulation.result
             if verbosity >= 2:
                 print(f'  Simulation {iterations} ended successfully at time step '
                       f'{simulation.currentTime} because of: {simulation.result.terminationReason}')
