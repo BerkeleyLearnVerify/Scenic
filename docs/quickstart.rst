@@ -6,7 +6,7 @@ Getting Started with Scenic
 Installation
 ------------
 
-Scenic requires **Python 3.7** or newer.
+Scenic requires **Python 3.8** or newer.
 You can install Scenic from PyPI by simply running:
 
 .. code-block:: console
@@ -30,7 +30,7 @@ If you will be developing Scenic, add the ``-E dev`` option when invoking Poetry
 
 .. note::
 
-	If you get an error saying that your machine does not have a compatible version, this means that you do not have Python 3.7 or later on your PATH.
+	If you get an error saying that your machine does not have a compatible version, this means that you do not have Python 3.8 or later on your PATH.
 	Install a newer version of Python, either directly from the `Python website <https://www.python.org/downloads/>`_ or using `pyenv <https://github.com/pyenv/pyenv>`_ (e.g. running :command:`pyenv install 3.8.5`).
 	If you install it somewhere that is not on your PATH (so running :command:`python --version` doesn't give you the correct version), you'll need to run :command:`poetry env use /full/path/to/python` before running :command:`poetry install`.
 
@@ -42,15 +42,6 @@ Installing via either :command:`pip` or Poetry will install all of the dependenc
 
 	In the past, the ``shapely`` package did not install properly on Windows.
 	If you encounter this issue, try installing it manually following the instructions `here <https://github.com/Toblerity/Shapely#built-distributions>`__.
-
-.. note::
-
-	On some platforms, in particular OS X, you may get an error during the installation of `pygame <https://www.pygame.org/>`_ due to missing SDL files.
-	Try installing `SDL <https://www.libsdl.org/>`_: on OS X, if you use `Homebrew <https://brew.sh/>`_ you can simply run :command:`brew install sdl`.
-
-	On OS X you may also get an error during the installation of `Pillow <https://pillow.readthedocs.io/en/stable/>`_ due to missing zlib or jpeg libraries.
-	If you use Homebrew, you can install these with :command:`brew install zlib` and :command:`brew install libjpeg`.
-
 
 Trying Some Examples
 --------------------

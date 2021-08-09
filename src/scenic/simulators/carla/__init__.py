@@ -21,6 +21,5 @@ For details of additional CARLA-specific functionality, see the world model
    behaviors
    simulator
    blueprints
-   controller
    misc
 """
