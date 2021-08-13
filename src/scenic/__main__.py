@@ -55,6 +55,8 @@ intOptions.add_argument('-z', '--zoom', help='zoom expansion factor (default 1)'
 debugOpts = parser.add_argument_group('debugging options')
 debugOpts.add_argument('--show-params', help='show values of global parameters',
                        action='store_true')
+debugOpts.add_argument('--show-records', help='show values of recorded expressions',
+                       action='store_true')
 debugOpts.add_argument('-b', '--full-backtrace', help='show full internal backtraces',
                        action='store_true')
 debugOpts.add_argument('--pdb', action='store_true',
@@ -139,7 +141,7 @@ def runSimulation(scene):
     if args.verbosity >= 1:
         print(f'  Beginning simulation of {scene.dynamicScenario}...')
     try:
-        result = errors.callBeginningScenicTrace(
+        simulation = errors.callBeginningScenicTrace(
             lambda: simulator.simulate(scene, maxSteps=args.time, verbosity=args.verbosity,
                                        maxIterations=args.max_sims_per_scene)
         )
@@ -150,7 +152,15 @@ def runSimulation(scene):
     if args.verbosity >= 1:
         totalTime = time.time() - startTime
         print(f'  Ran simulation in {totalTime:.4g} seconds.')
-    return result is not None
+    if simulation and args.show_records:
+        for name, value in simulation.result.records.items():
+            if isinstance(value, list):
+                print(f'    Record "{name}": (time series)')
+                for step, subval in value:
+                    print(f'      {step:4d}: {subval}')
+            else:
+                print(f'    Record "{name}": {value}')
+    return simulation is not None
 
 try:
     if args.gather_stats is None:   # Generate scenes interactively until killed

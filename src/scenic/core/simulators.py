@@ -3,13 +3,14 @@
 
 import time
 import types
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 from scenic.core.object_types import (enableDynamicProxyFor, setDynamicProxyFor,
                                       disableDynamicProxyFor)
 from scenic.core.distributions import RejectionException
 import scenic.core.dynamics as dynamics
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError
+from scenic.core.requirements import RequirementType
 from scenic.core.vectors import Vector
 
 class SimulationCreationError(Exception):
@@ -67,6 +68,7 @@ class Simulation:
         self.objects = list(scene.objects)
         self.agents = list(obj for obj in scene.objects if obj.behavior is not None)
         self.trajectory = [self.currentState()]
+        self.records = defaultdict(list)
         self.currentTime = 0
         self.timestep = timestep
         self.verbosity = verbosity
@@ -78,6 +80,7 @@ class Simulation:
         Throws a RejectSimulationException if a requirement is violated.
         """
         trajectory = self.trajectory
+        records = self.records
         if self.currentTime > 0:
             raise RuntimeError('tried to run a Simulation which has already run')
         assert len(trajectory) == 1
@@ -95,6 +98,11 @@ class Simulation:
             # properties during setup
             self.updateObjects()
 
+            # Record initially-recorded values
+            values = dynamicScenario._evaluateRecordedExprs(RequirementType.recordInitial)
+            for name, val in values.items():
+                records[name] = val
+
             # Run simulation
             assert self.currentTime == 0
             terminationReason = None
@@ -104,6 +112,11 @@ class Simulation:
 
                 # Run compose blocks of compositional scenarios
                 terminationReason = dynamicScenario._step()
+
+                # Record current values of recorded expressions
+                values = dynamicScenario._evaluateRecordedExprs(RequirementType.record)
+                for name, val in values.items():
+                    records[name].append((self.currentTime, val))
 
                 # Check if any requirements fail
                 dynamicScenario._checkAlwaysRequirements()
@@ -158,9 +171,16 @@ class Simulation:
                 trajectory.append(self.currentState())
                 actionSequence.append(allActions)
 
+            # Record finally-recorded values
+            values = dynamicScenario._evaluateRecordedExprs(RequirementType.recordFinal)
+            for name, val in values.items():
+                records[name] = val
+
+            # Package up simulation results into a compact object
             if terminationReason is None:
                 terminationReason = f'reached time limit ({maxSteps} steps)'
-            result = SimulationResult(trajectory, actionSequence, terminationReason)
+            result = SimulationResult(trajectory, actionSequence, terminationReason,
+                                      records)
             self.result = result
             return self
         finally:
@@ -318,9 +338,10 @@ class EndScenarioAction(Action):
 
 class SimulationResult:
     """Result of running a simulation."""
-    def __init__(self, trajectory, actions, terminationReason):
+    def __init__(self, trajectory, actions, terminationReason, records):
         self.trajectory = tuple(trajectory)
         assert self.trajectory
         self.finalState = self.trajectory[-1]
         self.actions = tuple(actions)
         self.terminationReason = str(terminationReason)
+        self.records = dict(records)

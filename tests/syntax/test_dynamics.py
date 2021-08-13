@@ -4,7 +4,8 @@ import pytest
 from scenic.core.errors import RuntimeParseError, ScenicSyntaxError
 
 from tests.utils import (compileScenic, sampleScene, sampleActions, sampleActionsFromScene,
-                         sampleEgoActions, sampleEgoActionsFromScene, checkErrorLineNumber)
+                         sampleEgoActions, sampleEgoActionsFromScene, sampleResult,
+                         checkErrorLineNumber)
 
 ## Dynamic state
 
@@ -783,3 +784,27 @@ def test_interrupt_guard_subbehavior():
     """)
     with pytest.raises(RuntimeParseError):
         sampleEgoActions(scenario, maxSteps=1)
+
+## Recording
+
+def test_record():
+    scenario = compileScenic("""
+        behavior Foo():
+            for i in range(3):
+                self.position = self.position + 2@0
+                wait
+        ego = Object with behavior Foo
+        terminate when ego.position.x >= 6
+        record initial ego.position as initial
+        record final ego.position as final
+        record ego.position as position
+    """)
+    result = sampleResult(scenario, maxSteps=4)
+    assert result.records['initial'] == (0, 0)
+    assert result.records['final'] == (6, 0)
+    assert tuple(result.records['position']) == (
+        (0, (0, 0)),
+        (1, (2, 0)),
+        (2, (4, 0)),
+        (3, (6, 0))
+    )

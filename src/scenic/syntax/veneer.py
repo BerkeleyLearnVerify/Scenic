@@ -11,6 +11,7 @@ __all__ = (
 	'ego', 'require', 'resample', 'param', 'globalParameters', 'mutate', 'verbosePrint',
 	'localPath', 'model', 'simulator', 'simulation', 'require_always', 'terminate_when',
 	'terminate_simulation_when', 'terminate_after', 'in_initial_scenario',
+	'record', 'record_initial', 'record_final',
 	'sin', 'cos', 'hypot', 'max', 'min',
 	'filter',
 	# Prefix operators
@@ -355,8 +356,10 @@ def ego(obj=None):
 				scenario._ego = obj
 	return egoObject
 
-def require(reqID, req, line, prob=1):
+def require(reqID, req, line, prob=1, name=None):
 	"""Function implementing the require statement."""
+	if not name:
+		name = f'requirement on line {line}'
 	if evaluatingRequirement:
 		raise RuntimeParseError('tried to create a requirement inside a requirement')
 	if currentSimulation is not None:	# requirement being evaluated at runtime
@@ -367,33 +370,54 @@ def require(reqID, req, line, prob=1):
 				raise RuntimeParseError(f'requirement on line {line} uses value'
 										' undefined outside of object definition')
 			if not result:
-				raise RejectSimulationException(f'requirement on line {line}')
+				raise RejectSimulationException(name)
 	else:	# requirement being defined at compile time
 		currentScenario._addRequirement(requirements.RequirementType.require,
-                                        reqID, req, line, prob)
+                                        reqID, req, line, name, prob)
 
-def require_always(reqID, req, line):
+def record(reqID, value, line, name=None):
+	if not name:
+		name = f'record{line}'
+	makeRequirement(requirements.RequirementType.record, reqID, value, line, name)
+
+def record_initial(reqID, value, line, name=None):
+	if not name:
+		name = f'record{line}'
+	makeRequirement(requirements.RequirementType.recordInitial, reqID, value, line, name)
+
+def record_final(reqID, value, line, name=None):
+	if not name:
+		name = f'record{line}'
+	makeRequirement(requirements.RequirementType.recordFinal, reqID, value, line, name)
+
+def require_always(reqID, req, line, name=None):
 	"""Function implementing the 'require always' statement."""
-	makeRequirement(requirements.RequirementType.requireAlways, reqID, req, line)
+	if not name:
+		name = f'requirement on line {line}'
+	makeRequirement(requirements.RequirementType.requireAlways, reqID, req, line, name)
 
-def terminate_when(reqID, req, line):
+def terminate_when(reqID, req, line, name=None):
 	"""Function implementing the 'terminate when' statement."""
-	makeRequirement(requirements.RequirementType.terminateWhen, reqID, req, line)
+	if not name:
+		name = f'termination condition on line {line}'
+	makeRequirement(requirements.RequirementType.terminateWhen, reqID, req, line, name)
 
-def terminate_simulation_when(reqID, req, line):
+def terminate_simulation_when(reqID, req, line, name=None):
 	"""Function implementing the 'terminate simulation when' statement."""
+	if not name:
+		name = f'termination condition on line {line}'
 	makeRequirement(requirements.RequirementType.terminateSimulationWhen,
-                    reqID, req, line)
+                    reqID, req, line, name)
 
-def makeRequirement(ty, reqID, req, line):
+def makeRequirement(ty, reqID, req, line, name):
 	if evaluatingRequirement:
 		raise RuntimeParseError(f'tried to use "{ty.value}" inside a requirement')
 	elif currentBehavior is not None:
 		raise RuntimeParseError(f'"{ty.value}" inside a behavior on line {line}')
 	elif currentSimulation is not None:
-		currentScenario._addDynamicRequirement(ty, req, line)
+		currentScenario._addDynamicRequirement(ty, req, line, name)
 	else:	# requirement being defined at compile time
-		currentScenario._addRequirement(ty, reqID, req, line, 1)
+		currentScenario._addRequirement(ty, reqID, req, line, name, 1)
 
 def terminate_after(timeLimit, terminator=None):
 	if not isinstance(timeLimit, (float, int)):

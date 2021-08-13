@@ -27,8 +27,9 @@ class Scene:
 		workspace (:obj:`~scenic.core.workspaces.Workspace`): Workspace for the scenario.
 	"""
 	def __init__(self, workspace, objects, egoObject, params,
-				 alwaysReqs=(), terminationConds=(), termSimulationConds=(), monitors=(),
-				 behaviorNamespaces={}, dynamicScenario=None):
+				 alwaysReqs=(), terminationConds=(), termSimulationConds=(),
+				 recordedExprs=(), recordedInitialExprs=(), recordedFinalExprs=(),
+				 monitors=(), behaviorNamespaces={}, dynamicScenario=None):
 		self.workspace = workspace
 		self.objects = tuple(objects)
 		self.egoObject = egoObject
@@ -36,6 +37,9 @@ class Scene:
 		self.alwaysRequirements = tuple(alwaysReqs)
 		self.terminationConditions = tuple(terminationConds)
 		self.terminateSimulationConditions = tuple(termSimulationConds)
+		self.recordedExprs = tuple(recordedExprs)
+		self.recordedInitialExprs = tuple(recordedInitialExprs)
+		self.recordedFinalExprs = tuple(recordedFinalExprs)
 		self.monitors = tuple(monitors)
 		self.behaviorNamespaces = behaviorNamespaces
 		self.dynamicScenario = dynamicScenario
@@ -90,6 +94,9 @@ class Scenario:
 		self.terminateSimulationConditions = tuple(dynamicScenario._terminateSimulationConditions)
 		self.initialRequirements = self.requirements + self.alwaysRequirements
 		assert all(req.constrainsSampling for req in self.initialRequirements)
+		self.recordedExprs = tuple(dynamicScenario._recordedExprs)
+		self.recordedInitialExprs = tuple(dynamicScenario._recordedInitialExprs)
+		self.recordedFinalExprs = tuple(dynamicScenario._recordedFinalExprs)
 		# dependencies must use fixed order for reproducibility
 		paramDeps = tuple(p for p in self.params.values() if isinstance(p, Samplable))
 		behaviorDeps = []
@@ -257,9 +264,15 @@ class Scenario:
 							for req in self.terminationConditions)
 		termSimulationConds = (BoundRequirement(req, sample)
 							   for req in self.terminateSimulationConditions)
+		recordedExprs = (BoundRequirement(req, sample) for req in self.recordedExprs)
+		recordedInitialExprs = (BoundRequirement(req, sample)
+		                        for req in self.recordedInitialExprs)
+		recordedFinalExprs = (BoundRequirement(req, sample)
+		                      for req in self.recordedFinalExprs)
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
-					  alwaysReqs, terminationConds, termSimulationConds, self.monitors,
-					  sampledNamespaces, self.dynamicScenario)
+					  alwaysReqs, terminationConds, termSimulationConds,
+					  recordedExprs, recordedInitialExprs,recordedFinalExprs,
+					  self.monitors, sampledNamespaces, self.dynamicScenario)
 		return scene, iterations
 
 	def resetExternalSampler(self):

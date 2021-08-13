@@ -97,12 +97,27 @@ def sampleTrajectory(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
             return trajectory
     assert False, f'unable to find successful simulation over {maxScenes} scenes'
 
-def sampleTrajectoryFromScene(scene, maxIterations=1, maxSteps=1):
+def sampleResult(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
+    for i in range(maxScenes):
+        scene, iterations = generateChecked(scenario, maxIterations)
+        result = sampleResultFromScene(scene, maxIterations=maxIterations,
+                                       maxSteps=maxSteps)
+        if result is not None:
+            return result
+    assert False, f'unable to find successful simulation over {maxScenes} scenes'
+
+def sampleResultFromScene(scene, maxIterations=1, maxSteps=1):
     sim = DummySimulator(timestep=1)
     simulation = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
     if not simulation:
         return None
-    return simulation.result.trajectory
+    return simulation.result
+
+def sampleTrajectoryFromScene(scene, maxIterations=1, maxSteps=1):
+    result = sampleResultFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps)
+    if not result:
+        return None
+    return result.trajectory
 
 # Helpers
 

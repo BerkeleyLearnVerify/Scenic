@@ -18,16 +18,22 @@ class RequirementType(enum.Enum):
     terminateWhen = 'terminate when'
     terminateSimulationWhen = 'terminate simulation when'
 
+    # recorded values, which aren't requirements but are handled similarly
+    record = 'record'
+    recordInitial = 'record initial'
+    recordFinal = 'record final'
+
     @property
     def constrainsSampling(self):
-        return self is not self.terminateWhen
+        return self in (self.require, self.requireAlways)
 
 class PendingRequirement:
-    def __init__(self, ty, condition, line, prob, ego):
+    def __init__(self, ty, condition, line, prob, name, ego):
         self.ty = ty
         self.condition = condition
         self.line = line
         self.prob = prob
+        self.name = name
 
         # the translator wrapped the requirement in a lambda to prevent evaluation,
         # so we need to save the current values of all referenced names; we save
@@ -54,7 +60,7 @@ class PendingRequirement:
             if needsSampling(value):
                 deps.add(value)
             if needsLazyEvaluation(value):
-                raise InvalidScenarioError(f'requirement on line {line} uses value {value}'
+                raise InvalidScenarioError(f'{self.ty} on line {line} uses value {value}'
                                            ' undefined outside of object definition')
         if ego is not None:
             assert isinstance(ego, Samplable)
@@ -75,7 +81,7 @@ class PendingRequirement:
                 result = condition()
                 assert not needsSampling(result)
                 if needsLazyEvaluation(result):
-                    raise InvalidScenarioError(f'requirement on line {line} uses value'
+                    raise InvalidScenarioError(f'{self.ty} on line {line} uses value'
                                                ' undefined outside of object definition')
             return result
 
@@ -105,6 +111,7 @@ class CompiledRequirement:
         self.ty = pendingReq.ty
         self.closure = closure
         self.line = pendingReq.line
+        self.name = pendingReq.name
         self.prob = pendingReq.prob
         self.dependencies = dependencies
 
@@ -120,19 +127,24 @@ class BoundRequirement:
         self.ty = compiledReq.ty
         self.closure = compiledReq.closure
         self.line = compiledReq.line
+        self.name = compiledReq.name
         assert compiledReq.prob == 1
         self.sample = sample
 
     def isTrue(self):
+        return self.value()
+
+    def value(self):
         return self.closure(self.sample)
 
     def __str__(self):
         return f'"{self.ty.value}" on line {self.line}'
 
 class DynamicRequirement:
-    def __init__(self, ty, condition, line):
+    def __init__(self, ty, condition, line, name=None):
         self.ty = ty
         self.line = line
+        self.name = name
 
         import scenic.syntax.veneer as veneer
         scenario = veneer.currentScenario
@@ -142,6 +154,9 @@ class DynamicRequirement:
         self.closure = closure
 
     def isTrue(self):
+        return self.value()
+
+    def value(self):
         return self.closure()
 
     def __str__(self):

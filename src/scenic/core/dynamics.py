@@ -77,6 +77,9 @@ class DynamicScenario(Invocable):
         self._alwaysRequirements = []
         self._terminationConditions = []
         self._terminateSimulationConditions = []
+        self._recordedExprs = []
+        self._recordedInitialExprs = []
+        self._recordedFinalExprs = []
 
         self._subScenarios = []
         self._endWithBehaviors = False
@@ -129,6 +132,9 @@ class DynamicScenario(Invocable):
         self._alwaysRequirements = scene.alwaysRequirements
         self._terminationConditions = scene.terminationConditions
         self._terminateSimulationConditions = scene.terminateSimulationConditions
+        self._recordedExprs = scene.recordedExprs
+        self._recordedInitialExprs = scene.recordedInitialExprs
+        self._recordedFinalExprs = scene.recordedFinalExprs
 
     def _prepare(self):
         assert not self._prepared
@@ -237,6 +243,26 @@ class DynamicScenario(Invocable):
                 return
             yield None
 
+    def _evaluateRecordedExprs(self, ty):
+        if ty is RequirementType.record:
+            place = '_recordedExprs'
+        elif ty is RequirementType.recordInitial:
+            place = '_recordedInitialExprs'
+        elif ty is RequirementType.recordFinal:
+            place = '_recordedFinalExprs'
+        else:
+            assert False, 'invalid record type requested'
+        return self._evaluateRecordedExprsAt(place)
+
+    def _evaluateRecordedExprsAt(self, place):
+        values = {}
+        for rec in getattr(self, place):
+            values[rec.name] = rec.value()
+        for sub in self._subScenarios:
+            subvals = sub._evaluateRecordedExprsAt(place)
+            values.update(subvals)
+        return values
+
     def _checkAlwaysRequirements(self):
         for req in self._alwaysRequirements:
             if not req.isTrue():
@@ -286,16 +312,16 @@ class DynamicScenario(Invocable):
         if getattr(obj, 'behavior', None) is not None:
             self._agents.append(obj)
 
-    def _addRequirement(self, ty, reqID, req, line, prob):
+    def _addRequirement(self, ty, reqID, req, line, name, prob):
         """Save a requirement defined at compile-time for later processing."""
         assert reqID not in self._pendingRequirements
-        preq = PendingRequirement(ty, req, line, prob, self._ego)
+        preq = PendingRequirement(ty, req, line, prob, name, self._ego)
         self._pendingRequirements[reqID] = preq
 
-    def _addDynamicRequirement(self, ty, req, line):
+    def _addDynamicRequirement(self, ty, req, line, name):
         """Add a requirement defined during a dynamic simulation."""
         assert ty is not RequirementType.require
-        dreq = DynamicRequirement(ty, req, line)
+        dreq = DynamicRequirement(ty, req, line, name)
         self._registerCompiledRequirement(dreq)
 
     def _compileRequirements(self):
@@ -318,6 +344,12 @@ class DynamicScenario(Invocable):
             place = self._terminationConditions
         elif req.ty is RequirementType.terminateSimulationWhen:
             place = self._terminateSimulationConditions
+        elif req.ty is RequirementType.record:
+            place = self._recordedExprs
+        elif req.ty is RequirementType.recordInitial:
+            place = self._recordedInitialExprs
+        elif req.ty is RequirementType.recordFinal:
+            place = self._recordedFinalExprs
         else:
             raise RuntimeError(f'internal error: requirement {req} has unknown type!')
         place.append(req)

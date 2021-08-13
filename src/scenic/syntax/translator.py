@@ -33,7 +33,6 @@ import importlib
 import importlib.abc
 import importlib.util
 import itertools
-import pathlib
 from collections import namedtuple, defaultdict
 from contextlib import contextmanager
 
@@ -299,6 +298,9 @@ requireAlwaysStatement = ('require', 'always')
 terminateWhenStatement = ('terminate', 'when')
 terminateSimulationWhenStatement = ('terminate', 'simulation', 'when')
 terminateAfterStatement = ('terminate', 'after')
+recordStatement = 'record'
+recordInitialStatement = ('record', 'initial')
+recordFinalStatement = ('record', 'final')
 
 actionStatement = 'take'			# statement invoking a primitive action
 waitStatement = 'wait'				# statement invoking a no-op action
@@ -314,10 +316,12 @@ simulatorStatement = 'simulator'
 oneWordStatements = {	# TODO clean up
 	paramStatement, mutateStatement, requireStatement,
 	actionStatement, waitStatement, terminateStatement,
-	abortStatement, invokeStatement, simulatorStatement
+	abortStatement, invokeStatement, simulatorStatement,
+	recordStatement,
 }
 twoWordStatements = {
 	requireAlwaysStatement, terminateWhenStatement, terminateAfterStatement,
+	recordInitialStatement, recordFinalStatement,
 }
 threeWordStatements = { terminateSimulationWhenStatement }
 
@@ -329,10 +333,11 @@ for incipit, last in threeWordIncipits.items():
 # statements implemented by functions
 functionStatements = {
 	requireStatement, paramStatement, mutateStatement,
-	modelStatement, simulatorStatement
+	modelStatement, simulatorStatement, recordStatement,
 }
 twoWordFunctionStatements = {
 	requireAlwaysStatement, terminateWhenStatement, terminateAfterStatement,
+	recordInitialStatement, recordFinalStatement,
 }
 threeWordFunctionStatements = { terminateSimulationWhenStatement }
 def functionForStatement(tokens):
@@ -371,8 +376,14 @@ compositionalStatements = {
 }
 compositionalImps = { functionForStatement(s) for s in compositionalStatements }
 
-# statements encoding requirements which need special handling
-requirementStatements = (
+recordStatements = (
+    recordStatement, functionForStatement(recordInitialStatement),
+    functionForStatement(recordFinalStatement),
+)
+
+# statements encoding requirements, etc. which need special handling
+# to wrap their argument in a closure
+requirementStatements = recordStatements + (
 	requireStatement, softRequirement,
 	functionForStatement(requireAlwaysStatement),
 	functionForStatement(terminateWhenStatement),
@@ -524,6 +535,7 @@ infixOperators = (
 	InfixOp('from', None, 2, (COMMA, ','), None),
 	InfixOp('for', None, 2, (COMMA, ','), None, ('Follow', 'Following')),
 	InfixOp('to', None, 2, (COMMA, ','), None),
+	InfixOp('as', None, 2, (COMMA, ','), None, recordStatements),
 	InfixOp('by', None, 2, packageToken, None)
 )
 
@@ -1401,18 +1413,22 @@ class ASTSurgeon(NodeTransformer):
 			statement = statementForImp[func.id]
 			self.parseError(node, f'"{statement}" cannot be used in a behavior')
 		if func.id in requirementStatements:		# require, terminate when, etc.
-			if func.id == softRequirement:
-				func.id = requireStatement
-				numArgs = 2
-				if len(node.args) != 2:
-					self.parseError(node, f'"require" takes exactly 1 argument')
+			recording = func.id in recordStatements
+			if recording:
+				numArgs = (1, 2)
+				value = node.args[0]
 			else:
 				numArgs = 1
+				value = node.args[-1]
+				if func.id == softRequirement:
+					func.id = requireStatement
+					numArgs = 2
+					if len(node.args) != 2:
+						self.parseError(node, f'"require" takes exactly 1 argument')
 			self.validateSimpleCall(node, numArgs)
-			cond = node.args[-1]
 			assert not self.inRequire
 			self.inRequire = True
-			req = self.visit(cond)
+			req = self.visit(value)
 			self.inRequire = False
 			reqID = Constant(len(self.requirements))	# save ID number
 			self.requirements.append(req)		# save condition for later inspection when pruning
@@ -1421,12 +1437,24 @@ class ASTSurgeon(NodeTransformer):
 			copy_location(closure, req)
 			copy_location(lineNum, req)
 			newArgs = [reqID, closure, lineNum]
-			if numArgs == 2:		# get probability for soft requirements
-				prob = node.args[0]
-				assert isinstance(prob, (Constant, Num))
-				if isinstance(prob, Constant):
-					assert isinstance(prob.value, (float, int))
-				newArgs.append(prob)
+			if len(node.args) == 2:		# get probability for soft requirements
+				if recording:
+					name = node.args[1]
+					if isinstance(name, Name):
+						name = Constant(name.id)
+					elif isinstance(name, Str):
+						pass
+					elif isinstance(name, Constant):
+						name = Constant(str(name.value))
+					else:
+						self.parseError(name, f'malformed name for "record" statement')
+					newArgs.append(name)
+				else:
+					prob = node.args[0]
+					assert isinstance(prob, (Constant, Num))
+					if isinstance(prob, Constant):
+						assert isinstance(prob.value, (float, int))
+					newArgs.append(prob)
 			return copy_location(Expr(Call(func, newArgs, [])), node)
 		elif func.id == simulatorStatement:
 			self.validateSimpleCall(node, 1)
