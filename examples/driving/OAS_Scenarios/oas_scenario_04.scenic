@@ -4,8 +4,8 @@ The ego vehicle follows the lead car which suddenly stops
 """
 
 #SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town07'
+param map = localPath('../../../tests/formats/opendrive/maps/LGSVL/cubetown.xodr')  # or other CARLA map that definitely works
+param lgsvl_map = 'CubeTown'
 model scenic.domains.driving.model
 
 #CONSTANTS

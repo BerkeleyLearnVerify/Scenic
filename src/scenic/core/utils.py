@@ -1,19 +1,16 @@
 """Assorted utility functions."""
 
-import collections
 import math
-import sys
-import typing
 
-import decorator
+import wrapt
 
 sqrt2 = math.sqrt(2)
 
 def cached(oldMethod):
     """Decorator for making a method with no arguments cache its result"""
     storageName = f'_cached_{oldMethod.__name__}'
-    @decorator.decorator
-    def wrapper(wrapped, *args, **kwargs):
+    @wrapt.decorator
+    def wrapper(wrapped, instance, args, kwargs):
         self = args[0]
         try:
             # Use __getattribute__ for direct lookup in case self is a Distribution
@@ -108,27 +105,3 @@ class DefaultIdentityDict:
         pairs = (f'{hex(key)}: {value!r}' for key, value in self.storage.items())
         allPairs = ', '.join(pairs)
         return f'<DefaultIdentityDict {{{allPairs}}}>'
-
-# Generic type introspection functions backported to Python 3.7
-# (code taken from Python 3.8 implementation)
-
-def get_type_origin(tp):
-    assert sys.version_info >= (3, 7)
-    if sys.version_info >= (3, 8):
-        return typing.get_origin(tp)
-    if isinstance(tp, typing._GenericAlias):
-        return tp.__origin__
-    if tp is typing.Generic:
-        return typing.Generic
-    return None
-
-def get_type_args(tp):
-    assert sys.version_info >= (3, 7)
-    if sys.version_info >= (3, 8):
-        return typing.get_args(tp)
-    if isinstance(tp, typing._GenericAlias) and not tp._special:
-        res = tp.__args__
-        if get_type_origin(tp) is collections.abc.Callable and res[0] is not Ellipsis:
-            res = (list(res[:-1]), res[-1])
-        return res
-    return ()

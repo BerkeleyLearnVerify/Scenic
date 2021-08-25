@@ -5,8 +5,8 @@
 # param map = localPath('maps/borregasave.xodr')
 # param lgsvl_map = 'BorregasAve'
 
-param map = localPath('../carla/OpenDrive/Town03.xodr')
-param carla_map = 'Town03'
+param map = localPath('maps/cubetown.xodr')
+param lgsvl_map = 'CubeTown'
 param time_step = 1.0/10
 
 model scenic.simulators.lgsvl.model

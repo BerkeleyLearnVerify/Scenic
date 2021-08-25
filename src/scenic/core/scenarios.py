@@ -127,6 +127,7 @@ class Scenario:
 		staticBounds = [self.hasStaticBounds(obj) for obj in objects]
 		for i in range(len(objects)):
 			oi = objects[i]
+			print("in scenario : ",oi.position)
 			container = self.containerOfObject(oi)
 			# Trivial case where container is empty
 			if isinstance(container, EmptyRegion):
@@ -205,6 +206,7 @@ class Scenario:
 				assert not needsSampling(sampledObj)
 				# position, heading
 				assert isinstance(sampledObj.position, Vector)
+				#print("****position : ",float(sampledObj.heading),sampledObj,Vector)
 				sampledObj.heading = float(sampledObj.heading)
 				# behavior
 				behavior = sampledObj.behavior

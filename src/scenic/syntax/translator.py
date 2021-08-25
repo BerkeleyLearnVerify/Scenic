@@ -48,7 +48,7 @@ import ast
 from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_missing_locations
 from ast import Load, Store, Del, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, BitXor, LShift
 from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Subscript, Index, IfExp
-from ast import Num, Yield, YieldFrom, FunctionDef, Attribute, Constant, Assign, Expr
+from ast import NamedExpr, Yield, YieldFrom, FunctionDef, Attribute, Constant, Assign, Expr
 from ast import Return, Raise, If, UnaryOp, Not, ClassDef, Nonlocal, Global, Compare, Is, Try
 from ast import Break, Continue, AsyncFunctionDef, Pass, While
 
@@ -119,12 +119,6 @@ def scenarioFromStream(stream, params={}, model=None, scenario=None,
 			toRemove = []
 			for name, module in sys.modules.items():
 				if name not in oldModules and getattr(module, '_isScenicModule', False):
-					toRemove.append(name)
-				elif (name.startswith(('scenic.domains.', 'scenic.simulators.'))
-				      and any(getattr(val, '_isScenicModule', False)
-				              for val in module.__dict__.values())):
-					# TODO improve this heuristic? not safe in general to keep any modules
-					# with references to Scenic modules, but detecting such references is hard.
 					toRemove.append(name)
 			for name in toRemove:
 				del sys.modules[name]
@@ -1320,8 +1314,7 @@ class ASTSurgeon(NodeTransformer):
 		self.inTryInterrupt = False
 		self.inInterruptBlock = False
 		self.inLoop = False
-		self.usedBreak = False
-		self.usedContinue = False
+		self.usedBreakOrContinue = False
 		self.callDepth = 0
 
 	def parseError(self, node, message):
@@ -1414,18 +1407,16 @@ class ASTSurgeon(NodeTransformer):
 			self.inRequire = True
 			req = self.visit(cond)
 			self.inRequire = False
-			reqID = Constant(len(self.requirements))	# save ID number
+			reqID = Constant(len(self.requirements), None)	# save ID number
 			self.requirements.append(req)		# save condition for later inspection when pruning
 			closure = Lambda(noArgs, req)		# enclose requirement in a lambda
-			lineNum = Constant(node.lineno)			# save line number for error messages
+			lineNum = Constant(node.lineno, None)			# save line number for error messages
 			copy_location(closure, req)
 			copy_location(lineNum, req)
 			newArgs = [reqID, closure, lineNum]
 			if numArgs == 2:		# get probability for soft requirements
 				prob = node.args[0]
-				assert isinstance(prob, (Constant, Num))
-				if isinstance(prob, Constant):
-					assert isinstance(prob.value, (float, int))
+				assert isinstance(prob, Constant) and isinstance(prob.value, (float, int))
 				newArgs.append(prob)
 			return copy_location(Expr(Call(func, newArgs, [])), node)
 		elif func.id == simulatorStatement:
@@ -1445,10 +1436,8 @@ class ASTSurgeon(NodeTransformer):
 							f'incompatible qualifiers for "{invokeStatement}" statement')
 					seenModifier = True
 					assert len(arg.args) >= 2
-					mod = arg.args[0]
-					assert isinstance(mod, (Constant, Str))
-					mod = mod.value if isinstance(mod, Constant) else mod.s
-					if mod == 'until':
+					assert isinstance(arg.args[0], Constant)
+					if arg.args[0].value == 'until':
 						arg.args[1] = Lambda(noArgs, arg.args[1])
 					args.append(self.visit(arg))
 				elif seenModifier:
@@ -1469,11 +1458,11 @@ class ASTSurgeon(NodeTransformer):
 			return self.generateInvocation(node, action)
 		elif func.id == waitStatement:		# Wait statement
 			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
-			return self.generateInvocation(node, Constant(()))
+			return self.generateInvocation(node, Constant((), None))
 		elif func.id == terminateStatement:		# Terminate statement
 			self.validateSimpleCall(node, 0, onlyInBehaviors=True)
 			termination = Call(Name(createTerminationAction, Load()),
-							   [Constant(node.lineno)], [])
+							   [Constant(node.lineno, None)], [])
 			return self.generateInvocation(node, termination)
 		elif func.id == abortStatement:		# abort statement for try-interrupt statements
 			if not self.inTryInterrupt:
@@ -1542,8 +1531,7 @@ class ASTSurgeon(NodeTransformer):
 		oldInInterruptBlock, oldInLoop = self.inInterruptBlock, self.inLoop
 		self.inInterruptBlock = True
 		self.inLoop = False
-		self.usedBreak = False
-		self.usedContinue = False
+		self.usedBreakOrContinue = False
 
 		def makeInterruptBlock(name, body):
 			newBody = self.visit(body)
@@ -1591,14 +1579,11 @@ class ASTSurgeon(NodeTransformer):
 		runTI = Assign([Name(temporaryName, Store())], YieldFrom(callRuntime))
 		statements.append(runTI)
 		result = Name(temporaryName, Load())
-		if self.usedBreak:
+		if self.usedBreakOrContinue:
 			test = Compare(result, [Is()], [breakFlag])
-			brk = copy_location(Break(), self.usedBreak)
-			statements.append(If(test, [brk], []))
-		if self.usedContinue:
+			statements.append(If(test, [Break()], []))
 			test = Compare(result, [Is()], [continueFlag])
-			cnt = copy_location(Continue(), self.usedContinue)
-			statements.append(If(test, [cnt], []))
+			statements.append(If(test, [Continue()], []))
 		test = Compare(result, [Is()], [returnFlag])
 		retCheck = If(test, [Return(Attribute(result, 'return_value', Load()))], [])
 		statements.append(retCheck)
@@ -1636,8 +1621,7 @@ class ASTSurgeon(NodeTransformer):
 
 	def visit_Break(self, node):
 		if self.inInterruptBlock and not self.inLoop:
-			if not self.usedBreak:
-				self.usedBreak = node
+			self.usedBreakOrContinue = True
 			newNode = Return(breakFlag)
 			return copy_location(newNode, node)
 		else:
@@ -1645,8 +1629,7 @@ class ASTSurgeon(NodeTransformer):
 
 	def visit_Continue(self, node):
 		if self.inInterruptBlock and not self.inLoop:
-			if not self.usedContinue:
-				self.usedContinue = node
+			self.usedBreakOrContinue = True
 			newNode = Return(continueFlag)
 			return copy_location(newNode, node)
 		else:
@@ -1678,7 +1661,7 @@ class ASTSurgeon(NodeTransformer):
 			elif isinstance(arg, Starred) and not self.inBehavior:
 				wrappedStar = True
 				checkedVal = Call(Name('wrapStarredValue', Load()),
-								  [self.visit(arg.value), Constant(arg.value.lineno)],
+								  [self.visit(arg.value), Constant(arg.value.lineno, None)],
 								  [])
 				newArgs.append(Starred(checkedVal, Load()))
 			else:
@@ -1773,15 +1756,15 @@ class ASTSurgeon(NodeTransformer):
 						body.insert(0, Nonlocal(list(commonLocals)))
 			else:
 				# generate no-op compose block to ensure invariants are checked
-				wait = self.generateInvocation(node, Constant(()))
-				body = [While(Constant(True), wait, [])]
+				wait = self.generateInvocation(node, Constant((), None))
+				body = [While(Constant(True, None), wait, [])]
 				compose = node 	# for copy_location below
 			newBody = preamble + body
 			newDef = FunctionDef('_compose', noArgs, newBody, [], None)
 			self.inCompose = self.inBehavior = False
 			compose = copy_location(newDef, compose)
 		else:
-			compose = Assign([Name('_compose', Store())], Constant(None))
+			compose = Assign([Name('_compose', Store())], Constant(None, None))
 
 		# Construct setup block
 		if setup:
@@ -1879,7 +1862,7 @@ class ASTSurgeon(NodeTransformer):
 		precondChecks = []
 		for precondition in preconditions:
 			call = Call(Name('PreconditionViolation', Load()),
-			            [Name(behaviorArgName, Load()), Constant(precondition.lineno)],
+			            [Name(behaviorArgName, Load()), Constant(precondition.lineno, None)],
 			            [])
 			throw = Raise(exc=call, cause=None)
 			check = If(test=UnaryOp(Not(), precondition), body=[throw], orelse=[])
@@ -1888,7 +1871,7 @@ class ASTSurgeon(NodeTransformer):
 		invChecks = []
 		for invariant in invariants:
 			call = Call(Name('InvariantViolation', Load()),
-			            [Name(behaviorArgName, Load()), Constant(invariant.lineno)],
+			            [Name(behaviorArgName, Load()), Constant(invariant.lineno, None)],
 			            [])
 			throw = Raise(exc=call, cause=None)
 			check = If(test=UnaryOp(Not(), invariant), body=[throw], orelse=[])

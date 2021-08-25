@@ -38,8 +38,8 @@ import scenic.simulators.lgsvl.model
 # -- Project information -----------------------------------------------------
 
 project = 'Scenic'
-copyright = '2021, Daniel J. Fremont.'
-author = 'Daniel J. Fremont, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
+copyright = '2020, Daniel J. Fremont.'
+author = 'Daniel J. Fremont, Tommaso Dreossi, Shromona Ghosh, Edward Kim, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
 
 
 # -- General configuration ---------------------------------------------------
@@ -72,9 +72,6 @@ autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
 autodoc_mock_imports = ['carla', 'lgsvl']
 autodoc_typehints = 'description'
-autodoc_type_aliases = {
-    'Vectorlike': '`scenic.domains.driving.roads.Vectorlike`',
-}
 napoleon_numpy_docstring = False
 napoleon_use_rtype = False
 napoleon_use_ivar = True
@@ -231,18 +228,23 @@ def object_description(obj):
         return orig_object_description(obj)
 sphinx.ext.autodoc.object_description = object_description
 
-# -- Extension for correctly displaying Scenic code and skipping internals ---
+# TODO switch to type_aliases once Sphinx 3.3 is out;
+# this hack suggested by sjjessop at https://github.com/sphinx-doc/sphinx/issues/6518
+import typing
+orig_get_type_hints = typing.get_type_hints
+def get_type_hints(obj, globals=None, locals=None):
+    if locals is None:
+        locals = {}
+    locals['Vectorlike'] = 'Vectorlike'
+    return orig_get_type_hints(obj, globals, locals)
+typing.get_type_hints = get_type_hints
 
-from scenic.syntax.pygment import ScenicLexer
+# -- Extension for correctly displaying Scenic code and skipping internals ---
 
 def setup(app):
     app.connect('viewcode-find-source', handle_find_source)
     app.connect('autodoc-process-signature', handle_process_signature)
     app.connect('autodoc-skip-member', handle_skip_member)
-
-    # for some reason, the Pygments entry point doesn't work on ReadTheDocs;
-    # so we register the custom lexer here
-    app.add_lexer('scenic', ScenicLexer)
 
     return { 'parallel_read_safe': True }
 
@@ -323,3 +325,13 @@ def generate_autosummary_content(name, obj, parent,
                                              modname=modname, qualname=qualname)
 
 as_gen.generate_autosummary_content = generate_autosummary_content
+
+# -- Monkeypatch to fix bug in autodoc (temporarily) -------------------------
+
+from sphinx.ext.autodoc import Documenter, Options
+
+orig_init = Documenter.__init__
+def __init__(self, *args, **kwargs):
+    orig_init(self, *args, **kwargs)
+    self.options = Options(self.options)
+Documenter.__init__ = __init__

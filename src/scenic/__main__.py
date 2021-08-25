@@ -6,11 +6,7 @@ import sys
 import time
 import argparse
 import random
-
-if sys.version_info >= (3, 8):
-    from importlib import metadata
-else:
-    import importlib_metadata as metadata
+import importlib.metadata
 
 import scenic.syntax.translator as translator
 import scenic.core.errors as errors
@@ -40,6 +36,8 @@ simOpts.add_argument('--time', help='time bound for simulations (default none)',
                      type=int, default=None)
 simOpts.add_argument('--count', help='number of successful simulations to run (default infinity)',
                      type=int, default=0)
+simOpts.add_argument('--mycmd',help='testing (default none)',  #sneha
+                     type=float,default=0.0)
 simOpts.add_argument('--max-sims-per-scene', type=int, default=1, metavar='N',
                      help='max # of rejected simulations before sampling a new scene (default 1)')
 
@@ -59,7 +57,7 @@ debugOpts.add_argument('-b', '--full-backtrace', help='show full internal backtr
                        action='store_true')
 debugOpts.add_argument('--pdb', action='store_true',
                        help='enter interactive debugger on errors (implies "-b")')
-ver = metadata.version('scenic')
+ver = importlib.metadata.version('scenic')
 debugOpts.add_argument('--version', action='version', version=f'Scenic {ver}',
                        help='print Scenic version information and exit')
 debugOpts.add_argument('--dump-initial-python', help='dump initial translated Python',
@@ -170,7 +168,7 @@ try:
                 else:
                     scene.show(zoom=args.zoom, block=False)
                     plt.pause(delay)
-                    plt.clf()
+                    plt.clf() 
     else:   # Gather statistics over the specified number of scenes
         its = []
         startTime = time.time()
