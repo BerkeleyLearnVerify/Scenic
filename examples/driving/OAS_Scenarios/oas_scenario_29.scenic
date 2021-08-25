@@ -6,8 +6,8 @@ has the right of the way and makes a left turn first because it is closer to the
 """
 
 #SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
-param carla_map = 'Town05'
+param map = localPath('../../../tests/formats/opendrive/maps/LGSVL/cubetown.xodr')  # or other CARLA map that definitely works
+param lgsvl_map = 'CubeTown'
 model scenic.domains.driving.model
 
 # Constants

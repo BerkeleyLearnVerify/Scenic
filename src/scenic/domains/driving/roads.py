@@ -962,14 +962,7 @@ class Network:
                     ' regenerate it'
                 )
             with gzip.open(f) as gf:
-                try:
-                    network = pickle.load(gf)
-                except pickle.UnpicklingError:
-                    raise    # propagate unpickling errors
-                except Exception as e:
-                    # convert various other ways unpickling can fail into a more
-                    # standard exception
-                    raise pickle.UnpicklingError('unpickling failed') from e
+                network = pickle.load(gf)
 
         # Reconnect links between network elements
         def reconnect(thing):

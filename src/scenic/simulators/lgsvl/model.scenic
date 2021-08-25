@@ -82,7 +82,6 @@ class EgoCar(Vehicle, Steers):
     def setReverse(self, reverse):
         self.control.reverse = reverse
 
-# A plain Car is an EgoCar so that the Steers protocol is supported
 (Car) = (EgoCar)
 
 class ApolloCar(EgoCar):

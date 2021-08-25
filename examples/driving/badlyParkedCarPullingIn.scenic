@@ -1,5 +1,5 @@
-param map = localPath('../../tests/formats/opendrive/maps/CARLA/Town05.xodr')
-param carla_map = 'Town05'
+param map = localPath('../../tests/formats/opendrive/maps/LGSVL/cubetown.xodr')
+param lgsvl_map = 'CubeTown'
 param time_step = 1.0/10
 
 model scenic.domains.driving.model
@@ -10,7 +10,9 @@ behavior PullIntoRoad():
     do FollowLaneBehavior(laneToFollow=ego.lane)
 
 ego = Car with behavior DriveAvoidingCollisions(avoidance_threshold=5)
-
+x = 10
+print('lgsvl--', x)
+x =x+10
 rightCurb = ego.laneGroup.curb
 spot = OrientedPoint on visible rightCurb
 badAngle = Uniform(1.0, -1.0) * Range(10, 20) deg

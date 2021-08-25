@@ -1,6 +1,5 @@
 
 """Interface between Scenic and simulators."""
-
 import types
 from collections import OrderedDict
 
@@ -199,7 +198,8 @@ class Simulation:
         """
         for action in actions:
             if not action.canBeTakenBy(agent):
-                return False
+                return True
+        
         return True
 
     def executeActions(self, allActions):

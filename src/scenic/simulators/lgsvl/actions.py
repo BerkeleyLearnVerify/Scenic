@@ -3,6 +3,7 @@
 import math
 
 import lgsvl
+#import dreamview
 import numpy as np
 from scipy import linalg
 
@@ -52,7 +53,8 @@ class SetDestinationAction(Action):
 	def applyTo(self, obj, sim):
 		if self.timer == 0:
 			z = sim.groundElevationAt(self.dest)
-			import dreamview
+			import lgsvl.dreamview
+			print("obj dreamview : ",obj)
 			obj.dreamview.setDestination(self.dest.x, self.dest.y, z,
 			                             coordType=dreamview.CoordType.Unity)
 

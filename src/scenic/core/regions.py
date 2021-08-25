@@ -896,6 +896,7 @@ class GridRegion(PointSetRegion):
 
 	def gridToPoint(self, gp):
 		x, y = gp
+		print((self.Ax * x) + self.Bx, (self.Ay * y) + self.By)
 		return ((self.Ax * x) + self.Bx, (self.Ay * y) + self.By)
 
 	def pointToGrid(self, point):

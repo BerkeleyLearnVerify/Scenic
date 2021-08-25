@@ -256,5 +256,3 @@ CarModel.modelProbs = {
 	CarModel('PRANGER', 3.02698, 5.94577): 1
 }
 CarModel.models = { model.name: model for model in CarModel.modelProbs }
-
-CarColor = Color 	# for backwards compatibility
