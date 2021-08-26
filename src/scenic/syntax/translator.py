@@ -1415,16 +1415,15 @@ class ASTSurgeon(NodeTransformer):
 			recording = func.id in recordStatements
 			if recording:
 				numArgs = (1, 2)
-				value = node.args[0]
 			else:
 				numArgs = 1
-				value = node.args[-1]
 				if func.id == softRequirement:
 					func.id = requireStatement
 					numArgs = 2
 					if len(node.args) != 2:
 						self.parseError(node, f'"require" takes exactly 1 argument')
 			self.validateSimpleCall(node, numArgs)
+			value = node.args[0] if recording else node.args[-1]
 			assert not self.inRequire
 			self.inRequire = True
 			req = self.visit(value)
