@@ -224,7 +224,7 @@ nowhere = EmptyRegion('nowhere')
 class CircularRegion(Region):
 	def __init__(self, center, radius, resolution=32, name=None):
 		super().__init__(name, center, radius)
-		self.center = center.toVector()
+		self.center = toVector(center, "center of CircularRegion not a vector")
 		self.radius = radius
 		self.circumcircle = (self.center, self.radius)
 		self.resolution = resolution
@@ -275,7 +275,7 @@ class CircularRegion(Region):
 
 class SectorRegion(Region):
 	def __init__(self, center, radius, heading, angle, resolution=32, name=None):
-		self.center = center.toVector()
+		self.center = toVector(center, "center of SectorRegion not a vector")
 		self.radius = radius
 		self.heading = heading
 		self.angle = angle
@@ -344,14 +344,14 @@ class SectorRegion(Region):
 class RectangularRegion(_RotatedRectangle, Region):
 	def __init__(self, position, heading, width, length, name=None):
 		super().__init__(name, position, heading, width, length)
-		self.position = position.toVector()
+		self.position = toVector(position, "position of RectangularRegion not a vector")
 		self.heading = heading
 		self.width = width
 		self.length = length
 		self.hw = hw = width / 2
 		self.hl = hl = length / 2
 		self.radius = hypot(hw, hl)		# circumcircle; for collision detection
-		self.corners = tuple(position.offsetRotated(heading, Vector(*offset))
+		self.corners = tuple(self.position.offsetRotated(heading, Vector(*offset))
 			for offset in ((hw, hl), (-hw, hl), (-hw, -hl), (hw, -hl)))
 		self.circumcircle = (self.position, self.radius)
 
