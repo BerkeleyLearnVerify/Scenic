@@ -1,7 +1,8 @@
 """Scenic world models for the Webots robotics simulator.
 
-This module contains common code for working with Webots, e.g. parsing WBT files.
-World models for particular uses of Webots are in submodules.
+This module contains common code for working with Webots, e.g. parsing WBT files,
+as well as a generic dynamic simulator interface and world model for Webots.
+More detailed world models for particular types of scenarios are in submodules.
 
 .. raw:: html
 
@@ -10,12 +11,15 @@ World models for particular uses of Webots are in submodules.
 .. autosummary::
    :toctree:
 
+   simulator
+   model
+   actions
    mars
    road
    guideways
-   common
+   utils
    world_parser
 """
 
-from .common import scenicToWebotsPosition, scenicToWebotsRotation
+from .utils import scenicToWebotsPosition, scenicToWebotsRotation
 from .simulator import WebotsSimulator

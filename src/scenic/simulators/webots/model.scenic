@@ -1,5 +1,7 @@
 """Generic Scenic world model for the Webots simulator."""
 
+from scenic.simulators.webots.actions import *
+
 def _errorMsg():
     raise RuntimeError('scenario must be run from inside Webots')
 simulator _errorMsg()

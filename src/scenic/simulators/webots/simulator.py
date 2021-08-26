@@ -1,8 +1,15 @@
-"""Interface to Webots for dynamic simulations."""
+"""Interface to Webots for dynamic simulations.
+
+This interface is intended to be instantiated from inside the controller script
+of a Webots `Robot node`_ with the ``supervisor`` field set to true. Such a
+script can create a `WebotsSimulator` (passing in a reference to the supervisor
+node) and then call its `simulate` method as usual to run a simulation.
+
+.. _Robot node: https://www.cyberbotics.com/doc/reference/robot
+"""
 
 from collections import defaultdict
 import math
-import pickle
 
 import scenic.simulators.webots.utils as utils
 from scenic.core.simulators import Simulator, Simulation, Action
@@ -22,6 +29,7 @@ class WebotsSimulator(Simulator):
         return WebotsSimulation(scene, self.supervisor)
 
 class WebotsSimulation(Simulation):
+    """`Simulation` object for Webots."""
     def __init__(self, scene, supervisor, verbosity=0):
         timestep = supervisor.getBasicTimeStep() / 1000
         super().__init__(scene, timestep=timestep, verbosity=verbosity)
@@ -96,7 +104,6 @@ class WebotsSimulation(Simulation):
         self.supervisor.step(ms)
 
     def getProperties(self, obj, properties):
-        """Read the values of the given properties of the object from the simulation."""
         webotsObj = self.webotsObjects[obj]
 
         pos = webotsObj.getField('translation').getSFVec3f()
@@ -123,21 +130,3 @@ class WebotsSimulation(Simulation):
             values['battery'] = val
 
         return values
-
-class MoveAction(Action):
-    def __init__(self, offset):
-        self.offset = offset
-
-    def applyTo(self, obj, webotsObj):
-        pos = obj.position.offsetRotated(obj.heading, self.offset)
-        pos = utils.scenicToWebotsPosition(pos, y=obj.elevation)
-        webotsObj.getField('translation').setSFVec3f(pos)
-
-class WriteFileAction(Action):
-    def __init__(self, path, data):
-        self.path = path
-        self.data = data
-
-    def applyTo(self, obj, webotsObj):
-        with open(self.path, 'wb') as outFile:
-            pickle.dump(self.data, outFile)
