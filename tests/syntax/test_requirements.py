@@ -33,7 +33,7 @@ def test_object_in_requirement():
         ego = Object
     """)
     with pytest.raises(ScenicSyntaxError):
-        sampleScene(scenario, maxIterations=1)
+        sampleScene(scenario)
 
 def test_param_in_requirement():
     with pytest.raises(ScenicSyntaxError):
@@ -42,12 +42,14 @@ def test_param_in_requirement():
             ego = Object
         """)
 
+@pytest.mark.xfail(reason='looser keyword policy now allows this', strict=True)
 def test_mutate_in_requirement():
+    scenario = compileScenic("""
+        require mutate
+        ego = Object
+    """)
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
-            require mutate
-            ego = Object
-        """)
+        sampleScene(scenario)
 
 def test_require_in_requirement():
     with pytest.raises(ScenicSyntaxError):
@@ -64,7 +66,7 @@ def test_runtime_parse_error_in_requirement():
         ego = Object
     """)
     with pytest.raises(ScenicSyntaxError):
-        sampleScene(scenario, maxIterations=1)
+        sampleScene(scenario)
 
 ## Enforcement of built-in requirements
 

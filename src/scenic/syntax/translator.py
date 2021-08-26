@@ -262,7 +262,7 @@ monitorClass = 'Monitor'
 createTerminationAction = 'makeTerminationAction'
 internalFunctions = {
 	createDefault, scenarioClass,
-	behaviorClass, createTerminationAction,
+	behaviorClass, monitorClass, createTerminationAction,
 }
 
 # sanity check: these functions actually exist
@@ -400,7 +400,7 @@ interruptExceptMarker = '_Scenic_interrupt_'
 ## Constructors and specifiers
 
 # statement defining a new constructor (Scenic class);
-# we still recognize 'constructor' for backwards-compatibility
+# we still recognize 'constructor' for backwards-compatibility 	# TODO drop this keyword?
 constructorStatements = ('class', 'constructor')
 
 Constructor = namedtuple('Constructor', ('name', 'bases'))
@@ -598,7 +598,6 @@ illegalConstructs = {
 
 keywords = (
 	set(constructorStatements)
-	| (oneWordStatements - {simulatorStatement})
 	| internalFunctions
 	| replacements.keys()
 )
@@ -1184,7 +1183,7 @@ class TokenTranslator:
 			else:
 				moveBeyond(endToken)
 			startOfLine = (ttype in (ENCODING, NEWLINE, NL, INDENT, DEDENT))
-			startOfStatement = startOfLine or (ttype == SEMI)
+			startOfStatement = (startOfLine or (ttype == SEMI)) and not functionStack
 
 		rewrittenSource = tokenize.untokenize(newTokens)
 		if not isinstance(rewrittenSource, str):	# TODO improve?
