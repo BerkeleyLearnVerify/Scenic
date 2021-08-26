@@ -57,29 +57,36 @@ class WebotsSimulation(Simulation):
                 pos = webotsObj.getField('translation').getSFVec3f()
                 obj.elevation = pos[1]
 
-
-        # Reset Webots and object controllers
+        # Reset Webots simulation
         supervisor.simulationResetPhysics()
-        # for webotsObj in self.webotsObjects.values():
-        #     webotsObj.restartController()
 
-        # Set initial positions and orientations of Webots objects
+        # Set initial properties of Webots objects
         self.writePropertiesToWebots()
 
     def writePropertiesToWebots(self):
         for obj in self.objects:
             webotsObj = self.webotsObjects[obj]
             # position
-            if obj.webotsName.startswith('Hill'):
-                offset = Vector(obj.width/2, -obj.length/2)
-                setHillGeometry(webotsObj, obj.width, obj.length, obj.height)
-            else:
-                offset = Vector(0, 0)
-            pos = utils.scenicToWebotsPosition(obj.position + offset, y=obj.elevation)
+            pos = utils.scenicToWebotsPosition(obj.position + obj.positionOffset, y=obj.elevation)
             webotsObj.getField('translation').setSFVec3f(pos)
             # heading
             rot = utils.scenicToWebotsRotation(obj.heading)
             webotsObj.getField('rotation').setSFRotation(rot)
+            # battery
+            battery = getattr(obj, 'battery', None)
+            if battery:
+                if not isinstance(battery, (tuple, list)) or len(battery) != 3:
+                    raise RuntimeError(f'"battery" of {obj.webotsName} does not'
+                                       ' have 3 components')
+                field = webotsObj.getField('battery')
+                field.setMFFloat(0, battery[0])
+                field.setMFFloat(1, battery[1])
+                field.setMFFloat(2, battery[2])
+            # controller
+            if obj.controller:
+                webotsObj.getField('controller').setSFString(obj.controller)
+                if obj.resetController:
+                    webotsObj.restartController()
 
     def createObjectInSimulator(self, obj):
         raise RuntimeError('the Webots interface does not support dynamic object creation')
@@ -109,37 +116,13 @@ class WebotsSimulation(Simulation):
             speed=speed,
             angularSpeed=ay,
         )
-        return values
 
-def setHillGeometry(hill, width, length, height, N=10):
-    shape = hill.getField('children').getMFNode(0)
-    grid = shape.getField('geometry').getSFNode()
-    grid.getField('xDimension').setSFInt32(N)
-    grid.getField('zDimension').setSFInt32(N)
-    grid.getField('xSpacing').setSFFloat(width/(N-1))
-    grid.getField('zSpacing').setSFFloat(length/(N-1))
-    heights = grid.getField('height')
-    count = heights.getCount()
-    size = N*N
-    if count > size:
-        for i in range(count - size):
-            heights.removeMF(-1)
-    elif count < size:
-        for i in range(size - count):
-            heights.insertMFFloat(-1, 0)
-    index = 0
-    mean = (N-1)/2
-    stddev = N/3.5
-    for x in range(N):
-        xd = (x - mean) / stddev
-        for z in range(N):
-            zd = (z - mean) / stddev
-            if x == 0 or x == N-1 or z == 0 or z == N-1:
-                y = 0
-            else:
-                y = height * math.exp(-((xd * xd) + (zd * zd))) ** 0.5
-            heights.setMFFloat(index, y)
-            index += 1
+        if hasattr(obj, 'battery'):
+            field = webotsObj.getField('battery')
+            val = (field.getMFFloat(0), obj.battery[1], obj.battery[2])
+            values['battery'] = val
+
+        return values
 
 class MoveAction(Action):
     def __init__(self, offset):

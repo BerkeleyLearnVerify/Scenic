@@ -1,6 +1,7 @@
 
 """Interface between Scenic and simulators."""
 
+import enum
 import time
 import types
 from collections import OrderedDict, defaultdict
@@ -93,6 +94,10 @@ class Simulation:
         try:
             # Initialize dynamic scenario
             dynamicScenario._start()
+
+            # Give objects a chance to do any simulator-specific setup
+            for obj in self.objects:
+                obj.startDynamicSimulation()
 
             # Update all objects in case the simulator has adjusted any dynamic
             # properties during setup
@@ -271,6 +276,10 @@ class Simulation:
         The default implementation returns a tuple of the positions of all objects.
         """
         return tuple(obj.position for obj in self.objects)
+
+    @property
+    def currentRealTime(self):
+        return self.currentTime * self.timestep
 
     def destroy(self):
         """Perform any cleanup necessary to reset the simulator after a simulation."""

@@ -439,6 +439,14 @@ class Object(OrientedPoint, _RotatedRectangle):
 		proxy = object.__getattribute__(self, '_dynamicProxy')
 		object.__delattr__(proxy, name)
 
+	def startDynamicSimulation(self):
+		"""Hook called at the beginning of each dynamic simulation.
+
+		Does nothing by default; provided for objects to do simulator-specific
+		initialization as needed.
+		"""
+		pass
+
 	@cached_property
 	def left(self):
 		return self.relativize(Vector(-self.hw, 0))
