@@ -122,6 +122,12 @@ class CompiledRequirement:
     def satisfiedBy(self, sample):
         return self.closure(sample)
 
+    def __str__(self):
+        if self.name:
+            return self.name
+        else:
+            return f'"{self.ty.value}" on line {self.line}'
+
 class BoundRequirement:
     def __init__(self, compiledReq, sample):
         self.ty = compiledReq.ty
@@ -138,7 +144,10 @@ class BoundRequirement:
         return self.closure(self.sample)
 
     def __str__(self):
-        return f'"{self.ty.value}" on line {self.line}'
+        if self.name:
+            return self.name
+        else:
+            return f'"{self.ty.value}" on line {self.line}'
 
 class DynamicRequirement:
     def __init__(self, ty, condition, line, name=None):
@@ -160,4 +169,7 @@ class DynamicRequirement:
         return self.closure()
 
     def __str__(self):
-        return f'"{self.ty.value}" on line {self.line}'
+        if self.name:
+            return self.name
+        else:
+            return f'"{self.ty.value}" on line {self.line}'

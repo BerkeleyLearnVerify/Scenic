@@ -25,6 +25,24 @@ def test_soft_requirement():
     count = sum(x >= 0 for x in xs)
     assert 255 <= count < 350
 
+def test_named_requirement():
+    scenario = compileScenic("""
+        ego = Object at Range(0, 10) @ 0
+        require ego.position.x >= 5 as posReq
+    """)
+    xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
+    assert all(5 <= x <= 10 for x in xs)
+
+@pytest.mark.slow
+def test_named_soft_requirement():
+    scenario = compileScenic("""
+        ego = Object at Range(0, 10) @ 0
+        require[0.9] ego.position.x >= 5 as posReq
+    """)
+    xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(350)]
+    count = sum(x >= 5 for x in xs)
+    assert 255 <= count < 350
+
 ## Forbidden operations inside requirements
 
 def test_object_in_requirement():

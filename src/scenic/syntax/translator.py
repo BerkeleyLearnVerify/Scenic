@@ -33,7 +33,7 @@ import importlib
 import importlib.abc
 import importlib.util
 import itertools
-from collections import namedtuple, defaultdict
+from collections import namedtuple, defaultdict, deque
 from contextlib import contextmanager
 
 import tokenize
@@ -387,6 +387,7 @@ requirementStatements = recordStatements + (
 	requireStatement, softRequirement,
 	functionForStatement(requireAlwaysStatement),
 	functionForStatement(terminateWhenStatement),
+	functionForStatement(terminateSimulationWhenStatement),
 )
 
 statementRaiseMarker = '_Scenic_statement_'
@@ -535,7 +536,7 @@ infixOperators = (
 	InfixOp('from', None, 2, (COMMA, ','), None),
 	InfixOp('for', None, 2, (COMMA, ','), None, ('Follow', 'Following')),
 	InfixOp('to', None, 2, (COMMA, ','), None),
-	InfixOp('as', None, 2, (COMMA, ','), None, recordStatements),
+	InfixOp('as', None, 2, (COMMA, ','), None, requirementStatements),
 	InfixOp('by', None, 2, packageToken, None)
 )
 
@@ -743,24 +744,31 @@ def findConstructorsIn(namespace):
 class Peekable:
 	"""Utility class to allow iterator lookahead."""
 	def __init__(self, gen):
-		self.gen = iter(gen)
-		self.current = next(self.gen, None)
+		self._gen = iter(gen)
+		self._cache = deque()
 
 	def __iter__(self):
 		return self
 
 	def __next__(self):
-		cur = self.current
+		self._lookahead(1)
+		cur = self._cache.popleft()
 		if cur is None:
 			raise StopIteration
-		self.current = next(self.gen, None)
 		return cur
 
-	def peek(self):
-		return self.current
+	def _lookahead(self, n):
+		needed = n - len(self._cache)
+		while needed > 0:
+			self._cache.append(next(self._gen, None))
+			needed -= 1
 
-def peek(thing):
-	return thing.peek()
+	def peek(self, n=1):
+		self._lookahead(n)
+		return self._cache[n-1]
+
+def peek(thing, n=1):
+	return thing.peek(n)
 
 class TokenTranslator:
 	"""Translates a Scenic token stream into valid Python syntax.
@@ -1021,16 +1029,17 @@ class TokenTranslator:
 						advance()	# consume second word
 						matched = True
 					elif startOfStatement and twoWords in threeWordIncipits:	# 3-word statement
-						advance()	# consume second word
-						endToken = advance()	# consume third word
-						thirdWord = endToken.tstring
+						endToken = peek(tokens, 2)
+						thirdWord = endToken.string
 						expected = threeWordIncipits[twoWords]
-						if thirdWord != expected:
+						if thirdWord != expected:	# TODO do proper 3-word lookahead?
 							self.parseError(endToken,
 							                f'expected "{expected}", got "{thirdWord}"')
 						wrapStatementCall()
 						function = functionForStatement(twoWords + (thirdWord,))
 						callFunction(function)
+						advance()	# consume second word
+						advance()	# consume third word
 						matched = True
 					elif startOfStatement and twoWords in twoWordStatements:	# 2-word statement
 						wrapStatementCall()
@@ -1413,17 +1422,31 @@ class ASTSurgeon(NodeTransformer):
 			self.parseError(node, f'"{statement}" cannot be used in a behavior')
 		if func.id in requirementStatements:		# require, terminate when, etc.
 			recording = func.id in recordStatements
-			if recording:
-				numArgs = (1, 2)
+			checkedArgs = node.args
+			if func.id == softRequirement:	# extract probability as first arg for soft reqs
+				func.id = requireStatement
+				prob = node.args[0]
+				assert isinstance(prob, (Constant, Num))
+				if isinstance(prob, Constant):
+					assert isinstance(prob.value, (float, int))
+				checkedArgs = node.args[1:]
 			else:
-				numArgs = 1
-				if func.id == softRequirement:
-					func.id = requireStatement
-					numArgs = 2
-					if len(node.args) != 2:
-						self.parseError(node, f'"require" takes exactly 1 argument')
-			self.validateSimpleCall(node, numArgs)
-			value = node.args[0] if recording else node.args[-1]
+				prob = None
+			self.validateSimpleCall(node, (1, 2), args=checkedArgs)
+			value = checkedArgs[0]
+			if len(checkedArgs) > 1:
+				name = checkedArgs[1]
+				if isinstance(name, Name):
+					name = Constant(name.id)
+				elif isinstance(name, Str):
+					pass
+				elif isinstance(name, Constant):
+					name = Constant(str(name.value))
+				else:
+					self.parseError(name, f'malformed name for "{func.id}" statement')
+			else:
+				name = Constant(None)
+
 			assert not self.inRequire
 			self.inRequire = True
 			req = self.visit(value)
@@ -1434,25 +1457,9 @@ class ASTSurgeon(NodeTransformer):
 			lineNum = Constant(node.lineno)			# save line number for error messages
 			copy_location(closure, req)
 			copy_location(lineNum, req)
-			newArgs = [reqID, closure, lineNum]
-			if len(node.args) == 2:		# get probability for soft requirements
-				if recording:
-					name = node.args[1]
-					if isinstance(name, Name):
-						name = Constant(name.id)
-					elif isinstance(name, Str):
-						pass
-					elif isinstance(name, Constant):
-						name = Constant(str(name.value))
-					else:
-						self.parseError(name, f'malformed name for "record" statement')
-					newArgs.append(name)
-				else:
-					prob = node.args[0]
-					assert isinstance(prob, (Constant, Num))
-					if isinstance(prob, Constant):
-						assert isinstance(prob.value, (float, int))
-					newArgs.append(prob)
+			newArgs = [reqID, closure, lineNum, name]
+			if prob:
+				newArgs.append(prob)
 			return copy_location(Expr(Call(func, newArgs, [])), node)
 		elif func.id == simulatorStatement:
 			self.validateSimpleCall(node, 1)

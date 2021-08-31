@@ -245,7 +245,7 @@ class Scenario:
 			# Check user-specified requirements
 			for req in activeReqs:
 				if not req.satisfiedBy(sample):
-					rejection = f'user-specified requirement (line {req.line})'
+					rejection = str(req)
 					break
 
 		# obtained a valid sample; assemble a scene from it

@@ -111,12 +111,14 @@ class Simulation:
             # Run simulation
             assert self.currentTime == 0
             terminationReason = None
+            terminationType = None
             while maxSteps is None or self.currentTime < maxSteps:
                 if self.verbosity >= 3:
                     print(f'    Time step {self.currentTime}:')
 
                 # Run compose blocks of compositional scenarios
                 terminationReason = dynamicScenario._step()
+                terminationType = TerminationType.scenarioComplete
 
                 # Record current values of recorded expressions
                 values = dynamicScenario._evaluateRecordedExprs(RequirementType.record)
@@ -130,6 +132,7 @@ class Simulation:
                 newReason = dynamicScenario._runMonitors()
                 if newReason is not None:
                     terminationReason = newReason
+                    terminationType = TerminationType.terminatedByMonitor
 
                 # "Always" and scenario-level requirements have been checked;
                 # now safe to terminate if the top-level scenario has finished
@@ -138,6 +141,7 @@ class Simulation:
                     break
                 terminationReason = dynamicScenario._checkSimulationTerminationConditions()
                 if terminationReason is not None:
+                    terminationType = TerminationType.simulationTerminationCondition
                     break
 
                 # Compute the actions of the agents in this time step
@@ -150,6 +154,7 @@ class Simulation:
                     actions = behavior.step()
                     if isinstance(actions, EndSimulationAction):
                         terminationReason = str(actions)
+                        terminationType = TerminationType.terminatedByBehavior
                         break
                     assert isinstance(actions, tuple)
                     if len(actions) == 1 and isinstance(actions[0], (list, tuple)):
@@ -184,8 +189,9 @@ class Simulation:
             # Package up simulation results into a compact object
             if terminationReason is None:
                 terminationReason = f'reached time limit ({maxSteps} steps)'
-            result = SimulationResult(trajectory, actionSequence, terminationReason,
-                                      records)
+                terminationType = TerminationType.timeLimit
+            result = SimulationResult(trajectory, actionSequence, terminationType,
+                                      terminationReason, records)
             self.result = result
             return self
         finally:
@@ -345,12 +351,21 @@ class EndScenarioAction(Action):
     def __str__(self):
         return f'"terminate scenario" on line {self.line}'
 
+@enum.unique
+class TerminationType(enum.Enum):
+    timeLimit = 'reached simulation time limit'
+    scenarioComplete = 'the top-level scenario finished'
+    simulationTerminationCondition = 'a simulation termination condition was met'
+    terminatedByMonitor = 'a monitor terminated the simulation'
+    terminatedByBehavior = 'a behavior terminated the simulation'
+
 class SimulationResult:
     """Result of running a simulation."""
-    def __init__(self, trajectory, actions, terminationReason, records):
+    def __init__(self, trajectory, actions, terminationType, terminationReason, records):
         self.trajectory = tuple(trajectory)
         assert self.trajectory
         self.finalState = self.trajectory[-1]
         self.actions = tuple(actions)
+        self.terminationType = terminationType
         self.terminationReason = str(terminationReason)
         self.records = dict(records)

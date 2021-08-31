@@ -356,7 +356,7 @@ def ego(obj=None):
 				scenario._ego = obj
 	return egoObject
 
-def require(reqID, req, line, prob=1, name=None):
+def require(reqID, req, line, name, prob=1):
 	"""Function implementing the require statement."""
 	if not name:
 		name = f'requirement on line {line}'
@@ -375,34 +375,34 @@ def require(reqID, req, line, prob=1, name=None):
 		currentScenario._addRequirement(requirements.RequirementType.require,
                                         reqID, req, line, name, prob)
 
-def record(reqID, value, line, name=None):
+def record(reqID, value, line, name):
 	if not name:
 		name = f'record{line}'
 	makeRequirement(requirements.RequirementType.record, reqID, value, line, name)
 
-def record_initial(reqID, value, line, name=None):
+def record_initial(reqID, value, line, name):
 	if not name:
 		name = f'record{line}'
 	makeRequirement(requirements.RequirementType.recordInitial, reqID, value, line, name)
 
-def record_final(reqID, value, line, name=None):
+def record_final(reqID, value, line, name):
 	if not name:
 		name = f'record{line}'
 	makeRequirement(requirements.RequirementType.recordFinal, reqID, value, line, name)
 
-def require_always(reqID, req, line, name=None):
+def require_always(reqID, req, line, name):
 	"""Function implementing the 'require always' statement."""
 	if not name:
 		name = f'requirement on line {line}'
 	makeRequirement(requirements.RequirementType.requireAlways, reqID, req, line, name)
 
-def terminate_when(reqID, req, line, name=None):
+def terminate_when(reqID, req, line, name):
 	"""Function implementing the 'terminate when' statement."""
 	if not name:
 		name = f'termination condition on line {line}'
 	makeRequirement(requirements.RequirementType.terminateWhen, reqID, req, line, name)
 
-def terminate_simulation_when(reqID, req, line, name=None):
+def terminate_simulation_when(reqID, req, line, name):
 	"""Function implementing the 'terminate simulation when' statement."""
 	if not name:
 		name = f'termination condition on line {line}'
