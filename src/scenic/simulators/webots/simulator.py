@@ -41,7 +41,7 @@ class WebotsSimulation(Simulation):
         usedNames = defaultdict(lambda: 0)
         for obj in self.objects:
             if not hasattr(obj, 'webotsName'):
-                raise RuntimeError(f'object {obj} does not have a webotsName property')
+                continue    # not a Webots object
             if obj.webotsName:
                 name = obj.webotsName
             else:
@@ -72,8 +72,7 @@ class WebotsSimulation(Simulation):
         self.writePropertiesToWebots()
 
     def writePropertiesToWebots(self):
-        for obj in self.objects:
-            webotsObj = self.webotsObjects[obj]
+        for obj, webotsObj in self.webotsObjects.items():
             # position
             pos = utils.scenicToWebotsPosition(obj.position + obj.positionOffset, y=obj.elevation)
             webotsObj.getField('translation').setSFVec3f(pos)
@@ -104,7 +103,9 @@ class WebotsSimulation(Simulation):
         self.supervisor.step(ms)
 
     def getProperties(self, obj, properties):
-        webotsObj = self.webotsObjects[obj]
+        webotsObj = self.webotsObjects.get(obj)
+        if not webotsObj:   # static object with no Webots counterpart
+            return { prop: getattr(obj, prop) for prop in properties }
 
         pos = webotsObj.getField('translation').getSFVec3f()
         x, y = utils.webotsToScenicPosition(pos)

@@ -279,7 +279,8 @@ class Scenario:
 		"""Reset the scenario's external sampler, if any.
 
 		If the Python random seed is reset before calling this function, this
-		should cause the sequence of generated scenes to be deterministic."""
+		should cause the sequence of generated scenes to be deterministic.
+		"""
 		self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)
 
 	def getSimulator(self):
