@@ -41,7 +41,7 @@ from tokenize import NAME, NL, NEWLINE, ENDMARKER, OP, NUMBER, COLON, COMMENT, E
 from tokenize import LPAR, RPAR, LSQB, RSQB, RBRACE, COMMA, DOUBLESLASH, DOUBLESLASHEQUAL
 from tokenize import AT, LEFTSHIFT, RIGHTSHIFT, VBAR, AMPER, TILDE, CIRCUMFLEX, STAR
 from tokenize import LEFTSHIFTEQUAL, RIGHTSHIFTEQUAL, VBAREQUAL, AMPEREQUAL, CIRCUMFLEXEQUAL
-from tokenize import INDENT, DEDENT, STRING, SEMI
+from tokenize import INDENT, DEDENT, STRING, SEMI, DOT
 
 import ast
 from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_missing_locations
@@ -1123,7 +1123,7 @@ class TokenTranslator:
 						injectToken((RPAR, ')'))
 						skip = True
 					elif (tstring in self.constructors
-						  and peek(tokens).exact_type not in (RPAR, RSQB, RBRACE, COMMA)):
+						  and peek(tokens).exact_type not in (RPAR, RSQB, RBRACE, COMMA, DOT)):
 						# instance definition
 						callFunction(tstring)
 					elif tstring in replacements:	# direct replacement
