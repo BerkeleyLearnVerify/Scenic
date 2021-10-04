@@ -1,0 +1,3 @@
+[submodule "src/scenic/simulators/carlo/CARLO"]
+	path = src/scenic/simulators/carlo/CARLO
+	url = https://github.com/Stanford-ILIAD/CARLO.git
