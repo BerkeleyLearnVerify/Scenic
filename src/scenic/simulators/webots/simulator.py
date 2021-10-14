@@ -89,10 +89,20 @@ class WebotsSimulation(Simulation):
                 field.setMFFloat(0, battery[0])
                 field.setMFFloat(1, battery[1])
                 field.setMFFloat(2, battery[2])
+            # customData
+            customData = getattr(obj, 'customData', None)
+            if customData:
+                if not isinstance(customData, str):
+                    raise RuntimeError(f'"customData" of {obj.webotsName} is not a string')
+                webotsObj.getField('customData').setSFString(customData)
             # controller
             if obj.controller:
-                webotsObj.getField('controller').setSFString(obj.controller)
-                if obj.resetController:
+                controllerField = webotsObj.getField('controller')
+                curCont = controllerField.getSFString()
+                if obj.controller != curCont:
+                    # the following operation also causes the controller to be restarted
+                    controllerField.setSFString(obj.controller)
+                elif obj.resetController:
                     webotsObj.restartController()
 
     def createObjectInSimulator(self, obj):

@@ -122,6 +122,20 @@ class Samplable(LazilyEvaluable):
 				l.append('  ' + line)
 		return l
 
+class ConstantSamplable(Samplable):
+	"""A samplable which always evaluates to a constant value.
+
+	Only for internal use.
+	"""
+	def __init__(self, value):
+		assert not needsSampling(value)
+		assert not needsLazyEvaluation(value)
+		self.value = value
+		super().__init__(())
+
+	def sampleGiven(self, value):
+		return self.value
+
 class Distribution(Samplable):
 	"""Abstract class for distributions."""
 

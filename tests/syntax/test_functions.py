@@ -17,6 +17,11 @@ def test_max_min():
     ego = sampleEgoFrom('ego = Object with foo min(1, 2, key=lambda x: -x)')
     assert ego.foo == 2
 
+def test_str():
+    ego = sampleEgoFrom('ego = Object with foo str(Range(12, 17))')
+    assert isinstance(ego.foo, str)
+    assert 12 <= float(ego.foo) <= 17
+
 # Iterable and dictionary unpacking
 
 def test_unpacking():

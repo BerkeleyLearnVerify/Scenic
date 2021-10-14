@@ -32,7 +32,7 @@ class WebotsObject:
         controller (str or None): name of the Webots controller to use for
             this object, if any (instead of a Scenic behavior).
         resetController (bool): Whether to restart the controller for each
-            simulation (default ``False``).
+            simulation (default ``True``).
         positionOffset (`Vector`): Offset to add when computing the object's
             position in Webots; for objects whose Webots ``translation`` field
             is not aligned with the center of the object.
@@ -48,7 +48,7 @@ class WebotsObject:
     webotsObject: None
 
     controller: None
-    resetController: False
+    resetController: True
 
     positionOffset: (0, 0)
 
@@ -56,6 +56,10 @@ class Ground(WebotsObject):
     """Special kind of object representing a (possibly irregular) ground surface.
 
     Implemented using an `ElevationGrid`_ node in Webots.
+
+    Attributes:
+        allowCollisions (bool): default value `False` (overriding default from `Object`).
+        webotsName (str): default value 'Ground'
 
     .. _ElevationGrid: https://www.cyberbotics.com/doc/reference/elevationgrid
     """
