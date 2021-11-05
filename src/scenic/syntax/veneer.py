@@ -13,7 +13,7 @@ __all__ = (
 	'terminate_simulation_when', 'terminate_after', 'in_initial_scenario',
 	'record', 'record_initial', 'record_final',
 	'sin', 'cos', 'hypot', 'max', 'min',
-	'filter',
+	'filter', 'str',
 	# Prefix operators
 	'Visible', 'NotVisible',
 	'Front', 'Back', 'Left', 'Right',
@@ -486,10 +486,6 @@ def model(namespace, modelName):
 			if not name.startswith('_'):
 				namespace[name] = value
 
-@distributionFunction
-def filter(function, iterable):
-	return list(builtins.filter(function, iterable))
-
 def param(*quotedParams, **params):
 	"""Function implementing the param statement."""
 	global loadingModel
@@ -953,3 +949,13 @@ def Following(field, dist, fromPt=None):
 	heading = field[pos]
 	val = OrientedVector.make(pos, heading)
 	return Specifier('position', val, optionals={'heading'})
+
+### Primitive functions overriding Python builtins
+
+@distributionFunction
+def filter(function, iterable):
+	return list(builtins.filter(function, iterable))
+
+@distributionFunction
+def str(*args, **kwargs):
+	return builtins.str(*args, **kwargs)

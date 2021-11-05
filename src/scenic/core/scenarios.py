@@ -3,7 +3,8 @@
 import random
 import time
 
-from scenic.core.distributions import Samplable, RejectionException, needsSampling
+from scenic.core.distributions import (Samplable, ConstantSamplable, RejectionException,
+                                       needsSampling)
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.external_params import ExternalSampler
 from scenic.core.regions import EmptyRegion
@@ -279,8 +280,26 @@ class Scenario:
 		"""Reset the scenario's external sampler, if any.
 
 		If the Python random seed is reset before calling this function, this
-		should cause the sequence of generated scenes to be deterministic."""
+		should cause the sequence of generated scenes to be deterministic.
+		"""
 		self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)
+
+	def conditionOn(self, scene=None, objects=(), params={}):
+		assert objects or params
+		assert bool(scene) == bool(objects)
+		if scene:
+			assert len(self.objects) == len(scene.objects)
+		for i in objects:
+			assert i < len(self.objects)
+			self.objects[i].conditionTo(scene.objects[i])
+		for param, newVal in params.items():
+			curVal = self.params[param]
+			if isinstance(curVal, Samplable):
+				if not isinstance(newVal, Samplable):
+					newVal = ConstantSamplable(newVal)
+				curVal.conditionTo(newVal)
+			else:
+				self.params[param] = newVal
 
 	def getSimulator(self):
 		if self.simulator is None:
