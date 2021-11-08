@@ -166,7 +166,7 @@ def cleanPolygon(poly, tolerance, holeTolerance=0, minRelArea=0.05, minHullLenRa
 	if poly.is_empty:
 		return poly
 	elif isinstance(poly, shapely.geometry.MultiPolygon):
-		polys = [cleanPolygon(p, tolerance, holeTolerance) for p in poly]
+		polys = [cleanPolygon(p, tolerance, holeTolerance) for p in poly.geoms]
 		total = sum(poly.area for poly in polys)
 		kept = []
 		for poly in polys:

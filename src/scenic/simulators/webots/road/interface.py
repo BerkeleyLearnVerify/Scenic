@@ -28,7 +28,7 @@ def polygonWithPoints(points):
 	return polygon
 
 def regionWithPolygons(polygons, orientation=None):
-	if len(polygons) == 0:
+	if polygons.is_empty:
 		return nowhere
 	else:
 		return PolygonalRegion(polygon=polygons, orientation=orientation)
@@ -268,7 +268,7 @@ class WebotsWorkspace(Workspace):
 			allCells.extend(road.cells)
 		for crossroad in self.crossroads:
 			if crossroad.region is not None:
-				for poly in crossroad.region.polygons:
+				for poly in crossroad.region.polygons.geoms:
 					allCells.append((poly, None))
 		if not allCells:
 			raise RuntimeError('Webots world has no drivable geometry!')

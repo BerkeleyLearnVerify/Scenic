@@ -414,7 +414,7 @@ class PolylineRegion(Region):
 			elif isinstance(polyline, shapely.geometry.MultiLineString):
 				if len(polyline) == 0:
 					raise RuntimeError('tried to create PolylineRegion from empty MultiLineString')
-				for line in polyline:
+				for line in polyline.geoms:
 					assert len(line.coords) >= 2
 			else:
 				raise RuntimeError('tried to create PolylineRegion from non-LineString')
@@ -455,7 +455,7 @@ class PolylineRegion(Region):
 			return segments
 		elif isinstance(lineString, shapely.geometry.MultiLineString):
 			allSegments = []
-			for line in lineString:
+			for line in lineString.geoms:
 				allSegments.extend(cls.segmentsOf(line))
 			return allSegments
 		else:
@@ -518,7 +518,7 @@ class PolylineRegion(Region):
 		for region in regions:
 			string = region.lineString
 			if isinstance(string, shapely.geometry.MultiLineString):
-				strings.extend(string)
+				strings.extend(string.geoms)
 			else:
 				strings.append(string)
 		newString = shapely.geometry.MultiLineString(strings)
@@ -597,7 +597,7 @@ class PolylineRegion(Region):
 		for region in (self, other):
 			string = region.lineString
 			if isinstance(string, shapely.geometry.MultiLineString):
-				strings.extend(string)
+				strings.extend(string.geoms)
 			else:
 				strings.append(string)
 		newString = shapely.geometry.MultiLineString(strings)
@@ -645,13 +645,13 @@ class PolygonalRegion(Region):
 			                   f'invalid polygon {self.polygons}')
 
 		if points is None and len(self.polygons) == 1 and len(self.polygons[0].interiors) == 0:
-			self.points = tuple(self.polygons[0].exterior.coords[:-1])
+			self.points = tuple(self.polygons.geoms[0].exterior.coords[:-1])
 
 		if self.polygons.is_empty:
 			raise RuntimeError('tried to create empty PolygonalRegion')
 
 		triangles = []
-		for polygon in self.polygons:
+		for polygon in self.polygons.geoms:
 			triangles.extend(triangulatePolygon(polygon))
 		assert len(triangles) > 0, self.polygons
 		self.trianglesAndBounds = tuple((tri, tri.bounds) for tri in triangles)
@@ -680,7 +680,7 @@ class PolygonalRegion(Region):
 				return PolygonalRegion(polygon=diff, orientation=self.orientation)
 			elif isinstance(diff, shapely.geometry.GeometryCollection):
 				polys = []
-				for geom in diff:
+				for geom in diff.geoms:
 					if isinstance(geom, shapely.geometry.Polygon):
 						polys.append(geom)
 				if len(polys) == 0:
@@ -705,7 +705,7 @@ class PolygonalRegion(Region):
 				return PolygonalRegion(polygon=intersection, orientation=orientation)
 			elif isinstance(intersection, shapely.geometry.GeometryCollection):
 				polys = []
-				for geom in intersection:
+				for geom in intersection.geoms:
 					if isinstance(geom, shapely.geometry.Polygon):
 						polys.append(geom)
 				if len(polys) == 0:
