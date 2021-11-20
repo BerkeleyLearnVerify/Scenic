@@ -412,7 +412,7 @@ class PolylineRegion(Region):
 				if len(polyline.coords) < 2:
 					raise RuntimeError('tried to create PolylineRegion with <2-point LineString')
 			elif isinstance(polyline, shapely.geometry.MultiLineString):
-				if len(polyline) == 0:
+				if len(polyline.geoms) == 0:
 					raise RuntimeError('tried to create PolylineRegion from empty MultiLineString')
 				for line in polyline.geoms:
 					assert len(line.coords) >= 2
@@ -460,6 +460,40 @@ class PolylineRegion(Region):
 			return allSegments
 		else:
 			raise RuntimeError('called segmentsOf on non-linestring')
+
+	@cached_property
+	def start(self):
+		"""Get an `OrientedPoint` at the start of the polyline.
+
+		The OP's heading will be aligned with the orientation of the region, if
+		there is one (the default orientation pointing along the polyline).
+		"""
+		pointA, pointB = self.segments[0]
+		if self.usingDefaultOrientation:
+			heading = headingOfSegment(pointA, pointB)
+		elif self.orientation is not None:
+			heading = self.orientation[pointA]
+		else:
+			heading = 0
+		from scenic.core.object_types import OrientedPoint
+		return OrientedPoint(position=pointA, heading=heading)
+
+	@cached_property
+	def end(self):
+		"""Get an `OrientedPoint` at the end of the polyline.
+
+		The OP's heading will be aligned with the orientation of the region, if
+		there is one (the default orientation pointing along the polyline).
+		"""
+		pointA, pointB = self.segments[-1]
+		if self.usingDefaultOrientation:
+			heading = headingOfSegment(pointA, pointB)
+		elif self.orientation is not None:
+			heading = self.orientation[pointB]
+		else:
+			heading = 0
+		from scenic.core.object_types import OrientedPoint
+		return OrientedPoint(position=pointB, heading=heading)
 
 	def defaultOrientation(self, point):
 		start, end = self.nearestSegmentTo(point)
@@ -644,7 +678,8 @@ class PolygonalRegion(Region):
 			raise RuntimeError('tried to create PolygonalRegion with '
 			                   f'invalid polygon {self.polygons}')
 
-		if points is None and len(self.polygons) == 1 and len(self.polygons[0].interiors) == 0:
+		if (points is None and len(self.polygons.geoms) == 1
+		    and len(self.polygons.geoms[0].interiors) == 0):
 			self.points = tuple(self.polygons.geoms[0].exterior.coords[:-1])
 
 		if self.polygons.is_empty:

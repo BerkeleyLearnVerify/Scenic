@@ -153,7 +153,7 @@ def checkPolygon(poly, tolerance):
 			dx, dy = q[0] - p[0], q[1] - p[1]
 			assert math.hypot(dx, dy) >= tolerance
 	if isinstance(poly, shapely.geometry.MultiPolygon):
-		for p in poly:
+		for p in poly.geoms:
 			checkPolygon(p, tolerance)
 	else:
 		checkPolyline(poly.exterior.coords)
@@ -271,7 +271,7 @@ def removeHoles(polygon):
 	if polygon.is_empty:
 		return polygon
 	elif isinstance(polygon, shapely.geometry.MultiPolygon):
-		polys = (removeHoles(poly) for poly in polygon)
+		polys = (removeHoles(poly) for poly in polygon.geoms)
 		poly = shapely.geometry.MultiPolygon(polys)
 		assert poly.is_valid, poly
 		return poly
