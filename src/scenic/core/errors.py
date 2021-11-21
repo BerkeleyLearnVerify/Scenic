@@ -41,7 +41,8 @@ class ScenicSyntaxError(ScenicError):
     """An error produced by attempting to parse an invalid Scenic program.
 
     This is intentionally not a subclass of SyntaxError so that pdb can be used
-    for post-mortem debugging of the parser.
+    for post-mortem debugging of the parser. Our custom excepthook below will
+    arrange to still have it formatted as a SyntaxError, though.
     """
     pass
 
@@ -52,11 +53,13 @@ class TokenParseError(ScenicSyntaxError):
         self.msg = message
         if hasattr(tokenOrLine, 'start'):
             self.lineno, self.offset = tokenOrLine.start
+            self.end_lineno, self.end_offset = tokenOrLine.end
             self.offset += 1
+            self.end_offset += 1
             self.text = tokenOrLine.line
         else:
-            self.lineno = tokenOrLine
-            self.text, self.offset = getText(filename, tokenOrLine)
+            self.lineno = self.end_lineno = tokenOrLine
+            self.text, self.offset, self.end_offset = getText(filename, tokenOrLine)
         super().__init__(message)
 
 class PythonParseError(ScenicSyntaxError):
@@ -64,7 +67,10 @@ class PythonParseError(ScenicSyntaxError):
     def __init__(self, exc):
         self.msg = exc.args[0]
         self.filename, self.lineno = exc.filename, exc.lineno
-        self.text, self.offset = getText(self.filename, self.lineno, exc.text, exc.offset)
+        self.end_lineno = getattr(exc, 'end_lineno', None)  # added in Python 3.10
+        end_offset = getattr(exc, 'end_offset', None)       # ditto
+        self.text, self.offset, self.end_offset = getText(self.filename, self.lineno, exc.text,
+                                                          exc.offset, end_offset)
         super().__init__(self.msg)
         self.with_traceback(exc.__traceback__)
 
@@ -73,8 +79,12 @@ class ASTParseError(ScenicSyntaxError):
     def __init__(self, node, message, filename):
         self.msg = message
         self.lineno = node.lineno
+        self.end_lineno = getattr(node, 'end_lineno', None) # not always present
+        end_offset = getattr(node, 'end_col_offset', None)  # ditto
         self.filename = filename
-        self.text, self.offset = getText(filename, node.lineno, offset=node.col_offset)
+        self.text, self.offset, self.end_offset = getText(filename, node.lineno,
+                                                          offset=node.col_offset,
+                                                          end_offset=end_offset)
         super().__init__(message)
 
 class RuntimeParseError(ScenicSyntaxError):
@@ -141,7 +151,11 @@ def excepthook(ty, value, tb):
                 elif includeFrame(frame):
                     filtered.append(frame)
         strings.extend(traceback.format_list(filtered))
-    strings.extend(traceback.format_exception_only(formatTy, value))
+    # Note: we can't directly call traceback.format_exception_only any more,
+    # since as of Python 3.10 it ignores the exception class passed in and
+    # uses type(value) instead, foiling our formatTy hack.
+    tbe = traceback.TracebackException(formatTy, value, None)
+    strings.extend(tbe.format_exception_only())
     message = ''.join(strings)
     print(message, end='', file=sys.stderr)
 
@@ -178,12 +192,23 @@ def saveErrorLocation():
 
 ## Utilities
 
-def getText(filename, lineno, line='', offset=0):
-    try:    # attempt to recover line from original file
+def getText(filename, lineno, line='', offset=0, end_offset=None):
+    """Attempt to recover the text of an error from the original Scenic file."""
+    try:
         with open(filename, 'r') as f:
             line = list(itertools.islice(f, lineno-1, lineno))
         line = line[0] if line else ''
-        offset = min(offset, len(line))     # TODO improve?
+        # TODO improve reconstruction of error position?
+        # (see TracebackException._format_syntax_error for spaces calculation below)
+        rline = line.rstrip('\n')
+        lline = rline.lstrip(' \n\f')
+        spaces = len(rline) - len(lline)
+        if end_offset is not None:
+            adj_end_offset = min(end_offset, len(line)+1)
+            offset = max(spaces+1, adj_end_offset - (end_offset - offset))
+            end_offset = adj_end_offset
+        else:
+            offset = min(offset, len(line))
     except FileNotFoundError:
         pass
-    return line, offset
+    return line, offset, end_offset
