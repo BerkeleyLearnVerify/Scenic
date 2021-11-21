@@ -138,7 +138,10 @@ def polygonUnion(polys, buf=0, tolerance=0, holeTolerance=0.002):
 	if len(polys) == 1:
 		return polys[0]
 	buffered = [poly.buffer(buf) for poly in polys]
-	union = shapely.ops.unary_union(buffered).buffer(-buf)
+	# remove empty polys to avoid triggering segfault in GEOS 3.10
+	# (see https://github.com/Toblerity/Shapely/issues/1230)
+	nonempty = [poly for poly in buffered if not poly.is_empty]
+	union = shapely.ops.unary_union(nonempty).buffer(-buf)
 	assert union.is_valid, union
 	if tolerance > 0:
 		union = cleanPolygon(union, tolerance, holeTolerance)
