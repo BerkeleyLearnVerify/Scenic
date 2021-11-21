@@ -75,6 +75,7 @@ class DynamicScenario(Invocable):
         self._monitors = []
         self._behaviors = []
         self._alwaysRequirements = []
+        self._eventuallyRequirements = []
         self._terminationConditions = []
         self._terminateSimulationConditions = []
         self._recordedExprs = []
@@ -90,6 +91,7 @@ class DynamicScenario(Invocable):
 
         self._timeLimitInSteps = None   # computed at simulation time
         self._elapsedTime = 0
+        self._eventuallySatisfied = None
 
     @classmethod
     def _dummy(cls, filename, namespace):
@@ -130,6 +132,7 @@ class DynamicScenario(Invocable):
         self._objects = list(scene.objects)
         self._agents = [obj for obj in scene.objects if obj.behavior is not None]
         self._alwaysRequirements = scene.alwaysRequirements
+        self._eventuallyRequirements = scene.eventuallyRequirements
         self._terminationConditions = scene.terminationConditions
         self._terminateSimulationConditions = scene.terminateSimulationConditions
         self._recordedExprs = scene.recordedExprs
@@ -163,6 +166,9 @@ class DynamicScenario(Invocable):
         self._timeLimitInSteps = self._timeLimit
         if self._timeLimitIsInSeconds:
             self._timeLimitInSteps /= veneer.currentSimulation.timestep
+
+        # Keep track of which 'require eventually' conditions have been satisfied
+        self._eventuallySatisfied = { req: False for req in self._eventuallyRequirements }
 
         veneer.startScenario(self)
         with veneer.executeInScenario(self):
@@ -273,6 +279,20 @@ class DynamicScenario(Invocable):
         for sub in self._subScenarios:
             sub._checkAlwaysRequirements()
 
+    def _checkEventuallyRequirements(self):
+        unsat = None
+        for req in self._eventuallyRequirements:
+            if not self._eventuallySatisfied[req]:
+                if req.isTrue():
+                    self._eventuallySatisfied[req] = True
+                else:
+                    unsat = req
+        for sub in self._subScenarios:
+            res = sub._checkEventuallyRequirements()
+            if res is not None:
+                unsat = res
+        return unsat
+
     def _runMonitors(self):
         terminationReason = None
         for monitor in self._monitors:
@@ -340,6 +360,8 @@ class DynamicScenario(Invocable):
             place = self._requirements
         elif req.ty is RequirementType.requireAlways:
             place = self._alwaysRequirements
+        elif req.ty is RequirementType.requireEventually:
+            place = self._eventuallyRequirements
         elif req.ty is RequirementType.terminateWhen:
             place = self._terminationConditions
         elif req.ty is RequirementType.terminateSimulationWhen:

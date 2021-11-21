@@ -112,7 +112,8 @@ class Simulation:
             assert self.currentTime == 0
             terminationReason = None
             terminationType = None
-            while maxSteps is None or self.currentTime < maxSteps:
+            unsatEventuallyReq = None
+            while True:
                 if self.verbosity >= 3:
                     print(f'    Time step {self.currentTime}:')
 
@@ -127,6 +128,7 @@ class Simulation:
 
                 # Check if any requirements fail
                 dynamicScenario._checkAlwaysRequirements()
+                unsatEventuallyReq = dynamicScenario._checkEventuallyRequirements()
 
                 # Run monitors
                 newReason = dynamicScenario._runMonitors()
@@ -135,13 +137,17 @@ class Simulation:
                     terminationType = TerminationType.terminatedByMonitor
 
                 # "Always" and scenario-level requirements have been checked;
-                # now safe to terminate if the top-level scenario has finished
-                # or a monitor requested termination
+                # now safe to terminate if the top-level scenario has finished,
+                # a monitor requested termination, or we've hit the timeout
                 if terminationReason is not None:
                     break
                 terminationReason = dynamicScenario._checkSimulationTerminationConditions()
                 if terminationReason is not None:
                     terminationType = TerminationType.simulationTerminationCondition
+                    break
+                if maxSteps and self.currentTime >= maxSteps:
+                    terminationReason = f'reached time limit ({maxSteps} steps)'
+                    terminationType = TerminationType.timeLimit
                     break
 
                 # Compute the actions of the agents in this time step
@@ -181,15 +187,16 @@ class Simulation:
                 trajectory.append(self.currentState())
                 actionSequence.append(allActions)
 
+            # Reject if some 'require eventually' condition was never satisfied
+            if unsatEventuallyReq is not None:
+                raise RejectSimulationException(str(unsatEventuallyReq))
+
             # Record finally-recorded values
             values = dynamicScenario._evaluateRecordedExprs(RequirementType.recordFinal)
             for name, val in values.items():
                 records[name] = val
 
             # Package up simulation results into a compact object
-            if terminationReason is None:
-                terminationReason = f'reached time limit ({maxSteps} steps)'
-                terminationType = TerminationType.timeLimit
             result = SimulationResult(trajectory, actionSequence, terminationType,
                                       terminationReason, records)
             self.result = result

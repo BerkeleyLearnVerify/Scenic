@@ -3,7 +3,7 @@ import sys
 import inspect
 
 from scenic import scenarioFromString
-from scenic.core.simulators import DummySimulator
+from scenic.core.simulators import DummySimulator, RejectSimulationException
 import scenic.syntax.veneer as veneer
 
 ## Scene generation utilities
@@ -69,7 +69,8 @@ def sampleActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
                                          timestep=timestep)
         if actions is not None:
             return actions
-    assert False, f'unable to find successful simulation over {maxScenes} scenes'
+    raise RejectSimulationException(
+        f'unable to find successful simulation over {maxScenes} scenes')
 
 def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1,
                            singleAction=True, asMapping=False, timestep=1):
@@ -95,7 +96,8 @@ def sampleTrajectory(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
                                                maxSteps=maxSteps)
         if trajectory is not None:
             return trajectory
-    assert False, f'unable to find successful simulation over {maxScenes} scenes'
+    raise RejectSimulationException(
+        f'unable to find successful simulation over {maxScenes} scenes')
 
 def sampleResult(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
     for i in range(maxScenes):
@@ -104,7 +106,8 @@ def sampleResult(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
                                        maxSteps=maxSteps)
         if result is not None:
             return result
-    assert False, f'unable to find successful simulation over {maxScenes} scenes'
+    raise RejectSimulationException(
+        f'unable to find successful simulation over {maxScenes} scenes')
 
 def sampleResultFromScene(scene, maxIterations=1, maxSteps=1):
     sim = DummySimulator(timestep=1)

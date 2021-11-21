@@ -295,6 +295,7 @@ mutateStatement = 'mutate'
 requireStatement = 'require'
 softRequirement = 'require_soft'	# not actually a statement, but a marker for the parser
 requireAlwaysStatement = ('require', 'always')
+requireEventuallyStatement = ('require', 'eventually')
 terminateWhenStatement = ('terminate', 'when')
 terminateSimulationWhenStatement = ('terminate', 'simulation', 'when')
 terminateAfterStatement = ('terminate', 'after')
@@ -320,7 +321,8 @@ oneWordStatements = {	# TODO clean up
 	recordStatement,
 }
 twoWordStatements = {
-	requireAlwaysStatement, terminateWhenStatement, terminateAfterStatement,
+	requireAlwaysStatement, requireEventuallyStatement,
+	terminateWhenStatement, terminateAfterStatement,
 	recordInitialStatement, recordFinalStatement,
 }
 threeWordStatements = { terminateSimulationWhenStatement }
@@ -336,7 +338,8 @@ functionStatements = {
 	modelStatement, simulatorStatement, recordStatement,
 }
 twoWordFunctionStatements = {
-	requireAlwaysStatement, terminateWhenStatement, terminateAfterStatement,
+	requireAlwaysStatement, requireEventuallyStatement,
+	terminateWhenStatement, terminateAfterStatement,
 	recordInitialStatement, recordFinalStatement,
 }
 threeWordFunctionStatements = { terminateSimulationWhenStatement }
@@ -386,6 +389,7 @@ recordStatements = (
 requirementStatements = recordStatements + (
 	requireStatement, softRequirement,
 	functionForStatement(requireAlwaysStatement),
+	functionForStatement(requireEventuallyStatement),
 	functionForStatement(terminateWhenStatement),
 	functionForStatement(terminateSimulationWhenStatement),
 )

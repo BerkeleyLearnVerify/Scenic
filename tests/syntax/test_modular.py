@@ -110,3 +110,21 @@ def test_shared_scope_del():
             ego = Object
     """, scenario='Main')
     sampleTrajectory(scenario)
+
+def test_independent_requirements():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                wait
+                self.position += DiscreteRange(0, 1) @ 0
+        scenario Main():
+            compose:
+                do Sub(0, 1), Sub(2, 3)
+        scenario Sub(start, dest):
+            ego = Object at start @ 0, with behavior Foo
+            require eventually ego.position.x >= dest
+    """, scenario='Main')
+    for i in range(30):
+        trajectory = sampleTrajectory(scenario, maxSteps=2, maxIterations=100)
+        assert tuple(trajectory[2][0]) == (1, 0)
+        assert tuple(trajectory[2][1]) == (3, 0)

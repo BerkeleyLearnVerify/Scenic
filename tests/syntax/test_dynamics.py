@@ -473,6 +473,47 @@ def test_behavior_require_call():
         actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=30)
         assert actions[0] == [1, 2]
 
+## Temporal requirements
+
+def test_require_always():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take self.blah
+                self.blah += DiscreteRange(0, 1)
+        ego = Object with behavior Foo, with blah 0
+        require always ego.blah < 1
+    """)
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=50)
+        assert tuple(actions) == (0, 0)
+
+def test_require_eventually():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take self.blah
+                self.blah += DiscreteRange(0, 1)
+        ego = Object with behavior Foo, with blah 0
+        require eventually ego.blah > 0
+    """)
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=50)
+        assert tuple(actions) == (0, 1)
+
+def test_require_eventually_2():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take self.blah
+                self.blah += 1
+        ego = Object with behavior Foo, with blah 0
+        require eventually ego.blah == 0
+        require eventually ego.blah == 1
+        require eventually ego.blah == 2
+    """)
+    sampleEgoActions(scenario, maxSteps=3)
+
 ## Monitors
 
 def test_monitor():

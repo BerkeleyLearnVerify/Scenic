@@ -13,6 +13,7 @@ class RequirementType(enum.Enum):
     # requirements which must hold during initial sampling
     require = 'require'
     requireAlways = 'require always'
+    requireEventually = 'require eventually'
 
     # requirements used only during simulation
     terminateWhen = 'terminate when'
