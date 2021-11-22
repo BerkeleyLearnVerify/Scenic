@@ -2126,9 +2126,13 @@ def gatherBehaviorNamespacesFrom(behaviors):
 def constructScenarioFrom(namespace, scenarioName=None):
 	"""Build a Scenario object from an executed Scenic module."""
 	modularScenarios = namespace['_scenarios']
+	def isModularScenario(thing):
+		return isinstance(thing, type) and issubclass(thing, dynamics.DynamicScenario)
+	if not scenarioName and isModularScenario(namespace.get('Main', None)):
+		scenarioName = 'Main'
 	if scenarioName:
 		ty = namespace.get(scenarioName, None)
-		if not (isinstance(ty, type) and issubclass(ty, dynamics.DynamicScenario)):
+		if not isModularScenario(ty):
 			raise RuntimeError(f'no scenario "{scenarioName}" found')
 		if ty._requiresArguments():
 			raise RuntimeError(f'cannot instantiate scenario "{scenarioName}"'

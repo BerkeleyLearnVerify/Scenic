@@ -7,7 +7,7 @@ from scenic.core.errors import RuntimeParseError, ScenicSyntaxError
 from scenic.core.simulators import DummySimulator
 
 from tests.utils import (compileScenic, sampleEgo, sampleEgoFrom, sampleScene,
-                         sampleTrajectory)
+                         sampleSceneFrom, sampleTrajectory)
 
 # Basics
 
@@ -25,6 +25,16 @@ def test_simple_scenario():
             ego = Object at (1, 2)
     """)
     assert tuple(ego.position) == (1, 2)
+
+def test_main_scenario():
+    scene = sampleSceneFrom("""
+        scenario Other():
+            ego = Object at (10, 5)
+        scenario Main():
+            ego = Object at (1, 2)
+    """)
+    assert len(scene.objects) == 1
+    assert tuple(scene.egoObject.position) == (1, 2)
 
 def test_requirement():
     scenario = compileScenic("""
