@@ -55,7 +55,7 @@ class DelayedArgument(LazilyEvaluable):
 		# at runtime, evaluate immediately in the context of the current agent
 		import scenic.syntax.veneer as veneer
 		if veneer.simulationInProgress() and veneer.currentBehavior:
-			agent = veneer.currentBehavior.agent
+			agent = veneer.currentBehavior._agent
 			assert agent
 			darg.__init__(*args, **kwargs)
 			agent._evaluated = DefaultIdentityDict()

@@ -880,7 +880,7 @@ class Options(MultiplexerDistribution):
 			options = tuple(opts)
 			self.optWeights = None
 		if len(options) == 0:
-			raise RuntimeParseError('tried to make discrete distribution over empty domain!')
+			raise RejectionException('tried to make discrete distribution over empty domain!')
 
 		index = self.makeSelector(len(options)-1, weights)
 		super().__init__(index, options)

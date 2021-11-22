@@ -430,6 +430,32 @@ def test_behavior_calls_side_effects():
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, 2, 3, 4)
 
+# Preconditions and invariants
+
+def test_behavior_precondition():
+    scenario = compileScenic("""
+        behavior Foo():
+            precondition: self.position.x > 0
+            take self.position.x
+        ego = Object at Range(-1, 1) @ 0, with behavior Foo
+    """)
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=1, maxScenes=50)
+        assert actions[0] > 0
+
+def test_behavior_invariant():
+    scenario = compileScenic("""
+        behavior Foo():
+            invariant: self.position.x > 0
+            while True:
+                take self.position.x
+                self.position -= Range(0, 2) @ 0
+        ego = Object at 1 @ 0, with behavior Foo
+    """)
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=3, maxIterations=50)
+        assert actions[1] > 0
+
 # Requirements
 
 def test_behavior_require():

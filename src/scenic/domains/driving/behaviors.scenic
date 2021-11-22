@@ -227,7 +227,7 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
     # instantiate longitudinal and latitudinal pid controllers
     past_steer_angle = 0
     
-    if trajectory[-1].maneuvers != None:
+    if trajectory[-1].maneuvers:
         end_intersection = trajectory[-1].maneuvers[0].intersection
         if end_intersection == None:
             end_intersection = trajectory[-1].centerline[-1]
