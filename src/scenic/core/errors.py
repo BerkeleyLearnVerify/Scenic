@@ -14,7 +14,7 @@ import scenic.syntax
 
 ## Configuration
 
-#: Whether or not to elide Scenic's innards from backtraces.
+#: Whether or not to include Scenic's innards in backtraces.
 #:
 #: Set to True by default so that any errors during import of the scenic module
 #: will get full backtraces; the :mod:`scenic` module's *__init__.py* sets it to False.
@@ -150,7 +150,10 @@ def excepthook(ty, value, tb):
                     skip = True
                 elif includeFrame(frame):
                     filtered.append(frame)
-        strings.extend(traceback.format_list(filtered))
+        if filtered:
+            strings.extend(traceback.format_list(filtered))
+        else:
+            strings.append('  <Scenic internals>\n')
     # Note: we can't directly call traceback.format_exception_only any more,
     # since as of Python 3.10 it ignores the exception class passed in and
     # uses type(value) instead, foiling our formatTy hack.
