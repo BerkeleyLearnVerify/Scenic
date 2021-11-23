@@ -12,6 +12,9 @@ Glossary
 		abstract domains like `scenic.domains.driving`) as subclasses of
 		:obj:`~scenic.core.simulators.Action`.
 
+	agent
+		A Scenic :obj:`~scenic.core.object_types.Object` which has a dynamic behavior.
+
 	dynamic properties
 		Properties of Scenic objects which are updated at each time step of a dynamic
 		simulation. The built-in properties representing positions, orientations,

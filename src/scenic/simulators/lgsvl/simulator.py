@@ -1,4 +1,4 @@
-"""Simulator interface for LGSVL."""
+"""Dynamic simulator interface for LGSVL."""
 
 import math
 import warnings
@@ -12,12 +12,25 @@ from scenic.syntax.veneer import verbosePrint
 from scenic.core.vectors import Vector
 
 class LGSVLSimulator(simulators.Simulator):
-    def __init__(self, lgsvl_scene, address='localhost', port=8181, alwaysReload=False):
+    """A connection to an instance of LGSVL.
+
+    See the `SVL documentation`_ for details on how to set the parameters below.
+
+    Args:
+        sceneID (str): Identifier for the map ("scene") to load in SVL.
+        address (str): Address where SVL is running.
+        port (int): Port on which to connect to SVL.
+        alwaysReload (bool): Whether to force reloading the map upon connecting,
+            even if the simulator already has the desired map loaded.
+
+    .. _SVL documentation: https://www.svlsimulator.com/docs/python-api/python-api
+    """
+    def __init__(self, sceneID, address='localhost', port=8181, alwaysReload=False):
         super().__init__()
         verbosePrint('Connecting to LGSVL Simulator...')
         self.client = lgsvl.Simulator(address=address, port=port)
         if alwaysReload or self.client.current_scene != lgsvl_scene:
-            self.client.load(scene=lgsvl_scene)
+            self.client.load(scene=sceneID)
         verbosePrint('Map loaded in simulator.')
 
     def createSimulation(self, scene, verbosity=0):
@@ -25,6 +38,7 @@ class LGSVLSimulator(simulators.Simulator):
 
 
 class LGSVLSimulation(simulators.Simulation):
+    """Subclass of `Simulation` for LGSVL."""
     def __init__(self, scene, client, verbosity=0):
         timestep = scene.params.get('time_step', 1.0/10)
         super().__init__(scene, timestep=timestep, verbosity=verbosity)

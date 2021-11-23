@@ -6,14 +6,14 @@ Getting Started with Scenic
 Installation
 ------------
 
-Scenic requires **Python 3.8** or newer.
+Scenic requires **Python 3.7** or newer.
 You can install Scenic from PyPI by simply running:
 
 .. code-block:: console
 
 	$ pip install scenic
 
-Alternatively, if you want to run some of our example scenarios or modify Scenic, you can download or clone the `Scenic repository <https://github.com/BerkeleyLearnVerify/Scenic>`_.
+Alternatively, if you want to run some of our example scenarios, modify Scenic, or make use of features that have not yet been released on PyPI, you can download or clone the `Scenic repository <https://github.com/BerkeleyLearnVerify/Scenic>`_.
 Install `Poetry <https://python-poetry.org/>`_, optionally activate the `virtual environment <https://docs.python.org/3/tutorial/venv.html>`_ in which you would like to run Scenic, and then run:
 
 .. code-block:: console
@@ -30,8 +30,8 @@ If you will be developing Scenic, add the ``-E dev`` option when invoking Poetry
 
 .. note::
 
-	If you get an error saying that your machine does not have a compatible version, this means that you do not have Python 3.8 or later on your PATH.
-	Install a newer version of Python, either directly from the `Python website <https://www.python.org/downloads/>`_ or using `pyenv <https://github.com/pyenv/pyenv>`_ (e.g. running :command:`pyenv install 3.8.5`).
+	If you get an error saying that your machine does not have a compatible version, this means that you do not have Python 3.7 or later on your PATH.
+	Install a newer version of Python, either directly from the `Python website <https://www.python.org/downloads/>`_ or using `pyenv <https://github.com/pyenv/pyenv>`_ (e.g. running :command:`pyenv install 3.10.0`).
 	If you install it somewhere that is not on your PATH (so running :command:`python --version` doesn't give you the correct version), you'll need to run :command:`poetry env use /full/path/to/python` before running :command:`poetry install`.
 
 Installing via either :command:`pip` or Poetry will install all of the dependencies which are required to run Scenic.

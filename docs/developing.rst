@@ -39,3 +39,11 @@ this: at the beginning of each run of ``pytest``, it prints out a line like::
 
 Adding this as an option, i.e. running :command:`pytest --randomly-seed=344295085`, will
 reproduce the same sequence of tests with the same Python/Scenic random seed.
+
+Debugging
+---------
+
+You can use Python's built-in debugger `pdb` to debug the parsing, compilation, sampling,
+and simulation of Scenic programs. The command-line option :option:`-b` will cause the
+backtraces printed from uncaught exceptions to include Scenic's internals; you can also
+use the :option:`--pdb` option to automatically enter the debugger on such exceptions.
