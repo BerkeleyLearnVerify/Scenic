@@ -1,16 +1,18 @@
 """Simulator interface for LGSVL."""
-
 import math
 import warnings
-
+from environs import Env
+import sys
+import os
 import lgsvl
-import time
 
 import scenic.core.simulators as simulators
 import scenic.simulators.lgsvl.utils as utils
 from scenic.syntax.veneer import verbosePrint
 from scenic.core.vectors import Vector
 
+
+env = Env()
 class LGSVLSimulator(simulators.Simulator):
     def __init__(self, lgsvl_scene, address='localhost', port=8181, alwaysReload=False):
         super().__init__()
@@ -32,6 +34,7 @@ class LGSVLSimulation(simulators.Simulation):
         self.usingApollo = False
         self.data = {}
         self.collisionOccurred = False
+        self.connectcount = 0
 
         # Reset simulator (deletes all existing objects)
         self.client.reset()
@@ -49,8 +52,12 @@ class LGSVLSimulation(simulators.Simulation):
         if not hasattr(obj, 'lgsvlAgentType'):
             raise RuntimeError(f'object {obj} does not have an lgsvlAgentType property')
         name = obj.lgsvlName
-        agentType = obj.lgsvlAgentType
-
+        if(name ==  'Sedan'):
+              agentType = obj.lgsvlAgentType.NPC
+              #print("Agent_Type Seadan : ",agentType)
+        else:
+              agentType = obj.lgsvlAgentType
+              #print("obj.name : ",name,obj)
         # Set up position and orientation
         state = lgsvl.AgentState()
         elevation = obj.elevation
@@ -66,8 +73,63 @@ class LGSVLSimulation(simulators.Simulation):
         # Initialize Data
         self.data[obj] = {}
         # Initialize Apollo if needed
-        if getattr(obj, 'apolloVehicle', None):
-            self.initApolloFor(obj, lgsvlObj)
+        #if getattr(obj, 'apolloVehicle', None):
+            #self.initApolloFor(obj, lgsvlObj)
+
+        #if getattr(obj, 'apolloVehicle', None):
+        #   print("object for apolloVehicle")
+        #   self.initApolloFor(obj,lgsvlObj)
+        #elif getattr(obj, 'autowareVehicle', None):
+        #   print("object for apolloVehicle")
+        #   self.initAutowareFor(obj, lgsvlObj)
+        #else:
+        #   print("object for none")
+
+        if name == 'Lincoln2017MKZ (Apollo 5.0)':
+           self.initApolloFor(obj,lgsvlObj)
+        elif name == 'Lexus2016RXHybrid (Autoware)':
+           self.initAutowareFor(obj, lgsvlObj)
+        elif name == 'Jaguar2015XE (Autoware)' :
+            print("name in simulator.py : ",name)
+        elif name == 'Sedan':
+            self.NPCCreate(obj, lgsvlObj)
+        else:
+           print("No AD object created..")
+
+    def NPCCreate(self, obj, lgsvlObj):
+        print("Creating NPC..")
+        def on_collision(agent1, agent2, contact):
+            if agent1 is not None and agent1.name == lgsvlObj.name:
+                self.data[obj]['collision'] = True
+            if agent2 is not None and agent2.name == lgsvlObj.name:
+                self.data[obj]['collision'] = True
+            if self.data[obj]['collision']:
+                self.collisionOccurred = True
+
+         # Initialize Data
+        self.data[obj]['collision'] = False
+        lgsvlObj.on_collision(on_collision)
+        lgsvlObj.follow_closest_lane(follow=True, max_speed=11.176)
+        #print("-------",lgsvlObj)
+
+    def initAutowareFor(self, obj, lgsvlObj):
+        print("initAutoware..")
+        def on_collision(agent1, agent2, contact):
+            if agent1 is not None and agent1.name == lgsvlObj.name:
+                self.data[obj]['collision'] = True
+            if agent2 is not None and agent2.name == lgsvlObj.name:
+                self.data[obj]['collision'] = True
+            if self.data[obj]['collision']:
+                self.collisionOccurred = True
+
+         # Initialize Data
+        self.data[obj]['collision'] = False
+        lgsvlObj.on_collision(on_collision)
+        
+        if self.connectcount == 0:
+              verbosePrint('Connect bridge from LGSVL to ROS2')
+              lgsvlObj.connect_bridge(env.str("LGSVL__AUTOPILOT_0_HOST", "127.0.0.1"), env.int("LGSVL__AUTOPILOT_0_PORT", 9090))
+        self.connectcount += 1
 
     def groundElevationAt(self, pos):
         origin = utils.scenicToLGSVLPosition(pos, 100000)
@@ -78,8 +140,8 @@ class LGSVLSimulation(simulators.Simulation):
         return result.point.y
 
     def initApolloFor(self, obj, lgsvlObj):
+        print("initApollo..")
         """Initialize Apollo for an ego vehicle.
-
         Uses LG's interface which injects packets into Dreamview.
         """
         if self.usingApollo:
@@ -100,15 +162,48 @@ class LGSVLSimulation(simulators.Simulation):
 
         # connect bridge from LGSVL to Apollo
         lgsvlObj.connect_bridge(obj.bridgeHost, obj.bridgePort)
-
+    
         # set up connection and map/vehicle configuration
-        from lgsvl import dreamview
+        import dreamview
         dv = dreamview.Connection(self.client, lgsvlObj)
         obj.dreamview = dv
+        waitToStabilize = False
         hdMap = self.scene.params['apolloHDMap']
-        dv.set_hd_map(hdMap)
-        dv.set_vehicle(obj.apolloVehicle)
+        if dv.getCurrentMap() != hdMap:
+            dv.setHDMap(hdMap)
+            waitToStabilize = True
+        if dv.getCurrentVehicle() != obj.apolloVehicle:
+            dv.setVehicle(obj.apolloVehicle)
+            waitToStabilize = True
+        
+        verbosePrint('Initializing Apollo...')
 
+        # stop the car to cancel buffered speed from previous simulations
+        cntrl = lgsvl.VehicleControl()
+        print("cntrl in fun : --",cntrl)
+        cntrl.throttle = 0.0
+        lgsvlObj.apply_control(cntrl, True)
+        # start modules
+        dv.disableModule('Control')
+        ready = dv.getModuleStatus()
+        for module in obj.apolloModules:
+            if not ready[module]:
+                dv.enableModule(module)
+                verbosePrint(f'Module {module} is not ready...')
+                waitToStabilize = True
+        while True:
+            ready = dv.getModuleStatus()
+            if all(ready[module] for module in obj.apolloModules):
+                break
+
+        # wait for Apollo to stabilize, if needed
+        if waitToStabilize:
+            verbosePrint('Waiting for Apollo to stabilize...')
+            self.client.run(25)
+        dv.enableModule('Control')
+        self.client.run(15)
+        verbosePrint('Initialized Apollo.')
+    
     def executeActions(self, allActions):
         super().executeActions(allActions)
 
@@ -119,6 +214,9 @@ class LGSVLSimulation(simulators.Simulation):
                 obj._stateUpdated = False
             ctrl = getattr(obj, '_control', None)
             if ctrl is not None:
+                # if obj.lgsvlName == "Sedan":
+                #     obj.lgsvlObject.NPCControl(ctrl)
+                # else:
                 obj.lgsvlObject.apply_control(ctrl, obj._stickyControl)
                 obj._control = None
 
