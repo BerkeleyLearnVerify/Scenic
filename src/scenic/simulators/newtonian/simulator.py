@@ -29,7 +29,7 @@ MAX_BRAKING = 4.6
 
 class NewtonianSimulator(DrivingSimulator):
     """Implementation of `Simulator` for the Newtonian simulator."""
-    def __init__(self, network, timestep=0.1, render=False):
+    def __init__(self, network=None, timestep=0.1, render=False):
         self.timestep = timestep
         self.render = render
         self.network = network
@@ -78,11 +78,13 @@ class NewtonianSimulation(DrivingSimulation):
 
     def parse_network(self):
         self.network_polygons = []
+        if not self.network:
+            return
         for element in self.network.elements.values():
             if not hasattr(element, 'polygon'):
                 continue
             if isinstance(element.polygon, shapely.geometry.multipolygon.MultiPolygon):
-                all_polygons = list(element.polygon)
+                all_polygons = list(element.polygon.geoms)
             else:
                 all_polygons = [element.polygon]
             for poly in all_polygons:

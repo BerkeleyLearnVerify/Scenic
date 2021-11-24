@@ -8,6 +8,8 @@ To interface Scenic to a new simulator, there are two steps: using the Scenic AP
 Using the Scenic API
 --------------------
 
+Scenic's Python API is covered in more detail in our :doc:`api` page; we summarize the main steps here.
+
 Compiling a Scenic scenario is easy: just call the `scenic.scenarioFromFile` function with the path to a Scenic file (there's also a variant `scenic.scenarioFromString` which works on strings).
 This returns a `Scenario` object representing the scenario; to sample a scene from it, call its `generate` method.
 Scenes are represented by `Scene` objects, from which you can extract the objects and their properties as well as the values of the global parameters (see the `Scene` documentation for details).
@@ -32,3 +34,4 @@ Then any Scenic programs for your simulator can import this world model and make
 Each of the simulators natively supported by Scenic has a corresponding ``model.scenic`` file containing its world model.
 See the :ref:`simulators` page for links to the module under `scenic.simulators` for each simulator, where the world model can be found.
 The `scenic.simulators.webots.mars` model is particularly simple and would be a good place to start.
+For a more complex example, see the `scenic.simulators.lgsvl` model, which specializes the simulator-agnostic model provided by the driving domain (in `scenic.domains.driving.model`).

@@ -20,6 +20,9 @@ class Scene:
 
 	A scene generated from a Scenic scenario.
 
+	To run a dynamic simulation from a scene, create an instance of `Simulator` for the
+	simulator you want to use, and pass the scene to its `simulate` method.
+
 	Attributes:
 		objects (tuple of :obj:`~scenic.core.object_types.Object`): All objects in the
 		  scene. The ``ego`` object is first.

@@ -19,3 +19,14 @@ object types, behaviors, utility functions, etc. from that domain may be used fr
    simulator
    utils
 """
+
+# Only import LGSVLSimulator if the lgsvl package is installed; otherwise the
+# import would raise an exception.
+lgsvl = None
+try:
+   import lgsvl
+except ImportError:
+   pass
+if lgsvl:
+   from .simulator import LGSVLSimulator
+del lgsvl
