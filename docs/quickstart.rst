@@ -94,4 +94,6 @@ Depending on what you'd like to do with Scenic, different parts of the documenta
 
 	* If you want to use Scenic with a simulator, see :ref:`simulators` (which also describes how to interface Scenic to a new simulator, if the one you want isn't listed).
 
-	* If you want to add a feature to the language or otherwise need to understand Scenic's inner workings, see our page on :ref:`internals`.
+	* If you want to control Scenic from Python rather than using the command-line tool (for example if you want to collect data from the generated scenarios), see :doc:`api`.
+
+	* If you want to add a feature to the language or otherwise need to understand Scenic's inner workings, see our pages on :doc:`developing` and :ref:`internals`.

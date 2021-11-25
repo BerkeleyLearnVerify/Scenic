@@ -3,7 +3,7 @@
 Interfacing to New Simulators
 =============================
 
-To interface Scenic to a new simulator, there are two steps: using the Scenic API to compile scenarios and generate scenes, and writing a Scenic library defining the virtual world provided by the simulator.
+To interface Scenic to a new simulator, there are two steps: using the Scenic API to compile scenarios, generate scenes, and orchestrate dynamic simulations, and writing a Scenic library defining the virtual world provided by the simulator.
 
 Using the Scenic API
 --------------------
@@ -34,4 +34,4 @@ Then any Scenic programs for your simulator can import this world model and make
 Each of the simulators natively supported by Scenic has a corresponding ``model.scenic`` file containing its world model.
 See the :ref:`simulators` page for links to the module under `scenic.simulators` for each simulator, where the world model can be found.
 The `scenic.simulators.webots.mars` model is particularly simple and would be a good place to start.
-For a more complex example, see the `scenic.simulators.lgsvl` model, which specializes the simulator-agnostic model provided by the driving domain (in `scenic.domains.driving.model`).
+For a more complex example, see the `scenic.simulators.lgsvl` model, which specializes the simulator-agnostic model provided by the :ref:`driving_domain` (in `scenic.domains.driving.model`).

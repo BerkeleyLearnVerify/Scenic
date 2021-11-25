@@ -12,7 +12,7 @@ General Scenario Control
 .. option:: -m <model>, --model <model>
 
 	Specify the world model to use for the scenario, overriding any ``model`` statement
-	in the scenario. The argument must be the fully-qualified name of a Scenic module
+	in the scenario. The argument must be the fully :term:`qualified name` of a Scenic module
 	found on your :envvar:`PYTHONPATH` (it does not necessarily need to be built into
 	Scenic).
 

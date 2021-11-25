@@ -13,7 +13,7 @@ The language was initially developed by Daniel J. Fremont, Tommaso Dreossi, Shro
 
 Edward Kim assisted in developing the library for dynamic driving scenarios and putting together this documentation.
 
-The Scenic tool and example scenarios have benefitted from code contributions from:
+The Scenic tool and example scenarios have benefitted from additional code contributions from:
 
 	* Johnathan Chiu
 	* Greg Crow
@@ -27,6 +27,7 @@ The Scenic tool and example scenarios have benefitted from code contributions fr
 	* Gaurav Rao
 	* Matthew Rhea
 	* Jay Shenoy
+	* Kesav Viswanadha
 	* Wilson Wu
 
 Finally, many other people provided helpful advice and discussions, including:

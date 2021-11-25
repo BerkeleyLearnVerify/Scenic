@@ -1,10 +1,10 @@
 """Newtonian simulator implementation."""
 
-import numpy as np
 import math
 from math import sin, radians, degrees, copysign
-import shapely
 import os
+import pathlib
+import time
 
 from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
 from scenic.core.simulators import SimulationCreationError
@@ -13,13 +13,12 @@ from scenic.core.vectors import Vector
 import scenic.simulators.newtonian.utils.utils as utils
 from scenic.domains.driving.roads import Network
 from scenic.syntax.translator import verbosity
-if verbosity == 0:	# suppress pygame advertisement at zero verbosity
-	import os
-	os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
-import pygame
-import time
 
-import pathlib
+import shapely
+if verbosity == 0:  # suppress pygame advertisement at zero verbosity
+    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
+import pygame
+
 current_dir = pathlib.Path(__file__).parent.absolute()
 
 WIDTH = 1280
@@ -28,14 +27,21 @@ MAX_ACCELERATION = 5.6 # in m/s2, seems to be a pretty reasonable value
 MAX_BRAKING = 4.6
 
 class NewtonianSimulator(DrivingSimulator):
-    """Implementation of `Simulator` for the Newtonian simulator."""
+    """Implementation of `Simulator` for the Newtonian simulator.
+
+    Args:
+        network (Network): road network to display in the background, if any.
+        timestep (float): time step to use.
+        render (bool): whether to render the simulation in a window.
+    """
     def __init__(self, network=None, timestep=0.1, render=False):
         self.timestep = timestep
         self.render = render
         self.network = network
 
     def createSimulation(self, scene, verbosity=0):
-        return NewtonianSimulation(scene, self.network, timestep=self.timestep, verbosity=verbosity, render=self.render)
+        return NewtonianSimulation(scene, self.network, timestep=self.timestep,
+                                   verbosity=verbosity, render=self.render)
 
 class NewtonianSimulation(DrivingSimulation):
     def __init__(self, scene, network, timestep, verbosity=0, render=False):
@@ -61,7 +67,8 @@ class NewtonianSimulation(DrivingSimulation):
 
             pygame.init()
             pygame.font.init()
-            self.screen = pygame.display.set_mode((WIDTH,HEIGHT), pygame.HWSURFACE | pygame.DOUBLEBUF)
+            self.screen = pygame.display.set_mode((WIDTH,HEIGHT),
+                                                  pygame.HWSURFACE | pygame.DOUBLEBUF)
             self.screen.fill((255, 255, 255))
             x, y = self.ego.position
             self.x_window = [min_x-50, max_x+50]
@@ -72,7 +79,8 @@ class NewtonianSimulation(DrivingSimulation):
             self.car = pygame.image.load(img_path)
             self.car_width = int(3.5 * WIDTH / (xlim2 - xlim1))
             self.car_height = self.car_width
-            self.car = pygame.transform.scale(self.car, (self.car_width, self.car_height))
+            self.car = pygame.transform.scale(self.car, (self.car_width,
+                                                         self.car_height))
             self.parse_network()
             self.draw_objects()
 
@@ -106,12 +114,9 @@ class NewtonianSimulation(DrivingSimulation):
     def boundingBoxOnScreen(self, x1, y1, x2, y2):
         min_x, max_x = self.x_window
         min_y, max_y = self.y_window
-        onScreen = lambda x, y: min_x <= x <= max_x and \
-                                min_y <= y <= max_y
-        return onScreen(x1, y1) or \
-               onScreen(x2, y2) or \
-               onScreen(x1, y2) or \
-               onScreen(x2, y1)
+        onScreen = lambda x, y: min_x <= x <= max_x and min_y <= y <= max_y
+        return (onScreen(x1, y1) or onScreen(x2, y2) or
+               onScreen(x1, y2) or onScreen(x2, y1))
 
     def step(self):
         for obj in self.objects:
@@ -124,7 +129,7 @@ class NewtonianSimulation(DrivingSimulation):
             obj.speed += acceleration * self.timestep
             obj.velocity = Vector(0, obj.speed).rotatedBy(obj.heading)
             if obj.steer:
-                turning_radius = obj.length / sin(obj.steer * np.pi / 2)
+                turning_radius = obj.length / sin(obj.steer * math.pi / 2)
                 angular_velocity = obj.speed / turning_radius
             else:
                 angular_velocity = 0
@@ -147,8 +152,9 @@ class NewtonianSimulation(DrivingSimulation):
             dx, dy = int(heading_vec.x), -int(heading_vec.y)
             x, y = self.scenicToScreenVal(obj.position)
             rect_x, rect_y = self.scenicToScreenVal(obj.position + pos_vec)
-            self.rotated_car = pygame.transform.rotate(self.car, obj.heading * 180 / np.pi)
+            self.rotated_car = pygame.transform.rotate(self.car, math.degrees(obj.heading))
             self.screen.blit(self.rotated_car, (rect_x, rect_y))
+
         pygame.display.update()
         time.sleep(self.timestep)
 
