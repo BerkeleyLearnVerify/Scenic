@@ -7,6 +7,7 @@ as well as in the interfaces to GTA and Webots.
 
 import colorsys
 from collections import namedtuple
+import random
 
 from scenic.core.distributions import Distribution, Range, Normal, Options, toDistribution
 from scenic.core.lazy_eval import valueInContext

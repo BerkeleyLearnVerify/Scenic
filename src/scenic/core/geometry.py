@@ -376,7 +376,7 @@ def plotPolygon(polygon, plt, style='r-', **kwargs):
 	                        shapely.geometry.MultiLineString,
 	                        shapely.geometry.MultiPoint,
 	                        shapely.geometry.collection.GeometryCollection)):
-		polygons = polygon
+		polygons = polygon.geoms
 	else:
 		polygons = [polygon]
 	for polygon in polygons:
