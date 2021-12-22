@@ -110,9 +110,10 @@ class DefaultIdentityDict:
         return f'<DefaultIdentityDict {{{allPairs}}}>'
 
 # Generic type introspection functions backported to Python 3.7
-# (code taken from Python 3.8 implementation)
+# (code taken from their Python 3.8 implementations)
 
 def get_type_origin(tp):
+    """Version of `typing.get_origin` supporting Python 3.7."""
     assert sys.version_info >= (3, 7)
     if sys.version_info >= (3, 8):
         return typing.get_origin(tp)
@@ -123,6 +124,7 @@ def get_type_origin(tp):
     return None
 
 def get_type_args(tp):
+    """Version of `typing.get_args` supporting Python 3.7."""
     assert sys.version_info >= (3, 7)
     if sys.version_info >= (3, 8):
         return typing.get_args(tp)

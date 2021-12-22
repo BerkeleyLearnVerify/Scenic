@@ -19,6 +19,11 @@ from scenic.core.workspaces import Workspace
 # Scenarios
 
 class Invocable:
+    """Abstract class with common code for behaviors and modular scenarios.
+
+    Both of these types of objects can be called like functions, can have guards, and can
+    suspend their own execution to invoke sub-behaviors/scenarios.
+    """
     def __init__(self, *args, **kwargs):
         if veneer.evaluatingGuard:
             raise RuntimeParseError(
@@ -88,6 +93,10 @@ class Invocable:
             yield from scheduler()
 
     def _invokeInner(self, agent, subs):
+        """Run the given sub-behavior/scenario(s) in parallel.
+
+        Implemented by subclasses.
+        """
         raise NotImplementedError
 
     def _checkAllPreconditions(self):
@@ -103,6 +112,11 @@ class Invocable:
             return False
 
 class DynamicScenario(Invocable):
+    """Internal class for scenarios which can execute during dynamic simulations.
+
+    Provides additional information complementing `Scenario`, which originally only
+    supported static scenarios. The two classes should probably eventually be merged.
+    """
     def __init_subclass__(cls, *args, **kwargs):
         veneer.registerDynamicScenarioClass(cls)
 
@@ -177,6 +191,7 @@ class DynamicScenario(Invocable):
         return tuple(self._objects)
 
     def _bindTo(self, scene):
+        """Bind this scenario to a sampled scene when starting a new simulation."""
         self._ego = scene.egoObject
         self._objects = list(scene.objects)
         self._agents = [obj for obj in scene.objects if obj.behavior is not None]
@@ -189,6 +204,7 @@ class DynamicScenario(Invocable):
         self._recordedFinalExprs = scene.recordedFinalExprs
 
     def _prepare(self, delayPreconditionCheck=False):
+        """Prepare the scenario for execution, executing its setup block."""
         assert not self._prepared
         self._prepared = True
 
@@ -214,6 +230,7 @@ class DynamicScenario(Invocable):
         cls._globalParameters = globs
 
     def _start(self):
+        """Start the scenario, starting its compose block, behaviors, and monitors."""
         assert self._prepared
 
         # Check preconditions if they could not be checked earlier
@@ -247,6 +264,12 @@ class DynamicScenario(Invocable):
                 monitor.start()
 
     def _step(self):
+        """Execute the (already-started) scenario for one time step.
+
+        Returns:
+            `None` if the scenario will continue executing; otherwise a string describing
+            why it has terminated.
+        """
         # Check if we have reached the time limit, if any
         if self._timeLimitInSteps is not None and self._elapsedTime >= self._timeLimitInSteps:
             return self._stop('reached time limit')
@@ -284,6 +307,7 @@ class DynamicScenario(Invocable):
         return None
 
     def _stop(self, reason):
+        """Stop the scenario's execution, for the given reason."""
         veneer.endScenario(self, reason)
         self._runningIterator = None
         return reason
@@ -489,6 +513,10 @@ class DynamicScenario(Invocable):
 # Behaviors
 
 class Behavior(Invocable, Samplable):
+    """Dynamic behaviors of agents.
+
+    Behavior statements are translated into definitions of subclasses of this class.
+    """
     def __init_subclass__(cls):
         if cls.__module__ is not __name__:
             veneer.currentScenario._behaviors.append(cls)
@@ -560,6 +588,10 @@ def makeTerminationAction(line):
 # Monitors
 
 class Monitor(Behavior):
+    """Monitors for dynamic simulations.
+
+    Monitor statements are translated into definitions of subclasses of this class.
+    """
     def __init_subclass__(cls):
         super().__init_subclass__()
         veneer.currentScenario._monitors.append(cls())
