@@ -1130,7 +1130,7 @@ class Network:
         """Render a schematic of the road network for debugging.
 
         If you call this function directly, you'll need to subsequently call
-        ``matplotlib.pyplot.show()`` to actually display the diagram.
+        `matplotlib.pyplot.show` to actually display the diagram.
         """
         import matplotlib.pyplot as plt
         self.walkableRegion.show(plt, style='-', color='#00A0FF')

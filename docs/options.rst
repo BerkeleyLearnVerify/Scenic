@@ -30,7 +30,7 @@ General Scenario Control
 	external Python code called from within Scenic can also be made deterministic
 	(although :mod:`random` should not be used in place of Scenic's own sampling
 	constructs in Scenic code). Note though that NumPy provides other RNGs whose seeds
-	are not set by this option.
+	are not set by this option (see `numpy.random`).
 
 Dynamic Simulations
 -------------------

@@ -22,7 +22,8 @@ Booleans   		           expressing truth values
 Distributions
 -------------
 ================================== ==============================================================
-(low, high)                         uniformly distributed in the interval
+Range(low, high)                    uniformly-distributed real number in the interval
+DiscreteRange(low, high)            uniformly-distributed integer in the (fixed) interval
 Normal(mean, stdDev)                normal distribution with the given mean and standard deviation
 Uniform(value, ...)                 uniform over a finite set of values
 Discrete({value: weight, . . . })   discrete with given values and weights
@@ -45,7 +46,7 @@ Objects
  headingStdDev         5 degrees     mutation standard deviation for heading
 -------------------  -------------  -------------------------------------------
  width                 1             width of bounding box (X axis)
- height                1             height of bounding box (Y axis)
+ length                1             length of bounding box (Y axis)
  regionContainedIn    workspace      Region the object must lie within
  allowCollisions      false          whether collisions are allowed
  requireVisible        true          whether object must be visible from ego

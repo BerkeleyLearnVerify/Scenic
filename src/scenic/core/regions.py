@@ -847,7 +847,7 @@ class PointSetRegion(Region):
 	Args:
 		name (str): name for debugging
 		points (iterable): set of points comprising the region
-		kdtree (:obj:`scipy.spatial.KDTree`, optional): k-D tree for the points (one will
+		kdTree (:obj:`scipy.spatial.KDTree`, optional): k-D tree for the points (one will
 		  be computed if none is provided)
 		orientation (:obj:`~scenic.core.vectors.VectorField`, optional): orientation for
 		  the region

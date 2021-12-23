@@ -14,7 +14,8 @@ therefore whose sampled value can be coerced to T). However, we also have the fo
 exceptional rules:
 
 	* Coercible to a scalar (type `float`):
-		* Instances of `numbers.Real` (coerced by calling `float` on them)
+		* Instances of `numbers.Real` (coerced by calling `float` on them);
+		  this includes NumPy types such as `numpy.single`
 	* Coercible to a heading (type `Heading`):
 		* Anything coercible to a scalar
 		* Any type with a **toHeading** method (including `OrientedPoint`)
