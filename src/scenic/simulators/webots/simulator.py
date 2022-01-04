@@ -49,6 +49,7 @@ class WebotsSimulation(Simulation):
                 if not ty:
                     raise RuntimeError(f'object {obj} has no webotsName or webotsType')
                 nextID = usedNames[ty]
+                usedNames[ty] += 1
                 if nextID == 0 and supervisor.getFromDef(ty):
                     name = ty
                 else:
