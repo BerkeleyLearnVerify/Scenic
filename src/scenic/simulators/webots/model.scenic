@@ -66,7 +66,7 @@ class Ground(WebotsObject):
 
     allowCollisions: True
     webotsName: 'Ground'
-    positionOffset: (self.width/2, -self.length/2)  # origin of ElevationGrid is at a corner
+    positionOffset: (self.width/2, self.length/2)  # origin of ElevationGrid is at a corner
 
     gridSize: 20
     gridSizeX: self.gridSize
