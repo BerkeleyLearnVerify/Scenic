@@ -12,7 +12,7 @@ def webotsToScenicPosition(pos):
     Drops the Webots Y coordinate.
     """
     x, y, z = pos
-    return (x, -z)
+    return (x, z)
 
 def scenicToWebotsPosition(pos, y=0):
     """Convert a Scenic position to a Webots position."""
