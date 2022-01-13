@@ -17,7 +17,7 @@ def webotsToScenicPosition(pos):
 def scenicToWebotsPosition(pos, y=0):
     """Convert a Scenic position to a Webots position."""
     x, z = pos
-    return [x, y, -z]
+    return [x, y, z]
 
 def webotsToScenicRotation(rot, tolerance2D=None):
     """Convert a Webots rotation vector to a Scenic heading.
