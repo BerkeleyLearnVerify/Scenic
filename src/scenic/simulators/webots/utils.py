@@ -30,8 +30,8 @@ def webotsToScenicRotation(rot, tolerance2D=None):
     angle = rot[3]
     if tolerance2D is not None and np.linalg.norm(axis - (0, 1, 0)) > tolerance2D:
         return None
-    return normalizeAngle(angle + math.pi)
+    return normalizeAngle(angle)
 
 def scenicToWebotsRotation(heading):
     """Convert a Scenic heading to a Webots rotation vector."""
-    return [0, 1, 0, heading - math.pi]
+    return [0, 1, 0, heading]
