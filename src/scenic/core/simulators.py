@@ -247,7 +247,7 @@ class Simulation:
 
         The default implementation returns a tuple of the positions of all objects.
         """
-        return tuple(obj.position for obj in self.objects)
+        return {obj.name:[obj.position, obj.heading] for obj in self.objects}
 
     def destroy(self):
         """Perform any cleanup necessary to reset the simulator after a simulation."""

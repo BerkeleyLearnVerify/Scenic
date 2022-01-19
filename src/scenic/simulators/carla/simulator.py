@@ -160,12 +160,12 @@ class CarlaSimulation(DrivingSimulation):
 		loc = utils.scenicToCarlaLocation(obj.position, world=self.world, blueprint=obj.blueprint)
 		rot = utils.scenicToCarlaRotation(obj.heading)
 		transform = carla.Transform(loc, rot)
-		
-		# Set the color
+
+		# Color
 		c = obj.color
 		c_str = f'{int(c.r*255)},{int(c.g*255)},{int(c.b*255)}'
 		blueprint.set_attribute('color', c_str)
-		
+
 		# Create Carla actor
 		carlaActor = self.world.try_spawn_actor(blueprint, transform)
 		if carlaActor is None:

@@ -237,7 +237,7 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
 
     while True:
         if self in _model.network.intersectionRegion:
-            do TurnBehavior(trajectory_centerline)
+            do TurnBehavior(trajectory_centerline, target_speed=target_speed/2)
 
         if (distance from self to end_intersection) < distanceToEndpoint:
             break
