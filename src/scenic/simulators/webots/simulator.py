@@ -78,8 +78,13 @@ class WebotsSimulation(Simulation):
             pos = utils.scenicToWebotsPosition(obj.position + obj.positionOffset, y=obj.elevation)
             webotsObj.getField('translation').setSFVec3f(pos)
             # heading
+            # TODO: UNDO HACK TO FIX PAPERBOT ROTATION
             rot = utils.scenicToWebotsRotation(obj.heading)
-            webotsObj.getField('rotation').setSFRotation(rot)
+            if webotsObj.getField('name').getSFString() == "paperbot":
+                print("USING HACKY PAPERBOT ROTATION")
+                webotsObj.getField('rotation').setSFRotation([0, 0, 0, 0])
+            else:
+                webotsObj.getField('rotation').setSFRotation(rot)
             # battery
             battery = getattr(obj, 'battery', None)
             if battery:
