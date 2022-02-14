@@ -13,3 +13,5 @@ domain to be simulated without installing an external simulator.
    model
    simulator
 """
+
+from .simulator import NewtonianSimulator

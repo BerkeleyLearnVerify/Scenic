@@ -57,9 +57,19 @@ class RejectionException(Exception):
 class Samplable(LazilyEvaluable):
 	"""Abstract class for values which can be sampled, possibly depending on other values.
 
-	Samplables may specify a proxy object 'self._conditioned' which must have the same
-	distribution as the original after conditioning on the scenario's requirements. This
-	allows transparent conditioning without modifying Samplable fields of immutable objects.
+	Samplables may specify a proxy object which must have the same distribution as the
+	original after conditioning on the scenario's requirements. This allows transparent
+	conditioning without modifying Samplable fields of immutable objects.
+
+	Args:
+		dependencies: sequence of values that this value may depend on (formally, objects
+			for which sampled values must be provided to `sampleGiven`). It is legal to
+			include values which are not instances of `Samplable`, e.g. integers.
+
+	Attributes:
+		_conditioned: proxy object as described above; set using `conditionTo`.
+		_dependencies: tuple of other samplables which must be sampled before this one;
+			set by the initializer and subsequently immutable.
 	"""
 	def __init__(self, dependencies):
 		deps = []
@@ -99,6 +109,11 @@ class Samplable(LazilyEvaluable):
 
 		The default implementation simply returns a dictionary of dependency values.
 		Subclasses must override this method to specify how actual sampling is done.
+
+		Args:
+			value (DefaultIdentityDict): dictionary mapping objects to their sampled
+				values. Guaranteed to provide values for all objects given in the set of
+				dependencies when this `Samplable` was created.
 		"""
 		return DefaultIdentityDict({ dep: value[dep] for dep in self._dependencies })
 
@@ -122,10 +137,39 @@ class Samplable(LazilyEvaluable):
 				l.append('  ' + line)
 		return l
 
-class Distribution(Samplable):
-	"""Abstract class for distributions."""
+class ConstantSamplable(Samplable):
+	"""A samplable which always evaluates to a constant value.
 
-	defaultValueType = object
+	Only for internal use.
+	"""
+	def __init__(self, value):
+		assert not needsSampling(value)
+		assert not needsLazyEvaluation(value)
+		self.value = value
+		super().__init__(())
+
+	def sampleGiven(self, value):
+		return self.value
+
+class Distribution(Samplable):
+	"""Abstract class for distributions.
+
+	.. note::
+
+		When called during dynamic simulations (vs. scenario compilation), constructors
+		for distributions return *actual sampled values*, not `Distribution` objects.
+
+	Args:
+		dependencies: values which this distribution may depend on (see `Samplable`).
+		valueType: **_valueType** to use (see below), or `None` for the default.
+
+	Attributes:
+		_valueType: type of the values sampled from this distribution, or `object` if the
+			type is not known.
+	"""
+
+	#: Default valueType for distributions of this class, when not otherwise specified.
+	_defaultValueType = object
 
 	def __new__(cls, *args, **kwargs):
 		dist = super().__new__(cls)
@@ -140,8 +184,8 @@ class Distribution(Samplable):
 	def __init__(self, *dependencies, valueType=None):
 		super().__init__(dependencies)
 		if valueType is None:
-			valueType = self.defaultValueType
-		self.valueType = valueType
+			valueType = self._defaultValueType
+		self._valueType = valueType
 
 	def clone(self):
 		"""Construct an independent copy of this Distribution."""
@@ -164,12 +208,16 @@ class Distribution(Samplable):
 		buckets together with a distribution for each bucket. The argument *buckets*
 		controls how many buckets the domain of the original Distribution is split into.
 		Since the result is an independent distribution, the original must support
-		clone().
+		`clone`.
 		"""
 		raise NotImplementedError('bucket() not supported by this distribution')
 
 	def supportInterval(self):
-		"""Compute lower and upper bounds on the value of this Distribution."""
+		"""Compute lower and upper bounds on the value of this Distribution.
+
+		By default returns :samp:`(None, None)` indicating that no lower or upper bounds
+		are known. Subclasses may override this method to provide more accurate results.
+		"""
 		return None, None
 
 	def __getattr__(self, name):
@@ -371,7 +419,7 @@ class StarredDistribution(Distribution):
 		assert isinstance(value, Distribution)
 		self.value = value
 		self.lineno = lineno	# for error handling when unpacking fails
-		super().__init__(value, valueType=value.valueType)
+		super().__init__(value, valueType=value._valueType)
 
 	def sampleGiven(self, value):
 		return value[self.value]
@@ -470,7 +518,7 @@ class AttributeDistribution(Distribution):
 			and areEquivalent(self.object, other.object))
 
 	def __call__(self, *args):
-		vty = self.object.valueType
+		vty = self.object._valueType
 		retTy = None
 		if vty is not object:
 			func = getattr(vty, self.attribute, None)
@@ -496,7 +544,7 @@ class OperatorDistribution(Distribution):
 
 	@staticmethod
 	def inferType(obj, operator):
-		if issubclass(obj.valueType, (float, int)):
+		if issubclass(obj._valueType, (float, int)):
 			return float
 		return None
 
@@ -866,7 +914,7 @@ class Options(MultiplexerDistribution):
 			options = tuple(opts)
 			self.optWeights = None
 		if len(options) == 0:
-			raise RuntimeParseError('tried to make discrete distribution over empty domain!')
+			raise RejectionException('tried to make discrete distribution over empty domain!')
 
 		index = self.makeSelector(len(options)-1, weights)
 		super().__init__(index, options)

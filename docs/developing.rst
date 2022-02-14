@@ -39,3 +39,22 @@ this: at the beginning of each run of ``pytest``, it prints out a line like::
 
 Adding this as an option, i.e. running :command:`pytest --randomly-seed=344295085`, will
 reproduce the same sequence of tests with the same Python/Scenic random seed.
+
+Debugging
+---------
+
+You can use Python's built-in debugger `pdb` to debug the parsing, compilation, sampling,
+and simulation of Scenic programs. The Scenic command-line option :option:`-b` will cause the
+backtraces printed from uncaught exceptions to include Scenic's internals; you can also
+use the :option:`--pdb` option to automatically enter the debugger on such exceptions.
+
+It is possible to put breakpoints into a Scenic program using the Python built-in
+function `breakpoint`. Note however that since code in a Scenic program is not always
+executed the way you might expect (e.g. top-level code is only run once, whereas code in
+requirements can run every time we generate a sample), some care is needed when
+interpreting what you see in the debugger. The same consideration applies when adding
+`print` statements to a Scenic program. For example, a top-level :samp:`print(x)` will
+not print out the actual value of :samp:`x` every time a sample is generated: instead,
+you will get a single print at compile time, showing the `Distribution` object which
+represents the distribution of :samp:`x` (and which is bound to :samp:`x` in the Python
+namespace used internally for the Scenic module).

@@ -147,8 +147,6 @@ def test_malformed_range():
 
 def test_multiple_requirements():
     with pytest.raises(ASTParseError):
-        compileScenic('require True, True')
-    with pytest.raises(ASTParseError):
         compileScenic('require True, True, True')
 
 ### Line numbering

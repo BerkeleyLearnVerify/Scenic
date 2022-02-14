@@ -17,7 +17,8 @@ representing distances, angles, etc. as floating-point numbers, which can be sam
 
 Vectors
 -------
-representing positions and offsets in space, constructed from coordinates with the syntax X @ Y (inspired by `Smalltalk <http://stephane.ducasse.free.fr/FreeBooks/BlueBook/Bluebook.pdf>`_). By convention, coordinates are in meters, although the semantics of Scenic does not depend on this. More significantly, the vector syntax is specialized for 2-dimensional space. The 2D assumption dramatically simplifies much of Scenic’s syntax (particularly that dealing with orientations, as we will see below), while still being adequate for a variety of applications. However, it is important to note that the fundamental ideas of Scenic are not specific to 2D, and it would be easy to extend our implementation of the language to support 3D space.
+representing positions and offsets in space, constructed from coordinates with the syntax :samp:`{X} @ {Y}` (inspired by `Smalltalk <http://stephane.ducasse.free.fr/FreeBooks/BlueBook/Bluebook.pdf>`_); using a length-2 list or tuple (:samp:`[{X}, {Y}]` or :samp:`({X}, {Y})`) is also allowed.
+By convention, coordinates are in meters, although the semantics of Scenic does not depend on this. More significantly, the vector syntax is specialized for 2-dimensional space. The 2D assumption dramatically simplifies much of Scenic’s syntax (particularly that dealing with orientations, as we will see below), while still being adequate for a variety of applications. However, it is important to note that the fundamental ideas of Scenic are not specific to 2D, and it would be easy to extend our implementation of the language to support 3D space.
 
 .. _Headings:
 
@@ -29,7 +30,7 @@ representing orientations in space. Conveniently, in 2D these can be expressed u
 
 Vector Fields
 -------------
-associating an orientation (i.e. a heading) to each point in space. For example, a vector field could represent the shortest paths to a destination, or the nominal traffic direction on a road
+associating an orientation (i.e. a heading) to each point in space. For example, a vector field could represent the shortest paths to a destination, or the nominal traffic direction on a road.
 
 .. _Regions:
 
@@ -133,7 +134,7 @@ The given heading, interpreted as being in degrees. For example 90 deg evaluates
 
 *direction* relative to *direction*
 ------------------------------------
-The first direction, interpreted as an offset relative to the second direction. For example, -5 deg relative to 90 deg is simply 85 deg. If either direction is a vector field, then this operator yields an expression depending on the position property of the object being specified
+The first direction, interpreted as an offset relative to the second direction. For example, :samp:`-5 deg relative to 90 deg` is simply 85 degrees. If either direction is a vector field, then this operator yields an expression depending on the position property of the object being specified
 
 
 Vector Operators
@@ -143,7 +144,7 @@ Vector Operators
 
 *vector* (relative to | offset by) *vector*
 --------------------------------------------
-The first vector, interpreted as an offset relative to the second vector (or vice versa). For example, 5@5 relative to 100@200 is 105@205. Note that this polymorphic operator has a specialized version for instances of OrientedPoint, defined below (so for example -3@0 relative to taxi will not use this vector version, even though the Object taxi can be coerced to a vector)
+The first vector, interpreted as an offset relative to the second vector (or vice versa). For example, :samp:`5@5 relative to 100@200` is :samp:`105@205`. Note that this polymorphic operator has a specialized version for instances of OrientedPoint, defined below (so for example :samp:`-3@0 relative to taxi` will not use this vector version, even though the Object taxi can be coerced to a vector)
 
 .. _*vector* offset along *direction* by *vector*:
 
@@ -155,7 +156,7 @@ The second vector, interpreted in a local coordinate system centered at the firs
 
 *vector* relative to *OrientedPoint*
 -------------------------------------
-The given vector, interpreted in the local coordinate system of the OrientedPoint. So for example 1 @ 2 relative to ego is 1 meter to the right and 2 meters ahead of ego
+The given vector, interpreted in the local coordinate system of the OrientedPoint. So for example :samp:`1 @ 2 relative to ego` is 1 meter to the right and 2 meters ahead of ego.
 
 
 Statements
@@ -165,7 +166,7 @@ Statements
 
 import *module*
 ----------------
-Imports a Scenic or Python module. This statement behaves as in Python, but when importing a Scenic module M it also imports any objects created and requirements imposed in M. Scenic also supports the form from module import identifier, . . . , which as in Python imports the module plus one or more identifiers from its namespace
+Imports a Scenic or Python module. This statement behaves as in Python, but when importing a Scenic module M it also imports any objects created and requirements imposed in M. Scenic also supports the form :samp:`from {module} import {identifier}, {...}` , which as in Python imports the module plus one or more identifiers from its namespace.
 
 .. _param *identifier* = *value*, . . .:
 
@@ -180,10 +181,10 @@ Global parameters can also be overridden at the command line using the :option:`
 
 require *boolean*
 ------------------
-Defines a hard requirement, requiring that the given condition hold in all instantiations of the scenario. As noted above, this is equivalent to an observe statement in other probabilistic programming languages
+Defines a hard requirement, requiring that the given condition hold in all instantiations of the scenario. As noted above, this is equivalent to an observe statement in other probabilistic programming languages.
 
 .. _mutate *identifier*, . . . [by *number* ]:
 
 mutate *identifier*, . . . [by *number* ]
 ------------------------------------------
-Enables mutation of the given list of objects, adding Gaussian noise with the given standard deviation (default 1) to their position and heading properties. If no objects are specified, mutation applies to every Object already created
+Enables mutation of the given list of objects, adding Gaussian noise with the given standard deviation (default 1) to their position and heading properties. If no objects are specified, mutation applies to every Object already created.

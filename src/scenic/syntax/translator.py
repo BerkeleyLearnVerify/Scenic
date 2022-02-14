@@ -33,7 +33,7 @@ import importlib
 import importlib.abc
 import importlib.util
 import itertools
-from collections import namedtuple, defaultdict
+from collections import namedtuple, defaultdict, deque
 from contextlib import contextmanager
 
 import tokenize
@@ -41,7 +41,7 @@ from tokenize import NAME, NL, NEWLINE, ENDMARKER, OP, NUMBER, COLON, COMMENT, E
 from tokenize import LPAR, RPAR, LSQB, RSQB, RBRACE, COMMA, DOUBLESLASH, DOUBLESLASHEQUAL
 from tokenize import AT, LEFTSHIFT, RIGHTSHIFT, VBAR, AMPER, TILDE, CIRCUMFLEX, STAR
 from tokenize import LEFTSHIFTEQUAL, RIGHTSHIFTEQUAL, VBAREQUAL, AMPEREQUAL, CIRCUMFLEXEQUAL
-from tokenize import INDENT, DEDENT, STRING, SEMI
+from tokenize import INDENT, DEDENT, STRING, SEMI, DOT
 
 import ast
 from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_missing_locations
@@ -51,7 +51,7 @@ from ast import Num, Yield, YieldFrom, FunctionDef, Attribute, Constant, Assign,
 from ast import Return, Raise, If, UnaryOp, Not, ClassDef, Nonlocal, Global, Compare, Is, Try
 from ast import Break, Continue, AsyncFunctionDef, Pass, While
 
-from scenic.core.distributions import Samplable, needsSampling, toDistribution
+from scenic.core.distributions import Samplable, RejectionException, needsSampling, toDistribution
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.object_types import _Constructible
 import scenic.core.errors as errors
@@ -295,6 +295,7 @@ mutateStatement = 'mutate'
 requireStatement = 'require'
 softRequirement = 'require_soft'	# not actually a statement, but a marker for the parser
 requireAlwaysStatement = ('require', 'always')
+requireEventuallyStatement = ('require', 'eventually')
 terminateWhenStatement = ('terminate', 'when')
 terminateSimulationWhenStatement = ('terminate', 'simulation', 'when')
 terminateAfterStatement = ('terminate', 'after')
@@ -307,6 +308,8 @@ waitStatement = 'wait'				# statement invoking a no-op action
 terminateStatement = 'terminate'	# statement ending the simulation
 abortStatement = 'abort'			# statement ending a try-interrupt statement
 invokeStatement = 'do'				# statement invoking a behavior or scenario
+invocationSchedules = ('choose', 'shuffle')
+invokeVariants = { (invokeStatement, sched) for sched in invocationSchedules }
 
 modelStatement = 'model'
 namespaceReference = '_Scenic_module_namespace'		# used in the implementation of 'model'
@@ -320,8 +323,10 @@ oneWordStatements = {	# TODO clean up
 	recordStatement,
 }
 twoWordStatements = {
-	requireAlwaysStatement, terminateWhenStatement, terminateAfterStatement,
+	requireAlwaysStatement, requireEventuallyStatement,
+	terminateWhenStatement, terminateAfterStatement,
 	recordInitialStatement, recordFinalStatement,
+	*invokeVariants
 }
 threeWordStatements = { terminateSimulationWhenStatement }
 
@@ -336,7 +341,8 @@ functionStatements = {
 	modelStatement, simulatorStatement, recordStatement,
 }
 twoWordFunctionStatements = {
-	requireAlwaysStatement, terminateWhenStatement, terminateAfterStatement,
+	requireAlwaysStatement, requireEventuallyStatement,
+	terminateWhenStatement, terminateAfterStatement,
 	recordInitialStatement, recordFinalStatement,
 }
 threeWordFunctionStatements = { terminateSimulationWhenStatement }
@@ -365,14 +371,14 @@ for tokens in threeWordFunctionStatements:
 # statements allowed inside behaviors
 behavioralStatements = {
 	requireStatement, actionStatement, waitStatement,
-	terminateStatement, abortStatement, invokeStatement,
+	terminateStatement, abortStatement, invokeStatement, *invokeVariants,
 }
 behavioralImps = { functionForStatement(s) for s in behavioralStatements }
 
 # statements allowed inside scenario composition blocks
 compositionalStatements = {
 	requireStatement, waitStatement, terminateStatement, abortStatement,
-	invokeStatement,
+	invokeStatement, *invokeVariants,
 }
 compositionalImps = { functionForStatement(s) for s in compositionalStatements }
 
@@ -386,7 +392,9 @@ recordStatements = (
 requirementStatements = recordStatements + (
 	requireStatement, softRequirement,
 	functionForStatement(requireAlwaysStatement),
+	functionForStatement(requireEventuallyStatement),
 	functionForStatement(terminateWhenStatement),
+	functionForStatement(terminateSimulationWhenStatement),
 )
 
 statementRaiseMarker = '_Scenic_statement_'
@@ -535,7 +543,7 @@ infixOperators = (
 	InfixOp('from', None, 2, (COMMA, ','), None),
 	InfixOp('for', None, 2, (COMMA, ','), None, ('Follow', 'Following')),
 	InfixOp('to', None, 2, (COMMA, ','), None),
-	InfixOp('as', None, 2, (COMMA, ','), None, recordStatements),
+	InfixOp('as', None, 2, (COMMA, ','), None, requirementStatements),
 	InfixOp('by', None, 2, packageToken, None)
 )
 
@@ -743,24 +751,31 @@ def findConstructorsIn(namespace):
 class Peekable:
 	"""Utility class to allow iterator lookahead."""
 	def __init__(self, gen):
-		self.gen = iter(gen)
-		self.current = next(self.gen, None)
+		self._gen = iter(gen)
+		self._cache = deque()
 
 	def __iter__(self):
 		return self
 
 	def __next__(self):
-		cur = self.current
+		self._lookahead(1)
+		cur = self._cache.popleft()
 		if cur is None:
 			raise StopIteration
-		self.current = next(self.gen, None)
 		return cur
 
-	def peek(self):
-		return self.current
+	def _lookahead(self, n):
+		needed = n - len(self._cache)
+		while needed > 0:
+			self._cache.append(next(self._gen, None))
+			needed -= 1
 
-def peek(thing):
-	return thing.peek()
+	def peek(self, n=1):
+		self._lookahead(n)
+		return self._cache[n-1]
+
+def peek(thing, n=1):
+	return thing.peek(n)
 
 class TokenTranslator:
 	"""Translates a Scenic token stream into valid Python syntax.
@@ -1021,16 +1036,17 @@ class TokenTranslator:
 						advance()	# consume second word
 						matched = True
 					elif startOfStatement and twoWords in threeWordIncipits:	# 3-word statement
-						advance()	# consume second word
-						endToken = advance()	# consume third word
-						thirdWord = endToken.tstring
+						endToken = peek(tokens, 2)
+						thirdWord = endToken.string
 						expected = threeWordIncipits[twoWords]
-						if thirdWord != expected:
+						if thirdWord != expected:	# TODO do proper 3-word lookahead?
 							self.parseError(endToken,
 							                f'expected "{expected}", got "{thirdWord}"')
 						wrapStatementCall()
 						function = functionForStatement(twoWords + (thirdWord,))
 						callFunction(function)
+						advance()	# consume second word
+						advance()	# consume third word
 						matched = True
 					elif startOfStatement and twoWords in twoWordStatements:	# 2-word statement
 						wrapStatementCall()
@@ -1114,7 +1130,7 @@ class TokenTranslator:
 						injectToken((RPAR, ')'))
 						skip = True
 					elif (tstring in self.constructors
-						  and peek(tokens).exact_type not in (RPAR, RSQB, RBRACE, COMMA)):
+						  and peek(tokens).exact_type not in (RPAR, RSQB, RBRACE, COMMA, DOT)):
 						# instance definition
 						callFunction(tstring)
 					elif tstring in replacements:	# direct replacement
@@ -1203,7 +1219,8 @@ def parseTranslatedSource(source, filename):
 
 temporaryName = '_Scenic_temporary_name'
 behaviorArgName = '_Scenic_current_behavior'
-checkInvariantsName = '_Scenic_check_invariants'
+checkPreconditionsName = 'checkPreconditions'
+checkInvariantsName = 'checkInvariants'
 interruptPrefix = '_Scenic_interrupt'
 
 abortFlag = Attribute(Name('BlockConclusion', Load()), 'ABORT', Load())
@@ -1413,17 +1430,31 @@ class ASTSurgeon(NodeTransformer):
 			self.parseError(node, f'"{statement}" cannot be used in a behavior')
 		if func.id in requirementStatements:		# require, terminate when, etc.
 			recording = func.id in recordStatements
-			if recording:
-				numArgs = (1, 2)
+			checkedArgs = node.args
+			if func.id == softRequirement:	# extract probability as first arg for soft reqs
+				func.id = requireStatement
+				prob = node.args[0]
+				assert isinstance(prob, (Constant, Num))
+				if isinstance(prob, Constant):
+					assert isinstance(prob.value, (float, int))
+				checkedArgs = node.args[1:]
 			else:
-				numArgs = 1
-				if func.id == softRequirement:
-					func.id = requireStatement
-					numArgs = 2
-					if len(node.args) != 2:
-						self.parseError(node, f'"require" takes exactly 1 argument')
-			self.validateSimpleCall(node, numArgs)
-			value = node.args[0] if recording else node.args[-1]
+				prob = None
+			self.validateSimpleCall(node, (1, 2), args=checkedArgs)
+			value = checkedArgs[0]
+			if len(checkedArgs) > 1:
+				name = checkedArgs[1]
+				if isinstance(name, Name):
+					name = Constant(name.id)
+				elif isinstance(name, Str):
+					pass
+				elif isinstance(name, Constant):
+					name = Constant(str(name.value))
+				else:
+					self.parseError(name, f'malformed name for "{func.id}" statement')
+			else:
+				name = Constant(None)
+
 			assert not self.inRequire
 			self.inRequire = True
 			req = self.visit(value)
@@ -1434,32 +1465,26 @@ class ASTSurgeon(NodeTransformer):
 			lineNum = Constant(node.lineno)			# save line number for error messages
 			copy_location(closure, req)
 			copy_location(lineNum, req)
-			newArgs = [reqID, closure, lineNum]
-			if len(node.args) == 2:		# get probability for soft requirements
-				if recording:
-					name = node.args[1]
-					if isinstance(name, Name):
-						name = Constant(name.id)
-					elif isinstance(name, Str):
-						pass
-					elif isinstance(name, Constant):
-						name = Constant(str(name.value))
-					else:
-						self.parseError(name, f'malformed name for "record" statement')
-					newArgs.append(name)
-				else:
-					prob = node.args[0]
-					assert isinstance(prob, (Constant, Num))
-					if isinstance(prob, Constant):
-						assert isinstance(prob.value, (float, int))
-					newArgs.append(prob)
+			newArgs = [reqID, closure, lineNum, name]
+			if prob:
+				newArgs.append(prob)
 			return copy_location(Expr(Call(func, newArgs, [])), node)
 		elif func.id == simulatorStatement:
 			self.validateSimpleCall(node, 1)
 			sim = self.visit(node.args[0])
 			closure = copy_location(Lambda(noArgs, sim), sim)
 			return copy_location(Expr(Call(func, [closure], [])), node)
-		elif func.id == invokeStatement:		# Sub-behavior or sub-scenario statement
+		elif (func.id == invokeStatement
+		      or func.id.startswith(invokeStatement + '_')):
+			# Sub-behavior or sub-scenario statement
+			if func.id.startswith(invokeStatement + '_'):
+				stmt = statementForImp[func.id]
+				schedule = func.id[len(invokeStatement)+1:]
+				assert '_' not in schedule
+				keywords = [ast.keyword('schedule', Constant(schedule))]
+			else:
+				stmt = func.id
+				keywords = []
 			seenModifier = False
 			invoked = []
 			args = []
@@ -1468,7 +1493,7 @@ class ASTSurgeon(NodeTransformer):
 					and arg.func.id == 'Modifier'):
 					if seenModifier:
 						self.parseError(arg,
-							f'incompatible qualifiers for "{invokeStatement}" statement')
+							f'incompatible qualifiers for "{stmt}" statement')
 					seenModifier = True
 					assert len(arg.args) >= 2
 					mod = arg.args[0]
@@ -1478,14 +1503,14 @@ class ASTSurgeon(NodeTransformer):
 						arg.args[1] = Lambda(noArgs, arg.args[1])
 					args.append(self.visit(arg))
 				elif seenModifier:
-					self.parseError(arg, f'malformed "{invokeStatement}" statement')
+					self.parseError(arg, f'malformed "{stmt}" statement')
 				else:
 					invoked.append(self.visit(arg))
 			maxInvoked = 1 if self.inBehavior and not self.inCompose else None
 			self.validateSimpleCall(node, (1, maxInvoked), onlyInBehaviors=True, args=invoked)
 			subHandler = Attribute(Name(behaviorArgName, Load()), '_invokeSubBehavior', Load())
 			subArgs = [Name('self', Load()), Tuple(invoked, Load())] + args
-			subRunner = Call(subHandler, subArgs, [])
+			subRunner = Call(subHandler, subArgs, keywords)
 			return self.generateInvocation(node, subRunner, invoker=YieldFrom)
 		elif func.id == actionStatement:		# Action statement
 			if self.inCompose:
@@ -1535,7 +1560,10 @@ class ASTSurgeon(NodeTransformer):
 	def generateInvocation(self, node, actionlike, invoker=Yield):
 		"""Generate an invocation of an action, behavior, or scenario."""
 		invokeAction = Expr(invoker(actionlike))
-		checkInvariants = Expr(Call(Name(checkInvariantsName, Load()), [], []))
+		checker = Attribute(Name(behaviorArgName, Load()), checkInvariantsName, Load())
+		args = Starred(Attribute(Name(behaviorArgName, Load()), '_args', Load()), Load())
+		kwargs = ast.keyword(None, Attribute(Name(behaviorArgName, Load()), '_kwargs', Load()))
+		checkInvariants = Expr(Call(checker, [Name('self', Load()), args], [kwargs]))
 		return [copy_location(invokeAction, node), copy_location(checkInvariants, node)]
 
 	def visit_Try(self, node):
@@ -1784,9 +1812,9 @@ class ASTSurgeon(NodeTransformer):
 				self.parseError(node, f'simple scenario cannot have preconditions/invariants')
 
 		# Construct compose block
+		self.inCompose = self.inBehavior = True
+		guardCheckers = self.makeGuardCheckers(args, preconditions, invariants)
 		if compose or preconditions or invariants:
-			self.inCompose = self.inBehavior = True
-			preamble = self.makeBehaviorPreamble(preconditions, invariants)
 			if compose:
 				body = self.visit(compose.body)
 				if setup:
@@ -1802,12 +1830,11 @@ class ASTSurgeon(NodeTransformer):
 				wait = self.generateInvocation(node, Constant(()))
 				body = [While(Constant(True), wait, [])]
 				compose = node 	# for copy_location below
-			newBody = preamble + body
-			newDef = FunctionDef('_compose', noArgs, newBody, [], None)
-			self.inCompose = self.inBehavior = False
+			newDef = FunctionDef('_compose', noArgs, body, [], None)
 			compose = copy_location(newDef, compose)
 		else:
 			compose = Assign([Name('_compose', Store())], Constant(None))
+		self.inCompose = self.inBehavior = False
 
 		# Construct setup block
 		if setup:
@@ -1828,7 +1855,7 @@ class ASTSurgeon(NodeTransformer):
 
 		# Assemble scenario definition
 		name = node.name[len(scenarioMarker):]
-		body = [setup]
+		body = guardCheckers + [setup]
 		newDef = ClassDef(name, [Name(scenarioClass, Load())], [], body, [])
 		return copy_location(newDef, node)
 
@@ -1837,6 +1864,10 @@ class ASTSurgeon(NodeTransformer):
 			self.parseError(node, f'cannot define a behavior inside a {composeBlock} block')
 		if self.inBehavior:
 			self.parseError(node, 'cannot define a behavior inside a behavior')
+
+		# add private current behavior argument and implicit 'self' argument
+		newArgs = self.visit(node.args)
+		newArgs.args = initialBehaviorArgs + newArgs.args
 
 		# process body
 		self.inBehavior = True
@@ -1855,19 +1886,18 @@ class ASTSurgeon(NodeTransformer):
 			oldStatements = node.body
 		# find precondition and invariant definitions
 		for statement in oldStatements:
-			if (isinstance(statement, AnnAssign)
-				and isinstance(statement.target, Name)
-				and statement.value is None
-				and statement.simple):
+			if isinstance(statement, AsyncFunctionDef):
 				group = None
-				if statement.target.id == 'precondition':
+				if statement.name == 'precondition':
 					group = preconditions
-				elif statement.target.id == 'invariant':
+				elif statement.name == 'invariant':
 					group = invariants
 				else:
 					self.parseError(statement, 'unknown type of behavior attribute')
+				if len(statement.body) != 1 or not isinstance(statement.body[0], Expr):
+					self.parseError(statement.body, f'malformed behavior {statement.name}')
 				self.inGuard = True
-				test = self.visit(statement.annotation)
+				test = self.visit(statement.body[0].value)
 				self.inGuard = False
 				assert isinstance(test, ast.AST)
 				group.append(test)
@@ -1877,19 +1907,15 @@ class ASTSurgeon(NodeTransformer):
 					newStatements.append(newStatement)
 				else:
 					newStatements.extend(newStatement)
-
-		newBody = self.makeBehaviorPreamble(preconditions, invariants) + newStatements
+		guardCheckers = self.makeGuardCheckers(newArgs, preconditions, invariants)
+		newBody = newStatements
 		self.inBehavior = False
 		self.inLoop = oldInLoop
-
-		# add private current behavior argument and implicit 'self' argument
-		newArgs = self.visit(node.args)
-		newArgs.args = initialBehaviorArgs + newArgs.args
 
 		# convert to class definition
 		decorators = [self.visit(decorator) for decorator in node.decorator_list]
 		genDefn = FunctionDef('makeGenerator', newArgs, newBody, decorators, node.returns)
-		classBody = docstring + [genDefn]
+		classBody = docstring + guardCheckers + [genDefn]
 		name = node.name
 		if dynamics.isAMonitorName(name):
 			superclass = monitorClass
@@ -1900,8 +1926,8 @@ class ASTSurgeon(NodeTransformer):
 
 		return copy_location(newDefn, node)
 
-	def makeBehaviorPreamble(self, preconditions, invariants):
-		# generate precondition checks
+	def makeGuardCheckers(self, args, preconditions, invariants):
+		# generate precondition checker
 		precondChecks = []
 		for precondition in preconditions:
 			call = Call(Name('PreconditionViolation', Load()),
@@ -1910,6 +1936,8 @@ class ASTSurgeon(NodeTransformer):
 			throw = Raise(exc=call, cause=None)
 			check = If(test=UnaryOp(Not(), precondition), body=[throw], orelse=[])
 			precondChecks.append(copy_location(check, precondition))
+		definePChecker = FunctionDef(checkPreconditionsName, args,
+		                             precondChecks + [ast.Pass()], [], None)
 		# generate invariant checker
 		invChecks = []
 		for invariant in invariants:
@@ -1919,13 +1947,13 @@ class ASTSurgeon(NodeTransformer):
 			throw = Raise(exc=call, cause=None)
 			check = If(test=UnaryOp(Not(), invariant), body=[throw], orelse=[])
 			invChecks.append(copy_location(check, invariant))
-		defineChecker = FunctionDef(checkInvariantsName, tempArg,
-									invChecks + [Return(Name(temporaryName, Load()))], [], None)
-		spot = Attribute(Name(behaviorArgName, Load()), 'checkInvariants', Store())
-		saveChecker = Assign([spot], Name(checkInvariantsName, Load()))
-		callChecker = Expr(Call(Name(checkInvariantsName, Load()), [], []))
+		defineIChecker = FunctionDef(checkInvariantsName, args,
+		                             invChecks + [ast.Pass()], [], None)
 		# assemble function body preamble
-		preamble = precondChecks + [defineChecker, saveChecker, callChecker]
+		preamble = [
+			definePChecker,
+			defineIChecker,
+		]
 		return preamble
 
 	def visit_Yield(self, node):
@@ -2026,7 +2054,11 @@ def compileTranslatedTree(tree, filename):
 
 def executeCodeIn(code, namespace):
 	"""Execute the final translated Python code in the given namespace."""
-	exec(code, namespace)
+	try:
+		exec(code, namespace)
+	except RejectionException as e:
+		# Could detect statically that the scenario has probability zero
+		raise InvalidScenarioError(e.args[0]) from None
 
 ### TRANSLATION PHASE SEVEN: scenario construction
 
@@ -2094,9 +2126,13 @@ def gatherBehaviorNamespacesFrom(behaviors):
 def constructScenarioFrom(namespace, scenarioName=None):
 	"""Build a Scenario object from an executed Scenic module."""
 	modularScenarios = namespace['_scenarios']
+	def isModularScenario(thing):
+		return isinstance(thing, type) and issubclass(thing, dynamics.DynamicScenario)
+	if not scenarioName and isModularScenario(namespace.get('Main', None)):
+		scenarioName = 'Main'
 	if scenarioName:
 		ty = namespace.get(scenarioName, None)
-		if not (isinstance(ty, type) and issubclass(ty, dynamics.DynamicScenario)):
+		if not isModularScenario(ty):
 			raise RuntimeError(f'no scenario "{scenarioName}" found')
 		if ty._requiresArguments():
 			raise RuntimeError(f'cannot instantiate scenario "{scenarioName}"'
@@ -2114,7 +2150,7 @@ def constructScenarioFrom(namespace, scenarioName=None):
 	if not dynScenario._prepared:	# true for all except top-level scenarios
 		# Execute setup block (if any) to create objects and requirements;
 		# extract any requirements and scan for relations used for pruning
-		dynScenario._prepare()
+		dynScenario._prepare(delayPreconditionCheck=True)
 	scenario = dynScenario._toScenario(namespace)
 
 	# Prune infeasible parts of the space

@@ -9,6 +9,13 @@ On this page we list interfaces that we and others have developed; if you have a
 .. contents:: Supported Simulators:
    :local:
 
+Built-in Newtonian Simulator
+----------------------------
+
+To enable debugging of dynamic scenarios without having to install an external simulator, Scenic includes a simple Newtonian physics simulator.
+The simulator supports scenarios written using the cross-platform :ref:`driving_domain`, and can render top-down views showing the positions of objects relative to the road network.
+See the documentation of the `scenic.simulators.newtonian` module for details.
+
 
 CARLA
 -----

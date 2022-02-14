@@ -3,7 +3,7 @@ import sys
 import inspect
 
 from scenic import scenarioFromString
-from scenic.core.simulators import DummySimulator
+from scenic.core.simulators import DummySimulator, RejectSimulationException
 import scenic.syntax.veneer as veneer
 
 ## Scene generation utilities
@@ -69,7 +69,8 @@ def sampleActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
                                          timestep=timestep)
         if actions is not None:
             return actions
-    assert False, f'unable to find successful simulation over {maxScenes} scenes'
+    raise RejectSimulationException(
+        f'unable to find successful simulation over {maxScenes} scenes')
 
 def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1,
                            singleAction=True, asMapping=False, timestep=1):
@@ -88,14 +89,17 @@ def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1,
     else:
         return [tuple(actions.values()) for actions in actionSequence]
 
-def sampleTrajectory(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
+def sampleTrajectory(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
+                     raiseGuardViolations=False):
     for i in range(maxScenes):
         scene, iterations = generateChecked(scenario, maxIterations)
         trajectory = sampleTrajectoryFromScene(scene, maxIterations=maxIterations,
-                                               maxSteps=maxSteps)
+                                               maxSteps=maxSteps,
+                                               raiseGuardViolations=raiseGuardViolations)
         if trajectory is not None:
             return trajectory
-    assert False, f'unable to find successful simulation over {maxScenes} scenes'
+    raise RejectSimulationException(
+        f'unable to find successful simulation over {maxScenes} scenes')
 
 def sampleResult(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
     for i in range(maxScenes):
@@ -104,17 +108,20 @@ def sampleResult(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
                                        maxSteps=maxSteps)
         if result is not None:
             return result
-    assert False, f'unable to find successful simulation over {maxScenes} scenes'
+    raise RejectSimulationException(
+        f'unable to find successful simulation over {maxScenes} scenes')
 
-def sampleResultFromScene(scene, maxIterations=1, maxSteps=1):
+def sampleResultFromScene(scene, maxIterations=1, maxSteps=1, raiseGuardViolations=False):
     sim = DummySimulator(timestep=1)
-    simulation = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
+    simulation = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations,
+                              raiseGuardViolations=raiseGuardViolations)
     if not simulation:
         return None
     return simulation.result
 
-def sampleTrajectoryFromScene(scene, maxIterations=1, maxSteps=1):
-    result = sampleResultFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps)
+def sampleTrajectoryFromScene(scene, maxIterations=1, maxSteps=1, raiseGuardViolations=False):
+    result = sampleResultFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps,
+                                   raiseGuardViolations=raiseGuardViolations)
     if not result:
         return None
     return result.trajectory

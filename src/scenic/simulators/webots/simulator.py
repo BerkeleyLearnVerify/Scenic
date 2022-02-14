@@ -41,7 +41,7 @@ class WebotsSimulation(Simulation):
         usedNames = defaultdict(lambda: 0)
         for obj in self.objects:
             if not hasattr(obj, 'webotsName'):
-                raise RuntimeError(f'object {obj} does not have a webotsName property')
+                continue    # not a Webots object
             if obj.webotsName:
                 name = obj.webotsName
             else:
@@ -49,6 +49,7 @@ class WebotsSimulation(Simulation):
                 if not ty:
                     raise RuntimeError(f'object {obj} has no webotsName or webotsType')
                 nextID = usedNames[ty]
+                usedNames[ty] += 1
                 if nextID == 0 and supervisor.getFromDef(ty):
                     name = ty
                 else:
@@ -72,8 +73,7 @@ class WebotsSimulation(Simulation):
         self.writePropertiesToWebots()
 
     def writePropertiesToWebots(self):
-        for obj in self.objects:
-            webotsObj = self.webotsObjects[obj]
+        for obj, webotsObj in self.webotsObjects.items():
             # position
             pos = utils.scenicToWebotsPosition(obj.position + obj.positionOffset, y=obj.elevation)
             webotsObj.getField('translation').setSFVec3f(pos)
@@ -90,10 +90,20 @@ class WebotsSimulation(Simulation):
                 field.setMFFloat(0, battery[0])
                 field.setMFFloat(1, battery[1])
                 field.setMFFloat(2, battery[2])
+            # customData
+            customData = getattr(obj, 'customData', None)
+            if customData:
+                if not isinstance(customData, str):
+                    raise RuntimeError(f'"customData" of {obj.webotsName} is not a string')
+                webotsObj.getField('customData').setSFString(customData)
             # controller
             if obj.controller:
-                webotsObj.getField('controller').setSFString(obj.controller)
-                if obj.resetController:
+                controllerField = webotsObj.getField('controller')
+                curCont = controllerField.getSFString()
+                if obj.controller != curCont:
+                    # the following operation also causes the controller to be restarted
+                    controllerField.setSFString(obj.controller)
+                elif obj.resetController:
                     webotsObj.restartController()
 
     def createObjectInSimulator(self, obj):
@@ -104,7 +114,9 @@ class WebotsSimulation(Simulation):
         self.supervisor.step(ms)
 
     def getProperties(self, obj, properties):
-        webotsObj = self.webotsObjects[obj]
+        webotsObj = self.webotsObjects.get(obj)
+        if not webotsObj:   # static object with no Webots counterpart
+            return { prop: getattr(obj, prop) for prop in properties }
 
         pos = webotsObj.getField('translation').getSFVec3f()
         x, y = utils.webotsToScenicPosition(pos)

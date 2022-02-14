@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "scenic"
-version = "2.0.0"
+version = "2.1.0b1"
 description = "The Scenic scenario description language."
 authors = [
 	"Daniel Fremont <dfremont@ucsc.edu>",
@@ -22,23 +22,26 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "^3.7, <3.11"
 dotmap = "^1.3.13"
 shapely = "^1.7.0"
 mapbox_earcut = "^0.12.10"
 matplotlib = "^3.2.1"
 scipy = "^1.4.1"
 antlr4-python3-runtime = "~4.8"
-opencv-python = "^4.2.0.34"
-numpy = "^1.18.2"
-pillow = "^8.1.1"
+opencv-python = "^4.5.4"
+numpy = "^1.21.3"
+pillow = "^9.0.0"
 pynverse = "^0.1.4"
 pygame = "^2.0.1"
 attrs = "^19.3.0"
 decorator = "^5.0.9"
 importlib_metadata = { version = "^3.7", python = "~3.7" }
 
-pyproj = {version = "^3.0.0", optional = true}
+pyproj = [
+	{version = "^3.0.0", python = "<3.10", optional = true},
+	{version = "^3.3.0", python = "^3.10", optional = true}
+]
 
 pytest-randomly = {version = "^3.2.1", optional = true}
 pytest = {version = "^6.0.0", optional = true}

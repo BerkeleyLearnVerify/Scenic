@@ -57,7 +57,7 @@ For example, suppose we write::
 
 	ego = Object at VerifaiRange(5, 15) @ 0
 
-This is equivalent to the ordinary Scenic line ``ego = Object at (5, 15) @ 0``,
+This is equivalent to the ordinary Scenic line :samp:`ego = Object at Range(5, 15) @ 0`,
 except that the X coordinate of the ego is sampled by VerifAI within the range
 (5, 15) instead of being uniformly distributed over it. By default the
 `VerifaiSampler` uses VerifAI's `Halton`_ sampler, so the range will still be
@@ -282,7 +282,7 @@ class VerifaiParameter(ExternalParameter):
 class VerifaiRange(VerifaiParameter):
 	"""A :obj:`~scenic.core.distributions.Range` (real interval) sampled by VerifAI."""
 
-	defaultValueType = float
+	_defaultValueType = float
 
 	def __init__(self, low, high, buckets=None, weights=None):
 		import verifai.features
@@ -308,7 +308,7 @@ class VerifaiRange(VerifaiParameter):
 class VerifaiDiscreteRange(VerifaiParameter):
 	"""A :obj:`~scenic.core.distributions.DiscreteRange` (integer interval) sampled by VerifAI."""
 
-	defaultValueType = float
+	_defaultValueType = float
 
 	def __init__(self, low, high, weights=None):
 		import verifai.features

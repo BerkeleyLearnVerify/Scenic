@@ -12,12 +12,12 @@ def webotsToScenicPosition(pos):
     Drops the Webots Y coordinate.
     """
     x, y, z = pos
-    return (x, -z)
+    return (x, z)
 
 def scenicToWebotsPosition(pos, y=0):
     """Convert a Scenic position to a Webots position."""
     x, z = pos
-    return [x, y, -z]
+    return [x, y, z]
 
 def webotsToScenicRotation(rot, tolerance2D=None):
     """Convert a Webots rotation vector to a Scenic heading.
@@ -30,8 +30,8 @@ def webotsToScenicRotation(rot, tolerance2D=None):
     angle = rot[3]
     if tolerance2D is not None and np.linalg.norm(axis - (0, 1, 0)) > tolerance2D:
         return None
-    return normalizeAngle(angle + math.pi)
+    return normalizeAngle(angle)
 
 def scenicToWebotsRotation(heading):
     """Convert a Scenic heading to a Webots rotation vector."""
-    return [0, 1, 0, heading - math.pi]
+    return [0, 1, 0, heading]

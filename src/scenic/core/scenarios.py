@@ -3,7 +3,8 @@
 import random
 import time
 
-from scenic.core.distributions import Samplable, RejectionException, needsSampling
+from scenic.core.distributions import (Samplable, ConstantSamplable, RejectionException,
+                                       needsSampling)
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.external_params import ExternalSampler
 from scenic.core.regions import EmptyRegion
@@ -19,6 +20,9 @@ class Scene:
 
 	A scene generated from a Scenic scenario.
 
+	To run a dynamic simulation from a scene, create an instance of `Simulator` for the
+	simulator you want to use, and pass the scene to its `simulate` method.
+
 	Attributes:
 		objects (tuple of :obj:`~scenic.core.object_types.Object`): All objects in the
 		  scene. The ``ego`` object is first.
@@ -27,7 +31,8 @@ class Scene:
 		workspace (:obj:`~scenic.core.workspaces.Workspace`): Workspace for the scenario.
 	"""
 	def __init__(self, workspace, objects, egoObject, params,
-				 alwaysReqs=(), terminationConds=(), termSimulationConds=(),
+				 alwaysReqs=(), eventuallyReqs=(),
+				 terminationConds=(), termSimulationConds=(),
 				 recordedExprs=(), recordedInitialExprs=(), recordedFinalExprs=(),
 				 monitors=(), behaviorNamespaces={}, dynamicScenario=None):
 		self.workspace = workspace
@@ -35,6 +40,7 @@ class Scene:
 		self.egoObject = egoObject
 		self.params = params
 		self.alwaysRequirements = tuple(alwaysReqs)
+		self.eventuallyRequirements = tuple(eventuallyReqs)
 		self.terminationConditions = tuple(terminationConds)
 		self.terminateSimulationConditions = tuple(termSimulationConds)
 		self.recordedExprs = tuple(recordedExprs)
@@ -90,6 +96,7 @@ class Scenario:
 		staticReqs, alwaysReqs, terminationConds = [], [], []
 		self.requirements = tuple(dynamicScenario._requirements)	# TODO clean up
 		self.alwaysRequirements = tuple(dynamicScenario._alwaysRequirements)
+		self.eventuallyRequirements = tuple(dynamicScenario._eventuallyRequirements)
 		self.terminationConditions = tuple(dynamicScenario._terminationConditions)
 		self.terminateSimulationConditions = tuple(dynamicScenario._terminateSimulationConditions)
 		self.initialRequirements = self.requirements + self.alwaysRequirements
@@ -245,7 +252,7 @@ class Scenario:
 			# Check user-specified requirements
 			for req in activeReqs:
 				if not req.satisfiedBy(sample):
-					rejection = f'user-specified requirement (line {req.line})'
+					rejection = str(req)
 					break
 
 		# obtained a valid sample; assemble a scene from it
@@ -260,6 +267,7 @@ class Scenario:
 			sampledNamespace = { name: sample[value] for name, value in namespace.items() }
 			sampledNamespaces[modName] = (namespace, sampledNamespace, namespace.copy())
 		alwaysReqs = (BoundRequirement(req, sample) for req in self.alwaysRequirements)
+		eventuallyReqs = (BoundRequirement(req, sample) for req in self.eventuallyRequirements)
 		terminationConds = (BoundRequirement(req, sample)
 							for req in self.terminationConditions)
 		termSimulationConds = (BoundRequirement(req, sample)
@@ -270,7 +278,7 @@ class Scenario:
 		recordedFinalExprs = (BoundRequirement(req, sample)
 		                      for req in self.recordedFinalExprs)
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
-					  alwaysReqs, terminationConds, termSimulationConds,
+					  alwaysReqs, eventuallyReqs, terminationConds, termSimulationConds,
 					  recordedExprs, recordedInitialExprs,recordedFinalExprs,
 					  self.monitors, sampledNamespaces, self.dynamicScenario)
 		return scene, iterations
@@ -279,8 +287,26 @@ class Scenario:
 		"""Reset the scenario's external sampler, if any.
 
 		If the Python random seed is reset before calling this function, this
-		should cause the sequence of generated scenes to be deterministic."""
+		should cause the sequence of generated scenes to be deterministic.
+		"""
 		self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)
+
+	def conditionOn(self, scene=None, objects=(), params={}):
+		assert objects or params
+		assert bool(scene) == bool(objects)
+		if scene:
+			assert len(self.objects) == len(scene.objects)
+		for i in objects:
+			assert i < len(self.objects)
+			self.objects[i].conditionTo(scene.objects[i])
+		for param, newVal in params.items():
+			curVal = self.params[param]
+			if isinstance(curVal, Samplable):
+				if not isinstance(newVal, Samplable):
+					newVal = ConstantSamplable(newVal)
+				curVal.conditionTo(newVal)
+			else:
+				self.params[param] = newVal
 
 	def getSimulator(self):
 		if self.simulator is None:

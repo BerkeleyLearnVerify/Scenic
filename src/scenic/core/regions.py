@@ -412,9 +412,9 @@ class PolylineRegion(Region):
 				if len(polyline.coords) < 2:
 					raise RuntimeError('tried to create PolylineRegion with <2-point LineString')
 			elif isinstance(polyline, shapely.geometry.MultiLineString):
-				if len(polyline) == 0:
+				if len(polyline.geoms) == 0:
 					raise RuntimeError('tried to create PolylineRegion from empty MultiLineString')
-				for line in polyline:
+				for line in polyline.geoms:
 					assert len(line.coords) >= 2
 			else:
 				raise RuntimeError('tried to create PolylineRegion from non-LineString')
@@ -455,11 +455,45 @@ class PolylineRegion(Region):
 			return segments
 		elif isinstance(lineString, shapely.geometry.MultiLineString):
 			allSegments = []
-			for line in lineString:
+			for line in lineString.geoms:
 				allSegments.extend(cls.segmentsOf(line))
 			return allSegments
 		else:
 			raise RuntimeError('called segmentsOf on non-linestring')
+
+	@cached_property
+	def start(self):
+		"""Get an `OrientedPoint` at the start of the polyline.
+
+		The OP's heading will be aligned with the orientation of the region, if
+		there is one (the default orientation pointing along the polyline).
+		"""
+		pointA, pointB = self.segments[0]
+		if self.usingDefaultOrientation:
+			heading = headingOfSegment(pointA, pointB)
+		elif self.orientation is not None:
+			heading = self.orientation[pointA]
+		else:
+			heading = 0
+		from scenic.core.object_types import OrientedPoint
+		return OrientedPoint(position=pointA, heading=heading)
+
+	@cached_property
+	def end(self):
+		"""Get an `OrientedPoint` at the end of the polyline.
+
+		The OP's heading will be aligned with the orientation of the region, if
+		there is one (the default orientation pointing along the polyline).
+		"""
+		pointA, pointB = self.segments[-1]
+		if self.usingDefaultOrientation:
+			heading = headingOfSegment(pointA, pointB)
+		elif self.orientation is not None:
+			heading = self.orientation[pointB]
+		else:
+			heading = 0
+		from scenic.core.object_types import OrientedPoint
+		return OrientedPoint(position=pointB, heading=heading)
 
 	def defaultOrientation(self, point):
 		start, end = self.nearestSegmentTo(point)
@@ -518,7 +552,7 @@ class PolylineRegion(Region):
 		for region in regions:
 			string = region.lineString
 			if isinstance(string, shapely.geometry.MultiLineString):
-				strings.extend(string)
+				strings.extend(string.geoms)
 			else:
 				strings.append(string)
 		newString = shapely.geometry.MultiLineString(strings)
@@ -597,7 +631,7 @@ class PolylineRegion(Region):
 		for region in (self, other):
 			string = region.lineString
 			if isinstance(string, shapely.geometry.MultiLineString):
-				strings.extend(string)
+				strings.extend(string.geoms)
 			else:
 				strings.append(string)
 		newString = shapely.geometry.MultiLineString(strings)
@@ -644,14 +678,15 @@ class PolygonalRegion(Region):
 			raise RuntimeError('tried to create PolygonalRegion with '
 			                   f'invalid polygon {self.polygons}')
 
-		if points is None and len(self.polygons) == 1 and len(self.polygons[0].interiors) == 0:
-			self.points = tuple(self.polygons[0].exterior.coords[:-1])
+		if (points is None and len(self.polygons.geoms) == 1
+		    and len(self.polygons.geoms[0].interiors) == 0):
+			self.points = tuple(self.polygons.geoms[0].exterior.coords[:-1])
 
 		if self.polygons.is_empty:
 			raise RuntimeError('tried to create empty PolygonalRegion')
 
 		triangles = []
-		for polygon in self.polygons:
+		for polygon in self.polygons.geoms:
 			triangles.extend(triangulatePolygon(polygon))
 		assert len(triangles) > 0, self.polygons
 		self.trianglesAndBounds = tuple((tri, tri.bounds) for tri in triangles)
@@ -680,7 +715,7 @@ class PolygonalRegion(Region):
 				return PolygonalRegion(polygon=diff, orientation=self.orientation)
 			elif isinstance(diff, shapely.geometry.GeometryCollection):
 				polys = []
-				for geom in diff:
+				for geom in diff.geoms:
 					if isinstance(geom, shapely.geometry.Polygon):
 						polys.append(geom)
 				if len(polys) == 0:
@@ -705,7 +740,7 @@ class PolygonalRegion(Region):
 				return PolygonalRegion(polygon=intersection, orientation=orientation)
 			elif isinstance(intersection, shapely.geometry.GeometryCollection):
 				polys = []
-				for geom in intersection:
+				for geom in intersection.geoms:
 					if isinstance(geom, shapely.geometry.Polygon):
 						polys.append(geom)
 				if len(polys) == 0:
@@ -812,7 +847,7 @@ class PointSetRegion(Region):
 	Args:
 		name (str): name for debugging
 		points (iterable): set of points comprising the region
-		kdtree (:obj:`scipy.spatial.KDTree`, optional): k-D tree for the points (one will
+		kdTree (:obj:`scipy.spatial.KDTree`, optional): k-D tree for the points (one will
 		  be computed if none is provided)
 		orientation (:obj:`~scenic.core.vectors.VectorField`, optional): orientation for
 		  the region

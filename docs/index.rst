@@ -41,6 +41,7 @@ Table of Contents
    syntax_guide
    syntax_details
    options
+   api
    developing
    internals
 

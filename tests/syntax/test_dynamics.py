@@ -2,6 +2,7 @@
 import pytest
 
 from scenic.core.errors import RuntimeParseError, ScenicSyntaxError
+from scenic.core.simulators import TerminationType
 
 from tests.utils import (compileScenic, sampleScene, sampleActions, sampleActionsFromScene,
                          sampleEgoActions, sampleEgoActionsFromScene, sampleResult,
@@ -429,6 +430,32 @@ def test_behavior_calls_side_effects():
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, 2, 3, 4)
 
+# Preconditions and invariants
+
+def test_behavior_precondition():
+    scenario = compileScenic("""
+        behavior Foo():
+            precondition: self.position.x > 0
+            take self.position.x
+        ego = Object at Range(-1, 1) @ 0, with behavior Foo
+    """)
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=1, maxScenes=50)
+        assert actions[0] > 0
+
+def test_behavior_invariant():
+    scenario = compileScenic("""
+        behavior Foo():
+            invariant: self.position.x > 0
+            while True:
+                take self.position.x
+                self.position -= Range(0, 2) @ 0
+        ego = Object at 1 @ 0, with behavior Foo
+    """)
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=3, maxIterations=50)
+        assert actions[1] > 0
+
 # Requirements
 
 def test_behavior_require():
@@ -471,6 +498,47 @@ def test_behavior_require_call():
     for i in range(30):
         actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=30)
         assert actions[0] == [1, 2]
+
+## Temporal requirements
+
+def test_require_always():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take self.blah
+                self.blah += DiscreteRange(0, 1)
+        ego = Object with behavior Foo, with blah 0
+        require always ego.blah < 1
+    """)
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=50)
+        assert tuple(actions) == (0, 0)
+
+def test_require_eventually():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take self.blah
+                self.blah += DiscreteRange(0, 1)
+        ego = Object with behavior Foo, with blah 0
+        require eventually ego.blah > 0
+    """)
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=50)
+        assert tuple(actions) == (0, 1)
+
+def test_require_eventually_2():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take self.blah
+                self.blah += 1
+        ego = Object with behavior Foo, with blah 0
+        require eventually ego.blah == 0
+        require eventually ego.blah == 1
+        require eventually ego.blah == 2
+    """)
+    sampleEgoActions(scenario, maxSteps=3)
 
 ## Monitors
 
@@ -784,6 +852,57 @@ def test_interrupt_guard_subbehavior():
     """)
     with pytest.raises(RuntimeParseError):
         sampleEgoActions(scenario, maxSteps=1)
+
+## Simulation results
+
+def test_termination_reason_time():
+    scenario = compileScenic("""
+        ego = Object
+    """)
+    result = sampleResult(scenario, maxSteps=2)
+    assert result.terminationType == TerminationType.timeLimit
+
+def test_termination_reason_condition_1():
+    scenario = compileScenic("""
+        behavior Foo():
+            for i in range(3):
+                self.position = self.position + 1@0
+                wait
+        ego = Object with behavior Foo
+        terminate when ego.position.x >= 1
+    """)
+    result = sampleResult(scenario, maxSteps=2)
+    assert result.terminationType == TerminationType.scenarioComplete
+
+def test_termination_reason_condition_2():
+    scenario = compileScenic("""
+        behavior Foo():
+            for i in range(3):
+                self.position = self.position + 1@0
+                wait
+        ego = Object with behavior Foo
+        terminate simulation when ego.position.x >= 1
+    """)
+    result = sampleResult(scenario, maxSteps=2)
+    assert result.terminationType == TerminationType.simulationTerminationCondition
+
+def test_termination_reason_behavior():
+    scenario = compileScenic("""
+        behavior Foo():
+            terminate
+        ego = Object with behavior Foo
+    """)
+    result = sampleResult(scenario, maxSteps=2)
+    assert result.terminationType == TerminationType.terminatedByBehavior
+
+def test_termination_reason_monitor():
+    scenario = compileScenic("""
+        monitor Foo:
+            terminate
+        ego = Object
+    """)
+    result = sampleResult(scenario, maxSteps=2)
+    assert result.terminationType == TerminationType.terminatedByMonitor
 
 ## Recording
 

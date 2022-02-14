@@ -20,7 +20,7 @@ from scenic.core.geometry import normalizeAngle
 
 class VectorDistribution(Distribution):
 	"""A distribution over Vectors."""
-	defaultValueType = None		# will be set after Vector is defined
+	_defaultValueType = None		# will be set after Vector is defined
 
 	def toVector(self):
 		return self
@@ -263,7 +263,7 @@ class Vector(Samplable, collections.abc.Sequence):
 	def __hash__(self):
 		return hash(self.coordinates)
 
-VectorDistribution.defaultValueType = Vector
+VectorDistribution._defaultValueType = Vector
 
 class OrientedVector(Vector):
 	def __init__(self, x, y, heading):

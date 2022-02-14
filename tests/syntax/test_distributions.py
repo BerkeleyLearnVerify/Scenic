@@ -22,13 +22,13 @@ def lazyTestScenario(expr, offset='0'):
 ## Options and Uniform
 
 def test_options_empty_domain():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic('x = Options([])')
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic('x = Options({})')
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic('x = Uniform()')
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic('x = Discrete({})')
 
 def test_options_invalid_weight():

@@ -447,9 +447,9 @@ class Road:
                         poly = cleanPolygon(Polygon(bounds), tolerance)
                         if not poly.is_empty:
                             if poly.geom_type == 'MultiPolygon':
-                                poly = MultiPolygon([p for p in list(poly)
+                                poly = MultiPolygon([p for p in poly.geoms
                                                      if not p.is_empty and p.exterior])
-                                cur_sec_polys.extend(list(poly))
+                                cur_sec_polys.extend(poly.geoms)
                             else:
                                 cur_sec_polys.append(poly)
                             cur_sec_lane_polys[id_].append(poly)

@@ -6,7 +6,7 @@ import inspect
 import itertools
 import types
 
-from scenic.core.distributions import Samplable, toDistribution, needsSampling
+from scenic.core.distributions import Samplable, Options, toDistribution, needsSampling
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.requirements import (RequirementType, PendingRequirement,
@@ -19,13 +19,57 @@ from scenic.core.workspaces import Workspace
 # Scenarios
 
 class Invocable:
+    """Abstract class with common code for behaviors and modular scenarios.
+
+    Both of these types of objects can be called like functions, can have guards, and can
+    suspend their own execution to invoke sub-behaviors/scenarios.
+    """
     def __init__(self, *args, **kwargs):
         if veneer.evaluatingGuard:
             raise RuntimeParseError(
                 'tried to invoke behavior/scenario from inside guard or interrupt condition')
+        self._args = args
+        self._kwargs = kwargs
+        self._agent = None
         self._runningIterator = None
 
-    def _invokeSubBehavior(self, agent, subs, modifier=None):
+    def _invokeSubBehavior(self, agent, subs, modifier=None, schedule=None):
+        def pickEnabledInvocable(opts):
+            enabled = {}
+            if isinstance(opts, dict):
+                for sub, weight in opts.items():
+                    if sub._isEnabled:
+                        enabled[sub] = weight
+            else:
+                for sub in opts:
+                    if sub._isEnabled:
+                        enabled[sub] = 1
+            if not enabled:
+                raise RejectSimulationException('deadlock in "do choose/shuffle"')
+            if len(enabled) == 1:
+                choice = list(enabled)[0]
+            else:
+                choice = Options(enabled)
+            return choice
+
+        scheduler = None
+        if schedule == 'choose':
+            if len(subs) == 1 and isinstance(subs[0], dict):
+                subs = subs[0]
+            subs = (pickEnabledInvocable(subs),)
+        elif schedule == 'shuffle':
+            def scheduler():
+                left = set(subs)
+                while left:
+                    choice = pickEnabledInvocable(left)
+                    left.remove(choice)
+                    yield from self._invokeInner(agent, (choice,))
+        else:
+            assert schedule is None
+        if not scheduler:
+            def scheduler():
+                yield from self._invokeInner(agent, subs)
+
         if modifier:
             if modifier.name == 'for':  # do X for Y [seconds | steps]
                 timeLimit = modifier.value
@@ -42,16 +86,37 @@ class Invocable:
                 raise RuntimeError(f'internal parsing error: impossible modifier {modifier}')
 
             def body(behavior, agent):
-                yield from self._invokeInner(agent, subs)
+                yield from scheduler()
             handler = lambda behavior, agent: BlockConclusion.ABORT
             yield from runTryInterrupt(self, agent, body, [condition], [handler])
         else:
-            yield from self._invokeInner(agent, subs)
+            yield from scheduler()
 
     def _invokeInner(self, agent, subs):
+        """Run the given sub-behavior/scenario(s) in parallel.
+
+        Implemented by subclasses.
+        """
         raise NotImplementedError
 
+    def _checkAllPreconditions(self):
+        self.checkPreconditions(self._agent, *self._args, **self._kwargs)
+        self.checkInvariants(self._agent, *self._args, **self._kwargs)
+
+    @property
+    def _isEnabled(self):
+        try:
+            self._checkAllPreconditions()
+            return True
+        except GuardViolation:
+            return False
+
 class DynamicScenario(Invocable):
+    """Internal class for scenarios which can execute during dynamic simulations.
+
+    Provides additional information complementing `Scenario`, which originally only
+    supported static scenarios. The two classes should probably eventually be merged.
+    """
     def __init_subclass__(cls, *args, **kwargs):
         veneer.registerDynamicScenarioClass(cls)
 
@@ -60,10 +125,7 @@ class DynamicScenario(Invocable):
     _globalParameters = None
 
     def __init__(self, *args, **kwargs):
-        super().__init__()
-        self._args = args
-        self._kwargs = kwargs
-
+        super().__init__(*args, **kwargs)
         self._ego = None
         self._objects = []      # ordered for reproducibility
         self._externalParameters = []
@@ -75,6 +137,7 @@ class DynamicScenario(Invocable):
         self._monitors = []
         self._behaviors = []
         self._alwaysRequirements = []
+        self._eventuallyRequirements = []
         self._terminationConditions = []
         self._terminateSimulationConditions = []
         self._recordedExprs = []
@@ -86,10 +149,12 @@ class DynamicScenario(Invocable):
         self._timeLimit = None
         self._timeLimitIsInSeconds = False
         self._prepared = False
+        self._delayingPreconditionCheck = False
         self._dummyNamespace = None
 
         self._timeLimitInSteps = None   # computed at simulation time
         self._elapsedTime = 0
+        self._eventuallySatisfied = None
 
     @classmethod
     def _dummy(cls, filename, namespace):
@@ -126,22 +191,31 @@ class DynamicScenario(Invocable):
         return tuple(self._objects)
 
     def _bindTo(self, scene):
+        """Bind this scenario to a sampled scene when starting a new simulation."""
         self._ego = scene.egoObject
         self._objects = list(scene.objects)
         self._agents = [obj for obj in scene.objects if obj.behavior is not None]
         self._alwaysRequirements = scene.alwaysRequirements
+        self._eventuallyRequirements = scene.eventuallyRequirements
         self._terminationConditions = scene.terminationConditions
         self._terminateSimulationConditions = scene.terminateSimulationConditions
         self._recordedExprs = scene.recordedExprs
         self._recordedInitialExprs = scene.recordedInitialExprs
         self._recordedFinalExprs = scene.recordedFinalExprs
 
-    def _prepare(self):
+    def _prepare(self, delayPreconditionCheck=False):
+        """Prepare the scenario for execution, executing its setup block."""
         assert not self._prepared
         self._prepared = True
 
         veneer.prepareScenario(self)
         with veneer.executeInScenario(self, inheritEgo=True):
+            # Check preconditions and invariants
+            if delayPreconditionCheck:
+                self._delayingPreconditionCheck = True
+            else:
+                self._checkAllPreconditions()
+
             # Execute setup block
             if self._setup is not None:
                 locs = self._setup(self, None, *self._args, **self._kwargs)
@@ -156,13 +230,21 @@ class DynamicScenario(Invocable):
         cls._globalParameters = globs
 
     def _start(self):
+        """Start the scenario, starting its compose block, behaviors, and monitors."""
         assert self._prepared
+
+        # Check preconditions if they could not be checked earlier
+        if self._delayingPreconditionCheck:
+            self._checkAllPreconditions()
 
         # Compute time limit now that we know the simulation timestep
         self._elapsedTime = 0
         self._timeLimitInSteps = self._timeLimit
         if self._timeLimitIsInSeconds:
             self._timeLimitInSteps /= veneer.currentSimulation.timestep
+
+        # Keep track of which 'require eventually' conditions have been satisfied
+        self._eventuallySatisfied = { req: False for req in self._eventuallyRequirements }
 
         veneer.startScenario(self)
         with veneer.executeInScenario(self):
@@ -182,6 +264,12 @@ class DynamicScenario(Invocable):
                 monitor.start()
 
     def _step(self):
+        """Execute the (already-started) scenario for one time step.
+
+        Returns:
+            `None` if the scenario will continue executing; otherwise a string describing
+            why it has terminated.
+        """
         # Check if we have reached the time limit, if any
         if self._timeLimitInSteps is not None and self._elapsedTime >= self._timeLimitInSteps:
             return self._stop('reached time limit')
@@ -219,6 +307,7 @@ class DynamicScenario(Invocable):
         return None
 
     def _stop(self, reason):
+        """Stop the scenario's execution, for the given reason."""
         veneer.endScenario(self, reason)
         self._runningIterator = None
         return reason
@@ -272,6 +361,20 @@ class DynamicScenario(Invocable):
                 raise RejectSimulationException(str(req))
         for sub in self._subScenarios:
             sub._checkAlwaysRequirements()
+
+    def _checkEventuallyRequirements(self):
+        unsat = None
+        for req in self._eventuallyRequirements:
+            if not self._eventuallySatisfied[req]:
+                if req.isTrue():
+                    self._eventuallySatisfied[req] = True
+                else:
+                    unsat = req
+        for sub in self._subScenarios:
+            res = sub._checkEventuallyRequirements()
+            if res is not None:
+                unsat = res
+        return unsat
 
     def _runMonitors(self):
         terminationReason = None
@@ -340,6 +443,8 @@ class DynamicScenario(Invocable):
             place = self._requirements
         elif req.ty is RequirementType.requireAlways:
             place = self._alwaysRequirements
+        elif req.ty is RequirementType.requireEventually:
+            place = self._eventuallyRequirements
         elif req.ty is RequirementType.terminateWhen:
             place = self._terminationConditions
         elif req.ty is RequirementType.terminateSimulationWhen:
@@ -408,16 +513,17 @@ class DynamicScenario(Invocable):
 # Behaviors
 
 class Behavior(Invocable, Samplable):
+    """Dynamic behaviors of agents.
+
+    Behavior statements are translated into definitions of subclasses of this class.
+    """
     def __init_subclass__(cls):
         if cls.__module__ is not __name__:
             veneer.currentScenario._behaviors.append(cls)
 
     def __init__(self, *args, **kwargs):
-        self.args = tuple(toDistribution(arg) for arg in args)
-        self.kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
-        if not inspect.isgeneratorfunction(self.makeGenerator):
-            raise RuntimeParseError(f'{self} does not take any actions'
-                                    ' (perhaps you forgot to use "take" or "do"?)')
+        args = tuple(toDistribution(arg) for arg in args)
+        kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
 
         # Validate arguments to the behavior
         sig = inspect.signature(self.makeGenerator)
@@ -425,17 +531,22 @@ class Behavior(Invocable, Samplable):
             sig.bind(None, *args, **kwargs)
         except TypeError as e:
             raise RuntimeParseError(str(e)) from e
-        Samplable.__init__(self, itertools.chain(self.args, self.kwargs.values()))
-        Invocable.__init__(self)
+        Samplable.__init__(self, itertools.chain(args, kwargs.values()))
+        Invocable.__init__(self, *args, **kwargs)
+
+        if not inspect.isgeneratorfunction(self.makeGenerator):
+            raise RuntimeParseError(f'{self} does not take any actions'
+                                    ' (perhaps you forgot to use "take" or "do"?)')
 
     def sampleGiven(self, value):
-        args = (value[arg] for arg in self.args)
-        kwargs = { name: value[val] for name, val in self.kwargs.items() }
+        args = (value[arg] for arg in self._args)
+        kwargs = { name: value[val] for name, val in self._kwargs.items() }
         return type(self)(*args, **kwargs)
 
     def start(self, agent):
-        self.agent = agent
-        self._runningIterator = self.makeGenerator(agent, *self.args, **self.kwargs)
+        self._agent = agent
+        self._runningIterator = self.makeGenerator(agent, *self._args, **self._kwargs)
+        self._checkAllPreconditions()
 
     def step(self):
         assert self._runningIterator
@@ -447,7 +558,7 @@ class Behavior(Invocable, Samplable):
         return actions
 
     def stop(self):
-        self.agent = None
+        self._agent = None
         self._runningIterator = None
 
     @property
@@ -467,7 +578,7 @@ class Behavior(Invocable, Samplable):
                 sub.stop()
 
     def __str__(self):
-        args = argsToString(itertools.chain(self.args, self.kwargs.items()))
+        args = argsToString(itertools.chain(self._args, self._kwargs.items()))
         return self.__class__.__name__ + args
 
 def makeTerminationAction(line):
@@ -477,6 +588,10 @@ def makeTerminationAction(line):
 # Monitors
 
 class Monitor(Behavior):
+    """Monitors for dynamic simulations.
+
+    Monitor statements are translated into definitions of subclasses of this class.
+    """
     def __init_subclass__(cls):
         super().__init_subclass__()
         veneer.currentScenario._monitors.append(cls())
@@ -537,7 +652,7 @@ def runTryInterrupt(behavior, agent, body, conditions, handlers):
                 return result   # entire try-interrupt statement will terminate
         else:
             yield result
-            behavior.checkInvariants()
+            behavior.checkInvariants(None, *behavior._args, **behavior._kwargs)
 
 @enum.unique
 class BlockConclusion(enum.Enum):
