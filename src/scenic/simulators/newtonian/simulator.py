@@ -115,11 +115,17 @@ class NewtonianSimulation(DrivingSimulation):
         for obj in self.objects:
             if obj.hand_brake:
                 acceleration = -MAX_BRAKING
+                obj.speed += acceleration * self.timestep
+                obj.speed = max(0, obj.speed)
             elif obj.brake > 0:
                 acceleration = -obj.brake * MAX_BRAKING
+                obj.speed += acceleration * self.timestep
+                obj.speed = max(0, obj.speed)
             else:
                 acceleration = obj.throttle * MAX_ACCELERATION
-            obj.speed += acceleration * self.timestep
+                obj.speed += acceleration * self.timestep
+            if obj.reverse:
+                obj.speed = obj.speed * -1
             obj.velocity = Vector(0, obj.speed).rotatedBy(obj.heading)
             if obj.steer:
                 turning_radius = obj.length / sin(obj.steer * np.pi / 2)
