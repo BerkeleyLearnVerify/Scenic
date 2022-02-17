@@ -6,6 +6,7 @@ import numpy as np
 
 from scenic.core.geometry import normalizeAngle
 
+
 def webotsToScenicPosition(pos):
     """Convert a Webots position to a Scenic position.
 
@@ -14,10 +15,12 @@ def webotsToScenicPosition(pos):
     x, y, z = pos
     return (x, z)
 
+
 def scenicToWebotsPosition(pos, y=0):
     """Convert a Scenic position to a Webots position."""
     x, z = pos
     return [x, y, z]
+
 
 def webotsToScenicRotation(rot, tolerance2D=None):
     """Convert a Webots rotation vector to a Scenic heading.
@@ -31,6 +34,7 @@ def webotsToScenicRotation(rot, tolerance2D=None):
     if tolerance2D is not None and np.linalg.norm(axis - (0, 1, 0)) > tolerance2D:
         return None
     return normalizeAngle(angle)
+
 
 def scenicToWebotsRotation(heading):
     """Convert a Scenic heading to a Webots rotation vector."""

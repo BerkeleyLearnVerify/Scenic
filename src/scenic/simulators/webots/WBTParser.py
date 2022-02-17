@@ -3,10 +3,11 @@
 from antlr4 import *
 from io import StringIO
 import sys
+
 if sys.version_info[1] > 5:
-	from typing import TextIO
+    from typing import TextIO
 else:
-	from typing.io import TextIO
+    from typing.io import TextIO
 
 
 def serializedATN():
@@ -27,8 +28,8 @@ def serializedATN():
         buf.write("a\3\2\2\2\24j\3\2\2\2\26n\3\2\2\2\30\33\5\6\4\2\31\33")
         buf.write("\5\4\3\2\32\30\3\2\2\2\32\31\3\2\2\2\33\36\3\2\2\2\34")
         buf.write("\32\3\2\2\2\34\35\3\2\2\2\35\3\3\2\2\2\36\34\3\2\2\2\37")
-        buf.write(" \7\3\2\2 !\7\16\2\2!\"\5\6\4\2\"\5\3\2\2\2#$\7\16\2\2")
-        buf.write("$%\7\4\2\2%&\7\21\2\2&\'\5\b\5\2\')\7\5\2\2(*\7\21\2\2")
+        buf.write(' \7\3\2\2 !\7\16\2\2!"\5\6\4\2"\5\3\2\2\2#$\7\16\2\2')
+        buf.write("$%\7\4\2\2%&\7\21\2\2&'\5\b\5\2')\7\5\2\2(*\7\21\2\2")
         buf.write(")(\3\2\2\2)*\3\2\2\2*\7\3\2\2\2+,\5\n\6\2,-\7\21\2\2-")
         buf.write("/\3\2\2\2.+\3\2\2\2/\62\3\2\2\2\60.\3\2\2\2\60\61\3\2")
         buf.write("\2\2\61\t\3\2\2\2\62\60\3\2\2\2\63\64\7\6\2\2\64\65\7")
@@ -51,23 +52,47 @@ def serializedATN():
         return buf.getvalue()
 
 
-class WBTParser ( Parser ):
+class WBTParser(Parser):
 
     grammarFileName = "WBT.g4"
 
     atn = ATNDeserializer().deserialize(serializedATN())
 
-    decisionsToDFA = [ DFA(ds, i) for i, ds in enumerate(atn.decisionToState) ]
+    decisionsToDFA = [DFA(ds, i) for i, ds in enumerate(atn.decisionToState)]
 
     sharedContextCache = PredictionContextCache()
 
-    literalNames = [ "<INVALID>", "'DEF'", "' {'", "'}'", "'hidden'", "'['", 
-                     "']'", "','", "'TRUE'", "'FALSE'" ]
+    literalNames = [
+        "<INVALID>",
+        "'DEF'",
+        "' {'",
+        "'}'",
+        "'hidden'",
+        "'['",
+        "']'",
+        "','",
+        "'TRUE'",
+        "'FALSE'",
+    ]
 
-    symbolicNames = [ "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
-                      "<INVALID>", "<INVALID>", "Comment", "Whitespace", 
-                      "Identifier", "Number", "String", "Newline" ]
+    symbolicNames = [
+        "<INVALID>",
+        "<INVALID>",
+        "<INVALID>",
+        "<INVALID>",
+        "<INVALID>",
+        "<INVALID>",
+        "<INVALID>",
+        "<INVALID>",
+        "<INVALID>",
+        "<INVALID>",
+        "Comment",
+        "Whitespace",
+        "Identifier",
+        "Number",
+        "String",
+        "Newline",
+    ]
 
     RULE_world = 0
     RULE_defn = 1
@@ -81,78 +106,84 @@ class WBTParser ( Parser ):
     RULE_vectorWithNewlines = 9
     RULE_boolean = 10
 
-    ruleNames =  [ "world", "defn", "node", "nodeBody", "attribute", "value", 
-                   "vector", "string", "array", "vectorWithNewlines", "boolean" ]
+    ruleNames = [
+        "world",
+        "defn",
+        "node",
+        "nodeBody",
+        "attribute",
+        "value",
+        "vector",
+        "string",
+        "array",
+        "vectorWithNewlines",
+        "boolean",
+    ]
 
     EOF = Token.EOF
-    T__0=1
-    T__1=2
-    T__2=3
-    T__3=4
-    T__4=5
-    T__5=6
-    T__6=7
-    T__7=8
-    T__8=9
-    Comment=10
-    Whitespace=11
-    Identifier=12
-    Number=13
-    String=14
-    Newline=15
+    T__0 = 1
+    T__1 = 2
+    T__2 = 3
+    T__3 = 4
+    T__4 = 5
+    T__5 = 6
+    T__6 = 7
+    T__7 = 8
+    T__8 = 9
+    Comment = 10
+    Whitespace = 11
+    Identifier = 12
+    Number = 13
+    String = 14
+    Newline = 15
 
-    def __init__(self, input:TokenStream, output:TextIO = sys.stdout):
+    def __init__(self, input: TokenStream, output: TextIO = sys.stdout):
         super().__init__(input, output)
         self.checkVersion("4.8")
-        self._interp = ParserATNSimulator(self, self.atn, self.decisionsToDFA, self.sharedContextCache)
+        self._interp = ParserATNSimulator(
+            self, self.atn, self.decisionsToDFA, self.sharedContextCache
+        )
         self._predicates = None
 
-
-
-
     class WorldContext(ParserRuleContext):
-
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(
+            self, parser, parent: ParserRuleContext = None, invokingState: int = -1
+        ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def node(self, i:int=None):
+        def node(self, i: int = None):
             if i is None:
                 return self.getTypedRuleContexts(WBTParser.NodeContext)
             else:
-                return self.getTypedRuleContext(WBTParser.NodeContext,i)
+                return self.getTypedRuleContext(WBTParser.NodeContext, i)
 
-
-        def defn(self, i:int=None):
+        def defn(self, i: int = None):
             if i is None:
                 return self.getTypedRuleContexts(WBTParser.DefnContext)
             else:
-                return self.getTypedRuleContext(WBTParser.DefnContext,i)
-
+                return self.getTypedRuleContext(WBTParser.DefnContext, i)
 
         def getRuleIndex(self):
             return WBTParser.RULE_world
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitWorld" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitWorld"):
                 return visitor.visitWorld(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def world(self):
 
         localctx = WBTParser.WorldContext(self, self._ctx, self.state)
         self.enterRule(localctx, 0, self.RULE_world)
-        self._la = 0 # Token type
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 26
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while _la==WBTParser.T__0 or _la==WBTParser.Identifier:
+            while _la == WBTParser.T__0 or _la == WBTParser.Identifier:
                 self.state = 24
                 self._errHandler.sync(self)
                 token = self._input.LA(1)
@@ -179,10 +210,10 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
-
     class DefnContext(ParserRuleContext):
-
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(
+            self, parser, parent: ParserRuleContext = None, invokingState: int = -1
+        ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
@@ -190,20 +221,16 @@ class WBTParser ( Parser ):
             return self.getToken(WBTParser.Identifier, 0)
 
         def node(self):
-            return self.getTypedRuleContext(WBTParser.NodeContext,0)
-
+            return self.getTypedRuleContext(WBTParser.NodeContext, 0)
 
         def getRuleIndex(self):
             return WBTParser.RULE_defn
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitDefn" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitDefn"):
                 return visitor.visitDefn(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def defn(self):
 
@@ -225,37 +252,33 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
-
     class NodeContext(ParserRuleContext):
-
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(
+            self, parser, parent: ParserRuleContext = None, invokingState: int = -1
+        ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
         def Identifier(self):
             return self.getToken(WBTParser.Identifier, 0)
 
-        def Newline(self, i:int=None):
+        def Newline(self, i: int = None):
             if i is None:
                 return self.getTokens(WBTParser.Newline)
             else:
                 return self.getToken(WBTParser.Newline, i)
 
         def nodeBody(self):
-            return self.getTypedRuleContext(WBTParser.NodeBodyContext,0)
-
+            return self.getTypedRuleContext(WBTParser.NodeBodyContext, 0)
 
         def getRuleIndex(self):
             return WBTParser.RULE_node
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitNode" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitNode"):
                 return visitor.visitNode(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def node(self):
 
@@ -275,11 +298,10 @@ class WBTParser ( Parser ):
             self.match(WBTParser.T__2)
             self.state = 39
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input,2,self._ctx)
+            la_ = self._interp.adaptivePredict(self._input, 2, self._ctx)
             if la_ == 1:
                 self.state = 38
                 self.match(WBTParser.Newline)
-
 
         except RecognitionException as re:
             localctx.exception = re
@@ -289,21 +311,20 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
-
     class NodeBodyContext(ParserRuleContext):
-
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(
+            self, parser, parent: ParserRuleContext = None, invokingState: int = -1
+        ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def attribute(self, i:int=None):
+        def attribute(self, i: int = None):
             if i is None:
                 return self.getTypedRuleContexts(WBTParser.AttributeContext)
             else:
-                return self.getTypedRuleContext(WBTParser.AttributeContext,i)
+                return self.getTypedRuleContext(WBTParser.AttributeContext, i)
 
-
-        def Newline(self, i:int=None):
+        def Newline(self, i: int = None):
             if i is None:
                 return self.getTokens(WBTParser.Newline)
             else:
@@ -312,26 +333,23 @@ class WBTParser ( Parser ):
         def getRuleIndex(self):
             return WBTParser.RULE_nodeBody
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitNodeBody" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitNodeBody"):
                 return visitor.visitNodeBody(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def nodeBody(self):
 
         localctx = WBTParser.NodeBodyContext(self, self._ctx, self.state)
         self.enterRule(localctx, 6, self.RULE_nodeBody)
-        self._la = 0 # Token type
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 46
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while _la==WBTParser.T__3 or _la==WBTParser.Identifier:
+            while _la == WBTParser.T__3 or _la == WBTParser.Identifier:
                 self.state = 41
                 self.attribute()
                 self.state = 42
@@ -348,10 +366,10 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
-
     class AttributeContext(ParserRuleContext):
-
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(
+            self, parser, parent: ParserRuleContext = None, invokingState: int = -1
+        ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
@@ -359,20 +377,16 @@ class WBTParser ( Parser ):
             return self.getToken(WBTParser.Identifier, 0)
 
         def value(self):
-            return self.getTypedRuleContext(WBTParser.ValueContext,0)
-
+            return self.getTypedRuleContext(WBTParser.ValueContext, 0)
 
         def getRuleIndex(self):
             return WBTParser.RULE_attribute
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitAttribute" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitAttribute"):
                 return visitor.visitAttribute(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def attribute(self):
 
@@ -409,44 +423,36 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
-
     class ValueContext(ParserRuleContext):
-
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(
+            self, parser, parent: ParserRuleContext = None, invokingState: int = -1
+        ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
         def vector(self):
-            return self.getTypedRuleContext(WBTParser.VectorContext,0)
-
+            return self.getTypedRuleContext(WBTParser.VectorContext, 0)
 
         def string(self):
-            return self.getTypedRuleContext(WBTParser.StringContext,0)
-
+            return self.getTypedRuleContext(WBTParser.StringContext, 0)
 
         def array(self):
-            return self.getTypedRuleContext(WBTParser.ArrayContext,0)
-
+            return self.getTypedRuleContext(WBTParser.ArrayContext, 0)
 
         def node(self):
-            return self.getTypedRuleContext(WBTParser.NodeContext,0)
-
+            return self.getTypedRuleContext(WBTParser.NodeContext, 0)
 
         def boolean(self):
-            return self.getTypedRuleContext(WBTParser.BooleanContext,0)
-
+            return self.getTypedRuleContext(WBTParser.BooleanContext, 0)
 
         def getRuleIndex(self):
             return WBTParser.RULE_value
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitValue" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitValue"):
                 return visitor.visitValue(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def value(self):
 
@@ -492,14 +498,14 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
-
     class VectorContext(ParserRuleContext):
-
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(
+            self, parser, parent: ParserRuleContext = None, invokingState: int = -1
+        ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def Number(self, i:int=None):
+        def Number(self, i: int = None):
             if i is None:
                 return self.getTokens(WBTParser.Number)
             else:
@@ -508,32 +514,29 @@ class WBTParser ( Parser ):
         def getRuleIndex(self):
             return WBTParser.RULE_vector
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitVector" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitVector"):
                 return visitor.visitVector(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def vector(self):
 
         localctx = WBTParser.VectorContext(self, self._ctx, self.state)
         self.enterRule(localctx, 12, self.RULE_vector)
-        self._la = 0 # Token type
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 64 
+            self.state = 64
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while True:
                 self.state = 63
                 self.match(WBTParser.Number)
-                self.state = 66 
+                self.state = 66
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if not (_la==WBTParser.Number):
+                if not (_la == WBTParser.Number):
                     break
 
         except RecognitionException as re:
@@ -544,10 +547,10 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
-
     class StringContext(ParserRuleContext):
-
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(
+            self, parser, parent: ParserRuleContext = None, invokingState: int = -1
+        ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
@@ -557,14 +560,11 @@ class WBTParser ( Parser ):
         def getRuleIndex(self):
             return WBTParser.RULE_string
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitString" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitString"):
                 return visitor.visitString(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def string(self):
 
@@ -582,78 +582,72 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
-
     class ArrayContext(ParserRuleContext):
-
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(
+            self, parser, parent: ParserRuleContext = None, invokingState: int = -1
+        ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def Newline(self, i:int=None):
+        def Newline(self, i: int = None):
             if i is None:
                 return self.getTokens(WBTParser.Newline)
             else:
                 return self.getToken(WBTParser.Newline, i)
 
-        def value(self, i:int=None):
+        def value(self, i: int = None):
             if i is None:
                 return self.getTypedRuleContexts(WBTParser.ValueContext)
             else:
-                return self.getTypedRuleContext(WBTParser.ValueContext,i)
+                return self.getTypedRuleContext(WBTParser.ValueContext, i)
 
-
-        def vectorWithNewlines(self, i:int=None):
+        def vectorWithNewlines(self, i: int = None):
             if i is None:
                 return self.getTypedRuleContexts(WBTParser.VectorWithNewlinesContext)
             else:
-                return self.getTypedRuleContext(WBTParser.VectorWithNewlinesContext,i)
-
+                return self.getTypedRuleContext(WBTParser.VectorWithNewlinesContext, i)
 
         def getRuleIndex(self):
             return WBTParser.RULE_array
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitArray" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitArray"):
                 return visitor.visitArray(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def array(self):
 
         localctx = WBTParser.ArrayContext(self, self._ctx, self.state)
         self.enterRule(localctx, 16, self.RULE_array)
-        self._la = 0 # Token type
+        self._la = 0  # Token type
         try:
             self.state = 95
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input,11,self._ctx)
+            la_ = self._interp.adaptivePredict(self._input, 11, self._ctx)
             if la_ == 1:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 70
                 self.match(WBTParser.T__4)
                 self.state = 75
                 self._errHandler.sync(self)
-                _alt = self._interp.adaptivePredict(self._input,7,self._ctx)
-                while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
-                    if _alt==1:
+                _alt = self._interp.adaptivePredict(self._input, 7, self._ctx)
+                while _alt != 2 and _alt != ATN.INVALID_ALT_NUMBER:
+                    if _alt == 1:
                         self.state = 71
                         self.match(WBTParser.Newline)
                         self.state = 72
-                        self.value() 
+                        self.value()
                     self.state = 77
                     self._errHandler.sync(self)
-                    _alt = self._interp.adaptivePredict(self._input,7,self._ctx)
+                    _alt = self._interp.adaptivePredict(self._input, 7, self._ctx)
 
                 self.state = 79
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if _la==WBTParser.Newline:
+                if _la == WBTParser.Newline:
                     self.state = 78
                     self.match(WBTParser.Newline)
-
 
                 self.state = 81
                 self.match(WBTParser.T__5)
@@ -665,10 +659,10 @@ class WBTParser ( Parser ):
                 self.match(WBTParser.T__4)
                 self.state = 83
                 self.vectorWithNewlines()
-                self.state = 86 
+                self.state = 86
                 self._errHandler.sync(self)
                 _alt = 1
-                while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
+                while _alt != 2 and _alt != ATN.INVALID_ALT_NUMBER:
                     if _alt == 1:
                         self.state = 84
                         self.match(WBTParser.T__6)
@@ -677,22 +671,20 @@ class WBTParser ( Parser ):
 
                     else:
                         raise NoViableAltException(self)
-                    self.state = 88 
+                    self.state = 88
                     self._errHandler.sync(self)
-                    _alt = self._interp.adaptivePredict(self._input,9,self._ctx)
+                    _alt = self._interp.adaptivePredict(self._input, 9, self._ctx)
 
                 self.state = 91
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if _la==WBTParser.T__6:
+                if _la == WBTParser.T__6:
                     self.state = 90
                     self.match(WBTParser.T__6)
-
 
                 self.state = 93
                 self.match(WBTParser.T__5)
                 pass
-
 
         except RecognitionException as re:
             localctx.exception = re
@@ -702,20 +694,20 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
-
     class VectorWithNewlinesContext(ParserRuleContext):
-
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(
+            self, parser, parent: ParserRuleContext = None, invokingState: int = -1
+        ):
             super().__init__(parent, invokingState)
             self.parser = parser
 
-        def Number(self, i:int=None):
+        def Number(self, i: int = None):
             if i is None:
                 return self.getTokens(WBTParser.Number)
             else:
                 return self.getToken(WBTParser.Number, i)
 
-        def Newline(self, i:int=None):
+        def Newline(self, i: int = None):
             if i is None:
                 return self.getTokens(WBTParser.Newline)
             else:
@@ -724,48 +716,43 @@ class WBTParser ( Parser ):
         def getRuleIndex(self):
             return WBTParser.RULE_vectorWithNewlines
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitVectorWithNewlines" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitVectorWithNewlines"):
                 return visitor.visitVectorWithNewlines(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def vectorWithNewlines(self):
 
         localctx = WBTParser.VectorWithNewlinesContext(self, self._ctx, self.state)
         self.enterRule(localctx, 18, self.RULE_vectorWithNewlines)
-        self._la = 0 # Token type
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 104 
+            self.state = 104
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while True:
                 self.state = 98
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if _la==WBTParser.Newline:
+                if _la == WBTParser.Newline:
                     self.state = 97
                     self.match(WBTParser.Newline)
-
 
                 self.state = 100
                 self.match(WBTParser.Number)
                 self.state = 102
                 self._errHandler.sync(self)
-                la_ = self._interp.adaptivePredict(self._input,13,self._ctx)
+                la_ = self._interp.adaptivePredict(self._input, 13, self._ctx)
                 if la_ == 1:
                     self.state = 101
                     self.match(WBTParser.Newline)
 
-
-                self.state = 106 
+                self.state = 106
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if not (_la==WBTParser.Number or _la==WBTParser.Newline):
+                if not (_la == WBTParser.Number or _la == WBTParser.Newline):
                     break
 
         except RecognitionException as re:
@@ -776,36 +763,32 @@ class WBTParser ( Parser ):
             self.exitRule()
         return localctx
 
-
     class BooleanContext(ParserRuleContext):
-
-        def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
+        def __init__(
+            self, parser, parent: ParserRuleContext = None, invokingState: int = -1
+        ):
             super().__init__(parent, invokingState)
             self.parser = parser
-
 
         def getRuleIndex(self):
             return WBTParser.RULE_boolean
 
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitBoolean" ):
+        def accept(self, visitor: ParseTreeVisitor):
+            if hasattr(visitor, "visitBoolean"):
                 return visitor.visitBoolean(self)
             else:
                 return visitor.visitChildren(self)
-
-
-
 
     def boolean(self):
 
         localctx = WBTParser.BooleanContext(self, self._ctx, self.state)
         self.enterRule(localctx, 20, self.RULE_boolean)
-        self._la = 0 # Token type
+        self._la = 0  # Token type
         try:
             self.enterOuterAlt(localctx, 1)
             self.state = 108
             _la = self._input.LA(1)
-            if not(_la==WBTParser.T__7 or _la==WBTParser.T__8):
+            if not (_la == WBTParser.T__7 or _la == WBTParser.T__8):
                 self._errHandler.recoverInline(self)
             else:
                 self._errHandler.reportMatch(self)
@@ -817,8 +800,3 @@ class WBTParser ( Parser ):
         finally:
             self.exitRule()
         return localctx
-
-
-
-
-

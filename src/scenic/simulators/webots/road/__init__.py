@@ -14,4 +14,3 @@ This model handles Webots world files generated from Open Street Map data using 
    interface
    car_models
 """
-

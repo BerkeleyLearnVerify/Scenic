@@ -14,14 +14,15 @@ pytestmark = pytest.mark.slow
 
 paramPattern = re.compile(r'\s*Parameter "p": (.*)$')
 
+
 def runAndGetP(tmpdir, program, options=[], addEgo=True):
     program = inspect.cleandoc(program)
     if addEgo:
-        program += '\nego = Object'
-    path = os.path.join(tmpdir, 'test.sc')
-    with open(path, 'w') as f:
+        program += "\nego = Object"
+    path = os.path.join(tmpdir, "test.sc")
+    with open(path, "w") as f:
         f.write(program)
-    args = ['scenic', '--show-params', '--gather-stats', '1', path] + options
+    args = ["scenic", "--show-params", "--gather-stats", "1", path] + options
     result = subprocess.run(args, capture_output=True, text=True)
     assert result.returncode == 0
     lines = result.stdout.splitlines()
@@ -34,19 +35,20 @@ def runAndGetP(tmpdir, program, options=[], addEgo=True):
     assert value is not None
     return value
 
+
 ## Tests for command-line options
 
+
 def test_param(tmpdir):
-    p = runAndGetP(tmpdir, 'param p = "foo"',
-                   options=['--param', 'p', 'bar'])
-    assert p == 'bar'
+    p = runAndGetP(tmpdir, 'param p = "foo"', options=["--param", "p", "bar"])
+    assert p == "bar"
+
 
 def test_param_int(tmpdir):
-    p = runAndGetP(tmpdir, 'param p = 42',
-                   options=['--param', 'p', '+123'])
-    assert p == '123'
+    p = runAndGetP(tmpdir, "param p = 42", options=["--param", "p", "+123"])
+    assert p == "123"
+
 
 def test_param_float(tmpdir):
-    p = runAndGetP(tmpdir, 'param p = 42',
-                   options=['--param', 'p', '123e1'])
-    assert p == '1230.0'
+    p = runAndGetP(tmpdir, "param p = 42", options=["--param", "p", "123e1"])
+    assert p == "1230.0"

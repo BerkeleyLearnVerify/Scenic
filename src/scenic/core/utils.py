@@ -9,9 +9,11 @@ import decorator
 
 sqrt2 = math.sqrt(2)
 
+
 def cached(oldMethod):
     """Decorator for making a method with no arguments cache its result"""
-    storageName = f'_cached_{oldMethod.__name__}'
+    storageName = f"_cached_{oldMethod.__name__}"
+
     @decorator.decorator
     def wrapper(wrapped, *args, **kwargs):
         self = args[0]
@@ -22,15 +24,19 @@ def cached(oldMethod):
             value = wrapped(self)
             setattr(self, storageName, value)
             return value
+
     return wrapper(oldMethod)
+
 
 def cached_property(oldMethod):
     return property(cached(oldMethod))
 
+
 def argsToString(args):
-    names = (f'{a[0]}={a[1]}' if isinstance(a, tuple) else str(a) for a in args)
-    joinedArgs = ', '.join(names)
-    return f'({joinedArgs})'
+    names = (f"{a[0]}={a[1]}" if isinstance(a, tuple) else str(a) for a in args)
+    joinedArgs = ", ".join(names)
+    return f"({joinedArgs})"
+
 
 def areEquivalent(a, b):
     """Whether two objects are equivalent, i.e. have the same properties.
@@ -79,12 +85,13 @@ def areEquivalent(a, b):
             if not found:
                 return False
         return True
-    elif hasattr(a, 'isEquivalentTo'):
+    elif hasattr(a, "isEquivalentTo"):
         return a.isEquivalentTo(b)
-    elif hasattr(b, 'isEquivalentTo'):
+    elif hasattr(b, "isEquivalentTo"):
         return b.isEquivalentTo(a)
     else:
         return a == b
+
 
 class DefaultIdentityDict:
     """Dictionary which is the identity map by default.
@@ -92,6 +99,7 @@ class DefaultIdentityDict:
     The map works on all objects, even unhashable ones, but doesn't support all
     of the standard mapping operations.
     """
+
     def __init__(self):
         self.storage = {}
 
@@ -105,12 +113,14 @@ class DefaultIdentityDict:
         return id(key) in self.storage
 
     def __repr__(self):
-        pairs = (f'{hex(key)}: {value!r}' for key, value in self.storage.items())
-        allPairs = ', '.join(pairs)
-        return f'<DefaultIdentityDict {{{allPairs}}}>'
+        pairs = (f"{hex(key)}: {value!r}" for key, value in self.storage.items())
+        allPairs = ", ".join(pairs)
+        return f"<DefaultIdentityDict {{{allPairs}}}>"
+
 
 # Generic type introspection functions backported to Python 3.7
 # (code taken from their Python 3.8 implementations)
+
 
 def get_type_origin(tp):
     """Version of `typing.get_origin` supporting Python 3.7."""
@@ -122,6 +132,7 @@ def get_type_origin(tp):
     if tp is typing.Generic:
         return typing.Generic
     return None
+
 
 def get_type_args(tp):
     """Version of `typing.get_args` supporting Python 3.7."""

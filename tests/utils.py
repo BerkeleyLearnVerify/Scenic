@@ -1,4 +1,3 @@
-
 import sys
 import inspect
 
@@ -10,6 +9,7 @@ import scenic.syntax.veneer as veneer
 
 # Compilation
 
+
 def compileScenic(code, removeIndentation=True, scenario=None):
     if removeIndentation:
         # to allow indenting code to line up with test function
@@ -19,61 +19,102 @@ def compileScenic(code, removeIndentation=True, scenario=None):
     checkVeneerIsInactive()
     return scenario
 
+
 # Static scenes
+
 
 def sampleScene(scenario, maxIterations=1):
     return generateChecked(scenario, maxIterations)[0]
+
 
 def sampleSceneFrom(code, maxIterations=1, scenario=None):
     scenario = compileScenic(code, scenario=scenario)
     return sampleScene(scenario, maxIterations=maxIterations)
 
+
 def sampleEgo(scenario, maxIterations=1):
     scene, iterations = generateChecked(scenario, maxIterations)
     return scene.egoObject
+
 
 def sampleEgoFrom(code, maxIterations=1):
     scenario = compileScenic(code)
     return sampleEgo(scenario, maxIterations=maxIterations)
 
+
 def sampleParamP(scenario, maxIterations=1):
     scene, iterations = generateChecked(scenario, maxIterations)
-    return scene.params['p']
+    return scene.params["p"]
+
 
 def sampleParamPFrom(code, maxIterations=1):
     scenario = compileScenic(code)
     return sampleParamP(scenario, maxIterations=maxIterations)
 
+
 # Dynamic simulations
 
-def sampleEgoActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
-                     singleAction=True, timestep=1):
-    allActions = sampleActions(scenario, maxIterations, maxSteps, maxScenes,
-                               singleAction, asMapping=False, timestep=timestep)
+
+def sampleEgoActions(
+    scenario, maxIterations=1, maxSteps=1, maxScenes=1, singleAction=True, timestep=1
+):
+    allActions = sampleActions(
+        scenario,
+        maxIterations,
+        maxSteps,
+        maxScenes,
+        singleAction,
+        asMapping=False,
+        timestep=timestep,
+    )
     return [actions[0] for actions in allActions]
 
-def sampleEgoActionsFromScene(scene, maxIterations=1, maxSteps=1, singleAction=True, timestep=1):
-    allActions = sampleActionsFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps,
-                                        singleAction=singleAction, asMapping=False,
-                                        timestep=timestep)
+
+def sampleEgoActionsFromScene(
+    scene, maxIterations=1, maxSteps=1, singleAction=True, timestep=1
+):
+    allActions = sampleActionsFromScene(
+        scene,
+        maxIterations=maxIterations,
+        maxSteps=maxSteps,
+        singleAction=singleAction,
+        asMapping=False,
+        timestep=timestep,
+    )
     if allActions is None:
         return None
     return [actions[0] for actions in allActions]
 
-def sampleActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
-                  singleAction=True, asMapping=False, timestep=1):
+
+def sampleActions(
+    scenario,
+    maxIterations=1,
+    maxSteps=1,
+    maxScenes=1,
+    singleAction=True,
+    asMapping=False,
+    timestep=1,
+):
     for i in range(maxScenes):
         scene, iterations = generateChecked(scenario, maxIterations)
-        actions = sampleActionsFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps,
-                                         singleAction=singleAction, asMapping=asMapping,
-                                         timestep=timestep)
+        actions = sampleActionsFromScene(
+            scene,
+            maxIterations=maxIterations,
+            maxSteps=maxSteps,
+            singleAction=singleAction,
+            asMapping=asMapping,
+            timestep=timestep,
+        )
         if actions is not None:
             return actions
     raise RejectSimulationException(
-        f'unable to find successful simulation over {maxScenes} scenes')
+        f"unable to find successful simulation over {maxScenes} scenes"
+    )
 
-def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1,
-                           singleAction=True, asMapping=False, timestep=1):
+
+def sampleActionsFromScene(
+    scene, maxIterations=1, maxSteps=1, singleAction=True, asMapping=False, timestep=1
+):
     sim = DummySimulator(timestep=timestep)
     simulation = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
     if not simulation:
@@ -89,50 +130,76 @@ def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1,
     else:
         return [tuple(actions.values()) for actions in actionSequence]
 
-def sampleTrajectory(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
-                     raiseGuardViolations=False):
+
+def sampleTrajectory(
+    scenario, maxIterations=1, maxSteps=1, maxScenes=1, raiseGuardViolations=False
+):
     for i in range(maxScenes):
         scene, iterations = generateChecked(scenario, maxIterations)
-        trajectory = sampleTrajectoryFromScene(scene, maxIterations=maxIterations,
-                                               maxSteps=maxSteps,
-                                               raiseGuardViolations=raiseGuardViolations)
+        trajectory = sampleTrajectoryFromScene(
+            scene,
+            maxIterations=maxIterations,
+            maxSteps=maxSteps,
+            raiseGuardViolations=raiseGuardViolations,
+        )
         if trajectory is not None:
             return trajectory
     raise RejectSimulationException(
-        f'unable to find successful simulation over {maxScenes} scenes')
+        f"unable to find successful simulation over {maxScenes} scenes"
+    )
+
 
 def sampleResult(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
     for i in range(maxScenes):
         scene, iterations = generateChecked(scenario, maxIterations)
-        result = sampleResultFromScene(scene, maxIterations=maxIterations,
-                                       maxSteps=maxSteps)
+        result = sampleResultFromScene(
+            scene, maxIterations=maxIterations, maxSteps=maxSteps
+        )
         if result is not None:
             return result
     raise RejectSimulationException(
-        f'unable to find successful simulation over {maxScenes} scenes')
+        f"unable to find successful simulation over {maxScenes} scenes"
+    )
 
-def sampleResultFromScene(scene, maxIterations=1, maxSteps=1, raiseGuardViolations=False):
+
+def sampleResultFromScene(
+    scene, maxIterations=1, maxSteps=1, raiseGuardViolations=False
+):
     sim = DummySimulator(timestep=1)
-    simulation = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations,
-                              raiseGuardViolations=raiseGuardViolations)
+    simulation = sim.simulate(
+        scene,
+        maxSteps=maxSteps,
+        maxIterations=maxIterations,
+        raiseGuardViolations=raiseGuardViolations,
+    )
     if not simulation:
         return None
     return simulation.result
 
-def sampleTrajectoryFromScene(scene, maxIterations=1, maxSteps=1, raiseGuardViolations=False):
-    result = sampleResultFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps,
-                                   raiseGuardViolations=raiseGuardViolations)
+
+def sampleTrajectoryFromScene(
+    scene, maxIterations=1, maxSteps=1, raiseGuardViolations=False
+):
+    result = sampleResultFromScene(
+        scene,
+        maxIterations=maxIterations,
+        maxSteps=maxSteps,
+        raiseGuardViolations=raiseGuardViolations,
+    )
     if not result:
         return None
     return result.trajectory
 
+
 # Helpers
+
 
 def generateChecked(scenario, maxIterations):
     checkVeneerIsInactive()
     scene, iterations = scenario.generate(maxIterations=maxIterations)
     checkVeneerIsInactive()
     return scene, iterations
+
 
 def checkVeneerIsInactive():
     assert veneer.activity == 0
@@ -147,7 +214,9 @@ def checkVeneerIsInactive():
     assert not veneer.currentSimulation
     assert not veneer.currentBehavior
 
+
 ## Error checking utilities
+
 
 def checkErrorLineNumber(line, exc_info=None):
     if exc_info is None:

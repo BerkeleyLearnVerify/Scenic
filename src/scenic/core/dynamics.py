@@ -9,14 +9,21 @@ import types
 from scenic.core.distributions import Samplable, Options, toDistribution, needsSampling
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError
 from scenic.core.lazy_eval import needsLazyEvaluation
-from scenic.core.requirements import (RequirementType, PendingRequirement,
-                                      DynamicRequirement)
-from scenic.core.simulators import (RejectSimulationException, EndSimulationAction,
-                                    EndScenarioAction)
+from scenic.core.requirements import (
+    RequirementType,
+    PendingRequirement,
+    DynamicRequirement,
+)
+from scenic.core.simulators import (
+    RejectSimulationException,
+    EndSimulationAction,
+    EndScenarioAction,
+)
 from scenic.core.utils import argsToString
 from scenic.core.workspaces import Workspace
 
 # Scenarios
+
 
 class Invocable:
     """Abstract class with common code for behaviors and modular scenarios.
@@ -24,10 +31,12 @@ class Invocable:
     Both of these types of objects can be called like functions, can have guards, and can
     suspend their own execution to invoke sub-behaviors/scenarios.
     """
+
     def __init__(self, *args, **kwargs):
         if veneer.evaluatingGuard:
             raise RuntimeParseError(
-                'tried to invoke behavior/scenario from inside guard or interrupt condition')
+                "tried to invoke behavior/scenario from inside guard or interrupt condition"
+            )
         self._args = args
         self._kwargs = kwargs
         self._agent = None
@@ -53,40 +62,49 @@ class Invocable:
             return choice
 
         scheduler = None
-        if schedule == 'choose':
+        if schedule == "choose":
             if len(subs) == 1 and isinstance(subs[0], dict):
                 subs = subs[0]
             subs = (pickEnabledInvocable(subs),)
-        elif schedule == 'shuffle':
+        elif schedule == "shuffle":
+
             def scheduler():
                 left = set(subs)
                 while left:
                     choice = pickEnabledInvocable(left)
                     left.remove(choice)
                     yield from self._invokeInner(agent, (choice,))
+
         else:
             assert schedule is None
         if not scheduler:
+
             def scheduler():
                 yield from self._invokeInner(agent, subs)
 
         if modifier:
-            if modifier.name == 'for':  # do X for Y [seconds | steps]
+            if modifier.name == "for":  # do X for Y [seconds | steps]
                 timeLimit = modifier.value
                 if not isinstance(timeLimit, (float, int)):
                     raise RuntimeParseError('"do X for Y" with Y not a number')
-                assert modifier.terminator in (None, 'seconds', 'steps')
-                if modifier.terminator != 'steps':
+                assert modifier.terminator in (None, "seconds", "steps")
+                if modifier.terminator != "steps":
                     timeLimit /= veneer.currentSimulation.timestep
                 startTime = veneer.currentSimulation.currentTime
-                condition = lambda: veneer.currentSimulation.currentTime - startTime >= timeLimit
-            elif modifier.name == 'until':  # do X until Y
+                condition = (
+                    lambda: veneer.currentSimulation.currentTime - startTime
+                    >= timeLimit
+                )
+            elif modifier.name == "until":  # do X until Y
                 condition = modifier.value
             else:
-                raise RuntimeError(f'internal parsing error: impossible modifier {modifier}')
+                raise RuntimeError(
+                    f"internal parsing error: impossible modifier {modifier}"
+                )
 
             def body(behavior, agent):
                 yield from scheduler()
+
             handler = lambda behavior, agent: BlockConclusion.ABORT
             yield from runTryInterrupt(self, agent, body, [condition], [handler])
         else:
@@ -111,27 +129,31 @@ class Invocable:
         except GuardViolation:
             return False
 
+
 class DynamicScenario(Invocable):
     """Internal class for scenarios which can execute during dynamic simulations.
 
     Provides additional information complementing `Scenario`, which originally only
     supported static scenarios. The two classes should probably eventually be merged.
     """
+
     def __init_subclass__(cls, *args, **kwargs):
         veneer.registerDynamicScenarioClass(cls)
 
-    _requirementSyntax = None   # overridden by subclasses
+    _requirementSyntax = None  # overridden by subclasses
     _simulatorFactory = None
     _globalParameters = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._ego = None
-        self._objects = []      # ordered for reproducibility
+        self._objects = []  # ordered for reproducibility
         self._externalParameters = []
         self._pendingRequirements = defaultdict(list)
         self._requirements = []
-        self._requirementDeps = set()   # things needing to be sampled to evaluate the requirements
+        self._requirementDeps = (
+            set()
+        )  # things needing to be sampled to evaluate the requirements
 
         self._agents = []
         self._monitors = []
@@ -152,7 +174,7 @@ class DynamicScenario(Invocable):
         self._delayingPreconditionCheck = False
         self._dummyNamespace = None
 
-        self._timeLimitInSteps = None   # computed at simulation time
+        self._timeLimitInSteps = None  # computed at simulation time
         self._elapsedTime = 0
         self._eventuallySatisfied = None
 
@@ -161,7 +183,7 @@ class DynamicScenario(Invocable):
         scenario = cls()
         scenario._setup = None
         scenario._compose = None
-        scenario._filename = filename   # for debugging
+        scenario._filename = filename  # for debugging
         scenario._prepared = True
         scenario._dummyNamespace = namespace
         return scenario
@@ -177,7 +199,7 @@ class DynamicScenario(Invocable):
             return True
         sig = inspect.signature(func)
         try:
-            sig.bind(None, None)    # first two arguments are added internally by Scenic
+            sig.bind(None, None)  # first two arguments are added internally by Scenic
             return False
         except TypeError:
             return True
@@ -244,7 +266,7 @@ class DynamicScenario(Invocable):
             self._timeLimitInSteps /= veneer.currentSimulation.timestep
 
         # Keep track of which 'require eventually' conditions have been satisfied
-        self._eventuallySatisfied = { req: False for req in self._eventuallyRequirements }
+        self._eventuallySatisfied = {req: False for req in self._eventuallyRequirements}
 
         veneer.startScenario(self)
         with veneer.executeInScenario(self):
@@ -252,7 +274,10 @@ class DynamicScenario(Invocable):
             if self._compose is not None:
                 if not inspect.isgeneratorfunction(self._compose):
                     from scenic.syntax.translator import composeBlock
-                    raise RuntimeParseError(f'"{composeBlock}" does not invoke any scenarios')
+
+                    raise RuntimeParseError(
+                        f'"{composeBlock}" does not invoke any scenarios'
+                    )
                 self._runningIterator = self._compose()
 
             # Initialize behavior coroutines of agents
@@ -271,14 +296,17 @@ class DynamicScenario(Invocable):
             why it has terminated.
         """
         # Check if we have reached the time limit, if any
-        if self._timeLimitInSteps is not None and self._elapsedTime >= self._timeLimitInSteps:
-            return self._stop('reached time limit')
+        if (
+            self._timeLimitInSteps is not None
+            and self._elapsedTime >= self._timeLimitInSteps
+        ):
+            return self._stop("reached time limit")
         self._elapsedTime += 1
 
         # Execute compose block, if any
         composeDone = False
         if self._runningIterator is None:
-            composeDone = True      # compose block ended in an earlier step
+            composeDone = True  # compose block ended in an earlier step
         else:
             with veneer.executeInScenario(self):
                 try:
@@ -291,12 +319,12 @@ class DynamicScenario(Invocable):
 
         # If there is a compose block and it has finished, we're done
         if self._compose is not None and composeDone:
-            return self._stop('finished compose block')
+            return self._stop("finished compose block")
 
         # Optionally end when all our agents' behaviors have ended
         if self._endWithBehaviors:
             if all(agent.behavior._isFinished for agent in self._agents):
-                return self._stop('all behaviors finished')
+                return self._stop("all behaviors finished")
 
         # Check if any termination conditions apply
         for req in self._terminationConditions:
@@ -315,7 +343,7 @@ class DynamicScenario(Invocable):
     def _invokeInner(self, agent, subs):
         for sub in subs:
             if not isinstance(sub, DynamicScenario):
-                raise RuntimeParseError(f'expected a scenario, got {sub}')
+                raise RuntimeParseError(f"expected a scenario, got {sub}")
             sub._prepare()
             sub._start()
         self._subScenarios = list(subs)
@@ -334,13 +362,13 @@ class DynamicScenario(Invocable):
 
     def _evaluateRecordedExprs(self, ty):
         if ty is RequirementType.record:
-            place = '_recordedExprs'
+            place = "_recordedExprs"
         elif ty is RequirementType.recordInitial:
-            place = '_recordedInitialExprs'
+            place = "_recordedInitialExprs"
         elif ty is RequirementType.recordFinal:
-            place = '_recordedFinalExprs'
+            place = "_recordedFinalExprs"
         else:
-            assert False, 'invalid record type requested'
+            assert False, "invalid record type requested"
         return self._evaluateRecordedExprsAt(place)
 
     def _evaluateRecordedExprsAt(self, place):
@@ -412,7 +440,7 @@ class DynamicScenario(Invocable):
 
     def _registerObject(self, obj):
         self._objects.append(obj)
-        if getattr(obj, 'behavior', None) is not None:
+        if getattr(obj, "behavior", None) is not None:
             self._agents.append(obj)
 
     def _addRequirement(self, ty, reqID, req, line, name, prob):
@@ -456,7 +484,7 @@ class DynamicScenario(Invocable):
         elif req.ty is RequirementType.recordFinal:
             place = self._recordedFinalExprs
         else:
-            raise RuntimeError(f'internal error: requirement {req} has unknown type!')
+            raise RuntimeError(f"internal error: requirement {req} has unknown type!")
         place.append(req)
 
     def _setTimeLimit(self, timeLimit, inSeconds=True):
@@ -467,63 +495,79 @@ class DynamicScenario(Invocable):
         assert self._prepared
 
         if self._ego is None and self._compose is None:
-            msg = 'did not specify ego object'
-            modScenarios = namespace['_scenarios']
+            msg = "did not specify ego object"
+            modScenarios = namespace["_scenarios"]
             if self._dummyNamespace and len(modScenarios) == 1:
                 if modScenarios[0]._requiresArguments():
-                    msg += ('\n(Note: this Scenic file contains a modular scenario, but it\n'
-                            'cannot be used as the top-level scenario since it requires\n'
-                            'arguments; so the whole file is being used as a top-level\n'
-                            'scenario and needs an ego object.)')
+                    msg += (
+                        "\n(Note: this Scenic file contains a modular scenario, but it\n"
+                        "cannot be used as the top-level scenario since it requires\n"
+                        "arguments; so the whole file is being used as a top-level\n"
+                        "scenario and needs an ego object.)"
+                    )
                 else:
-                    msg += ('\n(Note: this Scenic file contains a modular scenario, but also\n'
-                            'other code; so the whole file is being used as a top-level\n'
-                            'scenario and needs an ego object.)')
+                    msg += (
+                        "\n(Note: this Scenic file contains a modular scenario, but also\n"
+                        "other code; so the whole file is being used as a top-level\n"
+                        "scenario and needs an ego object.)"
+                    )
             raise InvalidScenarioError(msg)
 
         # Extract workspace, if one is specified
-        if 'workspace' in namespace:
-            workspace = namespace['workspace']
+        if "workspace" in namespace:
+            workspace = namespace["workspace"]
             if not isinstance(workspace, Workspace):
-                raise InvalidScenarioError(f'workspace {workspace} is not a Workspace')
+                raise InvalidScenarioError(f"workspace {workspace} is not a Workspace")
             if needsSampling(workspace):
-                raise InvalidScenarioError('workspace must be a fixed region')
+                raise InvalidScenarioError("workspace must be a fixed region")
             if needsLazyEvaluation(workspace):
-                raise InvalidScenarioError('workspace uses value undefined '
-                                           'outside of object definition')
+                raise InvalidScenarioError(
+                    "workspace uses value undefined " "outside of object definition"
+                )
         else:
             workspace = None
 
         from scenic.core.scenarios import Scenario
-        scenario = Scenario(workspace, self._simulatorFactory,
-                            self._objects, self._ego,
-                            self._globalParameters, self._externalParameters,
-                            self._requirements, self._requirementDeps,
-                            self._monitors, self._behaviorNamespaces,
-                            self)   # TODO unify these!
+
+        scenario = Scenario(
+            workspace,
+            self._simulatorFactory,
+            self._objects,
+            self._ego,
+            self._globalParameters,
+            self._externalParameters,
+            self._requirements,
+            self._requirementDeps,
+            self._monitors,
+            self._behaviorNamespaces,
+            self,
+        )  # TODO unify these!
         return scenario
 
     def __str__(self):
         if self._dummyNamespace:
-            return 'top-level scenario'
+            return "top-level scenario"
         else:
             args = argsToString(itertools.chain(self._args, self._kwargs.items()))
             return self.__class__.__name__ + args
 
+
 # Behaviors
+
 
 class Behavior(Invocable, Samplable):
     """Dynamic behaviors of agents.
 
     Behavior statements are translated into definitions of subclasses of this class.
     """
+
     def __init_subclass__(cls):
         if cls.__module__ is not __name__:
             veneer.currentScenario._behaviors.append(cls)
 
     def __init__(self, *args, **kwargs):
         args = tuple(toDistribution(arg) for arg in args)
-        kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
+        kwargs = {name: toDistribution(arg) for name, arg in kwargs.items()}
 
         # Validate arguments to the behavior
         sig = inspect.signature(self.makeGenerator)
@@ -535,12 +579,14 @@ class Behavior(Invocable, Samplable):
         Invocable.__init__(self, *args, **kwargs)
 
         if not inspect.isgeneratorfunction(self.makeGenerator):
-            raise RuntimeParseError(f'{self} does not take any actions'
-                                    ' (perhaps you forgot to use "take" or "do"?)')
+            raise RuntimeParseError(
+                f"{self} does not take any actions"
+                ' (perhaps you forgot to use "take" or "do"?)'
+            )
 
     def sampleGiven(self, value):
         args = (value[arg] for arg in self._args)
-        kwargs = { name: value[val] for name, val in self._kwargs.items() }
+        kwargs = {name: value[val] for name, val in self._kwargs.items()}
         return type(self)(*args, **kwargs)
 
     def start(self, agent):
@@ -554,7 +600,7 @@ class Behavior(Invocable, Samplable):
             try:
                 actions = self._runningIterator.send(None)
             except StopIteration:
-                actions = ()    # behavior ended early
+                actions = ()  # behavior ended early
         return actions
 
     def stop(self):
@@ -569,7 +615,7 @@ class Behavior(Invocable, Samplable):
         assert len(subs) == 1
         sub = subs[0]
         if not isinstance(sub, Behavior):
-            raise RuntimeParseError(f'expected a behavior, got {sub}')
+            raise RuntimeParseError(f"expected a behavior, got {sub}")
         sub.start(agent)
         with veneer.executeInBehavior(sub):
             try:
@@ -581,17 +627,21 @@ class Behavior(Invocable, Samplable):
         args = argsToString(itertools.chain(self._args, self._kwargs.items()))
         return self.__class__.__name__ + args
 
+
 def makeTerminationAction(line):
     assert not veneer.isActive()
     return EndSimulationAction(line)
 
+
 # Monitors
+
 
 class Monitor(Behavior):
     """Monitors for dynamic simulations.
 
     Monitor statements are translated into definitions of subclasses of this class.
     """
+
     def __init_subclass__(cls):
         super().__init_subclass__()
         veneer.currentScenario._monitors.append(cls())
@@ -599,15 +649,24 @@ class Monitor(Behavior):
     def start(self):
         return super().start(None)
 
-monitorPrefix = '_Scenic_monitor_'
+
+monitorPrefix = "_Scenic_monitor_"
+
+
 def functionForMonitor(name):
     return monitorPrefix + name
+
+
 def isAMonitorName(name):
     return name.startswith(monitorPrefix)
+
+
 def monitorName(name):
-    return name[len(monitorPrefix):]
+    return name[len(monitorPrefix) :]
+
 
 # Guards
+
 
 class GuardViolation(Exception):
     """Abstract exception raised when a guard of a behavior is violated.
@@ -615,24 +674,31 @@ class GuardViolation(Exception):
     This will never be raised directly; either of the subclasses `PreconditionViolation`
     or `InvariantViolation` will be used, as appropriate.
     """
-    violationType = 'guard'
+
+    violationType = "guard"
 
     def __init__(self, behavior, lineno):
         self.behaviorName = behavior.__class__.__name__
         self.lineno = lineno
 
     def __str__(self):
-        return f'violated {self.violationType} of {self.behaviorName} on line {self.lineno}'
+        return f"violated {self.violationType} of {self.behaviorName} on line {self.lineno}"
+
 
 class PreconditionViolation(GuardViolation):
     """Raised when a precondition is violated when invoking a behavior."""
-    violationType = 'precondition'
+
+    violationType = "precondition"
+
 
 class InvariantViolation(GuardViolation):
     """Raised when an invariant is violated when invoking/resuming a behavior."""
-    violationType = 'invariant'
+
+    violationType = "invariant"
+
 
 # Try-interrupt blocks
+
 
 def runTryInterrupt(behavior, agent, body, conditions, handlers):
     body = InterruptBlock(None, body)
@@ -647,12 +713,13 @@ def runTryInterrupt(behavior, agent, body, conditions, handlers):
         result, concluded = block.step(behavior, agent)
         if concluded:
             if result is BlockConclusion.FINISHED and block is not body:
-                continue    # interrupt handler finished
+                continue  # interrupt handler finished
             else:
-                return result   # entire try-interrupt statement will terminate
+                return result  # entire try-interrupt statement will terminate
         else:
             yield result
             behavior.checkInvariants(None, *behavior._args, **behavior._kwargs)
+
 
 @enum.unique
 class BlockConclusion(enum.Enum):
@@ -665,6 +732,7 @@ class BlockConclusion(enum.Enum):
     def __call__(self, value):
         self.return_value = value
         return self
+
 
 class InterruptBlock:
     def __init__(self, condition, body):
@@ -693,5 +761,6 @@ class InterruptBlock:
         except StopIteration as e:
             self.runningIterator = None
             return (e.value, True)
+
 
 import scenic.syntax.veneer as veneer

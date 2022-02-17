@@ -1,12 +1,11 @@
-
 import shapely.geometry
 
 from scenic.core.regions import *
 
+
 def test_polygon_sampling():
     p = shapely.geometry.Polygon(
-        [(0,0), (0,3), (3,3), (3,0)],
-        holes=[[(1,1), (1,2), (2,2), (2,1)]]
+        [(0, 0), (0, 3), (3, 3), (3, 0)], holes=[[(1, 1), (1, 2), (2, 2), (2, 1)]]
     )
     r = PolygonalRegion(polygon=p)
     pts = [r.uniformPointInner() for i in range(3000)]

@@ -5,30 +5,42 @@ from tests.utils import compileScenic, sampleEgoFrom, sampleParamP, sampleParamP
 
 # Vectors
 
+
 def test_tuple_as_vector():
-    p = sampleParamPFrom("""
+    p = sampleParamPFrom(
+        """
         ego = Object at 1 @ 2
         param p = distance to (-2, -2)
-    """)
+    """
+    )
     assert p == pytest.approx(5)
+
 
 def test_tuple_as_vector_2():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             ego = Object at 1 @ 2
             param p = distance to (-2, -2, 0)
-        """)
+        """
+        )
+
 
 def test_list_as_vector():
-    p = sampleParamPFrom("""
+    p = sampleParamPFrom(
+        """
         ego = Object at 1 @ 2
         param p = distance to [-2, -2]
-    """)
+    """
+    )
     assert p == pytest.approx(5)
+
 
 def test_list_as_vector_2():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             ego = Object at 1 @ 2
             param p = distance to [-2, -2, 0]
-        """)
+        """
+        )

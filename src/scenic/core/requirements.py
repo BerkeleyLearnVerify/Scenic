@@ -8,25 +8,27 @@ from scenic.core.errors import InvalidScenarioError
 from scenic.core.lazy_eval import needsLazyEvaluation
 import scenic.syntax.relations as relations
 
+
 @enum.unique
 class RequirementType(enum.Enum):
     # requirements which must hold during initial sampling
-    require = 'require'
-    requireAlways = 'require always'
-    requireEventually = 'require eventually'
+    require = "require"
+    requireAlways = "require always"
+    requireEventually = "require eventually"
 
     # requirements used only during simulation
-    terminateWhen = 'terminate when'
-    terminateSimulationWhen = 'terminate simulation when'
+    terminateWhen = "terminate when"
+    terminateSimulationWhen = "terminate simulation when"
 
     # recorded values, which aren't requirements but are handled similarly
-    record = 'record'
-    recordInitial = 'record initial'
-    recordFinal = 'record final'
+    record = "record"
+    recordInitial = "record initial"
+    recordFinal = "record final"
 
     @property
     def constrainsSampling(self):
         return self in (self.require, self.requireAlways)
+
 
 class PendingRequirement:
     def __init__(self, ty, condition, line, prob, name, ego):
@@ -61,8 +63,10 @@ class PendingRequirement:
             if needsSampling(value):
                 deps.add(value)
             if needsLazyEvaluation(value):
-                raise InvalidScenarioError(f'{self.ty} on line {line} uses value {value}'
-                                           ' undefined outside of object definition')
+                raise InvalidScenarioError(
+                    f"{self.ty} on line {line} uses value {value}"
+                    " undefined outside of object definition"
+                )
         if ego is not None:
             assert isinstance(ego, Samplable)
             deps.add(ego)
@@ -78,15 +82,19 @@ class PendingRequirement:
             boundEgo = None if ego is None else values[ego]
             # evaluate requirement condition, reporting errors on the correct line
             import scenic.syntax.veneer as veneer
+
             with veneer.executeInRequirement(scenario, boundEgo):
                 result = condition()
                 assert not needsSampling(result)
                 if needsLazyEvaluation(result):
-                    raise InvalidScenarioError(f'{self.ty} on line {line} uses value'
-                                               ' undefined outside of object definition')
+                    raise InvalidScenarioError(
+                        f"{self.ty} on line {line} uses value"
+                        " undefined outside of object definition"
+                    )
             return result
 
         return CompiledRequirement(self, closure, deps)
+
 
 def getAllGlobals(req, restrictTo=None):
     """Find all names the given lambda depends on, along with their current bindings."""
@@ -94,7 +102,7 @@ def getAllGlobals(req, restrictTo=None):
     if restrictTo is not None and restrictTo is not namespace:
         return {}
     externals = inspect.getclosurevars(req)
-    assert not externals.nonlocals      # TODO handle these
+    assert not externals.nonlocals  # TODO handle these
     globs = dict(externals.builtins)
     for name, value in externals.globals.items():
         globs[name] = value
@@ -106,6 +114,7 @@ def getAllGlobals(req, restrictTo=None):
                 else:
                     globs[name] = value
     return globs
+
 
 class CompiledRequirement:
     def __init__(self, pendingReq, closure, dependencies):
@@ -129,6 +138,7 @@ class CompiledRequirement:
         else:
             return f'"{self.ty.value}" on line {self.line}'
 
+
 class BoundRequirement:
     def __init__(self, compiledReq, sample):
         self.ty = compiledReq.ty
@@ -150,6 +160,7 @@ class BoundRequirement:
         else:
             return f'"{self.ty.value}" on line {self.line}'
 
+
 class DynamicRequirement:
     def __init__(self, ty, condition, line, name=None):
         self.ty = ty
@@ -157,10 +168,13 @@ class DynamicRequirement:
         self.name = name
 
         import scenic.syntax.veneer as veneer
+
         scenario = veneer.currentScenario
+
         def closure():
             with veneer.executeInScenario(scenario):
                 return condition()
+
         self.closure = closure
 
     def isTrue(self):

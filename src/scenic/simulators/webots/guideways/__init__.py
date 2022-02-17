@@ -13,4 +13,3 @@ This is a more specialized version of the :doc:`scenic.simulators.webots.road` m
    intersection
    interface
 """
-

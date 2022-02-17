@@ -5,7 +5,6 @@ from typing.io import TextIO
 import sys
 
 
-
 def serializedATN():
     with StringIO() as buf:
         buf.write("\3\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786\u5964\2\21")
@@ -24,16 +23,16 @@ def serializedATN():
         buf.write("\3\21\3\22\3\22\3\22\3\22\3\22\5\22\u0090\n\22\3\23\5")
         buf.write("\23\u0093\n\23\3\23\3\23\3L\2\24\3\3\5\4\7\5\t\6\13\7")
         buf.write("\r\b\17\t\21\n\23\13\25\f\27\r\31\16\33\2\35\17\37\2!")
-        buf.write("\20#\2%\21\3\2\6\4\2\13\13\"\"\5\2C\\aac|\3\2\62;\4\2")
+        buf.write('\20#\2%\21\3\2\6\4\2\13\13""\5\2C\\aac|\3\2\62;\4\2')
         buf.write("$$^^\2\u00a1\2\3\3\2\2\2\2\5\3\2\2\2\2\7\3\2\2\2\2\t\3")
         buf.write("\2\2\2\2\13\3\2\2\2\2\r\3\2\2\2\2\17\3\2\2\2\2\21\3\2")
         buf.write("\2\2\2\23\3\2\2\2\2\25\3\2\2\2\2\27\3\2\2\2\2\31\3\2\2")
-        buf.write("\2\2\35\3\2\2\2\2!\3\2\2\2\2%\3\2\2\2\3\'\3\2\2\2\5+\3")
+        buf.write("\2\2\35\3\2\2\2\2!\3\2\2\2\2%\3\2\2\2\3'\3\2\2\2\5+\3")
         buf.write("\2\2\2\7.\3\2\2\2\t\60\3\2\2\2\13\67\3\2\2\2\r9\3\2\2")
         buf.write("\2\17;\3\2\2\2\21=\3\2\2\2\23B\3\2\2\2\25H\3\2\2\2\27")
         buf.write("T\3\2\2\2\31Z\3\2\2\2\33b\3\2\2\2\35e\3\2\2\2\37\177\3")
-        buf.write("\2\2\2!\u0081\3\2\2\2#\u008f\3\2\2\2%\u0092\3\2\2\2\'")
-        buf.write("(\7F\2\2()\7G\2\2)*\7H\2\2*\4\3\2\2\2+,\7\"\2\2,-\7}\2")
+        buf.write("\2\2\2!\u0081\3\2\2\2#\u008f\3\2\2\2%\u0092\3\2\2\2'")
+        buf.write('(\7F\2\2()\7G\2\2)*\7H\2\2*\4\3\2\2\2+,\7"\2\2,-\7}\2')
         buf.write("\2-\6\3\2\2\2./\7\177\2\2/\b\3\2\2\2\60\61\7j\2\2\61\62")
         buf.write("\7k\2\2\62\63\7f\2\2\63\64\7f\2\2\64\65\7g\2\2\65\66\7")
         buf.write("p\2\2\66\n\3\2\2\2\678\7]\2\28\f\3\2\2\29:\7_\2\2:\16")
@@ -56,7 +55,7 @@ def serializedATN():
         buf.write("\u0085\7$\2\2\u0082\u0084\5#\22\2\u0083\u0082\3\2\2\2")
         buf.write("\u0084\u0087\3\2\2\2\u0085\u0083\3\2\2\2\u0085\u0086\3")
         buf.write("\2\2\2\u0086\u0088\3\2\2\2\u0087\u0085\3\2\2\2\u0088\u0089")
-        buf.write("\7$\2\2\u0089\"\3\2\2\2\u008a\u0090\n\5\2\2\u008b\u008c")
+        buf.write('\7$\2\2\u0089"\3\2\2\2\u008a\u0090\n\5\2\2\u008b\u008c')
         buf.write("\7^\2\2\u008c\u0090\7$\2\2\u008d\u008e\7^\2\2\u008e\u0090")
         buf.write("\7^\2\2\u008f\u008a\3\2\2\2\u008f\u008b\3\2\2\2\u008f")
         buf.write("\u008d\3\2\2\2\u0090$\3\2\2\2\u0091\u0093\7\17\2\2\u0092")
@@ -70,7 +69,7 @@ class WBTLexer(Lexer):
 
     atn = ATNDeserializer().deserialize(serializedATN())
 
-    decisionsToDFA = [ DFA(ds, i) for i, ds in enumerate(atn.decisionToState) ]
+    decisionsToDFA = [DFA(ds, i) for i, ds in enumerate(atn.decisionToState)]
 
     T__0 = 1
     T__1 = 2
@@ -88,28 +87,61 @@ class WBTLexer(Lexer):
     String = 14
     Newline = 15
 
-    channelNames = [ u"DEFAULT_TOKEN_CHANNEL", u"HIDDEN" ]
+    channelNames = ["DEFAULT_TOKEN_CHANNEL", "HIDDEN"]
 
-    modeNames = [ "DEFAULT_MODE" ]
+    modeNames = ["DEFAULT_MODE"]
 
-    literalNames = [ "<INVALID>",
-            "'DEF'", "' {'", "'}'", "'hidden'", "'['", "']'", "','", "'TRUE'", 
-            "'FALSE'" ]
+    literalNames = [
+        "<INVALID>",
+        "'DEF'",
+        "' {'",
+        "'}'",
+        "'hidden'",
+        "'['",
+        "']'",
+        "','",
+        "'TRUE'",
+        "'FALSE'",
+    ]
 
-    symbolicNames = [ "<INVALID>",
-            "Comment", "Whitespace", "Identifier", "Number", "String", "Newline" ]
+    symbolicNames = [
+        "<INVALID>",
+        "Comment",
+        "Whitespace",
+        "Identifier",
+        "Number",
+        "String",
+        "Newline",
+    ]
 
-    ruleNames = [ "T__0", "T__1", "T__2", "T__3", "T__4", "T__5", "T__6", 
-                  "T__7", "T__8", "Comment", "Whitespace", "Identifier", 
-                  "Letter", "Number", "Digit", "String", "Character", "Newline" ]
+    ruleNames = [
+        "T__0",
+        "T__1",
+        "T__2",
+        "T__3",
+        "T__4",
+        "T__5",
+        "T__6",
+        "T__7",
+        "T__8",
+        "Comment",
+        "Whitespace",
+        "Identifier",
+        "Letter",
+        "Number",
+        "Digit",
+        "String",
+        "Character",
+        "Newline",
+    ]
 
     grammarFileName = "WBT.g4"
 
-    def __init__(self, input=None, output:TextIO = sys.stdout):
+    def __init__(self, input=None, output: TextIO = sys.stdout):
         super().__init__(input, output)
         self.checkVersion("4.8")
-        self._interp = LexerATNSimulator(self, self.atn, self.decisionsToDFA, PredictionContextCache())
+        self._interp = LexerATNSimulator(
+            self, self.atn, self.decisionsToDFA, PredictionContextCache()
+        )
         self._actions = None
         self._predicates = None
-
-
