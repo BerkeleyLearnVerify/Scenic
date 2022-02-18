@@ -4,6 +4,7 @@
 import enum
 import time
 import types
+import gym
 from collections import OrderedDict, defaultdict
 
 from scenic.core.object_types import (enableDynamicProxyFor, setDynamicProxyFor,
@@ -98,6 +99,272 @@ class Simulator:
     def destroy(self):
         """Clean up as needed when shutting down the simulator interface."""
         pass
+
+class GymSimulation(gym.Env):
+    """A single simulation run, possibly in progress. This Simulation object wraps the Gym
+    Environment class and is to be used programmatically in RL environments.
+
+    Features of the gymulator (gym + simulator) that have yet to be implemented:
+    - step-by-step rendering of the environment, accessible from the python API.
+    - multi-agent control, although it could be implemented if "action" in
+    step contains actions from all relevant agents, and this is 
+
+    These objects are not manipulated manually, but are created and executed by a
+    `GymSimulator`. GymSimulator interfaces should subclass this class, overriding abstract
+    methods like `createObjectInSimulator`, `step`, and `getProperties` to call the
+    appropriate simulator APIs.
+
+    Attributes:
+        result (`SimulationResult`): Current state of the simulation, or `None` if it has not
+            yet completed. This is the primary object which should be inspected to get
+            data out of the simulation: the other attributes of this class are primarily
+            for internal use.
+    """
+
+    def __init__(self, scene, maxSteps=None, timestep=1, verbosity=0):
+        self.initial_timestep = timestep
+        self.result = None
+        self.scene = scene
+        self.objects = list(scene.objects)
+        self.agents = list(obj for obj in scene.objects if obj.behavior is not None)
+        self.trajectory = [self.currentState()]
+        self.records = defaultdict(list)
+        self.currentTime = 0
+        self.timestep = timestep
+        self.verbosity = verbosity
+        self.worker_num = 0
+        self.init_flag = False
+        self.maxSteps = maxSteps
+
+    def init_sim(self):
+        print("in init sim")
+        self.init_flag = True
+        self.records = self.records
+    
+        if self.currentTime > 0:
+            raise RuntimeError('tried to run a Simulation which has already run')
+        assert len(self.trajectory) == 1
+        self.actionSequence = []
+
+        import scenic.syntax.veneer as veneer
+        veneer.beginSimulation(self)
+        self.dynamicScenario = self.scene.dynamicScenario
+        try:
+            # Initialize dynamic scenario
+            self.dynamicScenario._start()
+            # Give objects a chance to do any simulator-specific setup
+            for obj in self.objects:
+                obj.startDynamicSimulation()
+            # Update all objects in case the simulator has adjusted any dynamic
+            # properties during setup
+            self.updateObjects()
+            # Record initially-recorded values
+            values = self.dynamicScenario._evaluateRecordedExprs(RequirementType.recordInitial)
+            for name, val in values.items():
+                self.records[name] = val
+            # Run simulation
+            assert self.currentTime == 0
+        except:
+            print("ERROR in initialization of simulation.")
+
+        
+    
+    def step(self, action):
+        if not self.init_flag:
+            self.init_sim() 
+        info = {}
+        if self.verbosity >= 3:
+            print(f'    Time step {self.currentTime}:')
+
+        # Run compose blocks of compositional scenarios
+        terminationReason = self.dynamicScenario._step()
+        terminationType = TerminationType.scenarioComplete
+
+        # Record current values of recorded expressions
+        values = self.dynamicScenario._evaluateRecordedExprs(RequirementType.record)
+        for name, val in values.items():
+            self.records[name].append((self.currentTime, val))
+
+        # Check if any requirements fail
+        self.dynamicScenario._checkAlwaysRequirements()
+        unsatEventuallyReq = self.dynamicScenario._checkEventuallyRequirements()
+
+        # Run monitors
+        newReason = self.dynamicScenario._runMonitors()
+        if newReason is not None:
+            terminationReason = newReason
+            terminationType = TerminationType.terminatedByMonitor
+        done = False
+        # "Always" and scenario-level requirements have been checked;
+        # now safe to terminate if the top-level scenario has finished,
+        # a monitor requested termination, or we've hit the timeout
+        if terminationReason is not None:
+            done = True
+        terminationReason = self.dynamicScenario._checkSimulationTerminationConditions()
+        if terminationReason is not None:
+            terminationType = TerminationType.simulationTerminationCondition
+            done = True
+        if self.maxSteps and self.currentTime >= self.maxSteps:
+            terminationReason = f'reached time limit ({self.maxSteps} steps)'
+            terminationType = TerminationType.timeLimit
+            done = True
+
+        # Compute the actions of the agents in this time step
+        allActions = OrderedDict()
+        schedule = self.scheduleForAgents()
+        for agent in schedule:
+            behavior = agent.behavior
+            if not behavior._runningIterator:   # TODO remove hack
+                behavior.start(agent)
+            actions = behavior.step()
+            if isinstance(actions, EndSimulationAction):
+                terminationReason = str(actions)
+                terminationType = TerminationType.terminatedByBehavior
+                break
+            assert isinstance(actions, tuple)
+            if len(actions) == 1 and isinstance(actions[0], (list, tuple)):
+                actions = tuple(actions[0])
+            if not self.actionsAreCompatible(agent, actions):
+                raise InvalidScenarioError(f'agent {agent} tried incompatible '
+                                            f' action(s) {actions}')
+            allActions[agent] = actions
+        if terminationReason is not None:
+            done = True
+            info["termination reason type"] = terminationReason
+        # Execute the actions
+        if self.verbosity >= 3:
+            for agent, actions in allActions.items():
+                print(f'      Agent {agent} takes action(s) {actions}')
+        self.executeActions(allActions)
+
+        # Run the simulation for a single step and read its state back into Scenic
+        done_status = self.simulator_step(action)
+        if done_status:
+            done = True
+        self.updateObjects()
+        self.currentTime += 1
+
+        # Save the new state
+        self.trajectory.append(self.currentState())
+        self.actionSequence.append(allActions)
+        return self.currentState(), self.computeReward(), done, info
+
+    def simulator_step(self, action):
+        '''
+        Here, actually applying each object's actions within the simulator should
+        be executed. 
+        '''
+        raise NotImplementedError("Simulator-specific step in environment not implemented!")   
+
+    def reset(self):
+        self.trajectory = [self.currentState()]
+        self.records = defaultdict(list)
+        self.currentTime = 0
+        self.timestep = self.initial_timestep
+        self.worker_num = 0
+        self.init_flag = False
+        self.destroy()
+        for obj in self.scene.objects:
+            disableDynamicProxyFor(obj)
+        for agent in self.agents:
+            agent.behavior.stop()
+        for monitor in self.scene.monitors:
+            monitor.stop()
+        import scenic.syntax.veneer as veneer
+        veneer.endSimulation(self)
+    
+
+    def createObject(self, obj):
+        """Dynamically create an object."""
+        if self.verbosity >= 3:
+            print(f'      Creating object {obj}')
+        self.createObjectInSimulator(obj)
+        self.objects.append(obj)
+        if obj.behavior:
+            self.agents.append(obj)
+
+    def createObjectInSimulator(self, obj):
+        """Create the given object in the simulator.
+
+        Implemented by subclasses, and called through `createObject`. Should raise
+        SimulationCreationError if creating the object fails.
+        """
+        raise NotImplementedError
+
+    def scheduleForAgents(self):
+        """Return the order for the agents to run in the next time step."""
+        return self.agents
+
+    def actionsAreCompatible(self, agent, actions):
+        """Check whether the given actions can be taken simultaneously by an agent.
+
+        The default is to have all actions compatible with each other and all agents.
+        Subclasses should override this method as appropriate.
+        """
+        for action in actions:
+            if not action.canBeTakenBy(agent):
+                return False
+        return True
+
+    def executeActions(self, allActions):
+        """Execute the actions selected by the agents.
+
+        Note that ``allActions`` is an OrderedDict, as the order of actions may matter.
+        """
+        for agent, actions in allActions.items():
+            for action in actions:
+                action.applyTo(agent, self)
+            agent.lastActions = actions
+    
+    def updateObjects(self):
+        """Update the positions and other properties of objects from the simulation."""
+        for obj in self.objects:
+            # Get latest values of dynamic properties from simulation
+            properties = obj._dynamicProperties
+            values = self.getProperties(obj, properties)
+            assert set(properties) == set(values), set(properties) ^ set(values)
+
+            # Preserve some other properties which are assigned internally by Scenic
+            for prop in self.mutableProperties(obj):
+                values[prop] = getattr(obj, prop)
+
+            # Make a new copy of the object to ensure that computed properties like
+            # visibleRegion, etc. are recomputed
+            setDynamicProxyFor(obj, obj.copyWith(**values))
+
+    def mutableProperties(self, obj):
+        return {'lastActions', 'behavior'}
+
+    def getProperties(self, obj, properties):
+        """Read the values of the given properties of the object from the simulation."""
+        raise NotImplementedError
+
+    def currentState(self):
+        """Return the current state of the simulation.
+
+        The definition of 'state' is up to the simulator; the 'state' is simply saved
+        at each time step to define the 'trajectory' of the simulation.
+
+        The default implementation returns a tuple of the positions of all objects.
+        """
+        return tuple(obj.position for obj in self.objects)
+
+    @property
+    def currentRealTime(self):
+        return self.currentTime * self.timestep
+
+    def computeReward(self):
+        raise NotImplementedError("Reward function for the current simulator not specified!")
+
+    def render(self, mode='human'):
+        raise NotImplementedError("Method of rendering not provided!")
+
+    def close(self):
+        pass
+
+    def destroy(self):
+        """Perform any cleanup necessary to reset the simulator after a simulation."""
+        pass   
 
 class Simulation:
     """A single simulation run, possibly in progress.
