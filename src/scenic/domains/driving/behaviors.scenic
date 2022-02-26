@@ -1,6 +1,9 @@
 """Library of useful behaviors for dynamic agents in driving scenarios.
 
 These behaviors are automatically imported when using the driving domain.
+
+The PID controller values here have been adapted for use in the Newtonian Simulator. 
+Behavior is relatively smooth but imperfect. Further tuning is expected.
 """
 
 import scenic.domains.driving.controllers as controllers
@@ -18,7 +21,7 @@ def concatenateCenterlines(centerlines=[]):
 def setLaneFollowingPIDControllers(is_vehicle, dt):
     if is_vehicle:
         lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-        lat_controller = controllers.PIDLateralController(K_P=0.2, K_D=0.1, K_I=0, dt=dt)
+        lat_controller = controllers.PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.02, dt=dt)
 
     else:
         lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
@@ -29,7 +32,7 @@ def setLaneFollowingPIDControllers(is_vehicle, dt):
 def setTurnPIDControllers(is_vehicle, dt):
     if is_vehicle:
         lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-        lat_controller = controllers.PIDLateralController(K_P=0.8, K_D=0.2, K_I=0, dt=dt)
+        lat_controller = controllers.PIDLateralController(K_P=0.2, K_D=0.2, K_I=0.2, dt=dt)
 
     else:
         lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
@@ -40,7 +43,7 @@ def setTurnPIDControllers(is_vehicle, dt):
 def setLaneChangingPIDControllers(is_vehicle, dt):
     if is_vehicle:
         lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-        lat_controller = controllers.PIDLateralController(K_P=0.08, K_D=0.3, K_I=0, dt=dt)
+        lat_controller = controllers.PIDLateralController(K_P=0.2, K_D=0.2, K_I=0.02, dt=dt)
 
     else:
         lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)

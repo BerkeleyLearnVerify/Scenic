@@ -4,7 +4,7 @@ The ego vehicle follows the lead car which suddenly stops
 """
 
 param map = localPath('./maps/Straight2LaneSame.xodr')
-#param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works
+#param map = localPath('../../tests/formats/opendrive/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works
 #param carla_map = 'Town07'
 model scenic.simulators.newtonian.model
 

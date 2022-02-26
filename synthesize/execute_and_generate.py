@@ -57,5 +57,5 @@ def create_gym_environment(path_to_scenario):
     breakpoint()
     return gymulation
 
-execute_and_collect_data(os.getcwd() + "/../examples/newtonian/suddenstop.scenic")
+execute_and_collect_data(os.getcwd() + "/../examples/newtonian/overtake.scenic")
 #create_gym_environment(os.getcwd() + "/../examples/newtonian/suddenstop.scenic")
