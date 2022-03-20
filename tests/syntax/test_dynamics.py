@@ -192,6 +192,22 @@ def test_behavior_globals_write():
     assert actions[0] == True
     assert actions[2] == False
 
+def test_behavior_namespace_interference(runLocally):
+    """Test that namespaces of behaviors are isolated acrosss compilations.
+
+    This checks a rather nasty bug wherein under certain complex circumstances
+    involving circular imports, a reference to a Scenic module in the global
+    namespace of a behavior could leak from one compilation to another.
+    """
+    with runLocally():
+        for i in range(2):
+            scenario = compileScenic("""
+                import submodule.subsub as sub
+                behavior Foo():
+                    take sub
+                ego = Object with behavior Foo
+            """)
+
 # Implicit self
 
 def test_behavior_self():

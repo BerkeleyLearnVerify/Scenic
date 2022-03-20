@@ -12,13 +12,27 @@ See the documentation for `Scenario` for details.
 When imported, this module hooks the Python import system so that Scenic
 modules can be imported using the ``import`` statement. This is primarily for the
 translator's own use, but you could import Scenic modules from Python to
-inspect them. Because Scenic uses Python's import system, the latter's rules
-for finding modules apply, including the handling of packages.
+inspect them. [#import]_ Because Scenic uses Python's import system, the latter's
+rules for finding modules apply, including the handling of packages.
 
 Scenic is compiled in two main steps: translating the code into Python, and
 executing the resulting Python module to generate a Scenario object encoding
 the objects, distributions, etc. in the scenario. For details, see the function
 `compileStream` below.
+
+.. rubric:: Footnotes
+
+.. [#import] Note however that care must be taken when importing Scenic modules
+	which will later be used when compiling multiple Scenic scenarios. Because
+	Python caches modules, there is the possibility of one version of a Scenic
+	module persisting even when it should be recompiled during the compilation
+	of another module that imports it.
+	Scenic handles the most common case, that of Scenic modules which refer to
+	other Scenic modules at the top level; but it is not practical to catch all
+	possible cases. In particular, importing a Python package which contains
+	Scenic modules as submodules and then later compiling those modules more
+	than once within the same Python process may lead to errors or unexpected
+	behavior. See the **cacheImports** argument of `scenarioFromFile`.
 """
 
 import sys
@@ -67,7 +81,9 @@ def scenarioFromString(string, params={}, model=None, scenario=None,
 					   filename='<string>', cacheImports=False):
 	"""Compile a string of Scenic code into a `Scenario`.
 
-	The optional **filename** is used for error messages."""
+	The optional **filename** is used for error messages.
+	Other arguments are as in `scenarioFromFile`.
+	"""
 	stream = io.BytesIO(string.encode())
 	return scenarioFromStream(stream, params=params, model=model, scenario=scenario,
 							  filename=filename, cacheImports=cacheImports)
@@ -86,7 +102,8 @@ def scenarioFromFile(path, params={}, model=None, scenario=None, cacheImports=Fa
 		  to import such modules will cause them to be recompiled. If it is
 		  safe to cache Scenic modules across multiple compilations, set this
 		  argument to True. Then importing a Scenic module will have the same
-		  behavior as importing a Python module.
+		  behavior as importing a Python module. See `purgeModulesUnsafeToCache`
+		  for a more detailed discussion of the internals behind this.
 
 	Returns:
 		A `Scenario` object representing the Scenic scenario.
@@ -115,18 +132,7 @@ def scenarioFromStream(stream, params={}, model=None, scenario=None,
 			compileStream(stream, namespace, params=params, model=model, filename=filename)
 	finally:
 		if not cacheImports:
-			toRemove = []
-			for name, module in sys.modules.items():
-				if name not in oldModules and getattr(module, '_isScenicModule', False):
-					toRemove.append(name)
-				elif (name.startswith(('scenic.domains.', 'scenic.simulators.'))
-				      and any(getattr(val, '_isScenicModule', False)
-				              for val in module.__dict__.values())):
-					# TODO improve this heuristic? not safe in general to keep any modules
-					# with references to Scenic modules, but detecting such references is hard.
-					toRemove.append(name)
-			for name in toRemove:
-				del sys.modules[name]
+			purgeModulesUnsafeToCache(oldModules)
 	# Construct a Scenario from the resulting namespace
 	return constructScenarioFrom(namespace, scenario)
 
@@ -147,7 +153,68 @@ def topLevelNamespace(path=None):
 	try:
 		yield namespace
 	finally:
-		del sys.path[0]
+		# Remove directory from sys.path, being a little careful in case the
+		# Scenic program modified it (unlikely but possible).
+		try:
+			sys.path.remove(directory)
+		except ValueError:
+			pass
+
+def purgeModulesUnsafeToCache(oldModules):
+	"""Uncache loaded modules which should not be kept after compilation.
+
+	Keeping Scenic modules in `sys.modules` after compilation will cause
+	subsequent attempts at compiling the same module to reuse the compiled
+	scenario: this is usually not what is desired, since compilation can depend
+	on external state (in particular overridden global parameters, used e.g. to
+	specify the map for driving domain scenarios).
+
+	Args:
+		oldModules: List of names of modules loaded before compilation. These
+			will be skipped unless they are submodules of the packages listed
+			in `packagesToDoubleCheck`.
+	"""
+	toRemove = []
+	memo = {}
+	# copy sys.modules in case it mutates during iteration (actually happens!)
+	for name, module in sys.modules.copy().items():
+		if isUnsafeToCache(module, oldModules, memo):
+			toRemove.append(name)
+	for name in toRemove:
+		del sys.modules[name]
+
+#: Packages to be double-checked for loose references to Scenic modules.
+#:
+#: This is a tuple of Scenic packages that may be imported prior to compilation
+#: for other purposes (e.g. during the execution of Scenic's test suite) and
+#: which can capture references to Scenic modules. These need to be checked for
+#: loose references if they were previously imported.
+packagesToDoubleCheck = ('scenic.domains', 'scenic.simulators')
+
+def isUnsafeToCache(module, oldModules, memo):
+	unsafe = memo.get(module)
+	if unsafe is not None:
+		return unsafe
+
+	memo[module] = False
+	name = module.__name__
+	if name in oldModules and not name.startswith(packagesToDoubleCheck):
+		return False
+
+	unsafe = False
+	if getattr(module, '_isScenicModule', False):
+		unsafe = True
+	else:
+		# TODO improve this somehow? recursively searching through all bindings
+		# in all recently-imported modules could be expensive (and possibly
+		# incomplete).
+		for val in module.__dict__.values():
+			if (isinstance(val, types.ModuleType)
+			    and isUnsafeToCache(val, oldModules, memo)):
+				unsafe = True
+				break
+	memo[module] = unsafe
+	return unsafe
 
 def compileStream(stream, namespace, params={}, model=None, filename='<stream>'):
 	"""Compile a stream of Scenic code and execute it in a namespace.
@@ -614,7 +681,7 @@ keywords = (
 
 ## Meta path finder and loader for Scenic files
 
-scenicExtensions = ('sc', 'scenic')
+scenicExtensions = ('scenic', 'sc')
 
 class ScenicMetaFinder(importlib.abc.MetaPathFinder):
 	def find_spec(self, name, paths, target=None):
@@ -2103,11 +2170,16 @@ def gatherBehaviorNamespacesFrom(behaviors):
 	"""
 	behaviorNamespaces = {}
 	def registerNamespace(modName, ns):
-		if modName not in behaviorNamespaces:
-			behaviorNamespaces[modName] = ns
-		else:
-			assert behaviorNamespaces[modName] is ns
+		oldNS = behaviorNamespaces.get(modName)
+		if oldNS:
+			# Already registered; just do a consistency check to avoid bizarre
+			# bugs from having multiple versions of the same module around.
+			if oldNS is not ns:
+				raise RuntimeError(
+				    f'scenario refers to multiple versions of module {modName}; '
+				    'perhaps you imported it before you started compilation?')
 			return
+		behaviorNamespaces[modName] = ns
 		for name, value in ns.items():
 			if (isinstance(value, types.ModuleType)
 				and getattr(value, '_isScenicModule', False)):
