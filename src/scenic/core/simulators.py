@@ -75,7 +75,7 @@ class Simulator:
             except (RejectSimulationException, RejectionException, dynamics.GuardViolation) as e:
                 if verbosity >= 2:
                     print(f'  Rejected simulation {iterations} at time step '
-                          f'{simulation.currentTime} because of: {e}')
+                          f'{simulation.currentTime} because: {e}')
                 if raiseGuardViolations and isinstance(e, dynamics.GuardViolation):
                     raise
                 else:
@@ -83,7 +83,7 @@ class Simulator:
             # Completed the simulation without violating a requirement
             if verbosity >= 2:
                 print(f'  Simulation {iterations} ended successfully at time step '
-                      f'{simulation.currentTime} because of: {simulation.result.terminationReason}')
+                      f'{simulation.currentTime} because: {simulation.result.terminationReason}')
             return simulation
         return None
 
@@ -207,8 +207,8 @@ class Simulation:
                 for agent in schedule:
                     behavior = agent.behavior
                     if not behavior._runningIterator:   # TODO remove hack
-                        behavior.start(agent)
-                    actions = behavior.step()
+                        behavior._start(agent)
+                    actions = behavior._step()
                     if isinstance(actions, EndSimulationAction):
                         terminationReason = str(actions)
                         terminationType = TerminationType.terminatedByBehavior
@@ -257,9 +257,13 @@ class Simulation:
             for obj in self.scene.objects:
                 disableDynamicProxyFor(obj)
             for agent in self.agents:
-                agent.behavior.stop()
+                if agent.behavior._isRunning:
+                    agent.behavior._stop()
             for monitor in self.scene.monitors:
-                monitor.stop()
+                if monitor._isRunning:
+                    monitor._stop()
+            for scenario in tuple(veneer.runningScenarios):
+                scenario._stop('simulation terminated')
             veneer.endSimulation(self)
 
     def createObject(self, obj):
@@ -314,7 +318,7 @@ class Simulation:
             # Get latest values of dynamic properties from simulation
             properties = obj._dynamicProperties
             values = self.getProperties(obj, properties)
-            assert set(properties) == set(values), set(properties) ^ set(values)
+            assert properties == set(values), properties ^ set(values)
 
             # Preserve some other properties which are assigned internally by Scenic
             for prop in self.mutableProperties(obj):
@@ -397,7 +401,7 @@ class EndSimulationAction(Action):
         self.line = line
 
     def __str__(self):
-        return f'"terminate" on line {self.line}'
+        return f'"terminate" executed on line {self.line}'
 
 class EndScenarioAction(Action):
     """Special action indicating it is time to end the current scenario.
@@ -408,7 +412,7 @@ class EndScenarioAction(Action):
         self.line = line
 
     def __str__(self):
-        return f'"terminate scenario" on line {self.line}'
+        return f'"terminate scenario" executed on line {self.line}'
 
 @enum.unique
 class TerminationType(enum.Enum):

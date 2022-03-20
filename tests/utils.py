@@ -90,38 +90,41 @@ def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1,
         return [tuple(actions.values()) for actions in actionSequence]
 
 def sampleTrajectory(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
-                     raiseGuardViolations=False):
+                     raiseGuardViolations=False, timestep=1):
     for i in range(maxScenes):
         scene, iterations = generateChecked(scenario, maxIterations)
         trajectory = sampleTrajectoryFromScene(scene, maxIterations=maxIterations,
                                                maxSteps=maxSteps,
-                                               raiseGuardViolations=raiseGuardViolations)
+                                               raiseGuardViolations=raiseGuardViolations,
+                                               timestep=timestep)
         if trajectory is not None:
             return trajectory
     raise RejectSimulationException(
         f'unable to find successful simulation over {maxScenes} scenes')
 
-def sampleResult(scenario, maxIterations=1, maxSteps=1, maxScenes=1):
+def sampleResult(scenario, maxIterations=1, maxSteps=1, maxScenes=1, timestep=1):
     for i in range(maxScenes):
         scene, iterations = generateChecked(scenario, maxIterations)
         result = sampleResultFromScene(scene, maxIterations=maxIterations,
-                                       maxSteps=maxSteps)
+                                       maxSteps=maxSteps, timestep=timestep)
         if result is not None:
             return result
     raise RejectSimulationException(
         f'unable to find successful simulation over {maxScenes} scenes')
 
-def sampleResultFromScene(scene, maxIterations=1, maxSteps=1, raiseGuardViolations=False):
-    sim = DummySimulator(timestep=1)
+def sampleResultFromScene(scene, maxIterations=1, maxSteps=1, raiseGuardViolations=False,
+                          timestep=1):
+    sim = DummySimulator(timestep=timestep)
     simulation = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations,
                               raiseGuardViolations=raiseGuardViolations)
     if not simulation:
         return None
     return simulation.result
 
-def sampleTrajectoryFromScene(scene, maxIterations=1, maxSteps=1, raiseGuardViolations=False):
+def sampleTrajectoryFromScene(scene, maxIterations=1, maxSteps=1, raiseGuardViolations=False,
+                              timestep=1):
     result = sampleResultFromScene(scene, maxIterations=maxIterations, maxSteps=maxSteps,
-                                   raiseGuardViolations=raiseGuardViolations)
+                                   raiseGuardViolations=raiseGuardViolations, timestep=timestep)
     if not result:
         return None
     return result.trajectory

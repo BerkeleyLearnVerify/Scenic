@@ -63,7 +63,7 @@ from ast import Load, Store, Del, Name, Call, Tuple, BinOp, MatMult, BitAnd, Bit
 from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Subscript, Index, IfExp
 from ast import Num, Yield, YieldFrom, FunctionDef, Attribute, Constant, Assign, Expr
 from ast import Return, Raise, If, UnaryOp, Not, ClassDef, Nonlocal, Global, Compare, Is, Try
-from ast import Break, Continue, AsyncFunctionDef, Pass, While
+from ast import Break, Continue, AsyncFunctionDef, Pass, While, List
 
 from scenic.core.distributions import Samplable, RejectionException, needsSampling, toDistribution
 from scenic.core.lazy_eval import needsLazyEvaluation
@@ -377,6 +377,7 @@ abortStatement = 'abort'			# statement ending a try-interrupt statement
 invokeStatement = 'do'				# statement invoking a behavior or scenario
 invocationSchedules = ('choose', 'shuffle')
 invokeVariants = { (invokeStatement, sched) for sched in invocationSchedules }
+overrideStatement = 'override'		# statement overriding an object in a sub-scenario
 
 modelStatement = 'model'
 namespaceReference = '_Scenic_module_namespace'		# used in the implementation of 'model'
@@ -405,7 +406,8 @@ for incipit, last in threeWordIncipits.items():
 # statements implemented by functions
 functionStatements = {
 	requireStatement, paramStatement, mutateStatement,
-	modelStatement, simulatorStatement, recordStatement,
+	modelStatement, simulatorStatement, overrideStatement,
+	recordStatement,
 }
 twoWordFunctionStatements = {
 	requireAlwaysStatement, requireEventuallyStatement,
@@ -445,7 +447,7 @@ behavioralImps = { functionForStatement(s) for s in behavioralStatements }
 # statements allowed inside scenario composition blocks
 compositionalStatements = {
 	requireStatement, waitStatement, terminateStatement, abortStatement,
-	invokeStatement, *invokeVariants,
+	invokeStatement, *invokeVariants, overrideStatement,
 }
 compositionalImps = { functionForStatement(s) for s in compositionalStatements }
 
@@ -538,7 +540,6 @@ prefixOperators = {
 	('distance', 'to'): 'DistanceFrom',
 	('angle', 'from'): 'AngleFrom',
 	('angle', 'to'): 'AngleTo',
-	('ego', '='): 'ego',
 	('front', 'left'): 'FrontLeft',
 	('front', 'right'): 'FrontRight',
 	('back', 'left'): 'BackLeft',
@@ -646,7 +647,6 @@ generalInfixOps = { tokens: op.token for tokens, op in infixTokens.items() if no
 replacements = {	# TODO police the usage of these? could yield bizarre error messages
 	'of': tuple(),
 	'deg': ((STAR, '*'), (NUMBER, '0.01745329252')),
-	'ego': ((NAME, 'ego'), (LPAR, '('), (RPAR, ')')),
 	'globalParameters': ((NAME, 'globalParameters'), (LPAR, '('), (RPAR, ')')),
 }
 
@@ -861,6 +861,9 @@ class TokenTranslator:
 	def parseError(self, tokenOrLine, message):
 		raise TokenParseError(tokenOrLine, self.filename, message)
 
+	def isConstructorContext(self, name):
+		return name in self.constructors or name == overrideStatement
+
 	def createConstructor(self, name, parents):
 		parents = tuple(parents)
 		assert parents
@@ -977,7 +980,7 @@ class TokenTranslator:
 			inConstructorContext = False
 			context, startLevel = functionStack[-1] if functionStack else (None, None)
 			if parenLevel == startLevel:
-				if context in constructors:
+				if self.isConstructorContext(context):
 					inConstructorContext = True
 					allowedPrefixOps = self.specifiersForConstructor(context)
 				else:
@@ -1164,7 +1167,6 @@ class TokenTranslator:
 						injectToken((COMMA, ','))
 						callFunction(tstring, argument=(STRING, f'"{tstring}"'),
 									 implementation='Modifier')
-						skip = True
 					elif not startOfStatement and tstring in allowedTerminators:
 						injectToken((COMMA, ','))
 						injectToken((STRING, f'"{tstring}"'))
@@ -1184,9 +1186,15 @@ class TokenTranslator:
 							self.parseError(token, 'model statement is missing module name')
 						components.append("'")
 						literal = "'" + ''.join(components)
+						wrapStatementCall()
 						callFunction(modelStatement, argument=(NAME, namespaceReference))
 						injectToken((STRING, literal))
-						skip = True
+					elif startOfStatement and tstring == overrideStatement:		# override statement
+						nextToken = next(tokens)
+						if nextToken.exact_type != NAME:
+							self.parseError(nextToken, 'object to override must be an identifier')
+						wrapStatementCall()
+						callFunction(tstring, argument=nextToken)
 					elif startOfLine and tstring in scenarioBlocks:		# named block of scenario
 						if peek(tokens).exact_type != COLON:
 							self.parseError(peek(tokens), f'malformed "{tstring}" block')
@@ -1219,9 +1227,9 @@ class TokenTranslator:
 				context, startLevel = functionStack[-1]
 				while parenLevel < startLevel:		# we've closed all parens for the current function
 					popFunction()
-				inConstructor = any(context in constructors for context, sl in functionStack)
+				inConstructor = any(self.isConstructorContext(context) for context, sl in functionStack)
 				if inConstructor and parenLevel == startLevel and ttype == COMMA:		# starting a new specifier
-					while functionStack and context not in constructors:
+					while functionStack and not self.isConstructorContext(context):
 						popFunction()
 					# allow the next specifier to be on the next line, if indented
 					injectToken(token)		# emit comma immediately
@@ -1454,7 +1462,28 @@ class ASTSurgeon(NodeTransformer):
 		if node.id in builtinNames:
 			if not isinstance(node.ctx, Load):
 				self.parseError(node, f'unexpected keyword "{node.id}"')
+		elif node.id == 'ego':
+			assert isinstance(node.ctx, Load)
+			return copy_location(Call(Name('ego', Load()), [], []), node)
 		return node
+
+	def visit_Assign(self, node):
+		def assignsEgo(targets):
+			for target in targets:
+				if isinstance(target, Name):
+					if target.id == 'ego':
+						return True
+				elif isinstance(target, (Tuple, List)):
+					if assignsEgo(target.elts):
+						return True
+			return False
+
+		if assignsEgo(node.targets):
+			if len(node.targets) > 1 or not isinstance(node.targets[0], Name):
+				self.parseError(node, 'only simple assignments to "ego" are allowed')
+			call = Call(Name('ego', Load()), [self.visit(node.value)], [])
+			return copy_location(Expr(call), node)
+		return self.generic_visit(node)
 
 	def visit_BinOp(self, node):
 		"""Convert infix operators to calls to the corresponding Scenic internal functions."""

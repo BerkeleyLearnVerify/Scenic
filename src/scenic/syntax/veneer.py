@@ -11,6 +11,7 @@ __all__ = (
 	'ego', 'require', 'resample', 'param', 'globalParameters', 'mutate', 'verbosePrint',
 	'localPath', 'model', 'simulator', 'simulation', 'require_always', 'require_eventually',
 	'terminate_when', 'terminate_simulation_when', 'terminate_after', 'in_initial_scenario',
+	'override',
 	'record', 'record_initial', 'record_final',
 	'sin', 'cos', 'hypot', 'max', 'min',
 	'filter', 'str',
@@ -304,7 +305,7 @@ def startScenario(scenario):
 
 def endScenario(scenario, reason):
 	runningScenarios.remove(scenario)
-	verbosePrint(f'Stopping scenario {scenario} because of: {reason}', level=3)
+	verbosePrint(f'Stopping scenario {scenario} because: {reason}', level=3)
 
 # Dynamic behaviors
 
@@ -468,10 +469,25 @@ def simulator(sim):
 def in_initial_scenario():
 	return inInitialScenario
 
+def override(*args):
+	if len(args) < 1:
+		raise RuntimeParseError('"override" missing an object')
+	elif len(args) < 2:
+		raise RuntimeParseError('"override" missing a list of specifiers')
+	obj = args[0]
+	if not isinstance(obj, Object):
+		raise RuntimeParseError(f'"override" passed non-Object {obj}')
+	specs = args[1:]
+	for spec in specs:
+		if not isinstance(spec, Specifier):
+			raise RuntimeParseError(f'"override" passed non-specifier {spec}')
+
+	currentScenario._override(obj, specs)
+
 def model(namespace, modelName):
 	global loadingModel
 	if loadingModel:
-		raise RuntimeParseError(f'Scenic world model itself uses the "model" statement')
+		raise RuntimeParseError('Scenic world model itself uses the "model" statement')
 	if lockedModel is not None:
 		modelName = lockedModel
 	try:

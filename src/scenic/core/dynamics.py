@@ -32,6 +32,18 @@ class Invocable:
         self._kwargs = kwargs
         self._agent = None
         self._runningIterator = None
+        self._isRunning = False
+
+    def _start(self):
+        assert not self._isRunning
+        self._isRunning = True
+
+    def _step(self):
+        assert self._isRunning
+
+    def _stop(self, reason=None):
+        assert self._isRunning
+        self._isRunning = False
 
     def _invokeSubBehavior(self, agent, subs, modifier=None, schedule=None):
         def pickEnabledInvocable(opts):
@@ -87,7 +99,11 @@ class Invocable:
 
             def body(behavior, agent):
                 yield from scheduler()
-            handler = lambda behavior, agent: BlockConclusion.ABORT
+            def handler(behavior, agent):
+                for sub in subs:
+                    if sub._isRunning:
+                        sub._stop(f'"{modifier.name}" condition met')
+                return BlockConclusion.ABORT
             yield from runTryInterrupt(self, agent, body, [condition], [handler])
         else:
             yield from scheduler()
@@ -155,6 +171,7 @@ class DynamicScenario(Invocable):
         self._timeLimitInSteps = None   # computed at simulation time
         self._elapsedTime = 0
         self._eventuallySatisfied = None
+        self._overrides = {}
 
     @classmethod
     def _dummy(cls, filename, namespace):
@@ -231,6 +248,7 @@ class DynamicScenario(Invocable):
 
     def _start(self):
         """Start the scenario, starting its compose block, behaviors, and monitors."""
+        super()._start()
         assert self._prepared
 
         # Check preconditions if they could not be checked earlier
@@ -258,10 +276,10 @@ class DynamicScenario(Invocable):
             # Initialize behavior coroutines of agents
             for agent in self._agents:
                 assert isinstance(agent.behavior, Behavior), agent.behavior
-                agent.behavior.start(agent)
+                agent.behavior._start(agent)
             # Initialize monitor coroutines
             for monitor in self._monitors:
-                monitor.start()
+                monitor._start()
 
     def _step(self):
         """Execute the (already-started) scenario for one time step.
@@ -270,6 +288,8 @@ class DynamicScenario(Invocable):
             `None` if the scenario will continue executing; otherwise a string describing
             why it has terminated.
         """
+        super()._step()
+
         # Check if we have reached the time limit, if any
         if self._timeLimitInSteps is not None and self._elapsedTime >= self._timeLimitInSteps:
             return self._stop('reached time limit')
@@ -308,7 +328,10 @@ class DynamicScenario(Invocable):
 
     def _stop(self, reason):
         """Stop the scenario's execution, for the given reason."""
+        super()._stop(reason)
         veneer.endScenario(self, reason)
+        for obj, oldVals in self._overrides.items():
+            obj._revert(oldVals)
         self._runningIterator = None
         return reason
 
@@ -379,7 +402,7 @@ class DynamicScenario(Invocable):
     def _runMonitors(self):
         terminationReason = None
         for monitor in self._monitors:
-            action = monitor.step()
+            action = monitor._step()
             if isinstance(action, EndSimulationAction):
                 terminationReason = action
                 # do not exit early, since subsequent monitors could reject the simulation
@@ -463,6 +486,11 @@ class DynamicScenario(Invocable):
         self._timeLimit = timeLimit
         self._timeLimitIsInSeconds = inSeconds
 
+    def _override(self, obj, specifiers):
+        oldVals = obj._override(specifiers)
+        if obj not in self._overrides:
+            self._overrides[obj] = oldVals
+
     def _toScenario(self, namespace):
         assert self._prepared
 
@@ -543,12 +571,14 @@ class Behavior(Invocable, Samplable):
         kwargs = { name: value[val] for name, val in self._kwargs.items() }
         return type(self)(*args, **kwargs)
 
-    def start(self, agent):
+    def _start(self, agent):
+        super()._start()
         self._agent = agent
         self._runningIterator = self.makeGenerator(agent, *self._args, **self._kwargs)
         self._checkAllPreconditions()
 
-    def step(self):
+    def _step(self):
+        super()._step()
         assert self._runningIterator
         with veneer.executeInBehavior(self):
             try:
@@ -557,7 +587,8 @@ class Behavior(Invocable, Samplable):
                 actions = ()    # behavior ended early
         return actions
 
-    def stop(self):
+    def _stop(self, reason=None):
+        super()._stop(reason)
         self._agent = None
         self._runningIterator = None
 
@@ -570,12 +601,13 @@ class Behavior(Invocable, Samplable):
         sub = subs[0]
         if not isinstance(sub, Behavior):
             raise RuntimeParseError(f'expected a behavior, got {sub}')
-        sub.start(agent)
+        sub._start(agent)
         with veneer.executeInBehavior(sub):
             try:
                 yield from sub._runningIterator
             finally:
-                sub.stop()
+                if sub._isRunning:
+                    sub._stop()
 
     def __str__(self):
         args = argsToString(itertools.chain(self._args, self._kwargs.items()))
@@ -596,8 +628,8 @@ class Monitor(Behavior):
         super().__init_subclass__()
         veneer.currentScenario._monitors.append(cls())
 
-    def start(self):
-        return super().start(None)
+    def _start(self):
+        return super()._start(None)
 
 monitorPrefix = '_Scenic_monitor_'
 def functionForMonitor(name):

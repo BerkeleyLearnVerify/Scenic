@@ -7,7 +7,7 @@ from scenic.core.errors import RuntimeParseError, ScenicSyntaxError
 from scenic.core.simulators import DummySimulator
 
 from tests.utils import (compileScenic, sampleEgo, sampleEgoFrom, sampleScene,
-                         sampleSceneFrom, sampleTrajectory)
+                         sampleSceneFrom, sampleTrajectory, sampleEgoActions)
 
 # Basics
 
@@ -93,6 +93,66 @@ def test_sequential_composition():
     assert tuple(trajectory[1][0]) == (1, 0)
     assert tuple(trajectory[2][0]) == (1, 0)
     assert tuple(trajectory[2][1]) == (5, 0)
+
+def test_subscenario_for_steps():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub(1) for 2 steps
+                do Sub(5)
+        scenario Sub(x):
+            ego = Object at x @ 0
+            terminate after 3
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario, maxSteps=3)
+    assert len(trajectory) == 4
+    assert len(trajectory[1]) == 1
+    assert len(trajectory[2]) == 1
+    assert len(trajectory[3]) == 2
+    assert tuple(trajectory[1][0]) == (1, 0)
+    assert tuple(trajectory[2][0]) == (1, 0)
+    assert tuple(trajectory[3][0]) == (1, 0)
+    assert tuple(trajectory[3][1]) == (5, 0)
+
+def test_subscenario_for_time():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub(1) for 1 seconds
+                do Sub(5)
+        scenario Sub(x):
+            ego = Object at x @ 0
+            terminate after 3
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario, maxSteps=3, timestep=0.5)
+    assert len(trajectory) == 4
+    assert len(trajectory[1]) == 1
+    assert len(trajectory[2]) == 1
+    assert len(trajectory[3]) == 2
+    assert tuple(trajectory[1][0]) == (1, 0)
+    assert tuple(trajectory[2][0]) == (1, 0)
+    assert tuple(trajectory[3][0]) == (1, 0)
+    assert tuple(trajectory[3][1]) == (5, 0)
+
+def test_subscenario_until():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub(1) until simulation().currentTime == 2
+                do Sub(5)
+        scenario Sub(x):
+            ego = Object at x @ 0
+            terminate after 3
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario, maxSteps=3)
+    assert len(trajectory) == 4
+    assert len(trajectory[1]) == 1
+    assert len(trajectory[2]) == 1
+    assert len(trajectory[3]) == 2
+    assert tuple(trajectory[1][0]) == (1, 0)
+    assert tuple(trajectory[2][0]) == (1, 0)
+    assert tuple(trajectory[3][0]) == (1, 0)
+    assert tuple(trajectory[3][1]) == (5, 0)
 
 def test_choose_1():
     scenario = compileScenic("""
@@ -195,6 +255,54 @@ def test_shuffle_deadlock():
     sim = DummySimulator(timestep=1)
     result = sim.simulate(scene, maxSteps=2)
     assert result is None
+
+# Overrides
+
+def test_override():
+    scenario = compileScenic("""
+        scenario Main():
+            setup:
+                ego = Object with foo 1, with behavior Bar
+            compose:
+                wait
+                do Sub()
+                wait
+        scenario Sub():
+            setup:
+                override ego with foo 2
+                terminate after 1
+        behavior Bar():
+            while True:
+                take self.foo
+    """, scenario='Main')
+    actions = sampleEgoActions(scenario, maxSteps=3)
+    assert tuple(actions) == (1, 2, 1)
+
+def test_override_behavior():
+    scenario = compileScenic("""
+        scenario Main():
+            setup:
+                ego = Object with behavior Foo
+            compose:
+                wait
+                do Sub() for 2 steps
+                wait
+        scenario Sub():
+            setup:
+                override ego with behavior Bar
+        behavior Foo():
+            x = 1
+            while True:
+                take x
+                x += 1
+        behavior Bar():
+            x = -1
+            while True:
+                take x
+                x -= 1
+    """, scenario='Main')
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (1, -1, -2, 2)
 
 # Scoping
 
