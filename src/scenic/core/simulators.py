@@ -119,7 +119,7 @@ class Simulation:
         self.scene = scene
         self.objects = list(scene.objects)
         self.agents = list(obj for obj in scene.objects if obj.behavior is not None)
-        self.trajectory = [self.currentState()]
+        self.trajectory = []
         self.records = defaultdict(list)
         self.currentTime = 0
         self.timestep = timestep
@@ -132,10 +132,9 @@ class Simulation:
         Throws a RejectSimulationException if a requirement is violated.
         """
         trajectory = self.trajectory
-        records = self.records
         if self.currentTime > 0:
             raise RuntimeError('tried to run a Simulation which has already run')
-        assert len(trajectory) == 1
+        assert len(trajectory) == 0
         actionSequence = []
 
         import scenic.syntax.veneer as veneer
@@ -154,32 +153,21 @@ class Simulation:
             # properties during setup
             self.updateObjects()
 
-            # Record initially-recorded values
-            values = dynamicScenario._evaluateRecordedExprs(RequirementType.recordInitial)
-            for name, val in values.items():
-                records[name] = val
-
             # Run simulation
             assert self.currentTime == 0
             terminationReason = None
             terminationType = None
-            unsatEventuallyReq = None
             while True:
                 if self.verbosity >= 3:
                     print(f'    Time step {self.currentTime}:')
 
                 # Run compose blocks of compositional scenarios
+                # (and check if any requirements defined therein fail)
                 terminationReason = dynamicScenario._step()
                 terminationType = TerminationType.scenarioComplete
 
-                # Record current values of recorded expressions
-                values = dynamicScenario._evaluateRecordedExprs(RequirementType.record)
-                for name, val in values.items():
-                    records[name].append((self.currentTime, val))
-
-                # Check if any requirements fail
-                dynamicScenario._checkAlwaysRequirements()
-                unsatEventuallyReq = dynamicScenario._checkEventuallyRequirements()
+                # Record current state of the simulation
+                self.recordCurrentState()
 
                 # Run monitors
                 newReason = dynamicScenario._runMonitors()
@@ -227,6 +215,7 @@ class Simulation:
                 if self.verbosity >= 3:
                     for agent, actions in allActions.items():
                         print(f'      Agent {agent} takes action(s) {actions}')
+                actionSequence.append(allActions)
                 self.executeActions(allActions)
 
                 # Run the simulation for a single step and read its state back into Scenic
@@ -234,22 +223,19 @@ class Simulation:
                 self.updateObjects()
                 self.currentTime += 1
 
-                # Save the new state
-                trajectory.append(self.currentState())
-                actionSequence.append(allActions)
-
-            # Reject if some 'require eventually' condition was never satisfied
-            if unsatEventuallyReq is not None:
-                raise RejectSimulationException(str(unsatEventuallyReq))
+            # Stop all remaining scenarios
+            # (and reject if some 'require eventually' condition was never satisfied)
+            for scenario in tuple(veneer.runningScenarios):
+                scenario._stop('simulation terminated')
 
             # Record finally-recorded values
             values = dynamicScenario._evaluateRecordedExprs(RequirementType.recordFinal)
             for name, val in values.items():
-                records[name] = val
+                self.records[name] = val
 
             # Package up simulation results into a compact object
             result = SimulationResult(trajectory, actionSequence, terminationType,
-                                      terminationReason, records)
+                                      terminationReason, self.records)
             self.result = result
             return self
         finally:
@@ -262,8 +248,11 @@ class Simulation:
             for monitor in self.scene.monitors:
                 if monitor._isRunning:
                     monitor._stop()
+            # If the simulation was terminated by an exception (including rejections),
+            # some scenarios may still be running; we need to clean them up without
+            # checking their requirements, which could raise rejection exceptions.
             for scenario in tuple(veneer.runningScenarios):
-                scenario._stop('simulation terminated')
+                scenario._stop(checkReqs=False)
             veneer.endSimulation(self)
 
     def createObject(self, obj):
@@ -282,6 +271,23 @@ class Simulation:
         SimulationCreationError if creating the object fails.
         """
         raise NotImplementedError
+
+    def recordCurrentState(self):
+        dynamicScenario = self.scene.dynamicScenario
+        records = self.records
+
+        # Record initially-recorded values
+        if self.currentTime == 0:
+            values = dynamicScenario._evaluateRecordedExprs(RequirementType.recordInitial)
+            for name, val in values.items():
+                records[name] = val
+
+        # Record time-series values
+        values = dynamicScenario._evaluateRecordedExprs(RequirementType.record)
+        for name, val in values.items():
+            records[name].append((self.currentTime, val))
+
+        self.trajectory.append(self.currentState())
 
     def scheduleForAgents(self):
         """Return the order for the agents to run in the next time step."""

@@ -112,6 +112,11 @@ def sampleResult(scenario, maxIterations=1, maxSteps=1, maxScenes=1, timestep=1)
     raise RejectSimulationException(
         f'unable to find successful simulation over {maxScenes} scenes')
 
+def sampleResultOnce(scenario, maxSteps=1, timestep=1):
+    scene = sampleScene(scenario)
+    sim = DummySimulator(timestep=timestep)
+    return sim.simulate(scene, maxSteps=maxSteps, maxIterations=1)
+
 def sampleResultFromScene(scene, maxIterations=1, maxSteps=1, raiseGuardViolations=False,
                           timestep=1):
     sim = DummySimulator(timestep=timestep)

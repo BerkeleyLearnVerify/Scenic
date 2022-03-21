@@ -290,6 +290,17 @@ class DynamicScenario(Invocable):
         """
         super()._step()
 
+        # Check 'require always' and 'require eventually' conditions
+        for req in self._alwaysRequirements:
+            if not req.isTrue():
+                # always requirements should never be violated at time 0, since
+                # they are enforced during scene sampling
+                assert veneer.currentSimulation.currentTime > 0
+                raise RejectSimulationException(str(req))
+        for req in self._eventuallyRequirements:
+            if not self._eventuallySatisfied[req] and req.isTrue():
+                self._eventuallySatisfied[req] = True
+
         # Check if we have reached the time limit, if any
         if self._timeLimitInSteps is not None and self._elapsedTime >= self._timeLimitInSteps:
             return self._stop('reached time limit')
@@ -326,8 +337,14 @@ class DynamicScenario(Invocable):
         # Scenario will not terminate yet
         return None
 
-    def _stop(self, reason):
+    def _stop(self, reason='unknown', checkReqs=True):
         """Stop the scenario's execution, for the given reason."""
+        if checkReqs:
+            # Reject if we never satisfied a 'require eventually'
+            for req in self._eventuallyRequirements:
+                if not self._eventuallySatisfied[req] and not req.isTrue():
+                    raise RejectSimulationException(str(req))
+
         super()._stop(reason)
         veneer.endScenario(self, reason)
         for obj, oldVals in self._overrides.items():
@@ -374,30 +391,6 @@ class DynamicScenario(Invocable):
             subvals = sub._evaluateRecordedExprsAt(place)
             values.update(subvals)
         return values
-
-    def _checkAlwaysRequirements(self):
-        for req in self._alwaysRequirements:
-            if not req.isTrue():
-                # always requirements should never be violated at time 0, since
-                # they are enforced during scene sampling
-                assert veneer.currentSimulation.currentTime > 0
-                raise RejectSimulationException(str(req))
-        for sub in self._subScenarios:
-            sub._checkAlwaysRequirements()
-
-    def _checkEventuallyRequirements(self):
-        unsat = None
-        for req in self._eventuallyRequirements:
-            if not self._eventuallySatisfied[req]:
-                if req.isTrue():
-                    self._eventuallySatisfied[req] = True
-                else:
-                    unsat = req
-        for sub in self._subScenarios:
-            res = sub._checkEventuallyRequirements()
-            if res is not None:
-                unsat = res
-        return unsat
 
     def _runMonitors(self):
         terminationReason = None

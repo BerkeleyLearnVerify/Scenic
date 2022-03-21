@@ -7,7 +7,8 @@ from scenic.core.errors import RuntimeParseError, ScenicSyntaxError
 from scenic.core.simulators import DummySimulator
 
 from tests.utils import (compileScenic, sampleEgo, sampleEgoFrom, sampleScene,
-                         sampleSceneFrom, sampleTrajectory, sampleEgoActions)
+                         sampleSceneFrom, sampleTrajectory, sampleEgoActions,
+                         sampleResultOnce)
 
 # Basics
 
@@ -88,11 +89,13 @@ def test_sequential_composition():
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario, maxSteps=3)
     assert len(trajectory) == 3
-    assert len(trajectory[1]) == 1
+    assert len(trajectory[0]) == 1
+    assert len(trajectory[1]) == 2
     assert len(trajectory[2]) == 2
-    assert tuple(trajectory[1][0]) == (1, 0)
-    assert tuple(trajectory[2][0]) == (1, 0)
-    assert tuple(trajectory[2][1]) == (5, 0)
+    assert tuple(trajectory[0][0]) == (1, 0)
+    for i in range(1, 3):
+        assert tuple(trajectory[i][0]) == (1, 0)
+        assert tuple(trajectory[i][1]) == (5, 0)
 
 def test_subscenario_for_steps():
     scenario = compileScenic("""
@@ -106,13 +109,12 @@ def test_subscenario_for_steps():
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario, maxSteps=3)
     assert len(trajectory) == 4
-    assert len(trajectory[1]) == 1
-    assert len(trajectory[2]) == 1
-    assert len(trajectory[3]) == 2
-    assert tuple(trajectory[1][0]) == (1, 0)
-    assert tuple(trajectory[2][0]) == (1, 0)
-    assert tuple(trajectory[3][0]) == (1, 0)
-    assert tuple(trajectory[3][1]) == (5, 0)
+    assert len(trajectory[0]) == len(trajectory[1]) == 1
+    assert len(trajectory[2]) == len(trajectory[3]) == 2
+    for i in range(3):
+        assert tuple(trajectory[i][0]) == (1, 0)
+    for i in range(2, 4):
+        assert tuple(trajectory[i][1]) == (5, 0)
 
 def test_subscenario_for_time():
     scenario = compileScenic("""
@@ -126,13 +128,11 @@ def test_subscenario_for_time():
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario, maxSteps=3, timestep=0.5)
     assert len(trajectory) == 4
-    assert len(trajectory[1]) == 1
-    assert len(trajectory[2]) == 1
-    assert len(trajectory[3]) == 2
-    assert tuple(trajectory[1][0]) == (1, 0)
-    assert tuple(trajectory[2][0]) == (1, 0)
-    assert tuple(trajectory[3][0]) == (1, 0)
-    assert tuple(trajectory[3][1]) == (5, 0)
+    assert len(trajectory[0]) == len(trajectory[1]) == 1
+    assert len(trajectory[2]) == 2
+    for i in range(3):
+        assert tuple(trajectory[i][0]) == (1, 0)
+    assert tuple(trajectory[2][1]) == (5, 0)
 
 def test_subscenario_until():
     scenario = compileScenic("""
@@ -146,13 +146,25 @@ def test_subscenario_until():
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario, maxSteps=3)
     assert len(trajectory) == 4
-    assert len(trajectory[1]) == 1
-    assert len(trajectory[2]) == 1
-    assert len(trajectory[3]) == 2
-    assert tuple(trajectory[1][0]) == (1, 0)
-    assert tuple(trajectory[2][0]) == (1, 0)
-    assert tuple(trajectory[3][0]) == (1, 0)
+    assert len(trajectory[0]) == len(trajectory[1]) == 1
+    assert len(trajectory[2]) == 2
+    for i in range(3):
+        assert tuple(trajectory[i][0]) == (1, 0)
     assert tuple(trajectory[3][1]) == (5, 0)
+
+def test_subscenario_require_eventually():
+    """Test that 'require eventually' must be satisfied before the scenario ends."""
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub()
+        scenario Sub():
+            ego = Object
+            require eventually simulation().currentTime == 2
+            terminate after 1
+    """)
+    result = sampleResultOnce(scenario)
+    assert result is None
 
 def test_choose_1():
     scenario = compileScenic("""
@@ -192,9 +204,7 @@ def test_choose_deadlock():
             setup:
                 ego = Object at x @ 0
     """, scenario='Main')
-    scene = sampleScene(scenario)
-    sim = DummySimulator(timestep=1)
-    result = sim.simulate(scene, maxSteps=1)
+    result = sampleResultOnce(scenario)
     assert result is None
 
 def test_shuffle_1():
@@ -211,10 +221,10 @@ def test_shuffle_1():
     for i in range(30):
         trajectory = sampleTrajectory(scenario, maxSteps=3)
         assert len(trajectory) == 3
-        assert len(trajectory[1]) == 1
-        assert len(trajectory[2]) == 2
-        assert trajectory[1][0] == (-1, 0)
-        assert trajectory[2][1] == (1, 0)
+        assert len(trajectory[0]) == 1
+        assert len(trajectory[1]) == 2
+        assert trajectory[0][0] == (-1, 0)
+        assert trajectory[1][1] == (1, 0)
 
 def test_shuffle_2():
     scenario = compileScenic("""
@@ -229,10 +239,10 @@ def test_shuffle_2():
     for i in range(30):
         trajectory = sampleTrajectory(scenario, maxSteps=3)
         assert len(trajectory) == 3
-        assert len(trajectory[1]) == 1
-        assert len(trajectory[2]) == 2
-        x1 = trajectory[1][0].x
-        x2 = trajectory[2][1].x
+        assert len(trajectory[0]) == 1
+        assert len(trajectory[1]) == 2
+        x1 = trajectory[0][0].x
+        x2 = trajectory[1][1].x
         assert x1 == 1 or x1 == 3
         assert x2 == 1 or x2 == 3
         assert x1 != x2
@@ -251,9 +261,7 @@ def test_shuffle_deadlock():
                 ego = Object at x @ 0
                 terminate after 1
     """, scenario='Main')
-    scene = sampleScene(scenario)
-    sim = DummySimulator(timestep=1)
-    result = sim.simulate(scene, maxSteps=2)
+    result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
 
 # Overrides
