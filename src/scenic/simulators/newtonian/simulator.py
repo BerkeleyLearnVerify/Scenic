@@ -123,6 +123,7 @@ class NewtonianSimulation(DrivingSimulation):
 
     def step(self):
         for obj in self.objects:
+<<<<<<< HEAD
             if hasattr(obj, 'hand_brake'):
                 if obj.hand_brake:
                     acceleration = -MAX_BRAKING
@@ -139,6 +140,36 @@ class NewtonianSimulation(DrivingSimulation):
                     obj.angularSpeed = 0
             obj.position += obj.velocity * self.timestep
             obj.heading += obj.angularSpeed * self.timestep
+=======
+            if obj.hand_brake:
+                t_action = -1.0
+                acceleration = -MAX_BRAKING
+                obj.speed += acceleration * self.timestep
+                obj.speed = max(0, obj.speed)
+            elif obj.brake > 0:
+                t_action = -obj.brake
+                acceleration = -obj.brake * MAX_BRAKING
+                obj.speed += acceleration * self.timestep
+                obj.speed = max(0, obj.speed)
+            else:
+                t_action = obj.throttle
+                acceleration = obj.throttle * MAX_ACCELERATION
+                obj.speed += acceleration * self.timestep
+            if obj.reverse:
+                obj.speed = obj.speed * -1
+            obj.velocity = Vector(0, obj.speed).rotatedBy(obj.heading)
+            if obj.steer:
+                s_action = obj.steer
+                turning_radius = obj.length / sin(obj.steer * math.pi / 2)
+                angular_velocity = obj.speed / turning_radius
+            else:
+                s_action = 0
+                angular_velocity = 0
+            obj.position += obj.velocity * self.timestep
+            obj.heading -= angular_velocity * self.timestep
+            if obj == self.ego:
+                self.ego_actions.append((t_action, s_action))
+>>>>>>> fixing brake and reversing bug in the newtonian simulator.
         if self.render:
             self.draw_objects()
 
