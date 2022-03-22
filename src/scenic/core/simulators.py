@@ -252,7 +252,7 @@ class Simulation:
             # some scenarios may still be running; we need to clean them up without
             # checking their requirements, which could raise rejection exceptions.
             for scenario in tuple(veneer.runningScenarios):
-                scenario._stop(checkReqs=False)
+                scenario._stop('exception', quiet=True)
             veneer.endSimulation(self)
 
     def createObject(self, obj):

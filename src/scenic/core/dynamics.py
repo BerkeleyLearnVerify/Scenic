@@ -337,16 +337,16 @@ class DynamicScenario(Invocable):
         # Scenario will not terminate yet
         return None
 
-    def _stop(self, reason='unknown', checkReqs=True):
+    def _stop(self, reason, quiet=False):
         """Stop the scenario's execution, for the given reason."""
-        if checkReqs:
+        if not quiet:
             # Reject if we never satisfied a 'require eventually'
             for req in self._eventuallyRequirements:
                 if not self._eventuallySatisfied[req] and not req.isTrue():
                     raise RejectSimulationException(str(req))
 
         super()._stop(reason)
-        veneer.endScenario(self, reason)
+        veneer.endScenario(self, reason, quiet=quiet)
         for obj, oldVals in self._overrides.items():
             obj._revert(oldVals)
         self._runningIterator = None

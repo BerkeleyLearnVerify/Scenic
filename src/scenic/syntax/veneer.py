@@ -303,9 +303,10 @@ def finishScenarioSetup(scenario):
 def startScenario(scenario):
 	runningScenarios.add(scenario)
 
-def endScenario(scenario, reason):
+def endScenario(scenario, reason, quiet=False):
 	runningScenarios.remove(scenario)
-	verbosePrint(f'Stopping scenario {scenario} because: {reason}', level=3)
+	if not quiet:
+		verbosePrint(f'Stopping scenario {scenario} because: {reason}', level=3)
 
 # Dynamic behaviors
 
