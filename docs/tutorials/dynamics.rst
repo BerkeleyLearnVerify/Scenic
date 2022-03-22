@@ -318,6 +318,8 @@ either ``car1`` or ``car2``, the requirement on line 4 will fail and we will rej
 simulation. Note the necessity of the ``wait`` statement on line 9: if we omitted it, the
 loop could run forever without any time actually passing in the simulation.
 
+..  _guards:
+
 Preconditions and Invariants
 ----------------------------
 
