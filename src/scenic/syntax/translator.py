@@ -1205,7 +1205,7 @@ class TokenTranslator:
 						injectToken((RPAR, ')'))
 						skip = True
 					elif (tstring in self.constructors
-						  and peek(tokens).exact_type not in (RPAR, RSQB, RBRACE, COMMA, DOT)):
+						  and peek(tokens).exact_type not in (RPAR, RSQB, RBRACE, COMMA, DOT, COLON)):
 						# instance definition
 						callFunction(tstring)
 					elif tstring in replacements:	# direct replacement
