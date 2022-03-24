@@ -10,7 +10,7 @@ from scenic.core.object_types import (enableDynamicProxyFor, setDynamicProxyFor,
                                       disableDynamicProxyFor)
 from scenic.core.distributions import RejectionException
 import scenic.core.dynamics as dynamics
-from scenic.core.errors import RuntimeParseError, InvalidScenarioError
+from scenic.core.errors import RuntimeParseError, InvalidScenarioError, optionallyDebugRejection
 from scenic.core.requirements import RequirementType
 from scenic.core.vectors import Vector
 
@@ -79,6 +79,7 @@ class Simulator:
                 if raiseGuardViolations and isinstance(e, dynamics.GuardViolation):
                     raise
                 else:
+                    optionallyDebugRejection(e)
                     continue
             # Completed the simulation without violating a requirement
             if verbosity >= 2:
