@@ -3,6 +3,7 @@
 import importlib
 import itertools
 import pathlib
+import pdb
 import traceback
 import types
 import sys
@@ -22,6 +23,9 @@ showInternalBacktrace = True
 
 #: Whether or not to do post-mortem debugging of uncaught exceptions.
 postMortemDebugging = False
+
+#: Whether or not to do "post-mortem" debugging of rejected scenes/simulations.
+postMortemRejections = False
 
 #: Folders elided from backtraces when :obj:`showInternalBacktrace` is false.
 hiddenFolders = [
@@ -194,6 +198,16 @@ def saveErrorLocation():
     return None
 
 ## Utilities
+
+def optionallyDebugRejection(exc=None):
+    if not postMortemRejections:
+        return
+    print('Scene/simulation rejected. Entering debugger...')
+    if exc:
+        pdb.post_mortem(exc.__traceback__)
+    else:
+        debugger = pdb.Pdb()
+        debugger.set_trace(sys._getframe().f_back)   # TODO more portable way to do this?
 
 def getText(filename, lineno, line='', offset=0, end_offset=None):
     """Attempt to recover the text of an error from the original Scenic file."""

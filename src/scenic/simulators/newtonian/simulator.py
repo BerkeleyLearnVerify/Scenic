@@ -108,6 +108,9 @@ class NewtonianSimulation(DrivingSimulation):
         y_prop = (y - min_y) / (max_y - min_y)
         return int(x_prop * WIDTH), HEIGHT - 1 - int(y_prop * HEIGHT)
 
+    def createObjectInSimulator(self, obj):
+        pass
+
     def actionsAreCompatible(self, agent, actions):
         return True
 
