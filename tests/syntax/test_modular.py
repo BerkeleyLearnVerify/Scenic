@@ -166,6 +166,53 @@ def test_subscenario_require_eventually():
     result = sampleResultOnce(scenario)
     assert result is None
 
+def test_initial_scenario_basic():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub()
+        scenario Sub():
+            setup:
+                if initial scenario:
+                    ego = Object
+                Object left of ego by 5
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario)
+    assert len(trajectory) == 2
+    assert len(trajectory[1]) == 2
+
+def test_initial_scenario_setup():
+    scenario = compileScenic("""
+        scenario Main():
+            setup:
+                ego = Object
+            compose:
+                do Sub()
+        scenario Sub():
+            setup:
+                if initial scenario:
+                    ego = Object
+                Object left of ego by 5
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario)
+    assert len(trajectory) == 2
+    assert len(trajectory[1]) == 2
+
+def test_initial_scenario_parallel():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub(2), Sub(5)
+        scenario Sub(x):
+            setup:
+                if initial scenario:
+                    ego = Object
+                Object left of ego by x
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario)
+    assert len(trajectory) == 2
+    assert len(trajectory[1]) == 3
+
 def test_choose_1():
     scenario = compileScenic("""
         scenario Main():

@@ -1940,18 +1940,18 @@ class ASTSurgeon(NodeTransformer):
 		self.inCompose = self.inBehavior = False
 
 		# Construct setup block
-		if setup:
-			oldBody = setup.body
-			oldLoc = setup
-		elif simple:
-			oldBody = node.body
-			oldLoc = node
+		if setup or simple:
+			if setup:
+				oldBody = setup.body
+				oldLoc = setup
+			else:
+				oldBody = node.body
+				oldLoc = node
+			newBody = self.visit(oldBody)
+			newDef = FunctionDef('_setup', args, newBody, [], None)
+			setup = copy_location(newDef, oldLoc)
 		else:
-			oldBody = [Pass()]
-			oldLoc = node
-		newBody = self.visit(oldBody)
-		newDef = FunctionDef('_setup', args, newBody, [], None)
-		setup = copy_location(newDef, oldLoc)
+			setup = Assign([Name('_setup', Store())], Constant(None))
 
 		self.behaviorLocals = oldBL
 

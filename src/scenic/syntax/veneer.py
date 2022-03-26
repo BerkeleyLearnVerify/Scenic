@@ -224,9 +224,9 @@ def beginSimulation(sim):
 	assert currentScenario is None
 	assert not scenarioStack
 	currentSimulation = sim
-	inInitialScenario = True
 	currentScenario = sim.scene.dynamicScenario
 	runningScenarios = {currentScenario}
+	inInitialScenario = currentScenario._setup is None
 	currentScenario._bindTo(sim.scene)
 	_globalParameters = dict(sim.scene.params)
 
