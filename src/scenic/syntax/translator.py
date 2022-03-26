@@ -1971,7 +1971,10 @@ class ASTSurgeon(NodeTransformer):
 		# copy arguments to the behavior object's namespace
 		args = node.args
 		copyArgs = []
-		for arg in itertools.chain(args.posonlyargs, args.args, args.kwonlyargs):
+		allArgs = itertools.chain(args.args, args.kwonlyargs)
+		if sys.version_info >= (3, 8):
+			allArgs = itertools.chain(args.posonlyargs, allArgs)
+		for arg in allArgs:
 			dest = Attribute(Name(behaviorArgName, Load()), arg.arg, Store())
 			copyArgs.append(copy_location(Assign([dest], Name(arg.arg, Load())), arg))
 
