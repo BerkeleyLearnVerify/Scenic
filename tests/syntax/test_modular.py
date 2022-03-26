@@ -358,6 +358,55 @@ def test_shared_scope_del():
     """, scenario='Main')
     sampleTrajectory(scenario)
 
+def test_delayed_local_argument():
+    scenario = compileScenic("""
+        scenario Foo(obj, y):
+            ego = Object left of obj by (5, y)
+        scenario Bar():
+            setup:
+                ego = Object
+                y = 12
+        scenario Main():
+            compose:
+                s1 = Bar()
+                s2 = Foo(s1.ego, s1.y)
+                do s1, s2
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario)
+    assert len(trajectory) == 2
+    assert len(trajectory[1]) == 2
+    assert tuple(trajectory[1][0]) == (0, 0)
+    assert tuple(trajectory[1][1]) == (-5.5, 12)
+
+def test_delayed_local_interrupt():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                sc = Sub()
+                try:
+                    do sc
+                interrupt when sc.ego.position.x >= 1:
+                    abort
+        scenario Sub():
+            ego = Object at (1, 0)
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario, maxSteps=2)
+    assert len(trajectory) == 2
+    assert len(trajectory[0]) == len(trajectory[1]) == 1
+
+def test_delayed_local_until():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                sc = Sub()
+                do sc until sc.ego.position.x >= 1
+        scenario Sub():
+            ego = Object at (1, 0)
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario, maxSteps=2)
+    assert len(trajectory) == 2
+    assert len(trajectory[0]) == len(trajectory[1]) == 1
+
 def test_independent_requirements():
     scenario = compileScenic("""
         behavior Foo():

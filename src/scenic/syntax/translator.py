@@ -1426,6 +1426,7 @@ class ASTSurgeon(NodeTransformer):
 		self.usedBreak = False
 		self.usedContinue = False
 		self.callDepth = 0
+		self.behaviorLocals = set()
 
 	def parseError(self, node, message):
 		raise ASTParseError(node, message, self.filename)
@@ -1465,6 +1466,9 @@ class ASTSurgeon(NodeTransformer):
 		elif node.id == 'ego':
 			assert isinstance(node.ctx, Load)
 			return copy_location(Call(Name('ego', Load()), [], []), node)
+		elif node.id in self.behaviorLocals:
+			lookup = Attribute(Name(behaviorArgName, Load()), node.id, node.ctx)
+			return copy_location(lookup, node)
 		return node
 
 	def visit_Assign(self, node):
@@ -1862,7 +1866,7 @@ class ASTSurgeon(NodeTransformer):
 		if self.inBehavior:
 			self.parseError(node, 'cannot define a scenario inside a behavior')
 
-		# Set up arguments for setup block (also inherited by compose block)
+		# Set up arguments for setup and compose blocks
 		args = node.args
 		args.args = initialBehaviorArgs + args.args
 		args = self.visit(args)
@@ -1907,26 +1911,27 @@ class ASTSurgeon(NodeTransformer):
 			if preconditions or invariants:
 				self.parseError(node, f'simple scenario cannot have preconditions/invariants')
 
+		# Find all locals of the scenario, which will be shared amongst the various blocks
+		allLocals = set()
+		if compose:
+			allLocals.update(LocalFinder.findIn(compose.body))
+		if setup:
+			allLocals.update(LocalFinder.findIn(setup.body))
+		oldBL = self.behaviorLocals
+		self.behaviorLocals = allLocals
+
 		# Construct compose block
 		self.inCompose = self.inBehavior = True
 		guardCheckers = self.makeGuardCheckers(args, preconditions, invariants)
 		if compose or preconditions or invariants:
 			if compose:
 				body = self.visit(compose.body)
-				if setup:
-					# make all locals in compose block actually use scope of setup block
-					# (the compose definition will be placed inside the setup function)
-					setupLocals = LocalFinder.findIn(setup.body)
-					composeLocals = LocalFinder.findIn(body)
-					commonLocals = setupLocals & composeLocals
-					if commonLocals:
-						body.insert(0, Nonlocal(list(commonLocals)))
 			else:
 				# generate no-op compose block to ensure invariants are checked
 				wait = self.generateInvocation(node, Constant(()))
 				body = [While(Constant(True), wait, [])]
 				compose = node 	# for copy_location below
-			newDef = FunctionDef('_compose', noArgs, body, [], None)
+			newDef = FunctionDef('_compose', args, body, [], None)
 			compose = copy_location(newDef, compose)
 		else:
 			compose = Assign([Name('_compose', Store())], Constant(None))
@@ -1940,18 +1945,18 @@ class ASTSurgeon(NodeTransformer):
 			oldBody = node.body
 			oldLoc = node
 		else:
-			oldBody = []
+			oldBody = [Pass()]
 			oldLoc = node
-		getLocals = Call(Name('locals', Load()), [], [])
-		returnStmt = Return(getLocals)
-		newBody = self.visit(oldBody) + [compose, returnStmt]
-		newDef = FunctionDef('_setup', args, newBody,
-							 [Name(id='staticmethod', ctx=Load())], None)
+		newBody = self.visit(oldBody)
+		newDef = FunctionDef('_setup', args, newBody, [], None)
 		setup = copy_location(newDef, oldLoc)
+
+		self.behaviorLocals = oldBL
 
 		# Assemble scenario definition
 		name = node.name[len(scenarioMarker):]
-		body = guardCheckers + [setup]
+		saveLocals = Assign([Name('_locals', Store())], Constant(frozenset(allLocals)))
+		body = guardCheckers + [saveLocals, setup, compose]
 		newDef = ClassDef(name, [Name(scenarioClass, Load())], [], body, [])
 		return copy_location(newDef, node)
 
@@ -1961,12 +1966,21 @@ class ASTSurgeon(NodeTransformer):
 		if self.inBehavior:
 			self.parseError(node, 'cannot define a behavior inside a behavior')
 
+		# copy arguments to the behavior object's namespace
+		args = node.args
+		copyArgs = []
+		for arg in itertools.chain(args.posonlyargs, args.args, args.kwonlyargs):
+			dest = Attribute(Name(behaviorArgName, Load()), arg.arg, Store())
+			copyArgs.append(copy_location(Assign([dest], Name(arg.arg, Load())), arg))
+
 		# add private current behavior argument and implicit 'self' argument
 		newArgs = self.visit(node.args)
 		newArgs.args = initialBehaviorArgs + newArgs.args
 
 		# process body
 		self.inBehavior = True
+		oldBL = self.behaviorLocals
+		self.behaviorLocals = allLocals = LocalFinder.findIn(node.body)
 		oldInLoop = self.inLoop
 		self.inLoop = False
 		preconditions = []
@@ -2004,14 +2018,16 @@ class ASTSurgeon(NodeTransformer):
 				else:
 					newStatements.extend(newStatement)
 		guardCheckers = self.makeGuardCheckers(newArgs, preconditions, invariants)
-		newBody = newStatements
+		newBody = copyArgs + newStatements
 		self.inBehavior = False
+		self.behaviorLocals = oldBL
 		self.inLoop = oldInLoop
 
 		# convert to class definition
+		saveLocals = Assign([Name('_locals', Store())], Constant(frozenset(allLocals)))
 		decorators = [self.visit(decorator) for decorator in node.decorator_list]
 		genDefn = FunctionDef('makeGenerator', newArgs, newBody, decorators, node.returns)
-		classBody = docstring + guardCheckers + [genDefn]
+		classBody = docstring + guardCheckers + [saveLocals, genDefn]
 		name = node.name
 		if dynamics.isAMonitorName(name):
 			superclass = monitorClass

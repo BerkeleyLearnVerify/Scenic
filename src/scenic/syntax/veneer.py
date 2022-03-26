@@ -289,6 +289,16 @@ def executeInScenario(scenario, inheritEgo=False):
 	currentScenario = scenario
 	try:
 		yield
+	except AttributeError as e:
+		# Convert confusing AttributeErrors from trying to access nonexistent scenario
+		# variables into NameErrors, which is what the user would expect. The information
+		# needed to do this was made available in Python 3.10, but unfortunately could be
+		# wrong until 3.10.3: see bpo-46940.
+		if sys.version_info >= (3, 10, 3) and isinstance(e.obj, DynamicScenario):
+			newExc = NameError(f"name '{e.name}' is not defined", name=e.name)
+			raise newExc.with_traceback(e.__traceback__)
+		else:
+			raise
 	finally:
 		currentScenario = oldScenario
 
@@ -317,6 +327,13 @@ def executeInBehavior(behavior):
 	currentBehavior = behavior
 	try:
 		yield
+	except AttributeError as e:
+		# See comment for corresponding code in executeInScenario
+		if sys.version_info >= (3, 10, 3) and isinstance(e.obj, Behavior):
+			newExc = NameError(f"name '{e.name}' is not defined", name=e.name)
+			raise newExc.with_traceback(e.__traceback__)
+		else:
+			raise
 	finally:
 		currentBehavior = oldBehavior
 

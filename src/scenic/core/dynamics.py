@@ -8,7 +8,7 @@ import types
 
 from scenic.core.distributions import Samplable, Options, toDistribution, needsSampling
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError
-from scenic.core.lazy_eval import needsLazyEvaluation
+from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
 from scenic.core.requirements import (RequirementType, PendingRequirement,
                                       DynamicRequirement)
 from scenic.core.simulators import (RejectSimulationException, EndSimulationAction,
@@ -37,6 +37,7 @@ class Invocable:
     def _start(self):
         assert not self._isRunning
         self._isRunning = True
+        self._finalizeArguments()
 
     def _step(self):
         assert self._isRunning
@@ -44,6 +45,22 @@ class Invocable:
     def _stop(self, reason=None):
         assert self._isRunning
         self._isRunning = False
+
+    def _finalizeArguments(self):
+        # Evaluate any lazy arguments whose evaluation was deferred until just before
+        # this invocable starts running.
+        args = []
+        for arg in self._args:
+            if needsLazyEvaluation(arg):
+                assert isinstance(arg, DelayedArgument)
+                args.append(arg.evaluateInner(None))
+            else:
+                args.append(arg)
+        self._args = tuple(args)
+        for name, arg in self._kwargs.items():
+            if needsLazyEvaluation(arg):
+                assert isinstance(arg, DelayedArgument)
+                self._kwargs[name] = arg.evaluateInner(None)
 
     def _invokeSubBehavior(self, agent, subs, modifier=None, schedule=None):
         def pickEnabledInvocable(opts):
@@ -201,6 +218,8 @@ class DynamicScenario(Invocable):
 
     @property
     def ego(self):
+        if self._ego is None:
+            return DelayedArgument((), lambda context: self._ego, _internal=True)
         return self._ego
 
     @property
@@ -225,6 +244,8 @@ class DynamicScenario(Invocable):
         assert not self._prepared
         self._prepared = True
 
+        self._finalizeArguments()   # TODO generalize _prepare for Invocable?
+
         veneer.prepareScenario(self)
         with veneer.executeInScenario(self, inheritEgo=True):
             # Check preconditions and invariants
@@ -235,8 +256,9 @@ class DynamicScenario(Invocable):
 
             # Execute setup block
             if self._setup is not None:
-                locs = self._setup(self, None, *self._args, **self._kwargs)
-                self.__dict__.update(locs)  # save locals as if they were in class scope
+                assert not any(needsLazyEvaluation(arg) for arg in self._args)
+                assert not any(needsLazyEvaluation(arg) for arg in self._kwargs.values())
+                self._setup(None, *self._args, **self._kwargs)
                 veneer.finishScenarioSetup(self)
 
         # Extract requirements, scan for relations used for pruning, and create closures
@@ -271,7 +293,7 @@ class DynamicScenario(Invocable):
                 if not inspect.isgeneratorfunction(self._compose):
                     from scenic.syntax.translator import composeBlock
                     raise RuntimeParseError(f'"{composeBlock}" does not invoke any scenarios')
-                self._runningIterator = self._compose()
+                self._runningIterator = self._compose(None, *self._args, **self._kwargs)
 
             # Initialize behavior coroutines of agents
             for agent in self._agents:
@@ -524,6 +546,11 @@ class DynamicScenario(Invocable):
                             self)   # TODO unify these!
         return scenario
 
+    def __getattr__(self, name):
+        if name in self._locals:
+            return DelayedArgument((), lambda context: getattr(self, name), _internal=True)
+        return object.__getattribute__(self, name)
+
     def __str__(self):
         if self._dummyNamespace:
             return 'top-level scenario'
@@ -700,7 +727,12 @@ class InterruptBlock:
     @property
     def isEnabled(self):
         with veneer.executeInGuard():
-            return bool(self.condition())
+            result = self.condition()
+            if isinstance(result, DelayedArgument):
+                # Condition cannot yet be evaluated because it depends on a scenario
+                # local not yet initialized; we consider it to be false.
+                return False
+            return bool(result)
 
     @property
     def isRunning(self):
