@@ -19,10 +19,10 @@ __all__ = (
 	'Visible', 'NotVisible',
 	'Front', 'Back', 'Left', 'Right',
 	'FrontLeft', 'FrontRight', 'BackLeft', 'BackRight',
+	'RelativeHeading', 'ApparentHeading', 'RelativePosition',
+	'DistanceFrom', 'DistancePast', 'AngleTo', 'AngleFrom', 'Follow',
 	# Infix operators
-	'FieldAt', 'RelativeTo', 'OffsetAlong', 'RelativePosition',
-	'RelativeHeading', 'ApparentHeading',
-	'DistanceFrom', 'AngleTo', 'AngleFrom', 'Follow', 'CanSee',
+	'FieldAt', 'RelativeTo', 'OffsetAlong', 'CanSee',
 	# Primitive types
 	'Vector', 'VectorField', 'PolygonalVectorField',
 	'Region', 'PointSetRegion', 'RectangularRegion', 'CircularRegion', 'SectorRegion',
@@ -717,6 +717,17 @@ def DistanceFrom(X, Y=None):
 		Y = ego()
 	Y = toTypes(Y, (Vector, Region), '"distance from X to Y" with Y neither a vector nor region')
 	return X.distanceTo(Y)
+
+def DistancePast(X, Y=None):
+	"""The :samp:`distance past {vector} of {OP}` operator.
+
+	If the :samp:`of {OP}` is omitted, the ego object is used.
+	"""
+	X = toVector(X, '"distance past X" with X not a vector')
+	if Y is None:
+		Y = ego()
+	Y = toType(Y, OrientedPoint, '"distance past X of Y" with Y not an OrientedPoint')
+	return Y.distancePast(X)
 
 def AngleTo(X):
 	"""The 'angle to <vector>' operator (using the position of ego as the reference)."""

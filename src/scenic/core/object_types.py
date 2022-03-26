@@ -376,6 +376,11 @@ class OrientedPoint(Point):
 	def relativePosition(self, vec):
 		return self.position.offsetRotated(self.heading, vec)
 
+	def distancePast(self, vec):
+		"""Distance past a given point, assuming we've been moving in a straight line."""
+		diff = self.position - vec
+		return diff.rotatedBy(-self.heading).y
+
 	def toHeading(self) -> float:
 		return self.heading
 

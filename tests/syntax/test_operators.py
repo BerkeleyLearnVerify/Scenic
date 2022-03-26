@@ -81,6 +81,22 @@ def test_distance_to_region():
     """)
     assert p == pytest.approx(2)
 
+def test_distance_past():
+    p = sampleParamPFrom("""
+        ego = Object at 5@10, facing 45 deg
+        other = Object at 2@3
+        param p = distance past other
+    """)
+    assert p == pytest.approx(2 * math.sqrt(2))
+
+def test_distance_past_of():
+    p = sampleParamPFrom("""
+        ego = Object at 1@2, facing 30 deg
+        op = OrientedPoint at 3@-6, facing -45 deg
+        param p = distance past ego of op
+    """)
+    assert p == pytest.approx(-3 * math.sqrt(2))
+
 # angle
 
 def test_angle():

@@ -538,6 +538,7 @@ prefixOperators = {
 	('apparent', 'heading'): 'ApparentHeading',
 	('distance', 'from'): 'DistanceFrom',
 	('distance', 'to'): 'DistanceFrom',
+	('distance', 'past'): 'DistancePast',
 	('angle', 'from'): 'AngleFrom',
 	('angle', 'to'): 'AngleTo',
 	('front', 'left'): 'FrontLeft',
@@ -612,6 +613,7 @@ infixOperators = (
 	InfixOp('for', None, 2, (COMMA, ','), None, ('Follow', 'Following')),
 	InfixOp('to', None, 2, (COMMA, ','), None),
 	InfixOp('as', None, 2, (COMMA, ','), None, requirementStatements),
+	InfixOp('of', None, 2, (COMMA, ','), None, ('DistancePast')),
 	InfixOp('by', None, 2, packageToken, None)
 )
 
