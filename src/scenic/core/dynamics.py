@@ -156,6 +156,7 @@ class DynamicScenario(Invocable):
     _requirementSyntax = None   # overridden by subclasses
     _simulatorFactory = None
     _globalParameters = None
+    _locals = ()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -119,7 +119,8 @@ def isActive():
 	"""Are we in the middle of compiling a Scenic module?
 
 	The 'activity' global can be >1 when Scenic modules in turn import other
-	Scenic modules."""
+	Scenic modules.
+	"""
 	return activity > 0
 
 def activate(paramOverrides={}, modelOverride=None, filename=None, namespace=None):
