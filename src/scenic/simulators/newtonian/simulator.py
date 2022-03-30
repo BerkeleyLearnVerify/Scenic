@@ -12,7 +12,6 @@ from scenic.syntax.veneer import verbosePrint
 from scenic.core.vectors import Vector
 import scenic.simulators.newtonian.utils.utils as utils
 from scenic.domains.driving.roads import Network
-import scenic.domains.driving.model as drivingModel
 from scenic.syntax.translator import verbosity
 
 import shapely
@@ -55,7 +54,7 @@ class NewtonianSimulation(DrivingSimulation):
         for obj in self.objects:
             if obj.speed is not None:
                 equivVel = obj.speed*utils.vectorFromHeading(obj.heading)
-                obj.setVelocity(equivVel)
+                obj.velocity = equivVel
 
         if self.render:
             # determine window size
@@ -124,7 +123,7 @@ class NewtonianSimulation(DrivingSimulation):
 
     def step(self):
         for obj in self.objects:
-            if isinstance(obj, drivingModel.Steers):
+            if hasattr(obj, 'hand_brake'):
                 if obj.hand_brake:
                     acceleration = -MAX_BRAKING
                 elif obj.brake > 0:
@@ -157,7 +156,7 @@ class NewtonianSimulation(DrivingSimulation):
             dx, dy = int(heading_vec.x), -int(heading_vec.y)
             x, y = self.scenicToScreenVal(obj.position)
             rect_x, rect_y = self.scenicToScreenVal(obj.position + pos_vec)
-            if isinstance(obj, drivingModel.Vehicle):
+            if any('Vehicle' in cls.__name__ for cls in type(obj).__mro__):     # TODO improve?
                 self.rotated_car = pygame.transform.rotate(self.car, math.degrees(obj.heading))
                 self.screen.blit(self.rotated_car, (rect_x, rect_y))
             else:
