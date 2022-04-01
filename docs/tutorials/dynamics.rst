@@ -318,6 +318,8 @@ either ``car1`` or ``car2``, the requirement on line 4 will fail and we will rej
 simulation. Note the necessity of the ``wait`` statement on line 9: if we omitted it, the
 loop could run forever without any time actually passing in the simulation.
 
+..  _guards:
+
 Preconditions and Invariants
 ----------------------------
 
@@ -420,11 +422,13 @@ Trying Some Examples
 You can see all of the above syntax in action by running some of our examples of dynamic
 scenarios. We have examples written for the CARLA and LGSVL driving simulators, and those
 in :file:`examples/driving` in particular are designed to use Scenic's abstract
-:ref:`driving domain <driving_domain>` and so work in either of these simulators. You can
-find details on how to install the simulators in our :ref:`simulators` page; they should
-work on both Linux and Windows (but not macOS, at the moment).
+:ref:`driving domain <driving_domain>` and so work in either of these simulators, as well
+as Scenic's built-in Newtonian physics simulator. The Newtonian simulator is convenient
+for testing and simple experiments; you can find details on how to install the more
+realistic simulators in our :ref:`simulators` page (they should work on both Linux and
+Windows, but not macOS, at the moment).
 
-Once you have a simulator installed, you can try running one of our examples: let's take
+Let's try running
 :file:`examples/driving/badlyParkedCarPullingIn.scenic`, which implements the "a
 badly-parked car, which pulls into the road as the ego car approaches" scenario we
 mentioned above. To start out, you can run it like any other Scenic scenario to get the
@@ -437,19 +441,20 @@ usual schematic diagram of the generated scenes:
 To run dynamic simulations, add the :option:`--simulate` option (:option:`-S` for short).
 Since this scenario is not written for a particular simulator, you'll need to specify
 which one you want by using the :option:`--model` option (:option:`-m` for short) to
-select the corresponding Scenic world model: for example, to use CARLA we could add
-``--model scenic.simulators.carla.model``. It's also a good idea to put a time bound on
-the simulations, which we can do using the :option:`--time` option. Putting this
-together, we can run dynamic simulations by starting CARLA and then running:
+select the corresponding Scenic world model: for example, to use the Newtonian simulator we could add
+``--model scenic.simulators.newtonian.model``. It's also a good idea to put a time bound on
+the simulations, which we can do using the :option:`--time` option.
 
 .. code-block:: console
 
     $ scenic examples/driving/badlyParkedCarPullingIn.scenic \
         --simulate \
-        --model scenic.simulators.carla.model \
+        --model scenic.simulators.newtonian.model \
         --time 200
 
-Running the scenario in LGSVL is almost the same: the one difference is that the scenario
+Running the scenario in CARLA is exactly the same, except we use the
+``--model scenic.simulators.carla.model`` option instead (make sure to start CARLA
+running first). For LGSVL, the one difference is that this scenario
 specifies a map which LGSVL doesn't have built in; fortunately, it's easy to switch to a
 different map. For scenarios using the :ref:`driving domain <driving_domain>`, the map
 file is specified by defining a global parameter ``map``, and for the LGSVL interface we

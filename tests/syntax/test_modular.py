@@ -7,7 +7,8 @@ from scenic.core.errors import RuntimeParseError, ScenicSyntaxError
 from scenic.core.simulators import DummySimulator
 
 from tests.utils import (compileScenic, sampleEgo, sampleEgoFrom, sampleScene,
-                         sampleSceneFrom, sampleTrajectory)
+                         sampleSceneFrom, sampleTrajectory, sampleEgoActions,
+                         sampleResultOnce)
 
 # Basics
 
@@ -88,11 +89,129 @@ def test_sequential_composition():
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario, maxSteps=3)
     assert len(trajectory) == 3
-    assert len(trajectory[1]) == 1
+    assert len(trajectory[0]) == 1
+    assert len(trajectory[1]) == 2
     assert len(trajectory[2]) == 2
-    assert tuple(trajectory[1][0]) == (1, 0)
-    assert tuple(trajectory[2][0]) == (1, 0)
+    assert tuple(trajectory[0][0]) == (1, 0)
+    for i in range(1, 3):
+        assert tuple(trajectory[i][0]) == (1, 0)
+        assert tuple(trajectory[i][1]) == (5, 0)
+
+def test_subscenario_for_steps():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub(1) for 2 steps
+                do Sub(5)
+        scenario Sub(x):
+            ego = Object at x @ 0
+            terminate after 3
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario, maxSteps=3)
+    assert len(trajectory) == 4
+    assert len(trajectory[0]) == len(trajectory[1]) == 1
+    assert len(trajectory[2]) == len(trajectory[3]) == 2
+    for i in range(3):
+        assert tuple(trajectory[i][0]) == (1, 0)
+    for i in range(2, 4):
+        assert tuple(trajectory[i][1]) == (5, 0)
+
+def test_subscenario_for_time():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub(1) for 1 seconds
+                do Sub(5)
+        scenario Sub(x):
+            ego = Object at x @ 0
+            terminate after 3
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario, maxSteps=3, timestep=0.5)
+    assert len(trajectory) == 4
+    assert len(trajectory[0]) == len(trajectory[1]) == 1
+    assert len(trajectory[2]) == 2
+    for i in range(3):
+        assert tuple(trajectory[i][0]) == (1, 0)
     assert tuple(trajectory[2][1]) == (5, 0)
+
+def test_subscenario_until():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub(1) until simulation().currentTime == 2
+                do Sub(5)
+        scenario Sub(x):
+            ego = Object at x @ 0
+            terminate after 3
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario, maxSteps=3)
+    assert len(trajectory) == 4
+    assert len(trajectory[0]) == len(trajectory[1]) == 1
+    assert len(trajectory[2]) == 2
+    for i in range(3):
+        assert tuple(trajectory[i][0]) == (1, 0)
+    assert tuple(trajectory[3][1]) == (5, 0)
+
+def test_subscenario_require_eventually():
+    """Test that 'require eventually' must be satisfied before the scenario ends."""
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub()
+        scenario Sub():
+            ego = Object
+            require eventually simulation().currentTime == 2
+            terminate after 1
+    """)
+    result = sampleResultOnce(scenario)
+    assert result is None
+
+def test_initial_scenario_basic():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub()
+        scenario Sub():
+            setup:
+                if initial scenario:
+                    ego = Object
+                Object left of ego by 5
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario)
+    assert len(trajectory) == 2
+    assert len(trajectory[1]) == 2
+
+def test_initial_scenario_setup():
+    scenario = compileScenic("""
+        scenario Main():
+            setup:
+                ego = Object
+            compose:
+                do Sub()
+        scenario Sub():
+            setup:
+                if initial scenario:
+                    ego = Object
+                Object left of ego by 5
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario)
+    assert len(trajectory) == 2
+    assert len(trajectory[1]) == 2
+
+def test_initial_scenario_parallel():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub(2), Sub(5)
+        scenario Sub(x):
+            setup:
+                if initial scenario:
+                    ego = Object
+                Object left of ego by x
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario)
+    assert len(trajectory) == 2
+    assert len(trajectory[1]) == 3
 
 def test_choose_1():
     scenario = compileScenic("""
@@ -132,9 +251,7 @@ def test_choose_deadlock():
             setup:
                 ego = Object at x @ 0
     """, scenario='Main')
-    scene = sampleScene(scenario)
-    sim = DummySimulator(timestep=1)
-    result = sim.simulate(scene, maxSteps=1)
+    result = sampleResultOnce(scenario)
     assert result is None
 
 def test_shuffle_1():
@@ -151,10 +268,10 @@ def test_shuffle_1():
     for i in range(30):
         trajectory = sampleTrajectory(scenario, maxSteps=3)
         assert len(trajectory) == 3
-        assert len(trajectory[1]) == 1
-        assert len(trajectory[2]) == 2
-        assert trajectory[1][0] == (-1, 0)
-        assert trajectory[2][1] == (1, 0)
+        assert len(trajectory[0]) == 1
+        assert len(trajectory[1]) == 2
+        assert trajectory[0][0] == (-1, 0)
+        assert trajectory[1][1] == (1, 0)
 
 def test_shuffle_2():
     scenario = compileScenic("""
@@ -169,10 +286,10 @@ def test_shuffle_2():
     for i in range(30):
         trajectory = sampleTrajectory(scenario, maxSteps=3)
         assert len(trajectory) == 3
-        assert len(trajectory[1]) == 1
-        assert len(trajectory[2]) == 2
-        x1 = trajectory[1][0].x
-        x2 = trajectory[2][1].x
+        assert len(trajectory[0]) == 1
+        assert len(trajectory[1]) == 2
+        x1 = trajectory[0][0].x
+        x2 = trajectory[1][1].x
         assert x1 == 1 or x1 == 3
         assert x2 == 1 or x2 == 3
         assert x1 != x2
@@ -191,10 +308,56 @@ def test_shuffle_deadlock():
                 ego = Object at x @ 0
                 terminate after 1
     """, scenario='Main')
-    scene = sampleScene(scenario)
-    sim = DummySimulator(timestep=1)
-    result = sim.simulate(scene, maxSteps=2)
+    result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
+
+# Overrides
+
+def test_override():
+    scenario = compileScenic("""
+        scenario Main():
+            setup:
+                ego = Object with foo 1, with behavior Bar
+            compose:
+                wait
+                do Sub()
+                wait
+        scenario Sub():
+            setup:
+                override ego with foo 2
+                terminate after 1
+        behavior Bar():
+            while True:
+                take self.foo
+    """, scenario='Main')
+    actions = sampleEgoActions(scenario, maxSteps=3)
+    assert tuple(actions) == (1, 2, 1)
+
+def test_override_behavior():
+    scenario = compileScenic("""
+        scenario Main():
+            setup:
+                ego = Object with behavior Foo
+            compose:
+                wait
+                do Sub() for 2 steps
+                wait
+        scenario Sub():
+            setup:
+                override ego with behavior Bar
+        behavior Foo():
+            x = 1
+            while True:
+                take x
+                x += 1
+        behavior Bar():
+            x = -1
+            while True:
+                take x
+                x -= 1
+    """, scenario='Main')
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (1, -1, -2, 2)
 
 # Scoping
 
@@ -241,6 +404,55 @@ def test_shared_scope_del():
             ego = Object
     """, scenario='Main')
     sampleTrajectory(scenario)
+
+def test_delayed_local_argument():
+    scenario = compileScenic("""
+        scenario Foo(obj, y):
+            ego = Object left of obj by (5, y)
+        scenario Bar():
+            setup:
+                ego = Object
+                y = 12
+        scenario Main():
+            compose:
+                s1 = Bar()
+                s2 = Foo(s1.ego, s1.y)
+                do s1, s2
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario)
+    assert len(trajectory) == 2
+    assert len(trajectory[1]) == 2
+    assert tuple(trajectory[1][0]) == (0, 0)
+    assert tuple(trajectory[1][1]) == (-5.5, 12)
+
+def test_delayed_local_interrupt():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                sc = Sub()
+                try:
+                    do sc
+                interrupt when sc.ego.position.x >= 1:
+                    abort
+        scenario Sub():
+            ego = Object at (1, 0)
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario, maxSteps=2)
+    assert len(trajectory) == 2
+    assert len(trajectory[0]) == len(trajectory[1]) == 1
+
+def test_delayed_local_until():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                sc = Sub()
+                do sc until sc.ego.position.x >= 1
+        scenario Sub():
+            ego = Object at (1, 0)
+    """, scenario='Main')
+    trajectory = sampleTrajectory(scenario, maxSteps=2)
+    assert len(trajectory) == 2
+    assert len(trajectory[0]) == len(trajectory[1]) == 1
 
 def test_independent_requirements():
     scenario = compileScenic("""

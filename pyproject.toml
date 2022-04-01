@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "scenic"
-version = "2.1.0b1"
+version = "2.1.0b3"
 description = "The Scenic scenario description language."
 authors = [
 	"Daniel Fremont <dfremont@ucsc.edu>",
@@ -31,12 +31,12 @@ scipy = "^1.4.1"
 antlr4-python3-runtime = "~4.8"
 opencv-python = "^4.5.4"
 numpy = "^1.21.3"
-pillow = "^9.0.0"
+pillow = "^9.0.1"
 pynverse = "^0.1.4"
 pygame = "^2.0.1"
 attrs = "^19.3.0"
 decorator = "^5.0.9"
-importlib_metadata = { version = "^3.7", python = "~3.7" }
+importlib_metadata = { version = ">=3.7,<5", python = "~3.7" }
 
 pyproj = [
 	{version = "^3.0.0", python = "<3.10", optional = true},

@@ -54,7 +54,7 @@ class NewtonianSimulation(DrivingSimulation):
         for obj in self.objects:
             if obj.speed is not None:
                 equivVel = obj.speed*utils.vectorFromHeading(obj.heading)
-                obj.setVelocity(equivVel)
+                obj.velocity = equivVel
 
         if self.render:
             # determine window size
@@ -108,6 +108,9 @@ class NewtonianSimulation(DrivingSimulation):
         y_prop = (y - min_y) / (max_y - min_y)
         return int(x_prop * WIDTH), HEIGHT - 1 - int(y_prop * HEIGHT)
 
+    def createObjectInSimulator(self, obj):
+        pass
+
     def actionsAreCompatible(self, agent, actions):
         return True
 
@@ -120,21 +123,22 @@ class NewtonianSimulation(DrivingSimulation):
 
     def step(self):
         for obj in self.objects:
-            if obj.hand_brake:
-                acceleration = -MAX_BRAKING
-            elif obj.brake > 0:
-                acceleration = -obj.brake * MAX_BRAKING
-            else:
-                acceleration = obj.throttle * MAX_ACCELERATION
-            obj.speed += acceleration * self.timestep
-            obj.velocity = Vector(0, obj.speed).rotatedBy(obj.heading)
-            if obj.steer:
-                turning_radius = obj.length / sin(obj.steer * math.pi / 2)
-                angular_velocity = obj.speed / turning_radius
-            else:
-                angular_velocity = 0
+            if hasattr(obj, 'hand_brake'):
+                if obj.hand_brake:
+                    acceleration = -MAX_BRAKING
+                elif obj.brake > 0:
+                    acceleration = -obj.brake * MAX_BRAKING
+                else:
+                    acceleration = obj.throttle * MAX_ACCELERATION
+                obj.speed += acceleration * self.timestep
+                obj.velocity = Vector(0, obj.speed).rotatedBy(obj.heading)
+                if obj.steer:
+                    turning_radius = obj.length / sin(obj.steer * math.pi / 2)
+                    obj.angularSpeed = -obj.speed / turning_radius
+                else:
+                    obj.angularSpeed = 0
             obj.position += obj.velocity * self.timestep
-            obj.heading -= angular_velocity * self.timestep
+            obj.heading += obj.angularSpeed * self.timestep
         if self.render:
             self.draw_objects()
 
@@ -152,8 +156,12 @@ class NewtonianSimulation(DrivingSimulation):
             dx, dy = int(heading_vec.x), -int(heading_vec.y)
             x, y = self.scenicToScreenVal(obj.position)
             rect_x, rect_y = self.scenicToScreenVal(obj.position + pos_vec)
-            self.rotated_car = pygame.transform.rotate(self.car, math.degrees(obj.heading))
-            self.screen.blit(self.rotated_car, (rect_x, rect_y))
+            if any('Vehicle' in cls.__name__ for cls in type(obj).__mro__):     # TODO improve?
+                self.rotated_car = pygame.transform.rotate(self.car, math.degrees(obj.heading))
+                self.screen.blit(self.rotated_car, (rect_x, rect_y))
+            else:
+                corners = [self.scenicToScreenVal(corner) for corner in obj.corners]
+                pygame.draw.polygon(self.screen, color, corners)
 
         pygame.display.update()
         time.sleep(self.timestep)

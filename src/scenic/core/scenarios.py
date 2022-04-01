@@ -11,7 +11,7 @@ from scenic.core.regions import EmptyRegion
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
 from scenic.core.utils import areEquivalent
-from scenic.core.errors import InvalidScenarioError
+from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
 from scenic.core.dynamics import Behavior
 from scenic.core.requirements import BoundRequirement
 
@@ -209,6 +209,7 @@ class Scenario:
 					self.externalSampler.sample(feedback)
 				sample = Samplable.sampleAll(self.dependencies)
 			except RejectionException as e:
+				optionallyDebugRejection(e)
 				rejection = e
 				continue
 			rejection = None
@@ -248,6 +249,7 @@ class Scenario:
 				if rejection is not None:
 					break
 			if rejection is not None:
+				optionallyDebugRejection()
 				continue
 			# Check user-specified requirements
 			for req in activeReqs:

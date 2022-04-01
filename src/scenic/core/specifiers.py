@@ -14,7 +14,7 @@ class Specifier:
 
 	Any optionally-specified properties are evaluated as attributes of the primary value.
 	"""
-	def __init__(self, prop, value, deps=None, optionals={}, internal=False):
+	def __init__(self, prop, value, deps=None, optionals={}):
 		self.property = prop
 		self.value = value
 		if deps is None:

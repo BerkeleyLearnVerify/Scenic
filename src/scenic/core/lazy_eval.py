@@ -112,7 +112,8 @@ class DelayedArgument(LazilyEvaluable):
 
 	def __getattr__(self, name):
 		return DelayedArgument(self._requiredProperties,
-			lambda context: getattr(self.evaluateIn(context), name))
+			lambda context: getattr(self.evaluateIn(context), name),
+			_internal=True)
 
 	def __call__(self, *args, **kwargs):
 		subprops = (requiredProperties(arg) for arg in itertools.chain(args, kwargs.values()))
@@ -121,7 +122,7 @@ class DelayedArgument(LazilyEvaluable):
 			subvalues = (valueInContext(arg, context) for arg in args)
 			kwsvs = { name: valueInContext(arg, context) for name, arg in kwargs.items() }
 			return self.evaluateIn(context)(*subvalues, **kwsvs)
-		return DelayedArgument(props, value)
+		return DelayedArgument(props, value, _internal=True)
 
 # Operators which can be applied to DelayedArguments
 allowedOperators = [
@@ -149,7 +150,7 @@ def makeDelayedOperatorHandler(op):
 		def value(context):
 			subvalues = (valueInContext(arg, context) for arg in args)
 			return getattr(self.evaluateIn(context), op)(*subvalues)
-		return DelayedArgument(props, value)
+		return DelayedArgument(props, value, _internal=True)
 	return handler
 for op in allowedOperators:
 	setattr(DelayedArgument, op, makeDelayedOperatorHandler(op))
@@ -162,11 +163,11 @@ def makeDelayedFunctionCall(func, args, kwargs):
 		subvalues = (valueInContext(arg, context) for arg in args)
 		kwsubvals = { name: valueInContext(arg, context) for name, arg in kwargs.items() }
 		return func(*subvalues, **kwsubvals)
-	return DelayedArgument(props, value)
+	return DelayedArgument(props, value, _internal=True)
 
 def valueInContext(value, context):
 	"""Evaluate something in the context of an object being constructed."""
-	if isinstance(value, LazilyEvaluable):
+	if needsLazyEvaluation(value):
 		return value.evaluateIn(context)
 	else:
 		return value
