@@ -167,7 +167,7 @@ def makeDelayedFunctionCall(func, args, kwargs):
 
 def valueInContext(value, context):
 	"""Evaluate something in the context of an object being constructed."""
-	if isinstance(value, LazilyEvaluable):
+	if needsLazyEvaluation(value):
 		return value.evaluateIn(context)
 	else:
 		return value
