@@ -61,6 +61,8 @@ debugOpts.add_argument('-b', '--full-backtrace', help='show full internal backtr
                        action='store_true')
 debugOpts.add_argument('--pdb', action='store_true',
                        help='enter interactive debugger on errors (implies "-b")')
+debugOpts.add_argument('--pdb-on-reject', action='store_true',
+                       help='enter interactive debugger on rejections (implies "-b")')
 ver = metadata.version('scenic')
 debugOpts.add_argument('--version', action='version', version=f'Scenic {ver}',
                        help='print Scenic version information and exit')
@@ -85,6 +87,9 @@ delay = args.delay
 errors.showInternalBacktrace = args.full_backtrace
 if args.pdb:
     errors.postMortemDebugging = True
+    errors.showInternalBacktrace = True
+if args.pdb_on_reject:
+    errors.postMortemRejections = True
     errors.showInternalBacktrace = True
 params = {}
 for name, value in args.param:
@@ -164,7 +169,13 @@ def runSimulation(scene):
 
 try:
     if args.gather_stats is None:   # Generate scenes interactively until killed
+        import matplotlib
         import matplotlib.pyplot as plt
+        if matplotlib.get_backend().lower() == 'agg':
+            raise RuntimeError(
+                'need an interactive matplotlib backend to display scenes\n'
+                '(try installing python3-tk)')
+
         successCount = 0
         while True:
             scene, _ = generateScene()

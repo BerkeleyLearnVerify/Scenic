@@ -56,7 +56,7 @@ class NewtonianSimulation(DrivingSimulation):
         for obj in self.objects:
             if obj.speed is not None:
                 equivVel = obj.speed*utils.vectorFromHeading(obj.heading)
-                obj.setVelocity(equivVel)
+                obj.velocity = equivVel
 
         if self.render:
             # determine window size
@@ -109,6 +109,9 @@ class NewtonianSimulation(DrivingSimulation):
         x_prop = (x - min_x) / (max_x - min_x)
         y_prop = (y - min_y) / (max_y - min_y)
         return int(x_prop * WIDTH), HEIGHT - 1 - int(y_prop * HEIGHT)
+
+    def createObjectInSimulator(self, obj):
+        pass
 
     def actionsAreCompatible(self, agent, actions):
         return True
@@ -173,8 +176,12 @@ class NewtonianSimulation(DrivingSimulation):
             dx, dy = int(heading_vec.x), -int(heading_vec.y)
             x, y = self.scenicToScreenVal(obj.position)
             rect_x, rect_y = self.scenicToScreenVal(obj.position + pos_vec)
-            self.rotated_car = pygame.transform.rotate(self.car, math.degrees(obj.heading))
-            self.screen.blit(self.rotated_car, (rect_x, rect_y))
+            if any('Vehicle' in cls.__name__ for cls in type(obj).__mro__):     # TODO improve?
+                self.rotated_car = pygame.transform.rotate(self.car, math.degrees(obj.heading))
+                self.screen.blit(self.rotated_car, (rect_x, rect_y))
+            else:
+                corners = [self.scenicToScreenVal(corner) for corner in obj.corners]
+                pygame.draw.polygon(self.screen, color, corners)
 
         pygame.display.update()
         time.sleep(self.timestep)

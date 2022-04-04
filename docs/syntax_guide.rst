@@ -36,7 +36,7 @@ Objects
 ===================  =============  ===========================================
    **Property**       **Default**                   **Meaning**
 -------------------  -------------  -------------------------------------------
- position             0 @ 0          position in global coordinates
+ position             (0, 0)         position in global coordinates
  viewDistance          50            distance for the ‘can see’ operator
  mutationScale         0             overall scale of mutations
  positionStdDev        1             mutation standard deviation for position

@@ -47,7 +47,7 @@ class _Constructible(Samplable):
 			if any(defn.isDynamic for defn in defs):
 				dyns.append(prop)
 		cls._defaults = resolvedDefs
-		cls._dynamicProperties = tuple(dyns)
+		cls._dynamicProperties = frozenset(dyns)
 
 	@classmethod
 	def withProperties(cls, props):
@@ -65,14 +65,31 @@ class _Constructible(Samplable):
 			self.properties = set(kwargs.keys())
 			return
 
-		# Validate specifiers
-		name = self.__class__.__name__
+		# Resolve and apply specifiers
 		specifiers = list(args)
 		for prop, val in kwargs.items():	# kwargs supported for internal use
-			specifiers.append(Specifier(prop, val, internal=True))
+			specifiers.append(Specifier(prop, val))
+		self._applySpecifiers(specifiers)
+
+		# Set up dependencies
+		deps = []
+		for prop in self.properties:
+			assert hasattr(self, prop)
+			val = getattr(self, prop)
+			deps.append(val)
+		super().__init__(deps)
+
+		# Possibly register this object
+		self._register()
+
+	def _applySpecifiers(self, specifiers, defs=None):
+		# Validate specifiers
+		name = self.__class__.__name__
+		specifiers = list(specifiers)
 		properties = dict()
 		optionals = collections.defaultdict(list)
-		defs = self.__class__._defaults
+		if defs is None:
+			defs = self.__class__._defaults
 		for spec in specifiers:
 			assert isinstance(spec, Specifier), (name, spec)
 			prop = spec.property
@@ -104,15 +121,16 @@ class _Constructible(Samplable):
 
 		# Topologically sort specifiers
 		order = []
-		seen, done = set(), set()
+		for spec in specifiers:
+			spec._dfs_state = 0
 
 		def dfs(spec):
-			if spec in done:
+			if spec._dfs_state == 2:	# finished processing this specifier
 				return
-			elif spec in seen:
+			elif spec._dfs_state == 1:	# specifier is being processed
 				raise RuntimeParseError(f'specifier for property {spec.property} '
 										'depends on itself')
-			seen.add(spec)
+			spec._dfs_state = 1
 			for dep in spec.requiredProperties:
 				child = properties.get(dep)
 				if child is None:
@@ -121,29 +139,21 @@ class _Constructible(Samplable):
 				else:
 					dfs(child)
 			order.append(spec)
-			done.add(spec)
+			spec._dfs_state = 2
 
 		for spec in specifiers:
 			dfs(spec)
 		assert len(order) == len(specifiers)
+		for spec in specifiers:
+			del spec._dfs_state
 
 		# Evaluate and apply specifiers
 		self.properties = set()		# will be filled by calls to _specify below
 		self._evaluated = DefaultIdentityDict()		# temporary cache for lazily-evaluated values
 		for spec in order:
-			spec.applyTo(self, optionalsForSpec[spec])
+			spec.applyTo(self, optionalsForSpec[spec])	# calls _specify
 		del self._evaluated
-
-		# Set up dependencies
-		deps = []
-		for prop in properties:
-			assert hasattr(self, prop)
-			val = getattr(self, prop)
-			deps.append(val)
-		super().__init__(deps)
-
-		# Possibly register this object
-		self._register()
+		assert self.properties == set(properties)
 
 	def _specify(self, prop, value):
 		assert prop not in self.properties
@@ -159,6 +169,24 @@ class _Constructible(Samplable):
 
 	def _register(self):
 		pass	# do nothing by default; may be overridden by subclasses
+
+	def _override(self, specifiers):
+		assert not needsSampling(self)
+		oldVals = {}
+		for spec in specifiers:
+			prop = spec.property
+			if prop in self._dynamicProperties:
+				raise RuntimeParseError(f'cannot override dynamic property "{prop}"')
+			if prop not in self.properties:
+				raise RuntimeParseError(f'object has no property "{prop}" to override')
+			oldVals[prop] = getattr(self, prop)
+		defs = { prop: Specifier(prop, getattr(self, prop)) for prop in self.properties }
+		self._applySpecifiers(specifiers, defs=defs)
+		return oldVals
+
+	def _revert(self, oldVals):
+		for prop, val in oldVals.items():
+			object.__setattr__(self, prop, val)
 
 	def sampleGiven(self, value):
 		return self.withProperties({ prop: value[getattr(self, prop)]
@@ -347,6 +375,11 @@ class OrientedPoint(Point):
 
 	def relativePosition(self, vec):
 		return self.position.offsetRotated(self.heading, vec)
+
+	def distancePast(self, vec):
+		"""Distance past a given point, assuming we've been moving in a straight line."""
+		diff = self.position - vec
+		return diff.rotatedBy(-self.heading).y
 
 	def toHeading(self) -> float:
 		return self.heading

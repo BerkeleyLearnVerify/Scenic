@@ -145,7 +145,7 @@ class ExternalSampler:
 		Args:
 			feedback: Feedback from the last sample (for active samplers).
 		"""
-		self.cachedSample, self.cachedInfo = self.nextSample(feedback)
+		self.cachedSample = self.nextSample(feedback)
 
 	def nextSample(self, feedback):
 		"""Actually do the sampling. Implemented by subclasses."""
