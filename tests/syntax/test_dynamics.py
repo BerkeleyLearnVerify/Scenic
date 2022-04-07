@@ -203,12 +203,16 @@ def test_behavior_namespace_interference(runLocally):
     """
     with runLocally():
         for i in range(2):
-            scenario = compileScenic("""
+            scenario = compileScenic(f"""
                 import submodule.subsub as sub
+                sub.myglobal = {i}
                 behavior Foo():
-                    take sub
+                    take sub.subsub.myglobal
                 ego = Object with behavior Foo
             """)
+            actions = sampleEgoActions(scenario)
+            assert len(actions) == 1
+            assert actions[0] == i
 
 # Implicit self
 

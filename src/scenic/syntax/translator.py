@@ -171,50 +171,47 @@ def purgeModulesUnsafeToCache(oldModules):
 
 	Args:
 		oldModules: List of names of modules loaded before compilation. These
-			will be skipped unless they are submodules of the packages listed
-			in `packagesToDoubleCheck`.
+			will be skipped.
 	"""
 	toRemove = []
-	memo = {}
 	# copy sys.modules in case it mutates during iteration (actually happens!)
 	for name, module in sys.modules.copy().items():
-		if isUnsafeToCache(module, oldModules, memo):
+		if getattr(module, '_isScenicModule', False) and name not in oldModules:
 			toRemove.append(name)
 	for name in toRemove:
+		parent, _, child = name.rpartition('.')
+		parent = sys.modules.get(parent)
+		if parent:
+			# Remove reference to purged module from parent module. This is necessary
+			# so that future imports of the purged module will properly refer to the
+			# newly-loaded version of it. See below for a long disquisition on this.
+			del parent.__dict__[child]
+
+			# Here are details on why the above line is necessary and the sorry history
+			# of my attempts to fix this type of bug (hopefully this note will prevent
+			# further self-sabotage). Suppose we have a Python package 'package'
+			# with a Scenic submodule 'submodule'. A Scenic program with the line
+			#	from package import submodule
+			# will import 2 packages, namely package and package.submodule, when first
+			# compiled. We will then purge package.submodule from sys.modules, but not
+			# package, since it is an ordinary module. So if the program is compiled a
+			# second time, the line above will NOT import package.submodule, but simply
+			# access the attribute 'submodule' of the existing package 'package'. So the
+			# reference to the old version of package.submodule will leak out.
+			# (An alternative approach, which I used to use, would be to purge all
+			# modules containing even indirect references to Scenic modules, but this
+			# opens a can of worms: the implementation of
+			#	import parent.child
+			# does not set the 'child' attribute of 'parent' if 'parent.child' is already
+			# in sys.modules, violating an invariant that Python expects [see
+			# https://docs.python.org/3/reference/import.html#submodules] and leading to
+			# confusing errors. So if parent is purged because it has some child which is
+			# a Scenic module, *all* of its children must then be purged. Since the
+			# scenic module itself can contain indirect references to Scenic modules (the
+			# world models), this means we have to purge the entire scenic package. But
+			# then whoever did 'import scenic' at the top level will be left with a
+			# reference to the old version of the Scenic module.)
 		del sys.modules[name]
-
-#: Packages to be double-checked for loose references to Scenic modules.
-#:
-#: This is a tuple of Scenic packages that may be imported prior to compilation
-#: for other purposes (e.g. during the execution of Scenic's test suite) and
-#: which can capture references to Scenic modules. These need to be checked for
-#: loose references if they were previously imported.
-packagesToDoubleCheck = ('scenic.domains', 'scenic.simulators')
-
-def isUnsafeToCache(module, oldModules, memo):
-	unsafe = memo.get(module)
-	if unsafe is not None:
-		return unsafe
-
-	memo[module] = False
-	name = module.__name__
-	if name in oldModules and not name.startswith(packagesToDoubleCheck):
-		return False
-
-	unsafe = False
-	if getattr(module, '_isScenicModule', False):
-		unsafe = True
-	else:
-		# TODO improve this somehow? recursively searching through all bindings
-		# in all recently-imported modules could be expensive (and possibly
-		# incomplete).
-		for val in module.__dict__.values():
-			if (isinstance(val, types.ModuleType)
-			    and isUnsafeToCache(val, oldModules, memo)):
-				unsafe = True
-				break
-	memo[module] = unsafe
-	return unsafe
 
 def compileStream(stream, namespace, params={}, model=None, filename='<stream>'):
 	"""Compile a stream of Scenic code and execute it in a namespace.
