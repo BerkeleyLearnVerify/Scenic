@@ -110,7 +110,7 @@ def pruneContainment(scenario, verbosity):
         container = scenario.containerOfObject(obj)
         containerPoly = regions.toPolygon(container)
         if containerPoly is None:           # the object's container must also be polygonal
-            return None
+            continue
         minRadius, _ = supportInterval(obj.inradius)
         if minRadius is not None:           # if we can lower bound the radius, erode the container
             containerPoly = containerPoly.buffer(-minRadius)
