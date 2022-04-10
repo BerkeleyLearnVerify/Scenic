@@ -241,6 +241,19 @@ def test_choose_2():
     assert any(x == -1 for x in xs)
     assert any(x == -2 for x in xs)
 
+def test_choose_3():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do choose {Sub(0): 1, Sub(1): 9}
+        scenario Sub(x):
+            setup:
+                ego = Object at x @ 0
+    """, scenario='Main')
+    xs = [sampleTrajectory(scenario, maxSteps=1)[1][0][0] for i in range(200)]
+    assert all(x == 0 or x == 1 for x in xs)
+    assert 145 <= sum(xs) < 200
+
 def test_choose_deadlock():
     scenario = compileScenic("""
         scenario Main():

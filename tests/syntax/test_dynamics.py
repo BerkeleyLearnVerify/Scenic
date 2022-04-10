@@ -847,6 +847,23 @@ def test_interrupt_abort():
     actions = sampleEgoActions(scenario, maxSteps=8)
     assert tuple(actions) == (3, 1, 2, 3, 1, 1, 1, 3)
 
+def test_interrupt_return():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take 3
+                try:
+                    for i in range(3):
+                        take 1
+                interrupt when simulation().currentTime == 2:
+                    for i in range(3):
+                        take 2
+                        return
+        ego = Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (3, 1, 2, None)
+
 # Errors
 
 def test_interrupt_unassigned_local():
