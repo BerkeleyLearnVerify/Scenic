@@ -294,6 +294,29 @@ class Scenario:
 		self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)
 
 	def conditionOn(self, scene=None, objects=(), params={}):
+		"""Condition the scenario on particular values for some objects or parameters.
+
+		This method changes the distribution of the scenario and should be used with
+		care: it does not attempt to check that the new distribution is equivalent to the
+		old one or that it has nonzero probability of satisfying the scenario's
+		requirements.
+
+		For example, to sample object #5 in the scenario once and then leave it fixed in
+		all subsequent samples::
+
+			sceneA, _ = scenario.generate()
+			scenario.conditionOn(scene=sceneA, objects=(5,))
+			sceneB, _ = scenario.generate()		# will have the same object 5 as sceneA
+
+		Args:
+			scene (Scene): Scene from which to take values for the given **objects**,
+				if any.
+			objects: Sequence of indices specifying which objects in this scenario should
+				be conditioned on the corresponding objects in **scene** (i.e. those with
+				the same index in the list of objects).
+			params (dict): Dictionary of global parameters to condition and their new
+				values (which may be constants or distributions).
+		"""
 		assert objects or params
 		assert bool(scene) == bool(objects)
 		if scene:
