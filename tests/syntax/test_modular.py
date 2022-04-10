@@ -310,6 +310,20 @@ def test_shuffle_2():
     assert any(x1 == 1 for x1 in x1s)
     assert any(x1 == 3 for x1 in x1s)
 
+def test_shuffle_3():
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do shuffle {Sub(0): 1, Sub(1): 9}
+        scenario Sub(x):
+            setup:
+                ego = Object at x @ 0
+                terminate after 1
+    """, scenario='Main')
+    xs = [sampleTrajectory(scenario, maxSteps=3)[2][0][0] for i in range(200)]
+    assert all(x == 0 or x == 1 for x in xs)
+    assert 145 <= sum(xs) < 200
+
 def test_shuffle_deadlock():
     scenario = compileScenic("""
         scenario Main():

@@ -105,11 +105,14 @@ class Invocable:
                 subs = subs[0]
             subs = (pickEnabledInvocable(subs),)
         elif schedule == 'shuffle':
+            if len(subs) == 1 and isinstance(subs[0], dict):
+                subs = subs[0]
+            else:
+                subs = {item: 1 for item in subs}
             def scheduler():
-                left = set(subs)
-                while left:
-                    choice = pickEnabledInvocable(left)
-                    left.remove(choice)
+                while subs:
+                    choice = pickEnabledInvocable(subs)
+                    subs.pop(choice)
                     yield from self._invokeInner(agent, (choice,))
         else:
             assert schedule is None
