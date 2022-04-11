@@ -35,6 +35,7 @@ the objects, distributions, etc. in the scenario. For details, see the function
 	behavior. See the **cacheImports** argument of `scenarioFromFile`.
 """
 
+from functools import reduce
 import sys
 import os
 import io
@@ -58,7 +59,7 @@ from tokenize import LEFTSHIFTEQUAL, RIGHTSHIFTEQUAL, VBAREQUAL, AMPEREQUAL, CIR
 from tokenize import INDENT, DEDENT, STRING, SEMI, DOT
 
 import ast
-from ast import parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_missing_locations
+from ast import BoolOp, parse, dump, NodeVisitor, NodeTransformer, copy_location, fix_missing_locations
 from ast import Load, Store, Del, Name, Call, Tuple, BinOp, MatMult, BitAnd, BitOr, BitXor, LShift
 from ast import RShift, Starred, Lambda, AnnAssign, Set, Str, Subscript, Index, IfExp
 from ast import Num, Yield, YieldFrom, FunctionDef, Attribute, Constant, Assign, Expr
@@ -651,10 +652,13 @@ TEMPORAL_AND = "TemporalAnd"
 TEMPORAL_OR = "TemporalOr"
 TEMPORAL_NOT = "TemporalNot"
 TEMPORAL_ATOMIC_PROPOSITION = "TemporalAtomicProposition"
+UNTIL = "Until"
+infixUntilMarker = "_Scenic_infixop_until"
 
 TEMPORAL_PROPOSITION_FACTORY = (
     (TEMPORAL_AND, TEMPORAL_OR, TEMPORAL_NOT, TEMPORAL_ATOMIC_PROPOSITION)
     + tuple(impl for _, impl in temporalPrefixOperators.items()) # prefix operators
+	+ (UNTIL,)
 )
 
 ## Direct syntax replacements
@@ -663,6 +667,7 @@ replacements = {	# TODO police the usage of these? could yield bizarre error mes
 	'of': tuple(),
 	'deg': ((STAR, '*'), (NUMBER, '0.01745329252')),
 	'globalParameters': ((NAME, 'globalParameters'), (LPAR, '('), (RPAR, ')')),
+	'until': ((NAME, 'and'), (NAME, infixUntilMarker), (NAME, 'and'))
 }
 
 twoWordReplacements = {
@@ -1570,6 +1575,7 @@ class ASTSurgeon(NodeTransformer):
 				keyword(arg="syntaxId", value=syntaxIdConst),
 			],
 		)
+		copy_location(ap, node)
 
 		return ap
 
@@ -1586,6 +1592,49 @@ class ASTSurgeon(NodeTransformer):
 			# Note: BoolOp is either `and` or `or` so it always needs transformation inside a requirement
 			lineNum = Constant(node.lineno)
 			copy_location(lineNum, node) # TODO(shun): what should be the second argument?
+
+			# check if this is actually `UNTIL`
+			groupByUntilMarker = [[]]
+			# go over the operand and split operands by UNTIL
+			for operand in node.values:
+				if isinstance(operand, Name) and operand.id == infixUntilMarker:
+					groupByUntilMarker.append([])
+				else:
+					copy_location(operand, node)
+					groupByUntilMarker[-1].append(operand)
+			if len(groupByUntilMarker) > 1:
+				# this is `UNTIL` operator. Reconstruct AST
+				untilOperands = []
+				for group in groupByUntilMarker:
+					operand = self.visit(copy_location(BoolOp(op=And(), values=group), node)) if len(group) > 1 else self.visit(group[0])
+					if not self.is_temporal_requirement_factory(operand):
+						operand = self._create_atomic_proposition_factory(operand)
+					copy_location(operand, node)
+					untilOperands.append(operand)
+				for op in untilOperands:
+					copy_location(op, node)
+
+				def reduce_until(lhs, rhs):
+					syntaxId = self._register_requirement_syntax(node)
+					syntaxIdConst = Constant(syntaxId)
+					copy_location(syntaxIdConst, node)
+					return copy_location(
+						Call(
+							func=Name(
+								id="Until",
+								ctx=Load()
+							),
+							# pass a list of operands as the first argument
+							args=[rhs, lhs],
+							keywords=[
+								keyword(arg="line", value=lineNum),
+								keyword(arg="syntaxId", value=syntaxIdConst),
+							],
+						),
+						node
+					)
+				n = reduce(reduce_until, reversed(untilOperands))
+				return copy_location(n, node)
 
 			syntaxId = self._register_requirement_syntax(node)
 			syntaxIdConst = Constant(syntaxId)
@@ -1604,10 +1653,9 @@ class ASTSurgeon(NodeTransformer):
 				operands.append(closure)
 			
 			# 2. create a function call and pass operands
-			# TODO(shun): Move this dictionary to an appropriate location
 			boolOpToFunctionName = {
-				Or: "RequirementOr",
-				And: "RequirementAnd",
+				Or: TEMPORAL_OR,
+				And: TEMPORAL_AND,
 			}
 			funcId = boolOpToFunctionName.get(type(node.op))
 			newNode = Call(
@@ -1616,7 +1664,7 @@ class ASTSurgeon(NodeTransformer):
 					ctx=Load()
 				),
 				# pass a list of operands as the first argument
-				args=[List(elts=operands, ctx=Load())],
+				args=[copy_location(List(elts=operands, ctx=Load()), node)],
 				keywords=[
 					keyword(arg="line", value=lineNum),
 					keyword(arg="syntaxId", value=syntaxIdConst),
@@ -1991,7 +2039,7 @@ class ASTSurgeon(NodeTransformer):
 				# TODO(shun): Add a test to check this
 				self.parseError(node, f"Operator {func.id} is not allowed in this statement")
 			checkedArgs = node.args
-			self.validateSimpleCall(node, (1, None), args=checkedArgs) # FIXME: Do I need this?
+			# self.validateSimpleCall(node, (1, None), args=checkedArgs) # FIXME: Do I need this?
 			rawRequirement = checkedArgs[0]
 
 			syntaxId = self._register_requirement_syntax(node)
