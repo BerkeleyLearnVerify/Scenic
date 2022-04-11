@@ -21,8 +21,9 @@ __all__ = (
 	'FrontLeft', 'FrontRight', 'BackLeft', 'BackRight',
 	'RelativeHeading', 'ApparentHeading', 'RelativePosition',
 	'DistanceFrom', 'DistancePast', 'AngleTo', 'AngleFrom', 'Follow',
+	'Always', 'Eventually', 'Next',
 	# Infix operators
-	'FieldAt', 'RelativeTo', 'OffsetAlong', 'CanSee',
+	'FieldAt', 'RelativeTo', 'OffsetAlong', 'CanSee', 'Until',
 	# Primitive types
 	'Vector', 'VectorField', 'PolygonalVectorField',
 	'Region', 'PointSetRegion', 'RectangularRegion', 'CircularRegion', 'SectorRegion',
@@ -46,7 +47,9 @@ __all__ = (
 	# Internal APIs 	# TODO remove?
 	'PropertyDefault', 'Behavior', 'Monitor', 'makeTerminationAction',
 	'BlockConclusion', 'runTryInterrupt', 'wrapStarredValue', 'callWithStarArgs',
-	'Modifier', 'DynamicScenario'
+	'Modifier', 'DynamicScenario',
+	# Temporal Operator Factories
+	'TemporalAtomicProposition', 'TemporalAnd', 'TemporalOr', 'TemporalNot',
 )
 
 # various Python types and functions used in the language but defined elsewhere
@@ -91,6 +94,7 @@ from scenic.core.errors import RuntimeParseError, InvalidScenarioError
 from scenic.core.vectors import OrientedVector
 from scenic.core.external_params import ExternalParameter
 import scenic.core.requirements as requirements
+import scenic.core.propositions as propositions
 from scenic.core.simulators import RejectSimulationException
 
 ### Internals
@@ -383,15 +387,20 @@ def require(reqID, req, line, name, prob=1):
 	if evaluatingRequirement:
 		raise RuntimeParseError('tried to create a requirement inside a requirement')
 	if currentSimulation is not None:	# requirement being evaluated at runtime
-		if prob >= 1 or random.random() <= prob:
-			result = req()
-			assert not needsSampling(result)
-			if needsLazyEvaluation(result):
-				raise RuntimeParseError(f'requirement on line {line} uses value'
-										' undefined outside of object definition')
-			if not result:
-				raise RejectSimulationException(name)
+		if req.has_temporal_operator:
+			# support monitors on dynamic requirements and create dynamic requirements
+			currentScenario._addDynamicRequirement(requirements.RequirementType.require, req, line, name)
+		else:
+			if prob >= 1 or random.random() <= prob:
+				result = req.evaluate()
+				assert not needsSampling(result)
+				if needsLazyEvaluation(result):
+					raise RuntimeParseError(f'requirement on line {line} uses value'
+											' undefined outside of object definition')
+				if not result:
+					raise RejectSimulationException(name)
 	else:	# requirement being defined at compile time
+		# TODO(shun): if req has temporal operators and prob != 1 then raise an error
 		currentScenario._addRequirement(requirements.RequirementType.require,
                                         reqID, req, line, name, prob)
 
@@ -441,8 +450,6 @@ def makeRequirement(ty, reqID, req, line, name):
 		raise RuntimeParseError(f'tried to use "{ty.value}" inside a requirement')
 	elif currentBehavior is not None:
 		raise RuntimeParseError(f'"{ty.value}" inside a behavior on line {line}')
-	elif currentSimulation is not None:
-		currentScenario._addDynamicRequirement(ty, req, line, name)
 	else:	# requirement being defined at compile time
 		currentScenario._addRequirement(ty, reqID, req, line, name, 1)
 
@@ -1042,3 +1049,22 @@ def filter(function, iterable):
 @distributionFunction
 def str(*args, **kwargs):
 	return builtins.str(*args, **kwargs)
+
+### Temporal Operators Factories
+
+def TemporalAtomicProposition(closure, *, line, syntaxId):
+	return propositions.Atomic(closure, syntaxId)
+def TemporalAnd(reqs, *, line, syntaxId):
+	return propositions.And(reqs, syntaxId)
+def TemporalOr(reqs, *, line, syntaxId):
+	return propositions.Or(reqs, syntaxId)
+def TemporalNot(req, *, line, syntaxId):
+	return propositions.Not(req, syntaxId)
+def Always(req, *, line, syntaxId):
+	return propositions.Always(req, syntaxId)
+def Eventually(req, *, line, syntaxId):
+	return propositions.Eventually(req, syntaxId)
+def Next(req, *, line, syntaxId):
+	return propositions.Next(req, syntaxId)
+def Until(lhs, rhs, *, line, syntaxId):
+	return propositions.Until(lhs, rhs, syntaxId)

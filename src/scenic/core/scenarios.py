@@ -2,6 +2,7 @@
 
 import random
 import time
+import rv_ltl
 
 from scenic.core.distributions import (Samplable, ConstantSamplable, RejectionException,
                                        needsSampling)
@@ -31,7 +32,7 @@ class Scene:
 		workspace (:obj:`~scenic.core.workspaces.Workspace`): Workspace for the scenario.
 	"""
 	def __init__(self, workspace, objects, egoObject, params,
-				 alwaysReqs=(), eventuallyReqs=(),
+				 alwaysReqs=(), eventuallyReqs=(), temporalReqs=(),
 				 terminationConds=(), termSimulationConds=(),
 				 recordedExprs=(), recordedInitialExprs=(), recordedFinalExprs=(),
 				 monitors=(), behaviorNamespaces={}, dynamicScenario=None):
@@ -39,6 +40,8 @@ class Scene:
 		self.objects = tuple(objects)
 		self.egoObject = egoObject
 		self.params = params
+		self.temporalRequirements = tuple(temporalReqs)
+		# TODO(shun): Delete always and eventually reqs in favor of temporal reqs if possible
 		self.alwaysRequirements = tuple(alwaysReqs)
 		self.eventuallyRequirements = tuple(eventuallyReqs)
 		self.terminationConditions = tuple(terminationConds)
@@ -262,7 +265,7 @@ class Scenario:
 				continue
 			# Check user-specified requirements
 			for req in activeReqs:
-				if not req.satisfiedBy(sample):
+				if req.satisfiedBy(sample) == rv_ltl.B4.FALSE:
 					rejection = str(req)
 					break
 
@@ -279,17 +282,18 @@ class Scenario:
 			sampledNamespaces[modName] = (namespace, sampledNamespace, namespace.copy())
 		alwaysReqs = (BoundRequirement(req, sample) for req in self.alwaysRequirements)
 		eventuallyReqs = (BoundRequirement(req, sample) for req in self.eventuallyRequirements)
-		terminationConds = (BoundRequirement(req, sample)
+		temporalReqs = (BoundRequirement(req, sample, req.proposition) for req in self.requirements)
+		terminationConds = (BoundRequirement(req, sample, req.proposition)
 							for req in self.terminationConditions)
-		termSimulationConds = (BoundRequirement(req, sample)
+		termSimulationConds = (BoundRequirement(req, sample, req.proposition)
 							   for req in self.terminateSimulationConditions)
-		recordedExprs = (BoundRequirement(req, sample) for req in self.recordedExprs)
-		recordedInitialExprs = (BoundRequirement(req, sample)
+		recordedExprs = (BoundRequirement(req, sample, req.proposition) for req in self.recordedExprs)
+		recordedInitialExprs = (BoundRequirement(req, sample, req.proposition)
 		                        for req in self.recordedInitialExprs)
-		recordedFinalExprs = (BoundRequirement(req, sample)
+		recordedFinalExprs = (BoundRequirement(req, sample, req.proposition)
 		                      for req in self.recordedFinalExprs)
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
-					  alwaysReqs, eventuallyReqs, terminationConds, termSimulationConds,
+					  alwaysReqs, eventuallyReqs, temporalReqs, terminationConds, termSimulationConds,
 					  recordedExprs, recordedInitialExprs,recordedFinalExprs,
 					  self.monitors, sampledNamespaces, self.dynamicScenario)
 		return scene, iterations
