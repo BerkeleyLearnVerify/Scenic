@@ -150,7 +150,7 @@ class Not(UnaryProposition):
 
 class And(PropositionNode):
 	def __init__(self, reqs, syntax_id):
-		ltl_node = rv_ltl.And(reqs)
+		ltl_node = rv_ltl.And(*[req.ltl_node for req in reqs])
 		super().__init__(syntax_id, ltl_node)
 		self.reqs = reqs
 	def __str__(self):
@@ -163,7 +163,7 @@ class And(PropositionNode):
 
 class Or(PropositionNode):
 	def __init__(self, reqs, syntax_id):
-		ltl_node = rv_ltl.Or(reqs)
+		ltl_node = rv_ltl.Or(*[req.ltl_node for req in reqs])
 		super().__init__(syntax_id, ltl_node)
 		self.reqs = reqs
 	def __str__(self):
