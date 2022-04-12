@@ -38,7 +38,7 @@ import scenic.simulators.lgsvl.model
 # -- Project information -----------------------------------------------------
 
 project = 'Scenic'
-copyright = '2021, Daniel J. Fremont.'
+copyright = '2022, Daniel J. Fremont.'
 author = 'Daniel J. Fremont, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
 
 

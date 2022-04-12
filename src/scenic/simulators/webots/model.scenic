@@ -58,7 +58,7 @@ class Ground(WebotsObject):
     Implemented using an `ElevationGrid`_ node in Webots.
 
     Attributes:
-        allowCollisions (bool): default value `False` (overriding default from `Object`).
+        allowCollisions (bool): default value `True` (overriding default from `Object`).
         webotsName (str): default value 'Ground'
 
     .. _ElevationGrid: https://www.cyberbotics.com/doc/reference/elevationgrid
