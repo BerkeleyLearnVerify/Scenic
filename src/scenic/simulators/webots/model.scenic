@@ -36,6 +36,9 @@ class WebotsObject:
         positionOffset (`Vector`): Offset to add when computing the object's
             position in Webots; for objects whose Webots ``translation`` field
             is not aligned with the center of the object.
+        rotationOffset (float): Offset to add when computing the object's
+            rotation in Webots; for objects whose front is not aligned with the
+            positive Y axis.
 
     .. _Supervisor API: https://www.cyberbotics.com/doc/reference/supervisor?tab-language=python
     """
@@ -51,6 +54,7 @@ class WebotsObject:
     resetController: True
 
     positionOffset: (0, 0)
+    rotationOffset: 0
 
 class Ground(WebotsObject):
     """Special kind of object representing a (possibly irregular) ground surface.

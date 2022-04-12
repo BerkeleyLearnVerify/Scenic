@@ -11,9 +11,9 @@ node) and then call its `simulate` method as usual to run a simulation.
 from collections import defaultdict
 import math
 
-import scenic.simulators.webots.utils as utils
 from scenic.core.simulators import Simulator, Simulation, Action
 from scenic.core.vectors import Vector
+from scenic.simulators.webots.utils import WebotsCoordinateSystem, ENU
 
 class WebotsSimulator(Simulator):
     """`Simulator` object for Webots.
@@ -24,16 +24,29 @@ class WebotsSimulator(Simulator):
     def __init__(self, supervisor):
         super().__init__()
         self.supervisor = supervisor
+        topLevelNodes = supervisor.getRoot().getField('children')
+        worldInfo = None
+        for i in range(topLevelNodes.getCount()):
+            child = topLevelNodes.getMFNode(i)
+            if child.getTypeName() == 'WorldInfo':
+                worldInfo = child
+                break
+        if not worldInfo:
+            raise RuntimeError('Webots world does not contain a WorldInfo node')
+        system = worldInfo.getField('coordinateSystem').getSFString()
+        self.coordinateSystem = WebotsCoordinateSystem(system)
 
     def createSimulation(self, scene, verbosity=0):
-        return WebotsSimulation(scene, self.supervisor)
+        return WebotsSimulation(scene, self.supervisor,
+                                coordinateSystem=self.coordinateSystem)
 
 class WebotsSimulation(Simulation):
     """`Simulation` object for Webots."""
-    def __init__(self, scene, supervisor, verbosity=0):
+    def __init__(self, scene, supervisor, verbosity=0, coordinateSystem=ENU):
         timestep = supervisor.getBasicTimeStep() / 1000
         super().__init__(scene, timestep=timestep, verbosity=verbosity)
         self.supervisor = supervisor
+        self.coordinateSystem = coordinateSystem
         self.objects = scene.objects
 
         # Find Webots objects corresponding to Scenic objects
@@ -64,7 +77,8 @@ class WebotsSimulation(Simulation):
             # get starting elevation
             if obj.elevation is None:
                 pos = webotsObj.getField('translation').getSFVec3f()
-                obj.elevation = pos[1]
+                spos = self.coordinateSystem.positionToScenic(pos)
+                obj.elevation = spos[2]
 
         # Reset Webots simulation
         supervisor.simulationResetPhysics()
@@ -75,10 +89,15 @@ class WebotsSimulation(Simulation):
     def writePropertiesToWebots(self):
         for obj, webotsObj in self.webotsObjects.items():
             # position
-            pos = utils.scenicToWebotsPosition(obj.position + obj.positionOffset, y=obj.elevation)
+            pos = self.coordinateSystem.positionFromScenic(
+                obj.position + obj.positionOffset,
+                elevation=obj.elevation
+            )
             webotsObj.getField('translation').setSFVec3f(pos)
             # heading
-            rot = utils.scenicToWebotsRotation(obj.heading)
+            rot = self.coordinateSystem.rotationFromScenic(
+                obj.heading + obj.rotationOffset
+            )
             webotsObj.getField('rotation').setSFRotation(rot)
             # battery
             battery = getattr(obj, 'battery', None)
@@ -119,12 +138,12 @@ class WebotsSimulation(Simulation):
             return { prop: getattr(obj, prop) for prop in properties }
 
         pos = webotsObj.getField('translation').getSFVec3f()
-        x, y = utils.webotsToScenicPosition(pos)
-        elevation = pos[1]
+        x, y, elevation = self.coordinateSystem.positionToScenic(pos)
         rot = webotsObj.getField('rotation').getSFRotation()
-        heading = utils.webotsToScenicRotation(rot, tolerance2D=None)
+        heading = self.coordinateSystem.rotationToScenic(rot)
         lx, ly, lz, ax, ay, az = webotsObj.getVelocity()
-        velocity = utils.webotsToScenicPosition((lx, ly, lz))
+        vx, vy, vz = self.coordinateSystem.positionToScenic((lx, ly, lz))
+        velocity = (vx, vy)
         speed = math.hypot(*velocity)
 
         values = dict(
