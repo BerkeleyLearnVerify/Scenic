@@ -1,4 +1,16 @@
-"""Generic Scenic world model for the Webots simulator."""
+"""Generic Scenic world model for the Webots simulator.
+
+This model provides a general type of object `WebotsObject` corresponding to a
+node in the Webots scene tree, as well as a few more specialized objects.
+
+Scenarios using this model cannot be launched directly from the command line
+using the :option:`--simulate` option. Instead, Webots should be started first,
+with a ``.wbt`` file that includes nodes for all the objects in the scenario
+(see the `WebotsObject` documentation for how to specify which objects
+correspond to which nodes). A supervisor node can then invoke Scenic to compile
+the scenario and run dynamic simulations: see
+:doc:`scenic.simulators.webots.simulator` for details.
+"""
 
 import math
 
@@ -12,20 +24,26 @@ simulator _errorMsg()
 class WebotsObject:
     """Abstract class for Webots objects.
 
-    The ``webotsName`` property must be set to the name of the Webots node to
-    use for this object, which must already exist in the world loaded into
-    Webots.
+    There are two ways to specify which Webots node this object corresponds to
+    (which must already exist in the world loaded into Webots): most simply,
+    you can set the ``webotsName`` property to the DEF name of the Webots node.
+    For convenience when working with many objects of the same type, you can
+    instead set the ``webotsType`` property to a prefix like 'ROCK': the
+    interface will then search for nodes called 'ROCK_0', 'ROCK_1', etc.
 
-    Also defines the ``elevation`` property as a standard way to access the Y
+    Also defines the ``elevation`` property as a standard way to access the "up"
     component of an object's position, since the Scenic built-in property
     ``position`` is only 2D. If ``elevation`` is set to :obj:`None`, it will be
-    updated to the object's Y coordinate in Webots when the simulation starts.
+    updated to the object's "up" coordinate in Webots when the simulation starts.
 
     Properties:
         elevation (float or None; dynamic): default ``None`` (see above).
         requireVisible (bool): Default value ``False`` (overriding the default
             from `Object`).
         webotsName (str): 'DEF' name of the Webots node to use for this object.
+        webotsType (str): If ``webotsName`` is not set, the first available
+            node with 'DEF' name consisting of this string followed by '_0',
+            '_1', etc. will be used for this object.
         webotsObject: Is set at runtime to a handle to the Webots node for the
             object, for use with the `Supervisor API`_. Primarily for internal
             use.
@@ -38,7 +56,7 @@ class WebotsObject:
             is not aligned with the center of the object.
         rotationOffset (float): Offset to add when computing the object's
             rotation in Webots; for objects whose front is not aligned with the
-            positive Y axis.
+            Webots North axis.
 
     .. _Supervisor API: https://www.cyberbotics.com/doc/reference/supervisor?tab-language=python
     """

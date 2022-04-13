@@ -3,7 +3,13 @@
 This interface is intended to be instantiated from inside the controller script
 of a Webots `Robot node`_ with the ``supervisor`` field set to true. Such a
 script can create a `WebotsSimulator` (passing in a reference to the supervisor
-node) and then call its `simulate` method as usual to run a simulation.
+node) and then call its `simulate` method as usual to run a simulation. For an
+example, see :file:`examples/webots/generic/controllers/scenic_supervisor.py`.
+
+Scenarios written for this interface should use our generic Webots world model
+:doc:`scenic.simulators.webots.model` or a model derived from it. Objects which
+are instances of `WebotsObject` will be matched to Webots nodes; see the model
+documentation for details.
 
 .. _Robot node: https://www.cyberbotics.com/doc/reference/robot
 """
@@ -41,7 +47,13 @@ class WebotsSimulator(Simulator):
                                 coordinateSystem=self.coordinateSystem)
 
 class WebotsSimulation(Simulation):
-    """`Simulation` object for Webots."""
+    """`Simulation` object for Webots.
+
+    Attributes:
+        supervisor: Webots supervisor node used for the simulation. This is
+            exposed for the use of scenarios which need to call Webots APIs
+            directly; e.g. :samp:`simulation().supervisor.setLabel({...})`.
+    """
     def __init__(self, scene, supervisor, verbosity=0, coordinateSystem=ENU):
         timestep = supervisor.getBasicTimeStep() / 1000
         super().__init__(scene, timestep=timestep, verbosity=verbosity)
