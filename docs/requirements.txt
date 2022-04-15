@@ -24,7 +24,7 @@ kiwisolver==1.4.2; python_version >= "3.7"
 mapbox-earcut==0.12.11
 markupsafe==2.1.1; python_version >= "3.7"
 matplotlib==3.5.1; python_version >= "3.7"
-numpy==1.21.5; python_version >= "3.7" and python_version < "3.11"
+numpy==1.21.6; python_version >= "3.7" and python_version < "3.11"
 opencv-python==4.5.5.64; python_version >= "3.6"
 packaging==21.3; python_version >= "3.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.7"
 pillow==9.1.0; python_version >= "3.7"
@@ -58,8 +58,8 @@ sphinxcontrib-qthelp==1.0.3; python_version >= "3.6"
 sphinxcontrib-serializinghtml==1.1.5; python_version >= "3.6"
 toml==0.10.2; python_version >= "3.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.7"
 tomli==2.0.1; python_version >= "3.7"
-tox==3.24.5; (python_version >= "2.7" and python_full_version < "3.0.0") or (python_full_version >= "3.5.0")
+tox==3.25.0; (python_version >= "2.7" and python_full_version < "3.0.0") or (python_full_version >= "3.5.0")
 typing-extensions==4.1.1; python_version >= "3.7" and python_version < "3.8" and (python_version >= "3.7" and python_full_version < "3.0.0" and python_version < "3.8" or python_full_version >= "3.5.0" and python_version < "3.8" and python_version >= "3.7")
 urllib3==1.26.9; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.6.0" and python_version < "4" and python_version >= "3.6"
-virtualenv==20.14.0; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0"
+virtualenv==20.14.1; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.5.0"
 zipp==3.8.0; python_version >= "3.7" and python_version < "3.8" and (python_version >= "3.7" and python_full_version < "3.0.0" and python_version < "3.8" or python_full_version >= "3.5.0" and python_version < "3.8" and python_version >= "3.7")
