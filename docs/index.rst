@@ -25,6 +25,7 @@ Table of Contents
    :caption: Introduction
 
    quickstart
+   install_notes
 
 .. toctree::
    :maxdepth: 1
