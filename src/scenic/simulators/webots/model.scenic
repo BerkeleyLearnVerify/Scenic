@@ -130,7 +130,7 @@ class Ground(WebotsObject):
         grid.getField('xDimension').setSFInt32(self.gridSizeX)
         grid.getField('xSpacing').setSFFloat(self.width / (self.gridSizeX - 1))
 
-        # For backwards compatibility with Webots <= 2019b, we check if we have 
+        # For backwards compatibility with Webots <= 2019b, we check if we have
         # zDimension and zSpacing fields. If so we set those. If not, we try to set
         # yDimension and ySpacing.
         if grid.getField('zDimension') is not None:
@@ -139,7 +139,7 @@ class Ground(WebotsObject):
         else:
             grid.getField('yDimension').setSFInt32(self.gridSizeY)
             grid.getField('ySpacing').setSFFloat(self.length / (self.gridSizeY - 1))
-        
+
         # Adjust length of height field as needed
         # (this will trigger Webots warnings, unfortunately; there seems to be no way to
         # update the length simultaneously with xDimension, etc.)
