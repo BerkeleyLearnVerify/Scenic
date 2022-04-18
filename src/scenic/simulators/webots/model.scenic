@@ -133,7 +133,7 @@ class Ground(WebotsObject):
         # For backwards compatibility with Webots <= 2019b, we check if we have 
         # zDimension and zSpacing fields. If so we set those. If not, we try to set
         # yDimension and ySpacing.
-        if getattr(grid, 'zDimension', None) != None and getattr(grid, 'zSpacing', None) != None:
+        if grid.getField('zDimension') is not None:
             grid.getField('zDimension').setSFInt32(self.gridSizeY)
             grid.getField('zSpacing').setSFFloat(self.length / (self.gridSizeY - 1))
         else:
