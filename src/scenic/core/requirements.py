@@ -200,15 +200,48 @@ class DynamicRequirement:
 
         import scenic.syntax.veneer as veneer
         scenario = veneer.currentScenario
-        def closure():
+        def closure(monitor = None):
             with veneer.executeInScenario(scenario):
-                return condition()
+                if monitor is None:
+                    result = self.condition.evaluate()
+                else:
+                    result = monitor.update()
+                return result
         self.closure = closure
+        self.condition = condition
 
     def isTrue(self):
         return self.value()
 
     def value(self):
+        return self.closure()
+
+    def __str__(self):
+        if self.name:
+            return self.name
+        else:
+            return f'"{self.ty.value}" on line {self.line}'
+
+    def toMonitor(self):
+        return DynamicMonitorRequirement(self.closure, self.condition, self.line, self.name)
+
+class DynamicMonitorRequirement:
+    def __init__(self, closure, condition, line, name):
+        self.line = line
+        self.closure = closure
+        self.name = name
+        self.condition = condition
+        self.monitor = self.condition.create_monitor()
+        self.lastValue = rv_ltl.B4.TRUE
+
+    def isTrue(self):
+        return self.value()
+
+    def value(self):
+        self.lastValue = self.closure(self.monitor)
+        return self.lastValue
+
+    def evaluate(self):
         return self.closure()
 
     def __str__(self):
