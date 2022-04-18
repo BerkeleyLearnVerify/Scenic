@@ -28,6 +28,8 @@ postMortemDebugging = False
 postMortemRejections = False
 
 #: Folders elided from backtraces when :obj:`showInternalBacktrace` is false.
+#:
+#: :meta hide-value:
 hiddenFolders = [
     pathlib.Path(scenic.core.__file__).parent,      # scenic.core submodules
     pathlib.Path(scenic.syntax.__file__).parent,    # scenic.syntax submodules

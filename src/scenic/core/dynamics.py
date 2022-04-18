@@ -5,6 +5,7 @@ import enum
 import inspect
 import itertools
 import types
+import warnings
 
 from scenic.core.distributions import Samplable, Options, toDistribution, needsSampling
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError
@@ -13,8 +14,25 @@ from scenic.core.requirements import (RequirementType, PendingRequirement,
                                       DynamicRequirement)
 from scenic.core.simulators import (RejectSimulationException, EndSimulationAction,
                                     EndScenarioAction)
-from scenic.core.utils import argsToString
+from scenic.core.utils import argsToString, alarm
 from scenic.core.workspaces import Workspace
+
+# Utilities
+
+class StuckBehaviorWarning(UserWarning):
+    """Warning issued when a behavior/scenario may have gotten stuck.
+
+    When a behavior or compose block of a modular scenario executes for a long
+    time without yielding control, there is no way to tell whether it has
+    entered an infinite loop with no take/wait statements, or is actually doing
+    some long computation. But since forgetting a wait statement in a wait loop
+    is an easy mistake, we raise this warning after a behavior/scenario has run
+    for `stuckBehaviorWarningTimeout` seconds without yielding.
+    """
+    pass
+
+#: Timeout in seconds after which a `StuckBehaviorWarning` will be raised.
+stuckBehaviorWarningTimeout = 10
 
 # Scenarios
 
@@ -87,11 +105,14 @@ class Invocable:
                 subs = subs[0]
             subs = (pickEnabledInvocable(subs),)
         elif schedule == 'shuffle':
+            if len(subs) == 1 and isinstance(subs[0], dict):
+                subs = subs[0]
+            else:
+                subs = {item: 1 for item in subs}
             def scheduler():
-                left = set(subs)
-                while left:
-                    choice = pickEnabledInvocable(left)
-                    left.remove(choice)
+                while subs:
+                    choice = pickEnabledInvocable(subs)
+                    subs.pop(choice)
                     yield from self._invokeInner(agent, (choice,))
         else:
             assert schedule is None
@@ -334,7 +355,11 @@ class DynamicScenario(Invocable):
         if self._runningIterator is None:
             composeDone = True      # compose block ended in an earlier step
         else:
-            with veneer.executeInScenario(self):
+            def alarmHandler(signum, frame):
+                warnings.warn(f'the compose block of scenario {self} is taking a long time; '
+                              'maybe you have an infinite loop with no "wait" statement?',
+                              StuckBehaviorWarning)
+            with veneer.executeInScenario(self), alarm(stuckBehaviorWarningTimeout, alarmHandler):
                 try:
                     result = self._runningIterator.send(None)
                     if isinstance(result, (EndSimulationAction, EndScenarioAction)):
@@ -601,7 +626,11 @@ class Behavior(Invocable, Samplable):
     def _step(self):
         super()._step()
         assert self._runningIterator
-        with veneer.executeInBehavior(self):
+        def alarmHandler(signum, frame):
+            warnings.warn(f'the behavior {self} is taking a long time to take an action; '
+                          'maybe you have an infinite loop with no take/wait statements?',
+                          StuckBehaviorWarning)
+        with veneer.executeInBehavior(self), alarm(stuckBehaviorWarningTimeout, alarmHandler):
             try:
                 actions = self._runningIterator.send(None)
             except StopIteration:

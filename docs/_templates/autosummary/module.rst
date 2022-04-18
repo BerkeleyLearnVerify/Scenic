@@ -2,7 +2,7 @@
 
 .. automodule:: {{ fullname }}
 
-   {% if functions or classes or exceptions %}
+   {% if attributes or functions or classes or exceptions %}
    Summary of Module Members
    =========================
 

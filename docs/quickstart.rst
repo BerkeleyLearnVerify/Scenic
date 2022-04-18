@@ -28,20 +28,11 @@ If you will be developing Scenic, add the ``-E dev`` option when invoking Poetry
 	create one. You can then run :command:`poetry shell` to create a terminal inside the
 	environment for running the commands below.
 
-.. note::
-
-	If you get an error saying that your machine does not have a compatible version, this means that you do not have Python 3.7 or later on your PATH.
-	Install a newer version of Python, either directly from the `Python website <https://www.python.org/downloads/>`_ or using `pyenv <https://github.com/pyenv/pyenv>`_ (e.g. running :command:`pyenv install 3.10.0`).
-	If you install it somewhere that is not on your PATH (so running :command:`python --version` doesn't give you the correct version), you'll need to run :command:`poetry env use /full/path/to/python` before running :command:`poetry install`.
-
 Installing via either :command:`pip` or Poetry will install all of the dependencies which are required to run Scenic.
 
 .. note::
 
-	For Windows, we recommend using `bashonwindows (the Windows subsystem for Linux) <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ on Windows 10.  Instructions for installing Poetry on bashonwindows can be found `here <https://python-poetry.org/docs/#osx-linux-bashonwindows-install-instructions>`__.
-
-	In the past, the ``shapely`` package did not install properly on Windows.
-	If you encounter this issue, try installing it manually following the instructions `here <https://github.com/Toblerity/Shapely#built-distributions>`__.
+	If you are using Windows, or encounter any errors when following the instructions above, please see our :doc:`install_notes` for suggestions.
 
 Trying Some Examples
 --------------------

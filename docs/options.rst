@@ -87,3 +87,7 @@ Debugging
 .. option:: --pdb
 
 	If an error occurs, enter the Python interactive debugger :mod:`pdb`.
+
+.. option:: --pdb-on-reject
+
+	If a scene/simulation is rejected (so that another must be sampled), enter :mod:`pdb`.

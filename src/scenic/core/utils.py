@@ -1,7 +1,9 @@
 """Assorted utility functions."""
 
 import collections
+from contextlib import contextmanager
 import math
+import signal
 import sys
 import typing
 
@@ -31,6 +33,29 @@ def argsToString(args):
     names = (f'{a[0]}={a[1]}' if isinstance(a, tuple) else str(a) for a in args)
     joinedArgs = ', '.join(names)
     return f'({joinedArgs})'
+
+@contextmanager
+def alarm(seconds, handler=None, noNesting=False):
+    if seconds <= 0:
+        yield
+        return
+    if handler is None:
+        handler = signal.SIG_IGN
+    try:
+        signal.signal(signal.SIGALRM, handler)
+        if noNesting:
+            assert oldHandler is signal.SIG_DFL, 'SIGALRM handler already installed'
+    except ValueError:
+        yield      # SIGALRM not supported on Windows
+        return
+    previous = signal.alarm(seconds)
+    if noNesting:
+        assert previous == 0, 'nested call to "alarm"'
+    try:
+        yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, signal.SIG_DFL)
 
 def areEquivalent(a, b):
     """Whether two objects are equivalent, i.e. have the same properties.

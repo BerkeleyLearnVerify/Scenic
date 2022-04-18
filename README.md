@@ -6,7 +6,7 @@
 A compiler and scenario generator for the Scenic scenario description language.
 Please see the [documentation](https://scenic-lang.readthedocs.io/) for installation instructions, as well as tutorials and other information about the Scenic language, its implementation, and its interfaces to various simulators.
 
-For a description of the language and some of its applications, see [our preprint](https://arxiv.org/abs/2010.06580), which extends our [PLDI 2019 paper](https://arxiv.org/abs/1809.09310) (*note:* the syntax of Scenic has changed slightly since that paper, and many features such as support for dynamic scenarios have been added; these are described in the preprint).
+For a description of the language and some of its applications, see [our journal paper](https://link.springer.com/article/10.1007/s10994-021-06120-5), which extends our [PLDI 2019 paper](https://arxiv.org/abs/1809.09310) (*note:* the syntax of Scenic has changed slightly since the PLDI paper, and many features such as support for dynamic scenarios have been added; these are described in the journal paper).
 Scenic was designed and implemented by Daniel J. Fremont, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia.
 
 If you have any problems using Scenic, please submit an issue to [our GitHub repository](https://github.com/BerkeleyLearnVerify/Scenic) or contact Daniel at <dfremont@ucsc.edu>.

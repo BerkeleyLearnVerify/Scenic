@@ -203,12 +203,16 @@ def test_behavior_namespace_interference(runLocally):
     """
     with runLocally():
         for i in range(2):
-            scenario = compileScenic("""
+            scenario = compileScenic(f"""
                 import submodule.subsub as sub
+                sub.myglobal = {i}
                 behavior Foo():
-                    take sub
+                    take sub.subsub.myglobal
                 ego = Object with behavior Foo
             """)
+            actions = sampleEgoActions(scenario)
+            assert len(actions) == 1
+            assert actions[0] == i
 
 # Implicit self
 
@@ -842,6 +846,23 @@ def test_interrupt_abort():
     """)
     actions = sampleEgoActions(scenario, maxSteps=8)
     assert tuple(actions) == (3, 1, 2, 3, 1, 1, 1, 3)
+
+def test_interrupt_return():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take 3
+                try:
+                    for i in range(3):
+                        take 1
+                interrupt when simulation().currentTime == 2:
+                    for i in range(3):
+                        take 2
+                        return
+        ego = Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (3, 1, 2, None)
 
 # Errors
 

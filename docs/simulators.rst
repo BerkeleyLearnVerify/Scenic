@@ -69,21 +69,25 @@ Webots
 ------
 
 We have several interfaces to the `Webots robotics simulator <https://cyberbotics.com/>`_, for different use cases.
+Our main interface provides a generic world model that can be used with any Webots world and supports dynamic scenarios.
+See the :file:`examples/webots` folder for example Scenic scenarios and Webots worlds using this interface, and `scenic.simulators.webots` for documentation.
 
-	* An interface for the Mars rover example used in `our PLDI paper`_.
-	  This interface is extremely simple and might be a good baseline for developing your own interface.
-	  See the examples in :file:`examples/webots/mars` and the documentation of `scenic.simulators.webots.mars` for details.
+Scenic also includes several more specialized world models for use with Webots:
 
-	* A general interface for traffic scenarios, used in `our VerifAI paper`_.
-	  Examples using this interface can be found in the `VerifAI repository`_; see also the documentation of `scenic.simulators.webots.road`.
+	* A model for the Mars rover example used in `our PLDI paper`_.
+	  This model is extremely simple and might be a good baseline for developing your own model.
+	  See the examples in :file:`examples/webots/mars` (including a dynamic version of the scenario from the paper) and the documentation of `scenic.simulators.webots.mars` for details.
 
-	* A more specific interface for traffic scenarios at intersections, using guideways from the `Intelligent Intersections Toolkit <https://github.com/ucbtrans/intelligent_intersection>`_.
+	* A general model for traffic scenarios, used in `our VerifAI paper`_.
+	  Examples using this model can be found in the `VerifAI repository`_; see also the documentation of `scenic.simulators.webots.road`.
+
+	* A more specific model for traffic scenarios at intersections, using guideways from the `Intelligent Intersections Toolkit <https://github.com/ucbtrans/intelligent_intersection>`_.
 	  See the examples in :file:`examples/webots/guideways` and the documentation of `scenic.simulators.webots.guideways` for details.
 
 .. note::
 
-	Our interfaces were written for the R2018 version of Webots, which is not free but has lower hardware requirements than R2019.
-	Relatively minor changes would be required to make our interfaces work with the newer `open source versions of Webots <https://github.com/cyberbotics/webots>`_.
+	The last two models above, and the example ``.wbt`` files for them, were written for the R2018 version of Webots.
+	Relatively minor changes would be required to make them work with the newer `open source versions of Webots <https://github.com/cyberbotics/webots>`_.
 	We may get around to porting them eventually; we'd also gladly accept a pull request!
 
 
