@@ -584,6 +584,17 @@ def test_require_next_2():
     """)
     sampleEgoActions(scenario, maxSteps=5)
 
+def test_require_until():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                self.blah += 1
+                take self.blah
+        ego = Object with behavior Foo, with blah 0
+        require ego.blah < 3 until ego.blah >= 3
+    """)
+    sampleEgoActions(scenario, maxSteps=5)
+
 ## Monitors
 
 def test_monitor():
