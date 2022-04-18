@@ -661,6 +661,13 @@ TEMPORAL_PROPOSITION_FACTORY = (
 	+ (UNTIL,)
 )
 
+class TemporalInfixOp(typing.NamedTuple):
+	syntax: str
+	marker: str
+	impl: str
+
+temporalInfixOperators = (TemporalInfixOp("until", "_Scenic_infixop_until", "Until"),)
+
 ## Direct syntax replacements
 
 replacements = {	# TODO police the usage of these? could yield bizarre error messages
@@ -1593,48 +1600,47 @@ class ASTSurgeon(NodeTransformer):
 			lineNum = Constant(node.lineno)
 			copy_location(lineNum, node) # TODO(shun): what should be the second argument?
 
-			# check if this is actually `UNTIL`
-			groupByUntilMarker = [[]]
-			# go over the operand and split operands by UNTIL
-			for operand in node.values:
-				if isinstance(operand, Name) and operand.id == infixUntilMarker:
-					groupByUntilMarker.append([])
-				else:
-					copy_location(operand, node)
-					groupByUntilMarker[-1].append(operand)
-			if len(groupByUntilMarker) > 1:
-				# this is `UNTIL` operator. Reconstruct AST
-				untilOperands = []
-				for group in groupByUntilMarker:
-					operand = self.visit(copy_location(BoolOp(op=And(), values=group), node)) if len(group) > 1 else self.visit(group[0])
+			for infixOp in temporalInfixOperators:
+				groups = list(
+					list(g)
+					for k, g in itertools.groupby(
+						node.values,
+						key=lambda operand: isinstance(operand, Name)
+						and operand.id == infixOp.marker,
+					)
+					if not k
+				)
+				if len(groups) != 2:
+					self.parseError(node, f"{infixOp.syntax} must take exactly two operands")
+					
+				def restoreBoolOpValues(group):
+					operand = self.visit(copy_location(BoolOp(op=node.op, values=group), node)) if len(group) > 1 else self.visit(group[0])
 					if not self.is_temporal_requirement_factory(operand):
 						operand = self._create_atomic_proposition_factory(operand)
 					copy_location(operand, node)
-					untilOperands.append(operand)
-				for op in untilOperands:
-					copy_location(op, node)
+					return operand
 
-				def reduce_until(lhs, rhs):
-					syntaxId = self._register_requirement_syntax(node)
-					syntaxIdConst = Constant(syntaxId)
-					copy_location(syntaxIdConst, node)
-					return copy_location(
-						Call(
-							func=Name(
-								id="Until",
-								ctx=Load()
-							),
-							# pass a list of operands as the first argument
-							args=[rhs, lhs],
-							keywords=[
-								keyword(arg="line", value=lineNum),
-								keyword(arg="syntaxId", value=syntaxIdConst),
-							],
+				lhs = restoreBoolOpValues(groups[0])
+				rhs = restoreBoolOpValues(groups[1])
+
+				syntaxId = self._register_requirement_syntax(node)
+				syntaxIdConst = Constant(syntaxId)
+				copy_location(syntaxIdConst, node)
+				return copy_location(
+					Call(
+						func=Name(
+							id=infixOp.impl,
+							ctx=Load()
 						),
-						node
-					)
-				n = reduce(reduce_until, reversed(untilOperands))
-				return copy_location(n, node)
+						# pass a list of operands as the first argument
+						args=[rhs, lhs],
+						keywords=[
+							keyword(arg="line", value=lineNum),
+							keyword(arg="syntaxId", value=syntaxIdConst),
+						],
+					),
+					node
+				)
 
 			syntaxId = self._register_requirement_syntax(node)
 			syntaxIdConst = Constant(syntaxId)
