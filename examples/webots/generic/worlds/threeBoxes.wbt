@@ -44,6 +44,6 @@ DEF box_2 WoodenBox {
 Robot {
   name "Supervisor"
   controller "scenic_supervisor"
-  customData "threeBoxes.scenic"
+  customData "../../../threeBoxes.scenic"
   supervisor TRUE
 }
