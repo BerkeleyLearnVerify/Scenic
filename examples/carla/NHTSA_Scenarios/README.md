@@ -1,10 +1,11 @@
 # Behavior Prediction Scenario Descriptions
 
-The following includes a library of SCENIC programs written for use with CARLA simulator, mostly based on [NHSTA's Pre-Crash Scenarios](https://rosap.ntl.bts.gov/view/dot/41932/dot_41932_DS1.pdf).
-</br>
-</br>
-For questions and concerns, please contact Francis Indaheng at findaheng@berkeley.edu or post an issue to this repo.
-</br>
+This folder includes a library of Scenic programs written for use with the CARLA simulator, mostly based on [NHTSA's Pre-Crash Scenarios](https://rosap.ntl.bts.gov/view/dot/41932/dot_41932_DS1.pdf).
+
+For questions and concerns, please contact Francis Indaheng at <findaheng@berkeley.edu> or post an issue to this repo.
+
+*Note:* These scenarios require [VerifAI](https://verifai.readthedocs.io/) to be installed, since they use VerifAI's Halton sampler by default (the sampler type can be configured as explained [here](https://scenic-lang.readthedocs.io/en/latest/modules/scenic.core.external_params.html): for example, you can add `--param verifaiSamplerType random` when running Scenic to use random sampling instead).
+
 
 ## Intersection
 
