@@ -195,8 +195,6 @@ class DynamicScenario(Invocable):
         self._monitors = []
         self._behaviors = []
         self._temporalRequirements = []
-        self._alwaysRequirements = [] # TODO(shun): Check if this can also be deleted
-        self._eventuallyRequirements = []
         self._terminationConditions = []
         self._terminateSimulationConditions = []
         self._recordedExprs = []
@@ -259,8 +257,6 @@ class DynamicScenario(Invocable):
         self._ego = scene.egoObject
         self._objects = list(scene.objects)
         self._agents = [obj for obj in scene.objects if obj.behavior is not None]
-        self._alwaysRequirements = scene.alwaysRequirements
-        self._eventuallyRequirements = scene.eventuallyRequirements
         self._temporalRequirements = scene.temporalRequirements
         self._terminationConditions = scene.terminationConditions
         self._terminateSimulationConditions = scene.terminateSimulationConditions
@@ -497,12 +493,10 @@ class DynamicScenario(Invocable):
 
     def _compileRequirements(self):
         namespace = self._dummyNamespace if self._dummyNamespace else self.__dict__
-        requirementSyntax = self._requirementSyntax
         propositionSyntax = self._propositionSyntax
-        assert requirementSyntax is not None
-        for reqID, requirement in self._pendingRequirements.items():
-            syntax = requirementSyntax[reqID] if requirementSyntax else None
-            compiledReq = requirement.compile(namespace, self, syntax, propositionSyntax)
+        assert propositionSyntax is not None
+        for _, requirement in self._pendingRequirements.items():
+            compiledReq = requirement.compile(namespace, self, propositionSyntax)
 
             self._registerCompiledRequirement(compiledReq)
             self._requirementDeps.update(compiledReq.dependencies)
@@ -510,10 +504,6 @@ class DynamicScenario(Invocable):
     def _registerCompiledRequirement(self, req):
         if req.ty is RequirementType.require:
             place = self._requirements
-        elif req.ty is RequirementType.requireAlways:
-            place = self._alwaysRequirements
-        elif req.ty is RequirementType.requireEventually:
-            place = self._eventuallyRequirements
         elif req.ty is RequirementType.terminateWhen:
             place = self._terminationConditions
         elif req.ty is RequirementType.terminateSimulationWhen:

@@ -32,8 +32,7 @@ class Scene:
 		workspace (:obj:`~scenic.core.workspaces.Workspace`): Workspace for the scenario.
 	"""
 	def __init__(self, workspace, objects, egoObject, params,
-				 alwaysReqs=(), eventuallyReqs=(), temporalReqs=(),
-				 terminationConds=(), termSimulationConds=(),
+				 temporalReqs=(), terminationConds=(), termSimulationConds=(),
 				 recordedExprs=(), recordedInitialExprs=(), recordedFinalExprs=(),
 				 monitors=(), behaviorNamespaces={}, dynamicScenario=None):
 		self.workspace = workspace
@@ -41,9 +40,6 @@ class Scene:
 		self.egoObject = egoObject
 		self.params = params
 		self.temporalRequirements = tuple(temporalReqs)
-		# TODO(shun): Delete always and eventually reqs in favor of temporal reqs if possible
-		self.alwaysRequirements = tuple(alwaysReqs)
-		self.eventuallyRequirements = tuple(eventuallyReqs)
 		self.terminationConditions = tuple(terminationConds)
 		self.terminateSimulationConditions = tuple(termSimulationConds)
 		self.recordedExprs = tuple(recordedExprs)
@@ -98,11 +94,9 @@ class Scenario:
 
 		staticReqs, alwaysReqs, terminationConds = [], [], []
 		self.requirements = tuple(dynamicScenario._requirements)	# TODO clean up
-		self.alwaysRequirements = tuple(dynamicScenario._alwaysRequirements)
-		self.eventuallyRequirements = tuple(dynamicScenario._eventuallyRequirements)
 		self.terminationConditions = tuple(dynamicScenario._terminationConditions)
 		self.terminateSimulationConditions = tuple(dynamicScenario._terminateSimulationConditions)
-		self.initialRequirements = self.requirements + self.alwaysRequirements
+		self.initialRequirements = self.requirements
 		assert all(req.constrainsSampling for req in self.initialRequirements)
 		self.recordedExprs = tuple(dynamicScenario._recordedExprs)
 		self.recordedInitialExprs = tuple(dynamicScenario._recordedInitialExprs)
@@ -280,8 +274,6 @@ class Scenario:
 		for modName, namespace in self.behaviorNamespaces.items():
 			sampledNamespace = { name: sample[value] for name, value in namespace.items() }
 			sampledNamespaces[modName] = (namespace, sampledNamespace, namespace.copy())
-		alwaysReqs = (BoundRequirement(req, sample) for req in self.alwaysRequirements)
-		eventuallyReqs = (BoundRequirement(req, sample) for req in self.eventuallyRequirements)
 		temporalReqs = (BoundRequirement(req, sample, req.proposition) for req in self.requirements)
 		terminationConds = (BoundRequirement(req, sample, req.proposition)
 							for req in self.terminationConditions)
@@ -293,7 +285,7 @@ class Scenario:
 		recordedFinalExprs = (BoundRequirement(req, sample, req.proposition)
 		                      for req in self.recordedFinalExprs)
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
-					  alwaysReqs, eventuallyReqs, temporalReqs, terminationConds, termSimulationConds,
+					  temporalReqs, terminationConds, termSimulationConds,
 					  recordedExprs, recordedInitialExprs,recordedFinalExprs,
 					  self.monitors, sampledNamespaces, self.dynamicScenario)
 		return scene, iterations

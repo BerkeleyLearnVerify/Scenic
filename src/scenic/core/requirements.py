@@ -17,8 +17,6 @@ import scenic.syntax.relations as relations
 class RequirementType(enum.Enum):
     # requirements which must hold during initial sampling
     require = 'require'
-    requireAlways = 'require always'
-    requireEventually = 'require eventually'
 
     # requirements used only during simulation
     terminateWhen = 'terminate when'
@@ -31,7 +29,7 @@ class RequirementType(enum.Enum):
 
     @property
     def constrainsSampling(self):
-        return self in (self.require, self.requireAlways)
+        return self in (self.require,)
 
 class PendingRequirement:
     def __init__(self, ty, condition, line, prob, name, ego):
@@ -54,14 +52,13 @@ class PendingRequirement:
 
         self.egoObject = ego
 
-    def compile(self, namespace, scenario, syntax=None, propositionSyntax=[]):
+    def compile(self, namespace, scenario, propositionSyntax=[]):
         """Create a closure testing the requirement in the correct runtime state.
 
         While we're at it, determine whether the requirement implies any relations
         we can use for pruning, and gather all of its dependencies.
         """
         bindings, ego, line = self.bindings, self.egoObject, self.line
-        condition = self.condition
 
         # Check whether requirement implies any relations used for pruning
         propositionIdForPruning = self.condition.check_constrains_sampling()

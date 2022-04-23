@@ -9,7 +9,7 @@ global state such as the list of all created Scenic objects.
 __all__ = (
 	# Primitive statements and functions
 	'ego', 'require', 'resample', 'param', 'globalParameters', 'mutate', 'verbosePrint',
-	'localPath', 'model', 'simulator', 'simulation', 'require_always', 'require_eventually',
+	'localPath', 'model', 'simulator', 'simulation',
 	'terminate_when', 'terminate_simulation_when', 'terminate_after', 'in_initial_scenario',
 	'override',
 	'record', 'record_initial', 'record_final',
@@ -418,19 +418,6 @@ def record_final(reqID, value, line, name):
 	if not name:
 		name = f'record{line}'
 	makeRequirement(requirements.RequirementType.recordFinal, reqID, value, line, name)
-
-def require_always(reqID, req, line, name):
-	"""Function implementing the 'require always' statement."""
-	if not name:
-		name = f'requirement on line {line}'
-	makeRequirement(requirements.RequirementType.requireAlways, reqID, req, line, name)
-
-def require_eventually(reqID, req, line, name):
-	"""Function implementing the 'require eventually' statement."""
-	if not name:
-		name = f'requirement on line {line}'
-	makeRequirement(requirements.RequirementType.requireEventually, reqID, req, line, name)
-
 
 def terminate_when(reqID, req, line, name):
 	"""Function implementing the 'terminate when' statement."""

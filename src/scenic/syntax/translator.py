@@ -290,7 +290,7 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>')
 			# Execute it
 			executeCodeIn(code, namespace)
 		# Extract scenario state from veneer and store it
-		storeScenarioStateIn(namespace, requirements, propositionSyntax) # TODO(shun): requirements should no longer be needed
+		storeScenarioStateIn(namespace, propositionSyntax)
 	finally:
 		veneer.deactivate()
 	if verbosity >= 2:
@@ -2441,7 +2441,7 @@ def executeCodeIn(code, namespace):
 
 ### TRANSLATION PHASE SEVEN: scenario construction
 
-def storeScenarioStateIn(namespace, requirementSyntax, propositionSyntax):
+def storeScenarioStateIn(namespace, propositionSyntax):
 	"""Post-process an executed Scenic module, extracting state from the veneer."""
 
 	# Save requirement syntax and other module-level information
@@ -2449,7 +2449,6 @@ def storeScenarioStateIn(namespace, requirementSyntax, propositionSyntax):
 	factory = veneer.simulatorFactory
 	bns = gatherBehaviorNamespacesFrom(moduleScenario._behaviors)
 	def handle(scenario):
-		scenario._requirementSyntax = requirementSyntax
 		scenario._propositionSyntax = propositionSyntax
 		if isinstance(scenario, type):
 			scenario._simulatorFactory = staticmethod(factory)
