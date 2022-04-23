@@ -593,11 +593,28 @@ terminatorsForStatements = {
 packageToken = (RIGHTSHIFT, '>>')
 packageNode = RShift
 
+class TemporalInfixOp(typing.NamedTuple):
+	syntax: str
+	marker: str
+	implementation: str
+
+	def toInfixOp(self):
+		return InfixOp(
+			self.syntax,
+			self.implementation,
+			2,
+			((Name, "or"), (Name, f"_Scenic_infixop_{self.syntax}"), (Name, "or")),
+			None,
+			(requireStatement,)
+		)
+
+temporalInfixOperators = (TemporalInfixOp("until", "_Scenic_infixop_until", "Until"),)
+
 class InfixOp(typing.NamedTuple):
 	syntax: str
 	implementation: typing.Optional[str]
 	arity: int
-	token: typing.Tuple[int, str]
+	tokens: typing.Tuple[typing.Tuple[int, str]]
 	node: ast.AST
 	contexts: typing.Optional[typing.Tuple[str]] = ()
 
@@ -605,27 +622,27 @@ infixOperators = (
 	# existing Python operators with new semantics
 	InfixOp('@', 'Vector', 2, None, MatMult),
 	# operators not in Python (in decreasing precedence order)
-	InfixOp('at', 'FieldAt', 2, (LEFTSHIFT, '<<'), LShift),
-	InfixOp('relative to', 'RelativeTo', 2, (AMPER, '&'), BitAnd),
-	InfixOp('offset by', 'RelativeTo', 2, (AMPER, '&'), BitAnd),
-	InfixOp('offset along', 'OffsetAlong', 3, (CIRCUMFLEX, '^'), BitXor),
-	InfixOp('can see', 'CanSee', 2, (VBAR, '|'), BitOr),
+	InfixOp('at', 'FieldAt', 2, ((LEFTSHIFT, '<<'),), LShift),
+	InfixOp('relative to', 'RelativeTo', 2, ((AMPER, '&'),), BitAnd),
+	InfixOp('offset by', 'RelativeTo', 2, ((AMPER, '&'),), BitAnd),
+	InfixOp('offset along', 'OffsetAlong', 3, ((CIRCUMFLEX, '^'),), BitXor),
+	InfixOp('can see', 'CanSee', 2, ((VBAR, '|'),), BitOr),
 
 	# just syntactic conveniences, not really operators
-	InfixOp('from', None, 2, (COMMA, ','), None),
-	InfixOp('for', None, 2, (COMMA, ','), None, ('Follow', 'Following')),
-	InfixOp('to', None, 2, (COMMA, ','), None),
-	InfixOp('as', None, 2, (COMMA, ','), None, requirementStatements),
-	InfixOp('of', None, 2, (COMMA, ','), None, ('DistancePast')),
-	InfixOp('by', None, 2, packageToken, None)
-)
+	InfixOp('from', None, 2, ((COMMA, ','),), None),
+	InfixOp('for', None, 2, ((COMMA, ','),), None, ('Follow', 'Following')),
+	InfixOp('to', None, 2, ((COMMA, ','),), None),
+	InfixOp('as', None, 2, ((COMMA, ','),), None, requirementStatements),
+	InfixOp('of', None, 2, ((COMMA, ','),), None, ('DistancePast')),
+	InfixOp('by', None, 2, (packageToken,), None)
+) + tuple(op.toInfixOp() for op in temporalInfixOperators)
 
 infixTokens = {}
 infixImplementations = {}
 infixIncipits = set()
 for op in infixOperators:
 	# if necessary, set up map from Scenic to Python syntax
-	if op.token is not None:
+	if op.tokens is not None:
 		tokens = tuple(op.syntax.split(' '))
 		assert 1 <= len(tokens) <= 2, op
 		assert tokens not in infixTokens, op
@@ -645,7 +662,7 @@ for op in infixOperators:
 			assert imp == oldName, (op, oldName)
 		else:
 			infixImplementations[node] = (op.arity, imp)
-generalInfixOps = { tokens: op.token for tokens, op in infixTokens.items() if not op.contexts }
+generalInfixOps = { tokens: op.tokens for tokens, op in infixTokens.items() if not op.contexts }
 
 ## Temporal Proposition Constructors
 TEMPORAL_AND = "TemporalAnd"
@@ -661,12 +678,7 @@ TEMPORAL_PROPOSITION_FACTORY = (
 	+ (UNTIL,)
 )
 
-class TemporalInfixOp(typing.NamedTuple):
-	syntax: str
-	marker: str
-	impl: str
 
-temporalInfixOperators = (TemporalInfixOp("until", "_Scenic_infixop_until", "Until"),)
 
 ## Direct syntax replacements
 
@@ -674,7 +686,6 @@ replacements = {	# TODO police the usage of these? could yield bizarre error mes
 	'of': tuple(),
 	'deg': ((STAR, '*'), (NUMBER, '0.01745329252')),
 	'globalParameters': ((NAME, 'globalParameters'), (LPAR, '('), (RPAR, ')')),
-	'until': ((NAME, 'and'), (NAME, infixUntilMarker), (NAME, 'and'))
 }
 
 twoWordReplacements = {
@@ -691,8 +702,9 @@ illegalTokens = {
 
 # sanity check: stand-in tokens for infix operators must be illegal
 for op in infixTokens.values():
-	ttype = op.token[0]
-	assert (ttype is COMMA or ttype in illegalTokens), op
+	for token in op.tokens:
+		ttype = token[0]
+		assert (ttype is COMMA or ttype in illegalTokens or ttype is Name), op
 
 illegalConstructs = {
 	('async', 'def'),		# used to parse behaviors, so disallowed otherwise
@@ -1013,7 +1025,7 @@ class TokenTranslator:
 				else:
 					for opTokens, op in infixTokens.items():
 						if not op.contexts or context in op.contexts:
-							allowedInfixOps[opTokens] = op.token
+							allowedInfixOps[opTokens] = op.tokens
 					for name, mod in modifierNames.items():
 						if not mod.contexts or context in mod.contexts:
 							allowedModifiers[name] = mod.name
@@ -1122,7 +1134,8 @@ class TokenTranslator:
 						callFunction(allowedPrefixOps[twoWords])
 						advance()	# consume second word
 					elif not startOfStatement and twoWords in allowedInfixOps:	# 2-word infix operator
-						injectToken(allowedInfixOps[twoWords])
+						for t in allowedInfixOps[twoWords]:
+							injectToken(t, spaceAfter=1)
 						advance()	# consume second word
 						skip = True
 						matched = True
@@ -1186,7 +1199,8 @@ class TokenTranslator:
 					if oneWord in allowedPrefixOps:		# 1-word prefix operator
 						callFunction(allowedPrefixOps[oneWord])
 					elif not startOfStatement and oneWord in allowedInfixOps:	# 1-word infix operator
-						injectToken(allowedInfixOps[oneWord])
+						for t in allowedInfixOps[oneWord]:
+							injectToken(t, spaceAfter=1)
 						skip = True
 					elif inConstructorContext:		# couldn't match any 1- or 2-word specifier
 						self.parseError(token, f'unknown specifier "{tstring}"')
@@ -1629,7 +1643,7 @@ class ASTSurgeon(NodeTransformer):
 				return copy_location(
 					Call(
 						func=Name(
-							id=infixOp.impl,
+							id=infixOp.implementation,
 							ctx=Load()
 						),
 						# pass a list of operands as the first argument
