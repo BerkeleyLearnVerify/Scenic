@@ -7,6 +7,8 @@ import pathlib
 import time
 
 from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
+from scenic.core.geometry import allChains
+from scenic.core.regions import toPolygon
 from scenic.core.simulators import SimulationCreationError
 from scenic.syntax.veneer import verbosePrint
 from scenic.core.vectors import Vector
@@ -25,6 +27,13 @@ WIDTH = 1280
 HEIGHT = 800
 MAX_ACCELERATION = 5.6 # in m/s2, seems to be a pretty reasonable value
 MAX_BRAKING = 4.6
+
+ROAD_COLOR = (0, 0, 0)
+ROAD_WIDTH = 2
+LANE_COLOR = (96, 96, 96)
+CENTERLINE_COLOR = (224, 224, 224)
+SIDEWALK_COLOR = (0, 128, 255)
+SHOULDER_COLOR = (96, 96, 96)
 
 class NewtonianSimulator(DrivingSimulator):
     """Implementation of `Simulator` for the Newtonian simulator.
@@ -71,13 +80,20 @@ class NewtonianSimulation(DrivingSimulation):
                                                   pygame.HWSURFACE | pygame.DOUBLEBUF)
             self.screen.fill((255, 255, 255))
             x, y = self.ego.position
-            self.x_window = [min_x-50, max_x+50]
-            self.y_window = [min_y-50, max_y+50]
-            xlim1, xlim2 = self.x_window
-            ylim1, ylim2 = self.y_window
+            self.min_x, self.max_x = min_x-50, max_x+50
+            self.min_y, self.max_y = min_y-50, max_y+50
+            self.size_x = self.max_x - self.min_x
+            self.size_y = self.max_y - self.min_y
+            self.screen_poly = shapely.geometry.Polygon((
+                (self.min_x, self.min_y),
+                (self.max_x, self.min_y),
+                (self.max_x, self.max_y),
+                (self.min_x, self.max_y)
+            ))
+
             img_path = os.path.join(current_dir, 'car.png')
             self.car = pygame.image.load(img_path)
-            self.car_width = int(3.5 * WIDTH / (xlim2 - xlim1))
+            self.car_width = int(3.5 * WIDTH / self.size_x)
             self.car_height = self.car_width
             self.car = pygame.transform.scale(self.car, (self.car_width,
                                                          self.car_height))
@@ -88,24 +104,30 @@ class NewtonianSimulation(DrivingSimulation):
         self.network_polygons = []
         if not self.network:
             return
-        for element in self.network.elements.values():
-            if not hasattr(element, 'polygon'):
-                continue
-            if isinstance(element.polygon, shapely.geometry.multipolygon.MultiPolygon):
-                all_polygons = list(element.polygon.geoms)
-            else:
-                all_polygons = [element.polygon]
-            for poly in all_polygons:
-                if self.boundingBoxOnScreen(*poly.bounds):
-                    screenPoints = map(self.scenicToScreenVal, poly.exterior.coords)
-                    self.network_polygons.append(list(screenPoints))
+
+        def addRegion(region, color, width=1):
+            poly = toPolygon(region)
+            if not poly or not self.screen_poly.intersects(poly):
+                return
+            for chain in allChains(poly):
+                coords = tuple(self.scenicToScreenVal(pt) for pt in chain.coords)
+                self.network_polygons.append((coords, color, width))
+
+        addRegion(self.network.walkableRegion, SIDEWALK_COLOR)
+        addRegion(self.network.shoulderRegion, SHOULDER_COLOR)
+        for road in self.network.roads: # loop over main roads
+            for lane in road.lanes:
+                addRegion(lane.leftEdge, LANE_COLOR)
+                addRegion(lane.rightEdge, LANE_COLOR)
+            addRegion(road, ROAD_COLOR, ROAD_WIDTH)
+        for lane in self.network.lanes: # loop over all lanes, even in intersections
+            addRegion(lane.centerline, CENTERLINE_COLOR)
+        addRegion(self.network.intersectionRegion, ROAD_COLOR)
 
     def scenicToScreenVal(self, pos):
         x, y = pos
-        min_x, max_x = self.x_window
-        min_y, max_y = self.y_window
-        x_prop = (x - min_x) / (max_x - min_x)
-        y_prop = (y - min_y) / (max_y - min_y)
+        x_prop = (x - self.min_x) / self.size_x
+        y_prop = (y - self.min_y) / self.size_y
         return int(x_prop * WIDTH), HEIGHT - 1 - int(y_prop * HEIGHT)
 
     def createObjectInSimulator(self, obj):
@@ -114,12 +136,8 @@ class NewtonianSimulation(DrivingSimulation):
     def actionsAreCompatible(self, agent, actions):
         return True
 
-    def boundingBoxOnScreen(self, x1, y1, x2, y2):
-        min_x, max_x = self.x_window
-        min_y, max_y = self.y_window
-        onScreen = lambda x, y: min_x <= x <= max_x and min_y <= y <= max_y
-        return (onScreen(x1, y1) or onScreen(x2, y2) or
-               onScreen(x1, y2) or onScreen(x2, y1))
+    def isOnScreen(self, x, y):
+        return self.min_x <= x <= self.max_x and self.min_y <= y <= self.max_y
 
     def step(self):
         for obj in self.objects:
@@ -144,8 +162,8 @@ class NewtonianSimulation(DrivingSimulation):
 
     def draw_objects(self):
         self.screen.fill((255, 255, 255))
-        for screenPoints in self.network_polygons:
-            pygame.draw.polygon(self.screen, (0, 0, 0), list(screenPoints), width=1)
+        for screenPoints, color, width in self.network_polygons:
+            pygame.draw.lines(self.screen, color, False, screenPoints, width=width)
 
         for obj in self.objects:
             color = (255, 0, 0) if obj is self.ego else (0, 0, 255)
