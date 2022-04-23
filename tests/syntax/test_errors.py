@@ -135,6 +135,11 @@ def test_extra_infix_package():
     with pytest.raises(ASTParseError):
         compileScenic('x = 4 offset along 12 by 17 by 19')
 
+def test_extra_temporal_operands():
+    """Temporal infix operators should only take two arguments"""
+    with pytest.raises(ASTParseError):
+        compileScenic('require a or b until c or d until e')
+
 ## Ranges
 
 def test_malformed_range():
