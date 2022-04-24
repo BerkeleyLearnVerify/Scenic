@@ -62,6 +62,8 @@ Using WSL
 For greatest ease of installation, we recommend using the `Windows Subsystem for Linux <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ (WSL, a.k.a. "Bash on Windows") on Windows 10 and newer.
 Poetry can be installed on WSL in the same way as on Linux: see the instructions `here <https://python-poetry.org/docs/master/#installing-with-the-official-installer>`__.
 
+Some WSL users have reported encountering the error ``no display name and no $DISPLAY environmental variable``, but have had success applying the techniques outlined `here <https://github.com/microsoft/WSL/issues/4106#issuecomment-876470388>`_. Note that after applying this fix the command ``poetry shell`` may not work and one may need to use ``source $(poetry env info --path)/bin/activate`` instead.
+
 It is possible to run Scenic natively on Windows; however, in the past there have been issues with some of Scenic's dependencies either not providing wheels for Windows or requiring manual installation of additional libraries.
 
 Problems building Shapely

@@ -10,7 +10,7 @@ For more details, click the links for individual language constructs to go to th
 Primitive Data Types
 --------------------
 ======================= ==============================================================
-Booleans   		           expressing truth values
+:ref: `Booleans`         expressing truth values
 :ref:`Scalars`           representing distances, angles, etc. as floating-point numbers
 :ref:`Vectors`           representing positions and offsets in space
 :ref:`Headings`   		   representing orientations in space
@@ -70,9 +70,9 @@ Specifiers
 
    * - Specifier for Position
      - Meaning
-   * - at *vector*
+   * - :ref:`at *vector*`
      - Positions the object at the given global coordinates
-   * - offset by *vector*
+   * - :ref:`offset by *vector*`
      - Positions the object at the given coordinates in the local coordinate system of ego (which must already be defined)
    * - :ref:`offset along *direction* by *vector*`
      - Positions the object at the given coordinates, in a local coordinate system centered at ego and oriented along the given direction
@@ -81,8 +81,8 @@ Specifiers
    * - :ref:`(ahead of | behind) *vector* [by *scalar*]`
      - As above, except placing the object ahead of or behind the given position
    * - :ref:`beyond *vector* by *vector* [from *vector*]`
-     - Positions the object at coordinates given by the second vector, centered at the first vector and oriented along the line of sight from the ego
-   * - visible [from (*Point* | *OrientedPoint*)]
+     - Positions the object at coordinates given by the second vector, centered at the first vector and oriented along the line of sight from the third vector/ego
+   * - :ref:`visible [from (*Point* | *OrientedPoint*)]`
      - Positions the object uniformly at random in the visible region of the ego, or of the given Point/OrientedPoint if given
 
 .. list-table::
@@ -95,8 +95,8 @@ Specifiers
      - Positions the object uniformly at random in the given Region
    * - :ref:`(left | right) of (*OrientedPoint* | *Object*) [by *scalar*]`
      - Positions the object to the left/right of the given OrientedPoint, depending on the object’s width
-   * - (ahead of | behind) (*OrientedPoint* | *Object*) [by *scalar* ]
-     - As above, except positioning the object ahead of or behind the given OrientedPoint, thereby depending on height
+   * - :ref:`(ahead of | behind) (*OrientedPoint* | *Object*) [by *scalar* ]`
+     - As above, except positioning the object ahead of or behind the given OrientedPoint, thereby depending on length
    * - :ref:`following *vectorField* [from *vector* ] for *scalar*`
      - Positions the object at a point obtained by following the given vector field for the given distance starting from ego
 
@@ -107,11 +107,11 @@ Specifiers
 
    * - Specifiers for heading
      - Meaning
-   * - facing *heading*
+   * - :ref:`facing *heading*`
      - Orients the object along the given heading in global coordinates
-   * - facing *vectorField*
+   * - :ref:`facing *vectorField*`
      - Orients the object along the given vector field at the object’s position
-   * - facing (toward | away from) *vector*
+   * - :ref:`facing (toward | away from) *vector*`
      - Orients the object toward/away from the given position (thereby depending on the object’s position)
    * - :ref:`apparently facing *heading* [from *vector*]`
      - Orients the object so that it has the given heading with respect to the line of sight from ego (or from the position given by the optional from vector)
@@ -134,12 +134,12 @@ Operators
 
    * - Scalar Operators
      - Meaning
-   * - relative heading of *heading* [from *heading*]
+   * - :ref:`relative heading of *heading* [from *heading*]`
      - The relative heading of the given heading with respect to ego (or the heading provided with the optional from heading)
-   * - apparent heading of *OrientedPoint* [from *vector* ]
-     -  The apparent heading of the OrientedPoint, with respect to the line of sight from ego (or the position provided with the optional from vector )
-   * - distance [from *vector* ] to *vector*
-     - The distance to the given position from ego (or the position provided with the optional from vector )
+   * - :ref:`apparent heading of *OrientedPoint* [from *vector*]`
+     -  The apparent heading of the OrientedPoint, with respect to the line of sight from ego (or the position provided with the optional from vector)
+   * - :ref:`distance [from *vector* ] to *vector*`
+     - The distance to the given position from ego (or the position provided with the optional from vector)
    * - :ref:`angle [from *vector* ] to *vector*`
      - The heading to the given position from ego (or the position provided with the optional from vector)
 
@@ -150,7 +150,7 @@ Operators
    * - Boolean Operators
      - Meaning
    * - :ref:`(*Point* | *OrientedPoint*) can see (*vector* | *Object*)`
-     - Whether or not a position or Objectis visible from a Point or OrientedPoint. V
+     - Whether or not a position or Object is visible from a Point or OrientedPoint.
    * - :ref:`(*vector* | *Object*) in *region*`
      -  Whether a position or Object lies in the region
 
@@ -163,7 +163,7 @@ Operators
      - Meaning
    * - :ref:`*scalar* deg`
      - The given heading, interpreted as being in degrees
-   * - *vectorField* at *vector*
+   * - :ref:`*vectorField* at *vector*`
      - The heading specified by the vector field at the given position
    * - :ref:`*direction* relative to *direction*`
      - The first direction, interpreted as an offset relative to the second direction
@@ -187,10 +187,8 @@ Operators
 
    * - Region Operators
      - Meaning
-   * - visible *region*
+   * - :ref:`visible *region*`
      - The part of the given region visible from ego
-   * - *region* visible from (*Point* | *OrientedPoint*)
-     - The part of the given region visible from the given Point/OrientedPoint
 
 .. list-table::
    :widths: 80 20
@@ -200,16 +198,16 @@ Operators
      - Meaning
    * - :ref:`*vector* relative to *OrientedPoint*`
      - The given vector, interpreted in the local coordinate system of the OrientedPoint
-   * - *OrientedPoint* offset by *vector*
+   * - :ref:`*OrientedPoint* offset by *vector*`
      - Equivalent to vector relative to OrientedPoint above
-   * - (front | back | left | right) of *Object*
+   * - :ref:`(front | back | left | right) of *Object*`
      - The midpoint of the corresponding edge of the bounding box of the Object, oriented along its heading
-   * - (front | back) (left | right) of *Object*
+   * - :ref:`(front | back) (left | right) of *Object*`
      - The corresponding corner of the Object’s bounding box, also oriented along its heading
 
 
-Statements
-----------
+Standard Statements
+-------------------
 
 .. list-table::
    :widths: 30 70
@@ -225,3 +223,32 @@ Statements
      - Defines a hard requirement
    * - :ref:`mutate *identifier*, . . . [by *number* ]`
      - Enables mutation of the given list of objects
+
+Dynamic Statements
+==================
+
+.. list-table::
+   :widths: 30 70
+   :header-rows: 1
+
+   * - Syntax
+     - Meaning
+   * - :ref:`behavior *identifier*`
+     - Defines a behaviour.
+   * - :ref:`take *action*, ...`
+     - Takes the action(s) specified and pass control to the simulator until the next timestep.
+   * - :ref:`do *behavior* [until *boolean*]`
+     - Perform a behavior. If an ``until`` condition is specified then, the behavior will terminate when the condition is met.
+   * - :ref:`do *behavior* (for *scalar* seconds | for *scalar* steps)`
+     - Perform a behavior for a set number of simulation seconds/timesteps.
+   * - :ref:`interrupt when *boolean*`
+     - Defines an interrupt for a behavior.
+   * - :ref:`abort`
+     - Used in an interrupt to terminate the current behavior.
+   * - :ref:`require (always | eventually) *boolean*`
+     - Require a condition hold at each timestep (``always``) or at some point during the simulation (``eventually``).
+   * - :ref:`monitor *identifier*`
+     - Defines a monitor.
+   * - :ref:`terminate [when *boolean*]`
+     - Terminates a simulation. If a conditional is added via the when keyword, the simulation is terminated when that conditional evaluates to true.
+

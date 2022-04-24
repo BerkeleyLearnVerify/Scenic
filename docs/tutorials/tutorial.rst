@@ -92,6 +92,11 @@ interval between :samp:`{X}` and :samp:`{Y}`, and :samp:`{X} @ {Y}` creates a ve
 
 	Car offset by (Range(-10, 10), Range(20, 40))
 
+One exception to the above rules for object creation is that if the name of an object is followed
+immediately by punctuation, then an object is not created. This allows us to refer to a Scenic
+class without creating an instance of that class in the environment, which is useful for statements
+like ``isinstance(obj, Car)``, ``[Taxi, Truck]``, ``Car.staticMethod``, etc...
+
 Local Coordinate Systems
 ------------------------
 
