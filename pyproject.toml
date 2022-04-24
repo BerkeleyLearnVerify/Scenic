@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "scenic"
-version = "2.1.0b3"
+version = "2.1.0b4"
 description = "The Scenic scenario description language."
 authors = [
 	"Daniel Fremont <dfremont@ucsc.edu>",
