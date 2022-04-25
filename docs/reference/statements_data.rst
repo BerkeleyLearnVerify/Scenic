@@ -72,7 +72,7 @@ Instantiates a Scenic object from a Scenic class. Parameters are set through the
 Behaviors
 ---------
 
-    behavior *name*( *params* ):
+    behavior *name*(*params*):
         (precondition: *boolean*)*
         (invariant: *boolean*)*
         (*statement*)*
@@ -84,10 +84,10 @@ Defines a Scenic behavior, which a Scenic object can perform by using the `with 
 Monitors
 -------------------
 
-    behavior *name*( *params* ):
-        (precondition: *boolean*)*
-        (invariant: *boolean*)*
+    monitor *name*:
         (*statement*)*
+
+Defines a Scenic monitory, which runs in parallel with the 
 
 .. _scenario:
 

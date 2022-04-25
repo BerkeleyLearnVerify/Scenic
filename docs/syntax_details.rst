@@ -4,6 +4,9 @@
 Syntax Reference
 ****************
 
-* :ref:`statements_data`
-* :ref:`specifiers`
-* :ref:`operators`
+.. toctree::
+    :maxdepth: 1
+
+    reference/statements_data
+    reference/specifiers
+    reference/operators
