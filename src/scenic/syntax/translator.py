@@ -608,7 +608,10 @@ class TemporalInfixOp(typing.NamedTuple):
 			(requireStatement,)
 		)
 
-temporalInfixOperators = (TemporalInfixOp("until", "_Scenic_infixop_until", "Until"),)
+temporalInfixOperators = (
+	TemporalInfixOp("until", "_Scenic_infixop_until", "Until"),
+	TemporalInfixOp("implies", "_Scenic_infixop_implies", "Implies"),
+)
 
 class InfixOp(typing.NamedTuple):
 	syntax: str
@@ -656,12 +659,13 @@ for op in infixOperators:
 	if imp is not None:
 		assert imp in api, op
 		node = op.node
-		if node in infixImplementations:	# two operators may have the same implementation
-			oldArity, oldName = infixImplementations[node]
-			assert op.arity == oldArity, (op, oldName)
-			assert imp == oldName, (op, oldName)
-		else:
-			infixImplementations[node] = (op.arity, imp)
+		if node is not None:
+			if node in infixImplementations:	# two operators may have the same implementation
+				oldArity, oldName = infixImplementations[node]
+				assert op.arity == oldArity, (op, oldName)
+				assert imp == oldName, (op, oldName)
+			else:
+				infixImplementations[node] = (op.arity, imp)
 generalInfixOps = { tokens: op.tokens for tokens, op in infixTokens.items() if not op.contexts }
 
 ## Temporal Proposition Constructors
@@ -669,13 +673,11 @@ TEMPORAL_AND = "TemporalAnd"
 TEMPORAL_OR = "TemporalOr"
 TEMPORAL_NOT = "TemporalNot"
 TEMPORAL_ATOMIC_PROPOSITION = "TemporalAtomicProposition"
-UNTIL = "Until"
-infixUntilMarker = "_Scenic_infixop_until"
 
 TEMPORAL_PROPOSITION_FACTORY = (
     (TEMPORAL_AND, TEMPORAL_OR, TEMPORAL_NOT, TEMPORAL_ATOMIC_PROPOSITION)
     + tuple(impl for _, impl in temporalPrefixOperators.items()) # prefix operators
-	+ (UNTIL,)
+	+ tuple(op.implementation for op in temporalInfixOperators) # infix operators
 )
 
 
@@ -1624,7 +1626,12 @@ class ASTSurgeon(NodeTransformer):
 					)
 					if not k
 				)
-				if len(groups) != 2:
+
+				# if no marker is found, look for the next operator
+				if len(groups) == 1:
+					continue
+				# temporal infix operators must take exactly two operands
+				if len(groups) > 2:
 					self.parseError(node, f"{infixOp.syntax} must take exactly two operands")
 					
 				def restoreBoolOpValues(group):

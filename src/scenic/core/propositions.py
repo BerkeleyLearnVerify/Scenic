@@ -185,3 +185,15 @@ class Until(PropositionNode):
 	@property
 	def children(self):
 		return [self.lhs, self.rhs]
+
+class Implies(PropositionNode):
+	def __init__(self, lhs, rhs, syntax_id) -> None:
+		self.lhs = lhs
+		self.rhs = rhs
+		ltl_node = rv_ltl.Implies(lhs.ltl_node, rhs.ltl_node)
+		super().__init__(syntax_id, ltl_node)
+	def __str__(self):
+		return f"({self.lhs} implies {self.rhs})"
+	@property
+	def children(self):
+		return [self.lhs, self.rhs]

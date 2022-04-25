@@ -23,7 +23,7 @@ __all__ = (
 	'DistanceFrom', 'DistancePast', 'AngleTo', 'AngleFrom', 'Follow',
 	'Always', 'Eventually', 'Next',
 	# Infix operators
-	'FieldAt', 'RelativeTo', 'OffsetAlong', 'CanSee', 'Until',
+	'FieldAt', 'RelativeTo', 'OffsetAlong', 'CanSee', 'Until', 'Implies',
 	# Primitive types
 	'Vector', 'VectorField', 'PolygonalVectorField',
 	'Region', 'PointSetRegion', 'RectangularRegion', 'CircularRegion', 'SectorRegion',
@@ -1055,3 +1055,5 @@ def Next(req, *, line, syntaxId):
 	return propositions.Next(req, syntaxId)
 def Until(lhs, rhs, *, line, syntaxId):
 	return propositions.Until(lhs, rhs, syntaxId)
+def Implies(lhs, rhs, *, line, syntaxId):
+	return propositions.Implies(lhs, rhs, syntaxId)

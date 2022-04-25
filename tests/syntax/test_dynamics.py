@@ -4,7 +4,7 @@ import sys
 import pytest
 
 from scenic.core.errors import RuntimeParseError, ScenicSyntaxError
-from scenic.core.simulators import TerminationType
+from scenic.core.simulators import RejectSimulationException, TerminationType
 
 from tests.utils import (compileScenic, sampleScene, sampleActions, sampleActionsFromScene,
                          sampleEgoActions, sampleEgoActionsFromScene, sampleResult,
@@ -536,7 +536,7 @@ def test_require_always():
         actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=50)
         assert tuple(actions) == (0, 0)
 
-def test_require_eventually():
+def test_require_eventually_1():
     scenario = compileScenic("""
         behavior Foo():
             while True:
@@ -561,6 +561,18 @@ def test_require_eventually_2():
         require eventually ego.blah == 2
     """)
     sampleEgoActions(scenario, maxSteps=3)
+
+def test_require_eventually_3():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take self.blah
+                self.blah += 1
+        ego = Object with behavior Foo, with blah 0
+        require eventually ego.blah == -1
+    """)
+    with pytest.raises(RejectSimulationException):
+        sampleEgoActions(scenario, maxSteps=3)
 
 def test_require_next_1():
     scenario = compileScenic("""
@@ -592,6 +604,29 @@ def test_require_until():
                 take self.blah
         ego = Object with behavior Foo, with blah 0
         require ego.blah < 3 until ego.blah >= 3
+    """)
+    sampleEgoActions(scenario, maxSteps=5)
+
+def test_require_until_2():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                self.blah += 1
+                take self.blah
+        ego = Object with behavior Foo, with blah 0
+        require False until ego.blah > 3
+    """)
+    with pytest.raises(RejectSimulationException):
+        sampleEgoActions(scenario, maxSteps=5)
+
+def test_require_implies_1():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                self.blah += 1
+                take self.blah
+        ego = Object with behavior Foo, with blah 0
+        require ego.blah == 3 implies ego.blah % 2 == 1
     """)
     sampleEgoActions(scenario, maxSteps=5)
 
