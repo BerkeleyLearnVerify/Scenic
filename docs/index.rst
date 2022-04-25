@@ -40,9 +40,7 @@ Table of Contents
    :caption: Language and Tool Reference
 
    syntax_guide
-   reference/statements_data
-   reference/specifiers
-   reference/operators
+   syntax_details
    options
    api
    developing

@@ -84,6 +84,11 @@ Defines a Scenic behavior, which a Scenic object can perform by using the `with 
 Monitors
 -------------------
 
+    behavior *name*( *params* ):
+        (precondition: *boolean*)*
+        (invariant: *boolean*)*
+        (*statement*)*
+
 .. _scenario:
 
 Scenarios
