@@ -4,13 +4,13 @@ Syntax Guide
 ============
 
 This page summarizes the syntax of Scenic (excluding syntax inherited from Python).
-For more details, click the links for individual language constructs to go to the corresponding section of the :ref:`syntax_details`.
+For more details, click the links for individual language constructs to go to the corresponding reference section.
 
 
 Primitive Data Types
 --------------------
 ======================= ==============================================================
-:ref: `Booleans`         expressing truth values
+:ref:`Booleans`          expressing truth values
 :ref:`Scalars`           representing distances, angles, etc. as floating-point numbers
 :ref:`Vectors`           representing positions and offsets in space
 :ref:`Headings`   		   representing orientations in space
@@ -225,7 +225,7 @@ Standard Statements
      - Enables mutation of the given list of objects
 
 Dynamic Statements
-==================
+------------------
 
 .. list-table::
    :widths: 30 70
@@ -235,20 +235,18 @@ Dynamic Statements
      - Meaning
    * - :ref:`behavior *identifier*`
      - Defines a behaviour.
+   * - :ref:`monitor *identifier*`
+     - Defines a monitor.
    * - :ref:`take *action*, ...`
      - Takes the action(s) specified and pass control to the simulator until the next timestep.
    * - :ref:`do *behavior* [until *boolean*]`
      - Perform a behavior. If an ``until`` condition is specified then, the behavior will terminate when the condition is met.
    * - :ref:`do *behavior* (for *scalar* seconds | for *scalar* steps)`
      - Perform a behavior for a set number of simulation seconds/timesteps.
-   * - :ref:`interrupt when *boolean*`
-     - Defines an interrupt for a behavior.
    * - :ref:`abort`
      - Used in an interrupt to terminate the current behavior.
    * - :ref:`require (always | eventually) *boolean*`
      - Require a condition hold at each timestep (``always``) or at some point during the simulation (``eventually``).
-   * - :ref:`monitor *identifier*`
-     - Defines a monitor.
    * - :ref:`terminate [when *boolean*]`
      - Terminates a simulation. If a conditional is added via the when keyword, the simulation is terminated when that conditional evaluates to true.
 
