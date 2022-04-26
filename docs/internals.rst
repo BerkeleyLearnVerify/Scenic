@@ -46,11 +46,11 @@ In this phase we crawl the AST outputted from Phase 3 to transform it into a Pyt
 
 Phase 5: AST Compilation
 ~~~~~~~~~~~~~~~~~~~~~~~~
-TBD
+Compile the Python AST down to Python ``code`` object.
 
 Phase 6: Python Execution
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-In this phase the Python code outputted by Phase 5, which is semantically equivalent to our initial Scenic program, is executed.
+In this phase the Python ``code`` object outputted by Phase 5, which is semantically equivalent to our initial Scenic program, is executed.
 
 Phase 7: Scenario Construction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

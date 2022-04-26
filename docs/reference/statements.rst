@@ -1,49 +1,8 @@
-..  _statements_data:
+..  _statements:
 
 ***********************************
-Data Types and Statements Reference
+Statements Reference
 ***********************************
-
-Primitive Data Types
-====================
-
-.. _Booleans:
-
-Booleans
---------
-Booleans represent truth values, and can be `True` or `False`.
-
-.. _Scalars:
-
-Scalars
--------
-Scalars represent distances, angles, etc. as floating-point numbers, which can be sampled from various distributions
-
-.. _Vectors:
-
-Vectors
--------
-Vectors represent positions and offsets in space. They are constructed from coordinates with the syntax :samp:`{X} @ {Y}` (inspired by `Smalltalk <http://stephane.ducasse.free.fr/FreeBooks/BlueBook/Bluebook.pdf>`_); using a length-2 list or tuple (:samp:`[{X}, {Y}]` or :samp:`({X}, {Y})`) is also allowed.
-By convention, coordinates are in meters, although the semantics of Scenic does not depend on this. More significantly, the vector syntax is specialized for 2-dimensional space. The 2D assumption dramatically simplifies much of Scenic’s syntax (particularly that dealing with orientations, as we will see below), while still being adequate for a variety of applications. However, it is important to note that the fundamental ideas of Scenic are not specific to 2D, and it would be easy to extend our implementation of the language to support 3D space.
-
-.. _Headings:
-
-Headings
---------
-Headings represent orientations in space. Conveniently, in 2D these can be expressed using a single angle (rather than Euler angles or a quaternion). Scenic represents headings in radians, measured anticlockwise from North, so that a heading of 0 is due North and a heading of π/2 is due West. We use the convention that the heading of a local coordinate system is the heading of its y-axis, so that, for example, -2 @ 3 means 2 meters left and 3 ahead.
-
-.. _Vector Fields:
-
-Vector Fields
--------------
-Vector fields associate an orientation (i.e. a heading) to each point in space. For example, a vector field could represent the shortest paths to a destination, or the nominal traffic direction on a road.
-
-.. _Regions:
-
-Regions
--------
-Regions represent sets of points in space. Scenic provides a variety of ways to define Regions: rectangles, circular sectors, line segments, polygons, occupancy grids, and explicit lists of points. Regions can have an associated vector field giving points in the region preferred orientations. For example, a Region representing a lane of traffic could have a preferred orientation aligned with the lane, so that we can easily talk about distances along the lane, even if it curves. Another possible use of preferred orientations is to give the surface of an object normal vectors, so that other objects placed on the surface face outward by default.
-
 
 Compound Statements
 ===================
@@ -52,6 +11,8 @@ Compound Statements
 
 Classes
 -------
+
+::
 
     class *name*[(*superclass*)]:
         (*property* : *value*)*
@@ -63,41 +24,69 @@ Defines a Scenic class. Any class that does not have an explicitly defined paren
 Objects
 -------
 
+::
+
     *class* [*specifier*] [, *specifier*]
 
-Instantiates a Scenic object from a Scenic class. Parameters are set through the use of specifiers. For more details, see the :ref:`specifiers`.
+Instantiates a Scenic object from a Scenic class. Parameters are set through the use of specifiers. For more details on specifiers, see the :ref:`specifiers`. If the name of an object is followed immediately by punctuation, then an object is not created. This allows us to refer to a Scenic class without creating an instance of that class in the environment, which is useful for statements like ``isinstance(obj, Car)``, ``[Taxi, Truck]``, ``Car.staticMethod``, etc...
 
 .. _behavior:
 
 Behaviors
 ---------
 
+::
+
     behavior *name*(*params*):
         (precondition: *boolean*)*
         (invariant: *boolean*)*
         (*statement*)*
 
-Defines a Scenic behavior, which a Scenic object can perform by using the `with behavior *behavior*` syntax. Behavior preconditions are checked when a behavior is started, and invariants are checked at every timestep of the simulation (including the first like preconditions). Each timestep, behaviors must :ref:`take` specified action(s) or :ref:`wait` and perform no actions. Then the simulation advances one step and the behaviors resume right after the ``take`` or ``wait`` statement that was enacted in the last timestep. Behaviors can also be composed using :ref:`do<do *behavior* [until *boolean*]>` statements. When performing sub-behaviors, you may wish to interupt them when certain conditions are met. This can be done by using :ref:`try interrupt<try>` statements. For more information on behaviors, see :ref:`dynamic`.
+Defines a Scenic behavior, which a Scenic object can perform by using the `with behavior *behavior*` syntax. Behavior preconditions are checked when a behavior is started, and invariants are checked at every timestep of the simulation (including the first like preconditions). Each timestep, behaviors must :ref:`take` specified action(s) or :ref:`wait` and perform no actions. Then the simulation advances one step and the behaviors resume right after the ``take`` or ``wait`` statement that was enacted in the last timestep. Behaviors also have the option to :ref:`terminate<terminate [when *boolean*]>` the simulation, ending it immediately. Behaviors can also be composed using :ref:`do<do *behavior* [until *boolean*]>` statements. When performing sub-behaviors, you may wish to interupt them when certain conditions are met. This can be done by using :ref:`try interrupt<try>` statements. For more information on behaviors, see :ref:`dynamics`.
 
 .. _monitor:
 
 Monitors
 -------------------
 
+::
+
     monitor *name*:
         (*statement*)*
 
-Defines a Scenic monitory, which runs in parallel with the 
+Defines a Scenic monitor, which runs in parallel with the simulation like a behavior. Monitors however cannot take actions, and instead can either :ref:`wait` or :ref:`terminate<terminate [when *boolean*]>` the simulation. For more information on monitors, see :ref:`dynamics`.
 
 .. _scenario:
 
 Scenarios
 --------------------
 
+::
+
+    scenarios *name*(*params*):
+        (precondition: *boolean*)*
+        (invariant: *boolean*)*
+        [setup:
+            (statement)*]
+        [compose:
+            (statement)*]
+
+Defines a Scenic modular scenario. Scenario definitions, like behavior definitions, have preconditions and invariants. The body of a scenario consists of two optional parts: a setup block and a compose block. The setup block contains code that runs once when the scenario begins to execute, and is a list of statements like a top-level Scenic program. The compose block orchestrates the execution of sub-scenarios during a dynamic scenario, and may use do and any of the other statements allowed inside behaviors (except take, which only makes sense for an individual agent).
+
 .. _try:
-Try Interrupt
+Try-Interrupt
 --------------------
 
+::
+
+    try:
+        (statement)*
+    (interrupt when *boolean*:
+        (statement)*)*
+    (except *exception*:
+        (statement)*)*
+
+A ``try-interrupt`` block can be placed inside a behavior to run a series of statements, including sub behaviors, while being able to interrupt at any point if certain conditions are violated. When a ``try-interrupt`` block is encountered, the statements under ``try`` are executed. If at any point one of the ``interrupt`` conditions is met, the ``interrupt`` block is entered and run. Once the ``interrupt`` block is complete, control is returned to the statement that was being executed under the ``try`` block. If there are multiple ``interrupt`` clauses, successive clauses take precedence over those which precede them. ``except`` statements are also supported, and function identically to their Python counterparts.
 
 Standard Statements
 ===================
@@ -107,7 +96,7 @@ The following statements can occur throughout a Scenic program unless otherwise 
 .. _model *name*:
 model *name*
 ------------
-Select the world model.
+Select the world model. ``model X`` is equivalent to ``from X import *`` except that ``X`` can be replaced using the ``--model`` command-line option or the ``model`` keyword argument to the top-level APIs. 
 
 .. _import *module*:
 

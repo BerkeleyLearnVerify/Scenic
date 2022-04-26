@@ -7,6 +7,8 @@ Syntax Reference
 .. toctree::
     :maxdepth: 1
 
-    reference/statements_data
+    reference/data
+    reference/statements
     reference/specifiers
     reference/operators
+
