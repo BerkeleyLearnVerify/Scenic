@@ -178,6 +178,7 @@ class CarlaSimulation(DrivingSimulation):
 		carlaActor.set_simulate_physics(obj.physics)
 
 		if isinstance(carlaActor, carla.Vehicle):
+			# TODO should get dimensions at compile time, not simulation time
 			obj.width = carlaActor.bounding_box.extent.y * 2
 			obj.length = carlaActor.bounding_box.extent.x * 2
 			carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))

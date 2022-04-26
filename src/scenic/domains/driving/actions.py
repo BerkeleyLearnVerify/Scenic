@@ -93,7 +93,7 @@ class SetSteerAction(SteeringAction):
 	def applyTo(self, obj, sim):
 		obj.setSteering(self.steer)
 
-class SetBrakeAction(Action):
+class SetBrakeAction(SteeringAction):
 	"""Set the amount of brake.
 
 	Arguments:
@@ -135,7 +135,7 @@ class SetReverseAction(SteeringAction):
 	def applyTo(self, obj, sim):
 		obj.setReverse(self.reverse)
 
-class RegulatedControlAction(Action):
+class RegulatedControlAction(SteeringAction):
 	"""Regulated control of throttle, braking, and steering.
 
 	Controls throttle and braking using one signal that may be positive or negative.

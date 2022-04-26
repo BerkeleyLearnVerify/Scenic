@@ -197,7 +197,7 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
         past_speed = current_speed
 
 
-behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
+behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None, turn_speed=None):
     """ 
     Follows the given trajectory. The behavior terminates once the end of the trajectory is reached.
 
@@ -207,6 +207,8 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
 
     assert trajectory is not None
     assert isinstance(trajectory, list)
+    if turn_speed is None:
+        turn_speed = target_speed / 2
 
     brakeIntensity = 1.0
     distanceToEndpoint = 5 # meters
@@ -236,7 +238,7 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
 
     while True:
         if self in _model.network.intersectionRegion:
-            do TurnBehavior(trajectory_centerline, target_speed=target_speed/2)
+            do TurnBehavior(trajectory_centerline, target_speed=turn_speed)
 
         if (distance from self to end_intersection) < distanceToEndpoint:
             break

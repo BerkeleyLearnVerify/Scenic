@@ -105,7 +105,7 @@ class SetAutopilotAction(VehicleAction):
 		vehicle = obj.carlaActor
 		vehicle.set_autopilot(self.enabled, sim.tm.get_port())
 
-class SetVehicleLightStateAction(Action):
+class SetVehicleLightStateAction(VehicleAction):
 	"""Set the vehicle lights' states.
 
 	Arguments:
@@ -116,6 +116,7 @@ class SetVehicleLightStateAction(Action):
 
 	def applyTo(self, obj, sim):
 		obj.carlaActor.set_light_state(self.vehicleLightState)
+
 #################################################
 # Actions available to all carla.Walker objects #
 #################################################
