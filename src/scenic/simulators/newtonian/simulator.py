@@ -155,12 +155,6 @@ class NewtonianSimulation(DrivingSimulation):
 
     def compute_speed(self, obj):
         return math.sqrt(obj.velocity.x ** 2 + obj.velocity.y ** 2)
-    
-    def compute_angularspeed(self, obj):
-        # handle degen case
-        if obj.velocity.y == 0:
-            return 0 if obj.velocity.x >= 0 else pi
-        return atan(obj.velocity.x / obj.velocity.y)
 
     def draw_objects(self):
         self.screen.fill((255, 255, 255))
