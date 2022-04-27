@@ -11,7 +11,6 @@ from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulatio
 from scenic.core.simulators import SimulationCreationError
 from scenic.syntax.veneer import verbosePrint
 from scenic.core.vectors import Vector
-import scenic.domains.driving.model as drivingModel
 import scenic.simulators.newtonian.utils.utils as utils
 from scenic.domains.driving.roads import Network
 from scenic.syntax.translator import verbosity
@@ -125,42 +124,22 @@ class NewtonianSimulation(DrivingSimulation):
 
     def step(self):
         for obj in self.objects:
-<<<<<<< HEAD
-<<<<<<< HEAD
+            # get the speed from the velocity
+            current_speed = self.compute_speed(obj)
             if hasattr(obj, 'hand_brake'):
                 if obj.hand_brake:
                     acceleration = -MAX_BRAKING
+                    current_speed += acceleration * self.timestep
+                    current_speed = max(0, current_speed)
                 elif obj.brake > 0:
                     acceleration = -obj.brake * MAX_BRAKING
+                    current_speed += acceleration * self.timestep
+                    current_speed = max(0, current_speed)
                 else:
                     acceleration = obj.throttle * MAX_ACCELERATION
-                obj.speed += acceleration * self.timestep
-                obj.velocity = Vector(0, obj.speed).rotatedBy(obj.heading)
-                if obj.steer:
-                    turning_radius = obj.length / sin(obj.steer * math.pi / 2)
-                    obj.angularSpeed = -obj.speed / turning_radius
-                else:
-                    obj.angularSpeed = 0
-            obj.position += obj.velocity * self.timestep
-            obj.heading += obj.angularSpeed * self.timestep
-=======
-=======
-            # get the speed from the velocity
-            current_speed = self.compute_speed(obj)
->>>>>>> allowing for use of velocity when computing new speed in newtonian simulator
-            if obj.hand_brake:
-                acceleration = -MAX_BRAKING
-                current_speed += acceleration * self.timestep
-                current_speed = max(0, current_speed)
-            elif obj.brake > 0:
-                acceleration = -obj.brake * MAX_BRAKING
-                current_speed += acceleration * self.timestep
-                current_speed = max(0, current_speed)
-            else:
-                acceleration = obj.throttle * MAX_ACCELERATION
-                if obj.reverse:
-                    acceleration *= -1
-                current_speed += acceleration * self.timestep
+                    if obj.reverse:
+                        acceleration *= -1
+                    current_speed += acceleration * self.timestep
             # if manual control provided, will be in addition to the set velocity actions
             obj.velocity = Vector(0, current_speed).rotatedBy(obj.heading)
             if obj.steer:
@@ -170,17 +149,7 @@ class NewtonianSimulation(DrivingSimulation):
                 obj.angularSpeed = 0
             obj.speed = current_speed
             obj.position += obj.velocity * self.timestep
-<<<<<<< HEAD
-            obj.heading -= angular_velocity * self.timestep
-<<<<<<< HEAD
-            if obj == self.ego:
-                self.ego_actions.append((t_action, s_action))
->>>>>>> fixing brake and reversing bug in the newtonian simulator.
-=======
->>>>>>> removing previous artifacts
-=======
             obj.heading += obj.angularSpeed * self.timestep
->>>>>>> allowing for use of velocity when computing new speed in newtonian simulator
         if self.render:
             self.draw_objects()
 
