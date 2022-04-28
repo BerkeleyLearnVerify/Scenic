@@ -106,6 +106,16 @@ class DrivingObject:
 
     requireVisible: False
 
+    # Semantic category properties
+
+    @property
+    def isVehicle(self):
+        return False
+
+    @property
+    def isCar(self):
+        return False
+
     # Convenience properties
 
     @property
@@ -260,9 +270,15 @@ class Vehicle(DrivingObject):
     length: 4.5
     color: Color.defaultCarColor()
 
+    @property
+    def isVehicle(self):
+        return True
+
 class Car(Vehicle):
     """A car."""
-    pass
+    @property
+    def isCar(self):
+        return True
 
 class NPCCar(Car):
     """Car for which accurate physics is not required."""

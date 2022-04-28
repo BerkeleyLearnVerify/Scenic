@@ -21,8 +21,6 @@ else:
 simulator NewtonianSimulator(network, render=render)
 
 class NewtonianActor(DrivingObject):
-    position: None
-    velocity: None
     throttle: 0
     steer: 0
     brake: 0
@@ -58,7 +56,9 @@ class Vehicle(Vehicle, NewtonianActor):
     pass
 
 class Car(Vehicle, Steers):
-    pass
+    @property
+    def isCar(self):
+        return True
 
 class Debris:
 	"""Abstract class for debris scattered randomly in the workspace."""

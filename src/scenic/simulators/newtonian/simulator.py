@@ -14,6 +14,7 @@ from scenic.core.simulators import SimulationCreationError
 from scenic.syntax.veneer import verbosePrint
 from scenic.core.vectors import Vector
 import scenic.simulators.newtonian.utils.utils as utils
+from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
 from scenic.domains.driving.roads import Network
 from scenic.syntax.translator import verbosity
 
@@ -60,11 +61,9 @@ class NewtonianSimulation(DrivingSimulation):
         self.network = network
         self.ego = self.objects[0]
 
-        # Set actor's initial velocity (if specified)
+        # Set actor's initial speed
         for obj in self.objects:
-            if obj.speed is not None:
-                equivVel = obj.speed*utils.vectorFromHeading(obj.heading)
-                obj.velocity = equivVel
+            obj.speed = math.hypot(*obj.velocity)
 
         if self.render:
             # determine window size
@@ -142,37 +141,38 @@ class NewtonianSimulation(DrivingSimulation):
 
     def step(self):
         for obj in self.objects:
-            # get the speed from the velocity
-            current_speed = self.compute_speed(obj)
+            current_speed = obj.velocity.norm()
             if hasattr(obj, 'hand_brake'):
-                if obj.hand_brake:
-                    acceleration = -MAX_BRAKING
-                    current_speed += acceleration * self.timestep
-                    current_speed = max(0, current_speed)
-                elif obj.brake > 0:
-                    acceleration = -obj.brake * MAX_BRAKING
-                    current_speed += acceleration * self.timestep
-                    current_speed = max(0, current_speed)
+                forward = (obj.velocity.dot(Vector(0, 1).rotatedBy(obj.heading)) >= 0)
+                signed_speed = current_speed if forward else -current_speed
+                if obj.hand_brake or obj.brake > 0:
+                    braking = MAX_BRAKING * max(obj.hand_brake, obj.brake)
+                    acceleration = braking * self.timestep
+                    if acceleration >= current_speed:
+                        signed_speed = 0
+                    elif forward:
+                        signed_speed -= acceleration
+                    else:
+                        signed_speed += acceleration
                 else:
                     acceleration = obj.throttle * MAX_ACCELERATION
                     if obj.reverse:
                         acceleration *= -1
-                    current_speed += acceleration * self.timestep
-            # if manual control provided, will be in addition to the set velocity actions
-            obj.velocity = Vector(0, current_speed).rotatedBy(obj.heading)
-            if obj.steer:
-                turning_radius = obj.length / sin(obj.steer * math.pi / 2)
-                obj.angularSpeed = -current_speed / turning_radius
+                    signed_speed += acceleration * self.timestep
+
+                obj.velocity = Vector(0, signed_speed).rotatedBy(obj.heading)
+                if obj.steer:
+                    turning_radius = obj.length / sin(obj.steer * math.pi / 2)
+                    obj.angularSpeed = -signed_speed / turning_radius
+                else:
+                    obj.angularSpeed = 0
+                obj.speed = abs(signed_speed)
             else:
-                obj.angularSpeed = 0
-            obj.speed = current_speed
+                obj.speed = current_speed
             obj.position += obj.velocity * self.timestep
             obj.heading += obj.angularSpeed * self.timestep
         if self.render:
             self.draw_objects()
-
-    def compute_speed(self, obj):
-        return math.sqrt(obj.velocity.x ** 2 + obj.velocity.y ** 2)
 
     def draw_objects(self):
         self.screen.fill((255, 255, 255))
@@ -188,7 +188,7 @@ class NewtonianSimulation(DrivingSimulation):
             dx, dy = int(heading_vec.x), -int(heading_vec.y)
             x, y = self.scenicToScreenVal(obj.position)
             rect_x, rect_y = self.scenicToScreenVal(obj.position + pos_vec)
-            if any('Vehicle' in cls.__name__ for cls in type(obj).__mro__):     # TODO improve?
+            if hasattr(obj, 'isCar') and obj.isCar:
                 self.rotated_car = pygame.transform.rotate(self.car, math.degrees(obj.heading))
                 self.screen.blit(self.rotated_car, (rect_x, rect_y))
             else:
@@ -201,10 +201,41 @@ class NewtonianSimulation(DrivingSimulation):
     def getProperties(self, obj, properties):
         values = dict(
             position=obj.position,
-            elevation=obj.elevation,
             heading=obj.heading,
             velocity=obj.velocity,
             speed=obj.speed,
             angularSpeed=obj.angularSpeed,
         )
+        if 'elevation' in properties:
+            values['elevation'] = obj.elevation
         return values
+
+    def getLaneFollowingControllers(self, agent):
+        dt = self.timestep
+        if agent.isCar:
+            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.02, dt=dt)
+        else:
+            lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
+        return lon_controller, lat_controller
+
+    def getTurningControllers(self, agent):
+        dt = self.timestep
+        if agent.isCar:
+            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.2, K_D=0.2, K_I=0.2, dt=dt)
+        else:
+            lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.4, K_D=0.1, K_I=0.0, dt=dt)
+        return lon_controller, lat_controller
+
+    def getLaneChangingControllers(self, agent):
+        dt = self.timestep
+        if agent.isCar:
+            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.2, K_D=0.2, K_I=0.02, dt=dt)
+        else:
+            lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.1, K_D=0.3, K_I=0.0, dt=dt)
+        return lon_controller, lat_controller

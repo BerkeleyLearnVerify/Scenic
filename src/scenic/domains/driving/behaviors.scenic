@@ -3,10 +3,8 @@
 These behaviors are automatically imported when using the driving domain.
 """
 
-import scenic.domains.driving.controllers as controllers
 from scenic.domains.driving.actions import *
 import scenic.domains.driving.model as _model
-from scenic.simulators.carla.blueprints import *
 from scenic.domains.driving.roads import ManeuverType
 from scenic.core.regions import regionFromShapelyObject
 from shapely.geometry import LineString
@@ -14,40 +12,6 @@ import math
 
 def concatenateCenterlines(centerlines=[]):
     return PolylineRegion.unionAll(centerlines)
-
-def setLaneFollowingPIDControllers(is_vehicle, dt):
-    if is_vehicle:
-        lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-        lat_controller = controllers.PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.02, dt=dt)
-
-    else:
-        lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
-        lat_controller = controllers.PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
-
-    return lon_controller, lat_controller
-
-def setTurnPIDControllers(is_vehicle, dt):
-    if is_vehicle:
-        lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-        lat_controller = controllers.PIDLateralController(K_P=0.2, K_D=0.2, K_I=0.2, dt=dt)
-
-    else:
-        lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
-        lat_controller = controllers.PIDLateralController(K_P=0.4, K_D=0.1, K_I=0.0, dt=dt)
-
-    return lon_controller, lat_controller
-
-def setLaneChangingPIDControllers(is_vehicle, dt):
-    if is_vehicle:
-        lon_controller = controllers.PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-        lat_controller = controllers.PIDLateralController(K_P=0.2, K_D=0.2, K_I=0.02, dt=dt)
-
-    else:
-        lon_controller = controllers.PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
-        lat_controller = controllers.PIDLateralController(K_P=0.1, K_D=0.3, K_I=0.0, dt=dt)
-
-    return lon_controller, lat_controller
-
 
 behavior ConstantThrottleBehavior(x):
     while True:
@@ -112,19 +76,9 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
             nearby_intersection = current_lane.centerline[-1]
     else:
         nearby_intersection = current_lane.centerline[-1]
-
-
-    # check whether self agent is vehicle:
-    if hasattr(self, 'blueprint'):
-        is_vehicle = self.blueprint in carModels
-    else:
-        # assume it is a car
-        is_vehicle = True
-
-    dt = simulation().timestep
     
-    # instantiate longitudinal and latitudinal pid controllers
-    _lon_controller, _lat_controller = setLaneFollowingPIDControllers(is_vehicle, dt)
+    # instantiate longitudinal and lateral controllers
+    _lon_controller, _lat_controller = simulation().getLaneFollowingControllers(self)
 
     while True:
 
@@ -176,7 +130,7 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
             in_turning_lane = False
             entering_intersection = False 
             target_speed = original_target_speed
-            _lon_controller, _lat_controller = setLaneFollowingPIDControllers(is_vehicle, dt)
+            _lon_controller, _lat_controller = simulation().getLaneFollowingControllers(self)
 
         nearest_line_points = current_centerline.nearestSegmentTo(self.position)
         nearest_line_segment = PolylineRegion(nearest_line_points)
@@ -189,7 +143,7 @@ behavior FollowLaneBehavior(target_speed = 10, laneToFollow=None, is_oppositeTra
         # compute throttle : Longitudinal Control
         throttle = _lon_controller.run_step(speed_error)
 
-        # compute steering : Latitudinal Control
+        # compute steering : Lateral Control
         current_steer_angle = _lat_controller.run_step(cte)
 
         take RegulatedControlAction(throttle, current_steer_angle, past_steer_angle)
@@ -214,17 +168,8 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
     traj_centerline = [traj.centerline for traj in trajectory]
     trajectory_centerline = concatenateCenterlines(traj_centerline)
 
-    # check whether self agent is vehicle:
-    if hasattr(self, 'blueprint'):
-        is_vehicle = self.blueprint in carModels
-    else:
-        # assume it is a car
-        is_vehicle = True
-
-    dt = simulation().timestep
-    _lon_controller,_lat_controller = setLaneFollowingPIDControllers(is_vehicle, dt)
-
-    # instantiate longitudinal and latitudinal pid controllers
+    # instantiate longitudinal and lateral controllers
+    _lon_controller,_lat_controller = simulation().getLaneFollowingControllers(self)
     past_steer_angle = 0
     
     if trajectory[-1].maneuvers:
@@ -262,7 +207,7 @@ behavior FollowTrajectoryBehavior(target_speed = 10, trajectory = None):
 
 behavior TurnBehavior(trajectory, target_speed=6):
     """
-    This behavior uses a PID controller specifically tuned for turning at an intersection. 
+    This behavior uses a controller specifically tuned for turning at an intersection.
     This behavior is only operational within an intersection, 
     it will terminate if the vehicle is outside of an intersection. 
     """
@@ -272,16 +217,8 @@ behavior TurnBehavior(trajectory, target_speed=6):
     else:
         trajectory_centerline = concatenateCenterlines([traj.centerline for traj in trajectory])
 
-    dt = simulation().timestep
-    # check whether self agent is vehicle:
-    if hasattr(self, 'blueprint'):
-        is_vehicle = self.blueprint in carModels
-    else:
-        # assume it is a car
-        is_vehicle = True
-
-    # instantiate longitudinal and latitudinal pid controllers
-    _lon_controller, _lat_controller = setTurnPIDControllers(is_vehicle, dt)
+    # instantiate longitudinal and lateral controllers
+    _lon_controller, _lat_controller = simulation().getTurningControllers(self)
 
     past_steer_angle = 0
 
@@ -326,20 +263,8 @@ behavior LaneChangeBehavior(laneSectionToSwitch, is_oppositeTraffic=False, targe
     else:
         nearby_intersection = current_lane.centerline[-1]
 
-    # check whether self agent is vehicle:
-    if hasattr(self, 'blueprint'):
-        if (self.blueprint in carModels) or (self.blueprint in truckModels):
-            is_vehicle = True
-        else:
-            is_vehicle = False
-    else:
-        # assume it is a car`
-        is_vehicle = True
-
-    dt = simulation().timestep
-
-    # instantiate longitudinal and latitudinal pid controllers
-    _lon_controller, _lat_controller = setLaneChangingPIDControllers(is_vehicle, dt)
+    # instantiate longitudinal and lateral controllers
+    _lon_controller, _lat_controller = simulation().getLaneChangingControllers(self)
 
     past_steer_angle = 0
 
