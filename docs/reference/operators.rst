@@ -4,6 +4,15 @@
 Operators Reference
 *******************
 
+.. figure:: ../images/Operator_Figure.png
+  :width: 70%
+  :figclass: align-center
+  :alt: Diagram illustrating several operators.
+
+  Illustration of several operators.
+  Each ``OrientedPoint`` (e.g. ``P``) is shown as a bold arrow.
+
+
 Scalar Operators
 =================
 

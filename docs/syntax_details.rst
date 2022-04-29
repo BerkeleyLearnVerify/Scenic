@@ -8,7 +8,8 @@ Syntax Reference
     :maxdepth: 1
 
     reference/data
+    reference/distributions
     reference/statements
     reference/specifiers
     reference/operators
-
+    reference/functions

@@ -21,14 +21,87 @@ Primitive Data Types
 
 Distributions
 -------------
-================================== ==============================================================
-Range(low, high)                    uniformly-distributed real number in the interval
-DiscreteRange(low, high)            uniformly-distributed integer in the (fixed) interval
-Normal(mean, stdDev)                normal distribution with the given mean and standard deviation
-Uniform(value, ...)                 uniform over a finite set of values
-Discrete({value: weight, . . . })   discrete with given values and weights
-================================== ==============================================================
+========================================  ==============================================================
+:ref:`Range(low, high)`                   uniformly-distributed real number in the interval
+:ref:`DiscreteRange(low, high)`           uniformly-distributed integer in the (fixed) interval
+:ref:`Normal(mean, stdDev)`               normal distribution with the given mean and standard deviation
+:ref:`Uniform(value, ...)`                uniform over a finite set of values
+:ref:`DiscreteDistr`                      discrete with given values and weights
+========================================  ==============================================================
 
+Standard Statements
+-------------------
+
+.. list-table::
+   :widths: 30 70
+   :header-rows: 1
+
+   * - Syntax
+     - Meaning
+   * - :ref:`classDef`
+     - Defines a Scenic class.
+   * - :ref:`objectCreate`
+     - Creates a Scenic object.
+   * - :ref:`behaviorDef`
+     - Defines a Scenic behavior.
+   * - :ref:`monitorDef`
+     - Defines a Scenic monitor.
+   * - :ref:`modularScenarioDef`
+     - Defines a Scenic modular scenario.
+   * - :ref:`tryInterruptStmt`
+     - A try interrupt block inside a behavior.
+
+Standard Statements
+-------------------
+
+.. list-table::
+   :widths: 30 70
+   :header-rows: 1
+
+   * - Syntax
+     - Meaning
+   * - :ref:`model *name*`
+     - Select the world model.
+   * - :ref:`import *module*`
+     - Imports a Scenic or Python module
+   * - :ref:`param *identifier* = *value*, . . .`
+     - Defines global parameters of the scenario
+   * - :ref:`require *boolean*`
+     - Defines a hard requirement
+   * - :ref:`require[*number*] *boolean*`
+     - Defines a soft requirement
+   * - :ref:`require (always | eventually) *boolean*`
+     - Defines a dynamic hard requirement
+   * - :ref:`terminate when *boolean*`
+     - Defines a termination condition
+   * - :ref:`mutate *identifier*, . . . [by *number* ]`
+     - Enables mutation of the given list of objects
+   * - :ref:`record *expression* [(initial | final)] as *name*`
+     - Record a value.
+
+Dynamic Statements
+------------------
+
+.. list-table::
+   :widths: 30 70
+   :header-rows: 1
+
+   * - Syntax
+     - Meaning
+   * - :ref:`take *action*, ...`
+     - Takes the action(s) specified.
+   * - :ref:`wait`
+     - Take no actions this timestep.
+   * - :ref:`terminate`
+     - Immediately end the scenario.
+   * - :ref:`do *behavior* [until *boolean*]`
+     - Perform a behavior. If an ``until`` condition is specified then, the behavior will terminate when the condition is met.
+   * - :ref:`do *behavior* (for *scalar* seconds | for *scalar* steps)`
+     - Perform a behavior for a set number of simulation seconds/timesteps.
+   * - :ref:`abort`
+     - Used in an interrupt to terminate the current behavior.
+   * - :ref:`override *name* *specifier*`
+     - Override the property of an object dynamically for the duration of the current scenario.
 
 Objects
 -------
@@ -84,6 +157,8 @@ Specifiers
      - Positions the object at coordinates given by the second vector, centered at the first vector and oriented along the line of sight from the third vector/ego
    * - :ref:`visible [from (*Point* | *OrientedPoint*)]`
      - Positions the object uniformly at random in the visible region of the ego, or of the given Point/OrientedPoint if given
+   * - :ref:`not visible [from (*Point* | *OrientedPoint*)]`
+     - Positions the object uniformly at random in the non-visible region of the ego, or of the given Point/OrientedPoint if given
 
 .. list-table::
    :widths: 80 20
@@ -205,48 +280,24 @@ Operators
    * - :ref:`(front | back) (left | right) of *Object*`
      - The corresponding corner of the Object’s bounding box, also oriented along its heading
 
-
-Standard Statements
--------------------
-
-.. list-table::
-   :widths: 30 70
-   :header-rows: 1
-
-   * - Syntax
-     - Meaning
-   * - :ref:`import *module*`
-     - Imports a Scenic or Python module
-   * - :ref:`param *identifier* = *value*, . . .`
-     - Defines global parameters of the scenario
-   * - :ref:`require *boolean*`
-     - Defines a hard requirement
-   * - :ref:`mutate *identifier*, . . . [by *number* ]`
-     - Enables mutation of the given list of objects
-
-Dynamic Statements
+Built in Functions
 ------------------
 
 .. list-table::
-   :widths: 30 70
+   :widths: 80 20
    :header-rows: 1
 
-   * - Syntax
-     - Meaning
-   * - :ref:`behavior *identifier*`
-     - Defines a behaviour.
-   * - :ref:`monitor *identifier*`
-     - Defines a monitor.
-   * - :ref:`take *action*, ...`
-     - Takes the action(s) specified and pass control to the simulator until the next timestep.
-   * - :ref:`do *behavior* [until *boolean*]`
-     - Perform a behavior. If an ``until`` condition is specified then, the behavior will terminate when the condition is met.
-   * - :ref:`do *behavior* (for *scalar* seconds | for *scalar* steps)`
-     - Perform a behavior for a set number of simulation seconds/timesteps.
-   * - :ref:`abort`
-     - Used in an interrupt to terminate the current behavior.
-   * - :ref:`require (always | eventually) *boolean*`
-     - Require a condition hold at each timestep (``always``) or at some point during the simulation (``eventually``).
-   * - :ref:`terminate [when *boolean*]`
-     - Terminates a simulation. If a conditional is added via the when keyword, the simulation is terminated when that conditional evaluates to true.
-
+   * - Function
+     - Description
+   * - :ref:`gen_lifted_funcs`
+     - General lifted functions including ``min``, ``max``, ``sin``, ``cos``, etc...
+   * - :ref:`filter_func`
+     - Can filter over distributions, allowing some randomized control flow behavior.
+   * - :ref:`resample_func`
+     - The `resample` function takes a distribution and samples a new value from it.
+   * - :ref:`localPath_func`
+     - The `localPath` function takes a relative path and converts it to an absolute path, rooted at the current directory.
+   * - :ref:`verbosePrint_func`
+     - The `verbosePrint` function operates like `print` except that it you can specify at what verbosity level it should actually print.
+   * - :ref:`simulation_func`
+     - The `verbosePrint` function operates like `print` except that it you can specify at what verbosity level it should actually print.

@@ -4,6 +4,14 @@
 Specifiers Reference
 ********************
 
+.. figure:: ../images/Specifier_Figure.png
+  :width: 60%
+  :figclass: align-center
+  :alt: Diagram illustrating several specifiers.
+
+  Illustration of the ``beyond``, ``behind``, and ``offset by`` specifiers.
+  Each ``OrientedPoint`` (e.g. ``P``) is shown as a bold arrow.
+
 Position Specifiers
 ===================
 
@@ -48,6 +56,12 @@ Positions the object at coordinates given by the second vector, in a local coord
 visible [from (*Point* | *OrientedPoint*)]
 ------------------------------------------
 Positions the object uniformly at random in the visible region of the ego, or of the given Point/OrientedPoint if given. Visible regions are defined as follows: a Point can see out to a certain distance, and an OrientedPoint restricts this to the circular sector along its heading with a certain angle. A position is then visible if it lies in the visible region and the position of the object being specified is set such that the center of the object is in this visible region.
+
+.. _not visible [from (*Point* | *OrientedPoint*)]:
+
+not visible [from (*Point* | *OrientedPoint*)]
+----------------------------------------------
+Exactly the same as the :ref:`visible [from (*Point* | *OrientedPoint*)]` specifier except it positions the object so that uniformly at random in the non visible region of the ego.
 
 .. _(in | on) *region*:
 
@@ -106,4 +120,4 @@ Specifier Resolution
 
 .. _specifier resolution:
 
-Specifier resolution in Scenic is non trivial, as a specifier can scpecify multiple properties, both non-optionally and optionally. At a high level, Scenic must check for two things: properties that have been non-optionally specified multiple times and properties that have been optionally specified multiple times but not non-optionally specified. In both cases the value of the property is ambiguous, and Scenic will raise an exception. Otherwise, the value of p will be determined by its unique non-optional specifier, unique optional specifier, or the most-derived default value, in that order. Scenic then checks that all dependencies exist and are non-cyclical, before evaluating the specifiers to fix the properties of the object.
+Specifier resolution in Scenic is non trivial, as a specifier can scpecify multiple properties, both non-optionally and optionally. At a high level, Scenic must check for two things: properties that have been non-optionally specified multiple times and properties that have been optionally specified multiple times but not non-optionally specified. In both cases the value of the property is ambiguous, and Scenic will raise an exception. Otherwise, the value of p will be determined by its unique non-optional specifier, unique optional specifier, or the default value, in that order. If the default value is overriden in a sub-class, the new value is used. Scenic then checks that all dependencies exist and are non-cyclical, before evaluating the specifiers to fix the properties of the object.
