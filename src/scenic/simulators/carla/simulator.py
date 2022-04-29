@@ -156,8 +156,8 @@ class CarlaSimulation(DrivingSimulation):
 			blueprint = self.blueprintLib.find(obj.blueprint)
 		except IndexError as e:
 			found = False
-			if blueprint in oldBlueprintNames:
-				for oldName in oldBlueprintNames[blueprint]:
+			if obj.blueprint in oldBlueprintNames:
+				for oldName in oldBlueprintNames[obj.blueprint]:
 					try:
 						blueprint = self.blueprintLib.find(oldName)
 						found = True
