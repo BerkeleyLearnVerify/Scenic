@@ -300,4 +300,4 @@ Built in Functions
    * - :ref:`verbosePrint_func`
      - The `verbosePrint` function operates like `print` except that it you can specify at what verbosity level it should actually print.
    * - :ref:`simulation_func`
-     - The `verbosePrint` function operates like `print` except that it you can specify at what verbosity level it should actually print.
+     - The `simulation` function returns the current simulation object.
