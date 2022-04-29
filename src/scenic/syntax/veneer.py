@@ -471,11 +471,22 @@ def verbosePrint(msg, file=sys.stdout, level=1):
 		print(indent + msg, file=file)
 
 def localPath(relpath):
+	"""Convert a path relative to the calling Scenic file into an absolute path.
+
+	For example, ``localPath('resource.dat')`` evaluates to the absolute path
+	of a file called ``resource.dat`` located in the same directory as the
+	Scenic file where this expression appears.
+	"""
 	filename = traceback.extract_stack(limit=2)[0].filename
 	base = os.path.dirname(filename)
 	return os.path.join(base, relpath)
 
 def simulation():
+	"""Get the currently-running `Simulation`.
+
+	May only be called from code that runs at simulation time, e.g. inside
+	dynamic behaviors and "compose" blocks of scenarios.
+	"""
 	if isActive():
 		raise RuntimeParseError('used simulation() outside a behavior')
 	assert currentSimulation is not None

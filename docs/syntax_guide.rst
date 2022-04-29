@@ -29,8 +29,11 @@ Distributions
 :ref:`DiscreteDistr`                      discrete with given values and weights
 ========================================  ==============================================================
 
-Standard Statements
--------------------
+Statements
+----------
+
+Compound Statements
++++++++++++++++++++
 
 .. list-table::
    :widths: 30 70
@@ -38,21 +41,19 @@ Standard Statements
 
    * - Syntax
      - Meaning
-   * - :ref:`classDef`
+   * - :sampref:`class {name}[({superclass})]: <classDef>`
      - Defines a Scenic class.
-   * - :ref:`objectCreate`
-     - Creates a Scenic object.
-   * - :ref:`behaviorDef`
-     - Defines a Scenic behavior.
-   * - :ref:`monitorDef`
-     - Defines a Scenic monitor.
-   * - :ref:`modularScenarioDef`
-     - Defines a Scenic modular scenario.
-   * - :ref:`tryInterruptStmt`
-     - A try interrupt block inside a behavior.
+   * - :sampref:`behavior {name}({arguments}): <behaviorDef>`
+     - Defines a dynamic behavior.
+   * - :sampref:`monitor {name}: <monitorDef>`
+     - Defines a monitor.
+   * - :sampref:`scenario {name}({arguments}): <modularScenarioDef>`
+     - Defines a modular scenario.
+   * - :sampref:`try: {...} interrupt when {boolean}:<tryInterruptStmt>`
+     - A try-interrupt block inside a dynamic behavior or modular scenario.
 
-Standard Statements
--------------------
+Simple Statements
++++++++++++++++++
 
 .. list-table::
    :widths: 30 70
@@ -63,24 +64,26 @@ Standard Statements
    * - :ref:`model *name*`
      - Select the world model.
    * - :ref:`import *module*`
-     - Imports a Scenic or Python module
+     - Import a Scenic or Python module
    * - :ref:`param *identifier* = *value*, . . .`
-     - Defines global parameters of the scenario
+     - Define global parameters of the scenario
    * - :ref:`require *boolean*`
-     - Defines a hard requirement
+     - Define a hard requirement
    * - :ref:`require[*number*] *boolean*`
-     - Defines a soft requirement
+     - Define a soft requirement
    * - :ref:`require (always | eventually) *boolean*`
-     - Defines a dynamic hard requirement
+     - Define a dynamic hard requirement
    * - :ref:`terminate when *boolean*`
-     - Defines a termination condition
+     - Define a termination condition
    * - :ref:`mutate *identifier*, . . . [by *number* ]`
-     - Enables mutation of the given list of objects
-   * - :ref:`record *expression* [(initial | final)] as *name*`
-     - Record a value.
+     - Enable mutation of the given list of objects
+   * - :ref:`record [(initial | final)] *expression* as *name*`
+     - Save a value at every time step or only at the start/end of the simulation.
 
 Dynamic Statements
-------------------
+++++++++++++++++++
+
+These statements can only be used inside a :term:`dynamic behavior`, monitor, or ``compose`` block of a modular scenario.
 
 .. list-table::
    :widths: 30 70
@@ -89,22 +92,28 @@ Dynamic Statements
    * - Syntax
      - Meaning
    * - :ref:`take *action*, ...`
-     - Takes the action(s) specified.
+     - Take the action(s) specified.
    * - :ref:`wait`
-     - Take no actions this timestep.
+     - Take no actions this time step.
    * - :ref:`terminate`
      - Immediately end the scenario.
    * - :ref:`do *behavior* [until *boolean*]`
-     - Perform a behavior. If an ``until`` condition is specified then, the behavior will terminate when the condition is met.
+     - Perform a behavior until it completes or an optional ``until`` condition is met.
    * - :ref:`do *behavior* (for *scalar* seconds | for *scalar* steps)`
-     - Perform a behavior for a set number of simulation seconds/timesteps.
+     - Perform a behavior for (at most) a specified period of time.
    * - :ref:`abort`
-     - Used in an interrupt to terminate the current behavior.
+     - Breaks out of the current :ref:`tryInterruptStmt`
    * - :ref:`override *name* *specifier*`
-     - Override the property of an object dynamically for the duration of the current scenario.
+     - Override properties of an object for the duration of the current scenario.
 
 Objects
 -------
+
+The syntax :sampref:`{class} {specifier}, {...} <objectCreate>` creates an instance of a Scenic class.
+
+Scenic objects representing physical objects are instances of the class `Object`, which provides the following built-in properties.
+The basic position properties are inherited from `Point`, and the orientation properties are added by `OrientedPoint`.
+See the :ref:`objects_and_classes` for details.
 
 ===================  =============  ===========================================
    **Property**       **Default**                   **Meaning**
@@ -289,15 +298,15 @@ Built in Functions
 
    * - Function
      - Description
-   * - :ref:`gen_lifted_funcs`
-     - General lifted functions including ``min``, ``max``, ``sin``, ``cos``, etc...
+   * - :ref:`Misc Python functions <gen_lifted_funcs>`
+     - Various Python functions including ``min``, ``max``, ``sin``, ``cos``, etc.
    * - :ref:`filter_func`
-     - Can filter over distributions, allowing some randomized control flow behavior.
+     - Filter a possibly-random list (allowing limited randomized control flow).
    * - :ref:`resample_func`
-     - The `resample` function takes a distribution and samples a new value from it.
+     - Sample a new value from a distribution.
    * - :ref:`localPath_func`
-     - The `localPath` function takes a relative path and converts it to an absolute path, rooted at the current directory.
+     - Convert a relative path to an absolute path, based on the current directory.
    * - :ref:`verbosePrint_func`
-     - The `verbosePrint` function operates like `print` except that it you can specify at what verbosity level it should actually print.
+     - Like `print`, but silent at low-enough verbosity levels.
    * - :ref:`simulation_func`
-     - The `simulation` function returns the current simulation object.
+     - Get the the current simulation object.

@@ -115,9 +115,9 @@ apparently facing *heading* [from *vector*]
 --------------------------------------------
 Orients the object so that it has the given heading with respect to the line of sight from ego (or from the position given by the optional from vector). For example, apparently facing 90 deg orients the object so that the camera views its left side head-on
 
+.. _specifier resolution:
+
 Specifier Resolution
 ====================
 
-.. _specifier resolution:
-
-Specifier resolution in Scenic is non trivial, as a specifier can scpecify multiple properties, both non-optionally and optionally. At a high level, Scenic must check for two things: properties that have been non-optionally specified multiple times and properties that have been optionally specified multiple times but not non-optionally specified. In both cases the value of the property is ambiguous, and Scenic will raise an exception. Otherwise, the value of p will be determined by its unique non-optional specifier, unique optional specifier, or the default value, in that order. If the default value is overriden in a sub-class, the new value is used. Scenic then checks that all dependencies exist and are non-cyclical, before evaluating the specifiers to fix the properties of the object.
+Specifier resolution in Scenic is non-trivial, as a specifier can specify multiple properties, both non-optionally and optionally. At a high level, Scenic must check for two error cases: properties that have been non-optionally specified multiple times and properties that have been optionally specified multiple times but not non-optionally specified. In both cases the value of the property is ambiguous, and Scenic will raise an exception. Otherwise, the value of each property will be determined by its unique non-optional specifier, unique optional specifier, or its default value, in that order. If the default value is overridden in a subclass, the new value is used. Scenic then checks that all dependencies exist and are non-cyclic, before evaluating the specifiers to fix the properties of the object.

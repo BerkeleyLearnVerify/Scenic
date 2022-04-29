@@ -326,3 +326,44 @@ def generate_autosummary_content(name, obj, parent,
                                              modname=modname, qualname=qualname)
 
 as_gen.generate_autosummary_content = generate_autosummary_content
+
+# -- Monkeypatch adding a :sampref: role combining :samp: and :ref: ----------
+# (necessary since ReST does not allow nested inline markup)
+
+from docutils import nodes
+import docutils.parsers.rst.roles
+from sphinx.roles import XRefRole, EmphasizedLiteral
+
+class LiteralXRefRole(XRefRole, EmphasizedLiteral):
+    def create_xref_node(self):
+        self.refdomain, self.reftype = 'std', 'sampref'
+        elem, _ = super().create_xref_node()
+        node = elem[0]
+        del node[0]
+        children = self.parse(self.title)
+        node += nodes.literal(self.title, '', *children,
+                             role='samp', classes=['xref', 'ref', 'samp'])
+        return [node], []
+
+role = LiteralXRefRole(lowercase=True, innernodeclass=nodes.inline,
+                       warn_dangling=True)
+
+docutils.parsers.rst.roles.register_local_role('sampref', role)
+
+from sphinx.domains.std import StandardDomain
+old_resolve_xref = StandardDomain.resolve_xref
+
+def resolve_xref(self, env, fromdocname, builder, typ, target, node, contnode):
+    if typ == 'sampref':
+        newnode = old_resolve_xref(self, env, fromdocname, builder, 'ref', target,
+                                   node, contnode)
+        del newnode[0]
+        inner = node[0]
+        inner['classes'] = ['std', 'std-ref']
+        newnode += inner
+    else:
+        newnode = old_resolve_xref(self, env, fromdocname, builder, typ, target,
+                                   node, contnode)
+    return newnode
+
+StandardDomain.resolve_xref = resolve_xref

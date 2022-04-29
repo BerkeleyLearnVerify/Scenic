@@ -10,6 +10,7 @@ Syntax Reference
     reference/data
     reference/distributions
     reference/statements
+    reference/classes
     reference/specifiers
     reference/operators
     reference/functions

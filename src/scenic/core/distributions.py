@@ -383,7 +383,13 @@ class FunctionDistribution(Distribution):
 		return f'{self.function.__name__}{args}'
 
 def distributionFunction(wrapped=None, *, support=None, valueType=None):
-	"""Decorator for wrapping a function so that it can take distributions as arguments."""
+	"""Decorator for wrapping a function so that it can take distributions as arguments.
+
+	This decorator is mainly for internal use, and is not necessary when defining a
+	function in a Scenic file. It is, however, needed when calling external functions
+	which contain control flow or other operations that Scenic distribution objects
+	(representing random values) do not support.
+	"""
 	if wrapped is None:		# written without arguments as @distributionFunction
 		return lambda wrapped: distributionFunction(wrapped,
 		                                            support=support, valueType=valueType)

@@ -14,21 +14,12 @@ Class Definition
 
 ::
 
-    class <name>[<superclass>]:
+    class <name>[(<superclass>)]:
         (<property> : <value>)*
 
-Defines a Scenic class. Any class that does not have an explicitly defined parent is assumed to inherit from the Scenic `Object` base class. Scenic objects attributes and methods in the same way as native Python classes.
-
-.. _objectCreate:
-
-Object Creation
----------------
-
-::
-
-    class [<specifier>] [, <specifier>]
-
-Instantiates a Scenic object from a Scenic class. Parameters are set through the use of specifiers. For more details on specifiers, see the :ref:`specifiers`. If the name of an object is followed immediately by punctuation, then an object is not created. This allows us to refer to a Scenic class without creating an instance of that class in the environment, which is useful for statements like ``isinstance(obj, Car)``, ``[Taxi, Truck]``, ``Car.staticMethod``, etc...
+Defines a Scenic class.
+If a superclass is not explicitly specified, `Object` is used (see :ref:`objects_and_classes`).
+Scenic classes may define attributes and methods in the same way as Python classes.
 
 .. _behaviorDef:
 
@@ -37,12 +28,12 @@ Behavior Definition
 
 ::
 
-    behavior <name>(<params>):
+    behavior <name>(<arguments>):
         (precondition: <boolean>)*
         (invariant: <boolean>)*
         <statement>*
 
-Defines a Scenic behavior, which a Scenic object can perform by using the ``with behavior *behavior*`` syntax. Behavior preconditions are checked when a behavior is started, and invariants are checked at every timestep of the simulation (including the first like preconditions). Each timestep, behaviors must :ref:`take` specified action(s) or :ref:`wait` and perform no actions. Then the simulation advances one step and the behaviors resume right after the ``take`` or ``wait`` statement that was enacted in the last timestep. Behaviors also have the option to :ref:`terminate` the simulation, ending it immediately. Behaviors can also be composed using :ref:`do<do *behavior* [until *boolean*]>` statements. When performing sub-behaviors, you may wish to interupt them when certain conditions are met. This can be done by using :ref:`try interrupt<try>` statements. For more information on behaviors, see :ref:`dynamics`.
+Defines a Scenic behavior, which a Scenic object can perform by using the ``with behavior *behavior*`` syntax. Behavior preconditions are checked when a behavior is started, and invariants are checked at every timestep of the simulation (including the first like preconditions). Each timestep, behaviors must :ref:`take <take *action*, ...>` specified action(s) or :ref:`wait` and perform no actions. Then the simulation advances one step and the behaviors resume right after the ``take`` or ``wait`` statement that was enacted in the last timestep. Behaviors also have the option to :ref:`terminate` the simulation, ending it immediately. Behaviors can also be composed using :ref:`do <do *behavior* [until *boolean*]>` statements. When performing sub-behaviors, you may wish to interupt them when certain conditions are met. This can be done by using :ref:`try-interrupt <try>` statements. For more information on behaviors, see :ref:`dynamics`.
 
 .. _monitorDef:
 
@@ -63,7 +54,7 @@ Modular Scenario Definition
 
 ::
 
-    scenarios <name>(<params>):
+    scenario <name>(<arguments>):
         (precondition: <boolean>)*
         (invariant: <boolean>)*
         [setup:
@@ -83,7 +74,7 @@ Try-Interrupt Statement
     try:
         <statement>*
     (interrupt when <boolean>:
-        <statement>)*
+        <statement>*)*
     (except <exception>:
         <statement>*)*
 
@@ -158,11 +149,14 @@ mutate *identifier*, . . . [by *scalar* ]
 -----------------------------------------
 Enables mutation of the given list of objects, adding Gaussian noise with the given standard deviation (default 1) to their position and heading properties. If no objects are specified, mutation applies to every Object already created.
 
-.. _record *expression* [(initial | final)] as *name*:
+.. _record [(initial | final)] *expression* as *name*:
 
-record *expression* [(initial | final)] as *name*
--------------------------------------------------
-Record the expression as the name provided. The value can be recorded at the start of the simulation (initial), at the end of the simulation (final), or at every timestep if neither initial or final is specified. The values are available in the records dictionary of SimulationResult, and for debugging can also be printed out using the ``--show-records`` command-line option.
+record [(initial | final)] *expression* [as *name*]
+---------------------------------------------------
+Record the value of the expression during each simulation.
+The value can be recorded at the start of the simulation (``initial``), at the end of the simulation (``final``), or at every time step (if neither ``initial`` nor ``final`` is specified).
+The recorded values are available in the ``records`` dictionary of `SimulationResult`: its keys are the given names of the records (or synthesized names if not provided), and the corresponding values are either the value of the recorded expression or a tuple giving its value at each time step as appropriate.
+For debugging, the records can also be printed out using the :option:`--show-records` command-line option.
 
 Dynamic Statements
 ==================
