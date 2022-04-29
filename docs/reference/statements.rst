@@ -42,7 +42,7 @@ Behavior Definition
         (invariant: <boolean>)*
         <statement>*
 
-Defines a Scenic behavior, which a Scenic object can perform by using the ``with behavior *behavior*`` syntax. Behavior preconditions are checked when a behavior is started, and invariants are checked at every timestep of the simulation (including the first like preconditions). Each timestep, behaviors must :ref:`take` specified action(s) or :ref:`wait` and perform no actions. Then the simulation advances one step and the behaviors resume right after the ``take`` or ``wait`` statement that was enacted in the last timestep. Behaviors also have the option to :ref:`terminate<terminate [when *boolean*]>` the simulation, ending it immediately. Behaviors can also be composed using :ref:`do<do *behavior* [until *boolean*]>` statements. When performing sub-behaviors, you may wish to interupt them when certain conditions are met. This can be done by using :ref:`try interrupt<try>` statements. For more information on behaviors, see :ref:`dynamics`.
+Defines a Scenic behavior, which a Scenic object can perform by using the ``with behavior *behavior*`` syntax. Behavior preconditions are checked when a behavior is started, and invariants are checked at every timestep of the simulation (including the first like preconditions). Each timestep, behaviors must :ref:`take` specified action(s) or :ref:`wait` and perform no actions. Then the simulation advances one step and the behaviors resume right after the ``take`` or ``wait`` statement that was enacted in the last timestep. Behaviors also have the option to :ref:`terminate` the simulation, ending it immediately. Behaviors can also be composed using :ref:`do<do *behavior* [until *boolean*]>` statements. When performing sub-behaviors, you may wish to interupt them when certain conditions are met. This can be done by using :ref:`try interrupt<try>` statements. For more information on behaviors, see :ref:`dynamics`.
 
 .. _monitorDef:
 
@@ -54,7 +54,7 @@ Monitor Definition
     monitor <name>:
         <statement>*
 
-Defines a Scenic monitor, which runs in parallel with the simulation like a behavior. Monitors however cannot take actions, and instead can either :ref:`wait` or :ref:`terminate<terminate [when *boolean*]>` the simulation. For more information on monitors, see :ref:`dynamics`.
+Defines a Scenic monitor, which runs in parallel with the simulation like a behavior. Monitors however cannot take actions, and instead can either :ref:`wait` or :ref:`terminate` the simulation. For more information on monitors, see :ref:`dynamics`.
 
 .. _modularScenarioDef:
 
@@ -161,7 +161,7 @@ Enables mutation of the given list of objects, adding Gaussian noise with the gi
 .. _record *expression* [(initial | final)] as *name*:
 
 record *expression* [(initial | final)] as *name*
-------------------------------------
+-------------------------------------------------
 Record the expression as the name provided. The value can be recorded at the start of the simulation (initial), at the end of the simulation (final), or at every timestep if neither initial or final is specified. The values are available in the records dictionary of SimulationResult, and for debugging can also be printed out using the ``--show-records`` command-line option.
 
 Dynamic Statements
