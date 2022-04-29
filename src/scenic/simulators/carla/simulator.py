@@ -26,7 +26,7 @@ class CarlaSimulator(DrivingSimulator):
 	def __init__(self, carla_map, map_path, address='127.0.0.1', port=2000, timeout=10,
 				 render=True, record='', timestep=0.1, traffic_manager_port=None):
 		super().__init__()
-		verbosePrint('Connecting to CARLA on port {port}')
+		verbosePrint(f'Connecting to CARLA on port {port}')
 		self.client = carla.Client(address, port)
 		self.client.set_timeout(timeout)  # limits networking operations (seconds)
 		if carla_map is not None:
@@ -36,7 +36,7 @@ class CarlaSimulator(DrivingSimulator):
 				with open(map_path) as odr_file:
 					self.world = self.client.generate_opendrive_world(odr_file.read())
 			else:
-				raise RuntimeError(f'CARLA only supports OpenDrive maps')
+				raise RuntimeError('CARLA only supports OpenDrive maps')
 		self.timestep = timestep
 
 		if traffic_manager_port is None:
