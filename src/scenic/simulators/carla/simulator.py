@@ -7,6 +7,7 @@ except ImportError as e:
 
 import math
 import os
+import warnings
 
 from scenic.syntax.translator import verbosity
 if verbosity == 0:	# suppress pygame advertisement at zero verbosity
@@ -17,6 +18,7 @@ import pygame
 from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
 from scenic.core.simulators import SimulationCreationError
 from scenic.syntax.veneer import verbosePrint
+from scenic.simulators.carla.blueprints import oldBlueprintNames
 import scenic.simulators.carla.utils.utils as utils
 import scenic.simulators.carla.utils.visuals as visuals
 
@@ -150,7 +152,24 @@ class CarlaSimulation(DrivingSimulation):
 
 	def createObjectInSimulator(self, obj):
 		# Extract blueprint
-		blueprint = self.blueprintLib.find(obj.blueprint)
+		try:
+			blueprint = self.blueprintLib.find(obj.blueprint)
+		except IndexError as e:
+			found = False
+			if blueprint in oldBlueprintNames:
+				for oldName in oldBlueprintNames[blueprint]:
+					try:
+						blueprint = self.blueprintLib.find(oldName)
+						found = True
+						warnings.warn(f'CARLA blueprint {obj.blueprint} not found; '
+						              f'using older version {oldName}')
+						obj.blueprint = oldName
+						break
+					except IndexError:
+						continue
+			if not found:
+				raise SimulationCreationError(f'Unable to find blueprint {obj.blueprint}'
+				                              f' for object {obj}') from e
 		if obj.rolename is not None:
 			blueprint.set_attribute('role_name', obj.rolename)
 
