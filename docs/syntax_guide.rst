@@ -21,13 +21,13 @@ Primitive Data Types
 
 Distributions
 -------------
-========================================  ==============================================================
-:ref:`Range(low, high)`                   uniformly-distributed real number in the interval
-:ref:`DiscreteRange(low, high)`           uniformly-distributed integer in the (fixed) interval
-:ref:`Normal(mean, stdDev)`               normal distribution with the given mean and standard deviation
-:ref:`Uniform(value, ...)`                uniform over a finite set of values
-:ref:`DiscreteDistr`                      discrete with given values and weights
-========================================  ==============================================================
+================================================================ ==================================
+:sampref:`Range({low}, {high})`                                  uniformly-distributed real number in the interval
+:sampref:`DiscreteRange({low}, {high})`                          uniformly-distributed integer in the (fixed) interval
+:sampref:`Normal({mean}, {stdDev})`                              normal distribution with the given mean and standard deviation
+:sampref:`Uniform({value}, {...})`                               uniform over a finite set of values
+:sampref:`Discrete(\{{value}: {weight}, {...}\})<DiscreteDistr>` discrete with given values and weights
+================================================================ ==================================
 
 Statements
 ----------
@@ -61,23 +61,23 @@ Simple Statements
 
    * - Syntax
      - Meaning
-   * - :ref:`model *name*`
+   * - :sampref:`model {name}`
      - Select the world model.
-   * - :ref:`import *module*`
+   * - :sampref:`import {module}`
      - Import a Scenic or Python module
-   * - :ref:`param *identifier* = *value*, . . .`
+   * - :sampref:`param {identifier} = {value}, {...}`
      - Define global parameters of the scenario
-   * - :ref:`require *boolean*`
+   * - :sampref:`require {boolean}`
      - Define a hard requirement
-   * - :ref:`require[*number*] *boolean*`
+   * - :sampref:`require[{number}] {boolean}`
      - Define a soft requirement
-   * - :ref:`require (always | eventually) *boolean*`
+   * - :sampref:`require (always | eventually) {boolean}`
      - Define a dynamic hard requirement
-   * - :ref:`terminate when *boolean*`
+   * - :sampref:`terminate when {boolean}`
      - Define a termination condition
-   * - :ref:`mutate *identifier*, . . . [by *number* ]`
+   * - :sampref:`mutate {identifier}, {...} [by {number}]`
      - Enable mutation of the given list of objects
-   * - :ref:`record [(initial | final)] *expression* as *name*`
+   * - :sampref:`record [(initial | final)] {value} as {name}`
      - Save a value at every time step or only at the start/end of the simulation.
 
 Dynamic Statements
@@ -91,19 +91,19 @@ These statements can only be used inside a :term:`dynamic behavior`, monitor, or
 
    * - Syntax
      - Meaning
-   * - :ref:`take *action*, ...`
+   * - :sampref:`take {action}, {...}`
      - Take the action(s) specified.
-   * - :ref:`wait`
+   * - :sampref:`wait`
      - Take no actions this time step.
-   * - :ref:`terminate`
+   * - :sampref:`terminate`
      - Immediately end the scenario.
-   * - :ref:`do *behavior* [until *boolean*]`
+   * - :sampref:`do {behavior} [until {boolean}]`
      - Perform a behavior until it completes or an optional ``until`` condition is met.
-   * - :ref:`do *behavior* (for *scalar* seconds | for *scalar* steps)`
+   * - :sampref:`do {behavior} for {scalar} (seconds | steps)`
      - Perform a behavior for (at most) a specified period of time.
-   * - :ref:`abort`
+   * - :sampref:`abort`
      - Breaks out of the current :ref:`tryInterruptStmt`
-   * - :ref:`override *name* *specifier*`
+   * - :sampref:`override {object} {specifier}, {...}`
      - Override properties of an object for the duration of the current scenario.
 
 Objects
@@ -115,25 +115,32 @@ Scenic objects representing physical objects are instances of the class `Object`
 The basic position properties are inherited from `Point`, and the orientation properties are added by `OrientedPoint`.
 See the :ref:`objects_and_classes` for details.
 
-===================  =============  ===========================================
-   **Property**       **Default**                   **Meaning**
--------------------  -------------  -------------------------------------------
- position             (0, 0)         position in global coordinates
+===================  ==============  ================================================
+   **Property**       **Default**                    **Meaning**
+-------------------  --------------  ------------------------------------------------
+ position [1]_        (0, 0)         position in global coordinates
  viewDistance          50            distance for the ‘can see’ operator
  mutationScale         0             overall scale of mutations
- positionStdDev        1             mutation standard deviation for position
--------------------  -------------  -------------------------------------------
- heading               0             heading in global coordinates
+ positionStdDev        1             mutation standard deviation for ``position``
+-------------------  --------------  ------------------------------------------------
+ heading [1]_          0             heading in global coordinates
  viewAngle            360 degrees    angle for the ‘can see’ operator
- headingStdDev         5 degrees     mutation standard deviation for heading
--------------------  -------------  -------------------------------------------
+ headingStdDev         5 degrees     mutation standard deviation for ``heading``
+-------------------  --------------  ------------------------------------------------
  width                 1             width of bounding box (X axis)
  length                1             length of bounding box (Y axis)
  regionContainedIn    workspace      Region the object must lie within
- allowCollisions      false          whether collisions are allowed
- requireVisible        true          whether object must be visible from ego
-===================  =============  ===========================================
+ allowCollisions      `False`        whether collisions are allowed
+ requireVisible       `True`         whether object must be visible from ego
+ cameraOffset          (0, 0)        position of camera for ‘can see’
+ behavior              `None`        :term:`dynamic behavior`, if any
+ speed [1]_            0             initial speed (later, instantaneous speed)
+ velocity [1]_       from ``speed``  initial velocity (later, instantaneous velocity)
+ angularSpeed [1]_     0             angular speed (change in heading/time)
+===================  ==============  ================================================
 
+.. [1] These are :term:`dynamic properties`, updated automatically every time step during
+    dynamic simulations.
 
 Specifiers
 ----------
@@ -150,55 +157,55 @@ Specifiers
    :widths: 80 20
    :header-rows: 1
 
-   * - Specifier for Position
+   * - Specifier for ``position``
      - Meaning
-   * - :ref:`at *vector*`
+   * - :sampref:`at {vector}`
      - Positions the object at the given global coordinates
-   * - :ref:`offset by *vector*`
+   * - :sampref:`offset by {vector}`
      - Positions the object at the given coordinates in the local coordinate system of ego (which must already be defined)
-   * - :ref:`offset along *direction* by *vector*`
+   * - :sampref:`offset along {direction} by {vector}`
      - Positions the object at the given coordinates, in a local coordinate system centered at ego and oriented along the given direction
-   * - :ref:`(left | right) of *vector* [by *scalar*]`
+   * - :sampref:`(left | right) of {vector} [by {scalar}]`
      - Positions the object further to the left/right by the given scalar distance
-   * - :ref:`(ahead of | behind) *vector* [by *scalar*]`
+   * - :sampref:`(ahead of | behind) {vector} [by {scalar}]`
      - As above, except placing the object ahead of or behind the given position
-   * - :ref:`beyond *vector* by *vector* [from *vector*]`
+   * - :sampref:`beyond {vector} by {vector} [from {vector}]`
      - Positions the object at coordinates given by the second vector, centered at the first vector and oriented along the line of sight from the third vector/ego
-   * - :ref:`visible [from (*Point* | *OrientedPoint*)]`
+   * - :sampref:`visible [from ({Point} | {OrientedPoint})]`
      - Positions the object uniformly at random in the visible region of the ego, or of the given Point/OrientedPoint if given
-   * - :ref:`not visible [from (*Point* | *OrientedPoint*)]`
+   * - :sampref:`not visible [from ({Point} | {OrientedPoint})]`
      - Positions the object uniformly at random in the non-visible region of the ego, or of the given Point/OrientedPoint if given
 
 .. list-table::
    :widths: 80 20
    :header-rows: 1
 
-   * - Specifiers for position and optionally heading
+   * - Specifiers for ``position`` and optionally ``heading``
      - Meaning
-   * - :ref:`(in | on) *region*`
+   * - :sampref:`(in | on) {region}`
      - Positions the object uniformly at random in the given Region
-   * - :ref:`(left | right) of (*OrientedPoint* | *Object*) [by *scalar*]`
+   * - :sampref:`(left | right) of ({OrientedPoint} | {Object}) [by {scalar}]`
      - Positions the object to the left/right of the given OrientedPoint, depending on the object’s width
-   * - :ref:`(ahead of | behind) (*OrientedPoint* | *Object*) [by *scalar* ]`
+   * - :sampref:`(ahead of | behind) ({OrientedPoint} | {Object}) [by {scalar}]`
      - As above, except positioning the object ahead of or behind the given OrientedPoint, thereby depending on length
-   * - :ref:`following *vectorField* [from *vector* ] for *scalar*`
-     - Positions the object at a point obtained by following the given vector field for the given distance starting from ego
+   * - :sampref:`following {vectorField} [from {vector}] for {scalar}`
+     - Position by following the given vector field for the given distance starting from ego or the given vector
 
 
 .. list-table::
    :widths: 80 20
    :header-rows: 1
 
-   * - Specifiers for heading
+   * - Specifiers for ``heading``
      - Meaning
-   * - :ref:`facing *heading*`
+   * - :sampref:`facing {heading}`
      - Orients the object along the given heading in global coordinates
-   * - :ref:`facing *vectorField*`
+   * - :sampref:`facing {vectorField}`
      - Orients the object along the given vector field at the object’s position
-   * - :ref:`facing (toward | away from) *vector*`
+   * - :sampref:`facing (toward | away from) {vector}`
      - Orients the object toward/away from the given position (thereby depending on the object’s position)
-   * - :ref:`apparently facing *heading* [from *vector*]`
-     - Orients the object so that it has the given heading with respect to the line of sight from ego (or from the position given by the optional from vector)
+   * - :sampref:`apparently facing {heading} [from {vector}]`
+     - Orients the object so that it has the given heading with respect to the line of sight from ego (or the given vector)
 
 
 Operators
@@ -218,14 +225,14 @@ Operators
 
    * - Scalar Operators
      - Meaning
-   * - :ref:`relative heading of *heading* [from *heading*]`
-     - The relative heading of the given heading with respect to ego (or the heading provided with the optional from heading)
-   * - :ref:`apparent heading of *OrientedPoint* [from *vector*]`
-     -  The apparent heading of the OrientedPoint, with respect to the line of sight from ego (or the position provided with the optional from vector)
-   * - :ref:`distance [from *vector* ] to *vector*`
-     - The distance to the given position from ego (or the position provided with the optional from vector)
-   * - :ref:`angle [from *vector* ] to *vector*`
-     - The heading to the given position from ego (or the position provided with the optional from vector)
+   * - :sampref:`relative heading of {heading} [from {heading}]`
+     - The relative heading of the given heading with respect to ego (or the ``from`` heading)
+   * - :sampref:`apparent heading of {OrientedPoint} [from {vector}]`
+     -  The apparent heading of the `OrientedPoint`, with respect to the line of sight from ego (or the given vector)
+   * - :sampref:`distance [from {vector}] to {vector}`
+     - The distance to the given position from ego (or the ``from`` vector)
+   * - :sampref:`angle [from {vector}] to {vector}`
+     - The heading to the given position from ego (or the ``from`` vector)
 
 .. list-table::
    :widths: 80 20
@@ -233,10 +240,10 @@ Operators
 
    * - Boolean Operators
      - Meaning
-   * - :ref:`(*Point* | *OrientedPoint*) can see (*vector* | *Object*)`
-     - Whether or not a position or Object is visible from a Point or OrientedPoint.
-   * - :ref:`(*vector* | *Object*) in *region*`
-     -  Whether a position or Object lies in the region
+   * - :sampref:`({Point} | {OrientedPoint}) can see ({vector} | {Object})`
+     - Whether or not a position or `Object` is visible from a `Point` or `OrientedPoint`.
+   * - :sampref:`({vector} | {Object}) in {region}`
+     -  Whether a position or `Object` lies in the region
 
 
 .. list-table::
@@ -245,11 +252,11 @@ Operators
 
    * - Heading Operators
      - Meaning
-   * - :ref:`*scalar* deg`
+   * - :sampref:`{scalar} deg`
      - The given heading, interpreted as being in degrees
-   * - :ref:`*vectorField* at *vector*`
+   * - :sampref:`{vectorField} at {vector}`
      - The heading specified by the vector field at the given position
-   * - :ref:`*direction* relative to *direction*`
+   * - :sampref:`{direction} relative to {direction}`
      - The first direction, interpreted as an offset relative to the second direction
 
 
@@ -259,9 +266,9 @@ Operators
 
    * - Vector Operators
      - Meaning
-   * - :ref:`*vector* (relative to | offset by) *vector*`
+   * - :sampref:`{vector} (relative to | offset by) {vector}`
      - The first vector, interpreted as an offset relative to the second vector (or vice versa)
-   * - :ref:`*vector* offset along *direction* by *vector*`
+   * - :sampref:`{vector} offset along {direction} by {vector}`
      - The second vector, interpreted in a local coordinate system centered at the first vector and oriented along the given direction
 
 
@@ -271,7 +278,7 @@ Operators
 
    * - Region Operators
      - Meaning
-   * - :ref:`visible *region*`
+   * - :sampref:`visible {region}`
      - The part of the given region visible from ego
 
 .. list-table::
@@ -280,13 +287,13 @@ Operators
 
    * - OrientedPoint Operators
      - Meaning
-   * - :ref:`*vector* relative to *OrientedPoint*`
+   * - :sampref:`{vector} relative to {OrientedPoint}`
      - The given vector, interpreted in the local coordinate system of the OrientedPoint
-   * - :ref:`*OrientedPoint* offset by *vector*`
-     - Equivalent to vector relative to OrientedPoint above
-   * - :ref:`(front | back | left | right) of *Object*`
+   * - :sampref:`{OrientedPoint} offset by {vector}`
+     - Equivalent to ``vector relative to OrientedPoint`` above
+   * - :sampref:`(front | back | left | right) of {Object}`
      - The midpoint of the corresponding edge of the bounding box of the Object, oriented along its heading
-   * - :ref:`(front | back) (left | right) of *Object*`
+   * - :sampref:`(front | back) (left | right) of {Object}`
      - The corresponding corner of the Object’s bounding box, also oriented along its heading
 
 Built in Functions

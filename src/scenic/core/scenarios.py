@@ -186,6 +186,15 @@ class Scenario:
 
 		Raises:
 			`RejectionException`: if no valid sample is found in **maxIterations** iterations.
+
+		The sampling procedure works as follows:
+
+			1. Decide which user-defined requirements will be enforced for this sample
+			   (soft requirements have only some probability of being required).
+			2. Invoke the external sampler to sample any :term:`external parameters`.
+			3. Sample values for all `Distribution` objects used in the scene.
+			4. Check if the sampled values satisfy the built-in and user-defined
+			   requirements: if not, reject the sample and repeat from step (2).
 		"""
 		objects = self.objects
 

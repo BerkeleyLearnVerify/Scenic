@@ -14,13 +14,15 @@ Start by cloning our repository on GitHub and installing Poetry as described in
 the command :command:`poetry install -E dev` to make sure you get all the dependencies
 needed for development.
 
+To find documentation (and code) for specific parts of Scenic's implementation, see our page on :doc:`internals`.
+
 Running the Test Suite
 ----------------------
 
 Scenic has an extensive test suite exercising most of the features of the language. We
 use the `pytest <https://docs.pytest.org/en/latest/index.html>`_ Python testing tool. To
 run the entire test suite, run the command :command:`pytest` inside the virtual
-environment.
+environment from the root directory of the repository.
 
 Some of the tests are quite slow, e.g. those which test the parsing and construction of
 road networks. We add a ``--fast`` option to pytest	which skips such tests, while

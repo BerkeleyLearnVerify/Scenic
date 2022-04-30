@@ -36,7 +36,7 @@ In particular, Scenic does not allow iterating over a random list, but it is sti
 	filtered = filter(lambda e: e > 0, y)    # extract only the positive elements
 	x = Uniform(*filtered)                   # pick one of them at random
 
-In the last line, we use Python's `unpacking operator * <https://docs.python.org/3.6/reference/expressions.html#expression-lists>`_ to use the elements of the chosen list which pass the filter as arguments to :ref:`Uniform <Uniform(value, ...)>`; thus ``x`` is sampled as a uniformly-random choice among such elements. [#f1]_
+In the last line, we use Python's `unpacking operator * <https://docs.python.org/3.6/reference/expressions.html#expression-lists>`_ to use the elements of the chosen list which pass the filter as arguments to :ref:`Uniform <Uniform({value}, {...})>`; thus ``x`` is sampled as a uniformly-random choice among such elements. [#f1]_
 
 For an example of this idiom in a realistic scenario, see :file:`examples/driving/OAS_scenarios/oas_scenario_28.scenic`.
 

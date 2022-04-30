@@ -38,7 +38,7 @@ import scenic.simulators.lgsvl.model
 # -- Project information -----------------------------------------------------
 
 project = 'Scenic'
-copyright = '2022, Daniel J. Fremont.'
+copyright = '2022, Daniel J. Fremont'
 author = 'Daniel J. Fremont, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
 
 
@@ -357,6 +357,8 @@ def resolve_xref(self, env, fromdocname, builder, typ, target, node, contnode):
     if typ == 'sampref':
         newnode = old_resolve_xref(self, env, fromdocname, builder, 'ref', target,
                                    node, contnode)
+        if not newnode:
+            return newnode
         del newnode[0]
         inner = node[0]
         inner['classes'] = ['std', 'std-ref']

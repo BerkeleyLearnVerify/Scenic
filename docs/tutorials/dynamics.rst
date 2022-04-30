@@ -33,7 +33,7 @@ by different simulator interfaces. For example, the :ref:`driving_domain` define
 To define a behavior, we write a function which runs over the course of the scenario,
 periodically issuing actions. Scenic uses a discrete notion of time, so at each time
 step the function specifies zero or more actions for the agent to take. For example, here
-is a very simplified version of the `FollowLaneBehavior` above:
+is a very simplified version of the :obj:`FollowLaneBehavior` above:
 
 .. code-block:: scenic
 
@@ -69,8 +69,8 @@ Behaviors can access the current state of the world to decide what actions to ta
 
 Here, we repeatedly query the distance from the agent running the behavior (``self``)
 to the ego car; as long as it is above a threshold, we ``wait``, which means take no
-actions. Once the threshold is met, we start driving by invoking the `FollowLaneBehavior`
-we saw above using the ``do`` statement. Since `FollowLaneBehavior` runs forever, we will
+actions. Once the threshold is met, we start driving by invoking the :obj:`FollowLaneBehavior`
+we saw above using the ``do`` statement. Since :obj:`FollowLaneBehavior` runs forever, we will
 never return to the ``WaitUntilClose`` behavior.
 
 The example above also shows how behaviors may take arguments, like any Scenic function.
@@ -115,7 +115,7 @@ Interrupts
 It is frequently useful to take an existing behavior and add a complication to it; for
 example, suppose we want a car that follows a lane, stopping whenever it encounters an
 obstacle. Scenic provides a concept of *interrupts* which allows us to reuse the basic
-`FollowLaneBehavior` without having to modify it.
+:obj:`FollowLaneBehavior` without having to modify it.
 
 .. code-block:: scenic
 
@@ -132,8 +132,8 @@ Python), and begins in the same way: at first, the code block after the ``try:``
 from each ``interrupt`` clause is checked; if any are true, execution of the body is
 suspended and we instead begin to execute the corresponding *interrupt handler*. In the
 example above, there is only one interrupt, which fires when we come within 5 meters of
-any object. When that happens, `FollowLaneBehavior` is paused and we instead apply full
-braking for one time step. In the next step, we will resume `FollowLaneBehavior` wherever
+any object. When that happens, :obj:`FollowLaneBehavior` is paused and we instead apply full
+braking for one time step. In the next step, we will resume :obj:`FollowLaneBehavior` wherever
 it left off, unless we are still within 5 meters of an object, in which case the
 interrupt will fire again.
 
@@ -324,7 +324,7 @@ Preconditions and Invariants
 ----------------------------
 
 Even general behaviors designed to be used in multiple scenarios may not operate
-correctly from all possible starting states: for example, `FollowLaneBehavior` assumes
+correctly from all possible starting states: for example, :obj:`FollowLaneBehavior` assumes
 that the agent is actually in a lane rather than, say, on a sidewalk. To model such
 assumptions, Scenic provides a notion of *guards* for behaviors. Most simply, we can
 specify one or more *preconditions*:

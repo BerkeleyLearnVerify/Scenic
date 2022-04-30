@@ -299,6 +299,9 @@ class VectorField:
 		value: function computing the heading at the given `Vector`.
 		minSteps (int): Minimum number of steps for `followFrom`; default 4.
 		defaultStepSize (float): Default step size for `followFrom`; default 5.
+			This is an upper bound: more steps will be taken as needed to ensure that no
+			single step is longer than this value, but if the distance to travel is small
+			then the steps may be smaller.
 	"""
 	def __init__(self, name, value, minSteps=4, defaultStepSize=5):
 		self.name = name

@@ -291,6 +291,8 @@ class Point(_Constructible):
 		width (float): Default value zero (only provided for compatibility with
 		  operators that expect an `Object`).
 		length (float): Default value zero.
+		positionStdDev (float): Standard deviation of Gaussian noise to add to this
+		  object's ``position`` when mutation is enabled. Default value 1.
 
 	.. note::
 
@@ -309,6 +311,11 @@ class Point(_Constructible):
 
 	@cached_property
 	def visibleRegion(self):
+		"""The visible region of this object.
+
+		The visible region of a `Point` is a disc centered at its ``position`` with
+		radius ``visibleDistance``.
+		"""
 		return CircularRegion(self.position, self.visibleDistance)
 
 	@cached_property
@@ -356,6 +363,8 @@ class OrientedPoint(Point):
 			(North).
 		viewAngle (float): View cone angle for ``can see`` operator. Default
 		  value :math:`2\\pi`.
+		headingStdDev (float): Standard deviation of Gaussian noise to add to this
+		  object's ``heading`` when mutation is enabled. Default value :math:`5^\\circ`.
 	"""
 	heading: PropertyDefault((), {'dynamic'}, lambda self: 0)
 	viewAngle: math.tau
@@ -366,6 +375,12 @@ class OrientedPoint(Point):
 
 	@cached_property
 	def visibleRegion(self):
+		"""The visible region of this object.
+
+		The visible region of an `OrientedPoint` is a sector of the disc centered at its
+		``position`` with radius ``visibleDistance``, oriented along ``heading`` and
+		subtending an angle of ``viewAngle``.
+		"""
 		return SectorRegion(self.position, self.visibleDistance,
 		                    self.heading, self.viewAngle)
 
@@ -404,12 +419,12 @@ class Object(OrientedPoint, _RotatedRectangle):
 		  required to be contained in. If ``None``, the object need only be
 		  contained in the scenario's workspace.
 		cameraOffset (`Vector`): Position of the camera for the ``can see``
-		  operator, relative to the object's ``position``. Default ``0 @ 0``.
+		  operator, relative to the object's ``position``. Default ``(0, 0)``.
 
 		speed (float; dynamic): Speed in dynamic simulations. Default value 0.
 		velocity (`Vector`; *dynamic*): Velocity in dynamic simulations. Default value is
 			the velocity determined by ``self.speed`` and ``self.heading``.
-		angularSpeed (float; *dynamic*): Angular speed in dynamic simulations. Default
+		angularSpeed (float; dynamic): Angular speed in dynamic simulations. Default
 			value 0.
 
 		behavior: Behavior for dynamic agents, if any (see :ref:`dynamics`). Default
@@ -514,6 +529,13 @@ class Object(OrientedPoint, _RotatedRectangle):
 
 	@cached_property
 	def visibleRegion(self):
+		"""The visible region of this object.
+
+		The visible region of an `Object` is a circular sector as for `OrientedPoint`,
+		except that the base of the sector may be offset from ``position`` by the
+		``cameraOffset`` property (to allow modeling cameras which are not located at the
+		center of the object).
+		"""
 		camera = self.position.offsetRotated(self.heading, self.cameraOffset)
 		return SectorRegion(camera, self.visibleDistance, self.heading, self.viewAngle)
 

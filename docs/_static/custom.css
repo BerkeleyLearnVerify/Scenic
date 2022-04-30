@@ -1,7 +1,7 @@
 /* Use 4 spaces for tabs in highlighted code */
 pre {tab-size: 4;}
-/* Links with literal code inside should still be colored like links */
-.rst-content a code.literal {color: #2980b9;}
+/* :sampref: cross-references should be colored like ordinary links */
+.rst-content a code.std-ref.literal {color: #2980b9;}
 /* Increase maximum body width to support 100-character lines */
 .wy-nav-content {max-width:900px;}
 

@@ -29,8 +29,31 @@ Built-in Classes
 Point
 +++++
 
+Locations in space.
+This class provides the fundamental property ``position`` and several associated properties.
+
+.. autoclass:: scenic.core.object_types.Point
+    :noindex:
+
 OrientedPoint
 +++++++++++++
 
+A location along with an orientation, defining a local coordinate system.
+This class subclasses `Point`, adding the fundamental property ``heading`` and several associated properties.
+
+.. autoclass:: scenic.core.object_types.OrientedPoint
+    :noindex:
+
 Object
 ++++++
+
+A physical object.
+This class subclasses `OrientedPoint`, adding a variety of properties including:
+
+* ``width`` and ``length`` to define the bounding box of the object;
+* ``allowCollisions``, ``requireVisible``, and ``regionContainedIn`` to control the built-in requirements that apply to the object;
+* ``behavior``, specifying the object's :term:`dynamic behavior` if any;
+* ``speed``, ``velocity``, and other properties capturing the dynamic state of the object during simulations.
+
+.. autoclass:: scenic.core.object_types.Object
+    :noindex:
