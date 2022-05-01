@@ -28,6 +28,7 @@ Distributions
 :sampref:`TruncatedNormal({mean}, {stdDev}, {low}, {high})`      normal distribution truncated to the given window
 :sampref:`Uniform({value}, {...})`                               uniform over a finite set of values
 :sampref:`Discrete(\{{value}: {weight}, {...}\})<DiscreteDistr>` discrete with given values and weights
+:sampref:`Point (in | on) {region} <uniform_in_region>`                 uniformly-distributed `Point` in a region
 ================================================================ ==================================
 
 Statements

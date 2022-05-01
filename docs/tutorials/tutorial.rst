@@ -231,7 +231,7 @@ the ego object. The specifier ``on visible curb`` with then set ``position`` to 
 uniformly random visible point on the curb. We create ``spot`` as an `OrientedPoint`,
 which is a built-in class that defines a local coordinate system by having both a
 ``position`` and a ``heading``. The :samp:`on {region}` specifier can also specify
-``heading`` if the region has a preferred orientation (a vector field) associated with
+``heading`` if the region has a :term:`preferred orientation` (a vector field) associated with
 it: in our example, ``curb`` is oriented by ``roadDirection``. So ``spot`` is, in fact,
 a uniformly random visible point on the curb, oriented along the road. That orientation
 then causes the `Car` to be placed 0.25 m left of ``spot`` in ``spot``'s local coordinate

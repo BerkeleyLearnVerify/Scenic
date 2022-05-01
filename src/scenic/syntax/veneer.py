@@ -84,7 +84,7 @@ from scenic.core.type_support import (isA, toType, toTypes, toScalar, toHeading,
 									  evaluateRequiringEqualTypes, underlyingType,
 									  canCoerce, coerce)
 from scenic.core.geometry import normalizeAngle, apparentHeadingAtPoint
-from scenic.core.object_types import _Constructible
+from scenic.core.object_types import Constructible
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError
@@ -176,7 +176,7 @@ def registerObject(obj):
 		raise RuntimeParseError('tried to create an object inside a behavior')
 	elif activity > 0 or currentScenario:
 		assert not evaluatingRequirement
-		assert isinstance(obj, _Constructible)
+		assert isinstance(obj, Constructible)
 		currentScenario._registerObject(obj)
 		if currentSimulation:
 			currentSimulation.createObject(obj)
@@ -802,7 +802,7 @@ def In(region):
 	"""The 'in/on <region>' specifier.
 
 	Specifies 'position', with no dependencies. Optionally specifies 'heading'
-	if the given Region has a preferred orientation.
+	if the given Region has a :term:`preferred orientation`.
 	"""
 	region = toType(region, Region, 'specifier "in/on R" with R not a Region')
 	extras = {'heading'} if alwaysProvidesOrientation(region) else {}

@@ -17,7 +17,7 @@ from scenic.core.errors import RuntimeParseError
 
 ## Abstract base class
 
-class _Constructible(Samplable):
+class Constructible(Samplable):
 	"""Abstract base class for Scenic objects.
 
 	Scenic objects, which are constructed using specifiers, are implemented
@@ -32,7 +32,7 @@ class _Constructible(Samplable):
 		# find all defaults provided by the class or its superclasses
 		allDefs = collections.defaultdict(list)
 		for sc in cls.__mro__:
-			if issubclass(sc, _Constructible) and hasattr(sc, '__annotations__'):
+			if issubclass(sc, Constructible) and hasattr(sc, '__annotations__'):
 				for prop, value in sc.__annotations__.items():
 					allDefs[prop].append(PropertyDefault.forValue(value))
 
@@ -279,8 +279,8 @@ class HeadingMutator(Mutator):
 
 ## Point
 
-class Point(_Constructible):
-	"""Implementation of the Scenic base class ``Point``.
+class Point(Constructible):
+	"""The Scenic base class ``Point``.
 
 	The default mutator for `Point` adds Gaussian noise to ``position`` with
 	a standard deviation given by the ``positionStdDev`` property.
@@ -293,11 +293,6 @@ class Point(_Constructible):
 		length (float): Default value zero.
 		positionStdDev (float): Standard deviation of Gaussian noise to add to this
 		  object's ``position`` when mutation is enabled. Default value 1.
-
-	.. note::
-
-		If you're looking into Scenic's internals, note that `Point` is actually a
-		subclass of the internal Python class `_Constructible`.
 	"""
 	position: PropertyDefault((), {'dynamic'}, lambda self: Vector(0, 0))
 	width: 0
@@ -352,7 +347,7 @@ class Point(_Constructible):
 ## OrientedPoint
 
 class OrientedPoint(Point):
-	"""Implementation of the Scenic class ``OrientedPoint``.
+	"""The Scenic class ``OrientedPoint``.
 
 	The default mutator for `OrientedPoint` adds Gaussian noise to ``heading``
 	with a standard deviation given by the ``headingStdDev`` property, then
@@ -402,7 +397,7 @@ class OrientedPoint(Point):
 ## Object
 
 class Object(OrientedPoint, _RotatedRectangle):
-	"""Implementation of the Scenic class ``Object``.
+	"""The Scenic class ``Object``.
 
 	This is the default base class for Scenic classes.
 

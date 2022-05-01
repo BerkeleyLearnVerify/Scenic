@@ -39,6 +39,10 @@ Glossary
 		A scenario defined using the :sampref:`scenario <modularScenarioDef>` statement (rather than simply being the content of a Scenic file).
 		Such scenarios can take arguments, be instantiated multiple times, and be composed with other scenarios: see :ref:`composition`.
 
+	preferred orientation
+		A :ref:`vector field <Vector Fields>` set as the ``orientation`` attribute of a `Region`, indicating that objects placed within that region should be oriented to align along that vector field unless otherwise specified.
+		For example, the :obj:`~scenic.domains.driving.model.road` region provided by the :ref:`driving_domain` has as its preferred orientation the :obj:`~scenic.domains.driving.model.roadDirection` vector field, so that vehicles positioned using the specifier ``on road`` will be facing the nominal traffic direction at their position by default (i.e., the specifier specifies ``heading`` optionally, so that an explicit :samp:`facing {H}` specifier will override it).
+
 	world model
 		A Scenic library defining classes, regions, :term:`actions`, helper functions, etc. for use by scenarios targeting a particular simulator or application domain.
 		For example, the world model for the :ref:`driving_domain`, `scenic.domains.driving.model`, defines classes for vehicles, actions for steering, and regions for different parts of the road network.

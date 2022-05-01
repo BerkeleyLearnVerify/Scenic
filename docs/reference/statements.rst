@@ -15,11 +15,16 @@ Class Definition
 ::
 
     class <name>[(<superclass>)]:
-        (<property> : <value>)*
+        (<property>: <value>)*
 
 Defines a Scenic class.
 If a superclass is not explicitly specified, `Object` is used (see :ref:`objects_and_classes`).
-Scenic classes may define attributes and methods in the same way as Python classes.
+The body of the class defines a set of properties its objects have, together with default values for each property.
+Properties are inherited from superclasses, and their default values may be overridden in a subclass.
+Default values may also use the special syntax :samp:`self.{property}` to refer to one of the other properties of the same object, which is then a *dependency* of the default value.
+The order in which to evaluate properties satisfying all dependencies is computed (and cyclic dependencies detected) during :ref:`specifier resolution`.
+
+Scenic classes may also define attributes and methods in the same way as Python classes.
 
 .. _behaviorDef:
 

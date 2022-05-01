@@ -44,8 +44,19 @@ For an example of this idiom in a realistic scenario, see :file:`examples/drivin
 
 resample
 --------
-The `resample` function takes a distribution and samples a new value from it.
+The `resample` function takes a distribution and samples a new value from it, conditioned on the values of its parameters, if any.
 This is useful in cases where you have a complicated distribution that you want multiple samples from.
+
+For example, in the program
+
+.. code-block:: scenic
+
+	x = Uniform(0, 5)
+	y = Range(x, x+1)
+	z = resample(y)
+
+with probability 1/2 both ``y`` and ``z`` are independent uniform samples from the interval :math:`(0, 1)`, and with probability 1/2 they are independent uniform samples from :math:`(5, 6)`.
+It is never the case that :math:`y \in (0, 1)` and :math:`z \in (5, 6)` or vice versa, which would require inconsistent assignments to ``x``.
 
 .. note::
 

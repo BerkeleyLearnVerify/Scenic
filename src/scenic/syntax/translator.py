@@ -67,7 +67,7 @@ from ast import Break, Continue, AsyncFunctionDef, Pass, While, List
 
 from scenic.core.distributions import Samplable, RejectionException, needsSampling, toDistribution
 from scenic.core.lazy_eval import needsLazyEvaluation
-from scenic.core.object_types import _Constructible
+from scenic.core.object_types import Constructible
 import scenic.core.errors as errors
 from scenic.core.errors import (TokenParseError, PythonParseError, ASTParseError,
 								InvalidScenarioError)
@@ -804,12 +804,12 @@ def findConstructorsIn(namespace):
 	"""Find all constructors (Scenic classes) defined in a namespace."""
 	constructors = []
 	for name, value in namespace.items():
-		if inspect.isclass(value) and issubclass(value, _Constructible):
+		if inspect.isclass(value) and issubclass(value, Constructible):
 			if name in builtinConstructors:
 				continue
 			parents = []
 			for base in value.__bases__:
-				if issubclass(base, _Constructible):
+				if issubclass(base, Constructible):
 					parents.append(base.__name__)
 			constructors.append(Constructor(name, parents))
 	return constructors

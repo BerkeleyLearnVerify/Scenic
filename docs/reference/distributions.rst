@@ -4,6 +4,14 @@
 Distributions Reference
 ***********************
 
+Scenic provides functions for sampling from various types of probability distributions, and it is also possible to define custom types of distributions.
+
+If you want to sample multiple times from the same distribution (for example if the distribution is passed as an argument to a helper function), you can use the `resample` function.
+
+
+Built-in Distributions
+======================
+
 .. _Range({low}, {high}):
 
 Range(*low*, *high*)
@@ -41,6 +49,18 @@ Discrete({*value*: *weight*, ... })
 Discrete distribution over a finite set of values, with weights (which need not add up to 1).
 Each value is sampled with probability proportional to its weight.
 
-.. note::
-    
-    Distributions can be sampled multiple times using the `resample` function.
+.. _uniform_in_region:
+
+Uniform Distribution over a Region
+----------------------------------
+Scenic can also sample points uniformly at random from a :ref:`region <Regions>`, using the :sampref:`(in | on) {region}` specifier.
+Most subclasses of `Region` support random sampling.
+A few regions, such as the `everywhere` region representing all space, cannot be sampled from since a uniform distribution over them does not exist.
+
+Defining Custom Distributions
+=============================
+
+If necessary, custom distributions may be implemented by subclassing the `Distribution` class.
+New subclasses must implement the :obj:`~scenic.core.distributions.Samplable.sampleGiven` method, which computes a random sample from the distribution given values for its dependencies (if any).
+See :obj:`~scenic.core.distributions.Range` (the implementation of the uniform distribution over a range of real numbers) for a simple example of how to define a subclass.
+Additional functionality can be enabled by implementing the optional `clone`, `bucket`, and :obj:`~scenic.core.distributions.Distribution.supportInterval` methods; see their documentation for details.

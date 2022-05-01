@@ -188,7 +188,10 @@ class Distribution(Samplable):
 		self._valueType = valueType
 
 	def clone(self):
-		"""Construct an independent copy of this Distribution."""
+		"""Construct an independent copy of this Distribution.
+
+		Optionally implemented by subclasses.
+		"""
 		raise NotImplementedError('clone() not supported by this distribution')
 
 	@property
@@ -203,6 +206,8 @@ class Distribution(Samplable):
 
 	def bucket(self, buckets=None):
 		"""Construct a bucketed approximation of this Distribution.
+
+		Optionally implemented by subclasses.
 
 		This function factors a given Distribution into a discrete distribution over
 		buckets together with a distribution for each bucket. The argument *buckets*

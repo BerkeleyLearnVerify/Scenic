@@ -218,7 +218,14 @@ class EmptyRegion(Region):
 	def __hash__(self):
 		return hash(EmptyRegion)
 
+#: A `Region` containing all points.
+#:
+#: Points may not be sampled from this region, as no uniform distribution over it exists.
 everywhere = AllRegion('everywhere')
+
+#: A `Region` containing no points.
+#:
+#: Attempting to sample from this region causes the sample to be rejected.
 nowhere = EmptyRegion('nowhere')
 
 class CircularRegion(Region):

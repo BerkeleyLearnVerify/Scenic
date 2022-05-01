@@ -87,7 +87,7 @@ Like :sampref:`visible [from ({Point} | {OrientedPoint})]` except it positions t
 (in | on) *region*
 ------------------
 Positions the object uniformly at random in the given `Region`.
-If the Region has a preferred orientation (a vector field), also optionally specifies ``heading`` to be equal to that orientation at the object’s ``position``.
+If the Region has a :term:`preferred orientation` (a vector field), also optionally specifies ``heading`` to be equal to that orientation at the object’s ``position``.
 
 .. _(left | right) of ({OrientedPoint} | {Object}) [by {scalar}]:
 

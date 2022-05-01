@@ -198,6 +198,7 @@ def sort_members(self, documenters, order):
 Documenter.sort_members = sort_members
 
 # -- Monkeypatch to hide private base classes --------------------------------
+# TODO use autodoc-process-bases instead (new in Sphinx 4.1)
 
 from sphinx.ext.autodoc import ClassDocumenter
 
@@ -276,8 +277,8 @@ def handle_find_source(app, modname):
 
 def handle_process_signature(app, what, name, obj, options, signature, ret_anno):
     if (what == 'class'
-        and issubclass(obj, scenic.core.object_types._Constructible)
-        and obj is not scenic.core.object_types._Constructible):
+        and issubclass(obj, scenic.core.object_types.Constructible)
+        and obj is not scenic.core.object_types.Constructible):
         return ('(<specifiers>)', None)
     else:
         return None
