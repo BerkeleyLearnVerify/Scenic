@@ -244,6 +244,10 @@ def setup(app):
     app.connect('autodoc-process-signature', handle_process_signature)
     app.connect('autodoc-skip-member', handle_skip_member)
 
+    # Run our own reference resolver before the standard one, to resolve refs to
+    # Scenic classes differently in the "Scenic Internals" section than elsewhere
+    app.add_post_transform(ScenicRefResolver)
+
     # To allow either plural or singular forms to be looked up in the glossary:
     app.connect('missing-reference', handle_missing_reference)
 
@@ -308,6 +312,65 @@ def handle_missing_reference(app, env, node, contnode):
     newnode = stddomain.resolve_xref(env, node.get('refdoc'), app.builder,
                                      'term', target, node, contnode)
     return newnode
+
+from sphinx.transforms.post_transforms import ReferencesResolver
+
+class ScenicRefResolver(ReferencesResolver):
+    default_priority = ReferencesResolver.default_priority - 2
+
+    # The following is copied from ReferencesResolver.resolve_anyref with minor changes
+    def resolve_anyref(self, refdoc, node, contnode):
+        stddomain = self.env.get_domain('std')
+        target = node['reftarget']
+        stdresults = []
+        # first, try resolving as :doc:
+        doc_ref = stddomain.resolve_xref(self.env, refdoc, self.app.builder,
+                                         'doc', target, node, contnode)
+        if doc_ref:
+            stdresults.append(('doc', doc_ref))
+        # next, do the standard domain (makes this a priority)
+        stdresults.extend(stddomain.resolve_any_xref(self.env, refdoc, self.app.builder,
+                                                     target, node, contnode))
+        domresults = []
+        for domain in self.env.domains.values():
+            if domain.name == 'std':
+                continue  # we did this one already
+            try:
+                domresults.extend(domain.resolve_any_xref(self.env, refdoc, self.app.builder,
+                                                          target, node, contnode))
+            except NotImplementedError:
+                # the domain doesn't yet support the new interface
+                # we have to manually collect possible references (SLOW)
+                for role in domain.roles:
+                    res = domain.resolve_xref(self.env, refdoc, self.app.builder,
+                                              role, target, node, contnode)
+                    if res and len(res) > 0 and isinstance(res[0], nodes.Element):
+                        domresults.append(('%s:%s' % (domain.name, role), res))
+        # now, see how many matches we got...
+        results = stdresults + domresults
+        if not results:
+            return None
+        if len(stdresults) > 1 or len(domresults) > 1:
+            def stringify(name: str, node: Element) -> str:
+                reftitle = node.get('reftitle', node.astext())
+                return ':%s:`%s`' % (name, reftitle)
+            candidates = ' or '.join(stringify(name, role) for name, role in results)
+            logger.warning(__('more than one target found for \'any\' cross-'
+                              'reference %r: could be %s'), target, candidates,
+                           location=node)
+        if stdresults and domresults:
+            # disambiguate based on whether this is internal documentation or not
+            results = domresults if refdoc.startswith('modules/') else stdresults
+        res_role, newnode = results[0]
+        # Override "any" class with the actual role type to get the styling
+        # approximately correct.
+        res_domain = res_role.split(':')[0]
+        if (len(newnode) > 0 and
+                isinstance(newnode[0], nodes.Element) and
+                newnode[0].get('classes')):
+            newnode[0]['classes'].append(res_domain)
+            newnode[0]['classes'].append(res_role.replace(':', '-'))
+        return newnode
 
 # -- Big monkeypatch to fix bug in autosummary (temporarily) -----------------
 

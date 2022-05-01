@@ -51,7 +51,7 @@ Dynamic Simulations
 
 	Run dynamic simulations from scenes instead of plotting scene diagrams. This option
 	will only work for scenarios which specify a simulator, which is done automatically
-	by the world models for the simulator interfaces that support dynamic scenarios, e.g.
+	by the :term:`world models` for the simulator interfaces that support dynamic scenarios, e.g.
 	`scenic.simulators.carla.model` and `scenic.simulators.lgsvl.model`. If your scenario
 	is written for an abstract domain, like `scenic.domains.driving`, you will need to
 	use the :option:`--model` option to specify the specific model for the simulator you

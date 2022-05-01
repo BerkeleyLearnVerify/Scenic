@@ -1,4 +1,9 @@
-"""Implementations of the built-in Scenic classes."""
+"""Implementations of the built-in Scenic classes.
+
+Defines the 3 Scenic classes `Point`, `OrientedPoint`, and `Object`, and associated
+helper code (notably their base class `Constructible`, which implements the handling of
+property definitions and :ref:`specifier resolution`).
+"""
 
 import collections
 import math

@@ -203,7 +203,7 @@ Additional specifiers for the ``position`` and ``heading`` properties are listed
    :widths: 80 20
    :header-rows: 1
 
-   * - Specifiers for ``position`` and optionally ``heading``
+   * - Specifier for ``position`` and optionally ``heading``
      - Meaning
    * - :sampref:`(in | on) {region}`
      - Positions the object uniformly at random in the given Region
@@ -219,7 +219,7 @@ Additional specifiers for the ``position`` and ``heading`` properties are listed
    :widths: 80 20
    :header-rows: 1
 
-   * - Specifiers for ``heading``
+   * - Specifier for ``heading``
      - Meaning
    * - :sampref:`facing {heading}`
      - Orients the object along the given heading in global coordinates

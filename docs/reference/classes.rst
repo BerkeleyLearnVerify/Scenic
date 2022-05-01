@@ -4,7 +4,7 @@
 Objects and Classes Reference
 *****************************
 
-This page describes the classes built into Scenic, representing :ref:`points <points>`, :ref:`oriented points <oriented points>`, and physical :ref:`objects <objects>`, and how they are instantiated to create objects.
+This page describes the classes built into Scenic, representing :ref:`points <Point>`, :ref:`oriented points <OrientedPoint>`, and physical :ref:`objects <Object>`, and how they are instantiated to create objects.
 
 .. note::
 
@@ -24,7 +24,7 @@ Instantiates a Scenic object from a Scenic class.
 The properties of the object are determined by the given set of zero or more specifiers.
 For details on the available specifiers and how they interact, see the :ref:`specifiers`.
 
-Instantiating an instance of :ref:`objects` has a side effect: the object is added to the scenario being defined.
+Instantiating an instance of `Object` has a side effect: the object is added to the scenario being defined.
 
 
 Names of Scenic classes followed immediately by punctuation are not considered instance creations.
@@ -33,7 +33,12 @@ This allows us to refer to a Scenic class without creating an instance of that c
 Built-in Classes
 ----------------
 
-.. _points:
+..
+    N.B. the following cross-reference target deliberately has the same name as the Point class.
+    In 'conf.py' we introduce our own reference resolver for the :any: role which makes :ref: targets take precedence over :obj: targets normally, but the other way around when rendering a document in the 'modules' folder.
+    This has the effect of making a cross-reference like `Point` in the main documentation link to the high-level description here, but the same reference in the auto-generated "Scenic Internals" section will instead link to the internal documentation for the Point class.
+
+.. _Point:
 
 Point
 +++++
@@ -47,13 +52,13 @@ This class provides the fundamental property ``position`` and several associated
     :no-members:
     :members: visibleRegion
 
-.. _oriented points:
+.. _OrientedPoint:
 
 OrientedPoint
 +++++++++++++
 
 A location along with an orientation, defining a local coordinate system.
-This class subclasses :ref:`points`, adding the fundamental property ``heading`` and several associated properties.
+This class subclasses `Point`, adding the fundamental property ``heading`` and several associated properties.
 
 .. autoclass:: scenic.core.object_types.OrientedPoint
     :noindex:
@@ -61,13 +66,13 @@ This class subclasses :ref:`points`, adding the fundamental property ``heading``
     :no-members:
     :members: visibleRegion
 
-.. _objects:
+.. _Object:
 
 Object
 ++++++
 
 A physical object.
-This class subclasses :ref:`oriented points`, adding a variety of properties including:
+This class subclasses `OrientedPoint`, adding a variety of properties including:
 
 * ``width`` and ``length`` to define the bounding box of the object;
 * ``allowCollisions``, ``requireVisible``, and ``regionContainedIn`` to control the built-in requirements that apply to the object;
