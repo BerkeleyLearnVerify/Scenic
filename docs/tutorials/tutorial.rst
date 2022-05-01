@@ -6,7 +6,7 @@ Scenic Tutorial
 This tutorial motivates and illustrates the main features of Scenic, focusing on aspects
 of the language that make it particularly well-suited for describing geometric scenarios.
 Throughout, we use examples from our case study using Scenic to generate traffic scenes
-in GTA V to test and train autonomous cars [F19]_.
+in GTA V to test and train autonomous cars [F22]_, [F19]_.
 
 We'll focus here on the *spatial* aspects of scenarios; for adding *temporal* dynamics to a scenario, see our page on :ref:`dynamics`.
 
@@ -25,7 +25,7 @@ this very concisely in Scenic:
 	ego = Car
 	Car
 
-Line 1 imports the GTA world model, a Scenic library defining everything specific to our
+Line 1 imports the GTA :term:`world model`, a Scenic library defining everything specific to our
 GTA interface. This includes the definition of the class `Car`, as well as information
 about the road geometry that we'll see later. We'll suppress this ``import`` statement in
 subsequent examples.
@@ -479,6 +479,8 @@ constructs in convenient tables with links to the detailed documentation.
    on the number of iterations: see `Scenario.generate`).
 
 .. rubric:: References
+
+.. [F22] Fremont et al., :t:`Scenic: A Language for Scenario Specification and Data Generation`, Machine Learning, 2022. `[Online] <https://doi.org/10.1007/s10994-021-06120-5>`_
 
 .. [F19] Fremont et al., :t:`Scenic: A Language for Scenario Specification and Scene Generation`, PLDI 2019.
 

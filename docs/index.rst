@@ -6,7 +6,7 @@ A Scenic program defines a distribution over *scenes*, configurations of physica
 Scenic can also define (probabilistic) policies for dynamic agents, allowing modeling scenarios where agents take actions over time in response to the state of the world.
 
 Scenic was designed and implemented by Daniel J. Fremont, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia.
-For a description of the language and some of its applications, see `our journal paper <https://link.springer.com/article/10.1007/s10994-021-06120-5>`_, which extends `our PLDI 2019 paper <https://arxiv.org/abs/1809.09310>`_ on Scenic 1.x.
+For a description of the language and some of its applications, see `our journal paper <https://doi.org/10.1007/s10994-021-06120-5>`_, which extends `our PLDI 2019 paper <https://arxiv.org/abs/1809.09310>`_ on Scenic 1.x.
 Our :doc:`publications <publications>` page lists additional papers using Scenic.
 
 .. note::

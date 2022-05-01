@@ -11,16 +11,21 @@ General Scenario Control
 
 .. option:: -m <model>, --model <model>
 
-	Specify the world model to use for the scenario, overriding any ``model`` statement
+	Specify the :term:`world model` to use for the scenario, overriding any :sampref:`model <model {name}>` statement
 	in the scenario. The argument must be the fully :term:`qualified name` of a Scenic module
 	found on your :envvar:`PYTHONPATH` (it does not necessarily need to be built into
 	Scenic).
+	This allows scenarios written using a generic model, like that provided by the :ref:`driving_domain`, to be executed in a particular simulator (see the :ref:`dynamic scenarios tutorial <dynamics_running_examples>` for examples).
+
+	The equivalent of this option for the Python API is the ``model`` argument to `scenic.scenarioFromFile`.
 
 .. option:: -p <param> <value>, --param <param> <value>
 
 	Specify the value of a global parameter. This assignment overrides any
-	``param`` statements in the scenario. If the given value can be interpreted as an
-	int or float, it is; otherwise it is kept as a string.
+	:sampref:`param <param {identifier} = {value}, {...}>` statements in the scenario. If the given value can be interpreted as an
+	`int` or `float`, it is; otherwise it is kept as a string.
+
+	The equivalent of this option for the Python API is the ``params`` argument to `scenic.scenarioFromFile` (which, however, does not attempt to convert strings to numbers).
 
 .. option:: -s <seed>, --seed <seed>
 
@@ -31,6 +36,13 @@ General Scenario Control
 	(although :mod:`random` should not be used in place of Scenic's own sampling
 	constructs in Scenic code). Note though that NumPy provides other RNGs whose seeds
 	are not set by this option (see `numpy.random`).
+
+.. option:: --scenario <scenario>
+
+	If the given Scenic file defines multiple scenarios, select which one to run.
+	The named :term:`modular scenario` must not require any arguments.
+
+	The equivalent of this option for the Python API is the ``scenario`` argument to `scenic.scenarioFromFile`.
 
 Dynamic Simulations
 -------------------

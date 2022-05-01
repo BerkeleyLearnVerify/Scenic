@@ -92,11 +92,13 @@ def scenarioFromFile(path, params={}, model=None, scenario=None, cacheImports=Fa
 	"""Compile a Scenic file into a `Scenario`.
 
 	Args:
-		path (str): path to a Scenic file
-		params (dict): global parameters to override
-		model (str): Scenic module to use as world model
-		scenario (str): if there are multiple scenarios in the file, which one
-		  to use
+		path (str): Path to a Scenic file.
+		params (dict): Global parameters to override, as a dictionary mapping
+		  parameter names to their desired values.
+		model (str): Scenic module to use as :term:`world model`.
+		scenario (str): If there are multiple :term:`modular scenarios` in the
+		  file, which one to compile; if not specified, a scenario called 'Main'
+		  is used if it exists.
 		cacheImports (bool): Whether to cache any imported Scenic modules.
 		  The default behavior is to not do this, so that subsequent attempts
 		  to import such modules will cause them to be recompiled. If it is

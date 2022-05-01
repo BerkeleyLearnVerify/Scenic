@@ -5,7 +5,7 @@ What's New in Scenic
 
 This page describes what new features have been added in each version of Scenic, as well as any syntax changes which break backwards compatibility.
 Scenic uses semantic versioning, so a program written for Scenic 2.1 should also work in Scenic 2.5, but not necessarily in Scenic 3.0.
-You can run ``scenic --version`` to see which version of Scenic you are using.
+You can run :command:`scenic --version` to see which version of Scenic you are using.
 
 Scenic 2.x
 ++++++++++
@@ -19,7 +19,7 @@ Major new features:
 
 	* Modular scenarios and ways to compose them together, introduced as a prototype in 2.0.0, are now finalized, with many fixes and improvements. See :ref:`composition` for an overview of the new syntax.
 
-	* The :samp:`record {expr} as {name}`, :samp:`record initial {expr}`, and :samp:`record final {expr}` statements for recording values at every step of dynamic simulations (or only at the start/end).
+	* The :sampref:`record [(initial | final)] {value} as {name}` statement for recording values at every step of dynamic simulations (or only at the start/end).
 
 	* A built-in Newtonian physics simulator for debugging dynamic scenarios without having to install an external simulator (see `scenic.simulators.newtonian`).
 
@@ -55,12 +55,12 @@ Minor new features:
 
 	* Operators and specifiers which take vectors as arguments will now accept tuples and lists of length 2; for example, you can write ``Object at (1, 2)``. The old syntax ``Object at 1@2`` is still supported.
 
-	* The ``model`` statement allows a scenario to specify which world model it uses, while being possible to override from the command line with the :option:`--model` option.
+	* The :sampref:`model {name}` statement allows a scenario to specify which :term:`world model` it uses, while being possible to override from the command line with the :option:`--model` option.
 
 	* Global parameters can be overridden from the command line using the :option:`--param` option (e.g. to specify a different map to use for a scenario).
 
 	* The unpacking operator ``*`` can now be used with ``Uniform`` to select a random element of a random list/tuple (e.g. :samp:`lane = Uniform(*network.lanes); sec = Uniform(*lane.sections)`).
 
-	* The Python built-in function `filter` is now supported, and can be used along with unpacking as above to select a random element of a random list satisfying a given condition.
+	* The Python built-in function `filter` is now supported, and can be used along with unpacking as above to select a random element of a random list satisfying a given condition (see :ref:`filter_func` for an example).
 
 (Many other minor features didn't make it into this list.)

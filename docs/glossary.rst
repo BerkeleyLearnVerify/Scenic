@@ -4,6 +4,7 @@ Glossary
 ========
 
 .. glossary::
+	:sorted:
 
 	action
 		A primitive operation executed by an agent during a single step of a dynamic
@@ -17,7 +18,7 @@ Glossary
 
 	dynamic behavior
 		A function defining the behavior of an :term:`agent` during a simulation.
-		The function runs in parallel with the simulation, taking :term:`actions <action>` at each time step.
+		The function runs in parallel with the simulation, taking :term:`actions` at each time step.
 		See our tutorial on :ref:`dynamics` for examples.
 
 	dynamic properties
@@ -33,3 +34,15 @@ Glossary
 		Scenic scenarios beyond simple random sampling. For how to define external
 		parameters or interface to new external samplers, see
 		:mod:`scenic.core.external_params`.
+
+	modular scenario
+		A scenario defined using the :sampref:`scenario <modularScenarioDef>` statement (rather than simply being the content of a Scenic file).
+		Such scenarios can take arguments, be instantiated multiple times, and be composed with other scenarios: see :ref:`composition`.
+
+	world model
+		A Scenic library defining classes, regions, :term:`actions`, helper functions, etc. for use by scenarios targeting a particular simulator or application domain.
+		For example, the world model for the :ref:`driving_domain`, `scenic.domains.driving.model`, defines classes for vehicles, actions for steering, and regions for different parts of the road network.
+		In the line ``Car in intersection``, only the ``in`` specifier is built into Scenic: the class :obj:`~scenic.domains.driving.model.Car` and the region :obj:`~scenic.domains.driving.model.intersection` are defined by the world model.
+		A world model can be used through the :sampref:`model <model {name}>` statement, or simply by importing it like any other Scenic module.
+
+		.. seealso:: :ref:`defining_world_model` gives further examples and details on how to write a world model.

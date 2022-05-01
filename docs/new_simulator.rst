@@ -17,11 +17,13 @@ Scenes are represented by `Scene` objects, from which you can extract the object
 Supporting dynamic scenarios requires additionally implementing a subclass of `Simulator` which communicates periodically with your simulator to implement the actions taken by dynamic agents and read back the state of the simulation.
 See the :obj:`scenic.simulators.carla.simulator` and :obj:`scenic.simulators.lgsvl.simulator` modules for examples.
 
+.. _defining_world_model:
+
 Defining a World Model
 ----------------------
 
 To make writing scenarios for your simulator easier, you should write a Scenic library specifying all the relevant information about the simulated world.
-This "world model" could include:
+This :term:`world model` could include:
 
 	* Scenic classes (subclasses of :obj:`~scenic.core.object_types.Object`) corresponding to types of objects in the simulator;
 	* instances of :obj:`~scenic.core.regions.Region` corresponding to locations of interest (e.g. one for each road);

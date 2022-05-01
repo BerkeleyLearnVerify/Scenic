@@ -22,6 +22,12 @@ Normal(*mean*, *stdDev*)
 ------------------------
 Normal distribution with the given mean and standard deviation.
 
+.. _TruncatedNormal({mean}, {stdDev}, {low}, {high}):
+
+TruncatedNormal(*mean*, *stdDev*, *low*, *high*)
+------------------------------------------------
+Normal distribution as above, but truncated to the given window.
+
 .. _Uniform({value}, {...}):
 
 Uniform(*value*, ...)

@@ -11,7 +11,7 @@ This enables writing a library of scenarios which can be repeatedly used as buil
 Modular Scenarios
 -----------------
 
-The ``scenario`` statement defines a named, reusable scenario, optionally with tunable parameters.
+The ``scenario`` statement defines a named, reusable scenario, optionally with tunable parameters: what we call a :term:`modular scenario`.
 For example, here is a scenario which creates a parked car on the shoulder of the ``ego``'s current lane (assuming there is one), using some APIs from the :ref:`driving_domain`:
 
 .. code-block:: scenic

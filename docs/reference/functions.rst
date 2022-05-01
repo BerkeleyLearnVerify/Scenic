@@ -17,7 +17,7 @@ The following functions work in the same way as their Python counterparts except
 * `max`, `min`
 * `str`
 
-.. note:
+.. note::
 
 	If in the definition of a scene you would like to pass random values into some other function from the Python standard library (or any other Python package), you will need to wrap the function with the `distributionFunction` decorator. This is not necessary when calling external functions inside requirements or dynamic behaviors.
 
@@ -44,7 +44,13 @@ For an example of this idiom in a realistic scenario, see :file:`examples/drivin
 
 resample
 --------
-The `resample` function takes a distribution and samples a new value from it. This is useful in cases where you have a complicated distribution that you want multiple values from.
+The `resample` function takes a distribution and samples a new value from it.
+This is useful in cases where you have a complicated distribution that you want multiple samples from.
+
+.. note::
+
+	This function can only be applied to the basic built-in distributions (see the :ref:`distributions`).
+	Resampling a more complex expression like ``x + y`` where ``x`` and ``y`` are distributions would be ambiguous (what if ``x`` and ``y`` are used elsewhere?) and so is not allowed.
 
 .. _localPath_func:
 

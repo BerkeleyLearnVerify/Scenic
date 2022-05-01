@@ -4,6 +4,23 @@
 Specifiers Reference
 ********************
 
+Specifiers are used to define the properties of an object when a Scenic class is :ref:`instantiated <objectCreate>`.
+This page describes all the specifiers built into Scenic, and the procedure used to :ref:`resolve <specifier resolution>` a set of specifiers into an assignment of values to properties.
+
+General Specifiers
+==================
+
+.. _with {property} {value}:
+
+with *property* *value*
+-----------------------
+Assigns the given property to the given value.
+This is currently the only specifier available for properties other than ``position`` and ``heading``.
+
+
+Position Specifiers
+===================
+
 .. figure:: ../images/Specifier_Figure.png
   :width: 60%
   :figclass: align-center
@@ -11,9 +28,6 @@ Specifiers Reference
 
   Illustration of the ``beyond``, ``behind``, and ``offset by`` specifiers.
   Each ``OrientedPoint`` (e.g. ``P``) is shown as a bold arrow.
-
-Position Specifiers
-===================
 
 .. _at {vector}:
 

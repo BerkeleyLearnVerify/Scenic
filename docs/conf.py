@@ -243,6 +243,9 @@ def setup(app):
     app.connect('autodoc-process-signature', handle_process_signature)
     app.connect('autodoc-skip-member', handle_skip_member)
 
+    # To allow either plural or singular forms to be looked up in the glossary:
+    app.connect('missing-reference', handle_missing_reference)
+
     # for some reason, the Pygments entry point doesn't work on ReadTheDocs;
     # so we register the custom lexer here
     app.add_lexer('scenic', ScenicLexer)
@@ -285,6 +288,25 @@ def handle_skip_member(app, what, name, obj, skip, options):
         if doc and 'private' in extract_metadata(doc):
             return True
     return None
+
+import inflect
+engine = inflect.engine()
+
+def handle_missing_reference(app, env, node, contnode):
+    """If a glossary term can't be found, try the opposite plurality."""
+    if node.get('refdomain') != 'std':
+        return None
+    if node['reftype'] != 'term':
+        return None
+    prefix, sep, last_word = node['reftarget'].rpartition(' ')
+    alternative = engine.singular_noun(last_word)
+    if alternative is False:   # word is not a plural noun
+        alternative = engine.plural(last_word)
+    target = prefix + sep + alternative
+    stddomain = env.domains['std']
+    newnode = stddomain.resolve_xref(env, node.get('refdoc'), app.builder,
+                                     'term', target, node, contnode)
+    return newnode
 
 # -- Big monkeypatch to fix bug in autosummary (temporarily) -----------------
 

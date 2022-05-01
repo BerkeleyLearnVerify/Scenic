@@ -45,7 +45,7 @@ It is thus an error for a behavior to enter an infinite loop which contains no `
 Behaviors end naturally when their body finishes executing (or if they ``return``): if this happens, the agent performing the behavior will take no actions for the rest of the scenario.
 Behaviors may also :sampref:`terminate` the current scenario, ending it immediately.
 
-Behaviors may invoke sub-behaviors, optionally for a limited time or until a desired condition is met, using :sampref:`do <do {behavior} [until {boolean}]>` statements.
+Behaviors may invoke sub-behaviors, optionally for a limited time or until a desired condition is met, using :sampref:`do <do {behavior/scenario}, {...}>` statements.
 It is also possible to (temporarily) interrupt the execution of a sub-behavior under certain conditions and resume it later, using :ref:`try-interrupt <try>` statements.
 
 .. _monitorDef:
@@ -75,7 +75,19 @@ Modular Scenario Definition
         [compose:
             <statement>*]
 
-Defines a Scenic modular scenario. Scenario definitions, like behavior definitions, have preconditions and invariants. The body of a scenario consists of two optional parts: a setup block and a compose block. The setup block contains code that runs once when the scenario begins to execute, and is a list of statements like a top-level Scenic program. The compose block orchestrates the execution of sub-scenarios during a dynamic scenario, and may use do and any of the other statements allowed inside behaviors (except take, which only makes sense for an individual agent).
+::
+
+    scenario <name>(<arguments>):
+        <statement>*
+
+Defines a Scenic :term:`modular scenario`.
+Scenario definitions, like behavior definitions, may include preconditions and invariants.
+The body of a scenario consists of two optional parts: a ``setup`` block and a ``compose`` block.
+The ``setup`` block contains code that runs once when the scenario begins to execute, and is a list of statements like a top-level Scenic program (so it may create objects, define requirements, etc.).
+The ``compose`` block orchestrates the execution of sub-scenarios during a dynamic scenario, and may use :sampref:`do <do {behavior/scenario}, {...}>` and any of the other statements allowed inside behaviors (except :sampref:`take <take {action}, {...}>`, which only makes sense for an individual :term:`agent`).
+If a modular scenario does not use preconditions, invariants, or sub-scenarios (i.e., it only needs a ``setup`` block) it may be written in the second form above, where the entire body of the ``scenario`` comprises the ``setup`` block.
+
+.. seealso:: Our tutorial on :ref:`composition` gives many examples of how to use modular scenarios.
 
 .. _tryInterruptStmt:
 
@@ -91,10 +103,19 @@ Try-Interrupt Statement
     (except <exception>:
         <statement>*)*
 
-A ``try-interrupt`` block can be placed inside a behavior to run a series of statements, including sub behaviors, while being able to interrupt at any point if certain conditions are violated. When a ``try-interrupt`` block is encountered, the statements under ``try`` are executed. If at any point one of the ``interrupt`` conditions is met, the ``interrupt`` block is entered and run. Once the ``interrupt`` block is complete, control is returned to the statement that was being executed under the ``try`` block. If there are multiple ``interrupt`` clauses, successive clauses take precedence over those which precede them. ``except`` statements are also supported, and function identically to their Python counterparts.
+A ``try-interrupt`` statement can be placed inside a behavior (or ``compose`` block of a :term:`modular scenario`) to run a series of statements, including invoking sub-behaviors with :sampref:`do <do {behavior/scenario}, {...}>`, while being able to interrupt at any point if given conditions are met.
+When a ``try-interrupt`` statement is encountered, the statements in the ``try`` block are executed.
+If at any time step one of the ``interrupt`` conditions is met, the corresponding ``interrupt`` block (its *handler*) is entered and run.
+Once the interrupt handler is complete, control is returned to the statement that was being executed under the ``try`` block.
 
-Standard Statements
-===================
+If there are multiple ``interrupt`` clauses, successive clauses take precedence over those which precede them; furthermore, during execution of an interrupt handler, successive ``interrupt`` clauses continue to be checked and can interrupt the handler.
+Likewise, if ``try-interrupt`` statements are nested, the outermost statement takes precedence and can interrupt the inner statement at any time.
+When one handler interrupts another and then completes, the original handler is resumed (and it may even be interrupted again before control finally returns to the ``try`` block).
+
+The ``try-interrupt`` statement may conclude with any number of ``except`` blocks, which function identically to their :ref:`Python counterparts <except>`.
+
+Simple Statements
+=================
 
 The following statements can occur throughout a Scenic program unless otherwise stated.
 
@@ -102,13 +123,15 @@ The following statements can occur throughout a Scenic program unless otherwise 
 
 model *name*
 ------------
-Select the world model. ``model X`` is equivalent to ``from X import *`` except that ``X`` can be replaced using the ``--model`` command-line option or the ``model`` keyword argument to the top-level APIs. 
+Select a :term:`world model` to use for this scenario.
+The statement :samp:`model {X}` is equivalent to :samp:`from {X} import *` except that :samp:`{X}` can be replaced using the :option:`--model` command-line option or the ``model`` keyword argument to the top-level APIs.
+When writing simulator-agnostic scenarios, using the ``model`` statement is preferred to a simple ``import`` since a more specific world model for a particular simulator can then be selected at compile time.
 
 .. _import {module}:
 
 import *module*
 ----------------
-Import a Scenic or Python module. This statement behaves as in Python, but when importing a Scenic module M it also imports any objects created and requirements imposed in M.
+Import a Scenic or Python module. This statement behaves :ref:`as in Python <import>`, but when importing a Scenic module it also imports any objects created and requirements imposed in that module.
 Scenic also supports the form :samp:`from {module} import {identifier}, {...}` , which as in Python imports the module plus one or more identifiers from its namespace.
 
 .. note::
@@ -119,49 +142,50 @@ Scenic also supports the form :samp:`from {module} import {identifier}, {...}` ,
 
 param *identifier* = *value*, . . .
 ---------------------------------------
-Defines global parameters of the scenario. These have no semantics in Scenic, simply having their values included as part of the generated scene, but provide a general-purpose way to encode arbitrary global information.
-If multiple ``param`` statements define parameters with the same name, the last statement takes precedence, except that Scenic world models imported using the ``model`` statement do not override existing values for global parameters.
+Defines one or more global parameters of the scenario.
+These have no semantics in Scenic, simply having their values included as part of the generated `Scene`, but provide a general-purpose way to encode arbitrary global information.
+
+If multiple ``param`` statements define parameters with the same name, the last statement takes precedence, except that Scenic world models imported using the :sampref:`model <model {name}>` statement do not override existing values for global parameters.
 This allows models to define default values for parameters which can be overridden by particular scenarios.
-Global parameters can also be overridden at the command line using the :option:`--param` option.
-To access global parameters, you must access the appropriate field in the ``globalParameters`` object. For example, if you declare ``param carSize = 3``, you could then access this parameter later in the program via ``globalParameters.carSize``. If the parameter was not overriden, then this would evaluate to 3. If it was overriden, it would evaluate to whatever it was set to at compilation time.
+Global parameters can also be overridden at the command line using the :option:`--param` option, or from the top-level API using the ``params`` argument to `scenic.scenarioFromFile`.
+
+To access global parameters within the scenario itself, you can read the corresponding attribute of the ``globalParameters`` object.
+For example, if you declare ``param weather = 'SUNNY'``, you could then access this parameter later in the program via ``globalParameters.weather``.
+If the parameter was not overridden, this would evaluate to ``'SUNNY'``; if Scenic was run with the command-line option ``--param weather SNOW``, it would evaluate to ``'SNOW'`` instead.
 
 .. _require {boolean}:
 
 require *boolean*
 ------------------
-Defines a hard requirement, requiring that the given condition hold in all instantiations of the scenario. As noted above, this is equivalent to an observe statement in other probabilistic programming languages.
+Defines a hard requirement, requiring that the given condition hold in all instantiations of the scenario.
+This is equivalent to an "observe" statement in other probabilistic programming languages.
 
 .. _require[{number}] {boolean}:
 
 require[*number*] *boolean*
 ---------------------------
-Defines a soft requirement, requiring that the given condition hold at least the percentage of the time specified. For example, ``require[0.75] ego in parking_lot`` would require that the ego be in the parking lot at least 75% percent of the time.
-
-.. note::
-
-    The provided number must be a literal number, not something that evaluates to a number.
+Defines a soft requirement, requiring that the given condition hold with at least the given probability (which must be a literal number, not an expression).
+For example, ``require[0.75] ego in parking_lot`` would require that the ego be in the parking lot at least 75% percent of the time.
 
 .. _require (always | eventually) {boolean}:
 
 require (always | eventually) *boolean*
 ---------------------------------------
-Require a condition hold at each timestep (``always``) or at some point during the simulation (``eventually``).
+Require a condition hold at each time step (``always``) or at some point during the simulation (``eventually``).
 
 .. _terminate when {boolean}:
 
 terminate when *boolean*
 ------------------------
-Terminates the scenario when the provided conditional evaluates to true.
-
-.. note::
-    
-    If you are using modular scenarios and the current scenario was invoked from another scenario, only the current scenario will end, not the entire simulation.
+Terminates the scenario when the provided condition becomes true.
+If this statement is used in a :term:`modular scenario` which was invoked from another scenario, only the current scenario will end, not the entire simulation.
 
 .. _mutate {identifier}, {...} [by {number}]:
 
 mutate *identifier*, . . . [by *scalar*]
 -----------------------------------------
-Enables mutation of the given list of objects, adding Gaussian noise with the given standard deviation (default 1) to their position and heading properties. If no objects are specified, mutation applies to every Object already created.
+Enables mutation of the given list of objects, adding Gaussian noise with the given standard deviation (default 1) to their ``position`` and ``heading`` properties.
+If no objects are specified, mutation applies to every `Object` already created.
 
 .. _record [(initial | final)] {value} as {name}:
 
@@ -182,6 +206,7 @@ The following statements are valid only in ``behavior``, ``monitor``, and ``comp
 take *action*, ...
 ------------------
 Takes the action(s) specified and pass control to the simulator until the next timestep.
+Unlike :sampref:`wait`, this statement may not be used in monitors or :term:`modular scenarios`, since these do not take actions.
 
 .. _wait:
 
@@ -195,27 +220,55 @@ terminate
 ---------
 Immediately end the scenario.
 
-.. _do {behavior} [until {boolean}]:
+.. _do {behavior/scenario}, {...}:
 
-do *behavior* [until *boolean*]
+do *behavior/scenario*, ...
 -------------------------------
-Perform a behavior. If an ``until`` condition is specified then, the behavior will terminate when the condition is met.
+Run one or more sub-behaviors or sub-scenarios in parallel.
+This statement does not return until all invoked sub-behaviors/scenarios have completed.
 
-.. _do {behavior} for {scalar} (seconds | steps):
+.. _do {behavior/scenario}, {...} until {boolean}:
 
-do *behavior* for *scalar* (seconds | steps)
---------------------------------------------
-Perform a behavior for a set number of simulation seconds/timesteps.
+do *behavior/scenario*, ... until *boolean*
+-------------------------------------------
+As above, except the sub-behaviors/scenarios will terminate when the condition is met.
+
+.. _do {behavior/scenario}, {...} for {scalar} (seconds | steps):
+
+do *behavior/scenario* for *scalar* (seconds | steps)
+-----------------------------------------------------
+Run sub-behaviors/scenarios for a set number of simulation seconds/timesteps.
+This statement can return before that time if all the given sub-behaviors/scenarios complete.
+
+.. _do choose {behavior/scenario}, {...}:
+
+do choose *behavior/scenario*, ...
+----------------------------------
+Randomly pick one of the given behaviors/scenarios whose preconditions are satisfied, and run it.
+If no choices are available, the simulation is rejected.
+
+This statement also allows the more general form :samp:`do choose \\{ {behavior/scenario}: {weight}, {...} \}`, giving weights for each choice (which need not add up to 1).
+Among all choices whose preconditions are satisfied, this picks a choice with probability proportional to its weight.
+
+.. _do shuffle {behavior/scenario}, {...}:
+
+do shuffle *behavior/scenario*, ...
+-----------------------------------
+Like ``do choose`` above, except that when the chosen sub-behavior/scenario completes, a different one whose preconditions are satisfied is chosen to run next, and this repeats until all the sub-behaviors/scenarios have run once.
+If at any point there is no available choice to run (i.e. we have a deadlock), the simulation is rejected.
+
+This statement also allows the more general form :samp:`do shuffle \\{ {behavior/scenario}: {weight}, {...} \}`, giving weights for each choice (which need not add up to 1).
+Each time a new sub-behavior/scenario needs to be selected, this statement finds all choices whose preconditions are satisfied and picks one with probability proportional to its weight.
 
 .. _abort:
 
 abort
 -----
-Used in an interrupt body to terminate the current :ref:`tryInterruptStmt` statement.
+Used in an interrupt handler to terminate the current :ref:`tryInterruptStmt` statement.
 
 .. _override {object} {specifier}, {...}:
 
-override *object* *specifier*, {...}
+override *object* *specifier*, ...
 ------------------------------------
 Override one or more properties of an object, e.g. its ``behavior``, for the duration of the current scenario.
 The properties will revert to their previous values when the current scenario terminates.

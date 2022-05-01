@@ -441,7 +441,7 @@ usual schematic diagram of the generated scenes:
 To run dynamic simulations, add the :option:`--simulate` option (:option:`-S` for short).
 Since this scenario is not written for a particular simulator, you'll need to specify
 which one you want by using the :option:`--model` option (:option:`-m` for short) to
-select the corresponding Scenic world model: for example, to use the Newtonian simulator we could add
+select the corresponding Scenic :term:`world model`: for example, to use the Newtonian simulator we could add
 ``--model scenic.simulators.newtonian.model``. It's also a good idea to put a time bound on
 the simulations, which we can do using the :option:`--time` option.
 

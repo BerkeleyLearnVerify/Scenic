@@ -455,7 +455,12 @@ def terminate_after(timeLimit, terminator=None):
 
 def resample(dist):
 	"""The built-in resample function."""
-	return dist.clone() if isinstance(dist, Distribution) else dist
+	if not isinstance(dist, Distribution):
+		return dist
+	try:
+		return dist.clone()
+	except NotImplementedError:
+		raise RuntimeParseError('cannot resample non-primitive distribution') from None
 
 def verbosePrint(msg, file=sys.stdout, level=1):
 	"""Built-in function printing a message when the verbosity is >0.

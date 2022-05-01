@@ -113,7 +113,7 @@ class Simulation:
         timestep (float): Length of each time step in seconds.
         objects: List of Scenic objects (instances of `Object`) existing in the
             simulation. This list will change if objects are created dynamically.
-        agents: List of :term:`agents <agent>` in the simulation.
+        agents: List of :term:`agents` in the simulation.
         result (`SimulationResult`): Result of the simulation, or `None` if it has not
             yet completed. This is the primary object which should be inspected to get
             data out of the simulation: the other attributes of this class are primarily

@@ -25,7 +25,7 @@ various simulator interfaces so that scenarios written for that domain can be ex
 those simulators. For example, a scenario written for our
 :ref:`driving domain <driving_domain>` can be run in both LGSVL and CARLA.
 
-A domain provides a Scenic world model which defines Scenic classes for the various types
+A domain provides a Scenic :term:`world model` which defines Scenic classes for the various types
 of objects that occur in its scenarios. The model also provides a simulator-agnostic way
 to access the geometry of the simulated world, by defining regions, vector fields, and
 other objects as appropriate (for example, the driving domain provides a `Network` class

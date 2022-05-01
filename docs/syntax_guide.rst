@@ -25,6 +25,7 @@ Distributions
 :sampref:`Range({low}, {high})`                                  uniformly-distributed real number in the interval
 :sampref:`DiscreteRange({low}, {high})`                          uniformly-distributed integer in the (fixed) interval
 :sampref:`Normal({mean}, {stdDev})`                              normal distribution with the given mean and standard deviation
+:sampref:`TruncatedNormal({mean}, {stdDev}, {low}, {high})`      normal distribution truncated to the given window
 :sampref:`Uniform({value}, {...})`                               uniform over a finite set of values
 :sampref:`Discrete(\{{value}: {weight}, {...}\})<DiscreteDistr>` discrete with given values and weights
 ================================================================ ==================================
@@ -44,11 +45,11 @@ Compound Statements
    * - :sampref:`class {name}[({superclass})]: <classDef>`
      - Defines a Scenic class.
    * - :sampref:`behavior {name}({arguments}): <behaviorDef>`
-     - Defines a dynamic behavior.
+     - Defines a :term:`dynamic behavior`.
    * - :sampref:`monitor {name}: <monitorDef>`
      - Defines a monitor.
    * - :sampref:`scenario {name}({arguments}): <modularScenarioDef>`
-     - Defines a modular scenario.
+     - Defines a :term:`modular scenario`.
    * - :sampref:`try: {...} interrupt when {boolean}:<tryInterruptStmt>`
      - A try-interrupt block inside a dynamic behavior or modular scenario.
 
@@ -62,7 +63,7 @@ Simple Statements
    * - Syntax
      - Meaning
    * - :sampref:`model {name}`
-     - Select the world model.
+     - Select the :term:`world model`.
    * - :sampref:`import {module}`
      - Import a Scenic or Python module
    * - :sampref:`param {identifier} = {value}, {...}`
@@ -83,7 +84,7 @@ Simple Statements
 Dynamic Statements
 ++++++++++++++++++
 
-These statements can only be used inside a :term:`dynamic behavior`, monitor, or ``compose`` block of a modular scenario.
+These statements can only be used inside a :term:`dynamic behavior`, monitor, or ``compose`` block of a :term:`modular scenario`.
 
 .. list-table::
    :widths: 30 70
@@ -97,12 +98,18 @@ These statements can only be used inside a :term:`dynamic behavior`, monitor, or
      - Take no actions this time step.
    * - :sampref:`terminate`
      - Immediately end the scenario.
-   * - :sampref:`do {behavior} [until {boolean}]`
-     - Perform a behavior until it completes or an optional ``until`` condition is met.
-   * - :sampref:`do {behavior} for {scalar} (seconds | steps)`
-     - Perform a behavior for (at most) a specified period of time.
+   * - :sampref:`do {behavior/scenario}, {...}`
+     - Run one or more sub-behaviors/sub-scenarios until they complete.
+   * - :sampref:`do {behavior/scenario}, {...} until {boolean}`
+     - Run sub-behaviors/scenarios until they complete or a condition is met.
+   * - :sampref:`do {behavior/scenario}, {...} for {scalar} (seconds | steps)`
+     - Run sub-behaviors/scenarios for (at most) a specified period of time.
+   * - :sampref:`do choose {behavior/scenario}, {...}`
+     - Run *one* choice of sub-behavior/scenario whose preconditions are satisfied.
+   * - :sampref:`do shuffle {behavior/scenario}, {...}`
+     - Run several sub-behaviors/scenarios in a random order, satisfying preconditions.
    * - :sampref:`abort`
-     - Breaks out of the current :ref:`tryInterruptStmt`
+     - Break out of the current :ref:`tryInterruptStmt`
    * - :sampref:`override {object} {specifier}, {...}`
      - Override properties of an object for the duration of the current scenario.
 
@@ -111,8 +118,8 @@ Objects
 
 The syntax :sampref:`{class} {specifier}, {...} <objectCreate>` creates an instance of a Scenic class.
 
-Scenic objects representing physical objects are instances of the class `Object`, which provides the following built-in properties.
-The basic position properties are inherited from `Point`, and the orientation properties are added by `OrientedPoint`.
+The Scenic class `Point` provides the basic position properties in the first table below; its subclass `OrientedPoint` adds the orientation properties in the second table.
+Finally, the class `Object`, which represents physical objects and is the default superclass of user-defined Scenic classes, adds the properties in the third table.
 See the :ref:`objects_and_classes` for details.
 
 ===================  ==============  ================================================
@@ -122,21 +129,33 @@ See the :ref:`objects_and_classes` for details.
  viewDistance          50            distance for the ‘can see’ operator
  mutationScale         0             overall scale of mutations
  positionStdDev        1             mutation standard deviation for ``position``
+===================  ==============  ================================================
+
+Properties added by `OrientedPoint`:
+
+===================  ==============  ================================================
+   **Property**       **Default**                    **Meaning**
 -------------------  --------------  ------------------------------------------------
  heading [1]_          0             heading in global coordinates
  viewAngle            360 degrees    angle for the ‘can see’ operator
  headingStdDev         5 degrees     mutation standard deviation for ``heading``
+===================  ==============  ================================================
+
+Properties added by `Object`:
+
+===================  ==============  ================================================
+   **Property**       **Default**                    **Meaning**
 -------------------  --------------  ------------------------------------------------
  width                 1             width of bounding box (X axis)
  length                1             length of bounding box (Y axis)
- regionContainedIn    workspace      Region the object must lie within
- allowCollisions      `False`        whether collisions are allowed
- requireVisible       `True`         whether object must be visible from ego
- cameraOffset          (0, 0)        position of camera for ‘can see’
- behavior              `None`        :term:`dynamic behavior`, if any
  speed [1]_            0             initial speed (later, instantaneous speed)
  velocity [1]_       from ``speed``  initial velocity (later, instantaneous velocity)
  angularSpeed [1]_     0             angular speed (change in heading/time)
+ behavior              `None`        :term:`dynamic behavior`, if any
+ allowCollisions      `False`        whether collisions are allowed
+ requireVisible       `True`         whether object must be visible from ego
+ regionContainedIn    workspace      Region the object must lie within
+ cameraOffset          (0, 0)        position of camera for ‘can see’
 ===================  ==============  ================================================
 
 .. [1] These are :term:`dynamic properties`, updated automatically every time step during
@@ -144,6 +163,9 @@ See the :ref:`objects_and_classes` for details.
 
 Specifiers
 ----------
+
+The :sampref:`with {property} {value}` specifier can specify any property, including new properties not built into Scenic.
+Additional specifiers for the ``position`` and ``heading`` properties are listed below.
 
 .. figure:: images/Specifier_Figure.png
   :width: 60%
