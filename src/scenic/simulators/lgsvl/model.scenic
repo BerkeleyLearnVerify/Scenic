@@ -63,6 +63,10 @@ class EgoCar(Vehicle, Steers):
         self._control = None    # used internally to accumulate control updates
 
     @property
+    def isCar(self):
+        return True
+
+    @property
     def control(self):
         if self._control is None:
             self._control = lgsvl.VehicleControl()

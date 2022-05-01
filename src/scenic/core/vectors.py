@@ -211,6 +211,12 @@ class Vector(Samplable, collections.abc.Sequence):
 	def norm(self) -> float:
 		return math.hypot(*self.coordinates)
 
+	@scalarOperator
+	def dot(self, other) -> float:
+		x, y = self.x, self.y
+		ox, oy = other.x, other.y
+		return (x * ox) + (y * oy)
+
 	@vectorOperator
 	def normalized(self) -> Vector:
 		l = math.hypot(*self.coordinates)

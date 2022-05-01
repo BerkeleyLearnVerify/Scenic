@@ -1,5 +1,6 @@
 """Newtonian simulator implementation."""
 
+from cmath import atan, pi, tan
 import math
 from math import sin, radians, degrees, copysign
 import os
@@ -7,10 +8,13 @@ import pathlib
 import time
 
 from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
+from scenic.core.geometry import allChains
+from scenic.core.regions import toPolygon
 from scenic.core.simulators import SimulationCreationError
 from scenic.syntax.veneer import verbosePrint
 from scenic.core.vectors import Vector
 import scenic.simulators.newtonian.utils.utils as utils
+from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
 from scenic.domains.driving.roads import Network
 from scenic.syntax.translator import verbosity
 
@@ -25,6 +29,13 @@ WIDTH = 1280
 HEIGHT = 800
 MAX_ACCELERATION = 5.6 # in m/s2, seems to be a pretty reasonable value
 MAX_BRAKING = 4.6
+
+ROAD_COLOR = (0, 0, 0)
+ROAD_WIDTH = 2
+LANE_COLOR = (96, 96, 96)
+CENTERLINE_COLOR = (224, 224, 224)
+SIDEWALK_COLOR = (0, 128, 255)
+SHOULDER_COLOR = (96, 96, 96)
 
 class NewtonianSimulator(DrivingSimulator):
     """Implementation of `Simulator` for the Newtonian simulator.
@@ -50,11 +61,9 @@ class NewtonianSimulation(DrivingSimulation):
         self.network = network
         self.ego = self.objects[0]
 
-        # Set actor's initial velocity (if specified)
+        # Set actor's initial speed
         for obj in self.objects:
-            if obj.speed is not None:
-                equivVel = obj.speed*utils.vectorFromHeading(obj.heading)
-                obj.velocity = equivVel
+            obj.speed = math.hypot(*obj.velocity)
 
         if self.render:
             # determine window size
@@ -71,13 +80,20 @@ class NewtonianSimulation(DrivingSimulation):
                                                   pygame.HWSURFACE | pygame.DOUBLEBUF)
             self.screen.fill((255, 255, 255))
             x, y = self.ego.position
-            self.x_window = [min_x-50, max_x+50]
-            self.y_window = [min_y-50, max_y+50]
-            xlim1, xlim2 = self.x_window
-            ylim1, ylim2 = self.y_window
+            self.min_x, self.max_x = min_x-50, max_x+50
+            self.min_y, self.max_y = min_y-50, max_y+50
+            self.size_x = self.max_x - self.min_x
+            self.size_y = self.max_y - self.min_y
+            self.screen_poly = shapely.geometry.Polygon((
+                (self.min_x, self.min_y),
+                (self.max_x, self.min_y),
+                (self.max_x, self.max_y),
+                (self.min_x, self.max_y)
+            ))
+
             img_path = os.path.join(current_dir, 'car.png')
             self.car = pygame.image.load(img_path)
-            self.car_width = int(3.5 * WIDTH / (xlim2 - xlim1))
+            self.car_width = int(3.5 * WIDTH / self.size_x)
             self.car_height = self.car_width
             self.car = pygame.transform.scale(self.car, (self.car_width,
                                                          self.car_height))
@@ -88,24 +104,30 @@ class NewtonianSimulation(DrivingSimulation):
         self.network_polygons = []
         if not self.network:
             return
-        for element in self.network.elements.values():
-            if not hasattr(element, 'polygon'):
-                continue
-            if isinstance(element.polygon, shapely.geometry.multipolygon.MultiPolygon):
-                all_polygons = list(element.polygon.geoms)
-            else:
-                all_polygons = [element.polygon]
-            for poly in all_polygons:
-                if self.boundingBoxOnScreen(*poly.bounds):
-                    screenPoints = map(self.scenicToScreenVal, poly.exterior.coords)
-                    self.network_polygons.append(list(screenPoints))
+
+        def addRegion(region, color, width=1):
+            poly = toPolygon(region)
+            if not poly or not self.screen_poly.intersects(poly):
+                return
+            for chain in allChains(poly):
+                coords = tuple(self.scenicToScreenVal(pt) for pt in chain.coords)
+                self.network_polygons.append((coords, color, width))
+
+        addRegion(self.network.walkableRegion, SIDEWALK_COLOR)
+        addRegion(self.network.shoulderRegion, SHOULDER_COLOR)
+        for road in self.network.roads: # loop over main roads
+            for lane in road.lanes:
+                addRegion(lane.leftEdge, LANE_COLOR)
+                addRegion(lane.rightEdge, LANE_COLOR)
+            addRegion(road, ROAD_COLOR, ROAD_WIDTH)
+        for lane in self.network.lanes: # loop over all lanes, even in intersections
+            addRegion(lane.centerline, CENTERLINE_COLOR)
+        addRegion(self.network.intersectionRegion, ROAD_COLOR)
 
     def scenicToScreenVal(self, pos):
         x, y = pos
-        min_x, max_x = self.x_window
-        min_y, max_y = self.y_window
-        x_prop = (x - min_x) / (max_x - min_x)
-        y_prop = (y - min_y) / (max_y - min_y)
+        x_prop = (x - self.min_x) / self.size_x
+        y_prop = (y - self.min_y) / self.size_y
         return int(x_prop * WIDTH), HEIGHT - 1 - int(y_prop * HEIGHT)
 
     def createObjectInSimulator(self, obj):
@@ -114,29 +136,39 @@ class NewtonianSimulation(DrivingSimulation):
     def actionsAreCompatible(self, agent, actions):
         return True
 
-    def boundingBoxOnScreen(self, x1, y1, x2, y2):
-        min_x, max_x = self.x_window
-        min_y, max_y = self.y_window
-        onScreen = lambda x, y: min_x <= x <= max_x and min_y <= y <= max_y
-        return (onScreen(x1, y1) or onScreen(x2, y2) or
-               onScreen(x1, y2) or onScreen(x2, y1))
+    def isOnScreen(self, x, y):
+        return self.min_x <= x <= self.max_x and self.min_y <= y <= self.max_y
 
     def step(self):
         for obj in self.objects:
+            current_speed = obj.velocity.norm()
             if hasattr(obj, 'hand_brake'):
-                if obj.hand_brake:
-                    acceleration = -MAX_BRAKING
-                elif obj.brake > 0:
-                    acceleration = -obj.brake * MAX_BRAKING
+                forward = (obj.velocity.dot(Vector(0, 1).rotatedBy(obj.heading)) >= 0)
+                signed_speed = current_speed if forward else -current_speed
+                if obj.hand_brake or obj.brake > 0:
+                    braking = MAX_BRAKING * max(obj.hand_brake, obj.brake)
+                    acceleration = braking * self.timestep
+                    if acceleration >= current_speed:
+                        signed_speed = 0
+                    elif forward:
+                        signed_speed -= acceleration
+                    else:
+                        signed_speed += acceleration
                 else:
                     acceleration = obj.throttle * MAX_ACCELERATION
-                obj.speed += acceleration * self.timestep
-                obj.velocity = Vector(0, obj.speed).rotatedBy(obj.heading)
+                    if obj.reverse:
+                        acceleration *= -1
+                    signed_speed += acceleration * self.timestep
+
+                obj.velocity = Vector(0, signed_speed).rotatedBy(obj.heading)
                 if obj.steer:
                     turning_radius = obj.length / sin(obj.steer * math.pi / 2)
-                    obj.angularSpeed = -obj.speed / turning_radius
+                    obj.angularSpeed = -signed_speed / turning_radius
                 else:
                     obj.angularSpeed = 0
+                obj.speed = abs(signed_speed)
+            else:
+                obj.speed = current_speed
             obj.position += obj.velocity * self.timestep
             obj.heading += obj.angularSpeed * self.timestep
         if self.render:
@@ -144,8 +176,8 @@ class NewtonianSimulation(DrivingSimulation):
 
     def draw_objects(self):
         self.screen.fill((255, 255, 255))
-        for screenPoints in self.network_polygons:
-            pygame.draw.polygon(self.screen, (0, 0, 0), list(screenPoints), width=1)
+        for screenPoints, color, width in self.network_polygons:
+            pygame.draw.lines(self.screen, color, False, screenPoints, width=width)
 
         for obj in self.objects:
             color = (255, 0, 0) if obj is self.ego else (0, 0, 255)
@@ -156,7 +188,7 @@ class NewtonianSimulation(DrivingSimulation):
             dx, dy = int(heading_vec.x), -int(heading_vec.y)
             x, y = self.scenicToScreenVal(obj.position)
             rect_x, rect_y = self.scenicToScreenVal(obj.position + pos_vec)
-            if any('Vehicle' in cls.__name__ for cls in type(obj).__mro__):     # TODO improve?
+            if hasattr(obj, 'isCar') and obj.isCar:
                 self.rotated_car = pygame.transform.rotate(self.car, math.degrees(obj.heading))
                 self.screen.blit(self.rotated_car, (rect_x, rect_y))
             else:
@@ -169,10 +201,41 @@ class NewtonianSimulation(DrivingSimulation):
     def getProperties(self, obj, properties):
         values = dict(
             position=obj.position,
-            elevation=obj.elevation,
             heading=obj.heading,
             velocity=obj.velocity,
             speed=obj.speed,
             angularSpeed=obj.angularSpeed,
         )
+        if 'elevation' in properties:
+            values['elevation'] = obj.elevation
         return values
+
+    def getLaneFollowingControllers(self, agent):
+        dt = self.timestep
+        if agent.isCar:
+            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.02, dt=dt)
+        else:
+            lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
+        return lon_controller, lat_controller
+
+    def getTurningControllers(self, agent):
+        dt = self.timestep
+        if agent.isCar:
+            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.2, K_D=0.2, K_I=0.2, dt=dt)
+        else:
+            lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.4, K_D=0.1, K_I=0.0, dt=dt)
+        return lon_controller, lat_controller
+
+    def getLaneChangingControllers(self, agent):
+        dt = self.timestep
+        if agent.isCar:
+            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.2, K_D=0.2, K_I=0.02, dt=dt)
+        else:
+            lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.1, K_D=0.3, K_I=0.0, dt=dt)
+        return lon_controller, lat_controller

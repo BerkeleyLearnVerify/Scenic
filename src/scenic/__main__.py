@@ -169,12 +169,13 @@ def runSimulation(scene):
 
 try:
     if args.gather_stats is None:   # Generate scenes interactively until killed
-        import matplotlib
-        import matplotlib.pyplot as plt
-        if matplotlib.get_backend().lower() == 'agg':
-            raise RuntimeError(
-                'need an interactive matplotlib backend to display scenes\n'
-                '(try installing python3-tk)')
+        if not args.simulate:   # will need matplotlib to draw scene schematic
+            import matplotlib
+            import matplotlib.pyplot as plt
+            if matplotlib.get_backend().lower() == 'agg':
+                raise RuntimeError(
+                    'need an interactive matplotlib backend to display scenes\n'
+                    '(try installing python3-tk)')
 
         successCount = 0
         while True:

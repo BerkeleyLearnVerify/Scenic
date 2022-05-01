@@ -218,9 +218,11 @@ class VerifaiSampler(ExternalSampler):
 			samplerParams.cont.buckets = cont_buckets
 			samplerParams.cont.dist = numpy.array(cont_dists)
 			samplerParams.disc.dist = numpy.array(disc_dists)
-		_, sampler = verifai.server.choose_sampler(space, samplerType,
-		                                           sampler_params=samplerParams)
-		self.sampler = sampler
+		data = verifai.server.choose_sampler(space, samplerType,
+		                                     sampler_params=samplerParams)
+		if not data:
+			raise RuntimeError(f'Unknown VerifAI sampler type "{samplerType}"')
+		self.sampler = data[1]
 
 		# default rejection feedback is positive so cross-entropy sampler won't update;
 		# for other active samplers an appropriate value should be set manually

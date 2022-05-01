@@ -50,6 +50,7 @@ author = 'Daniel J. Fremont, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangy
 extensions = [
 'sphinx.ext.autodoc',
 'sphinx.ext.autosummary',
+'sphinx.ext.coverage',
 'sphinx.ext.napoleon',
 'sphinx.ext.viewcode',
 'sphinx.ext.intersphinx',

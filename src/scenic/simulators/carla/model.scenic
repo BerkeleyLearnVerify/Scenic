@@ -167,6 +167,10 @@ class Car(Vehicle):
     """
     blueprint: Uniform(*blueprints.carModels)
 
+    @property
+    def isCar(self):
+        return True
+
 class NPCCar(Car):  # no distinction between these in CARLA
     pass
 

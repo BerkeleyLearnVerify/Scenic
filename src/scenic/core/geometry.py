@@ -366,10 +366,7 @@ def triangulatePolygon_mapbox(polygon):
 		triangles.append(shapely.geometry.Polygon(triple))
 	return triangles
 
-def plotPolygon(polygon, plt, style='r-', **kwargs):
-	def plotCoords(chain):
-		x, y = chain.xy
-		plt.plot(x, y, style, **kwargs)
+def allChains(polygon):
 	if polygon.is_empty:
 		return
 	if isinstance(polygon, (shapely.geometry.MultiPolygon,
@@ -381,14 +378,19 @@ def plotPolygon(polygon, plt, style='r-', **kwargs):
 		polygons = [polygon]
 	for polygon in polygons:
 		if isinstance(polygon, shapely.geometry.Polygon):
-			plotCoords(polygon.exterior)
+			yield polygon.exterior
 			for ring in polygon.interiors:
-				plotCoords(ring)
+				yield ring
 		elif isinstance(polygon, (shapely.geometry.LineString, shapely.geometry.LinearRing,
 		                          shapely.geometry.Point)):
-			plotCoords(polygon)
+			yield polygon
 		else:
 			raise RuntimeError(f'unknown kind of shapely geometry {polygon}')
+
+def plotPolygon(polygon, plt, style='r-', **kwargs):
+	for chain in allChains(polygon):
+		x, y = chain.xy
+		plt.plot(x, y, style, **kwargs)
 
 class _RotatedRectangle:
 	"""mixin providing collision detection for rectangular objects and regions"""
