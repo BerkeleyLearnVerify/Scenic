@@ -7,6 +7,11 @@ Specifiers Reference
 Specifiers are used to define the properties of an object when a Scenic class is :ref:`instantiated <objectCreate>`.
 This page describes all the specifiers built into Scenic, and the procedure used to :ref:`resolve <specifier resolution>` a set of specifiers into an assignment of values to properties.
 
+Each specifier assigns values one or more properties of an object, as a function of the arguments of the specifier and possibly other properties of the object assigned by other specifiers.
+For example, the :samp:`left of {X} by {Y}` specifier assigns the ``position`` property of the object being defined so that the object is a distance :samp:`{Y}` to the left of :samp:`{X}`: this requires knowing the ``width`` of the object first, so we say the ``left of`` specifier *specifies* the ``position`` property and *depends* on the ``width`` property.
+In fact, the ``left of`` specifier also *optionally* specifies the ``heading`` property (to be the same as :samp:`{X}`), meaning that it assigns a value to ``heading`` if no other specifier does so: if we write :samp:`Object left of {X} by {Y}, facing {Z}`, then the new object's ``heading`` property will be determined by ``facing``, not ``left of``.
+The :ref:`specifier resolution` process works out which specifier determines each property of an object, as well as an appropriate order in which to evaluate the specifiers so that dependencies have already been computed when needed.
+
 General Specifiers
 ==================
 
@@ -110,7 +115,7 @@ following *vectorField* [from *vector* ] for *scalar*
 Positions the object at a point obtained by following the given vector field for the given distance starting from ego (or the position optionally provided with :samp:`from {vector}`).
 Optionally specifies ``heading`` to be the heading of the vector field at the resulting point.
 
-.. note:
+.. note::
 
   This specifier uses a forward Euler approximation of the continuous vector field.
   The choice of step size can be customized for individual fields: see the documentation
@@ -151,9 +156,14 @@ For example, ``apparently facing 90 deg`` orients the object so that the camera 
 Specifier Resolution
 ====================
 
-Specifier resolution in Scenic is non-trivial, as a specifier can specify multiple properties, both non-optionally and optionally.
-At a high level, Scenic must check for two error cases: properties that have been non-optionally specified multiple times and properties that have been optionally specified multiple times but not non-optionally specified.
-In both cases the value of the property is ambiguous, and Scenic will raise an exception.
-Otherwise, the value of each property will be determined by its unique non-optional specifier, unique optional specifier, or its default value, in that order.
-If the default value is overridden in a subclass, the new value is used.
-Scenic then checks that all dependencies exist and are non-cyclic, before evaluating the specifiers to fix the properties of the object.
+Specifier resolution is the process of determining, given the set of specifiers used to define an object, which properties each specifier should determine and what order to evaluate the specifiers in.
+As each specifier can specify multiple properties, both non-optionally and optionally, and can depend on the results of other specifiers, this process is somewhat non-trivial.
+Assuming there are no cyclic dependencies or conflicts, the process will conclude with each property being determined by its unique non-optional specifier if one exists; otherwise its unique optional specifier if one exists; or finally by its default value if no specifiers apply at all (with default values from subclasses overriding those in superclasses).
+
+The full procedure, given a set of specifiers *S* used to define an instance of class *C*, works as follows:
+
+1. If a property is specified non-optionally by mutiple specifiers in *S*, an ambiguity error is raised.
+2. The set of properties *P* for the new object is found by combining the properties specified by all members of *S* with the properties inherited from the class *C*.
+3. Default value specifiers from *C* (or if not overridden, from its superclasses) are added to *S* as needed so that each property in *P* is paired with a unique specifier in *S* specifying it, using the following precedence order: non-optional specifier, optional specifier, then default value.
+4. The dependency graph of the specifiers *S* is constructed. If it is cyclic, an error is raised.
+5. The graph is topologically sorted and the specifiers are evaluated in this order to determine the values of all properties *P* of the new object.

@@ -26,7 +26,6 @@ For details on the available specifiers and how they interact, see the :ref:`spe
 
 Instantiating an instance of `Object` has a side effect: the object is added to the scenario being defined.
 
-
 Names of Scenic classes followed immediately by punctuation are not considered instance creations.
 This allows us to refer to a Scenic class without creating an instance of that class in the environment, which is useful for expressions like ``isinstance(obj, Car)``, ``[Taxi, Truck]``, ``Car.staticMethod``, etc.
 
