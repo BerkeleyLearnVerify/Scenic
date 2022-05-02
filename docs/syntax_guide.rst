@@ -52,7 +52,7 @@ Compound Statements
    * - :sampref:`scenario {name}({arguments}): <modularScenarioDef>`
      - Defines a :term:`modular scenario`.
    * - :sampref:`try: {...} interrupt when {boolean}:<tryInterruptStmt>`
-     - A try-interrupt block inside a dynamic behavior or modular scenario.
+     - Run code with interrupts inside a dynamic behavior or modular scenario.
 
 Simple Statements
 +++++++++++++++++
@@ -85,7 +85,7 @@ Simple Statements
 Dynamic Statements
 ++++++++++++++++++
 
-These statements can only be used inside a :term:`dynamic behavior`, monitor, or ``compose`` block of a :term:`modular scenario`.
+These statements can only be used inside a :term:`dynamic behavior`, :term:`monitor`, or :sampref:`compose` block of a :term:`modular scenario`.
 
 .. list-table::
    :widths: 30 70
@@ -110,7 +110,7 @@ These statements can only be used inside a :term:`dynamic behavior`, monitor, or
    * - :sampref:`do shuffle {behavior/scenario}, {...}`
      - Run several sub-behaviors/scenarios in a random order, satisfying preconditions.
    * - :sampref:`abort`
-     - Break out of the current :ref:`tryInterruptStmt`
+     - Break out of the current :sampref:`try-interrupt` statement.
    * - :sampref:`override {object} {specifier}, {...}`
      - Override properties of an object for the duration of the current scenario.
 

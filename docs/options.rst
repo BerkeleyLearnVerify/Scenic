@@ -11,7 +11,7 @@ General Scenario Control
 
 .. option:: -m <model>, --model <model>
 
-	Specify the :term:`world model` to use for the scenario, overriding any :sampref:`model <model {name}>` statement
+	Specify the :term:`world model` to use for the scenario, overriding any :sampref:`model` statement
 	in the scenario. The argument must be the fully :term:`qualified name` of a Scenic module
 	found on your :envvar:`PYTHONPATH` (it does not necessarily need to be built into
 	Scenic).
@@ -22,7 +22,7 @@ General Scenario Control
 .. option:: -p <param> <value>, --param <param> <value>
 
 	Specify the value of a global parameter. This assignment overrides any
-	:sampref:`param <param {identifier} = {value}, {...}>` statements in the scenario. If the given value can be interpreted as an
+	:sampref:`param` statements in the scenario. If the given value can be interpreted as an
 	`int` or `float`, it is; otherwise it is kept as a string.
 
 	The equivalent of this option for the Python API is the ``params`` argument to `scenic.scenarioFromFile` (which, however, does not attempt to convert strings to numbers).

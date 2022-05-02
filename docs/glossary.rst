@@ -11,10 +11,10 @@ Glossary
 		simulation. For example, a car might take an action which sets its throttle, or
 		turns on its headlights. Actions are defined by the simulator interfaces (or
 		abstract domains like `scenic.domains.driving`) as subclasses of
-		:obj:`~scenic.core.simulators.Action`.
+		`Action`.
 
 	agent
-		A Scenic :obj:`~scenic.core.object_types.Object` which has a :term:`dynamic behavior` (set as its ``behavior`` property).
+		A Scenic `Object` which has a :term:`dynamic behavior` (set as its ``behavior`` property).
 
 	dynamic behavior
 		A function defining the behavior of an :term:`agent` during a simulation.
@@ -36,8 +36,12 @@ Glossary
 		:mod:`scenic.core.external_params`.
 
 	modular scenario
-		A scenario defined using the :sampref:`scenario <modularScenarioDef>` statement (rather than simply being the content of a Scenic file).
+		A scenario defined using the :sampref:`scenario` statement (rather than simply being the content of a Scenic file).
 		Such scenarios can take arguments, be instantiated multiple times, and be composed with other scenarios: see :ref:`composition`.
+
+	monitor
+		A function which runs in parallel with a simulation, rejecting or terminating the simulation if conditions of interest are met (using the :sampref:`require` and :sampref:`terminate` statements).
+		Monitors use similar syntax to :term:`dynamic behaviors`, except that they are not associated with a specific `Object` and do not take actions (only using :sampref:`wait` to advance time).
 
 	preferred orientation
 		A :ref:`vector field <Vector Fields>` set as the ``orientation`` attribute of a `Region`, indicating that objects placed within that region should be oriented to align along that vector field unless otherwise specified.
@@ -47,6 +51,6 @@ Glossary
 		A Scenic library defining classes, regions, :term:`actions`, helper functions, etc. for use by scenarios targeting a particular simulator or application domain.
 		For example, the world model for the :ref:`driving_domain`, `scenic.domains.driving.model`, defines classes for vehicles, actions for steering, and regions for different parts of the road network.
 		In the line ``Car in intersection``, only the ``in`` specifier is built into Scenic: the class :obj:`~scenic.domains.driving.model.Car` and the region :obj:`~scenic.domains.driving.model.intersection` are defined by the world model.
-		A world model can be used through the :sampref:`model <model {name}>` statement, or simply by importing it like any other Scenic module.
+		A world model can be used through the :sampref:`model` statement, or simply by importing it like any other Scenic module.
 
 		.. seealso:: :ref:`defining_world_model` gives further examples and details on how to write a world model.

@@ -19,7 +19,7 @@ Major new features:
 
 	* Modular scenarios and ways to compose them together, introduced as a prototype in 2.0.0, are now finalized, with many fixes and improvements. See :ref:`composition` for an overview of the new syntax.
 
-	* The :sampref:`record [(initial | final)] {value} as {name}` statement for recording values at every step of dynamic simulations (or only at the start/end).
+	* The :sampref:`record` statement for recording values at every step of dynamic simulations (or only at the start/end).
 
 	* A built-in Newtonian physics simulator for debugging dynamic scenarios without having to install an external simulator (see `scenic.simulators.newtonian`).
 
@@ -55,7 +55,7 @@ Minor new features:
 
 	* Operators and specifiers which take vectors as arguments will now accept tuples and lists of length 2; for example, you can write ``Object at (1, 2)``. The old syntax ``Object at 1@2`` is still supported.
 
-	* The :sampref:`model {name}` statement allows a scenario to specify which :term:`world model` it uses, while being possible to override from the command line with the :option:`--model` option.
+	* The :sampref:`model` statement allows a scenario to specify which :term:`world model` it uses, while being possible to override from the command line with the :option:`--model` option.
 
 	* Global parameters can be overridden from the command line using the :option:`--param` option (e.g. to specify a different map to use for a scenario).
 
