@@ -74,6 +74,7 @@ If no third vector is provided, it is assumed to be the ego.
 For example, ``beyond taxi by (0, 3)`` means 3 meters directly behind the taxi as viewed by the camera.
 
 .. _visible [from ({Point} | {OrientedPoint})]:
+.. _visible_spec:
 
 visible [from (*Point* | *OrientedPoint*)]
 ------------------------------------------

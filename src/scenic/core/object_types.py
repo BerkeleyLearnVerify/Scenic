@@ -30,6 +30,11 @@ class Constructible(Samplable):
 	implements the procedure to resolve specifiers and determine values for
 	the properties of an object, as well as several common methods supported
 	by objects.
+
+	.. warning::
+
+		This class is an implementation detail, and none of its methods should be
+		called directly from a Scenic program.
 	"""
 
 	def __init_subclass__(cls):
@@ -55,7 +60,7 @@ class Constructible(Samplable):
 		cls._dynamicProperties = frozenset(dyns)
 
 	@classmethod
-	def withProperties(cls, props):
+	def _withProperties(cls, props):
 		assert all(reqProp in props for reqProp in cls._defaults)
 		assert all(not needsLazyEvaluation(val) for val in props.values())
 		return cls(_internal=True, **props)
@@ -194,21 +199,22 @@ class Constructible(Samplable):
 			object.__setattr__(self, prop, val)
 
 	def sampleGiven(self, value):
-		return self.withProperties({ prop: value[getattr(self, prop)]
-								   for prop in self.properties })
+		return self._withProperties({ prop: value[getattr(self, prop)]
+								    for prop in self.properties })
 
-	def allProperties(self):
+	def _allProperties(self):
 		return { prop: getattr(self, prop) for prop in self.properties }
 
-	def copyWith(self, **overrides):
-		props = self.allProperties()
+	def _copyWith(self, **overrides):
+		"""Copy this object, possibly overriding some of its properties."""
+		props = self._allProperties()
 		props.update(overrides)
-		return self.withProperties(props)
+		return self._withProperties(props)
 
 	def isEquivalentTo(self, other):
 		if type(other) is not type(self):
 			return False
-		return areEquivalent(self.allProperties(), other.allProperties())
+		return areEquivalent(self._allProperties(), other._allProperties())
 
 	def __str__(self):
 		if hasattr(self, 'properties') and 'name' in self.properties:
@@ -231,11 +237,18 @@ class Mutator:
 	A `Mutator` can be assigned to the ``mutator`` property of an `Object` to
 	control the effect of the :sampref:`mutate` statement. When mutation is enabled
 	for such an object using that statement, the mutator's `appliedTo` method
-	is called to compute a mutated version.
+	is called to compute a mutated version. The `appliedTo` method can also decide
+	whether to apply mutators inherited from superclasses.
 	"""
 
 	def appliedTo(self, obj):
-		"""Return a mutated copy of the object. Implemented by subclasses."""
+		"""Return a mutated copy of the object. Implemented by subclasses.
+
+		Returns:
+			A pair consisting of the mutated copy of the object (which is most easily
+			created using `_copyWith`) together with a Boolean indicating whether the
+			mutator inherited from the superclass (if any) should also be applied.
+		"""
 		raise NotImplementedError
 
 class PositionMutator(Mutator):
@@ -250,7 +263,7 @@ class PositionMutator(Mutator):
 	def appliedTo(self, obj):
 		noise = Vector(random.gauss(0, self.stddev), random.gauss(0, self.stddev))
 		pos = obj.position + noise
-		return (obj.copyWith(position=pos), True)		# allow further mutation
+		return (obj._copyWith(position=pos), True)		# allow further mutation
 
 	def __eq__(self, other):
 		if type(other) is not type(self):
@@ -272,7 +285,7 @@ class HeadingMutator(Mutator):
 	def appliedTo(self, obj):
 		noise = random.gauss(0, self.stddev)
 		h = obj.heading + noise
-		return (obj.copyWith(heading=h), True)		# allow further mutation
+		return (obj._copyWith(heading=h), True)		# allow further mutation
 
 	def __eq__(self, other):
 		if type(other) is not type(self):
@@ -311,7 +324,7 @@ class Point(Constructible):
 
 	@cached_property
 	def visibleRegion(self):
-		"""The visible region of this object.
+		"""The :term:`visible region` of this object.
 
 		The visible region of a `Point` is a disc centered at its ``position`` with
 		radius ``visibleDistance``.
@@ -362,9 +375,9 @@ class OrientedPoint(Point):
 		heading (float; dynamic): Heading of the `OrientedPoint`. Default value 0
 			(North).
 		viewAngle (float): View cone angle for ``can see`` operator. Default
-		  value :math:`2\\pi`.
+		  value 2π.
 		headingStdDev (float): Standard deviation of Gaussian noise to add to this
-		  object's ``heading`` when mutation is enabled. Default value :math:`5^\\circ`.
+		  object's ``heading`` when mutation is enabled. Default value 5°.
 	"""
 	heading: PropertyDefault((), {'dynamic'}, lambda self: 0)
 	viewAngle: math.tau
@@ -375,7 +388,7 @@ class OrientedPoint(Point):
 
 	@cached_property
 	def visibleRegion(self):
-		"""The visible region of this object.
+		"""The :term:`visible region` of this object.
 
 		The visible region of an `OrientedPoint` is a sector of the disc centered at its
 		``position`` with radius ``visibleDistance``, oriented along ``heading`` and
@@ -529,7 +542,7 @@ class Object(OrientedPoint, _RotatedRectangle):
 
 	@cached_property
 	def visibleRegion(self):
-		"""The visible region of this object.
+		"""The :term:`visible region` of this object.
 
 		The visible region of an `Object` is a circular sector as for `OrientedPoint`,
 		except that the base of the sector may be offset from ``position`` by the
@@ -583,7 +596,7 @@ class Object(OrientedPoint, _RotatedRectangle):
 		plt.plot(x + (x[0],), y + (y[0],), color="k", linewidth=1)
 
 def enableDynamicProxyFor(obj):
-	object.__setattr__(obj, '_dynamicProxy', obj.copyWith())
+	object.__setattr__(obj, '_dynamicProxy', obj._copyWith())
 
 def setDynamicProxyFor(obj, proxy):
 	object.__setattr__(obj, '_dynamicProxy', proxy)

@@ -41,6 +41,7 @@ In the last line, we use Python's `unpacking operator * <https://docs.python.org
 For an example of this idiom in a realistic scenario, see :file:`examples/driving/OAS_scenarios/oas_scenario_28.scenic`.
 
 .. _resample_func:
+.. _resample:
 
 resample
 --------

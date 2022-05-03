@@ -44,8 +44,12 @@ Glossary
 		Monitors use similar syntax to :term:`dynamic behaviors`, except that they are not associated with a specific `Object` and do not take actions (only using :sampref:`wait` to advance time).
 
 	preferred orientation
-		A :ref:`vector field <Vector Fields>` set as the ``orientation`` attribute of a `Region`, indicating that objects placed within that region should be oriented to align along that vector field unless otherwise specified.
+		A `vector field` set as the ``orientation`` attribute of a `Region`, indicating that objects placed within that region should be oriented to align along that vector field unless otherwise specified.
 		For example, the :obj:`~scenic.domains.driving.model.road` region provided by the :ref:`driving_domain` has as its preferred orientation the :obj:`~scenic.domains.driving.model.roadDirection` vector field, so that vehicles positioned using the specifier ``on road`` will be facing the nominal traffic direction at their position by default (i.e., the specifier specifies ``heading`` optionally, so that an explicit :samp:`facing {H}` specifier will override it).
+
+	visible region
+		The `Region` which is "visible" from a given `Object` for the purposes of the :sampref:`can see` operator, the :sampref:`visible <visible_spec>` specifier, etc.
+		Scenic uses a simple visibility model where each object has a view cone and occlusion is ignored: see the documentation of the :sampref:`can see` operator for details.
 
 	world model
 		A Scenic library defining classes, regions, :term:`actions`, helper functions, etc. for use by scenarios targeting a particular simulator or application domain.

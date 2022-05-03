@@ -337,7 +337,7 @@ complex scenario involving a taxi, we can add one additional line:
 	from bigScenario import taxi
 	mutate taxi
 
-The ``mutate`` statement will add Gaussian noise to the ``position`` and ``heading``
+The :sampref:`mutate` statement will add Gaussian noise to the ``position`` and ``heading``
 properties of ``taxi``, while still enforcing all built-in and custom requirements. The
 standard deviation of the noise can be scaled by writing, for example,
 ``mutate taxi by 2`` (which adds twice as much noise), and in fact can be controlled

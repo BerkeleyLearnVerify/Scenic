@@ -207,6 +207,12 @@ mutate *identifier*, . . . [by *scalar*]
 Enables mutation of the given list of objects, adding Gaussian noise with the given standard deviation (default 1) to their ``position`` and ``heading`` properties.
 If no objects are specified, mutation applies to every `Object` already created.
 
+.. note::
+
+    User-defined classes may specify custom mutators to allow mutation to apply to properties other than ``position`` and ``heading``.
+    This is done by providing a value for the ``mutator`` property, which should be an instance of `Mutator`.
+    Mutators inherited from superclasses (such as the default ``position`` and ``heading`` mutators from `Point` and `OrientedPoint`) will still be applied unless the new mutator disables them; see `Mutator` for details.
+
 .. _record [(initial | final)] {value} as {name}:
 .. _record:
 
@@ -227,14 +233,14 @@ The following statements are valid only in :term:`dynamic behaviors`, :term:`mon
 
 take *action*, ...
 ------------------
-Takes the action(s) specified and pass control to the simulator until the next timestep.
+Takes the action(s) specified and pass control to the simulator until the next time step.
 Unlike :sampref:`wait`, this statement may not be used in monitors or :term:`modular scenarios`, since these do not take actions.
 
 .. _wait:
 
 wait
 ----
-Take no actions this timestep.
+Take no actions this time step.
 
 .. _terminate:
 
@@ -261,7 +267,7 @@ As above, except the sub-behaviors/scenarios will terminate when the condition i
 
 do *behavior/scenario* for *scalar* (seconds | steps)
 -----------------------------------------------------
-Run sub-behaviors/scenarios for a set number of simulation seconds/timesteps.
+Run sub-behaviors/scenarios for a set number of simulation seconds/time steps.
 This statement can return before that time if all the given sub-behaviors/scenarios complete.
 
 .. _do choose {behavior/scenario}, {...}:

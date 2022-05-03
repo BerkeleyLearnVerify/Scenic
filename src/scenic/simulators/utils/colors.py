@@ -100,4 +100,4 @@ class ColorMutator(Mutator):
 		satNoise = random.gauss(0, 0.05)
 		lightNoise = random.gauss(0, 0.05)
 		color = NoisyColorDistribution.addNoiseTo(obj.color, hueNoise, lightNoise, satNoise)
-		return tuple([obj.copyWith(color=color), True])		# allow further mutation
+		return tuple([obj._copyWith(color=color), True])		# allow further mutation

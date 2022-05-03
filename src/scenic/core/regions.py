@@ -125,7 +125,7 @@ class Region(Samplable):
 		raise NotImplementedError
 
 	def containsObject(self, obj):
-		"""Check if the `Region` contains an :obj:`~scenic.core.object_types.Object`.
+		"""Check if the `Region` contains an `Object`.
 
 		The default implementation assumes the `Region` is convex; subclasses must
 		override the method if this is not the case.
@@ -144,6 +144,10 @@ class Region(Samplable):
 		return self.containsPoint(vec)
 
 	def distanceTo(self, point):
+		"""Distance to this region from a given point.
+
+		Not supported by all region types.
+		"""
 		raise NotImplementedError
 
 	def getAABB(self):
@@ -229,6 +233,15 @@ everywhere = AllRegion('everywhere')
 nowhere = EmptyRegion('nowhere')
 
 class CircularRegion(Region):
+	"""A circular region with a possibly-random center and radius.
+
+	Args:
+		center (`Vector`): center of the disc.
+		radius (float): radius of the disc.
+		resolution (int; optional): number of vertices to use when approximating this region as a
+			polygon.
+		name (str; optional): name for debugging.
+	"""
 	def __init__(self, center, radius, resolution=32, name=None):
 		super().__init__(name, center, radius)
 		self.center = toVector(center, "center of CircularRegion not a vector")
@@ -281,6 +294,20 @@ class CircularRegion(Region):
 		return f'CircularRegion({self.center}, {self.radius})'
 
 class SectorRegion(Region):
+	"""A sector of a `CircularRegion`.
+
+	This region consists of a sector of a disc, i.e. the part of a disc subtended by a
+	given arc.
+
+	Args:
+		center (`Vector`): center of the corresponding disc.
+		radius (float): radius of the disc.
+		heading (float): heading of the centerline of the sector.
+		angle (float): angle subtended by the sector.
+		resolution (int; optional): number of vertices to use when approximating this region as a
+			polygon.
+		name (str; optional): name for debugging.
+	"""
 	def __init__(self, center, radius, heading, angle, resolution=32, name=None):
 		self.center = toVector(center, "center of SectorRegion not a vector")
 		self.radius = radius
@@ -349,6 +376,15 @@ class SectorRegion(Region):
 		return f'SectorRegion({self.center},{self.radius},{self.heading},{self.angle})'
 
 class RectangularRegion(_RotatedRectangle, Region):
+	"""A rectangular region with a possibly-random position, heading, and size.
+
+	Args:
+		position (`Vector`): center of the rectangle.
+		heading (float): the heading of the ``length`` axis of the rectangle.
+		width (float): width of the rectangle.
+		length (float): length of the rectangle.
+		name (str; optional): name for debugging.
+	"""
 	def __init__(self, position, heading, width, length, name=None):
 		super().__init__(name, position, heading, width, length)
 		self.position = toVector(position, "position of RectangularRegion not a vector")
@@ -400,7 +436,20 @@ class RectangularRegion(_RotatedRectangle, Region):
 		return f'RectangularRegion({self.position},{self.heading},{self.width},{self.length})'
 
 class PolylineRegion(Region):
-	"""Region given by one or more polylines (chain of line segments)"""
+	"""Region given by one or more polylines (chain of line segments).
+
+	The region may be specified by giving either a sequence of points or ``shapely``
+	polylines (a ``LineString`` or ``MultiLineString``).
+
+	Args:
+		points: sequence of points making up the polyline (or `None` if using the
+			**polyline** argument instead).
+		polyline: ``shapely`` polyline or collection of polylines (or `None` if using
+			the **points** argument instead).
+		orientation (optional): :term:`preferred orientation` to use, or `True` to use an
+			orientation aligned with the direction of the polyline (the default).
+		name (str; optional): name for debugging.
+	"""
 	def __init__(self, points=None, polyline=None, orientation=True, name=None):
 		if orientation is True:
 			orientation = VectorField('Polyline', self.defaultOrientation)
@@ -572,11 +621,11 @@ class PolylineRegion(Region):
 		return False
 
 	@distributionMethod
-	def distanceTo(self, point):
+	def distanceTo(self, point) -> float:
 		return self.lineString.distance(shapely.geometry.Point(point))
 
 	@distributionMethod
-	def signedDistanceTo(self, point):
+	def signedDistanceTo(self, point) -> float:
 		"""Compute the signed distance of the PolylineRegion to a point.
 
 		The distance is positive if the point is left of the nearest segment,
@@ -602,7 +651,13 @@ class PolylineRegion(Region):
 		# FYI, could also get here if loop runs to completion due to rounding error
 		return (Vector(*segment[0]), Vector(*segment[1]))
 
-	def pointAlongBy(self, distance, normalized=False):
+	def pointAlongBy(self, distance, normalized=False) -> Vector:
+		"""Find the point a given distance along the polyline from its start.
+
+		If **normalized** is true, then distance should be between 0 and 1, and
+		is interpreted as a fraction of the length of the polyline. So for example
+		``pointAlongBy(0.5, normalized=True)`` returns the polyline's midpoint.
+		"""
 		pt = self.lineString.interpolate(distance, normalized=normalized)
 		return Vector(pt.x, pt.y)
 
@@ -622,7 +677,7 @@ class PolylineRegion(Region):
 	def show(self, plt, style='r-', **kwargs):
 		plotPolygon(self.lineString, plt, style=style, **kwargs)
 
-	def __getitem__(self, i):
+	def __getitem__(self, i) -> Vector:
 		"""Get the ith point along this polyline.
 
 		If the region consists of multiple polylines, this order is linear
@@ -644,7 +699,8 @@ class PolylineRegion(Region):
 		newString = shapely.geometry.MultiLineString(strings)
 		return PolylineRegion(polyline=newString)
 
-	def __len__(self):
+	def __len__(self) -> int:
+		"""Get the number of vertices of the polyline."""
 		return len(self.points)
 
 	def __repr__(self):
@@ -660,7 +716,20 @@ class PolylineRegion(Region):
 		return hash(str(self.lineString))
 
 class PolygonalRegion(Region):
-	"""Region given by one or more polygons (possibly with holes)"""
+	"""Region given by one or more polygons (possibly with holes).
+
+	The region may be specified by giving either a sequence of points defining the
+	boundary of the polygon, or a collection of ``shapely`` polygons (a ``Polygon``
+	or ``MultiPolygon``).
+
+	Args:
+		points: sequence of points making up the boundary of the polygon (or `None` if
+			using the **polygon** argument instead).
+		polygon: ``shapely`` polygon or collection of polygons (or `None` if using
+			the **points** argument instead).
+		orientation (`VectorField`; optional): :term:`preferred orientation` to use.
+		name (str; optional): name for debugging.
+	"""
 	def __init__(self, points=None, polygon=None, orientation=None, name=None):
 		super().__init__(name, orientation=orientation)
 		if polygon is None and points is None:
@@ -791,7 +860,8 @@ class PolygonalRegion(Region):
 		return PolygonalRegion(polygon=union, orientation=orientation)
 
 	@property
-	def boundary(self):
+	def boundary(self) -> PolylineRegion:
+		"""Get the boundary of this region as a `PolylineRegion`."""
 		return PolylineRegion(polyline=self.polygons.boundary)
 
 	@cached_property
@@ -847,17 +917,16 @@ class PolygonalRegion(Region):
 class PointSetRegion(Region):
 	"""Region consisting of a set of discrete points.
 
-	No :obj:`~scenic.core.object_types.Object` can be contained in a `PointSetRegion`,
-	since the latter is discrete. (This may not be true for subclasses, e.g.
-	`GridRegion`.)
+	No `Object` can be contained in a `PointSetRegion`, since the latter is discrete.
+	(This may not be true for subclasses, e.g. `GridRegion`.)
 
 	Args:
 		name (str): name for debugging
 		points (iterable): set of points comprising the region
-		kdTree (:obj:`scipy.spatial.KDTree`, optional): k-D tree for the points (one will
+		kdTree (`scipy.spatial.KDTree`, optional): k-D tree for the points (one will
 		  be computed if none is provided)
-		orientation (:obj:`~scenic.core.vectors.VectorField`, optional): orientation for
-		  the region
+		orientation (`VectorField`; optional): :term:`preferred orientation` for the
+			region
 		tolerance (float; optional): distance tolerance for checking whether a point lies
 		  in the region
 	"""
@@ -925,7 +994,7 @@ class GridRegion(PointSetRegion):
 		Ay (float): spacing between grid points along Y axis
 		Bx (float): X coordinate of leftmost grid column
 		By (float): Y coordinate of lowest grid row
-		orientation (:obj:`~scenic.core.vectors.VectorField`, optional): orientation of region
+		orientation (`VectorField`; optional): orientation of region
 	"""
 	def __init__(self, name, grid, Ax, Ay, Bx, By, orientation=None):
 		self.grid = numpy.array(grid)

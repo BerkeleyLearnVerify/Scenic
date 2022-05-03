@@ -338,7 +338,7 @@ class Simulation:
 
             # Make a new copy of the object to ensure that computed properties like
             # visibleRegion, etc. are recomputed
-            setDynamicProxyFor(obj, obj.copyWith(**values))
+            setDynamicProxyFor(obj, obj._copyWith(**values))
 
     def mutableProperties(self, obj):
         return {'lastActions', 'behavior'}

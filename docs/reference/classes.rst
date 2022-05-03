@@ -4,7 +4,7 @@
 Objects and Classes Reference
 *****************************
 
-This page describes the classes built into Scenic, representing :ref:`points <Point>`, :ref:`oriented points <OrientedPoint>`, and physical :ref:`objects <Object>`, and how they are instantiated to create objects.
+This page describes the classes built into Scenic, representing `points <Point>`, `oriented points <OrientedPoint>`, and physical `objects <Object>`, and how they are instantiated to create objects.
 
 .. note::
 
@@ -38,6 +38,7 @@ Built-in Classes
     This has the effect of making a cross-reference like `Point` in the main documentation link to the high-level description here, but the same reference in the auto-generated "Scenic Internals" section will instead link to the internal documentation for the Point class.
 
 .. _Point:
+.. _points:
 
 Point
 +++++
@@ -52,6 +53,7 @@ This class provides the fundamental property ``position`` and several associated
     :members: visibleRegion
 
 .. _OrientedPoint:
+.. _oriented points:
 
 OrientedPoint
 +++++++++++++
@@ -66,6 +68,7 @@ This class subclasses `Point`, adding the fundamental property ``heading`` and s
     :members: visibleRegion
 
 .. _Object:
+.. _objects:
 
 Object
 ++++++

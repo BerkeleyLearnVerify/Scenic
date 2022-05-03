@@ -9,14 +9,14 @@ For more details, click the links for individual language constructs to go to th
 
 Primitive Data Types
 --------------------
-======================= ==============================================================
-:ref:`Booleans`          expressing truth values
-:ref:`Scalars`           representing distances, angles, etc. as floating-point numbers
-:ref:`Vectors`           representing positions and offsets in space
-:ref:`Headings`   		   representing orientations in space
-:ref:`Vector Fields`     associating an orientation (i.e. a heading) to each point in space
-:ref:`Regions`           representing sets of points in space
-======================= ==============================================================
+============================= ==================================================================
+`Booleans <Boolean>`          expressing truth values
+`Scalars <Scalar>`            representing distances, angles, etc. as floating-point numbers
+`Vectors <Vector>`            representing positions and offsets in space
+`Headings <Heading>`   		    representing orientations in space
+`Vector Fields <VectorField>` associating an orientation (i.e. a heading) to each point in space
+`Regions <Region>`            representing sets of points in space
+============================= ==================================================================
 
 
 Distributions
@@ -48,7 +48,7 @@ Compound Statements
    * - :sampref:`behavior {name}({arguments}): <behaviorDef>`
      - Defines a :term:`dynamic behavior`.
    * - :sampref:`monitor {name}: <monitorDef>`
-     - Defines a monitor.
+     - Defines a :term:`monitor`.
    * - :sampref:`scenario {name}({arguments}): <modularScenarioDef>`
      - Defines a :term:`modular scenario`.
    * - :sampref:`try: {...} interrupt when {boolean}:<tryInterruptStmt>`
@@ -66,19 +66,19 @@ Simple Statements
    * - :sampref:`model {name}`
      - Select the :term:`world model`.
    * - :sampref:`import {module}`
-     - Import a Scenic or Python module
+     - Import a Scenic or Python module.
    * - :sampref:`param {identifier} = {value}, {...}`
-     - Define global parameters of the scenario
+     - Define global parameters of the scenario.
    * - :sampref:`require {boolean}`
-     - Define a hard requirement
+     - Define a hard requirement.
    * - :sampref:`require[{number}] {boolean}`
-     - Define a soft requirement
+     - Define a soft requirement.
    * - :sampref:`require (always | eventually) {boolean}`
-     - Define a dynamic hard requirement
+     - Define a dynamic hard requirement.
    * - :sampref:`terminate when {boolean}`
-     - Define a termination condition
+     - Define a termination condition.
    * - :sampref:`mutate {identifier}, {...} [by {number}]`
-     - Enable mutation of the given list of objects
+     - Enable mutation of the given list of objects.
    * - :sampref:`record [(initial | final)] {value} as {name}`
      - Save a value at every time step or only at the start/end of the simulation.
 
@@ -128,7 +128,7 @@ See the :ref:`objects_and_classes` for details.
 -------------------  --------------  ------------------------------------------------
  position [1]_        (0, 0)         position in global coordinates
  viewDistance          50            distance for the ‘can see’ operator
- mutationScale         0             overall scale of mutations
+ mutationScale         0             overall scale of :ref:`mutations <mutate>`
  positionStdDev        1             mutation standard deviation for ``position``
 ===================  ==============  ================================================
 

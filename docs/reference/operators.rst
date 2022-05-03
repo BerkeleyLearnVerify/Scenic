@@ -45,16 +45,21 @@ Boolean Operators
 ==================
 
 .. _({Point} | {OrientedPoint}) can see ({vector} | {Object}):
+.. _can see:
 
 (*Point* | *OrientedPoint*) can see (*vector* | *Object*)
 ---------------------------------------------------------
-Whether or not a position or Object is visible from a Point or OrientedPoint. Visible regions are defined as follows: a Point can see out to a certain distance, and an OrientedPoint restricts this to the circular sector along its heading with a certain angle. A position is then visible if it lies in the visible region, and an Object is visible if its bounding box intersects the visible region. Technically, Scenic only checks that a corner of the object is visible, which could result in the side of a large object being visible but Scenic not counting it as so. Note that Scenic’s visibility model does not take into account occlusion, although this would be straightforward to add.
+Whether or not a position or `Object` is visible from a `Point` or `OrientedPoint`.
+Visible regions are defined as follows: a `Point` can see out to a certain distance, and an `OrientedPoint` restricts this to the circular sector along its heading with a certain angle.
+A position is then visible if it lies in the visible region, and an `Object` is visible if its bounding box intersects the visible region.
+Technically, Scenic only checks that a corner of the object is visible, which could result in the side of a large object being visible but Scenic not counting it as so.
+Note that Scenic’s visibility model does not take into account occlusion, although this would be straightforward to add.
 
 .. _({vector} | {Object}) in {region}:
 
 (*vector* | *Object*) in *region*
 ----------------------------------
-Whether a position or Object lies in the region; for the latter, the Object’s bounding box must be contained in the region. This allows us to use the predicate in two ways
+Whether a position or `Object` lies in the `Region`; for the latter, the object’s bounding box must be completely contained in the region.
 
 
 Heading Operators
