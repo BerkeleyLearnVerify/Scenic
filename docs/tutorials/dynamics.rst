@@ -44,7 +44,7 @@ is a very simplified version of the :obj:`FollowLaneBehavior` above:
 
 We intend this behavior to run for the entire scenario, so we use an infinite loop. In
 each step of the loop, we compute appropriate throttle and steering controls, then use
-the :sampref:`take` statement to take the corresponding actions. When that statement is
+the :keyword:`take` statement to take the corresponding actions. When that statement is
 executed, Scenic pauses the behavior until the next time step of the simulation, when the
 function resumes and the loop repeats.
 
@@ -68,9 +68,9 @@ Behaviors can access the current state of the world to decide what actions to ta
         do FollowLaneBehavior()
 
 Here, we repeatedly query the distance from the agent running the behavior (``self``)
-to the ego car; as long as it is above a threshold, we :sampref:`wait`, which means take no
+to the ego car; as long as it is above a threshold, we :keyword:`wait`, which means take no
 actions. Once the threshold is met, we start driving by invoking the :obj:`FollowLaneBehavior`
-we saw above using the :sampref:`do` statement. Since :obj:`FollowLaneBehavior` runs forever, we will
+we saw above using the :keyword:`do` statement. Since :obj:`FollowLaneBehavior` runs forever, we will
 never return to the ``WaitUntilClose`` behavior.
 
 The example above also shows how behaviors may take arguments, like any Scenic function.
@@ -125,7 +125,7 @@ obstacle. Scenic provides a concept of *interrupts* which allows us to reuse the
         interrupt when self.distanceToClosest(Object) < 5:
             take SetBrakeAction(1)
 
-This :sampref:`try-interrupt` statement has similar syntax to the Python
+This :keyword:`try-interrupt` statement has similar syntax to the Python
 :ref:`try statement <python:try>` (and in fact allows ``except`` clauses just as in
 Python), and begins in the same way: at first, the code block after the ``try:`` (the
 *body*) is executed. At the start of every time step during its execution, the condition
@@ -162,7 +162,7 @@ in the middle of ``PassingBehavior``, it will run to completion (possibly being
 interrupted again) before we finally resume ``FollowLaneBehavior``.
 
 As this example illustrates, when an interrupt handler completes, by default we resume
-execution of the interrupted code. If this is undesired, the :sampref:`abort` statement can be
+execution of the interrupted code. If this is undesired, the :keyword:`abort` statement can be
 used to cause the entire try-interrupt statement to exit. For example, to run a behavior
 until a condition is met without resuming it afterward, we can write:
 
@@ -259,7 +259,7 @@ the current time in ``last_stop``, effectively resetting our timer to zero.
 Requirements and Monitors
 -------------------------
 
-Just as you can declare spatial constraints on scenes using the :sampref:`require` statement,
+Just as you can declare spatial constraints on scenes using the :keyword:`require` statement,
 you can also impose constraints on dynamic scenarios. For example, if we don't want to
 generate any simulations where ``car1`` and ``car2`` are simultaneously visible from the
 ego car, we could write:
@@ -271,13 +271,13 @@ ego car, we could write:
 The :sampref:`require always {condition} <require always>` statement enforces that the given condition must
 hold at every time step of the scenario; if it is ever violated during a simulation, we
 reject that simulation and sample a new one. Similarly, we can require that a condition
-hold at *some* time during the scenario using the :sampref:`require eventually` statement:
+hold at *some* time during the scenario using the :keyword:`require eventually` statement:
 
 .. code-block:: scenic
 
     require eventually ego in intersection
 
-You can also use the ordinary :sampref:`require` statement inside a behavior to require that a
+You can also use the ordinary :keyword:`require` statement inside a behavior to require that a
 given condition hold at a certain point during the execution of the behavior. For
 example, here is a simple elaboration of the ``WaitUntilClose`` behavior we saw above:
 
@@ -295,7 +295,7 @@ after that, we place no further restrictions.
 To enforce more complex temporal properties like this one without modifying behaviors,
 you can define a :term:`monitor`. Like behaviors, monitors are functions which run in parallel
 with the scenario, but they are not associated with any agent and any actions they take
-are ignored (so you might as well only use the :sampref:`wait` statement). Here is a monitor
+are ignored (so you might as well only use the :keyword:`wait` statement). Here is a monitor
 for the property "``car1`` and ``car2`` enter the intersection before ``car3``":
 
 .. code-block:: scenic
@@ -315,7 +315,7 @@ We use the variables ``seen1`` and ``seen2`` to remember whether we have seen ``
 and ``car2`` respectively enter the intersection. The loop will iterate as long as at
 least one of the cars has not yet entered the intersection, so if ``car3`` enters before
 either ``car1`` or ``car2``, the requirement on line 4 will fail and we will reject the
-simulation. Note the necessity of the :sampref:`wait` statement on line 9: if we omitted it, the
+simulation. Note the necessity of the :keyword:`wait` statement on line 9: if we omitted it, the
 loop could run forever without any time actually passing in the simulation.
 
 ..  _guards:
@@ -384,7 +384,7 @@ Terminating the Scenario
 
 By default, scenarios run forever, unless the :option:`--time` option is used to impose a
 time limit. However, scenarios can also define termination criteria using the
-:sampref:`terminate when` statement; for example, we could decide to end a scenario as soon as
+:keyword:`terminate when` statement; for example, we could decide to end a scenario as soon as
 the ego car travels at least a certain distance:
 
 .. code-block:: scenic
@@ -393,7 +393,7 @@ the ego car travels at least a certain distance:
     ego = Car at start
     terminate when (distance to start) >= 50
 
-Additionally, the :sampref:`terminate` statement can be used inside behaviors and monitors: if
+Additionally, the :keyword:`terminate` statement can be used inside behaviors and monitors: if
 it is ever executed, the scenario ends. For example, we can use a monitor to terminate
 the scenario once the ego spends 30 time steps in an intersection:
 
@@ -411,7 +411,7 @@ the scenario once the ego spends 30 time steps in an intersection:
 
     In order to make sure that requirements are not violated, termination criteria are
     only checked *after* all requirements. So if in the same time step a monitor uses the
-    :sampref:`terminate` statement but another behavior uses :sampref:`require` with a false condition,
+    :keyword:`terminate` statement but another behavior uses :keyword:`require` with a false condition,
     the simulation will be rejected rather than terminated.
 
 ..  _dynamics_running_examples:

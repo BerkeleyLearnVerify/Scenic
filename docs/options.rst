@@ -3,15 +3,21 @@
 Command-Line Options
 ====================
 
-The ``scenic`` command supports a variety of options. Run ``scenic -h`` for a full list
+The :command:`scenic` command supports a variety of options. Run :command:`scenic -h` for a full list
 with short descriptions; we elaborate on some of the most important options below.
+
+Options may be given before and after the path to the Scenic file to run, so the syntax of the command is:
+
+.. code-block:: console
+
+	$ scenic [options] FILE [options]
 
 General Scenario Control
 ------------------------
 
 .. option:: -m <model>, --model <model>
 
-	Specify the :term:`world model` to use for the scenario, overriding any :sampref:`model` statement
+	Specify the :term:`world model` to use for the scenario, overriding any :keyword:`model` statement
 	in the scenario. The argument must be the fully :term:`qualified name` of a Scenic module
 	found on your :envvar:`PYTHONPATH` (it does not necessarily need to be built into
 	Scenic).
@@ -22,7 +28,7 @@ General Scenario Control
 .. option:: -p <param> <value>, --param <param> <value>
 
 	Specify the value of a global parameter. This assignment overrides any
-	:sampref:`param` statements in the scenario. If the given value can be interpreted as an
+	:keyword:`param` statements in the scenario. If the given value can be interpreted as an
 	`int` or `float`, it is; otherwise it is kept as a string.
 
 	The equivalent of this option for the Python API is the ``params`` argument to `scenic.scenarioFromFile` (which, however, does not attempt to convert strings to numbers).
@@ -60,7 +66,7 @@ Dynamic Simulations
 .. option:: --time <steps>
 
 	Maximum number of time steps to run each simulation (the default is infinity).
-	Simulations may end earlier if termination criteria defined in the scenario are met.
+	Simulations may end earlier if termination criteria defined in the scenario are met (see :keyword:`terminate when` and :keyword:`terminate`).
 
 .. option:: --count <number>
 
@@ -69,6 +75,10 @@ Dynamic Simulations
 
 Debugging
 ---------
+
+.. option:: --version
+
+	Show which version of Scenic is being used.
 
 .. option:: -v <verbosity>, --verbosity <verbosity>
 
@@ -85,21 +95,28 @@ Debugging
 			Additionally, details on which modules are being compiled and the reasons for
 			any scene/simulation rejections are printed.
 		3
-			Additionally, the actions taken by each agent at each time step of a dynamic
+			Additionally, the :term:`actions` taken by each agent at each time step of a dynamic
 			simulation are printed.
 
 .. option:: --show-params
 
-	Show values of global parameters for each generated scene.
+	Show values of global parameters (see :keyword:`param`) for each generated scene.
 
 .. option:: --show-records
 
-	Show recorded values for each dynamic simulation.
+	Show recorded values (see :keyword:`record`) for each dynamic simulation.
+
+.. option:: -b, --full-backtrace
+
+	Include Scenic's internals in backtraces printed for uncaught exceptions.
+	This information will probably only be useful if you are developing Scenic.
 
 .. option:: --pdb
 
 	If an error occurs, enter the Python interactive debugger :mod:`pdb`.
+	Implies the :option:`-b` option.
 
 .. option:: --pdb-on-reject
 
 	If a scene/simulation is rejected (so that another must be sampled), enter :mod:`pdb`.
+	Implies the :option:`-b` option.

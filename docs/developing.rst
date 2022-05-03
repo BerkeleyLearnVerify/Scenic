@@ -53,7 +53,7 @@ use the :option:`--pdb` option to automatically enter the debugger on such excep
 It is possible to put breakpoints into a Scenic program using the Python built-in
 function `breakpoint`. Note however that since code in a Scenic program is not always
 executed the way you might expect (e.g. top-level code is only run once, whereas code in
-requirements can run every time we generate a sample), some care is needed when
+requirements can run every time we generate a sample: see :ref:`how Scenic is compiled`), some care is needed when
 interpreting what you see in the debugger. The same consideration applies when adding
 `print` statements to a Scenic program. For example, a top-level :samp:`print(x)` will
 not print out the actual value of :samp:`x` every time a sample is generated: instead,

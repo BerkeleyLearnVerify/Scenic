@@ -1,4 +1,8 @@
-"""Objects representing regions in space."""
+"""Objects representing regions in space.
+
+Manipulations of polygons and line segments are done using the
+`shapely <https://github.com/shapely/shapely>`_ package.
+"""
 
 import math
 import random
@@ -31,7 +35,7 @@ def toPolygon(thing):
 	return None
 
 def regionFromShapelyObject(obj, orientation=None):
-	"""Build a 'Region' from Shapely geometry."""
+	"""Build a `Region` from Shapely geometry."""
 	assert obj.is_valid, obj
 	if obj.is_empty:
 		return nowhere
@@ -43,7 +47,7 @@ def regionFromShapelyObject(obj, orientation=None):
 		raise RuntimeError(f'unhandled type of Shapely geometry: {obj}')
 
 class PointInRegionDistribution(VectorDistribution):
-	"""Uniform distribution over points in a Region"""
+	"""Uniform distribution over points in a Region."""
 	def __init__(self, region):
 		super().__init__(region)
 		self.region = region
@@ -71,8 +75,11 @@ class Region(Samplable):
 	def sampleGiven(self, value):
 		return self
 
-	def intersect(self, other, triedReversed=False):
-		"""Get a `Region` representing the intersection of this one with another."""
+	def intersect(self, other, triedReversed=False) -> 'Region':
+		"""intersect(other)
+
+		Get a `Region` representing the intersection of this one with another.
+		"""
 		if triedReversed:
 			orientation = self.orientation
 			if orientation is None:
@@ -83,18 +90,20 @@ class Region(Samplable):
 		else:
 			return other.intersect(self, triedReversed=True)
 
-	def intersects(self, other):
+	def intersects(self, other) -> bool:
 		"""Check if this `Region` intersects another."""
 		raise NotImplementedError
 
-	def difference(self, other):
+	def difference(self, other) -> 'Region':
 		"""Get a `Region` representing the difference of this one and another."""
 		if isinstance(other, EmptyRegion):
 			return self
 		return DifferenceRegion(self, other)
 
-	def union(self, other, triedReversed=False):
-		"""Get a `Region` representing the union of this one with another.
+	def union(self, other, triedReversed=False) -> 'Region':
+		"""union(other)
+
+		Get a `Region` representing the union of this one with another.
 
 		Not supported by all region types.
 		"""
@@ -120,11 +129,11 @@ class Region(Samplable):
 		"""Do the actual random sampling. Implemented by subclasses."""
 		raise NotImplementedError
 
-	def containsPoint(self, point):
+	def containsPoint(self, point) -> bool:
 		"""Check if the `Region` contains a point. Implemented by subclasses."""
 		raise NotImplementedError
 
-	def containsObject(self, obj):
+	def containsObject(self, obj) -> bool:
 		"""Check if the `Region` contains an `Object`.
 
 		The default implementation assumes the `Region` is convex; subclasses must
@@ -135,7 +144,7 @@ class Region(Samplable):
 				return False
 		return True
 
-	def __contains__(self, thing):
+	def __contains__(self, thing) -> bool:
 		"""Check if this `Region` contains an object or vector."""
 		from scenic.core.object_types import Object
 		if isinstance(thing, Object):
@@ -143,7 +152,7 @@ class Region(Samplable):
 		vec = toVector(thing, '"X in Y" with X not an Object or a vector')
 		return self.containsPoint(vec)
 
-	def distanceTo(self, point):
+	def distanceTo(self, point) -> float:
 		"""Distance to this region from a given point.
 
 		Not supported by all region types.

@@ -232,10 +232,10 @@ class Constructible(Samplable):
 ## Mutators
 
 class Mutator:
-	"""An object controlling how the :sampref:`mutate` statement affects an `Object`.
+	"""An object controlling how the :keyword:`mutate` statement affects an `Object`.
 
 	A `Mutator` can be assigned to the ``mutator`` property of an `Object` to
-	control the effect of the :sampref:`mutate` statement. When mutation is enabled
+	control the effect of the :keyword:`mutate` statement. When mutation is enabled
 	for such an object using that statement, the mutator's `appliedTo` method
 	is called to compute a mutated version. The `appliedTo` method can also decide
 	whether to apply mutators inherited from superclasses.

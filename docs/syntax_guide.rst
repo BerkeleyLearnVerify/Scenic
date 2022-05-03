@@ -77,6 +77,8 @@ Simple Statements
      - Define a dynamic hard requirement.
    * - :sampref:`terminate when {boolean}`
      - Define a termination condition.
+   * - :sampref:`terminate after {scalar} (seconds | steps)`
+     - Set the scenario to terminate after a given amount of time.
    * - :sampref:`mutate {identifier}, {...} [by {number}]`
      - Enable mutation of the given list of objects.
    * - :sampref:`record [(initial | final)] {value} as {name}`
@@ -85,7 +87,7 @@ Simple Statements
 Dynamic Statements
 ++++++++++++++++++
 
-These statements can only be used inside a :term:`dynamic behavior`, :term:`monitor`, or :sampref:`compose` block of a :term:`modular scenario`.
+These statements can only be used inside a :term:`dynamic behavior`, :term:`monitor`, or :keyword:`compose` block of a :term:`modular scenario`.
 
 .. list-table::
    :widths: 30 70
@@ -110,7 +112,7 @@ These statements can only be used inside a :term:`dynamic behavior`, :term:`moni
    * - :sampref:`do shuffle {behavior/scenario}, {...}`
      - Run several sub-behaviors/scenarios in a random order, satisfying preconditions.
    * - :sampref:`abort`
-     - Break out of the current :sampref:`try-interrupt` statement.
+     - Break out of the current :keyword:`try-interrupt` statement.
    * - :sampref:`override {object} {specifier}, {...}`
      - Override properties of an object for the duration of the current scenario.
 

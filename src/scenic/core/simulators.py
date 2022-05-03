@@ -431,13 +431,13 @@ class TerminationType(enum.Enum):
     """Enum describing the possible ways a simulation can end."""
     #: Simulation reached the specified time limit.
     timeLimit = 'reached simulation time limit'
-    #: The top-level scenario's :sampref:`compose` block finished executing.
+    #: The top-level scenario's :keyword:`compose` block finished executing.
     scenarioComplete = 'the top-level scenario finished'
     #: A user-specified termination condition was met.
     simulationTerminationCondition = 'a simulation termination condition was met'
-    #: A :term:`monitor` used :sampref:`terminate` to end the simulation.
+    #: A :term:`monitor` used :keyword:`terminate` to end the simulation.
     terminatedByMonitor = 'a monitor terminated the simulation'
-    #: A :term:`dynamic behavior` used :sampref:`terminate` to end the simulation.
+    #: A :term:`dynamic behavior` used :keyword:`terminate` to end the simulation.
     terminatedByBehavior = 'a behavior terminated the simulation'
 
 class SimulationResult:
@@ -452,7 +452,7 @@ class SimulationResult:
         terminationType (`TerminationType`): The way the simulation ended.
         terminationReason (str): A human-readable string giving the reason why the
             simulation ended, possibly including debugging info.
-        records (dict): For each :sampref:`record` statement, the value or time series of
+        records (dict): For each :keyword:`record` statement, the value or time series of
             values its expression took during the simulation.
     """
     def __init__(self, trajectory, actions, terminationType, terminationReason, records):

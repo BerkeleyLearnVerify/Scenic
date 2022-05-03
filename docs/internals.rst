@@ -23,6 +23,8 @@ Detailed documentation on Scenic's components is organized by the submodules of 
 
 The ``scenic`` module itself provides the top-level API for using Scenic: see :doc:`api`.
 
+.. _how Scenic is compiled:
+
 How Scenic is Compiled
 ----------------------
 
@@ -39,9 +41,9 @@ Understanding what each phase does is useful if you plan to modify the Scenic la
 
 Phase 1: Import Handling
 ~~~~~~~~~~~~~~~~~~~~~~~~
-In this phase the program is segmented into blocks ending with ``import`` statements, which will then be compiled separately.
+In this phase the program is segmented into blocks ending with :keyword:`import` statements, which will then be compiled separately.
 This is done so that if a Scenic module defining new Scenic classes is imported, subsequent parsing can properly detect instantiations of those classes.
-For more details on the various rules for import statements in Scenic, see :sampref:`import`.
+For more details on the various rules for import statements in Scenic, see :keyword:`import`.
 
 Phase 2: Token Translation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

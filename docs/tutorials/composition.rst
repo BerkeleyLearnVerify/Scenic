@@ -11,7 +11,7 @@ This enables writing a library of scenarios which can be repeatedly used as buil
 Modular Scenarios
 -----------------
 
-The :sampref:`scenario` statement defines a named, reusable scenario, optionally with tunable parameters: what we call a :term:`modular scenario`.
+The :keyword:`scenario <scenario-stmt>` statement defines a named, reusable scenario, optionally with tunable parameters: what we call a :term:`modular scenario`.
 For example, here is a scenario which creates a parked car on the shoulder of the ``ego``'s current lane (assuming there is one), using some APIs from the :ref:`driving_domain`:
 
 .. code-block:: scenic
@@ -42,7 +42,7 @@ So the scenario will involve three cars in total, and as usual Scenic will autom
 Parallel and Sequential Composition
 -----------------------------------
 
-The scenario above is an example of *parallel* composition, where we use the :sampref:`do` statement to run two scenarios at the same time.
+The scenario above is an example of *parallel* composition, where we use the :keyword:`do` statement to run two scenarios at the same time.
 We can also use *sequential* composition, where one scenario begins after another ends.
 This is done the same way as in behaviors: in fact, the ``compose`` block of a scenario is executed in the same way as a monitor, and allows all the same control-flow constructs.
 For example, we could write a ``compose`` block as follows:
@@ -54,8 +54,8 @@ For example, we could write a ``compose`` block as follows:
         do ParkedCar(gap=0.5) for 30 seconds
 
 Here, a new parked car is created every 30 seconds, [#f1]_ with the distance to the curb alternating between 0.25 and 0.5 m.
-Note that without the ``for 30 seconds`` qualifier, we would never get past line 2, since the ``ParkedCar`` scenario does not define any termination conditions using :sampref:`terminate when` (or :sampref:`terminate` in a ``compose`` block) and so runs forever by default.
-If instead we want to create a new car only when the ``ego`` has passed the current one, we can use a :sampref:`do-until` statement:
+Note that without the ``for 30 seconds`` qualifier, we would never get past line 2, since the ``ParkedCar`` scenario does not define any termination conditions using :keyword:`terminate when` (or :keyword:`terminate` in a ``compose`` block) and so runs forever by default.
+If instead we want to create a new car only when the ``ego`` has passed the current one, we can use a :keyword:`do-until` statement:
 
 .. code-block:: scenic
 
@@ -69,7 +69,7 @@ Combined with the ability to pass objects as parameters of scenarios, this is co
 Interrupts, Overriding, and Initial Scenarios
 ---------------------------------------------
 
-The :sampref:`try-interrupt` statement used in behaviors can also be used in ``compose`` blocks to switch between scenarios.
+The :keyword:`try-interrupt` statement used in behaviors can also be used in ``compose`` blocks to switch between scenarios.
 For example, suppose we already have a scenario where the ``ego`` is following a ``leadCar``, and want to elaborate it by adding a parked car which suddenly pulls in front of the lead car.
 We could write a ``compose`` block as follows:
 
@@ -84,7 +84,7 @@ We could write a ``compose`` block as follows:
 If the ``ParkedCarPullingAheadOf`` scenario is defined to end shortly after the parked car finishes entering the lane, the interrupt handler will complete and Scenic will resume executing ``FollowingScenario`` on line 3 (unless the ``ego`` is still within 10 m of the lead car).
 
 Suppose that we want the lead car to behave differently while the parked car scenario is running; for example, perhaps the behavior for the lead car defined in ``FollowingScenario`` does not handle a parked car suddenly pulling in.
-To enable changing the ``behavior`` or other properties of an object in a sub-scenario, Scenic provides the :sampref:`override` statement, which we can use as follows:
+To enable changing the ``behavior`` or other properties of an object in a sub-scenario, Scenic provides the :keyword:`override` statement, which we can use as follows:
 
 .. code-block:: scenic
 
@@ -125,7 +125,7 @@ Most simply, since scenarios are first-class objects, we can write functions whi
     do chosenScenario
 
 However, some scenarios may only make sense in certain contexts; for example, a red light runner scenario can take place only at an intersection.
-To facilitate modeling such situations, Scenic provides variants of the :sampref:`do` statement which randomly choose scenarios to run amongst only those whose preconditions are satisfied:
+To facilitate modeling such situations, Scenic provides variants of the :keyword:`do` statement which randomly choose scenarios to run amongst only those whose preconditions are satisfied:
 
 .. code-block:: scenic
 
