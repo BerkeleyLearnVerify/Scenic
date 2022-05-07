@@ -454,7 +454,7 @@ class DynamicScenario(Invocable):
 
     def _checkSimulationTerminationConditions(self):
         for req in self._terminateSimulationConditions:
-            # TODO(shun): I don't think this is right
+
             if req.isTrue().is_truthy:
                 return req
         return None

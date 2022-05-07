@@ -605,7 +605,8 @@ class TemporalInfixOp(typing.NamedTuple):
 			2,
 			((Name, "or"), (Name, f"_Scenic_infixop_{self.syntax}"), (Name, "or")),
 			None,
-			(requireStatement,)
+			(requireStatement,),
+			False # temporal infix operators can be nested
 		)
 
 temporalInfixOperators = (
@@ -620,6 +621,8 @@ class InfixOp(typing.NamedTuple):
 	tokens: typing.Tuple[typing.Tuple[int, str]]
 	node: ast.AST
 	contexts: typing.Optional[typing.Tuple[str]] = ()
+	# True if the operator can only be used at top level
+	topLevelOnly: bool = True
 
 infixOperators = (
 	# existing Python operators with new semantics
@@ -1035,6 +1038,22 @@ class TokenTranslator:
 						allowedTerminators = modifierNames[context].terminators
 					elif context in terminatorsForStatements:
 						allowedTerminators = terminatorsForStatements[context]
+			elif context:
+				# all function calls on the stack
+				contexts = set(ctx for ctx, _ in functionStack)
+				for opTokens, op in infixTokens.items():
+					# if not context is specified, the operator can be used
+					if not op.contexts:
+						allowedInfixOps[opTokens] = op.tokens
+						continue
+					# if operator is top level only, cannot be used
+					if op.topLevelOnly:
+						continue
+					# a set of contexts under which this operator is allowed
+					allowedContexts = set(op.contexts)
+					if allowedContexts.intersection(contexts):
+						# this operator can be used in the current context
+						allowedInfixOps[opTokens] = op.tokens
 			else:
 				allowedInfixOps = generalInfixOps
 
@@ -1654,7 +1673,7 @@ class ASTSurgeon(NodeTransformer):
 							ctx=Load()
 						),
 						# pass a list of operands as the first argument
-						args=[rhs, lhs],
+						args=[lhs, rhs],
 						keywords=[
 							keyword(arg="line", value=lineNum),
 							keyword(arg="syntaxId", value=syntaxIdConst),

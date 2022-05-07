@@ -603,7 +603,7 @@ def test_require_until():
                 self.blah += 1
                 take self.blah
         ego = Object with behavior Foo, with blah 0
-        require ego.blah < 3 until ego.blah >= 3
+        require (ego.blah < 3 until ego.blah >= 3)
     """)
     sampleEgoActions(scenario, maxSteps=5)
 
@@ -627,6 +627,17 @@ def test_require_implies_1():
                 take self.blah
         ego = Object with behavior Foo, with blah 0
         require ego.blah == 3 implies ego.blah % 2 == 1
+    """)
+    sampleEgoActions(scenario, maxSteps=5)
+
+def test_require_implies_2():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                self.blah += 1
+                take self.blah
+        ego = Object with behavior Foo, with blah 0
+        require always ((ego.blah % 2 == 0) implies (next (ego.blah % 2 == 1)))
     """)
     sampleEgoActions(scenario, maxSteps=5)
 
