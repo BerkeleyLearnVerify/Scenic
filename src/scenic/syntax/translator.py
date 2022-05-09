@@ -622,7 +622,7 @@ class InfixOp(typing.NamedTuple):
 	node: ast.AST
 	contexts: typing.Optional[typing.Tuple[str]] = ()
 	# True if the operator can only be used at top level
-	topLevelOnly: bool = True
+	startLevelOnly: bool = True
 
 infixOperators = (
 	# existing Python operators with new semantics
@@ -639,7 +639,7 @@ infixOperators = (
 	InfixOp('for', None, 2, ((COMMA, ','),), None, ('Follow', 'Following')),
 	InfixOp('to', None, 2, ((COMMA, ','),), None),
 	InfixOp('as', None, 2, ((COMMA, ','),), None, requirementStatements),
-	InfixOp('of', None, 2, ((COMMA, ','),), None, ('DistancePast')),
+	InfixOp('of', None, 2, ((COMMA, ','),), None, ('DistancePast',)),
 	InfixOp('by', None, 2, (packageToken,), None)
 ) + tuple(op.toInfixOp() for op in temporalInfixOperators)
 
@@ -1028,8 +1028,10 @@ class TokenTranslator:
 					inConstructorContext = True
 					allowedPrefixOps = self.specifiersForConstructor(context)
 				else:
+					contexts = set(ctx for ctx, _ in functionStack)
 					for opTokens, op in infixTokens.items():
-						if not op.contexts or context in op.contexts:
+						allowedContexts = set(op.contexts)
+						if not op.contexts or allowedContexts.intersection(contexts):
 							allowedInfixOps[opTokens] = op.tokens
 					for name, mod in modifierNames.items():
 						if not mod.contexts or context in mod.contexts:
@@ -1047,7 +1049,7 @@ class TokenTranslator:
 						allowedInfixOps[opTokens] = op.tokens
 						continue
 					# if operator is top level only, cannot be used
-					if op.topLevelOnly:
+					if op.startLevelOnly:
 						continue
 					# a set of contexts under which this operator is allowed
 					allowedContexts = set(op.contexts)
@@ -1056,7 +1058,7 @@ class TokenTranslator:
 						allowedInfixOps[opTokens] = op.tokens
 			else:
 				allowedInfixOps = generalInfixOps
-
+			print(tstring, allowedInfixOps)
 			# Parse next token
 			if ttype == LPAR or ttype == LSQB:		# keep track of nesting level
 				parenLevel += 1
