@@ -1028,11 +1028,6 @@ class TokenTranslator:
 					inConstructorContext = True
 					allowedPrefixOps = self.specifiersForConstructor(context)
 				else:
-					contexts = set(ctx for ctx, _ in functionStack)
-					for opTokens, op in infixTokens.items():
-						allowedContexts = set(op.contexts)
-						if not op.contexts or allowedContexts.intersection(contexts):
-							allowedInfixOps[opTokens] = op.tokens
 					for name, mod in modifierNames.items():
 						if not mod.contexts or context in mod.contexts:
 							allowedModifiers[name] = mod.name
@@ -1040,7 +1035,8 @@ class TokenTranslator:
 						allowedTerminators = modifierNames[context].terminators
 					elif context in terminatorsForStatements:
 						allowedTerminators = terminatorsForStatements[context]
-			elif context:
+			# construct allowedInfixOps
+			if context:
 				# all function calls on the stack
 				contexts = set(ctx for ctx, _ in functionStack)
 				for opTokens, op in infixTokens.items():
@@ -1048,8 +1044,8 @@ class TokenTranslator:
 					if not op.contexts:
 						allowedInfixOps[opTokens] = op.tokens
 						continue
-					# if operator is top level only, cannot be used
-					if op.startLevelOnly:
+					# if operator is start level only and it is start level, cannot be used
+					if op.startLevelOnly and parenLevel != startLevel:
 						continue
 					# a set of contexts under which this operator is allowed
 					allowedContexts = set(op.contexts)
@@ -1058,7 +1054,6 @@ class TokenTranslator:
 						allowedInfixOps[opTokens] = op.tokens
 			else:
 				allowedInfixOps = generalInfixOps
-			print(tstring, allowedInfixOps)
 			# Parse next token
 			if ttype == LPAR or ttype == LSQB:		# keep track of nesting level
 				parenLevel += 1
