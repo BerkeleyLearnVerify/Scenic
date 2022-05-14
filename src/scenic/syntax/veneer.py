@@ -400,7 +400,6 @@ def require(reqID, req, line, name, prob=1):
 				if not result:
 					raise RejectSimulationException(name)
 	else:	# requirement being defined at compile time
-		# TODO(shun): if req has temporal operators and prob != 1 then raise an error
 		currentScenario._addRequirement(requirements.RequirementType.require,
                                         reqID, req, line, name, prob)
 
