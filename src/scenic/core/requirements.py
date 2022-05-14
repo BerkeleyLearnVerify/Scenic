@@ -152,7 +152,6 @@ class BoundRequirement:
         self.closure = compiledReq.closure
         self.line = compiledReq.line
         self.name = compiledReq.name
-        assert compiledReq.prob == 1
         self.sample = sample
         self.compiledReq = compiledReq
         self.proposition = proposition

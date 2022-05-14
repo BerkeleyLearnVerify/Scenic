@@ -400,6 +400,8 @@ def require(reqID, req, line, name, prob=1):
 				if not result:
 					raise RejectSimulationException(name)
 	else:	# requirement being defined at compile time
+		if req.is_temporal and prob != 1:
+			raise RuntimeParseError('requirements with temporal operators must have probability of 1')
 		currentScenario._addRequirement(requirements.RequirementType.require,
                                         reqID, req, line, name, prob)
 

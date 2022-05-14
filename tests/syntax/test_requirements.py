@@ -2,7 +2,7 @@
 import pytest
 
 import scenic
-from scenic.core.errors import ScenicSyntaxError, InvalidScenarioError
+from scenic.core.errors import ScenicSyntaxError, InvalidScenarioError, RuntimeParseError
 from tests.utils import compileScenic, sampleScene, sampleSceneFrom, sampleEgo
 
 ## Basic
@@ -85,6 +85,14 @@ def test_runtime_parse_error_in_requirement():
     """)
     with pytest.raises(ScenicSyntaxError):
         sampleScene(scenario)
+
+def test_soft_requirement_with_temporal_operators():
+    "Temporal operators are not be allowed if prob != 1"
+    with pytest.raises(RuntimeParseError):
+        compileScenic("""
+            ego = Object
+            require[0.2] eventually ego
+        """)
 
 ## Enforcement of built-in requirements
 
