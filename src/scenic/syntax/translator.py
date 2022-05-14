@@ -2075,14 +2075,11 @@ class ASTSurgeon(NodeTransformer):
 		newArgs = []
 
 		# wrap temporal requirement in lambda
-		# FIXME(shun): Should I also check if the node is in a requirement here?
 		if isinstance(func, Name) and func.id in TEMPORAL_PROPOSITION_FACTORY:
-			assert self.inRequire # temporal operators must be inside requirements
 			if not self.canUseTemporalOps:
-				# TODO(shun): Add a test to check this
 				self.parseError(node, f"Operator {func.id} is not allowed in this statement")
 			checkedArgs = node.args
-			# self.validateSimpleCall(node, (1, None), args=checkedArgs) # FIXME: Do I need this?
+			self.validateSimpleCall(node, (1, None), args=checkedArgs)
 			rawRequirement = checkedArgs[0]
 
 			syntaxId = self._register_requirement_syntax(node)
