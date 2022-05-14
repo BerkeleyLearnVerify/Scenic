@@ -462,7 +462,7 @@ requirementStatements = recordStatements + (
 )
 
 # statements that supports temporal operators
-statementWithTemporalSupport = (requireStatement)
+statementWithTemporalSupport = (requireStatement,)
 
 statementRaiseMarker = '_Scenic_statement_'
 
