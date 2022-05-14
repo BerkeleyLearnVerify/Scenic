@@ -637,7 +637,7 @@ def test_require_implies_2():
                 self.blah += 1
                 take self.blah
         ego = Object with behavior Foo, with blah 0
-        require always ((ego.blah % 2 == 0) implies (next (ego.blah % 2 == 1)))
+        require always ego.blah % 2 == 0 implies (next ego.blah % 2 == 1)
     """)
     sampleEgoActions(scenario, maxSteps=5)
 
