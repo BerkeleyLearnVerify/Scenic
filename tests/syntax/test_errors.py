@@ -135,6 +135,11 @@ def test_extra_infix_package():
     with pytest.raises(ASTParseError):
         compileScenic('x = 4 offset along 12 by 17 by 19')
 
+def test_invalid_temporal_operator_use():
+    """Temporal operators can only be used inside requirements"""
+    with pytest.raises(ASTParseError):
+        compileScenic('req = always x')
+
 def test_extra_temporal_operands():
     """Temporal infix operators should only take two arguments"""
     with pytest.raises(ASTParseError):
