@@ -39,8 +39,7 @@ class PendingRequirement:
         self.prob = prob
         self.name = name
 
-        # conditions are propositions
-        # TODO(shun): add comments here
+        # condition is an instance of Proposition. Flatten to get a list of atomic propositions.
         nodes = condition.flatten()
         binding_list = []
         for node in nodes:

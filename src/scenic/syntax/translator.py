@@ -1630,7 +1630,7 @@ class ASTSurgeon(NodeTransformer):
 			# convert `and` and `or` inside requirements into function calls
 			# Note: BoolOp is either `and` or `or` so it always needs transformation inside a requirement
 			lineNum = Constant(node.lineno)
-			copy_location(lineNum, node) # TODO(shun): what should be the second argument?
+			copy_location(lineNum, node)
 
 			for infixOp in temporalInfixOperators:
 				groups = list(
