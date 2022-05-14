@@ -175,8 +175,7 @@ class DynamicScenario(Invocable):
     def __init_subclass__(cls, *args, **kwargs):
         veneer.registerDynamicScenarioClass(cls)
 
-    _requirementSyntax = None   # overridden by subclasses
-    _propositionSyntax = None
+    _propositionSyntax = None # overridden by subclasses
     _simulatorFactory = None
     _globalParameters = None
     _locals = ()
@@ -472,6 +471,7 @@ class DynamicScenario(Invocable):
         self._globalParameters.update(other._globalParameters)
         self._externalParameters.extend(other._externalParameters)
         self._requirements.extend(other._requirements)
+        self._temporalRequirements.extend(other._temporalRequirements)
         self._behaviors.extend(other._behaviors)
 
     def _registerObject(self, obj):
