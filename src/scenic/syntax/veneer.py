@@ -48,8 +48,8 @@ __all__ = (
 	'PropertyDefault', 'Behavior', 'Monitor', 'makeTerminationAction',
 	'BlockConclusion', 'runTryInterrupt', 'wrapStarredValue', 'callWithStarArgs',
 	'Modifier', 'DynamicScenario',
-	# Temporal Operator Factories
-	'TemporalAtomicProposition', 'TemporalAnd', 'TemporalOr', 'TemporalNot',
+	# Proposition Factories
+	'AtomicProposition', 'PropositionAnd', 'PropositionOr', 'PropositionNot',
 )
 
 # various Python types and functions used in the language but defined elsewhere
@@ -1040,13 +1040,13 @@ def str(*args, **kwargs):
 
 ### Temporal Operators Factories
 
-def TemporalAtomicProposition(closure, *, line, syntaxId):
+def AtomicProposition(closure, *, line, syntaxId):
 	return propositions.Atomic(closure, syntaxId)
-def TemporalAnd(reqs, *, line, syntaxId):
+def PropositionAnd(reqs, *, line, syntaxId):
 	return propositions.And(reqs, syntaxId)
-def TemporalOr(reqs, *, line, syntaxId):
+def PropositionOr(reqs, *, line, syntaxId):
 	return propositions.Or(reqs, syntaxId)
-def TemporalNot(req, *, line, syntaxId):
+def PropositionNot(req, *, line, syntaxId):
 	return propositions.Not(req, syntaxId)
 def Always(req, *, line, syntaxId):
 	return propositions.Always(req, syntaxId)

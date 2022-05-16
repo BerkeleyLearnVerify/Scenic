@@ -671,14 +671,15 @@ for op in infixOperators:
 				infixImplementations[node] = (op.arity, imp)
 generalInfixOps = { tokens: op.tokens for tokens, op in infixTokens.items() if not op.contexts }
 
-## Temporal Proposition Constructors
-TEMPORAL_AND = "TemporalAnd"
-TEMPORAL_OR = "TemporalOr"
-TEMPORAL_NOT = "TemporalNot"
-TEMPORAL_ATOMIC_PROPOSITION = "TemporalAtomicProposition"
+# Proposition Constructors with Temporal Operators Support
+PROPOSITION_AND = "PropositionAnd"
+PROPOSITION_OR = "PropositionOr"
+PROPOSITION_NOT = "PropositionNot"
+ATOMIC_PROPOSITION = "AtomicProposition"
 
-TEMPORAL_PROPOSITION_FACTORY = (
-    (TEMPORAL_AND, TEMPORAL_OR, TEMPORAL_NOT, TEMPORAL_ATOMIC_PROPOSITION)
+# List of functions that returns objects that supports temporal evaluation
+PROPOSITION_FACTORY = (
+    (PROPOSITION_AND, PROPOSITION_OR, PROPOSITION_NOT, ATOMIC_PROPOSITION)
     + tuple(impl for _, impl in temporalPrefixOperators.items()) # prefix operators
 	+ tuple(op.implementation for op in temporalInfixOperators) # infix operators
 )
@@ -1607,7 +1608,7 @@ class ASTSurgeon(NodeTransformer):
 		copy_location(syntaxIdConst, node)
 
 		ap = Call(
-			func=Name(id=TEMPORAL_ATOMIC_PROPOSITION, ctx=Load()),
+			func=Name(id=ATOMIC_PROPOSITION, ctx=Load()),
 			args=[closure],
 			keywords=[
 				keyword(arg="line", value=lineNum),
@@ -1618,11 +1619,11 @@ class ASTSurgeon(NodeTransformer):
 
 		return ap
 
-	def is_temporal_requirement_factory(self, node):
+	def is_proposition_factory(self, node):
 		return (
 			isinstance(node, Call)
 			and isinstance(node.func, Name)
-			and node.func.id in TEMPORAL_PROPOSITION_FACTORY
+			and node.func.id in PROPOSITION_FACTORY
 		)
 
 	def visit_BoolOp(self, node):
@@ -1652,7 +1653,7 @@ class ASTSurgeon(NodeTransformer):
 					
 				def restoreBoolOpValues(group):
 					operand = self.visit(copy_location(BoolOp(op=node.op, values=group), node)) if len(group) > 1 else self.visit(group[0])
-					if not self.is_temporal_requirement_factory(operand):
+					if not self.is_proposition_factory(operand):
 						operand = self._create_atomic_proposition_factory(operand)
 					copy_location(operand, node)
 					return operand
@@ -1687,7 +1688,7 @@ class ASTSurgeon(NodeTransformer):
 			operands = []
 			for operand in node.values:
 				o = self.visit(operand)
-				if self.is_temporal_requirement_factory(o):
+				if self.is_proposition_factory(o):
 					# if the operand is already an temporal requirement factory, keep it
 					operands.append(self.visit(o))
 					continue
@@ -1697,8 +1698,8 @@ class ASTSurgeon(NodeTransformer):
 			
 			# 2. create a function call and pass operands
 			boolOpToFunctionName = {
-				Or: TEMPORAL_OR,
-				And: TEMPORAL_AND,
+				Or: PROPOSITION_OR,
+				And: PROPOSITION_AND,
 			}
 			funcId = boolOpToFunctionName.get(type(node.op))
 			newNode = Call(
@@ -1726,7 +1727,7 @@ class ASTSurgeon(NodeTransformer):
 
 			newOperand = (
 				operand
-				if self.is_temporal_requirement_factory(operand)
+				if self.is_proposition_factory(operand)
 				else self._create_atomic_proposition_factory(self.visit(operand))
 			)
 
@@ -1736,7 +1737,7 @@ class ASTSurgeon(NodeTransformer):
 			
 			newNode = Call(
 				func=Name(
-					id=TEMPORAL_NOT,
+					id=PROPOSITION_NOT,
 					ctx=Load()
 				),
 				args=[newOperand],
@@ -1810,7 +1811,7 @@ class ASTSurgeon(NodeTransformer):
 			copy_location(closure, req)
 			copy_location(lineNum, req)
 
-			if self.is_temporal_requirement_factory(req):
+			if self.is_proposition_factory(req):
 				condition = req
 			else:
 				condition = self._create_atomic_proposition_factory(req)
@@ -2075,7 +2076,7 @@ class ASTSurgeon(NodeTransformer):
 		newArgs = []
 
 		# wrap temporal requirement in lambda
-		if isinstance(func, Name) and func.id in TEMPORAL_PROPOSITION_FACTORY:
+		if isinstance(func, Name) and func.id in PROPOSITION_FACTORY:
 			if not self.canUseTemporalOps:
 				self.parseError(node, f"Operator {func.id} is not allowed in this statement")
 			checkedArgs = node.args
@@ -2090,7 +2091,7 @@ class ASTSurgeon(NodeTransformer):
 
 			newRequirement = (
 				requirement
-				if self.is_temporal_requirement_factory(requirement)
+				if self.is_proposition_factory(requirement)
 				else self._create_atomic_proposition_factory(requirement)
 			)
 
