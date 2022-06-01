@@ -3,6 +3,9 @@ Traffic Scenario 08.
 Unprotected left turn at intersection with oncoming traffic.
 The ego-vehicle is performing an unprotected left turn at an intersection, yielding to oncoming
 traffic.
+Note that PID controller is tuned for 'vehicle.mercedes-benz.coupe' car model.
+The PID values can be found in src/scenic/simulators/carla/simulator.py
+The car models can be found in src/scenic/simulators/carla/blueprints.scenic
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)

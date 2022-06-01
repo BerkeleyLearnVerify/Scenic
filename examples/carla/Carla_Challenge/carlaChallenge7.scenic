@@ -3,6 +3,9 @@ Based on 2019 Carla Challenge Traffic Scenario 07.
 Ego-vehicle is going straight at an intersection but a crossing vehicle 
 runs a red light, forcing the ego-vehicle to perform a collision avoidance maneuver.
 Note: The traffic light control is not implemented yet, but it will soon be. 
+Note that PID controller is tuned for 'vehicle.mercedes-benz.coupe' car model.
+The PID values can be found in src/scenic/simulators/carla/simulator.py
+The car models can be found in src/scenic/simulators/carla/blueprints.scenic
 """
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'

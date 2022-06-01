@@ -2,7 +2,10 @@
 Traffic Scenario 01.
 Control loss without previous action.
 The ego-vehicle loses control due to bad conditions on the road and it must recover, coming back to
-its original lane.
+its original lane. 
+Note that PID controller is tuned for 'vehicle.mercedes-benz.coupe' car model.
+The PID values can be found in src/scenic/simulators/carla/simulator.py
+The car models can be found in src/scenic/simulators/carla/blueprints.scenic
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)

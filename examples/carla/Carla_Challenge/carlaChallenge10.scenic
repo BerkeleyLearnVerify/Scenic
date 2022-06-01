@@ -3,6 +3,9 @@ Traffic Scenario 10.
 Crossing negotiation at an unsignalized intersection.
 The ego-vehicle needs to negotiate with other vehicles to cross an unsignalized intersection. In
 this situation it is assumed that the first to enter the intersection has priority.
+Note that PID controller is tuned for 'vehicle.mercedes-benz.coupe' car model.
+The PID values can be found in src/scenic/simulators/carla/simulator.py
+The car models can be found in src/scenic/simulators/carla/blueprints.scenic
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)

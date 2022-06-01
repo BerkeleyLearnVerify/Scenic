@@ -3,6 +3,9 @@ Traffic Scenario 02.
 Longitudinal control after leading vehicle’s brake.
 The leading vehicle decelerates suddenly due to an obstacle and the ego-vehicle must perform an
 emergency brake or an avoidance maneuver.
+Note that PID controller is tuned for 'vehicle.mercedes-benz.coupe' car model.
+The PID values can be found in src/scenic/simulators/carla/simulator.py
+The car models can be found in src/scenic/simulators/carla/blueprints.scenic
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)

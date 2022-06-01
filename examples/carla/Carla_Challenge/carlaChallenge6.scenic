@@ -2,6 +2,9 @@
 Based on CARLA Challenge Scenario 6: https://carlachallenge.org/challenge/nhtsa/
 Ego-vehicle must go around a blocking object
 using the opposite lane, yielding to oncoming traffic.
+Note that PID controller is tuned for 'vehicle.mercedes-benz.coupe' car model.
+The PID values can be found in src/scenic/simulators/carla/simulator.py
+The car models can be found in src/scenic/simulators/carla/blueprints.scenic
 """
 
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works

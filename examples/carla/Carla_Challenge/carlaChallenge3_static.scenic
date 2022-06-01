@@ -3,6 +3,9 @@ Traffic Scenario 03 (static).
 Obstacle avoidance without prior action.
 The ego-vehicle encounters an obstacle / unexpected entity on the road and must perform an
 emergency brake or an avoidance maneuver.
+Note that PID controller is tuned for 'vehicle.mercedes-benz.coupe' car model.
+The PID values can be found in src/scenic/simulators/carla/simulator.py
+The car models can be found in src/scenic/simulators/carla/blueprints.scenic
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
