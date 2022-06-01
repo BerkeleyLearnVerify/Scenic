@@ -11,7 +11,7 @@ param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
 # CONSTANTS
-EGO_MODEL = "vehicle.lincoln.mkz2017"
+EGO_MODEL = "vehicle.mercedes-benz.coupe"
 EGO_SPEED = 10
 SAFETY_DISTANCE = 10
 BRAKE_INTENSITY = 1.0

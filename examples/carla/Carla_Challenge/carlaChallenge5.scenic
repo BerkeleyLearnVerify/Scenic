@@ -4,7 +4,7 @@ Ego-vehicle performs a lane changing to evade a leading vehicle, which is moving
 """
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
-model scenic.domains.driving.model
+model scenic.simulators.carla.model
 
 #CONSTANTS
 EGO_SPEED = 10
@@ -44,10 +44,12 @@ rightLane = initLaneSec._laneToRight
 spawnPt = OrientedPoint on initLaneSec.centerline
 
 ego = Car at spawnPt,
-	with behavior EgoBehavior(rightLane, [initLaneSec])
+	with behavior EgoBehavior(rightLane, [initLaneSec]),
+	with blueprint 'vehicle.mercedes-benz.coupe'
 
 cyclist = Car following roadDirection from ego for EGO_TO_BICYCLE,
-	with behavior SlowCarBehavior()
+	with behavior SlowCarBehavior(),
+	with blueprint 'vehicle.mercedes-benz.coupe'
 
 require (distance from ego to intersection) > 10
 require (distance from cyclist to intersection) > 10

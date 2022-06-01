@@ -6,7 +6,7 @@ Note: The traffic light control is not implemented yet, but it will soon be.
 """
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
-model scenic.domains.driving.model
+model scenic.simulators.carla.model
 
 DELAY_TIME_1 = 1 # the delay time for ego
 DELAY_TIME_2 = 40 # the delay time for the slow car
@@ -48,10 +48,12 @@ ego_spwPt = startLane.centerline[-1]
 csm_spwPt = crossing_startLane.centerline[-1]
 
 ego = Car following roadDirection from ego_spwPt for DISTANCE_TO_INTERSECTION1,
-		with behavior EgoBehavior(trajectory = ego_trajectory)
+		with behavior EgoBehavior(trajectory = ego_trajectory),
+		with blueprint 'vehicle.mercedes-benz.coupe'
 
 crossing_car = Car following roadDirection from csm_spwPt for DISTANCE_TO_INTERSECTION2,
-				with behavior CrossingCarBehavior(crossing_car_trajectory)
+				with behavior CrossingCarBehavior(crossing_car_trajectory),
+				with blueprint 'vehicle.mercedes-benz.coupe'
 
 
 """Note: Traffic light is currently not controlled but this functionality will be added very soon """

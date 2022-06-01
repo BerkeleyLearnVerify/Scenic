@@ -4,7 +4,7 @@ Ego-vehicle is performing a right turn at an intersection, yielding to crossing 
 """
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
-model scenic.domains.driving.model
+model scenic.simulators.carla.model
 
 DELAY_TIME_1 = 1 # the delay time for ego
 DELAY_TIME_2 = 40 # the delay time for the slow car
@@ -46,7 +46,9 @@ spwPt = startLane.centerline[-1]
 csm_spwPt = ego_startLane.centerline[-1]
 
 crossing_car = Car following roadDirection from spwPt for DISTANCE_TO_INTERSECTION1,
-				with behavior CrossingCarBehavior(trajectory = straight_trajectory)
+				with behavior CrossingCarBehavior(trajectory = straight_trajectory),
+				with blueprint 'vehicle.mercedes-benz.coupe'
 
 ego = Car following roadDirection from csm_spwPt for DISTANCE_TO_INTERSECTION2,
-				with behavior EgoBehavior(ego_trajectory)
+				with behavior EgoBehavior(ego_trajectory),
+				with blueprint 'vehicle.mercedes-benz.coupe'

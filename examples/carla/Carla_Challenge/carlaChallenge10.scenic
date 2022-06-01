@@ -11,7 +11,7 @@ param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
 ## CONSTANTS
-EGO_MODEL = "vehicle.lincoln.mkz2017"
+EGO_MODEL = 'vehicle.mercedes-benz.coupe'
 EGO_SPEED = 10
 SAFETY_DISTANCE = 20
 BRAKE_INTENSITY = 1.0
@@ -53,7 +53,8 @@ ego = Car at ego_spawn_pt,
     with behavior EgoBehavior(EGO_SPEED, ego_trajectory)
 
 adversary = Car at adv_spawn_pt,
-    with behavior AdversaryBehavior(adv_trajectory)
+    with behavior AdversaryBehavior(adv_trajectory),
+    with blueprint 'vehicle.mercedes-benz.coupe'
 
 require 20 <= (distance to intersec) <= 25
 require 15 <= (distance from adversary to intersec) <= 20

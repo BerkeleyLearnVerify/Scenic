@@ -6,14 +6,14 @@ using the opposite lane, yielding to oncoming traffic.
 
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town07'
-model scenic.domains.driving.model
+model scenic.simulators.carla.model
 
 
 #CONSTANTS
 ONCOMING_THROTTLE = 0.6
 EGO_SPEED = 7
 ONCOMING_CAR_SPEED = 10
-DIST_THRESHOLD = 13
+DIST_THRESHOLD = 17
 YIELD_THRESHOLD = 5
 BLOCKING_CAR_DIST = Range(15, 20)
 BREAK_INTENSITY = 0.8
@@ -72,10 +72,12 @@ spawnPt = OrientedPoint on initLaneSec.centerline
 
 #PLACEMENT
 oncomingCar = Car on leftLaneSec.centerline,
-	with behavior OncomingCarBehavior()
+	with behavior OncomingCarBehavior(),
+	with blueprint 'vehicle.mercedes-benz.coupe'
 
 ego = Car at spawnPt,
-	with behavior EgoBehavior(leftLaneSec)
+	with behavior EgoBehavior(leftLaneSec),
+	with blueprint 'vehicle.mercedes-benz.coupe'
 	
 blockingCar = Car following roadDirection from ego for BLOCKING_CAR_DIST,
 				with viewAngle 90 deg
