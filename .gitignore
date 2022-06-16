@@ -131,3 +131,6 @@ venv.bak/
 dmypy.json
 
 *.cproject
+
+# generated parser
+src/scenic/parser/parser.py
