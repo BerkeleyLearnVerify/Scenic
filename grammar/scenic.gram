@@ -1,6 +1,6 @@
-# PEG grammar for Python
+# PEG grammar for Scenic
 
-@class PythonParser
+@class ScenicParser
 
 @subheader'''
 import enum
@@ -68,7 +68,7 @@ def parse_file(
             tokenize.generate_tokens(f.readline)
         )
         tokenizer = Tokenizer(tok_stream, verbose=verbose, path=path)
-        parser = PythonParser(
+        parser = ScenicParser(
             tokenizer,
             verbose=verbose,
             filename=os.path.basename(path),
@@ -93,7 +93,7 @@ def parse_string(
         tokenize.generate_tokens(io.StringIO(source).readline)
     )
     tokenizer = Tokenizer(tok_stream, verbose=verbose)
-    parser = PythonParser(tokenizer, verbose=verbose, py_version=py_version)
+    parser = ScenicParser(tokenizer, verbose=verbose, py_version=py_version)
     return parser.parse(mode if mode == "eval" else "file")
 
 
