@@ -1,4 +1,5 @@
 # PEG grammar for Scenic
+# Based on the Python grammar at https://github.com/we-like-parsers/pegen/blob/main/data/python.gram
 
 @class ScenicParser
 
