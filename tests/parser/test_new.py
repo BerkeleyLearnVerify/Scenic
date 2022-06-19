@@ -13,5 +13,7 @@ class TestNew:
         match stmt:
             case ast.Expr(value=s.New(className=c)):
                 assert c == "Object"
+            case _:
+                assert False
 
     # TODO(shun): Add tests for specifiers
