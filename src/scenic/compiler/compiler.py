@@ -21,6 +21,11 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         super().__init__()
         self.requirements = []
     
+    def generic_visit(self, node):
+        if isinstance(node, s.AST):
+            raise Exception(f'Scenic AST node "{node.__class__.__name__}" needs visitor in compiler')
+        return super().generic_visit(node)
+    
     # Special Case
 
     def visit_EgoAssign(self, node: s.EgoAssign):
