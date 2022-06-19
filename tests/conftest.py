@@ -31,13 +31,20 @@ def runLocally(request):
 
 def pytest_addoption(parser):
     parser.addoption('--fast', action='store_true', help='skip very slow tests')
+    parser.addoption('--no-match-case', action='store_true', help='skip tests with match-case statements')
 
 def pytest_configure(config):
     config.addinivalue_line('markers', 'slow: mark test as very slow')
+    config.addinivalue_line('markers', 'match: mark test using match-case statements')
 
 def pytest_collection_modifyitems(config, items):
     if config.getoption('--fast'):
         mark = pytest.mark.skip(reason='slow test skipped by --fast')
         for item in items:
             if 'slow' in item.keywords:
+                item.add_marker(mark)
+    if config.getoption('--no-match-case'):
+        mark = pytest.mark.skip(reason='test with match-case statement skipped by --no-match-case')
+        for item in items:
+            if 'match' in item.keywords:
                 item.add_marker(mark)
