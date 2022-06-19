@@ -10,9 +10,11 @@ class EgoAssign(AST):
     def __init__(self, value: any, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.value = value
+        self._fields = ["value"]
 
 class New(AST):
     def __init__(self, className: str, specifiers: list, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.className = className
         self.specifiers = specifiers
+        self._fields = ["className", "specifiers"]
