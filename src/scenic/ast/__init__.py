@@ -1,1 +1,1 @@
-from .ast import EgoAssign, New
+from .ast import AST, EgoAssign, New
