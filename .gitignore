@@ -133,4 +133,4 @@ dmypy.json
 *.cproject
 
 # generated parser
-src/scenic/parser/parser.py
+src/scenic/syntax/parser.py
