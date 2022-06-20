@@ -3,6 +3,7 @@ import ast
 import scenic.syntax.ast as s
 from scenic.syntax.compiler import compileScenicAST
 
+
 class TestCompiler:
     # Special Case
     def test_ego_assign(self):
