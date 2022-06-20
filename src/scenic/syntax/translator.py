@@ -74,8 +74,8 @@ from scenic.core.errors import (TokenParseError, PythonParseError, ASTParseError
 import scenic.core.dynamics as dynamics
 import scenic.core.pruning as pruning
 import scenic.syntax.veneer as veneer
-from scenic.parser import parse_string
-from scenic.compiler import compileScenicAST
+from scenic.syntax.parser import parse_string
+from scenic.syntax.compiler import compileScenicAST
 
 ### THE TOP LEVEL: compiling a Scenic program
 
