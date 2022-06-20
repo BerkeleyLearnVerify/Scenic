@@ -1,5 +1,5 @@
-GRAMMAR = ./grammar/scenic.gram
-PARSER = ./src/scenic/parser/parser.py
+GRAMMAR = ./src/scenic/syntax/scenic.gram
+PARSER = ./src/scenic/syntax/parser.py
 
 .PHONY: all
 all: $(PARSER)
