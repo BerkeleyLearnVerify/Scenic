@@ -1,7 +1,7 @@
 import ast
 
-import scenic.ast as s
-from scenic.compiler import compileScenicAST
+import scenic.syntax.ast as s
+from scenic.syntax.compiler import compileScenicAST
 
 class TestCompiler:
     # Special Case
