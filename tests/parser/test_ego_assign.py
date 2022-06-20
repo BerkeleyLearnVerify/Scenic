@@ -2,7 +2,7 @@ import ast
 import pytest
 
 from .helper import parse_string_helper
-import scenic.ast as s
+import scenic.syntax.ast as s
 
 class TestEgoAssign:
     def test_basic(self):
