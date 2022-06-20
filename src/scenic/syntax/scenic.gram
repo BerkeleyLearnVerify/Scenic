@@ -16,7 +16,7 @@ from typing import (
 
 from pegen.tokenizer import Tokenizer
 
-import scenic.ast as s
+import scenic.syntax.ast as s
 
 # Singleton ast nodes, created once for efficiency
 Load = ast.Load()
