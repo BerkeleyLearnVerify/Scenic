@@ -1,10 +1,9 @@
 import ast
 import pytest
 
-from helper import parse_string_helper
+from .helper import parse_string_helper
 import scenic.ast as s
 
-@pytest.mark.match
 class TestEgoAssign:
     def test_basic(self):
         mod = parse_string_helper("ego = 10")
