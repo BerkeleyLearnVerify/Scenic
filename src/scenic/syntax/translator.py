@@ -261,7 +261,7 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>')
 				raise RuntimeError('dumping the Python equivalent of the AST'
 									'requires the astor package')
 			print(f'### Begin Python equivalent of final AST of {filename}')
-			print(astor.to_source(tree))
+			print(astor.to_source(tree, add_line_information=True))
 			print('### End Python equivalent of final AST')
 
 		# Compile the modified tree
