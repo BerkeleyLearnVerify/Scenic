@@ -1211,7 +1211,10 @@ inversion (memo):
 
 # Scenic instance creation
 # ------------------------
-scenic_new_expr: 'new' n=NAME { s.New(className=n.string, specifiers=[], LOCATIONS) } # TODO(shun): Support specifiers
+scenic_new_expr: 'new' n=NAME ss=[scenic_specifiers] { s.New(className=n.string, specifiers=ss, LOCATIONS) }
+scenic_specifiers: ss=','.scenic_specifier+ { ss }
+scenic_specifier:
+    | 'with' p=NAME v=expression { s.WithSpecifier(prop=p.string, value=v, LOCATIONS) }
 
 # Comparisons operators
 # ---------------------
