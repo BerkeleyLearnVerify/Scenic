@@ -43,3 +43,13 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             args=[],
             keywords=[],
         )
+
+    def visit_WithSpecifier(self, node: s.WithSpecifier):
+        return ast.Call(
+            func=ast.Name(id="With", ctx=loadCtx),
+            args=[
+                ast.Constant(value=node.prop),
+                self.visit(node.value),
+            ],
+            keywords=[],
+        )

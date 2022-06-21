@@ -47,4 +47,38 @@ class TestNew:
             case _:
                 assert False
 
-    # TODO(shun): Add tests for specifiers
+    def test_specifier_single(self):
+        mod = parse_string_helper("new Object with foo 1")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                value=New(
+                    className=c,
+                    specifiers=[
+                        WithSpecifier(prop=prop, value=Constant(value=value))
+                    ],
+                )
+            ):
+                assert c == "Object"
+                assert prop == "foo"
+                assert value == 1
+            case _:
+                assert False
+
+    def test_specifier_multiple(self):
+        mod = parse_string_helper("new Object with foo 1, with bar 2, with baz 3")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                value=New(
+                    className="Object",
+                    specifiers=[
+                        WithSpecifier(prop="foo", value=Constant(value=1)),
+                        WithSpecifier(prop="bar", value=Constant(value=2)),
+                        WithSpecifier(prop="baz", value=Constant(value=3)),
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
