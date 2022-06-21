@@ -4,7 +4,7 @@ import scenic.syntax.ast as s
 
 # exposed functions
 
-def compileScenicAST(scenicAST: s.AST) -> Tuple[ast.AST, List[ast.AST]]:
+def compileScenicAST(scenicAST: ast.AST) -> Tuple[ast.AST, List[ast.AST]]:
     """Compiles Scenic AST to Python AST"""
     compiler = ScenicToPythonTransformer()
     node = ast.fix_missing_locations(compiler.visit(scenicAST))
