@@ -29,3 +29,9 @@ class WithSpecifier(AST):
         self.prop = prop
         self.value = value
         self._fields = ["prop", "value"]
+
+class AtSpecifier(AST):
+    def __init__(self, position: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.position = position
+        self._fields = ["position"]
