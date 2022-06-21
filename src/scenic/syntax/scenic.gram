@@ -1215,6 +1215,7 @@ scenic_new_expr: 'new' n=NAME ss=[scenic_specifiers] { s.New(className=n.string,
 scenic_specifiers: ss=','.scenic_specifier+ { ss }
 scenic_specifier:
     | 'with' p=NAME v=expression { s.WithSpecifier(prop=p.string, value=v, LOCATIONS) }
+    | 'at' position=expression { s.AtSpecifier(position=position, LOCATIONS) }
 
 # Comparisons operators
 # ---------------------
