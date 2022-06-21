@@ -1,8 +1,9 @@
-import ast
 import pytest
 from typing import Any
 
-import scenic.syntax.ast as s
+from ast import *
+from scenic.syntax.ast import *
+
 from scenic.syntax.parser import parse_string
 
 
@@ -16,7 +17,7 @@ class TestEgoAssign:
         mod = parse_string_helper("ego = 10")
         stmt = mod.body[0]
         match stmt:
-            case s.EgoAssign(value=ast.Constant(value=v)):
+            case EgoAssign(value=Constant(value=v)):
                 assert v == 10
             case _:
                 assert False
@@ -25,7 +26,7 @@ class TestEgoAssign:
         mod = parse_string_helper("ego = new Object")
         stmt = mod.body[0]
         match stmt:
-            case s.EgoAssign(value=s.New(className=c)):
+            case EgoAssign(value=New(className=c)):
                 assert c == "Object"
             case _:
                 assert False
@@ -41,7 +42,7 @@ class TestNew:
         mod = parse_string_helper("new Object")
         stmt = mod.body[0]
         match stmt:
-            case ast.Expr(value=s.New(className=c)):
+            case Expr(value=New(className=c)):
                 assert c == "Object"
             case _:
                 assert False
