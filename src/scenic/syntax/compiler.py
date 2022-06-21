@@ -53,3 +53,10 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             ],
             keywords=[],
         )
+
+    def visit_AtSpecifier(self, node: s.AtSpecifier):
+        return ast.Call(
+            func=ast.Name(id="At", ctx=loadCtx),
+            args=[node.position],
+            keywords=[],
+        )
