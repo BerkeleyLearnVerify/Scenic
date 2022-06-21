@@ -54,9 +54,7 @@ class TestNew:
             case Expr(
                 value=New(
                     className=c,
-                    specifiers=[
-                        WithSpecifier(prop=prop, value=Constant(value=value))
-                    ],
+                    specifiers=[WithSpecifier(prop=prop, value=Constant(value=value))],
                 )
             ):
                 assert c == "Object"
@@ -80,5 +78,19 @@ class TestNew:
                 )
             ):
                 assert True
+            case _:
+                assert False
+
+    def test_specifier_at(self):
+        mod = parse_string_helper("new Object at x")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    className="Object",
+                    specifiers=[AtSpecifier(position=Name(position))],
+                )
+            ):
+                assert position == "x"
             case _:
                 assert False
