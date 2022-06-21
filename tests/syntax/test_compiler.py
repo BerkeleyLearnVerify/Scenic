@@ -22,3 +22,12 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    def test_with_specifier(self):
+        node, _ = compileScenicAST(WithSpecifier("foo", Constant(1)))
+        match node:
+            case Call(Name("With"), [Constant(prop), Constant(value)]):
+                assert prop == "foo"
+                assert value == 1
+            case _:
+                assert False
