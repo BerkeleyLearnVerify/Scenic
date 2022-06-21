@@ -31,3 +31,11 @@ class TestCompiler:
                 assert value == 1
             case _:
                 assert False
+
+    def test_at_specifier(self):
+        node, _ = compileScenicAST(AtSpecifier(Name("x")))
+        match node:
+            case Call(Name("At"), [Name(position)]):
+                assert position == "x"
+            case _:
+                assert False
