@@ -74,6 +74,8 @@ from scenic.core.errors import (TokenParseError, PythonParseError, ASTParseError
 import scenic.core.dynamics as dynamics
 import scenic.core.pruning as pruning
 import scenic.syntax.veneer as veneer
+from scenic.syntax.parser import parse_string
+from scenic.syntax.compiler import compileScenicAST
 
 ### THE TOP LEVEL: compiling a Scenic program
 
@@ -235,58 +237,39 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>')
 	if verbosity >= 2:
 		veneer.verbosePrint(f'  Compiling Scenic module from {filename}...')
 		startTime = time.time()
-	# Tokenize input stream
-	try:
-		tokens = list(tokenize.tokenize(stream.readline))
-	except tokenize.TokenError as e:
-		line = e.args[1][0] if isinstance(e.args[1], tuple) else e.args[1]
-		raise TokenParseError(line, filename, 'file ended during multiline string or expression')
-	# Partition into blocks with all imports at the end (since imports could
-	# pull in new constructor (Scenic class) definitions, which change the way
-	# subsequent tokens are transformed)
-	blocks = partitionByImports(tokens)
 	veneer.activate(params, model, filename, namespace)
 	newSourceBlocks = []
 	try:
 		# Execute preamble
 		exec(compile(preamble, '<veneer>', 'exec'), namespace)
 		namespace[namespaceReference] = namespace
-		# Execute each block
-		for blockNum, block in enumerate(blocks):
-			# Find all custom constructors defined so far (possibly imported)
-			constructors = findConstructorsIn(namespace)
-			# Translate tokens to valid Python syntax
-			startLine = max(1, block[0][2][0])
-			translator = TokenTranslator(constructors, filename)
-			newSource, allConstructors = translator.translate(block)
-			trimmed = newSource[2*(startLine-1):]	# fix up blank lines used to align errors
-			newSource = '\n'*(startLine-1) + trimmed
-			newSourceBlocks.append(trimmed)
-			if dumpTranslatedPython:
-				print(f'### Begin translated Python from block {blockNum} of {filename}')
-				print(newSource)
-				print('### End translated Python')
-			# Parse the translated source
-			tree = parseTranslatedSource(newSource, filename)
-			# Modify the parse tree to produce the correct semantics
-			newTree, requirements = translateParseTree(tree, allConstructors, filename)
-			if dumpFinalAST:
-				print(f'### Begin final AST from block {blockNum} of {filename}')
-				print(ast.dump(newTree, include_attributes=True))
-				print('### End final AST')
-			if dumpASTPython:
-				try:
-					import astor
-				except ModuleNotFoundError as e:
-					raise RuntimeError('dumping the Python equivalent of the AST'
-									   'requires the astor package')
-				print(f'### Begin Python equivalent of final AST from block {blockNum} of {filename}')
-				print(astor.to_source(newTree, add_line_information=True))
-				print('### End Python equivalent of final AST')
-			# Compile the modified tree
-			code = compileTranslatedTree(newTree, filename)
-			# Execute it
-			executeCodeIn(code, namespace)
+
+		# Parse the translated source
+		source = stream.read().decode('utf-8')
+		scenic_tree = parse_string(source, "exec", None)
+		tree, requirements = compileScenicAST(scenic_tree)
+
+		if dumpFinalAST:
+			print(f'### Begin final AST of {filename}')
+			print(ast.dump(tree, include_attributes=True, indent=4))
+			print('### End final AST')
+
+		if dumpASTPython:
+			try:
+				import astor
+			except ModuleNotFoundError as e:
+				raise RuntimeError('dumping the Python equivalent of the AST'
+									'requires the astor package')
+			print(f'### Begin Python equivalent of final AST of {filename}')
+			print(astor.to_source(tree, add_line_information=True))
+			print('### End Python equivalent of final AST')
+
+		# Compile the modified tree
+		code = compileTranslatedTree(tree, filename)
+
+		# Execute it
+		executeCodeIn(code, namespace)
+
 		# Extract scenario state from veneer and store it
 		storeScenarioStateIn(namespace, requirements)
 	finally:

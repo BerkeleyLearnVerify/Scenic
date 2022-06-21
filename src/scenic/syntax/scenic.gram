@@ -16,6 +16,8 @@ from typing import (
 
 from pegen.tokenizer import Tokenizer
 
+import scenic.syntax.ast as s
+
 # Singleton ast nodes, created once for efficiency
 Load = ast.Load()
 Store = ast.Store()
@@ -120,7 +122,6 @@ class Parser(Parser):
         self.py_version = min(py_version, sys.version_info) if py_version else sys.version_info
 
     def parse(self, rule: str, call_invalid_rules: bool = False) -> Optional[ast.AST]:
-        old = self.call_invalid_rules
         self.call_invalid_rules = call_invalid_rules
         res = getattr(self, rule)()
 
@@ -483,7 +484,7 @@ fstring[ast.Expr]: star_expressions
 
 statements[list]: a=statement+ { list(itertools.chain.from_iterable(a)) }
 
-statement[list]: a=compound_stmt { [a] } | a=simple_stmts { a }
+statement[list]: a=compound_stmt { [a] } | a=scenic_stmts { a } | a=simple_stmts { a }
 
 statement_newline[list]:
     | a=compound_stmt NEWLINE { [a] }
@@ -494,6 +495,10 @@ statement_newline[list]:
 simple_stmts[list]:
     | a=simple_stmt !';' NEWLINE { [a] } # Not needed, there for speedup
     | a=';'.simple_stmt+ [';'] NEWLINE { a }
+
+scenic_stmts[list]:
+    | a=scenic_stmt !';' NEWLINE { [a] } # Not needed, there for speedup
+    | a=';'.scenic_stmt+ [';'] NEWLINE { a }
 
 # NOTE: assignment MUST precede expression, else parsing a simple assignment
 # will throw a SyntaxError.
@@ -521,6 +526,9 @@ compound_stmt:
     | &'try' try_stmt
     | &'while' while_stmt
     | match_stmt
+
+scenic_stmt:
+    | scenic_ego_assignment
 
 # SIMPLE STATEMENTS
 # =================
@@ -1137,6 +1145,7 @@ expressions:
 expression (memo):
     | invalid_expression
     | invalid_legacy_expression
+    | scenic_new_expr
     | a=disjunction 'if' b=disjunction 'else' c=expression {
         ast.IfExp(body=a, test=b, orelse=c, LOCATIONS)
      }
@@ -1199,6 +1208,10 @@ conjunction (memo):
 inversion (memo):
     | 'not' a=inversion { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
     | comparison
+
+# Scenic instance creation
+# ------------------------
+scenic_new_expr: 'new' n=NAME { s.New(className=n.string, specifiers=[], LOCATIONS) } # TODO(shun): Support specifiers
 
 # Comparisons operators
 # ---------------------
@@ -1437,6 +1450,12 @@ lambda_param[ast.arg]: a=NAME {
     if sys.version_info >= (3, 9) else
     ast.arg(arg=a.string, annotation=None, type_comment=None, LOCATIONS)
 }
+
+# SCENIC STATEMENTS
+# =================
+
+scenic_ego_assignment:
+    | 'ego' '=' a=expression { s.EgoAssign(value=a, LOCATIONS) }
 
 # LITERALS
 # ========
