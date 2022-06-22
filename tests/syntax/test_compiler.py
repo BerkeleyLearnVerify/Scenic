@@ -57,3 +57,43 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    def test_position_specifier_left(self):
+        node, _ = compileScenicAST(PositionSpecifier(LeftOf(), Name("x"), None))
+        match node:
+            case Call(Name("LeftSpec"), [Name("x")]):
+                assert True
+            case _:
+                assert False
+
+    def test_position_specifier_right(self):
+        node, _ = compileScenicAST(PositionSpecifier(RightOf(), Name("x"), None))
+        match node:
+            case Call(Name("RightSpec"), [Name("x")]):
+                assert True
+            case _:
+                assert False
+
+    def test_position_specifier_ahead(self):
+        node, _ = compileScenicAST(PositionSpecifier(AheadOf(), Name("x"), None))
+        match node:
+            case Call(Name("Ahead"), [Name("x")]):
+                assert True
+            case _:
+                assert False
+
+    def test_position_specifier_behind(self):
+        node, _ = compileScenicAST(PositionSpecifier(Behind(), Name("x"), None))
+        match node:
+            case Call(Name("Behind"), [Name("x")]):
+                assert True
+            case _:
+                assert False
+
+    def test_position_specifier_distance(self):
+        node, _ = compileScenicAST(PositionSpecifier(Behind(), Name("x"), Constant(10)))
+        match node:
+            case Call(Name("Behind"), [Name("x")], [keyword("dist", Constant(10))]):
+                assert True
+            case _:
+                assert False
