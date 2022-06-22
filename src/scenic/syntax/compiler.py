@@ -64,7 +64,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     def visit_AtSpecifier(self, node: s.AtSpecifier):
         return ast.Call(
             func=ast.Name(id="At", ctx=loadCtx),
-            args=[node.position],
+            args=[self.visit(node.position)],
             keywords=[],
         )
 
@@ -122,5 +122,12 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         return ast.Call(
             func=ast.Name(id="VisibleSpec", ctx=loadCtx),
             args=[],
+            keywords=[],
+        )
+
+    def visit_InSpecifier(self, node: s.InSpecifier):
+        return ast.Call(
+            func=ast.Name(id="In", ctx=loadCtx),
+            args=[self.visit(node.region)],
             keywords=[],
         )

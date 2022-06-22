@@ -113,3 +113,11 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    def test_in_specifier(self):
+        node, _ = compileScenicAST(InSpecifier(Name("region")))
+        match node:
+            case Call(Name("In"), [Name("region")]):
+                assert True
+            case _:
+                assert False
