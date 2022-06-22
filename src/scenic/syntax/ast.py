@@ -161,3 +161,18 @@ class FacingTowardSpecifier(AST):
     def __init__(self, position: ast.AST, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.position = position
+
+
+class ApparentlyFacingSpecifier(AST):
+    __match_args__ = ("heading", "base")
+
+    def __init__(
+        self,
+        heading: ast.AST,
+        base: Optional[ast.AST] = None,
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.heading = heading
+        self.base = base
