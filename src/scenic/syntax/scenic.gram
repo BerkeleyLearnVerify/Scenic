@@ -1218,6 +1218,15 @@ scenic_specifier:
     | 'at' position=expression { s.AtSpecifier(position=position, LOCATIONS) }
     | 'offset' 'by' o=expression { s.OffsetBySpecifier(offset=o, LOCATIONS) }
     | 'offset' 'along' d=expression 'by' o=expression { s.OffsetAlongSpecifier(direction=d, offset=o, LOCATIONS) }
+    | direction=scenic_specifier_position_direction position=expression distance=['by' e=expression { e }] {
+        s.PositionSpecifier(direction=direction, position=position, distance=distance, LOCATIONS)
+     }
+
+scenic_specifier_position_direction:
+    | "left" "of" { s.LeftOf(LOCATIONS) }
+    | "right" "of" { s.RightOf(LOCATIONS) }
+    | "ahead" "of" { s.AheadOf(LOCATIONS) }
+    | "behind" { s.Behind(LOCATIONS) }
 
 # Comparisons operators
 # ---------------------
