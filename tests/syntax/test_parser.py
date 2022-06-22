@@ -17,8 +17,8 @@ class TestEgoAssign:
         mod = parse_string_helper("ego = 10")
         stmt = mod.body[0]
         match stmt:
-            case EgoAssign(value=Constant(value=v)):
-                assert v == 10
+            case EgoAssign(Constant(10)):
+                assert True
             case _:
                 assert False
 
@@ -26,8 +26,8 @@ class TestEgoAssign:
         mod = parse_string_helper("ego = new Object")
         stmt = mod.body[0]
         match stmt:
-            case EgoAssign(value=New(className=c)):
-                assert c == "Object"
+            case EgoAssign(New("Object")):
+                assert True
             case _:
                 assert False
 
@@ -42,8 +42,8 @@ class TestNew:
         mod = parse_string_helper("new Object")
         stmt = mod.body[0]
         match stmt:
-            case Expr(value=New(className=c)):
-                assert c == "Object"
+            case Expr(New("Object")):
+                assert True
             case _:
                 assert False
 
@@ -52,14 +52,12 @@ class TestNew:
         stmt = mod.body[0]
         match stmt:
             case Expr(
-                value=New(
-                    className=c,
-                    specifiers=[WithSpecifier(prop=prop, value=Constant(value=value))],
+                New(
+                    "Object",
+                    [WithSpecifier("foo", Constant(1))],
                 )
             ):
-                assert c == "Object"
-                assert prop == "foo"
-                assert value == 1
+                assert True
             case _:
                 assert False
 
@@ -68,12 +66,12 @@ class TestNew:
         stmt = mod.body[0]
         match stmt:
             case Expr(
-                value=New(
-                    className="Object",
-                    specifiers=[
-                        WithSpecifier(prop="foo", value=Constant(value=1)),
-                        WithSpecifier(prop="bar", value=Constant(value=2)),
-                        WithSpecifier(prop="baz", value=Constant(value=3)),
+                New(
+                    "Object",
+                    [
+                        WithSpecifier("foo", Constant(1)),
+                        WithSpecifier("bar", Constant(2)),
+                        WithSpecifier("baz", Constant(3)),
                     ],
                 )
             ):
@@ -87,10 +85,10 @@ class TestNew:
         match stmt:
             case Expr(
                 New(
-                    className="Object",
-                    specifiers=[AtSpecifier(position=Name(position))],
+                    "Object",
+                    [AtSpecifier(Name("x"))],
                 )
             ):
-                assert position == "x"
+                assert True
             case _:
                 assert False
