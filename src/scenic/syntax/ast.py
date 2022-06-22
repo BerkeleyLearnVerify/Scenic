@@ -1,4 +1,5 @@
 import ast
+from typing import Optional, Union
 
 
 class AST(ast.AST):
@@ -72,3 +73,40 @@ class OffsetAlongSpecifier(AST):
         super().__init__(*args, **kwargs)
         self.direction = direction
         self.offset = offset
+
+
+class PositionSpecifier(AST):
+    __match_args__ = ("direction", "position", "distance")
+
+    def __init__(
+        self,
+        direction: Union["LeftOf", "RightOf", "AheadOf", "Behind"],
+        position: ast.AST,
+        distance: Optional[ast.AST],
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.direction = direction
+        self.position = position
+        self.distance = distance
+
+
+class LeftOf(AST):
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class RightOf(AST):
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class AheadOf(AST):
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class Behind(AST):
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
