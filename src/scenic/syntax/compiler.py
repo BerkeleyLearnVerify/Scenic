@@ -131,3 +131,12 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             args=[self.visit(node.region)],
             keywords=[],
         )
+
+    def visit_FollowingSpecifier(self, node: s.FollowingSpecifier):
+        return ast.Call(
+            func=ast.Name(id="Following", ctx=loadCtx),
+            args=[self.visit(node.field), self.visit(node.distance)],
+            keywords=[ast.keyword(arg="fromPt", value=self.visit(node.base))]
+            if node.base is not None
+            else [],
+        )

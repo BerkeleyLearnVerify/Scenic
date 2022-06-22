@@ -222,3 +222,31 @@ class TestNew:
                 assert True
             case _:
                 assert False
+
+    def test_specifier_following(self):
+        mod = parse_string_helper("new Object following field for distance")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    "Object",
+                    [FollowingSpecifier(Name("field"), Name("distance"), None)],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_specifier_following_from(self):
+        mod = parse_string_helper("new Object following field from base for distance")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    "Object",
+                    [FollowingSpecifier(Name("field"), Name("distance"), Name("base"))],
+                )
+            ):
+                assert True
+            case _:
+                assert False
