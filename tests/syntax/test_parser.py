@@ -110,3 +110,59 @@ class TestNew:
                 assert True
             case _:
                 assert False
+
+    def test_specifier_position_left(self):
+        mod = parse_string_helper("new Object left of left")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(New("Object", [PositionSpecifier(LeftOf(), Name("left"), None)])):
+                assert True
+            case _:
+                assert False
+
+    def test_specifier_position_right(self):
+        mod = parse_string_helper("new Object right of right")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New("Object", [PositionSpecifier(RightOf(), Name("right"), None)])
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_specifier_position_ahead(self):
+        mod = parse_string_helper("new Object ahead of ahead")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New("Object", [PositionSpecifier(AheadOf(), Name("ahead"), None)])
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_specifier_position_behind(self):
+        mod = parse_string_helper("new Object behind behind")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New("Object", [PositionSpecifier(Behind(), Name("behind"), None)])
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_specifier_position_by(self):
+        mod = parse_string_helper("new Object left of left by distance")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    "Object",
+                    [PositionSpecifier(LeftOf(), Name("left"), Name("distance"))],
+                )
+            ):
+                assert True
+            case _:
+                assert False
