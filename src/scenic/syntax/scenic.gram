@@ -1227,6 +1227,7 @@ scenic_specifier:
     | "following" f=expression b=['from' e=expression {e}] 'for' d=expression {
         s.FollowingSpecifier(field=f, distance=d, base=b, LOCATIONS)
      }
+    | "facing" "toward" p=expression { s.FacingTowardSpecifier(position=p, LOCATIONS) }
     | "facing" h=expression { s.FacingSpecifier(heading=h, LOCATIONS) }
 
 scenic_specifier_position_direction:
