@@ -128,3 +128,20 @@ class InSpecifier(AST):
     def __init__(self, region: ast.AST, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.region = region
+
+
+class FollowingSpecifier(AST):
+    __match_args__ = ("field", "distance", "base")
+
+    def __init__(
+        self,
+        field: ast.AST,
+        distance: ast.AST,
+        base: Optional[ast.AST] = None,
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.field = field
+        self.distance = distance
+        self.base = base
