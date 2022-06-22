@@ -86,3 +86,28 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             ],
             keywords=[],
         )
+
+    def visit_PositionSpecifier(self, node: s.PositionSpecifier):
+        if isinstance(node.direction, s.LeftOf):
+            fn = "LeftSpec"
+        elif isinstance(node.direction, s.RightOf):
+            fn = "RightSpec"
+        elif isinstance(node.direction, s.AheadOf):
+            fn = "Ahead"
+        elif isinstance(node.direction, s.Behind):
+            fn = "Behind"
+        else:
+            raise TypeError(
+                f'"{node.direction.__class__.__name__}" cannot be used as a direction'
+            )
+        return ast.Call(
+            func=ast.Name(id=fn, ctx=loadCtx),
+            args=[
+                self.visit(node.position),
+            ],
+            keywords=(
+                []
+                if node.distance is None
+                else [ast.keyword(arg="dist", value=self.visit(node.distance))]
+            ),
+        )
