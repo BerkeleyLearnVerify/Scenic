@@ -35,7 +35,25 @@ class TestCompiler:
     def test_at_specifier(self):
         node, _ = compileScenicAST(AtSpecifier(Name("x")))
         match node:
-            case Call(Name("At"), [Name(position)]):
-                assert position == "x"
+            case Call(Name("At"), [Name("x")]):
+                assert True
+            case _:
+                assert False
+
+    def test_offset_by_specifier(self):
+        node, _ = compileScenicAST(OffsetBySpecifier(Name("x")))
+        match node:
+            case Call(Name("OffsetBy"), [Name("x")]):
+                assert True
+            case _:
+                assert False
+
+    def test_offset_along_specifier(self):
+        node, _ = compileScenicAST(
+            OffsetAlongSpecifier(Name("direction"), Name("offset"))
+        )
+        match node:
+            case Call(Name("OffsetAlongSpec"), [Name("direction"), Name("offset")]):
+                assert True
             case _:
                 assert False
