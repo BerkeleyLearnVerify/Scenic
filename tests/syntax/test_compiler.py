@@ -97,3 +97,19 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    def test_visible_specifier(self):
+        node, _ = compileScenicAST(VisibleSpecifier())
+        match node:
+            case Call(Name("VisibleSpec")):
+                assert True
+            case _:
+                assert False
+
+    def test_visible_specifier_with_base(self):
+        node, _ = compileScenicAST(VisibleSpecifier(Name("x")))
+        match node:
+            case Call(Name("VisibleFrom"), [Name("x")]):
+                assert True
+            case _:
+                assert False
