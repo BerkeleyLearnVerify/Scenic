@@ -194,3 +194,31 @@ class TestNew:
                 assert True
             case _:
                 assert False
+
+    def test_specifier_in(self):
+        mod = parse_string_helper("new Object in region")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    "Object",
+                    [InSpecifier(Name("region"))],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_specifier_on(self):
+        mod = parse_string_helper("new Object on region")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    "Object",
+                    [InSpecifier(Name("region"))],
+                )
+            ):
+                assert True
+            case _:
+                assert False
