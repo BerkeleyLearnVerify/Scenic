@@ -121,3 +121,25 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    def test_following_specifier(self):
+        node, _ = compileScenicAST(FollowingSpecifier(Name("field"), Name("distance")))
+        match node:
+            case Call(Name("Following"), [Name("field"), Name("distance")]):
+                assert True
+            case _:
+                assert False
+
+    def test_following_specifier_from(self):
+        node, _ = compileScenicAST(
+            FollowingSpecifier(Name("field"), Name("distance"), Name("base"))
+        )
+        match node:
+            case Call(
+                Name("Following"),
+                [Name("field"), Name("distance")],
+                [keyword("fromPt", Name("base"))],
+            ):
+                assert True
+            case _:
+                assert False
