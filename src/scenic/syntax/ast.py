@@ -120,3 +120,11 @@ class VisibleSpecifier(AST):
     ) -> None:
         super().__init__(*args, **kwargs)
         self.base = base
+
+
+class InSpecifier(AST):
+    __match_args__ = ("region",)
+
+    def __init__(self, region: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.region = region
