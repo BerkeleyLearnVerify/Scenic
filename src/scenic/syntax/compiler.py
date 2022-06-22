@@ -140,3 +140,10 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             if node.base is not None
             else [],
         )
+
+    def visit_FacingSpecifier(self, node: s.FacingSpecifier):
+        return ast.Call(
+            func=ast.Name(id="Facing", ctx=loadCtx),
+            args=[self.visit(node.heading)],
+            keywords=[],
+        )
