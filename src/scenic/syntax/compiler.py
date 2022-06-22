@@ -111,3 +111,16 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 else [ast.keyword(arg="dist", value=self.visit(node.distance))]
             ),
         )
+
+    def visit_VisibleSpecifier(self, node: s.VisibleSpecifier):
+        if node.base is not None:
+            return ast.Call(
+                func=ast.Name(id="VisibleFrom", ctx=loadCtx),
+                args=[self.visit(node.base)],
+                keywords=[],
+            )
+        return ast.Call(
+            func=ast.Name(id="VisibleSpec", ctx=loadCtx),
+            args=[],
+            keywords=[],
+        )

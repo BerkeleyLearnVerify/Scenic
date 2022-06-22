@@ -166,3 +166,31 @@ class TestNew:
                 assert True
             case _:
                 assert False
+
+    def test_specifier_visible(self):
+        mod = parse_string_helper("new Object visible")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    "Object",
+                    [VisibleSpecifier(None)],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_specifier_visible_from(self):
+        mod = parse_string_helper("new Object visible from base")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    "Object",
+                    [VisibleSpecifier(Name("base"))],
+                )
+            ):
+                assert True
+            case _:
+                assert False
