@@ -353,9 +353,10 @@ class Simulation:
         The definition of 'state' is up to the simulator; the 'state' is simply saved
         at each time step to define the 'trajectory' of the simulation.
 
-        The default implementation returns a tuple of the positions of all objects.
+        The default implementation a list of objects with their corresponding
+        information.
         """
-        return tuple(obj.position for obj in self.objects)
+        return self.objects
 
     @property
     def currentRealTime(self):
@@ -363,6 +364,179 @@ class Simulation:
 
     def destroy(self):
         """Perform any cleanup necessary to reset the simulator after a simulation."""
+        pass
+
+class ReplaySimulation(Simulation):
+    """An object that reconstitutes a completed single simulation and allows for
+    re-stepping through the simulation, along with the ability to compare
+    behaviors that were not originally used in simulation to the states and actions
+    that were recorded as the result of the simulation.
+
+    Attributes:
+        currentTime (int): Number of time steps elapsed so far.
+        timestep (float): Length of each time step in seconds.
+        objects: List of Scenic objects (instances of `Object`) existing in the
+            simulation. This list will change if objects are created dynamically.
+        agents: List of :term:`agents` in the simulation.
+        result (`SimulationResult`): Result of the simulation, or `None` if it has not
+            yet completed. This is the primary object which should be inspected to get
+            data out of the simulation: the other attributes of this class are primarily
+            for internal use.
+    """
+
+    def __init__(self, scene, simulationResult, timestep=1, verbosity=0):
+        self.result = None
+        self.scene = scene
+        self.simulation_result = simulationResult
+        self.objects = list(scene.objects)
+        self.agents = list(obj for obj in scene.objects if obj.behavior is not None)
+        self.trajectory = []
+        self.records = defaultdict(list)
+        self.currentTime = 0
+        self.timestep = timestep
+        self.verbosity = verbosity
+        self.worker_num = 0
+
+    def set_object_properties(self, timestepIndex):
+        self.objects = self.simulation_result.trajectory[timestepIndex]
+
+    def updateObjects(self):
+        """Update the positions and other properties of objects from the simulation."""
+        self.objects = self.simulation_result.trajectory[self.currentTime]
+
+    def run(self, maxSteps):
+        """Run the simulation.
+
+        Throws a RejectSimulationException if a requirement is violated.
+        """
+        trajectory = self.trajectory
+        if self.currentTime > 0:
+            raise RuntimeError('tried to run a Simulation which has already run')
+        assert len(trajectory) == 0
+        actionSequence = []
+
+        import scenic.syntax.veneer as veneer
+        veneer.beginSimulation(self)
+        dynamicScenario = self.scene.dynamicScenario
+
+        try:
+
+            # Give objects a chance to do any simulator-specific setup
+            # TODO: do we still need this?
+            for obj in self.objects:
+                obj.startDynamicSimulation()
+
+            # Update all objects to the initial state
+            self.updateObjects()
+
+            # Run simulation
+            assert self.currentTime == 0
+            while True:
+                if self.verbosity >= 3:
+                    print(f'    Time step {self.currentTime}:')
+
+                # Don't record the current state since we're replaying
+                # an existing recording
+
+                # Run monitors
+                newReason = dynamicScenario._runMonitors()
+                if newReason is not None:
+                    terminationReason = newReason
+                    terminationType = TerminationType.terminatedByMonitor
+
+                # "Always" and scenario-level requirements have been checked;
+                # now safe to terminate if the top-level scenario has finished,
+                # a monitor requested termination, or we've hit the timeout
+                if terminationReason is not None:
+                    break
+                terminationReason = dynamicScenario._checkSimulationTerminationConditions()
+                if terminationReason is not None:
+                    terminationType = TerminationType.simulationTerminationCondition
+                    break
+                if maxSteps and self.currentTime >= maxSteps:
+                    terminationReason = f'reached time limit ({maxSteps} steps)'
+                    terminationType = TerminationType.timeLimit
+                    break
+
+                # Compute the actions of the agents in this time step
+                allActions = OrderedDict()
+                schedule = self.scheduleForAgents()
+                for agent in schedule:
+                    behavior = agent.behavior
+                    if not behavior._runningIterator:   # TODO remove hack
+                        behavior._start(agent)
+                    actions = behavior._step()
+                    if isinstance(actions, EndSimulationAction):
+                        terminationReason = str(actions)
+                        terminationType = TerminationType.terminatedByBehavior
+                        break
+                    assert isinstance(actions, tuple)
+                    if len(actions) == 1 and isinstance(actions[0], (list, tuple)):
+                        actions = tuple(actions[0])
+                    if not self.actionsAreCompatible(agent, actions):
+                        raise InvalidScenarioError(f'agent {agent} tried incompatible '
+                                                   f' action(s) {actions}')
+                    allActions[agent] = actions
+                if terminationReason is not None:
+                    break
+
+                # Execute the actions
+                if self.verbosity >= 3:
+                    for agent, actions in allActions.items():
+                        print(f'      Agent {agent} takes action(s) {actions}')
+                actionSequence.append(allActions)
+                self.compareActions(allActions)
+                self.executeActions(allActions)
+
+                # Run the simulation for a single step and read its state back into Scenic
+                self.step()
+                self.updateObjects()
+                self.currentTime += 1
+
+            # Stop all remaining scenarios
+            # (and reject if some 'require eventually' condition was never satisfied)
+            for scenario in tuple(veneer.runningScenarios):
+                scenario._stop('simulation terminated')
+
+            # Record finally-recorded values
+            values = dynamicScenario._evaluateRecordedExprs(RequirementType.recordFinal)
+            for name, val in values.items():
+                self.records[name] = val
+
+            # Package up simulation results into a compact object
+            result = SimulationResult(trajectory, actionSequence, terminationType,
+                                      terminationReason, self.records)
+            self.result = result
+            return self
+        finally:
+            self.destroy()
+            for obj in self.scene.objects:
+                disableDynamicProxyFor(obj)
+            for agent in self.agents:
+                if agent.behavior._isRunning:
+                    agent.behavior._stop()
+            for monitor in self.scene.monitors:
+                if monitor._isRunning:
+                    monitor._stop()
+            # If the simulation was terminated by an exception (including rejections),
+            # some scenarios may still be running; we need to clean them up without
+            # checking their requirements, which could raise rejection exceptions.
+            for scenario in tuple(veneer.runningScenarios):
+                scenario._stop('exception', quiet=True)
+            veneer.endSimulation(self)
+
+    def compareActions(self, allActions):
+        action_differences = {}
+        recorded_action_dict = self.simulation_result.actions[self.currentTime]
+        for obj_idx, (obj, action) in enumerate(recorded_action_dict.items()):
+            action_differences[obj] = self.compareSimulatorActions(action, allActions[obj_idx])
+        return action_differences
+
+    def compareSimulatorActions(self, action, otherAction):
+        """ Simulator-specific comparison for actions."""
+        raise NotImplementedError
+
+    def executeActions(self, allActions):
         pass
 
 class DummySimulator(Simulator):
@@ -458,6 +632,7 @@ class SimulationResult:
     def __init__(self, trajectory, actions, terminationType, terminationReason, records):
         self.trajectory = tuple(trajectory)
         assert self.trajectory
+        self.initial_state = self.trajectory[0]
         self.finalState = self.trajectory[-1]
         self.actions = tuple(actions)
         self.terminationType = terminationType
