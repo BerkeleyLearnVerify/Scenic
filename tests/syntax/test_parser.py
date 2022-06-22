@@ -250,3 +250,17 @@ class TestNew:
                 assert True
             case _:
                 assert False
+
+    def test_specifier_facing(self):
+        mod = parse_string_helper("new Object facing heading")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    "Object",
+                    [FacingSpecifier(Name("heading"))],
+                )
+            ):
+                assert True
+            case _:
+                assert False

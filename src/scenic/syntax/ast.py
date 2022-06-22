@@ -145,3 +145,11 @@ class FollowingSpecifier(AST):
         self.field = field
         self.distance = distance
         self.base = base
+
+
+class FacingSpecifier(AST):
+    __match_args__ = ("heading",)
+
+    def __init__(self, heading: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.heading = heading
