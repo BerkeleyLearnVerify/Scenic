@@ -1223,6 +1223,7 @@ scenic_specifier:
      }
     | "visible" b=['from' r=expression { r }] { s.VisibleSpecifier(base=b, LOCATIONS) }
     | 'not' "visible" b=['from' r=expression { r }] { s.NotVisibleSpecifier(base=b, LOCATIONS) }
+    | ('in' | 'on') r=expression { s.InSpecifier(region=r, LOCATIONS) }
 
 scenic_specifier_position_direction:
     | "left" "of" { s.LeftOf(LOCATIONS) }
