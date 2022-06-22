@@ -1229,6 +1229,9 @@ scenic_specifier:
      }
     | "facing" "toward" p=expression { s.FacingTowardSpecifier(position=p, LOCATIONS) }
     | "facing" h=expression { s.FacingSpecifier(heading=h, LOCATIONS) }
+    | "apparently" "facing" h=expression v=['from' a=expression { a }] {
+        s.ApparentlyFacingSpecifier(heading=h, base=v, LOCATIONS)
+     }
 
 scenic_specifier_position_direction:
     | "left" "of" { s.LeftOf(LOCATIONS) }
