@@ -147,3 +147,10 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             args=[self.visit(node.heading)],
             keywords=[],
         )
+
+    def visit_FacingTowardSpecifier(self, node: s.FacingTowardSpecifier):
+        return ast.Call(
+            func=ast.Name(id="FacingToward", ctx=loadCtx),
+            args=[self.visit(node.position)],
+            keywords=[],
+        )
