@@ -1225,8 +1225,9 @@ scenic_specifier:
     | 'not' "visible" b=['from' r=expression { r }] { s.NotVisibleSpecifier(base=b, LOCATIONS) }
     | ('in' | 'on') r=expression { s.InSpecifier(region=r, LOCATIONS) }
     | "following" f=expression b=['from' e=expression {e}] 'for' d=expression {
-        s.FollowingSpecifier(field=f, distance=d, base=b)
+        s.FollowingSpecifier(field=f, distance=d, base=b, LOCATIONS)
      }
+    | "facing" h=expression { s.FacingSpecifier(heading=h, LOCATIONS) }
 
 scenic_specifier_position_direction:
     | "left" "of" { s.LeftOf(LOCATIONS) }
