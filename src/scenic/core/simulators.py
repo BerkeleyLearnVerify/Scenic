@@ -378,14 +378,10 @@ class ReplaySimulation(Simulation):
         objects: List of Scenic objects (instances of `Object`) existing in the
             simulation. This list will change if objects are created dynamically.
         agents: List of :term:`agents` in the simulation.
-        result (`SimulationResult`): Result of the simulation, or `None` if it has not
-            yet completed. This is the primary object which should be inspected to get
-            data out of the simulation: the other attributes of this class are primarily
-            for internal use.
+        simulationResult (`SimulationResult`):
     """
 
     def __init__(self, scene, simulationResult, timestep=1, verbosity=0):
-        self.result = None
         self.scene = scene
         self.simulation_result = simulationResult
         self.objects = list(scene.objects)
@@ -503,10 +499,6 @@ class ReplaySimulation(Simulation):
             for name, val in values.items():
                 self.records[name] = val
 
-            # Package up simulation results into a compact object
-            result = SimulationResult(trajectory, actionSequence, terminationType,
-                                      terminationReason, self.records)
-            self.result = result
             return self
         finally:
             self.destroy()
