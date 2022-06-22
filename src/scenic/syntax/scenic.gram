@@ -1221,6 +1221,8 @@ scenic_specifier:
     | direction=scenic_specifier_position_direction position=expression distance=['by' e=expression { e }] {
         s.PositionSpecifier(direction=direction, position=position, distance=distance, LOCATIONS)
      }
+    | "visible" b=['from' r=expression { r }] { s.VisibleSpecifier(base=b, LOCATIONS) }
+    | 'not' "visible" b=['from' r=expression { r }] { s.NotVisibleSpecifier(base=b, LOCATIONS) }
 
 scenic_specifier_position_direction:
     | "left" "of" { s.LeftOf(LOCATIONS) }

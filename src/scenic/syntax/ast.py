@@ -110,3 +110,13 @@ class AheadOf(AST):
 class Behind(AST):
     def __init__(self, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
+
+
+class VisibleSpecifier(AST):
+    __match_args__ = ("base",)
+
+    def __init__(
+        self, base: Optional[ast.AST] = None, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.base = base
