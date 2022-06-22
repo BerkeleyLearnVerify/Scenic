@@ -151,3 +151,11 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    def test_facing_toward_specifier(self):
+        node, _ = compileScenicAST(FacingTowardSpecifier(Name("position")))
+        match node:
+            case Call(Name("FacingToward"), [Name("position")]):
+                assert True
+            case _:
+                assert False
