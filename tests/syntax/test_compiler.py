@@ -159,3 +159,25 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    def test_apparently_facing_specifier(self):
+        node, _ = compileScenicAST(ApparentlyFacingSpecifier(Name("heading")))
+        match node:
+            case Call(Name("ApparentlyFacing"), [Name("heading")]):
+                assert True
+            case _:
+                assert False
+
+    def test_apparently_facing_specifier_from(self):
+        node, _ = compileScenicAST(
+            ApparentlyFacingSpecifier(Name("heading"), Name("base"))
+        )
+        match node:
+            case Call(
+                Name("ApparentlyFacing"),
+                [Name("heading")],
+                [keyword("fromPt", Name("base"))],
+            ):
+                assert True
+            case _:
+                assert False
