@@ -1,4 +1,6 @@
 from ast import *
+
+import pytest
 from scenic.syntax.ast import *
 
 from scenic.syntax.compiler import compileScenicAST
@@ -97,6 +99,11 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    def test_position_specifier_unknown_direction(self):
+        with pytest.raises(TypeError) as excinfo:
+            compileScenicAST(PositionSpecifier(str(), Name("x"), None))
+        assert '"str" cannot be used as a direction' in str(excinfo.value)
 
     def test_visible_specifier(self):
         node, _ = compileScenicAST(VisibleSpecifier())
