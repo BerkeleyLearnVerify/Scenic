@@ -92,3 +92,21 @@ class TestNew:
                 assert True
             case _:
                 assert False
+
+    def test_specifier_offset_by(self):
+        mod = parse_string_helper("new Object offset by x")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(New("Object", [OffsetBySpecifier(Name("x"))])):
+                assert True
+            case _:
+                assert False
+
+    def test_specifier_offset_along(self):
+        mod = parse_string_helper("new Object offset along x by y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(New("Object", [OffsetAlongSpecifier(Name("x"), Name("y"))])):
+                assert True
+            case _:
+                assert False

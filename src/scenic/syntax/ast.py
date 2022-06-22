@@ -53,3 +53,22 @@ class AtSpecifier(AST):
         super().__init__(*args, **kwargs)
         self.position = position
         self._fields = ["position"]
+
+
+class OffsetBySpecifier(AST):
+    __match_args__ = ("offset",)
+
+    def __init__(self, offset: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.offset = offset
+
+
+class OffsetAlongSpecifier(AST):
+    __match_args__ = ("direction", "offset")
+
+    def __init__(
+        self, direction: ast.AST, offset: ast.AST, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.direction = direction
+        self.offset = offset
