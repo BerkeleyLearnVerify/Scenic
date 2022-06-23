@@ -353,9 +353,9 @@ class Simulation:
         The definition of 'state' is up to the simulator; the 'state' is simply saved
         at each time step to define the 'trajectory' of the simulation.
 
-        The default implementation a list of objects with their dynamic properties.
+        The default implementation a list of objects with their properties.
         """
-        return [self.getProperties(obj, obj._dynamicProperties) for obj in self.objects]
+        return [self.getProperties(obj, obj.properties) for obj in self.objects]
 
     @property
     def currentRealTime(self):
@@ -393,8 +393,12 @@ class ReplaySimulation(Simulation):
         self.verbosity = verbosity
         self.worker_num = 0
 
-    def set_object_properties(self, timestepIndex):
-        self.objects = self.simulation_result.trajectory[timestepIndex]
+    def check_consistency(self):
+        # check that objects in scene and objects in the simulationResult are initially the same
+        for idx, obj in enumerate(self.objects):
+            # get the corresponding object dict from the result's initial state
+            result_obj_dict = self.simulation_result.initial_state[idx]
+            assert self.getProperties(obj, obj.properties) == result_obj_dict
 
     def updateObjects(self):
         """Update the positions and other properties of objects from the simulation."""
@@ -402,14 +406,14 @@ class ReplaySimulation(Simulation):
         """Update the positions and other properties of objects from the simulation."""
         for idx, obj in enumerate(self.objects):
             # Get latest values of dynamic properties from simulation
-            properties = obj._dynamicProperties
-            values = self.getProperties(current_replay_objects[idx], properties)
+            properties = obj.properties
+            values = self.getProperties(current_replay_objects[idx], obj.properties)
             assert properties == set(values), properties ^ set(values)
 
             # Preserve some other properties which are assigned internally by Scenic
             # TODO: do we still need this?
-            for prop in self.mutableProperties(obj):
-                values[prop] = getattr(obj, prop)
+            # for prop in self.mutableProperties(obj):
+            #     values[prop] = getattr(obj, prop)
 
             # Make a new copy of the object to ensure that computed properties like
             # visibleRegion, etc. are recomputed
@@ -531,10 +535,10 @@ class ReplaySimulation(Simulation):
             veneer.endSimulation(self)
 
     def compareActions(self, allActions):
-        action_differences = {}
+        action_differences = OrderedDict()
         recorded_action_dict = self.simulation_result.actions[self.currentTime]
-        for obj_idx, (obj, action) in enumerate(recorded_action_dict.items()):
-            action_differences[obj] = self.compareSimulatorActions(action, allActions[obj_idx])
+        for obj_idx, (obj_dict, action) in enumerate(recorded_action_dict.items()):
+            action_differences[obj_dict] = self.compareSimulatorActions(action, allActions[obj_idx])
         return action_differences
 
     def compareSimulatorActions(self, action, otherAction):
