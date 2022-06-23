@@ -115,7 +115,9 @@ class TestNew:
         mod = parse_string_helper("new Object left of left")
         stmt = mod.body[0]
         match stmt:
-            case Expr(New("Object", [DirectionOfSpecifier(LeftOf(), Name("left"), None)])):
+            case Expr(
+                New("Object", [DirectionOfSpecifier(LeftOf(), Name("left"), None)])
+            ):
                 assert True
             case _:
                 assert False
