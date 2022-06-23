@@ -493,3 +493,33 @@ class TestNew:
                 assert True
             case _:
                 assert False
+
+
+class TestOperator:
+    def test_relative_heading(self):
+        mod = parse_string_helper("relative heading of x")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(RelativeHeadingOp(Name("x"))):
+                assert True
+            case _:
+                assert False
+
+    def test_relative_heading_from(self):
+        mod = parse_string_helper("relative heading of x from y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(RelativeHeadingOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False
+
+    def test_relative_heading_precedence(self):
+        # This is incorrect code, but asserts the operator has the right precedence
+        mod = parse_string_helper("relative heading of x or y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(RelativeHeadingOp(BoolOp(Or(), [Name("x"), Name("y")]))):
+                assert True
+            case _:
+                assert False
