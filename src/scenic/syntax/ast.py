@@ -31,7 +31,7 @@ class New(AST):
         super().__init__(*args, **kwargs)
         self.className = className
         self.specifiers = specifiers
-        self._fields = ["className", "specifiers"]
+        self._fields = ["specifiers"]
 
 
 # Specifiers
@@ -44,7 +44,7 @@ class WithSpecifier(AST):
         super().__init__(*args, **kwargs)
         self.prop = prop
         self.value = value
-        self._fields = ["prop", "value"]
+        self._fields = ["value"]
 
 
 class AtSpecifier(AST):
