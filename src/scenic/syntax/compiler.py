@@ -285,8 +285,17 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     def visit_DistanceFromOp(self, node: s.DistanceFromOp):
         return ast.Call(
             func=ast.Name(id="DistanceFrom", ctx=loadCtx),
-            args=[self.visit(node.base)],
+            args=[self.visit(node.target)],
             keywords=[]
-            if node.target is None
-            else [ast.keyword(arg="Y", value=self.visit(node.target))],
+            if node.base is None
+            else [ast.keyword(arg="Y", value=self.visit(node.base))],
+        )
+
+    def visit_DistancePastOp(self, node: s.DistancePastOp):
+        return ast.Call(
+            func=ast.Name(id="DistancePast", ctx=loadCtx),
+            args=[self.visit(node.target)],
+            keywords=[]
+            if node.base is None
+            else [ast.keyword(arg="Y", value=self.visit(node.base))],
         )
