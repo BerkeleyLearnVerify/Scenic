@@ -97,9 +97,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         elif isinstance(node.direction, s.Behind):
             fn = "Behind"
         else:
-            raise TypeError(
-                f'"{node.direction.__class__.__name__}" cannot be used as a direction'
-            )
+            assert False, f"impossible direction {node.direction} in PositionSpecifier"
         return ast.Call(
             func=ast.Name(id=fn, ctx=loadCtx),
             args=[
