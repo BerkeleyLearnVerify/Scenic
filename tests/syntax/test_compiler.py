@@ -443,3 +443,19 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    def test_distance_past_op(self):
+        node, _ = compileScenicAST(DistancePastOp(Name("X")))
+        match node:
+            case Call(Name("DistancePast"), [Name("X")]):
+                assert True
+            case _:
+                assert False
+
+    def test_distance_past_op_of(self):
+        node, _ = compileScenicAST(DistancePastOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("DistancePast"), [Name("X")], [keyword("Y", Name("Y"))]):
+                assert True
+            case _:
+                assert False
