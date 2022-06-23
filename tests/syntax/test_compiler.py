@@ -394,3 +394,12 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    # Operators
+    def test_relative_heading_op(self):
+        node, _ = compileScenicAST(RelativeHeadingOp(Name("X")))
+        match node:
+            case Call(Name("RelativeHeading"), [Name("X")]):
+                assert True
+            case _:
+                assert False
