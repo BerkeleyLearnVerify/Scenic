@@ -403,7 +403,7 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
-    
+
     def test_relative_heading_op_base(self):
         node, _ = compileScenicAST(RelativeHeadingOp(Name("X"), Name("Y")))
         match node:
@@ -419,11 +419,27 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
-    
+
     def test_apparent_heading_op_base(self):
         node, _ = compileScenicAST(ApparentHeadingOp(Name("X"), Name("Y")))
         match node:
             case Call(Name("ApparentHeading"), [Name("X")], [keyword("Y", Name("Y"))]):
+                assert True
+            case _:
+                assert False
+
+    def test_distance_from_op(self):
+        node, _ = compileScenicAST(DistanceFromOp(Name("X")))
+        match node:
+            case Call(Name("DistanceFrom"), [Name("X")]):
+                assert True
+            case _:
+                assert False
+
+    def test_distance_from_op_to(self):
+        node, _ = compileScenicAST(DistanceFromOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("DistanceFrom"), [Name("X")], [keyword("Y", Name("Y"))]):
                 assert True
             case _:
                 assert False
