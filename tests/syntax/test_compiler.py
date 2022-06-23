@@ -459,3 +459,32 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    def test_angle_to(self):
+        node, _ = compileScenicAST(AngleFromOp(Name("X"), None))
+        match node:
+            case Call(Name("AngleFrom"), [Name("ego"), Name("X")]):
+                assert True
+            case _:
+                assert False
+
+    def test_angle_from(self):
+        node, _ = compileScenicAST(AngleFromOp(None, Name("X")))
+        match node:
+            case Call(Name("AngleFrom"), [Name("X"), Name("ego")]):
+                assert True
+            case _:
+                assert False
+
+    def test_angle_to_from(self):
+        node, _ = compileScenicAST(AngleFromOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("AngleFrom"), [Name("Y"), Name("X")]):
+                assert True
+            case _:
+                assert False
+
+    def test_angle_invalid(self):
+        with pytest.raises(AssertionError):
+            # target or base needs to be set
+            compileScenicAST(AngleFromOp())
