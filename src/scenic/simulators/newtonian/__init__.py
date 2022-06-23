@@ -14,4 +14,4 @@ domain to be simulated without installing an external simulator.
    simulator
 """
 
-from .simulator import NewtonianSimulator
+from .simulator import NewtonianSimulator, NewtonianReplaySimulation

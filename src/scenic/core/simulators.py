@@ -353,10 +353,9 @@ class Simulation:
         The definition of 'state' is up to the simulator; the 'state' is simply saved
         at each time step to define the 'trajectory' of the simulation.
 
-        The default implementation a list of objects with their corresponding
-        information.
+        The default implementation a list of objects with their dynamic properties.
         """
-        return self.objects
+        return [self.getProperties(obj, obj._dynamicProperties) for obj in self.objects]
 
     @property
     def currentRealTime(self):
@@ -386,7 +385,8 @@ class ReplaySimulation(Simulation):
         self.simulation_result = simulationResult
         self.objects = list(scene.objects)
         self.agents = list(obj for obj in scene.objects if obj.behavior is not None)
-        self.trajectory = []
+        self.trajectory = self.simulation_result.trajectory
+        self.action_differences = []
         self.records = defaultdict(list)
         self.currentTime = 0
         self.timestep = timestep
@@ -398,17 +398,34 @@ class ReplaySimulation(Simulation):
 
     def updateObjects(self):
         """Update the positions and other properties of objects from the simulation."""
-        self.objects = self.simulation_result.trajectory[self.currentTime]
+        current_replay_objects = self.simulation_result.trajectory[self.currentTime]
+        """Update the positions and other properties of objects from the simulation."""
+        for idx, obj in enumerate(self.objects):
+            # Get latest values of dynamic properties from simulation
+            properties = obj._dynamicProperties
+            values = self.getProperties(current_replay_objects[idx], properties)
+            assert properties == set(values), properties ^ set(values)
+
+            # Preserve some other properties which are assigned internally by Scenic
+            # TODO: do we still need this?
+            for prop in self.mutableProperties(obj):
+                values[prop] = getattr(obj, prop)
+
+            # Make a new copy of the object to ensure that computed properties like
+            # visibleRegion, etc. are recomputed
+            setDynamicProxyFor(obj, obj._copyWith(**values))
+
+    def reset_replay(self):
+        self.currentTime = 0
+        self.action_differences = []
 
     def run(self, maxSteps):
         """Run the simulation.
 
         Throws a RejectSimulationException if a requirement is violated.
         """
-        trajectory = self.trajectory
         if self.currentTime > 0:
-            raise RuntimeError('tried to run a Simulation which has already run')
-        assert len(trajectory) == 0
+            raise RuntimeError('tried to replay a Simulation which has already been replayed')
         actionSequence = []
 
         import scenic.syntax.veneer as veneer
@@ -453,7 +470,6 @@ class ReplaySimulation(Simulation):
                     terminationReason = f'reached time limit ({maxSteps} steps)'
                     terminationType = TerminationType.timeLimit
                     break
-
                 # Compute the actions of the agents in this time step
                 allActions = OrderedDict()
                 schedule = self.scheduleForAgents()
@@ -475,19 +491,16 @@ class ReplaySimulation(Simulation):
                     allActions[agent] = actions
                 if terminationReason is not None:
                     break
-
                 # Execute the actions
                 if self.verbosity >= 3:
                     for agent, actions in allActions.items():
                         print(f'      Agent {agent} takes action(s) {actions}')
                 actionSequence.append(allActions)
-                self.compareActions(allActions)
-                self.executeActions(allActions)
+                self.action_differences.append(self.compareActions(allActions))
 
-                # Run the simulation for a single step and read its state back into Scenic
-                self.step()
-                self.updateObjects()
                 self.currentTime += 1
+                # After incrementing time, read the next saved simulation state back into Scenic
+                self.updateObjects()
 
             # Stop all remaining scenarios
             # (and reject if some 'require eventually' condition was never satisfied)

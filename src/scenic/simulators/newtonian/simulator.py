@@ -10,7 +10,7 @@ import time
 from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
 from scenic.core.geometry import allChains
 from scenic.core.regions import toPolygon
-from scenic.core.simulators import SimulationCreationError
+from scenic.core.simulators import SimulationCreationError, ReplaySimulation
 from scenic.syntax.veneer import verbosePrint
 from scenic.core.vectors import Vector
 import scenic.simulators.newtonian.utils.utils as utils
@@ -239,3 +239,14 @@ class NewtonianSimulation(DrivingSimulation):
             lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
             lat_controller = PIDLateralController(K_P=0.1, K_D=0.3, K_I=0.0, dt=dt)
         return lon_controller, lat_controller
+
+class NewtonianReplaySimulation(ReplaySimulation):
+    def __init__(self, scene, simulationResult, timestep=1, verbosity=0):
+        super().__init__(scene, simulationResult, timestep=timestep, verbosity=verbosity)
+
+    def compareSimulatorActions(self, action, otherAction):
+        # actions in this simulator are (steer, throttle) values
+        # we'll take MSE, since these values are already normalized
+        return (action.steer - otherAction.steer) ** 2 + \
+               (action.throttle - otherAction.throttle) ** 2
+
