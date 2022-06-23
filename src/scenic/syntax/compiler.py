@@ -272,3 +272,12 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             if node.base is None
             else [ast.keyword(arg="Y", value=self.visit(node.base))],
         )
+
+    def visit_ApparentHeadingOp(self, node: s.ApparentHeadingOp):
+        return ast.Call(
+            func=ast.Name(id="ApparentHeading", ctx=loadCtx),
+            args=[self.visit(node.target)],
+            keywords=[]
+            if node.base is None
+            else [ast.keyword(arg="Y", value=self.visit(node.base))],
+        )
