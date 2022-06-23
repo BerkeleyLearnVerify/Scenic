@@ -523,3 +523,31 @@ class TestOperator:
                 assert True
             case _:
                 assert False
+
+    def test_apparent_heading(self):
+        mod = parse_string_helper("apparent heading of x")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(ApparentHeadingOp(Name("x"))):
+                assert True
+            case _:
+                assert False
+
+    def test_apparent_heading_from(self):
+        mod = parse_string_helper("apparent heading of x from y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(ApparentHeadingOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False
+
+    def test_apparent_heading_precedence(self):
+        # This is incorrect code, but asserts the operator has the right precedence
+        mod = parse_string_helper("apparent heading of x or y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(ApparentHeadingOp(BoolOp(Or(), [Name("x"), Name("y")]))):
+                assert True
+            case _:
+                assert False

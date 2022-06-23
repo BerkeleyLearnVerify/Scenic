@@ -1351,6 +1351,7 @@ primary:
 
 scenic_prefix_operators:
     | "relative" "heading" "of" e1=expression e2=['from' x=expression {x}] { s.RelativeHeadingOp(target=e1, base=e2) }
+    | "apparent" "heading" "of" e1=expression e2=['from' x=expression {x}] { s.ApparentHeadingOp(target=e1, base=e2) }
     | atom
 
 slices:
