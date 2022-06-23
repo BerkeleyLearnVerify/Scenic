@@ -47,7 +47,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     def visit_New(self, node: s.New):
         return ast.Call(
             func=ast.Name(id=node.className, ctx=loadCtx),
-            args=[],
+            args=[self.visit(s) for s in node.specifiers],
             keywords=[],
         )
 
