@@ -87,7 +87,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             keywords=[],
         )
 
-    def visit_PositionSpecifier(self, node: s.PositionSpecifier):
+    def visit_DirectionOfSpecifier(self, node: s.DirectionOfSpecifier):
         if isinstance(node.direction, s.LeftOf):
             fn = "LeftSpec"
         elif isinstance(node.direction, s.RightOf):
