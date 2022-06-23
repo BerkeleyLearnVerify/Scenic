@@ -25,6 +25,35 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_new_one_specifier(self):
+        node, _ = compileScenicAST(New("Object", [WithSpecifier("foo", Constant(1))]))
+        match node:
+            case Call(
+                Name("Object"), [Call(Name("With"), [Constant("foo"), Constant(1)])]
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_new_multiple_specifiers(self):
+        node, _ = compileScenicAST(
+            New(
+                "Object",
+                [WithSpecifier("foo", Constant(1)), AtSpecifier(Name("position"))],
+            )
+        )
+        match node:
+            case Call(
+                Name("Object"),
+                [
+                    Call(Name("With"), [Constant("foo"), Constant(1)]),
+                    Call(Name("At"), [Name("position")]),
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
     def test_with_specifier(self):
         node, _ = compileScenicAST(WithSpecifier("foo", Constant(1)))
         match node:
