@@ -1354,12 +1354,19 @@ scenic_prefix_operators:
     | "apparent" "heading" "of" e1=expression e2=['from' x=expression {x}] { s.ApparentHeadingOp(target=e1, base=e2) }
     | &"distance" scenic_distance_from_op
     | "distance" "past" e1=expression e2=['of' x=expression {x}] { s.DistancePastOp(target=e1, base=e2) }
+    | &"angle" scenic_angle_from_op
     | atom
 
 scenic_distance_from_op:
     | "distance" 'from' e1=expression 'to' e2=expression { s.DistanceFromOp(base=e1, target=e2) }
     | "distance" 'to' e1=expression 'from' e2=expression { s.DistanceFromOp(target=e1, base=e2) }
     | "distance" ('to'|'from') e1=expression { s.DistanceFromOp(target=e1) }
+
+scenic_angle_from_op:
+    | "angle" 'from' e1=expression 'to' e2=expression { s.AngleFromOp(base=e1, target=e2) }
+    | "angle" 'to' e1=expression 'from' e2=expression { s.AngleFromOp(target=e1, base=e2) }
+    | "angle" 'to' e1=expression { s.AngleFromOp(target=e1) }
+    | "angle" 'from' e1=expression { s.AngleFromOp(base=e1) }
 
 slices:
     | a=slice !',' { a }

@@ -16,6 +16,7 @@ def compileScenicAST(scenicAST: ast.AST) -> Tuple[ast.AST, List[ast.AST]]:
 # shorthands for convenience
 
 loadCtx = ast.Load()
+ego = ast.Name("ego")
 
 noArgs = ast.arguments(
     posonlyargs=[],
@@ -298,4 +299,15 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             keywords=[]
             if node.base is None
             else [ast.keyword(arg="Y", value=self.visit(node.base))],
+        )
+
+    def visit_AngleFromOp(self, node: s.AngleFromOp):
+        if node.base is None and node.target is None:
+            assert False, "neither target nor base were specified in AngleFromOp"
+        base = ego if node.base is None else self.visit(node.base)
+        target = ego if node.target is None else self.visit(node.target)
+        return ast.Call(
+            func=ast.Name(id="AngleFrom", ctx=loadCtx),
+            args=[base, target],
+            keywords=[],
         )

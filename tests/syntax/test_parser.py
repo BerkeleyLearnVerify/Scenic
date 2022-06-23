@@ -605,3 +605,39 @@ class TestOperator:
                 assert True
             case _:
                 assert False
+
+    def test_angle_from(self):
+        mod = parse_string_helper("angle from x")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(AngleFromOp(None, Name("x"))):
+                assert True
+            case _:
+                assert False
+
+    def test_angle_to(self):
+        mod = parse_string_helper("angle to x")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(AngleFromOp(Name("x"), None)):
+                assert True
+            case _:
+                assert False
+
+    def test_angle_from_to(self):
+        mod = parse_string_helper("angle from x to y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(AngleFromOp(Name("y"), Name("x"))):
+                assert True
+            case _:
+                assert False
+
+    def test_angle_to_from(self):
+        mod = parse_string_helper("angle to x from y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(AngleFromOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False
