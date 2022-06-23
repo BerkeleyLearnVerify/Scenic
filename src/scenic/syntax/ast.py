@@ -62,6 +62,7 @@ class OffsetBySpecifier(AST):
     def __init__(self, offset: ast.AST, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.offset = offset
+        self._fields = ["offset"]
 
 
 class OffsetAlongSpecifier(AST):
@@ -73,6 +74,7 @@ class OffsetAlongSpecifier(AST):
         super().__init__(*args, **kwargs)
         self.direction = direction
         self.offset = offset
+        self._fields = ["direction", "offset"]
 
 
 class PositionSpecifier(AST):
@@ -90,6 +92,7 @@ class PositionSpecifier(AST):
         self.direction = direction
         self.position = position
         self.distance = distance
+        self._fields = ["direction", "position", "distance"]
 
 
 class LeftOf(AST):
@@ -120,6 +123,7 @@ class VisibleSpecifier(AST):
     ) -> None:
         super().__init__(*args, **kwargs)
         self.base = base
+        self._fields = ["base"]
 
 
 class InSpecifier(AST):
@@ -128,6 +132,7 @@ class InSpecifier(AST):
     def __init__(self, region: ast.AST, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.region = region
+        self._fields = ["region"]
 
 
 class FollowingSpecifier(AST):
@@ -145,6 +150,7 @@ class FollowingSpecifier(AST):
         self.field = field
         self.distance = distance
         self.base = base
+        self._fields = ["field", "distance", "base"]
 
 
 class FacingSpecifier(AST):
@@ -153,6 +159,7 @@ class FacingSpecifier(AST):
     def __init__(self, heading: ast.AST, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.heading = heading
+        self._fields = ["heading"]
 
 
 class FacingTowardSpecifier(AST):
@@ -161,6 +168,7 @@ class FacingTowardSpecifier(AST):
     def __init__(self, position: ast.AST, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.position = position
+        self._fields = ["position"]
 
 
 class ApparentlyFacingSpecifier(AST):
@@ -176,3 +184,4 @@ class ApparentlyFacingSpecifier(AST):
         super().__init__(*args, **kwargs)
         self.heading = heading
         self.base = base
+        self._fields = ["heading", "base"]
