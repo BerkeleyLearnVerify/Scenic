@@ -335,3 +335,19 @@ class DistancePastOp(AST):
         self.target = target
         self.base = base
         self._fields = ["target", "base"]
+
+
+class AngleFromOp(AST):
+    __match_args__ = ("target", "base")
+
+    def __init__(
+        self,
+        target: Optional[ast.AST] = None,
+        base: Optional[ast.AST] = None,
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.target = target
+        self.base = base
+        self._fields = ["target", "base"]
