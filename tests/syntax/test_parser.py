@@ -1,9 +1,9 @@
-import pytest
+from ast import *
 from typing import Any
 
-from ast import *
-from scenic.syntax.ast import *
+import pytest
 
+from scenic.syntax.ast import *
 from scenic.syntax.parser import parse_string
 
 

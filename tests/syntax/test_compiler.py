@@ -1,8 +1,8 @@
 from ast import *
 
 import pytest
-from scenic.syntax.ast import *
 
+from scenic.syntax.ast import *
 from scenic.syntax.compiler import compileScenicAST
 
 
