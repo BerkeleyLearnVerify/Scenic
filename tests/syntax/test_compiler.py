@@ -122,7 +122,9 @@ class TestCompiler:
                 assert False
 
     def test_position_specifier_distance(self):
-        node, _ = compileScenicAST(DirectionOfSpecifier(Behind(), Name("x"), Constant(10)))
+        node, _ = compileScenicAST(
+            DirectionOfSpecifier(Behind(), Name("x"), Constant(10))
+        )
         match node:
             case Call(Name("Behind"), [Name("x")], [keyword("dist", Constant(10))]):
                 assert True
