@@ -115,7 +115,7 @@ class TestNew:
         mod = parse_string_helper("new Object left of left")
         stmt = mod.body[0]
         match stmt:
-            case Expr(New("Object", [PositionSpecifier(LeftOf(), Name("left"), None)])):
+            case Expr(New("Object", [DirectionOfSpecifier(LeftOf(), Name("left"), None)])):
                 assert True
             case _:
                 assert False
@@ -125,7 +125,7 @@ class TestNew:
         stmt = mod.body[0]
         match stmt:
             case Expr(
-                New("Object", [PositionSpecifier(RightOf(), Name("right"), None)])
+                New("Object", [DirectionOfSpecifier(RightOf(), Name("right"), None)])
             ):
                 assert True
             case _:
@@ -136,7 +136,7 @@ class TestNew:
         stmt = mod.body[0]
         match stmt:
             case Expr(
-                New("Object", [PositionSpecifier(AheadOf(), Name("ahead"), None)])
+                New("Object", [DirectionOfSpecifier(AheadOf(), Name("ahead"), None)])
             ):
                 assert True
             case _:
@@ -147,7 +147,7 @@ class TestNew:
         stmt = mod.body[0]
         match stmt:
             case Expr(
-                New("Object", [PositionSpecifier(Behind(), Name("behind"), None)])
+                New("Object", [DirectionOfSpecifier(Behind(), Name("behind"), None)])
             ):
                 assert True
             case _:
@@ -160,7 +160,7 @@ class TestNew:
             case Expr(
                 New(
                     "Object",
-                    [PositionSpecifier(LeftOf(), Name("left"), Name("distance"))],
+                    [DirectionOfSpecifier(LeftOf(), Name("left"), Name("distance"))],
                 )
             ):
                 assert True
