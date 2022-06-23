@@ -77,7 +77,7 @@ class OffsetAlongSpecifier(AST):
         self._fields = ["direction", "offset"]
 
 
-class PositionSpecifier(AST):
+class DirectionOfSpecifier(AST):
     __match_args__ = ("direction", "position", "distance")
 
     def __init__(

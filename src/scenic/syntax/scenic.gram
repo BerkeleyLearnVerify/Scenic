@@ -1219,7 +1219,7 @@ scenic_specifier:
     | 'offset' 'by' o=expression { s.OffsetBySpecifier(offset=o, LOCATIONS) }
     | 'offset' 'along' d=expression 'by' o=expression { s.OffsetAlongSpecifier(direction=d, offset=o, LOCATIONS) }
     | direction=scenic_specifier_position_direction position=expression distance=['by' e=expression { e }] {
-        s.PositionSpecifier(direction=direction, position=position, distance=distance, LOCATIONS)
+        s.DirectionOfSpecifier(direction=direction, position=position, distance=distance, LOCATIONS)
      }
     | "visible" b=['from' r=expression { r }] { s.VisibleSpecifier(base=b, LOCATIONS) }
     | 'not' "visible" b=['from' r=expression { r }] { s.NotVisibleSpecifier(base=b, LOCATIONS) }
