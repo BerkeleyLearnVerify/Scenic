@@ -551,3 +551,39 @@ class TestOperator:
                 assert True
             case _:
                 assert False
+
+    def test_distance_from(self):
+        mod = parse_string_helper("distance from x")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(DistanceFromOp(Name("x"))):
+                assert True
+            case _:
+                assert False
+    
+    def test_distance_to(self):
+        mod = parse_string_helper("distance to x")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(DistanceFromOp(Name("x"))):
+                assert True
+            case _:
+                assert False
+
+    def test_distance_from_to(self):
+        mod = parse_string_helper("distance from x to y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(DistanceFromOp(Name("y"), Name("x"))):
+                assert True
+            case _:
+                assert False
+
+    def test_distance_to_from(self):
+        mod = parse_string_helper("distance to x from y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(DistanceFromOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False
