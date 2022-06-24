@@ -266,6 +266,15 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     # Operators
 
+    def visit_RelativePositionOp(self, node: s.RelativePositionOp):
+        return ast.Call(
+            func=ast.Name(id="RelativePosition", ctx=loadCtx),
+            args=[self.visit(node.target)],
+            keywords=[]
+            if node.base is None
+            else [ast.keyword(arg="Y", value=self.visit(node.base))],
+        )
+
     def visit_RelativeHeadingOp(self, node: s.RelativeHeadingOp):
         return ast.Call(
             func=ast.Name(id="RelativeHeading", ctx=loadCtx),
