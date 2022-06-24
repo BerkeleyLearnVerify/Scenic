@@ -650,3 +650,12 @@ class TestOperator:
                 assert True
             case _:
                 assert False
+
+    def test_visible(self):
+        mod = parse_string_helper("visible x")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(VisibleOp(Name("x"))):
+                assert True
+            case _:
+                assert False
