@@ -369,3 +369,12 @@ class FollowOp(AST):
         self.base = base
         self.distance = distance
         self._fields = ["target", "base", "distance"]
+
+
+class VisibleOp(AST):
+    __match_args__ = ("region",)
+
+    def __init__(self, region: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.region = region
+        self._fields = ["region"]

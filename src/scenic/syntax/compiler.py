@@ -323,3 +323,10 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             ],
             keywords=[],
         )
+
+    def visit_VisibleOp(self, node: s.VisibleOp):
+        return ast.Call(
+            func=ast.Name(id="Visible", ctx=loadCtx),
+            args=[self.visit(node.region)],
+            keywords=[],
+        )
