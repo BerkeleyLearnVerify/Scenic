@@ -504,3 +504,11 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    def test_not_visible_op(self):
+        node, _ = compileScenicAST(NotVisibleOp(Name("X")))
+        match node:
+            case Call(Name("NotVisible"), [Name("X")]):
+                assert True
+            case _:
+                assert False

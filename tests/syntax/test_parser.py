@@ -659,3 +659,12 @@ class TestOperator:
                 assert True
             case _:
                 assert False
+
+    def test_not_visible(self):
+        mod = parse_string_helper("not visible not x")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(NotVisibleOp(UnaryOp(Not(), Name("x")))):
+                assert True
+            case _:
+                assert False
