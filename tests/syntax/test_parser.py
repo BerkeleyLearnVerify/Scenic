@@ -709,6 +709,24 @@ class TestOperator:
             case _:
                 assert False
 
+    def test_deg_1(self):
+        mod = parse_string_helper("1 + 2 deg")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(BinOp(Constant(1), Add(), DegOp(Constant(2)))):
+                assert True
+            case _:
+                assert False
+
+    def test_deg_2(self):
+        mod = parse_string_helper("6 * 2 deg")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(DegOp(BinOp(Constant(6), Mult(), Constant(2)))):
+                assert True
+            case _:
+                assert False
+
     def test_vector_1(self):
         mod = parse_string_helper("1 + 2 @ 3 * 4")
         stmt = mod.body[0]
