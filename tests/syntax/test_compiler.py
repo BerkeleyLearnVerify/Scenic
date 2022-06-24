@@ -136,6 +136,21 @@ class TestCompiler:
             compileScenicAST(DirectionOfSpecifier(str(), Name("x"), None))
         assert '"str" cannot be used as a direction' in str(excinfo.value)
 
+    def test_beyond_specifier(self):
+        node, _ = compileScenicAST(BeyondSpecifier(Name("x"), Name("y")))
+        match node:
+            case Call(Name("Beyond"), [Name("x"), Name("y")]):
+                assert True
+            case _:
+                assert False
+    def test_beyond_specifier_with_base(self):
+        node, _ = compileScenicAST(BeyondSpecifier(Name("x"), Name("y"), Name("z")))
+        match node:
+            case Call(Name("Beyond"), [Name("x"), Name("y")], [keyword("fromPt", Name("z"))]):
+                assert True
+            case _:
+                assert False
+
     def test_visible_specifier(self):
         node, _ = compileScenicAST(VisibleSpecifier())
         match node:
