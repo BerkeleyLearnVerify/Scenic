@@ -346,3 +346,10 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             args=[self.visit(node.region)],
             keywords=[],
         )
+
+    def visit_VectorOp(self, node: s.VectorOp):
+        return ast.Call(
+            func=ast.Name(id="Vector", ctx=loadCtx),
+            args=[self.visit(node.left), self.visit(node.right)],
+            keywords=[],
+        )
