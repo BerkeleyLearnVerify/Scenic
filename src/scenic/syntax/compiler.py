@@ -330,3 +330,10 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             args=[self.visit(node.region)],
             keywords=[],
         )
+
+    def visit_NotVisibleOp(self, node: s.VisibleOp):
+        return ast.Call(
+            func=ast.Name(id="NotVisible", ctx=loadCtx),
+            args=[self.visit(node.region)],
+            keywords=[],
+        )
