@@ -1357,8 +1357,8 @@ scenic_prefix_operators:
     | "distance" "past" e1=expression e2=['of' x=expression {x}] { s.DistancePastOp(target=e1, base=e2, LOCATIONS) }
     | &"angle" scenic_angle_from_op
     | "follow" e1=expression 'from' e2=expression 'for' e3=expression { s.FollowOp(target=e1, base=e2, distance=e3, LOCATIONS) }
-    | "visible" e=expression { s.VisibleOp(region=e) }
-    | 'not' "visible" e=expression { s.NotVisibleOp(region=e) }
+    | "visible" e=expression { s.VisibleOp(region=e, LOCATIONS) }
+    | 'not' "visible" e=expression { s.NotVisibleOp(region=e, LOCATIONS) }
     | atom
 
 scenic_distance_from_op:
