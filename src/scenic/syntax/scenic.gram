@@ -1295,9 +1295,13 @@ bitwise_and:
     | shift_expr
 
 shift_expr:
+    | scenic_shift_expr
     | a=shift_expr '<<' b=sum { ast.BinOp(left=a, op=ast.LShift(), right=b, LOCATIONS) }
     | a=shift_expr '>>' b=sum { ast.BinOp(left=a, op=ast.RShift(), right=b, LOCATIONS) }
     | sum
+
+scenic_shift_expr:
+    | a=shift_expr 'at' b=sum { s.FieldAtOp(left=a, right=b, LOCATIONS) }
 
 # Arithmetic operators
 # --------------------
