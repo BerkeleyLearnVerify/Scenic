@@ -8,6 +8,7 @@ import pathlib
 import time
 
 from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
+from scenic.domains.driving.actions import RegulatedControlAction
 from scenic.core.geometry import allChains
 from scenic.core.regions import toPolygon
 from scenic.core.simulators import SimulationCreationError, ReplaySimulation
@@ -244,9 +245,17 @@ class NewtonianReplaySimulation(ReplaySimulation):
     def __init__(self, scene, simulationResult, timestep=1, verbosity=0):
         super().__init__(scene, simulationResult, timestep=timestep, verbosity=verbosity)
 
-    def compareSimulatorActions(self, action, otherAction):
+    def compareSimulatorActions(self, actions, otherActions):
         # actions in this simulator are (steer, throttle) values
+        difference = 0
         # we'll take MSE, since these values are already normalized
-        return (action.steer - otherAction.steer) ** 2 + \
-               (action.throttle - otherAction.throttle) ** 2
+        for idx in range(len(actions)):
+            action, otherAction = actions[idx], otherActions[idx]
+            if isinstance(action, RegulatedControlAction) and \
+                isinstance(otherAction, RegulatedControlAction):
+                difference += (action.steer - otherAction.steer) ** 2 + \
+                       (action.throttle - otherAction.throttle) ** 2
+            else:
+                if action != otherAction:
+                    difference += 1
 

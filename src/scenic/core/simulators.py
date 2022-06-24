@@ -213,6 +213,7 @@ class Simulation:
                     if not self.actionsAreCompatible(agent, actions):
                         raise InvalidScenarioError(f'agent {agent} tried incompatible '
                                                    f' action(s) {actions}')
+                    # to make saveable, we record agents by their properties
                     allActions[agent] = actions
                 if terminationReason is not None:
                     break
@@ -381,6 +382,7 @@ class ReplaySimulation(Simulation):
     """
 
     def __init__(self, scene, simulationResult, timestep=1, verbosity=0):
+        super().__init__(scene, timestep=timestep, verbosity=verbosity)
         self.scene = scene
         self.simulation_result = simulationResult
         self.objects = list(scene.objects)
