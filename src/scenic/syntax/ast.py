@@ -400,6 +400,86 @@ class NotVisibleOp(AST):
         self._fields = ["region"]
 
 
+class PositionOfOp(AST):
+    __match_args__ = ("position", "target")
+
+    def __init__(
+        self,
+        position: Union[
+            "Front",
+            "Back",
+            "Left",
+            "Right",
+            "FrontLeft",
+            "FrontRight",
+            "BackLeft",
+            "BackRight",
+        ],
+        target: ast.AST,
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.position = position
+        self.target = target
+
+
+class Front(AST):
+    "Represents position of `front of` operator"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class Back(AST):
+    "Represents position of `back of` operator"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class Left(AST):
+    "Represents position of `left of` operator"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class Right(AST):
+    "Represents position of `right of` operator"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class FrontLeft(AST):
+    "Represents position of `front left of` operator"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class FrontRight(AST):
+    "Represents position of `front right of` operator"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class BackLeft(AST):
+    "Represents position of `back left of` operator"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class BackRight(AST):
+    "Represents position of `back right of` operator"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
 class VectorOp(AST):
     __match_args__ = ("left", "right")
 
