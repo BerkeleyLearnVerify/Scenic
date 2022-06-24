@@ -488,3 +488,11 @@ class TestCompiler:
         with pytest.raises(AssertionError):
             # target or base needs to be set
             compileScenicAST(AngleFromOp())
+
+    def test_follow_op(self):
+        node, _ = compileScenicAST(FollowOp(Name("X"), Name("Y"), Name("Z")))
+        match node:
+            case Call(Name("Follow"), [Name("X"), Name("Y"), Name("Z")]):
+                assert True
+            case _:
+                assert False

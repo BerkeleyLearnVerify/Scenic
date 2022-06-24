@@ -1,4 +1,5 @@
 import ast
+from json import load
 from typing import Tuple, List
 
 import scenic.syntax.ast as s
@@ -309,5 +310,16 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         return ast.Call(
             func=ast.Name(id="AngleFrom", ctx=loadCtx),
             args=[base, target],
+            keywords=[],
+        )
+
+    def visit_FollowOp(self, node: s.FollowOp):
+        return ast.Call(
+            func=ast.Name(id="Follow", ctx=loadCtx),
+            args=[
+                self.visit(node.target),
+                self.visit(node.base),
+                self.visit(node.distance),
+            ],
             keywords=[],
         )
