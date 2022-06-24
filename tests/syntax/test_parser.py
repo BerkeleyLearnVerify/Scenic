@@ -496,6 +496,24 @@ class TestNew:
 
 
 class TestOperator:
+    def test_relative_position(self):
+        mod = parse_string_helper("relative position of x")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(RelativePositionOp(Name("x"))):
+                assert True
+            case _:
+                assert False
+
+    def test_relative_position_base(self):
+        mod = parse_string_helper("relative position of x from y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(RelativePositionOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False
+
     def test_relative_heading(self):
         mod = parse_string_helper("relative heading of x")
         stmt = mod.body[0]
