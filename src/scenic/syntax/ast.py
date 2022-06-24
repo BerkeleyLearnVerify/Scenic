@@ -421,3 +421,14 @@ class FieldAtOp(AST):
         super().__init__(*args, **kwargs)
         self.left = left
         self.right = right
+
+
+class RelativeToOp(AST):
+    __match_args__ = ("left", "right")
+
+    def __init__(
+        self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.left = left
+        self.right = right
