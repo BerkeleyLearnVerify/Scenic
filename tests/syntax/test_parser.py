@@ -710,7 +710,7 @@ class TestOperator:
                 BinOp(
                     VectorOp(BinOp(Constant(1), Mult(), Constant(2)), Constant(3)),
                     Add(),
-                    Constant(4)
+                    Constant(4),
                 )
             ):
                 assert True
@@ -721,9 +721,16 @@ class TestOperator:
         mod = parse_string_helper("1 @ 2 @ 3")
         stmt = mod.body[0]
         match stmt:
-            case Expr(
-                VectorOp(VectorOp(Constant(1), Constant(2)), Constant(3))
-            ):
+            case Expr(VectorOp(VectorOp(Constant(1), Constant(2)), Constant(3))):
+                assert True
+            case _:
+                assert False
+
+    def test_field_at(self):
+        mod = parse_string_helper("x at y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(FieldAtOp(Name("x"), Name("y"))):
                 assert True
             case _:
                 assert False
