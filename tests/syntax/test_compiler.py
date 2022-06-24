@@ -396,6 +396,23 @@ class TestCompiler:
                 assert False
 
     # Operators
+    def test_relative_position_op(self):
+        node, _ = compileScenicAST(RelativePositionOp(Name("X")))
+        match node:
+            case Call(Name("RelativePosition"), [Name("X")]):
+                assert True
+            case _:
+                assert False
+
+
+    def test_relative_position_op_base(self):
+        node, _ = compileScenicAST(RelativePositionOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("RelativePosition"), [Name("X")], [keyword("Y", Name("Y"))]):
+                assert True
+            case _:
+                assert False
+
     def test_relative_heading_op(self):
         node, _ = compileScenicAST(RelativeHeadingOp(Name("X")))
         match node:
@@ -496,7 +513,7 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
-    
+
     def test_visible_op(self):
         node, _ = compileScenicAST(VisibleOp(Name("X")))
         match node:
