@@ -378,3 +378,13 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             ],
             keywords=[],
         )
+
+    def visit_CanSeeOp(self, node: s.CanSeeOp):
+        return ast.Call(
+            func=ast.Name(id="CanSee", ctx=loadCtx),
+            args=[
+                self.visit(node.left),
+                self.visit(node.right),
+            ],
+            keywords=[],
+        )

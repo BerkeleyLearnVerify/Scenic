@@ -560,3 +560,11 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    def test_can_see_op(self):
+        node, _ = compileScenicAST(CanSeeOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("CanSee"), [Name("X"), Name("Y")]):
+                assert True
+            case _:
+                assert False
