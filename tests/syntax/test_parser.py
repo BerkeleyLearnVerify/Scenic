@@ -734,3 +734,21 @@ class TestOperator:
                 assert True
             case _:
                 assert False
+
+    def test_relative_to(self):
+        mod = parse_string_helper("x relative to y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(RelativeToOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False
+
+    def test_offset_by(self):
+        mod = parse_string_helper("x offset by y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(RelativeToOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False

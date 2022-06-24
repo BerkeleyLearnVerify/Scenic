@@ -360,3 +360,10 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             args=[self.visit(node.left), self.visit(node.right)],
             keywords=[],
         )
+
+    def visit_RelativeToOp(self, node: s.RelativeToOp):
+        return ast.Call(
+            func=ast.Name(id="RelativeTo", ctx=loadCtx),
+            args=[self.visit(node.left), self.visit(node.right)],
+            keywords=[],
+        )
