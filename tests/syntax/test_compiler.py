@@ -132,7 +132,7 @@ class TestCompiler:
                 assert False
 
     def test_position_specifier_unknown_direction(self):
-        with pytest.raises(AssertionError) as excinfo:
+        with pytest.raises(AssertionError):
             compileScenicAST(DirectionOfSpecifier(str(), Name("x"), None))
 
     def test_beyond_specifier(self):
