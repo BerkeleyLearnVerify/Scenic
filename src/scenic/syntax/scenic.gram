@@ -1210,7 +1210,8 @@ conjunction (memo):
     | inversion
 
 inversion (memo):
-    | 'not' a=inversion { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
+    # [SCENIC NOTE]: Fail `not visible` to be handled later
+    | 'not' !"visible" a=inversion { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
     | comparison
 
 # Scenic instance creation
@@ -1357,6 +1358,7 @@ scenic_prefix_operators:
     | &"angle" scenic_angle_from_op
     | "follow" e1=expression 'from' e2=expression 'for' e3=expression { s.FollowOp(target=e1, base=e2, distance=e3, LOCATIONS) }
     | "visible" e=expression { s.VisibleOp(region=e) }
+    | 'not' "visible" e=expression { s.NotVisibleOp(region=e) }
     | atom
 
 scenic_distance_from_op:
