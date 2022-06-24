@@ -641,3 +641,12 @@ class TestOperator:
                 assert True
             case _:
                 assert False
+
+    def test_follow(self):
+        mod = parse_string_helper("follow x from y for z")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(FollowOp(Name("x"), Name("y"), Name("z"))):
+                assert True
+            case _:
+                assert False

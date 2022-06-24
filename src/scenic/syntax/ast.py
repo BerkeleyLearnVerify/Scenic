@@ -351,3 +351,21 @@ class AngleFromOp(AST):
         self.target = target
         self.base = base
         self._fields = ["target", "base"]
+
+
+class FollowOp(AST):
+    __match_args__ = ("target", "base", "distance")
+
+    def __init__(
+        self,
+        target: ast.AST,
+        base: ast.AST,
+        distance: ast.AST,
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.target = target
+        self.base = base
+        self.distance = distance
+        self._fields = ["target", "base", "distance"]
