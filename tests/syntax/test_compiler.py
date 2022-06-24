@@ -142,10 +142,13 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
     def test_beyond_specifier_with_base(self):
         node, _ = compileScenicAST(BeyondSpecifier(Name("x"), Name("y"), Name("z")))
         match node:
-            case Call(Name("Beyond"), [Name("x"), Name("y")], [keyword("fromPt", Name("z"))]):
+            case Call(
+                Name("Beyond"), [Name("x"), Name("y")], [keyword("fromPt", Name("z"))]
+            ):
                 assert True
             case _:
                 assert False
