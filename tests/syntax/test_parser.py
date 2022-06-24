@@ -752,3 +752,12 @@ class TestOperator:
                 assert True
             case _:
                 assert False
+
+    def test_offset_along(self):
+        mod = parse_string_helper("x offset along y by z")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(OffsetAlongOp(Name("x"), Name("y"), Name("z"))):
+                assert True
+            case _:
+                assert False
