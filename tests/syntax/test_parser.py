@@ -761,3 +761,12 @@ class TestOperator:
                 assert True
             case _:
                 assert False
+
+    def test_can_see(self):
+        mod = parse_string_helper("x can see y ")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(CanSeeOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False
