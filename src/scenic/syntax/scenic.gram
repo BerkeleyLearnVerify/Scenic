@@ -1283,8 +1283,12 @@ is_bitwise_or: 'is' a=bitwise_or { (ast.Is(), a) }
 # -----------------
 
 bitwise_or:
+    | scenic_bitwise_or
     | a=bitwise_or '|' b=bitwise_xor { ast.BinOp(left=a, op=ast.BitOr(), right=b, LOCATIONS) }
     | bitwise_xor
+
+scenic_bitwise_or:
+    | a=bitwise_or "can" "see" b=bitwise_xor { s.CanSeeOp(left=a, right=b, LOCATIONS) }
 
 bitwise_xor:
     | scenic_bitwise_xor
