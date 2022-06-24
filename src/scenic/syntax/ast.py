@@ -378,3 +378,11 @@ class VisibleOp(AST):
         super().__init__(*args, **kwargs)
         self.region = region
         self._fields = ["region"]
+
+class NotVisibleOp(AST):
+    __match_args__ = ("region",)
+
+    def __init__(self, region: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.region = region
+        self._fields = ["region"]
