@@ -687,6 +687,28 @@ class TestOperator:
             case _:
                 assert False
 
+    @pytest.mark.parametrize(
+        "position,node",
+        [
+            ("front", Front),
+            ("back", Back),
+            ("left", Left),
+            ("right", Right),
+            ("front left", FrontLeft),
+            ("front right", FrontRight),
+            ("back left", BackLeft),
+            ("back right", BackRight),
+        ],
+    )
+    def test_position_of(self, position, node):
+        mod = parse_string_helper(f"{position} of x")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(PositionOfOp(positionNode, Name("x"))):
+                assert isinstance(positionNode, node)
+            case _:
+                assert False
+
     def test_vector_1(self):
         mod = parse_string_helper("1 + 2 @ 3 * 4")
         stmt = mod.body[0]

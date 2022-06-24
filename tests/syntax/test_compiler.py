@@ -529,6 +529,27 @@ class TestCompiler:
             case _:
                 assert False
 
+    @pytest.mark.parametrize(
+        "node,function_name",
+        [
+            (Front, "Front"),
+            (Back, "Back"),
+            (Left, "Left"),
+            (Right, "Right"),
+            (FrontLeft, "FrontLeft"),
+            (FrontRight, "FrontRight"),
+            (BackLeft, "BackLeft"),
+            (BackRight, "BackRight"),
+        ],
+    )
+    def test_left_of_op(self, node, function_name):
+        node, _ = compileScenicAST(PositionOfOp(node(), Name("X")))
+        match node:
+            case Call(Name(f), [Name("X")]):
+                assert f == function_name
+            case _:
+                assert False
+
     def test_vector_op(self):
         node, _ = compileScenicAST(VectorOp(Name("X"), Name("Y")))
         match node:
