@@ -1287,8 +1287,12 @@ bitwise_or:
     | bitwise_xor
 
 bitwise_xor:
+    | scenic_bitwise_xor
     | a=bitwise_xor '^' b=bitwise_and { ast.BinOp(left=a, op=ast.BitXor(), right=b, LOCATIONS) }
     | bitwise_and
+
+scenic_bitwise_xor:
+    | a=bitwise_xor "offset" "along" b=bitwise_xor "by" c=bitwise_and { s.OffsetAlongOp(left=a, middle=b, right=c, LOCATIONS) }
 
 bitwise_and:
     | scenic_bitwise_and

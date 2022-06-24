@@ -432,3 +432,15 @@ class RelativeToOp(AST):
         super().__init__(*args, **kwargs)
         self.left = left
         self.right = right
+
+
+class OffsetAlongOp(AST):
+    __match_args__ = ("left", "middle", "right")
+
+    def __init__(
+        self, left: ast.AST, middle: ast.AST, right: ast.AST, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.left = left
+        self.middle = middle
+        self.right = right
