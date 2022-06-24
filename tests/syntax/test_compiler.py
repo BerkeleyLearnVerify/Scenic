@@ -542,11 +542,19 @@ class TestCompiler:
             (BackRight, "BackRight"),
         ],
     )
-    def test_left_of_op(self, node, function_name):
+    def test_position_of_op(self, node, function_name):
         node, _ = compileScenicAST(PositionOfOp(node(), Name("X")))
         match node:
             case Call(Name(f), [Name("X")]):
                 assert f == function_name
+            case _:
+                assert False
+
+    def test_deg_op(self):
+        node, _ = compileScenicAST(DegOp(Name("X")))
+        match node:
+            case BinOp(Name("X"), Mult(), Constant()):
+                assert True
             case _:
                 assert False
 
