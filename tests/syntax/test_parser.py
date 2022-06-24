@@ -169,6 +169,34 @@ class TestNew:
             case _:
                 assert False
 
+    def test_specifier_beyond(self):
+        mod = parse_string_helper("new Object beyond position by distance")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    "Object",
+                    [BeyondSpecifier(Name("position"), Name("distance"))],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_specifier_beyond_from(self):
+        mod = parse_string_helper("new Object beyond position by distance from base")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    "Object",
+                    [BeyondSpecifier(Name("position"), Name("distance"), Name("base"))],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
     def test_specifier_visible(self):
         mod = parse_string_helper("new Object visible")
         stmt = mod.body[0]
