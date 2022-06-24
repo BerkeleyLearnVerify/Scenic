@@ -132,9 +132,8 @@ class TestCompiler:
                 assert False
 
     def test_position_specifier_unknown_direction(self):
-        with pytest.raises(TypeError) as excinfo:
+        with pytest.raises(AssertionError) as excinfo:
             compileScenicAST(DirectionOfSpecifier(str(), Name("x"), None))
-        assert '"str" cannot be used as a direction' in str(excinfo.value)
 
     def test_beyond_specifier(self):
         node, _ = compileScenicAST(BeyondSpecifier(Name("x"), Name("y")))
