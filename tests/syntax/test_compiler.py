@@ -536,3 +536,11 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    def test_field_at_op(self):
+        node, _ = compileScenicAST(FieldAtOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("FieldAt"), [Name("X"), Name("Y")]):
+                assert True
+            case _:
+                assert False
