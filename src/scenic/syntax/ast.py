@@ -115,6 +115,23 @@ class Behind(AST):
         super().__init__(*args, **kwargs)
 
 
+class BeyondSpecifier(AST):
+    __match_args__ = ("position", "offset", "base")
+
+    def __init__(
+        self,
+        position: ast.AST,
+        offset: ast.AST,
+        base: Optional[ast.AST] = None,
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.position = position
+        self.offset = offset
+        self.base = base
+
+
 class VisibleSpecifier(AST):
     __match_args__ = ("base",)
 
