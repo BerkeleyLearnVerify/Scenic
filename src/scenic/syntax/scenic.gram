@@ -1336,6 +1336,7 @@ term:
 
 scenic_term:
     | a=term '@' b=factor { s.VectorOp(left=a, right=b, LOCATIONS) }
+    | a=term "deg" { s.DegOp(operand=a, LOCATIONS) }
 
 factor (memo):
     | '+' a=factor { ast.UnaryOp(op=ast.UAdd(), operand=a, LOCATIONS) }
