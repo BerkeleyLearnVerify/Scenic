@@ -111,6 +111,15 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             ),
         )
 
+    def visit_BeyondSpecifier(self, node: s.BeyondSpecifier):
+        return ast.Call(
+            func=ast.Name(id="Beyond", ctx=loadCtx),
+            args=[self.visit(node.position), self.visit(node.offset)],
+            keywords=[ast.keyword(arg="fromPt", value=self.visit(node.base))]
+            if node.base is not None
+            else [],
+        )
+
     def visit_VisibleSpecifier(self, node: s.VisibleSpecifier):
         if node.base is not None:
             return ast.Call(
