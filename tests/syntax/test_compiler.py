@@ -404,7 +404,6 @@ class TestCompiler:
             case _:
                 assert False
 
-
     def test_relative_position_op_base(self):
         node, _ = compileScenicAST(RelativePositionOp(Name("X"), Name("Y")))
         match node:
@@ -526,6 +525,14 @@ class TestCompiler:
         node, _ = compileScenicAST(NotVisibleOp(Name("X")))
         match node:
             case Call(Name("NotVisible"), [Name("X")]):
+                assert True
+            case _:
+                assert False
+
+    def test_vector_op(self):
+        node, _ = compileScenicAST(VectorOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("Vector"), [Name("X"), Name("Y")]):
                 assert True
             case _:
                 assert False

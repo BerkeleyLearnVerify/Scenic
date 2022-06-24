@@ -1308,6 +1308,7 @@ sum:
     | term
 
 term:
+    | scenic_term
     | a=term '*' b=factor { ast.BinOp(left=a, op=ast.Mult(), right=b, LOCATIONS) }
     | a=term '/' b=factor { ast.BinOp(left=a, op=ast.Div(), right=b, LOCATIONS) }
     | a=term '//' b=factor { ast.BinOp(left=a, op=ast.FloorDiv(), right=b, LOCATIONS) }
@@ -1316,6 +1317,9 @@ term:
         self.check_version((3, 5), "The '@' operator is", ast.BinOp(left=a, op=ast.MatMult(), right=b, LOCATIONS))
      }
     | factor
+
+scenic_term:
+    | a=term '@' b=factor { s.VectorOp(left=a, right=b, LOCATIONS) }
 
 factor (memo):
     | '+' a=factor { ast.UnaryOp(op=ast.UAdd(), operand=a, LOCATIONS) }
