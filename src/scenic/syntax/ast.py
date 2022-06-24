@@ -480,6 +480,14 @@ class BackRight(AST):
         super().__init__(*args, **kwargs)
 
 
+class DegOp(AST):
+    __match_args__ = ("operand",)
+
+    def __init__(self, operand: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.operand = operand
+
+
 class VectorOp(AST):
     __match_args__ = ("left", "right")
 
