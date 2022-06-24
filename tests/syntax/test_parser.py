@@ -686,3 +686,44 @@ class TestOperator:
                 assert True
             case _:
                 assert False
+
+    def test_vector_1(self):
+        mod = parse_string_helper("1 + 2 @ 3 * 4")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                BinOp(
+                    Constant(1),
+                    Add(),
+                    BinOp(VectorOp(Constant(2), Constant(3)), Mult(), Constant(4)),
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_vector_2(self):
+        mod = parse_string_helper("1 * 2 @ 3 + 4")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                BinOp(
+                    VectorOp(BinOp(Constant(1), Mult(), Constant(2)), Constant(3)),
+                    Add(),
+                    Constant(4)
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_vector_3(self):
+        mod = parse_string_helper("1 @ 2 @ 3")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                VectorOp(VectorOp(Constant(1), Constant(2)), Constant(3))
+            ):
+                assert True
+            case _:
+                assert False
