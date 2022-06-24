@@ -1291,8 +1291,12 @@ bitwise_xor:
     | bitwise_and
 
 bitwise_and:
+    | scenic_bitwise_and
     | a=bitwise_and '&' b=shift_expr { ast.BinOp(left=a, op=ast.BitAnd(), right=b, LOCATIONS) }
     | shift_expr
+
+scenic_bitwise_and:
+    | a=bitwise_and ("relative" "to" | "offset" "by") b=shift_expr { s.RelativeToOp(left=a, right=b, LOCATIONS) }
 
 shift_expr:
     | scenic_shift_expr

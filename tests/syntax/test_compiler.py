@@ -544,3 +544,11 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    def test_relative_to_op(self):
+        node, _ = compileScenicAST(RelativeToOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("RelativeTo"), [Name("X"), Name("Y")]):
+                assert True
+            case _:
+                assert False
