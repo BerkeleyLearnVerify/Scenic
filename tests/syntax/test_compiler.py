@@ -552,3 +552,11 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    def test_offset_along_op(self):
+        node, _ = compileScenicAST(OffsetAlongOp(Name("X"), Name("Y"), Name("Z")))
+        match node:
+            case Call(Name("OffsetAlong"), [Name("X"), Name("Y"), Name("Z")]):
+                assert True
+            case _:
+                assert False
