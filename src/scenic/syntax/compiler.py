@@ -311,8 +311,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         )
 
     def visit_AngleFromOp(self, node: s.AngleFromOp):
-        if node.base is None and node.target is None:
-            assert False, "neither target nor base were specified in AngleFromOp"
+        assert (
+            node.base is not None or node.target is not None
+        ), "neither target nor base were specified in AngleFromOp"
         base = ego if node.base is None else self.visit(node.base)
         target = ego if node.target is None else self.visit(node.target)
         return ast.Call(
