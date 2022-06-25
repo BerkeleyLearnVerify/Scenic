@@ -1,5 +1,4 @@
 import ast
-from json import load
 from typing import Tuple, List
 
 import scenic.syntax.ast as s
