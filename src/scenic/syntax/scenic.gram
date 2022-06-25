@@ -1211,7 +1211,33 @@ inversion (memo):
 
 # Scenic instance creation
 # ------------------------
-scenic_new_expr: 'new' n=NAME { s.New(className=n.string, specifiers=[], LOCATIONS) } # TODO(shun): Support specifiers
+scenic_new_expr: 'new' n=NAME ss=[scenic_specifiers] { s.New(className=n.string, specifiers=ss, LOCATIONS) }
+scenic_specifiers: ss=','.scenic_specifier+ { ss }
+scenic_specifier:
+    | 'with' p=NAME v=expression { s.WithSpecifier(prop=p.string, value=v, LOCATIONS) }
+    | 'at' position=expression { s.AtSpecifier(position=position, LOCATIONS) }
+    | 'offset' 'by' o=expression { s.OffsetBySpecifier(offset=o, LOCATIONS) }
+    | 'offset' 'along' d=expression 'by' o=expression { s.OffsetAlongSpecifier(direction=d, offset=o, LOCATIONS) }
+    | direction=scenic_specifier_position_direction position=expression distance=['by' e=expression { e }] {
+        s.DirectionOfSpecifier(direction=direction, position=position, distance=distance, LOCATIONS)
+     }
+    | "beyond" v=expression 'by' o=expression b=['from' a=expression {a}] { s.BeyondSpecifier(position=v, offset=o, base=b) }
+    | "visible" b=['from' r=expression { r }] { s.VisibleSpecifier(base=b, LOCATIONS) }
+    | ('in' | "on") r=expression { s.InSpecifier(region=r, LOCATIONS) }
+    | "following" f=expression b=['from' e=expression {e}] 'for' d=expression {
+        s.FollowingSpecifier(field=f, distance=d, base=b, LOCATIONS)
+     }
+    | "facing" "toward" p=expression { s.FacingTowardSpecifier(position=p, LOCATIONS) }
+    | "facing" h=expression { s.FacingSpecifier(heading=h, LOCATIONS) }
+    | "apparently" "facing" h=expression v=['from' a=expression { a }] {
+        s.ApparentlyFacingSpecifier(heading=h, base=v, LOCATIONS)
+     }
+
+scenic_specifier_position_direction:
+    | "left" "of" { s.LeftOf(LOCATIONS) }
+    | "right" "of" { s.RightOf(LOCATIONS) }
+    | "ahead" "of" { s.AheadOf(LOCATIONS) }
+    | "behind" { s.Behind(LOCATIONS) }
 
 # Comparisons operators
 # ---------------------
