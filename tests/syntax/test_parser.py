@@ -341,13 +341,13 @@ class TestNew:
                 assert False
 
     def test_specifier_beyond_from(self):
-        mod = parse_string_helper("new Object beyond position by distance from base")
+        mod = parse_string_helper("new Object beyond position by d from base")
         stmt = mod.body[0]
         match stmt:
             case Expr(
                 New(
                     "Object",
-                    [BeyondSpecifier(Name("position"), Name("distance"), Name("base"))],
+                    [BeyondSpecifier(Name("position"), Name("d"), Name("base"))],
                 )
             ):
                 assert True
