@@ -13,7 +13,6 @@ import scenic.core.dynamics as dynamics
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError, optionallyDebugRejection
 from scenic.core.requirements import RequirementType
 from scenic.core.vectors import Vector
-import scenic.syntax.veneer as veneer
 
 
 class SimulationCreationError(Exception):
@@ -135,16 +134,20 @@ class Simulation:
         self.worker_num = 0
 
     def setup(self):
+        import scenic.syntax.veneer as veneer
         trajectory = self.trajectory
         if self.currentTime > 0:
             raise RuntimeError('tried to run a Simulation which has already run')
         assert len(trajectory) == 0
 
-        veneer.beginSimulation(self)
+        # veneer.beginSimulation(self)
         dynamicScenario = self.scene.dynamicScenario
         return dynamicScenario
 
     def runSimulation(self, dynamicScenario, maxSteps, compareActions=None):
+        import scenic.syntax.veneer as veneer
+        veneer.beginSimulation(self)
+
         actionSequence = []
         if compareActions:
             self.actionComparisonSequence = []
@@ -173,13 +176,12 @@ class Simulation:
             terminationType = TerminationType.scenarioComplete
 
             # Record current state of the simulation
-            self.recordCurrentState()
-
+            if compareActions is None:
+                self.recordCurrentState()
             # Run monitors
             newReason = dynamicScenario._runMonitors()
             if newReason is not None:
                 terminationReason = newReason
-                terminationType = TerminationType.terminatedByMonitor
 
             # "Always" and scenario-level requirements have been checked;
             # now safe to terminate if the top-level scenario has finished,
@@ -194,7 +196,6 @@ class Simulation:
                 terminationReason = f'reached time limit ({maxSteps} steps)'
                 terminationType = TerminationType.timeLimit
                 break
-
             # Compute the actions of the agents in this time step
             allActions = OrderedDict()
             schedule = self.scheduleForAgents()
@@ -216,7 +217,8 @@ class Simulation:
                 # to make saveable, we record agents by their properties
                 allActions[agent] = actions
                 if compareActions:
-                    self.actionComparisonSequence.append(self.compareActions(allActions))
+                    print("COMPARING ACTIONS")
+                    self.actionComparisonSequence.append(compareActions(allActions))
             if terminationReason is not None:
                 break
 
@@ -236,6 +238,8 @@ class Simulation:
     def endSimulation(self, dynamicScenario, actionSequence, terminationType, terminationReason):
         # Stop all remaining scenarios
         # (and reject if some 'require eventually' condition was never satisfied)
+        import scenic.syntax.veneer as veneer
+
         for scenario in tuple(veneer.runningScenarios):
             scenario._stop('simulation terminated')
 
@@ -250,6 +254,7 @@ class Simulation:
         self.result = result
 
     def cleanup(self):
+        import scenic.syntax.veneer as veneer
         self.destroy()
         for obj in self.scene.objects:
             disableDynamicProxyFor(obj)
@@ -361,17 +366,6 @@ class Simulation:
             # visibleRegion, etc. are recomputed
             setDynamicProxyFor(obj, obj._copyWith(**values))
 
-    def compareSimulatorActions(self, actions, otherActions):
-        """ Simulator-specific comparison for actions."""
-        raise NotImplementedError
-
-    def compareActions(self, allActions):
-        action_differences = []
-        recorded_action_sequence = self.simulation_result.actions[self.currentTime]
-        for obj_idx, actions in enumerate(recorded_action_sequence.items()):
-            action_differences.append(self.compareSimulatorActions(actions, allActions[obj_idx]))
-        return action_differences
-
     def mutableProperties(self, obj):
         return {'lastActions', 'behavior'}
 
@@ -412,9 +406,10 @@ class ReplaySimulation(Simulation):
         simulationResult (`SimulationResult`):
     """
 
-    def __init__(self, scene, simulationResult, verbosity=0):
+    def __init__(self, scene, simulationResult, actionComparisonMethod, verbosity=0):
         self.scene = scene
         self.simulationResult = simulationResult
+        self.actionComparisonMethod = actionComparisonMethod
         super().__init__(scene, timestep=self.simulationResult.timestep, verbosity=verbosity)
         self.objects = list(scene.objects)
         self.agents = list(obj for obj in scene.objects if obj.behavior is not None)
@@ -424,22 +419,26 @@ class ReplaySimulation(Simulation):
         self.currentTime = 0
         self.verbosity = verbosity
         self.worker_num = 0
+        self.updateObjects()
+        #self.check_consistency()
 
     def check_consistency(self):
         # check that objects in scene and objects in the simulationResult are initially the same
         for idx, obj in enumerate(self.objects):
             # get the corresponding object dict from the result's initial state
             result_obj_dict = self.simulationResult.initial_state[idx]
-            assert self.getProperties(obj, obj.properties) == result_obj_dict
+            current_obj_dict = {prop: getattr(obj, prop) for prop in obj._dynamicProperties}
+            breakpoint()
+            assert current_obj_dict == result_obj_dict
 
     def updateObjects(self):
         """Update the positions and other properties of objects from the simulation."""
-        current_replay_objects = self.simulation_result.trajectory[self.currentTime]
+        current_replay_objects = self.simulationResult.trajectory[self.currentTime]
         """Update the positions and other properties of objects from the simulation."""
         for idx, obj in enumerate(self.objects):
             # Get latest values of dynamic properties from simulation
-            properties = obj.properties
-            values = self.getProperties(current_replay_objects[idx], obj.properties)
+            properties = obj._dynamicProperties
+            values = {prop: getattr(obj, prop) for prop in obj._dynamicProperties}
             assert properties == set(values), properties ^ set(values)
 
             # Preserve some other properties which are assigned internally by Scenic
@@ -453,8 +452,15 @@ class ReplaySimulation(Simulation):
 
     def run(self, maxSteps):
         dynamicScenario = self.scene.dynamicScenario
-        self.runSimulation(dynamicScenario, maxSteps, compareActions=True)
+        self.runSimulation(dynamicScenario, maxSteps, compareActions=self.compareActions)
         return self.actionComparisonSequence
+
+    def compareActions(self, allActions):
+        action_differences = []
+        recorded_action_sequence = self.simulationResult.actions[self.currentTime]
+        for obj_idx, actions in enumerate(recorded_action_sequence.items()):
+            action_differences.append(self.actionComparisonMethod(actions, allActions[obj_idx]))
+        return action_differences
 
     def reset_replay(self):
         self.currentTime = 0

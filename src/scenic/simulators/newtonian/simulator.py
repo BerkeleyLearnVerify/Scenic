@@ -8,7 +8,6 @@ import pathlib
 import time
 
 from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
-from scenic.domains.driving.actions import RegulatedControlAction
 from scenic.core.geometry import allChains
 from scenic.core.regions import toPolygon
 from scenic.core.simulators import SimulationCreationError, ReplaySimulation
@@ -210,7 +209,7 @@ class NewtonianSimulation(DrivingSimulation):
         if 'elevation' in properties:
             values['elevation'] = obj.elevation
         return values
-
+    
     def getLaneFollowingControllers(self, agent):
         dt = self.timestep
         if agent.isCar:
@@ -242,20 +241,33 @@ class NewtonianSimulation(DrivingSimulation):
         return lon_controller, lat_controller
 
 class NewtonianReplaySimulation(ReplaySimulation):
-    def __init__(self, scene, simulationResult, timestep=1, verbosity=0):
-        super().__init__(scene, simulationResult, timestep=timestep, verbosity=verbosity)
+    def __init__(self, scene, simulationResult, verbosity=0):
+        super().__init__(scene, simulationResult, verbosity=verbosity,
+                         actionComparisonMethod=self.compareSimulatorActions)
+        self.getLaneFollowingControllers = NewtonianSimulation.getLaneFollowingControllers
+        self.getTurningControllers = NewtonianSimulation.getTurningControllers
+        self.getLaneChangingControllers = NewtonianSimulation.getLaneChangingControllers
+
 
     def compareSimulatorActions(self, actions, otherActions):
         # actions in this simulator are (steer, throttle) values
         difference = 0
-        # we'll take MSE, since these values are already normalized
-        for idx in range(len(actions)):
-            action, otherAction = actions[idx], otherActions[idx]
-            if isinstance(action, RegulatedControlAction) and \
-                isinstance(otherAction, RegulatedControlAction):
-                difference += (action.steer - otherAction.steer) ** 2 + \
-                       (action.throttle - otherAction.throttle) ** 2
-            else:
-                if action != otherAction:
-                    difference += 1
+        totalActions = min(len(otherActions), len(actions))
+        actionDifference = abs(len(otherActions) - len(actions))
+        for idx in range(totalActions):
+            if idx < totalActions:
+                action, otherAction = actions[idx], otherActions[idx]
+                if hasattr(action, "steer") and hasattr(action, "throttle") \
+                 and hasattr(otherAction, "steer") and hasattr(otherAction, "throttle"):
+                    # we'll take MSE, since these values are already normalized
+                    difference += (action.steer - otherAction.steer) ** 2 + \
+                           (action.throttle - otherAction.throttle) ** 2
+                else:
+                    if action != otherAction:
+                        difference += 1
+        difference += actionDifference
+        return difference
+
+
+
 
