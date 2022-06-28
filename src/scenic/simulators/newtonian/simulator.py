@@ -209,36 +209,45 @@ class NewtonianSimulation(DrivingSimulation):
         if 'elevation' in properties:
             values['elevation'] = obj.elevation
         return values
-    
+
     def getLaneFollowingControllers(self, agent):
-        dt = self.timestep
-        if agent.isCar:
-            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-            lat_controller = PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.02, dt=dt)
-        else:
-            lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
-            lat_controller = PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
-        return lon_controller, lat_controller
+        return getLaneFollowingControllers(self.timestep, agent.isCar)
 
     def getTurningControllers(self, agent):
-        dt = self.timestep
-        if agent.isCar:
-            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-            lat_controller = PIDLateralController(K_P=0.2, K_D=0.2, K_I=0.2, dt=dt)
-        else:
-            lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
-            lat_controller = PIDLateralController(K_P=0.4, K_D=0.1, K_I=0.0, dt=dt)
-        return lon_controller, lat_controller
+        return getTurningControllers(self.timestep, agent.isCar)
 
     def getLaneChangingControllers(self, agent):
-        dt = self.timestep
-        if agent.isCar:
-            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-            lat_controller = PIDLateralController(K_P=0.2, K_D=0.2, K_I=0.02, dt=dt)
-        else:
-            lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
-            lat_controller = PIDLateralController(K_P=0.1, K_D=0.3, K_I=0.0, dt=dt)
-        return lon_controller, lat_controller
+        return getLaneChangingControllers(self.timestep, agent.isCar)
+
+def getLaneFollowingControllers(timestep, isCar):
+    dt = timestep
+    if isCar:
+        lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+        lat_controller = PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.02, dt=dt)
+    else:
+        lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+        lat_controller = PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
+    return lon_controller, lat_controller
+
+def getTurningControllers(timestep, isCar):
+    dt = timestep
+    if isCar:
+        lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+        lat_controller = PIDLateralController(K_P=0.2, K_D=0.2, K_I=0.2, dt=dt)
+    else:
+        lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+        lat_controller = PIDLateralController(K_P=0.4, K_D=0.1, K_I=0.0, dt=dt)
+    return lon_controller, lat_controller
+
+def getLaneChangingControllers(timestep, isCar):
+    dt = timestep
+    if isCar:
+        lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+        lat_controller = PIDLateralController(K_P=0.2, K_D=0.2, K_I=0.02, dt=dt)
+    else:
+        lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+        lat_controller = PIDLateralController(K_P=0.1, K_D=0.3, K_I=0.0, dt=dt)
+    return lon_controller, lat_controller
 
 class NewtonianReplaySimulation(ReplaySimulation):
     def __init__(self, scene, simulationResult, verbosity=0):
@@ -268,6 +277,14 @@ class NewtonianReplaySimulation(ReplaySimulation):
         difference += actionDifference
         return difference
 
+    def getLaneFollowingControllers(self, agent):
+        return getLaneFollowingControllers(self.timestep, agent.isCar)
+
+    def getTurningControllers(self, agent):
+        return getTurningControllers(self.timestep, agent.isCar)
+
+    def getLaneChangingControllers(self, agent):
+        return getLaneChangingControllers(self.timestep, agent.isCar)
 
 
 
