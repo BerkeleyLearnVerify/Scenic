@@ -164,9 +164,9 @@ class Simulation:
             for obj in self.objects:
                 if not obj.sensors:
                     continue
-                if obj.record_sensors:
+                if obj.recordSensorsPath:
                     for key in obj.sensors.keys():
-                        os.makedirs(os.path.join(obj.record_sensors, key), exist_ok=True)
+                        os.makedirs(os.path.join(obj.recordSensorsPath, key), exist_ok=True)
 
             # Run simulation
             assert self.currentTime == 0
@@ -189,9 +189,9 @@ class Simulation:
                     if not obj.sensors:
                         continue
                     obj.observations.update({key: sensor.get_last_observation() for key, sensor in obj.sensors.items()})
-                    if obj.record_sensors:
+                    if obj.recordSensorsPath:
                         for key, sensor in obj.sensors.items():
-                            sensor.record_last_observation(os.path.join(obj.record_sensors, key))
+                            sensor.record_last_observation(os.path.join(obj.recordSensorsPath, key))
 
                 # Run monitors
                 newReason = dynamicScenario._runMonitors()

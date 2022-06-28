@@ -21,7 +21,7 @@ ego = Car at spot,
     with sensors {"front_camera": CarlaRGBSensor(offset=(1.6, 0, 1.7), attributes=attrs),
                   "back_camera": CarlaRGBSensor(offset=(-1.6, 0, 1.7), rotation=(0, 180, 0), attributes=attrs),
                   "semantic_segmentation": CarlaSSSensor(offset=(1.6, 0, 1.7), attributes=attrs, convert="CityScapesPalette")},
-    with record_sensors path
+    with recordSensorsPath path
 
 other = Car offset by 0 @ Range(10, 30),
     with behavior AutopilotBehavior()
