@@ -298,6 +298,7 @@ class RelativePositionOp(AST):
         super().__init__(*args, **kwargs)
         self.target = target
         self.base = base
+        self._fields = ["target", "base"]
 
 
 class RelativeHeadingOp(AST):
