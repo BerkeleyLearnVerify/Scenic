@@ -1,6 +1,7 @@
 
 """Interface between Scenic and simulators."""
 
+import os
 import enum
 import time
 import types
@@ -159,6 +160,14 @@ class Simulation:
             # properties during setup
             self.updateObjects()
 
+            # Create record paths for sensors
+            for obj in self.objects:
+                if not obj.sensors:
+                    continue
+                if obj.record_sensors:
+                    for key in obj.sensors.keys():
+                        os.makedirs(os.path.join(obj.record_sensors, key), exist_ok=True)
+
             # Run simulation
             assert self.currentTime == 0
             terminationReason = None
@@ -174,6 +183,15 @@ class Simulation:
 
                 # Record current state of the simulation
                 self.recordCurrentState()
+
+                # Update observations of objects with sensors
+                for obj in self.objects:
+                    if not obj.sensors:
+                        continue
+                    obj.observations.update({key: sensor.get_last_observation() for key, sensor in obj.sensors.items()})
+                    if obj.record_sensors:
+                        for key, sensor in obj.sensors.items():
+                            sensor.record_last_observation(os.path.join(obj.record_sensors, key))
 
                 # Run monitors
                 newReason = dynamicScenario._runMonitors()

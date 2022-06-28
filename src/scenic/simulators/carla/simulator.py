@@ -211,6 +211,19 @@ class CarlaSimulation(DrivingSimulation):
 				self.destroy()
 				raise SimulationCreationError(f'Unable to spawn carla controller for object {obj}')
 			obj.carlaController = controller
+
+		# Adding sensors if available
+		if obj.sensors:
+			for sensor_key, sensor in obj.sensors.items():
+				sensor_bp = self.blueprintLib.find(sensor.blueprint)
+				for key, val in sensor.attributes.items():
+					sensor_bp.set_attribute(key, str(val))
+
+				carla_sensor = self.world.spawn_actor(sensor_bp, sensor.transform, attach_to=obj.carlaActor)
+				carla_sensor.listen(sensor.on_data)
+				sensor.carla_sensor = carla_sensor
+			obj.observations = {}
+
 		return carlaActor
 
 	def executeActions(self, allActions):
@@ -266,6 +279,10 @@ class CarlaSimulation(DrivingSimulation):
 					obj.carlaController.stop()
 					obj.carlaController.destroy()
 				obj.carlaActor.destroy()
+			if obj.sensors:
+				for sensor in obj.sensors.values():
+					sensor.carla_sensor.stop()
+					sensor.carla_sensor.destroy()
 		if self.render and self.cameraManager:
 			self.cameraManager.destroy_sensor()
 

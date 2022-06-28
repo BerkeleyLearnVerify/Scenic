@@ -459,6 +459,10 @@ class Object(OrientedPoint, _RotatedRectangle):
 	behavior: None
 	lastActions: None
 
+	observations: {}
+	sensors: {}
+	record_sensors: None
+
 	def __new__(cls, *args, **kwargs):
 		obj = super().__new__(cls)
 		# The _dynamicProxy attribute stores a mutable copy of the object used during

@@ -44,6 +44,7 @@ from scenic.domains.driving.model import *
 
 import scenic.simulators.carla.blueprints as blueprints
 from scenic.simulators.carla.behaviors import *
+from scenic.simulators.carla.sensors import *
 from scenic.simulators.utils.colors import Color
 
 try:

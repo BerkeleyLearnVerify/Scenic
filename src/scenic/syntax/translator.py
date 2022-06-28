@@ -52,7 +52,7 @@ from contextlib import contextmanager
 
 import tokenize
 from tokenize import NAME, NL, NEWLINE, ENDMARKER, OP, NUMBER, COLON, COMMENT, ENCODING
-from tokenize import LPAR, RPAR, LSQB, RSQB, RBRACE, COMMA, DOUBLESLASH, DOUBLESLASHEQUAL
+from tokenize import LPAR, RPAR, LSQB, RSQB, RBRACE, COMMA, DOUBLESLASH, DOUBLESLASHEQUAL, LBRACE
 from tokenize import AT, LEFTSHIFT, RIGHTSHIFT, VBAR, AMPER, TILDE, CIRCUMFLEX, STAR
 from tokenize import LEFTSHIFTEQUAL, RIGHTSHIFTEQUAL, VBAREQUAL, AMPEREQUAL, CIRCUMFLEXEQUAL
 from tokenize import INDENT, DEDENT, STRING, SEMI, DOT
@@ -999,9 +999,9 @@ class TokenTranslator:
 				allowedInfixOps = generalInfixOps
 
 			# Parse next token
-			if ttype == LPAR or ttype == LSQB:		# keep track of nesting level
+			if ttype == LPAR or ttype == LSQB or ttype == LBRACE:		# keep track of nesting level
 				parenLevel += 1
-			elif ttype == RPAR or ttype == RSQB:	# ditto
+			elif ttype == RPAR or ttype == RSQB or ttype == RBRACE:	# ditto
 				parenLevel -= 1
 			elif ttype == STRING:
 				# special case for global parameters with quoted names:
