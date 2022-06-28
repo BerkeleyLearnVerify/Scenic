@@ -514,6 +514,52 @@ class TestOperator:
             case _:
                 assert False
 
+    @pytest.mark.parametrize(
+        "code,expected",
+        [
+            (
+                "relative position of relative position of A from B",
+                RelativePositionOp(RelativePositionOp(Name('A', Load()), Name('B', Load()))),
+            ),
+            (
+                "relative position of relative position of A from B from C",
+                RelativePositionOp(RelativePositionOp(Name('A', Load()), Name('B', Load())), Name('C', Load())),
+            ),
+            (
+                "relative position of A from relative position of B from C",
+                RelativePositionOp(Name('A', Load()), RelativePositionOp(Name('B', Load()), Name('C', Load()))),
+            ),
+            (
+                "relative position of A << B from C",
+                RelativePositionOp(BinOp(Name('A', Load()), LShift(), Name('B', Load())), Name('C', Load())),
+            ),
+            (
+                "relative position of A from B << C",
+                BinOp(RelativePositionOp(Name('A', Load()), Name('B', Load())), LShift(), Name('C', Load())),
+            ),
+            (
+                "relative position of A + B from C",
+                RelativePositionOp(BinOp(Name('A', Load()), Add(), Name('B', Load())), Name('C', Load())),
+            ),
+            (
+                "relative position of A from B + C",
+                RelativePositionOp(Name('A', Load()), BinOp(Name('B', Load()), Add(), Name('C', Load()))),
+            ),
+            (
+                "relative position of A << B",
+                BinOp(RelativePositionOp(Name('A', Load())), LShift(), Name('B', Load())),
+            ),
+            (
+                "relative position of A + B",
+                RelativePositionOp(BinOp(Name('A', Load()), Add(), Name('B', Load()))),
+            ),
+        ],
+    )
+    def test_relative_position_precedence(self, code, expected):
+        mod = parse_string_helper(code)
+        stmt = mod.body[0].value
+        assert dump(stmt, annotate_fields=False) == dump(expected, annotate_fields=False)
+
     def test_relative_heading(self):
         mod = parse_string_helper("relative heading of x")
         stmt = mod.body[0]
