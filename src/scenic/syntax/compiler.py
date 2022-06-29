@@ -293,12 +293,13 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         )
 
     def visit_DistanceFromOp(self, node: s.DistanceFromOp):
+        assert node.target is not None or node.base is not None
+        target = ego if node.target is None else self.visit(node.target)
+        base = ego if node.base is None else self.visit(node.base)
         return ast.Call(
             func=ast.Name(id="DistanceFrom", ctx=loadCtx),
-            args=[self.visit(node.target)],
-            keywords=[]
-            if node.base is None
-            else [ast.keyword(arg="Y", value=self.visit(node.base))],
+            args=[target],
+            keywords=[ast.keyword(arg="Y", value=base)],
         )
 
     def visit_DistancePastOp(self, node: s.DistancePastOp):

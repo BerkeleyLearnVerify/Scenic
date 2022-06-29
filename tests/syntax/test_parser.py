@@ -519,46 +519,71 @@ class TestOperator:
         [
             (
                 "relative position of relative position of A from B",
-                RelativePositionOp(RelativePositionOp(Name('A', Load()), Name('B', Load()))),
+                RelativePositionOp(
+                    RelativePositionOp(Name("A", Load()), Name("B", Load()))
+                ),
             ),
             (
                 "relative position of relative position of A from B from C",
-                RelativePositionOp(RelativePositionOp(Name('A', Load()), Name('B', Load())), Name('C', Load())),
+                RelativePositionOp(
+                    RelativePositionOp(Name("A", Load()), Name("B", Load())),
+                    Name("C", Load()),
+                ),
             ),
             (
                 "relative position of A from relative position of B from C",
-                RelativePositionOp(Name('A', Load()), RelativePositionOp(Name('B', Load()), Name('C', Load()))),
+                RelativePositionOp(
+                    Name("A", Load()),
+                    RelativePositionOp(Name("B", Load()), Name("C", Load())),
+                ),
             ),
             (
                 "relative position of A << B from C",
-                RelativePositionOp(BinOp(Name('A', Load()), LShift(), Name('B', Load())), Name('C', Load())),
+                RelativePositionOp(
+                    BinOp(Name("A", Load()), LShift(), Name("B", Load())),
+                    Name("C", Load()),
+                ),
             ),
             (
                 "relative position of A from B << C",
-                BinOp(RelativePositionOp(Name('A', Load()), Name('B', Load())), LShift(), Name('C', Load())),
+                BinOp(
+                    RelativePositionOp(Name("A", Load()), Name("B", Load())),
+                    LShift(),
+                    Name("C", Load()),
+                ),
             ),
             (
                 "relative position of A + B from C",
-                RelativePositionOp(BinOp(Name('A', Load()), Add(), Name('B', Load())), Name('C', Load())),
+                RelativePositionOp(
+                    BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                    Name("C", Load()),
+                ),
             ),
             (
                 "relative position of A from B + C",
-                RelativePositionOp(Name('A', Load()), BinOp(Name('B', Load()), Add(), Name('C', Load()))),
+                RelativePositionOp(
+                    Name("A", Load()),
+                    BinOp(Name("B", Load()), Add(), Name("C", Load())),
+                ),
             ),
             (
                 "relative position of A << B",
-                BinOp(RelativePositionOp(Name('A', Load())), LShift(), Name('B', Load())),
+                BinOp(
+                    RelativePositionOp(Name("A", Load())), LShift(), Name("B", Load())
+                ),
             ),
             (
                 "relative position of A + B",
-                RelativePositionOp(BinOp(Name('A', Load()), Add(), Name('B', Load()))),
+                RelativePositionOp(BinOp(Name("A", Load()), Add(), Name("B", Load()))),
             ),
         ],
     )
     def test_relative_position_precedence(self, code, expected):
         mod = parse_string_helper(code)
         stmt = mod.body[0].value
-        assert dump(stmt, annotate_fields=False) == dump(expected, annotate_fields=False)
+        assert dump(stmt, annotate_fields=False) == dump(
+            expected, annotate_fields=False
+        )
 
     def test_relative_heading(self):
         mod = parse_string_helper("relative heading of x")
@@ -587,52 +612,77 @@ class TestOperator:
                 assert True
             case _:
                 assert False
-    
+
     @pytest.mark.parametrize(
         "code,expected",
         [
             (
                 "relative heading of relative heading of A from B",
-                RelativeHeadingOp(RelativeHeadingOp(Name('A', Load()), Name('B', Load()))),
+                RelativeHeadingOp(
+                    RelativeHeadingOp(Name("A", Load()), Name("B", Load()))
+                ),
             ),
             (
                 "relative heading of relative heading of A from B from C",
-                RelativeHeadingOp(RelativeHeadingOp(Name('A', Load()), Name('B', Load())), Name('C', Load())),
+                RelativeHeadingOp(
+                    RelativeHeadingOp(Name("A", Load()), Name("B", Load())),
+                    Name("C", Load()),
+                ),
             ),
             (
                 "relative heading of A from relative heading of B from C",
-                RelativeHeadingOp(Name('A', Load()), RelativeHeadingOp(Name('B', Load()), Name('C', Load()))),
+                RelativeHeadingOp(
+                    Name("A", Load()),
+                    RelativeHeadingOp(Name("B", Load()), Name("C", Load())),
+                ),
             ),
             (
                 "relative heading of A << B from C",
-                RelativeHeadingOp(BinOp(Name('A', Load()), LShift(), Name('B', Load())), Name('C', Load())),
+                RelativeHeadingOp(
+                    BinOp(Name("A", Load()), LShift(), Name("B", Load())),
+                    Name("C", Load()),
+                ),
             ),
             (
                 "relative heading of A from B << C",
-                BinOp(RelativeHeadingOp(Name('A', Load()), Name('B', Load())), LShift(), Name('C', Load())),
+                BinOp(
+                    RelativeHeadingOp(Name("A", Load()), Name("B", Load())),
+                    LShift(),
+                    Name("C", Load()),
+                ),
             ),
             (
                 "relative heading of A + B from C",
-                RelativeHeadingOp(BinOp(Name('A', Load()), Add(), Name('B', Load())), Name('C', Load())),
+                RelativeHeadingOp(
+                    BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                    Name("C", Load()),
+                ),
             ),
             (
                 "relative heading of A from B + C",
-                RelativeHeadingOp(Name('A', Load()), BinOp(Name('B', Load()), Add(), Name('C', Load()))),
+                RelativeHeadingOp(
+                    Name("A", Load()),
+                    BinOp(Name("B", Load()), Add(), Name("C", Load())),
+                ),
             ),
             (
                 "relative heading of A << B",
-                BinOp(RelativeHeadingOp(Name('A', Load())), LShift(), Name('B', Load())),
+                BinOp(
+                    RelativeHeadingOp(Name("A", Load())), LShift(), Name("B", Load())
+                ),
             ),
             (
                 "relative heading of A + B",
-                RelativeHeadingOp(BinOp(Name('A', Load()), Add(), Name('B', Load()))),
+                RelativeHeadingOp(BinOp(Name("A", Load()), Add(), Name("B", Load()))),
             ),
         ],
     )
     def test_relative_heading_precedence(self, code, expected):
         mod = parse_string_helper(code)
         stmt = mod.body[0].value
-        assert dump(stmt, annotate_fields=False) == dump(expected, annotate_fields=False)
+        assert dump(stmt, annotate_fields=False) == dump(
+            expected, annotate_fields=False
+        )
 
     def test_apparent_heading(self):
         mod = parse_string_helper("apparent heading of x")
@@ -657,52 +707,77 @@ class TestOperator:
         [
             (
                 "apparent heading of apparent heading of A from B",
-                ApparentHeadingOp(ApparentHeadingOp(Name('A', Load()), Name('B', Load()))),
+                ApparentHeadingOp(
+                    ApparentHeadingOp(Name("A", Load()), Name("B", Load()))
+                ),
             ),
             (
                 "apparent heading of apparent heading of A from B from C",
-                ApparentHeadingOp(ApparentHeadingOp(Name('A', Load()), Name('B', Load())), Name('C', Load())),
+                ApparentHeadingOp(
+                    ApparentHeadingOp(Name("A", Load()), Name("B", Load())),
+                    Name("C", Load()),
+                ),
             ),
             (
                 "apparent heading of A from apparent heading of B from C",
-                ApparentHeadingOp(Name('A', Load()), ApparentHeadingOp(Name('B', Load()), Name('C', Load()))),
+                ApparentHeadingOp(
+                    Name("A", Load()),
+                    ApparentHeadingOp(Name("B", Load()), Name("C", Load())),
+                ),
             ),
             (
                 "apparent heading of A << B from C",
-                ApparentHeadingOp(BinOp(Name('A', Load()), LShift(), Name('B', Load())), Name('C', Load())),
+                ApparentHeadingOp(
+                    BinOp(Name("A", Load()), LShift(), Name("B", Load())),
+                    Name("C", Load()),
+                ),
             ),
             (
                 "apparent heading of A from B << C",
-                BinOp(ApparentHeadingOp(Name('A', Load()), Name('B', Load())), LShift(), Name('C', Load())),
+                BinOp(
+                    ApparentHeadingOp(Name("A", Load()), Name("B", Load())),
+                    LShift(),
+                    Name("C", Load()),
+                ),
             ),
             (
                 "apparent heading of A + B from C",
-                ApparentHeadingOp(BinOp(Name('A', Load()), Add(), Name('B', Load())), Name('C', Load())),
+                ApparentHeadingOp(
+                    BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                    Name("C", Load()),
+                ),
             ),
             (
                 "apparent heading of A from B + C",
-                ApparentHeadingOp(Name('A', Load()), BinOp(Name('B', Load()), Add(), Name('C', Load()))),
+                ApparentHeadingOp(
+                    Name("A", Load()),
+                    BinOp(Name("B", Load()), Add(), Name("C", Load())),
+                ),
             ),
             (
                 "apparent heading of A << B",
-                BinOp(ApparentHeadingOp(Name('A', Load())), LShift(), Name('B', Load())),
+                BinOp(
+                    ApparentHeadingOp(Name("A", Load())), LShift(), Name("B", Load())
+                ),
             ),
             (
                 "apparent heading of A + B",
-                ApparentHeadingOp(BinOp(Name('A', Load()), Add(), Name('B', Load()))),
+                ApparentHeadingOp(BinOp(Name("A", Load()), Add(), Name("B", Load()))),
             ),
         ],
     )
     def test_apparent_heading_precedence(self, code, expected):
         mod = parse_string_helper(code)
         stmt = mod.body[0].value
-        assert dump(stmt, annotate_fields=False) == dump(expected, annotate_fields=False)
+        assert dump(stmt, annotate_fields=False) == dump(
+            expected, annotate_fields=False
+        )
 
     def test_distance_from(self):
         mod = parse_string_helper("distance from x")
         stmt = mod.body[0]
         match stmt:
-            case Expr(DistanceFromOp(Name("x"))):
+            case Expr(DistanceFromOp(None, Name("x"))):
                 assert True
             case _:
                 assert False
@@ -711,7 +786,7 @@ class TestOperator:
         mod = parse_string_helper("distance to x")
         stmt = mod.body[0]
         match stmt:
-            case Expr(DistanceFromOp(Name("x"))):
+            case Expr(DistanceFromOp(Name("x"), None)):
                 assert True
             case _:
                 assert False
@@ -733,6 +808,76 @@ class TestOperator:
                 assert True
             case _:
                 assert False
+
+    @pytest.mark.parametrize(
+        "code,expected",
+        [
+            (
+                "distance to distance from A to B",
+                DistanceFromOp(DistanceFromOp(Name("B", Load()), Name("A", Load()))),
+            ),
+            (
+                "distance to distance from A from B",
+                DistanceFromOp(
+                    DistanceFromOp(None, Name("A", Load())), Name("B", Load())
+                ),
+            ),
+            (
+                "distance to A << B from C << D",
+                BinOp(
+                    DistanceFromOp(
+                        BinOp(Name("A", Load()), LShift(), Name("B", Load())),
+                        Name("C", Load()),
+                    ),
+                    LShift(),
+                    Name("D", Load()),
+                ),
+            ),
+            (
+                "distance to A + B from C + D",
+                DistanceFromOp(
+                    BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                    BinOp(Name("C", Load()), Add(), Name("D", Load())),
+                ),
+            ),
+            (
+                "distance to A + B",
+                DistanceFromOp(
+                    BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                    None,
+                ),
+            ),
+            (
+                "distance from A + B",
+                DistanceFromOp(
+                    None,
+                    BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                ),
+            ),
+            (
+                "distance to A << B",
+                BinOp(
+                    DistanceFromOp(Name("A", Load()), None),
+                    LShift(),
+                    Name("B", Load()),
+                )
+            ),
+            (
+                "distance from A << B",
+                BinOp(
+                    DistanceFromOp(None, Name("A", Load())),
+                    LShift(),
+                    Name("B", Load()),
+                )
+            ),
+        ],
+    )
+    def test_distance_from_precedence(self, code, expected):
+        mod = parse_string_helper(code)
+        stmt = mod.body[0].value
+        assert dump(stmt, annotate_fields=False) == dump(
+            expected, annotate_fields=False
+        )
 
     def test_distance_past(self):
         mod = parse_string_helper("distance past x")
