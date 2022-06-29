@@ -860,7 +860,7 @@ class TestOperator:
                     DistanceFromOp(Name("A", Load()), None),
                     LShift(),
                     Name("B", Load()),
-                )
+                ),
             ),
             (
                 "distance from A << B",
@@ -868,7 +868,7 @@ class TestOperator:
                     DistanceFromOp(None, Name("A", Load())),
                     LShift(),
                     Name("B", Load()),
-                )
+                ),
             ),
         ],
     )
@@ -896,6 +896,74 @@ class TestOperator:
                 assert True
             case _:
                 assert False
+
+    @pytest.mark.parametrize(
+        "code,expected",
+        [
+            (
+                "distance past distance past A of B",
+                DistancePastOp(DistancePastOp(Name("A", Load()), Name("B", Load()))),
+            ),
+            (
+                "distance past distance past A of B of C",
+                DistancePastOp(
+                    DistancePastOp(Name("A", Load()), Name("B", Load())),
+                    Name("C", Load()),
+                ),
+            ),
+            (
+                "distance past A of distance past B of C",
+                DistancePastOp(
+                    Name("A", Load()),
+                    DistancePastOp(Name("B", Load()), Name("C", Load())),
+                ),
+            ),
+            (
+                "distance past A << B of C << D",
+                BinOp(
+                    DistancePastOp(
+                        BinOp(
+                            Name("A", Load()),
+                            LShift(),
+                            Name("B", Load()),
+                        ),
+                        Name("C", Load()),
+                    ),
+                    LShift(),
+                    Name("D", Load()),
+                ),
+            ),
+            (
+                "distance past A + B of C + D",
+                DistancePastOp(
+                    BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                    BinOp(Name("C", Load()), Add(), Name("D", Load())),
+                ),
+            ),
+            (
+                "distance past A << B",
+                BinOp(
+                    DistancePastOp(
+                        Name("A", Load()),
+                    ),
+                    LShift(),
+                    Name("B", Load()),
+                ),
+            ),
+            (
+                "distance past A + B",
+                DistancePastOp(
+                    BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                ),
+            ),
+        ],
+    )
+    def test_distance_past_precedence(self, code, expected):
+        mod = parse_string_helper(code)
+        stmt = mod.body[0].value
+        assert dump(stmt, annotate_fields=False) == dump(
+            expected, annotate_fields=False
+        )
 
     def test_angle_from(self):
         mod = parse_string_helper("angle from x")

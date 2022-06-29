@@ -330,8 +330,8 @@ class DistanceFromOp(AST):
 
     def __init__(
         self,
-        target: Optional[ast.AST] = None, # to
-        base: Optional[ast.AST] = None, # from
+        target: Optional[ast.AST] = None,  # to
+        base: Optional[ast.AST] = None,  # from
         *args: any,
         **kwargs: any
     ) -> None:
