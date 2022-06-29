@@ -652,15 +652,51 @@ class TestOperator:
             case _:
                 assert False
 
-    def test_apparent_heading_precedence(self):
-        # This is incorrect code, but asserts the operator has the right precedence
-        mod = parse_string_helper("apparent heading of x or y")
-        stmt = mod.body[0]
-        match stmt:
-            case Expr(ApparentHeadingOp(BoolOp(Or(), [Name("x"), Name("y")]))):
-                assert True
-            case _:
-                assert False
+    @pytest.mark.parametrize(
+        "code,expected",
+        [
+            (
+                "apparent heading of apparent heading of A from B",
+                ApparentHeadingOp(ApparentHeadingOp(Name('A', Load()), Name('B', Load()))),
+            ),
+            (
+                "apparent heading of apparent heading of A from B from C",
+                ApparentHeadingOp(ApparentHeadingOp(Name('A', Load()), Name('B', Load())), Name('C', Load())),
+            ),
+            (
+                "apparent heading of A from apparent heading of B from C",
+                ApparentHeadingOp(Name('A', Load()), ApparentHeadingOp(Name('B', Load()), Name('C', Load()))),
+            ),
+            (
+                "apparent heading of A << B from C",
+                ApparentHeadingOp(BinOp(Name('A', Load()), LShift(), Name('B', Load())), Name('C', Load())),
+            ),
+            (
+                "apparent heading of A from B << C",
+                BinOp(ApparentHeadingOp(Name('A', Load()), Name('B', Load())), LShift(), Name('C', Load())),
+            ),
+            (
+                "apparent heading of A + B from C",
+                ApparentHeadingOp(BinOp(Name('A', Load()), Add(), Name('B', Load())), Name('C', Load())),
+            ),
+            (
+                "apparent heading of A from B + C",
+                ApparentHeadingOp(Name('A', Load()), BinOp(Name('B', Load()), Add(), Name('C', Load()))),
+            ),
+            (
+                "apparent heading of A << B",
+                BinOp(ApparentHeadingOp(Name('A', Load())), LShift(), Name('B', Load())),
+            ),
+            (
+                "apparent heading of A + B",
+                ApparentHeadingOp(BinOp(Name('A', Load()), Add(), Name('B', Load()))),
+            ),
+        ],
+    )
+    def test_apparent_heading_precedence(self, code, expected):
+        mod = parse_string_helper(code)
+        stmt = mod.body[0].value
+        assert dump(stmt, annotate_fields=False) == dump(expected, annotate_fields=False)
 
     def test_distance_from(self):
         mod = parse_string_helper("distance from x")
