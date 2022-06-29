@@ -1332,6 +1332,7 @@ scenic_prefix_operators:
     # distance past
     | "distance" "past" e1=expression 'of' e2=scenic_prefix_operators { s.DistancePastOp(target=e1, base=e2, LOCATIONS) }
     | "distance" "past" e1=scenic_prefix_operators { s.DistancePastOp(target=e1, LOCATIONS) }
+    # angle from/to
     | &"angle" scenic_angle_from_op
     | "follow" e1=expression 'from' e2=expression 'for' e3=scenic_prefix_operators { s.FollowOp(target=e1, base=e2, distance=e3, LOCATIONS) }
     | "visible" e=expression { s.VisibleOp(region=e, LOCATIONS) }
@@ -1346,10 +1347,10 @@ scenic_distance_from_op:
     | "distance" 'from' e2=scenic_prefix_operators { s.DistanceFromOp(base=e2, LOCATIONS) }
 
 scenic_angle_from_op:
-    | "angle" 'from' e1=expression 'to' e2=expression { s.AngleFromOp(base=e1, target=e2, LOCATIONS) }
-    | "angle" 'to' e1=expression 'from' e2=expression { s.AngleFromOp(target=e1, base=e2, LOCATIONS) }
-    | "angle" 'to' e1=expression { s.AngleFromOp(target=e1, LOCATIONS) }
-    | "angle" 'from' e1=expression { s.AngleFromOp(base=e1, LOCATIONS) }
+    | "angle" 'from' e1=expression 'to' e2=scenic_prefix_operators { s.AngleFromOp(base=e1, target=e2, LOCATIONS) }
+    | "angle" 'to' e1=expression 'from' e2=scenic_prefix_operators { s.AngleFromOp(target=e1, base=e2, LOCATIONS) }
+    | "angle" 'to' e1=scenic_prefix_operators { s.AngleFromOp(target=e1, LOCATIONS) }
+    | "angle" 'from' e1=scenic_prefix_operators { s.AngleFromOp(base=e1, LOCATIONS) }
 
 scenic_position_of_op_position:
     | "front" "left" { s.FrontLeft(LOCATIONS) }

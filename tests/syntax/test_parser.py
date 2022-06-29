@@ -1001,6 +1001,74 @@ class TestOperator:
             case _:
                 assert False
 
+    @pytest.mark.parametrize(
+        "code,expected",
+        [
+            (
+                "angle to angle from A to B",
+                AngleFromOp(AngleFromOp(Name("B", Load()), Name("A", Load()))),
+            ),
+            (
+                "angle to angle from A from B",
+                AngleFromOp(AngleFromOp(None, Name("A", Load())), Name("B", Load())),
+            ),
+            (
+                "angle to A << B from C << D",
+                BinOp(
+                    AngleFromOp(
+                        BinOp(Name("A", Load()), LShift(), Name("B", Load())),
+                        Name("C", Load()),
+                    ),
+                    LShift(),
+                    Name("D", Load()),
+                ),
+            ),
+            (
+                "angle from A + B to C + D",
+                AngleFromOp(
+                    BinOp(Name("C", Load()), Add(), Name("D", Load())),
+                    BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                ),
+            ),
+            (
+                "angle to A + B",
+                AngleFromOp(
+                    BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                    None,
+                ),
+            ),
+            (
+                "angle from A + B",
+                AngleFromOp(
+                    None,
+                    BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                ),
+            ),
+            (
+                "angle to A << B",
+                BinOp(
+                    AngleFromOp(Name("A", Load()), None),
+                    LShift(),
+                    Name("B", Load()),
+                ),
+            ),
+            (
+                "angle from A << B",
+                BinOp(
+                    AngleFromOp(None, Name("A", Load())),
+                    LShift(),
+                    Name("B", Load()),
+                ),
+            ),
+        ],
+    )
+    def test_angle_from_precedence(self, code, expected):
+        mod = parse_string_helper(code)
+        stmt = mod.body[0].value
+        assert dump(stmt, annotate_fields=False) == dump(
+            expected, annotate_fields=False
+        )
+
     def test_follow(self):
         mod = parse_string_helper("follow x from y for z")
         stmt = mod.body[0]
