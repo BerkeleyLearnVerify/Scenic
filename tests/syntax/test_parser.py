@@ -1078,6 +1078,38 @@ class TestOperator:
             case _:
                 assert False
 
+    @pytest.mark.parametrize(
+        "code,expected",
+        [
+            (
+                "follow A + B from C + D for E + F",
+                FollowOp(
+                    BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                    BinOp(Name("C", Load()), Add(), Name("D", Load())),
+                    BinOp(Name("E", Load()), Add(), Name("F", Load())),
+                ),
+            ),
+            (
+                "follow A << B from C << D for E << F",
+                BinOp(
+                    FollowOp(
+                        BinOp(Name("A", Load()), LShift(), Name("B", Load())),
+                        BinOp(Name("C", Load()), LShift(), Name("D", Load())),
+                        Name("E", Load()),
+                    ),
+                    LShift(),
+                    Name("F", Load()),
+                ),
+            ),
+        ],
+    )
+    def test_follow_precedence(self, code, expected):
+        mod = parse_string_helper(code)
+        stmt = mod.body[0].value
+        assert dump(stmt, annotate_fields=False) == dump(
+            expected, annotate_fields=False
+        )
+
     def test_visible(self):
         mod = parse_string_helper("visible x")
         stmt = mod.body[0]
