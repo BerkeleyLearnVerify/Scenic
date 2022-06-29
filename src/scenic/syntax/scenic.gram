@@ -1336,7 +1336,7 @@ scenic_prefix_operators:
     | &"angle" scenic_angle_from_op
     | "follow" e1=expression 'from' e2=expression 'for' e3=scenic_prefix_operators { s.FollowOp(target=e1, base=e2, distance=e3, LOCATIONS) }
     | "visible" e=scenic_prefix_operators { s.VisibleOp(region=e, LOCATIONS) }
-    | 'not' "visible" e=expression { s.NotVisibleOp(region=e, LOCATIONS) }
+    | 'not' "visible" e=scenic_prefix_operators { s.NotVisibleOp(region=e, LOCATIONS) }
     | p=scenic_position_of_op_position 'of' e=expression { s.PositionOfOp(position=p, target=e, LOCATIONS) }
     | sum
 
