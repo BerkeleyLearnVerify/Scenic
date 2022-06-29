@@ -253,28 +253,18 @@ class NewtonianReplaySimulation(ReplaySimulation):
     def __init__(self, scene, simulationResult, verbosity=0):
         super().__init__(scene, simulationResult, verbosity=verbosity,
                          actionComparisonMethod=self.compareSimulatorActions)
-        self.getLaneFollowingControllers = NewtonianSimulation.getLaneFollowingControllers
-        self.getTurningControllers = NewtonianSimulation.getTurningControllers
-        self.getLaneChangingControllers = NewtonianSimulation.getLaneChangingControllers
 
-
-    def compareSimulatorActions(self, actions, otherActions):
+    def compareSimulatorActions(self, action, otherAction):
         # actions in this simulator are (steer, throttle) values
         difference = 0
-        totalActions = min(len(otherActions), len(actions))
-        actionDifference = abs(len(otherActions) - len(actions))
-        for idx in range(totalActions):
-            if idx < totalActions:
-                action, otherAction = actions[idx], otherActions[idx]
-                if hasattr(action, "steer") and hasattr(action, "throttle") \
-                 and hasattr(otherAction, "steer") and hasattr(otherAction, "throttle"):
-                    # we'll take MSE, since these values are already normalized
-                    difference += (action.steer - otherAction.steer) ** 2 + \
-                           (action.throttle - otherAction.throttle) ** 2
-                else:
-                    if action != otherAction:
-                        difference += 1
-        difference += actionDifference
+        if hasattr(action, "steer") and hasattr(action, "throttle") \
+         and hasattr(otherAction, "steer") and hasattr(otherAction, "throttle"):
+            # we'll take MSE, since these values are already normalized
+            difference = (action.steer - otherAction.steer) ** 2 + \
+                   (action.throttle - otherAction.throttle) ** 2
+        else:
+            if action != otherAction:
+                difference = 1
         return difference
 
     def getLaneFollowingControllers(self, agent):

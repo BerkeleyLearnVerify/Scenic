@@ -199,7 +199,8 @@ class Simulation:
             # Compute the actions of the agents in this time step
             allActions = OrderedDict()
             schedule = self.scheduleForAgents()
-            for agent in schedule:
+            actionDiffs = []
+            for agentIdx, agent in enumerate(schedule):
                 behavior = agent.behavior
                 if not behavior._runningIterator:  # TODO remove hack
                     behavior._start(agent)
@@ -211,14 +212,16 @@ class Simulation:
                 assert isinstance(actions, tuple)
                 if len(actions) == 1 and isinstance(actions[0], (list, tuple)):
                     actions = tuple(actions[0])
-                if not self.actionsAreCompatible(agent, actions):
-                    raise InvalidScenarioError(f'agent {agent} tried incompatible '
-                                               f' action(s) {actions}')
+                if compareActions is None:
+                    if not self.actionsAreCompatible(agent, actions):
+                        raise InvalidScenarioError(f'agent {agent} tried incompatible '
+                                                   f' action(s) {actions}')
                 # to make saveable, we record agents by their properties
                 allActions[agent] = actions
                 if compareActions:
-                    print("COMPARING ACTIONS")
-                    self.actionComparisonSequence.append(compareActions(allActions))
+                    actionDiffs.append(compareActions(actions, agentIdx))
+            if compareActions:
+                self.actionComparisonSequence.append(actionDiffs)
             if terminationReason is not None:
                 break
 
@@ -231,8 +234,8 @@ class Simulation:
 
             # Run the simulation for a single step and read its state back into Scenic
             self.step()
-            self.updateObjects()
             self.currentTime += 1
+            self.updateObjects()
         return actionSequence, terminationType, terminationReason
 
     def endSimulation(self, dynamicScenario, actionSequence, terminationType, terminationReason):
@@ -414,6 +417,7 @@ class ReplaySimulation(Simulation):
         self.objects = list(scene.objects)
         self.agents = list(obj for obj in scene.objects if obj.behavior is not None)
         self.trajectory = self.simulationResult.trajectory
+        self.simulationLength = len(self.trajectory)
         self.action_differences = []
         self.records = defaultdict(list)
         self.currentTime = 0
@@ -451,16 +455,30 @@ class ReplaySimulation(Simulation):
             setDynamicProxyFor(obj, obj._copyWith(**values))
 
     def run(self, maxSteps):
+        runTime = min(maxSteps, self.simulationLength - 1)
         dynamicScenario = self.scene.dynamicScenario
-        self.runSimulation(dynamicScenario, maxSteps, compareActions=self.compareActions)
+        self.runSimulation(dynamicScenario, runTime, compareActions=self.compareActions)
         return self.actionComparisonSequence
 
-    def compareActions(self, allActions):
-        action_differences = []
+    def compareActions(self, objectActions, objectIdx):
+        """ Compare actions of one object to the actions it recorded during the saved simulation."""
+        action_difference = 0
         recorded_action_sequence = self.simulationResult.actions[self.currentTime]
-        for obj_idx, actions in enumerate(recorded_action_sequence.items()):
-            action_differences.append(self.actionComparisonMethod(actions, allActions[obj_idx]))
-        return action_differences
+        if objectIdx >= len(recorded_action_sequence):
+            breakpoint()
+        actions = recorded_action_sequence[objectIdx]
+        minActions = min(len(objectActions), len(actions))
+        totalActions = max(len(objectActions), len(actions))
+        for idx in range(totalActions):
+            if idx < minActions:
+                action, otherAction = actions[idx], objectActions[idx]
+            else:
+                if idx >= len(objectActions):
+                    action, otherAction = actions[idx], None
+                else:
+                    action, otherAction = None, objectActions[idx]
+            action_difference += self.actionComparisonMethod(action, otherAction)
+        return action_difference
 
     def reset_replay(self):
         self.currentTime = 0
