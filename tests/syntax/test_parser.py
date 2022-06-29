@@ -1146,13 +1146,48 @@ class TestOperator:
         )
 
     def test_not_visible(self):
-        mod = parse_string_helper("not visible not x")
+        mod = parse_string_helper("not visible x")
         stmt = mod.body[0]
         match stmt:
-            case Expr(NotVisibleOp(UnaryOp(Not(), Name("x")))):
+            case Expr(NotVisibleOp(Name("x"))):
                 assert True
             case _:
                 assert False
+
+    def test_not_visible_with_not(self):
+        mod = parse_string_helper("not not visible x")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(UnaryOp(Not(), NotVisibleOp(Name("x")))):
+                assert True
+            case _:
+                assert False
+
+    @pytest.mark.parametrize(
+        "code,expected",
+        [
+            (
+                "not visible A + B",
+                NotVisibleOp(
+                    BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                ),
+            ),
+            (
+                "not visible A << B",
+                BinOp(
+                    NotVisibleOp(Name("A", Load())),
+                    LShift(),
+                    Name("B", Load()),
+                ),
+            ),
+        ],
+    )
+    def test_visible_precedence(self, code, expected):
+        mod = parse_string_helper(code)
+        stmt = mod.body[0].value
+        assert dump(stmt, annotate_fields=False) == dump(
+            expected, annotate_fields=False
+        )
 
     @pytest.mark.parametrize(
         "position,node",
