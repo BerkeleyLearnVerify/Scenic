@@ -587,6 +587,52 @@ class TestOperator:
                 assert True
             case _:
                 assert False
+    
+    @pytest.mark.parametrize(
+        "code,expected",
+        [
+            (
+                "relative heading of relative heading of A from B",
+                RelativeHeadingOp(RelativeHeadingOp(Name('A', Load()), Name('B', Load()))),
+            ),
+            (
+                "relative heading of relative heading of A from B from C",
+                RelativeHeadingOp(RelativeHeadingOp(Name('A', Load()), Name('B', Load())), Name('C', Load())),
+            ),
+            (
+                "relative heading of A from relative heading of B from C",
+                RelativeHeadingOp(Name('A', Load()), RelativeHeadingOp(Name('B', Load()), Name('C', Load()))),
+            ),
+            (
+                "relative heading of A << B from C",
+                RelativeHeadingOp(BinOp(Name('A', Load()), LShift(), Name('B', Load())), Name('C', Load())),
+            ),
+            (
+                "relative heading of A from B << C",
+                BinOp(RelativeHeadingOp(Name('A', Load()), Name('B', Load())), LShift(), Name('C', Load())),
+            ),
+            (
+                "relative heading of A + B from C",
+                RelativeHeadingOp(BinOp(Name('A', Load()), Add(), Name('B', Load())), Name('C', Load())),
+            ),
+            (
+                "relative heading of A from B + C",
+                RelativeHeadingOp(Name('A', Load()), BinOp(Name('B', Load()), Add(), Name('C', Load()))),
+            ),
+            (
+                "relative heading of A << B",
+                BinOp(RelativeHeadingOp(Name('A', Load())), LShift(), Name('B', Load())),
+            ),
+            (
+                "relative heading of A + B",
+                RelativeHeadingOp(BinOp(Name('A', Load()), Add(), Name('B', Load()))),
+            ),
+        ],
+    )
+    def test_relative_heading_precedence(self, code, expected):
+        mod = parse_string_helper(code)
+        stmt = mod.body[0].value
+        assert dump(stmt, annotate_fields=False) == dump(expected, annotate_fields=False)
 
     def test_apparent_heading(self):
         mod = parse_string_helper("apparent heading of x")
