@@ -1119,6 +1119,32 @@ class TestOperator:
             case _:
                 assert False
 
+    @pytest.mark.parametrize(
+        "code,expected",
+        [
+            (
+                "visible A + B",
+                VisibleOp(
+                    BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                ),
+            ),
+            (
+                "visible A << B",
+                BinOp(
+                    VisibleOp(Name("A", Load())),
+                    LShift(),
+                    Name("B", Load()),
+                ),
+            ),
+        ],
+    )
+    def test_visible_precedence(self, code, expected):
+        mod = parse_string_helper(code)
+        stmt = mod.body[0].value
+        assert dump(stmt, annotate_fields=False) == dump(
+            expected, annotate_fields=False
+        )
+
     def test_not_visible(self):
         mod = parse_string_helper("not visible not x")
         stmt = mod.body[0]
