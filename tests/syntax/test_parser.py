@@ -37,6 +37,45 @@ class TestEgoAssign:
             parse_string_helper("ego, x = 10, 20")
 
 
+class TestParam:
+    def test_basic(self):
+        mod = parse_string_helper("param i = v")
+        stmt = mod.body[0]
+        match stmt:
+            case Param([parameter("i", Name("v"))]):
+                assert True
+            case _:
+                assert False
+
+    def test_quoted(self):
+        mod = parse_string_helper("param 'i' = v")
+        stmt = mod.body[0]
+        match stmt:
+            case Param([parameter("i", Name("v"))]):
+                assert True
+            case _:
+                assert False
+
+    def test_multiple(self):
+        mod = parse_string_helper('param p1=v1, "p2"=v2, "p1"=v3')
+        stmt = mod.body[0]
+        match stmt:
+            case Param(
+                [
+                    parameter("p1", Name("v1")),
+                    parameter("p2", Name("v2")),
+                    parameter("p1", Name("v3")),
+                ]
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_empty(self):
+        with pytest.raises(SyntaxError):
+            parse_string_helper("param")
+
+
 class TestNew:
     def test_basic(self):
         mod = parse_string_helper("new Object")
