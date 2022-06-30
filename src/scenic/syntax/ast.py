@@ -19,6 +19,31 @@ class EgoAssign(AST):
         self._fields = ["value"]
 
 
+# simple statements
+class Param(AST):
+    "`param identifier = value, …` statements"
+
+    __match_args__ = ("elts",)
+
+    def __init__(self, elts: list["parameter"], *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.elts = elts
+        self._fields = ["elts"]
+
+
+class parameter(AST):
+    "represents a parameter that is defined with `param` statements"
+    __match_args__ = ("identifier", "value")
+
+    def __init__(
+        self, identifier: str, value: ast.AST, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.identifier = identifier
+        self.value = value
+        self._fields = ["value"]
+
+
 # Instance Creation
 
 
@@ -30,7 +55,7 @@ class New(AST):
     ) -> None:
         super().__init__(*args, **kwargs)
         self.className = className
-        self.specifiers = specifiers
+        self.specifiers = specifiers if specifiers is not None else []
         self._fields = ["specifiers"]
 
 
