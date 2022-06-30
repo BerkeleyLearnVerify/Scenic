@@ -16,6 +16,40 @@ class TestCompiler:
             case _:
                 assert False
 
+    # Simple Statement
+    def test_param_basic(self):
+        node, _ = compileScenicAST(Param([parameter("p1", Name("v1"))]))
+        match node:
+            case Expr(Call(Name("param"), [Dict([Constant("p1")], [Name("v1")])])):
+                assert True
+            case _:
+                assert False
+
+    def test_param_multiple(self):
+        node, _ = compileScenicAST(
+            Param([parameter("p1", Name("v1")), parameter("p2", Constant(1))])
+        )
+        match node:
+            case Expr(
+                Call(
+                    Name("param"),
+                    [Dict([Constant("p1"), Constant("p2")], [Name("v1"), Constant(1)])],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_param_duplicate(self):
+        node, _ = compileScenicAST(
+            Param([parameter("p1", Name("v1")), parameter("p1", Constant(1))])
+        )
+        match node:
+            case Expr(Call(Name("param"), [Dict([Constant("p1")], [Constant(1)])])):
+                assert True
+            case _:
+                assert False
+
     # Instance & Specifiers
     def test_new_no_specifiers(self):
         node, _ = compileScenicAST(New("Object", []))

@@ -558,7 +558,7 @@ def model(namespace, modelName):
 			if not name.startswith('_'):
 				namespace[name] = value
 
-def param(*quotedParams, **params):
+def param(params):
 	"""Function implementing the param statement."""
 	global loadingModel
 	if evaluatingRequirement:
@@ -567,11 +567,6 @@ def param(*quotedParams, **params):
 		raise RuntimeParseError('tried to create a global parameter during a simulation')
 	for name, value in params.items():
 		if name not in lockedParameters and (not loadingModel or name not in _globalParameters):
-			_globalParameters[name] = toDistribution(value)
-	assert len(quotedParams) % 2 == 0, quotedParams
-	it = iter(quotedParams)
-	for name, value in zip(it, it):
-		if name not in lockedParameters:
 			_globalParameters[name] = toDistribution(value)
 
 class ParameterTableProxy(collections.abc.Mapping):

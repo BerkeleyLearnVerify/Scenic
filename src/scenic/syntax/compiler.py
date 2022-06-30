@@ -43,6 +43,23 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             )
         )
 
+    def visit_Param(self, node: s.Param):
+        d = dict()
+        for parameter in node.elts:
+            d[parameter.identifier] = self.visit(parameter.value)
+        return ast.Expr(
+            value=ast.Call(
+                func=ast.Name(id="param", ctx=loadCtx),
+                args=[
+                    ast.Dict(
+                        [ast.Constant(k) for k in d.keys()],
+                        [v for v in d.values()],
+                    )
+                ],
+                keywords=[],
+            )
+        )
+
     # Instance & Specifier
 
     def visit_New(self, node: s.New):
