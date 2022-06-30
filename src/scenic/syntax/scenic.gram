@@ -529,6 +529,7 @@ compound_stmt:
 
 scenic_stmt:
     | scenic_ego_assignment
+    | scenic_param_stmt
 
 # SIMPLE STATEMENTS
 # =================
@@ -1482,6 +1483,13 @@ lambda_param[ast.arg]: a=NAME {
 
 scenic_ego_assignment:
     | 'ego' '=' a=expression { s.EgoAssign(value=a, LOCATIONS) }
+
+scenic_param_stmt:
+    | 'param' elts=(','.scenic_param_stmt_param+) { s.Param(elts=elts, LOCATIONS) }
+scenic_param_stmt_param: name=scenic_param_stmt_id '=' e=expression { s.parameter(name, e, LOCATIONS) }
+scenic_param_stmt_id:
+    | a=NAME { a.string }
+    | a=STRING { a.string[1:-1] } # strip quotes
 
 # LITERALS
 # ========
