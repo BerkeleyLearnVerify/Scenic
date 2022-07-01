@@ -41,14 +41,10 @@ class TestCompiler:
                 assert False
 
     def test_param_duplicate(self):
-        node, _ = compileScenicAST(
-            Param([parameter("p1", Name("v1")), parameter("p1", Constant(1))])
-        )
-        match node:
-            case Expr(Call(Name("param"), [Dict([Constant("p1")], [Constant(1)])])):
-                assert True
-            case _:
-                assert False
+        with pytest.raises(SyntaxError):
+            compileScenicAST(
+                Param([parameter("p1", Name("v1")), parameter("p1", Constant(1))])
+            )
 
     # Instance & Specifiers
     def test_new_no_specifiers(self):
