@@ -46,6 +46,8 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     def visit_Param(self, node: s.Param):
         d = dict()
         for parameter in node.elts:
+            if parameter.identifier in d:
+                raise SyntaxError(f'Duplicated param "{parameter.identifier}"')
             d[parameter.identifier] = self.visit(parameter.value)
         return ast.Expr(
             value=ast.Call(
