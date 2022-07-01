@@ -528,15 +528,15 @@ class RelativeToOp(AST):
 
 
 class OffsetAlongOp(AST):
-    __match_args__ = ("left", "middle", "right")
+    __match_args__ = ("base", "direction", "offset")
 
     def __init__(
-        self, left: ast.AST, middle: ast.AST, right: ast.AST, *args: any, **kwargs: any
+        self, base: ast.AST, direction: ast.AST, offset: ast.AST, *args: any, **kwargs: any
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.left = left
-        self.middle = middle
-        self.right = right
+        self.base = base
+        self.direction = direction
+        self.offset = offset
 
 
 class CanSeeOp(AST):
