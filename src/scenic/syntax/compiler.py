@@ -401,9 +401,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         return ast.Call(
             func=ast.Name(id="OffsetAlong", ctx=loadCtx),
             args=[
-                self.visit(node.left),
-                self.visit(node.middle),
-                self.visit(node.right),
+                self.visit(node.base),
+                self.visit(node.direction),
+                self.visit(node.offset),
             ],
             keywords=[],
         )
