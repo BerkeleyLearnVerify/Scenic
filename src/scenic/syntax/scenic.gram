@@ -1296,7 +1296,7 @@ bitwise_xor:
     | bitwise_and
 
 scenic_bitwise_xor:
-    | a=bitwise_xor "offset" "along" b=bitwise_xor "by" c=bitwise_and { s.OffsetAlongOp(left=a, middle=b, right=c, LOCATIONS) }
+    | a=bitwise_xor "offset" "along" b=bitwise_xor "by" c=bitwise_and { s.OffsetAlongOp(base=a, direction=b, offset=c, LOCATIONS) }
 
 bitwise_and:
     | scenic_bitwise_and
