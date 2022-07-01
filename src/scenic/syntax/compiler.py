@@ -55,7 +55,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 args=[
                     ast.Dict(
                         [ast.Constant(k) for k in d.keys()],
-                        [v for v in d.values()],
+                        list(d.values()),
                     )
                 ],
                 keywords=[],
