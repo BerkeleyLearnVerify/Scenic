@@ -531,7 +531,12 @@ class OffsetAlongOp(AST):
     __match_args__ = ("base", "direction", "offset")
 
     def __init__(
-        self, base: ast.AST, direction: ast.AST, offset: ast.AST, *args: any, **kwargs: any
+        self,
+        base: ast.AST,
+        direction: ast.AST,
+        offset: ast.AST,
+        *args: any,
+        **kwargs: any
     ) -> None:
         super().__init__(*args, **kwargs)
         self.base = base
