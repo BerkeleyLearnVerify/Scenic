@@ -489,9 +489,9 @@ class TestCompiler:
                 assert False
 
     def test_angle_to_op(self):
-        node, _ = compileScenicAST(AngleFromOp(Name("X"), None))
+        node, _ = compileScenicAST(AngleFromOp(Name("Y"), None))
         match node:
-            case Call(Name("AngleFrom"), [Name("ego"), Name("X")]):
+            case Call(Name("AngleFrom"), [], [keyword("Y", Name("Y"))]):
                 assert True
             case _:
                 assert False
@@ -499,15 +499,19 @@ class TestCompiler:
     def test_angle_from_op(self):
         node, _ = compileScenicAST(AngleFromOp(None, Name("X")))
         match node:
-            case Call(Name("AngleFrom"), [Name("X"), Name("ego")]):
+            case Call(Name("AngleFrom"), [], [keyword("X", Name("X"))]):
                 assert True
             case _:
                 assert False
 
     def test_angle_to_from_op(self):
-        node, _ = compileScenicAST(AngleFromOp(Name("X"), Name("Y")))
+        node, _ = compileScenicAST(AngleFromOp(Name("Y"), Name("X")))
         match node:
-            case Call(Name("AngleFrom"), [Name("Y"), Name("X")]):
+            case Call(
+                Name("AngleFrom"),
+                [],
+                [keyword("X", Name("X")), keyword("Y", Name("Y"))],
+            ):
                 assert True
             case _:
                 assert False

@@ -299,6 +299,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 args=[X],
                 keywords=[ast.keyword(arg="Y", value=Y)] if Y is not None else [],
             )
+
         if node.target is not None and node.base is not None:
             return createCall(self.visit(node.target), self.visit(node.base))
         if node.target is not None:
@@ -320,12 +321,15 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         assert (
             node.base is not None or node.target is not None
         ), "neither target nor base were specified in AngleFromOp"
-        base = ego if node.base is None else self.visit(node.base)
-        target = ego if node.target is None else self.visit(node.target)
+        keywords = []
+        if node.base is not None:
+            keywords.append(ast.keyword("X", self.visit(node.base)))
+        if node.target is not None:
+            keywords.append(ast.keyword("Y", self.visit(node.target)))
         return ast.Call(
             func=ast.Name(id="AngleFrom", ctx=loadCtx),
-            args=[base, target],
-            keywords=[],
+            args=[],
+            keywords=keywords,
         )
 
     def visit_FollowOp(self, node: s.FollowOp):
