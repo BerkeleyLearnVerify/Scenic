@@ -1,5 +1,5 @@
 import ast
-from typing import Tuple, List
+from typing import Optional, Tuple, List
 
 import scenic.syntax.ast as s
 
@@ -293,14 +293,19 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         )
 
     def visit_DistanceFromOp(self, node: s.DistanceFromOp):
-        assert node.target is not None or node.base is not None
-        target = ego if node.target is None else self.visit(node.target)
-        base = ego if node.base is None else self.visit(node.base)
-        return ast.Call(
-            func=ast.Name(id="DistanceFrom", ctx=loadCtx),
-            args=[target],
-            keywords=[ast.keyword(arg="Y", value=base)],
-        )
+        def createCall(X: ast.AST, Y: Optional[ast.AST] = None):
+            return ast.Call(
+                func=ast.Name(id="DistanceFrom", ctx=loadCtx),
+                args=[X],
+                keywords=[ast.keyword(arg="Y", value=Y)] if Y is not None else [],
+            )
+        if node.target is not None and node.base is not None:
+            return createCall(self.visit(node.target), self.visit(node.base))
+        if node.target is not None:
+            return createCall(self.visit(node.target))
+        if node.base is not None:
+            return createCall(self.visit(node.base))
+        assert False, "neither target nor base were specified in DistanceFromOp"
 
     def visit_DistancePastOp(self, node: s.DistancePastOp):
         return ast.Call(
