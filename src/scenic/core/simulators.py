@@ -454,7 +454,9 @@ class ReplaySimulation(Simulation):
             # visibleRegion, etc. are recomputed
             setDynamicProxyFor(obj, obj._copyWith(**values))
 
-    def run(self, maxSteps):
+    def run(self, maxSteps=None):
+        if maxSteps is None:
+            maxSteps = self.simulationLength - 1
         runTime = min(maxSteps, self.simulationLength - 1)
         dynamicScenario = self.scene.dynamicScenario
         self.runSimulation(dynamicScenario, runTime, compareActions=self.compareActions)
