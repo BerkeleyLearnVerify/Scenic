@@ -1119,6 +1119,15 @@ class TestOperator:
             case _:
                 assert False
 
+    def test_not_visible_inversion(self):
+        mod = parse_string_helper("not visible")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(UnaryOp(Not(), Name("visible"))):
+                assert True
+            case _:
+                assert False
+
     def test_not_visible_with_not(self):
         mod = parse_string_helper("not not visible x")
         stmt = mod.body[0]
