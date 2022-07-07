@@ -358,24 +358,8 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         )
 
     def visit_PositionOfOp(self, node: s.PositionOfOp):
-        classToFunctionName = {
-            s.Front: "Front",
-            s.Back: "Back",
-            s.Left: "Left",
-            s.Right: "Right",
-            s.FrontLeft: "FrontLeft",
-            s.FrontRight: "FrontRight",
-            s.BackLeft: "BackLeft",
-            s.BackRight: "BackRight",
-        }
-        f = None
-        for c, n in classToFunctionName.items():
-            if isinstance(node.position, c):
-                f = n
-                break
-        assert f is not None, f"impossible position {node.position.__class__.__name__}"
         return ast.Call(
-            func=ast.Name(id=f, ctx=loadCtx),
+            func=ast.Name(id=node.position.functionName, ctx=loadCtx),
             args=[self.visit(node.target)],
             keywords=[],
         )
