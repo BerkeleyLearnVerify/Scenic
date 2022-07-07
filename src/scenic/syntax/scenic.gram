@@ -1283,37 +1283,33 @@ is_bitwise_or: 'is' a=bitwise_or { (ast.Is(), a) }
 # -----------------
 
 bitwise_or:
-    | scenic_bitwise_or
+    | scenic_can_see
     | a=bitwise_or '|' b=bitwise_xor { ast.BinOp(left=a, op=ast.BitOr(), right=b, LOCATIONS) }
     | bitwise_xor
 
-scenic_bitwise_or:
-    | a=bitwise_or "can" "see" b=bitwise_xor { s.CanSeeOp(left=a, right=b, LOCATIONS) }
+scenic_can_see: a=bitwise_or "can" "see" b=bitwise_xor { s.CanSeeOp(left=a, right=b, LOCATIONS) }
 
 bitwise_xor:
-    | scenic_bitwise_xor
+    | scenic_offset_along
     | a=bitwise_xor '^' b=bitwise_and { ast.BinOp(left=a, op=ast.BitXor(), right=b, LOCATIONS) }
     | bitwise_and
 
-scenic_bitwise_xor:
-    | a=bitwise_xor "offset" "along" b=bitwise_xor "by" c=bitwise_and { s.OffsetAlongOp(base=a, direction=b, offset=c, LOCATIONS) }
+scenic_offset_along: a=bitwise_xor "offset" "along" b=bitwise_xor "by" c=bitwise_and { s.OffsetAlongOp(base=a, direction=b, offset=c, LOCATIONS) }
 
 bitwise_and:
-    | scenic_bitwise_and
+    | scenic_relative_to
     | a=bitwise_and '&' b=shift_expr { ast.BinOp(left=a, op=ast.BitAnd(), right=b, LOCATIONS) }
     | shift_expr
 
-scenic_bitwise_and:
-    | a=bitwise_and ("relative" "to" | "offset" "by") b=shift_expr { s.RelativeToOp(left=a, right=b, LOCATIONS) }
+scenic_relative_to: a=bitwise_and ("relative" "to" | "offset" "by") b=shift_expr { s.RelativeToOp(left=a, right=b, LOCATIONS) }
 
 shift_expr:
-    | scenic_shift_expr
+    | scenic_at
     | a=shift_expr '<<' b=sum { ast.BinOp(left=a, op=ast.LShift(), right=b, LOCATIONS) }
     | a=shift_expr '>>' b=sum { ast.BinOp(left=a, op=ast.RShift(), right=b, LOCATIONS) }
     | scenic_prefix_operators
 
-scenic_shift_expr:
-    | a=shift_expr 'at' b=sum { s.FieldAtOp(left=a, right=b, LOCATIONS) }
+scenic_at: a=shift_expr 'at' b=sum { s.FieldAtOp(left=a, right=b, LOCATIONS) }
 
 # Scenic prefix operators
 # -----------------------
@@ -1371,7 +1367,8 @@ sum:
     | term
 
 term:
-    | scenic_term
+    | scenic_vector
+    | scenic_deg
     | a=term '*' b=factor { ast.BinOp(left=a, op=ast.Mult(), right=b, LOCATIONS) }
     | a=term '/' b=factor { ast.BinOp(left=a, op=ast.Div(), right=b, LOCATIONS) }
     | a=term '//' b=factor { ast.BinOp(left=a, op=ast.FloorDiv(), right=b, LOCATIONS) }
@@ -1381,9 +1378,8 @@ term:
      }
     | factor
 
-scenic_term:
-    | a=term '@' b=factor { s.VectorOp(left=a, right=b, LOCATIONS) }
-    | a=term "deg" { s.DegOp(operand=a, LOCATIONS) }
+scenic_vector: a=term '@' b=factor { s.VectorOp(left=a, right=b, LOCATIONS) }
+scenic_deg: a=term "deg" { s.DegOp(operand=a, LOCATIONS) }
 
 factor (memo):
     | '+' a=factor { ast.UnaryOp(op=ast.UAdd(), operand=a, LOCATIONS) }
