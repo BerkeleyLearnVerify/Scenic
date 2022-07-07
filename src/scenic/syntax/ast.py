@@ -431,6 +431,7 @@ class PositionOfOp(AST):
 
 class Front(AST):
     "Represents position of `front of` operator"
+    functionName = "Front"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
@@ -438,6 +439,7 @@ class Front(AST):
 
 class Back(AST):
     "Represents position of `back of` operator"
+    functionName = "Back"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
@@ -445,6 +447,7 @@ class Back(AST):
 
 class Left(AST):
     "Represents position of `left of` operator"
+    functionName = "Left"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
@@ -452,6 +455,7 @@ class Left(AST):
 
 class Right(AST):
     "Represents position of `right of` operator"
+    functionName = "Right"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
@@ -459,6 +463,7 @@ class Right(AST):
 
 class FrontLeft(AST):
     "Represents position of `front left of` operator"
+    functionName = "FrontLeft"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
@@ -466,6 +471,7 @@ class FrontLeft(AST):
 
 class FrontRight(AST):
     "Represents position of `front right of` operator"
+    functionName = "FrontRight"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
@@ -473,6 +479,7 @@ class FrontRight(AST):
 
 class BackLeft(AST):
     "Represents position of `back left of` operator"
+    functionName = "BackLeft"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
@@ -480,6 +487,7 @@ class BackLeft(AST):
 
 class BackRight(AST):
     "Represents position of `back right of` operator"
+    functionName = "BackRight"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
