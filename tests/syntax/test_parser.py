@@ -12,6 +12,13 @@ def parse_string_helper(source: str) -> Any:
     return parse_string(source, "exec")
 
 
+def assert_equal_source_ast(source: str, expected: ast.AST) -> bool:
+    "Parse string and compare the resulting AST with the given AST"
+    mod = parse_string_helper(source)
+    stmt = mod.body[0].value
+    assert dump(stmt, annotate_fields=False) == dump(expected, annotate_fields=False)
+
+
 class TestTrackedNames:
     def test_ego_assign(self):
         mod = parse_string_helper("ego = 10")
@@ -579,11 +586,7 @@ class TestOperator:
         ],
     )
     def test_relative_position_precedence(self, code, expected):
-        mod = parse_string_helper(code)
-        stmt = mod.body[0].value
-        assert dump(stmt, annotate_fields=False) == dump(
-            expected, annotate_fields=False
-        )
+        assert_equal_source_ast(code, expected)
 
     def test_relative_heading(self):
         mod = parse_string_helper("relative heading of x")
@@ -678,11 +681,7 @@ class TestOperator:
         ],
     )
     def test_relative_heading_precedence(self, code, expected):
-        mod = parse_string_helper(code)
-        stmt = mod.body[0].value
-        assert dump(stmt, annotate_fields=False) == dump(
-            expected, annotate_fields=False
-        )
+        assert_equal_source_ast(code, expected)
 
     def test_apparent_heading(self):
         mod = parse_string_helper("apparent heading of x")
@@ -767,11 +766,7 @@ class TestOperator:
         ],
     )
     def test_apparent_heading_precedence(self, code, expected):
-        mod = parse_string_helper(code)
-        stmt = mod.body[0].value
-        assert dump(stmt, annotate_fields=False) == dump(
-            expected, annotate_fields=False
-        )
+        assert_equal_source_ast(code, expected)
 
     def test_distance_from(self):
         mod = parse_string_helper("distance from x")
@@ -873,11 +868,7 @@ class TestOperator:
         ],
     )
     def test_distance_from_precedence(self, code, expected):
-        mod = parse_string_helper(code)
-        stmt = mod.body[0].value
-        assert dump(stmt, annotate_fields=False) == dump(
-            expected, annotate_fields=False
-        )
+        assert_equal_source_ast(code, expected)
 
     def test_distance_past(self):
         mod = parse_string_helper("distance past x")
@@ -959,11 +950,7 @@ class TestOperator:
         ],
     )
     def test_distance_past_precedence(self, code, expected):
-        mod = parse_string_helper(code)
-        stmt = mod.body[0].value
-        assert dump(stmt, annotate_fields=False) == dump(
-            expected, annotate_fields=False
-        )
+        assert_equal_source_ast(code, expected)
 
     def test_angle_from(self):
         mod = parse_string_helper("angle from x")
@@ -1063,11 +1050,7 @@ class TestOperator:
         ],
     )
     def test_angle_from_precedence(self, code, expected):
-        mod = parse_string_helper(code)
-        stmt = mod.body[0].value
-        assert dump(stmt, annotate_fields=False) == dump(
-            expected, annotate_fields=False
-        )
+        assert_equal_source_ast(code, expected)
 
     def test_follow(self):
         mod = parse_string_helper("follow x from y for z")
@@ -1104,11 +1087,7 @@ class TestOperator:
         ],
     )
     def test_follow_precedence(self, code, expected):
-        mod = parse_string_helper(code)
-        stmt = mod.body[0].value
-        assert dump(stmt, annotate_fields=False) == dump(
-            expected, annotate_fields=False
-        )
+        assert_equal_source_ast(code, expected)
 
     def test_visible(self):
         mod = parse_string_helper("visible x")
@@ -1139,11 +1118,7 @@ class TestOperator:
         ],
     )
     def test_visible_precedence(self, code, expected):
-        mod = parse_string_helper(code)
-        stmt = mod.body[0].value
-        assert dump(stmt, annotate_fields=False) == dump(
-            expected, annotate_fields=False
-        )
+        assert_equal_source_ast(code, expected)
 
     def test_not_visible(self):
         mod = parse_string_helper("not visible x")
@@ -1183,11 +1158,7 @@ class TestOperator:
         ],
     )
     def test_visible_precedence(self, code, expected):
-        mod = parse_string_helper(code)
-        stmt = mod.body[0].value
-        assert dump(stmt, annotate_fields=False) == dump(
-            expected, annotate_fields=False
-        )
+        assert_equal_source_ast(code, expected)
 
     @pytest.mark.parametrize(
         "position,node",
@@ -1232,11 +1203,7 @@ class TestOperator:
         ],
     )
     def test_visible_precedence(self, code, expected):
-        mod = parse_string_helper(code)
-        stmt = mod.body[0].value
-        assert dump(stmt, annotate_fields=False) == dump(
-            expected, annotate_fields=False
-        )
+        assert_equal_source_ast(code, expected)
 
     def test_deg_1(self):
         mod = parse_string_helper("1 + 2 deg")
