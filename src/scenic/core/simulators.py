@@ -157,7 +157,6 @@ class Simulation:
         # Give objects a chance to do any simulator-specific setup
         for obj in self.objects:
             obj.startDynamicSimulation()
-
         # Update all objects in case the simulator has adjusted any dynamic
         # properties during setup
         self.updateObjects()
@@ -182,7 +181,6 @@ class Simulation:
             newReason = dynamicScenario._runMonitors()
             if newReason is not None:
                 terminationReason = newReason
-
             # "Always" and scenario-level requirements have been checked;
             # now safe to terminate if the top-level scenario has finished,
             # a monitor requested termination, or we've hit the timeout
@@ -460,6 +458,7 @@ class ReplaySimulation(Simulation):
         runTime = min(maxSteps, self.simulationLength - 1)
         dynamicScenario = self.scene.dynamicScenario
         self.runSimulation(dynamicScenario, runTime, compareActions=self.compareActions)
+        self.cleanup()
         return self.actionComparisonSequence
 
     def compareActions(self, objectActions, objectIdx):
