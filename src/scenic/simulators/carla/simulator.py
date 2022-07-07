@@ -16,9 +16,10 @@ if verbosity == 0:	# suppress pygame advertisement at zero verbosity
 import pygame
 
 from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
-from scenic.core.simulators import SimulationCreationError
+from scenic.core.simulators import SimulationCreationError, ReplaySimulation
 from scenic.syntax.veneer import verbosePrint
 from scenic.simulators.carla.blueprints import oldBlueprintNames
+from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
 import scenic.simulators.carla.utils.utils as utils
 import scenic.simulators.carla.utils.visuals as visuals
 
@@ -272,3 +273,65 @@ class CarlaSimulation(DrivingSimulation):
 
 		self.world.tick()
 		super().destroy()
+
+def getLaneFollowingControllers(timestep, isCar):
+	dt = timestep
+	if isCar:
+		lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+		lat_controller = PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
+	else:
+		lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+		lat_controller = PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
+	return lon_controller, lat_controller
+
+
+def getTurningControllers(timestep, isCar):
+	"""Get longitudinal and lateral controllers for turning."""
+	dt = timestep
+	if isCar:
+		lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+		lat_controller = PIDLateralController(K_P=0.8, K_D=0.2, K_I=0.0, dt=dt)
+	else:
+		lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+		lat_controller = PIDLateralController(K_P=0.4, K_D=0.1, K_I=0.0, dt=dt)
+	return lon_controller, lat_controller
+
+
+def getLaneChangingControllers(timestep, isCar):
+	"""Get longitudinal and lateral controllers for lane changing."""
+	dt = timestep
+	if isCar:
+		lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+		lat_controller = PIDLateralController(K_P=0.08, K_D=0.3, K_I=0.0, dt=dt)
+	else:
+		lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+		lat_controller = PIDLateralController(K_P=0.1, K_D=0.3, K_I=0.0, dt=dt)
+	return lon_controller, lat_controller
+
+class CarlaReplaySimulation(ReplaySimulation):
+
+	def __init__(self, scene, simulationResult, verbosity=0):
+		super().__init__(scene, simulationResult, verbosity=verbosity,
+						 actionComparisonMethod=self.compareSimulatorActions)
+
+	def compareSimulatorActions(self, action, otherAction):
+		# actions in this simulator should have (steer, throttle) values
+		difference = 0
+		if hasattr(action, "steer") and hasattr(action, "throttle") \
+			and hasattr(otherAction, "steer") and hasattr(otherAction, "throttle"):
+			# get the root mse difference
+			difference = (action.steer - otherAction.steer) ** 2 + \
+						(action.throttle - otherAction.throttle) ** 2
+		else:
+			if action != otherAction:
+				difference += 1
+		return difference
+
+	def getLaneFollowingControllers(self, agent):
+		return getLaneFollowingControllers(self.timestep, agent.isCar)
+
+	def getTurningControllers(self, agent):
+		return getTurningControllers(self.timestep, agent.isCar)
+
+	def getLaneChangingControllers(self, agent):
+		return getLaneChangingControllers(self.timestep, agent.isCar)
