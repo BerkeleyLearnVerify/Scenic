@@ -1210,8 +1210,8 @@ conjunction (memo):
     | inversion
 
 inversion (memo):
-    # [SCENIC NOTE]: Fail `not visible` to be handled later
-    | 'not' !"visible" a=inversion { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
+    # [SCENIC NOTE]: Fail `not visible <inversion>` to be handled later
+    | 'not' !("visible" inversion) a=inversion { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
     | comparison
 
 # Scenic instance creation
