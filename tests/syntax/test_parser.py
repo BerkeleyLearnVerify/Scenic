@@ -606,16 +606,6 @@ class TestOperator:
             case _:
                 assert False
 
-    def test_relative_heading_precedence(self):
-        # This is incorrect code, but asserts the operator has the right precedence
-        mod = parse_string_helper("relative heading of x or y")
-        stmt = mod.body[0]
-        match stmt:
-            case Expr(RelativeHeadingOp(BoolOp(Or(), [Name("x"), Name("y")]))):
-                assert True
-            case _:
-                assert False
-
     @pytest.mark.parametrize(
         "code,expected",
         [
