@@ -78,15 +78,16 @@ For example, ``beyond taxi by (0, 3)`` means 3 meters directly behind the taxi a
 
 visible [from (*Point* | *OrientedPoint*)]
 ------------------------------------------
-Positions the object uniformly at random in the visible region of the ego, or of the given Point/OrientedPoint if given.
-Visible regions are defined as follows: a `Point` can see out to a certain distance (the ``viewDistance`` property), and an `OrientedPoint` restricts this to the circular sector along its ``heading`` with a certain angle (the ``viewAngle`` property).
-A position is then visible if it lies in the visible region; this specifier sets the ``position`` of the object being created (i.e. its center) to be a uniformly-random point in the visible region.
+Positions the object uniformly at random in the :term:`visible region` of the ego, or of the given Point/OrientedPoint if given.
+More precisely, this specifier sets the ``position`` of the object being created (i.e. its center) to be a uniformly-random point in the visible region.
+(This specifier is therefore slightly stricter than a requirement that the ego :sampref:`can see` the object: the specifier makes the *center* visible, while the :sampref:`can see` condition will be satisfied if the center is not visible but some other part of the object is visible.)
 
 .. _not visible [from ({Point} | {OrientedPoint})]:
 
 not visible [from (Point* | *OrientedPoint*)]
 ----------------------------------------------
 Like :sampref:`visible [from ({Point} | {OrientedPoint})]` except it positions the object uniformly at random in the **non-visible** region of the ego.
+Depends on ``regionContainedIn``, in order to restrict the non-visible region to the :term:`container` of the object being created, which is hopefully a bounded region (if the non-visible region is unbounded, it cannot be uniformly sampled from and an error will be raised).
 
 .. _(in | on) {region}:
 

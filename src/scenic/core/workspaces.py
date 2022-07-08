@@ -6,7 +6,12 @@ from scenic.core.geometry import findMinMax
 from scenic.core.errors import RuntimeParseError
 
 class Workspace(Region):
-	"""A workspace describing the fixed world of a scenario"""
+	"""A :term:`workspace` describing the fixed world of a scenario.
+
+	Args:
+		region (Region): The region defining the extent of the workspace
+		  (default `everywhere`).
+	"""
 	def __init__(self, region=everywhere):
 		if needsSampling(region):
 			raise RuntimeParseError('workspace region must be fixed')
@@ -54,11 +59,23 @@ class Workspace(Region):
 	def intersect(self, other, triedReversed=False):
 		return self.region.intersect(other, triedReversed)
 
+	def intersects(self, other):
+		return self.region.intersects(other)
+
+	def difference(self, other):
+		return self.region.difference(other)
+
+	def union(self, other, triedReversed=False):
+		return self.region.union(other, triedReversed)
+
 	def containsPoint(self, point):
 		return self.region.containsPoint(point)
 
 	def containsObject(self, obj):
 		return self.region.containsObject(obj)
+
+	def distanceTo(self, point):
+		return self.region.distanceTo(point)
 
 	def getAABB(self):
 		return self.region.getAABB()

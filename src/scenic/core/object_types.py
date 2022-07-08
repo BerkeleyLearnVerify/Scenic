@@ -322,6 +322,10 @@ class Point(Constructible):
 							 lambda self: PositionMutator(self.positionStdDev))
 	positionStdDev: 1
 
+	# This property is defined in Object, but we provide a default empty value
+	# for Points for implementation convenience.
+	regionContainedIn: None
+
 	@cached_property
 	def visibleRegion(self):
 		"""The :term:`visible region` of this object.

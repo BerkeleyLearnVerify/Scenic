@@ -27,7 +27,7 @@ This :term:`world model` could include:
 
 	* Scenic classes (subclasses of `Object`) corresponding to types of objects in the simulator;
 	* instances of `Region` corresponding to locations of interest (e.g. one for each road);
-	* a `Workspace` specifying legal locations for objects (and optionally providing methods for schematically rendering scenes);
+	* a :term:`workspace` specifying legal locations for objects (and optionally providing methods for schematically rendering scenes);
 	* a set of :term:`actions` which can be taken by dynamic agents during simulations;
 	* any other information or utility functions that might be useful in scenarios.
 

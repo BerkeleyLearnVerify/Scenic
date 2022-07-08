@@ -8,7 +8,8 @@ global state such as the list of all created Scenic objects.
 
 __all__ = (
 	# Primitive statements and functions
-	'ego', 'require', 'resample', 'param', 'globalParameters', 'mutate', 'verbosePrint',
+	'ego', 'workspace',
+	'require', 'resample', 'param', 'globalParameters', 'mutate', 'verbosePrint',
 	'localPath', 'model', 'simulator', 'simulation', 'require_always', 'require_eventually',
 	'terminate_when', 'terminate_simulation_when', 'terminate_after', 'in_initial_scenario',
 	'override',
@@ -35,7 +36,8 @@ __all__ = (
 	'Point', 'OrientedPoint', 'Object',
 	# Specifiers
 	'With',
-	'At', 'In', 'Beyond', 'VisibleFrom', 'VisibleSpec', 'OffsetBy', 'OffsetAlongSpec',
+	'At', 'In', 'Beyond', 'VisibleFrom', 'VisibleSpec', 'NotVisibleSpec',
+	'OffsetBy', 'OffsetAlongSpec',
 	'Facing', 'FacingToward', 'ApparentlyFacing',
 	'LeftSpec', 'RightSpec', 'Ahead', 'Behind',
 	'Following',
@@ -101,6 +103,7 @@ scenarioStack = []
 scenarios = []
 evaluatingRequirement = False
 _globalParameters = {}
+_workspace = None
 lockedParameters = set()
 lockedModel = None
 loadingModel = False
@@ -143,7 +146,7 @@ def activate(paramOverrides={}, modelOverride=None, filename=None, namespace=Non
 
 def deactivate():
 	"""Deactivate the veneer after compiling a Scenic module."""
-	global activity, _globalParameters, lockedParameters, lockedModel
+	global activity, _globalParameters, _workspace, lockedParameters, lockedModel
 	global currentScenario, scenarios, scenarioStack, simulatorFactory
 	activity -= 1
 	assert activity >= 0
@@ -160,6 +163,7 @@ def deactivate():
 		currentScenario = None
 		simulatorFactory = None
 		_globalParameters = {}
+		_workspace = None
 	else:
 		currentScenario = scenarioStack[-1]
 
@@ -218,7 +222,7 @@ def instantiateSimulator(factory, params):
 
 def beginSimulation(sim):
 	global currentSimulation, currentScenario, inInitialScenario, runningScenarios
-	global _globalParameters
+	global _globalParameters, _workspace
 	if isActive():
 		raise RuntimeError('tried to start simulation during Scenic compilation!')
 	assert currentSimulation is None
@@ -230,6 +234,7 @@ def beginSimulation(sim):
 	inInitialScenario = currentScenario._setup is None
 	currentScenario._bindTo(sim.scene)
 	_globalParameters = dict(sim.scene.params)
+	_workspace = sim.scene.workspace
 
 	# rebind globals that could be referenced by behaviors to their sampled values
 	for modName, (namespace, sampledNS, originalNS) in sim.scene.behaviorNamespaces.items():
@@ -238,12 +243,13 @@ def beginSimulation(sim):
 
 def endSimulation(sim):
 	global currentSimulation, currentScenario, currentBehavior, runningScenarios
-	global _globalParameters
+	global _globalParameters, _workspace
 	currentSimulation = None
 	currentScenario = None
 	runningScenarios = set()
 	currentBehavior = None
 	_globalParameters = {}
+	_workspace = None
 
 	for modName, (namespace, sampledNS, originalNS) in sim.scene.behaviorNamespaces.items():
 		namespace.clear()
@@ -375,6 +381,26 @@ def ego(obj=None):
 			if scenario._ego is None:
 				scenario._ego = obj
 	return egoObject
+
+def workspace(workspace=None):
+	"""Function implementing loads and stores to the 'workspace' pseudo-variable.
+
+	See `ego`.
+	"""
+	global _workspace
+	if workspace is None:
+		if _workspace is None:
+			raise RuntimeParseError('referred to workspace not yet assigned')
+	elif not isinstance(workspace, Workspace):
+		raise RuntimeParseError(f'workspace {workspace} is not a Workspace')
+	elif needsSampling(workspace):
+		raise InvalidScenarioError('workspace must be a fixed region')
+	elif needsLazyEvaluation(workspace):
+		raise InvalidScenarioError('workspace uses value undefined '
+		                           'outside of object definition')
+	else:
+		_workspace = workspace
+	return _workspace
 
 def require(reqID, req, line, name, prob=1):
 	"""Function implementing the require statement."""
@@ -877,6 +903,31 @@ def VisibleSpec():
 	Specifies 'position', with no dependencies.
 	"""
 	return VisibleFrom(ego())
+
+def NotVisibleFrom(base):
+	"""The 'not visible from <Point>' specifier.
+
+	Specifies 'position', depending on 'regionContainedIn'.
+
+	See `VisibleFrom`.
+	"""
+	if not isinstance(base, Point):
+		raise RuntimeParseError('specifier "not visible from O" with O not a Point')
+	def helper(self):
+		region = self.regionContainedIn
+		if region is None:
+			if _workspace is None:
+				raise RuntimeParseError('"not visible" specifier with no workspace defined')
+			region = _workspace.region
+		return Region.uniformPointIn(region.difference(base.visibleRegion))
+	return Specifier('position', DelayedArgument({'regionContainedIn'}, helper))
+
+def NotVisibleSpec():
+	"""The 'not visible' specifier (equivalent to 'not visible from ego').
+
+	Specifies 'position', depending on 'regionContainedIn'.
+	"""
+	return NotVisibleFrom(ego())
 
 def OffsetBy(offset):
 	"""The 'offset by <vector>' specifier.

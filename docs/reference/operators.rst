@@ -52,8 +52,11 @@ Boolean Operators
 Whether or not a position or `Object` is visible from a `Point` or `OrientedPoint`.
 Visible regions are defined as follows: a `Point` can see out to a certain distance, and an `OrientedPoint` restricts this to the circular sector along its heading with a certain angle.
 A position is then visible if it lies in the visible region, and an `Object` is visible if its bounding box intersects the visible region.
-Technically, Scenic only checks that a corner of the object is visible, which could result in the side of a large object being visible but Scenic not counting it as so.
-Note that Scenic’s visibility model does not take into account occlusion, although this would be straightforward to add.
+
+.. note::
+
+  Technically, Scenic only checks that a corner of the object is visible, which could result in the side of a large object being visible but Scenic not counting it as so.
+  Scenic’s visibility model also does not take into account occlusion, although this would be straightforward to add.
 
 .. _({vector} | {Object}) in {region}:
 
@@ -108,7 +111,13 @@ Region Operators
 
 visible *region*
 ----------------
-The part of the given region visible from ego.
+The part of the given region which is visible from the ego object (i.e. the intersection of the given region with the :term:`visible region` of the ego).
+
+.. _not visible {region}:
+
+not visible *region*
+--------------------
+The part of the given region which is *not* visible from the ego object (as above, based on the ego's :term:`visible region`).
 
 OrientedPoint Operators
 =======================

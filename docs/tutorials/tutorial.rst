@@ -268,7 +268,7 @@ Notice that in the scenarios above we never explicitly ensured that two cars wil
 intersect each other. Despite this, Scenic will never generate such scenes. This is
 because Scenic enforces several *default requirements*:
 
-	* All objects must be contained in the workspace, or a particular specified region.
+	* All objects must be contained in the :term:`workspace`, or a particular specified region (its :term:`container`).
 	  For example, we can define the `Car` class so that all of its instances must be
 	  contained in the region ``road`` by default.
 

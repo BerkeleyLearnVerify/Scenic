@@ -15,7 +15,6 @@ from scenic.core.requirements import (RequirementType, PendingRequirement,
 from scenic.core.simulators import (RejectSimulationException, EndSimulationAction,
                                     EndScenarioAction)
 from scenic.core.utils import argsToString, alarm
-from scenic.core.workspaces import Workspace
 
 # Utilities
 
@@ -550,18 +549,7 @@ class DynamicScenario(Invocable):
                             'scenario and needs an ego object.)')
             raise InvalidScenarioError(msg)
 
-        # Extract workspace, if one is specified
-        if 'workspace' in namespace:
-            workspace = namespace['workspace']
-            if not isinstance(workspace, Workspace):
-                raise InvalidScenarioError(f'workspace {workspace} is not a Workspace')
-            if needsSampling(workspace):
-                raise InvalidScenarioError('workspace must be a fixed region')
-            if needsLazyEvaluation(workspace):
-                raise InvalidScenarioError('workspace uses value undefined '
-                                           'outside of object definition')
-        else:
-            workspace = None
+        workspace = namespace['_workspace']
 
         from scenic.core.scenarios import Scenario
         scenario = Scenario(workspace, self._simulatorFactory,

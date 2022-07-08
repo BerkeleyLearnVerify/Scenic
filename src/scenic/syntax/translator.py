@@ -353,6 +353,14 @@ builtinNames = { globalParametersName }
 for name in builtinNames:
 	assert name in api, name
 
+## Specially-assigned names (accessing one of which calls a function)
+
+trackedNames = { 'ego', 'workspace' }
+
+# sanity check: getter/setter for each name exists
+for name in trackedNames:
+	assert name in api, name
+
 ## Simple statements
 
 paramStatement = 'param'
@@ -484,6 +492,7 @@ Constructor = namedtuple('Constructor', ('name', 'bases'))
 builtinSpecifiers = {
 	# position
 	('visible', 'from'): 'VisibleFrom',
+	('not', 'visible'): 'NotVisibleSpec',
 	('offset', 'by'): 'OffsetBy',
 	('offset', 'along'): 'OffsetAlongSpec',
 	('at',): 'At',
@@ -1464,29 +1473,31 @@ class ASTSurgeon(NodeTransformer):
 		if node.id in builtinNames:
 			if not isinstance(node.ctx, Load):
 				self.parseError(node, f'unexpected keyword "{node.id}"')
-		elif node.id == 'ego':
+		elif node.id in trackedNames:
 			assert isinstance(node.ctx, Load)
-			return copy_location(Call(Name('ego', Load()), [], []), node)
+			return copy_location(Call(Name(node.id, Load()), [], []), node)
 		elif node.id in self.behaviorLocals:
 			lookup = Attribute(Name(behaviorArgName, Load()), node.id, node.ctx)
 			return copy_location(lookup, node)
 		return node
 
 	def visit_Assign(self, node):
-		def assignsEgo(targets):
+		def assignsTrackable(targets):
 			for target in targets:
 				if isinstance(target, Name):
-					if target.id == 'ego':
-						return True
+					if target.id in trackedNames:
+						return target.id
 				elif isinstance(target, (Tuple, List)):
-					if assignsEgo(target.elts):
-						return True
+					trackable = assignsTrackable(target.elts)
+					if trackable:
+						return trackable
 			return False
 
-		if assignsEgo(node.targets):
+		trackable = assignsTrackable(node.targets)
+		if trackable:
 			if len(node.targets) > 1 or not isinstance(node.targets[0], Name):
-				self.parseError(node, 'only simple assignments to "ego" are allowed')
-			call = Call(Name('ego', Load()), [self.visit(node.value)], [])
+				self.parseError(node, f'only simple assignments to "{trackable}" are allowed')
+			call = Call(Name(trackable, Load()), [self.visit(node.value)], [])
 			return copy_location(Expr(call), node)
 		return self.generic_visit(node)
 
@@ -2209,6 +2220,9 @@ def storeScenarioStateIn(namespace, requirementSyntax):
 	for scenario in veneer.scenarios:
 		scenario._bindGlobals(veneer._globalParameters)
 	moduleScenario._bindGlobals(veneer._globalParameters)
+
+	# Save workspace
+	namespace['_workspace'] = veneer._workspace
 
 	namespace['_scenario'] = moduleScenario
 
