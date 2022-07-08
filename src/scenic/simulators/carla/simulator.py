@@ -321,7 +321,8 @@ class CarlaReplaySimulation(ReplaySimulation):
 			and hasattr(otherAction, "steer") and hasattr(otherAction, "throttle"):
 			# get the root mse difference
 			difference = (action.steer - otherAction.steer) ** 2 + \
-						(action.throttle - otherAction.throttle) ** 2
+						(action.throttle - otherAction.throttle) ** 2 + \
+						(action.brake - otherAction.brake) ** 2
 		else:
 			if action != otherAction:
 				difference += 1

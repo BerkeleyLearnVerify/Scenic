@@ -261,7 +261,8 @@ class NewtonianReplaySimulation(ReplaySimulation):
          and hasattr(otherAction, "steer") and hasattr(otherAction, "throttle"):
             # we'll take MSE, since these values are already normalized
             difference = (action.steer - otherAction.steer) ** 2 + \
-                   (action.throttle - otherAction.throttle) ** 2
+                   (action.throttle - otherAction.throttle) ** 2 + \
+                   (action.brake - otherAction.brake) ** 2
         else:
             if action != otherAction:
                 difference = 1
