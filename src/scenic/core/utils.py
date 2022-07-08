@@ -5,7 +5,6 @@ from contextlib import contextmanager
 import math
 import signal
 import sys
-import typing
 
 import decorator
 
@@ -133,29 +132,3 @@ class DefaultIdentityDict:
         pairs = (f'{hex(key)}: {value!r}' for key, value in self.storage.items())
         allPairs = ', '.join(pairs)
         return f'<DefaultIdentityDict {{{allPairs}}}>'
-
-# Generic type introspection functions backported to Python 3.7
-# (code taken from their Python 3.8 implementations)
-
-def get_type_origin(tp):
-    """Version of `typing.get_origin` supporting Python 3.7."""
-    assert sys.version_info >= (3, 7)
-    if sys.version_info >= (3, 8):
-        return typing.get_origin(tp)
-    if isinstance(tp, typing._GenericAlias):
-        return tp.__origin__
-    if tp is typing.Generic:
-        return typing.Generic
-    return None
-
-def get_type_args(tp):
-    """Version of `typing.get_args` supporting Python 3.7."""
-    assert sys.version_info >= (3, 7)
-    if sys.version_info >= (3, 8):
-        return typing.get_args(tp)
-    if isinstance(tp, typing._GenericAlias) and not tp._special:
-        res = tp.__args__
-        if get_type_origin(tp) is collections.abc.Callable and res[0] is not Ellipsis:
-            res = (list(res[:-1]), res[-1])
-        return res
-    return ()

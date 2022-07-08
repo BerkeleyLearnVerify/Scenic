@@ -6,11 +6,7 @@ import sys
 import time
 import argparse
 import random
-
-if sys.version_info >= (3, 8):
-    from importlib import metadata
-else:
-    import importlib_metadata as metadata
+from importlib import metadata
 
 import scenic.syntax.translator as translator
 import scenic.core.errors as errors

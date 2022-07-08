@@ -7,6 +7,36 @@ This page describes what new features have been added in each version of Scenic,
 Scenic uses semantic versioning, so a program written for Scenic 2.1 should also work in Scenic 2.5, but not necessarily in Scenic 3.0.
 You can run :command:`scenic --version` to see which version of Scenic you are using.
 
+Scenic 3.x
+++++++++++
+
+The Scenic 3.x series adds native support for 3D geometry, and a new parser enabling clearer error messages, greater language extensibility, and various improvements to the syntax.
+
+Scenic 3.0.0:
+-------------
+
+Backwards-incompatible syntax changes:
+
+	* Objects must be explicitly created using the ``new`` keyword, e.g. ``new Object at (1, 2)`` instead of the old ``Object at (1, 2)``.
+	  This removes an ambiguity in the Scenic grammar, and makes non-creation uses of class names like ``myClasses = [Car, Bicycle, Pedestrian]`` clearer.
+
+	* As the ``heading`` property is now derived from the 3D ``orientation`` (see below), it can no longer be set directly.
+	  This only matters if you wrote code like ``with heading 30 deg``; the more idiomatic ``facing 30 deg`` will still work.
+
+Major new features:
+
+	* Scenic uses 3D geometry.
+	  Vectors now have 3 coordinates: if a third coordinate is not provided, it is assumed to be zero, so that scenarios taking place entirely in the z=0 plane will continue to work as before.
+	  Orientations of objects in space are represented by a new ``orientation`` property (internally a quaternion), which is computed by applying intrinsic ``yaw``, ``pitch``, and ``roll`` rotations, given by new properties by those names.
+	  These rotations are applied to the object's ``parentOrientation``, which by default aligns with the Scenic global coordinate system but is optionally specified by :sampref:`left of` and similar specifiers; this makes it easy to orient an object with respect to another object.
+
+	* Scenic models the precise shapes of objects, rather than simply using bounding boxes for collision detection and visibility checks.
+	  Objects have a new ``shape`` property (an instance of the `Shape` class) representing their shape; shapes can be created from standard 3D mesh formats such as STL.
+
+Minor new features:
+
+	* Syntax errors should now always indicate the correct part of the source code.
+
 Scenic 2.x
 ++++++++++
 

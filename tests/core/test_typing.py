@@ -9,25 +9,7 @@ from scenic.core.distributions import Options
 from scenic.core.object_types import Object
 from scenic.core.vectors import Vector, OrientedVector, VectorField
 from scenic.core.type_support import (canCoerce, canCoerceType, coerce, CoercionFailure,
-                                      Heading, get_type_origin, get_type_args)
-
-## Internal utilities
-
-def test_get_type_origin():
-    assert get_type_origin(Union[int, set]) is Union
-    assert get_type_origin(Optional[int]) is Union
-    assert get_type_origin(Tuple[int, set]) is tuple
-    assert get_type_origin(List[int]) is list
-    assert get_type_origin(Set[float]) is set
-    assert get_type_origin(FrozenSet[float]) is frozenset
-
-def test_get_type_args():
-    assert get_type_args(Union[int, set]) == (int, set)
-    assert get_type_args(Optional[int]) == (int, type(None))
-    assert get_type_args(Tuple[int, set]) == (int, set)
-    assert get_type_args(List[int]) == (int,)
-    assert get_type_args(Set[float]) == (float,)
-    assert get_type_args(FrozenSet[float]) == (float,)
+                                      Heading)
 
 ## Coercions
 

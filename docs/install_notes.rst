@@ -11,7 +11,7 @@ All Platforms
 Missing Python Version
 ++++++++++++++++++++++
 
-If during installation (with either :command:`pip` or Poetry) you get an error saying that your machine does not have a compatible version, this means that you do not have Python 3.7 or later on your PATH.
+If during installation (with either :command:`pip` or Poetry) you get an error saying that your machine does not have a compatible version, this means that you do not have Python 3.8 or later on your PATH.
 Install a newer version of Python, either directly from the `Python website <https://www.python.org/downloads/>`_ or using `pyenv <https://github.com/pyenv/pyenv>`_ (e.g. running :command:`pyenv install 3.10.4`).
 If you install it somewhere that is not on your PATH (so running :command:`python --version` doesn't give you the correct version), you'll need to run :command:`poetry env use /full/path/to/python` before running :command:`poetry install`.
 

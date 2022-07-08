@@ -53,6 +53,7 @@ offset along *direction* by *vector*
 Positions the object at the given coordinates, in a local coordinate system centered at ego and oriented along the given direction (which, if a vector field, is evaluated at ego to obtain a heading).
 
 .. _(left | right) of {vector} [by {scalar}]:
+.. _left of:
 
 (left | right) of *vector* [by *scalar*]
 ----------------------------------------
