@@ -547,16 +547,30 @@ class OperatorDistribution(Distribution):
 	def __init__(self, operator, obj, operands, valueType=None):
 		operands = tuple(toDistribution(arg) for arg in operands)
 		if valueType is None:
-			valueType = self.inferType(obj, operator)
+			valueType = self.inferType(obj, operator, operands)
 		super().__init__(obj, *operands, valueType=valueType)
 		self.operator = operator
 		self.object = obj
 		self.operands = operands
 
 	@staticmethod
-	def inferType(obj, operator):
-		if issubclass(obj._valueType, (float, int)):
+	def inferType(obj, operator, operands):
+		"""Attempt to infer the result type of the given operator application."""
+		# If the object's type is known, see if we have a return type annotation.
+		ty = type_support.underlyingType(obj)
+		op = getattr(ty, operator, None)
+		if op:
+			retTy = typing.get_type_hints(op).get('return')
+			if retTy:
+				return retTy
+
+		# The supported arithmetic operations on scalars all return scalars.
+		def scalar(thing):
+			return issubclass(type_support.underlyingType(thing), (float, int))
+		if scalar(obj) and all(scalar(operand) for operand in operands):
 			return float
+
+		# We can't tell what the result type is.
 		return None
 
 	def sampleGiven(self, value):
