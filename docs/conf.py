@@ -260,7 +260,7 @@ def setup(app):
 
 import importlib
 from sphinx.pycode import ModuleAnalyzer
-from sphinx.util.docstrings import extract_metadata
+from sphinx.util.docstrings import separate_metadata
 
 def handle_find_source(app, modname):
     try:
@@ -291,7 +291,7 @@ def handle_process_signature(app, what, name, obj, options, signature, ret_anno)
 def handle_skip_member(app, what, name, obj, skip, options):
     if not skip:
         doc = getattr(obj, '__doc__')
-        if doc and 'private' in extract_metadata(doc):
+        if doc and 'private' in separate_metadata(doc)[1]:
             return True
     return None
 

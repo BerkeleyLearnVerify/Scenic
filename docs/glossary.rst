@@ -24,6 +24,7 @@ Glossary
 		more stringent requirements by overridding ``regionContainedIn`` (e.g. making cars
 		be on roads by default).
 
+	behavior
 	dynamic behavior
 		A function defining the behavior of an :term:`agent` during a simulation.
 		The function runs in parallel with the simulation, taking :term:`actions` at each time step.
@@ -42,6 +43,10 @@ Glossary
 		Scenic scenarios beyond simple random sampling. For how to define external
 		parameters or interface to new external samplers, see
 		:mod:`scenic.core.external_params`.
+
+	global parameters
+		Parameters of a scene like weather or time of day which are not associated with any object.
+		These are defined using the :keyword:`param` statement, and can be overridden from the command line with the :option:`--param` option.
 
 	modular scenario
 		A scenario defined using the :keyword:`scenario <scenario-stmt>` statement (rather than simply being the content of a Scenic file).

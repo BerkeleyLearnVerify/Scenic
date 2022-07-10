@@ -27,7 +27,7 @@ General Scenario Control
 
 .. option:: -p <param> <value>, --param <param> <value>
 
-	Specify the value of a global parameter. This assignment overrides any
+	Specify the value of a :term:`global parameter`. This assignment overrides any
 	:keyword:`param` statements in the scenario. If the given value can be interpreted as an
 	`int` or `float`, it is; otherwise it is kept as a string.
 
@@ -100,7 +100,7 @@ Debugging
 
 .. option:: --show-params
 
-	Show values of global parameters (see :keyword:`param`) for each generated scene.
+	Show values of :term:`global parameters` for each generated scene.
 
 .. option:: --show-records
 

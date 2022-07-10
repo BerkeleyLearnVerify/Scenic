@@ -493,6 +493,9 @@ in some other sections of the documentation:
     :ref:`simulators`
         Details on which simulator interfaces support dynamic scenarios.
 
+    :ref:`dynamic scenario semantics`
+        The gory details of exactly how behaviors run, monitors are checked, etc. (probably not worth reading unless you're having a subtle timing issue).
+
 .. rubric:: Footnotes
 
 .. [#f1] Or use the :option:`--count` option to have Scenic automatically terminate after
