@@ -1,5 +1,6 @@
 
 import os
+import socket
 import subprocess
 
 import pytest
@@ -13,6 +14,11 @@ def test_build_docs():
     We do this in a subprocess since the Sphinx configuration file activates the veneer
     and has other side-effects that aren't reset afterward.
     """
+    try:
+        socket.getaddrinfo('https://docs.python.org', 80)
+    except OSError:
+        pytest.skip('cannot connect to python.org for Intersphinx')
+
     oldDirectory = os.getcwd()
     try:
         os.chdir('docs')
