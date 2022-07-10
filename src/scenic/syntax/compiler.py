@@ -79,7 +79,6 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     def visit_Require(self, node: s.Require):
         condition = self.visit(node.cond)
         syntax_id = self._register_requirement_syntax(condition)
-        prob = node.prob if node.prob is not None else 1.0
 
         return ast.Expr(
             value=ast.Call(
@@ -92,9 +91,10 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                     ),
                     ast.Constant(value=node.lineno),
                     ast.Constant(value=node.name),
-                    ast.Constant(value=prob),
                 ],
-                keywords=[],
+                keywords=[ast.keyword(arg="prob", value=node.prob)]
+                if node.prob is not None
+                else [],
             )
         )
 
