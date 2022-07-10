@@ -74,12 +74,15 @@ class TestCompiler:
                         Lambda(body=Name("C")),  # requirement
                         Constant(2),  # lineno
                         Constant(name),  # name
-                        Constant(prob),  # prob
                     ],
+                    kwargs,  # prob or empty list
                 )
             ):
                 assert name is None if expected_name is None else name == expected_name
-                assert prob == expected_prob
+                compiled_prob = (
+                    kwargs[0].value if kwargs else 1.0
+                )  # if kwargs is empty, use 1.0
+                assert compiled_prob == expected_prob
             case _:
                 assert False
 
