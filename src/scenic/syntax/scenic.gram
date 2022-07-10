@@ -528,6 +528,7 @@ compound_stmt:
     | match_stmt
 
 scenic_stmt:
+    | scenic_model_stmt
     | scenic_ego_assignment
     | scenic_param_stmt
 
@@ -1480,6 +1481,9 @@ lambda_param[ast.arg]: a=NAME {
 
 # SCENIC STATEMENTS
 # =================
+
+scenic_model_stmt:
+    | "model" a=dotted_name { s.Model(name=a) }
 
 scenic_ego_assignment:
     | 'ego' '=' a=expression { s.EgoAssign(value=a, LOCATIONS) }
