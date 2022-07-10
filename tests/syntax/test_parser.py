@@ -76,6 +76,62 @@ class TestParam:
             parse_string_helper("param")
 
 
+class TestRequire:
+    def test_basic(self):
+        mod = parse_string_helper("require X")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(Name("X"), None, None):
+                assert True
+            case _:
+                assert False
+
+    def test_prob(self):
+        mod = parse_string_helper("require[0.2] X")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(Name("X"), 0.2, None):
+                assert True
+            case _:
+                assert False
+
+    def test_name(self):
+        mod = parse_string_helper("require X as name")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(Name("X"), None, "name"):
+                assert True
+            case _:
+                assert False
+
+    def test_prob_name(self):
+        mod = parse_string_helper("require[0.3] X as name")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(Name("X"), 0.3, "name"):
+                assert True
+            case _:
+                assert False
+
+    def test_name_quoted(self):
+        mod = parse_string_helper("require X as 'requirement name'")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(Name("X"), None, "requirement name"):
+                assert True
+            case _:
+                assert False
+
+    def test_name_number(self):
+        mod = parse_string_helper("require X as 123")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(Name("X"), None, "123"):
+                assert True
+            case _:
+                assert False
+
+
 class TestNew:
     def test_basic(self):
         mod = parse_string_helper("new Object")
