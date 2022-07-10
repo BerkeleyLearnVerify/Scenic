@@ -650,7 +650,11 @@ for op in infixOperators:
 			assert imp == oldName, (op, oldName)
 		else:
 			infixImplementations[node] = (op.arity, imp)
-generalInfixOps = { tokens: op.token for tokens, op in infixTokens.items() if not op.contexts }
+# infix operators which do not need to occur inside function calls
+generalInfixOps = {
+	tokens: op.token for tokens, op in infixTokens.items()
+	if (op.implementation or op.token == packageToken) and not op.contexts
+}
 
 ## Direct syntax replacements
 
@@ -2184,8 +2188,12 @@ def executeCodeIn(code, namespace):
 	try:
 		exec(code, namespace)
 	except RejectionException as e:
-		# Could detect statically that the scenario has probability zero
-		raise InvalidScenarioError(e.args[0]) from None
+		# Determined statically that the scenario has probability zero.
+		errors.optionallyDebugRejection(e)
+		if errors.showInternalBacktrace:
+			raise InvalidScenarioError(e.args[0]) from e
+		else:
+			raise InvalidScenarioError(e.args[0]).with_traceback(e.__traceback__) from None
 
 ### TRANSLATION PHASE SEVEN: scenario construction
 
