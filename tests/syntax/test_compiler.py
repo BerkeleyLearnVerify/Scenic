@@ -46,6 +46,49 @@ class TestCompiler:
                 Param([parameter("p1", Name("v1")), parameter("p1", Constant(1))])
             )
 
+    @pytest.mark.parametrize(
+        "options, expected_name, expected_prob",
+        [
+            # just requirement
+            ({}, None, 1.0),
+            # with probability
+            ({"prob": 0.2}, None, 0.2),
+            # with name
+            ({"name": "req_name"}, "req_name", 1.0),
+            # with probability and name
+            (
+                {"prob": 0.5, "name": "req_name"},
+                "req_name",
+                0.5,
+            ),
+        ],
+    )
+    def test_require(self, options, expected_name, expected_prob):
+        node, requirements = compileScenicAST(Require(Name("C"), lineno=2, **options))
+        match node:
+            case Expr(
+                Call(
+                    Name("require"),
+                    [
+                        Constant(0),  # reqId
+                        Lambda(body=Name("C")),  # requirement
+                        Constant(2),  # lineno
+                        Constant(name),  # name
+                        Constant(prob),  # prob
+                    ],
+                )
+            ):
+                assert name is None if expected_name is None else name == expected_name
+                assert prob == expected_prob
+            case _:
+                assert False
+
+        match requirements:
+            case [Name("C")]:
+                assert True
+            case _:
+                assert False
+
     # Instance & Specifiers
     def test_new_no_specifiers(self):
         node, _ = compileScenicAST(New("Object", []))
