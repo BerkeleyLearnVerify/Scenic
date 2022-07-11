@@ -13,9 +13,47 @@ def compileScenicAST(scenicAST: ast.AST) -> Tuple[ast.AST, List[ast.AST]]:
     return node, compiler.requirements
 
 
+# constants
+
+createDefault = "PropertyDefault"
+builtInConstructors = {"Object", "OrientedPoint", "Point"}
+
 # shorthands for convenience
 
 loadCtx = ast.Load()
+selfArg = ast.arguments(
+    posonlyargs=[],
+    args=[ast.arg(arg="self", annotation=None)],
+    vararg=None,
+    kwonlyargs=[],
+    kw_defaults=[],
+    kwarg=None,
+    defaults=[],
+)
+
+# helpers
+
+
+class AttributeFinder(ast.NodeVisitor):
+    """Utility class for finding all referenced attributes of a given name."""
+
+    @staticmethod
+    def find(target, node):
+        af = AttributeFinder(target)
+        af.visit(node)
+        return af.attributes
+
+    def __init__(self, target):
+        super().__init__()
+        self.target = target
+        self.attributes = set()
+
+    def visit_Attribute(self, node):
+        val = node.value
+        if isinstance(val, ast.Name) and val.id == self.target:
+            self.attributes.add(node.attr)
+        self.visit(val)
+
 
 # transformer
 
@@ -24,6 +62,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
         self.requirements = []
+        self.constructors = set(builtInConstructors)
 
     def generic_visit(self, node):
         if isinstance(node, s.AST):
@@ -42,6 +81,75 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 keywords=[],
             )
         )
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> any:
+        # if no base class is specified, use Object
+        if not node.bases:
+            node.bases = [ast.Name(id="Object", ctx=ast.Load())]
+
+        # create a set of names of base classes
+        baseNames = set(
+            y
+            for base in node.bases
+            # omit if the base class is given not as a name
+            for y in ([base.id] if isinstance(base, ast.Name) else [])
+        )
+
+        # if node base classes contain a Scenic class
+        if baseNames & self.constructors:
+            # add this class to the set of Scenic classes
+            self.constructors.add(node.name)
+            return self.transformScenicClass(node)
+        else:
+            # TODO(shun): Is any assertion necessary here?
+            return self.generic_visit(node)
+
+    def transformScenicClass(self, node):
+        """Process property defaults for Scenic classes."""
+        newBody = []
+        for child in node.body:
+            child = self.visit(child)
+            if isinstance(child, ast.AnnAssign):  # default value for property
+                origValue = child.annotation
+                target = child.target
+                # extract any attributes for this property
+                metaAttrs = []
+                if isinstance(target, ast.Subscript):
+                    sl = target.slice
+                    # needed for compatibility with Python 3.8 and earlier
+                    if isinstance(sl, ast.Index):
+                        sl = sl.value
+                    if isinstance(sl, ast.Name):
+                        metaAttrs.append(sl.id)
+                    elif isinstance(sl, Tuple):
+                        for elt in sl.elts:
+                            if not isinstance(elt, ast.Name):
+                                raise SyntaxError(
+                                    "malformed attributes for property default"
+                                )
+                            metaAttrs.append(elt.id)
+                    else:
+                        raise SyntaxError("malformed attributes for property default")
+                    newTarget = ast.Name(target.value.id, ast.Store())
+                    ast.copy_location(newTarget, target)
+                    target = newTarget
+                # find dependencies of the default value
+                properties = AttributeFinder.find("self", origValue)
+                # create default value object
+                args = [
+                    ast.Set([ast.Str(prop) for prop in properties]),
+                    ast.Set([ast.Str(attr) for attr in metaAttrs]),
+                    ast.Lambda(selfArg, origValue),
+                ]
+                value = ast.Call(ast.Name(createDefault, ast.Load()), args, [])
+                ast.copy_location(value, origValue)
+                newChild = ast.AnnAssign(
+                    target=target, annotation=value, value=None, simple=True
+                )
+                child = ast.copy_location(newChild, child)
+            newBody.append(child)
+        node.body = newBody
+        return node
 
     def visit_Param(self, node: s.Param):
         d = dict()

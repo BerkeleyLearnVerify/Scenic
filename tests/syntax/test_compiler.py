@@ -16,6 +16,129 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_scenic_class(self):
+        # Because Scenic's class definition is syntactically the same as Python,
+        # can use the Python parser here
+        node, _ = compileScenicAST(
+            parse(
+                """
+class MyObject(Object):
+    property: type
+"""
+            )
+        )
+        match node:
+            case Module(
+                [
+                    ClassDef(
+                        name="MyObject",
+                        bases=[Name("Object")],
+                        body=[
+                            AnnAssign(
+                                target=Name("property"),
+                                annotation=Call(
+                                    func=Name("PropertyDefault"),
+                                    # just checking types here, advanced checks to be done in integration tests
+                                    args=[Set(), Set(), Lambda()],
+                                ),
+                            )
+                        ],
+                    )
+                ]
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_scenic_class_inheritance(self):
+        # Because `ScenicClass` is a Scenic class, `ChildScenicClass` is also a Scenic class
+        node, _ = compileScenicAST(
+            parse(
+                """
+class ScenicClass(Object): pass
+class ChildScenicClass(ScenicClass):
+    property: type
+        """
+            )
+        )
+        match node.body[1]:
+            case ClassDef(
+                name="ChildScenicClass",
+                bases=[Name("ScenicClass")],
+                body=[
+                    AnnAssign(
+                        target=Name("property"),
+                        annotation=Call(
+                            func=Name("PropertyDefault"),
+                            args=[Set(), Set(), Lambda()],
+                        ),
+                    )
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_scenic_class_inheritance_2(self):
+        # ChildScenicClass is a Scenic class even if its bases contains a Python class
+        node, _ = compileScenicAST(
+            parse(
+                """
+class ScenicClass(Object): pass
+class ChildScenicClass(ScenicClass, object):
+    property: type
+        """
+            )
+        )
+        match node.body[1]:
+            case ClassDef(
+                name="ChildScenicClass",
+                bases=[Name("ScenicClass"), Name("object")],
+                body=[
+                    AnnAssign(
+                        target=Name("property"),
+                        annotation=Call(
+                            func=Name("PropertyDefault"),
+                            args=[Set(), Set(), Lambda()],
+                        ),
+                    )
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_scenic_class_default_base(self):
+        node, _ = compileScenicAST(parse("class ScenicClass: pass"))
+        match node.body[0]:
+            case ClassDef(name="ScenicClass", bases=[Name("Object")]):
+                assert True
+            case _:
+                assert False
+
+    def test_python_class(self):
+        # Python class should be left as is
+        node, _ = compileScenicAST(
+            parse(
+                """
+class PythonClass(object):
+    property: type
+        """
+            )
+        )
+        match node.body[0]:
+            case ClassDef(
+                body=[
+                    AnnAssign(
+                        target=Name("property"),
+                        annotation=Name("type"),
+                    )
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
     # Simple Statement
     def test_param_basic(self):
         node, _ = compileScenicAST(Param([parameter("p1", Name("v1"))]))
