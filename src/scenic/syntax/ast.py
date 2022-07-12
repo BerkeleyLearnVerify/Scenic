@@ -72,6 +72,15 @@ class Require(AST):
         self._fields = ["cond"]
 
 
+class Mutate(AST):
+    __match_args__ = ("elts",)
+
+    def __init__(self, elts: list[ast.Name], *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.elts = elts
+        self._fields = ["elts"]
+
+
 # Instance Creation
 
 
