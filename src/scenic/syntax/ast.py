@@ -20,6 +20,16 @@ class EgoAssign(AST):
 
 
 # simple statements
+
+
+class Model(AST):
+    __match_args__ = ("name",)
+
+    def __init__(self, name: str, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.name = name
+
+
 class Param(AST):
     "`param identifier = value, …` statements"
 
