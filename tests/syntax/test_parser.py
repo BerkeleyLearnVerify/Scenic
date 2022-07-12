@@ -48,10 +48,10 @@ class TestModel:
                 assert False
 
     def test_dotted(self):
-        mod = parse_string_helper("model scenic.simulators.carla")
+        mod = parse_string_helper("model scenic.simulators.carla.model")
         stmt = mod.body[0]
         match stmt:
-            case Model("scenic.simulators.carla"):
+            case Model("scenic.simulators.carla.model"):
                 assert True
             case _:
                 assert False
