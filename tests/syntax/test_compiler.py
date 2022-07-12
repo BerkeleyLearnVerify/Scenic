@@ -17,6 +17,18 @@ class TestCompiler:
                 assert False
 
     # Simple Statement
+    def test_model_basic(self):
+        node, _ = compileScenicAST(Model("model"))
+        match node:
+            case Expr(
+                Call(
+                    Name("model"), [Name("_Scenic_module_namespace"), Constant("model")]
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
     def test_param_basic(self):
         node, _ = compileScenicAST(Param([parameter("p1", Name("v1"))]))
         match node:
