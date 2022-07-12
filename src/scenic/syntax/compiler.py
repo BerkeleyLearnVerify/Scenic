@@ -17,6 +17,16 @@ def compileScenicAST(scenicAST: ast.AST) -> Tuple[ast.AST, List[ast.AST]]:
 
 loadCtx = ast.Load()
 
+noArgs = ast.arguments(
+    posonlyargs=[],
+    args=[],
+    vararg=None,
+    kwonlyargs=[],
+    kw_defaults=[],
+    kwarg=None,
+    defaults=[],
+)
+
 # transformer
 
 
@@ -31,6 +41,11 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 f'Scenic AST node "{node.__class__.__name__}" needs visitor in compiler'
             )
         return super().generic_visit(node)
+
+    # helper functions
+    def _register_requirement_syntax(self, syntax: ast.AST) -> int:
+        self.requirements.append(syntax)
+        return len(self.requirements) - 1
 
     # Special Case
 
@@ -58,7 +73,28 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                         list(d.values()),
                     )
                 ],
-                keywords=[],
+            )
+        )
+
+    def visit_Require(self, node: s.Require):
+        condition = self.visit(node.cond)
+        syntax_id = self._register_requirement_syntax(condition)
+
+        return ast.Expr(
+            value=ast.Call(
+                func=ast.Name(id="require", ctx=loadCtx),
+                args=[
+                    ast.Constant(syntax_id),
+                    ast.Lambda(
+                        args=noArgs,
+                        body=condition,
+                    ),
+                    ast.Constant(value=node.lineno),
+                    ast.Constant(value=node.name),
+                ],
+                keywords=[ast.keyword(arg="prob", value=node.prob)]
+                if node.prob is not None
+                else [],
             )
         )
 
