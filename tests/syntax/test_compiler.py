@@ -29,6 +29,40 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_mutate_basic(self):
+        node, _ = compileScenicAST(Mutate([Name("x", Load())]))
+        match node:
+            case Expr(Call(Name("mutate"), [Name("x")])):
+                assert True
+            case _:
+                assert False
+
+    def test_mutate_multiple(self):
+        node, _ = compileScenicAST(
+            Mutate([Name("x", Load()), Name("y", Load()), Name("z", Load())])
+        )
+        match node:
+            case Expr(Call(Name("mutate"), [Name("x"), Name("y"), Name("z")])):
+                assert True
+            case _:
+                assert False
+
+    def test_mutate_ego(self):
+        node, _ = compileScenicAST(Mutate([Name("ego", Load())]))
+        match node:
+            case Expr(Call(Name("mutate"), [Call(Name("ego"))])):
+                assert True
+            case _:
+                assert False
+
+    def test_mutate_empty(self):
+        node, _ = compileScenicAST(Mutate([]))
+        match node:
+            case Expr(Call(Name("mutate"), [])):
+                assert True
+            case _:
+                assert False
+
     def test_param_basic(self):
         node, _ = compileScenicAST(Param([parameter("p1", Name("v1"))]))
         match node:
