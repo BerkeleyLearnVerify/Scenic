@@ -9,12 +9,48 @@ from scenic.syntax.compiler import compileScenicAST
 class TestCompiler:
     # Special Case
     def test_ego_assign(self):
-        node, _ = compileScenicAST(EgoAssign(Constant(1)))
+        node, _ = compileScenicAST(TrackedAssign(Ego(), Constant(1)))
         match node:
             case Expr(Call(Name("ego"), [Constant(1)])):
                 assert True
             case _:
                 assert False
+
+    def test_workspace_assign(self):
+        node, _ = compileScenicAST(TrackedAssign(Workspace(), Constant(1)))
+        match node:
+            case Expr(Call(Name("workspace"), [Constant(1)])):
+                assert True
+            case _:
+                assert False
+
+    def test_ego_reference(self):
+        node, _ = compileScenicAST(Name("ego", Load()))
+        match node:
+            case Call(Name("ego")):
+                assert True
+            case _:
+                assert False
+
+    def test_workspace_reference(self):
+        node, _ = compileScenicAST(Name("workspace", Load()))
+        match node:
+            case Call(Name("workspace")):
+                assert True
+            case _:
+                assert False
+
+    def test_builtin_name(self):
+        with pytest.raises(SyntaxError):
+            compileScenicAST(Assign([Name("globalParameters", Store())], Constant(1)))
+
+    def test_tracked_name_assign(self):
+        # simple assign will be converted to `TrackedAssign` by the parser,
+        # but it is still possible to get a `Name` node with one of the tracked names
+        # e.g. multiple assignment: ego = myEgo = <some value>
+        # if a tracked name is used in the Store context, that is an syntax error
+        with pytest.raises(SyntaxError):
+            compileScenicAST(Assign([Name("workspace", Store())], Constant(1)))
 
     # Simple Statement
     def test_model_basic(self):
