@@ -37,6 +37,26 @@ class TestEgoAssign:
             parse_string_helper("ego, x = 10, 20")
 
 
+class TestModel:
+    def test_basic(self):
+        mod = parse_string_helper("model some_model")
+        stmt = mod.body[0]
+        match stmt:
+            case Model("some_model"):
+                assert True
+            case _:
+                assert False
+
+    def test_dotted(self):
+        mod = parse_string_helper("model scenic.simulators.carla.model")
+        stmt = mod.body[0]
+        match stmt:
+            case Model("scenic.simulators.carla.model"):
+                assert True
+            case _:
+                assert False
+
+
 class TestParam:
     def test_basic(self):
         mod = parse_string_helper("param i = v")
