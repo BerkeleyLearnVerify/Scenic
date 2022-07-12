@@ -44,6 +44,24 @@ class parameter(AST):
         self._fields = ["value"]
 
 
+class Require(AST):
+    __match_args__ = ("cond", "prob", "name")
+
+    def __init__(
+        self,
+        cond: ast.AST,
+        prob: Optional[float] = None,
+        name: Optional[str] = None,
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.cond = cond
+        self.prob = prob
+        self.name = name
+        self._fields = ["cond"]
+
+
 # Instance Creation
 
 
