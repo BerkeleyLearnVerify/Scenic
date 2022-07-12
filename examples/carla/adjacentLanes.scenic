@@ -1,10 +1,13 @@
-from scenic.simulators.carla.map import setMapPath
-setMapPath(__file__, 'OpenDrive/Town03.xodr')
-from scenic.simulators.carla.model import *
+param map = localPath('../../tests/formats/opendrive/maps/CARLA/Town03.xodr')
+model scenic.simulators.carla.model
 
-# Cars on lanes [-2..3] of the first LaneSection of Road 70.
-ego = Car in laneSectionDict[70][0][1]
-c1 = Car in laneSectionDict[70][0][2]
-c2 = Car in laneSectionDict[70][0][3]
-c3 = Car in laneSectionDict[70][0][-1]
-c4 = Car in laneSectionDict[70][0][-2]
+# Cars on adjacent lanes of the first section of Road 69
+roadSec = network.elements['road69'].sections[0]
+ego = Car in roadSec.forwardLanes[0],    # rightmost lane
+    with color Color(1, 0, 0)
+c1 = Car in roadSec.forwardLanes[1],     # next lane to left
+    with color Color(0, 1, 0)
+c2 = Car in roadSec.backwardLanes[0],    # rightmost lane on other side of road
+    with color Color(0, 0, 1)
+c3 = Car in roadSec.backwardLanes[1],    # next lane to left
+    with color Color(0, 0, 0)
