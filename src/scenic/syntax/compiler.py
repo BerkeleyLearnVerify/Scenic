@@ -70,6 +70,15 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             )
         )
 
+    def visit_Mutate(self, node: s.Mutate):
+        return ast.Expr(
+            value=ast.Call(
+                func=ast.Name(id="mutate", ctx=loadCtx),
+                args=[self.visit(el) for el in node.elts],
+                keywords=[],
+            )
+        )
+
     def visit_Param(self, node: s.Param):
         d = dict()
         for parameter in node.elts:

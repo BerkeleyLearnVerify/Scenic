@@ -57,6 +57,44 @@ class TestModel:
                 assert False
 
 
+class TestMutate:
+    def test_basic(self):
+        mod = parse_string_helper("mutate x")
+        stmt = mod.body[0]
+        match stmt:
+            case Mutate([Name("x", Load())]):
+                assert True
+            case _:
+                assert False
+
+    def test_multiple(self):
+        mod = parse_string_helper("mutate x, y, z")
+        stmt = mod.body[0]
+        match stmt:
+            case Mutate([Name("x", Load()), Name("y", Load()), Name("z", Load())]):
+                assert True
+            case _:
+                assert False
+
+    def test_ego(self):
+        mod = parse_string_helper("mutate ego")
+        stmt = mod.body[0]
+        match stmt:
+            case Mutate([Name("ego", Load())]):
+                assert True
+            case _:
+                assert False
+
+    def test_empty(self):
+        mod = parse_string_helper("mutate")
+        stmt = mod.body[0]
+        match stmt:
+            case Mutate([]):
+                assert True
+            case _:
+                assert False
+
+
 class TestParam:
     def test_basic(self):
         mod = parse_string_helper("param i = v")
