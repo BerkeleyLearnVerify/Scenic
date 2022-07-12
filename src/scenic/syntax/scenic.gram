@@ -530,6 +530,7 @@ compound_stmt:
 scenic_stmt:
     | scenic_ego_assignment
     | scenic_param_stmt
+    | scenic_require_stmt
 
 # SIMPLE STATEMENTS
 # =================
@@ -1490,6 +1491,14 @@ scenic_param_stmt_param: name=scenic_param_stmt_id '=' e=expression { s.paramete
 scenic_param_stmt_id:
     | a=NAME { a.string }
     | a=STRING { a.string[1:-1] } # strip quotes
+
+scenic_require_stmt:
+    | 'require' p=['[' a=NUMBER ']' { float(a.string) }] e=expression n=['as' a=scenic_require_stmt_name { a }] {
+        s.Require(cond=e, prob=p, name=n, LOCATIONS)
+     }
+scenic_require_stmt_name:
+    | a=(NAME | NUMBER) { a.string }
+    | a=STRING { a.string[1:-1] }
 
 # LITERALS
 # ========
