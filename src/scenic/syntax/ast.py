@@ -10,13 +10,33 @@ class AST(ast.AST):
 
 
 # special statements
-class EgoAssign(AST):
-    __match_args__ = ("value",)
+class TrackedAssign(AST):
+    __match_args__ = (
+        "target",
+        "value",
+    )
 
-    def __init__(self, value: any, *args: any, **kwargs: any) -> None:
+    def __init__(
+        self,
+        target: Union["Ego", "Workspace"],
+        value: ast.AST,
+        *args: any,
+        **kwargs: any
+    ) -> None:
         super().__init__(*args, **kwargs)
+        self.target = target
         self.value = value
-        self._fields = ["value"]
+        self._fields = ["target", "value"]
+
+
+class Ego(AST):
+    "`ego` tracked assign target"
+    functionName = "ego"
+
+
+class Workspace(AST):
+    "`workspace` tracked assign target"
+    functionName = "workspace"
 
 
 # simple statements
