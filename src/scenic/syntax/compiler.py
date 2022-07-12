@@ -58,6 +58,18 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             )
         )
 
+    def visit_Model(self, node: s.Model):
+        return ast.Expr(
+            value=ast.Call(
+                func=ast.Name(id="model", ctx=loadCtx),
+                args=[
+                    ast.Name(id="_Scenic_module_namespace", ctx=loadCtx),
+                    ast.Constant(value=node.name),
+                ],
+                keywords=[],
+            )
+        )
+
     def visit_Param(self, node: s.Param):
         d = dict()
         for parameter in node.elts:
