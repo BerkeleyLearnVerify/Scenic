@@ -717,7 +717,7 @@ scenic_class_statement[list]:
 
 scenic_class_property_stmt:
     # not a simple statement; reads NEWLINE
-    | a=NAME b=['[' attrs=scenic_class_property_attributes ']' { attrs } ] ':' c=expression NEWLINE { 
+    | a=NAME b=['[' attrs=','.NAME+ ']' { [a.string for a in attrs] } ] ':' c=expression NEWLINE { 
         s.PropertyDef(
             property=a.string,
             attributes=b if b is not None else [],
@@ -725,19 +725,6 @@ scenic_class_property_stmt:
             LOCATIONS,
         )
      }
-
-scenic_class_property_attributes: attrs=','.NAME+ {
-    [
-        ast.Name(
-            id=a.string,
-            ctx=Load,
-            lineno=a.start[0],
-            col_offset=a.start[1],
-            end_lineno=a.end[0],
-            end_col_offset=a.end[1]
-        ) for a in attrs
-    ]
-}
 
 # Function definitions
 # --------------------

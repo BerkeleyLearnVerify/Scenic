@@ -45,7 +45,7 @@ class PropertyDef(AST):
     def __init__(
         self,
         property: str,
-        attributes: list[ast.Name],
+        attributes: list[str],
         value=ast.AST,
         *args: any,
         **kwargs: any
@@ -54,7 +54,7 @@ class PropertyDef(AST):
         self.property = property
         self.attributes = attributes
         self.value = value
-        self._fields = ["attributes", "value"]
+        self._fields = ["value"]
 
 
 # simple statements
