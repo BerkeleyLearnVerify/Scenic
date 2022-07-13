@@ -42,6 +42,11 @@ class Constructible(Samplable):
 		super().__init_subclass__()
 		# find all defaults provided by the class or its superclasses
 		allDefs = collections.defaultdict(list)
+
+		# catch multiple inheritance of Scenic classes
+		if len(bases := [base.__name__ for base in cls.__bases__ if issubclass(base, Constructible)]) > 1:
+			raise SyntaxError(f"cannot inherit more than one Scenic classes: {', '.join(bases)}")
+
 		for sc in cls.__mro__:
 			if issubclass(sc, Constructible) and hasattr(sc, '_scenic_properties'):
 				for prop, value in sc._scenic_properties.items():
