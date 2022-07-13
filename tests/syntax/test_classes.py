@@ -5,25 +5,14 @@ import pytest
 from scenic.core.errors import TokenParseError, ASTParseError, RuntimeParseError
 from tests.utils import compileScenic, sampleScene
 
-def test_wrong_class_statement():
-    with pytest.raises(TokenParseError):
-        compileScenic("""
-            constructor Foo(object):
-                pass
-        """)
-    with pytest.raises(TokenParseError):
-        compileScenic("""
-            import collections
-            constructor Foo(collections.defaultdict):
-                pass
-        """)
 
 def test_old_constructor_statement():
-    compileScenic("""
-        constructor Foo:
-            blah: 19 @ -3
-        ego = Foo with blah 12
-    """)
+    with pytest.raises(SyntaxError):
+        compileScenic("""
+            constructor Foo:
+                blah: (19, -3)
+            ego = Foo with blah 12
+        """)
 
 def test_python_class():
     scenario = compileScenic("""
