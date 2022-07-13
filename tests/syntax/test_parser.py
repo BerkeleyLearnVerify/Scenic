@@ -1,5 +1,6 @@
 from ast import *
 from typing import Any
+from textwrap import dedent
 
 import pytest
 
@@ -9,7 +10,7 @@ from scenic.syntax.parser import parse_string
 
 def parse_string_helper(source: str) -> Any:
     "Parse string and return Scenic AST"
-    return parse_string(source, "exec")
+    return parse_string(dedent(source), "exec")
 
 
 class TestTrackedNames:
@@ -36,6 +37,119 @@ class TestTrackedNames:
         stmt = mod.body[0]
         match stmt:
             case TrackedAssign(Workspace(), Call(Name("Workspace"))):
+                assert True
+            case _:
+                assert False
+
+
+class TestClass:
+    def test_basic(self):
+        mod = parse_string_helper(
+            """
+            class C:
+                pass
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ClassDef(name="C", bases=[], keywords=[]):
+                assert True
+            case _:
+                assert False
+
+    def test_property_def(self):
+        mod = parse_string_helper(
+            """
+            class C:
+                property: value
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ClassDef(
+                name="C",
+                bases=[],
+                keywords=[],
+                body=[PropertyDef("property", [], Name("value", Load()))],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_property_def_with_attr(self):
+        mod = parse_string_helper(
+            """
+            class C:
+                property[attribute]: value
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ClassDef(
+                name="C",
+                bases=[],
+                keywords=[],
+                body=[
+                    PropertyDef(
+                        "property", [Name("attribute", Load())], Name("value", Load())
+                    )
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_property_def_with_multiple(self):
+        mod = parse_string_helper(
+            """
+            class C:
+                property[attribute1, attribute2]: value
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ClassDef(
+                name="C",
+                bases=[],
+                keywords=[],
+                body=[
+                    PropertyDef(
+                        "property",
+                        [Name("attribute1", Load()), Name("attribute2", Load())],
+                        Name("value", Load()),
+                    )
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_property_def_nested(self):
+        # property definition is allowed only on the top level
+        mod = parse_string_helper(
+            """
+            class C:
+                if True:
+                    property: value
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ClassDef(
+                name="C",
+                bases=[],
+                keywords=[],
+                body=[
+                    If(
+                        Constant(True),
+                        [
+                            AnnAssign(
+                                Name("property", Store()), Name("value", Load()), None
+                            )
+                        ],
+                    )
+                ],
+            ):
                 assert True
             case _:
                 assert False
