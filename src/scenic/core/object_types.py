@@ -42,8 +42,8 @@ class Constructible(Samplable):
 		# find all defaults provided by the class or its superclasses
 		allDefs = collections.defaultdict(list)
 		for sc in cls.__mro__:
-			if issubclass(sc, Constructible) and hasattr(sc, '__annotations__'):
-				for prop, value in sc.__annotations__.items():
+			if issubclass(sc, Constructible) and hasattr(sc, '_scenic_properties'):
+				for prop, value in sc._scenic_properties.items():
 					allDefs[prop].append(PropertyDefault.forValue(value))
 
 		# resolve conflicting defaults and gather dynamic properties
@@ -323,19 +323,21 @@ class Point(Constructible):
 		positionStdDev (float): Standard deviation of Gaussian noise to add to this
 		  object's ``position`` when mutation is enabled with scale 1. Default value 1.
 	"""
-	position: PropertyDefault((), {'dynamic'}, lambda self: Vector(0, 0))
-	width: 0
-	length: 0
-	visibleDistance: 50
+	_scenic_properties = {
+		"position": PropertyDefault((), {'dynamic'}, lambda self: Vector(0, 0)),
+		"width": 0,
+		"length": 0,
+		"visibleDistance": 50,
 
-	mutationScale: 0
-	mutator: PropertyDefault({'positionStdDev'}, {'additive'},
-							 lambda self: PositionMutator(self.positionStdDev))
-	positionStdDev: 1
+		"mutationScale": 0,
+		"mutator": PropertyDefault({'positionStdDev'}, {'additive'},
+								lambda self: PositionMutator(self.positionStdDev)),
+		"positionStdDev": 1,
 
-	# This property is defined in Object, but we provide a default empty value
-	# for Points for implementation convenience.
-	regionContainedIn: None
+		# This property is defined in Object, but we provide a default empty value
+		# for Points for implementation convenience.
+		"regionContainedIn": None,
+	}
 
 	@cached_property
 	def visibleRegion(self):
@@ -394,12 +396,14 @@ class OrientedPoint(Point):
 		headingStdDev (float): Standard deviation of Gaussian noise to add to this
 		  object's ``heading`` when mutation is enabled with scale 1. Default value 5°.
 	"""
-	heading: PropertyDefault((), {'dynamic'}, lambda self: 0)
-	viewAngle: math.tau
+	_scenic_properties = {
+		"heading": PropertyDefault((), {'dynamic'}, lambda self: 0),
+		"viewAngle": math.tau,
 
-	mutator: PropertyDefault({'headingStdDev'}, {'additive'},
-		lambda self: HeadingMutator(self.headingStdDev))
-	headingStdDev: math.radians(5)
+		"mutator": PropertyDefault({'headingStdDev'}, {'additive'},
+			lambda self: HeadingMutator(self.headingStdDev)),
+		"headingStdDev": math.radians(5),
+	}
 
 	@cached_property
 	def visibleRegion(self):
@@ -458,21 +462,23 @@ class Object(OrientedPoint, _RotatedRectangle):
 		behavior: Behavior for dynamic agents, if any (see :ref:`dynamics`). Default
 			value ``None``.
 	"""
-	width: 1
-	length: 1
+	_scenic_properties = {
+		"width": 1,
+		"length": 1,
 
-	allowCollisions: False
-	requireVisible: True
-	regionContainedIn: None
-	cameraOffset: Vector(0, 0)
+		"allowCollisions": False,
+		"requireVisible": True,
+		"regionContainedIn": None,
+		"cameraOffset": Vector(0, 0),
 
-	velocity: PropertyDefault(('speed', 'heading'), {'dynamic'},
-	                          lambda self: Vector(0, self.speed).rotatedBy(self.heading))
-	speed: PropertyDefault((), {'dynamic'}, lambda self: 0)
-	angularSpeed: PropertyDefault((), {'dynamic'}, lambda self: 0)
+		"velocity": PropertyDefault(('speed', 'heading'), {'dynamic'},
+								lambda self: Vector(0, self.speed).rotatedBy(self.heading)),
+		"speed": PropertyDefault((), {'dynamic'}, lambda self: 0),
+		"angularSpeed": PropertyDefault((), {'dynamic'}, lambda self: 0),
 
-	behavior: None
-	lastActions: None
+		"behavior": None,
+		"lastActions": None,
+	}
 
 	def __new__(cls, *args, **kwargs):
 		obj = super().__new__(cls)
