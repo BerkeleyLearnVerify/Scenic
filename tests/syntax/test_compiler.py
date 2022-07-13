@@ -53,17 +53,30 @@ class TestCompiler:
             compileScenicAST(Assign([Name("workspace", Store())], Constant(1)))
 
     def test_classdef(self):
+        # Object is specified as a base
         # `_scenic_properties` is initialized at the beginning of class body
         node, _ = compileScenicAST(ClassDef("C", [], [], [], []))
         match node:
             case ClassDef(
                 name="C",
+                bases=[Name("Object", Load())],
                 body=[
                     Assign(
                         targets=[Name("_scenic_properties", Store())],
                         value=Dict([], []),
                     )
                 ],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_classdef_explicit_base(self):
+        node, _ = compileScenicAST(ClassDef("C", [Name("MyBase", Load())], [], [], []))
+        match node:
+            case ClassDef(
+                name="C",
+                bases=[Name("MyBase", Load())],
             ):
                 assert True
             case _:
