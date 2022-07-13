@@ -333,7 +333,7 @@ class TestCompiler:
     def test_new_no_specifiers(self):
         node, _ = compileScenicAST(New("Object", []))
         match node:
-            case Call(Name("Object")):
+            case Call(Name("new"), [Name("Object"), List([])]):
                 assert True
             case _:
                 assert False
@@ -342,7 +342,11 @@ class TestCompiler:
         node, _ = compileScenicAST(New("Object", [WithSpecifier("foo", Constant(1))]))
         match node:
             case Call(
-                Name("Object"), [Call(Name("With"), [Constant("foo"), Constant(1)])]
+                Name("new"),
+                [
+                    Name("Object"),
+                    List([Call(Name("With"), [Constant("foo"), Constant(1)])]),
+                ],
             ):
                 assert True
             case _:
@@ -357,10 +361,15 @@ class TestCompiler:
         )
         match node:
             case Call(
-                Name("Object"),
+                Name("new"),
                 [
-                    Call(Name("With"), [Constant("foo"), Constant(1)]),
-                    Call(Name("At"), [Name("position")]),
+                    Name("Object"),
+                    List(
+                        [
+                            Call(Name("With"), [Constant("foo"), Constant(1)]),
+                            Call(Name("At"), [Name("position")]),
+                        ]
+                    ),
                 ],
             ):
                 assert True
