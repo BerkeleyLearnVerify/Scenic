@@ -89,11 +89,7 @@ class TestClass:
                 name="C",
                 bases=[],
                 keywords=[],
-                body=[
-                    PropertyDef(
-                        "property", [Name("attribute", Load())], Name("value", Load())
-                    )
-                ],
+                body=[PropertyDef("property", ["attribute"], Name("value", Load()))],
             ):
                 assert True
             case _:
@@ -115,7 +111,7 @@ class TestClass:
                 body=[
                     PropertyDef(
                         "property",
-                        [Name("attribute1", Load()), Name("attribute2", Load())],
+                        ["attribute1", "attribute2"],
                         Name("value", Load()),
                     )
                 ],
