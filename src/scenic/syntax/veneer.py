@@ -9,7 +9,7 @@ global state such as the list of all created Scenic objects.
 __all__ = (
 	# Primitive statements and functions
 	'ego', 'workspace',
-	'require', 'resample', 'param', 'globalParameters', 'mutate', 'verbosePrint',
+	'new', 'require', 'resample', 'param', 'globalParameters', 'mutate', 'verbosePrint',
 	'localPath', 'model', 'simulator', 'simulation', 'require_always', 'require_eventually',
 	'terminate_when', 'terminate_simulation_when', 'terminate_after', 'in_initial_scenario',
 	'override',
@@ -362,6 +362,11 @@ class Modifier(typing.NamedTuple):
 	terminator: typing.Optional[str] = None
 
 ### Primitive statements and functions
+
+def new(cls, specifiers):
+	if not issubclass(cls, Constructible):
+		raise SyntaxError(f'"{cls.__name__}" is not a Scenic class')
+	return cls(*specifiers)
 
 def ego(obj=None):
 	"""Function implementing loads and stores to the 'ego' pseudo-variable.
