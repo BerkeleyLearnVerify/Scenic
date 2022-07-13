@@ -225,8 +225,11 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     def visit_New(self, node: s.New):
         return ast.Call(
-            func=ast.Name(id=node.className, ctx=loadCtx),
-            args=[self.visit(s) for s in node.specifiers],
+            func=ast.Name(id="new", ctx=loadCtx),
+            args=[
+                ast.Name(id=node.className, ctx=loadCtx),
+                ast.List(elts=[self.visit(s) for s in node.specifiers], ctx=ast.Load()),
+            ],
             keywords=[],
         )
 
