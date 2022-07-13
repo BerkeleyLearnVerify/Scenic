@@ -39,6 +39,24 @@ class Workspace(AST):
     functionName = "workspace"
 
 
+class PropertyDef(AST):
+    __match_args__ = ("property", "attributes", "value")
+
+    def __init__(
+        self,
+        property: str,
+        attributes: list[ast.Name],
+        value=ast.AST,
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.property = property
+        self.attributes = attributes
+        self.value = value
+        self._fields = ["attributes", "value"]
+
+
 # simple statements
 
 
