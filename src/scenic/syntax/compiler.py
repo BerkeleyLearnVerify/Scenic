@@ -105,6 +105,10 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         )
 
     def visit_ClassDef(self, node: ast.ClassDef) -> any:
+        # use `Object` as base if none is specified
+        if not node.bases:
+            node.bases = [ast.Name("Object", loadCtx)]
+
         # extract all property definitions
         propertyDefs: list[s.PropertyDef] = []
         newBody = []
