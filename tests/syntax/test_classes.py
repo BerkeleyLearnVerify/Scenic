@@ -30,7 +30,7 @@ def test_python_class():
         class Foo(object):
             def __init__(self, x):
                  self.x = x
-        ego = Object with width Foo(4).x
+        ego = new Object with width Foo(4).x
     """)
     scene = sampleScene(scenario, maxIterations=1)
     ego = scene.egoObject
@@ -46,9 +46,9 @@ def test_invalid_attribute():
 def test_property_simple():
     scenario = compileScenic("""
         class Foo:
-            position: 3 @ 9
+            position: (3, 9)
             flubber: -12
-        ego = Foo
+        ego = new Foo
     """)
     scene = sampleScene(scenario, maxIterations=1)
     ego = scene.egoObject
@@ -62,7 +62,7 @@ def test_property_inheritance():
             flubber: -12
         class Bar(Foo):
             flubber: 7
-        ego = Bar
+        ego = new Bar
     """)
     scene = sampleScene(scenario, maxIterations=1)
     ego = scene.egoObject
@@ -72,13 +72,13 @@ def test_property_inheritance():
 def test_isinstance_issubclass():
     scenario = compileScenic("""
         class Foo: pass
-        ego = Foo
+        ego = new Foo
         if isinstance(ego, Foo):
-            other = Object at 10@0
+            other = new Object at (10, 0)
         if not isinstance(other, Foo):
-            Object at 20@0
+            new Object at (20, 0)
         if issubclass(Foo, Point):
-            Object at 30@0
+            new Object at (30, 0)
     """)
     scene = sampleScene(scenario)
     assert len(scene.objects) == 4
