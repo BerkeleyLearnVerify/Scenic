@@ -68,6 +68,10 @@ def test_malformed_constructor():
     with pytest.raises(TokenParseError):
         compileScenic('constructor Foo(Bar:\n' '    pass')
 
+def test_multiple_inheritance():
+    with pytest.raises(SyntaxError):
+        compileScenic("class Bad(Object, Point):\n    pass")
+
 ## Soft requirements
 
 def test_malformed_soft_requirement():
