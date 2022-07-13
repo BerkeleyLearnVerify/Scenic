@@ -52,6 +52,148 @@ class TestCompiler:
         with pytest.raises(SyntaxError):
             compileScenicAST(Assign([Name("workspace", Store())], Constant(1)))
 
+    def test_classdef(self):
+        # `_scenic_properties` is initialized at the beginning of class body
+        node, _ = compileScenicAST(ClassDef("C", [], [], [], []))
+        match node:
+            case ClassDef(
+                name="C",
+                body=[
+                    Assign(
+                        targets=[Name("_scenic_properties", Store())],
+                        value=Dict([], []),
+                    )
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_classdef_properties(self):
+        node, _ = compileScenicAST(
+            ClassDef(
+                "C",
+                [],
+                [],
+                [
+                    PropertyDef("property1", [], Constant(1)),
+                    PropertyDef("property2", [], Constant(2)),
+                    Expr(Constant("hello")),
+                ],
+                [],
+            )
+        )
+        match node:
+            case ClassDef(
+                name="C",
+                body=[
+                    Assign(
+                        targets=[Name("_scenic_properties", Store())],
+                        value=Dict(
+                            [Constant("property1"), Constant("property2")],
+                            [
+                                Call(
+                                    func=Name(id="PropertyDefault", ctx=Load()),
+                                    args=[
+                                        Set([]),
+                                        Set([]),
+                                        Lambda(body=Constant(1)),
+                                    ],
+                                    keywords=[],
+                                ),
+                                Call(
+                                    func=Name(id="PropertyDefault", ctx=Load()),
+                                    args=[
+                                        Set([]),
+                                        Set([]),
+                                        Lambda(body=Constant(2)),
+                                    ],
+                                    keywords=[],
+                                ),
+                            ],
+                        ),
+                    ),
+                    Expr(Constant("hello")),
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_classdef_properties2(self):
+        node, _ = compileScenicAST(
+            ClassDef(
+                "C",
+                [],
+                [],
+                [
+                    PropertyDef(
+                        "property",
+                        ["a", "b"],
+                        Attribute(
+                            value=Name(id="self", ctx=Load()), attr="x", ctx=Load()
+                        ),
+                    ),
+                ],
+                [],
+            )
+        )
+        match node:
+            case ClassDef(
+                name="C",
+                body=[
+                    Assign(
+                        targets=[Name("_scenic_properties", Store())],
+                        value=Dict(
+                            [Constant("property")],
+                            [
+                                Call(
+                                    func=Name(id="PropertyDefault", ctx=Load()),
+                                    args=[
+                                        Set([Constant("x")]),  # includes `x`
+                                        Set([Constant("a"), Constant("b")]),
+                                        Lambda(
+                                            body=Attribute(
+                                                value=Name(id="self", ctx=Load()),
+                                                attr="x",
+                                                ctx=Load(),
+                                            )
+                                        ),
+                                    ],
+                                    keywords=[],
+                                ),
+                            ],
+                        ),
+                    ),
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_classdef_duplicated_property(self):
+        with pytest.raises(SyntaxError):
+            compileScenicAST(
+                ClassDef(
+                    "C",
+                    [],
+                    [],
+                    [
+                        PropertyDef(
+                            "property",
+                            [],
+                            Constant(1),
+                        ),
+                        PropertyDef(
+                            "property",
+                            [],
+                            Constant(2),
+                        ),
+                    ],
+                    [],
+                )
+            )
+
     # Simple Statement
     def test_model_basic(self):
         node, _ = compileScenicAST(Model("model"))
