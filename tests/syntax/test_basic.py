@@ -108,14 +108,14 @@ def test_verbose():
     scenic.syntax.translator.verbosity = 1
 
 def test_dump_python():
-    scenic.syntax.translator.dumpTranslatedPython = True
+    scenic.syntax.translator.dumpScenicAST = True
     try:
-        compileScenic('ego = Object')
+        compileScenic('ego = new Object')
     finally:
         scenic.syntax.translator.dumpTranslatedPython = False
     scenic.syntax.translator.dumpFinalAST = True
     try:
-        compileScenic('ego = Object')
+        compileScenic('ego = new Object')
     finally:
         scenic.syntax.translator.dumpFinalAST = False
 
@@ -123,6 +123,6 @@ def test_dump_final_python():
     pytest.importorskip('astor')
     scenic.syntax.translator.dumpASTPython = True
     try:
-        compileScenic('ego = Object')
+        compileScenic('ego = new Object')
     finally:
         scenic.syntax.translator.dumpASTPython = False
