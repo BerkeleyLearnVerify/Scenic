@@ -120,15 +120,24 @@ class TestClass:
             case _:
                 assert False
 
-    def test_property_def_unknown_attribute(self):
-        with pytest.raises(SyntaxError) as e:
+    def test_property_def_unknown_attribute_1(self):
+        with pytest.raises(SyntaxError):
             parse_string_helper(
                 """
                 class C:
-                    property[unknown_attribute]: value
+                    property[unknown]: value
                 """
             )
-        assert 'unknown attribute "unknown_attribute"' in str(e)
+
+    def test_property_def_unknown_attribute_2(self):
+        # must raise an error even if attribute is not a NAME
+        with pytest.raises(SyntaxError):
+            parse_string_helper(
+                """
+                class C:
+                    property[2]: value
+                """
+            )
 
     def test_property_def_nested(self):
         # property definition is allowed only on the top level
