@@ -80,7 +80,7 @@ class TestClass:
         mod = parse_string_helper(
             """
             class C:
-                property[attribute]: value
+                property[additive]: value
             """
         )
         stmt = mod.body[0]
@@ -89,7 +89,7 @@ class TestClass:
                 name="C",
                 bases=[],
                 keywords=[],
-                body=[PropertyDef("property", ["attribute"], Name("value", Load()))],
+                body=[PropertyDef("property", [Additive()], Name("value", Load()))],
             ):
                 assert True
             case _:
@@ -99,7 +99,7 @@ class TestClass:
         mod = parse_string_helper(
             """
             class C:
-                property[attribute1, attribute2]: value
+                property[additive, dynamic]: value
             """
         )
         stmt = mod.body[0]
@@ -111,7 +111,7 @@ class TestClass:
                 body=[
                     PropertyDef(
                         "property",
-                        ["attribute1", "attribute2"],
+                        [Additive(), Dynamic()],
                         Name("value", Load()),
                     )
                 ],
@@ -119,6 +119,16 @@ class TestClass:
                 assert True
             case _:
                 assert False
+
+    def test_property_def_unknown_attribute(self):
+        with pytest.raises(SyntaxError) as e:
+            parse_string_helper(
+                """
+                class C:
+                    property[unknown_attribute]: value
+                """
+            )
+        assert 'unknown attribute "unknown_attribute"' in str(e)
 
     def test_property_def_nested(self):
         # property definition is allowed only on the top level

@@ -142,7 +142,7 @@ class TestCompiler:
                 [
                     PropertyDef(
                         "property",
-                        ["a", "b"],
+                        [Dynamic()],
                         Attribute(
                             value=Name(id="self", ctx=Load()), attr="x", ctx=Load()
                         ),
@@ -164,7 +164,7 @@ class TestCompiler:
                                     func=Name(id="PropertyDefault", ctx=Load()),
                                     args=[
                                         Set([Constant("x")]),  # includes `x`
-                                        Set([Constant("a"), Constant("b")]),
+                                        Set([Constant("dynamic")]),
                                         Lambda(
                                             body=Attribute(
                                                 value=Name(id="self", ctx=Load()),

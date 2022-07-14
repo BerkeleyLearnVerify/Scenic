@@ -717,7 +717,7 @@ scenic_class_statement[list]:
 
 scenic_class_property_stmt:
     # not a simple statement; reads NEWLINE
-    | a=NAME b=['[' attrs=','.NAME+ ']' { [a.string for a in attrs] } ] ':' c=expression NEWLINE { 
+    | a=NAME b=['[' attrs=','.scenic_class_property_attribute+ ']' { attrs } ] ':' c=expression NEWLINE { 
         s.PropertyDef(
             property=a.string,
             attributes=b if b is not None else [],
@@ -725,6 +725,12 @@ scenic_class_property_stmt:
             LOCATIONS,
         )
      }
+
+scenic_class_property_attribute:
+    | "additive" { s.Additive(LOCATIONS) }
+    | "dynamic" { s.Dynamic(LOCATIONS) }
+    # if '['' follows NAME at class definition top level and what follows is neither "additive" nor "dynamic", raise an error
+    | a=NAME { self.raise_syntax_error_known_location('unknown attribute "' + a.string + '"', a) }
 
 # Function definitions
 # --------------------

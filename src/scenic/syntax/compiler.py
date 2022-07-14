@@ -147,7 +147,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             func=ast.Name(id="PropertyDefault", ctx=ast.Load()),
             args=[
                 ast.Set(elts=[ast.Constant(value=p) for p in properties]),
-                ast.Set(elts=[ast.Constant(value=attr) for attr in node.attributes]),
+                ast.Set(
+                    elts=[ast.Constant(value=attr.keyword) for attr in node.attributes]
+                ),
                 ast.Lambda(
                     args=selfArg,
                     body=self.visit(node.value),

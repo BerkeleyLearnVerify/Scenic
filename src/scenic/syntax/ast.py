@@ -45,7 +45,7 @@ class PropertyDef(AST):
     def __init__(
         self,
         property: str,
-        attributes: list[str],
+        attributes: list[Union["Additive", "Dynamic"]],
         value=ast.AST,
         *args: any,
         **kwargs: any
@@ -55,6 +55,20 @@ class PropertyDef(AST):
         self.attributes = attributes
         self.value = value
         self._fields = ["value"]
+
+
+class Additive(AST):
+    keyword = "additive"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class Dynamic(AST):
+    keyword = "dynamic"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
 
 
 # simple statements
