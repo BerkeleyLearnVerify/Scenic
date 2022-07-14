@@ -66,7 +66,7 @@ debugOpts.add_argument('--pdb-on-reject', action='store_true',
 ver = metadata.version('scenic')
 debugOpts.add_argument('--version', action='version', version=f'Scenic {ver}',
                        help='print Scenic version information and exit')
-debugOpts.add_argument('--dump-initial-python', help='dump initial translated Python',
+debugOpts.add_argument('--dump-scenic-ast', help='dump Scenic AST',
                        action='store_true')
 debugOpts.add_argument('--dump-ast', help='dump final AST', action='store_true')
 debugOpts.add_argument('--dump-python', help='dump Python equivalent of final AST',
@@ -102,7 +102,7 @@ for name, value in args.param:
         except ValueError:
             pass
     params[name] = value
-translator.dumpTranslatedPython = args.dump_initial_python
+translator.dumpScenicAST = args.dump_scenic_ast
 translator.dumpFinalAST = args.dump_ast
 translator.dumpASTPython = args.dump_python
 translator.verbosity = args.verbosity
