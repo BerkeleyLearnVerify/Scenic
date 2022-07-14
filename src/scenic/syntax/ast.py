@@ -54,7 +54,7 @@ class PropertyDef(AST):
         self.property = property
         self.attributes = attributes
         self.value = value
-        self._fields = ["value"]
+        self._fields = ["attributes", "value"]
 
 
 class Additive(AST):
