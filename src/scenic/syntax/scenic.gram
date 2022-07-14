@@ -726,11 +726,12 @@ scenic_class_property_stmt:
         )
      }
 
-scenic_class_property_attribute:
-    | "additive" { s.Additive(LOCATIONS) }
+# fail if `NAME [ <expr> ]` pattern is found at top level of class definition and
+# <expr> is neither `additive` nor `dynamic`
+scenic_class_property_attribute: &&(
+      "additive" { s.Additive(LOCATIONS) }
     | "dynamic" { s.Dynamic(LOCATIONS) }
-    # if '['' follows NAME at class definition top level and what follows is neither "additive" nor "dynamic", raise an error
-    | a=NAME { self.raise_syntax_error_known_location('unknown attribute "' + a.string + '"', a) }
+)
 
 # Function definitions
 # --------------------
