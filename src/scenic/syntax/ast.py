@@ -28,6 +28,7 @@ class Model(AST):
     def __init__(self, name: str, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.name = name
+        self._fields = ["name"]
 
 
 class Param(AST):
@@ -51,7 +52,7 @@ class parameter(AST):
         super().__init__(*args, **kwargs)
         self.identifier = identifier
         self.value = value
-        self._fields = ["value"]
+        self._fields = ["identifier" ,"value"]
 
 
 class Require(AST):
@@ -69,7 +70,7 @@ class Require(AST):
         self.cond = cond
         self.prob = prob
         self.name = name
-        self._fields = ["cond"]
+        self._fields = ["cond", "prob", "name"]
 
 
 # Instance Creation
@@ -84,7 +85,7 @@ class New(AST):
         super().__init__(*args, **kwargs)
         self.className = className
         self.specifiers = specifiers if specifiers is not None else []
-        self._fields = ["specifiers"]
+        self._fields = ["className", "specifiers"]
 
 
 # Specifiers
@@ -97,7 +98,7 @@ class WithSpecifier(AST):
         super().__init__(*args, **kwargs)
         self.prop = prop
         self.value = value
-        self._fields = ["value"]
+        self._fields = ["prob", "value"]
 
 
 class AtSpecifier(AST):
@@ -183,6 +184,7 @@ class BeyondSpecifier(AST):
         self.position = position
         self.offset = offset
         self.base = base
+        self._fields = ["position", "offset", "base"]
 
 
 class VisibleSpecifier(AST):
