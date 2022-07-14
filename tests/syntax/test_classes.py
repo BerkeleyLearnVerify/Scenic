@@ -26,7 +26,7 @@ def test_python_class():
     assert ego.width == 4
 
 def test_invalid_attribute():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(SyntaxError):
         compileScenic("""
             class Foo:\n
                 blah[baloney_attr]: 4
