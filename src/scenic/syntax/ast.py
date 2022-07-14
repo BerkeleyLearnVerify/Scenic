@@ -54,7 +54,7 @@ class PropertyDef(AST):
         self.property = property
         self.attributes = attributes
         self.value = value
-        self._fields = ["attributes", "value"]
+        self._fields = ["property", "attributes", "value"]
 
 
 class Additive(AST):
@@ -104,7 +104,7 @@ class parameter(AST):
         super().__init__(*args, **kwargs)
         self.identifier = identifier
         self.value = value
-        self._fields = ["identifier" ,"value"]
+        self._fields = ["identifier", "value"]
 
 
 class Require(AST):
