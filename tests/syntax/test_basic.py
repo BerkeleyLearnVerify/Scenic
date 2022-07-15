@@ -116,7 +116,7 @@ def test_dump_python():
     try:
         compileScenic('ego = new Object')
     finally:
-        scenic.syntax.translator.dumpTranslatedPython = False
+        scenic.syntax.translator.dumpScenicAST = False
     scenic.syntax.translator.dumpFinalAST = True
     try:
         compileScenic('ego = new Object')
