@@ -1,5 +1,6 @@
 """Python supporting code for the GTA model."""
 
+from dataclasses import dataclass
 import math
 import time
 
@@ -204,6 +205,7 @@ class MapWorkspace(Workspace):
 
 ### Car models and colors
 
+@dataclass(frozen=True)
 class CarModel:
 	"""A model of car in GTA.
 
@@ -217,12 +219,10 @@ class CarModel:
 		models: dict mapping model names to the corresponding `CarModel`
 	"""
 
-	def __init__(self, name, width, length, viewAngle=math.radians(90)):
-		super(CarModel, self).__init__()
-		self.name = name
-		self.width = width
-		self.length = length
-		self.viewAngle = viewAngle
+	name: str
+	width: float
+	length: float
+	viewAngle: float = math.radians(90)
 
 	@classmethod
 	def uniformModel(self):
