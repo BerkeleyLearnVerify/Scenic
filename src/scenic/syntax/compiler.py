@@ -47,12 +47,25 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         self.requirements.append(syntax)
         return len(self.requirements) - 1
 
+    def visit_Name(self, node: ast.Name) -> any:
+        from scenic.syntax.translator import builtinNames, trackedNames
+
+        if node.id in builtinNames:
+            if not isinstance(node.ctx, ast.Load):
+                raise SyntaxError(f'unexpected keyword "f{node.id}"')
+        elif node.id in trackedNames:
+            if not isinstance(node.ctx, ast.Load):
+                raise SyntaxError(f'only simple assignments to "{node.id}" are allowed')
+            node = ast.copy_location(ast.Call(ast.Name(node.id, loadCtx), [], []), node)
+        # TODO(shun): Add handling for behavior locals
+        return node
+
     # Special Case
 
-    def visit_EgoAssign(self, node: s.EgoAssign):
+    def visit_TrackedAssign(self, node: s.TrackedAssign):
         return ast.Expr(
             value=ast.Call(
-                func=ast.Name(id="ego", ctx=loadCtx),
+                func=ast.Name(id=node.target.functionName, ctx=loadCtx),
                 args=[self.visit(node.value)],
                 keywords=[],
             )
