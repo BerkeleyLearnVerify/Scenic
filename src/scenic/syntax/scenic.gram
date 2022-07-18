@@ -532,6 +532,7 @@ scenic_stmt:
     | scenic_tracked_assignment
     | scenic_param_stmt
     | scenic_require_stmt
+    | scenic_mutate_stmt
 
 # SIMPLE STATEMENTS
 # =================
@@ -1506,6 +1507,10 @@ scenic_require_stmt:
 scenic_require_stmt_name:
     | a=(NAME | NUMBER) { a.string }
     | a=STRING { a.string[1:-1] }
+
+scenic_mutate_stmt:
+    | 'mutate' elts=[(','.scenic_mutate_stmt_id+)] { s.Mutate(elts=elts if elts is not None else [], LOCATIONS) }
+scenic_mutate_stmt_id: a=NAME { ast.Name(id=a.string, ctx=Load, LOCATIONS) }
 
 # LITERALS
 # ========
