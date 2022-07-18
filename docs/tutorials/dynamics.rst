@@ -442,14 +442,14 @@ To run dynamic simulations, add the :option:`--simulate` option (:option:`-S` fo
 Since this scenario is not written for a particular simulator, you'll need to specify
 which one you want by using the :option:`--model` option (:option:`-m` for short) to
 select the corresponding Scenic :term:`world model`: for example, to use the Newtonian simulator we could add
-``--model scenic.simulators.newtonian.model``. It's also a good idea to put a time bound on
+``--model scenic.simulators.newtonian.driving_model``. It's also a good idea to put a time bound on
 the simulations, which we can do using the :option:`--time` option.
 
 .. code-block:: console
 
     $ scenic examples/driving/badlyParkedCarPullingIn.scenic \
         --simulate \
-        --model scenic.simulators.newtonian.model \
+        --model scenic.simulators.newtonian.driving_model \
         --time 200
 
 Running the scenario in CARLA is exactly the same, except we use the
