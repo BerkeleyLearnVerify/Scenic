@@ -15,7 +15,7 @@ from scenic.core.vectors import Vector
 from scenic.core.geometry import (_RotatedRectangle, averageVectors, hypot, min,
                                   pointIsInCone)
 from scenic.core.regions import CircularRegion, SectorRegion
-from scenic.core.type_support import toVector, toHeading, toType
+from scenic.core.type_support import toVector, toHeading, toScalar, toType
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.utils import DefaultIdentityDict, areEquivalent, cached_property
 from scenic.core.errors import RuntimeParseError
@@ -169,10 +169,13 @@ class Constructible(Samplable):
 		assert prop not in self.properties
 
 		# Normalize types of some built-in properties
-		if prop == 'position':
-			value = toVector(value, f'"position" of {self} not a vector')
+		if prop in ('position', 'velocity', 'cameraOffset'):
+			value = toVector(value, f'"{prop}" of {self} not a vector')
 		elif prop == 'heading':
-			value = toHeading(value, f'"heading" of {self} not a heading')
+			value = toHeading(value, f'"{prop}" of {self} not a heading')
+		elif prop in ('width', 'length', 'visibleDistance', 'positionStdDev',
+		              'viewAngle', 'headingStdDev', 'speed', 'angularSpeed'):
+			value = toScalar(value, f'"{prop}" of {self} not a scalar')
 
 		self.properties.add(prop)
 		object.__setattr__(self, prop, value)
