@@ -529,7 +529,7 @@ compound_stmt:
 
 scenic_stmt:
     | scenic_model_stmt
-    | scenic_ego_assignment
+    | scenic_tracked_assignment
     | scenic_param_stmt
     | scenic_require_stmt
 
@@ -1486,8 +1486,11 @@ lambda_param[ast.arg]: a=NAME {
 scenic_model_stmt:
     | "model" a=dotted_name { s.Model(name=a) }
 
-scenic_ego_assignment:
-    | 'ego' '=' a=expression { s.EgoAssign(value=a, LOCATIONS) }
+scenic_tracked_assignment:
+    | a=scenic_tracked_name '=' b=expression { s.TrackedAssign(target=a, value=b, LOCATIONS) }
+scenic_tracked_name:
+    | "ego" { s.Ego(LOCATIONS) }
+    | "workspace" { s.Workspace(LOCATIONS) }
 
 scenic_param_stmt:
     | 'param' elts=(','.scenic_param_stmt_param+) { s.Param(elts=elts, LOCATIONS) }
