@@ -12,29 +12,33 @@ def parse_string_helper(source: str) -> Any:
     return parse_string(source, "exec")
 
 
-class TestEgoAssign:
-    def test_basic(self):
+class TestTrackedNames:
+    def test_ego_assign(self):
         mod = parse_string_helper("ego = 10")
         stmt = mod.body[0]
         match stmt:
-            case EgoAssign(Constant(10)):
+            case TrackedAssign(Ego(), Constant(10)):
                 assert True
             case _:
                 assert False
 
-    def test_with_new(self):
+    def test_ego_assign_with_new(self):
         mod = parse_string_helper("ego = new Object")
         stmt = mod.body[0]
         match stmt:
-            case EgoAssign(New("Object")):
+            case TrackedAssign(Ego(), New("Object")):
                 assert True
             case _:
                 assert False
 
-    def test_ego_keyword(self):
-        """Ego is a hard keyword and cannot be used except for ego assignment"""
-        with pytest.raises(SyntaxError):
-            parse_string_helper("ego, x = 10, 20")
+    def test_workspace_assign(self):
+        mod = parse_string_helper("workspace = Workspace()")
+        stmt = mod.body[0]
+        match stmt:
+            case TrackedAssign(Workspace(), Call(Name("Workspace"))):
+                assert True
+            case _:
+                assert False
 
 
 class TestModel:
