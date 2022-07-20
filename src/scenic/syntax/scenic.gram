@@ -1337,10 +1337,9 @@ scenic_prefix_operators:
     | sum
 
 scenic_distance_from_op:
-    | "distance" 'from' e1=expression 'to' e2=scenic_prefix_operators { s.DistanceFromOp(base=e1, target=e2, LOCATIONS) }
+    | "distance" 'from' e1=expression 'to' e2=scenic_prefix_operators { s.DistanceFromOp(target=e1, base=e2, LOCATIONS) }
     | "distance" 'to' e1=expression 'from' e2=scenic_prefix_operators { s.DistanceFromOp(target=e1, base=e2, LOCATIONS) }
-    | "distance" 'to' e1=scenic_prefix_operators { s.DistanceFromOp(target=e1, LOCATIONS) }
-    | "distance" 'from' e2=scenic_prefix_operators { s.DistanceFromOp(base=e2, LOCATIONS) }
+    | "distance" ('to'|'from') e1=scenic_prefix_operators { s.DistanceFromOp(target=e1, LOCATIONS) }
 
 scenic_angle_from_op:
     | "angle" 'from' e1=expression 'to' e2=scenic_prefix_operators { s.AngleFromOp(base=e1, target=e2, LOCATIONS) }
