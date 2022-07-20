@@ -293,20 +293,13 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         )
 
     def visit_DistanceFromOp(self, node: s.DistanceFromOp):
-        def createCall(X: ast.AST, Y: Optional[ast.AST] = None):
-            return ast.Call(
-                func=ast.Name(id="DistanceFrom", ctx=loadCtx),
-                args=[X],
-                keywords=[ast.keyword(arg="Y", value=Y)] if Y is not None else [],
-            )
-
-        if node.target is not None and node.base is not None:
-            return createCall(self.visit(node.target), self.visit(node.base))
-        if node.target is not None:
-            return createCall(self.visit(node.target))
-        if node.base is not None:
-            return createCall(self.visit(node.base))
-        assert False, "neither target nor base were specified in DistanceFromOp"
+        return ast.Call(
+            func=ast.Name(id="DistanceFrom", ctx=loadCtx),
+            args=[self.visit(node.target)],
+            keywords=[ast.keyword(arg="Y", value=self.visit(node.base))]
+            if node.base is not None
+            else [],
+        )
 
     def visit_DistancePastOp(self, node: s.DistancePastOp):
         return ast.Call(

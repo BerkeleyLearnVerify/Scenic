@@ -460,18 +460,6 @@ class TestCompiler:
             case _:
                 assert False
 
-    def test_distance_from_op(self):
-        node, _ = compileScenicAST(DistanceFromOp(None, Name("Y")))
-        match node:
-            case Call(Name("DistanceFrom"), [Name("Y")], []):
-                assert True
-            case _:
-                assert False
-
-    def test_distance_to_op_error(self):
-        with pytest.raises(AssertionError):
-            compileScenicAST(DistanceFromOp(None, None))
-
     def test_distance_past_op(self):
         node, _ = compileScenicAST(DistancePastOp(Name("X")))
         match node:
