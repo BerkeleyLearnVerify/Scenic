@@ -762,7 +762,7 @@ class TestOperator:
         mod = parse_string_helper("distance from x")
         stmt = mod.body[0]
         match stmt:
-            case Expr(DistanceFromOp(None, Name("x"))):
+            case Expr(DistanceFromOp(Name("x"), None)):
                 assert True
             case _:
                 assert False
@@ -780,7 +780,7 @@ class TestOperator:
         mod = parse_string_helper("distance from x to y")
         stmt = mod.body[0]
         match stmt:
-            case Expr(DistanceFromOp(Name("y"), Name("x"))):
+            case Expr(DistanceFromOp(Name("x"), Name("y"))):
                 assert True
             case _:
                 assert False
@@ -799,12 +799,12 @@ class TestOperator:
         [
             (
                 "distance to distance from A to B",
-                DistanceFromOp(DistanceFromOp(Name("B", Load()), Name("A", Load()))),
+                DistanceFromOp(DistanceFromOp(Name("A", Load()), Name("B", Load()))),
             ),
             (
                 "distance to distance from A from B",
                 DistanceFromOp(
-                    DistanceFromOp(None, Name("A", Load())), Name("B", Load())
+                    DistanceFromOp(Name("A", Load()), None), Name("B", Load())
                 ),
             ),
             (
@@ -835,8 +835,8 @@ class TestOperator:
             (
                 "distance from A + B",
                 DistanceFromOp(
-                    None,
                     BinOp(Name("A", Load()), Add(), Name("B", Load())),
+                    None,
                 ),
             ),
             (
@@ -850,7 +850,7 @@ class TestOperator:
             (
                 "distance from A << B",
                 BinOp(
-                    DistanceFromOp(None, Name("A", Load())),
+                    DistanceFromOp(Name("A", Load()), None),
                     LShift(),
                     Name("B", Load()),
                 ),
