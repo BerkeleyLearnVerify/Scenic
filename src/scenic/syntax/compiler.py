@@ -26,6 +26,39 @@ noArgs = ast.arguments(
     kwarg=None,
     defaults=[],
 )
+selfArg = ast.arguments(
+    posonlyargs=[],
+    args=[ast.arg(arg="self", annotation=None)],
+    vararg=None,
+    kwonlyargs=[],
+    kw_defaults=[],
+    kwarg=None,
+    defaults=[],
+)
+
+# helpers
+
+
+class AttributeFinder(ast.NodeVisitor):
+    """Utility class for finding all referenced attributes of a given name."""
+
+    @staticmethod
+    def find(target, node):
+        af = AttributeFinder(target)
+        af.visit(node)
+        return af.attributes
+
+    def __init__(self, target):
+        super().__init__()
+        self.target = target
+        self.attributes = set()
+
+    def visit_Attribute(self, node):
+        val = node.value
+        if isinstance(val, ast.Name) and val.id == self.target:
+            self.attributes.add(node.attr)
+        self.visit(val)
+
 
 # transformer
 
@@ -70,6 +103,63 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 keywords=[],
             )
         )
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> any:
+        # use `Object` as base if none is specified
+        if not node.bases:
+            node.bases = [ast.Name("Object", loadCtx)]
+
+        # extract all property definitions
+        propertyDefs: list[s.PropertyDef] = []
+        newBody = []
+        for stmt in node.body:
+            if isinstance(stmt, s.PropertyDef):
+                propertyDefs.append(stmt)
+            else:
+                newBody.append(stmt)
+
+        # create dictionary from property name (str) to default values
+        propertyDict = {}
+        for propertyDef in propertyDefs:
+            if propertyDef.property in propertyDict:
+                raise SyntaxError(f'duplicated property "{propertyDef.property}"')
+            propertyDict[propertyDef.property] = propertyDef
+
+        newBody.insert(
+            0,
+            ast.Assign(
+                targets=[ast.Name(id="_scenic_properties", ctx=ast.Store())],
+                value=ast.Dict(
+                    keys=[ast.Constant(value=p) for p in propertyDict.keys()],
+                    values=[
+                        self.transformPropertyDef(v) for v in propertyDict.values()
+                    ],
+                ),
+            ),
+        )
+
+        node.body = newBody
+        return self.generic_visit(node)
+
+    def transformPropertyDef(self, node: s.PropertyDef):
+        properties = AttributeFinder.find("self", node.value)
+        return ast.Call(
+            func=ast.Name(id="PropertyDefault", ctx=ast.Load()),
+            args=[
+                ast.Set(elts=[ast.Constant(value=p) for p in properties]),
+                ast.Set(
+                    elts=[ast.Constant(value=attr.keyword) for attr in node.attributes]
+                ),
+                ast.Lambda(
+                    args=selfArg,
+                    body=self.visit(node.value),
+                ),
+            ],
+            keywords=[],
+        )
+
+    def visit_PropertyDef(self, _: s.PropertyDef) -> any:
+        assert False, "PropertyDef should be handled in `visit_ClassDef`"
 
     def visit_Model(self, node: s.Model):
         return ast.Expr(
@@ -137,8 +227,11 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     def visit_New(self, node: s.New):
         return ast.Call(
-            func=ast.Name(id=node.className, ctx=loadCtx),
-            args=[self.visit(s) for s in node.specifiers],
+            func=ast.Name(id="new", ctx=loadCtx),
+            args=[
+                ast.Name(id=node.className, ctx=loadCtx),
+                ast.List(elts=[self.visit(s) for s in node.specifiers], ctx=ast.Load()),
+            ],
             keywords=[],
         )
 

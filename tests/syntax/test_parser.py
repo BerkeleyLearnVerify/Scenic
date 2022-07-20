@@ -1,5 +1,6 @@
 from ast import *
 from typing import Any
+from inspect import cleandoc
 
 import pytest
 
@@ -9,7 +10,7 @@ from scenic.syntax.parser import parse_string
 
 def parse_string_helper(source: str) -> Any:
     "Parse string and return Scenic AST"
-    return parse_string(source, "exec")
+    return parse_string(cleandoc(source), "exec")
 
 
 class TestTrackedNames:
@@ -36,6 +37,134 @@ class TestTrackedNames:
         stmt = mod.body[0]
         match stmt:
             case TrackedAssign(Workspace(), Call(Name("Workspace"))):
+                assert True
+            case _:
+                assert False
+
+
+class TestClass:
+    def test_basic(self):
+        mod = parse_string_helper(
+            """
+            class C:
+                pass
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ClassDef(name="C", bases=[], keywords=[]):
+                assert True
+            case _:
+                assert False
+
+    def test_property_def(self):
+        mod = parse_string_helper(
+            """
+            class C:
+                property: value
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ClassDef(
+                name="C",
+                bases=[],
+                keywords=[],
+                body=[PropertyDef("property", [], Name("value", Load()))],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_property_def_with_attr(self):
+        mod = parse_string_helper(
+            """
+            class C:
+                property[additive]: value
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ClassDef(
+                name="C",
+                bases=[],
+                keywords=[],
+                body=[PropertyDef("property", [Additive()], Name("value", Load()))],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_property_def_with_multiple(self):
+        mod = parse_string_helper(
+            """
+            class C:
+                property[additive, dynamic]: value
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ClassDef(
+                name="C",
+                bases=[],
+                keywords=[],
+                body=[
+                    PropertyDef(
+                        "property",
+                        [Additive(), Dynamic()],
+                        Name("value", Load()),
+                    )
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_property_def_unknown_attribute_1(self):
+        with pytest.raises(SyntaxError):
+            parse_string_helper(
+                """
+                class C:
+                    property[unknown]: value
+                """
+            )
+
+    def test_property_def_unknown_attribute_2(self):
+        # must raise an error even if attribute is not a NAME
+        with pytest.raises(SyntaxError):
+            parse_string_helper(
+                """
+                class C:
+                    property[2]: value
+                """
+            )
+
+    def test_property_def_nested(self):
+        # property definition is allowed only on the top level
+        mod = parse_string_helper(
+            """
+            class C:
+                if True:
+                    property: value
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ClassDef(
+                name="C",
+                bases=[],
+                keywords=[],
+                body=[
+                    If(
+                        Constant(True),
+                        [
+                            AnnAssign(
+                                Name("property", Store()), Name("value", Load()), None
+                            )
+                        ],
+                    )
+                ],
+            ):
                 assert True
             case _:
                 assert False
