@@ -39,6 +39,38 @@ class Workspace(AST):
     functionName = "workspace"
 
 
+class PropertyDef(AST):
+    __match_args__ = ("property", "attributes", "value")
+
+    def __init__(
+        self,
+        property: str,
+        attributes: list[Union["Additive", "Dynamic"]],
+        value=ast.AST,
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.property = property
+        self.attributes = attributes
+        self.value = value
+        self._fields = ["property", "attributes", "value"]
+
+
+class Additive(AST):
+    keyword = "additive"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class Dynamic(AST):
+    keyword = "dynamic"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
 # simple statements
 
 
@@ -72,7 +104,7 @@ class parameter(AST):
         super().__init__(*args, **kwargs)
         self.identifier = identifier
         self.value = value
-        self._fields = ["identifier" ,"value"]
+        self._fields = ["identifier", "value"]
 
 
 class Require(AST):
