@@ -691,7 +691,7 @@ class_def[ast.ClassDef]:
 
 class_def_raw[ast.ClassDef]:
     | invalid_class_def_raw
-    | 'class' a=NAME b=['(' z=[arguments] ')' { z }] &&':' c=block {
+    | 'class' a=NAME b=['(' z=[arguments] ')' { z }] &&':' c=scenic_class_def_block {
         ast.ClassDef(
             a.string,
             bases=b[0] if b else [],
@@ -701,6 +701,37 @@ class_def_raw[ast.ClassDef]:
             LOCATIONS,
         )
      }
+
+scenic_class_def_block:
+    | NEWLINE INDENT a=scenic_class_statements DEDENT { a }
+    | simple_stmts
+    | invalid_block
+
+scenic_class_statements[list]: a=scenic_class_statement+ { list(itertools.chain.from_iterable(a)) }
+
+scenic_class_statement[list]:
+    | a=scenic_class_property_stmt { [a] }
+    | a=compound_stmt { [a] }
+    | a=scenic_stmts { a }
+    | a=simple_stmts { a }
+
+scenic_class_property_stmt:
+    # not a simple statement; reads NEWLINE
+    | a=NAME b=['[' attrs=','.scenic_class_property_attribute+ ']' { attrs } ] ':' c=expression NEWLINE { 
+        s.PropertyDef(
+            property=a.string,
+            attributes=b if b is not None else [],
+            value=c,
+            LOCATIONS,
+        )
+     }
+
+# fail if `NAME [ <expr> ]` pattern is found at top level of class definition and
+# <expr> is neither `additive` nor `dynamic`
+scenic_class_property_attribute: &&(
+      "additive" { s.Additive(LOCATIONS) }
+    | "dynamic" { s.Dynamic(LOCATIONS) }
+)
 
 # Function definitions
 # --------------------
