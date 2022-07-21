@@ -2,7 +2,7 @@
 from helper import *
 from helper2 import thingy
 
-ego = Rabbit
+ego = new Rabbit
 
 param thingy = thingy
 param imports_file = __file__
