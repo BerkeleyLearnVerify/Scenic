@@ -468,6 +468,10 @@ class Parser(Parser):
 '''
 
 
+# rule for adding hard keywords
+scenic_hard_keyword: 'PropertyDefault'
+
+
 # STARTING RULES
 # ==============
 
