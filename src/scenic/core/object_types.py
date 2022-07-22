@@ -202,6 +202,8 @@ class Constructible(Samplable):
 			object.__setattr__(self, prop, val)
 
 	def sampleGiven(self, value):
+		if not needsSampling(self):
+			return self
 		return self._withProperties({ prop: value[getattr(self, prop)]
 								    for prop in self.properties })
 
