@@ -4,6 +4,7 @@ from collections import defaultdict
 import enum
 import inspect
 import itertools
+import sys
 import types
 import warnings
 
@@ -355,6 +356,8 @@ class DynamicScenario(Invocable):
             composeDone = True      # compose block ended in an earlier step
         else:
             def alarmHandler(signum, frame):
+                if sys.gettrace():
+                    return  # skip the warning if we're in the debugger
                 warnings.warn(f'the compose block of scenario {self} is taking a long time; '
                               'maybe you have an infinite loop with no "wait" statement?',
                               StuckBehaviorWarning)
@@ -615,6 +618,8 @@ class Behavior(Invocable, Samplable):
         super()._step()
         assert self._runningIterator
         def alarmHandler(signum, frame):
+            if sys.gettrace():
+                return  # skip the warning if we're in the debugger
             warnings.warn(f'the behavior {self} is taking a long time to take an action; '
                           'maybe you have an infinite loop with no take/wait statements?',
                           StuckBehaviorWarning)
