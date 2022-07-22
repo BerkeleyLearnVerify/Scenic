@@ -1,5 +1,5 @@
 import ast
-from typing import Tuple, List
+from typing import Optional, Tuple, List
 
 import scenic.syntax.ast as s
 
@@ -16,6 +16,7 @@ def compileScenicAST(scenicAST: ast.AST) -> Tuple[ast.AST, List[ast.AST]]:
 # shorthands for convenience
 
 loadCtx = ast.Load()
+ego = ast.Name("ego")
 
 noArgs = ast.arguments(
     posonlyargs=[],
@@ -353,4 +354,145 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             keywords=[ast.keyword(arg="fromPt", value=self.visit(node.base))]
             if node.base is not None
             else [],
+        )
+
+    # Operators
+
+    def visit_RelativePositionOp(self, node: s.RelativePositionOp):
+        return ast.Call(
+            func=ast.Name(id="RelativePosition", ctx=loadCtx),
+            args=[self.visit(node.target)],
+            keywords=[]
+            if node.base is None
+            else [ast.keyword(arg="Y", value=self.visit(node.base))],
+        )
+
+    def visit_RelativeHeadingOp(self, node: s.RelativeHeadingOp):
+        return ast.Call(
+            func=ast.Name(id="RelativeHeading", ctx=loadCtx),
+            args=[self.visit(node.target)],
+            keywords=[]
+            if node.base is None
+            else [ast.keyword(arg="Y", value=self.visit(node.base))],
+        )
+
+    def visit_ApparentHeadingOp(self, node: s.ApparentHeadingOp):
+        return ast.Call(
+            func=ast.Name(id="ApparentHeading", ctx=loadCtx),
+            args=[self.visit(node.target)],
+            keywords=[]
+            if node.base is None
+            else [ast.keyword(arg="Y", value=self.visit(node.base))],
+        )
+
+    def visit_DistanceFromOp(self, node: s.DistanceFromOp):
+        return ast.Call(
+            func=ast.Name(id="DistanceFrom", ctx=loadCtx),
+            args=[self.visit(node.target)],
+            keywords=[ast.keyword(arg="Y", value=self.visit(node.base))]
+            if node.base is not None
+            else [],
+        )
+
+    def visit_DistancePastOp(self, node: s.DistancePastOp):
+        return ast.Call(
+            func=ast.Name(id="DistancePast", ctx=loadCtx),
+            args=[self.visit(node.target)],
+            keywords=[]
+            if node.base is None
+            else [ast.keyword(arg="Y", value=self.visit(node.base))],
+        )
+
+    def visit_AngleFromOp(self, node: s.AngleFromOp):
+        assert (
+            node.base is not None or node.target is not None
+        ), "neither target nor base were specified in AngleFromOp"
+        keywords = []
+        if node.base is not None:
+            keywords.append(ast.keyword("X", self.visit(node.base)))
+        if node.target is not None:
+            keywords.append(ast.keyword("Y", self.visit(node.target)))
+        return ast.Call(
+            func=ast.Name(id="AngleFrom", ctx=loadCtx),
+            args=[],
+            keywords=keywords,
+        )
+
+    def visit_FollowOp(self, node: s.FollowOp):
+        return ast.Call(
+            func=ast.Name(id="Follow", ctx=loadCtx),
+            args=[
+                self.visit(node.target),
+                self.visit(node.base),
+                self.visit(node.distance),
+            ],
+            keywords=[],
+        )
+
+    def visit_VisibleOp(self, node: s.VisibleOp):
+        return ast.Call(
+            func=ast.Name(id="Visible", ctx=loadCtx),
+            args=[self.visit(node.region)],
+            keywords=[],
+        )
+
+    def visit_NotVisibleOp(self, node: s.VisibleOp):
+        return ast.Call(
+            func=ast.Name(id="NotVisible", ctx=loadCtx),
+            args=[self.visit(node.region)],
+            keywords=[],
+        )
+
+    def visit_PositionOfOp(self, node: s.PositionOfOp):
+        return ast.Call(
+            func=ast.Name(id=node.position.functionName, ctx=loadCtx),
+            args=[self.visit(node.target)],
+            keywords=[],
+        )
+
+    def visit_DegOp(self, node: s.DegOp):
+        return ast.BinOp(
+            left=self.visit(node.operand), op=ast.Mult(), right=ast.Constant(0.01745329)
+        )
+
+    def visit_VectorOp(self, node: s.VectorOp):
+        return ast.Call(
+            func=ast.Name(id="Vector", ctx=loadCtx),
+            args=[self.visit(node.left), self.visit(node.right)],
+            keywords=[],
+        )
+
+    def visit_FieldAtOp(self, node: s.FieldAtOp):
+        return ast.Call(
+            func=ast.Name(id="FieldAt", ctx=loadCtx),
+            args=[self.visit(node.left), self.visit(node.right)],
+            keywords=[],
+        )
+
+    def visit_RelativeToOp(self, node: s.RelativeToOp):
+        return ast.Call(
+            func=ast.Name(id="RelativeTo", ctx=loadCtx),
+            args=[self.visit(node.left), self.visit(node.right)],
+            keywords=[],
+        )
+
+    def visit_OffsetAlongOp(self, node: s.OffsetAlongOp):
+        return ast.Call(
+            func=ast.Name(id="OffsetAlong", ctx=loadCtx),
+            args=[
+                self.visit(node.base),
+                self.visit(node.direction),
+                self.visit(node.offset),
+            ],
+            keywords=[],
+        )
+
+    def visit_CanSeeOp(self, node: s.CanSeeOp):
+        return ast.Call(
+            func=ast.Name(id="CanSee", ctx=loadCtx),
+            args=[
+                self.visit(node.left),
+                self.visit(node.right),
+            ],
+            keywords=[],
         )

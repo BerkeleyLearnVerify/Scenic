@@ -318,3 +318,279 @@ class ApparentlyFacingSpecifier(AST):
         self.heading = heading
         self.base = base
         self._fields = ["heading", "base"]
+
+
+# Operators
+class RelativePositionOp(AST):
+    __match_args__ = ("target", "base")
+
+    def __init__(
+        self, target: ast.AST, base: ast.AST = None, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.target = target
+        self.base = base
+        self._fields = ["target", "base"]
+
+
+class RelativeHeadingOp(AST):
+    __match_args__ = ("target", "base")
+
+    def __init__(
+        self, target: ast.AST, base: ast.AST = None, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.target = target
+        self.base = base
+        self._fields = ["target", "base"]
+
+
+class ApparentHeadingOp(AST):
+    __match_args__ = ("target", "base")
+
+    def __init__(
+        self, target: ast.AST, base: ast.AST = None, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.target = target
+        self.base = base
+        self._fields = ["target", "base"]
+
+
+class DistanceFromOp(AST):
+    __match_args__ = ("target", "base")
+
+    def __init__(
+        self,
+        # because `to` and `from` are symmetric, the first operand will be `target` and the second will be `base`
+        target: ast.AST,
+        base: Optional[ast.AST] = None,
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.target = target
+        self.base = base
+        self._fields = ["target", "base"]
+
+
+class DistancePastOp(AST):
+    __match_args__ = ("target", "base")
+
+    def __init__(
+        self, target: ast.AST, base: Optional[ast.AST] = None, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.target = target
+        self.base = base
+        self._fields = ["target", "base"]
+
+
+class AngleFromOp(AST):
+    __match_args__ = ("target", "base")
+
+    def __init__(
+        self,
+        target: Optional[ast.AST] = None,
+        base: Optional[ast.AST] = None,
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.target = target
+        self.base = base
+        self._fields = ["target", "base"]
+
+
+class FollowOp(AST):
+    __match_args__ = ("target", "base", "distance")
+
+    def __init__(
+        self,
+        target: ast.AST,
+        base: ast.AST,
+        distance: ast.AST,
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.target = target
+        self.base = base
+        self.distance = distance
+        self._fields = ["target", "base", "distance"]
+
+
+class VisibleOp(AST):
+    __match_args__ = ("region",)
+
+    def __init__(self, region: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.region = region
+        self._fields = ["region"]
+
+
+class NotVisibleOp(AST):
+    __match_args__ = ("region",)
+
+    def __init__(self, region: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.region = region
+        self._fields = ["region"]
+
+
+class PositionOfOp(AST):
+    __match_args__ = ("position", "target")
+
+    def __init__(
+        self,
+        position: Union[
+            "Front",
+            "Back",
+            "Left",
+            "Right",
+            "FrontLeft",
+            "FrontRight",
+            "BackLeft",
+            "BackRight",
+        ],
+        target: ast.AST,
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.position = position
+        self.target = target
+
+
+class Front(AST):
+    "Represents position of `front of` operator"
+    functionName = "Front"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class Back(AST):
+    "Represents position of `back of` operator"
+    functionName = "Back"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class Left(AST):
+    "Represents position of `left of` operator"
+    functionName = "Left"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class Right(AST):
+    "Represents position of `right of` operator"
+    functionName = "Right"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class FrontLeft(AST):
+    "Represents position of `front left of` operator"
+    functionName = "FrontLeft"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class FrontRight(AST):
+    "Represents position of `front right of` operator"
+    functionName = "FrontRight"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class BackLeft(AST):
+    "Represents position of `back left of` operator"
+    functionName = "BackLeft"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class BackRight(AST):
+    "Represents position of `back right of` operator"
+    functionName = "BackRight"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class DegOp(AST):
+    __match_args__ = ("operand",)
+
+    def __init__(self, operand: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.operand = operand
+
+
+class VectorOp(AST):
+    __match_args__ = ("left", "right")
+
+    def __init__(
+        self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.left = left
+        self.right = right
+        self._fields = ["left", "right"]
+
+
+class FieldAtOp(AST):
+    __match_args__ = ("left", "right")
+
+    def __init__(
+        self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.left = left
+        self.right = right
+
+
+class RelativeToOp(AST):
+    __match_args__ = ("left", "right")
+
+    def __init__(
+        self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.left = left
+        self.right = right
+
+
+class OffsetAlongOp(AST):
+    __match_args__ = ("base", "direction", "offset")
+
+    def __init__(
+        self,
+        base: ast.AST,
+        direction: ast.AST,
+        offset: ast.AST,
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.base = base
+        self.direction = direction
+        self.offset = offset
+
+
+class CanSeeOp(AST):
+    __match_args__ = ("left", "right")
+
+    def __init__(
+        self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.left = left
+        self.right = right

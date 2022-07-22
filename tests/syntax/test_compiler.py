@@ -558,3 +558,210 @@ class TestCompiler:
                 assert True
             case _:
                 assert False
+
+    # Operators
+    def test_relative_position_op(self):
+        node, _ = compileScenicAST(RelativePositionOp(Name("X")))
+        match node:
+            case Call(Name("RelativePosition"), [Name("X")]):
+                assert True
+            case _:
+                assert False
+
+    def test_relative_position_op_base(self):
+        node, _ = compileScenicAST(RelativePositionOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("RelativePosition"), [Name("X")], [keyword("Y", Name("Y"))]):
+                assert True
+            case _:
+                assert False
+
+    def test_relative_heading_op(self):
+        node, _ = compileScenicAST(RelativeHeadingOp(Name("X")))
+        match node:
+            case Call(Name("RelativeHeading"), [Name("X")]):
+                assert True
+            case _:
+                assert False
+
+    def test_relative_heading_op_base(self):
+        node, _ = compileScenicAST(RelativeHeadingOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("RelativeHeading"), [Name("X")], [keyword("Y", Name("Y"))]):
+                assert True
+            case _:
+                assert False
+
+    def test_apparent_heading_op(self):
+        node, _ = compileScenicAST(ApparentHeadingOp(Name("X")))
+        match node:
+            case Call(Name("ApparentHeading"), [Name("X")]):
+                assert True
+            case _:
+                assert False
+
+    def test_apparent_heading_op_base(self):
+        node, _ = compileScenicAST(ApparentHeadingOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("ApparentHeading"), [Name("X")], [keyword("Y", Name("Y"))]):
+                assert True
+            case _:
+                assert False
+
+    def test_distance_to_op(self):
+        node, _ = compileScenicAST(DistanceFromOp(Name("X"), None))
+        match node:
+            case Call(Name("DistanceFrom"), [Name("X")], []):
+                assert True
+            case _:
+                assert False
+
+    def test_distance_to_op_from(self):
+        node, _ = compileScenicAST(DistanceFromOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("DistanceFrom"), [Name("X")], [keyword("Y", Name("Y"))]):
+                assert True
+            case _:
+                assert False
+
+    def test_distance_past_op(self):
+        node, _ = compileScenicAST(DistancePastOp(Name("X")))
+        match node:
+            case Call(Name("DistancePast"), [Name("X")]):
+                assert True
+            case _:
+                assert False
+
+    def test_distance_past_op_of(self):
+        node, _ = compileScenicAST(DistancePastOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("DistancePast"), [Name("X")], [keyword("Y", Name("Y"))]):
+                assert True
+            case _:
+                assert False
+
+    def test_angle_to_op(self):
+        node, _ = compileScenicAST(AngleFromOp(Name("Y"), None))
+        match node:
+            case Call(Name("AngleFrom"), [], [keyword("Y", Name("Y"))]):
+                assert True
+            case _:
+                assert False
+
+    def test_angle_from_op(self):
+        node, _ = compileScenicAST(AngleFromOp(None, Name("X")))
+        match node:
+            case Call(Name("AngleFrom"), [], [keyword("X", Name("X"))]):
+                assert True
+            case _:
+                assert False
+
+    def test_angle_to_from_op(self):
+        node, _ = compileScenicAST(AngleFromOp(Name("Y"), Name("X")))
+        match node:
+            case Call(
+                Name("AngleFrom"),
+                [],
+                [keyword("X", Name("X")), keyword("Y", Name("Y"))],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_angle_op_invalid(self):
+        with pytest.raises(AssertionError):
+            # target or base needs to be set
+            compileScenicAST(AngleFromOp())
+
+    def test_follow_op(self):
+        node, _ = compileScenicAST(FollowOp(Name("X"), Name("Y"), Name("Z")))
+        match node:
+            case Call(Name("Follow"), [Name("X"), Name("Y"), Name("Z")]):
+                assert True
+            case _:
+                assert False
+
+    def test_visible_op(self):
+        node, _ = compileScenicAST(VisibleOp(Name("X")))
+        match node:
+            case Call(Name("Visible"), [Name("X")]):
+                assert True
+            case _:
+                assert False
+
+    def test_not_visible_op(self):
+        node, _ = compileScenicAST(NotVisibleOp(Name("X")))
+        match node:
+            case Call(Name("NotVisible"), [Name("X")]):
+                assert True
+            case _:
+                assert False
+
+    @pytest.mark.parametrize(
+        "node,function_name",
+        [
+            (Front, "Front"),
+            (Back, "Back"),
+            (Left, "Left"),
+            (Right, "Right"),
+            (FrontLeft, "FrontLeft"),
+            (FrontRight, "FrontRight"),
+            (BackLeft, "BackLeft"),
+            (BackRight, "BackRight"),
+        ],
+    )
+    def test_position_of_op(self, node, function_name):
+        node, _ = compileScenicAST(PositionOfOp(node(), Name("X")))
+        match node:
+            case Call(Name(f), [Name("X")]):
+                assert f == function_name
+            case _:
+                assert False
+
+    def test_deg_op(self):
+        node, _ = compileScenicAST(DegOp(Name("X")))
+        match node:
+            case BinOp(Name("X"), Mult(), Constant()):
+                assert True
+            case _:
+                assert False
+
+    def test_vector_op(self):
+        node, _ = compileScenicAST(VectorOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("Vector"), [Name("X"), Name("Y")]):
+                assert True
+            case _:
+                assert False
+
+    def test_field_at_op(self):
+        node, _ = compileScenicAST(FieldAtOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("FieldAt"), [Name("X"), Name("Y")]):
+                assert True
+            case _:
+                assert False
+
+    def test_relative_to_op(self):
+        node, _ = compileScenicAST(RelativeToOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("RelativeTo"), [Name("X"), Name("Y")]):
+                assert True
+            case _:
+                assert False
+
+    def test_offset_along_op(self):
+        node, _ = compileScenicAST(OffsetAlongOp(Name("X"), Name("Y"), Name("Z")))
+        match node:
+            case Call(Name("OffsetAlong"), [Name("X"), Name("Y"), Name("Z")]):
+                assert True
+            case _:
+                assert False
+
+    def test_can_see_op(self):
+        node, _ = compileScenicAST(CanSeeOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("CanSee"), [Name("X"), Name("Y")]):
+                assert True
+            case _:
+                assert False
