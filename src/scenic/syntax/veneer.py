@@ -795,14 +795,20 @@ def DistancePast(X, Y=None):
 	Y = toType(Y, OrientedPoint, '"distance past X of Y" with Y not an OrientedPoint')
 	return Y.distancePast(X)
 
+# TODO(shun): Migrate to `AngleFrom`
 def AngleTo(X):
 	"""The 'angle to <vector>' operator (using the position of ego as the reference)."""
 	X = toVector(X, '"angle to X" with X not a vector')
 	return ego().angleTo(X)
 
-def AngleFrom(X, Y):
+def AngleFrom(X=None, Y=None):
 	"""The 'angle from <vector> to <vector>' operator."""
+	assert X is not None or Y is not None
+	if X is None:
+		X = ego()
 	X = toVector(X, '"angle from X to Y" with X not a vector')
+	if Y is None:
+		Y = ego()
 	Y = toVector(Y, '"angle from X to Y" with Y not a vector')
 	return X.angleTo(Y)
 
