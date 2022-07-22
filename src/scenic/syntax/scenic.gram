@@ -1241,7 +1241,8 @@ conjunction (memo):
     | inversion
 
 inversion (memo):
-    | 'not' a=inversion { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
+    # [SCENIC NOTE]: Fail `not visible <inversion>` to be handled later
+    | 'not' !("visible" inversion) a=inversion { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
     | comparison
 
 # Scenic instance creation
@@ -1313,21 +1314,79 @@ is_bitwise_or: 'is' a=bitwise_or { (ast.Is(), a) }
 # -----------------
 
 bitwise_or:
+    | scenic_can_see
     | a=bitwise_or '|' b=bitwise_xor { ast.BinOp(left=a, op=ast.BitOr(), right=b, LOCATIONS) }
     | bitwise_xor
 
+scenic_can_see: a=bitwise_or "can" "see" b=bitwise_xor { s.CanSeeOp(left=a, right=b, LOCATIONS) }
+
 bitwise_xor:
+    | scenic_offset_along
     | a=bitwise_xor '^' b=bitwise_and { ast.BinOp(left=a, op=ast.BitXor(), right=b, LOCATIONS) }
     | bitwise_and
 
+scenic_offset_along: a=bitwise_xor "offset" "along" b=bitwise_xor "by" c=bitwise_and { s.OffsetAlongOp(base=a, direction=b, offset=c, LOCATIONS) }
+
 bitwise_and:
+    | scenic_relative_to
     | a=bitwise_and '&' b=shift_expr { ast.BinOp(left=a, op=ast.BitAnd(), right=b, LOCATIONS) }
     | shift_expr
 
+scenic_relative_to: a=bitwise_and ("relative" "to" | "offset" "by") b=shift_expr { s.RelativeToOp(left=a, right=b, LOCATIONS) }
+
 shift_expr:
+    | scenic_at
     | a=shift_expr '<<' b=sum { ast.BinOp(left=a, op=ast.LShift(), right=b, LOCATIONS) }
     | a=shift_expr '>>' b=sum { ast.BinOp(left=a, op=ast.RShift(), right=b, LOCATIONS) }
+    | scenic_prefix_operators
+
+scenic_at: a=shift_expr 'at' b=sum { s.FieldAtOp(left=a, right=b, LOCATIONS) }
+
+# Scenic prefix operators
+# -----------------------
+scenic_prefix_operators:
+    # relative position of
+    | "relative" "position" "of" e1=expression 'from' e2=scenic_prefix_operators { s.RelativePositionOp(target=e1, base=e2, LOCATIONS) }
+    | "relative" "position" "of" e1=scenic_prefix_operators { s.RelativePositionOp(target=e1, LOCATIONS) }
+    # relative heading of
+    | "relative" "heading" "of" e1=expression 'from' e2=scenic_prefix_operators { s.RelativeHeadingOp(target=e1, base=e2, LOCATIONS) }
+    | "relative" "heading" "of" e1=scenic_prefix_operators { s.RelativeHeadingOp(target=e1, LOCATIONS) }
+    # apparent heading of
+    | "apparent" "heading" "of" e1=expression 'from' e2=scenic_prefix_operators { s.ApparentHeadingOp(target=e1, base=e2, LOCATIONS) }
+    | "apparent" "heading" "of" e1=scenic_prefix_operators { s.ApparentHeadingOp(target=e1, LOCATIONS) }
+    # distance from/to
+    | &"distance" scenic_distance_from_op
+    # distance past
+    | "distance" "past" e1=expression 'of' e2=scenic_prefix_operators { s.DistancePastOp(target=e1, base=e2, LOCATIONS) }
+    | "distance" "past" e1=scenic_prefix_operators { s.DistancePastOp(target=e1, LOCATIONS) }
+    # angle from/to
+    | &"angle" scenic_angle_from_op
+    | "follow" e1=expression 'from' e2=expression 'for' e3=scenic_prefix_operators { s.FollowOp(target=e1, base=e2, distance=e3, LOCATIONS) }
+    | "visible" e=scenic_prefix_operators { s.VisibleOp(region=e, LOCATIONS) }
+    | 'not' "visible" e=scenic_prefix_operators { s.NotVisibleOp(region=e, LOCATIONS) }
+    | p=scenic_position_of_op_position 'of' e=scenic_prefix_operators { s.PositionOfOp(position=p, target=e, LOCATIONS) }
     | sum
+
+scenic_distance_from_op:
+    | "distance" 'from' e1=expression 'to' e2=scenic_prefix_operators { s.DistanceFromOp(target=e1, base=e2, LOCATIONS) }
+    | "distance" 'to' e1=expression 'from' e2=scenic_prefix_operators { s.DistanceFromOp(target=e1, base=e2, LOCATIONS) }
+    | "distance" ('to'|'from') e1=scenic_prefix_operators { s.DistanceFromOp(target=e1, LOCATIONS) }
+
+scenic_angle_from_op:
+    | "angle" 'from' e1=expression 'to' e2=scenic_prefix_operators { s.AngleFromOp(base=e1, target=e2, LOCATIONS) }
+    | "angle" 'to' e1=expression 'from' e2=scenic_prefix_operators { s.AngleFromOp(target=e1, base=e2, LOCATIONS) }
+    | "angle" 'to' e1=scenic_prefix_operators { s.AngleFromOp(target=e1, LOCATIONS) }
+    | "angle" 'from' e1=scenic_prefix_operators { s.AngleFromOp(base=e1, LOCATIONS) }
+
+scenic_position_of_op_position:
+    | "front" "left" { s.FrontLeft(LOCATIONS) }
+    | "front" "right" { s.FrontRight(LOCATIONS) }
+    | "back" "left" { s.BackLeft(LOCATIONS) }
+    | "back" "right" { s.BackRight(LOCATIONS) }
+    | "front" { s.Front(LOCATIONS) }
+    | "back" { s.Back(LOCATIONS) }
+    | "left" { s.Left(LOCATIONS) }
+    | "right" { s.Right(LOCATIONS) }
 
 # Arithmetic operators
 # --------------------
@@ -1338,6 +1397,8 @@ sum:
     | term
 
 term:
+    | scenic_vector
+    | scenic_deg
     | a=term '*' b=factor { ast.BinOp(left=a, op=ast.Mult(), right=b, LOCATIONS) }
     | a=term '/' b=factor { ast.BinOp(left=a, op=ast.Div(), right=b, LOCATIONS) }
     | a=term '//' b=factor { ast.BinOp(left=a, op=ast.FloorDiv(), right=b, LOCATIONS) }
@@ -1346,6 +1407,9 @@ term:
         self.check_version((3, 5), "The '@' operator is", ast.BinOp(left=a, op=ast.MatMult(), right=b, LOCATIONS))
      }
     | factor
+
+scenic_vector: a=term '@' b=factor { s.VectorOp(left=a, right=b, LOCATIONS) }
+scenic_deg: a=term "deg" { s.DegOp(operand=a, LOCATIONS) }
 
 factor (memo):
     | '+' a=factor { ast.UnaryOp(op=ast.UAdd(), operand=a, LOCATIONS) }
