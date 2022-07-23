@@ -96,8 +96,9 @@ class NoisyColorDistribution(Distribution):
 class ColorMutator(Mutator):
 	"""Mutator that adds Gaussian HSL noise to the ``color`` property."""
 	def appliedTo(self, obj):
-		hueNoise = random.gauss(0, 0.05)
-		satNoise = random.gauss(0, 0.05)
-		lightNoise = random.gauss(0, 0.05)
+		stddev = 0.05 * obj.mutationScale
+		hueNoise = random.gauss(0, stddev)
+		satNoise = random.gauss(0, stddev)
+		lightNoise = random.gauss(0, stddev)
 		color = NoisyColorDistribution.addNoiseTo(obj.color, hueNoise, lightNoise, satNoise)
-		return tuple([obj._copyWith(color=color), True])		# allow further mutation
+		return (obj._copyWith(color=color), True)		# allow further mutation

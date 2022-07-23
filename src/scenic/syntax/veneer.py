@@ -626,12 +626,16 @@ def mutate(*objects):		# TODO update syntax
 	"""Function implementing the mutate statement."""
 	if evaluatingRequirement:
 		raise RuntimeParseError('used mutate statement inside a requirement')
+	scale = 1
+	if objects and isinstance(objects[-1], (float, int)):
+		scale = objects[-1]
+		objects = objects[:-1]
 	if len(objects) == 0:
 		objects = currentScenario._objects
 	for obj in objects:
 		if not isinstance(obj, Object):
 			raise RuntimeParseError('"mutate X" with X not an object')
-		obj.mutationEnabled = True
+		obj.mutationScale = scale
 
 ### Prefix operators
 

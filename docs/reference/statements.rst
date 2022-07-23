@@ -221,8 +221,10 @@ The time limit can be an expression, but must be a non-random value.
 
 mutate *identifier*, . . . [by *scalar*]
 -----------------------------------------
-Enables mutation of the given list of objects, adding Gaussian noise with the given standard deviation (default 1) to their ``position`` and ``heading`` properties.
+Enables mutation of the given list of objects (any `Point`, `OrientedPoint`, or `Object`), with an optional scale factor (default 1).
 If no objects are specified, mutation applies to every `Object` already created.
+
+The default mutation system adds Gaussian noise to the ``position`` and ``heading`` properties, with standard deviations equal to the scale factor times the ``positionStdDev`` and ``headingStdDev`` properties.
 
 .. note::
 
