@@ -1083,8 +1083,6 @@ def Following(field, dist, fromPt=None):
 	"""
 	if fromPt is None:
 		fromPt = ego()
-	else:
-		dist, fromPt = fromPt, dist
 	if not isinstance(field, VectorField):
 		raise RuntimeParseError('"following F" specifier with F not a vector field')
 	fromPt = toVector(fromPt, '"following F from X for D" with X not a vector')
