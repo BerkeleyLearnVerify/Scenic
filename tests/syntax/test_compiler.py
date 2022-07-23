@@ -254,6 +254,16 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_mutate_scale(self):
+        node, _ = compileScenicAST(Mutate([Name("x")], Constant(2)))
+        match node:
+            case Expr(
+                Call(Name("mutate"), [Name("x")], [keyword("scale", Constant(2))])
+            ):
+                assert True
+            case _:
+                assert False
+
     def test_param_basic(self):
         node, _ = compileScenicAST(Param([parameter("p1", Name("v1"))]))
         match node:

@@ -234,6 +234,24 @@ class TestMutate:
             case _:
                 assert False
 
+    def test_by(self):
+        mod = parse_string_helper("mutate x by y")
+        stmt = mod.body[0]
+        match stmt:
+            case Mutate([Name("x")], Name("y")):
+                assert True
+            case _:
+                assert False
+
+    def test_every_object_by(self):
+        mod = parse_string_helper("mutate by y")
+        stmt = mod.body[0]
+        match stmt:
+            case Mutate([], Name("y")):
+                assert True
+            case _:
+                assert False
+
 
 class TestParam:
     def test_basic(self):
