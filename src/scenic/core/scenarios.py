@@ -60,7 +60,7 @@ class Scene:
 		for obj in self.objects:
 			obj.show(self.workspace, plt, highlight=(obj is self.egoObject))
 		# zoom in if requested
-		if zoom != None:
+		if zoom:
 			self.workspace.zoomAround(plt, self.objects, expansion=zoom)
 		plt.show(block=block)
 
