@@ -90,14 +90,22 @@ class Region(Samplable):
 		else:
 			return other.intersect(self, triedReversed=True)
 
-	def intersects(self, other) -> bool:
-		"""Check if this `Region` intersects another."""
-		raise NotImplementedError
+	def intersects(self, other, triedReversed=False) -> bool:
+		"""intersects(other)
+
+		Check if this `Region` intersects another.
+		"""
+		if triedReversed:
+			raise NotImplementedError
+		else:
+			return other.intersects(self, triedReversed=True)
 
 	def difference(self, other) -> 'Region':
 		"""Get a `Region` representing the difference of this one and another."""
 		if isinstance(other, EmptyRegion):
 			return self
+		elif isinstance(other, AllRegion):
+			return nowhere
 		return DifferenceRegion(self, other)
 
 	def union(self, other, triedReversed=False) -> 'Region':
@@ -187,6 +195,12 @@ class AllRegion(Region):
 	def intersect(self, other, triedReversed=False):
 		return other
 
+	def intersects(self, other, triedReversed=False):
+		return not isinstance(other, EmptyRegion)
+
+	def union(self, other, triedReversed=False):
+		return self
+
 	def containsPoint(self, point):
 		return True
 
@@ -205,6 +219,12 @@ class AllRegion(Region):
 class EmptyRegion(Region):
 	"""Region containing no points."""
 	def intersect(self, other, triedReversed=False):
+		return self
+
+	def intersects(self, other, triedReversed=False):
+		return False
+
+	def difference(self, other):
 		return self
 
 	def union(self, other, triedReversed=False):
@@ -586,12 +606,12 @@ class PolylineRegion(Region):
 			return PolylineRegion(polyline=intersection)
 		return super().intersect(other, triedReversed)
 
-	def intersects(self, other):
+	def intersects(self, other, triedReversed=False):
 		poly = toPolygon(other)
 		if poly is not None:
 			intersection = self.lineString & poly
 			return not intersection.is_empty
-		return super().intersects(other)
+		return super().intersects(other, triedReversed)
 
 	def difference(self, other):
 		poly = toPolygon(other)
@@ -838,12 +858,12 @@ class PolygonalRegion(Region):
 				raise RuntimeError('unhandled type of polygon intersection')
 		return super().intersect(other, triedReversed)
 
-	def intersects(self, other):
+	def intersects(self, other, triedReversed=False):
 		poly = toPolygon(other)
 		if poly is not None:
 			intersection = self.polygons & poly
 			return not intersection.is_empty
-		return super().intersects(other)
+		return super().intersects(other, triedReversed)
 
 	def union(self, other, triedReversed=False, buf=0):
 		poly = toPolygon(other)
@@ -1142,7 +1162,7 @@ class DifferenceRegion(Region):
 		                        sampler=self.sampler, name=self.name)
 
 	def containsPoint(self, point):
-		return regionA.containsPoint(point) and not regionB.containsPoint(point)
+		return self.regionA.containsPoint(point) and not self.regionB.containsPoint(point)
 
 	def uniformPointInner(self):
 		return self.orient(self.sampler(self))
