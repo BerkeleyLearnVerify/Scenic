@@ -491,6 +491,22 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_not_visible_specifier(self):
+        node, _ = compileScenicAST(NotVisibleSpecifier())
+        match node:
+            case Call(Name("NotVisibleSpec")):
+                assert True
+            case _:
+                assert False
+
+    def test_not_visible_specifier_with_base(self):
+        node, _ = compileScenicAST(NotVisibleSpecifier(Name("x")))
+        match node:
+            case Call(Name("NotVisibleFrom"), [Name("x")]):
+                assert True
+            case _:
+                assert False
+
     def test_in_specifier(self):
         node, _ = compileScenicAST(InSpecifier(Name("region")))
         match node:

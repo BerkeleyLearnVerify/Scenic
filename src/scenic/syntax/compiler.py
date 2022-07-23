@@ -317,6 +317,19 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             keywords=[],
         )
 
+    def visit_NotVisibleSpecifier(self, node: s.NotVisibleSpecifier):
+        if node.base is not None:
+            return ast.Call(
+                func=ast.Name(id="NotVisibleFrom", ctx=loadCtx),
+                args=[self.visit(node.base)],
+                keywords=[],
+            )
+        return ast.Call(
+            func=ast.Name(id="NotVisibleSpec", ctx=loadCtx),
+            args=[],
+            keywords=[],
+        )
+
     def visit_InSpecifier(self, node: s.InSpecifier):
         return ast.Call(
             func=ast.Name(id="In", ctx=loadCtx),
