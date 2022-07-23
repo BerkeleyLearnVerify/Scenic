@@ -622,16 +622,14 @@ class ParameterTableProxy(collections.abc.Mapping):
 def globalParameters():
 	return ParameterTableProxy(_globalParameters)
 
-def mutate(*objects):		# TODO update syntax
+def mutate(*objects, scale = 1):
 	"""Function implementing the mutate statement."""
 	if evaluatingRequirement:
 		raise RuntimeParseError('used mutate statement inside a requirement')
-	scale = 1
-	if objects and isinstance(objects[-1], (float, int)):
-		scale = objects[-1]
-		objects = objects[:-1]
 	if len(objects) == 0:
 		objects = currentScenario._objects
+	if not isinstance(scale, (int, float)):
+		raise RuntimeParseError('"mutate X by Y" with Y not a number')
 	for obj in objects:
 		if not isinstance(obj, Object):
 			raise RuntimeParseError('"mutate X" with X not an object')
