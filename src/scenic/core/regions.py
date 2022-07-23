@@ -898,7 +898,7 @@ class PolygonalRegion(Region):
 		return self.polygons.distance(shapely.geometry.Point(point))
 
 	def getAABB(self):
-		xmin, xmax, ymin, ymax = self.polygons.bounds
+		xmin, ymin, xmax, ymax = self.polygons.bounds
 		return ((xmin, ymin), (xmax, ymax))
 
 	def show(self, plt, style='r-', **kwargs):
