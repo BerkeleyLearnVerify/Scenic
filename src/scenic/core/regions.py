@@ -20,7 +20,7 @@ from scenic.core.vectors import Vector, OrientedVector, VectorDistribution, Vect
 from scenic.core.geometry import _RotatedRectangle
 from scenic.core.geometry import sin, cos, hypot, findMinMax, pointIsInCone, averageVectors
 from scenic.core.geometry import headingOfSegment, triangulatePolygon, plotPolygon, polygonUnion
-from scenic.core.type_support import toVector
+from scenic.core.type_support import toVector, toScalar
 from scenic.core.utils import cached, cached_property, areEquivalent
 
 def toPolygon(thing):
@@ -96,6 +96,10 @@ class Region(Samplable):
 		Check if this `Region` intersects another.
 		"""
 		if triedReversed:
+			# Last-ditch attempt to check intersection by converting to polygons
+			p1, p2 = toPolygon(self), toPolygon(other)
+			if p1 is not None and p2 is not None:
+				return not (p1 & p2).is_empty
 			raise NotImplementedError
 		else:
 			return other.intersects(self, triedReversed=True)
@@ -274,7 +278,7 @@ class CircularRegion(Region):
 	def __init__(self, center, radius, resolution=32, name=None):
 		super().__init__(name, center, radius)
 		self.center = toVector(center, "center of CircularRegion not a vector")
-		self.radius = radius
+		self.radius = toScalar(radius, "radius of CircularRegion not a scalar")
 		self.circumcircle = (self.center, self.radius)
 		self.resolution = resolution
 
@@ -293,6 +297,11 @@ class CircularRegion(Region):
 		radius = valueInContext(self.radius, context)
 		return CircularRegion(center, radius,
 		                      name=self.name, resolution=self.resolution)
+
+	def intersects(self, other, triedReversed=False):
+		if isinstance(other, CircularRegion):
+			return self.center.distanceTo(other.center) <= self.radius + other.radius
+		return super().intersects(other, triedReversed)
 
 	def containsPoint(self, point):
 		point = point.toVector()
@@ -339,9 +348,9 @@ class SectorRegion(Region):
 	"""
 	def __init__(self, center, radius, heading, angle, resolution=32, name=None):
 		self.center = toVector(center, "center of SectorRegion not a vector")
-		self.radius = radius
-		self.heading = heading
-		self.angle = angle
+		self.radius = toScalar(radius, "radius of SectorRegion not a scalar")
+		self.heading = toScalar(heading, "heading of SectorRegion not a scalar")
+		self.angle = toScalar(angle, "angle of SectorRegion not a scalar")
 		super().__init__(name, self.center, radius, heading, angle)
 		r = (radius / 2) * cos(angle / 2)
 		self.circumcircle = (self.center.offsetRadially(r, heading), r)
@@ -417,9 +426,9 @@ class RectangularRegion(_RotatedRectangle, Region):
 	def __init__(self, position, heading, width, length, name=None):
 		super().__init__(name, position, heading, width, length)
 		self.position = toVector(position, "position of RectangularRegion not a vector")
-		self.heading = heading
-		self.width = width
-		self.length = length
+		self.heading = toScalar(heading, "heading of RectangularRegion not a scalar")
+		self.width = toScalar(width, "width of RectangularRegion not a scalar")
+		self.length = toScalar(length, "length of RectangularRegion not a scalar")
 		self.hw = hw = width / 2
 		self.hl = hl = length / 2
 		self.radius = hypot(hw, hl)		# circumcircle; for collision detection
