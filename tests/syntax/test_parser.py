@@ -518,6 +518,34 @@ class TestNew:
             case _:
                 assert False
 
+    def test_specifier_not_visible(self):
+        mod = parse_string_helper("new Object not visible")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    "Object",
+                    [NotVisibleSpecifier(None)],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_specifier_not_visible_from(self):
+        mod = parse_string_helper("new Object not visible from base")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    "Object",
+                    [NotVisibleSpecifier(Name("base"))],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
     def test_specifier_in(self):
         mod = parse_string_helper("new Object in region")
         stmt = mod.body[0]
