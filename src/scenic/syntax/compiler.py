@@ -162,6 +162,33 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     def visit_PropertyDef(self, _: s.PropertyDef) -> any:
         assert False, "PropertyDef should be handled in `visit_ClassDef`"
 
+    def visit_Call(self, node: ast.Call) -> any:
+        newArgs = []
+        wrappedStar = False
+        for arg in node.args:
+            if isinstance(arg, ast.Starred):  # TODO(shun): check not in behavior?
+                wrappedStar = True
+                checkedVal = ast.Call(
+                    ast.Name("wrapStarredValue", ast.Load()),
+                    [self.visit(arg.value), ast.Constant(arg.value.lineno)],
+                    [],
+                )
+                newArgs.append(ast.Starred(checkedVal, ast.Load()))
+            else:
+                newArgs.append(self.visit(arg))
+        newKeywords = [self.visit(kwarg) for kwarg in node.keywords]
+        newFunc = self.visit(node.func)
+        if wrappedStar:
+            newNode = ast.Call(
+                ast.Name("callWithStarArgs", ast.Load()),
+                [newFunc] + newArgs,
+                newKeywords,
+            )
+        else:
+            newNode = ast.Call(newFunc, newArgs, newKeywords)
+        newNode = ast.copy_location(newNode, node)
+        return newNode
+
     def visit_Model(self, node: s.Model):
         return ast.Expr(
             value=ast.Call(
