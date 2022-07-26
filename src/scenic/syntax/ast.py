@@ -259,6 +259,17 @@ class VisibleSpecifier(AST):
         self._fields = ["base"]
 
 
+class NotVisibleSpecifier(AST):
+    __match_args__ = ("base",)
+
+    def __init__(
+        self, base: Optional[ast.AST] = None, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.base = base
+        self._fields = ["base"]
+
+
 class InSpecifier(AST):
     __match_args__ = ("region",)
 
