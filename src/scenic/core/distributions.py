@@ -235,7 +235,7 @@ class Distribution(Samplable):
 		return OperatorDistribution('__call__', self, args)
 
 	def __iter__(self):
-		raise TypeError(f'distribution {self} is not iterable')
+		raise RuntimeParseError(f'cannot iterate through a random value')
 
 	def _comparisonError(self, other):
 		raise RuntimeParseError('random values cannot be compared '
@@ -278,9 +278,9 @@ class CustomDistribution(Distribution):
 	def isEquivalentTo(self, other):
 		if not type(other) is CustomDistribution:
 			return False
-		return (self.sampler == other.sampler
+		return (areEquivalent(self.sampler, other.sampler)
 			and self.name == other.name
-			and self.evaluator == other.evaluator)
+			and areEquivalent(self.evaluator, other.evaluator))
 
 	def __str__(self):
 		return f'{self.name}{argsToString(self.dependencies)}'
@@ -312,7 +312,7 @@ class TupleDistribution(Distribution, collections.abc.Sequence):
 		if not type(other) is TupleDistribution:
 			return False
 		return (areEquivalent(self.coordinates, other.coordinates)
-			and self.builder == other.builder)
+			and areEquivalent(self.builder, other.builder))
 
 	def __str__(self):
 		coords = ', '.join(str(c) for c in self.coordinates)
@@ -379,10 +379,10 @@ class FunctionDistribution(Distribution):
 	def isEquivalentTo(self, other):
 		if not type(other) is FunctionDistribution:
 			return False
-		return (self.function == other.function
+		return (areEquivalent(self.function, other.function)
 			and areEquivalent(self.arguments, other.arguments)
 			and areEquivalent(self.kwargs, other.kwargs)
-			and self.support == other.support)
+			and areEquivalent(self.support, other.support))
 
 	def __str__(self):
 		args = argsToString(itertools.chain(self.arguments, self.kwargs.items()))
@@ -483,7 +483,7 @@ class MethodDistribution(Distribution):
 	def isEquivalentTo(self, other):
 		if not type(other) is MethodDistribution:
 			return False
-		return (self.method == other.method
+		return (areEquivalent(self.method, other.method)
 			and areEquivalent(self.object, other.object)
 			and areEquivalent(self.arguments, other.arguments)
 			and areEquivalent(self.kwargs, other.kwargs))
@@ -659,7 +659,7 @@ class OperatorDistribution(Distribution):
 			and areEquivalent(self.object, other.object)
 			and areEquivalent(self.operands, other.operands))
 
-	def __str__(self):
+	def __repr__(self):
 		return f'{self.object}.{self.operator}{argsToString(self.operands)}'
 
 # Operators which can be applied to distributions.

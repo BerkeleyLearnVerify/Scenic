@@ -1,5 +1,6 @@
 
 import math
+import typing
 import warnings
 
 import pytest
@@ -68,3 +69,9 @@ def test_function_decorator_builtin():
     res = myhypot(4, Options([-3, 3]))
     for i in range(30):
         assert res.sample() == pytest.approx(5)
+
+def test_function_decorator_annotations():
+    @distributionFunction
+    def myfunc(x: float) -> float:
+        return 2 * x
+    assert typing.get_type_hints(myfunc) == {'x': float, 'return': float}

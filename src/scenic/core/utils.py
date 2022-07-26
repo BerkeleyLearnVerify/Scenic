@@ -2,6 +2,7 @@
 
 import collections
 from contextlib import contextmanager
+import inspect
 import math
 import signal
 import sys
@@ -70,6 +71,8 @@ def areEquivalent(a, b):
 
     does not make X and Y always have equal values!
     """
+    if a is b:
+        return True
     if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
         if len(a) != len(b):
             return False
@@ -94,15 +97,35 @@ def areEquivalent(a, b):
     elif isinstance(a, dict) and isinstance(b, dict):
         if len(a) != len(b):
             return False
+        kb = set(b)
         for x, v in a.items():
             found = False
-            for y, w in b.items():
-                if areEquivalent(x, y) and areEquivalent(v, w):
-                    del b[y]
-                    found = True
-                    break
-            if not found:
+            if x in kb: # fast path
+                y = x
+            else:
+                for y in kb:
+                    if areEquivalent(x, y):
+                        found = True
+                        break
+                if not found:
+                    return False
+            if not areEquivalent(v, b[y]):
                 return False
+            kb.remove(y)
+        return True
+    elif inspect.isfunction(a) and inspect.isfunction(b):
+        # These attributes we can check with simple equality
+        attrs = ('__doc__', '__name__', '__qualname__', '__module__', '__code__')
+        if any(getattr(a, attr) != getattr(b, attr) for attr in attrs):
+            return False
+        # These attributes need a full equivalence check
+        attrs = ('__defaults__', '__kwdefaults__', '__dict__', '__annotations__')
+        if not all(areEquivalent(getattr(a, attr), getattr(b, attr)) for attr in attrs):
+            return False
+        # Lastly, we need to check that free variables are bound to equivalent objects
+        # (effectively handling __closure__ and __globals__)
+        if not areEquivalent(inspect.getclosurevars(a), inspect.getclosurevars(b)):
+            return False
         return True
     elif hasattr(a, 'isEquivalentTo'):
         return a.isEquivalentTo(b)
