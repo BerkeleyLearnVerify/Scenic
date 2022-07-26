@@ -1,6 +1,7 @@
 """Objects representing distributions that can be sampled from."""
 
 import collections
+import functools
 import itertools
 import random
 import math
@@ -411,7 +412,16 @@ def distributionFunction(wrapped=None, *, support=None, valueType=None):
 			return makeDelayedFunctionCall(helper, (wrapped,) + args, kwargs)
 		else:
 			return wrapped(*args, **kwargs)
-	return unpacksDistributions(decorator.decorate(wrapped, helper, kwsyntax=True))
+	try:
+		newFunc = decorator.decorate(wrapped, helper, kwsyntax=True)
+	except ValueError:
+		# We couldn't preserve the wrapped function's metadata using decorator.decorate
+		# (e.g. it's a built-in function like print on which inspect.signature fails),
+		# so fall back on functools.wraps.
+		@functools.wraps(wrapped)
+		def newFunc(*args, **kwargs):
+			return helper(wrapped, *args, **kwargs)
+	return unpacksDistributions(newFunc)
 
 def monotonicDistributionFunction(method, valueType=None):
 	"""Like distributionFunction, but additionally specifies that the function is monotonic."""
@@ -495,7 +505,14 @@ def distributionMethod(method):
 			return makeDelayedFunctionCall(helper, (method, self) + args, kwargs)
 		else:
 			return method(self, *args, **kwargs)
-	return unpacksDistributions(decorator.decorate(method, helper, kwsyntax=True))
+	try:
+		newMethod = decorator.decorate(method, helper, kwsyntax=True)
+	except ValueError:
+		# See analogous comment in distributionFunction
+		@functools.wraps(method)
+		def newMethod(*args, **kwargs):
+			return helper(method, *args, **kwargs)
+	return unpacksDistributions(newMethod)
 
 class AttributeDistribution(Distribution):
 	"""Distribution resulting from accessing an attribute of a distribution"""
