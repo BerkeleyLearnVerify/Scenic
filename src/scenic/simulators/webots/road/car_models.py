@@ -1,8 +1,13 @@
 """Car models built into Webots."""
 
-import collections
+from dataclasses import dataclass
 
-CarModel = collections.namedtuple('CarModel', ('name', 'width', 'length'))
+@dataclass(frozen=True)
+class CarModel:
+	name: str
+	width: float
+	length: float
+
 carModels = {
 	CarModel('BmwX5', 2, 4.75),
 	CarModel('CitroenCZero', 1.5, 3.5),

@@ -16,7 +16,7 @@ from scenic.core.vectors import Vector
 from scenic.core.geometry import (_RotatedRectangle, averageVectors, hypot, min,
                                   pointIsInCone)
 from scenic.core.regions import CircularRegion, SectorRegion
-from scenic.core.type_support import toVector, toHeading, toType
+from scenic.core.type_support import toVector, toHeading, toScalar, toType
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.utils import DefaultIdentityDict, areEquivalent, cached_property
 from scenic.core.errors import RuntimeParseError
@@ -170,10 +170,13 @@ class Constructible(Samplable):
 		assert prop not in self.properties
 
 		# Normalize types of some built-in properties
-		if prop == 'position':
-			value = toVector(value, f'"position" of {self} not a vector')
+		if prop in ('position', 'velocity', 'cameraOffset'):
+			value = toVector(value, f'"{prop}" of {self} not a vector')
 		elif prop == 'heading':
-			value = toHeading(value, f'"heading" of {self} not a heading')
+			value = toHeading(value, f'"{prop}" of {self} not a heading')
+		elif prop in ('width', 'length', 'visibleDistance', 'positionStdDev',
+		              'viewAngle', 'headingStdDev', 'speed', 'angularSpeed'):
+			value = toScalar(value, f'"{prop}" of {self} not a scalar')
 
 		self.properties.add(prop)
 		object.__setattr__(self, prop, value)
@@ -200,6 +203,8 @@ class Constructible(Samplable):
 			object.__setattr__(self, prop, val)
 
 	def sampleGiven(self, value):
+		if not needsSampling(self):
+			return self
 		return self._withProperties({ prop: value[getattr(self, prop)]
 								    for prop in self.properties })
 
@@ -243,7 +248,10 @@ class Mutator:
 	"""
 
 	def appliedTo(self, obj):
-		"""Return a mutated copy of the object. Implemented by subclasses.
+		"""Return a mutated copy of the given object. Implemented by subclasses.
+
+		The mutator may inspect the ``mutationScale`` attribute of the given object
+		to scale its effect according to the scale given in ``mutate O by S``.
 
 		Returns:
 			A pair consisting of the mutated copy of the object (which is most easily
@@ -262,7 +270,8 @@ class PositionMutator(Mutator):
 		self.stddev = stddev
 
 	def appliedTo(self, obj):
-		noise = Vector(random.gauss(0, self.stddev), random.gauss(0, self.stddev))
+		stddev = self.stddev * obj.mutationScale
+		noise = Vector(random.gauss(0, stddev), random.gauss(0, stddev))
 		pos = obj.position + noise
 		return (obj._copyWith(position=pos), True)		# allow further mutation
 
@@ -284,7 +293,7 @@ class HeadingMutator(Mutator):
 		self.stddev = stddev
 
 	def appliedTo(self, obj):
-		noise = random.gauss(0, self.stddev)
+		noise = random.gauss(0, obj.mutationScale * self.stddev)
 		h = obj.heading + noise
 		return (obj._copyWith(heading=h), True)		# allow further mutation
 
@@ -310,18 +319,24 @@ class Point(Constructible):
 		width (float): Default value zero (only provided for compatibility with
 		  operators that expect an `Object`).
 		length (float): Default value zero.
+		mutationScale (float): Overall scale of mutations, as set by the
+		  :keyword:`mutate` statement. Default value zero (mutations disabled).
 		positionStdDev (float): Standard deviation of Gaussian noise to add to this
-		  object's ``position`` when mutation is enabled. Default value 1.
+		  object's ``position`` when mutation is enabled with scale 1. Default value 1.
 	"""
 	position: PropertyDefault((), {'dynamic'}, lambda self: Vector(0, 0))
 	width: 0
 	length: 0
 	visibleDistance: 50
 
-	mutationEnabled: False
+	mutationScale: 0
 	mutator: PropertyDefault({'positionStdDev'}, {'additive'},
 							 lambda self: PositionMutator(self.positionStdDev))
 	positionStdDev: 1
+
+	# This property is defined in Object, but we provide a default empty value
+	# for Points for implementation convenience.
+	regionContainedIn: None
 
 	@cached_property
 	def visibleRegion(self):
@@ -347,7 +362,7 @@ class Point(Constructible):
 
 	def sampleGiven(self, value):
 		sample = super().sampleGiven(value)
-		if self.mutationEnabled:
+		if self.mutationScale != 0:
 			for mutator in self.mutator:
 				if mutator is None:
 					continue
@@ -378,7 +393,7 @@ class OrientedPoint(Point):
 		viewAngle (float): View cone angle for ``can see`` operator. Default
 		  value 2π.
 		headingStdDev (float): Standard deviation of Gaussian noise to add to this
-		  object's ``heading`` when mutation is enabled. Default value 5°.
+		  object's ``heading`` when mutation is enabled with scale 1. Default value 5°.
 	"""
 	heading: PropertyDefault((), {'dynamic'}, lambda self: 0)
 	viewAngle: math.tau

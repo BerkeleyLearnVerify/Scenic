@@ -13,8 +13,8 @@ are handled as follows:
 	1. During compilation, all instances of `ExternalParameter` are gathered
 	   together and given to the `ExternalSampler.forParameters` function;
 	   this function creates an appropriate `ExternalSampler`,
-	   whose configuration can be controlled using various global parameters
-	   (``param`` statements).
+	   whose configuration can be controlled using :term:`global parameters`
+	   (see the function documentation for details).
 
 	2. When sampling a scene, before sampling any other distributions the
 	   :obj:`~ExternalSampler.sample` method of the `ExternalSampler` is
@@ -105,6 +105,9 @@ from scenic.core.errors import InvalidScenarioError
 class ExternalSampler:
 	"""Abstract class for objects called to sample values for each external parameter.
 
+	The initializer for this class takes the same arguments as the factory function
+	`forParameters` below.
+
 	Attributes:
 		rejectionFeedback: Value passed to the `sample` method when the last sample was rejected.
 		  This value can be chosen by a Scenic scenario using the global parameter
@@ -118,13 +121,14 @@ class ExternalSampler:
 	def forParameters(params, globalParams):
 		"""Create an `ExternalSampler` given the sets of external and global parameters.
 
-		The scenario may explicitly select an external sampler by assigning the global
-		parameter ``externalSampler`` to a subclass of `ExternalSampler`. Otherwise, a
-		`VerifaiSampler` is used by default.
+		The scenario may explicitly select an external sampler by assigning the
+		:term:`global parameter` ``externalSampler`` to a subclass of `ExternalSampler`.
+		Otherwise, a `VerifaiSampler` is used by default.
 
 		Args:
 			params (tuple): Tuple listing each `ExternalParameter`.
-			globalParams (dict): Dictionary of global parameters for the `Scenario`.
+			globalParams (dict): Dictionary of global parameters for the `Scenario`, made
+			  available here to support sampler customization through setting parameters.
 			  Note that the values of these parameters may be instances of `Distribution`!
 
 		Returns:
@@ -158,7 +162,7 @@ class ExternalSampler:
 class VerifaiSampler(ExternalSampler):
 	"""An external sampler exposing the samplers in the VerifAI toolkit.
 
-	The sampler can be configured using the following Scenic global parameters:
+	The sampler can be configured using the following Scenic :term:`global parameters`:
 
 		* ``verifaiSamplerType`` -- sampler type (see the ``verifai.server.choose_sampler``
 		  function); the default is ``'halton'``

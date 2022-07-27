@@ -41,6 +41,8 @@ class Simulator:
                  raiseGuardViolations=False):
         """Run a simulation for a given scene.
 
+        For details on how simulations are run, see `dynamic scenario semantics`.
+
         Args:
             scene (Scene): Scene from which to start the simulation (sampled using
                 `Scenario.generate`).

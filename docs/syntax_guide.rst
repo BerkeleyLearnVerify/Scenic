@@ -4,7 +4,7 @@ Syntax Guide
 ============
 
 This page summarizes the syntax of Scenic (excluding syntax inherited from Python).
-For more details, click the links for individual language constructs to go to the corresponding reference section.
+For more details, click the links for individual language constructs to go to the corresponding section of the `language reference`.
 
 
 Primitive Data Types
@@ -38,7 +38,6 @@ Compound Statements
 +++++++++++++++++++
 
 .. list-table::
-   :widths: 30 70
    :header-rows: 1
 
    * - Syntax
@@ -58,7 +57,6 @@ Simple Statements
 +++++++++++++++++
 
 .. list-table::
-   :widths: 30 70
    :header-rows: 1
 
    * - Syntax
@@ -68,7 +66,7 @@ Simple Statements
    * - :sampref:`import {module}`
      - Import a Scenic or Python module.
    * - :sampref:`param {identifier} = {value}, {...}`
-     - Define global parameters of the scenario.
+     - Define :term:`global parameters` of the scenario.
    * - :sampref:`require {boolean}`
      - Define a hard requirement.
    * - :sampref:`require[{number}] {boolean}`
@@ -90,7 +88,6 @@ Dynamic Statements
 These statements can only be used inside a :term:`dynamic behavior`, :term:`monitor`, or :keyword:`compose` block of a :term:`modular scenario`.
 
 .. list-table::
-   :widths: 30 70
    :header-rows: 1
 
    * - Syntax
@@ -157,7 +154,7 @@ Properties added by `Object`:
  behavior              `None`        :term:`dynamic behavior`, if any
  allowCollisions      `False`        whether collisions are allowed
  requireVisible       `True`         whether object must be visible from ego
- regionContainedIn    workspace      Region the object must lie within
+ regionContainedIn    `workspace`    Region the object must lie within
  cameraOffset          (0, 0)        position of camera for ‘can see’
 ===================  ==============  ================================================
 
@@ -179,7 +176,6 @@ Additional specifiers for the ``position`` and ``heading`` properties are listed
   Each ``OrientedPoint`` (e.g. ``P``) is shown as a bold arrow.
 
 .. list-table::
-   :widths: 80 20
    :header-rows: 1
 
    * - Specifier for ``position``
@@ -202,7 +198,6 @@ Additional specifiers for the ``position`` and ``heading`` properties are listed
      - Positions the object uniformly at random in the non-visible region of the ego, or of the given Point/OrientedPoint if given
 
 .. list-table::
-   :widths: 80 20
    :header-rows: 1
 
    * - Specifier for ``position`` and optionally ``heading``
@@ -218,7 +213,6 @@ Additional specifiers for the ``position`` and ``heading`` properties are listed
 
 
 .. list-table::
-   :widths: 80 20
    :header-rows: 1
 
    * - Specifier for ``heading``
@@ -245,7 +239,6 @@ Operators
   Each ``OrientedPoint`` (e.g. ``P``) is shown as a bold arrow.
 
 .. list-table::
-   :widths: 80 20
    :header-rows: 1
 
    * - Scalar Operators
@@ -260,7 +253,6 @@ Operators
      - The heading to the given position from ego (or the ``from`` vector)
 
 .. list-table::
-   :widths: 80 20
    :header-rows: 1
 
    * - Boolean Operators
@@ -272,7 +264,6 @@ Operators
 
 
 .. list-table::
-   :widths: 80 20
    :header-rows: 1
 
    * - Heading Operators
@@ -286,7 +277,6 @@ Operators
 
 
 .. list-table::
-   :widths: 80 20
    :header-rows: 1
 
    * - Vector Operators
@@ -298,16 +288,16 @@ Operators
 
 
 .. list-table::
-   :widths: 80 20
    :header-rows: 1
 
    * - Region Operators
      - Meaning
    * - :sampref:`visible {region}`
      - The part of the given region visible from ego
+   * - :sampref:`not visible {region}`
+     - The part of the given region not visible from ego
 
 .. list-table::
-   :widths: 80 20
    :header-rows: 1
 
    * - OrientedPoint Operators
@@ -325,7 +315,6 @@ Built in Functions
 ------------------
 
 .. list-table::
-   :widths: 80 20
    :header-rows: 1
 
    * - Function

@@ -1,6 +1,7 @@
 """Objects representing distributions that can be sampled from."""
 
 import collections
+import functools
 import itertools
 import random
 import math
@@ -411,7 +412,16 @@ def distributionFunction(wrapped=None, *, support=None, valueType=None):
 			return makeDelayedFunctionCall(helper, (wrapped,) + args, kwargs)
 		else:
 			return wrapped(*args, **kwargs)
-	return unpacksDistributions(decorator.decorate(wrapped, helper, kwsyntax=True))
+	try:
+		newFunc = decorator.decorate(wrapped, helper, kwsyntax=True)
+	except ValueError:
+		# We couldn't preserve the wrapped function's metadata using decorator.decorate
+		# (e.g. it's a built-in function like print on which inspect.signature fails),
+		# so fall back on functools.wraps.
+		@functools.wraps(wrapped)
+		def newFunc(*args, **kwargs):
+			return helper(wrapped, *args, **kwargs)
+	return unpacksDistributions(newFunc)
 
 def monotonicDistributionFunction(method, valueType=None):
 	"""Like distributionFunction, but additionally specifies that the function is monotonic."""
@@ -495,14 +505,39 @@ def distributionMethod(method):
 			return makeDelayedFunctionCall(helper, (method, self) + args, kwargs)
 		else:
 			return method(self, *args, **kwargs)
-	return unpacksDistributions(decorator.decorate(method, helper, kwsyntax=True))
+	try:
+		newMethod = decorator.decorate(method, helper, kwsyntax=True)
+	except ValueError:
+		# See analogous comment in distributionFunction
+		@functools.wraps(method)
+		def newMethod(*args, **kwargs):
+			return helper(method, *args, **kwargs)
+	return unpacksDistributions(newMethod)
 
 class AttributeDistribution(Distribution):
 	"""Distribution resulting from accessing an attribute of a distribution"""
-	def __init__(self, attribute, obj):
-		super().__init__(obj)
+	def __init__(self, attribute, obj, valueType=None):
+		if valueType is None:
+			valueType = self.inferType(obj, attribute)
+		super().__init__(obj, valueType=valueType)
 		self.attribute = attribute
 		self.object = obj
+
+	@staticmethod
+	def inferType(obj, attribute):
+		"""Attempt to infer the type of the given attribute."""
+		# If the object's type is known, see if we have an attribute type annotation.
+		ty = type_support.underlyingType(obj)
+		try:
+			hints = typing.get_type_hints(ty)
+			attrTy = hints.get(attribute)
+			if attrTy:
+				return attrTy
+		except Exception:
+			pass	# couldn't get type annotations
+
+		# We can't tell what the attribute type is.
+		return None
 
 	def sampleGiven(self, value):
 		obj = value[self.object]
@@ -547,16 +582,31 @@ class OperatorDistribution(Distribution):
 	def __init__(self, operator, obj, operands, valueType=None):
 		operands = tuple(toDistribution(arg) for arg in operands)
 		if valueType is None:
-			valueType = self.inferType(obj, operator)
+			valueType = self.inferType(obj, operator, operands)
 		super().__init__(obj, *operands, valueType=valueType)
 		self.operator = operator
 		self.object = obj
 		self.operands = operands
 
 	@staticmethod
-	def inferType(obj, operator):
-		if issubclass(obj._valueType, (float, int)):
+	def inferType(obj, operator, operands):
+		"""Attempt to infer the result type of the given operator application."""
+		# If the object's type is known, see if we have a return type annotation.
+		ty = type_support.underlyingType(obj)
+		op = getattr(ty, operator, None)
+		if op:
+			retTy = typing.get_type_hints(op).get('return')
+			if retTy:
+				return retTy
+
+		# The supported arithmetic operations on scalars all return scalars.
+		def scalar(thing):
+			ty = type_support.underlyingType(thing)
+			return type_support.canCoerceType(ty, float)
+		if scalar(obj) and all(scalar(operand) for operand in operands):
 			return float
+
+		# We can't tell what the result type is.
 		return None
 
 	def sampleGiven(self, value):

@@ -47,7 +47,7 @@ attribute, which is an instance of `SimulationResult` (simulator-specific subcla
 	import scenic
 	from scenic.simulators.newtonian import NewtonianSimulator
 	scenario = scenic.scenarioFromFile('examples/driving/badlyParkedCarPullingIn.scenic',
-	                                   model='scenic.simulators.newtonian.model')
+	                                   model='scenic.simulators.newtonian.driving_model')
 	scene, _ = scenario.generate()
 	simulator = NewtonianSimulator()
 	simulation = simulator.simulate(scene, maxSteps=10)

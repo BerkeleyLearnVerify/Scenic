@@ -124,6 +124,20 @@ def test_behavior_random_argument_list():
     actions3 = sampleEgoActionsFromScene(scene2)
     assert actions1 != actions3
 
+def test_behavior_object_argument():
+    scenario = compileScenic("""
+        behavior Foo(obj):
+            while True:
+                take obj.flag
+        behavior Bar():
+            self.flag = 1
+            wait
+        other = Object with flag 0, with behavior Bar
+        ego = Object at (10, 0), with behavior Foo(other)
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=2)
+    assert actions[1] == 1
+
 # Globals
 
 def test_behavior_globals_read():

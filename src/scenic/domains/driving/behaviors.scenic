@@ -3,12 +3,11 @@
 These behaviors are automatically imported when using the driving domain.
 """
 
+import math
+
 from scenic.domains.driving.actions import *
 import scenic.domains.driving.model as _model
 from scenic.domains.driving.roads import ManeuverType
-from scenic.core.regions import regionFromShapelyObject
-from shapely.geometry import LineString
-import math
 
 def concatenateCenterlines(centerlines=[]):
     return PolylineRegion.unionAll(centerlines)

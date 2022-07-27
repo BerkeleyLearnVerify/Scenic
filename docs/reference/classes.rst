@@ -83,7 +83,7 @@ This class subclasses `OrientedPoint`, adding a variety of properties including:
 
 The built-in requirements applying to each object are:
 
-* The object must be completely contained within its *container*, the region specified as its ``regionContainedIn`` property (by default the entire workspace).
+* The object must be completely contained within its :term:`container`, the region specified as its ``regionContainedIn`` property (by default the entire :term:`workspace`).
 * The object must be visible from the ego object, unless its ``requireVisible`` property is set to `False`.
 * The object must not intersect another object (i.e., their bounding boxes must not overlap), unless either of the two objects has their ``allowCollisions`` property set to `True`.
 

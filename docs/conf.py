@@ -260,7 +260,7 @@ def setup(app):
 
 import importlib
 from sphinx.pycode import ModuleAnalyzer
-from sphinx.util.docstrings import extract_metadata
+from sphinx.util.docstrings import separate_metadata
 
 def handle_find_source(app, modname):
     try:
@@ -291,7 +291,7 @@ def handle_process_signature(app, what, name, obj, options, signature, ret_anno)
 def handle_skip_member(app, what, name, obj, skip, options):
     if not skip:
         doc = getattr(obj, '__doc__')
-        if doc and 'private' in extract_metadata(doc):
+        if doc and 'private' in separate_metadata(doc)[1]:
             return True
     return None
 
@@ -314,7 +314,10 @@ def handle_missing_reference(app, env, node, contnode):
                                      'term', target, node, contnode)
     return newnode
 
+from sphinx.locale import __
 from sphinx.transforms.post_transforms import ReferencesResolver
+from sphinx.util import logging
+logger = logging.getLogger(__name__)
 
 class ScenicRefResolver(ReferencesResolver):
     default_priority = ReferencesResolver.default_priority - 2
@@ -351,17 +354,17 @@ class ScenicRefResolver(ReferencesResolver):
         results = stdresults + domresults
         if not results:
             return None
-        if len(stdresults) > 1 or len(domresults) > 1:
-            def stringify(name: str, node: Element) -> str:
+        if stdresults and domresults:
+            # disambiguate based on whether this is internal documentation or not
+            results = domresults if refdoc.startswith('modules/') else stdresults
+        if len(results) > 1:
+            def stringify(name: str, node: nodes.Element) -> str:
                 reftitle = node.get('reftitle', node.astext())
                 return ':%s:`%s`' % (name, reftitle)
             candidates = ' or '.join(stringify(name, role) for name, role in results)
             logger.warning(__('more than one target found for \'any\' cross-'
                               'reference %r: could be %s'), target, candidates,
                            location=node)
-        if stdresults and domresults:
-            # disambiguate based on whether this is internal documentation or not
-            results = domresults if refdoc.startswith('modules/') else stdresults
         res_role, newnode = results[0]
         # Override "any" class with the actual role type to get the styling
         # approximately correct.

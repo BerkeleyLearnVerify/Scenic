@@ -15,7 +15,7 @@ following simulators:
     * CARLA, using the model :doc:`scenic.simulators.carla.model`
     * LGSVL, using the model :doc:`scenic.simulators.lgsvl.model`
     * the built-in Newtonian simulator, using the model
-      :doc:`scenic.simulators.newtonian.model`
+      :doc:`scenic.simulators.newtonian.driving_model`
 
 For example, the :file:`examples/driving/badlyParkedCarPullingIn.scenic` scenario is
 written for the driving domain and can be run in multiple simulators:
@@ -31,7 +31,7 @@ written for the driving domain and can be run in multiple simulators:
 
         .. code-block:: console
 
-            $ scenic -S --model scenic.simulators.newtonian.model \\
+            $ scenic -S --model scenic.simulators.newtonian.driving_model \\
                 examples/driving/badlyParkedCarPullingIn.scenic
 
     * CARLA, using the default map specified in the scenario:

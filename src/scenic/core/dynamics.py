@@ -4,6 +4,7 @@ from collections import defaultdict
 import enum
 import inspect
 import itertools
+import sys
 import types
 import warnings
 
@@ -15,7 +16,6 @@ from scenic.core.requirements import (RequirementType, PendingRequirement,
 from scenic.core.simulators import (RejectSimulationException, EndSimulationAction,
                                     EndScenarioAction)
 from scenic.core.utils import argsToString, alarm
-from scenic.core.workspaces import Workspace
 
 # Utilities
 
@@ -356,6 +356,8 @@ class DynamicScenario(Invocable):
             composeDone = True      # compose block ended in an earlier step
         else:
             def alarmHandler(signum, frame):
+                if sys.gettrace():
+                    return  # skip the warning if we're in the debugger
                 warnings.warn(f'the compose block of scenario {self} is taking a long time; '
                               'maybe you have an infinite loop with no "wait" statement?',
                               StuckBehaviorWarning)
@@ -550,18 +552,7 @@ class DynamicScenario(Invocable):
                             'scenario and needs an ego object.)')
             raise InvalidScenarioError(msg)
 
-        # Extract workspace, if one is specified
-        if 'workspace' in namespace:
-            workspace = namespace['workspace']
-            if not isinstance(workspace, Workspace):
-                raise InvalidScenarioError(f'workspace {workspace} is not a Workspace')
-            if needsSampling(workspace):
-                raise InvalidScenarioError('workspace must be a fixed region')
-            if needsLazyEvaluation(workspace):
-                raise InvalidScenarioError('workspace uses value undefined '
-                                           'outside of object definition')
-        else:
-            workspace = None
+        workspace = namespace['_workspace']
 
         from scenic.core.scenarios import Scenario
         scenario = Scenario(workspace, self._simulatorFactory,
@@ -627,6 +618,8 @@ class Behavior(Invocable, Samplable):
         super()._step()
         assert self._runningIterator
         def alarmHandler(signum, frame):
+            if sys.gettrace():
+                return  # skip the warning if we're in the debugger
             warnings.warn(f'the behavior {self} is taking a long time to take an action; '
                           'maybe you have an infinite loop with no take/wait statements?',
                           StuckBehaviorWarning)

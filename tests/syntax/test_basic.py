@@ -80,6 +80,27 @@ def test_mutate():
     assert ego1.position.y != pytest.approx(1)
     assert ego1.heading != pytest.approx(0)
 
+def test_mutate_object():
+    scenario = compileScenic("""
+        ego = Object at 3@1, facing 0
+        other = Object
+        mutate other
+    """)
+    ego = sampleEgo(scenario)
+    assert ego.position.x == pytest.approx(3)
+    assert ego.position.y == pytest.approx(1)
+    assert ego.heading == pytest.approx(0)
+
+def test_mutate_scaled():
+    scenario = compileScenic("""
+        ego = Object at 3@1, facing 0
+        mutate ego by 4
+    """)
+    ego1 = sampleEgo(scenario)
+    assert ego1.position.x != pytest.approx(3)
+    assert ego1.position.y != pytest.approx(1)
+    assert ego1.heading != pytest.approx(0)
+
 def test_verbose():
     for verb in range(4):
         scenic.syntax.translator.verbosity = verb

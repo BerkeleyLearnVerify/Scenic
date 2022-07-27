@@ -96,6 +96,14 @@ def test_containment_requirement():
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
     assert all(0 <= x <= 5 for x in xs)
 
+def test_containment_workspace():
+    scenario = compileScenic("""
+        workspace = Workspace(RectangularRegion(0@0, 0, 10, 10))
+        ego = Object at Range(0, 10) @ 0
+    """)
+    xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
+    assert all(0 <= x <= 5 for x in xs)
+
 def test_visibility_requirement():
     scenario = compileScenic("""
         ego = Object with visibleDistance 10, with viewAngle 90 deg, facing 45 deg
@@ -143,6 +151,13 @@ def test_static_containment_violation():
         compileScenic("""
             foo = RectangularRegion(0@0, 0, 5, 5)
             ego = Object at 10@10, with regionContainedIn foo
+        """)
+
+def test_static_containment_workspace():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic("""
+            workspace = Workspace(RectangularRegion(0@0, 0, 5, 5))
+            ego = Object at 10@10
         """)
 
 def test_static_empty_container():

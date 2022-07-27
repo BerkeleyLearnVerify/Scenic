@@ -17,6 +17,18 @@ def test_containment():
     assert all(0.5 <= x <= 1.5 for x in xs)
     assert any(0.5 <= x <= 0.7 or 1.3 <= x <= 1.5 for x in xs)
 
+def test_containment_polyline():
+    """As above, but when the object is placed on a polyline."""
+    scenario = compileScenic("""
+        workspace = Workspace(PolygonalRegion([0@0, 2@0, 2@2, 0@2]))
+        line = PolylineRegion([0@0, 1@1, 2@0])
+        ego = Object on line, facing 0
+    """)
+    # Sampling should only require 1 iteration after pruning
+    xs = [sampleEgo(scenario).position.x for i in range(60)]
+    assert all(0.5 <= x <= 1.5 for x in xs)
+    assert any(0.5 <= x <= 0.7 or 1.3 <= x <= 1.5 for x in xs)
+
 def test_relative_heading():
     """Test pruning based on requirements bounding relative headings."""
     scenario = compileScenic("""
