@@ -7,6 +7,7 @@ property definitions and :ref:`specifier resolution`).
 
 import collections
 import math
+import os.path
 import random
 
 from scenic.core.distributions import Samplable, needsSampling
@@ -598,6 +599,12 @@ class Object(OrientedPoint, _RotatedRectangle):
 		x, y = zip(*triangle)
 		plt.fill(x, y, "w")
 		plt.plot(x + (x[0],), y + (y[0],), color="k", linewidth=1)
+
+	def save_observations(self, save_path):
+		for key, sensor in self.sensors.items():
+			sensor_path = os.path.join(save_path, key)
+			os.makedirs(sensor_path, exist_ok=True)
+			sensor.save_last_observation(save_path=sensor_path)
 
 def enableDynamicProxyFor(obj):
 	object.__setattr__(obj, '_dynamicProxy', obj._copyWith())

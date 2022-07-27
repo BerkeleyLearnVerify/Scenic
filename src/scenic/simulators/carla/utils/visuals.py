@@ -272,7 +272,7 @@ class CameraManager(object):
 		self._index = None
 
 	def toggle_camera(self):
-		set_transform((self._transform_index + 1) % len(self._camera_transforms))
+		self.set_transform((self._transform_index + 1) % len(self._camera_transforms))
 
 	def set_transform(self, idx):
 		self._transform_index = idx

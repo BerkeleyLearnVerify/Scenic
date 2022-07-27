@@ -272,6 +272,11 @@ class CarlaSimulation(DrivingSimulation):
 
 	def destroy(self):
 		for obj in self.objects:
+			if obj.sensors:
+				for sensor in obj.sensors.values():
+					if sensor.carla_sensor is not None and sensor.carla_sensor.is_alive:
+						sensor.carla_sensor.stop()
+						sensor.carla_sensor.destroy()
 			if obj.carlaActor is not None:
 				if isinstance(obj.carlaActor, carla.Vehicle):
 					obj.carlaActor.set_autopilot(False, self.tm.get_port())
@@ -279,10 +284,6 @@ class CarlaSimulation(DrivingSimulation):
 					obj.carlaController.stop()
 					obj.carlaController.destroy()
 				obj.carlaActor.destroy()
-			if obj.sensors:
-				for sensor in obj.sensors.values():
-					sensor.carla_sensor.stop()
-					sensor.carla_sensor.destroy()
 		if self.render and self.cameraManager:
 			self.cameraManager.destroy_sensor()
 
