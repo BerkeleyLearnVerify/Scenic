@@ -1,6 +1,7 @@
 param map = localPath('../../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
+from .action import NNAction
 
 # Sample a lane at random
 lane = Uniform(*network.lanes)
