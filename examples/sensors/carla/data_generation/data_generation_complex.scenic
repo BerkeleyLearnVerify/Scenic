@@ -1,4 +1,4 @@
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')
+param map = localPath('../../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
@@ -26,7 +26,7 @@ ego = Car at spot,
                   "left_ss": CarlaSSSensor(offset=(0, -0.8, 1.7), rotation=(0, 270, 0), attributes=attrs),
                   "right_rgb": CarlaRGBSensor(offset=(0, 0.8, 1.7), rotation=(0, 90, 0), attributes=attrs),
                   "right_ss": CarlaSSSensor(offset=(0, 0.8, 1.7), rotation=(0, 90, 0), attributes=attrs)
-                  },
+                  }
 
 for _ in range(50):
     lane = Uniform(*network.lanes)

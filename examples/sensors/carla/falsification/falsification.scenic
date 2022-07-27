@@ -1,4 +1,4 @@
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')
+param map = localPath('../../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
 from semantic_segmentation import SemanticSegmentationModel as SSModel
@@ -28,7 +28,7 @@ other = Car offset by 0 @ Range(10, 30),
 
 
 monitor IoUMonitor:
-    ss_model = SSModel(model_path="wrong_metrics_Unet-Mobilenet_v2_mIoU-0.725.pt")
+    ss_model = SSModel(model_path="semantic_segmentation_model.pt")
     RECORDING_START = 5
     SUBSAMPLE = 10
     # Exclude the first 5 steps because cars are spawned in the air and need to drop down first
@@ -36,7 +36,7 @@ monitor IoUMonitor:
         wait
     while True:
         score = ss_model.compute_miou(agent=ego, rgb_key="front_rgb", ss_key="front_ss")
-        print(score)
+        print("mIoU:", score)
         if score < 0.6:
             ego.save_observations(localPath("data/falsification"))
         for _ in range(SUBSAMPLE):
