@@ -108,13 +108,13 @@ def test_incomplete_infix_operator():
 
 ## Infix operators
 
-def test_incomplete_infix_package():
-    """Packaged (3+-ary) infix operator with too few arguments."""
+def test_incomplete_ternary_operator():
+    """3+-ary infix operator with too few arguments."""
     with pytest.raises(SyntaxError):
         compileScenic('x = 4 offset along 12')
 
-def test_extra_infix_package():
-    """Packaged (3+-ary) infix operator with too many arguments."""
+def test_extra_ternary_operator():
+    """3+-ary infix operator with too many arguments."""
     with pytest.raises(SyntaxError):
         compileScenic('x = 4 at 12 by 17')
     with pytest.raises(SyntaxError):
