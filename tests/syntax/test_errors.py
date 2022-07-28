@@ -23,7 +23,7 @@ def test_bad_extension(tmpdir):
     with pytest.raises(RuntimeError), open(path, 'w'):
         scenic.scenarioFromFile(path)
 
-### Parse errors during token translation
+### Parse errors
 
 ## Constructor definitions
 
@@ -95,16 +95,12 @@ def test_incomplete_multiline_string():
     with pytest.raises(TokenError):
         compileScenic('x = """foobar\n' 'wog\n')
 
-### Parse errors during Python parsing
-
 def test_incomplete_infix_operator():
     """Binary infix operator with too few arguments."""
     with pytest.raises(SyntaxError):
         compileScenic('x = 3 @')
     with pytest.raises(SyntaxError):
         compileScenic('x = 3 at')
-
-### Parse errors during parse tree surgery
 
 ## Infix operators
 
