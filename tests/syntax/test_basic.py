@@ -4,7 +4,7 @@ import pytest
 import scenic
 from scenic.core.errors import InvalidScenarioError, RuntimeParseError
 from scenic.core.object_types import Object
-from tests.utils import compileScenic, sampleScene, sampleEgo, sampleParamPFrom
+from tests.utils import compileScenic, sampleParamP, sampleScene, sampleEgo, sampleParamPFrom
 
 def test_empty():
     with pytest.raises(InvalidScenarioError):
@@ -104,6 +104,40 @@ def test_mutate_scaled():
     assert ego1.position.x != pytest.approx(3)
     assert ego1.position.y != pytest.approx(1)
     assert ego1.heading != pytest.approx(0)
+
+def test_mutate_everything_scaled():
+    scenario = compileScenic("""
+        ego = new Object at 3@1, facing 0
+        other = new Object at 10@20, facing 0
+        mutate by 4
+        param p = other
+    """)
+    ego = sampleEgo(scenario)
+    assert ego.position.x != pytest.approx(3)
+    assert ego.position.y != pytest.approx(1)
+    assert ego.heading != pytest.approx(0)
+
+    other = sampleParamP(scenario)
+    assert other.position.x != pytest.approx(10)
+    assert other.position.y != pytest.approx(20)
+    assert other.heading != pytest.approx(0)
+
+def test_mutate_multiple_scaled():
+    scenario = compileScenic("""
+        ego = new Object at 3@1, facing 0
+        other = new Object at 10@20, facing 0
+        mutate ego, other by 4
+        param p = other
+    """)
+    ego = sampleEgo(scenario)
+    assert ego.position.x != pytest.approx(3)
+    assert ego.position.y != pytest.approx(1)
+    assert ego.heading != pytest.approx(0)
+
+    other = sampleParamP(scenario)
+    assert other.position.x != pytest.approx(10)
+    assert other.position.y != pytest.approx(20)
+    assert other.heading != pytest.approx(0)
 
 def test_verbose():
     for verb in range(4):
