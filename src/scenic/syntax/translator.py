@@ -178,7 +178,7 @@ def purgeModulesUnsafeToCache(oldModules):
 	toRemove = []
 	# copy sys.modules in case it mutates during iteration (actually happens!)
 	for name, module in sys.modules.copy().items():
-		if getattr(module, '_isScenicModule', False) and name not in oldModules:
+		if isinstance(module, ScenicModule) and name not in oldModules:
 			toRemove.append(name)
 	for name in toRemove:
 		parent, _, child = name.rpartition('.')
@@ -721,7 +721,7 @@ class ScenicLoader(importlib.abc.InspectLoader):
 		self.filename = filename
 
 	def create_module(self, spec):
-		return None
+		return ScenicModule(spec.name)
 
 	def exec_module(self, module):
 		# Read source file and compile it
@@ -729,8 +729,6 @@ class ScenicLoader(importlib.abc.InspectLoader):
 			source = stream.read()
 		with open(self.filepath, 'rb') as stream:
 			code, pythonSource = compileStream(stream, module.__dict__, filename=self.filepath)
-		# Mark as a Scenic module
-		module._isScenicModule = True
 		# Save code, source, and translated source for later inspection
 		module._code = code
 		module._source = source
@@ -746,13 +744,25 @@ class ScenicLoader(importlib.abc.InspectLoader):
 
 	def get_code(self, fullname):
 		module = importlib.import_module(fullname)
-		assert module._isScenicModule, module
+		assert isinstance(module, ScenicModule), module
 		return module._code
 
 	def get_source(self, fullname):
 		module = importlib.import_module(fullname)
-		assert module._isScenicModule, module
+		assert isinstance(module, ScenicModule), module
 		return module._pythonSource
+
+class ScenicModule(types.ModuleType):
+	def __getstate__(self):
+		state = self.__dict__.copy()
+		del state['__builtins__']
+		return (self.__name__, state)
+
+	def __setstate__(self, state):
+		name, state = state
+		self.__init__(name)		# needed to create __dict__
+		self.__dict__.update(state)
+		self.__builtins__ = builtins.__dict__
 
 # register the meta path finder
 sys.meta_path.insert(0, ScenicMetaFinder())
@@ -2252,8 +2262,7 @@ def gatherBehaviorNamespacesFrom(behaviors):
 			return
 		behaviorNamespaces[modName] = ns
 		for name, value in ns.items():
-			if (isinstance(value, types.ModuleType)
-				and getattr(value, '_isScenicModule', False)):
+			if isinstance(value, ScenicModule):
 				registerNamespace(value.__name__, value.__dict__)
 			else:
 				# Convert values requiring sampling to Distributions

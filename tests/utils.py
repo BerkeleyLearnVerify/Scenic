@@ -1,9 +1,16 @@
+"""Utilities used throughout the test suite."""
 
-import sys
 import inspect
+import math
+import sys
+import types
+
+import numpy
+import pytest
 
 from scenic import scenarioFromString
 from scenic.core.simulators import DummySimulator, RejectSimulationException
+from scenic.core.utils import DefaultIdentityDict
 import scenic.syntax.veneer as veneer
 
 ## Scene generation utilities
@@ -165,3 +172,206 @@ def checkErrorLineNumber(line, exc_info=None):
     while tb.tb_next is not None:
         tb = tb.tb_next
     assert tb.tb_lineno == line
+
+## Pickling
+
+# TODO make pickling work with plain old pickle, rather than dill?
+# (currently pickle chokes on various decorators and local functions)
+
+try:
+    import dill
+except ModuleNotFoundError:
+    dill = None
+pickle_test = pytest.mark.skipif(not dill, reason='dill required for pickling tests')
+
+def tryPickling(thing, checkEquivalence=True, pickler=dill):
+    checkVeneerIsInactive()
+    pickled = pickler.dumps(thing)
+    checkVeneerIsInactive()
+    unpickled = pickler.loads(pickled)
+    checkVeneerIsInactive()
+    if checkEquivalence:
+        assert areEquivalent(unpickled, thing, debug=True)
+    return unpickled
+
+def areEquivalent(a, b, cache=None, ignoreCacheAttrs=False, debug=False):
+    """Whether two objects are equivalent, i.e. have the same properties.
+
+    This is only used for debugging, e.g. to check that a Distribution is the
+    same before and after pickling. We don't want to define __eq__ for such
+    objects since for example two values sampled with the same distribution are
+    equivalent but not semantically identical: the code::
+
+        X = (0, 1)
+        Y = (0, 1)
+
+    does not make X and Y always have equal values!
+
+    A further difference with __eq__ is that NaN compares unequal with itself,
+    but we want all NaNs to be considered equal so that identical-in-memory
+    data structures containing NaN count as equivalent.
+    """
+    if a is b:
+        return True
+    if cache is None:
+        cache = DefaultIdentityDict()
+    old = cache[a]
+    if old is b:
+        return True
+    cache[a] = b   # prospectively assume equivalent, for recursive calls
+    if areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
+        return True
+    else:
+        cache[a] = old     # guess was wrong; revert cache
+        return False
+
+def areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
+    if ignoreCacheAttrs:
+        def ignorable(attr):
+            return attr == '__slotnames__' or attr.startswith('_cached_')
+    else:
+        ignorable = lambda attr: False
+    fail = breakpoint if debug else lambda: False
+
+    from scenic.core.distributions import needsSampling, needsLazyEvaluation
+    if not areEquivalent(type(a), type(b), cache, debug=debug):
+        fail()
+        return False
+    elif isinstance(a, (list, tuple)):
+        if len(a) != len(b):
+            fail()
+            return False
+        for x, y in zip(a, b):
+            if not areEquivalent(x, y, cache, debug=debug):
+                fail()
+                return False
+    elif isinstance(a, (set, frozenset)):
+        if len(a) != len(b):
+            fail()
+            return False
+        mb = set(b)
+        for x in a:
+            found = False
+            for y in mb:
+                if areEquivalent(x, y, cache, debug=False):
+                    found = True
+                    break
+            if not found:
+                fail()
+                return False
+            mb.remove(y)
+    elif isinstance(a, (dict, types.MappingProxyType)):
+        kb = {k for k in b if not ignorable(k)}
+        for x, v in a.items():
+            if ignorable(x):
+                continue
+            found = False
+            if x in kb: # fast path
+                y = x
+            else:
+                for y in kb:
+                    if areEquivalent(x, y, cache, debug=False):
+                        found = True
+                        break
+                if not found:
+                    fail()
+                    return False
+            if not areEquivalent(v, b[y], cache, debug=debug):
+                fail()
+                return False
+            kb.remove(y)
+        if kb:
+            fail()
+            return False
+    elif inspect.isfunction(a):
+        # These attributes we can check with simple equality
+        attrs = ('__doc__', '__name__', '__qualname__', '__module__', '__code__')
+        if any(getattr(a, attr) != getattr(b, attr) for attr in attrs):
+            fail()
+            return False
+        # These attributes need a full equivalence check
+        attrs = ('__defaults__', '__kwdefaults__', '__dict__', '__annotations__')
+        for attr in attrs:
+            if not areEquivalent(getattr(a, attr), getattr(b, attr), cache, debug=debug):
+                fail()
+                return False
+        # Lastly, we need to check that free variables are bound to equivalent objects
+        # (effectively handling __closure__ and __globals__)
+        if not areEquivalent(inspect.getclosurevars(a), inspect.getclosurevars(b),
+                             cache, debug=debug):
+            fail()
+            return False
+    elif inspect.ismethod(a):
+        # These attributes we can check with simple equality
+        attrs = ('__doc__', '__name__', '__qualname__', '__module__')
+        if any(getattr(a, attr) != getattr(b, attr) for attr in attrs):
+            fail()
+            return False
+        # These attributes need a full equivalence check
+        for attr in ('__func__', '__self__'):
+            if not areEquivalent(getattr(a, attr), getattr(b, attr), cache, debug=debug):
+                fail()
+                return False
+    elif isinstance(a, property):
+        for attr in ('fget', 'fset', 'fdel', '__doc__'):
+            if not areEquivalent(getattr(a, attr), getattr(b, attr), cache, debug=debug):
+                fail()
+                return False
+    elif inspect.isclass(a):
+        # These attributes we can check with simple equality
+        attrs = ('__doc__', '__name__', '__module__')
+        if any(getattr(a, attr) != getattr(b, attr) for attr in attrs):
+            fail()
+            return False
+        # These attributes need a full equivalence check
+        if not areEquivalent(a.__bases__, b.__bases__, cache, debug=debug):
+            fail()
+            return False
+        if not areEquivalent(a.__dict__, b.__dict__, cache, ignoreCacheAttrs=True, debug=debug):
+            fail()
+            return False
+        # Checking annotations depends on Python version, unfortunately
+        if sys.version_info >= (3, 10):
+            if not areEquivalent(inspect.get_annotations(a), inspect.get_annotations(b),
+                                 cache, debug=debug):
+                fail()
+                return False
+        else:
+            # No need to explicitly check annotations: they are included in __dict__ for
+            # Python 3.9 and earlier.
+            pass
+    elif isinstance(a, numpy.ndarray):
+        if not numpy.array_equal(a, b, equal_nan=True):
+            fail()
+            return False
+    elif not needsSampling(a) and not needsLazyEvaluation(a) and a == b:
+        return True
+    elif isinstance(a, float) and math.isnan(a):
+        # Special case since NaN is not equal to itself, but we consider it equivalent.
+        if not math.isnan(b):
+            fail()
+            return False
+    else:
+        # This is a type we know nothing about; require equivalence of all of its attributes that
+        # we can find statically. (Objects hiding state in funny places, or with internal
+        # attributes that aren't preserved by pickling & unpickling, had better define __eq__.)
+        hasDict = hasattr(a, '__dict__')
+        if hasDict and not areEquivalent(a.__dict__, b.__dict__, cache,
+                                         ignoreCacheAttrs=True, debug=debug):
+            fail()
+            return False
+        slots = set()
+        for cls in type(a).__mro__:
+            slots.update(getattr(cls, '__slots__', ()))
+        sentinel = object()
+        for slot in slots:
+            if not areEquivalent(getattr(a, slot, sentinel), getattr(b, slot, sentinel),
+                                 cache, debug=debug):
+                fail()
+                return False
+        # If the object has no attributes at all, we have to fall back on __eq__
+        if not hasDict and not slots:
+            if not a == b:
+                fail()
+                return False
+    return True

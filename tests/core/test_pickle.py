@@ -1,24 +1,16 @@
 
 import pytest
 
-# TODO make this work with plain old pickle, rather than dill?
-# (currently pickle chokes on various decorators and local functions)
-pytest.importorskip('dill')
-import dill
-
 from scenic.core.distributions import Options, Range, Normal, TruncatedNormal, distributionMethod
 from scenic.core.geometry import hypot
 from scenic.core.object_types import Object
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument
-from scenic.core.utils import areEquivalent
-from tests.utils import compileScenic
+from scenic.core.simulators import DummySimulator
+from tests.utils import (pickle_test, tryPickling,
+                         compileScenic, sampleEgo, sampleSceneFrom, sampleScene)
 
-def tryPickling(thing, checkEquivalence=True, pickler=dill):
-    pickled = pickler.dumps(thing)
-    unpickled = pickler.loads(pickled)
-    if checkEquivalence:
-        assert areEquivalent(unpickled, thing)
+pytestmark = pickle_test
 
 def test_pickle_distribution_basic():
     dist = Options({
@@ -59,5 +51,33 @@ def test_pickle_object():
     tryPickling(obj)
 
 def test_pickle_scenario():
-    scenario = compileScenic('ego = Object with width Range(1, 2)')
-    tryPickling(scenario)
+    scenario = compileScenic('ego = Object at Range(1, 2) @ 0')
+    sc1 = tryPickling(scenario)
+    sc2 = tryPickling(scenario)
+    e1, e2 = sampleEgo(sc1), sampleEgo(sc2)
+    assert 1 <= e1.position.x <= 2
+    assert 1 <= e2.position.x <= 2
+    assert e1.position.x != e2.position.x
+
+def test_pickle_scene():
+    scene = sampleSceneFrom('ego = Object at Range(1, 2) @ 3')
+    tryPickling(scene)
+
+def test_pickle_scenario_dynamic():
+    scenario = compileScenic("""
+        model scenic.simulators.newtonian.model
+        behavior Foo(x):
+            while True:
+                wait
+        behavior Bar(t):
+            do Foo(Range(0, 1)) for t seconds
+        ego = Object with behavior Bar(Range(5, 10))
+        other = Object at 10 @ Range(20, 30)
+        require always other.position.x >= 0
+        terminate when ego.position.x > 10
+        record ego.position as egoPos
+    """)
+    unpickled = tryPickling(scenario)
+    scene = sampleScene(unpickled)
+    sim = DummySimulator(timestep=1)
+    sim.simulate(scene, maxSteps=2, maxIterations=1)

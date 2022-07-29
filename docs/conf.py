@@ -261,13 +261,14 @@ def setup(app):
 import importlib
 from sphinx.pycode import ModuleAnalyzer
 from sphinx.util.docstrings import separate_metadata
+from scenic.syntax.translator import ScenicModule
 
 def handle_find_source(app, modname):
     try:
         module = importlib.import_module(modname)
     except Exception:
         return None
-    if not getattr(module, '_isScenicModule', False):
+    if not isinstance(module, ScenicModule):
         return None     # no special handling for Python modules
 
     # Run usual analysis on the translated source to get tag dictionary

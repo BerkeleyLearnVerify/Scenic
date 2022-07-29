@@ -187,7 +187,7 @@ class Maneuver(_ElementReferencer):
 
 ## Road networks
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class NetworkElement(_ElementReferencer, PolygonalRegion):
     """NetworkElement()
 
@@ -243,6 +243,14 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
         del state['network']    # do not pickle weak reference to parent network
         return state
 
+    def __eq__(self, other):
+        if not isinstance(other, NetworkElement):
+            return NotImplemented
+        return (self.network is other.network and self.uid == other.uid)
+
+    def __hash__(self):
+        return hash((self.network, self.uid))
+
     def __repr__(self):
         s = f'<{type(self).__name__} at {hex(id(self))}; '
         if self.name:
@@ -252,7 +260,7 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
         s += f'uid="{self.uid}">'
         return s
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class LinearElement(NetworkElement):
     """LinearElement()
 
@@ -341,7 +349,7 @@ class _ContainsCenterline:
         super().__attrs_post_init__()
         assert self.containsRegion(self.centerline, tolerance=0.5)
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class Road(LinearElement):
     """Road()
 
@@ -445,7 +453,7 @@ class Road(LinearElement):
     def is1Way(self) -> bool:
         return self.forwardLanes is None or self.backwardLanes is None
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class LaneGroup(LinearElement):
     """LaneGroup()
 
@@ -497,7 +505,7 @@ class LaneGroup(LinearElement):
         """Get the `Lane` passing through a given point."""
         return self.network.findPointIn(point, self.lanes, reject)
 
-@attr.s(auto_attribs=True, kw_only=True, eq=False, repr=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class Lane(_ContainsCenterline, LinearElement):
     """Lane()
 
@@ -517,10 +525,7 @@ class Lane(_ContainsCenterline, LinearElement):
         """Get the LaneSection passing through a given point."""
         return self.network.findPointIn(point, self.sections, reject)
 
-    # TODO remove hack; freeze all these classes
-    __hash__ = object.__hash__
-
-@attr.s(auto_attribs=True, kw_only=True, repr=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class RoadSection(LinearElement):
     """RoadSection()
 
@@ -575,7 +580,7 @@ class RoadSection(LinearElement):
         """Get the lane section passing through a given point."""
         return self.network.findPointIn(point, self.lane, reject)
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class LaneSection(_ContainsCenterline, LinearElement):
     """LaneSection()
 
@@ -646,7 +651,7 @@ class LaneSection(_ContainsCenterline, LinearElement):
                 return None
         return current
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class Sidewalk(_ContainsCenterline, LinearElement):
     """Sidewalk()
 
@@ -655,7 +660,7 @@ class Sidewalk(_ContainsCenterline, LinearElement):
     road: Road
     crossings: Tuple[PedestrianCrossing]
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class PedestrianCrossing(_ContainsCenterline, LinearElement):
     """PedestrianCrossing()
 
@@ -665,7 +670,7 @@ class PedestrianCrossing(_ContainsCenterline, LinearElement):
     startSidewalk: Sidewalk
     endSidewalk: Sidewalk
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class Shoulder(_ContainsCenterline, LinearElement):
     """Shoulder()
 
@@ -673,7 +678,7 @@ class Shoulder(_ContainsCenterline, LinearElement):
     """
     road: Road
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class Intersection(NetworkElement):
     """Intersection()
 
@@ -720,7 +725,7 @@ class Intersection(NetworkElement):
         maneuvers = self.maneuversAt(point)
         return [m.connectingLane.orientation[point] for m in maneuvers]
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class Signal:
     """Traffic lights, stop signs, etc.
 
@@ -742,7 +747,7 @@ class Signal:
         """Whether or not this signal is a traffic light."""
         return self.type == "1000001"
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class Network:
     """Network()
 
@@ -867,7 +872,7 @@ class Network:
 
         :meta private:
         """
-        return 17
+        return 18
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
@@ -1006,7 +1011,7 @@ class Network:
                 )
             with gzip.open(f) as gf:
                 try:
-                    network = pickle.load(gf)
+                    network = pickle.load(gf)   # invokes __setstate__ below
                 except pickle.UnpicklingError:
                     raise    # propagate unpickling errors
                 except Exception as e:
@@ -1014,23 +1019,27 @@ class Network:
                     # standard exception
                     raise pickle.UnpicklingError('unpickling failed') from e
 
+        totalTime = time.time() - startTime
+        verbosePrint(f'Loaded cached network in {totalTime:.2f} seconds.')
+        return network
+
+    def __setstate__(self, state):
+        # Restore our attributes (default behavior when __setstate__ isn't defined)
+        self.__dict__.update(state)
+
         # Reconnect links between network elements
         def reconnect(thing):
             state = thing.__dict__
             for key, value in state.items():
                 if isinstance(value, _ElementPlaceholder):
-                    state[key] = network.elements[value.uid]
-        proxy = weakref.proxy(network)
-        for elem in network.elements.values():
+                    state[key] = self.elements[value.uid]
+        proxy = weakref.proxy(self)
+        for elem in self.elements.values():
             reconnect(elem)
             elem.network = proxy
-        for elem in itertools.chain(network.lanes, network.intersections):
+        for elem in itertools.chain(self.lanes, self.intersections):
             for maneuver in elem.maneuvers:
                 reconnect(maneuver)
-
-        totalTime = time.time() - startTime
-        verbosePrint(f'Loaded cached network in {totalTime:.2f} seconds.')
-        return network
 
     def dumpPickle(self, path, digest):
         path = pathlib.Path(path)

@@ -21,7 +21,7 @@ from scenic.core.geometry import _RotatedRectangle
 from scenic.core.geometry import sin, cos, hypot, findMinMax, pointIsInCone, averageVectors
 from scenic.core.geometry import headingOfSegment, triangulatePolygon, plotPolygon, polygonUnion
 from scenic.core.type_support import toVector, toScalar
-from scenic.core.utils import cached, cached_property, areEquivalent
+from scenic.core.utils import cached, cached_property
 
 def toPolygon(thing):
 	if needsSampling(thing):
@@ -322,12 +322,6 @@ class CircularRegion(Region):
 		r = self.radius
 		return ((x - r, y - r), (x + r, y + r))
 
-	def isEquivalentTo(self, other):
-		if type(other) is not CircularRegion:
-			return False
-		return (areEquivalent(other.center, self.center)
-		        and areEquivalent(other.radius, self.radius))
-
 	def __repr__(self):
 		return f'CircularRegion({self.center}, {self.radius})'
 
@@ -402,14 +396,6 @@ class SectorRegion(Region):
 		pt = Vector(x + (r * cos(t)), y + (r * sin(t)))
 		return self.orient(pt)
 
-	def isEquivalentTo(self, other):
-		if type(other) is not SectorRegion:
-			return False
-		return (areEquivalent(other.center, self.center)
-		        and areEquivalent(other.radius, self.radius)
-		        and areEquivalent(other.heading, self.heading)
-		        and areEquivalent(other.angle, self.angle))
-
 	def __repr__(self):
 		return f'SectorRegion({self.center},{self.radius},{self.heading},{self.angle})'
 
@@ -461,14 +447,6 @@ class RectangularRegion(_RotatedRectangle, Region):
 		minx, maxx = findMinMax(x)
 		miny, maxy = findMinMax(y)
 		return ((minx, miny), (maxx, maxy))
-
-	def isEquivalentTo(self, other):
-		if type(other) is not RectangularRegion:
-			return False
-		return (areEquivalent(other.position, self.position)
-		        and areEquivalent(other.heading, self.heading)
-		        and areEquivalent(other.width, self.width)
-		        and areEquivalent(other.length, self.length))
 
 	def __repr__(self):
 		return f'RectangularRegion({self.position},{self.heading},{self.width},{self.length})'
@@ -976,7 +954,7 @@ class PointSetRegion(Region):
 			if needsSampling(point):
 				raise RuntimeError('only fixed PointSetRegions are supported')
 		import scipy.spatial	# slow import not often needed
-		self.kdTree = scipy.spatial.cKDTree(self.points) if kdTree is None else kdTree
+		self.kdTree = scipy.spatial.KDTree(self.points) if kdTree is None else kdTree
 		self.orientation = orientation
 		self.tolerance = tolerance
 
@@ -1010,9 +988,9 @@ class PointSetRegion(Region):
 	def __eq__(self, other):
 		if type(other) is not PointSetRegion:
 			return NotImplemented
-		return (other.name == self.name
-		        and other.points == self.points
-		        and other.orientation == self.orientation)
+		return (self.name == other.name
+		        and self.points == other.points
+		        and self.orientation == other.orientation)
 
 	@cached
 	def __hash__(self):
@@ -1090,15 +1068,13 @@ class IntersectionRegion(Region):
 		if len(self.regions) < 2:
 			raise RuntimeError('tried to take intersection of fewer than 2 regions')
 		super().__init__(name, *self.regions, orientation=orientation)
-		if sampler is None:
-			sampler = self.genericSampler
 		self.sampler = sampler
 
 	def sampleGiven(self, value):
 		regs = [value[reg] for reg in self.regions]
 		# Now that regions have been sampled, attempt intersection again in the hopes
 		# there is a specialized sampler to handle it (unless we already have one)
-		if self.sampler is self.genericSampler:
+		if not self.sampler:
 			failed = False
 			intersection = regs[0]
 			for region in regs[1:]:
@@ -1122,7 +1098,10 @@ class IntersectionRegion(Region):
 		return all(region.containsPoint(point) for region in self.regions)
 
 	def uniformPointInner(self):
-		return self.orient(self.sampler(self))
+		sampler = self.sampler
+		if not sampler:
+			sampler = self.genericSampler
+		return self.orient(sampler(self))
 
 	@staticmethod
 	def genericSampler(intersection):
@@ -1134,12 +1113,6 @@ class IntersectionRegion(Region):
 				    f'sampling intersection of Regions {regs[0]} and {region}')
 		return point
 
-	def isEquivalentTo(self, other):
-		if type(other) is not IntersectionRegion:
-			return False
-		return (areEquivalent(set(other.regions), set(self.regions))
-		        and other.orientation == self.orientation)
-
 	def __repr__(self):
 		return f'IntersectionRegion({self.regions})'
 
@@ -1147,15 +1120,13 @@ class DifferenceRegion(Region):
 	def __init__(self, regionA, regionB, sampler=None, name=None):
 		self.regionA, self.regionB = regionA, regionB
 		super().__init__(name, regionA, regionB, orientation=regionA.orientation)
-		if sampler is None:
-			sampler = self.genericSampler
 		self.sampler = sampler
 
 	def sampleGiven(self, value):
 		regionA, regionB = value[self.regionA], value[self.regionB]
 		# Now that regions have been sampled, attempt difference again in the hopes
 		# there is a specialized sampler to handle it (unless we already have one)
-		if self.sampler is self.genericSampler:
+		if not self.sampler:
 			diff = regionA.difference(regionB)
 			if not isinstance(diff, DifferenceRegion):
 				diff.orientation = value[self.orientation]
@@ -1174,7 +1145,10 @@ class DifferenceRegion(Region):
 		return self.regionA.containsPoint(point) and not self.regionB.containsPoint(point)
 
 	def uniformPointInner(self):
-		return self.orient(self.sampler(self))
+		sampler = self.sampler
+		if not sampler:
+			sampler = self.genericSampler
+		return self.orient(sampler(self))
 
 	@staticmethod
 	def genericSampler(difference):
@@ -1184,13 +1158,6 @@ class DifferenceRegion(Region):
 			raise RejectionException(
 			    f'sampling difference of Regions {regionA} and {regionB}')
 		return point
-
-	def isEquivalentTo(self, other):
-		if type(other) is not DifferenceRegion:
-			return False
-		return (areEquivalent(self.regionA, other.regionA)
-		        and areEquivalent(self.regionB, other.regionB)
-		        and other.orientation == self.orientation)
 
 	def __repr__(self):
 		return f'DifferenceRegion({self.regionA}, {self.regionB})'

@@ -5,7 +5,7 @@ import pytest
 import shutil
 import inspect
 
-from tests.utils import compileScenic, sampleScene, sampleEgo
+from tests.utils import compileScenic, sampleScene, sampleEgo, pickle_test, tryPickling
 from scenic.core.geometry import TriangulationError
 from scenic.core.distributions import RejectionException
 
@@ -133,3 +133,13 @@ def test_caching(cached_maps):
         """, useCache=cache,
         path='tests/formats/opendrive/maps/opendrive.org/CulDeSac.xodr')
         sampleScene(scenario, maxIterations=1000)
+
+@pickle_test
+def test_pickle(cached_maps):
+    scenario = compileDrivingScenario(cached_maps, """
+        ego = Car with behavior FollowLaneBehavior(target_speed=Range(10, 15))
+        Pedestrian on visible sidewalk
+    """)
+    unpickled = tryPickling(scenario)
+    scene = sampleScene(unpickled, maxIterations=1000)
+    tryPickling(scene)

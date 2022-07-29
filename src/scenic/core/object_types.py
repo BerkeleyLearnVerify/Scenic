@@ -17,7 +17,7 @@ from scenic.core.geometry import (_RotatedRectangle, averageVectors, hypot, min,
 from scenic.core.regions import CircularRegion, SectorRegion
 from scenic.core.type_support import toVector, toHeading, toScalar, toType
 from scenic.core.lazy_eval import needsLazyEvaluation
-from scenic.core.utils import DefaultIdentityDict, areEquivalent, cached_property
+from scenic.core.utils import DefaultIdentityDict, cached_property
 from scenic.core.errors import RuntimeParseError
 
 ## Abstract base class
@@ -215,11 +215,6 @@ class Constructible(Samplable):
 		props = self._allProperties()
 		props.update(overrides)
 		return self._withProperties(props)
-
-	def isEquivalentTo(self, other):
-		if type(other) is not type(self):
-			return False
-		return areEquivalent(self._allProperties(), other._allProperties())
 
 	def __str__(self):
 		if hasattr(self, 'properties') and 'name' in self.properties:

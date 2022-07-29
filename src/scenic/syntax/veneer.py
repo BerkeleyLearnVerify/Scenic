@@ -59,7 +59,7 @@ from scenic.core.regions import (Region, PointSetRegion, RectangularRegion,
 	everywhere, nowhere)
 from scenic.core.workspaces import Workspace
 from scenic.core.distributions import (Range, DiscreteRange, Options, Uniform, Normal,
-	TruncatedNormal)
+	TruncatedNormal, RandomControlFlowError)
 Discrete = Options
 from scenic.core.external_params import (VerifaiParameter, VerifaiRange, VerifaiDiscreteRange,
 										 VerifaiOptions)
@@ -263,6 +263,7 @@ def simulationInProgress():
 @contextmanager
 def executeInRequirement(scenario, boundEgo):
 	global evaluatingRequirement, currentScenario
+	assert activity == 0
 	assert not evaluatingRequirement
 	evaluatingRequirement = True
 	if currentScenario is None:
@@ -276,6 +277,10 @@ def executeInRequirement(scenario, boundEgo):
 		currentScenario._ego = boundEgo
 	try:
 		yield
+	except RandomControlFlowError as e:
+		# Such errors should not be possible inside a requirement, since all values
+		# should have already been sampled: something's gone wrong with our rebinding.
+		raise RuntimeError('internal error: requirement dependency not sampled') from e
 	finally:
 		evaluatingRequirement = False
 		currentScenario._ego = oldEgo

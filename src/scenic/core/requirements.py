@@ -49,10 +49,10 @@ class PendingRequirement:
         we can use for pruning, and gather all of its dependencies.
         """
         bindings, ego, line = self.bindings, self.egoObject, self.line
-        condition = self.condition
+        condition, ty = self.condition, self.ty
 
         # Check whether requirement implies any relations used for pruning
-        if self.ty.constrainsSampling and syntax:
+        if ty.constrainsSampling and syntax:
             relations.inferRelationsFrom(syntax, bindings, ego, line)
 
         # Gather dependencies of the requirement
@@ -61,7 +61,7 @@ class PendingRequirement:
             if needsSampling(value):
                 deps.add(value)
             if needsLazyEvaluation(value):
-                raise InvalidScenarioError(f'{self.ty} on line {line} uses value {value}'
+                raise InvalidScenarioError(f'{ty} on line {line} uses value {value}'
                                            ' undefined outside of object definition')
         if ego is not None:
             assert isinstance(ego, Samplable)
@@ -69,8 +69,8 @@ class PendingRequirement:
 
         # Construct closure
         def closure(values):
-            global evaluatingRequirement, currentScenario
             # rebind any names referring to sampled objects
+            namespace = condition.__globals__
             for name, value in bindings.items():
                 if value in values:
                     namespace[name] = values[value]
@@ -82,7 +82,7 @@ class PendingRequirement:
                 result = condition()
                 assert not needsSampling(result)
                 if needsLazyEvaluation(result):
-                    raise InvalidScenarioError(f'{self.ty} on line {line} uses value'
+                    raise InvalidScenarioError(f'{ty} on line {line} uses value'
                                                ' undefined outside of object definition')
             return result
 

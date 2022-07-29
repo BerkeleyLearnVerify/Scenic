@@ -111,6 +111,8 @@ class DelayedArgument(LazilyEvaluable):
 		return self.value(context)
 
 	def __getattr__(self, name):
+		if name.startswith('__') and name.endswith('__'):	# ignore special attributes
+			return object.__getattribute__(self, name)
 		return DelayedArgument(self._requiredProperties,
 			lambda context: getattr(self.evaluateIn(context), name),
 			_internal=True)
