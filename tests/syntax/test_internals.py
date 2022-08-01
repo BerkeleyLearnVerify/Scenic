@@ -6,7 +6,7 @@ from tests.utils import checkVeneerIsInactive
 
 def test_veneer_activation():
     checkVeneerIsInactive()
-    compileScenic('ego = Object')
+    compileScenic('ego = new Object')
     checkVeneerIsInactive()
     with pytest.raises(Exception):
         compileScenic('raise Exception')

@@ -218,7 +218,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                     ast.Constant(value=node.lineno),
                     ast.Constant(value=node.name),
                 ],
-                keywords=[ast.keyword(arg="prob", value=node.prob)]
+                keywords=[ast.keyword(arg="prob", value=ast.Constant(node.prob))]
                 if node.prob is not None
                 else [],
             )
