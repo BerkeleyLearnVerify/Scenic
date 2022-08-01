@@ -8,21 +8,21 @@ from tests.utils import compileScenic, sampleEgoFrom, sampleSceneFrom
 
 templates = [
 '''
-ego = Object with length 2, {continuation}
+ego = new Object with length 2, {continuation}
 {indent}with width 3, {continuation}
 {indent}at 10@20
 ''',
 '''
-ego = Object with length 2, {continuation}
+ego = new Object with length 2, {continuation}
 {indent}with width 3, at 10@20
 ''',
 '''
-ego = Object with length 2, {continuation}
+ego = new Object with length 2, {continuation}
 {indent}#with width 2,{continuation}
 {indent}with width 3
 ''',
 '''
-ego = Object with length 2, {continuation}
+ego = new Object with length 2, {continuation}
 # with width 2,{continuation}
 # blah {continuation}
 {indent}with width 3
@@ -36,15 +36,15 @@ ego = Object with length 2, {continuation}
 def test_specifier_layout(template, continuation, indent, gap):
     """Test legal specifier layouts, with and without line continuations."""
     preamble = template.format(continuation=continuation, indent=indent)
-    program = preamble + gap + 'Object at 20@20'
+    program = preamble + gap + 'new Object at 20@20'
     print('TESTING PROGRAM:', program)
     compileScenic(program)
 
 def test_dangling_specifier_list():
-    with pytest.raises(TokenParseError):
-        compileScenic('ego = Object with width 4,')
-    with pytest.raises(TokenParseError):
-        compileScenic('ego = Object with width 4,   # comment')
+    with pytest.raises(SyntaxError):
+        compileScenic('ego = new Object with width 4,')
+    with pytest.raises(SyntaxError):
+        compileScenic('ego = new Object with width 4,   # comment')
 
 def test_dangling_specifier_list_2():
     """Variant of the above test catching a quirk of the Python 3.7.0 tokenizer.
@@ -71,22 +71,22 @@ def test_dangling_specifier_list_2():
 
 def test_constructor_ended_by_paren():
     compileScenic("""
-        ego = Object
-        x = (Object at 5@5)
+        ego = new Object
+        x = (new Object at 5@5)
         mutate ego, x
     """)
 
 def test_semicolon_separating_statements():
     compileScenic("""
-        ego = Object
+        ego = new Object
         param p = distance to 3@4; require ego.position.x >= 0
     """)
 
 def test_list_comprehension():
     scene = sampleSceneFrom("""
         xs = [3*i + Range(0, 1) for i in range(10)]
-        [(Object at x@0) for x in xs]
-        ego = Object at -4@2
+        [(new Object at x@0) for x in xs]
+        ego = new Object at -4@2
     """)
     assert len(scene.objects) == 11
     assert scene.objects[2].position.x - scene.objects[1].position.x != pytest.approx(3)
@@ -97,5 +97,5 @@ def test_incipit_as_name():
     Here we try 'distance' from 'distance from X' and 'offset' from 'X offset by Y'.
     """
     for name in ('distance', 'offset'):
-        ego = sampleEgoFrom(f'{name} = 4\n' f'ego = Object at {name} @ 0')
+        ego = sampleEgoFrom(f'{name} = 4\n' f'ego = new Object at {name} @ 0')
         assert tuple(ego.position) == (4, 0)
