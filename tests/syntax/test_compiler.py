@@ -317,7 +317,7 @@ class TestCompiler:
             ):
                 assert name is None if expected_name is None else name == expected_name
                 compiled_prob = (
-                    kwargs[0].value if kwargs else 1.0
+                    kwargs[0].value.value if kwargs else 1.0
                 )  # if kwargs is empty, use 1.0
                 assert compiled_prob == expected_prob
             case _:

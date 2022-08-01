@@ -11,7 +11,7 @@ def test_old_constructor_statement():
         compileScenic("""
             constructor Foo:
                 blah: (19, -3)
-            ego = Foo with blah 12
+            ego = new Foo with blah 12
         """)
 
 def test_python_class():

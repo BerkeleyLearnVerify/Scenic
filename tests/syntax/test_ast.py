@@ -6,7 +6,7 @@ from scenic.syntax.translator import LocalFinder
 from tests.utils import compileScenic, sampleEgoFrom, sampleParamPFrom
 
 def test_method_of_expr():
-    ego = sampleEgoFrom('ego = Object at (12@3).distanceTo(13@3) @ 0')
+    ego = sampleEgoFrom('ego = new Object at (12@3).distanceTo(13@3) @ 0')
     assert ego.x == 1
 
 def test_local_finder():
