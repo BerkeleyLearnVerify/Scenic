@@ -207,6 +207,30 @@ class TestCompiler:
                 )
             )
 
+    def test_unpack_distribution(self):
+        node, _ = compileScenicAST(
+            Call(Name("fn"), [Starred(Name("dist", lineno=1)), Name("ego", Load())], [])
+        )
+        match node:
+            case Call(
+                Name("callWithStarArgs"),
+                [
+                    Name("fn"),
+                    Starred(
+                        Call(
+                            Name("wrapStarredValue"),
+                            [Name("dist"), Constant(1)],
+                            [],
+                        )
+                    ),
+                    Call(Name("ego")),
+                ],
+                [],
+            ):
+                assert True
+            case _:
+                assert False
+
     # Simple Statement
     def test_model_basic(self):
         node, _ = compileScenicAST(Model("model"))
