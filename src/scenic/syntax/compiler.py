@@ -179,7 +179,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             value=ast.Call(
                 func=ast.Name(id="mutate", ctx=loadCtx),
                 args=[self.visit(el) for el in node.elts],
-                keywords=[],
+                keywords=[ast.keyword(arg="scale", value=self.visit(node.scale))]
+                if node.scale is not None
+                else [],
             )
         )
 
