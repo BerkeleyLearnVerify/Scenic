@@ -1609,7 +1609,9 @@ scenic_require_stmt_name:
     | a=STRING { a.string[1:-1] }
 
 scenic_mutate_stmt:
-    | 'mutate' elts=[(','.scenic_mutate_stmt_id+)] { s.Mutate(elts=elts if elts is not None else [], LOCATIONS) }
+    | 'mutate' elts=[(','.scenic_mutate_stmt_id+)] scale=['by' x=expression {x}] {
+        s.Mutate(elts=elts if elts is not None else [], scale=scale, LOCATIONS)
+     }
 scenic_mutate_stmt_id: a=NAME { ast.Name(id=a.string, ctx=Load, LOCATIONS) }
 
 # LITERALS
