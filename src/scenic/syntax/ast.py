@@ -126,12 +126,19 @@ class Require(AST):
 
 
 class Mutate(AST):
-    __match_args__ = ("elts",)
+    __match_args__ = ("elts", "scale")
 
-    def __init__(self, elts: list[ast.Name], *args: any, **kwargs: any) -> None:
+    def __init__(
+        self,
+        elts: list[ast.Name],
+        scale: Optional[ast.AST] = None,
+        *args: any,
+        **kwargs: any
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.elts = elts
-        self._fields = ["elts"]
+        self.scale = scale
+        self._fields = ["elts", "scale"]
 
 
 # Instance Creation
