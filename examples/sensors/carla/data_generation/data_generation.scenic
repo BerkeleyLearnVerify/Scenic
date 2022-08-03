@@ -7,8 +7,8 @@ lane = Uniform(*network.lanes)
 
 spot = OrientedPoint on lane.centerline
 
-attrs = {"image_size_x": 640,
-         "image_size_y": 480}
+attrs = {"image_size_x": 1056,
+         "image_size_y": 704}
 
 car_model = "vehicle.tesla.model3"
 
@@ -24,6 +24,7 @@ ego = Car at spot,
 other = Car offset by 0 @ Range(10, 30),
     with behavior AutopilotBehavior()
 
+record ego.observations["front_rgb"]
 
 monitor RecordingMonitor:
     RECORDING_START = 5

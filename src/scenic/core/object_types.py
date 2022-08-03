@@ -477,7 +477,7 @@ class Object(OrientedPoint, _RotatedRectangle):
 
 	observations: {}
 	sensors: {}
-	recordSensorsPath: None
+	status: {}
 
 	def __new__(cls, *args, **kwargs):
 		obj = super().__new__(cls)

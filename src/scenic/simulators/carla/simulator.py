@@ -217,7 +217,8 @@ class CarlaSimulation(DrivingSimulation):
 			for sensor_key, sensor in obj.sensors.items():
 				sensor_bp = self.blueprintLib.find(sensor.blueprint)
 				for key, val in sensor.attributes.items():
-					sensor_bp.set_attribute(key, str(val))
+					if sensor_bp.has_attribute(key):
+						sensor_bp.set_attribute(key, str(val))
 
 				carla_sensor = self.world.spawn_actor(sensor_bp, sensor.transform, attach_to=obj.carlaActor)
 				carla_sensor.listen(sensor.on_data)

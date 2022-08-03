@@ -1,7 +1,7 @@
 import carla
 import numpy as np
 
-from scenic.core.sensors import ActiveSensor
+from scenic.core.sensors import ActiveSensor, Sensor
 import os
 
 
@@ -75,3 +75,5 @@ class CarlaSSSensor(CarlaVisionSensor):
             np.save(save_as, array)
         else:
             self.last_observation.save_to_disk(save_as)
+
+

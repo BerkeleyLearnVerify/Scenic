@@ -175,14 +175,13 @@ class Simulation:
                 terminationReason = dynamicScenario._step()
                 terminationType = TerminationType.scenarioComplete
 
-                # Record current state of the simulation
-                self.recordCurrentState()
-
                 # Update observations of objects with sensors
                 for obj in self.objects:
+                    obj.status = {}
                     if not obj.sensors:
                         continue
                     obj.observations.update({key: sensor.get_last_observation() for key, sensor in obj.sensors.items()})
+
 
                 # Run monitors
                 newReason = dynamicScenario._runMonitors()
@@ -232,6 +231,9 @@ class Simulation:
                         print(f'      Agent {agent} takes action(s) {actions}')
                 actionSequence.append(allActions)
                 self.executeActions(allActions)
+
+                # Record current state of the simulation
+                self.recordCurrentState()
 
                 # Run the simulation for a single step and read its state back into Scenic
                 self.step()
