@@ -948,7 +948,6 @@ class Road:
                 type=signal_.type_
             )
             roadSignals.append(signal)
-            allElements.append(signal)
 
         # Create road
         assert forwardGroup or backwardGroup
