@@ -652,9 +652,13 @@ class Behavior(Invocable, Samplable):
                 if sub._isRunning:
                     sub._stop()
 
-    def __str__(self):
-        args = argsToString(itertools.chain(self._args, self._kwargs.items()))
-        return self.__class__.__name__ + args
+    def __repr__(self):
+        items = itertools.chain(
+            (repr(arg) for arg in self._args),
+            (f'{key}={repr(val)}' for key, val in self._kwargs.items())
+        )
+        allArgs = ', '.join(items)
+        return f'{self.__class__.__name__}({allArgs})'
 
 def makeTerminationAction(line):
     assert not veneer.isActive()

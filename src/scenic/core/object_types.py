@@ -17,6 +17,7 @@ from scenic.core.geometry import (_RotatedRectangle, averageVectors, hypot, min,
 from scenic.core.regions import CircularRegion, SectorRegion
 from scenic.core.type_support import toVector, toHeading, toScalar, toType
 from scenic.core.lazy_eval import needsLazyEvaluation
+from scenic.core.serialization import dumpAsScenicCode
 from scenic.core.utils import DefaultIdentityDict, cached_property
 from scenic.core.errors import RuntimeParseError
 
@@ -60,12 +61,12 @@ class Constructible(Samplable):
 		cls._dynamicProperties = frozenset(dyns)
 
 	@classmethod
-	def _withProperties(cls, props):
+	def _withProperties(cls, props, constProps=frozenset()):
 		assert all(reqProp in props for reqProp in cls._defaults)
 		assert all(not needsLazyEvaluation(val) for val in props.values())
-		return cls(_internal=True, **props)
+		return cls(_internal=True, _constProps=constProps, **props)
 
-	def __init__(self, *args, _internal=False, **kwargs):
+	def __init__(self, *args, _internal=False, _constProps=frozenset(), **kwargs):
 		if _internal:	# Object is being constructed internally; use fast path
 			assert not args
 			for prop, value in kwargs.items():
@@ -73,6 +74,7 @@ class Constructible(Samplable):
 				object.__setattr__(self, prop, value)
 			super().__init__(kwargs.values())
 			self.properties = set(kwargs.keys())
+			self._constProps = _constProps
 			return
 
 		# Resolve and apply specifiers
@@ -123,11 +125,13 @@ class Constructible(Samplable):
 			optionalsForSpec[spec].add(opt)
 
 		# Add any default specifiers needed
+		_defaultedProperties = set()
 		for prop in defs:
 			if prop not in properties:
 				spec = defs[prop]
 				specifiers.append(spec)
 				properties[prop] = spec
+				_defaultedProperties.add(prop)
 
 		# Topologically sort specifiers
 		order = []
@@ -164,6 +168,10 @@ class Constructible(Samplable):
 			spec.applyTo(self, optionalsForSpec[spec])	# calls _specify
 		del self._evaluated
 		assert self.properties == set(properties)
+		self._constProps = frozenset({
+			prop for prop in _defaultedProperties
+			if not needsSampling(getattr(self, prop))
+		})
 
 	def _specify(self, prop, value):
 		assert prop not in self.properties
@@ -205,7 +213,8 @@ class Constructible(Samplable):
 		if not needsSampling(self):
 			return self
 		return self._withProperties({ prop: value[getattr(self, prop)]
-								    for prop in self.properties })
+								    for prop in self.properties },
+								    constProps=self._constProps)
 
 	def _allProperties(self):
 		return { prop: getattr(self, prop) for prop in self.properties }
@@ -214,7 +223,28 @@ class Constructible(Samplable):
 		"""Copy this object, possibly overriding some of its properties."""
 		props = self._allProperties()
 		props.update(overrides)
-		return self._withProperties(props)
+		constProps = self._constProps.difference(overrides)
+		return self._withProperties(props, constProps=constProps)
+
+	def dumpAsScenicCode(self, stream, skipConstProperties=True):
+		stream.write(self.__class__.__name__)
+		first = True
+		for prop in sorted(self.properties):
+			if skipConstProperties and prop in self._constProps:
+				continue
+			if prop == 'position':
+				spec = 'at'
+			elif prop == 'heading':
+				spec = 'facing'
+			else:
+				spec = f'with {prop}'
+			if first:
+				stream.write(' ')
+				first = False
+			else:
+				stream.write(',\n    ')
+			stream.write(f'{spec} ')
+			dumpAsScenicCode(getattr(self, prop), stream)
 
 	def __str__(self):
 		if hasattr(self, 'properties') and 'name' in self.properties:

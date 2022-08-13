@@ -14,6 +14,7 @@ from scenic.core.vectors import Vector
 from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
 from scenic.core.dynamics import Behavior
 from scenic.core.requirements import BoundRequirement
+from scenic.core.serialization import dumpAsScenicCode
 
 # Pickling support
 
@@ -109,6 +110,28 @@ class Scene(_ScenarioPickleMixin):
 		self.monitors = tuple(monitors)
 		self.behaviorNamespaces = behaviorNamespaces
 		self.dynamicScenario = dynamicScenario
+
+	def dumpAsScenicCode(self, stream=sys.stdout):
+		"""Dump Scenic code reproducing this scene to the given stream.
+
+		.. note::
+
+			This function does not currently reproduce parts of the original Scenic
+			program defining behaviors, functions, etc. used in the scene. Also, if
+			the scene involves any user-defined types, they must provide a suitable
+			`__repr__` for this function to print them properly.
+
+		Args:
+			stream (`text file`): Where to print the code (default `sys.stdout`).
+		"""
+		for name, value in self.params.items():
+			stream.write(f'param "{name}" = ')
+			dumpAsScenicCode(value, stream)
+			stream.write('\n')
+		stream.write('ego = ')
+		for obj in self.objects:
+			dumpAsScenicCode(obj, stream)
+			stream.write('\n')
 
 	def show(self, zoom=None, block=True):
 		"""Render a schematic of the scene for debugging."""
