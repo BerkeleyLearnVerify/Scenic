@@ -22,7 +22,7 @@ def test_containment_polyline():
     scenario = compileScenic("""
         workspace = Workspace(PolygonalRegion([0@0, 2@0, 2@2, 0@2]))
         line = PolylineRegion([0@0, 1@1, 2@0])
-        ego = Object on line, facing 0
+        ego = new Object on line, facing 0
     """)
     # Sampling should only require 1 iteration after pruning
     xs = [sampleEgo(scenario).position.x for i in range(60)]

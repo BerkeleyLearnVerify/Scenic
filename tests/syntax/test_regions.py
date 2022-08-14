@@ -21,7 +21,7 @@ def test_nowhere():
 # CircularRegion
 
 def test_circular_in():
-    scenario = compileScenic('ego = Object in CircularRegion(3@5, 2)')
+    scenario = compileScenic('ego = new Object in CircularRegion(3@5, 2)')
     positions = [sampleEgo(scenario).position for i in range(30)]
     center = Vector(3, 5)
     distances = [pos.distanceTo(center) for pos in positions]
@@ -35,7 +35,7 @@ def test_circular_lazy():
     ego = sampleEgoFrom("""
         vf = VectorField("Foo", lambda pos: 2 * pos.x)
         x = 0 relative to vf
-        ego = Object at Range(-1, 1) @ 0, with foo CircularRegion(0@0, x)
+        ego = new Object at Range(-1, 1) @ 0, with foo CircularRegion(0@0, x)
     """)
     assert ego.foo.radius == 2 * ego.position.x
 
