@@ -242,7 +242,7 @@ class TestMutate:
                 assert True
             case _:
                 assert False
-    
+
     def mutate_multiple_object_by(self):
         mod = parse_string_helper("mutate x, y, z by s")
         stmt = mod.body[0]
@@ -383,6 +383,132 @@ class TestNew:
 
     def test_specifier_multiple(self):
         mod = parse_string_helper("new Object with foo 1, with bar 2, with baz 3")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    "Object",
+                    [
+                        WithSpecifier("foo", Constant(1)),
+                        WithSpecifier("bar", Constant(2)),
+                        WithSpecifier("baz", Constant(3)),
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_specifier_multiline_expr(self):
+        mod = parse_string_helper(
+            """
+            new Object with foo 1,
+                with bar 2, with baz 3,
+                with qux 4, with quux 5
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    "Object",
+                    [
+                        WithSpecifier("foo", Constant(1)),
+                        WithSpecifier("bar", Constant(2)),
+                        WithSpecifier("baz", Constant(3)),
+                        WithSpecifier("qux", Constant(4)),
+                        WithSpecifier("quux", Constant(5)),
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_specifier_multiline_assign(self):
+        mod = parse_string_helper(
+            """
+            obj = new Object with foo 1,
+                with bar 2, with baz 3,
+                with qux 4, with quux 5
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case Assign(
+                targets=[Name("obj")],
+                value=New(
+                    "Object",
+                    [
+                        WithSpecifier("foo", Constant(1)),
+                        WithSpecifier("bar", Constant(2)),
+                        WithSpecifier("baz", Constant(3)),
+                        WithSpecifier("qux", Constant(4)),
+                        WithSpecifier("quux", Constant(5)),
+                    ],
+                ),
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_specifier_multiline_tracked(self):
+        mod = parse_string_helper(
+            """
+            ego = new Object with foo 1,
+                with bar 2, with baz 3,
+                with qux 4, with quux 5
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case TrackedAssign(
+                Ego(),
+                New(
+                    "Object",
+                    [
+                        WithSpecifier("foo", Constant(1)),
+                        WithSpecifier("bar", Constant(2)),
+                        WithSpecifier("baz", Constant(3)),
+                        WithSpecifier("qux", Constant(4)),
+                        WithSpecifier("quux", Constant(5)),
+                    ],
+                ),
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_specifier_multiline_trailing_comma(self):
+        mod = parse_string_helper(
+            """
+            new Object with foo 1,
+                with bar 2, with baz 3,
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(
+                New(
+                    "Object",
+                    [
+                        WithSpecifier("foo", Constant(1)),
+                        WithSpecifier("bar", Constant(2)),
+                        WithSpecifier("baz", Constant(3)),
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_specifier_multiline_two_lines(self):
+        mod = parse_string_helper(
+            """
+            new Object with foo 1,
+                with bar 2, with baz 3
+            """
+        )
         stmt = mod.body[0]
         match stmt:
             case Expr(
