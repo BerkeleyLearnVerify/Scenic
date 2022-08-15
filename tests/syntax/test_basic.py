@@ -82,14 +82,18 @@ def test_mutate():
 
 def test_mutate_object():
     scenario = compileScenic("""
-        ego = Object at 3@1, facing 0
+        ego = Object at 30@1, facing 0
         other = Object
         mutate other
     """)
-    ego = sampleEgo(scenario)
-    assert ego.position.x == pytest.approx(3)
+    scene = sampleScene(scenario)
+    ego, other = scene.objects
+    assert ego.position.x == pytest.approx(30)
     assert ego.position.y == pytest.approx(1)
     assert ego.heading == pytest.approx(0)
+    assert other.position.x != pytest.approx(0)
+    assert other.position.y != pytest.approx(0)
+    assert other.heading != pytest.approx(0)
 
 def test_mutate_scaled():
     scenario = compileScenic("""
