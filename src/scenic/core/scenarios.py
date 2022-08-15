@@ -119,10 +119,10 @@ class Scene(_ScenarioPickleMixin):
 			This function does not currently reproduce parts of the original Scenic
 			program defining behaviors, functions, etc. used in the scene. Also, if
 			the scene involves any user-defined types, they must provide a suitable
-			`__repr__` for this function to print them properly.
+			:obj:`~object.__repr__` for this function to print them properly.
 
 		Args:
-			stream (`text file`): Where to print the code (default `sys.stdout`).
+			stream (:term:`text file`): Where to print the code (default `sys.stdout`).
 		"""
 		for name, value in self.params.items():
 			stream.write(f'param "{name}" = ')

@@ -34,6 +34,7 @@ veneer.activate(paramOverrides=dict(
 ))
 import scenic.simulators.carla.model
 import scenic.simulators.lgsvl.model
+veneer.deactivate()
 
 # -- Project information -----------------------------------------------------
 
@@ -51,6 +52,7 @@ extensions = [
 'sphinx.ext.autodoc',
 'sphinx.ext.autosummary',
 'sphinx.ext.coverage',
+'sphinx.ext.doctest',
 'sphinx.ext.napoleon',
 'sphinx.ext.viewcode',
 'sphinx.ext.intersphinx',

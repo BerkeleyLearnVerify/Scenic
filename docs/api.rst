@@ -20,12 +20,22 @@ method, which returns a `Scene`. If you are only using static scenarios, you can
 the sampled values for all the global parameters and objects in the scene from the
 `Scene` object. For example:
 
-.. code-block:: python
+.. testsetup::
 
-	import scenic
+	import os
+	os.chdir('..')
+
+.. testcode::
+
+	import random, scenic
+	random.seed(12345)
 	scenario = scenic.scenarioFromString('ego = Object with foo Range(0, 5)')
 	scene, numIterations = scenario.generate()
 	print(f'ego has foo = {scene.egoObject.foo}')
+
+.. testoutput::
+
+	ego has foo = 2.083099362726706
 
 To run dynamic scenarios, you must instantiate an instance of the `Simulator` class for
 the particular simulator you want to use. Each simulator interface that supports dynamic
@@ -42,7 +52,7 @@ object. Results of the simulation can then be obtained by inspecting its ``resul
 attribute, which is an instance of `SimulationResult` (simulator-specific subclasses of
 `Simulation` may also provide additional information). For example:
 
-.. code-block:: python
+.. testcode::
 
 	import scenic
 	from scenic.simulators.newtonian import NewtonianSimulator
@@ -56,6 +66,22 @@ attribute, which is an instance of `SimulationResult` (simulator-specific subcla
 		for i, state in enumerate(result.trajectory):
 			egoPos, parkedCarPos = state
 			print(f'Time step {i}: ego at {egoPos}; parked car at {parkedCarPos}')
+
+.. testoutput::
+	:hide:
+	:options: +ELLIPSIS
+
+	Time step 0: ego at ...; parked car at ...
+	Time step 1: ego at ...; parked car at ...
+	Time step 2: ego at ...; parked car at ...
+	Time step 3: ego at ...; parked car at ...
+	Time step 4: ego at ...; parked car at ...
+	Time step 5: ego at ...; parked car at ...
+	Time step 6: ego at ...; parked car at ...
+	Time step 7: ego at ...; parked car at ...
+	Time step 8: ego at ...; parked car at ...
+	Time step 9: ego at ...; parked car at ...
+	Time step 10: ego at ...; parked car at ...
 
 If you want to monitor data from simulations to see if the system you are testing
 violates its specfications, you may want to use `VerifAI`_ instead of implementing your

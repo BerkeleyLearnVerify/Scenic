@@ -252,7 +252,7 @@ class Vehicle(DrivingObject):
             given by **roadDeviation**.
         roadDeviation (float): Relative heading with respect to the road direction at
             the `Vehicle`'s position. Used by the default value for **heading**.
-        regionContainedIn: The default container is `roadOrShoulder`.
+        regionContainedIn: The default container is :obj:`roadOrShoulder`.
         viewAngle: The default view angle is 90 degrees.
         width: The default width is 2 meters.
         length: The default length is 4.5 meters.

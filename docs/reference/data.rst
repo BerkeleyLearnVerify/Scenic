@@ -69,7 +69,7 @@ Vector Field
 ============
 
 Vector fields associate an orientation (i.e. a heading) to each point in space.
-For example, a vector field could represent the shortest paths to a destination, or the nominal traffic direction on a road (e.g. `scenic.domains.driving.model.roadDirection`).
+For example, a vector field could represent the shortest paths to a destination, or the nominal traffic direction on a road (e.g. :obj:`scenic.domains.driving.model.roadDirection`).
 
 
 .. _Region:
