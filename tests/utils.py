@@ -149,7 +149,13 @@ def generateChecked(scenario, maxIterations):
     checkVeneerIsInactive()
     return scene, iterations
 
+stopFlag = False
+
 def checkVeneerIsInactive():
+    global stopFlag
+    if stopFlag:
+        pytest.exit('veneer corrupted by last test', returncode=1)
+    stopFlag = True
     assert veneer.activity == 0
     assert not veneer.scenarioStack
     assert not veneer.currentScenario
@@ -161,6 +167,7 @@ def checkVeneerIsInactive():
     assert not veneer.lockedModel
     assert not veneer.currentSimulation
     assert not veneer.currentBehavior
+    stopFlag = False
 
 ## Error checking utilities
 
@@ -191,7 +198,7 @@ def tryPickling(thing, checkEquivalence=True, pickler=dill):
     unpickled = pickler.loads(pickled)
     checkVeneerIsInactive()
     if checkEquivalence:
-        assert areEquivalent(unpickled, thing, debug=True)
+        assert areEquivalent(unpickled, thing)
     return unpickled
 
 def areEquivalent(a, b, cache=None, ignoreCacheAttrs=False, debug=False):
