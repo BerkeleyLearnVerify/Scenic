@@ -536,6 +536,9 @@ scenic_stmt:
     | scenic_tracked_assignment
     | scenic_param_stmt
     | scenic_require_stmt
+    | scenic_record_initial_stmt
+    | scenic_record_final_stmt
+    | scenic_record_stmt
     | scenic_mutate_stmt
 
 # SIMPLE STATEMENTS
@@ -1607,6 +1610,21 @@ scenic_require_stmt:
 scenic_require_stmt_name:
     | a=(NAME | NUMBER) { a.string }
     | a=STRING { a.string[1:-1] }
+
+scenic_record_stmt:
+    | "record" e=expression n=['as' a=scenic_require_stmt_name { a }] {
+        s.Record(value=e, name=n, LOCATIONS)
+     }
+
+scenic_record_initial_stmt:
+    | "record" "initial" e=expression n=['as' a=scenic_require_stmt_name { a }] {
+        s.RecordInitial(value=e, name=n, LOCATIONS)
+     }
+
+scenic_record_final_stmt:
+    | "record" "final" e=expression n=['as' a=scenic_require_stmt_name { a }] {
+        s.RecordFinal(value=e, name=n, LOCATIONS)
+     }
 
 scenic_mutate_stmt:
     | 'mutate' elts=[(','.scenic_mutate_stmt_id+)] scale=['by' x=expression {x}] {

@@ -125,6 +125,39 @@ class Require(AST):
         self._fields = ["cond", "prob", "name"]
 
 
+class Record(AST):
+    __match_args__ = ("value", "name")
+
+    def __init__(
+        self, value: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.value = value
+        self.name = name
+
+
+class RecordInitial(AST):
+    __match_args__ = ("value", "name")
+
+    def __init__(
+        self, value: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.value = value
+        self.name = name
+
+
+class RecordFinal(AST):
+    __match_args__ = ("value", "name")
+
+    def __init__(
+        self, value: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.value = value
+        self.name = name
+
+
 class Mutate(AST):
     __match_args__ = ("elts", "scale")
 
