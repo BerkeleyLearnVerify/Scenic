@@ -122,6 +122,67 @@ class Dynamic(AST):
         super().__init__(*args, **kwargs)
 
 
+# behavior / monitor
+
+
+class BehaviorDef(AST):
+    __match_args__ = ("name", "args", "docstring", "header", "body")
+
+    def __init__(
+        self,
+        name: str,
+        args: ast.arguments,
+        docstring: Optional[str],
+        header: list[Union["Precondition", "Invariant"]],
+        body: list[any],
+        *_args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*_args, **kwargs)
+        self.name = name
+        self.args = args
+        self.docstring = docstring
+        self.header = header
+        self.body = body
+        self._fields = ["name", "args", "docstring", "header", "body"]
+
+
+class MonitorDef(AST):
+    __match_args__ = ("name", "docstring", "body")
+
+    def __init__(
+        self,
+        name: str,
+        docstring: Optional[str],
+        body: list[ast.AST],
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.name = name
+        self.docstring = docstring
+        self.body = body
+        self._fields = ["name", "docstring", "body"]
+
+
+class Precondition(AST):
+    __match_args__ = ("value",)
+
+    def __init__(self, value: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.value = value
+        self._fields = ["value"]
+
+
+class Invariant(AST):
+    __match_args__ = ("value",)
+
+    def __init__(self, value: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.value = value
+        self._fields = ["value"]
+
+
 # simple statements
 
 
