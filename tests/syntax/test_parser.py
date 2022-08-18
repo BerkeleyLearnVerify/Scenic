@@ -242,7 +242,7 @@ class TestMutate:
                 assert True
             case _:
                 assert False
-    
+
     def mutate_multiple_object_by(self):
         mod = parse_string_helper("mutate x, y, z by s")
         stmt = mod.body[0]
@@ -352,6 +352,26 @@ class TestRequire:
         stmt = mod.body[0]
         match stmt:
             case Require(Name("X"), None, "123"):
+                assert True
+            case _:
+                assert False
+
+
+class TestTerminateWhen:
+    def test_terminate_when(self):
+        mod = parse_string_helper("terminate when x")
+        stmt = mod.body[0]
+        match stmt:
+            case TerminateWhen(Name("x")):
+                assert True
+            case _:
+                assert False
+
+    def test_terminate_simulation_when(self):
+        mod = parse_string_helper("terminate simulation when x")
+        stmt = mod.body[0]
+        match stmt:
+            case TerminateSimulationWhen(Name("x")):
                 assert True
             case _:
                 assert False

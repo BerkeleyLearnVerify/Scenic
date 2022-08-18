@@ -363,6 +363,58 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_terminate_when(self):
+        node, requirements = compileScenicAST(TerminateWhen(Name("C"), lineno=2))
+
+        match node:
+            case Expr(
+                Call(
+                    Name("terminate_when"),
+                    [
+                        Constant(0),  # reqId
+                        Lambda(body=Name("C")),  # requirement
+                        Constant(2),  # lineno
+                        Constant(None),  # name
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
+        match requirements:
+            case [Name("C")]:
+                assert True
+            case _:
+                assert False
+
+    def test_terminate_simulation_when(self):
+        node, requirements = compileScenicAST(
+            TerminateSimulationWhen(Name("C"), lineno=2)
+        )
+
+        match node:
+            case Expr(
+                Call(
+                    Name("terminate_simulation_when"),
+                    [
+                        Constant(0),  # reqId
+                        Lambda(body=Name("C")),  # requirement
+                        Constant(2),  # lineno
+                        Constant(None),  # name
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
+        match requirements:
+            case [Name("C")]:
+                assert True
+            case _:
+                assert False
+
     # Instance & Specifiers
     def test_new_no_specifiers(self):
         node, _ = compileScenicAST(New("Object", []))

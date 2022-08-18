@@ -537,6 +537,8 @@ scenic_stmt:
     | scenic_param_stmt
     | scenic_require_stmt
     | scenic_mutate_stmt
+    | scenic_terminate_simulation_when_stmt
+    | scenic_terminate_when_stmt
 
 # SIMPLE STATEMENTS
 # =================
@@ -1613,6 +1615,10 @@ scenic_mutate_stmt:
         s.Mutate(elts=elts if elts is not None else [], scale=scale, LOCATIONS)
      }
 scenic_mutate_stmt_id: a=NAME { ast.Name(id=a.string, ctx=Load, LOCATIONS) }
+
+scenic_terminate_simulation_when_stmt: "terminate" "simulation" "when" v=expression { s.TerminateSimulationWhen(v, LOCATIONS) }
+
+scenic_terminate_when_stmt: "terminate" "when" v=expression { s.TerminateWhen(v, LOCATIONS) }
 
 # LITERALS
 # ========

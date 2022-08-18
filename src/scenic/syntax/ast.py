@@ -141,6 +141,24 @@ class Mutate(AST):
         self._fields = ["elts", "scale"]
 
 
+class TerminateSimulationWhen(AST):
+    __match_args__ = ("cond",)
+
+    def __init__(self, cond=ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.cond = cond
+        self._fields = ["cond"]
+
+
+class TerminateWhen(AST):
+    __match_args__ = ("cond",)
+
+    def __init__(self, cond=ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.cond = cond
+        self._fields = ["cond"]
+
+
 # Instance Creation
 
 
