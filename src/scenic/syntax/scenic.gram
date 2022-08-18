@@ -539,6 +539,8 @@ scenic_stmt:
     | scenic_model_stmt
     | scenic_tracked_assignment
     | scenic_param_stmt
+    | scenic_require_always_stmt
+    | scenic_require_eventually_stmt
     | scenic_require_stmt
     | scenic_mutate_stmt
     | scenic_take_stmt
@@ -1736,6 +1738,16 @@ scenic_require_stmt:
 scenic_require_stmt_name:
     | a=(NAME | NUMBER) { a.string }
     | a=STRING { a.string[1:-1] }
+
+scenic_require_always_stmt:
+    | 'require' 'always' e=expression n=['as' a=scenic_require_stmt_name { a }] {
+        s.RequireAlways(cond=e, name=n, LOCATIONS)
+     }
+
+scenic_require_eventually_stmt:
+    | 'require' 'eventually' e=expression n=['as' a=scenic_require_stmt_name { a }] {
+        s.RequireEventually(cond=e, name=n, LOCATIONS)
+     }
 
 scenic_mutate_stmt:
     | 'mutate' elts=[(','.scenic_mutate_stmt_id+)] scale=['by' x=expression {x}] {
