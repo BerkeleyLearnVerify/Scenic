@@ -542,6 +542,9 @@ scenic_stmt:
     | scenic_require_always_stmt
     | scenic_require_eventually_stmt
     | scenic_require_stmt
+    | scenic_record_initial_stmt
+    | scenic_record_final_stmt
+    | scenic_record_stmt
     | scenic_mutate_stmt
     | scenic_take_stmt
     | scenic_wait_stmt
@@ -1747,6 +1750,21 @@ scenic_require_always_stmt:
 scenic_require_eventually_stmt:
     | 'require' 'eventually' e=expression n=['as' a=scenic_require_stmt_name { a }] {
         s.RequireEventually(cond=e, name=n, LOCATIONS)
+     }
+
+scenic_record_stmt:
+    | "record" e=expression n=['as' a=scenic_require_stmt_name { a }] {
+        s.Record(value=e, name=n, LOCATIONS)
+     }
+
+scenic_record_initial_stmt:
+    | "record" "initial" e=expression n=['as' a=scenic_require_stmt_name { a }] {
+        s.RecordInitial(value=e, name=n, LOCATIONS)
+     }
+
+scenic_record_final_stmt:
+    | "record" "final" e=expression n=['as' a=scenic_require_stmt_name { a }] {
+        s.RecordFinal(value=e, name=n, LOCATIONS)
      }
 
 scenic_mutate_stmt:
