@@ -242,7 +242,7 @@ class TestMutate:
                 assert True
             case _:
                 assert False
-    
+
     def mutate_multiple_object_by(self):
         mod = parse_string_helper("mutate x, y, z by s")
         stmt = mod.body[0]
@@ -352,6 +352,42 @@ class TestRequire:
         stmt = mod.body[0]
         match stmt:
             case Require(Name("X"), None, "123"):
+                assert True
+            case _:
+                assert False
+
+    def test_require_always(self):
+        mod = parse_string_helper("require always X")
+        stmt = mod.body[0]
+        match stmt:
+            case RequireAlways(Name("X"), None):
+                assert True
+            case _:
+                assert False
+
+    def test_require_always_with_name(self):
+        mod = parse_string_helper("require always X as safety")
+        stmt = mod.body[0]
+        match stmt:
+            case RequireAlways(Name("X"), "safety"):
+                assert True
+            case _:
+                assert False
+
+    def test_require_eventually(self):
+        mod = parse_string_helper("require eventually X")
+        stmt = mod.body[0]
+        match stmt:
+            case RequireEventually(Name("X"), None):
+                assert True
+            case _:
+                assert False
+
+    def test_require_eventually_with_name(self):
+        mod = parse_string_helper("require eventually X as liveness")
+        stmt = mod.body[0]
+        match stmt:
+            case RequireEventually(Name("X"), "liveness"):
                 assert True
             case _:
                 assert False

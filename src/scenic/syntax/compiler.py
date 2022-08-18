@@ -253,6 +253,44 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             )
         )
 
+    def visit_RequireAlways(self, node: s.RequireAlways):
+        condition = self.visit(node.cond)
+        syntax_id = self._register_requirement_syntax(condition)
+        return ast.Expr(
+            value=ast.Call(
+                func=ast.Name(id="require_always", ctx=loadCtx),
+                args=[
+                    ast.Constant(syntax_id),
+                    ast.Lambda(
+                        args=noArgs,
+                        body=condition,
+                    ),
+                    ast.Constant(value=node.lineno),
+                    ast.Constant(value=node.name),
+                ],
+                keywords=[],
+            )
+        )
+
+    def visit_RequireEventually(self, node: s.RequireEventually):
+        condition = self.visit(node.cond)
+        syntax_id = self._register_requirement_syntax(condition)
+        return ast.Expr(
+            value=ast.Call(
+                func=ast.Name(id="require_eventually", ctx=loadCtx),
+                args=[
+                    ast.Constant(syntax_id),
+                    ast.Lambda(
+                        args=noArgs,
+                        body=condition,
+                    ),
+                    ast.Constant(value=node.lineno),
+                    ast.Constant(value=node.name),
+                ],
+                keywords=[],
+            )
+        )
+
     # Instance & Specifier
 
     def visit_New(self, node: s.New):
