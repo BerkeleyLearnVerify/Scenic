@@ -192,6 +192,10 @@ class Mutate(AST):
         self._fields = ["elts", "scale"]
 
 
+class Abort(AST):
+    pass
+
+
 # Instance Creation
 
 

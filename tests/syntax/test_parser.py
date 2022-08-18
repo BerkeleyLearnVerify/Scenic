@@ -382,6 +382,17 @@ class TestMutate:
                 assert False
 
 
+class TestAbort:
+    def test_basic(self):
+        mod = parse_string_helper("abort")
+        stmt = mod.body[0]
+        match stmt:
+            case Abort():
+                assert True
+            case _:
+                assert False
+
+
 class TestParam:
     def test_basic(self):
         mod = parse_string_helper("param i = v")
