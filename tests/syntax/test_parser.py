@@ -863,6 +863,62 @@ class TestRequire:
                 assert False
 
 
+class TestRecord:
+    def test_record(self):
+        mod = parse_string_helper("record x")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), None):
+                assert True
+            case _:
+                assert False
+
+    def test_record_named(self):
+        mod = parse_string_helper("record x as name")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), "name"):
+                assert True
+            case _:
+                assert False
+
+    def test_record_initial(self):
+        mod = parse_string_helper("record initial x")
+        stmt = mod.body[0]
+        match stmt:
+            case RecordInitial(Name("x"), None):
+                assert True
+            case _:
+                assert False
+
+    def test_record_initial_named(self):
+        mod = parse_string_helper("record initial x as name")
+        stmt = mod.body[0]
+        match stmt:
+            case RecordInitial(Name("x"), "name"):
+                assert True
+            case _:
+                assert False
+
+    def test_record_final(self):
+        mod = parse_string_helper("record final x")
+        stmt = mod.body[0]
+        match stmt:
+            case RecordFinal(Name("x"), None):
+                assert True
+            case _:
+                assert False
+
+    def test_record_final_named(self):
+        mod = parse_string_helper("record final x as name")
+        stmt = mod.body[0]
+        match stmt:
+            case RecordFinal(Name("x"), "name"):
+                assert True
+            case _:
+                assert False
+
+
 class TestNew:
     def test_basic(self):
         mod = parse_string_helper("new Object")

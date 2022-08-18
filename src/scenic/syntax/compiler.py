@@ -828,6 +828,63 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             )
         )
 
+    def visit_Record(self, node: s.Record):
+        value = self.visit(node.value)
+        syntax_id = self._register_requirement_syntax(value)
+        return ast.Expr(
+            value=ast.Call(
+                func=ast.Name(id="record", ctx=loadCtx),
+                args=[
+                    ast.Constant(syntax_id),
+                    ast.Lambda(
+                        args=noArgs,
+                        body=value,
+                    ),
+                    ast.Constant(value=node.lineno),
+                    ast.Constant(value=node.name),
+                ],
+                keywords=[],
+            )
+        )
+
+    def visit_RecordInitial(self, node: s.RecordInitial):
+        value = self.visit(node.value)
+        syntax_id = self._register_requirement_syntax(value)
+        return ast.Expr(
+            value=ast.Call(
+                func=ast.Name(id="record_initial", ctx=loadCtx),
+                args=[
+                    ast.Constant(syntax_id),
+                    ast.Lambda(
+                        args=noArgs,
+                        body=value,
+                    ),
+                    ast.Constant(value=node.lineno),
+                    ast.Constant(value=node.name),
+                ],
+                keywords=[],
+            )
+        )
+
+    def visit_RecordFinal(self, node: s.RecordFinal):
+        value = self.visit(node.value)
+        syntax_id = self._register_requirement_syntax(value)
+        return ast.Expr(
+            value=ast.Call(
+                func=ast.Name(id="record_final", ctx=loadCtx),
+                args=[
+                    ast.Constant(syntax_id),
+                    ast.Lambda(
+                        args=noArgs,
+                        body=value,
+                    ),
+                    ast.Constant(value=node.lineno),
+                    ast.Constant(value=node.name),
+                ],
+                keywords=[],
+            )
+        )
+
     # Instance & Specifier
 
     def visit_New(self, node: s.New):
