@@ -297,6 +297,235 @@ class TestClass:
                 assert False
 
 
+class TestBehaviorDef:
+    def test_basic(self):
+        mod = parse_string_helper(
+            """
+            behavior test:
+                pass
+        """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case BehaviorDef(
+                "test",
+                arguments([], [], None, [], [], None, []),
+                None,
+                [],
+                [Pass()],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_empty_parenthesis(self):
+        mod = parse_string_helper(
+            """
+            behavior test():
+                pass
+        """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case BehaviorDef(
+                "test",
+                arguments([], [], None, [], [], None, []),
+                None,
+                [],
+                [Pass()],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_parameter(self):
+        mod = parse_string_helper(
+            """
+            behavior test(x, y = "hello"):
+                pass
+        """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case BehaviorDef(
+                "test",
+                arguments(args=[arg("x"), arg("y")], defaults=[Constant("hello")]),
+                None,
+                [],
+                [Pass()],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_precondition(self):
+        mod = parse_string_helper(
+            """
+            behavior test:
+                precondition: True
+                pass
+        """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case BehaviorDef(
+                "test",
+                arguments(),
+                None,
+                [Precondition(Constant(True))],
+                [Pass()],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_invariant(self):
+        mod = parse_string_helper(
+            """
+            behavior test:
+                invariant: True
+                pass
+        """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case BehaviorDef(
+                "test",
+                arguments(),
+                None,
+                [Invariant(Constant(True))],
+                [Pass()],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_precondition_and_invariant(self):
+        mod = parse_string_helper(
+            """
+            behavior test:
+                precondition: True
+                invariant: True
+                precondition: True
+                pass
+        """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case BehaviorDef(
+                "test",
+                arguments(),
+                None,
+                [
+                    Precondition(Constant(True)),
+                    Invariant(Constant(True)),
+                    Precondition(Constant(True)),
+                ],
+                [Pass()],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_invalid_precondition(self):
+        with pytest.raises(SyntaxError) as e:
+            parse_string_helper(
+                """
+                behavior test:
+                    hello()
+                    precondition: True
+                """
+            )
+
+    def test_invalid_invariant(self):
+        with pytest.raises(SyntaxError) as e:
+            parse_string_helper(
+                """
+                behavior test:
+                    hello()
+                    precondition: True
+                """
+            )
+
+    def test_empty_body(self):
+        mod = parse_string_helper(
+            """
+            behavior test:
+                invariant: True
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case BehaviorDef(
+                "test",
+                arguments(),
+                None,
+                [
+                    Invariant(Constant(True)),
+                ],
+                [Pass()],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_docstring(self):
+        mod = parse_string_helper(
+            """
+            behavior test:
+                \"\"\"DOCSTRING\"\"\"
+                invariant: True
+                body()
+            """
+        )
+        get_docstring
+        stmt = mod.body[0]
+        match stmt:
+            case BehaviorDef(
+                "test",
+                arguments(),
+                '"""DOCSTRING"""',
+                [
+                    Invariant(Constant(True)),
+                ],
+                [Expr(Call(Name("body")))],
+            ):
+                assert True
+            case _:
+                assert False
+
+
+class TestMonitorDef:
+    def test_basic(self):
+        mod = parse_string_helper(
+            """
+            monitor Monitor:
+                pass
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case MonitorDef("Monitor", None, [Pass()]):
+                assert True
+            case _:
+                assert False
+
+    def test_docstring(self):
+        mod = parse_string_helper(
+            """
+            monitor Monitor:
+                \"\"\"DOCSTRING\"\"\"
+                pass
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case MonitorDef("Monitor", '"""DOCSTRING"""', [Pass()]):
+                assert True
+            case _:
+                assert False
+
+
 class TestModel:
     def test_basic(self):
         mod = parse_string_helper("model some_model")
