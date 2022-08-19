@@ -1,4 +1,5 @@
 import ast
+import itertools
 from typing import Optional, Tuple, List
 
 import scenic.syntax.ast as s
@@ -9,9 +10,33 @@ import scenic.syntax.ast as s
 def compileScenicAST(scenicAST: ast.AST) -> Tuple[ast.AST, List[ast.AST]]:
     """Compiles Scenic AST to Python AST"""
     compiler = ScenicToPythonTransformer()
-    node = ast.fix_missing_locations(compiler.visit(scenicAST))
+    tree = compiler.visit(scenicAST)
+    if isinstance(tree, list):
+        node = [ast.fix_missing_locations(n) for n in tree]
+    else:
+        node = ast.fix_missing_locations(tree)
     return node, compiler.requirements
 
+
+# constants
+
+temporaryName = "_Scenic_temporary_name"
+behaviorArgName = "_Scenic_current_behavior"
+checkPreconditionsName = "checkPreconditions"
+checkInvariantsName = "checkInvariants"
+interruptPrefix = "_Scenic_interrupt"
+
+abortFlag = ast.Attribute(ast.Name("BlockConclusion", ast.Load()), "ABORT", ast.Load())
+breakFlag = ast.Attribute(ast.Name("BlockConclusion", ast.Load()), "BREAK", ast.Load())
+continueFlag = ast.Attribute(
+    ast.Name("BlockConclusion", ast.Load()), "CONTINUE", ast.Load()
+)
+returnFlag = ast.Attribute(
+    ast.Name("BlockConclusion", ast.Load()), "RETURN", ast.Load()
+)
+finishedFlag = ast.Attribute(
+    ast.Name("BlockConclusion", ast.Load()), "FINISHED", ast.Load()
+)
 
 # shorthands for convenience
 
@@ -30,6 +55,19 @@ noArgs = ast.arguments(
 selfArg = ast.arguments(
     posonlyargs=[],
     args=[ast.arg(arg="self", annotation=None)],
+    vararg=None,
+    kwonlyargs=[],
+    kw_defaults=[],
+    kwarg=None,
+    defaults=[],
+)
+initialBehaviorArgs = [
+    ast.arg(arg=behaviorArgName, annotation=None),
+    ast.arg(arg="self", annotation=None),
+]
+onlyBehaviorArgs = ast.arguments(
+    posonlyargs=[],
+    args=initialBehaviorArgs,
     vararg=None,
     kwonlyargs=[],
     kw_defaults=[],
@@ -61,6 +99,67 @@ class AttributeFinder(ast.NodeVisitor):
         self.visit(val)
 
 
+class LocalFinder(ast.NodeVisitor):
+    """Utility class for finding all local variables of a code block."""
+
+    @staticmethod
+    def findIn(block):
+        lf = LocalFinder()
+        for statement in block:
+            lf.visit(statement)
+        names = lf.names
+        return names - lf.globals - lf.nonlocals
+
+    def __init__(self):
+        self.names = set()
+        self.globals = set()
+        self.nonlocals = set()
+
+    def visit_Global(self, node):
+        self.globals.update(node.names)
+
+    def visit_Nonlocal(self, node):
+        self.nonlocals.update(node.names)
+
+    def visit_FunctionDef(self, node):
+        self.names.add(node.name)
+        self.visit(node.args)
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        if node.returns is not None:
+            self.visit(node.returns)
+        # do not visit body; it's another block
+
+    def visit_Lambda(self, node):
+        self.visit(node.args)
+        # do not visit body; it's another block
+
+    def visit_ClassDef(self, node):
+        self.names.add(node.name)
+        for child in itertools.chain(node.bases, node.keywords, node.decorator_list):
+            self.visit(child)
+        # do not visit body; it's another block
+
+    def visit_Import(self, node):
+        for alias in node.names:
+            bound = alias.asname
+            if bound is None:
+                bound = alias.name
+            self.names.add(bound)
+
+    def visit_ImportFrom(self, node):
+        self.visit_Import(node)
+
+    def visit_Name(self, node):
+        if isinstance(node.ctx, (ast.Store, ast.Del)):
+            self.names.add(node.id)
+
+    def visit_ExceptHandler(self, node):
+        if node.name is not None:
+            self.names.add(node.name)
+        self.generic_visit(node)
+
+
 # transformer
 
 
@@ -69,12 +168,34 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         super().__init__()
         self.requirements = []
 
+        self.inTryInterrupt = False
+        self.inInterruptBlock = False
+        self.inLoop = False
+        self.usedBreak = False
+        self.usedContinue = False
+
     def generic_visit(self, node):
         if isinstance(node, s.AST):
             raise Exception(
                 f'Scenic AST node "{node.__class__.__name__}" needs visitor in compiler'
             )
         return super().generic_visit(node)
+
+    # add support for list of nodes
+    def visit(self, node: ast.AST | list[ast.AST]):
+        if isinstance(node, ast.AST):
+            return super().visit(node)
+        elif isinstance(node, list):
+            newStatements = []
+            for statement in node:
+                newStatement = self.visit(statement)
+                if isinstance(newStatement, ast.AST):
+                    newStatements.append(newStatement)
+                else:
+                    newStatements.extend(newStatement)
+            return newStatements
+        else:
+            raise RuntimeError(f"unknown object {node} encountered during compilation")
 
     # helper functions
     def _register_requirement_syntax(self, syntax: ast.AST) -> int:
@@ -94,7 +215,149 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         # TODO(shun): Add handling for behavior locals
         return node
 
+    # hook control flow nodes to set appropriate flags for try-interrupt
+
+    def visit_For(self, node):
+        old = self.inLoop
+        self.inLoop = True
+        newNode = self.generic_visit(node)
+        self.inLoop = old
+        return newNode
+
+    def visit_While(self, node):
+        old = self.inLoop
+        self.inLoop = True
+        newNode = self.generic_visit(node)
+        self.inLoop = old
+        return newNode
+
+    def visit_FunctionDef(self, node):
+        oldInLoop, oldInInterruptBlock = self.inLoop, self.inInterruptBlock
+        self.inLoop, self.inInterruptBlock = False, False
+        newNode = self.generic_visit(node)
+        self.inLoop, self.inInterruptBlock = oldInLoop, oldInInterruptBlock
+        return newNode
+
+    def visit_Break(self, node):
+        if self.inInterruptBlock and not self.inLoop:
+            if not self.usedBreak:
+                self.usedBreak = node
+            newNode = ast.Return(breakFlag)
+            return ast.copy_location(newNode, node)
+        else:
+            return self.generic_visit(node)
+
+    def visit_Continue(self, node):
+        if self.inInterruptBlock and not self.inLoop:
+            if not self.usedContinue:
+                self.usedContinue = node
+            newNode = ast.Return(continueFlag)
+            return ast.copy_location(newNode, node)
+        else:
+            return self.generic_visit(node)
+
+    def visit_Return(self, node):
+        if self.inInterruptBlock:
+            value = ast.Constant(None) if node.value is None else node.value
+            ret = ast.Return(ast.Call(returnFlag, [value], []))
+            return ast.copy_location(ret, node)
+        else:
+            return self.generic_visit(node)
+
     # Special Case
+
+    def visit_ScenicTry(self, node: s.ScenicTry):
+        statements = []
+        oldInTryInterrupt = self.inTryInterrupt
+
+        # TODO(shun): Do we need to create a dead copy? https://github.com/BerkeleyLearnVerify/Scenic/blob/eb7e7f7ad1879c70f0f6d9f5cff7b83afd23ef7a/src/scenic/syntax/translator.py#L1707-L1709
+        self.inTryInterrupt = True
+
+        oldInInterruptBlock, oldInLoop = self.inInterruptBlock, self.inLoop
+        self.inInterruptBlock = True
+        self.inLoop = False
+        self.usedBreak = False
+        self.usedContinue = False
+
+        def makeInterruptBlock(name, body):
+            newBody = self.visit(body)
+            allLocals = LocalFinder.findIn(newBody)
+            if allLocals:
+                newBody.insert(0, ast.Nonlocal(list(allLocals)))
+            newBody.append(ast.Return(finishedFlag))
+            return ast.FunctionDef(name, onlyBehaviorArgs, newBody, [], None)
+
+        bodyName = f"{interruptPrefix}_body"
+        statements.append(makeInterruptBlock(bodyName, node.body))
+
+        handlerNames, conditionNames = [], []
+        for i, handler in enumerate(node.interrupt_when_handlers):
+            condition = handler.cond
+            block = handler.body
+
+            handlerName = f"{interruptPrefix}_handler_{i}"
+            handlerNames.append(handlerName)
+            conditionName = f"{interruptPrefix}_condition_{i}"
+            conditionNames.append(conditionName)
+
+            statements.append(makeInterruptBlock(handlerName, block))
+            self.inGuard = True
+            checker = ast.Lambda(noArgs, self.visit(condition))
+            self.inGuard = False
+            defChecker = ast.Assign([ast.Name(conditionName, ast.Store())], checker)
+            statements.append(defChecker)
+
+        self.inInterruptBlock, self.inLoop = oldInInterruptBlock, oldInLoop
+        self.inTryInterrupt = oldInTryInterrupt
+
+        # Prepare tuples of interrupt conditions and handlers
+        # (in order from high priority to low, so reversed relative to the syntax)
+        conditions = ast.Tuple(
+            [ast.Name(n, ast.Load()) for n in reversed(conditionNames)], ast.Load()
+        )
+        handlers = ast.Tuple(
+            [ast.Name(n, ast.Load()) for n in reversed(handlerNames)], ast.Load()
+        )
+
+        # Construct code to execute the try-interrupt statement
+        args = [
+            ast.Name(behaviorArgName, ast.Load()),
+            ast.Name("self", ast.Load()),
+            ast.Name(bodyName, ast.Load()),
+            conditions,
+            handlers,
+        ]
+        callRuntime = ast.Call(ast.Name("runTryInterrupt", ast.Load()), args, [])
+        runTI = ast.Assign(
+            [ast.Name(temporaryName, ast.Store())], ast.YieldFrom(callRuntime)
+        )
+        statements.append(runTI)
+        result = ast.Name(temporaryName, ast.Load())
+        if self.usedBreak:
+            test = ast.Compare(result, [ast.Is()], [breakFlag])
+            brk = ast.copy_location(ast.Break(), self.usedBreak)
+            statements.append(ast.If(test, [brk], []))
+        if self.usedContinue:
+            test = ast.Compare(result, [ast.Is()], [continueFlag])
+            cnt = ast.copy_location(ast.Continue(), self.usedContinue)
+            statements.append(ast.If(test, [cnt], []))
+        test = ast.Compare(result, [ast.Is()], [returnFlag])
+        retCheck = ast.If(
+            test, [ast.Return(ast.Attribute(result, "return_value", ast.Load()))], []
+        )
+        statements.append(retCheck)
+
+        # Construct overall try-except statement
+        if node.except_handlers or node.finalbody:
+            newTry = ast.Try(
+                statements,
+                [self.visit(handler) for handler in node.except_handlers],
+                self.visit(node.orelse),
+                self.visit(node.finalbody),
+            )
+            return ast.copy_location(newTry, node)
+        else:
+            return statements
 
     def visit_TrackedAssign(self, node: s.TrackedAssign):
         return ast.Expr(
