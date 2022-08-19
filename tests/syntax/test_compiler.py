@@ -7,6 +7,125 @@ from scenic.syntax.compiler import compileScenicAST
 
 
 class TestCompiler:
+    def test_scenic_try(self):
+        node, _ = compileScenicAST(
+            ScenicTry(
+                body=[Expr(Call(Name("foo", Load()), args=[], keywords=[]))],
+                interrupt_when_handlers=[
+                    InterruptWhenHandler(
+                        Constant(True),
+                        [Expr(Call(Name("foo", Load()), args=[], keywords=[]))],
+                    )
+                ],
+                except_handlers=[
+                    ExceptHandler(
+                        Constant(True),
+                        None,
+                        [
+                            Expr(
+                                Call(
+                                    Name("handle_except", Load()), args=[], keywords=[]
+                                )
+                            )
+                        ],
+                    )
+                ],
+                orelse=[],
+                finalbody=[],
+            )
+        )
+        match node:
+            case Try(
+                body=[
+                    FunctionDef(
+                        name="_Scenic_interrupt_body",
+                        args=arguments(
+                            args=[arg("_Scenic_current_behavior"), arg("self")],
+                        ),
+                        body=[
+                            Expr(Call(Name("foo"))),
+                            Return(
+                                value=Attribute(
+                                    value=Name("BlockConclusion"), attr="FINISHED"
+                                )
+                            ),
+                        ],
+                    ),
+                    FunctionDef(
+                        name="_Scenic_interrupt_handler_0",
+                        args=arguments(
+                            args=[arg("_Scenic_current_behavior"), arg("self")],
+                        ),
+                        body=[
+                            Expr(value=Call(func=Name("foo"))),
+                            Return(
+                                value=Attribute(
+                                    value=Name("BlockConclusion"),
+                                    attr="FINISHED",
+                                )
+                            ),
+                        ],
+                    ),
+                    Assign(
+                        targets=[Name("_Scenic_interrupt_condition_0")],
+                        value=Lambda(
+                            args=arguments(),
+                            body=Constant(True),
+                        ),
+                    ),
+                    Assign(
+                        targets=[Name("_Scenic_temporary_name")],
+                        value=YieldFrom(
+                            value=Call(
+                                func=Name("runTryInterrupt"),
+                                args=[
+                                    Name("_Scenic_current_behavior"),
+                                    Name("self"),
+                                    Name("_Scenic_interrupt_body"),
+                                    Tuple(
+                                        elts=[Name("_Scenic_interrupt_condition_0")],
+                                    ),
+                                    Tuple(
+                                        elts=[Name("_Scenic_interrupt_handler_0")],
+                                    ),
+                                ],
+                            )
+                        ),
+                    ),
+                    If(
+                        test=Compare(
+                            left=Name("_Scenic_temporary_name"),
+                            ops=[Is()],
+                            comparators=[
+                                Attribute(
+                                    value=Name("BlockConclusion"),
+                                    attr="RETURN",
+                                )
+                            ],
+                        ),
+                        body=[
+                            Return(
+                                value=Attribute(
+                                    value=Name("_Scenic_temporary_name"),
+                                    attr="return_value",
+                                )
+                            )
+                        ],
+                    ),
+                ],
+                handlers=[
+                    ExceptHandler(
+                        type=Constant(value=True),
+                        body=[Expr(value=Call(func=Name("handle_except")))],
+                    )
+                ],
+                orelse=[],
+                finalbody=[],
+            ):
+                assert True
+            case _:
+                assert False
+
     # Special Case
     def test_ego_assign(self):
         node, _ = compileScenicAST(TrackedAssign(Ego(), Constant(1)))
