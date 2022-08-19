@@ -702,6 +702,91 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             node,
         )
 
+    def visit_Take(self, node: s.Take):
+        action = ast.Tuple(self.visit(node.elts), loadCtx)
+        return self.generateInvocation(node, ast.copy_location(action, node))
+
+    def visit_Wait(self, node: s.Wait):
+        return self.generateInvocation(node, ast.Constant(()))
+
+    def visit_Terminate(self, node: s.Terminate):
+        termination = ast.Call(
+            ast.Name("makeTerminationAction", loadCtx), [ast.Constant(node.lineno)], []
+        )
+        return self.generateInvocation(node, termination)
+
+    def visit_Do(self, node: s.Do):
+        subHandler = ast.Attribute(
+            ast.Name(behaviorArgName, loadCtx), "_invokeSubBehavior", loadCtx
+        )
+        subArgs = [
+            ast.Name("self", loadCtx),
+            ast.Tuple([self.visit(node.value)], loadCtx),
+        ]
+        subRunner = ast.Call(subHandler, subArgs, [])
+        return self.generateInvocation(node, subRunner, ast.YieldFrom)
+
+    def visit_DoFor(self, node: s.DoFor):
+        subHandler = ast.Attribute(
+            ast.Name(behaviorArgName, loadCtx), "_invokeSubBehavior", loadCtx
+        )
+        subArgs = [
+            ast.Name("self", loadCtx),
+            ast.Tuple([self.visit(node.value)], loadCtx),
+            ast.Call(
+                func=ast.Name("Modifier", loadCtx),
+                args=[
+                    ast.Constant("for"),
+                    self.visit(node.duration.value),
+                    ast.Constant(node.duration.unitStr),
+                ],
+                keywords=[],
+            ),
+        ]
+        subRunner = ast.Call(subHandler, subArgs, [])
+        return self.generateInvocation(node, subRunner, ast.YieldFrom)
+
+    def visit_DoUntil(self, node: s.DoUntil):
+        subHandler = ast.Attribute(
+            ast.Name(behaviorArgName, loadCtx), "_invokeSubBehavior", loadCtx
+        )
+        subArgs = [
+            ast.Name("self", loadCtx),
+            ast.Tuple([self.visit(node.value)], loadCtx),
+            ast.Call(
+                func=ast.Name("Modifier", loadCtx),
+                args=[
+                    ast.Constant("until"),
+                    ast.Lambda(noArgs, self.visit(node.cond)),
+                ],
+                keywords=[],
+            ),
+        ]
+        subRunner = ast.Call(subHandler, subArgs, [])
+        return self.generateInvocation(node, subRunner, ast.YieldFrom)
+
+    def generateInvocation(self, node: ast.AST, actionlike, invoker=ast.Yield):
+        """Generate an invocation of an action, behavior, or scenario."""
+        invokeAction = ast.Expr(invoker(actionlike))
+        checker = ast.Attribute(
+            ast.Name(behaviorArgName, loadCtx), checkInvariantsName, loadCtx
+        )
+        args = ast.Starred(
+            ast.Attribute(ast.Name(behaviorArgName, loadCtx), "_args", loadCtx), loadCtx
+        )
+        kwargs = ast.keyword(
+            None, ast.Attribute(ast.Name(behaviorArgName, loadCtx), "_kwargs", loadCtx)
+        )
+        checkInvariants = ast.Expr(
+            ast.Call(checker, [ast.Name("self", loadCtx), args], [kwargs])
+        )
+        ast.copy_location(invokeAction, node)
+        ast.copy_location(checkInvariants, node)
+        return [
+            invokeAction,
+            checkInvariants,
+        ]
+
     # Instance & Specifier
 
     def visit_New(self, node: s.New):
