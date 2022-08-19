@@ -609,6 +609,102 @@ class TestAbort:
                 assert False
 
 
+class TestTake:
+    def test_single(self):
+        mod = parse_string_helper("take 1")
+        stmt = mod.body[0]
+        match stmt:
+            case Take([Constant(1)]):
+                assert True
+            case _:
+                assert False
+
+    def test_multiple(self):
+        mod = parse_string_helper(
+            "take SetThrottleAction(throttle), SetSteerAction(steering)"
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case Take(
+                [
+                    Call(Name("SetThrottleAction"), [Name("throttle")]),
+                    Call(Name("SetSteerAction"), [Name("steering")]),
+                ]
+            ):
+                assert True
+            case _:
+                assert False
+
+
+class TestWait:
+    def test_wait(self):
+        mod = parse_string_helper("wait")
+        stmt = mod.body[0]
+        match stmt:
+            case Wait():
+                assert True
+            case _:
+                assert False
+
+
+class TestTerminate:
+    def test_basic(self):
+        mod = parse_string_helper("terminate")
+        stmt = mod.body[0]
+        match stmt:
+            case Terminate():
+                assert True
+            case _:
+                assert False
+
+
+class TestDo:
+    def test_basic(self):
+        mod = parse_string_helper("do foo")
+        stmt = mod.body[0]
+        match stmt:
+            case Do(Name("foo")):
+                assert True
+            case _:
+                assert False
+
+    def test_do_for_seconds(self):
+        mod = parse_string_helper("do foo for 3 seconds")
+        stmt = mod.body[0]
+        match stmt:
+            case DoFor(Name("foo"), Seconds(Constant(3))):
+                assert True
+            case _:
+                assert False
+
+    def test_do_for_steps(self):
+        mod = parse_string_helper("do foo for 3 steps")
+        stmt = mod.body[0]
+        match stmt:
+            case DoFor(Name("foo"), Steps(Constant(3))):
+                assert True
+            case _:
+                assert False
+
+    def test_do_for_expression(self):
+        mod = parse_string_helper("do foo for 3 + 3 steps")
+        stmt = mod.body[0]
+        match stmt:
+            case DoFor(Name("foo"), Steps(BinOp(Constant(3), Add(), Constant(3)))):
+                assert True
+            case _:
+                assert False
+
+    def test_do_until(self):
+        mod = parse_string_helper("do foo until condition")
+        stmt = mod.body[0]
+        match stmt:
+            case DoUntil(Name("foo"), Name("condition")):
+                assert True
+            case _:
+                assert False
+
+
 class TestParam:
     def test_basic(self):
         mod = parse_string_helper("param i = v")
