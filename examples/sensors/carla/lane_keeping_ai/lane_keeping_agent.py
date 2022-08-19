@@ -18,7 +18,7 @@ def carla_to_np_rgb(image):
 
 
 class LaneKeepingAgent(Action):
-    def __init__(self, model_path, camera_attrs, controller_attrs, device="cpu"):
+    def __init__(self, model_path, camera_attrs, controller_attrs, device="cpu", camera="lane_camera"):
         self.model = torch.load(model_path, map_location=device)
         self.model.eval()
         self.camera_attributes = camera_attrs
@@ -30,9 +30,10 @@ class LaneKeepingAgent(Action):
                                          )
         self.lane_detector = LaneDetector(self.model, cam_geometry=camera_geometry, device=device)
         self.controller = PurePursuitPlusPID(controller_attrs)
+        self.lane_camera = camera
 
     def applyTo(self, agent, simulation):
-        image = carla_to_np_rgb(agent.observations["lane_camera"])
+        image = carla_to_np_rgb(agent.observations[self.lane_camera])
 
         traj = self.lane_detector.get_center_lane_trajectory(image)
         agent.status.update(self.lane_detector.status)

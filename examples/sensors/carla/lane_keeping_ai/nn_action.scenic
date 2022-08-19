@@ -7,11 +7,6 @@ from behaviors import LaneKeepingAI
 param weather = "ClearNoon"
 param timestep = 0.05
 
-# Sample a lane at random
-lane = Uniform(*network.lanes)
-
-spot = OrientedPoint on lane.centerline
-
 camera_attrs = { "offset": (0.5, 0, 1.3),
                  "rotation": (-5, 0, 0),
                  "image_size_x": 1024,
@@ -23,9 +18,10 @@ controller_attrs = {"k_p": 2, "k_i": 0, "k_d": 0, "k_dd": 0.4}
 
 car_model = "vehicle.audi.tt"
 
-ego = Car at spot,
+
+ego = Car at 12.4 @ -87.5,
     with blueprint car_model,
-    with behavior LaneKeepingAI(camera_attrs, controller_attrs),
+    with behavior LaneKeepingAI(camera_attrs, controller_attrs, camera="lane_camera", device="cuda"),
     with sensors {"lane_camera": CarlaRGBSensor(offset=camera_attrs["offset"],
                                                 rotation=camera_attrs["rotation"],
                                                 attributes=camera_attrs,
