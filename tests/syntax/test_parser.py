@@ -448,26 +448,13 @@ class TestBehaviorDef:
             )
 
     def test_empty_body(self):
-        mod = parse_string_helper(
-            """
-            behavior test:
-                invariant: True
-            """
-        )
-        stmt = mod.body[0]
-        match stmt:
-            case BehaviorDef(
-                "test",
-                arguments(),
-                None,
-                [
-                    Invariant(Constant(True)),
-                ],
-                [Pass()],
-            ):
-                assert True
-            case _:
-                assert False
+        with pytest.raises(SyntaxError):
+            mod = parse_string_helper(
+                """
+                behavior test:
+                    invariant: True
+                """
+            )
 
     def test_docstring(self):
         mod = parse_string_helper(
