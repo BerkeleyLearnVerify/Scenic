@@ -465,6 +465,10 @@ class Parser(Parser):
 
         self.raise_syntax_error_known_location(msg, invalid_target)
 
+    # scenic helpers
+    def extend_new_specifiers(self, node: s.New, specifiers: list[ast.AST]) -> s.New:
+        node.specifiers.extend(specifiers)
+        return node
 '''
 
 
@@ -488,7 +492,7 @@ fstring[ast.Expr]: star_expressions
 
 statements[list]: a=statement+ { list(itertools.chain.from_iterable(a)) }
 
-statement[list]: a=compound_stmt { [a] } | a=scenic_stmts { a } | a=simple_stmts { a }
+statement[list]: a=scenic_compound_stmt { [a] } | a=compound_stmt { [a] } | a=scenic_stmts { a } | a=simple_stmts { a }
 
 statement_newline[list]:
     | a=compound_stmt NEWLINE { [a] }
@@ -537,6 +541,11 @@ scenic_stmt:
     | scenic_param_stmt
     | scenic_require_stmt
     | scenic_mutate_stmt
+
+scenic_compound_stmt:
+    | scenic_tracked_assign_new_stmt
+    | scenic_assign_new_stmt
+    | scenic_expr_new_stmt
 
 # SIMPLE STATEMENTS
 # =================
@@ -736,6 +745,33 @@ scenic_class_property_attribute: &&(
       "additive" { s.Additive(LOCATIONS) }
     | "dynamic" { s.Dynamic(LOCATIONS) }
 )
+
+# Multiline Specifiers
+# --------------------
+scenic_assign_new_stmt:
+    | a=(z=star_targets '=' { z })+ b=(scenic_new_block) !'=' tc=[TYPE_COMMENT] {
+         ast.Assign(targets=a, value=b, type_comment=tc, LOCATIONS)
+     }
+
+scenic_tracked_assign_new_stmt:
+    | a=scenic_tracked_name '=' b=scenic_new_block { s.TrackedAssign(target=a, value=b, LOCATIONS) }
+
+scenic_expr_new_stmt: a=scenic_new_block { ast.Expr(value=a, LOCATIONS) }
+
+scenic_new_block:
+    | a=scenic_new_expr ',' NEWLINE INDENT b=scenic_new_block_body DEDENT {
+        self.extend_new_specifiers(a, b)
+     }
+
+scenic_new_block_body:
+    # without trailing comma
+    | b=(x=scenic_specifiers ',' NEWLINE { x })* c=scenic_specifiers NEWLINE {
+         list(itertools.chain.from_iterable(b)) + c
+     }
+    # with trailing comma
+    | b=(x=scenic_specifiers ',' NEWLINE { x })+ {
+        list(itertools.chain.from_iterable(b))
+     }
 
 # Function definitions
 # --------------------

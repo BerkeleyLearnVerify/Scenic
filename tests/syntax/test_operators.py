@@ -286,7 +286,7 @@ def test_visible():
 
 def test_not_visible():
     scenario = compileScenic("""
-        ego = Object at 100 @ 200, facing -45 deg,
+        ego = new Object at 100 @ 200, facing -45 deg,
                      with visibleDistance 30, with viewAngle 90 deg
         reg = RectangularRegion(100@200, 0, 10, 10)
         param p = new Point in not visible reg
