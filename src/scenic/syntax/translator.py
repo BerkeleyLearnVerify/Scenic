@@ -1709,14 +1709,9 @@ class ASTSurgeon(NodeTransformer):
 		if not interrupts:		# an ordinary try-except block
 			return self.generic_visit(node)
 
-		# Add dead copy of all interrupts to ensure all local variables defined inside
-		# the body and handlers are also defined as locals in the top-level function
 		statements = []
 		oldInTryInterrupt = self.inTryInterrupt
-		if not self.inTryInterrupt:
-			deadcopy = If(Constant(False), [node], [])
-			statements.append(deadcopy)
-			self.inTryInterrupt = True
+		self.inTryInterrupt = True
 
 		# Construct body
 		oldInInterruptBlock, oldInLoop = self.inInterruptBlock, self.inLoop

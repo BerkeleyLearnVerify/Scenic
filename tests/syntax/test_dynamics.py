@@ -669,6 +669,33 @@ def test_interrupt_actionless():
     actions = sampleEgoActions(scenario, maxSteps=5)
     assert tuple(actions) == (1, 1, 1, None, None)
 
+def test_interrupt_define_local():
+    scenario = compileScenic("""
+        behavior Foo():
+            try:
+                i = 1
+            interrupt when False:
+                pass
+            take i
+        ego = Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=1)
+    assert tuple(actions) == (1,)
+
+def test_interrupt_define_local_2():
+    scenario = compileScenic("""
+        behavior Foo():
+            try:
+                pass
+            interrupt when True:
+                i = 1
+                abort
+            take i
+        ego = Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=1)
+    assert tuple(actions) == (1,)
+
 # Exception handling
 
 def test_interrupt_no_handlers():
