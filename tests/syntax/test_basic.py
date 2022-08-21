@@ -82,8 +82,8 @@ def test_mutate():
 
 def test_mutate_object():
     scenario = compileScenic("""
-        ego = Object at 3@1, facing 0
-        other = Object
+        ego = new Object at 3@1, facing 0
+        other = new Object
         mutate other
     """)
     ego = sampleEgo(scenario)
@@ -93,7 +93,7 @@ def test_mutate_object():
 
 def test_mutate_scaled():
     scenario = compileScenic("""
-        ego = Object at 3@1, facing 0
+        ego = new Object at 3@1, facing 0
         mutate ego by 4
     """)
     ego1 = sampleEgo(scenario)
