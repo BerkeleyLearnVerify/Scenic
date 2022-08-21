@@ -194,7 +194,7 @@ def test_visible_from_oriented_point():
     scenario = compileScenic(
         'op = new OrientedPoint at 100 @ 200, facing 45 deg,\n'
         '                   with visibleDistance 5, with viewAngle 90 deg\n'
-        'ego = Object visible from op'
+        'ego = new Object visible from op'
     )
     base = Vector(100, 200)
     for i in range(30):
