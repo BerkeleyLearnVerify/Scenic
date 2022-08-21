@@ -517,11 +517,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     def visit_Abort(self, node: s.Abort):
         return ast.copy_location(
-            ast.Return(
-                ast.Attribute(
-                    ast.Name("BlockConclusion", ast.Load()), "ABORT", ast.Load()
-                )
-            ),
+            ast.Return(abortFlag),
             node,
         )
 
