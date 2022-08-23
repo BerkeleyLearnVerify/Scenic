@@ -443,7 +443,7 @@ class TestBehaviorDef:
                 """
                 behavior test:
                     hello()
-                    precondition: True
+                    invariant: True
                 """
             )
 
