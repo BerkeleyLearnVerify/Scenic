@@ -885,6 +885,38 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             )
         )
 
+    def visit_TerminateWhen(self, node: s.TerminateWhen):
+        condition = self.visit(node.cond)
+        syntax_id = self._register_requirement_syntax(condition)
+        return ast.Expr(
+            value=ast.Call(
+                func=ast.Name("terminate_when", loadCtx),
+                args=[
+                    ast.Constant(syntax_id),
+                    ast.Lambda(args=noArgs, body=condition),
+                    ast.Constant(value=node.lineno),
+                    ast.Constant(None),
+                ],
+                keywords=[],
+            )
+        )
+
+    def visit_TerminateSimulationWhen(self, node: s.TerminateSimulationWhen):
+        condition = self.visit(node.cond)
+        syntax_id = self._register_requirement_syntax(condition)
+        return ast.Expr(
+            value=ast.Call(
+                func=ast.Name("terminate_simulation_when", loadCtx),
+                args=[
+                    ast.Constant(syntax_id),
+                    ast.Lambda(args=noArgs, body=condition),
+                    ast.Constant(value=node.lineno),
+                    ast.Constant(None),
+                ],
+                keywords=[],
+            )
+        )
+
     # Instance & Specifier
 
     def visit_New(self, node: s.New):

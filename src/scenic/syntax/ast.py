@@ -331,6 +331,24 @@ class Terminate(AST):
     pass
 
 
+class TerminateSimulationWhen(AST):
+    __match_args__ = ("cond",)
+
+    def __init__(self, cond=ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.cond = cond
+        self._fields = ["cond"]
+
+
+class TerminateWhen(AST):
+    __match_args__ = ("cond",)
+
+    def __init__(self, cond=ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.cond = cond
+        self._fields = ["cond"]
+
+
 class DoFor(AST):
     __match_args__ = ("elts", "duration")
 

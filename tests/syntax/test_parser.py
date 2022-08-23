@@ -919,6 +919,26 @@ class TestRecord:
                 assert False
 
 
+class TestTerminateWhen:
+    def test_terminate_when(self):
+        mod = parse_string_helper("terminate when x")
+        stmt = mod.body[0]
+        match stmt:
+            case TerminateWhen(Name("x")):
+                assert True
+            case _:
+                assert False
+
+    def test_terminate_simulation_when(self):
+        mod = parse_string_helper("terminate simulation when x")
+        stmt = mod.body[0]
+        match stmt:
+            case TerminateSimulationWhen(Name("x")):
+                assert True
+            case _:
+                assert False
+
+
 class TestNew:
     def test_basic(self):
         mod = parse_string_helper("new Object")
