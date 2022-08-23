@@ -546,6 +546,8 @@ scenic_stmt:
     | scenic_record_final_stmt
     | scenic_record_stmt
     | scenic_mutate_stmt
+    | scenic_terminate_simulation_when_stmt
+    | scenic_terminate_when_stmt
     | scenic_take_stmt
     | scenic_wait_stmt
     | scenic_terminate_stmt
@@ -1778,6 +1780,10 @@ scenic_abort_stmt: "abort" { s.Abort(LOCATIONS) }
 scenic_take_stmt: 'take' elts=(','.expression+) { s.Take(elts=elts, LOCATIONS) }
 
 scenic_wait_stmt: 'wait' { s.Wait(LOCATIONS) }
+
+scenic_terminate_simulation_when_stmt: "terminate" "simulation" "when" v=expression { s.TerminateSimulationWhen(v, LOCATIONS) }
+
+scenic_terminate_when_stmt: "terminate" "when" v=expression { s.TerminateWhen(v, LOCATIONS) }
 
 scenic_terminate_stmt: "terminate" { s.Terminate(LOCATIONS) }
 
