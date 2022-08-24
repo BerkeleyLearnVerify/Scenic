@@ -437,142 +437,26 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     def visit_BehaviorDef(self, node: s.BehaviorDef):
         # TODO(shun): assert not in behavior or compose
 
-        # --- Extract preconditions and invariants ---
-        preconditions: list[s.Precondition] = []
-        invariants: list[s.Invariant] = []
-        for n in node.header:
-            if isinstance(n, s.Precondition):
-                preconditions.append(n)
-            elif isinstance(n, s.Invariant):
-                invariants.append(n)
-            else:
-                assert (
-                    False
-                ), f"Unexpected node type {n.__class__.__name__} in BehaviorDef header"
-
-        # --- Copy arguments to the behavior object's namespace ---
-
-        # list of all arguments
-        allArgs = itertools.chain(
-            node.args.posonlyargs, node.args.args, node.args.kwonlyargs
+        return self.makeBehaviorLikeDef(
+            baseClassName="Behavior",
+            name=node.name,
+            args=node.args,
+            docstring=node.docstring,
+            header=node.header,
+            body=node.body,
         )
-        # statements that create argument variables
-        copyArgs: list[ast.AST] = []
-        for arg in allArgs:
-            dest = ast.Attribute(
-                ast.Name(behaviorArgName, loadCtx), arg.arg, ast.Store()
-            )
-            copyArgs.append(
-                ast.copy_location(
-                    ast.Assign([dest], ast.Name(arg.arg, loadCtx)), arg
-                )
-            )
-
-        # --- Create a new `arguments` ---
-        newArgs: ast.arguments = self.visit(node.args)
-        # add private current behavior argument and implicit `self` argument
-        newArgs.posonlyargs = initialBehaviorArgs + newArgs.posonlyargs
-
-        # --- Process body ---
-        self.inBehavior = True
-        oldBehaviorLocals = self.behaviorLocals
-
-        self.behaviorLocals = allLocals = LocalFinder.findIn(node.body)
-
-        # handle docstring
-        body = node.body
-        docstring = []
-        if node.docstring is not None:
-            docstring = [ast.Expr(ast.Constant(node.docstring))]
-
-        # process body
-        statements = self.visit(body)
-
-        generatorBody = copyArgs + statements
-        generatorDefinition = ast.FunctionDef(
-            name="makeGenerator",
-            args=newArgs,
-            body=generatorBody,
-            decorator_list=[],
-            returns=None,
-        )
-
-        # --- Save local variables ---
-        saveLocals = ast.Assign(
-            [ast.Name("_locals", ast.Store())], ast.Constant(frozenset(allLocals))
-        )
-
-        # --- Guards ---
-        guardCheckers = self.makeGuardCheckers(newArgs, preconditions, invariants)
-
-        # --- Create class definition ---
-        classBody = docstring + guardCheckers + [saveLocals, generatorDefinition]
-        classDefinition = ast.ClassDef(
-            node.name, [ast.Name("Behavior", loadCtx)], [], classBody, []
-        )
-
-        self.inBehavior = False
-        self.behaviorLocals = oldBehaviorLocals
-
-        return ast.copy_location(classDefinition, node)
 
     def visit_MonitorDef(self, node: s.MonitorDef):
         # TODO(shun): assert not in behavior or compose
 
-        # --- Create a new `arguments` node ---
-        newArgs: ast.arguments = ast.copy_location(
-            ast.arguments(
-                posonlyargs=initialBehaviorArgs,
-                args=[],
-                vararg=None,
-                kwonlyargs=[],
-                kw_defaults=[],
-                kwarg=None,
-                defaults=[],
-            ),
-            node,
+        return self.makeBehaviorLikeDef(
+            baseClassName="Monitor",
+            name=node.name,
+            args=noArgs,
+            docstring=node.docstring,
+            header=[],
+            body=node.body,
         )
-
-        # --- Process body ---
-        self.inBehavior = True
-        oldBehaviorLocals = self.behaviorLocals
-
-        self.behaviorLocals = allLocals = LocalFinder.findIn(node.body)
-
-        # preserve docstring
-        body = node.body
-        docstring = []
-        if node.docstring is not None:
-            docstring = [ast.Expr(ast.Constant(node.docstring))]
-
-        # handle body
-        generatorBody = self.visit(body)
-        generatorDefinition = ast.FunctionDef(
-            name="makeGenerator",
-            args=newArgs,
-            body=generatorBody,
-            decorator_list=[],
-            returns=None,
-        )
-
-        # --- Save local variables ---
-        saveLocals = ast.Assign(
-            [ast.Name("_locals", ast.Store())], ast.Constant(frozenset(allLocals))
-        )
-
-        # --- Guards ---
-        guardCheckers = self.makeGuardCheckers(newArgs, [], [])
-
-        # --- Create class definition ---
-        classBody = docstring + guardCheckers + [saveLocals, generatorDefinition]
-        classDefinition = ast.ClassDef(
-            node.name, [ast.Name("Monitor", loadCtx)], [], classBody, []
-        )
-
-        self.inBehavior = False
-        self.behaviorLocals = oldBehaviorLocals
-
-        return ast.copy_location(classDefinition, node)
 
     def makeGuardCheckers(
         self,
@@ -629,6 +513,89 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             defineInvariantChecker,
         ]
         return preamble
+
+    def makeBehaviorLikeDef(
+        self,
+        baseClassName: str,
+        name: str,
+        args: Optional[ast.arguments],
+        docstring: Optional[str],
+        header: list[Union[s.Precondition, s.Invariant]],
+        body: list[ast.AST],
+    ):
+        # --- Extract preconditions and invariants ---
+        preconditions: list[s.Precondition] = []
+        invariants: list[s.Invariant] = []
+        for n in header:
+            if isinstance(n, s.Precondition):
+                preconditions.append(n)
+            elif isinstance(n, s.Invariant):
+                invariants.append(n)
+            else:
+                assert (
+                    False
+                ), f"Unexpected node type {n.__class__.__name__} in BehaviorDef header"
+
+        # --- Copy arguments to the behavior object's namespace ---
+        # list of all arguments
+        allArgs = itertools.chain(args.posonlyargs, args.args, args.kwonlyargs)
+        # statements that create argument variables
+        copyArgs: list[ast.AST] = []
+        for arg in allArgs:
+            dest = ast.Attribute(
+                ast.Name(behaviorArgName, loadCtx), arg.arg, ast.Store()
+            )
+            copyArgs.append(
+                ast.copy_location(ast.Assign([dest], ast.Name(arg.arg, loadCtx)), arg)
+            )
+
+        # --- Create a new `arguments` ---
+        newArgs: ast.arguments = self.visit(args)
+        # add private current behavior argument and implicit `self` argument
+        newArgs.posonlyargs = initialBehaviorArgs + newArgs.posonlyargs
+
+        # --- Process body ---
+        self.inBehavior = True
+        oldBehaviorLocals = self.behaviorLocals
+
+        self.behaviorLocals = allLocals = LocalFinder.findIn(body)
+
+        # handle docstring
+        newBody = body
+        docstringNode = []
+        if docstring is not None:
+            docstringNode = [ast.Expr(ast.Constant(docstring))]
+
+        # process body
+        statements = self.visit(newBody)
+
+        generatorBody = copyArgs + statements
+        generatorDefinition = ast.FunctionDef(
+            name="makeGenerator",
+            args=newArgs,
+            body=generatorBody,
+            decorator_list=[],
+            returns=None,
+        )
+
+        # --- Save local variables ---
+        saveLocals = ast.Assign(
+            [ast.Name("_locals", ast.Store())], ast.Constant(frozenset(allLocals))
+        )
+
+        # --- Guards ---
+        guardCheckers = self.makeGuardCheckers(newArgs, preconditions, invariants)
+
+        # --- Create class definition ---
+        classBody = docstringNode + guardCheckers + [saveLocals, generatorDefinition]
+        classDefinition = ast.ClassDef(
+            name, [ast.Name(baseClassName, loadCtx)], [], classBody, []
+        )
+
+        self.inBehavior = False
+        self.behaviorLocals = oldBehaviorLocals
+
+        return classDefinition
 
     def visit_Call(self, node: ast.Call) -> any:
         newArgs = []
