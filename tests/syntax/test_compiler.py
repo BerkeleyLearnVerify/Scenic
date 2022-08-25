@@ -493,7 +493,7 @@ class TestCompiler:
                     kw_defaults=[],
                     defaults=[],
                 ),
-                docstring="DOCSTRING",
+                docstring="'''DOCSTRING'''",
                 header=[
                     Invariant(
                         value=Compare(
@@ -645,7 +645,7 @@ class TestCompiler:
         node, _ = compileScenicAST(
             MonitorDef(
                 name="M",
-                docstring="DOCSTRING",
+                docstring="'DOCSTRING'",
                 body=[
                     Assign(
                         targets=[Name(id="localvar", ctx=Store())],
