@@ -1751,14 +1751,14 @@ scenic_wait_stmt: 'wait' { s.Wait(LOCATIONS) }
 
 scenic_terminate_stmt: "terminate" { s.Terminate(LOCATIONS) }
 
-scenic_do_for_stmt: 'do' v=expression 'for' u=scenic_dynamic_duration { s.DoFor(value=v, duration=u, LOCATIONS) }
+scenic_do_for_stmt: 'do' e=(','.expression+) 'for' u=scenic_dynamic_duration { s.DoFor(elts=e, duration=u, LOCATIONS) }
 scenic_dynamic_duration:
     | v=expression 'seconds' { s.Seconds(v, LOCATIONS) }
     | v=expression 'steps' { s.Steps(v, LOCATIONS) }
 
-scenic_do_until_stmt: 'do' v=expression 'until' cond=expression { s.DoUntil(value=v, cond=cond, LOCATIONS) }
+scenic_do_until_stmt: 'do' e=(','.expression+) 'until' cond=expression { s.DoUntil(elts=e, cond=cond, LOCATIONS) }
 
-scenic_do_stmt: 'do' v=expression { s.Do(value=v, LOCATIONS) }
+scenic_do_stmt: 'do' e=(','.expression+) { s.Do(elts=e, LOCATIONS) }
 
 
 # LITERALS

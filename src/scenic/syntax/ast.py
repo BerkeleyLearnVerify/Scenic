@@ -275,19 +275,19 @@ class Terminate(AST):
 
 
 class DoFor(AST):
-    __match_args__ = ("value", "duration")
+    __match_args__ = ("elts", "duration")
 
     def __init__(
         self,
-        value: ast.AST,
+        elts: list[ast.AST],
         duration: Union["Seconds", "Steps"],
         *args: any,
         **kwargs: any
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.value = value
+        self.elts = elts
         self.duration = duration
-        self._fields = ["value", "duration"]
+        self._fields = ["elts", "duration"]
 
 
 class Seconds(AST):
@@ -311,24 +311,24 @@ class Steps(AST):
 
 
 class DoUntil(AST):
-    __match_args__ = ("value", "cond")
+    __match_args__ = ("elts", "cond")
 
     def __init__(
-        self, value: ast.AST, cond: ast.AST, *args: any, **kwargs: any
+        self, elts: list[ast.AST], cond: ast.AST, *args: any, **kwargs: any
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.value = value
+        self.elts = elts
         self.cond = cond
         self._fields = ["value", "cond"]
 
 
 class Do(AST):
-    __match_args__ = ("value",)
+    __match_args__ = ("elts",)
 
-    def __init__(self, value: list[ast.AST], *args: any, **kwargs: any) -> None:
+    def __init__(self, elts: list[ast.AST], *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
-        self.value = value
-        self._fields = ["value"]
+        self.elts = elts
+        self._fields = ["elts"]
 
 
 # Instance Creation
