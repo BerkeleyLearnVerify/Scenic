@@ -270,7 +270,6 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         statements = []
         oldInTryInterrupt = self.inTryInterrupt
 
-        # TODO(shun): Do we need to create a dead copy? https://github.com/BerkeleyLearnVerify/Scenic/blob/eb7e7f7ad1879c70f0f6d9f5cff7b83afd23ef7a/src/scenic/syntax/translator.py#L1707-L1709
         self.inTryInterrupt = True
 
         oldInInterruptBlock, oldInLoop = self.inInterruptBlock, self.inLoop
