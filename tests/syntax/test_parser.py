@@ -20,6 +20,126 @@ def assert_equal_source_ast(source: str, expected: ast.AST) -> bool:
     assert dump(stmt, annotate_fields=False) == dump(expected, annotate_fields=False)
 
 
+class TestTry:
+    def test_try_interrupt_when(self):
+        mod = parse_string_helper(
+            """
+        try:
+            foo()
+        interrupt when x:
+            bar()
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case TryInterrupt(
+                body=[Expr(Call(Name("foo")))],
+                interrupt_when_handlers=[
+                    InterruptWhenHandler(cond=Name("x"), body=[Expr(Call(Name("bar")))])
+                ],
+                except_handlers=[],
+                orelse=[],
+                finalbody=[],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_try_interrupt_when_multiple(self):
+        mod = parse_string_helper(
+            """
+        try:
+            foo()
+        interrupt when x:
+            bar()
+        interrupt when y:
+            baz()
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case TryInterrupt(
+                body=[Expr(Call(Name("foo")))],
+                interrupt_when_handlers=[
+                    InterruptWhenHandler(
+                        cond=Name("x"), body=[Expr(Call(Name("bar")))]
+                    ),
+                    InterruptWhenHandler(
+                        cond=Name("y"), body=[Expr(Call(Name("baz")))]
+                    ),
+                ],
+                except_handlers=[],
+                orelse=[],
+                finalbody=[],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_try_interrupt_when_except(self):
+        mod = parse_string_helper(
+            """
+        try:
+            foo()
+        interrupt when x:
+            bar()
+        except ErrorA:
+            baz()
+        except ErrorB:
+            qux()
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case TryInterrupt(
+                body=[Expr(Call(Name("foo")))],
+                interrupt_when_handlers=[
+                    InterruptWhenHandler(cond=Name("x"), body=[Expr(Call(Name("bar")))])
+                ],
+                except_handlers=[
+                    ExceptHandler(type=Name("ErrorA"), body=[Expr(Call(Name("baz")))]),
+                    ExceptHandler(type=Name("ErrorB"), body=[Expr(Call(Name("qux")))]),
+                ],
+                orelse=[],
+                finalbody=[],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_try_interrupt_when_except_else_finally(self):
+        mod = parse_string_helper(
+            """
+        try:
+            foo()
+        interrupt when x:
+            bar()
+        except ErrorA:
+            baz()
+        else:
+            qux()
+        finally:
+            quux()
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case TryInterrupt(
+                body=[Expr(Call(Name("foo")))],
+                interrupt_when_handlers=[
+                    InterruptWhenHandler(cond=Name("x"), body=[Expr(Call(Name("bar")))])
+                ],
+                except_handlers=[
+                    ExceptHandler(type=Name("ErrorA"), body=[Expr(Call(Name("baz")))]),
+                ],
+                orelse=[Expr(Call(Name("qux")))],
+                finalbody=[Expr(Call(Name("quux")))],
+            ):
+                assert True
+            case _:
+                assert False
+
+
 class TestTrackedNames:
     def test_ego_assign(self):
         mod = parse_string_helper("ego = 10")

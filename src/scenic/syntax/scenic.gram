@@ -546,6 +546,8 @@ scenic_compound_stmt:
     | scenic_tracked_assign_new_stmt
     | scenic_assign_new_stmt
     | scenic_expr_new_stmt
+    | scenic_try_interrupt_stmt
+
 
 # SIMPLE STATEMENTS
 # =================
@@ -969,6 +971,24 @@ try_stmt[ast.Try]:
     | 'try' &&':' b=block ex=except_block+ el=[else_block] f=[finally_block] {
         ast.Try(body=b, handlers=ex, orelse=el or [], finalbody=f or [], LOCATIONS)
      }
+
+scenic_try_interrupt_stmt[s.TryInterrupt]:
+    | 'try' &&':' b=block iw=interrupt_when_block+ ex=except_block* el=[else_block] f=[finally_block] {
+        s.TryInterrupt(
+            body=b,
+            interrupt_when_handlers=iw,
+            except_handlers=ex,
+            orelse=el or [],
+            finalbody=f or [],
+            LOCATIONS,
+        )
+     }
+
+# Interrupt statement
+# -------------------
+
+interrupt_when_block:
+    | 'interrupt' 'when' e=expression &&':' b=block { s.InterruptWhenHandler(cond=e, body=b, LOCATIONS) }
 
 # Except statement
 # ----------------

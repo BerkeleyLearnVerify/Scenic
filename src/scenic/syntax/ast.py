@@ -10,6 +10,57 @@ class AST(ast.AST):
 
 
 # special statements
+
+
+class TryInterrupt(AST):
+    """Scenic AST node that represents try-interrupt statements"""
+
+    __match_args__ = (
+        "body",
+        "interrupt_when_handlers",
+        "except_handlers",
+        "orelse",
+        "finalbody",
+    )
+
+    def __init__(
+        self,
+        body: list[ast.stmt],
+        interrupt_when_handlers: list["InterruptWhenHandler"],
+        except_handlers: list[ast.ExceptHandler],
+        orelse: list[ast.stmt],
+        finalbody: list[ast.AST],
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.body = body
+        self.interrupt_when_handlers = interrupt_when_handlers
+        self.except_handlers = except_handlers
+        self.orelse = orelse
+        self.finalbody = finalbody
+        self._fields = [
+            "body",
+            "interrupt_when_handlers",
+            "except_handlers",
+            "orelse",
+            "finalbody",
+        ]
+        self._attributes = []
+
+
+class InterruptWhenHandler(AST):
+    __match_args__ = ("cond", "body")
+
+    def __init__(
+        self, cond: ast.AST, body: list[ast.AST], *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.cond = cond
+        self.body = body
+        self._fields = ["cond", "body"]
+
+
 class TrackedAssign(AST):
     __match_args__ = (
         "target",
