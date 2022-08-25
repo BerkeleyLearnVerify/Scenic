@@ -160,6 +160,14 @@ class LocalFinder(ast.NodeVisitor):
         self.generic_visit(node)
 
 
+def unquote(s: str) -> str:
+    if (s[:3] == s[-3:]) and s.startswith(("'''", '"""')):
+        return s[3:-3]
+    if (s[0] == s[-1]) and s.startswith(("'", '"')):
+        return s[1:-1]
+    return s
+
+
 # transformer
 
 
@@ -564,7 +572,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         newBody = body
         docstringNode = []
         if docstring is not None:
-            docstringNode = [ast.Expr(ast.Constant(docstring))]
+            docstringNode = [ast.Expr(ast.Constant(unquote(docstring)))]
 
         # process body
         statements = self.visit(newBody)
