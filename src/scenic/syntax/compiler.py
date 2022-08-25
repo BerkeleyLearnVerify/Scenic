@@ -719,9 +719,10 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         subHandler = ast.Attribute(
             ast.Name(behaviorArgName, loadCtx), "_invokeSubBehavior", loadCtx
         )
+        # TODO(shun): Check node has no more than one element inside behavior/monitors
         subArgs = [
             ast.Name("self", loadCtx),
-            ast.Tuple([self.visit(node.value)], loadCtx),
+            ast.Tuple([self.visit(e) for e in node.elts], loadCtx),
         ]
         subRunner = ast.Call(subHandler, subArgs, [])
         return self.generateInvocation(node, subRunner, ast.YieldFrom)
@@ -730,9 +731,10 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         subHandler = ast.Attribute(
             ast.Name(behaviorArgName, loadCtx), "_invokeSubBehavior", loadCtx
         )
+        # TODO(shun): Check node has no more than one element inside behavior/monitors
         subArgs = [
             ast.Name("self", loadCtx),
-            ast.Tuple([self.visit(node.value)], loadCtx),
+            ast.Tuple([self.visit(e) for e in node.elts], loadCtx),
             ast.Call(
                 func=ast.Name("Modifier", loadCtx),
                 args=[
@@ -750,9 +752,10 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         subHandler = ast.Attribute(
             ast.Name(behaviorArgName, loadCtx), "_invokeSubBehavior", loadCtx
         )
+        # TODO(shun): Check node has no more than one element inside behavior/monitors
         subArgs = [
             ast.Name("self", loadCtx),
-            ast.Tuple([self.visit(node.value)], loadCtx),
+            ast.Tuple([self.visit(e) for e in node.elts], loadCtx),
             ast.Call(
                 func=ast.Name("Modifier", loadCtx),
                 args=[
