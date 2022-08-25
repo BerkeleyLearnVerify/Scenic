@@ -32,7 +32,7 @@ class TestTry:
         )
         stmt = mod.body[0]
         match stmt:
-            case ScenicTry(
+            case TryInterrupt(
                 body=[Expr(Call(Name("foo")))],
                 interrupt_when_handlers=[
                     InterruptWhenHandler(cond=Name("x"), body=[Expr(Call(Name("bar")))])
@@ -58,7 +58,7 @@ class TestTry:
         )
         stmt = mod.body[0]
         match stmt:
-            case ScenicTry(
+            case TryInterrupt(
                 body=[Expr(Call(Name("foo")))],
                 interrupt_when_handlers=[
                     InterruptWhenHandler(
@@ -91,7 +91,7 @@ class TestTry:
         )
         stmt = mod.body[0]
         match stmt:
-            case ScenicTry(
+            case TryInterrupt(
                 body=[Expr(Call(Name("foo")))],
                 interrupt_when_handlers=[
                     InterruptWhenHandler(cond=Name("x"), body=[Expr(Call(Name("bar")))])
@@ -124,7 +124,7 @@ class TestTry:
         )
         stmt = mod.body[0]
         match stmt:
-            case ScenicTry(
+            case TryInterrupt(
                 body=[Expr(Call(Name("foo")))],
                 interrupt_when_handlers=[
                     InterruptWhenHandler(cond=Name("x"), body=[Expr(Call(Name("bar")))])
