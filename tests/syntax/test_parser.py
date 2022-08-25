@@ -659,11 +659,20 @@ class TestTerminate:
 
 
 class TestDo:
-    def test_basic(self):
+    def test_do(self):
         mod = parse_string_helper("do foo")
         stmt = mod.body[0]
         match stmt:
-            case Do(Name("foo")):
+            case Do([Name("foo")]):
+                assert True
+            case _:
+                assert False
+
+    def test_do_multiple(self):
+        mod = parse_string_helper("do foo, bar")
+        stmt = mod.body[0]
+        match stmt:
+            case Do([Name("foo"), Name("bar")]):
                 assert True
             case _:
                 assert False
@@ -672,7 +681,7 @@ class TestDo:
         mod = parse_string_helper("do foo for 3 seconds")
         stmt = mod.body[0]
         match stmt:
-            case DoFor(Name("foo"), Seconds(Constant(3))):
+            case DoFor([Name("foo")], Seconds(Constant(3))):
                 assert True
             case _:
                 assert False
@@ -681,7 +690,7 @@ class TestDo:
         mod = parse_string_helper("do foo for 3 steps")
         stmt = mod.body[0]
         match stmt:
-            case DoFor(Name("foo"), Steps(Constant(3))):
+            case DoFor([Name("foo")], Steps(Constant(3))):
                 assert True
             case _:
                 assert False
@@ -690,7 +699,16 @@ class TestDo:
         mod = parse_string_helper("do foo for 3 + 3 steps")
         stmt = mod.body[0]
         match stmt:
-            case DoFor(Name("foo"), Steps(BinOp(Constant(3), Add(), Constant(3)))):
+            case DoFor([Name("foo")], Steps(BinOp(Constant(3), Add(), Constant(3)))):
+                assert True
+            case _:
+                assert False
+
+    def test_do_for_multiple(self):
+        mod = parse_string_helper("do foo, bar for 5 steps")
+        stmt = mod.body[0]
+        match stmt:
+            case DoFor([Name("foo"), Name("bar")], Steps(Constant(5))):
                 assert True
             case _:
                 assert False
@@ -699,7 +717,16 @@ class TestDo:
         mod = parse_string_helper("do foo until condition")
         stmt = mod.body[0]
         match stmt:
-            case DoUntil(Name("foo"), Name("condition")):
+            case DoUntil([Name("foo")], Name("condition")):
+                assert True
+            case _:
+                assert False
+
+    def test_do_until_multiple(self):
+        mod = parse_string_helper("do foo, bar until condition")
+        stmt = mod.body[0]
+        match stmt:
+            case DoUntil([Name("foo"), Name("bar")], Name("condition")):
                 assert True
             case _:
                 assert False
