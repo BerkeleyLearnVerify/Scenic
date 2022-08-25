@@ -183,6 +183,25 @@ class Invariant(AST):
         self._fields = ["value"]
 
 
+# modular scenarios
+
+
+class ScenarioDef(AST):
+    __match_args__ = ("name", "args", "docstring", "header", "setup", "compose")
+
+    def __init__(
+        self, name, args, docstring, header, setup, compose, *_args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*_args, **kwargs)
+        self.name = name
+        self.args = args
+        self.docstring = docstring
+        self.header = header
+        self.setup = setup
+        self.compose = compose
+        self._fields = ["name", "args", "docstring", "header", "setup", "compose"]
+
+
 # simple statements
 
 
