@@ -766,7 +766,7 @@ class TestCompiler:
                 assert False
 
     def test_do(self):
-        node, _ = compileScenicAST(Do(Constant(1)))
+        node, _ = compileScenicAST(Do([Constant(1)]))
         match node:
             case [
                 Expr(
@@ -795,7 +795,7 @@ class TestCompiler:
                 assert False
 
     def test_do_for_seconds(self):
-        node, _ = compileScenicAST(DoFor(Constant("foo"), Seconds(Constant(1))))
+        node, _ = compileScenicAST(DoFor([Constant("foo")], Seconds(Constant(1))))
         match node:
             case [
                 Expr(
@@ -833,7 +833,7 @@ class TestCompiler:
                 assert False
 
     def test_do_for_steps(self):
-        node, _ = compileScenicAST(DoFor(Constant("foo"), Steps(Constant(3))))
+        node, _ = compileScenicAST(DoFor([Constant("foo")], Steps(Constant(3))))
         match node:
             case [
                 Expr(
@@ -871,7 +871,7 @@ class TestCompiler:
                 assert False
 
     def test_do_until(self):
-        node, _ = compileScenicAST(DoUntil(Constant("foo"), Name("condition")))
+        node, _ = compileScenicAST(DoUntil([Constant("foo")], Name("condition")))
         match node:
             case [
                 Expr(
