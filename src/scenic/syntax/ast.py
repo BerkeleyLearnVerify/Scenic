@@ -12,7 +12,7 @@ class AST(ast.AST):
 # special statements
 
 
-class ScenicTry(AST):
+class TryInterrupt(AST):
     """Scenic AST node that represents try-catch statements with `interrupt when` clauses"""
 
     __match_args__ = (

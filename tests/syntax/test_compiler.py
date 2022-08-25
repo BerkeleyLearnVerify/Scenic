@@ -9,7 +9,7 @@ from scenic.syntax.compiler import compileScenicAST
 class TestCompiler:
     def test_scenic_try(self):
         node, _ = compileScenicAST(
-            ScenicTry(
+            TryInterrupt(
                 body=[Expr(Call(Name("foo", Load()), args=[], keywords=[]))],
                 interrupt_when_handlers=[
                     InterruptWhenHandler(
