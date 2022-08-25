@@ -1,13 +1,13 @@
 import ast
 import itertools
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Union
 
 import scenic.syntax.ast as s
 
 # exposed functions
 
 
-def compileScenicAST(scenicAST: ast.AST) -> Tuple[ast.AST, List[ast.AST]]:
+def compileScenicAST(scenicAST: ast.AST) -> Tuple[Union[ast.AST, list[ast.AST]], List[ast.AST]]:
     """Compiles Scenic AST to Python AST"""
     compiler = ScenicToPythonTransformer()
     tree = compiler.visit(scenicAST)
