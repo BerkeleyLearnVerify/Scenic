@@ -14,7 +14,7 @@ class TestCompiler:
                 interrupt_when_handlers=[
                     InterruptWhenHandler(
                         Constant(True),
-                        [Expr(Call(Name("foo", Load()), args=[], keywords=[]))],
+                        [Expr(Call(Name("bar", Load()), args=[], keywords=[]))],
                     )
                 ],
                 except_handlers=[
@@ -57,7 +57,7 @@ class TestCompiler:
                             args=[arg("_Scenic_current_behavior"), arg("self")],
                         ),
                         body=[
-                            Expr(value=Call(func=Name("foo"))),
+                            Expr(value=Call(func=Name("bar"))),
                             Return(
                                 value=Attribute(
                                     value=Name("BlockConclusion"),
