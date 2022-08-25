@@ -13,7 +13,7 @@ class AST(ast.AST):
 
 
 class TryInterrupt(AST):
-    """Scenic AST node that represents try-catch statements with `interrupt when` clauses"""
+    """Scenic AST node that represents try-interrupt statements"""
 
     __match_args__ = (
         "body",
