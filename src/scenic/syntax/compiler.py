@@ -266,7 +266,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     # Special Case
 
-    def visit_ScenicTry(self, node: s.ScenicTry):
+    def visit_TryInterrupt(self, node: s.TryInterrupt):
         statements = []
         oldInTryInterrupt = self.inTryInterrupt
 
