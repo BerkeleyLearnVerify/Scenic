@@ -541,6 +541,7 @@ scenic_stmt:
     | scenic_param_stmt
     | scenic_require_stmt
     | scenic_mutate_stmt
+    | scenic_abort_stmt
 
 scenic_compound_stmt:
     | scenic_tracked_assign_new_stmt
@@ -1669,6 +1670,8 @@ scenic_mutate_stmt:
         s.Mutate(elts=elts if elts is not None else [], scale=scale, LOCATIONS)
      }
 scenic_mutate_stmt_id: a=NAME { ast.Name(id=a.string, ctx=Load, LOCATIONS) }
+
+scenic_abort_stmt: "abort" { s.Abort(LOCATIONS) }
 
 # LITERALS
 # ========
