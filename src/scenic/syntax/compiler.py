@@ -710,25 +710,14 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         return self.generateInvocation(node, termination)
 
     def visit_Do(self, node: s.Do):
-        subHandler = ast.Attribute(
-            ast.Name(behaviorArgName, loadCtx), "_invokeSubBehavior", loadCtx
-        )
         # TODO(shun): Check node has no more than one element inside behavior/monitors
-        subArgs = [
-            ast.Name("self", loadCtx),
-            ast.Tuple([self.visit(e) for e in node.elts], loadCtx),
-        ]
-        subRunner = ast.Call(subHandler, subArgs, [])
-        return self.generateInvocation(node, subRunner, ast.YieldFrom)
+        return self.makeDoLike(node, node.elts)
 
     def visit_DoFor(self, node: s.DoFor):
-        subHandler = ast.Attribute(
-            ast.Name(behaviorArgName, loadCtx), "_invokeSubBehavior", loadCtx
-        )
         # TODO(shun): Check node has no more than one element inside behavior/monitors
-        subArgs = [
-            ast.Name("self", loadCtx),
-            ast.Tuple([self.visit(e) for e in node.elts], loadCtx),
+        return self.makeDoLike(
+            node,
+            node.elts,
             ast.Call(
                 func=ast.Name("Modifier", loadCtx),
                 args=[
@@ -738,18 +727,13 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 ],
                 keywords=[],
             ),
-        ]
-        subRunner = ast.Call(subHandler, subArgs, [])
-        return self.generateInvocation(node, subRunner, ast.YieldFrom)
+        )
 
     def visit_DoUntil(self, node: s.DoUntil):
-        subHandler = ast.Attribute(
-            ast.Name(behaviorArgName, loadCtx), "_invokeSubBehavior", loadCtx
-        )
         # TODO(shun): Check node has no more than one element inside behavior/monitors
-        subArgs = [
-            ast.Name("self", loadCtx),
-            ast.Tuple([self.visit(e) for e in node.elts], loadCtx),
+        return self.makeDoLike(
+            node,
+            node.elts,
             ast.Call(
                 func=ast.Name("Modifier", loadCtx),
                 args=[
@@ -758,9 +742,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 ],
                 keywords=[],
             ),
-        ]
-        subRunner = ast.Call(subHandler, subArgs, [])
-        return self.generateInvocation(node, subRunner, ast.YieldFrom)
+        )
 
     def generateInvocation(self, node: ast.AST, actionlike, invoker=ast.Yield):
         """Generate an invocation of an action, behavior, or scenario."""
@@ -783,6 +765,21 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             invokeAction,
             checkInvariants,
         ]
+
+    def makeDoLike(
+        self, node: ast.AST, elts: list[ast.AST], modifier: Optional[ast.Call] = None
+    ):
+        subHandler = ast.Attribute(
+            ast.Name(behaviorArgName, loadCtx), "_invokeSubBehavior", loadCtx
+        )
+        subArgs = [
+            ast.Name("self", loadCtx),
+            ast.Tuple([self.visit(e) for e in elts], loadCtx),
+        ]
+        if modifier is not None:
+            subArgs.append(modifier)
+        subRunner = ast.Call(subHandler, subArgs, [])
+        return self.generateInvocation(node, subRunner, ast.YieldFrom)
 
     def visit_RequireAlways(self, node: s.RequireAlways):
         condition = self.visit(node.cond)
