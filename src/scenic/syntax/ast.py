@@ -397,6 +397,24 @@ class DoUntil(AST):
         self._fields = ["value", "cond"]
 
 
+class DoChoose(AST):
+    __match_args__ = ("elts",)
+
+    def __init__(self, elts: list[ast.AST], *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.elts = elts
+        self._fields = ["elts"]
+
+
+class DoShuffle(AST):
+    __match_args__ = ("elts",)
+
+    def __init__(self, elts: list[ast.AST], *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.elts = elts
+        self._fields = ["elts"]
+
+
 class Do(AST):
     __match_args__ = ("elts",)
 

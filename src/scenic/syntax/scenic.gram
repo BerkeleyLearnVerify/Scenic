@@ -551,6 +551,8 @@ scenic_stmt:
     | scenic_take_stmt
     | scenic_wait_stmt
     | scenic_terminate_stmt
+    | scenic_do_choose_stmt
+    | scenic_do_shuffle_stmt
     | scenic_do_for_stmt
     | scenic_do_until_stmt
     | scenic_do_stmt
@@ -1786,6 +1788,10 @@ scenic_terminate_simulation_when_stmt: "terminate" "simulation" "when" v=express
 scenic_terminate_when_stmt: "terminate" "when" v=expression { s.TerminateWhen(v, LOCATIONS) }
 
 scenic_terminate_stmt: "terminate" { s.Terminate(LOCATIONS) }
+
+scenic_do_choose_stmt: 'do' "choose" e=(','.expression+) { s.DoChoose(e, LOCATIONS) }
+
+scenic_do_shuffle_stmt: 'do' "shuffle" e=(','.expression+) { s.DoShuffle(e, LOCATIONS) }
 
 scenic_do_for_stmt: 'do' e=(','.expression+) 'for' u=scenic_dynamic_duration { s.DoFor(elts=e, duration=u, LOCATIONS) }
 scenic_dynamic_duration:
