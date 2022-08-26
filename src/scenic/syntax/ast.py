@@ -349,6 +349,17 @@ class TerminateWhen(AST):
         self._fields = ["cond"]
 
 
+class TerminateAfter(AST):
+    __match_args__ = ("duration",)
+
+    def __init__(
+        self, duration: Union["Seconds", "Steps"], *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.duration = duration
+        self._fields = ["duration"]
+
+
 class DoFor(AST):
     __match_args__ = ("elts", "duration")
 

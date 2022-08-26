@@ -939,6 +939,44 @@ class TestTerminateWhen:
                 assert False
 
 
+class TestTerminateAfter:
+    def test_steps(self):
+        mod = parse_string_helper("terminate after 3 steps")
+        stmt = mod.body[0]
+        match stmt:
+            case TerminateAfter(Steps(Constant(3))):
+                assert True
+            case _:
+                assert False
+
+    def test_seconds(self):
+        mod = parse_string_helper("terminate after 5 seconds")
+        stmt = mod.body[0]
+        match stmt:
+            case TerminateAfter(Seconds(Constant(5))):
+                assert True
+            case _:
+                assert False
+
+    def test_omit_unit(self):
+        mod = parse_string_helper("terminate after 20")
+        stmt = mod.body[0]
+        match stmt:
+            case TerminateAfter(Steps(Constant(20))):
+                assert True
+            case _:
+                assert False
+
+    def test_expression(self):
+        mod = parse_string_helper("terminate after 3 + 5")
+        stmt = mod.body[0]
+        match stmt:
+            case TerminateAfter(Steps(BinOp(Constant(3), Add(), Constant(5)))):
+                assert True
+            case _:
+                assert False
+
+
 class TestNew:
     def test_basic(self):
         mod = parse_string_helper("new Object")
