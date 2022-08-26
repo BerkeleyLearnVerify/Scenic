@@ -7,7 +7,9 @@ import scenic.syntax.ast as s
 # exposed functions
 
 
-def compileScenicAST(scenicAST: ast.AST) -> Tuple[Union[ast.AST, list[ast.AST]], List[ast.AST]]:
+def compileScenicAST(
+    scenicAST: ast.AST,
+) -> Tuple[Union[ast.AST, list[ast.AST]], List[ast.AST]]:
     """Compiles Scenic AST to Python AST"""
     compiler = ScenicToPythonTransformer()
     tree = compiler.visit(scenicAST)
@@ -460,7 +462,15 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         return self.makeBehaviorLikeDef(
             baseClassName="Monitor",
             name=node.name,
-            args=noArgs,
+            args=ast.arguments(
+                posonlyargs=[],
+                args=[],
+                vararg=None,
+                kwonlyargs=[],
+                kw_defaults=[],
+                kwarg=None,
+                defaults=[],
+            ),
             docstring=node.docstring,
             header=[],
             body=node.body,
