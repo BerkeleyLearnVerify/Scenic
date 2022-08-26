@@ -190,7 +190,15 @@ class ScenarioDef(AST):
     __match_args__ = ("name", "args", "docstring", "header", "setup", "compose")
 
     def __init__(
-        self, name, args, docstring, header, setup, compose, *_args: any, **kwargs: any
+        self,
+        name: str,
+        args: ast.arguments,
+        docstring: Optional[str],
+        header: Optional[list[Union[Precondition, Invariant]]],
+        setup: list[ast.AST],
+        compose: list[ast.AST],
+        *_args: any,
+        **kwargs: any
     ) -> None:
         super().__init__(*_args, **kwargs)
         self.name = name
