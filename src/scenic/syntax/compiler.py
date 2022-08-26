@@ -820,7 +820,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         name: Optional[str] = None,
         prob: Optional[float] = None,
     ):
-        """Create a call to a function that implements requirement-like features, such as `record` and `terminate`.
+        """Create a call to a function that implements requirement-like features, such as `record` and `terminate when`.
 
         Args:
             functionName (str): Name of the requirement-like function to call. Its signature must be `(reqId: int, body: () -> bool, lineno: int, name: str | None)`
