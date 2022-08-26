@@ -592,7 +592,7 @@ class TestScenarioDef:
                 assert True
             case _:
                 assert False
-    
+
     def test_setup_only_implicit_docstring(self):
         mod = parse_string_helper(
             """
@@ -649,6 +649,7 @@ class TestScenarioDef:
                 assert True
             case _:
                 assert False
+
 
 class TestModel:
     def test_basic(self):

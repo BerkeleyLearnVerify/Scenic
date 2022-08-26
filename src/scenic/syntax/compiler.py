@@ -532,6 +532,28 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         ]
         return preamble
 
+    def classifyPreconditionsAndInvariants(
+        self, header: list[Union[s.Precondition, s.Invariant]]
+    ) -> tuple[list[s.Precondition], list[s.Invariant]]:
+        """Given mixed list of preconditions and invariants, classify items into list of preconditions and list of invariants
+
+        Args:
+            header (list[Union[s.Precondition, s.Invariant]]): List of preconditions and invariants
+
+        Returns:
+            tuple[list[s.Precondition], list[s.Invariant]]: Tuple of precondition list and invariant list
+        """
+        preconditions: list[s.Precondition] = []
+        invariants: list[s.Invariant] = []
+        for n in header:
+            if isinstance(n, s.Precondition):
+                preconditions.append(n)
+            elif isinstance(n, s.Invariant):
+                invariants.append(n)
+            else:
+                assert False, f"Unexpected node type {n.__class__.__name__}"
+        return (preconditions, invariants)
+
     def makeBehaviorLikeDef(
         self,
         baseClassName: str,
@@ -542,17 +564,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         body: list[ast.AST],
     ):
         # --- Extract preconditions and invariants ---
-        preconditions: list[s.Precondition] = []
-        invariants: list[s.Invariant] = []
-        for n in header:
-            if isinstance(n, s.Precondition):
-                preconditions.append(n)
-            elif isinstance(n, s.Invariant):
-                invariants.append(n)
-            else:
-                assert (
-                    False
-                ), f"Unexpected node type {n.__class__.__name__} in BehaviorDef header"
+        preconditions, invariants = self.classifyPreconditionsAndInvariants(header)
 
         # --- Copy arguments to the behavior object's namespace ---
         # list of all arguments
