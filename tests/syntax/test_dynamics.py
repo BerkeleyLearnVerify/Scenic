@@ -416,7 +416,7 @@ def test_behavior_invoke_mistyped():
         sampleActions(scenario)
 
 def test_behavior_invoke_multiple():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(SyntaxError):
         compileScenic("""
             behavior Foo():
                 take 5
