@@ -718,7 +718,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         return self.makeDoLike(
             node,
             node.elts,
-            ast.Call(
+            modifier=ast.Call(
                 func=ast.Name("Modifier", loadCtx),
                 args=[
                     ast.Constant("for"),
@@ -734,7 +734,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         return self.makeDoLike(
             node,
             node.elts,
-            ast.Call(
+            modifier=ast.Call(
                 func=ast.Name("Modifier", loadCtx),
                 args=[
                     ast.Constant("until"),
@@ -743,6 +743,12 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 keywords=[],
             ),
         )
+
+    def visit_DoChoose(self, node: s.DoChoose):
+        return self.makeDoLike(node, node.elts, schedule="choose")
+
+    def visit_DoShuffle(self, node: s.DoChoose):
+        return self.makeDoLike(node, node.elts, schedule="shuffle")
 
     def generateInvocation(self, node: ast.AST, actionlike, invoker=ast.Yield):
         """Generate an invocation of an action, behavior, or scenario."""
@@ -767,7 +773,11 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         ]
 
     def makeDoLike(
-        self, node: ast.AST, elts: list[ast.AST], modifier: Optional[ast.Call] = None
+        self,
+        node: ast.AST,
+        elts: list[ast.AST],
+        modifier: Optional[ast.Call] = None,
+        schedule: Optional[str] = None,
     ):
         subHandler = ast.Attribute(
             ast.Name(behaviorArgName, loadCtx), "_invokeSubBehavior", loadCtx
@@ -778,7 +788,10 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         ]
         if modifier is not None:
             subArgs.append(modifier)
-        subRunner = ast.Call(subHandler, subArgs, [])
+        keywords = []
+        if schedule is not None:
+            keywords = [ast.keyword("schedule", ast.Constant(schedule))]
+        subRunner = ast.Call(subHandler, subArgs, keywords)
         return self.generateInvocation(node, subRunner, ast.YieldFrom)
 
     def visit_RequireAlways(self, node: s.RequireAlways):

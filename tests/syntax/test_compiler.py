@@ -907,6 +907,64 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_do_choose(self):
+        node, _ = compileScenicAST(DoChoose([Constant("foo"), Constant("bar")]))
+        match node:
+            case [
+                Expr(
+                    value=YieldFrom(
+                        value=Call(
+                            func=Attribute(
+                                value=Name(id="_Scenic_current_behavior", ctx=Load()),
+                                attr="_invokeSubBehavior",
+                                ctx=Load(),
+                            ),
+                            args=[
+                                Name(id="self", ctx=Load()),
+                                Tuple(
+                                    elts=[Constant("foo"), Constant("bar")],
+                                    ctx=Load(),
+                                ),
+                            ],
+                            keywords=[keyword("schedule", Constant("choose"))],
+                        )
+                    )
+                ),
+                checkInvariants,
+            ]:
+                self.assert_invocation_check_invariants(checkInvariants)
+            case _:
+                assert False
+
+    def test_do_choose(self):
+        node, _ = compileScenicAST(DoShuffle([Constant("foo"), Constant("bar")]))
+        match node:
+            case [
+                Expr(
+                    value=YieldFrom(
+                        value=Call(
+                            func=Attribute(
+                                value=Name(id="_Scenic_current_behavior", ctx=Load()),
+                                attr="_invokeSubBehavior",
+                                ctx=Load(),
+                            ),
+                            args=[
+                                Name(id="self", ctx=Load()),
+                                Tuple(
+                                    elts=[Constant("foo"), Constant("bar")],
+                                    ctx=Load(),
+                                ),
+                            ],
+                            keywords=[keyword("schedule", Constant("shuffle"))],
+                        )
+                    )
+                ),
+                checkInvariants,
+            ]:
+                self.assert_invocation_check_invariants(checkInvariants)
+            case _:
+                assert False
+
     def assert_invocation_check_invariants(self, node):
         match node:
             case Expr(
