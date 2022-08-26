@@ -482,6 +482,14 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_abort(self):
+        node, _ = compileScenicAST(Abort())
+        match node:
+            case Return(Attribute(Name("BlockConclusion"), "ABORT")):
+                assert True
+            case _:
+                assert False
+
     # Instance & Specifiers
     def test_new_no_specifiers(self):
         node, _ = compileScenicAST(New("Object", []))
