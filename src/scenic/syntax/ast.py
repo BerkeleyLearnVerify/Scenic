@@ -257,6 +257,80 @@ class Abort(AST):
     pass
 
 
+class Take(AST):
+    __match_args__ = ("elts",)
+
+    def __init__(self, elts: list[ast.AST], *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.elts = elts
+        self._fields = ["elts"]
+
+
+class Wait(AST):
+    pass
+
+
+class Terminate(AST):
+    pass
+
+
+class DoFor(AST):
+    __match_args__ = ("elts", "duration")
+
+    def __init__(
+        self,
+        elts: list[ast.AST],
+        duration: Union["Seconds", "Steps"],
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.elts = elts
+        self.duration = duration
+        self._fields = ["elts", "duration"]
+
+
+class Seconds(AST):
+    __match_args__ = ("value",)
+    unitStr = "seconds"
+
+    def __init__(self, value: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.value = value
+        self._fields = ["value"]
+
+
+class Steps(AST):
+    __match_args__ = ("value",)
+    unitStr = "steps"
+
+    def __init__(self, value: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.value = value
+        self._fields = ["value"]
+
+
+class DoUntil(AST):
+    __match_args__ = ("elts", "cond")
+
+    def __init__(
+        self, elts: list[ast.AST], cond: ast.AST, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.elts = elts
+        self.cond = cond
+        self._fields = ["value", "cond"]
+
+
+class Do(AST):
+    __match_args__ = ("elts",)
+
+    def __init__(self, elts: list[ast.AST], *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.elts = elts
+        self._fields = ["elts"]
+
+
 # Instance Creation
 
 
