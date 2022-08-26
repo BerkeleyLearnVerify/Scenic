@@ -677,7 +677,7 @@ def test_interrupt_define_local():
             interrupt when False:
                 pass
             take i
-        ego = Object with behavior Foo
+        ego = new Object with behavior Foo
     """)
     actions = sampleEgoActions(scenario, maxSteps=1)
     assert tuple(actions) == (1,)
@@ -691,7 +691,7 @@ def test_interrupt_define_local_2():
                 i = 1
                 abort
             take i
-        ego = Object with behavior Foo
+        ego = new Object with behavior Foo
     """)
     actions = sampleEgoActions(scenario, maxSteps=1)
     assert tuple(actions) == (1,)
