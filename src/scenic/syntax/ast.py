@@ -237,6 +237,63 @@ class Require(AST):
         self._fields = ["cond", "prob", "name"]
 
 
+class RequireAlways(AST):
+    __match_args__ = ("cond", "name")
+
+    def __init__(
+        self, cond: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.cond = cond
+        self.name = name
+        self._fields = ["cond", "name"]
+
+
+class RequireEventually(AST):
+    __match_args__ = ("cond", "name")
+
+    def __init__(
+        self, cond: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.cond = cond
+        self.name = name
+        self._fields = ["cond", "name"]
+
+
+class Record(AST):
+    __match_args__ = ("value", "name")
+
+    def __init__(
+        self, value: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.value = value
+        self.name = name
+
+
+class RecordInitial(AST):
+    __match_args__ = ("value", "name")
+
+    def __init__(
+        self, value: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.value = value
+        self.name = name
+
+
+class RecordFinal(AST):
+    __match_args__ = ("value", "name")
+
+    def __init__(
+        self, value: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.value = value
+        self.name = name
+
+
 class Mutate(AST):
     __match_args__ = ("elts", "scale")
 
@@ -272,6 +329,24 @@ class Wait(AST):
 
 class Terminate(AST):
     pass
+
+
+class TerminateSimulationWhen(AST):
+    __match_args__ = ("cond",)
+
+    def __init__(self, cond=ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.cond = cond
+        self._fields = ["cond"]
+
+
+class TerminateWhen(AST):
+    __match_args__ = ("cond",)
+
+    def __init__(self, cond=ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.cond = cond
+        self._fields = ["cond"]
 
 
 class DoFor(AST):
