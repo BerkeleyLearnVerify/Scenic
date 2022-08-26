@@ -184,6 +184,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         self.behaviorLocals: set = set()
         "Set of variable names on the local scope of the behavior"
 
+        self.inCompose: bool = False
+        "True if the transformer is processing scenario"
+
         self.inTryInterrupt = False
         self.inInterruptBlock = False
         self.inLoop = False
@@ -475,6 +478,63 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             header=[],
             body=node.body,
         )
+
+    def visit_ScenarioDef(self, node: s.ScenarioDef):
+        # TODO(shun): assert not in behavior or compose
+
+        # Set up arguments for setup and compose blocks
+        args: ast.arguments = self.visit(node.args)
+        args.posonlyargs = initialBehaviorArgs + args.posonlyargs
+
+        # Get preconditions and invariants
+        preconditions, invariants = self.classifyPreconditionsAndInvariants(node.header)
+
+        setup = node.setup
+        compose = node.compose
+
+        # Find all locals of the scenario, which will be shared amongst the various blocks
+        allLocals = set()
+        if node.compose:
+            allLocals.update(LocalFinder.findIn(node.compose))
+        if node.setup:
+            allLocals.update(LocalFinder.findIn(node.setup))
+        oldBL = self.behaviorLocals
+        self.behaviorLocals = allLocals
+
+        guardCheckers = self.makeGuardCheckers(args, preconditions, invariants)
+
+        # Construct compose block
+        self.inCompose = self.inBehavior = True
+        guardCheckers = self.makeGuardCheckers(args, preconditions, invariants)
+        if node.compose or preconditions or invariants:
+            if compose:
+                body = self.visit(node.compose)
+            else:
+                # generate no-op compose block to ensure invariants are checked
+                wait = self.generateInvocation(node, ast.Constant(()))
+                body = [ast.While(ast.Constant(True), wait, [])]
+            compose = ast.FunctionDef("_compose", args, body, [], None)
+        else:
+            compose = ast.Assign(
+                [ast.Name("_compose", ast.Store())], ast.Constant(None)
+            )
+        self.inCompose = self.inBehavior = False
+
+        # Construct setup block
+        if setup:
+            setup = ast.FunctionDef("_setup", args, self.visit(node.setup), [], None)
+        else:
+            setup = ast.Assign([ast.Name("_setup", ast.Store())], ast.Constant(None))
+
+        self.behaviorLocals = oldBL
+
+        # Assemble scenario definition
+        name = node.name
+        saveLocals = ast.Assign(
+            [ast.Name("_locals", ast.Store())], ast.Constant(frozenset(allLocals))
+        )
+        body = guardCheckers + [saveLocals, setup, compose]
+        return ast.ClassDef(name, [ast.Name("DynamicScenario", loadCtx)], [], body, [])
 
     def makeGuardCheckers(
         self,
