@@ -482,6 +482,240 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_behavior(self):
+        node, _ = compileScenicAST(
+            BehaviorDef(
+                name="Foo",
+                args=arguments(
+                    posonlyargs=[],
+                    args=[arg("input")],
+                    kwonlyargs=[],
+                    kw_defaults=[],
+                    defaults=[],
+                ),
+                docstring="'''DOCSTRING'''",
+                header=[
+                    Invariant(
+                        value=Compare(
+                            left=Name(id="localvar", ctx=Load()),
+                            ops=[Gt()],
+                            comparators=[Name(id="input", ctx=Load())],
+                        ),
+                        lineno=2,
+                    ),
+                    Precondition(
+                        value=Compare(
+                            left=Name(id="localvar", ctx=Load()),
+                            ops=[Gt()],
+                            comparators=[Name(id="input", ctx=Load())],
+                        ),
+                        lineno=3,
+                    ),
+                ],
+                body=[
+                    Assign(
+                        targets=[Name(id="localvar", ctx=Store())],
+                        value=Constant(value=1),
+                    ),
+                    While(test=Constant(value=True), body=[Pass()], orelse=[]),
+                ],
+            )
+        )
+        match node:
+            case ClassDef(
+                name="Foo",
+                bases=[Name("Behavior")],
+                keywords=[],
+                body=[
+                    Expr(Constant("DOCSTRING")),  # preserved docstring
+                    FunctionDef(
+                        name="checkPreconditions",
+                        args=arguments(
+                            posonlyargs=[
+                                arg("_Scenic_current_behavior"),
+                                arg("self"),
+                            ],
+                            args=[arg("input")],
+                        ),
+                        body=[
+                            If(
+                                test=UnaryOp(
+                                    op=Not(),
+                                    operand=Compare(
+                                        left=Attribute(
+                                            value=Name("_Scenic_current_behavior"),
+                                            attr="localvar",
+                                        ),
+                                        ops=[Gt()],
+                                        comparators=[Name("input")],
+                                    ),
+                                ),
+                                body=[
+                                    Raise(
+                                        exc=Call(
+                                            func=Name("PreconditionViolation"),
+                                            args=[
+                                                Name("_Scenic_current_behavior"),
+                                                Constant(3),
+                                            ],
+                                        )
+                                    )
+                                ],
+                            )
+                        ],
+                    ),
+                    FunctionDef(
+                        name="checkInvariants",
+                        args=arguments(
+                            posonlyargs=[
+                                arg("_Scenic_current_behavior"),
+                                arg("self"),
+                            ],
+                            args=[arg("input")],
+                        ),
+                        body=[
+                            If(
+                                test=UnaryOp(
+                                    op=Not(),
+                                    operand=Compare(
+                                        left=Attribute(
+                                            value=Name("_Scenic_current_behavior"),
+                                            attr="localvar",
+                                        ),
+                                        ops=[Gt()],
+                                        comparators=[Name("input")],
+                                    ),
+                                ),
+                                body=[
+                                    Raise(
+                                        exc=Call(
+                                            func=Name("InvariantViolation"),
+                                            args=[
+                                                Name("_Scenic_current_behavior"),
+                                                Constant(2),
+                                            ],
+                                        )
+                                    )
+                                ],
+                            )
+                        ],
+                    ),
+                    Assign(
+                        targets=[Name("_locals")],
+                        value=Constant(frozenset()),
+                    ),
+                    FunctionDef(
+                        name="makeGenerator",
+                        args=arguments(
+                            posonlyargs=[
+                                arg("_Scenic_current_behavior"),
+                                arg("self"),
+                            ],
+                            args=[arg("input")],
+                        ),
+                        body=[
+                            Assign(
+                                targets=[
+                                    Attribute(
+                                        value=Name("_Scenic_current_behavior"),
+                                        attr="input",
+                                    )
+                                ],
+                                value=Name("input"),
+                            ),
+                            Assign(
+                                targets=[
+                                    Attribute(
+                                        value=Name("_Scenic_current_behavior"),
+                                        attr="localvar",
+                                    )
+                                ],
+                                value=Constant(1),
+                            ),
+                            While(test=Constant(True), body=[Pass()]),
+                        ],
+                    ),
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_monitor(self):
+        node, _ = compileScenicAST(
+            MonitorDef(
+                name="M",
+                docstring="'DOCSTRING'",
+                body=[
+                    Assign(
+                        targets=[Name(id="localvar", ctx=Store())],
+                        value=Constant(value=1),
+                    ),
+                    While(test=Constant(value=True), body=[Pass()], orelse=[]),
+                ],
+            )
+        )
+        match node:
+            case ClassDef(
+                name="M",
+                bases=[Name("Monitor")],
+                body=[
+                    Expr(Constant("DOCSTRING")),
+                    FunctionDef(
+                        name="checkPreconditions",
+                        args=arguments(
+                            posonlyargs=[
+                                arg("_Scenic_current_behavior"),
+                                arg("self"),
+                            ],
+                        ),
+                        body=[Pass()],
+                    ),
+                    FunctionDef(
+                        name="checkInvariants",
+                        args=arguments(
+                            posonlyargs=[
+                                arg("_Scenic_current_behavior"),
+                                arg("self"),
+                            ],
+                        ),
+                        body=[Pass()],
+                    ),
+                    Assign(
+                        targets=[Name("_locals")],
+                        value=Constant(value=frozenset()),
+                    ),
+                    FunctionDef(
+                        name="makeGenerator",
+                        args=arguments(
+                            posonlyargs=[
+                                arg("_Scenic_current_behavior"),
+                                arg("self"),
+                            ],
+                        ),
+                        body=[
+                            Assign(
+                                targets=[
+                                    Attribute(
+                                        value=Name("_Scenic_current_behavior"),
+                                        attr="localvar",
+                                        ctx=Store(),
+                                    )
+                                ],
+                                value=Constant(value=1),
+                            ),
+                            While(
+                                test=Constant(value=True),
+                                body=[Pass()],
+                            ),
+                        ],
+                    ),
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
     def test_abort(self):
         node, _ = compileScenicAST(Abort())
         match node:

@@ -547,6 +547,8 @@ scenic_compound_stmt:
     | scenic_tracked_assign_new_stmt
     | scenic_assign_new_stmt
     | scenic_expr_new_stmt
+    | scenic_behavior_def
+    | scenic_monitor_def
     | scenic_try_interrupt_stmt
 
 
@@ -775,6 +777,70 @@ scenic_new_block_body:
     | b=(x=scenic_specifiers ',' NEWLINE { x })+ {
         list(itertools.chain.from_iterable(b))
      }
+
+
+# Behavior
+# --------
+
+scenic_behavior_def:
+    | "behavior" a=NAME b=['(' z=[params] ')' { z }] &&':' c=scenic_behavior_def_block {
+        s.BehaviorDef(
+            a.string,
+            args=b or self.make_arguments(None, [], None, [], None),
+            docstring=c[0],
+            header=c[1],
+            body=c[2],
+            LOCATIONS,
+        )
+     }
+
+scenic_behavior_def_block:
+    # behavior definition must have at least one statement that is not a precondition/invariant definition
+    | NEWLINE INDENT a=[x=STRING NEWLINE { x.string }] b=[scenic_behavior_header] c=scenic_behavior_statements DEDENT { (a, b or [], c) }
+    | invalid_block
+
+scenic_behavior_statements[list]: a=scenic_behavior_statement+ { list(itertools.chain.from_iterable(a)) }
+
+# statements available inside behavior (normal statements + dynamic statements - precondition/invariant)
+scenic_behavior_statement[list]:
+    | scenic_invalid_behavior_statement
+    | a=statement { a }
+
+scenic_invalid_behavior_statement:
+    | a="invariant" ':' a=expression {
+        self.raise_syntax_error_known_location("invariant can only be set at the beginning of behavior definitions", a) 
+     }
+    | a="precondition" ':' a=expression {
+        self.raise_syntax_error_known_location("precondition can only be set at the beginning of behavior definitions", a) 
+     }
+
+scenic_behavior_header: a=(x=(scenic_precondition_stmt | scenic_invariant_stmt) NEWLINE { x })+ { a }
+
+scenic_precondition_stmt:
+    | "precondition" ':' a=expression { s.Precondition(value=a, LOCATIONS) }
+
+scenic_invariant_stmt:
+    | "invariant" ':' a=expression { s.Invariant(value=a, LOCATIONS) }
+
+
+# Monitor
+# -------
+
+scenic_monitor_def:
+    | "monitor" a=NAME &&':' b=scenic_monitor_def_block {
+        s.MonitorDef(
+            a.string,
+            b[0],
+            b[1],
+            LOCATIONS
+        )
+     }
+
+scenic_monitor_def_block:
+    | NEWLINE INDENT a=[x=STRING NEWLINE { x.string }] b=scenic_monitor_statements DEDENT { (a, b) }
+
+scenic_monitor_statements[list]: a=statement+ { list(itertools.chain.from_iterable(a)) }
+
 
 # Function definitions
 # --------------------
