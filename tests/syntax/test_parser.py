@@ -826,6 +826,118 @@ class TestRequire:
             case _:
                 assert False
 
+    def test_require_always(self):
+        mod = parse_string_helper("require always X")
+        stmt = mod.body[0]
+        match stmt:
+            case RequireAlways(Name("X"), None):
+                assert True
+            case _:
+                assert False
+
+    def test_require_always_with_name(self):
+        mod = parse_string_helper("require always X as safety")
+        stmt = mod.body[0]
+        match stmt:
+            case RequireAlways(Name("X"), "safety"):
+                assert True
+            case _:
+                assert False
+
+    def test_require_eventually(self):
+        mod = parse_string_helper("require eventually X")
+        stmt = mod.body[0]
+        match stmt:
+            case RequireEventually(Name("X"), None):
+                assert True
+            case _:
+                assert False
+
+    def test_require_eventually_with_name(self):
+        mod = parse_string_helper("require eventually X as liveness")
+        stmt = mod.body[0]
+        match stmt:
+            case RequireEventually(Name("X"), "liveness"):
+                assert True
+            case _:
+                assert False
+
+
+class TestRecord:
+    def test_record(self):
+        mod = parse_string_helper("record x")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), None):
+                assert True
+            case _:
+                assert False
+
+    def test_record_named(self):
+        mod = parse_string_helper("record x as name")
+        stmt = mod.body[0]
+        match stmt:
+            case Record(Name("x"), "name"):
+                assert True
+            case _:
+                assert False
+
+    def test_record_initial(self):
+        mod = parse_string_helper("record initial x")
+        stmt = mod.body[0]
+        match stmt:
+            case RecordInitial(Name("x"), None):
+                assert True
+            case _:
+                assert False
+
+    def test_record_initial_named(self):
+        mod = parse_string_helper("record initial x as name")
+        stmt = mod.body[0]
+        match stmt:
+            case RecordInitial(Name("x"), "name"):
+                assert True
+            case _:
+                assert False
+
+    def test_record_final(self):
+        mod = parse_string_helper("record final x")
+        stmt = mod.body[0]
+        match stmt:
+            case RecordFinal(Name("x"), None):
+                assert True
+            case _:
+                assert False
+
+    def test_record_final_named(self):
+        mod = parse_string_helper("record final x as name")
+        stmt = mod.body[0]
+        match stmt:
+            case RecordFinal(Name("x"), "name"):
+                assert True
+            case _:
+                assert False
+
+
+class TestTerminateWhen:
+    def test_terminate_when(self):
+        mod = parse_string_helper("terminate when x")
+        stmt = mod.body[0]
+        match stmt:
+            case TerminateWhen(Name("x")):
+                assert True
+            case _:
+                assert False
+
+    def test_terminate_simulation_when(self):
+        mod = parse_string_helper("terminate simulation when x")
+        stmt = mod.body[0]
+        match stmt:
+            case TerminateSimulationWhen(Name("x")):
+                assert True
+            case _:
+                assert False
+
 
 class TestNew:
     def test_basic(self):

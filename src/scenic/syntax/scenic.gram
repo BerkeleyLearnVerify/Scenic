@@ -539,8 +539,15 @@ scenic_stmt:
     | scenic_model_stmt
     | scenic_tracked_assignment
     | scenic_param_stmt
+    | scenic_require_always_stmt
+    | scenic_require_eventually_stmt
     | scenic_require_stmt
+    | scenic_record_initial_stmt
+    | scenic_record_final_stmt
+    | scenic_record_stmt
     | scenic_mutate_stmt
+    | scenic_terminate_simulation_when_stmt
+    | scenic_terminate_when_stmt
     | scenic_take_stmt
     | scenic_wait_stmt
     | scenic_terminate_stmt
@@ -1737,6 +1744,31 @@ scenic_require_stmt_name:
     | a=(NAME | NUMBER) { a.string }
     | a=STRING { a.string[1:-1] }
 
+scenic_require_always_stmt:
+    | 'require' 'always' e=expression n=['as' a=scenic_require_stmt_name { a }] {
+        s.RequireAlways(cond=e, name=n, LOCATIONS)
+     }
+
+scenic_require_eventually_stmt:
+    | 'require' 'eventually' e=expression n=['as' a=scenic_require_stmt_name { a }] {
+        s.RequireEventually(cond=e, name=n, LOCATIONS)
+     }
+
+scenic_record_stmt:
+    | "record" e=expression n=['as' a=scenic_require_stmt_name { a }] {
+        s.Record(value=e, name=n, LOCATIONS)
+     }
+
+scenic_record_initial_stmt:
+    | "record" "initial" e=expression n=['as' a=scenic_require_stmt_name { a }] {
+        s.RecordInitial(value=e, name=n, LOCATIONS)
+     }
+
+scenic_record_final_stmt:
+    | "record" "final" e=expression n=['as' a=scenic_require_stmt_name { a }] {
+        s.RecordFinal(value=e, name=n, LOCATIONS)
+     }
+
 scenic_mutate_stmt:
     | 'mutate' elts=[(','.scenic_mutate_stmt_id+)] scale=['by' x=expression {x}] {
         s.Mutate(elts=elts if elts is not None else [], scale=scale, LOCATIONS)
@@ -1748,6 +1780,10 @@ scenic_abort_stmt: "abort" { s.Abort(LOCATIONS) }
 scenic_take_stmt: 'take' elts=(','.expression+) { s.Take(elts=elts, LOCATIONS) }
 
 scenic_wait_stmt: 'wait' { s.Wait(LOCATIONS) }
+
+scenic_terminate_simulation_when_stmt: "terminate" "simulation" "when" v=expression { s.TerminateSimulationWhen(v, LOCATIONS) }
+
+scenic_terminate_when_stmt: "terminate" "when" v=expression { s.TerminateWhen(v, LOCATIONS) }
 
 scenic_terminate_stmt: "terminate" { s.Terminate(LOCATIONS) }
 
