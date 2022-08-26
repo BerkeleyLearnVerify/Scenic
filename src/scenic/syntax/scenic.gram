@@ -541,6 +541,12 @@ scenic_stmt:
     | scenic_param_stmt
     | scenic_require_stmt
     | scenic_mutate_stmt
+    | scenic_take_stmt
+    | scenic_wait_stmt
+    | scenic_terminate_stmt
+    | scenic_do_for_stmt
+    | scenic_do_until_stmt
+    | scenic_do_stmt
     | scenic_abort_stmt
 
 scenic_compound_stmt:
@@ -1738,6 +1744,22 @@ scenic_mutate_stmt:
 scenic_mutate_stmt_id: a=NAME { ast.Name(id=a.string, ctx=Load, LOCATIONS) }
 
 scenic_abort_stmt: "abort" { s.Abort(LOCATIONS) }
+
+scenic_take_stmt: 'take' elts=(','.expression+) { s.Take(elts=elts, LOCATIONS) }
+
+scenic_wait_stmt: 'wait' { s.Wait(LOCATIONS) }
+
+scenic_terminate_stmt: "terminate" { s.Terminate(LOCATIONS) }
+
+scenic_do_for_stmt: 'do' e=(','.expression+) 'for' u=scenic_dynamic_duration { s.DoFor(elts=e, duration=u, LOCATIONS) }
+scenic_dynamic_duration:
+    | v=expression 'seconds' { s.Seconds(v, LOCATIONS) }
+    | v=expression 'steps' { s.Steps(v, LOCATIONS) }
+
+scenic_do_until_stmt: 'do' e=(','.expression+) 'until' cond=expression { s.DoUntil(elts=e, cond=cond, LOCATIONS) }
+
+scenic_do_stmt: 'do' e=(','.expression+) { s.Do(elts=e, LOCATIONS) }
+
 
 # LITERALS
 # ========
