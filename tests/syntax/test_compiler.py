@@ -951,6 +951,173 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_require_always(self):
+        node, requirements = compileScenicAST(RequireAlways(Name("C"), lineno=2))
+        match node:
+            case Expr(
+                Call(
+                    Name("require_always"),
+                    [
+                        Constant(0),  # reqId
+                        Lambda(body=Name("C")),  # requirement
+                        Constant(2),  # lineno
+                        Constant(None),  # name
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+        match requirements:
+            case [Name("C")]:
+                assert True
+            case _:
+                assert False
+
+    def test_require_eventually(self):
+        node, requirements = compileScenicAST(RequireEventually(Name("C"), lineno=2))
+        match node:
+            case Expr(
+                Call(
+                    Name("require_eventually"),
+                    [
+                        Constant(0),  # reqId
+                        Lambda(body=Name("C")),  # requirement
+                        Constant(2),  # lineno
+                        Constant(None),  # name
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+        match requirements:
+            case [Name("C")]:
+                assert True
+            case _:
+                assert False
+
+    def test_record(self):
+        node, requirements = compileScenicAST(Record(Name("C"), lineno=2))
+        match node:
+            case Expr(
+                Call(
+                    Name("record"),
+                    [
+                        Constant(0),  # reqId
+                        Lambda(body=Name("C")),  # record value
+                        Constant(2),  # lineno
+                        Constant(None),  # name
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+        match requirements:
+            case [Name("C")]:
+                assert True
+            case _:
+                assert False
+
+    def test_record_initial(self):
+        node, requirements = compileScenicAST(RecordInitial(Name("C"), lineno=2))
+        match node:
+            case Expr(
+                Call(
+                    Name("record_initial"),
+                    [
+                        Constant(0),  # reqId
+                        Lambda(body=Name("C")),  # record value
+                        Constant(2),  # lineno
+                        Constant(None),  # name
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+        match requirements:
+            case [Name("C")]:
+                assert True
+            case _:
+                assert False
+
+    def test_record_final(self):
+        node, requirements = compileScenicAST(RecordFinal(Name("C"), lineno=2))
+        match node:
+            case Expr(
+                Call(
+                    Name("record_final"),
+                    [
+                        Constant(0),  # reqId
+                        Lambda(body=Name("C")),  # record value
+                        Constant(2),  # lineno
+                        Constant(None),  # name
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+        match requirements:
+            case [Name("C")]:
+                assert True
+            case _:
+                assert False
+
+    def test_terminate_when(self):
+        node, requirements = compileScenicAST(TerminateWhen(Name("C"), lineno=2))
+
+        match node:
+            case Expr(
+                Call(
+                    Name("terminate_when"),
+                    [
+                        Constant(0),  # reqId
+                        Lambda(body=Name("C")),  # requirement
+                        Constant(2),  # lineno
+                        Constant(None),  # name
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
+        match requirements:
+            case [Name("C")]:
+                assert True
+            case _:
+                assert False
+
+    def test_terminate_simulation_when(self):
+        node, requirements = compileScenicAST(
+            TerminateSimulationWhen(Name("C"), lineno=2)
+        )
+
+        match node:
+            case Expr(
+                Call(
+                    Name("terminate_simulation_when"),
+                    [
+                        Constant(0),  # reqId
+                        Lambda(body=Name("C")),  # requirement
+                        Constant(2),  # lineno
+                        Constant(None),  # name
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
+        match requirements:
+            case [Name("C")]:
+                assert True
+            case _:
+                assert False
+
     # Instance & Specifiers
     def test_new_no_specifiers(self):
         node, _ = compileScenicAST(New("Object", []))

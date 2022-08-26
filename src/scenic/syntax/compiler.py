@@ -676,24 +676,8 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     def visit_Require(self, node: s.Require):
         condition = self.visit(node.cond)
-        syntax_id = self._register_requirement_syntax(condition)
-
-        return ast.Expr(
-            value=ast.Call(
-                func=ast.Name(id="require", ctx=loadCtx),
-                args=[
-                    ast.Constant(syntax_id),
-                    ast.Lambda(
-                        args=noArgs,
-                        body=condition,
-                    ),
-                    ast.Constant(value=node.lineno),
-                    ast.Constant(value=node.name),
-                ],
-                keywords=[ast.keyword(arg="prob", value=ast.Constant(node.prob))]
-                if node.prob is not None
-                else [],
-            )
+        return self.createRequirementLike(
+            "require", condition, node.lineno, node.name, node.prob
         )
 
     def visit_Abort(self, node: s.Abort):
@@ -789,6 +773,77 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             invokeAction,
             checkInvariants,
         ]
+
+    def visit_RequireAlways(self, node: s.RequireAlways):
+        condition = self.visit(node.cond)
+        return self.createRequirementLike(
+            "require_always", condition, node.lineno, node.name
+        )
+
+    def visit_RequireEventually(self, node: s.RequireEventually):
+        condition = self.visit(node.cond)
+        return self.createRequirementLike(
+            "require_eventually", condition, node.lineno, node.name
+        )
+
+    def visit_Record(self, node: s.Record):
+        value = self.visit(node.value)
+        return self.createRequirementLike("record", value, node.lineno, node.name)
+
+    def visit_RecordInitial(self, node: s.RecordInitial):
+        value = self.visit(node.value)
+        return self.createRequirementLike(
+            "record_initial", value, node.lineno, node.name
+        )
+
+    def visit_RecordFinal(self, node: s.RecordFinal):
+        value = self.visit(node.value)
+        return self.createRequirementLike("record_final", value, node.lineno, node.name)
+
+    def visit_TerminateWhen(self, node: s.TerminateWhen):
+        condition = self.visit(node.cond)
+        return self.createRequirementLike(
+            "terminate_when", condition, node.lineno, None
+        )
+
+    def visit_TerminateSimulationWhen(self, node: s.TerminateSimulationWhen):
+        condition = self.visit(node.cond)
+        return self.createRequirementLike(
+            "terminate_simulation_when", condition, node.lineno
+        )
+
+    def createRequirementLike(
+        self,
+        functionName: str,
+        syntax: ast.AST,
+        lineno: int,
+        name: Optional[str] = None,
+        prob: Optional[float] = None,
+    ):
+        """Create a call to a function that implements requirement-like features, such as `record` and `terminate when`.
+
+        Args:
+            functionName (str): Name of the requirement-like function to call. Its signature must be `(reqId: int, body: () -> bool, lineno: int, name: str | None)`
+            syntax (ast.AST): AST node to evaluate for checking the condition
+            lineno (int): Line number in the source code
+            name (Optional[str], optional): Optional name for requirements. Defaults to None.
+            prob (Optional[float], optional): Optional probability for requirements. Defaults to None.
+        """
+        syntax_id = self._register_requirement_syntax(syntax)
+        return ast.Expr(
+            value=ast.Call(
+                func=ast.Name(functionName, loadCtx),
+                args=[
+                    ast.Constant(syntax_id),  # requirement ID
+                    ast.Lambda(args=noArgs, body=syntax),  # body
+                    ast.Constant(lineno),  # line number
+                    ast.Constant(name),  # requirement name
+                ],
+                keywords=[ast.keyword(arg="prob", value=ast.Constant(prob))]
+                if prob is not None
+                else [],
+            )
+        )
 
     # Instance & Specifier
 
