@@ -1121,7 +1121,7 @@ class TestCompiler:
     def test_terminate_after_seconds(self):
         node, _ = compileScenicAST(TerminateAfter(Seconds(Constant(10))))
         match node:
-            case Call(Name("terminate_after"), [Constant(10), Constant("seconds")], []):
+            case Expr(Call(Name("terminate_after"), [Constant(10), Constant("seconds")], [])):
                 assert True
             case _:
                 assert False
@@ -1129,7 +1129,7 @@ class TestCompiler:
     def test_terminate_after_steps(self):
         node, _ = compileScenicAST(TerminateAfter(Steps(Constant(20))))
         match node:
-            case Call(Name("terminate_after"), [Constant(20), Constant("steps")], []):
+            case Expr(Call(Name("terminate_after"), [Constant(20), Constant("steps")], [])):
                 assert True
             case _:
                 assert False
