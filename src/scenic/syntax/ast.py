@@ -90,6 +90,10 @@ class Workspace(AST):
     functionName = "workspace"
 
 
+class InitialScenario(AST):
+    pass
+
+
 class PropertyDef(AST):
     __match_args__ = ("property", "attributes", "value")
 
