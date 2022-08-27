@@ -889,7 +889,8 @@ scenic_scenario_compose_block:
 # --------
 
 scenic_override_stmt:
-    | 'override' e=primary ss=scenic_specifiers t=(NEWLINE { [] } | ',' NEWLINE INDENT x=scenic_new_block_body DEDENT { x }) {
+    | 'override' e=primary ss=scenic_specifiers NEWLINE { s.Override(target=e, specifiers=ss) }
+    | 'override' e=primary ss=scenic_specifiers ',' NEWLINE INDENT t=scenic_new_block_body DEDENT {
         s.Override(target=e, specifiers=ss + t)
      }
 
