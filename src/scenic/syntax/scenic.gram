@@ -567,7 +567,7 @@ scenic_compound_stmt:
     | scenic_monitor_def
     | scenic_scenario_def
     | scenic_try_interrupt_stmt
-
+    | scenic_override_stmt
 
 # SIMPLE STATEMENTS
 # =================
@@ -884,6 +884,14 @@ scenic_scenario_setup_block:
 
 scenic_scenario_compose_block:
     | "compose" &&':' b=block { b }
+
+# Override
+# --------
+
+scenic_override_stmt:
+    | 'override' e=primary ss=scenic_specifiers t=(NEWLINE { [] } | ',' NEWLINE INDENT x=scenic_new_block_body DEDENT { x }) {
+        s.Override(target=e, specifiers=ss + t)
+     }
 
 # Function definitions
 # --------------------
