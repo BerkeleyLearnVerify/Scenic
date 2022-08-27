@@ -387,6 +387,16 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             )
         )
 
+    def visit_InitialScenario(self, node: s.InitialScenario):
+        return ast.copy_location(
+            ast.Call(
+                func=ast.Name(id="in_initial_scenario", ctx=loadCtx),
+                args=[],
+                keywords=[],
+            ),
+            node,
+        )
+
     def visit_ClassDef(self, node: ast.ClassDef) -> any:
         # use `Object` as base if none is specified
         if not node.bases:

@@ -171,6 +171,14 @@ class TestCompiler:
         with pytest.raises(SyntaxError):
             compileScenicAST(Assign([Name("workspace", Store())], Constant(1)))
 
+    def test_initial_scenario(self):
+        node, _ = compileScenicAST(InitialScenario())
+        match node:
+            case Call(Name("in_initial_scenario"), args=[], keywords=[]):
+                assert True
+            case _:
+                assert False
+
     def test_classdef(self):
         # Object is specified as a base
         # `_scenic_properties` is initialized at the beginning of class body
