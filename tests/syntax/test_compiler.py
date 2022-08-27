@@ -724,6 +724,28 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_override(self):
+        node, _ = compileScenicAST(
+            Override(
+                Name("ego", Load()),
+                [WithSpecifier("foo", Constant(1)), WithSpecifier("bar", Constant(2))],
+            )
+        )
+        match node:
+            case Expr(
+                Call(
+                    func=Name("override"),
+                    args=[
+                        Call(func=Name("ego")),
+                        Call(func=Name("With"), args=[Constant("foo"), Constant(1)]),
+                        Call(func=Name("With"), args=[Constant("bar"), Constant(2)]),
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
     def test_abort(self):
         node, _ = compileScenicAST(Abort())
         match node:
