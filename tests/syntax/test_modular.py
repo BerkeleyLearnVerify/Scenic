@@ -16,23 +16,23 @@ def test_single_scenario():
     ego = sampleEgoFrom("""
         scenario Main():
             setup:
-                ego = Object at (1, 2)
+                ego = new Object at (1, 2)
     """)
     assert tuple(ego.position) == (1, 2)
 
 def test_simple_scenario():
     ego = sampleEgoFrom("""
         scenario Main():
-            ego = Object at (1, 2)
+            ego = new Object at (1, 2)
     """)
     assert tuple(ego.position) == (1, 2)
 
 def test_main_scenario():
     scene = sampleSceneFrom("""
         scenario Other():
-            ego = Object at (10, 5)
+            ego = new Object at (10, 5)
         scenario Main():
-            ego = Object at (1, 2)
+            ego = new Object at (1, 2)
     """)
     assert len(scene.objects) == 1
     assert tuple(scene.egoObject.position) == (1, 2)
@@ -41,7 +41,7 @@ def test_requirement():
     scenario = compileScenic("""
         scenario Main():
             setup:
-                ego = Object with width Range(1, 3)
+                ego = new Object with width Range(1, 3)
                 require ego.width > 2
     """)
     ws = [sampleEgo(scenario, maxIterations=60).width for i in range(60)]
@@ -54,7 +54,7 @@ def test_top_level_precondition():
         scenario Main():
             precondition: simulation().currentTime > 0
             setup:
-                ego = Object
+                ego = new Object
     """)
     sim = DummySimulator(timestep=1)
     scene = sampleScene(scenario)
@@ -69,7 +69,7 @@ def test_parallel_composition():
             compose:
                 do Sub(1), Sub(5)
         scenario Sub(x):
-            ego = Object at x @ 0
+            ego = new Object at x @ 0
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario)
     assert len(trajectory) == 2
@@ -84,7 +84,7 @@ def test_sequential_composition():
                 do Sub(1)
                 do Sub(5)
         scenario Sub(x):
-            ego = Object at x @ 0
+            ego = new Object at x @ 0
             terminate after 1
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario, maxSteps=3)
@@ -104,7 +104,7 @@ def test_subscenario_for_steps():
                 do Sub(1) for 2 steps
                 do Sub(5)
         scenario Sub(x):
-            ego = Object at x @ 0
+            ego = new Object at x @ 0
             terminate after 3
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario, maxSteps=3)
@@ -123,7 +123,7 @@ def test_subscenario_for_time():
                 do Sub(1) for 1 seconds
                 do Sub(5)
         scenario Sub(x):
-            ego = Object at x @ 0
+            ego = new Object at x @ 0
             terminate after 3
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario, maxSteps=3, timestep=0.5)
@@ -141,7 +141,7 @@ def test_subscenario_until():
                 do Sub(1) until simulation().currentTime == 2
                 do Sub(5)
         scenario Sub(x):
-            ego = Object at x @ 0
+            ego = new Object at x @ 0
             terminate after 3
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario, maxSteps=3)
@@ -167,7 +167,7 @@ def test_subscenario_require_eventually():
                 do Sub()
                 wait
         scenario Sub():
-            ego = Object
+            ego = new Object
             require eventually simulation().currentTime == 2
             terminate after 1
     """)
@@ -182,8 +182,8 @@ def test_initial_scenario_basic():
         scenario Sub():
             setup:
                 if initial scenario:
-                    ego = Object
-                Object left of ego by 5
+                    ego = new Object
+                new Object left of ego by 5
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario)
     assert len(trajectory) == 2
@@ -193,14 +193,14 @@ def test_initial_scenario_setup():
     scenario = compileScenic("""
         scenario Main():
             setup:
-                ego = Object
+                ego = new Object
             compose:
                 do Sub()
         scenario Sub():
             setup:
                 if initial scenario:
-                    ego = Object
-                Object left of ego by 5
+                    ego = new Object
+                new Object left of ego by 5
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario)
     assert len(trajectory) == 2
@@ -214,8 +214,8 @@ def test_initial_scenario_parallel():
         scenario Sub(x):
             setup:
                 if initial scenario:
-                    ego = Object
-                Object left of ego by x
+                    ego = new Object
+                new Object left of ego by x
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario)
     assert len(trajectory) == 2
@@ -229,7 +229,7 @@ def test_choose_1():
         scenario Sub(x):
             precondition: simulation().currentTime >= x
             setup:
-                ego = Object at x @ 0
+                ego = new Object at x @ 0
     """, scenario='Main')
     xs = [sampleTrajectory(scenario, maxSteps=1)[1][0][0] for i in range(30)]
     assert all(x == -1 for x in xs)
@@ -242,7 +242,7 @@ def test_choose_2():
         scenario Sub(x):
             precondition: simulation().currentTime >= x
             setup:
-                ego = Object at x @ 0
+                ego = new Object at x @ 0
     """, scenario='Main')
     xs = [sampleTrajectory(scenario, maxSteps=1)[1][0][0] for i in range(30)]
     assert all(x == -1 or x == -2 for x in xs)
@@ -256,7 +256,7 @@ def test_choose_3():
                 do choose {Sub(0): 1, Sub(1): 9}
         scenario Sub(x):
             setup:
-                ego = Object at x @ 0
+                ego = new Object at x @ 0
     """, scenario='Main')
     xs = [sampleTrajectory(scenario, maxSteps=1)[1][0][0] for i in range(200)]
     assert all(x == 0 or x == 1 for x in xs)
@@ -270,7 +270,7 @@ def test_choose_deadlock():
         scenario Sub(x):
             precondition: simulation().currentTime >= x
             setup:
-                ego = Object at x @ 0
+                ego = new Object at x @ 0
     """, scenario='Main')
     result = sampleResultOnce(scenario)
     assert result is None
@@ -283,7 +283,7 @@ def test_shuffle_1():
         scenario Sub(x):
             precondition: simulation().currentTime >= x
             setup:
-                ego = Object at x @ 0
+                ego = new Object at x @ 0
                 terminate after 1
     """, scenario='Main')
     for i in range(30):
@@ -300,7 +300,7 @@ def test_shuffle_2():
             compose:
                 do shuffle Sub(1), Sub(3)
         scenario Sub(x):
-            ego = Object at x @ 0
+            ego = new Object at x @ 0
             terminate after 1
     """, scenario='Main')
     x1s = []
@@ -325,7 +325,7 @@ def test_shuffle_3():
                 do shuffle {Sub(0): 1, Sub(1): 9}
         scenario Sub(x):
             setup:
-                ego = Object at x @ 0
+                ego = new Object at x @ 0
                 terminate after 1
     """, scenario='Main')
     xs = [sampleTrajectory(scenario, maxSteps=3)[2][0][0] for i in range(200)]
@@ -340,7 +340,7 @@ def test_shuffle_deadlock():
         scenario Sub(x):
             precondition: simulation().currentTime >= x
             setup:
-                ego = Object at x @ 0
+                ego = new Object at x @ 0
                 terminate after 1
     """, scenario='Main')
     result = sampleResultOnce(scenario, maxSteps=2)
@@ -352,7 +352,7 @@ def test_override():
     scenario = compileScenic("""
         scenario Main():
             setup:
-                ego = Object with foo 1, with behavior Bar
+                ego = new Object with foo 1, with behavior Bar
             compose:
                 wait
                 do Sub()
@@ -372,7 +372,7 @@ def test_override_behavior():
     scenario = compileScenic("""
         scenario Main():
             setup:
-                ego = Object with behavior Foo
+                ego = new Object with behavior Foo
             compose:
                 wait
                 do Sub() for 2 steps
@@ -404,7 +404,7 @@ def test_shared_scope_read():
             compose:
                 do Sub(y)
         scenario Sub(x):
-            ego = Object at x @ 0
+            ego = new Object at x @ 0
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario)
     assert len(trajectory) == 2
@@ -420,7 +420,7 @@ def test_shared_scope_write():
                 y = 4
                 do Sub(y)
         scenario Sub(x):
-            ego = Object at x @ 0
+            ego = new Object at x @ 0
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario)
     assert len(trajectory) == 2
@@ -436,17 +436,17 @@ def test_shared_scope_del():
                 del y
                 do Sub()
         scenario Sub():
-            ego = Object
+            ego = new Object
     """, scenario='Main')
     sampleTrajectory(scenario)
 
 def test_delayed_local_argument():
     scenario = compileScenic("""
         scenario Foo(obj, y):
-            ego = Object left of obj by (5, y)
+            ego = new Object left of obj by (5, y)
         scenario Bar():
             setup:
-                ego = Object
+                ego = new Object
                 y = 12
         scenario Main():
             compose:
@@ -470,7 +470,7 @@ def test_delayed_local_interrupt():
                 interrupt when sc.ego.position.x >= 1:
                     abort
         scenario Sub():
-            ego = Object at (1, 0)
+            ego = new Object at (1, 0)
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario, maxSteps=2)
     assert len(trajectory) == 2
@@ -483,7 +483,7 @@ def test_delayed_local_until():
                 sc = Sub()
                 do sc until sc.ego.position.x >= 1
         scenario Sub():
-            ego = Object at (1, 0)
+            ego = new Object at (1, 0)
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario, maxSteps=2)
     assert len(trajectory) == 2
@@ -499,7 +499,7 @@ def test_independent_requirements():
             compose:
                 do Sub(0, 1), Sub(2, 3)
         scenario Sub(start, dest):
-            ego = Object at start @ 0, with behavior Foo
+            ego = new Object at start @ 0, with behavior Foo
             require eventually ego.position.x >= dest
     """, scenario='Main')
     for i in range(30):
