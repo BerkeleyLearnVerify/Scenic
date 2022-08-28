@@ -804,6 +804,18 @@ class TestOverride:
         with pytest.raises(SyntaxError):
             parse_string_helper("override obj")
 
+    def test_expression_target(self):
+        # certain simple expressions (attributes, subscript, etc.) are supported for override targets
+        mod = parse_string_helper("override foo.bar with behavior baz")
+        stmt = mod.body[0]
+        match stmt:
+            case Override(
+                Attribute(Name("foo"), "bar"), [WithSpecifier("behavior", Name("baz"))]
+            ):
+                assert True
+            case _:
+                assert False
+
 
 class TestAbort:
     def test_basic(self):
