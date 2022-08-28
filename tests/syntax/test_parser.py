@@ -800,6 +800,10 @@ class TestOverride:
             case _:
                 assert False
 
+    def test_no_specifiers(self):
+        with pytest.raises(SyntaxError):
+            parse_string_helper("override obj")
+
 
 class TestAbort:
     def test_basic(self):
