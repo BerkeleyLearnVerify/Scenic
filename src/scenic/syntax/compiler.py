@@ -487,7 +487,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         args.posonlyargs = initialBehaviorArgs + args.posonlyargs
 
         # Get preconditions and invariants
-        preconditions, invariants = self.classifyPreconditionsAndInvariants(node.header)
+        preconditions, invariants = self.separatePreconditionsAndInvariants(node.header)
 
         setup = node.setup
         compose = node.compose
@@ -592,10 +592,10 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         ]
         return preamble
 
-    def classifyPreconditionsAndInvariants(
+    def separatePreconditionsAndInvariants(
         self, header: list[Union[s.Precondition, s.Invariant]]
     ) -> tuple[list[s.Precondition], list[s.Invariant]]:
-        """Given mixed list of preconditions and invariants, classify items into list of preconditions and list of invariants
+        """Given a list of preconditions and invariants, separate items into the list of preconditions and list of invariants
 
         Args:
             header (list[Union[s.Precondition, s.Invariant]]): List of preconditions and invariants
@@ -624,7 +624,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         body: list[ast.AST],
     ):
         # --- Extract preconditions and invariants ---
-        preconditions, invariants = self.classifyPreconditionsAndInvariants(header)
+        preconditions, invariants = self.separatePreconditionsAndInvariants(header)
 
         # --- Copy arguments to the behavior object's namespace ---
         # list of all arguments
