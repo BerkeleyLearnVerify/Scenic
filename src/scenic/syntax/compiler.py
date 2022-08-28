@@ -856,15 +856,18 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         )
 
     def visit_TerminateAfter(self, node: s.TerminateAfter):
-        return ast.Expr(
-            ast.Call(
-                func=ast.Name(id="terminate_after", ctx=loadCtx),
-                args=[
-                    self.visit(node.duration.value),
-                    ast.Constant(node.duration.unitStr),
-                ],
-                keywords=[],
-            )
+        return ast.copy_location(
+            ast.Expr(
+                ast.Call(
+                    func=ast.Name(id="terminate_after", ctx=loadCtx),
+                    args=[
+                        self.visit(node.duration.value),
+                        ast.Constant(node.duration.unitStr),
+                    ],
+                    keywords=[],
+                )
+            ),
+            node,
         )
 
     # Instance & Specifier
