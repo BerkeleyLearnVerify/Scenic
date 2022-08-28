@@ -1786,7 +1786,7 @@ scenic_terminate_simulation_when_stmt: "terminate" "simulation" "when" v=express
 
 scenic_terminate_when_stmt: "terminate" "when" v=expression { s.TerminateWhen(v, LOCATIONS) }
 
-scenic_terminate_after_stmt: "terminate" "after" v=(scenic_dynamic_duration | v=expression { s.Steps(v, LOCATIONS) }) { s.TerminateAfter(v, LOCATIONS) }
+scenic_terminate_after_stmt: "terminate" "after" v=scenic_dynamic_duration { s.TerminateAfter(v, LOCATIONS) }
 
 scenic_terminate_stmt: "terminate" { s.Terminate(LOCATIONS) }
 
