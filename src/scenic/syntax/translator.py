@@ -2079,9 +2079,8 @@ class ASTSurgeon(NodeTransformer):
 		if isinstance(func, Name) and func.id in PROPOSITION_FACTORY:
 			if not self.canUseTemporalOps:
 				self.parseError(node, f"Operator {func.id} is not allowed in this statement")
-			checkedArgs = node.args
-			self.validateSimpleCall(node, (1, None), args=checkedArgs)
-			rawRequirement = checkedArgs[0]
+			self.validateSimpleCall(node, (1, None))
+			rawRequirement = node.args[0]
 
 			syntaxId = self._register_requirement_syntax(node)
 			syntaxIdConst = Constant(syntaxId)
