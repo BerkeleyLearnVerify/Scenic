@@ -1045,7 +1045,7 @@ class TokenTranslator:
 					if not op.contexts:
 						allowedInfixOps[opTokens] = op.tokens
 						continue
-					# if operator is start level only and it is start level, cannot be used
+					# if operator is start level only and it is not start level, cannot be used
 					if op.startLevelOnly and parenLevel != startLevel:
 						continue
 					# a set of contexts under which this operator is allowed
