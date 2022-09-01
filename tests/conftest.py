@@ -1,6 +1,9 @@
 
 import os.path
+import subprocess
+from pathlib import Path
 from contextlib import contextmanager
+
 import pytest
 
 ## Fixtures for use in tests
@@ -27,13 +30,31 @@ def runLocally(request):
             os.chdir(oldDirectory)
     return manager
 
-## Command-line option to skip very slow tests
 
 def pytest_addoption(parser):
+    # option to skip very slow tests
     parser.addoption('--fast', action='store_true', help='skip very slow tests')
+    # option to skip parser generation
+    parser.addoption('--skip-pegen', action='store_true', help='generate the parser before running tests')
+
+class ParserGenerationException(BaseException):
+    pass
 
 def pytest_configure(config):
     config.addinivalue_line('markers', 'slow: mark test as very slow')
+
+    if not config.getoption("skip_pegen"):
+        result = subprocess.run(
+            [
+                "make",
+                "--always-make",
+            ],
+            cwd=Path(__file__).parent.parent,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise ParserGenerationException(f"Failed to generate the parser: {result.stderr}")
 
 def pytest_collection_modifyitems(config, items):
     if config.getoption('--fast'):
