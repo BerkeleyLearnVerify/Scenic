@@ -39,6 +39,10 @@ class PendingRequirement:
         self.prob = prob
         self.name = name
 
+        # the translator wrapped the requirement in a lambda to prevent evaluation,
+        # so we need to save the current values of all referenced names; we save
+        # the ego object too since it can be referred to implicitly
+
         # condition is an instance of Proposition. Flatten to get a list of atomic propositions.
         nodes = condition.flatten()
         binding_list = []
