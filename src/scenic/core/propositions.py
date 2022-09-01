@@ -98,7 +98,7 @@ class Atomic(PropositionNode):
 		super().__init__(syntax_id, ap)
 		self.closure = closure
 	def __str__(self):
-		return f"(AP)"
+		return f"(AP syntax_id={self.syntax_id})" if self.syntax_id is not None else "(AP)"
 	def evaluate(self):
 		return self.closure()
 
