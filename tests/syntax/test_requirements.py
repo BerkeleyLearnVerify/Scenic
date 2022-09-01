@@ -87,7 +87,7 @@ def test_runtime_parse_error_in_requirement():
         sampleScene(scenario)
 
 def test_soft_requirement_with_temporal_operators():
-    "Temporal operators are not be allowed if prob != 1"
+    "Temporal operators are not allowed if prob != 1"
     with pytest.raises(RuntimeParseError):
         compileScenic("""
             ego = Object
