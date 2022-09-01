@@ -605,7 +605,7 @@ class TemporalInfixOp(typing.NamedTuple):
 			2,
 			((Name, "or"), (Name, f"_Scenic_infixop_{self.syntax}"), (Name, "or")),
 			None,
-			(requireStatement,),
+			frozenset({requireStatement,}),
 			False # temporal infix operators can be nested
 		)
 
@@ -620,7 +620,7 @@ class InfixOp(typing.NamedTuple):
 	arity: int
 	tokens: typing.Tuple[typing.Tuple[int, str]]
 	node: ast.AST
-	contexts: typing.Optional[typing.Tuple[str]] = ()
+	contexts: typing.Optional[typing.FrozenSet[str]] = ()
 	# True if the operator can only be used at top level
 	startLevelOnly: bool = True
 
@@ -636,10 +636,10 @@ infixOperators = (
 
 	# just syntactic conveniences, not really operators
 	InfixOp('from', None, 2, ((COMMA, ','),), None),
-	InfixOp('for', None, 2, ((COMMA, ','),), None, ('Follow', 'Following')),
+	InfixOp('for', None, 2, ((COMMA, ','),), None, frozenset({'Follow', 'Following'})),
 	InfixOp('to', None, 2, ((COMMA, ','),), None),
-	InfixOp('as', None, 2, ((COMMA, ','),), None, requirementStatements),
-	InfixOp('of', None, 2, ((COMMA, ','),), None, ('DistancePast',)),
+	InfixOp('as', None, 2, ((COMMA, ','),), None, frozenset(requirementStatements)),
+	InfixOp('of', None, 2, ((COMMA, ','),), None, frozenset({'DistancePast',})),
 	InfixOp('by', None, 2, (packageToken,), None)
 ) + tuple(op.toInfixOp() for op in temporalInfixOperators)
 
@@ -1049,8 +1049,7 @@ class TokenTranslator:
 					if op.startLevelOnly and parenLevel != startLevel:
 						continue
 					# a set of contexts under which this operator is allowed
-					allowedContexts = set(op.contexts)
-					if allowedContexts.intersection(contexts):
+					if op.contexts.intersection(contexts):
 						# this operator can be used in the current context
 						allowedInfixOps[opTokens] = op.tokens
 			else:
