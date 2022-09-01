@@ -2,9 +2,10 @@
 
 from functools import reduce
 import operator
-import rv_ltl
-from scenic.core.errors import InvalidScenarioError
 
+import rv_ltl
+
+from scenic.core.errors import InvalidScenarioError
 from scenic.core.lazy_eval import needsLazyEvaluation
 
 class PropositionMonitor:
