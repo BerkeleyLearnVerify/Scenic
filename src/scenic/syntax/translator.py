@@ -1041,7 +1041,7 @@ class TokenTranslator:
 				# all function calls on the stack
 				contexts = set(ctx for ctx, _ in functionStack)
 				for opTokens, op in infixTokens.items():
-					# if not context is specified, the operator can be used
+					# if no context is specified, the operator can be used
 					if not op.contexts:
 						allowedInfixOps[opTokens] = op.tokens
 						continue
