@@ -53,10 +53,9 @@ class PropositionNode:
 		if isinstance(node, Always):
 			node = node.req
 
-		eligible = True
-		for n in node.flatten():
-			# turns false if any one of the node is temporal
-			eligible = eligible and (not n.is_temporal)
+		# eligible if none of the nodes was temporal
+		eligible = all(not n.is_temporal for n in node.flatten())
+
 		return node.syntax_id if eligible else None
 	
 	@property
@@ -90,10 +89,7 @@ class PropositionNode:
 	@property
 	def has_temporal_operator(self):
 		node = self
-		has_temporal_op = False
-		for n in node.flatten():
-			# turns false if any one of the node is temporal
-			has_temporal_op = has_temporal_op or n.is_temporal
+		has_temporal_op = any(n.is_temporal for n in node.flatten())
 		return has_temporal_op
 
 class Atomic(PropositionNode):
