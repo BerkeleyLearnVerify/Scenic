@@ -2084,7 +2084,7 @@ invalid_legacy_expression:
 invalid_expression[NoReturn]:
     # !(NAME STRING) is not matched so we don't show this error with some invalid string prefixes like: kf"dsfsdf"
     # Soft keywords need to also be ignored because they can be parsed as NAME NAME
-    | !(NAME STRING | SOFT_KEYWORD) a=disjunction b=expression_without_invalid {
+    | !(NAME STRING | SOFT_KEYWORD) a=disjunction !SOFT_KEYWORD b=expression_without_invalid {
         (
             self.raise_syntax_error_known_range("invalid syntax. Perhaps you forgot a comma?", a, b)
             if not isinstance(a, ast.Name) or a.id not in ("print", "exec")
