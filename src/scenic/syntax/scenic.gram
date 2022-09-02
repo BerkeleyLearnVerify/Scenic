@@ -1799,8 +1799,8 @@ scenic_do_shuffle_stmt: 'do' "shuffle" e=(','.expression+) { s.DoShuffle(e, LOCA
 
 scenic_do_for_stmt: 'do' e=(','.expression+) 'for' u=scenic_dynamic_duration { s.DoFor(elts=e, duration=u, LOCATIONS) }
 scenic_dynamic_duration:
-    | v=expression 'seconds' { s.Seconds(v, LOCATIONS) }
-    | v=expression 'steps' { s.Steps(v, LOCATIONS) }
+    | v=expression "seconds" { s.Seconds(v, LOCATIONS) }
+    | v=expression "steps" { s.Steps(v, LOCATIONS) }
 
 scenic_do_until_stmt: 'do' e=(','.expression+) 'until' cond=expression { s.DoUntil(elts=e, cond=cond, LOCATIONS) }
 
