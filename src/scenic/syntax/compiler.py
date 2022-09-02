@@ -619,7 +619,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         newArgs = []
         wrappedStar = False
         for arg in node.args:
-            if isinstance(arg, ast.Starred):  # TODO(shun): check not in behavior?
+            if isinstance(arg, ast.Starred) and not self.inBehavior:
                 wrappedStar = True
                 checkedVal = ast.Call(
                     ast.Name("wrapStarredValue", ast.Load()),
