@@ -71,6 +71,7 @@ dev = [
 test = [	# minimum dependencies for running tests (used for tox virtualenvs)
 	"pytest-randomly",
 	"pytest",
+	"pegen",
 ]
 
 [tool.poetry.scripts]
