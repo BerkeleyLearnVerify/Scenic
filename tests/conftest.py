@@ -44,12 +44,22 @@ def pytest_configure(config):
     config.addinivalue_line('markers', 'slow: mark test as very slow')
 
     if not config.getoption("skip_pegen"):
+        projectRootDir = Path(__file__).parent.parent
+        syntaxDir = projectRootDir / "src" / "scenic" / "syntax"
+        grammar = syntaxDir / "scenic.gram"
+        parser = syntaxDir / "parser.py"
         result = subprocess.run(
             [
-                "make",
-                "--always-make",
+                "poetry",
+                "run",
+                "python",
+                "-m",
+                "pegen",
+                grammar,
+                "-o",
+                parser,
             ],
-            cwd=Path(__file__).parent.parent,
+            cwd=projectRootDir,
             capture_output=True,
             text=True,
         )
