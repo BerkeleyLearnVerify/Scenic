@@ -731,6 +731,24 @@ class TestDo:
             case _:
                 assert False
 
+    def test_do_choose(self):
+        mod = parse_string_helper("do choose foo, bar")
+        stmt = mod.body[0]
+        match stmt:
+            case DoChoose([Name("foo"), Name("bar")]):
+                assert True
+            case _:
+                assert False
+
+    def test_do_shuffle(self):
+        mod = parse_string_helper("do shuffle foo, bar")
+        stmt = mod.body[0]
+        match stmt:
+            case DoShuffle([Name("foo"), Name("bar")]):
+                assert True
+            case _:
+                assert False
+
 
 class TestParam:
     def test_basic(self):
