@@ -169,6 +169,17 @@ class TestTrackedNames:
                 assert False
 
 
+class TestInitialScenario:
+    def test_initial_scenario(self):
+        mod = parse_string_helper("initial scenario")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(InitialScenario()):
+                assert True
+            case _:
+                assert False
+
+
 class TestClass:
     def test_basic(self):
         mod = parse_string_helper(

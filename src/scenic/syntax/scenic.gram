@@ -1617,6 +1617,7 @@ slice:
      }
 
 atom:
+    | "initial" "scenario" { s.InitialScenario(LOCATIONS) }
     | a=NAME { ast.Name(id=a.string, ctx=Load, LOCATIONS) }
     | 'True' {
         ast.Constant(value=True, LOCATIONS)
