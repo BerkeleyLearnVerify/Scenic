@@ -1118,6 +1118,26 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_terminate_after_seconds(self):
+        node, _ = compileScenicAST(TerminateAfter(Seconds(Constant(10))))
+        match node:
+            case Expr(
+                Call(Name("terminate_after"), [Constant(10), Constant("seconds")], [])
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_terminate_after_steps(self):
+        node, _ = compileScenicAST(TerminateAfter(Steps(Constant(20))))
+        match node:
+            case Expr(
+                Call(Name("terminate_after"), [Constant(20), Constant("steps")], [])
+            ):
+                assert True
+            case _:
+                assert False
+
     # Instance & Specifiers
     def test_new_no_specifiers(self):
         node, _ = compileScenicAST(New("Object", []))
