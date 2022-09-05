@@ -185,7 +185,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         "Set of variable names on the local scope of the behavior"
 
         self.inCompose: bool = False
-        "True if the transformer is processing scenario"
+        "True if the transformer is processing a `compose` block of modular scenario"
 
         self.inTryInterrupt = False
         self.inInterruptBlock = False
