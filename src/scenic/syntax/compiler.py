@@ -501,8 +501,6 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         oldBL = self.behaviorLocals
         self.behaviorLocals = allLocals
 
-        guardCheckers = self.makeGuardCheckers(args, preconditions, invariants)
-
         # Construct compose block
         self.inCompose = self.inBehavior = True
         guardCheckers = self.makeGuardCheckers(args, preconditions, invariants)
