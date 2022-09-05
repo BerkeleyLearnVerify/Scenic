@@ -489,9 +489,6 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         # Get preconditions and invariants
         preconditions, invariants = self.separatePreconditionsAndInvariants(node.header)
 
-        setup = node.setup
-        compose = node.compose
-
         # Find all locals of the scenario, which will be shared amongst the various blocks
         allLocals = set()
         if node.compose:
@@ -505,7 +502,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         self.inCompose = self.inBehavior = True
         guardCheckers = self.makeGuardCheckers(args, preconditions, invariants)
         if node.compose or preconditions or invariants:
-            if compose:
+            if node.compose:
                 body = self.visit(node.compose)
             else:
                 # generate no-op compose block to ensure invariants are checked
@@ -519,7 +516,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         self.inCompose = self.inBehavior = False
 
         # Construct setup block
-        if setup:
+        if node.setup:
             setup = ast.FunctionDef("_setup", args, self.visit(node.setup), [], None)
         else:
             setup = ast.Assign([ast.Name("_setup", ast.Store())], ast.Constant(None))
@@ -527,12 +524,11 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         self.behaviorLocals = oldBL
 
         # Assemble scenario definition
-        name = node.name
         saveLocals = ast.Assign(
             [ast.Name("_locals", ast.Store())], ast.Constant(frozenset(allLocals))
         )
         body = guardCheckers + [saveLocals, setup, compose]
-        return ast.ClassDef(name, [ast.Name("DynamicScenario", loadCtx)], [], body, [])
+        return ast.ClassDef(node.name, [ast.Name("DynamicScenario", loadCtx)], [], body, [])
 
     def makeGuardCheckers(
         self,
