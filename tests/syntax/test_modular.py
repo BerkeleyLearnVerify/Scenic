@@ -85,7 +85,7 @@ def test_sequential_composition():
                 do Sub(5)
         scenario Sub(x):
             ego = new Object at x @ 0
-            terminate after 1
+            terminate after 1 seconds
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario, maxSteps=3)
     assert len(trajectory) == 3
@@ -105,7 +105,7 @@ def test_subscenario_for_steps():
                 do Sub(5)
         scenario Sub(x):
             ego = new Object at x @ 0
-            terminate after 3
+            terminate after 3 seconds
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario, maxSteps=3)
     assert len(trajectory) == 4
@@ -124,7 +124,7 @@ def test_subscenario_for_time():
                 do Sub(5)
         scenario Sub(x):
             ego = new Object at x @ 0
-            terminate after 3
+            terminate after 3 seconds
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario, maxSteps=3, timestep=0.5)
     assert len(trajectory) == 4
@@ -142,7 +142,7 @@ def test_subscenario_until():
                 do Sub(5)
         scenario Sub(x):
             ego = new Object at x @ 0
-            terminate after 3
+            terminate after 3 seconds
     """, scenario='Main')
     trajectory = sampleTrajectory(scenario, maxSteps=3)
     assert len(trajectory) == 4
@@ -169,7 +169,7 @@ def test_subscenario_require_eventually():
         scenario Sub():
             ego = new Object
             require eventually simulation().currentTime == 2
-            terminate after 1
+            terminate after 1 seconds
     """)
     result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
@@ -284,7 +284,7 @@ def test_shuffle_1():
             precondition: simulation().currentTime >= x
             setup:
                 ego = new Object at x @ 0
-                terminate after 1
+                terminate after 1 seconds
     """, scenario='Main')
     for i in range(30):
         trajectory = sampleTrajectory(scenario, maxSteps=3)
@@ -301,7 +301,7 @@ def test_shuffle_2():
                 do shuffle Sub(1), Sub(3)
         scenario Sub(x):
             ego = new Object at x @ 0
-            terminate after 1
+            terminate after 1 seconds
     """, scenario='Main')
     x1s = []
     for i in range(30):
@@ -326,7 +326,7 @@ def test_shuffle_3():
         scenario Sub(x):
             setup:
                 ego = new Object at x @ 0
-                terminate after 1
+                terminate after 1 seconds
     """, scenario='Main')
     xs = [sampleTrajectory(scenario, maxSteps=3)[2][0][0] for i in range(200)]
     assert all(x == 0 or x == 1 for x in xs)
@@ -341,7 +341,7 @@ def test_shuffle_deadlock():
             precondition: simulation().currentTime >= x
             setup:
                 ego = new Object at x @ 0
-                terminate after 1
+                terminate after 1 seconds
     """, scenario='Main')
     result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
@@ -360,7 +360,7 @@ def test_override():
         scenario Sub():
             setup:
                 override ego with foo 2
-                terminate after 1
+                terminate after 1 seconds
         behavior Bar():
             while True:
                 take self.foo
