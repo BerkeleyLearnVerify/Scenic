@@ -879,12 +879,18 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     @context(Context.DYNAMIC)
     def visit_Do(self, node: s.Do):
-        # TODO(shun): Check node has no more than one element inside behavior/monitors
+        if (self.inBehavior or self.inMonitor) and len(node.elts) > 1:
+            raise SyntaxError(
+                f"`do` can only take one action inside a {'behavior' if self.inBehavior else 'monitor'}"
+            )
         return self.makeDoLike(node, node.elts)
 
     @context(Context.DYNAMIC)
     def visit_DoFor(self, node: s.DoFor):
-        # TODO(shun): Check node has no more than one element inside behavior/monitors
+        if (self.inBehavior or self.inMonitor) and len(node.elts) > 1:
+            raise SyntaxError(
+                f"`do` can only take one action inside a {'behavior' if self.inBehavior else 'monitor'}"
+            )
         return self.makeDoLike(
             node,
             node.elts,
@@ -901,7 +907,10 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     @context(Context.DYNAMIC)
     def visit_DoUntil(self, node: s.DoUntil):
-        # TODO(shun): Check node has no more than one element inside behavior/monitors
+        if (self.inBehavior or self.inMonitor) and len(node.elts) > 1:
+            raise SyntaxError(
+                f"`do` can only take one action inside a {'behavior' if self.inBehavior else 'monitor'}"
+            )
         return self.makeDoLike(
             node,
             node.elts,
