@@ -795,7 +795,6 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     @context(Context.TOP_LEVEL)
     def visit_Model(self, node: s.Model):
-        # TODO(shun): Assert not in setup
         return ast.Expr(
             value=ast.Call(
                 func=ast.Name(id="model", ctx=loadCtx),
