@@ -1,6 +1,6 @@
 import ast
 import itertools
-from typing import Optional, Tuple, List, Union
+from typing import Literal, Optional, Tuple, List, Union
 
 import scenic.syntax.ast as s
 
@@ -180,6 +180,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
         self.inBehavior: bool = False
         "True if the transformer is processing behavior body"
+
+        self.inMonitor: bool = False
+        "True if the transformer is processing monitor body"
 
         self.behaviorLocals: set = set()
         "Set of variable names on the local scope of the behavior"
@@ -510,7 +513,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         self.behaviorLocals = allLocals
 
         # Construct compose block
-        self.inCompose = self.inBehavior = True
+        self.inCompose = True
         guardCheckers = self.makeGuardCheckers(args, preconditions, invariants)
         if node.compose or preconditions or invariants:
             if node.compose:
@@ -524,7 +527,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             compose = ast.Assign(
                 [ast.Name("_compose", ast.Store())], ast.Constant(None)
             )
-        self.inCompose = self.inBehavior = False
+        self.inCompose = False
 
         # Construct setup block
         if node.setup:
@@ -539,7 +542,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             [ast.Name("_locals", ast.Store())], ast.Constant(frozenset(allLocals))
         )
         body = guardCheckers + [saveLocals, setup, compose]
-        return ast.ClassDef(node.name, [ast.Name("DynamicScenario", loadCtx)], [], body, [])
+        return ast.ClassDef(
+            node.name, [ast.Name("DynamicScenario", loadCtx)], [], body, []
+        )
 
     def makeGuardCheckers(
         self,
@@ -621,13 +626,20 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     def makeBehaviorLikeDef(
         self,
-        baseClassName: str,
+        baseClassName: Literal["Behavior", "Monitor"],
         name: str,
         args: Optional[ast.arguments],
         docstring: Optional[str],
         header: list[Union[s.Precondition, s.Invariant]],
         body: list[ast.AST],
     ):
+        if baseClassName == "Behavior":
+            ctxFlag = "inBehavior"
+        elif baseClassName == "Monitor":
+            ctxFlag = "inMonitor"
+        else:
+            assert False, f'Unexpected base class name "{baseClassName}"'
+
         # --- Extract preconditions and invariants ---
         preconditions, invariants = self.separatePreconditionsAndInvariants(header)
 
@@ -650,7 +662,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         newArgs.posonlyargs = initialBehaviorArgs + newArgs.posonlyargs
 
         # --- Process body ---
-        self.inBehavior = True
+        setattr(self, ctxFlag, True)
         oldBehaviorLocals = self.behaviorLocals
 
         self.behaviorLocals = allLocals = LocalFinder.findIn(body)
@@ -687,7 +699,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             name, [ast.Name(baseClassName, loadCtx)], [], classBody, []
         )
 
-        self.inBehavior = False
+        setattr(self, ctxFlag, False)
         self.behaviorLocals = oldBehaviorLocals
 
         return classDefinition
