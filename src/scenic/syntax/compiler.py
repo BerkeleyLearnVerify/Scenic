@@ -1,8 +1,6 @@
 import ast
 from enum import IntFlag, auto
-from functools import reduce
 import itertools
-import operator
 from typing import Callable, Literal, Optional, Tuple, List, Union
 
 import scenic.syntax.ast as s
