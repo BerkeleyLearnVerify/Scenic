@@ -1,6 +1,9 @@
 import ast
+from enum import IntFlag, auto
+from functools import reduce
 import itertools
-from typing import Literal, Optional, Tuple, List, Union
+import operator
+from typing import Callable, Literal, Optional, Tuple, List, Union
 
 import scenic.syntax.ast as s
 
@@ -9,9 +12,21 @@ import scenic.syntax.ast as s
 
 def compileScenicAST(
     scenicAST: ast.AST,
+    *,
+    inBehavior: bool = False,
+    inMonitor: bool = False,
+    inCompose: bool = False,
+    inTryInterrupt: bool = False,
 ) -> Tuple[Union[ast.AST, list[ast.AST]], List[ast.AST]]:
     """Compiles Scenic AST to Python AST"""
     compiler = ScenicToPythonTransformer()
+
+    # set optional flags
+    compiler.inBehavior = inBehavior
+    compiler.inMonitor = inMonitor
+    compiler.inCompose = inCompose
+    compiler.inTryInterrupt = inTryInterrupt
+
     tree = compiler.visit(scenicAST)
     if isinstance(tree, list):
         node = [ast.fix_missing_locations(n) for n in tree]
@@ -173,6 +188,15 @@ def unquote(s: str) -> str:
 # transformer
 
 
+class Context(IntFlag):
+    TOP_LEVEL = auto()
+    BEHAVIOR = auto()
+    MONITOR = auto()
+    COMPOSE = auto()
+    TRY_INTERRUPT = auto()
+    DYNAMIC = BEHAVIOR | MONITOR | COMPOSE
+
+
 class ScenicToPythonTransformer(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
@@ -195,6 +219,46 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         self.inLoop = False
         self.usedBreak = False
         self.usedContinue = False
+
+    @property
+    def topLevel(self):
+        return (
+            not self.inBehavior
+            and not self.inMonitor
+            and not self.inCompose
+            and not self.inTryInterrupt
+        )
+
+    def context(
+        allowedContext: Context,
+        errorBuilder: Optional[Callable[[str], str]] = None,
+    ):
+        "Mark AST node as only available inside certain contexts"
+
+        def decorator(
+            visitor: Callable[["ScenicToPythonTransformer", ast.AST], ast.AST]
+        ):
+            def check_and_visit(self: "ScenicToPythonTransformer", node: ast.AST):
+                ctx = None
+                if self.topLevel and Context.TOP_LEVEL not in allowedContext:
+                    ctx = "at the top level"
+                elif self.inBehavior and Context.BEHAVIOR not in allowedContext:
+                    ctx = "inside a behavior"
+                elif self.inMonitor and Context.MONITOR not in allowedContext:
+                    ctx = "inside a monitor"
+                elif self.inCompose and Context.COMPOSE not in allowedContext:
+                    ctx = "inside a compose block"
+                if ctx:
+                    raise SyntaxError(
+                        f'Cannot use "{node.__class__.__name__}" {ctx}'
+                        if errorBuilder is None
+                        else errorBuilder(ctx)
+                    )
+                return visitor(self, node)
+
+            return check_and_visit
+
+        return decorator
 
     def generic_visit(self, node):
         if isinstance(node, s.AST):
@@ -293,6 +357,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     # Special Case
 
+    @context(
+        Context.BEHAVIOR | Context.MONITOR | Context.COMPOSE | Context.TRY_INTERRUPT
+    )
     def visit_TryInterrupt(self, node: s.TryInterrupt):
         statements = []
         oldInTryInterrupt = self.inTryInterrupt
@@ -461,9 +528,8 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     def visit_PropertyDef(self, _: s.PropertyDef) -> any:
         assert False, "PropertyDef should be handled in `visit_ClassDef`"
 
+    @context(Context.TOP_LEVEL)
     def visit_BehaviorDef(self, node: s.BehaviorDef):
-        # TODO(shun): assert not in behavior or compose
-
         return self.makeBehaviorLikeDef(
             baseClassName="Behavior",
             name=node.name,
@@ -473,9 +539,8 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             body=node.body,
         )
 
+    @context(Context.TOP_LEVEL)
     def visit_MonitorDef(self, node: s.MonitorDef):
-        # TODO(shun): assert not in behavior or compose
-
         return self.makeBehaviorLikeDef(
             baseClassName="Monitor",
             name=node.name,
@@ -493,9 +558,8 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             body=node.body,
         )
 
+    @context(Context.TOP_LEVEL)
     def visit_ScenarioDef(self, node: s.ScenarioDef):
-        # TODO(shun): assert not in behavior or compose
-
         # Set up arguments for setup and compose blocks
         args: ast.arguments = self.visit(node.args)
         args.posonlyargs = initialBehaviorArgs + args.posonlyargs
@@ -731,7 +795,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         newNode = ast.copy_location(newNode, node)
         return newNode
 
+    @context(Context.TOP_LEVEL)
     def visit_Model(self, node: s.Model):
+        # TODO(shun): Assert not in setup
         return ast.Expr(
             value=ast.Call(
                 func=ast.Name(id="model", ctx=loadCtx),
@@ -743,6 +809,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             )
         )
 
+    @context(Context.TOP_LEVEL)
     def visit_Mutate(self, node: s.Mutate):
         return ast.Expr(
             value=ast.Call(
@@ -754,6 +821,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             )
         )
 
+    @context(Context.TOP_LEVEL)
     def visit_Param(self, node: s.Param):
         d = dict()
         for parameter in node.elts:
@@ -789,29 +857,35 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             )
         )
 
+    @context(Context.TRY_INTERRUPT)
     def visit_Abort(self, node: s.Abort):
         return ast.copy_location(
             ast.Return(abortFlag),
             node,
         )
 
+    @context(Context.BEHAVIOR)
     def visit_Take(self, node: s.Take):
         action = ast.Tuple(self.visit(node.elts), loadCtx)
         return self.generateInvocation(node, ast.copy_location(action, node))
 
+    @context(Context.DYNAMIC)
     def visit_Wait(self, node: s.Wait):
         return self.generateInvocation(node, ast.Constant(()))
 
+    @context(Context.DYNAMIC)
     def visit_Terminate(self, node: s.Terminate):
         termination = ast.Call(
             ast.Name("makeTerminationAction", loadCtx), [ast.Constant(node.lineno)], []
         )
         return self.generateInvocation(node, termination)
 
+    @context(Context.DYNAMIC)
     def visit_Do(self, node: s.Do):
         # TODO(shun): Check node has no more than one element inside behavior/monitors
         return self.makeDoLike(node, node.elts)
 
+    @context(Context.DYNAMIC)
     def visit_DoFor(self, node: s.DoFor):
         # TODO(shun): Check node has no more than one element inside behavior/monitors
         return self.makeDoLike(
@@ -828,6 +902,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             ),
         )
 
+    @context(Context.DYNAMIC)
     def visit_DoUntil(self, node: s.DoUntil):
         # TODO(shun): Check node has no more than one element inside behavior/monitors
         return self.makeDoLike(
@@ -893,38 +968,45 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         subRunner = ast.Call(subHandler, subArgs, keywords)
         return self.generateInvocation(node, subRunner, ast.YieldFrom)
 
+    @context(Context.TOP_LEVEL)
     def visit_RequireAlways(self, node: s.RequireAlways):
         condition = self.visit(node.cond)
         return self.createRequirementLike(
             "require_always", condition, node.lineno, node.name
         )
 
+    @context(Context.TOP_LEVEL)
     def visit_RequireEventually(self, node: s.RequireEventually):
         condition = self.visit(node.cond)
         return self.createRequirementLike(
             "require_eventually", condition, node.lineno, node.name
         )
 
+    @context(Context.TOP_LEVEL)
     def visit_Record(self, node: s.Record):
         value = self.visit(node.value)
         return self.createRequirementLike("record", value, node.lineno, node.name)
 
+    @context(Context.TOP_LEVEL)
     def visit_RecordInitial(self, node: s.RecordInitial):
         value = self.visit(node.value)
         return self.createRequirementLike(
             "record_initial", value, node.lineno, node.name
         )
 
+    @context(Context.TOP_LEVEL)
     def visit_RecordFinal(self, node: s.RecordFinal):
         value = self.visit(node.value)
         return self.createRequirementLike("record_final", value, node.lineno, node.name)
 
+    @context(Context.TOP_LEVEL)
     def visit_TerminateWhen(self, node: s.TerminateWhen):
         condition = self.visit(node.cond)
         return self.createRequirementLike(
             "terminate_when", condition, node.lineno, None
         )
 
+    @context(Context.TOP_LEVEL)
     def visit_TerminateSimulationWhen(self, node: s.TerminateSimulationWhen):
         condition = self.visit(node.cond)
         return self.createRequirementLike(
