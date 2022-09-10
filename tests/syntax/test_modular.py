@@ -153,17 +153,25 @@ def test_subscenario_until():
     assert tuple(trajectory[3][1]) == (5, 0)
 
 def test_subscenario_require_eventually():
-    """Test that 'require eventually' must be satisfied before the scenario ends."""
+    """Test that 'require eventually' must be satisfied before the scenario ends.
+
+    Sub() will end at time step 1, while Main() continues to time step 2.
+    The 'require eventually' in Sub() needs to be satisfied no later than time
+    step 1, but it won't be, so the simulation should be rejected. If the requirement
+    is wrongly checked over the whole scenario (rather than just during Sub),
+    then it will evaluate to true and the assertion will fail.
+    """
     scenario = compileScenic("""
         scenario Main():
             compose:
                 do Sub()
+                wait
         scenario Sub():
             ego = Object
             require eventually simulation().currentTime == 2
             terminate after 1
     """)
-    result = sampleResultOnce(scenario)
+    result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
 
 def test_initial_scenario_basic():
