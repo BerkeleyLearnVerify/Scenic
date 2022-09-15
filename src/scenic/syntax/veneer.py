@@ -438,6 +438,8 @@ def makeRequirement(ty, reqID, req, line, name):
 		raise RuntimeParseError(f'tried to use "{ty.value}" inside a requirement')
 	elif currentBehavior is not None:
 		raise RuntimeParseError(f'"{ty.value}" inside a behavior on line {line}')
+	elif currentSimulation is not None:
+		currentScenario._addDynamicRequirement(ty, req, line, name)
 	else:	# requirement being defined at compile time
 		currentScenario._addRequirement(ty, reqID, req, line, name, 1)
 
