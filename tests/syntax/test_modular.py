@@ -166,6 +166,21 @@ def test_subscenario_require_eventually():
     result = sampleResultOnce(scenario)
     assert result is None
 
+def test_subscenario_terminate_when():
+    """Test that 'terminate when' and 'require' are properly handled."""
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub()
+                wait
+        scenario Sub():
+            ego = Object
+            require eventually simulation().currentTime == 2
+            terminate when simulation().currentTime == 1
+    """)
+    result = sampleResultOnce(scenario, maxSteps=2)
+    assert result is None
+
 def test_initial_scenario_basic():
     scenario = compileScenic("""
         scenario Main():
