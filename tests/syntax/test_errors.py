@@ -307,7 +307,6 @@ def runFile(path):
 
 @pytest.mark.parametrize('bug', (
     # BUGGY CODE                    ERROR CAUGHT DURING:
-    'x = 3 << 2',                   # token translation
     '4 = 2',                        # Python parsing
     '3 relative to',                # Python parsing
     'new Point at x y',                 # Python parsing (with offset past end of original line)
