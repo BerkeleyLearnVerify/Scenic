@@ -487,7 +487,6 @@ class DynamicScenario(Invocable):
 
     def _addDynamicRequirement(self, ty, req, line, name):
         """Add a requirement defined during a dynamic simulation."""
-        assert ty is RequirementType.require
         dreq = DynamicRequirement(ty, req, line, name)
         self._temporalRequirements.append(dreq)
 
