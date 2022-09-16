@@ -174,7 +174,7 @@ def test_operator_lazy():
     assert any(h == pytest.approx(1) for h in hs)
 
 def test_callable():
-    scenario = compileScenic('ego = Object at 0 @ Uniform(sin, cos)(0)')
+    scenario = compileScenic('ego = new Object at 0 @ Uniform(sin, cos)(0)')
     ys = [sampleEgo(scenario).position.y for i in range(60)]
     assert all(y == 0 or y == 1 for y in ys)
     assert any(y == 0 for y in ys)
@@ -274,11 +274,11 @@ def test_tuple():
 
 def test_tuple_iteration():
     ego = sampleEgoFrom("""
-        other = Object with foo (1, Uniform(2, 3))
+        other = new Object with foo (1, Uniform(2, 3))
         data = [len(other.foo), other.foo[1], other.foo[0]]
         for item in other.foo:
             data.append(item)
-        ego = Object at 2@2, with foo data
+        ego = new Object at 2@2, with foo data
         require other.foo[1] == 3
     """, maxIterations=60)
     assert type(ego.foo) is list
@@ -309,11 +309,11 @@ def test_namedtuple():
 
 def test_comparison():
     with pytest.raises(RuntimeParseError):
-        compileScenic('ego = Object with foo (Range(0, 1) > 0.5)')
+        compileScenic('ego = new Object with foo (Range(0, 1) > 0.5)')
 
 def test_len():
     with pytest.raises(RuntimeParseError):
-        compileScenic('ego = Object with foo len(Uniform([0], [1, 2]))')
+        compileScenic('ego = new Object with foo len(Uniform([0], [1, 2]))')
 
 def test_iter():
     with pytest.raises(RuntimeParseError):
