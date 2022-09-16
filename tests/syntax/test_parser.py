@@ -524,6 +524,144 @@ class TestMonitorDef:
                 assert False
 
 
+class TestScenarioDef:
+    def test_basic(self):
+        mod = parse_string_helper(
+            """
+            scenario A:
+                precondition: P
+                invariant: I
+                setup:
+                    foo()
+                compose:
+                    bar()
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ScenarioDef(
+                "A",
+                arguments(),
+                None,
+                [Precondition(Name("P")), Invariant(Name("I"))],
+                [Expr(Call(Name("foo")))],
+                [Expr(Call(Name("bar")))],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_args(self):
+        mod = parse_string_helper(
+            """
+            scenario A(x, y = "hello"):
+                setup:
+                    foo()
+                compose:
+                    bar()
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ScenarioDef(
+                "A",
+                arguments(args=[arg("x"), arg("y")], defaults=[Constant("hello")]),
+                None,
+                [],
+                [Expr(Call(Name("foo")))],
+                [Expr(Call(Name("bar")))],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_setup_only(self):
+        mod = parse_string_helper(
+            """
+            scenario A:
+                setup:
+                    pass
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ScenarioDef("A", arguments(), None, [], [Pass()], []):
+                assert True
+            case _:
+                assert False
+
+    def test_setup_only_implicit(self):
+        mod = parse_string_helper(
+            """
+            scenario A:
+                pass
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ScenarioDef("A", arguments(), None, [], [Pass()], []):
+                assert True
+            case _:
+                assert False
+
+    def test_setup_only_implicit_docstring(self):
+        mod = parse_string_helper(
+            """
+            scenario A:
+                '''DOCSTRING'''
+                pass
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ScenarioDef("A", arguments(), "'''DOCSTRING'''", [], [Pass()], []):
+                assert True
+            case _:
+                assert False
+
+    def test_compose_only(self):
+        mod = parse_string_helper(
+            """
+            scenario A:
+                compose:
+                    pass
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ScenarioDef("A", arguments(), None, [], [], [Pass()]):
+                assert True
+            case _:
+                assert False
+
+    def test_docstring(self):
+        mod = parse_string_helper(
+            """
+            scenario A:
+                'DOCSTRING'
+                precondition: P
+                invariant: I
+                setup:
+                    foo()
+                compose:
+                    bar()
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ScenarioDef(
+                "A",
+                arguments(),
+                "'DOCSTRING'",
+                [Precondition(Name("P")), Invariant(Name("I"))],
+                [Expr(Call(Name("foo")))],
+                [Expr(Call(Name("bar")))],
+            ):
+                assert True
+            case _:
+                assert False
+
+
 class TestModel:
     def test_basic(self):
         mod = parse_string_helper("model some_model")
