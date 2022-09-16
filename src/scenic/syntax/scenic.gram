@@ -1826,8 +1826,8 @@ scenic_do_shuffle_stmt: 'do' "shuffle" e=(','.expression+) { s.DoShuffle(e, LOCA
 
 scenic_do_for_stmt: 'do' e=(','.expression+) 'for' u=scenic_dynamic_duration { s.DoFor(elts=e, duration=u, LOCATIONS) }
 scenic_dynamic_duration:
-    | v=expression 'seconds' { s.Seconds(v, LOCATIONS) }
-    | v=expression 'steps' { s.Steps(v, LOCATIONS) }
+    | v=expression "seconds" { s.Seconds(v, LOCATIONS) }
+    | v=expression "steps" { s.Steps(v, LOCATIONS) }
 
 scenic_do_until_stmt: 'do' e=(','.expression+) 'until' cond=expression { s.DoUntil(elts=e, cond=cond, LOCATIONS) }
 
@@ -2111,7 +2111,8 @@ invalid_legacy_expression:
 invalid_expression[NoReturn]:
     # !(NAME STRING) is not matched so we don't show this error with some invalid string prefixes like: kf"dsfsdf"
     # Soft keywords need to also be ignored because they can be parsed as NAME NAME
-    | !(NAME STRING | SOFT_KEYWORD) a=disjunction b=expression_without_invalid {
+    # Soft keywords can follow a disjunction to support expressions like `3 steps`
+    | !(NAME STRING | SOFT_KEYWORD) a=disjunction !SOFT_KEYWORD b=expression_without_invalid {
         (
             self.raise_syntax_error_known_range("invalid syntax. Perhaps you forgot a comma?", a, b)
             if not isinstance(a, ast.Name) or a.id not in ("print", "exec")
