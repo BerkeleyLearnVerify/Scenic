@@ -747,6 +747,76 @@ class TestMutate:
                 assert False
 
 
+class TestOverride:
+    def test_basic(self):
+        mod = parse_string_helper("override obj with foo 1")
+        stmt = mod.body[0]
+        match stmt:
+            case Override(Name("obj"), [WithSpecifier("foo", Constant(1))]):
+                assert True
+            case _:
+                assert False
+
+    def test_multiline(self):
+        mod = parse_string_helper(
+            """
+            override obj with foo 1,
+                with bar 2, with baz 3
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case Override(
+                Name("obj"),
+                [
+                    WithSpecifier("foo", Constant(1)),
+                    WithSpecifier("bar", Constant(2)),
+                    WithSpecifier("baz", Constant(3)),
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_multiline_trailing_comma(self):
+        mod = parse_string_helper(
+            """
+            override obj with foo 1,
+                with bar 2,
+                with baz 3,
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case Override(
+                Name("obj"),
+                [
+                    WithSpecifier("foo", Constant(1)),
+                    WithSpecifier("bar", Constant(2)),
+                    WithSpecifier("baz", Constant(3)),
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_no_specifiers(self):
+        with pytest.raises(SyntaxError):
+            parse_string_helper("override obj")
+
+    def test_expression_target(self):
+        # certain simple expressions (attributes, subscript, etc.) are supported for override targets
+        mod = parse_string_helper("override foo.bar with behavior baz")
+        stmt = mod.body[0]
+        match stmt:
+            case Override(
+                Attribute(Name("foo"), "bar"), [WithSpecifier("behavior", Name("baz"))]
+            ):
+                assert True
+            case _:
+                assert False
+
+
 class TestAbort:
     def test_basic(self):
         mod = parse_string_helper("abort")

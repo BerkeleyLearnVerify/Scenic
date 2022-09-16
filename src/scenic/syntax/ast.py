@@ -341,6 +341,18 @@ class Mutate(AST):
         self._fields = ["elts", "scale"]
 
 
+class Override(AST):
+    __match_args__ = ("target", "specifiers")
+
+    def __init__(
+        self, target: ast.AST, specifiers: list[ast.AST], *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.target = target
+        self.specifiers = specifiers
+        self._fields = ["target", "specifiers"]
+
+
 class Abort(AST):
     pass
 
