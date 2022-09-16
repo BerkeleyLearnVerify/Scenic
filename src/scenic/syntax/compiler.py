@@ -766,6 +766,16 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             "require", condition, node.lineno, node.name, node.prob
         )
 
+    def visit_Override(self, node: s.Override):
+        return ast.Expr(
+            value=ast.Call(
+                func=ast.Name(id="override", ctx=loadCtx),
+                args=[self.visit(node.target)]
+                + [self.visit(s) for s in node.specifiers],
+                keywords=[],
+            )
+        )
+
     def visit_Abort(self, node: s.Abort):
         return ast.copy_location(
             ast.Return(abortFlag),
