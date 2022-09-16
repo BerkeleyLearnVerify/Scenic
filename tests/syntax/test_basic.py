@@ -82,7 +82,7 @@ def test_mutate():
 
 def test_mutate_object():
     scenario = compileScenic("""
-        ego = new Object at 3@1, facing 0
+        ego = new Object at 30@1, facing 0
         other = new Object
         mutate other
     """)
