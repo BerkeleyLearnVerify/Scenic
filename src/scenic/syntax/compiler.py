@@ -354,7 +354,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     # Special Case
 
-    @context(Context.BEHAVIOR | Context.MONITOR | Context.COMPOSE)
+    @context(Context.DYNAMIC)
     def visit_TryInterrupt(self, node: s.TryInterrupt):
         statements = []
         oldInTryInterrupt = self.inTryInterrupt
