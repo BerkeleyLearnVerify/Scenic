@@ -14,7 +14,7 @@ def compileScenicAST(
     inBehavior: bool = False,
     inMonitor: bool = False,
     inCompose: bool = False,
-    inTryInterrupt: bool = False,
+    inInterruptBlock: bool = False,
 ) -> Tuple[Union[ast.AST, list[ast.AST]], List[ast.AST]]:
     """Compiles Scenic AST to Python AST"""
     compiler = ScenicToPythonTransformer()
@@ -23,7 +23,7 @@ def compileScenicAST(
     compiler.inBehavior = inBehavior
     compiler.inMonitor = inMonitor
     compiler.inCompose = inCompose
-    compiler.inTryInterrupt = inTryInterrupt
+    compiler.inInterruptBlock = inInterruptBlock
 
     tree = compiler.visit(scenicAST)
     if isinstance(tree, list):
@@ -191,7 +191,6 @@ class Context(IntFlag):
     BEHAVIOR = auto()
     MONITOR = auto()
     COMPOSE = auto()
-    TRY_INTERRUPT = auto()
     DYNAMIC = BEHAVIOR | MONITOR | COMPOSE
 
 
@@ -355,9 +354,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     # Special Case
 
-    @context(
-        Context.BEHAVIOR | Context.MONITOR | Context.COMPOSE | Context.TRY_INTERRUPT
-    )
+    @context(Context.BEHAVIOR | Context.MONITOR | Context.COMPOSE)
     def visit_TryInterrupt(self, node: s.TryInterrupt):
         statements = []
         oldInTryInterrupt = self.inTryInterrupt
@@ -854,8 +851,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             )
         )
 
-    @context(Context.TRY_INTERRUPT)
     def visit_Abort(self, node: s.Abort):
+        if not self.inInterruptBlock:
+            raise SyntaxError("`abort` can only be used inside an interrupt block")
         return ast.copy_location(
             ast.Return(abortFlag),
             node,
