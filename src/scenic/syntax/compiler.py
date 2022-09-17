@@ -14,6 +14,7 @@ def compileScenicAST(
     inBehavior: bool = False,
     inMonitor: bool = False,
     inCompose: bool = False,
+    inSetup: bool = False,
     inInterruptBlock: bool = False,
 ) -> Tuple[Union[ast.AST, list[ast.AST]], List[ast.AST]]:
     """Compiles Scenic AST to Python AST"""
@@ -23,6 +24,7 @@ def compileScenicAST(
     compiler.inBehavior = inBehavior
     compiler.inMonitor = inMonitor
     compiler.inCompose = inCompose
+    compiler.inSetup = inSetup
     compiler.inInterruptBlock = inInterruptBlock
 
     tree = compiler.visit(scenicAST)
@@ -589,10 +591,12 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         self.inCompose = False
 
         # Construct setup block
+        self.inSetup = True
         if node.setup:
             setup = ast.FunctionDef("_setup", args, self.visit(node.setup), [], None)
         else:
             setup = ast.Assign([ast.Name("_setup", ast.Store())], ast.Constant(None))
+        self.inSetup = False
 
         self.behaviorLocals = oldBL
 
@@ -792,6 +796,8 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     @context(Context.TOP_LEVEL)
     def visit_Model(self, node: s.Model):
+        if self.inSetup:
+            raise SyntaxError('Cannot use "model" inside a setup block')
         return ast.Expr(
             value=ast.Call(
                 func=ast.Name(id="model", ctx=loadCtx),
