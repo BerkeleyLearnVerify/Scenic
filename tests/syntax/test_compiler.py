@@ -380,6 +380,10 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_model_in_setup(self):
+        with pytest.raises(SyntaxError):
+            compileScenicAST(Model("model"), inSetup=True)
+
     def test_mutate_basic(self):
         node, _ = compileScenicAST(Mutate([Name("x", Load())]))
         match node:
