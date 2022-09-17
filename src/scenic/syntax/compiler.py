@@ -227,6 +227,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         if node.id in builtinNames:
             if not isinstance(node.ctx, ast.Load):
                 raise SyntaxError(f'unexpected keyword "f{node.id}"')
+            node = ast.copy_location(ast.Call(ast.Name(node.id, loadCtx), [], []), node)
         elif node.id in trackedNames:
             if not isinstance(node.ctx, ast.Load):
                 raise SyntaxError(f'only simple assignments to "{node.id}" are allowed')
