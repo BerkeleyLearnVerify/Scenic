@@ -756,12 +756,16 @@ class TestCompiler:
                 assert False
 
     def test_abort(self):
-        node, _ = compileScenicAST(Abort(), inTryInterrupt=True)
+        node, _ = compileScenicAST(Abort(), inInterruptBlock=True)
         match node:
             case Return(Attribute(Name("BlockConclusion"), "ABORT")):
                 assert True
             case _:
                 assert False
+
+    def test_abort_outside_interrupt(self):
+        with pytest.raises(SyntaxError):
+            compileScenicAST(Abort(), inInterruptBlock=False)
 
     def test_take(self):
         node, _ = compileScenicAST(
