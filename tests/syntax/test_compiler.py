@@ -159,9 +159,17 @@ class TestCompiler:
             case _:
                 assert False
 
-    def test_builtin_name(self):
+    def test_builtin_name_assign(self):
         with pytest.raises(SyntaxError):
             compileScenicAST(Assign([Name("globalParameters", Store())], Constant(1)))
+
+    def test_builtin_name_reference(self):
+        node, _ = compileScenicAST(Name("globalParameters", Load()))
+        match node:
+            case Call(Name("globalParameters")):
+                assert True
+            case _:
+                assert False
 
     def test_tracked_name_assign(self):
         # simple assign will be converted to `TrackedAssign` by the parser,
