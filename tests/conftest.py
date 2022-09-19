@@ -50,8 +50,6 @@ def pytest_configure(config):
         parser = syntaxDir / "parser.py"
         result = subprocess.run(
             [
-                "poetry",
-                "run",
                 "python",
                 "-m",
                 "pegen",
