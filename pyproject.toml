@@ -1,82 +1,76 @@
-[tool.poetry]
+[project]
 name = "scenic"
 version = "2.1.0b4"
 description = "The Scenic scenario description language."
 authors = [
-	"Daniel Fremont <dfremont@ucsc.edu>",
-	"Edward Kim",
-	"Tommaso Dreossi",
-	"Shromona Ghosh",
-	"Xiangyu Yue",
-	"Alberto L. Sangiovanni-Vincentelli",
-	"Sanjit A. Seshia"
+	{ name = "Daniel Fremont", email = "dfremont@ucsc.edu" },
+	{ name = "Edward Kim" },
+	{ name = "Tommaso Dreossi" },
+	{ name = "Shromona Ghosh" },
+	{ name = "Xiangyu Yue" },
+	{ name = "Alberto L. Sangiovanni-Vincentelli" },
+	{ name = "Sanjit A. Seshia" },
 ]
-maintainers = ["Daniel Fremont <dfremont@ucsc.edu>"]
+maintainers = [
+	{ name = "Daniel Fremont", email = "dfremont@ucsc.edu" },
+]
 readme = "README.md"
-license = "BSD-3-Clause"
-repository = "https://github.com/BerkeleyLearnVerify/Scenic"
-documentation = "https://scenic-lang.readthedocs.io"
+requires-python = ">=3.7"
+license = { file = "LICENSE" }
 classifiers = [
-	'Operating System :: OS Independent',
-	'Development Status :: 5 - Production/Stable',
+	"Operating System :: OS Independent",
+	"Development Status :: 5 - Production/Stable",
+	"License :: OSI Approved :: BSD License",
+	"Programming Language :: Python :: 3",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.7, <3.11"
-dotmap = "^1.3.13"
-shapely = "^1.7.0"
-mapbox_earcut = "^0.12.10"
-matplotlib = "^3.2.1"
-scipy = "^1.6.0"
-antlr4-python3-runtime = "~4.8"
-opencv-python = "^4.5.4"
-numpy = "^1.21.3"
-pillow = "^9.1.1"
-pynverse = "^0.1.4"
-pygame = "^2.0.1"
-attrs = ">=19.3.0"
-decorator = "^5.0.9"
-importlib_metadata = { version = ">=3.7,<5", python = "~3.7" }
-
-pyproj = [
-	{version = "^3.0.0", python = "<3.10", optional = true},
-	{version = "^3.3.0", python = "^3.10", optional = true}
+dependencies = [
+	"dotmap ~= 1.3",
+	"shapely ~= 1.7",
+	"mapbox_earcut >= 0.12.10",
+	"matplotlib ~= 3.2",
+	"scipy ~= 1.6",
+	"antlr4-python3-runtime ~= 4.8.0",
+	"opencv-python ~= 4.5",
+	"numpy ~= 1.21",
+	"pillow ~= 9.1",
+	"pynverse >= 0.1.4",
+	"pygame ~= 2.0",
+	"attrs >= 19.3.0",
+	"decorator ~= 5.0",
+	'importlib_metadata >= 3.7, <5; python_version < "3.8"',
 ]
 
-pytest-randomly = {version = "^3.2.1", optional = true}
-pytest-cov = {version = ">=3.0.0", optional = true}
-pytest = {version = "^6.0.0", optional = true}
-sphinx = {version = ">=4.1.0, <6", optional = true}
-tox = {version = "^3.14.0", optional = true}
-sphinx_rtd_theme = {version = "^0.5.2", optional = true}
-astor = {version = "^0.8.1", optional = true}
-inflect = {version = "^5.5.2", optional = true}
-
-[tool.poetry.extras]
-guideways = ["pyproj"]
-dev = [
-	"pytest-randomly",
-	"pytest-cov",
-	"pytest",
-	"sphinx",
-	"sphinx_rtd_theme",
-	"inflect",
-	"tox",
-	"pygments",
-	"astor",
-	"pyproj",	# for running guideways modules
+[project.optional-dependencies]
+guideways = [
+	'pyproj ~= 3.0; python_version < "3.10"',
+	'pyproj ~= 3.3; python_version >= "3.10"',
 ]
 test = [	# minimum dependencies for running tests (used for tox virtualenvs)
-	"pytest-randomly",
-	"pytest",
+	"pytest-randomly ~= 3.2",
+	"pytest >= 6.0.0, <8",
+]
+dev = [
+	"scenic[test]",		# all dependencies from 'test' extra above
+	"pytest-cov >= 3.0.0",
+	"sphinx >= 4.1.0, <6",
+	"tox ~= 3.14",
+	"sphinx_rtd_theme >= 0.5.2",
+	"astor >= 0.8.1",
+	"inflect ~= 5.5",
+	"scenic[guideways]", # for running guideways modules
 ]
 
-[tool.poetry.scripts]
+[project.urls]
+Repository = "https://github.com/BerkeleyLearnVerify/Scenic"
+Documentation = "https://scenic-lang.readthedocs.io"
+
+[project.scripts]
 scenic = 'scenic.__main__:dummy'
 
-[tool.poetry.plugins."pygments.lexers"]
+[project.entry-points."pygments.lexers"]
 scenic = "scenic.syntax.pygment:ScenicLexer"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["flit_core >= 3.2, <4"]
+build-backend = "flit_core.buildapi"
