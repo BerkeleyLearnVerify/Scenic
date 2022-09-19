@@ -35,7 +35,7 @@ def pytest_addoption(parser):
     # option to skip very slow tests
     parser.addoption('--fast', action='store_true', help='skip very slow tests')
     # option to skip parser generation
-    parser.addoption('--skip-pegen', action='store_true', help='generate the parser before running tests')
+    parser.addoption('--skip-pegen', action='store_true', help='skip generating the parser before running tests')
 
 class ParserGenerationException(BaseException):
     pass
