@@ -37,9 +37,6 @@ def pytest_addoption(parser):
     # option to skip parser generation
     parser.addoption('--skip-pegen', action='store_true', help='skip generating the parser before running tests')
 
-class ParserGenerationException(BaseException):
-    pass
-
 def pytest_configure(config):
     config.addinivalue_line('markers', 'slow: mark test as very slow')
 
@@ -62,7 +59,7 @@ def pytest_configure(config):
             text=True,
         )
         if result.returncode != 0:
-            raise ParserGenerationException(f"Failed to generate the parser: {result.stderr}")
+            pytest.exit(f"Failed to generate the parser: {result.stderr}")
 
 def pytest_collection_modifyitems(config, items):
     if config.getoption('--fast'):
