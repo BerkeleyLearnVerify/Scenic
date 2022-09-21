@@ -59,7 +59,7 @@ def pytest_configure(config):
             text=True,
         )
         if result.returncode != 0:
-            pytest.exit(f"Failed to generate the parser: {result.stderr}")
+            pytest.exit(f"Failed to generate the parser: {result.stderr}", result.returncode)
 
 def pytest_collection_modifyitems(config, items):
     if config.getoption('--fast'):
