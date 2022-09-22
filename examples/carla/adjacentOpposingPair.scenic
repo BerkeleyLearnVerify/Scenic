@@ -1,6 +1,5 @@
-from scenic.simulators.carla.map import setMapPath
-setMapPath(__file__, 'OpenDrive/Town01.xodr')
-from scenic.simulators.carla.model import *
+param map = localPath('../../tests/formats/opendrive/maps/CARLA/Town01.xodr')
+model scenic.simulators.carla.model
 
 ego = Car with visibleDistance 20
 c2 = Car visible

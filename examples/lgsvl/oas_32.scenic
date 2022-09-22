@@ -6,12 +6,8 @@ param time_step = 1.0/10
 
 model scenic.simulators.lgsvl.model
 
-fourLane = []
-for i in network.intersections:
-	if (len(i.incomingLanes) >= 8):
-		fourLane.append(i)
-
-intersection = fourLane[0] # hard coded so I don't have to fix the double-sampling
+threeWayIntersections = filter(lambda i: i.is3Way, network.intersections)
+intersection = threeWayIntersections[0] # hard coded so I don't have to fix the double-sampling
 maneuvers = intersection.maneuvers
 
 straight_manuevers = []
