@@ -1844,7 +1844,7 @@ scenic_do_until_stmt: 'do' e=(','.expression+) 'until' cond=expression { s.DoUnt
 
 scenic_do_stmt: 'do' e=(','.expression+) { s.Do(elts=e, LOCATIONS) }
 
-scenic_simulator_stmt: 'simulator' e=expression { s.Simulator(value=e, LOCATIONS) }
+scenic_simulator_stmt: "simulator" e=expression { s.Simulator(value=e, LOCATIONS) }
 
 # LITERALS
 # ========
