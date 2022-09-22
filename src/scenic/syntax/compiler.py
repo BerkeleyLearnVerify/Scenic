@@ -539,7 +539,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             [ast.Name("_locals", ast.Store())], ast.Constant(frozenset(allLocals))
         )
         body = guardCheckers + [saveLocals, setup, compose]
-        return ast.ClassDef(node.name, [ast.Name("DynamicScenario", loadCtx)], [], body, [])
+        return ast.ClassDef(
+            node.name, [ast.Name("DynamicScenario", loadCtx)], [], body, []
+        )
 
     def makeGuardCheckers(
         self,
@@ -961,6 +963,18 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                         self.visit(node.duration.value),
                         ast.Constant(node.duration.unitStr),
                     ],
+                    keywords=[],
+                )
+            ),
+            node,
+        )
+
+    def visit_Simulator(self, node: s.Simulator):
+        return ast.copy_location(
+            ast.Expr(
+                ast.Call(
+                    func=ast.Name(id="simulator", ctx=loadCtx),
+                    args=[ast.Lambda(noArgs, self.visit(node.value))],
                     keywords=[],
                 )
             ),

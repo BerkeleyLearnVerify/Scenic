@@ -478,6 +478,15 @@ class Do(AST):
         self._fields = ["elts"]
 
 
+class Simulator(AST):
+    __match_args__ = ("value",)
+
+    def __init__(self, value: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.value = value
+        self._fields = ["value"]
+
+
 # Instance Creation
 
 

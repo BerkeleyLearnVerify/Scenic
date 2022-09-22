@@ -558,6 +558,7 @@ scenic_stmt:
     | scenic_do_until_stmt
     | scenic_do_stmt
     | scenic_abort_stmt
+    | scenic_simulator_stmt
 
 scenic_compound_stmt:
     | scenic_tracked_assign_new_stmt
@@ -1843,6 +1844,7 @@ scenic_do_until_stmt: 'do' e=(','.expression+) 'until' cond=expression { s.DoUnt
 
 scenic_do_stmt: 'do' e=(','.expression+) { s.Do(elts=e, LOCATIONS) }
 
+scenic_simulator_stmt: 'simulator' e=expression { s.Simulator(value=e, LOCATIONS) }
 
 # LITERALS
 # ========

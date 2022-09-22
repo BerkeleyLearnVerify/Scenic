@@ -1201,6 +1201,17 @@ class TestTerminateAfter:
             parse_string_helper("terminate after 20")
 
 
+class TestSimulator:
+    def test_simulator(self):
+        mod = parse_string_helper("simulator foo")
+        stmt = mod.body[0]
+        match stmt:
+            case Simulator(Name("foo")):
+                assert True
+            case _:
+                assert False
+
+
 class TestNew:
     def test_basic(self):
         mod = parse_string_helper("new Object")
