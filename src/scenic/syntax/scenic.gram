@@ -92,9 +92,9 @@ def parse_string(
 ) -> Any:
     """Parse a string."""
     tok_stream = (
-        token_stream_factory(io.StringIO(source).readline)
+        token_stream_factory(io.StringIO(source + "\\n").readline)
         if token_stream_factory else
-        tokenize.generate_tokens(io.StringIO(source).readline)
+        tokenize.generate_tokens(io.StringIO(source + "\\n").readline)
     )
     tokenizer = Tokenizer(tok_stream, verbose=verbose)
     parser = ScenicParser(tokenizer, verbose=verbose, py_version=py_version, filename=filename)
