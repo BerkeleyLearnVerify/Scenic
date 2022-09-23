@@ -226,6 +226,28 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         self.usedBreak = False
         self.usedContinue = False
 
+    def makeSyntaxError(self, msg, node: ast.AST) -> SyntaxError:
+        e = SyntaxError(msg)
+        e.lineno = node.lineno
+        e.offset = node.col_offset
+        if node.end_lineno is not None:
+            e.end_lineno = node.end_lineno
+        if node.end_col_offset is not None:
+            e.end_offset = node.end_col_offset
+        e.filename = self.filename
+        if e.filename and e.lineno:
+            # attempt to recover error line and use adjusted offset and end_offset
+            text, offset, end_offset = getText(
+                e.filename,
+                e.lineno,
+                offset=e.offset,
+                end_offset=e.end_offset,
+            )
+            e.text = text
+            e.offset = offset
+            e.end_offset = end_offset
+        raise e
+
     @property
     def topLevel(self):
         return (
@@ -255,30 +277,12 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 elif self.inCompose and Context.COMPOSE not in allowedContext:
                     ctx = "inside a compose block"
                 if ctx:
-                    e = SyntaxError(
+                    raise self.makeSyntaxError(
                         f'Cannot use "{node.__class__.__name__}" {ctx}'
                         if errorBuilder is None
-                        else errorBuilder(ctx)
+                        else errorBuilder(ctx),
+                        node,
                     )
-                    e.lineno = node.lineno
-                    e.offset = node.col_offset
-                    if node.end_lineno is not None:
-                        e.end_lineno = node.end_lineno
-                    if node.end_col_offset is not None:
-                        e.end_offset = node.end_col_offset
-                    e.filename = self.filename
-                    if e.filename and e.lineno:
-                        # attempt to recover error line and use adjusted offset and end_offset
-                        text, offset, end_offset = getText(
-                            e.filename,
-                            e.lineno,
-                            offset=e.offset,
-                            end_offset=e.end_offset,
-                        )
-                        e.text = text
-                        e.offset = offset
-                        e.end_offset = end_offset
-                    raise e
                 return visitor(self, node)
 
             return check_and_visit
@@ -318,11 +322,13 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
         if node.id in builtinNames:
             if not isinstance(node.ctx, ast.Load):
-                raise SyntaxError(f'unexpected keyword "f{node.id}"')
+                raise self.makeSyntaxError(f'unexpected keyword "{node.id}"', node)
             node = ast.copy_location(ast.Call(ast.Name(node.id, loadCtx), [], []), node)
         elif node.id in trackedNames:
             if not isinstance(node.ctx, ast.Load):
-                raise SyntaxError(f'only simple assignments to "{node.id}" are allowed')
+                raise self.makeSyntaxError(
+                    f'only simple assignments to "{node.id}" are allowed', node
+                )
             node = ast.copy_location(ast.Call(ast.Name(node.id, loadCtx), [], []), node)
         elif node.id in self.behaviorLocals:
             lookup = ast.Attribute(
@@ -512,7 +518,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         propertyDict = {}
         for propertyDef in propertyDefs:
             if propertyDef.property in propertyDict:
-                raise SyntaxError(f'duplicated property "{propertyDef.property}"')
+                raise self.makeSyntaxError(
+                    f'duplicated property "{propertyDef.property}"', node
+                )
             propertyDict[propertyDef.property] = propertyDef
 
         newBody.insert(
@@ -823,7 +831,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     @context(Context.TOP_LEVEL)
     def visit_Model(self, node: s.Model):
         if self.inSetup:
-            raise SyntaxError('Cannot use "model" inside a setup block')
+            raise self.makeSyntaxError('Cannot use "model" inside a setup block', node)
         return ast.Expr(
             value=ast.Call(
                 func=ast.Name(id="model", ctx=loadCtx),
@@ -852,7 +860,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         d = dict()
         for parameter in node.elts:
             if parameter.identifier in d:
-                raise SyntaxError(f'Duplicated param "{parameter.identifier}"')
+                raise self.makeSyntaxError(
+                    f'Duplicated param "{parameter.identifier}"', node
+                )
             d[parameter.identifier] = self.visit(parameter.value)
         return ast.Expr(
             value=ast.Call(
@@ -885,7 +895,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     def visit_Abort(self, node: s.Abort):
         if not self.inInterruptBlock:
-            raise SyntaxError("`abort` can only be used inside an interrupt block")
+            raise self.makeSyntaxError(
+                "`abort` can only be used inside an interrupt block", node
+            )
         return ast.copy_location(
             ast.Return(abortFlag),
             node,
@@ -910,16 +922,18 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     @context(Context.DYNAMIC)
     def visit_Do(self, node: s.Do):
         if (self.inBehavior or self.inMonitor) and len(node.elts) > 1:
-            raise SyntaxError(
-                f"`do` can only take one action inside a {'behavior' if self.inBehavior else 'monitor'}"
+            raise self.makeSyntaxError(
+                f"`do` can only take one action inside a {'behavior' if self.inBehavior else 'monitor'}",
+                node,
             )
         return self.makeDoLike(node, node.elts)
 
     @context(Context.DYNAMIC)
     def visit_DoFor(self, node: s.DoFor):
         if (self.inBehavior or self.inMonitor) and len(node.elts) > 1:
-            raise SyntaxError(
-                f"`do` can only take one action inside a {'behavior' if self.inBehavior else 'monitor'}"
+            raise self.makeSyntaxError(
+                f"`do` can only take one action inside a {'behavior' if self.inBehavior else 'monitor'}",
+                node,
             )
         return self.makeDoLike(
             node,
@@ -938,8 +952,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     @context(Context.DYNAMIC)
     def visit_DoUntil(self, node: s.DoUntil):
         if (self.inBehavior or self.inMonitor) and len(node.elts) > 1:
-            raise SyntaxError(
-                f"`do` can only take one action inside a {'behavior' if self.inBehavior else 'monitor'}"
+            raise self.makeSyntaxError(
+                f"`do` can only take one action inside a {'behavior' if self.inBehavior else 'monitor'}",
+                node,
             )
         return self.makeDoLike(
             node,
