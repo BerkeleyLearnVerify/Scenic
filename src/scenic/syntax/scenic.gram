@@ -91,6 +91,8 @@ def parse_string(
     filename: str = "<unknown>",
 ) -> Any:
     """Parse a string."""
+    # adding a newline at the end to properly handle errors on the last line
+    # TODO(shun): Find a better way to fix this
     tok_stream = (
         token_stream_factory(io.StringIO(source + "\\n").readline)
         if token_stream_factory else
