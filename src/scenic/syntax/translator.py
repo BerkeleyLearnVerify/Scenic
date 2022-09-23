@@ -253,7 +253,7 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>')
 			print(ast.dump(scenic_tree, include_attributes=False, indent=4))
 			print('### End Scenic AST')
 
-		tree, requirements = compileScenicAST(scenic_tree)
+		tree, requirements = compileScenicAST(scenic_tree, filename=filename)
 
 		if dumpFinalAST:
 			print(f'### Begin final AST of {filename}')

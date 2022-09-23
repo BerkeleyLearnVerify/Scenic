@@ -4,6 +4,7 @@ import itertools
 from typing import Callable, Literal, Optional, Tuple, List, Union
 
 import scenic.syntax.ast as s
+from scenic.core.errors import getText
 
 # exposed functions
 
@@ -11,6 +12,7 @@ import scenic.syntax.ast as s
 def compileScenicAST(
     scenicAST: ast.AST,
     *,
+    filename: Optional[str] = None,
     inBehavior: bool = False,
     inMonitor: bool = False,
     inCompose: bool = False,
@@ -19,6 +21,9 @@ def compileScenicAST(
 ) -> Tuple[Union[ast.AST, list[ast.AST]], List[ast.AST]]:
     """Compiles Scenic AST to Python AST"""
     compiler = ScenicToPythonTransformer()
+
+    # set filename
+    compiler.filename = filename
 
     # set optional flags
     compiler.inBehavior = inBehavior
@@ -199,6 +204,8 @@ class Context(IntFlag):
 class ScenicToPythonTransformer(ast.NodeTransformer):
     def __init__(self) -> None:
         super().__init__()
+        self.filename = None
+
         self.requirements = []
 
         self.inBehavior: bool = False
@@ -248,11 +255,30 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 elif self.inCompose and Context.COMPOSE not in allowedContext:
                     ctx = "inside a compose block"
                 if ctx:
-                    raise SyntaxError(
+                    e = SyntaxError(
                         f'Cannot use "{node.__class__.__name__}" {ctx}'
                         if errorBuilder is None
                         else errorBuilder(ctx)
                     )
+                    e.lineno = node.lineno
+                    e.offset = node.col_offset
+                    if node.end_lineno is not None:
+                        e.end_lineno = node.end_lineno
+                    if node.end_col_offset is not None:
+                        e.end_offset = node.end_col_offset
+                    e.filename = self.filename
+                    if e.filename and e.lineno:
+                        # attempt to recover error line and use adjusted offset and end_offset
+                        text, offset, end_offset = getText(
+                            e.filename,
+                            e.lineno,
+                            offset=e.offset,
+                            end_offset=e.end_offset,
+                        )
+                        e.text = text
+                        e.offset = offset
+                        e.end_offset = end_offset
+                    raise e
                 return visitor(self, node)
 
             return check_and_visit
