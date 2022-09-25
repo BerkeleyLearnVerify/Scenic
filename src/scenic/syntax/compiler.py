@@ -449,7 +449,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 ),
                 ast.Lambda(
                     args=selfArg,
-                    body=self.visit(node.value),
+                    body=node.value,
                 ),
             ],
             keywords=[],
