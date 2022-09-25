@@ -220,7 +220,7 @@ class Prop(CarlaActor):
         physics (bool): Default value overridden to be false.
     """
     regionContainedIn: road
-    position: Point on road
+    position: new Point on road
     heading: Range(0, 360) deg
     width: 0.5
     length: 0.5
