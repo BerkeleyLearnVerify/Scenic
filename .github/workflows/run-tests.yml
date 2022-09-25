@@ -26,7 +26,7 @@ jobs:
         python -m pip install --upgrade pip
     - name: Install Scenic and dependencies
       run: |
-        python -m pip install -e .
+        python -m pip install -e ".[test]"
     - name: Run pytest
       run: |
         pytest
