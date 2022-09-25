@@ -177,6 +177,7 @@ class Until(PropositionNode):
 		self.rhs = rhs
 		ltl_node = rv_ltl.Until(lhs.ltl_node, rhs.ltl_node)
 		super().__init__(syntax_id, ltl_node)
+		self.is_temporal = True
 	def __str__(self):
 		return f"({self.lhs} until {self.rhs})"
 	@property
