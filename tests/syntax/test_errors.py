@@ -263,7 +263,8 @@ def checkException(e, lines, program, bug, path, output, topLevel=True):
     if syntaxErrorLike:
         assert e.lineno == eLine, program
         assert e.text.strip() == bug
-        assert e.offset <= len(e.text)
+        # if text does not end with NEWLINE, it is okay to point to the next character after the last
+        assert e.offset <= len(e.text) if e.text[-1] == "\n" else len(e.text) + 1
 
     # If we skipped generating a textual backtrace in a subprocess, stop here.
     if output is None:
