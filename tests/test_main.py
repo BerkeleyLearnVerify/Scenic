@@ -17,7 +17,7 @@ paramPattern = re.compile(r'\s*Parameter "p": (.*)$')
 def runAndGetP(tmpdir, program, options=[], addEgo=True):
     program = inspect.cleandoc(program)
     if addEgo:
-        program += '\nego = Object'
+        program += '\nego = new Object'
     path = os.path.join(tmpdir, 'test.sc')
     with open(path, 'w') as f:
         f.write(program)
