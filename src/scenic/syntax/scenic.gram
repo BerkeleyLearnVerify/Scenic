@@ -91,12 +91,10 @@ def parse_string(
     filename: str = "<unknown>",
 ) -> Any:
     """Parse a string."""
-    # adding a newline at the end to properly handle errors on the last line
-    # TODO(shun): Find a better way to fix this
     tok_stream = (
-        token_stream_factory(io.StringIO(source + "\\n").readline)
+        token_stream_factory(io.StringIO(source).readline)
         if token_stream_factory else
-        tokenize.generate_tokens(io.StringIO(source + "\\n").readline)
+        tokenize.generate_tokens(io.StringIO(source).readline)
     )
     tokenizer = Tokenizer(tok_stream, verbose=verbose)
     parser = ScenicParser(tokenizer, verbose=verbose, py_version=py_version, filename=filename)
