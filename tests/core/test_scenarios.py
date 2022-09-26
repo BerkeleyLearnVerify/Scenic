@@ -6,22 +6,22 @@ from scenic.core.distributions import Range
 from tests.utils import compileScenic
 
 def test_nonexistent_scenario_local_1():
-    scenario = compileScenic('ego = Object')
+    scenario = compileScenic('ego = new Object')
     with pytest.raises(AttributeError):
         scenario.dynamicScenario.blah
 
 def test_nonexistent_scenario_local_2():
     scenario = compileScenic("""
         scenario Main():
-            ego = Object
+            ego = new Object
     """)
     with pytest.raises(AttributeError):
         scenario.dynamicScenario.blah
 
 def test_condition_scenario_objects():
     scenario = compileScenic("""
-        Object facing Range(0, 1)
-        ego = Object at 10@10, facing Range(0, 1)
+        new Object facing Range(0, 1)
+        ego = new Object at 10@10, facing Range(0, 1)
     """)
     sceneA, _ = scenario.generate(maxIterations=1)
     scenario.conditionOn(scene=sceneA, objects=(1,))
@@ -31,7 +31,7 @@ def test_condition_scenario_objects():
 
 def test_condition_scenario_params_1():
     scenario = compileScenic("""
-        ego = Object
+        ego = new Object
         param x = Range(0, 1)
     """)
     scenario.conditionOn(params={'x': 0.6})
@@ -40,7 +40,7 @@ def test_condition_scenario_params_1():
 
 def test_condition_scenario_params_2():
     scenario = compileScenic("""
-        ego = Object
+        ego = new Object
         param x = Range(0, 1)
     """)
     scenario.conditionOn(params={'x': Range(0.5, 0.51)})

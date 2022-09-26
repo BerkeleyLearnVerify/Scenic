@@ -232,7 +232,7 @@ class Constructible(Samplable):
 		return self._withProperties(props, constProps=constProps)
 
 	def dumpAsScenicCode(self, stream, skipConstProperties=True):
-		stream.write(self.__class__.__name__)
+		stream.write(f"new {self.__class__.__name__}")
 		first = True
 		for prop in sorted(self.properties):
 			if skipConstProperties and prop in self._constProps:
