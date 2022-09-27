@@ -1,0 +1,20 @@
+---
+name: MagicRegExp
+scopeName: source.regexp.python
+fileTypes: [re]
+uuid: 39e15186-71e6-11e5-b82c-7c6d62900c7c
+
+patterns:
+  - include: '#regexp-expression'
+
+repository:
+  $apply:
+    - file: 'regexp-common.inc.syntax.yaml'
+    - file: 'regexp.inc.syntax.yaml'
+      vars:
+        prefix: ''
+        basename: regexp
+        marker: ''
+        nested: ''
+        guard: ''
+...
