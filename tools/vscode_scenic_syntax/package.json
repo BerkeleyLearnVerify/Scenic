@@ -1,0 +1,48 @@
+{
+  "name": "vscode-scenic-syntax",
+  "displayName": "scenic-syntax",
+  "description": "",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BerkeleyLearnVerify/Scenic",
+    "directory": "tools/vscode_scenic_syntax"
+  },
+  "scripts": {
+    "build-syntax": "js-yaml ../textmate_grammar/Scenic.yaml > ./syntaxes/scenic.tmLanguage.json",
+    "package": "vsce package"
+  },
+  "engines": {
+    "vscode": "^1.71.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "scenic",
+        "aliases": [
+          "Scenic",
+          "scenic"
+        ],
+        "extensions": [
+          ".scenic",
+          ".sc"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "scenic",
+        "scopeName": "source.scenic",
+        "path": "./syntaxes/scenic.tmLanguage.json"
+      }
+    ]
+  },
+  "devDependencies": {
+    "js-yaml": "^4.1.0",
+    "vsce": "^2.11.0"
+  }
+}
