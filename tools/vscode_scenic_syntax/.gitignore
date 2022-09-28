@@ -130,7 +130,7 @@ dist
 .pnp.*
 
 # generated grammar
-/syntaxes/scenic.tmLanguage.json
+/syntaxes/Scenic.tmLanguage
 
 # packaged extension
 /*.vsix

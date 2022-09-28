@@ -9,7 +9,7 @@
     "directory": "tools/vscode_scenic_syntax"
   },
   "scripts": {
-    "build-syntax": "js-yaml ../textmate_grammar/Scenic.yaml > ./syntaxes/scenic.tmLanguage.json",
+    "build-syntax": "syntaxdev build-plist --in ../textmate_grammar/Scenic.yaml --out ./syntaxes/Scenic.tmLanguage",
     "package": "vsce package"
   },
   "engines": {
@@ -37,12 +37,12 @@
       {
         "language": "scenic",
         "scopeName": "source.scenic",
-        "path": "./syntaxes/scenic.tmLanguage.json"
+        "path": "./syntaxes/Scenic.tmLanguage"
       }
     ]
   },
   "devDependencies": {
-    "js-yaml": "^4.1.0",
+    "syntaxdev": "^0.0.16",
     "vsce": "^2.11.0"
   }
 }
