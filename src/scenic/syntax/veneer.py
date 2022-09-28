@@ -883,8 +883,10 @@ def Beyond(pos, offset, fromPt=None):
 	If the 'from <vector>' is omitted, the position of ego is used.
 	"""
 	pos = toVector(pos, 'specifier "beyond X by Y" with X not a vector')
+	offset = toTypes(offset, (Vector, float),
+	                 'specifier "beyond X by Y" with Y not a number or vector')
 	dType = underlyingType(offset)
-	if dType is float or dType is int:
+	if dType is float:
 		offset = Vector(0, offset)
 	elif dType is not Vector:
 		raise RuntimeParseError('specifier "beyond X by Y" with Y not a number or vector')

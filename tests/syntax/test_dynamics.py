@@ -8,7 +8,7 @@ from scenic.core.simulators import TerminationType
 
 from tests.utils import (compileScenic, sampleScene, sampleActions, sampleActionsFromScene,
                          sampleEgoActions, sampleEgoActionsFromScene, sampleResult,
-                         checkErrorLineNumber)
+                         sampleResultOnce, checkErrorLineNumber)
 
 ## Dynamic state
 
@@ -491,6 +491,113 @@ def test_behavior_invariant():
     for i in range(30):
         actions = sampleEgoActions(scenario, maxSteps=3, maxIterations=50)
         assert actions[1] > 0
+
+# Random selection of sub-behaviors
+
+def test_choose_1():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                do choose Bar(1), Bar(2)
+        behavior Bar(x):
+            take x
+        ego = Object with behavior Foo
+    """)
+    ts = [sampleEgoActions(scenario, maxSteps=2) for i in range(40)]
+    assert any(t[0] == 1 for t in ts)
+    assert any(t[0] == 2 for t in ts)
+    assert any(t[0] == t[1] for t in ts)
+    assert any(t[0] != t[1] for t in ts)
+
+def test_choose_2():
+    scenario = compileScenic("""
+        behavior Foo():
+            do choose Bar(1), Bar(2)
+            terminate
+        behavior Bar(p):
+            precondition: self.position.x == p
+            take (self.position.x == p)
+        ego = Object at Uniform(1, 2) @ 0, with behavior Foo
+    """)
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=2)
+        assert len(actions) == 1
+        assert actions[0] == True
+
+def test_choose_3():
+    scenario = compileScenic("""
+        behavior Foo():
+            do choose {Sub(0): 1, Sub(1): 9}
+        behavior Sub(x):
+            take x
+        ego = Object with behavior Foo
+    """)
+    xs = [sampleEgoActions(scenario)[0] for i in range(200)]
+    assert all(x == 0 or x == 1 for x in xs)
+    assert 145 <= sum(xs) < 200
+
+def test_choose_deadlock():
+    scenario = compileScenic("""
+        behavior Foo():
+            do choose Bar(1), Bar(2)
+        behavior Bar(p):
+            precondition: self.position.x == p
+            wait
+        ego = Object at 3 @ 0, with behavior Foo
+    """)
+    result = sampleResultOnce(scenario)
+    assert result is None
+
+def test_shuffle_1():
+    scenario = compileScenic("""
+        behavior Foo():
+            do shuffle Sub(-1), Sub(1)
+            terminate
+        behavior Sub(x):
+            precondition: simulation().currentTime >= x
+            take x
+        ego = Object with behavior Foo
+    """)
+    for i in range(30):
+        actions = sampleEgoActions(scenario, maxSteps=3)
+        assert tuple(actions) == (-1, 1)
+
+def test_shuffle_2():
+    scenario = compileScenic("""
+        behavior Foo():
+            do shuffle Sub(1), Sub(3)
+        behavior Sub(x):
+            take x
+        ego = Object with behavior Foo
+    """)
+    ts = [sampleEgoActions(scenario, maxSteps=2) for i in range(30)]
+    assert all(tuple(t) == (1, 3) or tuple(t) == (3, 1) for t in ts)
+    assert any(tuple(t) == (1, 3) for t in ts)
+    assert any(tuple(t) == (3, 1) for t in ts)
+
+def test_shuffle_3():
+    scenario = compileScenic("""
+        behavior Foo():
+            do shuffle {Sub(0): 1, Sub(1): 9}
+        behavior Sub(x):
+            take x
+        ego = Object with behavior Foo
+    """)
+    ts = [sampleEgoActions(scenario, maxSteps=2) for i in range(200)]
+    assert all(tuple(t) == (0, 1) or tuple(t) == (1, 0) for t in ts)
+    assert 145 <= sum(t[0] for t in ts) < 200
+
+def test_shuffle_deadlock():
+    scenario = compileScenic("""
+        behavior Foo():
+            do shuffle Sub(), Sub()
+        behavior Sub():
+            precondition: simulation().currentTime == 0
+            wait
+        ego = Object with behavior Foo
+    """)
+    result = sampleResultOnce(scenario, maxSteps=2)
+    assert result is None
 
 # Requirements
 
