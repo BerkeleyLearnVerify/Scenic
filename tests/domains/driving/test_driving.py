@@ -21,8 +21,8 @@ template = inspect.cleandoc("""
 
 basicScenario = inspect.cleandoc("""
     lane = Uniform(*network.lanes)
-    ego = Car in lane
-    Car on visible lane.centerline
+    ego = new Car in lane
+    new Car on visible lane.centerline
 """)
 
 def compileDrivingScenario(cached_maps, code='', useCache=True,
@@ -73,7 +73,7 @@ def test_opendrive(path, cached_maps):
 
 def test_elements_at(cached_maps):
     scenario = compileDrivingScenario(cached_maps, """
-        ego = Car
+        ego = new Car
         posTuple = (ego.position.x, ego.position.y)
         # functions should accept Points, Vectors, and tuples
         for spot in (ego, ego.position, posTuple):
@@ -101,7 +101,7 @@ def test_intersection(cached_maps):
         intersection = Uniform(*network.intersections)
         lane = Uniform(*intersection.incomingLanes)
         maneuver = Uniform(*lane.maneuvers)
-        ego = Car on maneuver.connectingLane.centerline
+        ego = new Car on maneuver.connectingLane.centerline
     """)
     for i in range(50):
         ego = sampleEgo(scenario, maxIterations=1000)
@@ -112,9 +112,9 @@ def test_intersection(cached_maps):
 
 def test_curb(cached_maps):
     scenario = compileDrivingScenario(cached_maps, """
-        ego = Car
-        spot = OrientedPoint on visible curb
-        Car left of spot by 0.25
+        ego = new Car
+        spot = new OrientedPoint on visible curb
+        new Car left of spot by 0.25
     """)
     sampleScene(scenario, maxIterations=1000)
 
@@ -141,17 +141,17 @@ def test_caching(tmpdir):
             model scenic.domains.driving.model
             lanes = filter(lambda l: l._successor, network.lanes)
             lane = Uniform(*lanes)
-            ego = Car on lane, with foo lane.network.lanes
-            Car on ego.lane.successor.centerline, with requireVisible False
-            Car on ego.lane.maneuvers[0].endLane.centerline, with requireVisible False
+            ego = new Car on lane, with foo lane.network.lanes
+            new Car on ego.lane.successor.centerline, with requireVisible False
+            new Car on ego.lane.maneuvers[0].endLane.centerline, with requireVisible False
         """)
         sampleScene(scenario, maxIterations=1000)
 
 @pickle_test
 def test_pickle(cached_maps):
     scenario = compileDrivingScenario(cached_maps, """
-        ego = Car with behavior FollowLaneBehavior(target_speed=Range(10, 15))
-        Pedestrian on visible sidewalk
+        ego = new Car with behavior FollowLaneBehavior(target_speed=Range(10, 15))
+        new Pedestrian on visible sidewalk
     """)
     unpickled = tryPickling(scenario)
     scene = sampleScene(unpickled, maxIterations=1000)
