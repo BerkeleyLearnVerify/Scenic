@@ -519,7 +519,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         for propertyDef in propertyDefs:
             if propertyDef.property in propertyDict:
                 raise self.makeSyntaxError(
-                    f'duplicated property "{propertyDef.property}"', node
+                    f'duplicated property "{propertyDef.property}"', propertyDef
                 )
             propertyDict[propertyDef.property] = propertyDef
 

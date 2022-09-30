@@ -6,6 +6,15 @@ from scenic.syntax.ast import *
 from scenic.syntax.compiler import compileScenicAST
 
 
+def makeLocations(lineno=1, col_offset=0, end_lineno=1, end_col_offset=0):
+    return {
+        "lineno": lineno,
+        "col_offset": col_offset,
+        "end_lineno": end_lineno,
+        "end_col_offset": end_col_offset,
+    }
+
+
 class TestCompiler:
     def test_scenic_try(self):
         node, _ = compileScenicAST(
@@ -162,7 +171,11 @@ class TestCompiler:
 
     def test_builtin_name_assign(self):
         with pytest.raises(SyntaxError):
-            compileScenicAST(Assign([Name("globalParameters", Store())], Constant(1)))
+            compileScenicAST(
+                Assign(
+                    [Name("globalParameters", Store(), **makeLocations())], Constant(1)
+                )
+            )
 
     def test_builtin_name_reference(self):
         node, _ = compileScenicAST(Name("globalParameters", Load()))
@@ -178,7 +191,9 @@ class TestCompiler:
         # e.g. multiple assignment: ego = myEgo = <some value>
         # if a tracked name is used in the Store context, that is an syntax error
         with pytest.raises(SyntaxError):
-            compileScenicAST(Assign([Name("workspace", Store())], Constant(1)))
+            compileScenicAST(
+                Assign([Name("workspace", Store(), **makeLocations())], Constant(1))
+            )
 
     def test_initial_scenario(self):
         node, _ = compileScenicAST(InitialScenario())
@@ -321,7 +336,7 @@ class TestCompiler:
                 assert False
 
     def test_classdef_duplicated_property(self):
-        with pytest.raises(SyntaxError):
+        with pytest.raises(SyntaxError) as exc:
             compileScenicAST(
                 ClassDef(
                     "C",
@@ -329,19 +344,17 @@ class TestCompiler:
                     [],
                     [
                         PropertyDef(
-                            "property",
-                            [],
-                            Constant(1),
+                            "property", [], Constant(1), **makeLocations(1, 0, 1, 5)
                         ),
                         PropertyDef(
-                            "property",
-                            [],
-                            Constant(2),
+                            "property", [], Constant(2), **makeLocations(2, 0, 2, 10)
                         ),
                     ],
                     [],
                 )
             )
+        assert exc.value.lineno == 2
+        assert exc.value.end_offset == 10
 
     def test_unpack_distribution(self):
         node, _ = compileScenicAST(
@@ -382,7 +395,7 @@ class TestCompiler:
 
     def test_model_in_setup(self):
         with pytest.raises(SyntaxError):
-            compileScenicAST(Model("model"), inSetup=True)
+            compileScenicAST(Model("model", **makeLocations()), inSetup=True)
 
     def test_mutate_basic(self):
         node, _ = compileScenicAST(Mutate([Name("x", Load())]))
@@ -454,7 +467,10 @@ class TestCompiler:
     def test_param_duplicate(self):
         with pytest.raises(SyntaxError):
             compileScenicAST(
-                Param([parameter("p1", Name("v1")), parameter("p1", Constant(1))])
+                Param(
+                    [parameter("p1", Name("v1")), parameter("p1", Constant(1))],
+                    **makeLocations()
+                )
             )
 
     @pytest.mark.parametrize(
@@ -769,7 +785,7 @@ class TestCompiler:
 
     def test_abort_outside_interrupt(self):
         with pytest.raises(SyntaxError):
-            compileScenicAST(Abort(), inInterruptBlock=False)
+            compileScenicAST(Abort(**makeLocations()), inInterruptBlock=False)
 
     def test_take(self):
         node, _ = compileScenicAST(
