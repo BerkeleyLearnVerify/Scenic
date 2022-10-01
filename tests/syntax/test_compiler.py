@@ -1234,6 +1234,18 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_simulator(self):
+        node, _ = compileScenicAST(Simulator(Name("foo")))
+        match node:
+            case Expr(
+                Call(
+                    Name("simulator"), [Lambda(args=arguments(), body=Name("foo"))], []
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
     # Instance & Specifiers
     def test_new_no_specifiers(self):
         node, _ = compileScenicAST(New("Object", []))

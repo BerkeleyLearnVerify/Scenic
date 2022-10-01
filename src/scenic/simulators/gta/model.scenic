@@ -56,7 +56,7 @@ class Car:
 		model (`CarModel`): Model of the car.
 		color (:obj:`Color` or RGB tuple): Color of the car.
 	"""
-	position: Point on road
+	position: new Point on road
 	heading: (roadDirection at self.position) + self.roadDeviation
 	roadDeviation: 0
 	width: self.model.width
@@ -87,7 +87,7 @@ def createPlatoonAt(car, numCars, model=None, dist=Range(2, 8),
 	lastCar = car
 	for i in range(numCars-1):
 		center = follow roadDirection from (front of lastCar) for resample(dist)
-		pos = OrientedPoint right of center by shift, facing resample(wiggle) relative to roadDirection
-		lastCar = Car ahead of pos, with model (car.model if model is None else resample(model))
+		pos = new OrientedPoint right of center by shift, facing resample(wiggle) relative to roadDirection
+		lastCar = new Car ahead of pos, with model (car.model if model is None else resample(model))
 		cars.append(lastCar)
 	return cars
