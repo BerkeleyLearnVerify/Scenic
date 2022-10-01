@@ -13,8 +13,8 @@ from tests.utils import sampleSceneFrom
 class TestExportToScenicCode:
     def test_simple(self):
         scene1 = sampleSceneFrom("""
-            ego = Object at Range(3, 5) @ 2, with foo 42
-            Object at 10@10, facing toward ego, with foo 'zoggle'
+            ego = new Object at Range(3, 5) @ 2, with foo 42
+            new Object at 10@10, facing toward ego, with foo 'zoggle'
             param qux = ego.position
         """)
         stream = io.StringIO()
