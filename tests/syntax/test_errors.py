@@ -308,16 +308,16 @@ def runFile(path):
 
 @pytest.mark.parametrize('bug', (
     # BUGGY CODE                    ERROR CAUGHT DURING:
-    '4 = 2',                        # Python parsing
-    '3 relative to',                # Python parsing
-    'new Point at x y',                 # Python parsing (with offset past end of original line)
-    'require',                      # AST surgery
-    'terminate 4',                  # AST surgery (handled differently inside behaviors)
+    '4 = 2',                        # Scenic parsing
+    '3 relative to',                # Scenic parsing
+    'new Point at x y',             # Scenic parsing
+    'require',                      # Scenic parsing
+    'terminate 4',                  # Scenic compilation (handled differently inside behaviors)
     'break',                        # Python compilation
     '4 at 0',                       # Python execution (Scenic parse error)
     'x = _flub__',                  # Python execution (Python runtime error)
     'raise Exception',              # Python execution (program exception)
-    'new Object at Uniform(0@0, 4)'     # sampling
+    'new Object at Uniform(0@0, 4)' # sampling
     'require 4 at 0',               # requirement evaluation (Scenic parse error)
     'require _flub__',              # requirement evaluation (Python runtime error)
 ))
