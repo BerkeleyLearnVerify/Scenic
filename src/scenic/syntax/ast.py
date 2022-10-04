@@ -5,6 +5,8 @@ from typing import Optional, Union
 class AST(ast.AST):
     "Scenic AST base class"
 
+    _attributes = ("lineno", "col_offset", "end_lineno", "end_col_offset")
+
     def __init__(self, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
 

@@ -246,14 +246,14 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>')
 
 		# Parse the translated source
 		source = stream.read().decode('utf-8')
-		scenic_tree = parse_string(source, "exec", None)
+		scenic_tree = parse_string(source, "exec", filename=filename)
 
 		if dumpScenicAST:
 			print(f'### Begin Scenic AST of {filename}')
 			print(ast.dump(scenic_tree, include_attributes=False, indent=4))
 			print('### End Scenic AST')
 
-		tree, requirements = compileScenicAST(scenic_tree)
+		tree, requirements = compileScenicAST(scenic_tree, filename=filename)
 
 		if dumpFinalAST:
 			print(f'### Begin final AST of {filename}')

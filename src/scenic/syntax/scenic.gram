@@ -87,7 +87,8 @@ def parse_string(
     token_stream_factory: Optional[
         Callable[[Callable[[], str]], Iterator[tokenize.TokenInfo]]
     ] = None,
-    verbose:bool = False,
+    verbose: bool = False,
+    filename: str = "<unknown>",
 ) -> Any:
     """Parse a string."""
     tok_stream = (
@@ -96,7 +97,7 @@ def parse_string(
         tokenize.generate_tokens(io.StringIO(source).readline)
     )
     tokenizer = Tokenizer(tok_stream, verbose=verbose)
-    parser = ScenicParser(tokenizer, verbose=verbose, py_version=py_version)
+    parser = ScenicParser(tokenizer, verbose=verbose, py_version=py_version, filename=filename)
     return parser.parse(mode if mode == "eval" else "file")
 
 
