@@ -501,7 +501,7 @@ def test_choose_1():
                 do choose Bar(1), Bar(2)
         behavior Bar(x):
             take x
-        ego = Object with behavior Foo
+        ego = new Object with behavior Foo
     """)
     ts = [sampleEgoActions(scenario, maxSteps=2) for i in range(40)]
     assert any(t[0] == 1 for t in ts)
@@ -517,7 +517,7 @@ def test_choose_2():
         behavior Bar(p):
             precondition: self.position.x == p
             take (self.position.x == p)
-        ego = Object at Uniform(1, 2) @ 0, with behavior Foo
+        ego = new Object at Uniform(1, 2) @ 0, with behavior Foo
     """)
     for i in range(30):
         actions = sampleEgoActions(scenario, maxSteps=2)
@@ -530,7 +530,7 @@ def test_choose_3():
             do choose {Sub(0): 1, Sub(1): 9}
         behavior Sub(x):
             take x
-        ego = Object with behavior Foo
+        ego = new Object with behavior Foo
     """)
     xs = [sampleEgoActions(scenario)[0] for i in range(200)]
     assert all(x == 0 or x == 1 for x in xs)
@@ -543,7 +543,7 @@ def test_choose_deadlock():
         behavior Bar(p):
             precondition: self.position.x == p
             wait
-        ego = Object at 3 @ 0, with behavior Foo
+        ego = new Object at 3 @ 0, with behavior Foo
     """)
     result = sampleResultOnce(scenario)
     assert result is None
@@ -556,7 +556,7 @@ def test_shuffle_1():
         behavior Sub(x):
             precondition: simulation().currentTime >= x
             take x
-        ego = Object with behavior Foo
+        ego = new Object with behavior Foo
     """)
     for i in range(30):
         actions = sampleEgoActions(scenario, maxSteps=3)
@@ -568,7 +568,7 @@ def test_shuffle_2():
             do shuffle Sub(1), Sub(3)
         behavior Sub(x):
             take x
-        ego = Object with behavior Foo
+        ego = new Object with behavior Foo
     """)
     ts = [sampleEgoActions(scenario, maxSteps=2) for i in range(30)]
     assert all(tuple(t) == (1, 3) or tuple(t) == (3, 1) for t in ts)
@@ -581,7 +581,7 @@ def test_shuffle_3():
             do shuffle {Sub(0): 1, Sub(1): 9}
         behavior Sub(x):
             take x
-        ego = Object with behavior Foo
+        ego = new Object with behavior Foo
     """)
     ts = [sampleEgoActions(scenario, maxSteps=2) for i in range(200)]
     assert all(tuple(t) == (0, 1) or tuple(t) == (1, 0) for t in ts)
@@ -594,7 +594,7 @@ def test_shuffle_deadlock():
         behavior Sub():
             precondition: simulation().currentTime == 0
             wait
-        ego = Object with behavior Foo
+        ego = new Object with behavior Foo
     """)
     result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
