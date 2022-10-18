@@ -25,6 +25,17 @@ Then use that version of Python when creating a virtual environment before insta
 This error indicates that you are using too old a version of ``pip``: you need at least version 21.3.
 Run :command:`python -m pip install --upgrade pip` to upgrade.
 
+Dependency Conflicts
+++++++++++++++++++++
+
+If you install Scenic using ``pip``, you might see an error message like the following:
+
+	ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+
+This error means that in order to install Scenic, ``pip`` had to break the dependency constraints of some package you had previously installed (the error message will indicate which one).
+So while Scenic will work correctly, something else may now be broken.
+This won't happen if you install Scenic into a fresh virtual environment.
+
 Cannot Find Scenic
 ++++++++++++++++++
 

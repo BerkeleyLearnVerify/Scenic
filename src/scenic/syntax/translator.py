@@ -1611,6 +1611,7 @@ class ASTSurgeon(NodeTransformer):
 			else:
 				stmt = func.id
 				keywords = []
+				schedule = None
 			seenModifier = False
 			invoked = []
 			args = []
@@ -1632,7 +1633,7 @@ class ASTSurgeon(NodeTransformer):
 					self.parseError(arg, f'malformed "{stmt}" statement')
 				else:
 					invoked.append(self.visit(arg))
-			maxInvoked = 1 if self.inBehavior and not self.inCompose else None
+			maxInvoked = 1 if self.inBehavior and not self.inCompose and not schedule else None
 			self.validateSimpleCall(node, (1, maxInvoked), onlyInBehaviors=True, args=invoked)
 			subHandler = Attribute(Name(behaviorArgName, Load()), '_invokeSubBehavior', Load())
 			subArgs = [Name('self', Load()), Tuple(invoked, Load())] + args

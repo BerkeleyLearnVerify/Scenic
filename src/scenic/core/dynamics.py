@@ -85,11 +85,11 @@ class Invocable:
             enabled = {}
             if isinstance(opts, dict):
                 for sub, weight in opts.items():
-                    if sub._isEnabled:
+                    if sub._isEnabledForAgent(agent):
                         enabled[sub] = weight
             else:
                 for sub in opts:
-                    if sub._isEnabled:
+                    if sub._isEnabledForAgent(agent):
                         enabled[sub] = 1
             if not enabled:
                 raise RejectSimulationException('deadlock in "do choose/shuffle"')
@@ -157,13 +157,17 @@ class Invocable:
         self.checkPreconditions(self._agent, *self._args, **self._kwargs)
         self.checkInvariants(self._agent, *self._args, **self._kwargs)
 
-    @property
-    def _isEnabled(self):
+    def _isEnabledForAgent(self, agent):
+        assert not self._isRunning
+        assert self._agent is None
         try:
+            self._agent = agent  # in case `self` is used in a precondition
             self._checkAllPreconditions()
             return True
         except GuardViolation:
             return False
+        finally:
+            self._agent = None
 
 class DynamicScenario(Invocable):
     """Internal class for scenarios which can execute during dynamic simulations.
