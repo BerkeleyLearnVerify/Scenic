@@ -6,26 +6,48 @@ Getting Started with Scenic
 Installation
 ------------
 
-Scenic requires **Python 3.7** or newer.
+Scenic requires **Python 3.8** or newer.
 You can install Scenic from PyPI by simply running:
 
 .. code-block:: console
 
-	$ python -m pip install scenic
+	$ pip install scenic
 
-Alternatively, if you want to run some of our example scenarios, modify Scenic, or make use of features that have not yet been released on PyPI, you can download or clone the `Scenic repository <https://github.com/BerkeleyLearnVerify/Scenic>`_.
-Activate the `virtual environment <https://docs.python.org/3/tutorial/venv.html>`_ in which you would like to install Scenic, go into the root folder of the Scenic repository, and then run:
+Alternatively, if you want to run some of our example scenarios or modify Scenic, you can download or clone the `Scenic repository <https://github.com/BerkeleyLearnVerify/Scenic>`_.
+Install `Poetry <https://python-poetry.org/>`_, optionally activate the `virtual environment <https://docs.python.org/3/tutorial/venv.html>`_ in which you would like to run Scenic, and then run:
 
 .. code-block:: console
 
-	$ python -m pip install -e .
+	$ poetry install
 
-Either installation method will install all of the dependencies which are required to run Scenic.
-If you will be developing Scenic, you will want to use a variant of this command: see :doc:`developing`.
+If you will be developing Scenic, add the ``-E dev`` option when invoking Poetry.
 
 .. note::
 
-	If you are using Windows, or encounter any errors during installation or trying the examples below, please see our :doc:`install_notes` for suggestions.
+	If you are not already using a virtual environment, :command:`poetry install` will
+	create one. You can then run :command:`poetry shell` to create a terminal inside the
+	environment for running the commands below.
+
+.. note::
+
+	If you get an error saying that your machine does not have a compatible version, this means that you do not have Python 3.8 or later on your PATH.
+	Install a newer version of Python, either directly from the `Python website <https://www.python.org/downloads/>`_ or using `pyenv <https://github.com/pyenv/pyenv>`_ (e.g. running :command:`pyenv install 3.8.5`).
+	If you install it somewhere that is not on your PATH (so running :command:`python --version` doesn't give you the correct version), you'll need to run :command:`poetry env use /full/path/to/python` before running :command:`poetry install`.
+
+Installing via either :command:`pip` or Poetry will install all of the dependencies which are required to run Scenic.
+
+.. note::
+
+	For Windows, we recommend using `bashonwindows (the Windows subsystem for Linux) <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ on Windows 10.  Instructions for installing Poetry on bashonwindows can be found `here <https://python-poetry.org/docs/#osx-linux-bashonwindows-install-instructions>`__.
+
+	In the past, the ``shapely`` package did not install properly on Windows.
+	If you encounter this issue, try installing it manually following the instructions `here <https://github.com/Toblerity/Shapely#built-distributions>`__.
+
+.. note::
+
+	On some platforms, in particular OS X, you may get an error during the installation of `pygame <https://www.pygame.org/>`_ due to missing SDL files.
+	Try installing `SDL <https://www.libsdl.org/>`_: on OS X, if you use `Homebrew <https://brew.sh/>`_ you can simply run :command:`brew install sdl`.
+
 
 Trying Some Examples
 --------------------
@@ -78,6 +100,4 @@ Depending on what you'd like to do with Scenic, different parts of the documenta
 
 	* If you want to use Scenic with a simulator, see :ref:`simulators` (which also describes how to interface Scenic to a new simulator, if the one you want isn't listed).
 
-	* If you want to control Scenic from Python rather than using the command-line tool (for example if you want to collect data from the generated scenarios), see :doc:`api`.
-
-	* If you want to add a feature to the language or otherwise need to understand Scenic's inner workings, see our pages on :doc:`developing` and :ref:`internals`.
+	* If you want to add a feature to the language or otherwise need to understand Scenic's inner workings, see our page on :ref:`internals`.

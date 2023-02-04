@@ -12,6 +12,6 @@ ego = EgoCar at -628.78787878787944 @ -540.60676779463461,
 c = Car at -625.4444493298472 @ -530.76549003839568,
         facing 8.287256822061408 deg,
         with model CarModel.models['DOMINATOR'],
-        with color Color.withBytes([187, 162, 157])
+        with color CarColor.withBytes([187, 162, 157])
 
 mutate

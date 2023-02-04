@@ -5,7 +5,6 @@ import random
 from scenic.simulators.gta.interface import (Map, MapWorkspace, GTA,
 	CarModel)
 from scenic.simulators.utils.colors import Color, ColorMutator
-CarColor = Color	# alias for backwards compatibility
 
 # Load map and set up regions, etc.
 from scenic.simulators.gta.map import mapPath

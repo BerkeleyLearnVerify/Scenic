@@ -28,35 +28,76 @@ user uses the :option:`--param` command-line option to specify the map.
     details.
 """
 
-from typing import Optional
+from abc import ABC, abstractmethod
 
 from scenic.domains.driving.workspace import DrivingWorkspace
-from scenic.domains.driving.roads import (ManeuverType, Network, Road, Lane, LaneSection,
-                                          LaneGroup, Intersection, PedestrianCrossing,
-                                          NetworkElement)
+from scenic.domains.driving.roads import NetworkElement, ManeuverType, Network, Road, Lane, LaneSection, Intersection
 from scenic.domains.driving.actions import *
 from scenic.domains.driving.behaviors import *
 
 from scenic.core.distributions import RejectionException
 from scenic.simulators.utils.colors import Color
 
+import pickle
+from nuscenes.map_expansion.map_api import NuScenesMap
+from nuscenes.map_expansion import arcline_path_utils
+from scenic.core.vectors import VectorField
+import numpy as np
+
 ## Load map and set up workspace
 
-if 'map' not in globalParameters:
-    raise RuntimeError('need to specify map before importing driving model '
-                       '(set the global parameter "map")')
-param map_options = {}
+# if 'map' not in globalParameters:
+#     raise RuntimeError('need to specify map before importing driving model '
+#                        '(set the global parameter "map")')
 
-#: The road network being used for the scenario, as a `Network` object.
-network : Network = Network.fromFile(globalParameters.map, **globalParameters.map_options)
+if 'map' in globalParameters:
+    param map_options = {}
+    #: The road network being used for the scenario, as a `Network` object.
+    network : Network = Network.fromFile(globalParameters.map, **globalParameters.map_options)
+    # print("globalParameters.map: ", globalParameters.map)
+    # print("globalParameters.map_options: ", globalParameters.map_options)
+    workspace = DrivingWorkspace(network)
 
-workspace = DrivingWorkspace(network)
+if 'map_options' not in globalParameters:
+
+    network = Network.fromPickle('/Users/edwardkim/Desktop/Scenic_Query/Scenic/src/scenic/domains/driving/boston-network.pickle')
+    dataroot = '/Users/edwardkim/Desktop/Scenic_Query/nuscenes_data'
+    map_api = NuScenesMap(dataroot=dataroot, map_name='boston-seaport')
+    from scenic.core.geometry import normalizeAngle
+
+    def get_traffic_flow(point):
+        closest_lane_token = map_api.get_closest_lane(point[0], point[1])
+        arcline = map_api.get_arcline_path(closest_lane_token)
+
+        # Set heading to dummy zero value (not needed for function below)
+        ego_pose = [point[0], point[1], 0]
+        traffic_pose, _ = arcline_path_utils.project_pose_to_lane(ego_pose, arcline)
+        return normalizeAngle(traffic_pose[2] - math.pi/2)
+
+    network.roadDirection = VectorField('roadDirection', get_traffic_flow)
+
+    #: The road network being used for the scenario, as a `Network` object.
+    # network : Network = Network.fromFile(globalParameters.map, **globalParameters.map_options)
+    network: Network = network
+    workspace = DrivingWorkspace(network)
 
 ## Various useful objects and regions
 
 #: The union of all drivable roads, including intersections but not shoulders
 #: or parking lanes.
-road : Region = network.drivableRegion
+anyArea : NetworkElement = Uniform(*network.lanes, *network.sidewalks, *network.intersections)
+
+drivableRoad : NetworkElement = Uniform(*network.lanes, *network.intersections)
+drivableRegion : Region = network.drivableRegion
+
+road : Road = Uniform(*network.roads)
+roadRegion : Region = network.drivableRegion
+
+lane : Region = Uniform(*network.lanes)
+laneRegion : Region = network.laneRegion
+
+laneSection : Region = Uniform(*network.lanes)
+laneGroup : Region = Uniform(*network.laneGroups)
 
 #: The union of all curbs.
 curb : Region = network.curbRegion
@@ -68,17 +109,14 @@ sidewalk : Region = network.sidewalkRegion
 shoulder : Region = network.shoulderRegion
 
 #: All drivable areas, including both ordinary roads and shoulders.
-roadOrShoulder : Region = road.union(shoulder)
+roadOrShoulder : Region = roadRegion.union(shoulder)
 
 #: The union of all intersections.
-intersection : Region = network.intersectionRegion
+intersection : Region = Uniform(*network.intersections)
+intersectionRegion : Region = network.intersectionRegion
 
-#: A :obj:`VectorField` representing the nominal traffic direction at a given point.
-#:
-#: Inside intersections or anywhere else where there can be multiple nominal
-#: traffic directions, the choice is arbitrary. At such points, the function
-#: `Network.nominalDirectionsAt` can be used to get all nominal directions.
 roadDirection : VectorField = network.roadDirection
+roadsOrIntersections : NetworkElement = Uniform(*network.intersections, *network.lanes)
 
 ## Standard object types
 
@@ -105,34 +143,23 @@ class DrivingObject:
 
     requireVisible: False
 
-    # Semantic category properties
-
-    @property
-    def isVehicle(self):
-        return False
-
-    @property
-    def isCar(self):
-        return False
-
     # Convenience properties
 
     @property
-    def lane(self) -> Lane:
+    def lane(self):
         """The `Lane` at the object's current position.
 
         The simulation is rejected if the object is not in a lane.
-        (Use `DrivingObject._lane` to get `None` instead.)
         """
         return network.laneAt(self, reject='object is not in a lane')
 
     @property
-    def _lane(self) -> Optional[Lane]:
+    def _lane(self):
         """The `Lane` at the object's current position, if any."""
         return network.laneAt(self)
 
     @property
-    def laneSection(self) -> LaneSection:
+    def laneSection(self):
         """The `LaneSection` at the object's current position.
 
         The simulation is rejected if the object is not in a lane.
@@ -140,12 +167,12 @@ class DrivingObject:
         return network.laneSectionAt(self, reject='object is not in a lane')
 
     @property
-    def _laneSection(self) -> Optional[LaneSection]:
+    def _laneSection(self):
         """The `LaneSection` at the object's current position, if any."""
         return network.laneSectionAt(self)
 
     @property
-    def laneGroup(self) -> LaneGroup:
+    def laneGroup(self):
         """The `LaneGroup` at the object's current position.
 
         The simulation is rejected if the object is not in a lane.
@@ -153,12 +180,12 @@ class DrivingObject:
         return network.laneGroupAt(self, reject='object is not in a lane')
 
     @property
-    def _laneGroup(self) -> Optional[LaneGroup]:
+    def _laneGroup(self):
         """The `LaneGroup` at the object's current position, if any."""
         return network.laneGroupAt(self)
 
     @property
-    def oppositeLaneGroup(self) -> LaneGroup:
+    def oppositeLaneGroup(self):
         """The `LaneGroup` on the other side of the road from the object.
 
         The simulation is rejected if the object is not on a two-way road.
@@ -166,7 +193,7 @@ class DrivingObject:
         return self.laneGroup.opposite
 
     @property
-    def road(self) -> Road:
+    def road(self):
         """The `Road` at the object's current position.
 
         The simulation is rejected if the object is not on a road.
@@ -174,12 +201,12 @@ class DrivingObject:
         return network.roadAt(self, reject='object is not on a road')
 
     @property
-    def _road(self) -> Optional[Road]:
+    def _road(self):
         """The `Road` at the object's current position, if any."""
         return network.roadAt(self)
 
     @property
-    def intersection(self) -> Intersection:
+    def intersection(self):
         """The `Intersection` at the object's current position.
 
         The simulation is rejected if the object is not in an intersection.
@@ -187,12 +214,12 @@ class DrivingObject:
         return network.intersectionAt(self, reject='object is not in an intersection')
 
     @property
-    def _intersection(self) -> Optional[Intersection]:
+    def _intersection(self):
         """The `Intersection` at the object's current position, if any."""
         return network.intersectionAt(self)
 
     @property
-    def crossing(self) -> PedestrianCrossing:
+    def crossing(self):
         """The `PedestrianCrossing` at the object's current position.
 
         The simulation is rejected if the object is not in a crosswalk.
@@ -200,12 +227,12 @@ class DrivingObject:
         return network.crossingAt(self, reject='object is not in a crossing')
 
     @property
-    def _crossing(self) -> Optional[PedestrianCrossing]:
+    def _crossing(self):
         """The `PedestrianCrossing` at the object's current position, if any."""
         return network.crossingAt(self)
 
     @property
-    def element(self) -> NetworkElement:
+    def element(self):
         """The highest-level `NetworkElement` at the object's current position.
 
         See `Network.elementAt` for the details of how this is determined.
@@ -214,16 +241,16 @@ class DrivingObject:
         return network.elementAt(self, reject='object is not on any network element')
 
     @property
-    def _element(self) -> Optional[NetworkElement]:
+    def _element(self):
         """The highest-level `NetworkElement` at the object's current position, if any."""
         return network.elementAt(self)
 
     # Utility functions
 
-    def distanceToClosest(self, type: type) -> Object:
+    def distanceToClosest(self, type):
         """Compute the distance to the closest object of the given type.
 
-        For example, one could write :samp:`self.distanceToClosest(Car)` in a behavior.
+        For example, one could write ``self.distanceToClosest(Car)`` in a behavior.
         """
         objects = simulation().objects
         minDist = float('inf')
@@ -252,7 +279,7 @@ class Vehicle(DrivingObject):
             given by **roadDeviation**.
         roadDeviation (float): Relative heading with respect to the road direction at
             the `Vehicle`'s position. Used by the default value for **heading**.
-        regionContainedIn: The default container is :obj:`roadOrShoulder`.
+        regionContainedIn: The default container is `roadOrShoulder`.
         viewAngle: The default view angle is 90 degrees.
         width: The default width is 2 meters.
         length: The default length is 4.5 meters.
@@ -262,22 +289,16 @@ class Vehicle(DrivingObject):
     """
     regionContainedIn: roadOrShoulder
     position: Point on road
-    heading: (roadDirection at self.position) + self.roadDeviation
+    heading: roadDirection at self.position
     roadDeviation: 0
     viewAngle: 90 deg
     width: 2
     length: 4.5
     color: Color.defaultCarColor()
 
-    @property
-    def isVehicle(self):
-        return True
-
 class Car(Vehicle):
     """A car."""
-    @property
-    def isCar(self):
-        return True
+    pass
 
 class NPCCar(Car):
     """Car for which accurate physics is not required."""
@@ -295,7 +316,7 @@ class Pedestrian(DrivingObject):
         color: The default color is turquoise. Pedestrian colors are not necessarily
             used by simulators, but do appear in the debugging diagram.
     """
-    regionContainedIn: network.walkableRegion
+    regionContainedIn: None
     position: Point on network.walkableRegion
     heading: Range(0, 360) deg
     viewAngle: 90 deg
@@ -305,33 +326,40 @@ class Pedestrian(DrivingObject):
 
 # Mixin classes indicating support for various types of actions
 
-class Steers:
+class Steers(ABC):
     """Mixin protocol for agents which can steer.
 
     Specifically, agents must support throttling, braking, steering, setting the hand
     brake, and going into reverse.
     """
-    def setThrottle(self, throttle): raise NotImplementedError
+    @abstractmethod
+    def setThrottle(self, throttle): pass
 
-    def setSteering(self, steering): raise NotImplementedError
+    @abstractmethod
+    def setSteering(self, steering): pass
 
-    def setBraking(self, braking): raise NotImplementedError
+    @abstractmethod
+    def setBraking(self, braking): pass
 
-    def setHandbrake(self, handbrake): raise NotImplementedError
+    @abstractmethod
+    def setHandbrake(self, handbrake): pass
 
-    def setReverse(self, reverse): raise NotImplementedError
+    @abstractmethod
+    def setReverse(self, reverse): pass
 
-class Walks:
+class Walks(ABC):
     """Mixin protocol for agents which can walk with a given direction and speed.
 
     We provide a simplistic implementation which directly sets the velocity of the agent.
     This implementation needs to be explicitly opted-into, since simulators may provide a
     more sophisticated API that properly animates pedestrians.
     """
+    @abstractmethod
     def setWalkingDirection(self, heading):
         velocity = Vector(0, self.speed).rotatedBy(heading)
         self.setVelocity(velocity)
 
+    @abstractmethod
     def setWalkingSpeed(self, speed):
         velocity = speed * self.velocity.normalized()
         self.setVelocity(velocity)
@@ -369,14 +397,11 @@ def withinDistanceToObjsInLane(vehicle, thresholdDistance):
     for obj in objects:
         if not (vehicle can see obj):
             continue
+        if not (network.laneAt(vehicle) == network.laneAt(obj) or network.intersectionAt(vehicle)==network.intersectionAt(obj)):
+            continue
         if (distance from vehicle.position to obj.position) < 0.1:
             # this means obj==vehicle
-            continue
-        inter = network.intersectionAt(vehicle)
-        if inter and inter != network.intersectionAt(obj):    # different intersections
-            continue
-        if not inter and network.laneAt(vehicle) != network.laneAt(obj):    # different lanes
-            continue
-        if (distance from vehicle to obj) < thresholdDistance:
+            pass
+        elif (distance from vehicle.position to obj.position) < thresholdDistance:
             return True
     return False

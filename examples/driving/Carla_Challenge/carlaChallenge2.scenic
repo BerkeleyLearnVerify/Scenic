@@ -4,6 +4,8 @@ Leading vehicle decelerates suddently due to an obstacle and
 ego-vehicle must react, performing an emergency brake or an avoidance maneuver.
 Note: The scenario may fail if the leadCar or the ego get past the intersection while following the roadDirection
 """
+
+#SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town07'
 model scenic.domains.driving.model
@@ -21,7 +23,7 @@ EGO_BRAKING_THRESHOLD = 15
 LEADCAR_TO_OBSTACLE = -20
 LEADCAR_BRAKING_THRESHOLD = 15
 
-
+## DEFINING BEHAVIORS
 #EGO BEHAVIOR: Follow lane, and brake after passing a threshold distance to the leading car
 behavior EgoBehavior(speed=10):
 	
@@ -40,10 +42,14 @@ behavior LeadingCarBehavior(speed=10):
 	interrupt when withinDistanceToAnyCars(self, LEADCAR_BRAKING_THRESHOLD):
 		take SetBrakeAction(BRAKE_ACTION)
 
-#GEOMETRY
+##DEFINING SPATIAL RELATIONS
+# Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
+# 'network' is the 'class Network' object in roads.py
+
+# make sure to put '*' to uniformly randomly select from all elements of the list, 'network.lanes'
 lane = Uniform(*network.lanes)
 
-#PLACEMENT
+##OBJECT PLACEMENT
 obstacle = Car on lane
 
 leadCar = Car following roadDirection from obstacle for LEADCAR_TO_OBSTACLE,

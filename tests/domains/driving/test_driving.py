@@ -5,13 +5,9 @@ import pytest
 import shutil
 import inspect
 
-from tests.utils import compileScenic, sampleScene, sampleEgo, pickle_test, tryPickling
+from tests.utils import compileScenic, sampleScene, sampleEgo
 from scenic.core.geometry import TriangulationError
 from scenic.core.distributions import RejectionException
-from scenic.domains.driving.roads import Network
-
-# Suppress all warnings from OpenDRIVE parser
-pytestmark = pytest.mark.filterwarnings("ignore::scenic.formats.opendrive.OpenDriveWarning")
 
 template = inspect.cleandoc("""
     param map = '{map}'
@@ -34,17 +30,6 @@ def compileDrivingScenario(cached_maps, code='', useCache=True,
 
 maps = glob.glob('tests/formats/opendrive/maps/**/*.xodr')
 
-# TODO fix handling of this problematic map
-badmap = 'tests/formats/opendrive/maps/opendrive.org/sample1.1.xodr'
-map_params = []
-for path in maps:
-    if path == badmap:
-        param = pytest.param(badmap, marks=pytest.mark.xfail(
-                    reason='unsolved bug in geometry calculations', strict=True))
-    else:
-        param = path
-    map_params.append(param)
-
 @pytest.fixture(scope='session')
 def cached_maps(tmpdir_factory):
     folder = tmpdir_factory.mktemp('maps')
@@ -57,7 +42,7 @@ def cached_maps(tmpdir_factory):
     return paths
 
 @pytest.mark.slow
-@pytest.mark.parametrize("path", map_params)
+@pytest.mark.parametrize("path", maps)
 def test_opendrive(path, cached_maps):
     try:
         # First, try the original .xodr file
@@ -118,41 +103,19 @@ def test_curb(cached_maps):
     """)
     sampleScene(scenario, maxIterations=1000)
 
-@pytest.mark.slow
-def test_caching(tmpdir):
+def test_caching(cached_maps):
     """Test caching of road networks.
 
     In particular, make sure that links between network elements and maneuvers
     are properly reconnected after unpickling.
     """
-    origMap = 'tests/formats/opendrive/maps/CARLA/Town01.xodr'
-    path = os.path.join(tmpdir, 'map.xodr')
-    cachedPath = os.path.join(tmpdir, 'map' + Network.pickledExt)
-    shutil.copyfile(origMap, path)
-    opts = (
-        (False, path),
-        (True, cachedPath),
-        (True, path),
-    )
-    for useCache, path in opts:
-        scenario = compileScenic(f"""
-            param map = '{path}'
-            param map_options = dict(useCache={useCache})
-            model scenic.domains.driving.model
+    for cache in (False, True):
+        scenario = compileDrivingScenario(cached_maps, """
             lanes = filter(lambda l: l._successor, network.lanes)
             lane = Uniform(*lanes)
             ego = Car on lane, with foo lane.network.lanes
             Car on ego.lane.successor.centerline, with requireVisible False
             Car on ego.lane.maneuvers[0].endLane.centerline, with requireVisible False
-        """)
+        """, useCache=cache,
+        path='tests/formats/opendrive/maps/opendrive.org/CulDeSac.xodr')
         sampleScene(scenario, maxIterations=1000)
-
-@pickle_test
-def test_pickle(cached_maps):
-    scenario = compileDrivingScenario(cached_maps, """
-        ego = Car with behavior FollowLaneBehavior(target_speed=Range(10, 15))
-        Pedestrian on visible sidewalk
-    """)
-    unpickled = tryPickling(scenario)
-    scene = sampleScene(unpickled, maxIterations=1000)
-    tryPickling(scene)

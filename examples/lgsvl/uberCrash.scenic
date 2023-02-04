@@ -1,7 +1,10 @@
-
-param map = localPath('maps/borregasave.xodr')
-param lgsvl_map = 'BorregasAve'
-model scenic.simulators.lgsvl.model
+from scenic.simulators.lgsvl.simulator import LGSVLSimulator
+from scenic.simulators.lgsvl.map import setMapPath
+setMapPath(__file__, 'maps/borregasave.xodr')
+from scenic.simulators.lgsvl.model import *
+from scenic.simulators.lgsvl.behaviors import *
+import matplotlib.pyplot as plt
+simulator LGSVLSimulator('BorregasAve')
 param time_step = 1.0/10
 
 # CONSTANTS
@@ -19,7 +22,7 @@ rightTurn = Uniform(*rightManeuvers)
 egoStartLane = rightTurn.startLane
 
 straightManeuvers = filter(lambda  m: m.type == ManeuverType.STRAIGHT, egoStartLane.maneuvers)  # problem with borregas - right lane is only for right turns
-egoManeuver = Uniform(*straightManeuvers)
+egoManeuver = Uniform(*rightManeuvers) # Uniform(*straightManeuvers)
 
 # actor's lane
 conflictingLefts = filter(lambda  m: m.type == ManeuverType.LEFT_TURN, egoManeuver.conflictingManeuvers) 

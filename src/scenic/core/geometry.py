@@ -9,7 +9,8 @@ import shapely.geometry
 import shapely.ops
 
 from scenic.core.distributions import (needsSampling, distributionFunction,
-                                       monotonicDistributionFunction)
+                                       monotonicDistributionFunction, checkAndEncodeSMT, smt_equal, \
+                                       writeSMTtoFile)
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.utils import cached_property
 
@@ -17,9 +18,23 @@ from scenic.core.utils import cached_property
 def sin(x) -> float:
 	return math.sin(x)
 
+def sinEncodeSMT(smt_file_path, cached_variables, x, debug=False):
+	var = checkAndEncodeSMT(smt_file_path, cached_variables, x, debug=debug) 
+	output = findVariableName(smt_file_path, cached_variables, 'sine', debug=debug)
+	smt_encoding = smt_equal(output, '(sin '+var+')')
+	writeSMTtoFile(smt_file_path, smt_encoding)
+	return output
+
 @distributionFunction
 def cos(x) -> float:
 	return math.cos(x)
+
+def cosEncodeSMT(smt_file_path, cached_variables, x, debug=False):
+	var = checkAndEncodeSMT(smt_file_path, cached_variables, x, debug)
+	output = findVariableName(smt_file_path, cached_variables, 'sine', debug=debug)
+	smt_encoding = smt_equal(output, '(cos '+var+')')
+	writeSMTtoFile(smt_file_path, smt_encoding)
+	return output
 
 @monotonicDistributionFunction
 def hypot(x, y) -> float:
@@ -138,10 +153,7 @@ def polygonUnion(polys, buf=0, tolerance=0, holeTolerance=0.002):
 	if len(polys) == 1:
 		return polys[0]
 	buffered = [poly.buffer(buf) for poly in polys]
-	# remove empty polys to avoid triggering segfault in GEOS 3.10
-	# (see https://github.com/Toblerity/Shapely/issues/1230)
-	nonempty = [poly for poly in buffered if not poly.is_empty]
-	union = shapely.ops.unary_union(nonempty).buffer(-buf)
+	union = shapely.ops.unary_union(buffered).buffer(-buf)
 	assert union.is_valid, union
 	if tolerance > 0:
 		union = cleanPolygon(union, tolerance, holeTolerance)
@@ -156,7 +168,7 @@ def checkPolygon(poly, tolerance):
 			dx, dy = q[0] - p[0], q[1] - p[1]
 			assert math.hypot(dx, dy) >= tolerance
 	if isinstance(poly, shapely.geometry.MultiPolygon):
-		for p in poly.geoms:
+		for p in poly:
 			checkPolygon(p, tolerance)
 	else:
 		checkPolyline(poly.exterior.coords)
@@ -169,7 +181,7 @@ def cleanPolygon(poly, tolerance, holeTolerance=0, minRelArea=0.05, minHullLenRa
 	if poly.is_empty:
 		return poly
 	elif isinstance(poly, shapely.geometry.MultiPolygon):
-		polys = [cleanPolygon(p, tolerance, holeTolerance) for p in poly.geoms]
+		polys = [cleanPolygon(p, tolerance, holeTolerance) for p in poly]
 		total = sum(poly.area for poly in polys)
 		kept = []
 		for poly in polys:
@@ -274,7 +286,7 @@ def removeHoles(polygon):
 	if polygon.is_empty:
 		return polygon
 	elif isinstance(polygon, shapely.geometry.MultiPolygon):
-		polys = (removeHoles(poly) for poly in polygon.geoms)
+		polys = (removeHoles(poly) for poly in polygon)
 		poly = shapely.geometry.MultiPolygon(polys)
 		assert poly.is_valid, poly
 		return poly
@@ -366,31 +378,29 @@ def triangulatePolygon_mapbox(polygon):
 		triangles.append(shapely.geometry.Polygon(triple))
 	return triangles
 
-def allChains(polygon):
+def plotPolygon(polygon, plt, style='r-', **kwargs):
+	def plotCoords(chain):
+		x, y = chain.xy
+		plt.plot(x, y, style, **kwargs)
 	if polygon.is_empty:
 		return
 	if isinstance(polygon, (shapely.geometry.MultiPolygon,
 	                        shapely.geometry.MultiLineString,
 	                        shapely.geometry.MultiPoint,
 	                        shapely.geometry.collection.GeometryCollection)):
-		polygons = polygon.geoms
+		polygons = polygon
 	else:
 		polygons = [polygon]
 	for polygon in polygons:
 		if isinstance(polygon, shapely.geometry.Polygon):
-			yield polygon.exterior
+			plotCoords(polygon.exterior)
 			for ring in polygon.interiors:
-				yield ring
+				plotCoords(ring)
 		elif isinstance(polygon, (shapely.geometry.LineString, shapely.geometry.LinearRing,
 		                          shapely.geometry.Point)):
-			yield polygon
+			plotCoords(polygon)
 		else:
 			raise RuntimeError(f'unknown kind of shapely geometry {polygon}')
-
-def plotPolygon(polygon, plt, style='r-', **kwargs):
-	for chain in allChains(polygon):
-		x, y = chain.xy
-		plt.plot(x, y, style, **kwargs)
 
 class _RotatedRectangle:
 	"""mixin providing collision detection for rectangular objects and regions"""

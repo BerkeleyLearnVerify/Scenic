@@ -1,7 +1,5 @@
 """Scenic model for Mars rover scenarios in Webots."""
 
-from scenic.simulators.webots.model import WebotsObject
-
 # Set up workspace
 width = 5
 length = 5
@@ -9,20 +7,19 @@ workspace = Workspace(RectangularRegion(0 @ 0, 0, width, length))
 
 # types of objects
 
-class Goal(WebotsObject):
+class Goal:
 	"""Flag indicating the goal location."""
 	width: 0.3
 	length: 0.3
 	webotsType: 'GOAL'
 
-class Rover(WebotsObject):
+class Rover:
 	"""Mars rover."""
 	width: 0.5
 	length: 0.7
 	webotsType: 'ROVER'
-	rotationOffset: 90 deg
 
-class Debris(WebotsObject):
+class Debris:
 	"""Abstract class for debris scattered randomly in the workspace."""
 	position: Point in workspace
 	heading: Range(0, 360) deg
@@ -44,10 +41,3 @@ class Pipe(Debris):
 	width: 0.2
 	length: Range(0.5, 1.5)
 	webotsType: 'PIPE'
-
-	def startDynamicSimulation(self):
-		# Apply variable length
-		self.webotsObject.getField('height').setSFFloat(self.length)
-		# Apply 3D rotation to make pipes lie flat on surface
-		rotation = [cos(self.heading), sin(self.heading), 0, 90 deg]
-		self.webotsObject.getField('rotation').setSFRotation(rotation)

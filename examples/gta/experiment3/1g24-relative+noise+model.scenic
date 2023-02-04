@@ -13,6 +13,6 @@ angleOffset = (8.287256822061408 deg - -359.16913666080427 deg) - 360 deg
 
 c = Car offset by posOffset,
 	facing angleOffset relative to ego.heading,
-	with color Color.withBytes([187, 162, 157])
+	with color CarColor.withBytes([187, 162, 157])
 
 mutate

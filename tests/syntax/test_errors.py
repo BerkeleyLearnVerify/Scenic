@@ -147,6 +147,8 @@ def test_malformed_range():
 
 def test_multiple_requirements():
     with pytest.raises(ASTParseError):
+        compileScenic('require True, True')
+    with pytest.raises(ASTParseError):
         compileScenic('require True, True, True')
 
 ### Line numbering
@@ -238,8 +240,7 @@ def test_bug_template_sanity(template, tmpdir):
 def checkBug(bug, template, tmpdir, pytestconfig):
     path = os.path.join(tmpdir, 'test.sc')
     line, program = template
-    if bug is not None:
-        program = program.format(bug=bug)
+    program = program.format(bug=bug)
     print(f'TRYING PROGRAM:\n{program}')
     # write program to file so we can check SyntaxError line correction
     with open(path, 'w') as f:
@@ -248,76 +249,37 @@ def checkBug(bug, template, tmpdir, pytestconfig):
         runFile(path)
         pytest.fail(f'Program with buggy statement "{bug}" did not raise error')
     except Exception as e:
+        syntaxErrorLike = (isinstance(e, (ScenicSyntaxError, SyntaxError))
+                           and not isinstance(e, RuntimeParseError))
+        if syntaxErrorLike:
+            assert e.lineno == line, program
+            assert e.text.strip() == bug
+            assert e.offset <= len(e.text)
+
+        # allow exception to propagate to top level in a subprocess so we can
+        # test the formatting of the resulting backtrace
         fast = pytestconfig.getoption('--fast', False)
         if fast:
-            lines = None
-        else:
-            # allow exception to propagate to top level in a subprocess so we can
-            # test the formatting of the resulting backtrace
-            command = (
-                'from tests.syntax.test_errors import runFile;'
-                f'runFile("{path}")'
-            )
-            args = [sys.executable, '-c', command]
-            result = subprocess.run(args, capture_output=True, text=True)
-            print('RESULTING STDERR:\n', result.stderr)
-            assert result.returncode == 1
-            lines = result.stderr.splitlines()
-        checkException(e, line, program, bug, path, lines)
-        if fast:
-            # Mark the test as skipped, since we didn't do all of it
             pytest.skip('slow traceback check skipped by --fast')
 
-def checkException(e, lines, program, bug, path, output, topLevel=True):
-    if isinstance(lines, int):
-        eLine = lines
-        remainingLines = []
-    else:
-        eLine = lines[0]
-        remainingLines = lines[1:]
-
-    # For SyntaxError-like exceptions, check metadata.
-    syntaxErrorLike = (isinstance(e, (ScenicSyntaxError, SyntaxError))
-                       and not isinstance(e, RuntimeParseError))
-    if syntaxErrorLike:
-        assert e.lineno == eLine, program
-        assert e.text.strip() == bug
-        assert e.offset <= len(e.text)
-
-    # If we skipped generating a textual backtrace in a subprocess, stop here.
-    if output is None:
-        return
-
-    # Check that the general form of the backtrace looks OK.
-    assert not any(line.startswith('Error in sys.excepthook') for line in output)
-    ty = type(e)
-    name = 'ScenicSyntaxError' if issubclass(ty, ScenicSyntaxError) else ty.__name__
-    assert output[-1].startswith(name)
-
-    # Check that the backtrace lists the correct file and line.
-    loc = -4 if syntaxErrorLike else -3
-    assert len(output) >= -loc
-    lastFrame = output[loc]
-    prefix = f'  File "{path}", line {eLine}'
-    if syntaxErrorLike:
-        assert lastFrame == prefix
-    else:
-        assert lastFrame.startswith(prefix + ',')
-
-    # Recurse on chained exceptions, if any.
-    chained = bool(e.__cause__ or (e.__context__ and not e.__suppress_context__))
-    assert bool(remainingLines) == chained
-    if remainingLines:
-        mid = loc - 6 if topLevel else loc - 3
-        assert len(output) >= -(mid-1)
-    if e.__cause__:
-        assert output[mid] == 'The above exception was the direct cause of the following exception:'
-        nextE = e.__cause__
-    elif e.__context__ and not e.__suppress_context__:
-        assert output[mid] == 'During handling of the above exception, another exception occurred:'
-        nextE = e.__context__
-    if chained:
-        checkException(nextE, remainingLines, program, bug, path, output[:mid-1], topLevel=False)
+        command = (
+            'from tests.syntax.test_errors import runFile;'
+            f'runFile("{path}")'
+        )
+        args = [sys.executable, '-c', command]
+        result = subprocess.run(args, capture_output=True, text=True)
+        print('RESULTING STDERR:\n', result.stderr)
+        assert result.returncode == 1
+        lines = result.stderr.splitlines()
+        assert not any(line.startswith('Error in sys.excepthook') for line in lines)
+        loc = -4 if syntaxErrorLike else -3
+        assert len(lines) >= -loc
+        lastFrame = lines[loc]
+        prefix = f'  File "{path}", line {line}'
+        if syntaxErrorLike:
+            assert lastFrame == prefix
+        else:
+            assert lastFrame.startswith(prefix + ',')
 
 def runFile(path):
     scenario = scenic.scenarioFromFile(path)
@@ -360,35 +322,4 @@ def test_line_numbering_dynamic(bug, template, tmpdir, pytestconfig):
 @pytest.mark.parametrize('template', templates)
 def test_line_numbering_double(bug, template, tmpdir, pytestconfig):
     """Line numbering for errors arising in reused syntax elements."""
-    checkBug(bug, template, tmpdir, pytestconfig)
-
-chainedTemplates = [
-((5, 3),
-'''ego = Object
-try:
-    raise TypeError
-except Exception as e:
-    {bug}
-'''
-),
-((8, 6, 3),
-'''ego = Object
-try:
-    raise TypeError
-except Exception as e:
-    try:
-        {bug}
-    except Exception:
-        raise Exception
-'''
-),
-]
-
-@pytest.mark.parametrize('bug', (
-    'raise ValueError',
-    'raise RuntimeError from e',
-))
-@pytest.mark.parametrize('template', chainedTemplates)
-def test_line_numbering_chained(bug, template, tmpdir, pytestconfig):
-    """Line numbering for chained exceptions."""
     checkBug(bug, template, tmpdir, pytestconfig)

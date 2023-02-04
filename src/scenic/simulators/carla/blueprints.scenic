@@ -1,32 +1,22 @@
 """CARLA blueprints for cars, pedestrians, etc."""
 
-#: Mapping from current names of blueprints to ones in old CARLA versions.
-#:
-#: We provide a tuple of old names in case they change more than once.
-oldBlueprintNames = {
-      'vehicle.dodge.charger_police': ('vehicle.dodge_charger.police',),
-      'vehicle.lincoln.mkz_2017': ('vehicle.lincoln.mkz2017',),
-      'vehicle.mercedes.coupe': ('vehicle.mercedes-benz.coupe',),
-      'vehicle.mini.cooper_s': ('vehicle.mini.cooperst',),
-      'vehicle.ford.mustang': ('vehicle.mustang.mustang',),
-}
-
 ## Vehicle blueprints
 
 #: blueprints for cars
-carModels = [
+carModels = [# for speed = 10
       'vehicle.audi.a2',
       'vehicle.audi.etron',
       'vehicle.audi.tt',
       'vehicle.bmw.grandtourer',
+      'vehicle.bmw.isetta',
       'vehicle.chevrolet.impala',
       'vehicle.citroen.c3',
-      'vehicle.dodge.charger_police',
+      'vehicle.dodge_charger.police',
       'vehicle.jeep.wrangler_rubicon', 
-      'vehicle.lincoln.mkz_2017',
-      'vehicle.mercedes.coupe',
-      'vehicle.mini.cooper_s',
-      'vehicle.ford.mustang',
+      'vehicle.lincoln.mkz2017',
+      'vehicle.mercedes-benz.coupe',
+      'vehicle.mini.cooperst',
+      'vehicle.mustang.mustang',
       'vehicle.nissan.micra',
       'vehicle.nissan.patrol',
       'vehicle.seat.leon',

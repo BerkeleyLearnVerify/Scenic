@@ -1,8 +1,5 @@
-"""Pruning parts of the sample space which violate requirements.
 
-The top-level function here, `prune`, is called as the very last step of scenario
-compilation (from `translator.constructScenarioFrom`).
-"""
+"""Pruning parts of the sample space which violate requirements."""
 
 import math
 import time
@@ -33,7 +30,7 @@ def isMethodCall(thing, method):
     return thing.method is underlyingFunction(method)
 
 def matchInRegion(position):
-    """Match uniform samples from a `Region`, returning the Region if any."""
+    """Match uniform samples from a Region, returning the Region if any."""
     if isinstance(position, regions.PointInRegionDistribution):
         reg = position.region
         if isinstance(reg, Workspace):
@@ -42,10 +39,10 @@ def matchInRegion(position):
     return None
 
 def matchPolygonalField(heading, position):
-    """Match headings defined by a `PolygonalVectorField` at the given position.
+    """Match headings defined by a PolygonalVectorField at the given position.
 
-    Matches headings exactly equal to a `PolygonalVectorField`, or offset by a
-    bounded disturbance. Returns a triple consisting of the matched field if
+    Matches headings exactly equal to a PolygonalVectorField, or offset by a
+    bounded disturbance. Returns a triplet consisting of the matched field if
     any, together with lower/upper bounds on the disturbance.
     """
     if (isMethodCall(heading, VectorField.__getitem__)
@@ -65,16 +62,11 @@ def matchPolygonalField(heading, position):
 ### Pruning procedures
 
 def prune(scenario, verbosity=1):
-    """Prune a `Scenario`, removing infeasible parts of the space.
+    """Prune a Scenario, removing infeasible parts of the space.
 
     This function directly modifies the Distributions used in the Scenario,
     but leaves the conditional distribution under the scenario's requirements
-    unchanged. See `Samplable.conditionTo`.
-
-    Currently, the following pruning techniques are applied in order:
-
-        * Pruning based on containment (`pruneContainment`)
-        * Pruning based on relative heading bounds (`pruneRelativeHeading`)
+    unchanged.
     """
     if verbosity >= 1:
         print('  Pruning scenario...')
@@ -110,7 +102,7 @@ def pruneContainment(scenario, verbosity):
         container = scenario.containerOfObject(obj)
         containerPoly = regions.toPolygon(container)
         if containerPoly is None:           # the object's container must also be polygonal
-            continue
+            return None
         minRadius, _ = supportInterval(obj.inradius)
         if minRadius is not None:           # if we can lower bound the radius, erode the container
             containerPoly = containerPoly.buffer(-minRadius)

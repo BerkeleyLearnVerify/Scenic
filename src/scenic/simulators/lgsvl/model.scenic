@@ -8,7 +8,6 @@ try:
     EGO_TYPE = lgsvl.AgentType.EGO
     NPC_TYPE = lgsvl.AgentType.NPC
     PEDESTRIAN_TYPE = lgsvl.AgentType.PEDESTRIAN
-    LINCOLN_MODULAR = lgsvl.wise.DefaultAssets.ego_lincoln2017mkz_apollo5_modular
     from scenic.simulators.lgsvl.simulator import LGSVLSimulator
     from scenic.simulators.lgsvl.actions import *
     import scenic.simulators.lgsvl.utils as utils
@@ -17,7 +16,6 @@ except ModuleNotFoundError:
     EGO_TYPE = 'EGO'
     NPC_TYPE = 'NPC'
     PEDESTRIAN_TYPE = 'PEDESTRIAN'
-    LINCOLN_MODULAR = 'Lincoln2017MKZ'
 
     import warnings
     warnings.warn('the "lgsvl" package is not installed; '
@@ -55,16 +53,12 @@ class Vehicle(Vehicle, LGSVLObject):
     pass
 
 class EgoCar(Vehicle, Steers):
-    lgsvlName: LINCOLN_MODULAR
+    lgsvlName: 'Lincoln2017MKZ (Apollo 5.0)'
     lgsvlAgentType: EGO_TYPE
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._control = None    # used internally to accumulate control updates
-
-    @property
-    def isCar(self):
-        return True
 
     @property
     def control(self):
@@ -92,19 +86,10 @@ class EgoCar(Vehicle, Steers):
 (Car) = (EgoCar)
 
 class ApolloCar(EgoCar):
-    lgsvlName: LINCOLN_MODULAR
-    apolloVehicle: 'Lincoln2017MKZ LGSVL'
-    apolloModules: [
-        'Localization',
-        'Third Party Perception',
-        'Transform',
-        'Routing',
-        'Prediction',
-        'Planning',
-        'Camera',
-        'Traffic Light',
-        'Control'
-	]
+    lgsvlName: 'Lincoln2017MKZ (Apollo 5.0)'
+    apolloVehicle: 'Lincoln2017MKZ'
+    apolloModules: ['Localization', 'Perception', 'Transform', 'Routing',
+                    'Prediction', 'Planning', 'Camera']
     bridgeHost: 'localhost'
     bridgePort: 9090
 
@@ -112,10 +97,6 @@ class ApolloCar(EgoCar):
 
 class NPCCar(NPCCar, Vehicle):
     lgsvlName: 'Sedan'
-    lgsvlAgentType: NPC_TYPE
-
-class Bus(NPCCar, Vehicle):
-    lgsvlName: 'SchoolBus'
     lgsvlAgentType: NPC_TYPE
 
 class Pedestrian(Pedestrian, LGSVLObject, Walks):

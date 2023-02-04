@@ -297,7 +297,7 @@ def compute_midpoints(img_data, bw_kernelsize=1, kernelsize=3, threshold=100,
                                            num_samples=num_samples,
                                            bw_image=img_bw_int)
 
-            point_data[x] = EdgeData(init_theta=float(init_theta), tangent=float(theta),
+            point_data[x] = EdgeData(init_theta=init_theta, tangent=theta,
                              opp_loc=opp_loc, mid_loc=mid_loc \
                     if opp_loc not in bb else (np.nan, np.nan))
 

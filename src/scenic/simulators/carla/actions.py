@@ -30,8 +30,8 @@ class SetTransformAction(Action):	# TODO eliminate
 		self.heading = heading
 
 	def applyTo(self, obj, sim):
-		loc = _utils.scenicToCarlaLocation(self.pos, z=obj.elevation)
-		rot = _utils.scenicToCarlaRotation(self.heading)
+		loc = _utils.scenicToCarlaLocation(pos, z=obj.elevation)
+		rot = _utils.scenicToCarlaRotation(heading)
 		transform = _carla.Transform(loc, rot)
 		obj.carlaActor.set_transform(transform)
 
@@ -104,18 +104,6 @@ class SetAutopilotAction(VehicleAction):
 	def applyTo(self, obj, sim):
 		vehicle = obj.carlaActor
 		vehicle.set_autopilot(self.enabled, sim.tm.get_port())
-
-class SetVehicleLightStateAction(VehicleAction):
-	"""Set the vehicle lights' states.
-
-	Arguments:
-		vehicleLightState: Which lights are on.
-	"""
-	def __init__(self, vehicleLightState):
-		self.vehicleLightState = vehicleLightState
-
-	def applyTo(self, obj, sim):
-		obj.carlaActor.set_light_state(self.vehicleLightState)
 
 #################################################
 # Actions available to all carla.Walker objects #

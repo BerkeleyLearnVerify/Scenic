@@ -2,87 +2,21 @@
 
 import random
 import time
-import sys
 
-from scenic.core.distributions import (Samplable, ConstantSamplable, RejectionException,
-                                       needsSampling)
+from scenic.core.distributions import Samplable, RejectionException, needsSampling, Options
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.external_params import ExternalSampler
 from scenic.core.regions import EmptyRegion
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
-from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
-from scenic.core.dynamics import Behavior
-from scenic.core.requirements import BoundRequirement
-from scenic.core.serialization import dumpAsScenicCode
+from scenic.core.utils import areEquivalent
+from scenic.core.errors import InvalidScenarioError
+import scenic.syntax.veneer as veneer
 
-# Pickling support
-
-class _ScenarioPickleMixin:
-	def __getstate__(self):
-		# Start the pickle with an object storing our global parameters and activating
-		# the veneer with them; this will ensure they are available during import of
-		# any needed Scenic modules (which might have been purged earlier, and in any
-		# case won't already exist during unpickling). Similarly, tack a dummy object
-		# on the end of the pickle which will deactivate the veneer and clean up.
-		oldModules = []
-		return (_Activator(self.params, oldModules), self.__dict__, _Deactivator(oldModules))
-
-	def __setstate__(self, state):
-		self.__dict__.update(state[1])
-
-class _Activator:
-	def __init__(self, params, oldModules):
-		self.params = params
-		# Save all modules already imported prior to pickling
-		oldModules.extend(sys.modules.keys())
-
-	def activate(self):
-		import scenic.syntax.veneer as veneer
-		assert not veneer.isActive()
-		veneer.activate(paramOverrides=self.params)
-
-	def __getstate__(self):
-		# Step 1 (during pickling)
-		self.activate()
-		return self.__dict__
-
-	def __setstate__(self, state):
-		# Step 3 (during unpickling)
-		self.__dict__.update(state)
-		self.activate()
-
-class _Deactivator:
-	def __init__(self, oldModules):
-		self.oldModules = oldModules
-
-	def deactivate(self):
-		import scenic.syntax.veneer as veneer
-		veneer.deactivate()
-		assert not veneer.isActive(), 'nested pickle of Scene/Scenario'
-		# Purge Scenic modules imported during pickling
-		from scenic.syntax.translator import purgeModulesUnsafeToCache
-		purgeModulesUnsafeToCache(self.oldModules)
-
-	def __getstate__(self):
-		# Step 2 (during pickling)
-		self.deactivate()
-		return self.__dict__
-
-	def __setstate__(self, state):
-		# Step 4 (during unpickling)
-		self.__dict__.update(state)
-		self.deactivate()
-
-# Scenes and scenarios
-
-class Scene(_ScenarioPickleMixin):
+class Scene:
 	"""Scene()
 
 	A scene generated from a Scenic scenario.
-
-	To run a dynamic simulation from a scene, create an instance of `Simulator` for the
-	simulator you want to use, and pass the scene to its `simulate` method.
 
 	Attributes:
 		objects (tuple of :obj:`~scenic.core.object_types.Object`): All objects in the
@@ -92,46 +26,18 @@ class Scene(_ScenarioPickleMixin):
 		workspace (:obj:`~scenic.core.workspaces.Workspace`): Workspace for the scenario.
 	"""
 	def __init__(self, workspace, objects, egoObject, params,
-				 alwaysReqs=(), eventuallyReqs=(),
-				 terminationConds=(), termSimulationConds=(),
-				 recordedExprs=(), recordedInitialExprs=(), recordedFinalExprs=(),
-				 monitors=(), behaviorNamespaces={}, dynamicScenario=None):
+				 alwaysReqs=(), terminationConds=(), termSimulationConds=(), monitors=(),
+				 behaviorNamespaces={}, dynamicScenario=None):
 		self.workspace = workspace
 		self.objects = tuple(objects)
 		self.egoObject = egoObject
 		self.params = params
 		self.alwaysRequirements = tuple(alwaysReqs)
-		self.eventuallyRequirements = tuple(eventuallyReqs)
 		self.terminationConditions = tuple(terminationConds)
 		self.terminateSimulationConditions = tuple(termSimulationConds)
-		self.recordedExprs = tuple(recordedExprs)
-		self.recordedInitialExprs = tuple(recordedInitialExprs)
-		self.recordedFinalExprs = tuple(recordedFinalExprs)
 		self.monitors = tuple(monitors)
 		self.behaviorNamespaces = behaviorNamespaces
 		self.dynamicScenario = dynamicScenario
-
-	def dumpAsScenicCode(self, stream=sys.stdout):
-		"""Dump Scenic code reproducing this scene to the given stream.
-
-		.. note::
-
-			This function does not currently reproduce parts of the original Scenic
-			program defining behaviors, functions, etc. used in the scene. Also, if
-			the scene involves any user-defined types, they must provide a suitable
-			:obj:`~object.__repr__` for this function to print them properly.
-
-		Args:
-			stream (:term:`text file`): Where to print the code (default `sys.stdout`).
-		"""
-		for name, value in self.params.items():
-			stream.write(f'param "{name}" = ')
-			dumpAsScenicCode(value, stream)
-			stream.write('\n')
-		stream.write('ego = ')
-		for obj in self.objects:
-			dumpAsScenicCode(obj, stream)
-			stream.write('\n')
 
 	def show(self, zoom=None, block=True):
 		"""Render a schematic of the scene for debugging."""
@@ -143,11 +49,11 @@ class Scene(_ScenarioPickleMixin):
 		for obj in self.objects:
 			obj.show(self.workspace, plt, highlight=(obj is self.egoObject))
 		# zoom in if requested
-		if zoom:
+		if zoom != None:
 			self.workspace.zoomAround(plt, self.objects, expansion=zoom)
 		plt.show(block=block)
 
-class Scenario(_ScenarioPickleMixin):
+class Scenario:
 	"""Scenario()
 
 	A compiled Scenic scenario, from which scenes can be sampled.
@@ -168,6 +74,7 @@ class Scenario(_ScenarioPickleMixin):
 			if obj is not egoObject:
 				ordered.append(obj)
 		self.objects = (egoObject,) + tuple(ordered) if egoObject else tuple(ordered)
+		self.original_objects = objects
 		self.egoObject = egoObject
 		self.params = dict(params)
 		self.externalParams = tuple(externalParams)
@@ -179,14 +86,10 @@ class Scenario(_ScenarioPickleMixin):
 		staticReqs, alwaysReqs, terminationConds = [], [], []
 		self.requirements = tuple(dynamicScenario._requirements)	# TODO clean up
 		self.alwaysRequirements = tuple(dynamicScenario._alwaysRequirements)
-		self.eventuallyRequirements = tuple(dynamicScenario._eventuallyRequirements)
 		self.terminationConditions = tuple(dynamicScenario._terminationConditions)
 		self.terminateSimulationConditions = tuple(dynamicScenario._terminateSimulationConditions)
 		self.initialRequirements = self.requirements + self.alwaysRequirements
 		assert all(req.constrainsSampling for req in self.initialRequirements)
-		self.recordedExprs = tuple(dynamicScenario._recordedExprs)
-		self.recordedInitialExprs = tuple(dynamicScenario._recordedInitialExprs)
-		self.recordedFinalExprs = tuple(dynamicScenario._recordedFinalExprs)
 		# dependencies must use fixed order for reproducibility
 		paramDeps = tuple(p for p in self.params.values() if isinstance(p, Samplable))
 		behaviorDeps = []
@@ -197,6 +100,16 @@ class Scenario(_ScenarioPickleMixin):
 		self.dependencies = self.objects + paramDeps + tuple(requirementDeps) + tuple(behaviorDeps)
 
 		self.validate()
+
+	def isEquivalentTo(self, other):
+		if type(other) is not Scenario:
+			return False
+		return (areEquivalent(other.workspace, self.workspace)
+			and areEquivalent(other.objects, self.objects)
+			and areEquivalent(other.params, self.params)
+			and areEquivalent(other.externalParams, self.externalParams)
+			and areEquivalent(other.requirements, self.requirements)
+			and other.externalSampler == self.externalSampler)
 
 	def containerOfObject(self, obj):
 		if hasattr(obj, 'regionContainedIn') and obj.regionContainedIn is not None:
@@ -228,15 +141,14 @@ class Scenario(_ScenarioPickleMixin):
 			if staticVisibility and oi.requireVisible is True and oi is not self.egoObject:
 				if not self.egoObject.canSee(oi):
 					raise InvalidScenarioError(f'Object at {oi.position} is not visible from ego')
-			if not oi.allowCollisions:
-				# Require object to not intersect another object
-				for j in range(i):
-					oj = objects[j]
-					if oj.allowCollisions or not staticBounds[j]:
-						continue
-					if oi.intersects(oj):
-						raise InvalidScenarioError(f'Object at {oi.position} intersects'
-												   f' object at {oj.position}')
+			# Require object to not intersect another object
+			for j in range(i):
+				oj = objects[j]
+				if not staticBounds[j]:
+					continue
+				if oi.intersects(oj):
+					raise InvalidScenarioError(f'Object at {oi.position} intersects'
+											   f' object at {oj.position}')
 
 	def hasStaticBounds(self, obj):
 		if needsSampling(obj.position):
@@ -245,10 +157,111 @@ class Scenario(_ScenarioPickleMixin):
 			return False
 		return True
 
-	def generate(self, maxIterations=2000, verbosity=0, feedback=None):
+	def generateForQuery(self, maxIterations=2000, verbosity=0, feedback=None):
 		"""Sample a `Scene` from this scenario.
 
-		For a description of how scene generation is done, see `scene generation`.
+		Args:
+			maxIterations (int): Maximum number of rejection sampling iterations.
+			verbosity (int): Verbosity level.
+			feedback (float): Feedback to pass to external samplers doing active sampling.
+				See :mod:`scenic.core.external_params`.
+
+		Returns:
+			A pair with the sampled `Scene` and the number of iterations used.
+
+		Raises:
+			`RejectionException`: if no valid sample is found in **maxIterations** iterations.
+		"""
+		objects = self.original_objects
+
+		# choose which custom requirements will be enforced for this sample
+		activeReqs = [req for req in self.initialRequirements if random.random() <= req.prob]
+
+		# do rejection sampling until requirements are satisfied
+		rejection = True
+		iterations = 0
+		while rejection is not None:
+			if iterations > 0:	# rejected the last sample
+				if verbosity >= 2:
+					print(f'  Rejected sample {iterations} because of: {rejection}')
+				if self.externalSampler is not None:
+					feedback = self.externalSampler.rejectionFeedback
+			if iterations >= maxIterations:
+				raise RejectionException(f'failed to generate scenario in {iterations} iterations')
+			iterations += 1
+			try:
+				if self.externalSampler is not None:
+					self.externalSampler.sample(feedback)
+				sample = Samplable.sampleAll(self.dependencies)
+			except RejectionException as e:
+				rejection = e
+				continue
+			rejection = None
+			ego = sample[self.egoObject]
+			# Normalize types of some built-in properties
+			for obj in objects:
+				sampledObj = sample[obj]
+				assert not needsSampling(sampledObj)
+				# position, heading
+				assert isinstance(sampledObj.position, Vector)
+				sampledObj.heading = float(sampledObj.heading)
+				# behavior
+				behavior = sampledObj.behavior
+				if behavior is not None and not isinstance(behavior, veneer.Behavior):
+					raise InvalidScenarioError(
+						f'behavior {behavior} of Object {obj} is not a behavior')
+
+			# Check built-in requirements
+			for i in range(len(objects)):
+				vi = sample[objects[i]]
+				# Require object to be contained in the workspace/valid region
+				container = self.containerOfObject(vi)
+				if not container.containsObject(vi):
+					rejection = 'object containment'
+					break
+				# Require object to be visible from the ego object
+				if vi.requireVisible and vi is not ego and not ego.canSee(vi):
+					rejection = 'object visibility'
+					break
+				# Require object to not intersect another object
+				for j in range(i):
+					vj = sample[objects[j]]
+					if vi.intersects(vj):
+						rejection = 'object intersection'
+						break
+				if rejection is not None:
+					break
+			if rejection is not None:
+				continue
+			# Check user-specified requirements
+			for req in activeReqs:
+				if not req.satisfiedBy(sample):
+					rejection = f'user-specified requirement (line {req.line})'
+					break
+
+		# obtained a valid sample; assemble a scene from it
+		sampledObjects = tuple(sample[obj] for obj in objects)
+		sampledParams = {}
+		for param, value in self.params.items():
+			sampledValue = sample[value]
+			assert not needsLazyEvaluation(sampledValue)
+			sampledParams[param] = sampledValue
+		sampledNamespaces = {}
+		for modName, namespace in self.behaviorNamespaces.items():
+			sampledNamespace = { name: sample[value] for name, value in namespace.items() }
+			sampledNamespaces[modName] = (namespace, sampledNamespace, namespace.copy())
+		alwaysReqs = (veneer.BoundRequirement(req, sample) for req in self.alwaysRequirements)
+		terminationConds = (veneer.BoundRequirement(req, sample)
+							for req in self.terminationConditions)
+		termSimulationConds = (veneer.BoundRequirement(req, sample)
+							   for req in self.terminateSimulationConditions)
+		scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
+					  alwaysReqs, terminationConds, termSimulationConds, self.monitors,
+					  sampledNamespaces, self.dynamicScenario)
+		return scene, iterations
+
+	def generate(self, maxIterations=2000, verbosity=0, feedback=None):
+		"""Sample a `Scene` from this scenario.
 
 		Args:
 			maxIterations (int): Maximum number of rejection sampling iterations.
@@ -284,7 +297,6 @@ class Scenario(_ScenarioPickleMixin):
 					self.externalSampler.sample(feedback)
 				sample = Samplable.sampleAll(self.dependencies)
 			except RejectionException as e:
-				optionallyDebugRejection(e)
 				rejection = e
 				continue
 			rejection = None
@@ -298,7 +310,7 @@ class Scenario(_ScenarioPickleMixin):
 				sampledObj.heading = float(sampledObj.heading)
 				# behavior
 				behavior = sampledObj.behavior
-				if behavior is not None and not isinstance(behavior, Behavior):
+				if behavior is not None and not isinstance(behavior, veneer.Behavior):
 					raise InvalidScenarioError(
 						f'behavior {behavior} of Object {obj} is not a behavior')
 
@@ -315,21 +327,19 @@ class Scenario(_ScenarioPickleMixin):
 					rejection = 'object visibility'
 					break
 				# Require object to not intersect another object
-				if not vi.allowCollisions:
-					for j in range(i):
-						vj = sample[objects[j]]
-						if not vj.allowCollisions and vi.intersects(vj):
-							rejection = 'object intersection'
-							break
+				for j in range(i):
+					vj = sample[objects[j]]
+					if vi.intersects(vj):
+						rejection = 'object intersection'
+						break
 				if rejection is not None:
 					break
 			if rejection is not None:
-				optionallyDebugRejection()
 				continue
 			# Check user-specified requirements
 			for req in activeReqs:
 				if not req.satisfiedBy(sample):
-					rejection = str(req)
+					rejection = f'user-specified requirement (line {req.line})'
 					break
 
 		# obtained a valid sample; assemble a scene from it
@@ -343,73 +353,122 @@ class Scenario(_ScenarioPickleMixin):
 		for modName, namespace in self.behaviorNamespaces.items():
 			sampledNamespace = { name: sample[value] for name, value in namespace.items() }
 			sampledNamespaces[modName] = (namespace, sampledNamespace, namespace.copy())
-		alwaysReqs = (BoundRequirement(req, sample) for req in self.alwaysRequirements)
-		eventuallyReqs = (BoundRequirement(req, sample) for req in self.eventuallyRequirements)
-		terminationConds = (BoundRequirement(req, sample)
+		alwaysReqs = (veneer.BoundRequirement(req, sample) for req in self.alwaysRequirements)
+		terminationConds = (veneer.BoundRequirement(req, sample)
 							for req in self.terminationConditions)
-		termSimulationConds = (BoundRequirement(req, sample)
+		termSimulationConds = (veneer.BoundRequirement(req, sample)
 							   for req in self.terminateSimulationConditions)
-		recordedExprs = (BoundRequirement(req, sample) for req in self.recordedExprs)
-		recordedInitialExprs = (BoundRequirement(req, sample)
-		                        for req in self.recordedInitialExprs)
-		recordedFinalExprs = (BoundRequirement(req, sample)
-		                      for req in self.recordedFinalExprs)
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
-					  alwaysReqs, eventuallyReqs, terminationConds, termSimulationConds,
-					  recordedExprs, recordedInitialExprs,recordedFinalExprs,
-					  self.monitors, sampledNamespaces, self.dynamicScenario)
+					  alwaysReqs, terminationConds, termSimulationConds, self.monitors,
+					  sampledNamespaces, self.dynamicScenario)
 		return scene, iterations
+
+	def checkRequirements(self):
+		sample = Samplable.sampleAll(self.dependencies)
+		for req in self.initialRequirements:
+			if not req.satisfiedBy(sample):
+				return False
+		return True
 
 	def resetExternalSampler(self):
 		"""Reset the scenario's external sampler, if any.
 
 		If the Python random seed is reset before calling this function, this
-		should cause the sequence of generated scenes to be deterministic.
-		"""
+		should cause the sequence of generated scenes to be deterministic."""
 		self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)
-
-	def conditionOn(self, scene=None, objects=(), params={}):
-		"""Condition the scenario on particular values for some objects or parameters.
-
-		This method changes the distribution of the scenario and should be used with
-		care: it does not attempt to check that the new distribution is equivalent to the
-		old one or that it has nonzero probability of satisfying the scenario's
-		requirements.
-
-		For example, to sample object #5 in the scenario once and then leave it fixed in
-		all subsequent samples::
-
-			sceneA, _ = scenario.generate()
-			scenario.conditionOn(scene=sceneA, objects=(5,))
-			sceneB, _ = scenario.generate()		# will have the same object 5 as sceneA
-
-		Args:
-			scene (Scene): Scene from which to take values for the given **objects**,
-				if any.
-			objects: Sequence of indices specifying which objects in this scenario should
-				be conditioned on the corresponding objects in **scene** (i.e. those with
-				the same index in the list of objects).
-			params (dict): Dictionary of global parameters to condition and their new
-				values (which may be constants or distributions).
-		"""
-		assert objects or params
-		assert bool(scene) == bool(objects)
-		if scene:
-			assert len(self.objects) == len(scene.objects)
-		for i in objects:
-			assert i < len(self.objects)
-			self.objects[i].conditionTo(scene.objects[i])
-		for param, newVal in params.items():
-			curVal = self.params[param]
-			if isinstance(curVal, Samplable):
-				if not isinstance(newVal, Samplable):
-					newVal = ConstantSamplable(newVal)
-				curVal.conditionTo(newVal)
-			else:
-				self.params[param] = newVal
 
 	def getSimulator(self):
 		if self.simulator is None:
 			raise RuntimeError('scenario does not specify a simulator')
-		import scenic.syntax.veneer as veneer
-		return veneer.instantiateSimulator(self.simulator, self.params)
+		try:
+			assert not veneer._globalParameters		# TODO improve hack!
+			veneer._globalParameters = dict(self.params)
+			return self.simulator()
+		finally:
+			veneer._globalParameters = {}
+
+	## Dependency Analysis
+	def cacheDependencies(self, obj, depSet=None):
+		if depSet is None:
+			depSet = set()
+	    
+		depSet.add(obj)
+		if not isinstance(obj._conditioned, Samplable):
+			return depSet
+
+		for dep in obj._conditioned._dependencies:
+			if isinstance(dep._conditioned, Samplable):
+				depSet = self.cacheDependencies(dep, depSet)
+
+		return depSet
+
+	def addToFeatureDict(self, feature, featureDict, name):
+		featureDict[name] = {}
+		featureDict[name]['cachedDep'] = self.cacheDependencies(feature)
+		featureDict[name]['dependent_features'] = set()
+		featureDict[name]['jointly_dependent_features'] = set()
+		featureDict[name]['feature'] = feature
+		return featureDict
+
+	def dependencyAnalysis(self, debug=False):
+	## TODO: also account for out of order object specification in the program
+
+		# cache features' dependencies
+		featureDict = {}
+		cached_featureList = []
+		for i in range(len(self.objects)):
+			obj = self.objects[i]
+			obj_name = 'obj'+str(i)
+			obj_pos = obj_name+'_position'
+			obj_heading = obj_name+'_heading'
+			pos_feature = obj.position
+			heading_feature = obj.heading
+			cached_featureList.extend([obj_pos, obj_heading])
+			self.addToFeatureDict(pos_feature, featureDict, obj_pos)
+			self.addToFeatureDict(heading_feature,  featureDict, obj_heading)
+			pos_feature._conditioned = 0
+			heading_feature._conditioned = 0
+            
+		for i in range(len(cached_featureList)):
+			for j in range(len(cached_featureList)):
+				if i >= j: # same feature or already checked
+					continue
+				else:
+					feature1 = cached_featureList[i]
+					feature2 = cached_featureList[j]
+					feature1_dict = featureDict[feature1]
+					feature2_dict = featureDict[feature2]
+
+					feature1_cacheDep = feature1_dict['cachedDep']
+					feature2_cacheDep = feature2_dict['cachedDep']
+					shared_dependencies = feature1_cacheDep.intersection(feature2_cacheDep)
+		            
+					if len(shared_dependencies) > 0:
+						# two features cannot be both dependent and jointly dependent
+						if featureDict[feature1]['feature'] in shared_dependencies:
+							featureDict[feature2]['dependent_features'].add(feature1)
+						elif featureDict[feature2]['feature'] in shared_dependencies:
+							featureDict[feature1]['dependent_features'].add(feature2)
+						else:
+							featureDict[feature1]['jointly_dependent_features'].add(feature2)
+
+		dependencyOrder = []
+		already_checked = set()
+		for feature in cached_featureList:
+			if feature not in already_checked:
+				jointlyDependentFeatures = []
+				for joint_feature in featureDict[feature]['jointly_dependent_features']:
+					if joint_feature not in already_checked:
+						jointlyDependentFeatures.append(joint_feature)
+				jointlyDependentFeatures.append(feature)
+				if debug:
+					dependencyOrder.append(jointlyDependentFeatures)
+				else:
+					jointFeatures = []
+					for feature_name in jointlyDependentFeatures:
+						jointFeatures.append(featureDict[feature_name]['feature'])
+					dependencyOrder.append(jointFeatures)
+
+				for f in jointlyDependentFeatures: # to avoid double counting features
+					already_checked.add(f)
+		return dependencyOrder

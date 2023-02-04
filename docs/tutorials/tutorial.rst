@@ -6,7 +6,7 @@ Scenic Tutorial
 This tutorial motivates and illustrates the main features of Scenic, focusing on aspects
 of the language that make it particularly well-suited for describing geometric scenarios.
 Throughout, we use examples from our case study using Scenic to generate traffic scenes
-in GTA V to test and train autonomous cars [F22]_, [F19]_.
+in GTA V to test and train autonomous cars [F19]_.
 
 We'll focus here on the *spatial* aspects of scenarios; for adding *temporal* dynamics to a scenario, see our page on :ref:`dynamics`.
 
@@ -25,7 +25,7 @@ this very concisely in Scenic:
 	ego = Car
 	Car
 
-Line 1 imports the GTA :term:`world model`, a Scenic library defining everything specific to our
+Line 1 imports the GTA world model, a Scenic library defining everything specific to our
 GTA interface. This includes the definition of the class `Car`, as well as information
 about the road geometry that we'll see later. We'll suppress this ``import`` statement in
 subsequent examples.
@@ -91,11 +91,6 @@ interval between :samp:`{X}` and :samp:`{Y}`, and :samp:`{X} @ {Y}` creates a ve
 	:linenos:
 
 	Car offset by (Range(-10, 10), Range(20, 40))
-
-One exception to the above rules for object creation is that if the name of a class is followed
-immediately by punctuation, then an object is not created. This allows us to refer to a Scenic
-class without creating an instance of that class in the environment, which is useful for statements
-like ``isinstance(obj, Car)``, ``[Taxi, Truck]``, ``Car.staticMethod``, etc.
 
 Local Coordinate Systems
 ------------------------
@@ -231,7 +226,7 @@ the ego object. The specifier ``on visible curb`` with then set ``position`` to 
 uniformly random visible point on the curb. We create ``spot`` as an `OrientedPoint`,
 which is a built-in class that defines a local coordinate system by having both a
 ``position`` and a ``heading``. The :samp:`on {region}` specifier can also specify
-``heading`` if the region has a :term:`preferred orientation` (a vector field) associated with
+``heading`` if the region has a preferred orientation (a vector field) associated with
 it: in our example, ``curb`` is oriented by ``roadDirection``. So ``spot`` is, in fact,
 a uniformly random visible point on the curb, oriented along the road. That orientation
 then causes the `Car` to be placed 0.25 m left of ``spot`` in ``spot``'s local coordinate
@@ -268,7 +263,7 @@ Notice that in the scenarios above we never explicitly ensured that two cars wil
 intersect each other. Despite this, Scenic will never generate such scenes. This is
 because Scenic enforces several *default requirements*:
 
-	* All objects must be contained in the :term:`workspace`, or a particular specified region (its :term:`container`).
+	* All objects must be contained in the workspace, or a particular specified region.
 	  For example, we can define the `Car` class so that all of its instances must be
 	  contained in the region ``road`` by default.
 
@@ -337,7 +332,7 @@ complex scenario involving a taxi, we can add one additional line:
 	from bigScenario import taxi
 	mutate taxi
 
-The :keyword:`mutate` statement will add Gaussian noise to the ``position`` and ``heading``
+The ``mutate`` statement will add Gaussian noise to the ``position`` and ``heading``
 properties of ``taxi``, while still enforcing all built-in and custom requirements. The
 standard deviation of the noise can be scaled by writing, for example,
 ``mutate taxi by 2`` (which adds twice as much noise), and in fact can be controlled
@@ -479,8 +474,6 @@ constructs in convenient tables with links to the detailed documentation.
    on the number of iterations: see `Scenario.generate`).
 
 .. rubric:: References
-
-.. [F22] Fremont et al., :t:`Scenic: A Language for Scenario Specification and Data Generation`, Machine Learning, 2022. `[Online] <https://doi.org/10.1007/s10994-021-06120-5>`_
 
 .. [F19] Fremont et al., :t:`Scenic: A Language for Scenario Specification and Scene Generation`, PLDI 2019.
 

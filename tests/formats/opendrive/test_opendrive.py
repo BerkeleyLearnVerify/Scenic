@@ -12,7 +12,6 @@ maps = glob.glob('maps/**/*.xodr')
 os.chdir(oldDir)
 
 @pytest.mark.slow
-@pytest.mark.filterwarnings("ignore::scenic.formats.opendrive.OpenDriveWarning")
 @pytest.mark.parametrize("path", maps)
 def test_map(path, runLocally):
     with runLocally():

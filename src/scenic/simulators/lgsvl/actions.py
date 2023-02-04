@@ -51,7 +51,10 @@ class SetDestinationAction(Action):
 
 	def applyTo(self, obj, sim):
 		if self.timer == 0:
-			obj.dreamview.setup_apollo(self.dest.x, self.dest.y, obj.apolloModules)
+			z = sim.groundElevationAt(self.dest)
+			import dreamview
+			obj.dreamview.setDestination(self.dest.x, self.dest.y, z,
+			                             coordType=dreamview.CoordType.Unity)
 
 		# push vehicle for 1 second to start
 		oneSec = int(1.0/sim.timestep)

@@ -21,16 +21,6 @@ For details of additional CARLA-specific functionality, see the world model
    behaviors
    simulator
    blueprints
+   controller
    misc
 """
-
-# Only import CarlaSimulator if the carla package is installed; otherwise the
-# import would raise an exception.
-carla = None
-try:
-   import carla
-except ImportError:
-   pass
-if carla:
-   from .simulator import CarlaSimulator
-del carla

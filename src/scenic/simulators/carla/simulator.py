@@ -7,7 +7,6 @@ except ImportError as e:
 
 import math
 import os
-import warnings
 
 from scenic.syntax.translator import verbosity
 if verbosity == 0:	# suppress pygame advertisement at zero verbosity
@@ -18,7 +17,6 @@ import pygame
 from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
 from scenic.core.simulators import SimulationCreationError
 from scenic.syntax.veneer import verbosePrint
-from scenic.simulators.carla.blueprints import oldBlueprintNames
 import scenic.simulators.carla.utils.utils as utils
 import scenic.simulators.carla.utils.visuals as visuals
 
@@ -26,9 +24,9 @@ import scenic.simulators.carla.utils.visuals as visuals
 class CarlaSimulator(DrivingSimulator):
 	"""Implementation of `Simulator` for CARLA."""
 	def __init__(self, carla_map, map_path, address='127.0.0.1', port=2000, timeout=10,
-				 render=True, record='', timestep=0.1, traffic_manager_port=None):
+				 render=True, record='', timestep=0.1):
 		super().__init__()
-		verbosePrint(f'Connecting to CARLA on port {port}')
+		verbosePrint('Connecting to CARLA...')
 		self.client = carla.Client(address, port)
 		self.client.set_timeout(timeout)  # limits networking operations (seconds)
 		if carla_map is not None:
@@ -38,12 +36,10 @@ class CarlaSimulator(DrivingSimulator):
 				with open(map_path) as odr_file:
 					self.world = self.client.generate_opendrive_world(odr_file.read())
 			else:
-				raise RuntimeError('CARLA only supports OpenDrive maps')
+				raise RuntimeError(f'CARLA only supports OpenDrive maps')
 		self.timestep = timestep
 
-		if traffic_manager_port is None:
-			traffic_manager_port = port + 6000
-		self.tm = self.client.get_trafficmanager(traffic_manager_port)
+		self.tm = self.client.get_trafficmanager()
 		self.tm.set_synchronous_mode(True)
 
 		# Set to synchronous with fixed timestep
@@ -152,24 +148,7 @@ class CarlaSimulation(DrivingSimulation):
 
 	def createObjectInSimulator(self, obj):
 		# Extract blueprint
-		try:
-			blueprint = self.blueprintLib.find(obj.blueprint)
-		except IndexError as e:
-			found = False
-			if obj.blueprint in oldBlueprintNames:
-				for oldName in oldBlueprintNames[obj.blueprint]:
-					try:
-						blueprint = self.blueprintLib.find(oldName)
-						found = True
-						warnings.warn(f'CARLA blueprint {obj.blueprint} not found; '
-						              f'using older version {oldName}')
-						obj.blueprint = oldName
-						break
-					except IndexError:
-						continue
-			if not found:
-				raise SimulationCreationError(f'Unable to find blueprint {obj.blueprint}'
-				                              f' for object {obj}') from e
+		blueprint = self.blueprintLib.find(obj.blueprint)
 		if obj.rolename is not None:
 			blueprint.set_attribute('role_name', obj.rolename)
 
@@ -182,12 +161,6 @@ class CarlaSimulation(DrivingSimulation):
 		rot = utils.scenicToCarlaRotation(obj.heading)
 		transform = carla.Transform(loc, rot)
 
-		# Color, cannot be set for Pedestrians
-		if blueprint.has_attribute('color') and obj.color is not None:
-			c = obj.color
-			c_str = f'{int(c.r*255)},{int(c.g*255)},{int(c.b*255)}'
-			blueprint.set_attribute('color', c_str)
-
 		# Create Carla actor
 		carlaActor = self.world.try_spawn_actor(blueprint, transform)
 		if carlaActor is None:
@@ -198,9 +171,6 @@ class CarlaSimulation(DrivingSimulation):
 		carlaActor.set_simulate_physics(obj.physics)
 
 		if isinstance(carlaActor, carla.Vehicle):
-			# TODO should get dimensions at compile time, not simulation time
-			obj.width = carlaActor.bounding_box.extent.y * 2
-			obj.length = carlaActor.bounding_box.extent.x * 2
 			carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
 		elif isinstance(carlaActor, carla.Walker):
 			carlaActor.apply_control(carla.WalkerControl())

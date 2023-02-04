@@ -5,8 +5,8 @@ Scenic is a domain-specific probabilistic programming language for modeling the 
 A Scenic program defines a distribution over *scenes*, configurations of physical objects and agents; sampling from this distribution yields concrete scenes which can be simulated to produce training or testing data.
 Scenic can also define (probabilistic) policies for dynamic agents, allowing modeling scenarios where agents take actions over time in response to the state of the world.
 
-Scenic was designed and implemented by Daniel J. Fremont, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia, with contributions from :doc:`many others <credits>`.
-For a description of the language and some of its applications, see `our journal paper <https://doi.org/10.1007/s10994-021-06120-5>`_, which extends `our PLDI 2019 paper <https://arxiv.org/abs/1809.09310>`_ on Scenic 1.x.
+Scenic was designed and implemented by Daniel J. Fremont, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia.
+For a description of the language and some of its applications, see `our preprint <https://arxiv.org/abs/2010.06580>`_, which extends `our PLDI 2019 paper <https://arxiv.org/abs/1809.09310>`_ (a more in-depth discussion of the PLDI paper is in Chapters 5 and 8 of `this thesis <https://people.ucsc.edu/~dfremont/papers/thesis.pdf>`_).
 Our :doc:`publications <publications>` page lists additional papers using Scenic.
 
 .. note::
@@ -25,7 +25,6 @@ Table of Contents
    :caption: Introduction
 
    quickstart
-   install_notes
 
 .. toctree::
    :maxdepth: 1
@@ -40,9 +39,8 @@ Table of Contents
    :caption: Language and Tool Reference
 
    syntax_guide
-   language_reference
+   syntax_details
    options
-   api
    developing
    internals
 

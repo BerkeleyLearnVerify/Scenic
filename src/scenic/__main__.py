@@ -6,11 +6,7 @@ import sys
 import time
 import argparse
 import random
-
-if sys.version_info >= (3, 8):
-    from importlib import metadata
-else:
-    import importlib_metadata as metadata
+import importlib.metadata
 
 import scenic.syntax.translator as translator
 import scenic.core.errors as errors
@@ -48,22 +44,18 @@ intOptions = parser.add_argument_group('static scene diagramming options')
 intOptions.add_argument('-d', '--delay', type=float,
                         help='loop automatically with this delay (in seconds) '
                              'instead of waiting for the user to close the diagram')
-intOptions.add_argument('-z', '--zoom', type=float, default=1,
-                        help='zoom expansion factor, or 0 to show the whole workspace (default 1)')
+intOptions.add_argument('-z', '--zoom', help='zoom expansion factor (default 1)',
+                        type=float, default=1)
 
 # Debugging options
 debugOpts = parser.add_argument_group('debugging options')
 debugOpts.add_argument('--show-params', help='show values of global parameters',
                        action='store_true')
-debugOpts.add_argument('--show-records', help='show values of recorded expressions',
-                       action='store_true')
 debugOpts.add_argument('-b', '--full-backtrace', help='show full internal backtraces',
                        action='store_true')
 debugOpts.add_argument('--pdb', action='store_true',
                        help='enter interactive debugger on errors (implies "-b")')
-debugOpts.add_argument('--pdb-on-reject', action='store_true',
-                       help='enter interactive debugger on rejections (implies "-b")')
-ver = metadata.version('scenic')
+ver = importlib.metadata.version('scenic')
 debugOpts.add_argument('--version', action='version', version=f'Scenic {ver}',
                        help='print Scenic version information and exit')
 debugOpts.add_argument('--dump-initial-python', help='dump initial translated Python',
@@ -87,9 +79,6 @@ delay = args.delay
 errors.showInternalBacktrace = args.full_backtrace
 if args.pdb:
     errors.postMortemDebugging = True
-    errors.showInternalBacktrace = True
-if args.pdb_on_reject:
-    errors.postMortemRejections = True
     errors.showInternalBacktrace = True
 params = {}
 for name, value in args.param:
@@ -146,7 +135,7 @@ def runSimulation(scene):
     if args.verbosity >= 1:
         print(f'  Beginning simulation of {scene.dynamicScenario}...')
     try:
-        simulation = errors.callBeginningScenicTrace(
+        result = errors.callBeginningScenicTrace(
             lambda: simulator.simulate(scene, maxSteps=args.time, verbosity=args.verbosity,
                                        maxIterations=args.max_sims_per_scene)
         )
@@ -157,26 +146,11 @@ def runSimulation(scene):
     if args.verbosity >= 1:
         totalTime = time.time() - startTime
         print(f'  Ran simulation in {totalTime:.4g} seconds.')
-    if simulation and args.show_records:
-        for name, value in simulation.result.records.items():
-            if isinstance(value, list):
-                print(f'    Record "{name}": (time series)')
-                for step, subval in value:
-                    print(f'      {step:4d}: {subval}')
-            else:
-                print(f'    Record "{name}": {value}')
-    return simulation is not None
+    return result is not None
 
 try:
     if args.gather_stats is None:   # Generate scenes interactively until killed
-        if not args.simulate:   # will need matplotlib to draw scene schematic
-            import matplotlib
-            import matplotlib.pyplot as plt
-            if matplotlib.get_backend().lower() == 'agg':
-                raise RuntimeError(
-                    'need an interactive matplotlib backend to display scenes\n'
-                    '(try installing python3-tk)')
-
+        import matplotlib.pyplot as plt
         successCount = 0
         while True:
             scene, _ = generateScene()

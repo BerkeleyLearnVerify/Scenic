@@ -34,13 +34,12 @@ veneer.activate(paramOverrides=dict(
 ))
 import scenic.simulators.carla.model
 import scenic.simulators.lgsvl.model
-veneer.deactivate()
 
 # -- Project information -----------------------------------------------------
 
 project = 'Scenic'
-copyright = '2022, Daniel J. Fremont'
-author = 'Daniel J. Fremont, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
+copyright = '2020, Daniel J. Fremont.'
+author = 'Daniel J. Fremont, Tommaso Dreossi, Shromona Ghosh, Edward Kim, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
 
 
 # -- General configuration ---------------------------------------------------
@@ -51,8 +50,6 @@ author = 'Daniel J. Fremont, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangy
 extensions = [
 'sphinx.ext.autodoc',
 'sphinx.ext.autosummary',
-'sphinx.ext.coverage',
-'sphinx.ext.doctest',
 'sphinx.ext.napoleon',
 'sphinx.ext.viewcode',
 'sphinx.ext.intersphinx',
@@ -75,9 +72,6 @@ autodoc_inherit_docstrings = False
 autodoc_member_order = 'bysource'
 autodoc_mock_imports = ['carla', 'lgsvl']
 autodoc_typehints = 'description'
-autodoc_type_aliases = {
-    'Vectorlike': '`scenic.domains.driving.roads.Vectorlike`',
-}
 napoleon_numpy_docstring = False
 napoleon_use_rtype = False
 napoleon_use_ivar = True
@@ -94,9 +88,6 @@ autodoc_default_options = {
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
-    'matplotlib': ('https://matplotlib.org/stable/', None),
-    'numpy': ('https://numpy.org/doc/stable/', None),
-    'scipy': ('https://docs.scipy.org/doc/scipy/', None),
 }
 
 # -- Options for HTML output -------------------------------------------------
@@ -201,7 +192,6 @@ def sort_members(self, documenters, order):
 Documenter.sort_members = sort_members
 
 # -- Monkeypatch to hide private base classes --------------------------------
-# TODO use autodoc-process-bases instead (new in Sphinx 4.1)
 
 from sphinx.ext.autodoc import ClassDocumenter
 
@@ -238,39 +228,36 @@ def object_description(obj):
         return orig_object_description(obj)
 sphinx.ext.autodoc.object_description = object_description
 
-# -- Extension for correctly displaying Scenic code and skipping internals ---
+# TODO switch to type_aliases once Sphinx 3.3 is out;
+# this hack suggested by sjjessop at https://github.com/sphinx-doc/sphinx/issues/6518
+import typing
+orig_get_type_hints = typing.get_type_hints
+def get_type_hints(obj, globals=None, locals=None):
+    if locals is None:
+        locals = {}
+    locals['Vectorlike'] = 'Vectorlike'
+    return orig_get_type_hints(obj, globals, locals)
+typing.get_type_hints = get_type_hints
 
-from scenic.syntax.pygment import ScenicLexer
+# -- Extension for correctly displaying Scenic code and skipping internals ---
 
 def setup(app):
     app.connect('viewcode-find-source', handle_find_source)
     app.connect('autodoc-process-signature', handle_process_signature)
     app.connect('autodoc-skip-member', handle_skip_member)
 
-    # Run our own reference resolver before the standard one, to resolve refs to
-    # Scenic classes differently in the "Scenic Internals" section than elsewhere
-    app.add_post_transform(ScenicRefResolver)
-
-    # To allow either plural or singular forms to be looked up in the glossary:
-    app.connect('missing-reference', handle_missing_reference)
-
-    # for some reason, the Pygments entry point doesn't work on ReadTheDocs;
-    # so we register the custom lexer here
-    app.add_lexer('scenic', ScenicLexer)
-
     return { 'parallel_read_safe': True }
 
 import importlib
 from sphinx.pycode import ModuleAnalyzer
-from sphinx.util.docstrings import separate_metadata
-from scenic.syntax.translator import ScenicModule
+from sphinx.util.docstrings import extract_metadata
 
 def handle_find_source(app, modname):
     try:
         module = importlib.import_module(modname)
     except Exception:
         return None
-    if not isinstance(module, ScenicModule):
+    if not getattr(module, '_isScenicModule', False):
         return None     # no special handling for Python modules
 
     # Run usual analysis on the translated source to get tag dictionary
@@ -285,8 +272,8 @@ def handle_find_source(app, modname):
 
 def handle_process_signature(app, what, name, obj, options, signature, ret_anno):
     if (what == 'class'
-        and issubclass(obj, scenic.core.object_types.Constructible)
-        and obj is not scenic.core.object_types.Constructible):
+        and issubclass(obj, scenic.core.object_types._Constructible)
+        and obj is not scenic.core.object_types._Constructible):
         return ('(<specifiers>)', None)
     else:
         return None
@@ -294,90 +281,9 @@ def handle_process_signature(app, what, name, obj, options, signature, ret_anno)
 def handle_skip_member(app, what, name, obj, skip, options):
     if not skip:
         doc = getattr(obj, '__doc__')
-        if doc and 'private' in separate_metadata(doc)[1]:
+        if doc and 'private' in extract_metadata(doc):
             return True
     return None
-
-import inflect
-engine = inflect.engine()
-
-def handle_missing_reference(app, env, node, contnode):
-    """If a glossary term can't be found, try the opposite plurality."""
-    if node.get('refdomain') != 'std':
-        return None
-    if node['reftype'] != 'term':
-        return None
-    prefix, sep, last_word = node['reftarget'].rpartition(' ')
-    alternative = engine.singular_noun(last_word)
-    if alternative is False:   # word is not a plural noun
-        alternative = engine.plural(last_word)
-    target = prefix + sep + alternative
-    stddomain = env.domains['std']
-    newnode = stddomain.resolve_xref(env, node.get('refdoc'), app.builder,
-                                     'term', target, node, contnode)
-    return newnode
-
-from sphinx.locale import __
-from sphinx.transforms.post_transforms import ReferencesResolver
-from sphinx.util import logging
-logger = logging.getLogger(__name__)
-
-class ScenicRefResolver(ReferencesResolver):
-    default_priority = ReferencesResolver.default_priority - 2
-
-    # The following is copied from ReferencesResolver.resolve_anyref with minor changes
-    def resolve_anyref(self, refdoc, node, contnode):
-        stddomain = self.env.get_domain('std')
-        target = node['reftarget']
-        stdresults = []
-        # first, try resolving as :doc:
-        doc_ref = stddomain.resolve_xref(self.env, refdoc, self.app.builder,
-                                         'doc', target, node, contnode)
-        if doc_ref:
-            stdresults.append(('doc', doc_ref))
-        # next, do the standard domain (makes this a priority)
-        stdresults.extend(stddomain.resolve_any_xref(self.env, refdoc, self.app.builder,
-                                                     target, node, contnode))
-        domresults = []
-        for domain in self.env.domains.values():
-            if domain.name == 'std':
-                continue  # we did this one already
-            try:
-                domresults.extend(domain.resolve_any_xref(self.env, refdoc, self.app.builder,
-                                                          target, node, contnode))
-            except NotImplementedError:
-                # the domain doesn't yet support the new interface
-                # we have to manually collect possible references (SLOW)
-                for role in domain.roles:
-                    res = domain.resolve_xref(self.env, refdoc, self.app.builder,
-                                              role, target, node, contnode)
-                    if res and len(res) > 0 and isinstance(res[0], nodes.Element):
-                        domresults.append(('%s:%s' % (domain.name, role), res))
-        # now, see how many matches we got...
-        results = stdresults + domresults
-        if not results:
-            return None
-        if stdresults and domresults:
-            # disambiguate based on whether this is internal documentation or not
-            results = domresults if refdoc.startswith('modules/') else stdresults
-        if len(results) > 1:
-            def stringify(name: str, node: nodes.Element) -> str:
-                reftitle = node.get('reftitle', node.astext())
-                return ':%s:`%s`' % (name, reftitle)
-            candidates = ' or '.join(stringify(name, role) for name, role in results)
-            logger.warning(__('more than one target found for \'any\' cross-'
-                              'reference %r: could be %s'), target, candidates,
-                           location=node)
-        res_role, newnode = results[0]
-        # Override "any" class with the actual role type to get the styling
-        # approximately correct.
-        res_domain = res_role.split(':')[0]
-        if (len(newnode) > 0 and
-                isinstance(newnode[0], nodes.Element) and
-                newnode[0].get('classes')):
-            newnode[0]['classes'].append(res_domain)
-            newnode[0]['classes'].append(res_role.replace(':', '-'))
-        return newnode
 
 # -- Big monkeypatch to fix bug in autosummary (temporarily) -----------------
 
@@ -420,45 +326,12 @@ def generate_autosummary_content(name, obj, parent,
 
 as_gen.generate_autosummary_content = generate_autosummary_content
 
-# -- Monkeypatch adding a :sampref: role combining :samp: and :ref: ----------
-# (necessary since ReST does not allow nested inline markup)
+# -- Monkeypatch to fix bug in autodoc (temporarily) -------------------------
 
-from docutils import nodes
-import docutils.parsers.rst.roles
-from sphinx.roles import XRefRole, EmphasizedLiteral
+from sphinx.ext.autodoc import Documenter, Options
 
-class LiteralXRefRole(XRefRole, EmphasizedLiteral):
-    def create_xref_node(self):
-        self.refdomain, self.reftype = 'std', 'sampref'
-        elem, _ = super().create_xref_node()
-        node = elem[0]
-        del node[0]
-        children = self.parse(self.title)
-        node += nodes.literal(self.title, '', *children,
-                             role='samp', classes=['xref', 'ref', 'samp'])
-        return [node], []
-
-role = LiteralXRefRole(lowercase=True, innernodeclass=nodes.inline,
-                       warn_dangling=True)
-
-docutils.parsers.rst.roles.register_local_role('sampref', role)
-
-from sphinx.domains.std import StandardDomain
-old_resolve_xref = StandardDomain.resolve_xref
-
-def resolve_xref(self, env, fromdocname, builder, typ, target, node, contnode):
-    if typ == 'sampref':
-        newnode = old_resolve_xref(self, env, fromdocname, builder, 'ref', target,
-                                   node, contnode)
-        if not newnode:
-            return newnode
-        del newnode[0]
-        inner = node[0]
-        inner['classes'] = ['std', 'std-ref']
-        newnode += inner
-    else:
-        newnode = old_resolve_xref(self, env, fromdocname, builder, typ, target,
-                                   node, contnode)
-    return newnode
-
-StandardDomain.resolve_xref = resolve_xref
+orig_init = Documenter.__init__
+def __init__(self, *args, **kwargs):
+    orig_init(self, *args, **kwargs)
+    self.options = Options(self.options)
+Documenter.__init__ = __init__

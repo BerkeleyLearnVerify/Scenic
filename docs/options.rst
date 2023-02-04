@@ -3,52 +3,24 @@
 Command-Line Options
 ====================
 
-The :command:`scenic` command supports a variety of options. Run :command:`scenic -h` for a full list
+The ``scenic`` command supports a variety of options. Run ``scenic -h`` for a full list
 with short descriptions; we elaborate on some of the most important options below.
-
-Options may be given before and after the path to the Scenic file to run, so the syntax of the command is:
-
-.. code-block:: console
-
-	$ scenic [options] FILE [options]
 
 General Scenario Control
 ------------------------
 
 .. option:: -m <model>, --model <model>
 
-	Specify the :term:`world model` to use for the scenario, overriding any :keyword:`model` statement
-	in the scenario. The argument must be the fully :term:`qualified name` of a Scenic module
+	Specify the world model to use for the scenario, overriding any ``model`` statement
+	in the scenario. The argument must be the fully-qualified name of a Scenic module
 	found on your :envvar:`PYTHONPATH` (it does not necessarily need to be built into
 	Scenic).
-	This allows scenarios written using a generic model, like that provided by the :ref:`driving_domain`, to be executed in a particular simulator (see the :ref:`dynamic scenarios tutorial <dynamics_running_examples>` for examples).
-
-	The equivalent of this option for the Python API is the ``model`` argument to `scenic.scenarioFromFile`.
 
 .. option:: -p <param> <value>, --param <param> <value>
 
-	Specify the value of a :term:`global parameter`. This assignment overrides any
-	:keyword:`param` statements in the scenario. If the given value can be interpreted as an
-	`int` or `float`, it is; otherwise it is kept as a string.
-
-	The equivalent of this option for the Python API is the ``params`` argument to `scenic.scenarioFromFile` (which, however, does not attempt to convert strings to numbers).
-
-.. option:: -s <seed>, --seed <seed>
-
-	Specify the random seed used by Scenic, to make sampling deterministic.
-
-	This option sets the seed for the Python random number generator :mod:`random`, so
-	external Python code called from within Scenic can also be made deterministic
-	(although :mod:`random` should not be used in place of Scenic's own sampling
-	constructs in Scenic code). Note though that NumPy provides other RNGs whose seeds
-	are not set by this option (see `numpy.random`).
-
-.. option:: --scenario <scenario>
-
-	If the given Scenic file defines multiple scenarios, select which one to run.
-	The named :term:`modular scenario` must not require any arguments.
-
-	The equivalent of this option for the Python API is the ``scenario`` argument to `scenic.scenarioFromFile`.
+	Specify the value of a global parameter. This assignment overrides any
+	``param`` statements in the scenario. If the given value can be interpreted as an
+	int or float, it is; otherwise it is kept as a string.
 
 Dynamic Simulations
 -------------------
@@ -57,7 +29,7 @@ Dynamic Simulations
 
 	Run dynamic simulations from scenes instead of plotting scene diagrams. This option
 	will only work for scenarios which specify a simulator, which is done automatically
-	by the :term:`world models` for the simulator interfaces that support dynamic scenarios, e.g.
+	by the world models for the simulator interfaces that support dynamic scenarios, e.g.
 	`scenic.simulators.carla.model` and `scenic.simulators.lgsvl.model`. If your scenario
 	is written for an abstract domain, like `scenic.domains.driving`, you will need to
 	use the :option:`--model` option to specify the specific model for the simulator you
@@ -66,7 +38,7 @@ Dynamic Simulations
 .. option:: --time <steps>
 
 	Maximum number of time steps to run each simulation (the default is infinity).
-	Simulations may end earlier if termination criteria defined in the scenario are met (see :keyword:`terminate when` and :keyword:`terminate`).
+	Simulations may end earlier if termination criteria defined in the scenario are met.
 
 .. option:: --count <number>
 
@@ -75,10 +47,6 @@ Dynamic Simulations
 
 Debugging
 ---------
-
-.. option:: --version
-
-	Show which version of Scenic is being used.
 
 .. option:: -v <verbosity>, --verbosity <verbosity>
 
@@ -95,28 +63,5 @@ Debugging
 			Additionally, details on which modules are being compiled and the reasons for
 			any scene/simulation rejections are printed.
 		3
-			Additionally, the :term:`actions` taken by each agent at each time step of a dynamic
+			Additionally, the actions taken by each agent at each time step of a dynamic
 			simulation are printed.
-
-.. option:: --show-params
-
-	Show values of :term:`global parameters` for each generated scene.
-
-.. option:: --show-records
-
-	Show recorded values (see :keyword:`record`) for each dynamic simulation.
-
-.. option:: -b, --full-backtrace
-
-	Include Scenic's internals in backtraces printed for uncaught exceptions.
-	This information will probably only be useful if you are developing Scenic.
-
-.. option:: --pdb
-
-	If an error occurs, enter the Python interactive debugger :mod:`pdb`.
-	Implies the :option:`-b` option.
-
-.. option:: --pdb-on-reject
-
-	If a scene/simulation is rejected (so that another must be sampled), enter :mod:`pdb`.
-	Implies the :option:`-b` option.

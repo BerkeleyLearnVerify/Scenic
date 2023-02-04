@@ -14,25 +14,15 @@ following simulators:
 
     * CARLA, using the model :doc:`scenic.simulators.carla.model`
     * LGSVL, using the model :doc:`scenic.simulators.lgsvl.model`
-    * the built-in Newtonian simulator, using the model
-      :doc:`scenic.simulators.newtonian.driving_model`
 
 For example, the :file:`examples/driving/badlyParkedCarPullingIn.scenic` scenario is
 written for the driving domain and can be run in multiple simulators:
 
-    * no simulator, for viewing the initial scene:
+    * no simulator, for debugging:
 
         .. code-block:: console
 
             $ scenic examples/driving/badlyParkedCarPullingIn.scenic
-
-    * the built-in Newtonian simulator, for quick debugging without having to install an
-      external simulator:
-
-        .. code-block:: console
-
-            $ scenic -S --model scenic.simulators.newtonian.driving_model \\
-                examples/driving/badlyParkedCarPullingIn.scenic
 
     * CARLA, using the default map specified in the scenario:
 

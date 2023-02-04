@@ -19,12 +19,6 @@ from scenic.core.geometry import (polygonUnion, cleanPolygon, cleanChain, plotPo
 from scenic.core.vectors import Vector
 from scenic.domains.driving import roads as roadDomain
 
-class OpenDriveWarning(UserWarning):
-    pass
-
-def warn(message):
-    warnings.warn(message, OpenDriveWarning, stacklevel=2)
-
 def buffer_union(polys, tolerance=0.01):
     return polygonUnion(polys, buf=tolerance, tolerance=tolerance)
 
@@ -100,7 +94,7 @@ class Cubic(Curve):
         return quad(d_arc, 0, u)[0]
 
     def point_at(self, s):
-        u = float(inversefunc(self.arclength, s))
+        u = inversefunc(self.arclength, s)[0]
         pt = (s, self.poly.eval_at(u), s)
         return self.rel_to_abs(pt)
 
@@ -124,7 +118,7 @@ class ParamCubic(Curve):
         return quad(d_arc, 0, p)[0]
 
     def point_at(self, s):
-        p = float(inversefunc(self.arclength, s))
+        p = inversefunc(self.arclength, s)[0]
         pt = (self.u_poly.eval_at(p), self.v_poly.eval_at(p), s)
         return self.rel_to_abs(pt)
 
@@ -447,9 +441,9 @@ class Road:
                         poly = cleanPolygon(Polygon(bounds), tolerance)
                         if not poly.is_empty:
                             if poly.geom_type == 'MultiPolygon':
-                                poly = MultiPolygon([p for p in poly.geoms
+                                poly = MultiPolygon([p for p in list(poly)
                                                      if not p.is_empty and p.exterior])
-                                cur_sec_polys.extend(poly.geoms)
+                                cur_sec_polys.extend(list(poly))
                             else:
                                 cur_sec_polys.append(poly)
                             cur_sec_lane_polys[id_].append(poly)
@@ -616,8 +610,8 @@ class Road:
                     if lane.pred in last_section.lanesByOpenDriveID:
                         pred = last_section.lanesByOpenDriveID[lane.pred]
                     else:
-                        warn(f'road {self.id_} section {len(roadSections)} '
-                             f'lane {id_} has a non-drivable predecessor')
+                        warnings.warn(f'road {self.id_} section {len(roadSections)} '
+                                      f'lane {id_} has a non-drivable predecessor')
                         pred = None
                 else:
                     pred = lane.pred    # will correct inter-road links later
@@ -674,7 +668,7 @@ class Road:
         def combineSections(laneIDs, sections, name):
             leftmost, rightmost = max(laneIDs), min(laneIDs)
             if len(laneIDs) != leftmost-rightmost+1:
-                warn(f'ignoring {name} in the middle of road {self.id_}')
+                warnings.warn(f'ignoring {name} in the middle of road {self.id_}')
             leftPoints, rightPoints = [], []
             if leftmost < 0:
                 leftmost = rightmost
@@ -948,6 +942,7 @@ class Road:
                 type=signal_.type_
             )
             roadSignals.append(signal)
+            allElements.append(signal)
 
         # Create road
         assert forwardGroup or backwardGroup
@@ -1290,7 +1285,7 @@ class RoadMap:
                                         lane_links)
                 junction.paths.append(int(c.get('connectingRoad')))
             if not junction.paths:
-                warn(f'junction {junction.id_} has no connecting roads; skipping it')
+                warnings.warn(f'junction {junction.id_} has no connecting roads; skipping it')
                 continue
             self.junctions[junction.id_] = junction
 
@@ -1318,10 +1313,10 @@ class RoadMap:
                 pred_link = succ_link = None
 
             if road.length < self.tolerance:
-                warn(f'road {road.id_} has length shorter than tolerance;'
-                     ' geometry may contain artifacts')
+                warnings.warn(f'road {road.id_} has length shorter than tolerance;'
+                              'geometry may contain artifacts')
                 if self.elide_short_roads:
-                    warn(f'attempting to elide road {road.id_} of length {road.length}')
+                    warnings.warn(f'attempting to elide road {road.id_} of length {road.length}')
                     assert road.junction is None
                     self.elidedRoads[road.id_] = road
                     if pred_link:
@@ -1364,7 +1359,7 @@ class RoadMap:
                         float(curve_elem.get('d'))
                     curve = Cubic(x0, y0, hdg, length, a, b, c, d)
                 elif curve_elem.tag == 'paramPoly3':
-                    au, bu, cu, du, av, bv, cv, dv = \
+                    au, bu, cu, du, av, bv, cv, dv, p_range = \
                         float(curve_elem.get('aU')), \
                         float(curve_elem.get('bU')), \
                         float(curve_elem.get('cU')), \
@@ -1372,13 +1367,8 @@ class RoadMap:
                         float(curve_elem.get('aV')), \
                         float(curve_elem.get('bV')), \
                         float(curve_elem.get('cV')), \
-                        float(curve_elem.get('dV'))
-                    p_range = curve_elem.get('pRange')
-                    if p_range and p_range != 'normalized':
-                        # TODO support arcLength
-                        raise RuntimeError('unsupported pRange for paramPoly3')
-                    else:
-                        p_range = 1
+                        float(curve_elem.get('dV')), \
+                        float(curve_elem.get('pRange'))
                     curve = ParamCubic(x0, y0, hdg, length,
                                        au, bu, cu, du, av, bv,
                                        cv, dv, p_range)
@@ -1392,20 +1382,20 @@ class RoadMap:
             refLine = []
             for s0, curve in curves[1:]:
                 l = s0 - lastS
-                if abs(lastCurve.length - l) > 1e-4:
+                if abs(lastCurve.length - l) > 1e-6:
                     raise RuntimeError(f'planView of road {road.id_} has inconsistent length')
                 if l < 0:
                     raise RuntimeError(f'planView of road {road.id_} is not in order')
                 elif l < 1e-6:
-                    warn(f'road {road.id_} reference line has a geometry of '
-                         f'length {l}; skipping it')
+                    warnings.warn(f'road {road.id_} reference line has a geometry of '
+                                  f'length {l}; skipping it')
                 else:
                     refLine.append(lastCurve)
                 lastS = s0
                 lastCurve = curve
             if refLine and lastCurve.length < 1e-6:
-                warn(f'road {road.id_} reference line has a geometry of '
-                     f'length {lastCurve.length}; skipping it')
+                warnings.warn(f'road {road.id_} reference line has a geometry of '
+                              f'length {lastCurve.length}; skipping it')
             else:
                 # even if the last curve is shorter than the threshold, we'll keep it if
                 # it is the only curve; getting rid of the road entirely is handled by
@@ -1425,7 +1415,8 @@ class RoadMap:
 
             def popLastSectionIfShort(l):
                 if l < 1e-6:
-                    warn(f'road {road.id_} has a lane section of length {l}; skipping it')
+                    warnings.warn(f'road {road.id_} has a lane section of '
+                                  f'length {l}; skipping it')
 
                     # delete the length-0 section and re-link lanes appropriately
                     badSec = road.lane_secs.pop()
@@ -1590,7 +1581,7 @@ class RoadMap:
                 continue
             assert junction.poly is not None
             if junction.poly.is_empty:
-                warn(f'skipping empty junction {jid}')
+                warnings.warn(f'skipping empty junction {jid}')
                 continue
 
             # Gather all lanes involved in the junction's connections
@@ -1675,7 +1666,8 @@ class RoadMap:
                     # TODO why is it allowed for this not to exist?
                     outgoingLane = toLane.lane._successor
                     if outgoingLane is None:
-                        warn(f'connecting road {connectingID} lane {toID} has no successor lane')
+                        warnings.warn(f'connecting road {connectingID} lane {toID} '
+                                      'has no successor lane')
                     else:
                         if outgoingLane not in allOutgoingLanes:
                             allOutgoingLanes.append(outgoingLane)

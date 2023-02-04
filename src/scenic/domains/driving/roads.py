@@ -29,7 +29,8 @@ import weakref
 import attr
 from shapely.geometry import Polygon, MultiPolygon
 
-from scenic.core.distributions import distributionFunction, distributionMethod
+from scenic.core.distributions import distributionFunction, distributionMethod, MethodDistribution, writeSMTtoFile, Samplable,\
+                                        checkAndEncodeSMT, vector_operation_smt
 from scenic.core.vectors import Vector, VectorField
 from scenic.core.regions import PolygonalRegion, PolylineRegion
 from scenic.core.object_types import Point
@@ -40,6 +41,7 @@ from scenic.core.distributions import RejectionException, distributionFunction
 import scenic.core.type_support as type_support
 from scenic.syntax.veneer import verbosePrint
 import scenic.syntax.veneer as veneer
+from scenic.core.regions import regionFromShapelyObject, PolygonalRegion
 
 ## Typing and utilities
 
@@ -157,10 +159,13 @@ class Maneuver(_ElementReferencer):
             ty = ManeuverType.guessTypeFromLanes(self.startLane, self.endLane, self.connectingLane)
             object.__setattr__(self, 'type', ty)
 
+    def encodeToSMT(self, smt_file_path, cached_variables, debug = False):
+        raise NotImplementedError
+
     @property
     @utils.cached
     def conflictingManeuvers(self) -> Tuple[Maneuver]:
-        """Maneuvers whose connecting lanes intersect this one's."""
+        """Tuple[Maneuver]: Maneuvers whose connecting lanes intersect this one's."""
         if not self.connectingLane:
             return ()
         guideway = self.connectingLane
@@ -172,22 +177,9 @@ class Maneuver(_ElementReferencer):
                 conflicts.append(maneuver)
         return tuple(conflicts)
 
-    @property
-    @utils.cached
-    def reverseManeuvers(self) -> Tuple[Maneuver]:
-    	"""Maneuvers whose start and end roads are the reverse of this one's."""
-    	start = self.startLane.road
-    	end = self.endLane.road
-    	reverses = []
-    	for maneuver in self.intersection.maneuvers:
-    		if (maneuver.startLane.road is end
-    			and maneuver.endLane.road is start):
-    			reverses.append(maneuver)
-    	return tuple(reverses)
-
 ## Road networks
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False)
 class NetworkElement(_ElementReferencer, PolygonalRegion):
     """NetworkElement()
 
@@ -243,14 +235,6 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
         del state['network']    # do not pickle weak reference to parent network
         return state
 
-    def __eq__(self, other):
-        if not isinstance(other, NetworkElement):
-            return NotImplemented
-        return (self.network is other.network and self.uid == other.uid)
-
-    def __hash__(self):
-        return hash((self.network, self.uid))
-
     def __repr__(self):
         s = f'<{type(self).__name__} at {hex(id(self))}; '
         if self.name:
@@ -260,7 +244,7 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
         s += f'uid="{self.uid}">'
         return s
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False)
 class LinearElement(NetworkElement):
     """LinearElement()
 
@@ -313,6 +297,7 @@ class LinearElement(NetworkElement):
 
         :meta private:
         """
+
         point = _toVector(point)
         start, end = self.centerline.nearestSegmentTo(point)
         return start.angleTo(end)
@@ -349,7 +334,7 @@ class _ContainsCenterline:
         super().__attrs_post_init__()
         assert self.containsRegion(self.centerline, tolerance=0.5)
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Road(LinearElement):
     """Road()
 
@@ -367,48 +352,37 @@ class Road(LinearElement):
     cause the `Road` to be partitioned into multiple road sections, within which
     the configuration of lanes is fixed.
     """
-    #: All lanes of this road, in either direction.
-    #:
-    #: The order of the lanes is arbitrary. To access lanes in order according to their
-    #: geometry, use `LaneGroup.lanes`.
     lanes: Tuple[Lane]
-
-    #: Group of lanes aligned with the direction of the road, if any.
-    forwardLanes: Union[LaneGroup, None]
-    #: Group of lanes going in the opposite direction, if any.
+    forwardLanes: Union[LaneGroup, None]    # lanes aligned with the direction of the road
     backwardLanes: Union[LaneGroup, None]   # lanes going the other direction
-
-    #: All LaneGroups of this road, with `forwardLanes` being first if it exists.
     laneGroups: Tuple[LaneGroup] = None
-
-    #: All sections of this road, ordered from start to end.
-    sections: Tuple[RoadSection]
+    sections: Tuple[RoadSection]    # sections in order from start to end
 
     signals: Tuple[Signal]
 
-    #: All crosswalks of this road, ordered from start to end.
-    crossings: Tuple[PedestrianCrossing] = ()
+    crossings: Tuple[PedestrianCrossing] = ()    # ordered from start to end
 
-    #: All sidewalks of this road, with the one adjacent to `forwardLanes` being first.
-    sidewalks: Tuple[Sidewalk] = None
-    #: Possibly-empty region consisting of all sidewalks of this road.
-    sidewalkRegion: PolygonalRegion = None
+    def encodeToSMT(self, smt_file_path, cached_variables, smt_var, debug = False):
+        if debug:
+            print( "Class Road encodeToSMT")
+
+        shapely_polygon = self.polygon
+        polygonalRegion = regionFromShapelyObject(shapely_polygon)
+        return polygonalRegion.encodeToSMT(smt_file_path, cached_variables, smt_var, debug=debug)
+
+    def contains(self, smt_file_path, cached_variables, shapely_point ,debug = False):
+        if self.polygon.contains(shapely_point) or self.polygon.distance(shapely_point) <= self.tolerance:
+            return True
+        return False
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
         lgs = []
-        sidewalks = []
         if self.forwardLanes:
             lgs.append(self.forwardLanes)
-            if self.forwardLanes._sidewalk:
-                sidewalks.append(self.forwardLanes._sidewalk)
         if self.backwardLanes:
             lgs.append(self.backwardLanes)
-            if self.backwardLanes._sidewalk:
-                sidewalks.append(self.backwardLanes._sidewalk)
         self.laneGroups = tuple(lgs)
-        self.sidewalks = tuple(sidewalks)
-        self.sidewalkRegion = PolygonalRegion.unionAll(sidewalks)
 
     def _defaultHeadingAt(self, point):
         point = _toVector(point)
@@ -422,6 +396,15 @@ class Road(LinearElement):
         """Get the `RoadSection` passing through a given point."""
         return self.network.findPointIn(point, self.sections, reject)
 
+    def sectionAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        """ Assumption: approximate the section using ego's visible region
+            type(point):= Vector
+        """
+        if debug:
+            print( "class Road sectionAtEncodeSMT")
+        output = self.network.findPointInEncodeSMT(smt_file_path, cached_variables, smt_var, self.sections, debug=debug)
+        return output
+
     @distributionFunction
     def laneSectionAt(self, point: Vectorlike, reject=False) -> Union[LaneSection, None]:
         """Get the `LaneSection` passing through a given point."""
@@ -429,20 +412,61 @@ class Road(LinearElement):
         lane = self.laneAt(point, reject=reject)
         return None if lane is None else lane.sectionAt(point)
 
+    def laneSectionAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "class Road laneSectionAtEncodeSMT")
+
+        point = _toVector(smt_var)
+        output_point = checkAndEncodeSMT(smt_file_path, cached_variables, point, smt_var, debug=debug)
+        intersectingLanes = self.network.findPointInForSMTEncoding(cached_variables['regionAroundEgo'], self.lanes)
+        if intersectingLanes is None:
+            return None
+
+        intersectingSections = []
+        for lane in intersectingLanes:
+            intersectingSections.extend(self.network.findPointInForSMTEncoding(cached_variables['regionAroundEgo'], lane.sections))
+
+        intersection = [elem.polygon for elem in intersectingSections]
+        intersectingRegion = regions.PolygonalRegion(polygon=shapely.geometry.MultiPolygon(intersection))
+        pointOnRegion = intersectingRegion.encodeToSMT(smt_file_path, cached_variables, smt_var, debug=debug)
+        smt_encoding = vector_operation_smt(output_point, "equal", pointOnRegion)
+        writeSMTtoFile(smt_file_path, smt_encoding)
+        return output_point
+
     @distributionFunction
     def laneAt(self, point: Vectorlike, reject=False) -> Union[Lane, None]:
         """Get the `Lane` passing through a given point."""
         return self.network.findPointIn(point, self.lanes, reject)
+
+    def laneAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "class Road laneAtEncodeSMT")
+        output = self.network.findPointInEncodeSMT(smt_file_path, cached_variables, smt_var, self.lanes, debug=debug)
+        return output
 
     @distributionFunction
     def laneGroupAt(self, point: Vectorlike, reject=False) -> Union[LaneGroup, None]:
         """Get the `LaneGroup` passing through a given point."""
         return self.network.findPointIn(point, self.laneGroups, reject)
 
+    def laneGroupAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "laneGroupAtEncodeSMT")
+
+        output = self.network.findPointInEncodeSMT(smt_file_path, cached_variables, smt_var, self.laneGroups, debug=debug)
+        return output
+
     @distributionFunction
     def crossingAt(self, point: Vectorlike, reject=False) -> Union[PedestrianCrossing, None]:
         """Get the :obj:`.PedestrianCrossing` passing through a given point."""
         return self.network.findPointIn(point, self.crossings, reject)
+
+    def crossingAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "class Road crossingAtEncodeSMT")
+
+        output = self.network.findPointInEncodeSMT(smt_file_path, cached_variables, smt_var, self.crossings, debug=debug)
+        return output
 
     @distributionFunction
     def shiftLanes(self, point: Vectorlike, offset: int) -> Union[Vector, None]:
@@ -453,7 +477,7 @@ class Road(LinearElement):
     def is1Way(self) -> bool:
         return self.forwardLanes is None or self.backwardLanes is None
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False)
 class LaneGroup(LinearElement):
     """LaneGroup()
 
@@ -473,6 +497,9 @@ class LaneGroup(LinearElement):
     _shoulder: Union[Shoulder, None] = None     #: Adjacent shoulder, if any.
     #: Opposite lane group of the same road, if any.
     _opposite: Union[LaneGroup, None] = None
+
+    def encodeToSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        raise NotImplementedError
 
     @property
     def sidewalk(self) -> Sidewalk:
@@ -505,7 +532,13 @@ class LaneGroup(LinearElement):
         """Get the `Lane` passing through a given point."""
         return self.network.findPointIn(point, self.lanes, reject)
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
+    def laneAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "class LaneGroup laneAtEncodeSMT")
+        output = self.network.findPointInEncodeSMT(smt_file_path, cached_variables, smt_var, self.lanes, debug=debug)
+        return output
+
+@attr.s(auto_attribs=True, kw_only=True, eq=False, repr=False)
 class Lane(_ContainsCenterline, LinearElement):
     """Lane()
 
@@ -520,12 +553,37 @@ class Lane(_ContainsCenterline, LinearElement):
 
     maneuvers: Tuple[Maneuver] = ()     # possible maneuvers upon reaching the end of this lane
 
+    def encodeToSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "roads.py Lane Class")
+    
+        shapely_polygon = self.polygon
+        polygonalRegion = regionFromShapelyObject(shapely_polygon)
+        return polygonalRegion.encodeToSMT(smt_file_path, cached_variables, smt_var, debug=debug)
+
+    def contains(self, smt_file_path, cached_variables, shapely_point ,debug = False):
+        if self.polygon.contains(shapely_point) or self.polygon.distance(shapely_point) <= self.tolerance:
+            return True
+        return False
+
     @distributionFunction
     def sectionAt(self, point: Vectorlike, reject=False) -> Union[LaneSection, None]:
         """Get the LaneSection passing through a given point."""
         return self.network.findPointIn(point, self.sections, reject)
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
+    def sectionAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        """ Assumption: approximate the section using ego's visible region
+            type(point):= Vector
+        """
+        if debug:
+            print( "class Lane sectionAtEncodeSMT")
+        output = self.network.findPointInEncodeSMT(smt_file_path, cached_variables, smt_var, self.sections, debug=debug)
+        return output
+
+    # TODO remove hack; freeze all these classes
+    __hash__ = object.__hash__
+
+@attr.s(auto_attribs=True, kw_only=True, repr=False)
 class RoadSection(LinearElement):
     """RoadSection()
 
@@ -539,8 +597,20 @@ class RoadSection(LinearElement):
     lanes: Tuple[LaneSection] = ()   # in order, with lane 0 being the rightmost
     forwardLanes: Tuple[LaneSection] = ()   # as above
     backwardLanes: Tuple[LaneSection] = ()  # as above
-
     lanesByOpenDriveID: Dict[LaneSection]
+
+    def encodeToSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "roads.py Class RoadSection encodeToSMT")
+
+        shapely_polygon = self.polygon
+        polygonalRegion = regionFromShapelyObject(shapely_polygon)
+        return polygonalRegion.encodeToSMT(smt_file_path, cached_variables, smt_var, debug=debug)
+
+    def contains(self, smt_file_path, cached_variables, shapely_point ,debug = False):
+        if self.polygon.contains(shapely_point) or self.polygon.distance(shapely_point) <= self.tolerance:
+            return True
+        return False
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
@@ -580,7 +650,13 @@ class RoadSection(LinearElement):
         """Get the lane section passing through a given point."""
         return self.network.findPointIn(point, self.lane, reject)
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
+    def laneAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "class RoadSection laneAtEncodeSMT")
+        output = self.network.findPointInEncodeSMT(smt_file_path, cached_variables, smt_var, self.lane, debug=debug)
+        return output
+
+@attr.s(auto_attribs=True, kw_only=True, repr=False)
 class LaneSection(_ContainsCenterline, LinearElement):
     """LaneSection()
 
@@ -618,6 +694,19 @@ class LaneSection(_ContainsCenterline, LinearElement):
     #: Slower adjacent lane of same type, if any.
     _slowerLane: Union[LaneSection, None] = None
 
+    def encodeToSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "roads.py Class LaneSection encodeToSMT")
+
+        shapely_polygon = self.polygon
+        polygonalRegion = regionFromShapelyObject(shapely_polygon)
+        return polygonalRegion.encodeToSMT(smt_file_path, cached_variables, smt_var, debug=debug)
+
+    def contains(self, smt_file_path, cached_variables, shapely_point, debug = False):
+        if self.polygon.contains(shapely_point) or self.polygon.distance(shapely_point) <= self.tolerance:
+            return True
+        return False
+
     @property
     def laneToLeft(self) -> LaneSection:
         """The adjacent lane of the same type to the left; rejects if there is none."""
@@ -651,7 +740,8 @@ class LaneSection(_ContainsCenterline, LinearElement):
                 return None
         return current
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
+
+@attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Sidewalk(_ContainsCenterline, LinearElement):
     """Sidewalk()
 
@@ -660,7 +750,20 @@ class Sidewalk(_ContainsCenterline, LinearElement):
     road: Road
     crossings: Tuple[PedestrianCrossing]
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
+    def encodeToSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "roads.py Class Sidewalk encodeToSMT")
+
+        shapely_polygon = self.polygon
+        polygonalRegion = regionFromShapelyObject(shapely_polygon)
+        return polygonalRegion.encodeToSMT(smt_file_path, cached_variables, smt_var, debug=debug)
+
+    def contains(self, smt_file_path, cached_variables, shapely_point ,debug = False):
+        if self.polygon.contains(shapely_point) or self.polygon.distance(shapely_point) <= self.tolerance:
+            return True
+        return False
+
+@attr.s(auto_attribs=True, kw_only=True, repr=False)
 class PedestrianCrossing(_ContainsCenterline, LinearElement):
     """PedestrianCrossing()
 
@@ -670,7 +773,7 @@ class PedestrianCrossing(_ContainsCenterline, LinearElement):
     startSidewalk: Sidewalk
     endSidewalk: Sidewalk
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Shoulder(_ContainsCenterline, LinearElement):
     """Shoulder()
 
@@ -678,7 +781,7 @@ class Shoulder(_ContainsCenterline, LinearElement):
     """
     road: Road
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Intersection(NetworkElement):
     """Intersection()
 
@@ -692,6 +795,19 @@ class Intersection(NetworkElement):
     signals: Tuple[Signal]
 
     crossings: Tuple[PedestrianCrossing]    # also ordered to preserve adjacency
+
+    def encodeToSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "roads.py Class Intersection encodeToSMT")
+
+        shapely_polygon = self.polygon
+        polygonalRegion = regionFromShapelyObject(shapely_polygon)
+        return polygonalRegion.encodeToSMT(smt_file_path, cached_variables, smt_var, debug=debug)
+
+    def contains(self, smt_file_path, cached_variables, shapely_point ,debug = False):
+        if self.polygon.contains(shapely_point) or self.polygon.distance(shapely_point) <= self.tolerance:
+            return True
+        return False
 
     def __attrs_post_init__(self):
         super().__attrs_post_init__()
@@ -719,20 +835,36 @@ class Intersection(NetworkElement):
         return self.network._findPointInAll(point, self.maneuvers,
                                             key=lambda m: m.connectingLane)
 
+    def maneuversAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug = False):
+        return self.network._findPointInAllEncodeSMT(smt_file_path, cached_variables, smt_var, self.maneuvers, 
+                                        key=lambda m: m.connectingLane, debug = False)
+
     @distributionFunction
     def nominalDirectionsAt(self, point: Vectorlike) -> List[float]:
         point = _toVector(point)
         maneuvers = self.maneuversAt(point)
         return [m.connectingLane.orientation[point] for m in maneuvers]
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
+    def nominalDirectionsAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "roads.py Class Intersection nominalDirectionsAtEncodeSMT")
+
+        raise NotImplementedError
+        # output_point = checkAndEncodeSMT(smt_file_path, cached_variables, point, debug=debug)
+        # manuevers = self.network._findPointInAllForSMTEncoding(smt_file_path, cached_variables, self.maneuvers,
+        #                                 key=lambda m: m.connectingLane, debug = False)
+        # if manuevers is None:
+        #     return None
+
+        # for m in manuevers:
+        #     m.
+
+
+
+@attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Signal:
-    """Traffic lights, stop signs, etc.
-
-    .. warning::
-
-        Signal parsing is a work in progress and the API is likely to change in the future.
-    """
+    """Traffic lights, stop signs, etc."""
+    # WARNING: Signal parsing is a work in progress and the API is likely to change in the future.
 
     uid: str = None
     #: ID number as in OpenDRIVE (unique ID of the signal within the database)
@@ -744,10 +876,10 @@ class Signal:
 
     @property
     def isTrafficLight(self) -> bool:
-        """Whether or not this signal is a traffic light."""
+        """bool: Whether or not this signal is a traffic light."""
         return self.type == "1000001"
 
-@attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
+@attr.s(auto_attribs=True, kw_only=True, repr=False)
 class Network:
     """Network()
 
@@ -755,8 +887,6 @@ class Network:
 
     Networks are composed of roads, intersections, sidewalks, etc., which are all
     instances of `NetworkElement`.
-
-    Road networks can be loaded from standard formats using `Network.fromFile`.
     """
 
     #: All network elements, indexed by unique ID.
@@ -791,7 +921,7 @@ class Network:
     #: Whether or not cars drive on the left in this network.
     driveOnLeft: bool = False
     #: Distance tolerance for testing inclusion in network elements.
-    tolerance: float = 0
+    tolerance: float = 0 
 
     # convenience regions aggregated from various types of network elements
     drivableRegion: PolygonalRegion = None
@@ -842,6 +972,7 @@ class Network:
                     edges.append(road.forwardLanes.curb)
                 if road.backwardLanes:
                     edges.append(road.backwardLanes.curb)
+
             self.curbRegion = PolylineRegion.unionAll(edges)
 
         if self.roadDirection is None:
@@ -872,7 +1003,7 @@ class Network:
 
         :meta private:
         """
-        return 19
+        return 16
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
@@ -998,9 +1129,9 @@ class Network:
             if len(versionField) != 4:
                 raise pickle.UnpicklingError(f'{cls.pickledExt} file is corrupted')
             version = struct.unpack('<I', versionField)
-            if version[0] != cls._currentFormatVersion():
-                raise pickle.UnpicklingError(f'{cls.pickledExt} file is too old; '
-                                             'regenerate it from the original map')
+            # if version[0] != cls._currentFormatVersion():
+            #     raise pickle.UnpicklingError(f'{cls.pickledExt} file is too old; '
+            #                                  'regenerate it from the original map')
             digest = f.read(64)
             if len(digest) != 64:
                 raise pickle.UnpicklingError(f'{cls.pickledExt} file is corrupted')
@@ -1010,36 +1141,25 @@ class Network:
                     ' regenerate it'
                 )
             with gzip.open(f) as gf:
-                try:
-                    network = pickle.load(gf)   # invokes __setstate__ below
-                except pickle.UnpicklingError:
-                    raise    # propagate unpickling errors
-                except Exception as e:
-                    # convert various other ways unpickling can fail into a more
-                    # standard exception
-                    raise pickle.UnpicklingError('unpickling failed') from e
-
-        totalTime = time.time() - startTime
-        verbosePrint(f'Loaded cached network in {totalTime:.2f} seconds.')
-        return network
-
-    def __setstate__(self, state):
-        # Restore our attributes (default behavior when __setstate__ isn't defined)
-        self.__dict__.update(state)
+                network = pickle.load(gf)
 
         # Reconnect links between network elements
         def reconnect(thing):
             state = thing.__dict__
             for key, value in state.items():
                 if isinstance(value, _ElementPlaceholder):
-                    state[key] = self.elements[value.uid]
-        proxy = weakref.proxy(self)
-        for elem in self.elements.values():
+                    state[key] = network.elements[value.uid]
+        proxy = weakref.proxy(network)
+        for elem in network.elements.values():
             reconnect(elem)
             elem.network = proxy
-        for elem in itertools.chain(self.lanes, self.intersections):
+        for elem in itertools.chain(network.lanes, network.intersections):
             for maneuver in elem.maneuvers:
                 reconnect(maneuver)
+
+        totalTime = time.time() - startTime
+        verbosePrint(f'Loaded cached network in {totalTime:.2f} seconds.')
+        return network
 
     def dumpPickle(self, path, digest):
         path = pathlib.Path(path)
@@ -1080,6 +1200,43 @@ class Network:
             _rejectSample(message)
         return None
 
+    def findPointInEncodeSMT(self, smt_file_path, cached_variables, smt_var, elems, debug=False):
+        if debug:
+            print( "findPointInEncodeSMT")
+
+        point = _toVector(smt_var)
+        output_point = checkAndEncodeSMT(smt_file_path, cached_variables, point, smt_var, debug=debug)
+        intersectingElems = self.findPointInForSMTEncoding(cached_variables['regionAroundEgo'], elems)
+        if intersectingElems == []:
+            return None
+
+        import scenic.core.regions as regions
+        import shapely.geometry 
+        intersection = [elem.polygon for elem in intersectingElems]
+        if isinstance(intersection[0], shapely.geometry.Polygon) or \
+                isinstance(intersection[0], shapely.geometry.MultiPolygon):
+            intersectingRegion = regions.PolygonalRegion(polygon=shapely.geometry.MultiPolygon(intersection))
+        elif isinstance(intersection[0], shapely.geometry.LineString) or \
+                 isinstance(intersection[0], shapely.geometry.MultiLineString):
+            intersectingRegion = regions.PolyLineRegion(polygon=shapely.geometry.MultiLineString(intersection))
+        pointOnRegion = intersectingRegion.encodeToSMT(smt_file_path, cached_variables, debug=debug)
+        smt_encoding = vector_operation_smt(output_point, "equal", pointOnRegion)
+        writeSMTtoFile(smt_file_path, smt_encoding)
+        return output_point
+
+    def findPointInForSMTEncoding(self, polygon, elems):
+        intersecting_elems = []
+        for element in elems:
+            if element.polygon.intersection(polygon) is not None:
+                intersecting_elems.append(element)
+        if intersecting_elems != [] and self.tolerance > 0:
+            for element in elems:
+                if element.polygon.distance(polygon) <= self.tolerance:
+                    intersecting_elems.append(element)
+        if intersecting_elems == []:
+            return None
+        return intersecting_elems
+
     def _findPointInAll(self, point, things, key=lambda e: e):
         point = _toVector(point)
         found = []
@@ -1091,6 +1248,56 @@ class Network:
                 if key(thing).distanceTo(point) <= self.tolerance:
                     found.append(thing)
         return found
+
+    def _findPointInAllForSMTEncoding(self, smt_file_path, cached_variables, things, key=lambda e: e, debug=False):
+        """ outputs a list of scenic regions intersecting with ego's visible Region """
+        if debug: 
+            print( "Class Network _findPointInAllForSMTEncoding")
+        region = cached_variables['regionAroundEgo']
+        found = []
+        for thing in things:
+            if key(thing).polygon.intersection(region) is not None:
+                found.append(thing)
+        if not found and self.tolerance > 0:
+            for thing in things:
+                if key(thing).polygon.distance(region) <= self.tolerance:
+                    found.append(thing)
+        if not found:
+            return None
+        return found
+
+    def _findPointInAllEncodeSMT(self, smt_file_path, cached_variables, smt_var, things, key, debug=False):
+        if debug: 
+            print( "Class Network _findPointInAllEncodeSMT")
+        # TODO : optimize the use of point
+        point = _toVector(smt_var)
+        region = cached_variables['regionAroundEgo']
+        output_point = checkAndEncodeSMT(smt_file_path, cached_variables, point, smt_var, debug=debug)
+
+        found = []
+        for thing in things:
+            if key(thing).polygon.intersection(region) is not None:
+                found.append(thing)
+        if not found and self.tolerance > 0:
+            for thing in things:
+                if key(thing).polygon.distance(region) <= self.tolerance:
+                    found.append(thing)
+        if not found:
+            return None
+
+        import scenic.core.regions as regions
+        import shapely.geometry 
+        intersection = [elem.polygon for elem in found]
+        if isinstance(intersection[0], shapely.geometry.Polygon) or \
+                isinstance(intersection[0], shapely.geometry.MultiPolygon):
+            intersectingRegion = regions.PolygonalRegion(polygon=shapely.geometry.MultiPolygon(intersection))
+        elif isinstance(intersection[0], shapely.geometry.LineString) or \
+                 isinstance(intersection[0], shapely.geometry.MultiLineString):
+            intersectingRegion = regions.PolyLineRegion(polygon=shapely.geometry.MultiLineString(intersection))
+        pointOnRegion = intersectingRegion.encodeToSMT(smt_file_path, cached_variables, smt_var, debug=debug)
+        smt_encoding = vector_operation_smt(output_point, "equal", pointOnRegion)
+        writeSMTtoFile(smt_file_path, smt_encoding)
+        return output_point
 
     @distributionMethod
     def elementAt(self, point: Vectorlike, reject=False) -> Union[NetworkElement, None]:
@@ -1106,15 +1313,36 @@ class Network:
             return intersection
         return self.roadAt(point, reject=reject)
 
+    def elementAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print(smt_encoding, "elementAtEncodeSMT")
+        raise NotImplementedError
+
     @distributionMethod
     def roadAt(self, point: Vectorlike, reject=False) -> Union[Road, None]:
         """Get the `Road` passing through a given point."""
         return self.findPointIn(point, self.allRoads, reject)
 
+    def roadAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "roadAtEncodeSMT")
+        point = _toVector(point)
+        output = self.findPointInEncodeSMT(smt_file_path, cached_variables, smt_var, self.allRoads, debug=False)
+        assert(output != None)
+        return output
+
     @distributionMethod
     def laneAt(self, point: Vectorlike, reject=False) -> Union[Lane, None]:
         """Get the `Lane` passing through a given point."""
         return self.findPointIn(point, self.lanes, reject)
+
+    def laneAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "laneAtEncodeSMT")
+        point = _toVector(point)
+        output = self.findPointInEncodeSMT(smt_file_path, cached_variables, smt_var, self.lanes, debug=False)
+        assert(output != None)
+        return output
 
     @distributionMethod
     def laneSectionAt(self, point: Vectorlike, reject=False) -> Union[LaneSection, None]:
@@ -1123,12 +1351,50 @@ class Network:
         lane = self.laneAt(point, reject=reject)
         return None if lane is None else lane.sectionAt(point)
 
+    def laneSectionAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "laneSectionAtEncodeSMT")
+        point = _toVector(point)
+        output_point = checkAndEncodeSMT(smt_file_path, cached_variables, smt_var, debug=debug)
+        intersectingLanes = self.findPointInForSMTEncoding(cached_variables['regionAroundEgo'], self.lanes)
+        assert(intersectingLanes != [])
+
+        intersectingSections = []
+        for lane in intersectingLanes:
+            intersectingSections.extend(self.findPointInForSMTEncoding(cached_variables['regionAroundEgo'], lane.sections))
+
+        intersection = [elem.polygon for elem in intersectingSections]
+        intersectingRegion = regions.PolygonalRegion(polygon=shapely.geometry.MultiPolygon(intersection))
+        pointOnRegion = intersectingRegion.encodeToSMT(smt_file_path, cached_variables, smt_var, debug=debug)
+        smt_encoding = vector_operation_smt(output_point, "equal", pointOnRegion)
+        writeSMTtoFile(smt_file_path, smt_encoding)
+        return output_point
+
     @distributionMethod
     def laneGroupAt(self, point: Vectorlike, reject=False) -> Union[LaneGroup, None]:
         """Get the `LaneGroup` passing through a given point."""
         point = _toVector(point)
         road = self.roadAt(point, reject=reject)
         return None if road is None else road.laneGroupAt(point, reject=reject)
+
+    def laneGroupAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "laneGroupAtEncodeSMT")
+        point = _toVector( smt_var)
+        output_point = checkAndEncodeSMT(smt_file_path, cached_variables, point, smt_var, debug=debug)
+        intersectingRoads = self.findPointInForSMTEncoding(cached_variables['regionAroundEgo'], self.allRoads)
+        assert(intersectingRoads != [])
+
+        intersectingLaneGroups = []
+        for road in intersectingRoads:
+            intersectingLaneGroups.extend(self.findPointInForSMTEncoding(cached_variables['regionAroundEgo'], road.laneGroups))
+
+        intersection = [elem.polygon for elem in intersectingLaneGroups]
+        intersectingRegion = regions.PolygonalRegion(polygon=shapely.geometry.MultiPolygon(intersection))
+        pointOnRegion = intersectingRegion.encodeToSMT(smt_file_path, cached_variables, smt_var, debug=debug)
+        smt_encoding = vector_operation_smt(output_point, "equal", pointOnRegion)
+        writeSMTtoFile(smt_file_path, smt_encoding)
+        return output_point
 
     @distributionMethod
     def crossingAt(self, point: Vectorlike,
@@ -1138,11 +1404,38 @@ class Network:
         road = self.roadAt(point, reject=reject)
         return None if road is None else road.crossingAt(point, reject=reject)
 
+    def crossingAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "crossingAtEncodeSMT")
+        point = _toVector(smt_var)
+        output_point = checkAndEncodeSMT(smt_file_path, cached_variables, point, smt_var, debug=debug)
+        intersectingRoads = self.findPointInForSMTEncoding(cached_variables['regionAroundEgo'], self.allRoads)
+        assert(intersectingRoads != [])
+
+        intersectingCrossings = []
+        for road in intersectingRoads:
+            intersectingCrossings.extend(self.findPointInForSMTEncoding(cached_variables['regionAroundEgo'], road.crossings))
+
+        intersection = [elem.polygon for elem in intersectingCrossings]
+        intersectingRegion = regions.PolygonalRegion(polygon=shapely.geometry.MultiPolygon(intersection))
+        pointOnRegion = intersectingRegion.encodeToSMT(smt_file_path, cached_variables, smt_var, debug=debug)
+        smt_encoding = vector_operation_smt(output_point, "equal", pointOnRegion)
+        writeSMTtoFile(smt_file_path, smt_encoding)
+        return output_point
+
     @distributionMethod
     def intersectionAt(self, point: Vectorlike,
                        reject=False) -> Union[Intersection, None]:
         """Get the `Intersection` at a given point."""
         return self.findPointIn(point, self.intersections, reject)
+
+    def intersectionAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "intersectionAtEncodeSMT")
+        point = _toVector(smt_var)
+        output = self.findPointInEncodeSMT(smt_file_path, cached_variables, point, self.intersections, debug=False)
+        assert(output != None)
+        return output
 
     @distributionMethod
     def nominalDirectionsAt(self, point: Vectorlike, reject=False) -> Tuple[float]:
@@ -1159,11 +1452,36 @@ class Network:
             return road.nominalDirectionsAt(point)
         return ()
 
+    def nominalDirectionsAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+        if debug:
+            print( "roads.py Class Network nominalDirectionsAtEncodeSMT")
+
+        raise NotImplementedError
+        # # assume that the point is conditioned by now
+        # assert(point._conditioned != point and point)
+
+        # output_point = checkAndEncodeSMT(smt_file_path, cached_variables, point, debug=debug)
+        # intersectingIntersection = self.findPointInForSMTEncoding(cached_variables['regionAroundEgo'], self.intersections)
+        # if intersectingIntersection is not None:
+        #     for intersection in intersectingIntersection:
+        #         intersection.nominalDirectionsAtEncodeSMT(smt_file_path, cached_variables, point, debug=debug)
+
+        # intersectingRoads = self.findPointInForSMTEncoding(cached_variables['regionAroundEgo'], self.allRoads)
+        # if intersectingRoads is not None:
+        #     for road in intersectingRoads:
+        #         road.nominalDirectionsAtEncodeSMT(smt_file_path, cached_variables, point, debug=debug)
+
+        # if intersectingIntersection is None and intersectingRoads is None:
+        #     return None
+
+        # return output_point
+
+
     def show(self):
         """Render a schematic of the road network for debugging.
 
         If you call this function directly, you'll need to subsequently call
-        `matplotlib.pyplot.show` to actually display the diagram.
+        ``matplotlib.pyplot.show()`` to actually display the diagram.
         """
         import matplotlib.pyplot as plt
         self.walkableRegion.show(plt, style='-', color='#00A0FF')

@@ -163,13 +163,9 @@ class Car(Vehicle):
     """A car.
 
     The default ``blueprint`` (see `CarlaActor`) is a uniform distribution over the
-    blueprints listed in :obj:`scenic.simulators.carla.blueprints.carModels`.
+    blueprints listed in `scenic.simulators.carla.blueprints.carModels`.
     """
     blueprint: Uniform(*blueprints.carModels)
-
-    @property
-    def isCar(self):
-        return True
 
 class NPCCar(Car):  # no distinction between these in CARLA
     pass
@@ -196,7 +192,7 @@ class Pedestrian(Pedestrian, CarlaActor, Walks):
     """A pedestrian.
 
     The default ``blueprint`` (see `CarlaActor`) is a uniform distribution over the
-    blueprints listed in :obj:`scenic.simulators.carla.blueprints.walkerModels`.
+    blueprints listed in `scenic.simulators.carla.blueprints.walkerModels`.
     """
     width: 0.5
     length: 0.5

@@ -1,0 +1,951 @@
+Searching 407 files for "if debug"
+
+/Users/edwardkim/Desktop/Scenic_Query/Scenic/experiment-scenario3.ipynb:
+ 1282        "\u001b[0;32m~/Desktop/Scenic_Query/Scenic/src/scenic/core/distributions.py\u001b[0m in \u001b[0;36mencodeToSMT\u001b[0;34m(self, smt_file_path, cached_variables, smt_var, debug, encode)\u001b[0m\n\u001b[1;32m   1888\u001b[0m                                 \u001b[0mmultipolygon\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mshapely\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mgeometry\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mmultipolygon\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mMultiPolygon\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mpolygonalRegions\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1889\u001b[0m                                 \u001b[0mpolygonReg\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mregions\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mregionFromShapelyObject\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mmultipolygon\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1890\u001b[0;31m                                 \u001b[0mpolygonReg\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mencodeToSMT\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0msmt_file_path\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mcached_variables\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0msmt_var\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mdebug\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mdebug\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   1891\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1892\u001b[0m                                 \u001b[0;31m# polygonalRegions = [regions.regionFromShapelyObject(elem.polygon) for elem in valid_options.options]\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+ 1283        "\u001b[0;32m~/Desktop/Scenic_Query/Scenic/src/scenic/core/regions.py\u001b[0m in \u001b[0;36mencodeToSMT\u001b[0;34m(self, smt_file_path, cached_variables, smt_var, debug)\u001b[0m\n\u001b[1;32m   1095\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1096\u001b[0m                 \u001b[0mpolygon_triangles\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0;34m[\u001b[0m\u001b[0mtriangle\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0;36m0\u001b[0m\u001b[0;34m]\u001b[0m \u001b[0;32mfor\u001b[0m \u001b[0mtriangle\u001b[0m \u001b[0;32min\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mtrianglesAndBounds\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1097\u001b[0;31m                 \u001b[0mencodePolygonalRegion_SMT\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0msmt_file_path\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mcached_variables\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mpolygon_triangles\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0msmt_var\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mdebug\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0mdebug\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   1098\u001b[0m                 \u001b[0;32mreturn\u001b[0m \u001b[0mcacheVarName\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mcached_variables\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0msmt_var\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1099\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n",
+ 1284:       "\u001b[0;32m~/Desktop/Scenic_Query/Scenic/src/scenic/core/regions.py\u001b[0m in \u001b[0;36mencodePolygonalRegion_SMT\u001b[0;34m(smt_file_path, cached_variables, triangles, smt_var, debug)\u001b[0m\n\u001b[1;32m    229\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    230\u001b[0m         \u001b[0;31m# if debug:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 231\u001b[0;31m         \u001b[0mplt\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mshow\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    232\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    233\u001b[0m         \u001b[0mfinal_smt_encoding\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0msmt_assert\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;32mNone\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mcumulative_smt_encoding\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+ 1285        "\u001b[0;32m~/Library/Caches/pypoetry/virtualenvs/scenic-35V3Qupd-py3.8/lib/python3.8/site-packages/matplotlib/pyplot.py\u001b[0m in \u001b[0;36mshow\u001b[0;34m(*args, **kwargs)\u001b[0m\n\u001b[1;32m    351\u001b[0m     \"\"\"\n\u001b[1;32m    352\u001b[0m     \u001b[0m_warn_if_gui_out_of_main_thread\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 353\u001b[0;31m     \u001b[0;32mreturn\u001b[0m \u001b[0m_backend_mod\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mshow\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m*\u001b[0m\u001b[0margs\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0;34m**\u001b[0m\u001b[0mkwargs\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    354\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    355\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n",
+ 1286        "\u001b[0;32m~/Library/Caches/pypoetry/virtualenvs/scenic-35V3Qupd-py3.8/lib/python3.8/site-packages/ipykernel/pylab/backend_inline.py\u001b[0m in \u001b[0;36mshow\u001b[0;34m(close, block)\u001b[0m\n\u001b[1;32m     37\u001b[0m     \u001b[0;32mtry\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     38\u001b[0m         \u001b[0;32mfor\u001b[0m \u001b[0mfigure_manager\u001b[0m \u001b[0;32min\u001b[0m \u001b[0mGcf\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mget_all_fig_managers\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m---> 39\u001b[0;31m             display(\n\u001b[0m\u001b[1;32m     40\u001b[0m                 \u001b[0mfigure_manager\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mcanvas\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mfigure\u001b[0m\u001b[0;34m,\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     41\u001b[0m                 \u001b[0mmetadata\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0m_fetch_figure_metadata\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mfigure_manager\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mcanvas\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mfigure\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+
+/Users/edwardkim/Desktop/Scenic_Query/Scenic/final_big_data_query.py-checkpoint.ipynb:
+  192      "                    or ((obj1.heading in intersection_elem) and not (obj1.heading is obj2.heading)):\n",
+  193      "                    objDep[obj2]['dependent_objs'].add(obj1)\n",
+  194:     "                    if debug:\n",
+  195      "                        objDep[obj2]['dependent_objs_str'].add(objDep[obj1]['self'])\n",
+  196      "                elif ((obj2.position in intersection_elem) and not (obj2.position is obj1.position))\\\n",
+  197      "                    or ((obj2.heading in intersection_elem) and not (obj2.heading is obj1.heading)):\n",
+  198      "                    objDep[obj1]['dependent_objs'].add(obj2)\n",
+  199:     "                    if debug:\n",
+  200      "                        objDep[obj1]['dependent_objs_str'].add(objDep[obj2]['self'])\n",
+  201      "                elif len(feature_list.intersection(intersection_elem))==len(intersection_elem):\n",
+  ...
+  204      "                            objToAdd = findObjByValue(obj_feature_dict, feature)\n",
+  205      "                            objDep[obj1]['dependent_objs'].add(objToAdd)\n",
+  206:     "                            if debug:\n",
+  207      "                                objDep[obj1]['dependent_objs_str'].add(objDep[objToAdd]['self'])\n",
+  208      "                        if not (feature in obj_feature_dict[obj2]):\n",
+  209      "                            objToAdd = findObjByValue(obj_feature_dict, feature)\n",
+  210      "                            objDep[obj2]['dependent_objs'].add(objToAdd)\n",
+  211:     "                            if debug:\n",
+  212      "                                objDep[obj2]['dependent_objs_str'].add(objDep[objToAdd]['self'])\n",
+  213      "                else:\n",
+  214      "                    objDep[obj1]['jointly_dependent'].add(obj2)\n",
+  215      "                    objDep[obj2]['jointly_dependent'].add(obj1)\n",
+  216:     "                    if debug:\n",
+  217      "                        objDep[obj1]['jointly_dependent_str'].add(objDep[obj2]['self'])\n",
+  218      "                        objDep[obj2]['jointly_dependent_str'].add(objDep[obj1]['self'])\n",
+  ...
+  224      "    index = 0\n",
+  225      "    print()\n",
+  226:     "    if debug:\n",
+  227      "        obj = objDep[obj]['self']\n",
+  228      "    for elem in output_list:\n",
+  ...
+  238      "    count = 0\n",
+  239      "    for obj in objects:\n",
+  240:     "        if debug:\n",
+  241      "            jointlyDependentObj = objDep[obj]['jointly_dependent_str']\n",
+  242      "        else:\n",
+  ...
+  249      "            jointObjs = output[index]\n",
+  250      "        \n",
+  251:     "        if debug:\n",
+  252      "            jointObjs.add(objDep[obj]['self'])\n",
+  253      "        else:\n",
+  ...
+  264      "    for obj in objects:\n",
+  265      "        obj_index = findObj(output, obj, objDep, debug)\n",
+  266:     "        if debug:\n",
+  267      "            dependentObj = objDep[obj]['dependent_objs_str']\n",
+  268      "            print(\"obj : \", objDep[obj]['self'])\n",
+  ...
+  271      "        \n",
+  272      "        for elem in dependentObj:\n",
+  273:     "            if debug:\n",
+  274      "                dep_index = findObj(output, objDep[elem], objDep, debug)\n",
+  275      "                print(\"elem: \", elem)\n",
+
+/Users/edwardkim/Desktop/Scenic_Query/Scenic/src/scenic/core/distributions.py:
+  169  	cached_var = [variable for variable in variable_list if variable.startswith(class_name)]
+  170  	var_name = class_name+str(len(cached_var)+1) 
+  171: 	if debug:
+  172  		print("findVariableName() creating a variable: "+var_name)
+  173  
+  ...
+  590  		raise NotImplementedError
+  591  
+  592: 		if debug:
+  593  			print("FunctionDistribution")
+  594  
+  ...
+  597  
+  598  		if self in cached_variables.keys():
+  599: 			if debug:
+  600  				print("FunctionDistribution already cached")
+  601  			return cached_variables[self]
+  ...
+  722  
+  723  	def encodeToSMT(self, smt_file_path, cached_variables, debug=False, encode=True):
+  724: 		if debug:
+  725  			print("Class StarredDistribution encodeToSMT")
+  726  
+  ...
+  729  
+  730  		if self in cached_variables.keys():
+  731: 			if debug:
+  732  				print("StarredDistribution already cached")
+  733  			return cached_variables[self]
+  ...
+  763  		"""
+  764  		# import scenic.core.geometry as geometry
+  765: 		if debug:
+  766  			print("MethodDistribution")
+  767  			# writeSMTtoFile(smt_file_path, "method: "+str(self.method))
+  ...
+  778  
+  779  		if self in set(cached_variables.keys()):
+  780: 			if debug:
+  781  				print( "MethodDistribution already exists in cached_variables dict")
+  782  			return cached_variables[self]
+  ...
+  840  				vector = self.arguments[0]._conditioned
+  841  				output = str(self.method(self.object, vector))
+  842: 				if debug:
+  843  					print("MethodDistribution self.method == vectors.VectorField.__getitem__")
+  844  					print("output")
+  ...
+  846  
+  847  			optionsRegion = self.arguments[0].encodeToSMT(smt_file_path, cached_variables, debug=debug, encode=False)
+  848: 			if debug:
+  849  				print("type(self.arguments[0]): ", type(self.arguments[0]))
+  850  				print("self.arguments[0]: ", self.arguments[0])
+  ...
+  878  					raise NotImplementedError
+  879  
+  880: 			if debug:
+  881  				print("in MethodDist class, polygonalRegions: ", polygonalRegions)
+  882  			multipolygon = shapely.geometry.multipolygon.MultiPolygon(polygonalRegions)
+  ...
+  905  		import scenic.core.vectors as vectors
+  906  
+  907: 		if debug:
+  908  			print("encodeHeading()")
+  909  
+  ...
+  914  			# elem.centerline.points.intersection(cached_variables['regionAroundEgo_polygon'])
+  915  	        
+  916: 			if debug:
+  917  				print("centerlinePts: ",centerlinePts)
+  918  				plt.plot(*elem.polygon.exterior.xy)
+  ...
+  956  				line = shapely.geometry.LineString([left_pt, right_pt])
+  957  
+  958: 				# if debug:
+  959  					# plt.plot(*elem.polygon.exterior.xy)
+  960  					# for pt in centerlinePts:
+  ...
+ 1006  					smt_encoding = smt_ite(joint_smt, str(heading), smt_encoding)
+ 1007  
+ 1008: 			# 	if debug:
+ 1009  			# 	    # print("i: ",i)
+ 1010  			# 	    # print("heading: ", heading)
+ ....
+ 1020  			# 		plt.plot(intersect_leftPt.x, intersect_leftPt.y, color2)
+ 1021  			# 		plt.plot(intersect_rightPt.x, intersect_rightPt.y, color2)
+ 1022: 			# if debug:
+ 1023  			# 	plt.show()
+ 1024  		        
+ ....
+ 1052  		import shapely.geometry
+ 1053  
+ 1054: 		if debug:
+ 1055  			print("findClosestPoint() elems: ", elems)
+ 1056  			print("elems.is_empty: ", elems.is_empty)
+ ....
+ 1138  
+ 1139  	def encodeToSMT(self, smt_file_path, cached_variables, debug=False, encode=True):
+ 1140: 		if debug:
+ 1141  			print( "Class AttributeDistribution encodeToSMT")
+ 1142  			print("self: ", self)
+ ....
+ 1200  				import scenic.core.vectors as vectors
+ 1201  				if self.attribute == 'orientation':
+ 1202: 					if debug:
+ 1203  						print("AttributeDistribution obj: ", obj)
+ 1204  						print("AttributeDistribution obj._conditioned: ", obj._conditioned)
+ 1205  					regionOptions = obj.encodeToSMT(smt_file_path, cached_variables, debug, encode=False)
+ 1206: 					if debug:
+ 1207  						print("AttributeDistribution obj OperatorDistribution regionOptions: ", regionOptions)
+ 1208  					assert(isinstance(regionOptions, Options))
+ ....
+ 1295  		   encodeToSMT() must return 'cached_variables' dictionary
+ 1296  		"""
+ 1297: 		if debug:
+ 1298  			print( "OperatorDistribution")
+ 1299  			print( "operator: "+str(self.operator))
+ ....
+ 1306  
+ 1307  		if encode and isConditioned(self) and not isinstance(self._conditioned, Samplable):
+ 1308: 			if debug:
+ 1309  				print( "OperatorDist is conditioned")
+ 1310  			return cacheVarName(cached_variables, self, self._conditioned)
+ 1311  
+ 1312  		if encode and self in cached_variables.keys():
+ 1313: 			if debug:
+ 1314  				print( "OperatorDistribution already exists in cached_variables dict")
+ 1315  			return cached_variables[self]
+ ....
+ 1367  
+ 1368  				distOverRegions = self.object.encodeToSMT(smt_file_path, cached_variables, debug, encode=False)
+ 1369: 				if debug:
+ 1370  					print("OperatorDistribution __call__ distOverRegions: ", distOverRegions)
+ 1371  				assert(isinstance(distOverRegions, Options))
+ ....
+ 1376  				import shapely.geometry.polygon as polygon
+ 1377  				assert(isinstance(otherRegion, regions.SectorRegion))
+ 1378: 				if debug:
+ 1379  					print("OperatorDistribution __call__ otherRegion: ", otherRegion)
+ 1380  
+ ....
+ 1426  						raise NotImplementedError
+ 1427  
+ 1428: 				if debug:
+ 1429  					print("in Options class, polygonalRegions: ", polygonalRegions)
+ 1430  
+ ....
+ 1439  				import scenic.core.vectors as vectors
+ 1440  
+ 1441: 				if debug:
+ 1442  					print( "OperatorDistribution self.operator == __getitem__")
+ 1443  
+ ....
+ 1446  				assert(isinstance(optionsRegion, Options))
+ 1447  
+ 1448: 				if debug:
+ 1449  					print( "operatordist optionRegion: "+str(optionsRegion))
+ 1450  
+ ....
+ 1494  		else:
+ 1495  			print("self.operator: " + str(self.operator))
+ 1496: 			if debug:
+ 1497  				print( "self.operator: " + str(self.operator))
+ 1498  			raise NotImplementedError
+ ....
+ 1506  		import scenic.core.vectors as vectors
+ 1507  
+ 1508: 		if debug:
+ 1509  			print("encodeHeading()")
+ 1510  
+ ....
+ 1515  			# elem.centerline.points.intersection(cached_variables['regionAroundEgo_polygon'])
+ 1516  	        
+ 1517: 			if debug:
+ 1518  				print("centerlinePts: ",centerlinePts)
+ 1519  				plt.plot(*elem.polygon.exterior.xy)
+ ....
+ 1557  				line = shapely.geometry.LineString([left_pt, right_pt])
+ 1558  
+ 1559: 				# if debug:
+ 1560  					# plt.plot(*elem.polygon.exterior.xy)
+ 1561  					# for pt in centerlinePts:
+ ....
+ 1607  					smt_encoding = smt_ite(joint_smt, str(heading), smt_encoding)
+ 1608  
+ 1609: 			# 	if debug:
+ 1610  			# 	    # print("i: ",i)
+ 1611  			# 	    # print("heading: ", heading)
+ ....
+ 1621  			# 		plt.plot(intersect_leftPt.x, intersect_leftPt.y, color2)
+ 1622  			# 		plt.plot(intersect_rightPt.x, intersect_rightPt.y, color2)
+ 1623: 			# if debug:
+ 1624  			# 	plt.show()
+ 1625  		        
+ ....
+ 1653  		import shapely.geometry
+ 1654  
+ 1655: 		if debug:
+ 1656  			print("findClosestPoint() elems: ", elems)
+ 1657  			print("elems.is_empty: ", elems.is_empty)
+ ....
+ 1682  	# 		centerlinePts = elem.centerline.points
+ 1683  	        
+ 1684: 	# 		if debug:
+ 1685  	# 			plt.plot(*elem.polygon.exterior.xy)
+ 1686  	# 			for pt in centerlinePts:
+ ....
+ 1762  	# 				smt_encoding = smt_ite(joint_smt, str(heading), smt_encoding)
+ 1763  
+ 1764: 	# 			if debug:
+ 1765  	# 			    # print("i: ",i)
+ 1766  	# 			    # print("heading: ", heading)
+ ....
+ 1776  	# 				plt.plot(intersect_leftPt.x, intersect_leftPt.y, color2)
+ 1777  	# 				plt.plot(intersect_rightPt.x, intersect_rightPt.y, color2)
+ 1778: 	# 		if debug:
+ 1779  	# 			plt.show()
+ 1780  		        
+ ....
+ 1954  		   cached_variables : key = obj, value = variable_name / key = 'variables', value = list(cached variables so far)
+ 1955  		"""
+ 1956: 		if debug:
+ 1957  			writeSMTtoFile(smt_file_path, "Range")
+ 1958  
+ ....
+ 1961  		
+ 1962  		if self in cached_variables.keys():
+ 1963: 			if debug:
+ 1964  				print( "Range already cached")
+ 1965  			return cached_variables[self]
+ ....
+ 2033  		   cached_variables : key = obj, value = variable_name / key = 'variables', value = list(cached variables so far)
+ 2034  		"""
+ 2035: 		if debug:
+ 2036  			print( "Normal")
+ 2037  
+ ....
+ 2040  		
+ 2041  		if self in cached_variables.keys():
+ 2042: 			if debug:
+ 2043  				print( "Normal already cached")
+ 2044  			return cached_variables[self]
+ ....
+ 2135  		"""
+ 2136  
+ 2137: 		if debug:
+ 2138  			print( "TruncatedNormal")
+ 2139  
+ ....
+ 2142  		
+ 2143  		if self in cached_variables.keys():
+ 2144: 			if debug:
+ 2145  				print( "TruncatedNormal already cached")
+ 2146  			return cached_variables[self]
+ ....
+ 2250  		   cached_variables : key = obj, value = variable_name / key = 'variables', value = list(cached variables so far)
+ 2251  		"""
+ 2252: 		if debug:
+ 2253  			print( "DiscreteRange")
+ 2254  
+ ....
+ 2257  
+ 2258  		if self in cached_variables.keys():
+ 2259: 			if debug:
+ 2260  				print( "DiscreteRange is already cached")
+ 2261  			return cached_variables[self]
+ ....
+ 2330  
+ 2331  	def encodeToSMT(self, smt_file_path, cached_variables, smt_var=None, debug=False, encode=True):
+ 2332: 		if debug:
+ 2333  			print( "Options class")
+ 2334  			if isConditioned(self):
+ ....
+ 2356  					# import matplotlib.pyplot as plt
+ 2357  					# import shapely.geometry.polygon as polygon
+ 2358: 					# if debug:
+ 2359  					# for elem in valid_options:
+ 2360  					# 	if isinstance(elem.polygon, polygon.Polygon):
+ ....
+ 2366  					# plt.show()
+ 2367  
+ 2368: 					if debug:
+ 2369  						print( "valid_options: "+str(valid_options))
+ 2370  
+ ....
+ 2397  						raise NotImplementedError
+ 2398  
+ 2399: 				if debug:
+ 2400  					print("in Options class, polygonalRegions: ", polygonalRegions)
+ 2401  				multipolygon = shapely.geometry.multipolygon.MultiPolygon(polygonalRegions)
+ ....
+ 2442  					# import matplotlib.pyplot as plt
+ 2443  					# import shapely.geometry.polygon as polygon
+ 2444: 					# # if debug:
+ 2445  					# for elem in valid_options:
+ 2446  					# 	if isinstance(elem.polygon, polygon.Polygon):
+ ....
+ 2559  
+ 2560  	def encodeToSMT(self, smt_file_path, cached_variables, debug=False, encode = True):
+ 2561: 		if debug:
+ 2562  			print( "class UniformDistribution encodeToSMT")
+ 2563  
+ 2564  		if self in set(cached_variables.keys()):
+ 2565: 			if debug:
+ 2566  				print( "UniformDistribution already cached")
+ 2567  			return cached_variables[self]
+
+/Users/edwardkim/Desktop/Scenic_Query/Scenic/src/scenic/core/regions.py:
+   43  
+   44  	"""
+   45: 	if debug:
+   46  		print( "pruneValidLines")
+   47  
+   ..
+   50  
+   51  	# if not 'ego_visibleRegion' in cached_variables.keys():
+   52: 	# 	if debug:
+   53  	# 		writeSMTtoFile(smt_file_path, "ego_visibleRegion not in cached_variables.keys()")
+   54  	# 	center = cached_variables['ego']
+   ..
+   61  	# 	cached_variables['ego_sector_polygon'] = sector
+   62  	# else:
+   63: 	# 	if debug:
+   64  	# 		writeSMTtoFile(smt_file_path, "ego_visibleRegion already in cached_variables.keys()")
+   65  	# 	sector = cached_variables['ego_visibleRegion'].polygon
+   ..
+   79  	""" point1, point2 of type := (float, float), defines a line segment
+   80  	""" 
+   81: 	if debug:
+   82  		print( "encodeLine_SMT")
+   83  
+   ..
+  128  
+  129  # 	"""
+  130: # 	if debug:
+  131  # 		writeSMTtoFile(smt_file_path, "pruneValidRegion")
+  132  
+  ...
+  135  
+  136  # 	# if not 'ego_visibleRegion' in cached_variables.keys():
+  137: # 	# 	if debug:
+  138  # 	# 		writeSMTtoFile(smt_file_path, "ego_visibleRegion not in cached_variables.keys()")
+  139  # 	# 	center = cached_variables['ego']
+  ...
+  146  # 	# 	cached_variables['ego_sector_polygon'] = sector
+  147  # 	# else:
+  148: # 	# 	if debug:
+  149  # 	# 		writeSMTtoFile(smt_file_path, "ego_visibleRegion already in cached_variables.keys()")
+  150  # 	# 	sector = cached_variables['ego_visibleRegion'].polygon
+  ...
+  157  # 		if inter != shapely.geometry.polygon.Polygon():
+  158  # 			intersecting_triangles.append(polygon)
+  159: # 	# 	if debug:
+  160  # 	# 		plt.plot(*polygon.exterior.xy, color='g')
+  161: # 	# if debug:
+  162  # 	# 	plt.show()
+  163  
+  ...
+  166  def encodePolygonalRegion_SMT(smt_file_path, cached_variables, triangles, smt_var, debug=False):
+  167  	""" Assumption: the polygons given from polygon region will always be in triangles """
+  168: 	if debug:
+  169  		print( "encodePolygonalRegion_SMT")
+  170  
+  ...
+  220  			cumulative_smt_encoding = smt_or(cumulative_smt_encoding, smt_encoding)
+  221  
+  222: 		if debug:
+  223  			plt.plot(*triangle.exterior.xy, color='g')
+  224  
+  225: 		# if debug:
+  226  		# 	print( "p0: "+str(p0))
+  227  		# 	print( "p1: "+str(p1))
+  228  		# 	print( "p2: "+str(p2))
+  229  
+  230: 	if debug:
+  231  		ego_polygon = cached_variables['regionAroundEgo_polygon']
+  232  		plt.plot(*ego_polygon.exterior.xy, color = 'r')
+  ...
+  275  
+  276  	def encodeToSMT(self, smt_file_path, cached_variables, smt_var=None, debug=False, encode=True):
+  277: 		if debug:
+  278  			print( "PointInRegionDistribution")
+  279  
+  280  		if encode and self in cached_variables.keys():
+  281: 			if debug:
+  282  				print( "PointInRegionDistribution already cached")
+  283  			return cached_variables[self]
+  ...
+  294  
+  295  		if isinstance(self._conditioned, Vector):
+  296: 			if debug:
+  297  				print( "PointInRegionDistribution is conditioned : " + str(self._conditioned))
+  298  			vector = self._conditioned
+  ...
+  590  
+  591  	def encodeToSMT(self, smt_file_path, cached_variables, smt_var=None, debug=False):
+  592: 		if debug:
+  593  			print( "SectorRegion")
+  594  			print( "center: "+str(self.center))
+  ...
+  600  
+  601  		if self in cached_variables.keys():
+  602: 			if debug:
+  603  				print( "SectorRegion already cached")
+  604  			return cached_variables[self]
+  ...
+  628  
+  629  		# Encode and write to file, a contraint for a circle
+  630: 		if debug: 
+  631  			print( "encode circle of ego_visibleRegion")
+  632  		shifted_output_x = smt_subtract(output_x, center_x)
+  ...
+  653  		# compute "sign(Dx * Ty - Dy * Tx) <= 0" for a given point to be on the right side of the sector's left line 
+  654  		# left_angle = findVariableName(cached_variables, smt_file_path, cached_variables['variables'], 'left_angle')
+  655: 		if debug:
+  656  			print( "SectorRegion encode left_line constraint")
+  657  
+  ...
+  666  		# compute "0 <= sign(Dx * Ty - Dy * Tx)" for a given point to be on the left side of the sector's right line
+  667  		# right_angle = findVariableName(cached_variables, smt_file_path, cached_variables['variables'], 'right_angle')
+  668: 		if debug:
+  669  			print( "SectorRegion encode right_line constraint")
+  670  
+  ...
+  868  
+  869  	def encodeToSMT(self, smt_file_path, cached_variables, smt_var=None, debug = False):
+  870: 		if debug:
+  871  			print( "PolyLineRegion")
+  872  
+  873  		if self in cached_variables.keys():
+  874: 			if debug:
+  875  				print( "PolyLineRegion already cached")
+  876  			return cached_variables[self]
+  ...
+ 1107  
+ 1108  	def encodeToSMT(self, smt_file_path, cached_variables, smt_var=None, debug=False):
+ 1109: 		if debug:
+ 1110  			print( "Class PolygonalRegion")
+ 1111  
+ ....
+ 1114  
+ 1115  		if self in set(cached_variables.keys()):
+ 1116: 			if debug:
+ 1117  				print( "PolygonalRegion ALREADY EXISTS IN CACHED_VARIABLES")
+ 1118  			return cached_variables[self]
+ ....
+ 1420  
+ 1421  	def encodeToSMT(self, smt_file_path, cached_variables, smt_var=None, debug=False):
+ 1422: 		if debug:
+ 1423  			print( "IntersectionRegion")
+ 1424  			
+ 1425  		if self in cached_variables.keys():
+ 1426: 			if debug:
+ 1427  				print( "IntersectionRegion already exists in cached_variables")
+ 1428  			output_var = cached_variables[self]
+
+/Users/edwardkim/Desktop/Scenic_Query/Scenic/src/scenic/core/scenarios.py:
+  462  						jointlyDependentFeatures.append(joint_feature)
+  463  				jointlyDependentFeatures.append(feature)
+  464: 				if debug:
+  465  					dependencyOrder.append(jointlyDependentFeatures)
+  466  				else:
+
+/Users/edwardkim/Desktop/Scenic_Query/Scenic/src/scenic/core/type_support.py:
+  175  
+  176  	def encodeToSMT(self, smt_file_path, cached_variables, debug=False):
+  177: 		if debug:
+  178  			writeSMTtoFile(smt_file_path, "TypecheckedDistribution")
+  179  
+  180  		if self in set(cached_variables.keys()):
+  181: 			if debug:
+  182  				print("TypecheckedDistribution already cached: "+str(self.dist))
+  183  			return cached_variables[self]
+
+/Users/edwardkim/Desktop/Scenic_Query/Scenic/src/scenic/core/vectors.py:
+   68  		# 	obj = self
+   69  
+   70: 		if debug:
+   71  			print( "VectorOperatorDistribution")
+   72  			print( "self.object: "+str(self.object))
+   ..
+   75  
+   76  		if self in cached_variables.keys():
+   77: 			if debug:
+   78  				print( "Already In cached_variables")
+   79  			return cached_variables[self]
+   ..
+   90  			# it is expected that the self.object in this case is of Vector class
+   91  			output_vector = obj.rotatedByEncodeToSMT(cached_variables, smt_file_path, angle, debug=debug)
+   92: 			if debug:
+   93  				print( "rotatedBy")
+   94  			return cacheVarName(cached_variables, self, output_vector)
+   95  
+   96  		elif self.operator == 'offsetRotated':
+   97: 			if debug:
+   98  				print( "offsetRotated")
+   99  			heading = self.operands[0]
+  ...
+  103  
+  104  		elif self.operator == 'offsetRadially':
+  105: 			if debug:
+  106  				print( "offsetRadially")
+  107  			radius = self.operands[0]
+  ...
+  111  
+  112  		elif self.operator == 'distanceTo':
+  113: 			if debug:
+  114  				print( "distanceTo")
+  115  
+  ...
+  119  
+  120  		elif self.operator == 'angleWith':
+  121: 			if debug:
+  122  				print( "angleWith")
+  123  
+  ...
+  127  
+  128  		elif self.operator == 'angleTo':
+  129: 			if debug:
+  130  				print( "angleTo")
+  131  
+  ...
+  135  
+  136  		elif self.operator == 'norm':
+  137: 			if debug:
+  138  				print( "norm")
+  139  			output = obj.normEncodeSMT(smt_file_path, cached_variables, debug=debug)
+  ...
+  141  
+  142  		elif self.operator == 'normalized':
+  143: 			if debug:
+  144  				print( "normalized")
+  145  			output = obj.normalizedEncodeSMT(smt_file_path, cached_variables, debug=debug)
+  ...
+  147  
+  148  		elif self.operator == '__add__' or '__radd__':
+  149: 			if debug:
+  150  				print( "add or radd")
+  151  			output = obj.addEncodeSMT(smt_file_path, cached_variables, self.operands[0], debug=debug)
+  ...
+  153  
+  154  		elif self.operator == '__sub__':
+  155: 			if debug:
+  156  				print( "subtract")
+  157  
+  ...
+  160  
+  161  		elif self.operator == '__rsub__':
+  162: 			if debug:
+  163  				print( "rsubtract")
+  164  			output = obj.rsubEncodeSMT(smt_file_path, cached_variables, self.operands[0], debug=debug)
+  ...
+  166  
+  167  		elif self.operator == '__mul__' or '__rmul__':
+  168: 			if debug:
+  169  				print( "multiply or rmultiply")
+  170  			output = obj.mulEncodeSMT(smt_file_path, cached_variables, self.operands[0], debug=debug)
+  ...
+  172  
+  173  		elif self.operator == '__truediv__':
+  174: 			if debug:
+  175  				print( "__truediv__")
+  176  			output = obj.truedivEncodeSMT(smt_file_path, cached_variables, self.operands[0], debug=debug)
+  ...
+  178  
+  179  		elif self.operator == '__len__':
+  180: 			if debug:
+  181  				print( "__len__")
+  182  			output = obj.lenEncodeSMT(smt_file_path, cached_variables, debug=debug)
+  ...
+  184  
+  185  		elif self.operator == '__getitem__':
+  186: 			if debug:
+  187  				print( "__getitem__")
+  188  			output = obj.subEncodeSMT(smt_file_path, cached_variables, self.operands[0], debug=debug)
+  ...
+  190  
+  191  		elif self.operator == '__eq__':
+  192: 			if debug:
+  193  				print( "__eq__")
+  194  			output = obj.subEncodeSMT(smt_file_path, cached_variables, self.operands[0], debug=debug)
+  ...
+  236  
+  237  	def encodeToSMT(self, smt_file_path, cached_variables, debug=False):
+  238: 		if debug:
+  239  			print( "VectorMethodDistribution encodeToSMT")
+  240  			print( "self.method: "+str(self.method))
+  ...
+  337  
+  338  	def encodeToSMT(self, smt_file_path, cached_variables, debug=False):
+  339: 		if debug:
+  340  			print( "Vector Class")
+  341  
+  342  		if self in set(cached_variables.keys()):
+  343: 			if debug:
+  344  				print( "Vector already cached")
+  345  			return cached_variables[self]
+  ...
+  369  		""" encodes rotatedBy function to a SMT formula 
+  370  		type: angle:= class objects """
+  371: 		if debug:
+  372  			print( "rotatedByEncodeToSMT()")
+  373  
+  ...
+  403  		""" type(heading), type(offset) : objects
+  404  		"""
+  405: 		if debug:
+  406  			print( "offsetRotatedEncodeToSMT()")
+  407  
+  ...
+  465  
+  466  	def angleToEncodeSMT(self, smt_file_path, cached_variables, other, debug=False):
+  467: 		if debug:
+  468  			print( "angleTo")
+  469  		(other_x, other_y) = checkAndEncodeSMT(smt_file_path, cached_variables, other, debug = debug)
+  ...
+  488  
+  489  	def angleWithEncodeSMT(self, smt_file_path, cached_variables, other, debug=False):
+  490: 		if debug:
+  491  			print( "angleWith")
+  492  
+  ...
+  504  
+  505  	def normEncodeSMT(self, smt_file_path, cached_variables, debug=False):
+  506: 		if debug:
+  507  			print( "normEncodeSMT")
+  508  		(vec_x, vec_y) = checkAndEncodeSMT(smt_file_path, cached_variables, self, debug = debug)
+  ...
+  522  
+  523  	def normalizedEncodeSMT(self, smt_file_path, cached_variables, debug=False):
+  524: 		if debug:
+  525  			print( "normalizedEncodeSMT")
+  526  		(vec_x, vec_y) = checkAndEncodeSMT(smt_file_path, cached_variables, self, debug = debug)
+  ...
+  547  
+  548  	def addEncodeSMT(self, smt_file_path, cached_variables, other, debug=False):
+  549: 		if debug:
+  550  			print( "addEncodeSMT")
+  551  
+  ...
+  569  
+  570  	def raddEncodeSMT(self, smt_file_path, cached_variables, other, debug=False):
+  571: 		if debug:
+  572  			print( "raddEncodeSMT")
+  573  		return self.addEncodeSMT(self, smt_file_path, cached_variables, other, debug=debug)
+  ...
+  578  
+  579  	def subEncodeSMT(self, smt_file_path, cached_variables, other, debug=False):
+  580: 		if debug:
+  581  			print( "subEncodeSMT")
+  582  		# variable can be a constant or Vector
+  ...
+  598  
+  599  	def rsubEncodeSMT(self, smt_file_path, cached_variables, other, debug=False):
+  600: 		if debug:
+  601  			print( "rsubEncodeSMT")
+  602  		# variable can be a constant or Vector
+  ...
+  618  
+  619  	def mulEncodeSMT(self, smt_file_path, cached_variables, other, debug=False):
+  620: 		if debug:
+  621  			print( "mulEncodeSMT")
+  622  		scalar = checkAndEncodeSMT(smt_file_path, cached_variables, other, debug = debug)
+  ...
+  637  
+  638  	def rmulEncodeSMT(self, smt_file_path, cached_variables, other,debug=False):
+  639: 		if debug:
+  640  			print( "rmulEncodeSMT")
+  641  		return self.mulEncodeSMT(smt_file_path, cached_variables, other, debug=False)
+  ...
+  646  
+  647  	def truedivEncodeSMT(self, smt_file_path, cached_variables, other, debug=False):
+  648: 		if debug:
+  649  			print( "truedivEncodeSMT")
+  650  		scalar = checkAndEncodeSMT(smt_file_path, cached_variables, other, debug = debug)
+  ...
+  665  
+  666  	def lenEncodeSMT(self, smt_file_path, cached_variables, debug=False):
+  667: 		if debug:
+  668  			print( "lenEncodeSMT")
+  669  		length_var = findVariableName(smt_file_path, cached_variables, 'vec_length', debug=debug)
+  ...
+  676  
+  677  	def getitemEncodeSMT(self, smt_file_path, cached_variables, index, debug=False):
+  678: 		if debug:
+  679  			print( "getitemEncodeSMT")
+  680  		index = checkAndEncodeSMT(smt_file_path, cached_variables, index, debug = debug)
+  ...
+  700  
+  701  	def eqEncodeSMT(self, smt_file_path, cached_variables, other, debug=False):
+  702: 		if debug:
+  703  			print( "equal")
+  704  		(vec_x, vec_y) = checkAndEncodeSMT(smt_file_path, cached_variables, self, debug = debug)
+  ...
+  737  
+  738  	def encodeToSMT(self, smt_file_path, cached_variables, debug=False):
+  739: 		if debug:
+  740  			print( "OrientedVector")
+  741  
+  ...
+  752  	def makeEncodeSMT(self, smt_file_path, cached_variables, position, heading, debug=False):
+  753  		""" type(position): Vector, type(heading): obj or float or int"""
+  754: 		if debug:
+  755  			print( "OrientedVector makeEncodeSMT")
+  756  		pos = checkAndEncodeSMT(smt_file_path, cached_variables, position, debug)
+  ...
+  765  
+  766  	def toHeadingEncodeSMT(self, smt_file_path, cached_variables, debug=False):
+  767: 		if debug:
+  768  			print( "Class OrientedVector toHeadingEncodeSMT")
+  769  
+  ...
+  800  
+  801  	def encodeToSMT(self, smt_file_path, cached_variables, debug=False):
+  802: 		if debug:
+  803  			print( "VectorField")
+  804  
+
+/Users/edwardkim/Desktop/Scenic_Query/Scenic/src/scenic/domains/driving/roads.py:
+  364  
+  365      def encodeToSMT(self, smt_file_path, cached_variables, smt_var, debug = False):
+  366:         if debug:
+  367              print( "Class Road encodeToSMT")
+  368  
+  ...
+  401              type(point):= Vector
+  402          """
+  403:         if debug:
+  404              print( "class Road sectionAtEncodeSMT")
+  405          output = self.network.findPointInEncodeSMT(smt_file_path, cached_variables, smt_var, self.sections, debug=debug)
+  ...
+  414  
+  415      def laneSectionAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+  416:         if debug:
+  417              print( "class Road laneSectionAtEncodeSMT")
+  418  
+  ...
+  440  
+  441      def laneAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+  442:         if debug:
+  443              print( "class Road laneAtEncodeSMT")
+  444          output = self.network.findPointInEncodeSMT(smt_file_path, cached_variables, smt_var, self.lanes, debug=debug)
+  ...
+  451  
+  452      def laneGroupAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+  453:         if debug:
+  454              print( "laneGroupAtEncodeSMT")
+  455  
+  ...
+  463  
+  464      def crossingAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+  465:         if debug:
+  466              print( "class Road crossingAtEncodeSMT")
+  467  
+  ...
+  534  
+  535      def laneAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+  536:         if debug:
+  537              print( "class LaneGroup laneAtEncodeSMT")
+  538          output = self.network.findPointInEncodeSMT(smt_file_path, cached_variables, smt_var, self.lanes, debug=debug)
+  ...
+  555  
+  556      def encodeToSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+  557:         if debug:
+  558              print( "roads.py Lane Class")
+  559      
+  ...
+  576              type(point):= Vector
+  577          """
+  578:         if debug:
+  579              print( "class Lane sectionAtEncodeSMT")
+  580          output = self.network.findPointInEncodeSMT(smt_file_path, cached_variables, smt_var, self.sections, debug=debug)
+  ...
+  601  
+  602      def encodeToSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+  603:         if debug:
+  604              print( "roads.py Class RoadSection encodeToSMT")
+  605  
+  ...
+  652  
+  653      def laneAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+  654:         if debug:
+  655              print( "class RoadSection laneAtEncodeSMT")
+  656          output = self.network.findPointInEncodeSMT(smt_file_path, cached_variables, smt_var, self.lane, debug=debug)
+  ...
+  696  
+  697      def encodeToSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+  698:         if debug:
+  699              print( "roads.py Class LaneSection encodeToSMT")
+  700  
+  ...
+  752  
+  753      def encodeToSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+  754:         if debug:
+  755              print( "roads.py Class Sidewalk encodeToSMT")
+  756  
+  ...
+  798  
+  799      def encodeToSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+  800:         if debug:
+  801              print( "roads.py Class Intersection encodeToSMT")
+  802  
+  ...
+  847  
+  848      def nominalDirectionsAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+  849:         if debug:
+  850              print( "roads.py Class Intersection nominalDirectionsAtEncodeSMT")
+  851  
+  ...
+ 1202  
+ 1203      def findPointInEncodeSMT(self, smt_file_path, cached_variables, smt_var, elems, debug=False):
+ 1204:         if debug:
+ 1205              print( "findPointInEncodeSMT")
+ 1206  
+ ....
+ 1252      def _findPointInAllForSMTEncoding(self, smt_file_path, cached_variables, things, key=lambda e: e, debug=False):
+ 1253          """ outputs a list of scenic regions intersecting with ego's visible Region """
+ 1254:         if debug: 
+ 1255              print( "Class Network _findPointInAllForSMTEncoding")
+ 1256          region = cached_variables['regionAroundEgo']
+ ....
+ 1268  
+ 1269      def _findPointInAllEncodeSMT(self, smt_file_path, cached_variables, smt_var, things, key, debug=False):
+ 1270:         if debug: 
+ 1271              print( "Class Network _findPointInAllEncodeSMT")
+ 1272          # TODO : optimize the use of point
+ ....
+ 1315  
+ 1316      def elementAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+ 1317:         if debug:
+ 1318              print(smt_encoding, "elementAtEncodeSMT")
+ 1319          raise NotImplementedError
+ ....
+ 1325  
+ 1326      def roadAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+ 1327:         if debug:
+ 1328              print( "roadAtEncodeSMT")
+ 1329          point = _toVector(point)
+ ....
+ 1338  
+ 1339      def laneAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+ 1340:         if debug:
+ 1341              print( "laneAtEncodeSMT")
+ 1342          point = _toVector(point)
+ ....
+ 1353  
+ 1354      def laneSectionAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+ 1355:         if debug:
+ 1356              print( "laneSectionAtEncodeSMT")
+ 1357          point = _toVector(point)
+ ....
+ 1379  
+ 1380      def laneGroupAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+ 1381:         if debug:
+ 1382              print( "laneGroupAtEncodeSMT")
+ 1383          point = _toVector( smt_var)
+ ....
+ 1406  
+ 1407      def crossingAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+ 1408:         if debug:
+ 1409              print( "crossingAtEncodeSMT")
+ 1410          point = _toVector(smt_var)
+ ....
+ 1431  
+ 1432      def intersectionAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+ 1433:         if debug:
+ 1434              print( "intersectionAtEncodeSMT")
+ 1435          point = _toVector(smt_var)
+ ....
+ 1454  
+ 1455      def nominalDirectionsAtEncodeSMT(self, smt_file_path, cached_variables, smt_var, debug=False):
+ 1456:         if debug:
+ 1457              print( "roads.py Class Network nominalDirectionsAtEncodeSMT")
+ 1458  
+
+/Users/edwardkim/Desktop/Scenic_Query/Scenic/src/scenic/simulators/carla/controller.py:
+  130          current_speed = get_speed(self._vehicle)
+  131  
+  132:         if debug:
+  133              print('Current speed = {}'.format(current_speed))
+  134  
+
+161 matches across 9 files

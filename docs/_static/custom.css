@@ -1,10 +1,5 @@
 /* Use 4 spaces for tabs in highlighted code */
 pre {tab-size: 4;}
-/* :keyword: and :sampref: cross-references should be colored like ordinary links */
-.rst-content a code.std-keyword, .rst-content a code.std-ref {color: #2980b9;}
-/* syntax in :sampref: should be bold, like :keyword:, but not the variable parts */
-.rst-content a code.std-ref {font-weight: 700;}
-.rst-content a code.std-ref em {font-weight: 400;}
 /* Increase maximum body width to support 100-character lines */
 .wy-nav-content {max-width:900px;}
 

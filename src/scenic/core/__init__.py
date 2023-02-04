@@ -8,7 +8,6 @@
    :toctree:
 
    distributions
-   dynamics
    errors
    external_params
    geometry
@@ -16,9 +15,7 @@
    object_types
    pruning
    regions
-   requirements
    scenarios
-   serialization
    simulators
    specifiers
    type_support

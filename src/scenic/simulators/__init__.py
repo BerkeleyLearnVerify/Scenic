@@ -7,7 +7,6 @@
 .. autosummary::
    :toctree:
 
-   newtonian
    carla
    gta
    lgsvl

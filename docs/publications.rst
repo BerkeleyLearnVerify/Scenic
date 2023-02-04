@@ -6,18 +6,12 @@ Publications Using Scenic
 Main Papers
 -----------
 
-The main paper on Scenic 2.x is:
-
-	| :t:`Scenic: A Language for Scenario Specification and Data Generation`.
-	| Fremont, Kim, Dreossi, Ghosh, Yue, Sangiovanni-Vincentelli, and Seshia.
-	| *Machine Learning*, 2022. [`available here <https://doi.org/10.1007/s10994-021-06120-5>`_]
-	| (see also the `full version with appendices <https://arxiv.org/abs/2010.06580>`_)
-
-Our journal paper extends the earlier conference paper on Scenic 1.0:
+The main paper on Scenic is:
 
 	| :t:`Scenic: A Language for Scenario Specification and Scene Generation`.
 	| Fremont, Dreossi, Ghosh, Yue, Sangiovanni-Vincentelli, and Seshia.
 	| PLDI 2019. [`full version <https://arxiv.org/abs/1809.09310>`_]
+	| (see also the `extended preprint <https://arxiv.org/abs/2010.06580>`_ on Scenic 2.0)
 
 An expanded version of this paper appears as Chapters 5 and 8 of this thesis:
 
@@ -29,7 +23,7 @@ Scenic is also integrated into the `VerifAI toolkit <https://github.com/Berkeley
 
 	| :t:`VerifAI: A Toolkit for the Formal Design and Analysis of Artificial Intelligence-Based Systems`.
 	| Dreossi*, Fremont*, Ghosh*, Kim, Ravanbakhsh, Vazquez-Chanlatte, and Seshia.
-	| `CAV 2019 <https://doi.org/10.1007/978-3-030-25540-4_25>`_.
+	| `CAV 2019 <https://link.springer.com/chapter/10.1007%2F978-3-030-25540-4_25>`_.
 
 \* Equal contribution.
 

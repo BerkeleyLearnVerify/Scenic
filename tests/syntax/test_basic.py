@@ -80,31 +80,6 @@ def test_mutate():
     assert ego1.position.y != pytest.approx(1)
     assert ego1.heading != pytest.approx(0)
 
-def test_mutate_object():
-    scenario = compileScenic("""
-        ego = Object at 30@1, facing 0
-        other = Object
-        mutate other
-    """)
-    scene = sampleScene(scenario)
-    ego, other = scene.objects
-    assert ego.position.x == pytest.approx(30)
-    assert ego.position.y == pytest.approx(1)
-    assert ego.heading == pytest.approx(0)
-    assert other.position.x != pytest.approx(0)
-    assert other.position.y != pytest.approx(0)
-    assert other.heading != pytest.approx(0)
-
-def test_mutate_scaled():
-    scenario = compileScenic("""
-        ego = Object at 3@1, facing 0
-        mutate ego by 4
-    """)
-    ego1 = sampleEgo(scenario)
-    assert ego1.position.x != pytest.approx(3)
-    assert ego1.position.y != pytest.approx(1)
-    assert ego1.heading != pytest.approx(0)
-
 def test_verbose():
     for verb in range(4):
         scenic.syntax.translator.verbosity = verb
@@ -113,20 +88,8 @@ def test_verbose():
 
 def test_dump_python():
     scenic.syntax.translator.dumpTranslatedPython = True
-    try:
-        compileScenic('ego = Object')
-    finally:
-        scenic.syntax.translator.dumpTranslatedPython = False
+    compileScenic('ego = Object')
+    scenic.syntax.translator.dumpTranslatedPython = False
     scenic.syntax.translator.dumpFinalAST = True
-    try:
-        compileScenic('ego = Object')
-    finally:
-        scenic.syntax.translator.dumpFinalAST = False
-
-def test_dump_final_python():
-    pytest.importorskip('astor')
-    scenic.syntax.translator.dumpASTPython = True
-    try:
-        compileScenic('ego = Object')
-    finally:
-        scenic.syntax.translator.dumpASTPython = False
+    compileScenic('ego = Object')
+    scenic.syntax.translator.dumpFinalAST = False

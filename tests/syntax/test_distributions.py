@@ -4,7 +4,7 @@ import math
 import random
 
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError
-from tests.utils import compileScenic, sampleScene, sampleEgo, sampleEgoFrom, sampleParamP
+from tests.utils import compileScenic, sampleScene, sampleEgo, sampleParamP
 
 ## Utilities
 
@@ -22,13 +22,13 @@ def lazyTestScenario(expr, offset='0'):
 ## Options and Uniform
 
 def test_options_empty_domain():
-    with pytest.raises(InvalidScenarioError):
+    with pytest.raises(RuntimeParseError):
         compileScenic('x = Options([])')
-    with pytest.raises(InvalidScenarioError):
+    with pytest.raises(RuntimeParseError):
         compileScenic('x = Options({})')
-    with pytest.raises(InvalidScenarioError):
+    with pytest.raises(RuntimeParseError):
         compileScenic('x = Uniform()')
-    with pytest.raises(InvalidScenarioError):
+    with pytest.raises(RuntimeParseError):
         compileScenic('x = Discrete({})')
 
 def test_options_invalid_weight():
@@ -173,13 +173,6 @@ def test_operator_lazy():
     assert any(h == pytest.approx(0) for h in hs)
     assert any(h == pytest.approx(1) for h in hs)
 
-def test_callable():
-    scenario = compileScenic('ego = Object at 0 @ Uniform(sin, cos)(0)')
-    ys = [sampleEgo(scenario).position.y for i in range(60)]
-    assert all(y == 0 or y == 1 for y in ys)
-    assert any(y == 0 for y in ys)
-    assert any(y == 1 for y in ys)
-
 ## Vectors
 
 def test_vector_operator():
@@ -272,18 +265,6 @@ def test_tuple():
     assert any(t[1] == 1 for t in ts)
     assert any(t[1] == 2 for t in ts)
 
-def test_tuple_iteration():
-    ego = sampleEgoFrom("""
-        other = Object with foo (1, Uniform(2, 3))
-        data = [len(other.foo), other.foo[1], other.foo[0]]
-        for item in other.foo:
-            data.append(item)
-        ego = Object at 2@2, with foo data
-        require other.foo[1] == 3
-    """, maxIterations=60)
-    assert type(ego.foo) is list
-    assert ego.foo == [2, 3, 1, 1, 3]
-
 def test_tuple_param():
     scenario = compileScenic('ego = Object\n' 'param p = tuple([3, Uniform(1, 2)])')
     ts = [sampleParamP(scenario) for i in range(60)]
@@ -304,32 +285,6 @@ def test_namedtuple():
     assert all(t.baz == 1 or t.baz == 2 for t in ts)
     assert any(t.baz == 1 for t in ts)
     assert any(t.baz == 2 for t in ts)
-
-## Comparisons and control flow
-
-def test_comparison():
-    with pytest.raises(RuntimeParseError):
-        compileScenic('ego = Object with foo (Range(0, 1) > 0.5)')
-
-def test_len():
-    with pytest.raises(RuntimeParseError):
-        compileScenic('ego = Object with foo len(Uniform([0], [1, 2]))')
-
-def test_iter():
-    with pytest.raises(RuntimeParseError):
-        compileScenic("""
-            for x in Uniform([1, 2], [3, 4]):
-                ego = Object at x@0
-        """)
-
-def test_control_flow():
-    with pytest.raises(RuntimeParseError):
-        compileScenic("""
-            if Uniform(False, True):
-                ego = Object
-            else:
-                ego = Object at 1@1
-        """)
 
 ## Reproducibility
 
@@ -375,19 +330,7 @@ def test_shared_dependency():
     assert any(x < 0.25 for x in xs)
     assert any(0.25 < x for x in xs)
 
-def test_shared_dependency_lazy_1():
-    scenario = compileScenic("""
-        vf = VectorField("Foo", lambda pos: 2 * pos.x)
-        x = 1 relative to vf
-        y = Uniform(0, x)
-        ego = Object with foo y, with bar y
-    """)
-    for i in range(60):
-        ego = sampleEgo(scenario)
-        assert ego.foo == 0 or ego.foo == 1
-        assert ego.foo == ego.bar
-
-def test_shared_dependency_lazy_2():
+def test_shared_dependency_lazy():
     scenario = compileScenic(
         'vf = VectorField("Foo", lambda pos: 2 * pos.x)\n'
         'x = Range(0, 1) relative to vf\n'
