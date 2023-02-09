@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 from scipy.integrate import quad
 from scipy.integrate import solve_ivp
-from pynverse import inversefunc
+from scipy.optimize import newton
 from shapely.geometry import Polygon, MultiPolygon, GeometryCollection, Point, MultiPoint
 from shapely.ops import unary_union, snap
 import abc
@@ -100,10 +100,10 @@ class Cubic(Curve):
         return quad(d_arc, 0, u)[0]
 
     def point_at(self, s):
-        u = float(inversefunc(self.arclength, s))
+        root_func = lambda x: self.arclength(x) - s
+        u = float(newton(root_func, 0))
         pt = (s, self.poly.eval_at(u), s)
         return self.rel_to_abs(pt)
-
 
 class ParamCubic(Curve):
     ''' A curve defined by the parametric equations
@@ -124,7 +124,8 @@ class ParamCubic(Curve):
         return quad(d_arc, 0, p)[0]
 
     def point_at(self, s):
-        p = float(inversefunc(self.arclength, s))
+        root_func = lambda x: self.arclength(x) - s
+        p = float(newton(root_func, 0))
         pt = (self.u_poly.eval_at(p), self.v_poly.eval_at(p), s)
         return self.rel_to_abs(pt)
 

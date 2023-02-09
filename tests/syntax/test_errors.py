@@ -263,6 +263,8 @@ def checkBug(bug, template, tmpdir, pytestconfig):
             print('RESULTING STDERR:\n', result.stderr)
             assert result.returncode == 1
             lines = result.stderr.splitlines()
+            # Filter out any lines that only contain spaces and ^
+            lines = [l for l in lines if set(l) != {" ", "^"}]
         checkException(e, line, program, bug, path, lines)
         if fast:
             # Mark the test as skipped, since we didn't do all of it
@@ -299,6 +301,11 @@ def checkException(e, lines, program, bug, path, output, topLevel=True):
     assert len(output) >= -loc
     lastFrame = output[loc]
     prefix = f'  File "{path}", line {eLine}'
+    print("LINES")
+    for line in output:
+        print(line)
+    print("LF:", lastFrame)
+    print("PREFIX:", prefix)
     if syntaxErrorLike:
         assert lastFrame == prefix
     else:
