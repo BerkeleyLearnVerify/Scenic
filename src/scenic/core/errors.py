@@ -112,7 +112,11 @@ class InconsistentScenarioError(InvalidScenarioError):
 ## Scenic backtraces
 
 def excepthook(ty, value, tb):
-    displayScenicException(value)
+    if sys.version_info >= (3, 11) and issubclass(ty, BaseExceptionGroup):
+        # Use the default mechanism since we don't handle ExceptionGroups
+        sys.__excepthook__(ty, value, tb)
+    else:
+        displayScenicException(value)
 
     if postMortemDebugging:
         print('Uncaught exception. Entering post-mortem debugging')
@@ -205,7 +209,12 @@ def includeFrame(frame):
     parents = pathlib.Path(frame.filename).parents
     return not any(folder in parents for folder in hiddenFolders)
 
-if sys.excepthook is not sys.__excepthook__:
+# Install our excepthook if nobody else has already installed one;
+# we specially allow overwriting excepthooks from the following modules,
+# which are known to not cause problems:
+#   - exceptiongroup (PEP 654 backport for pre-3.11)
+if (sys.excepthook is not sys.__excepthook__
+    and not sys.excepthook.__module__.startswith('exceptiongroup')):
     warnings.warn('unable to install sys.excepthook to format Scenic backtraces')
 else:
     sys.excepthook = excepthook
