@@ -263,8 +263,8 @@ def checkBug(bug, template, tmpdir, pytestconfig):
             print('RESULTING STDERR:\n', result.stderr)
             assert result.returncode == 1
             lines = result.stderr.splitlines()
-            # Filter out any lines that only contain spaces and ^
-            lines = [l for l in lines if set(l) != {" ", "^"}]
+            # Filter out any lines that only contain " ", "^", or "~", which indicate location info.
+            lines = [l for l in lines if not set(l).issubset({" ", "^", "~"})]
         checkException(e, line, program, bug, path, lines)
         if fast:
             # Mark the test as skipped, since we didn't do all of it
@@ -297,15 +297,10 @@ def checkException(e, lines, program, bug, path, output, topLevel=True):
     assert output[-1].startswith(name)
 
     # Check that the backtrace lists the correct file and line.
-    loc = -4 if syntaxErrorLike else -3
+    loc = -3
     assert len(output) >= -loc
     lastFrame = output[loc]
     prefix = f'  File "{path}", line {eLine}'
-    print("LINES")
-    for line in output:
-        print(line)
-    print("LF:", lastFrame)
-    print("PREFIX:", prefix)
     if syntaxErrorLike:
         assert lastFrame == prefix
     else:
@@ -315,7 +310,7 @@ def checkException(e, lines, program, bug, path, output, topLevel=True):
     chained = bool(e.__cause__ or (e.__context__ and not e.__suppress_context__))
     assert bool(remainingLines) == chained
     if remainingLines:
-        mid = loc - 6 if topLevel else loc - 3
+        mid = loc - 5 if topLevel else loc - 2
         assert len(output) >= -(mid-1)
     if e.__cause__:
         assert output[mid] == 'The above exception was the direct cause of the following exception:'
@@ -324,7 +319,7 @@ def checkException(e, lines, program, bug, path, output, topLevel=True):
         assert output[mid] == 'During handling of the above exception, another exception occurred:'
         nextE = e.__context__
     if chained:
-        checkException(nextE, remainingLines, program, bug, path, output[:mid-1], topLevel=False)
+        checkException(nextE, remainingLines, program, bug, path, output[:mid], topLevel=False)
 
 def runFile(path):
     scenario = scenic.scenarioFromFile(path)
