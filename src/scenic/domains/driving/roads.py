@@ -70,6 +70,8 @@ class _ElementReferencer:
     def __getstate__(self):
         if hasattr(super(), '__getstate__'):
             state = super().__getstate__()
+            if state is self.__dict__:
+                state = state.copy()
         else:
             state = self.__dict__.copy()
         # replace links to network elements by placeholders to prevent deep
