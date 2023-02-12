@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 from scipy.integrate import quad
 from scipy.integrate import solve_ivp
-from scipy.optimize import newton
+from scipy.optimize import brentq
 from shapely.geometry import Polygon, MultiPolygon, GeometryCollection, Point, MultiPoint
 from shapely.ops import unary_union, snap
 import abc
@@ -94,14 +94,24 @@ class Cubic(Curve):
     def __init__(self, x0, y0, hdg, length, a, b, c, d):
         super().__init__(x0, y0, hdg, length)
         self.poly = Poly3(a, b, c, d)
+        # Crude upper bound for u (used to bracket u for a given s in point_at)
+        if d != 0:
+            self.ubound = max(2*abs(c/d), abs(b/d)**0.5, (3*length/abs(d))**(1/3))
+        elif c != 0:
+            self.ubound = max(abs(b/c), (2*length/abs(c))**0.5)
+        else:
+            self.ubound = length/abs(b)
 
     def arclength(self, u):
         d_arc = lambda x: np.sqrt(1 + self.poly.grad_at(x) ** 2)
         return quad(d_arc, 0, u)[0]
 
     def point_at(self, s):
+        # Use Brent's method to find parameter u corresponding to arclength s;
+        # (N.B. Brent's method proved to be faster than Newton's and has no potential
+        # convergence issues.)
         root_func = lambda x: self.arclength(x) - s
-        u = float(newton(root_func, 0))
+        u = float(brentq(root_func, 0, self.ubound))
         pt = (s, self.poly.eval_at(u), s)
         return self.rel_to_abs(pt)
 
@@ -125,7 +135,7 @@ class ParamCubic(Curve):
 
     def point_at(self, s):
         root_func = lambda x: self.arclength(x) - s
-        p = float(newton(root_func, 0))
+        p = float(brentq(root_func, 0, self.p_range))
         pt = (self.u_poly.eval_at(p), self.v_poly.eval_at(p), s)
         return self.rel_to_abs(pt)
 
