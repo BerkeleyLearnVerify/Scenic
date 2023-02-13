@@ -52,9 +52,11 @@ try:
     import scenic.simulators.carla.utils.utils as _utils
 except ModuleNotFoundError:
     # for convenience when testing without the carla package
+    from scenic.core.simulators import SimulatorInterfaceWarning
     import warnings
     warnings.warn('the "carla" package is not installed; '
-                  'will not be able to run dynamic simulations')
+                  'will not be able to run dynamic simulations',
+                  SimulatorInterfaceWarning)
 
     def CarlaSimulator(*args, **kwargs):
         """Dummy simulator to allow compilation without the 'carla' package.

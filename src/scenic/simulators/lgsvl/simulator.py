@@ -87,7 +87,8 @@ class LGSVLSimulation(simulators.Simulation):
         origin = utils.scenicToLGSVLPosition(pos, 100000)
         result = self.client.raycast(origin, lgsvl.Vector(0, -1, 0), 1)
         if result is None:
-            warnings.warn(f'no ground at position {pos}')
+            warnings.warn(f'no ground at position {pos}',
+                          simulators.SimulatorInterfaceWarning)
             return 0
         return result.point.y
 

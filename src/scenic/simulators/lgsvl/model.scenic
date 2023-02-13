@@ -19,9 +19,11 @@ except ModuleNotFoundError:
     PEDESTRIAN_TYPE = 'PEDESTRIAN'
     LINCOLN_MODULAR = 'Lincoln2017MKZ'
 
+    from scenic.core.simulators import SimulatorInterfaceWarning
     import warnings
     warnings.warn('the "lgsvl" package is not installed; '
-                  'will not be able to run dynamic simulations')
+                  'will not be able to run dynamic simulations',
+                  SimulatorInterfaceWarning)
 
     def LGSVLSimulator(*args, **kwargs):
         raise RuntimeError('the "lgsvl" package is required to run simulations '
