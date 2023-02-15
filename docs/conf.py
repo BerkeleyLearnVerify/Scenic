@@ -34,6 +34,7 @@ veneer.activate(paramOverrides=dict(
 ))
 import scenic.simulators.carla.model
 import scenic.simulators.lgsvl.model
+veneer.deactivate()
 
 # -- Project information -----------------------------------------------------
 
@@ -51,6 +52,7 @@ extensions = [
 'sphinx.ext.autodoc',
 'sphinx.ext.autosummary',
 'sphinx.ext.coverage',
+'sphinx.ext.doctest',
 'sphinx.ext.napoleon',
 'sphinx.ext.viewcode',
 'sphinx.ext.intersphinx',
@@ -260,14 +262,15 @@ def setup(app):
 
 import importlib
 from sphinx.pycode import ModuleAnalyzer
-from sphinx.util.docstrings import extract_metadata
+from sphinx.util.docstrings import separate_metadata
+from scenic.syntax.translator import ScenicModule
 
 def handle_find_source(app, modname):
     try:
         module = importlib.import_module(modname)
     except Exception:
         return None
-    if not getattr(module, '_isScenicModule', False):
+    if not isinstance(module, ScenicModule):
         return None     # no special handling for Python modules
 
     # Run usual analysis on the translated source to get tag dictionary
@@ -291,7 +294,7 @@ def handle_process_signature(app, what, name, obj, options, signature, ret_anno)
 def handle_skip_member(app, what, name, obj, skip, options):
     if not skip:
         doc = getattr(obj, '__doc__')
-        if doc and 'private' in extract_metadata(doc):
+        if doc and 'private' in separate_metadata(doc)[1]:
             return True
     return None
 

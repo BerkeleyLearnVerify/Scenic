@@ -15,7 +15,7 @@ from scenic.core.distributions import (Samplable, Distribution, MethodDistributi
     needsSampling, makeOperatorHandler, distributionMethod, distributionFunction,
 	RejectionException)
 from scenic.core.lazy_eval import valueInContext, needsLazyEvaluation, makeDelayedFunctionCall
-import scenic.core.utils as utils
+from scenic.core.utils import argsToString
 from scenic.core.geometry import normalizeAngle
 
 class VectorDistribution(Distribution):
@@ -42,7 +42,7 @@ class CustomVectorDistribution(VectorDistribution):
 		return self.evaluator(self, context)
 
 	def __str__(self):
-		deps = utils.argsToString(self.dependencies)
+		deps = argsToString(self.dependencies)
 		return f'{self.name}{deps}'
 
 class VectorOperatorDistribution(VectorDistribution):
@@ -65,7 +65,7 @@ class VectorOperatorDistribution(VectorDistribution):
 		return VectorOperatorDistribution(self.operator, obj, operands)
 
 	def __str__(self):
-		ops = utils.argsToString(self.operands)
+		ops = argsToString(self.operands)
 		return f'{self.object}.{self.operator}{ops}'
 
 class VectorMethodDistribution(VectorDistribution):
@@ -89,7 +89,7 @@ class VectorMethodDistribution(VectorDistribution):
 		return VectorMethodDistribution(self.method, obj, arguments, kwargs)
 
 	def __str__(self):
-		args = utils.argsToString(itertools.chain(self.arguments, self.kwargs.values()))
+		args = argsToString(itertools.chain(self.arguments, self.kwargs.values()))
 		return f'{self.object}.{self.method.__name__}{args}'
 
 def scalarOperator(method):

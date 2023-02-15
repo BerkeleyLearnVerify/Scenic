@@ -1,6 +1,7 @@
 """Objects representing distributions that can be sampled from."""
 
 import collections
+import functools
 import itertools
 import random
 import math
@@ -12,7 +13,7 @@ import decorator
 
 from scenic.core.lazy_eval import (LazilyEvaluable,
     requiredProperties, needsLazyEvaluation, valueInContext, makeDelayedFunctionCall)
-from scenic.core.utils import DefaultIdentityDict, argsToString, areEquivalent, cached, sqrt2
+from scenic.core.utils import DefaultIdentityDict, argsToString, cached, sqrt2
 from scenic.core.errors import RuntimeParseError
 
 ## Misc
@@ -50,6 +51,14 @@ def unpacksDistributions(func):
 
 class RejectionException(Exception):
 	"""Exception used to signal that the sample currently being generated must be rejected."""
+	pass
+
+class RandomControlFlowError(RuntimeParseError):
+	"""Exception indicating illegal conditional control flow depending on a random value.
+
+	This includes trying to iterate over a random value, take the length of a random
+	sequence whose length can't be determined statically, etc.
+	"""
 	pass
 
 ## Abstract distributions
@@ -234,11 +243,11 @@ class Distribution(Samplable):
 		return OperatorDistribution('__call__', self, args)
 
 	def __iter__(self):
-		raise TypeError(f'distribution {self} is not iterable')
+		raise RandomControlFlowError(f'cannot iterate through a random value')
 
 	def _comparisonError(self, other):
-		raise RuntimeParseError('random values cannot be compared '
-		                        '(and control flow cannot depend on them)')
+		raise RandomControlFlowError('random values cannot be compared '
+		                             '(and control flow cannot depend on them)')
 
 	__lt__ = _comparisonError
 	__le__ = _comparisonError
@@ -251,10 +260,10 @@ class Distribution(Samplable):
 		return id(self)
 
 	def __len__(self):
-		raise RuntimeParseError('cannot take the len of a random value')
+		raise RandomControlFlowError('cannot take the len of a random value')
 
 	def __bool__(self):
-		raise RuntimeParseError('control flow cannot depend on a random value')
+		raise RandomControlFlowError('control flow cannot depend on a random value')
 
 ## Derived distributions
 
@@ -273,13 +282,6 @@ class CustomDistribution(Distribution):
 		if self.evaluator is None:
 			raise NotImplementedError('evaluateIn() not supported by this distribution')
 		return self.evaluator(self, context)
-
-	def isEquivalentTo(self, other):
-		if not type(other) is CustomDistribution:
-			return False
-		return (self.sampler == other.sampler
-			and self.name == other.name
-			and self.evaluator == other.evaluator)
 
 	def __str__(self):
 		return f'{self.name}{argsToString(self.dependencies)}'
@@ -306,12 +308,6 @@ class TupleDistribution(Distribution, collections.abc.Sequence):
 	def evaluateInner(self, context):
 		coordinates = (valueInContext(coord, context) for coord in self.coordinates)
 		return TupleDistribution(*coordinates, builder=self.builder)
-
-	def isEquivalentTo(self, other):
-		if not type(other) is TupleDistribution:
-			return False
-		return (areEquivalent(self.coordinates, other.coordinates)
-			and self.builder == other.builder)
 
 	def __str__(self):
 		coords = ', '.join(str(c) for c in self.coordinates)
@@ -375,14 +371,6 @@ class FunctionDistribution(Distribution):
 		kwss = { name: supportInterval(arg) for name, arg in self.kwargs.items() }
 		return self.support(*subsupports, **kwss)
 
-	def isEquivalentTo(self, other):
-		if not type(other) is FunctionDistribution:
-			return False
-		return (self.function == other.function
-			and areEquivalent(self.arguments, other.arguments)
-			and areEquivalent(self.kwargs, other.kwargs)
-			and self.support == other.support)
-
 	def __str__(self):
 		args = argsToString(itertools.chain(self.arguments, self.kwargs.items()))
 		return f'{self.function.__name__}{args}'
@@ -411,7 +399,16 @@ def distributionFunction(wrapped=None, *, support=None, valueType=None):
 			return makeDelayedFunctionCall(helper, (wrapped,) + args, kwargs)
 		else:
 			return wrapped(*args, **kwargs)
-	return unpacksDistributions(decorator.decorate(wrapped, helper, kwsyntax=True))
+	try:
+		newFunc = decorator.decorate(wrapped, helper, kwsyntax=True)
+	except ValueError:
+		# We couldn't preserve the wrapped function's metadata using decorator.decorate
+		# (e.g. it's a built-in function like print on which inspect.signature fails),
+		# so fall back on functools.wraps.
+		@functools.wraps(wrapped)
+		def newFunc(*args, **kwargs):
+			return helper(wrapped, *args, **kwargs)
+	return unpacksDistributions(newFunc)
 
 def monotonicDistributionFunction(method, valueType=None):
 	"""Like distributionFunction, but additionally specifies that the function is monotonic."""
@@ -470,14 +467,6 @@ class MethodDistribution(Distribution):
 		kwargs = { name: valueInContext(arg, context) for name, arg in self.kwargs.items() }
 		return MethodDistribution(self.method, obj, arguments, kwargs)
 
-	def isEquivalentTo(self, other):
-		if not type(other) is MethodDistribution:
-			return False
-		return (self.method == other.method
-			and areEquivalent(self.object, other.object)
-			and areEquivalent(self.arguments, other.arguments)
-			and areEquivalent(self.kwargs, other.kwargs))
-
 	def __str__(self):
 		args = argsToString(itertools.chain(self.arguments, self.kwargs.items()))
 		return f'{self.object}.{self.method.__name__}{args}'
@@ -495,14 +484,39 @@ def distributionMethod(method):
 			return makeDelayedFunctionCall(helper, (method, self) + args, kwargs)
 		else:
 			return method(self, *args, **kwargs)
-	return unpacksDistributions(decorator.decorate(method, helper, kwsyntax=True))
+	try:
+		newMethod = decorator.decorate(method, helper, kwsyntax=True)
+	except ValueError:
+		# See analogous comment in distributionFunction
+		@functools.wraps(method)
+		def newMethod(*args, **kwargs):
+			return helper(method, *args, **kwargs)
+	return unpacksDistributions(newMethod)
 
 class AttributeDistribution(Distribution):
 	"""Distribution resulting from accessing an attribute of a distribution"""
-	def __init__(self, attribute, obj):
-		super().__init__(obj)
+	def __init__(self, attribute, obj, valueType=None):
+		if valueType is None:
+			valueType = self.inferType(obj, attribute)
+		super().__init__(obj, valueType=valueType)
 		self.attribute = attribute
 		self.object = obj
+
+	@staticmethod
+	def inferType(obj, attribute):
+		"""Attempt to infer the type of the given attribute."""
+		# If the object's type is known, see if we have an attribute type annotation.
+		ty = type_support.underlyingType(obj)
+		try:
+			hints = typing.get_type_hints(ty)
+			attrTy = hints.get(attribute)
+			if attrTy:
+				return attrTy
+		except Exception:
+			pass	# couldn't get type annotations
+
+		# We can't tell what the attribute type is.
+		return None
 
 	def sampleGiven(self, value):
 		obj = value[self.object]
@@ -521,12 +535,6 @@ class AttributeDistribution(Distribution):
 			r = None if any(sr is None for sr in maxes) else max(maxes)
 			return l, r
 		return None, None
-
-	def isEquivalentTo(self, other):
-		if not type(other) is AttributeDistribution:
-			return False
-		return (self.attribute == other.attribute
-			and areEquivalent(self.object, other.object))
 
 	def __call__(self, *args):
 		vty = self.object._valueType
@@ -547,16 +555,31 @@ class OperatorDistribution(Distribution):
 	def __init__(self, operator, obj, operands, valueType=None):
 		operands = tuple(toDistribution(arg) for arg in operands)
 		if valueType is None:
-			valueType = self.inferType(obj, operator)
+			valueType = self.inferType(obj, operator, operands)
 		super().__init__(obj, *operands, valueType=valueType)
 		self.operator = operator
 		self.object = obj
 		self.operands = operands
 
 	@staticmethod
-	def inferType(obj, operator):
-		if issubclass(obj._valueType, (float, int)):
+	def inferType(obj, operator, operands):
+		"""Attempt to infer the result type of the given operator application."""
+		# If the object's type is known, see if we have a return type annotation.
+		ty = type_support.underlyingType(obj)
+		op = getattr(ty, operator, None)
+		if op:
+			retTy = typing.get_type_hints(op).get('return')
+			if retTy:
+				return retTy
+
+		# The supported arithmetic operations on scalars all return scalars.
+		def scalar(thing):
+			ty = type_support.underlyingType(thing)
+			return type_support.canCoerceType(ty, float)
+		if scalar(obj) and all(scalar(operand) for operand in operands):
 			return float
+
+		# We can't tell what the result type is.
 		return None
 
 	def sampleGiven(self, value):
@@ -602,14 +625,7 @@ class OperatorDistribution(Distribution):
 			return l, r
 		return None, None
 
-	def isEquivalentTo(self, other):
-		if not type(other) is OperatorDistribution:
-			return False
-		return (self.operator == other.operator
-			and areEquivalent(self.object, other.object)
-			and areEquivalent(self.operands, other.operands))
-
-	def __str__(self):
+	def __repr__(self):
 		return f'{self.object}.{self.operator}{argsToString(self.operands)}'
 
 # Operators which can be applied to distributions.
@@ -658,12 +674,6 @@ class MultiplexerDistribution(Distribution):
 		return type(self)(valueInContext(self.index, context),
 		                  (valueInContext(opt, context) for opt in self.options))
 
-	def isEquivalentTo(self, other):
-		if not type(other) == type(self):
-			return False
-		return (areEquivalent(self.index, other.index)
-		        and areEquivalent(self.options, other.options))
-
 ## Simple distributions
 
 class Range(Distribution):
@@ -702,12 +712,6 @@ class Range(Distribution):
 		low = valueInContext(self.low, context)
 		high = valueInContext(self.high, context)
 		return Range(low, high)
-
-	def isEquivalentTo(self, other):
-		if not type(other) is Range:
-			return False
-		return (areEquivalent(self.low, other.low)
-			and areEquivalent(self.high, other.high))
 
 	def __str__(self):
 		return f'Range({self.low}, {self.high})'
@@ -778,12 +782,6 @@ class Normal(Distribution):
 		stddev = valueInContext(self.stddev, context)
 		return Normal(mean, stddev)
 
-	def isEquivalentTo(self, other):
-		if not type(other) is Normal:
-			return False
-		return (areEquivalent(self.mean, other.mean)
-			and areEquivalent(self.stddev, other.stddev))
-
 	def __str__(self):
 		return f'Normal({self.mean}, {self.stddev})'
 
@@ -849,13 +847,6 @@ class TruncatedNormal(Normal):
 		stddev = valueInContext(self.stddev, context)
 		return TruncatedNormal(mean, stddev, self.low, self.high)
 
-	def isEquivalentTo(self, other):
-		if not type(other) is TruncatedNormal:
-			return False
-		return (areEquivalent(self.mean, other.mean)
-			and areEquivalent(self.stddev, other.stddev)
-			and self.low == other.low and self.high == other.high)
-
 	def __str__(self):
 		return f'TruncatedNormal({self.mean}, {self.stddev}, {self.low}, {self.high})'
 
@@ -891,12 +882,6 @@ class DiscreteRange(Distribution):
 
 	def sampleGiven(self, value):
 		return random.choices(self.options, cum_weights=self.cumulativeWeights)[0]
-
-	def isEquivalentTo(self, other):
-		if not type(other) is DiscreteRange:
-			return False
-		return (self.low == other.low and self.high == other.high
-		        and self.weights == other.weights)
 
 	def __str__(self):
 		return f'DiscreteRange({self.low}, {self.high}, {self.weights})'
@@ -946,12 +931,6 @@ class Options(MultiplexerDistribution):
 		else:
 			return type(self)({valueInContext(opt, context): wt
 			                  for opt, wt in self.optWeights.items() })
-
-	def isEquivalentTo(self, other):
-		if not type(other) == type(self):
-			return False
-		return (areEquivalent(self.index, other.index)
-		        and areEquivalent(self.options, other.options))
 
 	def __str__(self):
 		if self.optWeights is not None:

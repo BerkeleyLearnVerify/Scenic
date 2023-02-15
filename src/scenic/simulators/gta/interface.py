@@ -1,5 +1,6 @@
 """Python supporting code for the GTA model."""
 
+from dataclasses import dataclass
 import math
 import time
 
@@ -108,7 +109,7 @@ class Map:
 			}
 			self.orderedCurbPoints = list(self.edgeData.keys())
 			# build k-D tree
-			self.edgeTree = scipy.spatial.cKDTree(self.orderedCurbPoints)
+			self.edgeTree = scipy.spatial.KDTree(self.orderedCurbPoints)
 			# identify points on roads
 			self.roadArray = numpy.array(img_modf.convert_black_white(img_data=image).convert('L'),
 			                             dtype=int)
@@ -126,7 +127,7 @@ class Map:
 			
 			m.edgeData = { tuple(e): center_detection.EdgeData(*rest) for e, *rest in data['edges'] }
 			m.orderedCurbPoints = list(m.edgeData.keys())
-			m.edgeTree = scipy.spatial.cKDTree(m.orderedCurbPoints)		# rebuild k-D tree
+			m.edgeTree = scipy.spatial.KDTree(m.orderedCurbPoints)		# rebuild k-D tree
 
 			m.roadArray = data['roadArray']
 			totalTime = time.time() - startTime
@@ -204,6 +205,7 @@ class MapWorkspace(Workspace):
 
 ### Car models and colors
 
+@dataclass(frozen=True)
 class CarModel:
 	"""A model of car in GTA.
 
@@ -217,12 +219,10 @@ class CarModel:
 		models: dict mapping model names to the corresponding `CarModel`
 	"""
 
-	def __init__(self, name, width, length, viewAngle=math.radians(90)):
-		super(CarModel, self).__init__()
-		self.name = name
-		self.width = width
-		self.length = length
-		self.viewAngle = viewAngle
+	name: str
+	width: float
+	length: float
+	viewAngle: float = math.radians(90)
 
 	@classmethod
 	def uniformModel(self):

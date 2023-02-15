@@ -15,9 +15,10 @@ from scenic.core.vectors import Vector
 from scenic.core.geometry import (_RotatedRectangle, averageVectors, hypot, min,
                                   pointIsInCone)
 from scenic.core.regions import CircularRegion, SectorRegion
-from scenic.core.type_support import toVector, toHeading, toType
+from scenic.core.type_support import toVector, toHeading, toScalar, toType
 from scenic.core.lazy_eval import needsLazyEvaluation
-from scenic.core.utils import DefaultIdentityDict, areEquivalent, cached_property
+from scenic.core.serialization import dumpAsScenicCode
+from scenic.core.utils import DefaultIdentityDict, cached_property
 from scenic.core.errors import RuntimeParseError
 
 ## Abstract base class
@@ -60,12 +61,12 @@ class Constructible(Samplable):
 		cls._dynamicProperties = frozenset(dyns)
 
 	@classmethod
-	def _withProperties(cls, props):
+	def _withProperties(cls, props, constProps=frozenset()):
 		assert all(reqProp in props for reqProp in cls._defaults)
 		assert all(not needsLazyEvaluation(val) for val in props.values())
-		return cls(_internal=True, **props)
+		return cls(_internal=True, _constProps=constProps, **props)
 
-	def __init__(self, *args, _internal=False, **kwargs):
+	def __init__(self, *args, _internal=False, _constProps=frozenset(), **kwargs):
 		if _internal:	# Object is being constructed internally; use fast path
 			assert not args
 			for prop, value in kwargs.items():
@@ -73,6 +74,7 @@ class Constructible(Samplable):
 				object.__setattr__(self, prop, value)
 			super().__init__(kwargs.values())
 			self.properties = set(kwargs.keys())
+			self._constProps = _constProps
 			return
 
 		# Resolve and apply specifiers
@@ -123,11 +125,13 @@ class Constructible(Samplable):
 			optionalsForSpec[spec].add(opt)
 
 		# Add any default specifiers needed
+		_defaultedProperties = set()
 		for prop in defs:
 			if prop not in properties:
 				spec = defs[prop]
 				specifiers.append(spec)
 				properties[prop] = spec
+				_defaultedProperties.add(prop)
 
 		# Topologically sort specifiers
 		order = []
@@ -164,15 +168,22 @@ class Constructible(Samplable):
 			spec.applyTo(self, optionalsForSpec[spec])	# calls _specify
 		del self._evaluated
 		assert self.properties == set(properties)
+		self._constProps = frozenset({
+			prop for prop in _defaultedProperties
+			if not needsSampling(getattr(self, prop))
+		})
 
 	def _specify(self, prop, value):
 		assert prop not in self.properties
 
 		# Normalize types of some built-in properties
-		if prop == 'position':
-			value = toVector(value, f'"position" of {self} not a vector')
+		if prop in ('position', 'velocity', 'cameraOffset'):
+			value = toVector(value, f'"{prop}" of {self} not a vector')
 		elif prop == 'heading':
-			value = toHeading(value, f'"heading" of {self} not a heading')
+			value = toHeading(value, f'"{prop}" of {self} not a heading')
+		elif prop in ('width', 'length', 'visibleDistance', 'positionStdDev',
+		              'viewAngle', 'headingStdDev', 'speed', 'angularSpeed'):
+			value = toScalar(value, f'"{prop}" of {self} not a scalar')
 
 		self.properties.add(prop)
 		object.__setattr__(self, prop, value)
@@ -199,8 +210,11 @@ class Constructible(Samplable):
 			object.__setattr__(self, prop, val)
 
 	def sampleGiven(self, value):
+		if not needsSampling(self):
+			return self
 		return self._withProperties({ prop: value[getattr(self, prop)]
-								    for prop in self.properties })
+								    for prop in self.properties },
+								    constProps=self._constProps)
 
 	def _allProperties(self):
 		return { prop: getattr(self, prop) for prop in self.properties }
@@ -209,12 +223,28 @@ class Constructible(Samplable):
 		"""Copy this object, possibly overriding some of its properties."""
 		props = self._allProperties()
 		props.update(overrides)
-		return self._withProperties(props)
+		constProps = self._constProps.difference(overrides)
+		return self._withProperties(props, constProps=constProps)
 
-	def isEquivalentTo(self, other):
-		if type(other) is not type(self):
-			return False
-		return areEquivalent(self._allProperties(), other._allProperties())
+	def dumpAsScenicCode(self, stream, skipConstProperties=True):
+		stream.write(self.__class__.__name__)
+		first = True
+		for prop in sorted(self.properties):
+			if skipConstProperties and prop in self._constProps:
+				continue
+			if prop == 'position':
+				spec = 'at'
+			elif prop == 'heading':
+				spec = 'facing'
+			else:
+				spec = f'with {prop}'
+			if first:
+				stream.write(' ')
+				first = False
+			else:
+				stream.write(',\n    ')
+			stream.write(f'{spec} ')
+			dumpAsScenicCode(getattr(self, prop), stream)
 
 	def __str__(self):
 		if hasattr(self, 'properties') and 'name' in self.properties:
@@ -242,7 +272,10 @@ class Mutator:
 	"""
 
 	def appliedTo(self, obj):
-		"""Return a mutated copy of the object. Implemented by subclasses.
+		"""Return a mutated copy of the given object. Implemented by subclasses.
+
+		The mutator may inspect the ``mutationScale`` attribute of the given object
+		to scale its effect according to the scale given in ``mutate O by S``.
 
 		Returns:
 			A pair consisting of the mutated copy of the object (which is most easily
@@ -261,7 +294,8 @@ class PositionMutator(Mutator):
 		self.stddev = stddev
 
 	def appliedTo(self, obj):
-		noise = Vector(random.gauss(0, self.stddev), random.gauss(0, self.stddev))
+		stddev = self.stddev * obj.mutationScale
+		noise = Vector(random.gauss(0, stddev), random.gauss(0, stddev))
 		pos = obj.position + noise
 		return (obj._copyWith(position=pos), True)		# allow further mutation
 
@@ -283,7 +317,7 @@ class HeadingMutator(Mutator):
 		self.stddev = stddev
 
 	def appliedTo(self, obj):
-		noise = random.gauss(0, self.stddev)
+		noise = random.gauss(0, obj.mutationScale * self.stddev)
 		h = obj.heading + noise
 		return (obj._copyWith(heading=h), True)		# allow further mutation
 
@@ -309,15 +343,17 @@ class Point(Constructible):
 		width (float): Default value zero (only provided for compatibility with
 		  operators that expect an `Object`).
 		length (float): Default value zero.
+		mutationScale (float): Overall scale of mutations, as set by the
+		  :keyword:`mutate` statement. Default value zero (mutations disabled).
 		positionStdDev (float): Standard deviation of Gaussian noise to add to this
-		  object's ``position`` when mutation is enabled. Default value 1.
+		  object's ``position`` when mutation is enabled with scale 1. Default value 1.
 	"""
 	position: PropertyDefault((), {'dynamic'}, lambda self: Vector(0, 0))
 	width: 0
 	length: 0
 	visibleDistance: 50
 
-	mutationEnabled: False
+	mutationScale: 0
 	mutator: PropertyDefault({'positionStdDev'}, {'additive'},
 							 lambda self: PositionMutator(self.positionStdDev))
 	positionStdDev: 1
@@ -350,7 +386,7 @@ class Point(Constructible):
 
 	def sampleGiven(self, value):
 		sample = super().sampleGiven(value)
-		if self.mutationEnabled:
+		if self.mutationScale != 0:
 			for mutator in self.mutator:
 				if mutator is None:
 					continue
@@ -381,7 +417,7 @@ class OrientedPoint(Point):
 		viewAngle (float): View cone angle for ``can see`` operator. Default
 		  value 2π.
 		headingStdDev (float): Standard deviation of Gaussian noise to add to this
-		  object's ``heading`` when mutation is enabled. Default value 5°.
+		  object's ``heading`` when mutation is enabled with scale 1. Default value 5°.
 	"""
 	heading: PropertyDefault((), {'dynamic'}, lambda self: 0)
 	viewAngle: math.tau

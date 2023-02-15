@@ -178,7 +178,7 @@ def purgeModulesUnsafeToCache(oldModules):
 	toRemove = []
 	# copy sys.modules in case it mutates during iteration (actually happens!)
 	for name, module in sys.modules.copy().items():
-		if getattr(module, '_isScenicModule', False) and name not in oldModules:
+		if isinstance(module, ScenicModule) and name not in oldModules:
 			toRemove.append(name)
 	for name in toRemove:
 		parent, _, child = name.rpartition('.')
@@ -650,7 +650,11 @@ for op in infixOperators:
 			assert imp == oldName, (op, oldName)
 		else:
 			infixImplementations[node] = (op.arity, imp)
-generalInfixOps = { tokens: op.token for tokens, op in infixTokens.items() if not op.contexts }
+# infix operators which do not need to occur inside function calls
+generalInfixOps = {
+	tokens: op.token for tokens, op in infixTokens.items()
+	if (op.implementation or op.token == packageToken) and not op.contexts
+}
 
 ## Direct syntax replacements
 
@@ -717,7 +721,7 @@ class ScenicLoader(importlib.abc.InspectLoader):
 		self.filename = filename
 
 	def create_module(self, spec):
-		return None
+		return ScenicModule(spec.name)
 
 	def exec_module(self, module):
 		# Read source file and compile it
@@ -725,8 +729,6 @@ class ScenicLoader(importlib.abc.InspectLoader):
 			source = stream.read()
 		with open(self.filepath, 'rb') as stream:
 			code, pythonSource = compileStream(stream, module.__dict__, filename=self.filepath)
-		# Mark as a Scenic module
-		module._isScenicModule = True
 		# Save code, source, and translated source for later inspection
 		module._code = code
 		module._source = source
@@ -742,13 +744,25 @@ class ScenicLoader(importlib.abc.InspectLoader):
 
 	def get_code(self, fullname):
 		module = importlib.import_module(fullname)
-		assert module._isScenicModule, module
+		assert isinstance(module, ScenicModule), module
 		return module._code
 
 	def get_source(self, fullname):
 		module = importlib.import_module(fullname)
-		assert module._isScenicModule, module
+		assert isinstance(module, ScenicModule), module
 		return module._pythonSource
+
+class ScenicModule(types.ModuleType):
+	def __getstate__(self):
+		state = self.__dict__.copy()
+		del state['__builtins__']
+		return (self.__name__, state)
+
+	def __setstate__(self, state):
+		name, state = state
+		self.__init__(name)		# needed to create __dict__
+		self.__dict__.update(state)
+		self.__builtins__ = builtins.__dict__
 
 # register the meta path finder
 sys.meta_path.insert(0, ScenicMetaFinder())
@@ -1597,6 +1611,7 @@ class ASTSurgeon(NodeTransformer):
 			else:
 				stmt = func.id
 				keywords = []
+				schedule = None
 			seenModifier = False
 			invoked = []
 			args = []
@@ -1618,7 +1633,7 @@ class ASTSurgeon(NodeTransformer):
 					self.parseError(arg, f'malformed "{stmt}" statement')
 				else:
 					invoked.append(self.visit(arg))
-			maxInvoked = 1 if self.inBehavior and not self.inCompose else None
+			maxInvoked = 1 if self.inBehavior and not self.inCompose and not schedule else None
 			self.validateSimpleCall(node, (1, maxInvoked), onlyInBehaviors=True, args=invoked)
 			subHandler = Attribute(Name(behaviorArgName, Load()), '_invokeSubBehavior', Load())
 			subArgs = [Name('self', Load()), Tuple(invoked, Load())] + args
@@ -1695,14 +1710,9 @@ class ASTSurgeon(NodeTransformer):
 		if not interrupts:		# an ordinary try-except block
 			return self.generic_visit(node)
 
-		# Add dead copy of all interrupts to ensure all local variables defined inside
-		# the body and handlers are also defined as locals in the top-level function
 		statements = []
 		oldInTryInterrupt = self.inTryInterrupt
-		if not self.inTryInterrupt:
-			deadcopy = If(Constant(False), [node], [])
-			statements.append(deadcopy)
-			self.inTryInterrupt = True
+		self.inTryInterrupt = True
 
 		# Construct body
 		oldInInterruptBlock, oldInLoop = self.inInterruptBlock, self.inLoop
@@ -2182,8 +2192,12 @@ def executeCodeIn(code, namespace):
 	try:
 		exec(code, namespace)
 	except RejectionException as e:
-		# Could detect statically that the scenario has probability zero
-		raise InvalidScenarioError(e.args[0]) from None
+		# Determined statically that the scenario has probability zero.
+		errors.optionallyDebugRejection(e)
+		if errors.showInternalBacktrace:
+			raise InvalidScenarioError(e.args[0]) from e
+		else:
+			raise InvalidScenarioError(e.args[0]).with_traceback(e.__traceback__) from None
 
 ### TRANSLATION PHASE SEVEN: scenario construction
 
@@ -2242,8 +2256,7 @@ def gatherBehaviorNamespacesFrom(behaviors):
 			return
 		behaviorNamespaces[modName] = ns
 		for name, value in ns.items():
-			if (isinstance(value, types.ModuleType)
-				and getattr(value, '_isScenicModule', False)):
+			if isinstance(value, ScenicModule):
 				registerNamespace(value.__name__, value.__dict__)
 			else:
 				# Convert values requiring sampling to Distributions

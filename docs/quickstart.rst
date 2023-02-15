@@ -11,28 +11,21 @@ You can install Scenic from PyPI by simply running:
 
 .. code-block:: console
 
-	$ pip install scenic
+	$ python -m pip install scenic
 
 Alternatively, if you want to run some of our example scenarios, modify Scenic, or make use of features that have not yet been released on PyPI, you can download or clone the `Scenic repository <https://github.com/BerkeleyLearnVerify/Scenic>`_.
-Install `Poetry <https://python-poetry.org/>`_, optionally activate the `virtual environment <https://docs.python.org/3/tutorial/venv.html>`_ in which you would like to run Scenic, and then run:
+Activate the `virtual environment <https://docs.python.org/3/tutorial/venv.html>`_ in which you would like to install Scenic, go into the root folder of the Scenic repository, and then run:
 
 .. code-block:: console
 
-	$ poetry install
+	$ python -m pip install -e .
 
-If you will be developing Scenic, add the ``-E dev`` option when invoking Poetry.
-
-.. note::
-
-	If you are not already using a virtual environment, :command:`poetry install` will
-	create one. You can then run :command:`poetry shell` to create a terminal inside the
-	environment for running the commands below.
-
-Installing via either :command:`pip` or Poetry will install all of the dependencies which are required to run Scenic.
+Either installation method will install all of the dependencies which are required to run Scenic.
+If you will be developing Scenic, you will want to use a variant of this command: see :doc:`developing`.
 
 .. note::
 
-	If you are using Windows, or encounter any errors when following the instructions above, please see our :doc:`install_notes` for suggestions.
+	If you are using Windows, or encounter any errors during installation or trying the examples below, please see our :doc:`install_notes` for suggestions.
 
 Trying Some Examples
 --------------------

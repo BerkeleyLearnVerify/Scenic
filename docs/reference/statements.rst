@@ -42,7 +42,8 @@ Defines a :term:`dynamic behavior`, which can be assigned to a Scenic object by 
 See our tutorial on :ref:`dynamics` for examples of how to write behaviors.
 
 Behavior definitions have the same form as function definitions, with an argument list and a body consisting of one or more statements; the body may additionally begin with definitions of preconditions and invariants.
-Preconditions are checked when a behavior is started, and invariants are checked at every time step of the simulation while the behavior is executing (including time step zero, like preconditions).
+Preconditions are checked when a behavior is started, and invariants are checked at every time step of the simulation while the behavior is executing (including time step zero, like preconditions, but *not* including time spent inside sub-behaviors: this allows sub-behaviors to break and restore invariants before they return).
+
 The body of a behavior executes in parallel with the simulation: in each time step, it must either :keyword:`take` specified action(s) or :keyword:`wait` and perform no actions.
 After each :keyword:`take` or :keyword:`wait` statement, the behavior's execution is suspended, the simulation advances one step, and the behavior is then resumed.
 It is thus an error for a behavior to enter an infinite loop which contains no :keyword:`take` or :keyword:`wait` statements (or :keyword:`do` statements invoking a sub-behavior; see below): the behavior will never yield control to the simulator and the simulation will stall.
@@ -92,7 +93,7 @@ Modular Scenario Definition
         <statement>*
 
 Defines a Scenic :term:`modular scenario`.
-Scenario definitions, like behavior definitions, may include preconditions and invariants.
+Scenario definitions, like :ref:`behavior definitions <behaviorDef>`, may include preconditions and invariants.
 The body of a scenario consists of two optional parts: a ``setup`` block and a ``compose`` block.
 The ``setup`` block contains code that runs once when the scenario begins to execute, and is a list of statements like a top-level Scenic program (so it may create objects, define requirements, etc.).
 The ``compose`` block orchestrates the execution of sub-scenarios during a dynamic scenario, and may use :keyword:`do` and any of the other statements allowed inside behaviors (except :keyword:`take`, which only makes sense for an individual :term:`agent`).
@@ -157,7 +158,7 @@ Scenic also supports the form :samp:`from {module} import {identifier}, {...}` ,
 
 param *identifier* = *value*, . . .
 ---------------------------------------
-Defines one or more global parameters of the scenario.
+Defines one or more :term:`global parameters` of the scenario.
 These have no semantics in Scenic, simply having their values included as part of the generated `Scene`, but provide a general-purpose way to encode arbitrary global information.
 
 If multiple ``param`` statements define parameters with the same name, the last statement takes precedence, except that Scenic world models imported using the :keyword:`model` statement do not override existing values for global parameters.
@@ -177,10 +178,11 @@ Defines a hard requirement, requiring that the given condition hold in all insta
 This is equivalent to an "observe" statement in other probabilistic programming languages.
 
 .. _require[{number}] {boolean}:
+.. _soft-requirements:
 
 require[*number*] *boolean*
 ---------------------------
-Defines a soft requirement, requiring that the given condition hold with at least the given probability (which must be a literal number, not an expression).
+Defines a soft requirement; like :keyword:`require` above but enforced only with the given probability, thereby requiring that the given condition hold with at least that probability (which must be a literal number, not an expression).
 For example, ``require[0.75] ego in parking_lot`` would require that the ego be in the parking lot at least 75% percent of the time.
 
 .. _require (always | eventually) {boolean}:
@@ -199,6 +201,13 @@ terminate when *boolean*
 Terminates the scenario when the provided condition becomes true.
 If this statement is used in a :term:`modular scenario` which was invoked from another scenario, only the current scenario will end, not the entire simulation.
 
+.. _terminate simulation when {boolean}:
+.. _terminate simulation when:
+
+terminate simulation when *boolean*
+-----------------------------------
+The same as :keyword:`terminate when`, except terminates the entire simulation even when used inside a sub-scenario (so there is no difference between the two statements when used at the top level).
+
 .. _terminate after {scalar} (seconds | steps):
 .. _terminate after:
 
@@ -212,8 +221,10 @@ The time limit can be an expression, but must be a non-random value.
 
 mutate *identifier*, . . . [by *scalar*]
 -----------------------------------------
-Enables mutation of the given list of objects, adding Gaussian noise with the given standard deviation (default 1) to their ``position`` and ``heading`` properties.
+Enables mutation of the given list of objects (any `Point`, `OrientedPoint`, or `Object`), with an optional scale factor (default 1).
 If no objects are specified, mutation applies to every `Object` already created.
+
+The default mutation system adds Gaussian noise to the ``position`` and ``heading`` properties, with standard deviations equal to the scale factor times the ``positionStdDev`` and ``headingStdDev`` properties.
 
 .. note::
 
@@ -223,6 +234,8 @@ If no objects are specified, mutation applies to every `Object` already created.
 
 .. _record [(initial | final)] {value} as {name}:
 .. _record:
+.. _record initial:
+.. _record final:
 
 record [(initial | final)] *value* [as *name*]
 ----------------------------------------------

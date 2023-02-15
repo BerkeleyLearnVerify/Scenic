@@ -4,6 +4,7 @@ from collections import defaultdict
 import enum
 import inspect
 import itertools
+import sys
 import types
 import warnings
 
@@ -84,11 +85,11 @@ class Invocable:
             enabled = {}
             if isinstance(opts, dict):
                 for sub, weight in opts.items():
-                    if sub._isEnabled:
+                    if sub._isEnabledForAgent(agent):
                         enabled[sub] = weight
             else:
                 for sub in opts:
-                    if sub._isEnabled:
+                    if sub._isEnabledForAgent(agent):
                         enabled[sub] = 1
             if not enabled:
                 raise RejectSimulationException('deadlock in "do choose/shuffle"')
@@ -156,13 +157,17 @@ class Invocable:
         self.checkPreconditions(self._agent, *self._args, **self._kwargs)
         self.checkInvariants(self._agent, *self._args, **self._kwargs)
 
-    @property
-    def _isEnabled(self):
+    def _isEnabledForAgent(self, agent):
+        assert not self._isRunning
+        assert self._agent is None
         try:
+            self._agent = agent  # in case `self` is used in a precondition
             self._checkAllPreconditions()
             return True
         except GuardViolation:
             return False
+        finally:
+            self._agent = None
 
 class DynamicScenario(Invocable):
     """Internal class for scenarios which can execute during dynamic simulations.
@@ -355,6 +360,8 @@ class DynamicScenario(Invocable):
             composeDone = True      # compose block ended in an earlier step
         else:
             def alarmHandler(signum, frame):
+                if sys.gettrace():
+                    return  # skip the warning if we're in the debugger
                 warnings.warn(f'the compose block of scenario {self} is taking a long time; '
                               'maybe you have an infinite loop with no "wait" statement?',
                               StuckBehaviorWarning)
@@ -580,7 +587,7 @@ class Behavior(Invocable, Samplable):
     Behavior statements are translated into definitions of subclasses of this class.
     """
     def __init_subclass__(cls):
-        if cls.__module__ is not __name__:
+        if cls.__module__ is not __name__ and veneer.currentScenario:
             veneer.currentScenario._behaviors.append(cls)
 
     def __init__(self, *args, **kwargs):
@@ -615,6 +622,8 @@ class Behavior(Invocable, Samplable):
         super()._step()
         assert self._runningIterator
         def alarmHandler(signum, frame):
+            if sys.gettrace():
+                return  # skip the warning if we're in the debugger
             warnings.warn(f'the behavior {self} is taking a long time to take an action; '
                           'maybe you have an infinite loop with no take/wait statements?',
                           StuckBehaviorWarning)
@@ -647,9 +656,13 @@ class Behavior(Invocable, Samplable):
                 if sub._isRunning:
                     sub._stop()
 
-    def __str__(self):
-        args = argsToString(itertools.chain(self._args, self._kwargs.items()))
-        return self.__class__.__name__ + args
+    def __repr__(self):
+        items = itertools.chain(
+            (repr(arg) for arg in self._args),
+            (f'{key}={repr(val)}' for key, val in self._kwargs.items())
+        )
+        allArgs = ', '.join(items)
+        return f'{self.__class__.__name__}({allArgs})'
 
 def makeTerminationAction(line):
     assert not veneer.isActive()

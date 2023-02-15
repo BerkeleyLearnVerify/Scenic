@@ -28,7 +28,6 @@ user uses the :option:`--param` command-line option to specify the map.
     details.
 """
 
-from abc import ABC, abstractmethod
 from typing import Optional
 
 from scenic.domains.driving.workspace import DrivingWorkspace
@@ -253,7 +252,7 @@ class Vehicle(DrivingObject):
             given by **roadDeviation**.
         roadDeviation (float): Relative heading with respect to the road direction at
             the `Vehicle`'s position. Used by the default value for **heading**.
-        regionContainedIn: The default container is `roadOrShoulder`.
+        regionContainedIn: The default container is :obj:`roadOrShoulder`.
         viewAngle: The default view angle is 90 degrees.
         width: The default width is 2 meters.
         length: The default length is 4.5 meters.
@@ -306,40 +305,33 @@ class Pedestrian(DrivingObject):
 
 # Mixin classes indicating support for various types of actions
 
-class Steers(ABC):
+class Steers:
     """Mixin protocol for agents which can steer.
 
     Specifically, agents must support throttling, braking, steering, setting the hand
     brake, and going into reverse.
     """
-    @abstractmethod
-    def setThrottle(self, throttle): pass
+    def setThrottle(self, throttle): raise NotImplementedError
 
-    @abstractmethod
-    def setSteering(self, steering): pass
+    def setSteering(self, steering): raise NotImplementedError
 
-    @abstractmethod
-    def setBraking(self, braking): pass
+    def setBraking(self, braking): raise NotImplementedError
 
-    @abstractmethod
-    def setHandbrake(self, handbrake): pass
+    def setHandbrake(self, handbrake): raise NotImplementedError
 
-    @abstractmethod
-    def setReverse(self, reverse): pass
+    def setReverse(self, reverse): raise NotImplementedError
 
-class Walks(ABC):
+class Walks:
     """Mixin protocol for agents which can walk with a given direction and speed.
 
     We provide a simplistic implementation which directly sets the velocity of the agent.
     This implementation needs to be explicitly opted-into, since simulators may provide a
     more sophisticated API that properly animates pedestrians.
     """
-    @abstractmethod
     def setWalkingDirection(self, heading):
         velocity = Vector(0, self.speed).rotatedBy(heading)
         self.setVelocity(velocity)
 
-    @abstractmethod
     def setWalkingSpeed(self, speed):
         velocity = speed * self.velocity.normalized()
         self.setVelocity(velocity)

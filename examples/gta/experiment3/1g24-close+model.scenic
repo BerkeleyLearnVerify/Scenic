@@ -9,4 +9,4 @@ param weather = 'EXTRASUNNY'
 ego = EgoCar
 
 c = Car offset by Range(-5, 5) @ Range(7, 12),
-	with color CarColor.withBytes([187, 162, 157])
+	with color Color.withBytes([187, 162, 157])

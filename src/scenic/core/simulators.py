@@ -14,6 +14,10 @@ from scenic.core.errors import RuntimeParseError, InvalidScenarioError, optional
 from scenic.core.requirements import RequirementType
 from scenic.core.vectors import Vector
 
+class SimulatorInterfaceWarning(UserWarning):
+    """Warning indicating an issue with the interface to an external simulator."""
+    pass
+
 class SimulationCreationError(Exception):
     """Exception indicating a simulation could not be run from the given scene.
 
@@ -39,6 +43,8 @@ class Simulator:
     def simulate(self, scene, maxSteps=None, maxIterations=100, verbosity=0,
                  raiseGuardViolations=False):
         """Run a simulation for a given scene.
+
+        For details on how simulations are run, see `dynamic scenario semantics`.
 
         Args:
             scene (Scene): Scene from which to start the simulation (sampled using

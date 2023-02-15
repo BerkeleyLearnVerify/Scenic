@@ -5,7 +5,8 @@ import pytest
 
 import scenic
 from scenic.core.errors import InvalidScenarioError
-from tests.utils import compileScenic, sampleScene, sampleEgoFrom
+from scenic.core.vectors import Vector
+from tests.utils import compileScenic, sampleScene, sampleEgo, sampleEgoFrom
 
 # Built-in regions
 
@@ -16,6 +17,27 @@ def test_everywhere():
 def test_nowhere():
     with pytest.raises(InvalidScenarioError):
         compileScenic('ego = Object with regionContainedIn nowhere')
+
+# CircularRegion
+
+def test_circular_in():
+    scenario = compileScenic('ego = Object in CircularRegion(3@5, 2)')
+    positions = [sampleEgo(scenario).position for i in range(30)]
+    center = Vector(3, 5)
+    distances = [pos.distanceTo(center) for pos in positions]
+    assert all(dist <= 2 for dist in distances)
+    assert any(dist < 1.5 for dist in distances)
+    assert any(dist > 1.5 for dist in distances)
+    assert any(pos.x < 3 for pos in positions)
+    assert any(pos.x > 3 for pos in positions)
+
+def test_circular_lazy():
+    ego = sampleEgoFrom("""
+        vf = VectorField("Foo", lambda pos: 2 * pos.x)
+        x = 0 relative to vf
+        ego = Object at Range(-1, 1) @ 0, with foo CircularRegion(0@0, x)
+    """)
+    assert ego.foo.radius == 2 * ego.position.x
 
 # PolygonalRegion
 

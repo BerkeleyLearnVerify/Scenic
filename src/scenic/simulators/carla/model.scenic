@@ -52,9 +52,11 @@ try:
     import scenic.simulators.carla.utils.utils as _utils
 except ModuleNotFoundError:
     # for convenience when testing without the carla package
+    from scenic.core.simulators import SimulatorInterfaceWarning
     import warnings
     warnings.warn('the "carla" package is not installed; '
-                  'will not be able to run dynamic simulations')
+                  'will not be able to run dynamic simulations',
+                  SimulatorInterfaceWarning)
 
     def CarlaSimulator(*args, **kwargs):
         """Dummy simulator to allow compilation without the 'carla' package.
@@ -163,7 +165,7 @@ class Car(Vehicle):
     """A car.
 
     The default ``blueprint`` (see `CarlaActor`) is a uniform distribution over the
-    blueprints listed in `scenic.simulators.carla.blueprints.carModels`.
+    blueprints listed in :obj:`scenic.simulators.carla.blueprints.carModels`.
     """
     blueprint: Uniform(*blueprints.carModels)
 
@@ -196,7 +198,7 @@ class Pedestrian(Pedestrian, CarlaActor, Walks):
     """A pedestrian.
 
     The default ``blueprint`` (see `CarlaActor`) is a uniform distribution over the
-    blueprints listed in `scenic.simulators.carla.blueprints.walkerModels`.
+    blueprints listed in :obj:`scenic.simulators.carla.blueprints.walkerModels`.
     """
     width: 0.5
     length: 0.5

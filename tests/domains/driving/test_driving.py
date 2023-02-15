@@ -5,9 +5,10 @@ import pytest
 import shutil
 import inspect
 
-from tests.utils import compileScenic, sampleScene, sampleEgo
+from tests.utils import compileScenic, sampleScene, sampleEgo, pickle_test, tryPickling
 from scenic.core.geometry import TriangulationError
 from scenic.core.distributions import RejectionException
+from scenic.domains.driving.roads import Network
 
 # Suppress all warnings from OpenDRIVE parser
 pytestmark = pytest.mark.filterwarnings("ignore::scenic.formats.opendrive.OpenDriveWarning")
@@ -117,19 +118,41 @@ def test_curb(cached_maps):
     """)
     sampleScene(scenario, maxIterations=1000)
 
-def test_caching(cached_maps):
+@pytest.mark.slow
+def test_caching(tmpdir):
     """Test caching of road networks.
 
     In particular, make sure that links between network elements and maneuvers
     are properly reconnected after unpickling.
     """
-    for cache in (False, True):
-        scenario = compileDrivingScenario(cached_maps, """
+    origMap = 'tests/formats/opendrive/maps/CARLA/Town01.xodr'
+    path = os.path.join(tmpdir, 'map.xodr')
+    cachedPath = os.path.join(tmpdir, 'map' + Network.pickledExt)
+    shutil.copyfile(origMap, path)
+    opts = (
+        (False, path),
+        (True, cachedPath),
+        (True, path),
+    )
+    for useCache, path in opts:
+        scenario = compileScenic(f"""
+            param map = '{path}'
+            param map_options = dict(useCache={useCache})
+            model scenic.domains.driving.model
             lanes = filter(lambda l: l._successor, network.lanes)
             lane = Uniform(*lanes)
             ego = Car on lane, with foo lane.network.lanes
             Car on ego.lane.successor.centerline, with requireVisible False
             Car on ego.lane.maneuvers[0].endLane.centerline, with requireVisible False
-        """, useCache=cache,
-        path='tests/formats/opendrive/maps/opendrive.org/CulDeSac.xodr')
+        """)
         sampleScene(scenario, maxIterations=1000)
+
+@pickle_test
+def test_pickle(cached_maps):
+    scenario = compileDrivingScenario(cached_maps, """
+        ego = Car with behavior FollowLaneBehavior(target_speed=Range(10, 15))
+        Pedestrian on visible sidewalk
+    """)
+    unpickled = tryPickling(scenario)
+    scene = sampleScene(unpickled, maxIterations=1000)
+    tryPickling(scene)

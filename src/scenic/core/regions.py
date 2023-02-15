@@ -20,8 +20,8 @@ from scenic.core.vectors import Vector, OrientedVector, VectorDistribution, Vect
 from scenic.core.geometry import _RotatedRectangle
 from scenic.core.geometry import sin, cos, hypot, findMinMax, pointIsInCone, averageVectors
 from scenic.core.geometry import headingOfSegment, triangulatePolygon, plotPolygon, polygonUnion
-from scenic.core.type_support import toVector
-from scenic.core.utils import cached, cached_property, areEquivalent
+from scenic.core.type_support import toVector, toScalar
+from scenic.core.utils import cached, cached_property
 
 def toPolygon(thing):
 	if needsSampling(thing):
@@ -90,14 +90,26 @@ class Region(Samplable):
 		else:
 			return other.intersect(self, triedReversed=True)
 
-	def intersects(self, other) -> bool:
-		"""Check if this `Region` intersects another."""
-		raise NotImplementedError
+	def intersects(self, other, triedReversed=False) -> bool:
+		"""intersects(other)
+
+		Check if this `Region` intersects another.
+		"""
+		if triedReversed:
+			# Last-ditch attempt to check intersection by converting to polygons
+			p1, p2 = toPolygon(self), toPolygon(other)
+			if p1 is not None and p2 is not None:
+				return not (p1 & p2).is_empty
+			raise NotImplementedError
+		else:
+			return other.intersects(self, triedReversed=True)
 
 	def difference(self, other) -> 'Region':
 		"""Get a `Region` representing the difference of this one and another."""
 		if isinstance(other, EmptyRegion):
 			return self
+		elif isinstance(other, AllRegion):
+			return nowhere
 		return DifferenceRegion(self, other)
 
 	def union(self, other, triedReversed=False) -> 'Region':
@@ -187,6 +199,12 @@ class AllRegion(Region):
 	def intersect(self, other, triedReversed=False):
 		return other
 
+	def intersects(self, other, triedReversed=False):
+		return not isinstance(other, EmptyRegion)
+
+	def union(self, other, triedReversed=False):
+		return self
+
 	def containsPoint(self, point):
 		return True
 
@@ -205,6 +223,12 @@ class AllRegion(Region):
 class EmptyRegion(Region):
 	"""Region containing no points."""
 	def intersect(self, other, triedReversed=False):
+		return self
+
+	def intersects(self, other, triedReversed=False):
+		return False
+
+	def difference(self, other):
 		return self
 
 	def union(self, other, triedReversed=False):
@@ -254,7 +278,7 @@ class CircularRegion(Region):
 	def __init__(self, center, radius, resolution=32, name=None):
 		super().__init__(name, center, radius)
 		self.center = toVector(center, "center of CircularRegion not a vector")
-		self.radius = radius
+		self.radius = toScalar(radius, "radius of CircularRegion not a scalar")
 		self.circumcircle = (self.center, self.radius)
 		self.resolution = resolution
 
@@ -274,6 +298,11 @@ class CircularRegion(Region):
 		return CircularRegion(center, radius,
 		                      name=self.name, resolution=self.resolution)
 
+	def intersects(self, other, triedReversed=False):
+		if isinstance(other, CircularRegion):
+			return self.center.distanceTo(other.center) <= self.radius + other.radius
+		return super().intersects(other, triedReversed)
+
 	def containsPoint(self, point):
 		point = point.toVector()
 		return point.distanceTo(self.center) <= self.radius
@@ -292,12 +321,6 @@ class CircularRegion(Region):
 		x, y = self.center
 		r = self.radius
 		return ((x - r, y - r), (x + r, y + r))
-
-	def isEquivalentTo(self, other):
-		if type(other) is not CircularRegion:
-			return False
-		return (areEquivalent(other.center, self.center)
-		        and areEquivalent(other.radius, self.radius))
 
 	def __repr__(self):
 		return f'CircularRegion({self.center}, {self.radius})'
@@ -319,9 +342,9 @@ class SectorRegion(Region):
 	"""
 	def __init__(self, center, radius, heading, angle, resolution=32, name=None):
 		self.center = toVector(center, "center of SectorRegion not a vector")
-		self.radius = radius
-		self.heading = heading
-		self.angle = angle
+		self.radius = toScalar(radius, "radius of SectorRegion not a scalar")
+		self.heading = toScalar(heading, "heading of SectorRegion not a scalar")
+		self.angle = toScalar(angle, "angle of SectorRegion not a scalar")
 		super().__init__(name, self.center, radius, heading, angle)
 		r = (radius / 2) * cos(angle / 2)
 		self.circumcircle = (self.center.offsetRadially(r, heading), r)
@@ -373,14 +396,6 @@ class SectorRegion(Region):
 		pt = Vector(x + (r * cos(t)), y + (r * sin(t)))
 		return self.orient(pt)
 
-	def isEquivalentTo(self, other):
-		if type(other) is not SectorRegion:
-			return False
-		return (areEquivalent(other.center, self.center)
-		        and areEquivalent(other.radius, self.radius)
-		        and areEquivalent(other.heading, self.heading)
-		        and areEquivalent(other.angle, self.angle))
-
 	def __repr__(self):
 		return f'SectorRegion({self.center},{self.radius},{self.heading},{self.angle})'
 
@@ -397,9 +412,9 @@ class RectangularRegion(_RotatedRectangle, Region):
 	def __init__(self, position, heading, width, length, name=None):
 		super().__init__(name, position, heading, width, length)
 		self.position = toVector(position, "position of RectangularRegion not a vector")
-		self.heading = heading
-		self.width = width
-		self.length = length
+		self.heading = toScalar(heading, "heading of RectangularRegion not a scalar")
+		self.width = toScalar(width, "width of RectangularRegion not a scalar")
+		self.length = toScalar(length, "length of RectangularRegion not a scalar")
 		self.hw = hw = width / 2
 		self.hl = hl = length / 2
 		self.radius = hypot(hw, hl)		# circumcircle; for collision detection
@@ -432,14 +447,6 @@ class RectangularRegion(_RotatedRectangle, Region):
 		minx, maxx = findMinMax(x)
 		miny, maxy = findMinMax(y)
 		return ((minx, miny), (maxx, maxy))
-
-	def isEquivalentTo(self, other):
-		if type(other) is not RectangularRegion:
-			return False
-		return (areEquivalent(other.position, self.position)
-		        and areEquivalent(other.heading, self.heading)
-		        and areEquivalent(other.width, self.width)
-		        and areEquivalent(other.length, self.length))
 
 	def __repr__(self):
 		return f'RectangularRegion({self.position},{self.heading},{self.width},{self.length})'
@@ -586,12 +593,12 @@ class PolylineRegion(Region):
 			return PolylineRegion(polyline=intersection)
 		return super().intersect(other, triedReversed)
 
-	def intersects(self, other):
+	def intersects(self, other, triedReversed=False):
 		poly = toPolygon(other)
 		if poly is not None:
 			intersection = self.lineString & poly
 			return not intersection.is_empty
-		return super().intersects(other)
+		return super().intersects(other, triedReversed)
 
 	def difference(self, other):
 		poly = toPolygon(other)
@@ -838,12 +845,12 @@ class PolygonalRegion(Region):
 				raise RuntimeError('unhandled type of polygon intersection')
 		return super().intersect(other, triedReversed)
 
-	def intersects(self, other):
+	def intersects(self, other, triedReversed=False):
 		poly = toPolygon(other)
 		if poly is not None:
 			intersection = self.polygons & poly
 			return not intersection.is_empty
-		return super().intersects(other)
+		return super().intersects(other, triedReversed)
 
 	def union(self, other, triedReversed=False, buf=0):
 		poly = toPolygon(other)
@@ -898,7 +905,7 @@ class PolygonalRegion(Region):
 		return self.polygons.distance(shapely.geometry.Point(point))
 
 	def getAABB(self):
-		xmin, xmax, ymin, ymax = self.polygons.bounds
+		xmin, ymin, xmax, ymax = self.polygons.bounds
 		return ((xmin, ymin), (xmax, ymax))
 
 	def show(self, plt, style='r-', **kwargs):
@@ -947,7 +954,7 @@ class PointSetRegion(Region):
 			if needsSampling(point):
 				raise RuntimeError('only fixed PointSetRegions are supported')
 		import scipy.spatial	# slow import not often needed
-		self.kdTree = scipy.spatial.cKDTree(self.points) if kdTree is None else kdTree
+		self.kdTree = scipy.spatial.KDTree(self.points) if kdTree is None else kdTree
 		self.orientation = orientation
 		self.tolerance = tolerance
 
@@ -981,9 +988,9 @@ class PointSetRegion(Region):
 	def __eq__(self, other):
 		if type(other) is not PointSetRegion:
 			return NotImplemented
-		return (other.name == self.name
-		        and other.points == self.points
-		        and other.orientation == self.orientation)
+		return (self.name == other.name
+		        and self.points == other.points
+		        and self.orientation == other.orientation)
 
 	@cached
 	def __hash__(self):
@@ -1061,15 +1068,13 @@ class IntersectionRegion(Region):
 		if len(self.regions) < 2:
 			raise RuntimeError('tried to take intersection of fewer than 2 regions')
 		super().__init__(name, *self.regions, orientation=orientation)
-		if sampler is None:
-			sampler = self.genericSampler
 		self.sampler = sampler
 
 	def sampleGiven(self, value):
 		regs = [value[reg] for reg in self.regions]
 		# Now that regions have been sampled, attempt intersection again in the hopes
 		# there is a specialized sampler to handle it (unless we already have one)
-		if self.sampler is self.genericSampler:
+		if not self.sampler:
 			failed = False
 			intersection = regs[0]
 			for region in regs[1:]:
@@ -1093,7 +1098,10 @@ class IntersectionRegion(Region):
 		return all(region.containsPoint(point) for region in self.regions)
 
 	def uniformPointInner(self):
-		return self.orient(self.sampler(self))
+		sampler = self.sampler
+		if not sampler:
+			sampler = self.genericSampler
+		return self.orient(sampler(self))
 
 	@staticmethod
 	def genericSampler(intersection):
@@ -1105,12 +1113,6 @@ class IntersectionRegion(Region):
 				    f'sampling intersection of Regions {regs[0]} and {region}')
 		return point
 
-	def isEquivalentTo(self, other):
-		if type(other) is not IntersectionRegion:
-			return False
-		return (areEquivalent(set(other.regions), set(self.regions))
-		        and other.orientation == self.orientation)
-
 	def __repr__(self):
 		return f'IntersectionRegion({self.regions})'
 
@@ -1118,15 +1120,13 @@ class DifferenceRegion(Region):
 	def __init__(self, regionA, regionB, sampler=None, name=None):
 		self.regionA, self.regionB = regionA, regionB
 		super().__init__(name, regionA, regionB, orientation=regionA.orientation)
-		if sampler is None:
-			sampler = self.genericSampler
 		self.sampler = sampler
 
 	def sampleGiven(self, value):
 		regionA, regionB = value[self.regionA], value[self.regionB]
 		# Now that regions have been sampled, attempt difference again in the hopes
 		# there is a specialized sampler to handle it (unless we already have one)
-		if self.sampler is self.genericSampler:
+		if not self.sampler:
 			diff = regionA.difference(regionB)
 			if not isinstance(diff, DifferenceRegion):
 				diff.orientation = value[self.orientation]
@@ -1142,10 +1142,13 @@ class DifferenceRegion(Region):
 		                        sampler=self.sampler, name=self.name)
 
 	def containsPoint(self, point):
-		return regionA.containsPoint(point) and not regionB.containsPoint(point)
+		return self.regionA.containsPoint(point) and not self.regionB.containsPoint(point)
 
 	def uniformPointInner(self):
-		return self.orient(self.sampler(self))
+		sampler = self.sampler
+		if not sampler:
+			sampler = self.genericSampler
+		return self.orient(sampler(self))
 
 	@staticmethod
 	def genericSampler(difference):
@@ -1155,13 +1158,6 @@ class DifferenceRegion(Region):
 			raise RejectionException(
 			    f'sampling difference of Regions {regionA} and {regionB}')
 		return point
-
-	def isEquivalentTo(self, other):
-		if type(other) is not DifferenceRegion:
-			return False
-		return (areEquivalent(self.regionA, other.regionA)
-		        and areEquivalent(self.regionB, other.regionB)
-		        and other.orientation == self.orientation)
 
 	def __repr__(self):
 		return f'DifferenceRegion({self.regionA}, {self.regionB})'

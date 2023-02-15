@@ -59,7 +59,7 @@ Minor new features:
 
 	* You can now write :samp:`require {expr} as {name}` to give a name to a requirement; similarly for :samp:`require always`, termination conditions, etc.
 
-	* Compatibility with Python 3.7 is restored. Scenic now supports all versions of Python from 3.7 to 3.10.
+	* Compatibility with Python 3.7 is restored. Scenic now supports all versions of Python from 3.7 to 3.11.
 
 Scenic 2.0.0
 ------------

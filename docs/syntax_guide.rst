@@ -4,7 +4,7 @@ Syntax Guide
 ============
 
 This page summarizes the syntax of Scenic (excluding syntax inherited from Python).
-For more details, click the links for individual language constructs to go to the corresponding reference section.
+For more details, click the links for individual language constructs to go to the corresponding section of the `language reference`.
 
 
 Primitive Data Types
@@ -66,7 +66,7 @@ Simple Statements
    * - :sampref:`import {module}`
      - Import a Scenic or Python module.
    * - :sampref:`param {identifier} = {value}, {...}`
-     - Define global parameters of the scenario.
+     - Define :term:`global parameters` of the scenario.
    * - :sampref:`require {boolean}`
      - Define a hard requirement.
    * - :sampref:`require[{number}] {boolean}`

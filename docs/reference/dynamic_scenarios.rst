@@ -1,0 +1,74 @@
+
+.. _dynamic scenario semantics:
+
+******************************
+Execution of Dynamic Scenarios
+******************************
+
+As described in our tutorial on `dynamics`, Scenic scenarios can specify the behavior of agents over time, defining a *policy* which chooses :term:`actions` for each agent at each time step.
+Having sampled an initial scene from a Scenic program (see `scene generation`), we can run a dynamic simulation by setting up the scene in a simulator and running the policy in parallel to control the agents.
+The API for running dynamic simulations is described in `api` (mainly the `Simulator.simulate` method); this page details how Scenic executes such simulations.
+
+The policy for each agent is given by its :term:`dynamic behavior`, which is a coroutine that usually executes like an ordinary function, but is suspended when it takes an action (using :keyword:`take` or :keyword:`wait`) and resumed after the simulation has advanced by one time step.
+As a result, behaviors effectively run in parallel with the simulation.
+Behaviors are also suspended when they invoke a sub-behavior using :keyword:`do`, and are not resumed until the sub-behavior terminates.
+
+When a behavior is first invoked, its preconditions are checked, and if any are not satisfied, the simulation is rejected, requiring a new simulation to be sampled. [#f1]_
+The behavior's invariants are handled similarly, except that they are also checked whenever the behavior is resumed (i.e. after taking an action and after a sub-behavior terminates).
+
+:term:`Monitors` and :keyword:`compose` blocks of :term:`modular scenarios` execute in the same way as behaviors, with the latter also including additional checks to see if any of their :keyword:`terminate when` conditions have been met or their :keyword:`require always` conditions violated.
+
+In detail, a single time step of a dynamic simulation is executed according to the following procedure:
+
+1. Execute all currently-running :term:`modular scenarios` for one time step.
+   Specifically, for each such scenario:
+
+	a. Check if any of its :keyword:`require always` conditions are violated; if so, reject the simulation.
+
+	b. Check which :keyword:`require eventually` conditions are satisfied; remember these for later.
+
+	c. Check if the scenario's time limit (if :keyword:`terminate after` has been used) has been reached; if so, go to step (f) below to stop the scenario.
+
+	d. If the scenario is not currently running a sub-scenario (with :keyword:`do`), check its invariants; if any are violated, reject the simulation. [#f1]_
+
+	e. If the scenario has a :keyword:`compose` block, run it for one time step (i.e. resume it until it or a subscenario it is currently running using :keyword:`do` executes :keyword:`wait`).
+	   If the block executes a :keyword:`require` statement with a false condition, reject the simulation.
+	   If it executes :keyword:`terminate`, or finishes executing, go to step (f) below to stop the scenario.
+
+	f. If the scenario is stopping for one of the reasons above, first check if any of the :keyword:`require eventually` conditions were never satisfied: if so, reject the simulation.
+	   Otherwise, the scenario returns to its parent scenario if it was invoked using :keyword:`do`; if it was the top-level scenario, we set a flag indicating the top-level scenario has terminated.
+	   (We do not terminate immediately since we still need to check monitors in the next step.)
+
+2. Save the values of all :keyword:`record` statements, as well as :keyword:`record initial` statements if it is time step 0.
+
+3. Run each :term:`monitor` for one time step (i.e. resume it until it executes :keyword:`wait`).
+   If it executes a :keyword:`require` statement with a false condition, reject the simulation.
+   If it executes :keyword:`terminate`, set the termination flag (and continue running any other monitors).
+
+4. If the termination flag is set, any of the :keyword:`terminate simulation when` conditions are satisfied, or a time limit passed to `Simulator.simulate` has been reached, go to step (10) to terminate the simulation.
+
+5. Execute the :term:`dynamic behavior` of each agent to select its action(s) for the time step.
+   Specifically, for each agent's behavior:
+
+	a. If the behavior is not currently running a sub-behavior (with :keyword:`do`), check its invariants; if any are violated, reject the simulation. [#f1]_
+
+	b. Resume the behavior until it (or a subbehavior it is currently running using :keyword:`do`) executes :keyword:`take` or :keyword:`wait`.
+	   If the behavior executes a :keyword:`require` statement with a false condition, reject the simulation.
+	   If it executes :keyword:`terminate`, go to step (10) to terminate the simulation.
+	   Otherwise, save the (possibly empty) set of actions specified for the agent to take.
+
+6. For each agent, execute the :term:`actions` (if any) its behavior chose in the previous step.
+
+7. Run the simulator for one time step.
+
+8. Update every :term:`dynamic property` of every object to its current value in the simulator.
+
+9. Increment the simulation clock (the ``currentTime`` attribute of `Simulation`).
+
+10. If the simulation is stopping for one of the reasons above, first check if any of the :keyword:`require eventually` conditions of any remaining scenarios were never satisfied: if so, reject the simulation.
+    Otherwise, save the values of any :keyword:`record final` statements.
+
+
+.. rubric:: Footnotes
+
+.. [#f1] By default, violations of preconditions and invariants cause the simulation to be rejected; however, `Simulator.simulate` has an option to treat them as fatal errors instead.

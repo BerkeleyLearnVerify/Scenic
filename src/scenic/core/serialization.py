@@ -10,3 +10,9 @@ def scenicToJSON(obj):
     if isinstance(obj, Vector):
         return list(obj)
     raise TypeError(f'Object of type {obj.__class__.__name__} is not JSON serializable')
+
+def dumpAsScenicCode(value, stream):
+    if hasattr(value, 'dumpAsScenicCode'):
+        value.dumpAsScenicCode(stream)
+    else:
+        stream.write(repr(value))

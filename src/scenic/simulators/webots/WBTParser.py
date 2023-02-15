@@ -1,4 +1,4 @@
-# Generated from WBT.g4 by ANTLR 4.8
+# Generated from WBT.g4 by ANTLR 4.11.1
 # encoding: utf-8
 from antlr4 import *
 from io import StringIO
@@ -8,48 +8,45 @@ if sys.version_info[1] > 5:
 else:
 	from typing.io import TextIO
 
-
 def serializedATN():
-    with StringIO() as buf:
-        buf.write("\3\u608b\ua72a\u8133\ub9ed\u417c\u3be7\u7786\u5964\3\21")
-        buf.write("q\4\2\t\2\4\3\t\3\4\4\t\4\4\5\t\5\4\6\t\6\4\7\t\7\4\b")
-        buf.write("\t\b\4\t\t\t\4\n\t\n\4\13\t\13\4\f\t\f\3\2\3\2\7\2\33")
-        buf.write("\n\2\f\2\16\2\36\13\2\3\3\3\3\3\3\3\3\3\4\3\4\3\4\3\4")
-        buf.write("\3\4\3\4\5\4*\n\4\3\5\3\5\3\5\7\5/\n\5\f\5\16\5\62\13")
-        buf.write("\5\3\6\3\6\3\6\3\6\3\6\5\69\n\6\3\7\3\7\3\7\3\7\3\7\5")
-        buf.write("\7@\n\7\3\b\6\bC\n\b\r\b\16\bD\3\t\3\t\3\n\3\n\3\n\7\n")
-        buf.write("L\n\n\f\n\16\nO\13\n\3\n\5\nR\n\n\3\n\3\n\3\n\3\n\3\n")
-        buf.write("\6\nY\n\n\r\n\16\nZ\3\n\5\n^\n\n\3\n\3\n\5\nb\n\n\3\13")
-        buf.write("\5\13e\n\13\3\13\3\13\5\13i\n\13\6\13k\n\13\r\13\16\13")
-        buf.write("l\3\f\3\f\3\f\2\2\r\2\4\6\b\n\f\16\20\22\24\26\2\3\3\2")
-        buf.write("\n\13\2w\2\34\3\2\2\2\4\37\3\2\2\2\6#\3\2\2\2\b\60\3\2")
-        buf.write("\2\2\n8\3\2\2\2\f?\3\2\2\2\16B\3\2\2\2\20F\3\2\2\2\22")
-        buf.write("a\3\2\2\2\24j\3\2\2\2\26n\3\2\2\2\30\33\5\6\4\2\31\33")
-        buf.write("\5\4\3\2\32\30\3\2\2\2\32\31\3\2\2\2\33\36\3\2\2\2\34")
-        buf.write("\32\3\2\2\2\34\35\3\2\2\2\35\3\3\2\2\2\36\34\3\2\2\2\37")
-        buf.write(" \7\3\2\2 !\7\16\2\2!\"\5\6\4\2\"\5\3\2\2\2#$\7\16\2\2")
-        buf.write("$%\7\4\2\2%&\7\21\2\2&\'\5\b\5\2\')\7\5\2\2(*\7\21\2\2")
-        buf.write(")(\3\2\2\2)*\3\2\2\2*\7\3\2\2\2+,\5\n\6\2,-\7\21\2\2-")
-        buf.write("/\3\2\2\2.+\3\2\2\2/\62\3\2\2\2\60.\3\2\2\2\60\61\3\2")
-        buf.write("\2\2\61\t\3\2\2\2\62\60\3\2\2\2\63\64\7\6\2\2\64\65\7")
-        buf.write("\16\2\2\659\5\f\7\2\66\67\7\16\2\2\679\5\f\7\28\63\3\2")
-        buf.write("\2\28\66\3\2\2\29\13\3\2\2\2:@\5\16\b\2;@\5\20\t\2<@\5")
-        buf.write("\22\n\2=@\5\6\4\2>@\5\26\f\2?:\3\2\2\2?;\3\2\2\2?<\3\2")
-        buf.write("\2\2?=\3\2\2\2?>\3\2\2\2@\r\3\2\2\2AC\7\17\2\2BA\3\2\2")
-        buf.write("\2CD\3\2\2\2DB\3\2\2\2DE\3\2\2\2E\17\3\2\2\2FG\7\20\2")
-        buf.write("\2G\21\3\2\2\2HM\7\7\2\2IJ\7\21\2\2JL\5\f\7\2KI\3\2\2")
-        buf.write("\2LO\3\2\2\2MK\3\2\2\2MN\3\2\2\2NQ\3\2\2\2OM\3\2\2\2P")
-        buf.write("R\7\21\2\2QP\3\2\2\2QR\3\2\2\2RS\3\2\2\2Sb\7\b\2\2TU\7")
-        buf.write("\7\2\2UX\5\24\13\2VW\7\t\2\2WY\5\24\13\2XV\3\2\2\2YZ\3")
-        buf.write("\2\2\2ZX\3\2\2\2Z[\3\2\2\2[]\3\2\2\2\\^\7\t\2\2]\\\3\2")
-        buf.write("\2\2]^\3\2\2\2^_\3\2\2\2_`\7\b\2\2`b\3\2\2\2aH\3\2\2\2")
-        buf.write("aT\3\2\2\2b\23\3\2\2\2ce\7\21\2\2dc\3\2\2\2de\3\2\2\2")
-        buf.write("ef\3\2\2\2fh\7\17\2\2gi\7\21\2\2hg\3\2\2\2hi\3\2\2\2i")
-        buf.write("k\3\2\2\2jd\3\2\2\2kl\3\2\2\2lj\3\2\2\2lm\3\2\2\2m\25")
-        buf.write("\3\2\2\2no\t\2\2\2o\27\3\2\2\2\21\32\34)\608?DMQZ]adh")
-        buf.write("l")
-        return buf.getvalue()
-
+    return [
+        4,1,15,111,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,
+        6,2,7,7,7,2,8,7,8,2,9,7,9,2,10,7,10,1,0,1,0,5,0,25,8,0,10,0,12,0,
+        28,9,0,1,1,1,1,1,1,1,1,1,2,1,2,1,2,1,2,1,2,1,2,3,2,40,8,2,1,3,1,
+        3,1,3,5,3,45,8,3,10,3,12,3,48,9,3,1,4,1,4,1,4,1,4,1,4,3,4,55,8,4,
+        1,5,1,5,1,5,1,5,1,5,3,5,62,8,5,1,6,4,6,65,8,6,11,6,12,6,66,1,7,1,
+        7,1,8,1,8,1,8,5,8,74,8,8,10,8,12,8,77,9,8,1,8,3,8,80,8,8,1,8,1,8,
+        1,8,1,8,1,8,4,8,87,8,8,11,8,12,8,88,1,8,3,8,92,8,8,1,8,1,8,3,8,96,
+        8,8,1,9,3,9,99,8,9,1,9,1,9,3,9,103,8,9,4,9,105,8,9,11,9,12,9,106,
+        1,10,1,10,1,10,0,0,11,0,2,4,6,8,10,12,14,16,18,20,0,1,1,0,8,9,117,
+        0,26,1,0,0,0,2,29,1,0,0,0,4,33,1,0,0,0,6,46,1,0,0,0,8,54,1,0,0,0,
+        10,61,1,0,0,0,12,64,1,0,0,0,14,68,1,0,0,0,16,95,1,0,0,0,18,104,1,
+        0,0,0,20,108,1,0,0,0,22,25,3,4,2,0,23,25,3,2,1,0,24,22,1,0,0,0,24,
+        23,1,0,0,0,25,28,1,0,0,0,26,24,1,0,0,0,26,27,1,0,0,0,27,1,1,0,0,
+        0,28,26,1,0,0,0,29,30,5,1,0,0,30,31,5,12,0,0,31,32,3,4,2,0,32,3,
+        1,0,0,0,33,34,5,12,0,0,34,35,5,2,0,0,35,36,5,15,0,0,36,37,3,6,3,
+        0,37,39,5,3,0,0,38,40,5,15,0,0,39,38,1,0,0,0,39,40,1,0,0,0,40,5,
+        1,0,0,0,41,42,3,8,4,0,42,43,5,15,0,0,43,45,1,0,0,0,44,41,1,0,0,0,
+        45,48,1,0,0,0,46,44,1,0,0,0,46,47,1,0,0,0,47,7,1,0,0,0,48,46,1,0,
+        0,0,49,50,5,4,0,0,50,51,5,12,0,0,51,55,3,10,5,0,52,53,5,12,0,0,53,
+        55,3,10,5,0,54,49,1,0,0,0,54,52,1,0,0,0,55,9,1,0,0,0,56,62,3,12,
+        6,0,57,62,3,14,7,0,58,62,3,16,8,0,59,62,3,4,2,0,60,62,3,20,10,0,
+        61,56,1,0,0,0,61,57,1,0,0,0,61,58,1,0,0,0,61,59,1,0,0,0,61,60,1,
+        0,0,0,62,11,1,0,0,0,63,65,5,13,0,0,64,63,1,0,0,0,65,66,1,0,0,0,66,
+        64,1,0,0,0,66,67,1,0,0,0,67,13,1,0,0,0,68,69,5,14,0,0,69,15,1,0,
+        0,0,70,75,5,5,0,0,71,72,5,15,0,0,72,74,3,10,5,0,73,71,1,0,0,0,74,
+        77,1,0,0,0,75,73,1,0,0,0,75,76,1,0,0,0,76,79,1,0,0,0,77,75,1,0,0,
+        0,78,80,5,15,0,0,79,78,1,0,0,0,79,80,1,0,0,0,80,81,1,0,0,0,81,96,
+        5,6,0,0,82,83,5,5,0,0,83,86,3,18,9,0,84,85,5,7,0,0,85,87,3,18,9,
+        0,86,84,1,0,0,0,87,88,1,0,0,0,88,86,1,0,0,0,88,89,1,0,0,0,89,91,
+        1,0,0,0,90,92,5,7,0,0,91,90,1,0,0,0,91,92,1,0,0,0,92,93,1,0,0,0,
+        93,94,5,6,0,0,94,96,1,0,0,0,95,70,1,0,0,0,95,82,1,0,0,0,96,17,1,
+        0,0,0,97,99,5,15,0,0,98,97,1,0,0,0,98,99,1,0,0,0,99,100,1,0,0,0,
+        100,102,5,13,0,0,101,103,5,15,0,0,102,101,1,0,0,0,102,103,1,0,0,
+        0,103,105,1,0,0,0,104,98,1,0,0,0,105,106,1,0,0,0,106,104,1,0,0,0,
+        106,107,1,0,0,0,107,19,1,0,0,0,108,109,7,0,0,0,109,21,1,0,0,0,15,
+        24,26,39,46,54,61,66,75,79,88,91,95,98,102,106
+    ]
 
 class WBTParser ( Parser ):
 
@@ -103,7 +100,7 @@ class WBTParser ( Parser ):
 
     def __init__(self, input:TokenStream, output:TextIO = sys.stdout):
         super().__init__(input, output)
-        self.checkVersion("4.8")
+        self.checkVersion("4.11.1")
         self._interp = ParserATNSimulator(self, self.atn, self.decisionsToDFA, self.sharedContextCache)
         self._predicates = None
 
@@ -111,6 +108,7 @@ class WBTParser ( Parser ):
 
 
     class WorldContext(ParserRuleContext):
+        __slots__ = 'parser'
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
@@ -152,15 +150,15 @@ class WBTParser ( Parser ):
             self.state = 26
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while _la==WBTParser.T__0 or _la==WBTParser.Identifier:
+            while _la==1 or _la==12:
                 self.state = 24
                 self._errHandler.sync(self)
                 token = self._input.LA(1)
-                if token in [WBTParser.Identifier]:
+                if token in [12]:
                     self.state = 22
                     self.node()
                     pass
-                elif token in [WBTParser.T__0]:
+                elif token in [1]:
                     self.state = 23
                     self.defn()
                     pass
@@ -181,6 +179,7 @@ class WBTParser ( Parser ):
 
 
     class DefnContext(ParserRuleContext):
+        __slots__ = 'parser'
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
@@ -227,6 +226,7 @@ class WBTParser ( Parser ):
 
 
     class NodeContext(ParserRuleContext):
+        __slots__ = 'parser'
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
@@ -291,6 +291,7 @@ class WBTParser ( Parser ):
 
 
     class NodeBodyContext(ParserRuleContext):
+        __slots__ = 'parser'
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
@@ -331,7 +332,7 @@ class WBTParser ( Parser ):
             self.state = 46
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while _la==WBTParser.T__3 or _la==WBTParser.Identifier:
+            while _la==4 or _la==12:
                 self.state = 41
                 self.attribute()
                 self.state = 42
@@ -350,6 +351,7 @@ class WBTParser ( Parser ):
 
 
     class AttributeContext(ParserRuleContext):
+        __slots__ = 'parser'
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
@@ -382,7 +384,7 @@ class WBTParser ( Parser ):
             self.state = 54
             self._errHandler.sync(self)
             token = self._input.LA(1)
-            if token in [WBTParser.T__3]:
+            if token in [4]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 49
                 self.match(WBTParser.T__3)
@@ -391,7 +393,7 @@ class WBTParser ( Parser ):
                 self.state = 51
                 self.value()
                 pass
-            elif token in [WBTParser.Identifier]:
+            elif token in [12]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 52
                 self.match(WBTParser.Identifier)
@@ -411,6 +413,7 @@ class WBTParser ( Parser ):
 
 
     class ValueContext(ParserRuleContext):
+        __slots__ = 'parser'
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
@@ -456,27 +459,27 @@ class WBTParser ( Parser ):
             self.state = 61
             self._errHandler.sync(self)
             token = self._input.LA(1)
-            if token in [WBTParser.Number]:
+            if token in [13]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 56
                 self.vector()
                 pass
-            elif token in [WBTParser.String]:
+            elif token in [14]:
                 self.enterOuterAlt(localctx, 2)
                 self.state = 57
                 self.string()
                 pass
-            elif token in [WBTParser.T__4]:
+            elif token in [5]:
                 self.enterOuterAlt(localctx, 3)
                 self.state = 58
                 self.array()
                 pass
-            elif token in [WBTParser.Identifier]:
+            elif token in [12]:
                 self.enterOuterAlt(localctx, 4)
                 self.state = 59
                 self.node()
                 pass
-            elif token in [WBTParser.T__7, WBTParser.T__8]:
+            elif token in [8, 9]:
                 self.enterOuterAlt(localctx, 5)
                 self.state = 60
                 self.boolean()
@@ -494,6 +497,7 @@ class WBTParser ( Parser ):
 
 
     class VectorContext(ParserRuleContext):
+        __slots__ = 'parser'
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
@@ -533,7 +537,7 @@ class WBTParser ( Parser ):
                 self.state = 66 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if not (_la==WBTParser.Number):
+                if not (_la==13):
                     break
 
         except RecognitionException as re:
@@ -546,6 +550,7 @@ class WBTParser ( Parser ):
 
 
     class StringContext(ParserRuleContext):
+        __slots__ = 'parser'
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
@@ -584,6 +589,7 @@ class WBTParser ( Parser ):
 
 
     class ArrayContext(ParserRuleContext):
+        __slots__ = 'parser'
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
@@ -650,7 +656,7 @@ class WBTParser ( Parser ):
                 self.state = 79
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if _la==WBTParser.Newline:
+                if _la==15:
                     self.state = 78
                     self.match(WBTParser.Newline)
 
@@ -684,7 +690,7 @@ class WBTParser ( Parser ):
                 self.state = 91
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if _la==WBTParser.T__6:
+                if _la==7:
                     self.state = 90
                     self.match(WBTParser.T__6)
 
@@ -704,6 +710,7 @@ class WBTParser ( Parser ):
 
 
     class VectorWithNewlinesContext(ParserRuleContext):
+        __slots__ = 'parser'
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
@@ -747,7 +754,7 @@ class WBTParser ( Parser ):
                 self.state = 98
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if _la==WBTParser.Newline:
+                if _la==15:
                     self.state = 97
                     self.match(WBTParser.Newline)
 
@@ -765,7 +772,7 @@ class WBTParser ( Parser ):
                 self.state = 106 
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
-                if not (_la==WBTParser.Number or _la==WBTParser.Newline):
+                if not (_la==13 or _la==15):
                     break
 
         except RecognitionException as re:
@@ -778,6 +785,7 @@ class WBTParser ( Parser ):
 
 
     class BooleanContext(ParserRuleContext):
+        __slots__ = 'parser'
 
         def __init__(self, parser, parent:ParserRuleContext=None, invokingState:int=-1):
             super().__init__(parent, invokingState)
@@ -805,7 +813,7 @@ class WBTParser ( Parser ):
             self.enterOuterAlt(localctx, 1)
             self.state = 108
             _la = self._input.LA(1)
-            if not(_la==WBTParser.T__7 or _la==WBTParser.T__8):
+            if not(_la==8 or _la==9):
                 self._errHandler.recoverInline(self)
             else:
                 self._errHandler.reportMatch(self)

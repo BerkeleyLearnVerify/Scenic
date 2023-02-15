@@ -44,8 +44,8 @@ intOptions = parser.add_argument_group('static scene diagramming options')
 intOptions.add_argument('-d', '--delay', type=float,
                         help='loop automatically with this delay (in seconds) '
                              'instead of waiting for the user to close the diagram')
-intOptions.add_argument('-z', '--zoom', help='zoom expansion factor (default 1)',
-                        type=float, default=1)
+intOptions.add_argument('-z', '--zoom', type=float, default=1,
+                        help='zoom expansion factor, or 0 to show the whole workspace (default 1)')
 
 # Debugging options
 debugOpts = parser.add_argument_group('debugging options')

@@ -112,6 +112,41 @@ class InconsistentScenarioError(InvalidScenarioError):
 ## Scenic backtraces
 
 def excepthook(ty, value, tb):
+    if sys.version_info >= (3, 11) and issubclass(ty, BaseExceptionGroup):
+        # Use the default mechanism since we don't handle ExceptionGroups
+        sys.__excepthook__(ty, value, tb)
+    else:
+        displayScenicException(value)
+
+    if postMortemDebugging:
+        print('Uncaught exception. Entering post-mortem debugging')
+        import pdb
+        pdb.post_mortem(tb)
+
+def displayScenicException(exc, seen=None):
+    """Print a Scenic exception, cleaning up the traceback if desired.
+
+    If ``showInternalBacktrace`` is False, this hides frames inside Scenic itself.
+    """
+    ty = type(exc)
+    tb = exc.__traceback__
+
+    # Recursively print the cause/context for this exception, if any.
+    # (This code is adapted from IDLE.)
+    if seen is None:
+        seen = set()
+    seen.add(id(exc))
+    cause = exc.__cause__
+    context = exc.__context__
+    if cause is not None and id(cause) not in seen:
+        displayScenicException(cause, seen)
+        print('\nThe above exception was the direct cause of the following exception:\n',
+              file=sys.stderr)
+    elif context is not None and not exc.__suppress_context__ and id(context) not in seen:
+        displayScenicException(context, seen)
+        print('\nDuring handling of the above exception, another exception occurred:\n',
+              file=sys.stderr)
+
     if showInternalBacktrace:
         strings = ['Traceback (most recent call last):\n']
     else:
@@ -138,8 +173,8 @@ def excepthook(ty, value, tb):
 
     if issubclass(ty, SyntaxError) or (pseudoSyntaxError and not showInternalBacktrace):
         pass    # no backtrace for these types of errors
-    elif issubclass(ty, RuntimeParseError) and value.loc and not showInternalBacktrace:
-        strings.extend(traceback.format_list([value.loc]))
+    elif issubclass(ty, RuntimeParseError) and exc.loc and not showInternalBacktrace:
+        strings.extend(traceback.format_list([exc.loc]))
     else:
         summary = traceback.extract_tb(tb)
         if showInternalBacktrace:
@@ -162,16 +197,11 @@ def excepthook(ty, value, tb):
             strings.append('  <Scenic internals>\n')
     # Note: we can't directly call traceback.format_exception_only any more,
     # since as of Python 3.10 it ignores the exception class passed in and
-    # uses type(value) instead, foiling our formatTy hack.
-    tbe = traceback.TracebackException(formatTy, value, None)
+    # uses type(exc) instead, foiling our formatTy hack.
+    tbe = traceback.TracebackException(formatTy, exc, None)
     strings.extend(tbe.format_exception_only())
     message = ''.join(strings)
     print(message, end='', file=sys.stderr)
-
-    if postMortemDebugging:
-        print('Uncaught exception. Entering post-mortem debugging')
-        import pdb
-        pdb.post_mortem(tb)
 
 def includeFrame(frame):
     if frame.filename in hiddenFolders:
@@ -179,7 +209,12 @@ def includeFrame(frame):
     parents = pathlib.Path(frame.filename).parents
     return not any(folder in parents for folder in hiddenFolders)
 
-if sys.excepthook is not sys.__excepthook__:
+# Install our excepthook if nobody else has already installed one;
+# we specially allow overwriting excepthooks from the following modules,
+# which are known to not cause problems:
+#   - exceptiongroup (PEP 654 backport for pre-3.11)
+if (sys.excepthook is not sys.__excepthook__
+    and not sys.excepthook.__module__.startswith('exceptiongroup')):
     warnings.warn('unable to install sys.excepthook to format Scenic backtraces')
 else:
     sys.excepthook = excepthook
