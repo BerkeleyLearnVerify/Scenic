@@ -10,7 +10,7 @@ You can run :command:`scenic --version` to see which version of Scenic you are u
 Scenic 3.x
 ++++++++++
 
-The Scenic 3.x series adds native support for 3D geometry, and a new parser enabling clearer error messages, greater language extensibility, and various improvements to the syntax.
+The Scenic 3.x series adds native support for 3D geometry, temporal requirements, and a new parser enabling clearer error messages, greater language extensibility, and various improvements to the syntax.
 
 Scenic 3.0.0:
 -------------
@@ -32,6 +32,8 @@ Major new features:
 
 	* Scenic models the precise shapes of objects, rather than simply using bounding boxes for collision detection and visibility checks.
 	  Objects have a new ``shape`` property (an instance of the `Shape` class) representing their shape; shapes can be created from standard 3D mesh formats such as STL.
+
+	* The :keyword:`require` statement accepts arbitrary properties in Linear Temporal Logic (not just the :samp:`require always` and :samp:`require eventually` forms previously allowed).
 
 Minor new features:
 
@@ -59,7 +61,7 @@ Minor new features:
 
 	* You can now write :samp:`require {expr} as {name}` to give a name to a requirement; similarly for :samp:`require always`, termination conditions, etc.
 
-	* Compatibility with Python 3.7 is restored. Scenic now supports all versions of Python from 3.7 to 3.11.
+	* Compatibility with Python 3.7 is restored. Scenic 2 now supports all versions of Python from 3.7 to 3.11.
 
 Scenic 2.0.0
 ------------
