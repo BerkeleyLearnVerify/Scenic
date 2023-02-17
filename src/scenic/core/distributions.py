@@ -56,8 +56,7 @@ class RejectionException(Exception):
 class RandomControlFlowError(RuntimeParseError):
 	"""Exception indicating illegal conditional control flow depending on a random value.
 
-	This includes trying to iterate over a random value, take the length of a random
-	sequence whose length can't be determined statically, etc.
+	This includes trying to iterate over a random value, making a range of random length, etc.
 	"""
 	pass
 
@@ -126,6 +125,36 @@ class Samplable(LazilyEvaluable):
 		"""
 		return DefaultIdentityDict({ dep: value[dep] for dep in self._dependencies })
 
+	@staticmethod
+	def valuesToParameters(quantities, values):
+		seen = set()
+		params = []
+		for q in quantities:
+			if id(q) not in seen:
+				q.valueToParameters(values, params, seen)
+		return params
+
+	@staticmethod
+	def valuesFromParameters(quantities, params):
+		subsamples = DefaultIdentityDict()
+		it = iter(params)
+		for q in quantities:
+			if q not in subsamples:
+				subsamples[q] = q.valueFromParameters(it, subsamples) if isinstance(q, Samplable) else q
+		return subsamples
+
+	def valueToParameters(self, value, params, seen):
+		for child in self._conditioned._dependencies:
+			if id(child) not in seen:
+				child.valueToParameters(value, params, seen)
+				seen.add(id(child))
+
+	def valueFromParameters(self, params, subsamples):
+		for child in self._conditioned._dependencies:
+			if child not in subsamples:
+				subsamples[child] = child.valueFromParameters(params, subsamples)
+		return self._conditioned.sampleGiven(subsamples)
+
 	def conditionTo(self, value):
 		"""Condition this value to another value with the same conditional distribution."""
 		assert isinstance(value, Samplable)
@@ -180,6 +209,9 @@ class Distribution(Samplable):
 	#: Default valueType for distributions of this class, when not otherwise specified.
 	_defaultValueType = object
 
+	#: Whether this type of distribution is a deterministic function of its dependencies.
+	_deterministic = False
+
 	def __new__(cls, *args, **kwargs):
 		dist = super().__new__(cls)
 		# at runtime, return a sample from the distribution immediately
@@ -212,6 +244,18 @@ class Distribution(Samplable):
 			return True
 		except NotImplementedError:
 			return False
+
+	def valueToParameters(self, value, params, seen):
+		if not self._deterministic:
+			params.append(value[self])
+		else:
+			super().valueToParameters(value, params, seen)
+
+	def valueFromParameters(self, params, subsamples):
+		if not self._deterministic:
+			return next(params)
+		else:
+			return super().valueFromParameters(params, subsamples)
 
 	def bucket(self, buckets=None):
 		"""Construct a bucketed approximation of this Distribution.
@@ -259,9 +303,6 @@ class Distribution(Samplable):
 	def __hash__(self):		# need to explicitly define since we overrode __eq__
 		return id(self)
 
-	def __len__(self):
-		raise RandomControlFlowError('cannot take the len of a random value')
-
 	def __bool__(self):
 		raise RandomControlFlowError('control flow cannot depend on a random value')
 
@@ -288,6 +329,9 @@ class CustomDistribution(Distribution):
 
 class TupleDistribution(Distribution, collections.abc.Sequence):
 	"""Distributions over tuples (or namedtuples, or lists)."""
+
+	_deterministic = True
+
 	def __init__(self, *coordinates, builder=tuple):
 		super().__init__(*coordinates)
 		self.coordinates = coordinates
@@ -331,6 +375,9 @@ def toDistribution(val):
 
 class FunctionDistribution(Distribution):
 	"""Distribution resulting from passing distributions to a function"""
+
+	_deterministic = True
+
 	def __init__(self, func, args, kwargs, support=None, valueType=None):
 		args = tuple(toDistribution(arg) for arg in args)
 		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
@@ -423,6 +470,9 @@ def monotonicDistributionFunction(method, valueType=None):
 
 class StarredDistribution(Distribution):
 	"""A placeholder for the iterable unpacking operator * applied to a distribution."""
+
+	_deterministic = True
+
 	def __init__(self, value, lineno):
 		assert isinstance(value, Distribution)
 		self.value = value
@@ -440,6 +490,9 @@ class StarredDistribution(Distribution):
 
 class MethodDistribution(Distribution):
 	"""Distribution resulting from passing distributions to a method of a fixed object"""
+
+	_deterministic = True
+
 	def __init__(self, method, obj, args, kwargs, valueType=None):
 		args = tuple(toDistribution(arg) for arg in args)
 		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
@@ -495,6 +548,9 @@ def distributionMethod(method):
 
 class AttributeDistribution(Distribution):
 	"""Distribution resulting from accessing an attribute of a distribution"""
+
+	_deterministic = True
+
 	def __init__(self, attribute, obj, valueType=None):
 		if valueType is None:
 			valueType = self.inferType(obj, attribute)
@@ -552,6 +608,9 @@ class AttributeDistribution(Distribution):
 
 class OperatorDistribution(Distribution):
 	"""Distribution resulting from applying an operator to one or more distributions"""
+
+	_deterministic = True
+
 	def __init__(self, operator, obj, operands, valueType=None):
 		operands = tuple(toDistribution(arg) for arg in operands)
 		if valueType is None:
@@ -645,18 +704,26 @@ allowedOperators = (
 	'__pow__', '__rpow__',
 	'__round__',
 	'__getitem__',
+	('__len__', int),
 )
-def makeOperatorHandler(op):
+def makeOperatorHandler(op, ty):
 	def handler(self, *args):
-		return OperatorDistribution(op, self, args)
+		return OperatorDistribution(op, self, args, valueType=ty)
 	return handler
-for op in allowedOperators:
-	setattr(Distribution, op, makeOperatorHandler(op))
+for data in allowedOperators:
+	if isinstance(data, tuple):
+		op, ty = data
+	else:
+		op = data
+		ty = None
+	setattr(Distribution, op, makeOperatorHandler(op, ty))
 
 import scenic.core.type_support as type_support
 
 class MultiplexerDistribution(Distribution):
 	"""Distribution selecting among values based on another distribution."""
+
+	_deterministic = True
 
 	def __init__(self, index, options):
 		self.index = index
@@ -852,39 +919,47 @@ class TruncatedNormal(Normal):
 
 class DiscreteRange(Distribution):
 	"""Distribution over a range of integers."""
-	def __init__(self, low, high, weights=None):
-		if not isinstance(low, int):
-			raise RuntimeError(f'DiscreteRange endpoint {low} is not a constant integer')
-		if not isinstance(high, int):
-			raise RuntimeError(f'DiscreteRange endpoint {high} is not a constant integer')
-		if not low <= high:
-			raise RuntimeError(f'DiscreteRange lower bound {low} is above upper bound {high}')
-		if weights is None:
-			weights = (1,) * (high - low + 1)
-		else:
+	def __init__(self, low, high, weights=None, emptyMessage='empty DiscreteRange'):
+		if weights:
+			if not isinstance(low, int):
+				raise TypeError('weighted DiscreteRange left endpoint must be an integer')
+			if not isinstance(high, int):
+				raise TypeError('weighted DiscreteRange right endpoint must be an integer')
+			if not low <= high:
+				raise ValueError(f'DiscreteRange lower bound {low} is above upper bound {high}')
+			self.low, self.high = low, high
 			weights = tuple(weights)
-			assert len(weights) == high - low + 1
-		super().__init__(valueType=int)
-		self.low = low
-		self.high = high
-		self.weights = weights
-		self.cumulativeWeights = tuple(itertools.accumulate(weights))
-		self.options = tuple(range(low, high+1))
-
-	def __contains__(self, obj):
-		return low <= obj and obj <= high
+			if len(weights) != high - low + 1:
+				raise ValueError('weighted DiscreteRange with wrong number of weights')
+			self.weights = weights
+			self.cumulativeWeights = tuple(itertools.accumulate(weights))
+			self.options = tuple(range(low, high+1))
+		else:
+			self.low = type_support.toScalar(low, 'DiscreteRange left endpoint not a scalar')
+			self.high = type_support.toScalar(high, 'DiscreteRange right endpoint not a scalar')
+			self.weights = None
+		self.emptyMessage = emptyMessage
+		super().__init__(self.low, self.high, valueType=int)
 
 	def clone(self):
-		return type(self)(self.low, self.high, self.weights)
+		return type(self)(self.low, self.high, self.weights, self.emptyMessage)
 
 	def bucket(self, buckets=None):
 		return self.clone()		# already bucketed
 
 	def sampleGiven(self, value):
-		return random.choices(self.options, cum_weights=self.cumulativeWeights)[0]
+		if self.weights:
+			return random.choices(self.options, cum_weights=self.cumulativeWeights)[0]
+		left, right = math.ceil(value[self.low]), math.floor(value[self.high])
+		if right < left:
+			raise RejectionException(self.emptyMessage)
+		return random.randint(left, right)
 
 	def __str__(self):
-		return f'DiscreteRange({self.low}, {self.high}, {self.weights})'
+		if self.weights:
+			return f'DiscreteRange({self.low}, {self.high}, {self.weights})'
+		else:
+			return f'DiscreteRange({self.low}, {self.high})'
 
 class Options(MultiplexerDistribution):
 	"""Distribution over a finite list of options.
@@ -958,21 +1033,35 @@ class UniformDistribution(Distribution):
 	applied to a distribution, so that the number of options is unknown at
 	compile time.
 	"""
+
+	_deterministic = True
+
 	def __init__(self, opts):
 		self.options = opts
 		valueType = type_support.unifyingType(self.options)
-		super().__init__(*self.options, valueType=valueType)
+		length = 0
+		for opt in opts:
+			if isinstance(opt, StarredDistribution):
+				length += opt.__len__()
+			else:
+				length += 1
+		self.selector = DiscreteRange(0, length-1,
+		                              emptyMessage='uniform distribution over empty domain')
+		super().__init__(*self.options, self.selector, valueType=valueType)
+
+	def clone(self):
+		return type(self)(self.options)
 
 	def sampleGiven(self, value):
+		index = value[self.selector]
 		opts = []
 		for opt in self.options:
 			if isinstance(opt, StarredDistribution):
 				opts.extend(value[opt])
 			else:
 				opts.append(value[opt])
-		if not opts:
-			raise RejectionException('uniform distribution over empty domain')
-		return random.choice(opts)
+		assert 0 <= index < len(opts)
+		return opts[index]
 
 	def evaluateInner(self, context):
 		opts = tuple(valueInContext(opt, context) for opt in self.options)

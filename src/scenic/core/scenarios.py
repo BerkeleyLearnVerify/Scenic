@@ -1,5 +1,6 @@
 """Scenario and scene objects."""
 
+import pickle
 import random
 import time
 import sys
@@ -95,7 +96,8 @@ class Scene(_ScenarioPickleMixin):
 				 alwaysReqs=(), eventuallyReqs=(),
 				 terminationConds=(), termSimulationConds=(),
 				 recordedExprs=(), recordedInitialExprs=(), recordedFinalExprs=(),
-				 monitors=(), behaviorNamespaces={}, dynamicScenario=None):
+				 monitors=(), behaviorNamespaces={}, dynamicScenario=None,
+				 paramVector=()):
 		self.workspace = workspace
 		self.objects = tuple(objects)
 		self.egoObject = egoObject
@@ -110,9 +112,13 @@ class Scene(_ScenarioPickleMixin):
 		self.monitors = tuple(monitors)
 		self.behaviorNamespaces = behaviorNamespaces
 		self.dynamicScenario = dynamicScenario
+		self.paramVector = tuple(paramVector)
 
 	def dumpAsScenicCode(self, stream=sys.stdout):
 		"""Dump Scenic code reproducing this scene to the given stream.
+
+		For non-human-readable but complete serialization of scenes see
+		`Scenario.sceneToBytes` and `Scenario.sceneFromBytes`.
 
 		.. note::
 
@@ -157,7 +163,7 @@ class Scenario(_ScenarioPickleMixin):
 				 params, externalParams,
 				 requirements, requirementDeps,
 				 monitors, behaviorNamespaces,
-				 dynamicScenario):
+				 dynamicScenario, astHash):
 		if workspace is None:
 			workspace = Workspace()		# default empty workspace
 		self.workspace = workspace
@@ -175,6 +181,7 @@ class Scenario(_ScenarioPickleMixin):
 		self.monitors = tuple(monitors)
 		self.behaviorNamespaces = behaviorNamespaces
 		self.dynamicScenario = dynamicScenario
+		self.astHash = astHash
 
 		staticReqs, alwaysReqs, terminationConds = [], [], []
 		self.requirements = tuple(dynamicScenario._requirements)	# TODO clean up
@@ -333,7 +340,12 @@ class Scenario(_ScenarioPickleMixin):
 					break
 
 		# obtained a valid sample; assemble a scene from it
-		sampledObjects = tuple(sample[obj] for obj in objects)
+		scene = self._makeSceneFromSample(sample)
+		return scene, iterations
+
+	def _makeSceneFromSample(self, sample):
+		sampledObjects = tuple(sample[obj] for obj in self.objects)
+		ego = sample[self.egoObject]
 		sampledParams = {}
 		for param, value in self.params.items():
 			sampledValue = sample[value]
@@ -354,11 +366,13 @@ class Scenario(_ScenarioPickleMixin):
 		                        for req in self.recordedInitialExprs)
 		recordedFinalExprs = (BoundRequirement(req, sample)
 		                      for req in self.recordedFinalExprs)
+		paramVector = Samplable.valuesToParameters(self.dependencies, sample)
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
 					  alwaysReqs, eventuallyReqs, terminationConds, termSimulationConds,
 					  recordedExprs, recordedInitialExprs,recordedFinalExprs,
-					  self.monitors, sampledNamespaces, self.dynamicScenario)
-		return scene, iterations
+					  self.monitors, sampledNamespaces, self.dynamicScenario,
+					  paramVector)
+		return scene
 
 	def resetExternalSampler(self):
 		"""Reset the scenario's external sampler, if any.
@@ -413,3 +427,38 @@ class Scenario(_ScenarioPickleMixin):
 			raise RuntimeError('scenario does not specify a simulator')
 		import scenic.syntax.veneer as veneer
 		return veneer.instantiateSimulator(self.simulator, self.params)
+
+	@classmethod
+	def _sceneFormatVersion(cls):
+		return 1
+
+	def sceneToBytes(self, scene):
+		"""Encode a `Scene` sampled from this scenario to a `bytes` object."""
+		components = (self._sceneFormatVersion(), self.astHash, scene.paramVector)
+		return pickle.dumps(components)
+
+	def sceneFromBytes(self, data, verify=True):
+		"""Decode a `Scene` serialized with `sceneToBytes`.
+
+		Args:
+			data (bytes): Encoding of a `Scene` sampled from this scenario.
+			verify (bool): If true (the default), raise an exception if the scene
+				appears to have been generated from a different scenario (meaning
+				it will almost certainly not decode correctly).
+
+		Raises:
+			pickle.UnpicklingError: if the scene could not be properly decoded.
+		"""
+		components = pickle.loads(data)
+		version = components[0]
+		if version != self._sceneFormatVersion():
+			raise pickle.UnpicklingError('cannot read serialized Scene from '
+			                             'a different Scenic version')
+		version, astHash, paramVector = components
+		if verify and astHash != self.astHash:
+			raise pickle.UnpicklingError('serialized Scene does not correspond '
+			                             'to this Scenario')
+		sample = Samplable.valuesFromParameters(self.dependencies, paramVector)
+		scene = self._makeSceneFromSample(sample)
+		assert scene.paramVector == paramVector
+		return scene

@@ -15,7 +15,7 @@ __all__ = (
 	'override',
 	'record', 'record_initial', 'record_final',
 	'sin', 'cos', 'hypot', 'max', 'min',
-	'filter', 'str',
+	'filter', 'str', 'len', 'range',
 	# Prefix operators
 	'Visible', 'NotVisible',
 	'Front', 'Back', 'Left', 'Right',
@@ -73,6 +73,7 @@ from scenic.core.dynamics import (Behavior, Monitor, DynamicScenario, BlockConcl
 import builtins
 import collections.abc
 from contextlib import contextmanager
+import functools
 import importlib
 import sys
 import random
@@ -1097,6 +1098,9 @@ def Following(field, dist, fromPt=None):
 
 ### Primitive functions overriding Python builtins
 
+# N.B. applying functools.wraps to preserve the metadata of the original
+# functions seems to break pickling/unpickling
+
 @distributionFunction
 def filter(function, iterable):
 	return list(builtins.filter(function, iterable))
@@ -1104,3 +1108,11 @@ def filter(function, iterable):
 @distributionFunction
 def str(*args, **kwargs):
 	return builtins.str(*args, **kwargs)
+
+def len(obj):
+	return obj.__len__()
+
+def range(*args):
+	if any(needsSampling(arg) for arg in args):
+		raise RandomControlFlowError('cannot construct a range with random parameters')
+	return builtins.range(*args)

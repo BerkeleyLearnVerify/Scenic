@@ -25,6 +25,20 @@ class VectorDistribution(Distribution):
 	def toVector(self):
 		return self
 
+	def valueToParameters(self, value, params, seen):
+		# Not strictly necessary to override this, but it makes the pickle of
+		# the parameter vector smaller.
+		if not self._deterministic:
+			params.extend(value[self].coordinates)
+		else:
+			super().valueToParameters(value, params, seen)
+
+	def valueFromParameters(self, params, subsamples):
+		if not self._deterministic:
+			return Vector(next(params), next(params))
+		else:
+			return super().valueFromParameters(params, subsamples)
+
 class CustomVectorDistribution(VectorDistribution):
 	"""Distribution with a custom sampler given by an arbitrary function."""
 	def __init__(self, sampler, *dependencies, name='CustomVectorDistribution', evaluator=None):
@@ -95,7 +109,7 @@ class VectorMethodDistribution(VectorDistribution):
 def scalarOperator(method):
 	"""Decorator for vector operators that yield scalars."""
 	op = method.__name__
-	setattr(VectorDistribution, op, makeOperatorHandler(op))
+	setattr(VectorDistribution, op, makeOperatorHandler(op, float))
 
 	@decorator.decorator
 	def wrapper(wrapped, instance, *args, **kwargs):
@@ -109,7 +123,7 @@ def makeVectorOperatorHandler(op):
 	def handler(self, *args):
 		return VectorOperatorDistribution(op, self, args)
 	return handler
-def vectorOperator(method):
+def vectorOperator(method, preservesZero=False):
 	"""Decorator for vector operators that yield vectors."""
 	op = method.__name__
 	setattr(VectorDistribution, op, makeVectorOperatorHandler(op))
@@ -119,6 +133,8 @@ def vectorOperator(method):
 		def helper(*args):
 			if needsSampling(instance):
 				return VectorOperatorDistribution(op, instance, args)
+			elif preservesZero and all(coord == 0 for coord in instance.coordinates):
+				return instance
 			elif any(needsSampling(arg) for arg in args):
 				return VectorMethodDistribution(method, instance, args, {})
 			elif any(needsLazyEvaluation(arg) for arg in args):
@@ -128,6 +144,8 @@ def vectorOperator(method):
 				return wrapped(instance, *args)
 		return helper(*args)
 	return wrapper(method)
+def zeroPreservingVectorOperator(method):
+	return vectorOperator(method, preservesZero=True)
 
 def vectorDistributionMethod(method):
 	"""Decorator for methods that produce vectors. See distributionMethod."""
@@ -168,7 +186,7 @@ class Vector(Samplable, collections.abc.Sequence):
 	def evaluateInner(self, context):
 		return Vector(*(valueInContext(coord, context) for coord in self.coordinates))
 
-	@vectorOperator
+	@zeroPreservingVectorOperator
 	def rotatedBy(self, angle) -> Vector:
 		"""Return a vector equal to this one rotated counterclockwise by the given angle."""
 		x, y = self.x, self.y

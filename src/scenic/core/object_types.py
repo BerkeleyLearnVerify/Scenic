@@ -73,7 +73,8 @@ class Constructible(Samplable):
 				assert not needsLazyEvaluation(value), (prop, value)
 				object.__setattr__(self, prop, value)
 			super().__init__(kwargs.values())
-			self.properties = set(kwargs.keys())
+			self.properties = tuple(sorted(kwargs.keys()))
+			self._propertiesSet = set(self.properties)
 			self._constProps = _constProps
 			return
 
@@ -162,19 +163,21 @@ class Constructible(Samplable):
 			del spec._dfs_state
 
 		# Evaluate and apply specifiers
-		self.properties = set()		# will be filled by calls to _specify below
+		self.properties = []		# will be filled by calls to _specify below
+		self._propertiesSet = set()
 		self._evaluated = DefaultIdentityDict()		# temporary cache for lazily-evaluated values
 		for spec in order:
 			spec.applyTo(self, optionalsForSpec[spec])	# calls _specify
 		del self._evaluated
-		assert self.properties == set(properties)
+		self.properties = tuple(sorted(self.properties))
+		assert self._propertiesSet == set(properties)
 		self._constProps = frozenset({
 			prop for prop in _defaultedProperties
 			if not needsSampling(getattr(self, prop))
 		})
 
 	def _specify(self, prop, value):
-		assert prop not in self.properties
+		assert prop not in self._propertiesSet
 
 		# Normalize types of some built-in properties
 		if prop in ('position', 'velocity', 'cameraOffset'):
@@ -185,7 +188,8 @@ class Constructible(Samplable):
 		              'viewAngle', 'headingStdDev', 'speed', 'angularSpeed'):
 			value = toScalar(value, f'"{prop}" of {self} not a scalar')
 
-		self.properties.add(prop)
+		self.properties.append(prop)
+		self._propertiesSet.add(prop)
 		object.__setattr__(self, prop, value)
 
 	def _register(self):
@@ -198,7 +202,7 @@ class Constructible(Samplable):
 			prop = spec.property
 			if prop in self._dynamicProperties:
 				raise RuntimeParseError(f'cannot override dynamic property "{prop}"')
-			if prop not in self.properties:
+			if prop not in self._propertiesSet:
 				raise RuntimeParseError(f'object has no property "{prop}" to override')
 			oldVals[prop] = getattr(self, prop)
 		defs = { prop: Specifier(prop, getattr(self, prop)) for prop in self.properties }
@@ -229,7 +233,7 @@ class Constructible(Samplable):
 	def dumpAsScenicCode(self, stream, skipConstProperties=True):
 		stream.write(self.__class__.__name__)
 		first = True
-		for prop in sorted(self.properties):
+		for prop in self.properties:
 			if skipConstProperties and prop in self._constProps:
 				continue
 			if prop == 'position':
@@ -247,7 +251,7 @@ class Constructible(Samplable):
 			dumpAsScenicCode(getattr(self, prop), stream)
 
 	def __str__(self):
-		if hasattr(self, 'properties') and 'name' in self.properties:
+		if hasattr(self, 'properties') and 'name' in self._propertiesSet:
 			return self.name
 		else:
 			return f'unnamed {self.__class__.__name__} ({id(self)})'

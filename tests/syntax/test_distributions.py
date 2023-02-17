@@ -312,8 +312,12 @@ def test_comparison():
         compileScenic('ego = Object with foo (Range(0, 1) > 0.5)')
 
 def test_len():
-    with pytest.raises(RuntimeParseError):
-        compileScenic('ego = Object with foo len(Uniform([0], [1, 2]))')
+    # Taking the len of a distribution used to be illegal, but is now allowed
+    scenario = compileScenic('ego = Object with foo len(Uniform([0], [1, 2]))')
+    fs = [sampleEgo(scenario).foo for i in range(60)]
+    assert all(f == 1 or f == 2 for f in fs)
+    assert any(f == 1 for f in fs)
+    assert any(f == 2 for f in fs)
 
 def test_iter():
     with pytest.raises(RuntimeParseError):

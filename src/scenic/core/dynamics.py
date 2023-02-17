@@ -557,6 +557,7 @@ class DynamicScenario(Invocable):
             raise InvalidScenarioError(msg)
 
         workspace = namespace['_workspace']
+        astHash = namespace['_astHash']
 
         from scenic.core.scenarios import Scenario
         scenario = Scenario(workspace, self._simulatorFactory,
@@ -564,7 +565,7 @@ class DynamicScenario(Invocable):
                             self._globalParameters, self._externalParameters,
                             self._requirements, self._requirementDeps,
                             self._monitors, self._behaviorNamespaces,
-                            self)   # TODO unify these!
+                            self, astHash)   # TODO unify these!
         return scenario
 
     def __getattr__(self, name):

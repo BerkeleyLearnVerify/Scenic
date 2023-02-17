@@ -37,6 +37,7 @@ the objects, distributions, etc. in the scenario. For details, see the function
 
 import sys
 import os
+import hashlib
 import io
 import builtins
 import time
@@ -252,6 +253,7 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>')
 		exec(compile(preamble, '<veneer>', 'exec'), namespace)
 		namespace[namespaceReference] = namespace
 		# Execute each block
+		astHasher = hashlib.blake2b(digest_size=4, usedforsecurity=False)
 		for blockNum, block in enumerate(blocks):
 			# Find all custom constructors defined so far (possibly imported)
 			constructors = findConstructorsIn(namespace)
@@ -270,6 +272,7 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>')
 			tree = parseTranslatedSource(newSource, filename)
 			# Modify the parse tree to produce the correct semantics
 			newTree, requirements = translateParseTree(tree, allConstructors, filename)
+			astHasher.update(ast.dump(newTree).encode())
 			if dumpFinalAST:
 				print(f'### Begin final AST from block {blockNum} of {filename}')
 				print(ast.dump(newTree, include_attributes=True))
@@ -288,7 +291,8 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>')
 			# Execute it
 			executeCodeIn(code, namespace)
 		# Extract scenario state from veneer and store it
-		storeScenarioStateIn(namespace, requirements)
+		astHash = astHasher.digest()
+		storeScenarioStateIn(namespace, requirements, astHash)
 	finally:
 		veneer.deactivate()
 	if verbosity >= 2:
@@ -2203,10 +2207,11 @@ def executeCodeIn(code, namespace):
 
 ### TRANSLATION PHASE SEVEN: scenario construction
 
-def storeScenarioStateIn(namespace, requirementSyntax):
+def storeScenarioStateIn(namespace, requirementSyntax, astHash):
 	"""Post-process an executed Scenic module, extracting state from the veneer."""
 
 	# Save requirement syntax and other module-level information
+	namespace['_astHash'] = astHash
 	moduleScenario = veneer.currentScenario
 	factory = veneer.simulatorFactory
 	bns = gatherBehaviorNamespacesFrom(moduleScenario._behaviors)
