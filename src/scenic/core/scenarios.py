@@ -1,6 +1,5 @@
 """Scenario and scene objects."""
 
-import pickle
 import random
 import time
 import sys
@@ -15,7 +14,7 @@ from scenic.core.vectors import Vector
 from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
 from scenic.core.dynamics import Behavior
 from scenic.core.requirements import BoundRequirement
-from scenic.core.serialization import dumpAsScenicCode
+from scenic.core.serialization import Serializer, dumpAsScenicCode
 
 # Pickling support
 
@@ -97,7 +96,7 @@ class Scene(_ScenarioPickleMixin):
 				 terminationConds=(), termSimulationConds=(),
 				 recordedExprs=(), recordedInitialExprs=(), recordedFinalExprs=(),
 				 monitors=(), behaviorNamespaces={}, dynamicScenario=None,
-				 paramVector=()):
+				 sample={}):
 		self.workspace = workspace
 		self.objects = tuple(objects)
 		self.egoObject = egoObject
@@ -112,7 +111,7 @@ class Scene(_ScenarioPickleMixin):
 		self.monitors = tuple(monitors)
 		self.behaviorNamespaces = behaviorNamespaces
 		self.dynamicScenario = dynamicScenario
-		self.paramVector = tuple(paramVector)
+		self.sample = sample
 
 	def dumpAsScenicCode(self, stream=sys.stdout):
 		"""Dump Scenic code reproducing this scene to the given stream.
@@ -366,12 +365,11 @@ class Scenario(_ScenarioPickleMixin):
 		                        for req in self.recordedInitialExprs)
 		recordedFinalExprs = (BoundRequirement(req, sample)
 		                      for req in self.recordedFinalExprs)
-		paramVector = Samplable.valuesToParameters(self.dependencies, sample)
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
 					  alwaysReqs, eventuallyReqs, terminationConds, termSimulationConds,
 					  recordedExprs, recordedInitialExprs,recordedFinalExprs,
 					  self.monitors, sampledNamespaces, self.dynamicScenario,
-					  paramVector)
+					  sample)
 		return scene
 
 	def resetExternalSampler(self):
@@ -428,16 +426,71 @@ class Scenario(_ScenarioPickleMixin):
 		import scenic.syntax.veneer as veneer
 		return veneer.instantiateSimulator(self.simulator, self.params)
 
-	@classmethod
-	def _sceneFormatVersion(cls):
-		return 1
+	def sceneToBytes(self, scene, allowPickle=False):
+		"""Encode a `Scene` sampled from this scenario to a `bytes` object.
 
-	def sceneToBytes(self, scene):
-		"""Encode a `Scene` sampled from this scenario to a `bytes` object."""
-		components = (self._sceneFormatVersion(), self.astHash, scene.paramVector)
-		return pickle.dumps(components)
+		The serialized scene may be reconstituted with `sceneFromBytes`. The format used
+		is suitable for long-term storage of scenes, although it is not guaranteed to be
+		compatible across major versions of Scenic. In order to make the encoding as
+		small as possible, it stores only the values of primitive random variables: all
+		other information is obtained from the original scenario, which is therefore
+		required when reconstructing the scene. For example, to save a generated scene to
+		a file one could write:
 
-	def sceneFromBytes(self, data, verify=True):
+		.. testsetup::
+
+			import os
+			os.chdir('..')
+
+		.. testcode::
+
+			import scenic, tempfile, pathlib
+			scenario = scenic.scenarioFromFile('examples/gta/parkedCar.scenic')
+			scene, _ = scenario.generate()
+			data = scenario.sceneToBytes(scene)
+			with open(pathlib.Path(tempfile.gettempdir()) / 'test.scene', 'wb') as f:
+				f.write(data)
+			print(f'ego car position = {scene.egoObject.position}')
+
+		.. testoutput::
+			:hide:
+
+			ego car position = ...
+
+		Then you could restore the scene in another process:
+
+		.. testcode::
+
+			import scenic, tempfile, pathlib
+			scenario = scenic.scenarioFromFile('examples/gta/parkedCar.scenic')
+			with open(pathlib.Path(tempfile.gettempdir()) / 'test.scene', 'rb') as f:
+				data = f.read()
+			scene = scenario.sceneFromBytes(data)
+			print(f'ego car position = {scene.egoObject.position}')
+
+		.. testoutput::
+			:hide:
+
+			ego car position = ...
+
+		.. testcleanup::
+
+			import pathlib, tempfile
+			path = pathlib.Path(tempfile.gettempdir()) / 'test.scene'
+			path.unlink()
+			os.chdir('docs')
+
+		Raises:
+			SerializationError: if the scene could not be properly encoded. This should
+				not happen unless your scenario includes a user-defined `Distribution`
+				subclass with an unusual value type. If you get this exception, see the
+				documentation for the internal class `Serializer` for solutions.
+		"""
+		ser = Serializer(allowPickle=allowPickle)
+		ser.writeScene(self, scene)
+		return ser.getBytes()
+
+	def sceneFromBytes(self, data, verify=True, allowPickle=False):
 		"""Decode a `Scene` serialized with `sceneToBytes`.
 
 		Args:
@@ -445,20 +498,14 @@ class Scenario(_ScenarioPickleMixin):
 			verify (bool): If true (the default), raise an exception if the scene
 				appears to have been generated from a different scenario (meaning
 				it will almost certainly not decode correctly).
+			allowPickle (bool): Enable using `pickle` to deserialize custom object
+				types. False by default because it allows malicious data to trigger
+				arbitrary code execution (see the `pickle` documentation). Use this
+				option only if you trust the source of the data and it is not practical
+				to implement serialization for the datatypes you need.
 
 		Raises:
-			pickle.UnpicklingError: if the scene could not be properly decoded.
+			SerializationError: if the scene could not be properly decoded.
 		"""
-		components = pickle.loads(data)
-		version = components[0]
-		if version != self._sceneFormatVersion():
-			raise pickle.UnpicklingError('cannot read serialized Scene from '
-			                             'a different Scenic version')
-		version, astHash, paramVector = components
-		if verify and astHash != self.astHash:
-			raise pickle.UnpicklingError('serialized Scene does not correspond '
-			                             'to this Scenario')
-		sample = Samplable.valuesFromParameters(self.dependencies, paramVector)
-		scene = self._makeSceneFromSample(sample)
-		assert scene.paramVector == paramVector
-		return scene
+		ser = Serializer(data, allowPickle=allowPickle)
+		return ser.readScene(self, verify=verify)

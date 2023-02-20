@@ -7,6 +7,7 @@ from math import sin, cos
 import random
 import collections
 import itertools
+import struct
 
 import decorator
 import shapely.geometry
@@ -24,20 +25,6 @@ class VectorDistribution(Distribution):
 
 	def toVector(self):
 		return self
-
-	def valueToParameters(self, value, params, seen):
-		# Not strictly necessary to override this, but it makes the pickle of
-		# the parameter vector smaller.
-		if not self._deterministic:
-			params.extend(value[self].coordinates)
-		else:
-			super().valueToParameters(value, params, seen)
-
-	def valueFromParameters(self, params, subsamples):
-		if not self._deterministic:
-			return Vector(next(params), next(params))
-		else:
-			return super().valueFromParameters(params, subsamples)
 
 class CustomVectorDistribution(VectorDistribution):
 	"""Distribution with a custom sampler given by an arbitrary function."""
@@ -286,6 +273,14 @@ class Vector(Samplable, collections.abc.Sequence):
 
 	def __hash__(self):
 		return hash(self.coordinates)
+
+	@classmethod
+	def encodeTo(cls, vec, stream):
+		stream.write(struct.pack('<dd', *vec.coordinates))
+
+	@classmethod
+	def decodeFrom(cls, stream):
+		return cls(*struct.unpack('<dd', stream.read(16)))
 
 VectorDistribution._defaultValueType = Vector
 

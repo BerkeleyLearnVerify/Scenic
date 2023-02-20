@@ -125,35 +125,14 @@ class Samplable(LazilyEvaluable):
 		"""
 		return DefaultIdentityDict({ dep: value[dep] for dep in self._dependencies })
 
-	@staticmethod
-	def valuesToParameters(quantities, values):
-		seen = set()
-		params = []
-		for q in quantities:
-			if id(q) not in seen:
-				q.valueToParameters(values, params, seen)
-		return params
-
-	@staticmethod
-	def valuesFromParameters(quantities, params):
-		subsamples = DefaultIdentityDict()
-		it = iter(params)
-		for q in quantities:
-			if q not in subsamples:
-				subsamples[q] = q.valueFromParameters(it, subsamples) if isinstance(q, Samplable) else q
-		return subsamples
-
-	def valueToParameters(self, value, params, seen):
+	def serializeValue(self, values, serializer):
 		for child in self._conditioned._dependencies:
-			if id(child) not in seen:
-				child.valueToParameters(value, params, seen)
-				seen.add(id(child))
+			serializer.writeSamplable(child, values)
 
-	def valueFromParameters(self, params, subsamples):
+	def unserializeValue(self, serializer, values):
 		for child in self._conditioned._dependencies:
-			if child not in subsamples:
-				subsamples[child] = child.valueFromParameters(params, subsamples)
-		return self._conditioned.sampleGiven(subsamples)
+			serializer.readSamplable(child, values)
+		return self._conditioned.sampleGiven(values)
 
 	def conditionTo(self, value):
 		"""Condition this value to another value with the same conditional distribution."""
@@ -210,6 +189,14 @@ class Distribution(Samplable):
 	_defaultValueType = object
 
 	#: Whether this type of distribution is a deterministic function of its dependencies.
+	#:
+	#: For example, `Options` is implemented as deterministic by using an internal
+	#: `DiscreteRange` to select which of its finitely-many options to choose from: the
+	#: value of the `Options` is then completely determined by the value of the range and
+	#: the values of each of the options. This simplifies serialization because these
+	#: dependencies likely have simpler valueTypes than the `Options` itself (e.g. if we
+	#: had a random choice between a list and a string, encoding the actual sampled value
+	#: would require saving type information).
 	_deterministic = False
 
 	def __new__(cls, *args, **kwargs):
@@ -245,17 +232,29 @@ class Distribution(Samplable):
 		except NotImplementedError:
 			return False
 
-	def valueToParameters(self, value, params, seen):
-		if not self._deterministic:
-			params.append(value[self])
-		else:
-			super().valueToParameters(value, params, seen)
+	def serializeValue(self, values, serializer):
+		"""Serialize the sampled value of this distribution.
 
-	def valueFromParameters(self, params, subsamples):
-		if not self._deterministic:
-			return next(params)
+		This method is used internally by `Scenario.sceneToBytes` and related APIs.
+		If you define a new subclass of `Distribution`, you probably don't need to
+		override this method. If your distribution has an unusual **valueType** (i.e.
+		not `float`, `int`, or `Vector`), see the documentation for `Serializer` for
+		instructions on how to support serialization.
+		"""
+		if self._deterministic:
+			# It suffices to just serialize our dependencies; this is preferable to
+			# saving our sampled value directly, which could be arbitrarily complex.
+			super().serializeValue(values, serializer)
 		else:
-			return super().valueFromParameters(params, subsamples)
+			# Need to save our sampled value, which can't be reconstructed from the
+			# values of our dependencies. There is then no need to save the latter.
+			serializer.writeValue(values[self], self._valueType)
+
+	def unserializeValue(self, serializer, values):
+		if self._deterministic:
+			return super().unserializeValue(serializer, values)
+		else:
+			return serializer.readValue(self._valueType)
 
 	def bucket(self, buckets=None):
 		"""Construct a bucketed approximation of this Distribution.
@@ -584,7 +583,7 @@ class AttributeDistribution(Distribution):
 
 	def supportInterval(self):
 		obj = self.object
-		if isinstance(obj, Options):
+		if isinstance(obj, MultiplexerDistribution):
 			attrs = (getattr(opt, self.attribute) for opt in obj.options)
 			mins, maxes = zip(*(supportInterval(attr) for attr in attrs))
 			l = None if any(sl is None for sl in mins) else min(mins)
@@ -736,6 +735,21 @@ class MultiplexerDistribution(Distribution):
 		idx = value[self.index]
 		assert 0 <= idx < len(self.options), (idx, len(self.options))
 		return value[self.options[idx]]
+
+	def serializeValue(self, values, serializer):
+		# We override this method to save space: we don't need to serialize all
+		# of our options, only the one we're selecting.
+		serializer.writeSamplable(self.index, values)
+		choice = self.options[values[self.index]]
+		if isinstance(choice, Samplable):
+			serializer.writeSamplable(choice, values)
+
+	def unserializeValue(self, serializer, values):
+		serializer.readSamplable(self.index, values)
+		choice = self.options[values[self.index]]
+		if isinstance(choice, Samplable):
+			serializer.readSamplable(choice, values)
+		return values[choice]
 
 	def evaluateInner(self, context):
 		return type(self)(valueInContext(self.index, context),

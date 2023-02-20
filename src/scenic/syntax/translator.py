@@ -253,7 +253,7 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>')
 		exec(compile(preamble, '<veneer>', 'exec'), namespace)
 		namespace[namespaceReference] = namespace
 		# Execute each block
-		astHasher = hashlib.blake2b(digest_size=4, usedforsecurity=False)
+		astHasher = hashlib.blake2b(digest_size=4)
 		for blockNum, block in enumerate(blocks):
 			# Find all custom constructors defined so far (possibly imported)
 			constructors = findConstructorsIn(namespace)
