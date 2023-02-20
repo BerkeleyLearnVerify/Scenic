@@ -224,9 +224,10 @@ ClassDocumenter.add_directive_header = add_directive_header
 # -- Monkeypatch to improve formatting of certain values ---------------------
 
 import scenic
+import sphinx.util.inspect
 import sphinx.ext.autodoc
 
-orig_object_description = sphinx.ext.autodoc.object_description
+orig_object_description = sphinx.util.inspect.object_description
 def object_description(obj):
     if obj is scenic.core.regions.nowhere or obj is scenic.core.regions.everywhere:
         return str(obj)
@@ -234,8 +235,13 @@ def object_description(obj):
                           scenic.core.vectors.VectorField,
                           scenic.domains.driving.roads.Network)):
         raise ValueError    # prevent rendering of this value
+    elif obj is sys.stdout:
+        return 'sys.stdout'
+    elif obj is sys.stderr:
+        return 'sys.stderr'
     else:
         return orig_object_description(obj)
+sphinx.util.inspect.object_description = object_description
 sphinx.ext.autodoc.object_description = object_description
 
 # -- Extension for correctly displaying Scenic code and skipping internals ---

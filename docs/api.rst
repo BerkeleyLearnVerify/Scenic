@@ -37,6 +37,10 @@ the sampled values for all the global parameters and objects in the scene from t
 
 	ego has foo = 2.083099362726706
 
+.. testcleanup::
+
+	os.chdir('docs')
+
 To run dynamic scenarios, you must instantiate an instance of the `Simulator` class for
 the particular simulator you want to use. Each simulator interface that supports dynamic
 simulations defines a subclass of `Simulator`; for example, `NewtonianSimulator` for the
