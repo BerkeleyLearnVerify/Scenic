@@ -32,8 +32,12 @@ veneer.activate(paramOverrides=dict(
     carla_map='blah',
     lgsvl_map='blah',
 ))
-import scenic.simulators.carla.model
-import scenic.simulators.lgsvl.model
+import warnings
+from scenic.core.simulators import SimulatorInterfaceWarning
+with warnings.catch_warnings():
+    warnings.simplefilter('ignore', SimulatorInterfaceWarning)
+    import scenic.simulators.carla.model
+    import scenic.simulators.lgsvl.model
 veneer.deactivate()
 
 # -- Project information -----------------------------------------------------
