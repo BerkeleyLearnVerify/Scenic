@@ -1,5 +1,6 @@
 """Scenario and scene objects."""
 
+import io
 import random
 import time
 import sys
@@ -431,54 +432,8 @@ class Scenario(_ScenarioPickleMixin):
 
 		The serialized scene may be reconstituted with `sceneFromBytes`. The format used
 		is suitable for long-term storage of scenes, although it is not guaranteed to be
-		compatible across major versions of Scenic. In order to make the encoding as
-		small as possible, it stores only the values of primitive random variables: all
-		other information is obtained from the original scenario, which is therefore
-		required when reconstructing the scene. For example, to save a generated scene to
-		a file one could write:
-
-		.. testsetup::
-
-			import os
-			os.chdir('..')
-
-		.. testcode::
-
-			import scenic, tempfile, pathlib
-			scenario = scenic.scenarioFromFile('examples/gta/parkedCar.scenic')
-			scene, _ = scenario.generate()
-			data = scenario.sceneToBytes(scene)
-			with open(pathlib.Path(tempfile.gettempdir()) / 'test.scene', 'wb') as f:
-				f.write(data)
-			print(f'ego car position = {scene.egoObject.position}')
-
-		.. testoutput::
-			:hide:
-
-			ego car position = ...
-
-		Then you could restore the scene in another process:
-
-		.. testcode::
-
-			import scenic, tempfile, pathlib
-			scenario = scenic.scenarioFromFile('examples/gta/parkedCar.scenic')
-			with open(pathlib.Path(tempfile.gettempdir()) / 'test.scene', 'rb') as f:
-				data = f.read()
-			scene = scenario.sceneFromBytes(data)
-			print(f'ego car position = {scene.egoObject.position}')
-
-		.. testoutput::
-			:hide:
-
-			ego car position = ...
-
-		.. testcleanup::
-
-			import pathlib, tempfile
-			path = pathlib.Path(tempfile.gettempdir()) / 'test.scene'
-			path.unlink()
-			os.chdir('docs')
+		compatible across major versions of Scenic. For further discussion and usage
+		examples, see :ref:`serialization`.
 
 		Raises:
 			SerializationError: if the scene could not be properly encoded. This should
@@ -509,3 +464,57 @@ class Scenario(_ScenarioPickleMixin):
 		"""
 		ser = Serializer(data, allowPickle=allowPickle)
 		return ser.readScene(self, verify=verify)
+
+	def simulationToBytes(self, simulation, allowPickle=False):
+		"""Encode a `Simulation` sampled from this scenario to a `bytes` object.
+
+		The serialized simulation may be replayed with `simulationFromBytes`. As with
+		`sceneToBytes`, the format used is suitable for long-term storage but is not
+		guaranteed to be compatible across major versions of Scenic.
+
+		Raises:
+			SerializationError: if the simulation could not be properly encoded. This should
+				not happen unless your scenario includes a user-defined `Distribution`
+				subclass with an unusual value type. If you get this exception, see the
+				documentation for the internal class `Serializer` for solutions.
+
+		.. note::
+
+			The returned data encodes both the scene comprising the initial condition for the
+			simulation and the simulation itself. If you will be running many simulations
+			starting from the same scene, you can save space by separately encoding the scene
+			and the various simulations: use `sceneToBytes` and `Simulation.getReplay` for
+			encoding, and the **replay** argument of `Simulator.simulate` for decoding.
+		"""
+		sceneData = self.sceneToBytes(simulation.scene)
+		replay = simulation.getReplay()
+		return sceneData + replay
+
+	def simulationFromBytes(self, data, simulator, *,
+	                        verify=True, allowPickle=False, **kwargs):
+		"""Replay a `Simulation` serialized with `simulationToBytes`.
+
+		Args:
+			data (bytes): Encoding of a `Simulation` sampled from this scenario.
+			simulator (Simulator): Simulator in which to run the simulation. Using
+				a different simulator configuration than that used for the original
+				simulation may cause errors or unexpected behavior. If you need to do
+				this, see the **enableDivergenceCheck** option of `Simulator.simulate`.
+			verify (bool): As in `sceneFromBytes`.
+			allowPickle (bool): As in `sceneFromBytes`.
+			kwargs: All additional keyword arguments are passed through to the simulator;
+				see `Simulator.simulate` for the available configuration options.
+
+		Returns:
+			A `Simulation` object representing the completed simulation.
+
+		Raises:
+			SerializationError: if the simulation could not be properly decoded.
+			DivergenceError: if the replayed simulation has diverged from the original
+				(requires the original to have been run with divergence-checking support;
+				see `Simulator.simulate`).
+		"""
+		if not isinstance(data, io.BufferedIOBase):
+			data = io.BytesIO(data)
+		scene = self.sceneFromBytes(data, verify=verify, allowPickle=allowPickle)
+		return simulator.simulate(scene, replay=data, **kwargs)

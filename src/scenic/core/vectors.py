@@ -16,6 +16,7 @@ from scenic.core.distributions import (Samplable, Distribution, MethodDistributi
     needsSampling, makeOperatorHandler, distributionMethod, distributionFunction,
 	RejectionException)
 from scenic.core.lazy_eval import valueInContext, needsLazyEvaluation, makeDelayedFunctionCall
+from scenic.core.type_support import CoercionFailure
 from scenic.core.utils import argsToString
 from scenic.core.geometry import normalizeAngle
 
@@ -166,6 +167,21 @@ class Vector(Samplable, collections.abc.Sequence):
 
 	def toVector(self) -> Vector:
 		return self
+
+	@staticmethod
+	def _canCoerceType(ty):
+		return issubclass(ty, (tuple, list)) or hasattr(ty, 'toVector')
+
+	@staticmethod
+	def _coerce(thing) -> Vector:
+		if isinstance(thing, (tuple, list)):
+			l = len(thing)
+			if l != 2:
+				raise CoercionFailure('expected 2D vector, got '
+				                      f'{type(thing).__name__} of length {l}')
+			return Vector(*thing)
+		else:
+			return thing.toVector()
 
 	def sampleGiven(self, value):
 		return Vector(*(value[coord] for coord in self.coordinates))

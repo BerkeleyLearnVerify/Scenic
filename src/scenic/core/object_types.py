@@ -15,7 +15,7 @@ from scenic.core.vectors import Vector
 from scenic.core.geometry import (_RotatedRectangle, averageVectors, hypot, min,
                                   pointIsInCone)
 from scenic.core.regions import CircularRegion, SectorRegion
-from scenic.core.type_support import toVector, toHeading, toScalar, toType
+from scenic.core.type_support import toVector, toHeading, toScalar, toType, underlyingType
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.serialization import dumpAsScenicCode
 from scenic.core.utils import DefaultIdentityDict, cached_property
@@ -38,16 +38,18 @@ class Constructible(Samplable):
 		called directly from a Scenic program.
 	"""
 
+	_dynamicProperties = {}
+
 	def __init_subclass__(cls):
 		super().__init_subclass__()
-		# find all defaults provided by the class or its superclasses
+		# Find all defaults provided by the class or its superclasses
 		allDefs = collections.defaultdict(list)
 		for sc in cls.__mro__:
 			if issubclass(sc, Constructible) and hasattr(sc, '__annotations__'):
 				for prop, value in sc.__annotations__.items():
 					allDefs[prop].append(PropertyDefault.forValue(value))
 
-		# resolve conflicting defaults and gather dynamic properties
+		# Resolve conflicting defaults and gather dynamic properties
 		resolvedDefs = {}
 		dyns = []
 		for prop, defs in allDefs.items():
@@ -58,7 +60,20 @@ class Constructible(Samplable):
 			if any(defn.isDynamic for defn in defs):
 				dyns.append(prop)
 		cls._defaults = resolvedDefs
-		cls._dynamicProperties = frozenset(dyns)
+
+		# Determine types of dynamic properties
+		dynTypes = {}
+		inst = None
+		for prop in dyns:
+			ty = super(cls, cls)._dynamicProperties.get(prop)
+			if not ty:
+				# First time this property has been defined; create a dummy object to
+				# run specifier resolution and determine the property's default value
+				if not inst:
+					inst = cls(_register=False)
+				ty = underlyingType(getattr(inst, prop))
+			dynTypes[prop] = ty
+		cls._dynamicProperties = dynTypes
 
 	@classmethod
 	def _withProperties(cls, props, constProps=frozenset()):
@@ -66,7 +81,8 @@ class Constructible(Samplable):
 		assert all(not needsLazyEvaluation(val) for val in props.values())
 		return cls(_internal=True, _constProps=constProps, **props)
 
-	def __init__(self, *args, _internal=False, _constProps=frozenset(), **kwargs):
+	def __init__(self, *args, _internal=False, _constProps=frozenset(), _register=True,
+	             **kwargs):
 		if _internal:	# Object is being constructed internally; use fast path
 			assert not args
 			for prop, value in kwargs.items():
@@ -93,7 +109,8 @@ class Constructible(Samplable):
 		super().__init__(deps)
 
 		# Possibly register this object
-		self._register()
+		if _register:
+			self._register()
 
 	def _applySpecifiers(self, specifiers, defs=None):
 		# Validate specifiers
@@ -486,6 +503,8 @@ class Object(OrientedPoint, _RotatedRectangle):
 
 		behavior: Behavior for dynamic agents, if any (see :ref:`dynamics`). Default
 			value ``None``.
+		lastActions: Tuple of :term:`actions` taken by this agent in the last time step
+			(or `None` if the object is not an agent or this is the first time step).
 	"""
 	width: 1
 	length: 1
@@ -522,7 +541,7 @@ class Object(OrientedPoint, _RotatedRectangle):
 
 	def _specify(self, prop, value):
 		# Normalize types of some built-in properties
-		if prop == 'behavior':
+		if prop == 'behavior' and value != None:
 			import scenic.syntax.veneer as veneer	# TODO improve?
 			value = toType(value, veneer.Behavior,
 			               f'"behavior" of {self} not a behavior')

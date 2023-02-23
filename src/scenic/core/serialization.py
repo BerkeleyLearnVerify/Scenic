@@ -1,8 +1,8 @@
 """Utilities to help serialize Scenic objects.
 
 The functions in this module usually do not need to be used directly.
-For high-level serialization APIs, see `Scenario.sceneToBytes` and
-`Scene.dumpAsScenicCode`.
+For high-level serialization APIs, see `Scenario.sceneToBytes`,
+`Scenario.simulationToBytes`, and `Scene.dumpAsScenicCode`.
 """
 
 import io
@@ -10,7 +10,7 @@ import math
 import pickle
 import struct
 
-from scenic.core.distributions import Samplable
+from scenic.core.distributions import Samplable, needsSampling
 from scenic.core.utils import DefaultIdentityDict
 
 ## JSON
@@ -43,7 +43,7 @@ class SerializationError(Exception):
     pass
 
 class Serializer:
-    """Class for (un)serializing scenes, etc.
+    """Class for (de)serializing scenes, etc.
 
     Ordinary Scenic users do not need to know about this class: they can use public
     APIs such as `Scenario.sceneToBytes`. If you have defined a custom type of
@@ -72,30 +72,39 @@ class Serializer:
     """
     codecs = {}
 
-    def __init__(self, data=b'', allowPickle=False):
+    def __init__(self, data=b'', allowPickle=False, detectEnd=False):
         self.allowPickle = allowPickle
-        self.stream = io.BytesIO(data)
+        self.stream = data if isinstance(data, io.BufferedIOBase) else io.BytesIO(data)
+        if detectEnd:
+            self.stream = io.BufferedReader(self.stream)
         self.seenObjs = set()
 
     def getBytes(self):
         return self.stream.getvalue()
 
+    def atEnd(self):
+        return not self.stream.peek(1)
+
     @classmethod
     def sceneFormatVersion(cls):
         return 1
 
+    @classmethod
+    def replayFormatVersion(cls):
+        return 1
+
     def writeScene(self, scenario, scene):
-        version = struct.pack('<I', self.sceneFormatVersion())
+        version = struct.pack('<H', self.sceneFormatVersion())
         self.stream.write(version)
         assert len(scenario.astHash) == 4
         self.stream.write(scenario.astHash)
         self.writeSample(scenario.dependencies, scene.sample)
 
     def readScene(self, scenario, verify=True):
-        versionField = self.stream.read(4)
-        if len(versionField) != 4:
+        versionField = self.stream.read(2)
+        if len(versionField) != 2:
             raise SerializationError('serialized Scene is corrupted')
-        version = struct.unpack('<I', versionField)[0]
+        version = struct.unpack('<H', versionField)[0]
         if version != self.sceneFormatVersion():
             raise SerializationError('cannot read serialized Scene from '
                                      'a different Scenic version')
@@ -108,25 +117,45 @@ class Serializer:
 
     def writeSample(self, objects, values):
         for obj in objects:
-            if isinstance(obj, Samplable):
-                self.writeSamplable(obj, values)
+            self.writeSamplable(obj, values)
 
     def readSample(self, objects):
         values = DefaultIdentityDict()
         for obj in objects:
-            if isinstance(obj, Samplable):
-                self.readSamplable(obj, values)
+            self.readSamplable(obj, values)
         return values
 
     def writeSamplable(self, obj, values):
+        if not needsSampling(obj):
+            return  # value is not random, so no need to encode
         i = id(obj)
         if i not in self.seenObjs:
             self.seenObjs.add(i)
             obj.serializeValue(values, self)
 
     def readSamplable(self, obj, values):
+        if not needsSampling(obj):
+            return
         if obj not in values:
-            values[obj] = obj.unserializeValue(self, values)
+            values[obj] = obj.deserializeValue(self, values)
+
+    def writeReplayHeader(self, flags):
+        version = struct.pack('<H', self.replayFormatVersion())
+        self.stream.write(version)
+        self.stream.write(struct.pack('<I', flags))
+
+    def readReplayHeader(self):
+        versionField = self.stream.read(2)
+        if len(versionField) != 2:
+            raise SerializationError('replay is corrupted')
+        version = struct.unpack('<H', versionField)[0]
+        if version != self.replayFormatVersion():
+            raise SerializationError('cannot read replay from a different Scenic version')
+        flagsField = self.stream.read(4)
+        if len(flagsField) != 4:
+            raise SerializationError('replay is corrupted')
+        flags = struct.unpack('<I', flagsField)[0]
+        return flags
 
     @classmethod
     def addCodec(cls, ty, encoder, decoder):
@@ -175,6 +204,12 @@ class Serializer:
         raise SerializationError(f'{ty.__name__} type does not implement serialization')
 
 # Encoder/decoder functions for various types
+
+def _writeNone(value, stream):
+    pass
+def _readNone(value, stream):
+    return None
+Serializer.addCodec(type(None), _writeNone, _readNone)
 
 def _writeFloat(value, stream):
     stream.write(struct.pack('<d', value))

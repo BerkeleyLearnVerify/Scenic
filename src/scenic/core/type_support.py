@@ -36,7 +36,6 @@ from scenic.core.distributions import (Distribution, RejectionException, Starred
                                        distributionFunction)
 from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
                                    needsLazyEvaluation)
-from scenic.core.vectors import Vector
 from scenic.core.errors import RuntimeParseError, saveErrorLocation
 from scenic.core.utils import get_type_origin, get_type_args
 
@@ -86,7 +85,6 @@ def unifyingType(opts):		# TODO improve?
 
 def canCoerceType(typeA, typeB):
 	"""Can values of typeA be coerced into typeB?"""
-	import scenic.syntax.veneer as veneer	# TODO improve
 	if get_type_origin(typeA) is typing.Union:
 		# only raise an error now if none of the possible types will work;
 		# we'll do more careful checking at runtime
@@ -95,10 +93,8 @@ def canCoerceType(typeA, typeB):
 		return issubclass(typeA, numbers.Real)
 	elif typeB is Heading:
 		return canCoerceType(typeA, float) or hasattr(typeA, 'toHeading')
-	elif typeB is Vector:
-		return issubclass(typeA, (tuple, list)) or hasattr(typeA, 'toVector')
-	elif typeB is veneer.Behavior:
-		return issubclass(typeA, typeB) or typeA in (type, type(None))
+	elif hasattr(typeB, '_canCoerceType'):
+		return typeB._canCoerceType(typeA)
 	else:
 		return issubclass(typeA, typeB)
 
@@ -122,7 +118,6 @@ def coerce(thing, ty, error='wrong type'):
 
 	# If we are in any of the exceptional cases (see the module documentation above),
 	# select the appropriate helper function for performing the coercion.
-	import scenic.syntax.veneer as veneer	# TODO improve?
 	realType = ty
 	if ty is float:
 		coercer = coerceToFloat
@@ -130,12 +125,8 @@ def coerce(thing, ty, error='wrong type'):
 		coercer = coerceToHeading
 		ty = numbers.Real
 		realType = float
-	elif ty is Vector:
-		coercer = coerceToVector
-	elif ty is veneer.Behavior:
-		coercer = coerceToBehavior
 	else:
-		coercer = None
+		coercer = getattr(ty, '_coerce', None)
 
 	if isinstance(thing, Distribution):
 		# This is a random value. If we can prove that it will always have the desired
@@ -176,24 +167,6 @@ def coerceToHeading(thing) -> float:
 	if hasattr(thing, 'toHeading'):
 		return thing.toHeading()
 	return float(thing)
-
-def coerceToVector(thing) -> Vector:
-	if isinstance(thing, (tuple, list)):
-		l = len(thing)
-		if l != 2:
-			raise CoercionFailure('expected 2D vector, got '
-			                      f'{type(thing).__name__} of length {l}')
-		return Vector(*thing)
-	else:
-		return thing.toVector()
-
-def coerceToBehavior(thing):
-	import scenic.syntax.veneer as veneer	# TODO improve
-	if thing is None or isinstance(thing, veneer.Behavior):
-		return thing
-	else:
-		assert issubclass(thing, veneer.Behavior)
-		return thing()
 
 class TypecheckedDistribution(Distribution):
 	"""Distribution which typechecks its value at sampling time.
@@ -304,6 +277,7 @@ def toVector(thing, typeError='non-vector in vector context'):
 
 	See `toTypes` for details.
 	"""
+	from scenic.core.vectors import Vector
 	return toType(thing, Vector, typeError)
 
 def evaluateRequiringEqualTypes(func, thingA, thingB, typeError='type mismatch'):

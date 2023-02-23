@@ -12,8 +12,9 @@ import sys
 import pytest
 
 from scenic.core.serialization import Serializer
+from scenic.core.simulators import DummySimulator, DivergenceError
 from tests.utils import (areEquivalent, compileScenic, sampleScene, sampleSceneFrom,
-                         sampleEgoActionsFromScene)
+                         sampleEgoActionsFromScene, getEgoActionsFrom)
 
 simpleScenario = """
     ego = Object at Range(3, 5) @ 2, with foo Uniform('zoggle', 'buggle')
@@ -42,7 +43,7 @@ class TestExportToScenicCode:
         scene2 = sampleSceneFrom(code)
         checkSimpleScenes(scene1, scene2)
 
-# Serializing scenes given a compiled scenario
+# Serializing scenes and simulations given a compiled scenario
 
 def subprocessHelper(seed, data):
     import scenic.core.errors as errors
@@ -159,3 +160,131 @@ class TestExportToBytes:
             args = [sys.executable, '-c', command]
             result = subprocess.run(args, capture_output=True, text=True)
             assert result.returncode == 0, result.stderr
+
+class TestSimulationReplay:
+    def simulateReplayFrom(self, code, steps=1, steps2=None, **kwargs):
+        if not steps2:
+            steps2 = steps
+        scene = sampleSceneFrom(code)
+        simulator = DummySimulator()
+        sim1 = simulator.simulate(scene, maxSteps=steps, maxIterations=1, **kwargs)
+        replay = sim1.getReplay()
+        sim2 = simulator.replay(scene, replay, maxSteps=steps2, **kwargs)
+        return sim1, sim2
+
+    def checkReplay(self, code, steps=1):
+        sim1, sim2 = self.simulateReplayFrom(code, steps)
+        assert getEgoActionsFrom(sim1) == getEgoActionsFrom(sim2)
+
+    def test_basic(self):
+        self.checkReplay("""
+            behavior Foo():
+                take Range(1, 2)
+                take 42
+                take Uniform('refuge', 'umbrage', 'a hike')
+            ego = Object with behavior Foo
+        """, steps=3)
+
+    def test_global(self):
+        self.checkReplay("""
+            x = Range(1, 2)
+            behavior Foo():
+                take x
+            ego = Object with behavior Foo
+        """)
+
+    def test_argument(self):
+        self.checkReplay("""
+            behavior Foo(x):
+                take x
+            ego = Object with behavior Foo(Range(-1, 1))
+        """)
+
+    def test_continue_after_replay(self):
+        sim1, sim2 = self.simulateReplayFrom("""
+            behavior Foo():
+                while True:
+                    take Range(0, 1)
+            ego = Object with behavior Foo
+        """, steps=2, steps2=4)
+        a1 = getEgoActionsFrom(sim1)
+        assert len(a1) == 2
+        a2 = getEgoActionsFrom(sim2)
+        assert len(a2) == 4
+        assert a1[:2] == a2[:2]
+        assert a2[2] not in a2[:2]
+        assert a2[3] not in a2[:2]
+
+    def divergenceHelper(self, drift, maxSteps=1):
+        scene = sampleSceneFrom("""
+            behavior Foo():
+                while True:
+                    take Range(0, 1)
+            ego = Object with behavior Foo
+            Object at (10, 0)
+        """)
+        simulator1 = DummySimulator(drift=drift)
+        sim1 = simulator1.simulate(scene, maxSteps=maxSteps, maxIterations=1,
+                                   enableDivergenceCheck=True)
+        replay = sim1.getReplay()
+        return scene, replay
+
+    def test_divergence_basic(self):
+        scene, replay = self.divergenceHelper(drift=1.0)
+        sim = DummySimulator(drift=1.1)
+        with pytest.raises(DivergenceError):
+            sim.replay(scene, replay, maxSteps=1)
+
+    def test_divergence_none(self):
+        scene, replay = self.divergenceHelper(drift=1.0)
+        sim = DummySimulator(drift=1.0)
+        sim.replay(scene, replay, maxSteps=1)
+
+    def test_divergence_tolerance_met(self):
+        scene, replay = self.divergenceHelper(drift=1.0, maxSteps=5)
+        sim = DummySimulator(drift=1.001)
+        sim.replay(scene, replay, maxSteps=5, divergenceTolerance=0.01)
+
+    def test_divergence_tolerance_met_continue(self):
+        scene, replay = self.divergenceHelper(drift=1.0, maxSteps=5)
+        sim = DummySimulator(drift=1.001)
+        sim.replay(scene, replay, maxSteps=50, divergenceTolerance=0.01)
+
+    def test_divergence_tolerance_exceeded(self):
+        scene, replay = self.divergenceHelper(drift=1.0, maxSteps=5)
+        sim = DummySimulator(drift=1.001)
+        with pytest.raises(DivergenceError):
+            sim.replay(scene, replay, maxSteps=5, divergenceTolerance=0.004)
+
+    def test_divergence_continue(self):
+        scene = sampleSceneFrom("""
+            behavior Foo():
+                while True:
+                    take Range(0, 1)
+            ego = Object with behavior Foo
+            Object at (10, 0)
+        """)
+        simulator1 = DummySimulator(drift=1.0)
+        sim1 = simulator1.simulate(scene, maxSteps=1, maxIterations=1,
+                                   enableDivergenceCheck=True)
+        replay = sim1.getReplay()
+        simulator2 = DummySimulator(drift=1.1)
+        sim2 = simulator2.replay(scene, replay, maxSteps=2, continueAfterDivergence=True, verbosity=3)
+        a1, a2 = getEgoActionsFrom(sim1), getEgoActionsFrom(sim2)
+        assert len(a1) == 1
+        assert len(a2) == 2
+        assert a2[0] == a1[0]
+        assert a2[1] != a1[0]
+
+    def test_combined_serialization(self):
+        scenario = compileScenic("""
+            behavior Foo():
+                take Range(0, 1)
+            ego = Object with behavior Foo
+        """)
+        scene = sampleScene(scenario)
+        simulator = DummySimulator()
+        sim1 = simulator.simulate(scene, maxSteps=1, maxIterations=1)
+        data = scenario.simulationToBytes(sim1)
+        sim2 = scenario.simulationFromBytes(data, simulator, maxSteps=1)
+        assert getEgoActionsFrom(sim1) == getEgoActionsFrom(sim2)

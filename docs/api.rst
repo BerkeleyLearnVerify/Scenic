@@ -7,6 +7,9 @@ While Scenic is most easily invoked as a command-line tool, it also provides a P
 for compiling Scenic programs, sampling scenes from them, and running dynamic
 simulations.
 
+Compiling Scenarios and Generating Scenes
+-----------------------------------------
+
 The top-level interface to Scenic is provided by two functions in the ``scenic`` module
 which compile a Scenic program:
 
@@ -40,6 +43,9 @@ the sampled values for all the global parameters and objects in the scene from t
 .. testcleanup::
 
 	os.chdir('docs')
+
+Running Dynamic Simulations
+---------------------------
 
 To run dynamic scenarios, you must instantiate an instance of the `Simulator` class for
 the particular simulator you want to use. Each simulator interface that supports dynamic
@@ -95,7 +101,100 @@ functions, actively searching the space of parameters in a Scenic program to fin
 concrete scenarios where the system violates its specs [#f1]_, and more. See the VerifAI
 documentation for details.
 
+.. _serialization:
+
+Storing Scenes/Simulations for Later Use
+----------------------------------------
+
+`Scene` and `Simulation` objects are heavyweight and not themselves suitable for bulk
+storage or transmission over a network [#f2]_. However, Scenic provides serialization
+routines which can encode such objects into relatively short sequences of bytes. Compact
+encodings are achieved by storing only the sampled values of the primitive random
+variables in the scenario: all non-random information is obtained from the original
+Scenic file.
+
+Having compiled a Scenic scenario into a `Scenario` object, any scenes you generate from
+the scenario can be encoded as bytes using the `Scenario.sceneToBytes` method. For
+example, to save a scene to a file one could use code like the following:
+
+.. testsetup::
+
+	import os
+	os.chdir('..')
+
+.. testcode::
+
+	import scenic, tempfile, pathlib
+	scenario = scenic.scenarioFromFile('examples/gta/parkedCar.scenic')
+	scene, _ = scenario.generate()
+	data = scenario.sceneToBytes(scene)
+	with open(pathlib.Path(tempfile.gettempdir()) / 'test.scene', 'wb') as f:
+		f.write(data)
+	print(f'ego car position = {scene.egoObject.position}')
+
+.. testoutput::
+	:hide:
+
+	ego car position = ...
+
+Then you could restore the scene in another process, obtaining the same position for the ego car:
+
+.. testcode::
+
+	import scenic, tempfile, pathlib
+	scenario = scenic.scenarioFromFile('examples/gta/parkedCar.scenic')
+	with open(pathlib.Path(tempfile.gettempdir()) / 'test.scene', 'rb') as f:
+		data = f.read()
+	scene = scenario.sceneFromBytes(data)
+	print(f'ego car position = {scene.egoObject.position}')
+
+.. testoutput::
+	:hide:
+
+	ego car position = ...
+
+.. testcleanup::
+
+	import pathlib, tempfile
+	path = pathlib.Path(tempfile.gettempdir()) / 'test.scene'
+	path.unlink()
+	os.chdir('docs')
+
+Notice how we need to compile the scenario a second time in order to decode the scene,
+if the original `Scenario` object is not available. If you need to send a large number
+of scenes from one computer to another, for example, it suffices to send the Scenic file
+for the underlying scenario, plus the encodings of each of the scenes.
+
+You can encode and decode simulations run from a `Scenario` in a similar way, using the
+`Scenario.simulationToBytes` and `Scenario.simulationFromBytes` methods. One additional
+concern when replaying a serialized simulation is that if your simulator is not
+deterministic (or you change the simulator configuration), the original simulation and
+its replay can diverge, leading to unexpected behavior or exceptions. Scenic can attempt
+to detect such divergences by saving the exact history of the simulation and comparing
+it to the replay, but this greatly increases the size of the encoded simulation. See
+`Simulator.simulate` for the available options.
+
+.. note::
+
+	The serialization format used for scenes and simulations is suitable for long-term
+	storage (for instance if you want to save all the simulations you've run so that you
+	can return to one later for further analysis), but it is not guaranteed to be
+	compatible across major versions of Scenic.
+
+.. rubric:: Footnotes
+
 .. [#f1] VerifAI's active samplers can be used directly from Scenic when VerifAI is
 	installed. See `scenic.core.external_params`.
 
+.. [#f2] If you really do need to store/transmit such objects, you may be able to do so
+	using `dill`_, a drop-in replacement for Python's standard `pickle` library. Be aware
+	that pickling will produce much larger encodings than Scenic's own APIs, as they need
+	to include all the information present in the original Scenic file and its associated
+	resources (e.g. for driving scenarios, the entire road map). Unpickling malicious
+	files can also trigger arbitrary code execution, while Scenic's deserialization APIs
+	can be used with untrusted data (as long as you trust the Scenic program you're
+	running, of course).
+
 .. _VerifAI: https://verifai.readthedocs.io/
+
+.. _dill: https://pypi.org/project/dill/

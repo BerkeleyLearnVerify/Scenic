@@ -85,16 +85,7 @@ def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1,
     simulation = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
     if not simulation:
         return None
-    actionSequence = simulation.result.actions
-    if singleAction:
-        for i, allActions in enumerate(actionSequence):
-            for agent, actions in allActions.items():
-                assert len(actions) <= 1
-                allActions[agent] = actions[0] if actions else None
-    if asMapping:
-        return actionSequence
-    else:
-        return [tuple(actions.values()) for actions in actionSequence]
+    return getActionsFrom(simulation, singleAction=singleAction, asMapping=asMapping)
 
 def sampleTrajectory(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
                      raiseGuardViolations=False, timestep=1):
@@ -168,6 +159,22 @@ def checkVeneerIsInactive():
     assert not veneer.currentSimulation
     assert not veneer.currentBehavior
     stopFlag = False
+
+def getActionsFrom(simulation, singleAction=True, asMapping=False):
+    actionSequence = simulation.result.actions
+    if singleAction:
+        for i, allActions in enumerate(actionSequence):
+            for agent, actions in allActions.items():
+                assert len(actions) <= 1
+                allActions[agent] = actions[0] if actions else None
+    if asMapping:
+        return actionSequence
+    else:
+        return [tuple(actions.values()) for actions in actionSequence]
+
+def getEgoActionsFrom(simulation, singleAction=True):
+    allActions = getActionsFrom(simulation, singleAction=singleAction)
+    return [actions[0] for actions in allActions]
 
 ## Error checking utilities
 

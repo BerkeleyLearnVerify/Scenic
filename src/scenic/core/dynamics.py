@@ -15,6 +15,7 @@ from scenic.core.requirements import (RequirementType, PendingRequirement,
                                       DynamicRequirement)
 from scenic.core.simulators import (RejectSimulationException, EndSimulationAction,
                                     EndScenarioAction)
+from scenic.core.type_support import CoercionFailure
 from scenic.core.utils import argsToString, alarm
 
 # Utilities
@@ -607,6 +608,19 @@ class Behavior(Invocable, Samplable):
         if not inspect.isgeneratorfunction(self.makeGenerator):
             raise RuntimeParseError(f'{self} does not take any actions'
                                     ' (perhaps you forgot to use "take" or "do"?)')
+
+    @classmethod
+    def _canCoerceType(cls, ty):
+        return issubclass(ty, cls) or ty in (type, type(None))
+
+    @classmethod
+    def _coerce(cls, thing):
+        if thing is None or isinstance(thing, cls):
+            return thing
+        elif issubclass(thing, cls):
+            return thing()
+        else:
+            raise CoercionFailure(f'expected type of behavior, got {thing}')
 
     def sampleGiven(self, value):
         args = (value[arg] for arg in self._args)

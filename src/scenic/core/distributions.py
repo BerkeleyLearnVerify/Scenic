@@ -129,7 +129,7 @@ class Samplable(LazilyEvaluable):
 		for child in self._conditioned._dependencies:
 			serializer.writeSamplable(child, values)
 
-	def unserializeValue(self, serializer, values):
+	def deserializeValue(self, serializer, values):
 		for child in self._conditioned._dependencies:
 			serializer.readSamplable(child, values)
 		return self._conditioned.sampleGiven(values)
@@ -201,11 +201,21 @@ class Distribution(Samplable):
 
 	def __new__(cls, *args, **kwargs):
 		dist = super().__new__(cls)
-		# at runtime, return a sample from the distribution immediately
+		# During a simulation, return a sample from the distribution immediately
 		import scenic.syntax.veneer as veneer
 		if veneer.simulationInProgress():
 			dist.__init__(*args, **kwargs)
-			return dist.sample()
+			sim = veneer.simulation()
+			subsamples = DefaultIdentityDict()
+			# If we're replaying a previous simulation, use the saved value; otherwise sample one
+			if sim.replayCanContinue():
+				value = sim.replaySampledValue(dist, subsamples)
+			else:
+				value = dist.sample(subsamples)
+			# Save the value for future replay
+			subsamples[dist] = value
+			sim.recordSampledValue(dist, subsamples)
+			return value
 		else:
 			return dist
 
@@ -250,9 +260,9 @@ class Distribution(Samplable):
 			# values of our dependencies. There is then no need to save the latter.
 			serializer.writeValue(values[self], self._valueType)
 
-	def unserializeValue(self, serializer, values):
+	def deserializeValue(self, serializer, values):
 		if self._deterministic:
-			return super().unserializeValue(serializer, values)
+			return super().deserializeValue(serializer, values)
 		else:
 			return serializer.readValue(self._valueType)
 
@@ -741,14 +751,12 @@ class MultiplexerDistribution(Distribution):
 		# of our options, only the one we're selecting.
 		serializer.writeSamplable(self.index, values)
 		choice = self.options[values[self.index]]
-		if isinstance(choice, Samplable):
-			serializer.writeSamplable(choice, values)
+		serializer.writeSamplable(choice, values)
 
-	def unserializeValue(self, serializer, values):
+	def deserializeValue(self, serializer, values):
 		serializer.readSamplable(self.index, values)
 		choice = self.options[values[self.index]]
-		if isinstance(choice, Samplable):
-			serializer.readSamplable(choice, values)
+		serializer.readSamplable(choice, values)
 		return values[choice]
 
 	def evaluateInner(self, context):

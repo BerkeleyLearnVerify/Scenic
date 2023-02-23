@@ -207,7 +207,7 @@ class NewtonianSimulation(DrivingSimulation):
             angularSpeed=obj.angularSpeed,
         )
         if 'elevation' in properties:
-            values['elevation'] = obj.elevation
+            values['elevation'] = 0.0 if obj.elevation is None else obj.elevation
         return values
 
     def getLaneFollowingControllers(self, agent):

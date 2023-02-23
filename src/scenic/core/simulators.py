@@ -2,6 +2,8 @@
 """Interface between Scenic and simulators."""
 
 import enum
+import math
+import numbers
 import time
 import types
 from collections import OrderedDict, defaultdict
@@ -12,6 +14,7 @@ from scenic.core.distributions import RejectionException
 import scenic.core.dynamics as dynamics
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError, optionallyDebugRejection
 from scenic.core.requirements import RequirementType
+from scenic.core.serialization import Serializer
 from scenic.core.vectors import Vector
 
 class SimulatorInterfaceWarning(UserWarning):
@@ -23,6 +26,10 @@ class SimulationCreationError(Exception):
 
     Can also be issued during a simulation if dynamic object creation fails.
     """
+    pass
+
+class DivergenceError(Exception):
+    """Exception indicating simulation replay failed due to simulator nondeterminism."""
     pass
 
 class RejectSimulationException(Exception):
@@ -40,8 +47,10 @@ class Simulator:
     :mod:`scenic.simulators.lgsvl.simulator`.
     """
 
-    def simulate(self, scene, maxSteps=None, maxIterations=100, verbosity=0,
-                 raiseGuardViolations=False):
+    def simulate(self, scene, maxSteps=None, maxIterations=100, *,
+                 verbosity=0, raiseGuardViolations=False, replay=None,
+                 enableReplay=True, enableDivergenceCheck=False, divergenceTolerance=0,
+                 continueAfterDivergence=False, allowPickle=False):
         """Run a simulation for a given scene.
 
         For details on how simulations are run, see `dynamic scenario semantics`.
@@ -56,6 +65,31 @@ class Simulator:
             raiseGuardViolations (bool): Whether violations of preconditions/invariants
                 of scenarios/behaviors should cause this method to raise an exception,
                 instead of only rejecting the simulation (the default behavior).
+            replay (bytes): If not `None`, must be replay data output by `Simulation.getReplay`:
+                we will then replay the saved simulation rather than randomly generating
+                one as usual. If **maxSteps** is larger than that of the original
+                simulation, then once the replay is exhausted the simulation will continue
+                to run in the usual randomized manner.
+            enableReplay (bool): Whether to save data from the simulation so that it can
+                be serialized for later replay using `Scenario.simulationToBytes` or
+                `Simulation.getReplay`. Enabled by default as the overhead is generally low.
+            enableDivergenceCheck (bool): Whether to save the values of every
+                :term:`dynamic property` at each time step, so that when the simulation is
+                replayed, nondeterminism in the simulator (or replaying the simulation in
+                the wrong simulator) can be detected. Disabled by default as this option
+                greatly increases the size of replay objects (~100 bytes per object per step).
+            divergenceTolerance (float): Amount by which a dynamic property can deviate in
+                a replay from its original value before we consider the replay to have
+                diverged. The default value is zero: no deviation is allowed. If finer
+                control over divergences is required, see `Simulation.valuesHaveDiverged`.
+            continueAfterDivergence (bool): Whether to continue simulating after a
+                divergence is detected instead of raising a `DivergenceError`. If this is
+                true, then a divergence ends the replaying of the saved scenario but the
+                simulation will continue in the usual randomized manner (i.e., it is as
+                if the replay data ran out at the moment of the divergence).
+            allowPickle (bool): Whether to use `pickle` to (de)serialize custom object
+                types. See `sceneFromBytes` for a discussion of when this may be needed
+                (rarely) and its security implications.
 
         Returns:
             A `Simulation` object representing the completed simulation, or `None` if no
@@ -63,36 +97,64 @@ class Simulator:
             **maxIterations** iterations.
 
         Raises:
-            `SimulationCreationError`: if an error occurred while trying to run a
+            SimulationCreationError: if an error occurred while trying to run a
                 simulation (e.g. some assumption made by the simulator was violated, like
                 trying to create an object inside another).
-            `GuardViolation`: if **raiseGuardViolations** is true and a precondition or
+            GuardViolation: if **raiseGuardViolations** is true and a precondition or
                 invariant was violated during the simulation.
+            DivergenceError: if replaying a simulation (via the **replay** option) and
+                the replay has diverged from the original; requires the original simulation
+                to have been run with **enableDivergenceCheck**.
+            SerializationError: if writing or reading replay data fails. This could happen
+                if your scenario uses an unusual custom distribution (see `sceneToBytes`)
+                or if the replayed scenario has diverged without divergence-checking
+                enabled.
         """
-
         # Repeatedly run simulations until we find one satisfying the requirements
         iterations = 0
-        while maxIterations is None or iterations < maxIterations:
+        simulation = None
+        while not simulation and (maxIterations is None or iterations < maxIterations):
             iterations += 1
-            # Run a single simulation
-            try:
-                simulation = self.createSimulation(scene, verbosity=verbosity)
-                simulation.run(maxSteps)
-            except (RejectSimulationException, RejectionException, dynamics.GuardViolation) as e:
-                if verbosity >= 2:
-                    print(f'  Rejected simulation {iterations} at time step '
-                          f'{simulation.currentTime} because: {e}')
-                if raiseGuardViolations and isinstance(e, dynamics.GuardViolation):
-                    raise
-                else:
-                    optionallyDebugRejection(e)
-                    continue
-            # Completed the simulation without violating a requirement
+            simulation = self._runSingleSimulation(
+                scene, iterations, maxSteps, verbosity,
+                raiseGuardViolations=raiseGuardViolations, replay=replay,
+                enableReplay=enableReplay, enableDivergenceCheck=enableDivergenceCheck,
+                divergenceTolerance=divergenceTolerance,
+                continueAfterDivergence=continueAfterDivergence, allowPickle=allowPickle,
+            )
+        return simulation
+
+    def replay(self, scene, replay, **kwargs):
+        """Replay a simulation.
+
+        This convenience method simply calls `simulate` (and so takes all the same
+        arguments), but makes the **replay** argument positional so you can write
+        ``simulator.replay(scene, replay)`` instead of
+        ``simulator.simulate(scene, replay=replay)``.
+        """
+        return self.simulate(scene, replay=replay, **kwargs)
+
+    def _runSingleSimulation(self, scene, name, maxSteps, verbosity,
+                             raiseGuardViolations=False, **kwargs):
+        if verbosity >= 2:
+            print(f'  Starting simulation {name}...')
+        try:
+            simulation = self.createSimulation(scene, verbosity=verbosity)
+            simulation.run(maxSteps, **kwargs)
+        except (RejectSimulationException, RejectionException, dynamics.GuardViolation) as e:
             if verbosity >= 2:
-                print(f'  Simulation {iterations} ended successfully at time step '
-                      f'{simulation.currentTime} because: {simulation.result.terminationReason}')
-            return simulation
-        return None
+                print(f'  Rejected simulation {name} at time step '
+                      f'{simulation.currentTime} because: {e}')
+            if raiseGuardViolations and isinstance(e, dynamics.GuardViolation):
+                raise
+            else:
+                optionallyDebugRejection(e)
+                return None
+        # Completed the simulation without violating a requirement
+        if verbosity >= 2:
+            print(f'  Simulation {name} ended successfully at time step '
+                  f'{simulation.currentTime} because: {simulation.result.terminationReason}')
+        return simulation
 
     def createSimulation(self, scene, verbosity=0):
         """Create a `Simulation` from a Scenic scene.
@@ -126,7 +188,7 @@ class Simulation:
             for internal use.
     """
 
-    def __init__(self, scene, timestep=1, verbosity=0):
+    def __init__(self, scene, timestep=1, *, verbosity=0):
         self.result = None
         self.scene = scene
         self.objects = list(scene.objects)
@@ -138,16 +200,28 @@ class Simulation:
         self.verbosity = verbosity
         self.worker_num = 0
 
-    def run(self, maxSteps):
+    def run(self, maxSteps, *, replay=None, enableReplay=True,
+            enableDivergenceCheck=False, divergenceTolerance=0,
+            continueAfterDivergence=False, allowPickle=False):
         """Run the simulation.
 
-        Throws a RejectSimulationException if a requirement is violated.
+        Args:
+            maxSteps (int): Maximum number of steps to run the simulation, or 0 or `None`
+                to impose no limit (in which case the simulation will run until a
+                termination condition is met).
+
+        Raises:
+            RejectSimulationException: if a requirement is violated.
         """
         trajectory = self.trajectory
         if self.currentTime > 0:
             raise RuntimeError('tried to run a Simulation which has already run')
         assert len(trajectory) == 0
         actionSequence = []
+
+        self.initializeReplay(replay, enableReplay, enableDivergenceCheck, allowPickle)
+        self.divergenceTolerance = divergenceTolerance
+        self.continueAfterDivergence = continueAfterDivergence
 
         import scenic.syntax.veneer as veneer
         veneer.beginSimulation(self)
@@ -232,8 +306,8 @@ class Simulation:
 
                 # Run the simulation for a single step and read its state back into Scenic
                 self.step()
-                self.updateObjects()
                 self.currentTime += 1
+                self.updateObjects()
 
             # Stop all remaining scenarios
             # (and reject if some 'require eventually' condition was never satisfied)
@@ -267,8 +341,32 @@ class Simulation:
                 scenario._stop('exception', quiet=True)
             veneer.endSimulation(self)
 
+    def initializeReplay(self, replay, enableReplay, enableDivergenceCheck, allowPickle):
+        if replay:
+            self.replaying = True
+            self._replayIn = Serializer(replay, allowPickle=allowPickle, detectEnd=True)
+            flags = ReplayMode(self._replayIn.readReplayHeader())
+            self._checkDivergence = ReplayMode.checkDivergence in flags
+        else:
+            self.replaying = False
+        if enableReplay:
+            self._replayOut = Serializer(allowPickle=allowPickle)
+            flags = 0
+            if enableDivergenceCheck:
+                flags |= ReplayMode.checkDivergence
+                self._writeDivergenceData = True
+            else:
+                self._writeDivergenceData = False
+            self._replayOut.writeReplayHeader(flags)
+        else:
+            self._replayOut = None
+
     def createObject(self, obj):
-        """Dynamically create an object."""
+        """Dynamically create an object.
+
+        Subclasses probably do not need to override this method: they should implement
+        its subroutine `createObjectInSimulator` below.
+        """
         if self.verbosity >= 3:
             print(f'      Creating object {obj}')
         self.createObjectInSimulator(obj)
@@ -280,7 +378,13 @@ class Simulation:
         """Create the given object in the simulator.
 
         Implemented by subclasses, and called through `createObject`. Should raise
-        SimulationCreationError if creating the object fails.
+        `SimulationCreationError` if creating the object fails.
+
+        Args:
+            obj (Object): the Scenic object to create.
+
+        Raises:
+            SimulationCreationError: if unable to create the object in the simulator.
         """
         raise NotImplementedError
 
@@ -301,8 +405,34 @@ class Simulation:
 
         self.trajectory.append(self.currentState())
 
+    def replayCanContinue(self):
+        if not self.replaying:
+            return False
+        self.detectReplayEnd()  # updates self.replaying
+        return self.replaying
+
+    def detectReplayEnd(self):
+        if not self._replayIn.atEnd():
+            return
+        self.replaying = False
+        if self.verbosity >= 2:
+            print(f'    Continuing past end of replay at time step {self.currentTime}')
+
+    def recordSampledValue(self, dist, values):
+        if self._replayOut:
+            dist.serializeValue(values, self._replayOut)
+
+    def replaySampledValue(self, dist, values):
+        return dist.deserializeValue(self._replayIn, values)
+
     def scheduleForAgents(self):
-        """Return the order for the agents to run in the next time step."""
+        """Compute the order for the agents to run in the next time step.
+
+        The default order is the order in which the agents were created.
+
+        Returns:
+            An :term:`iterable` which is a permutation of ``self.agents``.
+        """
         return self.agents
 
     def actionsAreCompatible(self, agent, actions):
@@ -310,6 +440,10 @@ class Simulation:
 
         The default is to have all actions compatible with each other and all agents.
         Subclasses should override this method as appropriate.
+
+        Args:
+            agent (Object): the agent which wants to take the given actions.
+            actions (tuple): tuple of :term:`actions` to be taken.
         """
         for action in actions:
             if not action.canBeTakenBy(agent):
@@ -319,7 +453,16 @@ class Simulation:
     def executeActions(self, allActions):
         """Execute the actions selected by the agents.
 
-        Note that ``allActions`` is an OrderedDict, as the order of actions may matter.
+        The default implementation calls the `applyTo` method of each `Action` to apply
+        it to the appropriate agent, and sets the agent's ``lastActions`` property.
+        Subclasses may override this method to make additional simulator API calls as
+        needed, but should call this implementation too or otherwise emulate its
+        functionality.
+
+        Args:
+            allActions: an :obj:`~collections.OrderedDict` mapping each agent to a tuple
+                of actions. The order of agents in the dict should be respected in case
+                the order of actions matters.
         """
         for agent, actions in allActions.items():
             for action in actions:
@@ -327,16 +470,62 @@ class Simulation:
             agent.lastActions = actions
 
     def step(self):
-        """Run the simulation for one step and return the next trajectory element."""
+        """Run the simulation for one step and return the next trajectory element.
+
+        Implemented by subclasses. This should cause the simulator to simulate physics
+        for ``self.timestep`` seconds.
+        """
         raise NotImplementedError
 
     def updateObjects(self):
-        """Update the positions and other properties of objects from the simulation."""
+        """Update the positions and other properties of objects from the simulation.
+
+        Subclasses likely do not need to override this method: they should implement its
+        subroutine `getProperties` below.
+        """
         for obj in self.objects:
             # Get latest values of dynamic properties from simulation
-            properties = obj._dynamicProperties
+            dynTypes = obj._dynamicProperties
+            properties = set(dynTypes)
             values = self.getProperties(obj, properties)
             assert properties == set(values), properties ^ set(values)
+            for prop, value in values.items():
+                ty = dynTypes[prop]
+                if ty is float and isinstance(value, numbers.Real):
+                    # Special case for scalars so that we don't penalize simulator interfaces
+                    # for returning ints, NumPy scalar types, etc.
+                    value = float(value)
+                elif ty is type(None):
+                    # Special case for properties with initial value None: the simulator sets
+                    # their actual initial value, so we'll assume the type is correct here.
+                    ty = type(value)
+                    dynTypes[prop] = ty
+                if not isinstance(value, ty):
+                    actual = type(value).__name__
+                    expected = ty.__name__
+                    raise RuntimeError(f'simulator provided value for property "{prop}" '
+                                       f'with type {actual} instead of expected {expected}')
+
+            # If saving a replay with divergence-checking support, save all the new values;
+            # if running a replay with such support, check for divergence.
+            if self._replayOut and self._writeDivergenceData:
+                for prop, ty in dynTypes.items():
+                    self._replayOut.writeValue(values[prop], ty)
+            if self.replayCanContinue() and self._checkDivergence:
+                for prop, ty in dynTypes.items():
+                    expected = self._replayIn.readValue(ty)
+                    actual = values[prop]
+                    if self.valuesHaveDiverged(obj, prop, expected, actual):
+                        msg = (f'expected "{prop}" of {obj} to have value '
+                               f'{expected}, but got {actual}')
+                        if self.continueAfterDivergence:
+                            if self.verbosity >= 2:
+                                print(f'    Continuing past divergence at time step '
+                                      f'{self.currentTime} ({msg})')
+                            self.replaying = False
+                            break
+                        else:
+                            raise DivergenceError(msg)
 
             # Preserve some other properties which are assigned internally by Scenic
             for prop in self.mutableProperties(obj):
@@ -346,11 +535,53 @@ class Simulation:
             # visibleRegion, etc. are recomputed
             setDynamicProxyFor(obj, obj._copyWith(**values))
 
+    def valuesHaveDiverged(self, obj, prop, expected, actual):
+        """Decide whether the value of a dynamic property has diverged from the replay.
+
+        The default implementation considers scalar and vector properties to have diverged
+        if the distance between the actual and expected values is greater than
+        ``self.divergenceTolerance`` (which is 0 by default); other types of properties
+        use the != operator.
+
+        Subclasses may override this function to provide more specialized criteria (e.g.
+        allowing some properties to diverge more than others).
+
+        Args:
+            obj (Object): The object being considered.
+            prop (str): The name of the :term:`dynamic property` being considered.
+            expected: The value of the property saved in the replay currently being run.
+            actual: The value of the property in the current simulation.
+
+        Returns:
+            `True` if the actual value should be considered as having diverged from the
+            expected one; otherwise `False`.
+        """
+        diff = None
+        if isinstance(expected, numbers.Real):
+            diff = actual - expected
+        elif isinstance(expected, Vector):
+            diff = (actual - expected).norm()
+        if diff:
+            return (diff > self.divergenceTolerance)
+        else:
+            return (actual != expected)
+
     def mutableProperties(self, obj):
         return {'lastActions', 'behavior'}
 
     def getProperties(self, obj, properties):
-        """Read the values of the given properties of the object from the simulation."""
+        """Read the values of the given properties of the object from the simulator.
+
+        Implemented by subclasses.
+
+        Args:
+            obj (Object): Scenic object in question.
+            properties (set): Set of names of properties to read from the simulator.
+                It is safe to destructively iterate through the set if you want.
+
+        Returns:
+            A `dict` mapping each of the given properties to its current value.
+        """
         raise NotImplementedError
 
     def currentState(self):
@@ -365,22 +596,47 @@ class Simulation:
 
     @property
     def currentRealTime(self):
+        """Current simulation time, in seconds."""
         return self.currentTime * self.timestep
 
     def destroy(self):
-        """Perform any cleanup necessary to reset the simulator after a simulation."""
+        """Perform any cleanup necessary to reset the simulator after a simulation.
+
+        Does nothing by default; may be overridden by subclasses.
+        """
         pass
 
-class DummySimulator(Simulator):
-    """Simulator which does nothing, for debugging purposes."""
-    def __init__(self, timestep=1):
-        self.timestep = timestep
+    def getReplay(self):
+        """Encode this simulation to a `bytes` object for future replay.
 
-    def createSimulation(self, scene, verbosity=0):
-        return DummySimulation(scene, timestep=self.timestep, verbosity=verbosity)
+        Requires that the simulation was run with ``enableReplay=True`` (the default).
+        """
+        if not self._replayOut:
+            raise RuntimeError('cannot save replay without replay support enabled')
+        return self._replayOut.getBytes()
+
+class ReplayMode(enum.IntFlag):
+    checkDivergence = enum.auto()
+
+class DummySimulator(Simulator):
+    """Simulator which does (almost) nothing, for testing and debugging purposes.
+
+    To allow testing the change of dynamic properties over time, all objects drift
+    upward by **drift** every time step.
+    """
+    def __init__(self, timestep=1, drift=0):
+        self.timestep = timestep
+        self.drift = drift
+
+    def createSimulation(self, scene, **kwargs):
+        return DummySimulation(scene, timestep=self.timestep, drift=self.drift, **kwargs)
 
 class DummySimulation(Simulation):
     """Minimal `Simulation` subclass for `DummySimulator`."""
+    def __init__(self, scene, drift=0, **kwargs):
+        super().__init__(scene, **kwargs)
+        self.drift = drift
+
     def createObjectInSimulator(self, obj):
         pass
 
@@ -392,11 +648,12 @@ class DummySimulation(Simulation):
             agent.lastActions = actions
 
     def step(self):
-        pass
+        for obj in self.objects:
+            obj.position += Vector(0, self.drift)
 
     def getProperties(self, obj, properties):
         vals = dict(position=obj.position, heading=obj.heading,
-                    velocity=Vector(0, 0), speed=0, angularSpeed=0)
+                    velocity=Vector(0, 0), speed=0.0, angularSpeed=0.0)
         for prop in properties:
             if prop not in vals:
                 vals[prop] = None
@@ -405,9 +662,24 @@ class DummySimulation(Simulation):
 class Action:
     """An :term:`action` which can be taken by an agent for one step of a simulation."""
     def canBeTakenBy(self, agent):
+        """Whether this action is allowed to be taken by the given agent."""
         return True
 
     def applyTo(self, agent, simulation):
+        """Apply this action to the given agent in the given simulation.
+
+        This method should call simulator APIs so that the agent will take this action
+        during the next simulated time step. Depending on the simulator API, it may be
+        necessary to batch each agent's actions into a single update: in that case you
+        can have this method set some state on the agent, then apply the actual update
+        in an overridden implementation of `Simulation.executeActions`. For examples,
+        see the CARLA interface: `scenic.simulators.carla.actions` has some CARLA-specific
+        actions which directly call CARLA APIs, while the generic steering and braking
+        actions from `scenic.domains.driving.actions` are implemented using the batching
+        approach (see for example the ``setThrottle`` method of the class
+        `scenic.simulators.carla.model.Vehicle`, which sets state later read by
+        ``CarlaSimulation.executeActions`` in `scenic.simulators.carla.simulator`).
+        """
         raise NotImplementedError
 
 class EndSimulationAction(Action):
