@@ -92,6 +92,7 @@ Scenic also includes several more specialized world models for use with Webots:
 	Relatively minor changes would be required to make them work with the newer `open source versions of Webots <https://github.com/cyberbotics/webots>`_.
 	We may get around to porting them eventually; we'd also gladly accept a pull request!
 
+.. _xplane:
 
 X-Plane
 -------

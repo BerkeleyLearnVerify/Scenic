@@ -52,7 +52,7 @@ class WebotsSimulation(Simulation):
     Attributes:
         supervisor: Webots supervisor node used for the simulation. This is
             exposed for the use of scenarios which need to call Webots APIs
-            directly; e.g. :samp:`simulation().supervisor.setLabel({...})`.
+            directly; e.g. :scenic:`simulation().supervisor.setLabel({...})`.
     """
     def __init__(self, scene, supervisor, verbosity=0, coordinateSystem=ENU):
         timestep = supervisor.getBasicTimeStep() / 1000

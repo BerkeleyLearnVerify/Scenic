@@ -229,7 +229,7 @@ class Distribution(Samplable):
 	def supportInterval(self):
 		"""Compute lower and upper bounds on the value of this Distribution.
 
-		By default returns :samp:`(None, None)` indicating that no lower or upper bounds
+		By default returns :scenic:`(None, None)` indicating that no lower or upper bounds
 		are known. Subclasses may override this method to provide more accurate results.
 		"""
 		return None, None

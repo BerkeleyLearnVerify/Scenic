@@ -752,6 +752,14 @@ class ScenicLoader(importlib.abc.InspectLoader):
 		assert isinstance(module, ScenicModule), module
 		return module._pythonSource
 
+# Hack to give instances of ScenicModule a falsy __module__ to prevent
+# Sphinx from getting confused. (Autodoc doesn't expect modules to have
+# that attribute, and we can't del it.) We only do this during Sphinx
+# runs since it breaks pickling of the modules.
+oldname = __name__
+if getattr(veneer, '_buildingSphinx', False):
+	__name__ = None
+
 class ScenicModule(types.ModuleType):
 	def __getstate__(self):
 		state = self.__dict__.copy()
@@ -763,6 +771,8 @@ class ScenicModule(types.ModuleType):
 		self.__init__(name)		# needed to create __dict__
 		self.__dict__.update(state)
 		self.__builtins__ = builtins.__dict__
+
+__name__ = oldname
 
 # register the meta path finder
 sys.meta_path.insert(0, ScenicMetaFinder())

@@ -40,7 +40,7 @@ Normal distribution as above, but truncated to the given window.
 
 Uniform(*value*, ...)
 ---------------------
-Uniform over a finite set of values. The Uniform distribution can also be used to uniformly select over a list of unknown length. This can be done using the unpacking operator (which supports distributions over lists) as follows: ``Uniform(*list)``.
+Uniform over a finite set of values. The Uniform distribution can also be used to uniformly select over a list of unknown length. This can be done using the unpacking operator (which supports distributions over lists) as follows: :scenic:`Uniform(*list)`.
 
 .. _DiscreteDistr:
 

@@ -3,9 +3,7 @@
 The :doc:`world model <scenic.domains.driving.model>` defines Scenic classes for cars,
 pedestrians, etc., actions for dynamic agents which walk or drive, as well as simple
 behaviors like lane-following. Scenarios for the driving domain should import the model
-as follows:
-
-.. code-block:: scenic
+as follows::
 
     model scenic.domains.driving.model
 

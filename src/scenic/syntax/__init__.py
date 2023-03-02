@@ -7,6 +7,7 @@
 .. autosummary::
    :toctree:
 
+   pygment
    relations
    translator
    veneer

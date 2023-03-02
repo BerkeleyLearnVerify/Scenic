@@ -43,7 +43,9 @@ option to filter by test name, e.g. :command:`pytest -k specifiers`.
 Note that many of Scenic's tests are probabilistic, so in order to reproduce a test
 failure you may need to set the random seed. We use the
 `pytest-randomly <https://github.com/pytest-dev/pytest-randomly>`_ plugin to help with
-this: at the beginning of each run of ``pytest``, it prints out a line like::
+this: at the beginning of each run of ``pytest``, it prints out a line like:
+
+.. code-block:: none
 
 	Using --randomly-seed=344295085
 
@@ -63,8 +65,8 @@ function `breakpoint`. Note however that since code in a Scenic program is not a
 executed the way you might expect (e.g. top-level code is only run once, whereas code in
 requirements can run every time we generate a sample: see :ref:`how Scenic is compiled`), some care is needed when
 interpreting what you see in the debugger. The same consideration applies when adding
-`print` statements to a Scenic program. For example, a top-level :samp:`print(x)` will
-not print out the actual value of :samp:`x` every time a sample is generated: instead,
+`print` statements to a Scenic program. For example, a top-level :scenic:`print(x)` will
+not print out the actual value of :scenic:`x` every time a sample is generated: instead,
 you will get a single print at compile time, showing the `Distribution` object which
-represents the distribution of :samp:`x` (and which is bound to :samp:`x` in the Python
+represents the distribution of :scenic:`x` (and which is bound to :scenic:`x` in the Python
 namespace used internally for the Scenic module).

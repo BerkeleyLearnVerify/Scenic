@@ -339,14 +339,14 @@ class Point(Constructible):
 
 	Properties:
 		position (`Vector`; dynamic): Position of the point. Default value is the origin.
-		visibleDistance (float): Distance for ``can see`` operator. Default value 50.
+		visibleDistance (float): Distance for :keyword:`can see` operator. Default value 50.
 		width (float): Default value zero (only provided for compatibility with
 		  operators that expect an `Object`).
 		length (float): Default value zero.
 		mutationScale (float): Overall scale of mutations, as set by the
 		  :keyword:`mutate` statement. Default value zero (mutations disabled).
 		positionStdDev (float): Standard deviation of Gaussian noise to add to this
-		  object's ``position`` when mutation is enabled with scale 1. Default value 1.
+		  object's :prop:`position` when mutation is enabled with scale 1. Default value 1.
 	"""
 	position: PropertyDefault((), {'dynamic'}, lambda self: Vector(0, 0))
 	width: 0

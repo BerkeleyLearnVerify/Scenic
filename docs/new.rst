@@ -27,7 +27,7 @@ Major new features:
 
 Minor new features:
 
-	* You can now write :samp:`require {expr} as {name}` to give a name to a requirement; similarly for :samp:`require always`, termination conditions, etc.
+	* You can now write :scenic:`require {expr} as {name}` to give a name to a requirement; similarly for :scenic:`require always`, termination conditions, etc.
 
 	* Compatibility with Python 3.7 is restored. Scenic now supports all versions of Python from 3.7 to 3.11.
 
@@ -36,9 +36,9 @@ Scenic 2.0.0
 
 Backwards-incompatible syntax changes:
 
-	* The interval notation ``(low, high)`` for uniform distributions has been removed: use ``Range(low, high)`` instead. As a result of this change, the usual Python syntax for tuples is now legal in Scenic.
+	* The interval notation :scenic:`(low, high)` for uniform distributions has been removed: use :scenic:`Range(low, high)` instead. As a result of this change, the usual Python syntax for tuples is now legal in Scenic.
 
-	* The ``height`` property of `Object`, measuring its extent along the Y axis, has been renamed ``length`` to better match its intended use. The name ``height`` will be used again in a future version of Scenic with native support for 3D geometry.
+	* The :prop:`height` property of `Object`, measuring its extent along the Y axis, has been renamed :prop:`length` to better match its intended use. The name :prop:`height` will be used again in a future version of Scenic with native support for 3D geometry.
 
 Major new features:
 
@@ -53,13 +53,13 @@ Major new features:
 
 Minor new features:
 
-	* Operators and specifiers which take vectors as arguments will now accept tuples and lists of length 2; for example, you can write ``Object at (1, 2)``. The old syntax ``Object at 1@2`` is still supported.
+	* Operators and specifiers which take vectors as arguments will now accept tuples and lists of length 2; for example, you can write :scenic:`Object at (1, 2)`. The old syntax :scenic:`Object at 1@2` is still supported.
 
 	* The :keyword:`model` statement allows a scenario to specify which :term:`world model` it uses, while being possible to override from the command line with the :option:`--model` option.
 
 	* Global parameters can be overridden from the command line using the :option:`--param` option (e.g. to specify a different map to use for a scenario).
 
-	* The unpacking operator ``*`` can now be used with ``Uniform`` to select a random element of a random list/tuple (e.g. :samp:`lane = Uniform(*network.lanes); sec = Uniform(*lane.sections)`).
+	* The unpacking operator :scenic:`*` can now be used with :scenic:`Uniform` to select a random element of a random list/tuple (e.g. :scenic:`lane = Uniform(*network.lanes); sec = Uniform(*lane.sections)`).
 
 	* The Python built-in function `filter` is now supported, and can be used along with unpacking as above to select a random element of a random list satisfying a given condition (see :ref:`filter_func` for an example).
 

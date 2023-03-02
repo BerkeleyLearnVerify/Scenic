@@ -10,7 +10,7 @@ Operators Reference
   :alt: Diagram illustrating several operators.
 
   Illustration of several operators.
-  Each ``OrientedPoint`` (e.g. ``P``) is shown as a bold arrow.
+  Each :scenic:`OrientedPoint` (e.g. ``P``) is shown as a bold arrow.
 
 
 Scalar Operators
@@ -84,7 +84,7 @@ The heading specified by the vector field at the given position
 
 *direction* relative to *direction*
 ------------------------------------
-The first direction, interpreted as an offset relative to the second direction. For example, :samp:`-5 deg relative to 90 deg` is simply 85 degrees. If either direction is a vector field, then this operator yields an expression depending on the ``position`` property of the object being specified.
+The first direction, interpreted as an offset relative to the second direction. For example, :scenic:`-5 deg relative to 90 deg` is simply 85 degrees. If either direction is a vector field, then this operator yields an expression depending on the :prop:`position` property of the object being specified.
 
 
 Vector Operators
@@ -95,8 +95,8 @@ Vector Operators
 *vector* (relative to | offset by) *vector*
 --------------------------------------------
 The first vector, interpreted as an offset relative to the second vector (or vice versa).
-For example, ``(5, 5) relative to (100, 200)`` is ``(105, 205)``.
-Note that this polymorphic operator has a specialized version for instances of `OrientedPoint`, defined :ref:`below <{vector} relative to {OrientedPoint}>`: so for example ``(-3, 0) relative to taxi`` will not use the version of this operator for vectors (even though the `Object` taxi can be coerced to a vector).
+For example, :scenic:`(5, 5) relative to (100, 200)` is :scenic:`(105, 205)`.
+Note that this polymorphic operator has a specialized version for instances of `OrientedPoint`, defined :ref:`below <{vector} relative to {OrientedPoint}>`: so for example :scenic:`(-3, 0) relative to taxi` will not use the version of this operator for vectors (even though the `Object` taxi can be coerced to a vector).
 
 .. _{vector} offset along {direction} by {vector}:
 
@@ -126,13 +126,13 @@ OrientedPoint Operators
 
 *vector* relative to *OrientedPoint*
 -------------------------------------
-The given vector, interpreted in the local coordinate system of the OrientedPoint. So for example ``(1, 2) relative to ego`` is 1 meter to the right and 2 meters ahead of ego.
+The given vector, interpreted in the local coordinate system of the OrientedPoint. So for example :scenic:`(1, 2) relative to ego` is 1 meter to the right and 2 meters ahead of ego.
 
 .. _{OrientedPoint} offset by {vector}:
 
 *OrientedPoint* offset by *vector*
 ----------------------------------
-Equivalent to :samp:`{vector} relative to {OrientedPoint}` above
+Equivalent to :scenic:`{vector} relative to {OrientedPoint}` above
 
 .. _(front | back | left | right) of {Object}:
 
