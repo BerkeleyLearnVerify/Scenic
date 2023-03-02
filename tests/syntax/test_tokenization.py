@@ -89,7 +89,7 @@ def test_list_comprehension():
         ego = Object at -4@2
     """)
     assert len(scene.objects) == 11
-    assert scene.objects[2].position.x - scene.objects[1].position.x != pytest.approx(3)
+    assert scene.objects[2].position.x - scene.objects[1].position.x != pytest.approx(3, abs=1e-12)
 
 def test_incipit_as_name():
     """Incipits of operators are not keywords and can be used as names.
