@@ -1,6 +1,7 @@
 
-import os.path
 from contextlib import contextmanager
+import os.path
+
 import pytest
 
 ## Fixtures for use in tests

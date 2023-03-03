@@ -1727,9 +1727,9 @@ class ASTSurgeon(NodeTransformer):
 
 		def makeInterruptBlock(name, body):
 			newBody = self.visit(body)
-			allLocals = LocalFinder.findIn(newBody)
+			allLocals = sorted(LocalFinder.findIn(newBody))	# sort for determinism
 			if allLocals:
-				newBody.insert(0, Nonlocal(list(allLocals)))
+				newBody.insert(0, Nonlocal(allLocals))
 			newBody.append(Return(finishedFlag))
 			return FunctionDef(name, onlyBehaviorArgs, newBody, [], None)
 
@@ -1981,7 +1981,8 @@ class ASTSurgeon(NodeTransformer):
 
 		# Assemble scenario definition
 		name = node.name[len(scenarioMarker):]
-		saveLocals = Assign([Name('_locals', Store())], Constant(frozenset(allLocals)))
+		locs = Constant(tuple(sorted(allLocals)))	# sort for determinism
+		saveLocals = Assign([Name('_locals', Store())], locs)
 		body = guardCheckers + [saveLocals, setup, compose]
 		newDef = ClassDef(name, [Name(scenarioClass, Load())], [], body, [])
 		return copy_location(newDef, node)
@@ -2053,7 +2054,8 @@ class ASTSurgeon(NodeTransformer):
 		self.inLoop = oldInLoop
 
 		# convert to class definition
-		saveLocals = Assign([Name('_locals', Store())], Constant(frozenset(allLocals)))
+		locs = Constant(tuple(sorted(allLocals)))	# sort for determinism
+		saveLocals = Assign([Name('_locals', Store())], locs)
 		decorators = [self.visit(decorator) for decorator in node.decorator_list]
 		genDefn = FunctionDef('makeGenerator', newArgs, newBody, decorators, node.returns)
 		classBody = docstring + guardCheckers + [saveLocals, genDefn]

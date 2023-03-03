@@ -2,6 +2,7 @@
 
 import inspect
 import math
+import multiprocessing
 import sys
 import types
 
@@ -186,6 +187,16 @@ def checkErrorLineNumber(line, exc_info=None):
     while tb.tb_next is not None:
         tb = tb.tb_next
     assert tb.tb_lineno == line
+
+## Subprocess support
+
+multiprocessing.set_start_method('spawn', force=True)
+
+def runInSubprocess(func, *args, **kwargs):
+    proc = multiprocessing.Process(target=func, args=args, kwargs=kwargs)
+    proc.start()
+    proc.join()
+    assert proc.exitcode == 0
 
 ## Pickling
 

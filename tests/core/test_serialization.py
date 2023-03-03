@@ -14,23 +14,30 @@ import pytest
 from scenic.core.serialization import Serializer
 from scenic.core.simulators import DummySimulator, DivergenceError
 from tests.utils import (areEquivalent, compileScenic, sampleScene, sampleSceneFrom,
-                         sampleEgoActionsFromScene, getEgoActionsFrom)
+                         sampleEgoActionsFromScene, getEgoActionsFrom, runInSubprocess)
+
+# Utilities
 
 simpleScenario = """
     ego = Object at Range(3, 5) @ 2, with foo Uniform('zoggle', 'buggle')
     Object at 10@10, facing toward ego, with foo Options({Range(1,2): 1, Range(3,4): 2})
     param qux = ego.position
+    param baz = ({'a', 'b', 'c', 'd'}, frozenset({'e', 'f', 'g', 'h'}))
 """
-def checkSimpleScenes(scene1, scene2):
-    assert len(scene1.objects) == len(scene2.objects) == 2
-    assert 3 <= scene1.egoObject.position.x <= 5
-    for obj1, obj2 in zip(scene1.objects, scene2.objects):
-        assert obj1.position == obj2.position
-        assert obj1.heading == obj2.heading
-        assert obj1.foo == obj2.foo
-        assert obj1.width == obj2.width
-    assert len(scene1.params) == len(scene2.params) == 1
-    assert scene1.params['qux'] == scene2.params['qux']
+
+def skeleton(scene):
+    # Simple picklable representation of the main parameters of the scene
+    objs = [(o.position, o.heading, getattr(o, 'foo', 0)) for o in scene.objects]
+    return { 'objects': objs, 'params': scene.params }
+
+def assertSceneEquivalence(scene1, scene2, ignoreDynamics=False):
+    assert skeleton(scene1) == skeleton(scene2)
+    # Samples may not be equivalent since we only serialize random values which actually
+    # get used in the scene; so need to delete them before checking equivalence.
+    del scene1.sample, scene2.sample
+    if ignoreDynamics:
+        del scene1.dynamicScenario, scene2.dynamicScenario
+    assert areEquivalent(scene1, scene2, debug=True)
 
 # Exporting scenes to Scenic code
 
@@ -41,24 +48,35 @@ class TestExportToScenicCode:
         scene1.dumpAsScenicCode(stream)
         code = stream.getvalue()
         scene2 = sampleSceneFrom(code)
-        checkSimpleScenes(scene1, scene2)
+        assertSceneEquivalence(scene1, scene2, ignoreDynamics=True)
 
 # Serializing scenes and simulations given a compiled scenario
 
-def subprocessHelper(seed, data):
+def checkReconstruction(code, n=20):
+    # Repeat the test several times to catch nondeterminism due to hash
+    # randomization, for example
+    for i in range(n):
+        seed = random.randint(0, 1000000)
+        scenario = compileScenic(code)
+        random.seed(seed)
+        scene = sampleScene(scenario)
+        skel = skeleton(scene)
+        data = scenario.sceneToBytes(scene)
+        runInSubprocess(subprocessHelper, code, seed, data, skel)
+
+def subprocessHelper(code, seed, data, skel):
     import scenic.core.errors as errors
     errors.showInternalBacktrace = True
-    scenario = compileScenic(simpleScenario)
+    scenario = compileScenic(code)
+    print(scenario.astHash)
     scene1 = scenario.sceneFromBytes(data)
     assert scenario.sceneToBytes(scene1) == data
+    assert skeleton(scene1) == skel
     random.seed(seed)
     scene2 = sampleScene(scenario)
-    checkSimpleScenes(scene1, scene2)
     assert scenario.sceneToBytes(scene2) == data
-    # Samples may not be equivalent since we only serialize random values which actually
-    # get used in the scene; so need to delete them before checking equivalence.
-    del scene1.sample, scene2.sample
-    assert areEquivalent(scene1, scene2)
+    assert skeleton(scene2) == skel
+    assertSceneEquivalence(scene1, scene2)
 
 def checkValueEncoding(val, ty, allowPickle=False):
     enc = Serializer(allowPickle=allowPickle)
@@ -121,8 +139,8 @@ class TestExportToBytes:
         scene1 = sampleScene(scenario)
         data = scenario.sceneToBytes(scene1)
         scene2 = scenario.sceneFromBytes(data)
-        checkSimpleScenes(scene1, scene2)
         assert scenario.sceneToBytes(scene2) == data
+        assertSceneEquivalence(scene1, scene2)
 
     def test_scene_behavior(self):
         scenario = compileScenic("""
@@ -143,23 +161,30 @@ class TestExportToBytes:
         assert a22 == a12
         print(a11,a21,a12,a22)
 
+    behaviorLocalsScenario = """
+        behavior Foo(x):
+            a = 1; b = 2; c = 3; d = 4
+            take a+b+c+d+x
+        ego = Object with behavior Foo(Range(0, 1))
+    """
+
+    def test_scene_behavior_locals(self):
+        scenario = compileScenic(self.behaviorLocalsScenario)
+        scene1 = sampleScene(scenario)
+        a1 = sampleEgoActionsFromScene(scene1, maxSteps=1)[0]
+        assert 10 <= a1 <= 11
+        data = scenario.sceneToBytes(scene1)
+        scene2 = scenario.sceneFromBytes(data)
+        a2 = sampleEgoActionsFromScene(scene2, maxSteps=1)[0]
+        assert a2 == a1
+
     @pytest.mark.slow
     def test_separate_interpreters(self):
-        # Repeat this test several times to catch nondeterminism due to hash
-        # randomization, for example
-        for i in range(20):
-            seed = random.randint(0, 1000000)
-            scenario = compileScenic(simpleScenario)
-            random.seed(seed)
-            scene1 = sampleScene(scenario)
-            data = scenario.sceneToBytes(scene1)
-            command = (
-                'from tests.core.test_serialization import subprocessHelper;'
-                f'subprocessHelper({seed}, {data})'
-            )
-            args = [sys.executable, '-c', command]
-            result = subprocess.run(args, capture_output=True, text=True)
-            assert result.returncode == 0, result.stderr
+        checkReconstruction(simpleScenario)
+
+    @pytest.mark.slow
+    def test_separate_interpreters_locals(self):
+        checkReconstruction(self.behaviorLocalsScenario)
 
 class TestSimulationReplay:
     def simulateReplayFrom(self, code, steps=1, steps2=None, **kwargs):
