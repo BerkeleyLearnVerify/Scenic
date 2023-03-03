@@ -14,6 +14,7 @@ Detailed documentation on Scenic's components is organized by the submodules of 
 
 .. autosummary::
    :toctree: modules
+   :recursive:
 
    scenic.core
    scenic.domains

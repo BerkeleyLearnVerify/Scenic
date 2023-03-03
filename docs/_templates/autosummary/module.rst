@@ -2,6 +2,22 @@
 
 .. automodule:: {{ fullname }}
 
+   {% block submodules %}
+   {% if modules %}
+   .. raw:: html
+
+      <h2>Submodules</h2>
+
+   .. autosummary::
+      :recursive:
+      :toctree:
+   {# Use Jinja sort filter to get a case-insensitive sort order #}
+   {% for item in modules|sort %}
+      {{item.rpartition('.')[2]}}
+   {%- endfor %}
+   {% endif %}
+   {% endblock %}
+
    {% if attributes or functions or classes or exceptions %}
    Summary of Module Members
    =========================

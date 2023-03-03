@@ -48,20 +48,6 @@ written for the driving domain and can be run in multiple simulators:
                 --param lgsvl_map BorregasAve \\
                 examples/driving/badlyParkedCarPullingIn.scenic
 
-.. raw:: html
-
-   <h2>Submodules</h2>
-
-.. autosummary::
-   :toctree:
-
-   model
-   behaviors
-   actions
-   roads
-   controllers
-   workspace
-
 .. rubric:: Footnotes
 
 .. [#f1] Assuming the simulator supports the selected map. If necessary, the map may be

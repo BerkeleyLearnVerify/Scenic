@@ -114,7 +114,7 @@ def scenarioFromFile(path, params={}, model=None, scenario=None, cacheImports=Fa
 		raise FileNotFoundError(path)
 	fullpath = os.path.realpath(path)
 	head, extension = os.path.splitext(fullpath)
-	if not extension or extension[1:] not in scenicExtensions:
+	if not extension or extension not in scenicExtensions:
 		ok = ', '.join(scenicExtensions)
 		err = f'Scenic scenario does not have valid extension ({ok})'
 		raise RuntimeError(err)
@@ -693,32 +693,11 @@ keywords = (
 
 ### TRANSLATION PHASE ONE: handling imports
 
-## Meta path finder and loader for Scenic files
-
-scenicExtensions = ('scenic', 'sc')
-
-class ScenicMetaFinder(importlib.abc.MetaPathFinder):
-	def find_spec(self, name, paths, target=None):
-		if paths is None:
-			paths = sys.path
-			modname = name
-		else:
-			modname = name.rpartition('.')[2]
-		for path in paths:
-			for extension in scenicExtensions:
-				filename = modname + '.' + extension
-				filepath = os.path.join(path, filename)
-				if os.path.exists(filepath):
-					filepath = os.path.abspath(filepath)
-					spec = importlib.util.spec_from_file_location(name, filepath,
-						loader=ScenicLoader(filepath, filename))
-					return spec
-		return None
+## Loader for Scenic files, producing ScenicModules
 
 class ScenicLoader(importlib.abc.InspectLoader):
-	def __init__(self, filepath, filename):
+	def __init__(self, name, filepath):
 		self.filepath = filepath
-		self.filename = filename
 
 	def create_module(self, spec):
 		return ScenicModule(spec.name)
@@ -774,8 +753,80 @@ class ScenicModule(types.ModuleType):
 
 __name__ = oldname
 
-# register the meta path finder
-sys.meta_path.insert(0, ScenicMetaFinder())
+## Finder for Scenic (and Python) files
+
+scenicExtensions = ('.scenic', '.sc')
+
+import importlib.machinery as machinery
+loaders = [
+	(machinery.ExtensionFileLoader, machinery.EXTENSION_SUFFIXES),
+	(machinery.SourceFileLoader, machinery.SOURCE_SUFFIXES),
+	(machinery.SourcelessFileLoader, machinery.BYTECODE_SUFFIXES),
+	(ScenicLoader, scenicExtensions),
+]
+
+class ScenicFileFinder(importlib.abc.PathEntryFinder):
+	def __init__(self, path):
+		self._inner = machinery.FileFinder(path, *loaders)
+
+	def find_spec(self, fullname, target=None):
+		return self._inner.find_spec(fullname, target=target)
+
+	def invalidate_caches(self):
+		self._inner.invalidate_caches()
+
+	# Support pkgutil.iter_modules() (used by Sphinx autosummary's recursive mode);
+	# we need to use a subclass of FileFinder since pkgutil's implementation for
+	# vanilla FileFinder uses inspect.getmodulename, which doesn't recognize the
+	# .scenic file extension.
+	def iter_modules(self, prefix):
+		# This is mostly copied from pkgutil._iter_file_finder_modules
+		yielded = {}
+		try:
+			filenames = os.listdir(self._inner.path)
+		except OSError:
+			return
+		filenames.sort()
+		for fn in filenames:
+			modname = inspect.getmodulename(fn)
+			if not modname:
+				# Check for Scenic modules
+				base = os.path.basename(fn)
+				for ext in scenicExtensions:
+					if base.endswith(ext):
+						modname = base[:-len(ext)]
+						break
+			if modname == '__init__' or modname in yielded:
+				continue
+
+			path = os.path.join(self._inner.path, fn)
+			ispkg = False
+
+			if not modname and os.path.isdir(path) and '.' not in fn:
+				modname = fn
+				try:
+					dircontents = os.listdir(path)
+				except OSError:
+					# ignore unreadable directories like import does
+					dircontents = []
+				for fn in dircontents:
+					subname = inspect.getmodulename(fn)
+					if subname == '__init__':
+						ispkg = True
+						break
+				else:
+					continue    # not a package
+
+			if modname and '.' not in modname:
+				yielded[modname] = 1
+				yield prefix + modname, ispkg
+
+# Install path hook using our finder
+def scenic_path_hook(path):
+	if not os.path.isdir(path):
+		raise ImportError('only directories are supported', path=path)
+	return ScenicFileFinder(path)
+sys.path_hooks.insert(0, scenic_path_hook)
 
 ## Miscellaneous utilities
 

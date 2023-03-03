@@ -8,20 +8,6 @@ The interface implements the :obj:`scenic.domains.driving` abstract domain, so a
 object types, behaviors, utility functions, etc. from that domain may be used freely.
 For details of additional CARLA-specific functionality, see the world model
 :obj:`scenic.simulators.carla.model`.
-
-.. raw:: html
-
-   <h2>Submodules</h2>
-
-.. autosummary::
-   :toctree:
-
-   model
-   actions
-   behaviors
-   simulator
-   blueprints
-   misc
 """
 
 # Only import CarlaSimulator if the carla package is installed; otherwise the

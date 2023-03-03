@@ -55,6 +55,7 @@ class NewtonianSimulator(DrivingSimulator):
                                    verbosity=verbosity, render=self.render)
 
 class NewtonianSimulation(DrivingSimulation):
+    """Implementation of `Simulation` for the Newtonian simulator."""
     def __init__(self, scene, network, timestep, verbosity=0, render=False):
         super().__init__(scene, timestep=timestep, verbosity=verbosity)
         self.render = render

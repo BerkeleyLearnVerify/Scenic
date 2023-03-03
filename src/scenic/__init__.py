@@ -1,18 +1,4 @@
-"""A compiler and scene generator for the Scenic scenario description language.
-
-.. raw:: html
-
-   <h2>Submodules</h2>
-
-.. autosummary::
-   :toctree:
-
-   core
-   domains
-   formats
-   simulators
-   syntax
-"""
+"""A compiler and scene generator for the Scenic scenario description language."""
 
 from .syntax.translator import scenarioFromFile, scenarioFromString
 
