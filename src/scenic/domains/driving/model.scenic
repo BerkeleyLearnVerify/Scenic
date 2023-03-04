@@ -238,6 +238,9 @@ class DrivingObject:
     def setPosition(self, pos, elevation):
         raise NotImplementedError
 
+    def setHeading(self, heading):
+        raise NotImplementedError
+
     def setVelocity(self, vel):
         raise NotImplementedError
 
