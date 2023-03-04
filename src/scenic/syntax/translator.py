@@ -1981,7 +1981,8 @@ class ASTSurgeon(NodeTransformer):
 
 		# Assemble scenario definition
 		name = node.name[len(scenarioMarker):]
-		locs = Constant(tuple(sorted(allLocals)))	# sort for determinism
+		locs = Constant(tuple(sorted(allLocals)))	# sort for AST determinism
+		locs = Call(Name('frozenset', Load()), [locs], [])
 		saveLocals = Assign([Name('_locals', Store())], locs)
 		body = guardCheckers + [saveLocals, setup, compose]
 		newDef = ClassDef(name, [Name(scenarioClass, Load())], [], body, [])
@@ -2054,7 +2055,8 @@ class ASTSurgeon(NodeTransformer):
 		self.inLoop = oldInLoop
 
 		# convert to class definition
-		locs = Constant(tuple(sorted(allLocals)))	# sort for determinism
+		locs = Constant(tuple(sorted(allLocals)))	# sort for AST determinism
+		locs = Call(Name('frozenset', Load()), [locs], [])
 		saveLocals = Assign([Name('_locals', Store())], locs)
 		decorators = [self.visit(decorator) for decorator in node.decorator_list]
 		genDefn = FunctionDef('makeGenerator', newArgs, newBody, decorators, node.returns)
