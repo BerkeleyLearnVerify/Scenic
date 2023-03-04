@@ -30,6 +30,9 @@ class NewtonianActor(DrivingObject):
     def setPosition(self, pos, elevation):
         self.position = pos
 
+    def setHeading(self, heading):
+        self.heading = heading
+	
     def setVelocity(self, vel):
         self.velocity = vel
 
