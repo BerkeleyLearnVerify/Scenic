@@ -29,6 +29,14 @@ class SetPositionAction(Action):
 	def applyTo(self, obj, sim):
 		obj.setPosition(self.pos, obj.elevation)
 
+class SetHeadingAction(Action):
+	"""Rotate an agent to the given heading."""
+	def __init__(self, heading: float):
+		self.heading = heading
+
+	def applyTo(self, obj, sim):
+		obj.setHeading(self.heading)
+
 class OffsetAction(Action):
 	"""Teleports actor forward (in direction of its heading) by some offset."""
 	def __init__(self, offset: Vector):
