@@ -29,10 +29,15 @@ def cached(oldMethod):
 def cached_property(oldMethod):
     return property(cached(oldMethod))
 
-def argsToString(args):
-    names = (f'{a[0]}={a[1]}' if isinstance(a, tuple) else str(a) for a in args)
-    joinedArgs = ', '.join(names)
-    return f'({joinedArgs})'
+def argsToString(args, kwargs={}):
+    args = ', '.join(repr(arg) for arg in args)
+    kwargs = ', '.join(f'{name}={value!r}' for name, value in kwargs.items())
+    parts = []
+    if args:
+        parts.append(args)
+    if kwargs:
+        parts.append(kwargs)
+    return ', '.join(parts)
 
 @contextmanager
 def alarm(seconds, handler=None, noNesting=False):

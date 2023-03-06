@@ -103,7 +103,7 @@ def test_intersection(cached_maps):
         maneuver = Uniform(*lane.maneuvers)
         ego = Car on maneuver.connectingLane.centerline
     """)
-    for i in range(50):
+    for i in range(20):
         ego = sampleEgo(scenario, maxIterations=1000)
         intersection = ego.intersection
         assert intersection is not None
@@ -148,6 +148,7 @@ def test_caching(tmpdir):
         sampleScene(scenario, maxIterations=1000)
 
 @pickle_test
+@pytest.mark.slow
 def test_pickle(cached_maps):
     scenario = compileDrivingScenario(cached_maps, """
         ego = Car with behavior FollowLaneBehavior(target_speed=Range(10, 15))

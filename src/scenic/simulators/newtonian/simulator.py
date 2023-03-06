@@ -174,6 +174,7 @@ class NewtonianSimulation(DrivingSimulation):
             obj.heading += obj.angularSpeed * self.timestep
         if self.render:
             self.draw_objects()
+            pygame.event.pump()
 
     def draw_objects(self):
         self.screen.fill((255, 255, 255))
@@ -210,6 +211,10 @@ class NewtonianSimulation(DrivingSimulation):
         if 'elevation' in properties:
             values['elevation'] = obj.elevation
         return values
+
+    def destroy(self):
+        if self.render:
+            pygame.quit()
 
     def getLaneFollowingControllers(self, agent):
         dt = self.timestep

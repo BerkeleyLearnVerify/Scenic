@@ -1,4 +1,5 @@
 
+import matplotlib.pyplot as plt
 import pytest
 
 import scenic
@@ -130,3 +131,21 @@ def test_dump_final_python():
         compileScenic('ego = Object')
     finally:
         scenic.syntax.translator.dumpASTPython = False
+
+def test_show():
+    scenario = compileScenic('ego = Object with color (0.5, 1.0, 0.5)')
+    scene = sampleScene(scenario)
+    scene.show(block=False)
+    plt.close()
+
+def test_show_zoom():
+    scenario = compileScenic("""
+        ego = Object
+        Object at 10@20
+    """)
+    scene = sampleScene(scenario)
+    scene.show(zoom=1, block=False)
+    xmin, xmax, ymin, ymax = plt.axis()
+    assert xmin < 0 and xmax > 10
+    assert ymin < 0 and ymax > 20
+    plt.close()

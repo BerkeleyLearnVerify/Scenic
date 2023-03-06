@@ -15,7 +15,6 @@ def test_requirement():
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
     assert all(0 <= x <= 10 for x in xs)
 
-@pytest.mark.slow
 def test_soft_requirement():
     scenario = compileScenic("""
         ego = Object at Range(-10, 10) @ 0

@@ -576,8 +576,8 @@ class DynamicScenario(Invocable):
         if self._dummyNamespace:
             return 'top-level scenario'
         else:
-            args = argsToString(itertools.chain(self._args, self._kwargs.items()))
-            return self.__class__.__name__ + args
+            args = argsToString(self._args, self._kwargs)
+            return f'{self.__class__.__name__}({args})'
 
 # Behaviors
 

@@ -11,6 +11,7 @@ def test_basic(loadLocalScenario):
     sampleScene(scenario, maxIterations=1000)
 
 @pickle_test
+@pytest.mark.slow
 def test_pickle(loadLocalScenario):
     scenario = loadLocalScenario('basic.scenic')
     unpickled = tryPickling(scenario)

@@ -130,6 +130,14 @@ def test_point_can_see_vector():
     """)
     assert p == (True, False)
 
+def test_point_can_see_point():
+    p = sampleParamPFrom("""
+        ego = Object
+        pt = Point at 10@20, with visibleDistance 5
+        param p = tuple([pt can see (Point at 8@19), pt can see Point at 10@26])
+    """)
+    assert p == (True, False)
+
 def test_point_can_see_object():
     p = sampleParamPFrom("""
         ego = Object with width 10, with length 10

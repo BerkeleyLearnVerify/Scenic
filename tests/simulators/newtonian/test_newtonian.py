@@ -10,10 +10,16 @@ def test_basic(loadLocalScenario):
     egoPos, otherPos = simulation.result.trajectory[-1]
     assert egoPos.distanceTo(otherPos) < 1
 
+def test_render(loadLocalScenario):
+    scenario = loadLocalScenario('basic.scenic')
+    scene, _ = scenario.generate(maxIterations=1)
+    simulator = NewtonianSimulator(render=True)
+    simulator.simulate(scene, maxSteps=3)
+
 def test_driving(loadLocalScenario):
     scenario = loadLocalScenario('driving.scenic')
     scene, _ = scenario.generate(maxIterations=1000)
-    simulator = NewtonianSimulator()
+    simulator = scenario.getSimulator()
     simulation = simulator.simulate(scene, maxSteps=3)
 
 @pickle_test

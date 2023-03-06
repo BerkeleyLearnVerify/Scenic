@@ -2,8 +2,8 @@
 
 import pytest
 
-from scenic.core.dynamics import PreconditionViolation
-from scenic.core.errors import RuntimeParseError, ScenicSyntaxError
+from scenic.core.dynamics import PreconditionViolation, InvariantViolation
+from scenic.core.errors import ScenicSyntaxError
 from scenic.core.simulators import DummySimulator
 
 from tests.utils import (compileScenic, sampleEgo, sampleEgoFrom, sampleScene,
@@ -14,7 +14,7 @@ from tests.utils import (compileScenic, sampleEgo, sampleEgoFrom, sampleScene,
 
 def test_single_scenario():
     ego = sampleEgoFrom("""
-        scenario Main():
+        scenario Blob():
             setup:
                 ego = Object at (1, 2)
     """)
@@ -23,7 +23,9 @@ def test_single_scenario():
 def test_simple_scenario():
     ego = sampleEgoFrom("""
         scenario Main():
-            ego = Object at (1, 2)
+            behavior Foo():
+                wait
+            ego = Object at (1, 2), with behavior Foo
     """)
     assert tuple(ego.position) == (1, 2)
 
@@ -59,6 +61,18 @@ def test_top_level_precondition():
     sim = DummySimulator(timestep=1)
     scene = sampleScene(scenario)
     with pytest.raises(PreconditionViolation):
+        sim.simulate(scene, maxSteps=1, raiseGuardViolations=True)
+
+def test_top_level_invariant():
+    scenario = compileScenic("""
+        scenario Main():
+            invariant: simulation().currentTime > 0
+            setup:
+                ego = Object
+    """)
+    sim = DummySimulator(timestep=1)
+    scene = sampleScene(scenario)
+    with pytest.raises(InvariantViolation):
         sim.simulate(scene, maxSteps=1, raiseGuardViolations=True)
 
 # Composition
@@ -393,6 +407,24 @@ def test_override_behavior():
     """, scenario='Main')
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, -1, -2, 2)
+
+def test_override_dynamic():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            scenario Main():
+                setup:
+                    ego = Object
+                    override ego with position 5@5
+        """)
+
+def test_override_nonexistent():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            scenario Main():
+                setup:
+                    ego = Object
+                    override ego with blob 'hello!'
+        """)
 
 # Scoping
 
