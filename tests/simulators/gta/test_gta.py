@@ -23,6 +23,14 @@ def test_bumper_to_bumper(loadLocalScenario):
     scene.show(zoom=1, block=False)
     plt.close()
 
+def test_make_map(request, tmp_path):
+    from scenic.simulators.gta.interface import Map
+    m = Map(request.path.parent / 'small.png',
+        Ax=1, Ay=-1, Bx=-700, By=500)
+    outpath = tmp_path / 'gta_map.npz'
+    m.dumpToFile(outpath)
+    outpath.unlink()
+
 @pickle_test
 def test_pickle(loadLocalScenario):
     scenario = loadLocalScenario('basic.scenic')

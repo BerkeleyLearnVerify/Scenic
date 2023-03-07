@@ -949,7 +949,7 @@ class PointSetRegion(Region):
 
 	def __init__(self, name, points, kdTree=None, orientation=None, tolerance=1e-6):
 		super().__init__(name, orientation=orientation)
-		self.points = tuple(points)
+		self.points = numpy.array(points)
 		for point in self.points:
 			if needsSampling(point):
 				raise RuntimeError('only fixed PointSetRegions are supported')
@@ -959,7 +959,8 @@ class PointSetRegion(Region):
 		self.tolerance = tolerance
 
 	def uniformPointInner(self):
-		return self.orient(Vector(*random.choice(self.points)))
+		i = random.randrange(0, len(self.points))
+		return self.orient(Vector(*self.points[i]))
 
 	def intersect(self, other, triedReversed=False):
 		def sampler(intRegion):
@@ -989,7 +990,7 @@ class PointSetRegion(Region):
 		if type(other) is not PointSetRegion:
 			return NotImplemented
 		return (self.name == other.name
-		        and self.points == other.points
+		        and numpy.array_equal(self.points, other.points)
 		        and self.orientation == other.orientation)
 
 	@cached
