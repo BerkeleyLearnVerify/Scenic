@@ -105,7 +105,6 @@ scenarioStack = []
 scenarios = []
 evaluatingRequirement = False
 _globalParameters = {}
-_workspace = None
 lockedParameters = set()
 lockedModel = None
 loadingModel = False
@@ -148,7 +147,7 @@ def activate(paramOverrides={}, modelOverride=None, filename=None, namespace=Non
 
 def deactivate():
 	"""Deactivate the veneer after compiling a Scenic module."""
-	global activity, _globalParameters, _workspace, lockedParameters, lockedModel
+	global activity, _globalParameters, lockedParameters, lockedModel
 	global currentScenario, scenarios, scenarioStack, simulatorFactory
 	activity -= 1
 	assert activity >= 0
@@ -165,7 +164,6 @@ def deactivate():
 		currentScenario = None
 		simulatorFactory = None
 		_globalParameters = {}
-		_workspace = None
 	else:
 		currentScenario = scenarioStack[-1]
 
@@ -224,7 +222,7 @@ def instantiateSimulator(factory, params):
 
 def beginSimulation(sim):
 	global currentSimulation, currentScenario, inInitialScenario, runningScenarios
-	global _globalParameters, _workspace
+	global _globalParameters
 	if isActive():
 		raise RuntimeError('tried to start simulation during Scenic compilation!')
 	assert currentSimulation is None
@@ -236,7 +234,6 @@ def beginSimulation(sim):
 	inInitialScenario = currentScenario._setup is None
 	currentScenario._bindTo(sim.scene)
 	_globalParameters = dict(sim.scene.params)
-	_workspace = sim.scene.workspace
 
 	# rebind globals that could be referenced by behaviors to their sampled values
 	for modName, (namespace, sampledNS, originalNS) in sim.scene.behaviorNamespaces.items():
@@ -245,13 +242,12 @@ def beginSimulation(sim):
 
 def endSimulation(sim):
 	global currentSimulation, currentScenario, currentBehavior, runningScenarios
-	global _globalParameters, _workspace
+	global _globalParameters
 	currentSimulation = None
 	currentScenario = None
 	runningScenarios = set()
 	currentBehavior = None
 	_globalParameters = {}
-	_workspace = None
 
 	for modName, (namespace, sampledNS, originalNS) in sim.scene.behaviorNamespaces.items():
 		namespace.clear()
@@ -394,9 +390,8 @@ def workspace(workspace=None):
 
 	See `ego`.
 	"""
-	global _workspace
 	if workspace is None:
-		if _workspace is None:
+		if currentScenario._workspace is None:
 			raise RuntimeParseError('referred to workspace not yet assigned')
 	elif not isinstance(workspace, Workspace):
 		raise RuntimeParseError(f'workspace {workspace} is not a Workspace')
@@ -406,8 +401,8 @@ def workspace(workspace=None):
 		raise InvalidScenarioError('workspace uses value undefined '
 		                           'outside of object definition')
 	else:
-		_workspace = workspace
-	return _workspace
+		currentScenario._workspace = workspace
+	return currentScenario._workspace
 
 def require(reqID, req, line, name, prob=1):
 	"""Function implementing the require statement."""
@@ -933,9 +928,9 @@ def NotVisibleFrom(base):
 	def helper(self):
 		region = self.regionContainedIn
 		if region is None:
-			if _workspace is None:
+			if currentScenario._workspace is None:
 				raise RuntimeParseError('"not visible" specifier with no workspace defined')
-			region = _workspace.region
+			region = currentScenario._workspace.region
 		return Region.uniformPointIn(region.difference(base.visibleRegion))
 	return Specifier('position', DelayedArgument({'regionContainedIn'}, helper))
 

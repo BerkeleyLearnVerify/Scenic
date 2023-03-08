@@ -1,4 +1,7 @@
 
+import pkgutil
+import sys
+
 import pytest
 
 from scenic import scenarioFromString as compileScenic
@@ -11,3 +14,20 @@ def test_veneer_activation():
     with pytest.raises(Exception):
         compileScenic('raise Exception')
     checkVeneerIsInactive()
+
+def test_module_inspection():
+    try:
+        import scenic
+        import tests.syntax.helper3
+        loader = tests.syntax.helper3.__spec__.loader
+        loader.get_code('tests.syntax.helper3')
+        loader.get_source('tests.syntax.helper3')
+        assert not loader.is_package('tests.syntax.helper3')
+    finally:
+        sys.modules.pop('tests.syntax.helper3', None)
+
+def test_iter_modules(request, monkeypatch):
+    monkeypatch.chdir(request.path.parent)
+    modules = set(info.name for info in pkgutil.iter_modules(['']))
+    assert 'helper' in modules
+    assert 'helper2' in modules

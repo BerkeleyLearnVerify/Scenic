@@ -823,10 +823,13 @@ class ScenicFileFinder(importlib.abc.PathEntryFinder):
 
 # Install path hook using our finder
 def scenic_path_hook(path):
+	if not path:
+		path = os.getcwd()
 	if not os.path.isdir(path):
 		raise ImportError('only directories are supported', path=path)
 	return ScenicFileFinder(path)
 sys.path_hooks.insert(0, scenic_path_hook)
+sys.path_importer_cache.clear()
 
 ## Miscellaneous utilities
 
@@ -2295,9 +2298,6 @@ def storeScenarioStateIn(namespace, requirementSyntax):
 	for scenario in veneer.scenarios:
 		scenario._bindGlobals(veneer._globalParameters)
 	moduleScenario._bindGlobals(veneer._globalParameters)
-
-	# Save workspace
-	namespace['_workspace'] = veneer._workspace
 
 	namespace['_scenario'] = moduleScenario
 
