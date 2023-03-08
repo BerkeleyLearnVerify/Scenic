@@ -39,6 +39,52 @@ def test_circular_lazy():
     """)
     assert ego.foo.radius == 2 * ego.position.x
 
+# SectorRegion
+
+def test_sector_in():
+    scenario = compileScenic('ego = Object in SectorRegion(3@5, 2, -90 deg, 180 deg)')
+    positions = [sampleEgo(scenario).position for i in range(50)]
+    center = Vector(3, 5)
+    distances = [pos.distanceTo(center) for pos in positions]
+    assert all(dist <= 2 for dist in distances)
+    assert any(dist < 1.5 for dist in distances)
+    assert any(dist > 1.5 for dist in distances)
+    assert all(pos.x >= 3 for pos in positions)
+    assert any(pos.y < 5 for pos in positions)
+    assert any(pos.y > 5 for pos in positions)
+
+def test_sector_lazy():
+    ego = sampleEgoFrom("""
+        vf = VectorField("Foo", lambda pos: 2 * pos.x)
+        x = 0 relative to vf
+        ego = Object at Range(-1, 1) @ 0, with foo SectorRegion(0@0, x, 0, 45 deg)
+    """)
+    assert ego.foo.radius == 2 * ego.position.x
+
+# RectangularRegion
+
+def test_rectangular_in():
+    scenario = compileScenic('ego = Object in RectangularRegion(3@5, 45 deg, 3, 8)')
+    center = Vector(3, 5)
+    offsets = [
+        (sampleEgo(scenario).position - center).rotatedBy(math.radians(-45))
+        for i in range(50)
+    ]
+    assert all(-1.5 <= off.x <= 1.5 for off in offsets)
+    assert all(-4 <= off.y <= 4 for off in offsets)
+    assert any(off.x > 0 for off in offsets)
+    assert any(off.x < 0 for off in offsets)
+    assert any(off.y > 0 for off in offsets)
+    assert any(off.y < 0 for off in offsets)
+
+def test_rectangular_lazy():
+    ego = sampleEgoFrom("""
+        vf = VectorField("Foo", lambda pos: 2 * pos.x)
+        x = 0 relative to vf
+        ego = Object at Range(-1, 1) @ 0, with foo RectangularRegion(0@0, 0, x, 1)
+    """)
+    assert ego.foo.width == 2 * ego.position.x
+
 # PolygonalRegion
 
 def test_polygonal_empty_intersection():
@@ -69,3 +115,15 @@ def test_polyline_end():
     """)
     assert tuple(ego.position) == pytest.approx((6, 2))
     assert ego.heading == pytest.approx(math.radians(-45))
+
+# Workspaces
+
+def test_workspace():
+    ego = sampleEgoFrom("""
+        workspace = Workspace(RectangularRegion(5@10, 0, 2, 2))
+        ego = Object in workspace
+        require 6@11 in workspace
+        require ego in workspace
+    """)
+    assert 3 <= ego.position.x <= 7
+    assert 8 <= ego.position.y <= 12

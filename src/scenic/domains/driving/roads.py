@@ -1178,7 +1178,7 @@ class Network:
 
                 # Draw arrows indicating road direction
                 if lane.centerline.length >= 40:
-                    pts = lane.centerline.equallySpacedPoints(20)
+                    pts = lane.centerline.pointsSeparatedBy(20)
                 else:
                     pts = [lane.centerline.pointAlongBy(0.5, normalized=True)]
                 hs = [lane.centerline.orientation[pt] for pt in pts]
