@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import pytest
 
 import scenic
-from scenic.core.errors import InvalidScenarioError, RuntimeParseError
+from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError
 from scenic.core.object_types import Object
 from tests.utils import compileScenic, sampleScene, sampleEgo, sampleParamPFrom
 
@@ -37,14 +37,18 @@ def test_ego_second():
     assert obj is scene.egoObject
 
 def test_ego_nonobject():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(ScenicSyntaxError):
         compileScenic('ego = Point')
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(ScenicSyntaxError):
         compileScenic('ego = dict()')
 
 def test_ego_undefined():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(ScenicSyntaxError):
         compileScenic('x = ego\n' 'ego = Object')
+
+def test_ego_complex_assignment():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic('(ego, thing1), thing2 = ((Object at 1@1), 2), 3')
 
 def test_noninterference():
     scenario = compileScenic('ego = Object')
@@ -70,6 +74,18 @@ def test_param():
 def test_quoted_param():
     p = sampleParamPFrom('ego = Object\n' 'param "p" = Range(3, 5)')
     assert 3 <= p <= 5
+
+def test_param_read():
+    p = sampleParamPFrom("""
+        ego = Object
+        param q = Range(3, 5)
+        param p = globalParameters.q + 10
+    """)
+    assert 13 <= p <= 15
+
+def test_param_write():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic('ego = Object\n' 'globalParameters = {}')
 
 def test_mutate():
     scenario = compileScenic("""
@@ -105,6 +121,13 @@ def test_mutate_scaled():
     assert ego1.position.x != pytest.approx(3)
     assert ego1.position.y != pytest.approx(1)
     assert ego1.heading != pytest.approx(0)
+
+def test_mutate_nonobject():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            ego = Object
+            mutate sin
+        """)
 
 def test_verbose():
     for verb in range(4):

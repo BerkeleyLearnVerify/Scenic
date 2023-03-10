@@ -49,6 +49,22 @@ def test_requirement():
     ws = [sampleEgo(scenario, maxIterations=60).width for i in range(60)]
     assert all(2 < w <= 3 for w in ws)
 
+def test_invalid_scenario_name():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            scenario 101():
+                ego = Object
+        """)
+
+def test_scenario_inside_behavior():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            behavior Foo():
+                scenario Bar():
+                    Object at 10@10
+            ego = Object
+        """)
+
 # Preconditions and invariants
 
 def test_top_level_precondition():
@@ -74,6 +90,24 @@ def test_top_level_invariant():
     scene = sampleScene(scenario)
     with pytest.raises(InvariantViolation):
         sim.simulate(scene, maxSteps=1, raiseGuardViolations=True)
+
+def test_malformed_precondition():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            scenario Main():
+                precondition hello: True
+                setup:
+                    ego = Object
+        """)
+
+def test_malformed_invariant():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            scenario Main():
+                invariant hello: True
+                setup:
+                    ego = Object
+        """)
 
 # Composition
 
@@ -360,6 +394,64 @@ def test_shuffle_deadlock():
     result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
 
+def test_compose_illegal_statement():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            scenario Main():
+                setup:
+                    ego = Object
+                compose:
+                    model scenic.domains.driving.model
+        """)
+
+def test_compose_illegal_yield():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            scenario Main():
+                setup:
+                    ego = Object
+                compose:
+                    yield 5
+        """)
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            scenario Main():
+                setup:
+                    ego = Object
+                compose:
+                    yield from []
+        """)
+
+def test_compose_illegal_action():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            scenario Main():
+                setup:
+                    ego = Object
+                compose:
+                    take 1
+        """)
+
+def test_compose_nested_definition():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            scenario Main():
+                setup:
+                    ego = Object
+                compose:
+                    scenario Foo():
+                        Object at 10@10
+        """)
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            scenario Main():
+                setup:
+                    ego = Object
+                compose:
+                    behavior Foo():
+                        wait
+        """)
+
 # Overrides
 
 def test_override():
@@ -424,6 +516,33 @@ def test_override_nonexistent():
                 setup:
                     ego = Object
                     override ego with blob 'hello!'
+        """)
+
+def test_override_non_object():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            scenario Main():
+                setup:
+                    ego = Object
+                    override True with blob 'hello!'
+        """)
+
+def test_override_malformed():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            scenario Main():
+                setup:
+                    ego = Object
+                    override 101 with blob 'hello!'
+        """)
+
+def test_override_no_specifiers():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            scenario Main():
+                setup:
+                    ego = Object
+                    override ego
         """)
 
 # Scoping

@@ -275,6 +275,16 @@ def test_following():
     ego = sampleEgoFrom("""
         vf = VectorField("Foo", lambda pos: 90 deg * (pos.x + pos.y - 1),
                          minSteps=4, defaultStepSize=1)
+        ego = Object at 1@1
+        ego = Object following vf for 4
+    """)
+    assert tuple(ego.position) == pytest.approx((-1, 3))
+    assert ego.heading == pytest.approx(math.radians(90))
+
+def test_following_from():
+    ego = sampleEgoFrom("""
+        vf = VectorField("Foo", lambda pos: 90 deg * (pos.x + pos.y - 1),
+                         minSteps=4, defaultStepSize=1)
         ego = Object following vf from 1@1 for 4
     """)
     assert tuple(ego.position) == pytest.approx((-1, 3))
@@ -287,3 +297,16 @@ def test_following_random():
         ego = Object following vf from 1@2 for x, facing x
     """)
     assert tuple(ego.position) == pytest.approx((1+ego.heading, 2))
+
+## Heading specifiers
+
+def test_apparently_facing():
+    ego = sampleEgoFrom("""
+        ego = Object at 5@5
+        ego = Object apparently facing 45 deg
+    """)
+    assert ego.heading == pytest.approx(math.radians(180))
+
+def test_apparently_facing_from():
+    ego = sampleEgoFrom('ego = Object apparently facing 30 deg from -5@0')
+    assert ego.heading == pytest.approx(math.radians(-60))

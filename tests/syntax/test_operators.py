@@ -2,7 +2,7 @@
 import math
 import pytest
 
-from scenic.core.errors import RuntimeParseError
+from scenic.core.errors import RuntimeParseError, ScenicSyntaxError
 from tests.utils import compileScenic, sampleEgoFrom, sampleParamP, sampleParamPFrom
 
 ## Scalar operators
@@ -240,6 +240,13 @@ def test_mistyped_relative_to_lazy():
             ego = Object facing 1@2 relative to (0 relative to vf)
         """)
 
+def test_relative_to_ambiguous():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            ego = Object
+            thing = ego relative to ego
+        """)
+
 ## Vector operators
 
 # offset by
@@ -274,6 +281,22 @@ def test_follow():
     """)
     assert tuple(ego.position) == pytest.approx((-1, 3))
     assert ego.heading == pytest.approx(math.radians(90))
+
+# relative position
+
+def test_relative_position():
+    p = sampleParamPFrom("""
+        ego = Object at 1@2
+        param p = relative position of 5@1
+    """)
+    assert tuple(p) == (4, -1)
+
+def test_relative_position_from():
+    p = sampleParamPFrom("""
+        ego = Object at 1@2
+        param p = relative position of ego from 5@1
+    """)
+    assert tuple(p) == (-4, 1)
 
 ## Region operators
 

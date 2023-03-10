@@ -3,7 +3,7 @@ import pytest
 import math
 import random
 
-from scenic.core.errors import RuntimeParseError, InvalidScenarioError
+from scenic.core.errors import RuntimeParseError, InvalidScenarioError, ScenicSyntaxError
 from tests.utils import compileScenic, sampleScene, sampleEgo, sampleEgoFrom, sampleParamP
 
 ## Utilities
@@ -483,12 +483,24 @@ def test_reproducibility():
             assert scene.params['foo'] == baseScene.params['foo']
             assert iterations == baseIterations
 
-## Independence
+## Independence and resampling
 
 def test_independence():
     scenario = compileScenic('ego = Object at Range(0, 1) @ Range(0, 1)')
     pos = sampleEgo(scenario).position
     assert pos.x != pos.y
+
+def test_resample():
+    scenario = compileScenic("""
+        x = Range(0, 1)
+        ego = Object at x @ resample(x)
+    """)
+    pos = sampleEgo(scenario).position
+    assert pos.x != pos.y
+
+def test_resample_complex():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic('ego = Object at 0 @ resample(Range(0,1) + Range(1,2))')
 
 ## Dependencies and lazy evaluation
 

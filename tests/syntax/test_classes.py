@@ -2,7 +2,7 @@
 import math
 import pytest
 
-from scenic.core.errors import TokenParseError, ASTParseError, RuntimeParseError
+from scenic.core.errors import TokenParseError, RuntimeParseError, ScenicSyntaxError
 from tests.utils import compileScenic, sampleScene
 
 def test_wrong_class_statement():
@@ -48,6 +48,20 @@ def test_invalid_attribute_2():
         compileScenic("""
             class Foo:\n
                 blah[additive, baloney_attr]: 4
+        """)
+
+def test_invalid_attribute_3():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            class Foo:\n
+                blah[additive, 'dynamic']: 4
+        """)
+
+def test_invalid_attribute_4():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            class Foo:\n
+                blah[additive + dynamic]: 4
         """)
 
 def test_property_simple():

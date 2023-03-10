@@ -1613,10 +1613,10 @@ class ASTSurgeon(NodeTransformer):
 		func = node.func
 		assert isinstance(func, Name)
 		if self.inCompose and func.id not in compositionalImps:
-			statement = statementForImp[func.id]
+			statement = statementForImp.get(func.id, func.id)
 			self.parseError(node, f'"{statement}" cannot be used in a {composeBlock} block')
 		if self.inBehavior and func.id not in behavioralImps:
-			statement = statementForImp[func.id]
+			statement = statementForImp.get(func.id, func.id)
 			self.parseError(node, f'"{statement}" cannot be used in a behavior')
 		if func.id in requirementStatements:		# require, terminate when, etc.
 			recording = func.id in recordStatements
@@ -1704,8 +1704,7 @@ class ASTSurgeon(NodeTransformer):
 			subRunner = Call(subHandler, subArgs, keywords)
 			return self.generateInvocation(node, subRunner, invoker=YieldFrom)
 		elif func.id == actionStatement:		# Action statement
-			if self.inCompose:
-				self.parseError(func, f'cannot use "{actionStatement}" in a {composeBlock} block')
+			assert not self.inCompose
 			self.validateSimpleCall(node, (1, None), onlyInBehaviors=True)
 			action = Tuple(self.visit(node.args), Load())
 			return self.generateInvocation(node, action)

@@ -9,6 +9,7 @@ import os.path
 import pytest
 
 from scenic import scenarioFromFile
+from scenic.core.errors import ScenicSyntaxError
 from scenic.syntax.translator import InvalidScenarioError
 from tests.utils import compileScenic, sampleScene, sampleSceneFrom
 
@@ -145,3 +146,9 @@ def test_model_not_override_param():
         ego = Object
     """)
     assert scene.params['helper_file'] == 'foo'
+
+def test_malformed_model():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic('model')
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic('model 101')

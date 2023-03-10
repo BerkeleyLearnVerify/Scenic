@@ -556,8 +556,7 @@ def override(*args):
 		raise RuntimeParseError(f'"override" passed non-Object {obj}')
 	specs = args[1:]
 	for spec in specs:
-		if not isinstance(spec, Specifier):
-			raise RuntimeParseError(f'"override" passed non-specifier {spec}')
+		assert isinstance(spec, Specifier), spec
 
 	currentScenario._override(obj, specs)
 
@@ -604,7 +603,7 @@ def param(*quotedParams, **params):
 
 class ParameterTableProxy(collections.abc.Mapping):
 	def __init__(self, map):
-		self._internal_map = map
+		object.__setattr__(self, '_internal_map', map)
 
 	def __getitem__(self, name):
 		return self._internal_map[name]
@@ -617,6 +616,9 @@ class ParameterTableProxy(collections.abc.Mapping):
 
 	def __getattr__(self, name):
 		return self.__getitem__(name)	# allow namedtuple-like access
+
+	def __setattr__(self, name, value):
+		raise RuntimeParseError('cannot modify globalParameters (use "param" statement)')
 
 	def _clone_table(self):
 		return ParameterTableProxy(self._internal_map.copy())
