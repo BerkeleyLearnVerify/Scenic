@@ -855,8 +855,12 @@ class Network:
 
         if self.drivableRegion is None:
             self.drivableRegion = self.laneRegion.union(self.intersectionRegion)
+        assert self.drivableRegion.containsRegion(self.laneRegion, tolerance=self.tolerance)
+        assert self.drivableRegion.containsRegion(self.intersectionRegion, tolerance=self.tolerance)
         if self.walkableRegion is None:
             self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
+        assert self.walkableRegion.containsRegion(self.sidewalkRegion, tolerance=self.tolerance)
+        assert self.walkableRegion.containsRegion(self.crossingRegion, tolerance=self.tolerance)
 
         if self.curbRegion is None:
             edges = []

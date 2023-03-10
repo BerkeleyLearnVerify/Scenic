@@ -221,6 +221,9 @@ class AllRegion(Region):
 	def containsObject(self, obj):
 		return True
 
+	def containsRegion(self, reg, tolerance=0):
+		return True
+
 	def distanceTo(self, point):
 		return 0
 
@@ -252,6 +255,9 @@ class EmptyRegion(Region):
 
 	def containsObject(self, obj):
 		return False
+
+	def containsRegion(self, reg, tolerance=0):
+		return type(reg) is EmptyRegion
 
 	def distanceTo(self, point):
 		return float('inf')
@@ -885,9 +891,11 @@ class PolygonalRegion(Region):
 		return self.prepared.contains(objPoly)
 
 	def containsRegion(self, other, tolerance=0):
+		if isinstance(other, EmptyRegion):
+			return True
 		poly = toPolygon(other)
 		if poly is None:
-			raise TypeError('cannot test inclusion of {other} in PolygonalRegion')
+			raise TypeError(f'cannot test inclusion of {other} in PolygonalRegion')
 		return self.polygons.buffer(tolerance).contains(poly)
 
 	@distributionMethod

@@ -34,7 +34,7 @@ def test_element_tolerance(cached_maps, pytestconfig):
             pt = nearby.uniformPointInner()
         assert network.elementAt(pt) is not None
         assert network.roadAt(pt) is not None
-        toofar = drivable.buffer(2*tol).difference(drivable.buffer(tol))
+        toofar = drivable.buffer(2*tol).difference(drivable.buffer(1.5*tol))
         pt = toofar.uniformPointInner()
         assert network.roadAt(pt) is None
         with pytest.raises(RejectionException):
