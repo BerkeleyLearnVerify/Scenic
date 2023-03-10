@@ -6,8 +6,7 @@ be created from a map file using :obj:`Network.fromFile`.
 .. note::
 
     This library is a prototype under active development. We will try not to make
-    backwards-incompatible changes, but the API may not be entirely stable. Some
-    network information, such as traffic signals, has not yet been made available.
+    backwards-incompatible changes, but the API may not be entirely stable.
 """
 
 from __future__ import annotations  # allow forward references for type annotations
@@ -251,7 +250,7 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
         return (self.network is other.network and self.uid == other.uid)
 
     def __hash__(self):
-        return hash((self.network, self.uid))
+        return hash((self.network.__hash__(), self.uid))
 
     def __repr__(self):
         s = f'<{type(self).__name__} at {hex(id(self))}; '
@@ -580,7 +579,7 @@ class RoadSection(LinearElement):
     @distributionFunction
     def laneAt(self, point: Vectorlike, reject=False) -> Union[LaneSection, None]:
         """Get the lane section passing through a given point."""
-        return self.network.findPointIn(point, self.lane, reject)
+        return self.network.findPointIn(point, self.lanes, reject)
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class LaneSection(_ContainsCenterline, LinearElement):
@@ -874,7 +873,7 @@ class Network:
 
         :meta private:
         """
-        return 19
+        return 20
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
@@ -1161,11 +1160,15 @@ class Network:
             return road.nominalDirectionsAt(point)
         return ()
 
-    def show(self):
+    def show(self, labelIncomingLanes=False):
         """Render a schematic of the road network for debugging.
 
         If you call this function directly, you'll need to subsequently call
         `matplotlib.pyplot.show` to actually display the diagram.
+
+        Args:
+            labelIncomingLanes (bool): Whether to label the incoming lanes of
+                intersections with their indices in ``incomingLanes``.
         """
         import matplotlib.pyplot as plt
         self.walkableRegion.show(plt, style='-', color='#00A0FF')
@@ -1191,8 +1194,9 @@ class Network:
         for lane in self.lanes:     # draw centerlines of all lanes (including connecting)
             lane.centerline.show(plt, style=':', color='#A0A0A0')
         self.intersectionRegion.show(plt, style='g')
-        # for intersection in self.intersections:
-        #     for i, lane in enumerate(intersection.incomingLanes):
-        #         x, y = lane.centerline[-1]
-        #         plt.plot([x], [y], '*b')
-        #         plt.annotate(str(i), (x, y))
+        if labelIncomingLanes:
+            for intersection in self.intersections:
+                for i, lane in enumerate(intersection.incomingLanes):
+                    x, y = lane.centerline[-1]
+                    plt.plot([x], [y], '*b')
+                    plt.annotate(str(i), (x, y))

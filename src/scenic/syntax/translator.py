@@ -1638,6 +1638,8 @@ class ASTSurgeon(NodeTransformer):
 					name = Constant(name.id)
 				elif isinstance(name, Str):
 					pass
+				elif isinstance(name, Num):
+					name = Constant(str(name.n))
 				elif isinstance(name, Constant):
 					name = Constant(str(name.value))
 				else:

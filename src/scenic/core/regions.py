@@ -867,6 +867,9 @@ class PolygonalRegion(Region):
 		"""Get the boundary of this region as a `PolylineRegion`."""
 		return PolylineRegion(polyline=self.polygons.boundary)
 
+	def buffer(self, distance):
+		return PolygonalRegion(polygon=self.polygons.buffer(distance))
+
 	@cached_property
 	def prepared(self):
 		return shapely.prepared.prep(self.polygons)

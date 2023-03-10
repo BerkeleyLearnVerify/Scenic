@@ -806,6 +806,7 @@ class Road:
                 if not laneSection._visited:     # start of new lane
                     forward = laneSection.isForward
                     sections = []
+                    successorLane = None    # lane this one will merge into
                     while True:
                         sections.append(laneSection)
                         laneSection._visited = True
@@ -814,9 +815,10 @@ class Road:
                             nextSection = laneSection._successor
                         else:
                             nextSection = laneSection._predecessor
-                        if (not nextSection
-                            or not isinstance(nextSection, roadDomain.LaneSection)
-                            or nextSection._visited):
+                        if not nextSection or not isinstance(nextSection, roadDomain.LaneSection):
+                            break
+                        elif nextSection._visited:
+                            successorLane = nextSection.lane
                             break
                         laneSection = nextSection
                     ls = laneSection._original_lane
@@ -840,7 +842,8 @@ class Road:
                         rightEdge=rightEdge,
                         group=None,
                         road=None,
-                        sections=tuple(sections)
+                        sections=tuple(sections),
+                        successor=successorLane,    # will correct inter-road links later
                     )
                     nextID += 1
                     for section in sections:
