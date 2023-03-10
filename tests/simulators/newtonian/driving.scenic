@@ -1,4 +1,5 @@
 
+param render = False
 param map = localPath('../../formats/opendrive/maps/CARLA/Town01.xodr')
 model scenic.simulators.newtonian.driving_model
 

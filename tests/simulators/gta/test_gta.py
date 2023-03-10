@@ -13,15 +13,20 @@ def test_basic(loadLocalScenario):
     scenario = loadLocalScenario('basic.scenic')
     scene = sampleScene(scenario, maxIterations=1000)
     GTA.Config(scene)
+
+@pytest.mark.graphical
+def test_show(loadLocalScenario):
+    scenario = loadLocalScenario('basic.scenic')
+    scene = sampleScene(scenario, maxIterations=1000)
     scene.show(block=False)
+    plt.close()
+    scene.show(zoom=1, block=False)
     plt.close()
 
 def test_bumper_to_bumper(loadLocalScenario):
     scenario = loadLocalScenario('bumperToBumper.scenic')
     scene = sampleScene(scenario, maxIterations=1000)
     GTA.Config(scene)
-    scene.show(zoom=1, block=False)
-    plt.close()
 
 def test_make_map(request, tmp_path):
     from scenic.simulators.gta.interface import Map

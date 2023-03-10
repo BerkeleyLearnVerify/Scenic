@@ -13,6 +13,13 @@ def test_network_invalid():
     with pytest.raises(FileNotFoundError):
         Network.fromFile('blogobloggo_zoggle')      # search all known formats
 
+@pytest.mark.graphical
+def test_show(network):
+    import matplotlib.pyplot as plt
+    network.show(labelIncomingLanes=True)
+    plt.show(block=False)
+    plt.close()
+
 def test_element_tolerance(cached_maps, pytestconfig):
     path = cached_maps['tests/formats/opendrive/maps/CARLA/Town01.xodr']
     tol = 0.05

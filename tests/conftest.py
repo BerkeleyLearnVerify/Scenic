@@ -27,17 +27,24 @@ def runLocally(request):
             os.chdir(oldDirectory)
     return manager
 
-## Command-line option to skip very slow tests
+## Command-line options
 
 def pytest_addoption(parser):
     parser.addoption('--fast', action='store_true', help='skip very slow tests')
+    parser.addoption('--no-graphics', action='store_true', help='skip graphical tests')
 
 def pytest_configure(config):
     config.addinivalue_line('markers', 'slow: mark test as very slow')
+    config.addinivalue_line('markers', 'graphical: mark test as requiring graphics')
 
 def pytest_collection_modifyitems(config, items):
     if config.getoption('--fast'):
         mark = pytest.mark.skip(reason='slow test skipped by --fast')
         for item in items:
             if 'slow' in item.keywords:
+                item.add_marker(mark)
+    if config.getoption('--no-graphics'):
+        mark = pytest.mark.skip(reason='graphical test skipped by --no-graphics')
+        for item in items:
+            if 'graphical' in item.keywords:
                 item.add_marker(mark)

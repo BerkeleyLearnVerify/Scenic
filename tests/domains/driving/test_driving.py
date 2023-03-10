@@ -96,10 +96,6 @@ def test_intersection(cached_maps):
         maneuvers = intersection.maneuversAt(ego)
         lane = ego.lane
         assert any(man.connectingLane is lane for man in maneuvers)
-    import matplotlib.pyplot as plt
-    network.show(labelIncomingLanes=True)
-    plt.show(block=False)
-    plt.close()
 
 def test_curb(cached_maps):
     scenario = compileDrivingScenario(cached_maps, """

@@ -29,4 +29,4 @@ jobs:
         python -m pip install -e ".[test]"
     - name: Run pytest
       run: |
-        pytest
+        pytest --no-graphics

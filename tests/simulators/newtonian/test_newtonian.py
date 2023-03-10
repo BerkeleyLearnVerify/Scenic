@@ -1,4 +1,6 @@
 
+import pytest
+
 from scenic.simulators.newtonian import NewtonianSimulator
 from tests.utils import pickle_test, tryPickling, sampleScene
 
@@ -10,6 +12,7 @@ def test_basic(loadLocalScenario):
     egoPos, otherPos = simulation.result.trajectory[-1]
     assert egoPos.distanceTo(otherPos) < 1
 
+@pytest.mark.graphical
 def test_render(loadLocalScenario):
     scenario = loadLocalScenario('basic.scenic')
     scene, _ = scenario.generate(maxIterations=1)

@@ -155,12 +155,14 @@ def test_dump_final_python():
     finally:
         scenic.syntax.translator.dumpASTPython = False
 
+@pytest.mark.graphical
 def test_show():
     scenario = compileScenic('ego = Object with color (0.5, 1.0, 0.5)')
     scene = sampleScene(scenario)
     scene.show(block=False)
     plt.close()
 
+@pytest.mark.graphical
 def test_show_zoom():
     scenario = compileScenic("""
         ego = Object
