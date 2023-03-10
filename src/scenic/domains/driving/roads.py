@@ -237,6 +237,7 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
         pick one arbitrarily to be the orientation of the element as a `Region`.
         (So ``Object in element`` will align by default to that orientation.)
         """
+        assert self.orientation, self
         return (self.orientation[_toVector(point)],)
 
     def __getstate__(self):
@@ -699,6 +700,19 @@ class Intersection(NetworkElement):
         for maneuver in self.maneuvers:
             assert maneuver.connectingLane, maneuver
             assert self.containsRegion(maneuver.connectingLane, tolerance=0.5)
+        if self.orientation is None:
+            self.orientation = VectorField(self.name, self._defaultHeadingAt)
+
+    def _defaultHeadingAt(self, point):
+        """Default orientation for this Intersection.
+
+        We align along the closest connecting lane.
+
+        :meta private:
+        """
+        point = _toVector(point)
+        man = min(self.maneuvers, key=lambda man: man.connectingLane.distanceTo(point))
+        return man.connectingLane.orientation[point]
 
     @property
     def is3Way(self) -> bool:
@@ -717,13 +731,21 @@ class Intersection(NetworkElement):
     @distributionFunction
     def maneuversAt(self, point: Vectorlike) -> List[Maneuver]:
         """Get all maneuvers possible at a given point in the intersection."""
-        return self.network._findPointInAll(point, self.maneuvers,
-                                            key=lambda m: m.connectingLane)
+        maneuvers = self.network._findPointInAll(point, self.maneuvers,
+                                                 key=lambda m: m.connectingLane)
+        if maneuvers:
+            return maneuvers
+        # If we filled holes in intersections when computing the geometry, there
+        # might be no maneuvers at some points inside the intersection. We'll pick
+        # the closest one.
+        man = min(self.maneuvers, key=lambda man: man.connectingLane.distanceTo(point))
+        return [man]
 
     @distributionFunction
     def nominalDirectionsAt(self, point: Vectorlike) -> List[float]:
         point = _toVector(point)
         maneuvers = self.maneuversAt(point)
+        assert maneuvers, self
         return [m.connectingLane.orientation[point] for m in maneuvers]
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)

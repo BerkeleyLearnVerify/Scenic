@@ -44,15 +44,20 @@ def test_orientation_consistency(network):
         elem = network.elementAt(pt)
         if isinstance(elem, Intersection):
             assert len(dirs) >= 1
-            lane = network.laneAt(pt)
-            assert pytest.approx(lane.orientation[pt]) in dirs
             connectors = set()
             for maneuver in elem.maneuvers:
                 cl = maneuver.connectingLane
                 if cl.containsPoint(pt):
                     assert pytest.approx(cl.orientation[pt]) in dirs
                     connectors.add(cl)
-            assert lane in connectors
+            if not connectors:
+                # Not on any connecting lane; orientation should be given by
+                # whichever one is closest.
+                man = min(elem.maneuvers, key=lambda man: man.connectingLane.distanceTo(pt))
+                assert pytest.approx(man.connectingLane.orientation[pt]) in dirs
+            else:
+                lane = network.laneAt(pt)
+                assert lane in connectors
         else:
             assert len(dirs) == 1
             d = dirs[0]
