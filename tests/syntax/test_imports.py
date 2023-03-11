@@ -147,8 +147,19 @@ def test_model_not_override_param():
     """)
     assert scene.params['helper_file'] == 'foo'
 
+def test_model_respects_all():
+    with pytest.raises(NameError):
+        compileScenic("""
+            model tests.syntax.helper4
+            ego = Object with foo bar
+        """)
+
 def test_malformed_model():
     with pytest.raises(ScenicSyntaxError):
         compileScenic('model')
     with pytest.raises(ScenicSyntaxError):
         compileScenic('model 101')
+
+def test_missing_model():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic('model __no_such_package__')
