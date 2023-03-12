@@ -8,6 +8,7 @@ import pathlib
 import time
 
 from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
+import scenic.core.errors as errors
 from scenic.core.geometry import allChains
 from scenic.core.regions import toPolygon
 from scenic.core.simulators import SimulationCreationError
@@ -15,10 +16,9 @@ from scenic.syntax.veneer import verbosePrint
 from scenic.core.vectors import Vector
 from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
 from scenic.domains.driving.roads import Network
-from scenic.syntax.translator import verbosity
 
 import shapely
-if verbosity == 0:  # suppress pygame advertisement at zero verbosity
+if errors.verbosityLevel == 0:  # suppress pygame advertisement at zero verbosity
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
 import pygame
 

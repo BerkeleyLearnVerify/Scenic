@@ -50,7 +50,15 @@ this: at the beginning of each run of ``pytest``, it prints out a line like:
 	Using --randomly-seed=344295085
 
 Adding this as an option, i.e. running :command:`pytest --randomly-seed=344295085`, will
-reproduce the same sequence of tests with the same Python/Scenic random seed.
+reproduce the same sequence of tests with the same Python/Scenic random seed. As a
+shortcut, you can use :command:`--randomly-seed=last` to use the seed from the previous
+testing run.
+
+If you're running the test suite on a headless server or just want to stop windows from
+popping up during testing, use the :command:`--no-graphics` option to skip graphical
+tests.
+
+.. _debugging:
 
 Debugging
 ---------
@@ -59,6 +67,15 @@ You can use Python's built-in debugger `pdb` to debug the parsing, compilation, 
 and simulation of Scenic programs. The Scenic command-line option :option:`-b` will cause the
 backtraces printed from uncaught exceptions to include Scenic's internals; you can also
 use the :option:`--pdb` option to automatically enter the debugger on such exceptions.
+If you're trying to figure out why a scenario is taking many iterations of rejection
+sampling, first use the :option:`--verbosity` option to print out the reason for each
+rejection. If the problem doesn't become clear, you can use the :option:`--pdb-on-reject`
+option to automatically enter the debugger when a scene or simulation is rejected.
+
+If you're using the Python API instead of invoking Scenic from the command line, these
+debugging features can be enabled using the following function from the ``scenic`` module:
+
+.. autofunction:: scenic.setDebuggingOptions
 
 It is possible to put breakpoints into a Scenic program using the Python built-in
 function `breakpoint`. Note however that since code in a Scenic program is not always
@@ -70,3 +87,35 @@ not print out the actual value of :scenic:`x` every time a sample is generated: 
 you will get a single print at compile time, showing the `Distribution` object which
 represents the distribution of :scenic:`x` (and which is bound to :scenic:`x` in the Python
 namespace used internally for the Scenic module).
+
+Building the Documentation
+--------------------------
+
+Scenic's documentation is built using `Sphinx <https://www.sphinx-doc.org/>`_. The
+freestanding documentation pages (like this one) are found under the :file:`docs`
+folder, written in the :ref:`reStructuredText format <rst-primer>`.
+The detailed documentation of Scenic's internal classes, functions, etc. is largely
+auto-generated from their docstrings, which are written in a variant of Google's style
+understood by the `Napoleon <sphinx.ext.napoleon>`
+Sphinx extension (see the docstring of `Scenario.generate` for a simple example: click
+the ``[source]`` link to the right of the function signature to see the code).
+
+If you modify the documentation, you should build a copy of it locally to make sure
+everything looks good before you push your changes to GitHub (where they will be picked
+up automatically by `ReadTheDocs <https://readthedocs.org/>`_). To compile the
+documentation, enter the :file:`docs` folder and run :command:`make html`. The output
+will be placed in the :file:`docs/_build/html` folder, so the root page will be at
+:file:`docs/_build/html/index.html`. If your changes do not appear, it's possible that Sphinx
+has not detected them; you can run :command:`make clean` to delete all the files from the
+last compilation and start from a clean slate.
+
+Scenic extends Sphinx in a number of ways to improve the presentation of Scenic code and
+add various useful features: see :file:`docs/conf.py` for full details. Some of the most
+commonly-used features are:
+
+	* a ``scenic`` `role <https://www.sphinx-doc.org/en/master/usage/restructuredtext/roles.html>`_
+	  which extends the standard Sphinx :rst:role:`samp` role with Scenic syntax highlighting;
+	* a ``sampref`` role which makes a cross-reference like :rst:role:`keyword` but allows
+	  emphasizing variables like :rst:role:`samp`;
+	* the :rst:role:`term` role for glossary terms is extended so that the cross-reference will
+	  work even if the link is plural but the glossary entry is singular or vice versa.

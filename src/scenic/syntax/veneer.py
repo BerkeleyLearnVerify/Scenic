@@ -91,6 +91,7 @@ from scenic.core.geometry import normalizeAngle, apparentHeadingAtPoint
 from scenic.core.object_types import Constructible
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
+import scenic.core.errors as errors
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError
 from scenic.core.vectors import OrientedVector
 from scenic.core.external_params import ExternalParameter
@@ -507,13 +508,12 @@ def verbosePrint(*objects, level=1, indent=True,
 			Scenic (default true).
 		sep, end, file, flush: As in `print`.
 	"""
-	import scenic.syntax.translator as translator
-	if translator.verbosity >= level:
+	if errors.verbosityLevel >= level:
 		if indent:
 			if currentSimulation:
-				indent = '      ' if translator.verbosity >= 3 else '  '
+				indent = '      ' if errors.verbosityLevel >= 3 else '  '
 			else:
-				indent = '  ' * activity if translator.verbosity >= 2 else '  '
+				indent = '  ' * activity if errors.verbosityLevel >= 2 else '  '
 			print(indent, end='', file=file)
 		print(*objects, sep=sep, end=end, file=file, flush=flush)
 

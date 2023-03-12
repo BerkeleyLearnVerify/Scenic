@@ -91,6 +91,8 @@ functions, actively searching the space of parameters in a Scenic program to fin
 concrete scenarios where the system violates its specs [#f1]_, and more. See the VerifAI
 documentation for details.
 
+.. seealso:: If you get exceptions or unexpected behavior when using the API, Scenic provides various debugging features: see :ref:`debugging`.
+
 .. [#f1] VerifAI's active samplers can be used directly from Scenic when VerifAI is
 	installed. See `scenic.core.external_params`.
 

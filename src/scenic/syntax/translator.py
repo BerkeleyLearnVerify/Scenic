@@ -232,7 +232,7 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>')
 		7. After executing all blocks, extract the global state (e.g. objects).
 		   This is done by the `storeScenarioStateIn` function.
 	"""
-	if verbosity >= 2:
+	if errors.verbosityLevel >= 2:
 		veneer.verbosePrint(f'  Compiling Scenic module from {filename}...')
 		startTime = time.time()
 	# Tokenize input stream
@@ -291,7 +291,7 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>')
 		storeScenarioStateIn(namespace, requirements)
 	finally:
 		veneer.deactivate()
-	if verbosity >= 2:
+	if errors.verbosityLevel >= 2:
 		totalTime = time.time() - startTime
 		veneer.verbosePrint(f'  Compiled Scenic module in {totalTime:.4g} seconds.')
 	allNewSource = ''.join(newSourceBlocks)
@@ -304,7 +304,6 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>')
 dumpTranslatedPython = False
 dumpFinalAST = False
 dumpASTPython = False
-verbosity = 0
 usePruning = True
 
 ## Preamble
@@ -2365,6 +2364,6 @@ def constructScenarioFrom(namespace, scenarioName=None):
 
 	# Prune infeasible parts of the space
 	if usePruning:
-		pruning.prune(scenario, verbosity=verbosity)
+		pruning.prune(scenario, verbosity=errors.verbosityLevel)
 
 	return scenario

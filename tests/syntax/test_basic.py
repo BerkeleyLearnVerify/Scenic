@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 import pytest
 
 import scenic
-from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError
+from scenic.core.errors import (InvalidScenarioError, ScenicSyntaxError,
+                                setDebuggingOptions)
 from scenic.core.object_types import Object
 from tests.utils import compileScenic, sampleScene, sampleEgo, sampleParamPFrom
 
@@ -131,9 +132,9 @@ def test_mutate_nonobject():
 
 def test_verbose():
     for verb in range(4):
-        scenic.syntax.translator.verbosity = verb
+        setDebuggingOptions(verbosity=verb)
         compileScenic('ego = Object')
-    scenic.syntax.translator.verbosity = 1
+    setDebuggingOptions(verbosity=1)
 
 def test_dump_python():
     scenic.syntax.translator.dumpTranslatedPython = True

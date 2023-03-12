@@ -98,6 +98,8 @@ Debugging
 			Additionally, the :term:`actions` taken by each agent at each time step of a dynamic
 			simulation are printed.
 
+	This option can be configured from the Python API using `scenic.setDebuggingOptions`.
+
 .. option:: --show-params
 
 	Show values of :term:`global parameters` for each generated scene.
@@ -111,12 +113,18 @@ Debugging
 	Include Scenic's internals in backtraces printed for uncaught exceptions.
 	This information will probably only be useful if you are developing Scenic.
 
+	This option can be enabled from the Python API using `scenic.setDebuggingOptions`.
+
 .. option:: --pdb
 
 	If an error occurs, enter the Python interactive debugger :mod:`pdb`.
 	Implies the :option:`-b` option.
 
+	This option can be enabled from the Python API using `scenic.setDebuggingOptions`.
+
 .. option:: --pdb-on-reject
 
 	If a scene/simulation is rejected (so that another must be sampled), enter :mod:`pdb`.
 	Implies the :option:`-b` option.
+
+	This option can be enabled from the Python API using `scenic.setDebuggingOptions`.
