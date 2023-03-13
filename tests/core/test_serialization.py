@@ -187,19 +187,23 @@ class TestExportToBytes:
         checkReconstruction(self.behaviorLocalsScenario)
 
 class TestSimulationReplay:
-    def simulateReplayFrom(self, code, steps=1, steps2=None, **kwargs):
+    def simulateReplayFrom(self, code, steps=1, steps2=None, maxIterations=1, **kwargs):
         if not steps2:
             steps2 = steps
         scene = sampleSceneFrom(code)
         simulator = DummySimulator()
-        sim1 = simulator.simulate(scene, maxSteps=steps, maxIterations=1, **kwargs)
+        sim1 = simulator.simulate(scene, maxSteps=steps,
+                                  maxIterations=maxIterations, **kwargs)
         replay = sim1.getReplay()
-        sim2 = simulator.replay(scene, replay, maxSteps=steps2, **kwargs)
+        sim2 = simulator.replay(scene, replay, maxSteps=steps2,
+                                maxIterations=maxIterations, **kwargs)
         return sim1, sim2
 
-    def checkReplay(self, code, steps=1):
-        sim1, sim2 = self.simulateReplayFrom(code, steps)
-        assert getEgoActionsFrom(sim1) == getEgoActionsFrom(sim2)
+    def checkReplay(self, code, steps=1, **kwargs):
+        sim1, sim2 = self.simulateReplayFrom(code, steps, **kwargs)
+        actions = getEgoActionsFrom(sim1)
+        assert actions == getEgoActionsFrom(sim2)
+        return actions
 
     def test_basic(self):
         self.checkReplay("""
@@ -224,6 +228,23 @@ class TestSimulationReplay:
                 take x
             ego = Object with behavior Foo(Range(-1, 1))
         """)
+
+    @pytest.mark.slow
+    def test_soft_requirement(self):
+        for i in range(100):
+            self.checkReplay("""
+                checkCount = 0
+                def check(x):
+                    global checkCount
+                    checkCount += 1
+                    return x >= 1
+                behavior Foo():
+                    while True:
+                        x = Range(0, 2)
+                        require[0.9] check(x)
+                        take checkCount
+                ego = Object with behavior Foo
+            """, steps=2, maxIterations=100)
 
     def test_continue_after_replay(self):
         sim1, sim2 = self.simulateReplayFrom("""

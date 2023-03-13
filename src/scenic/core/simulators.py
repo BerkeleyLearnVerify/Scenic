@@ -145,6 +145,7 @@ class Simulator:
             print(f'  Starting simulation {name}...')
         try:
             simulation = self.createSimulation(scene, verbosity=verbosity)
+            simulation.name = name
             simulation.run(maxSteps, **kwargs)
         except (RejectSimulationException, RejectionException, dynamics.GuardViolation) as e:
             if verbosity >= 2:
