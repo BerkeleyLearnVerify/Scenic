@@ -49,6 +49,17 @@ def test_requirement():
     ws = [sampleEgo(scenario, maxIterations=60).width for i in range(60)]
     assert all(2 < w <= 3 for w in ws)
 
+def test_soft_requirement():
+    scenario = compileScenic("""
+        scenario Main():
+            setup:
+                ego = Object with width Range(1, 3)
+                require[0.9] ego.width >= 2
+    """)
+    ws = [sampleEgo(scenario, maxIterations=60).width for i in range(350)]
+    count = sum(w >= 2 for w in ws)
+    assert 255 <= count < 350
+
 def test_invalid_scenario_name():
     with pytest.raises(ScenicSyntaxError):
         compileScenic("""

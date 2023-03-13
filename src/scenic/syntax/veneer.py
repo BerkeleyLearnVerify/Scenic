@@ -77,7 +77,6 @@ import collections.abc
 from contextlib import contextmanager
 import importlib
 import sys
-import random
 import os.path
 import traceback
 import typing
@@ -412,7 +411,7 @@ def require(reqID, req, line, name, prob=1):
 	if evaluatingRequirement:
 		raise RuntimeParseError('tried to create a requirement inside a requirement')
 	if currentSimulation is not None:	# requirement being evaluated at runtime
-		if prob >= 1 or random.random() <= prob:
+		if prob >= 1 or Range(0, 1) <= prob:	# use Range so value can be recorded
 			result = req()
 			assert not needsSampling(result)
 			if needsLazyEvaluation(result):

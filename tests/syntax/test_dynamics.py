@@ -732,6 +732,22 @@ def test_behavior_require_call():
         actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=30)
         assert actions[0] == [1, 2]
 
+def test_behavior_require_soft():
+    scenario = compileScenic("""
+        behavior Foo():
+            x = Range(-1, 1)
+            require[0.9] x >= 0
+            take x
+        ego = Object with behavior Foo
+    """)
+    xs = []
+    for i in range(350):
+        actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=50, maxScenes=1)
+        assert len(actions) == 1
+        xs.append(actions[0])
+    count = sum(x >= 0 for x in xs)
+    assert 255 <= count < 350
+
 ## Temporal requirements
 
 def test_require_always():

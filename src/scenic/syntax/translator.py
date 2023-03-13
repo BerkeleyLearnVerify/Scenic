@@ -445,14 +445,14 @@ for tokens in threeWordFunctionStatements:
 
 # statements allowed inside behaviors
 behavioralStatements = {
-	requireStatement, actionStatement, waitStatement,
+	requireStatement, softRequirement, actionStatement, waitStatement,
 	terminateStatement, abortStatement, invokeStatement, *invokeVariants,
 }
 behavioralImps = { functionForStatement(s) for s in behavioralStatements }
 
 # statements allowed inside scenario composition blocks
 compositionalStatements = {
-	requireStatement, waitStatement, terminateStatement, abortStatement,
+	requireStatement, softRequirement, waitStatement, terminateStatement, abortStatement,
 	invokeStatement, *invokeVariants, overrideStatement,
 }
 compositionalImps = { functionForStatement(s) for s in compositionalStatements }
