@@ -10,7 +10,6 @@ from scenic.core.distributions import (Samplable, ConstantSamplable, RejectionEx
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.external_params import ExternalSampler
 from scenic.core.regions import EmptyRegion
-from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
 from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
 from scenic.core.dynamics import Behavior
@@ -164,8 +163,6 @@ class Scenario(_ScenarioPickleMixin):
 				 requirements, requirementDeps,
 				 monitors, behaviorNamespaces,
 				 dynamicScenario, astHash):
-		if workspace is None:
-			workspace = Workspace()		# default empty workspace
 		self.workspace = workspace
 		self.simulator = simulator		# simulator for dynamic scenarios
 		# make ego the first object, while otherwise preserving order
@@ -337,6 +334,7 @@ class Scenario(_ScenarioPickleMixin):
 			for req in activeReqs:
 				if not req.satisfiedBy(sample):
 					rejection = str(req)
+					optionallyDebugRejection()
 					break
 
 		# obtained a valid sample; assemble a scene from it

@@ -12,6 +12,7 @@ if sys.version_info >= (3, 8):
 else:
     import importlib_metadata as metadata
 
+import scenic
 import scenic.syntax.translator as translator
 import scenic.core.errors as errors
 from scenic.core.simulators import SimulationCreationError
@@ -84,13 +85,12 @@ parser.add_argument('scenicFile', help='a Scenic file to run', metavar='FILE')
 # Parse arguments and set up configuration
 args = parser.parse_args()
 delay = args.delay
-errors.showInternalBacktrace = args.full_backtrace
-if args.pdb:
-    errors.postMortemDebugging = True
-    errors.showInternalBacktrace = True
-if args.pdb_on_reject:
-    errors.postMortemRejections = True
-    errors.showInternalBacktrace = True
+scenic.setDebuggingOptions(
+    verbosity=args.verbosity,
+    fullBacktrace=args.full_backtrace,
+    debugExceptions=args.pdb,
+    debugRejections=args.pdb_on_reject,
+)
 params = {}
 for name, value in args.param:
     # Convert params to ints or floats if possible
@@ -105,7 +105,6 @@ for name, value in args.param:
 translator.dumpTranslatedPython = args.dump_initial_python
 translator.dumpFinalAST = args.dump_ast
 translator.dumpASTPython = args.dump_python
-translator.verbosity = args.verbosity
 translator.usePruning = not args.no_pruning
 if args.seed is not None and args.verbosity >= 1:
     print(f'Using random seed = {args.seed}')

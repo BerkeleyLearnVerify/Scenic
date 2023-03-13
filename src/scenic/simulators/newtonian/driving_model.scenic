@@ -56,6 +56,9 @@ class Car(Vehicle, Steers):
     def isCar(self):
         return True
 
+class Pedestrian(Pedestrian, NewtonianActor, Walks):
+    pass
+
 class Debris:
 	"""Abstract class for debris scattered randomly in the workspace."""
 	position: Point in workspace

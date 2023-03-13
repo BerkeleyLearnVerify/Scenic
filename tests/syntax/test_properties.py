@@ -40,3 +40,52 @@ def test_left():
         ego = Object at other.left offset by 0@5
     """)
     assert tuple(ego.position) == pytest.approx((-2, 5))
+
+def test_right():
+    ego = sampleEgoFrom("""
+        other = Object with width 4
+        ego = Object at other.right offset by 0@5
+    """)
+    assert tuple(ego.position) == pytest.approx((2, 5))
+
+def test_front():
+    ego = sampleEgoFrom("""
+        other = Object with length 4
+        ego = Object at other.front offset by 0@5
+    """)
+    assert tuple(ego.position) == pytest.approx((0, 7))
+
+def test_back():
+    ego = sampleEgoFrom("""
+        other = Object with length 4
+        ego = Object at other.back offset by 0@-5
+    """)
+    assert tuple(ego.position) == pytest.approx((0, -7))
+
+def test_frontLeft():
+    ego = sampleEgoFrom("""
+        other = Object with length 4, with width 2
+        ego = Object at other.frontLeft offset by 0@5
+    """)
+    assert tuple(ego.position) == pytest.approx((-1, 7))
+
+def test_frontRight():
+    ego = sampleEgoFrom("""
+        other = Object with length 4, with width 2
+        ego = Object at other.frontRight offset by 0@5
+    """)
+    assert tuple(ego.position) == pytest.approx((1, 7))
+
+def test_backLeft():
+    ego = sampleEgoFrom("""
+        other = Object with length 4, with width 2
+        ego = Object at other.backLeft offset by 0@-5
+    """)
+    assert tuple(ego.position) == pytest.approx((-1, -7))
+
+def test_backRight():
+    ego = sampleEgoFrom("""
+        other = Object with length 4, with width 2
+        ego = Object at other.backRight offset by 0@-5
+    """)
+    assert tuple(ego.position) == pytest.approx((1, -7))

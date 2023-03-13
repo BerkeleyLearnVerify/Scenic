@@ -11,8 +11,8 @@ In this page, we describe how scenes are generated from a Scenic program.
 
 In Scenic, a scene consists of the following data:
 
-	* a set of `objects <Object>` present in the scene (one of which is designated the ``ego`` object);
-	* concrete values for all of the properties of these objects, such as ``position``, ``heading``, etc.;
+	* a set of `objects <Object>` present in the scene (one of which is designated the :scenic:`ego` object);
+	* concrete values for all of the properties of these objects, such as :prop:`position`, :prop:`heading`, etc.;
 	* concrete values for each :term:`global parameter`.
 
 A Scenic program defines a probability distribution over such scenes in the usual way for imperative probabilistic programming languages with constraints (often called *observations*).

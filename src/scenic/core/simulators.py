@@ -12,6 +12,7 @@ from scenic.core.object_types import (enableDynamicProxyFor, setDynamicProxyFor,
                                       disableDynamicProxyFor)
 from scenic.core.distributions import RejectionException
 import scenic.core.dynamics as dynamics
+import scenic.core.errors as errors
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError, optionallyDebugRejection
 from scenic.core.requirements import RequirementType
 from scenic.core.serialization import Serializer
@@ -48,7 +49,7 @@ class Simulator:
     """
 
     def simulate(self, scene, maxSteps=None, maxIterations=100, *,
-                 verbosity=0, raiseGuardViolations=False, replay=None,
+                 verbosity=None, raiseGuardViolations=False, replay=None,
                  enableReplay=True, enableDivergenceCheck=False, divergenceTolerance=0,
                  continueAfterDivergence=False, allowPickle=False):
         """Run a simulation for a given scene.
@@ -61,7 +62,8 @@ class Simulator:
             maxSteps (int): Maximum number of time steps for the simulation, or `None` to
                 not impose a time bound.
             maxIterations (int): Maximum number of rejection sampling iterations.
-            verbosity (int): Verbosity level (see :option:`--verbosity`).
+            verbosity (int): If not `None`, override Scenic's global verbosity level
+                (from the :option:`--verbosity` option or `scenic.setDebuggingOptions`).
             raiseGuardViolations (bool): Whether violations of preconditions/invariants
                 of scenarios/behaviors should cause this method to raise an exception,
                 instead of only rejecting the simulation (the default behavior).
@@ -110,6 +112,9 @@ class Simulator:
                 or if the replayed scenario has diverged without divergence-checking
                 enabled.
         """
+
+        if verbosity is None:
+            verbosity = errors.verbosityLevel
         # Repeatedly run simulations until we find one satisfying the requirements
         iterations = 0
         simulation = None

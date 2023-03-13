@@ -1,4 +1,5 @@
 
+import matplotlib.pyplot as plt
 import pytest
 
 from tests.utils import compileScenic
@@ -10,6 +11,13 @@ def test_basic(loadLocalScenario):
 def test_road_only(loadLocalScenario):
     scenario = loadLocalScenario('simple.scenic')
     scenario.generate(maxIterations=100)
+
+@pytest.mark.graphical
+def test_show(loadLocalScenario):
+    scenario = loadLocalScenario('crossing.scenic')
+    scene, _ = scenario.generate(maxIterations=1000)
+    scene.show(block=False)
+    plt.close()
 
 def test_curb(loadLocalScenario):
     scenario = loadLocalScenario('curb.scenic')

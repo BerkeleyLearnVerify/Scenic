@@ -27,6 +27,7 @@ wbt_road_world.worldPath = '../tests/simulators/webots/road/simple.wbt'
 
 # Hack to set global parameters needed to import the driving domain models
 import scenic.syntax.veneer as veneer
+veneer._buildingSphinx = True
 veneer.activate(paramOverrides=dict(
     map='../tests/formats/opendrive/maps/opendrive.org/CulDeSac.xodr',
     carla_map='blah',
@@ -42,8 +43,11 @@ veneer.deactivate()
 
 # -- Project information -----------------------------------------------------
 
+import time
+year = time.strftime('%Y', time.gmtime())
+
 project = 'Scenic'
-copyright = '2022, Daniel J. Fremont'
+copyright = f'2020-{year}, Daniel J. Fremont'
 author = 'Daniel J. Fremont, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
 
 
@@ -101,7 +105,11 @@ intersphinx_mapping = {
     'matplotlib': ('https://matplotlib.org/stable/', None),
     'numpy': ('https://numpy.org/doc/stable/', None),
     'scipy': ('https://docs.scipy.org/doc/scipy/', None),
+    'sphinx': ('https://www.sphinx-doc.org/en/master/', None),
 }
+
+highlight_language = 'scenic'
+pygments_style = 'scenic.syntax.pygment.ScenicStyle'
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -250,8 +258,6 @@ sphinx.ext.autodoc.object_description = object_description
 
 # -- Extension for correctly displaying Scenic code and skipping internals ---
 
-from scenic.syntax.pygment import ScenicLexer
-
 def setup(app):
     app.connect('viewcode-find-source', handle_find_source)
     app.connect('autodoc-process-signature', handle_process_signature)
@@ -264,9 +270,59 @@ def setup(app):
     # To allow either plural or singular forms to be looked up in the glossary:
     app.connect('missing-reference', handle_missing_reference)
 
-    # for some reason, the Pygments entry point doesn't work on ReadTheDocs;
-    # so we register the custom lexer here
-    app.add_lexer('scenic', ScenicLexer)
+    # Hack the highlighter just before viewcode runs to color Scenic modules
+    app.connect('html-collect-pages', handle_collect_pages, priority=499)
+
+    # For some reason, the Pygments entry point doesn't work on ReadTheDocs;
+    # so we register the custom lexer here.
+    import scenic.syntax.pygment as scenic_pygment
+    app.add_lexer('scenic', scenic_pygment.ScenicLexer)
+    # Install a better Python lexer (e.g. so function calls get better highlighting)
+    app.add_lexer('python', scenic_pygment.BetterPythonLexer)
+    # Also add the specialized lexers used for inline code snippets and grammar
+    app.add_lexer('scenic-snippet', scenic_pygment.ScenicSnippetLexer)
+    app.add_lexer('scenic-specifier', scenic_pygment.ScenicSpecifierLexer)
+    app.add_lexer('scenic-property', scenic_pygment.ScenicPropertyLexer)
+    app.add_lexer('scenic-grammar', scenic_pygment.ScenicGrammarLexer)
+
+    # Add :scenic: role which is like :samp: but with Scenic syntax highlighting
+    import docutils.parsers.rst.roles as roles
+    from docutils.parsers.rst import directives
+    from docutils.parsers.rst.languages import en
+
+    code_role, _ = roles.role('code', en, 0, None)
+    options = {
+        'class': directives.class_option('scenic'),
+        'language': 'scenic-snippet',
+    }
+    role = roles.CustomRole('scenic', code_role, options)
+    roles.register_local_role('scenic', role)
+
+    # Add :specifier: role like :scenic: but for specifiers (which aren't usually
+    # allowed at the top level)
+    options = {
+        'class': directives.class_option('specifier'),
+        'language': 'scenic-specifier',
+    }
+    role = roles.CustomRole('specifier', code_role, options)
+    roles.register_local_role('specifier', role)
+
+    # Add :prop: role like :scenic: but for properties
+    # N.B. cannot use :property: since the RTD theme uses a 'property' HTML class
+    options = {
+        'class': directives.class_option('prop'),
+        'language': 'scenic-property',
+    }
+    role = roles.CustomRole('prop', code_role, options)
+    roles.register_local_role('prop', role)
+
+    # Add :grammar: role for inline bits of Scenic grammar
+    options = {
+        'class': directives.class_option('grammar'),
+        'language': 'scenic-grammar',
+    }
+    role = roles.CustomRole('grammar', code_role, options)
+    roles.register_local_role('grammar', role)
 
     return { 'parallel_read_safe': True }
 
@@ -274,6 +330,8 @@ import importlib
 from sphinx.pycode import ModuleAnalyzer
 from sphinx.util.docstrings import separate_metadata
 from scenic.syntax.translator import ScenicModule
+
+magicPrefix = 'SCENIC!'
 
 def handle_find_source(app, modname):
     try:
@@ -291,7 +349,21 @@ def handle_find_source(app, modname):
         return None     # bail out; viewcode will try analyzing again but oh well
 
     # Return original Scenic source, plus tags (line numbers will correspond)
-    return module._source, analyzer.tags
+    return magicPrefix+module._source, analyzer.tags
+
+def handle_collect_pages(app):
+    # Unfortunately viewcode hard-codes the Python lexer for highlighting;
+    # rather than use a huge monkeypatch, we hack the choice of lexer:
+    hl = app.builder.highlighter
+    orig = hl.highlight_block
+    def hacked_highlight_block(code, lexer, linenos):
+        if code.startswith(magicPrefix):
+            code = code[len(magicPrefix):]
+            lexer = 'scenic'
+        return orig(code, lexer, linenos=linenos)
+    hl.highlight_block = hacked_highlight_block
+    return
+    yield None  # make this a generator function
 
 def handle_process_signature(app, what, name, obj, options, signature, ret_anno):
     if (what == 'class'
@@ -388,47 +460,6 @@ class ScenicRefResolver(ReferencesResolver):
             newnode[0]['classes'].append(res_domain)
             newnode[0]['classes'].append(res_role.replace(':', '-'))
         return newnode
-
-# -- Big monkeypatch to fix bug in autosummary (temporarily) -----------------
-
-from sphinx.pycode import ModuleAnalyzer, PycodeError
-import sphinx.ext.autosummary.generate as as_gen
-
-orig_generate_autosummary_content = as_gen.generate_autosummary_content
-orig_scan = as_gen.ModuleScanner.scan
-
-def generate_autosummary_content(name, obj, parent,
-                                 template, template_name,
-                                 imported_members, app,
-                                 recursive, context,
-                                 modname = None, qualname = None):
-    members = dir(obj)
-    attrs = set()
-    try:
-        analyzer = ModuleAnalyzer.for_module(name)
-        attr_docs = analyzer.find_attr_docs()
-        for namespace, attr_name in attr_docs:
-            if namespace == '' and attr_name in members:
-                attrs.add(attr_name)
-    except PycodeError:
-        pass    # give up if ModuleAnalyzer fails to parse code
-
-    def scan(self, imported_members):
-        scanned = set(orig_scan(self, imported_members))
-        allMembers = []
-        for name in dir(self.object):
-            if name in scanned or name in attrs:
-                allMembers.append(name)
-        return allMembers
-    as_gen.ModuleScanner.scan = scan
-
-    return orig_generate_autosummary_content(name, obj, parent,
-                                             template, template_name,
-                                             imported_members, app,
-                                             recursive, context,
-                                             modname=modname, qualname=qualname)
-
-as_gen.generate_autosummary_content = generate_autosummary_content
 
 # -- Monkeypatch adding a :sampref: role combining :samp: and :ref: ----------
 # (necessary since ReST does not allow nested inline markup)

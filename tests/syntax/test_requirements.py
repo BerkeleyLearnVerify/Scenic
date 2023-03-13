@@ -15,7 +15,6 @@ def test_requirement():
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
     assert all(0 <= x <= 10 for x in xs)
 
-@pytest.mark.slow
 def test_soft_requirement():
     scenario = compileScenic("""
         ego = Object at Range(-10, 10) @ 0
@@ -25,10 +24,19 @@ def test_soft_requirement():
     count = sum(x >= 0 for x in xs)
     assert 255 <= count < 350
 
+def test_illegal_soft_probability():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            ego = Object
+            require[1.1] ego.position.x >= 0
+        """)
+
 def test_named_requirement():
     scenario = compileScenic("""
         ego = Object at Range(0, 10) @ 0
         require ego.position.x >= 5 as posReq
+        require True as 'myReq'
+        require True as 101
     """)
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
     assert all(5 <= x <= 10 for x in xs)
@@ -38,10 +46,34 @@ def test_named_soft_requirement():
     scenario = compileScenic("""
         ego = Object at Range(0, 10) @ 0
         require[0.9] ego.position.x >= 5 as posReq
+        require[0.8] True as 'myReq'
+        require[0.75] True as 101
     """)
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(350)]
     count = sum(x >= 5 for x in xs)
     assert 255 <= count < 350
+
+def test_named_requirement_invalid():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            ego = Object
+            require True as +
+        """)
+
+def test_unexpected_keyword_arg():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            ego = Object
+            require True, line=5
+        """)
+
+def test_unexpected_unpacking():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            ego = Object
+            a = (True,)
+            require *a
+        """)
 
 ## Forbidden operations inside requirements
 
@@ -53,20 +85,42 @@ def test_object_in_requirement():
     with pytest.raises(ScenicSyntaxError):
         sampleScene(scenario)
 
-def test_param_in_requirement():
+def test_param_in_requirement_1():
     with pytest.raises(ScenicSyntaxError):
         compileScenic("""
             require param x = 4
             ego = Object
         """)
 
+def test_param_in_requirement_2():
+    with pytest.raises(ScenicSyntaxError):
+        scenario = compileScenic("""
+            def func():
+                param x = 4
+                return True
+            require func()
+            ego = Object
+        """)
+        sampleScene(scenario)
+
 @pytest.mark.xfail(reason='looser keyword policy now allows this', strict=True)
-def test_mutate_in_requirement():
+def test_mutate_in_requirement_1():
     scenario = compileScenic("""
         require mutate
         ego = Object
     """)
     with pytest.raises(ScenicSyntaxError):
+        sampleScene(scenario)
+
+def test_mutate_in_requirement_2():
+    with pytest.raises(ScenicSyntaxError):
+        scenario = compileScenic("""
+            def func():
+                mutate ego
+                return True
+            require func()
+            ego = Object
+        """)
         sampleScene(scenario)
 
 def test_require_in_requirement():

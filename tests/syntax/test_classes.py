@@ -2,7 +2,7 @@
 import math
 import pytest
 
-from scenic.core.errors import TokenParseError, ASTParseError, RuntimeParseError
+from scenic.core.errors import TokenParseError, RuntimeParseError, ScenicSyntaxError
 from tests.utils import compileScenic, sampleScene
 
 def test_wrong_class_statement():
@@ -43,6 +43,27 @@ def test_invalid_attribute():
                 blah[baloney_attr]: 4
         """)
 
+def test_invalid_attribute_2():
+    with pytest.raises(RuntimeParseError):
+        compileScenic("""
+            class Foo:\n
+                blah[additive, baloney_attr]: 4
+        """)
+
+def test_invalid_attribute_3():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            class Foo:\n
+                blah[additive, 'dynamic']: 4
+        """)
+
+def test_invalid_attribute_4():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            class Foo:\n
+                blah[additive + dynamic]: 4
+        """)
+
 def test_property_simple():
     scenario = compileScenic("""
         class Foo:
@@ -68,6 +89,19 @@ def test_property_inheritance():
     ego = scene.egoObject
     assert type(ego).__name__ == 'Bar'
     assert ego.flubber == 7
+
+def test_property_additive():
+    scenario = compileScenic("""
+        class Foo:
+            flubber[additive]: -12
+        class Bar(Foo):
+            flubber[additive]: 7
+        ego = Bar
+    """)
+    scene = sampleScene(scenario, maxIterations=1)
+    ego = scene.egoObject
+    assert type(ego).__name__ == 'Bar'
+    assert ego.flubber == (7, -12)
 
 def test_isinstance_issubclass():
     scenario = compileScenic("""

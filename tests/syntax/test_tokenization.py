@@ -3,6 +3,7 @@ from tokenize import TokenInfo, ENCODING, NAME, OP, NUMBER, ENDMARKER
 
 import pytest
 
+from scenic.core.errors import ScenicSyntaxError
 from scenic.syntax.translator import TokenParseError, TokenTranslator
 from tests.utils import compileScenic, sampleEgoFrom, sampleSceneFrom
 
@@ -45,6 +46,11 @@ def test_dangling_specifier_list():
         compileScenic('ego = Object with width 4,')
     with pytest.raises(TokenParseError):
         compileScenic('ego = Object with width 4,   # comment')
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            ego = Object with width 4,
+            hello()
+        """)
 
 def test_dangling_specifier_list_2():
     """Variant of the above test catching a quirk of the Python 3.7.0 tokenizer.
@@ -89,7 +95,7 @@ def test_list_comprehension():
         ego = Object at -4@2
     """)
     assert len(scene.objects) == 11
-    assert scene.objects[2].position.x - scene.objects[1].position.x != pytest.approx(3)
+    assert scene.objects[2].position.x - scene.objects[1].position.x != pytest.approx(3, abs=1e-12)
 
 def test_incipit_as_name():
     """Incipits of operators are not keywords and can be used as names.
@@ -99,3 +105,10 @@ def test_incipit_as_name():
     for name in ('distance', 'offset'):
         ego = sampleEgoFrom(f'{name} = 4\n' f'ego = Object at {name} @ 0')
         assert tuple(ego.position) == (4, 0)
+
+def test_failed_3word_lookahead():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            ego = Object
+            terminate simulation flobbo True
+        """)

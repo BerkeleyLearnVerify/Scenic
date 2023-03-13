@@ -69,31 +69,6 @@ def compute_gradient_sobel(img_data=None, img_file=None, threshold=100,
     return angle_along_edge
 
 '''
-This is very coarse, avoid using this
-'''
-def compute_gradient_manual(img_data=None, img_file=None, threshold=100,
-                     kernelsize=1):
-    assert img_data is not None or img_file is not None
-    if img_data is None:
-        img_data = Image.open(img_file)
-
-    img_copy = img_data.copy()
-
-    # Directly work with the edges
-    edge_image = get_edges(img_data=img_copy, img_file=img_file,
-                           threshold=threshold, kernelsize=kernelsize)
-
-    edge_x, edge_y = np.nonzero(np.asarray(edge_image))
-    grad_x, grad_y = np.gradient(np.asarray(edge_image))
-    angle_grad = np.arctan(grad_x/(grad_y+1e-6))
-
-    angle_along_edge = {}
-    for x, y in zip(edge_x, edge_y):
-        angle_along_edge[(x,y)] = angle_grad[x][y]
-
-    return angle_along_edge
-
-'''
 Compute all connected edges
 '''
 
@@ -297,36 +272,5 @@ def compute_midpoints(img_data, bw_kernelsize=1, kernelsize=3, threshold=100,
                                            num_samples=num_samples,
                                            bw_image=img_bw_int)
 
-            point_data[x] = EdgeData(init_theta=float(init_theta), tangent=float(theta),
-                             opp_loc=opp_loc, mid_loc=mid_loc \
-                    if opp_loc not in bb else (np.nan, np.nan))
-
+            point_data[x] = float(theta)
     return point_data
-
-'''
-Compute the heading at a random sample
-'''
-
-def compute_heading(x, point_data):
-    road_edges = tuple(point_data.keys())
-    edge_distance = np.linalg.norm(np.array(list(road_edges)) - np.array(x),1,
-                                   axis=1)
-    closest_edge = list(road_edges)[edge_distance.argmin()]
-
-    return closest_edge, point_data[closest_edge]
-
-'''
-Sampling from road
-'''
-
-def sample_from_road(img_data, num_samples):
-    img_bw = convert_black_white(img_data=img_data)
-    img_bw = img_bw.convert('L')
-    img_bw_int = np.array(img_bw, dtype=int)
-
-    road_y, road_x = np.where(img_bw_int == 0)
-    all_roads = list(zip(road_y, road_x))
-
-    locs = np.random.choice(len(all_roads), num_samples, replace=False)
-
-    return np.array(all_roads)[locs]

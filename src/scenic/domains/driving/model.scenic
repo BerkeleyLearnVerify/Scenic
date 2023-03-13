@@ -7,9 +7,7 @@ The map file to use for the scenario must be specified before importing this mod
 defining the global parameter ``map``. This path is passed to the `Network.fromFile`
 function to create a `Network` object representing the road network. Extra options may be
 passed to the function by defining the global parameter ``map_options``, which should be
-a dictionary of keyword arguments. For example, we could write:
-
-.. code-block:: scenic
+a dictionary of keyword arguments. For example, we could write::
 
     param map = localPath('mymap.xodr')
     param map_options = { 'tolerance': 0.1 }
@@ -223,7 +221,7 @@ class DrivingObject:
     def distanceToClosest(self, type: type) -> Object:
         """Compute the distance to the closest object of the given type.
 
-        For example, one could write :samp:`self.distanceToClosest(Car)` in a behavior.
+        For example, one could write :scenic:`self.distanceToClosest(Car)` in a behavior.
         """
         objects = simulation().objects
         minDist = float('inf')

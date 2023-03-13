@@ -5,6 +5,33 @@ pre {tab-size: 4;}
 /* syntax in :sampref: should be bold, like :keyword:, but not the variable parts */
 .rst-content a code.std-ref {font-weight: 700;}
 .rst-content a code.std-ref em {font-weight: 400;}
+/* make syntax in inline literal blocks black unless highlighted or a link */
+.rst-content code.literal {color: #404040;}
+.rst-content code.xref {color: #2980b9;}
+/* Allow word wrapping in tables */
+.wy-table-responsive table td, .wy-table-responsive table th {white-space: normal;}
 /* Increase maximum body width to support 100-character lines */
 .wy-nav-content {max-width:900px;}
-
+/* Shrink the sidebar to 270 pixels wide */
+.wy-tray-container li, .wy-menu-vertical, .wy-side-nav-search, .wy-nav-side,
+.rst-versions {width:270px;}
+.rst-versions.rst-badge {max-width:270px;}
+.wy-side-scroll {width:290px;}
+.wy-nav-content-wrap {margin-left:270px;}
+@media screen and (max-width: 768px) {
+    .wy-body-for-nav {background:#fcfcfc}
+    .wy-nav-top {display: block}
+    .wy-nav-side {left: -270px}
+    .wy-nav-side.shift {width: 85%;left: 0}
+    .wy-menu.wy-menu-vertical,.wy-side-nav-search,.wy-side-scroll {width: auto}
+    .wy-nav-content-wrap {margin-left: 0}
+    .wy-nav-content-wrap .wy-nav-content {padding: 1.618em}
+    .wy-nav-content-wrap.shift {
+        position: fixed;
+        min-width: 100%;
+        left: 85%;
+        top: 0;
+        height: 100%;
+        overflow: hidden
+    }
+}

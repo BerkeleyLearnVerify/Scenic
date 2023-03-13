@@ -103,13 +103,14 @@ class Map:
 			self.displayImage = cv2.cvtColor(numpy.array(de), cv2.COLOR_RGB2BGR)
 			# detect edges of roads
 			ed = center_detection.compute_midpoints(img_data=image, kernelsize=5)
-			self.edgeData = {
-				self.gridToScenicCoords((x, y)): datum
-				for (y, x), datum in ed.items()
-			}
-			self.orderedCurbPoints = list(self.edgeData.keys())
+			edges, tangents = [], []
+			for (y, x), tangent in ed.items():
+				edges.append(self.gridToScenicCoords((x, y)))
+				tangents.append(tangent)
+			self.edges = numpy.array(edges)
+			self.edgeTangents = numpy.array(tangents)
 			# build k-D tree
-			self.edgeTree = scipy.spatial.KDTree(self.orderedCurbPoints)
+			self.edgeTree = scipy.spatial.KDTree(self.edges)
 			# identify points on roads
 			self.roadArray = numpy.array(img_modf.convert_black_white(img_data=image).convert('L'),
 			                             dtype=int)
@@ -119,15 +120,15 @@ class Map:
 	@staticmethod
 	def fromFile(path):
 		startTime = time.time()
-		with numpy.load(path, allow_pickle=True) as data:
+		with numpy.load(path) as data:
 			Ax, Ay, Bx, By, sizeX, sizeY = data['misc']
 			m = Map(None, Ax, Ay, Bx, By)
 			m.sizeX, m.sizeY = sizeX, sizeY
 			m.displayImage = data['displayImage']
 			
-			m.edgeData = { tuple(e): center_detection.EdgeData(*rest) for e, *rest in data['edges'] }
-			m.orderedCurbPoints = list(m.edgeData.keys())
-			m.edgeTree = scipy.spatial.KDTree(m.orderedCurbPoints)		# rebuild k-D tree
+			m.edges = data['edges']
+			m.edgeTangents = data['tangents']
+			m.edgeTree = scipy.spatial.KDTree(m.edges)		# rebuild k-D tree
 
 			m.roadArray = data['roadArray']
 			totalTime = time.time() - startTime
@@ -136,12 +137,10 @@ class Map:
 
 	def dumpToFile(self, path):
 		misc = numpy.array((self.Ax, self.Ay, self.Bx, self.By, self.sizeX, self.sizeY))
-		edges = numpy.array([(edge,) + tuple(datum) for edge, datum in self.edgeData.items()])
-		roadArray = self.roadArray
 
 		numpy.savez_compressed(path,
 			misc=misc, displayImage=self.displayImage,
-			edges=edges, roadArray=self.roadArray)
+			edges=self.edges, tangents=self.edgeTangents, roadArray=self.roadArray)
 
 	@property
 	@utils.cached
@@ -158,7 +157,7 @@ class Map:
 	@property
 	@utils.cached
 	def curbRegion(self):
-		return PointSetRegion('curb', self.orderedCurbPoints,
+		return PointSetRegion('curb', self.edges,
 		                      kdTree=self.edgeTree,
 		                      orientation=self.roadDirection)
 
@@ -180,9 +179,8 @@ class Map:
 	def roadHeadingAt(self, point):
 		# find closest edge
 		distance, location = self.edgeTree.query(point)
-		closest = tuple(self.edgeTree.data[location])
 		# get direction of edge
-		return self.gridToScenicHeading(self.edgeData[closest].tangent)
+		return self.gridToScenicHeading(self.edgeTangents[location])
 
 	def show(self, plt):
 		plt.imshow(self.displayImage)

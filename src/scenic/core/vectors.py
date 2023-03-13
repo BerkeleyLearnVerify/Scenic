@@ -27,26 +27,6 @@ class VectorDistribution(Distribution):
 	def toVector(self):
 		return self
 
-class CustomVectorDistribution(VectorDistribution):
-	"""Distribution with a custom sampler given by an arbitrary function."""
-	def __init__(self, sampler, *dependencies, name='CustomVectorDistribution', evaluator=None):
-		super().__init__(*dependencies)
-		self.sampler = sampler
-		self.name = name
-		self.evaluator = evaluator
-
-	def sampleGiven(self, value):
-		return self.sampler(value)
-
-	def evaluateInner(self, context):
-		if self.evaluator is None:
-			raise NotImplementedError('evaluateIn() not supported by this distribution')
-		return self.evaluator(self, context)
-
-	def __str__(self):
-		deps = argsToString(self.dependencies)
-		return f'{self.name}{deps}'
-
 class VectorOperatorDistribution(VectorDistribution):
 	"""Vector version of OperatorDistribution."""
 	def __init__(self, operator, obj, operands):
@@ -66,9 +46,8 @@ class VectorOperatorDistribution(VectorDistribution):
 		operands = tuple(valueInContext(arg, context) for arg in self.operands)
 		return VectorOperatorDistribution(self.operator, obj, operands)
 
-	def __str__(self):
-		ops = argsToString(self.operands)
-		return f'{self.object}.{self.operator}{ops}'
+	def __repr__(self):
+		return f'{self.object!r}.{self.operator}({argsToString(self.operands)})'
 
 class VectorMethodDistribution(VectorDistribution):
 	"""Vector version of MethodDistribution."""
@@ -90,9 +69,9 @@ class VectorMethodDistribution(VectorDistribution):
 		kwargs = { name: valueInContext(arg, context) for name, arg in self.kwargs.items() }
 		return VectorMethodDistribution(self.method, obj, arguments, kwargs)
 
-	def __str__(self):
-		args = argsToString(itertools.chain(self.arguments, self.kwargs.values()))
-		return f'{self.object}.{self.method.__name__}{args}'
+	def __repr__(self):
+		args = argsToString(self.arguments, self.kwargs)
+		return f'{self.object!r}.{self.method.__name__}({args})'
 
 def scalarOperator(method):
 	"""Decorator for vector operators that yield scalars."""

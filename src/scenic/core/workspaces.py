@@ -80,8 +80,8 @@ class Workspace(Region):
 	def getAABB(self):
 		return self.region.getAABB()
 
-	def __str__(self):
-		return f'<Workspace on {self.region}>'
+	def __repr__(self):
+		return f'Workspace({self.region!r})'
 
 	def __eq__(self, other):
 		if type(other) is not Workspace:

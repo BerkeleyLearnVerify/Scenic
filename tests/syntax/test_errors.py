@@ -40,6 +40,13 @@ def test_illegal_binary_operators(op):
     with pytest.raises(TokenParseError):
         compileScenic(f'x {op}= 4')
 
+def test_illegal_statements():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            async def foo(): pass
+            ego = Object
+        """)
+
 ## Constructor definitions
 
 badNames = ('', '3', '+', 'Behavior')

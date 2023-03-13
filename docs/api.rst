@@ -40,10 +40,6 @@ the sampled values for all the global parameters and objects in the scene from t
 
 	ego has foo = 2.083099362726706
 
-.. testcleanup::
-
-	os.chdir('docs')
-
 Running Dynamic Simulations
 ---------------------------
 
@@ -117,11 +113,6 @@ Having compiled a Scenic scenario into a `Scenario` object, any scenes you gener
 the scenario can be encoded as bytes using the `Scenario.sceneToBytes` method. For
 example, to save a scene to a file one could use code like the following:
 
-.. testsetup::
-
-	import os
-	os.chdir('..')
-
 .. testcode::
 
 	import scenic, tempfile, pathlib
@@ -180,6 +171,8 @@ it to the replay, but this greatly increases the size of the encoded simulation.
 	storage (for instance if you want to save all the simulations you've run so that you
 	can return to one later for further analysis), but it is not guaranteed to be
 	compatible across major versions of Scenic.
+
+.. seealso:: If you get exceptions or unexpected behavior when using the API, Scenic provides various debugging features: see :ref:`debugging`.
 
 .. rubric:: Footnotes
 

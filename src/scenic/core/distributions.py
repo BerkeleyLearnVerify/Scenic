@@ -35,6 +35,14 @@ def supportInterval(thing):
 	else:
 		return None, None
 
+def supmin(*vals):
+	return None if None in vals else min(vals)
+def supmax(*vals):
+	return None if None in vals else max(vals)
+def unionOfSupports(supports):
+	mins, maxes = zip(*supports)
+	return supmin(*mins), supmax(*maxes)
+
 def underlyingFunction(thing):
 	"""Original function underlying a distribution wrapper."""
 	func = getattr(thing, '__wrapped__', thing)
@@ -115,15 +123,14 @@ class Samplable(LazilyEvaluable):
 	def sampleGiven(self, value):
 		"""Sample this value, given values for all its dependencies.
 
-		The default implementation simply returns a dictionary of dependency values.
-		Subclasses must override this method to specify how actual sampling is done.
+		Implemented by subclasses.
 
 		Args:
 			value (DefaultIdentityDict): dictionary mapping objects to their sampled
 				values. Guaranteed to provide values for all objects given in the set of
 				dependencies when this `Samplable` was created.
 		"""
-		return DefaultIdentityDict({ dep: value[dep] for dep in self._dependencies })
+		raise NotImplementedError
 
 	def serializeValue(self, values, serializer):
 		for child in self._conditioned._dependencies:
@@ -145,14 +152,6 @@ class Samplable(LazilyEvaluable):
 		# Check that all dependencies have been evaluated
 		assert all(not needsLazyEvaluation(dep) for dep in value._dependencies)
 		return value
-
-	def dependencyTree(self):
-		"""Debugging method to print the dependency tree of a Samplable."""
-		l = [str(self)]
-		for dep in dependencies(self):
-			for line in dep.dependencyTree():
-				l.append('  ' + line)
-		return l
 
 class ConstantSamplable(Samplable):
 	"""A samplable which always evaluates to a constant value.
@@ -282,7 +281,7 @@ class Distribution(Samplable):
 	def supportInterval(self):
 		"""Compute lower and upper bounds on the value of this Distribution.
 
-		By default returns :samp:`(None, None)` indicating that no lower or upper bounds
+		By default returns :scenic:`(None, None)` indicating that no lower or upper bounds
 		are known. Subclasses may override this method to provide more accurate results.
 		"""
 		return None, None
@@ -317,25 +316,6 @@ class Distribution(Samplable):
 
 ## Derived distributions
 
-class CustomDistribution(Distribution):
-	"""Distribution with a custom sampler given by an arbitrary function"""
-	def __init__(self, sampler, *dependencies, name='CustomDistribution', evaluator=None):
-		super().__init__(*dependencies)
-		self.sampler = sampler
-		self.name = name
-		self.evaluator = evaluator
-
-	def sampleGiven(self, value):
-		return self.sampler(value)
-
-	def evaluateInner(self, context):
-		if self.evaluator is None:
-			raise NotImplementedError('evaluateIn() not supported by this distribution')
-		return self.evaluator(self, context)
-
-	def __str__(self):
-		return f'{self.name}{argsToString(self.dependencies)}'
-
 class TupleDistribution(Distribution, collections.abc.Sequence):
 	"""Distributions over tuples (or namedtuples, or lists)."""
 
@@ -362,9 +342,14 @@ class TupleDistribution(Distribution, collections.abc.Sequence):
 		coordinates = (valueInContext(coord, context) for coord in self.coordinates)
 		return TupleDistribution(*coordinates, builder=self.builder)
 
-	def __str__(self):
-		coords = ', '.join(str(c) for c in self.coordinates)
-		return f'({coords}, builder={self.builder})'
+	def __repr__(self):
+		coords = ', '.join(repr(c) for c in self.coordinates)
+		if self.builder is tuple:
+			return f'({coords},)'
+		elif self.builder is list:
+			return f'[{coords}]'
+		else:
+			return f'TupleDistribution({coords}, builder={self.builder!r})'
 
 def toDistribution(val):
 	"""Wrap Python data types with Distributions, if necessary.
@@ -427,9 +412,8 @@ class FunctionDistribution(Distribution):
 		kwss = { name: supportInterval(arg) for name, arg in self.kwargs.items() }
 		return self.support(*subsupports, **kwss)
 
-	def __str__(self):
-		args = argsToString(itertools.chain(self.arguments, self.kwargs.items()))
-		return f'{self.function.__name__}{args}'
+	def __repr__(self):
+		return f'{self.function.__name__}({argsToString(self.arguments, self.kwargs)})'
 
 def distributionFunction(wrapped=None, *, support=None, valueType=None):
 	"""Decorator for wrapping a function so that it can take distributions as arguments.
@@ -494,8 +478,8 @@ class StarredDistribution(Distribution):
 	def evaluateInner(self, context):
 		return StarredDistribution(valueInContext(self.value, context), self.lineno)
 
-	def __str__(self):
-		return f'*{self.value}'
+	def __repr__(self):
+		return f'*{self.value!r}'
 
 class MethodDistribution(Distribution):
 	"""Distribution resulting from passing distributions to a method of a fixed object"""
@@ -529,9 +513,9 @@ class MethodDistribution(Distribution):
 		kwargs = { name: valueInContext(arg, context) for name, arg in self.kwargs.items() }
 		return MethodDistribution(self.method, obj, arguments, kwargs)
 
-	def __str__(self):
-		args = argsToString(itertools.chain(self.arguments, self.kwargs.items()))
-		return f'{self.object}.{self.method.__name__}{args}'
+	def __repr__(self):
+		args = argsToString(self.arguments, self.kwargs)
+		return f'{self.object!r}.{self.method.__name__}({args})'
 
 def distributionMethod(method):
 	"""Decorator for wrapping a method so that it can take distributions as arguments."""
@@ -595,10 +579,7 @@ class AttributeDistribution(Distribution):
 		obj = self.object
 		if isinstance(obj, MultiplexerDistribution):
 			attrs = (getattr(opt, self.attribute) for opt in obj.options)
-			mins, maxes = zip(*(supportInterval(attr) for attr in attrs))
-			l = None if any(sl is None for sl in mins) else min(mins)
-			r = None if any(sr is None for sr in maxes) else max(maxes)
-			return l, r
+			return unionOfSupports(supportInterval(attr) for attr in attrs)
 		return None, None
 
 	def __call__(self, *args):
@@ -612,8 +593,8 @@ class AttributeDistribution(Distribution):
 				retTy = typing.get_type_hints(func).get('return')
 		return OperatorDistribution('__call__', self, args, valueType=retTy)
 
-	def __str__(self):
-		return f'{self.object}.{self.attribute}'
+	def __repr__(self):
+		return f'{self.object!r}.{self.attribute}'
 
 class OperatorDistribution(Distribution):
 	"""Distribution resulting from applying an operator to one or more distributions"""
@@ -669,7 +650,8 @@ class OperatorDistribution(Distribution):
 		return OperatorDistribution(self.operator, obj, operands)
 
 	def supportInterval(self):
-		if self.operator in ('__add__', '__radd__', '__sub__', '__rsub__', '__truediv__'):
+		if self.operator in ('__add__', '__radd__', '__sub__', '__rsub__',
+		                     '__mul__', '__rmul__', '__truediv__', '__rtruediv__'):
 			assert len(self.operands) == 1
 			l1, r1 = supportInterval(self.object)
 			l2, r2 = supportInterval(self.operands[0])
@@ -684,17 +666,43 @@ class OperatorDistribution(Distribution):
 			elif self.operator == '__rsub__':
 				l = l2 - r1
 				r = r2 - l1
+			elif self.operator in ('__mul__', '__rmul__'):
+				prods = (l1*l2, l1*r2, r1*l2, r1*r2)
+				l = min(*prods)
+				r = max(*prods)
 			elif self.operator == '__truediv__':
 				if l2 > 0:
 					l = l1 / r2 if l1 >= 0 else l1 / l2
 					r = r1 / l2 if r1 >= 0 else r1 / r2
 				else:
 					l, r = None, None 	# TODO improve
+			elif self.operator == '__rtruediv__':
+				if l1 > 0:
+					l = l2 / r1 if l2 >= 0 else l2 / l1
+					r = r2 / l1 if r2 >= 0 else r2 / r1
+				else:
+					l, r = None, None
+			else:
+				raise AssertionError(f'unexpected operator {self.operator}')
 			return l, r
+		elif self.operator in ('__neg__', '__abs__'):
+			assert len(self.operands) == 0
+			l, r = supportInterval(self.object)
+			if self.operator == '__neg__':
+				return -r, -l
+			elif self.operator == '__abs__':
+				if r < 0:
+					return -r, -l
+				elif l < 0:
+					return 0, max(-l, r)
+				else:
+					return l, r
+			else:
+				raise AssertionError(f'unexpected operator {self.operator}')
 		return None, None
 
 	def __repr__(self):
-		return f'{self.object}.{self.operator}{argsToString(self.operands)}'
+		return f'{self.object!r}.{self.operator}({argsToString(self.operands)})'
 
 # Operators which can be applied to distributions.
 # Note that we deliberately do not include comparisons and __bool__,
@@ -762,6 +770,8 @@ class MultiplexerDistribution(Distribution):
 	def evaluateInner(self, context):
 		return type(self)(valueInContext(self.index, context),
 		                  (valueInContext(opt, context) for opt in self.options))
+	def supportInterval(self):
+		return unionOfSupports(supportInterval(opt) for opt in self.options)
 
 ## Simple distributions
 
@@ -774,9 +784,6 @@ class Range(Distribution):
 		self.low = low
 		self.high = high
 
-	def __contains__(self, obj):
-		return self.low <= obj and obj <= self.high
-
 	def clone(self):
 		return type(self)(self.low, self.high)
 
@@ -784,7 +791,7 @@ class Range(Distribution):
 		if buckets is None:
 			buckets = 5
 		if not isinstance(buckets, int) or buckets < 1:
-			raise RuntimeError(f'Invalid buckets for Range.bucket: {buckets}')
+			raise ValueError(f'Invalid buckets for Range.bucket: {buckets}')
 		if not isinstance(self.low, float) or not isinstance(self.high, float):
 			raise RuntimeError(f'Cannot bucket Range with non-constant endpoints')
 		endpoints = numpy.linspace(self.low, self.high, buckets+1)
@@ -802,8 +809,11 @@ class Range(Distribution):
 		high = valueInContext(self.high, context)
 		return Range(low, high)
 
-	def __str__(self):
-		return f'Range({self.low}, {self.high})'
+	def supportInterval(self):
+		return unionOfSupports((supportInterval(self.low), supportInterval(self.high)))
+
+	def __repr__(self):
+		return f'Range({self.low!r}, {self.high!r})'
 
 class Normal(Distribution):
 	"""Normal distribution"""
@@ -833,7 +843,7 @@ class Normal(Distribution):
 			buckets = 5
 		if isinstance(buckets, int):
 			if buckets < 1:
-				raise RuntimeError(f'Invalid buckets for Normal.bucket: {buckets}')
+				raise ValueError(f'Invalid buckets for Normal.bucket: {buckets}')
 			elif buckets == 1:
 				endpoints = []
 			elif buckets == 2:
@@ -846,8 +856,8 @@ class Normal(Distribution):
 			endpoints = tuple(buckets)
 			for i, v in enumerate(endpoints[:-1]):
 				if v >= endpoints[i+1]:
-					raise RuntimeError('Non-increasing bucket endpoints for '
-					                   f'Normal.bucket: {endpoints}')
+					raise ValueError('Non-increasing bucket endpoints for '
+					                 f'Normal.bucket: {endpoints}')
 		if len(endpoints) == 0:
 			return Options([self.clone()])
 		buckets = [(-math.inf, endpoints[0])]
@@ -871,15 +881,17 @@ class Normal(Distribution):
 		stddev = valueInContext(self.stddev, context)
 		return Normal(mean, stddev)
 
-	def __str__(self):
-		return f'Normal({self.mean}, {self.stddev})'
+	def __repr__(self):
+		return f'Normal({self.mean!r}, {self.stddev!r})'
 
 class TruncatedNormal(Normal):
 	"""Truncated normal distribution."""
 	def __init__(self, mean, stddev, low, high):
 		if (not isinstance(low, (float, int))
 		    or not isinstance(high, (float, int))):	# TODO relax restriction?
-			raise RuntimeError('Endpoints of TruncatedNormal must be constant')
+			raise ValueError('Endpoints of TruncatedNormal must be constant')
+		if low >= high:
+			raise ValueError('low endpoint of TruncatedNormal must be below high endpoint')
 		super().__init__(mean, stddev)
 		self.low = low
 		self.high = high
@@ -895,19 +907,19 @@ class TruncatedNormal(Normal):
 			buckets = 5
 		if isinstance(buckets, int):
 			if buckets < 1:
-				raise RuntimeError(f'Invalid buckets for TruncatedNormal.bucket: {buckets}')
+				raise ValueError(f'Invalid buckets for TruncatedNormal.bucket: {buckets}')
 			endpoints = numpy.linspace(self.low, self.high, buckets+1)
 		else:
 			endpoints = tuple(buckets)
 			if len(endpoints) < 2:
-				raise RuntimeError('Too few bucket endpoints for '
-				                   f'TruncatedNormal.bucket: {endpoints}')
+				raise ValueError('Too few bucket endpoints for '
+				                 f'TruncatedNormal.bucket: {endpoints}')
 			if endpoints[0] != self.low or endpoints[-1] != self.high:
-				raise RuntimeError(f'TruncatedNormal.bucket endpoints {endpoints} '
-				                   'do not match domain')
+				raise ValueError(f'TruncatedNormal.bucket endpoints {endpoints} '
+				                 'do not match domain')
 			for i, v in enumerate(endpoints[:-1]):
 				if v >= endpoints[i+1]:
-					raise RuntimeError('Non-increasing bucket endpoints for '
+					raise ValueError('Non-increasing bucket endpoints for '
 					                   f'TruncatedNormal.bucket: {endpoints}')
 		pieces, probs = [], []
 		for i, left in enumerate(endpoints[:-1]):
@@ -936,8 +948,11 @@ class TruncatedNormal(Normal):
 		stddev = valueInContext(self.stddev, context)
 		return TruncatedNormal(mean, stddev, self.low, self.high)
 
-	def __str__(self):
-		return f'TruncatedNormal({self.mean}, {self.stddev}, {self.low}, {self.high})'
+	def supportInterval(self):
+		return self.low, self.high
+
+	def __repr__(self):
+		return f'TruncatedNormal({self.mean!r}, {self.stddev!r}, {self.low!r}, {self.high!r})'
 
 class DiscreteRange(Distribution):
 	"""Distribution over a range of integers."""
@@ -977,11 +992,17 @@ class DiscreteRange(Distribution):
 			raise RejectionException(self.emptyMessage)
 		return random.randint(left, right)
 
-	def __str__(self):
-		if self.weights:
-			return f'DiscreteRange({self.low}, {self.high}, {self.weights})'
+	def supportInterval(self):
+		ll, lh = supportInterval(self.low)
+		hl, hh = supportInterval(self.high)
+		return ll, hh
+
+	def __repr__(self):
+		weights = self.weights
+		if all(weight == weights[0] for weight in weights):
+			return f'DiscreteRange({self.low!r}, {self.high!r})'
 		else:
-			return f'DiscreteRange({self.low}, {self.high})'
+			return f'DiscreteRange({self.low!r}, {self.high!r}, {self.weights})'
 
 class Options(MultiplexerDistribution):
 	"""Distribution over a finite list of options.
@@ -1029,11 +1050,12 @@ class Options(MultiplexerDistribution):
 			return type(self)({valueInContext(opt, context): wt
 			                  for opt, wt in self.optWeights.items() })
 
-	def __str__(self):
+	def __repr__(self):
 		if self.optWeights is not None:
-			return f'{type(self).__name__}({self.optWeights})'
+			return f'{type(self).__name__}({self.optWeights!r})'
 		else:
-			return f'{type(self).__name__}{argsToString(self.options)}'
+			args = ', '.join(repr(opt) for opt in self.options)
+			return f'{type(self).__name__}({args})'
 
 @unpacksDistributions
 def Uniform(*opts):
@@ -1089,5 +1111,5 @@ class UniformDistribution(Distribution):
 		opts = tuple(valueInContext(opt, context) for opt in self.options)
 		return UniformDistribution(opts)
 
-	def __str__(self):
-		return f'UniformDistribution({self.options})'
+	def __repr__(self):
+		return f'UniformDistribution({self.options!r})'
