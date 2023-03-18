@@ -25,7 +25,7 @@ try:
     from pygments.lexers.python import PythonLexer
 except ModuleNotFoundError as e:
     raise ImportError("need the 'pygments' package to use the Scenic Pygments lexer") from e
-from pygments.lexer import RegexLexer, bygroups, combined, default, include, inherit, words
+from pygments.lexer import RegexLexer, bygroups, combined, default, include, inherit, using, words
 from pygments.token import *
 from pygments.style import Style
 from pygments.styles.default import DefaultStyle
@@ -206,11 +206,11 @@ class BetterPythonLexer(PythonLexer):
             (r'\)', Punctuation, '#pop'),
         ],
         'default': [
-            (r'(,)|(?=\))', bygroups(Punctuation), '#pop'),
+            (r'(,)|(?=\s*\))', bygroups(Punctuation), '#pop'),
             include('expr'),
         ],
         'annotated-param': [
-            (r'(,)|(?=\))', bygroups(Punctuation), '#pop'),
+            (r'(,)|(?=\s*\))', bygroups(Punctuation), '#pop'),
             include('expr'),
             (r'=(?!=)', Operator),
         ],
@@ -550,7 +550,7 @@ class ScenicStyle(Style):
         Name.Class:                     "bold #0077A6",
         Name.Class.Grammar:             "nobold italic",
         Name.Class.Instance:            "#3C8031",
-        Name.Variable:                  "#B35824",
+        Name.Variable:                  "#B34024",
         Name.Variable.Parameter.Magic:  "italic",
         Name.Variable.Magic:            "italic #B32483",
 
