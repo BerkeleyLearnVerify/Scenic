@@ -37,7 +37,7 @@ def assertSceneEquivalence(scene1, scene2, ignoreDynamics=False):
     del scene1.sample, scene2.sample
     if ignoreDynamics:
         del scene1.dynamicScenario, scene2.dynamicScenario
-    assert areEquivalent(scene1, scene2, debug=True)
+    assert areEquivalent(scene1, scene2)
 
 # Exporting scenes to Scenic code
 
