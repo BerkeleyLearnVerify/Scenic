@@ -177,7 +177,6 @@ class Simulation:
 
                 # Update observations of objects with sensors
                 for obj in self.objects:
-                    obj.status = {}
                     if not obj.sensors:
                         continue
                     obj.observations.update({key: sensor.get_last_observation() for key, sensor in obj.sensors.items()})

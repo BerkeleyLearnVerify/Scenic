@@ -1,14 +1,15 @@
 import carla
 import numpy as np
 
-from scenic.core.sensors import ActiveSensor, Sensor
+from scenic.core.sensors import ActiveSensor
 import os
 
 
 class CarlaVisionSensor(ActiveSensor):
+
     def __init__(self, offset=(0, 0, 0), rotation=(0, 0, 0), attributes=None,
-                 blueprint='sensor.camera.rgb', convert=None, save_path="", record_npy=True):
-        super().__init__(save_path=save_path)
+                 blueprint='sensor.camera.rgb', convert=None, record_npy=True):
+        super().__init__()
         self.transform = carla.Transform(carla.Location(x=offset[0], y=offset[1], z=offset[2]),
                                          carla.Rotation(pitch=rotation[0], yaw=rotation[1], roll=rotation[2]))
         self.blueprint = blueprint
@@ -36,12 +37,15 @@ class CarlaVisionSensor(ActiveSensor):
             return data
         return data
 
+    def save_last_observation(self, save_path, filename=""):
+        raise NotImplementedError()
+
 
 class CarlaRGBSensor(CarlaVisionSensor):
-    def __init__(self, offset=(0, 0, 0), rotation=(0, 0, 0), attributes=None, convert=None, save_path="",
+    def __init__(self, offset=(0, 0, 0), rotation=(0, 0, 0), attributes=None, convert=None,
                  record_npy=True):
         super().__init__(offset=offset, rotation=rotation, attributes=attributes,
-                         blueprint='sensor.camera.rgb', convert=convert, save_path=save_path, record_npy=record_npy)
+                         blueprint='sensor.camera.rgb', convert=convert, record_npy=record_npy)
 
     def save_last_observation(self, save_path, filename=""):
         if not filename:
@@ -58,10 +62,10 @@ class CarlaRGBSensor(CarlaVisionSensor):
 
 
 class CarlaSSSensor(CarlaVisionSensor):
-    def __init__(self, offset=(0, 0, 0), rotation=(0, 0, 0), attributes=None, convert=None, save_path="",
+    def __init__(self, offset=(0, 0, 0), rotation=(0, 0, 0), attributes=None, convert=None,
                  record_npy=True):
         super().__init__(offset=offset, rotation=rotation, attributes=attributes,
-                         blueprint='sensor.camera.semantic_segmentation', convert=convert, save_path=save_path,
+                         blueprint='sensor.camera.semantic_segmentation', convert=convert,
                          record_npy=record_npy)
 
     def save_last_observation(self, save_path, filename=""):

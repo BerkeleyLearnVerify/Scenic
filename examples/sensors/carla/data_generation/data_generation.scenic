@@ -24,7 +24,8 @@ ego = Car at spot,
 other = Car offset by 0 @ Range(10, 30),
     with behavior AutopilotBehavior()
 
-record ego.observations["front_rgb"]
+#record ego.observations["front_rgb"] as "front_rgb" after 5s every 1s # TODO Implement
+#record ego.observations["front_rgb"] after 5s every 1s to localPath("data/generation") # TODO Implement
 
 monitor RecordingMonitor:
     RECORDING_START = 5

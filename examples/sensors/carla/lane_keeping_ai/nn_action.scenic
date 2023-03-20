@@ -28,7 +28,6 @@ ego = Car at 12.4 @ -87.5,
                                                 record_npy=False)}
 
 record ego.observations["lane_camera"] as "lane_camera"
-record ego.status as "status"
 
 #monitor RecordingMonitor:
 #    RECORDING_START = 5
