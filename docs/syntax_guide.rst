@@ -311,7 +311,7 @@ Operators
    * - :sampref:`(front | back) (left | right) of {Object}`
      - The corresponding corner of the Object’s bounding box, also oriented along its heading
 
-Built in Functions
+Built-in Functions
 ------------------
 
 .. list-table::
@@ -320,7 +320,7 @@ Built in Functions
    * - Function
      - Description
    * - :ref:`Misc Python functions <gen_lifted_funcs>`
-     - Various Python functions including :scenic:`min`, :scenic:`max`, :scenic:`sin`, :scenic:`cos`, etc.
+     - Various Python functions including :scenic:`min`, :scenic:`max`, :scenic:`open`, etc.
    * - :ref:`filter_func`
      - Filter a possibly-random list (allowing limited randomized control flow).
    * - :ref:`resample_func`

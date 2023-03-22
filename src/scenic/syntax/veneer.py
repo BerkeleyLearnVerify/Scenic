@@ -17,7 +17,7 @@ __all__ = (
 	'override',
 	'record', 'record_initial', 'record_final',
 	'sin', 'cos', 'hypot', 'max', 'min',
-	'filter', 'str', 'len', 'range',
+	'filter', 'str', 'float', 'int', 'round', 'len', 'range',
 	# Prefix operators
 	'Visible', 'NotVisible',
 	'Front', 'Back', 'Left', 'Right',
@@ -476,7 +476,7 @@ def makeRequirement(ty, reqID, req, line, name):
 		currentScenario._addRequirement(ty, reqID, req, line, name, 1)
 
 def terminate_after(timeLimit, terminator=None):
-	if not isinstance(timeLimit, (float, int)):
+	if not isinstance(timeLimit, (builtins.float, builtins.int)):
 		raise RuntimeParseError('"terminate after N" with N not a number')
 	assert terminator in (None, 'seconds', 'steps')
 	inSeconds = (terminator != 'steps')
@@ -631,7 +631,7 @@ def mutate(*objects):		# TODO update syntax
 	if evaluatingRequirement:
 		raise RuntimeParseError('used mutate statement inside a requirement')
 	scale = 1
-	if objects and isinstance(objects[-1], (float, int)):
+	if objects and isinstance(objects[-1], (builtins.float, builtins.int)):
 		scale = objects[-1]
 		objects = objects[:-1]
 	if len(objects) == 0:
@@ -713,8 +713,10 @@ def RelativeTo(X, Y):
 			X = toVector(X, '"X relative to Y" with Y an oriented point but X not a vector')
 			return Y.relativize(X)
 		else:
-			X = toTypes(X, (Vector, float), '"X relative to Y" with X neither a vector nor scalar')
-			Y = toTypes(Y, (Vector, float), '"X relative to Y" with Y neither a vector nor scalar')
+			X = toTypes(X, (Vector, builtins.float),
+			            '"X relative to Y" with X neither a vector nor scalar')
+			Y = toTypes(Y, (Vector, builtins.float),
+			            '"X relative to Y" with Y neither a vector nor scalar')
 			return evaluateRequiringEqualTypes(lambda: X + Y, X, Y,
 											   '"X relative to Y" with vector and scalar')
 
@@ -886,10 +888,10 @@ def Beyond(pos, offset, fromPt=None):
 	If the :grammar:`from <vector>` is omitted, the position of ego is used.
 	"""
 	pos = toVector(pos, 'specifier "beyond X by Y" with X not a vector')
-	offset = toTypes(offset, (Vector, float),
+	offset = toTypes(offset, (Vector, builtins.float),
 	                 'specifier "beyond X by Y" with Y not a number or vector')
 	dType = underlyingType(offset)
-	if dType is float:
+	if dType is builtins.float:
 		offset = Vector(0, offset)
 	elif dType is not Vector:
 		raise RuntimeParseError('specifier "beyond X by Y" with Y not a number or vector')
@@ -1064,8 +1066,8 @@ def Behind(pos, dist=0):
 
 def leftSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
 	extras = set()
-	if canCoerce(dist, float):
-		dx, dy = toComponents(coerce(dist, float))
+	if canCoerce(dist, builtins.float):
+		dx, dy = toComponents(coerce(dist, builtins.float))
 	elif canCoerce(dist, Vector):
 		dx, dy = coerce(dist, Vector)
 	else:
@@ -1116,6 +1118,18 @@ def filter(function, iterable):
 @distributionFunction
 def str(*args, **kwargs):
 	return builtins.str(*args, **kwargs)
+
+@distributionFunction
+def float(*args, **kwargs):
+	return builtins.float(*args, **kwargs)
+
+@distributionFunction
+def int(*args, **kwargs):
+	return builtins.int(*args, **kwargs)
+
+@distributionFunction
+def round(*args, **kwargs):
+	return builtins.round(*args, **kwargs)
 
 def len(obj):
 	return obj.__len__()
