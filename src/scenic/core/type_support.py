@@ -51,15 +51,18 @@ def underlyingType(thing):
 		return thing._valueType
 	elif isinstance(thing, TypeChecker) and len(thing.types) == 1:
 		return thing.types[0]
+	elif isinstance(thing, TypeChecker):
+		return object
 	else:
 		return type(thing)
 
 def isA(thing, ty):
-	"""Does this evaluate to a member of the given Scenic type?"""
+	"""Is this guaranteed to evaluate to a member of the given Scenic type?"""
 	return issubclass(underlyingType(thing), ty)
 
 def unifyingType(opts):		# TODO improve?
-	"""Most specific type unifying the given types."""
+	"""Most specific type unifying the given values."""
+	# Gather underlying types of all options
 	types = []
 	for opt in opts:
 		if isinstance(opt, StarredDistribution):
@@ -73,25 +76,48 @@ def unifyingType(opts):		# TODO improve?
 						types.append(ty)
 		else:
 			types.append(underlyingType(opt))
-	if all(issubclass(ty, numbers.Real) for ty in types):
+	# Compute unifying type
+	return unifierOfTypes(types)
+
+def unifierOfTypes(types):
+	"""Most specific type unifying the given types."""
+	# If all types are equal, unifier is trivial
+	first = types[0]
+	if all(ty == first for ty in types):
+		return first
+	# Otherwise, erase type parameters which we don't understand
+	simpleTypes = []
+	for ty in types:
+		origin = get_type_origin(ty)
+		simpleTypes.append(origin if origin else ty)
+	# Scalar types unify to float
+	if all(issubclass(ty, numbers.Real) for ty in simpleTypes):
 		return float
-	mro = inspect.getmro(types[0])
-	for parent in mro:
-		if all(issubclass(ty, parent) for ty in types):
-			return parent
-	raise RuntimeError(f'broken MRO for types {types}')
+	# For all other types, find first common ancestor in MRO
+	# (ignoring type parameters and skipping ABCs)
+	mro = inspect.getmro(simpleTypes[0])
+	for ancestor in mro:
+		if inspect.isabstract(ancestor):
+			continue
+		if all(issubclass(ty, ancestor) for ty in simpleTypes):
+			return ancestor
+	raise AssertionError(f'broken MRO for types {types}')
 
 ## Type coercions (for internal use -- see the type checking API below)
 
 def canCoerceType(typeA, typeB):
 	"""Can values of typeA be coerced into typeB?"""
-	if get_type_origin(typeA) is typing.Union:
+	originA = get_type_origin(typeA)
+	if originA is typing.Union:
 		# only raise an error now if none of the possible types will work;
 		# we'll do more careful checking at runtime
 		return any(canCoerceType(ty, typeB) for ty in get_type_args(typeA))
-	if typeB is float:
+	elif originA:
+		# erase type parameters which we don't know how to use
+		typeA = originA
+	if typeB == float:
 		return issubclass(typeA, numbers.Real)
-	elif typeB is Heading:
+	elif typeB == Heading:
 		return canCoerceType(typeA, float) or hasattr(typeA, 'toHeading')
 	elif hasattr(typeB, '_canCoerceType'):
 		return typeB._canCoerceType(typeA)
@@ -119,9 +145,9 @@ def coerce(thing, ty, error='wrong type'):
 	# If we are in any of the exceptional cases (see the module documentation above),
 	# select the appropriate helper function for performing the coercion.
 	realType = ty
-	if ty is float:
+	if ty == float:
 		coercer = coerceToFloat
-	elif ty is Heading:
+	elif ty == Heading:
 		coercer = coerceToHeading
 		ty = numbers.Real
 		realType = float
@@ -133,8 +159,12 @@ def coerce(thing, ty, error='wrong type'):
 		# type, we return it unchanged; otherwise we wrap it in a TypecheckedDistribution
 		# for sample-time typechecking.
 		vt = thing._valueType
-		if get_type_origin(vt) is typing.Union:
+		origin = get_type_origin(vt)
+		if origin is typing.Union:
 			possibleTypes = get_type_args(vt)
+		elif origin:
+			# Erase type parameters which we don't understand
+			possibleTypes = (origin,)
 		else:
 			possibleTypes = (vt,)
 		if all(issubclass(possible, ty) for possible in possibleTypes):
@@ -183,6 +213,10 @@ class TypecheckedDistribution(Distribution):
 		self._dist = dist
 		self._errorMessage = errorMessage
 		self._coercer = coercer
+		if not coercer:
+			# Erase any type parameters, which we don't attempt to check
+			origin = get_type_origin(ty)
+			self._checkType = origin if origin else ty
 		self._loc = saveErrorLocation()
 
 	def sampleGiven(self, value):
@@ -195,7 +229,7 @@ class TypecheckedDistribution(Distribution):
 					return self._coercer(val)
 				except CoercionFailure as e:
 					suffix = f' ({e.args[0]})'
-		elif isinstance(val, self._valueType):
+		elif isinstance(val, self._checkType):
 			return val
 		# Coercion failed, so we have a type error.
 		if suffix is None:
@@ -206,7 +240,7 @@ class TypecheckedDistribution(Distribution):
 		self._dist.conditionTo(value)
 
 	def __repr__(self):
-		return f'TypecheckedDistribution({self._dist}, {self._valueType})'
+		return f'TypecheckedDistribution({self._dist!r}, {self._valueType!r})'
 
 def coerceToAny(thing, types, error):
 	"""Coerce something into any of the given types, raising an error if impossible.
@@ -309,8 +343,8 @@ class TypeChecker(DelayedArgument):
 		self.inner = arg
 		self.types = types
 
-	def __str__(self):
-		return f'TypeChecker({self.inner},{self.types})'
+	def __repr__(self):
+		return f'TypeChecker({self.inner!r},{self.types!r})'
 
 class TypeEqualityChecker(DelayedArgument):
 	"""Evaluates a function after checking that two lazy values have the same type."""
@@ -327,5 +361,12 @@ class TypeEqualityChecker(DelayedArgument):
 		self.checkA = checkA
 		self.checkB = checkB
 
-	def __str__(self):
-		return f'TypeEqualityChecker({self.inner},{self.checkA},{self.checkB})'
+	def __repr__(self):
+		return f'TypeEqualityChecker({self.inner!r},{self.checkA!r},{self.checkB!r})'
+
+## Utilities
+
+def is_typing_generic(tp):
+    """Whether this is a pre-3.9 generic type from the typing module."""
+    assert sys.version_info >= (3, 7)
+    return isinstance(tp, typing._GenericAlias)

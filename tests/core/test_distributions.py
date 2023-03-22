@@ -163,9 +163,17 @@ def test_function_decorator_annotations():
         return 2 * x
     assert typing.get_type_hints(myfunc) == {'x': float, 'return': float}
 
-def test_function_decorator_type():
+def test_function_decorator_type_explicit():
     @distributionFunction(valueType=str)
     def myfunc(x):
+        return str(x)
+    a = Range(0, 1)
+    b = myfunc(a)
+    assert underlyingType(b) is str
+
+def test_function_decorator_type_annotation():
+    @distributionFunction
+    def myfunc(x) -> str:
         return str(x)
     a = Range(0, 1)
     b = myfunc(a)

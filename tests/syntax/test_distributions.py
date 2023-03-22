@@ -16,7 +16,7 @@ def lazyTestScenario(expr, offset='0'):
     return compileScenic(f"""
         vf = VectorField("Foo", lambda pos: 2 * pos.x)
         x = {offset} relative to vf
-        ego = Object at 0.5 @ 0, facing {expr}
+        ego = Object at 0.5 @ 0, with output {expr}
     """)
 
 ## Range and DiscreteRange
@@ -30,7 +30,7 @@ def test_range():
 
 def test_range_lazy():
     scenario = lazyTestScenario('Range(0, x)')
-    xs = [sampleEgo(scenario).heading for i in range(60)]
+    xs = [sampleEgo(scenario).output for i in range(60)]
     assert all(0 <= x <= 1 for x in xs)
     assert any(x < 0.5 for x in xs)
     assert any(x > 0.5 for x in xs)
@@ -70,7 +70,7 @@ def test_normal():
 
 def test_normal_lazy():
     scenario = lazyTestScenario('Normal(-5, x)')
-    xs = [sampleEgo(scenario).heading for i in range(60)]
+    xs = [sampleEgo(scenario).output for i in range(60)]
     assert all(-15 <= x <= 5 for x in xs)
     assert any(x < -5 for x in xs)
     assert any(x > -5 for x in xs)
@@ -84,7 +84,7 @@ def test_truncated_normal():
 
 def test_truncated_normal_lazy():
     scenario = lazyTestScenario('TruncatedNormal(100, 1+x, 96, 99)')
-    xs = [sampleEgo(scenario).heading for i in range(60)]
+    xs = [sampleEgo(scenario).output for i in range(60)]
     assert all(96 <= x <= 99 for x in xs)
     assert any(x < 98 for x in xs)
     assert any(x > 98 for x in xs)
@@ -131,7 +131,7 @@ def test_uniform_discrete():
 
 def test_uniform_discrete_lazy():
     scenario = lazyTestScenario('Uniform(1.2, x)')
-    hs = [sampleEgo(scenario).heading for i in range(60)]
+    hs = [sampleEgo(scenario).output for i in range(60)]
     assert all(h == 1.2 or h == pytest.approx(1) for h in hs)
     assert any(h == 1.2 for h in hs)
     assert any(h == pytest.approx(1) for h in hs)
@@ -145,7 +145,7 @@ def test_options(dist):
 
 def test_options_lazy():
     scenario = lazyTestScenario('Options({0: 1, x: 9})')
-    hs = [sampleEgo(scenario).heading for i in range(200)]
+    hs = [sampleEgo(scenario).output for i in range(200)]
     assert all(h == 0 or h == pytest.approx(1) for h in hs)
     assert 145 <= sum(hs) < 200
 
@@ -161,14 +161,14 @@ def test_function():
 
 def test_function_lazy():
     scenario = lazyTestScenario('hypot(Uniform(5, 35), 12 * x)')
-    hs = [sampleEgo(scenario).heading for i in range(60)]
+    hs = [sampleEgo(scenario).output for i in range(60)]
     assert all(h == pytest.approx(13) or h == pytest.approx(37) for h in hs)
     assert any(h == pytest.approx(13) for h in hs)
     assert any(h == pytest.approx(37) for h in hs)
 
 def test_function_lazy_2():
     scenario = lazyTestScenario('sin(x * 90 deg)', offset='Uniform(-1, 0)')
-    hs = [sampleEgo(scenario).heading for i in range(60)]
+    hs = [sampleEgo(scenario).output for i in range(60)]
     assert all(h == pytest.approx(0) or h == pytest.approx(1) for h in hs)
     assert any(h == pytest.approx(0) for h in hs)
     assert any(h == pytest.approx(1) for h in hs)
@@ -260,7 +260,7 @@ def test_operator():
 
 def test_operator_lazy():
     scenario = lazyTestScenario('Uniform(0, 1) * x')
-    hs = [sampleEgo(scenario).heading for i in range(60)]
+    hs = [sampleEgo(scenario).output for i in range(60)]
     assert all(h == pytest.approx(0) or h == pytest.approx(1) for h in hs)
     assert any(h == pytest.approx(0) for h in hs)
     assert any(h == pytest.approx(1) for h in hs)
@@ -283,14 +283,14 @@ def test_vector_operator():
 
 def test_vector_method_lazy():
     scenario = lazyTestScenario('vf.followFrom(Uniform(0, 90 deg) @ 0, x, steps=1).y')
-    hs = [sampleEgo(scenario).heading for i in range(60)]
+    hs = [sampleEgo(scenario).output for i in range(60)]
     assert all(h == pytest.approx(1) or h == pytest.approx(-1) for h in hs)
     assert any(h == pytest.approx(1) for h in hs)
     assert any(h == pytest.approx(-1) for h in hs)
 
 def test_vector_method_lazy_2():
     scenario = lazyTestScenario('vf.followFrom(90 deg @ 0, x, steps=1).y')
-    h = sampleEgo(scenario).heading
+    h = sampleEgo(scenario).output
     assert h == pytest.approx(-1)
 
 ## Lists, tuples, namedtuples
@@ -327,10 +327,32 @@ def test_list_param_lazy():
 
 def test_list_object_lazy():
     scenario = lazyTestScenario('Uniform([0, x], [1, x])[1]', offset='Uniform(0, 1)')
-    hs = [sampleEgo(scenario).heading for i in range(60)]
+    hs = [sampleEgo(scenario).output for i in range(60)]
     assert all(h == pytest.approx(1) or h == pytest.approx(2) for h in hs)
     assert any(h == pytest.approx(1) for h in hs)
     assert any(h == pytest.approx(2) for h in hs)
+
+def test_list_sliced():
+    scenario = compileScenic("""
+        x = Uniform([1, 2, 3, 4], [5, 6, 7])
+        i = DiscreteRange(0, 1)
+        ego = Object with foo x[i:i+2]
+    """)
+    ss = [sampleEgo(scenario).foo for i in range(60)]
+    opts = ([1, 2], [2, 3], [5, 6], [6, 7])
+    assert all(s in opts for s in ss)
+    assert any(s == [1, 2] or s == [5, 6] for s in ss)
+    assert any(s == [2, 3] or s == [6, 7] for s in ss)
+
+def test_list_sliced_lazy():
+    scenario = lazyTestScenario(
+        'Uniform([1, 4, 9], [1, 8, 27])[int(x):DiscreteRange(2, 3)]'
+    )
+    hs = [sampleEgo(scenario).output for i in range(60)]
+    opts = ([4], [4, 9], [8], [8, 27])
+    assert all(h in opts for h in hs)
+    assert any(len(h) == 1 for h in hs)
+    assert any(len(h) == 2 for h in hs)
 
 def test_list_nested():
     scenario = compileScenic("""
@@ -360,7 +382,7 @@ def test_list_filtered():
 
 def test_list_filtered_lazy():
     scenario = lazyTestScenario('Uniform(*filter(lambda x: x > 0, [-1, x, 3]))')
-    hs = [sampleEgo(scenario).heading for i in range(60)]
+    hs = [sampleEgo(scenario).output for i in range(60)]
     assert all(h == 1 or h == 3 for h in hs)
     assert any(h == 1 for h in hs)
     assert any(h == 3 for h in hs)
@@ -547,7 +569,7 @@ def test_shared_dependency_lazy_2():
 
 def test_inside_delayed_argument():
     scenario = lazyTestScenario('Uniform(1.2, x)', offset='Uniform(-1, 1)')
-    hs = [sampleEgo(scenario).heading for i in range(140)]
+    hs = [sampleEgo(scenario).output for i in range(140)]
     assert all(h == 1.2 or h == pytest.approx(0) or h == pytest.approx(2) for h in hs)
     assert any(h == 1.2 for h in hs)
     assert any(h == pytest.approx(0) for h in hs)

@@ -351,6 +351,29 @@ class TupleDistribution(Distribution, collections.abc.Sequence):
 		else:
 			return f'TupleDistribution({coords}, builder={self.builder!r})'
 
+class SliceDistribution(Distribution):
+	"""Distributions over `slice` objects."""
+
+	_deterministic = True
+
+	def __init__(self, start, stop, step):
+		super().__init__(start, stop, step, valueType=slice)
+		self.start = start
+		self.stop = stop
+		self.step = step
+
+	def sampleGiven(self, value):
+		return slice(value[self.start], value[self.stop], value[self.step])
+
+	def evaluateInner(self, context):
+		start = valueInContext(self.start, context)
+		stop = valueInContext(self.stop, context)
+		step = valueInContext(self.step, context)
+		return SliceDistribution(start, stop, step)
+
+	def __repr__(self):
+		return f'slice({self.start!r}, {self.stop!r}, {self.step!r})'
+
 def toDistribution(val):
 	"""Wrap Python data types with Distributions, if necessary.
 
@@ -365,6 +388,10 @@ def toDistribution(val):
 			else:
 				builder = type(val)
 			return TupleDistribution(*coords, builder=builder)
+	elif isinstance(val, slice):
+		attrs = (val.start, val.stop, val.step)
+		if any(needsSampling(a) for a in attrs):
+			return SliceDistribution(*attrs)
 	return val
 
 class FunctionDistribution(Distribution):
@@ -604,32 +631,77 @@ class OperatorDistribution(Distribution):
 	def __init__(self, operator, obj, operands, valueType=None):
 		operands = tuple(toDistribution(arg) for arg in operands)
 		if valueType is None:
-			valueType = self.inferType(obj, operator, operands)
+			ty = type_support.underlyingType(obj)
+			valueType = self.inferType(ty, operator, operands)
 		super().__init__(obj, *operands, valueType=valueType)
 		self.operator = operator
 		self.object = obj
 		self.operands = operands
 
 	@staticmethod
-	def inferType(obj, operator, operands):
+	def inferType(ty, operator, operands):
 		"""Attempt to infer the result type of the given operator application."""
 		# If the object's type is known, see if we have a return type annotation.
-		ty = type_support.underlyingType(obj)
-		op = getattr(ty, operator, None)
+		origin = type_support.get_type_origin(ty)
+		op = getattr(origin if origin else ty, operator, None)
 		if op:
 			retTy = typing.get_type_hints(op).get('return')
 			if retTy:
 				return retTy
 
+		# Handle unions
+		if origin == typing.Union:
+			types = []
+			for option in type_support.get_type_args(ty):
+				res = OperatorDistribution.inferType(option, operator, operands)
+				types.append(res)
+			return type_support.unifierOfTypes(types)
+
 		# The supported arithmetic operations on scalars all return scalars.
 		def scalar(thing):
 			ty = type_support.underlyingType(thing)
 			return type_support.canCoerceType(ty, float)
-		if scalar(obj) and all(scalar(operand) for operand in operands):
+		if (type_support.canCoerceType(ty, float)
+		    and all(scalar(operand) for operand in operands)):
 			return float
 
+		# Handle __getitem__ for known container types.
+		if operator == '__getitem__' and len(operands) == 1:
+			if origin and isinstance(origin, type):	# parametrized ordinary type
+				res = object
+				index = operands[0]
+				ity = type_support.underlyingType(index)
+				isSlice = not hasattr(ity, '__index__')
+				if issubclass(origin, list):
+					res = ty if isSlice else type_support.get_type_args(ty)[0]
+				elif issubclass(origin, tuple):
+					args = type_support.get_type_args(ty)
+					if type_support.is_typing_generic(ty):
+						# If annotation used Tuple instead of tuple, preserve it
+						origin = typing.Tuple
+					if len(args) == 2 and args[1] is ...:
+						# homogeneous variable-length tuple
+						res = ty if isSlice else args[0]
+					elif not needsSampling(index):
+						res = args[index]
+						if isSlice:
+							res = origin[res]
+					else:
+						# can't pin down the index, so cover all possibilities
+						if any(arg is typing.Any for arg in args):
+							return origin if isSlice else None
+						res = typing.Union[args]
+						if isSlice:
+							res = origin[res, ...]
+				elif issubclass(origin, (dict, typing.Mapping, collections.abc.Mapping)):
+					res = type_support.get_type_args(ty)[1]
+				return object if res is typing.Any else res
+			elif not origin:	# ordinary type
+				if issubclass(ty, str):
+					return str
+
 		# We can't tell what the result type is.
-		return None
+		return object
 
 	def sampleGiven(self, value):
 		first = value[self.object]
