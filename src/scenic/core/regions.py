@@ -1978,6 +1978,7 @@ class PolygonalRegion(Region):
 
     @cached_property
     def footprint(self):
+        assert not needsSampling(self)
         return PolygonalFootprintRegion(self.polygons)
 
     def containsPoint(self, point):
@@ -1998,6 +1999,8 @@ class PolygonalRegion(Region):
                 return self.orient(Vector(x, y, self.z))
 
     def intersects(self, other, triedReversed=False):
+        assert not needsSampling(self)
+
         if isinstance(other, PolygonalRegion):
             if self.z != other.z:
                 return False
@@ -2034,6 +2037,10 @@ class PolygonalRegion(Region):
         return super().intersect(other, triedReversed)
 
     def union(self, other, triedReversed=False, buf=0):
+        # If one of the regions isn't fixed fall back on default behavior
+        if needsSampling(self) or needsSampling(other):
+            return super().difference(other)
+
         if isinstance(other, PolygonalRegion):
             if self.z != other.z:
                 return super().union(other, triedReversed)
@@ -2109,7 +2116,6 @@ class PolygonalRegion(Region):
         return ((xmin, ymin), (xmax, ymax), (self.z, self.z))
 
     def buffer(self, amount):
-
         buffered_polygons = self.polygons.buffer(amount)
 
         return PolygonalRegion(polygon=buffered_polygons, name=self.name, z=self.z)

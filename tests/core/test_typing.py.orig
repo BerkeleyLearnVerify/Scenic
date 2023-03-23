@@ -235,4 +235,7 @@ def test_infer_optional_attribute():
     class Foo:
         a: str
     x = makeDistWithType(Optional[Foo])
+<<<<<<< HEAD
+=======
     assert underlyingType(x.a) is str
+>>>>>>> a536c13 (better typechecking for Union and Optional)

@@ -12,22 +12,22 @@ TRIALS_PER = 25
 COLORS = ["red","blue","green","orange","yellow"]
 
 BENCHMARKS = [
-				"fully_visible.scenic",
-				"fully_occluded.scenic",
-				"partially_occluded.scenic",
-				"enclosed_occluded.scenic",
-				"enclosed_visible.scenic",
+                "fully_visible.scenic",
+                "fully_occluded.scenic",
+                "partially_occluded.scenic",
+                "enclosed_occluded.scenic",
+                "enclosed_visible.scenic",
                 "occlusion_field.scenic"
-			 ]
+             ]
 
-PARAMS = 	{
-				"viewRayDensity": (0.25,1,3,5,7,9), 
-				"batchSize": (1,8,64,128,512,2048),
-			}
+PARAMS =    {
+                "viewRayDensity": (0.25,1,3,5,7,9), 
+                "batchSize": (1,8,64,128,512,2048),
+            }
 
 def run_benchmark(path, params):
-	scenario = scenic.scenarioFromFile(path, params=params)
-	scenario.generate(maxIterations=float('inf'))
+    scenario = scenic.scenarioFromFile(path, params=params)
+    scenario.generate(maxIterations=float('inf'))
 
 if __name__ == '__main__':
     # Gather times

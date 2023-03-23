@@ -553,16 +553,16 @@ class AttributeDistribution(Distribution):
 
     def __init__(self, attribute, obj, valueType=None):
         if valueType is None:
-            valueType = self.inferType(obj, attribute)
+            ty = type_support.underlyingType(obj)
+            valueType = self.inferType(ty, attribute)
         super().__init__(obj, valueType=valueType)
         self.attribute = attribute
         self.object = obj
 
     @staticmethod
-    def inferType(obj, attribute):
+    def inferType(ty, attribute):
         """Attempt to infer the type of the given attribute."""
         # If the object's type is known, see if we have an attribute type annotation.
-        ty = type_support.underlyingType(obj)
         try:
             hints = typing.get_type_hints(ty)
             attrTy = hints.get(attribute)
@@ -572,10 +572,10 @@ class AttributeDistribution(Distribution):
             pass    # couldn't get type annotations
 
         # Handle unions
-        origin = typing.get_origin(ty)
+        origin = type_support.get_type_origin(ty)
         if origin == typing.Union:
             types = []
-            for option in typing.get_args(ty):
+            for option in type_support.get_type_args(ty):
                 if (option is type(None) and not hasattr(None, attribute)):
                     # None does not have this attribute; accessing it will raise an
                     # exception, so we can ignore this case for type inference.
@@ -583,6 +583,9 @@ class AttributeDistribution(Distribution):
                 res = AttributeDistribution.inferType(option, attribute)
                 types.append(res)
             return type_support.unifierOfTypes(types) if types else object
+
+        # We can't tell what the attribute type is.
+        return object
 
         # Check for a @property defined on the class with a return type
         if (ty is not object and (func := getattr(ty, attribute, None))
@@ -659,9 +662,13 @@ class OperatorDistribution(Distribution):
         if origin == typing.Union:
             types = []
             for option in type_support.get_type_args(ty):
+                if option is type(None) and not hasattr(None, operator):
+                    # None does not support this operator; using it will raise an
+                    # exception, so we can ignore this case for type inference.
+                    continue
                 res = OperatorDistribution.inferType(option, operator, operands)
                 types.append(res)
-            return type_support.unifierOfTypes(types)
+            return type_support.unifierOfTypes(types) if types else object
 
         # The supported arithmetic operations on scalars all return scalars.
         def scalar(thing):
@@ -695,7 +702,7 @@ class OperatorDistribution(Distribution):
                     else:
                         # can't pin down the index, so cover all possibilities
                         if any(arg is typing.Any for arg in args):
-                            return origin if isSlice else None
+                            return origin if isSlice else object
                         res = typing.Union[args]
                         if isSlice:
                             res = origin[res, ...]
