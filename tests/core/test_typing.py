@@ -197,7 +197,7 @@ def test_infer_getitem_str():
     assert underlyingType(y[i]) is str
     assert underlyingType(y[i:i+1]) is str
 
-def test_infer_union():
+def test_infer_union_operator():
     x = makeDistWithType(Union[float, int])
     y = x + x
     assert underlyingType(y) is float
@@ -207,3 +207,31 @@ def test_infer_union():
     x = makeDistWithType(Union[List[int], Tuple[int, ...]])
     y = x[2]
     assert underlyingType(y) is int
+
+def test_infer_optional_operator():
+    x = makeDistWithType(Optional[float])
+    y = x + x
+    assert underlyingType(y) is float
+    x = makeDistWithType(Optional[List[int]])
+    y = x[2]
+    assert underlyingType(y) is int
+
+def test_infer_union_attribute():
+    class Foo:
+        a: int
+    class Bar:
+        a: int
+    x = makeDistWithType(Union[Foo, Bar])
+    assert underlyingType(x.a) is int
+    class Baz:
+        a: str
+    x = makeDistWithType(Union[Foo, Baz])
+    assert underlyingType(x.a) is object
+    x = makeDistWithType(Union[Foo, str])
+    assert underlyingType(x.a) is object
+
+def test_infer_optional_attribute():
+    class Foo:
+        a: str
+    x = makeDistWithType(Optional[Foo])
+    assert underlyingType(x.a) is str
