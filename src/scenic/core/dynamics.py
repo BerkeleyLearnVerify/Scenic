@@ -15,7 +15,9 @@ from scenic.core.requirements import (RequirementType, PendingRequirement,
                                       DynamicRequirement)
 from scenic.core.simulators import (RejectSimulationException, EndSimulationAction,
                                     EndScenarioAction)
+from scenic.core.type_support import CoercionFailure
 from scenic.core.utils import argsToString, alarm
+from scenic.core.workspaces import Workspace
 
 # Utilities
 
@@ -186,6 +188,7 @@ class DynamicScenario(Invocable):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._ego = None
+        self._workspace = None
         self._objects = []      # ordered for reproducibility
         self._externalParameters = []
         self._pendingRequirements = defaultdict(list)
@@ -255,6 +258,7 @@ class DynamicScenario(Invocable):
     def _bindTo(self, scene):
         """Bind this scenario to a sampled scene when starting a new simulation."""
         self._ego = scene.egoObject
+        self._workspace = scene.workspace
         self._objects = list(scene.objects)
         self._agents = [obj for obj in scene.objects if obj.behavior is not None]
         self._alwaysRequirements = scene.alwaysRequirements
@@ -473,6 +477,8 @@ class DynamicScenario(Invocable):
         return agents
 
     def _inherit(self, other):
+        if not self._workspace:
+            self._workspace = other._workspace
         self._objects.extend(other._objects)
         self._agents.extend(other._agents)
         self._globalParameters.update(other._globalParameters)
@@ -556,15 +562,17 @@ class DynamicScenario(Invocable):
                             'scenario and needs an ego object.)')
             raise InvalidScenarioError(msg)
 
-        workspace = namespace['_workspace']
+        if not self._workspace:
+            self._workspace = Workspace()     # default empty workspace
+        astHash = namespace['_astHash']
 
         from scenic.core.scenarios import Scenario
-        scenario = Scenario(workspace, self._simulatorFactory,
+        scenario = Scenario(self._workspace, self._simulatorFactory,
                             self._objects, self._ego,
                             self._globalParameters, self._externalParameters,
                             self._requirements, self._requirementDeps,
                             self._monitors, self._behaviorNamespaces,
-                            self)   # TODO unify these!
+                            self, astHash)   # TODO unify these!
         return scenario
 
     def __getattr__(self, name):
@@ -576,8 +584,8 @@ class DynamicScenario(Invocable):
         if self._dummyNamespace:
             return 'top-level scenario'
         else:
-            args = argsToString(itertools.chain(self._args, self._kwargs.items()))
-            return self.__class__.__name__ + args
+            args = argsToString(self._args, self._kwargs)
+            return f'{self.__class__.__name__}({args})'
 
 # Behaviors
 
@@ -606,6 +614,19 @@ class Behavior(Invocable, Samplable):
         if not inspect.isgeneratorfunction(self.makeGenerator):
             raise RuntimeParseError(f'{self} does not take any actions'
                                     ' (perhaps you forgot to use "take" or "do"?)')
+
+    @classmethod
+    def _canCoerceType(cls, ty):
+        return issubclass(ty, cls) or ty in (type, type(None))
+
+    @classmethod
+    def _coerce(cls, thing):
+        if thing is None or isinstance(thing, cls):
+            return thing
+        elif issubclass(thing, cls):
+            return thing()
+        else:
+            raise CoercionFailure(f'expected type of behavior, got {thing}')
 
     def sampleGiven(self, value):
         args = (value[arg] for arg in self._args)

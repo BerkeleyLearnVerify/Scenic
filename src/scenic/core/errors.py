@@ -9,11 +9,40 @@ import types
 import sys
 import warnings
 
+import decorator
+
 import scenic
 import scenic.core
 import scenic.syntax
 
 ## Configuration
+
+def setDebuggingOptions(*, verbosity=0, fullBacktrace=False,
+                        debugExceptions=False, debugRejections=False):
+    """Configure Scenic's debugging options.
+
+    Args:
+        verbosity (int): Verbosity level. Zero by default, although the command-line
+            interface uses 1 by default. See the :option:`--verbosity` option for the
+            allowed values.
+        fullBacktrace (bool): Whether to include Scenic's innards in backtraces
+            (like the :option:`-b` command-line option).
+        debugExceptions (bool): Whether to use `pdb` for post-mortem debugging of
+            uncaught exceptions (like the :option:`--pdb` option).
+        debugRejections (bool): Whether to enter `pdb` when a scene or simulation is
+            rejected (like the :option:`--pdb-on-reject` option).
+    """
+    global verbosityLevel, showInternalBacktrace, postMortemDebugging
+    global postMortemRejections
+    verbosityLevel = verbosity
+    postMortemDebugging = debugExceptions
+    postMortemRejections = debugRejections
+    if debugExceptions or debugRejections:
+        fullBacktrace = True    # partial backtraces would be confusing in the debugger
+    showInternalBacktrace = fullBacktrace
+
+#: Verbosity level. See :option:`--verbosity` for the allowed values.
+verbosityLevel = 0
 
 #: Whether or not to include Scenic's innards in backtraces.
 #:
@@ -35,6 +64,7 @@ hiddenFolders = [
     pathlib.Path(scenic.syntax.__file__).parent,    # scenic.syntax submodules
     '<frozen importlib._bootstrap>',                # parts of importlib used internally
     pathlib.Path(importlib.__file__).parent,
+    pathlib.Path(decorator.__file__).parent,        # unhelpful frames in wrappers
 ]
 
 ## Exceptions

@@ -16,7 +16,7 @@ This page describes the classes built into Scenic, representing `points <Point>`
 Instance Creation
 -----------------
 
-::
+.. code-block:: scenic-grammar
 
     <class> [<specifier> [, <specifier>]*]
 
@@ -27,7 +27,7 @@ For details on the available specifiers and how they interact, see the :ref:`spe
 Instantiating an instance of `Object` has a side effect: the object is added to the scenario being defined.
 
 Names of Scenic classes followed immediately by punctuation are not considered instance creations.
-This allows us to refer to a Scenic class without creating an instance of that class in the environment, which is useful for expressions like ``isinstance(obj, Car)``, ``[Taxi, Truck]``, ``Car.staticMethod``, etc.
+This allows us to refer to a Scenic class without creating an instance of that class in the environment, which is useful for expressions like :scenic:`isinstance(obj, Car)`, :scenic:`[Taxi, Truck]`, :scenic:`Car.staticMethod`, etc.
 
 Built-in Classes
 ----------------
@@ -44,7 +44,7 @@ Point
 +++++
 
 Locations in space.
-This class provides the fundamental property ``position`` and several associated properties.
+This class provides the fundamental property :prop:`position` and several associated properties.
 
 .. autoclass:: scenic.core.object_types.Point
     :noindex:
@@ -59,7 +59,7 @@ OrientedPoint
 +++++++++++++
 
 A location along with an orientation, defining a local coordinate system.
-This class subclasses `Point`, adding the fundamental property ``heading`` and several associated properties.
+This class subclasses `Point`, adding the fundamental property :prop:`heading` and several associated properties.
 
 .. autoclass:: scenic.core.object_types.OrientedPoint
     :noindex:
@@ -76,16 +76,16 @@ Object
 A physical object.
 This class subclasses `OrientedPoint`, adding a variety of properties including:
 
-* ``width`` and ``length`` to define the bounding box of the object;
-* ``allowCollisions``, ``requireVisible``, and ``regionContainedIn`` to control the built-in requirements that apply to the object;
-* ``behavior``, specifying the object's :term:`dynamic behavior` if any;
-* ``speed``, ``velocity``, and other properties capturing the dynamic state of the object during simulations.
+* :prop:`width` and :prop:`length` to define the bounding box of the object;
+* :prop:`allowCollisions`, :prop:`requireVisible`, and :prop:`regionContainedIn` to control the built-in requirements that apply to the object;
+* :prop:`behavior`, specifying the object's :term:`dynamic behavior` if any;
+* :prop:`speed`, :prop:`velocity`, and other properties capturing the dynamic state of the object during simulations.
 
 The built-in requirements applying to each object are:
 
-* The object must be completely contained within its :term:`container`, the region specified as its ``regionContainedIn`` property (by default the entire :term:`workspace`).
-* The object must be visible from the ego object, unless its ``requireVisible`` property is set to `False`.
-* The object must not intersect another object (i.e., their bounding boxes must not overlap), unless either of the two objects has their ``allowCollisions`` property set to `True`.
+* The object must be completely contained within its :term:`container`, the region specified as its :prop:`regionContainedIn` property (by default the entire :term:`workspace`).
+* The object must be visible from the ego object, unless its :prop:`requireVisible` property is set to `False`.
+* The object must not intersect another object (i.e., their bounding boxes must not overlap), unless either of the two objects has their :prop:`allowCollisions` property set to `True`.
 
 .. autoclass:: scenic.core.object_types.Object
     :noindex:

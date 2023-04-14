@@ -318,14 +318,6 @@ class Road:
 
         self.remappedStartLanes = None      # hack for handling spurious initial lane sections
 
-    def get_lane(self, id_, s):
-        '''Returns Lane object with id_ at coordinate S along line.'''
-        ind = 0
-        while ind + 1 < len(self.lane_secs) and self.lane_secs[ind + 1].s0 <= s:
-            ind += 1
-        assert self.lane_secs[ind].s0 <= s, 'No matching lane section found.'
-        return self.lane_secs[ind].get_lane(id_)
-
     def get_ref_line_offset(self, s):
         if not self.offset:
             return 0
@@ -354,20 +346,6 @@ class Road:
             ref_points.append(piece_points)
             transition_points = [s - last_s for s in transition_points if s > last_s]
         return ref_points
-
-    def get_lane_offsets(self, s):
-        '''Returns dict of lane id and offset from
-        reference line of lane boundary at coordinate S along line.'''
-        s = float(s)
-        ind = 0
-        while ind + 1 < len(self.lane_secs) and self.lane_secs[ind + 1].s0 <= s:
-            ind += 1
-        assert self.lane_secs[ind].s0 <= s, 'No matching lane section found.'
-        offsets = self.lane_secs[ind].get_offsets(s)
-        offsets[0] = 0    # Center lane has width 0 by convention.
-        for id_ in offsets.keys():
-            offsets[id_] += self.get_ref_line_offset(s)
-        return offsets
 
     def heading_at(self, point):
         # Convert point to shapely Point.
@@ -828,6 +806,7 @@ class Road:
                 if not laneSection._visited:     # start of new lane
                     forward = laneSection.isForward
                     sections = []
+                    successorLane = None    # lane this one will merge into
                     while True:
                         sections.append(laneSection)
                         laneSection._visited = True
@@ -836,9 +815,10 @@ class Road:
                             nextSection = laneSection._successor
                         else:
                             nextSection = laneSection._predecessor
-                        if (not nextSection
-                            or not isinstance(nextSection, roadDomain.LaneSection)
-                            or nextSection._visited):
+                        if not nextSection or not isinstance(nextSection, roadDomain.LaneSection):
+                            break
+                        elif nextSection._visited:
+                            successorLane = nextSection.lane
                             break
                         laneSection = nextSection
                     ls = laneSection._original_lane
@@ -862,7 +842,8 @@ class Road:
                         rightEdge=rightEdge,
                         group=None,
                         road=None,
-                        sections=tuple(sections)
+                        sections=tuple(sections),
+                        successor=successorLane,    # will correct inter-road links later
                     )
                     nextID += 1
                     for section in sections:
@@ -1171,38 +1152,6 @@ class RoadMap:
         #raise RuntimeError('Point not in RoadMap: ', point)
         return 0
 
-    def plot_line(self, plt, num=500):
-        '''Plot center line of road map for sanity check.'''
-        for road in self.roads.values():
-            for piece in road.ref_line:
-                points = piece.to_points(num)
-                x = [p[0] for p in points]
-                y = [p[1] for p in points]
-                plt.plot(x, y, 'b')
-        plt.show()
-
-    def plot_lanes(self, plt, num=500):
-        '''Plot lane boundaries of road map for sanity check.'''
-        bounds_x =[]
-        bounds_y = []
-        for road in self.roads.values():
-            for piece in road.ref_line:
-                ref_points = piece.to_points(num)
-                for i in range(len(ref_points) - 1):
-                    offsets = road.get_lane_offsets(ref_points[i][2])
-                    tan_vec = (ref_points[i + 1][0] - ref_points[i][0],
-                               ref_points[i + 1][1] - ref_points[i][1])
-                    tan_norm = np.sqrt(tan_vec[0] ** 2 + tan_vec[1] ** 2)
-                    normal_vec = (-tan_vec[1] / tan_norm, tan_vec[0] / tan_norm)
-                    # ortho_line_x = []
-                    # ortho_line_y = []
-                    for id_ in offsets.keys():
-                        if road.get_lane(id_, ref_points[i][2]).type_ == 'driving':
-                            bounds_x.append(ref_points[i][0] + normal_vec[0] * offsets[id_])
-                            bounds_y.append(ref_points[i][1] + normal_vec[1] * offsets[id_])
-        plt.scatter(bounds_x, bounds_y, c='r', s=2)
-        plt.show()
-
     def __parse_lanes(self, lanes_elem):
         '''Lanes_elem should be <left> or <right> element.
         Returns dict of lane ids and Lane objects.'''
@@ -1283,7 +1232,7 @@ class RoadMap:
         tree = ET.parse(path)
         root = tree.getroot()
         if root.tag != 'OpenDRIVE':
-            raise RuntimeError(f'{path} does not appear to be an OpenDRIVE file')
+            raise ValueError(f'{path} does not appear to be an OpenDRIVE file')
 
         # parse junctions
         for j in root.iter('junction'):
@@ -1291,7 +1240,7 @@ class RoadMap:
             for c in j.iter('connection'):
                 ty = c.get('type', 'default')
                 if ty != 'default':
-                    raise RuntimeError(f'unhandled "{ty}" type of junction connection')
+                    raise NotImplementedError(f'unhandled "{ty}" type of junction connection')
                 lane_links = {}
                 for l in c.iter('laneLink'):
                     lane_links[int(l.get('from'))] = int(l.get('to'))
@@ -1387,7 +1336,7 @@ class RoadMap:
                     p_range = curve_elem.get('pRange')
                     if p_range and p_range != 'normalized':
                         # TODO support arcLength
-                        raise RuntimeError('unsupported pRange for paramPoly3')
+                        raise NotImplementedError('unsupported pRange for paramPoly3')
                     else:
                         p_range = 1
                     curve = ParamCubic(x0, y0, hdg, length,
@@ -1395,18 +1344,18 @@ class RoadMap:
                                        cv, dv, p_range)
                 curves.append((s0, curve))
             if not curves:
-                raise RuntimeError(f'road {road.id_} has an empty planView')
+                raise ValueError(f'road {road.id_} has an empty planView')
             if not curves[0][0] == 0:
-                raise RuntimeError(f'reference line of road {road.id_} does not start at s=0')
+                raise ValueError(f'reference line of road {road.id_} does not start at s=0')
             lastS = 0
             lastCurve = curves[0][1]
             refLine = []
             for s0, curve in curves[1:]:
                 l = s0 - lastS
                 if abs(lastCurve.length - l) > 1e-4:
-                    raise RuntimeError(f'planView of road {road.id_} has inconsistent length')
+                    raise ValueError(f'planView of road {road.id_} has inconsistent length')
                 if l < 0:
-                    raise RuntimeError(f'planView of road {road.id_} is not in order')
+                    raise ValueError(f'planView of road {road.id_} is not in order')
                 elif l < 1e-6:
                     warn(f'road {road.id_} reference line has a geometry of '
                          f'length {l}; skipping it')

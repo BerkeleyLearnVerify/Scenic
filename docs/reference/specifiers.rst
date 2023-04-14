@@ -8,8 +8,8 @@ Specifiers are used to define the properties of an object when a Scenic class is
 This page describes all the specifiers built into Scenic, and the procedure used to :ref:`resolve <specifier resolution>` a set of specifiers into an assignment of values to properties.
 
 Each specifier assigns values one or more properties of an object, as a function of the arguments of the specifier and possibly other properties of the object assigned by other specifiers.
-For example, the :samp:`left of {X} by {Y}` specifier assigns the ``position`` property of the object being defined so that the object is a distance :samp:`{Y}` to the left of :samp:`{X}`: this requires knowing the ``width`` of the object first, so we say the ``left of`` specifier *specifies* the ``position`` property and *depends* on the ``width`` property.
-In fact, the ``left of`` specifier also *optionally* specifies the ``heading`` property (to be the same as :samp:`{X}`), meaning that it assigns a value to ``heading`` if no other specifier does so: if we write :samp:`Object left of {X} by {Y}, facing {Z}`, then the new object's ``heading`` property will be determined by ``facing``, not ``left of``.
+For example, the :scenic:`left of {X} by {Y}` specifier assigns the :prop:`position` property of the object being defined so that the object is a distance :scenic:`{Y}` to the left of :scenic:`{X}`: this requires knowing the :prop:`width` of the object first, so we say the :scenic:`left of` specifier *specifies* the :prop:`position` property and *depends* on the :prop:`width` property.
+In fact, the :scenic:`left of` specifier also *optionally* specifies the :prop:`heading` property (to be the same as :scenic:`{X}`), meaning that it assigns a value to :prop:`heading` if no other specifier does so: if we write :scenic:`Object left of {X} by {Y}, facing {Z}`, then the new object's :prop:`heading` property will be determined by :scenic:`facing`, not :scenic:`left of`.
 The :ref:`specifier resolution` process works out which specifier determines each property of an object, as well as an appropriate order in which to evaluate the specifiers so that dependencies have already been computed when needed.
 
 General Specifiers
@@ -20,7 +20,7 @@ General Specifiers
 with *property* *value*
 -----------------------
 Assigns the given property to the given value.
-This is currently the only specifier available for properties other than ``position`` and ``heading``.
+This is currently the only specifier available for properties other than :prop:`position` and :prop:`heading`.
 
 
 Position Specifiers
@@ -31,8 +31,8 @@ Position Specifiers
   :figclass: align-center
   :alt: Diagram illustrating several specifiers.
 
-  Illustration of the ``beyond``, ``behind``, and ``offset by`` specifiers.
-  Each ``OrientedPoint`` (e.g. ``P``) is shown as a bold arrow.
+  Illustration of the :scenic:`beyond`, :scenic:`behind`, and :scenic:`offset by` specifiers.
+  Each :scenic:`OrientedPoint` (e.g. ``P``) is shown as a bold arrow.
 
 .. _at {vector}:
 
@@ -57,14 +57,14 @@ Positions the object at the given coordinates, in a local coordinate system cent
 
 (left | right) of *vector* [by *scalar*]
 ----------------------------------------
-Depends on ``heading`` and ``width``. Without the optional :samp:`by {scalar}`, positions the object immediately to the left/right of the given position; i.e., so that the midpoint of the object’s right/left edge is at that position.
-If :samp:`by {scalar}` is used, the object is placed further to the left/right by the given distance.
+Depends on :prop:`heading` and :prop:`width`. Without the optional :scenic:`by {scalar}`, positions the object immediately to the left/right of the given position; i.e., so that the midpoint of the object’s right/left edge is at that position.
+If :scenic:`by {scalar}` is used, the object is placed further to the left/right by the given distance.
 
 .. _(ahead of | behind) {vector} [by {scalar}]:
 
 (ahead of | behind) *vector* [by *scalar*]
 --------------------------------------------
-As above, except placing the object ahead of or behind the given position (so that the midpoint of the object’s back/front edge is at that position); thereby depending on ``heading`` and ``length``.
+As above, except placing the object ahead of or behind the given position (so that the midpoint of the object’s back/front edge is at that position); thereby depending on :prop:`heading` and :prop:`length`.
 
 .. _beyond {vector} by {vector} [from {vector}]:
 
@@ -72,7 +72,7 @@ beyond *vector* by *vector* [from *vector*]
 --------------------------------------------
 Positions the object at coordinates given by the second vector, in a local coordinate system centered at the first vector and oriented along the line of sight from the third vector (i.e. a heading of 0 in the local coordinate system faces directly away from the first vector).
 If no third vector is provided, it is assumed to be the ego.
-For example, ``beyond taxi by (0, 3)`` means 3 meters directly behind the taxi as viewed by the camera.
+For example, :scenic:`beyond taxi by (0, 3)` means 3 meters directly behind the taxi as viewed by the camera.
 
 .. _visible [from ({Point} | {OrientedPoint})]:
 .. _visible_spec:
@@ -80,7 +80,7 @@ For example, ``beyond taxi by (0, 3)`` means 3 meters directly behind the taxi a
 visible [from (*Point* | *OrientedPoint*)]
 ------------------------------------------
 Positions the object uniformly at random in the :term:`visible region` of the ego, or of the given Point/OrientedPoint if given.
-More precisely, this specifier sets the ``position`` of the object being created (i.e. its center) to be a uniformly-random point in the visible region.
+More precisely, this specifier sets the :prop:`position` of the object being created (i.e. its center) to be a uniformly-random point in the visible region.
 (This specifier is therefore slightly stricter than a requirement that the ego :sampref:`can see` the object: the specifier makes the *center* visible, while the :sampref:`can see` condition will be satisfied if the center is not visible but some other part of the object is visible.)
 
 .. _not visible [from ({Point} | {OrientedPoint})]:
@@ -88,35 +88,35 @@ More precisely, this specifier sets the ``position`` of the object being created
 not visible [from (Point* | *OrientedPoint*)]
 ----------------------------------------------
 Like :sampref:`visible [from ({Point} | {OrientedPoint})]` except it positions the object uniformly at random in the **non-visible** region of the ego.
-Depends on ``regionContainedIn``, in order to restrict the non-visible region to the :term:`container` of the object being created, which is hopefully a bounded region (if the non-visible region is unbounded, it cannot be uniformly sampled from and an error will be raised).
+Depends on :prop:`regionContainedIn`, in order to restrict the non-visible region to the :term:`container` of the object being created, which is hopefully a bounded region (if the non-visible region is unbounded, it cannot be uniformly sampled from and an error will be raised).
 
 .. _(in | on) {region}:
 
 (in | on) *region*
 ------------------
 Positions the object uniformly at random in the given `Region`.
-If the Region has a :term:`preferred orientation` (a vector field), also optionally specifies ``heading`` to be equal to that orientation at the object’s ``position``.
+If the Region has a :term:`preferred orientation` (a vector field), also optionally specifies :prop:`heading` to be equal to that orientation at the object’s :prop:`position`.
 
 .. _(left | right) of ({OrientedPoint} | {Object}) [by {scalar}]:
 
 (left | right) of (*OrientedPoint* | *Object*) [by *scalar*]
 ------------------------------------------------------------
-Positions the object to the left/right of the given `OrientedPoint`, depending on the object’s ``width``.
-Also optionally specifies ``heading`` to be the same as that of the OrientedPoint.
-If the OrientedPoint is in fact an `Object`, the object being constructed is positioned to the left/right of its left/right edge (i.e. the ``width`` of both objects is taken into account).
+Positions the object to the left/right of the given `OrientedPoint`, depending on the object’s :prop:`width`.
+Also optionally specifies :prop:`heading` to be the same as that of the OrientedPoint.
+If the OrientedPoint is in fact an `Object`, the object being constructed is positioned to the left/right of its left/right edge (i.e. the :prop:`width` of both objects is taken into account).
 
 .. _(ahead of | behind) ({OrientedPoint} | {Object}) [by {scalar}]:
 
 (ahead of | behind) (*OrientedPoint* | *Object*) [by *scalar*]
 ---------------------------------------------------------------
-As above, except positioning the object ahead of or behind the given OrientedPoint, thereby depending on ``length``.
+As above, except positioning the object ahead of or behind the given OrientedPoint, thereby depending on :prop:`length`.
 
 .. _following {vectorField} [from {vector}] for {scalar}:
 
 following *vectorField* [from *vector* ] for *scalar*
 -----------------------------------------------------
-Positions the object at a point obtained by following the given vector field for the given distance starting from ego (or the position optionally provided with :samp:`from {vector}`).
-Optionally specifies ``heading`` to be the heading of the vector field at the resulting point.
+Positions the object at a point obtained by following the given vector field for the given distance starting from ego (or the position optionally provided with :scenic:`from {vector}`).
+Optionally specifies :prop:`heading` to be the heading of the vector field at the resulting point.
 
 .. note::
 
@@ -139,20 +139,20 @@ Orients the object along the given heading in global coordinates.
 
 facing *vectorField*
 --------------------
-Orients the object along the given vector field at the object’s ``position``.
+Orients the object along the given vector field at the object’s :prop:`position`.
 
 .. _facing (toward | away from) {vector}:
 
 facing (toward | away from) *vector*
 ------------------------------------
-Orients the object so that it faces toward/away from the given position (thereby depending on the object’s ``position``).
+Orients the object so that it faces toward/away from the given position (thereby depending on the object’s :prop:`position`).
 
 .. _apparently facing {heading} [from {vector}]:
 
 apparently facing *heading* [from *vector*]
 --------------------------------------------
 Orients the object so that it has the given heading with respect to the line of sight from ego (or the ``from`` vector).
-For example, ``apparently facing 90 deg`` orients the object so that the camera views its left side head-on.
+For example, :scenic:`apparently facing 90 deg` orients the object so that the camera views its left side head-on.
 
 .. _specifier resolution:
 

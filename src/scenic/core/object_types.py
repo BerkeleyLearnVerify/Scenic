@@ -15,7 +15,7 @@ from scenic.core.vectors import Vector
 from scenic.core.geometry import (_RotatedRectangle, averageVectors, hypot, min,
                                   pointIsInCone)
 from scenic.core.regions import CircularRegion, SectorRegion
-from scenic.core.type_support import toVector, toHeading, toScalar, toType
+from scenic.core.type_support import toVector, toHeading, toScalar, toType, underlyingType
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.serialization import dumpAsScenicCode
 from scenic.core.utils import DefaultIdentityDict, cached_property
@@ -38,16 +38,18 @@ class Constructible(Samplable):
 		called directly from a Scenic program.
 	"""
 
+	_dynamicProperties = {}
+
 	def __init_subclass__(cls):
 		super().__init_subclass__()
-		# find all defaults provided by the class or its superclasses
+		# Find all defaults provided by the class or its superclasses
 		allDefs = collections.defaultdict(list)
 		for sc in cls.__mro__:
 			if issubclass(sc, Constructible) and hasattr(sc, '__annotations__'):
 				for prop, value in sc.__annotations__.items():
 					allDefs[prop].append(PropertyDefault.forValue(value))
 
-		# resolve conflicting defaults and gather dynamic properties
+		# Resolve conflicting defaults and gather dynamic properties
 		resolvedDefs = {}
 		dyns = []
 		for prop, defs in allDefs.items():
@@ -58,7 +60,20 @@ class Constructible(Samplable):
 			if any(defn.isDynamic for defn in defs):
 				dyns.append(prop)
 		cls._defaults = resolvedDefs
-		cls._dynamicProperties = frozenset(dyns)
+
+		# Determine types of dynamic properties
+		dynTypes = {}
+		inst = None
+		for prop in dyns:
+			ty = super(cls, cls)._dynamicProperties.get(prop)
+			if not ty:
+				# First time this property has been defined; create a dummy object to
+				# run specifier resolution and determine the property's default value
+				if not inst:
+					inst = cls(_register=False)
+				ty = underlyingType(getattr(inst, prop))
+			dynTypes[prop] = ty
+		cls._dynamicProperties = dynTypes
 
 	@classmethod
 	def _withProperties(cls, props, constProps=frozenset()):
@@ -66,14 +81,16 @@ class Constructible(Samplable):
 		assert all(not needsLazyEvaluation(val) for val in props.values())
 		return cls(_internal=True, _constProps=constProps, **props)
 
-	def __init__(self, *args, _internal=False, _constProps=frozenset(), **kwargs):
+	def __init__(self, *args, _internal=False, _constProps=frozenset(), _register=True,
+	             **kwargs):
 		if _internal:	# Object is being constructed internally; use fast path
 			assert not args
 			for prop, value in kwargs.items():
 				assert not needsLazyEvaluation(value), (prop, value)
 				object.__setattr__(self, prop, value)
 			super().__init__(kwargs.values())
-			self.properties = set(kwargs.keys())
+			self.properties = tuple(sorted(kwargs.keys()))
+			self._propertiesSet = set(self.properties)
 			self._constProps = _constProps
 			return
 
@@ -92,7 +109,8 @@ class Constructible(Samplable):
 		super().__init__(deps)
 
 		# Possibly register this object
-		self._register()
+		if _register:
+			self._register()
 
 	def _applySpecifiers(self, specifiers, defs=None):
 		# Validate specifiers
@@ -162,19 +180,21 @@ class Constructible(Samplable):
 			del spec._dfs_state
 
 		# Evaluate and apply specifiers
-		self.properties = set()		# will be filled by calls to _specify below
+		self.properties = []		# will be filled by calls to _specify below
+		self._propertiesSet = set()
 		self._evaluated = DefaultIdentityDict()		# temporary cache for lazily-evaluated values
 		for spec in order:
 			spec.applyTo(self, optionalsForSpec[spec])	# calls _specify
 		del self._evaluated
-		assert self.properties == set(properties)
+		self.properties = tuple(sorted(self.properties))
+		assert self._propertiesSet == set(properties)
 		self._constProps = frozenset({
 			prop for prop in _defaultedProperties
 			if not needsSampling(getattr(self, prop))
 		})
 
 	def _specify(self, prop, value):
-		assert prop not in self.properties
+		assert prop not in self._propertiesSet
 
 		# Normalize types of some built-in properties
 		if prop in ('position', 'velocity', 'cameraOffset'):
@@ -185,7 +205,8 @@ class Constructible(Samplable):
 		              'viewAngle', 'headingStdDev', 'speed', 'angularSpeed'):
 			value = toScalar(value, f'"{prop}" of {self} not a scalar')
 
-		self.properties.add(prop)
+		self.properties.append(prop)
+		self._propertiesSet.add(prop)
 		object.__setattr__(self, prop, value)
 
 	def _register(self):
@@ -198,7 +219,7 @@ class Constructible(Samplable):
 			prop = spec.property
 			if prop in self._dynamicProperties:
 				raise RuntimeParseError(f'cannot override dynamic property "{prop}"')
-			if prop not in self.properties:
+			if prop not in self._propertiesSet:
 				raise RuntimeParseError(f'object has no property "{prop}" to override')
 			oldVals[prop] = getattr(self, prop)
 		defs = { prop: Specifier(prop, getattr(self, prop)) for prop in self.properties }
@@ -229,7 +250,7 @@ class Constructible(Samplable):
 	def dumpAsScenicCode(self, stream, skipConstProperties=True):
 		stream.write(self.__class__.__name__)
 		first = True
-		for prop in sorted(self.properties):
+		for prop in self.properties:
 			if skipConstProperties and prop in self._constProps:
 				continue
 			if prop == 'position':
@@ -247,7 +268,7 @@ class Constructible(Samplable):
 			dumpAsScenicCode(getattr(self, prop), stream)
 
 	def __str__(self):
-		if hasattr(self, 'properties') and 'name' in self.properties:
+		if hasattr(self, 'properties') and 'name' in self._propertiesSet:
 			return self.name
 		else:
 			return f'unnamed {self.__class__.__name__} ({id(self)})'
@@ -339,14 +360,14 @@ class Point(Constructible):
 
 	Properties:
 		position (`Vector`; dynamic): Position of the point. Default value is the origin.
-		visibleDistance (float): Distance for ``can see`` operator. Default value 50.
+		visibleDistance (float): Distance for :keyword:`can see` operator. Default value 50.
 		width (float): Default value zero (only provided for compatibility with
 		  operators that expect an `Object`).
 		length (float): Default value zero.
 		mutationScale (float): Overall scale of mutations, as set by the
 		  :keyword:`mutate` statement. Default value zero (mutations disabled).
 		positionStdDev (float): Standard deviation of Gaussian noise to add to this
-		  object's ``position`` when mutation is enabled with scale 1. Default value 1.
+		  object's :prop:`position` when mutation is enabled with scale 1. Default value 1.
 	"""
 	position: PropertyDefault((), {'dynamic'}, lambda self: Vector(0, 0))
 	width: 0
@@ -482,6 +503,8 @@ class Object(OrientedPoint, _RotatedRectangle):
 
 		behavior: Behavior for dynamic agents, if any (see :ref:`dynamics`). Default
 			value ``None``.
+		lastActions: Tuple of :term:`actions` taken by this agent in the last time step
+			(or `None` if the object is not an agent or this is the first time step).
 	"""
 	width: 1
 	length: 1
@@ -518,7 +541,7 @@ class Object(OrientedPoint, _RotatedRectangle):
 
 	def _specify(self, prop, value):
 		# Normalize types of some built-in properties
-		if prop == 'behavior':
+		if prop == 'behavior' and value != None:
 			import scenic.syntax.veneer as veneer	# TODO improve?
 			value = toType(value, veneer.Behavior,
 			               f'"behavior" of {self} not a behavior')

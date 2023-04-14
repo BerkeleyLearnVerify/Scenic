@@ -12,16 +12,16 @@ Compound Statements
 Class Definition
 ----------------
 
-::
+.. code-block:: scenic-grammar
 
     class <name>[(<superclass>)]:
-        (<property>: <value>)*
+        [<property>: <value>]*
 
 Defines a Scenic class.
 If a superclass is not explicitly specified, `Object` is used (see :ref:`objects_and_classes`).
 The body of the class defines a set of properties its objects have, together with default values for each property.
 Properties are inherited from superclasses, and their default values may be overridden in a subclass.
-Default values may also use the special syntax :samp:`self.{property}` to refer to one of the other properties of the same object, which is then a *dependency* of the default value.
+Default values may also use the special syntax :scenic:`self.{property}` to refer to one of the other properties of the same object, which is then a *dependency* of the default value.
 The order in which to evaluate properties satisfying all dependencies is computed (and cyclic dependencies detected) during :ref:`specifier resolution`.
 
 Scenic classes may also define attributes and methods in the same way as Python classes.
@@ -31,14 +31,14 @@ Scenic classes may also define attributes and methods in the same way as Python 
 Behavior Definition
 --------------------
 
-::
+.. code-block:: scenic-grammar
 
     behavior <name>(<arguments>):
-        (precondition: <boolean>)*
-        (invariant: <boolean>)*
-        <statement>*
+        [precondition: <boolean>]*
+        [invariant: <boolean>]*
+        <statement>+
 
-Defines a :term:`dynamic behavior`, which can be assigned to a Scenic object by setting its ``behavior`` property using the :samp:`with behavior {behavior}` specifier; this makes the object an :term:`agent`.
+Defines a :term:`dynamic behavior`, which can be assigned to a Scenic object by setting its :prop:`behavior` property using the :scenic:`with behavior {behavior}` specifier; this makes the object an :term:`agent`.
 See our tutorial on :ref:`dynamics` for examples of how to write behaviors.
 
 Behavior definitions have the same form as function definitions, with an argument list and a body consisting of one or more statements; the body may additionally begin with definitions of preconditions and invariants.
@@ -48,7 +48,7 @@ The body of a behavior executes in parallel with the simulation: in each time st
 After each :keyword:`take` or :keyword:`wait` statement, the behavior's execution is suspended, the simulation advances one step, and the behavior is then resumed.
 It is thus an error for a behavior to enter an infinite loop which contains no :keyword:`take` or :keyword:`wait` statements (or :keyword:`do` statements invoking a sub-behavior; see below): the behavior will never yield control to the simulator and the simulation will stall.
 
-Behaviors end naturally when their body finishes executing (or if they ``return``): if this happens, the agent performing the behavior will take no actions for the rest of the scenario.
+Behaviors end naturally when their body finishes executing (or if they :scenic:`return`): if this happens, the agent performing the behavior will take no actions for the rest of the scenario.
 Behaviors may also :keyword:`terminate` the current scenario, ending it immediately.
 
 Behaviors may invoke sub-behaviors, optionally for a limited time or until a desired condition is met, using :keyword:`do` statements.
@@ -59,10 +59,10 @@ It is also possible to (temporarily) interrupt the execution of a sub-behavior u
 Monitor Definition
 ------------------
 
-::
+.. code-block:: scenic-grammar
 
     monitor <name>:
-        <statement>*
+        <statement>+
 
 Defines a Scenic :term:`monitor`, which runs in parallel with the simulation like a :term:`dynamic behavior`.
 Monitors are not associated with an `Object` and cannot take actions, but can :keyword:`wait` to wait for the next time step (or :keyword:`terminate` the simulation).
@@ -77,20 +77,20 @@ For examples of monitors, see our tutorial on :ref:`dynamics`.
 Modular Scenario Definition 
 ---------------------------
 
-::
+.. code-block:: scenic-grammar
 
     scenario <name>(<arguments>):
-        (precondition: <boolean>)*
-        (invariant: <boolean>)*
+        [precondition: <boolean>]*
+        [invariant: <boolean>]*
         [setup:
-            <statement>*]
+            <statement>+]
         [compose:
-            <statement>*]
+            <statement>+]
 
-::
+.. code-block:: scenic-grammar
 
     scenario <name>(<arguments>):
-        <statement>*
+        <statement>+
 
 Defines a Scenic :term:`modular scenario`.
 Scenario definitions, like :ref:`behavior definitions <behaviorDef>`, may include preconditions and invariants.
@@ -107,14 +107,14 @@ If a modular scenario does not use preconditions, invariants, or sub-scenarios (
 Try-Interrupt Statement
 -----------------------
 
-::
+.. code-block:: scenic-grammar
 
     try:
-        <statement>*
-    (interrupt when <boolean>:
-        <statement>*)*
-    (except <exception>:
-        <statement>*)*
+        <statement>+
+    [interrupt when <boolean>:
+        <statement>+]*
+    [except <exception> [as <name>]:
+        <statement>+]*
 
 A ``try-interrupt`` statement can be placed inside a behavior (or :keyword:`compose` block of a :term:`modular scenario`) to run a series of statements, including invoking sub-behaviors with :keyword:`do`, while being able to interrupt at any point if given conditions are met.
 When a ``try-interrupt`` statement is encountered, the statements in the ``try`` block are executed.
@@ -138,8 +138,8 @@ The following statements can occur throughout a Scenic program unless otherwise 
 model *name*
 ------------
 Select a :term:`world model` to use for this scenario.
-The statement :samp:`model {X}` is equivalent to :samp:`from {X} import *` except that :samp:`{X}` can be replaced using the :option:`--model` command-line option or the ``model`` keyword argument to the top-level APIs.
-When writing simulator-agnostic scenarios, using the ``model`` statement is preferred to a simple ``import`` since a more specific world model for a particular simulator can then be selected at compile time.
+The statement :scenic:`model {X}` is equivalent to :scenic:`from {X} import *` except that :scenic:`{X}` can be replaced using the :option:`--model` command-line option or the ``model`` keyword argument to the top-level APIs.
+When writing simulator-agnostic scenarios, using the :scenic:`model` statement is preferred to a simple :scenic:`import` since a more specific world model for a particular simulator can then be selected at compile time.
 
 .. _import {module}:
 .. _import:
@@ -147,27 +147,34 @@ When writing simulator-agnostic scenarios, using the ``model`` statement is pref
 import *module*
 ----------------
 Import a Scenic or Python module. This statement behaves :ref:`as in Python <import>`, but when importing a Scenic module it also imports any objects created and requirements imposed in that module.
-Scenic also supports the form :samp:`from {module} import {identifier}, {...}` , which as in Python imports the module plus one or more identifiers from its namespace.
+Scenic also supports the form :scenic:`from {module} import {identifier}, {...}` , which as in Python imports the module plus one or more identifiers from its namespace.
 
 .. note::
 
     Scenic modules can only be imported at the top level, or in a top-level try-except block that does not create any objects (so that you can catch `ModuleNotFoundError` for example). Python modules can be imported dynamically inside functions as usual.
 
-.. _param {identifier} = {value}, {...}:
+.. _param {name} = {value}, {...}:
 .. _param:
 
-param *identifier* = *value*, . . .
+param *name* = *value*, . . .
 ---------------------------------------
 Defines one or more :term:`global parameters` of the scenario.
 These have no semantics in Scenic, simply having their values included as part of the generated `Scene`, but provide a general-purpose way to encode arbitrary global information.
 
-If multiple ``param`` statements define parameters with the same name, the last statement takes precedence, except that Scenic world models imported using the :keyword:`model` statement do not override existing values for global parameters.
+If multiple :scenic:`param` statements define parameters with the same name, the last statement takes precedence, except that Scenic world models imported using the :keyword:`model` statement do not override existing values for global parameters.
 This allows models to define default values for parameters which can be overridden by particular scenarios.
 Global parameters can also be overridden at the command line using the :option:`--param` option, or from the top-level API using the ``params`` argument to `scenic.scenarioFromFile`.
 
-To access global parameters within the scenario itself, you can read the corresponding attribute of the ``globalParameters`` object.
-For example, if you declare ``param weather = 'SUNNY'``, you could then access this parameter later in the program via ``globalParameters.weather``.
-If the parameter was not overridden, this would evaluate to ``'SUNNY'``; if Scenic was run with the command-line option ``--param weather SNOW``, it would evaluate to ``'SNOW'`` instead.
+To access global parameters within the scenario itself, you can read the corresponding attribute of the :scenic:`globalParameters` object.
+For example, if you declare :scenic:`param weather = 'SUNNY'`, you could then access this parameter later in the program via :scenic:`globalParameters.weather`.
+If the parameter was not overridden, this would evaluate to :scenic:`'SUNNY'`; if Scenic was run with the command-line option ``--param weather SNOW``, it would evaluate to :scenic:`'SNOW'` instead.
+
+Some simulators provide global parameters whose names are not valid identifiers in Scenic.
+To support giving values to such parameters without renaming them, Scenic allows the names of global parameters to be quoted strings, as in this example taken from an :ref:`X-Plane <xplane>` scenario::
+
+    param simulation_length = 30
+    param 'sim/weather/cloud_type[0]' = DiscreteRange(0, 5)
+    param 'sim/weather/rain_percent' = 0
 
 .. _require {boolean}:
 .. _require:
@@ -183,7 +190,7 @@ This is equivalent to an "observe" statement in other probabilistic programming 
 require[*number*] *boolean*
 ---------------------------
 Defines a soft requirement; like :keyword:`require` above but enforced only with the given probability, thereby requiring that the given condition hold with at least that probability (which must be a literal number, not an expression).
-For example, ``require[0.75] ego in parking_lot`` would require that the ego be in the parking lot at least 75% percent of the time.
+For example, :scenic:`require[0.75] ego in parking_lot` would require that the ego be in the parking lot at least 75% percent of the time.
 
 .. _require (always | eventually) {boolean}:
 .. _require always:
@@ -224,20 +231,20 @@ mutate *identifier*, . . . [by *scalar*]
 Enables mutation of the given list of objects (any `Point`, `OrientedPoint`, or `Object`), with an optional scale factor (default 1).
 If no objects are specified, mutation applies to every `Object` already created.
 
-The default mutation system adds Gaussian noise to the ``position`` and ``heading`` properties, with standard deviations equal to the scale factor times the ``positionStdDev`` and ``headingStdDev`` properties.
+The default mutation system adds Gaussian noise to the :prop:`position` and :prop:`heading` properties, with standard deviations equal to the scale factor times the :prop:`positionStdDev` and :prop:`headingStdDev` properties.
 
 .. note::
 
-    User-defined classes may specify custom mutators to allow mutation to apply to properties other than ``position`` and ``heading``.
-    This is done by providing a value for the ``mutator`` property, which should be an instance of `Mutator`.
-    Mutators inherited from superclasses (such as the default ``position`` and ``heading`` mutators from `Point` and `OrientedPoint`) will still be applied unless the new mutator disables them; see `Mutator` for details.
+    User-defined classes may specify custom mutators to allow mutation to apply to properties other than :prop:`position` and :prop:`heading`.
+    This is done by providing a value for the :prop:`mutator` property, which should be an instance of `Mutator`.
+    Mutators inherited from superclasses (such as the default :prop:`position` and :prop:`heading` mutators from `Point` and `OrientedPoint`) will still be applied unless the new mutator disables them; see `Mutator` for details.
 
-.. _record [(initial | final)] {value} as {name}:
+.. _record [initial | final] {value} as {name}:
 .. _record:
 .. _record initial:
 .. _record final:
 
-record [(initial | final)] *value* [as *name*]
+record [initial | final] *value* [as *name*]
 ----------------------------------------------
 Record the value of an expression during each simulation.
 The value can be recorded at the start of the simulation (``initial``), at the end of the simulation (``final``), or at every time step (if neither ``initial`` nor ``final`` is specified).
@@ -300,7 +307,7 @@ do choose *behavior/scenario*, ...
 Randomly pick one of the given behaviors/scenarios whose preconditions are satisfied, and run it.
 If no choices are available, the simulation is rejected.
 
-This statement also allows the more general form :samp:`do choose \\{ {behavior/scenario}: {weight}, {...} \}`, giving weights for each choice (which need not add up to 1).
+This statement also allows the more general form :scenic:`do choose { {behaviorOrScenario}: {weight}, {...} }`, giving weights for each choice (which need not add up to 1).
 Among all choices whose preconditions are satisfied, this picks a choice with probability proportional to its weight.
 
 .. _do shuffle {behavior/scenario}, {...}:
@@ -311,7 +318,7 @@ do shuffle *behavior/scenario*, ...
 Like :keyword:`do choose` above, except that when the chosen sub-behavior/scenario completes, a different one whose preconditions are satisfied is chosen to run next, and this repeats until all the sub-behaviors/scenarios have run once.
 If at any point there is no available choice to run (i.e. we have a deadlock), the simulation is rejected.
 
-This statement also allows the more general form :samp:`do shuffle \\{ {behavior/scenario}: {weight}, {...} \}`, giving weights for each choice (which need not add up to 1).
+This statement also allows the more general form :scenic:`do shuffle \{ {behaviorOrScenario}: {weight}, {...} }`, giving weights for each choice (which need not add up to 1).
 Each time a new sub-behavior/scenario needs to be selected, this statement finds all choices whose preconditions are satisfied and picks one with probability proportional to its weight.
 
 .. _abort:
@@ -325,6 +332,6 @@ Used in an interrupt handler to terminate the current :keyword:`try-interrupt` s
 
 override *object* *specifier*, ...
 ------------------------------------
-Override one or more properties of an object, e.g. its ``behavior``, for the duration of the current scenario.
+Override one or more properties of an object, e.g. its :prop:`behavior`, for the duration of the current scenario.
 The properties will revert to their previous values when the current scenario terminates.
 It is illegal to override :term:`dynamic properties`, since they are set by the simulator each time step and cannot be mutated manually.

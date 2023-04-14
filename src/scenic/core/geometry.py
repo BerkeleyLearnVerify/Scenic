@@ -42,16 +42,6 @@ def normalizeAngle(angle) -> float:
 	assert -math.pi <= angle <= math.pi
 	return angle
 
-def addVectors(a, b):
-	ax, ay = a[0], a[1]
-	bx, by = b[0], b[1]
-	return (ax + bx, ay + by)
-
-def subtractVectors(a, b):
-	ax, ay = a[0], a[1]
-	bx, by = b[0], b[1]
-	return (ax - bx, ay - by)
-
 def averageVectors(a, b, weight=0.5):
 	ax, ay = a[0], a[1]
 	bx, by = b[0], b[1]
@@ -73,15 +63,6 @@ def findMinMax(iterable):
 			maxv = val
 	return (minv, maxv)
 
-def radialToCartesian(point, radius, heading):
-	angle = heading + (math.pi / 2.0)
-	rx, ry = radius * cos(angle), radius * sin(angle)
-	return (point[0] + rx, point[1] + ry)
-
-def positionRelativeToPoint(point, heading, offset):
-	ro = rotateVector(offset, heading)
-	return addVectors(point, ro)
-
 def headingOfSegment(pointA, pointB):
 	ax, ay = pointA
 	bx, by = pointB
@@ -99,15 +80,6 @@ def apparentHeadingAtPoint(point, heading, base):
 	a = (heading + (math.pi / 2.0)) - math.atan2(oy - y, ox - x)
 	return normalizeAngle(a)
 
-def circumcircleOfAnnulus(center, heading, angle, minDist, maxDist):
-	m = (minDist + maxDist) / 2.0
-	g = (maxDist - minDist) / 2.0
-	h = m * math.sin(angle / 2.0)
-	h2 = h * h
-	d = math.sqrt(h2 + (m * m))
-	r = math.sqrt(h2 + (g * g))
-	return radialToCartesian(center, d, heading), r
-
 def pointIsInCone(point, base, heading, angle):
 	va = viewAngleToPoint(point, base, heading)
 	return (abs(va) <= angle / 2.0)
@@ -118,18 +90,6 @@ def distanceToLine(point, a, b):
 	nx, ny = -ly/norm, lx/norm
 	px, py = point[0] - a[0], point[1] - a[1]
 	return abs((px * nx) + (py * ny))
-
-def distanceToSegment(point, a, b):
-	lx, ly = b[0] - a[0], b[1] - a[1]
-	px, py = point[0] - a[0], point[1] - a[1]
-	proj = (px * lx) + (py * ly)
-	if proj < 0:
-		return math.hypot(px, py)
-	lnorm = math.hypot(lx, ly)
-	if proj > lnorm * lnorm:
-		return math.hypot(px - lx, py - ly)
-	else:
-		return abs((py * lx) - (px * ly)) / lnorm
 
 def polygonUnion(polys, buf=0, tolerance=0, holeTolerance=0.002):
 	if not polys:
@@ -146,22 +106,7 @@ def polygonUnion(polys, buf=0, tolerance=0, holeTolerance=0.002):
 	if tolerance > 0:
 		union = cleanPolygon(union, tolerance, holeTolerance)
 		assert union.is_valid, union
-		#checkPolygon(union, tolerance)
 	return union
-
-def checkPolygon(poly, tolerance):
-	def checkPolyline(pl):
-		for i, p in enumerate(pl[:-1]):
-			q = pl[i+1]
-			dx, dy = q[0] - p[0], q[1] - p[1]
-			assert math.hypot(dx, dy) >= tolerance
-	if isinstance(poly, shapely.geometry.MultiPolygon):
-		for p in poly.geoms:
-			checkPolygon(p, tolerance)
-	else:
-		checkPolyline(poly.exterior.coords)
-		for i in poly.interiors:
-			checkPolyline(i.coords)
 
 def cleanPolygon(poly, tolerance, holeTolerance=0, minRelArea=0.05, minHullLenRatio=0.9):
 	if holeTolerance == 0:
@@ -282,11 +227,7 @@ def removeHoles(polygon):
 		return shapely.geometry.Polygon(polygon.exterior)
 
 class TriangulationError(RuntimeError):
-	"""Signals that the installed triangulation libraries are insufficient.
-
-	Specifically, raised when pypoly2tri hits the recursion limit trying to
-	triangulate a large polygon.
-	"""
+	"""Signals that the installed triangulation libraries are insufficient."""
 	pass
 
 def triangulatePolygon(polygon):
@@ -296,10 +237,6 @@ def triangulatePolygon(polygon):
 	point sets, not polygons (i.e., it doesn't respect edges). We need an
 	algorithm for triangulation of polygons with holes (it doesn't need to be a
 	Delaunay triangulation).
-
-	We use ``mapbox_earcut`` by default. If it is not installed, we allow fallback to
-	``pypoly2tri`` for historical reasons (we originally used the GPC library, which is
-	not free for commercial use, falling back to ``pypoly2tri`` if not installed).
 
 	Args:
 		polygon (shapely.geometry.Polygon): Polygon to triangulate.
@@ -312,38 +249,8 @@ def triangulatePolygon(polygon):
 		return triangulatePolygon_mapbox(polygon)
 	except ImportError:
 		pass
-	try:
-		return triangulatePolygon_pypoly2tri(polygon)
-	except ImportError:
-		pass
 	raise RuntimeError('no triangulation libraries installed '
 	                   '(did you uninstall mapbox_earcut?)')
-
-def triangulatePolygon_pypoly2tri(polygon):
-	import pypoly2tri
-	polyline = []
-	for c in polygon.exterior.coords[:-1]:
-		polyline.append(pypoly2tri.shapes.Point(c[0],c[1]))
-	cdt = pypoly2tri.cdt.CDT(polyline)
-	for i in polygon.interiors:
-		polyline = []
-		for c in i.coords[:-1]:
-			polyline.append(pypoly2tri.shapes.Point(c[0],c[1]))
-		cdt.AddHole(polyline)
-	try:
-		cdt.Triangulate()
-	except RecursionError:		# polygon too big for pypoly2tri
-		raise TriangulationError('pypoly2tri unable to triangulate large polygon; for '
-		                         'non-commercial use, try "pip install Polygon3"')
-
-	triangles = list()
-	for t in cdt.GetTriangles():
-		triangles.append(shapely.geometry.Polygon([
-			t.GetPoint(0).toTuple(),
-			t.GetPoint(1).toTuple(),
-			t.GetPoint(2).toTuple()
-		]))
-	return triangles
 
 def triangulatePolygon_mapbox(polygon):
 	import mapbox_earcut

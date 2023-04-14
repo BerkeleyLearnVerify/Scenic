@@ -4,6 +4,8 @@
 This module is automatically imported by all Scenic programs. In addition to
 defining the built-in functions, operators, specifiers, etc., it also stores
 global state such as the list of all created Scenic objects.
+
+.. highlight:: scenic-grammar
 """
 
 __all__ = (
@@ -15,7 +17,7 @@ __all__ = (
 	'override',
 	'record', 'record_initial', 'record_final',
 	'sin', 'cos', 'hypot', 'max', 'min',
-	'filter', 'str',
+	'filter', 'str', 'float', 'int', 'round', 'len', 'range',
 	# Prefix operators
 	'Visible', 'NotVisible',
 	'Front', 'Back', 'Left', 'Right',
@@ -73,9 +75,9 @@ from scenic.core.dynamics import (Behavior, Monitor, DynamicScenario, BlockConcl
 import builtins
 import collections.abc
 from contextlib import contextmanager
+import functools
 import importlib
 import sys
-import random
 import os.path
 import traceback
 import typing
@@ -89,6 +91,7 @@ from scenic.core.geometry import normalizeAngle, apparentHeadingAtPoint
 from scenic.core.object_types import Constructible
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
+import scenic.core.errors as errors
 from scenic.core.errors import RuntimeParseError, InvalidScenarioError
 from scenic.core.vectors import OrientedVector
 from scenic.core.external_params import ExternalParameter
@@ -103,7 +106,6 @@ scenarioStack = []
 scenarios = []
 evaluatingRequirement = False
 _globalParameters = {}
-_workspace = None
 lockedParameters = set()
 lockedModel = None
 loadingModel = False
@@ -146,7 +148,7 @@ def activate(paramOverrides={}, modelOverride=None, filename=None, namespace=Non
 
 def deactivate():
 	"""Deactivate the veneer after compiling a Scenic module."""
-	global activity, _globalParameters, _workspace, lockedParameters, lockedModel
+	global activity, _globalParameters, lockedParameters, lockedModel
 	global currentScenario, scenarios, scenarioStack, simulatorFactory
 	activity -= 1
 	assert activity >= 0
@@ -163,7 +165,6 @@ def deactivate():
 		currentScenario = None
 		simulatorFactory = None
 		_globalParameters = {}
-		_workspace = None
 	else:
 		currentScenario = scenarioStack[-1]
 
@@ -222,7 +223,7 @@ def instantiateSimulator(factory, params):
 
 def beginSimulation(sim):
 	global currentSimulation, currentScenario, inInitialScenario, runningScenarios
-	global _globalParameters, _workspace
+	global _globalParameters
 	if isActive():
 		raise RuntimeError('tried to start simulation during Scenic compilation!')
 	assert currentSimulation is None
@@ -234,7 +235,6 @@ def beginSimulation(sim):
 	inInitialScenario = currentScenario._setup is None
 	currentScenario._bindTo(sim.scene)
 	_globalParameters = dict(sim.scene.params)
-	_workspace = sim.scene.workspace
 
 	# rebind globals that could be referenced by behaviors to their sampled values
 	for modName, (namespace, sampledNS, originalNS) in sim.scene.behaviorNamespaces.items():
@@ -243,13 +243,12 @@ def beginSimulation(sim):
 
 def endSimulation(sim):
 	global currentSimulation, currentScenario, currentBehavior, runningScenarios
-	global _globalParameters, _workspace
+	global _globalParameters
 	currentSimulation = None
 	currentScenario = None
 	runningScenarios = set()
 	currentBehavior = None
 	_globalParameters = {}
-	_workspace = None
 
 	for modName, (namespace, sampledNS, originalNS) in sim.scene.behaviorNamespaces.items():
 		namespace.clear()
@@ -392,9 +391,8 @@ def workspace(workspace=None):
 
 	See `ego`.
 	"""
-	global _workspace
 	if workspace is None:
-		if _workspace is None:
+		if currentScenario._workspace is None:
 			raise RuntimeParseError('referred to workspace not yet assigned')
 	elif not isinstance(workspace, Workspace):
 		raise RuntimeParseError(f'workspace {workspace} is not a Workspace')
@@ -404,8 +402,8 @@ def workspace(workspace=None):
 		raise InvalidScenarioError('workspace uses value undefined '
 		                           'outside of object definition')
 	else:
-		_workspace = workspace
-	return _workspace
+		currentScenario._workspace = workspace
+	return currentScenario._workspace
 
 def require(reqID, req, line, name, prob=1):
 	"""Function implementing the require statement."""
@@ -414,7 +412,7 @@ def require(reqID, req, line, name, prob=1):
 	if evaluatingRequirement:
 		raise RuntimeParseError('tried to create a requirement inside a requirement')
 	if currentSimulation is not None:	# requirement being evaluated at runtime
-		if prob >= 1 or random.random() <= prob:
+		if prob >= 1 or Range(0, 1) <= prob:	# use Range so value can be recorded
 			result = req()
 			assert not needsSampling(result)
 			if needsLazyEvaluation(result):
@@ -478,7 +476,7 @@ def makeRequirement(ty, reqID, req, line, name):
 		currentScenario._addRequirement(ty, reqID, req, line, name, 1)
 
 def terminate_after(timeLimit, terminator=None):
-	if not isinstance(timeLimit, (float, int)):
+	if not isinstance(timeLimit, (builtins.float, builtins.int)):
 		raise RuntimeParseError('"terminate after N" with N not a number')
 	assert terminator in (None, 'seconds', 'steps')
 	inSeconds = (terminator != 'steps')
@@ -499,7 +497,7 @@ def verbosePrint(*objects, level=1, indent=True,
 
 	Scenic's verbosity may be set using the :option:`-v` command-line option.
 	The simplest way to use this function is with code like
-	``verbosePrint('hello world!')`` or ``verbosePrint('details here', level=3)``;
+	:scenic:`verbosePrint('hello world!')` or :scenic:`verbosePrint('details here', level=3)`;
 	the other keyword arguments are probably only useful when replacing more complex uses
 	of the Python `print` function.
 
@@ -510,20 +508,19 @@ def verbosePrint(*objects, level=1, indent=True,
 			Scenic (default true).
 		sep, end, file, flush: As in `print`.
 	"""
-	import scenic.syntax.translator as translator
-	if translator.verbosity >= level:
+	if errors.verbosityLevel >= level:
 		if indent:
 			if currentSimulation:
-				indent = '      ' if translator.verbosity >= 3 else '  '
+				indent = '      ' if errors.verbosityLevel >= 3 else '  '
 			else:
-				indent = '  ' * activity if translator.verbosity >= 2 else '  '
+				indent = '  ' * activity if errors.verbosityLevel >= 2 else '  '
 			print(indent, end='', file=file)
 		print(*objects, sep=sep, end=end, file=file, flush=flush)
 
 def localPath(relpath):
 	"""Convert a path relative to the calling Scenic file into an absolute path.
 
-	For example, ``localPath('resource.dat')`` evaluates to the absolute path
+	For example, :scenic:`localPath('resource.dat')` evaluates to the absolute path
 	of a file called ``resource.dat`` located in the same directory as the
 	Scenic file where this expression appears.
 	"""
@@ -559,8 +556,7 @@ def override(*args):
 		raise RuntimeParseError(f'"override" passed non-Object {obj}')
 	specs = args[1:]
 	for spec in specs:
-		if not isinstance(spec, Specifier):
-			raise RuntimeParseError(f'"override" passed non-specifier {spec}')
+		assert isinstance(spec, Specifier), spec
 
 	currentScenario._override(obj, specs)
 
@@ -607,7 +603,7 @@ def param(*quotedParams, **params):
 
 class ParameterTableProxy(collections.abc.Mapping):
 	def __init__(self, map):
-		self._internal_map = map
+		object.__setattr__(self, '_internal_map', map)
 
 	def __getitem__(self, name):
 		return self._internal_map[name]
@@ -621,6 +617,9 @@ class ParameterTableProxy(collections.abc.Mapping):
 	def __getattr__(self, name):
 		return self.__getitem__(name)	# allow namedtuple-like access
 
+	def __setattr__(self, name, value):
+		raise RuntimeParseError('cannot modify globalParameters (use "param" statement)')
+
 	def _clone_table(self):
 		return ParameterTableProxy(self._internal_map.copy())
 
@@ -632,7 +631,7 @@ def mutate(*objects):		# TODO update syntax
 	if evaluatingRequirement:
 		raise RuntimeParseError('used mutate statement inside a requirement')
 	scale = 1
-	if objects and isinstance(objects[-1], (float, int)):
+	if objects and isinstance(objects[-1], (builtins.float, builtins.int)):
 		scale = objects[-1]
 		objects = objects[:-1]
 	if len(objects) == 0:
@@ -645,12 +644,12 @@ def mutate(*objects):		# TODO update syntax
 ### Prefix operators
 
 def Visible(region):
-	"""The 'visible <region>' operator."""
+	"""The :grammar:`visible <region>` operator."""
 	region = toType(region, Region, '"visible X" with X not a Region')
 	return region.intersect(ego().visibleRegion)
 
 def NotVisible(region):
-	"""The 'not visible <region>' operator."""
+	"""The :grammar:`not visible <region>` operator."""
 	region = toType(region, Region, '"not visible X" with X not a Region')
 	return region.difference(ego().visibleRegion)
 
@@ -662,7 +661,7 @@ ops = (
 )
 template = '''\
 def {function}(X):
-	"""The '{syntax} of <object>' operator."""
+	"""The :grammar:`{syntax} of <object>` operator."""
 	if not isinstance(X, Object):
 		raise RuntimeParseError('"{syntax} of X" with X not an Object')
 	return X.{property}
@@ -676,18 +675,19 @@ for op in ops:
 ### Infix operators
 
 def FieldAt(X, Y):
-	"""The '<VectorField> at <vector>' operator."""
+	"""The :grammar:`<VectorField> at <vector>` operator."""
 	if not isinstance(X, VectorField):
 		raise RuntimeParseError('"X at Y" with X not a vector field')
 	Y = toVector(Y, '"X at Y" with Y not a vector')
 	return X[Y]
 
 def RelativeTo(X, Y):
-	"""The 'X relative to Y' polymorphic operator.
+	"""The :scenic:`X relative to Y` polymorphic operator.
 
-	Allowed forms:
-		F relative to G (with at least one a field, the other a field or heading)
-		<vector> relative to <oriented point> (and vice versa)
+	Allowed forms::
+
+		<value> relative to <value> # with at least one a field, the other a field or heading
+		<vector> relative to <oriented point> # and vice versa
 		<vector> relative to <vector>
 		<heading> relative to <heading>
 	"""
@@ -713,15 +713,18 @@ def RelativeTo(X, Y):
 			X = toVector(X, '"X relative to Y" with Y an oriented point but X not a vector')
 			return Y.relativize(X)
 		else:
-			X = toTypes(X, (Vector, float), '"X relative to Y" with X neither a vector nor scalar')
-			Y = toTypes(Y, (Vector, float), '"X relative to Y" with Y neither a vector nor scalar')
+			X = toTypes(X, (Vector, builtins.float),
+			            '"X relative to Y" with X neither a vector nor scalar')
+			Y = toTypes(Y, (Vector, builtins.float),
+			            '"X relative to Y" with Y neither a vector nor scalar')
 			return evaluateRequiringEqualTypes(lambda: X + Y, X, Y,
 											   '"X relative to Y" with vector and scalar')
 
 def OffsetAlong(X, H, Y):
-	"""The 'X offset along H by Y' polymorphic operator.
+	"""The :scenic:`X offset along H by Y` polymorphic operator.
 
-	Allowed forms:
+	Allowed forms::
+
 		<vector> offset along <heading> by <vector>
 		<vector> offset along <field> by <vector>
 	"""
@@ -733,9 +736,9 @@ def OffsetAlong(X, H, Y):
 	return X.offsetRotated(H, Y)
 
 def RelativePosition(X, Y=None):
-	"""The 'relative position of <vector> [from <vector>]' operator.
+	"""The :grammar:`relative position of <vector> [from <vector>]` operator.
 
-	If the 'from <vector>' is omitted, the position of ego is used.
+	If the :grammar:`from <vector>` is omitted, the position of ego is used.
 	"""
 	X = toVector(X, '"relative position of X from Y" with X not a vector')
 	if Y is None:
@@ -744,9 +747,9 @@ def RelativePosition(X, Y=None):
 	return X - Y
 
 def RelativeHeading(X, Y=None):
-	"""The 'relative heading of <heading> [from <heading>]' operator.
+	"""The :grammar:`relative heading of <heading> [from <heading>]` operator.
 
-	If the 'from <heading>' is omitted, the heading of ego is used.
+	If the :grammar:`from <heading>` is omitted, the heading of ego is used.
 	"""
 	X = toHeading(X, '"relative heading of X from Y" with X not a heading')
 	if Y is None:
@@ -756,9 +759,9 @@ def RelativeHeading(X, Y=None):
 	return normalizeAngle(X - Y)
 
 def ApparentHeading(X, Y=None):
-	"""The 'apparent heading of <oriented point> [from <vector>]' operator.
+	"""The :grammar:`apparent heading of <oriented point> [from <vector>]` operator.
 
-	If the 'from <vector>' is omitted, the position of ego is used.
+	If the :grammar:`from <vector>` is omitted, the position of ego is used.
 	"""
 	if not isinstance(X, OrientedPoint):
 		raise RuntimeParseError('"apparent heading of X from Y" with X not an OrientedPoint')
@@ -768,15 +771,15 @@ def ApparentHeading(X, Y=None):
 	return apparentHeadingAtPoint(X.position, X.heading, Y)
 
 def DistanceFrom(X, Y=None):
-	"""The ``distance from {X} to {Y}`` polymorphic operator.
+	"""The :scenic:`distance from {X} to {Y}` polymorphic operator.
 
-	Allowed forms:
+	Allowed forms::
 
-	* ``distance from`` <vector> [``to`` <vector>]
-	* ``distance from`` <region> [``to`` <vector>]
-	* ``distance from`` <vector> ``to`` <region>
+		distance from <vector> [to <vector>]
+		distance from <region> [to <vector>]
+		distance from <vector> to <region>
 
-	If the ``to <vector>`` is omitted, the position of ego is used.
+	If the :grammar:`to <vector>` is omitted, the position of ego is used.
 	"""
 	X = toTypes(X, (Vector, Region), '"distance from X to Y" with X neither a vector nor region')
 	if Y is None:
@@ -785,9 +788,9 @@ def DistanceFrom(X, Y=None):
 	return X.distanceTo(Y)
 
 def DistancePast(X, Y=None):
-	"""The :samp:`distance past {vector} of {OP}` operator.
+	"""The :grammar:`distance past <vector> of <oriented point>` operator.
 
-	If the :samp:`of {OP}` is omitted, the ego object is used.
+	If the :grammar:`of {oriented point}` is omitted, the ego object is used.
 	"""
 	X = toVector(X, '"distance past X" with X not a vector')
 	if Y is None:
@@ -796,18 +799,18 @@ def DistancePast(X, Y=None):
 	return Y.distancePast(X)
 
 def AngleTo(X):
-	"""The 'angle to <vector>' operator (using the position of ego as the reference)."""
+	"""The :grammar:`angle to <vector>` operator (using the position of ego as the reference)."""
 	X = toVector(X, '"angle to X" with X not a vector')
 	return ego().angleTo(X)
 
 def AngleFrom(X, Y):
-	"""The 'angle from <vector> to <vector>' operator."""
+	"""The :grammar:`angle from <vector> to <vector>` operator."""
 	X = toVector(X, '"angle from X to Y" with X not a vector')
 	Y = toVector(Y, '"angle from X to Y" with Y not a vector')
 	return X.angleTo(Y)
 
 def Follow(F, X, D):
-	"""The 'follow <field> from <vector> for <number>' operator."""
+	"""The :grammar:`follow <field> from <vector> for <number>` operator."""
 	if not isinstance(F, VectorField):
 		raise RuntimeParseError('"follow F from X for D" with F not a vector field')
 	X = toVector(X, '"follow F from X for D" with X not a vector')
@@ -817,9 +820,10 @@ def Follow(F, X, D):
 	return OrientedPoint(position=pos, heading=heading)
 
 def CanSee(X, Y):
-	"""The 'X can see Y' polymorphic operator.
+	"""The :scenic:`{X} can see {Y}` polymorphic operator.
 
-	Allowed forms:
+	Allowed forms::
+
 		<point> can see <object>
 		<point> can see <vector>
 	"""
@@ -834,24 +838,24 @@ def CanSee(X, Y):
 ### Specifiers
 
 def With(prop, val):
-	"""The 'with <property> <value>' specifier.
+	"""The :grammar:`with <property> <value>` specifier.
 
 	Specifies the given property, with no dependencies.
 	"""
 	return Specifier(prop, val)
 
 def At(pos):
-	"""The 'at <vector>' specifier.
+	"""The :grammar:`at <vector>` specifier.
 
-	Specifies 'position', with no dependencies."""
+	Specifies :prop:`position`, with no dependencies."""
 	pos = toVector(pos, 'specifier "at X" with X not a vector')
 	return Specifier('position', pos)
 
 def In(region):
-	"""The 'in/on <region>' specifier.
+	"""The :grammar:`in/on <region>` specifier.
 
-	Specifies 'position', with no dependencies. Optionally specifies 'heading'
-	if the given Region has a :term:`preferred orientation`.
+	Specifies :prop:`position`, with no dependencies. Optionally specifies
+	:prop:`heading` if the given `Region` has a :term:`preferred orientation`.
 	"""
 	region = toType(region, Region, 'specifier "in/on R" with R not a Region')
 	extras = {'heading'} if alwaysProvidesOrientation(region) else {}
@@ -872,21 +876,22 @@ def alwaysProvidesOrientation(region):
 			return False
 
 def Beyond(pos, offset, fromPt=None):
-	"""The 'beyond X by Y [from Z]' polymorphic specifier.
+	"""The :specifier:`beyond {X} by {Y} from {Z}` polymorphic specifier.
 
-	Specifies 'position', with no dependencies.
+	Specifies :prop:`position`, with no dependencies.
 
-	Allowed forms:
+	Allowed forms::
+
 		beyond <vector> by <number> [from <vector>]
 		beyond <vector> by <vector> [from <vector>]
 
-	If the 'from <vector>' is omitted, the position of ego is used.
+	If the :grammar:`from <vector>` is omitted, the position of ego is used.
 	"""
 	pos = toVector(pos, 'specifier "beyond X by Y" with X not a vector')
-	offset = toTypes(offset, (Vector, float),
+	offset = toTypes(offset, (Vector, builtins.float),
 	                 'specifier "beyond X by Y" with Y not a number or vector')
 	dType = underlyingType(offset)
-	if dType is float:
+	if dType is builtins.float:
 		offset = Vector(0, offset)
 	elif dType is not Vector:
 		raise RuntimeParseError('specifier "beyond X by Y" with Y not a number or vector')
@@ -897,11 +902,11 @@ def Beyond(pos, offset, fromPt=None):
 	return Specifier('position', pos.offsetRotated(lineOfSight, offset))
 
 def VisibleFrom(base):
-	"""The 'visible from <Point>' specifier.
+	"""The :grammar:`visible from <Point>` specifier.
 
-	Specifies 'position', with no dependencies.
+	Specifies :prop:`position`, with no dependencies.
 
-	This uses the given object's 'visibleRegion' property, and so correctly
+	This uses the given object's :prop:`visibleRegion` property, and so correctly
 	handles the view regions of Points, OrientedPoints, and Objects.
 	"""
 	if not isinstance(base, Point):
@@ -909,16 +914,16 @@ def VisibleFrom(base):
 	return Specifier('position', Region.uniformPointIn(base.visibleRegion))
 
 def VisibleSpec():
-	"""The 'visible' specifier (equivalent to 'visible from ego').
+	"""The :specifier:`visible` specifier (equivalent to :specifier:`visible from ego`).
 
-	Specifies 'position', with no dependencies.
+	Specifies :prop:`position`, with no dependencies.
 	"""
 	return VisibleFrom(ego())
 
 def NotVisibleFrom(base):
-	"""The 'not visible from <Point>' specifier.
+	"""The :grammar:`not visible from <Point>` specifier.
 
-	Specifies 'position', depending on 'regionContainedIn'.
+	Specifies :prop:`position`, depending on :prop:`regionContainedIn`.
 
 	See `VisibleFrom`.
 	"""
@@ -927,45 +932,47 @@ def NotVisibleFrom(base):
 	def helper(self):
 		region = self.regionContainedIn
 		if region is None:
-			if _workspace is None:
+			if currentScenario._workspace is None:
 				raise RuntimeParseError('"not visible" specifier with no workspace defined')
-			region = _workspace.region
+			region = currentScenario._workspace.region
 		return Region.uniformPointIn(region.difference(base.visibleRegion))
 	return Specifier('position', DelayedArgument({'regionContainedIn'}, helper))
 
 def NotVisibleSpec():
-	"""The 'not visible' specifier (equivalent to 'not visible from ego').
+	"""The :specifier:`not visible` specifier (equivalent to :specifier:`not visible from ego`).
 
-	Specifies 'position', depending on 'regionContainedIn'.
+	Specifies :prop:`position`, depending on :prop:`regionContainedIn`.
 	"""
 	return NotVisibleFrom(ego())
 
 def OffsetBy(offset):
-	"""The 'offset by <vector>' specifier.
+	"""The :grammar:`offset by <vector>` specifier.
 
-	Specifies 'position', with no dependencies.
+	Specifies :prop:`position`, with no dependencies.
 	"""
 	offset = toVector(offset, 'specifier "offset by X" with X not a vector')
 	pos = RelativeTo(offset, ego()).toVector()
 	return Specifier('position', pos)
 
 def OffsetAlongSpec(direction, offset):
-	"""The 'offset along X by Y' polymorphic specifier.
+	"""The :specifier:`offset along {X} by {Y}` polymorphic specifier.
 
-	Specifies 'position', with no dependencies.
+	Specifies :prop:`position`, with no dependencies.
 
-	Allowed forms:
+	Allowed forms::
+
 		offset along <heading> by <vector>
 		offset along <field> by <vector>
 	"""
 	return Specifier('position', OffsetAlong(ego(), direction, offset))
 
 def Facing(heading):
-	"""The 'facing X' polymorphic specifier.
+	"""The :specifier:`facing {X}` polymorphic specifier.
 
-	Specifies 'heading', with dependencies depending on the form:
-		facing <number> -- no dependencies;
-		facing <field> -- depends on 'position'.
+	Specifies :prop:`heading`, with dependencies depending on the form::
+
+		facing <number> 	# no dependencies;
+		facing <field>		# depends on 'position'
 	"""
 	if isinstance(heading, VectorField):
 		return Specifier('heading', DelayedArgument({'position'},
@@ -975,20 +982,20 @@ def Facing(heading):
 		return Specifier('heading', heading)
 
 def FacingToward(pos):
-	"""The 'facing toward <vector>' specifier.
+	"""The :grammar:`facing toward <vector>` specifier.
 
-	Specifies 'heading', depending on 'position'.
+	Specifies :prop:`heading`, depending on :prop:`position`.
 	"""
 	pos = toVector(pos, 'specifier "facing toward X" with X not a vector')
 	return Specifier('heading', DelayedArgument({'position'},
 												lambda self: self.position.angleTo(pos)))
 
 def ApparentlyFacing(heading, fromPt=None):
-	"""The 'apparently facing <heading> [from <vector>]' specifier.
+	"""The :grammar:`apparently facing <heading> [from <vector>]` specifier.
 
-	Specifies 'heading', depending on 'position'.
+	Specifies :prop:`heading`, depending on :prop:`position`.
 
-	If the 'from <vector>' is omitted, the position of ego is used.
+	If the :grammar:`from <vector>` is omitted, the position of ego is used.
 	"""
 	heading = toHeading(heading, 'specifier "apparently facing X" with X not a heading')
 	if fromPt is None:
@@ -998,66 +1005,69 @@ def ApparentlyFacing(heading, fromPt=None):
 	return Specifier('heading', DelayedArgument({'position'}, value))
 
 def LeftSpec(pos, dist=0):
-	"""The 'left of X [by Y]' polymorphic specifier.
+	"""The :specifier:`left of {X} by {Y}` polymorphic specifier.
 
-	Specifies 'position', depending on 'width'. See other dependencies below.
+	Specifies :prop:`position`, depending on :prop:`width`. See other dependencies below.
 
-	Allowed forms:
-		left of <oriented point> [by <scalar/vector>] -- optionally specifies 'heading';
-		left of <vector> [by <scalar/vector>] -- depends on 'heading'.
+	Allowed forms::
 
-	If the 'by <scalar/vector>' is omitted, zero is used.
+		left of <oriented point> [by <scalar/vector>] # optionally specifies 'heading';
+		left of <vector> [by <scalar/vector>]  # depends on 'heading'.
+
+	If the :grammar:`by <scalar/vector>` is omitted, zero is used.
 	"""
 	return leftSpecHelper('left of', pos, dist, 'width', lambda dist: (dist, 0),
 						  lambda self, dx, dy: Vector(-self.width / 2 - dx, dy))
 
 def RightSpec(pos, dist=0):
-	"""The 'right of X [by Y]' polymorphic specifier.
+	"""The :specifier:`right of {X} by {Y}` polymorphic specifier.
 
-	Specifies 'position', depending on 'width'. See other dependencies below.
+	Specifies :prop:`position`, depending on :prop:`width`. See other dependencies below.
 
-	Allowed forms:
-		right of <oriented point> [by <scalar/vector>] -- optionally specifies 'heading';
-		right of <vector> [by <scalar/vector>] -- depends on 'heading'.
+	Allowed forms::
 
-	If the 'by <scalar/vector>' is omitted, zero is used.
+		right of <oriented point> [by <scalar/vector>] # optionally specifies 'heading';
+		right of <vector> [by <scalar/vector>]  # depends on 'heading'.
+
+	If the :grammar:`by <scalar/vector>` is omitted, zero is used.
 	"""
 	return leftSpecHelper('right of', pos, dist, 'width', lambda dist: (dist, 0),
 						  lambda self, dx, dy: Vector(self.width / 2 + dx, dy))
 
 def Ahead(pos, dist=0):
-	"""The 'ahead of X [by Y]' polymorphic specifier.
+	"""The :specifier:`ahead of {X} by {Y}` polymorphic specifier.
 
-	Specifies 'position', depending on 'length'. See other dependencies below.
+	Specifies :prop:`position`, depending on :prop:`length`. See other dependencies below.
 
-	Allowed forms:
+	Allowed forms::
 
-	* ``ahead of`` <oriented point> [``by`` <scalar/vector>] -- optionally specifies 'heading';
-	* ``ahead of`` <vector> [``by`` <scalar/vector>] -- depends on 'heading'.
+		ahead of <oriented point> [by <scalar/vector>]   # optionally specifies 'heading';
+		ahead of <vector> [by <scalar/vector>]   # depends on 'heading'.
 
-	If the 'by <scalar/vector>' is omitted, zero is used.
+	If the :grammar:`by <scalar/vector>` is omitted, zero is used.
 	"""
 	return leftSpecHelper('ahead of', pos, dist, 'length', lambda dist: (0, dist),
 						  lambda self, dx, dy: Vector(dx, self.length / 2 + dy))
 
 def Behind(pos, dist=0):
-	"""The 'behind X [by Y]' polymorphic specifier.
+	"""The :specifier:`behind {X} by {Y}` polymorphic specifier.
 
-	Specifies 'position', depending on 'length'. See other dependencies below.
+	Specifies :prop:`position`, depending on :prop:`length`. See other dependencies below.
 
-	Allowed forms:
-		behind <oriented point> [by <scalar/vector>] -- optionally specifies 'heading';
-		behind <vector> [by <scalar/vector>] -- depends on 'heading'.
+	Allowed forms::
 
-	If the 'by <scalar/vector>' is omitted, zero is used.
+		behind <oriented point> [by <scalar/vector>]   # optionally specifies 'heading';
+		behind <vector> [by <scalar/vector>]   # depends on 'heading'.
+
+	If the :grammar:`by <scalar/vector>` is omitted, zero is used.
 	"""
 	return leftSpecHelper('behind', pos, dist, 'length', lambda dist: (0, dist),
 						  lambda self, dx, dy: Vector(dx, -self.length / 2 - dy))
 
 def leftSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
 	extras = set()
-	if canCoerce(dist, float):
-		dx, dy = toComponents(coerce(dist, float))
+	if canCoerce(dist, builtins.float):
+		dx, dy = toComponents(coerce(dist, builtins.float))
 	elif canCoerce(dist, Vector):
 		dx, dy = coerce(dist, Vector)
 	else:
@@ -1073,14 +1083,15 @@ def leftSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
 	return Specifier('position', new, optionals=extras)
 
 def Following(field, dist, fromPt=None):
-	"""The 'following F [from X] for D' specifier.
+	"""The :specifier:`following {F} from {X} for {D}` specifier.
 
-	Specifies 'position', and optionally 'heading', with no dependencies.
+	Specifies :prop:`position`, and optionally :prop:`heading`, with no dependencies.
 
-	Allowed forms:
+	Allowed forms::
+
 		following <field> [from <vector>] for <number>
 
-	If the 'from <vector>' is omitted, the position of ego is used.
+	If the :grammar:`from <vector>` is omitted, the position of ego is used.
 	"""
 	if fromPt is None:
 		fromPt = ego()
@@ -1097,6 +1108,9 @@ def Following(field, dist, fromPt=None):
 
 ### Primitive functions overriding Python builtins
 
+# N.B. applying functools.wraps to preserve the metadata of the original
+# functions seems to break pickling/unpickling
+
 @distributionFunction
 def filter(function, iterable):
 	return list(builtins.filter(function, iterable))
@@ -1104,3 +1118,23 @@ def filter(function, iterable):
 @distributionFunction
 def str(*args, **kwargs):
 	return builtins.str(*args, **kwargs)
+
+@distributionFunction
+def float(*args, **kwargs):
+	return builtins.float(*args, **kwargs)
+
+@distributionFunction
+def int(*args, **kwargs):
+	return builtins.int(*args, **kwargs)
+
+@distributionFunction
+def round(*args, **kwargs):
+	return builtins.round(*args, **kwargs)
+
+def len(obj):
+	return obj.__len__()
+
+def range(*args):
+	if any(needsSampling(arg) for arg in args):
+		raise RandomControlFlowError('cannot construct a range with random parameters')
+	return builtins.range(*args)

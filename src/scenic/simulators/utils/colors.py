@@ -8,6 +8,7 @@ as well as in the interfaces to GTA and Webots.
 import colorsys
 from collections import namedtuple
 import random
+import struct
 
 from scenic.core.distributions import Distribution, Range, Normal, Options, toDistribution
 from scenic.core.lazy_eval import valueInContext
@@ -22,6 +23,14 @@ class Color(namedtuple('Color', ['r', 'g', 'b'])):
 	@staticmethod
 	def realToByte(color):
 		return tuple(int(round(255 * c)) for c in color)
+
+	@staticmethod
+	def encodeTo(color, stream):
+		stream.write(struct.pack('<ddd', *color))
+
+	@staticmethod
+	def decodeFrom(stream):
+		return Color(*struct.unpack('<ddd', stream.read(24)))
 
 	@staticmethod
 	def uniformColor():

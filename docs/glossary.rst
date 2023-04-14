@@ -14,14 +14,14 @@ Glossary
 		`Action`.
 
 	agent
-		A Scenic `Object` which has a :term:`dynamic behavior` (set as its ``behavior`` property).
+		A Scenic `Object` which has a :term:`dynamic behavior` (set as its :prop:`behavior` property).
 
 	container
-		The region specified as the ``regionContainedIn`` property of an `object`, or the
+		The region specified as the :prop:`regionContainedIn` property of an `object`, or the
 		entire :term:`workspace` if it is `None` (the default). A built-in requirement
 		enforces that objects are completely contained in their containers: so by default
 		all objects fit into the workspace, and particular kinds of objects can define
-		more stringent requirements by overridding ``regionContainedIn`` (e.g. making cars
+		more stringent requirements by overridding :prop:`regionContainedIn` (e.g. making cars
 		be on roads by default).
 
 	behavior
@@ -58,7 +58,7 @@ Glossary
 
 	preferred orientation
 		A `vector field` set as the ``orientation`` attribute of a `Region`, indicating that objects placed within that region should be oriented to align along that vector field unless otherwise specified.
-		For example, the :obj:`~scenic.domains.driving.model.road` region provided by the :ref:`driving_domain` has as its preferred orientation the :obj:`~scenic.domains.driving.model.roadDirection` vector field, so that vehicles positioned using the specifier ``on road`` will be facing the nominal traffic direction at their position by default (i.e., the specifier specifies ``heading`` optionally, so that an explicit :samp:`facing {H}` specifier will override it).
+		For example, the :obj:`~scenic.domains.driving.model.road` region provided by the :ref:`driving_domain` has as its preferred orientation the :obj:`~scenic.domains.driving.model.roadDirection` vector field, so that vehicles positioned using the specifier :scenic:`on road` will be facing the nominal traffic direction at their position by default (i.e., the specifier specifies :prop:`heading` optionally, so that an explicit :scenic:`facing {H}` specifier will override it).
 
 	visible region
 		The `Region` which is "visible" from a given `Object` for the purposes of the :keyword:`can see` operator, the :keyword:`visible <visible_spec>` specifier, etc.
@@ -73,7 +73,7 @@ Glossary
 	world model
 		A Scenic library defining classes, regions, :term:`actions`, helper functions, etc. for use by scenarios targeting a particular simulator or application domain.
 		For example, the world model for the :ref:`driving_domain`, `scenic.domains.driving.model`, defines classes for vehicles, actions for steering, and regions for different parts of the road network.
-		In the line ``Car in intersection``, only the ``in`` specifier is built into Scenic: the class :obj:`~scenic.domains.driving.model.Car` and the region :obj:`~scenic.domains.driving.model.intersection` are defined by the world model.
+		In the line :scenic:`Car in intersection`, only the :scenic:`in` specifier is built into Scenic: the class :obj:`~scenic.domains.driving.model.Car` and the region :obj:`~scenic.domains.driving.model.intersection` are defined by the world model.
 		A world model can be used through the :keyword:`model` statement, or simply by importing it like any other Scenic module.
 
 		.. seealso:: :ref:`defining_world_model` gives further examples and details on how to write a world model.

@@ -7,6 +7,7 @@ from math import sin, cos
 import random
 import collections
 import itertools
+import struct
 
 import decorator
 import shapely.geometry
@@ -15,6 +16,7 @@ from scenic.core.distributions import (Samplable, Distribution, MethodDistributi
     needsSampling, makeOperatorHandler, distributionMethod, distributionFunction,
 	RejectionException)
 from scenic.core.lazy_eval import valueInContext, needsLazyEvaluation, makeDelayedFunctionCall
+from scenic.core.type_support import CoercionFailure
 from scenic.core.utils import argsToString
 from scenic.core.geometry import normalizeAngle
 
@@ -24,26 +26,6 @@ class VectorDistribution(Distribution):
 
 	def toVector(self):
 		return self
-
-class CustomVectorDistribution(VectorDistribution):
-	"""Distribution with a custom sampler given by an arbitrary function."""
-	def __init__(self, sampler, *dependencies, name='CustomVectorDistribution', evaluator=None):
-		super().__init__(*dependencies)
-		self.sampler = sampler
-		self.name = name
-		self.evaluator = evaluator
-
-	def sampleGiven(self, value):
-		return self.sampler(value)
-
-	def evaluateInner(self, context):
-		if self.evaluator is None:
-			raise NotImplementedError('evaluateIn() not supported by this distribution')
-		return self.evaluator(self, context)
-
-	def __str__(self):
-		deps = argsToString(self.dependencies)
-		return f'{self.name}{deps}'
 
 class VectorOperatorDistribution(VectorDistribution):
 	"""Vector version of OperatorDistribution."""
@@ -64,9 +46,8 @@ class VectorOperatorDistribution(VectorDistribution):
 		operands = tuple(valueInContext(arg, context) for arg in self.operands)
 		return VectorOperatorDistribution(self.operator, obj, operands)
 
-	def __str__(self):
-		ops = argsToString(self.operands)
-		return f'{self.object}.{self.operator}{ops}'
+	def __repr__(self):
+		return f'{self.object!r}.{self.operator}({argsToString(self.operands)})'
 
 class VectorMethodDistribution(VectorDistribution):
 	"""Vector version of MethodDistribution."""
@@ -88,14 +69,14 @@ class VectorMethodDistribution(VectorDistribution):
 		kwargs = { name: valueInContext(arg, context) for name, arg in self.kwargs.items() }
 		return VectorMethodDistribution(self.method, obj, arguments, kwargs)
 
-	def __str__(self):
-		args = argsToString(itertools.chain(self.arguments, self.kwargs.values()))
-		return f'{self.object}.{self.method.__name__}{args}'
+	def __repr__(self):
+		args = argsToString(self.arguments, self.kwargs)
+		return f'{self.object!r}.{self.method.__name__}({args})'
 
 def scalarOperator(method):
 	"""Decorator for vector operators that yield scalars."""
 	op = method.__name__
-	setattr(VectorDistribution, op, makeOperatorHandler(op))
+	setattr(VectorDistribution, op, makeOperatorHandler(op, float))
 
 	@decorator.decorator
 	def wrapper(wrapped, instance, *args, **kwargs):
@@ -109,7 +90,7 @@ def makeVectorOperatorHandler(op):
 	def handler(self, *args):
 		return VectorOperatorDistribution(op, self, args)
 	return handler
-def vectorOperator(method):
+def vectorOperator(method, preservesZero=False):
 	"""Decorator for vector operators that yield vectors."""
 	op = method.__name__
 	setattr(VectorDistribution, op, makeVectorOperatorHandler(op))
@@ -119,6 +100,8 @@ def vectorOperator(method):
 		def helper(*args):
 			if needsSampling(instance):
 				return VectorOperatorDistribution(op, instance, args)
+			elif preservesZero and all(coord == 0 for coord in instance.coordinates):
+				return instance
 			elif any(needsSampling(arg) for arg in args):
 				return VectorMethodDistribution(method, instance, args, {})
 			elif any(needsLazyEvaluation(arg) for arg in args):
@@ -128,6 +111,8 @@ def vectorOperator(method):
 				return wrapped(instance, *args)
 		return helper(*args)
 	return wrapper(method)
+def zeroPreservingVectorOperator(method):
+	return vectorOperator(method, preservesZero=True)
 
 def vectorDistributionMethod(method):
 	"""Decorator for methods that produce vectors. See distributionMethod."""
@@ -162,13 +147,28 @@ class Vector(Samplable, collections.abc.Sequence):
 	def toVector(self) -> Vector:
 		return self
 
+	@staticmethod
+	def _canCoerceType(ty):
+		return issubclass(ty, (tuple, list)) or hasattr(ty, 'toVector')
+
+	@staticmethod
+	def _coerce(thing) -> Vector:
+		if isinstance(thing, (tuple, list)):
+			l = len(thing)
+			if l != 2:
+				raise CoercionFailure('expected 2D vector, got '
+				                      f'{type(thing).__name__} of length {l}')
+			return Vector(*thing)
+		else:
+			return thing.toVector()
+
 	def sampleGiven(self, value):
 		return Vector(*(value[coord] for coord in self.coordinates))
 
 	def evaluateInner(self, context):
 		return Vector(*(valueInContext(coord, context) for coord in self.coordinates))
 
-	@vectorOperator
+	@zeroPreservingVectorOperator
 	def rotatedBy(self, angle) -> Vector:
 		"""Return a vector equal to this one rotated counterclockwise by the given angle."""
 		x, y = self.x, self.y
@@ -268,6 +268,14 @@ class Vector(Samplable, collections.abc.Sequence):
 
 	def __hash__(self):
 		return hash(self.coordinates)
+
+	@classmethod
+	def encodeTo(cls, vec, stream):
+		stream.write(struct.pack('<dd', *vec.coordinates))
+
+	@classmethod
+	def decodeFrom(cls, stream):
+		return cls(*struct.unpack('<dd', stream.read(16)))
 
 VectorDistribution._defaultValueType = Vector
 

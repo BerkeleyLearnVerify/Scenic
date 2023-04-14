@@ -27,16 +27,16 @@ this very concisely in Scenic:
 
 Line 1 imports the GTA :term:`world model`, a Scenic library defining everything specific to our
 GTA interface. This includes the definition of the class `Car`, as well as information
-about the road geometry that we'll see later. We'll suppress this ``import`` statement in
+about the road geometry that we'll see later. We'll suppress this :scenic:`import` statement in
 subsequent examples.
 
-Line 2 then creates a `Car` and assigns it to the special variable ``ego`` specifying the
+Line 2 then creates a :scenic:`Car` and assigns it to the special variable :scenic:`ego` specifying the
 *ego object*. This is the reference point for the scenario: our simulator interfaces
 typically use it as the viewpoint for rendering images, and many of Scenic's geometric
-operators use ``ego`` by default when a position is left implicit (we'll see an example
+operators use :scenic:`ego` by default when a position is left implicit (we'll see an example
 momentarily).
 
-Finally, line 3 creates a second `Car`. Compiling this scenario with Scenic, sampling a
+Finally, line 3 creates a second :scenic:`Car`. Compiling this scenario with Scenic, sampling a
 scene from it, and importing the scene into GTA V yields an image like this:
 
 .. figure:: /images/simplest2.jpg
@@ -46,13 +46,13 @@ scene from it, and importing the scene into GTA V yields an image like this:
 
   A scene sampled from the simple car scenario, rendered in GTA V.
 
-Note that both the ``ego`` car (where the camera is located) and the second car are both
+Note that both the :scenic:`ego` car (where the camera is located) and the second car are both
 located on the road and facing along it, despite the fact that the code above does not
 specify the position or any other properties of the two cars. This is because in Scenic,
 any unspecified properties take on the *default values* inherited from the object's
-class. Slightly simplified, the definition of the class `Car` begins:
+class. Slightly simplified, the definition of the class :scenic:`Car` begins:
 
-.. code-block:: scenic
+.. code-block::
 	:linenos:
 
 	class Car:
@@ -65,9 +65,9 @@ class. Slightly simplified, the definition of the class `Car` begins:
 Here ``road`` is a *region*, one of Scenic's primitive types, defined in the `gta` model
 to specify which points in the workspace are on a road. Similarly, ``roadDirection`` is a
 *vector field* specifying the nominal traffic direction at such points. The operator
-:samp:`{F} at {X}` simply gets the direction of the field *F* at point *X*, so line 3
-sets a `Car`'s default heading to be the road direction at its ``position``. The default
-``position``, in turn, is a ``Point on road`` (we will explain this syntax shortly),
+:scenic:`{F} at {X}` simply gets the direction of the field *F* at point *X*, so line 3
+sets a :scenic:`Car`'s default heading to be the road direction at its :prop:`position`. The default
+:prop:`position`, in turn, is a :scenic:`Point on road` (we will explain this syntax shortly),
 which means a uniformly random point on the road. Thus, in our simple scenario above both
 cars will be placed on the road facing a reasonable direction, without our having to
 specify this explicitly.
@@ -75,43 +75,38 @@ specify this explicitly.
 We can of course override the class-provided defaults and define the position of an
 object more specifically. For example,
 
-.. code-block:: scenic
-	:linenos:
+::
 
 	Car offset by Range(-10, 10) @ Range(20, 40)
 
-creates a car that is 20--40 meters ahead of the camera (the ``ego``), and up to 10
+creates a car that is 20--40 meters ahead of the camera (the :scenic:`ego`), and up to 10
 meters to the left or right, while still using the default heading (namely, being aligned
-with the road). Here :samp:`Range({X}, {Y})` creates a uniform distribution on the
-interval between :samp:`{X}` and :samp:`{Y}`, and :samp:`{X} @ {Y}` creates a vector from
+with the road). Here :scenic:`Range({X}, {Y})` creates a uniform distribution on the
+interval between :scenic:`{X}` and :scenic:`{Y}`, and :scenic:`{X} @ {Y}` creates a vector from
 *xy* coordinates as in Smalltalk [GR83]_. If you prefer, you can give a list or tuple of
-*xy* coordinates instead, e.g.,
-
-.. code-block:: scenic
-	:linenos:
+*xy* coordinates instead, e.g.::
 
 	Car offset by (Range(-10, 10), Range(20, 40))
 
 One exception to the above rules for object creation is that if the name of a class is followed
 immediately by punctuation, then an object is not created. This allows us to refer to a Scenic
 class without creating an instance of that class in the environment, which is useful for statements
-like ``isinstance(obj, Car)``, ``[Taxi, Truck]``, ``Car.staticMethod``, etc.
+like :scenic:`isinstance(obj, Car)`, :scenic:`[Taxi, Truck]`, :scenic:`Car.staticMethod`, etc.
 
 Local Coordinate Systems
 ------------------------
 
 Scenic provides a number of constructs for working with local coordinate systems, which
 are often helpful when building a scene incrementally out of component parts. Above, we
-saw how ``offset by`` could be used to position an object in the coordinate system of the
-``ego``, for instance placing a car a certain distance away from the camera [#f1]_.
+saw how :specifier:`offset by` could be used to position an object in the coordinate system of the
+:scenic:`ego`, for instance placing a car a certain distance away from the camera [#f1]_.
 
 It is equally easy in Scenic to use local coordinate systems around other objects or even
 arbitrary points. For example, suppose we want to make the scenario above more realistic
 by not requiring the car to be *exactly* aligned with the road, but to be within say 5°.
 We could write
 
-.. code-block:: scenic
-	:linenos:
+::
 
 	Car offset by Range(-10, 10) @ Range(20, 40),
 	    facing Range(-5, 5) deg
@@ -119,30 +114,27 @@ We could write
 but this is not quite what we want, since this sets the orientation of the car in
 *global* coordinates. Thus the car will end up facing within 5° of North, rather than
 within 5° of the road direction. Instead, we can use Scenic's general operator
-:samp:`{X} relative to {Y}`, which can interpret vectors and headings as being in a
-variety of local coordinate systems:
-
-.. code-block::scenic
-	:linenos:
+:scenic:`{X} relative to {Y}`, which can interpret vectors and headings as being in a
+variety of local coordinate systems::
 
 	Car offset by Range(-10, 10) @ Range(20, 40),
 	    facing Range(-5, 5) deg relative to roadDirection
 
 If instead we want the heading to be relative to that of the ego car, so that the two
-cars are (roughly) aligned, we can simply write ``Range(-5, 5) deg relative to ego``.
+cars are (roughly) aligned, we can simply write :scenic:`Range(-5, 5) deg relative to ego`.
 
 Notice that since ``roadDirection`` is a vector field, it defines a different local
 coordinate system at each point in space: at different points on the map, roads point
-different directions! Thus an expression like ``15 deg relative to field`` does not
+different directions! Thus an expression like :scenic:`15 deg relative to field` does not
 define a unique heading. The example above works because Scenic knows that the
-expression ``Range(-5, 5) deg relative to roadDirection`` depends on a reference
-position, and automatically uses the ``position`` of the `Car` being defined. This is a
+expression :scenic:`Range(-5, 5) deg relative to roadDirection` depends on a reference
+position, and automatically uses the :prop:`position` of the :scenic:`Car` being defined. This is a
 feature of Scenic's system of *specifiers*, which we explain next.
 
 Readable, Flexible Specifiers
 -----------------------------
 
-The syntax :samp:`offset by {X}` and :samp:`facing {Y}` for specifying positions and
+The syntax :specifier:`offset by {X}` and :specifier:`facing {Y}` for specifying positions and
 orientations may seem unusual compared to typical constructors in object-oriented
 languages. There are two reasons why Scenic uses this kind of syntax: first, readability.
 The second is more subtle and based on the fact that in natural language there are many
@@ -163,13 +155,13 @@ the taxi is not parallel to the lane.
 
 Furthermore, these specifications combine other properties of the object in different
 ways: to place the object "just left of" a position, we must first know the object's
-``heading``; whereas if we wanted to face the object "towards" a location, we must
-instead know its ``position``. There can be chains of such *dependencies*: for example,
+:prop:`heading`; whereas if we wanted to face the object "towards" a location, we must
+instead know its :prop:`position`. There can be chains of such *dependencies*: for example,
 the description "the car is 0.5 m left of the curb" means that the *right edge* of the
-car is 0.5 m away from the curb, not its center, which is what the car's ``position``
-property stores. So the car's ``position`` depends on its ``width``, which in turn
-depends on its ``model``. In a typical object-oriented language, these dependencies might
-be handled by first computing values for ``position`` and all other properties, then
+car is 0.5 m away from the curb, not its center, which is what the car's :prop:`position`
+property stores. So the car's :prop:`position` depends on its :prop:`width`, which in turn
+depends on its :prop:`model`. In a typical object-oriented language, these dependencies might
+be handled by first computing values for :prop:`position` and all other properties, then
 passing them to a constructor. For "a car is 0.5 m left of the curb" we might write
 something like:
 
@@ -182,7 +174,7 @@ something like:
 
 Notice how ``model`` must be used twice, because ``model`` determines both the model of
 the car and (indirectly) its position. This is inelegant, and breaks encapsulation
-because the default model distribution is used outside of the ``Car`` constructor. The
+because the default model distribution is used outside of the :scenic:`Car` constructor. The
 latter problem could be fixed by having a specialized constructor or factory function:
 
 .. code-block:: python
@@ -194,56 +186,47 @@ However, such functions would proliferate since we would need to handle all poss
 combinations of ways to specify different properties (e.g. do we want to require a
 specific model? Are we overriding the width provided by the model for this specific
 car?). Instead of having a multitude of such monolithic constructors, Scenic factors the
-definition of objects into potentially-interacting but syntactically-indepdendent parts:
-
-.. code-block:: scenic
-	:linenos:
+definition of objects into potentially-interacting but syntactically-independent parts::
 
 	Car left of spot by 0.5,
 	    with model CarModel.models['BUS']
 
-Here :samp:`left of {X} by {D}` and :samp:`with model {M}` are *specifiers* which do not
+Here :specifier:`left of {X} by {D}` and :specifier:`with model {M}` are *specifiers* which do not
 have an order, but which *together* specify the properties of the car. Scenic works out
-the dependencies between properties (here, ``position`` is provided by ``left of``, which
-depends on ``width``, whose default value depends on ``model``) and evaluates them in the
+the dependencies between properties (here, :prop:`position` is provided by :specifier:`left of`, which
+depends on :prop:`width`, whose default value depends on :prop:`model`) and evaluates them in the
 correct order. To use the default model distribution we would simply omit line 2; keeping
-it affects the ``position`` of the car appropriately without having to specify ``BUS``
+it affects the :prop:`position` of the car appropriately without having to specify ``BUS``
 more than once.
 
 Specifying Multiple Properties Together
 ---------------------------------------
 
-Recall that we defined the default ``position`` for a `Car` to be a ``Point on road``:
-this is an example of another specifier, :samp:`on {region}`, which specifies
-``position`` to be a uniformly random point in the given region. This specifier
+Recall that we defined the default :prop:`position` for a :scenic:`Car` to be a :scenic:`Point on road`:
+this is an example of another specifier, :specifier:`on {region}`, which specifies
+:prop:`position` to be a uniformly random point in the given region. This specifier
 illustrates another feature of Scenic, namely that specifiers can specify multiple
 properties simultaneously. Consider the following scenario, which creates a parked car
-given a region ``curb`` (also defined in the `scenic.simulators.gta.model` library):
-
-.. code-block:: scenic
-	:linenos:
+given a region ``curb`` (also defined in the `scenic.simulators.gta.model` library)::
 
 	spot = OrientedPoint on visible curb
 	Car left of spot by 0.25
 
-The function :samp:`visible {region}` returns the part of the region that is visible from
-the ego object. The specifier ``on visible curb`` with then set ``position`` to be a
+The function :scenic:`visible {region}` returns the part of the region that is visible from
+the ego object. The specifier :specifier:`on visible curb` will then set :prop:`position` to be a
 uniformly random visible point on the curb. We create ``spot`` as an `OrientedPoint`,
 which is a built-in class that defines a local coordinate system by having both a
-``position`` and a ``heading``. The :samp:`on {region}` specifier can also specify
-``heading`` if the region has a :term:`preferred orientation` (a vector field) associated with
+:prop:`position` and a :prop:`heading`. The :specifier:`on {region}` specifier can also specify
+:prop:`heading` if the region has a :term:`preferred orientation` (a vector field) associated with
 it: in our example, ``curb`` is oriented by ``roadDirection``. So ``spot`` is, in fact,
 a uniformly random visible point on the curb, oriented along the road. That orientation
-then causes the `Car` to be placed 0.25 m left of ``spot`` in ``spot``'s local coordinate
+then causes the :scenic:`Car` to be placed 0.25 m left of ``spot`` in ``spot``'s local coordinate
 system, i.e. 0.25 m away from the curb, as desired.
 
 In fact, Scenic makes it easy to elaborate this scenario without needing to alter the
 code above. Most simply, we could specify a particular model or non-default distribution
-over models by just adding :samp:`with model {M}` to the definition of the `Car`. More
-interestingly, we could produce a scenario for *badly*-parked cars by adding two lines:
-
-.. code-block:: scenic
-	:linenos:
+over models by just adding :specifier:`with model {M}` to the definition of the :scenic:`Car`. More
+interestingly, we could produce a scenario for *badly*-parked cars by adding two lines::
 
 	spot = OrientedPoint on visible curb
 	badAngle = Uniform(1, -1) * Range(10, 20) deg
@@ -269,7 +252,7 @@ intersect each other. Despite this, Scenic will never generate such scenes. This
 because Scenic enforces several *default requirements*:
 
 	* All objects must be contained in the :term:`workspace`, or a particular specified region (its :term:`container`).
-	  For example, we can define the `Car` class so that all of its instances must be
+	  For example, we can define the :scenic:`Car` class so that all of its instances must be
 	  contained in the region ``road`` by default.
 
 	* Objects must not intersect each other (unless explicitly allowed).
@@ -279,32 +262,26 @@ because Scenic enforces several *default requirements*:
 
 Scenic also allows the user to define custom requirements checking arbitrary conditions
 built from various geometric predicates. For example, the following scenario produces a
-car headed roughly towards the camera, while still facing the nominal road direction:
-
-.. code-block:: scenic
-	:linenos:
+car headed roughly towards the camera, while still facing the nominal road direction::
 
 	ego = Car on road
 	car2 = Car offset by Range(-10, 10) @ Range(20, 40), with viewAngle 30 deg
 	require car2 can see ego
 
-Here we have used the :samp:`{X} can see {Y}` predicate, which in this case is checking
+Here we have used the :scenic:`{X} can see {Y}` predicate, which in this case is checking
 that the ego car is inside the 30° view cone of the second car.
 
 Requirements, called *observations* in other probabilistic programming languages, are
 very convenient for defining scenarios because they make it easy to restrict attention to
 particular cases of interest. Note how difficult it would be to write the scenario above
-without the ``require`` statement: when defining the ego car, we would have to somehow
+without the :scenic:`require` statement: when defining the ego car, we would have to somehow
 specify those positions where it is possible to put a roughly-oncoming car 20--40 meters
 ahead (for example, this is not possible on a one-way road). Instead, we can simply place
-``ego`` uniformly over all roads and let Scenic work out how to condition the
+:scenic:`ego` uniformly over all roads and let Scenic work out how to condition the
 distribution so that the requirement is satisfied [#f2]_. As this example illustrates,
 the ability to declaratively impose constraints gives Scenic greater versatility than
 purely-generative formalisms. Requirements also improve encapsulation by allowing us to
-restrict an existing scenario without altering it. For example:
-
-.. code-block:: scenic
-	:linenos:
+restrict an existing scenario without altering it. For example::
 
 	import genericTaxiScenario    # import another Scenic scenario
 	fifthAvenue = ...             # extract a Region from a map here
@@ -312,10 +289,7 @@ restrict an existing scenario without altering it. For example:
 
 The constraints in our examples above are *hard requirements* which must always be
 satisfied. Scenic also allows imposing *soft requirements* that need only be true with
-some minimum probability:
-
-.. code-block:: scenic
-	:linenos:
+some minimum probability::
 
 	require[0.5] car2 can see ego	# condition only needs to hold with prob. >= 0.5
 
@@ -329,19 +303,16 @@ Mutations
 A common testing paradigm is to randomly generate *variations* of existing tests. Scenic
 supports this paradigm by providing syntax for performing mutations in a compositional
 manner, adding variety to a scenario without changing its code. For example, given a
-complex scenario involving a taxi, we can add one additional line:
-
-.. code-block:: scenic
-	:linenos:
+complex scenario involving a taxi, we can add one additional line::
 
 	from bigScenario import taxi
 	mutate taxi
 
-The :keyword:`mutate` statement will add Gaussian noise to the ``position`` and ``heading``
+The :scenic:`mutate` statement will add Gaussian noise to the :prop:`position` and :prop:`heading`
 properties of ``taxi``, while still enforcing all built-in and custom requirements. The
 standard deviation of the noise can be scaled by writing, for example,
-``mutate taxi by 2`` (which adds twice as much noise), and in fact can be controlled
-separately for ``position`` and ``heading`` (see `scenic.core.object_types.Mutator`).
+:scenic:`mutate taxi by 2` (which adds twice as much noise), and in fact can be controlled
+separately for :prop:`position` and :prop:`heading` (see `scenic.core.object_types.Mutator`).
 
 A Worked Example
 ----------------
@@ -357,13 +328,13 @@ We will write a scenario representing a rubble field of rocks and piples with a
 bottleneck between the rover and its goal that forces the path planner to consider
 climbing over a rock. First, we import a small Scenic library for the Webots robotics
 simulator (`scenic.simulators.webots.mars.model`) which defines the (empty) workspace
-and several types of objects: the `Rover` itself, the `Goal` (represented by a flag), and
-debris classes `Rock`, `BigRock`, and `Pipe`. `Rock` and `BigRock` have fixed sizes, and
-the rover can climb over them; `Pipe` cannot be climbed over, and can represent a pipe of
-arbitrary length, controlled by the ``length`` property (which corresponds to Scenic's
+and several types of objects: the :scenic:`Rover` itself, the :scenic:`Goal` (represented by a flag), and
+debris classes :scenic:`Rock`, :scenic:`BigRock`, and :scenic:`Pipe`. :scenic:`Rock` and :scenic:`BigRock` have fixed sizes, and
+the rover can climb over them; :scenic:`Pipe` cannot be climbed over, and can represent a pipe of
+arbitrary length, controlled by the :prop:`length` property (which corresponds to Scenic's
 *y* axis).
 
-.. code-block:: scenic
+.. code-block::
 	:linenos:
 
 	from scenic.simulators.webots.mars.model import *
@@ -371,7 +342,7 @@ arbitrary length, controlled by the ``length`` property (which corresponds to Sc
 Then we create the rover at a fixed position and the goal at a random position on the
 other side of the workspace:
 
-.. code-block:: scenic
+.. code-block::
 	:lineno-start: 2
 
 	ego = Rover at 0 @ -2
@@ -380,7 +351,7 @@ other side of the workspace:
 Next we pick a position for the bottleneck, requiring it to lie roughly on the way from
 the robot to its goal, and place a rock there.
 
-.. code-block:: scenic
+.. code-block::
 	:lineno-start: 4
 
 	bottleneck = OrientedPoint offset by Range(-1.5, 1.5) @ Range(0.5, 1.5),
@@ -388,13 +359,13 @@ the robot to its goal, and place a rock there.
 	require abs((angle to goal) - (angle to bottleneck)) <= 10 deg
 	BigRock at bottleneck
 
-Note how we define ``bottleneck`` as an `OrientedPoint`, with a range of possible
+Note how we define ``bottleneck`` as an :scenic:`OrientedPoint`, with a range of possible
 orientations: this is to set up a local coordinate system for positioning the pipes
 making up the bottleneck. Specifically, we position two pipes of varying lengths on
 either side of the bottleneck, with their ends far enough apart for the robot to be able
 to pass between:
 
-.. code-block:: scenic
+.. code-block::
 	:lineno-start: 8
 
 	halfGapWidth = (1.2 * ego.width) / 2
@@ -409,7 +380,7 @@ Finally, to make the scenario slightly more interesting, we add several addition
 obstacles, positioned either on the far side of the bottleneck or anywhere at random
 (recalling that Scenic automatically ensures that no objects will overlap).
 
-.. code-block:: scenic
+.. code-block::
 	:lineno-start: 15
 
 	BigRock beyond bottleneck by Range(-0.5, 0.5) @ Range(0.5, 1)
@@ -469,8 +440,8 @@ constructs in convenient tables with links to the detailed documentation.
 
 .. rubric:: Footnotes
 
-.. [#f1] In fact, ``ego`` is a variable and can be reassigned, so we can set ``ego`` to
-   one object, build a part of the scene around it, then reassign ``ego`` and build
+.. [#f1] In fact, :scenic:`ego` is a variable and can be reassigned, so we can set :scenic:`ego` to
+   one object, build a part of the scene around it, then reassign :scenic:`ego` and build
    another part of the scene.
 
 .. [#f2] On the other hand, Scenic may have to work hard to satisfy difficult

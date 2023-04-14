@@ -1,5 +1,6 @@
 """Scenario and scene objects."""
 
+import io
 import random
 import time
 import sys
@@ -9,12 +10,11 @@ from scenic.core.distributions import (Samplable, ConstantSamplable, RejectionEx
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.external_params import ExternalSampler
 from scenic.core.regions import EmptyRegion
-from scenic.core.workspaces import Workspace
 from scenic.core.vectors import Vector
 from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
 from scenic.core.dynamics import Behavior
 from scenic.core.requirements import BoundRequirement
-from scenic.core.serialization import dumpAsScenicCode
+from scenic.core.serialization import Serializer, dumpAsScenicCode
 
 # Pickling support
 
@@ -95,7 +95,8 @@ class Scene(_ScenarioPickleMixin):
 				 alwaysReqs=(), eventuallyReqs=(),
 				 terminationConds=(), termSimulationConds=(),
 				 recordedExprs=(), recordedInitialExprs=(), recordedFinalExprs=(),
-				 monitors=(), behaviorNamespaces={}, dynamicScenario=None):
+				 monitors=(), behaviorNamespaces={}, dynamicScenario=None,
+				 sample={}):
 		self.workspace = workspace
 		self.objects = tuple(objects)
 		self.egoObject = egoObject
@@ -110,9 +111,13 @@ class Scene(_ScenarioPickleMixin):
 		self.monitors = tuple(monitors)
 		self.behaviorNamespaces = behaviorNamespaces
 		self.dynamicScenario = dynamicScenario
+		self.sample = sample
 
 	def dumpAsScenicCode(self, stream=sys.stdout):
 		"""Dump Scenic code reproducing this scene to the given stream.
+
+		For non-human-readable but complete serialization of scenes see
+		`Scenario.sceneToBytes` and `Scenario.sceneFromBytes`.
 
 		.. note::
 
@@ -157,9 +162,7 @@ class Scenario(_ScenarioPickleMixin):
 				 params, externalParams,
 				 requirements, requirementDeps,
 				 monitors, behaviorNamespaces,
-				 dynamicScenario):
-		if workspace is None:
-			workspace = Workspace()		# default empty workspace
+				 dynamicScenario, astHash):
 		self.workspace = workspace
 		self.simulator = simulator		# simulator for dynamic scenarios
 		# make ego the first object, while otherwise preserving order
@@ -175,6 +178,7 @@ class Scenario(_ScenarioPickleMixin):
 		self.monitors = tuple(monitors)
 		self.behaviorNamespaces = behaviorNamespaces
 		self.dynamicScenario = dynamicScenario
+		self.astHash = astHash
 
 		staticReqs, alwaysReqs, terminationConds = [], [], []
 		self.requirements = tuple(dynamicScenario._requirements)	# TODO clean up
@@ -330,10 +334,16 @@ class Scenario(_ScenarioPickleMixin):
 			for req in activeReqs:
 				if not req.satisfiedBy(sample):
 					rejection = str(req)
+					optionallyDebugRejection()
 					break
 
 		# obtained a valid sample; assemble a scene from it
-		sampledObjects = tuple(sample[obj] for obj in objects)
+		scene = self._makeSceneFromSample(sample)
+		return scene, iterations
+
+	def _makeSceneFromSample(self, sample):
+		sampledObjects = tuple(sample[obj] for obj in self.objects)
+		ego = sample[self.egoObject]
 		sampledParams = {}
 		for param, value in self.params.items():
 			sampledValue = sample[value]
@@ -357,8 +367,9 @@ class Scenario(_ScenarioPickleMixin):
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
 					  alwaysReqs, eventuallyReqs, terminationConds, termSimulationConds,
 					  recordedExprs, recordedInitialExprs,recordedFinalExprs,
-					  self.monitors, sampledNamespaces, self.dynamicScenario)
-		return scene, iterations
+					  self.monitors, sampledNamespaces, self.dynamicScenario,
+					  sample)
+		return scene
 
 	def resetExternalSampler(self):
 		"""Reset the scenario's external sampler, if any.
@@ -413,3 +424,95 @@ class Scenario(_ScenarioPickleMixin):
 			raise RuntimeError('scenario does not specify a simulator')
 		import scenic.syntax.veneer as veneer
 		return veneer.instantiateSimulator(self.simulator, self.params)
+
+	def sceneToBytes(self, scene, allowPickle=False):
+		"""Encode a `Scene` sampled from this scenario to a `bytes` object.
+
+		The serialized scene may be reconstituted with `sceneFromBytes`. The format used
+		is suitable for long-term storage of scenes, although it is not guaranteed to be
+		compatible across major versions of Scenic. For further discussion and usage
+		examples, see :ref:`serialization`.
+
+		Raises:
+			SerializationError: if the scene could not be properly encoded. This should
+				not happen unless your scenario includes a user-defined `Distribution`
+				subclass with an unusual value type. If you get this exception, see the
+				documentation for the internal class `Serializer` for solutions.
+		"""
+		ser = Serializer(allowPickle=allowPickle)
+		ser.writeScene(self, scene)
+		return ser.getBytes()
+
+	def sceneFromBytes(self, data, verify=True, allowPickle=False):
+		"""Decode a `Scene` serialized with `sceneToBytes`.
+
+		Args:
+			data (bytes): Encoding of a `Scene` sampled from this scenario.
+			verify (bool): If true (the default), raise an exception if the scene
+				appears to have been generated from a different scenario (meaning
+				it will almost certainly not decode correctly).
+			allowPickle (bool): Enable using `pickle` to deserialize custom object
+				types. False by default because it allows malicious data to trigger
+				arbitrary code execution (see the `pickle` documentation). Use this
+				option only if you trust the source of the data and it is not practical
+				to implement serialization for the datatypes you need.
+
+		Raises:
+			SerializationError: if the scene could not be properly decoded.
+		"""
+		ser = Serializer(data, allowPickle=allowPickle)
+		return ser.readScene(self, verify=verify)
+
+	def simulationToBytes(self, simulation, allowPickle=False):
+		"""Encode a `Simulation` sampled from this scenario to a `bytes` object.
+
+		The serialized simulation may be replayed with `simulationFromBytes`. As with
+		`sceneToBytes`, the format used is suitable for long-term storage but is not
+		guaranteed to be compatible across major versions of Scenic.
+
+		Raises:
+			SerializationError: if the simulation could not be properly encoded. This should
+				not happen unless your scenario includes a user-defined `Distribution`
+				subclass with an unusual value type. If you get this exception, see the
+				documentation for the internal class `Serializer` for solutions.
+
+		.. note::
+
+			The returned data encodes both the scene comprising the initial condition for the
+			simulation and the simulation itself. If you will be running many simulations
+			starting from the same scene, you can save space by separately encoding the scene
+			and the various simulations: use `sceneToBytes` and `Simulation.getReplay` for
+			encoding, and the **replay** argument of `Simulator.simulate` for decoding.
+		"""
+		sceneData = self.sceneToBytes(simulation.scene)
+		replay = simulation.getReplay()
+		return sceneData + replay
+
+	def simulationFromBytes(self, data, simulator, *,
+	                        verify=True, allowPickle=False, **kwargs):
+		"""Replay a `Simulation` serialized with `simulationToBytes`.
+
+		Args:
+			data (bytes): Encoding of a `Simulation` sampled from this scenario.
+			simulator (Simulator): Simulator in which to run the simulation. Using
+				a different simulator configuration than that used for the original
+				simulation may cause errors or unexpected behavior. If you need to do
+				this, see the **enableDivergenceCheck** option of `Simulator.simulate`.
+			verify (bool): As in `sceneFromBytes`.
+			allowPickle (bool): As in `sceneFromBytes`.
+			kwargs: All additional keyword arguments are passed through to the simulator;
+				see `Simulator.simulate` for the available configuration options.
+
+		Returns:
+			A `Simulation` object representing the completed simulation.
+
+		Raises:
+			SerializationError: if the simulation could not be properly decoded.
+			DivergenceError: if the replayed simulation has diverged from the original
+				(requires the original to have been run with divergence-checking support;
+				see `Simulator.simulate`).
+		"""
+		if not isinstance(data, io.BufferedIOBase):
+			data = io.BytesIO(data)
+		scene = self.sceneFromBytes(data, verify=verify, allowPickle=allowPickle)
+		return simulator.simulate(scene, replay=data, **kwargs)

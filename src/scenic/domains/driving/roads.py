@@ -6,8 +6,7 @@ be created from a map file using :obj:`Network.fromFile`.
 .. note::
 
     This library is a prototype under active development. We will try not to make
-    backwards-incompatible changes, but the API may not be entirely stable. Some
-    network information, such as traffic signals, has not yet been made available.
+    backwards-incompatible changes, but the API may not be entirely stable.
 """
 
 from __future__ import annotations  # allow forward references for type annotations
@@ -238,6 +237,7 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
         pick one arbitrarily to be the orientation of the element as a `Region`.
         (So ``Object in element`` will align by default to that orientation.)
         """
+        assert self.orientation, self
         return (self.orientation[_toVector(point)],)
 
     def __getstate__(self):
@@ -251,7 +251,7 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
         return (self.network is other.network and self.uid == other.uid)
 
     def __hash__(self):
-        return hash((self.network, self.uid))
+        return hash((self.network.__hash__(), self.uid))
 
     def __repr__(self):
         s = f'<{type(self).__name__} at {hex(id(self))}; '
@@ -580,7 +580,7 @@ class RoadSection(LinearElement):
     @distributionFunction
     def laneAt(self, point: Vectorlike, reject=False) -> Union[LaneSection, None]:
         """Get the lane section passing through a given point."""
-        return self.network.findPointIn(point, self.lane, reject)
+        return self.network.findPointIn(point, self.lanes, reject)
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class LaneSection(_ContainsCenterline, LinearElement):
@@ -700,6 +700,19 @@ class Intersection(NetworkElement):
         for maneuver in self.maneuvers:
             assert maneuver.connectingLane, maneuver
             assert self.containsRegion(maneuver.connectingLane, tolerance=0.5)
+        if self.orientation is None:
+            self.orientation = VectorField(self.name, self._defaultHeadingAt)
+
+    def _defaultHeadingAt(self, point):
+        """Default orientation for this Intersection.
+
+        We align along the closest connecting lane.
+
+        :meta private:
+        """
+        point = _toVector(point)
+        man = min(self.maneuvers, key=lambda man: man.connectingLane.distanceTo(point))
+        return man.connectingLane.orientation[point]
 
     @property
     def is3Way(self) -> bool:
@@ -718,13 +731,21 @@ class Intersection(NetworkElement):
     @distributionFunction
     def maneuversAt(self, point: Vectorlike) -> List[Maneuver]:
         """Get all maneuvers possible at a given point in the intersection."""
-        return self.network._findPointInAll(point, self.maneuvers,
-                                            key=lambda m: m.connectingLane)
+        maneuvers = self.network._findPointInAll(point, self.maneuvers,
+                                                 key=lambda m: m.connectingLane)
+        if maneuvers:
+            return maneuvers
+        # If we filled holes in intersections when computing the geometry, there
+        # might be no maneuvers at some points inside the intersection. We'll pick
+        # the closest one.
+        man = min(self.maneuvers, key=lambda man: man.connectingLane.distanceTo(point))
+        return [man]
 
     @distributionFunction
     def nominalDirectionsAt(self, point: Vectorlike) -> List[float]:
         point = _toVector(point)
         maneuvers = self.maneuversAt(point)
+        assert maneuvers, self
         return [m.connectingLane.orientation[point] for m in maneuvers]
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
@@ -834,8 +855,12 @@ class Network:
 
         if self.drivableRegion is None:
             self.drivableRegion = self.laneRegion.union(self.intersectionRegion)
+        assert self.drivableRegion.containsRegion(self.laneRegion, tolerance=self.tolerance)
+        assert self.drivableRegion.containsRegion(self.intersectionRegion, tolerance=self.tolerance)
         if self.walkableRegion is None:
             self.walkableRegion = self.sidewalkRegion.union(self.crossingRegion)
+        assert self.walkableRegion.containsRegion(self.sidewalkRegion, tolerance=self.tolerance)
+        assert self.walkableRegion.containsRegion(self.crossingRegion, tolerance=self.tolerance)
 
         if self.curbRegion is None:
             edges = []
@@ -874,7 +899,7 @@ class Network:
 
         :meta private:
         """
-        return 19
+        return 20
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
@@ -1161,11 +1186,15 @@ class Network:
             return road.nominalDirectionsAt(point)
         return ()
 
-    def show(self):
+    def show(self, labelIncomingLanes=False):
         """Render a schematic of the road network for debugging.
 
         If you call this function directly, you'll need to subsequently call
         `matplotlib.pyplot.show` to actually display the diagram.
+
+        Args:
+            labelIncomingLanes (bool): Whether to label the incoming lanes of
+                intersections with their indices in ``incomingLanes``.
         """
         import matplotlib.pyplot as plt
         self.walkableRegion.show(plt, style='-', color='#00A0FF')
@@ -1178,7 +1207,7 @@ class Network:
 
                 # Draw arrows indicating road direction
                 if lane.centerline.length >= 40:
-                    pts = lane.centerline.equallySpacedPoints(20)
+                    pts = lane.centerline.pointsSeparatedBy(20)
                 else:
                     pts = [lane.centerline.pointAlongBy(0.5, normalized=True)]
                 hs = [lane.centerline.orientation[pt] for pt in pts]
@@ -1191,8 +1220,9 @@ class Network:
         for lane in self.lanes:     # draw centerlines of all lanes (including connecting)
             lane.centerline.show(plt, style=':', color='#A0A0A0')
         self.intersectionRegion.show(plt, style='g')
-        # for intersection in self.intersections:
-        #     for i, lane in enumerate(intersection.incomingLanes):
-        #         x, y = lane.centerline[-1]
-        #         plt.plot([x], [y], '*b')
-        #         plt.annotate(str(i), (x, y))
+        if labelIncomingLanes:
+            for intersection in self.intersections:
+                for i, lane in enumerate(intersection.incomingLanes):
+                    x, y = lane.centerline[-1]
+                    plt.plot([x], [y], '*b')
+                    plt.annotate(str(i), (x, y))

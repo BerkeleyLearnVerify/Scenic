@@ -61,9 +61,9 @@ In detail, a single time step of a dynamic simulation is executed according to t
 
 7. Run the simulator for one time step.
 
-8. Update every :term:`dynamic property` of every object to its current value in the simulator.
+8. Increment the simulation clock (the ``currentTime`` attribute of `Simulation`).
 
-9. Increment the simulation clock (the ``currentTime`` attribute of `Simulation`).
+9. Update every :term:`dynamic property` of every object to its current value in the simulator.
 
 10. If the simulation is stopping for one of the reasons above, first check if any of the :keyword:`require eventually` conditions of any remaining scenarios were never satisfied: if so, reject the simulation.
     Otherwise, save the values of any :keyword:`record final` statements.

@@ -14,10 +14,8 @@ Agents, Actions, and Behaviors
 In Scenic, we call objects which take actions over time *dynamic agents*, or simply
 *agents*. These are ordinary Scenic objects, so we can still use all of Scenic's syntax
 for describing their initial positions, orientations, etc. In addition, we specify their
-dynamic behavior using a built-in property called ``behavior``. Here's an example using
-one of the built-in behaviors from the :ref:`driving_domain`:
-
-.. code-block:: scenic
+dynamic behavior using a built-in property called :prop:`behavior`. Here's an example using
+one of the built-in behaviors from the :ref:`driving_domain`::
 
     model scenic.domains.driving.model
     Car with behavior FollowLaneBehavior
@@ -33,9 +31,7 @@ by different simulator interfaces. For example, the :ref:`driving_domain` define
 To define a behavior, we write a function which runs over the course of the scenario,
 periodically issuing actions. Scenic uses a discrete notion of time, so at each time
 step the function specifies zero or more actions for the agent to take. For example, here
-is a very simplified version of the :obj:`FollowLaneBehavior` above:
-
-.. code-block:: scenic
+is a very simplified version of the :obj:`FollowLaneBehavior` above::
 
     behavior FollowLaneBehavior():
         while True:
@@ -58,16 +54,14 @@ positions and other :term:`dynamic properties` of the objects.
   :figclass: align-center
   :alt: Diagram showing interaction between Scenic and a simulator.
 
-Behaviors can access the current state of the world to decide what actions to take:
-
-.. code-block:: scenic
+Behaviors can access the current state of the world to decide what actions to take::
 
     behavior WaitUntilClose(threshold=15):
         while (distance from self to ego) > threshold:
             wait
         do FollowLaneBehavior()
 
-Here, we repeatedly query the distance from the agent running the behavior (``self``)
+Here, we repeatedly query the distance from the agent running the behavior (:scenic:`self`)
 to the ego car; as long as it is above a threshold, we :keyword:`wait`, which means take no
 actions. Once the threshold is met, we start driving by invoking the :obj:`FollowLaneBehavior`
 we saw above using the :keyword:`do` statement. Since :obj:`FollowLaneBehavior` runs forever, we will
@@ -75,9 +69,7 @@ never return to the ``WaitUntilClose`` behavior.
 
 The example above also shows how behaviors may take arguments, like any Scenic function.
 Here, ``threshold`` is an argument to the behavior which has default value 15 but can be
-customized, so we could write for example:
-
-.. code-block:: scenic
+customized, so we could write for example::
 
     ego = Car
     car2 = Car visible, with behavior WaitUntilClose
@@ -86,12 +78,12 @@ customized, so we could write for example:
 Both ``car2`` and ``car3`` will use the ``WaitUntilClose`` behavior, but independent
 copies of it with thresholds of 15 and 20 respectively.
 
-Unlike ordinary Scenic code, control flow constructs such as ``if`` and ``while`` are
+Unlike ordinary Scenic code, control flow constructs such as :scenic:`if` and :scenic:`while` are
 allowed to depend on random variables inside a behavior. Any distributions defined inside
 a behavior are sampled at simulation time, not during scene sampling. Consider the
 following behavior:
 
-.. code-block:: scenic
+.. code-block::
     :linenos:
 
     behavior Foo:
@@ -115,9 +107,7 @@ Interrupts
 It is frequently useful to take an existing behavior and add a complication to it; for
 example, suppose we want a car that follows a lane, stopping whenever it encounters an
 obstacle. Scenic provides a concept of *interrupts* which allows us to reuse the basic
-:obj:`FollowLaneBehavior` without having to modify it.
-
-.. code-block:: scenic
+:obj:`FollowLaneBehavior` without having to modify it::
 
     behavior FollowAvoidingObstacles():
         try:
@@ -127,7 +117,7 @@ obstacle. Scenic provides a concept of *interrupts* which allows us to reuse the
 
 This :keyword:`try-interrupt` statement has similar syntax to the Python
 :ref:`try statement <python:try>` (and in fact allows ``except`` clauses just as in
-Python), and begins in the same way: at first, the code block after the ``try:`` (the
+Python), and begins in the same way: at first, the code block after the :scenic:`try:` (the
 *body*) is executed. At the start of every time step during its execution, the condition
 from each ``interrupt`` clause is checked; if any are true, execution of the body is
 suspended and we instead begin to execute the corresponding *interrupt handler*. In the
@@ -142,9 +132,7 @@ those which precede them. Furthermore, such higher-priority interrupts can fire 
 during the execution of an earlier interrupt handler. This makes it easy to model a
 hierarchy of behaviors with different priorities; for example, we could implement a car
 which drives along a lane, passing slow cars and avoiding collisions, along the
-following lines:
-
-.. code-block:: scenic
+following lines::
 
     behavior Drive():
         try:
@@ -164,9 +152,7 @@ interrupted again) before we finally resume ``FollowLaneBehavior``.
 As this example illustrates, when an interrupt handler completes, by default we resume
 execution of the interrupted code. If this is undesired, the :keyword:`abort` statement can be
 used to cause the entire try-interrupt statement to exit. For example, to run a behavior
-until a condition is met without resuming it afterward, we can write:
-
-.. code-block:: scenic
+until a condition is met without resuming it afterward, we can write::
 
     behavior ApproachAndTurnLeft():
         try:
@@ -176,9 +162,7 @@ until a condition is met without resuming it afterward, we can write:
         do WaitForTrafficLightBehavior()
         do TurnLeftBehavior()
 
-This is a common enough use case of interrupts that Scenic provides a shorthand notation:
-
-.. code-block:: scenic
+This is a common enough use case of interrupts that Scenic provides a shorthand notation::
 
     behavior ApproachAndTurnLeft():
         do FollowLaneBehavior() until (distance from self to intersection) < 10
@@ -186,14 +170,12 @@ This is a common enough use case of interrupts that Scenic provides a shorthand 
         do TurnLeftBehavior()
 
 Scenic also provides a shorthand for interrupting a behavior after a certain period of
-time:
-
-.. code-block:: scenic
+time::
 
     behavior DriveForAWhile():
         do FollowLaneBehavior() for 30 seconds
 
-The alternative form :samp:`do {behavior} for {n} steps` uses time steps instead of real
+The alternative form :scenic:`do {behavior} for {n} steps` uses time steps instead of real
 simulation time.
 
 Finally, note that when try-interrupt statements are nested, interrupts of the outer
@@ -203,9 +185,7 @@ interrupts to switch between several different sub-behaviors. We would like to b
 put it in a library and reuse it in many different scenarios without modification.
 Interrupts make this straightforward; for example, if for a particular scenario we want a
 car that drives normally but suddenly brakes for 5 seconds when it reaches a certain
-area, we can write:
-
-.. code-block:: scenic
+area, we can write::
 
     behavior DriveWithSuddenBrake():
         haveBraked = False
@@ -227,9 +207,7 @@ As the last example shows, behaviors can use local variables to maintain state, 
 useful when implementing behaviors which depend on actions taken in the past. To
 elaborate on that example, suppose we want a car which usually follows the ``Drive``
 behavior, but every 15-30 seconds stops for 5 seconds. We can implement this behavior as
-follows:
-
-.. code-block:: scenic
+follows::
 
     behavior DriveWithRandomStops():
         delay = Range(15, 30) seconds
@@ -262,26 +240,20 @@ Requirements and Monitors
 Just as you can declare spatial constraints on scenes using the :keyword:`require` statement,
 you can also impose constraints on dynamic scenarios. For example, if we don't want to
 generate any simulations where ``car1`` and ``car2`` are simultaneously visible from the
-ego car, we could write:
-
-.. code-block:: scenic
+ego car, we could write::
 
     require always not ((ego can see car1) and (ego can see car2))
 
 The :sampref:`require always {condition} <require always>` statement enforces that the given condition must
 hold at every time step of the scenario; if it is ever violated during a simulation, we
 reject that simulation and sample a new one. Similarly, we can require that a condition
-hold at *some* time during the scenario using the :keyword:`require eventually` statement:
-
-.. code-block:: scenic
+hold at *some* time during the scenario using the :keyword:`require eventually` statement::
 
     require eventually ego in intersection
 
 You can also use the ordinary :keyword:`require` statement inside a behavior to require that a
 given condition hold at a certain point during the execution of the behavior. For
-example, here is a simple elaboration of the ``WaitUntilClose`` behavior we saw above:
-
-.. code-block:: scenic
+example, here is a simple elaboration of the ``WaitUntilClose`` behavior we saw above::
 
     behavior WaitUntilClose(threshold=15):
         while (distance from self to ego) > threshold:
@@ -289,7 +261,7 @@ example, here is a simple elaboration of the ``WaitUntilClose`` behavior we saw 
             wait
         do FollowLaneBehavior()
 
-The requirement ensures that no pedestrian comes close to ``self`` until the ego does;
+The requirement ensures that no pedestrian comes close to :scenic:`self` until the ego does;
 after that, we place no further restrictions.
 
 To enforce more complex temporal properties like this one without modifying behaviors,
@@ -298,7 +270,7 @@ with the scenario, but they are not associated with any agent and any actions th
 are ignored (so you might as well only use the :keyword:`wait` statement). Here is a monitor
 for the property "``car1`` and ``car2`` enter the intersection before ``car3``":
 
-.. code-block:: scenic
+.. code-block::
     :linenos:
 
     monitor Car3EntersLast:
@@ -327,9 +299,7 @@ Even general behaviors designed to be used in multiple scenarios may not operate
 correctly from all possible starting states: for example, :obj:`FollowLaneBehavior` assumes
 that the agent is actually in a lane rather than, say, on a sidewalk. To model such
 assumptions, Scenic provides a notion of *guards* for behaviors. Most simply, we can
-specify one or more *preconditions*:
-
-.. code-block:: scenic
+specify one or more *preconditions*::
 
     behavior MergeInto(newLane):
         precondition: self.lane is not newLane and self.road is newLane.road
@@ -345,9 +315,7 @@ a state it doesn't expect: imagine a car which is lane following, but then swerv
 the shoulder to avoid an accident; naïvely resuming lane following, we find we are no
 longer in a lane. To catch such situations, Scenic allows us to define *invariants* which
 are checked at every time step during the execution of a behavior, not just when it
-begins running. These are written similarly to preconditions:
-
-.. code-block:: scenic
+begins running. These are written similarly to preconditions::
 
     behavior FollowLaneBehavior():
         invariant: self in road
@@ -359,9 +327,7 @@ To enable this kind of design, Scenic signals guard violations by raising a
 `GuardViolation` exception which can be caught like any other exception; the simulation
 is only rejected if the exception propagates out to the top level. So to model the
 lane-following-with-collision-avoidance behavior suggested above, we could write code
-like this:
-
-.. code-block:: scenic
+like this::
 
     behavior Drive():
         while True:
@@ -385,9 +351,7 @@ Terminating the Scenario
 By default, scenarios run forever, unless the :option:`--time` option is used to impose a
 time limit. However, scenarios can also define termination criteria using the
 :keyword:`terminate when` statement; for example, we could decide to end a scenario as soon as
-the ego car travels at least a certain distance:
-
-.. code-block:: scenic
+the ego car travels at least a certain distance::
 
     start = Point on road
     ego = Car at start
@@ -395,9 +359,7 @@ the ego car travels at least a certain distance:
 
 Additionally, the :keyword:`terminate` statement can be used inside behaviors and monitors: if
 it is ever executed, the scenario ends. For example, we can use a monitor to terminate
-the scenario once the ego spends 30 time steps in an intersection:
-
-.. code-block:: scenic
+the scenario once the ego spends 30 time steps in an intersection::
 
     monitor StopAfterTimeInIntersection:
         totalTime = 0
@@ -457,7 +419,7 @@ Running the scenario in CARLA is exactly the same, except we use the
 running first). For LGSVL, the one difference is that this scenario
 specifies a map which LGSVL doesn't have built in; fortunately, it's easy to switch to a
 different map. For scenarios using the :ref:`driving domain <driving_domain>`, the map
-file is specified by defining a global parameter ``map``, and for the LGSVL interface we
+file is specified by defining a :term:`global parameter` ``map``, and for the LGSVL interface we
 use another parameter ``lgsvl_map`` to specify the name of the map in LGSVL (the CARLA
 interface likewise uses a parameter ``carla_map``). These parameters can be set at the
 command line using the :option:`--param` option (:option:`-p` for short); for example,

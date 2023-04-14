@@ -43,8 +43,22 @@ def regionFromShapelyObject(obj, orientation=None):
 		return PolygonalRegion(polygon=obj, orientation=orientation)
 	elif isinstance(obj, (shapely.geometry.LineString, shapely.geometry.MultiLineString)):
 		return PolylineRegion(polyline=obj, orientation=orientation)
+	elif isinstance(obj, shapely.geometry.MultiPoint):
+		points = [pt.coords[0] for pt in obj.geoms]
+		return PointSetRegion('PointSet', points, orientation=orientation)
+	elif isinstance(obj, shapely.geometry.Point):
+		return PointSetRegion('PointSet', obj.coords, orientation=orientation)
 	else:
-		raise RuntimeError(f'unhandled type of Shapely geometry: {obj}')
+		raise TypeError(f'unhandled type of Shapely geometry: {obj}')
+
+def orientationFor(first, second, reversed):
+	o1 = first.orientation
+	o2 = second.orientation
+	if reversed:
+		o1, o2 = o2, o1
+	if not o1:
+		o1 = o2
+	return o1
 
 class PointInRegionDistribution(VectorDistribution):
 	"""Uniform distribution over points in a Region."""
@@ -63,7 +77,7 @@ class PointInRegionDistribution(VectorDistribution):
 			return 0
 
 	def __repr__(self):
-		return f'PointIn({self.region})'
+		return f'PointIn({self.region!r})'
 
 class Region(Samplable):
 	"""Abstract class for regions."""
@@ -79,13 +93,12 @@ class Region(Samplable):
 		"""intersect(other)
 
 		Get a `Region` representing the intersection of this one with another.
+
+		If both regions have a :term:`preferred orientation`, the one of ``self``
+		is inherited by the intersection.
 		"""
 		if triedReversed:
-			orientation = self.orientation
-			if orientation is None:
-				orientation = other.orientation
-			elif other.orientation is not None:
-				orientation = None 		# would be ambiguous, so pick no orientation
+			orientation = orientationFor(self, other, triedReversed)
 			return IntersectionRegion(self, other, orientation=orientation)
 		else:
 			return other.intersect(self, triedReversed=True)
@@ -129,14 +142,6 @@ class Region(Samplable):
 		"""Get a uniform `Distribution` over points in a `Region`."""
 		return PointInRegionDistribution(region)
 
-	def uniformPoint(self):
-		"""Sample a uniformly-random point in this `Region`.
-
-		Can only be called on fixed Regions with no random parameters.
-		"""
-		assert not needsSampling(self)
-		return self.uniformPointInner()
-
 	def uniformPointInner(self):
 		"""Do the actual random sampling. Implemented by subclasses."""
 		raise NotImplementedError
@@ -164,11 +169,16 @@ class Region(Samplable):
 		vec = toVector(thing, '"X in Y" with X not an Object or a vector')
 		return self.containsPoint(vec)
 
+	@distributionMethod
 	def distanceTo(self, point) -> float:
 		"""Distance to this region from a given point.
 
 		Not supported by all region types.
 		"""
+		# Last-ditch attempt to compute distance by converting to polygon
+		poly = toPolygon(self)
+		if poly is not None:
+			return poly.distance(shapely.geometry.Point(point))
 		raise NotImplementedError
 
 	def getAABB(self):
@@ -211,6 +221,9 @@ class AllRegion(Region):
 	def containsObject(self, obj):
 		return True
 
+	def containsRegion(self, reg, tolerance=0):
+		return True
+
 	def distanceTo(self, point):
 		return 0
 
@@ -242,6 +255,9 @@ class EmptyRegion(Region):
 
 	def containsObject(self, obj):
 		return False
+
+	def containsRegion(self, reg, tolerance=0):
+		return type(reg) is EmptyRegion
 
 	def distanceTo(self, point):
 		return float('inf')
@@ -323,7 +339,7 @@ class CircularRegion(Region):
 		return ((x - r, y - r), (x + r, y + r))
 
 	def __repr__(self):
-		return f'CircularRegion({self.center}, {self.radius})'
+		return f'CircularRegion({self.center!r}, {self.radius!r})'
 
 class SectorRegion(Region):
 	"""A sector of a `CircularRegion`.
@@ -397,7 +413,8 @@ class SectorRegion(Region):
 		return self.orient(pt)
 
 	def __repr__(self):
-		return f'SectorRegion({self.center},{self.radius},{self.heading},{self.angle})'
+		return (f'SectorRegion({self.center!r}, {self.radius!r}, '
+		        f'{self.heading!r}, {self.angle!r})')
 
 class RectangularRegion(_RotatedRectangle, Region):
 	"""A rectangular region with a possibly-random position, heading, and size.
@@ -449,7 +466,8 @@ class RectangularRegion(_RotatedRectangle, Region):
 		return ((minx, miny), (maxx, maxy))
 
 	def __repr__(self):
-		return f'RectangularRegion({self.position},{self.heading},{self.width},{self.length})'
+		return (f'RectangularRegion({self.position!r}, {self.heading!r}, '
+		        f'{self.width!r}, {self.length!r})')
 
 class PolylineRegion(Region):
 	"""Region given by one or more polylines (chain of line segments).
@@ -476,27 +494,27 @@ class PolylineRegion(Region):
 		if points is not None:
 			points = tuple(points)
 			if len(points) < 2:
-				raise RuntimeError('tried to create PolylineRegion with < 2 points')
+				raise ValueError('tried to create PolylineRegion with < 2 points')
 			self.points = points
 			self.lineString = shapely.geometry.LineString(points)
 		elif polyline is not None:
 			if isinstance(polyline, shapely.geometry.LineString):
 				if len(polyline.coords) < 2:
-					raise RuntimeError('tried to create PolylineRegion with <2-point LineString')
+					raise ValueError('tried to create PolylineRegion with <2-point LineString')
 			elif isinstance(polyline, shapely.geometry.MultiLineString):
 				if len(polyline.geoms) == 0:
-					raise RuntimeError('tried to create PolylineRegion from empty MultiLineString')
+					raise ValueError('tried to create PolylineRegion from empty MultiLineString')
 				for line in polyline.geoms:
 					assert len(line.coords) >= 2
 			else:
-				raise RuntimeError('tried to create PolylineRegion from non-LineString')
+				raise ValueError('tried to create PolylineRegion from non-LineString')
 			self.lineString = polyline
 			self.points = None
 		else:
-			raise RuntimeError('must specify points or polyline for PolylineRegion')
+			raise ValueError('must specify points or polyline for PolylineRegion')
 		if not self.lineString.is_valid:
-			raise RuntimeError('tried to create PolylineRegion with '
-			                   f'invalid LineString {self.lineString}')
+			raise ValueError('tried to create PolylineRegion with '
+			                 f'invalid LineString {self.lineString}')
 		self.segments = self.segmentsOf(self.lineString)
 		cumulativeLengths = []
 		total = 0
@@ -507,10 +525,13 @@ class PolylineRegion(Region):
 		self.cumulativeLengths = cumulativeLengths
 		if self.points is None:
 			pts = []
+			last = None
 			for p, q in self.segments:
-				pts.append(p)
-			pts.append(q)
-			self.points = pts
+				if p != last:
+					pts.append(p)
+				pts.append(q)
+				last = q
+			self.points = tuple(pts)
 
 	@classmethod
 	def segmentsOf(cls, lineString):
@@ -518,8 +539,8 @@ class PolylineRegion(Region):
 			segments = []
 			points = list(lineString.coords)
 			if len(points) < 2:
-				raise RuntimeError('LineString has fewer than 2 points')
-			last = Vector(*points[0][:2])
+				raise ValueError('LineString has fewer than 2 points')
+			last = points[0][:2]
 			for point in points[1:]:
 				point = point[:2]
 				segments.append((last, point))
@@ -531,7 +552,7 @@ class PolylineRegion(Region):
 				allSegments.extend(cls.segmentsOf(line))
 			return allSegments
 		else:
-			raise RuntimeError('called segmentsOf on non-linestring')
+			raise ValueError('called segmentsOf on non-linestring')
 
 	@cached_property
 	def start(self):
@@ -544,7 +565,7 @@ class PolylineRegion(Region):
 		if self.usingDefaultOrientation:
 			heading = headingOfSegment(pointA, pointB)
 		elif self.orientation is not None:
-			heading = self.orientation[pointA]
+			heading = self.orientation[Vector(*pointA)]
 		else:
 			heading = 0
 		from scenic.core.object_types import OrientedPoint
@@ -561,7 +582,7 @@ class PolylineRegion(Region):
 		if self.usingDefaultOrientation:
 			heading = headingOfSegment(pointA, pointB)
 		elif self.orientation is not None:
-			heading = self.orientation[pointB]
+			heading = self.orientation[Vector(*pointB)]
 		else:
 			heading = 0
 		from scenic.core.object_types import OrientedPoint
@@ -585,12 +606,13 @@ class PolylineRegion(Region):
 		poly = toPolygon(other)
 		if poly is not None:
 			intersection = self.lineString & poly
-			if (intersection.is_empty or
-			    not isinstance(intersection, (shapely.geometry.LineString,
-			                                  shapely.geometry.MultiLineString))):
-				# TODO handle points!
-				return nowhere
-			return PolylineRegion(polyline=intersection)
+			line_geoms = (shapely.geometry.LineString, shapely.geometry.MultiLineString)
+			if (isinstance(intersection, shapely.geometry.GeometryCollection)
+			    and intersection.length > 0):
+				geoms = [geom for geom in intersection.geoms if isinstance(geom, line_geoms)]
+				intersection = shapely.ops.unary_union(geoms)
+			orientation = orientationFor(self, other, triedReversed)
+			return regionFromShapelyObject(intersection, orientation=orientation)
 		return super().intersect(other, triedReversed)
 
 	def intersects(self, other, triedReversed=False):
@@ -604,12 +626,7 @@ class PolylineRegion(Region):
 		poly = toPolygon(other)
 		if poly is not None:
 			diff = self.lineString - poly
-			if (diff.is_empty or
-			    not isinstance(diff, (shapely.geometry.LineString,
-			                          shapely.geometry.MultiLineString))):
-				# TODO handle points!
-				return nowhere
-			return PolylineRegion(polyline=diff)
+			return regionFromShapelyObject(diff)
 		return super().difference(other)
 
 	@staticmethod
@@ -618,7 +635,7 @@ class PolylineRegion(Region):
 		if not regions:
 			return nowhere
 		if any(not isinstance(region, PolylineRegion) for region in regions):
-			raise RuntimeError(f'cannot take Polyline union of regions {regions}')
+			raise TypeError(f'cannot take Polyline union of regions {regions}')
 		# take union by collecting LineStrings, to preserve the order of points
 		strings = []
 		for region in regions:
@@ -655,7 +672,8 @@ class PolylineRegion(Region):
 
 	@distributionMethod
 	def project(self, point):
-		return shapely.ops.nearest_points(self.lineString, shapely.geometry.Point(point))[0]
+		pt = shapely.ops.nearest_points(self.lineString, shapely.geometry.Point(point))[0]
+		return Vector(*pt.coords[0])
 
 	@distributionMethod
 	def nearestSegmentTo(self, point):
@@ -677,10 +695,11 @@ class PolylineRegion(Region):
 		pt = self.lineString.interpolate(distance, normalized=normalized)
 		return Vector(pt.x, pt.y)
 
-	def equallySpacedPoints(self, spacing, normalized=False):
-		if normalized:
-			spacing *= self.length
-		return [self.pointAlongBy(d) for d in numpy.arange(0, self.length, spacing)]
+	def equallySpacedPoints(self, num):
+		return [self.pointAlongBy(d) for d in numpy.linspace(0, self.length, num)]
+
+	def pointsSeparatedBy(self, distance):
+		return [self.pointAlongBy(d) for d in numpy.arange(0, self.length, distance)]
 
 	@property
 	def length(self):
@@ -720,7 +739,7 @@ class PolylineRegion(Region):
 		return len(self.points)
 
 	def __repr__(self):
-		return f'PolylineRegion({self.lineString})'
+		return f'PolylineRegion({self.lineString!r})'
 
 	def __eq__(self, other):
 		if type(other) is not PolylineRegion:
@@ -749,14 +768,14 @@ class PolygonalRegion(Region):
 	def __init__(self, points=None, polygon=None, orientation=None, name=None):
 		super().__init__(name, orientation=orientation)
 		if polygon is None and points is None:
-			raise RuntimeError('must specify points or polygon for PolygonalRegion')
+			raise ValueError('must specify points or polygon for PolygonalRegion')
 		if polygon is None:
 			points = tuple(points)
 			if len(points) == 0:
-				raise RuntimeError('tried to create PolygonalRegion from empty point list!')
+				raise ValueError('tried to create PolygonalRegion from empty point list!')
 			for point in points:
 				if needsSampling(point):
-					raise RuntimeError('only fixed PolygonalRegions are supported')
+					raise ValueError('only fixed PolygonalRegions are supported')
 			self.points = points
 			polygon = shapely.geometry.Polygon(points)
 
@@ -765,17 +784,17 @@ class PolygonalRegion(Region):
 		elif isinstance(polygon, shapely.geometry.MultiPolygon):
 			self.polygons = polygon
 		else:
-			raise RuntimeError(f'tried to create PolygonalRegion from non-polygon {polygon}')
+			raise ValueError(f'tried to create PolygonalRegion from non-polygon {polygon}')
 		if not self.polygons.is_valid:
-			raise RuntimeError('tried to create PolygonalRegion with '
-			                   f'invalid polygon {self.polygons}')
+			raise ValueError('tried to create PolygonalRegion with '
+			                 f'invalid polygon {self.polygons}')
 
 		if (points is None and len(self.polygons.geoms) == 1
 		    and len(self.polygons.geoms[0].interiors) == 0):
 			self.points = tuple(self.polygons.geoms[0].exterior.coords[:-1])
 
 		if self.polygons.is_empty:
-			raise RuntimeError('tried to create empty PolygonalRegion')
+			raise ValueError('tried to create empty PolygonalRegion')
 
 		triangles = []
 		for polygon in self.polygons.geoms:
@@ -800,49 +819,23 @@ class PolygonalRegion(Region):
 		poly = toPolygon(other)
 		if poly is not None:
 			diff = self.polygons - poly
-			if diff.is_empty:
-				return nowhere
-			elif isinstance(diff, (shapely.geometry.Polygon,
-			                       shapely.geometry.MultiPolygon)):
-				return PolygonalRegion(polygon=diff, orientation=self.orientation)
-			elif isinstance(diff, shapely.geometry.GeometryCollection):
-				polys = []
-				for geom in diff.geoms:
-					if isinstance(geom, shapely.geometry.Polygon):
-						polys.append(geom)
-				if len(polys) == 0:
-					# TODO handle points, lines
-					raise RuntimeError('unhandled type of polygon difference')
-				diff = shapely.geometry.MultiPolygon(polys)
-				return PolygonalRegion(polygon=diff, orientation=self.orientation)
-			else:
-				# TODO handle points, lines
-				raise RuntimeError('unhandled type of polygon difference')
+			return regionFromShapelyObject(diff, orientation=self.orientation)
 		return super().difference(other)
 
 	def intersect(self, other, triedReversed=False):
 		poly = toPolygon(other)
-		orientation = other.orientation if self.orientation is None else self.orientation
 		if poly is not None:
 			intersection = self.polygons & poly
-			if intersection.is_empty:
-				return nowhere
-			elif isinstance(intersection, (shapely.geometry.Polygon,
-			                             shapely.geometry.MultiPolygon)):
-				return PolygonalRegion(polygon=intersection, orientation=orientation)
-			elif isinstance(intersection, shapely.geometry.GeometryCollection):
-				polys = []
-				for geom in intersection.geoms:
-					if isinstance(geom, shapely.geometry.Polygon):
-						polys.append(geom)
-				if len(polys) == 0:
-					# TODO handle points, lines
-					raise RuntimeError('unhandled type of polygon intersection')
-				intersection = shapely.geometry.MultiPolygon(polys)
-				return PolygonalRegion(polygon=intersection, orientation=orientation)
-			else:
-				# TODO handle points, lines
-				raise RuntimeError('unhandled type of polygon intersection')
+			if isinstance(intersection, shapely.geometry.GeometryCollection):
+				if intersection.area > 0:
+					poly_geoms = (shapely.geometry.Polygon, shapely.geometry.MultiPolygon)
+					geoms = [geom for geom in intersection.geoms if isinstance(geom, poly_geoms)]
+				elif intersection.length > 0:
+					line_geoms = (shapely.geometry.LineString, shapely.geometry.MultiLineString)
+					geoms = [geom for geom in intersection.geoms if isinstance(geom, line_geoms)]
+				intersection = shapely.ops.unary_union(geoms)
+			orientation = orientationFor(self, other, triedReversed)
+			return regionFromShapelyObject(intersection, orientation=orientation)
 		return super().intersect(other, triedReversed)
 
 	def intersects(self, other, triedReversed=False):
@@ -870,7 +863,7 @@ class PolygonalRegion(Region):
 		if not polys:
 			return nowhere
 		if any(not poly for poly in polys):
-			raise RuntimeError(f'cannot take union of regions {regions}')
+			raise TypeError(f'cannot take union of regions {regions}')
 		union = polygonUnion(polys, buf=buf)
 		orientation = VectorField.forUnionOf(regs)
 		return PolygonalRegion(polygon=union, orientation=orientation)
@@ -879,6 +872,9 @@ class PolygonalRegion(Region):
 	def boundary(self) -> PolylineRegion:
 		"""Get the boundary of this region as a `PolylineRegion`."""
 		return PolylineRegion(polyline=self.polygons.boundary)
+
+	def buffer(self, distance):
+		return PolygonalRegion(polygon=self.polygons.buffer(distance))
 
 	@cached_property
 	def prepared(self):
@@ -890,14 +886,16 @@ class PolygonalRegion(Region):
 	def containsObject(self, obj):
 		objPoly = obj.polygon
 		if objPoly is None:
-			raise RuntimeError('tried to test containment of symbolic Object!')
+			raise ValueError('tried to test containment of symbolic Object!')
 		# TODO improve boundary handling?
 		return self.prepared.contains(objPoly)
 
 	def containsRegion(self, other, tolerance=0):
+		if isinstance(other, EmptyRegion):
+			return True
 		poly = toPolygon(other)
 		if poly is None:
-			raise RuntimeError('cannot test inclusion of {other} in PolygonalRegion')
+			raise TypeError(f'cannot test inclusion of {other} in PolygonalRegion')
 		return self.polygons.buffer(tolerance).contains(poly)
 
 	@distributionMethod
@@ -912,7 +910,7 @@ class PolygonalRegion(Region):
 		plotPolygon(self.polygons, plt, style=style, **kwargs)
 
 	def __repr__(self):
-		return f'PolygonalRegion({self.polygons})'
+		return f'PolygonalRegion({self.polygons!r})'
 
 	def __eq__(self, other):
 		if type(other) is not PolygonalRegion:
@@ -938,7 +936,7 @@ class PointSetRegion(Region):
 
 	Args:
 		name (str): name for debugging
-		points (iterable): set of points comprising the region
+		points (arraylike): set of points comprising the region
 		kdTree (`scipy.spatial.KDTree`, optional): k-D tree for the points (one will
 		  be computed if none is provided)
 		orientation (`VectorField`; optional): :term:`preferred orientation` for the
@@ -949,17 +947,18 @@ class PointSetRegion(Region):
 
 	def __init__(self, name, points, kdTree=None, orientation=None, tolerance=1e-6):
 		super().__init__(name, orientation=orientation)
-		self.points = tuple(points)
+		self.points = numpy.array(points)
 		for point in self.points:
 			if needsSampling(point):
-				raise RuntimeError('only fixed PointSetRegions are supported')
+				raise ValueError('only fixed PointSetRegions are supported')
 		import scipy.spatial	# slow import not often needed
 		self.kdTree = scipy.spatial.KDTree(self.points) if kdTree is None else kdTree
 		self.orientation = orientation
 		self.tolerance = tolerance
 
 	def uniformPointInner(self):
-		return self.orient(Vector(*random.choice(self.points)))
+		i = random.randrange(0, len(self.points))
+		return self.orient(Vector(*self.points[i]))
 
 	def intersect(self, other, triedReversed=False):
 		def sampler(intRegion):
@@ -971,14 +970,15 @@ class PointSetRegion(Region):
 			if len(intersection) == 0:
 				raise RejectionException(f'empty intersection of Regions {self} and {o}')
 			return self.orient(random.choice(intersection))
-		return IntersectionRegion(self, other, sampler=sampler, orientation=self.orientation)
+		orientation = orientationFor(self, other, triedReversed)
+		return IntersectionRegion(self, other, sampler=sampler, orientation=orientation)
 
 	def containsPoint(self, point):
 		distance, location = self.kdTree.query(point)
 		return (distance <= self.tolerance)
 
 	def containsObject(self, obj):
-		raise NotImplementedError()
+		return False
 
 	@distributionMethod
 	def distanceTo(self, point):
@@ -989,12 +989,12 @@ class PointSetRegion(Region):
 		if type(other) is not PointSetRegion:
 			return NotImplemented
 		return (self.name == other.name
-		        and self.points == other.points
+		        and numpy.array_equal(self.points, other.points)
 		        and self.orientation == other.orientation)
 
 	@cached
 	def __hash__(self):
-		return hash((self.name, self.points, self.orientation))
+		return hash((self.name, self.points.tobytes(), self.orientation))
 
 class GridRegion(PointSetRegion):
 	"""A Region given by an obstacle grid.
@@ -1066,7 +1066,7 @@ class IntersectionRegion(Region):
 	def __init__(self, *regions, orientation=None, sampler=None, name=None):
 		self.regions = tuple(regions)
 		if len(self.regions) < 2:
-			raise RuntimeError('tried to take intersection of fewer than 2 regions')
+			raise ValueError('tried to take intersection of fewer than 2 regions')
 		super().__init__(name, *self.regions, orientation=orientation)
 		self.sampler = sampler
 
@@ -1114,7 +1114,7 @@ class IntersectionRegion(Region):
 		return point
 
 	def __repr__(self):
-		return f'IntersectionRegion({self.regions})'
+		return f'IntersectionRegion({self.regions!r})'
 
 class DifferenceRegion(Region):
 	def __init__(self, regionA, regionB, sampler=None, name=None):
@@ -1160,4 +1160,4 @@ class DifferenceRegion(Region):
 		return point
 
 	def __repr__(self):
-		return f'DifferenceRegion({self.regionA}, {self.regionB})'
+		return f'DifferenceRegion({self.regionA!r}, {self.regionB!r})'

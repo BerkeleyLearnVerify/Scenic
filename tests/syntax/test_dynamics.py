@@ -36,6 +36,22 @@ def test_dynamic_derived_property():
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert len(actions) == 3
 
+## Simulation properties
+
+def test_current_time():
+    scenario = compileScenic("""
+        behavior Foo():
+            while True:
+                take simulation().currentTime
+        ego = Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=3)
+    assert tuple(actions) == (0, 1, 2)
+
+def test_no_simulation():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic('ego = Object with foo simulation()')
+
 ## Behaviors
 
 # Basic
@@ -82,14 +98,68 @@ def test_behavior_list_actions():
 
 # Various errors
 
+def test_invalid_behavior_name():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            behavior 101():
+                wait
+            ego = Object
+        """)
+
 def test_behavior_no_actions():
     with pytest.raises(ScenicSyntaxError):
-        scenario = compileScenic("""
+        compileScenic("""
             behavior Foo():
                 take 1
             behavior Bar():
                 Foo()   # forgot to use 'do'
             ego = Object with behavior Bar
+        """)
+
+def test_behavior_create_object():
+    with pytest.raises(ScenicSyntaxError):
+        scenario = compileScenic("""
+            behavior Bar():
+                Object at 10@10
+                wait
+            ego = Object with behavior Bar
+        """)
+        sampleResultOnce(scenario)
+
+def test_behavior_define_param():
+    with pytest.raises(ScenicSyntaxError):
+        scenario = compileScenic("""
+            behavior Bar():
+                param foo = 3
+                wait
+            ego = Object with behavior Bar
+        """)
+        sampleResultOnce(scenario)
+
+def test_behavior_illegal_yield():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            behavior Foo():
+                yield 1
+                wait
+            ego = Object with behavior Foo
+        """)
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            behavior Foo():
+                yield from []
+                wait
+            ego = Object with behavior Foo
+        """)
+
+def test_behavior_nested_defn():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            behavior Foo():
+                wait
+                behavior Bar():
+                    wait
+            ego = Object with behavior Foo
         """)
 
 # Arguments
@@ -406,6 +476,26 @@ def test_subbehavior_until():
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, 1, 2, None)
 
+def test_subbehavior_incompatible_modifiers():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            behavior Foo():
+                take 5
+            behavior Bar():
+                do Foo() for 5 steps until False
+            ego = Object with behavior Bar
+        """)
+
+def test_subbehavior_misplaced_modifier():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            behavior Foo():
+                take 5
+            behavior Bar():
+                do Foo() for 5 steps, Foo()
+            ego = Object with behavior Bar
+        """)
+
 def test_behavior_invoke_mistyped():
     scenario = compileScenic("""
         behavior Foo():
@@ -642,6 +732,22 @@ def test_behavior_require_call():
         actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=30)
         assert actions[0] == [1, 2]
 
+def test_behavior_require_soft():
+    scenario = compileScenic("""
+        behavior Foo():
+            x = Range(-1, 1)
+            require[0.9] x >= 0
+            take x
+        ego = Object with behavior Foo
+    """)
+    xs = []
+    for i in range(350):
+        actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=50, maxScenes=1)
+        assert len(actions) == 1
+        xs.append(actions[0])
+    count = sum(x >= 0 for x in xs)
+    assert 255 <= count < 350
+
 ## Temporal requirements
 
 def test_require_always():
@@ -700,6 +806,22 @@ def test_monitor():
     """)
     actions = sampleEgoActions(scenario, maxSteps=5)
     assert tuple(actions) == (0, 1, 2, 3)
+
+def test_invalid_monitor_name():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            monitor 101:
+                wait
+            ego = Object
+        """)
+
+def test_invalid_monitor_start():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            monitor Foo
+                wait
+            ego = Object
+        """)
 
 ## Interrupts
 
@@ -995,6 +1117,14 @@ def test_interrupt_abort():
     actions = sampleEgoActions(scenario, maxSteps=8)
     assert tuple(actions) == (3, 1, 2, 3, 1, 1, 1, 3)
 
+def test_interrupt_misplaced_abort():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            behavior Foo():
+                abort
+            ego = Object with behavior Foo
+        """)
+
 def test_interrupt_return():
     scenario = compileScenic("""
         behavior Foo():
@@ -1013,6 +1143,28 @@ def test_interrupt_return():
     assert tuple(actions) == (3, 1, 2, None)
 
 # Errors
+
+def test_interrupt_missing_colon():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            behavior Foo():
+                try:
+                    take 1
+                interrupt when False
+                    wait
+            ego = Object with behavior Foo
+        """)
+
+def test_interrupt_extra_arguments():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            behavior Foo():
+                try:
+                    take 1
+                interrupt when False, False:
+                    wait
+            ego = Object with behavior Foo
+        """)
 
 def test_interrupt_unassigned_local():
     scenario = compileScenic("""

@@ -8,18 +8,17 @@ import pathlib
 import time
 
 from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
+import scenic.core.errors as errors
 from scenic.core.geometry import allChains
 from scenic.core.regions import toPolygon
 from scenic.core.simulators import SimulationCreationError
 from scenic.syntax.veneer import verbosePrint
 from scenic.core.vectors import Vector
-import scenic.simulators.newtonian.utils.utils as utils
 from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
 from scenic.domains.driving.roads import Network
-from scenic.syntax.translator import verbosity
 
 import shapely
-if verbosity == 0:  # suppress pygame advertisement at zero verbosity
+if errors.verbosityLevel == 0:  # suppress pygame advertisement at zero verbosity
     os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
 import pygame
 
@@ -55,6 +54,7 @@ class NewtonianSimulator(DrivingSimulator):
                                    verbosity=verbosity, render=self.render)
 
 class NewtonianSimulation(DrivingSimulation):
+    """Implementation of `Simulation` for the Newtonian simulator."""
     def __init__(self, scene, network, timestep, verbosity=0, render=False):
         super().__init__(scene, timestep=timestep, verbosity=verbosity)
         self.render = render
@@ -173,6 +173,7 @@ class NewtonianSimulation(DrivingSimulation):
             obj.heading += obj.angularSpeed * self.timestep
         if self.render:
             self.draw_objects()
+            pygame.event.pump()
 
     def draw_objects(self):
         self.screen.fill((255, 255, 255))
@@ -207,8 +208,12 @@ class NewtonianSimulation(DrivingSimulation):
             angularSpeed=obj.angularSpeed,
         )
         if 'elevation' in properties:
-            values['elevation'] = obj.elevation
+            values['elevation'] = 0.0 if obj.elevation is None else obj.elevation
         return values
+
+    def destroy(self):
+        if self.render:
+            pygame.quit()
 
     def getLaneFollowingControllers(self, agent):
         dt = self.timestep

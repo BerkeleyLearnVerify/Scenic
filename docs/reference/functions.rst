@@ -14,8 +14,10 @@ Miscellaneous Python Functions
 The following functions work in the same way as their Python counterparts except that they accept random values:
 
 * :obj:`~math.sin`, :obj:`~math.cos`, :obj:`~math.hypot` (from the Python `math` module)
-* `max`, `min`
-* `str`
+* `len`, `max`, `min`, `round`
+* `float`, `int`, `str`
+
+The other Python built-in functions (e.g. `enumerate`, `range`, `open`) are available but do not accept random arguments.
 
 .. note::
 
@@ -28,9 +30,7 @@ filter
 
 The `filter` function works as in Python except it is now able to operate over random lists.
 This feature can be used to work around Scenic's lack of support for randomized control flow in certain cases.
-In particular, Scenic does not allow iterating over a random list, but it is still possible to select a random element satisfying a desired criterion using `filter`:
-
-.. code-block:: scenic
+In particular, Scenic does not allow iterating over a random list, but it is still possible to select a random element satisfying a desired criterion using `filter`::
 
 	mylist = Uniform([-1, 1, 2], [-3, 4])    # pick one of these lists 50/50
 	filtered = filter(lambda e: e > 0, y)    # extract only the positive elements
@@ -62,7 +62,7 @@ It is never the case that :math:`y \in (0, 1)` and :math:`z \in (5, 6)` or vice 
 .. note::
 
 	This function can only be applied to the basic built-in distributions (see the :ref:`distributions`).
-	Resampling a more complex expression like ``x + y`` where ``x`` and ``y`` are distributions would be ambiguous (what if ``x`` and ``y`` are used elsewhere?) and so is not allowed.
+	Resampling a more complex expression like :scenic:`x + y` where ``x`` and ``y`` are distributions would be ambiguous (what if ``x`` and ``y`` are used elsewhere?) and so is not allowed.
 
 .. _localPath_func:
 
@@ -84,6 +84,6 @@ Scenic libraries intended for general use should use this function instead of `p
 simulation
 ----------
 The `simulation` function, available for use in dynamic behaviors and scenarios, returns the currently-running `Simulation`.
-This allows access to global information about the simulation, e.g. ``simulation().currentTime`` to find the current time step; however, it is provided primarily so that scenarios written for a specific simulator may use simulator-specific functionality (by calling custom methods provided by that simulator's subclass of `Simulation`).
+This allows access to global information about the simulation, e.g. :scenic:`simulation().currentTime` to find the current time step; however, it is provided primarily so that scenarios written for a specific simulator may use simulator-specific functionality (by calling custom methods provided by that simulator's subclass of `Simulation`).
 
 .. [#f1] If there are no such elements, i.e., the filtered list is empty, then Scenic will reject the scenario and try sampling again.

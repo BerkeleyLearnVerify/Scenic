@@ -65,7 +65,7 @@ Simple Statements
      - Select the :term:`world model`.
    * - :sampref:`import {module}`
      - Import a Scenic or Python module.
-   * - :sampref:`param {identifier} = {value}, {...}`
+   * - :sampref:`param {name} = {value}, {...}`
      - Define :term:`global parameters` of the scenario.
    * - :sampref:`require {boolean}`
      - Define a hard requirement.
@@ -79,7 +79,7 @@ Simple Statements
      - Set the scenario to terminate after a given amount of time.
    * - :sampref:`mutate {identifier}, {...} [by {number}]`
      - Enable mutation of the given list of objects.
-   * - :sampref:`record [(initial | final)] {value} as {name}`
+   * - :sampref:`record [initial | final] {value} as {name}`
      - Save a value at every time step or only at the start/end of the simulation.
 
 Dynamic Statements
@@ -128,7 +128,7 @@ See the :ref:`objects_and_classes` for details.
  position [1]_        (0, 0)         position in global coordinates
  viewDistance          50            distance for the ‘can see’ operator
  mutationScale         0             overall scale of :ref:`mutations <mutate>`
- positionStdDev        1             mutation standard deviation for ``position``
+ positionStdDev        1             mutation standard deviation for :prop:`position`
 ===================  ==============  ================================================
 
 Properties added by `OrientedPoint`:
@@ -138,25 +138,25 @@ Properties added by `OrientedPoint`:
 -------------------  --------------  ------------------------------------------------
  heading [1]_          0             heading in global coordinates
  viewAngle            360 degrees    angle for the ‘can see’ operator
- headingStdDev         5 degrees     mutation standard deviation for ``heading``
+ headingStdDev         5 degrees     mutation standard deviation for :prop:`heading`
 ===================  ==============  ================================================
 
 Properties added by `Object`:
 
-===================  ==============  ================================================
+===================  ====================== ================================================
    **Property**       **Default**                    **Meaning**
--------------------  --------------  ------------------------------------------------
- width                 1             width of bounding box (X axis)
- length                1             length of bounding box (Y axis)
- speed [1]_            0             initial speed (later, instantaneous speed)
- velocity [1]_       from ``speed``  initial velocity (later, instantaneous velocity)
- angularSpeed [1]_     0             angular speed (change in heading/time)
- behavior              `None`        :term:`dynamic behavior`, if any
- allowCollisions      `False`        whether collisions are allowed
- requireVisible       `True`         whether object must be visible from ego
- regionContainedIn    `workspace`    Region the object must lie within
- cameraOffset          (0, 0)        position of camera for ‘can see’
-===================  ==============  ================================================
+-------------------  ---------------------- ------------------------------------------------
+ width                 1                    width of bounding box (X axis)
+ length                1                    length of bounding box (Y axis)
+ speed [1]_            0                    initial speed (later, instantaneous speed)
+ velocity [1]_       from :prop:`speed`     initial velocity (later, instantaneous velocity)
+ angularSpeed [1]_     0                    angular speed (change in heading/time)
+ behavior              `None`               :term:`dynamic behavior`, if any
+ allowCollisions      `False`               whether collisions are allowed
+ requireVisible       `True`                whether object must be visible from ego
+ regionContainedIn    `workspace`           Region the object must lie within
+ cameraOffset          (0, 0)               position of camera for ‘can see’
+===================  ====================== ================================================
 
 .. [1] These are :term:`dynamic properties`, updated automatically every time step during
     dynamic simulations.
@@ -165,20 +165,20 @@ Specifiers
 ----------
 
 The :sampref:`with {property} {value}` specifier can specify any property, including new properties not built into Scenic.
-Additional specifiers for the ``position`` and ``heading`` properties are listed below.
+Additional specifiers for the :prop:`position` and :prop:`heading` properties are listed below.
 
 .. figure:: images/Specifier_Figure.png
   :width: 60%
   :figclass: align-center
   :alt: Diagram illustrating several specifiers.
 
-  Illustration of the ``beyond``, ``behind``, and ``offset by`` specifiers.
-  Each ``OrientedPoint`` (e.g. ``P``) is shown as a bold arrow.
+  Illustration of the :scenic:`beyond`, :scenic:`behind`, and :scenic:`offset by` specifiers.
+  Each :scenic:`OrientedPoint` (e.g. ``P``) is shown as a bold arrow.
 
 .. list-table::
    :header-rows: 1
 
-   * - Specifier for ``position``
+   * - Specifier for :prop:`position`
      - Meaning
    * - :sampref:`at {vector}`
      - Positions the object at the given global coordinates
@@ -200,7 +200,7 @@ Additional specifiers for the ``position`` and ``heading`` properties are listed
 .. list-table::
    :header-rows: 1
 
-   * - Specifier for ``position`` and optionally ``heading``
+   * - Specifier for :prop:`position` and optionally :prop:`heading`
      - Meaning
    * - :sampref:`(in | on) {region}`
      - Positions the object uniformly at random in the given Region
@@ -215,7 +215,7 @@ Additional specifiers for the ``position`` and ``heading`` properties are listed
 .. list-table::
    :header-rows: 1
 
-   * - Specifier for ``heading``
+   * - Specifier for :prop:`heading`
      - Meaning
    * - :sampref:`facing {heading}`
      - Orients the object along the given heading in global coordinates
@@ -236,7 +236,7 @@ Operators
   :alt: Diagram illustrating several operators.
 
   Illustration of several operators.
-  Each ``OrientedPoint`` (e.g. ``P``) is shown as a bold arrow.
+  Each :scenic:`OrientedPoint` (e.g. ``P``) is shown as a bold arrow.
 
 .. list-table::
    :header-rows: 1
@@ -305,13 +305,13 @@ Operators
    * - :sampref:`{vector} relative to {OrientedPoint}`
      - The given vector, interpreted in the local coordinate system of the OrientedPoint
    * - :sampref:`{OrientedPoint} offset by {vector}`
-     - Equivalent to ``vector relative to OrientedPoint`` above
+     - Equivalent to :scenic:`vector relative to OrientedPoint` above
    * - :sampref:`(front | back | left | right) of {Object}`
      - The midpoint of the corresponding edge of the bounding box of the Object, oriented along its heading
    * - :sampref:`(front | back) (left | right) of {Object}`
      - The corresponding corner of the Object’s bounding box, also oriented along its heading
 
-Built in Functions
+Built-in Functions
 ------------------
 
 .. list-table::
@@ -320,7 +320,7 @@ Built in Functions
    * - Function
      - Description
    * - :ref:`Misc Python functions <gen_lifted_funcs>`
-     - Various Python functions including ``min``, ``max``, ``sin``, ``cos``, etc.
+     - Various Python functions including :scenic:`min`, :scenic:`max`, :scenic:`open`, etc.
    * - :ref:`filter_func`
      - Filter a possibly-random list (allowing limited randomized control flow).
    * - :ref:`resample_func`

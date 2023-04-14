@@ -1,14 +1,14 @@
 
-import os
-import glob
-import pytest
-import shutil
 import inspect
+import os
+import shutil
 
-from tests.utils import compileScenic, sampleScene, sampleEgo, pickle_test, tryPickling
+import pytest
+
 from scenic.core.geometry import TriangulationError
 from scenic.core.distributions import RejectionException
 from scenic.domains.driving.roads import Network
+from tests.utils import compileScenic, sampleScene, sampleEgo, pickle_test, tryPickling
 
 # Suppress all warnings from OpenDRIVE parser
 pytestmark = pytest.mark.filterwarnings("ignore::scenic.formats.opendrive.OpenDriveWarning")
@@ -32,29 +32,7 @@ def compileDrivingScenario(cached_maps, code='', useCache=True,
     whole = preamble + '\n' + inspect.cleandoc(code)
     return compileScenic(whole)
 
-maps = glob.glob('tests/formats/opendrive/maps/**/*.xodr')
-
-# TODO fix handling of this problematic map
-badmap = 'tests/formats/opendrive/maps/opendrive.org/sample1.1.xodr'
-map_params = []
-for path in maps:
-    if path == badmap:
-        param = pytest.param(badmap, marks=pytest.mark.xfail(
-                    reason='unsolved bug in geometry calculations', strict=True))
-    else:
-        param = path
-    map_params.append(param)
-
-@pytest.fixture(scope='session')
-def cached_maps(tmpdir_factory):
-    folder = tmpdir_factory.mktemp('maps')
-    paths = {}
-    for localMap in maps:
-        newPath = folder.join(localMap)
-        os.makedirs(newPath.dirname, exist_ok=True)
-        shutil.copyfile(localMap, newPath)
-        paths[localMap] = newPath
-    return paths
+from tests.domains.driving.conftest import map_params
 
 @pytest.mark.slow
 @pytest.mark.parametrize("path", map_params)
@@ -103,12 +81,21 @@ def test_intersection(cached_maps):
         maneuver = Uniform(*lane.maneuvers)
         ego = Car on maneuver.connectingLane.centerline
     """)
-    for i in range(50):
+    for i in range(20):
         ego = sampleEgo(scenario, maxIterations=1000)
         intersection = ego.intersection
         assert intersection is not None
+        assert intersection.is3Way == (len(intersection.roads) == 3)
+        assert intersection.is4Way == (len(intersection.roads) == 4)
+        assert intersection.isSignalized == bool(intersection.signals)
+        network = intersection.network
+        assert network.elementAt(ego) is intersection
         directions = intersection.nominalDirectionsAt(ego)
+        assert directions == network.nominalDirectionsAt(ego)
         assert any(ego.heading == pytest.approx(direction) for direction in directions)
+        maneuvers = intersection.maneuversAt(ego)
+        lane = ego.lane
+        assert any(man.connectingLane is lane for man in maneuvers)
 
 def test_curb(cached_maps):
     scenario = compileDrivingScenario(cached_maps, """
@@ -116,7 +103,9 @@ def test_curb(cached_maps):
         spot = OrientedPoint on visible curb
         Car left of spot by 0.25
     """)
-    sampleScene(scenario, maxIterations=1000)
+    ego = sampleEgo(scenario, maxIterations=1000)
+    directions = ego.element.network.nominalDirectionsAt(ego)
+    assert any(ego.heading == pytest.approx(direction) for direction in directions)
 
 @pytest.mark.slow
 def test_caching(tmpdir):
@@ -128,10 +117,12 @@ def test_caching(tmpdir):
     origMap = 'tests/formats/opendrive/maps/CARLA/Town01.xodr'
     path = os.path.join(tmpdir, 'map.xodr')
     cachedPath = os.path.join(tmpdir, 'map' + Network.pickledExt)
+    noExtPath = os.path.join(tmpdir, 'map')
     shutil.copyfile(origMap, path)
     opts = (
         (False, path),
         (True, cachedPath),
+        (True, noExtPath),
         (True, path),
     )
     for useCache, path in opts:
@@ -148,6 +139,7 @@ def test_caching(tmpdir):
         sampleScene(scenario, maxIterations=1000)
 
 @pickle_test
+@pytest.mark.slow
 def test_pickle(cached_maps):
     scenario = compileDrivingScenario(cached_maps, """
         ego = Car with behavior FollowLaneBehavior(target_speed=Range(10, 15))

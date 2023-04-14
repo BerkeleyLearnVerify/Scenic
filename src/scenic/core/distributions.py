@@ -35,6 +35,14 @@ def supportInterval(thing):
 	else:
 		return None, None
 
+def supmin(*vals):
+	return None if None in vals else min(vals)
+def supmax(*vals):
+	return None if None in vals else max(vals)
+def unionOfSupports(supports):
+	mins, maxes = zip(*supports)
+	return supmin(*mins), supmax(*maxes)
+
 def underlyingFunction(thing):
 	"""Original function underlying a distribution wrapper."""
 	func = getattr(thing, '__wrapped__', thing)
@@ -56,8 +64,7 @@ class RejectionException(Exception):
 class RandomControlFlowError(RuntimeParseError):
 	"""Exception indicating illegal conditional control flow depending on a random value.
 
-	This includes trying to iterate over a random value, take the length of a random
-	sequence whose length can't be determined statically, etc.
+	This includes trying to iterate over a random value, making a range of random length, etc.
 	"""
 	pass
 
@@ -116,15 +123,23 @@ class Samplable(LazilyEvaluable):
 	def sampleGiven(self, value):
 		"""Sample this value, given values for all its dependencies.
 
-		The default implementation simply returns a dictionary of dependency values.
-		Subclasses must override this method to specify how actual sampling is done.
+		Implemented by subclasses.
 
 		Args:
 			value (DefaultIdentityDict): dictionary mapping objects to their sampled
 				values. Guaranteed to provide values for all objects given in the set of
 				dependencies when this `Samplable` was created.
 		"""
-		return DefaultIdentityDict({ dep: value[dep] for dep in self._dependencies })
+		raise NotImplementedError
+
+	def serializeValue(self, values, serializer):
+		for child in self._conditioned._dependencies:
+			serializer.writeSamplable(child, values)
+
+	def deserializeValue(self, serializer, values):
+		for child in self._conditioned._dependencies:
+			serializer.readSamplable(child, values)
+		return self._conditioned.sampleGiven(values)
 
 	def conditionTo(self, value):
 		"""Condition this value to another value with the same conditional distribution."""
@@ -137,14 +152,6 @@ class Samplable(LazilyEvaluable):
 		# Check that all dependencies have been evaluated
 		assert all(not needsLazyEvaluation(dep) for dep in value._dependencies)
 		return value
-
-	def dependencyTree(self):
-		"""Debugging method to print the dependency tree of a Samplable."""
-		l = [str(self)]
-		for dep in dependencies(self):
-			for line in dep.dependencyTree():
-				l.append('  ' + line)
-		return l
 
 class ConstantSamplable(Samplable):
 	"""A samplable which always evaluates to a constant value.
@@ -180,13 +187,34 @@ class Distribution(Samplable):
 	#: Default valueType for distributions of this class, when not otherwise specified.
 	_defaultValueType = object
 
+	#: Whether this type of distribution is a deterministic function of its dependencies.
+	#:
+	#: For example, `Options` is implemented as deterministic by using an internal
+	#: `DiscreteRange` to select which of its finitely-many options to choose from: the
+	#: value of the `Options` is then completely determined by the value of the range and
+	#: the values of each of the options. This simplifies serialization because these
+	#: dependencies likely have simpler valueTypes than the `Options` itself (e.g. if we
+	#: had a random choice between a list and a string, encoding the actual sampled value
+	#: would require saving type information).
+	_deterministic = False
+
 	def __new__(cls, *args, **kwargs):
 		dist = super().__new__(cls)
-		# at runtime, return a sample from the distribution immediately
+		# During a simulation, return a sample from the distribution immediately
 		import scenic.syntax.veneer as veneer
 		if veneer.simulationInProgress():
 			dist.__init__(*args, **kwargs)
-			return dist.sample()
+			sim = veneer.simulation()
+			subsamples = DefaultIdentityDict()
+			# If we're replaying a previous simulation, use the saved value; otherwise sample one
+			if sim.replayCanContinue():
+				value = sim.replaySampledValue(dist, subsamples)
+			else:
+				value = dist.sample(subsamples)
+			# Save the value for future replay
+			subsamples[dist] = value
+			sim.recordSampledValue(dist, subsamples)
+			return value
 		else:
 			return dist
 
@@ -213,6 +241,30 @@ class Distribution(Samplable):
 		except NotImplementedError:
 			return False
 
+	def serializeValue(self, values, serializer):
+		"""Serialize the sampled value of this distribution.
+
+		This method is used internally by `Scenario.sceneToBytes` and related APIs.
+		If you define a new subclass of `Distribution`, you probably don't need to
+		override this method. If your distribution has an unusual **valueType** (i.e.
+		not `float`, `int`, or `Vector`), see the documentation for `Serializer` for
+		instructions on how to support serialization.
+		"""
+		if self._deterministic:
+			# It suffices to just serialize our dependencies; this is preferable to
+			# saving our sampled value directly, which could be arbitrarily complex.
+			super().serializeValue(values, serializer)
+		else:
+			# Need to save our sampled value, which can't be reconstructed from the
+			# values of our dependencies. There is then no need to save the latter.
+			serializer.writeValue(values[self], self._valueType)
+
+	def deserializeValue(self, serializer, values):
+		if self._deterministic:
+			return super().deserializeValue(serializer, values)
+		else:
+			return serializer.readValue(self._valueType)
+
 	def bucket(self, buckets=None):
 		"""Construct a bucketed approximation of this Distribution.
 
@@ -229,7 +281,7 @@ class Distribution(Samplable):
 	def supportInterval(self):
 		"""Compute lower and upper bounds on the value of this Distribution.
 
-		By default returns :samp:`(None, None)` indicating that no lower or upper bounds
+		By default returns :scenic:`(None, None)` indicating that no lower or upper bounds
 		are known. Subclasses may override this method to provide more accurate results.
 		"""
 		return None, None
@@ -259,35 +311,16 @@ class Distribution(Samplable):
 	def __hash__(self):		# need to explicitly define since we overrode __eq__
 		return id(self)
 
-	def __len__(self):
-		raise RandomControlFlowError('cannot take the len of a random value')
-
 	def __bool__(self):
 		raise RandomControlFlowError('control flow cannot depend on a random value')
 
 ## Derived distributions
 
-class CustomDistribution(Distribution):
-	"""Distribution with a custom sampler given by an arbitrary function"""
-	def __init__(self, sampler, *dependencies, name='CustomDistribution', evaluator=None):
-		super().__init__(*dependencies)
-		self.sampler = sampler
-		self.name = name
-		self.evaluator = evaluator
-
-	def sampleGiven(self, value):
-		return self.sampler(value)
-
-	def evaluateInner(self, context):
-		if self.evaluator is None:
-			raise NotImplementedError('evaluateIn() not supported by this distribution')
-		return self.evaluator(self, context)
-
-	def __str__(self):
-		return f'{self.name}{argsToString(self.dependencies)}'
-
 class TupleDistribution(Distribution, collections.abc.Sequence):
 	"""Distributions over tuples (or namedtuples, or lists)."""
+
+	_deterministic = True
+
 	def __init__(self, *coordinates, builder=tuple):
 		super().__init__(*coordinates)
 		self.coordinates = coordinates
@@ -309,9 +342,37 @@ class TupleDistribution(Distribution, collections.abc.Sequence):
 		coordinates = (valueInContext(coord, context) for coord in self.coordinates)
 		return TupleDistribution(*coordinates, builder=self.builder)
 
-	def __str__(self):
-		coords = ', '.join(str(c) for c in self.coordinates)
-		return f'({coords}, builder={self.builder})'
+	def __repr__(self):
+		coords = ', '.join(repr(c) for c in self.coordinates)
+		if self.builder is tuple:
+			return f'({coords},)'
+		elif self.builder is list:
+			return f'[{coords}]'
+		else:
+			return f'TupleDistribution({coords}, builder={self.builder!r})'
+
+class SliceDistribution(Distribution):
+	"""Distributions over `slice` objects."""
+
+	_deterministic = True
+
+	def __init__(self, start, stop, step):
+		super().__init__(start, stop, step, valueType=slice)
+		self.start = start
+		self.stop = stop
+		self.step = step
+
+	def sampleGiven(self, value):
+		return slice(value[self.start], value[self.stop], value[self.step])
+
+	def evaluateInner(self, context):
+		start = valueInContext(self.start, context)
+		stop = valueInContext(self.stop, context)
+		step = valueInContext(self.step, context)
+		return SliceDistribution(start, stop, step)
+
+	def __repr__(self):
+		return f'slice({self.start!r}, {self.stop!r}, {self.step!r})'
 
 def toDistribution(val):
 	"""Wrap Python data types with Distributions, if necessary.
@@ -327,10 +388,17 @@ def toDistribution(val):
 			else:
 				builder = type(val)
 			return TupleDistribution(*coords, builder=builder)
+	elif isinstance(val, slice):
+		attrs = (val.start, val.stop, val.step)
+		if any(needsSampling(a) for a in attrs):
+			return SliceDistribution(*attrs)
 	return val
 
 class FunctionDistribution(Distribution):
 	"""Distribution resulting from passing distributions to a function"""
+
+	_deterministic = True
+
 	def __init__(self, func, args, kwargs, support=None, valueType=None):
 		args = tuple(toDistribution(arg) for arg in args)
 		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
@@ -371,9 +439,8 @@ class FunctionDistribution(Distribution):
 		kwss = { name: supportInterval(arg) for name, arg in self.kwargs.items() }
 		return self.support(*subsupports, **kwss)
 
-	def __str__(self):
-		args = argsToString(itertools.chain(self.arguments, self.kwargs.items()))
-		return f'{self.function.__name__}{args}'
+	def __repr__(self):
+		return f'{self.function.__name__}({argsToString(self.arguments, self.kwargs)})'
 
 def distributionFunction(wrapped=None, *, support=None, valueType=None):
 	"""Decorator for wrapping a function so that it can take distributions as arguments.
@@ -423,6 +490,9 @@ def monotonicDistributionFunction(method, valueType=None):
 
 class StarredDistribution(Distribution):
 	"""A placeholder for the iterable unpacking operator * applied to a distribution."""
+
+	_deterministic = True
+
 	def __init__(self, value, lineno):
 		assert isinstance(value, Distribution)
 		self.value = value
@@ -435,11 +505,14 @@ class StarredDistribution(Distribution):
 	def evaluateInner(self, context):
 		return StarredDistribution(valueInContext(self.value, context), self.lineno)
 
-	def __str__(self):
-		return f'*{self.value}'
+	def __repr__(self):
+		return f'*{self.value!r}'
 
 class MethodDistribution(Distribution):
 	"""Distribution resulting from passing distributions to a method of a fixed object"""
+
+	_deterministic = True
+
 	def __init__(self, method, obj, args, kwargs, valueType=None):
 		args = tuple(toDistribution(arg) for arg in args)
 		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
@@ -467,9 +540,9 @@ class MethodDistribution(Distribution):
 		kwargs = { name: valueInContext(arg, context) for name, arg in self.kwargs.items() }
 		return MethodDistribution(self.method, obj, arguments, kwargs)
 
-	def __str__(self):
-		args = argsToString(itertools.chain(self.arguments, self.kwargs.items()))
-		return f'{self.object}.{self.method.__name__}{args}'
+	def __repr__(self):
+		args = argsToString(self.arguments, self.kwargs)
+		return f'{self.object!r}.{self.method.__name__}({args})'
 
 def distributionMethod(method):
 	"""Decorator for wrapping a method so that it can take distributions as arguments."""
@@ -495,18 +568,21 @@ def distributionMethod(method):
 
 class AttributeDistribution(Distribution):
 	"""Distribution resulting from accessing an attribute of a distribution"""
+
+	_deterministic = True
+
 	def __init__(self, attribute, obj, valueType=None):
 		if valueType is None:
-			valueType = self.inferType(obj, attribute)
+			ty = type_support.underlyingType(obj)
+			valueType = self.inferType(ty, attribute)
 		super().__init__(obj, valueType=valueType)
 		self.attribute = attribute
 		self.object = obj
 
 	@staticmethod
-	def inferType(obj, attribute):
+	def inferType(ty, attribute):
 		"""Attempt to infer the type of the given attribute."""
 		# If the object's type is known, see if we have an attribute type annotation.
-		ty = type_support.underlyingType(obj)
 		try:
 			hints = typing.get_type_hints(ty)
 			attrTy = hints.get(attribute)
@@ -515,8 +591,21 @@ class AttributeDistribution(Distribution):
 		except Exception:
 			pass	# couldn't get type annotations
 
+		# Handle unions
+		origin = typing.get_origin(ty)
+		if origin == typing.Union:
+			types = []
+			for option in typing.get_args(ty):
+				if (option is type(None) and not hasattr(None, attribute)):
+					# None does not have this attribute; accessing it will raise an
+					# exception, so we can ignore this case for type inference.
+					continue
+				res = AttributeDistribution.inferType(option, attribute)
+				types.append(res)
+			return type_support.unifierOfTypes(types) if types else object
+
 		# We can't tell what the attribute type is.
-		return None
+		return object
 
 	def sampleGiven(self, value):
 		obj = value[self.object]
@@ -528,12 +617,9 @@ class AttributeDistribution(Distribution):
 
 	def supportInterval(self):
 		obj = self.object
-		if isinstance(obj, Options):
+		if isinstance(obj, MultiplexerDistribution):
 			attrs = (getattr(opt, self.attribute) for opt in obj.options)
-			mins, maxes = zip(*(supportInterval(attr) for attr in attrs))
-			l = None if any(sl is None for sl in mins) else min(mins)
-			r = None if any(sr is None for sr in maxes) else max(maxes)
-			return l, r
+			return unionOfSupports(supportInterval(attr) for attr in attrs)
 		return None, None
 
 	def __call__(self, *args):
@@ -547,40 +633,92 @@ class AttributeDistribution(Distribution):
 				retTy = typing.get_type_hints(func).get('return')
 		return OperatorDistribution('__call__', self, args, valueType=retTy)
 
-	def __str__(self):
-		return f'{self.object}.{self.attribute}'
+	def __repr__(self):
+		return f'{self.object!r}.{self.attribute}'
 
 class OperatorDistribution(Distribution):
 	"""Distribution resulting from applying an operator to one or more distributions"""
+
+	_deterministic = True
+
 	def __init__(self, operator, obj, operands, valueType=None):
 		operands = tuple(toDistribution(arg) for arg in operands)
 		if valueType is None:
-			valueType = self.inferType(obj, operator, operands)
+			ty = type_support.underlyingType(obj)
+			valueType = self.inferType(ty, operator, operands)
 		super().__init__(obj, *operands, valueType=valueType)
 		self.operator = operator
 		self.object = obj
 		self.operands = operands
 
 	@staticmethod
-	def inferType(obj, operator, operands):
+	def inferType(ty, operator, operands):
 		"""Attempt to infer the result type of the given operator application."""
 		# If the object's type is known, see if we have a return type annotation.
-		ty = type_support.underlyingType(obj)
-		op = getattr(ty, operator, None)
+		origin = typing.get_origin(ty)
+		op = getattr(origin if origin else ty, operator, None)
 		if op:
 			retTy = typing.get_type_hints(op).get('return')
 			if retTy:
 				return retTy
 
+		# Handle unions
+		if origin == typing.Union:
+			types = []
+			for option in typing.get_args(ty):
+				if option is type(None) and not hasattr(None, operator):
+					# None does not support this operator; using it will raise an
+					# exception, so we can ignore this case for type inference.
+					continue
+				res = OperatorDistribution.inferType(option, operator, operands)
+				types.append(res)
+			return type_support.unifierOfTypes(types) if types else object
+
 		# The supported arithmetic operations on scalars all return scalars.
 		def scalar(thing):
 			ty = type_support.underlyingType(thing)
 			return type_support.canCoerceType(ty, float)
-		if scalar(obj) and all(scalar(operand) for operand in operands):
+		if (type_support.canCoerceType(ty, float)
+		    and all(scalar(operand) for operand in operands)):
 			return float
 
+		# Handle __getitem__ for known container types.
+		if operator == '__getitem__' and len(operands) == 1:
+			if origin and isinstance(origin, type):	# parametrized ordinary type
+				res = object
+				index = operands[0]
+				ity = type_support.underlyingType(index)
+				isSlice = not hasattr(ity, '__index__')
+				if issubclass(origin, list):
+					res = ty if isSlice else typing.get_args(ty)[0]
+				elif issubclass(origin, tuple):
+					args = typing.get_args(ty)
+					if type_support.is_typing_generic(ty):
+						# If annotation used Tuple instead of tuple, preserve it
+						origin = typing.Tuple
+					if len(args) == 2 and args[1] is ...:
+						# homogeneous variable-length tuple
+						res = ty if isSlice else args[0]
+					elif not needsSampling(index):
+						res = args[index]
+						if isSlice:
+							res = origin[res]
+					else:
+						# can't pin down the index, so cover all possibilities
+						if any(arg is typing.Any for arg in args):
+							return origin if isSlice else object
+						res = typing.Union[args]
+						if isSlice:
+							res = origin[res, ...]
+				elif issubclass(origin, (dict, typing.Mapping, collections.abc.Mapping)):
+					res = typing.get_args(ty)[1]
+				return object if res is typing.Any else res
+			elif not origin:	# ordinary type
+				if issubclass(ty, str):
+					return str
+
 		# We can't tell what the result type is.
-		return None
+		return object
 
 	def sampleGiven(self, value):
 		first = value[self.object]
@@ -601,7 +739,8 @@ class OperatorDistribution(Distribution):
 		return OperatorDistribution(self.operator, obj, operands)
 
 	def supportInterval(self):
-		if self.operator in ('__add__', '__radd__', '__sub__', '__rsub__', '__truediv__'):
+		if self.operator in ('__add__', '__radd__', '__sub__', '__rsub__',
+		                     '__mul__', '__rmul__', '__truediv__', '__rtruediv__'):
 			assert len(self.operands) == 1
 			l1, r1 = supportInterval(self.object)
 			l2, r2 = supportInterval(self.operands[0])
@@ -616,17 +755,43 @@ class OperatorDistribution(Distribution):
 			elif self.operator == '__rsub__':
 				l = l2 - r1
 				r = r2 - l1
+			elif self.operator in ('__mul__', '__rmul__'):
+				prods = (l1*l2, l1*r2, r1*l2, r1*r2)
+				l = min(*prods)
+				r = max(*prods)
 			elif self.operator == '__truediv__':
 				if l2 > 0:
 					l = l1 / r2 if l1 >= 0 else l1 / l2
 					r = r1 / l2 if r1 >= 0 else r1 / r2
 				else:
 					l, r = None, None 	# TODO improve
+			elif self.operator == '__rtruediv__':
+				if l1 > 0:
+					l = l2 / r1 if l2 >= 0 else l2 / l1
+					r = r2 / l1 if r2 >= 0 else r2 / r1
+				else:
+					l, r = None, None
+			else:
+				raise AssertionError(f'unexpected operator {self.operator}')
 			return l, r
+		elif self.operator in ('__neg__', '__abs__'):
+			assert len(self.operands) == 0
+			l, r = supportInterval(self.object)
+			if self.operator == '__neg__':
+				return -r, -l
+			elif self.operator == '__abs__':
+				if r < 0:
+					return -r, -l
+				elif l < 0:
+					return 0, max(-l, r)
+				else:
+					return l, r
+			else:
+				raise AssertionError(f'unexpected operator {self.operator}')
 		return None, None
 
 	def __repr__(self):
-		return f'{self.object}.{self.operator}{argsToString(self.operands)}'
+		return f'{self.object!r}.{self.operator}({argsToString(self.operands)})'
 
 # Operators which can be applied to distributions.
 # Note that we deliberately do not include comparisons and __bool__,
@@ -645,18 +810,26 @@ allowedOperators = (
 	'__pow__', '__rpow__',
 	'__round__',
 	'__getitem__',
+	('__len__', int),
 )
-def makeOperatorHandler(op):
+def makeOperatorHandler(op, ty):
 	def handler(self, *args):
-		return OperatorDistribution(op, self, args)
+		return OperatorDistribution(op, self, args, valueType=ty)
 	return handler
-for op in allowedOperators:
-	setattr(Distribution, op, makeOperatorHandler(op))
+for data in allowedOperators:
+	if isinstance(data, tuple):
+		op, ty = data
+	else:
+		op = data
+		ty = None
+	setattr(Distribution, op, makeOperatorHandler(op, ty))
 
 import scenic.core.type_support as type_support
 
 class MultiplexerDistribution(Distribution):
 	"""Distribution selecting among values based on another distribution."""
+
+	_deterministic = True
 
 	def __init__(self, index, options):
 		self.index = index
@@ -670,9 +843,24 @@ class MultiplexerDistribution(Distribution):
 		assert 0 <= idx < len(self.options), (idx, len(self.options))
 		return value[self.options[idx]]
 
+	def serializeValue(self, values, serializer):
+		# We override this method to save space: we don't need to serialize all
+		# of our options, only the one we're selecting.
+		serializer.writeSamplable(self.index, values)
+		choice = self.options[values[self.index]]
+		serializer.writeSamplable(choice, values)
+
+	def deserializeValue(self, serializer, values):
+		serializer.readSamplable(self.index, values)
+		choice = self.options[values[self.index]]
+		serializer.readSamplable(choice, values)
+		return values[choice]
+
 	def evaluateInner(self, context):
 		return type(self)(valueInContext(self.index, context),
 		                  (valueInContext(opt, context) for opt in self.options))
+	def supportInterval(self):
+		return unionOfSupports(supportInterval(opt) for opt in self.options)
 
 ## Simple distributions
 
@@ -685,9 +873,6 @@ class Range(Distribution):
 		self.low = low
 		self.high = high
 
-	def __contains__(self, obj):
-		return self.low <= obj and obj <= self.high
-
 	def clone(self):
 		return type(self)(self.low, self.high)
 
@@ -695,7 +880,7 @@ class Range(Distribution):
 		if buckets is None:
 			buckets = 5
 		if not isinstance(buckets, int) or buckets < 1:
-			raise RuntimeError(f'Invalid buckets for Range.bucket: {buckets}')
+			raise ValueError(f'Invalid buckets for Range.bucket: {buckets}')
 		if not isinstance(self.low, float) or not isinstance(self.high, float):
 			raise RuntimeError(f'Cannot bucket Range with non-constant endpoints')
 		endpoints = numpy.linspace(self.low, self.high, buckets+1)
@@ -713,8 +898,11 @@ class Range(Distribution):
 		high = valueInContext(self.high, context)
 		return Range(low, high)
 
-	def __str__(self):
-		return f'Range({self.low}, {self.high})'
+	def supportInterval(self):
+		return unionOfSupports((supportInterval(self.low), supportInterval(self.high)))
+
+	def __repr__(self):
+		return f'Range({self.low!r}, {self.high!r})'
 
 class Normal(Distribution):
 	"""Normal distribution"""
@@ -744,7 +932,7 @@ class Normal(Distribution):
 			buckets = 5
 		if isinstance(buckets, int):
 			if buckets < 1:
-				raise RuntimeError(f'Invalid buckets for Normal.bucket: {buckets}')
+				raise ValueError(f'Invalid buckets for Normal.bucket: {buckets}')
 			elif buckets == 1:
 				endpoints = []
 			elif buckets == 2:
@@ -757,8 +945,8 @@ class Normal(Distribution):
 			endpoints = tuple(buckets)
 			for i, v in enumerate(endpoints[:-1]):
 				if v >= endpoints[i+1]:
-					raise RuntimeError('Non-increasing bucket endpoints for '
-					                   f'Normal.bucket: {endpoints}')
+					raise ValueError('Non-increasing bucket endpoints for '
+					                 f'Normal.bucket: {endpoints}')
 		if len(endpoints) == 0:
 			return Options([self.clone()])
 		buckets = [(-math.inf, endpoints[0])]
@@ -782,15 +970,17 @@ class Normal(Distribution):
 		stddev = valueInContext(self.stddev, context)
 		return Normal(mean, stddev)
 
-	def __str__(self):
-		return f'Normal({self.mean}, {self.stddev})'
+	def __repr__(self):
+		return f'Normal({self.mean!r}, {self.stddev!r})'
 
 class TruncatedNormal(Normal):
 	"""Truncated normal distribution."""
 	def __init__(self, mean, stddev, low, high):
 		if (not isinstance(low, (float, int))
 		    or not isinstance(high, (float, int))):	# TODO relax restriction?
-			raise RuntimeError('Endpoints of TruncatedNormal must be constant')
+			raise ValueError('Endpoints of TruncatedNormal must be constant')
+		if low >= high:
+			raise ValueError('low endpoint of TruncatedNormal must be below high endpoint')
 		super().__init__(mean, stddev)
 		self.low = low
 		self.high = high
@@ -806,19 +996,19 @@ class TruncatedNormal(Normal):
 			buckets = 5
 		if isinstance(buckets, int):
 			if buckets < 1:
-				raise RuntimeError(f'Invalid buckets for TruncatedNormal.bucket: {buckets}')
+				raise ValueError(f'Invalid buckets for TruncatedNormal.bucket: {buckets}')
 			endpoints = numpy.linspace(self.low, self.high, buckets+1)
 		else:
 			endpoints = tuple(buckets)
 			if len(endpoints) < 2:
-				raise RuntimeError('Too few bucket endpoints for '
-				                   f'TruncatedNormal.bucket: {endpoints}')
+				raise ValueError('Too few bucket endpoints for '
+				                 f'TruncatedNormal.bucket: {endpoints}')
 			if endpoints[0] != self.low or endpoints[-1] != self.high:
-				raise RuntimeError(f'TruncatedNormal.bucket endpoints {endpoints} '
-				                   'do not match domain')
+				raise ValueError(f'TruncatedNormal.bucket endpoints {endpoints} '
+				                 'do not match domain')
 			for i, v in enumerate(endpoints[:-1]):
 				if v >= endpoints[i+1]:
-					raise RuntimeError('Non-increasing bucket endpoints for '
+					raise ValueError('Non-increasing bucket endpoints for '
 					                   f'TruncatedNormal.bucket: {endpoints}')
 		pieces, probs = [], []
 		for i, left in enumerate(endpoints[:-1]):
@@ -847,44 +1037,61 @@ class TruncatedNormal(Normal):
 		stddev = valueInContext(self.stddev, context)
 		return TruncatedNormal(mean, stddev, self.low, self.high)
 
-	def __str__(self):
-		return f'TruncatedNormal({self.mean}, {self.stddev}, {self.low}, {self.high})'
+	def supportInterval(self):
+		return self.low, self.high
+
+	def __repr__(self):
+		return f'TruncatedNormal({self.mean!r}, {self.stddev!r}, {self.low!r}, {self.high!r})'
 
 class DiscreteRange(Distribution):
 	"""Distribution over a range of integers."""
-	def __init__(self, low, high, weights=None):
-		if not isinstance(low, int):
-			raise RuntimeError(f'DiscreteRange endpoint {low} is not a constant integer')
-		if not isinstance(high, int):
-			raise RuntimeError(f'DiscreteRange endpoint {high} is not a constant integer')
-		if not low <= high:
-			raise RuntimeError(f'DiscreteRange lower bound {low} is above upper bound {high}')
-		if weights is None:
-			weights = (1,) * (high - low + 1)
-		else:
+	def __init__(self, low, high, weights=None, emptyMessage='empty DiscreteRange'):
+		if weights:
+			if not isinstance(low, int):
+				raise TypeError('weighted DiscreteRange left endpoint must be an integer')
+			if not isinstance(high, int):
+				raise TypeError('weighted DiscreteRange right endpoint must be an integer')
+			if not low <= high:
+				raise ValueError(f'DiscreteRange lower bound {low} is above upper bound {high}')
+			self.low, self.high = low, high
 			weights = tuple(weights)
-			assert len(weights) == high - low + 1
-		super().__init__(valueType=int)
-		self.low = low
-		self.high = high
-		self.weights = weights
-		self.cumulativeWeights = tuple(itertools.accumulate(weights))
-		self.options = tuple(range(low, high+1))
-
-	def __contains__(self, obj):
-		return low <= obj and obj <= high
+			if len(weights) != high - low + 1:
+				raise ValueError('weighted DiscreteRange with wrong number of weights')
+			self.weights = weights
+			self.cumulativeWeights = tuple(itertools.accumulate(weights))
+			self.options = tuple(range(low, high+1))
+		else:
+			self.low = type_support.toScalar(low, 'DiscreteRange left endpoint not a scalar')
+			self.high = type_support.toScalar(high, 'DiscreteRange right endpoint not a scalar')
+			self.weights = None
+		self.emptyMessage = emptyMessage
+		super().__init__(self.low, self.high, valueType=int)
 
 	def clone(self):
-		return type(self)(self.low, self.high, self.weights)
+		return type(self)(self.low, self.high, self.weights, self.emptyMessage)
 
 	def bucket(self, buckets=None):
 		return self.clone()		# already bucketed
 
 	def sampleGiven(self, value):
-		return random.choices(self.options, cum_weights=self.cumulativeWeights)[0]
+		if self.weights:
+			return random.choices(self.options, cum_weights=self.cumulativeWeights)[0]
+		left, right = math.ceil(value[self.low]), math.floor(value[self.high])
+		if right < left:
+			raise RejectionException(self.emptyMessage)
+		return random.randint(left, right)
 
-	def __str__(self):
-		return f'DiscreteRange({self.low}, {self.high}, {self.weights})'
+	def supportInterval(self):
+		ll, lh = supportInterval(self.low)
+		hl, hh = supportInterval(self.high)
+		return ll, hh
+
+	def __repr__(self):
+		weights = self.weights
+		if all(weight == weights[0] for weight in weights):
+			return f'DiscreteRange({self.low!r}, {self.high!r})'
+		else:
+			return f'DiscreteRange({self.low!r}, {self.high!r}, {self.weights})'
 
 class Options(MultiplexerDistribution):
 	"""Distribution over a finite list of options.
@@ -932,11 +1139,12 @@ class Options(MultiplexerDistribution):
 			return type(self)({valueInContext(opt, context): wt
 			                  for opt, wt in self.optWeights.items() })
 
-	def __str__(self):
+	def __repr__(self):
 		if self.optWeights is not None:
-			return f'{type(self).__name__}({self.optWeights})'
+			return f'{type(self).__name__}({self.optWeights!r})'
 		else:
-			return f'{type(self).__name__}{argsToString(self.options)}'
+			args = ', '.join(repr(opt) for opt in self.options)
+			return f'{type(self).__name__}({args})'
 
 @unpacksDistributions
 def Uniform(*opts):
@@ -958,25 +1166,39 @@ class UniformDistribution(Distribution):
 	applied to a distribution, so that the number of options is unknown at
 	compile time.
 	"""
+
+	_deterministic = True
+
 	def __init__(self, opts):
 		self.options = opts
 		valueType = type_support.unifyingType(self.options)
-		super().__init__(*self.options, valueType=valueType)
+		length = 0
+		for opt in opts:
+			if isinstance(opt, StarredDistribution):
+				length += opt.__len__()
+			else:
+				length += 1
+		self.selector = DiscreteRange(0, length-1,
+		                              emptyMessage='uniform distribution over empty domain')
+		super().__init__(*self.options, self.selector, valueType=valueType)
+
+	def clone(self):
+		return type(self)(self.options)
 
 	def sampleGiven(self, value):
+		index = value[self.selector]
 		opts = []
 		for opt in self.options:
 			if isinstance(opt, StarredDistribution):
 				opts.extend(value[opt])
 			else:
 				opts.append(value[opt])
-		if not opts:
-			raise RejectionException('uniform distribution over empty domain')
-		return random.choice(opts)
+		assert 0 <= index < len(opts)
+		return opts[index]
 
 	def evaluateInner(self, context):
 		opts = tuple(valueInContext(opt, context) for opt in self.options)
 		return UniformDistribution(opts)
 
-	def __str__(self):
-		return f'UniformDistribution({self.options})'
+	def __repr__(self):
+		return f'UniformDistribution({self.options!r})'

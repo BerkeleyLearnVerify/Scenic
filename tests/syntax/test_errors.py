@@ -40,6 +40,13 @@ def test_illegal_binary_operators(op):
     with pytest.raises(TokenParseError):
         compileScenic(f'x {op}= 4')
 
+def test_illegal_statements():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            async def foo(): pass
+            ego = Object
+        """)
+
 ## Constructor definitions
 
 badNames = ('', '3', '+', 'Behavior')
@@ -357,7 +364,7 @@ def test_line_numbering_dynamic(bug, template, tmpdir, pytestconfig):
 
 @pytest.mark.parametrize('bug', (
     'x = float(0@0)\n' 'y = 1@2',
-    'x = float(Range(0, 10))\n' 'y = Range(0, 10)',
+    'x = range(Range(0, 10))\n' 'y = Range(0, 10)',
 ))
 @pytest.mark.parametrize('template', templates)
 def test_line_numbering_double(bug, template, tmpdir, pytestconfig):

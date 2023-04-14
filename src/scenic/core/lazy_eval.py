@@ -1,12 +1,12 @@
 """Support for lazy evaluation of expressions and specifiers.
 
-Lazy evaluation is necessary for expressions like :samp:`30 deg relative to roadDirection`
-where :samp:`roadDirection` is a vector field and so defines a different heading at
+Lazy evaluation is necessary for expressions like :scenic:`30 deg relative to roadDirection`
+where :scenic:`roadDirection` is a vector field and so defines a different heading at
 different positions. Scenic defers evaluation of such expressions until they are used in
 the definition of an object, when the required context (here, a position) is available.
 This is implemented by representing lazy values as special objects which capture all
 operations applied to them (in a similar way to `Distribution` objects). The main class
-of such objects is `DelayedArgument`: in the above example, the :samp:`relative to`
+of such objects is `DelayedArgument`: in the above example, the :scenic:`relative to`
 operator returns such an object. However, since lazy values can appear as arguments to
 distributions, `Distribution` objects can also require lazy evaluation (prior to
 sampling); therefore both of these classes derive from a common abstract class

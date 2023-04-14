@@ -22,6 +22,24 @@ def test_str():
     assert isinstance(ego.foo, str)
     assert 12 <= float(ego.foo) <= 17
 
+def test_float():
+    ego = sampleEgoFrom('ego = Object with foo float(Uniform("1.5", "-0.5"))')
+    assert isinstance(ego.foo, float)
+    assert float(ego.foo) in (1.5, -0.5)
+
+def test_int():
+    ego = sampleEgoFrom('ego = Object with foo int(Range(12, 14.9))')
+    assert isinstance(ego.foo, int)
+    assert ego.foo in (12, 13, 14)
+
+def test_round():
+    ego = sampleEgoFrom('ego = Object with foo round(Range(12.51, 13.4))')
+    assert isinstance(ego.foo, int)
+    assert ego.foo == 13
+    ego = sampleEgoFrom('ego = Object with foo round(Range(12.5, 13.4), ndigits=1)')
+    assert isinstance(ego.foo, float)
+    assert ego.foo - round(ego.foo, ndigits=1) == pytest.approx(0)
+
 # Iterable and dictionary unpacking
 
 def test_unpacking():
