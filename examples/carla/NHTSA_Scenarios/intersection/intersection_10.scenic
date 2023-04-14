@@ -38,13 +38,13 @@ TERM_DIST = 70
 #################################
 
 behavior EgoBehavior():
-	while (distance to adversary) < BYPASS_DIST:
-		take SetBrakeAction(globalParameters.EGO_BRAKE)
-	rightLaneSec = self.laneSection.laneToRight
-	do LaneChangeBehavior(
-			laneSectionToSwitch=rightLaneSec,
-			target_speed=globalParameters.EGO_SPEED)
-	do FollowLaneBehavior(target_speed=globalParameters.EGO_SPEED)
+    while (distance to adversary) < BYPASS_DIST:
+        take SetBrakeAction(globalParameters.EGO_BRAKE)
+    rightLaneSec = self.laneSection.laneToRight
+    do LaneChangeBehavior(
+            laneSectionToSwitch=rightLaneSec,
+            target_speed=globalParameters.EGO_SPEED)
+    do FollowLaneBehavior(target_speed=globalParameters.EGO_SPEED)
 
 #################################
 # SPATIAL RELATIONS             #
@@ -53,8 +53,8 @@ behavior EgoBehavior():
 intersection = Uniform(*filter(lambda i: i.is4Way, network.intersections))
 
 statInitLane = Uniform(*filter(lambda lane: 
-	all([sec._laneToRight is not None for sec in lane.sections]),
-	intersection.incomingLanes))
+    all([sec._laneToRight is not None for sec in lane.sections]),
+    intersection.incomingLanes))
 statSpawnPt = OrientedPoint in statInitLane.centerline
 
 advInitLane = statInitLane.sectionAt(statSpawnPt).laneToRight.lane
@@ -67,15 +67,15 @@ advSpawnPt = OrientedPoint in advInitLane.centerline
 #################################
 
 stationary = Car at statSpawnPt,
-	with blueprint MODEL
+    with blueprint MODEL
 
 ego = Car behind stationary by globalParameters.EGO_INIT_DIST,
-	with blueprint MODEL,
-	with behavior EgoBehavior()
+    with blueprint MODEL,
+    with behavior EgoBehavior()
 
 adversary = Car at advSpawnPt,
-	with blueprint MODEL,
-	with behavior FollowTrajectoryBehavior(target_speed=ADV_SPEED, trajectory=advTrajectory)
+    with blueprint MODEL,
+    with behavior FollowTrajectoryBehavior(target_speed=ADV_SPEED, trajectory=advTrajectory)
 
 require STAT_INIT_DIST[0] <= (distance from stationary to intersection) <= STAT_INIT_DIST[1]
 require ADV_INIT_DIST[0] <= (distance from adversary to intersection) <= ADV_INIT_DIST[1]

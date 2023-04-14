@@ -13,40 +13,40 @@ STOP_LENGTH = int(5 / timestep)
 
 
 behavior CollisionAvoidance(safety_distance=10, brake_intensity=1):
-	while (distance to other) < safety_distance:
-		take SetBrakeAction(brake_intensity), SetThrottleAction(0)
+    while (distance to other) < safety_distance:
+        take SetBrakeAction(brake_intensity), SetThrottleAction(0)
 
 
 behavior FollowLeadCar(safety_distance=10):
 
-	try: 
-		do FollowLaneBehavior(target_speed=25)
+    try: 
+        do FollowLaneBehavior(target_speed=25)
 
-	interrupt when ((distance to other) < safety_distance):
-		do CollisionAvoidance()
+    interrupt when ((distance to other) < safety_distance):
+        do CollisionAvoidance()
 
 
 behavior LeadCarSuddenlyStopsAndGo():
 
-	sudden_stop_time = Range(3, 6) * 10
-	last_stop = 0
-	try:
-		do FollowLaneBehavior(target_speed=25)
+    sudden_stop_time = Range(3, 6) * 10
+    last_stop = 0
+    try:
+        do FollowLaneBehavior(target_speed=25)
 
-	interrupt when simulation().currentTime - last_stop > sudden_stop_time:
-		for i in range(STOP_LENGTH):
-			take SetBrakeAction(MAX_BRAKE_THRESHOLD), SetThrottleAction(0)
-		last_stop = simulation().currentTime
+    interrupt when simulation().currentTime - last_stop > sudden_stop_time:
+        for i in range(STOP_LENGTH):
+            take SetBrakeAction(MAX_BRAKE_THRESHOLD), SetThrottleAction(0)
+        last_stop = simulation().currentTime
 
 
 
 ego = Car with behavior FollowLeadCar(10),
-		with blueprint 'vehicle.tesla.model3'
+        with blueprint 'vehicle.tesla.model3'
 
 other = Car ahead of ego by 10,
-		with behavior LeadCarSuddenlyStopsAndGo,
-		with blueprint 'vehicle.tesla.model3'
-	
+        with behavior LeadCarSuddenlyStopsAndGo,
+        with blueprint 'vehicle.tesla.model3'
+    
 require (Point ahead of ego by 100) in road
 
 terminate when ego.lane is None

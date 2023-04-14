@@ -48,11 +48,11 @@ actorTrajectory = [actorTurn.startLane.centerline, actorTurn.connectingLane.cent
 
 # BEHAVIORS
 behavior actorCarBehavior(target_speed, trajectory, brake):
-	try: 
-		do FollowTrajectoryBehavior(target_speed = turnSpeed, trajectory = actorTrajectory)
+    try: 
+        do FollowTrajectoryBehavior(target_speed = turnSpeed, trajectory = actorTrajectory)
 
-	interrupt when(actor in actorTurn.endLane):
-		take SetThrottleAction(0.0), SetBrakeAction(brakeIntensity)
+    interrupt when(actor in actorTurn.endLane):
+        take SetThrottleAction(0.0), SetBrakeAction(brakeIntensity)
 
 # PLACEMENT
 # Cars blocking view
@@ -61,12 +61,12 @@ stopped2 = NPCCar following roadDirection from pos2 by -dist2
 
 # Uber
 ego = Car following roadDirection from egoPos by -egoDist,
-	with speed uberSpeed,
-	with behavior FollowTrajectoryBehavior(target_speed=uberSpeed, trajectory=egoTrajectory)
+    with speed uberSpeed,
+    with behavior FollowTrajectoryBehavior(target_speed=uberSpeed, trajectory=egoTrajectory)
 
 #assert (ego is right of stopped1)
 
 # Turning Car
 actor = Car following roadDirection from actorPos by -actorDist,
-	with behavior actorCarBehavior(target_speed = turnSpeed, trajectory = actorTrajectory, brake = brakeIntensity),
-	with speed turnSpeed
+    with behavior actorCarBehavior(target_speed = turnSpeed, trajectory = actorTrajectory, brake = brakeIntensity),
+    with speed turnSpeed

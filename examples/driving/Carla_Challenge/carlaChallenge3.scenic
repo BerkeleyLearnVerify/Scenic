@@ -17,12 +17,12 @@ CAR_POSITION_OFFSET = Range(-0.5,0.5)
 
 #EGO BEHAVIOR: Follow lane and brake when reaches threshold distance to obstacle
 behavior EgoBehavior(speed=10):
-	
-	try:
-		do FollowLaneBehavior(speed)
+    
+    try:
+        do FollowLaneBehavior(speed)
 
-	interrupt when withinDistanceToAnyObjs(self, EGO_BRAKING_THRESHOLD):
-		take SetBrakeAction(BRAKE_ACTION)
+    interrupt when withinDistanceToAnyObjs(self, EGO_BRAKING_THRESHOLD):
+        take SetBrakeAction(BRAKE_ACTION)
 
 #GEOMETRY
 initLane = Uniform(*network.lanes)
@@ -34,4 +34,4 @@ spawnPt = OrientedPoint on initLaneSec.centerline
 obstacle = Car at spawnPt offset by CAR_POSITION_OFFSET @ 0
 
 ego = Car following roadDirection from spawnPt for EGO_TO_OBSTACLE,
-	with behavior EgoBehavior(EGO_SPEED)
+    with behavior EgoBehavior(EGO_SPEED)

@@ -21,10 +21,10 @@ parkedCar = new Car left of spot by 0.5,
 require (distance to parkedCar) > 20
 
 monitor StopAfterInteraction():
-	for i in range(50):
-		wait
-	while ego.speed > 2:
-		wait
-	for i in range(50):
-		wait
-	terminate
+    for i in range(50):
+        wait
+    while ego.speed > 2:
+        wait
+    for i in range(50):
+        wait
+    terminate

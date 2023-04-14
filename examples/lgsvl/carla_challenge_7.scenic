@@ -16,8 +16,8 @@ require index1 != index2
 # GEOMETRY
 fourLane = []
 for i in network.intersections:
-	if (len(i.incomingLanes) >= 8):
-		fourLane.append(i)
+    if (len(i.incomingLanes) >= 8):
+        fourLane.append(i)
 
 intersection = Uniform(*fourLane)
 
@@ -32,45 +32,45 @@ pos2 = (OrientedPoint at lane2.centerline[-1]) offset by Range(-2, 2) @ 0
 
 # BEHAVIORS
 behavior actorCarBehavior():
-	print("ego's position: ", lane1.uid)
-	for i in lane1.maneuvers:
-		if i.type == ManeuverType.STRAIGHT: 
-			egoManeuver = i
-			break
+    print("ego's position: ", lane1.uid)
+    for i in lane1.maneuvers:
+        if i.type == ManeuverType.STRAIGHT: 
+            egoManeuver = i
+            break
 
-	turn = Uniform(*egoManeuver.conflictingManeuvers)
-	throttleStrength = Range(0.7, 1)
-	gain = 0.1
-	print("turn", turn)
-	while ((actorCar in intersection) == False):
-	
-		print("in first part")
-		delta = self.heading relative to (roadDirection at lane2.centerline[-1])
-		take SetSteerAction(-gain * delta), SetReverseAction(False), SetBrakeAction(0), SetThrottleAction(throttleStrength)
+    turn = Uniform(*egoManeuver.conflictingManeuvers)
+    throttleStrength = Range(0.7, 1)
+    gain = 0.1
+    print("turn", turn)
+    while ((actorCar in intersection) == False):
+    
+        print("in first part")
+        delta = self.heading relative to (roadDirection at lane2.centerline[-1])
+        take SetSteerAction(-gain * delta), SetReverseAction(False), SetBrakeAction(0), SetThrottleAction(throttleStrength)
 
-	print("in second part")
-	while (actorCar in intersection):
-		# actor starts when ego starts, stops when ego stops.
-		if (ego.speed > 0):
-			delta = self.heading relative to turn.connectingLane.centerline.orientation
-			take SetReverseAction(False), SetSteerAction(-gain * delta), SetBrakeAction(0), SetThrottleAction(throttleStrength)
+    print("in second part")
+    while (actorCar in intersection):
+        # actor starts when ego starts, stops when ego stops.
+        if (ego.speed > 0):
+            delta = self.heading relative to turn.connectingLane.centerline.orientation
+            take SetReverseAction(False), SetSteerAction(-gain * delta), SetBrakeAction(0), SetThrottleAction(throttleStrength)
 
-		else:
-			take SetThrottleAction(0.0), SetBrakeAction(1)
+        else:
+            take SetThrottleAction(0.0), SetBrakeAction(1)
 
 behavior egoBehavior():
-	while True:
-		take SetThrottleAction(0.4) # hard coded for testing
+    while True:
+        take SetThrottleAction(0.4) # hard coded for testing
 
 
 # PLACEMENT
 ego = Car following roadDirection from pos1 by Range(-5, -3), # behind the position by at most 5
-	with speed 3,
-	with behavior egoBehavior
+    with speed 3,
+    with behavior egoBehavior
 
 actorCar = Car following roadDirection from pos2 by Range(-5, -3),
-	with behavior actorCarBehavior,
-	with speed 4
+    with behavior actorCarBehavior,
+    with speed 4
 
 
 

@@ -19,15 +19,15 @@ BRAKE_INTENSITY = 1.0
 
 
 behavior CrossingCarBehavior(trajectory):
-	while True:
-		do FollowTrajectoryBehavior(trajectory = trajectory)
+    while True:
+        do FollowTrajectoryBehavior(trajectory = trajectory)
 
 behavior EgoBehavior(trajectory):
-	
-	try:
-		do FollowTrajectoryBehavior(trajectory=trajectory)
-	interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
-		take SetBrakeAction(BRAKE_INTENSITY)
+    
+    try:
+        do FollowTrajectoryBehavior(trajectory=trajectory)
+    interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
+        take SetBrakeAction(BRAKE_INTENSITY)
 
 
 spawnAreas = []
@@ -48,10 +48,10 @@ ego_spwPt = startLane.centerline[-1]
 csm_spwPt = crossing_startLane.centerline[-1]
 
 ego = Car following roadDirection from ego_spwPt for DISTANCE_TO_INTERSECTION1,
-		with behavior EgoBehavior(trajectory = ego_trajectory)
+        with behavior EgoBehavior(trajectory = ego_trajectory)
 
 crossing_car = Car following roadDirection from csm_spwPt for DISTANCE_TO_INTERSECTION2,
-				with behavior CrossingCarBehavior(crossing_car_trajectory)
+                with behavior CrossingCarBehavior(crossing_car_trajectory)
 
 
 """Note: Traffic light is currently not controlled but this functionality will be added very soon """

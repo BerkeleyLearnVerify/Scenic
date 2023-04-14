@@ -12,4 +12,4 @@ c = Car visible, with roadDeviation resample(wiggle)
 leftRight = Options([1.0, -1.0]) * Range(1.25, 2.75)
 
 Car beyond c by leftRight @ Range(4, 10),
-	with roadDeviation resample(wiggle)
+    with roadDeviation resample(wiggle)

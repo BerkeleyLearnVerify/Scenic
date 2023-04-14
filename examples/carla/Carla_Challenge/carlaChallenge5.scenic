@@ -14,28 +14,28 @@ DIST_THRESHOLD = 15
 
 #EGO BEHAVIOR: Follow lane, then perform a lane change
 behavior EgoBehavior(leftpath, origpath=[]):
-	laneChangeCompleted = False
+    laneChangeCompleted = False
 
-	try: 
-		do FollowLaneBehavior(EGO_SPEED)
+    try: 
+        do FollowLaneBehavior(EGO_SPEED)
 
-	interrupt when withinDistanceToAnyObjs(self, DIST_THRESHOLD) and not laneChangeCompleted:
-		do LaneChangeBehavior(laneSectionToSwitch=leftpath, target_speed=10)
-		laneChangeCompleted = True
+    interrupt when withinDistanceToAnyObjs(self, DIST_THRESHOLD) and not laneChangeCompleted:
+        do LaneChangeBehavior(laneSectionToSwitch=leftpath, target_speed=10)
+        laneChangeCompleted = True
 
 #OTHER BEHAVIOR
 behavior SlowCarBehavior():
-	do FollowLaneBehavior(SLOW_CAR_SPEED)
+    do FollowLaneBehavior(SLOW_CAR_SPEED)
 
 #GEOMETRY
 laneSecsWithRightLane = []
 for lane in network.lanes:
-	for laneSec in lane.sections:
-		if laneSec._laneToRight != None:
-			laneSecsWithRightLane.append(laneSec)
+    for laneSec in lane.sections:
+        if laneSec._laneToRight != None:
+            laneSecsWithRightLane.append(laneSec)
 
 assert len(laneSecsWithRightLane) > 0, \
-	'No lane sections with adjacent left lane in network.'
+    'No lane sections with adjacent left lane in network.'
 
 initLaneSec = Uniform(*laneSecsWithRightLane)
 rightLane = initLaneSec._laneToRight
@@ -44,10 +44,10 @@ rightLane = initLaneSec._laneToRight
 spawnPt = OrientedPoint on initLaneSec.centerline
 
 ego = Car at spawnPt,
-	with behavior EgoBehavior(rightLane, [initLaneSec])
+    with behavior EgoBehavior(rightLane, [initLaneSec])
 
 cyclist = Car following roadDirection from ego for EGO_TO_BICYCLE,
-	with behavior SlowCarBehavior()
+    with behavior SlowCarBehavior()
 
 require (distance from ego to intersection) > 10
 require (distance from cyclist to intersection) > 10

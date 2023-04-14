@@ -12,4 +12,4 @@ posOffset = (-625.4444493298472 - -628.78787878787944) @ (-530.76549003839568 - 
 angleOffset = (8.287256822061408 deg - -359.16913666080427 deg) - 360 deg
 
 c = Car offset by posOffset,
-	facing angleOffset relative to ego.heading
+    facing angleOffset relative to ego.heading

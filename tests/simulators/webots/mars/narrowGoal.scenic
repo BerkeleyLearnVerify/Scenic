@@ -17,9 +17,9 @@ require abs((angle to goal) - (angle to bottleneck)) <= 10 deg
 new BigRock at bottleneck
 
 leftEdge = new OrientedPoint at bottleneck offset by -halfGap @ 0,
-	facing Range(60, 120) deg relative to bottleneck.heading
+    facing Range(60, 120) deg relative to bottleneck.heading
 rightEdge = new OrientedPoint at bottleneck offset by halfGap @ 0,
-	facing Range(-120, -60) deg relative to bottleneck.heading
+    facing Range(-120, -60) deg relative to bottleneck.heading
 
 new Pipe ahead of leftEdge, with length Range(1, 2)
 new Pipe ahead of rightEdge, with length Range(1, 2)

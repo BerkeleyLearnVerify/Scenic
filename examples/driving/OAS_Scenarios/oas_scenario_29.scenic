@@ -31,20 +31,20 @@ actorStart = actor_maneuver.startLane.centerline[-1]
 
 # BEHAVIOR
 behavior EgoBehavior(thresholdDistance, target_speed=10, trajectory = None):
-	assert trajectory is not None
-	brakeIntensity = 0.7
+    assert trajectory is not None
+    brakeIntensity = 0.7
 
-	try: 
-		do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
-		terminate
+    try: 
+        do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
+        terminate
 
-	interrupt when withinDistanceToAnyObjs(vehicle=self, thresholdDistance=thresholdDistance):
-		take SetBrakeAction(brakeIntensity)
+    interrupt when withinDistanceToAnyObjs(vehicle=self, thresholdDistance=thresholdDistance):
+        take SetBrakeAction(brakeIntensity)
 
 
 # PLACEMENT
 ego = Car following roadDirection from egoStart for EGO_OFFSET,
-		with behavior EgoBehavior(target_speed=10, trajectory=ego_L_centerlines, thresholdDistance = 20)
+        with behavior EgoBehavior(target_speed=10, trajectory=ego_L_centerlines, thresholdDistance = 20)
 
 other = Car following roadDirection from actorStart for OTHERCAR_OFFSET,
-		with behavior FollowTrajectoryBehavior(target_speed=10, trajectory=actor_centerlines)
+        with behavior FollowTrajectoryBehavior(target_speed=10, trajectory=actor_centerlines)

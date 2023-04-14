@@ -10,4 +10,4 @@ wiggle = Range(-10 deg, 10 deg)
 
 ego = EgoCar with roadDeviation wiggle
 Car visible, with roadDeviation resample(wiggle),
-	with model CarModel.models['DOMINATOR']
+    with model CarModel.models['DOMINATOR']

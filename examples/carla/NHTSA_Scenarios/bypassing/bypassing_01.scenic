@@ -34,23 +34,23 @@ TERM_TIME = 5
 #################################
 
 behavior EgoBehavior():
-	try:
-		do FollowLaneBehavior(target_speed=globalParameters.EGO_SPEED)
-	interrupt when withinDistanceToAnyObjs(self, BYPASS_DIST[0]):
-		fasterLaneSec = self.laneSection.fasterLane
-		do LaneChangeBehavior(
-				laneSectionToSwitch=fasterLaneSec,
-				target_speed=globalParameters.EGO_SPEED)
-		do FollowLaneBehavior(
-				target_speed=globalParameters.EGO_SPEED,
-				laneToFollow=fasterLaneSec.lane) \
-			until (distance to adversary) > BYPASS_DIST[1]
-		slowerLaneSec = self.laneSection.slowerLane
-		do LaneChangeBehavior(
-				laneSectionToSwitch=slowerLaneSec,
-				target_speed=globalParameters.EGO_SPEED)
-		do FollowLaneBehavior(target_speed=globalParameters.EGO_SPEED) for TERM_TIME seconds
-		terminate 
+    try:
+        do FollowLaneBehavior(target_speed=globalParameters.EGO_SPEED)
+    interrupt when withinDistanceToAnyObjs(self, BYPASS_DIST[0]):
+        fasterLaneSec = self.laneSection.fasterLane
+        do LaneChangeBehavior(
+                laneSectionToSwitch=fasterLaneSec,
+                target_speed=globalParameters.EGO_SPEED)
+        do FollowLaneBehavior(
+                target_speed=globalParameters.EGO_SPEED,
+                laneToFollow=fasterLaneSec.lane) \
+            until (distance to adversary) > BYPASS_DIST[1]
+        slowerLaneSec = self.laneSection.slowerLane
+        do LaneChangeBehavior(
+                laneSectionToSwitch=slowerLaneSec,
+                target_speed=globalParameters.EGO_SPEED)
+        do FollowLaneBehavior(target_speed=globalParameters.EGO_SPEED) for TERM_TIME seconds
+        terminate 
 
 #################################
 # SPATIAL RELATIONS             #
@@ -64,12 +64,12 @@ egoSpawnPt = OrientedPoint in initLane.centerline
 #################################
 
 ego = Car at egoSpawnPt,
-	with blueprint MODEL,
-	with behavior EgoBehavior()
+    with blueprint MODEL,
+    with behavior EgoBehavior()
 
 adversary = Car following roadDirection for globalParameters.ADV_DIST,
-	with blueprint MODEL,
-	with behavior FollowLaneBehavior(target_speed=globalParameters.ADV_SPEED)
+    with blueprint MODEL,
+    with behavior FollowLaneBehavior(target_speed=globalParameters.ADV_SPEED)
 
 require (distance to intersection) > INIT_DIST
 require (distance from adversary to intersection) > INIT_DIST

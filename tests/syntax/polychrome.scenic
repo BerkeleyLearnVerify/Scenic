@@ -32,7 +32,7 @@ re.match(r'(?x) (a|b)* [^abc#\n]+')
 Uniform
 Object
 ego = Object
-blah = Point	# comment after no specifiers
+blah = Point    # comment after no specifiers
 spot = OrientedPoint with position (10, 10), facing 30 deg relative to field
 Point at (Range(1, 3), 2) # comment
 Object offset by (3, 4), facing 30 deg

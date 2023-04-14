@@ -17,7 +17,7 @@ cone2 = TrafficCone at spot2, facing Range(0, 360) deg
 
 cone3 = TrafficCone ahead of spot2 by Range(-1.5, -0.75) @ Range(1, 4),
     facing Range(0, 360) deg,
-	with color [0, 0, 1]
+    with color [0, 0, 1]
 
 # Place disabled car ahead of cones
 SmallCar ahead of spot2 by Range(-1, 1) @ Range(4, 10),

@@ -46,25 +46,25 @@ actorStartPoint = OrientedPoint at L_intersection_edge
 
 # BEHAVIOR
 behavior EgoBehavior(target_speed=10, trajectory = None):
-	assert trajectory is not None
-	brakeIntensity = 0.7
+    assert trajectory is not None
+    brakeIntensity = 0.7
 
-	try: 
-		do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
-		terminate
+    try: 
+        do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
+        terminate
 
-	interrupt when withinDistanceToAnyCars(car=self, thresholdDistance=15):
-		take SetBrakeAction(brakeIntensity)
+    interrupt when withinDistanceToAnyCars(car=self, thresholdDistance=15):
+        take SetBrakeAction(brakeIntensity)
 
 behavior OtherCarBehavior(trajectory, target_speed=10):
-	brakeIntensity = 0.8
-	do FollowTrajectoryBehavior(target_speed=8, trajectory=trajectory)
-	take SetBrakeAction(brakeIntensity)
+    brakeIntensity = 0.8
+    do FollowTrajectoryBehavior(target_speed=8, trajectory=trajectory)
+    take SetBrakeAction(brakeIntensity)
 
 
 # PLACEMENT
 ego = Car following roadDirection from egoStartPoint for EGO_OFFSET,
-		with behavior EgoBehavior(target_speed=8, trajectory=lane_traj)
+        with behavior EgoBehavior(target_speed=8, trajectory=lane_traj)
 
 other = Car following roadDirection from actorStartPoint for OTHERCAR_OFFSET,
-		with behavior FollowTrajectoryBehavior(target_speed=8, trajectory=L_centerlines)
+        with behavior FollowTrajectoryBehavior(target_speed=8, trajectory=L_centerlines)

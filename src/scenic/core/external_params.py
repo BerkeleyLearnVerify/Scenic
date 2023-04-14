@@ -10,37 +10,37 @@ this module defines a special subclass, `ExternalParameter`, representing a
 value which is sampled externally. Scenic programs with external parameters
 are handled as follows:
 
-	1. During compilation, all instances of `ExternalParameter` are gathered
-	   together and given to the `ExternalSampler.forParameters` function;
-	   this function creates an appropriate `ExternalSampler`,
-	   whose configuration can be controlled using :term:`global parameters`
-	   (see the function documentation for details).
+    1. During compilation, all instances of `ExternalParameter` are gathered
+       together and given to the `ExternalSampler.forParameters` function;
+       this function creates an appropriate `ExternalSampler`,
+       whose configuration can be controlled using :term:`global parameters`
+       (see the function documentation for details).
 
-	2. When sampling a scene, before sampling any other distributions the
-	   :obj:`~ExternalSampler.sample` method of the `ExternalSampler` is
-	   called to sample all the external parameters. For active samplers, this
-	   method passes along the ``feedback`` value given to `Scenario.generate`,
-	   if any.
+    2. When sampling a scene, before sampling any other distributions the
+       :obj:`~ExternalSampler.sample` method of the `ExternalSampler` is
+       called to sample all the external parameters. For active samplers, this
+       method passes along the ``feedback`` value given to `Scenario.generate`,
+       if any.
 
-	3. Once the external parameters have values, the program is equivalent to
-	   one without external parameters, and sampling proceeds as usual. As for
-	   every instance of `Distribution`, the external parameters will have
-	   their :obj:`~Samplable.sampleGiven` method called once all their
-	   dependencies have been sampled; by default this method just returns the
-	   value sampled for this parameter in step (2).
+    3. Once the external parameters have values, the program is equivalent to
+       one without external parameters, and sampling proceeds as usual. As for
+       every instance of `Distribution`, the external parameters will have
+       their :obj:`~Samplable.sampleGiven` method called once all their
+       dependencies have been sampled; by default this method just returns the
+       value sampled for this parameter in step (2).
 
 .. note::
 
-	Note that while external parameters, like all instances of `Distribution`,
-	are allowed to have dependencies, they are an exception to the usual rule
-	that dependencies are always sampled before dependents, because the
-	`ExternalSampler.sample` method is called before any other sampling.
-	However, as explained above, the :obj:`~Samplable.sampleGiven` method is
-	called in the proper order and external samplers which need to do sampling
-	based on the values of other distributions can be invoked from it. The
-	two-step mechanism with `ExternalSampler.sample` is provided for samplers
-	which sample the whole space of external parameters at once (e.g. the
-	VerifAI samplers).
+    Note that while external parameters, like all instances of `Distribution`,
+    are allowed to have dependencies, they are an exception to the usual rule
+    that dependencies are always sampled before dependents, because the
+    `ExternalSampler.sample` method is called before any other sampling.
+    However, as explained above, the :obj:`~Samplable.sampleGiven` method is
+    called in the proper order and external samplers which need to do sampling
+    based on the values of other distributions can be invoked from it. The
+    two-step mechanism with `ExternalSampler.sample` is provided for samplers
+    which sample the whole space of external parameters at once (e.g. the
+    VerifAI samplers).
 
 Samplers from VerifAI
 =====================
@@ -55,7 +55,7 @@ to the primitive distributions: `VerifaiRange` and `VerifaiDiscreteRange` for
 continuous and discrete intervals, and `VerifaiOptions` for discrete sets.
 For example, suppose we write::
 
-	ego = Object at (VerifaiRange(5, 15), 0)
+    ego = Object at (VerifaiRange(5, 15), 0)
 
 This is equivalent to the ordinary Scenic line :scenic:`ego = Object at (Range(5, 15), 0)`,
 except that the X coordinate of the ego is sampled by VerifAI within the range
@@ -64,8 +64,8 @@ except that the X coordinate of the ego is sampled by VerifAI within the range
 covered uniformly but more systematically. If we want to use a different sampler,
 we can set the ``verifaiSamplerType`` global parameter::
 
-	param verifaiSamplerType = 'ce'
-	ego = Object at (VerifaiRange(5, 15), 0)
+    param verifaiSamplerType = 'ce'
+    ego = Object at (VerifaiRange(5, 15), 0)
 
 Now the X coordinate will be sampled using VerifAI's `cross-entropy`_ sampler.
 If we pass a feedback value to `Scenario.generate` which scores the previous
@@ -78,8 +78,8 @@ The cross-entropy sampler in VerifAI can be started from a non-uniform prior.
 Scenic provides a convenient way to define this prior using the ordinary syntax
 for distributions::
 
-	param verifaiSamplerType = 'ce'
-	ego = Object at (VerifaiParameter.withPrior(Normal(10, 3)), 0)
+    param verifaiSamplerType = 'ce'
+    ego = Object at (VerifaiParameter.withPrior(Normal(10, 3)), 0)
 
 Now cross-entropy sampling will start from a normal distribution with mean 10
 and standard deviation 3. Priors are restricted to primitive distributions and
@@ -103,239 +103,239 @@ from scenic.core.distributions import Distribution, Options
 from scenic.core.errors import InvalidScenarioError
 
 class ExternalSampler:
-	"""Abstract class for objects called to sample values for each external parameter.
+    """Abstract class for objects called to sample values for each external parameter.
 
-	The initializer for this class takes the same arguments as the factory function
-	`forParameters` below.
+    The initializer for this class takes the same arguments as the factory function
+    `forParameters` below.
 
-	Attributes:
-		rejectionFeedback: Value passed to the `sample` method when the last sample was rejected.
-		  This value can be chosen by a Scenic scenario using the global parameter
-		  ``externalSamplerRejectionFeedback``.
-	"""
-	def __init__(self, params, globalParams):
-		# feedback value passed to external sampler when the last scene was rejected
-		self.rejectionFeedback = globalParams.get('externalSamplerRejectionFeedback')
+    Attributes:
+        rejectionFeedback: Value passed to the `sample` method when the last sample was rejected.
+          This value can be chosen by a Scenic scenario using the global parameter
+          ``externalSamplerRejectionFeedback``.
+    """
+    def __init__(self, params, globalParams):
+        # feedback value passed to external sampler when the last scene was rejected
+        self.rejectionFeedback = globalParams.get('externalSamplerRejectionFeedback')
 
-	@staticmethod
-	def forParameters(params, globalParams):
-		"""Create an `ExternalSampler` given the sets of external and global parameters.
+    @staticmethod
+    def forParameters(params, globalParams):
+        """Create an `ExternalSampler` given the sets of external and global parameters.
 
-		The scenario may explicitly select an external sampler by assigning the
-		:term:`global parameter` ``externalSampler`` to a subclass of `ExternalSampler`.
-		Otherwise, a `VerifaiSampler` is used by default.
+        The scenario may explicitly select an external sampler by assigning the
+        :term:`global parameter` ``externalSampler`` to a subclass of `ExternalSampler`.
+        Otherwise, a `VerifaiSampler` is used by default.
 
-		Args:
-			params (tuple): Tuple listing each `ExternalParameter`.
-			globalParams (dict): Dictionary of global parameters for the `Scenario`, made
-			  available here to support sampler customization through setting parameters.
-			  Note that the values of these parameters may be instances of `Distribution`!
+        Args:
+            params (tuple): Tuple listing each `ExternalParameter`.
+            globalParams (dict): Dictionary of global parameters for the `Scenario`, made
+              available here to support sampler customization through setting parameters.
+              Note that the values of these parameters may be instances of `Distribution`!
 
-		Returns:
-			An `ExternalSampler` configured for the given parameters.
-		"""
-		if len(params) > 0:
-			externalSampler = globalParams.get('externalSampler', VerifaiSampler)
-			if not issubclass(externalSampler, ExternalSampler):
-				raise InvalidScenarioError(f'externalSampler type {externalSampler}'
-				                           ' not subclass of ExternalSampler')
-			return externalSampler(params, globalParams)
-		else:
-			return None
+        Returns:
+            An `ExternalSampler` configured for the given parameters.
+        """
+        if len(params) > 0:
+            externalSampler = globalParams.get('externalSampler', VerifaiSampler)
+            if not issubclass(externalSampler, ExternalSampler):
+                raise InvalidScenarioError(f'externalSampler type {externalSampler}'
+                                           ' not subclass of ExternalSampler')
+            return externalSampler(params, globalParams)
+        else:
+            return None
 
-	def sample(self, feedback):
-		"""Sample values for all the external parameters.
+    def sample(self, feedback):
+        """Sample values for all the external parameters.
 
-		Args:
-			feedback: Feedback from the last sample (for active samplers).
-		"""
-		self.cachedSample = self.nextSample(feedback)
+        Args:
+            feedback: Feedback from the last sample (for active samplers).
+        """
+        self.cachedSample = self.nextSample(feedback)
 
-	def nextSample(self, feedback):
-		"""Actually do the sampling. Implemented by subclasses."""
-		raise NotImplementedError
+    def nextSample(self, feedback):
+        """Actually do the sampling. Implemented by subclasses."""
+        raise NotImplementedError
 
-	def valueFor(self, param):
-		"""Return the sampled value for a parameter. Implemented by subclasses."""
-		raise NotImplementedError
+    def valueFor(self, param):
+        """Return the sampled value for a parameter. Implemented by subclasses."""
+        raise NotImplementedError
 
 class VerifaiSampler(ExternalSampler):
-	"""An external sampler exposing the samplers in the VerifAI toolkit.
+    """An external sampler exposing the samplers in the VerifAI toolkit.
 
-	The sampler can be configured using the following Scenic :term:`global parameters`:
+    The sampler can be configured using the following Scenic :term:`global parameters`:
 
-		* ``verifaiSamplerType`` -- sampler type (see the ``verifai.server.choose_sampler``
-		  function); the default is ``'halton'``
-		* ``verifaiSamplerParams`` -- ``DotMap`` of options passed to the sampler
+        * ``verifaiSamplerType`` -- sampler type (see the ``verifai.server.choose_sampler``
+          function); the default is ``'halton'``
+        * ``verifaiSamplerParams`` -- ``DotMap`` of options passed to the sampler
 
-	The `VerifaiSampler` supports external parameters which are instances of `VerifaiParameter`.
-	"""
+    The `VerifaiSampler` supports external parameters which are instances of `VerifaiParameter`.
+    """
 
-	def __init__(self, params, globalParams):
-		super().__init__(params, globalParams)
-		import verifai.features
-		import verifai.server
+    def __init__(self, params, globalParams):
+        super().__init__(params, globalParams)
+        import verifai.features
+        import verifai.server
 
-		# construct FeatureSpace
-		usingProbs = False
-		self.params = tuple(params)
-		for index, param in enumerate(self.params):
-			if not isinstance(param, VerifaiParameter):
-				raise RuntimeError(f'VerifaiSampler given parameter of wrong type: {param}')
-			param.sampler = self
-			param.index = index
-			if param.probs is not None:
-				usingProbs = True
-		space = verifai.features.FeatureSpace({
-		    f'param{index}': verifai.features.Feature(param.domain)
-		    for index, param in enumerate(self.params)
-		})
+        # construct FeatureSpace
+        usingProbs = False
+        self.params = tuple(params)
+        for index, param in enumerate(self.params):
+            if not isinstance(param, VerifaiParameter):
+                raise RuntimeError(f'VerifaiSampler given parameter of wrong type: {param}')
+            param.sampler = self
+            param.index = index
+            if param.probs is not None:
+                usingProbs = True
+        space = verifai.features.FeatureSpace({
+            f'param{index}': verifai.features.Feature(param.domain)
+            for index, param in enumerate(self.params)
+        })
 
-		# set up VerifAI sampler
-		samplerType = globalParams.get('verifaiSamplerType', 'halton')
-		samplerParams = globalParams.get('verifaiSamplerParams', None)
-		if usingProbs and samplerType == 'ce':
-			if samplerParams is None:
-				samplerParams = DotMap()
-			if 'cont' in samplerParams or 'disc' in samplerParams:
-				raise RuntimeError('CE distributions specified in both VerifaiParameters'
-				                   'and verifaiSamplerParams')
-			cont_buckets = []
-			cont_dists = []
-			disc_dists = []
-			for param in self.params:
-				if isinstance(param, VerifaiRange):
-					if param.probs is None:
-						buckets = 5
-						dist = numpy.ones(buckets) / buckets
-					else:
-						dist = numpy.array(param.probs)
-						buckets = len(dist)
-					cont_buckets.append(buckets)
-					cont_dists.append(dist)
-				elif isinstance(param, VerifaiDiscreteRange):
-					n = param.high - param.low + 1
-					dist = numpy.ones(n)/n if param.probs is None else numpy.array(param.probs)
-					disc_dists.append(dist)
-				else:
-					raise RuntimeError(f'Parameter {param} not supported by CE sampler')
-			samplerParams.cont.buckets = cont_buckets
-			samplerParams.cont.dist = numpy.array(cont_dists)
-			samplerParams.disc.dist = numpy.array(disc_dists)
-		data = verifai.server.choose_sampler(space, samplerType,
-		                                     sampler_params=samplerParams)
-		if not data:
-			raise RuntimeError(f'Unknown VerifAI sampler type "{samplerType}"')
-		self.sampler = data[1]
+        # set up VerifAI sampler
+        samplerType = globalParams.get('verifaiSamplerType', 'halton')
+        samplerParams = globalParams.get('verifaiSamplerParams', None)
+        if usingProbs and samplerType == 'ce':
+            if samplerParams is None:
+                samplerParams = DotMap()
+            if 'cont' in samplerParams or 'disc' in samplerParams:
+                raise RuntimeError('CE distributions specified in both VerifaiParameters'
+                                   'and verifaiSamplerParams')
+            cont_buckets = []
+            cont_dists = []
+            disc_dists = []
+            for param in self.params:
+                if isinstance(param, VerifaiRange):
+                    if param.probs is None:
+                        buckets = 5
+                        dist = numpy.ones(buckets) / buckets
+                    else:
+                        dist = numpy.array(param.probs)
+                        buckets = len(dist)
+                    cont_buckets.append(buckets)
+                    cont_dists.append(dist)
+                elif isinstance(param, VerifaiDiscreteRange):
+                    n = param.high - param.low + 1
+                    dist = numpy.ones(n)/n if param.probs is None else numpy.array(param.probs)
+                    disc_dists.append(dist)
+                else:
+                    raise RuntimeError(f'Parameter {param} not supported by CE sampler')
+            samplerParams.cont.buckets = cont_buckets
+            samplerParams.cont.dist = numpy.array(cont_dists)
+            samplerParams.disc.dist = numpy.array(disc_dists)
+        data = verifai.server.choose_sampler(space, samplerType,
+                                             sampler_params=samplerParams)
+        if not data:
+            raise RuntimeError(f'Unknown VerifAI sampler type "{samplerType}"')
+        self.sampler = data[1]
 
-		# default rejection feedback is positive so cross-entropy sampler won't update;
-		# for other active samplers an appropriate value should be set manually
-		if self.rejectionFeedback is None:
-			self.rejectionFeedback = 1
-		self.cachedSample = None
+        # default rejection feedback is positive so cross-entropy sampler won't update;
+        # for other active samplers an appropriate value should be set manually
+        if self.rejectionFeedback is None:
+            self.rejectionFeedback = 1
+        self.cachedSample = None
 
-	def nextSample(self, feedback):
-		return self.sampler.nextSample(feedback)
+    def nextSample(self, feedback):
+        return self.sampler.nextSample(feedback)
 
-	def update(self, sample, info, rho):
-		self.sampler.update(sample, info, rho)
+    def update(self, sample, info, rho):
+        self.sampler.update(sample, info, rho)
 
-	def getSample(self):
-		return self.sampler.getSample()
+    def getSample(self):
+        return self.sampler.getSample()
 
-	def valueFor(self, param):
-		return self.cachedSample[param.index]
+    def valueFor(self, param):
+        return self.cachedSample[param.index]
 
 class ExternalParameter(Distribution):
-	"""A value determined by external code rather than Scenic's internal sampler."""
-	def __init__(self):
-		super().__init__()
-		self.sampler = None
-		import scenic.syntax.veneer as veneer	# TODO improve?
-		veneer.registerExternalParameter(self)
+    """A value determined by external code rather than Scenic's internal sampler."""
+    def __init__(self):
+        super().__init__()
+        self.sampler = None
+        import scenic.syntax.veneer as veneer   # TODO improve?
+        veneer.registerExternalParameter(self)
 
-	def sampleGiven(self, value):
-		"""Specialization of  `Samplable.sampleGiven` for external parameters.
+    def sampleGiven(self, value):
+        """Specialization of  `Samplable.sampleGiven` for external parameters.
 
-		By default, this method simply looks up the value previously sampled by
-		`ExternalSampler.sample`.
-		"""
-		assert self.sampler is not None
-		return self.sampler.valueFor(self)
+        By default, this method simply looks up the value previously sampled by
+        `ExternalSampler.sample`.
+        """
+        assert self.sampler is not None
+        return self.sampler.valueFor(self)
 
 class VerifaiParameter(ExternalParameter):
-	"""An external parameter sampled using one of VerifAI's samplers."""
+    """An external parameter sampled using one of VerifAI's samplers."""
 
-	def __init__(self, domain):
-		super().__init__()
-		self.domain = domain
+    def __init__(self, domain):
+        super().__init__()
+        self.domain = domain
 
-	@staticmethod
-	def withPrior(dist, buckets=None):
-		"""Creates a `VerifaiParameter` using the given distribution as a prior.
+    @staticmethod
+    def withPrior(dist, buckets=None):
+        """Creates a `VerifaiParameter` using the given distribution as a prior.
 
-		Since the VerifAI cross-entropy sampler currently only supports piecewise-constant
-		distributions, if the prior is not of that form it may be approximated. For most
-		built-in distributions, the approximation is exact: for a particular distribution,
-		check its `bucket` method.
-		"""
-		if not dist.isPrimitive:
-			raise RuntimeError('VerifaiParameter.withPrior called on '
-			                   f'non-primitive distribution {dist}')
-		bucketed = dist.bucket(buckets=buckets)
-		return VerifaiOptions(bucketed.optWeights if bucketed.optWeights else bucketed.options)
+        Since the VerifAI cross-entropy sampler currently only supports piecewise-constant
+        distributions, if the prior is not of that form it may be approximated. For most
+        built-in distributions, the approximation is exact: for a particular distribution,
+        check its `bucket` method.
+        """
+        if not dist.isPrimitive:
+            raise RuntimeError('VerifaiParameter.withPrior called on '
+                               f'non-primitive distribution {dist}')
+        bucketed = dist.bucket(buckets=buckets)
+        return VerifaiOptions(bucketed.optWeights if bucketed.optWeights else bucketed.options)
 
 class VerifaiRange(VerifaiParameter):
-	"""A :obj:`~scenic.core.distributions.Range` (real interval) sampled by VerifAI."""
+    """A :obj:`~scenic.core.distributions.Range` (real interval) sampled by VerifAI."""
 
-	_defaultValueType = float
+    _defaultValueType = float
 
-	def __init__(self, low, high, buckets=None, weights=None):
-		import verifai.features
-		super().__init__(verifai.features.Box([low, high]))
-		if weights is not None:
-			weights = tuple(weights)
-			if buckets is not None and len(weights) != buckets:
-				raise RuntimeError(f'VerifaiRange created with {len(weights)} weights '
-				                   f'but {buckets} buckets')
-		elif buckets is not None:
-			weights = [1] * buckets
-		else:
-			self.probs = None
-			return
-		total = sum(weights)
-		self.probs = tuple(wt/total for wt in weights)
+    def __init__(self, low, high, buckets=None, weights=None):
+        import verifai.features
+        super().__init__(verifai.features.Box([low, high]))
+        if weights is not None:
+            weights = tuple(weights)
+            if buckets is not None and len(weights) != buckets:
+                raise RuntimeError(f'VerifaiRange created with {len(weights)} weights '
+                                   f'but {buckets} buckets')
+        elif buckets is not None:
+            weights = [1] * buckets
+        else:
+            self.probs = None
+            return
+        total = sum(weights)
+        self.probs = tuple(wt/total for wt in weights)
 
-	def sampleGiven(self, value):
-		value = super().sampleGiven(value)
-		assert len(value) == 1
-		return value[0]
+    def sampleGiven(self, value):
+        value = super().sampleGiven(value)
+        assert len(value) == 1
+        return value[0]
 
 class VerifaiDiscreteRange(VerifaiParameter):
-	"""A :obj:`~scenic.core.distributions.DiscreteRange` (integer interval) sampled by VerifAI."""
+    """A :obj:`~scenic.core.distributions.DiscreteRange` (integer interval) sampled by VerifAI."""
 
-	_defaultValueType = float
+    _defaultValueType = float
 
-	def __init__(self, low, high, weights=None):
-		import verifai.features
-		super().__init__(verifai.features.DiscreteBox([low, high]))
-		if weights is not None:
-			if len(weights) != (high - low + 1):
-				raise RuntimeError(f'VerifaiDiscreteRange created with {len(weights)} weights '
-				                   f'for {high - low + 1} values')
-			total = sum(weights)
-			self.probs = tuple(wt/total for wt in weights)
-		else:
-			self.probs = None
+    def __init__(self, low, high, weights=None):
+        import verifai.features
+        super().__init__(verifai.features.DiscreteBox([low, high]))
+        if weights is not None:
+            if len(weights) != (high - low + 1):
+                raise RuntimeError(f'VerifaiDiscreteRange created with {len(weights)} weights '
+                                   f'for {high - low + 1} values')
+            total = sum(weights)
+            self.probs = tuple(wt/total for wt in weights)
+        else:
+            self.probs = None
 
-	def sampleGiven(self, value):
-		value = super().sampleGiven(value)
-		assert len(value) == 1
-		return value[0]
+    def sampleGiven(self, value):
+        value = super().sampleGiven(value)
+        assert len(value) == 1
+        return value[0]
 
 class VerifaiOptions(Options):
-	"""An :obj:`~scenic.core.distributions.Options` (discrete set) sampled by VerifAI."""
+    """An :obj:`~scenic.core.distributions.Options` (discrete set) sampled by VerifAI."""
 
-	@staticmethod
-	def makeSelector(n, weights):
-		return VerifaiDiscreteRange(0, n, weights)
+    @staticmethod
+    def makeSelector(n, weights):
+        return VerifaiDiscreteRange(0, n, weights)

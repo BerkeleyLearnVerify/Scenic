@@ -106,7 +106,7 @@ class ApolloCar(EgoCar):
         'Camera',
         'Traffic Light',
         'Control'
-	]
+    ]
     bridgeHost: 'localhost'
     bridgePort: 9090
 

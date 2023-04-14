@@ -13,23 +13,23 @@ INITIAL_DISTANCE_APART = -1 * Uniform(5, 10)
 STEPS_PER_SEC = 10
 
 behavior LeadCarBehavior():
-	try:
-		do FollowLaneBehavior()
-	interrupt when 5 * STEPS_PER_SEC < simulation().currentTime and simulation().currentTime < 6 * STEPS_PER_SEC:
-		take SetBrakeAction(MAX_BREAK_THRESHOLD)
+    try:
+        do FollowLaneBehavior()
+    interrupt when 5 * STEPS_PER_SEC < simulation().currentTime and simulation().currentTime < 6 * STEPS_PER_SEC:
+        take SetBrakeAction(MAX_BREAK_THRESHOLD)
 
 behavior CollisionAvoidance():
-	while withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
-		take SetBrakeAction(MAX_BREAK_THRESHOLD)
+    while withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
+        take SetBrakeAction(MAX_BREAK_THRESHOLD)
 
 
 behavior FollowLeadCarBehavior():
 
-	try: 
-		do FollowLaneBehavior()
+    try: 
+        do FollowLaneBehavior()
 
-	interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
-		do CollisionAvoidance()
+    interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
+        do CollisionAvoidance()
 
 
 roads = network.roads
@@ -37,7 +37,7 @@ select_road = Uniform(*roads)
 select_lane = Uniform(*select_road.lanes)
 
 other = Car on select_lane.centerline,
-		with behavior LeadCarBehavior()
+        with behavior LeadCarBehavior()
 
 ego = Car following roadDirection from other for INITIAL_DISTANCE_APART,
-		with behavior FollowLeadCarBehavior()
+        with behavior FollowLeadCarBehavior()

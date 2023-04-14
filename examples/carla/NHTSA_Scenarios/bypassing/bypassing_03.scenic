@@ -44,39 +44,39 @@ TERM_TIME = 10
 #################################
 
 behavior DecelerateBehavior(brake):
-	take SetBrakeAction(brake)
+    take SetBrakeAction(brake)
 
 behavior EgoBehavior():
-	try:
-		do FollowLaneBehavior(target_speed=globalParameters.EGO_SPEED)
-	interrupt when (distance to adversary) < BYPASS_DIST[0]:
-		fasterLaneSec = self.laneSection.fasterLane
-		do LaneChangeBehavior(
-				laneSectionToSwitch=fasterLaneSec,
-				target_speed=globalParameters.EGO_SPEED)
-		try:
-			do FollowLaneBehavior(
-					target_speed=globalParameters.EGO_SPEED,
-					laneToFollow=fasterLaneSec.lane) \
-				until (distance to adversary) > BYPASS_DIST[1]
-		interrupt when (distance to lead) < SAFE_DIST:
-			try:
-				do DecelerateBehavior(globalParameters.EGO_BRAKE)
-			interrupt when (distance to lead) > SAFE_DIST:
-				do FollowLaneBehavior(target_speed=LEAD_SPEED) for TERM_TIME seconds
-				terminate 
+    try:
+        do FollowLaneBehavior(target_speed=globalParameters.EGO_SPEED)
+    interrupt when (distance to adversary) < BYPASS_DIST[0]:
+        fasterLaneSec = self.laneSection.fasterLane
+        do LaneChangeBehavior(
+                laneSectionToSwitch=fasterLaneSec,
+                target_speed=globalParameters.EGO_SPEED)
+        try:
+            do FollowLaneBehavior(
+                    target_speed=globalParameters.EGO_SPEED,
+                    laneToFollow=fasterLaneSec.lane) \
+                until (distance to adversary) > BYPASS_DIST[1]
+        interrupt when (distance to lead) < SAFE_DIST:
+            try:
+                do DecelerateBehavior(globalParameters.EGO_BRAKE)
+            interrupt when (distance to lead) > SAFE_DIST:
+                do FollowLaneBehavior(target_speed=LEAD_SPEED) for TERM_TIME seconds
+                terminate 
 
 behavior AdversaryBehavior():
-	do FollowLaneBehavior(target_speed=globalParameters.ADV_INIT_SPEED) \
-		until self.lane is not ego.lane
-	do FollowLaneBehavior(target_speed=globalParameters.ADV_END_SPEED)
+    do FollowLaneBehavior(target_speed=globalParameters.ADV_INIT_SPEED) \
+        until self.lane is not ego.lane
+    do FollowLaneBehavior(target_speed=globalParameters.ADV_END_SPEED)
 
 behavior LeadBehavior():
-	fasterLaneSec = self.laneSection.fasterLane
-	do LaneChangeBehavior(
-			laneSectionToSwitch=fasterLaneSec,
-			target_speed=LEAD_SPEED)
-	do FollowLaneBehavior(target_speed=LEAD_SPEED)
+    fasterLaneSec = self.laneSection.fasterLane
+    do LaneChangeBehavior(
+            laneSectionToSwitch=fasterLaneSec,
+            target_speed=LEAD_SPEED)
+    do FollowLaneBehavior(target_speed=LEAD_SPEED)
 
 #################################
 # SPATIAL RELATIONS             #
@@ -90,16 +90,16 @@ egoSpawnPt = OrientedPoint in initLane.centerline
 #################################
 
 ego = Car at egoSpawnPt,
-	with blueprint MODEL,
-	with behavior EgoBehavior()
+    with blueprint MODEL,
+    with behavior EgoBehavior()
 
 adversary = Car following roadDirection for globalParameters.ADV_DIST,
-	with blueprint MODEL,
-	with behavior AdversaryBehavior()
+    with blueprint MODEL,
+    with behavior AdversaryBehavior()
 
 lead = Car following roadDirection for LEAD_DIST,
-	with blueprint MODEL,
-	with behavior LeadBehavior()
+    with blueprint MODEL,
+    with behavior LeadBehavior()
 
 require (distance to intersection) > INIT_DIST
 require (distance from adversary to intersection) > INIT_DIST

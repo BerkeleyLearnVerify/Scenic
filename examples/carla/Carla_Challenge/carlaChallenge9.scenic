@@ -17,14 +17,14 @@ BRAKE_INTENSITY = 1.0
 
 
 behavior CrossingCarBehavior(trajectory):
-	do FollowTrajectoryBehavior(trajectory = trajectory)
-	terminate
+    do FollowTrajectoryBehavior(trajectory = trajectory)
+    terminate
 
 behavior EgoBehavior(trajectory):
-	try :
-		do FollowTrajectoryBehavior(trajectory=trajectory)
-	interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
-		take SetBrakeAction(BRAKE_INTENSITY)
+    try :
+        do FollowTrajectoryBehavior(trajectory=trajectory)
+    interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
+        take SetBrakeAction(BRAKE_INTENSITY)
 
 
 spawnAreas = []
@@ -40,13 +40,13 @@ conflicting_rightTurn_maneuvers = filter(lambda i: i.type == ManeuverType.RIGHT_
 ego_rightTurn_maneuver = Uniform(*conflicting_rightTurn_maneuvers)
 ego_startLane = ego_rightTurn_maneuver.startLane
 ego_trajectory = [ego_rightTurn_maneuver.startLane, ego_rightTurn_maneuver.connectingLane, \
-								ego_rightTurn_maneuver.endLane]
+                                ego_rightTurn_maneuver.endLane]
 
 spwPt = startLane.centerline[-1]
 csm_spwPt = ego_startLane.centerline[-1]
 
 crossing_car = Car following roadDirection from spwPt for DISTANCE_TO_INTERSECTION1,
-				with behavior CrossingCarBehavior(trajectory = straight_trajectory)
+                with behavior CrossingCarBehavior(trajectory = straight_trajectory)
 
 ego = Car following roadDirection from csm_spwPt for DISTANCE_TO_INTERSECTION2,
-				with behavior EgoBehavior(ego_trajectory)
+                with behavior EgoBehavior(ego_trajectory)

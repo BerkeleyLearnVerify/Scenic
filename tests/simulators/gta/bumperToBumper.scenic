@@ -10,9 +10,9 @@ laneShift = Range(-2, 2)
 wiggle = Range(-5 deg, 5 deg)
 
 def carAheadOfCar(car, gap, offsetX=0, wiggle=0):
-	pos = new OrientedPoint at (front of car) offset by (offsetX @ gap),
-		facing resample(wiggle) relative to roadDirection
-	return new Car ahead of pos
+    pos = new OrientedPoint at (front of car) offset by (offsetX @ gap),
+        facing resample(wiggle) relative to roadDirection
+    return new Car ahead of pos
 
 ego = new Car with visibleDistance 60
 modelDist = CarModel.defaultModel()
@@ -24,5 +24,5 @@ midCar = carAheadOfCar(ego, resample(carGap), wiggle=wiggle)
 createPlatoonAt(midCar, depth, dist=carGap, wiggle=wiggle, model=modelDist)
 
 rightCar = carAheadOfCar(ego, resample(laneShift) + resample(carGap),
-	offsetX=laneGap, wiggle=wiggle)
+    offsetX=laneGap, wiggle=wiggle)
 createPlatoonAt(rightCar, depth, dist=carGap, wiggle=wiggle, model=modelDist)

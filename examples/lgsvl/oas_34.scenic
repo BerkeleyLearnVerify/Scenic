@@ -35,24 +35,24 @@ actorStart = (OrientedPoint at L_startLane.centerline[-1]) offset by Range(-2, 2
 
 # BEHAVIORS
 behavior EgoBehavior(target_speed=20, trajectory = None):
-	assert trajectory is not None
-	brakeIntensity = 1
+    assert trajectory is not None
+    brakeIntensity = 1
 
-	try: 
-		do FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
+    try: 
+        do FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
 
-	interrupt when distanceToAnyCars(car=self, thresholdDistance=10):
-		take SetBrakeAction(brakeIntensity)
+    interrupt when distanceToAnyCars(car=self, thresholdDistance=10):
+        take SetBrakeAction(brakeIntensity)
 
 
 # PLACEMENT 
 ego = Car following roadDirection from egoStart by -Uniform(*space),
-		with blueprint 'vehicle.tesla.model3',
-		with behavior EgoBehavior(target_speed=15, trajectory=centerlines)
+        with blueprint 'vehicle.tesla.model3',
+        with behavior EgoBehavior(target_speed=15, trajectory=centerlines)
 
 other = Car following roadDirection from actorStart by -Uniform(*space),
-		with blueprint 'vehicle.tesla.model3',
-		with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=L_centerlines)
+        with blueprint 'vehicle.tesla.model3',
+        with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=L_centerlines)
 
 terminate when ego in straight_maneuver.endLane
 terminate when simulation().currentTime > TERMINATE_TIME
