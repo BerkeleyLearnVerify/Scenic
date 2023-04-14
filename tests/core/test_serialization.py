@@ -8,6 +8,7 @@ import io
 import random
 import subprocess
 import sys
+import numpy
 
 import pytest
 
@@ -19,8 +20,8 @@ from tests.utils import (areEquivalent, compileScenic, sampleScene, sampleSceneF
 # Utilities
 
 simpleScenario = """
-    ego = Object at Range(3, 5) @ 2, with foo Uniform('zoggle', 'buggle')
-    Object at 10@10, facing toward ego, with foo Options({Range(1,2): 1, Range(3,4): 2})
+    ego = new Object at Range(3, 5) @ 2, with foo Uniform('zoggle', 'buggle'), with name "egoObject"
+    new Object at 10@10, facing toward ego, with foo Options({Range(1,2): 1, Range(3,4): 2}), with name "otherObject"
     param qux = ego.position
     param baz = ({'a', 'b', 'c', 'd'}, frozenset({'e', 'f', 'g', 'h'}))
 """
@@ -30,13 +31,16 @@ def skeleton(scene):
     objs = [(o.position, o.heading, getattr(o, 'foo', 0)) for o in scene.objects]
     return { 'objects': objs, 'params': scene.params }
 
-def assertSceneEquivalence(scene1, scene2, ignoreDynamics=False):
+def assertSceneEquivalence(scene1, scene2, ignoreDynamics=False, ignoreConstProps=False):
     assert skeleton(scene1) == skeleton(scene2)
     # Samples may not be equivalent since we only serialize random values which actually
     # get used in the scene; so need to delete them before checking equivalence.
     del scene1.sample, scene2.sample
     if ignoreDynamics:
         del scene1.dynamicScenario, scene2.dynamicScenario
+    if ignoreConstProps:
+        for obj in (scene1.objects + scene2.objects):
+            del obj._constProps
     assert areEquivalent(scene1, scene2)
 
 # Exporting scenes to Scenic code
@@ -48,7 +52,7 @@ class TestExportToScenicCode:
         scene1.dumpAsScenicCode(stream)
         code = stream.getvalue()
         scene2 = sampleSceneFrom(code)
-        assertSceneEquivalence(scene1, scene2, ignoreDynamics=True)
+        assertSceneEquivalence(scene1, scene2, ignoreDynamics=True, ignoreConstProps=True)
 
 # Serializing scenes and simulations given a compiled scenario
 
@@ -59,6 +63,7 @@ def checkReconstruction(code, n=20):
         seed = random.randint(0, 1000000)
         scenario = compileScenic(code)
         random.seed(seed)
+        numpy.random.seed(seed)
         scene = sampleScene(scenario)
         skel = skeleton(scene)
         data = scenario.sceneToBytes(scene)
@@ -73,6 +78,7 @@ def subprocessHelper(code, seed, data, skel):
     assert scenario.sceneToBytes(scene1) == data
     assert skeleton(scene1) == skel
     random.seed(seed)
+    numpy.random.seed(seed)
     scene2 = sampleScene(scenario)
     assert scenario.sceneToBytes(scene2) == data
     assert skeleton(scene2) == skel
@@ -148,7 +154,7 @@ class TestExportToBytes:
             behavior Foo(x):
                 take glob
                 take x
-            ego = Object with behavior Foo(Range(3, 4))
+            ego = new Object with behavior Foo(Range(3, 4))
         """)
         scene1 = sampleScene(scenario)
         a11, a12 = sampleEgoActionsFromScene(scene1, maxSteps=2)
@@ -165,7 +171,7 @@ class TestExportToBytes:
         behavior Foo(x):
             a = 1; b = 2; c = 3; d = 4
             take a+b+c+d+x
-        ego = Object with behavior Foo(Range(0, 1))
+        ego = new Object with behavior Foo(Range(0, 1))
     """
 
     def test_scene_behavior_locals(self):
@@ -211,7 +217,7 @@ class TestSimulationReplay:
                 take Range(1, 2)
                 take 42
                 take Uniform('refuge', 'umbrage', 'a hike')
-            ego = Object with behavior Foo
+            ego = new Object with behavior Foo
         """, steps=3)
 
     def test_global(self):
@@ -219,14 +225,14 @@ class TestSimulationReplay:
             x = Range(1, 2)
             behavior Foo():
                 take x
-            ego = Object with behavior Foo
+            ego = new Object with behavior Foo
         """)
 
     def test_argument(self):
         self.checkReplay("""
             behavior Foo(x):
                 take x
-            ego = Object with behavior Foo(Range(-1, 1))
+            ego = new Object with behavior Foo(Range(-1, 1))
         """)
 
     @pytest.mark.slow
@@ -243,7 +249,7 @@ class TestSimulationReplay:
                         x = Range(0, 2)
                         require[0.9] check(x)
                         take checkCount
-                ego = Object with behavior Foo
+                ego = new Object with behavior Foo
             """, steps=2, maxIterations=100)
 
     def test_continue_after_replay(self):
@@ -251,7 +257,7 @@ class TestSimulationReplay:
             behavior Foo():
                 while True:
                     take Range(0, 1)
-            ego = Object with behavior Foo
+            ego = new Object with behavior Foo
         """, steps=2, steps2=4)
         a1 = getEgoActionsFrom(sim1)
         assert len(a1) == 2
@@ -266,8 +272,8 @@ class TestSimulationReplay:
             behavior Foo():
                 while True:
                     take Range(0, 1)
-            ego = Object with behavior Foo
-            Object at (10, 0)
+            ego = new Object with behavior Foo
+            new Object at (10, 0)
         """)
         simulator1 = DummySimulator(drift=drift)
         sim1 = simulator1.simulate(scene, maxSteps=maxSteps, maxIterations=1,
@@ -307,8 +313,8 @@ class TestSimulationReplay:
             behavior Foo():
                 while True:
                     take Range(0, 1)
-            ego = Object with behavior Foo
-            Object at (10, 0)
+            ego = new Object with behavior Foo
+            new Object at (10, 0)
         """)
         simulator1 = DummySimulator(drift=1.0)
         sim1 = simulator1.simulate(scene, maxSteps=1, maxIterations=1,
@@ -326,7 +332,7 @@ class TestSimulationReplay:
         scenario = compileScenic("""
             behavior Foo():
                 take Range(0, 1)
-            ego = Object with behavior Foo
+            ego = new Object with behavior Foo
         """)
         scene = sampleScene(scenario)
         simulator = DummySimulator()

@@ -5,14 +5,17 @@ import random
 import time
 import sys
 
+import rv_ltl
+
 from scenic.core.distributions import (Samplable, ConstantSamplable, RejectionException,
                                        needsSampling)
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.external_params import ExternalSampler
-from scenic.core.regions import EmptyRegion
+from scenic.core.regions import EmptyRegion, convertToFootprint
 from scenic.core.vectors import Vector
-from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
-from scenic.core.dynamics import Behavior
+from scenic.core.errors import (InvalidScenarioError, RuntimeParseError,
+                                optionallyDebugRejection)
+from scenic.core.dynamics import Behavior, Monitor
 from scenic.core.requirements import BoundRequirement
 from scenic.core.serialization import Serializer, dumpAsScenicCode
 
@@ -92,8 +95,7 @@ class Scene(_ScenarioPickleMixin):
 		workspace (:obj:`~scenic.core.workspaces.Workspace`): Workspace for the scenario.
 	"""
 	def __init__(self, workspace, objects, egoObject, params,
-				 alwaysReqs=(), eventuallyReqs=(),
-				 terminationConds=(), termSimulationConds=(),
+				 temporalReqs=(),terminationConds=(), termSimulationConds=(),
 				 recordedExprs=(), recordedInitialExprs=(), recordedFinalExprs=(),
 				 monitors=(), behaviorNamespaces={}, dynamicScenario=None,
 				 sample={}):
@@ -101,8 +103,7 @@ class Scene(_ScenarioPickleMixin):
 		self.objects = tuple(objects)
 		self.egoObject = egoObject
 		self.params = params
-		self.alwaysRequirements = tuple(alwaysReqs)
-		self.eventuallyRequirements = tuple(eventuallyReqs)
+		self.temporalRequirements = tuple(temporalReqs)
 		self.terminationConditions = tuple(terminationConds)
 		self.terminateSimulationConditions = tuple(termSimulationConds)
 		self.recordedExprs = tuple(recordedExprs)
@@ -130,7 +131,10 @@ class Scene(_ScenarioPickleMixin):
 			stream (:term:`text file`): Where to print the code (default `sys.stdout`).
 		"""
 		for name, value in self.params.items():
-			stream.write(f'param "{name}" = ')
+			if str.isidentifier(name):
+				stream.write(f'param {name} = ')
+			else:
+				stream.write(f'param "{name}" = ')
 			dumpAsScenicCode(value, stream)
 			stream.write('\n')
 		stream.write('ego = ')
@@ -139,14 +143,32 @@ class Scene(_ScenarioPickleMixin):
 			stream.write('\n')
 
 	def show(self, zoom=None, block=True):
-		"""Render a schematic of the scene for debugging."""
+		self.show_3d()
+
+	def show_3d(self):
+		"""Render a 3D schematic of the scene for debugging."""
+		import trimesh
+
+		# Create a new trimesh scene to contain meshes
+		render_scene = trimesh.scene.Scene()
+
+		# display map
+		self.workspace.show_3d(render_scene)
+		# draw objects
+		for obj in self.objects:
+			obj.show_3d(render_scene, highlight=(obj is self.egoObject))
+
+		render_scene.show(flags={'axis': 'world'})
+
+	def show_2d(self, zoom=None, block=True):
+		"""Render a 2D schematic of the scene for debugging."""
 		import matplotlib.pyplot as plt
 		plt.gca().set_aspect('equal')
 		# display map
-		self.workspace.show(plt)
+		self.workspace.show_2d(plt)
 		# draw objects
 		for obj in self.objects:
-			obj.show(self.workspace, plt, highlight=(obj is self.egoObject))
+			obj.show_2d(self.workspace, plt, highlight=(obj is self.egoObject))
 		# zoom in if requested
 		if zoom:
 			self.workspace.zoomAround(plt, self.objects, expansion=zoom)
@@ -158,7 +180,7 @@ class Scenario(_ScenarioPickleMixin):
 	A compiled Scenic scenario, from which scenes can be sampled.
 	"""
 	def __init__(self, workspace, simulator,
-				 objects, egoObject,
+				 instances, objects, egoObject,
 				 params, externalParams,
 				 requirements, requirementDeps,
 				 monitors, behaviorNamespaces,
@@ -170,6 +192,8 @@ class Scenario(_ScenarioPickleMixin):
 		for obj in objects:
 			if obj is not egoObject:
 				ordered.append(obj)
+		assert set(objects).issubset(set(instances))
+		self._instances = tuple(instances)
 		self.objects = (egoObject,) + tuple(ordered) if egoObject else tuple(ordered)
 		self.egoObject = egoObject
 		self.params = dict(params)
@@ -182,11 +206,9 @@ class Scenario(_ScenarioPickleMixin):
 
 		staticReqs, alwaysReqs, terminationConds = [], [], []
 		self.requirements = tuple(dynamicScenario._requirements)	# TODO clean up
-		self.alwaysRequirements = tuple(dynamicScenario._alwaysRequirements)
-		self.eventuallyRequirements = tuple(dynamicScenario._eventuallyRequirements)
 		self.terminationConditions = tuple(dynamicScenario._terminationConditions)
 		self.terminateSimulationConditions = tuple(dynamicScenario._terminateSimulationConditions)
-		self.initialRequirements = self.requirements + self.alwaysRequirements
+		self.initialRequirements = self.requirements
 		assert all(req.constrainsSampling for req in self.initialRequirements)
 		self.recordedExprs = tuple(dynamicScenario._recordedExprs)
 		self.recordedInitialExprs = tuple(dynamicScenario._recordedInitialExprs)
@@ -198,7 +220,7 @@ class Scenario(_ScenarioPickleMixin):
 			for value in namespace.values():
 				if isinstance(value, Samplable):
 					behaviorDeps.append(value)
-		self.dependencies = self.objects + paramDeps + tuple(requirementDeps) + tuple(behaviorDeps)
+		self.dependencies = self._instances + paramDeps + tuple(requirementDeps) + tuple(behaviorDeps)
 
 		self.validate()
 
@@ -206,7 +228,7 @@ class Scenario(_ScenarioPickleMixin):
 		if hasattr(obj, 'regionContainedIn') and obj.regionContainedIn is not None:
 			return obj.regionContainedIn
 		else:
-			return self.workspace.region
+			return convertToFootprint(self.workspace.region)
 
 	def validate(self):
 		"""Make some simple static checks for inconsistent built-in requirements.
@@ -275,6 +297,7 @@ class Scenario(_ScenarioPickleMixin):
 		rejection = True
 		iterations = 0
 		while rejection is not None:
+
 			if iterations > 0:	# rejected the last sample
 				if verbosity >= 2:
 					print(f'  Rejected sample {iterations} because of: {rejection}')
@@ -293,20 +316,45 @@ class Scenario(_ScenarioPickleMixin):
 				continue
 			rejection = None
 			ego = sample[self.egoObject]
+
 			# Normalize types of some built-in properties
 			for obj in objects:
 				sampledObj = sample[obj]
 				assert not needsSampling(sampledObj)
 				# position, heading
 				assert isinstance(sampledObj.position, Vector)
-				sampledObj.heading = float(sampledObj.heading)
+				assert isinstance(sampledObj.heading, float)
 				# behavior
 				behavior = sampledObj.behavior
 				if behavior is not None and not isinstance(behavior, Behavior):
 					raise InvalidScenarioError(
 						f'behavior {behavior} of Object {obj} is not a behavior')
 
-			# Check built-in requirements
+			# Check built-in requirements for instances
+			for i in range(len(self._instances)):
+				vi = sample[self._instances[i]]
+
+				# Require that the observing entity, if one has been specified,
+				# can see the instance.
+				if vi._observingEntity is not None:
+					observing_entity = sample[vi._observingEntity]
+					occluding_objects = tuple(sample[obj] for obj in objects \
+										 if sample[obj] is not observing_entity \
+										 and sample[obj] is not vi and obj.occluding)
+					if not observing_entity.canSee(vi, occludingObjects=occluding_objects):
+						rejection = 'instance visibility (from observing entity)'
+						break
+				# Require that the non-observing entity, if one has been specified,
+				# can see the instance.
+				if vi._nonObservingEntity is not None:
+					non_observing_entity = sample[vi._nonObservingEntity]
+					occluding_objects = tuple(sample[obj] for obj in objects \
+										 if sample[obj] is not non_observing_entity \
+										 and sample[obj] is not vi and obj.occluding)
+					if non_observing_entity.canSee(vi, occludingObjects=occluding_objects):
+						rejection = 'instance visibility (from non-observing entity)'
+
+			# Check built-in requirements for objects
 			for i in range(len(objects)):
 				vi = sample[objects[i]]
 				# Require object to be contained in the workspace/valid region
@@ -315,13 +363,20 @@ class Scenario(_ScenarioPickleMixin):
 					rejection = 'object containment'
 					break
 				# Require object to be visible from the ego object
-				if vi.requireVisible and vi is not ego and not ego.canSee(vi):
-					rejection = 'object visibility'
-					break
+				if vi.requireVisible and vi is not ego:
+					occluding_objects = tuple(sample[obj] for obj in objects if sample[obj] is not ego \
+										 and sample[obj] is not vi and obj.occluding)
+
+					if not ego.canSee(vi, occludingObjects=occluding_objects):
+						rejection = 'object visibility (from ego)'
+						break
+
+						break
 				# Require object to not intersect another object
 				if not vi.allowCollisions:
 					for j in range(i):
 						vj = sample[objects[j]]
+
 						if not vj.allowCollisions and vi.intersects(vj):
 							rejection = 'object intersection'
 							break
@@ -332,7 +387,7 @@ class Scenario(_ScenarioPickleMixin):
 				continue
 			# Check user-specified requirements
 			for req in activeReqs:
-				if not req.satisfiedBy(sample):
+				if req.satisfiedBy(sample) == rv_ltl.B4.FALSE:
 					rejection = str(req)
 					optionallyDebugRejection()
 					break
@@ -353,22 +408,29 @@ class Scenario(_ScenarioPickleMixin):
 		for modName, namespace in self.behaviorNamespaces.items():
 			sampledNamespace = { name: sample[value] for name, value in namespace.items() }
 			sampledNamespaces[modName] = (namespace, sampledNamespace, namespace.copy())
-		alwaysReqs = (BoundRequirement(req, sample) for req in self.alwaysRequirements)
-		eventuallyReqs = (BoundRequirement(req, sample) for req in self.eventuallyRequirements)
-		terminationConds = (BoundRequirement(req, sample)
-							for req in self.terminationConditions)
-		termSimulationConds = (BoundRequirement(req, sample)
+		temporalReqs = (BoundRequirement(req, sample, req.proposition) for req in self.requirements)
+		monitors = []
+		for req in self.monitors:
+			breq = BoundRequirement(req, sample, None)
+			monitor = breq.evaluate()
+			if not isinstance(monitor, Monitor):
+				raise RuntimeParseError('"require monitor X" with X not a monitor'
+				                        f' on line {breq.line}')
+			monitors.append(monitor)
+		terminationConds = (BoundRequirement(req, sample, req.proposition)
+ 							for req in self.terminationConditions)
+		termSimulationConds = (BoundRequirement(req, sample, req.proposition)
 							   for req in self.terminateSimulationConditions)
-		recordedExprs = (BoundRequirement(req, sample) for req in self.recordedExprs)
-		recordedInitialExprs = (BoundRequirement(req, sample)
+		recordedExprs = (BoundRequirement(req, sample, req.proposition) for req in self.recordedExprs)
+		recordedInitialExprs = (BoundRequirement(req, sample, req.proposition)
 		                        for req in self.recordedInitialExprs)
-		recordedFinalExprs = (BoundRequirement(req, sample)
+		recordedFinalExprs = (BoundRequirement(req, sample, req.proposition)
 		                      for req in self.recordedFinalExprs)
 		scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
-					  alwaysReqs, eventuallyReqs, terminationConds, termSimulationConds,
+					  temporalReqs, terminationConds, termSimulationConds,
 					  recordedExprs, recordedInitialExprs,recordedFinalExprs,
-					  self.monitors, sampledNamespaces, self.dynamicScenario,
-					  sample)
+                      monitors, sampledNamespaces, self.dynamicScenario,
+                      sample)
 		return scene
 
 	def resetExternalSampler(self):

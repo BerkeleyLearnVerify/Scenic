@@ -18,12 +18,12 @@ import scenic.syntax.veneer as veneer
 
 # Compilation
 
-def compileScenic(code, removeIndentation=True, scenario=None):
+def compileScenic(code, removeIndentation=True, scenario=None, mode_2d=False):
     if removeIndentation:
         # to allow indenting code to line up with test function
         code = inspect.cleandoc(code)
     checkVeneerIsInactive()
-    scenario = scenarioFromString(code, scenario=scenario)
+    scenario = scenarioFromString(code, scenario=scenario, mode_2d=mode_2d)
     checkVeneerIsInactive()
     return scenario
 
@@ -159,6 +159,7 @@ def checkVeneerIsInactive():
     assert not veneer.lockedModel
     assert not veneer.currentSimulation
     assert not veneer.currentBehavior
+    assert not veneer.mode2D
     stopFlag = False
 
 def getActionsFrom(simulation, singleAction=True, asMapping=False):

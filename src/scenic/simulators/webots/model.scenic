@@ -40,6 +40,7 @@ class WebotsObject:
         elevation (float or None; dynamic): default ``None`` (see above).
         requireVisible (bool): Default value ``False`` (overriding the default
             from `Object`).
+        webotsAdhoc (bool | dict): Whether to generate a webots object ad-hoc at runtime.
         webotsName (str): 'DEF' name of the Webots node to use for this object.
         webotsType (str): If ``webotsName`` is not set, the first available
             node with 'DEF' name consisting of this string followed by '_0',
@@ -54,15 +55,19 @@ class WebotsObject:
         positionOffset (`Vector`): Offset to add when computing the object's
             position in Webots; for objects whose Webots ``translation`` field
             is not aligned with the center of the object.
-        rotationOffset (float): Offset to add when computing the object's
-            rotation in Webots; for objects whose front is not aligned with the
+        orientationOffset (tuple[float, float, float]): Offset to add when computing the object's
+            orientation in Webots; for objects whose front is not aligned with the
             Webots North axis.
+        density (float): Density of this object. The corresponding Webots object
+            must have the `density` field.
 
     .. _Supervisor API: https://www.cyberbotics.com/doc/reference/supervisor?tab-language=python
     """
 
-    elevation[dynamic]: None
+    elevation[dynamic, final]: self.position.z
     requireVisible: False
+
+    webotsAdhoc: False
 
     webotsName: None
     webotsType: None
@@ -71,8 +76,11 @@ class WebotsObject:
     controller: None
     resetController: True
 
-    positionOffset: (0, 0)
+    positionOffset: (0, 0, 0)
     rotationOffset: 0
+    orientationOffset: (0, 0, 0)
+
+    density[dynamic]: None # kg/m^3
 
 class Ground(WebotsObject):
     """Special kind of object representing a (possibly irregular) ground surface.
@@ -187,7 +195,7 @@ class Hill(Terrain):
     spread: 0.25
 
     def heightAtOffset(self, offset):
-        dx, dy = offset
+        dx, dy, _ = offset
         if not (-self.hw < dx < self.hw and -self.hl < dy < self.hl):
             return 0
         sx, sy = dx / (self.width * self.spread), dy / (self.length * self.spread)

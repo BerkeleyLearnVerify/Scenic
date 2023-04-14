@@ -29,7 +29,7 @@ import attr
 from shapely.geometry import Polygon, MultiPolygon
 
 from scenic.core.distributions import distributionFunction, distributionMethod
-from scenic.core.vectors import Vector, VectorField
+from scenic.core.vectors import Vector, VectorField, Orientation
 from scenic.core.regions import PolygonalRegion, PolylineRegion
 from scenic.core.object_types import Point
 import scenic.core.geometry as geometry
@@ -230,7 +230,7 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
         super().__init__(polygon=self.polygon, orientation=self.orientation, name=self.name)
 
     @distributionFunction
-    def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[float]:
+    def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[Orientation]:
         """Get nominal traffic direction(s) at a point in this element.
 
         There must be at least one such direction. If there are multiple, we
@@ -742,11 +742,11 @@ class Intersection(NetworkElement):
         return [man]
 
     @distributionFunction
-    def nominalDirectionsAt(self, point: Vectorlike) -> List[float]:
+    def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[Orientation]:
         point = _toVector(point)
         maneuvers = self.maneuversAt(point)
         assert maneuvers, self
-        return [m.connectingLane.orientation[point] for m in maneuvers]
+        return tuple(m.connectingLane.orientation[point] for m in maneuvers)
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class Signal:
@@ -899,7 +899,7 @@ class Network:
 
         :meta private:
         """
-        return 20
+        return 21
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
@@ -1172,7 +1172,7 @@ class Network:
         return self.findPointIn(point, self.intersections, reject)
 
     @distributionMethod
-    def nominalDirectionsAt(self, point: Vectorlike, reject=False) -> Tuple[float]:
+    def nominalDirectionsAt(self, point: Vectorlike, reject=False) -> Tuple[Orientation]:
         """Get the nominal traffic direction(s) at a given point, if any.
 
         There can be more than one such direction in an intersection, for example: a car
@@ -1210,8 +1210,8 @@ class Network:
                     pts = lane.centerline.pointsSeparatedBy(20)
                 else:
                     pts = [lane.centerline.pointAlongBy(0.5, normalized=True)]
-                hs = [lane.centerline.orientation[pt] for pt in pts]
-                x, y = zip(*pts)
+                hs = [lane.centerline.orientation[pt].yaw for pt in pts]
+                x, y, _ = zip(*pts)
                 u = [math.cos(h + (math.pi/2)) for h in hs]
                 v = [math.sin(h + (math.pi/2)) for h in hs]
                 plt.quiver(x, y, u, v,
@@ -1223,6 +1223,6 @@ class Network:
         if labelIncomingLanes:
             for intersection in self.intersections:
                 for i, lane in enumerate(intersection.incomingLanes):
-                    x, y = lane.centerline[-1]
+                    x, y, _ = lane.centerline[-1]
                     plt.plot([x], [y], '*b')
                     plt.annotate(str(i), (x, y))

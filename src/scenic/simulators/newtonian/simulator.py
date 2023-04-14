@@ -13,7 +13,7 @@ from scenic.core.geometry import allChains
 from scenic.core.regions import toPolygon
 from scenic.core.simulators import SimulationCreationError
 from scenic.syntax.veneer import verbosePrint
-from scenic.core.vectors import Vector
+from scenic.core.vectors import Vector, Orientation
 from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
 from scenic.domains.driving.roads import Network
 
@@ -67,10 +67,10 @@ class NewtonianSimulation(DrivingSimulation):
 
         if self.render:
             # determine window size
-            min_x, min_y = self.ego.position
-            max_x, max_y = self.ego.position
+            min_x, min_y, _ = self.ego.position
+            max_x, max_y, _ = self.ego.position
             for obj in self.objects:
-                x, y = obj.position
+                x, y, _ = obj.position
                 min_x, max_x = min(min_x, x), max(max_x, x)
                 min_y, max_y = min(min_y, y), max(max_y, y)
 
@@ -79,7 +79,7 @@ class NewtonianSimulation(DrivingSimulation):
             self.screen = pygame.display.set_mode((WIDTH,HEIGHT),
                                                   pygame.HWSURFACE | pygame.DOUBLEBUF)
             self.screen.fill((255, 255, 255))
-            x, y = self.ego.position
+            x, y, _ = self.ego.position
             self.min_x, self.max_x = min_x-50, max_x+50
             self.min_y, self.max_y = min_y-50, max_y+50
             self.size_x = self.max_x - self.min_x
@@ -125,7 +125,7 @@ class NewtonianSimulation(DrivingSimulation):
         addRegion(self.network.intersectionRegion, ROAD_COLOR)
 
     def scenicToScreenVal(self, pos):
-        x, y = pos
+        x, y = pos[:2]
         x_prop = (x - self.min_x) / self.size_x
         y_prop = (y - self.min_y) / self.size_y
         return int(x_prop * WIDTH), HEIGHT - 1 - int(y_prop * HEIGHT)
@@ -200,12 +200,18 @@ class NewtonianSimulation(DrivingSimulation):
         time.sleep(self.timestep)
 
     def getProperties(self, obj, properties):
+        yaw, _, _ = self.extractEulerAngles(global_orientation=Orientation.fromEuler(obj.heading, 0, 0),
+            parent_orientation=obj.parentOrientation)
+
         values = dict(
             position=obj.position,
-            heading=obj.heading,
+            yaw=yaw,
+            pitch=0,
+            roll=0,
             velocity=obj.velocity,
             speed=obj.speed,
             angularSpeed=obj.angularSpeed,
+            angularVelocity=obj.angularVelocity
         )
         if 'elevation' in properties:
             values['elevation'] = 0.0 if obj.elevation is None else obj.elevation

@@ -14,7 +14,7 @@ def test_network_invalid():
         Network.fromFile('blogobloggo_zoggle')      # search all known formats
 
 @pytest.mark.graphical
-def test_show(network):
+def test_show_2d(network):
     import matplotlib.pyplot as plt
     network.show(labelIncomingLanes=True)
     plt.show(block=False)

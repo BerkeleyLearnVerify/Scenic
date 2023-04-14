@@ -259,8 +259,9 @@ class Vehicle(DrivingObject):
             :obj:`Color.defaultCarColor`.
     """
     regionContainedIn: roadOrShoulder
-    position: Point on road
-    heading: (roadDirection at self.position) + self.roadDeviation
+    position: new Point on road
+    parentOrientation: roadDirection at self.position
+    yaw: self.roadDeviation
     roadDeviation: 0
     viewAngle: 90 deg
     width: 2
@@ -294,8 +295,8 @@ class Pedestrian(DrivingObject):
             used by simulators, but do appear in the debugging diagram.
     """
     regionContainedIn: network.walkableRegion
-    position: Point on network.walkableRegion
-    heading: Range(0, 360) deg
+    position: new Point on network.walkableRegion
+    yaw: Range(0, 360) deg
     viewAngle: 90 deg
     width: 0.75
     length: 0.75

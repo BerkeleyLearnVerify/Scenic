@@ -12,6 +12,6 @@ for guideway in intersection.vehicleGuideways:
 		break
 assert turnGuideway
 
-ego = Car in intersection.mainGuideway.region
+ego = new Car in intersection.mainGuideway.region
 
-turningCar = Car in turnGuideway.region, with requireVisible True
+turningCar = new Car in turnGuideway.region, with requireVisible True

@@ -1,7 +1,11 @@
 """Workspaces."""
 
+import trimesh
+import numpy as np
+
 from scenic.core.distributions import needsSampling
-from scenic.core.regions import Region, everywhere
+from scenic.core.regions import (Region, everywhere, MeshVolumeRegion, MeshSurfaceRegion,
+								PolygonalRegion)
 from scenic.core.geometry import findMinMax
 from scenic.core.errors import RuntimeParseError
 
@@ -16,15 +20,31 @@ class Workspace(Region):
 		if needsSampling(region):
 			raise RuntimeParseError('workspace region must be fixed')
 		super().__init__('workspace', orientation=region.orientation)
+
 		self.region = region
 
-	def show(self, plt):
-		"""Render a schematic of the workspace for debugging"""
+	def show_3d(self, viewer):
+		"""Render a schematic of the workspace (in 3D) for debugging"""
+		if isinstance(self.region, (MeshVolumeRegion, MeshSurfaceRegion, PolygonalRegion)):
+			if isinstance(self.region, (MeshVolumeRegion, MeshSurfaceRegion)):
+				workspace_mesh = self.region.mesh.copy()
+			else:
+				workspace_mesh = self.region.footprint.boundFootprint(center_z=self.region.z, height=0.0001).mesh.copy()
+			# We can render this workspace as the wireframe of a mesh
+			edges = workspace_mesh.face_adjacency_edges[workspace_mesh.face_adjacency_angles > np.radians(0.1)].copy()
+			vertices = workspace_mesh.vertices.copy()
+
+			edge_path = trimesh.path.Path3D(**trimesh.path.exchange.misc.edges_to_path(edges, vertices))
+
+			viewer.add_geometry(edge_path)
+
+	def show_2d(self, plt):
+		"""Render a schematic of the workspace (in 2D) for debugging"""
 		try:
 			aabb = self.region.getAABB()
 		except NotImplementedError:		# unbounded Regions don't support this
 			return
-		((xmin, ymin), (xmax, ymax)) = aabb
+		((xmin, ymin), (xmax, ymax) , _) = aabb
 		plt.xlim(xmin, xmax)
 		plt.ylim(ymin, ymax)
 
@@ -51,7 +71,7 @@ class Workspace(Region):
 
 	def scenicToSchematicCoords(self, coords):
 		"""Convert Scenic coordinates to those used for schematic rendering."""
-		return coords
+		return coords[:2]
 
 	def uniformPointInner(self):
 		return self.region.uniformPointInner()

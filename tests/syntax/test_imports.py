@@ -56,19 +56,15 @@ def test_import_top_relative(request):
         os.chdir(oldDirectory)
 
 def test_module_name_main():
-    scenario = compileScenic('param name = __name__\n' 'ego = Object')
+    scenario = compileScenic('param name = __name__\n' 'ego = new Object')
     scene, iterations = scenario.generate(maxIterations=1)
     assert scene.params['name'] == '__main__'
-
-def test_import_ego(runLocally):
-    with runLocally(), pytest.raises(InvalidScenarioError):
-        compileScenic('import imports')
 
 def test_inherit_requirements(runLocally):
     with runLocally():
         scenario = compileScenic(
             'import helper3\n'
-            'ego = Object'
+            'ego = new Object'
         )
         assert len(scenario.requirements) == 1
         for i in range(50):
@@ -81,7 +77,7 @@ def test_inherit_constructors(runLocally):
     with runLocally():
         scenario = compileScenic(
             'from helper import Caerbannog\n'
-            'ego = Caerbannog'
+            'ego = new Caerbannog'
         )
 
 def test_multiple_imports(runLocally):
@@ -89,7 +85,7 @@ def test_multiple_imports(runLocally):
         scenario = compileScenic("""
             import helper
             import helper
-            ego = Object
+            ego = new Object
             import helper
         """)
         assert len(scenario.objects) == 2
@@ -104,7 +100,7 @@ def test_import_in_try(runLocally):
                 x = 12
             finally:
                 y = 4
-            ego = Caerbannog at x @ y
+            ego = new Caerbannog at x @ y
         """)
 
 def test_import_in_except(runLocally):
@@ -114,28 +110,28 @@ def test_import_in_except(runLocally):
                 import __non_ex_ist_ent___
             except ImportError:
                 from helper import Caerbannog
-            ego = Caerbannog
+            ego = new Caerbannog
         """)
 
 def test_import_multiline_1():
     compileScenic(
         'from math import factorial, \\\n'
         '    pow\n'
-        'ego = Object with width pow(factorial(4), 2)'
+        'ego = new Object with width pow(factorial(4), 2)'
     )
 
 def test_import_multiline_2():
     compileScenic(
         'from math import (factorial,\n'
         '  pow)\n'
-        'ego = Object with width pow(factorial(4), 2)'
+        'ego = new Object with width pow(factorial(4), 2)'
     )
 
 def test_import_override_param():
     scene = sampleSceneFrom("""
         param helper_file = 'foo'
         import tests.syntax.helper
-        ego = Object
+        ego = new Object
     """)
     assert scene.params['helper_file'] != 'foo'
 
@@ -143,7 +139,7 @@ def test_model_not_override_param():
     scene = sampleSceneFrom("""
         param helper_file = 'foo'
         model tests.syntax.helper
-        ego = Object
+        ego = new Object
     """)
     assert scene.params['helper_file'] == 'foo'
 
@@ -151,12 +147,10 @@ def test_model_respects_all():
     with pytest.raises(NameError):
         compileScenic("""
             model tests.syntax.helper4
-            ego = Object with foo bar
+            ego = new Object with foo bar
         """)
 
 def test_malformed_model():
-    with pytest.raises(ScenicSyntaxError):
-        compileScenic('model')
     with pytest.raises(ScenicSyntaxError):
         compileScenic('model 101')
 

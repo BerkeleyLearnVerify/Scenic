@@ -6,7 +6,12 @@ import sys
 import time
 import argparse
 import random
-from importlib import metadata
+import numpy
+
+if sys.version_info >= (3, 8):
+    from importlib import metadata
+else:
+    import importlib_metadata as metadata
 
 import scenic
 import scenic.syntax.translator as translator
@@ -30,6 +35,8 @@ mainOptions.add_argument('-p', '--param', help='override a global parameter',
 mainOptions.add_argument('-m', '--model', help='specify a Scenic world model', default=None)
 mainOptions.add_argument('--scenario', default=None,
                          help='name of scenario to run (if file contains multiple)')
+mainOptions.add_argument('--2d', action='store_true',
+                         help='run Scenic in 2D compatibility mode')
 
 # Simulation options
 simOpts = parser.add_argument_group('dynamic simulation options')
@@ -63,7 +70,7 @@ debugOpts.add_argument('--pdb-on-reject', action='store_true',
 ver = metadata.version('scenic')
 debugOpts.add_argument('--version', action='version', version=f'Scenic {ver}',
                        help='print Scenic version information and exit')
-debugOpts.add_argument('--dump-initial-python', help='dump initial translated Python',
+debugOpts.add_argument('--dump-scenic-ast', help='dump Scenic AST',
                        action='store_true')
 debugOpts.add_argument('--dump-ast', help='dump final AST', action='store_true')
 debugOpts.add_argument('--dump-python', help='dump Python equivalent of final AST',
@@ -81,6 +88,8 @@ parser.add_argument('scenicFile', help='a Scenic file to run', metavar='FILE')
 # Parse arguments and set up configuration
 args = parser.parse_args()
 delay = args.delay
+mode_2d = getattr(args, "2d")
+
 scenic.setDebuggingOptions(
     verbosity=args.verbosity,
     fullBacktrace=args.full_backtrace,
@@ -98,13 +107,16 @@ for name, value in args.param:
         except ValueError:
             pass
     params[name] = value
-translator.dumpTranslatedPython = args.dump_initial_python
+translator.dumpScenicAST = args.dump_scenic_ast
 translator.dumpFinalAST = args.dump_ast
 translator.dumpASTPython = args.dump_python
 translator.usePruning = not args.no_pruning
-if args.seed is not None and args.verbosity >= 1:
-    print(f'Using random seed = {args.seed}')
+if args.seed is not None:
+    if args.verbosity >= 1:
+        print(f'Using random seed = {args.seed}')
+
     random.seed(args.seed)
+    numpy.random.seed(args.seed)
 
 # Load scenario from file
 if args.verbosity >= 1:
@@ -114,7 +126,8 @@ scenario = errors.callBeginningScenicTrace(
     lambda: translator.scenarioFromFile(args.scenicFile,
                                         params=params,
                                         model=args.model,
-                                        scenario=args.scenario)
+                                        scenario=args.scenario,
+                                        mode_2d=mode_2d)
 )
 totalTime = time.time() - startTime
 if args.verbosity >= 1:
@@ -183,11 +196,17 @@ try:
                         break
             else:
                 if delay is None:
-                    scene.show(zoom=args.zoom)
+                    if mode_2d:
+                        scene.show_2d(zoom=args.zoom)
+                    else:
+                        scene.show(zoom=args.zoom)
                 else:
-                    scene.show(zoom=args.zoom, block=False)
-                    plt.pause(delay)
-                    plt.clf()
+                    if mode_2d:
+                        scene.show(zoom=args.zoom, block=False)
+                        plt.pause(delay)
+                        plt.clf()
+                    else:
+                        scene.show(zoom=args.zoom)
     else:   # Gather statistics over the specified number of scenes
         its = []
         startTime = time.time()

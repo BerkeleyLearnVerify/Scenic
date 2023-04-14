@@ -114,6 +114,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+scenic.venv/
 
 # Spyder project settings
 .spyderproject
@@ -131,3 +132,11 @@ venv.bak/
 dmypy.json
 
 *.cproject
+
+# generated parser
+src/scenic/syntax/parser.py
+
+# example output files
+examples/webots/city_intersection/*
+!examples/webots/city_intersection/.gitkeep
+

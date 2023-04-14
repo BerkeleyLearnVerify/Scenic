@@ -8,7 +8,7 @@ class DrivingWorkspace(Workspace):
         self.network = network
         super().__init__()
 
-    def show(self, plt):
+    def show_2d(self, plt):
         self.network.show()
 
     @property

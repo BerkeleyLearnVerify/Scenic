@@ -42,8 +42,9 @@ class WebotsObject:
 
 class Car(WebotsObject):
 	regionContainedIn: road
-	position: Point on road
-	heading: (roadDirection at self.position) + self.roadDeviation
+	position: new Point on road
+	parentOrientation: roadDirection at self.position
+	yaw: self.roadDeviation
 	roadDeviation: 0
 	model: Uniform(*carModels)
 	width: self.model.width
@@ -87,8 +88,8 @@ class Motorcycle(Car):
 
 class Pedestrian(WebotsObject):
 	regionContainedIn: walkway
-	position: Point on walkway
-	heading: Range(0, 360) deg
+	position: new Point on walkway
+	yaw: Range(0, 360) deg
 	width: 0.5
 	length: 0.5
 	shirtColor: CarColor.uniformColor()

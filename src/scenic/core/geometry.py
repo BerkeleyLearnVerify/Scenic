@@ -22,8 +22,8 @@ def cos(x) -> float:
 	return math.cos(x)
 
 @monotonicDistributionFunction
-def hypot(x, y) -> float:
-	return math.hypot(x, y)
+def hypot(*args) -> float:
+	return math.hypot(*args)
 
 @monotonicDistributionFunction
 def max(*args, **kwargs):
@@ -64,19 +64,19 @@ def findMinMax(iterable):
 	return (minv, maxv)
 
 def headingOfSegment(pointA, pointB):
-	ax, ay = pointA
-	bx, by = pointB
+	ax, ay = pointA[:2]
+	bx, by = pointB[:2]
 	return normalizeAngle(math.atan2(by - ay, bx - ax) - (math.pi / 2.0))
 
 def viewAngleToPoint(point, base, heading):
-	x, y = base
-	ox, oy = point
+	x, y, _ = base
+	ox, oy, _ = point
 	a = math.atan2(oy - y, ox - x) - (heading + (math.pi / 2.0))
 	return normalizeAngle(a)
 
 def apparentHeadingAtPoint(point, heading, base):
-	x, y = base
-	ox, oy = point
+	x, y, = base[:2]
+	ox, oy = point[:2]
 	a = (heading + (math.pi / 2.0)) - math.atan2(oy - y, ox - x)
 	return normalizeAngle(a)
 
@@ -262,7 +262,7 @@ def triangulatePolygon_mapbox(polygon):
 		ring = interior.coords[:-1]
 		vertices.extend(ring)
 		rings.append(len(vertices))
-	vertices = np.array(vertices, dtype=np.float64)
+	vertices = np.array(vertices, dtype=np.float64)[:,:2]
 	rings = np.array(rings)
 	result = mapbox_earcut.triangulate_float64(vertices, rings)
 

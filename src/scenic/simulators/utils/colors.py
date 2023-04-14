@@ -5,6 +5,7 @@ This used for example to represent car colors in the abstract driving domain,
 as well as in the interfaces to GTA and Webots.
 """
 
+import random
 import colorsys
 from collections import namedtuple
 import random

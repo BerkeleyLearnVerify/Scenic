@@ -133,5 +133,5 @@ class Pedestrian(Pedestrian, LGSVLObject, Walks):
 ## Utility classes
 
 class Waypoint(OrientedPoint):
-    heading: roadDirection at self.position
+    parentOrientation: roadDirection at self.position
     speed: 10

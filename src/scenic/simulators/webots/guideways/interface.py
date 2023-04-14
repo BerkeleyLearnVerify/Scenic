@@ -15,6 +15,7 @@ from scenic.core.workspaces import Workspace
 from scenic.core.regions import PolygonalRegion, PolylineRegion
 from scenic.core.vectors import VectorField
 from scenic.core.geometry import polygonUnion, headingOfSegment
+from scenic.core.type_support import toVector
 
 def toWebots(point, proj):
 	x, z = proj(*point)
@@ -47,7 +48,7 @@ class Guideway(Bordered):
 	def directionAt(self, point):
 		# TODO improve?
 		median = self.medianPoints
-		pt = np.array(point)
+		pt = np.array(point[:2])
 		# find closest point on median
 		dists = np.linalg.norm(median - pt, axis=1)
 		i, dist = min(enumerate(dists), key=lambda p: p[1])
@@ -67,6 +68,9 @@ class Guideway(Bordered):
 				x, y = median[i-1], median[i]
 			else:
 				x, y = median[i], median[i+1]
+
+		x = toVector(x)
+		y = toVector(y)
 		return headingOfSegment(x, y)
 
 class Crosswalk(Bordered):

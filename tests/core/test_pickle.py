@@ -51,7 +51,7 @@ def test_pickle_object():
     tryPickling(obj)
 
 def test_pickle_scenario():
-    scenario = compileScenic('ego = Object at Range(1, 2) @ 0')
+    scenario = compileScenic('ego = new Object at Range(1, 2) @ 0')
     sc1 = tryPickling(scenario)
     sc2 = tryPickling(scenario)
     e1, e2 = sampleEgo(sc1), sampleEgo(sc2)
@@ -60,7 +60,7 @@ def test_pickle_scenario():
     assert e1.position.x != e2.position.x
 
 def test_pickle_scene():
-    scene = sampleSceneFrom('ego = Object at Range(1, 2) @ 3')
+    scene = sampleSceneFrom('ego = new Object at Range(1, 2) @ 3')
     tryPickling(scene)
 
 def test_pickle_scenario_dynamic():
@@ -71,8 +71,8 @@ def test_pickle_scenario_dynamic():
                 wait
         behavior Bar(t):
             do Foo(Range(0, 1)) for t seconds
-        ego = Object with behavior Bar(Range(5, 10))
-        other = Object at 10 @ Range(20, 30)
+        ego = new Object with behavior Bar(Range(5, 10))
+        other = new Object at 10 @ Range(20, 30)
         require always other.position.x >= 0
         terminate when ego.position.x > 10
         record ego.position as egoPos

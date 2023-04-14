@@ -10,14 +10,17 @@ import shapely.geometry
 import shapely.geos
 
 from scenic.core.distributions import (Samplable, MethodDistribution, OperatorDistribution,
+                                       FunctionDistribution, AttributeDistribution,
                                        needsSampling, supportInterval, underlyingFunction)
 from scenic.core.object_types import Point, Object
-from scenic.core.geometry import normalizeAngle, polygonUnion, plotPolygon
-from scenic.core.vectors import VectorField, PolygonalVectorField, VectorMethodDistribution
+from scenic.core.geometry import normalizeAngle, polygonUnion, plotPolygon, hypot
+from scenic.core.vectors import (VectorField, PolygonalVectorField, VectorMethodDistribution,
+                                VectorOperatorDistribution)
 from scenic.core.workspaces import Workspace
 from scenic.syntax.relations import RelativeHeadingRelation, DistanceRelation
 from scenic.core.errors import InvalidScenarioError
 import scenic.core.regions as regions
+from scenic.core.regions import EmptyRegion, MeshVolumeRegion, MeshSurfaceRegion
 
 ### Utilities
 
@@ -32,14 +35,37 @@ def isMethodCall(thing, method):
         return False
     return thing.method is underlyingFunction(method)
 
+def isFunctionCall(thing, function):
+    """Match calls to a given function, taking into account distribution decorators."""
+    if not isinstance(thing, FunctionDistribution):
+        return False
+    return thing.function is underlyingFunction(function)
+
 def matchInRegion(position):
-    """Match uniform samples from a `Region`, returning the Region if any."""
+    """Match uniform samples from a `Region`, returning the Region, if any,
+    and a lower and upper bound on the distance the object will be placed
+    along with any offset that should be added to the base."""
+
+    # Case 1: Position is simply a point in a region
     if isinstance(position, regions.PointInRegionDistribution):
         reg = position.region
         if isinstance(reg, Workspace):
             reg = reg.region
-        return reg
-    return None
+        return reg, 0, 0, None
+
+    # Case 2: Position is a point in a region with a vector offset.
+    if isinstance(position, VectorOperatorDistribution) and position.operator in ('__add__', '__radd__'):
+        if isinstance(position.object, regions.PointInRegionDistribution):
+            reg = position.object.region
+            assert len(position.operands) == 1
+            offset = position.operands[0]
+            # TODO: Proper vector supportInterval calculations. Right now this gives us None
+            # if value is not exact
+            lower, upper = supportInterval(offset.norm())
+
+            return reg, lower, upper, offset
+
+    return None, 0, 0, None
 
 def matchPolygonalField(heading, position):
     """Match headings defined by a `PolygonalVectorField` at the given position.
@@ -48,10 +74,17 @@ def matchPolygonalField(heading, position):
     bounded disturbance. Returns a triple consisting of the matched field if
     any, together with lower/upper bounds on the disturbance.
     """
-    if (isMethodCall(heading, VectorField.__getitem__)
-        and isinstance(heading.object, PolygonalVectorField)
-        and heading.arguments == (position,)):
-        return heading.object, 0, 0
+    if (isFunctionCall(heading, normalizeAngle)):
+        assert len(heading.arguments) == 1
+        return matchPolygonalField(heading.arguments[0], position)
+
+    if (isinstance(heading, AttributeDistribution)
+        and heading.attribute == 'yaw'):    # TODO generalize to other 3D angles?
+        orientation = heading.object
+        if (isMethodCall(orientation, VectorField.__getitem__)
+            and isinstance(orientation.object, PolygonalVectorField)
+            and orientation.arguments == (position,)):
+            return orientation.object, 0, 0
     elif isinstance(heading, OperatorDistribution) and heading.operator in ('__add__', '__radd__'):
         field, lower, upper = matchPolygonalField(heading.object, position)
         if field is not None:
@@ -60,6 +93,7 @@ def matchPolygonalField(heading, position):
             ol, oh = supportInterval(offset)
             if ol is not None and oh is not None:
                 return field, lower + ol, upper + oh
+
     return None, 0, 0
 
 ### Pruning procedures
@@ -97,37 +131,76 @@ def pruneContainment(scenario, verbosity):
     bound the radius of O, then we can first erode C by that distance.
     """
     for obj in scenario.objects:
-        base = matchInRegion(obj.position)
-        if base is None:                    # match objects positioned uniformly in a Region
+        # Extract the base region and container region, while doing minor checks.
+        base, _, maxDistance, offset = matchInRegion(obj.position)
+
+        if base is None or needsSampling(base):
             continue
+
         if isinstance(base, regions.EmptyRegion):
             raise InvalidScenarioError(f'Object {obj} placed in empty region')
-        basePoly = regions.toPolygon(base)
-        if basePoly is None:                # to prune, the Region must be polygonal
-            continue
-        if basePoly.is_empty:
-            raise InvalidScenarioError(f'Object {obj} placed in empty region')
+
         container = scenario.containerOfObject(obj)
-        containerPoly = regions.toPolygon(container)
-        if containerPoly is None:           # the object's container must also be polygonal
+
+        if container is None or needsSampling(container):
             continue
+
+        if isinstance(container, regions.EmptyRegion):
+            raise InvalidScenarioError(f'Object {obj} contained in empty region')
+
+        # Erode the container region if possible.
         minRadius, _ = supportInterval(obj.inradius)
-        if minRadius is not None:           # if we can lower bound the radius, erode the container
-            containerPoly = containerPoly.buffer(-minRadius)
-        elif base is container:
+
+        if hasattr(container,"buffer") and \
+           maxDistance is not None and minRadius is not None:
+            maxErosion = minRadius - maxDistance
+            if maxErosion > 0:
+                container = container.buffer(-maxErosion)
+
+        # Restrict the base region to the container, unless
+        # they're the same in which case we're done
+        if base is container:
             continue
-        newBasePoly = basePoly & containerPoly      # restrict the base Region to the container
-        if newBasePoly.is_empty:
+
+        newBase = base.intersect(container)
+        newBase.orientation = base.orientation
+
+        # Check if base was a volume and newBase is a surface,
+        # in which case the mesh operation might be undefined and we abort.
+        if isinstance(base, MeshVolumeRegion) and isinstance(newBase, MeshSurfaceRegion):
+            continue
+
+        if isinstance(newBase, EmptyRegion):
             raise InvalidScenarioError(f'Object {obj} does not fit in container')
+
+        # Print debug info and cleanup
+        def extractRegion(item):
+            if isinstance(item, Workspace):
+                return item.region
+
+            return item
+
         if verbosity >= 1:
-            if basePoly.area > 0:
-                ratio = newBasePoly.area / basePoly.area
-            else:
-                ratio = newBasePoly.length / basePoly.length
-            percent = 100 * (1.0 - ratio)
-            print(f'    Region containment constraint pruned {percent:.1f}% of space.')
-        newBase = regions.regionFromShapelyObject(newBasePoly, orientation=base.orientation)
+            regBase = extractRegion(base)
+
+            if regBase.dimensionality is None or newBase.dimensionality is None or \
+               regBase.dimensionality != newBase.dimensionality:
+                print(f'    Region containment constraint pruning attempted but could not compute percentage for {regBase} and {newBase}.')
+            elif regBase.dimensionality == newBase.dimensionality:
+                ratio = newBase.size/regBase.size
+                percent = max(0, 100 * (1.0 - ratio))
+
+                if percent <= 0.001:
+                    # We didn't really prune anything, don't bother setting new position
+                    continue
+
+                print(f'    Region containment constraint pruned {percent:.1f}% of space.')
+
         newPos = regions.Region.uniformPointIn(newBase)
+        
+        if offset is not None:
+            newPos += offset 
+
         obj.position.conditionTo(newPos)
 
 ## Pruning based on orientation
@@ -150,21 +223,30 @@ def pruneRelativeHeading(scenario, verbosity):
     of F which satisfy the relative heading requirements w.r.t. some cell of F' which
     is within the distance bound.
     """
+    # TODO Add test for empty pruned polygon (Might cause crash?)
     # Check which objects are (approximately) aligned to polygonal vector fields
     fields = {}
     for obj in scenario.objects:
         field, offsetL, offsetR = matchPolygonalField(obj.heading, obj.position)
         if field is not None:
             fields[obj] = (field, offsetL, offsetR)
+
     # Check for relative heading relations among such objects
     for obj, (field, offsetL, offsetR) in fields.items():
         position = currentPropValue(obj, 'position')
-        base = matchInRegion(position)
-        if base is None:        # obj must be positioned uniformly in a Region
+        base, _, _, offset = matchInRegion(position)
+
+        if base is None or needsSampling(base):        # obj must be positioned uniformly in a Region
             continue
+
+        if offset is not None:
+            continue
+
         basePoly = regions.toPolygon(base)
+
         if basePoly is None:    # the Region must be polygonal
             continue
+
         newBasePoly = basePoly
         for rel in obj._relations:
             if isinstance(rel, RelativeHeadingRelation) and rel.target in fields:
@@ -193,14 +275,20 @@ def pruneRelativeHeading(scenario, verbosity):
 
 def maxDistanceBetween(scenario, obj, target):
     """Upper bound the distance between the given Objects."""
-    # If one of the objects is the ego, use visibility requirements
+    # visDist is initialized to infinity. Then we can use
+    # various visibility constraints to upper bound it,
+    # keeping the tightest bound.
     ego = scenario.egoObject
+    visDist = float('inf')
+
     if obj is ego and target.requireVisible:
-        visDist = visibilityBound(ego, target)
-    elif target is ego and obj.requireVisible:
-        visDist = visibilityBound(ego, obj)
-    else:
-        visDist = float('inf')
+        visDist = min(visDist, visibilityBound(ego, target))
+    if target is ego and obj.requireVisible:
+        visDist = min(visDist, visibilityBound(ego, obj))
+    if obj._observingEntity is target:
+        visDist = min(visDist, visibilityBound(target, obj))
+    if target._observingEntity is obj:
+        visDist = min(visDist, visibilityBound(obj, target))
 
     # Check for any distance bounds implied by user-specified requirements
     reqDist = float('inf')

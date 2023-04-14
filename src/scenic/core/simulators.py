@@ -48,7 +48,7 @@ class Simulator:
     :mod:`scenic.simulators.lgsvl.simulator`.
     """
 
-    def simulate(self, scene, maxSteps=None, maxIterations=100, *,
+    def simulate(self, scene, maxSteps=None, maxIterations=1, *,
                  verbosity=None, raiseGuardViolations=False, replay=None,
                  enableReplay=True, enableDivergenceCheck=False, divergenceTolerance=0,
                  continueAfterDivergence=False, allowPickle=False):
@@ -337,9 +337,6 @@ class Simulation:
             for agent in self.agents:
                 if agent.behavior._isRunning:
                     agent.behavior._stop()
-            for monitor in self.scene.monitors:
-                if monitor._isRunning:
-                    monitor._stop()
             # If the simulation was terminated by an exception (including rejections),
             # some scenarios may still be running; we need to clean them up without
             # checking their requirements, which could raise rejection exceptions.
@@ -491,7 +488,7 @@ class Simulation:
         """
         for obj in self.objects:
             # Get latest values of dynamic properties from simulation
-            dynTypes = obj._dynamicProperties
+            dynTypes = {prop: val for prop, val in obj._dynamicProperties.items() if prop not in obj._finalProperties}
             properties = set(dynTypes)
             values = self.getProperties(obj, properties)
             assert properties == set(values), properties ^ set(values)
@@ -621,6 +618,11 @@ class Simulation:
             raise RuntimeError('cannot save replay without replay support enabled')
         return self._replayOut.getBytes()
 
+    @classmethod
+    def extractEulerAngles(cls, global_orientation, parent_orientation):
+        return (global_orientation * parent_orientation.invertRotation()).eulerAngles
+
+
 class ReplayMode(enum.IntFlag):
     checkDivergence = enum.auto()
 
@@ -658,8 +660,10 @@ class DummySimulation(Simulation):
             obj.position += Vector(0, self.drift)
 
     def getProperties(self, obj, properties):
-        vals = dict(position=obj.position, heading=obj.heading,
-                    velocity=Vector(0, 0), speed=0.0, angularSpeed=0.0)
+        vals = dict(position=obj.position,
+                    yaw=obj.yaw, pitch=obj.pitch, roll=obj.roll,
+                    velocity=Vector(0, 0, 0), angularVelocity=Vector(0,0,0),
+                    speed=0.0, angularSpeed=0.0)
         for prop in properties:
             if prop not in vals:
                 vals[prop] = None

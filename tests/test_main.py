@@ -26,7 +26,7 @@ def runAndGetRecordR(tmpdir):
     return lambda *args, **kwargs: simHelper(path, *args, **kwargs)
 
 def helper(path, program, options=[], addEgo=True):
-    footer = 'ego = Object' if addEgo else ''
+    footer = 'ego = new Object' if addEgo else ''
     opts = ['--show-params', '--gather-stats', '1'] + options
     lines = run(path, program, opts, addEgo, footer=footer)
     return extractValue(lines, paramPattern)
@@ -93,7 +93,7 @@ def test_time(runAndGetRecordR):
             while True:
                 i += 2
                 wait
-        ego = Object with behavior Foo
+        ego = new Object with behavior Foo
         record final i as r
     """, options=['--time', '5'])
     assert r == '10'

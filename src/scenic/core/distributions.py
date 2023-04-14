@@ -12,7 +12,7 @@ import numpy
 import decorator
 
 from scenic.core.lazy_eval import (LazilyEvaluable,
-    requiredProperties, needsLazyEvaluation, valueInContext, makeDelayedFunctionCall)
+	requiredProperties, needsLazyEvaluation, valueInContext, makeDelayedFunctionCall)
 from scenic.core.utils import DefaultIdentityDict, argsToString, cached, sqrt2
 from scenic.core.errors import RuntimeParseError
 
@@ -24,6 +24,9 @@ def dependencies(thing):
 
 def needsSampling(thing):
 	"""Whether this value requires sampling."""
+	if isinstance(thing, list):
+		return any(needsSampling(elem) for elem in thing)
+
 	return isinstance(thing, Distribution) or dependencies(thing)
 
 def supportInterval(thing):
@@ -146,9 +149,9 @@ class Samplable(LazilyEvaluable):
 		assert isinstance(value, Samplable)
 		self._conditioned = value
 
-	def evaluateIn(self, context):
+	def evaluateIn(self, context, modifying):
 		"""See `LazilyEvaluable.evaluateIn`."""
-		value = super().evaluateIn(context)
+		value = super().evaluateIn(context, modifying)
 		# Check that all dependencies have been evaluated
 		assert all(not needsLazyEvaluation(dep) for dep in value._dependencies)
 		return value
@@ -338,7 +341,7 @@ class TupleDistribution(Distribution, collections.abc.Sequence):
 	def sampleGiven(self, value):
 		return self.builder(value[coordinate] for coordinate in self.coordinates)
 
-	def evaluateInner(self, context):
+	def evaluateInner(self, context, modifying):
 		coordinates = (valueInContext(coord, context) for coord in self.coordinates)
 		return TupleDistribution(*coordinates, builder=self.builder)
 
@@ -365,7 +368,7 @@ class SliceDistribution(Distribution):
 	def sampleGiven(self, value):
 		return slice(value[self.start], value[self.stop], value[self.step])
 
-	def evaluateInner(self, context):
+	def evaluateInner(self, context, modifying):
 		start = valueInContext(self.start, context)
 		stop = valueInContext(self.stop, context)
 		step = valueInContext(self.step, context)
@@ -376,7 +379,6 @@ class SliceDistribution(Distribution):
 
 def toDistribution(val):
 	"""Wrap Python data types with Distributions, if necessary.
-
 	For example, tuples containing Samplables need to be converted into TupleDistributions
 	in order to keep track of dependencies properly.
 	"""
@@ -426,7 +428,7 @@ class FunctionDistribution(Distribution):
 		kwargs = { name: value[arg] for name, arg in self.kwargs.items() }
 		return self.function(*args, **kwargs)
 
-	def evaluateInner(self, context):
+	def evaluateInner(self, context, modifying):
 		function = valueInContext(self.function, context)
 		arguments = tuple(valueInContext(arg, context) for arg in self.arguments)
 		kwargs = { name: valueInContext(arg, context) for name, arg in self.kwargs.items() }
@@ -502,8 +504,8 @@ class StarredDistribution(Distribution):
 	def sampleGiven(self, value):
 		return value[self.value]
 
-	def evaluateInner(self, context):
-		return StarredDistribution(valueInContext(self.value, context), self.lineno)
+	def evaluateInner(self, context, modifying):
+		return StarredDistribution(valueInContext(self.value, context, modifying), self.lineno)
 
 	def __repr__(self):
 		return f'*{self.value!r}'
@@ -534,7 +536,7 @@ class MethodDistribution(Distribution):
 		kwargs = { name: value[arg] for name, arg in self.kwargs.items() }
 		return self.method(self.object, *args, **kwargs)
 
-	def evaluateInner(self, context):
+	def evaluateInner(self, context, modifying):
 		obj = valueInContext(self.object, context)
 		arguments = tuple(valueInContext(arg, context) for arg in self.arguments)
 		kwargs = { name: valueInContext(arg, context) for name, arg in self.kwargs.items() }
@@ -573,16 +575,16 @@ class AttributeDistribution(Distribution):
 
 	def __init__(self, attribute, obj, valueType=None):
 		if valueType is None:
-			ty = type_support.underlyingType(obj)
-			valueType = self.inferType(ty, attribute)
+			valueType = self.inferType(obj, attribute)
 		super().__init__(obj, valueType=valueType)
 		self.attribute = attribute
 		self.object = obj
 
 	@staticmethod
-	def inferType(ty, attribute):
+	def inferType(obj, attribute):
 		"""Attempt to infer the type of the given attribute."""
 		# If the object's type is known, see if we have an attribute type annotation.
+		ty = type_support.underlyingType(obj)
 		try:
 			hints = typing.get_type_hints(ty)
 			attrTy = hints.get(attribute)
@@ -591,27 +593,19 @@ class AttributeDistribution(Distribution):
 		except Exception:
 			pass	# couldn't get type annotations
 
-		# Handle unions
-		origin = typing.get_origin(ty)
-		if origin == typing.Union:
-			types = []
-			for option in typing.get_args(ty):
-				if (option is type(None) and not hasattr(None, attribute)):
-					# None does not have this attribute; accessing it will raise an
-					# exception, so we can ignore this case for type inference.
-					continue
-				res = AttributeDistribution.inferType(option, attribute)
-				types.append(res)
-			return type_support.unifierOfTypes(types) if types else object
+        # Check for a @property defined on the class with a return type
+		if (ty is not object and (func := getattr(ty, attribute, None))
+			and isinstance(func, property)):
+			return typing.get_type_hints(func.fget).get('return')
 
 		# We can't tell what the attribute type is.
-		return object
+		return None
 
 	def sampleGiven(self, value):
 		obj = value[self.object]
 		return getattr(obj, self.attribute)
 
-	def evaluateInner(self, context):
+	def evaluateInner(self, context, modifying):
 		obj = valueInContext(self.object, context)
 		return AttributeDistribution(self.attribute, obj)
 
@@ -650,12 +644,20 @@ class OperatorDistribution(Distribution):
 		self.operator = operator
 		self.object = obj
 		self.operands = operands
+		self.symbol = allowedReversibleOperators.get(operator)
+		if self.symbol:
+			if operator[:3] == '__r':
+				self.reverse = '__' + operator[3:]
+			else:
+				self.reverse = '__r' + operator[2:]
+		else:
+			self.reverse = None
 
 	@staticmethod
 	def inferType(ty, operator, operands):
 		"""Attempt to infer the result type of the given operator application."""
 		# If the object's type is known, see if we have a return type annotation.
-		origin = typing.get_origin(ty)
+		origin = type_support.get_type_origin(ty)
 		op = getattr(origin if origin else ty, operator, None)
 		if op:
 			retTy = typing.get_type_hints(op).get('return')
@@ -665,14 +667,10 @@ class OperatorDistribution(Distribution):
 		# Handle unions
 		if origin == typing.Union:
 			types = []
-			for option in typing.get_args(ty):
-				if option is type(None) and not hasattr(None, operator):
-					# None does not support this operator; using it will raise an
-					# exception, so we can ignore this case for type inference.
-					continue
+			for option in type_support.get_type_args(ty):
 				res = OperatorDistribution.inferType(option, operator, operands)
 				types.append(res)
-			return type_support.unifierOfTypes(types) if types else object
+			return type_support.unifierOfTypes(types)
 
 		# The supported arithmetic operations on scalars all return scalars.
 		def scalar(thing):
@@ -690,9 +688,9 @@ class OperatorDistribution(Distribution):
 				ity = type_support.underlyingType(index)
 				isSlice = not hasattr(ity, '__index__')
 				if issubclass(origin, list):
-					res = ty if isSlice else typing.get_args(ty)[0]
+					res = ty if isSlice else type_support.get_type_args(ty)[0]
 				elif issubclass(origin, tuple):
-					args = typing.get_args(ty)
+					args = type_support.get_type_args(ty)
 					if type_support.is_typing_generic(ty):
 						# If annotation used Tuple instead of tuple, preserve it
 						origin = typing.Tuple
@@ -706,12 +704,12 @@ class OperatorDistribution(Distribution):
 					else:
 						# can't pin down the index, so cover all possibilities
 						if any(arg is typing.Any for arg in args):
-							return origin if isSlice else object
+							return origin if isSlice else None
 						res = typing.Union[args]
 						if isSlice:
 							res = origin[res, ...]
 				elif issubclass(origin, (dict, typing.Mapping, collections.abc.Mapping)):
-					res = typing.get_args(ty)[1]
+					res = type_support.get_type_args(ty)[1]
 				return object if res is typing.Any else res
 			elif not origin:	# ordinary type
 				if issubclass(ty, str):
@@ -725,15 +723,16 @@ class OperatorDistribution(Distribution):
 		rest = [value[child] for child in self.operands]
 		op = getattr(first, self.operator)
 		result = op(*rest)
-		# handle horrible int/float mismatch
-		# TODO what is the right way to fix this???
-		if result is NotImplemented and isinstance(first, int):
-			first = float(first)
-			op = getattr(first, self.operator)
-			result = op(*rest)
+		if result is NotImplemented and self.reverse:
+			assert len(rest) == 1
+			rop = getattr(rest[0], self.reverse)
+			result = rop(first)
+		if result is NotImplemented and self.symbol:
+			raise TypeError(f"unsupported operand type(s) for {self.symbol}: "
+			                f"'{type(first).__name__}' and '{type(rest[0]).__name__}'")
 		return result
 
-	def evaluateInner(self, context):
+	def evaluateInner(self, context, modifying):
 		obj = valueInContext(self.object, context)
 		operands = tuple(valueInContext(arg, context) for arg in self.operands)
 		return OperatorDistribution(self.operator, obj, operands)
@@ -800,18 +799,20 @@ allowedOperators = (
 	'__neg__',
 	'__pos__',
 	'__abs__',
-	'__add__', '__radd__',
-	'__sub__', '__rsub__',
-	'__mul__', '__rmul__',
-	'__truediv__', '__rtruediv__',
-	'__floordiv__', '__rfloordiv__',
-	'__mod__', '__rmod__',
-	'__divmod__', '__rdivmod__',
-	'__pow__', '__rpow__',
 	'__round__',
 	'__getitem__',
 	('__len__', int),
 )
+allowedReversibleOperators = {
+	'__add__': '+', '__radd__': '+',
+	'__sub__': '-', '__rsub__': '-',
+	'__mul__': '*', '__rmul__': '*',
+	'__truediv__': '/', '__rtruediv__': '/',
+	'__floordiv__': '//', '__rfloordiv__': '//',
+	'__mod__': '%', '__rmod__': '%',
+	'__divmod__': 'divmod()', '__rdivmod__': 'divmod()',
+	'__pow__': '**', '__rpow__': '**',
+}
 def makeOperatorHandler(op, ty):
 	def handler(self, *args):
 		return OperatorDistribution(op, self, args, valueType=ty)
@@ -823,6 +824,8 @@ for data in allowedOperators:
 		op = data
 		ty = None
 	setattr(Distribution, op, makeOperatorHandler(op, ty))
+for op in allowedReversibleOperators:
+	setattr(Distribution, op, makeOperatorHandler(op, None))
 
 import scenic.core.type_support as type_support
 
@@ -856,7 +859,7 @@ class MultiplexerDistribution(Distribution):
 		serializer.readSamplable(choice, values)
 		return values[choice]
 
-	def evaluateInner(self, context):
+	def evaluateInner(self, context, modifying):
 		return type(self)(valueInContext(self.index, context),
 		                  (valueInContext(opt, context) for opt in self.options))
 	def supportInterval(self):
@@ -893,7 +896,7 @@ class Range(Distribution):
 	def sampleGiven(self, value):
 		return random.uniform(value[self.low], value[self.high])
 
-	def evaluateInner(self, context):
+	def evaluateInner(self, context, modifying):
 		low = valueInContext(self.low, context)
 		high = valueInContext(self.high, context)
 		return Range(low, high)
@@ -965,7 +968,7 @@ class Normal(Distribution):
 	def sampleGiven(self, value):
 		return random.gauss(value[self.mean], value[self.stddev])
 
-	def evaluateInner(self, context):
+	def evaluateInner(self, context, modifying):
 		mean = valueInContext(self.mean, context)
 		stddev = valueInContext(self.stddev, context)
 		return Normal(mean, stddev)
@@ -1032,7 +1035,7 @@ class TruncatedNormal(Normal):
 		p = alpha_cdf + unif * (beta_cdf - alpha_cdf)
 		return mean + (stddev * Normal.cdfinv(0, 1, p))
 
-	def evaluateInner(self, context):
+	def evaluateInner(self, context, modifying):
 		mean = valueInContext(self.mean, context)
 		stddev = valueInContext(self.stddev, context)
 		return TruncatedNormal(mean, stddev, self.low, self.high)
@@ -1132,11 +1135,11 @@ class Options(MultiplexerDistribution):
 	def bucket(self, buckets=None):
 		return self.clone()		# already bucketed
 
-	def evaluateInner(self, context):
+	def evaluateInner(self, context, modifying):
 		if self.optWeights is None:
-			return type(self)(valueInContext(opt, context) for opt in self.options)
+			return type(self)(valueInContext(opt, context, modifying) for opt in self.options)
 		else:
-			return type(self)({valueInContext(opt, context): wt
+			return type(self)({valueInContext(opt, context, modifying): wt
 			                  for opt, wt in self.optWeights.items() })
 
 	def __repr__(self):
@@ -1196,8 +1199,8 @@ class UniformDistribution(Distribution):
 		assert 0 <= index < len(opts)
 		return opts[index]
 
-	def evaluateInner(self, context):
-		opts = tuple(valueInContext(opt, context) for opt in self.options)
+	def evaluateInner(self, context, modifying):
+		opts = tuple(valueInContext(opt, context, modifying) for opt in self.options)
 		return UniformDistribution(opts)
 
 	def __repr__(self):

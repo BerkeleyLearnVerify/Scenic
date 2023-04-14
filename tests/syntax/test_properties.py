@@ -7,85 +7,89 @@ from tests.utils import compileScenic, sampleEgoFrom
 
 def test_position_wrong_type():
     with pytest.raises(RuntimeParseError):
-        compileScenic('ego = Object with position 4')
+        compileScenic('ego = new Object with position 4')
 
 def test_position_oriented_point():
     sampleEgoFrom("""
-        a = OrientedPoint at 1@0
-        b = OrientedPoint at 0@1
-        ego = Object with position Uniform(a, b)
+        a = new OrientedPoint at 1@0
+        b = new OrientedPoint at 0@1
+        ego = new Object with position Uniform(a, b)
     """)
 
 def test_position_numpy_types():
     ego = sampleEgoFrom("""
         import numpy as np
-        ego = Object with position np.single(3.4) @ np.single(7)
+        ego = new Object with position np.single(3.4) @ np.single(7)
     """)
-    assert tuple(ego.position) == pytest.approx((3.4, 7))
+    assert tuple(ego.position) == pytest.approx((3.4, 7, 0))
 
-def test_heading_wrong_type():
+def test_yaw_wrong_type():
     with pytest.raises(RuntimeParseError):
-        compileScenic('ego = Object with heading 4 @ 1')
+        compileScenic('ego = new Object with yaw 4 @ 1')
 
-def test_heading_numpy_types():
+def test_yaw_numpy_types():
     ego = sampleEgoFrom("""
         import numpy as np
-        ego = Object with heading np.single(3.4)
+        ego = new Object with yaw np.single(3.1)
     """)
-    assert ego.heading == pytest.approx(3.4)
+    assert ego.yaw == pytest.approx(3.1)
 
 def test_left():
     ego = sampleEgoFrom("""
-        other = Object with width 4
-        ego = Object at other.left offset by 0@5
+        other = new Object with width 4
+        ego = new Object at other.left offset by 0@5
     """)
-    assert tuple(ego.position) == pytest.approx((-2, 5))
+    assert tuple(ego.position) == pytest.approx((-2, 5, 0))
 
 def test_right():
     ego = sampleEgoFrom("""
-        other = Object with width 4
-        ego = Object at other.right offset by 0@5
+        other = new Object with width 4
+        ego = new Object at other.right offset by 0@5
     """)
-    assert tuple(ego.position) == pytest.approx((2, 5))
+    assert tuple(ego.position) == pytest.approx((2, 5, 0))
 
 def test_front():
     ego = sampleEgoFrom("""
-        other = Object with length 4
-        ego = Object at other.front offset by 0@5
+        other = new Object with length 4
+        ego = new Object at other.front offset by 0@5
     """)
-    assert tuple(ego.position) == pytest.approx((0, 7))
+    assert tuple(ego.position) == pytest.approx((0, 7, 0))
 
 def test_back():
     ego = sampleEgoFrom("""
-        other = Object with length 4
-        ego = Object at other.back offset by 0@-5
+        other = new Object with length 4
+        ego = new Object at other.back offset by 0@-5
     """)
-    assert tuple(ego.position) == pytest.approx((0, -7))
+    assert tuple(ego.position) == pytest.approx((0, -7, 0))
 
 def test_frontLeft():
     ego = sampleEgoFrom("""
-        other = Object with length 4, with width 2
-        ego = Object at other.frontLeft offset by 0@5
+        other = new Object with length 4, with width 2
+        ego = new Object at other.frontLeft offset by 0@5
     """)
-    assert tuple(ego.position) == pytest.approx((-1, 7))
+    assert tuple(ego.position) == pytest.approx((-1, 7, 0))
 
 def test_frontRight():
     ego = sampleEgoFrom("""
-        other = Object with length 4, with width 2
-        ego = Object at other.frontRight offset by 0@5
+        other = new Object with length 4, with width 2
+        ego = new Object at other.frontRight offset by 0@5
     """)
-    assert tuple(ego.position) == pytest.approx((1, 7))
+    assert tuple(ego.position) == pytest.approx((1, 7, 0))
 
 def test_backLeft():
     ego = sampleEgoFrom("""
-        other = Object with length 4, with width 2
-        ego = Object at other.backLeft offset by 0@-5
+        other = new Object with length 4, with width 2
+        ego = new Object at other.backLeft offset by 0@-5
     """)
-    assert tuple(ego.position) == pytest.approx((-1, -7))
+    assert tuple(ego.position) == pytest.approx((-1, -7, 0))
 
 def test_backRight():
     ego = sampleEgoFrom("""
-        other = Object with length 4, with width 2
-        ego = Object at other.backRight offset by 0@-5
+        other = new Object with length 4, with width 2
+        ego = new Object at other.backRight offset by 0@-5
     """)
-    assert tuple(ego.position) == pytest.approx((1, -7))
+    assert tuple(ego.position) == pytest.approx((1, -7, 0))
+
+def test_heading_set_directly():
+    with pytest.raises(RuntimeParseError):
+        compileScenic('ego = new Object with heading 4')

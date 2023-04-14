@@ -24,8 +24,8 @@ class Rover(WebotsObject):
 
 class Debris(WebotsObject):
 	"""Abstract class for debris scattered randomly in the workspace."""
-	position: Point in workspace
-	heading: Range(0, 360) deg
+	position: new Point in workspace
+	yaw: Range(0, 360) deg
 
 class BigRock(Debris):
 	"""Large rock."""

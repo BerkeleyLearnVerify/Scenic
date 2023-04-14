@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 import math
+import random
 import time
 
 import numpy
@@ -67,7 +68,7 @@ class GTA:
 	
 	@staticmethod
 	def langToGTACoords(point):
-		x, y = point
+		x, y, _ = point
 		return [x, y, 60]
 
 	@staticmethod
@@ -178,7 +179,8 @@ class Map:
 	@distributionMethod
 	def roadHeadingAt(self, point):
 		# find closest edge
-		distance, location = self.edgeTree.query(point)
+		point2d = (point[0], point[1])
+		distance, location = self.edgeTree.query(point2d)
 		# get direction of edge
 		return self.gridToScenicHeading(self.edgeTangents[location])
 

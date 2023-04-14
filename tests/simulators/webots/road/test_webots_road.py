@@ -13,10 +13,10 @@ def test_road_only(loadLocalScenario):
     scenario.generate(maxIterations=100)
 
 @pytest.mark.graphical
-def test_show(loadLocalScenario):
+def test_show_2d(loadLocalScenario):
     scenario = loadLocalScenario('crossing.scenic')
     scene, _ = scenario.generate(maxIterations=1000)
-    scene.show(block=False)
+    scene.show_2d(block=False)
     plt.close()
 
 def test_curb(loadLocalScenario):
@@ -29,7 +29,7 @@ def test_noninterference(runLocally):
         "import scenic.simulators.webots.road.world as world\n"
         "world.worldPath = '{world}'\n"
         "from scenic.simulators.webots.road.model import *\n"
-        "ego = Pedestrian"
+        "ego = new Pedestrian"
     )
     with runLocally():
         scenario = compileScenic(code.format(world='richmond.wbt'))
