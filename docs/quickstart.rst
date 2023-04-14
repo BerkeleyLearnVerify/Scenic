@@ -6,7 +6,7 @@ Getting Started with Scenic
 Installation
 ------------
 
-Scenic requires **Python 3.8** or newer.
+Scenic requires **Python 3.7** or newer.
 You can install Scenic from PyPI by simply running:
 
 .. code-block:: console

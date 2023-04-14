@@ -46,7 +46,7 @@ Compound Statements
      - Defines a Scenic class.
    * - :sampref:`behavior {name}({arguments}): <behaviorDef>`
      - Defines a :term:`dynamic behavior`.
-   * - :sampref:`monitor {name}: <monitorDef>`
+   * - :sampref:`monitor {name}({arguments}): <monitorDef>`
      - Defines a :term:`monitor`.
    * - :sampref:`scenario {name}({arguments}): <modularScenarioDef>`
      - Defines a :term:`modular scenario`.
@@ -73,6 +73,8 @@ Simple Statements
      - Define a soft requirement.
    * - :sampref:`require (always | eventually) {boolean}`
      - Define a dynamic hard requirement.
+   * - :sampref:`require monitor {monitor}`
+     - Define a dynamic requirement using a monitor.
    * - :sampref:`terminate when {boolean}`
      - Define a termination condition.
    * - :sampref:`terminate after {scalar} (seconds | steps)`

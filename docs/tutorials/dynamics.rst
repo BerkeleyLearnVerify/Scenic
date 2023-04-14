@@ -273,7 +273,7 @@ for the property "``car1`` and ``car2`` enter the intersection before ``car3``":
 .. code-block::
     :linenos:
 
-    monitor Car3EntersLast:
+    monitor Car3EntersLast():
         seen1, seen2 = False, False
         while not (seen1 and seen2):
             require car3 not in intersection
@@ -289,6 +289,14 @@ least one of the cars has not yet entered the intersection, so if ``car3`` enter
 either ``car1`` or ``car2``, the requirement on line 4 will fail and we will reject the
 simulation. Note the necessity of the :keyword:`wait` statement on line 9: if we omitted it, the
 loop could run forever without any time actually passing in the simulation.
+
+Like behaviors, monitors can take parameters, allowing a monitor defined in a library to
+be reused in various situations. To instantiate a monitor in a scenario, use the
+:keyword:`require monitor` statement::
+
+    require monitor Car3EntersLast()
+    require monitor FollowsDrivingRules(ego, speedLimit=65)
+    require monitor FollowsDrivingRules(speedDemon, speedLimit=80)
 
 ..  _guards:
 

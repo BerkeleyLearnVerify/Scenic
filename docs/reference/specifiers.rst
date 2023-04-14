@@ -53,7 +53,6 @@ offset along *direction* by *vector*
 Positions the object at the given coordinates, in a local coordinate system centered at ego and oriented along the given direction (which, if a vector field, is evaluated at ego to obtain a heading).
 
 .. _(left | right) of {vector} [by {scalar}]:
-.. _left of:
 
 (left | right) of *vector* [by *scalar*]
 ----------------------------------------
@@ -91,6 +90,7 @@ Like :sampref:`visible [from ({Point} | {OrientedPoint})]` except it positions t
 Depends on :prop:`regionContainedIn`, in order to restrict the non-visible region to the :term:`container` of the object being created, which is hopefully a bounded region (if the non-visible region is unbounded, it cannot be uniformly sampled from and an error will be raised).
 
 .. _(in | on) {region}:
+.. _on {region}:
 
 (in | on) *region*
 ------------------

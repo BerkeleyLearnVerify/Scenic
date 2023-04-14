@@ -61,13 +61,18 @@ Monitor Definition
 
 .. code-block:: scenic-grammar
 
-    monitor <name>:
+    monitor <name>(<arguments>):
         <statement>+
 
-Defines a Scenic :term:`monitor`, which runs in parallel with the simulation like a :term:`dynamic behavior`.
+Defines a type of :term:`monitor`, which can be run in parallel with the simulation like a :term:`dynamic behavior`.
 Monitors are not associated with an `Object` and cannot take actions, but can :keyword:`wait` to wait for the next time step (or :keyword:`terminate` the simulation).
+A monitor can be instantiated in a scenario with the :keyword:`require monitor` statement.
+
 The main purpose of monitors is to evaluate complex temporal properties that do not fit into the :keyword:`require always` and :keyword:`require eventually` statements: they can maintain state and use :keyword:`require` to enforce requirements depending on that state.
 For examples of monitors, see our tutorial on :ref:`dynamics`.
+
+.. versionchanged:: 3.0
+    Monitors may take arguments, and must be explicitly instantiated using a :keyword:`require monitor` statement.
 
 .. _modularScenarioDef:
 .. _scenario-stmt:
@@ -199,6 +204,29 @@ For example, :scenic:`require[0.75] ego in parking_lot` would require that the e
 require (always | eventually) *boolean*
 ---------------------------------------
 Require a condition hold at each time step (``always``) or at some point during the simulation (``eventually``).
+
+.. _require monitor {monitor}:
+.. _require monitor:
+
+require monitor *monitor*
+-------------------------
+Require a condition encoded by a :term:`monitor` hold during the scenario.
+See :ref:`monitorDef` for how to define types of monitors.
+
+It is legal to create multiple instances of a monitor with varying parameters.
+For example::
+
+    monitor ReachesBefore(obj1, region, obj2):
+        reached = False
+        while not reached:
+            if obj1 in region:
+                reached = True
+            else:
+                require obj2 not in region
+                wait
+
+    require monitor ReachesBefore(ego, goal, racecar2)
+    require monitor ReachesBefore(ego, goal, racecar3)
 
 .. _terminate when {boolean}:
 .. _terminate when:
