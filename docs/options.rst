@@ -50,6 +50,10 @@ General Scenario Control
 
 	The equivalent of this option for the Python API is the ``scenario`` argument to `scenic.scenarioFromFile`.
 
+.. option:: --2d
+
+	This option compiles the scenario in 2D compatibility mode.
+
 Dynamic Simulations
 -------------------
 

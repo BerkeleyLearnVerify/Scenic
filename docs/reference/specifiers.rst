@@ -103,7 +103,7 @@ on *region*
 
 Positions the base of the object uniformly at random in the given `Region`, offset by :prop:`contactTolerance` (to avoid a collision). The base of the object is determined by adding the object's :prop:`position` to its :prop:`baseOffset`.
 
-If :prop:`position` is already set by another specifier, then position is instead modified. This is done by finding the closest point in the given `Region` along :prop:`onDirection` or its negation, and setting the position to that point.
+If :prop:`position` is already set by another specifier, then position is instead modified. This is done by finding the closest point in the given `Region` along :prop:`onDirection` or its negation, and placing the base of the object at that point.
 
 If the Region has a :term:`preferred orientation` (a vector field), :prop:`parentOrientation` is specified to be equal to that orientation at the object’s :prop:`position`.
 

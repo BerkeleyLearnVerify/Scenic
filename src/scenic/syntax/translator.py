@@ -91,6 +91,7 @@ def scenarioFromFile(path, params={}, model=None, scenario=None, cacheImports=Fa
           argument to True. Then importing a Scenic module will have the same
           behavior as importing a Python module. See `purgeModulesUnsafeToCache`
           for a more detailed discussion of the internals behind this.
+        mode_2d (bool): Whether to compile this scenario in 2D compatibility mode.
 
     Returns:
         A `Scenario` object representing the Scenic scenario.

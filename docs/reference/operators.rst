@@ -43,7 +43,7 @@ The heading (azimuth) to the given position from ego (or the position provided w
 .. _altitude [from {vector}] to {vector}:
 
 altitude [from *vector* ] to *vector*
-----------------------------------
+-------------------------------------
 The altitude to the given position from ego (or the position provided with the optional from vector ). For example, if altitude to plane is π, then plane is directly above ego.
 
 
@@ -80,11 +80,11 @@ The given angle, interpreted as being in degrees. For example 90 deg evaluates t
 -------------------------
 The orientation specified by the vector field at the given position
 
-.. _{heading} relative to {heading}:
+.. _({heading} | {vectorField}) relative to ({heading} | {vectorField}):
 
-*heading* relative to *heading*
-------------------------------------
-The first heading, interpreted as an offset relative to the second heading. For example, :scenic:`-5 deg relative to 90 deg` is simply 85 degrees. If either direction is a vector field, then this operator yields an expression depending on the :prop:`position` property of the object being specified.
+(*heading* | *vectorField*) relative to (*heading* | *vectorField*)
+-------------------------------------------------------------------
+The first heading/vector field, interpreted as an offset relative to the second heading/vector field. For example, :scenic:`-5 deg relative to 90 deg` is simply 85 degrees. If either direction is a vector field, then this operator yields an expression depending on the :prop:`position` property of the object being specified.
 
 
 Vector Operators
@@ -137,7 +137,7 @@ Equivalent to :scenic:`{vector} relative to {OrientedPoint}` above
 .. _(front | back | left | right) of {Object}:
 
 (front | back | left | right | top | bottom) of *Object*
------------------------------------------
+--------------------------------------------------------
 The midpoint of the corresponding side of the bounding box of the `Object`, inheriting the Object's orientation.
 
 .. _(front | back) (left | right) of {Object}:
@@ -150,5 +150,5 @@ The midpoint of the corresponding edge of the Object’s bounding box, inheritin
 .. _(top | bottom) (front | back) (left | right) of {Object}:
 
 (top | bottom) (front | back) (left | right) of *Object*
------------------------------------------
+--------------------------------------------------------
 The corresponding corner of the Object’s bounding box, inheriting the Object's orientation.

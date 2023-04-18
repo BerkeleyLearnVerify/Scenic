@@ -28,7 +28,7 @@ Distributions
 :sampref:`TruncatedNormal({mean}, {stdDev}, {low}, {high})`      normal distribution truncated to the given window
 :sampref:`Uniform({value}, {...})`                               uniform over a finite set of values
 :sampref:`Discrete(\{{value}: {weight}, {...}\})<DiscreteDistr>` discrete with given values and weights
-:sampref:`Point (in | on) {region} <uniform_in_region>`                 uniformly-distributed `Point` in a region
+:sampref:`Point in {region} <uniform_in_region>`                 uniformly-distributed `Point` in a region
 ================================================================ ==================================
 
 Statements
@@ -118,7 +118,7 @@ These statements can only be used inside a :term:`dynamic behavior`, :term:`moni
 Objects
 -------
 
-The syntax :sampref:`{class} {specifier}, {...} <objectCreate>` creates an instance of a Scenic class.
+The syntax :sampref:`new {class} {specifier}, {...} <objectCreate>` creates an instance of a Scenic class.
 
 The Scenic class `Point` provides the basic position properties in the first table below; its subclass `OrientedPoint` adds the orientation properties in the second table.
 Finally, the class `Object`, which represents physical objects and is the default superclass of user-defined Scenic classes, adds the properties in the third table.
@@ -127,7 +127,7 @@ See the :ref:`objects_and_classes` for details.
 ===================  ==============  ================================================
    **Property**       **Default**                    **Meaning**
 -------------------  --------------  ------------------------------------------------
- position [1]_        (0, 0)         position in global coordinates
+ position [1]_        (0, 0, 0)      position in global coordinates
  viewDistance          50            distance for the ‘can see’ operator
  mutationScale         0             overall scale of :ref:`mutations <mutate>`
  positionStdDev        1             mutation standard deviation for :prop:`position`
@@ -138,9 +138,12 @@ Properties added by `OrientedPoint`:
 ===================  ==============  ================================================
    **Property**       **Default**                    **Meaning**
 -------------------  --------------  ------------------------------------------------
- heading [1]_          0             heading in global coordinates
- viewAngle            360 degrees    angle for the ‘can see’ operator
- headingStdDev         5 degrees     mutation standard deviation for :prop:`heading`
+ yaw [1]_             0              yaw in local coordinates
+ pitch [1]_           0              pitch in local coordinates
+ roll [1]_            0              roll in local coordinates
+ parentOrientation    global         basis for local coordinate system
+ viewAngles           (2π, π)        angles for visibility calculations
+ headingStdDev        5 degrees      mutation standard deviation for :prop:`heading`
 ===================  ==============  ================================================
 
 Properties added by `Object`:
@@ -150,14 +153,16 @@ Properties added by `Object`:
 -------------------  ---------------------- ------------------------------------------------
  width                 1                    width of bounding box (X axis)
  length                1                    length of bounding box (Y axis)
+ height                1                    height of bounding box (Z axis)
+ shape                 `BoxShape`           shape of the object
  speed [1]_            0                    initial speed (later, instantaneous speed)
- velocity [1]_       from :prop:`speed`     initial velocity (later, instantaneous velocity)
+ velocity [1]_        from :prop:`speed`    initial velocity (later, instantaneous velocity)
  angularSpeed [1]_     0                    angular speed (change in heading/time)
  behavior              `None`               :term:`dynamic behavior`, if any
  allowCollisions      `False`               whether collisions are allowed
- requireVisible       `True`                whether object must be visible from ego
+ requireVisible       `False`               whether object must be visible from ego
  regionContainedIn    `workspace`           Region the object must lie within
- cameraOffset          (0, 0)               position of camera for ‘can see’
+ cameraOffset          (0, 0, 0)            position of camera for ‘can see’
 ===================  ====================== ================================================
 
 .. [1] These are :term:`dynamic properties`, updated automatically every time step during
@@ -184,32 +189,28 @@ Additional specifiers for the :prop:`position` and :prop:`heading` properties ar
      - Meaning
    * - :sampref:`at {vector}`
      - Positions the object at the given global coordinates
+   * - :sampref:`in {region}`
+     - Positions the object uniformly at random in the given Region
+   * - :sampref:`contained in {region}`
+     - Positions the object uniformly at random entirely contained in the given Region
+   * - :sampref:`on {region}`
+     - Positions the base of the object uniformly at random in the given Region, or modifies the position so that the base is in the Region.
    * - :sampref:`offset by {vector}`
      - Positions the object at the given coordinates in the local coordinate system of ego (which must already be defined)
    * - :sampref:`offset along {direction} by {vector}`
      - Positions the object at the given coordinates, in a local coordinate system centered at ego and oriented along the given direction
-   * - :sampref:`(left | right) of {vector} [by {scalar}]`
-     - Positions the object further to the left/right by the given scalar distance
-   * - :sampref:`(ahead of | behind) {vector} [by {scalar}]`
-     - As above, except placing the object ahead of or behind the given position
    * - :sampref:`beyond {vector} by {vector} [from {vector}]`
      - Positions the object at coordinates given by the second vector, centered at the first vector and oriented along the line of sight from the third vector/ego
    * - :sampref:`visible [from ({Point} | {OrientedPoint})]`
      - Positions the object uniformly at random in the visible region of the ego, or of the given Point/OrientedPoint if given
    * - :sampref:`not visible [from ({Point} | {OrientedPoint})]`
      - Positions the object uniformly at random in the non-visible region of the ego, or of the given Point/OrientedPoint if given
-
-.. list-table::
-   :header-rows: 1
-
-   * - Specifier for :prop:`position` and optionally :prop:`heading`
-     - Meaning
-   * - :sampref:`(in | on) {region}`
-     - Positions the object uniformly at random in the given Region
-   * - :sampref:`(left | right) of ({OrientedPoint} | {Object}) [by {scalar}]`
-     - Positions the object to the left/right of the given OrientedPoint, depending on the object’s width
-   * - :sampref:`(ahead of | behind) ({OrientedPoint} | {Object}) [by {scalar}]`
-     - As above, except positioning the object ahead of or behind the given OrientedPoint, thereby depending on length
+   * - :sampref:`(left | right) of ({vector} | {OrientedPoint} | {Object}) [by {scalar}]`
+     - Positions the object to the left/right by the given scalar distance
+   * - :sampref:`(ahead of | behind) ({vector} | {OrientedPoint} | {Object}) [by {scalar}]`
+     - Positions the object to the front/back by the given scalar distance
+   * - :sampref:`(above | below) ({vector} | {OrientedPoint} | {Object}) [by {scalar}]`
+     - Positions the object above/below by the given scalar distance
    * - :sampref:`following {vectorField} [from {vector}] for {scalar}`
      - Position by following the given vector field for the given distance starting from ego or the given vector
 
@@ -217,14 +218,16 @@ Additional specifiers for the :prop:`position` and :prop:`heading` properties ar
 .. list-table::
    :header-rows: 1
 
-   * - Specifier for :prop:`heading`
+   * - Specifier for :prop:`orientation`
      - Meaning
-   * - :sampref:`facing {heading}`
-     - Orients the object along the given heading in global coordinates
+   * - :sampref:`facing {orientation}`
+     - Orients the object along the given orientation in global coordinates
    * - :sampref:`facing {vectorField}`
      - Orients the object along the given vector field at the object’s position
    * - :sampref:`facing (toward | away from) {vector}`
      - Orients the object toward/away from the given position (thereby depending on the object’s position)
+   * - :sampref:`facing directly (toward | away from) {vector}`
+     - Orients the object *directly* toward/away from the given position (thereby depending on the object’s position)
    * - :sampref:`apparently facing {heading} [from {vector}]`
      - Orients the object so that it has the given heading with respect to the line of sight from ego (or the given vector)
 
@@ -252,7 +255,9 @@ Operators
    * - :sampref:`distance [from {vector}] to {vector}`
      - The distance to the given position from ego (or the ``from`` vector)
    * - :sampref:`angle [from {vector}] to {vector}`
-     - The heading to the given position from ego (or the ``from`` vector)
+     - The heading (azimuth) to the given position from ego (or the ``from`` vector)
+   * - :sampref:`altitude [from {vector}] to {vector}`
+     - The altitude to the given position from ego (or the ``from`` vector)
 
 .. list-table::
    :header-rows: 1
@@ -268,13 +273,13 @@ Operators
 .. list-table::
    :header-rows: 1
 
-   * - Heading Operators
+   * - Orientation Operators
      - Meaning
    * - :sampref:`{scalar} deg`
-     - The given heading, interpreted as being in degrees
+     - The given angle, interpreted as being in degrees
    * - :sampref:`{vectorField} at {vector}`
-     - The heading specified by the vector field at the given position
-   * - :sampref:`{direction} relative to {direction}`
+     - The orientation specified by the vector field at the given position
+   * - :sampref:`({heading} | {vectorField}) relative to ({heading} | {vectorField})`
      - The first direction, interpreted as an offset relative to the second direction
 
 
@@ -309,9 +314,13 @@ Operators
    * - :sampref:`{OrientedPoint} offset by {vector}`
      - Equivalent to :scenic:`vector relative to OrientedPoint` above
    * - :sampref:`(front | back | left | right) of {Object}`
-     - The midpoint of the corresponding edge of the bounding box of the Object, oriented along its heading
+     - The midpoint of the corresponding side of the bounding box of the Object, inheriting the Object's orientation.
    * - :sampref:`(front | back) (left | right) of {Object}`
-     - The corresponding corner of the Object’s bounding box, also oriented along its heading
+     - The midpoint of the corresponding edge of the bounding box of the Object, inheriting the Object's orientation.
+   * - :sampref:`(front | back) (left | right) of {Object}`
+     - The midpoint of the corresponding edge of the bounding box of the Object, inheriting the Object's orientation.
+   * - :sampref:`(top | bottom) (front | back) (left | right) of {Object}`
+     - The corresponding corner of the bounding box of the Object, inheriting the Object's orientation.
 
 Built-in Functions
 ------------------

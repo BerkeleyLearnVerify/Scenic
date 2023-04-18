@@ -83,13 +83,10 @@ Scenic also includes several more specialized world models for use with Webots:
 	* A general model for traffic scenarios, used in `our VerifAI paper`_.
 	  Examples using this model can be found in the `VerifAI repository`_; see also the documentation of `scenic.simulators.webots.road`.
 
-	* A more specific model for traffic scenarios at intersections, using guideways from the `Intelligent Intersections Toolkit <https://github.com/ucbtrans/intelligent_intersection>`_.
-	  See the examples in :file:`examples/webots/guideways` and the documentation of `scenic.simulators.webots.guideways` for details.
-
 .. note::
 
-	The last two models above, and the example ``.wbt`` files for them, were written for the R2018 version of Webots.
-	Relatively minor changes would be required to make them work with the newer `open source versions of Webots <https://github.com/cyberbotics/webots>`_.
+	The last model above, and the example ``.wbt`` files for it, was written for the R2018 version of Webots.
+	Relatively minor changes would be required to make it work with the newer `open source versions of Webots <https://github.com/cyberbotics/webots>`_.
 	We may get around to porting them eventually; we'd also gladly accept a pull request!
 
 .. _xplane:
