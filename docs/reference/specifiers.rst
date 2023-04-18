@@ -7,9 +7,13 @@ Specifiers Reference
 Specifiers are used to define the properties of an object when a Scenic class is :ref:`instantiated <objectCreate>`.
 This page describes all the specifiers built into Scenic, and the procedure used to :ref:`resolve <specifier resolution>` a set of specifiers into an assignment of values to properties.
 
-Each specifier assigns values one or more properties of an object, as a function of the arguments of the specifier and possibly other properties of the object assigned by other specifiers.
+Each specifier assigns values to one or more properties of an object, as a function of the arguments of the specifier and possibly other properties of the object assigned by other specifiers.
 For example, the :scenic:`left of {X} by {Y}` specifier assigns the :prop:`position` property of the object being defined so that the object is a distance :scenic:`{Y}` to the left of :scenic:`{X}`: this requires knowing the :prop:`width` of the object first, so we say the :scenic:`left of` specifier *specifies* the :prop:`position` property and *depends* on the :prop:`width` property.
-In fact, the :scenic:`left of` specifier also *optionally* specifies the :prop:`heading` property (to be the same as :scenic:`{X}`), meaning that it assigns a value to :prop:`heading` if no other specifier does so: if we write :scenic:`Object left of {X} by {Y}, facing {Z}`, then the new object's :prop:`heading` property will be determined by :scenic:`facing`, not :scenic:`left of`.
+
+In fact, the :scenic:`left of` specifier also specifies the :prop:`parentOrientation` property (to be the same as :scenic:`{X}`), but it does this with a lower *priority*. Multiple specifiers can specify the same property, but only the specifier that specifies the property with the highest priority is used. If a property is specified multiple times with the same priority, an ambiguity error is raised. In general, a smaller priority value equates to higher priority (e.g. Priority 1 supersedes priority 3).
+
+Certain specifiers can also *modify* already specified values. So called **modifying specifiers** take an already specified value, and manipulate it in some way. They can also specify other values while doing this. Note that no property can be modified twice. The only modifying specifier currently in Scenic is `on {region}`, which can be used either as a standard specifier or a modifying specifier.
+
 The :ref:`specifier resolution` process works out which specifier determines each property of an object, as well as an appropriate order in which to evaluate the specifiers so that dependencies have already been computed when needed.
 
 General Specifiers
@@ -19,6 +23,13 @@ General Specifiers
 
 with *property* *value*
 -----------------------
+
+**Specifies**:
+
+	* :prop:`property` with priority 1
+
+**Dependencies**: None
+
 Assigns the given property to the given value.
 This is currently the only specifier available for properties other than :prop:`position` and :prop:`heading`.
 
@@ -38,85 +49,295 @@ Position Specifiers
 
 at *vector*
 -----------
+
+**Specifies**:
+
+	* :prop:`position` with priority 1
+
+**Dependencies**: None
+
 Positions the object at the given global coordinates.
+
+.. _in {region}:
+
+in *region*
+-----------
+
+**Specifies**:
+
+	* :prop:`position` with priority 1
+	* :prop:`parentOrientation` with priority 3
+
+**Dependencies**: None
+
+
+Positions the object uniformly at random in the given `Region`.
+If the Region has a :term:`preferred orientation` (a vector field), also specifies :prop:`parentOrientation` to be equal to that orientation at the object’s :prop:`position`.
+
+.. _contained in {region}:
+
+contained in *region*
+---------------------
+
+**Specifies**:
+
+	* :prop:`position` with priority 1
+	* :prop:`regionContainedIn` with priority 1
+	* :prop:`parentOrientation` with priority 3
+
+**Dependencies**: None
+
+Like `in {region}`, but also enforces that the object be entirely contained in the given `Region`.
+
+.. _on {region}:
+
+on *region*
+-----------
+
+**Specifies**:
+
+	* :prop:`position` with priority 1; **modifies** existing value
+	* :prop:`parentOrientation` with priority 2
+
+**Dependencies**: :prop:`baseOffset` • :prop:`contactTolerance` • :prop:`onDirection`
+
+Positions the base of the object uniformly at random in the given `Region`, offset by :prop:`contactTolerance` (to avoid a collision). The base of the object is determined by adding the object's :prop:`position` to its :prop:`baseOffset`.
+
+If :prop:`position` is already set by another specifier, then position is instead modified. This is done by finding the closest point in the given `Region` along :prop:`onDirection` or its negation, and setting the position to that point.
+
+If the Region has a :term:`preferred orientation` (a vector field), :prop:`parentOrientation` is specified to be equal to that orientation at the object’s :prop:`position`.
+
+.. note::
+
+	:prop:`parentOrientation` is specified whether or not this specifier is modifying. It is also specified with priority 2 (higher than all other specifiers for :prop:`parentOrientation`). This is helpful for ensuring that an object is always aligned correctly, for example when ``on`` is being used to place or project onto the surface of a `MeshSurfaceRegion`.
 
 .. _offset by {vector}:
 
 offset by *vector*
 ------------------
-Positions the object at the given coordinates in the local coordinate system of ego (which must already be defined).
+
+**Specifies**:
+
+	* :prop:`position` with priority 1
+	* :prop:`parentOrientation` with priority 3
+
+**Dependencies**: None
+
+Positions the object at the given coordinates in the local coordinate system of ego (which must already be defined). Also specifies :prop:`parentOrientation` to be equal to the ego's orientation.
 
 .. _offset along {direction} by {vector}:
 
 offset along *direction* by *vector*
 ------------------------------------
-Positions the object at the given coordinates, in a local coordinate system centered at ego and oriented along the given direction (which, if a vector field, is evaluated at ego to obtain a heading).
 
-.. _(left | right) of {vector} [by {scalar}]:
+**Specifies**:
 
-(left | right) of *vector* [by *scalar*]
-----------------------------------------
-Depends on :prop:`heading` and :prop:`width`. Without the optional :scenic:`by {scalar}`, positions the object immediately to the left/right of the given position; i.e., so that the midpoint of the object’s right/left edge is at that position.
-If :scenic:`by {scalar}` is used, the object is placed further to the left/right by the given distance.
+	* :prop:`position` with priority 1
+	* :prop:`parentOrientation` with priority 3
 
-.. _(ahead of | behind) {vector} [by {scalar}]:
+**Dependencies**: None
 
-(ahead of | behind) *vector* [by *scalar*]
---------------------------------------------
-As above, except placing the object ahead of or behind the given position (so that the midpoint of the object’s back/front edge is at that position); thereby depending on :prop:`heading` and :prop:`length`.
+Positions the object at the given coordinates, in a local coordinate system centered at ego. Also specifies :prop:`parentOrientation` to be equal to the ego's orientation.
 
-.. _beyond {vector} by {vector} [from {vector}]:
+.. _beyond {vector} by {vector} [from {vector | OrientedPoint}]:
 
-beyond *vector* by *vector* [from *vector*]
---------------------------------------------
-Positions the object at coordinates given by the second vector, in a local coordinate system centered at the first vector and oriented along the line of sight from the third vector (i.e. a heading of 0 in the local coordinate system faces directly away from the first vector).
-If no third vector is provided, it is assumed to be the ego.
-For example, :scenic:`beyond taxi by (0, 3)` means 3 meters directly behind the taxi as viewed by the camera.
+beyond *vector* by *vector* [from (*vector* | *OrientedPoint*)]
+---------------------------------------------------------------
+
+**Specifies**:
+
+	* :prop:`position` with priority 1
+	* :prop:`parentOrientation` with priority 3
+
+**Dependencies**: None
+
+Positions the object at coordinates given by the second vector, in a local coordinate system centered at the first vector and oriented along the line of sight from the third vector (i.e. an orientation of (0,0,0) in the local coordinate system faces directly away from the first vector).
+If no third vector is provided, it is assumed to be the ego. :prop:`parentOrientation` is inherited from the third value if an `OrientedPoint` is provided, and otherwise the global coordinate system is used.
+For example, :scenic:`beyond taxi by (0, 3, 0)` means 3 meters directly behind the taxi as viewed by the ego.
 
 .. _visible [from ({Point} | {OrientedPoint})]:
 .. _visible_spec:
 
 visible [from (*Point* | *OrientedPoint*)]
 ------------------------------------------
-Positions the object uniformly at random in the :term:`visible region` of the ego, or of the given Point/OrientedPoint if given.
-More precisely, this specifier sets the :prop:`position` of the object being created (i.e. its center) to be a uniformly-random point in the visible region.
-(This specifier is therefore slightly stricter than a requirement that the ego :sampref:`can see` the object: the specifier makes the *center* visible, while the :sampref:`can see` condition will be satisfied if the center is not visible but some other part of the object is visible.)
+
+**Specifies**:
+
+	* :prop:`_observingEntity` with priority 1
+	* :prop:`position` with priority 3
+
+**Dependencies**: None
+
+Ensures this object is visible from the ego or given `Point`/`OrientedPoint`.
+
+Can also position the object uniformly at random in the :term:`visible region` of the ego, or of the given Point/OrientedPoint if given. More precisely, this specifier can set the :prop:`position` of the object being created (i.e. its center) to be a uniformly-random point in the visible region. (The position set by this specifier is therefore slightly stricter than a requirement that the ego :sampref:`can see` the object: the specifier makes the *center* visible, while the :sampref:`can see` condition will be satisfied if the center is not visible but some other part of the object is visible.)
 
 .. _not visible [from ({Point} | {OrientedPoint})]:
 
-not visible [from (Point* | *OrientedPoint*)]
+not visible [from (*Point* | *OrientedPoint*)]
 ----------------------------------------------
-Like :sampref:`visible [from ({Point} | {OrientedPoint})]` except it positions the object uniformly at random in the **non-visible** region of the ego.
+
+**Specifies**:
+
+	* :prop:`_nonObservingEntity` with priority 1
+	* :prop:`position` with priority 3
+
+**Dependencies**: :prop:`regionContainedIn`
+
+Ensures that this object is *not* visible from the ego or given `Point`/`OrientedPoint`.
+
+Similar to :sampref:`visible [from ({Point} | {OrientedPoint})]`, this specifier can position the object uniformly at random in the **non-visible** region of the ego.
 Depends on :prop:`regionContainedIn`, in order to restrict the non-visible region to the :term:`container` of the object being created, which is hopefully a bounded region (if the non-visible region is unbounded, it cannot be uniformly sampled from and an error will be raised).
 
-.. _(in | on) {region}:
-.. _on {region}:
+.. _(left | right) of {vector} [by {scalar}]:
 
-(in | on) *region*
-------------------
-Positions the object uniformly at random in the given `Region`.
-If the Region has a :term:`preferred orientation` (a vector field), also optionally specifies :prop:`heading` to be equal to that orientation at the object’s :prop:`position`.
+(left | right) of (*vector*) [by *scalar*]
+------------------------------------------
 
-.. _(left | right) of ({OrientedPoint} | {Object}) [by {scalar}]:
+**Specifies**:
 
-(left | right) of (*OrientedPoint* | *Object*) [by *scalar*]
-------------------------------------------------------------
-Positions the object to the left/right of the given `OrientedPoint`, depending on the object’s :prop:`width`.
-Also optionally specifies :prop:`heading` to be the same as that of the OrientedPoint.
-If the OrientedPoint is in fact an `Object`, the object being constructed is positioned to the left/right of its left/right edge (i.e. the :prop:`width` of both objects is taken into account).
+	* :prop:`position` with priority 1
 
-.. _(ahead of | behind) ({OrientedPoint} | {Object}) [by {scalar}]:
+**Dependencies**: :prop:`width` • :prop:`orientation`
 
-(ahead of | behind) (*OrientedPoint* | *Object*) [by *scalar*]
----------------------------------------------------------------
-As above, except positioning the object ahead of or behind the given OrientedPoint, thereby depending on :prop:`length`.
+
+Without the optional :scenic:`by {scalar}`, positions the object immediately to the left/right of the given position; i.e., so that the midpoint of the right/left side of the object's bounding box is at that position.
+If :scenic:`by {scalar}` is used, the object is placed further to the left/right by the given distance.
+
+.. _(left | right) of {OrientedPoint} [by {scalar}]:
+
+(left | right) of *OrientedPoint* [by *scalar*]
+-----------------------------------------------
+
+**Specifies**:
+
+	* :prop:`position` with priority 1
+	* :prop:`parentOrientation` with priority 3
+
+**Dependencies**: :prop:`width`
+
+Positions the object to the left/right of the given `OrientedPoint`.
+Also inherits :prop:`parentOrientation` from the given `OrientedPoint`
+
+.. _(left | right) of {Object} [by {scalar}]:
+
+(left | right) of *Object* [by *scalar*]
+----------------------------------------
+
+**Specifies**:
+
+	* :prop:`position` with priority 1
+	* :prop:`parentOrientation` with priority 3
+
+**Dependencies**: :prop:`width` • :prop:`contactTolerance`
+
+Positions the object to the left/right of the given `Object`. This accounts for both objects' dimensions, placing them so that the distance between bounding boxes is exactly the desired scalar distance (or :prop:`contactTolerance` without :scenic:`by {scalar}`).
+Also inherits :prop:`parentOrientation` from the given `OrientedPoint`
+
+.. _(ahead of | behind) ({vector} | {Point}) [by {scalar}]:
+
+(ahead of | behind) *vector* [by *scalar*]
+------------------------------------------
+
+**Specifies**:
+
+	* :prop:`position` with priority 1
+
+**Dependencies**: :prop:`length` • :prop:`orientation`
+
+
+Without the optional :scenic:`by {scalar}`, positions the object immediately ahead of/behind the given position; i.e., so that the midpoint of the front/back side of the object’s bounding box is at that position.
+If :scenic:`by {scalar}` is used, the object is placed further ahead/behind by the given distance.
+
+.. _(ahead of | behind) {OrientedPoint} [by {scalar}]:
+
+(ahead of | behind) *OrientedPoint* [by *scalar*]
+-------------------------------------------------
+
+**Specifies**:
+
+	* :prop:`position` with priority 1
+	* :prop:`parentOrientation` with priority 3
+
+**Dependencies**: :prop:`length`
+
+Positions the object to the ahead of/behind the given `OrientedPoint`.
+Also inherits :prop:`parentOrientation` from the given `OrientedPoint`
+
+.. _(ahead of | behind) {Object} [by {scalar}]:
+
+(ahead of | behind) *Object* [by *scalar*]
+------------------------------------------
+
+**Specifies**:
+
+	* :prop:`position` with priority 1
+	* :prop:`parentOrientation` with priority 3
+
+**Dependencies**: :prop:`length` • :prop:`contactTolerance`
+
+Positions the object ahead of/behind the given `Object`.This accounts for both objects' dimensions, placing them so that the distance between bounding boxes is exactly the desired scalar distance (or :prop:`contactTolerance` without :scenic:`by {scalar}`).
+Also inherits :prop:`parentOrientation` from the given `OrientedPoint`
+
+.. _(above | below) {vector} [by {scalar}]:
+
+(above | below) *vector* [by *scalar*]
+--------------------------------------
+
+**Specifies**:
+
+	* :prop:`position` with priority 1
+
+**Dependencies**: :prop:`height` • :prop:`orientation`
+
+
+Without the optional :scenic:`by {scalar}`, positions the object immediately above/below the given position; i.e., so that the midpoint of the top/bottom side of the object’s bounding box is at that position.
+If :scenic:`by {scalar}` is used, the object is placed further above/below by the given distance.
+
+.. _(above | below) {OrientedPoint} [by {scalar}]:
+
+(above | below) *OrientedPoint* [by *scalar*]
+---------------------------------------------
+
+**Specifies**:
+
+	* :prop:`position` with priority 1
+	* :prop:`parentOrientation` with priority 3
+
+**Dependencies**: :prop:`height`
+
+Positions the object to the above/below the given `OrientedPoint`.
+Also inherits :prop:`parentOrientation` from the given `OrientedPoint`
+
+.. _(above | below) {Object} [by {scalar}]:
+
+(above | below) *Object* [by *scalar*]
+--------------------------------------
+
+**Specifies**:
+
+	* :prop:`position` with priority 1
+	* :prop:`parentOrientation` with priority 3
+
+**Dependencies**: :prop:`height` • :prop:`contactTolerance`
+
+Positions the object above/below the given `Object`. This accounts for both objects' dimensions, placing them so that the distance between bounding boxes is exactly the desired scalar distance (or :prop:`contactTolerance` without :scenic:`by {scalar}`).
+Also inherits :prop:`parentOrientation` from the given `OrientedPoint`
 
 .. _following {vectorField} [from {vector}] for {scalar}:
 
-following *vectorField* [from *vector* ] for *scalar*
------------------------------------------------------
+following *vectorField* [from *vector*] for *scalar*
+----------------------------------------------------
+
+**Specifies**:
+
+	* :prop:`position` with priority 1
+	* :prop:`parentOrientation` with priority 3
+
+**Dependencies**: None
+
 Positions the object at a point obtained by following the given vector field for the given distance starting from ego (or the position optionally provided with :scenic:`from {vector}`).
-Optionally specifies :prop:`heading` to be the heading of the vector field at the resulting point.
+Specifies :prop:`parentOrientation` to be the orientation of the vector field at the resulting point.
 
 .. note::
 
@@ -126,32 +347,80 @@ Optionally specifies :prop:`heading` to be the heading of the vector field at th
   `VectorField.followFrom`  directly.
 
 
-Heading Specifiers
-==================
+Orientation Specifiers
+======================
 
-.. _facing {heading}:
+.. _facing {orientation}:
 
-facing *heading*
-----------------
-Orients the object along the given heading in global coordinates.
+facing *orientation*
+--------------------
+
+**Specifies**:
+
+	* :prop:`yaw` with priority 1
+	* :prop:`pitch` with priority 1
+	* :prop:`roll` with priority 1
+
+**Dependencies**: :prop:`parentOrientation`
+
+
+Sets the object's :prop:`yaw`, :prop:`pitch`, and :prop:`roll` so that its orientation in global coordinates is equal to the given orientation. If a tuple of floats is given, it is interpreted as a tuple of Euler angles in radians and converted to an orientation.
 
 .. _facing {vectorField}:
 
 facing *vectorField*
 --------------------
-Orients the object along the given vector field at the object’s :prop:`position`.
+
+**Specifies**:
+
+	* :prop:`yaw` with priority 1
+	* :prop:`pitch` with priority 1
+	* :prop:`roll` with priority 1
+
+**Dependencies**: :prop:`position` • :prop:`parentOrientation`
+
+Sets the object's :prop:`yaw`, :prop:`pitch`, and :prop:`roll` so that its orientation in global coordinates is equal to orientation provided by the given vector field at the object’s :prop:`position`.
 
 .. _facing (toward | away from) {vector}:
 
 facing (toward | away from) *vector*
 ------------------------------------
-Orients the object so that it faces toward/away from the given position (thereby depending on the object’s :prop:`position`).
+
+**Specifies**:
+
+	* :prop:`yaw` with priority 1
+
+**Dependencies**: :prop:`position` • :prop:`parentOrientation`
+
+Sets the object's :prop:`yaw` so that it faces toward/away from the given position (thereby depending on the object’s :prop:`position`).
+
+.. _facing directly (toward | away from) {vector}:
+
+facing directly (toward | away from) *vector*
+---------------------------------------------
+
+**Specifies**:
+
+	* :prop:`yaw` with priority 1
+	* :prop:`pitch` with priority 1
+
+**Dependencies**: :prop:`position` • :prop:`parentOrientation`
+
+Sets the object's :prop:`yaw` **and** :prop:`pitch` so that it faces directly toward/away from the given position (thereby depending on the object’s :prop:`position`).
+
 
 .. _apparently facing {heading} [from {vector}]:
 
 apparently facing *heading* [from *vector*]
---------------------------------------------
-Orients the object so that it has the given heading with respect to the line of sight from ego (or the ``from`` vector).
+-------------------------------------------
+
+**Specifies**:
+
+	* :prop:`yaw` with priority 1
+
+**Dependencies**: :prop:`position` • :prop:`parentOrientation`
+
+Sets the :prop:`yaw` of the object so that it has the given heading with respect to the line of sight from ego (or the ``from`` vector).
 For example, :scenic:`apparently facing 90 deg` orients the object so that the camera views its left side head-on.
 
 .. _specifier resolution:
@@ -165,8 +434,9 @@ Assuming there are no cyclic dependencies or conflicts, the process will conclud
 
 The full procedure, given a set of specifiers *S* used to define an instance of class *C*, works as follows:
 
-1. If a property is specified non-optionally by mutiple specifiers in *S*, an ambiguity error is raised.
+1. If a property is specified at the same priority level by mutiple specifiers in *S*, an ambiguity error is raised.
 2. The set of properties *P* for the new object is found by combining the properties specified by all members of *S* with the properties inherited from the class *C*.
-3. Default value specifiers from *C* (or if not overridden, from its superclasses) are added to *S* as needed so that each property in *P* is paired with a unique specifier in *S* specifying it, using the following precedence order: non-optional specifier, optional specifier, then default value.
+3. Default value specifiers from *C* (or if not overridden, from its superclasses) are added to *S* as needed so that each property in *P* is paired with a unique specifier in *S* specifying it.
 4. The dependency graph of the specifiers *S* is constructed. If it is cyclic, an error is raised.
 5. The graph is topologically sorted and the specifiers are evaluated in this order to determine the values of all properties *P* of the new object.
+6. Modifying specifiers are evaluated to modify relevant properties of the object.

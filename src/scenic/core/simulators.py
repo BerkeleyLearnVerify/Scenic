@@ -111,6 +111,10 @@ class Simulator:
                 if your scenario uses an unusual custom distribution (see `sceneToBytes`)
                 or if the replayed scenario has diverged without divergence-checking
                 enabled.
+
+        .. versionchanged:: 3.0
+
+            ``maxIterations`` is now 1 by default.
         """
 
         if verbosity is None:

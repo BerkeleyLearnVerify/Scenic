@@ -38,22 +38,20 @@ Vector
 ======
 
 Vectors represent positions and offsets in space.
-They are constructed from coordinates with the syntax :scenic:`{X} @ {Y}` (inspired by `Smalltalk <http://stephane.ducasse.free.fr/FreeBooks/BlueBook/Bluebook.pdf>`_); using a length-2 list or tuple (:scenic:`[{X}, {Y}]` or :scenic:`({X}, {Y})`) is also allowed.
+They are constructed from coordinates using a length-3 list or tuple (:scenic:`[{X}, {Y}, {Z}]` or :scenic:`({X}, {Y}, {Z})`. Alternatively, they can be constructed with the syntax :scenic:`{X} @ {Y}` (inspired by `Smalltalk <http://stephane.ducasse.free.fr/FreeBooks/BlueBook/Bluebook.pdf>`_) or a length-2 list or tuple, with an implied z value of 0.
 By convention, coordinates are in meters, although the semantics of Scenic does not depend on this.
-More significantly, the vector syntax is specialized for 2-dimensional space.
-The 2D assumption dramatically simplifies much of Scenic’s syntax (particularly that dealing with orientations, as we will see below), while still being adequate for a variety of applications.
-Some :term:`world models`, such as that for the :ref:`driving_domain`, define an :prop:`elevation` property which defines a 3D location in combination with Scenic's 2D :prop:`position` property.
-A future extension of Scenic will natively support 3D space.
 
 For convenience, instances of `Point` can be used in any context where a vector is expected: so for example if ``P`` is a `Point`, then :scenic:`P offset by (1, 2)` is equivalent to :scenic:`P.position offset by (1, 2)`.
 
+.. versionchanged:: 3.0
+
+    Vectors are now 3 dimensional.
 
 .. _Heading:
 
 Heading
 =======
-Headings represent orientations in space.
-Conveniently, in 2D these can be expressed using a single angle (rather than Euler angles or a quaternion).
+Headings represent yaw in the global XY plane.
 Scenic represents headings in radians, measured anticlockwise from North, so that a heading of 0 is due North and a heading of π/2 is due West.
 We use the convention that the heading of a local coordinate system is the heading of its Y-axis, so that, for example, the vector :scenic:`-2 @ 3` means 2 meters left and 3 ahead.
 
@@ -61,6 +59,14 @@ For convenience, instances of `OrientedPoint` can be used in any context where a
 Since `OrientedPoint` is a subclass of `Point`, expressions involving two oriented points like :scenic:`OP1 relative to OP2` can be ambiguous: the polymorphic operator :scenic:`relative to` accepts both vectors and headings, and either version could be meant here.
 Scenic rejects such expressions as being ambiguous: more explicit syntax like :scenic:`OP1.position relative to OP2` must be used instead.
 
+.. _Orientation:
+
+Orientation
+===========
+Orientations represent orientation in 3D space.
+Scenic represents orientations internally using quaternions, though for convenience they can be created using Euler angles. Scenic follows the right hand rule with the X,Y,Z order of coordinates. In other words, Euler angles are given as (Yaw, Pitch, Roll), in radians, and applied in that order. To help visualize, one can consider their right hand with fingers extended orthogonally. The index finger points along positive X, the middle finger bends left along positive Y, and the thumb ends up pointing along positive Z. For rotations, align your right thumb with an axis and the way your fingers curl is a positive rotation.
+
+.. versionadded:: 3.0
 
 .. _Vector Field:
 .. _VectorField:
@@ -68,9 +74,12 @@ Scenic rejects such expressions as being ambiguous: more explicit syntax like :s
 Vector Field
 ============
 
-Vector fields associate an orientation (i.e. a heading) to each point in space.
+Vector fields associate an orientation to each point in space.
 For example, a vector field could represent the shortest paths to a destination, or the nominal traffic direction on a road (e.g. :obj:`scenic.domains.driving.model.roadDirection`).
 
+.. versionchanged:: 3.0
+
+    Vector fields now return an `Orientation` instead of a `Heading`.
 
 .. _Region:
 
@@ -78,7 +87,7 @@ Region
 ======
 
 Regions represent sets of points in space.
-Scenic provides a variety of ways to define regions: rectangles, circular sectors, line segments, polygons, occupancy grids, and explicit lists of points, among others.
+Scenic provides a variety of ways to define regions in 2D and 3D space: meshes, rectangles, circular sectors, line segments, polygons, occupancy grids, and explicit lists of points, among others.
 
 Regions can have an associated vector field giving points in the region :term:`preferred orientations`.
 For example, a region representing a lane of traffic could have a preferred orientation aligned with the lane, so that we can easily talk about distances along the lane, even if it curves.
@@ -98,10 +107,42 @@ Abstract Regions
     :no-members:
     :members: intersect, intersects, union
 
-Simple Shapes
--------------
+Point Sets and Lines
+--------------------
 
-Unlike the more complex regions, these simple geometric shapes are allowed to depend on random values: for example, the :term:`visible region` of an `Object` is a `SectorRegion` based at the object's :prop:`position`, which might not be fixed.
+.. autoclass:: scenic.core.regions.PointSetRegion
+    :noindex:
+    :no-show-inheritance:
+    :no-members:
+
+.. autoclass:: scenic.core.regions.PolylineRegion
+    :noindex:
+    :no-show-inheritance:
+    :no-members:
+    :members: start, end, signedDistanceTo, pointAlongBy, __getitem__, __len__
+
+
+.. autoclass:: scenic.core.regions.PathRegion
+    :noindex:
+    :no-show-inheritance:
+    :no-members:
+
+.. _2D Regions:
+
+2D Regions
+----------
+
+2D regions represent a 2D shape parallel to the XY plane, at a certain elevation in space. All 2D regions inherit from `PolygonalRegion`.
+
+Unlike the more `PolygonalRegion`, the simple geometric shapes are allowed to depend on random values: for example, the :term:`visible region` of an `Object` is a `SectorRegion` based at the object's :prop:`position`, which might not be fixed.
+
+Since 2D regions cannot contain an `Object` (which must be 3D), they define a :term:`footprint` for convenient. Footprints are always a `PolygonalFootprintRegion`, which represents a 2D poylgon extruded infinitely in the positive and negative vertical direction. When checking containment of an `Object` in a 2D region, Scenic will atuomatically use the footprint.
+
+.. autoclass:: scenic.core.regions.PolygonalRegion
+    :noindex:
+    :no-show-inheritance:
+    :no-members:
+    :members: boundary, footprint
 
 .. autoclass:: scenic.core.regions.CircularRegion
     :noindex:
@@ -118,31 +159,79 @@ Unlike the more complex regions, these simple geometric shapes are allowed to de
     :no-show-inheritance:
     :no-members:
 
-Polylines and Polygons
-----------------------
+3D Regions
+----------
 
-These subclasses represent fixed 1D and 2D regions defined by line segments and polygons.
+3D regions represent points in 3D space.
 
-.. autoclass:: scenic.core.regions.PolylineRegion
+Most 3D regions inherit from a descendant of `MeshRegion` (an abstract class), either `MeshVolumeRegion` or `MeshSurfaceRegion`. These represent the volume (of a watertight mesh) or the surface of a mesh respectively. Various region classes are also provided to create primitive shapes. `MeshVolumeRegion` can be converted to `MeshSurfaceRegion` (and vice versa) using the the ``getSurfaceRegion`` and ``getVolumeRegion`` methods.
+
+PolygonalFootprintRegions represent the :term:`footprint` of a 2D region. See `2D Regions` for more details.
+
+.. autoclass:: scenic.core.regions.MeshRegion
     :noindex:
     :no-show-inheritance:
     :no-members:
-    :members: start, end, signedDistanceTo, pointAlongBy, __getitem__, __len__
 
-.. autoclass:: scenic.core.regions.PolygonalRegion
+.. autoclass:: scenic.core.regions.MeshVolumeRegion
+    :noindex:
+    :no-members:
+    :members: getSurfaceRegion
+
+.. autoclass:: scenic.core.regions.MeshSurfaceRegion
+    :noindex:
+    :no-members:
+    :members: getVolumeRegion
+
+.. autoclass:: scenic.core.regions.BoxRegion
     :noindex:
     :no-show-inheritance:
     :no-members:
-    :members: boundary
 
-Point Sets and Grids
---------------------
-
-.. autoclass:: scenic.core.regions.PointSetRegion
+.. autoclass:: scenic.core.regions.SpheroidRegion
     :noindex:
     :no-show-inheritance:
     :no-members:
+
+.. autoclass:: scenic.core.regions.PolygonalFootprintRegion
+    :noindex:
+    :no-show-inheritance:
+    :no-members:
+
+.. versionadded::3.0
+
+Niche Regions
+-------------
 
 .. autoclass:: scenic.core.regions.GridRegion
     :noindex:
     :no-members:
+
+
+Shape
+=====
+
+Shapes represent the shape of an object. Shapes are automatically converted to unit size and centered. Furthermore it's assumed that the front of the shape is aligned with the y axis.
+
+Shapes can be created with an arbitrary mesh, and several basic shapes are made available. A shape can be created with fixed dimensions or shape, which will set the default values for any `Object` created with that shape. When creating a `MeshShape`, if no dimensions are provided then dimensions will be inferred from the mesh. `MeshShape` also takes an optional ``initial_rotation`` parameter, which will be applied to orient the shape correctly.
+
+.. autoclass:: scenic.core.shapes.MeshShape
+    :noindex:
+    :no-show-inheritance:
+
+.. autoclass:: scenic.core.shapes.BoxShape
+    :noindex:
+    :no-show-inheritance:
+
+.. autoclass:: scenic.core.shapes.CylinderShape
+    :noindex:
+    :no-show-inheritance:
+
+.. autoclass:: scenic.core.shapes.ConeShape
+    :noindex:
+    :no-show-inheritance:
+
+.. autoclass:: scenic.core.shapes.SpheroidShape
+    :noindex:
+    :no-show-inheritance:
+

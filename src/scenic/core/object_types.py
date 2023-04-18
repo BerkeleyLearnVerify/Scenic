@@ -898,6 +898,14 @@ class Object(OrientedPoint):
         return self.relativize(Vector(0, -self.hl))
 
     @cached_property
+    def top(self):
+        return self.relativize(Vector(0, 0, self.hh))
+
+    @cached_property
+    def bottom(self):
+        return self.relativize(Vector(0, 0, -self.hh))
+
+    @cached_property
     def frontLeft(self):
         return self.relativize(Vector(-self.hw, self.hl))
 
@@ -912,14 +920,6 @@ class Object(OrientedPoint):
     @cached_property
     def backRight(self):
         return self.relativize(Vector(self.hw, -self.hl))
-
-    @cached_property
-    def top(self):
-        return self.relativize(Vector(0, 0, self.hh))
-
-    @cached_property
-    def bottom(self):
-        return self.relativize(Vector(0, 0, -self.hh))
 
     @cached_property
     def topFrontLeft(self):

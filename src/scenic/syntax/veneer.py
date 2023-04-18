@@ -1080,6 +1080,29 @@ def alwaysProvidesOrientation(region):
         except RejectionException:
             return False
 
+def OffsetBy(offset):
+    """The :grammar:`offset by <vector>` specifier.
+
+    Specifies :prop:`position` and :prop:`parentOrientation`, with no dependencies.
+    """
+    offset = toVector(offset, 'specifier "offset by X" with X not a vector')
+    value = {'position': RelativeTo(offset, ego()).toVector(), 'parentOrientation': ego().orientation}
+    return Specifier("OffsetBy", {'position': 1, 'parentOrientation': 3}, value)
+
+def OffsetAlongSpec(direction, offset):
+    """The :specifier:`offset along {X} by {Y}` polymorphic specifier.
+
+    Specifies :prop:`position` and :prop:`parentOrientation`, with no dependencies.
+
+    Allowed forms::
+
+        offset along <heading> by <vector>
+        offset along <field> by <vector>
+    """
+    pos = OffsetAlong(ego(), direction, offset)
+    parentOrientation = ego().orientation
+    return Specifier("OffsetAlong", {'position': 1, 'parentOrientation': 3},  {'position': pos, 'parentOrientation': parentOrientation})
+
 def Beyond(pos, offset, fromPt=None):
     """The :specifier:`beyond {X} by {Y} from {Z}` polymorphic specifier.
 
@@ -1174,28 +1197,147 @@ def NotVisibleSpec():
     """
     return NotVisibleFrom(ego())
 
-def OffsetBy(offset):
-    """The :grammar:`offset by <vector>` specifier.
+def LeftSpec(pos, dist=0, specs=None):
+    """The :specifier:`left of {X} by {Y}` polymorphic specifier.
 
-    Specifies :prop:`position` and :prop:`parentOrientation`, with no dependencies.
+    Specifies :prop:`position`, depending on :prop:`width`.
+
+    Allowed forms::
+
+        left of <oriented point> [by <scalar/vector>]
+        left of <vector> [by <scalar/vector>]
+
+    If the :grammar:`by <scalar/vector>` is omitted, zero is used.
     """
-    offset = toVector(offset, 'specifier "offset by X" with X not a vector')
-    value = {'position': RelativeTo(offset, ego()).toVector(), 'parentOrientation': ego().orientation}
-    return Specifier("OffsetBy", {'position': 1, 'parentOrientation': 3}, value)
+    return directionalSpecHelper('left of', pos, dist, 'width', lambda dist: (dist, 0, 0),
+                          lambda self, dims, tol, dx, dy, dz: Vector(-self.width / 2 - dx - dims[0]/2 - tol, dy, dz))
 
-def OffsetAlongSpec(direction, offset):
-    """The :specifier:`offset along {X} by {Y}` polymorphic specifier.
+def RightSpec(pos, dist=0):
+    """The :specifier:`right of {X} by {Y}` polymorphic specifier.
+
+    Specifies :prop:`position`, depending on :prop:`width`.
+
+    Allowed forms::
+
+        right of <oriented point> [by <scalar/vector>]
+        right of <vector> [by <scalar/vector>]
+
+    If the :grammar:`by <scalar/vector>` is omitted, zero is used.
+    """
+    return directionalSpecHelper('right of', pos, dist, 'width', lambda dist: (dist, 0, 0),
+                          lambda self, dims, tol, dx, dy, dz: Vector(self.width / 2 + dx + dims[0]/2 + tol, dy, dz))
+
+def Ahead(pos, dist=0):
+    """The :specifier:`ahead of {X} by {Y}` polymorphic specifier.
+
+    Specifies :prop:`position`, depending on :prop:`length`.
+
+    Allowed forms::
+
+        ahead of <oriented point> [by <scalar/vector>]
+        ahead of <vector> [by <scalar/vector>]
+
+    If the :grammar:`by <scalar/vector>` is omitted, zero is used.
+    """
+    return directionalSpecHelper('ahead of', pos, dist, 'length', lambda dist: (0, dist, 0),
+                          lambda self, dims, tol, dx, dy, dz: Vector(dx, self.length / 2 + dy + dims[1]/2 + tol, dz))
+
+def Behind(pos, dist=0):
+    """The :specifier:`behind {X} by {Y}` polymorphic specifier.
+
+    Specifies :prop:`position`, depending on :prop:`length`.
+
+    Allowed forms::
+
+        behind <oriented point> [by <scalar/vector>]
+        behind <vector> [by <scalar/vector>]
+
+    If the :grammar:`by <scalar/vector>` is omitted, zero is used.
+    """
+    return directionalSpecHelper('behind', pos, dist, 'length', lambda dist: (0, dist, 0),
+                          lambda self, dims, tol, dx, dy, dz: Vector(dx, -self.length / 2 - dy - dims[1]/2 - tol, dz))
+
+def Above(pos, dist=0):
+    """The :specifier:`above {X} by {Y}` polymorphic specifier.
+
+    Specifies :prop:`position`, depending on :prop:`height`. 
+
+    Allowed forms::
+
+        above <oriented point> [by <scalar/vector>]
+        above <vector> [by <scalar/vector>]
+
+    If the 'by <scalar/vector>' is omitted, zero is used.
+    """
+    return directionalSpecHelper('above', pos, dist, 'height', lambda dist: (0, 0, dist),
+                          lambda self, dims, tol, dx, dy, dz: Vector(dx, dy, self.height / 2 + dz + dims[2]/2 + tol))
+
+def Below(pos, dist=0):
+    """The :specifier:`below {X} by {Y}` polymorphic specifier.
+
+    Specifies :prop`position`, depending on :prop:`height`.
+
+    Allowed forms::
+
+        below <oriented point> [by <scalar/vector>]
+        below <vector> [by <scalar/vector>]
+
+    If the 'by <scalar/vector>' is omitted, zero is used.
+    """
+    return directionalSpecHelper('above', pos, dist, 'height', lambda dist: (0, 0, dist),
+                          lambda self, dims, tol, dx, dy, dz: Vector(dx, dy, -self.height / 2 - dz - dims[2]/2 - tol))
+
+def directionalSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
+    prop = {'position': 1}
+    if canCoerce(dist, builtins.float):
+        dx, dy, dz = toComponents(coerce(dist, builtins.float))
+    elif canCoerce(dist, Vector):
+        dx, dy, dz = coerce(dist, Vector)
+    else:
+        raise RuntimeParseError(f'"{syntax} X by D" with D not a number or vector')
+
+    if isinstance(pos, Object):
+        prop['parentOrientation'] = 3
+        obj_dims = (pos.width, pos.length, pos.height)
+        val = lambda self, spec: {
+            'position': pos.relativize(makeOffset(self, obj_dims, self.contactTolerance if dist == 0 else 0, dx, dy, dz)),
+            'parentOrientation': pos.orientation
+        }
+        new = DelayedArgument({axis, "contactTolerance"}, val)
+    elif isinstance(pos, OrientedPoint):        # TODO too strict?
+        prop['parentOrientation'] = 3
+        val = lambda self, spec: {
+            'position': pos.relativize(makeOffset(self, (0,0,0), 0, dx, dy, dz)),
+            'parentOrientation': pos.orientation
+        }
+        new = DelayedArgument({axis}, val)
+    else:
+        pos = toVector(pos, f'specifier "{syntax} X" with X not a vector')
+        val = lambda self, spec: {'position': pos.offsetRotated(self.orientation, makeOffset(self, (0,0,0), 0, dx, dy, dz))}
+        new = DelayedArgument({axis, 'orientation'}, val)
+    return Specifier("DirectionalSpecifier", prop, new)
+
+def Following(field, dist, fromPt=None):
+    """The :specifier:`following {F} from {X} for {D}` specifier.
 
     Specifies :prop:`position` and :prop:`parentOrientation`, with no dependencies.
 
     Allowed forms::
 
-        offset along <heading> by <vector>
-        offset along <field> by <vector>
+        following <field> [from <vector>] for <number>
+
+    If the :grammar:`from <vector>` is omitted, the position of ego is used.
     """
-    pos = OffsetAlong(ego(), direction, offset)
-    parentOrientation = ego().orientation
-    return Specifier("OffsetAlong", {'position': 1, 'parentOrientation': 3},  {'position': pos, 'parentOrientation': parentOrientation})
+    if fromPt is None:
+        fromPt = ego()
+    if not isinstance(field, VectorField):
+        raise RuntimeParseError('"following F" specifier with F not a vector field')
+    fromPt = toVector(fromPt, '"following F from X for D" with X not a vector')
+    dist = toScalar(dist, '"following F for D" with D not a number')
+    pos = field.followFrom(fromPt, dist)
+    orientation = field[pos]
+    return Specifier("Following", {'position': 1, 'parentOrientation': 3},
+                     {'position': pos, 'parentOrientation': orientation})
 
 def Facing(heading):
     """The :specifier:`facing {X}` polymorphic specifier.
@@ -1306,148 +1448,6 @@ def ApparentlyFacing(heading, fromPt=None):
         return {'yaw': fromPt.angleTo(context.position) + heading} 
 
     return Specifier("ApparentlyFacing", {'yaw': 1}, DelayedArgument({'position', 'parentOrientation'}, helper))
-
-def LeftSpec(pos, dist=0, specs=None):
-    """The :specifier:`left of {X} by {Y}` polymorphic specifier.
-
-    Specifies :prop:`position`, depending on :prop:`width`.
-
-    Allowed forms::
-
-        left of <oriented point> [by <scalar/vector>]
-        left of <vector> [by <scalar/vector>]
-
-    If the :grammar:`by <scalar/vector>` is omitted, zero is used.
-    """
-    return leftSpecHelper('left of', pos, dist, 'width', lambda dist: (dist, 0, 0),
-                          lambda self, dims, tol, dx, dy, dz: Vector(-self.width / 2 - dx - dims[0]/2 - tol, dy, dz))
-
-def RightSpec(pos, dist=0):
-    """The :specifier:`right of {X} by {Y}` polymorphic specifier.
-
-    Specifies :prop:`position`, depending on :prop:`width`.
-
-    Allowed forms::
-
-        right of <oriented point> [by <scalar/vector>]
-        right of <vector> [by <scalar/vector>]
-
-    If the :grammar:`by <scalar/vector>` is omitted, zero is used.
-    """
-    return leftSpecHelper('right of', pos, dist, 'width', lambda dist: (dist, 0, 0),
-                          lambda self, dims, tol, dx, dy, dz: Vector(self.width / 2 + dx + dims[0]/2 + tol, dy, dz))
-
-def Ahead(pos, dist=0):
-    """The :specifier:`ahead of {X} by {Y}` polymorphic specifier.
-
-    Specifies :prop:`position`, depending on :prop:`length`.
-
-    Allowed forms::
-
-        ahead of <oriented point> [by <scalar/vector>]
-        ahead of <vector> [by <scalar/vector>]
-
-    If the :grammar:`by <scalar/vector>` is omitted, zero is used.
-    """
-    return leftSpecHelper('ahead of', pos, dist, 'length', lambda dist: (0, dist, 0),
-                          lambda self, dims, tol, dx, dy, dz: Vector(dx, self.length / 2 + dy + dims[1]/2 + tol, dz))
-
-def Behind(pos, dist=0):
-    """The :specifier:`behind {X} by {Y}` polymorphic specifier.
-
-    Specifies :prop:`position`, depending on :prop:`length`.
-
-    Allowed forms::
-
-        behind <oriented point> [by <scalar/vector>]
-        behind <vector> [by <scalar/vector>]
-
-    If the :grammar:`by <scalar/vector>` is omitted, zero is used.
-    """
-    return leftSpecHelper('behind', pos, dist, 'length', lambda dist: (0, dist, 0),
-                          lambda self, dims, tol, dx, dy, dz: Vector(dx, -self.length / 2 - dy - dims[1]/2 - tol, dz))
-
-def Above(pos, dist=0):
-    """The :specifier:`above {X} by {Y}` polymorphic specifier.
-
-    Specifies :prop:`position`, depending on :prop:`height`. 
-
-    Allowed forms::
-
-        above <oriented point> [by <scalar/vector>]
-        above <vector> [by <scalar/vector>]
-
-    If the 'by <scalar/vector>' is omitted, zero is used.
-    """
-    return leftSpecHelper('above', pos, dist, 'height', lambda dist: (0, 0, dist),
-                          lambda self, dims, tol, dx, dy, dz: Vector(dx, dy, self.height / 2 + dz + dims[2]/2 + tol))
-
-def Below(pos, dist=0):
-    """The :specifier:`below {X} by {Y}` polymorphic specifier.
-
-    Specifies :prop`position`, depending on :prop:`height`.
-
-    Allowed forms::
-
-        below <oriented point> [by <scalar/vector>]
-        below <vector> [by <scalar/vector>]
-
-    If the 'by <scalar/vector>' is omitted, zero is used.
-    """
-    return leftSpecHelper('above', pos, dist, 'height', lambda dist: (0, 0, dist),
-                          lambda self, dims, tol, dx, dy, dz: Vector(dx, dy, -self.height / 2 - dz - dims[2]/2 - tol))
-
-def leftSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
-    prop = {'position': 1}
-    if canCoerce(dist, builtins.float):
-        dx, dy, dz = toComponents(coerce(dist, builtins.float))
-    elif canCoerce(dist, Vector):
-        dx, dy, dz = coerce(dist, Vector)
-    else:
-        raise RuntimeParseError(f'"{syntax} X by D" with D not a number or vector')
-
-    if isinstance(pos, Object):
-        prop['parentOrientation'] = 3
-        obj_dims = (pos.width, pos.length, pos.height)
-        val = lambda self, spec: {
-            'position': pos.relativize(makeOffset(self, obj_dims, self.contactTolerance, dx, dy, dz)),
-            'parentOrientation': pos.orientation
-        }
-        new = DelayedArgument({axis, "contactTolerance"}, val)
-    elif isinstance(pos, OrientedPoint):        # TODO too strict?
-        prop['parentOrientation'] = 3
-        val = lambda self, spec: {
-            'position': pos.relativize(makeOffset(self, (0,0,0), 0, dx, dy, dz)),
-            'parentOrientation': pos.orientation
-        }
-        new = DelayedArgument({axis}, val)
-    else:
-        pos = toVector(pos, f'specifier "{syntax} X" with X not a vector')
-        val = lambda self, spec: {'position': pos.offsetRotated(self.orientation, makeOffset(self, (0,0,0), 0, dx, dy, dz))}
-        new = DelayedArgument({axis, 'orientation'}, val)
-    return Specifier("DirectionalSpecifier", prop, new)
-
-def Following(field, dist, fromPt=None):
-    """The :specifier:`following {F} from {X} for {D}` specifier.
-
-    Specifies :prop:`position` and :prop:`parentOrientation`, with no dependencies.
-
-    Allowed forms::
-
-        following <field> [from <vector>] for <number>
-
-    If the :grammar:`from <vector>` is omitted, the position of ego is used.
-    """
-    if fromPt is None:
-        fromPt = ego()
-    if not isinstance(field, VectorField):
-        raise RuntimeParseError('"following F" specifier with F not a vector field')
-    fromPt = toVector(fromPt, '"following F from X for D" with X not a vector')
-    dist = toScalar(dist, '"following F for D" with D not a number')
-    pos = field.followFrom(fromPt, dist)
-    orientation = field[pos]
-    return Specifier("Following", {'position': 1, 'parentOrientation': 3},
-                     {'position': pos, 'parentOrientation': orientation})
 
 ### Primitive functions overriding Python builtins
 

@@ -482,7 +482,7 @@ class SurfaceCollisionTrimesh(trimesh.Trimesh):
         return False
 
 class MeshRegion(Region):
-    """Region given by an oriented and positioned mesh. 
+    """Region given by a scaled, positioned, and rotated mesh. 
 
     This region can be subclassed to define whether operations are performed over the volume or surface of the mesh.
 
@@ -1469,15 +1469,13 @@ class PolygonalFootprintRegion(Region):
     Args:
         polygon: A ``MultiPolygon`` that defines the footprint of this region.
         name: An optional name to help with debugging.
-        orientation: An optional vector field describing the preferred orientation at every point in
-          the region.
     """
-    def __init__(self, polygon, name=None, orientation=None):
+    def __init__(self, polygon, name=None):
         if not isinstance(polygon, MultiPolygon):
             raise RuntimeError("'polygon' must be a shapely MultiPolygon")
 
         self.polygon = polygon
-        super().__init__(name, orientation=orientation)
+        super().__init__(name)
         self._bounded_cache = None
 
     def intersect(self, other, triedReversed=False):
