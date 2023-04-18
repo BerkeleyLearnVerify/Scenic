@@ -3,6 +3,15 @@
 Defines the 3 Scenic classes `Point`, `OrientedPoint`, and `Object`, and associated
 helper code (notably their base class `Constructible`, which implements the handling of
 property definitions and :ref:`specifier resolution`).
+
+.. warning::
+
+    In 2D compatibility mode, these classes are overwritten with 2D analogs. While
+    we make an effort to map imports to the correct class, this only works if imports
+    use the form ``import scenic.core.object_types as object_types`` followed by accessing
+    ``object_types.Object``. If you instead use ``from scenic.core.object_types import Object``,
+    you may get the wrong class.
+
 """
 
 import typing

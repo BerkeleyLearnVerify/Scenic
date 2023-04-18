@@ -105,6 +105,7 @@ from scenic.core.type_support import (isA, toType, toTypes, toScalar, toHeading,
 from scenic.core.geometry import normalizeAngle, apparentHeadingAtPoint
 from scenic.core.regions import convertToFootprint
 from scenic.core.object_types import Constructible, Point2D, OrientedPoint2D, Object2D
+import scenic.core.object_types
 from scenic.core.specifiers import Specifier, ModifyingSpecifier
 from scenic.core.lazy_eval import (DelayedArgument, needsLazyEvaluation, requiredProperties,
                                    valueInContext)
@@ -165,6 +166,9 @@ def activate(paramOverrides={}, modelOverride=None, filename=None, namespace=Non
         Point = Point2D
         OrientedPoint = OrientedPoint2D
         Object = Object2D
+        scenic.core.object_types.Point = Point
+        scenic.core.object_types.OrientedPoint = OrientedPoint
+        scenic.core.object_types.Object = Object
 
     activity += 1
     assert not evaluatingRequirement
@@ -200,6 +204,9 @@ def deactivate():
             global Point, OrientedPoint, Object
             mode2D = False
             Point, OrientedPoint, Object = _originalConstructibles
+            scenic.core.object_types.Point = Point
+            scenic.core.object_types.OrientedPoint = OrientedPoint
+            scenic.core.object_types.Object = Object
 
     else:
         currentScenario = scenarioStack[-1]

@@ -49,10 +49,10 @@ See the `virtual environment tutorial <https://docs.python.org/3/tutorial/venv.h
 	You can then run :command:`poetry shell` to create a terminal inside the
 	environment and run Scenic as usual.
 
-Scene Schematics Don't Appear
-+++++++++++++++++++++++++++++
+Scene Schematics Don't Appear (2D)
+++++++++++++++++++++++++++++++++++
 
-If no window appears when you ask Scenic to generate and display a scene (as in the example commands in :doc:`quickstart`), this means that Matplotlib has no `interactive backend <https://matplotlib.org/stable/users/explain/backends.html>`_ installed.
+If no window appears when you ask Scenic to generate and display a scene using the ``--2d`` flag (as in the example commands in :doc:`quickstart`), this means that Matplotlib has no `interactive backend <https://matplotlib.org/stable/users/explain/backends.html>`_ installed.
 On Linux, try installing the ``python3-tk`` package (e.g. :command:`sudo apt-get install python3-tk`).
 
 Missing SDL
@@ -84,6 +84,20 @@ You can test that this process has worked correctly by going back to the VerifAI
 	If you are developing forks of Scenic and VerifAI, a more stable approach would be to modify VerifAI's :file:`pyproject.toml` to point to your fork of Scenic instead of the ``scenic`` package on PyPI.
 
 .. _VerifAI: https://github.com/BerkeleyLearnVerify/VerifAI
+
+MacOS
+-----
+
+.. _pythonfcl:
+
+Installing python-fcl on Apple silicon
+++++++++++++++++++++++++++++++++++++++
+If on an Apple-silicon machine you get an error related to pip being unable to install ``python-fcl``, it can be installed manually using the following steps:
+
+1. Clone the `python-fcl <https://github.com/BerkeleyAutomation/python-fcl>`_ repository.
+2. Navigate to the repository.
+3. Install dependencies using homebrew with the following command: ``brew install fcl eigen octomap``
+4. Install the package using pip with the following command: ``CPATH=$(brew --prefix)/include:$(brew --prefix)/include/eigen3 LD_LIBRARY_PATH=$(brew --prefix)/lib pip install .``
 
 Windows
 -------
