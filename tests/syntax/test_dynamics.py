@@ -1,8 +1,10 @@
 
+import signal
 import sys
 
 import pytest
 
+import scenic.core.dynamics as dynamics
 from scenic.core.errors import RuntimeParseError, ScenicSyntaxError
 from scenic.core.simulators import TerminationType
 
@@ -115,6 +117,20 @@ def test_behavior_no_actions():
                 Foo()   # forgot to use 'do'
             ego = Object with behavior Bar
         """)
+
+@pytest.mark.skipif(not hasattr(signal, 'SIGALRM'), reason='need SIGALRM')
+@pytest.mark.slow
+def test_behavior_stuck(monkeypatch):
+    scenario = compileScenic("""
+        import time
+        behavior Foo():
+            time.sleep(1.5)
+            wait
+        ego = Object with behavior Foo
+    """)
+    monkeypatch.setattr(dynamics, 'stuckBehaviorWarningTimeout', 1)
+    with pytest.warns(dynamics.StuckBehaviorWarning):
+        sampleResultOnce(scenario)
 
 def test_behavior_create_object():
     with pytest.raises(ScenicSyntaxError):
