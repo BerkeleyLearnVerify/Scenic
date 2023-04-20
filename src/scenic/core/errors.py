@@ -290,6 +290,6 @@ def getText(filename, lineno, line='', offset=0, end_offset=None):
             end_offset = adj_end_offset
         else:
             offset = min(offset, len(line))
-    except FileNotFoundError:
+    except OSError:
         pass
     return line, offset, end_offset

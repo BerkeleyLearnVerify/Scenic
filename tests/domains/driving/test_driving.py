@@ -14,7 +14,7 @@ from tests.utils import compileScenic, sampleScene, sampleEgo, pickle_test, tryP
 pytestmark = pytest.mark.filterwarnings("ignore::scenic.formats.opendrive.OpenDriveWarning")
 
 template = inspect.cleandoc("""
-    param map = '{map}'
+    param map = r'{map}'
     param map_options = dict(useCache={cache})
     model scenic.domains.driving.model
 """)
@@ -25,14 +25,15 @@ basicScenario = inspect.cleandoc("""
     Car on visible lane.centerline
 """)
 
-def compileDrivingScenario(cached_maps, code='', useCache=True,
-                           path='tests/formats/opendrive/maps/CARLA/Town01.xodr'):
-    path = cached_maps[path]
+from tests.domains.driving.conftest import mapFolder, map_params
+
+def compileDrivingScenario(cached_maps, code='', useCache=True, path=None):
+    if not path:
+        path = mapFolder/'CARLA'/'Town01.xodr'
+    path = cached_maps[str(path)]
     preamble = template.format(map=path, cache=useCache)
     whole = preamble + '\n' + inspect.cleandoc(code)
     return compileScenic(whole)
-
-from tests.domains.driving.conftest import map_params
 
 @pytest.mark.slow
 @pytest.mark.parametrize("path", map_params)
@@ -114,7 +115,7 @@ def test_caching(tmpdir):
     In particular, make sure that links between network elements and maneuvers
     are properly reconnected after unpickling.
     """
-    origMap = 'tests/formats/opendrive/maps/CARLA/Town01.xodr'
+    origMap = mapFolder/'CARLA'/'Town01.xodr'
     path = os.path.join(tmpdir, 'map.xodr')
     cachedPath = os.path.join(tmpdir, 'map' + Network.pickledExt)
     noExtPath = os.path.join(tmpdir, 'map')
@@ -127,7 +128,7 @@ def test_caching(tmpdir):
     )
     for useCache, path in opts:
         scenario = compileScenic(f"""
-            param map = '{path}'
+            param map = r'{path}'
             param map_options = dict(useCache={useCache})
             model scenic.domains.driving.model
             lanes = filter(lambda l: l._successor, network.lanes)
