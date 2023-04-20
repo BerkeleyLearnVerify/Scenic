@@ -31,7 +31,7 @@ Table of Contents
    :maxdepth: 1
    :caption: Tutorials
 
-   tutorials/tutorial
+   tutorials/fundamentals
    tutorials/dynamics
    tutorials/composition
 

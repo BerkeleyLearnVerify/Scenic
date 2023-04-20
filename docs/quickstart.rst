@@ -45,7 +45,8 @@ Simply run :command:`scenic`, giving a path to a Scenic file:
 This will compile the Scenic program and sample from it (which may take several seconds), displaying a schematic of the resulting scene. Since this a simple scenario designed to evaluate the performance of a robot vacuum, you should get something like this:
 
 .. image:: images/vacuumSimple.png
-   :width: 50%
+	:width: 50%
+	:figclass: align-center
 
 The green cylinder is the ego vacuum, surrounded by various pieces of furniture in a room. The viewer can be moved around using the mouse, and the axes in the center are provided to help clarify orientation. If you close the window, Scenic will sample another scene from the same scenario and display it.
 This will repeat until you kill the generator (:kbd:`Control-c` in Linux; right-clicking on the Dock icon and selecting Quit on OS X).
@@ -61,6 +62,7 @@ One such scenario is the badly-parked car example from our GTA case study, which
 The output will be using the legacy 2D viewer, and should look something like this:
 
 .. image:: images/badlyParkedCar2.png
+	:figclass: align-center
 
 Here the circled rectangle is the ego car; its view cone extends to the right, where we see another car parked rather poorly at the side of the road (the white lines are curbs).
 

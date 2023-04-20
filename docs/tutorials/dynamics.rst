@@ -18,7 +18,7 @@ dynamic behavior using a built-in property called :prop:`behavior`. Here's an ex
 one of the built-in behaviors from the :ref:`driving_domain`::
 
     model scenic.domains.driving.model
-    Car with behavior FollowLaneBehavior
+    new Car with behavior FollowLaneBehavior
 
 A behavior defines a sequence of *actions* for the agent to take, which need not be fixed
 but can be probabilistic and depend on the state of the agent or other objects. In
@@ -71,9 +71,9 @@ The example above also shows how behaviors may take arguments, like any Scenic f
 Here, ``threshold`` is an argument to the behavior which has default value 15 but can be
 customized, so we could write for example::
 
-    ego = Car
-    car2 = Car visible, with behavior WaitUntilClose
-    car3 = Car visible, with behavior WaitUntilClose(20)
+    ego = new Car
+    car2 = new Car visible, with behavior WaitUntilClose
+    car3 = new Car visible, with behavior WaitUntilClose(20)
 
 Both ``car2`` and ``car3`` will use the ``WaitUntilClose`` behavior, but independent
 copies of it with thresholds of 15 and 20 respectively.
@@ -361,8 +361,8 @@ time limit. However, scenarios can also define termination criteria using the
 :keyword:`terminate when` statement; for example, we could decide to end a scenario as soon as
 the ego car travels at least a certain distance::
 
-    start = Point on road
-    ego = Car at start
+    start = new Point on road
+    ego = new Car at start
     terminate when (distance to start) >= 50
 
 Additionally, the :keyword:`terminate` statement can be used inside behaviors and monitors: if
