@@ -1,16 +1,18 @@
 
 import glob
 import os
+from pathlib import Path
 import shutil
 
 import pytest
 
 from scenic.domains.driving.roads import Network
 
-maps = glob.glob('tests/formats/opendrive/maps/**/*.xodr')
+mapFolder = Path('tests')/'formats'/'opendrive'/'maps'
+maps = glob.glob(str(mapFolder/'**'/'*.xodr'))
 
 # TODO fix handling of this problematic map
-badmap = 'tests/formats/opendrive/maps/opendrive.org/sample1.1.xodr'
+badmap = str(mapFolder/'opendrive.org'/'sample1.1.xodr')
 map_params = []
 for path in maps:
     if path == badmap:
@@ -33,5 +35,5 @@ def cached_maps(tmpdir_factory):
 
 @pytest.fixture(scope='session')
 def network(cached_maps):
-    path = cached_maps['tests/formats/opendrive/maps/CARLA/Town03.xodr']
+    path = cached_maps[str(mapFolder/'CARLA'/'Town03.xodr')]
     return Network.fromFile(path)

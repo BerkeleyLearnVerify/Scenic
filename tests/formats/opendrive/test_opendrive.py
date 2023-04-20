@@ -1,6 +1,7 @@
 
 import os
 import glob
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pytest
@@ -9,8 +10,9 @@ from scenic.formats.opendrive import OpenDriveWorkspace
 from scenic.core.geometry import TriangulationError
 
 oldDir = os.getcwd()
-os.chdir('tests/formats/opendrive')
-maps = glob.glob('maps/**/*.xodr')
+os.chdir(Path('tests') / 'formats' / 'opendrive')
+mapPath = Path('maps') / '**' / '*.xodr'
+maps = glob.glob(str(mapPath))
 os.chdir(oldDir)
 
 @pytest.mark.slow
