@@ -25,7 +25,7 @@ def test_distribution_method_encapsulation():
 
 def test_distribution_method_encapsulation_lazy():
     vf = VectorField("Foo", lambda pos: 0)
-    da = DelayedArgument(set(), lambda context, modifying: Options([1, 2]))
+    da = DelayedArgument(set(), lambda context: Options([1, 2]))
     pt = vf.followFrom(Vector(0, 0), da, steps=1)
     assert isinstance(pt, DelayedArgument)
     context = LazilyEvaluable.makeContext()

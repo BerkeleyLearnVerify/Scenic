@@ -353,7 +353,7 @@ def evaluateRequiringEqualTypes(func, thingA, thingB, typeError='type mismatch')
 class TypeChecker(DelayedArgument):
     """Checks that a given lazy value has one of a given list of types."""
     def __init__(self, arg, types, error):
-        def check(context, modifying):
+        def check(context):
             val = arg.evaluateIn(context)
             return coerceToAny(val, types, error)
         super().__init__(requiredProperties(arg), check)
@@ -367,7 +367,7 @@ class TypeEqualityChecker(DelayedArgument):
     """Evaluates a function after checking that two lazy values have the same type."""
     def __init__(self, func, checkA, checkB, error):
         props = requiredProperties(checkA) | requiredProperties(checkB)
-        def check(context, modifying):
+        def check(context):
             ca = valueInContext(checkA, context)
             cb = valueInContext(checkB, context)
             if underlyingType(ca) is not underlyingType(cb):

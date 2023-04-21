@@ -302,9 +302,9 @@ class IntersectionRegion(Region):
         return IntersectionRegion(*regs, orientation=value[self.orientation],
                                   sampler=self.sampler, name=self.name)
 
-    def evaluateInner(self, context, modifying):
-        regs = (valueInContext(reg, context, modifying) for reg in self.regions)
-        orientation = valueInContext(self.orientation, context, modifying)
+    def evaluateInner(self, context):
+        regs = (valueInContext(reg, context) for reg in self.regions)
+        orientation = valueInContext(self.orientation, context)
         return IntersectionRegion(*regs, orientation=orientation, sampler=self.sampler,
                                   name=self.name)
 
@@ -379,10 +379,10 @@ class DifferenceRegion(Region):
                 return diff
         return DifferenceRegion(regionA, regionB, sampler=self.sampler, name=self.name)
 
-    def evaluateInner(self, context, modifying):
-        regionA = valueInContext(self.regionA, context, modifying)
-        regionB = valueInContext(self.regionB, context, modifying)
-        orientation = valueInContext(self.orientation, context, modifying)
+    def evaluateInner(self, context):
+        regionA = valueInContext(self.regionA, context)
+        regionB = valueInContext(self.regionB, context)
+        orientation = valueInContext(self.orientation, context)
         return DifferenceRegion(regionA, regionB, orientation=orientation,
                                 sampler=self.sampler, name=self.name)
 
@@ -2025,11 +2025,10 @@ class CircularRegion(PolygonalRegion):
         return CircularRegion(value[self.center], value[self.radius],
                               name=self.name, resolution=self.resolution)
 
-    def evaluateInner(self, context, modifying):
-        center = valueInContext(self.center, context, modifying)
-        radius = valueInContext(self.radius, context, modifying)
-        return CircularRegion(center, radius,
-                              name=self.name, resolution=self.resolution)
+    def evaluateInner(self, context):
+        center = valueInContext(self.center, context)
+        radius = valueInContext(self.radius, context)
+        return CircularRegion(center, radius, name=self.name, resolution=self.resolution)
 
     def intersects(self, other, triedReversed=False):
         if isinstance(other, CircularRegion):
@@ -2125,11 +2124,11 @@ class SectorRegion(PolygonalRegion):
             value[self.heading], value[self.angle],
             name=self.name, resolution=self.resolution)
 
-    def evaluateInner(self, context, modifying):
-        center = valueInContext(self.center, context, modifying)
-        radius = valueInContext(self.radius, context, modifying)
-        heading = valueInContext(self.heading, context, modifying)
-        angle = valueInContext(self.angle, context, modifying)
+    def evaluateInner(self, context):
+        center = valueInContext(self.center, context)
+        radius = valueInContext(self.radius, context)
+        heading = valueInContext(self.heading, context)
+        angle = valueInContext(self.angle, context)
         return SectorRegion(center, radius, heading, angle,
                             name=self.name, resolution=self.resolution)
 
@@ -2202,13 +2201,12 @@ class RectangularRegion(PolygonalRegion):
             value[self.width], value[self.length],
             name=self.name)
 
-    def evaluateInner(self, context, modifying):
-        position = valueInContext(self.position, context, modifying)
-        heading = valueInContext(self.heading, context, modifying)
-        width = valueInContext(self.width, context, modifying)
-        length = valueInContext(self.length, context, modifying)
-        return RectangularRegion(position, heading, width, length,
-                                 name=self.name)
+    def evaluateInner(self, context):
+        position = valueInContext(self.position, context)
+        heading = valueInContext(self.heading, context)
+        width = valueInContext(self.width, context)
+        length = valueInContext(self.length, context)
+        return RectangularRegion(position, heading, width, length, name=self.name)
 
     def uniformPointInner(self):
         hw, hl = self.hw, self.hl

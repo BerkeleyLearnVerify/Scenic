@@ -38,7 +38,7 @@ class LazilyEvaluable:
         self._dependencies = ()     # TODO improve?
         self._requiredProperties = tuple(sorted(set(requiredProps)))
 
-    def evaluateIn(self, context, modifying={}):
+    def evaluateIn(self, context):
         """Evaluate this value in the context of an object being constructed.
 
         The object must define all of the properties on which this value depends.
@@ -47,12 +47,12 @@ class LazilyEvaluable:
         if self in cache:
             return cache[self]  # avoid making a new evaluated copy of this value
         assert all(hasattr(context, prop) for prop in self._requiredProperties)
-        value = self.evaluateInner(context, modifying)
+        value = self.evaluateInner(context)
         assert not needsLazyEvaluation(value)   # value should not require further evaluation
         cache[self] = value
         return value
 
-    def evaluateInner(self, context, modifying):
+    def evaluateInner(self, context):
         """Actually evaluate in the given context, which provides all required properties.
 
         Overridden by subclasses.
@@ -106,28 +106,23 @@ class DelayedArgument(LazilyEvaluable):
 
     def __init__(self, requiredProps, value, _internal=False):
         self.value = value
-        self.suppressModifying = (len(inspect.signature(value).parameters) == 1)
         super().__init__(requiredProps)
 
-    def evaluateInner(self, context, modifying={}):
-        if self.suppressModifying:
-            return self.value(context)
-        else:
-            return self.value(context, modifying)
+    def evaluateInner(self, context):
+        return self.value(context)
 
     def __getattr__(self, name):
         if name.startswith('__') and name.endswith('__'):   # ignore special attributes
             return object.__getattribute__(self, name)
         return DelayedArgument(self._requiredProperties,
-            lambda context, modifying: getattr(self.evaluateIn(context, modifying), name),
-            _internal=True)
+            lambda context: getattr(self.evaluateIn(context), name), _internal=True)
 
     def __call__(self, *args, **kwargs):
         subprops = (requiredProperties(arg) for arg in itertools.chain(args, kwargs.values()))
         props = set(self._requiredProperties).union(*subprops)
-        def value(context, modifying):
-            subvalues = (valueInContext(arg, context, modifying) for arg in args)
-            kwsvs = { name: valueInContext(arg, context, modifying) for name, arg in kwargs.items() }
+        def value(context):
+            subvalues = (valueInContext(arg, context) for arg in args)
+            kwsvs = { name: valueInContext(arg, context) for name, arg in kwargs.items() }
             return self.evaluateIn(context)(*subvalues, **kwsvs)
         return DelayedArgument(props, value, _internal=True)
 
@@ -154,8 +149,8 @@ allowedOperators = [
 def makeDelayedOperatorHandler(op):
     def handler(self, *args):
         props = set(self._requiredProperties).union(*(requiredProperties(arg) for arg in args))
-        def value(context, modifying):
-            subvalues = (valueInContext(arg, context, modifying) for arg in args)
+        def value(context,):
+            subvalues = (valueInContext(arg, context) for arg in args)
             return getattr(self.evaluateIn(context), op)(*subvalues)
         return DelayedArgument(props, value, _internal=True)
     return handler
@@ -166,20 +161,20 @@ def makeDelayedFunctionCall(func, args, kwargs):
     """Utility function for creating a lazily-evaluated function call."""
     props = set().union(*(requiredProperties(arg)
                           for arg in itertools.chain(args, kwargs.values())))
-    def value(context, modifying):
-        subvalues = (valueInContext(arg, context, modifying) for arg in args)
-        kwsubvals = { name: valueInContext(arg, context, modifying) for name, arg in kwargs.items() }
+    def value(context):
+        subvalues = (valueInContext(arg, context) for arg in args)
+        kwsubvals = { name: valueInContext(arg, context) for name, arg in kwargs.items() }
         return func(*subvalues, **kwsubvals)
     return DelayedArgument(props, value, _internal=True)
 
-def valueInContext(value, context, modifying={}):
+def valueInContext(value, context):
     """Evaluate something in the context of an object being constructed."""
     if not needsLazyEvaluation(value):
         return value
     elif isinstance(value, LazilyEvaluable):
-        return value.evaluateIn(context, modifying)
+        return value.evaluateIn(context)
     elif isinstance(value, dict):
-        return { key: valueInContext(val, context, modifying)
+        return { key: valueInContext(val, context)
                  for key, val in value.items() }
     assert False
 

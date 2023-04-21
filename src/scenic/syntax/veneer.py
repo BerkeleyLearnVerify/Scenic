@@ -776,7 +776,7 @@ def RelativeTo(X, Y) -> typing.Union[Vector, builtins.float]:
             raise RuntimeParseError('"X relative to Y" with X, Y fields of different types')
         fieldType = X.valueType if xf else Y.valueType
         error = '"X relative to Y" with field and value of different types'
-        def helper(context, spec):
+        def helper(context):
             pos = context.position.toVector()
             xp = X[pos] if xf else toType(X, fieldType, error)
             yp = Y[pos] if yf else toType(Y, fieldType, error)
@@ -1035,7 +1035,7 @@ def On(thing):
     if alwaysProvidesOrientation(region):
         props['parentOrientation'] = 2
 
-    def helper(context, spec):
+    def helper(context):
         # Pick position based on whether we are specifying or modifying
         if 'position' in context.properties:
             pos = findOnHelper(region, context.position, context.onDirection)
@@ -1209,7 +1209,7 @@ def LeftSpec(pos, dist=0, specs=None):
 
     If the :grammar:`by <scalar/vector>` is omitted, zero is used.
     """
-    return directionalSpecHelper('left of', pos, dist, 'width', lambda dist: (dist, 0, 0),
+    return directionalSpecHelper('Left of', pos, dist, 'width', lambda dist: (dist, 0, 0),
                           lambda self, dims, tol, dx, dy, dz: Vector(-self.width / 2 - dx - dims[0]/2 - tol, dy, dz))
 
 def RightSpec(pos, dist=0):
@@ -1224,7 +1224,7 @@ def RightSpec(pos, dist=0):
 
     If the :grammar:`by <scalar/vector>` is omitted, zero is used.
     """
-    return directionalSpecHelper('right of', pos, dist, 'width', lambda dist: (dist, 0, 0),
+    return directionalSpecHelper('Right of', pos, dist, 'width', lambda dist: (dist, 0, 0),
                           lambda self, dims, tol, dx, dy, dz: Vector(self.width / 2 + dx + dims[0]/2 + tol, dy, dz))
 
 def Ahead(pos, dist=0):
@@ -1239,7 +1239,7 @@ def Ahead(pos, dist=0):
 
     If the :grammar:`by <scalar/vector>` is omitted, zero is used.
     """
-    return directionalSpecHelper('ahead of', pos, dist, 'length', lambda dist: (0, dist, 0),
+    return directionalSpecHelper('Ahead of', pos, dist, 'length', lambda dist: (0, dist, 0),
                           lambda self, dims, tol, dx, dy, dz: Vector(dx, self.length / 2 + dy + dims[1]/2 + tol, dz))
 
 def Behind(pos, dist=0):
@@ -1254,7 +1254,7 @@ def Behind(pos, dist=0):
 
     If the :grammar:`by <scalar/vector>` is omitted, zero is used.
     """
-    return directionalSpecHelper('behind', pos, dist, 'length', lambda dist: (0, dist, 0),
+    return directionalSpecHelper('Behind', pos, dist, 'length', lambda dist: (0, dist, 0),
                           lambda self, dims, tol, dx, dy, dz: Vector(dx, -self.length / 2 - dy - dims[1]/2 - tol, dz))
 
 def Above(pos, dist=0):
@@ -1269,7 +1269,7 @@ def Above(pos, dist=0):
 
     If the 'by <scalar/vector>' is omitted, zero is used.
     """
-    return directionalSpecHelper('above', pos, dist, 'height', lambda dist: (0, 0, dist),
+    return directionalSpecHelper('Above', pos, dist, 'height', lambda dist: (0, 0, dist),
                           lambda self, dims, tol, dx, dy, dz: Vector(dx, dy, self.height / 2 + dz + dims[2]/2 + tol))
 
 def Below(pos, dist=0):
@@ -1284,7 +1284,7 @@ def Below(pos, dist=0):
 
     If the 'by <scalar/vector>' is omitted, zero is used.
     """
-    return directionalSpecHelper('above', pos, dist, 'height', lambda dist: (0, 0, dist),
+    return directionalSpecHelper('Below', pos, dist, 'height', lambda dist: (0, 0, dist),
                           lambda self, dims, tol, dx, dy, dz: Vector(dx, dy, -self.height / 2 - dz - dims[2]/2 - tol))
 
 def directionalSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
@@ -1299,23 +1299,23 @@ def directionalSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
     if isinstance(pos, Object):
         prop['parentOrientation'] = 3
         obj_dims = (pos.width, pos.length, pos.height)
-        val = lambda self, spec: {
+        val = lambda self: {
             'position': pos.relativize(makeOffset(self, obj_dims, self.contactTolerance if dist == 0 else 0, dx, dy, dz)),
             'parentOrientation': pos.orientation
         }
         new = DelayedArgument({axis, "contactTolerance"}, val)
     elif isinstance(pos, OrientedPoint):        # TODO too strict?
         prop['parentOrientation'] = 3
-        val = lambda self, spec: {
+        val = lambda self: {
             'position': pos.relativize(makeOffset(self, (0,0,0), 0, dx, dy, dz)),
             'parentOrientation': pos.orientation
         }
         new = DelayedArgument({axis}, val)
     else:
         pos = toVector(pos, f'specifier "{syntax} X" with X not a vector')
-        val = lambda self, spec: {'position': pos.offsetRotated(self.orientation, makeOffset(self, (0,0,0), 0, dx, dy, dz))}
+        val = lambda self: {'position': pos.offsetRotated(self.orientation, makeOffset(self, (0,0,0), 0, dx, dy, dz))}
         new = DelayedArgument({axis, 'orientation'}, val)
-    return Specifier("DirectionalSpecifier", prop, new)
+    return Specifier(syntax, prop, new)
 
 def Following(field, dist, fromPt=None):
     """The :specifier:`following {F} from {X} for {D}` specifier.
@@ -1349,7 +1349,7 @@ def Facing(heading):
         facing <field>      # depends on 'position'
     """
     if isinstance(heading, VectorField):
-        def helper(context, spec):
+        def helper(context):
             headingAtPos = heading[context.position]
             if alwaysGlobalOrientation(context.parentOrientation):
                 orientation = headingAtPos  # simplify expr tree in common case
@@ -1362,7 +1362,7 @@ def Facing(heading):
     else:
         orientation = toOrientation(heading, "facing x with x not a heading or orientation")
         orientationDeps = requiredProperties(orientation)
-        def helper(context, spec):
+        def helper(context):
             nonlocal orientation
             orientation = valueInContext(orientation, context)
             euler = context.parentOrientation.globalToLocalAngles(orientation.yaw, orientation.pitch, orientation.roll)
@@ -1376,7 +1376,7 @@ def FacingToward(pos):
     Specifies :prop:`yaw`, depending on :prop:`position` and :prop:`parentOrientation`.
     """
     pos = toVector(pos, 'specifier "facing toward X" with X not a vector')
-    def helper(context, spec):
+    def helper(context):
         direction = pos - context.position
         inverseQuat = context.parentOrientation.invertRotation()
         rotated = direction.applyRotation(inverseQuat)
@@ -1390,7 +1390,7 @@ def FacingDirectlyToward(pos):
     Specifies :prop:`yaw` and :prop:`pitch`, depends on :prop:`position` and :prop:`parentOrientation`.
     """
     pos = toVector(pos, 'specifier "facing directly toward X" with X not a vector')
-    def helper(context, spec):
+    def helper(context):
         '''
         Same process as above, except by default also specify the pitch euler angle 
         '''
@@ -1407,7 +1407,7 @@ def FacingAwayFrom(pos):
     Specifies :prop:`yaw`, depending on :prop:`position` and :prop:`parentOrientation`.
     """
     pos = toVector(pos, 'specifier "facing away from X" with X not a vector')
-    def helper(context, spec):
+    def helper(context):
         '''
         As in FacingToward, except invert the resulting rotation axis 
         '''
@@ -1424,7 +1424,7 @@ def FacingDirectlyAwayFrom(pos):
     Specifies :prop:`yaw` and :prop:`pitch`, depending on :prop:`position` and :prop:`parentOrientation`.
     """
     pos = toVector(pos, 'specifier "facing away from X" with X not a vector')
-    def helper(context, spec):
+    def helper(context):
         direction = context.position - pos
         inverseQuat = context.parentOrientation.invertRotation()
         rotated = direction.applyRotation(inverseQuat)
@@ -1444,7 +1444,7 @@ def ApparentlyFacing(heading, fromPt=None):
         fromPt = ego()
     fromPt = toVector(fromPt, 'specifier "apparently facing X from Y" with Y not a vector')
 
-    def helper(context, spec):
+    def helper(context):
         return {'yaw': fromPt.angleTo(context.position) + heading} 
 
     return Specifier("ApparentlyFacing", {'yaw': 1}, DelayedArgument({'position', 'parentOrientation'}, helper))

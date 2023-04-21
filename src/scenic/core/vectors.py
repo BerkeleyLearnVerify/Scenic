@@ -45,9 +45,9 @@ class VectorOperatorDistribution(VectorDistribution):
         op = getattr(first, self.operator)
         return op(*rest)
 
-    def evaluateInner(self, context, modifying):
-        obj = valueInContext(self.object, context, modifying)
-        operands = tuple(valueInContext(arg, context, modifying) for arg in self.operands)
+    def evaluateInner(self, context):
+        obj = valueInContext(self.object, context)
+        operands = tuple(valueInContext(arg, context) for arg in self.operands)
         return VectorOperatorDistribution(self.operator, obj, operands)
 
     def __repr__(self):
@@ -67,7 +67,7 @@ class VectorMethodDistribution(VectorDistribution):
         kwargs = { name: value[arg] for name, arg in self.kwargs.items() }
         return self.method(self.object, *args, **kwargs)
 
-    def evaluateInner(self, context, modifying):
+    def evaluateInner(self, context):
         obj = valueInContext(self.object, context)
         arguments = tuple(valueInContext(arg, context) for arg in self.arguments)
         kwargs = { name: valueInContext(arg, context) for name, arg in self.kwargs.items() }
@@ -330,7 +330,7 @@ class Vector(Samplable, collections.abc.Sequence):
     def sampleGiven(self, value):
         return Vector(*(value[coord] for coord in self.coordinates))
 
-    def evaluateInner(self, context, modifying):
+    def evaluateInner(self, context):
         return Vector(*(valueInContext(coord, context) for coord in self.coordinates))
 
     @vectorOperator
@@ -507,10 +507,9 @@ class OrientedVector(Vector):
     def toHeading(self):
         return self.heading
 
-    def evaluateInner(self, context, modifying):
-        hdg = valueInContext(self.heading, context, modifying)
-        return OrientedVector(*(valueInContext(coord, context, modifying)
-                                for coord in self.coordinates), hdg)
+    def evaluateInner(self, context):
+        hdg = valueInContext(self.heading, context)
+        return OrientedVector(*(valueInContext(coord, context) for coord in self.coordinates), hdg)
 
     def __eq__(self, other):
         if type(other) is not OrientedVector:
