@@ -32,7 +32,7 @@ from scenic.core.geometry import (_RotatedRectangle, averageVectors, hypot, min,
 from scenic.core.regions import (Region, CircularRegion, SectorRegion, MeshVolumeRegion, MeshSurfaceRegion, 
                                   BoxRegion, SpheroidRegion, DefaultViewRegion, EmptyRegion, PolygonalRegion,
                                   convertToFootprint)
-from scenic.core.type_support import toVector, toHeading, toType, toScalar, underlyingType
+from scenic.core.type_support import toVector, toHeading, toType, toScalar, toOrientation, underlyingType
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.serialization import dumpAsScenicCode
 from scenic.core.utils import DefaultIdentityDict, cached_property
@@ -179,13 +179,13 @@ class Constructible(Samplable):
         normal_specifiers = [spec for spec in specifiers if not isinstance(spec, ModifyingSpecifier)]
         modifying_specifiers = [spec for spec in specifiers if isinstance(spec, ModifyingSpecifier)]
 
-        '''
-        For each property specified by a normal specifier:
-            - If not in properties specified, properties[p] = specifier
-            - Otherwise, if property specified, check if specifier's priority is higher. If so, replace it with specifier
+        
+        # For each property specified by a normal specifier:
+        #   - If not in properties specified, properties[p] = specifier
+        #   - Otherwise, if property specified, check if specifier's priority is higher. If so, replace it with specifier
 
-        Priorties are inversed: A lower priority number means semantically that it has a higher priority level
-        '''
+        #Priorties are inversed: A lower priority number means semantically that it has a higher priority level
+
         for spec in normal_specifiers:
             assert isinstance(spec, Specifier), (name, spec)
 
@@ -211,16 +211,16 @@ class Constructible(Samplable):
                     properties[prop] = spec
                     priorities[prop] = spec.priorities[prop]
 
-        '''
-        If a modifying specifier specifies the property with a higher priority,
-        set the object's property to be specified by the modifying specifier. Otherwise,
-        if the property exists and the priorities match, object needs to be specified
-        by the original specifier then the resulting value is modified by the
-        modifying specifier. 
 
-        If the property is not yet being specified, the modifying specifier will 
-        act as a normal specifier for that property. 
-        '''
+        # If a modifying specifier specifies the property with a higher priority,
+        # set the object's property to be specified by the modifying specifier. Otherwise,
+        # if the property exists and the priorities match, object needs to be specified
+        # by the original specifier then the resulting value is modified by the
+        # modifying specifier. 
+
+        # If the property is not yet being specified, the modifying specifier will 
+        # act as a normal specifier for that property. 
+
         deprecate = []
         for spec in modifying_specifiers:
             for prop in spec.priorities:
@@ -360,6 +360,9 @@ class Constructible(Samplable):
 
         if prop in ['yaw', 'pitch', 'roll']:
             value = normalizeAngle(value)
+
+        if prop == "parentOrientation":
+            value = toOrientation(value)
 
         if prop == 'regionContainedIn':
             # 2D regions can't contain objects, so we automatically use their footprint.
@@ -1706,25 +1709,33 @@ class OrientedPoint2D(Point2D, OrientedPoint):
     _scenic_properties = {}
 
     def __init_subclass__(cls):
+        # Raise error if parentOrientation already defined
+        if 'parentOrientation' in cls._scenic_properties:
+            raise RuntimeParseError("A subclass has defined parentOrientation, but this program is "
+                "being run in 2D compatibility mode.")
+
         # Map certain properties to their 3D analog
         if 'heading' in cls._scenic_properties:
-            cls._scenic_properties['yaw'] = cls._scenic_properties['heading']
-            del(cls._scenic_properties['heading'])
+            cls._scenic_properties['parentOrientation'] = cls._scenic_properties['heading']
+            del cls._scenic_properties['heading']
 
         super().__init_subclass__()
 
     def __init__(self, *args, **kwargs):
-        # Map certain specifiers to their 3D analog
-        refined_args = []
+        if kwargs.get('_register', True):
+            import scenic.syntax.veneer as veneer
 
-        for arg in args:
-            # Map "with heading x" to "with yaw x"
-            if arg.name == "With" and tuple(arg.priorities.keys()) == ('heading',):
-                refined_args.append(Specifier(name="With", priorities={'yaw': 1}, value={'yaw': arg.value['heading']}))
-            else:
-                refined_args.append(arg)
+            # Map certain specifiers to their 3D analog
+            refined_args = []
 
-        args = tuple(refined_args)
+            for arg in args:
+                # Map "with heading x" to "facing x"
+                if arg.name == "With" and tuple(arg.priorities.keys()) == ('heading',):
+                    refined_args.append(veneer.Facing(arg.value['heading']))
+                else:
+                    refined_args.append(arg)
+
+            args = tuple(refined_args)
 
         super().__init__(*args, **kwargs)
 

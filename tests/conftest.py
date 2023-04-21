@@ -20,6 +20,15 @@ def loadLocalScenario(request):
     return loader
 
 @pytest.fixture
+def loadLocalScenario2D(request):
+    import scenic
+    base = os.path.dirname(request.fspath)
+    def loader(relpath):
+        path = os.path.join(base, relpath)
+        return scenic.scenarioFromFile(path, mode_2d=True)
+    return loader
+
+@pytest.fixture
 def runLocally(request):
     base = os.path.dirname(request.fspath)
     @contextmanager

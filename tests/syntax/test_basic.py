@@ -200,8 +200,7 @@ def test_mode_2d_heading():
     scenario = compileScenic('ego = new Object with heading 40 deg', mode_2d=True)
     scene, _ = scenario.generate()
 
-    assert scene.egoObject.yaw == pytest.approx(math.radians(40))
-    assert scene.egoObject.heading == scene.egoObject.yaw
+    assert scene.egoObject.heading == pytest.approx(math.radians(40))
 
     with pytest.raises(RuntimeParseError):
         compileScenic("""
@@ -219,8 +218,7 @@ def test_mode_2d_heading():
                 """, mode_2d=True)
     scene, _ = scenario.generate()
 
-    assert scene.egoObject.yaw == pytest.approx(math.radians(40))
-    assert scene.egoObject.heading == scene.egoObject.yaw
+    assert scene.egoObject.heading == pytest.approx(math.radians(40))
 
 def test_mode_2d_interference():
     scenario = compileScenic(
