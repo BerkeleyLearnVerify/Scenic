@@ -718,6 +718,11 @@ class MeshVolumeRegion(MeshRegion):
             if surface_collision:
                 return True
 
+            if self.mesh.is_convex and other.mesh.is_convex:
+                # Collision manager covers all cases for convex shapes,
+                # so we can just return the value.
+                return surface_collision
+
             # PASS 4
             # Compute intersection and check if it's empty. Expensive but guaranteed
             # to give the right answer.
