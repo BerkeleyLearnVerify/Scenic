@@ -1294,13 +1294,13 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     @context(Context.TOP_LEVEL)
     def visit_TerminateWhen(self, node: s.TerminateWhen):
         return self.createRequirementLike(
-            "terminate_when", node.cond, node.lineno, None
+            "terminate_when", node.cond, node.lineno, node.name
         )
 
     @context(Context.TOP_LEVEL)
     def visit_TerminateSimulationWhen(self, node: s.TerminateSimulationWhen):
         return self.createRequirementLike(
-            "terminate_simulation_when", node.cond, node.lineno
+            "terminate_simulation_when", node.cond, node.lineno, node.name
         )
 
     def createRequirementLike(

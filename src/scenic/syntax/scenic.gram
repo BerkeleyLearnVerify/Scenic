@@ -1867,9 +1867,9 @@ scenic_take_stmt: 'take' elts=(','.expression+) { s.Take(elts=elts, LOCATIONS) }
 
 scenic_wait_stmt: 'wait' { s.Wait(LOCATIONS) }
 
-scenic_terminate_simulation_when_stmt: "terminate" "simulation" "when" v=expression { s.TerminateSimulationWhen(v, LOCATIONS) }
+scenic_terminate_simulation_when_stmt: "terminate" "simulation" "when" v=expression n=['as' a=scenic_require_stmt_name { a }] { s.TerminateSimulationWhen(v, name=n, LOCATIONS) }
 
-scenic_terminate_when_stmt: "terminate" "when" v=expression { s.TerminateWhen(v, LOCATIONS) }
+scenic_terminate_when_stmt: "terminate" "when" v=expression n=['as' a=scenic_require_stmt_name { a }] { s.TerminateWhen(v, name=n, LOCATIONS) }
 
 scenic_terminate_after_stmt: "terminate" "after" v=scenic_dynamic_duration { s.TerminateAfter(v, LOCATIONS) }
 

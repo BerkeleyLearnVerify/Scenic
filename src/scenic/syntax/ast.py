@@ -448,21 +448,27 @@ class Terminate(AST):
 
 
 class TerminateSimulationWhen(AST):
-    __match_args__ = ("cond",)
+    __match_args__ = ("cond", "name",)
 
-    def __init__(self, cond=ast.AST, *args: any, **kwargs: any) -> None:
+    def __init__(
+        self, cond: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.cond = cond
-        self._fields = ["cond"]
+        self.name = name
+        self._fields = ["cond", "name"]
 
 
 class TerminateWhen(AST):
-    __match_args__ = ("cond",)
+    __match_args__ = ("cond", "name",)
 
-    def __init__(self, cond=ast.AST, *args: any, **kwargs: any) -> None:
+    def __init__(
+        self, cond: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.cond = cond
-        self._fields = ["cond"]
+        self.name = name
+        self._fields = ["cond", "name"]
 
 
 class TerminateAfter(AST):
