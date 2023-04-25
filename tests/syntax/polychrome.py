@@ -16,6 +16,8 @@ field = VectorField('myfield', lambda pos: 30 / pos.x)
 region = nowhere.union(PolygonalRegion([[0, 0], [1, 0], [1, 1], [0, 1]]))
 stuff = filter(lambda thing={}: bool(thing["foo"]),
                ({ "foo": 12.2, },))
+lots   ( of  ,  whitespace    =  12 )
+next (it)
 lambda x, *args, \
     **kwargs: NotImplemented
 
