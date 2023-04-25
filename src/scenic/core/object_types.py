@@ -22,7 +22,7 @@ import random
 import numpy as np
 import trimesh
 from abc import ABC, abstractmethod
-from functools import cache
+from functools import lru_cache
 
 from scenic.core.distributions import Samplable, needsSampling, distributionMethod, distributionFunction, supportInterval
 from scenic.core.specifiers import Specifier, PropertyDefault, ModifyingSpecifier
@@ -599,7 +599,7 @@ class Point(Constructible):
         dimensions = (self.visibleDistance, self.visibleDistance, self.visibleDistance)
         return SpheroidRegion(position=self.position, dimensions=dimensions)
 
-    @cache
+    @lru_cache(maxsize=None)
     def canSee(self, other, occludingObjects=list(), debug=False) -> bool:
         """Whether or not this `Point` can see ``other``.
 
@@ -709,7 +709,7 @@ class OrientedPoint(Point):
         return DefaultViewRegion(visibleDistance=self.visibleDistance, viewAngles=self.viewAngles,\
             position=self.position, rotation=self.orientation)
 
-    @cache
+    @lru_cache(maxsize=None)
     def canSee(self, other, occludingObjects=list(), debug=False) -> bool:
         """Whether or not this `OrientedPoint` can see ``other``.
 
@@ -869,17 +869,17 @@ class Object(OrientedPoint):
         """
         pass
 
-    @cache
+    @lru_cache(maxsize=None)
     def containsPoint(self, point):
         """ Whether or not the space this object occupies contains a point"""
         return self.occupiedSpace.containsPoint(point)
 
-    @cache
+    @lru_cache(maxsize=None)
     def distanceTo(self, point):
         """ The minimal distance from the space this object occupies to a given point"""
         return self.occupiedSpace.distanceTo(point)
 
-    @cache
+    @lru_cache(maxsize=None)
     def intersects(self, other):
         """ Whether or not this object intersects another object"""
         return self.occupiedSpace.intersects(other.occupiedSpace)
@@ -967,7 +967,7 @@ class Object(OrientedPoint):
         return DefaultViewRegion(visibleDistance=self.visibleDistance, viewAngles=self.viewAngles,\
             position=true_position, rotation=self.orientation)
 
-    @cache
+    @lru_cache(maxsize=None)
     def canSee(self, other, occludingObjects=list(), debug=False) -> bool:
         """Whether or not this `Object` can see ``other``.
 

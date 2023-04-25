@@ -32,10 +32,10 @@ __all__ = (
     'FieldAt', 'RelativeTo', 'OffsetAlong', 'CanSee', 'Until', 'Implies',
     'VisibleFromOp',
     # Primitive types
-    'Vector', 'VectorField', 'PolygonalVectorField',
-    'MeshShape', 'BoxShape', 'CylinderShape', 'ConeShape', 'SpheroidShape',
+    'Vector', 'Orientation', 'VectorField', 'PolygonalVectorField',
+    'Shape', 'MeshShape', 'BoxShape', 'CylinderShape', 'ConeShape', 'SpheroidShape',
     'MeshVolumeRegion', 'MeshSurfaceRegion', 
-    'BoxRegion', 'SpheroidRegion',
+    'BoxRegion', 'SpheroidRegion', 'PathRegion',
     'Region', 'PointSetRegion', 'RectangularRegion', 'CircularRegion', 'SectorRegion',
     'PolygonalRegion', 'PolylineRegion',
     'Workspace', 'Mutator',
@@ -67,10 +67,10 @@ __all__ = (
 # various Python types and functions used in the language but defined elsewhere
 from scenic.core.geometry import sin, cos, hypot, max, min
 from scenic.core.vectors import Vector, VectorField, PolygonalVectorField
-from scenic.core.shapes import (MeshShape, BoxShape, CylinderShape, 
+from scenic.core.shapes import (Shape, MeshShape, BoxShape, CylinderShape, 
     ConeShape, SpheroidShape)
 from scenic.core.regions import (Region, PointSetRegion, RectangularRegion,
-    CircularRegion, SectorRegion, PolygonalRegion, PolylineRegion,
+    CircularRegion, SectorRegion, PolygonalRegion, PolylineRegion, PathRegion,
     everywhere, nowhere,
     MeshVolumeRegion, MeshSurfaceRegion,
     BoxRegion, SpheroidRegion)

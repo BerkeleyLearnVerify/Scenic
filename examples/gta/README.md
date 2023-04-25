@@ -1,3 +1,3 @@
-# Webots Generic Examples
+# GTA Examples
 
-These examples are intended to be run **with** the ``--2d`` flag.
+These examples are from an older version of Scenic, and have not been ported to 3.0.

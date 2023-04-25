@@ -10,7 +10,7 @@ Manipulations of meshes is done using the
 import math
 import random
 import itertools
-from functools import cache
+from functools import lru_cache
 from abc import ABC, abstractmethod
 import warnings
 
@@ -99,8 +99,7 @@ class Region(Samplable, ABC):
     @property
     def size(self):
         return None
-    
-    ## API Methods ##
+
     def intersect(self, other, triedReversed=False) -> 'Region':
         """intersect(other)
 
@@ -878,7 +877,7 @@ class MeshVolumeRegion(MeshRegion):
 
 
     # Composition methods #
-    @cache
+    @lru_cache(maxsize=None)
     def intersect(self, other, triedReversed=False):
         """ Get a `Region` representing the intersection of this region's
         volume with another region.
@@ -1276,7 +1275,7 @@ class MeshVolumeRegion(MeshRegion):
             center_mesh=self.center_mesh, engine=self.engine)
 
     ## Utility Methods ##
-    @cache
+    @lru_cache(maxsize=None)
     def getSurfaceRegion(self):
         """ Return a region equivalent to this one, except as a MeshSurfaceRegion"""
         return MeshSurfaceRegion(self.mesh, self.name, orientation=self.orientation, \
@@ -1409,7 +1408,7 @@ class MeshSurfaceRegion(MeshRegion):
             center_mesh=self.center_mesh, engine=self.engine)
 
     ## Utility Methods ##
-    @cache
+    @lru_cache(maxsize=None)
     def getVolumeRegion(self):
         """ Return a region equivalent to this one, except as a MeshVolumeRegion"""
         return MeshVolumeRegion(self.mesh, self.name, orientation=self.orientation, \
@@ -1724,7 +1723,7 @@ class PathRegion(Region):
 
             self.edge_lengths.append(c1.distanceTo(c2))
 
-    @cache
+    @lru_cache(maxsize=None)
     def containsPoint(self, point, epsilon=1e-8):
         pt = toVector(point)
 

@@ -1,6 +1,9 @@
 import json
 from pathlib import Path
 from datetime import datetime
+import random
+
+import numpy
 
 from controller import Supervisor
 
@@ -13,10 +16,11 @@ def getFilename(duration: int, numToys: int, iteration: int) -> str:
 
 # CONSTANTS
 
+SEED = 42
 # how many times perform simulations?
-ITERATION = 25
+ITERATION = 25 # Value used in CAV23 paper is 25
 # how long to run simulation for (minutes)
-DURATION = 5
+DURATION = 5 # Value used in CAV23 paper is 5
 # number of toys to simulate
 NUM_TOYS_LIST = [0, 1, 2, 4, 8, 16]
 
@@ -25,7 +29,7 @@ output_dir = Path(__file__).resolve().parent.parent.parent / "logs"
 output_dir.mkdir(parents=True, exist_ok=True)
 
 supervisor = Supervisor()
-simulator = WebotsSimulator(supervisor)
+simulator = WebotsSimulator(supervisor, timestep=0.25)
 
 path = supervisor.getCustomData()
 
@@ -37,6 +41,7 @@ for numToys in NUM_TOYS_LIST:
     }
     scenario = scenic.scenarioFromFile(path, params=params)
     for i in range(ITERATION):
+        iter_seed = SEED + i
         filename = getFilename(duration=DURATION, numToys=numToys, iteration=i + 1)
         if (output_dir / filename).is_file():
             print(f"Skipping simulation for {numToys} toys, #{i + 1} iteration because the file already exists")
@@ -45,9 +50,14 @@ for numToys in NUM_TOYS_LIST:
 
         ts = datetime.now().strftime("%m-%d-%Y-%H-%M-%S")
 
+        random.seed(iter_seed)
+        numpy.random.seed(iter_seed)
+
         scene, _ = scenario.generate(maxIterations=float('inf'))
         sim_results = simulator.simulate(scene, verbosity=2).result
 
         s = json.dumps({"params": params, "results": sim_results.records}, indent=4)
         with open(output_dir / filename, "x") as f:
             f.write(s)
+
+supervisor.simulationQuit(0)
