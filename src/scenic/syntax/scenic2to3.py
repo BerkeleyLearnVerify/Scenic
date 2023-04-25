@@ -96,10 +96,11 @@ if __name__ == '__main__':
     parser.add_argument('output', help='filename for converted program')
 
     args = parser.parse_args()
-    if os.path.samefile(args.input, args.output):
-        raise RuntimeError('cannot use the same file for both input and output')
-    if os.path.exists(args.output) and not args.force:
-        raise RuntimeError('output file already exists (use -f to overwrite)')
+    if os.path.exists(args.output):
+        if not args.force:
+            raise RuntimeError('output file already exists (use -f to overwrite)')
+        if os.path.samefile(args.input, args.output):
+            raise RuntimeError('cannot use the same file for both input and output')
     params = {}
     for name, value in args.param:
         # Convert params to ints or floats if possible
