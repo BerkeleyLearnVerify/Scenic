@@ -254,7 +254,7 @@ class Orientation:
         return hash(tuple(self.q)) + hash(tuple(-self.q))
 
     @distributionFunction
-    def globalToLocalAngles(self, yaw, pitch, roll) -> tuple[float, float, float]:
+    def globalToLocalAngles(self, yaw, pitch, roll) -> typing.Tuple[float, float, float]:
         """Find Euler angles w.r.t. a given parent orientation."""
         orientation = Orientation.fromEuler(yaw, pitch, roll)
         inverseQuat = self.invertRotation()
