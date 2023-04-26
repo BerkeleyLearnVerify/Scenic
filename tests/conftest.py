@@ -8,6 +8,8 @@ import sys
 
 import pytest
 
+from scenic.syntax import buildParser
+
 ## Fixtures for use in tests
 
 @pytest.fixture
@@ -56,23 +58,7 @@ def pytest_configure(config):
     config.addinivalue_line('markers', 'graphical: mark test as requiring graphics')
 
     if not config.getoption("skip_pegen"):
-        projectRootDir = Path(__file__).parent.parent
-        syntaxDir = projectRootDir / "src" / "scenic" / "syntax"
-        grammar = syntaxDir / "scenic.gram"
-        parser = syntaxDir / "parser.py"
-        result = subprocess.run(
-            [
-                "python",
-                "-m",
-                "pegen",
-                grammar,
-                "-o",
-                parser,
-            ],
-            cwd=projectRootDir,
-            capture_output=True,
-            text=True,
-        )
+        result = buildParser()
         if result.returncode != 0:
             pytest.exit(f"Failed to generate the parser: {result.stderr}", result.returncode)
 
