@@ -288,6 +288,8 @@ def optionallyDebugRejection(exc=None):
 
 def getText(filename, lineno, line='', offset=0, end_offset=None):
     """Attempt to recover the text of an error from the original Scenic file."""
+    if not filename or filename in {'<stream>', '<string>', '<unknown>'}:
+        return line, offset, end_offset     # don't bother with the filesystem
     try:
         with open(filename, 'r') as f:
             line = list(itertools.islice(f, lineno-1, lineno))

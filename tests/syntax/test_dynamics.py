@@ -366,7 +366,7 @@ def test_terminate_when():
             flag = True
             take 2
         ego = new Object with behavior Foo
-        terminate when flag
+        terminate when flag as termCond
     """)
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (1, 2)

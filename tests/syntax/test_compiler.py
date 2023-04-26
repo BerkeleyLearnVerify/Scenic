@@ -394,6 +394,25 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_classdef_docstring(self):
+        node, _ = compileScenicAST(
+            ClassDef("C", [], [], [Expr(Constant("DOCSTRING"))], [])
+        )
+        match node:
+            case ClassDef(
+                name="C",
+                body=[
+                    Expr(Constant("DOCSTRING")),
+                    Assign(
+                        targets=[Name("_scenic_properties", Store())],
+                        value=Dict([], []),
+                    )
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
     def test_classdef_properties(self):
         node, _ = compileScenicAST(
             ClassDef(
@@ -401,6 +420,7 @@ class TestCompiler:
                 [],
                 [],
                 [
+                    Expr(Constant("DOCSTRING")),
                     PropertyDef("property1", [], Constant(1)),
                     PropertyDef("property2", [], Constant(2)),
                     Expr(Constant("hello")),
@@ -412,6 +432,7 @@ class TestCompiler:
             case ClassDef(
                 name="C",
                 body=[
+                    Expr(Constant("DOCSTRING")),
                     Assign(
                         targets=[Name("_scenic_properties", Store())],
                         value=Dict(
@@ -740,30 +761,51 @@ class TestCompiler:
                             args=[arg("input")],
                         ),
                         body=[
-                            If(
-                                test=UnaryOp(
-                                    op=Not(),
-                                    operand=Compare(
-                                        left=Attribute(
-                                            value=Name("_Scenic_current_behavior"),
-                                            attr="localvar",
-                                        ),
-                                        ops=[Gt()],
-                                        comparators=[Name("input")],
-                                    ),
-                                ),
+                            Try(
                                 body=[
-                                    Raise(
-                                        exc=Call(
-                                            func=Name("PreconditionViolation"),
-                                            args=[
-                                                Name("_Scenic_current_behavior"),
-                                                Constant(3),
-                                            ],
-                                        )
+                                    If(
+                                        test=UnaryOp(
+                                            op=Not(),
+                                            operand=Compare(
+                                                left=Attribute(
+                                                    value=Name("_Scenic_current_behavior"),
+                                                    attr="localvar",
+                                                ),
+                                                ops=[Gt()],
+                                                comparators=[Name("input")],
+                                            ),
+                                        ),
+                                        body=[
+                                            Raise(
+                                                exc=Call(
+                                                    func=Name("PreconditionViolation"),
+                                                    args=[
+                                                        Name("_Scenic_current_behavior"),
+                                                        Constant(3),
+                                                    ],
+                                                )
+                                            )
+                                        ],
                                     )
                                 ],
-                            )
+                                handlers=[
+                                    ExceptHandler(
+                                        type=Name("RejectionException"),
+                                        name='e',
+                                        body=[
+                                            Raise(
+                                                exc=Call(
+                                                    func=Name("PreconditionViolation"),
+                                                    args=[
+                                                        Name("_Scenic_current_behavior"),
+                                                        Constant(3),
+                                                    ]),
+                                                cause=Name("e"),
+                                            )
+                                        ]
+                                    )
+                                ]
+                            ),
                         ],
                     ),
                     FunctionDef(
@@ -776,35 +818,59 @@ class TestCompiler:
                             args=[arg("input")],
                         ),
                         body=[
-                            If(
-                                test=UnaryOp(
-                                    op=Not(),
-                                    operand=Compare(
-                                        left=Attribute(
-                                            value=Name("_Scenic_current_behavior"),
-                                            attr="localvar",
-                                        ),
-                                        ops=[Gt()],
-                                        comparators=[Name("input")],
-                                    ),
-                                ),
+                            Try(
                                 body=[
-                                    Raise(
-                                        exc=Call(
-                                            func=Name("InvariantViolation"),
-                                            args=[
-                                                Name("_Scenic_current_behavior"),
-                                                Constant(2),
-                                            ],
-                                        )
+                                    If(
+                                        test=UnaryOp(
+                                            op=Not(),
+                                            operand=Compare(
+                                                left=Attribute(
+                                                    value=Name("_Scenic_current_behavior"),
+                                                    attr="localvar",
+                                                ),
+                                                ops=[Gt()],
+                                                comparators=[Name("input")],
+                                            ),
+                                        ),
+                                        body=[
+                                            Raise(
+                                                exc=Call(
+                                                    func=Name("InvariantViolation"),
+                                                    args=[
+                                                        Name("_Scenic_current_behavior"),
+                                                        Constant(2),
+                                                    ],
+                                                )
+                                            )
+                                        ],
                                     )
                                 ],
-                            )
+                                handlers=[
+                                    ExceptHandler(
+                                        type=Name("RejectionException"),
+                                        name='e',
+                                        body=[
+                                            Raise(
+                                                exc=Call(
+                                                    func=Name("InvariantViolation"),
+                                                    args=[
+                                                        Name("_Scenic_current_behavior"),
+                                                        Constant(2),
+                                                    ]),
+                                                cause=Name("e"),
+                                            )
+                                        ]
+                                    )
+                                ]
+                            ),
                         ],
                     ),
                     Assign(
                         targets=[Name("_locals")],
-                        value=Constant(frozenset()),
+                        value=Call(
+                            func=Name("frozenset"),
+                            args=[Constant(value=("localvar",))],
+                        ),
                     ),
                     FunctionDef(
                         name="makeGenerator",
@@ -892,7 +958,10 @@ class TestCompiler:
                     ),
                     Assign(
                         targets=[Name("_locals")],
-                        value=Constant(value=frozenset()),
+                        value=Call(
+                            func=Name("frozenset"),
+                            args=[Constant(value=("localvar",))],
+                        ),
                     ),
                     FunctionDef(
                         name="makeGenerator",
@@ -976,7 +1045,10 @@ class TestCompiler:
                     ),
                     Assign(
                         targets=[Name("_locals")],
-                        value=Constant(value=frozenset()),
+                        value=Call(
+                            func=Name("frozenset"),
+                            args=[Constant(value=("localvar",))],
+                        ),
                     ),
                     FunctionDef(
                         name="makeGenerator",

@@ -159,7 +159,6 @@ class Map:
     @utils.cached
     def curbRegion(self):
         return PointSetRegion('curb', self.edges,
-                              kdTree=self.edgeTree,
                               orientation=self.roadDirection)
 
     def gridToScenicCoords(self, point):

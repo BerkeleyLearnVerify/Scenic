@@ -16,6 +16,7 @@ import pytest
 pygments = pytest.importorskip('pygments')
 import pygments.lexers, pygments.formatters
 
+import scenic.syntax.parser as parser
 from scenic.syntax.pygment import ScenicLexer, BetterPythonLexer
 
 testFiles = (
@@ -35,7 +36,7 @@ def test_sanity(request, name):
     if name.endswith('.py'):
         ast.parse(source)
     elif name.endswith('.scenic'):
-        pass    # TODO in 3.0, parse file here without running it
+        parser.parse_string(source, 'exec', filename=path)
     else:
         pytest.fail('unexpected test file extension')
 

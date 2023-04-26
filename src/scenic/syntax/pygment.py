@@ -238,6 +238,7 @@ class BetterPythonLexer(PythonLexer):
         'function-call': [
             # Use a specific token for called functions, and parse arguments
             (r'\)', Punctuation, '#pop'),
+            (r'\s+', Whitespace),
             (r'(self|cls)\b', Name.Builtin.Pseudo),
             include('magicfuncs'),
             include('magicvars'),
@@ -271,10 +272,13 @@ class ScenicLexer(BetterPythonLexer):
     uni_name = PythonLexer.uni_name
     obj_name = rf'(?:(ego)|({uni_name}))'
 
-    simple_spec = words(('at', 'offset by', 'offset along', 'left of', 'right of', 'ahead of',
-                          'behind', 'beyond', 'visible from', 'visible', 'not visible from',
-                          'not visible', 'in', 'on', 'following', 'facing toward',
-                          'facing away from', 'facing', 'apparently facing')).get()
+    simple_spec = words((
+        'at', 'offset by', 'offset along', 'left of', 'right of', 'ahead of',
+        'behind', 'beyond', 'visible from', 'visible', 'not visible from',
+        'not visible', 'in', 'on', 'contained in', 'following', 'facing toward',
+        'facing away from', 'facing directly toward', 'facing directly away from',
+        'facing', 'apparently facing',
+    )).get()
     specifier = rf'''
         \b(?<!\.) (?:
             (with) (\s+) ({uni_name})
@@ -282,7 +286,7 @@ class ScenicLexer(BetterPythonLexer):
         )\b'''
 
     simple_statements = words((
-        'simulator', 'param', 'require always', 'require eventually', 'require',
+        'simulator', 'param', 'require', 'require monitor',
         'terminate when', 'terminate after', 'mutate', 'record initial', 'record final',
         'record', 'take', 'wait', 'terminate', 'do choose', 'do shuffle', 'do', 'abort',
         'interrupt when',
@@ -290,9 +294,11 @@ class ScenicLexer(BetterPythonLexer):
 
     constructible_types = ('Point', 'OrientedPoint', 'Object')
     primitive_types = (
-        'Vector', 'VectorField', 'PolygonalVectorField',
+        'Vector', 'Orientation', 'VectorField', 'PolygonalVectorField',
+        'Shape', 'MeshShape', 'BoxShape', 'CylinderShape', 'ConeShape', 'SpheroidShape',
         'Region', 'PointSetRegion', 'RectangularRegion', 'CircularRegion',
-        'SectorRegion', 'PolygonalRegion', 'PolylineRegion',
+        'SectorRegion', 'PolygonalRegion', 'PolylineRegion', 'PathRegion',
+        'MeshVolumeRegion', 'MeshSurfaceRegion', 'BoxRegion', 'SpheroidRegion',
         'Workspace',
         'Range', 'DiscreteRange', 'Options', 'Discrete', 'Uniform',
         'Normal', 'TruncatedNormal',
@@ -305,13 +311,7 @@ class ScenicLexer(BetterPythonLexer):
         'sin', 'cos', 'hypot',
     )
     magic_names = ('ego', 'workspace', 'globalParameters')
-
-    capital_consts = ('True', 'False', 'None', 'NotImplemented', 'Ellipsis')
-    nonclass_names = words(primitive_types + exceptions + capital_consts,
-                           suffix=r'\b').get()
-    nonclass_names = '(?:' + nonclass_names[1:] # make non-capturing
     builtin_classes = words(constructible_types, suffix=r'\b').get()
-    class_name = rf'(?:{builtin_classes}|(?=[{uni.Lu}]\w)(?!{nonclass_names})({uni_name}))'
 
     tokens = {
         'extra-statements': [
@@ -329,9 +329,13 @@ class ScenicLexer(BetterPythonLexer):
                       Whitespace, Name.Variable.Magic, Name, Whitespace),
              'specifier-start'),
             # Param statement
-            (rf'^(\s*)(param)(\s*)',
+            (r'^(\s*)(param)(\s*)',
              bygroups(Whitespace, Keyword, Whitespace),
              'param-statement'),
+            # Require statement (within which we can have temporal operators)
+            (r'^(\s*)(require)(\s*)(?!monitor)',
+             bygroups(Whitespace, Keyword, Whitespace),
+             'require-statement'),
             # Keywords that can only occur at the start of a line
             (rf'^(\s*)({simple_statements})', bygroups(Whitespace, Keyword)),
             (r'^(\s*)(try|setup|compose|precondition|invariant)(:)',
@@ -347,24 +351,11 @@ class ScenicLexer(BetterPythonLexer):
                     | (?= : \s* [^\s\#]))''',
              bygroups(Whitespace, Name.Variable.Instance, Whitespace, Punctuation),
              'property-declaration'),
-            # Instance creations, broken into two cases.
-            # The easy case is if the name of the class is followed by a specifier: then
-            # we know for sure that this is an instance creation.
+            # Instance creations
             (rf'''(?x)
-                {class_name} ([^\S\n]*)
-                (?= {specifier})''',
-             bygroups(Name.Builtin.Instance, Name.Class.Instance, Whitespace),
-             'specifier-start'),
-            # The hard case: a creation with no specifiers at all. This is ambiguous
-            # without knowing which names are Scenic classes, so we look for the most
-            # common cases (see class_name for the permitted names).
-            (rf'''(?x)
-                ^(\s*)
-                (?: {obj_name} (\s*) (=) | (return))? (\s*)
-                {class_name} ([^\S\n]*)
-                (?= (\#.*)? $)''',
-             bygroups(Whitespace,
-                      Name.Variable.Magic, Name, Whitespace, Operator, Keyword, Whitespace,
+                (new) ([^\S\n]+)
+                (?:{builtin_classes}|({uni_name})) ([^\S\n]*)''',
+             bygroups(Keyword, Whitespace,
                       Name.Builtin.Instance, Name.Class.Instance, Whitespace),
              'specifier-start'),
         ],
@@ -387,6 +378,18 @@ class ScenicLexer(BetterPythonLexer):
              bygroups(Name.Variable.Global, Whitespace, Operator, Whitespace)),
             include('expr'),
             (r'(\#.*)?\n', Comment.Single, '#pop'),
+        ],
+        'require-statement': [
+            (words(('always', 'eventually', 'next', 'until', 'implies'), suffix=r'\b'),
+             Keyword),
+            (r'\(', Punctuation, 'require-parens'),
+            include('expr'),
+            (r'(\#.*)?\n', Comment.Single, '#pop'),
+        ],
+        'require-parens': [
+            (r'\)', Punctuation, '#pop'),
+            (r'\n', Whitespace),
+            include('require-statement'),
         ],
         'property-declaration': [
             (words(('additive', 'dynamic', 'final'), suffix=r'\b'), Keyword.Pseudo),
@@ -413,10 +416,11 @@ class ScenicLexer(BetterPythonLexer):
         'extra-exprs': [
             # Operators
             (words(('deg', 'relative heading of', 'apparent heading of', 'distance from',
-                    'distance to', 'distance past', 'angle from', 'angle to', 'can see', 'at',
+                    'distance to', 'distance past', 'angle from', 'angle to',
+                    'altitude from', 'altitude to', 'can see', 'at',
                     'relative to', 'offset by', 'offset along', 'visible', 'not visible',
                     'front of', 'back of', 'left of', 'right of',
-                    'front left of', 'front right of', 'back left of', 'back right of',),
+                    'front left of', 'front right of', 'back left of', 'back right of'),
                    prefix=r'(?<!\.)', suffix=r'\b'), Operator.Word),
             # Keywords that can occur anywhere (w.r.t. our simple analysis)
             (words(('initial scenario', 'until', 'to', 'by', 'from'),
@@ -435,7 +439,9 @@ class ScenicLexer(BetterPythonLexer):
 
     def analyse_text(text):
         score = 0
-        if 'ego =' in text:
+        if 'new Object' in text:
+            score += 0.2
+        if 'ego = new ' in text:
             score += 0.2
         if ' facing ' in text:
             score += 0.2

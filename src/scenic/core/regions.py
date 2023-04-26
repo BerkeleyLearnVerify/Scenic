@@ -2246,7 +2246,8 @@ class PolylineRegion(Region):
             points = tuple(toVector(pt).coordinates for pt in points)
 
             if any(point[2] != 0 for point in points):
-                warnings.warn("'points' passed to PolylineRegion contain non 0 z component values. These will be replaced with 0.")
+                warnings.warn('"points" passed to PolylineRegion have nonzero Z'
+                              ' components. These will be replaced with 0.')
 
             points = tuple((x,y,0) for x,y,_ in points)
 

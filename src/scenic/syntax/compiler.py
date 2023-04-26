@@ -14,7 +14,7 @@ from scenic.core.errors import getText, ScenicSyntaxError, ScenicParseError
 def compileScenicAST(
     scenicAST: ast.AST,
     *,
-    filename: Optional[str] = None,
+    filename: str = '<unknown>',
     inBehavior: bool = False,
     inMonitor: bool = False,
     inCompose: bool = False,
@@ -736,9 +736,12 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         # extract all property definitions
         propertyDefs: List[s.PropertyDef] = []
         newBody = []
+        propSpot = None
         for stmt in node.body:
             if isinstance(stmt, s.PropertyDef):
                 propertyDefs.append(stmt)
+                if propSpot is None:
+                    propSpot = len(newBody)
             else:
                 newBody.append(stmt)
 
@@ -752,7 +755,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             propertyDict[propertyDef.property] = propertyDef
 
         newBody.insert(
-            0,
+            len(newBody) if propSpot is None else propSpot,
             ast.Assign(
                 targets=[ast.Name(id="_scenic_properties", ctx=ast.Store())],
                 value=ast.Dict(
@@ -925,10 +928,12 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 orelse=[],
             )
 
+            chained_throw = ast.Raise(exc=call, cause=ast.Name("e", loadCtx))
+
             catch = ast.ExceptHandler(
                 type=ast.Name("RejectionException", loadCtx),
-                name=None,
-                body=[throw]
+                name='e',
+                body=[chained_throw]
             )
 
             wrapped_check = ast.Try(
@@ -1294,13 +1299,13 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     @context(Context.TOP_LEVEL)
     def visit_TerminateWhen(self, node: s.TerminateWhen):
         return self.createRequirementLike(
-            "terminate_when", node.cond, node.lineno, None
+            "terminate_when", node.cond, node.lineno, node.name
         )
 
     @context(Context.TOP_LEVEL)
     def visit_TerminateSimulationWhen(self, node: s.TerminateSimulationWhen):
         return self.createRequirementLike(
-            "terminate_simulation_when", node.cond, node.lineno
+            "terminate_simulation_when", node.cond, node.lineno, node.name
         )
 
     def createRequirementLike(
