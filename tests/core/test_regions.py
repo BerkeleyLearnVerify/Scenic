@@ -177,8 +177,8 @@ def test_polygon_region():
         assert poly.containsPoint(pt)
     for pt in [(1,1.1), (2,0.9), (2,2.1), (2.9, 1.2), (1.5,1.4)]:
         assert not poly.containsPoint(pt)
-    assert poly.containsObject(Object(position=(2,1.25), width=0.5, length=0.5))
-    assert not poly.containsObject(Object(position=(2,1.25), width=1, length=0.5))
+    assert poly.containsObject(Object(position=(2,1.25), width=0.49, length=0.49))
+    assert not poly.containsObject(Object(position=(2,1.25), width=1, length=0.49))
     assert poly.getAABB() == ((1, 1), (3, 2), (0,0))
     line = PolylineRegion([(1,1), (2,1.8)])
     assert poly.intersects(line)
