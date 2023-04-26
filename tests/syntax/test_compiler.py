@@ -394,6 +394,25 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_classdef_docstring(self):
+        node, _ = compileScenicAST(
+            ClassDef("C", [], [], [Expr(Constant("DOCSTRING"))], [])
+        )
+        match node:
+            case ClassDef(
+                name="C",
+                body=[
+                    Expr(Constant("DOCSTRING")),
+                    Assign(
+                        targets=[Name("_scenic_properties", Store())],
+                        value=Dict([], []),
+                    )
+                ],
+            ):
+                assert True
+            case _:
+                assert False
+
     def test_classdef_properties(self):
         node, _ = compileScenicAST(
             ClassDef(

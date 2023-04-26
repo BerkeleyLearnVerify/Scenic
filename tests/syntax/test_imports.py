@@ -138,6 +138,8 @@ def test_import_override_param():
     assert scene.params['helper_file'] != 'foo'
 
 def test_module_get_source():
+    if sys.version_info < (3, 9):
+        pytest.importorskip('astor')
     try:
         import tests.syntax.helper4 as h4
         src = h4.__loader__.get_source('tests.syntax.helper4')

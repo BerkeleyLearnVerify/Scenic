@@ -24,7 +24,7 @@ stuff = filter(lambda thing={}: bool(thing["foo"]),
                ({ "foo": 12.2, },))
 lambda x, *args, \
     **kwargs: NotImplemented
-lots   ( of  ,  whitespace    =  12 )
+lots   ( of_  ,  whitespace    =  12 )
 next (it)           # not a temporal operator
 thing = newObject   # not an object definition
 
@@ -70,7 +70,7 @@ require[0.5] (apparent heading of spot) > 0 as 'quoted name'
 require always 3 <= (distance to other) <= 10
 require eventually (angle from other to front of spot) < 1
 require eventually X or (always Y)
-#require X until Y
+require X until Y
 require always (X < 5 implies (next x > 5))
 terminate when ego can see back right of other
 terminate when (other in visible region) as MyTerminationCondition

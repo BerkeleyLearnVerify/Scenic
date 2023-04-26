@@ -1,7 +1,9 @@
 
+import math
+import sys
+
 import matplotlib.pyplot as plt
 import pytest
-import math
 
 import scenic
 from scenic import scenarioFromString
@@ -137,7 +139,7 @@ def test_verbose():
         compileScenic('ego = new Object')
     setDebuggingOptions(verbosity=1)
 
-def test_dump_python():
+def test_dump_ast():
     scenic.syntax.translator.dumpScenicAST = True
     try:
         compileScenic('ego = new Object')
@@ -150,7 +152,8 @@ def test_dump_python():
         scenic.syntax.translator.dumpFinalAST = False
 
 def test_dump_final_python():
-    pytest.importorskip('astor')
+    if sys.version_info < (3, 9):
+        pytest.importorskip('astor')
     scenic.syntax.translator.dumpASTPython = True
     try:
         compileScenic('ego = new Object')

@@ -755,7 +755,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             propertyDict[propertyDef.property] = propertyDef
 
         newBody.insert(
-            0 if propSpot is None else propSpot,
+            len(newBody) if propSpot is None else propSpot,
             ast.Assign(
                 targets=[ast.Name(id="_scenic_properties", ctx=ast.Store())],
                 value=ast.Dict(
