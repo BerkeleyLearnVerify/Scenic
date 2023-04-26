@@ -202,7 +202,7 @@ class Orientation:
         return canCoerceType(ty, float) or issubclass(ty, Orientation) or hasattr(ty, 'toOrientation')
 
     @cached_property
-    def eulerAngles(self) -> tuple[float, float, float]:
+    def eulerAngles(self) -> typing.Tuple[float, float, float]:
         """Global intrinsic Euler angles yaw, pitch, roll."""
         r = Rotation.from_quat(self.q)
         
@@ -254,7 +254,7 @@ class Orientation:
         return hash(tuple(self.q)) + hash(tuple(-self.q))
 
     @distributionFunction
-    def globalToLocalAngles(self, yaw, pitch, roll) -> tuple[float, float, float]:
+    def globalToLocalAngles(self, yaw, pitch, roll) -> typing.Tuple[float, float, float]:
         """Find Euler angles w.r.t. a given parent orientation."""
         orientation = Orientation.fromEuler(yaw, pitch, roll)
         inverseQuat = self.invertRotation()
