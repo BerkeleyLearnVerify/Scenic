@@ -1562,11 +1562,7 @@ class PolygonalFootprintRegion(Region):
             obj: An object to be checked for containment.
         """
         # PASS 1
-        # If the polygon is convex then so is this region, so we can first check if all
-        # all points of the object's bounding box are contained in the region. If so
-        # the object must be contained
-        if all(self.containsPoint(corner) for corner in obj.corners):
-            return True
+        # TODO: Check exploiting convexity?
 
         # PASS 2
         # Compute a bounded footprint that covers the object and then check containment

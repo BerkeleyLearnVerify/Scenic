@@ -16,7 +16,7 @@ def getFilename(duration: int, numToys: int, iteration: int) -> str:
 
 # CONSTANTS
 
-SEED = 42
+SEED = 44
 # how many times perform simulations?
 ITERATION = 25 # Value used in CAV23 paper is 25
 # how long to run simulation for (minutes)

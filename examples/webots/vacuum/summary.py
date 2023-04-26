@@ -70,15 +70,17 @@ def main(debug=False, plot=False):
             "sample": len(fractions),
             "mean": mean(fractions),
             "median": median(fractions),
-            "stdev": stdev(fractions)
+            "stdev": stdev(fractions),
+            "mean robustness": (mean(fractions) - .33)
         }
         print(f"coverage for {numToys} toy(s)")
         for key, value in stat.items():
             print(f"    {key}: {value}")
-        print("Raw Data:")
-        for val in fractions:
-            print("{:.2%}".format(val))
-        print()
+        if debug:
+            print("Raw Data:")
+            for val in fractions:
+                print("{:.2%}".format(val))
+            print()
 
 # Plots a Polygon to pyplot `ax`
 def plot_polygon(ax, poly, **kwargs):
@@ -96,4 +98,4 @@ def plot_polygon(ax, poly, **kwargs):
 
 
 if __name__ == "__main__":
-    main(debug=True)
+    main()

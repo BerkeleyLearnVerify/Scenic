@@ -83,10 +83,6 @@ class MeshShape(Shape):
         self._mesh = mesh.copy()
         self._mesh.vertices -= self._mesh.bounding_box.center_mass
 
-        # If dimensions are not specified, infer them.
-        if dimensions is None:
-            dimensions = list(self._mesh.extents)
-
         # If rotation is provided, apply rotation
         if initial_rotation is not None:
             if needsSampling(initial_rotation):
@@ -96,6 +92,10 @@ class MeshShape(Shape):
             rotation = Orientation.fromEuler(*initial_rotation)
             rotation_matrix = quaternion_matrix((rotation.w, rotation.x, rotation.y, rotation.z))
             self._mesh.apply_transform(rotation_matrix)
+
+        # If dimensions are not specified, infer them.
+        if dimensions is None:
+            dimensions = list(self._mesh.extents)
 
         # Scale mesh to unit size
         scale_vals = self._mesh.extents / numpy.array([1,1,1])
