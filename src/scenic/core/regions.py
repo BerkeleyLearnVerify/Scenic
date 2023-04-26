@@ -1257,6 +1257,11 @@ class MeshVolumeRegion(MeshRegion):
 
     @cached_property
     def isConvex(self):
+        #TODO: This is giving bogus responses for multi-convex volume meshes. Workaround
+        # is to check body count, but we should file an issue.
+        if self.mesh.body_count != 1:
+            return False
+
         return self.mesh.is_convex
 
     @property
@@ -1659,7 +1664,7 @@ class PolygonalFootprintRegion(Region):
     @cached_property
     def isConvex(self):
         return self.polygons.equals(self.polygons.convex_hull)
-    
+
 class PathRegion(Region):
     def __init__(self, points=None, polylines=None):
         """ A region composed of multiple polylines in 3D space.
