@@ -1706,10 +1706,6 @@ class PathRegion(Region):
         self.vert_to_vec = {val:key for key,val in self.vec_to_vert.items()}
         self.vertices = list(sorted(self.vec_to_vert.keys(), key=lambda vec: self.vec_to_vert[vec]))
 
-        # TODO: Detect where lines intersect to remove duplication
-        warnings.warn("Currently PathRegion does not check for overlapping line segments."
-                      "If points or polylines has overlap, sampling a point will not be exactly uniform.")
-
         # Extract length of each edge
         self.edge_lengths = []
 
