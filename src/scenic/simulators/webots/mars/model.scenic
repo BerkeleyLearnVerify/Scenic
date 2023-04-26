@@ -14,35 +14,42 @@ class Goal(WebotsObject):
     width: 0.3
     length: 0.3
     webotsType: 'GOAL'
+    positionOffset: (0, 0, self.height/2)
 
 class Rover(WebotsObject):
     """Mars rover."""
     width: 0.5
     length: 0.7
+    height: 0.4
     webotsType: 'ROVER'
-    rotationOffset: 90 deg
+    orientationOffset: (90 deg, 0, 0)
+    positionOffset: (0, 0, self.height/2)
 
 class Debris(WebotsObject):
     """Abstract class for debris scattered randomly in the workspace."""
     position: new Point in workspace
-    heading: Range(0, 360) deg
+    parentOrientation: Range(0, 360) deg
+    positionOffset: Vector(0,0, -self.height/2)
 
 class BigRock(Debris):
     """Large rock."""
     width: 0.17
     length: 0.17
+    height: 0.17
     webotsType: 'ROCK_BIG'
 
 class Rock(Debris):
     """Small rock."""
     width: 0.10
     length: 0.10
+    height: 0.10
     webotsType: 'ROCK_SMALL'
 
 class Pipe(Debris):
     """Pipe with variable length."""
     width: 0.2
     length: Range(0.5, 1.5)
+    height: self.width
     webotsType: 'PIPE'
 
     def startDynamicSimulation(self):
