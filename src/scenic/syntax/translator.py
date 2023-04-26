@@ -208,29 +208,24 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>',
 
     The compilation procedure consists of the following main steps:
 
-        1. Tokenize the input using the Python tokenizer.
-        2. Partition the tokens into blocks separated by import statements.
-           This is done by the `partitionByImports` function.
-        3. Translate Scenic constructions into valid Python syntax.
-           This is done by the `TokenTranslator`.
-        4. Parse the resulting Python code into an AST using the Python parser.
-        5. Modify the AST to achieve the desired semantics for Scenic.
-           This is done by the `translateParseTree` function.
-        6. Compile and execute the modified AST.
-        7. After executing all blocks, extract the global state (e.g. objects).
+        1. Parse the Scenic code into a Scenic AST using the parser generated
+           by ``pegen`` from :file:`scenic.gram`.
+        2. Compile the Scenic AST into a Python AST with the desired semantics.
+           This is done by the compiler, `scenic.syntax.compiler`.
+        3. Compile and execute the Python AST.
+        4. Extract the global state (e.g. objects).
            This is done by the `storeScenarioStateIn` function.
     """
     if errors.verbosityLevel >= 2:
         veneer.verbosePrint(f'  Compiling Scenic module from {filename}...')
         startTime = time.time()
     veneer.activate(params, model, filename, namespace, mode_2d)
-    newSourceBlocks = []
     try:
         # Execute preamble
         exec(compile(preamble, '<veneer>', 'exec'), namespace)
         namespace[namespaceReference] = namespace
 
-        # Parse the translated source
+        # Parse the source
         source = stream.read().decode('utf-8')
         scenic_tree = parse_string(source, "exec", filename=filename)
 
@@ -239,6 +234,7 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>',
             print(dump(scenic_tree, include_attributes=False, indent=4))
             print('### End Scenic AST')
 
+        # Compile the Scenic AST into a Python AST
         tree, requirements = compileScenicAST(scenic_tree, filename=filename)
         astHasher = hashlib.blake2b(digest_size=4)
         astHasher.update(ast.dump(tree).encode())
@@ -248,17 +244,16 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>',
             print(dump(tree, include_attributes=True, indent=4))
             print('### End final AST')
 
+        pythonSource = astToSource(tree)
         if dumpASTPython:
-            try:
-                import astor
-            except ModuleNotFoundError as e:
+            if pythonSource is None:
                 raise RuntimeError('dumping the Python equivalent of the AST'
-                                    'requires the astor package')
+                                   ' requires the astor package')
             print(f'### Begin Python equivalent of final AST of {filename}')
-            print(astor.to_source(tree, add_line_information=True))
+            print(pythonSource)
             print('### End Python equivalent of final AST')
 
-        # Compile the modified tree
+        # Compile the Python AST tree
         code = compileTranslatedTree(tree, filename)
 
         # Execute it
@@ -272,8 +267,7 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>',
     if errors.verbosityLevel >= 2:
         totalTime = time.time() - startTime
         veneer.verbosePrint(f'  Compiled Scenic module in {totalTime:.4g} seconds.')
-    allNewSource = ''.join(newSourceBlocks)
-    return code, allNewSource
+    return code, pythonSource
 
 def dump(node: ast.AST, annotate_fields: bool = True, include_attributes: bool = False, *, indent: int):
     if sys.version_info >= (3, 9):
@@ -281,6 +275,15 @@ def dump(node: ast.AST, annotate_fields: bool = True, include_attributes: bool =
     else:
         # omit `indent` if not supported
         print(ast.dump(node, annotate_fields, include_attributes))
+
+def astToSource(tree: ast.AST):
+    if sys.version_info >= (3, 9):
+        return ast.unparse(tree)
+    try:
+        import astor
+    except ModuleNotFoundError:
+        return None
+    return astor.to_source(tree)
 
 ### TRANSLATION PHASE ZERO: definitions of language elements not already in Python
 

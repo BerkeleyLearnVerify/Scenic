@@ -6,6 +6,8 @@ system of modular scenarios is tested in 'test_modular.py'.
 """
 
 import os.path
+import sys
+
 import pytest
 
 from scenic import scenarioFromFile
@@ -134,6 +136,14 @@ def test_import_override_param():
         ego = new Object
     """)
     assert scene.params['helper_file'] != 'foo'
+
+def test_module_get_source():
+    try:
+        import tests.syntax.helper4 as h4
+        src = h4.__loader__.get_source('tests.syntax.helper4')
+        assert src
+    finally:
+        del sys.modules['tests.syntax.helper4']
 
 def test_model_not_override_param():
     scene = sampleSceneFrom("""
