@@ -70,7 +70,7 @@ def main(debug=False, plot=False):
             "sample": len(fractions),
             "mean": mean(fractions),
             "median": median(fractions),
-            "stdev": stdev(fractions),
+            "stdev": stdev(fractions) if len(fractions) > 1 else None,
             "mean robustness": (mean(fractions) - .33)
         }
         print(f"coverage for {numToys} toy(s)")
