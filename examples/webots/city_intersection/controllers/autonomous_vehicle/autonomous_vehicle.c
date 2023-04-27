@@ -431,9 +431,6 @@ int main(int argc, char **argv) {
           wbu_driver_set_brake_intensity(0.4);
           PID_need_reset = true;
         }
-
-        // Save camera image
-        wb_camera_save_image(camera, "../../images/live_img.jpeg", 60);
       }
 
       // update stuff
@@ -442,7 +439,8 @@ int main(int argc, char **argv) {
       if (enable_display)
         update_display();
         
-
+      // Save camera image
+      wb_camera_save_image(camera, "../../images/live_img.jpeg", 60);
 
     }
 
