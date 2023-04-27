@@ -438,10 +438,11 @@ int main(int argc, char **argv) {
         compute_gps_speed();
       if (enable_display)
         update_display();
-        
+    }
+
+    if (i % (int)((10*TIME_STEP) / wb_robot_get_basic_time_step()) == 0) {
       // Save camera image
       wb_camera_save_image(camera, "../../images/live_img.jpeg", 60);
-
     }
 
     ++i;

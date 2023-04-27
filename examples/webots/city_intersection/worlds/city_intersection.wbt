@@ -200,8 +200,8 @@ DEF EGO BmwX5 {
         }
       ]
       fieldOfView 1.5
-      width 960
-      height 540
+      width 1920p
+      height 1080
     }
   ]
   sensorsSlotCenter [
