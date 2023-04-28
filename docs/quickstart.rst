@@ -76,11 +76,11 @@ Here are a few for different simulators:
 	$ scenic --2d examples/webots/road/crossing.scenic
 
 .. image:: images/pedestrian.png
-   :width: 36%
+   :width: 29%
 .. image:: images/narrowGoal.png
-   :width: 26%
+   :width: 39%
 .. image:: images/crossing.png
-   :width: 36%
+   :width: 29%
 
 The :command:`scenic` command has options for setting the random seed, running dynamic
 simulations, printing debugging information, etc.: see :ref:`options`.
