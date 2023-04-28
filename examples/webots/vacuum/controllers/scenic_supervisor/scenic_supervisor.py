@@ -39,7 +39,6 @@ for numToys in NUM_TOYS_LIST:
     }
     scenario = scenic.scenarioFromFile(path, params=params)
     for i in range(ITERATION):
-        supervisor = Supervisor()
         simulator = WebotsSimulator(supervisor, timestep=0.25)
 
         iter_seed = SEED + i
