@@ -28,9 +28,6 @@ NUM_TOYS_LIST = [0, 1, 2, 4, 8, 16]
 output_dir = Path(__file__).resolve().parent.parent.parent / "logs"
 output_dir.mkdir(parents=True, exist_ok=True)
 
-supervisor = Supervisor()
-simulator = WebotsSimulator(supervisor, timestep=0.25)
-
 path = supervisor.getCustomData()
 
 for numToys in NUM_TOYS_LIST:
@@ -41,6 +38,9 @@ for numToys in NUM_TOYS_LIST:
     }
     scenario = scenic.scenarioFromFile(path, params=params)
     for i in range(ITERATION):
+        supervisor = Supervisor()
+        simulator = WebotsSimulator(supervisor, timestep=0.25)
+        
         iter_seed = SEED + i
         filename = getFilename(duration=DURATION, numToys=numToys, iteration=i + 1)
         if (output_dir / filename).is_file():
