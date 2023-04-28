@@ -5,11 +5,10 @@ Scenic Fundamentals
 
 This tutorial motivates and illustrates the main features of Scenic, focusing on aspects
 of the language that make it particularly well-suited for describing geometric scenarios.
-We begin with by walking through Scenic's core features from first principles, using simple
-toy examples shown using Scenic's built in visualizer. We then consider several in depth 
-examples: using Scenic to generate traffic scenes to test and train autonomous cars (as in [F22]_, [F19]_)
+We begin by walking through Scenic's core features from first principles, using simple
+toy examples displayed in Scenic's built-in visualizer. We then consider discuss two case studies in depth: using Scenic to generate traffic scenes to test and train autonomous cars (as in [F22]_, [F19]_),
 and testing a motion planning algorithm for a Mars rover able to climb over rocks. These examples
-show Scenic interfacing with actual simulators, and show how it can be applied to real problems.
+show Scenic interfacing with actual simulators, and demonstrate how it can be applied to real problems.
 
 We'll focus here on the *spatial* aspects of scenarios; for adding *temporal* dynamics to a scenario, see our page on :ref:`dynamics`.
 
@@ -26,9 +25,9 @@ To start with, we'll construct a very basic Scenic program:
 Running this program should cause a window to pop up, looking like this:
 
 .. figure:: /images/ego_box.png
-  :width: 60%
+  :width: 40%
   :figclass: align-center
-  :alt: Simple scenario with an ego box, rendered with Scenic's built in visualizer.
+  :alt: Simple scenario with an ego box, rendered with Scenic's built-in visualizer.
 
 You can rotate and move the camera of the visualizer around using the mouse. The only `Object` currently present is the one we created using the ``new`` command
 (rendered as a green box). Since we assigned this object to the ``ego`` name, it has special significance to Scenic, as we'll see later. For now it only has the effect of highlighting the

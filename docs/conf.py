@@ -47,6 +47,7 @@ veneer.deactivate()
 # Hack to allow importing models which require 2D compatibility mode
 veneer.activate(mode_2d=True)
 import scenic.simulators.gta.model
+import scenic.simulators.webots.road.model
 veneer.deactivate()
 
 # -- Project information -----------------------------------------------------

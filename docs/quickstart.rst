@@ -50,11 +50,11 @@ This will compile the Scenic program and sample from it (which may take several 
 	:width: 50%
 
 The green cylinder is the vacuum, surrounded by various pieces of furniture in a room (the coordinate axes in the center are provided to help clarify orientation).
-The camera angle can be adjusted by clicking and dragging.
-If you close the window, Scenic will sample another scene from the same scenario and display it.
-This will repeat until you kill the generator (:kbd:`Control-c` in Linux; right-clicking on the Dock icon and selecting Quit on OS X).
+You can adjust the camera angle by clicking and dragging, and zoom in and out using the mouse wheel.
+If you close the window or press :kbd:`q`, Scenic will sample another scene from the same scenario and display it.
+This will repeat until you kill the generator (:kbd:`Control-c` in the terminal on Linux; :kbd:`Command-q` in the viewer window on MacOS).
 
-Some scenarios were written for older versions of Scenic, which were entirely 2D. Those scenarios should be run using the ``--2d`` flag, which will enable 2D backwards compatibility mode. Information about whether or not the ``--2d`` flag should be used can be found in the Readme of each example directory.
+Some scenarios were written for older versions of Scenic, which were entirely 2D. Those scenarios should be run using the ``--2d`` command-line option, which will enable 2D backwards-compatibility mode. Information about whether or not the ``--2d`` flag should be used can be found in the :file:`README` of each example directory.
 
 One such scenario is the badly-parked car example from our GTA case study, which can be run with the following command:
 
@@ -62,11 +62,12 @@ One such scenario is the badly-parked car example from our GTA case study, which
 
 	$ scenic --2d examples/gta/badlyParkedCar2.scenic
 
-The output will be using the legacy 2D viewer, and should look something like this:
+This will open Scenic's 2D viewer, and should look something like this:
 
 .. image:: images/badlyParkedCar2.png
 
 Here the circled rectangle is the ego car; its view cone extends to the right, where we see another car parked rather poorly at the side of the road (the white lines are curbs).
+(Note that on MacOS, scene generation with the 2D viewer is stopped differently than with the 3D viewer: right-click on its icon in the Dock and select Quit.)
 
 Scenarios for the other simulators can be viewed in the same way.
 Here are a few for different simulators:
@@ -92,7 +93,7 @@ Learning More
 
 Depending on what you'd like to do with Scenic, different parts of the documentation may be helpful:
 
-	* If you want to start learning how to write Scenic programs, see the :ref:`tutorial`.
+	* If you want to start learning how to write Scenic programs, see :ref:`tutorial`.
 
 	* If you want to learn how to write dynamic scenarios in Scenic, see :ref:`dynamics`.
 
