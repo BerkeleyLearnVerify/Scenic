@@ -202,7 +202,7 @@ try:
                         scene.show(zoom=args.zoom)
                 else:
                     if mode_2d:
-                        scene.show(zoom=args.zoom, block=False)
+                        scene.show_2d(zoom=args.zoom, block=False)
                         plt.pause(delay)
                         plt.clf()
                     else:
