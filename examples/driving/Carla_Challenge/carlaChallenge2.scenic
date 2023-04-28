@@ -24,8 +24,8 @@ LEADCAR_BRAKING_THRESHOLD = 15
 
 #EGO BEHAVIOR: Follow lane, and brake after passing a threshold distance to the leading car
 behavior EgoBehavior(speed=10):
-    
-    try: 
+
+    try:
         do FollowLaneBehavior(speed)
 
     interrupt when withinDistanceToAnyCars(self, EGO_BRAKING_THRESHOLD):
@@ -34,7 +34,7 @@ behavior EgoBehavior(speed=10):
 #LEAD CAR BEHAVIOR: Follow lane, and brake after passing a threshold distance to obstacle
 behavior LeadingCarBehavior(speed=10):
 
-    try: 
+    try:
         do FollowLaneBehavior(speed)
 
     interrupt when withinDistanceToAnyCars(self, LEADCAR_BRAKING_THRESHOLD):
@@ -44,12 +44,12 @@ behavior LeadingCarBehavior(speed=10):
 lane = Uniform(*network.lanes)
 
 #PLACEMENT
-obstacle = Car on lane
+obstacle = new Car on lane
 
-leadCar = Car following roadDirection from obstacle for LEADCAR_TO_OBSTACLE,
+leadCar = new Car following roadDirection from obstacle for LEADCAR_TO_OBSTACLE,
     with behavior LeadingCarBehavior(LEAD_CAR_SPEED)
 
-ego = Car following roadDirection from leadCar for EGO_TO_LEADCAR,
+ego = new Car following roadDirection from leadCar for EGO_TO_LEADCAR,
     with behavior EgoBehavior(EGO_SPEED)
 
 

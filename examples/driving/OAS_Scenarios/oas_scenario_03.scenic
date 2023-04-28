@@ -6,7 +6,7 @@ The ego vehicle follows the lead car
 param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town04.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town04'
 model scenic.domains.driving.model
-    
+
 SAFETY_DISTANCE = 10
 INITIAL_DISTANCE_APART = -10
 
@@ -17,7 +17,7 @@ behavior CollisionAvoidance(brake_intensity=0.3):
 
 behavior FollowLeadCarBehavior():
 
-    try: 
+    try:
         do FollowLaneBehavior()
 
     interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
@@ -28,9 +28,9 @@ roads = network.roads
 select_road = Uniform(*roads)
 select_lane = Uniform(*select_road.lanes)
 
-leadCar = Car on select_lane.centerline,
+leadCar = new Car on select_lane.centerline,
         with behavior FollowLaneBehavior()
 
-ego = Car following roadDirection from leadCar for INITIAL_DISTANCE_APART,
+ego = new Car following roadDirection from leadCar for INITIAL_DISTANCE_APART,
         with behavior FollowLeadCarBehavior()
 

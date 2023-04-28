@@ -3,6 +3,6 @@ param map = localPath('../../tests/formats/opendrive/maps/CARLA/Town01.xodr')
 
 model scenic.domains.driving.model
 
-ego = Car
+ego = new Car
 
-Pedestrian on visible ego.oppositeLaneGroup.sidewalk
+new Pedestrian on visible ego.oppositeLaneGroup.sidewalk

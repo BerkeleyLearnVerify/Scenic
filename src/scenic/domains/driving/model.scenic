@@ -260,7 +260,7 @@ class Vehicle(DrivingObject):
     """
     regionContainedIn: roadOrShoulder
     position: new Point on road
-    parentOrientation: roadDirection at self.position
+    heading: roadDirection at self.position
     yaw: self.roadDeviation
     roadDeviation: 0
     viewAngle: 90 deg

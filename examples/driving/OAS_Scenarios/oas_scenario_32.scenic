@@ -37,7 +37,7 @@ behavior SafeBehavior(thresholdDistance, target_speed=10, trajectory = None):
     assert trajectory is not None
     brakeIntensity = 0.7
 
-    try: 
+    try:
         do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
         terminate
 
@@ -45,9 +45,9 @@ behavior SafeBehavior(thresholdDistance, target_speed=10, trajectory = None):
         take SetBrakeAction(brakeIntensity)
 
 # PLACEMENT
-ego = Car on ego_L_startLane.centerline,
+ego = new Car on ego_L_startLane.centerline,
         with behavior SafeBehavior(SAFE_DIST,target_speed=8, trajectory=ego_L_centerlines)
 
-other = Car on startLane.centerline,
+other = new Car on startLane.centerline,
         with behavior FollowTrafficBehavior(target_speed=10, trajectory=centerlines)
 

@@ -10,11 +10,11 @@ laneShift = Range(-10, 10)
 wiggle = Range(-5 deg, 5 deg)
 
 def carAheadOfCar(car, gap, offsetX=0, wiggle=0):
-    pos = OrientedPoint at (front of car) offset by (offsetX @ gap),
+    pos = new OrientedPoint at (front of car) offset by (offsetX @ gap),
         facing resample(wiggle) relative to roadDirection
-    return Car ahead of pos
+    return new Car ahead of pos
 
-ego = Car with visibleDistance 100
+ego = new Car with visibleDistance 100
 modelDist = CarModel.defaultModel()
 
 leftCar = carAheadOfCar(ego, laneShift + carGap, offsetX=-laneGap, wiggle=wiggle)

@@ -3,5 +3,5 @@ setLocalMap(__file__, 'map.npz')
 
 from scenic.simulators.gta.model import *
 
-ego = Car
-Car
+ego = new Car
+new Car
