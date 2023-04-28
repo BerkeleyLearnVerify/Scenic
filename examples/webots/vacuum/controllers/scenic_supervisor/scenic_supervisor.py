@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 import random
+import time
 
 import numpy
 
@@ -59,5 +60,9 @@ for numToys in NUM_TOYS_LIST:
         s = json.dumps({"params": params, "results": sim_results.records}, indent=4)
         with open(output_dir / filename, "x") as f:
             f.write(s)
+
+        time.sleep(1)
+
+        supervisor.worldReload()
 
 supervisor.simulationQuit(0)
