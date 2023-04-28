@@ -93,7 +93,12 @@ Regions can have an associated vector field giving points in the region :term:`p
 For example, a region representing a lane of traffic could have a preferred orientation aligned with the lane, so that we can easily talk about distances along the lane, even if it curves.
 Another possible use of preferred orientations is to give the surface of an object normal vectors, so that other objects placed on the surface face outward by default.
 
-The main operations available for use with all regions are the :sampref:`({vector} | {Object}) in {region}` operator to test containment within a region, the :sampref:`visible {region}` operator to get the part of a region which is visible from the :scenic:`ego`, and the :sampref:`(in | on) {region}` specifier to choose a position uniformly at random inside a region.
+The main operations available for use with all regions are:
+
+* the :sampref:`({vector} | {Object}) in {region}` operator to test containment within a region;
+* the :sampref:`visible {region}` operator to get the part of a region which is visible from the :scenic:`ego`;
+* the :sampref:`in {region}` specifier to choose a position uniformly at random inside a region;
+* the :sampref:`on {region}` specifier to choose a position like :sampref:`in {region}` or to project an existing position onto the region's surface.
 
 If you need to perform more complex operations on regions, or are writing a :term:`world model` and need to define your own regions, you will have to work with the :obj:`~scenic.core.regions.Region` class (which regions are instances of) and its subclasses for particular types of regions.
 These are summarized below: if you are working on Scenic's internals, see the :mod:`scenic.core.regions` module for full details.
@@ -136,7 +141,9 @@ Point Sets and Lines
 
 Unlike the more `PolygonalRegion`, the simple geometric shapes are allowed to depend on random values: for example, the :term:`visible region` of an `Object` is a `SectorRegion` based at the object's :prop:`position`, which might not be fixed.
 
-Since 2D regions cannot contain an `Object` (which must be 3D), they define a :term:`footprint` for convenient. Footprints are always a `PolygonalFootprintRegion`, which represents a 2D poylgon extruded infinitely in the positive and negative vertical direction. When checking containment of an `Object` in a 2D region, Scenic will atuomatically use the footprint.
+Since 2D regions cannot contain an `Object` (which must be 3D), they define a :term:`footprint` for convenience.
+Footprints are always a `PolygonalFootprintRegion`, which represents a 2D polygon extruded infinitely in the positive and negative vertical direction.
+When checking containment of an `Object` in a 2D region, Scenic will atuomatically use the footprint.
 
 .. autoclass:: scenic.core.regions.PolygonalRegion
     :noindex:

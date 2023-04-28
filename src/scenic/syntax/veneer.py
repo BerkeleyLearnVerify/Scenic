@@ -1267,7 +1267,7 @@ def Above(pos, dist=0):
         above <oriented point> [by <scalar/vector>]
         above <vector> [by <scalar/vector>]
 
-    If the 'by <scalar/vector>' is omitted, zero is used.
+    If the :grammar:`by <scalar/vector>` is omitted, zero is used.
     """
     return directionalSpecHelper('Above', pos, dist, 'height', lambda dist: (0, 0, dist),
                           lambda self, dims, tol, dx, dy, dz: Vector(dx, dy, self.height / 2 + dz + dims[2]/2 + tol))

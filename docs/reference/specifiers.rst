@@ -59,6 +59,7 @@ at *vector*
 Positions the object at the given global coordinates.
 
 .. _in {region}:
+.. _in:
 
 in *region*
 -----------
@@ -90,6 +91,7 @@ contained in *region*
 Like `in {region}`, but also enforces that the object be entirely contained in the given `Region`.
 
 .. _on {region}:
+.. _on:
 
 on *region*
 -----------
@@ -139,7 +141,7 @@ offset along *direction* by *vector*
 
 Positions the object at the given coordinates, in a local coordinate system centered at ego. Also specifies :prop:`parentOrientation` to be equal to the ego's orientation.
 
-.. _beyond {vector} by {vector} [from {vector | OrientedPoint}]:
+.. _beyond {vector} by {vector} [from ({vector} | {OrientedPoint})]:
 
 beyond *vector* by *vector* [from (*vector* | *OrientedPoint*)]
 ---------------------------------------------------------------
@@ -190,6 +192,8 @@ Similar to :sampref:`visible [from ({Point} | {OrientedPoint})]`, this specifier
 Depends on :prop:`regionContainedIn`, in order to restrict the non-visible region to the :term:`container` of the object being created, which is hopefully a bounded region (if the non-visible region is unbounded, it cannot be uniformly sampled from and an error will be raised).
 
 .. _(left | right) of {vector} [by {scalar}]:
+.. _left of:
+.. _right of:
 
 (left | right) of (*vector*) [by *scalar*]
 ------------------------------------------
@@ -235,6 +239,8 @@ Positions the object to the left/right of the given `Object`. This accounts for 
 Also inherits :prop:`parentOrientation` from the given `OrientedPoint`
 
 .. _(ahead of | behind) ({vector} | {Point}) [by {scalar}]:
+.. _ahead of:
+.. _behind:
 
 (ahead of | behind) *vector* [by *scalar*]
 ------------------------------------------
@@ -280,6 +286,8 @@ Positions the object ahead of/behind the given `Object`.This accounts for both o
 Also inherits :prop:`parentOrientation` from the given `OrientedPoint`
 
 .. _(above | below) {vector} [by {scalar}]:
+.. _above:
+.. _below:
 
 (above | below) *vector* [by *scalar*]
 --------------------------------------

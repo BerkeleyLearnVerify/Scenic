@@ -1667,16 +1667,16 @@ class PolygonalFootprintRegion(Region):
         return self.polygons.equals(self.polygons.convex_hull)
 
 class PathRegion(Region):
+    """A region composed of multiple polylines in 3D space.
+
+    One of points or polylines should be provided. If both are provided,
+    points will be used.
+
+    Args:
+        points: A list of points defining a single polyline.
+        polylines: A list of list of points, defining multiple polylines.
+    """
     def __init__(self, points=None, polylines=None):
-        """ A region composed of multiple polylines in 3D space.
-
-        One of points or polylines should be provided. If both are provided,
-        points will be used.
-
-        Args:
-            points: A list of points defining a single polyline.
-            polylines: A list of list of points, defining multiple polylines.
-        """
         # Standardize inputs
         if points is not None:
             polylines = [points]

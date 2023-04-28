@@ -16,11 +16,11 @@ from scenic.core.utils import cached_property
 ###################################################################################################
 
 class Shape(Samplable, ABC):
-    """ An abstract base class for Scenic shapes.
+    """An abstract base class for Scenic shapes.
 
-    Represents physical shape in Scenic. Does not represent position or orientation,
-    which is all handled by the region class. Does contain dimension information, which
-    is used as a default value by any Object with this shape and can be overwritten.
+    Represents a physical shape in Scenic. Does not encode position or orientation,
+    which are handled by the `Region` class. Does contain dimension information, which
+    is used as a default value by any `Object` with this shape and can be overwritten.
 
     Args:
         dimensions: The raw (before scaling) dimensions of the shape. If dimensions
@@ -121,6 +121,7 @@ class MeshShape(Shape):
         return MeshShape(self.mesh, values[self.raw_dimensions], values[self.scale])
 
 class BoxShape(MeshShape):
+    """A 3D box with all dimensions 1 by default."""
     def __init__(self, dimensions=(1,1,1), scale=1):
         # Report samplables
         super().__init__(trimesh.creation.box((1,1,1)), dimensions, scale)

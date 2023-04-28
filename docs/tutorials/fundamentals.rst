@@ -35,7 +35,7 @@ You can rotate and move the camera of the visualizer around using the mouse. The
 object green in Scenic's visualizer. Pressing :kbd:`w` will render all objects as wireframes, which will allow you to see the coordinate axes in the center of 
 the ego object (at the origin).
 
-Since we didn't provide any additional information to Scenic about this object, it created it with all of a Scenic `Object`'s default values (more info available in the :ref:`objects_and_classes`).
+Since we didn't provide any additional information to Scenic about this object, it created it with all of a Scenic `Object`'s default values (more info available in the :ref:`Classes Reference <objects_and_classes>`).
 Scenic provides a flexible, natural language, way for setting properties of objects, **specifiers**. Scenic has many specifiers, too many to explore in this tutorial, but a quick reference can be found
 in the :ref:`syntax_guide` and a more in depth reference in the :ref:`specifiers`.
 
@@ -71,7 +71,7 @@ This should generate the following scene:
   :alt: A slightly more complicated scenario showing the use of specifiers.
 
 The first object we create, the ego, has a cone shape. Scenic provides several built in shapes like
-this (see the bottom of the :ref:`syntax` guide for more examples). We then set the object's dimensions
+this (see the bottom of the :ref:`syntax_guide` for more examples). We then set the object's dimensions
 using the :specifier:`with` specifier, which can set any property (even properties unknown to Scenic). Finally,
 we set the object's global orientation using the :specifier:`facing` specifier. The tuple after :specifier:`facing`
 contains the Euler angles of the desired orientation (yaw, pitch, roll).
@@ -98,7 +98,7 @@ Randomness, Regions, and more Specifiers
 ----------------------------------------
 
 So far all of our Scenic programs have been static, i.e. every time we generate a scene it will be exactly the same.
-This is because so far we haven't introduced any *randomness*. Scenic is a **probabilistic programming language*,
+This is because so far we haven't introduced any *randomness*. Scenic is a *probabilistic programming language*,
 meaning it can have random elements. 
 
 Let's look at a simple Scenic program with some random elements:
@@ -239,7 +239,7 @@ this very concisely in Scenic:
 	new Car visible
 
 Line 1 imports the GTA :term:`world model`, a Scenic library defining everything specific to our
-GTA interface. This includes the definition of the class `Car`, as well as information
+GTA interface. This includes the definition of the class :obj:`Car`, as well as information
 about the road geometry that we'll see later. We'll suppress this :scenic:`import` statement in
 subsequent examples.
 
@@ -492,5 +492,3 @@ constructs in convenient tables with links to the detailed documentation.
 .. [F22] Fremont et al., :t:`Scenic: A Language for Scenario Specification and Data Generation`, Machine Learning, 2022. `[Online] <https://doi.org/10.1007/s10994-021-06120-5>`_
 
 .. [F19] Fremont et al., :t:`Scenic: A Language for Scenario Specification and Scene Generation`, PLDI 2019.
-
-.. [GR83] Goldberg and Robson, :t:`Smalltalk-80: The Language and its Implementation`, Addison-Wesley, 1983. `[PDF] <http://stephane.ducasse.free.fr/FreeBooks/BlueBook/Bluebook.pdf>`_

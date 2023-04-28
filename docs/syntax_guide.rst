@@ -148,22 +148,23 @@ Properties added by `OrientedPoint`:
 
 Properties added by `Object`:
 
-===================  ====================== ================================================
-   **Property**       **Default**                    **Meaning**
--------------------  ---------------------- ------------------------------------------------
- width                 1                    width of bounding box (X axis)
- length                1                    length of bounding box (Y axis)
- height                1                    height of bounding box (Z axis)
- shape                 `BoxShape`           shape of the object
- speed [1]_            0                    initial speed (later, instantaneous speed)
- velocity [1]_        from :prop:`speed`    initial velocity (later, instantaneous velocity)
- angularSpeed [1]_     0                    angular speed (change in heading/time)
- behavior              `None`               :term:`dynamic behavior`, if any
- allowCollisions      `False`               whether collisions are allowed
- requireVisible       `False`               whether object must be visible from ego
- regionContainedIn    `workspace`           Region the object must lie within
- cameraOffset          (0, 0, 0)            position of camera for ‘can see’
-===================  ====================== ================================================
+=====================  ==================== ================================================
+   **Property**         **Default**                    **Meaning**
+---------------------  -------------------- ------------------------------------------------
+ width                 1                     width of bounding box (X axis)
+ length                1                     length of bounding box (Y axis)
+ height                1                     height of bounding box (Z axis)
+ shape                 `BoxShape`            shape of the object
+ speed [1]_            0                     initial (later, instantaneous) speed
+ velocity [1]_         from :prop:`speed`    initial (instantaneous) velocity
+ angularVelocity [1]_  (0, 0, 0)             initial (instantaneous) angular velocity
+ angularSpeed [1]_     0                     angular speed (change in :prop:`heading`/time)
+ behavior              `None`                :term:`dynamic behavior`, if any
+ allowCollisions       `False`               whether collisions are allowed
+ requireVisible        `False`               whether object must be visible from ego
+ regionContainedIn     `workspace`           `Region` the object must lie within
+ cameraOffset          (0, 0, 0)             position of camera for :keyword:`can see`
+=====================  ==================== ================================================
 
 .. [1] These are :term:`dynamic properties`, updated automatically every time step during
     dynamic simulations.
@@ -172,14 +173,14 @@ Specifiers
 ----------
 
 The :sampref:`with {property} {value}` specifier can specify any property, including new properties not built into Scenic.
-Additional specifiers for the :prop:`position` and :prop:`heading` properties are listed below.
+Additional specifiers for the :prop:`position` and :prop:`orientation` properties are listed below.
 
 .. figure:: images/Specifier_Figure.png
   :width: 60%
   :figclass: align-center
   :alt: Diagram illustrating several specifiers.
 
-  Illustration of the :scenic:`beyond`, :scenic:`behind`, and :scenic:`offset by` specifiers.
+  Illustration of the :specifier:`beyond`, :specifier:`behind`, and :specifier:`offset by` specifiers.
   Each :scenic:`OrientedPoint` (e.g. ``P``) is shown as a bold arrow.
 
 .. list-table::
@@ -199,17 +200,17 @@ Additional specifiers for the :prop:`position` and :prop:`heading` properties ar
      - Positions the object at the given coordinates in the local coordinate system of ego (which must already be defined)
    * - :sampref:`offset along {direction} by {vector}`
      - Positions the object at the given coordinates, in a local coordinate system centered at ego and oriented along the given direction
-   * - :sampref:`beyond {vector} by {vector} [from {vector}]`
+   * - :sampref:`beyond {vector} by {vector} [from ({vector} | {OrientedPoint})]`
      - Positions the object at coordinates given by the second vector, centered at the first vector and oriented along the line of sight from the third vector/ego
    * - :sampref:`visible [from ({Point} | {OrientedPoint})]`
      - Positions the object uniformly at random in the visible region of the ego, or of the given Point/OrientedPoint if given
    * - :sampref:`not visible [from ({Point} | {OrientedPoint})]`
      - Positions the object uniformly at random in the non-visible region of the ego, or of the given Point/OrientedPoint if given
-   * - :sampref:`(left | right) of ({vector} | {OrientedPoint} | {Object}) [by {scalar}]`
+   * - :sampref:`(left | right) of ({vector} | {OrientedPoint} | {Object}) [by {scalar}] <left of>`
      - Positions the object to the left/right by the given scalar distance
-   * - :sampref:`(ahead of | behind) ({vector} | {OrientedPoint} | {Object}) [by {scalar}]`
+   * - :sampref:`(ahead of | behind) ({vector} | {OrientedPoint} | {Object}) [by {scalar}] <ahead of>`
      - Positions the object to the front/back by the given scalar distance
-   * - :sampref:`(above | below) ({vector} | {OrientedPoint} | {Object}) [by {scalar}]`
+   * - :sampref:`(above | below) ({vector} | {OrientedPoint} | {Object}) [by {scalar}] <above>`
      - Positions the object above/below by the given scalar distance
    * - :sampref:`following {vectorField} [from {vector}] for {scalar}`
      - Position by following the given vector field for the given distance starting from ego or the given vector

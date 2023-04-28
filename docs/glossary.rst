@@ -44,6 +44,11 @@ Glossary
 		parameters or interface to new external samplers, see
 		:mod:`scenic.core.external_params`.
 
+	footprint
+		The infinite extrusion of a 2D `region` in the positive and negative Z directions.
+		Testing containment of an `object` in a 2D region automatically uses its footprint, so that the object is considered contained if and only if its projection into the plane of the region is contained in the region.
+		Footprints are represented internally by instances of the `PolygonalFootprintRegion` class.
+
 	global parameters
 		Parameters of a scene like weather or time of day which are not associated with any object.
 		These are defined using the :keyword:`param` statement, and can be overridden from the command line with the :option:`--param` option.
@@ -62,7 +67,8 @@ Glossary
 
 	visible region
 		The `Region` which is "visible" from a given `Object` for the purposes of the :keyword:`can see` operator, the :keyword:`visible <visible_spec>` specifier, etc.
-		Scenic uses a simple visibility model where each object has a view cone and occlusion is ignored: see the documentation of the :keyword:`can see` operator for details.
+		The visible region of a `Point` is a sphere, while that of an `OrientedPoint` or `Object` can be a pyramid: see `OrientedPoint.visibleRegion` for details.
+		Note that while Scenic takes occlusion by other objects into account when testing visibility, the visible region itself ignores occlusion.
 
 	workspace
 		The region of space in which a scenario takes place.

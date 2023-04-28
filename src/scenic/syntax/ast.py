@@ -89,7 +89,7 @@ class Ego(AST):
 
 
 class Workspace(AST):
-    "`workspace` tracked assign target"
+    ":term:`workspace` tracked assign target"
     functionName = "workspace"
 
 
@@ -239,7 +239,7 @@ class Model(AST):
 
 
 class Param(AST):
-    "`param identifier = value, …` statements"
+    ":keyword:`param` statements"
 
     __match_args__ = ("elts",)
 
