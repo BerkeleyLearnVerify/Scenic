@@ -24,6 +24,7 @@ import shapely.prepared
 
 import trimesh
 from trimesh.transformations import translation_matrix, quaternion_matrix, concatenate_matrices
+warnings.filterwarnings('ignore', module='trimesh') # temporarily suppress annoying warnings
 
 from subprocess import CalledProcessError
 
@@ -1643,7 +1644,7 @@ class PolygonalFootprintRegion(Region):
 
             # Check if we have a valid volume
             if polygon_mesh.is_volume:
-                if tol_size is not None:
+                if tol_size is not None and tol_size >= 0.01:
                     warnings.warn(f"Computing bounded footprint of polygon resulted in invalid volume, "
                                   f"but was able to remedy this by buffering/simplifying polygon by {tol_size}")
                 break
