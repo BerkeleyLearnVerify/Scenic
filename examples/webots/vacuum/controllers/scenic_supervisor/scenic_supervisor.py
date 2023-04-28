@@ -45,7 +45,7 @@ for numToys in NUM_TOYS_LIST:
         iter_seed = SEED + i
         filename = getFilename(duration=DURATION, numToys=numToys, iteration=i + 1)
         if (output_dir / filename).is_file():
-            print(f"Skipping simulation for {numToys} toys, #{i + 1} iteration because the file already exists")
+            #print(f"Skipping simulation for {numToys} toys, #{i + 1} iteration because the file already exists")
             continue
         print("Calculate", filename)
 
