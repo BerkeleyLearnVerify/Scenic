@@ -72,7 +72,7 @@ Here are a few for different simulators:
 .. code-block:: console
 
 	$ scenic --2d examples/driving/pedestrian.scenic
-	$ scenic --2d examples/webots/mars/narrowGoal.scenic
+	$ scenic examples/webots/mars/narrowGoal.scenic
 	$ scenic --2d examples/webots/road/crossing.scenic
 
 .. image:: images/pedestrian.png
