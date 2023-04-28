@@ -91,12 +91,15 @@ class MyClass:
 class OtherClass(MyClass):
     foo: 21
     def method(self, arg, *args, distance=5,    # comment
-        **kwargs):
+        blah, \
+        **kwargs: anno
+    ):
         """Docstring."""
         thing = args[0] if len(args) > 0 else 6
         return self.foo + distance
     @property
-    def myProp(self, *, zug=4) -> Point:
+    def myProp(self, *, zug=4
+    ) -> Point:
         if abs(self.foo) != 4: x = 3; y = 12    # if-else with simple statements
         else: x = 4
         def nested(foo, /):
