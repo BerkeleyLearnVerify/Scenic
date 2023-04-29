@@ -214,13 +214,18 @@ Niche Regions
     :noindex:
     :no-members:
 
+.. _Shape:
 
 Shape
 =====
 
-Shapes represent the shape of an object. Shapes are automatically converted to unit size and centered. Furthermore it's assumed that the front of the shape is aligned with the y axis.
+Shapes represent the shape of an object, i.e., the volume it occupies modulo translation, rotation, and scaling.
+Shapes are represented by meshes, automatically converted to unit size and centered; Scenic considers the side of the shape facing the positive Y axis to be its front.
 
-Shapes can be created with an arbitrary mesh, and several basic shapes are made available. A shape can be created with fixed dimensions or shape, which will set the default values for any `Object` created with that shape. When creating a `MeshShape`, if no dimensions are provided then dimensions will be inferred from the mesh. `MeshShape` also takes an optional ``initial_rotation`` parameter, which will be applied to orient the shape correctly.
+Shapes can be created from an arbitrary mesh or using one of the geometric primitives below.
+For convenience, a shape created with specified dimensions will set the default dimensions for any `Object` created with that shape.
+When creating a `MeshShape`, if no dimensions are provided then dimensions will be inferred from the mesh.
+`MeshShape` also takes an optional ``initial_rotation`` parameter, which allows directions other than the positive Y axis to be considered the front of the shape.
 
 .. autoclass:: scenic.core.shapes.MeshShape
     :noindex:

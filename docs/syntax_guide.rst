@@ -16,6 +16,7 @@ Primitive Data Types
 `Headings <Heading>`   		    representing orientations in space
 `Vector Fields <VectorField>` associating an orientation (i.e. a heading) to each point in space
 `Regions <Region>`            representing sets of points in space
+`Shapes <Shape>`              representing shapes (regions modulo similarity)
 ============================= ==================================================================
 
 
@@ -28,7 +29,7 @@ Distributions
 :sampref:`TruncatedNormal({mean}, {stdDev}, {low}, {high})`      normal distribution truncated to the given window
 :sampref:`Uniform({value}, {...})`                               uniform over a finite set of values
 :sampref:`Discrete(\{{value}: {weight}, {...}\})<DiscreteDistr>` discrete with given values and weights
-:sampref:`Point in {region} <uniform_in_region>`                 uniformly-distributed `Point` in a region
+:sampref:`new Point in {region} <uniform_in_region>`                 uniformly-distributed `Point` in a region
 ================================================================ ==================================
 
 Statements
