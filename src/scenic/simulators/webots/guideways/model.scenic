@@ -24,7 +24,7 @@ roadDirection = workspace.roadDirection     # NOTE: chooses arbitrarily where gu
 class Car:
     regionContainedIn: road
     position: new Point on road
-    parentOrientation: roadDirection at self.position
+    heading: roadDirection at self.position
     webotsType: self.model.name
     model: modelWithName['ToyotaPrius']
     width: self.model.width
