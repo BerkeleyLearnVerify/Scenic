@@ -35,7 +35,14 @@ Major new features:
 
 	* The :keyword:`require` statement accepts arbitrary properties in Linear Temporal Logic (not just the :scenic:`require always` and :scenic:`require eventually` forms previously allowed).
 
+	* Sampled `Scene` objects can now be serialized to short sequences of bytes and restored later.
+	  Similarly, executed `Simulation` objects can be saved and replayed.
+	  See :ref:`serialization` for details.
+
 Minor new features:
+
+	* It is no longer necessary to define an :scenic:`ego` object.
+	  If no :scenic:`ego` is defined, the ``egoObject`` attribute of a sampled `Scene` is `None`.
 
 	* Syntax errors should now always indicate the correct part of the source code.
 

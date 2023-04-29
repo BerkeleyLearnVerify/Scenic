@@ -89,10 +89,14 @@ class Scene(_ScenarioPickleMixin):
 
     Attributes:
         objects (tuple of :obj:`~scenic.core.object_types.Object`): All objects in the
-          scene. The ``ego`` object is first.
-        egoObject (:obj:`~scenic.core.object_types.Object`): The ``ego`` object.
+          scene. The ``ego`` object is first, if there is one.
+        egoObject (:obj:`~scenic.core.object_types.Object` or `None`): The ``ego`` object, if any.
         params (dict): Dictionary mapping the name of each global parameter to its value.
-        workspace (:obj:`~scenic.core.workspaces.Workspace`): Workspace for the scenario.
+        workspace (:obj:`~scenic.core.workspaces.Workspace`): The :term:`workspace` for the scenario.
+
+    .. versionchanged:: 3.0
+
+        The ``egoObject`` attribute can now be `None`.
     """
     def __init__(self, workspace, objects, egoObject, params,
                  temporalReqs=(),terminationConds=(), termSimulationConds=(),
