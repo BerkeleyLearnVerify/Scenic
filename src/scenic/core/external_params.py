@@ -55,9 +55,9 @@ to the primitive distributions: `VerifaiRange` and `VerifaiDiscreteRange` for
 continuous and discrete intervals, and `VerifaiOptions` for discrete sets.
 For example, suppose we write::
 
-    ego = Object at (VerifaiRange(5, 15), 0)
+    ego = new Object at (VerifaiRange(5, 15), 0)
 
-This is equivalent to the ordinary Scenic line :scenic:`ego = Object at (Range(5, 15), 0)`,
+This is equivalent to the ordinary Scenic line :scenic:`ego = new Object at (Range(5, 15), 0)`,
 except that the X coordinate of the ego is sampled by VerifAI within the range
 (5, 15) instead of being uniformly distributed over it. By default the
 `VerifaiSampler` uses VerifAI's `Halton`_ sampler, so the range will still be
@@ -65,7 +65,7 @@ covered uniformly but more systematically. If we want to use a different sampler
 we can set the ``verifaiSamplerType`` global parameter::
 
     param verifaiSamplerType = 'ce'
-    ego = Object at (VerifaiRange(5, 15), 0)
+    ego = new Object at (VerifaiRange(5, 15), 0)
 
 Now the X coordinate will be sampled using VerifAI's `cross-entropy`_ sampler.
 If we pass a feedback value to `Scenario.generate` which scores the previous
@@ -79,7 +79,7 @@ Scenic provides a convenient way to define this prior using the ordinary syntax
 for distributions::
 
     param verifaiSamplerType = 'ce'
-    ego = Object at (VerifaiParameter.withPrior(Normal(10, 3)), 0)
+    ego = new Object at (VerifaiParameter.withPrior(Normal(10, 3)), 0)
 
 Now cross-entropy sampling will start from a normal distribution with mean 10
 and standard deviation 3. Priors are restricted to primitive distributions and
