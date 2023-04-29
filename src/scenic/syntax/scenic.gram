@@ -1833,6 +1833,7 @@ scenic_require_stmt:
     | 'require' "monitor" e=expression n=['as' scenic_require_stmt_name] {
         s.RequireMonitor(monitor=e, name=n, LOCATIONS)
      }
+    | invalid_scenic_require_prob
     | 'require' p=['[' a=NUMBER ']' { float(a.string) }] e=expression n=['as' a=scenic_require_stmt_name { a }] {
         s.Require(cond=e, prob=p, name=n, LOCATIONS)
      }
@@ -2216,6 +2217,13 @@ invalid_scenic_implication[NoReturn]:
     | a=scenic_until 'implies' scenic_implication {
         self.raise_syntax_error_known_location(
             f"`implies` must take exactly two operands", a
+        )
+     }
+
+invalid_scenic_require_prob[NoReturn]:
+    | 'require' '[' !(NUMBER ']') p=expression ']' expression ['as' scenic_require_stmt_name] {
+        self.raise_syntax_error_known_location(
+            f"'require' probability must be a constant", p
         )
      }
 
