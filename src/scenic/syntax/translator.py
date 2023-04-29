@@ -62,8 +62,8 @@ from scenic.syntax.compiler import compileScenicAST
 
 ### THE TOP LEVEL: compiling a Scenic program
 
-def scenarioFromString(string, params={}, model=None, scenario=None,
-                       filename='<string>', cacheImports=False, mode_2d=False):
+def scenarioFromString(string, params={}, model=None, scenario=None, *,
+                       filename='<string>', mode_2d=False, cacheImports=False):
     """Compile a string of Scenic code into a `Scenario`.
 
     The optional **filename** is used for error messages.
@@ -73,7 +73,8 @@ def scenarioFromString(string, params={}, model=None, scenario=None,
     return scenarioFromStream(stream, params=params, model=model, scenario=scenario,
                               filename=filename, cacheImports=cacheImports, mode_2d=mode_2d)
 
-def scenarioFromFile(path, params={}, model=None, scenario=None, cacheImports=False, mode_2d=False):
+def scenarioFromFile(path, params={}, model=None, scenario=None, *,
+                     mode_2d=False, cacheImports=False):
     """Compile a Scenic file into a `Scenario`.
 
     Args:
@@ -84,6 +85,7 @@ def scenarioFromFile(path, params={}, model=None, scenario=None, cacheImports=Fa
         scenario (str): If there are multiple :term:`modular scenarios` in the
           file, which one to compile; if not specified, a scenario called 'Main'
           is used if it exists.
+        mode_2d (bool): Whether to compile this scenario in 2D compatibility mode.
         cacheImports (bool): Whether to cache any imported Scenic modules.
           The default behavior is to not do this, so that subsequent attempts
           to import such modules will cause them to be recompiled. If it is
@@ -91,7 +93,6 @@ def scenarioFromFile(path, params={}, model=None, scenario=None, cacheImports=Fa
           argument to True. Then importing a Scenic module will have the same
           behavior as importing a Python module. See `purgeModulesUnsafeToCache`
           for a more detailed discussion of the internals behind this.
-        mode_2d (bool): Whether to compile this scenario in 2D compatibility mode.
 
     Returns:
         A `Scenario` object representing the Scenic scenario.
@@ -111,15 +112,14 @@ def scenarioFromFile(path, params={}, model=None, scenario=None, cacheImports=Fa
                                   filename=fullpath, path=path, cacheImports=cacheImports,
                                   mode_2d=mode_2d)
 
-def scenarioFromStream(stream, params={}, model=None, scenario=None,
-                       filename='<stream>', path=None, cacheImports=False,
-                       mode_2d=False):
+def scenarioFromStream(stream, *, scenario=None, path=None, cacheImports=False,
+                       **kwargs):
     """Compile a stream of Scenic code into a `Scenario`."""
     # Compile the code as if it were a top-level module
     oldModules = list(sys.modules.keys())
     try:
         with topLevelNamespace(path) as namespace:
-            compileStream(stream, namespace, params=params, model=model, filename=filename, mode_2d=mode_2d)
+            compileStream(stream, namespace, **kwargs)
     finally:
         if not cacheImports:
             purgeModulesUnsafeToCache(oldModules)
@@ -203,7 +203,8 @@ def purgeModulesUnsafeToCache(oldModules):
             # reference to the old version of the Scenic module.)
         del sys.modules[name]
 
-def compileStream(stream, namespace, params={}, model=None, filename='<stream>', mode_2d=False):
+def compileStream(stream, namespace, *,
+                  params={}, model=None, filename='<stream>', mode_2d=False):
     """Compile a stream of Scenic code and execute it in a namespace.
 
     The compilation procedure consists of the following main steps:
