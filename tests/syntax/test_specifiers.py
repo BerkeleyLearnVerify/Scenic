@@ -432,6 +432,7 @@ def test_visible_from_oriented_point():
         assert pos.x <= base.x
         assert pos.y >= base.y
 
+@pytest.mark.slow
 def test_can_see_point_occlusion_enabled():
     with pytest.raises(RejectionException):
         sampleSceneFrom("""
@@ -458,6 +459,7 @@ def test_can_see_point_occlusion_enabled():
                 with name "wall",
         """, maxIterations=1)
 
+@pytest.mark.slow
 def test_point_visible_from_object():
     sampleSceneFrom("""
         workspace_region = RectangularRegion(0 @ 0, 0, 40, 40)

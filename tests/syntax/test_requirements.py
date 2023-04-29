@@ -243,6 +243,7 @@ def test_static_visibility_violation_disabled():
         new Object at 0@10, with requireVisible False
     """)
 
+@pytest.mark.slow
 def test_can_see_object_occlusion_enabled():
     with pytest.raises(RejectionException):
         sampleSceneFrom("""
@@ -272,6 +273,7 @@ def test_can_see_object_occlusion_enabled():
                 with name "wall",
         """, maxIterations=1)
 
+@pytest.mark.slow
 def test_can_see_object_occlusion_disabled():
     sampleSceneFrom("""
         workspace_region = RectangularRegion(0 @ 0, 0, 40, 40)

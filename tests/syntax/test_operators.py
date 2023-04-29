@@ -1,5 +1,6 @@
 
 import math
+
 import pytest
 
 from scenic.core.vectors import Orientation
@@ -196,6 +197,7 @@ def test_oriented_point_can_see_object():
     """)
     assert p == (True, False)
 
+@pytest.mark.slow
 def test_can_see_occlusion():
     p = sampleParamPFrom("""
         workspace_region = RectangularRegion(0 @ 0, 0, 40, 40)
