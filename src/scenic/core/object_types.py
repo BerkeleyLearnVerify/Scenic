@@ -1719,8 +1719,8 @@ class OrientedPoint2D(Point2D, OrientedPoint):
     def __init_subclass__(cls):
         # Raise error if parentOrientation already defined
         if 'parentOrientation' in cls._scenic_properties:
-            raise RuntimeParseError("A subclass has defined parentOrientation, but this program is "
-                "being run in 2D compatibility mode.")
+            raise RuntimeError('this scenario cannot be run with the --2d flag (the '
+                               f'{cls.__name__} class defines "parentOrientation")')
 
         # Map certain properties to their 3D analog
         if 'heading' in cls._scenic_properties:
