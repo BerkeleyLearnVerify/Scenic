@@ -26,20 +26,20 @@ behavior EgoBehavior(speed=10):
 background_vehicles = []
 for _ in range(25):
     lane = Uniform(*network.lanes)
-    spot = OrientedPoint on lane.centerline
+    spot = new OrientedPoint on lane.centerline
 
-    background_car = Car at spot,
+    background_car = new Car at spot,
         with behavior AutopilotBehavior()
     background_vehicles.append(background_car)
 
 background_walkers = []
 for _ in range(10):
     sideWalk = Uniform(*network.sidewalks)
-    background_walker = Pedestrian in sideWalk,
+    background_walker = new Pedestrian in sideWalk,
         with behavior WalkBehavior()
     background_walkers.append(background_walker)
 
 
-ego = Car following roadDirection from spot for Range(-30, -20),
+ego = new Car following roadDirection from spot for Range(-30, -20),
     with blueprint EGO_MODEL,
     with behavior EgoBehavior(EGO_SPEED)

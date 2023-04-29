@@ -47,10 +47,10 @@ crossing_car_trajectory = [csm.startLane, csm.connectingLane, csm.endLane]
 ego_spwPt = startLane.centerline[-1]
 csm_spwPt = crossing_startLane.centerline[-1]
 
-ego = Car following roadDirection from ego_spwPt for DISTANCE_TO_INTERSECTION1,
+ego = new Car following roadDirection from ego_spwPt for DISTANCE_TO_INTERSECTION1,
         with behavior EgoBehavior(trajectory = ego_trajectory)
 
-crossing_car = Car following roadDirection from csm_spwPt for DISTANCE_TO_INTERSECTION2,
+crossing_car = new Car following roadDirection from csm_spwPt for DISTANCE_TO_INTERSECTION2,
                 with behavior CrossingCarBehavior(crossing_car_trajectory)
 
 

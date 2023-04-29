@@ -54,11 +54,11 @@ L_endLane = leftTurn_maneuver.endLane
 
 L_centerlines = [L_startLane.centerline, L_connectingLane.centerline, L_endLane.centerline]
 
-ego = Car on startLane.centerline,
+ego = new Car on startLane.centerline,
         with blueprint 'vehicle.tesla.model3',
         with behavior EgoBehavior(target_speed=15, trajectory=centerlines)
 
-other = Car on L_startLane.centerline,
+other = new Car on L_startLane.centerline,
         with blueprint 'vehicle.tesla.model3',
         with behavior FollowTrajectoryBehavior(target_speed=5, trajectory=L_centerlines)
  

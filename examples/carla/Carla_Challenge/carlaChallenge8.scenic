@@ -17,7 +17,7 @@ SAFETY_DISTANCE = 20
 BRAKE_INTENSITY = 1.0
 
 ## MONITORS
-monitor TrafficLights:
+monitor TrafficLights():
     freezeTrafficLights()
     while True:
         if withinDistanceToTrafficLight(ego, 100):
@@ -25,6 +25,7 @@ monitor TrafficLights:
         if withinDistanceToTrafficLight(adversary, 100):
             setClosestTrafficLightStatus(adversary, "green")
         wait
+require monitor TrafficLights()
 
 ## DEFINING BEHAVIORS
 behavior AdversaryBehavior(trajectory):
@@ -64,14 +65,14 @@ adv_start_lane = adv_maneuver.startLane
 adv_end_section = adv_maneuver.endLane.sections[0]
 
 ## OBJECT PLACEMENT
-ego_spawn_pt = OrientedPoint in ego_maneuver.startLane.centerline
-adv_spawn_pt = OrientedPoint in adv_maneuver.startLane.centerline
+ego_spawn_pt = new OrientedPoint in ego_maneuver.startLane.centerline
+adv_spawn_pt = new OrientedPoint in adv_maneuver.startLane.centerline
 
-ego = Car at ego_spawn_pt,
+ego = new Car at ego_spawn_pt,
     with blueprint EGO_MODEL,
     with behavior EgoBehavior(EGO_SPEED, ego_trajectory)
 
-adversary = Car at adv_spawn_pt,
+adversary = new Car at adv_spawn_pt,
     with behavior AdversaryBehavior(adv_trajectory)
 
 require (ego_start_section.laneToLeft == adv_end_section)  # make sure the ego and adversary are spawned in opposite lanes

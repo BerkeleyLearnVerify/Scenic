@@ -35,14 +35,14 @@ startLane = Uniform(*intersec.incomingLanes)
 maneuver = Uniform(*startLane.maneuvers)
 ego_trajectory = [maneuver.startLane, maneuver.connectingLane, maneuver.endLane]
 
-spot = OrientedPoint in maneuver.startLane.centerline
-ego = Car at spot,
+spot = new OrientedPoint in maneuver.startLane.centerline
+ego = new Car at spot,
     with blueprint EGO_MODEL,
     with behavior EgoBehavior(trajectory = ego_trajectory)
 
-spotBicycle = OrientedPoint in maneuver.endLane.centerline,
+spotBicycle = new OrientedPoint in maneuver.endLane.centerline,
     facing roadDirection
-bicycle = Bicycle at spotBicycle offset by 3.5@0,
+bicycle = new Bicycle at spotBicycle offset by 3.5@0,
     with heading 90 deg relative to spotBicycle.heading,
     with behavior BicycleBehavior(BICYCLE_MIN_SPEED, THRESHOLD),
     with regionContainedIn None

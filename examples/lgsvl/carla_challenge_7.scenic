@@ -26,8 +26,8 @@ lane2 = intersection.incomingLanes[index2]
 
 require len(filter(lambda m: m.type == ManeuverType.STRAIGHT, lane1.maneuvers)) > 0
 
-pos1 = (OrientedPoint at lane1.centerline[-1]) offset by Range(-2, 2) @ 0 # at last stretch of centerline, off center by at most 2
-pos2 = (OrientedPoint at lane2.centerline[-1]) offset by Range(-2, 2) @ 0
+pos1 = (new OrientedPoint at lane1.centerline[-1]) offset by Range(-2, 2) @ 0 # at last stretch of centerline, off center by at most 2
+pos2 = (new OrientedPoint at lane2.centerline[-1]) offset by Range(-2, 2) @ 0
 
 
 # BEHAVIORS
@@ -64,11 +64,11 @@ behavior egoBehavior():
 
 
 # PLACEMENT
-ego = Car following roadDirection from pos1 by Range(-5, -3), # behind the position by at most 5
+ego = new Car following roadDirection from pos1 by Range(-5, -3), # behind the position by at most 5
     with speed 3,
     with behavior egoBehavior
 
-actorCar = Car following roadDirection from pos2 by Range(-5, -3),
+actorCar = new Car following roadDirection from pos2 by Range(-5, -3),
     with behavior actorCarBehavior,
     with speed 4
 

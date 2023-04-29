@@ -83,21 +83,21 @@ behavior LeadBehavior():
 #################################
 
 initLane = Uniform(*network.lanes)
-egoSpawnPt = OrientedPoint in initLane.centerline
+egoSpawnPt = new OrientedPoint in initLane.centerline
 
 #################################
 # SCENARIO SPECIFICATION        #
 #################################
 
-ego = Car at egoSpawnPt,
+ego = new Car at egoSpawnPt,
     with blueprint MODEL,
     with behavior EgoBehavior()
 
-adversary = Car following roadDirection for globalParameters.ADV_DIST,
+adversary = new Car following roadDirection for globalParameters.ADV_DIST,
     with blueprint MODEL,
     with behavior AdversaryBehavior()
 
-lead = Car following roadDirection for LEAD_DIST,
+lead = new Car following roadDirection for LEAD_DIST,
     with blueprint MODEL,
     with behavior LeadBehavior()
 

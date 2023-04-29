@@ -65,28 +65,26 @@ behavior Adversary2Behavior():
 initLane = Uniform(*filter(lambda lane:
     all([sec._laneToRight is not None for sec in lane.sections]),
     network.lanes))
-egoSpawnPt = OrientedPoint in initLane.centerline
+egoSpawnPt = new OrientedPoint in initLane.centerline
 egoLaneSecToSwitch = initLane.sectionAt(egoSpawnPt).laneToRight
 
 #################################
 # SCENARIO SPECIFICATION        #
 #################################
 
-adversary_1, adversary_2, adversary_3 = Car, Car, Car
-
-ego = Car at egoSpawnPt,
+ego = new Car at egoSpawnPt,
     with blueprint MODEL,
     with behavior EgoBehavior()
 
-adversary_1 = Car following roadDirection for globalParameters.ADV1_DIST,
+adversary_1 = new Car following roadDirection for globalParameters.ADV1_DIST,
     with blueprint MODEL,
     with behavior FollowLaneBehavior(target_speed=globalParameters.ADV_SPEED)
 
-adversary_2 = Car following roadDirection for globalParameters.ADV2_DIST,
+adversary_2 = new Car following roadDirection for globalParameters.ADV2_DIST,
     with blueprint MODEL,
     with behavior Adversary2Behavior()
 
-adversary_3 = Car following roadDirection for globalParameters.ADV3_DIST,
+adversary_3 = new Car following roadDirection for globalParameters.ADV3_DIST,
     with blueprint MODEL,
     with behavior FollowLaneBehavior(target_speed=globalParameters.ADV_SPEED)
 

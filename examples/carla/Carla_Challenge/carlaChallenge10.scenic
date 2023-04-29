@@ -45,14 +45,14 @@ adv_trajectory = [adv_maneuver.startLane, adv_maneuver.connectingLane, adv_maneu
 adv_start_lane = adv_maneuver.startLane
 
 ## OBJECT PLACEMENT
-ego_spawn_pt = OrientedPoint in ego_maneuver.startLane.centerline
-adv_spawn_pt = OrientedPoint in adv_maneuver.startLane.centerline
+ego_spawn_pt = new OrientedPoint in ego_maneuver.startLane.centerline
+adv_spawn_pt = new OrientedPoint in adv_maneuver.startLane.centerline
 
-ego = Car at ego_spawn_pt,
+ego = new Car at ego_spawn_pt,
     with blueprint EGO_MODEL,
     with behavior EgoBehavior(EGO_SPEED, ego_trajectory)
 
-adversary = Car at adv_spawn_pt,
+adversary = new Car at adv_spawn_pt,
     with behavior AdversaryBehavior(adv_trajectory)
 
 require 20 <= (distance to intersec) <= 25

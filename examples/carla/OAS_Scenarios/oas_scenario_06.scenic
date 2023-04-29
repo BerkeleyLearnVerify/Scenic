@@ -39,13 +39,13 @@ roads = network.roads
 select_road = Uniform(*roads)
 ego_lane = select_road.lanes[0]
 
-ego = Car on ego_lane.centerline,
+ego = new Car on ego_lane.centerline,
         with behavior EgoBehavior(target_speed=EGO_SPEED)
         
-spot = OrientedPoint on visible curb
+spot = new OrientedPoint on visible curb
 parkedHeadingAngle = Uniform(-1,1)*Range(10,20) deg
 
-other = Car left of (spot offset by PARKING_SIDEWALK_OFFSET_RANGE @ 0), facing parkedHeadingAngle relative to ego.heading,
+other = new Car left of (spot offset by PARKING_SIDEWALK_OFFSET_RANGE @ 0), facing parkedHeadingAngle relative to ego.heading,
             with behavior CutInBehavior(ego_lane, target_speed=PARKEDCAR_SPEED),
             with regionContainedIn None
 

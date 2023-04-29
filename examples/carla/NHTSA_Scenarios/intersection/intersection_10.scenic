@@ -55,25 +55,25 @@ intersection = Uniform(*filter(lambda i: i.is4Way, network.intersections))
 statInitLane = Uniform(*filter(lambda lane: 
     all([sec._laneToRight is not None for sec in lane.sections]),
     intersection.incomingLanes))
-statSpawnPt = OrientedPoint in statInitLane.centerline
+statSpawnPt = new OrientedPoint in statInitLane.centerline
 
 advInitLane = statInitLane.sectionAt(statSpawnPt).laneToRight.lane
 advManeuver = Uniform(*filter(lambda m: m.type is ManeuverType.STRAIGHT, advInitLane.maneuvers))
 advTrajectory = [advInitLane, advManeuver.connectingLane, advManeuver.endLane]
-advSpawnPt = OrientedPoint in advInitLane.centerline
+advSpawnPt = new OrientedPoint in advInitLane.centerline
 
 #################################
 # SCENARIO SPECIFICATION        #
 #################################
 
-stationary = Car at statSpawnPt,
+stationary = new Car at statSpawnPt,
     with blueprint MODEL
 
-ego = Car behind stationary by globalParameters.EGO_INIT_DIST,
+ego = new Car behind stationary by globalParameters.EGO_INIT_DIST,
     with blueprint MODEL,
     with behavior EgoBehavior()
 
-adversary = Car at advSpawnPt,
+adversary = new Car at advSpawnPt,
     with blueprint MODEL,
     with behavior FollowTrajectoryBehavior(target_speed=ADV_SPEED, trajectory=advTrajectory)
 

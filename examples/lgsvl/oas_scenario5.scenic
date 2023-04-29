@@ -40,14 +40,14 @@ behavior LeadCarSuddenlyStopsAndGo():
 
 
 
-ego = Car with behavior FollowLeadCar(10),
+ego = new Car with behavior FollowLeadCar(10),
         with blueprint 'vehicle.tesla.model3'
 
-other = Car ahead of ego by 10,
+other = new Car ahead of ego by 10,
         with behavior LeadCarSuddenlyStopsAndGo,
         with blueprint 'vehicle.tesla.model3'
     
-require (Point ahead of ego by 100) in road
+require (new Point ahead of ego by 100) in road
 
 terminate when ego.lane is None
 terminate when other.lane is None
