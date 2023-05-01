@@ -266,7 +266,7 @@ scene from it, and importing the scene into GTA V yields an image like this:
 Note that both the :scenic:`ego` car (where the camera is located) and the second car are both
 located on the road and facing along it, despite the fact that the code above does not
 specify the position or any other properties of the two cars. This is because reasonable default values for these properties have already
-been defined in the :scenic:`Car` definition, shown above and restated here:
+been defined in the :scenic:`Car` definition:
 
 .. code-block::
 	:linenos:
