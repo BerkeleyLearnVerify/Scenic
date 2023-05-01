@@ -35,20 +35,21 @@ the objects, distributions, etc. in the scenario. For details, see the function
     behavior. See the **cacheImports** argument of `scenarioFromFile`.
 """
 
-import sys
-import os
-import hashlib
-import io
+import ast
 import builtins
-import time
-import types
+from contextlib import contextmanager
+import dataclasses
+import hashlib
 import importlib
 import importlib.abc
 import importlib.util
-from contextlib import contextmanager
 import inspect
-
-import ast
+import io
+import os
+import sys
+import time
+import types
+from typing import Optional
 
 from scenic.core.distributions import RejectionException, toDistribution
 from scenic.core.lazy_eval import needsLazyEvaluation
@@ -56,25 +57,62 @@ import scenic.core.errors as errors
 from scenic.core.errors import (PythonCompileError, InvalidScenarioError)
 import scenic.core.dynamics as dynamics
 import scenic.core.pruning as pruning
+from scenic.core.utils import cached_property
 import scenic.syntax.veneer as veneer
 from scenic.syntax.parser import parse_string
 from scenic.syntax.compiler import compileScenicAST
 
 ### THE TOP LEVEL: compiling a Scenic program
 
+@dataclasses.dataclass
+class CompileOptions:
+    """Internal class for capturing options used when compiling a scenario."""
+
+    # N.B. update `hash` below when adding a new field
+
+    #: Whether or not the scenario uses 2D compatibility mode.
+    mode2D: bool = False
+    #: Overridden world model, if any.
+    modelOverride: Optional[str] = None
+    #: Overridden global parameters.
+    paramOverrides: dict = dataclasses.field(default_factory=dict)
+    #: Selected modular scenario, if any.
+    scenario: Optional[str] = None
+
+    @cached_property
+    def hash(self):
+        """Deterministic hash saved in serialized scenes to catch option mismatches."""
+        stream = io.BytesIO()
+        stream.write(bytes([self.mode2D]))
+        if self.modelOverride:
+            stream.write(self.modelOverride.encode())
+        for key in sorted(self.paramOverrides.keys()):
+            stream.write(key.encode())
+            value = self.paramOverrides[key]
+            if isinstance(value, (int, float, str)):
+                stream.write(str(value).encode())
+            else:
+                stream.write([0])
+        if self.scenario:
+            stream.write(self.scenario.encode())
+        # We can't use `hash` because it is not deterministic
+        # (e.g. the hashes of strings are randomized)
+        return hashlib.blake2b(stream.getvalue(), digest_size=4).digest()
+
 def scenarioFromString(string, params={}, model=None, scenario=None, *,
-                       filename='<string>', mode_2d=False, cacheImports=False):
+                       filename='<string>', mode2D=False, cacheImports=False):
     """Compile a string of Scenic code into a `Scenario`.
 
     The optional **filename** is used for error messages.
     Other arguments are as in `scenarioFromFile`.
     """
     stream = io.BytesIO(string.encode())
-    return scenarioFromStream(stream, params=params, model=model, scenario=scenario,
-                              filename=filename, cacheImports=cacheImports, mode_2d=mode_2d)
+    options = CompileOptions(modelOverride=model, paramOverrides=params, mode2D=mode2D)
+    return scenarioFromStream(stream, options, filename, scenario=scenario,
+                              cacheImports=cacheImports)
 
 def scenarioFromFile(path, params={}, model=None, scenario=None, *,
-                     mode_2d=False, cacheImports=False):
+                     mode2D=False, cacheImports=False):
     """Compile a Scenic file into a `Scenario`.
 
     Args:
@@ -85,7 +123,7 @@ def scenarioFromFile(path, params={}, model=None, scenario=None, *,
         scenario (str): If there are multiple :term:`modular scenarios` in the
           file, which one to compile; if not specified, a scenario called 'Main'
           is used if it exists.
-        mode_2d (bool): Whether to compile this scenario in 2D compatibility mode.
+        mode2D (bool): Whether to compile this scenario in 2D compatibility mode.
         cacheImports (bool): Whether to cache any imported Scenic modules.
           The default behavior is to not do this, so that subsequent attempts
           to import such modules will cause them to be recompiled. If it is
@@ -107,19 +145,19 @@ def scenarioFromFile(path, params={}, model=None, scenario=None, *,
         raise RuntimeError(err)
     directory, name = os.path.split(head)
 
+    options = CompileOptions(modelOverride=model, paramOverrides=params, mode2D=mode2D)
     with open(path, 'rb') as stream:
-        return scenarioFromStream(stream, params=params, model=model, scenario=scenario,
-                                  filename=fullpath, path=path, cacheImports=cacheImports,
-                                  mode_2d=mode_2d)
+        return scenarioFromStream(stream, options, fullpath, scenario=scenario,
+                                  path=path, cacheImports=cacheImports)
 
-def scenarioFromStream(stream, *, scenario=None, path=None, cacheImports=False,
-                       **kwargs):
+def scenarioFromStream(stream, compileOptions, filename, *,
+                       scenario=None, path=None, cacheImports=False):
     """Compile a stream of Scenic code into a `Scenario`."""
     # Compile the code as if it were a top-level module
     oldModules = list(sys.modules.keys())
     try:
         with topLevelNamespace(path) as namespace:
-            compileStream(stream, namespace, **kwargs)
+            compileStream(stream, namespace, compileOptions, filename)
     finally:
         if not cacheImports:
             purgeModulesUnsafeToCache(oldModules)
@@ -203,8 +241,7 @@ def purgeModulesUnsafeToCache(oldModules):
             # reference to the old version of the Scenic module.)
         del sys.modules[name]
 
-def compileStream(stream, namespace, *,
-                  params={}, model=None, filename='<stream>', mode_2d=False):
+def compileStream(stream, namespace, compileOptions, filename):
     """Compile a stream of Scenic code and execute it in a namespace.
 
     The compilation procedure consists of the following main steps:
@@ -220,7 +257,7 @@ def compileStream(stream, namespace, *,
     if errors.verbosityLevel >= 2:
         veneer.verbosePrint(f'  Compiling Scenic module from {filename}...')
         startTime = time.time()
-    veneer.activate(params, model, filename, namespace, mode_2d)
+    veneer.activate(compileOptions, namespace)
     try:
         # Execute preamble
         exec(compile(preamble, '<veneer>', 'exec'), namespace)
@@ -262,7 +299,7 @@ def compileStream(stream, namespace, *,
 
         # Extract scenario state from veneer and store it
         astHash = astHasher.digest()
-        storeScenarioStateIn(namespace, requirements, astHash)
+        storeScenarioStateIn(namespace, requirements, astHash, compileOptions)
     finally:
         veneer.deactivate()
     if errors.verbosityLevel >= 2:
@@ -325,7 +362,8 @@ class ScenicLoader(importlib.abc.InspectLoader):
         with open(self.filepath, 'r') as stream:
             source = stream.read()
         with open(self.filepath, 'rb') as stream:
-            code, pythonSource = compileStream(stream, module.__dict__, filename=self.filepath)
+            code, pythonSource = compileStream(stream, module.__dict__,
+                                               CompileOptions(), self.filepath)
         # Save code, source, and translated source for later inspection
         module._code = code
         module._source = source
@@ -475,11 +513,12 @@ def executeCodeIn(code, namespace):
 
 ### TRANSLATION PHASE SEVEN: scenario construction
 
-def storeScenarioStateIn(namespace, requirementSyntax, astHash):
+def storeScenarioStateIn(namespace, requirementSyntax, astHash, options):
     """Post-process an executed Scenic module, extracting state from the veneer."""
 
     # Save requirement syntax and other module-level information
     namespace['_astHash'] = astHash
+    namespace['_compileOptions'] = options
     moduleScenario = veneer.currentScenario
     factory = veneer.simulatorFactory
     bns = gatherBehaviorNamespacesFrom(moduleScenario._behaviors)

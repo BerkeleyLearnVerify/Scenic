@@ -28,14 +28,15 @@ wbt_road_world.worldPath = '../tests/simulators/webots/road/simple.wbt'
 # Hack to set global parameters needed to import the driving domain models
 import scenic.syntax.veneer as veneer
 veneer._buildingSphinx = True
-veneer.activate(
-    mode_2d=True,
+from scenic.syntax.translator import CompileOptions
+veneer.activate(CompileOptions(
+    mode2D=True,
     paramOverrides=dict(
         map='../tests/formats/opendrive/maps/opendrive.org/CulDeSac.xodr',
         carla_map='blah',
         lgsvl_map='blah',
     )
-)
+))
 import warnings
 from scenic.core.simulators import SimulatorInterfaceWarning
 with warnings.catch_warnings():
@@ -45,7 +46,7 @@ with warnings.catch_warnings():
 veneer.deactivate()
 
 # Hack to allow importing models which require 2D compatibility mode
-veneer.activate(mode_2d=True)
+veneer.activate(CompileOptions(mode2D=True))
 import scenic.simulators.gta.model
 import scenic.simulators.webots.guideways.model
 import scenic.simulators.webots.road.model

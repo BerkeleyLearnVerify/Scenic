@@ -45,15 +45,17 @@ class PendingRequirement:
         # the ego object too since it can be referred to implicitly
 
         # condition is an instance of Proposition. Flatten to get a list of atomic propositions.
-        nodes = condition.flatten()
-        binding_list = []
-        for node in nodes:
-            if isinstance(node, Atomic):
-                binding_list.append(getAllGlobals(node.closure))
-        bindings = reduce(lambda d1, d2: {**d1, **d2}, binding_list, {})
-
+        atoms = condition.atomics()
+        bindings = {}
+        atomGlobals = None
+        for atom in atoms:
+            bindings.update(getAllGlobals(atom.closure))
+            globs = atom.closure.__globals__
+            if atomGlobals is not None:
+                assert globs is atomGlobals
+            else:
+                atomGlobals = globs
         self.bindings = bindings
-
         self.egoObject = ego
 
     def compile(self, namespace, scenario, syntax=None):
@@ -63,9 +65,10 @@ class PendingRequirement:
         we can use for pruning, and gather all of its dependencies.
         """
         bindings, ego, line = self.bindings, self.egoObject, self.line
+        condition, ty = self.condition, self.ty
 
         # Check whether requirement implies any relations used for pruning
-        canPrune = self.condition.check_constrains_sampling()
+        canPrune = condition.check_constrains_sampling()
         if canPrune:
             relations.inferRelationsFrom(syntax, bindings, ego, line)
 
@@ -75,7 +78,7 @@ class PendingRequirement:
             if needsSampling(value):
                 deps.add(value)
             if needsLazyEvaluation(value):
-                raise InvalidScenarioError(f'{self.ty} on line {line} uses value {value}'
+                raise InvalidScenarioError(f'{ty} on line {line} uses value {value}'
                                            ' undefined outside of object definition')
 
         # If this requirement contains the CanSee specifier, we will need to sample all objects
@@ -88,9 +91,11 @@ class PendingRequirement:
             deps.add(ego)
 
         # Construct closure
-        def closure(values, monitor = None):
-            global evaluatingRequirement, currentScenario
+        def closure(values, monitor=None):
             # rebind any names referring to sampled objects
+            # note: need to extract namespace here rather than close over value
+            # from above because of https://github.com/uqfoundation/dill/issues/532
+            namespace = condition.atomics()[0].closure.__globals__
             for name, value in bindings.items():
                 if value in values:
                     namespace[name] = values[value]
@@ -101,17 +106,17 @@ class PendingRequirement:
             with veneer.executeInRequirement(scenario, boundEgo, values):
                 if monitor is None:
                     # if not temporal evaluation
-                    result = self.condition.evaluate()
+                    result = condition.evaluate()
                 else:
                     # if temporal evaluation
                     result = monitor.update()
                 assert not needsSampling(result)
                 if needsLazyEvaluation(result):
-                    raise InvalidScenarioError(f'{self.ty} on line {line} uses value'
+                    raise InvalidScenarioError(f'{ty} on line {line} uses value'
                                                ' undefined outside of object definition')
             return result
 
-        return CompiledRequirement(self, closure, deps, self.condition)
+        return CompiledRequirement(self, closure, deps, condition)
 
 def getAllGlobals(req, restrictTo=None):
     """Find all names the given lambda depends on, along with their current bindings."""

@@ -1,6 +1,7 @@
 """Support for dynamic behaviors and modular scenarios."""
 
 from collections import defaultdict
+import dataclasses
 import enum
 import inspect
 import itertools
@@ -226,11 +227,10 @@ class DynamicScenario(Invocable):
         self._requirementMonitors = None
 
     @classmethod
-    def _dummy(cls, filename, namespace):
+    def _dummy(cls, namespace):
         scenario = cls()
         scenario._setup = None
         scenario._compose = None
-        scenario._filename = filename   # for debugging
         scenario._prepared = True
         scenario._dummyNamespace = namespace
         return scenario
@@ -566,6 +566,8 @@ class DynamicScenario(Invocable):
         if not self._workspace:
             self._workspace = Workspace()     # default empty workspace
         astHash = namespace['_astHash']
+        name = None if self._dummyNamespace else self.__class__.__name__
+        options = dataclasses.replace(namespace['_compileOptions'], scenario=name)
 
         from scenic.core.scenarios import Scenario
         scenario = Scenario(self._workspace, self._simulatorFactory,
@@ -573,7 +575,7 @@ class DynamicScenario(Invocable):
                             self._globalParameters, self._externalParameters,
                             self._requirements, self._requirementDeps,
                             self._monitorRequirements, self._behaviorNamespaces,
-                            self, astHash)   # TODO unify these!
+                            self, astHash, options)   # TODO unify these!
         return scenario
 
     def __getattr__(self, name):

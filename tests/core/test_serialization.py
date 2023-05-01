@@ -12,7 +12,7 @@ import numpy
 
 import pytest
 
-from scenic.core.serialization import Serializer
+from scenic.core.serialization import Serializer, SerializationError
 from scenic.core.simulators import DummySimulator, DivergenceError
 from tests.utils import (areEquivalent, compileScenic, sampleScene, sampleSceneFrom,
                          sampleEgoActionsFromScene, getEgoActionsFrom, runInSubprocess)
@@ -20,8 +20,13 @@ from tests.utils import (areEquivalent, compileScenic, sampleScene, sampleSceneF
 # Utilities
 
 simpleScenario = """
-    ego = new Object at Range(3, 5) @ 2, with foo Uniform('zoggle', 'buggle'), with name "egoObject"
-    new Object at 10@10, facing toward ego, with foo Options({Range(1,2): 1, Range(3,4): 2}), with name "otherObject"
+    ego = new Object at Range(3, 5) @ 2,
+        with foo Uniform('zoggle', 'buggle'),
+        with name "egoObject"
+    new Object at 10@10,
+        facing toward ego,
+        with foo Options({Range(1,2): 1, Range(3,4): 2}),
+        with name "otherObject"
     param qux = ego.position
     param baz = ({'a', 'b', 'c', 'd'}, frozenset({'e', 'f', 'g', 'h'}))
 """
@@ -105,8 +110,22 @@ class TestExportToBytes:
         checkValueEncoding(-1724, int)
         checkValueEncoding(123456, int)
         checkValueEncoding(-123456, int)
+        checkValueEncoding(2**32 - 1, int)
+        checkValueEncoding(2**32, int)
+        checkValueEncoding(2**64 - 1, int)
+        checkValueEncoding(2**64, int)
         checkValueEncoding(3**30, int)
         checkValueEncoding(-5**21, int)
+
+    def test_huge_int(self):
+        # Check that this fails with a SerializationError rather than silently
+        # failing to encode the value properly.
+        with pytest.raises(SerializationError):
+            checkValueEncoding(256**256, int)
+
+    def test_bool(self):
+        checkValueEncoding(False, bool)
+        checkValueEncoding(True, bool)
 
     def test_float(self):
         checkValueEncoding(3.14159, float)
@@ -115,6 +134,18 @@ class TestExportToBytes:
         checkValueEncoding(7.89e-50, float)
         checkValueEncoding(float('inf'), float)
         checkValueEncoding(float('nan'), float)
+
+    def test_bytes(self):
+        checkValueEncoding(b'', bytes)
+        checkValueEncoding(b'\x00', bytes)
+        checkValueEncoding(b'\xFF', bytes)
+        checkValueEncoding(b'\x00123456', bytes)
+
+    def test_str(self):
+        checkValueEncoding('', str)
+        checkValueEncoding('0', str)
+        checkValueEncoding('123456', str)
+        checkValueEncoding('squeamish ossifrage', str)
 
     def test_object_with_encodeTo(self):
         from scenic.simulators.utils.colors import Color
@@ -147,6 +178,46 @@ class TestExportToBytes:
         scene2 = scenario.sceneFromBytes(data)
         assert scenario.sceneToBytes(scene2) == data
         assertSceneEquivalence(scene1, scene2)
+
+    def test_scene_comment(self):
+        """Adding comments to a scenario should not break deserialization."""
+        sc1 = compileScenic(simpleScenario)
+        sc2 = compileScenic(simpleScenario+"    # this shouldn't change anything")
+        scene1 = sampleScene(sc1)
+        data = sc1.sceneToBytes(scene1)
+        scene2 = sc2.sceneFromBytes(data)
+        assert sc2.sceneToBytes(scene2) == data
+        assertSceneEquivalence(scene1, scene2)
+
+    def test_scene_different_scenario(self):
+        sc1 = compileScenic(simpleScenario)
+        sc2 = compileScenic(simpleScenario+"\n    mutate")
+        scene1 = sampleScene(sc1)
+        data = sc1.sceneToBytes(scene1)
+        with pytest.raises(SerializationError):
+            sc2.sceneFromBytes(data)
+
+    def test_scene_different_scenario_modular(self):
+        code = """
+            scenario Main():
+                ego = new Object
+            scenario Foo():
+                ego = new Object at (10, 10)
+        """
+        sc1 = compileScenic(code)
+        sc2 = compileScenic(code, scenario='Foo')
+        scene1 = sampleScene(sc1)
+        data = sc1.sceneToBytes(scene1)
+        with pytest.raises(SerializationError):
+            sc2.sceneFromBytes(data)
+
+    def test_scene_inconsistent_mode(self):
+        sc1 = compileScenic(simpleScenario)
+        sc2 = compileScenic(simpleScenario, mode2D=True)
+        scene1 = sampleScene(sc1)
+        data = sc1.sceneToBytes(scene1)
+        with pytest.raises(SerializationError):
+            sc2.sceneFromBytes(data)
 
     def test_scene_behavior(self):
         scenario = compileScenic("""

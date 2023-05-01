@@ -64,7 +64,7 @@ attribute, which is an instance of `SimulationResult` (simulator-specific subcla
 	from scenic.simulators.newtonian import NewtonianSimulator
 	scenario = scenic.scenarioFromFile('examples/driving/badlyParkedCarPullingIn.scenic',
 	                                   model='scenic.simulators.newtonian.driving_model',
-	                                   mode_2d=True)
+	                                   mode2D=True)
 	scene, _ = scenario.generate()
 	simulator = NewtonianSimulator()
 	simulation = simulator.simulate(scene, maxSteps=10)
@@ -117,7 +117,7 @@ example, to save a scene to a file one could use code like the following:
 .. testcode::
 
 	import scenic, tempfile, pathlib
-	scenario = scenic.scenarioFromFile('examples/gta/parkedCar.scenic', mode_2d=True)
+	scenario = scenic.scenarioFromFile('examples/gta/parkedCar.scenic', mode2D=True)
 	scene, _ = scenario.generate()
 	data = scenario.sceneToBytes(scene)
 	with open(pathlib.Path(tempfile.gettempdir()) / 'test.scene', 'wb') as f:
@@ -134,7 +134,7 @@ Then you could restore the scene in another process, obtaining the same position
 .. testcode::
 
 	import scenic, tempfile, pathlib
-	scenario = scenic.scenarioFromFile('examples/gta/parkedCar.scenic', mode_2d=True)
+	scenario = scenic.scenarioFromFile('examples/gta/parkedCar.scenic', mode2D=True)
 	with open(pathlib.Path(tempfile.gettempdir()) / 'test.scene', 'rb') as f:
 		data = f.read()
 	scene = scenario.sceneFromBytes(data)

@@ -516,7 +516,7 @@ def test_not_visible_from_2d():
         ego = new Object at 100 @ 200, facing -45 deg,
                      with visibleDistance 10, with viewAngle 90 deg
         ego = new Object not visible from ego
-    """, mode_2d=True)
+    """, mode2D=True)
     base = Vector(100, 200)
     for i in range(20):
         pos = sampleEgo(scenario, maxIterations=50).position

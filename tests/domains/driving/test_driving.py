@@ -30,7 +30,7 @@ def compileDrivingScenario(cached_maps, code='', useCache=True,
     path = cached_maps[path]
     preamble = template.format(map=path, cache=useCache)
     whole = preamble + '\n' + inspect.cleandoc(code)
-    return compileScenic(whole, mode_2d=True)
+    return compileScenic(whole, mode2D=True)
 
 from tests.domains.driving.conftest import map_params
 
@@ -135,7 +135,7 @@ def test_caching(tmpdir):
             ego = new Car on lane, with foo lane.network.lanes
             new Car on ego.lane.successor.centerline, with requireVisible False
             new Car on ego.lane.maneuvers[0].endLane.centerline, with requireVisible False
-        """, mode_2d=True)
+        """, mode2D=True)
         sampleScene(scenario, maxIterations=1000)
 
 @pickle_test

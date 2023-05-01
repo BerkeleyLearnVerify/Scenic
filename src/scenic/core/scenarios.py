@@ -1,5 +1,6 @@
 """Scenario and scene objects."""
 
+import dataclasses
 import io
 import random
 import time
@@ -23,27 +24,36 @@ from scenic.core.serialization import Serializer, dumpAsScenicCode
 
 class _ScenarioPickleMixin:
     def __getstate__(self):
-        # Start the pickle with an object storing our global parameters and activating
-        # the veneer with them; this will ensure they are available during import of
+        # Start the pickle with an object storing our compile options and activating
+        # the veneer with them; this will ensure they are consistent during import of
         # any needed Scenic modules (which might have been purged earlier, and in any
         # case won't already exist during unpickling). Similarly, tack a dummy object
         # on the end of the pickle which will deactivate the veneer and clean up.
         oldModules = []
-        return (_Activator(self.params, oldModules), self.__dict__, _Deactivator(oldModules))
+        options = dataclasses.replace(
+            self.compileOptions,
+            paramOverrides=self.params, # save all params, not just those from --param
+        )
+        elements = (
+            _Activator(options, oldModules),
+            self.__dict__,
+            _Deactivator(oldModules)
+        )
+        return elements
 
     def __setstate__(self, state):
         self.__dict__.update(state[1])
 
 class _Activator:
-    def __init__(self, params, oldModules):
-        self.params = params
+    def __init__(self, compileOptions, oldModules):
+        self.compileOptions = compileOptions
         # Save all modules already imported prior to pickling
         oldModules.extend(sys.modules.keys())
 
     def activate(self):
         import scenic.syntax.veneer as veneer
         assert not veneer.isActive()
-        veneer.activate(paramOverrides=self.params)
+        veneer.activate(self.compileOptions)
 
     def __getstate__(self):
         # Step 1 (during pickling)
@@ -102,7 +112,7 @@ class Scene(_ScenarioPickleMixin):
                  temporalReqs=(),terminationConds=(), termSimulationConds=(),
                  recordedExprs=(), recordedInitialExprs=(), recordedFinalExprs=(),
                  monitors=(), behaviorNamespaces={}, dynamicScenario=None,
-                 sample={}):
+                 sample={}, compileOptions={}):
         self.workspace = workspace
         self.objects = tuple(objects)
         self.egoObject = egoObject
@@ -117,6 +127,7 @@ class Scene(_ScenarioPickleMixin):
         self.behaviorNamespaces = behaviorNamespaces
         self.dynamicScenario = dynamicScenario
         self.sample = sample
+        self.compileOptions = compileOptions
 
     def dumpAsScenicCode(self, stream=sys.stdout):
         """Dump Scenic code reproducing this scene to the given stream.
@@ -188,7 +199,7 @@ class Scenario(_ScenarioPickleMixin):
                  params, externalParams,
                  requirements, requirementDeps,
                  monitors, behaviorNamespaces,
-                 dynamicScenario, astHash):
+                 dynamicScenario, astHash, compileOptions):
         self.workspace = workspace
         self.simulator = simulator      # simulator for dynamic scenarios
         # make ego the first object, while otherwise preserving order
@@ -207,6 +218,7 @@ class Scenario(_ScenarioPickleMixin):
         self.behaviorNamespaces = behaviorNamespaces
         self.dynamicScenario = dynamicScenario
         self.astHash = astHash
+        self.compileOptions = compileOptions
 
         staticReqs, alwaysReqs, terminationConds = [], [], []
         self.requirements = tuple(dynamicScenario._requirements)    # TODO clean up
@@ -434,7 +446,7 @@ class Scenario(_ScenarioPickleMixin):
                       temporalReqs, terminationConds, termSimulationConds,
                       recordedExprs, recordedInitialExprs,recordedFinalExprs,
                       monitors, sampledNamespaces, self.dynamicScenario,
-                      sample)
+                      sample, self.compileOptions)
         return scene
 
     def resetExternalSampler(self):

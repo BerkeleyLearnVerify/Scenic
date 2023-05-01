@@ -149,20 +149,20 @@ def isActive():
     """
     return activity > 0
 
-def activate(paramOverrides={}, modelOverride=None, filename=None, namespace=None, mode_2d=False):
+def activate(options, namespace=None):
     """Activate the veneer when beginning to compile a Scenic module."""
     global activity, _globalParameters, lockedParameters, lockedModel, currentScenario
-    if paramOverrides or modelOverride:
+    if options.paramOverrides or options.modelOverride:
         assert activity == 0
-        _globalParameters.update(paramOverrides)
-        lockedParameters = set(paramOverrides)
-        lockedModel = modelOverride
+        _globalParameters.update(options.paramOverrides)
+        lockedParameters = set(options.paramOverrides)
+        lockedModel = options.modelOverride
 
     # If we are in 2D mode, set the global flag and replace all classes
     # with their 2D compatibility counterparts.
-    if mode_2d:
+    if options.mode2D:
         global mode2D, Point, OrientedPoint, Object
-        mode2D = mode_2d
+        mode2D = True
         Point = Point2D
         OrientedPoint = OrientedPoint2D
         Object = Object2D
@@ -175,13 +175,13 @@ def activate(paramOverrides={}, modelOverride=None, filename=None, namespace=Non
     assert not evaluatingGuard
     assert currentSimulation is None
     # placeholder scenario for top-level code
-    newScenario = DynamicScenario._dummy(filename, namespace)
+    newScenario = DynamicScenario._dummy(namespace)
     scenarioStack.append(newScenario)
     currentScenario = newScenario
 
 def deactivate():
     """Deactivate the veneer after compiling a Scenic module."""
-    global activity, _globalParameters, lockedParameters, lockedModel
+    global activity, _globalParameters, lockedParameters, lockedModel, mode2D
     global currentScenario, scenarios, scenarioStack, simulatorFactory
     activity -= 1
     assert activity >= 0
@@ -199,7 +199,6 @@ def deactivate():
         simulatorFactory = None
         _globalParameters = {}
 
-        global mode2D
         if mode2D:
             global Point, OrientedPoint, Object
             mode2D = False
@@ -207,7 +206,6 @@ def deactivate():
             scenic.core.object_types.Point = Point
             scenic.core.object_types.OrientedPoint = OrientedPoint
             scenic.core.object_types.Object = Object
-
     else:
         currentScenario = scenarioStack[-1]
 

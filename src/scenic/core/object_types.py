@@ -443,7 +443,7 @@ class Constructible(Samplable):
         if hasattr(self, 'properties') and 'name' in self._propertiesSet:
             return self.name
         else:
-            return f'unnamed {self.__class__.__name__} ({id(self)})'
+            return f'unnamed {self.__class__.__name__}'
 
     def __repr__(self):
         if hasattr(self, 'properties'):
@@ -1717,15 +1717,20 @@ class OrientedPoint2D(Point2D, OrientedPoint):
     _scenic_properties = {}
 
     def __init_subclass__(cls):
-        # Raise error if parentOrientation already defined
-        if 'parentOrientation' in cls._scenic_properties:
-            raise RuntimeError('this scenario cannot be run with the --2d flag (the '
-                               f'{cls.__name__} class defines "parentOrientation")')
+        if cls.__dict__.get('_props_transformed', False):
+            # Can get here when cls is unpickled (the transformed version was pickled)
+            pass
+        else:
+            cls._props_transformed = True
+            # Raise error if parentOrientation already defined
+            if 'parentOrientation' in cls._scenic_properties:
+                raise RuntimeError('this scenario cannot be run with the --2d flag (the '
+                                   f'{cls.__name__} class defines "parentOrientation")')
 
-        # Map certain properties to their 3D analog
-        if 'heading' in cls._scenic_properties:
-            cls._scenic_properties['parentOrientation'] = cls._scenic_properties['heading']
-            del cls._scenic_properties['heading']
+            # Map certain properties to their 3D analog
+            if 'heading' in cls._scenic_properties:
+                cls._scenic_properties['parentOrientation'] = cls._scenic_properties['heading']
+                del cls._scenic_properties['heading']
 
         super().__init_subclass__()
 
