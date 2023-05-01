@@ -186,12 +186,12 @@ Orientations in Depth
 Notice how in the last example the cone is oriented to be tangent with the curved surface of the chair, even though we
 never set an orientation with :specifier:`facing`. To explain this behavior, we need to look deeper into Scenic's orientation
 system. All Objects have an :prop:`orientation` property, which is their orientation in *global* coordinates. However, this
-value should not be set directly and is instead derived from 4 other properties: :prop:`yaw`, :prop:`pitch`, :prop:`roll`,
+value cannot be set directly and is instead derived from 4 other properties: :prop:`yaw`, :prop:`pitch`, :prop:`roll`,
 and :prop:`parentOrientation`. The first three are the Euler angles of the object (in radians), relative to its *local*
 coordinate system. The last property, :prop:`parentOrientation`, is an `Orientation` object that defines the local coordinate
-system of the Object. By default this is set to the global coordinate system, but it can be set by certain specifiers like
+system of the Object. By default this is set to the global coordinate system, but it can be set by certain specifiers just like
 other properties. This allows for a natural composition of rotations, where an Object can set its local orientation (via
-:prop:`yaw`, :prop:`pitch`, and :prop:`roll`) relative to something else, simply by setting:prop:`parentOrientation` to
+:prop:`yaw`, :prop:`pitch`, and :prop:`roll`) relative to something else, simply by setting :prop:`parentOrientation` to
 the other's global orientation. On the other hand, to set a global orientation, we would use the :specifier:`facing` specifier
 as seen earlier. Returning to the earlier example of a cone placed on a chair: :specifier:`on`, like many other specifiers 
 that specify :prop:`position`, also specifies :prop:`parentOrientation`. With :specifier:`on`, the parent orientation is 
