@@ -185,20 +185,33 @@ Orientations in Depth
 
 Notice how in the last example the cone is oriented to be tangent with the curved surface of the chair, even though we
 never set an orientation with :specifier:`facing`. To explain this behavior, we need to look deeper into Scenic's orientation
-system. All Objects have an :prop:`orientation` property, which is their orientation in *global* coordinates. However, this
-value cannot be set directly and is instead derived from 4 other properties: :prop:`yaw`, :prop:`pitch`, :prop:`roll`,
-and :prop:`parentOrientation`. The first three are the Euler angles of the object (in radians), relative to its *local*
-coordinate system. The last property, :prop:`parentOrientation`, is an `Orientation` object that defines the local coordinate
-system of the Object. By default this is set to the global coordinate system, but it can be set by certain specifiers just like
-other properties. This allows for a natural composition of rotations, where an Object can set its local orientation (via
-:prop:`yaw`, :prop:`pitch`, and :prop:`roll`) relative to something else, simply by setting :prop:`parentOrientation` to
-the other's global orientation. On the other hand, to set a global orientation, we would use the :specifier:`facing` specifier
-as seen earlier. Returning to the earlier example of a cone placed on a chair: :specifier:`on`, like many other specifiers 
-that specify :prop:`position`, also specifies :prop:`parentOrientation`. With :specifier:`on`, the parent orientation is 
-taken from a *vector field* attatched to the region. `MeshSurfaceRegion`, the class used to represent surfaces of an object,
-automatically defines an orientation that for each point on the surface is equal to the normal vector of the face at that point.
-This allows us to effortlessly place objects on regions, even if they have an irregular surface. Other specifiers might use
-different sources for :prop:`parentOrientation`.
+system. All objects have an :prop:`orientation` property, which is their orientation in *global* coordinates [#f2]_.
+If you just want to set the orientation by giving explicit angles in global coordinates, you can use the :specifier:`facing` specifier as we saw above.
+However, it's often useful to specify the orientation of an object in terms of *some other* coordinate system, for instance that of another object.
+To support such use cases, Scenic does not allow directly setting the value of :prop:`orientation` using :specifier:`with`: instead, its value is *derived* from the values of 4 other properties, :prop:`parentOrientation`, :prop:`yaw`, :prop:`pitch`, and :prop:`roll`.
+The :prop:`parentOrientation` property defines the **parent orientation** of the object, which is the coordinate system with respect to which the (intrinsic Euler) angles :prop:`yaw`, :prop:`pitch`, and :prop:`roll` are interpreted.
+Specifically, :prop:`orientation` is obtained as follows:
+
+  1. start from :prop:`parentOrientation`;
+  2. apply a yaw (a :abbr:`CCW (counter-clockwise)` rotation around the positive Z axis) of :prop:`yaw`;
+  3. apply a pitch (a CCW rotation around the resulting positive X axis) of :prop:`pitch`;
+  4. apply a roll (a CCW rotation around the resulting positive Y axis) of :prop:`roll`.
+
+By default, :prop:`parentOrientation` is the global coordinate system, so that :prop:`yaw` for example is just the angle by which to rotate the object around the Z axis (this corresponds to the :prop:`heading` property in older versions of Scenic).
+But by setting :prop:`parentOrientation` to the :prop:`orientation` of another object, we can easily compose rotations together: "face the same way as the jet, but upside-down" could be implemented :specifier:`with parentOrientation jet.orientation, with roll 180 deg`.
+
+In fact it is often unnecessary to set :prop:`parentOrientation` yourself, since many of Scenic's specifiers do so automatically when there is a natural choice of orientation to use.
+This includes all specifiers which position one object in terms of another: if we write :scenic:`new Object ahead of jet by 100`, the :specifier:`ahead of` specifier specifies :prop:`position` to be 100 meters ahead of the jet but *also* specifies :prop:`parentOrientation` to be :scenic:`jet.orientation`.
+So by default the new object will be oriented the same way as the jet; to implement the "upside-down" part, we could simply write :scenic:`new Object ahead of jet by 100, with roll 180 deg`.
+Importantly, the :specifier:`ahead of` specifier here only specifies :prop:`parentOrientation` *optionally*, giving it a new default value: if you want a different value, you can override that default by explicitly writing :specifier:`with parentOrientation {value}`.
+(We'll return to how Scenic manages default values and "optional" specifications later.)
+
+Another case where a specifier sets :prop:`parentOrientation` automatically is our cone-on-a-chair example above: in the code :scenic:`new Object on chair`, the :specifier:`on` specifier not only specifies :prop:`position` to be a random point on the top surface of the chair but also specifies :prop:`parentOrientation` to be an orientation tangent to the surface at that point.
+Thus the cone lies flat on the surface by default without our needing to specify its orientation; we could even add code like :specifier:`with roll 45 deg` to rotate the cone while keeping it tangent with the surface.
+
+In general, the :specifier:`on {region}` specifier specifies :prop:`parentOrientation` whenever the region in question has a :term:`preferred orientation`: a `vector field` (another primitive Scenic type) which defines an orientation at each point in the region.
+The class `MeshSurfaceRegion`, used to represent surfaces of an object, has a default preferred orientation which is tangent to the surface, allowing us to easily place objects on irregular surfaces as we've seen.
+Preferred orientations can also be convenient for modeling the nominal driving direction on roads, for example (we'll return to this use case below).
 
 Points, Oriented Points, and Classes
 ------------------------------------
@@ -251,7 +264,7 @@ subsequent examples.
 Line 2 then creates a :scenic:`Car` and assigns it to the special variable :scenic:`ego` specifying the
 *ego object*, as seen before. This is the reference point for the scenario: our simulator interfaces
 typically use it as the viewpoint for rendering images, and many of Scenic's geometric
-operators use :scenic:`ego` by default when a position is left implicit [#f2]_.
+operators use :scenic:`ego` by default when a position is left implicit [#f3]_.
 
 Finally, line 3 creates a second :scenic:`Car`. Compiling this scenario with Scenic, sampling a
 scene from it, and importing the scene into GTA V yields an image like this:
@@ -400,7 +413,7 @@ without the :scenic:`require` statement: when defining the ego car, we would hav
 specify those positions where it is possible to put a roughly-oncoming car 20--40 meters
 ahead (for example, this is not possible on a one-way road). Instead, we can simply place
 :scenic:`ego` uniformly over all roads and let Scenic work out how to condition the
-distribution so that the requirement is satisfied [#f3]_. As this example illustrates,
+distribution so that the requirement is satisfied [#f4]_. As this example illustrates,
 the ability to declaratively impose constraints gives Scenic greater versatility than
 purely-generative formalisms. Requirements also improve encapsulation by allowing us to
 restrict an existing scenario without altering it. For example::
@@ -569,11 +582,16 @@ constructs in convenient tables with links to the detailed documentation.
 
 .. [#f1] Although collisions can be allowed on a per-object basis: see the :prop:`allowCollisions` property of `Object`.
 
-.. [#f2] In fact, since :scenic:`ego` is a variable and can be reassigned, we can set :scenic:`ego` to
+.. [#f2] Represented as an instance of the `Orientation` class, which internally uses
+	 quaternions (although you shouldn't need to worry about that). In the rare case where
+	 you need to manipulate orientations beyond what Scenic's operators provide, see the
+	 documentation for `Orientation`.
+
+.. [#f3] In fact, since :scenic:`ego` is a variable and can be reassigned, we can set :scenic:`ego` to
    one object, build a part of the scene around it, then reassign :scenic:`ego` and build
    another part of the scene.
 
-.. [#f3] On the other hand, Scenic may have to work hard to satisfy difficult
+.. [#f4] On the other hand, Scenic may have to work hard to satisfy difficult
    constraints. Ultimately Scenic falls back on rejection sampling, which in the worst
    case will run forever if the constraints are inconsistent (although we impose a limit
    on the number of iterations: see `Scenario.generate`).

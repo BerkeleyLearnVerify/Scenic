@@ -63,8 +63,8 @@ Scenic rejects such expressions as being ambiguous: more explicit syntax like :s
 
 Orientation
 ===========
-Orientations represent orientation in 3D space.
-Scenic represents orientations internally using quaternions, though for convenience they can be created using Euler angles. Scenic follows the right hand rule with the X,Y,Z order of coordinates. In other words, Euler angles are given as (Yaw, Pitch, Roll), in radians, and applied in that order. To help visualize, one can consider their right hand with fingers extended orthogonally. The index finger points along positive X, the middle finger bends left along positive Y, and the thumb ends up pointing along positive Z. For rotations, align your right thumb with an axis and the way your fingers curl is a positive rotation.
+Orientations represent orientations in 3D space.
+Scenic represents orientations internally using quaternions, though for convenience they can be created using Euler angles. Scenic follows the right hand rule with the Z,X,Y order of rotations. In other words, Euler angles are given as (Yaw, Pitch, Roll), in radians, and applied in that order. To help visualize, one can consider their right hand with fingers extended orthogonally. The index finger points along positive X, the middle finger bends left along positive Y, and the thumb ends up pointing along positive Z. For rotations, align your right thumb with a positive axis and the way your fingers curl is a positive rotation.
 
 .. versionadded:: 3.0
 
@@ -79,7 +79,7 @@ For example, a vector field could represent the shortest paths to a destination,
 
 .. versionchanged:: 3.0
 
-    Vector fields now return an `Orientation` instead of a `Heading`.
+    Vector fields now return an `Orientation` instead of a scalar heading.
 
 .. _Region:
 
