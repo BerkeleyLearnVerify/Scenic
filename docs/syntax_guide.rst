@@ -3,7 +3,7 @@
 Syntax Guide
 ============
 
-This page summarizes the syntax of Scenic (excluding syntax inherited from Python).
+This page summarizes the syntax of Scenic, excluding the basic syntax of variable assignments, functions, loops, etc., which is identical to Python (see the `Python Tutorial <https://docs.python.org/3/tutorial/>`_ for an introduction).
 For more details, click the links for individual language constructs to go to the corresponding section of the `language reference`.
 
 

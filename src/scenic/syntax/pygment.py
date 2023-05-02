@@ -328,17 +328,17 @@ class ScenicLexer(BetterPythonLexer):
             # Override statement (which ends with a list of specifiers)
             (rf'''(?x)
                 ^(\s*) (override)
-                (\s*) {obj_name} ([^\S\n]*)
+                (\s+) {obj_name} ([^\S\n]*)
                 (?={specifier})''',
              bygroups(Whitespace, Keyword,
                       Whitespace, Name.Variable.Magic, Name, Whitespace),
              'specifier-start'),
             # Param statement
-            (r'^(\s*)(param)(\s*)',
+            (r'^(\s*)(param)(\s+)',
              bygroups(Whitespace, Keyword, Whitespace),
              'param-statement'),
             # Require statement (within which we can have temporal operators)
-            (r'^(\s*)(require)(\s*)(?!monitor)',
+            (r'^(\s*)(require)(\s+)(?!monitor)',
              bygroups(Whitespace, Keyword, Whitespace),
              'require-statement'),
             # Keywords that can only occur at the start of a line

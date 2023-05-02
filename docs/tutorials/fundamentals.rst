@@ -93,8 +93,8 @@ For an example of this, try changing the code above to have a much larger ego ob
 with the plane. While this isn't too important in the scenarios we've seen so far, it becomes very useful when we start constructing
 *random* scenarios.
 
-Randomness, Regions, and More Specifiers
-----------------------------------------
+Randomness and Regions
+----------------------
 
 So far all of our Scenic programs have defined concrete scenes, i.e. they uniquely define all the aspects of a scene, so every time we run the program we'll get the same scene.
 This is because so far we haven't introduced any *randomness*. Scenic is a *probabilistic programming language*,
@@ -189,7 +189,7 @@ system. All objects have an :prop:`orientation` property, which is their orienta
 If you just want to set the orientation by giving explicit angles in global coordinates, you can use the :specifier:`facing` specifier as we saw above.
 However, it's often useful to specify the orientation of an object in terms of *some other* coordinate system, for instance that of another object.
 To support such use cases, Scenic does not allow directly setting the value of :prop:`orientation` using :specifier:`with`: instead, its value is *derived* from the values of 4 other properties, :prop:`parentOrientation`, :prop:`yaw`, :prop:`pitch`, and :prop:`roll`.
-The :prop:`parentOrientation` property defines the **parent orientation** of the object, which is the coordinate system with respect to which the (intrinsic Euler) angles :prop:`yaw`, :prop:`pitch`, and :prop:`roll` are interpreted.
+The :prop:`parentOrientation` property defines the **parent orientation** of the object, which is the orientation with respect to which the (intrinsic Euler) angles :prop:`yaw`, :prop:`pitch`, and :prop:`roll` are interpreted.
 Specifically, :prop:`orientation` is obtained as follows:
 
   1. start from :prop:`parentOrientation`;
@@ -197,12 +197,12 @@ Specifically, :prop:`orientation` is obtained as follows:
   3. apply a pitch (a CCW rotation around the resulting positive X axis) of :prop:`pitch`;
   4. apply a roll (a CCW rotation around the resulting positive Y axis) of :prop:`roll`.
 
-By default, :prop:`parentOrientation` is the global coordinate system, so that :prop:`yaw` for example is just the angle by which to rotate the object around the Z axis (this corresponds to the :prop:`heading` property in older versions of Scenic).
-But by setting :prop:`parentOrientation` to the :prop:`orientation` of another object, we can easily compose rotations together: "face the same way as the jet, but upside-down" could be implemented :specifier:`with parentOrientation jet.orientation, with roll 180 deg`.
+By default, :prop:`parentOrientation` is aligned with the global coordinate system, so that :prop:`yaw` for example is just the angle by which to rotate the object around the Z axis (this corresponds to the :prop:`heading` property in older versions of Scenic).
+But by setting :prop:`parentOrientation` to the :prop:`orientation` of another object, we can easily compose rotations together: "face the same way as the plane, but upside-down" could be implemented :specifier:`with parentOrientation plane.orientation, with roll 180 deg`.
 
 In fact it is often unnecessary to set :prop:`parentOrientation` yourself, since many of Scenic's specifiers do so automatically when there is a natural choice of orientation to use.
-This includes all specifiers which position one object in terms of another: if we write :scenic:`new Object ahead of jet by 100`, the :specifier:`ahead of` specifier specifies :prop:`position` to be 100 meters ahead of the jet but *also* specifies :prop:`parentOrientation` to be :scenic:`jet.orientation`.
-So by default the new object will be oriented the same way as the jet; to implement the "upside-down" part, we could simply write :scenic:`new Object ahead of jet by 100, with roll 180 deg`.
+This includes all specifiers which position one object in terms of another: if we write :scenic:`new Object ahead of plane by 100`, the :specifier:`ahead of` specifier specifies :prop:`position` to be 100 meters ahead of the plane but *also* specifies :prop:`parentOrientation` to be :scenic:`plane.orientation`.
+So by default the new object will be oriented the same way as the plane; to implement the "upside-down" part, we could simply write :scenic:`new Object ahead of plane by 100, with roll 180 deg`.
 Importantly, the :specifier:`ahead of` specifier here only specifies :prop:`parentOrientation` *optionally*, giving it a new default value: if you want a different value, you can override that default by explicitly writing :specifier:`with parentOrientation {value}`.
 (We'll return to how Scenic manages default values and "optional" specifications later.)
 
@@ -216,11 +216,23 @@ Preferred orientations can also be convenient for modeling the nominal driving d
 Points, Oriented Points, and Classes
 ------------------------------------
 
-Scenic provides several other *instances*, which support similar syntax to Objects (e.g. random properties and specifiers) but have different default values and are treated differently by Scenic. These instances are `Point` and `OrientedPoint`, which form an inheritance chain with `Point` being the superclass of `OrientedPoint`, which is the superclass of `Object`. Points and oriented points are not included in scenes generated by Scenic, but are still useful for intermediate constructions. In particular, points can be interpreted as positions and oriented points can be interpreted as positions or orientations, which allows for useful constructions as we'll soon see.
+We've seen that Scenic has a built-in class `Object` for representing physical objects, and that individual objects are instantiated using the :keyword:`new` keyword.
+`Object` is actually the bottom class in a hierarchy of built-in Scenic classes that support this syntax: its superclass is `OrientedPoint`, whose superclass in turn is `Point`.
+The base class `Point` provides the :prop:`position` property, while its subclass `OrientedPoint` adds :prop:`orientation` (plus :prop:`parentOrientation`, :prop:`yaw`, etc.).
+These two classes do not represent physical objects and aren't included in scenes generated by Scenic, but they provide a convenient way to use specifier syntax to construct positions and orientations for later use without creating actual objects.
+A `Point` can be used anywhere where a vector is expected (e.g. :specifier:`at {point}`), and an `OrientedPoint` can also be used anywhere where an orientation is expected.
+With both a position and an orientation, an `OrientedPoint` defines a local coordinate system, and so can be used with specifiers like :specifier:`ahead of` to position objects::
 
-In the previous example placing spheres in a region, we explicitly wrote out the specifiers for each object we created even though they were all identical.
-Such repetition can often be avoided by using functions and loops, and by defining a **class** of object providing new default values for properties of interest.
-Our example can be equivalently written:
+	spot = new OrientedPoint on curb
+	new Object left of spot by 0.25
+
+Here, suppose ``curb`` is a region with a preferred orientation aligned with the plane of the road and along the curb; then the first line creates an `OrientedPoint` at a uniformly-random position on the curb, oriented along the curb.
+So the second line then creates an `Object` offset 0.25 meters into the road, regardless of which direction the road happens to run in the global coordinate system.
+
+Scenic also allows users to define their own classes.
+In our earlier example placing spheres in a region, we explicitly wrote out the specifiers for each object we created even though they were all identical.
+Such repetition can often be avoided by using functions and loops, and by defining a class of object providing new default values for properties of interest.
+Our example could be equivalently written:
 
 .. code-block:: scenic
 	:linenos:
@@ -235,8 +247,22 @@ Our example can be equivalently written:
 	    new SphereObject
 
 Here we define the ``SphereObject`` class, providing new default values for the :prop:`position` and :prop:`shape` properties, overriding those inherited from `Object` (the default superclass if none is explicitly given).
-So for example the default :prop:`position` for a ``SphereObject`` is the expression :scenic:`new Point in workspace`, which creates a `Point` that can be automatically interpreted as a position. This gives us a way to get the convenience of specifiers in class definitions. Note that this is a random expression, and it is evaluated independently each time a ``SphereObject`` is defined: so the loop creates 3 objects which will all have different positions (and as usual Scenic will ensure they do not overlap).
-We can still override the default value as needed: adding the line :scenic:`new SphereObject at (0,0,5)` would create a ``SphereObject`` which still used the default value of :prop:`shape` but whose :prop:`position` is exactly :scenic:`(0,0,5)`. Note that we don't define a superclass for ``SphereObject``. In this case, Scenic will implicitly assume that the class inherit's from Scenic's `Object`.
+So for example the default :prop:`position` for a ``SphereObject`` is the expression :scenic:`new Point in workspace`, which creates a `Point` that can be automatically interpreted as a position. This gives us a way to get the convenience of specifiers in class definitions. Note that this is a random expression, and it is evaluated independently each time a ``SphereObject`` is defined; so the loop creates 3 objects which will all have different positions (and as usual Scenic will ensure they do not overlap).
+We can still override the default value as needed: adding the line :scenic:`new SphereObject at (0,0,5)` would create a ``SphereObject`` which still used the default value of :prop:`shape` but whose :prop:`position` is exactly :scenic:`(0,0,5)`.
+
+In addition to the special syntax seen above for defining properties of a class and instantiating an instance of a class, Scenic classes support inheritance and methods in the same way as Python::
+
+	class Vehicle:
+	    pass
+	class Taxicab(Vehicle):
+	    magicNumber: 42
+
+	    def myMethod(self, x):
+	        return self.width + self.magicNumber + x
+
+	ego = new Taxicab with magicNumber 1729
+	y = ego.myMethod(3.14)
+
 
 Models and Simulators
 ---------------------
@@ -254,7 +280,7 @@ this very concisely in Scenic:
 
 	from scenic.simulators.gta.model import Car
 	ego = new Car
-	new Car visible
+	new Car
 
 Line 1 imports the GTA :term:`world model`, a Scenic library defining everything specific to our
 GTA interface. This includes the definition of the class :obj:`Car`, as well as information
@@ -262,7 +288,7 @@ about the road geometry that we'll see later. We'll suppress this :scenic:`impor
 subsequent examples.
 
 Line 2 then creates a :scenic:`Car` and assigns it to the special variable :scenic:`ego` specifying the
-*ego object*, as seen before. This is the reference point for the scenario: our simulator interfaces
+*ego object*, which we've seen before. This is the reference point for the scenario: our simulator interfaces
 typically use it as the viewpoint for rendering images, and many of Scenic's geometric
 operators use :scenic:`ego` by default when a position is left implicit [#f3]_.
 
@@ -279,7 +305,7 @@ scene from it, and importing the scene into GTA V yields an image like this:
 Note that both the :scenic:`ego` car (where the camera is located) and the second car are both
 located on the road and facing along it, despite the fact that the code above does not
 specify the position or any other properties of the two cars. This is because reasonable default values for these properties have already
-been defined in the :scenic:`Car` definition:
+been defined in the :scenic:`Car` definition (shown here slightly simplified):
 
 .. code-block::
 	:linenos:
@@ -288,17 +314,23 @@ been defined in the :scenic:`Car` definition:
 	    position: new Point on road
 	    heading: roadDirection at self.position    # note: can only set `heading` in 2D mode
 	    width: self.model.width
-	    height: self.model.height
+	    length: self.model.length
 	    model: CarModel.defaultModel()	# a distribution over several car models
+	    requireVisible: True    # so all cars appear in the rendered images
 
 
 Here ``road`` is a region defined in the `gta` model to specify which points in the workspace 
-are on a road. Similarly, ``roadDirection`` is a **vector field** (another built-in Scenic datatype) specifying the nominal traffic direction 
+are on a road. Similarly, ``roadDirection`` is a `vector field` specifying the nominal traffic direction 
 at such points. The operator :scenic:`{F} at {X}` simply gets the direction of the field *F* at point *X*, so line 3
 sets a :scenic:`Car`'s default heading to be the road direction at its :prop:`position`. The default
 :prop:`position`, in turn, is a :scenic:`new Point on road`, which means a uniformly random point on the road. 
 Thus, in our simple scenario above both cars will be placed on the road facing a reasonable direction, without our having to
 specify this explicitly.
+
+One further point of interest in the code above is that the default value for :prop:`heading` depends on the value of :prop:`position`, and the default values of :prop:`width` and :prop:`length` depend on :prop:`model`.
+Scenic allows default value expressions to use the special syntax :scenic:`self.{property}` to refer to the value of another property of the object being defined: Scenic tracks the resulting dependencies and evaluates the expressions in an appropriate order (or raises an error if there are any cyclic dependencies).
+This capability is also frequently used by specifiers, as we explain next.
+
 
 Specifiers in Depth
 -------------------
@@ -308,7 +340,6 @@ orientations may seem unusual compared to typical constructors in object-oriente
 languages. There are two reasons why Scenic uses this kind of syntax: first, readability.
 The second is more subtle and based on the fact that in natural language there are many
 ways to specify positions and other properties, some of which interact with each other.
-
 Consider the following ways one might describe the location of a car:
 
 	1. "is at position *X*" (an absolute position)
@@ -337,7 +368,7 @@ something like:
 
 .. code-block:: python
 
-	# hypothetical Python-like language
+	# hypothetical Python-like language (not Scenic)
 	model = Car.defaultModelDistribution.sample()
 	pos = curb.offsetLeft(0.5 + model.width / 2)
 	car = Car(pos, model=model)
@@ -349,25 +380,42 @@ latter problem could be fixed by having a specialized constructor or factory fun
 
 .. code-block:: python
 
-	# hypothetical Python-like language
+	# hypothetical Python-like language (not Scenic)
 	car = CarLeftOfBy(curb, 0.5)
 
 However, such functions would proliferate since we would need to handle all possible
 combinations of ways to specify different properties (e.g. do we want to require a
 specific model? Are we overriding the width provided by the model for this specific
-car?). Instead of having a multitude of such monolithic constructors, Scenic factors the
+car?). Instead of having a multitude of such monolithic constructors, Scenic uses specifiers to factor the
 definition of objects into potentially-interacting but syntactically-independent parts::
 
-	Car left of spot by 0.5,
-	    with model CarModel.models['BUS']
+	new Car left of curb by 0.5,
+	        with model CarModel.models['BUS']
 
-Here :specifier:`left of {X} by {D}` and :specifier:`with model {M}` are *specifiers* which do not
-have an order, but which *together* specify the properties of the car. Scenic works out
+Here the specifiers :specifier:`left of {X} by {D}` and :specifier:`with model {M}` do not
+have an order, but *together* specify the properties of the car. Scenic works out
 the dependencies between properties (here, :prop:`position` is provided by :specifier:`left of`, which
 depends on :prop:`width`, whose default value depends on :prop:`model`) and evaluates them in the
 correct order. To use the default model distribution we would simply omit line 2; keeping
 it affects the :prop:`position` of the car appropriately without having to specify ``BUS``
 more than once.
+
+Scenic also handles additional dependencies which arise from implicitly using the properties of the object being defined.
+For example, suppose we wanted to elaborate the scenario above by saying the car is oriented up to 5° off of the nominal traffic direction.
+We can write this using the ``roadDirection`` vector field and Scenic's general operator
+:scenic:`{X} relative to {Y}`, which can interpret vectors and orientations as being in a
+variety of local coordinate systems::
+
+	new Car left of curb by 0.5,
+	        facing Range(-5, 5) deg relative to roadDirection
+
+Notice that since ``roadDirection`` is a vector field, it defines a different local
+coordinate system at each point in space: at different points on the map, roads point
+different directions! Thus an expression like :scenic:`15 deg relative to field` does not
+define a unique heading. The example above works because Scenic knows that the
+expression :scenic:`Range(-5, 5) deg relative to roadDirection` depends on a reference
+position, and automatically uses the :prop:`position` of the :scenic:`Car` being defined.
+
 
 As we've discussed previously, specifiers can specify multiple properties, but they can also do so with
 different *priorities*. Priorities with a lower numerical value are considered higher priority than those
