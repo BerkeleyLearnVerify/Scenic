@@ -57,17 +57,17 @@ behavior AdversaryBehavior():
 #################################
 
 initLane = Uniform(*network.lanes)
-egoSpawnPt = OrientedPoint in initLane.centerline
+egoSpawnPt = new OrientedPoint in initLane.centerline
 
 #################################
 # SCENARIO SPECIFICATION        #
 #################################
 
-ego = Car at egoSpawnPt,
+ego = new Car at egoSpawnPt,
     with blueprint MODEL,
     with behavior FollowLaneBehavior(target_speed=globalParameters.EGO_SPEED)
 
-adversary = Car following roadDirection for globalParameters.ADV_DIST,
+adversary = new Car following roadDirection for globalParameters.ADV_DIST,
     with blueprint MODEL,
     with behavior AdversaryBehavior()
 

@@ -9,6 +9,7 @@ Language Reference
 
 These pages describe the syntax of Scenic in detail.
 For a one-page summary of Scenic's syntax, see the :doc:`syntax_guide`.
+For details on the syntax for functions, loops, etc. inherited from Python, see the `Python Language Reference <https://docs.python.org/3/reference/index.html>`_.
 
 .. toctree::
     :maxdepth: 1

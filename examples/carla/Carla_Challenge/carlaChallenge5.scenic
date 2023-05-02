@@ -41,12 +41,12 @@ initLaneSec = Uniform(*laneSecsWithRightLane)
 rightLane = initLaneSec._laneToRight
 
 #PLACEMENT
-spawnPt = OrientedPoint on initLaneSec.centerline
+spawnPt = new OrientedPoint on initLaneSec.centerline
 
-ego = Car at spawnPt,
+ego = new Car at spawnPt,
     with behavior EgoBehavior(rightLane, [initLaneSec])
 
-cyclist = Car following roadDirection from ego for EGO_TO_BICYCLE,
+cyclist = new Car following roadDirection from ego for EGO_TO_BICYCLE,
     with behavior SlowCarBehavior()
 
 require (distance from ego to intersection) > 10

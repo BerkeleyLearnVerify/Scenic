@@ -62,23 +62,23 @@ behavior AdvBehavior():
 
 road = Uniform(*filter(lambda r: len(r.forwardLanes.lanes) == len(r.backwardLanes.lanes) == 1, network.roads))
 egoLane = Uniform(road.forwardLanes.lanes)[0]
-spawnPt = OrientedPoint on egoLane.centerline
-advSpawnPt = OrientedPoint following roadDirection from spawnPt for globalParameters.ADV_INIT_DIST
+spawnPt = new OrientedPoint on egoLane.centerline
+advSpawnPt = new OrientedPoint following roadDirection from spawnPt for globalParameters.ADV_INIT_DIST
 
 #################################
 # SCENARIO SPECIFICATION        #
 #################################
 
-ego = Car following roadDirection from spawnPt for globalParameters.EGO_INIT_DIST,
+ego = new Car following roadDirection from spawnPt for globalParameters.EGO_INIT_DIST,
     with blueprint MODEL,
     with behavior EgoBehavior()
 
-ped = Pedestrian right of spawnPt by 3,
+ped = new Pedestrian right of spawnPt by 3,
     with heading 90 deg relative to spawnPt.heading,
     with regionContainedIn None,
     with behavior CrossingBehavior(ego, PED_MIN_SPEED, PED_THRESHOLD)
 
-adv = Car left of advSpawnPt by 3,
+adv = new Car left of advSpawnPt by 3,
     with blueprint MODEL,
     with heading 180 deg relative to spawnPt.heading,
     with behavior AdvBehavior()

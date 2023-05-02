@@ -41,7 +41,9 @@ from scenic.core.shapes import Shape, BoxShape, MeshShape
 from scenic.core.regions import IntersectionRegion
 
 ## Types
+#: Type alias for an interval (a pair of floats).
 Interval = typing.Tuple[float, float]
+#: Type alias for limits on dimensions (a triple of intervals).
 DimensionLimits = typing.Tuple[Interval, Interval, Interval]
 
 ## Abstract base class
@@ -441,7 +443,7 @@ class Constructible(Samplable):
         if hasattr(self, 'properties') and 'name' in self._propertiesSet:
             return self.name
         else:
-            return f'unnamed {self.__class__.__name__} ({id(self)})'
+            return f'unnamed {self.__class__.__name__}'
 
     def __repr__(self):
         if hasattr(self, 'properties'):
@@ -540,12 +542,12 @@ class Point(Constructible):
         length (float): Default value 0.
         height (float): Default value 0.
         baseOffset (`Vector`): An offset indicating where the base of this `Point` is relative to
-          its position. Used by the ``on`` specifier. Default value is (0,0,0).
+          its position. Used by the :keyword:`on` specifier. Default value is (0,0,0).
         contactTolerance (float): The maximum distance can be away from a surface to be considered
           on the surface. Instances are placed at this distance away from a point when the 
-          ``on`` specifier is used. Default value 0.
+          :keyword:`on` specifier is used. Default value 0.
         onDirection (`Vector`): The direction used to determine where to place
-          this `Point` on a regipm, when using the modifying ``on`` specifier.
+          this `Point` on a region, when using the modifying :keyword:`on` specifier.
           See the :sampref:`on {region}` page for more details. Default value is (0,0,1),
           directly upwards.
         visibleDistance (float): Distance used to determine the visible range of this object.
@@ -703,8 +705,12 @@ class OrientedPoint(Point):
     def visibleRegion(self):
         """The :term:`visible region` of this object.
 
-        The visible region of an `OrientedPoint`, whose shape depends on
-        :prop:`viewAngles`. For more details, see `DefaultViewRegion`.
+        The visible region of an `OrientedPoint` restricts that of `Point` (a sphere with
+        radius :prop:`visibleDistance`) based on the value of :prop:`viewAngles`. In
+        general, it is a capped rectangular pyramid subtending an angle of
+        :scenic:`viewAngles[0]` horizontally and :scenic:`viewAngles[1]` vertically, as
+        long as those angles are less than π/2; larger angles yield various kinds of
+        wrap-around regions. See `DefaultViewRegion` for details.
         """
         return DefaultViewRegion(visibleDistance=self.visibleDistance, viewAngles=self.viewAngles,\
             position=self.position, rotation=self.orientation)
@@ -754,27 +760,27 @@ class Object(OrientedPoint):
           Default value of 1 inherited from the object's :prop:`shape`.
         height (float): Height of the object, i.e. extent along its Z axis.
           Default value of 1 inherited from the object's :prop:`shape`.
-        shape (`Shape`): The shape of the object, which must be a `Shape` class.
+        shape (`Shape`): The shape of the object, which must be an instance of `Shape`.
           The default shape is a box, with default unit dimensions.
         allowCollisions (bool): Whether the object is allowed to intersect
           other objects. Default value ``False``.
         regionContainedIn (`Region` or ``None``): A `Region` the object is
           required to be contained in. If ``None``, the object need only be
-          contained in the scenario's workspace.
+          contained in the scenario's :term:`workspace`.
         baseOffset (`Vector`): An offset from the :prop:`position` of the Object
-          to the base of the object, used by the ``on`` specifier. Default value
-          is (0, 0, -self.height/2), placing the base of the Object at the bottom
+          to the base of the object, used by the :keyword:`on` specifier. Default value
+          is :scenic:`(0, 0, -self.height/2)`, placing the base of the Object at the bottom
           center of the Object's bounding box.
         contactTolerance (float): The distance away an object should be placed
-          from a point to be on the point, used by the ``on`` specifier. Default
+          from a point to be on the point, used by the :keyword:`on` specifier. Default
           value 1e-4.
         sideComponentThresholds (`DimensionLimits`): Used to determine the
           various sides of an object (when using the default implementation). 
           The three interior 2-tuples represent the maximum and minimum bounds
           for each dimension's (x,y,z) surface. See `defaultSideSurface` for details.
-          Default value ((-0.5, 0.5), (-0.5, 0.5), (-0.5, 0.5)).  
-        cameraOffset (`Vector`): Position of the camera for the ``can see``
-          operator, relative to the object's ``position``. Default ``(0, 0, 0)``.
+          Default value :scenic:`((-0.5, 0.5), (-0.5, 0.5), (-0.5, 0.5))`.
+        cameraOffset (`Vector`): Position of the camera for the :keyword:`can see`
+          operator, relative to the object's :prop:`position`. Default :scenic:`(0, 0, 0)`.
         requireVisible (bool): Whether the object is required to be visible
           from the ``ego`` object. Default value ``False``.
         occluding (bool): Whether or not this object can occlude other objects. Default
@@ -783,10 +789,10 @@ class Object(OrientedPoint):
           used by the internal visualizer, or possibly simulators. All values should
           be between 0 and 1. Default value ``None``
         velocity (`Vector`; *dynamic*): Velocity in dynamic simulations. Default value is
-          the velocity determined by ``self.speed`` and ``self.orientation``.
+          the velocity determined by :prop:`speed` and :prop:`orientation`.
         speed (float; dynamic): Speed in dynamic simulations. Default value 0.
         angularVelocity (`Vector`; *dynamic*): 
-        angularSpeed (float; *dynamic*): Angular speed in dynamic simulations. Default
+        angularSpeed (float; dynamic): Angular speed in dynamic simulations. Default
           value 0.
         behavior: Behavior for dynamic agents, if any (see :ref:`dynamics`). Default
           value ``None``.
@@ -960,12 +966,14 @@ class Object(OrientedPoint):
     def visibleRegion(self):
         """The :term:`visible region` of this object.
 
-        The visible region of an `Object`, whose shape depends on
-        :prop:`viewAngles`. For more details, see `DefaultViewRegion`.
+        The visible region of an `Object` is the same as that of an `OrientedPoint` (see
+        `OrientedPoint.visibleRegion`) except that it is offset by the value of
+        :prop:`cameraOffset` (which is the zero vector by default).
         """
-        true_position = self.position.offsetRotated(self.orientation, toVector(self.cameraOffset))
-        return DefaultViewRegion(visibleDistance=self.visibleDistance, viewAngles=self.viewAngles,\
-            position=true_position, rotation=self.orientation)
+        true_position = self.position.offsetRotated(self.orientation, self.cameraOffset)
+        return DefaultViewRegion(visibleDistance=self.visibleDistance,
+                                 viewAngles=self.viewAngles,
+                                 position=true_position, rotation=self.orientation)
 
     @lru_cache(maxsize=None)
     def canSee(self, other, occludingObjects=list(), debug=False) -> bool:
@@ -976,7 +984,7 @@ class Object(OrientedPoint):
               for visibility.
             occludingObjects: A list of objects that can occlude visibility.
         """
-        true_position = self.position.offsetRotated(self.orientation, toVector(self.cameraOffset))
+        true_position = self.position.offsetRotated(self.orientation, self.cameraOffset)
         return canSee(position=true_position, orientation=self.orientation, visibleDistance=self.visibleDistance, \
             viewAngles=self.viewAngles, rayDensity=self.rayDensity, target=other, \
             occludingObjects=occludingObjects, debug=debug)
@@ -1709,15 +1717,20 @@ class OrientedPoint2D(Point2D, OrientedPoint):
     _scenic_properties = {}
 
     def __init_subclass__(cls):
-        # Raise error if parentOrientation already defined
-        if 'parentOrientation' in cls._scenic_properties:
-            raise RuntimeParseError("A subclass has defined parentOrientation, but this program is "
-                "being run in 2D compatibility mode.")
+        if cls.__dict__.get('_props_transformed', False):
+            # Can get here when cls is unpickled (the transformed version was pickled)
+            pass
+        else:
+            cls._props_transformed = True
+            # Raise error if parentOrientation already defined
+            if 'parentOrientation' in cls._scenic_properties:
+                raise RuntimeError('this scenario cannot be run with the --2d flag (the '
+                                   f'{cls.__name__} class defines "parentOrientation")')
 
-        # Map certain properties to their 3D analog
-        if 'heading' in cls._scenic_properties:
-            cls._scenic_properties['parentOrientation'] = cls._scenic_properties['heading']
-            del cls._scenic_properties['heading']
+            # Map certain properties to their 3D analog
+            if 'heading' in cls._scenic_properties:
+                cls._scenic_properties['parentOrientation'] = cls._scenic_properties['heading']
+                del cls._scenic_properties['heading']
 
         super().__init_subclass__()
 

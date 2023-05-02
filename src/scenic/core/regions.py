@@ -24,6 +24,7 @@ import shapely.prepared
 
 import trimesh
 from trimesh.transformations import translation_matrix, quaternion_matrix, concatenate_matrices
+warnings.filterwarnings('ignore', module='trimesh') # temporarily suppress annoying warnings
 
 from subprocess import CalledProcessError
 
@@ -1257,6 +1258,11 @@ class MeshVolumeRegion(MeshRegion):
 
     @cached_property
     def isConvex(self):
+        #TODO: This is giving bogus responses for multi-convex volume meshes. Workaround
+        # is to check body count, but we should file an issue.
+        if self.mesh.body_count != 1:
+            return False
+
         return self.mesh.is_convex
 
     @property
@@ -1638,7 +1644,7 @@ class PolygonalFootprintRegion(Region):
 
             # Check if we have a valid volume
             if polygon_mesh.is_volume:
-                if tol_size is not None:
+                if tol_size is not None and tol_size >= 0.01:
                     warnings.warn(f"Computing bounded footprint of polygon resulted in invalid volume, "
                                   f"but was able to remedy this by buffering/simplifying polygon by {tol_size}")
                 break
@@ -1659,18 +1665,18 @@ class PolygonalFootprintRegion(Region):
     @cached_property
     def isConvex(self):
         return self.polygons.equals(self.polygons.convex_hull)
-    
+
 class PathRegion(Region):
+    """A region composed of multiple polylines in 3D space.
+
+    One of points or polylines should be provided. If both are provided,
+    points will be used.
+
+    Args:
+        points: A list of points defining a single polyline.
+        polylines: A list of list of points, defining multiple polylines.
+    """
     def __init__(self, points=None, polylines=None):
-        """ A region composed of multiple polylines in 3D space.
-
-        One of points or polylines should be provided. If both are provided,
-        points will be used.
-
-        Args:
-            points: A list of points defining a single polyline.
-            polylines: A list of list of points, defining multiple polylines.
-        """
         # Standardize inputs
         if points is not None:
             polylines = [points]

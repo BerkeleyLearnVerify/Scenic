@@ -5,14 +5,15 @@ Scenic is a domain-specific probabilistic programming language for modeling the 
 A Scenic program defines a distribution over *scenes*, configurations of physical objects and agents; sampling from this distribution yields concrete scenes which can be simulated to produce training or testing data.
 Scenic can also define (probabilistic) policies for dynamic agents, allowing modeling scenarios where agents take actions over time in response to the state of the world.
 
-Scenic was designed and implemented by Daniel J. Fremont, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia, with contributions from :doc:`many others <credits>`.
+Scenic was designed and implemented by Daniel J. Fremont, Eric Vin, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia, with contributions from :doc:`many others <credits>`.
 For a description of the language and some of its applications, see `our journal paper <https://doi.org/10.1007/s10994-021-06120-5>`_, which extends `our PLDI 2019 paper <https://arxiv.org/abs/1809.09310>`_ on Scenic 1.x.
 Our :doc:`publications <publications>` page lists additional papers using Scenic.
 
 .. note::
 
-   The syntax of Scenic 3.x is not completely backwards-compatible with 2.x, which was used in our journal paper, or with 1.x, which was used in our papers prior to late 2020. See :doc:`new` for a list of syntax changes and new features.
-   If your existing code no longer works, install the latest 2.x/1.x release from
+   The syntax of Scenic 3.0 is not completely backwards-compatible with earlier versions of Scenic, which were used in our papers prior to 2023.
+   See :doc:`new` for a list of syntax changes and new features.
+   Old code can likely be easily ported; you can also install older releases if necessary from
    `GitHub <https://github.com/BerkeleyLearnVerify/Scenic/releases>`__.
 
 If you have any problems using Scenic, please submit an issue to `our GitHub repository <https://github.com/BerkeleyLearnVerify/Scenic>`_ or contact Daniel at dfremont@ucsc.edu.

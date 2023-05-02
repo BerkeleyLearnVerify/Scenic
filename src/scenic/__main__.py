@@ -88,7 +88,7 @@ parser.add_argument('scenicFile', help='a Scenic file to run', metavar='FILE')
 # Parse arguments and set up configuration
 args = parser.parse_args()
 delay = args.delay
-mode_2d = getattr(args, "2d")
+mode2D = getattr(args, "2d")
 
 scenic.setDebuggingOptions(
     verbosity=args.verbosity,
@@ -127,7 +127,7 @@ scenario = errors.callBeginningScenicTrace(
                                         params=params,
                                         model=args.model,
                                         scenario=args.scenario,
-                                        mode_2d=mode_2d)
+                                        mode2D=mode2D)
 )
 totalTime = time.time() - startTime
 if args.verbosity >= 1:
@@ -196,13 +196,13 @@ try:
                         break
             else:
                 if delay is None:
-                    if mode_2d:
+                    if mode2D:
                         scene.show_2d(zoom=args.zoom)
                     else:
                         scene.show(zoom=args.zoom)
                 else:
-                    if mode_2d:
-                        scene.show(zoom=args.zoom, block=False)
+                    if mode2D:
+                        scene.show_2d(zoom=args.zoom, block=False)
                         plt.pause(delay)
                         plt.clf()
                     else:

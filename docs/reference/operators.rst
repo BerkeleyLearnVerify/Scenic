@@ -58,6 +58,8 @@ Boolean Operators
 ---------------------------------------------------------
 Whether or not a position or `Object` is visible from a `Point` or `OrientedPoint`, accounting for occlusion.
 
+See :term:`visible region` for a discussion of the visibility model.
+
 .. _({vector} | {Object}) in {region}:
 
 (*vector* | *Object*) in *region*

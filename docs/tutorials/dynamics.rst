@@ -406,7 +406,7 @@ usual schematic diagram of the generated scenes:
 
 .. code-block:: console
 
-    $ scenic examples/driving/badlyParkedCarPullingIn.scenic
+    $ scenic examples/driving/badlyParkedCarPullingIn.scenic --2d
 
 To run dynamic simulations, add the :option:`--simulate` option (:option:`-S` for short).
 Since this scenario is not written for a particular simulator, you'll need to specify
@@ -418,6 +418,7 @@ the simulations, which we can do using the :option:`--time` option.
 .. code-block:: console
 
     $ scenic examples/driving/badlyParkedCarPullingIn.scenic \
+        --2d       \
         --simulate \
         --model scenic.simulators.newtonian.driving_model \
         --time 200
@@ -438,6 +439,7 @@ invoking Scenic as follows:
 .. code-block:: console
 
     $ scenic examples/driving/badlyParkedCarPullingIn.scenic \
+        --2d       \
         --simulate \
         --model scenic.simulators.lgsvl.model \
         --time 200 \

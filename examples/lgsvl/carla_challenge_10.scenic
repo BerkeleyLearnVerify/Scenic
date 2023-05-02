@@ -36,8 +36,8 @@ lines2 = [actorTurn.startLane.centerline, actorTurn.connectingLane.centerline, a
 egoTrajectory = [egoManeuver.connectingLane.centerline, egoManeuver.endLane.centerline]
 actorTrajectory = [actorTurn.connectingLane.centerline, actorTurn.endLane.centerline]
 
-pos1 = (OrientedPoint at lane1.centerline[-1]) offset by Range(-2, 2) @ 0 
-pos2 = (OrientedPoint at lane2.centerline[-1]) offset by Range(-2, 2) @ 0
+pos1 = (new OrientedPoint at lane1.centerline[-1]) offset by Range(-2, 2) @ 0 
+pos2 = (new OrientedPoint at lane2.centerline[-1]) offset by Range(-2, 2) @ 0
 
 egoDist = Range(8,12)
 actorDist = Range(5, 7)
@@ -132,10 +132,10 @@ PossibleBehaviors = [neverMoveBehavior, turnBehavior, conflictingStopBehavior, c
 #PossibleBehaviors = [chickenBehavior]
 
 # PLACEMENT
-ego = Car following roadDirection from pos1 by -egoDist,
+ego = new Car following roadDirection from pos1 by -egoDist,
     with behavior EgoBehavior(target_speed=15, trajectory=lines1)
 
-actorCar = Car following roadDirection from pos2 by -actorDist,
+actorCar = new Car following roadDirection from pos2 by -actorDist,
     with behavior actorCarBehavior(egoAtStop)
 
 terminate when ego in egoManeuver.endLane

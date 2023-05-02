@@ -432,6 +432,7 @@ def test_visible_from_oriented_point():
         assert pos.x <= base.x
         assert pos.y >= base.y
 
+@pytest.mark.slow
 def test_can_see_point_occlusion_enabled():
     with pytest.raises(RejectionException):
         sampleSceneFrom("""
@@ -458,6 +459,7 @@ def test_can_see_point_occlusion_enabled():
                 with name "wall",
         """, maxIterations=1)
 
+@pytest.mark.slow
 def test_point_visible_from_object():
     sampleSceneFrom("""
         workspace_region = RectangularRegion(0 @ 0, 0, 40, 40)
@@ -514,7 +516,7 @@ def test_not_visible_from_2d():
         ego = new Object at 100 @ 200, facing -45 deg,
                      with visibleDistance 10, with viewAngle 90 deg
         ego = new Object not visible from ego
-    """, mode_2d=True)
+    """, mode2D=True)
     base = Vector(100, 200)
     for i in range(20):
         pos = sampleEgo(scenario, maxIterations=50).position

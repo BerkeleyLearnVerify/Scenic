@@ -10,13 +10,13 @@ pytest.importorskip("PIL")
 pytest.importorskip("cv2")
 
 def test_basic(loadLocalScenario):
-    scenario = loadLocalScenario('basic.scenic')
+    scenario = loadLocalScenario('basic.scenic', mode2D=True)
     scene = sampleScene(scenario, maxIterations=1000)
     GTA.Config(scene)
 
 @pytest.mark.graphical
 def test_show_2d(loadLocalScenario):
-    scenario = loadLocalScenario('basic.scenic')
+    scenario = loadLocalScenario('basic.scenic', mode2D=True)
     scene = sampleScene(scenario, maxIterations=1000)
     scene.show_2d(block=False)
     plt.close()
@@ -24,7 +24,7 @@ def test_show_2d(loadLocalScenario):
     plt.close()
 
 def test_bumper_to_bumper(loadLocalScenario):
-    scenario = loadLocalScenario('bumperToBumper.scenic')
+    scenario = loadLocalScenario('bumperToBumper.scenic', mode2D=True)
     scene = sampleScene(scenario, maxIterations=1000)
     GTA.Config(scene)
 
@@ -37,19 +37,21 @@ def test_make_map(request, tmp_path):
     outpath.unlink()
 
 def test_mutate():
-    scenario = compileScenic(
-        'from scenic.simulators.gta.map import setLocalMap\n'
-        f'setLocalMap("{__file__}", "map.npz")\n'
-        'from scenic.simulators.gta.model import *\n'
-        'ego = new EgoCar with color Color(0, 0, 1)\n'
-        'mutate'
+    scenario = compileScenic(f"""
+        from scenic.simulators.gta.map import setLocalMap
+        setLocalMap("{__file__}", "map.npz")
+        from scenic.simulators.gta.model import *
+        ego = new EgoCar with color Color(0, 0, 1)
+        mutate
+        """,
+        mode2D=True
     )
     scene, _ = scenario.generate(maxIterations=50)
     assert tuple(scene.egoObject.color) != (0, 0, 1)
 
 @pickle_test
 def test_pickle(loadLocalScenario):
-    scenario = loadLocalScenario('basic.scenic')
+    scenario = loadLocalScenario('basic.scenic', mode2D=True)
     unpickled = tryPickling(scenario)
     scene = sampleScene(unpickled, maxIterations=1000)
     tryPickling(scene)

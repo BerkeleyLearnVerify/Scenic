@@ -198,6 +198,7 @@ class BetterPythonLexer(PythonLexer):
              bygroups(Name.Variable.Parameter.Magic, Name.Variable.Parameter, Whitespace,
                       Punctuation)),
             (r'#.*$', Comment.Single),
+            (r'\\\n', Punctuation),
             (r'=', Operator, 'default'),
             (rf'\b({uni_name})(\s*)(:)',
              bygroups(Name.Variable.Parameter, Whitespace, Punctuation),
@@ -206,15 +207,18 @@ class BetterPythonLexer(PythonLexer):
             (r'\)', Punctuation, '#pop'),
         ],
         'default': [
+            (r'\s+', Whitespace),
             (r'(,)|(?=\))', bygroups(Punctuation), '#pop'),
             include('expr'),
         ],
         'annotated-param': [
+            (r'\s+', Whitespace),
             (r'(,)|(?=\))', bygroups(Punctuation), '#pop'),
             include('expr'),
             (r'=(?!=)', Operator),
         ],
         'return-annotation': [
+            (r'\s+', Whitespace),
             (r'(?=:)', Text, '#pop'),
             include('expr'),
         ],
@@ -274,6 +278,7 @@ class ScenicLexer(BetterPythonLexer):
 
     simple_spec = words((
         'at', 'offset by', 'offset along', 'left of', 'right of', 'ahead of',
+        'above', 'below',
         'behind', 'beyond', 'visible from', 'visible', 'not visible from',
         'not visible', 'in', 'on', 'contained in', 'following', 'facing toward',
         'facing away from', 'facing directly toward', 'facing directly away from',
@@ -323,17 +328,17 @@ class ScenicLexer(BetterPythonLexer):
             # Override statement (which ends with a list of specifiers)
             (rf'''(?x)
                 ^(\s*) (override)
-                (\s*) {obj_name} ([^\S\n]*)
+                (\s+) {obj_name} ([^\S\n]*)
                 (?={specifier})''',
              bygroups(Whitespace, Keyword,
                       Whitespace, Name.Variable.Magic, Name, Whitespace),
              'specifier-start'),
             # Param statement
-            (r'^(\s*)(param)(\s*)',
+            (r'^(\s*)(param)(\s+)',
              bygroups(Whitespace, Keyword, Whitespace),
              'param-statement'),
             # Require statement (within which we can have temporal operators)
-            (r'^(\s*)(require)(\s*)(?!monitor)',
+            (r'^(\s*)(require)(\s+)(?!monitor)',
              bygroups(Whitespace, Keyword, Whitespace),
              'require-statement'),
             # Keywords that can only occur at the start of a line
@@ -481,6 +486,7 @@ class ScenicSpecifierLexer(ScenicSnippetLexer):
     tokens = {
         'root': [
             include('specifier-start'),
+            (r'with', Keyword.Specifier),   # special case for incomplete 'with'
         ],
     }
 

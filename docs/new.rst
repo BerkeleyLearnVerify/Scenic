@@ -17,25 +17,32 @@ Scenic 3.0.0:
 
 Backwards-incompatible syntax changes:
 
-	* Objects must be explicitly created using the ``new`` keyword, e.g. ``new Object at (1, 2)`` instead of the old ``Object at (1, 2)``.
-	  This removes an ambiguity in the Scenic grammar, and makes non-creation uses of class names like ``myClasses = [Car, Bicycle, Pedestrian]`` clearer.
+	* Objects must be explicitly created using the :keyword:`new` keyword, e.g. :scenic:`new Object at (1, 2)` instead of the old ``Object at (1, 2)``.
+	  This removes an ambiguity in the Scenic grammar, and makes non-creation uses of class names like :scenic:`myClasses = [Car, Bicycle, Pedestrian]` clearer.
 
-	* As the ``heading`` property is now derived from the 3D ``orientation`` (see below), it can no longer be set directly.
-	  This only matters if you wrote code like ``with heading 30 deg``; the more idiomatic ``facing 30 deg`` will still work.
+	* As the :prop:`heading` property is now derived from the 3D :prop:`orientation` (see below), it can no longer be set directly.
+	  This only matters if you wrote code like :specifier:`with heading 30 deg`; the more idiomatic :specifier:`facing 30 deg` will still work.
 
 Major new features:
 
 	* Scenic uses 3D geometry.
 	  Vectors now have 3 coordinates: if a third coordinate is not provided, it is assumed to be zero, so that scenarios taking place entirely in the z=0 plane will continue to work as before.
-	  Orientations of objects in space are represented by a new ``orientation`` property (internally a quaternion), which is computed by applying intrinsic ``yaw``, ``pitch``, and ``roll`` rotations, given by new properties by those names.
-	  These rotations are applied to the object's ``parentOrientation``, which by default aligns with the Scenic global coordinate system but is optionally specified by :sampref:`left of` and similar specifiers; this makes it easy to orient an object with respect to another object.
+	  Orientations of objects in space are represented by a new :prop:`orientation` property (internally a quaternion), which is computed by applying intrinsic :prop:`yaw`, :prop:`pitch`, and :prop:`roll` rotations, given by new properties by those names.
+	  These rotations are applied to the object's :prop:`parentOrientation`, which by default aligns with the Scenic global coordinate system but is optionally specified by :keyword:`left of` and similar specifiers; this makes it easy to orient an object with respect to another object.
 
 	* Scenic models the precise shapes of objects, rather than simply using bounding boxes for collision detection and visibility checks.
-	  Objects have a new ``shape`` property (an instance of the `Shape` class) representing their shape; shapes can be created from standard 3D mesh formats such as STL.
+	  Objects have a new :prop:`shape` property (an instance of the `Shape` class) representing their shape; shapes can be created from standard 3D mesh formats such as STL.
 
-	* The :keyword:`require` statement accepts arbitrary properties in Linear Temporal Logic (not just the :samp:`require always` and :samp:`require eventually` forms previously allowed).
+	* The :keyword:`require` statement accepts arbitrary properties in Linear Temporal Logic (not just the :scenic:`require always` and :scenic:`require eventually` forms previously allowed).
+
+	* Sampled `Scene` objects can now be serialized to short sequences of bytes and restored later.
+	  Similarly, executed `Simulation` objects can be saved and replayed.
+	  See :ref:`serialization` for details.
 
 Minor new features:
+
+	* It is no longer necessary to define an :scenic:`ego` object.
+	  If no :scenic:`ego` is defined, the ``egoObject`` attribute of a sampled `Scene` is `None`.
 
 	* Syntax errors should now always indicate the correct part of the source code.
 

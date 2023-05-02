@@ -21,7 +21,7 @@ straight_maneuver = Uniform(*straight_maneuvers)
 startLane = straight_maneuver.startLane
 
 centerlines = [straight_maneuver.startLane.centerline, straight_maneuver.connectingLane.centerline, straight_maneuver.endLane.centerline]
-egoStart = (OrientedPoint at startLane.centerline[-1]) offset by Range(-2, 2) @ 0 
+egoStart = (new OrientedPoint at startLane.centerline[-1]) offset by Range(-2, 2) @ 0 
 
 # --
 
@@ -30,7 +30,7 @@ leftTurn_maneuver = Uniform(*conflicting_lefts)
 L_startLane = leftTurn_maneuver.startLane
 
 L_centerlines = [leftTurn_maneuver.startLane.centerline, leftTurn_maneuver.connectingLane.centerline, leftTurn_maneuver.endLane.centerline]
-actorStart = (OrientedPoint at L_startLane.centerline[-1]) offset by Range(-2, 2) @ 0 
+actorStart = (new OrientedPoint at L_startLane.centerline[-1]) offset by Range(-2, 2) @ 0 
 
 
 # BEHAVIORS
@@ -46,11 +46,11 @@ behavior EgoBehavior(target_speed=20, trajectory = None):
 
 
 # PLACEMENT 
-ego = Car following roadDirection from egoStart by -Uniform(*space),
+ego = new Car following roadDirection from egoStart by -Uniform(*space),
         with blueprint 'vehicle.tesla.model3',
         with behavior EgoBehavior(target_speed=15, trajectory=centerlines)
 
-other = Car following roadDirection from actorStart by -Uniform(*space),
+other = new Car following roadDirection from actorStart by -Uniform(*space),
         with blueprint 'vehicle.tesla.model3',
         with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=L_centerlines)
 

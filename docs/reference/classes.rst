@@ -12,6 +12,7 @@ This page describes the classes built into Scenic, representing `points <Point>`
     If you are working on Scenic's internals, you can find more complete documentation in the :mod:`scenic.core.object_types` module.
 
 .. _objectCreate:
+.. _new:
 
 Instance Creation
 -----------------

@@ -44,12 +44,12 @@ behavior LeadingCarBehavior(speed=10):
 # make sure to put '*' to uniformly randomly select from all elements of the list, 'lanes'
 lane = Uniform(*network.lanes)
 
-obstacle = Trash on lane.centerline
+obstacle = new Trash on lane.centerline
 
-leadCar = Car following roadDirection from obstacle for Range(-50, -30),
+leadCar = new Car following roadDirection from obstacle for Range(-50, -30),
         with behavior LeadingCarBehavior(LEAD_CAR_SPEED)
 
-ego = Car following roadDirection from leadCar for Range(-15, -10),
+ego = new Car following roadDirection from leadCar for Range(-15, -10),
         with blueprint EGO_MODEL,
         with behavior EgoBehavior(EGO_SPEED)
 

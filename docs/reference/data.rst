@@ -63,8 +63,8 @@ Scenic rejects such expressions as being ambiguous: more explicit syntax like :s
 
 Orientation
 ===========
-Orientations represent orientation in 3D space.
-Scenic represents orientations internally using quaternions, though for convenience they can be created using Euler angles. Scenic follows the right hand rule with the X,Y,Z order of coordinates. In other words, Euler angles are given as (Yaw, Pitch, Roll), in radians, and applied in that order. To help visualize, one can consider their right hand with fingers extended orthogonally. The index finger points along positive X, the middle finger bends left along positive Y, and the thumb ends up pointing along positive Z. For rotations, align your right thumb with an axis and the way your fingers curl is a positive rotation.
+Orientations represent orientations in 3D space.
+Scenic represents orientations internally using quaternions, though for convenience they can be created using Euler angles. Scenic follows the right hand rule with the Z,X,Y order of rotations. In other words, Euler angles are given as (Yaw, Pitch, Roll), in radians, and applied in that order. To help visualize, one can consider their right hand with fingers extended orthogonally. The index finger points along positive X, the middle finger bends left along positive Y, and the thumb ends up pointing along positive Z. For rotations, align your right thumb with a positive axis and the way your fingers curl is a positive rotation.
 
 .. versionadded:: 3.0
 
@@ -79,7 +79,7 @@ For example, a vector field could represent the shortest paths to a destination,
 
 .. versionchanged:: 3.0
 
-    Vector fields now return an `Orientation` instead of a `Heading`.
+    Vector fields now return an `Orientation` instead of a scalar heading.
 
 .. _Region:
 
@@ -93,7 +93,12 @@ Regions can have an associated vector field giving points in the region :term:`p
 For example, a region representing a lane of traffic could have a preferred orientation aligned with the lane, so that we can easily talk about distances along the lane, even if it curves.
 Another possible use of preferred orientations is to give the surface of an object normal vectors, so that other objects placed on the surface face outward by default.
 
-The main operations available for use with all regions are the :sampref:`({vector} | {Object}) in {region}` operator to test containment within a region, the :sampref:`visible {region}` operator to get the part of a region which is visible from the :scenic:`ego`, and the :sampref:`(in | on) {region}` specifier to choose a position uniformly at random inside a region.
+The main operations available for use with all regions are:
+
+* the :sampref:`({vector} | {Object}) in {region}` operator to test containment within a region;
+* the :sampref:`visible {region}` operator to get the part of a region which is visible from the :scenic:`ego`;
+* the :sampref:`in {region}` specifier to choose a position uniformly at random inside a region;
+* the :sampref:`on {region}` specifier to choose a position like :sampref:`in {region}` or to project an existing position onto the region's surface.
 
 If you need to perform more complex operations on regions, or are writing a :term:`world model` and need to define your own regions, you will have to work with the :obj:`~scenic.core.regions.Region` class (which regions are instances of) and its subclasses for particular types of regions.
 These are summarized below: if you are working on Scenic's internals, see the :mod:`scenic.core.regions` module for full details.
@@ -136,7 +141,9 @@ Point Sets and Lines
 
 Unlike the more `PolygonalRegion`, the simple geometric shapes are allowed to depend on random values: for example, the :term:`visible region` of an `Object` is a `SectorRegion` based at the object's :prop:`position`, which might not be fixed.
 
-Since 2D regions cannot contain an `Object` (which must be 3D), they define a :term:`footprint` for convenient. Footprints are always a `PolygonalFootprintRegion`, which represents a 2D poylgon extruded infinitely in the positive and negative vertical direction. When checking containment of an `Object` in a 2D region, Scenic will atuomatically use the footprint.
+Since 2D regions cannot contain an `Object` (which must be 3D), they define a :term:`footprint` for convenience.
+Footprints are always a `PolygonalFootprintRegion`, which represents a 2D polygon extruded infinitely in the positive and negative vertical direction.
+When checking containment of an `Object` in a 2D region, Scenic will atuomatically use the footprint.
 
 .. autoclass:: scenic.core.regions.PolygonalRegion
     :noindex:
@@ -207,13 +214,18 @@ Niche Regions
     :noindex:
     :no-members:
 
+.. _Shape:
 
 Shape
 =====
 
-Shapes represent the shape of an object. Shapes are automatically converted to unit size and centered. Furthermore it's assumed that the front of the shape is aligned with the y axis.
+Shapes represent the shape of an object, i.e., the volume it occupies modulo translation, rotation, and scaling.
+Shapes are represented by meshes, automatically converted to unit size and centered; Scenic considers the side of the shape facing the positive Y axis to be its front.
 
-Shapes can be created with an arbitrary mesh, and several basic shapes are made available. A shape can be created with fixed dimensions or shape, which will set the default values for any `Object` created with that shape. When creating a `MeshShape`, if no dimensions are provided then dimensions will be inferred from the mesh. `MeshShape` also takes an optional ``initial_rotation`` parameter, which will be applied to orient the shape correctly.
+Shapes can be created from an arbitrary mesh or using one of the geometric primitives below.
+For convenience, a shape created with specified dimensions will set the default dimensions for any `Object` created with that shape.
+When creating a `MeshShape`, if no dimensions are provided then dimensions will be inferred from the mesh.
+`MeshShape` also takes an optional ``initial_rotation`` parameter, which allows directions other than the positive Y axis to be considered the front of the shape.
 
 .. autoclass:: scenic.core.shapes.MeshShape
     :noindex:

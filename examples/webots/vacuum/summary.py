@@ -33,11 +33,11 @@ def main(debug=False, plot=False):
 
             positions = []
 
-            # Keep one of every 10 points to avoid memory blowup.
+            # Keep one of every 2 points to avoid memory blowup.
             count = 0
 
             for position in obj.get("results").get("VacuumPosition"):
-                if count%10 == 0:
+                if count%2 == 0:
                     x = position[1][0]
                     y = position[1][1]
                     positions.append((x, y))
@@ -70,7 +70,7 @@ def main(debug=False, plot=False):
             "sample": len(fractions),
             "mean": mean(fractions),
             "median": median(fractions),
-            "stdev": stdev(fractions),
+            "stdev": stdev(fractions) if len(fractions) > 1 else None,
             "mean robustness": (mean(fractions) - .33)
         }
         print(f"coverage for {numToys} toy(s)")

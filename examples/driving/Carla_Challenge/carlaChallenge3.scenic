@@ -17,7 +17,7 @@ CAR_POSITION_OFFSET = Range(-0.5,0.5)
 
 #EGO BEHAVIOR: Follow lane and brake when reaches threshold distance to obstacle
 behavior EgoBehavior(speed=10):
-    
+
     try:
         do FollowLaneBehavior(speed)
 
@@ -29,9 +29,9 @@ initLane = Uniform(*network.lanes)
 initLaneSec = Uniform(*initLane.sections)
 
 #PLACEMENT
-spawnPt = OrientedPoint on initLaneSec.centerline
+spawnPt = new OrientedPoint on initLaneSec.centerline
 
-obstacle = Car at spawnPt offset by CAR_POSITION_OFFSET @ 0
+obstacle = new Car at spawnPt offset by CAR_POSITION_OFFSET @ 0
 
-ego = Car following roadDirection from spawnPt for EGO_TO_OBSTACLE,
+ego = new Car following roadDirection from spawnPt for EGO_TO_OBSTACLE,
     with behavior EgoBehavior(EGO_SPEED)

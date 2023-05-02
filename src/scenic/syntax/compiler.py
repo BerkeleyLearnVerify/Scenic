@@ -1135,8 +1135,11 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         )
 
     def visit_Require(self, node: s.Require):
+        prob = node.prob
+        if prob is not None and not 0 <= prob <= 1:
+            raise self.makeSyntaxError("probability must be between 0 and 1", node)
         return self.createRequirementLike(
-            "require", node.cond, node.lineno, node.name, node.prob
+            "require", node.cond, node.lineno, node.name, prob
         )
 
     def visit_RequireMonitor(self, node: s.RequireMonitor):

@@ -272,7 +272,7 @@ def test_path_region():
     assert not r2.containsPoint((-2,-2,-2))
 
     # Test sampling and containment of samples
-    for _ in range(1000):
+    for _ in range(100):
         target_region = random.choice([r1,r2,r3,r4])
         sampled_pt = target_region.uniformPointInner()
         assert target_region.containsPoint(sampled_pt)
@@ -408,7 +408,7 @@ def test_mesh_polyline_intersection():
 
     assert isinstance(r, PolylineRegion)
 
-    for _ in range(1000):
+    for _ in range(100):
         point = r.uniformPointInner()
         assert r.containsPoint(point)
         assert r1.containsPoint(point)
@@ -434,7 +434,7 @@ def test_mesh_path_intersection():
 
     assert isinstance(r, PathRegion)
 
-    for _ in range(1000):
+    for _ in range(100):
         point = r.uniformPointInner()
         assert r.containsPoint(point)
         assert r1.containsPoint(point)

@@ -49,17 +49,17 @@ behavior EgoBehavior():
 #################################
 
 lane = Uniform(*network.lanes)
-spawnPt = OrientedPoint on lane.centerline
+spawnPt = new OrientedPoint on lane.centerline
 
 #################################
 # SCENARIO SPECIFICATION        #
 #################################
 
-ego = Car following roadDirection from spawnPt for globalParameters.EGO_INIT_DIST,
+ego = new Car following roadDirection from spawnPt for globalParameters.EGO_INIT_DIST,
     with blueprint MODEL,
     with behavior EgoBehavior()
 
-ped = Pedestrian right of spawnPt by 3,
+ped = new Pedestrian right of spawnPt by 3,
     with heading 90 deg relative to spawnPt.heading,
     with regionContainedIn None,
     with behavior CrossingBehavior(ego, PED_MIN_SPEED, PED_THRESHOLD)

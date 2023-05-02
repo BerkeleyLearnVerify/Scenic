@@ -15,6 +15,8 @@
    {% for item in modules|sort %}
       {{item.rpartition('.')[2]}}
    {%- endfor %}
+
+   .. comment to get Sphinx to recognize end of autosummary directive
    {% endif %}
    {% endblock %}
 

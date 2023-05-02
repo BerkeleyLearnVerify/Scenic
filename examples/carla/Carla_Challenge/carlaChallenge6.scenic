@@ -68,16 +68,16 @@ assert len(laneSecsWithLeftLane) > 0, \
 initLaneSec = Uniform(*laneSecsWithLeftLane)
 leftLaneSec = initLaneSec._laneToLeft
 
-spawnPt = OrientedPoint on initLaneSec.centerline
+spawnPt = new OrientedPoint on initLaneSec.centerline
 
 #PLACEMENT
-oncomingCar = Car on leftLaneSec.centerline,
+oncomingCar = new Car on leftLaneSec.centerline,
     with behavior OncomingCarBehavior()
 
-ego = Car at spawnPt,
+ego = new Car at spawnPt,
     with behavior EgoBehavior(leftLaneSec)
     
-blockingCar = Car following roadDirection from ego for BLOCKING_CAR_DIST,
+blockingCar = new Car following roadDirection from ego for BLOCKING_CAR_DIST,
                 with viewAngle 90 deg
 
 #Make sure the oncoming Car is at a visible section of the lane

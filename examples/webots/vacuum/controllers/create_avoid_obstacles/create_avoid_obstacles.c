@@ -213,15 +213,12 @@ int main(int argc, char **argv) {
 
   while (true) {
     if (is_there_a_virtual_wall()) {
-      printf("Virtual wall detected\n");
       turn(M_PI);
     } else if (is_there_a_collision_at_left() || is_there_a_cliff_at_left()) {
-      printf("Left obstacle detected\n");
       go_backward();
       passive_wait(0.5);
       turn(M_PI * randdouble());
     } else if (is_there_a_collision_at_right() || is_there_a_cliff_at_right() || is_there_a_cliff_at_front()) {
-      printf("Right obstacle detected\n");
       go_backward();
       passive_wait(0.5);
       turn(-M_PI * randdouble());

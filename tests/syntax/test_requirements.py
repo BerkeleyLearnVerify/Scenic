@@ -28,7 +28,7 @@ def test_soft_requirement():
 def test_illegal_soft_probability():
     with pytest.raises(ScenicSyntaxError):
         compileScenic("""
-            ego = Object
+            ego = new Object
             require[1.1] ego.position.x >= 0
         """)
 
@@ -57,21 +57,21 @@ def test_named_soft_requirement():
 def test_named_requirement_invalid():
     with pytest.raises(ScenicSyntaxError):
         compileScenic("""
-            ego = Object
+            ego = new Object
             require True as +
         """)
 
 def test_unexpected_keyword_arg():
     with pytest.raises(ScenicSyntaxError):
         compileScenic("""
-            ego = Object
+            ego = new Object
             require True, line=5
         """)
 
 def test_unexpected_unpacking():
     with pytest.raises(ScenicSyntaxError):
         compileScenic("""
-            ego = Object
+            ego = new Object
             a = (True,)
             require *a
         """)
@@ -100,7 +100,7 @@ def test_param_in_requirement_2():
                 param x = 4
                 return True
             require func()
-            ego = Object
+            ego = new Object
         """)
         sampleScene(scenario)
 
@@ -120,7 +120,7 @@ def test_mutate_in_requirement_2():
                 mutate ego
                 return True
             require func()
-            ego = Object
+            ego = new Object
         """)
         sampleScene(scenario)
 
@@ -243,6 +243,7 @@ def test_static_visibility_violation_disabled():
         new Object at 0@10, with requireVisible False
     """)
 
+@pytest.mark.slow
 def test_can_see_object_occlusion_enabled():
     with pytest.raises(RejectionException):
         sampleSceneFrom("""
@@ -272,6 +273,7 @@ def test_can_see_object_occlusion_enabled():
                 with name "wall",
         """, maxIterations=1)
 
+@pytest.mark.slow
 def test_can_see_object_occlusion_disabled():
     sampleSceneFrom("""
         workspace_region = RectangularRegion(0 @ 0, 0, 40, 40)

@@ -44,20 +44,31 @@ def test_pickle_distribution_method():
     tryPickling(dist)
 
 def test_pickle_object():
-    spec = Specifier('blob',
-                     DelayedArgument(('width',), lambda context: 2 * context.width),
-                     {'width'})
+    spec = Specifier('unnamed',
+                     {'blob': 1},
+                     DelayedArgument(('width',),
+                                     lambda context: {'blob': 2 * context.width}))
     obj = Object(spec)
     tryPickling(obj)
 
 def test_pickle_scenario():
-    scenario = compileScenic('ego = new Object at Range(1, 2) @ 0')
+    scenario = compileScenic("""
+        ego = new Object at (Range(1, 2), 0)
+        other = new Object at (Range(1, 2), 5)
+        require ego.x < other.x
+    """)
     sc1 = tryPickling(scenario)
     sc2 = tryPickling(scenario)
-    e1, e2 = sampleEgo(sc1), sampleEgo(sc2)
-    assert 1 <= e1.position.x <= 2
-    assert 1 <= e2.position.x <= 2
-    assert e1.position.x != e2.position.x
+    s1 = sampleScene(sc1, maxIterations=60)
+    s2 = sampleScene(sc2, maxIterations=60)
+    e1, e2 = s1.egoObject, s2.egoObject
+    o1, o2 = s1.objects[1], s2.objects[1]
+    assert 1 <= e1.x <= 2
+    assert 1 <= e2.x <= 2
+    assert e1.x != e2.x
+    assert e1.x < o1.x
+    assert e2.x < o2.x
+    assert o1.x != o2.x
 
 def test_pickle_scene():
     scene = sampleSceneFrom('ego = new Object at Range(1, 2) @ 3')

@@ -53,7 +53,7 @@ intersection = Uniform(*filter(lambda i: i.is4Way, network.intersections))
 advInitLane = Uniform(*intersection.incomingLanes)
 advManeuver = Uniform(*filter(lambda m: m.type is ManeuverType.STRAIGHT, advInitLane.maneuvers))
 advTrajectory = [advInitLane, advManeuver.connectingLane, advManeuver.endLane]
-advSpawnPt = OrientedPoint in advInitLane.centerline
+advSpawnPt = new OrientedPoint in advInitLane.centerline
 
 egoInitLane = Uniform(*filter(lambda m:
         m.type is ManeuverType.STRAIGHT,
@@ -61,17 +61,17 @@ egoInitLane = Uniform(*filter(lambda m:
     ).startLane
 egoManeuver = Uniform(*filter(lambda m: m.type is ManeuverType.LEFT_TURN, egoInitLane.maneuvers))
 egoTrajectory = [egoInitLane, egoManeuver.connectingLane, egoManeuver.endLane]
-egoSpawnPt = OrientedPoint in egoInitLane.centerline
+egoSpawnPt = new OrientedPoint in egoInitLane.centerline
 
 #################################
 # SCENARIO SPECIFICATION        #
 #################################
 
-ego = Car at egoSpawnPt,
+ego = new Car at egoSpawnPt,
     with blueprint MODEL,
     with behavior EgoBehavior(egoTrajectory)
 
-adversary = Car at advSpawnPt,
+adversary = new Car at advSpawnPt,
     with blueprint MODEL,
     with behavior FollowTrajectoryBehavior(target_speed=globalParameters.ADV_SPEED, trajectory=advTrajectory)
 

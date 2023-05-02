@@ -36,8 +36,8 @@ roads = network.roads
 select_road = Uniform(*roads)
 select_lane = Uniform(*select_road.lanes)
 
-other = Car on select_lane.centerline,
+other = new Car on select_lane.centerline,
         with behavior LeadCarBehavior()
 
-ego = Car following roadDirection from other for INITIAL_DISTANCE_APART,
+ego = new Car following roadDirection from other for INITIAL_DISTANCE_APART,
         with behavior FollowLeadCarBehavior()

@@ -1,3 +1,5 @@
+import random
+import numpy
 
 from controller import Supervisor
 
@@ -7,6 +9,12 @@ from scenic.core.distributions import RejectionException
 
 supervisor = Supervisor()
 simulator = WebotsSimulator(supervisor, timestep=0.5)
+
+# CONSTANTS
+SEED = 39
+
+random.seed(SEED)
+numpy.random.seed(SEED)
 
 path = supervisor.getCustomData()
 print(f'Loading Scenic scenario {path}')

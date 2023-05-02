@@ -55,7 +55,7 @@ intersection = Uniform(*filter(lambda i: i.is4Way or i.is3Way, network.intersect
 egoManeuver = Uniform(*filter(lambda m: m.type is ManeuverType.RIGHT_TURN, intersection.maneuvers))
 egoInitLane = egoManeuver.startLane
 egoTrajectory = [egoInitLane, egoManeuver.connectingLane, egoManeuver.endLane]
-egoSpawnPt = OrientedPoint in egoInitLane.centerline
+egoSpawnPt = new OrientedPoint in egoInitLane.centerline
 
 tempSpawnPt = egoInitLane.centerline[-1]
 
@@ -63,11 +63,11 @@ tempSpawnPt = egoInitLane.centerline[-1]
 # SCENARIO SPECIFICATION        #
 #################################
 
-ego = Car at egoSpawnPt,
+ego = new Car at egoSpawnPt,
     with blueprint MODEL,
     with behavior EgoBehavior(egoTrajectory)
 
-ped = Pedestrian right of tempSpawnPt by 5,
+ped = new Pedestrian right of tempSpawnPt by 5,
     with heading ego.heading,
     with regionContainedIn None,
     with behavior CrossingBehavior(ego, PED_MIN_SPEED, PED_THRESHOLD)

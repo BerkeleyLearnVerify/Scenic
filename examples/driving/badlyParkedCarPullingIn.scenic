@@ -12,7 +12,7 @@ behavior PullIntoRoad():
 ego = new Car with behavior DriveAvoidingCollisions(avoidance_threshold=5)
 
 rightCurb = ego.laneGroup.curb
-spot = new OrientedPoint in visible rightCurb
+spot = new OrientedPoint on visible rightCurb
 badAngle = Uniform(1.0, -1.0) * Range(10, 20) deg
 parkedCar = new Car left of spot by 0.5,
                 facing badAngle relative to roadDirection,
@@ -28,3 +28,5 @@ monitor StopAfterInteraction():
     for i in range(50):
         wait
     terminate
+require monitor StopAfterInteraction()
+terminate after 15 seconds   # in case ego never breaks

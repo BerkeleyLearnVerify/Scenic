@@ -45,8 +45,8 @@ ego_trajectory = [ego_rightTurn_maneuver.startLane, ego_rightTurn_maneuver.conne
 spwPt = startLane.centerline[-1]
 csm_spwPt = ego_startLane.centerline[-1]
 
-crossing_car = Car following roadDirection from spwPt for DISTANCE_TO_INTERSECTION1,
+crossing_car = new Car following roadDirection from spwPt for DISTANCE_TO_INTERSECTION1,
                 with behavior CrossingCarBehavior(trajectory = straight_trajectory)
 
-ego = Car following roadDirection from csm_spwPt for DISTANCE_TO_INTERSECTION2,
+ego = new Car following roadDirection from csm_spwPt for DISTANCE_TO_INTERSECTION2,
                 with behavior EgoBehavior(ego_trajectory)

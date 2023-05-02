@@ -3,8 +3,8 @@ setLocalMap(__file__, 'map.npz')
 
 from scenic.simulators.gta.model import *
 
-ego = Car
+ego = new Car
 
 for i in range(4):
-    spot = OrientedPoint on visible curb
-    Car left of (spot offset by -0.25 @ 0)
+    spot = new OrientedPoint on visible curb
+    new Car left of (spot offset by -0.25 @ 0)

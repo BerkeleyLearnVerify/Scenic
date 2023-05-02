@@ -43,7 +43,7 @@ class WebotsObject:
 class Car(WebotsObject):
     regionContainedIn: road
     position: new Point on road
-    parentOrientation: roadDirection at self.position
+    heading: roadDirection at self.position
     yaw: self.roadDeviation
     roadDeviation: 0
     model: Uniform(*carModels)

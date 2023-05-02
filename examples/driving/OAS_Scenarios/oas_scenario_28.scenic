@@ -28,7 +28,7 @@ endLane = straight_maneuver.endLane
 
 lane_traj = [startLane, connectingLane, endLane]
 intersection_edge = startLane.centerline[-1]
-egoStartPoint = OrientedPoint at intersection_edge
+egoStartPoint = new OrientedPoint at intersection_edge
 
 # --
 
@@ -42,14 +42,14 @@ L_endLane = leftTurn_maneuver.endLane
 L_centerlines = [L_startLane, L_connectingLane, L_endLane]
 
 L_intersection_edge = L_startLane.centerline[-1]
-actorStartPoint = OrientedPoint at L_intersection_edge
+actorStartPoint = new OrientedPoint at L_intersection_edge
 
 # BEHAVIOR
 behavior EgoBehavior(target_speed=10, trajectory = None):
     assert trajectory is not None
     brakeIntensity = 0.7
 
-    try: 
+    try:
         do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
         terminate
 
@@ -63,8 +63,8 @@ behavior OtherCarBehavior(trajectory, target_speed=10):
 
 
 # PLACEMENT
-ego = Car following roadDirection from egoStartPoint for EGO_OFFSET,
+ego = new Car following roadDirection from egoStartPoint for EGO_OFFSET,
         with behavior EgoBehavior(target_speed=8, trajectory=lane_traj)
 
-other = Car following roadDirection from actorStartPoint for OTHERCAR_OFFSET,
+other = new Car following roadDirection from actorStartPoint for OTHERCAR_OFFSET,
         with behavior FollowTrajectoryBehavior(target_speed=8, trajectory=L_centerlines)

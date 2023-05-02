@@ -32,7 +32,7 @@ lane = Uniform(*network.lanes)
 ## ACTOR CREATION
 # Please refer to scenic/simulators/carla/model.scenic for detailed information about
 # the different actor attributes
-ego = Car on lane.centerline,
+ego = new Car on lane.centerline,
     with blueprint EGO_MODEL,
     with behavior EgoBehaviorTL(EGO_SPEED)
 

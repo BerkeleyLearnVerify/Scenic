@@ -16,18 +16,9 @@ from scenic.syntax import buildParser
 def loadLocalScenario(request):
     import scenic
     base = os.path.dirname(request.fspath)
-    def loader(relpath):
+    def loader(relpath, **kwargs):
         path = os.path.join(base, relpath)
-        return scenic.scenarioFromFile(path)
-    return loader
-
-@pytest.fixture
-def loadLocalScenario2D(request):
-    import scenic
-    base = os.path.dirname(request.fspath)
-    def loader(relpath):
-        path = os.path.join(base, relpath)
-        return scenic.scenarioFromFile(path, mode_2d=True)
+        return scenic.scenarioFromFile(path, **kwargs)
     return loader
 
 @pytest.fixture

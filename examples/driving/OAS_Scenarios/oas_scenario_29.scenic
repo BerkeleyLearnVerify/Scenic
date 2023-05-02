@@ -19,7 +19,7 @@ intersection = Uniform(*threeWayIntersections)
 left_maneuvers = filter(lambda m: m.type == ManeuverType.LEFT_TURN, intersection.maneuvers)
 ego_maneuver = Uniform(*left_maneuvers)
 ego_L_centerlines = [ego_maneuver.startLane, ego_maneuver.connectingLane, ego_maneuver.endLane]
-egoStart = OrientedPoint at ego_maneuver.startLane.centerline[-1]
+egoStart = new OrientedPoint at ego_maneuver.startLane.centerline[-1]
 
 # ---
 
@@ -34,7 +34,7 @@ behavior EgoBehavior(thresholdDistance, target_speed=10, trajectory = None):
     assert trajectory is not None
     brakeIntensity = 0.7
 
-    try: 
+    try:
         do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
         terminate
 
@@ -43,8 +43,8 @@ behavior EgoBehavior(thresholdDistance, target_speed=10, trajectory = None):
 
 
 # PLACEMENT
-ego = Car following roadDirection from egoStart for EGO_OFFSET,
+ego = new Car following roadDirection from egoStart for EGO_OFFSET,
         with behavior EgoBehavior(target_speed=10, trajectory=ego_L_centerlines, thresholdDistance = 20)
 
-other = Car following roadDirection from actorStart for OTHERCAR_OFFSET,
+other = new Car following roadDirection from actorStart for OTHERCAR_OFFSET,
         with behavior FollowTrajectoryBehavior(target_speed=10, trajectory=actor_centerlines)

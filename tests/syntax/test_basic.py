@@ -180,7 +180,7 @@ def test_show2d_zoom():
     assert ymin < 0 and ymax > 20
     plt.close()
 
-def test_mode_2d():
+def test_mode2D():
     scenario = compileScenic(
         'region = RectangularRegion(0 @ 0, 0, 100, 100)\n'
         'p = new Point on region\n'
@@ -189,18 +189,18 @@ def test_mode_2d():
         'test_obj_1 = new Object in p.visibleRegion\n'
         'test_obj_2 = new Object in op.visibleRegion\n'
         'test_obj_3 = new Object in ego.visibleRegion\n'
-    , mode_2d=True)
+    , mode2D=True)
     for _ in range(5):
         scene, _ = scenario.generate()
 
         for obj in scene.objects:
             assert obj.position[2] == 0
 
-def test_mode_2d_heading():
+def test_mode2D_heading():
     with pytest.raises(RuntimeParseError):
         compileScenic('ego = new Object with heading 40 deg')
 
-    scenario = compileScenic('ego = new Object with heading 40 deg', mode_2d=True)
+    scenario = compileScenic('ego = new Object with heading 40 deg', mode2D=True)
     scene, _ = scenario.generate()
 
     assert scene.egoObject.heading == pytest.approx(math.radians(40))
@@ -218,12 +218,12 @@ def test_mode_2d_heading():
                         heading: 40 deg
 
                     ego = new TestClass
-                """, mode_2d=True)
+                """, mode2D=True)
     scene, _ = scenario.generate()
 
     assert scene.egoObject.heading == pytest.approx(math.radians(40))
 
-def test_mode_2d_interference():
+def test_mode2D_interference():
     scenario = compileScenic(
         'region = RectangularRegion(0 @ 0, 0, 100, 100)\n'
         'p = new Point on region\n'
@@ -232,7 +232,7 @@ def test_mode_2d_interference():
         'test_obj_1 = new Object in p.visibleRegion\n'
         'test_obj_2 = new Object in op.visibleRegion\n'
         'test_obj_3 = new Object in ego.visibleRegion\n'
-    , mode_2d=True)
+    , mode2D=True)
     for _ in range(5):
         scene, _ = scenario.generate()
 

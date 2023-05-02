@@ -106,7 +106,10 @@ class PropertyDefault:
         """Create a Specifier for a property from this default and any superclass defaults."""
         for other in overriddenDefs:
             if other.isFinal:
-                raise RuntimeParseError(f'"{prop}" property cannot be overridden')
+                msg = f'"{prop}" property cannot be overridden'
+                if prop == 'heading':
+                    msg += ' (perhaps this scenario requires the --2d flag?)'
+                raise RuntimeParseError(msg)
         if self.isAdditive:
             allReqs = self.requiredProperties
             for other in overriddenDefs:

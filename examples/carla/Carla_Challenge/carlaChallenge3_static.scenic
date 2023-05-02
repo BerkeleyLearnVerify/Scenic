@@ -33,11 +33,11 @@ behavior EgoBehavior(speed=10):
 # make sure to put '*' to uniformly randomly select from all elements of the list, 'lanes'
 lane = Uniform(*network.lanes)
 
-spawnPt = OrientedPoint on lane.centerline
+spawnPt = new OrientedPoint on lane.centerline
 
-obstacle = Trash at spawnPt offset by Range(1, -1) @ 0
+obstacle = new Trash at spawnPt offset by Range(1, -1) @ 0
 
-ego = Car following roadDirection from spawnPt for Range(-50, -30),
+ego = new Car following roadDirection from spawnPt for Range(-50, -30),
     with blueprint EGO_MODEL,
     with behavior EgoBehavior(EGO_SPEED)
 

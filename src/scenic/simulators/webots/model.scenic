@@ -59,7 +59,7 @@ class WebotsObject:
             orientation in Webots; for objects whose front is not aligned with the
             Webots North axis.
         density (float): Density of this object. The corresponding Webots object
-            must have the `density` field.
+            must have the ``density`` field.
 
     .. _Supervisor API: https://www.cyberbotics.com/doc/reference/supervisor?tab-language=python
     """
