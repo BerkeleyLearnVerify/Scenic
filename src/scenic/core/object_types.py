@@ -296,7 +296,10 @@ class Constructible(Samplable):
 
             # Recurse on dependencies
             for dep in spec.requiredProperties:
-                child = properties.get(dep)
+                child = modifying.get(dep)
+                if not child:
+                    child = properties.get(dep)
+
                 if child is None:
                     raise RuntimeParseError(f'property {dep} required by '
                                             f'specifier {spec} is not specified')
