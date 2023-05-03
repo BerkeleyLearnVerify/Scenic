@@ -335,6 +335,9 @@ This capability is also frequently used by specifiers, as we explain next.
 Specifiers in Depth
 -------------------
 
+Why Specifiers?
++++++++++++++++
+
 The syntax :specifier:`left of {X}` and :specifier:`facing {Y}` for specifying positions and
 orientations may seem unusual compared to typical constructors in object-oriented
 languages. There are two reasons why Scenic uses this kind of syntax: first, readability.
@@ -400,7 +403,10 @@ correct order. To use the default model distribution we would simply omit line 2
 it affects the :prop:`position` of the car appropriately without having to specify ``BUS``
 more than once.
 
-Scenic also handles additional dependencies which arise from implicitly using the properties of the object being defined.
+Dependencies and Modifying Specifiers
++++++++++++++++++++++++++++++++++++++
+
+In addition to explicit dependencies when one specifier uses a property defined by another, Scenic also tracks dependencies which arise when an expression implicitly refers to the properties of the object being defined.
 For example, suppose we wanted to elaborate the scenario above by saying the car is oriented up to 5° off of the nominal traffic direction.
 We can write this using the ``roadDirection`` vector field and Scenic's general operator
 :scenic:`{X} relative to {Y}`, which can interpret vectors and orientations as being in a
@@ -416,19 +422,28 @@ define a unique heading. The example above works because Scenic knows that the
 expression :scenic:`Range(-5, 5) deg relative to roadDirection` depends on a reference
 position, and automatically uses the :prop:`position` of the :scenic:`Car` being defined.
 
+Another kind of dependency arises from **modifying specifiers**, which are specifiers that can take an *already-specified* value for a property and modify it (thereby in a sense both depending on that property and specifying it).
+The main example is the :specifier:`on {region}` specifier, which in addition to the usage we saw above for placing an object randomly within a region, also can be used as a modifying specifier: if the :prop:`position` property has already been specified, then :specifier:`on {region}` *projects* that position onto the region.
+So for example the code :scenic:`new Object ahead of plane by 100, on ground` does not raise an error even though both :specifier:`ahead of` and :specifier:`on` specify :prop:`position`: Scenic first computes a position 100 m ahead of the plane, and then projects that position down onto the ground.
 
-As we've discussed previously, specifiers can specify multiple properties, but they can also do so with
-different *priorities*. Priorities with a lower numerical value are considered higher priority than those
-with a higher numerical value (e.g. priority 1 beats priority 3). If a property is specified multiple times,
-Scenic will automatically use the value specified with the highest priority. If for some reason a property
-is specified multiple times with the same priority, an ambiguity error is raised.
+Specifier Priorities
+++++++++++++++++++++
 
-Scenic also has a special type of specifier known as a *modifying specifier*, such as the :specifier:`on` specifier. If a modifying specifier
-specifies a property with the same priority as another specifier, then the other specifier first specifies the value
-and the modifying specifier then proceeds to modify it in some fashion.
+As we've discussed previously, specifiers can specify multiple properties, and they can specify some properties *optionally*, allowing other specifiers to override them.
+In fact, when a specifier specifies a property it does so with a **priority** represented by a positive integer.
+A property specified with priority 1 cannot be overridden; increasingly large integers represent lower priorities, so a priority-2 specifier overrides one with priority 3.
+This system enables more-specific specifiers to naturally take precedence over more general specifiers while reducing the amount of boilerplate code you need to write.
+Consider for example the following sequence of object creations, where we provide progressively more information about the object:
 
-For a more thorough look at the specifier system, including which specifiers specify what and at which priority,
-consult the :ref:`specifiers`.
+* In :scenic:`new Object ahead of plane by 100`, the :specifier:`ahead of` specifier specifies :prop:`parentOrientation` with priority 3, so that the new object is aligned with the plane (a reasonable default since we're positioning the object with respect to the plane).
+
+* In :scenic:`new Object ahead of plane by 100, on ground`, the :specifier:`on ground` specifies :prop:`parentOrientation` with priority 2, so it takes precedence and the object is aligned with the ground rather than the plane (which makes more sense since "on ground" implies the object likely lies flat on the ground).
+
+* Finally, in :scenic:`new Object ahead of plane by 100, on ground, with parentOrientation (0, 90 deg, 0)`, the :specifier:`with` specifier specifies :prop:`parentOrientation` with priority 1, so it takes precedence and Scenic uses the explicit orientation the user provided.
+
+As these examples show, specifier priorities enable concise specifications of objects to have intuitive default behavior when no explicit information is given, while at the same time overriding this behavior remains straightforward.
+
+For a more thorough look at the specifier system, including which specifiers specify which properties and at which priorities, consult the :ref:`specifiers`.
 
 Declarative Hard and Soft Constraints
 -------------------------------------
