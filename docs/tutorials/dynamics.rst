@@ -244,10 +244,10 @@ ego car, we could write::
 
     require always not ((ego can see car1) and (ego can see car2))
 
-The :sampref:`require always {condition} <require always>` statement enforces that the given condition must
+The :sampref:`always` operator creates a LTL formula that enforces that the given condition must
 hold at every time step of the scenario; if it is ever violated during a simulation, we
 reject that simulation and sample a new one. Similarly, we can require that a condition
-hold at *some* time during the scenario using the :keyword:`require eventually` statement::
+hold at *some* time during the scenario using the :keyword:`eventually` operator::
 
     require eventually ego in intersection
 

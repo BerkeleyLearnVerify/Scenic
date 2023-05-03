@@ -155,7 +155,7 @@ The midpoint of the corresponding edge of the Object’s bounding box, inheritin
 --------------------------------------------------------
 The corresponding corner of the Object’s bounding box, inheriting the Object's orientation.
 
-.. _temporal operators:
+.. _temporalOperators:
 
 Temporal Operators
 =======================
@@ -164,24 +164,28 @@ Temporal operators can be used inside require statements to constrain how a dyna
 The semantics of these operators are taken from RV-LTL [B10]_ to properly model the finite length of Scenic simulations.
 
 .. _always {condition}:
+.. _always:
 
 always *condition*
 ------------------
 Require the given condition to hold throughout the execution of the dynamic scenario.
 
 .. _eventually {condition}:
+.. _eventually:
 
 eventually *condition*
 ----------------------
 Require the given condition to hold at some point during the execution of the dynamic scenario.
 
 .. _next {condition}:
+.. _next:
 
 next *condition*
 ----------------
 Require the given condition to hold at the next time step of the dynamic scenario.
 
 .. _{condition} until {condition}:
+.. _until:
 
 *condition* until *condition*
 -----------------------------
@@ -189,6 +193,7 @@ Require the first condition to hold until the second condition holds, at which p
 This operator implements the strong semantics and requires the second condition to hold at some point during the execution.
 
 .. _{condition} implies {condition}:
+.. _implies:
 
 *hypothesis* implies *conclusion*
 ---------------------------------
