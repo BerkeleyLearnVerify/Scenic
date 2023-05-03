@@ -318,6 +318,14 @@ class _RotatedRectangle:
         return shapely.geometry.Polygon(corners)
 
     @staticmethod
+    def polygonFromObj(obj):
+        x, y, _ = obj.position
+        h = obj.heading
+        hw, hl = obj.hw, obj.hl
+
+        return shapely.geometry.Polygon(_RotatedRectangle.makeCorners(x,y,h,hw,hl))
+
+    @staticmethod
     def makeCorners(px, py, heading, hw, hl):
         s, c = sin(heading), cos(heading)
         s_hw, c_hw = s*hw, c*hw

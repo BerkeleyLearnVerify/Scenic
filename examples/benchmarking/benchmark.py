@@ -1,8 +1,16 @@
 import scenic
-import trimesh
+import sys
+import time
 
+_, file, iters = sys.argv
 
-for i in range(1,9):
-    print(f"Starting benchmark {i}")
-    scenario = scenic.scenarioFromFile(f"examples/3d/3d_debug_{i}.scenic")
+iters = int(iters)
+
+scenario = scenic.scenarioFromFile(file)
+
+start_time = time.time()
+
+for _ in range(iters):
     scenario.generate()
+
+print("Mean Time:", (time.time()-start_time)/iters)

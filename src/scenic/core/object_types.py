@@ -891,6 +891,12 @@ class Object(OrientedPoint):
     @lru_cache(maxsize=None)
     def intersects(self, other):
         """ Whether or not this object intersects another object"""
+        # Preliminary check for objects in the plane
+        if self._is2D and other._is2D:
+            self_poly = self._polygon
+            other_poly = other._polygon
+            return self_poly.intersects(other_poly)
+
         return self.occupiedSpace.intersects(other.occupiedSpace)
 
     @cached_property
@@ -1190,6 +1196,17 @@ class Object(OrientedPoint):
         x, y = zip(*triangle)
         plt.fill(x, y, "w")
         plt.plot(x + (x[0],), y + (y[0],), color="k", linewidth=1)
+
+    @cached_property
+    def _is2D(self):
+        return self.position.z == 0 and isinstance(self.shape, BoxShape) and \
+               self.orientation.pitch == 0 and self.orientation.roll == 0
+
+
+    @cached_property
+    def _polygon(self):
+        assert self._is2D
+        return _RotatedRectangle.polygonFromObj(self)
 
 @distributionFunction
 def defaultSideSurface(occupiedSpace, dimension, positive, thresholds):
@@ -1786,4 +1803,3 @@ class Object2D(OrientedPoint2D, Object):
         """
         camera = self.position.offsetRotated(self.heading, self.cameraOffset)
         return SectorRegion(camera, self.visibleDistance, self.heading, self.viewAngle)
-

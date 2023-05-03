@@ -1567,9 +1567,14 @@ class PolygonalFootprintRegion(Region):
             obj: An object to be checked for containment.
         """
         # PASS 1
-        # TODO: Check exploiting convexity?
+        # Check for 2D objects, which can be handled using rotated rectangle.
+        if obj._is2D:
+            return self.polygon.contains(obj._polygon)
 
         # PASS 2
+        # TODO: Check exploiting convexity?
+
+        # PASS 3
         # Compute a bounded footprint that covers the object and then check containment
         # directly.
 
