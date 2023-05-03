@@ -18,10 +18,15 @@ def test_cyclic_dependency():
 
 def test_lazy_cyclic_dependency():
     with pytest.raises(RuntimeParseError):
-        compileScenic(
-            'vf = VectorField("Foo", lambda pos: 3 * pos.x)\n'
-            'ego = new Object at 0 @ (0 relative to vf)'
-        )
+        compileScenic("""
+            vf = VectorField("Foo", lambda pos: 3 * pos.x)
+            ego = new Object at 0 @ (0 relative to vf)
+        """)
+    with pytest.raises(RuntimeParseError):
+        compileScenic("""
+            vf = VectorField("Foo", lambda pos: 3 * pos.x)
+            ego = new Object at (0, 0 relative to vf)
+        """)
 
 def test_default_dependency():
     ego = sampleEgoFrom('ego = new Object facing toward -1 @ 1')

@@ -34,7 +34,8 @@ import typing
 import numpy
 
 from scenic.core.distributions import (Distribution, RejectionException, StarredDistribution,
-                                       TupleDistribution, distributionFunction, supportInterval)
+                                       TupleDistribution, distributionFunction, supportInterval,
+                                       toDistribution)
 from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
                                    needsLazyEvaluation)
 from scenic.core.errors import RuntimeParseError, saveErrorLocation
@@ -288,6 +289,7 @@ def toTypes(thing, types, typeError='wrong type'):
         RuntimeParseError: if the given value is not one of the given types and cannot
             be converted to any of them.
     """
+    thing = toDistribution(thing)
     if needsLazyEvaluation(thing):
         # cannot check the type now; create proxy object to check type after evaluation
         return TypeChecker(thing, types, typeError)
