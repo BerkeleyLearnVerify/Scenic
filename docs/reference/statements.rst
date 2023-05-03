@@ -202,7 +202,7 @@ For example, :scenic:`require[0.75] ego in parking_lot` would require that the e
 require *LTL formula*
 ---------------------
 Defines a temporal requirement, requiring that the given linear-temporal logic formula hold in a dynamic scenario.
-See Operators Reference for the list of supported LTL operators.
+See :sampref:`temporal operators` for the list of supported LTL operators.
 
 .. _require monitor {monitor}:
 .. _require monitor:
