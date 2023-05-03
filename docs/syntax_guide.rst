@@ -201,8 +201,8 @@ Additional specifiers for the :prop:`position` and :prop:`orientation` propertie
      - Positions the object at the given coordinates in the local coordinate system of ego (which must already be defined)
    * - :sampref:`offset along {direction} by {vector}`
      - Positions the object at the given coordinates, in a local coordinate system centered at ego and oriented along the given direction
-   * - :sampref:`beyond {vector} by {vector} [from ({vector} | {OrientedPoint})]`
-     - Positions the object at coordinates given by the second vector, centered at the first vector and oriented along the line of sight from the third vector/ego
+   * - :sampref:`beyond {vector} by ({vector} | {scalar}) [from ({vector} | {OrientedPoint})]`
+     - Positions the object with respect to the line of sight from a point or the ego
    * - :sampref:`visible [from ({Point} | {OrientedPoint})]`
      - Positions the object uniformly at random in the visible region of the ego, or of the given Point/OrientedPoint if given
    * - :sampref:`not visible [from ({Point} | {OrientedPoint})]`

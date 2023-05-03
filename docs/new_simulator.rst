@@ -33,7 +33,7 @@ This :term:`world model` could include:
 
 Then any Scenic programs for your simulator can import this world model and make use of the information within.
 
-Each of the simulators natively supported by Scenic has a corresponding :file:``model.scenic`` file containing its world model.
+Each of the simulators natively supported by Scenic has a corresponding :file:`model.scenic` file containing its world model.
 See the :ref:`simulators` page for links to the module under `scenic.simulators` for each simulator, where the world model can be found.
 The `scenic.simulators.webots.mars` model is particularly simple and would be a good place to start.
 For a more complex example, see the `scenic.simulators.lgsvl` model, which specializes the simulator-agnostic model provided by the :ref:`driving_domain` (in `scenic.domains.driving.model`).
