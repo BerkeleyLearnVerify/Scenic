@@ -40,13 +40,13 @@ class PropositionNode:
         violation in that phase immediately results in discarding the scene and regenerating a new one.
         For simplicity, we currently check two special cases:
         1. requirements with no temporal requirement
-        2. requirements with only one `always` operator on top-level
+        2. requirements with only one always operator on top-level
         Returns:
             bool: True if the requirement is one of the forms above. False otherwise.
         """
         node = self
 
-        # if `always` is on top-level, check what's inside
+        # if always is on top-level, check what's inside
         if isinstance(node, Always):
             node = node.req
 

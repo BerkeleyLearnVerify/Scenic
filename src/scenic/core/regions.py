@@ -73,6 +73,7 @@ class Region(Samplable, ABC):
     @abstractmethod
     def containsObject(self, obj) -> bool:
         """Check if the `Region` contains an :obj:`~scenic.core.object_types.Object`.
+
         The default implementation assumes the `Region` is convex; subclasses must
         override the method if this is not the case.
         """
@@ -102,9 +103,7 @@ class Region(Samplable, ABC):
         return None
 
     def intersect(self, other, triedReversed=False) -> 'Region':
-        """intersect(other)
-
-        Get a `Region` representing the intersection of this one with another.
+        """Get a `Region` representing the intersection of this one with another.
 
         If both regions have a :term:`preferred orientation`, the one of ``self``
         is inherited by the intersection.
@@ -117,6 +116,7 @@ class Region(Samplable, ABC):
 
     def union(self, other, triedReversed=False) -> 'Region':
         """Get a `Region` representing the union of this one with another.
+
         Not supported by all region types.
         """
         if triedReversed:
@@ -125,7 +125,10 @@ class Region(Samplable, ABC):
             return other.union(self, triedReversed=True)
 
     def difference(self, other) -> 'Region':
-        """Get a `Region` representing the difference of this one and another."""
+        """Get a `Region` representing the difference of this one and another.
+
+        Not supported by all region types.
+        """
         if isinstance(other, EmptyRegion):
             return self
         elif isinstance(other, AllRegion):
@@ -570,6 +573,7 @@ class MeshRegion(Region):
 
     def findOn(self, point, on_direction):
         """ Find the nearest point in the region following the on_direction.
+
         Returns None if no such points exist.
         """
         assert not needsSampling(self)
@@ -784,9 +788,7 @@ class MeshVolumeRegion(MeshRegion):
         return self.distanceTo(point) < self.tolerance
 
     def containsObject(self, obj):
-        """Check if this region's volume contains an :obj:`~scenic.core.object_types.Object`.
-        The object must support coercion to a mesh.
-        """
+        """Check if this region's volume contains an :obj:`~scenic.core.object_types.Object`."""
         # PASS 1
         # Check if bounding boxes intersect. If not, volumes cannot intersect and so
         # the object cannot be contained in this region.
@@ -880,8 +882,7 @@ class MeshVolumeRegion(MeshRegion):
     # Composition methods #
     @lru_cache(maxsize=None)
     def intersect(self, other, triedReversed=False):
-        """ Get a `Region` representing the intersection of this region's
-        volume with another region.
+        """ Get a `Region` representing the intersection of this region with another.
 
         This function handles intersection computation for `MeshVolumeRegion` with:
         * `MeshVolumeRegion`
@@ -1131,8 +1132,7 @@ class MeshVolumeRegion(MeshRegion):
         return super().intersect(other, triedReversed)
 
     def union(self, other, triedReversed=False):
-        """ Get a `Region` representing the union of this region's
-        volume with another region.
+        """ Get a `Region` representing the union of this region with another.
 
         This function handles union computation for `MeshVolumeRegion` with:
             - `MeshVolumeRegion`
@@ -1164,8 +1164,7 @@ class MeshVolumeRegion(MeshRegion):
         return super().union(other, triedReversed)
 
     def difference(self, other, debug=False):
-        """ Get a `Region` representing the difference of this region's
-        volume with another region.
+        """ Get a `Region` representing the difference of this region with another.
 
         This function handles union computation for `MeshVolumeRegion` with:
         * `MeshVolumeRegion`
@@ -1219,7 +1218,6 @@ class MeshVolumeRegion(MeshRegion):
 
 
     def uniformPointInner(self):
-        """ Samples a point uniformly from the volume of the region"""
         # TODO: Look into tetrahedralization, perhaps to be turned on when a heuristic
         # is met. Currently using Trimesh's rejection sampling.
         sample = trimesh.sample.volume_mesh(self.mesh, self.num_samples)
@@ -1230,7 +1228,7 @@ class MeshVolumeRegion(MeshRegion):
             return Vector(*sample[0])
 
     def distanceTo(self, point):
-        """ Get the minimum distance from this region (including volume) to the specified point."""
+        """Get the minimum distance from this region to the specified point."""
         point = toVector(point, "Could not convert 'point' to vector.")
 
         pq = trimesh.proximity.ProximityQuery(self.mesh)
@@ -1258,8 +1256,8 @@ class MeshVolumeRegion(MeshRegion):
 
     @cached_property
     def isConvex(self):
-        #TODO: This is giving bogus responses for multi-convex volume meshes. Workaround
-        # is to check body count, but we should file an issue.
+        # TODO: This is giving bogus responses for multi-convex volume meshes. 
+        # Fix merged into trimesh but need a new version
         if self.mesh.body_count != 1:
             return False
 
@@ -1293,8 +1291,7 @@ class MeshVolumeRegion(MeshRegion):
 
 
 class MeshSurfaceRegion(MeshRegion):
-    """ An instance of MeshRegion that performs operations over the surface
-    of the mesh.
+    """ An instance of MeshRegion that performs operations over the surface of the mesh.
 
     If an orientation is not passed to this mesh, a default orientation is
     provided which provides an orientation that aligns an instance's z axis 
@@ -1309,8 +1306,7 @@ class MeshSurfaceRegion(MeshRegion):
 
     # Property testing methods #
     def intersects(self, other, triedReversed=False):
-        """ Check if this region's surface intersects another region.
-        This is equivalent to checking if the two meshes collide
+        """ Check if this region's surface intersects another.
 
         This function handles intersection computation for `MeshSurfaceRegion` with:
         * `MeshSurfaceRegion`
@@ -1364,11 +1360,10 @@ class MeshSurfaceRegion(MeshRegion):
         return False
 
     def uniformPointInner(self):
-        """ Sample a point uniformly at random from the surface of them mesh"""
         return Vector(*trimesh.sample.sample_surface(self.mesh, 1)[0][0])
 
     def distanceTo(self, point):
-        """ Get the minimum distance from this object to the specified point."""
+        """Get the minimum distance from this object to the specified point."""
         point = toVector(point, "Could not convert 'point' to vector.")
 
         pq = trimesh.proximity.ProximityQuery(self.mesh)
@@ -1386,7 +1381,9 @@ class MeshSurfaceRegion(MeshRegion):
         return self.mesh.area
 
     def getFlatOrientation(self, pos):
-        """Given a point on the surface of the mesh, return an orientation that aligns
+        """ Get a flat orientation at a point in the region.
+
+        Given a point on the surface of the mesh, returns an orientation that aligns
         an instance's z axis with the normal vector of the face containing that point.
 
         If ``pos`` is not within ``self.tolerance`` of the surface of the mesh, a
@@ -1425,8 +1422,9 @@ class MeshSurfaceRegion(MeshRegion):
         return self
 
 class BoxRegion(MeshVolumeRegion):
-    """ Region in the shape of a rectangular cuboid, i.e. a box. By default the unit box centered at the origin
-    and aligned with the axes is used.
+    """ Region in the shape of a rectangular cuboid, i.e. a box. 
+
+    By default the unit box centered at the origin and aligned with the axes is used.
 
     Args:
         name: An optional name to help with debugging.
@@ -1449,8 +1447,9 @@ class BoxRegion(MeshVolumeRegion):
         return True
 
 class SpheroidRegion(MeshVolumeRegion):
-    """ Region in the shape of a spheroid. By default the unit sphere centered at the origin
-    and aligned with the axes is used.
+    """ Region in the shape of a spheroid.
+
+    By default the unit sphere centered at the origin and aligned with the axes is used.
 
     Args:
         name: An optional name to help with debugging.
@@ -1473,8 +1472,9 @@ class SpheroidRegion(MeshVolumeRegion):
         return True
 
 class PolygonalFootprintRegion(Region):
-    """ Region that contains all points in a polygonal footprint, regardless of their z value. This region
-    cannot be sampled from, as it has infinite height and therefore infinite volume.
+    """ Region that contains all points in a polygonal footprint, regardless of their z value. 
+
+    This region cannot be sampled from, as it has infinite height and therefore infinite volume.
     
     Args:
         polygon: A ``MultiPolygon`` that defines the footprint of this region.
@@ -1489,8 +1489,7 @@ class PolygonalFootprintRegion(Region):
         self._bounded_cache = None
 
     def intersect(self, other, triedReversed=False):
-        """ Get a `Region` representing the intersection of this region's
-        volume with another region.
+        """ Get a `Region` representing the intersection of this region with another.
 
         This function handles intersection computation for `PolygonalFootprintRegion` with:
         * `PolygonalFootprintRegion`
@@ -1514,8 +1513,7 @@ class PolygonalFootprintRegion(Region):
         return super().intersect(other, triedReversed)
 
     def union(self, other, triedReversed=False):
-        """ Get a `Region` representing the intersection of this region's
-        volume with another region.
+        """ Get a `Region` representing the union of this region with another.
 
         This function handles union computation for `PolygonalFootprintRegion` with:
         * `PolygonalFootprintRegion`
@@ -1528,8 +1526,7 @@ class PolygonalFootprintRegion(Region):
         return super().union(other, triedReversed)
 
     def difference(self, other):
-        """ Get a `Region` representing the intersection of this region's
-        volume with another region.
+        """ Get a `Region` representing the difference of this region with another.
 
         This function handles difference computation for `PolygonalFootprintRegion` with:
         * `PolygonalFootprintRegion`
@@ -1550,8 +1547,9 @@ class PolygonalFootprintRegion(Region):
         raise UndefinedSamplingException(f'Attempted to sample from a PolygonalFootprintRegion, for which uniform sampling is undefined')
 
     def containsPoint(self, point):
-        """ Checks if a point is contained in the polygonal footprint by checking
-        if the (x, y) values are contained in the polygon.
+        """ Checks if a point is contained in the polygonal footprint.
+
+        Equivalent to checking if the (x, y) values are contained in the polygon.
 
         Args:
             point: A point to be checked for containment.
@@ -1561,7 +1559,8 @@ class PolygonalFootprintRegion(Region):
 
     def containsObject(self, obj):
         """ Checks if an object is contained in the polygonal footprint.
-         The polygonal footprint is bounded so that it contains all vertical values of the object. 
+
+        The polygonal footprint is first bounded so that it contains all vertical values of the object. 
         Then we check if the object is contained in this volume.
 
         Args:
@@ -1587,9 +1586,10 @@ class PolygonalFootprintRegion(Region):
         return bounded_footprint.containsObject(obj)
 
     def approxBoundFootprint(self, center_z, height):
-        """ Returns a boundFootprint volume that is guaranteed to contain the
-        result of boundFootprint(center_z, height), but may be taller. Used 
-        to save time on recomputing boundFootprint.
+        """ Returns an overapproximation of boundFootprint 
+
+        Returns a volume that is guaranteed to contain the result of boundFootprint(center_z, height),
+        but may be taller. Used to save time on recomputing boundFootprint.
         """
         if self._bounded_cache is not None:
             # See if we can reuse a previous region
@@ -1610,8 +1610,7 @@ class PolygonalFootprintRegion(Region):
         return bounded_footprint
 
     def boundFootprint(self, center_z, height):
-        """ Cap the footprint of the object to a given height, centered at a
-        given z.
+        """ Cap the footprint of the object to a given height, centered at a given z.
 
         Args:
             center_z: The resulting mesh will be vertically centered at this height.
@@ -2953,4 +2952,3 @@ class TriangularPrismViewRegion(MeshVolumeRegion):
         tprism_mesh.apply_transform(scale_matrix)
 
         super().__init__(mesh=tprism_mesh, rotation=rotation, center_mesh=False)
-
