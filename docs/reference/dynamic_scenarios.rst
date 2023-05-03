@@ -16,16 +16,16 @@ Behaviors are also suspended when they invoke a sub-behavior using :keyword:`do`
 When a behavior is first invoked, its preconditions are checked, and if any are not satisfied, the simulation is rejected, requiring a new simulation to be sampled. [#f1]_
 The behavior's invariants are handled similarly, except that they are also checked whenever the behavior is resumed (i.e. after taking an action and after a sub-behavior terminates).
 
-:term:`Monitors` and :keyword:`compose` blocks of :term:`modular scenarios` execute in the same way as behaviors, with the latter also including additional checks to see if any of their :keyword:`terminate when` conditions have been met or their :keyword:`require always` conditions violated.
+:term:`Monitors` and :keyword:`compose` blocks of :term:`modular scenarios` execute in the same way as behaviors, with the latter also including additional checks to see if any of their :keyword:`terminate when` conditions have been met or their safety properties violated.
 
 In detail, a single time step of a dynamic simulation is executed according to the following procedure:
 
 1. Execute all currently-running :term:`modular scenarios` for one time step.
    Specifically, for each such scenario:
 
-	a. Check if any of its :keyword:`require always` conditions are violated; if so, reject the simulation.
+	a. Check if any of its safety properties are violated; if so, reject the simulation.
 
-	b. Check which :keyword:`require eventually` conditions are satisfied; remember these for later.
+	b. Check which liveness properties are satisfied; remember these for later.
 
 	c. Check if the scenario's time limit (if :keyword:`terminate after` has been used) has been reached; if so, go to step (f) below to stop the scenario.
 
@@ -35,7 +35,7 @@ In detail, a single time step of a dynamic simulation is executed according to t
 	   If the block executes a :keyword:`require` statement with a false condition, reject the simulation.
 	   If it executes :keyword:`terminate`, or finishes executing, go to step (f) below to stop the scenario.
 
-	f. If the scenario is stopping for one of the reasons above, first check if any of the :keyword:`require eventually` conditions were never satisfied: if so, reject the simulation.
+	f. If the scenario is stopping for one of the reasons above, first check if any of the liveness properties were never satisfied: if so, reject the simulation.
 	   Otherwise, the scenario returns to its parent scenario if it was invoked using :keyword:`do`; if it was the top-level scenario, we set a flag indicating the top-level scenario has terminated.
 	   (We do not terminate immediately since we still need to check monitors in the next step.)
 
@@ -65,7 +65,7 @@ In detail, a single time step of a dynamic simulation is executed according to t
 
 9. Update every :term:`dynamic property` of every object to its current value in the simulator.
 
-10. If the simulation is stopping for one of the reasons above, first check if any of the :keyword:`require eventually` conditions of any remaining scenarios were never satisfied: if so, reject the simulation.
+10. If the simulation is stopping for one of the reasons above, first check if any of the liveness properties of any remaining scenarios were never satisfied: if so, reject the simulation.
     Otherwise, save the values of any :keyword:`record final` statements.
 
 
