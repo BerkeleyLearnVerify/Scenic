@@ -20,14 +20,16 @@ import collections
 import math
 import random
 import numpy as np
+import shapely
 import trimesh
 from abc import ABC, abstractmethod
 from functools import lru_cache
 
-from scenic.core.distributions import Samplable, needsSampling, distributionMethod, distributionFunction, supportInterval
+from scenic.core.distributions import (Samplable, needsSampling, distributionMethod, distributionFunction,
+                                        supportInterval, RandomControlFlowError)
 from scenic.core.specifiers import Specifier, PropertyDefault, ModifyingSpecifier
 from scenic.core.vectors import Vector, Orientation, alwaysGlobalOrientation
-from scenic.core.geometry import (_RotatedRectangle, averageVectors, hypot, min,
+from scenic.core.geometry import (averageVectors, hypot, min,
                                   pointIsInCone, normalizeAngle)
 from scenic.core.regions import (Region, CircularRegion, SectorRegion, MeshVolumeRegion, MeshSurfaceRegion, 
                                   BoxRegion, SpheroidRegion, DefaultViewRegion, EmptyRegion, PolygonalRegion,
@@ -891,11 +893,18 @@ class Object(OrientedPoint):
     @lru_cache(maxsize=None)
     def intersects(self, other):
         """ Whether or not this object intersects another object"""
-        # Preliminary check for objects in the plane
-        if self._is2D and other._is2D:
-            self_poly = self._polygon
-            other_poly = other._polygon
+        # For objects that are boxes and flat, we can take a fast route
+        if self._check2D(checkZ=False) and other._check2D(checkZ=False):
+            if abs(self.position.z - other.position.z) > (self.height + other.height) / 2:
+                return False
+
+            self_poly = self._boundingPolygon
+            other_poly = other._boundingPolygon
             return self_poly.intersects(other_poly)
+
+        if needsSampling(self.occupiedSpace) or needsSampling(other.occupiedSpace) \
+           or needsLazyEvaluation(self.occupiedSpace) or needsLazyEvaluation(other.occupiedSpace):
+            raise RandomControlFlowError("Cannot compute intersection between Objects with non fixed values.")
 
         return self.occupiedSpace.intersects(other.occupiedSpace)
 
@@ -1197,16 +1206,16 @@ class Object(OrientedPoint):
         plt.fill(x, y, "w")
         plt.plot(x + (x[0],), y + (y[0],), color="k", linewidth=1)
 
-    @cached_property
-    def _is2D(self):
-        return self.position.z == 0 and isinstance(self.shape, BoxShape) and \
-               self.orientation.pitch == 0 and self.orientation.roll == 0
+    def _check2D(self, checkZ=True, checkFlat=True, checkBox=True):
+        inPlane = self.z == 0
+        isFlat = self.orientation.pitch == 0 and self.orientation.roll == 0
+        isBox = isinstance(self.shape, BoxShape)
 
-
+        return (inPlane or not checkZ) and (isFlat or not checkFlat) and (isBox or not checkBox)
+               
     @cached_property
-    def _polygon(self):
-        assert self._is2D
-        return _RotatedRectangle.polygonFromObj(self)
+    def _boundingPolygon(self):
+        return shapely.geometry.Polygon(self.corners)
 
 @distributionFunction
 def defaultSideSurface(occupiedSpace, dimension, positive, thresholds):

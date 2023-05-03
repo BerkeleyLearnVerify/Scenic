@@ -1568,8 +1568,8 @@ class PolygonalFootprintRegion(Region):
         """
         # PASS 1
         # Check for 2D objects, which can be handled using rotated rectangle.
-        if obj._is2D:
-            return self.polygon.contains(obj._polygon)
+        if obj._check2D(checkZ=False):
+            return self.polygon.contains(obj._boundingPolygon)
 
         # PASS 2
         # TODO: Check exploiting convexity?
