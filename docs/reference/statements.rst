@@ -68,7 +68,7 @@ Defines a type of :term:`monitor`, which can be run in parallel with the simulat
 Monitors are not associated with an `Object` and cannot take actions, but can :keyword:`wait` to wait for the next time step (or :keyword:`terminate` the simulation).
 A monitor can be instantiated in a scenario with the :keyword:`require monitor` statement.
 
-The main purpose of monitors is to evaluate complex temporal properties that do not fit into the :keyword:`require always` and :keyword:`require eventually` statements: they can maintain state and use :keyword:`require` to enforce requirements depending on that state.
+The main purpose of monitors is to evaluate complex temporal properties that do not fit into the :keyword:`require {ltl formula}` statements: they can maintain state and use :keyword:`require` to enforce requirements depending on that state.
 For examples of monitors, see our tutorial on :ref:`dynamics`.
 
 .. versionchanged:: 3.0
@@ -197,13 +197,12 @@ require[*number*] *boolean*
 Defines a soft requirement; like :keyword:`require` above but enforced only with the given probability, thereby requiring that the given condition hold with at least that probability (which must be a literal number, not an expression).
 For example, :scenic:`require[0.75] ego in parking_lot` would require that the ego be in the parking lot at least 75% percent of the time.
 
-.. _require (always | eventually) {boolean}:
-.. _require always:
-.. _require eventually:
+.. _require {LTL formula}:
 
-require (always | eventually) *boolean*
----------------------------------------
-Require a condition hold at each time step (``always``) or at some point during the simulation (``eventually``).
+require *LTL formula*
+---------------------
+Defines a temporal requirement, requiring that the given linear-temporal logic formula hold in a dynamic scenario.
+See Operators Reference for the list of supported LTL operators.
 
 .. _require monitor {monitor}:
 .. _require monitor:
