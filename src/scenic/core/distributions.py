@@ -392,7 +392,7 @@ def toDistribution(val):
             return TupleDistribution(*coords, builder=builder)
     elif isinstance(val, slice):
         attrs = (val.start, val.stop, val.step)
-        if any(needsSampling(a) for a in attrs):
+        if any(needsSampling(a) or needsLazyEvaluation(a) for a in attrs):
             return SliceDistribution(*attrs)
     return val
 
