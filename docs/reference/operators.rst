@@ -154,3 +154,44 @@ The midpoint of the corresponding edge of the Object’s bounding box, inheritin
 (top | bottom) (front | back) (left | right) of *Object*
 --------------------------------------------------------
 The corresponding corner of the Object’s bounding box, inheriting the Object's orientation.
+
+Temporal Operators
+=======================
+
+Temporal operators can be used inside require statements to constrain how a dynamic scenario evolves over time.
+The semantics of these operators are taken from RV-LTL [B10]_ to properly model the finite length of Scenic simulations.
+
+.. _always {condition}:
+
+always *condition*
+------------------
+Require the given condition to hold throughout the execution of the dynamic scenario.
+
+.. _eventually {condition}:
+
+eventually *condition*
+----------------------
+Require the given condition to hold at some point during the execution of the dynamic scenario.
+
+.. _next {condition}:
+
+next *condition*
+----------------
+Require the given condition to hold at the next time step of the dynamic scenario.
+
+.. _{condition} until {condition}:
+
+*condition* until *condition*
+-----------------------------
+Require the first condition to hold until the second condition holds, at which point the first condition is no longer required to hold.
+This operator implements the strong semantics and requires the second condition to hold at some point during the execution.
+
+.. _{condition} implies {condition}:
+
+*hypothesis* implies *conclusion*
+---------------------------------
+Require the hypothesis to hold whenever the conclusion holds. This is a syntax sugar for :scenic:`not {hypothesis} or {conclusion}`.
+
+.. rubric:: References
+
+.. [B10] Bauer et al., :t:`Comparing LTL Semantics for Runtime Verification`, Journal of Logic and Computation. `[Online] <https://doi.org/10.1093/logcom/exn075>`_
