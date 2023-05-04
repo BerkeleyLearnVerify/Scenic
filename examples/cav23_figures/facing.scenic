@@ -1,12 +1,8 @@
 import trimesh
-from zipfile import ZipFile
-
-# Unzip mesh files
-with ZipFile(localPath('meshes.zip'), 'r') as zf:
-    zf.extractall(localPath("."))
+from pathlib import Path
 
 # Load plane mesh from file and create plane shape from it
-plane_shape = MeshShape.fromFile(path=localPath("meshes/plane.obj"), type="obj", initial_rotation=(-90 deg, 0, -10 deg))
+plane_shape = MeshShape.fromFile(path=Path(localPath(".")).parent.parent / "tools" / "meshes" / "classic_plane.obj.bz2", initial_rotation=(-90 deg, 0, -10 deg))
 
 class Plane:
     shape: plane_shape

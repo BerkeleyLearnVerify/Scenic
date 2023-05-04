@@ -3,21 +3,17 @@ Generate a city intersection driving scenario, an intersection
 of two 2-lane one way roads in a city.
 """
 
+model scenic.simulators.webots.model
+
 import shapely
 import time
 import shutil
 import os
-from zipfile import ZipFile
-
-model scenic.simulators.webots.model
-
-# Unzip mesh files
-with ZipFile(localPath('meshes.zip'), 'r') as zf:
-    zf.extractall(localPath('.'))
+from pathlib import Path
 
 class EgoCar(WebotsObject):
     webotsName: "EGO"
-    shape: MeshShape.fromFile(localPath('meshes/bmwx5.obj'), "obj", initial_rotation=(90 deg, 0, 0))
+    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "bmwx5_hull.obj.bz2", initial_rotation=(90 deg, 0, 0))
     positionOffset: Vector(-1.43580750, 0,  -0.557354985).rotatedBy(Orientation.fromEuler(*self.orientationOffset))
     cameraOffset: Vector(-1.43580750, 0,  -0.557354985) + Vector(1.72, 0, 1.4)
     orientationOffset: (90 deg, 0, 0)

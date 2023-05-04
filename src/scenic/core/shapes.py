@@ -1,6 +1,8 @@
 """ Module containing the Shape class and its subclasses, which represent shapes of Objects"""
 
 from abc import ABC, abstractmethod
+import os
+import bz2
 
 import trimesh
 from trimesh.transformations import translation_matrix, quaternion_matrix, concatenate_matrices
@@ -111,9 +113,35 @@ class MeshShape(Shape):
         return self._mesh
 
     @classmethod
-    def fromFile(cls, path, type, dimensions=None, scale=1, initial_rotation=None):
-        with open(path, "r") as mesh_file:
-            mesh = trimesh.load(mesh_file, file_type=type)
+    def fromFile(cls, path, filetype=None, compressed=None, dimensions=None, scale=1, initial_rotation=None):
+        working_path = path
+
+        # Check if file is compressed
+        if compressed is None:
+            root, ext = os.path.splitext(working_path)
+
+            if ext == ".bz2":
+                compressed = True
+                working_path = root
+            else:
+                compressed = False
+
+        # Check mesh filetype
+        if filetype is None:
+            root, ext = os.path.splitext(working_path)
+
+            if ext == "":
+                raise ValueError("Mesh filetype not provided, but could not be extracted")
+
+            filetype = ext
+
+        if compressed:
+            open_function = bz2.open
+        else:
+            open_function = open
+
+        with open_function(path, "r") as mesh_file:
+            mesh = trimesh.load(mesh_file, file_type=filetype)
 
         return cls(mesh, dimensions=dimensions, scale=scale, initial_rotation=initial_rotation)
 

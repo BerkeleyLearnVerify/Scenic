@@ -1,5 +1,5 @@
 """
-Generate a room for the iroomba create vacuum
+Generate a simple room for the i-roomba create vacuum
 """
 
 model scenic.simulators.webots.model
@@ -7,14 +7,10 @@ model scenic.simulators.webots.model
 import numpy as np
 import trimesh
 import random
-from zipfile import ZipFile
+from pathlib import Path
 
 param numToys = 0
 param duration = 10
-
-# Unzip mesh files
-with ZipFile(localPath('meshes.zip'), 'r') as zf:
-    zf.extractall(localPath('.'))
 
 ## Class Definitions ##
 
@@ -41,24 +37,18 @@ class Wall(WebotsObject):
     height: 0.5
     color: [160, 160, 160]
 
-with open(localPath("meshes/dining_table.obj"), "r") as mesh_file:
-    dining_table_mesh = trimesh.load(mesh_file, file_type="obj")
-
 class DiningTable(WebotsObject):
     webotsAdhoc: {'physics': True}
-    shape: MeshShape(dining_table_mesh)
+    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "dining_table.obj.bz2")
     width: Range(0.7, 1.5)
     length: Range(0.7, 1.5)
     height: 0.75
     density: 670 # Density of solid birch
     color: [103, 71, 54]
 
-with open(localPath("meshes/dining_chair.obj"), "r") as mesh_file:
-    dining_chair_mesh = trimesh.load(mesh_file, file_type="obj")
-
 class DiningChair(WebotsObject):
     webotsAdhoc: {'physics': True}
-    shape: MeshShape(dining_chair_mesh, initial_rotation=(180 deg, 0, 0))
+    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "dining_chair.obj.bz2", initial_rotation=(180 deg, 0, 0))
     width: 0.4
     length: 0.4
     height: 1
@@ -67,12 +57,9 @@ class DiningChair(WebotsObject):
     orientationStdDev: (10 deg, 0, 0)
     color: [103, 71, 54]
 
-with open(localPath("meshes/couch.obj"), "r") as mesh_file:
-    couch_mesh = trimesh.load(mesh_file, file_type="obj")
-
 class Couch(WebotsObject):
     webotsAdhoc: {'physics': False}
-    shape: MeshShape(couch_mesh, initial_rotation=(-90 deg, 0, 0))
+    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "couch.obj.bz2", initial_rotation=(-90 deg, 0, 0))
     width: 2
     length: 0.75
     height: 0.75
@@ -80,12 +67,9 @@ class Couch(WebotsObject):
     orientationStdDev: (5 deg, 0, 0)
     color: [51, 51, 255]
 
-with open(localPath("meshes/coffee_table.obj"), "r") as mesh_file:
-    coffee_table_mesh = trimesh.load(mesh_file, file_type="obj")
-
 class CoffeeTable(WebotsObject):
     webotsAdhoc: {'physics': False}
-    shape: MeshShape(coffee_table_mesh)
+    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "coffee_table.obj.bz2")
     width: 1.5
     length: 0.5
     height: 0.4

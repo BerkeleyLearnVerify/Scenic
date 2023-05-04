@@ -1,12 +1,8 @@
 import trimesh
-from zipfile import ZipFile
-
-# Unzip mesh files
-with ZipFile(localPath('meshes.zip'), 'r') as zf:
-    zf.extractall(localPath("."))
+from pathlib import Path
 
 # Load chair mesh from file and create chair shape from it
-chair_shape = MeshShape.fromFile(path=localPath("meshes/chair.obj"), type="obj", initial_rotation=(0,90 deg,0))
+chair_shape = MeshShape.fromFile(path=Path(localPath(".")).parent.parent / "tools" / "meshes" / "chair.obj.bz2", initial_rotation=(0,90 deg,0))
 
 class Chair:
     shape: chair_shape
