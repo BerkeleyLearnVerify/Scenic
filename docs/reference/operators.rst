@@ -160,8 +160,8 @@ The corresponding corner of the Object’s bounding box, inheriting the Object's
 Temporal Operators
 =======================
 
-Temporal operators can be used inside require statements to constrain how a dynamic scenario evolves over time.
-The semantics of these operators are taken from RV-LTL [B10]_ to properly model the finite length of Scenic simulations.
+Temporal operators can be used inside :keyword:`require` statements to constrain how a dynamic scenario evolves over time.
+The semantics of these operators are taken from Linear Temporal Logic (specifically, we use RV-LTL [B10]_ to properly model the finite length of Scenic simulations).
 
 .. _always {condition}:
 .. _always:
@@ -184,21 +184,29 @@ next *condition*
 ----------------
 Require the given condition to hold at the next time step of the dynamic scenario.
 
+For example, while :scenic:`require X` requires that ``X`` hold at time step 0 (the start of the simulation), :scenic:`require next X` requires that ``X`` hold at time step 1.
+The requirement :scenic:`require always (X implies next X)` says that for every time step :math:`N`, if ``X`` is true at that time step then it is also true at step :math:`N+1`; equivalently, if ``X`` ever becomes true, it must remain true for the rest of the simulation.
+
 .. _{condition} until {condition}:
 .. _until:
 
 *condition* until *condition*
 -----------------------------
-Require the first condition to hold until the second condition holds, at which point the first condition is no longer required to hold.
-This operator implements the strong semantics and requires the second condition to hold at some point during the execution.
+Require the second condition to hold at some point, and the first condition to hold at every time step before then (after which it is unconstrained).
+
+Note that this is the so-called *strong until*, since it requires the second condition to eventually become true.
+For the *weak until*, which allows the second condition to never hold (in which case the first condition must *always* hold), you can write :scenic:`require ({X} until {Y}) or (always {X} and not {Y})`.
 
 .. _{condition} implies {condition}:
 .. _implies:
 
 *hypothesis* implies *conclusion*
 ---------------------------------
-Require the hypothesis to hold whenever the conclusion holds. This is a syntax sugar for :scenic:`not {hypothesis} or {conclusion}`.
+Require the conclusion to hold if the hypothesis holds.
+
+This is syntactic sugar for :scenic:`not {hypothesis} or {conclusion}`.
+It is mainly useful in making requirements that constrain multiple time steps easier to read: for example, :scenic:`require always X implies Y` requires that at every time step when ``X`` holds, ``Y`` must also hold.
 
 .. rubric:: References
 
-.. [B10] Bauer et al., :t:`Comparing LTL Semantics for Runtime Verification`, Journal of Logic and Computation. `[Online] <https://doi.org/10.1093/logcom/exn075>`_
+.. [B10] Bauer et al., :title:`Comparing LTL Semantics for Runtime Verification`. Journal of Logic and Computation, 2010. `[Online] <https://doi.org/10.1093/logcom/exn075>`_

@@ -68,7 +68,8 @@ Defines a type of :term:`monitor`, which can be run in parallel with the simulat
 Monitors are not associated with an `Object` and cannot take actions, but can :keyword:`wait` to wait for the next time step (or :keyword:`terminate` the simulation).
 A monitor can be instantiated in a scenario with the :keyword:`require monitor` statement.
 
-The main purpose of monitors is to evaluate complex temporal properties that do not fit into the :keyword:`require {ltl formula}` statements: they can maintain state and use :keyword:`require` to enforce requirements depending on that state.
+The main purpose of monitors is to evaluate complex temporal properties that are not expressible using the temporal operators available for :sampref:`require {LTL formula}` statements.
+They can maintain state and use :keyword:`require` to enforce requirements depending on that state.
 For examples of monitors, see our tutorial on :ref:`dynamics`.
 
 .. versionchanged:: 3.0
@@ -201,8 +202,15 @@ For example, :scenic:`require[0.75] ego in parking_lot` would require that the e
 
 require *LTL formula*
 ---------------------
-Defines a temporal requirement, requiring that the given linear-temporal logic formula hold in a dynamic scenario.
-See :sampref:`temporal operators` for the list of supported LTL operators.
+Defines a :term:`temporal requirement`, requiring that the given Linear Temporal Logic formula hold in a dynamic scenario.
+See :ref:`temporal operators` for the list of supported LTL operators.
+
+Note that an expression that does not use any temporal operators is evaluated only in the current time step.
+So for example:
+
+* :scenic:`require A and always B` will only require that ``A`` hold at time step zero, while ``B`` must hold at every time step (note that this is the same behavior you would get if you wrote :scenic:`require A` and :scenic:`require always B` separately);
+* :scenic:`require (always A) implies B` requires that if ``A`` is true at every time step, then ``B`` must be true at time step zero;
+* :scenic:`require always A implies B` requires that in *every* time step when ``A`` is true, ``B`` must also be true (since ``B`` is within the scope of the :keyword:`always` operator).
 
 .. _require monitor {monitor}:
 .. _require monitor:
