@@ -894,7 +894,7 @@ class Object(OrientedPoint):
     def intersects(self, other):
         """ Whether or not this object intersects another object"""
         # For objects that are boxes and flat, we can take a fast route
-        if self._check2D(checkZ=False) and other._check2D(checkZ=False):
+        if self._isPlanarBox and other._isPlanarBox:
             if abs(self.position.z - other.position.z) > (self.height + other.height) / 2:
                 return False
 
@@ -1013,14 +1013,14 @@ class Object(OrientedPoint):
         hw, hl, hh = self.hw, self.hl, self.hh
         # Note: 2D show method assumes cyclic order of first 4 vertices
         return (
-            self.relativePosition(Vector(self.hw,  self.hl,  self.hh)),
-            self.relativePosition(Vector(-self.hw, self.hl,  self.hh)),
-            self.relativePosition(Vector(-self.hw, -self.hl, self.hh)),
-            self.relativePosition(Vector(self.hw,  -self.hl, self.hh)),
-            self.relativePosition(Vector(self.hw,  self.hl,  -self.hh)),
-            self.relativePosition(Vector(-self.hw, self.hl,  -self.hh)),
-            self.relativePosition(Vector(-self.hw, -self.hl, -self.hh)),
-            self.relativePosition(Vector(self.hw,  -self.hl, -self.hh)),
+            self.relativePosition(Vector(hw,  hl,  hh)),
+            self.relativePosition(Vector(-hw, hl,  hh)),
+            self.relativePosition(Vector(-hw, -hl, hh)),
+            self.relativePosition(Vector(hw,  -hl, hh)),
+            self.relativePosition(Vector(hw,  hl,  -hh)),
+            self.relativePosition(Vector(-hw, hl,  -hh)),
+            self.relativePosition(Vector(-hw, -hl, -hh)),
+            self.relativePosition(Vector(hw,  -hl, -hh)),
         )
 
     @cached_property
@@ -1206,16 +1206,23 @@ class Object(OrientedPoint):
         plt.fill(x, y, "w")
         plt.plot(x + (x[0],), y + (y[0],), color="k", linewidth=1)
 
-    def _check2D(self, checkZ=True, checkFlat=True, checkBox=True):
-        inPlane = self.z == 0
-        isFlat = self.orientation.pitch == 0 and self.orientation.roll == 0
-        isBox = isinstance(self.shape, BoxShape)
+    @cached_property
+    def _isPlanarBox(self):
+        """Whether this object is a box aligned with the XY plane."""
+        return (isinstance(self.shape, BoxShape)
+                and self.orientation.pitch == 0
+                and self.orientation.roll == 0)
 
-        return (inPlane or not checkZ) and (isFlat or not checkFlat) and (isBox or not checkBox)
-               
     @cached_property
     def _boundingPolygon(self):
-        return shapely.geometry.Polygon(self.corners)
+        width, length = self.width, self.length
+        pos = self.position
+        yaw = self.orientation.yaw
+        cyaw, syaw = math.cos(yaw), math.sin(yaw)
+        matrix = [width*cyaw, -length*syaw, width*syaw, length*cyaw, pos[0], pos[1]]
+        return shapely.affinity.affine_transform(_unitBox, matrix)
+
+_unitBox = shapely.geometry.Polygon(((0.5, 0.5), (-0.5, 0.5), (-0.5, -0.5), (0.5, -0.5)))
 
 @distributionFunction
 def defaultSideSurface(occupiedSpace, dimension, positive, thresholds):

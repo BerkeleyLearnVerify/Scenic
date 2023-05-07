@@ -1568,7 +1568,7 @@ class PolygonalFootprintRegion(Region):
         """
         # PASS 1
         # Check for 2D objects, which can be handled using rotated rectangle.
-        if obj._check2D(checkZ=False):
+        if obj._isPlanarBox:
             return self.polygon.contains(obj._boundingPolygon)
 
         # PASS 2
