@@ -1,4 +1,12 @@
-"""Converter from Scenic 2.x to 3.0."""
+"""Converter from Scenic 2.x to 3.0.
+
+This module is designed to be invoked from the command line.
+Run the following command to see the available options:
+
+.. code-block:: console
+
+    $ python -m scenic.syntax.scenic2to3 -h
+"""
 
 import argparse
 import os.path
@@ -85,7 +93,11 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         prog='python -m scenic.syntax.scenic2to3',
-        description='Convert a Scenic 2.x program to Scenic 3.0.'
+        description=('Convert a Scenic 2.x program to one that runs in Scenic 3.0 in '
+                     '2D compatibility mode.'),
+        epilog=('N.B. Parsing a Scenic 2.x program requires importing it as a module; '
+                'if your program cannot be imported without specifying a world model '
+                'or certain global parameters, use the corresponding options above.'),
     )
     parser.add_argument('-f', '--force', help='overwrite output file if it exists',
                         action='store_true')
