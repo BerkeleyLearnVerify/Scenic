@@ -222,7 +222,7 @@ class WebotsSimulation(Simulation):
         orientation = self.coordinateSystem.orientationToScenic(
             webotsObj.getField('rotation').getSFRotation(),
             offsetOrientation,
-        ) * obj.parentOrientation.invertRotation()
+        ) * obj.parentOrientation.inverse
 
         densityField = getFieldSafe(webotsObj, "density")
         density = None

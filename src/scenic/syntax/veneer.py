@@ -1352,8 +1352,7 @@ def Facing(heading):
             if alwaysGlobalOrientation(context.parentOrientation):
                 orientation = headingAtPos  # simplify expr tree in common case
             else:
-                inverseQuat = context.parentOrientation.invertRotation()
-                orientation = inverseQuat * headingAtPos
+                orientation = context.parentOrientation.inverse * headingAtPos
             return {'yaw': orientation.yaw, 'pitch': orientation.pitch, 'roll': orientation.roll}
 
         return Specifier("Facing", {'yaw': 1, 'pitch': 1, 'roll': 1}, DelayedArgument({'position', 'parentOrientation'}, helper))
@@ -1376,8 +1375,7 @@ def FacingToward(pos):
     pos = toVector(pos, 'specifier "facing toward X" with X not a vector')
     def helper(context):
         direction = pos - context.position
-        inverseQuat = context.parentOrientation.invertRotation()
-        rotated = direction.applyRotation(inverseQuat)
+        rotated = direction.applyRotation(context.parentOrientation.inverse)
         sphericalCoords = rotated.cartesianToSpherical() # Ignore the rho, sphericalCoords[0]
         return {'yaw': sphericalCoords[1]}
     return Specifier("FacingToward", {'yaw': 1}, DelayedArgument({'position', 'parentOrientation'}, helper))
@@ -1393,8 +1391,7 @@ def FacingDirectlyToward(pos):
         Same process as above, except by default also specify the pitch euler angle 
         '''
         direction = pos - context.position
-        inverseQuat = context.parentOrientation.invertRotation()
-        rotated = direction.applyRotation(inverseQuat)
+        rotated = direction.applyRotation(context.parentOrientation.inverse)
         sphericalCoords = rotated.cartesianToSpherical()
         return {'yaw': sphericalCoords[1], 'pitch': sphericalCoords[2]}
     return Specifier("FacingDirectlyToward", {'yaw': 1, 'pitch': 1}, DelayedArgument({'position', 'parentOrientation'}, helper))
@@ -1410,8 +1407,7 @@ def FacingAwayFrom(pos):
         As in FacingToward, except invert the resulting rotation axis 
         '''
         direction = context.position - pos
-        inverseQuat = context.parentOrientation.invertRotation()
-        rotated = direction.applyRotation(inverseQuat)
+        rotated = direction.applyRotation(context.parentOrientation.inverse)
         sphericalCoords = rotated.cartesianToSpherical()
         return {'yaw': sphericalCoords[1]}
     return Specifier("FacingAwayFrom", {'yaw': 1}, DelayedArgument({'position', 'parentOrientation'}, helper))
@@ -1424,8 +1420,7 @@ def FacingDirectlyAwayFrom(pos):
     pos = toVector(pos, 'specifier "facing away from X" with X not a vector')
     def helper(context):
         direction = context.position - pos
-        inverseQuat = context.parentOrientation.invertRotation()
-        rotated = direction.applyRotation(inverseQuat)
+        rotated = direction.applyRotation(context.parentOrientation.inverse)
         sphericalCoords = rotated.cartesianToSpherical()
         return {'yaw': sphericalCoords[1], 'pitch': sphericalCoords[2]}
     return Specifier("FacingDirectlyToward", {'yaw': 1, 'pitch': 1}, DelayedArgument({'position', 'parentOrientation'}, helper))

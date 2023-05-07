@@ -1365,7 +1365,7 @@ def canSee(position, orientation, visibleDistance, viewAngles, rayDensity, \
         # origin as it did to the viewer
         target_vertices = target_region.mesh.vertices - np.array(position.coordinates)
         if orientation is not None:
-            target_vertices = orientation.invertRotation().getRotation().apply(target_vertices)
+            target_vertices = orientation.inverse.getRotation().apply(target_vertices)
 
         ## Check if the object crosses the y axis ahead and/or behind the viewer
 

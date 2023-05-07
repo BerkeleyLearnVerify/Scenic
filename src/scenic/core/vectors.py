@@ -135,12 +135,21 @@ def vectorDistributionMethod(method):
     return wrapper(method)
 
 class Orientation:
-    """A quaternion representation of an orientation."""
-    def __init__(self, quaternion):
-        assert isinstance(quaternion, typing.Iterable)
-        assert len(quaternion) == 4
+    """An orientation in 3D space."""
+    def __init__(self, rotation):
+        self.r = rotation
+        self.q = rotation.as_quat()
+
+    @classmethod
+    def fromQuaternion(cls, quaternion) -> Orientation:
         r = Rotation.from_quat(quaternion)
-        self.q = r.as_quat()
+        return cls(r)
+
+    @classmethod
+    @distributionFunction
+    def fromEuler(cls, yaw, pitch, roll) -> Orientation:
+        r = Rotation.from_euler('ZXY', [yaw, pitch, roll], degrees=False)
+        return cls(r)
 
     @property
     def w(self) -> float:
@@ -173,11 +182,6 @@ class Orientation:
         """Roll in the global coordinate system."""
         return self.eulerAngles[2]
 
-    @classmethod 
-    @distributionFunction
-    def fromEuler(cls, yaw, pitch, roll) -> Orientation:
-        return Orientation(Rotation.from_euler('ZXY', [yaw, pitch, roll], degrees=False).as_quat())
-
     @staticmethod
     def _coerce(thing) -> Orientation:
         if isinstance(thing, Orientation):
@@ -204,29 +208,24 @@ class Orientation:
     @cached_property
     def eulerAngles(self) -> typing.Tuple[float, float, float]:
         """Global intrinsic Euler angles yaw, pitch, roll."""
-        r = Rotation.from_quat(self.q)
-        
         # Wrapped to catch gimbal lock warning.
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            angles = r.as_euler('ZXY', degrees=False)
-
+            angles = self.r.as_euler('ZXY', degrees=False)
         return angles
 
     def getRotation(self):
-        return Rotation.from_quat(self.q)
+        return self.r
 
-    def invertRotation(self) -> Orientation:
-        r = Rotation.from_quat(self.q)
-        return Orientation(r.inv().as_quat())
+    @cached_property
+    def inverse(self) -> Orientation:
+        return Orientation(self.r.inv())
 
     @distributionMethod
     def __mul__(self, other) -> Orientation:
         if type(other) is not Orientation:
             return NotImplemented
-        r = Rotation.from_quat(self.q)
-        r2 = Rotation.from_quat(other.q)
-        return Orientation((r * r2).as_quat())
+        return Orientation(self.r * other.r)
     
     @distributionMethod
     def __add__(self, other) -> Orientation:
@@ -248,7 +247,7 @@ class Orientation:
         return self.q[index]
 
     def __repr__(self):
-        return f'Orientation({self.q!r})'
+        return f'Orientation.fromQuaternion({list(self.q)!r})'
 
     def __hash__(self):
         return hash(tuple(self.q)) + hash(tuple(-self.q))
@@ -257,8 +256,7 @@ class Orientation:
     def globalToLocalAngles(self, yaw, pitch, roll) -> typing.Tuple[float, float, float]:
         """Find Euler angles w.r.t. a given parent orientation."""
         orientation = Orientation.fromEuler(yaw, pitch, roll)
-        inverseQuat = self.invertRotation()
-        desiredQuat = inverseQuat * orientation 
+        desiredQuat = self.inverse * orientation
         return desiredQuat.eulerAngles
 
     def __eq__(self, other):
@@ -269,7 +267,7 @@ class Orientation:
     def approxEq(self, other, tol=1e-10):
         if not isinstance(other, Orientation):
             return NotImplemented
-        return abs(numpy.dot(self.q,other.q)) > 1 - tol
+        return abs(numpy.dot(self.q, other.q)) > 1 - tol
 
 globalOrientation = Orientation.fromEuler(0, 0, 0)
 
@@ -338,7 +336,7 @@ class Vector(Samplable, collections.abc.Sequence):
         if not isinstance(rotation, Orientation):
             return NotImplemented
         r = rotation.getRotation()
-        return Vector(*r.apply(list(self.coordinates)))
+        return Vector(*r.apply(self.coordinates))
 
     @vectorOperator
     def cartesianToSpherical(self):
