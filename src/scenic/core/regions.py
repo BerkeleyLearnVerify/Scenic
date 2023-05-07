@@ -30,7 +30,7 @@ from subprocess import CalledProcessError
 
 from scenic.core.distributions import (Samplable, RejectionException, needsSampling, needsLazyEvaluation,
                                        distributionFunction, distributionMethod, toDistribution)
-from scenic.core.lazy_eval import valueInContext
+from scenic.core.lazy_eval import isLazy, valueInContext
 from scenic.core.vectors import Vector, OrientedVector, VectorDistribution, VectorField, Orientation
 from scenic.core.geometry import _RotatedRectangle
 from scenic.core.geometry import sin, cos, hypot, findMinMax, pointIsInCone, averageVectors
@@ -566,7 +566,7 @@ class MeshRegion(Region):
     @property
     def mesh(self):
         # Prevent access to mesh unless it actually represents region.
-        if needsSampling(self) or needsLazyEvaluation(self):
+        if isLazy(self):
             raise ValueError("Attempting to access the Mesh of an unsampled MeshRegion.")
 
         return self._mesh
@@ -1680,7 +1680,8 @@ class PathRegion(Region):
         points: A list of points defining a single polyline.
         polylines: A list of list of points, defining multiple polylines.
     """
-    def __init__(self, points=None, polylines=None):
+    def __init__(self, points=None, polylines=None, name=None):
+        super().__init__(name)
         # Standardize inputs
         if points is not None:
             polylines = [points]
@@ -1786,7 +1787,7 @@ class PolygonalRegion(Region):
         self.z = z
 
         # If our polygons aren't defined yet, then wait till later
-        if needsSampling(self) or needsLazyEvaluation(self):
+        if isLazy(self):
             return
 
         if polygon is None and points is None:
@@ -1796,7 +1797,7 @@ class PolygonalRegion(Region):
             if len(points) == 0:
                 raise ValueError('tried to create PolygonalRegion from empty point list!')
             for point in points:
-                if needsSampling(point):
+                if any(needsSampling(coord) for coord in point):
                     raise ValueError('only fixed PolygonalRegions are supported')
             self.points = points
             polygon = shapely.geometry.Polygon(points)
@@ -2013,7 +2014,7 @@ class CircularRegion(PolygonalRegion):
 
         deps = [self.center, self.radius]
 
-        if needsSampling(deps):
+        if any(needsSampling(dep) for dep in deps):
             # Center and radius aren't fixed, so we'll wait to pass a polygon
             super().__init__(polygon=None, name=name, additional_deps=deps)
             return
@@ -2092,7 +2093,7 @@ class SectorRegion(PolygonalRegion):
         self.circumcircle = (self.center.offsetRadially(r, heading), r)
         self.resolution = resolution
 
-        if needsSampling(deps) or needsLazyEvaluation(deps):
+        if any(isLazy(dep) for dep in deps):
             # Center and radius aren't fixed, so we'll wait to pass a polygon
             super().__init__(polygon=None, name=name, additional_deps=deps)
             return
@@ -2102,7 +2103,7 @@ class SectorRegion(PolygonalRegion):
 
     def _make_sector_polygons(self):
         center, radius = self.center, self.radius
-        assert not needsSampling((center,radius))
+        assert not (needsSampling(center) or needsSampling(radius))
         ctr = shapely.geometry.Point(center)
         circle = ctr.buffer(radius, resolution=self.resolution)
         if self.angle >= math.tau - 0.001:
@@ -2181,7 +2182,7 @@ class RectangularRegion(PolygonalRegion):
             for offset in ((hw, hl), (-hw, hl), (-hw, -hl), (hw, -hl)))
         self.circumcircle = (self.position, self.radius)
 
-        if needsSampling(deps) or needsLazyEvaluation(deps):
+        if any(needsSampling(dep) or needsLazyEvaluation(dep) for dep in deps):
             # Center and radius aren't fixed, so we'll wait to pass a polygon
             super().__init__(polygon=None, name=name, additional_deps=deps)
             return
@@ -2191,7 +2192,7 @@ class RectangularRegion(PolygonalRegion):
 
     def _make_rectangle_polygons(self):
         position, heading, hw, hl = self.position, self.heading, self.hw, self.hl
-        assert not any(needsSampling(c) or needsLazyEvaluation(c) for c in (position, heading, hw, hl))
+        assert not any(isLazy(c) for c in (position, heading, hw, hl))
         corners = _RotatedRectangle.makeCorners(position.x, position.y, heading, hw, hl)
         polygon = shapely.geometry.Polygon(corners)
         return MultiPolygon([polygon])
@@ -2548,7 +2549,7 @@ class PointSetRegion(Region):
                 DeprecationWarning)
 
         for point in points:
-            if needsSampling(point):
+            if any(needsSampling(coord) for coord in point):
                 raise ValueError('only fixed PointSetRegions are supported')
         
         self.points = numpy.array(points)

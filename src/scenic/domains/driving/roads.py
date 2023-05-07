@@ -899,7 +899,7 @@ class Network:
 
         :meta private:
         """
-        return 22
+        return 23
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""

@@ -26,7 +26,7 @@ from abc import ABC, abstractmethod
 from functools import lru_cache
 
 from scenic.core.distributions import (Samplable, needsSampling, distributionMethod, distributionFunction,
-                                        supportInterval, RandomControlFlowError)
+                                        supportInterval, RandomControlFlowError, MultiplexerDistribution)
 from scenic.core.specifiers import Specifier, PropertyDefault, ModifyingSpecifier
 from scenic.core.vectors import Vector, Orientation, alwaysGlobalOrientation
 from scenic.core.geometry import (averageVectors, hypot, min,
@@ -35,7 +35,7 @@ from scenic.core.regions import (Region, CircularRegion, SectorRegion, MeshVolum
                                   BoxRegion, SpheroidRegion, DefaultViewRegion, EmptyRegion, PolygonalRegion,
                                   convertToFootprint)
 from scenic.core.type_support import toVector, toHeading, toType, toScalar, toOrientation, underlyingType
-from scenic.core.lazy_eval import needsLazyEvaluation
+from scenic.core.lazy_eval import isLazy, needsLazyEvaluation
 from scenic.core.serialization import dumpAsScenicCode
 from scenic.core.utils import DefaultIdentityDict, cached_property
 from scenic.core.errors import RuntimeParseError
@@ -902,9 +902,8 @@ class Object(OrientedPoint):
             other_poly = other._boundingPolygon
             return self_poly.intersects(other_poly)
 
-        if needsSampling(self.occupiedSpace) or needsSampling(other.occupiedSpace) \
-           or needsLazyEvaluation(self.occupiedSpace) or needsLazyEvaluation(other.occupiedSpace):
-            raise RandomControlFlowError("Cannot compute intersection between Objects with non fixed values.")
+        if isLazy(self.occupiedSpace) or isLazy(other.occupiedSpace):
+            raise RandomControlFlowError("Cannot compute intersection between Objects with non-fixed values.")
 
         return self.occupiedSpace.intersects(other.occupiedSpace)
 
@@ -1040,10 +1039,11 @@ class Object(OrientedPoint):
         """A lower bound on the inradius of this object"""
         # First check if all needed variables are defined. If so, we can
         # compute the inradius exactly.
-        if not needsSampling([self.width, self.length, self.height, self.shape]):
-            shapeRegion = MeshVolumeRegion(mesh=self.shape.mesh, \
-                dimensions=(self.width, self.length, self.height))
-
+        width, length, height = self.width, self.length, self.height
+        shape = self.shape
+        if not any(needsSampling(val) for val in (width, length, height, shape)):
+            shapeRegion = MeshVolumeRegion(mesh=shape.mesh,
+                                           dimensions=(width, length, height))
             return shapeRegion.inradius
 
         # If we havea uniform distribution over shapes and a supportInterval for each dimension,
@@ -1058,9 +1058,9 @@ class Object(OrientedPoint):
                 return self.support
 
         # Extract bounds on all dimensions
-        min_width, max_width = supportInterval(self.width)
-        min_length, max_length = supportInterval(self.length)
-        min_height, max_height = supportInterval(self.height)
+        min_width, max_width = supportInterval(width)
+        min_length, max_length = supportInterval(length)
+        min_height, max_height = supportInterval(height)
 
         if any(val == None for val in [min_width, max_width, 
                                        min_length, max_length,
@@ -1072,11 +1072,11 @@ class Object(OrientedPoint):
         max_bounds = np.array([max_width, max_length, max_height])
 
         # Extract a list of possible shapes
-        if isinstance(self.shape, Shape):
-            shapes = [self.shape]
-        elif hasattr(self.shape, "options"):
-            if all(isinstance(shape, Shape) for shape in self.shape.options):
-                shapes = list(self.shape.options)
+        if isinstance(shape, Shape):
+            shapes = [shape]
+        elif isinstance(shape, MultiplexerDistribution):
+            if all(isinstance(opt, Shape) for opt in shape.options):
+                shapes = shape.options
             else:
                 # Something we don't recognize, abort
                 return 0

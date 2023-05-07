@@ -3,7 +3,7 @@
 import itertools
 
 from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
-                                   needsLazyEvaluation)
+                                   needsLazyEvaluation, toLazyValue)
 from scenic.core.distributions import toDistribution
 from scenic.core.errors import RuntimeParseError
 
@@ -24,10 +24,10 @@ class Specifier:
     """
     def __init__(self, name, priorities, value, deps=None):
         assert isinstance(priorities, dict)
-        assert isinstance(value, dict) or isinstance(value, DelayedArgument)
+        assert isinstance(value, (dict, DelayedArgument))
 
         self.priorities = priorities
-        self.value = value
+        self.value = toLazyValue(value)
 
         if deps is None:
             deps = set()
