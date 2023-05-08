@@ -557,10 +557,11 @@ class Point(Constructible):
           directly upwards.
         visibleDistance (float): Distance used to determine the visible range of this object.
           Default value 50.
-        rayDensity (float): Determines the number of rays used during visibility checks. This value is the
-          density of rays per degree of visible range in one dimension. The total number of rays 
-          sent will be this value squared per square degree of this object's view angles. Default
-          value 5.
+        viewRayDensity (float): By default determines the number of rays used during visibility checks. 
+          This value is the density of rays per degree of visible range in one dimension. The total
+          number of rays sent will be this value squared per square degree of this object's view angles. 
+          This value determines the default value for viewRayCount, so if viewRayCount is overwritten this value is ignored.
+          Default value 5.
         mutationScale (float): Overall scale of mutations, as set by the
           :keyword:`mutate` statement. Default value 0 (mutations disabled).
         positionStdDev (tuple[float, float, float]): Standard deviation of Gaussian noise 
@@ -576,13 +577,18 @@ class Point(Constructible):
 
         "baseOffset": Vector(0,0,0),
         "contactTolerance": 0,
-        'onDirection': Vector(0,0,1),
+        "onDirection": Vector(0,0,1),
 
+        # This property is defined in OrientedPoint, but we provide a default value
+        # for Points for implementation convenience.
+        "viewAngles": (math.tau, math.pi),
         "visibleDistance": 50,
-        "rayDensity": 5,
+        "viewRayDensity": 5,
+        "viewRayCount": None,
+        "viewRayDistanceScaling": False,
 
         "mutationScale": 0,
-        "mutator": PropertyDefault({'positionStdDev'}, {'additive'},
+        "mutator": PropertyDefault(('positionStdDev', ), {'additive'},
                                 lambda self: PositionMutator((self.positionStdDev))),
         "positionStdDev": (1,1,0),
 
@@ -616,8 +622,8 @@ class Point(Constructible):
             occludingObjects: A list of objects that can occlude visibility.
         """
         return canSee(position=self.position, orientation=None, visibleDistance=self.visibleDistance, \
-            viewAngles=(math.tau, math.pi), rayDensity=self.rayDensity, target=other, \
-            occludingObjects=occludingObjects, debug=debug)
+            viewAngles=(math.tau, math.pi), rayCount=self.viewRayCount, rayDensity=self.viewRayDensity, 
+            distanceScaling=self.viewRayDistanceScaling, target=other, occludingObjects=occludingObjects, debug=debug)
 
     @cached_property
     def corners(self):
@@ -730,8 +736,8 @@ class OrientedPoint(Point):
             occludingObjects: A list of objects that can occlude visibility.
         """
         return canSee(position=self.position, orientation=self.orientation, visibleDistance=self.visibleDistance,
-            viewAngles=self.viewAngles, rayDensity=self.rayDensity, target=other, \
-            occludingObjects=occludingObjects, debug=debug)
+            viewAngles=self.viewAngles, rayCount=self.viewRayCount, rayDensity=self.viewRayDensity, 
+            distanceScaling=self.viewRayDistanceScaling, target=other, occludingObjects=occludingObjects, debug=debug)
 
     def relativize(self, vec):
         pos = self.relativePosition(vec)
@@ -1004,8 +1010,8 @@ class Object(OrientedPoint):
         """
         true_position = self.position.offsetRotated(self.orientation, self.cameraOffset)
         return canSee(position=true_position, orientation=self.orientation, visibleDistance=self.visibleDistance, \
-            viewAngles=self.viewAngles, rayDensity=self.rayDensity, target=other, \
-            occludingObjects=occludingObjects, debug=debug)
+            viewAngles=self.viewAngles, rayCount=self.viewRayCount, rayDensity=self.viewRayDensity, 
+            distanceScaling=self.viewRayDistanceScaling, target=other, occludingObjects=occludingObjects, debug=debug)
 
     @cached_property
     def corners(self):
@@ -1266,8 +1272,9 @@ def defaultSideSurface(occupiedSpace, dimension, positive, thresholds):
     else:
         return EmptyRegion(name="EmptyTopSurface")
 
-def canSee(position, orientation, visibleDistance, viewAngles, rayDensity, \
-           target, occludingObjects, debug=False):
+def canSee(position, orientation, visibleDistance, viewAngles, 
+            rayCount, rayDensity, distanceScaling,\
+            target, occludingObjects, debug=False):
     """Perform visibility checks on Points, OrientedPoints, or Objects, accounting for occlusion.
 
     For visibilty of Objects:
@@ -1324,13 +1331,24 @@ def canSee(position, orientation, visibleDistance, viewAngles, rayDensity, \
         orientation: Orientation of the viewer.
         visibleDistance: The maximum distance the viewer can view objects from.
         viewAngles: The horizontal and vertical view angles, in radians, of the viewer.
-        rayDensity: The density of rays used in visibility calculations. The total number
-          of rays sent will be (rayDensity**2) times the area the total view angle area being
-          evaluated (after optimization).
+        rayCount: The total number of rays in each dimension used in visibility calculations..
         target: The target being viewed. Currently supports Point, OrientedPoint, and Object.
         occludingObjects: An optional list of objects which can occlude the target.
     """
     occludingObjects = list(occludingObjects)
+
+    if rayCount is None:
+        rayCount = (math.degrees(viewAngles[0])*rayDensity, math.degrees(viewAngles[1])*rayDensity)
+
+        if distanceScaling:
+            target_distance = target.position.distanceTo(position)
+
+            rayCount = (rayCount[0]*viewAngles[0]*target_distance, rayCount[1]*viewAngles[1]*target_distance)
+
+        altitudeScaling = True
+    else:
+        # Do not scale ray counts with altitude or distance if explicitly given
+        altitudeScaling = False
 
     if isinstance(target, (Region, Object)):
         # Extract the target region from the object or region.
@@ -1342,7 +1360,8 @@ def canSee(position, orientation, visibleDistance, viewAngles, rayDensity, \
             # If the object contains its center and we can see the center, the object
             # is visible.
             if target_region.containsPoint(target.position) and \
-                canSee(position, orientation, visibleDistance, viewAngles, rayDensity, \
+                canSee(position, orientation, visibleDistance, viewAngles,
+                       rayCount, rayDensity, distanceScaling,
                        target.position, occludingObjects):
                 return True
 
@@ -1357,23 +1376,40 @@ def canSee(position, orientation, visibleDistance, viewAngles, rayDensity, \
         # Orient the object so that it has the same relative position and orientation to the
         # origin as it did to the viewer
         target_vertices = target_region.mesh.vertices - np.array(position.coordinates)
+
         if orientation is not None:
             target_vertices = orientation.invertRotation().getRotation().apply(target_vertices)
+
+        # Add additional points along each edge that could potentially have a higher altitude
+        # than the endpoints.
+        vec_1s = np.asarray(target_vertices[target_region.mesh.edges[:,0],:])
+        vec_2s = np.asarray(target_vertices[target_region.mesh.edges[:,1],:])
+        x1, y1, z1 = vec_1s[:,0], vec_1s[:,1], vec_1s[:,2]
+        x2, y2, z2 = vec_2s[:,0], vec_2s[:,1], vec_2s[:,2]
+        D = x1*x2 + y1*y2
+        N = (x1**2 + y1**2)*z2 - D*z1
+        M = (x2**2 + y2**2)*z1 - D*z2
+        with np.errstate(divide='ignore', invalid='ignore'):
+            t_vals = N/(N+M) # t values that can be an altitude local optimum
+
+        # Keep only points where the t_value is between 0 and 1
+        t_mask = np.logical_and(t_vals > 0, t_vals < 1)
+        interpolated_points = vec_1s[t_mask] + t_vals[t_mask][:,None] * (vec_2s[t_mask] - vec_1s[t_mask])
+
+        target_vertices = np.concatenate((target_vertices, interpolated_points), axis=0)
 
         ## Check if the object crosses the y axis ahead and/or behind the viewer
 
         # Extract the two vectors that are part of each edge crossing the y axis.
-        vec_0s = target_vertices[target_region.mesh.edges[:,0],:]
-        vec_1s = target_vertices[target_region.mesh.edges[:,1],:]
-        y_cross_edges = (vec_0s[:,0]/vec_1s[:,0]) < 0
-        vec_0s = vec_0s[y_cross_edges]
+        y_cross_edges = (vec_1s[:,0]/vec_2s[:,0]) < 0
         vec_1s = vec_1s[y_cross_edges]
+        vec_2s = vec_2s[y_cross_edges]
 
         # Figure out for which t value the vectors cross the y axis
-        t = (-vec_0s[:,0])/(vec_1s[:,0]-vec_0s[:,0])
+        t = (-vec_1s[:,0])/(vec_2s[:,0]-vec_1s[:,0])
 
         # Figure out what the y value is when the y axis is crossed
-        y_intercept_points = t*(vec_1s[:,1]-vec_0s[:,1]) + vec_0s[:,1]
+        y_intercept_points = t*(vec_2s[:,1]-vec_1s[:,1]) + vec_1s[:,1]
 
         # If the object crosses ahead and behind the object, or through 0,
         # we will not optimize ray casting.
@@ -1388,7 +1424,7 @@ def canSee(position, orientation, visibleDistance, viewAngles, rayDensity, \
         spherical_angles[:,1] = np.arcsin(target_vertices[:,2]/ \
                                 (np.linalg.norm(target_vertices, axis=1)))
 
-        # Change from polar based coords to axis based coords
+        # Align azimuthal angle with y axis.
         spherical_angles[:,0] = spherical_angles[:,0] - math.pi/2
 
         # Normalize angles between (-Pi,Pi)
@@ -1484,12 +1520,20 @@ def canSee(position, orientation, visibleDistance, viewAngles, rayDensity, \
             assert h_size > 0
             assert v_size > 0
 
-            # TODO This gives a non-uniform ray density. We could scale the number of rays in a single 
-            # row by the cosine of the altitude angle to fix that.
-            h_angles = np.linspace(h_range[0],h_range[1],math.ceil(math.degrees(h_size)*rayDensity))
-            v_angles = np.linspace(v_range[0],v_range[1],math.ceil(math.degrees(v_size)*rayDensity))
+            scaled_v_ray_count = math.ceil(v_size/(viewAngles[1]) * rayCount[1])
+            v_angles = np.linspace(v_range[0],v_range[1], scaled_v_ray_count)
 
-            angle_matrix = np.transpose([np.tile(h_angles, len(v_angles)), np.repeat(v_angles, len(h_angles))])
+            # If altitudeScaling is true, we will scale the number of rays by the cosine of the altitude
+            # to get a uniform spread.
+            if altitudeScaling:
+                h_ray_counts = np.maximum(np.ceil(np.cos(v_angles) * h_size/(viewAngles[0]) * rayCount[0]), 1).astype(int)
+                h_angles_list = [np.linspace(h_range[0],h_range[1], h_ray_count) for h_ray_count in h_ray_counts]
+                angle_matrices = [np.column_stack([h_angles_list[i], np.repeat([v_angles[i]], len(h_angles_list[i]))]) for i in range(len(v_angles))]
+                angle_matrix = np.concatenate(angle_matrices, axis=0)
+            else:
+                scaled_h_ray_count = math.ceil(h_size/(viewAngles[0]) * rayCount[0])
+                h_angles = np.linspace(h_range[0],h_range[1], scaled_h_ray_count)
+                angle_matrix = np.column_stack([np.repeat(h_angles, len(v_angles)), np.tile(v_angles, len(h_angles))])
 
             ray_vectors = np.zeros((len(angle_matrix[:,0]), 3))
 
@@ -1575,6 +1619,9 @@ def canSee(position, orientation, visibleDistance, viewAngles, rayDensity, \
             if len(target_dist_map) == 0:
                 continue
 
+            # Now check if occluded objects block sight to target
+            candidate_rays = set(target_dist_map.keys())
+
             ## DEBUG ##
             #Show all candidate vertices that hit target
             if debug:            
@@ -1586,12 +1633,9 @@ def canSee(position, orientation, visibleDistance, viewAngles, rayDensity, \
                 render_scene = trimesh.scene.Scene()
                 render_scene.add_geometry(trimesh.path.Path3D(entities=lines, vertices=vertices, process=False, colors=colors))
                 render_scene.add_geometry(target.occupiedSpace.mesh)
-                for i in list(occludingObjects):
+                for occ_obj in list(occludingObjects):
                     render_scene.add_geometry(occ_obj.occupiedSpace.mesh)
                 render_scene.show()
-
-            # Now check if occluded objects block sight to target
-            candidate_rays = set(target_dist_map.keys())
 
             for occ_obj in occludingObjects:
                 # If no more rays are candidates, then object is no longer visible.

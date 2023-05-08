@@ -212,11 +212,11 @@ def test_can_see_occlusion():
             with viewAngles (340 deg, 60 deg),
             with rayDensity 1
 
-        seeing_obj = new Object at (0,10,5),
+        target_obj = new Object at (0,10,5),
             with width 2,
             with height 2,
             with length 2,
-            with name "seeingObject"
+            with name "targetObject"
 
         new Object at (0,5,4),
             with width 10,
@@ -225,7 +225,7 @@ def test_can_see_occlusion():
             with name "wall",
             with occluding False
 
-        param p = ego can see seeing_obj
+        param p = ego can see target_obj
     """)
     assert p == True
 
@@ -242,11 +242,11 @@ def test_can_see_occlusion():
             with viewAngles (340 deg, 60 deg),
             with rayDensity 1
 
-        seeing_obj = new Object at (0,10,5),
+        target_obj = new Object at (0,10,5),
             with width 2,
             with height 2,
             with length 2,
-            with name "seeingObject"
+            with name "targetObject"
 
         new Object at (0,5,4),
             with width 10,
@@ -254,9 +254,63 @@ def test_can_see_occlusion():
             with height 6,
             with name "wall"
 
-        param p = ego can see seeing_obj
+        param p = ego can see target_obj
     """)
     assert p == False
+
+@pytest.mark.slow
+def test_can_see_distance_scaling():
+    # First test with no occlusion
+    p = sampleParamPFrom("""
+        ego = new Object with visibleDistance 1000000,
+            with viewAngles(45 deg, 45 deg),
+            with viewRayDistanceScaling True
+
+        target_obj = new Object at (0, 100000, 0)
+
+        param p = ego can see target_obj
+    """)
+
+    assert p == True
+
+    # Second test with occluding object
+    p = sampleParamPFrom("""
+        ego = new Object with visibleDistance 1000000,
+            with viewAngles(45 deg, 45 deg),
+            with viewRayDistanceScaling True
+
+        target_obj = new Object at (0, 100000, 0)
+
+        occluding_obj = new Object at (0,0,0),
+            on target_obj.backSurface, with onDirection (0,1,0),
+            with width 0.75, with length 0.75, with height 0.75
+
+        param p = ego can see target_obj
+    """)
+
+    assert p == True
+
+@pytest.mark.slow
+def test_can_see_altitude_optimization():
+    for roll in (0, 90, 180, 270):
+        p = sampleParamPFrom(f"""
+            import trimesh
+
+            foo = new Object with roll {roll} deg,
+                with viewAngles(360 deg, 180 deg), with viewRayDensity 5
+
+            bar = new Object at (0,5,0), with width 100, with height 100
+
+            obstacle_shape = trimesh.creation.box(extents=(1,1,1)).difference(\
+                trimesh.creation.box(extents=(0.5,2,0.3),\
+                transform=trimesh.transformations.translation_matrix((0,0,0.5))))
+            new Object at (0,3.9,0), with width 100, with height 100,
+                with shape MeshShape(mesh=obstacle_shape)
+
+            param p = foo can see bar
+        """)
+
+        assert p == True, roll
 
 # In
 def test_point_in_region_2d():

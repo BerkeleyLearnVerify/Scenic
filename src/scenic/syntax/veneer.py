@@ -322,7 +322,7 @@ def executeInRequirement(scenario, boundEgo, values):
         clearScenario = False
     oldEgo = currentScenario._ego
 
-    currentScenario._sampledObjects = (values[obj] for obj in currentScenario.objects)
+    currentScenario._sampledObjects = tuple(values[obj] for obj in currentScenario.objects)
 
     if boundEgo:
         currentScenario._ego = boundEgo
