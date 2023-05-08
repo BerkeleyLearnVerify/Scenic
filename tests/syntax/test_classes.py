@@ -3,6 +3,7 @@ import math
 import pytest
 
 from scenic.core.errors import TokenParseError, ASTParseError, RuntimeParseError, ScenicSyntaxError
+from scenic.core.vectors import Orientation
 from tests.utils import compileScenic, sampleScene, sampleEgoFrom, sampleEgoActions
 
 
@@ -142,3 +143,25 @@ def test_isinstance_issubclass():
     """)
     scene = sampleScene(scenario)
     assert len(scene.objects) == 4
+
+## Value Normalization
+def test_normalize_default_parent_orientation():
+    ego = sampleEgoFrom("""
+            class Foo:
+                parentOrientation: 30 deg
+            ego = new Foo
+        """)
+    assert ego.parentOrientation.approxEq(Orientation.fromEuler(math.radians(30), 0, 0))
+    assert ego.orientation.yaw == pytest.approx(math.radians(30))
+
+def test_normalize_default_angles():
+    ego = sampleEgoFrom("""
+            class Foo:
+                yaw: 200 deg
+                pitch: 370 deg
+                roll: 350 deg
+            ego = new Foo
+        """)
+    assert ego.yaw == pytest.approx(math.radians(-160), abs=1e-4)
+    assert ego.pitch == pytest.approx(math.radians(10), abs=1e-4)
+    assert ego.roll == pytest.approx(math.radians(-10), abs=1e-4)
