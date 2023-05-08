@@ -624,7 +624,7 @@ class Simulation:
 
     @classmethod
     def extractEulerAngles(cls, global_orientation, parent_orientation):
-        return (global_orientation * parent_orientation.invertRotation()).eulerAngles
+        return (global_orientation * parent_orientation.inverse).eulerAngles
 
 
 class ReplayMode(enum.IntFlag):

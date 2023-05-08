@@ -24,7 +24,7 @@ def test_all_region():
     diff = ar.difference(circ)
     assert diff.containsPoint(Vector(0, 0))
     assert not diff.containsPoint(Vector(29, 34))
-    assert ar.containsObject(Object())
+    assert ar.containsObject(Object._with())
     assert circ.difference(ar) == nowhere
     assert ar.union(circ) == ar
     assert circ.union(ar) == ar
@@ -35,7 +35,7 @@ def test_empty_region():
     assert er in {er}
     assert er == nowhere
     assert not er.containsPoint(Vector(0, 0))
-    assert not er.containsObject(Object())
+    assert not er.containsObject(Object._with())
     circ = CircularRegion(Vector(29, 34), 5)
     assert er.intersect(circ) == er
     assert circ.intersect(er) == er
@@ -103,7 +103,7 @@ def test_polyline_region():
         assert pl.containsPoint(pt)
     for pt in ((1,2), (1,0), (0,1), (0.5,1), (2,2), (-1,-1)):
         assert not pl.containsPoint(pt)
-    assert not pl.containsObject(Object())
+    assert not pl.containsObject(Object._with())
     assert pl.project((0, 3)) == (0, 2, 0)
     assert pl.distanceTo((0, 3)) == pytest.approx(1)
     assert pl.project((0.3, 0.2)) == pytest.approx((0.25, 0.25, 0))
@@ -126,7 +126,7 @@ def test_polyline_region():
     # With non-standard orientation
     vf = VectorField('foo', lambda pos: 0.25 + (pos.x + pos.y) / 2)
     pl2 = PolylineRegion([(1,1), (1,-1), (-1,-1), (-1,1)], orientation=vf)
-    assert not pl2.containsObject(Object(width=2, length=2))
+    assert not pl2.containsObject(Object._with(width=2, length=2))
     assert pl2.start.heading == pytest.approx(1.25)
     assert pl2.end.heading == pytest.approx(0.25)
     assert pl.intersects(pl2)
@@ -177,8 +177,8 @@ def test_polygon_region():
         assert poly.containsPoint(pt)
     for pt in [(1,1.1), (2,0.9), (2,2.1), (2.9, 1.2), (1.5,1.4)]:
         assert not poly.containsPoint(pt)
-    assert poly.containsObject(Object(position=(2,1.25), width=0.49, length=0.49))
-    assert not poly.containsObject(Object(position=(2,1.25), width=1, length=0.49))
+    assert poly.containsObject(Object._with(position=(2,1.25), width=0.49, length=0.49))
+    assert not poly.containsObject(Object._with(position=(2,1.25), width=1, length=0.49))
     assert poly.getAABB() == ((1, 1), (3, 2), (0,0))
     line = PolylineRegion([(1,1), (2,1.8)])
     assert poly.intersects(line)
@@ -525,7 +525,7 @@ def test_pointset_region():
         assert ps.containsPoint(pt)
     for pt in [(2,3), (1,2.01), (0,0)]:
         assert not ps.containsPoint(pt)
-    assert not ps.containsObject(Object(position=(1,2)))
+    assert not ps.containsObject(Object._with(position=(1,2)))
     assert ps.distanceTo((3,4)) == 0
     assert ps.distanceTo((3,5)) == pytest.approx(1)
     assert ps.distanceTo((2,3)) == pytest.approx(math.sqrt(2))

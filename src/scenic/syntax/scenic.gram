@@ -1427,7 +1427,7 @@ scenic_until (memo):
 
 scenic_implication (memo):
     | invalid_scenic_implication
-    | a=disjunction 'implies' b=disjunction { s.ImpliesOp(a, b, LOCATIONS) }
+    | a=scenic_next 'implies' b=scenic_next { s.ImpliesOp(a, b, LOCATIONS) }
     | scenic_next
 
 scenic_next (memo):

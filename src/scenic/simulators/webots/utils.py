@@ -70,8 +70,8 @@ class WebotsCoordinateSystem:
         # the fourth value is the rotation angle in radian
         angle = webotsOrientation[3]
         rotvec = np.array(webotsOrientation[0:3]) * angle
-        target = Orientation(R.from_rotvec(rotvec.tolist()).as_quat())
-        orientation = target * offset.invertRotation()
+        target = Orientation(R.from_rotvec(rotvec.tolist()))
+        orientation = target * offset.inverse
         return orientation
 
 ENU = WebotsCoordinateSystem('ENU') #: The ENU coordinate system (the Webots default).

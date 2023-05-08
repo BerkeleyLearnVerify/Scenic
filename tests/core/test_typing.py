@@ -56,7 +56,7 @@ def test_coerce_to_scalar():
 
 def test_coerce_to_heading():
     assert coerce(OrientedVector(1, 2, 0, 0.5), Heading) == pytest.approx(0.5)
-    assert coerce(Object(yaw=0.42), Heading) == pytest.approx(0.42)
+    assert coerce(Object._with(yaw=0.42), Heading) == pytest.approx(0.42)
 
 def test_coerce_to_vector():
     def check(thing, answer=None):
@@ -69,8 +69,8 @@ def test_coerce_to_vector():
     check(Vector(1, 2, 0))
     check([1, 2, 0])
     check((1, 2, 0))
-    check(Object(position=Vector(4, 9)), answer=(4, 9, 0))
-    check(Object(position=Vector(4, 9, 0)), answer=(4, 9, 0))
+    check(Object._with(position=Vector(4, 9)), answer=(4, 9, 0))
+    check(Object._with(position=Vector(4, 9, 0)), answer=(4, 9, 0))
     assert not canCoerce(42, Vector)
     with pytest.raises(ScenicSyntaxError):
         coerce([1, 2, 3, 4], Vector)

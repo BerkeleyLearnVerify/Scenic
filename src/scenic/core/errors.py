@@ -9,8 +9,6 @@ import types
 import sys
 import warnings
 
-import decorator
-
 import scenic
 import scenic.core
 import scenic.syntax
@@ -64,7 +62,6 @@ hiddenFolders = [
     pathlib.Path(scenic.syntax.__file__).parent,    # scenic.syntax submodules
     '<frozen importlib._bootstrap>',                # parts of importlib used internally
     pathlib.Path(importlib.__file__).parent,
-    pathlib.Path(decorator.__file__).parent,        # unhelpful frames in wrappers
 ]
 
 ## Exceptions

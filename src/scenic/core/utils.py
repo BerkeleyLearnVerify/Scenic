@@ -2,29 +2,27 @@
 
 import collections
 from contextlib import contextmanager
+import functools
 import math
 import signal
 import sys
 import typing
-
-import decorator
 
 sqrt2 = math.sqrt(2)
 
 def cached(oldMethod):
     """Decorator for making a method with no arguments cache its result"""
     storageName = f'_cached_{oldMethod.__name__}'
-    @decorator.decorator
-    def wrapper(wrapped, *args, **kwargs):
-        self = args[0]
+    @functools.wraps(oldMethod)
+    def wrapper(self):
         try:
             # Use __getattribute__ for direct lookup in case self is a Distribution
             return self.__getattribute__(storageName)
         except AttributeError:
-            value = wrapped(self)
+            value = oldMethod(self)
             setattr(self, storageName, value)
             return value
-    return wrapper(oldMethod)
+    return wrapper
 
 def cached_property(oldMethod):
     return property(cached(oldMethod))

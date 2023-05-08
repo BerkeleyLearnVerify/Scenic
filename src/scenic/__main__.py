@@ -215,8 +215,10 @@ try:
             its.append(iterations)
         totalTime = time.time() - startTime
         count = len(its)
+        totalIts = sum(its)
         print(f'Sampled {len(its)} scenes in {totalTime:.2f} seconds.')
-        print(f'Average iterations/scene: {sum(its)/count}')
+        print(f'Average iterations/scene: {totalIts/count}')
+        print(f'Average time/iteration: {totalTime/totalIts:.2g} seconds.')
         print(f'Average time/scene: {totalTime/count:.2f} seconds.')
 
 except KeyboardInterrupt:

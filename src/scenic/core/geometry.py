@@ -10,7 +10,7 @@ import shapely.ops
 
 from scenic.core.distributions import (needsSampling, distributionFunction,
                                        monotonicDistributionFunction)
-from scenic.core.lazy_eval import needsLazyEvaluation
+from scenic.core.lazy_eval import isLazy
 from scenic.core.utils import cached_property
 
 @distributionFunction
@@ -311,8 +311,7 @@ class _RotatedRectangle:
     @cached_property
     def polygon(self):
         position, heading, hw, hl = self.position, self.heading, self.hw, self.hl
-        if any(needsSampling(c) or needsLazyEvaluation(c)
-               for c in (position, heading, hw, hl)):
+        if any(isLazy(c) for c in (position, heading, hw, hl)):
             return None     # can only convert fixed Regions to Polygons
         corners = _RotatedRectangle.makeCorners(position.x, position.y, heading, hw, hl)
         return shapely.geometry.Polygon(corners)

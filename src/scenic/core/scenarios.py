@@ -253,7 +253,7 @@ class Scenario(_ScenarioPickleMixin):
         """
         objects = self.objects
         staticVisibility = self.egoObject and not needsSampling(self.egoObject.visibleRegion)
-        staticBounds = [self.hasStaticBounds(obj) for obj in objects]
+        staticBounds = [obj._hasStaticBounds for obj in objects]
         for i in range(len(objects)):
             oi = objects[i]
             container = self.containerOfObject(oi)
@@ -279,13 +279,6 @@ class Scenario(_ScenarioPickleMixin):
                     if oi.intersects(oj):
                         raise InvalidScenarioError(f'Object at {oi.position} intersects'
                                                    f' object at {oj.position}')
-
-    def hasStaticBounds(self, obj):
-        if needsSampling(obj.position):
-            return False
-        if any(needsSampling(corner) for corner in obj.corners):
-            return False
-        return True
 
     def generate(self, maxIterations=2000, verbosity=0, feedback=None):
         """Sample a `Scene` from this scenario.

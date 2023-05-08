@@ -30,13 +30,17 @@ class LazilyEvaluable:
         requiredProps: sequence of strings naming all properties which this value can
             depend on (formally, which must exist in the object passed as the context to
             `evaluateIn`).
+        dependencies: for internal use only (see `Samplable`).
 
     Attributes:
         _requiredProperties: set of strings as above.
     """
-    def __init__(self, requiredProps):
-        self._dependencies = ()     # TODO improve?
+    def __init__(self, requiredProps, dependencies=()):
+        self._dependencies = tuple(dependencies)    # fixed order for reproducibility
         self._requiredProperties = tuple(sorted(set(requiredProps)))
+        self._needsSampling = ns = bool(self._dependencies)
+        self._needsLazyEval = nle = bool(self._requiredProperties)
+        self._isLazy = ns or nle
 
     def evaluateIn(self, context):
         """Evaluate this value in the context of an object being constructed.
@@ -61,10 +65,16 @@ class LazilyEvaluable:
 
     @staticmethod
     def makeContext(**props):
-        """Make a context with the given properties for testing purposes."""
+        """Make a context with the given properties."""
         context = types.SimpleNamespace(**props)
         context._evaluated = DefaultIdentityDict()
         return context
+
+    @staticmethod
+    def getContextValues(context):
+        properties = context.__dict__.copy()
+        del properties['_evaluated']
+        return properties
 
 class DelayedArgument(LazilyEvaluable):
     """DelayedArgument(requiredProps, value, _internal=False)
@@ -107,6 +117,8 @@ class DelayedArgument(LazilyEvaluable):
     def __init__(self, requiredProps, value, _internal=False):
         self.value = value
         super().__init__(requiredProps)
+        self._needsLazyEval = True
+        self._isLazy = True
 
     def evaluateInner(self, context):
         return self.value(context)
@@ -157,7 +169,7 @@ def makeDelayedOperatorHandler(op):
 for op in allowedOperators:
     setattr(DelayedArgument, op, makeDelayedOperatorHandler(op))
 
-def makeDelayedFunctionCall(func, args, kwargs):
+def makeDelayedFunctionCall(func, args, kwargs={}):
     """Utility function for creating a lazily-evaluated function call."""
     props = set().union(*(requiredProperties(arg)
                           for arg in itertools.chain(args, kwargs.values())))
@@ -169,34 +181,48 @@ def makeDelayedFunctionCall(func, args, kwargs):
 
 def valueInContext(value, context):
     """Evaluate something in the context of an object being constructed."""
-    if not needsLazyEvaluation(value):
-        return value
-    elif isinstance(value, LazilyEvaluable):
+    if isinstance(value, LazilyEvaluable) and needsLazyEvaluation(value):
         return value.evaluateIn(context)
-    elif isinstance(value, dict):
-        return { key: valueInContext(val, context)
-                 for key, val in value.items() }
-    assert False
+    return value
+
+def toLazyValue(thing):
+    """Wrap a Python object in a `DelayedArgument` if it needs lazy evaluation."""
+    if isinstance(thing, DelayedArgument):
+        return thing
+    if isinstance(thing, (list, tuple)):
+        coords = tuple(toLazyValue(c) for c in thing)
+        if any(needsLazyEvaluation(c) for c in coords):
+            if isinstance(thing, tuple) and hasattr(thing, '_fields'):      # namedtuple
+                builder = type(thing)._make
+            else:
+                builder = type(thing)
+            packer = lambda *args: builder(args)
+            return makeDelayedFunctionCall(packer, coords)
+    elif isinstance(thing, dict):
+        items = toLazyValue(tuple(thing.items()))
+        if needsLazyEvaluation(items):
+            return makeDelayedFunctionCall(type(thing), (items,))
+    return thing
 
 def requiredProperties(thing):
     """Set of properties needed to evaluate the given value, if any."""
     if isinstance(thing, LazilyEvaluable):
         return set(thing._requiredProperties)
-    elif isinstance(thing, dict):
-        properties = set()
-        for key, val in thing.items():
-            properties.update(requiredProperties(key))
-            properties.update(requiredProperties(val))
-        return properties
     else:
         return set()
 
 def needsLazyEvaluation(thing):
     """Whether the given value requires lazy evaluation."""
-    if isinstance(thing, dict):
-        return any([needsLazyEvaluation(val) for val in thing.values()])
+    return getattr(thing, '_needsLazyEval', False)
 
-    if isinstance(thing, (list, tuple)):
-        return any([needsLazyEvaluation(val) for val in thing])
+def dependencies(thing):
+    """Dependencies which must be sampled before this value."""
+    return getattr(thing, '_dependencies', ())
 
-    return isinstance(thing, DelayedArgument) or (len(requiredProperties(thing)) > 0) 
+def needsSampling(thing):
+    """Whether this value requires sampling."""
+    return getattr(thing, '_needsSampling', False)
+
+def isLazy(thing):
+    """Whether this value requires either sampling or lazy evaluation."""
+    return getattr(thing, '_isLazy', False)

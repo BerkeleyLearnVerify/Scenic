@@ -3,7 +3,7 @@
 import itertools
 
 from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
-                                   needsLazyEvaluation)
+                                   needsLazyEvaluation, toLazyValue)
 from scenic.core.distributions import toDistribution
 from scenic.core.errors import RuntimeParseError
 
@@ -24,10 +24,10 @@ class Specifier:
     """
     def __init__(self, name, priorities, value, deps=None):
         assert isinstance(priorities, dict)
-        assert isinstance(value, dict) or isinstance(value, DelayedArgument)
+        assert isinstance(value, (dict, DelayedArgument))
 
         self.priorities = priorities
-        self.value = value
+        self.value = toLazyValue(value)
 
         if deps is None:
             deps = set()
@@ -41,16 +41,11 @@ class Specifier:
         self.requiredProperties = tuple(sorted(deps))
         self.name = name
 
-    def applyTo(self, obj, properties, overriding=False):
-        """Apply specifier to an object"""
+    def getValuesFor(self, obj):
+        """Get the values specified for a given object."""
         val = valueInContext(self.value, obj)
-
         assert isinstance(val, dict)
-
-        for prop in properties:
-            dist_val = toDistribution(val[prop])
-            assert not needsLazyEvaluation(dist_val)
-            obj._specify(prop, dist_val, overriding=overriding)
+        return val
 
     def __str__(self):
         return f'<{self.name} Specifier for {self.priorities}>'
