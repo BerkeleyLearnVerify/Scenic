@@ -7,11 +7,11 @@ from math import sin, cos
 import typing
 import random
 import collections
+import functools
 import itertools
 import struct
 import warnings
 
-import decorator
 import shapely.geometry
 from scipy.spatial.transform import Rotation
 import numpy
@@ -82,13 +82,13 @@ def scalarOperator(method):
     op = method.__name__
     setattr(VectorDistribution, op, makeOperatorHandler(op, float))
 
-    @decorator.decorator
-    def wrapper(wrapped, instance, *args, **kwargs):
+    @functools.wraps(method)
+    def helper(self, *args, **kwargs):
         if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
-            return MethodDistribution(method, instance, args, kwargs)
+            return MethodDistribution(method, self, args, kwargs)
         else:
-            return wrapped(instance, *args, **kwargs)
-    return wrapper(method)
+            return method(self, *args, **kwargs)
+    return helper
 
 def makeVectorOperatorHandler(op):
     def handler(self, *args):
@@ -99,40 +99,37 @@ def vectorOperator(method, preservesZero=False):
     op = method.__name__
     setattr(VectorDistribution, op, makeVectorOperatorHandler(op))
 
-    @decorator.decorator
-    def wrapper(wrapped, instance, *args, **kwargs):
-        def helper(*args):
-            if needsSampling(instance):
-                return VectorOperatorDistribution(op, instance, args)
-            elif preservesZero and all(coord == 0 for coord in instance.coordinates):
-                return instance
-            elif any(needsSampling(arg) for arg in args):
-                return VectorMethodDistribution(method, instance, args, {})
-            elif any(needsLazyEvaluation(arg) for arg in args):
-                # see analogous comment in distributionFunction
-                return makeDelayedFunctionCall(helper, args, {})
-            else:
-                return wrapped(instance, *args)
-        return helper(*args)
-    return wrapper(method)
+    @functools.wraps(method)
+    def helper(self, *args):
+        if needsSampling(self):
+            return VectorOperatorDistribution(op, self, args)
+        elif preservesZero and all(coord == 0 for coord in self.coordinates):
+            return self
+        elif any(needsSampling(arg) for arg in args):
+            return VectorMethodDistribution(method, self, args, {})
+        elif any(needsLazyEvaluation(arg) for arg in args):
+            # see analogous comment in distributionFunction
+            return makeDelayedFunctionCall(helper, args, {})
+        else:
+            return method(self, *args)
+    return helper
+
 def zeroPreservingVectorOperator(method):
     return vectorOperator(method, preservesZero=True)
 
 def vectorDistributionMethod(method):
     """Decorator for methods that produce vectors. See distributionMethod."""
-    @decorator.decorator
-    def wrapper(wrapped, instance, *args, **kwargs):
-        def helper(*args, **kwargs):
-            if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
-                return VectorMethodDistribution(method, instance, args, kwargs)
-            elif any(needsLazyEvaluation(arg)
-                     for arg in itertools.chain(args, kwargs.values())):
-                # see analogous comment in distributionFunction
-                return makeDelayedFunctionCall(helper, args, kwargs)
-            else:
-                return wrapped(instance, *args, **kwargs)
-        return helper(*args, **kwargs)
-    return wrapper(method)
+    @functools.wraps(method)
+    def helper(self, *args, **kwargs):
+        if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
+            return VectorMethodDistribution(method, self, args, kwargs)
+        elif any(needsLazyEvaluation(arg)
+                 for arg in itertools.chain(args, kwargs.values())):
+            # see analogous comment in distributionFunction
+            return makeDelayedFunctionCall(helper, (self,) + args, kwargs)
+        else:
+            return method(self, *args, **kwargs)
+    return helper
 
 class Orientation:
     """An orientation in 3D space."""
