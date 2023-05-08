@@ -25,8 +25,9 @@ import trimesh
 from abc import ABC, abstractmethod
 from functools import lru_cache
 
-from scenic.core.distributions import (Samplable, needsSampling, distributionMethod, distributionFunction,
-                                        supportInterval, RandomControlFlowError, MultiplexerDistribution)
+from scenic.core.distributions import (Samplable, RandomControlFlowError, MultiplexerDistribution,
+                                       needsSampling, distributionMethod, distributionFunction,
+                                       supportInterval, toDistribution)
 from scenic.core.specifiers import Specifier, PropertyDefault, ModifyingSpecifier
 from scenic.core.vectors import Vector, Orientation, alwaysGlobalOrientation
 from scenic.core.geometry import (averageVectors, hypot, min,
@@ -35,7 +36,7 @@ from scenic.core.regions import (Region, CircularRegion, SectorRegion, MeshVolum
                                   BoxRegion, SpheroidRegion, DefaultViewRegion, EmptyRegion, PolygonalRegion,
                                   convertToFootprint)
 from scenic.core.type_support import toVector, toHeading, toType, toScalar, toOrientation, underlyingType
-from scenic.core.lazy_eval import isLazy, needsLazyEvaluation
+from scenic.core.lazy_eval import LazilyEvaluable, isLazy, needsLazyEvaluation
 from scenic.core.serialization import dumpAsScenicCode
 from scenic.core.utils import DefaultIdentityDict, cached_property
 from scenic.core.errors import RuntimeParseError
@@ -102,56 +103,71 @@ class Constructible(Samplable):
                 # First time this property has been defined; create a dummy object to
                 # run specifier resolution and determine the property's default value
                 if not inst:
-                    inst = cls(_register=False)
+                    inst = cls._withSpecifiers((), register=False)
                 ty = underlyingType(getattr(inst, prop))
             dynTypes[prop] = ty
         cls._dynamicProperties = dynTypes
 
-    @classmethod
-    def _withProperties(cls, props, constProps=frozenset()):
-        assert all(reqProp in props for reqProp in cls._defaults)
-        assert all(not needsLazyEvaluation(val) for val in props.values())
-        return cls(_internal=True, _constProps=constProps, **props)
+    def __init__(self, properties, constProps=frozenset()):
+        for prop, value in properties.items():
+            assert not needsLazyEvaluation(value), (prop, value)
+            object.__setattr__(self, prop, value)
+        super().__init__(properties.values())
+        self.properties = tuple(sorted(properties.keys()))
+        self._propertiesSet = set(self.properties)
+        self._constProps = constProps
 
     @classmethod
-    def _withPropertiesDefaults(cls, props, constProps=frozenset()):
-        assert all(not needsLazyEvaluation(val) for val in props.values())
-        return cls(_register=False,_constProps=constProps, **props)
+    def _withProperties(cls, properties, constProps=None):
+        """Create an instance with the given property values.
 
-    def __init__(self, *args, _internal=False, _constProps=frozenset(), _register=True,
-                 **kwargs):
-        if _internal:   # Object is being constructed internally; use fast path
-            assert not args
-            for prop, value in kwargs.items():
-                assert not needsLazyEvaluation(value), (prop, value)
-                object.__setattr__(self, prop, value)
-            super().__init__(kwargs.values())
-            self.properties = tuple(sorted(kwargs.keys()))
-            self._propertiesSet = set(self.properties)
-            self._constProps = _constProps
-            return
+        Values of unspecified properties are determined by specifier resolution
+        as usual.
+        """
+        specs = []
+        for prop, val in properties.items():
+            specs.append(Specifier("<internal>", {prop: 1}, {prop: val}))
+        return cls._withSpecifiers(specs, constProps=constProps, register=False)
 
-        # Resolve and apply specifiers
-        specifiers = list(args)
-        for prop, val in kwargs.items():    # kwargs supported for internal use
-            specifiers.append(Specifier("Internal(Kwargs)", {prop: 1}, {prop: val}))
+    @classmethod
+    def _with(cls, **properties):
+        # Shorthand form of _withProperties
+        return cls._withProperties(properties)
 
-        # Apply specifiers
-        self._applySpecifiers(specifiers)
+    @classmethod
+    def _withSpecifiers(cls, specifiers, constProps=None, register=True):
+        """Create an instance from the given specifiers."""
+        # Resolve specifiers
+        newspecs = cls._prepareSpecifiers(specifiers)
+        properties, consts = cls._resolveSpecifiers(newspecs)
+        if constProps is None:
+            constProps = consts
 
-        # Set up dependencies
-        deps = []
-        for prop in self.properties:
-            assert hasattr(self, prop)
-            val = getattr(self, prop)
-            deps.append(val)
-        super().__init__(deps)
+        # Catch properties which would conflict with ordinary attributes
+        for prop in properties:
+            if hasattr(cls, prop):
+                raise RuntimeParseError(
+                    f"Property {prop} would overwrite an attribute with the same name."
+                )
+
+        # Create the object
+        obj = cls(properties, constProps=constProps)
 
         # Possibly register this object
-        if _register:
-            self._register()
+        if register:
+            obj._register()
 
-    def _applySpecifiers(self, specifiers, defs=None, overriding=False):
+        return obj
+
+    @classmethod
+    def _prepareSpecifiers(cls, specifiers):
+        # This is a hook for subclasses to modify the specifier list.
+        return specifiers
+
+    @classmethod
+    def _resolveSpecifiers(cls, specifiers, defaults=None, overriding=False):
+        specifiers = list(specifiers)
+
         # Declare properties dictionary which maps properties to the specifier
         # that will specify that property.
         properties = dict()
@@ -165,11 +181,11 @@ class Constructible(Samplable):
         priorities = dict()
 
         # Extract default property values dictionary and set of final properties,
-        # unless defs is overriden.
-        if defs is None:
-            defs = self.__class__._defaults
+        # unless defaults is overriden.
+        if defaults is None:
+            defaults = cls._defaults
 
-        finals = self.__class__._finalProperties
+        finals = cls._finalProperties
 
         # Check for incompatible specifier combinations
         specifier_names = [spec.name for spec in specifiers]
@@ -256,7 +272,7 @@ class Constructible(Samplable):
 
         # Add any default specifiers needed
         _defaultedProperties = set()
-        for prop, default_spec in defs.items():
+        for prop, default_spec in defaults.items():
             if prop not in priorities:
                 specifiers.append(default_spec)
                 properties[prop] = default_spec
@@ -323,47 +339,30 @@ class Constructible(Samplable):
         for spec in specifiers:
             del spec._dfs_state
 
-        # Establish a boolean array tracking which properties will be modified.
-        self._mod_tracker = {prop: True for prop in modifying}
-
-        # Evaluate and apply specifiers, using actual_props to indicate which properties
-        # it should actually specify.
-        self.properties = []        # will be filled by calls to _specify below
-        self._propertiesSet = set()
-        self._evaluated = DefaultIdentityDict()     # temporary cache for lazily-evaluated values
+        context = LazilyEvaluable.makeContext()
         for spec in order:
-            spec.applyTo(self, actual_props[spec], overriding=overriding)
-        del self._evaluated
-        self.properties = tuple(sorted(self.properties))
-        assert self._propertiesSet == set(properties)
-        self._constProps = frozenset({
+            specifiedValues = spec.getValuesFor(context)
+            for prop in actual_props[spec]:
+                assert not hasattr(context, prop) or prop in modifying, (prop, spec)
+                value = toDistribution(specifiedValues[prop])
+                cls._specify(context, prop, value)
+        properties = LazilyEvaluable.getContextValues(context)
+
+        constProps = frozenset({
             prop for prop in _defaultedProperties
-            if not needsSampling(getattr(self, prop))
+            if not needsSampling(properties[prop])
         })
+        return properties, constProps
 
-        # Check that all modifications have been applied and then delete tracker
-        assert not any(self._mod_tracker.values())
-        del self._mod_tracker
-
-    def _specify(self, prop, value, overriding=False):
-        # If this property has already been set, perform additional checks.
-        if prop in self._propertiesSet and not overriding:
-            if prop not in self._mod_tracker:
-                # This prop is not being modified, so ensure we aren't resetting it.
-                assert prop not in self.properties, f"Resetting (not modifying) {prop}"
-            else:
-                # We can modify this prop. Ensure it hasn't already been modified and then mark
-                # it so it can't be modified down the line.
-                assert self._mod_tracker[prop] == True, f"Tried to modify {prop} twice."
-                self._mod_tracker[prop] = False
-
+    @classmethod
+    def _specify(cls, context, prop, value):
         # Normalize types of some built-in properties
         if prop in ('position', 'velocity', 'cameraOffset', 'positionStdDev', 'orientationStdDev'):
-            value = toVector(value, f'"{prop}" of {self} not a vector')
+            value = toVector(value, f'"{prop}" of {cls.__name__} not a vector')
         elif prop in ('width', 'length', 'visibleDistance',
                       'viewAngle', 'speed', 'angularSpeed',
                       'yaw', 'pitch', 'roll'):
-            value = toScalar(value, f'"{prop}" of {self} not a scalar')
+            value = toScalar(value, f'"{prop}" of {cls.__name__} not a scalar')
 
         if prop in ['yaw', 'pitch', 'roll']:
             value = normalizeAngle(value)
@@ -375,13 +374,7 @@ class Constructible(Samplable):
             # 2D regions can't contain objects, so we automatically use their footprint.
             value = convertToFootprint(value)
 
-        # Check if this property is already an attribute, unless we are overriding
-        if hasattr(self, prop) and prop not in self._propertiesSet and not overriding:
-            raise RuntimeParseError(f"Property {prop} would overwrite an attribute with the same name.")
-
-        self.properties.append(prop)
-        self._propertiesSet.add(prop)
-        object.__setattr__(self, prop, value)
+        object.__setattr__(context, prop, value)
 
     def _register(self):
         import scenic.syntax.veneer as veneer   # TODO improve?
@@ -389,6 +382,7 @@ class Constructible(Samplable):
 
     def _override(self, specifiers):
         assert not needsSampling(self)
+        # Validate properties being overridden and gather their old values
         oldVals = {}
         for spec in specifiers:
             for prop in spec.priorities:
@@ -397,8 +391,18 @@ class Constructible(Samplable):
                 if prop not in self._propertiesSet:
                     raise RuntimeParseError(f'object has no property "{prop}" to override')
                 oldVals[prop] = getattr(self, prop)
-        defs = { prop: Specifier("OverrideDefault", {prop: -1}, {prop: getattr(self, prop)}) for prop in self.properties }
-        self._applySpecifiers(list(specifiers), defs=defs, overriding=True)
+
+        # Perform specifier resolution to find the new values of all properties
+        defs = {
+            prop: Specifier("OverrideDefault", {prop: -1}, {prop: getattr(self, prop)})
+            for prop in self.properties
+        }
+        newprops, _ = self._resolveSpecifiers(specifiers, defaults=defs)
+
+        # Apply the new values
+        for prop, val in newprops.items():
+            object.__setattr__(self, prop, val)
+
         return oldVals
 
     def _revert(self, oldVals):
@@ -408,9 +412,8 @@ class Constructible(Samplable):
     def sampleGiven(self, value):
         if not needsSampling(self):
             return self
-        return self._withProperties({ prop: value[getattr(self, prop)]
-                                    for prop in self.properties },
-                                    constProps=self._constProps)
+        props = { prop: value[getattr(self, prop)] for prop in self.properties }
+        return type(self)(props, constProps=self._constProps)
 
     def _allProperties(self):
         return { prop: getattr(self, prop) for prop in self.properties }
@@ -418,11 +421,14 @@ class Constructible(Samplable):
     def _copyWith(self, **overrides):
         """Copy this object, possibly overriding some of its properties."""
         # Copy all properties except for dynamic final values, which will retain their default values
-        props = {prop: val for prop, val in self._allProperties().items() if prop not in set(self._finalProperties)}
-
+        props = {
+            prop: val
+            for prop, val in self._allProperties().items()
+            if prop not in set(self._finalProperties)
+        }
         props.update(overrides)
         constProps = self._constProps.difference(overrides)
-        return self._withPropertiesDefaults(props, constProps=constProps) #self._withProperties(props, constProps=constProps)
+        return self._withProperties(props, constProps=constProps)
 
     def dumpAsScenicCode(self, stream, skipConstProperties=True):
         stream.write(f"new {self.__class__.__name__}")
@@ -735,7 +741,7 @@ class OrientedPoint(Point):
 
     def relativize(self, vec):
         pos = self.relativePosition(vec)
-        return OrientedPoint(position=pos, parentOrientation=self.orientation)
+        return OrientedPoint._with(position=pos, parentOrientation=self.orientation)
 
     def relativePosition(self, vec):
         return self.position.offsetRotated(self.orientation, vec)
@@ -848,13 +854,14 @@ class Object(OrientedPoint):
 
         self._relations = []
 
-    def _specify(self, prop, value, overriding=False):
+    @classmethod
+    def _specify(cls, context, prop, value):
         # Normalize types of some built-in properties
         if prop == 'behavior' and value != None:
             import scenic.syntax.veneer as veneer   # TODO improve?
             value = toType(value, veneer.Behavior,
-                           f'"behavior" of {self} not a behavior')
-        super()._specify(prop, value, overriding=overriding)
+                           f'"behavior" of {cls.__name__} not a behavior')
+        super()._specify(context, prop, value)
 
     def _register(self):
         import scenic.syntax.veneer as veneer   # TODO improve?
@@ -1770,23 +1777,18 @@ class OrientedPoint2D(Point2D, OrientedPoint):
 
         super().__init_subclass__()
 
-    def __init__(self, *args, **kwargs):
-        if kwargs.get('_register', True):
-            import scenic.syntax.veneer as veneer
-
-            # Map certain specifiers to their 3D analog
-            refined_args = []
-
-            for arg in args:
-                # Map "with heading x" to "facing x"
-                if arg.name == "With" and tuple(arg.priorities.keys()) == ('heading',):
-                    refined_args.append(veneer.Facing(arg.value['heading']))
-                else:
-                    refined_args.append(arg)
-
-            args = tuple(refined_args)
-
-        super().__init__(*args, **kwargs)
+    @classmethod
+    def _prepareSpecifiers(cls, specifiers):
+        # Map certain specifiers to their 3D analog
+        newspecs = []
+        for spec in specifiers:
+            # Map "with heading x" to "facing x"
+            if spec.name == "With" and tuple(spec.priorities.keys()) == ('heading',):
+                import scenic.syntax.veneer as veneer
+                newspecs.append(veneer.Facing(spec.value['heading']))
+            else:
+                newspecs.append(spec)
+        return newspecs
 
     @cached_property
     def visibleRegion(self):

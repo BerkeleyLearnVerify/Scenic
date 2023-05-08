@@ -48,7 +48,7 @@ def test_pickle_object():
                      {'blob': 1},
                      DelayedArgument(('width',),
                                      lambda context: {'blob': 2 * context.width}))
-    obj = Object(spec)
+    obj = Object._withSpecifiers((spec,))
     tryPickling(obj)
 
 def test_pickle_scenario():

@@ -65,10 +65,16 @@ class LazilyEvaluable:
 
     @staticmethod
     def makeContext(**props):
-        """Make a context with the given properties for testing purposes."""
+        """Make a context with the given properties."""
         context = types.SimpleNamespace(**props)
         context._evaluated = DefaultIdentityDict()
         return context
+
+    @staticmethod
+    def getContextValues(context):
+        properties = context.__dict__.copy()
+        del properties['_evaluated']
+        return properties
 
 class DelayedArgument(LazilyEvaluable):
     """DelayedArgument(requiredProps, value, _internal=False)

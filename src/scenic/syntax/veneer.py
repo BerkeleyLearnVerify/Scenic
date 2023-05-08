@@ -421,9 +421,9 @@ class Modifier(typing.NamedTuple):
 ### Primitive statements and functions
 
 def new(cls, specifiers):
-    if not issubclass(cls, Constructible):
+    if not (isinstance(cls, type) and issubclass(cls, Constructible)):
         raise TypeError(f'"{cls.__name__}" is not a Scenic class')
-    return cls(*specifiers)
+    return cls._withSpecifiers(specifiers)
 
 def ego(obj=None):
     """Function implementing loads and stores to the 'ego' pseudo-variable.
@@ -930,7 +930,7 @@ def Follow(F, X, D):
     D = toScalar(D, '"follow F from X for D" with D not a number')
     pos = F.followFrom(X, D)
     orientation = F[pos]
-    return OrientedPoint(position=pos, parentOrientation=orientation)
+    return OrientedPoint._with(position=pos, parentOrientation=orientation)
 
 def VisibleFromOp(region, base):
     """The :grammar:`<region> visible from <point>` operator."""
@@ -1035,7 +1035,7 @@ def On(thing):
 
     def helper(context):
         # Pick position based on whether we are specifying or modifying
-        if 'position' in context.properties:
+        if hasattr(context, 'position'):
             pos = findOnHelper(region, context.position, context.onDirection)
         else:
             pos = Region.uniformPointIn(region)

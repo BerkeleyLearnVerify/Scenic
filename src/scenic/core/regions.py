@@ -2334,7 +2334,7 @@ class PolylineRegion(Region):
         else:
             heading = 0
         from scenic.core.object_types import OrientedPoint
-        return OrientedPoint(position=pointA, yaw=heading)
+        return OrientedPoint._with(position=pointA, yaw=heading)
 
     @cached_property
     def end(self):
@@ -2351,7 +2351,7 @@ class PolylineRegion(Region):
         else:
             heading = 0
         from scenic.core.object_types import OrientedPoint
-        return OrientedPoint(position=pointB, yaw=heading)
+        return OrientedPoint._with(position=pointB, yaw=heading)
 
     def defaultOrientation(self, point):
         start, end = self.nearestSegmentTo(point)

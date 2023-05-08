@@ -61,13 +61,13 @@ def test_triangulation_holes():
 ## Bounding geometries
 
 def test_object_boundingPolygon():
-    obj = Object(width=4, length=2, position=(-5, -1))
+    obj = Object._with(width=4, length=2, position=(-5, -1))
     verts = list(obj._boundingPolygon.exterior.coords)
     assert verts[0] == pytest.approx((-3, 0))
     assert verts[1] == pytest.approx((-7, 0))
     assert verts[2] == pytest.approx((-7, -2))
     assert verts[3] == pytest.approx((-3, -2))
-    obj = Object(width=6, length=8, position=(-5, -1), yaw=math.atan(3/4))
+    obj = Object._with(width=6, length=8, position=(-5, -1), yaw=math.atan(3/4))
     verts = list(obj._boundingPolygon.exterior.coords)
     assert verts[0] == pytest.approx((-5, 4))
     assert verts[1] == pytest.approx((-9.8, 0.4))

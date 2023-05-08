@@ -41,16 +41,11 @@ class Specifier:
         self.requiredProperties = tuple(sorted(deps))
         self.name = name
 
-    def applyTo(self, obj, properties, overriding=False):
-        """Apply specifier to an object"""
+    def getValuesFor(self, obj):
+        """Get the values specified for a given object."""
         val = valueInContext(self.value, obj)
-
         assert isinstance(val, dict)
-
-        for prop in properties:
-            dist_val = toDistribution(val[prop])
-            assert not needsLazyEvaluation(dist_val)
-            obj._specify(prop, dist_val, overriding=overriding)
+        return val
 
     def __str__(self):
         return f'<{self.name} Specifier for {self.priorities}>'
