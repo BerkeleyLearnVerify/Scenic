@@ -86,7 +86,7 @@ following behavior:
 .. code-block::
     :linenos:
 
-    behavior Foo:
+    behavior Foo():
         threshold = Range(4, 7)
         while True:
             if self.distanceToClosest(Pedestrian) < threshold:
@@ -214,10 +214,10 @@ follows::
         last_stop = 0
         try:
             do Drive()
-        interrupt when simulation.currentTime - last_stop > delay:
+        interrupt when simulation().currentTime - last_stop > delay:
             do StopBehavior() for 5 seconds
             delay = Range(15, 30) seconds
-            last_stop = simulation.currentTime
+            last_stop = simulation().currentTime
 
 Here ``delay`` is the randomly-chosen amount of time to run ``Drive`` for,
 and ``last_stop`` keeps track of the time when we last started to run it. When the time
@@ -244,59 +244,62 @@ ego car, we could write::
 
     require always not ((ego can see car1) and (ego can see car2))
 
-The :sampref:`require always {condition} <require always>` statement enforces that the given condition must
-hold at every time step of the scenario; if it is ever violated during a simulation, we
+Here, :sampref:`always {condition}` is a *temporal operator* which can only be used inside a requirement, and which evaluates to true if and only if the condition is true at *every* time step of the scenario.
+So if the condition above is ever false during a simulation, the requirement will be violated, causing Scenic to
 reject that simulation and sample a new one. Similarly, we can require that a condition
-hold at *some* time during the scenario using the :keyword:`require eventually` statement::
+hold at *some* time during the scenario using the :keyword:`eventually` operator::
 
     require eventually ego in intersection
 
+It is also possible to relate conditions at different time steps.
+For example, to require that ``car1`` enters the intersection no later than when ``car2`` does, we can use the :keyword:`until` operator::
+
+    require car2 not in intersection until car1 in intersection
+    require eventually car2 in intersection
+
+Temporal operators can be combined with Boolean operators to build up more complex requirements [#f1]_, e.g.::
+
+    require (always car.speed < 30) implies (always distance to car > 10)
+
+See `Temporal Operators` for a complete list of the available operators and their semantics.
+
 You can also use the ordinary :keyword:`require` statement inside a behavior to require that a
 given condition hold at a certain point during the execution of the behavior. For
-example, here is a simple elaboration of the ``WaitUntilClose`` behavior we saw above::
+example, here is a simple elaboration of the ``WaitUntilClose`` behavior we saw above which requires that no pedestrian comes close to :scenic:`self` until the ego does (after which we place no further restrictions)::
 
     behavior WaitUntilClose(threshold=15):
-        while (distance from self to ego) > threshold:
+        while distance from self to ego > threshold:
             require self.distanceToClosest(Pedestrian) > threshold
             wait
         do FollowLaneBehavior()
 
-The requirement ensures that no pedestrian comes close to :scenic:`self` until the ego does;
-after that, we place no further restrictions.
-
-To enforce more complex temporal properties like this one without modifying behaviors,
-you can define a :term:`monitor`. Like behaviors, monitors are functions which run in parallel
+If you want to enforce a complex requirement that isn't conveniently expressible either using the temporal operators built into Scenic or by modifying a behavior, you can define a :term:`monitor`.
+Like behaviors, monitors are functions which run in parallel
 with the scenario, but they are not associated with any agent and any actions they take
 are ignored (so you might as well only use the :keyword:`wait` statement). Here is a monitor
-for the property "``car1`` and ``car2`` enter the intersection before ``car3``":
+for requiring that a given car spends at most a certain amount of time in the intersection:
 
 .. code-block::
     :linenos:
 
-    monitor Car3EntersLast():
-        seen1, seen2 = False, False
-        while not (seen1 and seen2):
-            require car3 not in intersection
-            if car1 in intersection:
-                seen1 = True
-            if car2 in intersection:
-                seen2 = True
+    monitor LimitTimeInIntersection(car, limit=100):
+        stepsInIntersection = 0
+        while True:
+            require stepsInIntersection <= limit
+            if car in intersection:
+                stepsInIntersection += 1
             wait
 
-We use the variables ``seen1`` and ``seen2`` to remember whether we have seen ``car1``
-and ``car2`` respectively enter the intersection. The loop will iterate as long as at
-least one of the cars has not yet entered the intersection, so if ``car3`` enters before
-either ``car1`` or ``car2``, the requirement on line 4 will fail and we will reject the
-simulation. Note the necessity of the :keyword:`wait` statement on line 9: if we omitted it, the
+We use the variable ``stepsInIntersection`` to remember how many time steps ``car`` has spent in the intersection; if it ever exceeds the limit, the requirement on line 4 will fail and we will reject the simulation.
+Note the necessity of the :keyword:`wait` statement on line 7: if we omitted it, the
 loop could run forever without any time actually passing in the simulation.
 
 Like behaviors, monitors can take parameters, allowing a monitor defined in a library to
 be reused in various situations. To instantiate a monitor in a scenario, use the
 :keyword:`require monitor` statement::
 
-    require monitor Car3EntersLast()
-    require monitor FollowsDrivingRules(ego, speedLimit=65)
-    require monitor FollowsDrivingRules(speedDemon, speedLimit=80)
+    require monitor LimitTimeInIntersection(ego)
+    require monitor LimitTimeInIntersection(taxi, limit=200)
 
 ..  _guards:
 
@@ -449,7 +452,7 @@ invoking Scenic as follows:
 Try playing around with different example scenarios and different choices of maps (making
 sure that you keep the ``map`` and ``lgsvl_map``/``carla_map`` parameters consistent).
 For both CARLA and LGSVL, you don't have to restart the simulator between scenarios: just
-kill Scenic [#f1]_ and restart it with different arguments.
+kill Scenic [#f2]_ and restart it with different arguments.
 
 Further Reading
 ---------------
@@ -470,5 +473,7 @@ in some other sections of the documentation:
 
 .. rubric:: Footnotes
 
-.. [#f1] Or use the :option:`--count` option to have Scenic automatically terminate after
+.. [#f1] For those familiar with temporal logic, you can encode any formula of Linear Temporal Logic.
+
+.. [#f2] Or use the :option:`--count` option to have Scenic automatically terminate after
     a desired number of simulations.
