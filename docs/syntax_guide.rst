@@ -72,7 +72,7 @@ Simple Statements
      - Define a hard requirement.
    * - :sampref:`require[{number}] {boolean}`
      - Define a soft requirement.
-   * - :sampref:`require (always | eventually) {boolean}`
+   * - :sampref:`require {LTL formula}`
      - Define a dynamic hard requirement.
    * - :sampref:`require monitor {monitor}`
      - Define a dynamic requirement using a monitor.
