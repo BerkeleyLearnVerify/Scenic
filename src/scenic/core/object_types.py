@@ -1036,6 +1036,14 @@ class Object(OrientedPoint):
                 dimensions=(self.width, self.length, self.height), \
                 position=self.position, rotation=self.orientation)
 
+    @property
+    def _hasStaticBounds(self):
+        deps = (
+            self.position, self.orientation, self.shape,
+            self.width, self.length, self.height,
+        )
+        return not any(needsSampling(v) for v in deps)
+
     @cached_property
     def boundingBox(self):
         """A region representing this object's bounding box"""
@@ -1349,16 +1357,15 @@ def canSee(position, orientation, visibleDistance, viewAngles, rayDensity, \
     if isinstance(target, (Region, Object)):
         # Extract the target region from the object or region.
         if isinstance(target, Region):
-            raise NotImplementedError()
-        elif isinstance(target, (Object)):
-            target_region = target.occupiedSpace
-
+            raise NotImplementedError
+        elif isinstance(target, Object):
             # If the object contains its center and we can see the center, the object
             # is visible.
-            if target_region.containsPoint(target.position) and \
-                canSee(position, orientation, visibleDistance, viewAngles, rayDensity, \
-                       target.position, occludingObjects):
+            if (target.shape.containsCenter
+                and canSee(position, orientation, visibleDistance, viewAngles,
+                           rayDensity, target.position, occludingObjects)):
                 return True
+            target_region = target.occupiedSpace
 
         # Check that the distance to the target is not greater than visibleDistance, and
         # see if position is in the target.
