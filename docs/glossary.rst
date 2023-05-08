@@ -65,6 +65,10 @@ Glossary
 		A `vector field` set as the ``orientation`` attribute of a `Region`, indicating that objects placed within that region should be oriented to align along that vector field unless otherwise specified.
 		For example, the :obj:`~scenic.domains.driving.model.road` region provided by the :ref:`driving_domain` has as its preferred orientation the :obj:`~scenic.domains.driving.model.roadDirection` vector field, so that vehicles positioned using the specifier :specifier:`on road` will be facing the nominal traffic direction at their position by default (but an explicit :specifier:`facing {H}` specifier will override it).
 
+	temporal requirement
+		A :keyword:`require` statement using one or more temporal operators (:keyword:`always`, :keyword:`until`, etc.) to impose a requirement over an entire simulation rather than just the generated scene.
+		For example, :scenic:`require always X` requires not only that the condition ``X`` be true in any scenes sampled from the scenario, but that it remain true at every time step of simulations run from those scenes.
+
 	visible region
 		The `Region` which is "visible" from a given `Object` for the purposes of the :keyword:`can see` operator, the :keyword:`visible <visible_spec>` specifier, etc.
 		The visible region of a `Point` is a sphere, while that of an `OrientedPoint` or `Object` can be a pyramid: see `OrientedPoint.visibleRegion` for details.
