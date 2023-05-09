@@ -1481,6 +1481,11 @@ class BoxRegion(MeshVolumeRegion):
     def isConvex(self):
         return True
 
+    def sampleGiven(self, value):
+        return BoxRegion(name=self.name, dimensions=value[self.dimensions],
+            position=value[self.position], rotation=value[self.rotation], \
+            orientation=self.orientation, tolerance=self.tolerance, engine=self.engine)
+
 class SpheroidRegion(MeshVolumeRegion):
     """ Region in the shape of a spheroid.
 
@@ -1505,6 +1510,11 @@ class SpheroidRegion(MeshVolumeRegion):
     @cached_property
     def isConvex(self):
         return True
+
+    def sampleGiven(self, value):
+        return SpheroidRegion(name=self.name, dimensions=value[self.dimensions],
+            position=value[self.position], rotation=value[self.rotation], \
+            orientation=self.orientation, tolerance=self.tolerance, engine=self.engine)
 
 class PolygonalFootprintRegion(Region):
     """ Region that contains all points in a polygonal footprint, regardless of their z value. 

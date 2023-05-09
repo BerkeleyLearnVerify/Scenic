@@ -6,8 +6,6 @@ import trimesh
 from trimesh.transformations import translation_matrix, quaternion_matrix, concatenate_matrices
 import numpy
 
-from scenic.core.distributions import (distributionFunction, distributionMethod, Samplable,
-                                       needsSampling, toDistribution)
 from scenic.core.vectors import Orientation
 from scenic.core.utils import cached_property, loadMesh
 
@@ -15,7 +13,7 @@ from scenic.core.utils import cached_property, loadMesh
 # Abstract Classes and Utilities
 ###################################################################################################
 
-class Shape(Samplable, ABC):
+class Shape(ABC):
     """An abstract base class for Scenic shapes.
 
     Represents a physical shape in Scenic. Does not encode position or orientation,
@@ -31,10 +29,6 @@ class Shape(Samplable, ABC):
           and then scaled by scale.
     """
     def __init__(self, dimensions, scale):
-        # Report dimensions and scale as samplable
-        dimensions = toDistribution(dimensions)
-        super().__init__([dimensions, scale])
-
         # Store values
         self.raw_dimensions = dimensions
         self.scale = scale
@@ -91,10 +85,6 @@ class MeshShape(Shape):
 
         # If rotation is provided, apply rotation
         if initial_rotation is not None:
-            if needsSampling(initial_rotation):
-                raise ValueError("Shape initial_rotation parameter must be fixed." +
-                    "If you want to orient an Object randomly, you should change the Object's rotation.")
-
             rotation = Orientation.fromEuler(*initial_rotation)
             rotation_matrix = quaternion_matrix((rotation.w, rotation.x, rotation.y, rotation.z))
             self._mesh.apply_transform(rotation_matrix)
@@ -138,30 +128,20 @@ class MeshShape(Shape):
     def isConvex(self):
         return self._isConvex
 
-    def sampleGiven(self, values):
-        return MeshShape(self.mesh, values[self.raw_dimensions], values[self.scale])
-
 class BoxShape(MeshShape):
     """A 3D box with all dimensions 1 by default."""
     def __init__(self, dimensions=(1,1,1), scale=1):
-        # Report samplables
         super().__init__(trimesh.creation.box((1,1,1)), dimensions, scale)
 
 class CylinderShape(MeshShape):
     def __init__(self, dimensions=(1,1,1), scale=1, sections=24):
-        # Report samplables
         super().__init__(trimesh.creation.cylinder(radius=0.5, height=1, sections=sections), dimensions, scale)
         self.sections=sections
-    
-    def sampleGiven(self, values):
-        return CylinderShape(values[self.raw_dimensions], values[self.scale], sections=self.sections)
 
 class ConeShape(MeshShape):
     def __init__(self, dimensions=(1,1,1), scale=1):
-        # Report samplables
         super().__init__(trimesh.creation.cone(radius=0.5, height=1), dimensions, scale)
 
 class SpheroidShape(MeshShape):
     def __init__(self, dimensions=(1,1,1), scale=1):
-        # Report samplables
         super().__init__(trimesh.creation.icosphere(radius=1), dimensions, scale)
