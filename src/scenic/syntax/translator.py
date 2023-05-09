@@ -70,7 +70,7 @@ class CompileOptions:
 
     # N.B. update `hash` below when adding a new field
 
-    #: Whether or not the scenario uses 2D compatibility mode.
+    #: Whether or not the scenario uses `2D compatibility mode`.
     mode2D: bool = False
     #: Overridden world model, if any.
     modelOverride: Optional[str] = None
@@ -123,7 +123,7 @@ def scenarioFromFile(path, params={}, model=None, scenario=None, *,
         scenario (str): If there are multiple :term:`modular scenarios` in the
           file, which one to compile; if not specified, a scenario called 'Main'
           is used if it exists.
-        mode2D (bool): Whether to compile this scenario in 2D compatibility mode.
+        mode2D (bool): Whether to compile this scenario in `2D compatibility mode`.
         cacheImports (bool): Whether to cache any imported Scenic modules.
           The default behavior is to not do this, so that subsequent attempts
           to import such modules will cause them to be recompiled. If it is

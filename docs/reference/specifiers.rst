@@ -236,6 +236,7 @@ Positions the object to the left/right of the given `OrientedPoint`.
 Also inherits :prop:`parentOrientation` from the given `OrientedPoint`.
 
 .. _(left | right) of {Object} [by {scalar}]:
+.. _left of {Object}:
 
 (left | right) of *Object* [by *scalar*]
 ----------------------------------------

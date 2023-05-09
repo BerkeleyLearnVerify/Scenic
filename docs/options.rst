@@ -52,7 +52,9 @@ General Scenario Control
 
 .. option:: --2d
 
-	This option compiles the scenario in 2D compatibility mode.
+	Compile the scenario in :ref:`2D compatibility mode`.
+
+	The equivalent of this option for the Python API is the ``mode2D`` argument to `scenic.scenarioFromFile`.
 
 Dynamic Simulations
 -------------------
