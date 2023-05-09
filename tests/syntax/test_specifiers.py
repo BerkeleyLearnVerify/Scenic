@@ -74,9 +74,9 @@ def test_normalize_parent_orientation():
 
 def test_normalize_angles():
     ego = sampleEgoFrom('ego = new Object with yaw 200 deg, with pitch 370 deg, with roll 350 deg')
-    assert ego.yaw == pytest.approx(math.radians(-160), abs=1e-4)
-    assert ego.pitch == pytest.approx(math.radians(10), abs=1e-4)
-    assert ego.roll == pytest.approx(math.radians(-10), abs=1e-4)
+    assert ego.yaw == pytest.approx(math.radians(-160))
+    assert ego.pitch == pytest.approx(math.radians(10))
+    assert ego.roll == pytest.approx(math.radians(-10))
 
 ## Generic specifiers
 

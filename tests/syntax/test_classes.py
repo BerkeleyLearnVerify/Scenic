@@ -162,6 +162,6 @@ def test_normalize_default_angles():
                 roll: 350 deg
             ego = new Foo
         """)
-    assert ego.yaw == pytest.approx(math.radians(-160), abs=1e-4)
-    assert ego.pitch == pytest.approx(math.radians(10), abs=1e-4)
-    assert ego.roll == pytest.approx(math.radians(-10), abs=1e-4)
+    assert ego.yaw == pytest.approx(math.radians(-160))
+    assert ego.pitch == pytest.approx(math.radians(10))
+    assert ego.roll == pytest.approx(math.radians(-10))
