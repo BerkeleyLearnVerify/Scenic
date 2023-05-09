@@ -40,14 +40,23 @@ class Scenic2to3:
             offset = 0
             pieces = []
             for row, col, text in splices:
+                noNewline = False
                 while curRow < row:
                     outStream.write(''.join(pieces))
-                    pieces = [inStream.readline()]
+                    line = inStream.readline()
+                    if line and line[-1] != '\n' and curRow+1 < row:
+                        # file ends abruptly without newline; add one since
+                        # we have another splice coming to go at the end
+                        noNewline = True
+                        line += '\n'
+                    pieces = [line]
                     curRow += 1
                     offset = 0
                 piece = pieces.pop()
                 spot = col - offset
                 pieces.append(piece[:spot])
+                if noNewline and text[-1] == '\n':
+                    text = text[:-1]
                 pieces.append(text)
                 pieces.append(piece[spot:])
                 offset = col
