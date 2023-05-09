@@ -7,6 +7,10 @@ import math
 import signal
 import sys
 import typing
+import os
+import bz2
+
+import trimesh
 
 sqrt2 = math.sqrt(2)
 
@@ -59,6 +63,38 @@ def alarm(seconds, handler=None, noNesting=False):
     finally:
         signal.alarm(0)
         signal.signal(signal.SIGALRM, signal.SIG_DFL)
+
+def loadMesh(path, filetype=None, compressed=None):
+    working_path = path
+
+    # Check if file is compressed
+    if compressed is None:
+        root, ext = os.path.splitext(working_path)
+
+        if ext == ".bz2":
+            compressed = True
+            working_path = root
+        else:
+            compressed = False
+
+    # Check mesh filetype
+    if filetype is None:
+        root, ext = os.path.splitext(working_path)
+
+        if ext == "":
+            raise ValueError("Mesh filetype not provided, but could not be extracted")
+
+        filetype = ext
+
+    if compressed:
+        open_function = bz2.open
+    else:
+        open_function = open
+
+    with open_function(path, "r") as mesh_file:
+        mesh = trimesh.load(mesh_file, file_type=filetype)
+
+    return mesh
 
 class DefaultIdentityDict:
     """Dictionary which is the identity map by default.

@@ -1,8 +1,6 @@
 """ Module containing the Shape class and its subclasses, which represent shapes of Objects"""
 
 from abc import ABC, abstractmethod
-import os
-import bz2
 
 import trimesh
 from trimesh.transformations import translation_matrix, quaternion_matrix, concatenate_matrices
@@ -11,7 +9,7 @@ import numpy
 from scenic.core.distributions import (distributionFunction, distributionMethod, Samplable,
                                        needsSampling, toDistribution)
 from scenic.core.vectors import Orientation
-from scenic.core.utils import cached_property
+from scenic.core.utils import cached_property, loadMesh
 
 ###################################################################################################
 # Abstract Classes and Utilities
@@ -114,6 +112,24 @@ class MeshShape(Shape):
         # Report samplables
         super().__init__(dimensions, scale)
 
+    @classmethod
+    def fromFile(cls, path, filetype=None, compressed=None, **kwargs):
+        """Load a shape from a file, attempting to infer filetype and compression.
+
+        For example: "foo.obj.bz2" is assumed to be a compressed .obj file.
+        "foo.obj" is assumed to be an uncompressed .obj file. "foo" is an
+        unknown filetype, so unless a filetype is provided an exception will be raised.
+
+        Args:
+            path: Path to the file to import
+            filetype: Filetype of file to be imported. This will be inferred if not provided
+            compressed: Wheter or not this file is compressed (with bz2). This will be inferred
+                if not provided
+            kwargs: Additional arguments to the MeshShape initializer.
+        """
+        mesh = loadMesh(path, filetype, compressed)
+        return cls(mesh, **kwargs)
+
     @property
     def mesh(self):
         return self._mesh
@@ -121,39 +137,6 @@ class MeshShape(Shape):
     @property
     def isConvex(self):
         return self._isConvex
-
-    @classmethod
-    def fromFile(cls, path, filetype=None, compressed=None, dimensions=None, scale=1, initial_rotation=None):
-        working_path = path
-
-        # Check if file is compressed
-        if compressed is None:
-            root, ext = os.path.splitext(working_path)
-
-            if ext == ".bz2":
-                compressed = True
-                working_path = root
-            else:
-                compressed = False
-
-        # Check mesh filetype
-        if filetype is None:
-            root, ext = os.path.splitext(working_path)
-
-            if ext == "":
-                raise ValueError("Mesh filetype not provided, but could not be extracted")
-
-            filetype = ext
-
-        if compressed:
-            open_function = bz2.open
-        else:
-            open_function = open
-
-        with open_function(path, "r") as mesh_file:
-            mesh = trimesh.load(mesh_file, file_type=filetype)
-
-        return cls(mesh, dimensions=dimensions, scale=scale, initial_rotation=initial_rotation)
 
     def sampleGiven(self, values):
         return MeshShape(self.mesh, values[self.raw_dimensions], values[self.scale])

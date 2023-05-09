@@ -1250,12 +1250,7 @@ class Object(OrientedPoint):
             matrix = [width*cyaw, -length*syaw, width*syaw, length*cyaw, pos[0], pos[1]]
             return shapely.affinity.affine_transform(_unitBox, matrix)
 
-        # Relatively fast case for convex shapes
-        if self._isConvex:
-            return shapely.geometry.MultiPoint(self.occupiedSpace.mesh.vertices).convex_hull
-
-        # Generic case for arbitrary shapes
-        return trimesh.path.polygons.projected(self.occupiedSpace.mesh, normal=(0,0,1), rpad=1e-4)
+        return self.occupiedSpace._boundingPolygon
 
 _unitBox = shapely.geometry.Polygon(((0.5, 0.5), (-0.5, 0.5), (-0.5, -0.5), (0.5, -0.5)))
 

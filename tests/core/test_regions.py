@@ -1,5 +1,7 @@
 
 import math
+from pathlib import Path
+
 
 import pytest
 import math
@@ -209,6 +211,14 @@ def test_polygon_sampling():
     assert sum(1 <= y <= 2 for y in ys) <= 870
     assert sum(x >= 1.5 for x in xs) >= 1250
     assert sum(y >= 1.5 for y in ys) >= 1250
+
+def test_mesh_region_fromFile():
+    MeshVolumeRegion.fromFile(Path(".").parent.parent.parent /
+        "tools" / "meshes" / "classic_plane.obj.bz2",
+        dimensions=(20,20,10), rotation=(math.radians(-90), 0, math.radians(-10)))
+    MeshSurfaceRegion.fromFile(Path(".").parent.parent.parent /
+        "tools" / "meshes" / "classic_plane.obj.bz2", dimensions=(20,20,10),
+        rotation=(math.radians(-90), 0, math.radians(-10)))
 
 def test_mesh_operation_blender():
     r1 = BoxRegion(position=(0,0,0), dimensions=(1,1,1), engine="blender")

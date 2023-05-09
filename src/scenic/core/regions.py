@@ -36,7 +36,7 @@ from scenic.core.geometry import _RotatedRectangle
 from scenic.core.geometry import sin, cos, hypot, findMinMax, pointIsInCone, averageVectors
 from scenic.core.geometry import headingOfSegment, triangulatePolygon, plotPolygon, polygonUnion
 from scenic.core.type_support import toVector, toScalar, toOrientation
-from scenic.core.utils import cached, cached_property
+from scenic.core.utils import cached, cached_property, loadMesh
 
 ###################################################################################################
 # Abstract Classes and Utilities
@@ -561,6 +561,24 @@ class MeshRegion(Region):
 
         self.orientation = orientation
 
+    @classmethod
+    def fromFile(cls, path, filetype=None, compressed=None, **kwargs):
+        """Load a region from a file, attempting to infer filetype and compression.
+
+        For example: "foo.obj.bz2" is assumed to be a compressed .obj file.
+        "foo.obj" is assumed to be an uncompressed .obj file. "foo" is an
+        unknown filetype, so unless a filetype is provided an exception will be raised.
+
+        Args:
+            path: Path to the file to import
+            filetype: Filetype of file to be imported. This will be inferred if not provided
+            compressed: Wheter or not this file is compressed (with bz2). This will be inferred
+                if not provided
+            kwargs: Additional arguments to the MeshRegion initializer.
+        """
+        mesh = loadMesh(path, filetype, compressed)
+        return cls(mesh=mesh, **kwargs)
+
     ## API Methods ##
     # Mesh Access #
     @property
@@ -615,6 +633,46 @@ class MeshRegion(Region):
         circumradius = hypot(*half_extents)
 
         return (center_point, circumradius)
+
+    @cached_property
+    def isConvex(self):
+        return self.mesh.is_convex
+
+    @cached_property
+    def _boundingPolygon(self):
+        assert not needsSampling(self)
+
+        # Relatively fast case for convex regions
+        if self.isConvex:
+            return shapely.geometry.MultiPoint(self.mesh.vertices).convex_hull
+
+        # Generic case for arbitrary shapes
+        if self.mesh.is_watertight:
+            projection = trimesh.path.polygons.projected(self.mesh, normal=(0,0,1), rpad=1e-4)
+        else:
+            # Special parameters to use all faces if mesh is not watertight.
+            projection = trimesh.path.polygons.projected(self.mesh, normal=(0,0,1), rpad=1e-4,
+                                                         ignore_sign=False, tol_dot=-float('inf'))
+
+        return projection
+
+    @cached_property
+    def boundingPolygon(self):
+        """A PolygonalRegion bounding the mesh"""
+        return PolygonalRegion(polygon=self._boundingPolygon)
+
+    def sampleGiven(self, value):
+        if isinstance(self, MeshVolumeRegion):
+            cls = MeshVolumeRegion
+        elif isinstance(self, MeshSurfaceRegion):
+            cls = MeshSurfaceRegion
+        else:
+            assert False
+
+        return cls(mesh=value[self._mesh], name=self.name, \
+            dimensions=value[self.dimensions], position=value[self.position], rotation=value[self.rotation], \
+            orientation=self.orientation, tolerance=self.tolerance, \
+            center_mesh=self.center_mesh, engine=self.engine)
 
 class MeshVolumeRegion(MeshRegion):
     """ An instance of MeshRegion that performs operations over the volume of the mesh.
@@ -1254,10 +1312,6 @@ class MeshVolumeRegion(MeshRegion):
         else:
             return region_distance
 
-    @cached_property
-    def isConvex(self):
-        return self.mesh.is_convex
-
     @property
     def dimensionality(self):
         return 3
@@ -1265,13 +1319,6 @@ class MeshVolumeRegion(MeshRegion):
     @cached_property
     def size(self):
         return self.mesh.mass/self.mesh.density
-
-    ## Sampling Methods ##
-    def sampleGiven(self, value):
-        return MeshVolumeRegion(mesh=value[self._mesh], name=self.name, \
-            dimensions=value[self.dimensions], position=value[self.position], rotation=value[self.rotation], \
-            orientation=self.orientation, tolerance=self.tolerance, \
-            center_mesh=self.center_mesh, engine=self.engine)
 
     ## Utility Methods ##
     @lru_cache(maxsize=None)
@@ -1397,13 +1444,6 @@ class MeshSurfaceRegion(MeshRegion):
         orientation = tuple(scipy.spatial.transform.Rotation.from_matrix(transform[:3,:3]).as_euler('ZXY'))
 
         return orientation
-
-    ## Sampling Methods ##
-    def sampleGiven(self, value):
-        return MeshSurfaceRegion(mesh=value[self._mesh], name=self.name, \
-            dimensions=value[self.dimensions], position=value[self.position], rotation=value[self.rotation], \
-            orientation=self.orientation, tolerance=self.tolerance, \
-            center_mesh=self.center_mesh, engine=self.engine)
 
     ## Utility Methods ##
     @lru_cache(maxsize=None)
