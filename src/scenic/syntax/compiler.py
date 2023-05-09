@@ -1682,7 +1682,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     def visit_DegOp(self, node: s.DegOp):
         return ast.BinOp(
-            left=self.visit(node.operand), op=ast.Mult(), right=ast.Constant(0.01745329)
+            left=self.visit(node.operand), op=ast.Mult(), right=ast.Constant(0.017453292519943295)
         )
 
     def visit_VectorOp(self, node: s.VectorOp):

@@ -65,6 +65,19 @@ def test_lazy_value_in_requirement_2():
     with pytest.raises(InvalidScenarioError):
         sampleScene(scenario, maxIterations=1)
 
+## Value normalization
+
+def test_normalize_parent_orientation():
+    ego = sampleEgoFrom('ego = new Object with parentOrientation 30 deg')
+    assert ego.parentOrientation.approxEq(Orientation.fromEuler(math.radians(30), 0, 0))
+    assert ego.orientation.yaw == pytest.approx(math.radians(30))
+
+def test_normalize_angles():
+    ego = sampleEgoFrom('ego = new Object with yaw 200 deg, with pitch 370 deg, with roll 350 deg')
+    assert ego.yaw == pytest.approx(math.radians(-160))
+    assert ego.pitch == pytest.approx(math.radians(10))
+    assert ego.roll == pytest.approx(math.radians(-10))
+
 ## Generic specifiers
 
 def test_with():
