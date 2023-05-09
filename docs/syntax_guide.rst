@@ -237,6 +237,8 @@ Additional specifiers for the :prop:`position` and :prop:`orientation` propertie
 Operators
 ---------
 
+In the following tables, operators are grouped by the type of value they return.
+
 .. figure:: images/Operator_Figure.png
   :width: 70%
   :figclass: align-center
@@ -323,6 +325,22 @@ Operators
      - The midpoint of the corresponding edge of the bounding box of the Object, inheriting the Object's orientation.
    * - :sampref:`(top | bottom) (front | back) (left | right) of {Object}`
      - The corresponding corner of the bounding box of the Object, inheriting the Object's orientation.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Temporal Operators
+     - Meaning
+   * - :sampref:`always {condition}`
+     - Require the condition to hold at every time step.
+   * - :sampref:`eventually {condition}`
+     - Require the condition to hold at some time step.
+   * - :sampref:`next {condition}`
+     - Require the condition to hold in the next time step.
+   * - :sampref:`{condition} until {condition}`
+     - Require the first condition to hold until the second becomes true.
+   * - :sampref:`{condition} implies {condition}`
+     - Require the second condition to hold if the first condition holds.
 
 Built-in Functions
 ------------------
