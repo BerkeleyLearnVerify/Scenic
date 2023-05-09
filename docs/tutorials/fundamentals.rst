@@ -180,6 +180,8 @@ which might generate something like this:
   :figclass: align-center
   :alt: A cone on a chair
 
+.. _orientations_tutorial:
+
 Orientations in Depth
 ---------------------
 
