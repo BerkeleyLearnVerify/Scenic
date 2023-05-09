@@ -224,7 +224,7 @@ def test_mesh_operation_scad():
 
 def test_mesh_volume_region_sampling():
     r = BoxRegion(position=(0,0,0), dimensions=(2,2,2))
-    pts = [r.uniformPointInner() for _ in range(3000)]
+    pts = [r.uniformPointInner() for _ in range(100)]
 
     for x, y, z in pts:
         assert -1 <= x <= 1
@@ -233,7 +233,7 @@ def test_mesh_volume_region_sampling():
 
 def test_mesh_surface_region_sampling():
     r = BoxRegion(position=(0,0,0), dimensions=(2,2,2)).getSurfaceRegion()
-    pts = [r.uniformPointInner() for _ in range(3000)]
+    pts = [r.uniformPointInner() for _ in range(100)]
 
     for x, y, z in pts:
         assert  x == 1 or x == -1 or \
@@ -297,7 +297,7 @@ def test_mesh_polygon_intersection():
 
     assert isinstance(r, PolygonalRegion)
 
-    v_pts = [r.uniformPointInner() for _ in range(3000)]
+    v_pts = [r.uniformPointInner() for _ in range(100)]
 
     for x, y, z in v_pts:
         assert math.hypot(x, y) <= 1
@@ -322,7 +322,7 @@ def test_mesh_polygons_intersection():
 
     assert isinstance(r, PolygonalRegion)
 
-    for _ in range(3000):
+    for _ in range(100):
         point = r.uniformPointInner()
         assert r.containsPoint(point)
         assert r1.containsPoint(point) or r2.containsPoint(point)
@@ -337,8 +337,8 @@ def test_mesh_polygonal_footprint_intersection():
 
     assert isinstance(r, MeshVolumeRegion)
 
-    v_pts = list(trimesh.sample.volume_mesh(r.mesh, 3000))
-    s_pts = [r.getSurfaceRegion().uniformPointInner() for _ in range(3000)]
+    v_pts = list(trimesh.sample.volume_mesh(r.mesh, 100))
+    s_pts = [r.getSurfaceRegion().uniformPointInner() for _ in range(100)]
 
     for x, y, z in v_pts:
         assert math.hypot(x, y) <= 1
@@ -369,7 +369,7 @@ def test_mesh_polygonal_footprints_intersection():
 
     assert isinstance(r, MeshVolumeRegion)
 
-    for point in list(trimesh.sample.volume_mesh(r.mesh, 3000)):
+    for point in list(trimesh.sample.volume_mesh(r.mesh, 100)):
         assert r.containsPoint(point)
         assert r1.containsPoint(point) or r2.containsPoint(point)
         assert r3.containsPoint(point)

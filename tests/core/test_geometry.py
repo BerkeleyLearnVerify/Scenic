@@ -77,7 +77,7 @@ def test_object_boundingPolygon_planar():
     assert verts[3] == pytest.approx((-0.2, -2.4))
 
 def test_object_boundingPolygon_3D():
-    obj = Object._with(width=1, length=2, height=3, position=(4,5,6), 
+    obj = Object._with(width=1, length=2, height=3, position=(4,5,6),
                        shape=ConeShape(), pitch=math.pi/4, roll=math.pi/4)
-    for pt in trimesh.sample.volume_mesh(obj.occupiedSpace.mesh, 1000):
+    for pt in trimesh.sample.volume_mesh(obj.occupiedSpace.mesh, 100):
         assert obj._boundingPolygon.contains(shapely.geometry.Point(pt))

@@ -1043,7 +1043,7 @@ class Object(OrientedPoint):
                 position=self.position, rotation=self.orientation)
 
     @property
-    def isConvex(self):
+    def _isConvex(self):
         """Whether this object's shape is convex"""
         return self.shape.isConvex
 
@@ -1251,7 +1251,7 @@ class Object(OrientedPoint):
             return shapely.affinity.affine_transform(_unitBox, matrix)
 
         # Relatively fast case for convex shapes
-        if self.isConvex:
+        if self._isConvex:
             return shapely.geometry.MultiPoint(self.occupiedSpace.mesh.vertices).convex_hull
 
         # Generic case for arbitrary shapes
