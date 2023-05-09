@@ -128,15 +128,21 @@ def scenarioFromStream(stream, params={}, model=None, scenario=None,
 					   filename='<stream>', path=None, cacheImports=False):
 	"""Compile a stream of Scenic code into a `Scenario`."""
 	# Compile the code as if it were a top-level module
+	namespace = compileTopLevelStream(stream, path, params, model, filename, cacheImports)
+	# Construct a Scenario from the resulting namespace
+	return constructScenarioFrom(namespace, scenario)
+
+def compileTopLevelStream(stream, path, params, model, filename,
+                          cacheImports=False, dumpScenic3=False):
 	oldModules = list(sys.modules.keys())
 	try:
 		with topLevelNamespace(path) as namespace:
-			compileStream(stream, namespace, params=params, model=model, filename=filename)
+			compileStream(stream, namespace, params=params, model=model,
+			              filename=filename, dumpScenic3=dumpScenic3)
 	finally:
 		if not cacheImports:
 			purgeModulesUnsafeToCache(oldModules)
-	# Construct a Scenario from the resulting namespace
-	return constructScenarioFrom(namespace, scenario)
+	return namespace
 
 @contextmanager
 def topLevelNamespace(path=None):
@@ -215,7 +221,8 @@ def purgeModulesUnsafeToCache(oldModules):
 			# reference to the old version of the Scenic module.)
 		del sys.modules[name]
 
-def compileStream(stream, namespace, params={}, model=None, filename='<stream>'):
+def compileStream(stream, namespace, params={}, model=None, filename='<stream>',
+                  dumpScenic3=False):
 	"""Compile a stream of Scenic code and execute it in a namespace.
 
 	The compilation procedure consists of the following main steps:
@@ -258,7 +265,7 @@ def compileStream(stream, namespace, params={}, model=None, filename='<stream>')
 			# Translate tokens to valid Python syntax
 			startLine = max(1, block[0][2][0])
 			translator = TokenTranslator(constructors, filename)
-			newSource, allConstructors = translator.translate(block)
+			newSource, allConstructors = translator.translate(block, dumpScenic3=dumpScenic3)
 			trimmed = newSource[2*(startLine-1):]	# fix up blank lines used to align errors
 			newSource = '\n'*(startLine-1) + trimmed
 			newSourceBlocks.append(trimmed)
@@ -962,7 +969,7 @@ class TokenTranslator:
 		return builtinSpecifiers
 		#name, parents = self.constructors[const]
 
-	def translate(self, tokens):
+	def translate(self, tokens, dumpScenic3=False):
 		"""Do the actual translation of the token stream."""
 		tokens = Peekable(tokens)
 		newTokens = []
@@ -1089,6 +1096,10 @@ class TokenTranslator:
 				parenLevel += 1
 			elif ttype == RPAR or ttype == RSQB:	# ditto
 				parenLevel -= 1
+			elif dumpScenic3 and ttype == NEWLINE:
+				dumpScenic3.recordLogicalLine(token)
+			elif dumpScenic3 and ttype in (INDENT, DEDENT):
+				dumpScenic3.recordIndentation(token)
 			elif ttype == STRING:
 				# special case for global parameters with quoted names:
 				# transform "name"=value into "name", value
@@ -1178,6 +1189,8 @@ class TokenTranslator:
 							self.parseError(nextToken, 'malformed monitor definition')
 						skip = True
 						matched = True
+						if dumpScenic3:
+							dumpScenic3.recordMonitor(nextString, peek(tokens))
 					elif twoWords in allowedPrefixOps:	# 2-word prefix operator
 						callFunction(allowedPrefixOps[twoWords])
 						advance()	# consume second word
@@ -1295,6 +1308,8 @@ class TokenTranslator:
 						  and peek(tokens).exact_type not in (RPAR, RSQB, RBRACE, COMMA, DOT, COLON)):
 						# instance definition
 						callFunction(tstring)
+						if dumpScenic3:
+							dumpScenic3.recordInstanceCreation(token)
 					elif tstring in replacements:	# direct replacement
 						for tok in replacements[tstring]:
 							injectToken(tok, spaceAfter=1)
