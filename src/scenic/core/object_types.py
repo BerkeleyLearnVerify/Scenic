@@ -1043,6 +1043,11 @@ class Object(OrientedPoint):
                 position=self.position, rotation=self.orientation)
 
     @property
+    def isConvex(self):
+        """Whether this object's shape is convex"""
+        return self.shape.isConvex
+
+    @property
     def _hasStaticBounds(self):
         deps = (
             self.position, self.orientation, self.shape,
@@ -1236,12 +1241,22 @@ class Object(OrientedPoint):
 
     @cached_property
     def _boundingPolygon(self):
-        width, length = self.width, self.length
-        pos = self.position
-        yaw = self.orientation.yaw
-        cyaw, syaw = math.cos(yaw), math.sin(yaw)
-        matrix = [width*cyaw, -length*syaw, width*syaw, length*cyaw, pos[0], pos[1]]
-        return shapely.affinity.affine_transform(_unitBox, matrix)
+        # Fast case for planar boxes
+        if self._isPlanarBox:
+            width, length = self.width, self.length
+            pos = self.position
+            yaw = self.orientation.yaw
+            cyaw, syaw = math.cos(yaw), math.sin(yaw)
+            matrix = [width*cyaw, -length*syaw, width*syaw, length*cyaw, pos[0], pos[1]]
+            return shapely.affinity.affine_transform(_unitBox, matrix)
+
+        # Relatively fast case for arbitrary shapes
+        if self.isConvex:
+            return shapely.geometry.MultiPoint(self.occupiedSpace.mesh.vertices).convex_hull
+
+        projection = trimesh.path.polygons.projected(self.occupiedSpace.mesh, normal=(0,0,1), rpad=1e-4)
+
+        return projection
 
 _unitBox = shapely.geometry.Polygon(((0.5, 0.5), (-0.5, 0.5), (-0.5, -0.5), (0.5, -0.5)))
 

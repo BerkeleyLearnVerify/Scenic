@@ -58,6 +58,11 @@ class Shape(Samplable, ABC):
     def mesh(self):
         pass
 
+    @property
+    @abstractmethod
+    def isConvex(self):
+        pass
+
 ###################################################################################################
 # 3D Shape Classes
 ###################################################################################################
@@ -84,6 +89,7 @@ class MeshShape(Shape):
         # Copy mesh and center vertices around origin
         self._mesh = mesh.copy()
         self._mesh.vertices -= self._mesh.bounding_box.center_mass
+        self._isConvex = self._mesh.is_convex
 
         # If rotation is provided, apply rotation
         if initial_rotation is not None:
@@ -111,6 +117,10 @@ class MeshShape(Shape):
     @property
     def mesh(self):
         return self._mesh
+
+    @property
+    def isConvex(self):
+        return self._isConvex
 
     @classmethod
     def fromFile(cls, path, filetype=None, compressed=None, dimensions=None, scale=1, initial_rotation=None):

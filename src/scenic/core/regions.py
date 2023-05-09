@@ -1256,11 +1256,6 @@ class MeshVolumeRegion(MeshRegion):
 
     @cached_property
     def isConvex(self):
-        # TODO: This is giving bogus responses for multi-convex volume meshes. 
-        # Fix merged into trimesh but need a new version
-        if self.mesh.body_count != 1:
-            return False
-
         return self.mesh.is_convex
 
     @property
@@ -1560,35 +1555,11 @@ class PolygonalFootprintRegion(Region):
     def containsObject(self, obj):
         """ Checks if an object is contained in the polygonal footprint.
 
-        The polygonal footprint is first bounded so that it contains all vertical values of the object. 
-        Then we check if the object is contained in this volume.
-
         Args:
             obj: An object to be checked for containment.
         """
-        # PASS 1
-        # Check for 2D objects, which can be handled using rotated rectangle.
-        if obj._isPlanarBox:
-            return self.polygon.contains(obj._boundingPolygon)
-
-        # PASS 2
-        # TODO: Check exploiting convexity?
-
-        # PASS 3
-        # Compute a bounded footprint that covers the object and then check containment
-        # directly.
-
-        # Determine the mesh's vertical bounds, and calculate height equal to the mesh's
-        # (plus a little extra) along with the central z point of the mesh.
-        vertical_bounds = (obj.occupiedSpace.mesh.bounds[0][2], obj.occupiedSpace.mesh.bounds[1][2])
-        height = vertical_bounds[1] - vertical_bounds[0] + 1
-        center_z = (vertical_bounds[1] + vertical_bounds[0])/2
-
-        # Create a bounded footprint of the mesh.
-        bounded_footprint = self.approxBoundFootprint(center_z, height)
-
-        # Check for containment of the object in the bounded footprint.
-        return bounded_footprint.containsObject(obj)
+        # Check containment using the bounding polygon of the object.
+        return self.polygon.contains(obj._boundingPolygon)
 
     def approxBoundFootprint(self, center_z, height):
         """ Returns an overapproximation of boundFootprint 
