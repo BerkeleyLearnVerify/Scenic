@@ -173,6 +173,11 @@ class Scene(_ScenarioPickleMixin):
         for obj in self.objects:
             obj.show_3d(render_scene, highlight=(obj is self.egoObject))
 
+        # If nothing else is in the viewer, add some constructs
+        # to avoid a crash
+        if render_scene.is_empty:
+            render_scene.add_geometry(trimesh.points.PointCloud([(0.1,0,0),(0,0.1,0), (0,0,.1)], colors=[255,255,255,0]))
+
         render_scene.show(flags={'axis': 'world'})
 
     def show_2d(self, zoom=None, block=True):
