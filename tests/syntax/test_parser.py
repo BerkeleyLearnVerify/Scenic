@@ -1791,7 +1791,16 @@ class TestOperator:
             parse_string_helper("x implies y implies z")
         assert "must take exactly two operands" in e.value.msg
 
-    def test_always_implies(self):
+    def test_next_implies(self):
+        mod = parse_string_helper("next x implies y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(Next(ImpliesOp(Name("x"), Name("y")))):
+                assert True
+            case _:
+                assert False
+
+    def test_implies_next(self):
         mod = parse_string_helper("x implies next y")
         stmt = mod.body[0]
         match stmt:
@@ -1823,6 +1832,24 @@ class TestOperator:
         stmt = mod.body[0]
         match stmt:
             case Expr(UntilOp(ImpliesOp(Name("x"), Name("y")), Name("z"))):
+                assert True
+            case _:
+                assert False
+
+    def test_next_until(self):
+        mod = parse_string_helper("next x until y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(UntilOp(Next(Name("x")), Name("y"))):
+                assert True
+            case _:
+                assert False
+
+    def test_until_next(self):
+        mod = parse_string_helper("x until next y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(UntilOp(Name("x"), Next(Name("y")))):
                 assert True
             case _:
                 assert False
