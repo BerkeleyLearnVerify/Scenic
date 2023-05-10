@@ -174,7 +174,7 @@ class WebotsSimulation(Simulation):
                 webotsObj.getField('translation').setSFVec3f(pos)
 
             # orientation
-            offsetOrientation = toOrientation(obj.orientationOffset)
+            offsetOrientation = toOrientation(obj.rotatioOffset)
             webotsObj.getField("rotation").setSFRotation(
                 self.coordinateSystem.orientationFromScenic(obj.orientation, offsetOrientation)
             )
@@ -231,7 +231,7 @@ class WebotsSimulation(Simulation):
         speed = math.hypot(*velocity)
         angularSpeed = math.hypot(ax, ay, az)
 
-        offsetOrientation = toOrientation(obj.orientationOffset)
+        offsetOrientation = toOrientation(obj.rotationOffset)
         orientation = self.coordinateSystem.orientationToScenic(
             webotsObj.getField('rotation').getSFRotation(),
             offsetOrientation,

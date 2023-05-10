@@ -81,8 +81,7 @@ class WebotsObject:
     resetController: True
 
     positionOffset: (0, 0, 0)
-    rotationOffset: 0
-    orientationOffset: (0, 0, 0)
+    rotationOffset: (0, 0, 0)
 
     density[dynamic]: None # kg/m^3
 
