@@ -67,6 +67,22 @@ def test_property_simple():
     assert tuple(ego.position) == (3, 9, 0)
     assert ego.flubber == -12
 
+def test_property_dependency():
+    ego = sampleEgoFrom("""
+        class Foo:
+            bar: self.position.x + self.baz
+            baz: 5
+        ego = new Foo at (10, 3)
+    """)
+    assert ego.bar == 15
+
+def test_property_raw_self():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("""
+            class Foo:
+                bar: self
+        """)
+
 def test_property_inheritance():
     scenario = compileScenic("""
         class Foo:
