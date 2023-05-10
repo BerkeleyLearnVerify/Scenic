@@ -59,7 +59,7 @@ year = time.strftime('%Y', time.gmtime())
 
 project = 'Scenic'
 copyright = f'2020-{year}, Daniel J. Fremont'
-author = 'Daniel J. Fremont, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
+author = 'Daniel J. Fremont, Eric Vin, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
 
 
 # -- General configuration ---------------------------------------------------
