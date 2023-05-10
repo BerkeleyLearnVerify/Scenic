@@ -23,7 +23,7 @@ import ctypes
 
 import trimesh
 from scenic.core.regions import MeshVolumeRegion
-
+from scenic.core.object_types import Object2D
 from scenic.core.simulators import Simulator, Simulation
 from scenic.core.vectors import Vector
 from scenic.simulators.webots.utils import WebotsCoordinateSystem, ENU
@@ -143,6 +143,12 @@ class WebotsSimulation(Simulation):
             obj.webotsObject = webotsObj
             obj.webotsName = name
 
+            # 2D Compatibility - Import starting elevation
+            if isinstance(obj, Object2D) and obj.elevation is None:
+                pos = webotsObj.getField('translation').getSFVec3f()
+                spos = self.coordinateSystem.positionToScenic(pos)
+                obj.elevation = spos[2]
+
         # subtract 1 to get the number of adhoc objects in the world
         self.adhocObjectCount = adhocObjectId - 1
 
@@ -155,10 +161,17 @@ class WebotsSimulation(Simulation):
     def writePropertiesToWebots(self):
         for obj, webotsObj in self.webotsObjects.items():
             # position
-            pos = self.coordinateSystem.positionFromScenic(
-                obj.position + obj.positionOffset
-            )
-            webotsObj.getField('translation').setSFVec3f(pos)
+            if isinstance(obj, Object2D):
+                # 2D Compatibility - Overwrite z value with elevation
+                pos = self.coordinateSystem.positionFromScenic(
+                    Vector(obj.position.x, obj.position.y, obj.elevation) + obj.positionOffset
+                )
+                webotsObj.getField('translation').setSFVec3f(pos)
+            else:
+                pos = self.coordinateSystem.positionFromScenic(
+                    obj.position + obj.positionOffset
+                )
+                webotsObj.getField('translation').setSFVec3f(pos)
 
             # orientation
             offsetOrientation = toOrientation(obj.orientationOffset)
@@ -239,6 +252,7 @@ class WebotsSimulation(Simulation):
             pitch=orientation.pitch,
             roll=orientation.roll,
             density=density,
+            elevation=z
         )
 
         if hasattr(obj, 'battery'):

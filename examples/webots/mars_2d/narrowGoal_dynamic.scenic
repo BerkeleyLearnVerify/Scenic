@@ -1,7 +1,7 @@
 
 # Dynamic version of the narrowGoal scenario.
 
-model scenic.simulators.webots.mars.model
+model model
 
 ego = new Rover at 0 @ -2, with controller 'sojourner'
 
@@ -13,7 +13,12 @@ monitor terminateOnT():
     keyboard = simulation().supervisor.getKeyboard()
     keyboard.enable(20)
     print('Select the 3D window and press T to terminate the scenario and generate a new one.')
+    time = 0
     while True:
+    	if time%50 == 0:
+	        print(f"Ego Current Position: {ego.position}")
+	        print(f"Ego Current Elevation: {ego.elevation}")
+        time+=1
         wait
         if keyboard.getKey() == ord('T'):
             terminate
@@ -46,4 +51,4 @@ new BigRock beyond bottleneck by Range(-0.5, 0.5) @ Range(0.5, 1)
 new BigRock beyond bottleneck by Range(-0.5, 0.5) @ Range(0.5, 1)
 new Rock
 new Rock
-new Rock
+new Rock with elevation 4

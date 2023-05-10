@@ -14,12 +14,17 @@ the scenario and run dynamic simulations: see
 
 import math
 
+from scenic.core.object_types import Object2D
 from scenic.core.distributions import distributionFunction
 from scenic.simulators.webots.actions import *
 
 def _errorMsg():
     raise RuntimeError('scenario must be run from inside Webots')
 simulator _errorMsg()
+
+def is2DMode():
+    from scenic.syntax.veneer import mode2D
+    return mode2D
 
 class WebotsObject:
     """Abstract class for Webots objects.
@@ -55,7 +60,7 @@ class WebotsObject:
         positionOffset (`Vector`): Offset to add when computing the object's
             position in Webots; for objects whose Webots ``translation`` field
             is not aligned with the center of the object.
-        orientationOffset (tuple[float, float, float]): Offset to add when computing the object's
+        rotationOffset (tuple[float, float, float]): Offset to add when computing the object's
             orientation in Webots; for objects whose front is not aligned with the
             Webots North axis.
         density (float): Density of this object. The corresponding Webots object
@@ -63,8 +68,7 @@ class WebotsObject:
 
     .. _Supervisor API: https://www.cyberbotics.com/doc/reference/supervisor?tab-language=python
     """
-
-    elevation[dynamic, final]: self.position.z
+    elevation[dynamic]: None if is2DMode() else float(self.position.z)
     requireVisible: False
 
     webotsAdhoc: False
@@ -81,6 +85,17 @@ class WebotsObject:
     orientationOffset: (0, 0, 0)
 
     density[dynamic]: None # kg/m^3
+
+    @classmethod
+    def _prepareSpecifiers(cls, specifiers):
+        # Check specifiers for errors
+        for spec in specifiers:
+            # Raise error if elevation is specified outside of 2D mode
+            if spec.name == "With" and tuple(spec.priorities.keys()) == ('elevation',):
+                if not issubclass(cls, Object2D):
+                    raise RuntimeError("Elevation being specified outside of 2D mode. "
+                        "You should specify position's z component instead.")
+        return specifiers
 
 class Ground(WebotsObject):
     """Special kind of object representing a (possibly irregular) ground surface.

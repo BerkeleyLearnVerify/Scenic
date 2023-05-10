@@ -576,10 +576,10 @@ class Point(Constructible):
           of the point.
     """
     _scenic_properties = {
-        "position": PropertyDefault((), {'dynamic'}, lambda self: Vector(0, 0, 0)),
-        "width": 0,
-        "length": 0,
-        "height": 0,
+        "position": PropertyDefault((), {'dynamic'}, lambda self: Vector(0.0, 0.0, 0.0)),
+        "width": 0.0,
+        "length": 0.0,
+        "height": 0.0,
 
         "baseOffset": Vector(0,0,0),
         "contactTolerance": 0,

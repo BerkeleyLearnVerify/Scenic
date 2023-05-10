@@ -9,7 +9,7 @@ import types
 from collections import OrderedDict, defaultdict
 
 from scenic.core.object_types import (enableDynamicProxyFor, setDynamicProxyFor,
-                                      disableDynamicProxyFor)
+                                      disableDynamicProxyFor, Object2D)
 from scenic.core.distributions import RejectionException
 import scenic.core.dynamics as dynamics
 import scenic.core.errors as errors
@@ -537,6 +537,10 @@ class Simulation:
             # Preserve some other properties which are assigned internally by Scenic
             for prop in self.mutableProperties(obj):
                 values[prop] = getattr(obj, prop)
+
+            # Sanitize some 2D values
+            if isinstance(obj, Object2D):
+                values["position"] = Vector(values["position"].x, values["position"].y, 0)
 
             # Make a new copy of the object to ensure that computed properties like
             # visibleRegion, etc. are recomputed
