@@ -114,19 +114,24 @@ class AttributeFinder(ast.NodeVisitor):
     def find(target, node):
         af = AttributeFinder(target)
         af.visit(node)
-        return af.attributes
+        return af.attributes, af.rawLoc
 
     def __init__(self, target):
         super().__init__()
         self.target = target
         self.attributes = set()
+        self.rawLoc = None
 
     def visit_Attribute(self, node):
         val = node.value
         if isinstance(val, ast.Name) and val.id == self.target:
             self.attributes.add(node.attr)
+            return
         self.visit(val)
 
+    def visit_Name(self, node):
+        if node.id == self.target:
+            self.rawLoc = node
 
 class LocalFinder(ast.NodeVisitor):
     """Utility class for finding all local variables of a code block."""
@@ -771,7 +776,12 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         return self.generic_visit(node)
 
     def transformPropertyDef(self, node: s.PropertyDef):
-        properties = AttributeFinder.find("self", node.value)
+        properties, rawLoc = AttributeFinder.find("self", node.value)
+        if rawLoc:
+            self.makeSyntaxError(
+                'cannot use raw name "self" in a default value (only "self.property")',
+                rawLoc
+            )
         return ast.Call(
             func=ast.Name(id="PropertyDefault", ctx=ast.Load()),
             args=[
