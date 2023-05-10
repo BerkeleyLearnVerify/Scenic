@@ -21,16 +21,20 @@ import scenic.domains.driving.model as _model
 
 ## Actions available to all agents
 
+
 class SetPositionAction(Action):
     """Teleport an agent to the given position."""
+
     def __init__(self, pos: Vector):
         self.pos = pos
 
     def applyTo(self, obj, sim):
         obj.setPosition(self.pos, obj.elevation)
 
+
 class OffsetAction(Action):
     """Teleports actor forward (in direction of its heading) by some offset."""
+
     def __init__(self, offset: Vector):
         self.offset = offset
 
@@ -38,16 +42,20 @@ class OffsetAction(Action):
         pos = obj.position.offsetRotated(obj.heading, self.offset)
         obj.setPosition(pos, obj.elevation)
 
+
 class SetVelocityAction(Action):
     """Set the velocity of an agent."""
+
     def __init__(self, xVel: float, yVel: float, zVel: float = 0):
         self.velocity = (xVel, yVel, zVel)
 
     def applyTo(self, obj, sim):
         obj.setVelocity(self.velocity)
 
+
 class SetSpeedAction(Action):
     """Set the speed of an agent (keeping its heading fixed)."""
+
     def __init__(self, speed: float):
         self.speed = speed
 
@@ -55,15 +63,19 @@ class SetSpeedAction(Action):
         vel = Vector(0, self.speed).rotatedBy(obj.heading)
         obj.setVelocity(vel)
 
+
 ## Actions available to vehicles which can steer
+
 
 class SteeringAction(Action):
     """Abstract class for actions usable by agents which can steer.
 
     Such agents must implement the `Steers` protocol.
     """
+
     def canBeTakenBy(self, agent):
         return isinstance(agent, _model.Steers)
+
 
 class SetThrottleAction(SteeringAction):
     """Set the throttle.
@@ -71,13 +83,15 @@ class SetThrottleAction(SteeringAction):
     Arguments:
         throttle: Throttle value between 0 and 1.
     """
+
     def __init__(self, throttle: float):
         if not 0.0 <= throttle <= 1.0:
-            raise RuntimeError('Throttle must be a float in range [0.0, 1.0].')
+            raise RuntimeError("Throttle must be a float in range [0.0, 1.0].")
         self.throttle = throttle
 
     def applyTo(self, obj, sim):
         obj.setThrottle(self.throttle)
+
 
 class SetSteerAction(SteeringAction):
     """Set the steering 'angle'.
@@ -85,13 +99,15 @@ class SetSteerAction(SteeringAction):
     Arguments:
         steer: Steering 'angle' between -1 and 1.
     """
+
     def __init__(self, steer: float):
         if not -1.0 <= steer <= 1.0:
-            raise RuntimeError('Steer must be a float in range [-1.0, 1.0].')
+            raise RuntimeError("Steer must be a float in range [-1.0, 1.0].")
         self.steer = steer
 
     def applyTo(self, obj, sim):
         obj.setSteering(self.steer)
+
 
 class SetBrakeAction(SteeringAction):
     """Set the amount of brake.
@@ -99,13 +115,15 @@ class SetBrakeAction(SteeringAction):
     Arguments:
         brake: Amount of braking between 0 and 1.
     """
+
     def __init__(self, brake: float):
         if not 0.0 <= brake <= 1.0:
-            raise RuntimeError('Brake must be a float in range [0.0, 1.0].')
+            raise RuntimeError("Brake must be a float in range [0.0, 1.0].")
         self.brake = brake
 
     def applyTo(self, obj, sim):
         obj.setBraking(self.brake)
+
 
 class SetHandBrakeAction(SteeringAction):
     """Set or release the hand brake.
@@ -113,13 +131,15 @@ class SetHandBrakeAction(SteeringAction):
     Arguments:
         handBrake: Whether or not the hand brake is set.
     """
+
     def __init__(self, handBrake: bool):
         if not isinstance(handBrake, bool):
-            raise RuntimeError('Hand brake must be a boolean.')
+            raise RuntimeError("Hand brake must be a boolean.")
         self.handbrake = handBrake
 
     def applyTo(self, obj, sim):
         obj.setHandbrake(self.handbrake)
+
 
 class SetReverseAction(SteeringAction):
     """Engage or release reverse gear.
@@ -127,13 +147,15 @@ class SetReverseAction(SteeringAction):
     Arguments:
         reverse: Whether or not the car is in reverse.
     """
+
     def __init__(self, reverse: bool):
         if not isinstance(reverse, bool):
-            raise RuntimeError('Reverse must be a boolean.')
+            raise RuntimeError("Reverse must be a boolean.")
         self.reverse = reverse
 
     def applyTo(self, obj, sim):
         obj.setReverse(self.reverse)
+
 
 class RegulatedControlAction(SteeringAction):
     """Regulated control of throttle, braking, and steering.
@@ -150,8 +172,15 @@ class RegulatedControlAction(SteeringAction):
         max_steer: Maximum absolute value for **steer**.
     """
 
-    def __init__(self, throttle: float, steer: float, past_steer: float,
-                 max_throttle:float=0.5, max_brake:float=0.5, max_steer:float=0.8):
+    def __init__(
+        self,
+        throttle: float,
+        steer: float,
+        past_steer: float,
+        max_throttle: float = 0.5,
+        max_brake: float = 0.5,
+        max_steer: float = 0.8,
+    ):
         if throttle > 0:
             throttle = min(throttle, max_throttle)
             brake = 0
@@ -178,26 +207,33 @@ class RegulatedControlAction(SteeringAction):
         obj.setBraking(self.brake)
         obj.setSteering(self.steer)
 
+
 ## Actions available to agents that can walk
+
 
 class WalkingAction(Action):
     """Abstract class for actions usable by agents which can walk.
 
     Such agents must implement the `Walks` protocol.
     """
+
     def canBeTakenBy(self, agent):
         return isinstance(agent, _model.Walks)
 
+
 class SetWalkingDirectionAction(WalkingAction):
     """Set the walking direction."""
+
     def __init__(self, heading):
         self.heading = heading
 
     def applyTo(self, obj, sim):
         obj.setWalkingDirection(self.heading)
 
+
 class SetWalkingSpeedAction(WalkingAction):
     """Set the walking speed."""
+
     def __init__(self, speed):
         self.speed = speed
 

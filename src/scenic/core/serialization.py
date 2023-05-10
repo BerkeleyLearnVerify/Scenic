@@ -15,6 +15,7 @@ from scenic.core.utils import DefaultIdentityDict
 
 ## JSON
 
+
 def scenicToJSON(obj):
     """Utility function to help serialize Scenic objects to JSON.
 
@@ -23,24 +24,31 @@ def scenicToJSON(obj):
     it does not allow encoding of an entire `Object`.
     """
     from scenic.core.vectors import Vector
+
     if isinstance(obj, Vector):
         return list(obj)
-    raise TypeError(f'Object of type {obj.__class__.__name__} is not JSON serializable')
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+
 
 ## Scenic code
 
+
 def dumpAsScenicCode(value, stream):
     """Utility function to help export Scenic objects as Scenic code."""
-    if hasattr(value, 'dumpAsScenicCode'):
+    if hasattr(value, "dumpAsScenicCode"):
         value.dumpAsScenicCode(stream)
     else:
         stream.write(repr(value))
 
+
 ## Binary serialization format
+
 
 class SerializationError(Exception):
     """An error occurring during serialization/deserialization of Scenic objects."""
+
     pass
+
 
 class Serializer:
     """Class for (de)serializing scenes, etc.
@@ -70,9 +78,10 @@ class Serializer:
     the encoding as compact as possible, you can turn on the **allowPickle** option: this
     will use `pickle` to encode any objects for which no specialized encoder is known.
     """
+
     codecs = {}
 
-    def __init__(self, data=b'', allowPickle=False, detectEnd=False):
+    def __init__(self, data=b"", allowPickle=False, detectEnd=False):
         self.allowPickle = allowPickle
         self.stream = data if isinstance(data, io.BufferedIOBase) else io.BytesIO(data)
         if detectEnd:
@@ -105,7 +114,7 @@ class Serializer:
 
     def writeScene(self, scenario, scene):
         """Serialize a `Scene`."""
-        version = struct.pack('<H', self.sceneFormatVersion())
+        version = struct.pack("<H", self.sceneFormatVersion())
         self.stream.write(version)
         assert len(scenario.astHash) == 4
         self.stream.write(scenario.astHash)
@@ -117,18 +126,22 @@ class Serializer:
     def readScene(self, scenario, verify=True):
         versionField = self.stream.read(2)
         if len(versionField) != 2:
-            raise SerializationError('serialized Scene is corrupted')
-        version = struct.unpack('<H', versionField)[0]
+            raise SerializationError("serialized Scene is corrupted")
+        version = struct.unpack("<H", versionField)[0]
         if version != self.sceneFormatVersion():
-            raise SerializationError('cannot read serialized Scene from '
-                                     'a different Scenic version')
+            raise SerializationError(
+                "cannot read serialized Scene from " "a different Scenic version"
+            )
         astHash = self.stream.read(4)
         if verify and astHash != scenario.astHash:
-            raise SerializationError('serialized Scene does not correspond to this Scenario')
+            raise SerializationError(
+                "serialized Scene does not correspond to this Scenario"
+            )
         optionsHash = self.stream.read(4)
         if verify and optionsHash != scenario.compileOptions.hash:
-            raise SerializationError('serialized Scene used different compile options '
-                                     'than this Scenario')
+            raise SerializationError(
+                "serialized Scene used different compile options " "than this Scenario"
+            )
         sample = self.readSample(scenario.dependencies)
         scene = scenario._makeSceneFromSample(sample)
         return scene
@@ -159,21 +172,21 @@ class Serializer:
 
     def writeReplayHeader(self, flags):
         """Begin the encoding of a `Simulation` replay."""
-        version = struct.pack('<H', self.replayFormatVersion())
+        version = struct.pack("<H", self.replayFormatVersion())
         self.stream.write(version)
-        self.stream.write(struct.pack('<I', flags))
+        self.stream.write(struct.pack("<I", flags))
 
     def readReplayHeader(self):
         versionField = self.stream.read(2)
         if len(versionField) != 2:
-            raise SerializationError('replay is corrupted')
-        version = struct.unpack('<H', versionField)[0]
+            raise SerializationError("replay is corrupted")
+        version = struct.unpack("<H", versionField)[0]
         if version != self.replayFormatVersion():
-            raise SerializationError('cannot read replay from a different Scenic version')
+            raise SerializationError("cannot read replay from a different Scenic version")
         flagsField = self.stream.read(4)
         if len(flagsField) != 4:
-            raise SerializationError('replay is corrupted')
-        flags = struct.unpack('<I', flagsField)[0]
+            raise SerializationError("replay is corrupted")
+        flags = struct.unpack("<I", flagsField)[0]
         return flags
 
     @classmethod
@@ -186,7 +199,7 @@ class Serializer:
         value.
         """
         if ty in cls.codecs:
-            raise ValueError(f'Serializer already has a codec for type {ty}')
+            raise ValueError(f"Serializer already has a codec for type {ty}")
         cls.codecs[ty] = (encoder, decoder)
 
     def writeValue(self, value, ty):
@@ -196,46 +209,62 @@ class Serializer:
                 encoder, decoder = self.codecs[ty]
                 encoder(value, self.stream)
                 return
-            elif hasattr(ty, 'encodeTo'):
+            elif hasattr(ty, "encodeTo"):
                 ty.encodeTo(value, self.stream)
                 return
             elif self.allowPickle:
                 pickle.dump(value, self.stream)
                 return
         except Exception as e:
-            raise SerializationError(f'failed to serialize object of type {ty.__name__}') from e
+            raise SerializationError(
+                f"failed to serialize object of type {ty.__name__}"
+            ) from e
 
         # No known method of serialization
-        raise SerializationError(f'{ty.__name__} type does not implement serialization')
+        raise SerializationError(f"{ty.__name__} type does not implement serialization")
 
     def readValue(self, ty):
         try:
             if ty in self.codecs:
                 encoder, decoder = self.codecs[ty]
                 return decoder(self.stream)
-            elif hasattr(ty, 'encodeTo'):
+            elif hasattr(ty, "encodeTo"):
                 return ty.decodeFrom(self.stream)
             elif self.allowPickle:
                 return pickle.load(self.stream)
         except Exception as e:
-            raise SerializationError(f'failed to deserialize object of type {ty.__name__}') from e
+            raise SerializationError(
+                f"failed to deserialize object of type {ty.__name__}"
+            ) from e
 
         # No known method of deserialization
-        raise SerializationError(f'{ty.__name__} type does not implement serialization')
+        raise SerializationError(f"{ty.__name__} type does not implement serialization")
+
 
 # Encoder/decoder functions for various types
 
+
 def _writeNone(value, stream):
     pass
+
+
 def _readNone(stream):
     return None
+
+
 Serializer.addCodec(type(None), _writeNone, _readNone)
 
+
 def writeFloat(value, stream):
-    stream.write(struct.pack('<d', value))
+    stream.write(struct.pack("<d", value))
+
+
 def readFloat(stream):
-    return struct.unpack('<d', stream.read(8))[0]
+    return struct.unpack("<d", stream.read(8))[0]
+
+
 Serializer.addCodec(float, writeFloat, readFloat)
+
 
 def writeInt(value, stream):
     # Optimize for small nonnegative integers, which commonly arise from Options
@@ -243,49 +272,70 @@ def writeInt(value, stream):
         stream.write(bytes([value]))
     elif -32768 <= value <= 32767:
         stream.write(bytes([253]))
-        stream.write(value.to_bytes(length=2, byteorder='little', signed=True))
+        stream.write(value.to_bytes(length=2, byteorder="little", signed=True))
     elif -2147483648 <= value <= 2147483647:
         stream.write(bytes([254]))
-        stream.write(value.to_bytes(length=4, byteorder='little', signed=True))
+        stream.write(value.to_bytes(length=4, byteorder="little", signed=True))
     else:
         stream.write(bytes([255]))
-        length = max(1, math.ceil((value.bit_length() + 1) / 8))    # +1 for sign
+        length = max(1, math.ceil((value.bit_length() + 1) / 8))  # +1 for sign
         if length >= 256:
-            raise SerializationError('cannot serialize integers with >600 digits'
-                                     ' (what is this, cryptography?)')
+            raise SerializationError(
+                "cannot serialize integers with >600 digits"
+                " (what is this, cryptography?)"
+            )
         stream.write(bytes([length]))
-        stream.write(value.to_bytes(length=length, byteorder='little', signed=True))
+        stream.write(value.to_bytes(length=length, byteorder="little", signed=True))
+
+
 def readInt(stream):
     first = stream.read(1)[0]
     if first <= 252:
         return first
     elif first == 253:
-        return int.from_bytes(stream.read(2), byteorder='little', signed=True)
+        return int.from_bytes(stream.read(2), byteorder="little", signed=True)
     elif first == 254:
-        return int.from_bytes(stream.read(4), byteorder='little', signed=True)
+        return int.from_bytes(stream.read(4), byteorder="little", signed=True)
     else:
         length = stream.read(1)[0]
-        return int.from_bytes(stream.read(length), byteorder='little', signed=True)
+        return int.from_bytes(stream.read(length), byteorder="little", signed=True)
+
+
 Serializer.addCodec(int, writeInt, readInt)
+
 
 def writeBool(value, stream):
     writeInt(value, stream)
+
+
 def readBool(stream):
     return bool(readInt(stream))
+
+
 Serializer.addCodec(bool, writeBool, readBool)
+
 
 def writeBytes(value, stream):
     writeInt(len(value), stream)
     stream.write(value)
+
+
 def readBytes(stream):
     length = readInt(stream)
     return stream.read(length)
+
+
 Serializer.addCodec(bytes, writeBytes, readBytes)
+
 
 def writeStr(value, stream):
     encoded = value.encode()
     writeBytes(encoded, stream)
+
+
 def readStr(stream):
     encoded = readBytes(stream)
     return encoded.decode()
+
+
 Serializer.addCodec(str, writeStr, readStr)

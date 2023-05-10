@@ -37,7 +37,7 @@ def main(debug=False, plot=False):
             count = 0
 
             for position in obj.get("results").get("VacuumPosition"):
-                if count%2 == 0:
+                if count % 2 == 0:
                     x = position[1][0]
                     y = position[1][1]
                     positions.append((x, y))
@@ -61,17 +61,15 @@ def main(debug=False, plot=False):
                         cleaned_area, floor_area, cleaned_area / floor_area
                     ),
                 )
-            aggregate[obj.get("params").get("numToys")].append(
-                cleaned_area / floor_area
-            )
+            aggregate[obj.get("params").get("numToys")].append(cleaned_area / floor_area)
 
-    for numToys, fractions in sorted(aggregate.items(),key=lambda x:x[0]):
+    for numToys, fractions in sorted(aggregate.items(), key=lambda x: x[0]):
         stat = {
             "sample": len(fractions),
             "mean": mean(fractions),
             "median": median(fractions),
             "stdev": stdev(fractions) if len(fractions) > 1 else None,
-            "mean robustness": (mean(fractions) - .33)
+            "mean robustness": (mean(fractions) - 0.33),
         }
         print(f"coverage for {numToys} toy(s)")
         for key, value in stat.items():
@@ -81,6 +79,7 @@ def main(debug=False, plot=False):
             for val in fractions:
                 print("{:.2%}".format(val))
             print()
+
 
 # Plots a Polygon to pyplot `ax`
 def plot_polygon(ax, poly, **kwargs):

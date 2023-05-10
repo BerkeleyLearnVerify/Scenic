@@ -6,138 +6,186 @@ from scenic.core.dynamics import PreconditionViolation, InvariantViolation
 from scenic.core.errors import ScenicSyntaxError
 from scenic.core.simulators import DummySimulator
 
-from tests.utils import (compileScenic, sampleEgo, sampleEgoFrom, sampleScene,
-                         sampleSceneFrom, sampleTrajectory, sampleEgoActions,
-                         sampleResultOnce)
+from tests.utils import (
+    compileScenic,
+    sampleEgo,
+    sampleEgoFrom,
+    sampleScene,
+    sampleSceneFrom,
+    sampleTrajectory,
+    sampleEgoActions,
+    sampleResultOnce,
+)
 
 # Basics
 
+
 def test_single_scenario():
-    ego = sampleEgoFrom("""
+    ego = sampleEgoFrom(
+        """
         scenario Blob():
             setup:
                 ego = new Object at (1, 2, 3)
-    """)
+    """
+    )
     assert tuple(ego.position) == (1, 2, 3)
 
+
 def test_simple_scenario():
-    ego = sampleEgoFrom("""
+    ego = sampleEgoFrom(
+        """
         scenario Main():
             behavior Foo():
                 wait
             ego = new Object at (1, 2, 3), with behavior Foo
-    """)
+    """
+    )
     assert tuple(ego.position) == (1, 2, 3)
 
+
 def test_main_scenario():
-    scene = sampleSceneFrom("""
+    scene = sampleSceneFrom(
+        """
         scenario Other():
             ego = new Object at (10, 5)
         scenario Main():
             ego = new Object at (1, 2)
-    """)
+    """
+    )
     assert len(scene.objects) == 1
     assert tuple(scene.egoObject.position) == (1, 2, 0)
 
+
 def test_requirement():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             setup:
                 ego = new Object with width Range(1, 3)
                 require ego.width > 2
-    """)
+    """
+    )
     ws = [sampleEgo(scenario, maxIterations=60).width for i in range(60)]
     assert all(2 < w <= 3 for w in ws)
 
+
 def test_soft_requirement():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             setup:
                 ego = new Object with width Range(1, 3)
                 require[0.9] ego.width >= 2
-    """)
+    """
+    )
     ws = [sampleEgo(scenario, maxIterations=60).width for i in range(350)]
     count = sum(w >= 2 for w in ws)
     assert 255 <= count < 350
 
+
 def test_invalid_scenario_name():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             scenario 101():
                 ego = new Object
-        """)
+        """
+        )
+
 
 def test_scenario_inside_behavior():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             behavior Foo():
                 scenario Bar():
                     new Object at 10@10
             ego = new Object
-        """)
+        """
+        )
+
 
 # Preconditions and invariants
 
+
 def test_top_level_precondition():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             precondition: simulation().currentTime > 0
             setup:
                 ego = new Object
-    """)
+    """
+    )
     sim = DummySimulator(timestep=1)
     scene = sampleScene(scenario)
     with pytest.raises(PreconditionViolation):
         sim.simulate(scene, maxSteps=1, raiseGuardViolations=True)
 
+
 def test_top_level_invariant():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             invariant: simulation().currentTime > 0
             setup:
                 ego = new Object
-    """)
+    """
+    )
     sim = DummySimulator(timestep=1)
     scene = sampleScene(scenario)
     with pytest.raises(InvariantViolation):
         sim.simulate(scene, maxSteps=1, raiseGuardViolations=True)
 
+
 def test_malformed_precondition():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             scenario Main():
                 precondition hello: True
                 setup:
                     ego = new Object
-        """)
+        """
+        )
+
 
 def test_malformed_invariant():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             scenario Main():
                 invariant hello: True
                 setup:
                     ego = new Object
-        """)
+        """
+        )
+
 
 # Composition
 
+
 def test_parallel_composition():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do Sub(1), Sub(5)
         scenario Sub(x):
             ego = new Object at (x, 1, 2)
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     trajectory = sampleTrajectory(scenario)
     assert len(trajectory) == 2
     assert len(trajectory[1]) == 2
     assert tuple(trajectory[1][0]) == (1, 1, 2)
     assert tuple(trajectory[1][1]) == (5, 1, 2)
 
+
 def test_sequential_composition():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do Sub(1)
@@ -145,7 +193,9 @@ def test_sequential_composition():
         scenario Sub(x):
             ego = new Object at x @ 0
             terminate after 1 seconds
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     trajectory = sampleTrajectory(scenario, maxSteps=3)
     assert len(trajectory) == 3
     assert len(trajectory[0]) == 1
@@ -156,8 +206,10 @@ def test_sequential_composition():
         assert tuple(trajectory[i][0]) == (1, 0, 0)
         assert tuple(trajectory[i][1]) == (5, 0, 0)
 
+
 def test_subscenario_for_steps():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do Sub(1) for 2 steps
@@ -165,7 +217,9 @@ def test_subscenario_for_steps():
         scenario Sub(x):
             ego = new Object at x @ 0
             terminate after 3 seconds
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     trajectory = sampleTrajectory(scenario, maxSteps=3)
     assert len(trajectory) == 4
     assert len(trajectory[0]) == len(trajectory[1]) == 1
@@ -175,8 +229,10 @@ def test_subscenario_for_steps():
     for i in range(2, 4):
         assert tuple(trajectory[i][1]) == (5, 0, 0)
 
+
 def test_subscenario_for_time():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do Sub(1) for 1 seconds
@@ -184,7 +240,9 @@ def test_subscenario_for_time():
         scenario Sub(x):
             ego = new Object at x @ 0
             terminate after 3 seconds
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     trajectory = sampleTrajectory(scenario, maxSteps=3, timestep=0.5)
     assert len(trajectory) == 4
     assert len(trajectory[0]) == len(trajectory[1]) == 1
@@ -193,8 +251,10 @@ def test_subscenario_for_time():
         assert tuple(trajectory[i][0]) == (1, 0, 0)
     assert tuple(trajectory[2][1]) == (5, 0, 0)
 
+
 def test_subscenario_until():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do Sub(1) until simulation().currentTime == 2
@@ -202,7 +262,9 @@ def test_subscenario_until():
         scenario Sub(x):
             ego = new Object at x @ 0
             terminate after 3 seconds
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     trajectory = sampleTrajectory(scenario, maxSteps=3)
     assert len(trajectory) == 4
     assert len(trajectory[0]) == len(trajectory[1]) == 1
@@ -210,6 +272,7 @@ def test_subscenario_until():
     for i in range(3):
         assert tuple(trajectory[i][0]) == (1, 0, 0)
     assert tuple(trajectory[3][1]) == (5, 0, 0)
+
 
 def test_subscenario_require_eventually():
     """Test that 'require eventually' must be satisfied before the scenario ends.
@@ -220,7 +283,8 @@ def test_subscenario_require_eventually():
     is wrongly checked over the whole scenario (rather than just during Sub),
     then it will evaluate to true and the assertion will fail.
     """
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do Sub()
@@ -229,13 +293,16 @@ def test_subscenario_require_eventually():
             ego = new Object
             require eventually simulation().currentTime == 2
             terminate after 1 seconds
-    """)
+    """
+    )
     result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
 
+
 def test_subscenario_require_monitor():
     """Test that monitors invoked in subscenarios terminate with the subscenario."""
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         monitor TimeLimit():
             while True:
                 require simulation().currentTime <= 2
@@ -248,14 +315,17 @@ def test_subscenario_require_monitor():
             ego = new Object
             require monitor TimeLimit()
             terminate after 2 steps
-    """)
+    """
+    )
     result = sampleResultOnce(scenario, maxSteps=3)
     assert result is not None
     assert len(result.trajectory) == 4
 
+
 def test_subscenario_terminate_when():
     """Test that 'terminate when' and 'require' are properly handled."""
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do Sub()
@@ -264,12 +334,15 @@ def test_subscenario_terminate_when():
             ego = new Object
             require eventually simulation().currentTime == 2
             terminate when simulation().currentTime == 1
-    """)
+    """
+    )
     result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
 
+
 def test_initial_scenario_basic():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do Sub()
@@ -278,13 +351,17 @@ def test_initial_scenario_basic():
                 if initial scenario:
                     ego = new Object
                 new Object left of ego by 5
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     trajectory = sampleTrajectory(scenario)
     assert len(trajectory) == 2
     assert len(trajectory[1]) == 2
 
+
 def test_initial_scenario_setup():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             setup:
                 ego = new Object
@@ -295,13 +372,17 @@ def test_initial_scenario_setup():
                 if initial scenario:
                     ego = new Object
                 new Object left of ego by 5
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     trajectory = sampleTrajectory(scenario)
     assert len(trajectory) == 2
     assert len(trajectory[1]) == 2
 
+
 def test_initial_scenario_parallel():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do Sub(2), Sub(5)
@@ -310,13 +391,17 @@ def test_initial_scenario_parallel():
                 if initial scenario:
                     ego = new Object
                 new Object left of ego by x
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     trajectory = sampleTrajectory(scenario)
     assert len(trajectory) == 2
     assert len(trajectory[1]) == 3
 
+
 def test_choose_1():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do choose Sub(-1), Sub(3)
@@ -324,12 +409,16 @@ def test_choose_1():
             precondition: simulation().currentTime >= x
             setup:
                 ego = new Object at x @ 0
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     xs = [sampleTrajectory(scenario, maxSteps=1)[1][0][0] for i in range(30)]
     assert all(x == -1 for x in xs)
 
+
 def test_choose_2():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do choose Sub(-1), Sub(-2), Sub(5)
@@ -337,27 +426,35 @@ def test_choose_2():
             precondition: simulation().currentTime >= x
             setup:
                 ego = new Object at x @ 0
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     xs = [sampleTrajectory(scenario, maxSteps=1)[1][0][0] for i in range(30)]
     assert all(x == -1 or x == -2 for x in xs)
     assert any(x == -1 for x in xs)
     assert any(x == -2 for x in xs)
 
+
 def test_choose_3():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do choose {Sub(0): 1, Sub(1): 9}
         scenario Sub(x):
             setup:
                 ego = new Object at x @ 0
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     xs = [sampleTrajectory(scenario, maxSteps=1)[1][0][0] for i in range(200)]
     assert all(x == 0 or x == 1 for x in xs)
     assert 145 <= sum(xs) < 200
 
+
 def test_choose_deadlock():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do choose Sub(6), Sub(2)
@@ -365,12 +462,16 @@ def test_choose_deadlock():
             precondition: simulation().currentTime >= x
             setup:
                 ego = new Object at x @ 0
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     result = sampleResultOnce(scenario)
     assert result is None
 
+
 def test_shuffle_1():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do shuffle Sub(-1), Sub(1)
@@ -379,7 +480,9 @@ def test_shuffle_1():
             setup:
                 ego = new Object at x @ 0
                 terminate after 1 seconds
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     for i in range(30):
         trajectory = sampleTrajectory(scenario, maxSteps=3)
         assert len(trajectory) == 3
@@ -388,15 +491,19 @@ def test_shuffle_1():
         assert trajectory[0][0] == (-1, 0, 0)
         assert trajectory[1][1] == (1, 0, 0)
 
+
 def test_shuffle_2():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do shuffle Sub(1), Sub(3)
         scenario Sub(x):
             ego = new Object at x @ 0
             terminate after 1 seconds
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     x1s = []
     for i in range(30):
         trajectory = sampleTrajectory(scenario, maxSteps=3)
@@ -412,8 +519,10 @@ def test_shuffle_2():
     assert any(x1 == 1 for x1 in x1s)
     assert any(x1 == 3 for x1 in x1s)
 
+
 def test_shuffle_3():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do shuffle {Sub(0): 1, Sub(1): 9}
@@ -421,13 +530,17 @@ def test_shuffle_3():
             setup:
                 ego = new Object at x @ 0
                 terminate after 1 seconds
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     xs = [sampleTrajectory(scenario, maxSteps=3)[2][0][0] for i in range(200)]
     assert all(x == 0 or x == 1 for x in xs)
     assert 145 <= sum(xs) < 200
 
+
 def test_shuffle_deadlock():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 do shuffle Sub(-1), Sub(2)
@@ -436,72 +549,93 @@ def test_shuffle_deadlock():
             setup:
                 ego = new Object at x @ 0
                 terminate after 1 seconds
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
 
+
 def test_compose_illegal_statement():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             scenario Main():
                 setup:
                     ego = new Object
                 compose:
                     model scenic.domains.driving.model
-        """)
+        """
+        )
+
 
 def test_compose_illegal_yield():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             scenario Main():
                 setup:
                     ego = new Object
                 compose:
                     yield 5
-        """)
+        """
+        )
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             scenario Main():
                 setup:
                     ego = new Object
                 compose:
                     yield from []
-        """)
+        """
+        )
+
 
 def test_compose_illegal_action():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             scenario Main():
                 setup:
                     ego = new Object
                 compose:
                     take 1
-        """)
+        """
+        )
+
 
 def test_compose_nested_definition():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             scenario Main():
                 setup:
                     ego = new Object
                 compose:
                     scenario Foo():
                         Object at 10@10
-        """)
+        """
+        )
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             scenario Main():
                 setup:
                     ego = new Object
                 compose:
                     behavior Foo():
                         wait
-        """)
+        """
+        )
+
 
 # Overrides
 
+
 def test_override():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             setup:
                 ego = new Object with foo 1, with behavior Bar
@@ -516,12 +650,16 @@ def test_override():
         behavior Bar():
             while True:
                 take self.foo
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (1, 2, 1)
 
+
 def test_override_behavior():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             setup:
                 ego = new Object with behavior Foo
@@ -542,59 +680,79 @@ def test_override_behavior():
             while True:
                 take x
                 x -= 1
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, -1, -2, 2)
 
+
 def test_override_dynamic():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             scenario Main():
                 setup:
                     ego = new Object
                     override ego with position 5@5
-        """)
+        """
+        )
+
 
 def test_override_nonexistent():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             scenario Main():
                 setup:
                     ego = new Object
                     override ego with blob 'hello!'
-        """)
+        """
+        )
+
 
 def test_override_non_object():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             scenario Main():
                 setup:
                     ego = new Object
                     override True with blob 'hello!'
-        """)
+        """
+        )
+
 
 def test_override_malformed():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             scenario Main():
                 setup:
                     ego = new Object
                     override 101 with blob 'hello!'
-        """)
+        """
+        )
+
 
 def test_override_no_specifiers():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic("""
+        compileScenic(
+            """
             scenario Main():
                 setup:
                     ego = new Object
                     override ego
-        """)
+        """
+        )
+
 
 # Scoping
 
+
 def test_shared_scope_read():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             setup:
                 y = 3
@@ -602,14 +760,18 @@ def test_shared_scope_read():
                 do Sub(y)
         scenario Sub(x):
             ego = new Object at (x, 1, 2)
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     trajectory = sampleTrajectory(scenario)
     assert len(trajectory) == 2
     assert len(trajectory[1]) == 1
     assert tuple(trajectory[1][0]) == (3, 1, 2)
 
+
 def test_shared_scope_write():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             setup:
                 y = 3
@@ -618,14 +780,18 @@ def test_shared_scope_write():
                 do Sub(y)
         scenario Sub(x):
             ego = new Object at (x, 1, 2)
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     trajectory = sampleTrajectory(scenario)
     assert len(trajectory) == 2
     assert len(trajectory[1]) == 1
     assert tuple(trajectory[1][0]) == (4, 1, 2)
 
+
 def test_shared_scope_del():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             setup:
                 y = 3
@@ -634,11 +800,15 @@ def test_shared_scope_del():
                 do Sub()
         scenario Sub():
             ego = new Object
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     sampleTrajectory(scenario)
 
+
 def test_delayed_local_argument():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Foo(obj, y):
             ego = new Object left of obj by (5, y)
         scenario Bar():
@@ -650,15 +820,19 @@ def test_delayed_local_argument():
                 s1 = Bar()
                 s2 = Foo(s1.ego, s1.y)
                 do s1, s2
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     trajectory = sampleTrajectory(scenario)
     assert len(trajectory) == 2
     assert len(trajectory[1]) == 2
     assert tuple(trajectory[1][0]) == (0, 0, 0)
     assert tuple(trajectory[1][1]) == pytest.approx((-6, 12, 0), abs=2e-4)
 
+
 def test_delayed_local_interrupt():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 sc = Sub()
@@ -668,26 +842,34 @@ def test_delayed_local_interrupt():
                     abort
         scenario Sub():
             ego = new Object at (1, 0)
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     trajectory = sampleTrajectory(scenario, maxSteps=2)
     assert len(trajectory) == 2
     assert len(trajectory[0]) == len(trajectory[1]) == 1
 
+
 def test_delayed_local_until():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         scenario Main():
             compose:
                 sc = Sub()
                 do sc until sc.ego.position.x >= 1
         scenario Sub():
             ego = new Object at (1, 0)
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     trajectory = sampleTrajectory(scenario, maxSteps=2)
     assert len(trajectory) == 2
     assert len(trajectory[0]) == len(trajectory[1]) == 1
 
+
 def test_independent_requirements():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         behavior Foo():
             while True:
                 wait
@@ -698,7 +880,9 @@ def test_independent_requirements():
         scenario Sub(start, dest):
             ego = new Object at start @ 0, with behavior Foo
             require eventually ego.position.x >= dest
-    """, scenario='Main')
+    """,
+        scenario="Main",
+    )
     for i in range(30):
         trajectory = sampleTrajectory(scenario, maxSteps=2, maxIterations=100)
         assert tuple(trajectory[2][0]) == (1, 0, 0)

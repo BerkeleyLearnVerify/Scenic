@@ -13,24 +13,26 @@ from scenic.core.propositions import Atomic, PropositionNode
 
 import scenic.syntax.relations as relations
 
+
 @enum.unique
 class RequirementType(enum.Enum):
     # requirements which must hold during initial sampling
-    require = 'require'
+    require = "require"
 
     # requirements used only during simulation
-    monitor = 'require monitor'
-    terminateWhen = 'terminate when'
-    terminateSimulationWhen = 'terminate simulation when'
+    monitor = "require monitor"
+    terminateWhen = "terminate when"
+    terminateSimulationWhen = "terminate simulation when"
 
     # recorded values, which aren't requirements but are handled similarly
-    record = 'record'
-    recordInitial = 'record initial'
-    recordFinal = 'record final'
+    record = "record"
+    recordInitial = "record initial"
+    recordFinal = "record final"
 
     @property
     def constrainsSampling(self):
         return self in (self.require,)
+
 
 class PendingRequirement:
     def __init__(self, ty, condition, line, prob, name, ego):
@@ -78,8 +80,10 @@ class PendingRequirement:
             if needsSampling(value):
                 deps.add(value)
             if needsLazyEvaluation(value):
-                raise InvalidScenarioError(f'{ty} on line {line} uses value {value}'
-                                           ' undefined outside of object definition')
+                raise InvalidScenarioError(
+                    f"{ty} on line {line} uses value {value}"
+                    " undefined outside of object definition"
+                )
 
         # If this requirement contains the CanSee specifier, we will need to sample all objects
         # to meet the dependencies.
@@ -103,6 +107,7 @@ class PendingRequirement:
             boundEgo = None if ego is None else values[ego]
             # evaluate requirement condition, reporting errors on the correct line
             import scenic.syntax.veneer as veneer
+
             with veneer.executeInRequirement(scenario, boundEgo, values):
                 if monitor is None:
                     # if not temporal evaluation
@@ -112,11 +117,14 @@ class PendingRequirement:
                     result = monitor.update()
                 assert not needsSampling(result)
                 if needsLazyEvaluation(result):
-                    raise InvalidScenarioError(f'{ty} on line {line} uses value'
-                                               ' undefined outside of object definition')
+                    raise InvalidScenarioError(
+                        f"{ty} on line {line} uses value"
+                        " undefined outside of object definition"
+                    )
             return result
 
         return CompiledRequirement(self, closure, deps, condition)
+
 
 def getAllGlobals(req, restrictTo=None):
     """Find all names the given lambda depends on, along with their current bindings."""
@@ -124,7 +132,7 @@ def getAllGlobals(req, restrictTo=None):
     if restrictTo is not None and restrictTo is not namespace:
         return {}
     externals = inspect.getclosurevars(req)
-    assert not externals.nonlocals      # TODO handle these
+    assert not externals.nonlocals  # TODO handle these
     globs = dict(externals.builtins)
     for name, value in externals.globals.items():
         globs[name] = value
@@ -136,6 +144,7 @@ def getAllGlobals(req, restrictTo=None):
                 else:
                     globs[name] = value
     return globs
+
 
 class CompiledRequirement:
     def __init__(self, pendingReq, closure, dependencies, proposition):
@@ -160,6 +169,7 @@ class CompiledRequirement:
             return self.name
         else:
             return f'"{self.ty.value}" on line {self.line}'
+
 
 class BoundRequirement:
     def __init__(self, compiledReq, sample, proposition):
@@ -190,17 +200,19 @@ class BoundRequirement:
     def toMonitor(self):
         return MonitorRequirement(self.compiledReq, self.sample, self.proposition)
 
+
 class MonitorRequirement(BoundRequirement):
-    """MonitorRequirement is a BoundRequirement with temporal proposition monitor
-    """
+    """MonitorRequirement is a BoundRequirement with temporal proposition monitor"""
+
     def __init__(self, compiledReq, sample, proposition):
         super().__init__(compiledReq, sample, proposition)
         self.monitor = self.proposition.create_monitor()
         self.lastValue = rv_ltl.B4.TRUE
-    
+
     def value(self):
         self.lastValue = self.closure(self.sample, self.monitor)
         return self.lastValue
+
 
 class DynamicRequirement:
     def __init__(self, ty, condition, line, name=None):
@@ -209,14 +221,17 @@ class DynamicRequirement:
         self.name = name
 
         import scenic.syntax.veneer as veneer
+
         scenario = veneer.currentScenario
-        def closure(monitor = None):
+
+        def closure(monitor=None):
             with veneer.executeInScenario(scenario):
                 if monitor is None:
                     result = self.condition.evaluate()
                 else:
                     result = monitor.update()
                 return result
+
         self.closure = closure
         self.condition = condition
 
@@ -233,7 +248,10 @@ class DynamicRequirement:
             return f'"{self.ty.value}" on line {self.line}'
 
     def toMonitor(self):
-        return DynamicMonitorRequirement(self.closure, self.condition, self.line, self.name)
+        return DynamicMonitorRequirement(
+            self.closure, self.condition, self.line, self.name
+        )
+
 
 class DynamicMonitorRequirement:
     def __init__(self, closure, condition, line, name):

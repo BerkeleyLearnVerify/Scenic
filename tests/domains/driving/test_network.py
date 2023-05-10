@@ -1,40 +1,45 @@
-
 import pytest
 
 from scenic.core.distributions import RejectionException
 from scenic.domains.driving.roads import Network, Intersection
 
 # Suppress all warnings from OpenDRIVE parser
-pytestmark = pytest.mark.filterwarnings("ignore::scenic.formats.opendrive.OpenDriveWarning")
+pytestmark = pytest.mark.filterwarnings(
+    "ignore::scenic.formats.opendrive.OpenDriveWarning"
+)
+
 
 def test_network_invalid():
     with pytest.raises(ValueError):
-        Network.fromFile('blogobloggo_zoggle.foobar')   # unknown file extension
+        Network.fromFile("blogobloggo_zoggle.foobar")  # unknown file extension
     with pytest.raises(FileNotFoundError):
-        Network.fromFile('blogobloggo_zoggle')      # search all known formats
+        Network.fromFile("blogobloggo_zoggle")  # search all known formats
+
 
 @pytest.mark.graphical
 def test_show_2d(network):
     import matplotlib.pyplot as plt
+
     network.show(labelIncomingLanes=True)
     plt.show(block=False)
     plt.close()
 
+
 def test_element_tolerance(cached_maps, pytestconfig):
-    path = cached_maps['tests/formats/opendrive/maps/CARLA/Town01.xodr']
+    path = cached_maps["tests/formats/opendrive/maps/CARLA/Town01.xodr"]
     tol = 0.05
     network = Network.fromFile(path, tolerance=tol)
     drivable = network.drivableRegion
     road = network.roads[0]
     nearby = road.buffer(tol).difference(road)
-    rounds = 1 if pytestconfig.getoption('--fast') else 20
+    rounds = 1 if pytestconfig.getoption("--fast") else 20
     for i in range(rounds):
         pt = None
         while not pt or pt in drivable:
             pt = nearby.uniformPointInner()
         assert network.elementAt(pt) is not None
         assert network.roadAt(pt) is not None
-        toofar = drivable.buffer(2*tol).difference(drivable.buffer(1.5*tol))
+        toofar = drivable.buffer(2 * tol).difference(drivable.buffer(1.5 * tol))
         pt = toofar.uniformPointInner()
         assert network.roadAt(pt) is None
         with pytest.raises(RejectionException):
@@ -43,6 +48,7 @@ def test_element_tolerance(cached_maps, pytestconfig):
         pt = toofar.uniformPointInner()
         assert network.elementAt(pt) is None
         assert not network.nominalDirectionsAt(pt)
+
 
 def test_orientation_consistency(network):
     for i in range(30):
@@ -60,7 +66,9 @@ def test_orientation_consistency(network):
             if not connectors:
                 # Not on any connecting lane; orientation should be given by
                 # whichever one is closest.
-                man = min(elem.maneuvers, key=lambda man: man.connectingLane.distanceTo(pt))
+                man = min(
+                    elem.maneuvers, key=lambda man: man.connectingLane.distanceTo(pt)
+                )
                 assert pytest.approx(man.connectingLane.orientation[pt]) in dirs
             else:
                 lane = network.laneAt(pt)
@@ -83,11 +91,13 @@ def test_orientation_consistency(network):
             assert road.laneSectionAt(pt) is laneSec
             assert laneSec.orientation[pt] == pytest.approx(d)
 
+
 def test_linkage(network):
     for road in network.roads:
         assert road.forwardLanes or road.backwardLanes
         assert road.is1Way == (not (road.forwardLanes and road.backwardLanes))
         seenLanes = set()
+
         def checkGroup(group):
             assert group.road is road
             if group._sidewalk:
@@ -168,6 +178,7 @@ def test_linkage(network):
                     assert maneuver.startLane is lane
                 pt = lane.uniformPointInner()
                 assert group.laneAt(pt) is lane
+
         if road.forwardLanes:
             checkGroup(road.forwardLanes)
             assert road.forwardLanes._opposite is road.backwardLanes

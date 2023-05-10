@@ -33,19 +33,32 @@ import numbers
 import typing
 import numpy
 
-from scenic.core.distributions import (Distribution, RejectionException, StarredDistribution,
-                                       TupleDistribution, distributionFunction, supportInterval,
-                                       toDistribution)
-from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
-                                   needsLazyEvaluation)
+from scenic.core.distributions import (
+    Distribution,
+    RejectionException,
+    StarredDistribution,
+    TupleDistribution,
+    distributionFunction,
+    supportInterval,
+    toDistribution,
+)
+from scenic.core.lazy_eval import (
+    DelayedArgument,
+    valueInContext,
+    requiredProperties,
+    needsLazyEvaluation,
+)
 from scenic.core.errors import RuntimeParseError, saveErrorLocation
 from scenic.core.utils import get_type_origin, get_type_args
 
 ## Basic types
 
+
 class Heading(float):
     """Dummy class used as a target for type coercions to headings."""
+
     pass
+
 
 def underlyingType(thing):
     """What type this value ultimately evaluates to, if we can tell."""
@@ -58,11 +71,13 @@ def underlyingType(thing):
     else:
         return type(thing)
 
+
 def isA(thing, ty):
     """Is this guaranteed to evaluate to a member of the given Scenic type?"""
     return issubclass(underlyingType(thing), ty)
 
-def unifyingType(opts):     # TODO improve?
+
+def unifyingType(opts):  # TODO improve?
     """Most specific type unifying the given values."""
     # Gather underlying types of all options
     types = []
@@ -80,6 +95,7 @@ def unifyingType(opts):     # TODO improve?
             types.append(underlyingType(opt))
     # Compute unifying type
     return unifierOfTypes(types)
+
 
 def unifierOfTypes(types):
     """Most specific type unifying the given types."""
@@ -103,9 +119,11 @@ def unifierOfTypes(types):
             continue
         if all(issubclass(ty, ancestor) for ty in simpleTypes):
             return ancestor
-    raise AssertionError(f'broken MRO for types {types}')
+    raise AssertionError(f"broken MRO for types {types}")
+
 
 ## Type coercions (for internal use -- see the type checking API below)
+
 
 def canCoerceType(typeA, typeB):
     """Can values of typeA be coerced into typeB?"""
@@ -121,11 +139,17 @@ def canCoerceType(typeA, typeB):
         return issubclass(typeA, numbers.Real)
     elif typeB == Heading:
         from scenic.core.vectors import Orientation
-        return canCoerceType(typeA, float) or hasattr(typeA, 'toHeading') or issubclass(typeA, Orientation)
-    elif hasattr(typeB, '_canCoerceType'):
+
+        return (
+            canCoerceType(typeA, float)
+            or hasattr(typeA, "toHeading")
+            or issubclass(typeA, Orientation)
+        )
+    elif hasattr(typeB, "_canCoerceType"):
         return typeB._canCoerceType(typeA)
     else:
         return issubclass(typeA, typeB)
+
 
 def canCoerce(thing, ty):
     """Can this value be coerced into the given type?"""
@@ -133,11 +157,12 @@ def canCoerce(thing, ty):
     if canCoerceType(tt, ty):
         return True
     elif isinstance(thing, Distribution):
-        return True     # fall back on type-checking at runtime
+        return True  # fall back on type-checking at runtime
     else:
         return False
 
-def coerce(thing, ty, error='wrong type'):
+
+def coerce(thing, ty, error="wrong type"):
     """Coerce something into the given type.
 
     Used internally by `toType`, etc.; this function should not otherwise be
@@ -155,7 +180,7 @@ def coerce(thing, ty, error='wrong type'):
         ty = numbers.Real
         realType = float
     else:
-        coercer = getattr(ty, '_coerce', None)
+        coercer = getattr(ty, "_coerce", None)
 
     if isinstance(thing, Distribution):
         # This is a random value. If we can prove that it will always have the desired
@@ -171,7 +196,7 @@ def coerce(thing, ty, error='wrong type'):
         else:
             possibleTypes = (vt,)
         if all(issubclass(possible, ty) for possible in possibleTypes):
-            return thing    # no coercion necessary
+            return thing  # no coercion necessary
         else:
             return TypecheckedDistribution(thing, realType, error, coercer=coercer)
     elif coercer:
@@ -179,11 +204,12 @@ def coerce(thing, ty, error='wrong type'):
         try:
             return coercer(thing)
         except CoercionFailure as e:
-            raise RuntimeParseError(f'{error} ({e.args[0]})') from None
+            raise RuntimeParseError(f"{error} ({e.args[0]})") from None
     else:
         # Only instances of the destination type can be coerced into it; since coercion
         # is possible, we must have such an instance, and can return it unchanged.
         return thing
+
 
 class CoercionFailure(Exception):
     """Raised by coercion functions when coercion is impossible.
@@ -191,10 +217,13 @@ class CoercionFailure(Exception):
     Only used internally; will be converted to a parse error for reporting to
     the user.
     """
+
     pass
+
 
 def coerceToFloat(thing) -> float:
     return float(thing)
+
 
 def coerceToHeading(thing) -> Heading:
     from scenic.core.vectors import Orientation
@@ -202,8 +231,9 @@ def coerceToHeading(thing) -> Heading:
     if isinstance(thing, Orientation):
         return thing.yaw
 
-    h = thing.toHeading() if hasattr(thing, 'toHeading') else float(thing)
+    h = thing.toHeading() if hasattr(thing, "toHeading") else float(thing)
     return h
+
 
 class TypecheckedDistribution(Distribution):
     """Distribution which typechecks its value at sampling time.
@@ -235,12 +265,12 @@ class TypecheckedDistribution(Distribution):
                 try:
                     return self._coercer(val)
                 except CoercionFailure as e:
-                    suffix = f' ({e.args[0]})'
+                    suffix = f" ({e.args[0]})"
         elif isinstance(val, self._checkType):
             return val
         # Coercion failed, so we have a type error.
         if suffix is None:
-            suffix = f' (expected {self._valueType.__name__}, got {type(val).__name__})'
+            suffix = f" (expected {self._valueType.__name__}, got {type(val).__name__})"
         raise RuntimeParseError(self._errorMessage + suffix, self._loc)
 
     def conditionTo(self, value):
@@ -250,7 +280,8 @@ class TypecheckedDistribution(Distribution):
         return supportInterval(self._dist)
 
     def __repr__(self):
-        return f'TypecheckedDistribution({self._dist!r}, {self._valueType!r})'
+        return f"TypecheckedDistribution({self._dist!r}, {self._valueType!r})"
+
 
 def coerceToAny(thing, types, error):
     """Coerce something into any of the given types, raising an error if impossible.
@@ -264,13 +295,18 @@ def coerceToAny(thing, types, error):
         if canCoerce(thing, ty):
             return coerce(thing, ty, error)
     from scenic.syntax.veneer import verbosePrint
-    verbosePrint(f'Failed to coerce {thing} of type {underlyingType(thing)} to {types}',
-                 file=sys.stderr)
+
+    verbosePrint(
+        f"Failed to coerce {thing} of type {underlyingType(thing)} to {types}",
+        file=sys.stderr,
+    )
     raise RuntimeParseError(error)
+
 
 ## Top-level type checking/conversion API
 
-def toTypes(thing, types, typeError='wrong type'):
+
+def toTypes(thing, types, typeError="wrong type"):
     """Convert something to any of the given types, raising an error if impossible.
 
     Types are tried in the order they are given: the first one compatible with the given
@@ -296,44 +332,52 @@ def toTypes(thing, types, typeError='wrong type'):
     else:
         return coerceToAny(thing, types, typeError)
 
-def toType(thing, ty, typeError='wrong type'):
+
+def toType(thing, ty, typeError="wrong type"):
     """Convert something to a given type, raising an error if impossible.
 
     Equivalent to `toTypes` with a single destination type.
     """
     return toTypes(thing, (ty,), typeError)
 
-def toScalar(thing, typeError='non-scalar in scalar context'):
+
+def toScalar(thing, typeError="non-scalar in scalar context"):
     """Convert something to a scalar, raising an error if impossible.
 
     See `toTypes` for details.
     """
     return toType(thing, float, typeError)
 
-def toHeading(thing, typeError='non-heading in heading context'):
+
+def toHeading(thing, typeError="non-heading in heading context"):
     """Convert something to a heading, raising an error if impossible.
 
     See `toTypes` for details.
     """
     return toType(thing, Heading, typeError)
 
-def toOrientation(thing, typeError='non-orientation in orientation context'):
+
+def toOrientation(thing, typeError="non-orientation in orientation context"):
     """Convert something to an orientation, raising an error if impossible.
 
     See `toTypes` for details.
     """
     from scenic.core.vectors import Orientation
+
     return toType(thing, Orientation, typeError)
 
-def toVector(thing, typeError='non-vector in vector context'):
+
+def toVector(thing, typeError="non-vector in vector context"):
     """Convert something to a vector, raising an error if impossible.
 
     See `toTypes` for details.
     """
     from scenic.core.vectors import Vector
+
     return toType(thing, Vector, typeError)
 
-def evaluateRequiringEqualTypes(func, thingA, thingB, typeError='type mismatch'):
+
+def evaluateRequiringEqualTypes(func, thingA, thingB, typeError="type mismatch"):
     """Evaluate the func, assuming thingA and thingB have the same type.
 
     If func produces a lazy value, it should not have any required properties beyond
@@ -350,40 +394,50 @@ def evaluateRequiringEqualTypes(func, thingA, thingB, typeError='type mismatch')
         # cannot check the types now; create proxy object to check types after evaluation
         return TypeEqualityChecker(func, thingA, thingB, typeError)
 
+
 ## Proxy objects for lazy type checking
+
 
 class TypeChecker(DelayedArgument):
     """Checks that a given lazy value has one of a given list of types."""
+
     def __init__(self, arg, types, error):
         def check(context):
             val = arg.evaluateIn(context)
             return coerceToAny(val, types, error)
+
         super().__init__(requiredProperties(arg), check)
         self.inner = arg
         self.types = types
 
     def __repr__(self):
-        return f'TypeChecker({self.inner!r},{self.types!r})'
+        return f"TypeChecker({self.inner!r},{self.types!r})"
+
 
 class TypeEqualityChecker(DelayedArgument):
     """Evaluates a function after checking that two lazy values have the same type."""
+
     def __init__(self, func, checkA, checkB, error):
         props = requiredProperties(checkA) | requiredProperties(checkB)
+
         def check(context):
             ca = valueInContext(checkA, context)
             cb = valueInContext(checkB, context)
             if underlyingType(ca) is not underlyingType(cb):
                 raise RuntimeParseError(error)
             return valueInContext(func(), context)
+
         super().__init__(props, check)
         self.inner = func
         self.checkA = checkA
         self.checkB = checkB
 
     def __repr__(self):
-        return f'TypeEqualityChecker({self.inner!r},{self.checkA!r},{self.checkB!r})'
+        return f"TypeEqualityChecker({self.inner!r},{self.checkA!r},{self.checkB!r})"
+
 
 ## Utilities
+
 
 def is_typing_generic(tp):
     """Whether this is a pre-3.9 generic type from the typing module."""

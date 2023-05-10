@@ -1,24 +1,39 @@
-
 import pytest
 
-from scenic.core.distributions import Options, Range, Normal, TruncatedNormal, distributionMethod
+from scenic.core.distributions import (
+    Options,
+    Range,
+    Normal,
+    TruncatedNormal,
+    distributionMethod,
+)
 from scenic.core.geometry import hypot
 from scenic.core.object_types import Object
 from scenic.core.specifiers import Specifier
 from scenic.core.lazy_eval import DelayedArgument
 from scenic.core.simulators import DummySimulator
-from tests.utils import (pickle_test, tryPickling,
-                         compileScenic, sampleEgo, sampleSceneFrom, sampleScene)
+from tests.utils import (
+    pickle_test,
+    tryPickling,
+    compileScenic,
+    sampleEgo,
+    sampleSceneFrom,
+    sampleScene,
+)
 
 pytestmark = pickle_test
 
+
 def test_pickle_distribution_basic():
-    dist = Options({
-        Range(0, 1): 2,
-        Options([12 + Range(-1, 3), Normal(4, 5)]): 1,
-        (3, TruncatedNormal(1, 2, 3, 4)): 1,
-    })
+    dist = Options(
+        {
+            Range(0, 1): 2,
+            Options([12 + Range(-1, 3), Normal(4, 5)]): 1,
+            (3, TruncatedNormal(1, 2, 3, 4)): 1,
+        }
+    )
     tryPickling(dist)
+
 
 def test_pickle_distribution_function():
     # N.B. cloudpickle fails this test; it seems to not restore the __globals__ of the
@@ -26,7 +41,8 @@ def test_pickle_distribution_function():
     dist = hypot(Range(0, 1), 2).hex()
     tryPickling(dist)
 
-@pytest.mark.xfail(reason='dill cannot yet pickle this (issue #332)', strict=True)
+
+@pytest.mark.xfail(reason="dill cannot yet pickle this (issue #332)", strict=True)
 def test_pickle_distribution_method():
     # N.B. cloudpickle *does* work in this case, but it's less common than the one above
     class Foo:
@@ -43,20 +59,25 @@ def test_pickle_distribution_method():
     dist = Foo(5).bar(Range(0, 1))
     tryPickling(dist)
 
+
 def test_pickle_object():
-    spec = Specifier('unnamed',
-                     {'blob': 1},
-                     DelayedArgument(('width',),
-                                     lambda context: {'blob': 2 * context.width}))
+    spec = Specifier(
+        "unnamed",
+        {"blob": 1},
+        DelayedArgument(("width",), lambda context: {"blob": 2 * context.width}),
+    )
     obj = Object._withSpecifiers((spec,))
     tryPickling(obj)
 
+
 def test_pickle_scenario():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         ego = new Object at (Range(1, 2), 0)
         other = new Object at (Range(1, 2), 5)
         require ego.x < other.x
-    """)
+    """
+    )
     sc1 = tryPickling(scenario)
     sc2 = tryPickling(scenario)
     s1 = sampleScene(sc1, maxIterations=60)
@@ -70,12 +91,15 @@ def test_pickle_scenario():
     assert e2.x < o2.x
     assert o1.x != o2.x
 
+
 def test_pickle_scene():
-    scene = sampleSceneFrom('ego = new Object at Range(1, 2) @ 3')
+    scene = sampleSceneFrom("ego = new Object at Range(1, 2) @ 3")
     tryPickling(scene)
 
+
 def test_pickle_scenario_dynamic():
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         model scenic.simulators.newtonian.model
         behavior Foo(x):
             while True:
@@ -87,7 +111,8 @@ def test_pickle_scenario_dynamic():
         require always other.position.x >= 0
         terminate when ego.position.x > 10
         record ego.position as egoPos
-    """)
+    """
+    )
     unpickled = tryPickling(scenario)
     scene = sampleScene(unpickled)
     sim = DummySimulator(timestep=1)

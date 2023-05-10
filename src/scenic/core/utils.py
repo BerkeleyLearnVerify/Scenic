@@ -14,9 +14,11 @@ import trimesh
 
 sqrt2 = math.sqrt(2)
 
+
 def cached(oldMethod):
     """Decorator for making a method with no arguments cache its result"""
-    storageName = f'_cached_{oldMethod.__name__}'
+    storageName = f"_cached_{oldMethod.__name__}"
+
     @functools.wraps(oldMethod)
     def wrapper(self):
         try:
@@ -26,20 +28,24 @@ def cached(oldMethod):
             value = oldMethod(self)
             setattr(self, storageName, value)
             return value
+
     return wrapper
+
 
 def cached_property(oldMethod):
     return property(cached(oldMethod))
 
+
 def argsToString(args, kwargs={}):
-    args = ', '.join(repr(arg) for arg in args)
-    kwargs = ', '.join(f'{name}={value!r}' for name, value in kwargs.items())
+    args = ", ".join(repr(arg) for arg in args)
+    kwargs = ", ".join(f"{name}={value!r}" for name, value in kwargs.items())
     parts = []
     if args:
         parts.append(args)
     if kwargs:
         parts.append(kwargs)
-    return ', '.join(parts)
+    return ", ".join(parts)
+
 
 @contextmanager
 def alarm(seconds, handler=None, noNesting=False):
@@ -51,9 +57,9 @@ def alarm(seconds, handler=None, noNesting=False):
     try:
         signal.signal(signal.SIGALRM, handler)
         if noNesting:
-            assert oldHandler is signal.SIG_DFL, 'SIGALRM handler already installed'
+            assert oldHandler is signal.SIG_DFL, "SIGALRM handler already installed"
     except ValueError:
-        yield      # SIGALRM not supported on Windows
+        yield  # SIGALRM not supported on Windows
         return
     previous = signal.alarm(seconds)
     if noNesting:
@@ -63,6 +69,7 @@ def alarm(seconds, handler=None, noNesting=False):
     finally:
         signal.alarm(0)
         signal.signal(signal.SIGALRM, signal.SIG_DFL)
+
 
 def loadMesh(path, filetype=None, compressed=None):
     working_path = path
@@ -96,12 +103,14 @@ def loadMesh(path, filetype=None, compressed=None):
 
     return mesh
 
+
 class DefaultIdentityDict:
     """Dictionary which is the identity map by default.
 
     The map works on all objects, even unhashable ones, but doesn't support all
     of the standard mapping operations.
     """
+
     def __init__(self):
         self.storage = {}
 
@@ -118,12 +127,14 @@ class DefaultIdentityDict:
         return id(key) in self.storage
 
     def __repr__(self):
-        pairs = (f'{hex(key)}: {value!r}' for key, value in self.storage.items())
-        allPairs = ', '.join(pairs)
-        return f'<DefaultIdentityDict {{{allPairs}}}>'
+        pairs = (f"{hex(key)}: {value!r}" for key, value in self.storage.items())
+        allPairs = ", ".join(pairs)
+        return f"<DefaultIdentityDict {{{allPairs}}}>"
+
 
 # Generic type introspection functions backported to Python 3.7
 # (code taken from their Python 3.8 implementations)
+
 
 def get_type_origin(tp):
     """Version of `typing.get_origin` supporting Python 3.7."""
@@ -135,6 +146,7 @@ def get_type_origin(tp):
     if tp is typing.Generic:
         return typing.Generic
     return None
+
 
 def get_type_args(tp):
     """Version of `typing.get_args` supporting Python 3.7."""

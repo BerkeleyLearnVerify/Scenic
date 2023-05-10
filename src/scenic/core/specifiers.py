@@ -2,12 +2,18 @@
 
 import itertools
 
-from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
-                                   needsLazyEvaluation, toLazyValue)
+from scenic.core.lazy_eval import (
+    DelayedArgument,
+    valueInContext,
+    requiredProperties,
+    needsLazyEvaluation,
+    toLazyValue,
+)
 from scenic.core.distributions import toDistribution
 from scenic.core.errors import RuntimeParseError
 
 ## Specifiers themselves
+
 
 class Specifier:
     """Specifier providing values for properties, at various priorities,
@@ -22,6 +28,7 @@ class Specifier:
         deps: An iterable containing all properties that this
           specifier relies on.
     """
+
     def __init__(self, name, priorities, value, deps=None):
         assert isinstance(priorities, dict)
         assert isinstance(value, (dict, DelayedArgument))
@@ -36,7 +43,7 @@ class Specifier:
 
         for p in priorities:
             if p in deps:
-                raise RuntimeParseError(f'specifier for property {p} depends on itself')
+                raise RuntimeParseError(f"specifier for property {p} depends on itself")
 
         self.requiredProperties = tuple(sorted(deps))
         self.name = name
@@ -48,7 +55,8 @@ class Specifier:
         return val
 
     def __str__(self):
-        return f'<{self.name} Specifier for {self.priorities}>'
+        return f"<{self.name} Specifier for {self.priorities}>"
+
 
 class ModifyingSpecifier(Specifier):
     """Specifier providing values for properties, at various priorities,
@@ -65,14 +73,18 @@ class ModifyingSpecifier(Specifier):
         deps: An iterable containing all properties that this
           specifier relies on.
     """
+
     def __init__(self, name, priorities, value, modifiable_props, deps=None):
         self.modifiable_props = modifiable_props
         super().__init__(name, priorities, value, deps)
 
+
 ## Support for property defaults
+
 
 class PropertyDefault:
     """A default value, possibly with dependencies."""
+
     def __init__(self, requiredProperties, attributes, value):
         self.requiredProperties = set(requiredProperties)
         self.value = value
@@ -84,9 +96,9 @@ class PropertyDefault:
             else:
                 return default
 
-        self.isAdditive = enabled('additive', False)
-        self.isDynamic = enabled('dynamic', False)
-        self.isFinal = enabled('final', False)
+        self.isAdditive = enabled("additive", False)
+        self.isDynamic = enabled("dynamic", False)
+        self.isFinal = enabled("final", False)
         for attr in attributes:
             raise RuntimeParseError(f'unknown property attribute "{attr}"')
 
@@ -102,19 +114,23 @@ class PropertyDefault:
         for other in overriddenDefs:
             if other.isFinal:
                 msg = f'"{prop}" property cannot be overridden'
-                if prop == 'heading':
-                    msg += ' (perhaps this scenario requires the --2d flag?)'
+                if prop == "heading":
+                    msg += " (perhaps this scenario requires the --2d flag?)"
                 raise RuntimeParseError(msg)
         if self.isAdditive:
             allReqs = self.requiredProperties
             for other in overriddenDefs:
                 allReqs |= other.requiredProperties
+
             def concatenator(context):
                 allVals = [self.value(context)]
                 for other in overriddenDefs:
                     allVals.append(other.value(context))
                 return tuple(allVals)
-            val = DelayedArgument(allReqs, concatenator, _internal=True) # TODO: @Matthew Change to dicts
+
+            val = DelayedArgument(
+                allReqs, concatenator, _internal=True
+            )  # TODO: @Matthew Change to dicts
         else:
             val = DelayedArgument(self.requiredProperties, self.value, _internal=True)
 

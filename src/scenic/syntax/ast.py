@@ -34,7 +34,7 @@ class TryInterrupt(AST):
         orelse: typing.List[ast.stmt],
         finalbody: typing.List[ast.AST],
         *args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.body = body
@@ -71,11 +71,7 @@ class TrackedAssign(AST):
     )
 
     def __init__(
-        self,
-        target: Union["Ego", "Workspace"],
-        value: ast.AST,
-        *args: any,
-        **kwargs: any
+        self, target: Union["Ego", "Workspace"], value: ast.AST, *args: any, **kwargs: any
     ) -> None:
         super().__init__(*args, **kwargs)
         self.target = target
@@ -106,7 +102,7 @@ class PropertyDef(AST):
         attributes: typing.List[Union["Additive", "Dynamic", "Final"]],
         value=ast.AST,
         *args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.property = property
@@ -150,7 +146,7 @@ class BehaviorDef(AST):
         header: typing.List[Union["Precondition", "Invariant"]],
         body: typing.List[any],
         *_args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*_args, **kwargs)
         self.name = name
@@ -171,7 +167,7 @@ class MonitorDef(AST):
         docstring: Optional[str],
         body: typing.List[ast.AST],
         *_args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*_args, **kwargs)
         self.name = name
@@ -214,7 +210,7 @@ class ScenarioDef(AST):
         setup: typing.List[ast.AST],
         compose: typing.List[ast.AST],
         *_args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*_args, **kwargs)
         self.name = name
@@ -243,9 +239,7 @@ class Param(AST):
 
     __match_args__ = ("elts",)
 
-    def __init__(
-        self, elts: typing.List["parameter"], *args: any, **kwargs: any
-    ) -> None:
+    def __init__(self, elts: typing.List["parameter"], *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.elts = elts
         self._fields = ["elts"]
@@ -273,7 +267,7 @@ class Require(AST):
         prob: Optional[float] = None,
         name: Optional[str] = None,
         *args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.cond = cond
@@ -286,11 +280,7 @@ class RequireMonitor(AST):
     __match_args__ = ("monitor", "name")
 
     def __init__(
-        self,
-        monitor: ast.AST,
-        name: Optional[str] = None,
-        *args: any,
-        **kwargs: any
+        self, monitor: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
     ) -> None:
         super().__init__(*args, **kwargs)
         self.monitor = monitor
@@ -402,7 +392,7 @@ class Mutate(AST):
         elts: typing.List[ast.Name],
         scale: Optional[ast.AST] = None,
         *args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.elts = elts
@@ -414,11 +404,7 @@ class Override(AST):
     __match_args__ = ("target", "specifiers")
 
     def __init__(
-        self,
-        target: ast.AST,
-        specifiers: typing.List[ast.AST],
-        *args: any,
-        **kwargs: any
+        self, target: ast.AST, specifiers: typing.List[ast.AST], *args: any, **kwargs: any
     ) -> None:
         super().__init__(*args, **kwargs)
         self.target = target
@@ -448,7 +434,10 @@ class Terminate(AST):
 
 
 class TerminateSimulationWhen(AST):
-    __match_args__ = ("cond", "name",)
+    __match_args__ = (
+        "cond",
+        "name",
+    )
 
     def __init__(
         self, cond: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
@@ -460,7 +449,10 @@ class TerminateSimulationWhen(AST):
 
 
 class TerminateWhen(AST):
-    __match_args__ = ("cond", "name",)
+    __match_args__ = (
+        "cond",
+        "name",
+    )
 
     def __init__(
         self, cond: ast.AST, name: Optional[str] = None, *args: any, **kwargs: any
@@ -490,7 +482,7 @@ class DoFor(AST):
         elts: typing.List[ast.AST],
         duration: Union["Seconds", "Steps"],
         *args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.elts = elts
@@ -633,7 +625,7 @@ class DirectionOfSpecifier(AST):
         position: ast.AST,
         distance: Optional[ast.AST],
         *args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.direction = direction
@@ -681,7 +673,7 @@ class BeyondSpecifier(AST):
         offset: ast.AST,
         base: Optional[ast.AST] = None,
         *args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.position = position
@@ -693,9 +685,7 @@ class BeyondSpecifier(AST):
 class VisibleSpecifier(AST):
     __match_args__ = ("base",)
 
-    def __init__(
-        self, base: Optional[ast.AST] = None, *args: any, **kwargs: any
-    ) -> None:
+    def __init__(self, base: Optional[ast.AST] = None, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.base = base
         self._fields = ["base"]
@@ -704,9 +694,7 @@ class VisibleSpecifier(AST):
 class NotVisibleSpecifier(AST):
     __match_args__ = ("base",)
 
-    def __init__(
-        self, base: Optional[ast.AST] = None, *args: any, **kwargs: any
-    ) -> None:
+    def __init__(self, base: Optional[ast.AST] = None, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.base = base
         self._fields = ["base"]
@@ -748,7 +736,7 @@ class FollowingSpecifier(AST):
         distance: ast.AST,
         base: Optional[ast.AST] = None,
         *args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.field = field
@@ -806,11 +794,7 @@ class ApparentlyFacingSpecifier(AST):
     __match_args__ = ("heading", "base")
 
     def __init__(
-        self,
-        heading: ast.AST,
-        base: Optional[ast.AST] = None,
-        *args: any,
-        **kwargs: any
+        self, heading: ast.AST, base: Optional[ast.AST] = None, *args: any, **kwargs: any
     ) -> None:
         super().__init__(*args, **kwargs)
         self.heading = heading
@@ -848,9 +832,7 @@ class ImpliesOp(AST):
 class UntilOp(AST):
     __match_args__ = ("left", "right")
 
-    def __init__(
-        self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any
-    ) -> None:
+    def __init__(self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.left = left
         self.right = right
@@ -914,7 +896,7 @@ class DistanceFromOp(AST):
         target: ast.AST,
         base: Optional[ast.AST] = None,
         *args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.target = target
@@ -942,7 +924,7 @@ class AngleFromOp(AST):
         target: Optional[ast.AST] = None,
         base: Optional[ast.AST] = None,
         *args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.target = target
@@ -958,7 +940,7 @@ class AltitudeFromOp(AST):
         target: Optional[ast.AST] = None,
         base: Optional[ast.AST] = None,
         *args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.target = target
@@ -970,12 +952,7 @@ class FollowOp(AST):
     __match_args__ = ("target", "base", "distance")
 
     def __init__(
-        self,
-        target: ast.AST,
-        base: ast.AST,
-        distance: ast.AST,
-        *args: any,
-        **kwargs: any
+        self, target: ast.AST, base: ast.AST, distance: ast.AST, *args: any, **kwargs: any
     ) -> None:
         super().__init__(*args, **kwargs)
         self.target = target
@@ -1005,9 +982,7 @@ class NotVisibleOp(AST):
 class VisibleFromOp(AST):
     __match_args__ = ("region", "base")
 
-    def __init__(
-        self, region: ast.AST, base: ast.AST, *args: any, **kwargs: any
-    ) -> None:
+    def __init__(self, region: ast.AST, base: ast.AST, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.region = region
         self.base = base
@@ -1031,7 +1006,7 @@ class PositionOfOp(AST):
         ],
         target: ast.AST,
         *args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.position = position
@@ -1113,9 +1088,7 @@ class DegOp(AST):
 class VectorOp(AST):
     __match_args__ = ("left", "right")
 
-    def __init__(
-        self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any
-    ) -> None:
+    def __init__(self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.left = left
         self.right = right
@@ -1125,9 +1098,7 @@ class VectorOp(AST):
 class FieldAtOp(AST):
     __match_args__ = ("left", "right")
 
-    def __init__(
-        self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any
-    ) -> None:
+    def __init__(self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.left = left
         self.right = right
@@ -1136,9 +1107,7 @@ class FieldAtOp(AST):
 class RelativeToOp(AST):
     __match_args__ = ("left", "right")
 
-    def __init__(
-        self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any
-    ) -> None:
+    def __init__(self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.left = left
         self.right = right
@@ -1153,7 +1122,7 @@ class OffsetAlongOp(AST):
         direction: ast.AST,
         offset: ast.AST,
         *args: any,
-        **kwargs: any
+        **kwargs: any,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.base = base
@@ -1164,9 +1133,7 @@ class OffsetAlongOp(AST):
 class CanSeeOp(AST):
     __match_args__ = ("left", "right")
 
-    def __init__(
-        self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any
-    ) -> None:
+    def __init__(self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.left = left
         self.right = right

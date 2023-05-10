@@ -2,8 +2,10 @@
 
 from scenic.core.workspaces import Workspace
 
+
 class DrivingWorkspace(Workspace):
     """Workspace created from a road `Network`."""
+
     def __init__(self, network):
         self.network = network
         super().__init__()

@@ -1,4 +1,3 @@
-
 """Translator turning Scenic programs into Scenario objects.
 
 The top-level interface to Scenic is provided by two functions:
@@ -54,7 +53,7 @@ from typing import Optional
 from scenic.core.distributions import RejectionException, toDistribution
 from scenic.core.lazy_eval import needsLazyEvaluation
 import scenic.core.errors as errors
-from scenic.core.errors import (PythonCompileError, InvalidScenarioError)
+from scenic.core.errors import PythonCompileError, InvalidScenarioError
 import scenic.core.dynamics as dynamics
 import scenic.core.pruning as pruning
 from scenic.core.utils import cached_property
@@ -63,6 +62,7 @@ from scenic.syntax.parser import parse_string
 from scenic.syntax.compiler import compileScenicAST
 
 ### THE TOP LEVEL: compiling a Scenic program
+
 
 @dataclasses.dataclass
 class CompileOptions:
@@ -99,8 +99,17 @@ class CompileOptions:
         # (e.g. the hashes of strings are randomized)
         return hashlib.blake2b(stream.getvalue(), digest_size=4).digest()
 
-def scenarioFromString(string, params={}, model=None, scenario=None, *,
-                       filename='<string>', mode2D=False, cacheImports=False):
+
+def scenarioFromString(
+    string,
+    params={},
+    model=None,
+    scenario=None,
+    *,
+    filename="<string>",
+    mode2D=False,
+    cacheImports=False,
+):
     """Compile a string of Scenic code into a `Scenario`.
 
     The optional **filename** is used for error messages.
@@ -108,11 +117,14 @@ def scenarioFromString(string, params={}, model=None, scenario=None, *,
     """
     stream = io.BytesIO(string.encode())
     options = CompileOptions(modelOverride=model, paramOverrides=params, mode2D=mode2D)
-    return scenarioFromStream(stream, options, filename, scenario=scenario,
-                              cacheImports=cacheImports)
+    return scenarioFromStream(
+        stream, options, filename, scenario=scenario, cacheImports=cacheImports
+    )
 
-def scenarioFromFile(path, params={}, model=None, scenario=None, *,
-                     mode2D=False, cacheImports=False):
+
+def scenarioFromFile(
+    path, params={}, model=None, scenario=None, *, mode2D=False, cacheImports=False
+):
     """Compile a Scenic file into a `Scenario`.
 
     Args:
@@ -140,18 +152,26 @@ def scenarioFromFile(path, params={}, model=None, scenario=None, *,
     fullpath = os.path.realpath(path)
     head, extension = os.path.splitext(fullpath)
     if not extension or extension not in scenicExtensions:
-        ok = ', '.join(scenicExtensions)
-        err = f'Scenic scenario does not have valid extension ({ok})'
+        ok = ", ".join(scenicExtensions)
+        err = f"Scenic scenario does not have valid extension ({ok})"
         raise RuntimeError(err)
     directory, name = os.path.split(head)
 
     options = CompileOptions(modelOverride=model, paramOverrides=params, mode2D=mode2D)
-    with open(path, 'rb') as stream:
-        return scenarioFromStream(stream, options, fullpath, scenario=scenario,
-                                  path=path, cacheImports=cacheImports)
+    with open(path, "rb") as stream:
+        return scenarioFromStream(
+            stream,
+            options,
+            fullpath,
+            scenario=scenario,
+            path=path,
+            cacheImports=cacheImports,
+        )
 
-def scenarioFromStream(stream, compileOptions, filename, *,
-                       scenario=None, path=None, cacheImports=False):
+
+def scenarioFromStream(
+    stream, compileOptions, filename, *, scenario=None, path=None, cacheImports=False
+):
     """Compile a stream of Scenic code into a `Scenario`."""
     # Compile the code as if it were a top-level module
     oldModules = list(sys.modules.keys())
@@ -164,6 +184,7 @@ def scenarioFromStream(stream, compileOptions, filename, *,
     # Construct a Scenario from the resulting namespace
     return constructScenarioFrom(namespace, scenario)
 
+
 @contextmanager
 def topLevelNamespace(path=None):
     """Creates an environment like that of a Python script being run directly.
@@ -174,9 +195,9 @@ def topLevelNamespace(path=None):
     directory if it exists there.
     """
     directory = os.getcwd() if path is None else os.path.dirname(path)
-    namespace = { '__name__': '__main__' }
+    namespace = {"__name__": "__main__"}
     if path is not None:
-        namespace['__file__'] = path
+        namespace["__file__"] = path
     sys.path.insert(0, directory)
     try:
         yield namespace
@@ -187,6 +208,7 @@ def topLevelNamespace(path=None):
             sys.path.remove(directory)
         except ValueError:
             pass
+
 
 def purgeModulesUnsafeToCache(oldModules):
     """Uncache loaded modules which should not be kept after compilation.
@@ -207,7 +229,7 @@ def purgeModulesUnsafeToCache(oldModules):
         if isinstance(module, ScenicModule) and name not in oldModules:
             toRemove.append(name)
     for name in toRemove:
-        parent, _, child = name.rpartition('.')
+        parent, _, child = name.rpartition(".")
         parent = sys.modules.get(parent)
         if parent:
             # Remove reference to purged module from parent module. This is necessary
@@ -241,6 +263,7 @@ def purgeModulesUnsafeToCache(oldModules):
             # reference to the old version of the Scenic module.)
         del sys.modules[name]
 
+
 def compileStream(stream, namespace, compileOptions, filename):
     """Compile a stream of Scenic code and execute it in a namespace.
 
@@ -255,22 +278,22 @@ def compileStream(stream, namespace, compileOptions, filename):
            This is done by the `storeScenarioStateIn` function.
     """
     if errors.verbosityLevel >= 2:
-        veneer.verbosePrint(f'  Compiling Scenic module from {filename}...')
+        veneer.verbosePrint(f"  Compiling Scenic module from {filename}...")
         startTime = time.time()
     veneer.activate(compileOptions, namespace)
     try:
         # Execute preamble
-        exec(compile(preamble, '<veneer>', 'exec'), namespace)
+        exec(compile(preamble, "<veneer>", "exec"), namespace)
         namespace[namespaceReference] = namespace
 
         # Parse the source
-        source = stream.read().decode('utf-8')
+        source = stream.read().decode("utf-8")
         scenic_tree = parse_string(source, "exec", filename=filename)
 
         if dumpScenicAST:
-            print(f'### Begin Scenic AST of {filename}')
+            print(f"### Begin Scenic AST of {filename}")
             print(dump(scenic_tree, include_attributes=False, indent=4))
-            print('### End Scenic AST')
+            print("### End Scenic AST")
 
         # Compile the Scenic AST into a Python AST
         tree, requirements = compileScenicAST(scenic_tree, filename=filename)
@@ -278,18 +301,20 @@ def compileStream(stream, namespace, compileOptions, filename):
         astHasher.update(ast.dump(tree).encode())
 
         if dumpFinalAST:
-            print(f'### Begin final AST of {filename}')
+            print(f"### Begin final AST of {filename}")
             print(dump(tree, include_attributes=True, indent=4))
-            print('### End final AST')
+            print("### End final AST")
 
         pythonSource = astToSource(tree)
         if dumpASTPython:
             if pythonSource is None:
-                raise RuntimeError('dumping the Python equivalent of the AST'
-                                   ' requires the astor package')
-            print(f'### Begin Python equivalent of final AST of {filename}')
+                raise RuntimeError(
+                    "dumping the Python equivalent of the AST"
+                    " requires the astor package"
+                )
+            print(f"### Begin Python equivalent of final AST of {filename}")
             print(pythonSource)
-            print('### End Python equivalent of final AST')
+            print("### End Python equivalent of final AST")
 
         # Compile the Python AST tree
         code = compileTranslatedTree(tree, filename)
@@ -304,15 +329,23 @@ def compileStream(stream, namespace, compileOptions, filename):
         veneer.deactivate()
     if errors.verbosityLevel >= 2:
         totalTime = time.time() - startTime
-        veneer.verbosePrint(f'  Compiled Scenic module in {totalTime:.4g} seconds.')
+        veneer.verbosePrint(f"  Compiled Scenic module in {totalTime:.4g} seconds.")
     return code, pythonSource
 
-def dump(node: ast.AST, annotate_fields: bool = True, include_attributes: bool = False, *, indent: int):
+
+def dump(
+    node: ast.AST,
+    annotate_fields: bool = True,
+    include_attributes: bool = False,
+    *,
+    indent: int,
+):
     if sys.version_info >= (3, 9):
         print(ast.dump(node, annotate_fields, include_attributes, indent=indent))
     else:
         # omit `indent` if not supported
         print(ast.dump(node, annotate_fields, include_attributes))
+
 
 def astToSource(tree: ast.AST):
     if sys.version_info >= (3, 9):
@@ -322,6 +355,7 @@ def astToSource(tree: ast.AST):
     except ModuleNotFoundError:
         return None
     return astor.to_source(tree)
+
 
 ### TRANSLATION PHASE ZERO: definitions of language elements not already in Python
 
@@ -344,11 +378,12 @@ from scenic.syntax.veneer import *
 
 api = set(veneer.__all__)
 
-namespaceReference = '_Scenic_module_namespace'     # used in the implementation of 'model'
+namespaceReference = "_Scenic_module_namespace"  # used in the implementation of 'model'
 
 ### TRANSLATION PHASE ONE: handling imports
 
 ## Loader for Scenic files, producing ScenicModules
+
 
 class ScenicLoader(importlib.abc.InspectLoader):
     def __init__(self, name, filepath):
@@ -359,11 +394,12 @@ class ScenicLoader(importlib.abc.InspectLoader):
 
     def exec_module(self, module):
         # Read source file and compile it
-        with open(self.filepath, 'r') as stream:
+        with open(self.filepath, "r") as stream:
             source = stream.read()
-        with open(self.filepath, 'rb') as stream:
-            code, pythonSource = compileStream(stream, module.__dict__,
-                                               CompileOptions(), self.filepath)
+        with open(self.filepath, "rb") as stream:
+            code, pythonSource = compileStream(
+                stream, module.__dict__, CompileOptions(), self.filepath
+            )
         # Save code, source, and translated source for later inspection
         module._code = code
         module._source = source
@@ -387,39 +423,44 @@ class ScenicLoader(importlib.abc.InspectLoader):
         assert isinstance(module, ScenicModule), module
         return module._pythonSource
 
+
 # Hack to give instances of ScenicModule a falsy __module__ to prevent
 # Sphinx from getting confused. (Autodoc doesn't expect modules to have
 # that attribute, and we can't del it.) We only do this during Sphinx
 # runs since it breaks pickling of the modules.
 oldname = __name__
-if getattr(veneer, '_buildingSphinx', False):
+if getattr(veneer, "_buildingSphinx", False):
     __name__ = None
+
 
 class ScenicModule(types.ModuleType):
     def __getstate__(self):
         state = self.__dict__.copy()
-        del state['__builtins__']
+        del state["__builtins__"]
         return (self.__name__, state)
 
     def __setstate__(self, state):
         name, state = state
-        self.__init__(name)     # needed to create __dict__
+        self.__init__(name)  # needed to create __dict__
         self.__dict__.update(state)
         self.__builtins__ = builtins.__dict__
+
 
 __name__ = oldname
 
 ## Finder for Scenic (and Python) files
 
-scenicExtensions = ('.scenic', '.sc')
+scenicExtensions = (".scenic", ".sc")
 
 import importlib.machinery as machinery
+
 loaders = [
     (machinery.ExtensionFileLoader, machinery.EXTENSION_SUFFIXES),
     (machinery.SourceFileLoader, machinery.SOURCE_SUFFIXES),
     (machinery.SourcelessFileLoader, machinery.BYTECODE_SUFFIXES),
     (ScenicLoader, scenicExtensions),
 ]
+
 
 class ScenicFileFinder(importlib.abc.PathEntryFinder):
     def __init__(self, path):
@@ -450,15 +491,15 @@ class ScenicFileFinder(importlib.abc.PathEntryFinder):
                 base = os.path.basename(fn)
                 for ext in scenicExtensions:
                     if base.endswith(ext):
-                        modname = base[:-len(ext)]
+                        modname = base[: -len(ext)]
                         break
-            if modname == '__init__' or modname in yielded:
+            if modname == "__init__" or modname in yielded:
                 continue
 
             path = os.path.join(self._inner.path, fn)
             ispkg = False
 
-            if not modname and os.path.isdir(path) and '.' not in fn:
+            if not modname and os.path.isdir(path) and "." not in fn:
                 modname = fn
                 try:
                     dircontents = os.listdir(path)
@@ -467,23 +508,26 @@ class ScenicFileFinder(importlib.abc.PathEntryFinder):
                     dircontents = []
                 for fn in dircontents:
                     subname = inspect.getmodulename(fn)
-                    if subname == '__init__':
+                    if subname == "__init__":
                         ispkg = True
                         break
                 else:
-                    continue    # not a package
+                    continue  # not a package
 
-            if modname and '.' not in modname:
+            if modname and "." not in modname:
                 yielded[modname] = 1
                 yield prefix + modname, ispkg
+
 
 # Install path hook using our finder
 def scenic_path_hook(path):
     if not path:
         path = os.getcwd()
     if not os.path.isdir(path):
-        raise ImportError('only directories are supported', path=path)
+        raise ImportError("only directories are supported", path=path)
     return ScenicFileFinder(path)
+
+
 sys.path_hooks.insert(0, scenic_path_hook)
 sys.path_importer_cache.clear()
 
@@ -491,13 +535,16 @@ sys.path_importer_cache.clear()
 
 ### TRANSLATION PHASE FIVE: AST compilation
 
+
 def compileTranslatedTree(tree, filename):
     try:
-        return compile(tree, filename, 'exec')
+        return compile(tree, filename, "exec")
     except SyntaxError as e:
         raise PythonCompileError(e) from None
 
+
 ### TRANSLATION PHASE SIX: Python execution
+
 
 def executeCodeIn(code, namespace):
     """Execute the final translated Python code in the given namespace."""
@@ -509,19 +556,24 @@ def executeCodeIn(code, namespace):
         if errors.showInternalBacktrace:
             raise InvalidScenarioError(e.args[0]) from e
         else:
-            raise InvalidScenarioError(e.args[0]).with_traceback(e.__traceback__) from None
+            raise InvalidScenarioError(e.args[0]).with_traceback(
+                e.__traceback__
+            ) from None
+
 
 ### TRANSLATION PHASE SEVEN: scenario construction
+
 
 def storeScenarioStateIn(namespace, requirementSyntax, astHash, options):
     """Post-process an executed Scenic module, extracting state from the veneer."""
 
     # Save requirement syntax and other module-level information
-    namespace['_astHash'] = astHash
-    namespace['_compileOptions'] = options
+    namespace["_astHash"] = astHash
+    namespace["_compileOptions"] = options
     moduleScenario = veneer.currentScenario
     factory = veneer.simulatorFactory
     bns = gatherBehaviorNamespacesFrom(moduleScenario._behaviors)
+
     def handle(scenario):
         scenario._requirementSyntax = requirementSyntax
         if isinstance(scenario, type):
@@ -529,8 +581,9 @@ def storeScenarioStateIn(namespace, requirementSyntax, astHash, options):
         else:
             scenario._simulatorFactory = factory
         scenario._behaviorNamespaces = bns
+
     handle(moduleScenario)
-    namespace['_scenarios'] = tuple(veneer.scenarios)
+    namespace["_scenarios"] = tuple(veneer.scenarios)
     for scenarioClass in veneer.scenarios:
         handle(scenarioClass)
 
@@ -541,13 +594,16 @@ def storeScenarioStateIn(namespace, requirementSyntax, astHash, options):
     # Save global parameters
     for name, value in veneer._globalParameters.items():
         if needsLazyEvaluation(value):
-            raise InvalidScenarioError(f'parameter {name} uses value {value}'
-                                       ' undefined outside of object definition')
+            raise InvalidScenarioError(
+                f"parameter {name} uses value {value}"
+                " undefined outside of object definition"
+            )
     for scenario in veneer.scenarios:
         scenario._bindGlobals(veneer._globalParameters)
     moduleScenario._bindGlobals(veneer._globalParameters)
 
-    namespace['_scenario'] = moduleScenario
+    namespace["_scenario"] = moduleScenario
+
 
 def gatherBehaviorNamespacesFrom(behaviors):
     """Gather any global namespaces which could be referred to by behaviors.
@@ -555,6 +611,7 @@ def gatherBehaviorNamespacesFrom(behaviors):
     We'll need to rebind any sampled values in them at runtime.
     """
     behaviorNamespaces = {}
+
     def registerNamespace(modName, ns):
         oldNS = behaviorNamespaces.get(modName)
         if oldNS:
@@ -562,8 +619,9 @@ def gatherBehaviorNamespacesFrom(behaviors):
             # bugs from having multiple versions of the same module around.
             if oldNS is not ns:
                 raise RuntimeError(
-                    f'scenario refers to multiple versions of module {modName}; '
-                    'perhaps you imported it before you started compilation?')
+                    f"scenario refers to multiple versions of module {modName}; "
+                    "perhaps you imported it before you started compilation?"
+                )
             return
         behaviorNamespaces[modName] = ns
         for name, value in ns.items():
@@ -574,37 +632,44 @@ def gatherBehaviorNamespacesFrom(behaviors):
                 dval = toDistribution(value)
                 if dval is not value:
                     ns[name] = dval
+
     for behavior in behaviors:
         modName = behavior.__module__
         globalNamespace = behavior.makeGenerator.__globals__
         registerNamespace(modName, globalNamespace)
     return behaviorNamespaces
 
+
 def constructScenarioFrom(namespace, scenarioName=None):
     """Build a Scenario object from an executed Scenic module."""
-    modularScenarios = namespace['_scenarios']
+    modularScenarios = namespace["_scenarios"]
+
     def isModularScenario(thing):
         return isinstance(thing, type) and issubclass(thing, dynamics.DynamicScenario)
-    if not scenarioName and isModularScenario(namespace.get('Main', None)):
-        scenarioName = 'Main'
+
+    if not scenarioName and isModularScenario(namespace.get("Main", None)):
+        scenarioName = "Main"
     if scenarioName:
         ty = namespace.get(scenarioName, None)
         if not isModularScenario(ty):
             raise RuntimeError(f'no scenario "{scenarioName}" found')
         if ty._requiresArguments():
-            raise RuntimeError(f'cannot instantiate scenario "{scenarioName}"'
-                               ' with no arguments') from None
+            raise RuntimeError(
+                f'cannot instantiate scenario "{scenarioName}"' " with no arguments"
+            ) from None
 
         dynScenario = ty()
     elif len(modularScenarios) > 1:
-        raise RuntimeError('multiple choices for scenario to run '
-                           '(specify using the --scenario option)')
+        raise RuntimeError(
+            "multiple choices for scenario to run "
+            "(specify using the --scenario option)"
+        )
     elif modularScenarios and not modularScenarios[0]._requiresArguments():
         dynScenario = modularScenarios[0]()
     else:
-        dynScenario = namespace['_scenario']
+        dynScenario = namespace["_scenario"]
 
-    if not dynScenario._prepared:   # true for all except top-level scenarios
+    if not dynScenario._prepared:  # true for all except top-level scenarios
         # Execute setup block (if any) to create objects and requirements;
         # extract any requirements and scan for relations used for pruning
         dynScenario._prepare(delayPreconditionCheck=True)

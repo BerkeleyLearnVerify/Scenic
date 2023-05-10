@@ -112,21 +112,22 @@ try:
     from pygame.locals import K_MINUS
     from pygame.locals import K_EQUALS
 except ImportError:
-    raise RuntimeError('cannot import pygame, make sure pygame package is installed')
+    raise RuntimeError("cannot import pygame, make sure pygame package is installed")
 
 try:
     import numpy as np
 except ImportError:
-    raise RuntimeError('cannot import numpy, make sure numpy package is installed')
+    raise RuntimeError("cannot import numpy, make sure numpy package is installed")
 
 
 # ==============================================================================
 # -- Global functions ----------------------------------------------------------
 # ==============================================================================
 
+
 def get_actor_display_name(actor, truncate=250):
-    name = ' '.join(actor.type_id.replace('_', '.').title().split('.')[1:])
-    return (name[:truncate - 1] + u'\u2026') if len(name) > truncate else name
+    name = " ".join(actor.type_id.replace("_", ".").title().split(".")[1:])
+    return (name[: truncate - 1] + "\u2026") if len(name) > truncate else name
 
 
 # ==============================================================================
@@ -135,16 +136,17 @@ def get_actor_display_name(actor, truncate=250):
 
 
 class World(object):
-
     def __init__(self, carla_world, hud, args):
         self.world = carla_world
         self.actor_role_name = args.rolename
         try:
             self.map = self.world.get_map()
         except RuntimeError as error:
-            print('RuntimeError: {}'.format(error))
-            print('  The server could not send the OpenDRIVE (.xodr) file:')
-            print('  Make sure it exists, has the same name of your town, and is correct.')
+            print("RuntimeError: {}".format(error))
+            print("  The server could not send the OpenDRIVE (.xodr) file:")
+            print(
+                "  Make sure it exists, has the same name of your town, and is correct."
+            )
             sys.exit(1)
         self.hud = hud
         self.player = None
@@ -154,14 +156,13 @@ class World(object):
         self.world.on_tick(hud.on_world_tick)
 
     def restart(self):
-
         # Get the ego vehicle
         while self.player is None:
             print("Waiting for the ego vehicle...")
             time.sleep(1)
-            possible_vehicles = self.world.get_actors().filter('vehicle.*')
+            possible_vehicles = self.world.get_actors().filter("vehicle.*")
             for vehicle in possible_vehicles:
-                if vehicle.attributes['role_name'] == self.actor_role_name:
+                if vehicle.attributes["role_name"] == self.actor_role_name:
                     print("Ego vehicle found")
                     self.player = vehicle
                     break
@@ -191,6 +192,7 @@ class World(object):
             self.camera_manager.sensor.stop()
             self.camera_manager.sensor.destroy()
 
+
 # ==============================================================================
 # -- KeyboardControl -----------------------------------------------------------
 # ==============================================================================
@@ -198,6 +200,7 @@ class World(object):
 
 class KeyboardControl(object):
     """Class that handles keyboard input."""
+
     def __init__(self, world):
         self._control = carla.VehicleControl()
         self._lights = carla.VehicleLightState.NONE
@@ -220,10 +223,18 @@ class KeyboardControl(object):
                     if event.key == K_q:
                         self._control.gear = 1 if self._control.reverse else -1
                     elif event.key == K_m:
-                        self._control.manual_gear_shift = not self._control.manual_gear_shift
+                        self._control.manual_gear_shift = (
+                            not self._control.manual_gear_shift
+                        )
                         self._control.gear = world.player.get_control().gear
-                        world.hud.notification('%s Transmission' %
-                                               ('Manual' if self._control.manual_gear_shift else 'Automatic'))
+                        world.hud.notification(
+                            "%s Transmission"
+                            % (
+                                "Manual"
+                                if self._control.manual_gear_shift
+                                else "Automatic"
+                            )
+                        )
                     elif self._control.manual_gear_shift and event.key == K_COMMA:
                         self._control.gear = max(-1, self._control.gear - 1)
                     elif self._control.manual_gear_shift and event.key == K_PERIOD:
@@ -235,13 +246,13 @@ class KeyboardControl(object):
             # Set automatic control-related vehicle lights
             if self._control.brake:
                 current_lights |= carla.VehicleLightState.Brake
-            else: # Remove the Brake flag
+            else:  # Remove the Brake flag
                 current_lights &= ~carla.VehicleLightState.Brake
             if self._control.reverse:
                 current_lights |= carla.VehicleLightState.Reverse
-            else: # Remove the Reverse flag
+            else:  # Remove the Reverse flag
                 current_lights &= ~carla.VehicleLightState.Reverse
-            if current_lights != self._lights: # Change the light state only if necessary
+            if current_lights != self._lights:  # Change the light state only if necessary
                 self._lights = current_lights
                 world.player.set_light_state(carla.VehicleLightState(self._lights))
         elif isinstance(self._control, carla.WalkerControl):
@@ -290,12 +301,12 @@ class HUD(object):
     def __init__(self, width, height):
         self.dim = (width, height)
         font = pygame.font.Font(pygame.font.get_default_font(), 20)
-        font_name = 'courier' if os.name == 'nt' else 'mono'
+        font_name = "courier" if os.name == "nt" else "mono"
         fonts = [x for x in pygame.font.get_fonts() if font_name in x]
-        default_font = 'ubuntumono'
+        default_font = "ubuntumono"
         mono = default_font if default_font in fonts else fonts[0]
         mono = pygame.font.match_font(mono)
-        self._font_mono = pygame.font.Font(mono, 12 if os.name == 'nt' else 14)
+        self._font_mono = pygame.font.Font(mono, 12 if os.name == "nt" else 14)
         self._notifications = FadingText(font, (width, 40), (0, height - 40))
         self.help = HelpText(pygame.font.Font(mono, 16), width, height)
         self.server_fps = 0
@@ -317,39 +328,50 @@ class HUD(object):
             return
         t = world.player.get_transform()
         v = world.player.get_velocity()
-        c = world.player.get_control()        
+        c = world.player.get_control()
         self._info_text = [
-            'Server:  % 16.0f FPS' % self.server_fps,
-            'Client:  % 16.0f FPS' % clock.get_fps(),
-            '',
-            'Vehicle: % 20s' % get_actor_display_name(world.player, truncate=20),
-            'Map:     % 20s' % world.map.name,
-            'Simulation time: % 12s' % datetime.timedelta(seconds=int(self.simulation_time)),
-            '',
-            'Speed:   % 15.0f km/h' % (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)),
-            'Location:% 20s' % ('(% 5.1f, % 5.1f)' % (t.location.x, t.location.y)),
-            'Height:  % 18.0f m' % t.location.z,
-            '']
+            "Server:  % 16.0f FPS" % self.server_fps,
+            "Client:  % 16.0f FPS" % clock.get_fps(),
+            "",
+            "Vehicle: % 20s" % get_actor_display_name(world.player, truncate=20),
+            "Map:     % 20s" % world.map.name,
+            "Simulation time: % 12s"
+            % datetime.timedelta(seconds=int(self.simulation_time)),
+            "",
+            "Speed:   % 15.0f km/h" % (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)),
+            "Location:% 20s" % ("(% 5.1f, % 5.1f)" % (t.location.x, t.location.y)),
+            "Height:  % 18.0f m" % t.location.z,
+            "",
+        ]
         if isinstance(c, carla.VehicleControl):
             self._info_text += [
-                ('Throttle:', c.throttle, 0.0, 1.0),
-                ('Steer:', c.steer, -1.0, 1.0),
-                ('Brake:', c.brake, 0.0, 1.0),
-                ('Reverse:', c.reverse),
-                ('Hand brake:', c.hand_brake),
-                ('Manual:', c.manual_gear_shift),
-                'Gear:        %s' % {-1: 'R', 0: 'N'}.get(c.gear, c.gear)]
+                ("Throttle:", c.throttle, 0.0, 1.0),
+                ("Steer:", c.steer, -1.0, 1.0),
+                ("Brake:", c.brake, 0.0, 1.0),
+                ("Reverse:", c.reverse),
+                ("Hand brake:", c.hand_brake),
+                ("Manual:", c.manual_gear_shift),
+                "Gear:        %s" % {-1: "R", 0: "N"}.get(c.gear, c.gear),
+            ]
 
-        vehicles = world.world.get_actors().filter('vehicle.*')
+        vehicles = world.world.get_actors().filter("vehicle.*")
         if len(vehicles) > 1:
-            self._info_text += ['Nearby vehicles:']
-            distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
-            vehicles = [(distance(x.get_location()), x) for x in vehicles if x.id != world.player.id]
+            self._info_text += ["Nearby vehicles:"]
+            distance = lambda l: math.sqrt(
+                (l.x - t.location.x) ** 2
+                + (l.y - t.location.y) ** 2
+                + (l.z - t.location.z) ** 2
+            )
+            vehicles = [
+                (distance(x.get_location()), x)
+                for x in vehicles
+                if x.id != world.player.id
+            ]
             for d, vehicle in sorted(vehicles, key=lambda vehicles: vehicles[0]):
                 if d > 200.0:
                     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
-                self._info_text.append('% 4dm %s' % (d, vehicle_type))
+                self._info_text.append("% 4dm %s" % (d, vehicle_type))
 
     def toggle_info(self):
         self._show_info = not self._show_info
@@ -358,7 +380,7 @@ class HUD(object):
         self._notifications.set_text(text, seconds=seconds)
 
     def error(self, text):
-        self._notifications.set_text('Error: %s' % text, (255, 0, 0))
+        self._notifications.set_text("Error: %s" % text, (255, 0, 0))
 
     def render(self, display):
         if self._show_info:
@@ -373,22 +395,33 @@ class HUD(object):
                     break
                 if isinstance(item, list):
                     if len(item) > 1:
-                        points = [(x + 8, v_offset + 8 + (1.0 - y) * 30) for x, y in enumerate(item)]
+                        points = [
+                            (x + 8, v_offset + 8 + (1.0 - y) * 30)
+                            for x, y in enumerate(item)
+                        ]
                         pygame.draw.lines(display, (255, 136, 0), False, points, 2)
                     item = None
                     v_offset += 18
                 elif isinstance(item, tuple):
                     if isinstance(item[1], bool):
                         rect = pygame.Rect((bar_h_offset, v_offset + 8), (6, 6))
-                        pygame.draw.rect(display, (255, 255, 255), rect, 0 if item[1] else 1)
+                        pygame.draw.rect(
+                            display, (255, 255, 255), rect, 0 if item[1] else 1
+                        )
                     else:
-                        rect_border = pygame.Rect((bar_h_offset, v_offset + 8), (bar_width, 6))
+                        rect_border = pygame.Rect(
+                            (bar_h_offset, v_offset + 8), (bar_width, 6)
+                        )
                         pygame.draw.rect(display, (255, 255, 255), rect_border, 1)
                         f = (item[1] - item[2]) / (item[3] - item[2])
                         if item[2] < 0.0:
-                            rect = pygame.Rect((bar_h_offset + f * (bar_width - 6), v_offset + 8), (6, 6))
+                            rect = pygame.Rect(
+                                (bar_h_offset + f * (bar_width - 6), v_offset + 8), (6, 6)
+                            )
                         else:
-                            rect = pygame.Rect((bar_h_offset, v_offset + 8), (f * bar_width, 6))
+                            rect = pygame.Rect(
+                                (bar_h_offset, v_offset + 8), (f * bar_width, 6)
+                            )
                         pygame.draw.rect(display, (255, 255, 255), rect)
                     item = item[0]
                 if item:  # At this point has to be a str.
@@ -435,8 +468,9 @@ class FadingText(object):
 
 class HelpText(object):
     """Helper class to handle text output using pygame"""
+
     def __init__(self, font, width, height):
-        lines = __doc__.split('\n')
+        lines = __doc__.split("\n")
         self.font = font
         self.line_space = 18
         self.dim = (780, len(lines) * self.line_space + 12)
@@ -471,13 +505,14 @@ class CameraManager(object):
         self.hud = hud
 
         bp = parent_actor.get_world().get_blueprint_library().find("sensor.camera.rgb")
-        bp.set_attribute('image_size_x', str(hud.dim[0]))
-        bp.set_attribute('image_size_y', str(hud.dim[1]))
+        bp.set_attribute("image_size_x", str(hud.dim[0]))
+        bp.set_attribute("image_size_y", str(hud.dim[1]))
         self.sensor = self._parent.get_world().spawn_actor(
             bp,
             carla.Transform(carla.Location(x=-5.5, z=2.5), carla.Rotation(pitch=-20.0)),
             attach_to=self._parent,
-            attachment_type=carla.AttachmentType.Rigid)
+            attachment_type=carla.AttachmentType.Rigid,
+        )
 
         # We need to pass the lambda a weak reference to self to avoid
         # circular reference.
@@ -500,6 +535,7 @@ class CameraManager(object):
         array = array[:, :, ::-1]
         self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
 
+
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
 # ==============================================================================
@@ -515,9 +551,9 @@ def game_loop(args):
         client.set_timeout(2.0)
 
         display = pygame.display.set_mode(
-            (args.width, args.height),
-            pygame.HWSURFACE | pygame.DOUBLEBUF)
-        display.fill((0,0,0))
+            (args.width, args.height), pygame.HWSURFACE | pygame.DOUBLEBUF
+        )
+        display.fill((0, 0, 0))
         pygame.display.flip()
 
         hud = HUD(args.width, args.height)
@@ -545,53 +581,57 @@ def game_loop(args):
 
 
 def main():
-    argparser = argparse.ArgumentParser(
-        description='CARLA Manual Control Client')
+    argparser = argparse.ArgumentParser(description="CARLA Manual Control Client")
     argparser.add_argument(
-        '-v', '--verbose',
-        action='store_true',
-        dest='debug',
-        help='print debug information')
+        "-v",
+        "--verbose",
+        action="store_true",
+        dest="debug",
+        help="print debug information",
+    )
     argparser.add_argument(
-        '--host',
-        metavar='H',
-        default='127.0.0.1',
-        help='IP of the host server (default: 127.0.0.1)')
+        "--host",
+        metavar="H",
+        default="127.0.0.1",
+        help="IP of the host server (default: 127.0.0.1)",
+    )
     argparser.add_argument(
-        '-p', '--port',
-        metavar='P',
+        "-p",
+        "--port",
+        metavar="P",
         default=2000,
         type=int,
-        help='TCP port to listen to (default: 2000)')
+        help="TCP port to listen to (default: 2000)",
+    )
     argparser.add_argument(
-        '--res',
-        metavar='WIDTHxHEIGHT',
-        default='1280x720',
-        help='window resolution (default: 1280x720)')
+        "--res",
+        metavar="WIDTHxHEIGHT",
+        default="1280x720",
+        help="window resolution (default: 1280x720)",
+    )
     argparser.add_argument(
-        '--rolename',
-        metavar='NAME',
-        default='hero',
-        help='actor role name (default: "hero")')
+        "--rolename",
+        metavar="NAME",
+        default="hero",
+        help='actor role name (default: "hero")',
+    )
     args = argparser.parse_args()
 
-    args.width, args.height = [int(x) for x in args.res.split('x')]
+    args.width, args.height = [int(x) for x in args.res.split("x")]
 
     log_level = logging.DEBUG if args.debug else logging.INFO
-    logging.basicConfig(format='%(levelname)s: %(message)s', level=log_level)
+    logging.basicConfig(format="%(levelname)s: %(message)s", level=log_level)
 
-    logging.info('listening to server %s:%s', args.host, args.port)
+    logging.info("listening to server %s:%s", args.host, args.port)
 
     print(__doc__)
 
     try:
-
         game_loop(args)
 
     except KeyboardInterrupt:
-        print('\nCancelled by user. Bye!')
+        print("\nCancelled by user. Bye!")
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     main()

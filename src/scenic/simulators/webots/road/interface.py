@@ -13,18 +13,25 @@ import scenic.simulators.webots.world_parser as world_parser
 from scenic.core.workspaces import Workspace
 from scenic.core.vectors import PolygonalVectorField
 from scenic.core.regions import PolygonalRegion, PolylineRegion, nowhere
-from scenic.core.geometry import (normalizeAngle, rotateVector, polygonUnion, cleanChain,
-                                  plotPolygon)
+from scenic.core.geometry import (
+    normalizeAngle,
+    rotateVector,
+    polygonUnion,
+    cleanChain,
+    plotPolygon,
+)
 from scenic.syntax.veneer import verbosePrint
+
 
 def polygonWithPoints(points):
     polygon = shapely.geometry.Polygon(points)
-    if not polygon.is_valid:    # TODO improve hack?
-        verbosePrint(f'WARNING: simplifying invalid polygon with points {points}')
+    if not polygon.is_valid:  # TODO improve hack?
+        verbosePrint(f"WARNING: simplifying invalid polygon with points {points}")
         polygon = polygon.simplify(0.5)
         if not polygon.is_valid:
-            raise RuntimeError(f'unable to simplify polygon {polygon}')
+            raise RuntimeError(f"unable to simplify polygon {polygon}")
     return polygon
+
 
 def regionWithPolygons(polygons, orientation=None):
     if polygons.is_empty:
@@ -32,39 +39,48 @@ def regionWithPolygons(polygons, orientation=None):
     else:
         return PolygonalRegion(polygon=polygons, orientation=orientation)
 
+
 ## Classes for WBT nodes we are interested in
+
 
 class OSMObject:
     """Objects with OSM id tags"""
+
     def __init__(self, attrs):
         self.attrs = attrs
-        self.osmID = attrs['id']
+        self.osmID = attrs["id"]
+
 
 class Road(OSMObject):
     """OSM roads"""
+
     def __init__(self, attrs, driveOnLeft=False):
         super().__init__(attrs)
         self.driveOnLeft = driveOnLeft
-        self.translation = attrs['translation']
-        pts = [np.array(webotsToScenicPosition(p + self.translation)) for p in attrs['wayPoints']]
+        self.translation = attrs["translation"]
+        pts = [
+            np.array(webotsToScenicPosition(p + self.translation))
+            for p in attrs["wayPoints"]
+        ]
         self.waypoints = tuple(cleanChain(pts, 0.05))
         assert len(self.waypoints) > 1, pts
-        self.width = float(attrs.get('width', 7))
-        self.lanes = int(attrs.get('numberOfLanes', 2))
+        self.width = float(attrs.get("width", 7))
+        self.lanes = int(attrs.get("numberOfLanes", 2))
         if self.lanes < 1:
-            raise RuntimeError(f'Road {self.osmID} has fewer than 1 lane!')
-        self.forwardLanes = int(attrs.get('numberOfForwardLanes', 1))
+            raise RuntimeError(f"Road {self.osmID} has fewer than 1 lane!")
+        self.forwardLanes = int(attrs.get("numberOfForwardLanes", 1))
         # if self.forwardLanes < 1:
         #   raise RuntimeError(f'Road {self.osmID} has fewer than 1 forward lane!')
         self.backwardLanes = self.lanes - self.forwardLanes
-        self.hasLeftSidewalk = attrs.get('leftBorder', True)
-        self.hasRightSidewalk = attrs.get('rightBorder', True)
-        self.sidewalkWidths = list(attrs.get('roadBorderWidth', [0.8]))
-        if ((self.hasLeftSidewalk or self.hasRightSidewalk)
-                and len(self.sidewalkWidths) < 1):
-            raise RuntimeError(f'Road {self.osmID} has sidewalk with empty width!')
-        self.startCrossroad = attrs.get('startJunction')
-        self.endCrossroad = attrs.get('endJunction')
+        self.hasLeftSidewalk = attrs.get("leftBorder", True)
+        self.hasRightSidewalk = attrs.get("rightBorder", True)
+        self.sidewalkWidths = list(attrs.get("roadBorderWidth", [0.8]))
+        if (self.hasLeftSidewalk or self.hasRightSidewalk) and len(
+            self.sidewalkWidths
+        ) < 1:
+            raise RuntimeError(f"Road {self.osmID} has sidewalk with empty width!")
+        self.startCrossroad = attrs.get("startJunction")
+        self.endCrossroad = attrs.get("endJunction")
 
     def computeGeometry(self, crossroads, snapTolerance=0.05):
         ## Approximate bounding polygon and sidewalks
@@ -72,20 +88,21 @@ class Road(OSMObject):
         lefts, rights = [], []
         leftSidewalk, rightSidewalk = [], []
         headings = []
-        sidewalkWidths = itertools.chain(self.sidewalkWidths,
-                                         itertools.repeat(self.sidewalkWidths[-1]))
+        sidewalkWidths = itertools.chain(
+            self.sidewalkWidths, itertools.repeat(self.sidewalkWidths[-1])
+        )
         segments = zip(self.waypoints, sidewalkWidths)
         for i, segment in enumerate(segments):
             point, sidewalkWidth = segment
-            if i+1 < len(self.waypoints):
-                nextPt = self.waypoints[i+1]
+            if i + 1 < len(self.waypoints):
+                nextPt = self.waypoints[i + 1]
                 dx, dy = nextPt - point
                 heading = normalizeAngle(math.atan2(dy, dx) - (math.pi / 2))
                 headings.append(heading)
                 perp = np.array([-dy, dx])
                 perp /= np.linalg.norm(perp)
             else:
-                pass    # use perp from last segment
+                pass  # use perp from last segment
             toEdge = perp * (self.width / 2)
             left = point + toEdge
             right = point - toEdge
@@ -100,7 +117,9 @@ class Road(OSMObject):
             sc = self.startCrossroad
             if sc is not None:
                 if sc not in crossroads:
-                    raise RuntimeError(f'Road {self.osmID} begins at invalid crossroad {sc}')
+                    raise RuntimeError(
+                        f"Road {self.osmID} begins at invalid crossroad {sc}"
+                    )
                 crossroad = crossroads[sc]
                 if crossroad.region is not None:
                     pt = shapely.geometry.Point(lefts[0])
@@ -116,7 +135,9 @@ class Road(OSMObject):
             ec = self.endCrossroad
             if ec is not None:
                 if ec not in crossroads:
-                    raise RuntimeError(f'Road {self.osmID} ends at invalid crossroad {ec}')
+                    raise RuntimeError(
+                        f"Road {self.osmID} ends at invalid crossroad {ec}"
+                    )
                 crossroad = crossroads[ec]
                 if crossroad.region is not None:
                     pt = shapely.geometry.Point(lefts[-1])
@@ -163,7 +184,9 @@ class Road(OSMObject):
                 nextMarkerA = markerA - gapA
                 nextMarkerB = markerB - gapB
                 markers.append(nextMarkerA)
-                cell = shapely.geometry.Polygon((markerA, markerB, nextMarkerB, nextMarkerA))
+                cell = shapely.geometry.Polygon(
+                    (markerA, markerB, nextMarkerB, nextMarkerA)
+                )
                 heading = heading if forward else normalizeAngle(heading + math.pi)
                 cells.append((cell, heading))
                 markerA = nextMarkerA
@@ -180,7 +203,7 @@ class Road(OSMObject):
             rightEdge = markers
         self.laneMarkers = laneMarkers[:-1]
         self.cells = cells
-        self.direction = PolygonalVectorField(f'Road{self.osmID}Direction', cells)
+        self.direction = PolygonalVectorField(f"Road{self.osmID}Direction", cells)
 
         roadPolygon = polygonWithPoints(roadPoints)
         self.region = PolygonalRegion(polygon=roadPolygon, orientation=self.direction)
@@ -188,74 +211,84 @@ class Road(OSMObject):
     def show(self, plt):
         if self.hasLeftSidewalk:
             x, y = zip(*self.leftSidewalk.points)
-            plt.fill(x, y, '#A0A0FF')
+            plt.fill(x, y, "#A0A0FF")
         if self.hasRightSidewalk:
             x, y = zip(*self.rightSidewalk.points)
-            plt.fill(x, y, '#A0A0FF')
-        self.region.show(plt, style='r:')
+            plt.fill(x, y, "#A0A0FF")
+        self.region.show(plt, style="r:")
         x, y = zip(*self.lanes[0].points)
         plt.fill(x, y, color=(0.8, 1.0, 0.8))
         for lane, markers in enumerate(self.laneMarkers):
             x, y = zip(*markers)
             color = (0.8, 0.8, 0) if lane == self.backwardLanes - 1 else (0.3, 0.3, 0.3)
-            plt.plot(x, y, '--', color=color)
+            plt.plot(x, y, "--", color=color)
+
 
 class Crossroad(OSMObject):
     """OSM crossroads"""
+
     def __init__(self, attrs):
         super().__init__(attrs)
-        self.translation = attrs['translation']
-        points = list(np.array(webotsToScenicPosition(p + self.translation))
-                      for p in attrs['shape'])
+        self.translation = attrs["translation"]
+        points = list(
+            np.array(webotsToScenicPosition(p + self.translation)) for p in attrs["shape"]
+        )
         if len(points) > 0:
             self.points = points
             self.region = PolygonalRegion(self.points)
         else:
-            verbosePrint(f'WARNING: Crossroad {self.osmID} has empty shape field!')
+            verbosePrint(f"WARNING: Crossroad {self.osmID} has empty shape field!")
             self.region = None
 
     def show(self, plt):
         if self.region is not None:
             x, y = zip(*self.points)
             plt.fill(x, y, color=(1, 0.9, 0.9))
-            plt.plot(x, y, ':', color=(1, 0.5, 0))
+            plt.plot(x, y, ":", color=(1, 0.5, 0))
+
 
 class PedestrianCrossing:
     """PedestrianCrossing nodes"""
+
     def __init__(self, attrs):
-        self.translation = attrs.get('translation', np.array((0, 0, 0)))
+        self.translation = attrs.get("translation", np.array((0, 0, 0)))
         pos = np.array(webotsToScenicPosition(self.translation))
-        name = attrs.get('name', '')
-        self.angle = webotsToScenicRotation(attrs.get('rotation', (0, 1, 0, 0)))
+        name = attrs.get("name", "")
+        self.angle = webotsToScenicRotation(attrs.get("rotation", (0, 1, 0, 0)))
         if self.angle is None:
             raise RuntimeError(f'PedestrianCrossing "{name}" is not 2D!')
-        size = attrs.get('size', (20, 8))
+        size = attrs.get("size", (20, 8))
         self.length, self.width = float(size[0]), float(size[1])
-        self.length += 0.2      # pad length to intersect sidewalks better  # TODO improve?
+        self.length += 0.2  # pad length to intersect sidewalks better  # TODO improve?
         hl, hw = self.length / 2, self.width / 2
-        self.corners = tuple(pos + rotateVector(vec, -self.angle)
-            for vec in ((hl, hw), (-hl, hw), (-hl, -hw), (hl, -hw)))
+        self.corners = tuple(
+            pos + rotateVector(vec, -self.angle)
+            for vec in ((hl, hw), (-hl, hw), (-hl, -hw), (hl, -hw))
+        )
         self.region = PolygonalRegion(self.corners)
 
     def show(self, plt):
         x, y = zip(*self.corners)
-        plt.fill(x, y, color='#A0A0FF')
+        plt.fill(x, y, color="#A0A0FF")
+
 
 ## Workspace derived from a WBT world
+
 
 class WebotsWorkspace(Workspace):
     def __init__(self, world):
         # Find roads, crossroads, and pedestrian crossings
         nodeClasses = {
-            'Road': Road,
-            'Crossroad': Crossroad,
-            'PedestrianCrossing': PedestrianCrossing
+            "Road": Road,
+            "Crossroad": Crossroad,
+            "PedestrianCrossing": PedestrianCrossing,
         }
         self.roads, self.crossroads, self.crossings = world_parser.findNodeTypesIn(
-            ('Road', 'Crossroad', 'PedestrianCrossing'), world, nodeClasses)
+            ("Road", "Crossroad", "PedestrianCrossing"), world, nodeClasses
+        )
 
         # Compute road geometry
-        crossroadsByID = { crossroad.osmID: crossroad for crossroad in self.crossroads }
+        crossroadsByID = {crossroad.osmID: crossroad for crossroad in self.crossroads}
         for road in self.roads:
             road.computeGeometry(crossroadsByID)
 
@@ -270,10 +303,12 @@ class WebotsWorkspace(Workspace):
                 for poly in crossroad.region.polygons.geoms:
                     allCells.append((poly, None))
         if not allCells:
-            raise RuntimeError('Webots world has no drivable geometry!')
+            raise RuntimeError("Webots world has no drivable geometry!")
         self.roadDirection = PolygonalVectorField(
-            'roadDirection', allCells,
-            headingFunction=lambda pos: 0, defaultHeading=0     # TODO fix
+            "roadDirection",
+            allCells,
+            headingFunction=lambda pos: 0,
+            defaultHeading=0,  # TODO fix
         )
         if not self.roads:
             roadPoly = None
@@ -281,8 +316,9 @@ class WebotsWorkspace(Workspace):
             self.curbsRegion = nowhere
         else:
             roadPoly = polygonUnion(road.region.polygons for road in self.roads)
-            self.roadsRegion = PolygonalRegion(polygon=roadPoly,
-                                               orientation=self.roadDirection)
+            self.roadsRegion = PolygonalRegion(
+                polygon=roadPoly, orientation=self.roadDirection
+            )
             drivableAreas.append(roadPoly)
             curbs = [road.leftCurb.lineString for road in self.roads]
             curbs.extend(road.rightCurb.lineString for road in self.roads)
@@ -292,11 +328,12 @@ class WebotsWorkspace(Workspace):
             crossroadPoly = None
             self.crossroadsRegion = nowhere
         else:
-            crossroadPoly = polygonUnion(cr.region.polygons
-                                         for cr in self.crossroads
-                                         if cr.region is not None)
-            self.crossroadsRegion = PolygonalRegion(polygon=crossroadPoly,
-                                                    orientation=self.roadDirection)
+            crossroadPoly = polygonUnion(
+                cr.region.polygons for cr in self.crossroads if cr.region is not None
+            )
+            self.crossroadsRegion = PolygonalRegion(
+                polygon=crossroadPoly, orientation=self.roadDirection
+            )
             drivableAreas.append(crossroadPoly)
 
         sidewalks = []
@@ -318,8 +355,9 @@ class WebotsWorkspace(Workspace):
             crossingsPoly = None
             self.crossingsRegion = nowhere
         else:
-            crossingsPoly = polygonUnion(crossing.region.polygons
-                                         for crossing in self.crossings)
+            crossingsPoly = polygonUnion(
+                crossing.region.polygons for crossing in self.crossings
+            )
             self.crossingsRegion = regionWithPolygons(crossingsPoly)
             walkableAreas.append(crossingsPoly)
 
@@ -329,8 +367,9 @@ class WebotsWorkspace(Workspace):
             walkablePoly = polygonUnion(walkableAreas)
             self.walkableRegion = regionWithPolygons(walkablePoly)
         drivablePoly = polygonUnion(drivableAreas)
-        self.drivableRegion = PolygonalRegion(polygon=drivablePoly,
-                                              orientation=self.roadDirection)
+        self.drivableRegion = PolygonalRegion(
+            polygon=drivablePoly, orientation=self.roadDirection
+        )
         workspacePoly = polygonUnion(drivableAreas + walkableAreas)
         self.workspaceRegion = PolygonalRegion(polygon=workspacePoly)
 
@@ -354,13 +393,15 @@ class WebotsWorkspace(Workspace):
         for crossing in self.crossings:
             crossing.show(plt)
         for curb in self.slowCurbs:
-            curb.show(plt, style='b-')
+            curb.show(plt, style="b-")
 
     @property
     def minimumZoomSize(self):
         return 30
 
+
 # Old functions kept for backwards-compatibility
+
 
 def webotsToScenicPosition(pos):
     """Convert a Webots position to a Scenic position.
@@ -372,7 +413,8 @@ def webotsToScenicPosition(pos):
     x, y, z = pos
     return (x, z)
 
-def scenicToWebotsPosition(pos, y=0, coordinateSystem='ENU'):
+
+def scenicToWebotsPosition(pos, y=0, coordinateSystem="ENU"):
     """Convert a Scenic position to a Webots position.
 
     .. deprecated:: 2.1.0
@@ -380,6 +422,7 @@ def scenicToWebotsPosition(pos, y=0, coordinateSystem='ENU'):
     """
     x, z = pos
     return [x, y, z]
+
 
 def webotsToScenicRotation(rot, tolerance2D=None):
     """Convert a Webots rotation vector to a Scenic heading.
@@ -395,6 +438,7 @@ def webotsToScenicRotation(rot, tolerance2D=None):
     if tolerance2D is not None and np.linalg.norm(axis - (0, 1, 0)) > tolerance2D:
         return None
     return normalizeAngle(angle)
+
 
 def scenicToWebotsRotation(heading):
     """Convert a Scenic heading to a Webots rotation vector.

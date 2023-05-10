@@ -33,20 +33,21 @@ from carla import ColorConverter as cc
 
 
 def get_actor_display_name(actor, truncate=250):
-    name = ' '.join(actor.type_id.replace('_', '.').title().split('.')[1:])
-    return (name[:truncate-1] + u'\u2026') if len(name) > truncate else name
+    name = " ".join(actor.type_id.replace("_", ".").title().split(".")[1:])
+    return (name[: truncate - 1] + "\u2026") if len(name) > truncate else name
 
 
 # ==============================================================================
 # -- HUD -----------------------------------------------------------------------
 # ==============================================================================
 
+
 class HUD(object):
     def __init__(self, width, height):
         self.dim = (width, height)
         font = pygame.font.Font(pygame.font.get_default_font(), 20)
-        fonts = [x for x in pygame.font.get_fonts() if 'mono' in x]
-        default_font = 'ubuntumono'
+        fonts = [x for x in pygame.font.get_fonts() if "mono" in x]
+        default_font = "ubuntumono"
         mono = default_font if default_font in fonts else fonts[0]
         mono = pygame.font.match_font(mono)
         self._font_mono = pygame.font.Font(mono, 14)
@@ -71,45 +72,46 @@ class HUD(object):
         v = ego.carlaActor.get_velocity()
         c = ego.carlaActor.get_control()
 
-        heading = 'N' if abs(t.rotation.yaw) < 89.5 else ''
-        heading += 'S' if abs(t.rotation.yaw) > 90.5 else ''
-        heading += 'E' if 179.5 > t.rotation.yaw > 0.5 else ''
-        heading += 'W' if -0.5 > t.rotation.yaw > -179.5 else ''
+        heading = "N" if abs(t.rotation.yaw) < 89.5 else ""
+        heading += "S" if abs(t.rotation.yaw) > 90.5 else ""
+        heading += "E" if 179.5 > t.rotation.yaw > 0.5 else ""
+        heading += "W" if -0.5 > t.rotation.yaw > -179.5 else ""
 
-        #colhist = collisionSensor.get_collision_history()
-        #collision = [colhist[x + self.frame - 200] for x in range(0, 200)]
-        #max_col = max(1.0, max(collision))
-        #collision = [x / max_col for x in collision]
+        # colhist = collisionSensor.get_collision_history()
+        # collision = [colhist[x + self.frame - 200] for x in range(0, 200)]
+        # max_col = max(1.0, max(collision))
+        # collision = [x / max_col for x in collision]
 
-        vehicles = world.get_actors().filter('vehicle.*')
-        pedestrians = world.get_actors().filter('walker.pedestrian.*')
+        vehicles = world.get_actors().filter("vehicle.*")
+        pedestrians = world.get_actors().filter("walker.pedestrian.*")
 
         self._info_text = [
-            'Server:  % 16d FPS' % self.server_fps,
-            'Map:    % 20s' % world.get_map().name,
-            'Simulation time: % 12s' % datetime.timedelta(seconds=int(self.simulation_time)),
-            '',
-            'Number of vehicles: % 8d' % len(vehicles),
-            'Number of pedestrians: % 8d' % len(pedestrians),
-            '',
-            'Ego: % 20s' % get_actor_display_name(ego.carlaActor, truncate=20),
-            '',
-            'Speed:   % 15.0f m/s' % math.sqrt(v.x**2 + v.y**2 + v.z**2),
-            u'Heading:% 16.0f\N{DEGREE SIGN} % 2s' % (t.rotation.yaw, heading),
-            'Location:% 20s' % ('(% 5.3f, % 5.3f)' % (t.location.x, t.location.y)),
-            'Height:  % 18.0f m' % t.location.z,
+            "Server:  % 16d FPS" % self.server_fps,
+            "Map:    % 20s" % world.get_map().name,
+            "Simulation time: % 12s"
+            % datetime.timedelta(seconds=int(self.simulation_time)),
+            "",
+            "Number of vehicles: % 8d" % len(vehicles),
+            "Number of pedestrians: % 8d" % len(pedestrians),
+            "",
+            "Ego: % 20s" % get_actor_display_name(ego.carlaActor, truncate=20),
+            "",
+            "Speed:   % 15.0f m/s" % math.sqrt(v.x**2 + v.y**2 + v.z**2),
+            "Heading:% 16.0f\N{DEGREE SIGN} % 2s" % (t.rotation.yaw, heading),
+            "Location:% 20s" % ("(% 5.3f, % 5.3f)" % (t.location.x, t.location.y)),
+            "Height:  % 18.0f m" % t.location.z,
         ]
 
         try:
             _control_text = [
-                '',
-                ('Throttle:', c.throttle, 0.0, 1.0),
-                ('Steer:', c.steer, -1.0, 1.0),
-                ('Brake:', c.brake, 0.0, 1.0),
-                ('Reverse:', c.reverse),
-                ('Hand brake:', c.hand_brake),
-                ('Manual:', c.manual_gear_shift),
-                'Gear:      %s' % {-1: 'R', 0: 'N'}.get(c.gear, c.gear),
+                "",
+                ("Throttle:", c.throttle, 0.0, 1.0),
+                ("Steer:", c.steer, -1.0, 1.0),
+                ("Brake:", c.brake, 0.0, 1.0),
+                ("Reverse:", c.reverse),
+                ("Hand brake:", c.hand_brake),
+                ("Manual:", c.manual_gear_shift),
+                "Gear:      %s" % {-1: "R", 0: "N"}.get(c.gear, c.gear),
                 #'',
                 #'Collision:', collision,
             ]
@@ -119,15 +121,22 @@ class HUD(object):
             self._info_text.extend(_control_text)
 
         if len(vehicles) > 1:
-            self._info_text += ['Nearby vehicles:']
-            distance = lambda l: math.sqrt((l.x - t.location.x)**2 + (l.y - t.location.y)**2 + (l.z - t.location.z)**2)
-            vehicles = [(distance(x.get_location()), x)
-                        for x in vehicles if x.id != ego.carlaActor.id]
+            self._info_text += ["Nearby vehicles:"]
+            distance = lambda l: math.sqrt(
+                (l.x - t.location.x) ** 2
+                + (l.y - t.location.y) ** 2
+                + (l.z - t.location.z) ** 2
+            )
+            vehicles = [
+                (distance(x.get_location()), x)
+                for x in vehicles
+                if x.id != ego.carlaActor.id
+            ]
             for d, vehicle in sorted(vehicles):
                 if d > 200.0:
                     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
-                self._info_text.append('% 4dm %s' % (d, vehicle_type))
+                self._info_text.append("% 4dm %s" % (d, vehicle_type))
 
     def render(self, display):
         info_surface = pygame.Surface((220, self.dim[1]))
@@ -141,7 +150,9 @@ class HUD(object):
                 break
             if isinstance(item, list):
                 if len(item) > 1:
-                    points = [(x + 8, v_offset + 8 + (1.0 - y) * 30) for x, y in enumerate(item)]
+                    points = [
+                        (x + 8, v_offset + 8 + (1.0 - y) * 30) for x, y in enumerate(item)
+                    ]
                     pygame.draw.lines(display, (255, 136, 0), False, points, 2)
                 item = None
                 v_offset += 18
@@ -150,16 +161,22 @@ class HUD(object):
                     rect = pygame.Rect((bar_h_offset, v_offset + 8), (6, 6))
                     pygame.draw.rect(display, (255, 255, 255), rect, 0 if item[1] else 1)
                 else:
-                    rect_border = pygame.Rect((bar_h_offset, v_offset + 8), (bar_width, 6))
+                    rect_border = pygame.Rect(
+                        (bar_h_offset, v_offset + 8), (bar_width, 6)
+                    )
                     pygame.draw.rect(display, (255, 255, 255), rect_border, 1)
                     f = (item[1] - item[2]) / (item[3] - item[2])
                     if item[2] < 0.0:
-                        rect = pygame.Rect((bar_h_offset + f * (bar_width - 6), v_offset + 8), (6, 6))
+                        rect = pygame.Rect(
+                            (bar_h_offset + f * (bar_width - 6), v_offset + 8), (6, 6)
+                        )
                     else:
-                        rect = pygame.Rect((bar_h_offset, v_offset + 8), (f * bar_width, 6))
+                        rect = pygame.Rect(
+                            (bar_h_offset, v_offset + 8), (f * bar_width, 6)
+                        )
                     pygame.draw.rect(display, (255, 255, 255), rect)
                 item = item[0]
-            if item: # At this point has to be a str
+            if item:  # At this point has to be a str
                 surface = self._font_mono.render(item, True, (255, 255, 255))
                 display.blit(surface, (8, v_offset))
             v_offset += 18
@@ -168,6 +185,7 @@ class HUD(object):
 # ==============================================================================
 # -- FadingText ----------------------------------------------------------------
 # ==============================================================================
+
 
 class FadingText(object):
     def __init__(self, font, dim, pos):
@@ -197,6 +215,7 @@ class FadingText(object):
 # -- CollisionSensor -----------------------------------------------------------
 # ==============================================================================
 
+
 class CollisionSensor(object):
     def __init__(self, world, actor, hud=None):
         self.sensor = None
@@ -205,14 +224,16 @@ class CollisionSensor(object):
         self._actor_mass = actor.get_physics_control().mass
         self._hud = hud
         self._world = world
-        bp = self._world.get_blueprint_library().find('sensor.other.collision')
-        self.sensor = self._world.spawn_actor(bp, carla.Transform(), attach_to=self._actor)
+        bp = self._world.get_blueprint_library().find("sensor.other.collision")
+        self.sensor = self._world.spawn_actor(
+            bp, carla.Transform(), attach_to=self._actor
+        )
         # Pass the lambda a weak reference to self to avoid circular reference
         weak_self = weakref.ref(self)
         self.sensor.listen(lambda event: CollisionSensor._on_collision(weak_self, event))
 
     def get_collision_speeds(self):
-        '''Convert collision intensities from momentem (kg*m/s) to speed (m/s).'''
+        """Convert collision intensities from momentem (kg*m/s) to speed (m/s)."""
         return [(c[0], c[1] / self._actor_mass) for c in self._history]
 
     def get_collision_history(self):
@@ -228,10 +249,11 @@ class CollisionSensor(object):
             return
         actor_type = get_actor_display_name(event.other_actor)
         if self._hud:
-            self._hud.notification('Collision with %r, id = %d'
-                                   % (actor_type, event.other_actor.id))
+            self._hud.notification(
+                "Collision with %r, id = %d" % (actor_type, event.other_actor.id)
+            )
         impulse = event.normal_impulse
-        intensity = math.sqrt(impulse.x ** 2 + impulse.y ** 2 + impulse.z ** 2)
+        intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
         self._history.append((event.frame, intensity))
         if len(self._history) > 4000:
             self._history.pop(0)
@@ -240,6 +262,7 @@ class CollisionSensor(object):
 # ==============================================================================
 # -- CameraManager -------------------------------------------------------------
 # ==============================================================================
+
 
 class CameraManager(object):
     def __init__(self, world, actor, hud):
@@ -250,24 +273,37 @@ class CameraManager(object):
         self.images = []
         self._camera_transforms = [
             carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
-            carla.Transform(carla.Location(x=1.6, z=1.7))]
+            carla.Transform(carla.Location(x=1.6, z=1.7)),
+        ]
         self._transform_index = 1
         self._sensors = [
-            ['sensor.camera.rgb', cc.Raw, 'Camera RGB'],
-            ['sensor.camera.depth', cc.Raw, 'Camera Depth (Raw)'],
-            ['sensor.camera.depth', cc.Depth, 'Camera Depth (Gray Scale)'],
-            ['sensor.camera.depth', cc.LogarithmicDepth, 'Camera Depth (Logarithmic Gray Scale)'],
-            ['sensor.camera.semantic_segmentation', cc.Raw, 'Camera Semantic Segmentation (Raw)'],
-            ['sensor.camera.semantic_segmentation', cc.CityScapesPalette,
-             'Camera Semantic Segmentation (CityScapes Palette)'],
-            ['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)']]
+            ["sensor.camera.rgb", cc.Raw, "Camera RGB"],
+            ["sensor.camera.depth", cc.Raw, "Camera Depth (Raw)"],
+            ["sensor.camera.depth", cc.Depth, "Camera Depth (Gray Scale)"],
+            [
+                "sensor.camera.depth",
+                cc.LogarithmicDepth,
+                "Camera Depth (Logarithmic Gray Scale)",
+            ],
+            [
+                "sensor.camera.semantic_segmentation",
+                cc.Raw,
+                "Camera Semantic Segmentation (Raw)",
+            ],
+            [
+                "sensor.camera.semantic_segmentation",
+                cc.CityScapesPalette,
+                "Camera Semantic Segmentation (CityScapes Palette)",
+            ],
+            ["sensor.lidar.ray_cast", None, "Lidar (Ray-Cast)"],
+        ]
         self._world = world
         bp_library = self._world.get_blueprint_library()
         for item in self._sensors:
             bp = bp_library.find(item[0])
-            if item[0].startswith('sensor.camera'):
-                bp.set_attribute('image_size_x', str(hud.dim[0]))
-                bp.set_attribute('image_size_y', str(hud.dim[1]))
+            if item[0].startswith("sensor.camera"):
+                bp.set_attribute("image_size_x", str(hud.dim[0]))
+                bp.set_attribute("image_size_y", str(hud.dim[1]))
             item.append(bp)
         self._index = None
 
@@ -280,8 +316,11 @@ class CameraManager(object):
 
     def set_sensor(self, index):
         index = index % len(self._sensors)
-        needs_respawn = True if self._index is None \
+        needs_respawn = (
+            True
+            if self._index is None
             else self._sensors[index][0] != self._sensors[self._index][0]
+        )
         if needs_respawn:
             if self.sensor is not None:
                 self.sensor.destroy()
@@ -289,7 +328,8 @@ class CameraManager(object):
             self.sensor = self._world.spawn_actor(
                 self._sensors[index][-1],
                 self._camera_transforms[self._transform_index],
-                attach_to=self._actor)
+                attach_to=self._actor,
+            )
             # Pass lambda a weak reference to self to avoid circular reference
             weak_self = weakref.ref(self)
             self.sensor.listen(lambda image: CameraManager._parse_image(weak_self, image))
@@ -304,8 +344,8 @@ class CameraManager(object):
         self = weak_self()
         if not self:
             return
-        if self._sensors[self._index][0].startswith('sensor.lidar'):
-            points = np.frombuffer(image.raw_data, dtype=np.dtype('f4'))
+        if self._sensors[self._index][0].startswith("sensor.lidar"):
+            points = np.frombuffer(image.raw_data, dtype=np.dtype("f4"))
             points = np.reshape(points, (int(points.shape[0] / 3), 3))
             lidar_data = np.array(points[:, :2])
             lidar_data *= min(self._hud.dim) / 100.0

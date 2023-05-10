@@ -14,7 +14,7 @@ from scenic.core.errors import getText, ScenicSyntaxError, ScenicParseError
 def compileScenicAST(
     scenicAST: ast.AST,
     *,
-    filename: str = '<unknown>',
+    filename: str = "<unknown>",
     inBehavior: bool = False,
     inMonitor: bool = False,
     inCompose: bool = False,
@@ -55,9 +55,7 @@ breakFlag = ast.Attribute(ast.Name("BlockConclusion", ast.Load()), "BREAK", ast.
 continueFlag = ast.Attribute(
     ast.Name("BlockConclusion", ast.Load()), "CONTINUE", ast.Load()
 )
-returnFlag = ast.Attribute(
-    ast.Name("BlockConclusion", ast.Load()), "RETURN", ast.Load()
-)
+returnFlag = ast.Attribute(ast.Name("BlockConclusion", ast.Load()), "RETURN", ast.Load())
 finishedFlag = ast.Attribute(
     ast.Name("BlockConclusion", ast.Load()), "FINISHED", ast.Load()
 )
@@ -473,9 +471,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     ):
         "Mark AST node as only available inside certain contexts"
 
-        def decorator(
-            visitor: Callable[["ScenicToPythonTransformer", ast.AST], ast.AST]
-        ):
+        def decorator(visitor: Callable[["ScenicToPythonTransformer", ast.AST], ast.AST]):
             def check_and_visit(self: "ScenicToPythonTransformer", node: ast.AST):
                 ctx = None
                 if self.topLevel and Context.TOP_LEVEL not in allowedContext:
@@ -539,9 +535,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 )
             node = ast.copy_location(ast.Call(ast.Name(node.id, loadCtx), [], []), node)
         elif node.id in self.behaviorLocals:
-            lookup = ast.Attribute(
-                ast.Name(behaviorArgName, loadCtx), node.id, node.ctx
-            )
+            lookup = ast.Attribute(ast.Name(behaviorArgName, loadCtx), node.id, node.ctx)
             return ast.copy_location(lookup, node)
         return node
 
@@ -597,13 +591,17 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     def visit_Yield(self, node):
         if self.inCompose or self.inBehavior:
             # `yield` statements are not allowed inside a compose/behavior block
-            raise self.makeSyntaxError("Cannot use `yield` inside a compose/behavior block", node)
+            raise self.makeSyntaxError(
+                "Cannot use `yield` inside a compose/behavior block", node
+            )
         return self.generic_visit(node)
 
     def visit_YieldFrom(self, node):
         if self.inCompose or self.inBehavior:
             # `yield from` statements are not allowed inside a compose/behavior block
-            raise self.makeSyntaxError("Cannot use `yield from` inside a compose/behavior block", node)
+            raise self.makeSyntaxError(
+                "Cannot use `yield from` inside a compose/behavior block", node
+            )
         return self.generic_visit(node)
 
     # Special Case
@@ -623,7 +621,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
         def makeInterruptBlock(name, body):
             newBody = self.visit(body)
-            allLocals = sorted(LocalFinder.findIn(newBody)) # Sort for determinism
+            allLocals = sorted(LocalFinder.findIn(newBody))  # Sort for determinism
             if allLocals:
                 newBody.insert(0, ast.Nonlocal(allLocals))
             newBody.append(ast.Return(finishedFlag))
@@ -760,9 +758,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 targets=[ast.Name(id="_scenic_properties", ctx=ast.Store())],
                 value=ast.Dict(
                     keys=[ast.Constant(value=p) for p in propertyDict.keys()],
-                    values=[
-                        self.transformPropertyDef(v) for v in propertyDict.values()
-                    ],
+                    values=[self.transformPropertyDef(v) for v in propertyDict.values()],
                 ),
             ),
         )
@@ -842,9 +838,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 body = [ast.While(ast.Constant(True), wait, [])]
             compose = ast.FunctionDef("_compose", args, body, [], None)
         else:
-            compose = ast.Assign(
-                [ast.Name("_compose", ast.Store())], ast.Constant(None)
-            )
+            compose = ast.Assign([ast.Name("_compose", ast.Store())], ast.Constant(None))
         self.inCompose = False
 
         # Construct setup block
@@ -858,8 +852,8 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         self.behaviorLocals = oldBL
 
         # Assemble scenario definition
-        locs = ast.Constant(tuple(sorted(allLocals)))   # sort for AST determinism
-        locs = ast.Call(ast.Name('frozenset', ast.Load()), [locs], [])
+        locs = ast.Constant(tuple(sorted(allLocals)))  # sort for AST determinism
+        locs = ast.Call(ast.Name("frozenset", ast.Load()), [locs], [])
         saveLocals = ast.Assign([ast.Name("_locals", ast.Store())], locs)
         body = guardCheckers + [saveLocals, setup, compose]
         return ast.ClassDef(
@@ -896,15 +890,12 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
             catch = ast.ExceptHandler(
                 type=ast.Name("RejectionException", loadCtx),
-                name='e',
-                body=[chained_throw]
+                name="e",
+                body=[chained_throw],
             )
 
             wrapped_check = ast.Try(
-                body=[check],
-                handlers=[catch],
-                orelse=[],
-                finalbody=[]
+                body=[check], handlers=[catch], orelse=[], finalbody=[]
             )
 
             preconditionChecks.append(ast.copy_location(wrapped_check, precondition))
@@ -932,15 +923,12 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
             catch = ast.ExceptHandler(
                 type=ast.Name("RejectionException", loadCtx),
-                name='e',
-                body=[chained_throw]
+                name="e",
+                body=[chained_throw],
             )
 
             wrapped_check = ast.Try(
-                body=[check],
-                handlers=[catch],
-                orelse=[],
-                finalbody=[]
+                body=[check], handlers=[catch], orelse=[], finalbody=[]
             )
 
             invariantChecks.append(ast.copy_location(wrapped_check, invariant))
@@ -1003,9 +991,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         # statements that create argument variables
         copyArgs: List[ast.AST] = []
         for arg in allArgs:
-            dest = ast.Attribute(
-                ast.Name(behaviorArgName, loadCtx), arg.arg, ast.Store()
-            )
+            dest = ast.Attribute(ast.Name(behaviorArgName, loadCtx), arg.arg, ast.Store())
             copyArgs.append(
                 ast.copy_location(ast.Assign([dest], ast.Name(arg.arg, loadCtx)), arg)
             )
@@ -1040,8 +1026,8 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         )
 
         # --- Save local variables ---
-        locs = ast.Constant(tuple(sorted(allLocals)))   # sort for AST determinism
-        locs = ast.Call(ast.Name('frozenset', ast.Load()), [locs], [])
+        locs = ast.Constant(tuple(sorted(allLocals)))  # sort for AST determinism
+        locs = ast.Call(ast.Name("frozenset", ast.Load()), [locs], [])
         saveLocals = ast.Assign([ast.Name("_locals", ast.Store())], locs)
 
         # --- Guards ---
@@ -1151,8 +1137,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         return ast.Expr(
             value=ast.Call(
                 func=ast.Name(id="override", ctx=loadCtx),
-                args=[self.visit(node.target)]
-                + [self.visit(s) for s in node.specifiers],
+                args=[self.visit(node.target)] + [self.visit(s) for s in node.specifiers],
                 keywords=[],
             )
         )
@@ -1537,9 +1522,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             keywords=[],
         )
 
-    def visit_FacingDirectlyTowardSpecifier(
-        self, node: s.FacingDirectlyTowardSpecifier
-    ):
+    def visit_FacingDirectlyTowardSpecifier(self, node: s.FacingDirectlyTowardSpecifier):
         return ast.Call(
             func=ast.Name(id="FacingDirectlyToward", ctx=loadCtx),
             args=[self.visit(node.position)],
@@ -1682,7 +1665,9 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
 
     def visit_DegOp(self, node: s.DegOp):
         return ast.BinOp(
-            left=self.visit(node.operand), op=ast.Mult(), right=ast.Constant(0.017453292519943295)
+            left=self.visit(node.operand),
+            op=ast.Mult(),
+            right=ast.Constant(0.017453292519943295),
         )
 
     def visit_VectorOp(self, node: s.VectorOp):
@@ -1728,26 +1713,16 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         )
 
     def visit_Always(self, node: s.Always):
-        raise self.makeSyntaxError(
-            "`always` can only be used inside requirements", node
-        )
+        raise self.makeSyntaxError("`always` can only be used inside requirements", node)
 
     def visit_Eventually(self, node: s.Eventually):
-        raise self.makeSyntaxError(
-            "`always` can only be used inside requirements", node
-        )
+        raise self.makeSyntaxError("`always` can only be used inside requirements", node)
 
     def visit_Next(self, node: s.Next):
-        raise self.makeSyntaxError(
-            "`always` can only be used inside requirements", node
-        )
+        raise self.makeSyntaxError("`always` can only be used inside requirements", node)
 
     def visit_ImpliesOp(self, node: s.ImpliesOp):
-        raise self.makeSyntaxError(
-            "`always` can only be used inside requirements", node
-        )
+        raise self.makeSyntaxError("`always` can only be used inside requirements", node)
 
     def visit_UntilOp(self, node: s.UntilOp):
-        raise self.makeSyntaxError(
-            "`always` can only be used inside requirements", node
-        )
+        raise self.makeSyntaxError("`always` can only be used inside requirements", node)

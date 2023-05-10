@@ -45,11 +45,14 @@ def scenicSpeedToCarlaVelocity(speed, heading):
 def carlaToScenicPosition(loc):
     return Vector(loc.x, -loc.y)
 
+
 def carlaToScenicElevation(loc):
     return loc.z
 
+
 def carlaToScenicHeading(rot):
     return normalizeAngle(-math.radians(rot.yaw + 90))
+
 
 def carlaToScenicAngularSpeed(vel):
     return -math.radians(vel.y)
@@ -63,8 +66,10 @@ _scenicToCarlaMap = {
     "unknown": carla.TrafficLightState.Unknown,
 }
 
+
 def scenicToCarlaTrafficLightStatus(status):
     return _scenicToCarlaMap.get(status, None)
+
 
 def carlaToScenicTrafficLightStatus(status):
     return str(status).lower()

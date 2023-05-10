@@ -13,6 +13,7 @@ vacuum_radius = 0.335 / 2
 
 # pass the path to the log to argv[1] and it will make a plot
 
+
 def main(debug=False, plot=False):
     with open(sys.argv[1]) as f:
         json_str = f.read()
@@ -34,6 +35,7 @@ def main(debug=False, plot=False):
         ax.set_ylim([-2.5, 2.5])
         plot_polygon(ax, dilated, facecolor="lightblue", edgecolor="red")
         plt.show()
+
 
 # Plots a Polygon to pyplot `ax`
 def plot_polygon(ax, poly, **kwargs):

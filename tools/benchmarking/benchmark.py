@@ -13,4 +13,4 @@ start_time = time.time()
 for _ in range(iters):
     scenario.generate()
 
-print("Mean Time:", (time.time()-start_time)/iters)
+print("Mean Time:", (time.time() - start_time) / iters)

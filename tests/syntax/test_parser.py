@@ -64,12 +64,8 @@ class TestTry:
             case TryInterrupt(
                 body=[Expr(Call(Name("foo")))],
                 interrupt_when_handlers=[
-                    InterruptWhenHandler(
-                        cond=Name("x"), body=[Expr(Call(Name("bar")))]
-                    ),
-                    InterruptWhenHandler(
-                        cond=Name("y"), body=[Expr(Call(Name("baz")))]
-                    ),
+                    InterruptWhenHandler(cond=Name("x"), body=[Expr(Call(Name("bar")))]),
+                    InterruptWhenHandler(cond=Name("y"), body=[Expr(Call(Name("baz")))]),
                 ],
                 except_handlers=[],
                 orelse=[],
@@ -1904,9 +1900,7 @@ class TestOperator:
             ),
             (
                 "relative position of A << B",
-                BinOp(
-                    RelativePositionOp(Name("A", Load())), LShift(), Name("B", Load())
-                ),
+                BinOp(RelativePositionOp(Name("A", Load())), LShift(), Name("B", Load())),
             ),
             (
                 "relative position of A + B",
@@ -1989,9 +1983,7 @@ class TestOperator:
             ),
             (
                 "relative heading of A << B",
-                BinOp(
-                    RelativeHeadingOp(Name("A", Load())), LShift(), Name("B", Load())
-                ),
+                BinOp(RelativeHeadingOp(Name("A", Load())), LShift(), Name("B", Load())),
             ),
             (
                 "relative heading of A + B",
@@ -2074,9 +2066,7 @@ class TestOperator:
             ),
             (
                 "apparent heading of A << B",
-                BinOp(
-                    ApparentHeadingOp(Name("A", Load())), LShift(), Name("B", Load())
-                ),
+                BinOp(ApparentHeadingOp(Name("A", Load())), LShift(), Name("B", Load())),
             ),
             (
                 "apparent heading of A + B",

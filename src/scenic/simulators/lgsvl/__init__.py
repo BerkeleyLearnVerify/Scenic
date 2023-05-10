@@ -11,9 +11,9 @@ object types, behaviors, utility functions, etc. from that domain may be used fr
 # import would raise an exception.
 lgsvl = None
 try:
-   import lgsvl
+    import lgsvl
 except ImportError:
-   pass
+    pass
 if lgsvl:
-   from .simulator import LGSVLSimulator
+    from .simulator import LGSVLSimulator
 del lgsvl

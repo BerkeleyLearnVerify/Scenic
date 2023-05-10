@@ -2,4 +2,3 @@
 
 This model handles Webots world files generated from Open Street Map data using the Webots OSM importer.
 """
-

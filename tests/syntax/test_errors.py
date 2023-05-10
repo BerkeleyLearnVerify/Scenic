@@ -1,4 +1,3 @@
-
 import sys
 import os.path
 import subprocess
@@ -7,138 +6,171 @@ from tokenize import TokenError
 import pytest
 
 import scenic
-from scenic.core.errors import (ScenicSyntaxError, TokenParseError,
-    ParseCompileError, ASTParseError, RuntimeParseError)
+from scenic.core.errors import (
+    ScenicSyntaxError,
+    TokenParseError,
+    ParseCompileError,
+    ASTParseError,
+    RuntimeParseError,
+)
 
 from tests.utils import compileScenic, sampleActionsFromScene, sampleActions
 
 ### File errors
 
+
 def test_missing_file():
     with pytest.raises(FileNotFoundError):
-        scenic.scenarioFromFile('____baloney-file-2342905_.sc')
+        scenic.scenarioFromFile("____baloney-file-2342905_.sc")
+
 
 def test_bad_extension(tmpdir):
-    path = os.path.join(tmpdir, 'blah.py')
-    with pytest.raises(RuntimeError), open(path, 'w'):
+    path = os.path.join(tmpdir, "blah.py")
+    with pytest.raises(RuntimeError), open(path, "w"):
         scenic.scenarioFromFile(path)
+
 
 ### Parse errors
 
 ## Constructor definitions
 
-badNames = ('', '3', '+', 'Behavior')
+badNames = ("", "3", "+", "Behavior")
 
-@pytest.mark.parametrize('name', badNames)
+
+@pytest.mark.parametrize("name", badNames)
 def test_illegal_constructor_name(name):
     with pytest.raises(ScenicSyntaxError):
-        compileScenic(f'class {name}:\n' '    pass')
+        compileScenic(f"class {name}:\n" "    pass")
 
-@pytest.mark.parametrize('name', badNames)
+
+@pytest.mark.parametrize("name", badNames)
 def test_illegal_constructor_superclass(name):
     with pytest.raises(ScenicSyntaxError):
-        compileScenic(f'class Foo({name}):\n' '    pass')
+        compileScenic(f"class Foo({name}):\n" "    pass")
+
 
 def test_malformed_constructor():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('class Foo\n' '    pass')
+        compileScenic("class Foo\n" "    pass")
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('class Foo(Bar:\n' '    pass')
+        compileScenic("class Foo(Bar:\n" "    pass")
+
 
 def test_multiple_inheritance():
     with pytest.raises(ScenicSyntaxError):
         compileScenic("class Bad(Object, Point):\n    pass")
 
+
 def test_new_python_class():
     with pytest.raises(TypeError):
         compileScenic("class PyCls(object):\n    pass\nnew PyCls")
 
+
 ## Soft requirements
+
 
 def test_malformed_soft_requirement():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('require[x] 3 == 3')
+        compileScenic("require[x] 3 == 3")
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('require[1+x] 3 == 3')
+        compileScenic("require[1+x] 3 == 3")
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('require[] 3 == 3')
+        compileScenic("require[] 3 == 3")
+
 
 ## Specifiers
 
+
 def test_undefined_specifier():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('new Object cattywampus')
+        compileScenic("new Object cattywampus")
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('new Object athwart 3')
+        compileScenic("new Object athwart 3")
+
 
 ## Illegal usages of keywords
 
+
 def test_reserved_functions():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('PropertyDefault()')
+        compileScenic("PropertyDefault()")
+
 
 ## Unmatched parentheses and multiline strings
 
+
 def test_unmatched_parentheses():
     with pytest.raises(TokenError):
-        compileScenic('(')
+        compileScenic("(")
     with pytest.raises(TokenError):
-        compileScenic('x = (3 + 4')
+        compileScenic("x = (3 + 4")
     with pytest.raises(ScenicSyntaxError):
-        compileScenic(')')
+        compileScenic(")")
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('x = (4 - 2))')
+        compileScenic("x = (4 - 2))")
+
 
 def test_incomplete_multiline_string():
     with pytest.raises(TokenError):
         compileScenic('"""foobar')
     with pytest.raises(TokenError):
-        compileScenic('x = """foobar\n' 'wog\n')
+        compileScenic('x = """foobar\n' "wog\n")
+
 
 def test_incomplete_infix_operator():
     """Binary infix operator with too few arguments."""
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('x = 3 @')
+        compileScenic("x = 3 @")
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('x = 3 at')
+        compileScenic("x = 3 at")
+
 
 ## Infix operators
+
 
 def test_incomplete_ternary_operator():
     """3+-ary infix operator with too few arguments."""
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('x = 4 offset along 12')
+        compileScenic("x = 4 offset along 12")
+
 
 def test_extra_ternary_operator():
     """3+-ary infix operator with too many arguments."""
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('x = 4 at 12 by 17')
+        compileScenic("x = 4 at 12 by 17")
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('x = 4 offset along 12 by 17 by 19')
+        compileScenic("x = 4 offset along 12 by 17 by 19")
+
 
 def test_invalid_temporal_operator_use():
     """Temporal operators can only be used inside requirements"""
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('req = always x')
+        compileScenic("req = always x")
+
 
 def test_extra_temporal_operands():
     """Temporal infix operators should only take two arguments"""
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('require a or b until c or d until e')
+        compileScenic("require a or b until c or d until e")
+
 
 ## Ranges
 
+
 def test_malformed_range():
     with pytest.raises(TypeError):
-        compileScenic('x = Range(4,)')
+        compileScenic("x = Range(4,)")
     with pytest.raises(TypeError):
-        compileScenic('x = Range(4, 5, 6)')
+        compileScenic("x = Range(4, 5, 6)")
+
 
 ## Requirements
 
+
 def test_multiple_requirements():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('require True, True, True')
+        compileScenic("require True, True, True")
+
 
 ### Line numbering
 
@@ -149,21 +181,25 @@ def test_multiple_requirements():
 # Each entry in the list is a pair, with the first element being the line
 # number the error should be reported on.
 templates = [
-(1,     # on first line
-'''{bug}
-ego = new Object'''
-),
-(2,     # after ordinary statement
-'''ego = new Object
-{bug}'''
-),
-(3,     # after import
-'''ego = new Object
+    (
+        1,  # on first line
+        """{bug}
+ego = new Object""",
+    ),
+    (
+        2,  # after ordinary statement
+        """ego = new Object
+{bug}""",
+    ),
+    (
+        3,  # after import
+        """ego = new Object
 import time
-{bug}'''
-),
-(8,     # after explicit line continuation (and in a function)
-'''from time import time
+{bug}""",
+    ),
+    (
+        8,  # after explicit line continuation (and in a function)
+        """from time import time
 ego = new Object
 
 def qux(foo=None,
@@ -173,85 +209,87 @@ def qux(foo=None,
     {bug}
 
 qux()
-'''
-),
-(4,     # after automatic line continuation by parentheses
-'''ego = new Object
+""",
+    ),
+    (
+        4,  # after automatic line continuation by parentheses
+        """ego = new Object
 x = (1 + 2
      + 3)
 {bug}
-'''
-),
+""",
+    ),
 ]
 
-indentedSpecTemplate = '''\
+indentedSpecTemplate = """\
 ego = new Object facing 1, {continuation}
              at 10@10
 {{bug}}
-'''
-for continuation in ('', '\\', '# comment'):
+"""
+for continuation in ("", "\\", "# comment"):
     templates.append((3, indentedSpecTemplate.format(continuation=continuation)))
 
 dynamicTemplates = [
-(3,
-'''behavior foo():
+    (
+        3,
+        """behavior foo():
     try:
         {bug}
         take 5
     interrupt when ego.position.x > 4:
         take 10
 ego = new Object with behavior foo
-'''
-),
-(5,
-'''behavior foo():
+""",
+    ),
+    (
+        5,
+        """behavior foo():
     try:
         take 5
     interrupt when simulation().currentTime > 0:
         {bug}
         take 10
 ego = new Object with behavior foo
-'''
-),
+""",
+    ),
 ]
 
-@pytest.mark.parametrize('template', templates + dynamicTemplates)
+
+@pytest.mark.parametrize("template", templates + dynamicTemplates)
 def test_bug_template_sanity(template, tmpdir):
     """Check that the program templates above have the correct form."""
     line, program = template
-    program = program.format(bug='')
+    program = program.format(bug="")
     # Check that they compile, sample, and simulate when not injecting a bug
-    print(f'TRYING PROGRAM:\n{program}')
+    print(f"TRYING PROGRAM:\n{program}")
     scenario = compileScenic(program, removeIndentation=False)
     scene, _ = scenario.generate(maxIterations=1)
     sampleActionsFromScene(scene, maxSteps=2)
 
+
 def checkBug(bug, template, tmpdir, pytestconfig):
-    path = os.path.join(tmpdir, 'test.sc')
+    path = os.path.join(tmpdir, "test.sc")
     line, program = template
     if bug is not None:
         program = program.format(bug=bug)
-    print(f'TRYING PROGRAM:\n{program}')
+    print(f"TRYING PROGRAM:\n{program}")
     # write program to file so we can check SyntaxError line correction
-    with open(path, 'w') as f:
+    with open(path, "w") as f:
         f.write(program)
     try:
         runFile(path)
         pytest.fail(f'Program with buggy statement "{bug}" did not raise error')
     except Exception as e:
-        fast = pytestconfig.getoption('--fast', False)
+        fast = pytestconfig.getoption("--fast", False)
         if fast:
             lines = None
         else:
             # allow exception to propagate to top level in a subprocess so we can
             # test the formatting of the resulting backtrace
-            command = (
-                'from tests.syntax.test_errors import runFile;'
-                f'runFile("{path}")'
-            )
-            args = [sys.executable, '-c', command]
+            command = "from tests.syntax.test_errors import runFile;" f'runFile("{path}")'
+            args = [sys.executable, "-c", command]
             result = subprocess.run(args, capture_output=True, text=True)
-            print('RESULTING STDERR:\n', result.stderr)
+            print("RESULTING STDERR:\n", result.stderr)
             assert result.returncode == 1
             lines = result.stderr.splitlines()
             # Filter out any lines that only contain " ", "^", or "~", which indicate location info.
@@ -259,7 +297,8 @@ def checkBug(bug, template, tmpdir, pytestconfig):
         checkException(e, line, program, bug, path, lines)
         if fast:
             # Mark the test as skipped, since we didn't do all of it
-            pytest.skip('slow traceback check skipped by --fast')
+            pytest.skip("slow traceback check skipped by --fast")
+
 
 def checkException(e, lines, program, bug, path, output, topLevel=True):
     if isinstance(lines, int):
@@ -270,8 +309,9 @@ def checkException(e, lines, program, bug, path, output, topLevel=True):
         remainingLines = lines[1:]
 
     # For SyntaxError-like exceptions, check metadata.
-    syntaxErrorLike = (isinstance(e, (ScenicSyntaxError, SyntaxError))
-                       and not isinstance(e, RuntimeParseError))
+    syntaxErrorLike = isinstance(e, (ScenicSyntaxError, SyntaxError)) and not isinstance(
+        e, RuntimeParseError
+    )
     if syntaxErrorLike:
         assert e.lineno == eLine, program
         assert e.text.strip() == bug
@@ -283,9 +323,9 @@ def checkException(e, lines, program, bug, path, output, topLevel=True):
         return
 
     # Check that the general form of the backtrace looks OK.
-    assert not any(line.startswith('Error in sys.excepthook') for line in output)
+    assert not any(line.startswith("Error in sys.excepthook") for line in output)
     ty = type(e)
-    name = 'ScenicSyntaxError' if issubclass(ty, ScenicSyntaxError) else ty.__name__
+    name = "ScenicSyntaxError" if issubclass(ty, ScenicSyntaxError) else ty.__name__
     assert output[-1].startswith(name)
 
     # Check that the backtrace lists the correct file and line.
@@ -296,76 +336,95 @@ def checkException(e, lines, program, bug, path, output, topLevel=True):
     if syntaxErrorLike:
         assert lastFrame == prefix
     else:
-        assert lastFrame.startswith(prefix + ',')
+        assert lastFrame.startswith(prefix + ",")
 
     # Recurse on chained exceptions, if any.
     chained = bool(e.__cause__ or (e.__context__ and not e.__suppress_context__))
     assert bool(remainingLines) == chained
     if remainingLines:
         mid = loc - 5 if topLevel else loc - 2
-        assert len(output) >= -(mid-1)
+        assert len(output) >= -(mid - 1)
     if e.__cause__:
-        assert output[mid] == 'The above exception was the direct cause of the following exception:'
+        assert (
+            output[mid]
+            == "The above exception was the direct cause of the following exception:"
+        )
         nextE = e.__cause__
     elif e.__context__ and not e.__suppress_context__:
-        assert output[mid] == 'During handling of the above exception, another exception occurred:'
+        assert (
+            output[mid]
+            == "During handling of the above exception, another exception occurred:"
+        )
         nextE = e.__context__
     if chained:
-        checkException(nextE, remainingLines, program, bug, path, output[:mid], topLevel=False)
+        checkException(
+            nextE, remainingLines, program, bug, path, output[:mid], topLevel=False
+        )
+
 
 def runFile(path):
     scenario = scenic.scenarioFromFile(path)
     scene, _ = scenario.generate(maxIterations=1)
     sampleActionsFromScene(scene, maxSteps=2)
 
-@pytest.mark.parametrize('bug', (
-    # BUGGY CODE                    ERROR CAUGHT DURING:
-    '4 = 2',                        # Scenic parsing
-    '3 relative to',                # Scenic parsing
-    'new Point at x y',             # Scenic parsing
-    'require',                      # Scenic parsing
-    'terminate 4',                  # Scenic compilation (handled differently inside behaviors)
-    'break',                        # Python compilation
-    '4 at 0',                       # Python execution (Scenic parse error)
-    'x = _flub__',                  # Python execution (Python runtime error)
-    'raise Exception',              # Python execution (program exception)
-    'new Object at Uniform(0@0, 4)' # sampling
-    'require 4 at 0',               # requirement evaluation (Scenic parse error)
-    'require _flub__',              # requirement evaluation (Python runtime error)
-))
-@pytest.mark.parametrize('template', templates + dynamicTemplates)
+
+@pytest.mark.parametrize(
+    "bug",
+    (
+        # BUGGY CODE                    ERROR CAUGHT DURING:
+        "4 = 2",  # Scenic parsing
+        "3 relative to",  # Scenic parsing
+        "new Point at x y",  # Scenic parsing
+        "require",  # Scenic parsing
+        "terminate 4",  # Scenic compilation (handled differently inside behaviors)
+        "break",  # Python compilation
+        "4 at 0",  # Python execution (Scenic parse error)
+        "x = _flub__",  # Python execution (Python runtime error)
+        "raise Exception",  # Python execution (program exception)
+        "new Object at Uniform(0@0, 4)"  # sampling
+        "require 4 at 0",  # requirement evaluation (Scenic parse error)
+        "require _flub__",  # requirement evaluation (Python runtime error)
+    ),
+)
+@pytest.mark.parametrize("template", templates + dynamicTemplates)
 def test_line_numbering(bug, template, tmpdir, pytestconfig):
     """Line numbering for parse errors."""
     checkBug(bug, template, tmpdir, pytestconfig)
 
-@pytest.mark.parametrize('bug', (
-    'mutate',           # caught during AST surgery
-))
-@pytest.mark.parametrize('template', dynamicTemplates)
+
+@pytest.mark.parametrize("bug", ("mutate",))  # caught during AST surgery
+@pytest.mark.parametrize("template", dynamicTemplates)
 def test_line_numbering_dynamic(bug, template, tmpdir, pytestconfig):
     """Line numbering for parse errors only occurring in dynamic behaviors."""
     checkBug(bug, template, tmpdir, pytestconfig)
 
-@pytest.mark.parametrize('bug', (
-    'x = float(0@0)\n' 'y = 1@2',
-    'x = range(Range(0, 10))\n' 'y = Range(0, 10)',
-))
-@pytest.mark.parametrize('template', templates)
+
+@pytest.mark.parametrize(
+    "bug",
+    (
+        "x = float(0@0)\n" "y = 1@2",
+        "x = range(Range(0, 10))\n" "y = Range(0, 10)",
+    ),
+)
+@pytest.mark.parametrize("template", templates)
 def test_line_numbering_double(bug, template, tmpdir, pytestconfig):
     """Line numbering for errors arising in reused syntax elements."""
     checkBug(bug, template, tmpdir, pytestconfig)
 
+
 chainedTemplates = [
-((5, 3),
-'''ego = new Object
+    (
+        (5, 3),
+        """ego = new Object
 try:
     raise TypeError
 except Exception as e:
     {bug}
-'''
-),
-((8, 6, 3),
-'''ego = new Object
+""",
+    ),
+    (
+        (8, 6, 3),
+        """ego = new Object
 try:
     raise TypeError
 except Exception as e:
@@ -373,15 +432,19 @@ except Exception as e:
         {bug}
     except Exception:
         raise Exception
-'''
-),
+""",
+    ),
 ]
 
-@pytest.mark.parametrize('bug', (
-    'raise ValueError',
-    'raise RuntimeError from e',
-))
-@pytest.mark.parametrize('template', chainedTemplates)
+
+@pytest.mark.parametrize(
+    "bug",
+    (
+        "raise ValueError",
+        "raise RuntimeError from e",
+    ),
+)
+@pytest.mark.parametrize("template", chainedTemplates)
 def test_line_numbering_chained(bug, template, tmpdir, pytestconfig):
     """Line numbering for chained exceptions."""
     checkBug(bug, template, tmpdir, pytestconfig)

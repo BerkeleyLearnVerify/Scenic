@@ -4,5 +4,6 @@ from scenic.syntax.translator import scenarioFromFile, scenarioFromString
 from scenic.core.errors import setDebuggingOptions
 
 import scenic.core.errors as _errors
-_errors.showInternalBacktrace = False   # see comment in errors module
+
+_errors.showInternalBacktrace = False  # see comment in errors module
 del _errors

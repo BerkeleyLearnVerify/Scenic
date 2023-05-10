@@ -12,6 +12,7 @@ from scenic.core.vectors import Orientation
 
 ## Coordinate system transformations
 
+
 class WebotsCoordinateSystem:
     """A Webots coordinate system into which Scenic positions can be converted.
 
@@ -21,16 +22,17 @@ class WebotsCoordinateSystem:
 
     .. _WorldInfo.coordinateSystem: https://cyberbotics.com/doc/reference/worldinfo
     """
-    def __init__(self, system='ENU'):
+
+    def __init__(self, system="ENU"):
         self.system = system
-        axisMap = (system.find('E'), system.find('N'), system.find('U'))
+        axisMap = (system.find("E"), system.find("N"), system.find("U"))
         if len(system) != 3 or -1 in axisMap:
-            raise RuntimeError('unknown kind of Webots coordinate system')
+            raise RuntimeError("unknown kind of Webots coordinate system")
         self.axisMap = axisMap
         self.invAxisMap = (axisMap.index(0), axisMap.index(1), axisMap.index(2))
         self.upAxis = [0, 0, 0]
         self.upAxis[self.axisMap[2]] = 1
-        self.leftHanded = (system[:2] in ('EU', 'NE', 'UN'))
+        self.leftHanded = system[:2] in ("EU", "NE", "UN")
         if self.leftHanded:
             self.mult = [1, -1, 1]
             self.invMult = [1, 1, -1]
@@ -45,7 +47,9 @@ class WebotsCoordinateSystem:
         """Convert a Scenic position to a Webots position."""
         return list(self.invMult[i] * pos[self.invAxisMap[i]] for i in range(3))
 
-    def orientationFromScenic(self, orientation: Orientation, offset: Orientation) -> List[float]:
+    def orientationFromScenic(
+        self, orientation: Orientation, offset: Orientation
+    ) -> List[float]:
         # TODO(shun): Support other coordinate systems
         if self.system != "ENU":
             raise ValueError("Coordinate systems other than ENU is not fully supported")
@@ -61,7 +65,9 @@ class WebotsCoordinateSystem:
             webotsRotation = rotvec.tolist() + [norm]
         return webotsRotation
 
-    def orientationToScenic(self, webotsOrientation: List[float], offset: Orientation) -> Orientation:
+    def orientationToScenic(
+        self, webotsOrientation: List[float], offset: Orientation
+    ) -> Orientation:
         # TODO(shun): Support other coordinate systems
         if self.system != "ENU":
             raise ValueError("Coordinate systems other than ENU is not fully supported")
@@ -74,6 +80,7 @@ class WebotsCoordinateSystem:
         orientation = target * offset.inverse
         return orientation
 
-ENU = WebotsCoordinateSystem('ENU') #: The ENU coordinate system (the Webots default).
-NUE = WebotsCoordinateSystem('NUE') #: The NUE coordinate system.
-EUN = WebotsCoordinateSystem('EUN') #: The EUN coordinate system.
+
+ENU = WebotsCoordinateSystem("ENU")  #: The ENU coordinate system (the Webots default).
+NUE = WebotsCoordinateSystem("NUE")  #: The NUE coordinate system.
+EUN = WebotsCoordinateSystem("EUN")  #: The EUN coordinate system.
