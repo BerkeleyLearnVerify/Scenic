@@ -15,6 +15,11 @@ import sys
 sys.path.insert(0, os.path.abspath('../src'))
 sys.path.insert(0, os.path.abspath('.'))    # for docs-specific code
 
+# Hack to signal to Scenic that the docs are being built
+# (need to do this before importing the scenic module)
+import sphinx
+sphinx._buildingScenicDocs = True
+
 # Set up paths for Scenic maps to enable importing the world models
 import scenic.simulators.gta.map as gta_map
 gta_map.mapPath = '../tests/simulators/gta/map.npz'
@@ -27,7 +32,6 @@ wbt_road_world.worldPath = '../tests/simulators/webots/road/simple.wbt'
 
 # Hack to set global parameters needed to import the driving domain models
 import scenic.syntax.veneer as veneer
-veneer._buildingSphinx = True
 from scenic.syntax.translator import CompileOptions
 veneer.activate(CompileOptions(
     mode2D=True,
@@ -59,7 +63,7 @@ year = time.strftime('%Y', time.gmtime())
 
 project = 'Scenic'
 copyright = f'2020-{year}, Daniel J. Fremont'
-author = 'Daniel J. Fremont, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
+author = 'Daniel J. Fremont, Eric Vin, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
 
 
 # -- General configuration ---------------------------------------------------
@@ -137,6 +141,12 @@ html_static_path = ['_static']
 html_css_files = [
     'custom.css',
 ]
+
+# -- Monkeypatch ModuleAnalyzer to handle Scenic modules ---------------------
+
+from analyzer import ScenicModuleAnalyzer
+import sphinx.pycode as pycode
+pycode.ModuleAnalyzer = ScenicModuleAnalyzer
 
 # -- Monkeypatch to resolve ambiguous references -----------------------------
 
@@ -338,7 +348,6 @@ def setup(app):
     return { 'parallel_read_safe': True }
 
 import importlib
-from sphinx.pycode import ModuleAnalyzer
 from sphinx.util.docstrings import separate_metadata
 from scenic.syntax.translator import ScenicModule
 
@@ -354,7 +363,7 @@ def handle_find_source(app, modname):
 
     # Run usual analysis on the translated source to get tag dictionary
     try:
-        analyzer = ModuleAnalyzer.for_module(modname)
+        analyzer = ScenicModuleAnalyzer.for_module(modname)
         analyzer.find_tags()
     except Exception:
         return None     # bail out; viewcode will try analyzing again but oh well

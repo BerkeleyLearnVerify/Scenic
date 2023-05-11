@@ -1422,24 +1422,22 @@ named_expression:
 
 scenic_until (memo):
     | invalid_scenic_until
-    | a=scenic_implication 'until' b=scenic_implication { s.UntilOp(a, b, LOCATIONS) }
+    | a=scenic_above_until 'until' b=scenic_above_until { s.UntilOp(a, b, LOCATIONS) }
+    | scenic_above_until
+
+scenic_above_until (memo):  # anything with precedence above "until"
+    | scenic_temporal_prefix
     | scenic_implication
+
+scenic_temporal_prefix (memo):
+    | 'next' e=scenic_above_until { s.Next(e, LOCATIONS) }
+    | 'eventually' e=scenic_above_until { s.Eventually(e, LOCATIONS) }
+    | 'always' e=scenic_above_until { s.Always(e, LOCATIONS) }
 
 scenic_implication (memo):
     | invalid_scenic_implication
-    | a=scenic_next 'implies' b=scenic_next { s.ImpliesOp(a, b, LOCATIONS) }
-    | scenic_next
-
-scenic_next (memo):
-    | 'next' e=expression { s.Next(e, LOCATIONS) }
-    | scenic_eventually
-
-scenic_eventually (memo):
-    | 'eventually' e=expression { s.Eventually(e, LOCATIONS) }
-    | scenic_always
-
-scenic_always (memo):
-    | 'always' e=expression { s.Always(e, LOCATIONS) }
+    # exclude implication on RHS to disallow "A implies B implies C"
+    | a=disjunction 'implies' b=(scenic_temporal_prefix | disjunction) { s.ImpliesOp(a, b, LOCATIONS) }
     | disjunction
 
 disjunction (memo):
