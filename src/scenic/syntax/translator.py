@@ -385,15 +385,7 @@ class ScenicLoader(importlib.abc.InspectLoader):
     def get_source(self, fullname):
         module = importlib.import_module(fullname)
         assert isinstance(module, ScenicModule), module
-        return module._pythonSource
-
-# Hack to give instances of ScenicModule a falsy __module__ to prevent
-# Sphinx from getting confused. (Autodoc doesn't expect modules to have
-# that attribute, and we can't del it.) We only do this during Sphinx
-# runs since it breaks pickling of the modules.
-oldname = __name__
-if getattr(veneer, '_buildingSphinx', False):
-    __name__ = None
+        return module._source
 
 class ScenicModule(types.ModuleType):
     def __getstate__(self):
@@ -407,7 +399,13 @@ class ScenicModule(types.ModuleType):
         self.__dict__.update(state)
         self.__builtins__ = builtins.__dict__
 
-__name__ = oldname
+# Give instances of ScenicModule a falsy __module__ to prevent Sphinx from
+# getting confused. (Autodoc doesn't expect modules to have that attribute,
+# and we can't del it.) We only do this during Sphinx runs since it seems to
+# sometimes break pickling of the modules.
+sphinx = sys.modules.get('sphinx')
+if sphinx and getattr(sphinx, '_buildingScenicDocs', False):
+    ScenicModule.__module__ = None
 
 ## Finder for Scenic (and Python) files
 
