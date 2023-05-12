@@ -13,10 +13,10 @@ def test_road_only(loadLocalScenario):
     scenario.generate(maxIterations=100)
 
 @pytest.mark.graphical
-def test_show_2d(loadLocalScenario):
+def test_show2D(loadLocalScenario):
     scenario = loadLocalScenario('crossing.scenic', mode2D=True)
     scene, _ = scenario.generate(maxIterations=1000)
-    scene.show_2d(block=False)
+    scene.show2D(block=False)
     plt.close()
 
 def test_curb(loadLocalScenario):

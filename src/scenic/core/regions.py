@@ -489,7 +489,7 @@ class MeshRegion(Region):
 
     This region can be subclassed to define whether operations are performed over the volume or surface of the mesh.
 
-    The mesh is first placed so the origin is at the center of the bounding box (unless center_mesh is ``False``).
+    The mesh is first placed so the origin is at the center of the bounding box (unless centerMesh is ``False``).
     The mesh is scaled to ``dimensions``, translated so the center of the bounding box of the mesh is at ``positon``,
     and then rotated to ``rotation``.
 
@@ -503,13 +503,13 @@ class MeshRegion(Region):
         orientation: An optional vector field describing the preferred orientation at every point in
           the region.
         tolerance: Tolerance for collision computations.
-        center_mesh: Whether or not to center the mesh after copying and before transformations. Only turn this off
+        centerMesh: Whether or not to center the mesh after copying and before transformations. Only turn this off
           if you know what you're doing and don't plan to scale or translate the mesh.
         engine: Which engine to use for mesh operations. Either "blender" or "scad".
-        additional_deps: Any additional sampling dependencies this region relies on.
+        additionalDeps: Any additional sampling dependencies this region relies on.
     """
     def __init__(self, mesh, name=None, dimensions=None, position=None, rotation=None, orientation=None,\
-        tolerance=1e-6, center_mesh=True, engine="blender", additional_deps=[]):
+        tolerance=1e-6, centerMesh=True, engine="blender", additionalDeps=[]):
         # Copy the mesh and parameters
         if needsSampling(mesh):
             self._mesh = mesh
@@ -526,18 +526,18 @@ class MeshRegion(Region):
         self.rotation = None if rotation is None else toOrientation(rotation)
         self.orientation = None if orientation is None else toDistribution(orientation)
         self.tolerance = tolerance
-        self.center_mesh = center_mesh
+        self.centerMesh = centerMesh
         self.engine = engine
 
         # Initialize superclass with samplables
-        super().__init__(name, self._mesh, self.dimensions, self.position, self.rotation, *additional_deps, orientation=orientation)
+        super().__init__(name, self._mesh, self.dimensions, self.position, self.rotation, *additionalDeps, orientation=orientation)
 
         # If sampling is needed, delay transformations
         if needsSampling(self) or needsLazyEvaluation(self):
             return
 
         # Center mesh unless disabled
-        if center_mesh:
+        if centerMesh:
             self.mesh.vertices -= self.mesh.bounding_box.center_mass
 
         # If dimensions are provided, scale mesh to those dimension
@@ -672,7 +672,7 @@ class MeshRegion(Region):
         return cls(mesh=value[self._mesh], name=self.name, \
             dimensions=value[self.dimensions], position=value[self.position], rotation=value[self.rotation], \
             orientation=self.orientation, tolerance=self.tolerance, \
-            center_mesh=self.center_mesh, engine=self.engine)
+            centerMesh=self.centerMesh, engine=self.engine)
 
 class MeshVolumeRegion(MeshRegion):
     """ An instance of MeshRegion that performs operations over the volume of the mesh.
@@ -829,10 +829,10 @@ class MeshVolumeRegion(MeshRegion):
             # the mesh's vertical center.
             vertical_bounds = (self.mesh.bounds[0][2], self.mesh.bounds[1][2])
             mesh_height = vertical_bounds[1] - vertical_bounds[0] + 1
-            center_z = (vertical_bounds[1] + vertical_bounds[0])/2
+            centerZ = (vertical_bounds[1] + vertical_bounds[0])/2
 
             # Compute the bounded footprint and recursively compute the intersection
-            bounded_footprint = other.approxBoundFootprint(center_z, mesh_height)
+            bounded_footprint = other.approxBoundFootprint(centerZ, mesh_height)
 
             return self.intersects(bounded_footprint)
 
@@ -971,7 +971,7 @@ class MeshVolumeRegion(MeshRegion):
             if new_mesh.is_empty:
                 return EmptyRegion("EmptyMesh")
             elif new_mesh.is_volume:
-                return MeshVolumeRegion(new_mesh, tolerance=min(self.tolerance, other.tolerance), center_mesh=False, engine=self.engine)
+                return MeshVolumeRegion(new_mesh, tolerance=min(self.tolerance, other.tolerance), centerMesh=False, engine=self.engine)
             else:
                 # Something went wrong, abort
                 return super().intersect(other, triedReversed)
@@ -1032,7 +1032,7 @@ class MeshVolumeRegion(MeshRegion):
         #     # Remake the surface, processing to hopefully clean it up.
         #     new_surface = trimesh.Trimesh(**trimesh.triangles.to_kwargs(processed_triangles), process=True)
 
-        #     return MeshSurfaceRegion(mesh=new_surface, tolerance=min(self.tolerance, other.tolerance), center_mesh=False)
+        #     return MeshSurfaceRegion(mesh=new_surface, tolerance=min(self.tolerance, other.tolerance), centerMesh=False)
 
         if isinstance(other, PolygonalFootprintRegion):
             # Other region is a polygonal footprint region. We can bound it in the vertical dimension
@@ -1042,10 +1042,10 @@ class MeshVolumeRegion(MeshRegion):
             # the mesh's vertical center.
             vertical_bounds = (self.mesh.bounds[0][2], self.mesh.bounds[1][2])
             mesh_height = vertical_bounds[1] - vertical_bounds[0] + 1
-            center_z = (vertical_bounds[1] + vertical_bounds[0])/2
+            centerZ = (vertical_bounds[1] + vertical_bounds[0])/2
 
             # Compute the bounded footprint and recursively compute the intersection
-            bounded_footprint = other.approxBoundFootprint(center_z, mesh_height)
+            bounded_footprint = other.approxBoundFootprint(centerZ, mesh_height)
 
             return self.intersect(bounded_footprint)
 
@@ -1213,7 +1213,7 @@ class MeshVolumeRegion(MeshRegion):
             if new_mesh.is_empty:
                 return EmptyRegion("EmptyMesh")
             elif new_mesh.is_volume:
-                return MeshVolumeRegion(new_mesh, tolerance=min(self.tolerance, other.tolerance), center_mesh=False, engine=self.engine)
+                return MeshVolumeRegion(new_mesh, tolerance=min(self.tolerance, other.tolerance), centerMesh=False, engine=self.engine)
             else:
                 # Something went wrong, abort
                 return super().union(other, triedReversed)
@@ -1251,7 +1251,7 @@ class MeshVolumeRegion(MeshRegion):
             if new_mesh.is_empty:
                 return EmptyRegion("EmptyMesh")
             elif new_mesh.is_volume:
-                return MeshVolumeRegion(new_mesh, tolerance=min(self.tolerance, other.tolerance), center_mesh=False, engine=self.engine)
+                return MeshVolumeRegion(new_mesh, tolerance=min(self.tolerance, other.tolerance), centerMesh=False, engine=self.engine)
             else:
                 # Something went wrong, abort
                 return super().difference(other)
@@ -1264,10 +1264,10 @@ class MeshVolumeRegion(MeshRegion):
             # the mesh's vertical center.
             vertical_bounds = (self.mesh.bounds[0][2], self.mesh.bounds[1][2])
             mesh_height = vertical_bounds[1] - vertical_bounds[0] + 1
-            center_z = (vertical_bounds[1] + vertical_bounds[0])/2
+            centerZ = (vertical_bounds[1] + vertical_bounds[0])/2
 
             # Compute the bounded footprint and recursively compute the intersection
-            bounded_footprint = other.approxBoundFootprint(center_z, mesh_height)
+            bounded_footprint = other.approxBoundFootprint(centerZ, mesh_height)
 
             return self.difference(bounded_footprint)
 
@@ -1325,7 +1325,7 @@ class MeshVolumeRegion(MeshRegion):
     def getSurfaceRegion(self):
         """ Return a region equivalent to this one, except as a MeshSurfaceRegion"""
         return MeshSurfaceRegion(self.mesh, self.name, orientation=self.orientation, \
-            tolerance=self.tolerance, center_mesh=False, engine=self.engine)
+            tolerance=self.tolerance, centerMesh=False, engine=self.engine)
 
     def getVolumeRegion(self):
         """ Returns this object, as it is already a MeshVolumeRegion"""
@@ -1376,10 +1376,10 @@ class MeshSurfaceRegion(MeshRegion):
             # the mesh's vertical center.
             vertical_bounds = (self.mesh.bounds[0][2], self.mesh.bounds[1][2])
             mesh_height = vertical_bounds[1] - vertical_bounds[0] + 1
-            center_z = (vertical_bounds[1] + vertical_bounds[0])/2
+            centerZ = (vertical_bounds[1] + vertical_bounds[0])/2
 
             # Compute the bounded footprint and recursively compute the intersection
-            bounded_footprint = other.approxBoundFootprint(center_z, mesh_height)
+            bounded_footprint = other.approxBoundFootprint(centerZ, mesh_height)
 
             return self.intersects(bounded_footprint)
 
@@ -1450,7 +1450,7 @@ class MeshSurfaceRegion(MeshRegion):
     def getVolumeRegion(self):
         """ Return a region equivalent to this one, except as a MeshVolumeRegion"""
         return MeshVolumeRegion(self.mesh, self.name, orientation=self.orientation, \
-            tolerance=self.tolerance, center_mesh=False, engine=self.engine)
+            tolerance=self.tolerance, centerMesh=False, engine=self.engine)
 
     def getSurfaceRegion(self):
         """ Returns this object, as it is already a MeshSurfaceRegion"""
@@ -1611,35 +1611,35 @@ class PolygonalFootprintRegion(Region):
         # Check containment using the bounding polygon of the object.
         return self.polygon.contains(obj._boundingPolygon)
 
-    def approxBoundFootprint(self, center_z, height):
+    def approxBoundFootprint(self, centerZ, height):
         """ Returns an overapproximation of boundFootprint 
 
-        Returns a volume that is guaranteed to contain the result of boundFootprint(center_z, height),
+        Returns a volume that is guaranteed to contain the result of boundFootprint(centerZ, height),
         but may be taller. Used to save time on recomputing boundFootprint.
         """
         if self._bounded_cache is not None:
             # See if we can reuse a previous region
-            prev_center_z, prev_height, prev_bounded_footprint = self._bounded_cache
+            prev_centerZ, prev_height, prev_bounded_footprint = self._bounded_cache
 
-            if prev_center_z + prev_height/2 > center_z + height/2 and \
-               prev_center_z - prev_height/2 < center_z - height/2:
+            if prev_centerZ + prev_height/2 > centerZ + height/2 and \
+               prev_centerZ - prev_height/2 < centerZ - height/2:
                 # Cached region covers requested region, so return that.
                 return prev_bounded_footprint
 
         # Populate cache, and make the height bigger than requested to try to
         # save on future calls.
-        padded_height = 100*max(1,center_z)*height
-        bounded_footprint = self.boundFootprint(center_z, padded_height)
+        padded_height = 100*max(1,centerZ)*height
+        bounded_footprint = self.boundFootprint(centerZ, padded_height)
 
-        self._bounded_cache = center_z, padded_height, bounded_footprint
+        self._bounded_cache = centerZ, padded_height, bounded_footprint
 
         return bounded_footprint
 
-    def boundFootprint(self, center_z, height):
+    def boundFootprint(self, centerZ, height):
         """ Cap the footprint of the object to a given height, centered at a given z.
 
         Args:
-            center_z: The resulting mesh will be vertically centered at this height.
+            centerZ: The resulting mesh will be vertically centered at this height.
             height: The resulting mesh will have this height.
         """
         # Fall back on progressively higher buffering and simplification to 
@@ -1665,7 +1665,7 @@ class PolygonalFootprintRegion(Region):
             polygon_mesh = trimesh.creation.extrude_triangulation(vertices=v, faces=f, height=height)
 
             # Translate the polygon mesh to the desired height.
-            polygon_mesh.vertices[:,2] += center_z - polygon_mesh.bounding_box.center_mass[2]
+            polygon_mesh.vertices[:,2] += centerZ - polygon_mesh.bounding_box.center_mass[2]
 
             # Check if we have a valid volume
             if polygon_mesh.is_volume:
@@ -1677,7 +1677,7 @@ class PolygonalFootprintRegion(Region):
         if not polygon_mesh.is_volume:
             raise RuntimeError("Computing bounded footprint of polygon resulted in invalid volume")
 
-        return MeshVolumeRegion(polygon_mesh, center_mesh=False)
+        return MeshVolumeRegion(polygon_mesh, centerMesh=False)
 
     def buffer(self, amount):
         buffered_polygon = self.polygon.buffer(amount)
@@ -1802,8 +1802,8 @@ class PolygonalRegion(Region):
         orientation (`VectorField`; optional): :term:`preferred orientation` to use.
         name (str; optional): name for debugging.
     """
-    def __init__(self, points=None, polygon=None, orientation=None, name=None, z=0, additional_deps=[]):
-        super().__init__(name, *additional_deps, orientation=orientation)
+    def __init__(self, points=None, polygon=None, orientation=None, name=None, z=0, additionalDeps=[]):
+        super().__init__(name, *additionalDeps, orientation=orientation)
 
         self.z = z
 
@@ -2037,12 +2037,12 @@ class CircularRegion(PolygonalRegion):
 
         if any(needsSampling(dep) for dep in deps):
             # Center and radius aren't fixed, so we'll wait to pass a polygon
-            super().__init__(polygon=None, name=name, additional_deps=deps)
+            super().__init__(polygon=None, name=name, additionalDeps=deps)
             return
 
         ctr = shapely.geometry.Point(self.center)
         polygons = MultiPolygon([ctr.buffer(self.radius, resolution=self.resolution)])
-        super().__init__(polygon=polygons, z=self.center.z, name=name, additional_deps=deps)
+        super().__init__(polygon=polygons, z=self.center.z, name=name, additionalDeps=deps)
 
     def sampleGiven(self, value):
         return CircularRegion(value[self.center], value[self.radius],
@@ -2116,11 +2116,11 @@ class SectorRegion(PolygonalRegion):
 
         if any(isLazy(dep) for dep in deps):
             # Center and radius aren't fixed, so we'll wait to pass a polygon
-            super().__init__(polygon=None, name=name, additional_deps=deps)
+            super().__init__(polygon=None, name=name, additionalDeps=deps)
             return
 
         polygons = self._make_sector_polygons()
-        super().__init__(polygon=polygons, z=self.center.z, name=name, additional_deps=deps)
+        super().__init__(polygon=polygons, z=self.center.z, name=name, additionalDeps=deps)
 
     def _make_sector_polygons(self):
         center, radius = self.center, self.radius
@@ -2205,11 +2205,11 @@ class RectangularRegion(PolygonalRegion):
 
         if any(needsSampling(dep) or needsLazyEvaluation(dep) for dep in deps):
             # Center and radius aren't fixed, so we'll wait to pass a polygon
-            super().__init__(polygon=None, name=name, additional_deps=deps)
+            super().__init__(polygon=None, name=name, additionalDeps=deps)
             return
 
         polygons = self._make_rectangle_polygons()
-        super().__init__(polygon=polygons, z=self.position.z, name=name, additional_deps=deps)
+        super().__init__(polygon=polygons, z=self.position.z, name=name, additionalDeps=deps)
 
     def _make_rectangle_polygons(self):
         position, heading, hw, hl = self.position, self.heading, self.hw, self.hl
@@ -2806,8 +2806,8 @@ class DefaultViewRegion(MeshVolumeRegion):
                 orientation_1 = Orientation.fromEuler(0,0,0)
                 orientation_2 = Orientation.fromEuler(0,0,math.pi)
 
-                cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, center_mesh=False)
-                cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, center_mesh=False)
+                cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, centerMesh=False)
+                cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, centerMesh=False)
 
                 view_region = base_sphere.difference(cone_1).difference(cone_2)
 
@@ -2832,8 +2832,8 @@ class DefaultViewRegion(MeshVolumeRegion):
                 orientation_1 = Orientation.fromEuler(0,0,0)
                 orientation_2 = Orientation.fromEuler(0,0,math.pi)
 
-                cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, center_mesh=False)
-                cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, center_mesh=False)
+                cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, centerMesh=False)
+                cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, centerMesh=False)
 
                 padded_diameter = 1.1*diameter
 
@@ -2869,8 +2869,8 @@ class DefaultViewRegion(MeshVolumeRegion):
             orientation_1 = Orientation.fromEuler(0,0,0)
             orientation_2 = Orientation.fromEuler(0,0,math.pi)
 
-            cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, center_mesh=False)
-            cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, center_mesh=False)
+            cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, centerMesh=False)
+            cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, centerMesh=False)
 
             backwards_view_angle = (math.tau-viewAngles[0], math.pi-0.01)
             back_pyramid = PyramidViewRegion(visibleDistance, backwards_view_angle, rotation=Orientation.fromEuler(math.pi, 0, 0))
@@ -2884,7 +2884,7 @@ class DefaultViewRegion(MeshVolumeRegion):
 
         # Initialize volume region
         super().__init__(mesh=view_region.mesh, name=name, position=position, rotation=rotation, orientation=orientation, \
-            tolerance=tolerance, center_mesh=False)
+            tolerance=tolerance, centerMesh=False)
 
 
 class PyramidViewRegion(MeshVolumeRegion):
@@ -2928,7 +2928,7 @@ class PyramidViewRegion(MeshVolumeRegion):
 
         pyramid_mesh.apply_transform(scale_matrix)
 
-        super().__init__(mesh=pyramid_mesh, rotation=rotation, center_mesh=False)
+        super().__init__(mesh=pyramid_mesh, rotation=rotation, centerMesh=False)
 
 
 class TriangularPrismViewRegion(MeshVolumeRegion):
@@ -2978,4 +2978,4 @@ class TriangularPrismViewRegion(MeshVolumeRegion):
 
         tprism_mesh.apply_transform(scale_matrix)
 
-        super().__init__(mesh=tprism_mesh, rotation=rotation, center_mesh=False)
+        super().__init__(mesh=tprism_mesh, rotation=rotation, centerMesh=False)

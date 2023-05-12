@@ -7,8 +7,8 @@ from tokenize import TokenError
 import pytest
 
 import scenic
-from scenic.core.errors import (ScenicSyntaxError, TokenParseError,
-    ParseCompileError, ASTParseError, RuntimeParseError)
+from scenic.core.errors import (ScenicSyntaxError, ParseCompileError,
+    ASTParseError, RuntimeParseError)
 
 from tests.utils import compileScenic, sampleActionsFromScene, sampleActions
 

@@ -79,23 +79,6 @@ class ScenicSyntaxError(ScenicError):
     """
     pass
 
-# TODO: Is this still used?
-class TokenParseError(ScenicSyntaxError):
-    """Parse error occurring during token translation."""
-    def __init__(self, tokenOrLine, filename, message):
-        self.filename = filename
-        self.msg = message
-        if hasattr(tokenOrLine, 'start'):
-            self.lineno, self.offset = tokenOrLine.start
-            self.end_lineno, self.end_offset = tokenOrLine.end
-            self.offset += 1
-            self.end_offset += 1
-            self.text = tokenOrLine.line
-        else:
-            self.lineno = self.end_lineno = tokenOrLine
-            self.text, self.offset, self.end_offset = getText(filename, tokenOrLine)
-        super().__init__(message)
-
 class ParseCompileError(ScenicSyntaxError):
     """Error occurring during parsing or compilation."""
     def __init__(self, exc):

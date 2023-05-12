@@ -15,12 +15,12 @@ def test_basic(loadLocalScenario):
     GTA.Config(scene)
 
 @pytest.mark.graphical
-def test_show_2d(loadLocalScenario):
+def test_show2D(loadLocalScenario):
     scenario = loadLocalScenario('basic.scenic', mode2D=True)
     scene = sampleScene(scenario, maxIterations=1000)
-    scene.show_2d(block=False)
+    scene.show2D(block=False)
     plt.close()
-    scene.show_2d(zoom=1, block=False)
+    scene.show2D(zoom=1, block=False)
     plt.close()
 
 def test_bumper_to_bumper(loadLocalScenario):
