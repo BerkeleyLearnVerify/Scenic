@@ -41,7 +41,7 @@ class Workspace(Region):
     def show2D(self, plt):
         """Render a schematic of the workspace (in 2D) for debugging"""
         try:
-            aabb = self.region.getAABB()
+            aabb = self.region.AABB
         except NotImplementedError:     # unbounded Regions don't support this
             return
         ((xmin, ymin), (xmax, ymax) , _) = aabb
@@ -94,11 +94,23 @@ class Workspace(Region):
     def containsObject(self, obj):
         return self.region.containsObject(obj)
 
+    def containsRegionInner(self, reg, tolerance):
+        return self.region.containsRegionInner(reg, tolerance)
+
     def distanceTo(self, point):
         return self.region.distanceTo(point)
 
-    def getAABB(self):
-        return self.region.getAABB()
+    @property
+    def AABB(self):
+        return self.region.AABB
+
+    @property
+    def dimensionality(self):
+        return self.region.dimensionality
+
+    @property
+    def size(self):
+        return self.region.size
 
     def __repr__(self):
         return f'Workspace({self.region!r})'

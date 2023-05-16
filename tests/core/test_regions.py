@@ -64,7 +64,7 @@ def test_circular_region():
     assert not circ3.intersects(circ)
     assert circ.distanceTo(Vector(4, -3)) == 0
     assert circ.distanceTo(Vector(1, -7)) == pytest.approx(3)
-    assert circ.getAABB() == ((2, -5), (6, -1), (0,0))
+    assert circ.AABB == ((2, -5), (6, -1), (0,0))
 
 def test_circular_sampling():
     center = Vector(4, -3)
@@ -90,7 +90,7 @@ def test_rectangular_region():
     r3 = RectangularRegion(Vector(2.5, 4.5), 0, 1, 1)
     assert not rect.intersects(r3)
     assert rect.distanceTo((1 + 2*math.sqrt(3), 4)) == pytest.approx(2)
-    (minx, miny), (maxx, maxy), _ = rect.getAABB()
+    (minx, miny), (maxx, maxy), _ = rect.AABB
     assert maxy == pytest.approx(3 + math.sqrt(3)/2)
     assert miny == pytest.approx(1 - math.sqrt(3)/2)
     assert maxx == pytest.approx(1.5 + math.sqrt(3))
@@ -116,7 +116,7 @@ def test_polyline_region():
     assert pl.equallySpacedPoints(3) == list(pl.points)
     assert pl.pointsSeparatedBy(math.sqrt(2)) == list(pl.points[:-1])
     assert pl.length == pytest.approx(2*math.sqrt(2))
-    assert pl.getAABB() == ((0, 0), (1, 2), (0,0))
+    assert pl.AABB == ((0, 0), (1, 2), (0,0))
     start = pl.start
     assert isinstance(start, OrientedPoint)
     assert start.position == (0, 2)
@@ -181,7 +181,7 @@ def test_polygon_region():
         assert not poly.containsPoint(pt)
     assert poly.containsObject(Object._with(position=(2,1.25), width=0.49, length=0.49))
     assert not poly.containsObject(Object._with(position=(2,1.25), width=1, length=0.49))
-    assert poly.getAABB() == ((1, 1), (3, 2), (0,0))
+    assert poly.AABB == ((1, 1), (3, 2), (0,0))
     line = PolylineRegion([(1,1), (2,1.8)])
     assert poly.intersects(line)
     assert line.intersects(poly)
@@ -286,6 +286,12 @@ def test_path_region():
         target_region = random.choice([r1,r2,r3,r4])
         sampled_pt = target_region.uniformPointInner()
         assert target_region.containsPoint(sampled_pt)
+
+    # Test properties
+    assert r1.AABB == ((0,1),(0,1),(0,0))
+    assert r2.AABB == ((3,4),(3,4),(0,3))
+    assert r3.AABB == ((6,7),(6,7),(0,3))
+    assert r4.AABB == ((0,7),(0,7),(0,3))
 
 def test_mesh_region_distribution():
     sampleSceneFrom("""
@@ -529,16 +535,20 @@ def test_view_region_construction():
     """, maxIterations=1000)
 
 def test_pointset_region():
-    ps = PointSetRegion('ps', [(1,2), (3,4), (5,6)])
+    PointSetRegion('foo',  [(1,2), (3,4), (5,6)])
+    PointSetRegion('bar',  [(1,2,1), (3,4,2), (5,6,3)])
+    ps = PointSetRegion('ps', [(1,2), (3,4), (5,6), (1,5,5)])
     assert ps in {ps}
-    for pt in [(1,2), (3,4), (5,6), (1+1e-8,2+1e-8)]:
+    for pt in [(1,2), (3,4), (5,6), (1+1e-8,2+1e-8), (1,5,5)]:
         assert ps.containsPoint(pt)
-    for pt in [(2,3), (1,2.01), (0,0)]:
+    for pt in [(2,3), (1,2.01), (0,0),(1,5)]:
         assert not ps.containsPoint(pt)
     assert not ps.containsObject(Object._with(position=(1,2)))
     assert ps.distanceTo((3,4)) == 0
     assert ps.distanceTo((3,5)) == pytest.approx(1)
     assert ps.distanceTo((2,3)) == pytest.approx(math.sqrt(2))
+    assert ps.AABB == ((1,5),(2,6),(0,5))
+
 
 # General properties of regions
 

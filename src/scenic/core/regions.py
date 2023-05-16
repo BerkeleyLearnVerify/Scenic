@@ -50,16 +50,6 @@ class Region(Samplable, ABC):
         self.orientation = orientation
 
     ## Abstract Methods ##
-    def intersects(self, other, triedReversed=False) -> bool:
-        """intersects(other)
-
-        Check if this `Region` intersects another.
-        """
-        if triedReversed:
-            raise NotImplementedError
-        else:
-            return other.intersects(self, triedReversed=True)
-
     @abstractmethod
     def uniformPointInner(self):
         """Do the actual random sampling. Implemented by subclasses."""
@@ -72,23 +62,24 @@ class Region(Samplable, ABC):
 
     @abstractmethod
     def containsObject(self, obj) -> bool:
-        """Check if the `Region` contains an :obj:`~scenic.core.object_types.Object`.
-
-        The default implementation assumes the `Region` is convex; subclasses must
-        override the method if this is not the case.
-        """
+        """Check if the `Region` contains an :obj:`~scenic.core.object_types.Object`"""
         pass
 
-    def containsRegion(self, reg, tolerance=0):
-        raise NotImplementedError
+    @abstractmethod
+    def containsRegionInner(self, reg, tolerance) -> bool:
+        """Check if the `Region` contains a `Region`"""
+        pass
 
-    @distributionMethod
+    @abstractmethod
     def distanceTo(self, point) -> float:
-        """Distance to this region from a given point.
+        """Distance to this region from a given point."""
+        pass
 
-        Not supported by all region types.
-        """
-        raise NotImplementedError
+    @property
+    @abstractmethod
+    def AABB(self):
+        """Axis-aligned bounding box for this `Region`."""
+        pass
 
     ## Overridable Methods ##
     # The following methods can be overriden to get better performance or if the region
@@ -101,6 +92,16 @@ class Region(Samplable, ABC):
     @property
     def size(self):
         return None
+
+    def intersects(self, other, triedReversed=False) -> bool:
+        """intersects(other)
+
+        Check if this `Region` intersects another.
+        """
+        if triedReversed:
+            raise NotImplementedError
+        else:
+            return other.intersects(self, triedReversed=True)
 
     def intersect(self, other, triedReversed=False) -> 'Region':
         """Get a `Region` representing the intersection of this one with another.
@@ -135,14 +136,32 @@ class Region(Samplable, ABC):
             return nowhere
         return DifferenceRegion(self, other)
 
-    def getAABB(self):
-        """Axis-aligned bounding box for this `Region`. Implemented by some subclasses."""
-        raise NotImplementedError
-
     def sampleGiven(self, value):
         return self
 
-    ## API Methods ##
+    ## Generic Methods (not to be overriden by subclasses) ##
+    @lru_cache(maxsize=None)
+    def containsRegion(self, reg, tolerance=0):
+        # Default behavior for AllRegion and EmptyRegion
+        if type(self) is AllRegion or type(reg) is EmptyRegion:
+            return True
+
+        if type(self) is EmptyRegion or type(reg) is AllRegion:
+            return False
+
+        # Fast checks based off of dimensionality and size
+        if self.dimensionality is not None and reg.dimensionality is not None:
+            # A lower dimensional region cannot contain a higher dimensional region.
+            if self.dimensionality < reg.dimensionality:
+                return False
+
+            if self.size is not None and reg.size is not None:
+                # A smaller region cannot contain a larger region of the
+                # same dimensionality.
+                if self.dimensionality == reg.dimensionality and self.size < reg.size:
+                    return False
+
+        return self.containsRegionInner(reg, tolerance)
 
     @staticmethod
     def uniformPointIn(region):
@@ -219,11 +238,15 @@ class AllRegion(Region):
     def containsObject(self, obj):
         return True
 
-    def containsRegion(self, reg, tolerance=0):
-        return True
+    def containsRegionInner(self, reg, tolerance):
+        assert False
 
     def distanceTo(self, point):
         return 0
+
+    @property
+    def AABB(self):
+        raise NotImplementedError
 
     def __eq__(self, other):
         return type(other) is AllRegion
@@ -254,11 +277,15 @@ class EmptyRegion(Region):
     def containsObject(self, obj):
         return False
 
-    def containsRegion(self, reg, tolerance=0):
-        return type(reg) is EmptyRegion
+    def containsRegionInner(self, reg, tolerance):
+        assert False
 
     def distanceTo(self, point):
         return float('inf')
+
+    @property
+    def AABB(self):
+        raise NotImplementedError
 
     def show(self, plt, style=None, **kwargs):
         pass
@@ -316,6 +343,16 @@ class IntersectionRegion(Region):
 
     def containsObject(self, obj):
         return all(region.containsObject(obj) for region in self.footprint.regions)
+
+    def containsRegionInner(self, reg, tolerance):
+        return all(region.containsRegion(reg, tolerance) for region in self.regions)
+
+    def distanceTo(self, point):
+        raise NotImplementedError
+
+    @property
+    def AABB(self):
+        raise NotImplementedError
 
     @cached_property
     def footprint(self):
@@ -394,6 +431,16 @@ class DifferenceRegion(Region):
 
     def containsObject(self, obj):
         return self.footprint.regionA.containsObject(obj) and not self.footprint.regionB.intersects(obj.occupiedSpace)
+
+    def containsRegionInner(self, reg, tolerance):
+        raise NotImplementedError
+
+    def distanceTo(self, point):
+        raise NotImplementedError
+
+    @property
+    def AABB(self):
+        raise NotImplementedError
 
     @cached_property
     def footprint(self):
@@ -637,6 +684,10 @@ class MeshRegion(Region):
     @cached_property
     def isConvex(self):
         return self.mesh.is_convex
+
+    @property
+    def AABB(self):
+        return (tuple(self.mesh.bounds[0]),tuple(self.mesh.bounds[1]),tuple(self.mesh.bounds[2]))
 
     @cached_property
     def _boundingPolygon(self):
@@ -936,6 +987,16 @@ class MeshVolumeRegion(MeshRegion):
 
         return isinstance(diff_region, EmptyRegion)
 
+    def containsRegionInner(self, reg, tolerance):
+        if tolerance != 0:
+            warnings.warn("Nonzero tolerances are ignored for containsRegionInner on MeshVolumeRegion")
+
+        if isinstance(reg, MeshVolumeRegion):
+            diff_region = reg.difference(self)
+
+            return isinstance(diff_region, EmptyRegion)
+
+        raise NotImplementedError
 
     # Composition methods #
     @lru_cache(maxsize=None)
@@ -1401,6 +1462,17 @@ class MeshSurfaceRegion(MeshRegion):
         # A surface cannot contain an object, which must have a volume.
         return False
 
+    def containsRegionInner(self, reg, tolerance):
+        if tolerance != 0:
+            warnings.warn("Nonzero tolerances are ignored for containsRegionInner on MeshSurfaceRegion")
+
+        if isinstance(reg, MeshSurfaceRegion):
+            diff_region = reg.difference(self)
+
+            return isinstance(diff_region, EmptyRegion)
+
+        raise NotImplementedError
+
     def uniformPointInner(self):
         return Vector(*trimesh.sample.sample_surface(self.mesh, 1)[0][0])
 
@@ -1611,6 +1683,25 @@ class PolygonalFootprintRegion(Region):
         # Check containment using the bounding polygon of the object.
         return self.polygon.contains(obj._boundingPolygon)
 
+    def containsRegionInner(self, reg, tolerance):
+        buffered_polygons = self.polygons.buffer(tolerance)
+
+        if isinstance(other, MeshRegion):
+            return buffered_polygons.contains(reg._boundingPolygon)
+
+        if isinstance(other, (PolygonalRegion, PolygonalFootprintRegion)):
+            return buffered_polygons.contains(reg.poylgons)
+
+        raise NotImplementedError
+
+    def distanceTo(self, point):
+        """ Minimum distance from this polygonal footprint to the target point"""
+        self.polygons.distance(shapely.geometry.Point(point))
+
+    @property
+    def AABB(self):
+        raise NotImplementedError
+
     def approxBoundFootprint(self, centerZ, height):
         """ Returns an overapproximation of boundFootprint 
 
@@ -1763,6 +1854,16 @@ class PathRegion(Region):
 
     def containsObject(self, obj):
         return False
+
+    def containsRegionInner(self, reg, tolerance):
+        raise NotImplementedError
+
+    def distanceTo(self, point):
+        raise NotImplementedError
+
+    @cached_property
+    def AABB(self):
+        return tuple(zip(numpy.amin(self.vertices,axis=0), numpy.amax(self.vertices,axis=0)))
 
     def uniformPointInner(self):
         # Pick an edge, weighted by length, and extract its two points
@@ -1960,9 +2061,7 @@ class PolygonalRegion(Region):
     def prepared(self):
         return shapely.prepared.prep(self.polygons)
 
-    def containsRegion(self, other, tolerance=0):
-        if isinstance(other, EmptyRegion):
-            return True
+    def containsRegionInner(self, other, tolerance):
         poly = toPolygon(other)
         if poly is None:
             raise TypeError(f'cannot test inclusion of {other} in PolygonalRegion')
@@ -1970,10 +2069,12 @@ class PolygonalRegion(Region):
 
     @distributionMethod
     def distanceTo(self, point):
-        # TODO: Fix for 3D
-        return self.polygons.distance(shapely.geometry.Point(point))
+        point = toVector(point)
+        nearest_point, _ = shapely.ops.nearest_points(self.polygons, shapely.geometry.Point(point))
+        return point.distanceTo(Vector(nearest_point.x, nearest_point.y, self.z))
 
-    def getAABB(self):
+    @property
+    def AABB(self):
         xmin, ymin, xmax, ymax = self.polygons.bounds
         return ((xmin, ymin), (xmax, ymax), (self.z, self.z))
 
@@ -2068,7 +2169,6 @@ class CircularRegion(PolygonalRegion):
         return point.distanceTo(self.center) <= self.radius
 
     def distanceTo(self, point):
-        # TODO: Fix for 3D
         point = toVector(point)
         return max(0, point.distanceTo(self.center) - self.radius)
 
@@ -2079,7 +2179,8 @@ class CircularRegion(PolygonalRegion):
         pt = Vector(x + (r * cos(t)), y + (r * sin(t)), z)
         return self.orient(pt)
 
-    def getAABB(self):
+    @property
+    def AABB(self):
         x, y, _ = self.center
         r = self.radius
         return ((x - r, y - r), (x + r, y + r), (self.z,self.z))
@@ -2238,7 +2339,8 @@ class RectangularRegion(PolygonalRegion):
         pt = self.position.offsetRotated(self.heading, Vector(rx, ry, self.position.z))
         return self.orient(pt)
 
-    def getAABB(self):
+    @property
+    def AABB(self):
         x, y, z = zip(*self.corners)
         minx, maxx = findMinMax(x)
         miny, maxy = findMinMax(y)
@@ -2388,6 +2490,12 @@ class PolylineRegion(Region):
         else:
             return self.orient(Vector(x, y, 0))
 
+    def containsRegionInner(self, other, tolerance):
+        poly = toPolygon(other)
+        if poly is None:
+            raise TypeError(f'cannot test inclusion of {other} in PolylineRegion')
+        return self.polygons.buffer(tolerance).contains(poly)
+
     def intersect(self, other, triedReversed=False):
         poly = toPolygon(other)
         if poly is not None:
@@ -2499,7 +2607,8 @@ class PolylineRegion(Region):
     def pointsSeparatedBy(self, distance):
         return [self.pointAlongBy(d) for d in numpy.arange(0, self.length, distance)]
 
-    def getAABB(self):
+    @property
+    def AABB(self):
         xmin, ymin, xmax, ymax = self.lineString.bounds
         return ((xmin, ymin), (xmax, ymax), (0, 0))
 
@@ -2573,7 +2682,11 @@ class PointSetRegion(Region):
             if any(needsSampling(coord) for coord in point):
                 raise ValueError('only fixed PointSetRegions are supported')
         
-        self.points = numpy.array(points)
+        # Try to convert immediately, but catch case which has 2D and 3D points
+        try:
+            self.points = numpy.asarray(points)
+        except ValueError:
+            self.points = numpy.asarray([Vector(*pt) for pt in points])
 
         if self.points.shape[1] == 2:
             self.points = numpy.hstack((self.points, numpy.zeros((len(self.points),1))))
@@ -2614,6 +2727,12 @@ class PointSetRegion(Region):
     def containsObject(self, obj):
         return False
 
+    def containsRegionInner(self, reg, tolerance):
+        if isinstance(reg, PointSetRegion):
+            return all(distance <= tolerance for distance, _ in self.kdTree.query(reg.points))
+
+        raise NotImplementedError
+
     @property
     def dimensionality(self):
         return 0
@@ -2627,6 +2746,10 @@ class PointSetRegion(Region):
         point = toVector(point).coordinates
         distance, _ = self.kdTree.query(point)
         return distance
+
+    @property
+    def AABB(self):
+        return tuple(zip(numpy.amin(self.points,axis=0), numpy.amax(self.points,axis=0)))
 
     def __eq__(self, other):
         if type(other) is not PointSetRegion:
@@ -2723,6 +2846,9 @@ class GridRegion(PointSetRegion):
                 if self.grid[y, x] == 1 and obj.containsPoint(p):
                     return False
         return True
+
+    def containsRegionInner(self, reg, tolerance):
+        raise NotImplementedError
 
 ###################################################################################################
 # View Regions
