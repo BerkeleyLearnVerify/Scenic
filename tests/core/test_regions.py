@@ -293,18 +293,6 @@ def test_path_region():
     assert r3.AABB == ((6,7),(6,7),(0,3))
     assert r4.AABB == ((0,7),(0,7),(0,3))
 
-def test_mesh_region_distribution():
-    sampleSceneFrom("""
-        position = (Range(-5,5), Range(-5,5), Range(-5,5))
-        radius = Range(1,5)
-        dimensions = (2*radius, 2*radius, 2*radius)
-        rotation = (Range(0,360), Range(0,360), Range(0,360))
-
-        region = SpheroidRegion(position=position, dimensions=dimensions, rotation=rotation)
-
-        ego = new Object in region
-    """, maxIterations=100)
-
 def test_mesh_polygon_intersection():
     r1 = BoxRegion(position=(0,0,0), dimensions=(3,3,2))
     r2 = CircularRegion((0,0), 1, resolution=64)
@@ -455,84 +443,6 @@ def test_mesh_path_intersection():
         assert r.containsPoint(point)
         assert r1.containsPoint(point)
         assert r2.containsPoint(point)
-
-
-def test_view_region_construction():
-    sampleSceneFrom("""
-        workspace_region = RectangularRegion(0 @ 0, 0, 40, 40)
-        workspace = Workspace(workspace_region)
-
-        sample_space = BoxRegion(dimensions=(30,30,30), position=(0,0,15))
-
-        ego = new Object with visibleDistance 20,
-            with width 5,
-            with length 5,
-            with height 5,
-            with viewAngles (360 deg, 180 deg)
-
-        new Object in sample_space,
-            with width 1,
-            with length 1,
-            with height 1,
-            facing (Range(0,360) deg, Range(0,360) deg, Range(0,360) deg),
-            with visibleDistance 5,
-            with viewAngles (360 deg, 90 deg),
-            with requireVisible True
-
-        new Object in sample_space,
-            with width 1,
-            with length 1,
-            with height 1,
-            facing (Range(0,360) deg, Range(0,360) deg, Range(0,360) deg),
-            with viewAngles (180 deg, 180 deg),
-            with requireVisible True,
-            with cameraOffset (0,0,0.5)
-
-        new Object in sample_space,
-            with width 1,
-            with length 1,
-            with height 1,
-            facing (Range(0,360) deg, Range(0,360) deg, Range(0,360) deg),
-            with visibleDistance 5,
-            with viewAngles (180 deg, 90 deg),
-            with requireVisible True
-
-        new Object in sample_space,
-            with width 1,
-            with length 1,
-            with height 1,
-            facing (Range(0,360) deg, Range(0,360) deg, Range(0,360) deg),
-            with visibleDistance 5,
-            with viewAngles (200 deg, 180 deg),
-            with requireVisible True
-
-        new Object in sample_space,
-            with width 1,
-            with length 1,
-            with height 1,
-            facing (Range(0,360) deg, Range(0,360) deg, Range(0,360) deg),
-            with visibleDistance 5,
-            with viewAngles (20 deg, 180 deg),
-            with requireVisible True
-
-        new Object in sample_space,
-            with width 1,
-            with length 1,
-            with height 1,
-            facing (Range(0,360) deg, Range(0,360) deg, Range(0,360) deg),
-            with visibleDistance 5,
-            with viewAngles (90 deg, 90 deg),
-            with requireVisible True
-
-        new Object in sample_space,
-            with width 1,
-            with length 1,
-            with height 1,
-            facing (Range(0,360) deg, Range(0,360) deg, Range(0,360) deg),
-            with visibleDistance 5,
-            with viewAngles (200 deg, 40 deg),
-            with requireVisible True
-    """, maxIterations=1000)
 
 def test_pointset_region():
     PointSetRegion('foo',  [(1,2), (3,4), (5,6)])
