@@ -6,7 +6,7 @@ import pytest
 import scenic
 from scenic.core.errors import InvalidScenarioError
 from scenic.core.vectors import Vector
-from tests.utils import compileScenic, sampleScene, sampleEgo, sampleEgoFrom
+from tests.utils import compileScenic, sampleScene, sampleEgo, sampleEgoFrom, sampleSceneFrom
 
 # Built-in regions
 
