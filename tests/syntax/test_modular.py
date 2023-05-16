@@ -1,5 +1,7 @@
 """Tests for modular scenarios."""
 
+import inspect
+
 import pytest
 
 from scenic.core.dynamics import PreconditionViolation, InvariantViolation
@@ -703,3 +705,35 @@ def test_independent_requirements():
         trajectory = sampleTrajectory(scenario, maxSteps=2, maxIterations=100)
         assert tuple(trajectory[2][0]) == (1, 0, 0)
         assert tuple(trajectory[2][1]) == (3, 0, 0)
+
+# Introspection
+
+@pytest.mark.parametrize('body', (
+        """pass""",
+        """setup:
+                pass""",
+        """compose:
+                pass""")
+)
+def test_scenario_signature(body):
+    ego = sampleEgoFrom(f"""
+        scenario Blah(foo, *bar, baz=12, **qux):
+            {body}
+        ego = new Object with thing Blah
+    """)
+    sig = inspect.signature(ego.thing)
+    params = tuple(sig.parameters.items())
+    assert len(params) == 4
+    (name1, p1), (name2, p2), (name3, p3), (name4, p4) = params
+    assert name1 == 'foo'
+    assert p1.default is inspect.Parameter.empty
+    assert p1.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+    assert name2 == 'bar'
+    assert p2.default is inspect.Parameter.empty
+    assert p2.kind is inspect.Parameter.VAR_POSITIONAL
+    assert name3 == 'baz'
+    assert p3.default == 12
+    assert p3.kind is inspect.Parameter.KEYWORD_ONLY
+    assert name4 == 'qux'
+    assert p4.default is inspect.Parameter.empty
+    assert p4.kind is inspect.Parameter.VAR_KEYWORD

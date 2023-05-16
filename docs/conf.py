@@ -148,6 +148,64 @@ from analyzer import ScenicModuleAnalyzer
 import sphinx.pycode as pycode
 pycode.ModuleAnalyzer = ScenicModuleAnalyzer
 
+# -- Monkeypatch the Python domain to understand Scenic objects --------------
+
+# (Unfortunately it's easier to do this than create a separate Scenic domain,
+# since autosummary for example hard-codes the use of Python domain roles.)
+
+from docutils import nodes
+from sphinx import addnodes
+from sphinx.domains.python import PythonDomain, PyFunction, PyXRefRole, ObjType
+from sphinx.ext.autodoc import ClassDocumenter, FunctionDocumenter
+from scenic.core.dynamics import Behavior, Monitor, DynamicScenario
+
+class ScenicBehavior(PyFunction):
+    """Description of a behavior."""
+    def get_signature_prefix(self, sig):
+        return [nodes.Text('behavior'), addnodes.desc_sig_space()]
+
+class ScenicScenario(PyFunction):
+    """Description of a modular scenario."""
+    def get_signature_prefix(self, sig):
+        return [nodes.Text('scenario'), addnodes.desc_sig_space()]
+
+PythonDomain.object_types.update({
+    'behavior': ObjType('behavior', 'behavior', 'obj'),
+    'scenario': ObjType('scenario', 'scenario', 'obj'),
+})
+PythonDomain.directives.update({
+    'behavior': ScenicBehavior,
+    'scenario': ScenicScenario,
+})
+PythonDomain.roles.update({
+    'behavior': PyXRefRole(fix_parens=True),
+    'scenario': PyXRefRole(fix_parens=True),
+})
+
+# These documenters will be installed in setup() below.
+
+class BehaviorDocumenter(FunctionDocumenter):
+    objtype = 'behavior'
+    domain = 'py'
+    priority = ClassDocumenter.priority + 1
+
+    @classmethod
+    def can_document_member(cls, member, membername, isattr, parent):
+        return (isinstance(member, type)
+                and issubclass(member, Behavior)
+                and member not in (Behavior, Monitor))
+
+class ScenarioDocumenter(FunctionDocumenter):
+    objtype = 'scenario'
+    domain = 'py'
+    priority = ClassDocumenter.priority + 1
+
+    @classmethod
+    def can_document_member(cls, member, membername, isattr, parent):
+        return (isinstance(member, type)
+                and issubclass(member, DynamicScenario)
+                and member is not DynamicScenario)
+
 # -- Monkeypatch to resolve ambiguous references -----------------------------
 
 from sphinx.domains.python import PythonDomain
@@ -214,6 +272,83 @@ def parse(self):
     orig_parse(self)
 GoogleDocstring._parse = parse
 
+# -- Monkeypatch to add autosummary tables for behaviors, etc. ---------------
+
+from scenic.syntax.translator import ScenicModule
+
+from typing import Any, Dict, List, Set, Tuple
+from sphinx.ext.autosummary.generate import (
+    logger, members_of, safe_getattr, get_documenter
+)
+import sphinx.ext.autosummary.generate as generate
+orig_gen_content = generate.generate_autosummary_content
+def generate_autosummary_content(
+    name, obj, parent, template, template_name, imported_members, app, recursive,
+    context, modname=None, qualname=None
+):
+    if not isinstance(obj, ScenicModule):
+        return orig_gen_content(
+            name, obj, parent, template, template_name, imported_members, app,
+            recursive, context, modname, qualname
+        )
+
+    def skip_member(obj: Any, name: str, objtype: str) -> bool:
+        try:
+            return app.emit_firstresult('autodoc-skip-member', objtype, name,
+                                        obj, False, {})
+        except Exception as exc:
+            logger.warning(__('autosummary: failed to determine %r to be documented, '
+                              'the following exception was raised:\n%s'),
+                           name, exc, type='autosummary')
+            return False
+
+    def get_module_members(obj: Any) -> Dict[str, Any]:
+        members = {}
+        for name in members_of(obj, app.config):
+            try:
+                members[name] = safe_getattr(obj, name)
+            except AttributeError:
+                continue
+        return members
+
+    def get_members(obj: Any, types: Set[str], include_public: List[str] = [],
+                    imported: bool = True) -> Tuple[List[str], List[str]]:
+        items: List[str] = []
+        public: List[str] = []
+
+        all_members = get_module_members(obj)
+        for name, value in all_members.items():
+            documenter = get_documenter(app, value, obj)
+            if documenter.objtype in types:
+                # skip imported members if expected
+                if imported or getattr(value, '__module__', None) == obj.__name__:
+                    skipped = skip_member(value, name, documenter.objtype)
+                    if skipped is True:
+                        pass
+                    elif skipped is False:
+                        # show the member forcedly
+                        items.append(name)
+                        public.append(name)
+                    else:
+                        items.append(name)
+                        if name in include_public or not name.startswith('_'):
+                            # considers member as public
+                            public.append(name)
+        return public, items
+
+    assert 'behaviors' not in context
+    context['behaviors'], context['all_behaviors'] = get_members(
+        obj, {'behavior'}, imported=imported_members
+    )
+    context['scenarios'], context['all_scenarios'] = get_members(
+        obj, {'scenario'}, imported=imported_members
+    )
+    return orig_gen_content(
+        name, obj, parent, template, template_name, imported_members, app,
+        recursive, context, modname, qualname
+    )
+generate.generate_autosummary_content = generate_autosummary_content
+
 # -- Monkeypatch to list private members after public ones -------------------
 
 from sphinx.ext.autodoc import Documenter
@@ -234,9 +369,11 @@ def sort_members(self, documenters, order):
 Documenter.sort_members = sort_members
 
 # -- Monkeypatch to hide private base classes --------------------------------
-# TODO use autodoc-process-bases instead (new in Sphinx 4.1)
+# N.B. can't use autodoc-process-bases since it doesn't allow suppressing the
+# entire "Bases:" line
 
 from sphinx.ext.autodoc import ClassDocumenter
+from scenic.core.dynamics import Behavior, DynamicScenario
 
 orig_add_directive_header = ClassDocumenter.add_directive_header
 def add_directive_header(self, sig):
@@ -283,6 +420,10 @@ def setup(app):
     app.connect('viewcode-find-source', handle_find_source)
     app.connect('autodoc-process-signature', handle_process_signature)
     app.connect('autodoc-skip-member', handle_skip_member)
+
+    # Add documenters for special types of Scenic objects
+    app.add_autodocumenter(BehaviorDocumenter)
+    app.add_autodocumenter(ScenarioDocumenter)
 
     # Run our own reference resolver before the standard one, to resolve refs to
     # Scenic classes differently in the "Scenic Internals" section than elsewhere

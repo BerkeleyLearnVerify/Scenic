@@ -1,4 +1,5 @@
 
+import inspect
 import sys
 
 import pytest
@@ -7,8 +8,9 @@ from scenic.core.errors import RuntimeParseError, ScenicSyntaxError
 from scenic.core.simulators import RejectSimulationException, TerminationType
 
 from tests.utils import (compileScenic, sampleScene, sampleActions, sampleActionsFromScene,
-                         sampleEgoActions, sampleEgoActionsFromScene, sampleResult,
-                         sampleResultOnce, sampleResultFromScene, checkErrorLineNumber)
+                         sampleEgoActions, sampleEgoActionsFromScene, sampleEgoFrom,
+                         sampleResult, sampleResultOnce, sampleResultFromScene,
+                         checkErrorLineNumber)
 
 ## Dynamic state
 
@@ -1182,6 +1184,32 @@ def test_invalid_monitor_start():
                 wait
             ego = new Object
         """)
+
+## Introspection
+
+@pytest.mark.parametrize('ty', ('behavior', 'monitor'))
+def test_invocable_signature(ty):
+    ego = sampleEgoFrom(f"""
+        {ty} Blah(foo, *bar, baz=12, **qux):
+            wait
+        ego = new Object with thing Blah
+    """)
+    sig = inspect.signature(ego.thing)
+    params = tuple(sig.parameters.items())
+    assert len(params) == 4
+    (name1, p1), (name2, p2), (name3, p3), (name4, p4) = params
+    assert name1 == 'foo'
+    assert p1.default is inspect.Parameter.empty
+    assert p1.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+    assert name2 == 'bar'
+    assert p2.default is inspect.Parameter.empty
+    assert p2.kind is inspect.Parameter.VAR_POSITIONAL
+    assert name3 == 'baz'
+    assert p3.default == 12
+    assert p3.kind is inspect.Parameter.KEYWORD_ONLY
+    assert name4 == 'qux'
+    assert p4.default is inspect.Parameter.empty
+    assert p4.kind is inspect.Parameter.VAR_KEYWORD
 
 ## Interrupts
 

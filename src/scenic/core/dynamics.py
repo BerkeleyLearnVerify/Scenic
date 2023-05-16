@@ -3,6 +3,7 @@
 from collections import defaultdict
 import dataclasses
 import enum
+import functools
 import inspect
 import itertools
 import sys
@@ -182,6 +183,10 @@ class DynamicScenario(Invocable):
     """
     def __init_subclass__(cls, *args, **kwargs):
         veneer.registerDynamicScenarioClass(cls)
+
+        target = cls._setup or cls._compose or (lambda self, agent: 0)
+        target = functools.partial(target, 0, 0)  # account for Scenic-inserted args
+        cls.__signature__ = inspect.signature(target)
 
     _requirementSyntax = None   # overridden by subclasses
     _simulatorFactory = None
@@ -598,8 +603,13 @@ class Behavior(Invocable, Samplable):
     Behavior statements are translated into definitions of subclasses of this class.
     """
     def __init_subclass__(cls):
-        if cls.__module__ is not __name__ and veneer.currentScenario:
-            veneer.currentScenario._behaviors.append(cls)
+        if cls.__module__ is not __name__:
+            if veneer.currentScenario:
+                veneer.currentScenario._behaviors.append(cls)
+
+            target = cls.makeGenerator
+            target = functools.partial(target, 0, 0)  # account for Scenic-inserted args
+            cls.__signature__ = inspect.signature(target)
 
     def __init__(self, *args, **kwargs):
         args = tuple(toDistribution(arg) for arg in args)
