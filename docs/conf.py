@@ -155,19 +155,64 @@ pycode.ModuleAnalyzer = ScenicModuleAnalyzer
 
 from docutils import nodes
 from sphinx import addnodes
-from sphinx.domains.python import PythonDomain, PyFunction, PyXRefRole, ObjType
+from sphinx.domains.python import (
+    PythonDomain, PyClasslike, PyFunction, PyXRefRole, ObjType,
+)
 from sphinx.ext.autodoc import ClassDocumenter, FunctionDocumenter
 from scenic.core.dynamics import Behavior, Monitor, DynamicScenario
 
 class ScenicBehavior(PyFunction):
     """Description of a behavior."""
+
     def get_signature_prefix(self, sig):
         return [nodes.Text('behavior'), addnodes.desc_sig_space()]
 
 class ScenicScenario(PyFunction):
     """Description of a modular scenario."""
+
     def get_signature_prefix(self, sig):
         return [nodes.Text('scenario'), addnodes.desc_sig_space()]
+
+class ScenicClass(PyClasslike):
+    """Description of a Scenic class."""
+
+    def get_signature_prefix(self, sig):
+        return [nodes.Text('class'), addnodes.desc_sig_space()]
+
+    def handle_signature(self, sig, signode):
+        name = sig.split('(')[0]
+        modname = self.options.get('module', self.env.ref_context.get('py:module'))
+        classname = self.env.ref_context.get('py:class')
+        if classname:
+            add_module = False
+            fullname = classname + '.' + name
+        else:
+            add_module = True
+            classname = ''
+            fullname = name
+
+        signode['module'] = modname
+        signode['class'] = classname
+        signode['fullname'] = fullname
+
+        sig_prefix = self.get_signature_prefix(sig)
+        signode += addnodes.desc_annotation(str(sig_prefix), '', *sig_prefix)
+
+        if modname and add_module and self.env.config.add_module_names:
+            nodetext = modname + '.'
+            signode += addnodes.desc_addname(nodetext, nodetext)
+
+        signode += addnodes.desc_name(name, name)
+        signode += addnodes.desc_sig_space()
+        signode += addnodes.desc_sig_keyword('<specifiers>', '<specifiers>')
+
+        return fullname, ''
+
+    def run(self):
+        # Hack to allow self.objtype to be 'class' even though the directive is
+        # 'py:scenicclass' in order not to collide with 'py:class'.
+        self.name = 'py:class'
+        return super().run()
 
 PythonDomain.object_types.update({
     'behavior': ObjType('behavior', 'behavior', 'obj'),
@@ -176,6 +221,7 @@ PythonDomain.object_types.update({
 PythonDomain.directives.update({
     'behavior': ScenicBehavior,
     'scenario': ScenicScenario,
+    'scenicclass': ScenicClass,
 })
 PythonDomain.roles.update({
     'behavior': PyXRefRole(fix_parens=True),
@@ -186,7 +232,6 @@ PythonDomain.roles.update({
 
 class BehaviorDocumenter(FunctionDocumenter):
     objtype = 'behavior'
-    domain = 'py'
     priority = ClassDocumenter.priority + 1
 
     @classmethod
@@ -197,7 +242,6 @@ class BehaviorDocumenter(FunctionDocumenter):
 
 class ScenarioDocumenter(FunctionDocumenter):
     objtype = 'scenario'
-    domain = 'py'
     priority = ClassDocumenter.priority + 1
 
     @classmethod
@@ -205,6 +249,16 @@ class ScenarioDocumenter(FunctionDocumenter):
         return (isinstance(member, type)
                 and issubclass(member, DynamicScenario)
                 and member is not DynamicScenario)
+
+class ScenicClassDocumenter(ClassDocumenter):
+    directivetype = 'scenicclass'
+    priority = ClassDocumenter.priority + 1
+
+    @classmethod
+    def can_document_member(cls, member, membername, isattr, parent):
+        return (isinstance(member, type)
+                and issubclass(member, scenic.core.object_types.Constructible)
+                and member is not scenic.core.object_types.Constructible)
 
 # -- Monkeypatch to resolve ambiguous references -----------------------------
 
@@ -414,16 +468,27 @@ def object_description(obj):
 sphinx.util.inspect.object_description = object_description
 sphinx.ext.autodoc.object_description = object_description
 
+# Hack to prevent signatures for distributions getting quashed by the generic
+# Distribution.__new__
+from scenic.core.distributions import Distribution
+distNew = Distribution.__new__
+fqname = f'{distNew.__module__}.{distNew.__qualname__}'
+sphinx.ext.autodoc._CLASS_NEW_BLACKLIST.append(fqname)
+
 # -- Extension for correctly displaying Scenic code and skipping internals ---
 
 def setup(app):
     app.connect('viewcode-find-source', handle_find_source)
-    app.connect('autodoc-process-signature', handle_process_signature)
     app.connect('autodoc-skip-member', handle_skip_member)
 
     # Add documenters for special types of Scenic objects
     app.add_autodocumenter(BehaviorDocumenter)
     app.add_autodocumenter(ScenarioDocumenter)
+    # Can't use add_autodocumenter for ScenicClassDocumenter since its objtype
+    # is 'class', the same as ClassDocumenter.
+    from sphinx.ext.autodoc.directive import AutodocDirective
+    app.registry.add_documenter('scenicclass', ScenicClassDocumenter)
+    app.add_directive('autoscenicclass', AutodocDirective)
 
     # Run our own reference resolver before the standard one, to resolve refs to
     # Scenic classes differently in the "Scenic Internals" section than elsewhere
@@ -525,14 +590,6 @@ def handle_collect_pages(app):
     hl.highlight_block = hacked_highlight_block
     return
     yield None  # make this a generator function
-
-def handle_process_signature(app, what, name, obj, options, signature, ret_anno):
-    if (what == 'class'
-        and issubclass(obj, scenic.core.object_types.Constructible)
-        and obj is not scenic.core.object_types.Constructible):
-        return ('(<specifiers>)', None)
-    else:
-        return None
 
 def handle_skip_member(app, what, name, obj, skip, options):
     if not skip:
