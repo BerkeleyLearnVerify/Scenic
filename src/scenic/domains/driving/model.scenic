@@ -301,39 +301,6 @@ class Pedestrian(DrivingObject):
     length: 0.75
     color: [0, 0.5, 1]
 
-# Mixin classes indicating support for various types of actions
-
-class Steers:
-    """Mixin protocol for agents which can steer.
-
-    Specifically, agents must support throttling, braking, steering, setting the hand
-    brake, and going into reverse.
-    """
-    def setThrottle(self, throttle): raise NotImplementedError
-
-    def setSteering(self, steering): raise NotImplementedError
-
-    def setBraking(self, braking): raise NotImplementedError
-
-    def setHandbrake(self, handbrake): raise NotImplementedError
-
-    def setReverse(self, reverse): raise NotImplementedError
-
-class Walks:
-    """Mixin protocol for agents which can walk with a given direction and speed.
-
-    We provide a simplistic implementation which directly sets the velocity of the agent.
-    This implementation needs to be explicitly opted-into, since simulators may provide a
-    more sophisticated API that properly animates pedestrians.
-    """
-    def setWalkingDirection(self, heading):
-        velocity = Vector(0, self.speed).rotatedBy(heading)
-        self.setVelocity(velocity)
-
-    def setWalkingSpeed(self, speed):
-        velocity = speed * self.velocity.normalized()
-        self.setVelocity(velocity)
-
 ## Utility functions
 
 def withinDistanceToAnyCars(car, thresholdDistance):

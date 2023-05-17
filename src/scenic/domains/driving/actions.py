@@ -17,7 +17,39 @@ import math
 
 from scenic.core.vectors import Vector
 from scenic.core.simulators import Action
-import scenic.domains.driving.model as _model
+
+## Mixin classes indicating support for various types of actions.
+
+class Steers:
+    """Mixin protocol for agents which can steer.
+
+    Specifically, agents must support throttling, braking, steering, setting the hand
+    brake, and going into reverse.
+    """
+    def setThrottle(self, throttle): raise NotImplementedError
+
+    def setSteering(self, steering): raise NotImplementedError
+
+    def setBraking(self, braking): raise NotImplementedError
+
+    def setHandbrake(self, handbrake): raise NotImplementedError
+
+    def setReverse(self, reverse): raise NotImplementedError
+
+class Walks:
+    """Mixin protocol for agents which can walk with a given direction and speed.
+
+    We provide a simplistic implementation which directly sets the velocity of the agent.
+    This implementation needs to be explicitly opted-into, since simulators may provide a
+    more sophisticated API that properly animates pedestrians.
+    """
+    def setWalkingDirection(self, heading):
+        velocity = Vector(0, self.speed).rotatedBy(heading)
+        self.setVelocity(velocity)
+
+    def setWalkingSpeed(self, speed):
+        velocity = speed * self.velocity.normalized()
+        self.setVelocity(velocity)
 
 ## Actions available to all agents
 
@@ -63,7 +95,7 @@ class SteeringAction(Action):
 	Such agents must implement the `Steers` protocol.
 	"""
 	def canBeTakenBy(self, agent):
-		return isinstance(agent, _model.Steers)
+		return isinstance(agent, Steers)
 
 class SetThrottleAction(SteeringAction):
 	"""Set the throttle.
@@ -186,7 +218,7 @@ class WalkingAction(Action):
 	Such agents must implement the `Walks` protocol.
 	"""
 	def canBeTakenBy(self, agent):
-		return isinstance(agent, _model.Walks)
+		return isinstance(agent, Walks)
 
 class SetWalkingDirectionAction(WalkingAction):
 	"""Set the walking direction."""
