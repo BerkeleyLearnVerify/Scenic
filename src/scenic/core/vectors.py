@@ -327,13 +327,13 @@ class VectorField:
 		return pos
 
 	@staticmethod
-	def forUnionOf(regions):
+	def forUnionOf(regions, tolerance=0):
 		"""Creates a `PiecewiseVectorField` from the union of the given regions.
 
 		If none of the regions have an orientation, returns :obj:`None` instead.
 		"""
 		if any(reg.orientation for reg in regions):
-			return PiecewiseVectorField('Union', regions)
+			return PiecewiseVectorField('Union', regions, tolerance=tolerance)
 		else:
 			return None
 
@@ -378,24 +378,33 @@ class PiecewiseVectorField(VectorField):
 
 	The heading at a point is determined by checking each region in turn to see if it has
 	an orientation and contains the point, returning the corresponding heading if so. If
-	we get through all the regions, then we return the **defaultHeading**, if any, and
-	otherwise reject the scene.
+	we get through all the regions, and **tolerance** is nonzero, we try again, this time
+	allowing the point to be up to **tolerance** away from each region. If we still fail
+	to find a region "containing" the point, then we return the **defaultHeading**, if
+	any, and otherwise reject the scene.
 
 	Arguments:
 		name (str): name for debugging.
 		regions (sequence of `Region` objects): the regions making up the field.
+		tolerance (float): maximum distance at which to consider a point as being
+			in one of the regions, if it is not otherwise contained (default 0).
 		defaultHeading (float): the heading for points not in any region with an
 			orientation (default :obj:`None`, meaning reject such points).
 	"""
-	def __init__(self, name, regions, defaultHeading=None):
-		self.regions = tuple(regions)
+	def __init__(self, name, regions, tolerance=0, defaultHeading=None):
+		self.regions = tuple(region for region in regions if region.orientation)
+		self.tolerance = tolerance
 		self.defaultHeading = defaultHeading
 		super().__init__(name, self.valueAt)
 
 	def valueAt(self, point):
 		for region in self.regions:
-			if region.containsPoint(point) and region.orientation:
+			if region.containsPoint(point):
 				return region.orientation[point]
+		if self.tolerance > 0:
+			for region in self.regions:
+				if region.distanceTo(point) <= self.tolerance:
+					return region.orientation[point]
 		if self.defaultHeading is not None:
 			return self.defaultHeading
 		raise RejectionException(f'evaluated PiecewiseVectorField at undefined point')
