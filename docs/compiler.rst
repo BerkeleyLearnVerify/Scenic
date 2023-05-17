@@ -12,20 +12,20 @@ Scenic AST
 ~~~~~~~~~~
 
 
-Scenic AST is an abstract syntax tree for representing Scenic programs.
+A Scenic AST is an abstract syntax tree for representing Scenic programs.
 It is a superset of Python AST and includes nodes for Scenic-specific
 language constructs.
 
 ``syntax/ast.py`` defines all Scenic-specific AST nodes. Note that all
-Scenic AST nodes must extend the ``AST`` class defined on the same file.
+Scenic AST nodes must extend the ``AST`` class defined in the same file.
 
 AST nodes should include fields to store objects. To add fields, add a
 parameter to the initializer and define fields by assigning values to
 ``self``.
 
 When adding fields, be sure to update the ``_fields`` and
-``__match_args__`` fields. ``__fields`` lists the name of the fields on
-the AST node and is used by the AST module to traverse the tree, fill
+``__match_args__`` fields. ``__fields`` lists the names of the fields in
+the AST node and is used by the AST module to traverse the tree, fill in
 the missing information, etc. ``__match_args__`` is used by the test
 suite to assert the structure of the AST node using Python's structural
 pattern matching.
@@ -56,7 +56,7 @@ Scenic Compiler
 ~~~~~~~~~~~~~~~
 
 Scenic Compiler is a Scenic AST-to-Python AST compiler. The generated
-Python AST would be passed to the Python interpreter for execution.
+Python AST can be passed to the Python interpreter for execution.
 
 Internally, Scenic Compiler is a subclass of ``NodeTransformer``. It
 must define visitors for each Scenic AST node and return corresponding
@@ -65,7 +65,7 @@ Python AST nodes.
 Tutorial: Adding New Syntax
 ---------------------------
 
-In order to add new syntax, you want to follow the following steps:
+In order to add new syntax, you'll want to do the following:
 
 1. add AST nodes to ``ast.py``
 2. add grammar to ``scenic.gram``
@@ -120,7 +120,7 @@ Step 2: Add Grammar
     
     The grammar described here is simplified for the sake of brevity and is not the actual grammar used in the Scenic language.
 
-The next step is to add a grammar to the ``scenic.gram`` file.
+The next step is to update the ``scenic.gram`` file.
 
 ::
 
@@ -129,12 +129,12 @@ The next step is to add a grammar to the ``scenic.gram`` file.
        | a=disjunction 'implies' b=disjunction { s.ImpliesOp(a, b, LOCATIONS) }
        | disjunction
 
-In the grammar, the precedence and associativity is given by using
+In the grammar, precedence and associativity is given by using
 separate rules for each precedence. Since implication should bind less tightly than ``or``,
 it takes two ``disjunction``\ s for its operands.
 
 All Scenic grammar rules should be prefixed with ``scenic_`` so we can
-easily distinguish rules added to the original Python grammar.
+easily distinguish Scenic-specific rules from those in the original Python grammar.
 
 The production rule is defined inside the brackets. ``s`` refers to the
 Scenic AST module and we can write the plain Python to construct the AST
@@ -144,7 +144,7 @@ express source code locations.
 The ``implies`` operator is unique in that it takes exactly two
 operands. Since the associativity of ``implies`` operator is not clear,
 developers must specify the associativity by explicitly wrapping one of
-the operand with parenthesis.
+the operands with parenthesis.
 
 Rules with the ``invalid_`` prefix are special rules for generating
 custom error messages. Pegen first tries to parse the input without
@@ -160,7 +160,7 @@ rules and generate errors if there is a matching rule.
            )
         }
 
-The ``invalid_scenic_implication`` rule looks for implication with more
+The ``invalid_scenic_implication`` rule looks for an implication with more
 than two arguments (e.g. ``A implies B implies C``) and raises a syntax
 error with a detailed error message.
 
