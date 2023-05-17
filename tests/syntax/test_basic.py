@@ -161,20 +161,20 @@ def test_dump_final_python():
         scenic.syntax.translator.dumpASTPython = False
 
 @pytest.mark.graphical
-def test_show2d():
+def test_show2D():
     scenario = compileScenic('ego = new Object with color (0.5, 1.0, 0.5)')
     scene = sampleScene(scenario)
-    scene.show_2d(block=False)
+    scene.show2D(block=False)
     plt.close()
 
 @pytest.mark.graphical
-def test_show2d_zoom():
+def test_show2D_zoom():
     scenario = compileScenic("""
         ego = new Object
         new Object at 10@20
     """)
     scene = sampleScene(scenario)
-    scene.show_2d(zoom=1, block=False)
+    scene.show2D(zoom=1, block=False)
     xmin, xmax, ymin, ymax = plt.axis()
     assert xmin < 0 and xmax > 10
     assert ymin < 0 and ymax > 20

@@ -2,7 +2,7 @@
 import math
 import pytest
 
-from scenic.core.errors import TokenParseError, ASTParseError, RuntimeParseError, ScenicSyntaxError
+from scenic.core.errors import ASTParseError, RuntimeParseError, ScenicSyntaxError
 from scenic.core.vectors import Orientation
 from tests.utils import compileScenic, sampleScene, sampleEgoFrom, sampleEgoActions
 

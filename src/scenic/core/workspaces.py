@@ -23,13 +23,13 @@ class Workspace(Region):
 
         self.region = region
 
-    def show_3d(self, viewer):
+    def show3D(self, viewer):
         """Render a schematic of the workspace (in 3D) for debugging"""
         if isinstance(self.region, (MeshVolumeRegion, MeshSurfaceRegion, PolygonalRegion)):
             if isinstance(self.region, (MeshVolumeRegion, MeshSurfaceRegion)):
                 workspace_mesh = self.region.mesh.copy()
             else:
-                workspace_mesh = self.region.footprint.boundFootprint(center_z=self.region.z, height=0.0001).mesh.copy()
+                workspace_mesh = self.region.footprint.boundFootprint(centerZ=self.region.z, height=0.0001).mesh.copy()
             # We can render this workspace as the wireframe of a mesh
             edges = workspace_mesh.face_adjacency_edges[workspace_mesh.face_adjacency_angles > np.radians(0.1)].copy()
             vertices = workspace_mesh.vertices.copy()
@@ -38,10 +38,10 @@ class Workspace(Region):
 
             viewer.add_geometry(edge_path)
 
-    def show_2d(self, plt):
+    def show2D(self, plt):
         """Render a schematic of the workspace (in 2D) for debugging"""
         try:
-            aabb = self.region.getAABB()
+            aabb = self.region.AABB
         except NotImplementedError:     # unbounded Regions don't support this
             return
         ((xmin, ymin), (xmax, ymax) , _) = aabb
@@ -94,11 +94,23 @@ class Workspace(Region):
     def containsObject(self, obj):
         return self.region.containsObject(obj)
 
+    def containsRegionInner(self, reg, tolerance):
+        return self.region.containsRegionInner(reg, tolerance)
+
     def distanceTo(self, point):
         return self.region.distanceTo(point)
 
-    def getAABB(self):
-        return self.region.getAABB()
+    @property
+    def AABB(self):
+        return self.region.AABB
+
+    @property
+    def dimensionality(self):
+        return self.region.dimensionality
+
+    @property
+    def size(self):
+        return self.region.size
 
     def __repr__(self):
         return f'Workspace({self.region!r})'

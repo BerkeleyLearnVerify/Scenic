@@ -197,12 +197,12 @@ try:
             else:
                 if delay is None:
                     if mode2D:
-                        scene.show_2d(zoom=args.zoom)
+                        scene.show2D(zoom=args.zoom)
                     else:
                         scene.show(zoom=args.zoom)
                 else:
                     if mode2D:
-                        scene.show_2d(zoom=args.zoom, block=False)
+                        scene.show2D(zoom=args.zoom, block=False)
                         plt.pause(delay)
                         plt.clf()
                     else:

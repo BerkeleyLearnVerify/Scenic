@@ -173,21 +173,12 @@ def pruneContainment(scenario, verbosity):
         if isinstance(newBase, EmptyRegion):
             raise InvalidScenarioError(f'Object {obj} does not fit in container')
 
-        # Print debug info and cleanup
-        def extractRegion(item):
-            if isinstance(item, Workspace):
-                return item.region
-
-            return item
-
         if verbosity >= 1:
-            regBase = extractRegion(base)
-
-            if regBase.dimensionality is None or newBase.dimensionality is None or \
-               regBase.dimensionality != newBase.dimensionality:
-                print(f'    Region containment constraint pruning attempted but could not compute percentage for {regBase} and {newBase}.')
-            elif regBase.dimensionality == newBase.dimensionality:
-                ratio = newBase.size/regBase.size
+            if base.dimensionality is None or newBase.dimensionality is None or \
+               base.dimensionality != newBase.dimensionality:
+                print(f'    Region containment constraint pruning attempted but could not compute percentage for {base} and {newBase}.')
+            elif base.dimensionality == newBase.dimensionality:
+                ratio = newBase.size/base.size
                 percent = max(0, 100 * (1.0 - ratio))
 
                 if percent <= 0.001:

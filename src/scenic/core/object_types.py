@@ -1058,7 +1058,7 @@ class Object(OrientedPoint):
     @cached_property
     def boundingBox(self):
         """A region representing this object's bounding box"""
-        return MeshVolumeRegion(self.occupiedSpace.mesh.bounding_box, center_mesh=False)
+        return MeshVolumeRegion(self.occupiedSpace.mesh.bounding_box, centerMesh=False)
 
     @cached_property
     def inradius(self):
@@ -1172,7 +1172,7 @@ class Object(OrientedPoint):
         return defaultSideSurface(self.occupiedSpace, dimension=2, \
             positive=False, thresholds=self.sideComponentThresholds)
 
-    def show_3d(self, viewer, highlight=False):
+    def show3D(self, viewer, highlight=False):
         if needsSampling(self):
             raise RuntimeError('tried to show() symbolic Object')
 
@@ -1199,7 +1199,7 @@ class Object(OrientedPoint):
 
             viewer.add_geometry(edge_path)
 
-    def show_2d(self, workspace, plt, highlight=False):
+    def show2D(self, workspace, plt, highlight=False):
         if needsSampling(self):
             raise RuntimeError('tried to show() symbolic Object')
         pos = self.position
@@ -1299,7 +1299,7 @@ def defaultSideSurface(occupiedSpace, dimension, positive, thresholds):
 
     # Check if the resulting surface is empty and return an appropriate region.
     if not obj_mesh.is_empty:
-        return MeshSurfaceRegion(mesh=obj_mesh, center_mesh=False)
+        return MeshSurfaceRegion(mesh=obj_mesh, centerMesh=False)
     else:
         return EmptyRegion(name="EmptyTopSurface")
 

@@ -158,9 +158,9 @@ class Scene(_ScenarioPickleMixin):
             stream.write('\n')
 
     def show(self, zoom=None, block=True):
-        self.show_3d()
+        self.show3D()
 
-    def show_3d(self):
+    def show3D(self):
         """Render a 3D schematic of the scene for debugging."""
         import trimesh
 
@@ -168,10 +168,10 @@ class Scene(_ScenarioPickleMixin):
         render_scene = trimesh.scene.Scene()
 
         # display map
-        self.workspace.show_3d(render_scene)
+        self.workspace.show3D(render_scene)
         # draw objects
         for obj in self.objects:
-            obj.show_3d(render_scene, highlight=(obj is self.egoObject))
+            obj.show3D(render_scene, highlight=(obj is self.egoObject))
 
         # If nothing else is in the viewer, add some constructs
         # to avoid a crash
@@ -180,15 +180,15 @@ class Scene(_ScenarioPickleMixin):
 
         render_scene.show(flags={'axis': 'world'})
 
-    def show_2d(self, zoom=None, block=True):
+    def show2D(self, zoom=None, block=True):
         """Render a 2D schematic of the scene for debugging."""
         import matplotlib.pyplot as plt
         plt.gca().set_aspect('equal')
         # display map
-        self.workspace.show_2d(plt)
+        self.workspace.show2D(plt)
         # draw objects
         for obj in self.objects:
-            obj.show_2d(self.workspace, plt, highlight=(obj is self.egoObject))
+            obj.show2D(self.workspace, plt, highlight=(obj is self.egoObject))
         # zoom in if requested
         if zoom:
             self.workspace.zoomAround(plt, self.objects, expansion=zoom)

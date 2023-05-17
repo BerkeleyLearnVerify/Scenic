@@ -50,16 +50,6 @@ class Region(Samplable, ABC):
         self.orientation = orientation
 
     ## Abstract Methods ##
-    def intersects(self, other, triedReversed=False) -> bool:
-        """intersects(other)
-
-        Check if this `Region` intersects another.
-        """
-        if triedReversed:
-            raise NotImplementedError
-        else:
-            return other.intersects(self, triedReversed=True)
-
     @abstractmethod
     def uniformPointInner(self):
         """Do the actual random sampling. Implemented by subclasses."""
@@ -72,23 +62,24 @@ class Region(Samplable, ABC):
 
     @abstractmethod
     def containsObject(self, obj) -> bool:
-        """Check if the `Region` contains an :obj:`~scenic.core.object_types.Object`.
-
-        The default implementation assumes the `Region` is convex; subclasses must
-        override the method if this is not the case.
-        """
+        """Check if the `Region` contains an :obj:`~scenic.core.object_types.Object`"""
         pass
 
-    def containsRegion(self, reg, tolerance=0):
-        raise NotImplementedError
+    @abstractmethod
+    def containsRegionInner(self, reg, tolerance) -> bool:
+        """Check if the `Region` contains a `Region`"""
+        pass
 
-    @distributionMethod
+    @abstractmethod
     def distanceTo(self, point) -> float:
-        """Distance to this region from a given point.
+        """Distance to this region from a given point."""
+        pass
 
-        Not supported by all region types.
-        """
-        raise NotImplementedError
+    @property
+    @abstractmethod
+    def AABB(self):
+        """Axis-aligned bounding box for this `Region`."""
+        pass
 
     ## Overridable Methods ##
     # The following methods can be overriden to get better performance or if the region
@@ -101,6 +92,16 @@ class Region(Samplable, ABC):
     @property
     def size(self):
         return None
+
+    def intersects(self, other, triedReversed=False) -> bool:
+        """intersects(other)
+
+        Check if this `Region` intersects another.
+        """
+        if triedReversed:
+            raise NotImplementedError
+        else:
+            return other.intersects(self, triedReversed=True)
 
     def intersect(self, other, triedReversed=False) -> 'Region':
         """Get a `Region` representing the intersection of this one with another.
@@ -135,14 +136,32 @@ class Region(Samplable, ABC):
             return nowhere
         return DifferenceRegion(self, other)
 
-    def getAABB(self):
-        """Axis-aligned bounding box for this `Region`. Implemented by some subclasses."""
-        raise NotImplementedError
-
     def sampleGiven(self, value):
         return self
 
-    ## API Methods ##
+    ## Generic Methods (not to be overriden by subclasses) ##
+    @lru_cache(maxsize=None)
+    def containsRegion(self, reg, tolerance=0):
+        # Default behavior for AllRegion and EmptyRegion
+        if type(self) is AllRegion or type(reg) is EmptyRegion:
+            return True
+
+        if type(self) is EmptyRegion or type(reg) is AllRegion:
+            return False
+
+        # Fast checks based off of dimensionality and size
+        if self.dimensionality is not None and reg.dimensionality is not None:
+            # A lower dimensional region cannot contain a higher dimensional region.
+            if self.dimensionality < reg.dimensionality:
+                return False
+
+            if self.size is not None and reg.size is not None:
+                # A smaller region cannot contain a larger region of the
+                # same dimensionality.
+                if self.dimensionality == reg.dimensionality and self.size < reg.size:
+                    return False
+
+        return self.containsRegionInner(reg, tolerance)
 
     @staticmethod
     def uniformPointIn(region):
@@ -219,11 +238,15 @@ class AllRegion(Region):
     def containsObject(self, obj):
         return True
 
-    def containsRegion(self, reg, tolerance=0):
-        return True
+    def containsRegionInner(self, reg, tolerance):
+        assert False
 
     def distanceTo(self, point):
         return 0
+
+    @property
+    def AABB(self):
+        raise NotImplementedError
 
     def __eq__(self, other):
         return type(other) is AllRegion
@@ -254,11 +277,15 @@ class EmptyRegion(Region):
     def containsObject(self, obj):
         return False
 
-    def containsRegion(self, reg, tolerance=0):
-        return type(reg) is EmptyRegion
+    def containsRegionInner(self, reg, tolerance):
+        assert False
 
     def distanceTo(self, point):
         return float('inf')
+
+    @property
+    def AABB(self):
+        raise NotImplementedError
 
     def show(self, plt, style=None, **kwargs):
         pass
@@ -316,6 +343,16 @@ class IntersectionRegion(Region):
 
     def containsObject(self, obj):
         return all(region.containsObject(obj) for region in self.footprint.regions)
+
+    def containsRegionInner(self, reg, tolerance):
+        return all(region.containsRegion(reg, tolerance) for region in self.regions)
+
+    def distanceTo(self, point):
+        raise NotImplementedError
+
+    @property
+    def AABB(self):
+        raise NotImplementedError
 
     @cached_property
     def footprint(self):
@@ -394,6 +431,16 @@ class DifferenceRegion(Region):
 
     def containsObject(self, obj):
         return self.footprint.regionA.containsObject(obj) and not self.footprint.regionB.intersects(obj.occupiedSpace)
+
+    def containsRegionInner(self, reg, tolerance):
+        raise NotImplementedError
+
+    def distanceTo(self, point):
+        raise NotImplementedError
+
+    @property
+    def AABB(self):
+        raise NotImplementedError
 
     @cached_property
     def footprint(self):
@@ -489,7 +536,7 @@ class MeshRegion(Region):
 
     This region can be subclassed to define whether operations are performed over the volume or surface of the mesh.
 
-    The mesh is first placed so the origin is at the center of the bounding box (unless center_mesh is ``False``).
+    The mesh is first placed so the origin is at the center of the bounding box (unless centerMesh is ``False``).
     The mesh is scaled to ``dimensions``, translated so the center of the bounding box of the mesh is at ``positon``,
     and then rotated to ``rotation``.
 
@@ -503,13 +550,13 @@ class MeshRegion(Region):
         orientation: An optional vector field describing the preferred orientation at every point in
           the region.
         tolerance: Tolerance for collision computations.
-        center_mesh: Whether or not to center the mesh after copying and before transformations. Only turn this off
+        centerMesh: Whether or not to center the mesh after copying and before transformations. Only turn this off
           if you know what you're doing and don't plan to scale or translate the mesh.
         engine: Which engine to use for mesh operations. Either "blender" or "scad".
-        additional_deps: Any additional sampling dependencies this region relies on.
+        additionalDeps: Any additional sampling dependencies this region relies on.
     """
     def __init__(self, mesh, name=None, dimensions=None, position=None, rotation=None, orientation=None,\
-        tolerance=1e-6, center_mesh=True, engine="blender", additional_deps=[]):
+        tolerance=1e-6, centerMesh=True, engine="blender", additionalDeps=[]):
         # Copy the mesh and parameters
         if needsSampling(mesh):
             self._mesh = mesh
@@ -526,18 +573,18 @@ class MeshRegion(Region):
         self.rotation = None if rotation is None else toOrientation(rotation)
         self.orientation = None if orientation is None else toDistribution(orientation)
         self.tolerance = tolerance
-        self.center_mesh = center_mesh
+        self.centerMesh = centerMesh
         self.engine = engine
 
         # Initialize superclass with samplables
-        super().__init__(name, self._mesh, self.dimensions, self.position, self.rotation, *additional_deps, orientation=orientation)
+        super().__init__(name, self._mesh, self.dimensions, self.position, self.rotation, *additionalDeps, orientation=orientation)
 
         # If sampling is needed, delay transformations
         if needsSampling(self) or needsLazyEvaluation(self):
             return
 
         # Center mesh unless disabled
-        if center_mesh:
+        if centerMesh:
             self.mesh.vertices -= self.mesh.bounding_box.center_mass
 
         # If dimensions are provided, scale mesh to those dimension
@@ -638,6 +685,10 @@ class MeshRegion(Region):
     def isConvex(self):
         return self.mesh.is_convex
 
+    @property
+    def AABB(self):
+        return (tuple(self.mesh.bounds[0]),tuple(self.mesh.bounds[1]),tuple(self.mesh.bounds[2]))
+
     @cached_property
     def _boundingPolygon(self):
         assert not needsSampling(self)
@@ -672,7 +723,7 @@ class MeshRegion(Region):
         return cls(mesh=value[self._mesh], name=self.name, \
             dimensions=value[self.dimensions], position=value[self.position], rotation=value[self.rotation], \
             orientation=self.orientation, tolerance=self.tolerance, \
-            center_mesh=self.center_mesh, engine=self.engine)
+            centerMesh=self.centerMesh, engine=self.engine)
 
 class MeshVolumeRegion(MeshRegion):
     """ An instance of MeshRegion that performs operations over the volume of the mesh.
@@ -829,10 +880,10 @@ class MeshVolumeRegion(MeshRegion):
             # the mesh's vertical center.
             vertical_bounds = (self.mesh.bounds[0][2], self.mesh.bounds[1][2])
             mesh_height = vertical_bounds[1] - vertical_bounds[0] + 1
-            center_z = (vertical_bounds[1] + vertical_bounds[0])/2
+            centerZ = (vertical_bounds[1] + vertical_bounds[0])/2
 
             # Compute the bounded footprint and recursively compute the intersection
-            bounded_footprint = other.approxBoundFootprint(center_z, mesh_height)
+            bounded_footprint = other.approxBoundFootprint(centerZ, mesh_height)
 
             return self.intersects(bounded_footprint)
 
@@ -936,6 +987,16 @@ class MeshVolumeRegion(MeshRegion):
 
         return isinstance(diff_region, EmptyRegion)
 
+    def containsRegionInner(self, reg, tolerance):
+        if tolerance != 0:
+            warnings.warn("Nonzero tolerances are ignored for containsRegionInner on MeshVolumeRegion")
+
+        if isinstance(reg, MeshVolumeRegion):
+            diff_region = reg.difference(self)
+
+            return isinstance(diff_region, EmptyRegion)
+
+        raise NotImplementedError
 
     # Composition methods #
     @lru_cache(maxsize=None)
@@ -971,7 +1032,7 @@ class MeshVolumeRegion(MeshRegion):
             if new_mesh.is_empty:
                 return EmptyRegion("EmptyMesh")
             elif new_mesh.is_volume:
-                return MeshVolumeRegion(new_mesh, tolerance=min(self.tolerance, other.tolerance), center_mesh=False, engine=self.engine)
+                return MeshVolumeRegion(new_mesh, tolerance=min(self.tolerance, other.tolerance), centerMesh=False, engine=self.engine)
             else:
                 # Something went wrong, abort
                 return super().intersect(other, triedReversed)
@@ -1032,7 +1093,7 @@ class MeshVolumeRegion(MeshRegion):
         #     # Remake the surface, processing to hopefully clean it up.
         #     new_surface = trimesh.Trimesh(**trimesh.triangles.to_kwargs(processed_triangles), process=True)
 
-        #     return MeshSurfaceRegion(mesh=new_surface, tolerance=min(self.tolerance, other.tolerance), center_mesh=False)
+        #     return MeshSurfaceRegion(mesh=new_surface, tolerance=min(self.tolerance, other.tolerance), centerMesh=False)
 
         if isinstance(other, PolygonalFootprintRegion):
             # Other region is a polygonal footprint region. We can bound it in the vertical dimension
@@ -1042,10 +1103,10 @@ class MeshVolumeRegion(MeshRegion):
             # the mesh's vertical center.
             vertical_bounds = (self.mesh.bounds[0][2], self.mesh.bounds[1][2])
             mesh_height = vertical_bounds[1] - vertical_bounds[0] + 1
-            center_z = (vertical_bounds[1] + vertical_bounds[0])/2
+            centerZ = (vertical_bounds[1] + vertical_bounds[0])/2
 
             # Compute the bounded footprint and recursively compute the intersection
-            bounded_footprint = other.approxBoundFootprint(center_z, mesh_height)
+            bounded_footprint = other.approxBoundFootprint(centerZ, mesh_height)
 
             return self.intersect(bounded_footprint)
 
@@ -1213,7 +1274,7 @@ class MeshVolumeRegion(MeshRegion):
             if new_mesh.is_empty:
                 return EmptyRegion("EmptyMesh")
             elif new_mesh.is_volume:
-                return MeshVolumeRegion(new_mesh, tolerance=min(self.tolerance, other.tolerance), center_mesh=False, engine=self.engine)
+                return MeshVolumeRegion(new_mesh, tolerance=min(self.tolerance, other.tolerance), centerMesh=False, engine=self.engine)
             else:
                 # Something went wrong, abort
                 return super().union(other, triedReversed)
@@ -1251,7 +1312,7 @@ class MeshVolumeRegion(MeshRegion):
             if new_mesh.is_empty:
                 return EmptyRegion("EmptyMesh")
             elif new_mesh.is_volume:
-                return MeshVolumeRegion(new_mesh, tolerance=min(self.tolerance, other.tolerance), center_mesh=False, engine=self.engine)
+                return MeshVolumeRegion(new_mesh, tolerance=min(self.tolerance, other.tolerance), centerMesh=False, engine=self.engine)
             else:
                 # Something went wrong, abort
                 return super().difference(other)
@@ -1264,10 +1325,10 @@ class MeshVolumeRegion(MeshRegion):
             # the mesh's vertical center.
             vertical_bounds = (self.mesh.bounds[0][2], self.mesh.bounds[1][2])
             mesh_height = vertical_bounds[1] - vertical_bounds[0] + 1
-            center_z = (vertical_bounds[1] + vertical_bounds[0])/2
+            centerZ = (vertical_bounds[1] + vertical_bounds[0])/2
 
             # Compute the bounded footprint and recursively compute the intersection
-            bounded_footprint = other.approxBoundFootprint(center_z, mesh_height)
+            bounded_footprint = other.approxBoundFootprint(centerZ, mesh_height)
 
             return self.difference(bounded_footprint)
 
@@ -1325,7 +1386,7 @@ class MeshVolumeRegion(MeshRegion):
     def getSurfaceRegion(self):
         """ Return a region equivalent to this one, except as a MeshSurfaceRegion"""
         return MeshSurfaceRegion(self.mesh, self.name, orientation=self.orientation, \
-            tolerance=self.tolerance, center_mesh=False, engine=self.engine)
+            tolerance=self.tolerance, centerMesh=False, engine=self.engine)
 
     def getVolumeRegion(self):
         """ Returns this object, as it is already a MeshVolumeRegion"""
@@ -1376,10 +1437,10 @@ class MeshSurfaceRegion(MeshRegion):
             # the mesh's vertical center.
             vertical_bounds = (self.mesh.bounds[0][2], self.mesh.bounds[1][2])
             mesh_height = vertical_bounds[1] - vertical_bounds[0] + 1
-            center_z = (vertical_bounds[1] + vertical_bounds[0])/2
+            centerZ = (vertical_bounds[1] + vertical_bounds[0])/2
 
             # Compute the bounded footprint and recursively compute the intersection
-            bounded_footprint = other.approxBoundFootprint(center_z, mesh_height)
+            bounded_footprint = other.approxBoundFootprint(centerZ, mesh_height)
 
             return self.intersects(bounded_footprint)
 
@@ -1400,6 +1461,17 @@ class MeshSurfaceRegion(MeshRegion):
     def containsObject(self, obj):
         # A surface cannot contain an object, which must have a volume.
         return False
+
+    def containsRegionInner(self, reg, tolerance):
+        if tolerance != 0:
+            warnings.warn("Nonzero tolerances are ignored for containsRegionInner on MeshSurfaceRegion")
+
+        if isinstance(reg, MeshSurfaceRegion):
+            diff_region = reg.difference(self)
+
+            return isinstance(diff_region, EmptyRegion)
+
+        raise NotImplementedError
 
     def uniformPointInner(self):
         return Vector(*trimesh.sample.sample_surface(self.mesh, 1)[0][0])
@@ -1450,7 +1522,7 @@ class MeshSurfaceRegion(MeshRegion):
     def getVolumeRegion(self):
         """ Return a region equivalent to this one, except as a MeshVolumeRegion"""
         return MeshVolumeRegion(self.mesh, self.name, orientation=self.orientation, \
-            tolerance=self.tolerance, center_mesh=False, engine=self.engine)
+            tolerance=self.tolerance, centerMesh=False, engine=self.engine)
 
     def getSurfaceRegion(self):
         """ Returns this object, as it is already a MeshSurfaceRegion"""
@@ -1611,35 +1683,54 @@ class PolygonalFootprintRegion(Region):
         # Check containment using the bounding polygon of the object.
         return self.polygon.contains(obj._boundingPolygon)
 
-    def approxBoundFootprint(self, center_z, height):
+    def containsRegionInner(self, reg, tolerance):
+        buffered_polygons = self.polygons.buffer(tolerance)
+
+        if isinstance(other, MeshRegion):
+            return buffered_polygons.contains(reg._boundingPolygon)
+
+        if isinstance(other, (PolygonalRegion, PolygonalFootprintRegion)):
+            return buffered_polygons.contains(reg.poylgons)
+
+        raise NotImplementedError
+
+    def distanceTo(self, point):
+        """ Minimum distance from this polygonal footprint to the target point"""
+        self.polygons.distance(shapely.geometry.Point(point))
+
+    @property
+    def AABB(self):
+        raise NotImplementedError
+
+    def approxBoundFootprint(self, centerZ, height):
         """ Returns an overapproximation of boundFootprint 
 
-        Returns a volume that is guaranteed to contain the result of boundFootprint(center_z, height),
+        Returns a volume that is guaranteed to contain the result of boundFootprint(centerZ, height),
         but may be taller. Used to save time on recomputing boundFootprint.
         """
         if self._bounded_cache is not None:
             # See if we can reuse a previous region
-            prev_center_z, prev_height, prev_bounded_footprint = self._bounded_cache
+            prev_centerZ, prev_height, prev_bounded_footprint = self._bounded_cache
 
-            if prev_center_z + prev_height/2 > center_z + height/2 and \
-               prev_center_z - prev_height/2 < center_z - height/2:
+            if prev_centerZ + prev_height/2 > centerZ + height/2 and \
+               prev_centerZ - prev_height/2 < centerZ - height/2:
                 # Cached region covers requested region, so return that.
                 return prev_bounded_footprint
 
         # Populate cache, and make the height bigger than requested to try to
         # save on future calls.
-        padded_height = 100*max(1,center_z)*height
-        bounded_footprint = self.boundFootprint(center_z, padded_height)
+        padded_height = 100*max(1,centerZ)*height
+        bounded_footprint = self.boundFootprint(centerZ, padded_height)
 
-        self._bounded_cache = center_z, padded_height, bounded_footprint
+        self._bounded_cache = centerZ, padded_height, bounded_footprint
 
         return bounded_footprint
 
-    def boundFootprint(self, center_z, height):
+    def boundFootprint(self, centerZ, height):
         """ Cap the footprint of the object to a given height, centered at a given z.
 
         Args:
-            center_z: The resulting mesh will be vertically centered at this height.
+            centerZ: The resulting mesh will be vertically centered at this height.
             height: The resulting mesh will have this height.
         """
         # Fall back on progressively higher buffering and simplification to 
@@ -1665,7 +1756,7 @@ class PolygonalFootprintRegion(Region):
             polygon_mesh = trimesh.creation.extrude_triangulation(vertices=v, faces=f, height=height)
 
             # Translate the polygon mesh to the desired height.
-            polygon_mesh.vertices[:,2] += center_z - polygon_mesh.bounding_box.center_mass[2]
+            polygon_mesh.vertices[:,2] += centerZ - polygon_mesh.bounding_box.center_mass[2]
 
             # Check if we have a valid volume
             if polygon_mesh.is_volume:
@@ -1677,7 +1768,7 @@ class PolygonalFootprintRegion(Region):
         if not polygon_mesh.is_volume:
             raise RuntimeError("Computing bounded footprint of polygon resulted in invalid volume")
 
-        return MeshVolumeRegion(polygon_mesh, center_mesh=False)
+        return MeshVolumeRegion(polygon_mesh, centerMesh=False)
 
     def buffer(self, amount):
         buffered_polygon = self.polygon.buffer(amount)
@@ -1764,6 +1855,16 @@ class PathRegion(Region):
     def containsObject(self, obj):
         return False
 
+    def containsRegionInner(self, reg, tolerance):
+        raise NotImplementedError
+
+    def distanceTo(self, point):
+        raise NotImplementedError
+
+    @cached_property
+    def AABB(self):
+        return tuple(zip(numpy.amin(self.vertices,axis=0), numpy.amax(self.vertices,axis=0)))
+
     def uniformPointInner(self):
         # Pick an edge, weighted by length, and extract its two points
         edge = random.choices(population=self.edges, weights=self.edge_lengths, k=1)[0]
@@ -1802,8 +1903,8 @@ class PolygonalRegion(Region):
         orientation (`VectorField`; optional): :term:`preferred orientation` to use.
         name (str; optional): name for debugging.
     """
-    def __init__(self, points=None, polygon=None, orientation=None, name=None, z=0, additional_deps=[]):
-        super().__init__(name, *additional_deps, orientation=orientation)
+    def __init__(self, points=None, polygon=None, orientation=None, name=None, z=0, additionalDeps=[]):
+        super().__init__(name, *additionalDeps, orientation=orientation)
 
         self.z = z
 
@@ -1960,9 +2061,7 @@ class PolygonalRegion(Region):
     def prepared(self):
         return shapely.prepared.prep(self.polygons)
 
-    def containsRegion(self, other, tolerance=0):
-        if isinstance(other, EmptyRegion):
-            return True
+    def containsRegionInner(self, other, tolerance):
         poly = toPolygon(other)
         if poly is None:
             raise TypeError(f'cannot test inclusion of {other} in PolygonalRegion')
@@ -1970,10 +2069,12 @@ class PolygonalRegion(Region):
 
     @distributionMethod
     def distanceTo(self, point):
-        # TODO: Fix for 3D
-        return self.polygons.distance(shapely.geometry.Point(point))
+        point = toVector(point)
+        nearest_point, _ = shapely.ops.nearest_points(self.polygons, shapely.geometry.Point(point))
+        return point.distanceTo(Vector(nearest_point.x, nearest_point.y, self.z))
 
-    def getAABB(self):
+    @property
+    def AABB(self):
         xmin, ymin, xmax, ymax = self.polygons.bounds
         return ((xmin, ymin), (xmax, ymax), (self.z, self.z))
 
@@ -2037,12 +2138,12 @@ class CircularRegion(PolygonalRegion):
 
         if any(needsSampling(dep) for dep in deps):
             # Center and radius aren't fixed, so we'll wait to pass a polygon
-            super().__init__(polygon=None, name=name, additional_deps=deps)
+            super().__init__(polygon=None, name=name, additionalDeps=deps)
             return
 
         ctr = shapely.geometry.Point(self.center)
         polygons = MultiPolygon([ctr.buffer(self.radius, resolution=self.resolution)])
-        super().__init__(polygon=polygons, z=self.center.z, name=name, additional_deps=deps)
+        super().__init__(polygon=polygons, z=self.center.z, name=name, additionalDeps=deps)
 
     def sampleGiven(self, value):
         return CircularRegion(value[self.center], value[self.radius],
@@ -2068,7 +2169,6 @@ class CircularRegion(PolygonalRegion):
         return point.distanceTo(self.center) <= self.radius
 
     def distanceTo(self, point):
-        # TODO: Fix for 3D
         point = toVector(point)
         return max(0, point.distanceTo(self.center) - self.radius)
 
@@ -2079,7 +2179,8 @@ class CircularRegion(PolygonalRegion):
         pt = Vector(x + (r * cos(t)), y + (r * sin(t)), z)
         return self.orient(pt)
 
-    def getAABB(self):
+    @property
+    def AABB(self):
         x, y, _ = self.center
         r = self.radius
         return ((x - r, y - r), (x + r, y + r), (self.z,self.z))
@@ -2116,11 +2217,11 @@ class SectorRegion(PolygonalRegion):
 
         if any(isLazy(dep) for dep in deps):
             # Center and radius aren't fixed, so we'll wait to pass a polygon
-            super().__init__(polygon=None, name=name, additional_deps=deps)
+            super().__init__(polygon=None, name=name, additionalDeps=deps)
             return
 
         polygons = self._make_sector_polygons()
-        super().__init__(polygon=polygons, z=self.center.z, name=name, additional_deps=deps)
+        super().__init__(polygon=polygons, z=self.center.z, name=name, additionalDeps=deps)
 
     def _make_sector_polygons(self):
         center, radius = self.center, self.radius
@@ -2205,11 +2306,11 @@ class RectangularRegion(PolygonalRegion):
 
         if any(needsSampling(dep) or needsLazyEvaluation(dep) for dep in deps):
             # Center and radius aren't fixed, so we'll wait to pass a polygon
-            super().__init__(polygon=None, name=name, additional_deps=deps)
+            super().__init__(polygon=None, name=name, additionalDeps=deps)
             return
 
         polygons = self._make_rectangle_polygons()
-        super().__init__(polygon=polygons, z=self.position.z, name=name, additional_deps=deps)
+        super().__init__(polygon=polygons, z=self.position.z, name=name, additionalDeps=deps)
 
     def _make_rectangle_polygons(self):
         position, heading, hw, hl = self.position, self.heading, self.hw, self.hl
@@ -2238,7 +2339,8 @@ class RectangularRegion(PolygonalRegion):
         pt = self.position.offsetRotated(self.heading, Vector(rx, ry, self.position.z))
         return self.orient(pt)
 
-    def getAABB(self):
+    @property
+    def AABB(self):
         x, y, z = zip(*self.corners)
         minx, maxx = findMinMax(x)
         miny, maxy = findMinMax(y)
@@ -2388,6 +2490,12 @@ class PolylineRegion(Region):
         else:
             return self.orient(Vector(x, y, 0))
 
+    def containsRegionInner(self, other, tolerance):
+        poly = toPolygon(other)
+        if poly is None:
+            raise TypeError(f'cannot test inclusion of {other} in PolylineRegion')
+        return self.polygons.buffer(tolerance).contains(poly)
+
     def intersect(self, other, triedReversed=False):
         poly = toPolygon(other)
         if poly is not None:
@@ -2499,7 +2607,8 @@ class PolylineRegion(Region):
     def pointsSeparatedBy(self, distance):
         return [self.pointAlongBy(d) for d in numpy.arange(0, self.length, distance)]
 
-    def getAABB(self):
+    @property
+    def AABB(self):
         xmin, ymin, xmax, ymax = self.lineString.bounds
         return ((xmin, ymin), (xmax, ymax), (0, 0))
 
@@ -2573,7 +2682,11 @@ class PointSetRegion(Region):
             if any(needsSampling(coord) for coord in point):
                 raise ValueError('only fixed PointSetRegions are supported')
         
-        self.points = numpy.array(points)
+        # Try to convert immediately, but catch case which has 2D and 3D points
+        try:
+            self.points = numpy.asarray(points)
+        except ValueError:
+            self.points = numpy.asarray([Vector(*pt) for pt in points])
 
         if self.points.shape[1] == 2:
             self.points = numpy.hstack((self.points, numpy.zeros((len(self.points),1))))
@@ -2614,6 +2727,12 @@ class PointSetRegion(Region):
     def containsObject(self, obj):
         return False
 
+    def containsRegionInner(self, reg, tolerance):
+        if isinstance(reg, PointSetRegion):
+            return all(distance <= tolerance for distance, _ in self.kdTree.query(reg.points))
+
+        raise NotImplementedError
+
     @property
     def dimensionality(self):
         return 0
@@ -2627,6 +2746,10 @@ class PointSetRegion(Region):
         point = toVector(point).coordinates
         distance, _ = self.kdTree.query(point)
         return distance
+
+    @property
+    def AABB(self):
+        return tuple(zip(numpy.amin(self.points,axis=0), numpy.amax(self.points,axis=0)))
 
     def __eq__(self, other):
         if type(other) is not PointSetRegion:
@@ -2724,6 +2847,9 @@ class GridRegion(PointSetRegion):
                     return False
         return True
 
+    def containsRegionInner(self, reg, tolerance):
+        raise NotImplementedError
+
 ###################################################################################################
 # View Regions
 ###################################################################################################
@@ -2806,8 +2932,8 @@ class DefaultViewRegion(MeshVolumeRegion):
                 orientation_1 = Orientation.fromEuler(0,0,0)
                 orientation_2 = Orientation.fromEuler(0,0,math.pi)
 
-                cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, center_mesh=False)
-                cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, center_mesh=False)
+                cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, centerMesh=False)
+                cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, centerMesh=False)
 
                 view_region = base_sphere.difference(cone_1).difference(cone_2)
 
@@ -2832,8 +2958,8 @@ class DefaultViewRegion(MeshVolumeRegion):
                 orientation_1 = Orientation.fromEuler(0,0,0)
                 orientation_2 = Orientation.fromEuler(0,0,math.pi)
 
-                cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, center_mesh=False)
-                cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, center_mesh=False)
+                cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, centerMesh=False)
+                cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, centerMesh=False)
 
                 padded_diameter = 1.1*diameter
 
@@ -2869,8 +2995,8 @@ class DefaultViewRegion(MeshVolumeRegion):
             orientation_1 = Orientation.fromEuler(0,0,0)
             orientation_2 = Orientation.fromEuler(0,0,math.pi)
 
-            cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, center_mesh=False)
-            cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, center_mesh=False)
+            cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, centerMesh=False)
+            cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, centerMesh=False)
 
             backwards_view_angle = (math.tau-viewAngles[0], math.pi-0.01)
             back_pyramid = PyramidViewRegion(visibleDistance, backwards_view_angle, rotation=Orientation.fromEuler(math.pi, 0, 0))
@@ -2884,7 +3010,7 @@ class DefaultViewRegion(MeshVolumeRegion):
 
         # Initialize volume region
         super().__init__(mesh=view_region.mesh, name=name, position=position, rotation=rotation, orientation=orientation, \
-            tolerance=tolerance, center_mesh=False)
+            tolerance=tolerance, centerMesh=False)
 
 
 class PyramidViewRegion(MeshVolumeRegion):
@@ -2928,7 +3054,7 @@ class PyramidViewRegion(MeshVolumeRegion):
 
         pyramid_mesh.apply_transform(scale_matrix)
 
-        super().__init__(mesh=pyramid_mesh, rotation=rotation, center_mesh=False)
+        super().__init__(mesh=pyramid_mesh, rotation=rotation, centerMesh=False)
 
 
 class TriangularPrismViewRegion(MeshVolumeRegion):
@@ -2978,4 +3104,4 @@ class TriangularPrismViewRegion(MeshVolumeRegion):
 
         tprism_mesh.apply_transform(scale_matrix)
 
-        super().__init__(mesh=tprism_mesh, rotation=rotation, center_mesh=False)
+        super().__init__(mesh=tprism_mesh, rotation=rotation, centerMesh=False)

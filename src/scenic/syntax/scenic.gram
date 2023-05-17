@@ -1441,11 +1441,11 @@ scenic_implication (memo):
     | disjunction
 
 disjunction (memo):
-    | a=conjunction b=('or' c=conjunction { c })+ { ast.BoolOp(op=ast.Or(), values=[a] + b, LOCATIONS) }
+    | a=conjunction b=('or' c=(scenic_temporal_prefix | conjunction) { c })+ { ast.BoolOp(op=ast.Or(), values=[a] + b, LOCATIONS) }
     | conjunction
 
 conjunction (memo):
-    | a=inversion b=('and' c=inversion { c })+ { ast.BoolOp(op=ast.And(), values=[a] + b, LOCATIONS) }
+    | a=inversion b=('and' c=(scenic_temporal_prefix | inversion) { c })+ { ast.BoolOp(op=ast.And(), values=[a] + b, LOCATIONS) }
     | inversion
 
 inversion (memo):

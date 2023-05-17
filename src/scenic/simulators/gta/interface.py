@@ -195,7 +195,7 @@ class MapWorkspace(Workspace):
     def scenicToSchematicCoords(self, coords):
         return self.map.scenicToGridCoords(coords)
 
-    def show_2d(self, plt):
+    def show2D(self, plt):
         return self.map.show(plt)
 
     @property

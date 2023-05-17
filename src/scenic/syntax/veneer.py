@@ -96,7 +96,7 @@ import sys
 import os.path
 import traceback
 import typing
-from scenic.core.distributions import (RejectionException, Distribution,
+from scenic.core.distributions import (RejectionException, Distribution, MultiplexerDistribution,
                                        TupleDistribution, StarredDistribution, toDistribution,
                                        needsSampling, canUnpackDistributions, distributionFunction)
 from scenic.core.type_support import (isA, toType, toTypes, toScalar, toHeading, toVector,
@@ -753,7 +753,7 @@ for op in ops:
 
 def FieldAt(X, Y):
     """The :grammar:`<vector field> at <vector>` operator."""
-    if not isinstance(X, VectorField):
+    if not isA(X, VectorField):
         raise RuntimeParseError('"X at Y" with X not a vector field')
     Y = toVector(Y, '"X at Y" with Y not a vector')
     return X[Y]
@@ -781,13 +781,13 @@ def RelativeTo(X, Y) -> typing.Union[Vector, builtins.float]:
             return yp + xp
         return DelayedArgument({'position'}, helper)
 
-    elif isinstance(X, OrientedPoint):
-        if isinstance(Y, OrientedPoint):
+    elif isA(X, OrientedPoint):
+        if isA(Y, OrientedPoint):
             raise RuntimeParseError('"X relative to Y" with X, Y both oriented points')
         Y = toVector(Y, '"X relative to Y" with X an oriented point but Y not a vector')
         return X.relativize(Y)
 
-    elif isinstance(Y, OrientedPoint):
+    elif isA(Y, OrientedPoint):
         X = toVector(X, '"X relative to Y" with Y an oriented point but X not a vector')
         return Y.relativize(X)
 
@@ -821,7 +821,7 @@ def OffsetAlong(X, H, Y):
     """
     X = toVector(X, '"X offset along H by Y" with X not a vector')
     Y = toVector(Y, '"X offset along H by Y" with Y not a vector')
-    if isinstance(H, VectorField):
+    if isA(H, VectorField):
         H = H[X]
     H = toOrientation(H, '"X offset along H by Y" with H not an orientation or vector field')
     return X.offsetRotated(H, Y)
@@ -854,7 +854,7 @@ def ApparentHeading(X, Y=None):
 
     If the :grammar:`from <vector>` is omitted, the position of ego is used.
     """
-    if not isinstance(X, OrientedPoint):
+    if not isA(X, OrientedPoint):
         raise RuntimeParseError('"apparent heading of X from Y" with X not an OrientedPoint')
     if Y is None:
         Y = ego()
@@ -924,7 +924,7 @@ def AltitudeFrom(X=None, Y=None):
 
 def Follow(F, X, D):
     """The :grammar:`follow <field> from <vector> for <number>` operator."""
-    if not isinstance(F, VectorField):
+    if not isA(F, VectorField):
         raise RuntimeParseError('"follow F from X for D" with F not a vector field')
     X = toVector(X, '"follow F from X for D" with X not a vector')
     D = toScalar(D, '"follow F from X for D" with D not a number')
@@ -935,7 +935,7 @@ def Follow(F, X, D):
 def VisibleFromOp(region, base):
     """The :grammar:`<region> visible from <point>` operator."""
     region = toType(region, Region, '"X visible from Y" with X not a Region')
-    if not isinstance(base, Point):
+    if not isA(base, Point):
         raise RuntimeParseError('"X visible from Y" with Y not a Point')
     return region.intersect(base.visibleRegion)
 
@@ -946,7 +946,7 @@ def CanSee(X, Y):
 
         <point> can see <point>
     """
-    if not isinstance(X, Point):
+    if not isA(X, Point):
         raise RuntimeParseError('"X can see Y" with X not a Point, OrientedPoint, or Scenic Object')
 
     assert currentScenario is not None
@@ -1023,7 +1023,7 @@ def On(thing):
         on <region>
         on <object> 
     """
-    if isinstance(thing, Object):
+    if isA(thing, Object):
         region = toType(thing.onSurface, Region, 'Cannot coax occupiedSpace of Object to Region')
     else:
         region = toType(thing, Region, 'specifier "on R" with R not a Region')
@@ -1068,7 +1068,7 @@ def alwaysProvidesOrientation(region):
     """Whether a Region or distribution over Regions always provides an orientation."""
     if isinstance(region, Region):
         return region.orientation is not None
-    elif (isinstance(region, Options)
+    elif (isinstance(region, MultiplexerDistribution)
           and all(alwaysProvidesOrientation(opt) for opt in region.options)):
         return True
     else:   # TODO improve somehow!
@@ -1131,7 +1131,7 @@ def Beyond(pos, offset, fromPt=None):
         offset = toVector(offset, 'specifier "beyond X by Y" with X not a number or vector')
 
     # If the from vector is oriented, set that to orientation. Else assume global coords.
-    if isinstance(fromPt, OrientedPoint):
+    if isA(fromPt, OrientedPoint):
         orientation = fromPt.orientation
     else:
         orientation = Orientation.fromEuler(0,0,0)
@@ -1150,7 +1150,7 @@ def VisibleFrom(base):
 
     Specifies :prop:`_observingEntity` and :prop:`position`, with no dependencies.
     """
-    if not isinstance(base, Point):
+    if not isA(base, Point):
         raise RuntimeParseError('specifier "visible from O" with O not a Point')
 
     return Specifier("Visible/VisibleFrom", {'position': 3, '_observingEntity': 1}, 
@@ -1170,7 +1170,7 @@ def NotVisibleFrom(base):
 
     See `VisibleFrom`.
     """
-    if not isinstance(base, Point):
+    if not isA(base, Point):
         raise RuntimeParseError('specifier "not visible from O" with O not a Point')
     def helper(self):
         region = self.regionContainedIn
@@ -1294,7 +1294,7 @@ def directionalSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
     else:
         raise RuntimeParseError(f'"{syntax} X by D" with D not a number or vector')
 
-    if isinstance(pos, Object):
+    if isA(pos, Object):
         prop['parentOrientation'] = 3
         obj_dims = (pos.width, pos.length, pos.height)
         val = lambda self: {
@@ -1302,7 +1302,7 @@ def directionalSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
             'parentOrientation': pos.orientation
         }
         new = DelayedArgument({axis, "contactTolerance"}, val)
-    elif isinstance(pos, OrientedPoint):        # TODO too strict?
+    elif isA(pos, OrientedPoint):        # TODO too strict?
         prop['parentOrientation'] = 3
         val = lambda self: {
             'position': pos.relativize(makeOffset(self, (0,0,0), 0, dx, dy, dz)),
@@ -1328,7 +1328,7 @@ def Following(field, dist, fromPt=None):
     """
     if fromPt is None:
         fromPt = ego()
-    if not isinstance(field, VectorField):
+    if not isA(field, VectorField):
         raise RuntimeParseError('"following F" specifier with F not a vector field')
     fromPt = toVector(fromPt, '"following F from X for D" with X not a vector')
     dist = toScalar(dist, '"following F for D" with D not a number')
@@ -1346,7 +1346,7 @@ def Facing(heading):
         facing <number>     # no dependencies;
         facing <field>      # depends on 'position'
     """
-    if isinstance(heading, VectorField):
+    if isA(heading, VectorField):
         def helper(context):
             headingAtPos = heading[context.position]
             if alwaysGlobalOrientation(context.parentOrientation):

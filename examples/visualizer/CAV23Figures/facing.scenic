@@ -2,7 +2,7 @@ import trimesh
 from pathlib import Path
 
 # Load plane mesh from file and create plane shape from it
-plane_shape = MeshShape.fromFile(path=Path(localPath(".")).parent.parent / "tools" / "meshes" / "classic_plane.obj.bz2", initial_rotation=(-90 deg, 0, -10 deg))
+plane_shape = MeshShape.fromFile(path=Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "classic_plane.obj.bz2", initial_rotation=(-90 deg, 0, -10 deg))
 
 class Plane:
     shape: plane_shape

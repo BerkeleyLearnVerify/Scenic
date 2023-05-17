@@ -345,7 +345,7 @@ class WebotsWorkspace(Workspace):
 
         super().__init__(self.workspaceRegion)
 
-    def show_2d(self, plt):
+    def show2D(self, plt):
         self.drivableRegion.show(plt)
         for road in self.roads:
             road.show(plt)
