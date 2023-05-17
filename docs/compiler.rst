@@ -45,9 +45,11 @@ Scenic Parser
 Scenic Parser takes a Scenic source code and outputs the corresponding
 abstract syntax tree. It is generated from the grammar file using Pegen.
 
-When you modify ``scenic.gram``, you need to generate the parser again.
-Call ``make`` at the project root to do so. Pytest is configured to
-update the parser before test execution.
+When you modify ``scenic.gram``, you need to regenerate the parser
+by calling ``make`` or running
+``python -m pegen ./src/scenic/syntax/scenic.gram -o ./src/scenic/syntax/parser.py``
+at the project root.
+Pytest is configured to always update the parser before test execution.
 
 ``test_parser.py`` includes parser tests and ensures that the parser
 generates the desired AST.
