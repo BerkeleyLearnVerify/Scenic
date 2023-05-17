@@ -2,9 +2,7 @@
 import math
 from pathlib import Path
 
-
 import pytest
-import math
 import shapely.geometry
 
 from scenic.core.object_types import Object, OrientedPoint
