@@ -25,7 +25,9 @@ try:
     from pygments.lexers.python import PythonLexer
 except ModuleNotFoundError as e:
     raise ImportError("need the 'pygments' package to use the Scenic Pygments lexer") from e
-from pygments.lexer import RegexLexer, bygroups, combined, default, include, inherit, words
+from pygments.lexer import (
+    RegexLexer, bygroups, combined, default, include, inherit, using, words,
+)
 from pygments.token import *
 from pygments.style import Style
 from pygments.styles.default import DefaultStyle
@@ -478,6 +480,28 @@ class ScenicSnippetLexer(ScenicLexer):
     def analyse_text(text):
         return 0.0
 
+class PythonSnippetLexer(BetterPythonLexer):
+    """Variant PythonLexer for code snippets rather than complete programs.
+
+    Specifically, this lexer formats syntactic variables of the form "{name}"
+    as "name" italicized.
+    """
+    name = 'Python (snippets)'
+    aliases = ['python-snippet']
+    filenames = []
+    alias_filenames = []
+    mimetypes = []
+
+    tokens = {
+        'expr': [
+            (r'\{([\w.]*)\}', bygroups(Generic.Emph)),
+            inherit,
+        ],
+    }
+
+    def analyse_text(text):
+        return 0.0
+
 class ScenicSpecifierLexer(ScenicSnippetLexer):
     """Further variant lexer for specifiers at the top level."""
     name = 'Scenic (specifier snippets)'
@@ -487,6 +511,17 @@ class ScenicSpecifierLexer(ScenicSnippetLexer):
         'root': [
             include('specifier-start'),
             (r'with', Keyword.Specifier),   # special case for incomplete 'with'
+        ],
+    }
+
+class ScenicRequirementLexer(ScenicSnippetLexer):
+    """Further variant lexer for requirements at the top level."""
+    name = 'Scenic (requirement snippets)'
+    aliases = ['scenic-requirement']
+
+    tokens = {
+        'root': [
+            include('require-statement'),
         ],
     }
 
@@ -574,3 +609,114 @@ class ScenicStyle(Style):
 
         Error:                          "#FFFFFF bg:#FF0000",
     })
+
+class PegenLexer(BetterPythonLexer):
+    """Lexer for Pegen grammars."""
+    name = 'Pegen'
+    aliases = ['pegen']
+    filenames = ['*.gram']
+    mimetypes = ['application/x-pegen', 'text/x-pegen']
+    url = 'https://we-like-parsers.github.io/pegen/'
+
+    uni_name = PythonLexer.uni_name
+    quotes = '\'\'\'|\"\"\"'
+    constants = (
+        # Token types
+        'ENDMARKER', 'NAME', 'NUMBER', 'STRING', 'NEWLINE', 'INDENT', 'DEDENT',
+        'LPAR', 'RPAR', 'LSQB', 'RSQB', 'COLON', 'COMMA', 'SEMI', 'PLUS',
+        'MINUS', 'STAR', 'SLASH', 'VBAR', 'AMPER', 'LESS', 'GREATER', 'EQUAL',
+        'DOT', 'PERCENT', 'LBRACE', 'RBRACE', 'EQEQUAL', 'NOTEQUAL',
+        'LESSEQUAL', 'GREATEREQUAL', 'TILDE', 'CIRCUMFLEX', 'LEFTSHIFT',
+        'RIGHTSHIFT', 'DOUBLESTAR', 'PLUSEQUAL', 'MINEQUAL', 'STAREQUAL',
+        'SLASHEQUAL', 'PERCENTEQUAL', 'AMPEREQUAL', 'VBAREQUAL',
+        'CIRCUMFLEXEQUAL', 'LEFTSHIFTEQUAL', 'RIGHTSHIFTEQUAL',
+        'DOUBLESTAREQUAL', 'DOUBLESLASH', 'DOUBLESLASHEQUAL', 'AT', 'ATEQUAL',
+        'RARROW', 'ELLIPSIS', 'COLONEQUAL',
+        'OP', 'AWAIT', 'ASYNC', 'TYPE_IGNORE', 'TYPE_COMMENT', 'ERRORTOKEN',
+        'COMMENT', 'NL', 'ENCODING',
+        # Misc others
+        'SOFT_KEYWORD', '$',
+    )
+
+    tokens = {
+        'root': [
+            (r'\n', Whitespace),
+            (r'#.*$', Comment.Single),
+            # Metas with special formatting
+            (rf'(@class)([^\S\n]+)({uni_name})', bygroups(Keyword, Whitespace, Name.Class)),
+            (rf"(@(?:header|subheader|trailer))([^\S\n]*)({quotes})((?:.|\n)*)(\3)",
+             bygroups(Keyword, Whitespace, String.Interpol, using(BetterPythonLexer), String.Interpol)),
+            # Generic rules in case additional metas are added
+            (rf'(@{uni_name})(?:([^\S\n]+)({uni_name}))?(\n)',
+             bygroups(Keyword, Whitespace, Name, Whitespace)),
+            (rf"(@{uni_name})([^\S\n]*)('''|')((?:.|\n)*?\3)",
+             bygroups(Keyword, Whitespace, String.Single, String.Single)),
+            (rf'(@{uni_name})([^\S\n]*)("""|")((?:.|\n)*?\3)',
+             bygroups(Keyword, Whitespace, String.Double, String.Double)),
+            # Start of a rule
+            (uni_name, Name.Class, 'rulestart'),
+        ],
+        'rulestart': [
+            (r'\[', Punctuation, 'ruletype'),
+            (r'(\()(memo)(\))', bygroups(Punctuation, Keyword, Punctuation)),
+            (r':', Punctuation, 'rulebody'),
+            (r'[^\S\n]+', Whitespace),
+        ],
+        'ruletype': [
+            include('expr'),
+            (r'\]', Punctuation, '#pop'),
+        ],
+        'rulebody': [
+            (r'(\s*)(#.*)?(\n)', bygroups(Whitespace, Comment, Whitespace), 'altlist'),
+            include('gram-expr'),
+        ],
+        'altlist': [
+            (r'(\s+)(\|)', bygroups(Whitespace, Operator), 'gram-expr'),
+            (r'(\s+)(#.*\n)', bygroups(Whitespace, Comment.Single)),
+            default('#pop:3'),
+        ],
+        'gram-expr': [
+            (r'\(', Punctuation, 'gram-parens'),
+            (r'\[', Operator, 'gram-brackets'),
+            (r'\{', String.Interpol, 'gram-curly-brackets'),
+
+            (words(constants, suffix=r'\b'), Keyword.Constant),
+            (r'[^\S\n]+', Whitespace),
+            (r'#.*$', Comment.Single),
+            (r'[|?*+.&!~]', Operator),
+            (r"'[^']*'", String.Single),
+            (r'"[^"]*"', String.Double),
+            (rf'({uni_name})(=)', bygroups(Name.Variable.Class, Operator)),
+            (uni_name, Name),
+            (r'\n', Whitespace, '#pop'),
+        ],
+        'gram-parens': [
+            (r'\)', Punctuation, '#pop'),
+            (r'\n', Whitespace),
+            include('gram-expr'),
+        ],
+        'gram-brackets': [
+            (r'\]', Operator, '#pop'),
+            (r'\n', Whitespace),
+            include('gram-expr'),
+        ],
+        'gram-curly-brackets': [
+            include('expr'),
+            (r'\}', String.Interpol, '#pop'),
+            (r'\n', Whitespace),
+        ],
+        'expr-keywords': [
+            inherit,
+            (words(('LOCATIONS', 'UNREACHABLE'),
+                   suffix=r'\b'),
+            Keyword.Constant),
+        ],
+    }
+
+    def analyse_text(text):
+        if '@subheader' in text:
+            return 1.0
+        elif '@class' in text:
+            return 0.5
+        else:
+            return 0.0

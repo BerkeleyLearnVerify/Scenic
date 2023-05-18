@@ -46,7 +46,6 @@ Table of Contents
    api
    developing
    internals
-   compiler
 
 .. toctree::
    :maxdepth: 1
