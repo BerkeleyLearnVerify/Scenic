@@ -20,10 +20,14 @@ def test_render(loadLocalScenario):
     simulator.simulate(scene, maxSteps=3)
 
 def test_driving(loadLocalScenario):
-    scenario = loadLocalScenario('driving.scenic', mode2D=True)
-    scene, _ = scenario.generate(maxIterations=1000)
-    simulator = scenario.getSimulator()
-    simulation = simulator.simulate(scene, maxSteps=3)
+    def check():
+        scenario = loadLocalScenario('driving.scenic', mode2D=True)
+        scene, _ = scenario.generate(maxIterations=1000)
+        simulator = scenario.getSimulator()
+        simulation = simulator.simulate(scene, maxSteps=3)
+    # Run this twice to catch leaks between successive compilations.
+    check()
+    check()  # If we fail here, something is leaking.
 
 @pickle_test
 def test_pickle(loadLocalScenario):

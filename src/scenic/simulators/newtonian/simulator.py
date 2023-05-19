@@ -133,9 +133,6 @@ class NewtonianSimulation(DrivingSimulation):
     def createObjectInSimulator(self, obj):
         pass
 
-    def actionsAreCompatible(self, agent, actions):
-        return True
-
     def isOnScreen(self, x, y):
         return self.min_x <= x <= self.max_x and self.min_y <= y <= self.max_y
 

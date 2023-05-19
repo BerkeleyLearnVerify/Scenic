@@ -43,19 +43,16 @@ def argsToString(args, kwargs={}):
 
 @contextmanager
 def alarm(seconds, handler=None, noNesting=False):
-    if seconds <= 0:
+    if seconds <= 0 or not hasattr(signal, 'SIGALRM'):  # SIGALRM not supported on Windows
         yield
         return
     if handler is None:
         handler = signal.SIG_IGN
-    try:
-        signal.signal(signal.SIGALRM, handler)
-        if noNesting:
-            assert oldHandler is signal.SIG_DFL, 'SIGALRM handler already installed'
-    except ValueError:
-        yield      # SIGALRM not supported on Windows
-        return
-    previous = signal.alarm(seconds)
+    signal.signal(signal.SIGALRM, handler)
+    if noNesting:
+        assert oldHandler is signal.SIG_DFL, 'SIGALRM handler already installed'
+    length = int(math.ceil(seconds))
+    previous = signal.alarm(length)
     if noNesting:
         assert previous == 0, 'nested call to "alarm"'
     try:

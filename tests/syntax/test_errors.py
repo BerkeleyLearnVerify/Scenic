@@ -247,7 +247,7 @@ def checkBug(bug, template, tmpdir, pytestconfig):
             # test the formatting of the resulting backtrace
             command = (
                 'from tests.syntax.test_errors import runFile;'
-                f'runFile("{path}")'
+                f'runFile(r"{path}")'
             )
             args = [sys.executable, '-c', command]
             result = subprocess.run(args, capture_output=True, text=True)
