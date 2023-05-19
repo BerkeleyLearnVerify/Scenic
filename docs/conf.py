@@ -121,6 +121,7 @@ intersphinx_mapping = {
     'numpy': ('https://numpy.org/doc/stable/', None),
     'scipy': ('https://docs.scipy.org/doc/scipy/', None),
     'sphinx': ('https://www.sphinx-doc.org/en/master/', None),
+    'pytest': ('https://docs.pytest.org/en/stable/', None),
 }
 
 highlight_language = 'scenic'
@@ -506,9 +507,13 @@ def setup(app):
     app.add_lexer('scenic', scenic_pygment.ScenicLexer)
     # Install a better Python lexer (e.g. so function calls get better highlighting)
     app.add_lexer('python', scenic_pygment.BetterPythonLexer)
+    # Install a lexer for Pegen grammars
+    app.add_lexer('pegen', scenic_pygment.PegenLexer)
     # Also add the specialized lexers used for inline code snippets and grammar
     app.add_lexer('scenic-snippet', scenic_pygment.ScenicSnippetLexer)
+    app.add_lexer('python-snippet', scenic_pygment.PythonSnippetLexer)
     app.add_lexer('scenic-specifier', scenic_pygment.ScenicSpecifierLexer)
+    app.add_lexer('scenic-requirement', scenic_pygment.ScenicRequirementLexer)
     app.add_lexer('scenic-property', scenic_pygment.ScenicPropertyLexer)
     app.add_lexer('scenic-grammar', scenic_pygment.ScenicGrammarLexer)
 
@@ -525,6 +530,14 @@ def setup(app):
     role = roles.CustomRole('scenic', code_role, options)
     roles.register_local_role('scenic', role)
 
+    # Likewise for :python:
+    options = {
+        'class': directives.class_option('python'),
+        'language': 'python-snippet',
+    }
+    role = roles.CustomRole('python', code_role, options)
+    roles.register_local_role('python', role)
+
     # Add :specifier: role like :scenic: but for specifiers (which aren't usually
     # allowed at the top level)
     options = {
@@ -533,6 +546,14 @@ def setup(app):
     }
     role = roles.CustomRole('specifier', code_role, options)
     roles.register_local_role('specifier', role)
+
+    # Ditto for :requirement: (allowing temporal operators)
+    options = {
+        'class': directives.class_option('requirement'),
+        'language': 'scenic-requirement',
+    }
+    role = roles.CustomRole('requirement', code_role, options)
+    roles.register_local_role('requirement', role)
 
     # Add :prop: role like :scenic: but for properties
     # N.B. cannot use :property: since the RTD theme uses a 'property' HTML class
