@@ -46,6 +46,18 @@ def test_custom_object_creation(check):
 def test_class_noncreation(check, code):
     check(code, code)
 
+def test_offset_by_specifier(check):
+    check('ego=Object\nObject offset by (4, 5)',
+          'ego=new Object\nnew Object at ego offset by (4, 5)')
+    check('ego=Object\nObject offset by (4, 5), facing 30 deg',
+          'ego=new Object\nnew Object at ego offset by (4, 5), facing 30 deg')
+    check('ego=Object\nObject facing 30 deg, offset by 1 @ 2',
+          'ego=new Object\nnew Object facing 30 deg, at ego offset by 1 @ 2')
+
+def test_offset_by_operator(check):
+    check('ego = Object at (1, 2) offset by (3, 4)',
+          'ego = new Object at (1, 2) offset by (3, 4)')
+
 def test_monitor(check):
     check("""
         monitor MyMon:

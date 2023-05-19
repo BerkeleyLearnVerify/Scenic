@@ -1194,6 +1194,8 @@ class TokenTranslator:
 					elif twoWords in allowedPrefixOps:	# 2-word prefix operator
 						callFunction(allowedPrefixOps[twoWords])
 						advance()	# consume second word
+						if dumpScenic3 and inConstructorContext:
+							dumpScenic3.recordSpecifier(token, nextToken)
 					elif not startOfStatement and twoWords in allowedInfixOps:	# 2-word infix operator
 						injectToken(allowedInfixOps[twoWords])
 						advance()	# consume second word
@@ -1227,6 +1229,8 @@ class TokenTranslator:
 					elif inConstructorContext and tstring == 'with':	# special case for 'with' specifier
 						callFunction('With', argument=(STRING, f'"{nextString}"'))
 						advance()	# consume property name
+						if dumpScenic3:
+							dumpScenic3.recordSpecifier(token, nextToken)
 					elif startOfStatement and tstring == requireStatement and nextString == '[':
 						# special case for require[p]
 						next(tokens)	# consume '['
@@ -1258,6 +1262,8 @@ class TokenTranslator:
 					oneWord = (tstring,)
 					if oneWord in allowedPrefixOps:		# 1-word prefix operator
 						callFunction(allowedPrefixOps[oneWord])
+						if dumpScenic3 and inConstructorContext:
+							dumpScenic3.recordSpecifier(token)
 					elif not startOfStatement and oneWord in allowedInfixOps:	# 1-word infix operator
 						injectToken(allowedInfixOps[oneWord])
 						skip = True
