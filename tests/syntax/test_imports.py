@@ -140,12 +140,19 @@ def test_import_override_param():
 def test_module_get_source():
     if sys.version_info < (3, 9):
         pytest.importorskip('astor')
+    import scenic.syntax.translator as translator
     try:
+        translator.buildingDocs = True
         import tests.syntax.helper4 as h4
         src = h4.__loader__.get_source('tests.syntax.helper4')
         assert src
     finally:
-        del sys.modules['tests.syntax.helper4']
+        translator.buildingDocs = False
+        sys.modules.pop('tests.syntax.helper4', None)
+
+def test_module_import_from_python():
+    with pytest.raises(ModuleNotFoundError):
+        import tests.syntax.helper4
 
 def test_model_not_override_param():
     scene = sampleSceneFrom("""

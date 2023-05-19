@@ -155,10 +155,6 @@ import *module*
 Import a Scenic or Python module. This statement behaves :ref:`as in Python <import>`, but when importing a Scenic module it also imports any objects created and requirements imposed in that module.
 Scenic also supports the form :scenic:`from {module} import {identifier}, {...}` , which as in Python imports the module plus one or more identifiers from its namespace.
 
-.. note::
-
-    Scenic modules can only be imported at the top level, or in a top-level try-except block that does not create any objects (so that you can catch `ModuleNotFoundError` for example). Python modules can be imported dynamically inside functions as usual.
-
 .. _param {name} = {value}, {...}:
 .. _param:
 
