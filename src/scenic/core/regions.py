@@ -2016,7 +2016,7 @@ class PolygonalRegion(Region):
         if not poly:
             return super().union(other, triedReversed)
         union = polygonUnion((self.polygons, poly), buf=buf)
-        orientation = VectorField.forUnionOf((self, other))
+        orientation = VectorField.forUnionOf((self, other), tolerance=buf)
         return PolygonalRegion(polygon=union, orientation=orientation)
 
     def difference(self, other):
@@ -2049,7 +2049,7 @@ class PolygonalRegion(Region):
         if any(not poly for poly in polys):
             raise TypeError(f'cannot take union of regions {regions}')
         union = polygonUnion(polys, buf=buf)
-        orientation = VectorField.forUnionOf(regs)
+        orientation = VectorField.forUnionOf(regs, tolerance=buf)
         return PolygonalRegion(polygon=union, orientation=orientation)
 
     @property

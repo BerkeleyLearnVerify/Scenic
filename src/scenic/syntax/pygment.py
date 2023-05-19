@@ -597,7 +597,7 @@ class ScenicStyle(Style):
         Name.Class:                     "bold #0077A6",
         Name.Class.Grammar:             "nobold italic",
         Name.Class.Instance:            "#3C8031",
-        Name.Variable:                  "#B35824",
+        Name.Variable:                  "#B34024",
         Name.Variable.Parameter.Magic:  "italic",
         Name.Variable.Magic:            "italic #B32483",
 
