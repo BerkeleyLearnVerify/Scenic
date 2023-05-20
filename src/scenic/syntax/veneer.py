@@ -1016,8 +1016,8 @@ def On(thing):
     Specifies :prop:'position' and :prop:'parentOrientation', depending on
     :prop:'onDirection', :prop:'baseOffset', :prop:'contactTolerance'.
 
-    Note that while :specifier:`on` can be used with `Region`s, `Object`s and `Vector`s,
-    it cannot be used with a distribution containing anything other than `Region`s.
+    Note that while :specifier:`on` can be used with `Region`, `Object` and `Vector`,
+    it cannot be used with a distribution containing anything other than `Region`.
 
     May be used to modify an already specified :prop:'position' property if a compatible
     specifier has already done so.
