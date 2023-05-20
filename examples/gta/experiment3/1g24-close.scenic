@@ -8,6 +8,6 @@ param weather = 'EXTRASUNNY'
 
 ego = new EgoCar
 
-c = new Car offset by Range(-5, 5) @ Range(7, 12),
+c = new Car at ego offset by Range(-5, 5) @ Range(7, 12),
     with model CarModel.models['DOMINATOR'],
     with color Color.withBytes([187, 162, 157])

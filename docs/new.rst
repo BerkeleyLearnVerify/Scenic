@@ -44,6 +44,8 @@ Backwards-incompatible semantics changes:
 
 	* The :sampref:`left of {Object}` specifier and its variants now correctly take into account the dimensions of both the object being created *and* the given object (the implementation previously did not account for the latter, despite the documentation saying otherwise).
 
+	* The :sampref:`offset by {Object}` specifier now optionally specifies :prop:`parentOrientation`.
+
 	* The **maxIterations** argument of `Simulator.simulate` now has default value 1, rather than 100.
 	  A default value of 1 is the most reasonable in general since it means that when a simulation is rejected, a new scene will have to be generated (instead of trying many simulations from the same starting scene, which might well fail in the same way).
 

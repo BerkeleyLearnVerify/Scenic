@@ -64,11 +64,11 @@ behavior egoBehavior():
 
 
 # PLACEMENT
-ego = new Car following roadDirection from pos1 by Range(-5, -3), # behind the position by at most 5
+ego = new Car following roadDirection from pos1 for Range(-5, -3), # behind the position by at most 5
     with speed 3,
     with behavior egoBehavior
 
-actorCar = new Car following roadDirection from pos2 by Range(-5, -3),
+actorCar = new Car following roadDirection from pos2 for Range(-5, -3),
     with behavior actorCarBehavior,
     with speed 4
 

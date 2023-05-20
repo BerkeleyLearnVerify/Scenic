@@ -4,7 +4,7 @@ setLocalMap(__file__, 'map.npz')
 from scenic.simulators.gta.model import *
 
 ego = new Car
-c2 = new Car offset by Range(-10, 10) @ Range(20, 40),
+c2 = new Car at ego offset by Range(-10, 10) @ Range(20, 40),
     facing Range(-10 deg, 10 deg) relative to roadDirection
 
 def angled(angle, epsilon=10 deg):

@@ -8,11 +8,7 @@ import trimesh
 
 import numpy as np
 import random
-from zipfile import ZipFile
-
-# Unzip mesh files
-with ZipFile(localPath('meshes.zip'), 'r') as zf:
-    zf.extractall(localPath('.'))
+from pathlib import Path
 
 # Pick a workspace
 workspace_region = RectangularRegion(0 @ 0, 0, 40.1, 40.1)
@@ -53,15 +49,9 @@ small_below_cone = new AdhocObject below air_cube,
 small_floor_cone = new AdhocObject below air_cube, on floor.topSurface,
     with shape MeshShape(trimesh.creation.cone(radius=0.5, height=1))
 
-# Load chair mesh from file and create chair shape from it
-with open(localPath("meshes/chair.obj"), "r") as mesh_file:
-    mesh = trimesh.load(mesh_file, file_type="obj")
-
-chair_shape = MeshShape(mesh, dimensions=(5,5,5), initial_rotation=(0,90 deg,0))
-
 # Create large chair object
 chair = new AdhocObject on floor.topSurface,
-    with shape chair_shape
+    with shape MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "chair.obj.bz2")
 
 ego = chair
 

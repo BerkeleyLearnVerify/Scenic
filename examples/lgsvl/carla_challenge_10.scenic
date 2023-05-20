@@ -132,10 +132,10 @@ PossibleBehaviors = [neverMoveBehavior, turnBehavior, conflictingStopBehavior, c
 #PossibleBehaviors = [chickenBehavior]
 
 # PLACEMENT
-ego = new Car following roadDirection from pos1 by -egoDist,
+ego = new Car following roadDirection from pos1 for -egoDist,
     with behavior EgoBehavior(target_speed=15, trajectory=lines1)
 
-actorCar = new Car following roadDirection from pos2 by -actorDist,
+actorCar = new Car following roadDirection from pos2 for -actorDist,
     with behavior actorCarBehavior(egoAtStop)
 
 terminate when ego in egoManeuver.endLane

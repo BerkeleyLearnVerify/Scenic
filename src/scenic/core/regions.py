@@ -737,6 +737,9 @@ class MeshVolumeRegion(MeshRegion):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        if needsSampling(self):
+            return
+
         # Ensure the mesh is watertight so volume is well defined
         if not self._mesh.is_volume:
             raise ValueError("A MeshVolumeRegion cannot be defined with a mesh that does not have a well defined volume.")

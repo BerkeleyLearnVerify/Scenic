@@ -130,18 +130,22 @@ class MeshShape(Shape):
 
 class BoxShape(MeshShape):
     """A 3D box with all dimensions 1 by default."""
-    def __init__(self, dimensions=(1,1,1), scale=1):
-        super().__init__(trimesh.creation.box((1,1,1)), dimensions, scale)
+    def __init__(self, dimensions=(1,1,1), scale=1, initial_rotation=None):
+        super().__init__(trimesh.creation.box((1,1,1)), \
+            dimensions, scale, initial_rotation)
 
 class CylinderShape(MeshShape):
-    def __init__(self, dimensions=(1,1,1), scale=1, sections=24):
-        super().__init__(trimesh.creation.cylinder(radius=0.5, height=1, sections=sections), dimensions, scale)
+    def __init__(self, dimensions=(1,1,1), scale=1, initial_rotation=None, sections=24):
+        super().__init__(trimesh.creation.cylinder(radius=0.5, height=1, sections=sections), \
+            dimensions, scale, initial_rotation)
         self.sections=sections
 
 class ConeShape(MeshShape):
-    def __init__(self, dimensions=(1,1,1), scale=1):
-        super().__init__(trimesh.creation.cone(radius=0.5, height=1), dimensions, scale)
+    def __init__(self, dimensions=(1,1,1), scale=1, initial_rotation=None):
+        super().__init__(trimesh.creation.cone(radius=0.5, height=1), \
+            dimensions, scale, initial_rotation)
 
 class SpheroidShape(MeshShape):
-    def __init__(self, dimensions=(1,1,1), scale=1):
-        super().__init__(trimesh.creation.icosphere(radius=1), dimensions, scale)
+    def __init__(self, dimensions=(1,1,1), scale=1, initial_rotation=None):
+        super().__init__(trimesh.creation.icosphere(radius=1), \
+            dimensions, scale, initial_rotation)

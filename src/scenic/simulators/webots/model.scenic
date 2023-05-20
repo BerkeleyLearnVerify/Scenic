@@ -14,7 +14,11 @@ the scenario and run dynamic simulations: see
 
 import math
 
+import numpy
+import trimesh
+
 from scenic.core.object_types import Object2D
+from scenic.core.shapes import MeshShape
 from scenic.core.distributions import distributionFunction
 from scenic.simulators.webots.actions import *
 
@@ -109,12 +113,20 @@ class Ground(WebotsObject):
     """
 
     allowCollisions: True
-    webotsName: 'Ground'
-    positionOffset: (-self.width/2, -self.length/2)  # origin of ElevationGrid is at a corner
+    webotsName: 'GROUND'
+    positionOffset: (-self.width/2, -self.length/2, self.baseOffset[2])  # origin of ElevationGrid is at a corner
+
+    baseOffset: Vector(0, 0, -(self.height)/2 + self.baseThickness)
+
+    width: 10
+    length: 10
+    shape: Ground.shapeFromHeights(self.heights, self.width, self.length,
+                self.gridSizeX, self.gridSizeY, self.baseThickness)
 
     gridSize: 20
     gridSizeX: self.gridSize
     gridSizeY: self.gridSize
+    baseThickness: 0.1
     terrain: ()
     heights: Ground.heightsFromTerrain(self.terrain, self.gridSizeX, self.gridSizeY,
                                        self.width, self.length)
@@ -141,6 +153,89 @@ class Ground(WebotsObject):
             y += dy
         return tuple(heights)
 
+    @staticmethod
+    @distributionFunction
+    def shapeFromHeights(heights, width, length, gridSizeX, gridSizeY, baseThickness):
+        heights = [row[::-1] for row in heights[::-1]]
+
+        triangles = []
+
+        ## Vertices
+        dx, dy = width / (gridSizeX - 1), length / (gridSizeY - 1)
+        base_x, base_y = -width / 2, length / 2
+
+        heightmap_vertices = tuple(tuple((base_x+ix*dx, base_y-iy*dy, heights[iy][ix]) for ix in range(gridSizeX)) for iy in range(gridSizeY))
+
+        raw_vertices = [v for row in heightmap_vertices for v in row]
+        top_vertices = list(dict.fromkeys(raw_vertices))
+        vertices =  top_vertices + \
+                    [( width/2,-length/2,-baseThickness),
+                     (-width/2,-length/2,-baseThickness),
+                     (-width/2, length/2,-baseThickness),
+                     ( width/2, length/2,-baseThickness),]
+        vertex_index_map = {vertices[i]:i for i in range(len(vertices))}
+
+        # Create top surface
+        for ix in range(gridSizeX-1):
+            for iy in range(gridSizeY-1):
+                # Calculate an interpolated middle point
+                tl_x, tl_y, _ = heightmap_vertices[ix][iy]
+                bl_x, bl_y, _ = heightmap_vertices[ix+1][iy+1]
+                mean_height = (heightmap_vertices[ix][iy][2] + heightmap_vertices[ix+1][iy][2] + heightmap_vertices[ix][iy+1][2] + heightmap_vertices[ix+1][iy+1][2])/4
+                interpolated_point = ((tl_x + bl_x)/2, (tl_y + bl_y)/2, mean_height)
+
+                # Left
+                triangles += [(heightmap_vertices[ix][iy], interpolated_point, heightmap_vertices[ix][iy+1])]
+                # Top
+                triangles += [(heightmap_vertices[ix][iy], heightmap_vertices[ix+1][iy], interpolated_point)]
+                # Right
+                triangles += [(heightmap_vertices[ix+1][iy], heightmap_vertices[ix+1][iy+1], interpolated_point)]
+                # Bottom
+                triangles += [(heightmap_vertices[ix][iy+1], interpolated_point, heightmap_vertices[ix+1][iy+1])]
+
+        # Create side surfaces
+        side_xy_vals = [(0, -width/2), (0, width/2), (1, -length/2), (1, length/2)]
+
+        for side_vals in side_xy_vals:
+            mid_side_vertices = [v for v in top_vertices if v[side_vals[0]] == side_vals[1]]
+
+            if side_vals[0] == 0:
+                if side_vals[1] < 0:
+                    side_vertices = [(-width/2, length/2, -baseThickness)] + mid_side_vertices + [(-width/2, -length/2, -baseThickness)] + [(-width/2, length/2, -baseThickness)]
+                else:
+                    side_vertices = [(width/2, length/2, -baseThickness)] + mid_side_vertices + [(width/2, -length/2, -baseThickness)] + [(width/2, length/2, -baseThickness)]
+            else:
+                if side_vals[1] < 0:
+                    side_vertices = [(-width/2, -length/2, -baseThickness)] + mid_side_vertices + [(width/2, -length/2, -baseThickness)] + [(-width/2, -length/2, -baseThickness)]
+                else:
+                    side_vertices = [(-width/2, length/2, -baseThickness)] + mid_side_vertices + [(width/2, length/2, -baseThickness)] + [(-width/2, length/2, -baseThickness)]
+
+            side_indices = [vertex_index_map[v] for v in side_vertices]
+
+            side_path = trimesh.path.Path3D(entities=[trimesh.path.entities.Line(side_indices)], vertices=vertices)
+
+            flat_side_path, transform = side_path.to_planar(to_2D=None, normal=None, check=True)
+            side_vertices_2d, side_faces = flat_side_path.triangulate()
+
+            side_vertices_3d = trimesh.transformations.transform_points(
+                numpy.hstack((side_vertices_2d,numpy.zeros([side_vertices_2d.shape[0],1], side_vertices_2d.dtype))), transform)
+
+            side_triangles = [(side_vertices_3d[f1], side_vertices_3d[f3], side_vertices_3d[f2])  for f1, f2, f3 in side_faces]
+            triangles += side_triangles
+
+        # Create bottom surface
+        triangles += [((-width/2,length/2,-baseThickness),(width/2,-length/2,-baseThickness),(-width/2,-length/2,-baseThickness)),
+                      ((-width/2,length/2,-baseThickness),(width/2,-length/2,-baseThickness),(width/2,length/2,-baseThickness))]
+
+        # Create and tune mesh
+        heightmap_mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
+        trimesh.repair.fix_winding(heightmap_mesh)
+        heightmap_mesh.merge_vertices()
+
+        assert heightmap_mesh.is_volume
+
+        return MeshShape(heightmap_mesh)
+
     def startDynamicSimulation(self):
         super().startDynamicSimulation()
         self.setGeometry()
@@ -152,15 +247,8 @@ class Ground(WebotsObject):
         grid.getField('xDimension').setSFInt32(self.gridSizeX)
         grid.getField('xSpacing').setSFFloat(self.width / (self.gridSizeX - 1))
 
-        # For backwards compatibility with Webots <= 2019b, we check if we have
-        # zDimension and zSpacing fields. If so we set those. If not, we try to set
-        # yDimension and ySpacing.
-        if grid.getField('zDimension') is not None:
-            grid.getField('zDimension').setSFInt32(self.gridSizeY)
-            grid.getField('zSpacing').setSFFloat(self.length / (self.gridSizeY - 1))
-        else:
-            grid.getField('yDimension').setSFInt32(self.gridSizeY)
-            grid.getField('ySpacing').setSFFloat(self.length / (self.gridSizeY - 1))
+        grid.getField('yDimension').setSFInt32(self.gridSizeY)
+        grid.getField('ySpacing').setSFFloat(self.length / (self.gridSizeY - 1))
 
         # Adjust length of height field as needed
         # (this will trigger Webots warnings, unfortunately; there seems to be no way to
@@ -176,7 +264,7 @@ class Ground(WebotsObject):
                 heightField.insertMFFloat(-1, 0)
         # Set height values
         i = 0
-        for row in self.heights:
+        for row in [row[::-1] for row in self.heights]:
             for height in row:
                 heightField.setMFFloat(i, height)
                 i += 1
@@ -207,6 +295,7 @@ class Hill(Terrain):
 
     height: 1
     spread: 0.25
+    color: (0,0,0,0)
 
     def heightAtOffset(self, offset):
         dx, dy, _ = offset

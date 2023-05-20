@@ -164,17 +164,17 @@ class WebotsSimulation(Simulation):
             if isinstance(obj, Object2D):
                 # 2D Compatibility - Overwrite z value with elevation
                 pos = self.coordinateSystem.positionFromScenic(
-                    Vector(obj.position.x, obj.position.y, obj.elevation) + obj.positionOffset
+                    Vector(obj.position.x, obj.position.y, obj.elevation) + Vector(*obj.positionOffset)
                 )
                 webotsObj.getField('translation').setSFVec3f(pos)
             else:
                 pos = self.coordinateSystem.positionFromScenic(
-                    obj.position + obj.positionOffset
+                    Vector(*obj.position) + Vector(*obj.positionOffset)
                 )
                 webotsObj.getField('translation').setSFVec3f(pos)
 
             # orientation
-            offsetOrientation = toOrientation(obj.rotatioOffset)
+            offsetOrientation = toOrientation(obj.rotationOffset)
             webotsObj.getField("rotation").setSFRotation(
                 self.coordinateSystem.orientationFromScenic(obj.orientation, offsetOrientation)
             )

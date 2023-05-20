@@ -1,6 +1,6 @@
 
 from scenic.simulators.webots.road.world import setLocalWorld
-setLocalWorld(__file__, 'mcity.wbt')
+setLocalWorld(__file__, 'richmond.wbt')
 
 from scenic.simulators.webots.road.model import *
 

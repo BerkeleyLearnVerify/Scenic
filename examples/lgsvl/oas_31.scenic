@@ -26,11 +26,11 @@ actorStart = actor_maneuver.startLane.centerline[-1]
 
 
 # PLACEMENT
-ego = new Car following roadDirection from egoStart by -Uniform(*space),
+ego = new Car following roadDirection from egoStart for -Uniform(*space),
         with blueprint 'vehicle.tesla.model3',
         with behavior FollowTrajectoryBehavior(target_speed=10, trajectory=centerlines)
 
-other = new Car following roadDirection from actorStart by -Uniform(*space),
+other = new Car following roadDirection from actorStart for -Uniform(*space),
         with blueprint 'vehicle.tesla.model3',
         with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=actor_centerlines)
 

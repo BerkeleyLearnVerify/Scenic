@@ -56,17 +56,17 @@ behavior actorCarBehavior(target_speed, trajectory, brake):
 
 # PLACEMENT
 # Cars blocking view
-stopped1 = new NPCCar following roadDirection from pos1 by -dist1
-stopped2 = new NPCCar following roadDirection from pos2 by -dist2
+stopped1 = new NPCCar following roadDirection from pos1 for -dist1
+stopped2 = new NPCCar following roadDirection from pos2 for -dist2
 
 # Uber
-ego = new Car following roadDirection from egoPos by -egoDist,
+ego = new Car following roadDirection from egoPos for -egoDist,
     with speed uberSpeed,
     with behavior FollowTrajectoryBehavior(target_speed=uberSpeed, trajectory=egoTrajectory)
 
 #assert (ego is right of stopped1)
 
 # Turning Car
-actor = new Car following roadDirection from actorPos by -actorDist,
+actor = new Car following roadDirection from actorPos for -actorDist,
     with behavior actorCarBehavior(target_speed = turnSpeed, trajectory = actorTrajectory, brake = brakeIntensity),
     with speed turnSpeed

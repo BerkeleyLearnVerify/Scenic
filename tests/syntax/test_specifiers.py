@@ -691,7 +691,7 @@ def test_on_modifying():
 
 def test_on_mistyped():
     with pytest.raises(RuntimeParseError):
-        compileScenic('ego = new Object on 3@2')
+        compileScenic('ego = new Object on "foo"')
 
 def test_on_incompatible():
     with pytest.raises(RuntimeParseError):

@@ -4,4 +4,4 @@ setLocalMap(__file__, 'map.npz')
 from scenic.simulators.gta.model import *
 
 ego = new Car
-new Car offset by Range(-5, 5) @ Range(20, 40)
+new Car at ego offset by Range(-5, 5) @ Range(20, 40)

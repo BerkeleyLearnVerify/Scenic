@@ -22,14 +22,14 @@ EGO_SPEED = 10
 # make sure to put '*' to uniformly randomly select from all elements of the list, 'lanes'
 lane = Uniform(*network.lanes)
 
-start = OrientedPoint on lane.centerline
-ego = Car at start,
+start = new OrientedPoint on lane.centerline
+ego = new Car at start,
     with blueprint EGO_MODEL,
     with rolename "hero"
 
-debris1 = Debris following roadDirection for Range(10, 20)
-debris2 = Debris following roadDirection from debris1 for Range(5, 10)
-debris3 = Debris following roadDirection from debris2 for Range(5, 10)
+debris1 = new Debris following roadDirection for Range(10, 20)
+debris2 = new Debris following roadDirection from debris1 for Range(5, 10)
+debris3 = new Debris following roadDirection from debris2 for Range(5, 10)
 
 require (distance to intersection) > 50
 terminate when (distance from debris3 to ego) > 10 and (distance to start) > 50

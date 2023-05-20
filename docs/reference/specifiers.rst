@@ -113,6 +113,8 @@ on *region*
 If :prop:`position` is not already specified with priority 1, positions the *base* of the object uniformly at random in the given `Region`, offset by :prop:`contactTolerance` (to avoid a collision).
 The base of the object is determined by adding the object's :prop:`baseOffset` to its :prop:`position`.
 
+Note that while :specifier:`on` can be used with `Region`, `Object` and `Vector`, it cannot be used with a distribution containing anything other than `Region`. When used with an object the base of the object being placed is placed on the target object's `onSurface` and when used with a vector the base of the object being plcaed is set to that position.
+
 If instead :prop:`position` has already been specified with priority 1, then its value is modified by projecting it onto the given region.
 More precisely, we find the closest point in the region along :prop:`onDirection` or its negation (by default the global Z axis), and place the base of the object at that point.
 
@@ -133,6 +135,9 @@ offset by *vector*
 
 Positions the object at the given coordinates in the local coordinate system of :scenic:`ego` (which must already be defined).
 Also specifies :prop:`parentOrientation` to be equal to the ego's orientation.
+
+.. versionadded:: 3.0
+	:specifier:`offset by` now specifies :prop:`parentOrientation`, whereas previously it did *not* optionally specify :prop:`heading`.
 
 .. _offset along {direction} by {vector}:
 

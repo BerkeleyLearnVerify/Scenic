@@ -31,19 +31,19 @@ behavior PedestrianBehavior(min_speed=1, threshold=10):
 # make sure to put '*' to uniformly randomly select from all elements of the list, 'network.lanes'
 lane = Uniform(*network.lanes)
 
-spot = OrientedPoint on lane.centerline
-vending_spot = OrientedPoint following roadDirection from spot for -3
+spot = new OrientedPoint on lane.centerline
+vending_spot = new OrientedPoint following roadDirection from spot for -3
 
-pedestrian = Pedestrian right of spot by 3,
+pedestrian = new Pedestrian right of spot by 3,
     with heading 90 deg relative to spot.heading,
     with regionContainedIn None,
     with behavior PedestrianBehavior(PEDESTRIAN_MIN_SPEED, THRESHOLD)
 
-vending_machine = VendingMachine right of vending_spot by 3,
+vending_machine = new VendingMachine right of vending_spot by 3,
     with heading -90 deg relative to vending_spot.heading,
     with regionContainedIn None
 
-ego = Car following roadDirection from spot for Range(-30, -20),
+ego = new Car following roadDirection from spot for Range(-30, -20),
     with blueprint EGO_MODEL,
     with rolename "hero"
 

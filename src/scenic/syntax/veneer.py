@@ -1016,36 +1016,47 @@ def On(thing):
     Specifies :prop:'position' and :prop:'parentOrientation', depending on
     :prop:'onDirection', :prop:'baseOffset', :prop:'contactTolerance'.
 
+    Note that while :specifier:`on` can be used with `Region`s, `Object`s and `Vector`s,
+    it cannot be used with a distribution containing anything other than `Region`s.
+
     May be used to modify an already specified :prop:'position' property if a compatible
     specifier has already done so.
 
     Allowed forms:
         on <region>
-        on <object> 
+        on <object>
+        on <vector>
     """
     if isA(thing, Object):
-        region = toType(thing.onSurface, Region, 'Cannot coax occupiedSpace of Object to Region')
+        target = toType(thing.onSurface, Region, 'Cannot coax occupiedSpace of Object to Region')
+    elif canCoerce(thing, Region):
+        target = toType(thing, Region, 'specifier "on R" with R not a Region')
     else:
-        region = toType(thing, Region, 'specifier "on R" with R not a Region')
+        target = toType(thing, Vector, "Cannot coax target to Vector")
 
     props = {'position': 1}
 
-    if alwaysProvidesOrientation(region):
+    if isA(target, Region) and alwaysProvidesOrientation(target):
         props['parentOrientation'] = 2
 
     def helper(context):
         # Pick position based on whether we are specifying or modifying
         if hasattr(context, 'position'):
-            pos = findOnHelper(region, context.position, context.onDirection)
+            if not isA(target, Region):
+                raise ValueError('Cannot use modifying "on V" with V a vector.')
+
+            pos = findOnHelper(target, context.position, context.onDirection)
+        elif isA(target, Vector):
+            pos = target
         else:
-            pos = Region.uniformPointIn(region)
+            pos = Region.uniformPointIn(target)
 
         values = {}
 
         contactOffset = Vector(0,0,context.contactTolerance) - context.baseOffset
 
         if 'parentOrientation' in props:
-            values['parentOrientation'] = region.orientation[pos]
+            values['parentOrientation'] = target.orientation[pos]
             contactOffset = contactOffset.rotatedBy(values['parentOrientation'])
 
         values['position'] = (pos + contactOffset)
@@ -1294,11 +1305,18 @@ def directionalSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
     else:
         raise RuntimeParseError(f'"{syntax} X by D" with D not a number or vector')
 
+    @distributionFunction
+    def makeContactTol(dist, ct):
+        if dist == 0:
+            return ct
+        else:
+            return 0
+
     if isA(pos, Object):
         prop['parentOrientation'] = 3
         obj_dims = (pos.width, pos.length, pos.height)
         val = lambda self: {
-            'position': pos.relativize(makeOffset(self, obj_dims, self.contactTolerance if dist == 0 else 0, dx, dy, dz)),
+            'position': pos.relativize(makeOffset(self, obj_dims, makeContactTol(dist, self.contactTolerance), dx, dy, dz)),
             'parentOrientation': pos.orientation
         }
         new = DelayedArgument({axis, "contactTolerance"}, val)
