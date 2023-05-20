@@ -74,9 +74,17 @@ class Scenic2to3:
         self.splices.append(splice)
 
     def recordInstanceCreation(self, token):
+        # Add 'new' before instance creations.
         self.addSpliceBefore(token, 'new ')
 
+    def recordSpecifier(self, token, nextToken=None):
+        # Add 'at ego' before 'offset by' specifiers.
+        if nextToken and (token.string, nextToken.string) == ('offset', 'by'):
+            self.addSpliceBefore(token, 'at ego ')
+
     def recordMonitor(self, name, token):
+        # Add empty parameter lists to monitor definitions, and prepare to add
+        # a 'require monitor' statement after the definition.
         self.addSpliceBefore(token, '()')
         self.monitorName = name
         self.monitorLevel = self.indentLevel
@@ -89,6 +97,7 @@ class Scenic2to3:
             self.indentLevel += 1
         elif token.exact_type == tokenize.DEDENT:
             self.indentLevel -= 1
+            # Add a 'require monitor' statement if we just ended a monitor definition
             if self.indentLevel == self.monitorLevel:
                 text = f'require monitor {self.monitorName}()'
                 self.addSpliceBefore(token, text, row=self.logicalLine, newline=True)
@@ -98,8 +107,6 @@ class Scenic2to3:
             raise AssertionError(f'unexpected token {token}')
 
 if __name__ == '__main__':
-    scenic.setDebuggingOptions(fullBacktrace=True)
-
     parser = argparse.ArgumentParser(
         prog='python -m scenic.syntax.scenic2to3',
         description=('Convert a Scenic 2.x program to one that runs in Scenic 3.0 in '
