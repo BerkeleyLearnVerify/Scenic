@@ -552,11 +552,12 @@ class MeshRegion(Region):
         tolerance: Tolerance for collision computations.
         centerMesh: Whether or not to center the mesh after copying and before transformations. Only turn this off
           if you know what you're doing and don't plan to scale or translate the mesh.
+        onDirection: The direction to use if an object being placed on this region doesn't specify one.
         engine: Which engine to use for mesh operations. Either "blender" or "scad".
         additionalDeps: Any additional sampling dependencies this region relies on.
     """
     def __init__(self, mesh, name=None, dimensions=None, position=None, rotation=None, orientation=None,\
-        tolerance=1e-6, centerMesh=True, engine="blender", additionalDeps=[]):
+        tolerance=1e-6, centerMesh=True, onDirection=None, engine="blender", additionalDeps=[]):
         # Copy the mesh and parameters
         if needsSampling(mesh):
             self._mesh = mesh
@@ -574,6 +575,7 @@ class MeshRegion(Region):
         self.orientation = None if orientation is None else toDistribution(orientation)
         self.tolerance = tolerance
         self.centerMesh = centerMesh
+        self.onDirection = onDirection
         self.engine = engine
 
         # Initialize superclass with samplables
@@ -650,7 +652,15 @@ class MeshRegion(Region):
 
         # Get first point hit in both directions of ray
         point = point.coordinates
-        on_direction = numpy.array(on_direction)
+
+        if on_direction is not None:
+            on_direction = numpy.array(on_direction)
+        else:
+            if isinstance(self, MeshVolumeRegion):
+                on_direction = numpy.array((0,0,1))
+            elif isinstance(self, MeshSurfaceRegion):
+                on_direction = sum(self.mesh.face_normals*self.mesh.area_faces[:, numpy.newaxis])/self.mesh.area
+                on_direction = on_direction/numpy.linalg.norm(on_direction)
 
         intersection_data, _, _ = self.mesh.ray.intersects_location(ray_origins=[point, point], \
             ray_directions=[on_direction, -1*on_direction], multiple_hits=False)
@@ -723,7 +733,7 @@ class MeshRegion(Region):
         return cls(mesh=value[self._mesh], name=self.name, \
             dimensions=value[self.dimensions], position=value[self.position], rotation=value[self.rotation], \
             orientation=self.orientation, tolerance=self.tolerance, \
-            centerMesh=self.centerMesh, engine=self.engine)
+            centerMesh=self.centerMesh, onDirection=self.onDirection, engine=self.engine)
 
 class MeshVolumeRegion(MeshRegion):
     """ An instance of MeshRegion that performs operations over the volume of the mesh.
@@ -1389,7 +1399,7 @@ class MeshVolumeRegion(MeshRegion):
     def getSurfaceRegion(self):
         """ Return a region equivalent to this one, except as a MeshSurfaceRegion"""
         return MeshSurfaceRegion(self.mesh, self.name, orientation=self.orientation, \
-            tolerance=self.tolerance, centerMesh=False, engine=self.engine)
+            tolerance=self.tolerance, centerMesh=False, onDirection=self.onDirection, engine=self.engine)
 
     def getVolumeRegion(self):
         """ Returns this object, as it is already a MeshVolumeRegion"""
@@ -1525,7 +1535,7 @@ class MeshSurfaceRegion(MeshRegion):
     def getVolumeRegion(self):
         """ Return a region equivalent to this one, except as a MeshVolumeRegion"""
         return MeshVolumeRegion(self.mesh, self.name, orientation=self.orientation, \
-            tolerance=self.tolerance, centerMesh=False, engine=self.engine)
+            tolerance=self.tolerance, centerMesh=False, onDirection=self.onDirection, engine=self.engine)
 
     def getSurfaceRegion(self):
         """ Returns this object, as it is already a MeshSurfaceRegion"""
@@ -1547,10 +1557,11 @@ class BoxRegion(MeshVolumeRegion):
         tolerance: Tolerance for collision computations.
         engine: Which engine to use for mesh operations. Either "blender" or "scad".
     """
-    def __init__(self, name=None, dimensions=None, position=None, rotation=None, orientation=None, tolerance=1e-8, engine="blender"):
+    def __init__(self, name=None, dimensions=None, position=None, rotation=None, orientation=None,
+                 tolerance=1e-8, onDirection=None, engine="blender"):
         box_mesh = trimesh.creation.box((1, 1, 1))
         super().__init__(mesh=box_mesh, name=name, position=position, rotation=rotation, dimensions=dimensions,\
-        orientation=orientation, tolerance=tolerance, engine=engine)
+        orientation=orientation, tolerance=tolerance, onDirection=onDirection, engine=engine)
 
     @cached_property
     def isConvex(self):
@@ -1577,10 +1588,11 @@ class SpheroidRegion(MeshVolumeRegion):
         tolerance: Tolerance for collision computations.
         engine: Which engine to use for mesh operations. Either "blender" or "scad".
     """
-    def __init__(self, name=None, dimensions=None, position=None, rotation=None, orientation=None, tolerance=1e-8, engine="blender"):
+    def __init__(self, name=None, dimensions=None, position=None, rotation=None, orientation=None,
+                 tolerance=1e-8, onDirection=None, engine="blender"):
         sphere_mesh = trimesh.creation.icosphere(radius=1)
         super().__init__(mesh=sphere_mesh, name=name, position=position, rotation=rotation, dimensions=dimensions, \
-            orientation=orientation, tolerance=tolerance, engine=engine)
+            orientation=orientation, tolerance=tolerance, onDirection=onDirection, engine=engine)
 
     @cached_property
     def isConvex(self):

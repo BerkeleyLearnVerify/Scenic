@@ -559,8 +559,8 @@ class Point(Constructible):
           :keyword:`on` specifier is used. Default value 0.
         onDirection (`Vector`): The direction used to determine where to place
           this `Point` on a region, when using the modifying :keyword:`on` specifier.
-          See the :sampref:`on {region}` page for more details. Default value is (0,0,1),
-          directly upwards.
+          See the :sampref:`on {region}` page for more details. Default value is None,
+          indicating the direction will be inferred from the region this object is being placed on.
         visibleDistance (float): Distance used to determine the visible range of this object.
           Default value 50.
         viewRayDensity (float): By default determines the number of rays used during visibility checks. 
@@ -583,7 +583,7 @@ class Point(Constructible):
 
         "baseOffset": Vector(0,0,0),
         "contactTolerance": 0,
-        "onDirection": Vector(0,0,1),
+        "onDirection": None,
 
         # This property is defined in OrientedPoint, but we provide a default value
         # for Points for implementation convenience.

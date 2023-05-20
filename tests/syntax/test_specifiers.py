@@ -689,6 +689,44 @@ def test_on_modifying():
         assert -15 <= pos.y <= 15
         assert pos.z == pytest.approx(0.55, abs=2*scene.egoObject.contactTolerance)
 
+def test_on_modifying_object_side():
+    scenario = compileScenic("""
+        workspace = Workspace(BoxRegion(dimensions=(10,10,10)))
+        box = new Object with width 5, with length 5, with height 5
+        ego = new Object in workspace, on box.frontSurface, with shape ConeShape()
+    """)
+    for i in range(30):
+        scene = sampleScene(scenario, maxIterations=1000)
+        pos = scene.egoObject.position
+        assert pos.y == pytest.approx(3, abs=2*scene.egoObject.contactTolerance)
+
+
+def test_on_modifying_object_onDirection():
+    scenario = compileScenic("""
+        workspace = Workspace(BoxRegion(dimensions=(10,10,10)))
+        box = new Object with width 5, with length 5, with height 5
+        ego = new Object in workspace, on box.surface, with shape ConeShape(),
+            with onDirection (0,1,0)
+    """)
+    for i in range(30):
+        scene = sampleScene(scenario, maxIterations=1000)
+        pos = scene.egoObject.position
+        assert pos.y == pytest.approx(-3, abs=2*scene.egoObject.contactTolerance) or \
+               pos.y == pytest.approx(3, abs=2*scene.egoObject.contactTolerance)
+
+def test_on_modifying_surface_onDirection():
+    scenario = compileScenic("""
+        workspace = Workspace(BoxRegion(dimensions=(10,10,10)))
+        box = BoxRegion(dimensions=(5,5,5), onDirection=(0,1,0)).getSurfaceRegion()
+        ego = new Object in workspace, on box, with shape ConeShape(),
+            with onDirection (0,1,0)
+    """)
+    for i in range(30):
+        scene = sampleScene(scenario, maxIterations=1000)
+        pos = scene.egoObject.position
+        assert pos.y == pytest.approx(-3, abs=2*scene.egoObject.contactTolerance) or \
+               pos.y == pytest.approx(3, abs=2*scene.egoObject.contactTolerance)
+
 def test_on_mistyped():
     with pytest.raises(RuntimeParseError):
         compileScenic('ego = new Object on "foo"')
