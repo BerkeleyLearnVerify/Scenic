@@ -38,7 +38,7 @@ class MyClass:
 @other_decorator
 class OtherClass(MyClass):
     foo: 21
-    def method(self, arg, *args, distance=5,    # comment
+    def method(self, arg:Union[list,types.Wuggle]=[1,2], *args, distance=5,    # comment
         blah, \
         **kwargs: anno
     ):
@@ -46,7 +46,10 @@ class OtherClass(MyClass):
         thing = args[0] if len(args) > 0 else 6
         return self.foo + distance
     @property
-    def myProp(self, *, zug=4
+    def myProp(
+        self,
+        *,
+        zug=4
     ) -> Point:
         if abs(self.foo) != 4: x = 3; y = 12    # if-else with simple statements
         else: x = 4
@@ -55,7 +58,9 @@ class OtherClass(MyClass):
         return self.method(5, womp='foo')
     class_attr = 42
     @classmethod
-    def clsmethod(cls, angle : float, /, thingy:types.Wuggle=[1,2]):
+    def clsmethod(cls, angle : float, /,
+                  thingy:types.Wuggle
+                  ):
         try:
             pass
         except Exception as e:

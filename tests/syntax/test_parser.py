@@ -2614,6 +2614,54 @@ class TestOperator:
             case _:
                 assert False
 
+    @pytest.mark.parametrize(
+        "boolop,boolopclass,tempop,tempopclass",
+        [
+            bop + top
+            for bop in [("or", Or), ("and", And)]
+            for top in [("always", Always), ("eventually", Eventually), ("next", Next)]
+        ],
+    )
+    def test_bool_temporal_prefix(self, boolop, boolopclass, tempop, tempopclass):
+        """Parse require statements of the form `require x {boolop} {tempop} y`.
+
+        It should be parsed as `require x {boolop} ({tempop} y)`"""
+        mod = parse_string_helper(f"require x {boolop} {tempop} y")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(BoolOp(boolopclass(), [Name("x"), tempopclass(Name("y"))])):
+                assert True
+            case _:
+                assert False
+
+    @pytest.mark.parametrize(
+        "boolop,boolopclass,tempop,tempopclass",
+        [
+            bop + top
+            for bop in [("or", Or), ("and", And)]
+            for top in [("always", Always), ("eventually", Eventually), ("next", Next)]
+        ],
+    )
+    def test_bool_temporal_prefix_bool(self, boolop, boolopclass, tempop, tempopclass):
+        """Parse require statements of the form `require x {boolop} {tempop} y {boolop} z`.
+
+        It should be parsed as `require x {boolop} ({tempop} (y {boolop} z))`"""
+        mod = parse_string_helper(f"require x {boolop} {tempop} y {boolop} z")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(
+                BoolOp(
+                    boolopclass(),
+                    [
+                        Name("x"),
+                        tempopclass(BoolOp(boolopclass(), [Name("y"), Name("z")])),
+                    ],
+                )
+            ):
+                assert True
+            case _:
+                assert False
+
     def test_eventually(self):
         mod = parse_string_helper("require eventually x")
         stmt = mod.body[0]

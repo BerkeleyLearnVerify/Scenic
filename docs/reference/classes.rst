@@ -48,7 +48,7 @@ Point
 Locations in space.
 This class provides the fundamental property :prop:`position` and several associated properties.
 
-.. autoclass:: scenic.core.object_types.Point
+.. autoscenicclass:: scenic.core.object_types.Point
     :noindex:
     :no-show-inheritance:
     :no-members:
@@ -63,7 +63,7 @@ OrientedPoint
 A location along with an orientation, defining a local coordinate system.
 This class subclasses `Point`, adding the fundamental property :prop:`orientation` and several associated properties.
 
-.. autoclass:: scenic.core.object_types.OrientedPoint
+.. autoscenicclass:: scenic.core.object_types.OrientedPoint
     :noindex:
     :no-show-inheritance:
     :no-members:
@@ -94,7 +94,7 @@ The built-in requirements applying to each object are:
 
     :prop:`requireVisible` is now `False` by default.
 
-.. autoclass:: scenic.core.object_types.Object
+.. autoscenicclass:: scenic.core.object_types.Object
     :noindex:
     :no-show-inheritance:
     :no-members:

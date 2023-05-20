@@ -9,30 +9,15 @@ The top-level interface to Scenic is provided by two functions:
 These output a `Scenario` object, from which scenes can be generated.
 See the documentation for `Scenario` for details.
 
-When imported, this module hooks the Python import system so that Scenic
-modules can be imported using the ``import`` statement. This is primarily for the
-translator's own use, but you could import Scenic modules from Python to
-inspect them. [#import]_ Because Scenic uses Python's import system, the latter's
-rules for finding modules apply, including the handling of packages.
+When imported, this module hooks the Python import system in order to implement
+the :keyword:`import` statement. This is only for the compiler's own use: it is
+not allowed to import a Scenic module from Python, and attempting to do so will
+fail with a `ModuleNotFoundError`.
 
 Scenic is compiled in two main steps: translating the code into Python, and
 executing the resulting Python module to generate a Scenario object encoding
 the objects, distributions, etc. in the scenario. For details, see the function
 `compileStream` below.
-
-.. rubric:: Footnotes
-
-.. [#import] Note however that care must be taken when importing Scenic modules
-    which will later be used when compiling multiple Scenic scenarios. Because
-    Python caches modules, there is the possibility of one version of a Scenic
-    module persisting even when it should be recompiled during the compilation
-    of another module that imports it.
-    Scenic handles the most common case, that of Scenic modules which refer to
-    other Scenic modules at the top level; but it is not practical to catch all
-    possible cases. In particular, importing a Python package which contains
-    Scenic modules as submodules and then later compiling those modules more
-    than once within the same Python process may lead to errors or unexpected
-    behavior. See the **cacheImports** argument of `scenarioFromFile`.
 """
 
 import ast
@@ -100,7 +85,7 @@ class CompileOptions:
         return hashlib.blake2b(stream.getvalue(), digest_size=4).digest()
 
 def scenarioFromString(string, params={}, model=None, scenario=None, *,
-                       filename='<string>', mode2D=False, cacheImports=False):
+                       filename='<string>', mode2D=False, **kwargs):
     """Compile a string of Scenic code into a `Scenario`.
 
     The optional **filename** is used for error messages.
@@ -108,32 +93,28 @@ def scenarioFromString(string, params={}, model=None, scenario=None, *,
     """
     stream = io.BytesIO(string.encode())
     options = CompileOptions(modelOverride=model, paramOverrides=params, mode2D=mode2D)
-    return scenarioFromStream(stream, options, filename, scenario=scenario,
-                              cacheImports=cacheImports)
+    return _scenarioFromStream(stream, options, filename, scenario=scenario, **kwargs)
 
 def scenarioFromFile(path, params={}, model=None, scenario=None, *,
-                     mode2D=False, cacheImports=False):
+                     mode2D=False, **kwargs):
     """Compile a Scenic file into a `Scenario`.
 
     Args:
         path (str): Path to a Scenic file.
-        params (dict): Global parameters to override, as a dictionary mapping
+        params (dict): :term:`Global parameters` to override, as a dictionary mapping
           parameter names to their desired values.
         model (str): Scenic module to use as :term:`world model`.
         scenario (str): If there are multiple :term:`modular scenarios` in the
           file, which one to compile; if not specified, a scenario called 'Main'
           is used if it exists.
         mode2D (bool): Whether to compile this scenario in `2D compatibility mode`.
-        cacheImports (bool): Whether to cache any imported Scenic modules.
-          The default behavior is to not do this, so that subsequent attempts
-          to import such modules will cause them to be recompiled. If it is
-          safe to cache Scenic modules across multiple compilations, set this
-          argument to True. Then importing a Scenic module will have the same
-          behavior as importing a Python module. See `purgeModulesUnsafeToCache`
-          for a more detailed discussion of the internals behind this.
 
     Returns:
         A `Scenario` object representing the Scenic scenario.
+
+    Note for Scenic developers: this function accepts additional keyword
+    arguments which are intended for internal use and debugging only.
+    See `_scenarioFromStream` for details.
     """
     if not os.path.exists(path):
         raise FileNotFoundError(path)
@@ -147,19 +128,36 @@ def scenarioFromFile(path, params={}, model=None, scenario=None, *,
 
     options = CompileOptions(modelOverride=model, paramOverrides=params, mode2D=mode2D)
     with open(path, 'rb') as stream:
-        return scenarioFromStream(stream, options, fullpath, scenario=scenario,
-                                  path=path, cacheImports=cacheImports)
+        return _scenarioFromStream(stream, options, fullpath, scenario=scenario,
+                                   path=path, **kwargs)
 
-def scenarioFromStream(stream, compileOptions, filename, *,
-                       scenario=None, path=None, cacheImports=False):
-    """Compile a stream of Scenic code into a `Scenario`."""
+def _scenarioFromStream(stream, compileOptions, filename, *,
+                        scenario=None, path=None, _cacheImports=False):
+    """Compile a stream of Scenic code into a `Scenario`.
+
+    This method is not meant to be called directly by users of Scenic. Use the
+    top-level functions `scenarioFromFile` and `scenarioFromString` instead.
+
+    These functions also accept the following keyword arguments, which are
+    intended for internal use and debugging only. They should be considered
+    unstable and are subject to modification or removal at any time.
+
+    Args:
+        _cacheImports (bool): Whether to cache any imported Scenic modules.
+          The default behavior is to not do this, so that subsequent attempts
+          to import such modules will cause them to be recompiled. If it is
+          safe to cache Scenic modules across multiple compilations, set this
+          argument to True. Then importing a Scenic module will have the same
+          behavior as importing a Python module. See `purgeModulesUnsafeToCache`
+          for a more detailed discussion of the internals behind this.
+    """
     # Compile the code as if it were a top-level module
     oldModules = list(sys.modules.keys())
     try:
         with topLevelNamespace(path) as namespace:
             compileStream(stream, namespace, compileOptions, filename)
     finally:
-        if not cacheImports:
+        if not _cacheImports:
             purgeModulesUnsafeToCache(oldModules)
     # Construct a Scenario from the resulting namespace
     return constructScenarioFrom(namespace, scenario)
@@ -239,6 +237,12 @@ def purgeModulesUnsafeToCache(oldModules):
             # world models), this means we have to purge the entire scenic package. But
             # then whoever did 'import scenic' at the top level will be left with a
             # reference to the old version of the Scenic module.)
+            #
+            # 2023 update: after hitting yet another bug caused by a reference to a
+            # Scenic module surviving the purge, I've decided to completely ban importing
+            # Scenic modules from Python (except when building the documentation). Any
+            # objects needed in both Python and Scenic modules should be defined in a
+            # Python module and imported from there.
         del sys.modules[name]
 
 def compileStream(stream, namespace, compileOptions, filename):
@@ -404,7 +408,8 @@ class ScenicModule(types.ModuleType):
 # and we can't del it.) We only do this during Sphinx runs since it seems to
 # sometimes break pickling of the modules.
 sphinx = sys.modules.get('sphinx')
-if sphinx and getattr(sphinx, '_buildingScenicDocs', False):
+buildingDocs = sphinx and getattr(sphinx, '_buildingScenicDocs', False)
+if buildingDocs:
     ScenicModule.__module__ = None
 
 ## Finder for Scenic (and Python) files
@@ -424,7 +429,15 @@ class ScenicFileFinder(importlib.abc.PathEntryFinder):
         self._inner = machinery.FileFinder(path, *loaders)
 
     def find_spec(self, fullname, target=None):
-        return self._inner.find_spec(fullname, target=target)
+        spec = self._inner.find_spec(fullname, target=target)
+        # Disallow imports of Scenic modules from Python modules, unless we are
+        # building the documentation (to allow autodoc to introspect them; this
+        # requires careful setup in `docs/conf.py`).
+        # See `purgeModulesUnsafeToCache` for the rationale.
+        if (spec and spec.origin and not (veneer.isActive() or buildingDocs)
+            and any(spec.origin.endswith(ext) for ext in scenicExtensions)):
+            return None
+        return spec
 
     def invalidate_caches(self):
         self._inner.invalidate_caches()
