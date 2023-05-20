@@ -39,7 +39,7 @@ class Scenic2to3:
             curRow = 0
             offset = 0
             pieces = []
-            for row, col, text in splices:
+            for row, col, text, erased in splices:
                 noNewline = False
                 while curRow < row:
                     outStream.write(''.join(pieces))
@@ -58,8 +58,8 @@ class Scenic2to3:
                 if noNewline and text[-1] == '\n':
                     text = text[:-1]
                 pieces.append(text)
-                pieces.append(piece[spot:])
-                offset = col
+                pieces.append(piece[spot+erased:])
+                offset = col + erased
             outStream.write(''.join(pieces))
             for line in inStream:
                 outStream.write(line)
@@ -70,7 +70,14 @@ class Scenic2to3:
             row = trow
         if newline:
             text += '\n' + ' '*col
-        splice = (row, col, text)
+        splice = (row, col, text, 0)
+        self.splices.append(splice)
+
+    def addSpliceReplacing(self, fromToken, toToken, text):
+        srow, scol = fromToken[2]
+        erow, ecol = toToken[3]
+        assert srow == erow and scol <= ecol, (fromToken, toToken)
+        splice = (srow, scol, text, ecol - scol)
         self.splices.append(splice)
 
     def recordInstanceCreation(self, token):
@@ -78,9 +85,14 @@ class Scenic2to3:
         self.addSpliceBefore(token, 'new ')
 
     def recordSpecifier(self, token, nextToken=None):
-        # Add 'at ego' before 'offset by' specifiers.
-        if nextToken and (token.string, nextToken.string) == ('offset', 'by'):
-            self.addSpliceBefore(token, 'at ego ')
+        if nextToken:
+            twoWords = (token.string, nextToken.string)
+            if twoWords == ('offset', 'by'):
+                # Replace 'offset by' specifiers with 'at ego offset by'.
+                self.addSpliceBefore(token, 'at ego ')
+            elif twoWords == ('with', 'heading'):
+                # Replace 'with heading' specifiers with 'facing'.
+                self.addSpliceReplacing(token, nextToken, 'facing')
 
     def recordMonitor(self, name, token):
         # Add empty parameter lists to monitor definitions, and prepare to add
