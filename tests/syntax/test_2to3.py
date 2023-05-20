@@ -58,6 +58,14 @@ def test_offset_by_operator(check):
     check('ego = Object at (1, 2) offset by (3, 4)',
           'ego = new Object at (1, 2) offset by (3, 4)')
 
+def test_with_heading(check):
+    check('Object with heading 30 deg',
+          'new Object facing 30 deg')
+    check('Object  with    heading  30 deg',
+          'new Object  facing  30 deg')
+    check('Object with heading 30 deg, at Point at (1, 2)',
+          'new Object facing 30 deg, at new Point at (1, 2)')
+
 def test_monitor(check):
     check("""
         monitor MyMon:
