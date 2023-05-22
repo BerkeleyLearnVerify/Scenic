@@ -315,9 +315,9 @@ class TestBehaviorDef:
     def test_basic(self):
         mod = parse_string_helper(
             """
-            behavior test:
+            behavior test():
                 pass
-        """
+            """
         )
         stmt = mod.body[0]
         match stmt:
@@ -332,25 +332,14 @@ class TestBehaviorDef:
             case _:
                 assert False
 
-    def test_empty_parenthesis(self):
-        mod = parse_string_helper(
-            """
-            behavior test():
-                pass
-        """
-        )
-        stmt = mod.body[0]
-        match stmt:
-            case BehaviorDef(
-                "test",
-                arguments([], [], None, [], [], None, []),
-                None,
-                [],
-                [Pass()],
-            ):
-                assert True
-            case _:
-                assert False
+    def test_no_parentheses(self):
+        with pytest.raises(ScenicSyntaxError):
+            parse_string_helper(
+                """
+                behavior test:
+                    pass
+                """
+            )
 
     def test_parameter(self):
         mod = parse_string_helper(
@@ -375,7 +364,7 @@ class TestBehaviorDef:
     def test_precondition(self):
         mod = parse_string_helper(
             """
-            behavior test:
+            behavior test():
                 precondition: True
                 pass
         """
@@ -396,7 +385,7 @@ class TestBehaviorDef:
     def test_invariant(self):
         mod = parse_string_helper(
             """
-            behavior test:
+            behavior test():
                 invariant: True
                 pass
         """
@@ -417,7 +406,7 @@ class TestBehaviorDef:
     def test_precondition_and_invariant(self):
         mod = parse_string_helper(
             """
-            behavior test:
+            behavior test():
                 precondition: True
                 invariant: True
                 precondition: True
@@ -445,7 +434,7 @@ class TestBehaviorDef:
         with pytest.raises(ScenicSyntaxError) as e:
             parse_string_helper(
                 """
-                behavior test:
+                behavior test():
                     hello()
                     precondition: True
                 """
@@ -455,7 +444,7 @@ class TestBehaviorDef:
         with pytest.raises(ScenicSyntaxError) as e:
             parse_string_helper(
                 """
-                behavior test:
+                behavior test():
                     hello()
                     invariant: True
                 """
@@ -465,7 +454,7 @@ class TestBehaviorDef:
         with pytest.raises(ScenicSyntaxError):
             mod = parse_string_helper(
                 """
-                behavior test:
+                behavior test():
                     invariant: True
                 """
             )
@@ -473,7 +462,7 @@ class TestBehaviorDef:
     def test_docstring(self):
         mod = parse_string_helper(
             """
-            behavior test:
+            behavior test():
                 \"\"\"DOCSTRING\"\"\"
                 invariant: True
                 body()

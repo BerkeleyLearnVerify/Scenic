@@ -802,7 +802,7 @@ scenic_new_block_body:
 # --------
 
 scenic_behavior_def:
-    | "behavior" a=NAME b=['(' z=[params] ')' { z }] &&':' c=scenic_behavior_def_block {
+    | "behavior" a=NAME '(' b=[params] ')' &&':' c=scenic_behavior_def_block {
         s.BehaviorDef(
             a.string,
             args=b or self.make_arguments(None, [], None, [], None),
