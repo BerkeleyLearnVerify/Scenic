@@ -475,7 +475,7 @@ class Parser(Parser):
 
 
 # rule for adding hard keywords
-scenic_hard_keyword: 'PropertyDefault'
+# scenic_hard_keyword:
 
 
 # STARTING RULES
@@ -899,8 +899,8 @@ scenic_scenario_compose_block:
 
 scenic_override_stmt:
     # restricting `e` to `primary` rather than `expression` to disambiguate keywords that are both specifiers and operators (e.g. `at`, `offset by`)
-    | 'override' e=primary ss=scenic_specifiers NEWLINE { s.Override(target=e, specifiers=ss) }
-    | 'override' e=primary ss=scenic_specifiers ',' NEWLINE INDENT t=scenic_new_block_body DEDENT {
+    | "override" e=primary ss=scenic_specifiers NEWLINE { s.Override(target=e, specifiers=ss) }
+    | "override" e=primary ss=scenic_specifiers ',' NEWLINE INDENT t=scenic_new_block_body DEDENT {
         s.Override(target=e, specifiers=ss + t)
      }
 
@@ -1117,7 +1117,7 @@ scenic_try_interrupt_stmt[s.TryInterrupt]:
 # -------------------
 
 interrupt_when_block:
-    | 'interrupt' 'when' e=expression &&':' b=block { s.InterruptWhenHandler(cond=e, body=b, LOCATIONS) }
+    | "interrupt" "when" e=expression &&':' b=block { s.InterruptWhenHandler(cond=e, body=b, LOCATIONS) }
 
 # Except statement
 # ----------------
@@ -1430,14 +1430,14 @@ scenic_above_until (memo):  # anything with precedence above "until"
     | scenic_implication
 
 scenic_temporal_prefix (memo):
-    | 'next' e=scenic_above_until { s.Next(e, LOCATIONS) }
-    | 'eventually' e=scenic_above_until { s.Eventually(e, LOCATIONS) }
-    | 'always' e=scenic_above_until { s.Always(e, LOCATIONS) }
+    | "next" e=scenic_above_until { s.Next(e, LOCATIONS) }
+    | "eventually" e=scenic_above_until { s.Eventually(e, LOCATIONS) }
+    | "always" e=scenic_above_until { s.Always(e, LOCATIONS) }
 
 scenic_implication (memo):
     | invalid_scenic_implication
     # exclude implication on RHS to disallow "A implies B implies C"
-    | a=disjunction 'implies' b=(scenic_temporal_prefix | disjunction) { s.ImpliesOp(a, b, LOCATIONS) }
+    | a=disjunction "implies" b=(scenic_temporal_prefix | disjunction) { s.ImpliesOp(a, b, LOCATIONS) }
     | disjunction
 
 disjunction (memo):
@@ -1461,7 +1461,7 @@ scenic_specifier:
     | 'with' p=NAME v=expression { s.WithSpecifier(prop=p.string, value=v, LOCATIONS) }
     | 'at' position=expression { s.AtSpecifier(position=position, LOCATIONS) }
     | "offset" 'by' o=expression { s.OffsetBySpecifier(offset=o, LOCATIONS) }
-    | "offset" 'along' d=expression 'by' o=expression { s.OffsetAlongSpecifier(direction=d, offset=o, LOCATIONS) }
+    | "offset" "along" d=expression 'by' o=expression { s.OffsetAlongSpecifier(direction=d, offset=o, LOCATIONS) }
     | direction=scenic_specifier_position_direction position=expression distance=['by' e=expression { e }] {
         s.DirectionOfSpecifier(direction=direction, position=position, distance=distance, LOCATIONS)
      }
@@ -1470,7 +1470,7 @@ scenic_specifier:
     | 'not' "visible" b=['from' r=expression { r }] { s.NotVisibleSpecifier(base=b, LOCATIONS) }
     | 'in' r=expression { s.InSpecifier(region=r, LOCATIONS) }
     | 'on' r=expression { s.OnSpecifier(region=r, LOCATIONS) }
-    | 'contained' 'in' r=expression { s.ContainedInSpecifier(region=r, LOCATIONS) }
+    | "contained" 'in' r=expression { s.ContainedInSpecifier(region=r, LOCATIONS) }
     | "following" f=expression b=['from' e=expression {e}] 'for' d=expression {
         s.FollowingSpecifier(field=f, distance=d, base=b, LOCATIONS)
      }
@@ -1544,14 +1544,14 @@ bitwise_xor:
     | a=bitwise_xor '^' b=bitwise_and { ast.BinOp(left=a, op=ast.BitXor(), right=b, LOCATIONS) }
     | bitwise_and
 
-scenic_offset_along: a=bitwise_xor "offset" "along" b=bitwise_xor "by" c=bitwise_and { s.OffsetAlongOp(base=a, direction=b, offset=c, LOCATIONS) }
+scenic_offset_along: a=bitwise_xor "offset" "along" b=bitwise_xor 'by' c=bitwise_and { s.OffsetAlongOp(base=a, direction=b, offset=c, LOCATIONS) }
 
 bitwise_and:
     | scenic_relative_to
     | a=bitwise_and '&' b=shift_expr { ast.BinOp(left=a, op=ast.BitAnd(), right=b, LOCATIONS) }
     | shift_expr
 
-scenic_relative_to: a=bitwise_and ("relative" "to" | "offset" "by") b=shift_expr { s.RelativeToOp(left=a, right=b, LOCATIONS) }
+scenic_relative_to: a=bitwise_and ("relative" 'to' | "offset" 'by') b=shift_expr { s.RelativeToOp(left=a, right=b, LOCATIONS) }
 
 shift_expr:
     | scenic_at
@@ -1821,7 +1821,7 @@ scenic_tracked_name:
     | "workspace" { s.Workspace(LOCATIONS) }
 
 scenic_param_stmt:
-    | 'param' elts=(','.scenic_param_stmt_param+) { s.Param(elts=elts, LOCATIONS) }
+    | "param" elts=(','.scenic_param_stmt_param+) { s.Param(elts=elts, LOCATIONS) }
 scenic_param_stmt_param: name=scenic_param_stmt_id '=' e=expression { s.parameter(name, e, LOCATIONS) }
 scenic_param_stmt_id:
     | a=NAME { a.string }
@@ -1855,16 +1855,16 @@ scenic_record_final_stmt:
      }
 
 scenic_mutate_stmt:
-    | 'mutate' elts=[(','.scenic_mutate_stmt_id+)] scale=['by' x=expression {x}] {
+    | "mutate" elts=[(','.scenic_mutate_stmt_id+)] scale=['by' x=expression {x}] {
         s.Mutate(elts=elts if elts is not None else [], scale=scale, LOCATIONS)
      }
 scenic_mutate_stmt_id: a=NAME { ast.Name(id=a.string, ctx=Load, LOCATIONS) }
 
 scenic_abort_stmt: "abort" { s.Abort(LOCATIONS) }
 
-scenic_take_stmt: 'take' elts=(','.expression+) { s.Take(elts=elts, LOCATIONS) }
+scenic_take_stmt: "take" elts=(','.expression+) { s.Take(elts=elts, LOCATIONS) }
 
-scenic_wait_stmt: 'wait' { s.Wait(LOCATIONS) }
+scenic_wait_stmt: "wait" { s.Wait(LOCATIONS) }
 
 scenic_terminate_simulation_when_stmt: "terminate" "simulation" "when" v=expression n=['as' a=scenic_require_stmt_name { a }] { s.TerminateSimulationWhen(v, name=n, LOCATIONS) }
 
@@ -2213,7 +2213,7 @@ invalid_scenic_until[NoReturn]:
      }
 
 invalid_scenic_implication[NoReturn]:
-    | a=scenic_until 'implies' scenic_implication {
+    | a=scenic_until "implies" scenic_implication {
         self.raise_syntax_error_known_location(
             f"`implies` must take exactly two operands", a
         )

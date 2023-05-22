@@ -14,6 +14,7 @@ For details on the syntax for functions, loops, etc. inherited from Python, see 
 .. toctree::
     :maxdepth: 1
 
+    reference/general
     reference/data
     reference/distributions
     reference/statements

@@ -439,7 +439,7 @@ class TestCompiler:
                             [Constant("property1"), Constant("property2")],
                             [
                                 Call(
-                                    func=Name(id="PropertyDefault", ctx=Load()),
+                                    func=Name(id="_scenic_default", ctx=Load()),
                                     args=[
                                         Set([]),
                                         Set([]),
@@ -448,7 +448,7 @@ class TestCompiler:
                                     keywords=[],
                                 ),
                                 Call(
-                                    func=Name(id="PropertyDefault", ctx=Load()),
+                                    func=Name(id="_scenic_default", ctx=Load()),
                                     args=[
                                         Set([]),
                                         Set([]),
@@ -494,7 +494,7 @@ class TestCompiler:
                             [Constant("property")],
                             [
                                 Call(
-                                    func=Name(id="PropertyDefault", ctx=Load()),
+                                    func=Name(id="_scenic_default", ctx=Load()),
                                     args=[
                                         Set([Constant("x")]),  # includes `x`
                                         Set([Constant("dynamic")]),

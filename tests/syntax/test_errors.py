@@ -71,12 +71,6 @@ def test_undefined_specifier():
     with pytest.raises(ScenicSyntaxError):
         compileScenic('new Object athwart 3')
 
-## Illegal usages of keywords
-
-def test_reserved_functions():
-    with pytest.raises(ScenicSyntaxError):
-        compileScenic('PropertyDefault()')
-
 ## Unmatched parentheses and multiline strings
 
 def test_unmatched_parentheses():

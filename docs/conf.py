@@ -143,6 +143,30 @@ html_css_files = [
     'custom.css',
 ]
 
+# -- Generate lists of keywords for the language reference -------------------
+
+import itertools
+import math
+from scenic.syntax.parser import ScenicParser
+from scenic.core.utils import batched
+
+def maketable(items, columns=5, gap=4):
+    items = tuple(sorted(items))
+    width = max(len(item) for item in items)
+    nrows = math.ceil(len(items) / 5)
+    justified = (item.ljust(width) for item in items)
+    cols = batched(justified, nrows)
+    rows = itertools.zip_longest(*cols, fillvalue='')
+    space = ' '*gap
+    yield from (space.join(row) for row in rows)
+
+with open('_build/keywords.txt', 'w') as outFile:
+    for row in maketable(ScenicParser.KEYWORDS):
+        outFile.write(row + '\n')
+with open('_build/keywords_soft.txt', 'w') as outFile:
+    for row in maketable(ScenicParser.SOFT_KEYWORDS):
+        outFile.write(row + '\n')
+
 # -- Monkeypatch ModuleAnalyzer to handle Scenic modules ---------------------
 
 from analyzer import ScenicModuleAnalyzer

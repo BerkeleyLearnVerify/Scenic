@@ -772,7 +772,7 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 rawLoc
             )
         return ast.Call(
-            func=ast.Name(id="PropertyDefault", ctx=ast.Load()),
+            func=ast.Name(id="_scenic_default", ctx=ast.Load()),
             args=[
                 ast.Set(elts=[ast.Constant(value=p) for p in properties]),
                 ast.Set(

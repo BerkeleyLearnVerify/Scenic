@@ -1019,10 +1019,6 @@ class TestParam:
             case _:
                 assert False
 
-    def test_empty(self):
-        with pytest.raises(ScenicSyntaxError):
-            parse_string_helper("param")
-
 
 class TestRequire:
     def test_basic(self):
