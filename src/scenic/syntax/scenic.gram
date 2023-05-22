@@ -1882,6 +1882,7 @@ scenic_do_for_stmt: 'do' e=(','.expression+) 'for' u=scenic_dynamic_duration { s
 scenic_dynamic_duration:
     | v=expression "seconds" { s.Seconds(v, LOCATIONS) }
     | v=expression "steps" { s.Steps(v, LOCATIONS) }
+    | invalid_scenic_dynamic_duration
 
 # FIXME: Is this the right way to resolve ambiguity in `do A until B until X`?
 scenic_do_until_stmt: 'do' e=(','.disjunction+) 'until' cond=expression { s.DoUntil(elts=e, cond=cond, LOCATIONS) }
@@ -2224,6 +2225,12 @@ invalid_scenic_require_prob[NoReturn]:
             f"'require' probability must be a constant", p
         )
      }
+
+invalid_scenic_dynamic_duration[NoReturn]: e=expression {
+    self.raise_syntax_error_known_location(
+        "duration must specify a unit (seconds or steps)", e
+    )
+}
 
 invalid_assignment[NoReturn]:
     | a=invalid_ann_assign_target ':' expression {

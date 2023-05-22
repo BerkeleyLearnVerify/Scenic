@@ -936,6 +936,11 @@ class TestDo:
             case _:
                 assert False
 
+    def test_do_for_unitless(self):
+        with pytest.raises(ScenicSyntaxError) as e:
+            parse_string_helper("do foo for 3")
+        assert "duration must specify a unit" in e.value.msg
+
     def test_do_for_expression(self):
         mod = parse_string_helper("do foo for 3 + 3 steps")
         stmt = mod.body[0]
@@ -1219,9 +1224,9 @@ class TestTerminateAfter:
 
     def test_omit_unit(self):
         # `seconds` or `steps` is required
-        with pytest.raises(ScenicSyntaxError):
+        with pytest.raises(ScenicSyntaxError) as e:
             parse_string_helper("terminate after 20")
-
+        assert "duration must specify a unit" in e.value.msg
 
 class TestSimulator:
     def test_simulator(self):
