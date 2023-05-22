@@ -6,7 +6,7 @@ import sys
 import pytest
 
 import scenic.core.dynamics as dynamics
-from scenic.core.errors import RuntimeParseError, ScenicSyntaxError
+from scenic.core.errors import ScenicSyntaxError, InvalidScenarioError
 from scenic.core.simulators import RejectSimulationException, TerminationType
 
 from tests.utils import (compileScenic, sampleScene, sampleActions, sampleActionsFromScene,
@@ -53,7 +53,7 @@ def test_current_time():
     assert tuple(actions) == (0, 1, 2)
 
 def test_no_simulation():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic('ego = new Object with foo simulation()')
 
 ## Behaviors
@@ -111,7 +111,7 @@ def test_invalid_behavior_name():
         """)
 
 def test_behavior_no_actions():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic("""
             behavior Foo():
                 take 1
@@ -135,7 +135,7 @@ def test_behavior_stuck(monkeypatch):
         sampleResultOnce(scenario)
 
 def test_behavior_create_object():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(InvalidScenarioError):
         scenario = compileScenic("""
             behavior Bar():
                 new Object at 10@10
@@ -520,7 +520,7 @@ def test_behavior_invoke_mistyped():
             do 12
         ego = new Object with behavior Foo
     """)
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(TypeError):
         sampleActions(scenario)
 
 def test_behavior_invoke_multiple():
@@ -1162,13 +1162,13 @@ def test_monitor_samplable_arguments():
     assert any(length == 3 for length in lengths)
 
 def test_require_monitor_invalid():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(TypeError):
         scenario = compileScenic("""
             ego = new Object
             require monitor ego
         """)
         sampleScene(scenario)
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(TypeError):
         scenario = compileScenic("""
             behavior Foo():
                 wait
@@ -1597,7 +1597,7 @@ def test_interrupt_guard_subbehavior():
                 wait
         ego = new Object with behavior Foo
     """)
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(InvalidScenarioError):
         sampleEgoActions(scenario, maxSteps=1)
 
 ## Simulation results

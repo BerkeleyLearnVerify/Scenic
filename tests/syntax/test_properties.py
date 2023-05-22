@@ -2,11 +2,11 @@
 import pytest
 import numpy as np
 
-from scenic.core.errors import RuntimeParseError
+from scenic.core.errors import SpecifierError
 from tests.utils import compileScenic, sampleEgoFrom
 
 def test_position_wrong_type():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(TypeError):
         compileScenic('ego = new Object with position 4')
 
 def test_position_oriented_point():
@@ -24,7 +24,7 @@ def test_position_numpy_types():
     assert tuple(ego.position) == pytest.approx((3.4, 7, 0))
 
 def test_yaw_wrong_type():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(TypeError):
         compileScenic('ego = new Object with yaw 4 @ 1')
 
 def test_yaw_numpy_types():
@@ -91,5 +91,5 @@ def test_backRight():
     assert tuple(ego.position) == pytest.approx((1, -7, 0))
 
 def test_heading_set_directly():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(SpecifierError):
         compileScenic('ego = new Object with heading 4')

@@ -8,7 +8,7 @@ import pytest
 import scenic
 from scenic import scenarioFromString
 from scenic.core.errors import (InvalidScenarioError, ScenicSyntaxError,
-                                RuntimeParseError, setDebuggingOptions)
+                                SpecifierError, setDebuggingOptions)
 from scenic.core.object_types import Object
 from tests.utils import compileScenic, sampleScene, sampleEgo, sampleParamPFrom
 
@@ -38,13 +38,13 @@ def test_ego_second():
     assert obj is scene.egoObject
 
 def test_ego_nonobject():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(TypeError):
         compileScenic('ego = new Point')
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(TypeError):
         compileScenic('ego = dict()')
 
 def test_ego_undefined():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic('x = ego\n' 'ego = new Object')
 
 def test_no_ego():
@@ -127,7 +127,7 @@ def test_mutate_scaled():
     assert ego1.heading != pytest.approx(0)
 
 def test_mutate_nonobject():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(TypeError):
         compileScenic("""
             ego = new Object
             mutate sin
@@ -197,7 +197,7 @@ def test_mode2D():
             assert obj.position[2] == 0
 
 def test_mode2D_heading():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(SpecifierError):
         compileScenic('ego = new Object with heading 40 deg')
 
     scenario = compileScenic('ego = new Object with heading 40 deg', mode2D=True)
@@ -205,7 +205,7 @@ def test_mode2D_heading():
 
     assert scene.egoObject.heading == pytest.approx(math.radians(40))
 
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic("""
             class TestClass:
                 heading: 40 deg

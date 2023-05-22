@@ -13,7 +13,7 @@ import warnings
 import rv_ltl
 
 from scenic.core.distributions import Samplable, Options, toDistribution, needsSampling
-from scenic.core.errors import RuntimeParseError, InvalidScenarioError
+from scenic.core.errors import InvalidScenarioError
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
 from scenic.core.requirements import (RequirementType, PendingRequirement,
                                       DynamicRequirement)
@@ -50,7 +50,7 @@ class Invocable:
     """
     def __init__(self, *args, **kwargs):
         if veneer.evaluatingGuard:
-            raise RuntimeParseError(
+            raise InvalidScenarioError(
                 'tried to invoke behavior/scenario from inside guard or interrupt condition')
         self._args = args
         self._kwargs = kwargs
@@ -130,7 +130,7 @@ class Invocable:
             if modifier.name == 'for':  # do X for Y [seconds | steps]
                 timeLimit = modifier.value
                 if not isinstance(timeLimit, (float, int)):
-                    raise RuntimeParseError('"do X for Y" with Y not a number')
+                    raise TypeError('"do X for Y" with Y not a number')
                 assert modifier.terminator in (None, 'seconds', 'steps')
                 if modifier.terminator != 'steps':
                     timeLimit /= veneer.currentSimulation.timestep
@@ -333,7 +333,7 @@ class DynamicScenario(Invocable):
             if self._compose is not None:
                 if not inspect.isgeneratorfunction(self._compose):
                     from scenic.syntax.translator import composeBlock
-                    raise RuntimeParseError(f'"{composeBlock}" does not invoke any scenarios')
+                    raise InvalidScenarioError(f'"{composeBlock}" does not invoke any scenarios')
                 self._runningIterator = self._compose(None, *self._args, **self._kwargs)
 
             # Initialize behavior coroutines of agents
@@ -425,7 +425,7 @@ class DynamicScenario(Invocable):
     def _invokeInner(self, agent, subs):
         for sub in subs:
             if not isinstance(sub, DynamicScenario):
-                raise RuntimeParseError(f'expected a scenario, got {sub}')
+                raise TypeError(f'expected a scenario, got {sub}')
             sub._prepare()
             sub._start()
         self._subScenarios = list(subs)
@@ -617,16 +617,13 @@ class Behavior(Invocable, Samplable):
 
         # Validate arguments to the behavior
         sig = inspect.signature(self.makeGenerator)
-        try:
-            sig.bind(None, *args, **kwargs)
-        except TypeError as e:
-            raise RuntimeParseError(str(e)) from e
+        sig.bind(None, *args, **kwargs)  # raises TypeError on incompatible arguments
         Samplable.__init__(self, itertools.chain(args, kwargs.values()))
         Invocable.__init__(self, *args, **kwargs)
 
         if not inspect.isgeneratorfunction(self.makeGenerator):
-            raise RuntimeParseError(f'{self} does not take any actions'
-                                    ' (perhaps you forgot to use "take" or "do"?)')
+            raise InvalidScenarioError(f'{self} does not take any actions'
+                                       ' (perhaps you forgot to use "take" or "do"?)')
 
     @classmethod
     def _canCoerceType(cls, ty):
@@ -681,7 +678,7 @@ class Behavior(Invocable, Samplable):
         assert len(subs) == 1
         sub = subs[0]
         if not isinstance(sub, Behavior):
-            raise RuntimeParseError(f'expected a behavior, got {sub}')
+            raise TypeError(f'expected a behavior, got {sub}')
         sub._start(agent)
         with veneer.executeInBehavior(sub):
             try:

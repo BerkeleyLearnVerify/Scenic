@@ -5,7 +5,7 @@ import inspect
 import pytest
 
 from scenic.core.dynamics import PreconditionViolation, InvariantViolation
-from scenic.core.errors import ScenicSyntaxError
+from scenic.core.errors import ScenicSyntaxError, SpecifierError, InvalidScenarioError
 from scenic.core.simulators import DummySimulator
 
 from tests.utils import (compileScenic, sampleEgo, sampleEgoFrom, sampleScene,
@@ -549,7 +549,7 @@ def test_override_behavior():
     assert tuple(actions) == (1, -1, -2, 2)
 
 def test_override_dynamic():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(SpecifierError):
         compileScenic("""
             scenario Main():
                 setup:
@@ -558,7 +558,7 @@ def test_override_dynamic():
         """)
 
 def test_override_nonexistent():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(SpecifierError):
         compileScenic("""
             scenario Main():
                 setup:
@@ -567,7 +567,7 @@ def test_override_nonexistent():
         """)
 
 def test_override_non_object():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(TypeError):
         compileScenic("""
             scenario Main():
                 setup:
@@ -576,7 +576,7 @@ def test_override_non_object():
         """)
 
 def test_override_malformed():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(TypeError):
         compileScenic("""
             scenario Main():
                 setup:

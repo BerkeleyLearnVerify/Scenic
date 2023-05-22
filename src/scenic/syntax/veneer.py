@@ -110,7 +110,7 @@ from scenic.core.specifiers import Specifier, ModifyingSpecifier
 from scenic.core.lazy_eval import (DelayedArgument, needsLazyEvaluation, requiredProperties,
                                    valueInContext)
 import scenic.core.errors as errors
-from scenic.core.errors import RuntimeParseError, InvalidScenarioError
+from scenic.core.errors import InvalidScenarioError
 from scenic.core.vectors import Orientation, alwaysGlobalOrientation
 from scenic.core.external_params import ExternalParameter
 import scenic.core.requirements as requirements
@@ -225,9 +225,9 @@ def registerObject(obj):
     This is called by the Object constructor.
     """
     if evaluatingRequirement:
-        raise RuntimeParseError('tried to create an object inside a requirement')
+        raise InvalidScenarioError('tried to create an object inside a requirement')
     elif currentBehavior is not None:
-        raise RuntimeParseError('tried to create an object inside a behavior')
+        raise InvalidScenarioError('tried to create an object inside a behavior')
     elif activity > 0 or currentScenario:
         assert not evaluatingRequirement
         assert isinstance(obj, Object)
@@ -251,7 +251,7 @@ def wrapStarredValue(value, lineno):
     elif isinstance(value, Distribution):
         return [StarredDistribution(value, lineno)]
     else:
-        raise RuntimeParseError(f'iterable unpacking cannot be applied to {value}')
+        raise TypeError(f'iterable unpacking cannot be applied to {value}')
 
 def callWithStarArgs(_func_to_call, *args, **kwargs):
     if not canUnpackDistributions(_func_to_call):
@@ -434,9 +434,9 @@ def ego(obj=None):
     egoObject = currentScenario._ego
     if obj is None:
         if egoObject is None:
-            raise RuntimeParseError('referred to ego object not yet assigned')
+            raise InvalidScenarioError('referred to ego object not yet assigned')
     elif not isinstance(obj, Object):
-        raise RuntimeParseError('tried to make non-object the ego object')
+        raise TypeError('tried to make non-object the ego object')
     else:
         currentScenario._ego = obj
         for scenario in runningScenarios:
@@ -451,9 +451,9 @@ def workspace(workspace=None):
     """
     if workspace is None:
         if currentScenario._workspace is None:
-            raise RuntimeParseError('referred to workspace not yet assigned')
+            raise InvalidScenarioError('referred to workspace not yet assigned')
     elif not isinstance(workspace, Workspace):
-        raise RuntimeParseError(f'workspace {workspace} is not a Workspace')
+        raise TypeError(f'workspace {workspace} is not a Workspace')
     elif needsSampling(workspace):
         raise InvalidScenarioError('workspace must be a fixed region')
     elif needsLazyEvaluation(workspace):
@@ -468,9 +468,9 @@ def require(reqID, req, line, name, prob=1):
     if not name:
         name = f'requirement on line {line}'
     if evaluatingRequirement:
-        raise RuntimeParseError('tried to create a requirement inside a requirement')
+        raise InvalidScenarioError('tried to create a requirement inside a requirement')
     if req.has_temporal_operator and prob != 1:
-        raise RuntimeParseError('requirements with temporal operators must have probability of 1')
+        raise InvalidScenarioError('requirements with temporal operators must have probability of 1')
     if currentSimulation is not None:   # requirement being evaluated at runtime
         if req.has_temporal_operator:
             # support monitors on dynamic requirements and create dynamic requirements
@@ -480,8 +480,8 @@ def require(reqID, req, line, name, prob=1):
                 result = req.evaluate()
                 assert not needsSampling(result)
                 if needsLazyEvaluation(result):
-                    raise RuntimeParseError(f'requirement on line {line} uses value'
-                                        ' undefined outside of object definition')
+                    raise InvalidScenarioError(f'requirement on line {line} uses value'
+                                               ' undefined outside of object definition')
                 if not result:
                     raise RejectSimulationException(name)
     else:   # requirement being defined at compile time
@@ -495,10 +495,10 @@ def require_monitor(reqID, value, line, name):
         monitor = value.evaluate()
         assert not needsSampling(monitor)
         if needsLazyEvaluation(monitor):
-            raise RuntimeParseError(f'requirement on line {line} uses value'
-                                    ' undefined outside of object definition')
+            raise InvalidScenarioError(f'requirement on line {line} uses value'
+                                       ' undefined outside of object definition')
         if not isinstance(monitor, Monitor):
-            raise RuntimeParseError(f'"require monitor X" with X not a monitor on line {line}')
+            raise TypeError(f'"require monitor X" with X not a monitor on line {line}')
         currentScenario._addMonitor(monitor)
     else:
         currentScenario._addRequirement(requirements.RequirementType.monitor,
@@ -547,9 +547,9 @@ def terminate_simulation_when(reqID, req, line, name):
 
 def makeRequirement(ty, reqID, req, line, name):
     if evaluatingRequirement:
-        raise RuntimeParseError(f'tried to use "{ty.value}" inside a requirement')
+        raise InvalidScenarioError(f'tried to use "{ty.value}" inside a requirement')
     elif currentBehavior is not None:
-        raise RuntimeParseError(f'"{ty.value}" inside a behavior on line {line}')
+        raise InvalidScenarioError(f'"{ty.value}" inside a behavior on line {line}')
     elif currentSimulation is not None:
         currentScenario._addDynamicRequirement(ty, req, line, name)
     else:   # requirement being defined at compile time
@@ -557,7 +557,7 @@ def makeRequirement(ty, reqID, req, line, name):
 
 def terminate_after(timeLimit, terminator=None):
     if not isinstance(timeLimit, (builtins.float, builtins.int)):
-        raise RuntimeParseError('"terminate after N" with N not a number')
+        raise TypeError('"terminate after N" with N not a number')
     assert terminator in (None, 'seconds', 'steps')
     inSeconds = (terminator != 'steps')
     currentScenario._setTimeLimit(timeLimit, inSeconds=inSeconds)
@@ -569,7 +569,7 @@ def resample(dist):
     try:
         return dist.clone()
     except NotImplementedError:
-        raise RuntimeParseError('cannot resample non-primitive distribution') from None
+        raise TypeError('cannot resample non-primitive distribution') from None
 
 def verbosePrint(*objects, level=1, indent=True,
                  sep=' ', end='\n', file=sys.stdout, flush=False):
@@ -615,7 +615,7 @@ def simulation():
     :term:`dynamic behaviors` and :keyword:`compose` blocks of scenarios.
     """
     if isActive():
-        raise RuntimeParseError('used simulation() outside a behavior')
+        raise InvalidScenarioError('used simulation() outside a behavior')
     assert currentSimulation is not None
     return currentSimulation
 
@@ -628,12 +628,12 @@ def in_initial_scenario():
 
 def override(*args):
     if len(args) < 1:
-        raise RuntimeParseError('"override" missing an object')
+        raise TypeError('"override" missing an object')
     elif len(args) < 2:
-        raise RuntimeParseError('"override" missing a list of specifiers')
+        raise TypeError('"override" missing a list of specifiers')
     obj = args[0]
     if not isinstance(obj, Object):
-        raise RuntimeParseError(f'"override" passed non-Object {obj}')
+        raise TypeError(f'"override" passed non-Object {obj}')
     specs = args[1:]
     for spec in specs:
         assert isinstance(spec, Specifier), spec
@@ -643,7 +643,7 @@ def override(*args):
 def model(namespace, modelName):
     global loadingModel
     if loadingModel:
-        raise RuntimeParseError('Scenic world model itself uses the "model" statement')
+        raise InvalidScenarioError('Scenic world model itself uses the "model" statement')
     if lockedModel is not None:
         modelName = lockedModel
     try:
@@ -669,9 +669,9 @@ def param(params):
     """Function implementing the param statement."""
     global loadingModel
     if evaluatingRequirement:
-        raise RuntimeParseError('tried to create a global parameter inside a requirement')
+        raise InvalidScenarioError('tried to create a global parameter inside a requirement')
     elif currentSimulation is not None:
-        raise RuntimeParseError('tried to create a global parameter during a simulation')
+        raise InvalidScenarioError('tried to create a global parameter during a simulation')
     for name, value in params.items():
         if name not in lockedParameters and (not loadingModel or name not in _globalParameters):
             _globalParameters[name] = toDistribution(value)
@@ -693,7 +693,7 @@ class ParameterTableProxy(collections.abc.Mapping):
         return self.__getitem__(name)   # allow namedtuple-like access
 
     def __setattr__(self, name, value):
-        raise RuntimeParseError('cannot modify globalParameters (use "param" statement)')
+        raise InvalidScenarioError('cannot modify globalParameters (use "param" statement)')
 
     def _clone_table(self):
         return ParameterTableProxy(self._internal_map.copy())
@@ -704,14 +704,14 @@ def globalParameters():
 def mutate(*objects, scale = 1):
     """Function implementing the mutate statement."""
     if evaluatingRequirement:
-        raise RuntimeParseError('used mutate statement inside a requirement')
+        raise InvalidScenarioError('used mutate statement inside a requirement')
     if len(objects) == 0:
         objects = currentScenario._objects
     if not isinstance(scale, (builtins.int, builtins.float)):
-        raise RuntimeParseError('"mutate X by Y" with Y not a number')
+        raise TypeError('"mutate X by Y" with Y not a number')
     for obj in objects:
         if not isinstance(obj, Object):
-            raise RuntimeParseError('"mutate X" with X not an object')
+            raise TypeError('"mutate X" with X not an object')
         obj.mutationScale = scale
 
 ### Prefix operators
@@ -740,7 +740,7 @@ template = '''\
 def {function}(X):
     """The :grammar:`{syntax} of <object>` operator."""
     if not isinstance(X, Object):
-        raise RuntimeParseError('"{syntax} of X" with X not an Object')
+        raise TypeError('"{syntax} of X" with X not an Object')
     return X.{property}
 '''
 for op in ops:
@@ -754,7 +754,7 @@ for op in ops:
 def FieldAt(X, Y):
     """The :grammar:`<vector field> at <vector>` operator."""
     if not isA(X, VectorField):
-        raise RuntimeParseError('"X at Y" with X not a vector field')
+        raise TypeError('"X at Y" with X not a vector field')
     Y = toVector(Y, '"X at Y" with Y not a vector')
     return X[Y]
 
@@ -771,7 +771,7 @@ def RelativeTo(X, Y) -> typing.Union[Vector, builtins.float]:
     if isA(X, VectorField) or isA(Y, VectorField):
         xf, yf = isA(X, VectorField), isA(Y, VectorField)
         if xf and yf and X.valueType != Y.valueType:
-            raise RuntimeParseError('"X relative to Y" with X, Y fields of different types')
+            raise TypeError('"X relative to Y" with X, Y fields of different types')
         fieldType = X.valueType if xf else Y.valueType
         error = '"X relative to Y" with field and value of different types'
         def helper(context):
@@ -783,7 +783,7 @@ def RelativeTo(X, Y) -> typing.Union[Vector, builtins.float]:
 
     elif isA(X, OrientedPoint):
         if isA(Y, OrientedPoint):
-            raise RuntimeParseError('"X relative to Y" with X, Y both oriented points')
+            raise TypeError('"X relative to Y" with X, Y both oriented points')
         Y = toVector(Y, '"X relative to Y" with X an oriented point but Y not a vector')
         return X.relativize(Y)
 
@@ -807,7 +807,7 @@ def RelativeTo(X, Y) -> typing.Union[Vector, builtins.float]:
                 return xf + yf
 
             else:
-                raise RuntimeParseError('"X relative to Y" with X and/or Y not in an allowed form')
+                raise TypeError('"X relative to Y" with X and/or Y not in an allowed form')
 
         return relativeToCoerceHelper(X, Y)
 
@@ -855,7 +855,7 @@ def ApparentHeading(X, Y=None):
     If the :grammar:`from <vector>` is omitted, the position of ego is used.
     """
     if not isA(X, OrientedPoint):
-        raise RuntimeParseError('"apparent heading of X from Y" with X not an OrientedPoint')
+        raise TypeError('"apparent heading of X from Y" with X not an OrientedPoint')
     if Y is None:
         Y = ego()
     Y = toVector(Y, '"relative heading of X from Y" with Y not a vector')
@@ -925,7 +925,7 @@ def AltitudeFrom(X=None, Y=None):
 def Follow(F, X, D):
     """The :grammar:`follow <field> from <vector> for <number>` operator."""
     if not isA(F, VectorField):
-        raise RuntimeParseError('"follow F from X for D" with F not a vector field')
+        raise TypeError('"follow F from X for D" with F not a vector field')
     X = toVector(X, '"follow F from X for D" with X not a vector')
     D = toScalar(D, '"follow F from X for D" with D not a number')
     pos = F.followFrom(X, D)
@@ -936,7 +936,7 @@ def VisibleFromOp(region, base):
     """The :grammar:`<region> visible from <point>` operator."""
     region = toType(region, Region, '"X visible from Y" with X not a Region')
     if not isA(base, Point):
-        raise RuntimeParseError('"X visible from Y" with Y not a Point')
+        raise TypeError('"X visible from Y" with Y not a Point')
     return region.intersect(base.visibleRegion)
 
 def CanSee(X, Y):
@@ -947,12 +947,12 @@ def CanSee(X, Y):
         <point> can see <point>
     """
     if not isA(X, Point):
-        raise RuntimeParseError('"X can see Y" with X not a Point, OrientedPoint, or Scenic Object')
+        raise TypeError('"X can see Y" with X not a Point, OrientedPoint, or Scenic Object')
 
     assert currentScenario is not None
 
     if currentScenario._sampledObjects is None:
-        raise RuntimeParseError('"X can see Y" cannot be evaluated before sample time')
+        raise InvalidScenarioError('"X can see Y" cannot be evaluated before sample time')
 
     for obj in currentScenario._sampledObjects:
         assert not needsSampling(obj)
@@ -1162,7 +1162,7 @@ def VisibleFrom(base):
     Specifies :prop:`_observingEntity` and :prop:`position`, with no dependencies.
     """
     if not isA(base, Point):
-        raise RuntimeParseError('specifier "visible from O" with O not a Point')
+        raise TypeError('specifier "visible from O" with O not a Point')
 
     return Specifier("Visible/VisibleFrom", {'position': 3, '_observingEntity': 1}, 
                      {'position': Region.uniformPointIn(base.visibleRegion), '_observingEntity': base})
@@ -1182,12 +1182,12 @@ def NotVisibleFrom(base):
     See `VisibleFrom`.
     """
     if not isA(base, Point):
-        raise RuntimeParseError('specifier "not visible from O" with O not a Point')
+        raise TypeError('specifier "not visible from O" with O not a Point')
     def helper(self):
         region = self.regionContainedIn
         if region is None:
             if currentScenario._workspace is None:
-                raise RuntimeParseError('"not visible" specifier with no workspace or containing region defined')
+                raise InvalidScenarioError('"not visible" specifier with no workspace or containing region defined')
             region = currentScenario._workspace.region
 
         if mode2D:
@@ -1303,7 +1303,7 @@ def directionalSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
     elif canCoerce(dist, Vector):
         dx, dy, dz = coerce(dist, Vector)
     else:
-        raise RuntimeParseError(f'"{syntax} X by D" with D not a number or vector')
+        raise TypeError(f'"{syntax} X by D" with D not a number or vector')
 
     @distributionFunction
     def makeContactTol(dist, ct):
@@ -1347,7 +1347,7 @@ def Following(field, dist, fromPt=None):
     if fromPt is None:
         fromPt = ego()
     if not isA(field, VectorField):
-        raise RuntimeParseError('"following F" specifier with F not a vector field')
+        raise TypeError('"following F" specifier with F not a vector field')
     fromPt = toVector(fromPt, '"following F from X for D" with X not a vector')
     dist = toScalar(dist, '"following F for D" with D not a number')
     pos = field.followFrom(fromPt, dist)

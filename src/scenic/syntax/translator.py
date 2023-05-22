@@ -39,7 +39,7 @@ from typing import Optional
 from scenic.core.distributions import RejectionException, toDistribution
 from scenic.core.lazy_eval import needsLazyEvaluation
 import scenic.core.errors as errors
-from scenic.core.errors import (PythonCompileError, InvalidScenarioError)
+from scenic.core.errors import PythonCompileError, InvalidScenarioError
 import scenic.core.dynamics as dynamics
 import scenic.core.pruning as pruning
 from scenic.core.utils import cached_property

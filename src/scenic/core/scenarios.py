@@ -14,8 +14,7 @@ from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.external_params import ExternalSampler
 from scenic.core.regions import EmptyRegion, convertToFootprint
 from scenic.core.vectors import Vector
-from scenic.core.errors import (InvalidScenarioError, RuntimeParseError,
-                                optionallyDebugRejection)
+from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
 from scenic.core.dynamics import Behavior, Monitor
 from scenic.core.requirements import BoundRequirement
 from scenic.core.serialization import Serializer, dumpAsScenicCode
@@ -428,8 +427,7 @@ class Scenario(_ScenarioPickleMixin):
             breq = BoundRequirement(req, sample, None)
             monitor = breq.evaluate()
             if not isinstance(monitor, Monitor):
-                raise RuntimeParseError('"require monitor X" with X not a monitor'
-                                        f' on line {breq.line}')
+                raise TypeError(f'"require monitor X" with X not a monitor on line {breq.line}')
             monitors.append(monitor)
         terminationConds = (BoundRequirement(req, sample, req.proposition)
                             for req in self.terminationConditions)

@@ -5,7 +5,7 @@ import itertools
 from typing import Callable, Literal, Optional, Tuple, List, Union
 
 import scenic.syntax.ast as s
-from scenic.core.errors import getText, ScenicSyntaxError, ScenicParseError
+from scenic.core.errors import getText, ScenicParseError
 
 
 # exposed functions
@@ -450,17 +450,6 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         if node.end_col_offset is not None:
             e.end_offset = node.end_col_offset
         e.filename = self.filename
-        if e.filename and e.lineno:
-            # attempt to recover error line and use adjusted offset and end_offset
-            text, offset, end_offset = getText(
-                e.filename,
-                e.lineno,
-                offset=e.offset,
-                end_offset=e.end_offset,
-            )
-            e.text = text
-            e.offset = offset
-            e.end_offset = end_offset
         raise ScenicParseError(e)
 
     @property

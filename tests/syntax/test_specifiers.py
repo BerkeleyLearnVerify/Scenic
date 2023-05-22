@@ -1,7 +1,7 @@
 import math
 import pytest
 
-from scenic.core.errors import RuntimeParseError, InvalidScenarioError
+from scenic.core.errors import SpecifierError, InvalidScenarioError
 from scenic.core.vectors import Vector, Orientation
 from scenic.core.distributions import RejectionException
 from tests.utils import compileScenic, sampleScene, sampleSceneFrom, sampleEgo, sampleEgoFrom
@@ -9,20 +9,20 @@ from tests.utils import compileScenic, sampleScene, sampleSceneFrom, sampleEgo, 
 ## Dependencies and lazy evaluation
 
 def test_double_specification():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(SpecifierError):
         compileScenic('ego = new Object at 0 @ 0, at 1 @ 1')
 
 def test_cyclic_dependency():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(SpecifierError):
         compileScenic('ego = new Object left of 0 @ 0, facing toward 1 @ 1')
 
 def test_lazy_cyclic_dependency():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(SpecifierError):
         compileScenic("""
             vf = VectorField("Foo", lambda pos: 3 * pos.x)
             ego = new Object at 0 @ (0 relative to vf)
         """)
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(SpecifierError):
         compileScenic("""
             vf = VectorField("Foo", lambda pos: 3 * pos.x)
             ego = new Object at (0, 0 relative to vf)
@@ -34,7 +34,7 @@ def test_default_dependency():
     assert ego.heading == pytest.approx(math.radians(45))
 
 def test_missing_dependency():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(SpecifierError):
         compileScenic('new Point left of 0 @ 0 by 5\n' 'ego = new Object')
 
 def test_lazy_value_in_param():
@@ -126,7 +126,7 @@ def test_offset_by_3d_3():
     assert ego.orientation.approxEq(Orientation.fromEuler(math.pi/2, math.pi/2, math.pi/2))
 
 def test_offset_by_no_ego():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic('ego = new Object offset by 10 @ 40')
 
 def test_offset_along():
@@ -150,7 +150,7 @@ def test_offset_along_3d():
     assert tuple(ego.position) == pytest.approx((20, 60, 25))
 
 def test_offset_along_no_ego():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic('ego = new Object offset along 0 by 10 @ 0')
 
 # Left/Right Of 
@@ -384,7 +384,7 @@ def test_beyond_3d():
     assert tuple(ego.position) == pytest.approx((16, 11, 15 + math.sqrt(2) + (10 / math.sqrt(2))))
 
 def test_beyond_no_ego():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic('ego = new Object beyond 10 @ 10 by 5')
 
 def test_beyond_from():
@@ -415,7 +415,7 @@ def test_visible():
         assert ego.position.y >= base.position.y
     
 def test_visible_no_ego():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic('ego = new Object visible')
 
 def test_visible_from_point():
@@ -596,7 +596,7 @@ def test_in_heading():
         assert scene.egoObject.heading == pytest.approx(math.radians(45))
 
 def test_in_mistyped():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(TypeError):
         compileScenic('ego = new Object in 3@2')
 
 def test_in_distribution():
@@ -728,11 +728,11 @@ def test_on_modifying_surface_onDirection():
                pos.y == pytest.approx(3, abs=2*scene.egoObject.contactTolerance)
 
 def test_on_mistyped():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(TypeError):
         compileScenic('ego = new Object on "foo"')
 
 def test_on_incompatible():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(SpecifierError):
         compileScenic("""
             box = BoxRegion()
             ego = new Object on box, on box

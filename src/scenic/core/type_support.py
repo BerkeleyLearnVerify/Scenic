@@ -38,7 +38,7 @@ from scenic.core.distributions import (Distribution, RejectionException, Starred
                                        toDistribution)
 from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
                                    needsLazyEvaluation)
-from scenic.core.errors import RuntimeParseError, saveErrorLocation
+from scenic.core.errors import saveErrorLocation
 from scenic.core.utils import get_type_origin, get_type_args
 
 ## Basic types
@@ -179,7 +179,7 @@ def coerce(thing, ty, error='wrong type'):
         try:
             return coercer(thing)
         except CoercionFailure as e:
-            raise RuntimeParseError(f'{error} ({e.args[0]})') from None
+            raise TypeError(f'{error} ({e.args[0]})') from None
     else:
         # Only instances of the destination type can be coerced into it; since coercion
         # is possible, we must have such an instance, and can return it unchanged.
@@ -241,7 +241,7 @@ class TypecheckedDistribution(Distribution):
         # Coercion failed, so we have a type error.
         if suffix is None:
             suffix = f' (expected {self._valueType.__name__}, got {type(val).__name__})'
-        raise RuntimeParseError(self._errorMessage + suffix, self._loc)
+        raise TypeError(self._errorMessage + suffix, self._loc)
 
     def conditionTo(self, value):
         self._dist.conditionTo(value)
@@ -258,7 +258,7 @@ def coerceToAny(thing, types, error):
     Only for internal use by the typechecking system; called from `toTypes`.
 
     Raises:
-        RuntimeParseError: if it is impossible to coerce the value into any of the types.
+        TypeError: if it is impossible to coerce the value into any of the types.
     """
     for ty in types:
         if canCoerce(thing, ty):
@@ -266,7 +266,7 @@ def coerceToAny(thing, types, error):
     from scenic.syntax.veneer import verbosePrint
     verbosePrint(f'Failed to coerce {thing} of type {underlyingType(thing)} to {types}',
                  file=sys.stderr)
-    raise RuntimeParseError(error)
+    raise TypeError(error)
 
 ## Top-level type checking/conversion API
 
@@ -286,7 +286,7 @@ def toTypes(thing, types, typeError='wrong type'):
         typeError (str): Message included in exception raised on failure.
 
     Raises:
-        RuntimeParseError: if the given value is not one of the given types and cannot
+        TypeError: if the given value is not one of the given types and cannot
             be converted to any of them.
     """
     thing = toDistribution(thing)
@@ -340,11 +340,11 @@ def evaluateRequiringEqualTypes(func, thingA, thingB, typeError='type mismatch')
     those of thingA and thingB.
 
     Raises:
-        RuntimeParseError: if thingA and thingB do not have the same type.
+        TypeError: if thingA and thingB do not have the same type.
     """
     if not needsLazyEvaluation(thingA) and not needsLazyEvaluation(thingB):
         if underlyingType(thingA) is not underlyingType(thingB):
-            raise RuntimeParseError(typeError)
+            raise TypeError(typeError)
         return func()
     else:
         # cannot check the types now; create proxy object to check types after evaluation
@@ -373,7 +373,7 @@ class TypeEqualityChecker(DelayedArgument):
             ca = valueInContext(checkA, context)
             cb = valueInContext(checkB, context)
             if underlyingType(ca) is not underlyingType(cb):
-                raise RuntimeParseError(error)
+                raise TypeError(error)
             return valueInContext(func(), context)
         super().__init__(props, check)
         self.inner = func

@@ -2,7 +2,7 @@
 import math
 import pytest
 
-from scenic.core.errors import ASTParseError, RuntimeParseError, ScenicSyntaxError
+from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError, SpecifierError
 from scenic.core.vectors import Orientation
 from tests.utils import compileScenic, sampleScene, sampleEgoFrom, sampleEgoActions
 
@@ -122,7 +122,7 @@ def test_property_additive_2():
 
 def test_property_final_override():
     """Properties marked as `final` cannot be overwritten"""
-    with pytest.raises(RuntimeParseError) as excinfo:
+    with pytest.raises(InvalidScenarioError) as excinfo:
         compileScenic(
             """
                 class Parent():
@@ -136,7 +136,7 @@ def test_property_final_override():
 
 def test_property_final_specifier():
     """Properties marked as `final` cannot be specified"""
-    with pytest.raises(RuntimeParseError) as excinfo:
+    with pytest.raises(SpecifierError) as excinfo:
         compileScenic(
             """
                 class MyObject():

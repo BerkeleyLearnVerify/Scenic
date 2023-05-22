@@ -7,7 +7,7 @@ from scenic.core.distributions import needsSampling
 from scenic.core.regions import (Region, everywhere, MeshVolumeRegion, MeshSurfaceRegion,
                                 PolygonalRegion)
 from scenic.core.geometry import findMinMax
-from scenic.core.errors import RuntimeParseError
+from scenic.core.errors import InvalidScenarioError
 
 class Workspace(Region):
     """A :term:`workspace` describing the fixed world of a scenario.
@@ -18,7 +18,7 @@ class Workspace(Region):
     """
     def __init__(self, region=everywhere):
         if needsSampling(region):
-            raise RuntimeParseError('workspace region must be fixed')
+            raise InvalidScenarioError('workspace region must be fixed')
         super().__init__('workspace', orientation=region.orientation)
 
         self.region = region
