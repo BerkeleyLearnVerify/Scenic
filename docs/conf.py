@@ -160,6 +160,7 @@ def maketable(items, columns=5, gap=4):
     space = ' '*gap
     yield from (space.join(row) for row in rows)
 
+os.makedirs('_build', exist_ok=True)
 with open('_build/keywords.txt', 'w') as outFile:
     for row in maketable(ScenicParser.KEYWORDS):
         outFile.write(row + '\n')
