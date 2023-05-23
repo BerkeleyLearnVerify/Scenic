@@ -29,6 +29,7 @@ apparent heading of *OrientedPoint* [from *vector*]
 The apparent heading of the OrientedPoint, with respect to the line of sight from ego (or the position provided with the optional from vector)
 
 .. _distance [from {vector}] to {vector}:
+.. _distance from:
 
 distance [from *vector*] to *vector*
 -------------------------------------

@@ -39,7 +39,7 @@ from scenic.core.type_support import toVector, toHeading, toType, toScalar, toOr
 from scenic.core.lazy_eval import LazilyEvaluable, isLazy, needsLazyEvaluation
 from scenic.core.serialization import dumpAsScenicCode
 from scenic.core.utils import DefaultIdentityDict, cached_property
-from scenic.core.errors import RuntimeParseError
+from scenic.core.errors import InvalidScenarioError, SpecifierError
 from scenic.core.shapes import Shape, BoxShape, MeshShape
 from scenic.core.regions import IntersectionRegion
 from scenic.core.visibility import canSee
@@ -109,7 +109,16 @@ class Constructible(Samplable):
             dynTypes[prop] = ty
         cls._dynamicProperties = dynTypes
 
-    def __init__(self, properties, constProps=frozenset()):
+    def __new__(cls, *args, _internal=False, **kwargs):
+        if not _internal:
+            # Catch users trying to instantiate a Scenic class like a Python class
+            raise InvalidScenarioError('Scenic classes must be instantiated with "new"')
+        return super().__new__(cls)
+
+    def __getnewargs_ex__(self):
+        return ((), dict(_internal=True))
+
+    def __init__(self, properties, constProps=frozenset(), _internal=False):
         for prop, value in properties.items():
             assert not needsLazyEvaluation(value), (prop, value)
             object.__setattr__(self, prop, value)
@@ -147,12 +156,12 @@ class Constructible(Samplable):
         # Catch properties which would conflict with ordinary attributes
         for prop in properties:
             if hasattr(cls, prop):
-                raise RuntimeParseError(
+                raise SpecifierError(
                     f"Property {prop} would overwrite an attribute with the same name."
                 )
 
         # Create the object
-        obj = cls(properties, constProps=constProps)
+        obj = cls(properties, constProps=constProps, _internal=True)
 
         # Possibly register this object
         if register:
@@ -193,7 +202,7 @@ class Constructible(Samplable):
 
         if "On" in specifier_names:
             if collections.Counter(specifier_names)["On"] > 1:
-                raise RuntimeParseError(f'Cannot use "On" specifier to modify "On" specifier')
+                raise SpecifierError(f'Cannot use "On" specifier to modify "On" specifier')
 
         # Split the specifiers into two groups, normal and modifying. Normal specifiers set all relevant properties
         # first. Then modifying specifiers can modify or set additional properties
@@ -215,7 +224,7 @@ class Constructible(Samplable):
                 # Check if this is a final property has been specified. If so, throw an assertion or error,
                 # depending on whether or not this object is internal.
                 if prop in finals:
-                    raise RuntimeParseError(f'property "{prop}" cannot be directly specified')
+                    raise SpecifierError(f'property "{prop}" cannot be directly specified')
 
 
                 if prop in properties:
@@ -223,7 +232,7 @@ class Constructible(Samplable):
                     # at equal priority level. Then if it was previously specified at a lower priority
                     # level, override it with the value that this specifier sets.
                     if spec.priorities[prop] == priorities[prop]:
-                        raise RuntimeParseError(f'property "{prop}" specified twice with the same priority')
+                        raise SpecifierError(f'property "{prop}" specified twice with the same priority')
                     if spec.priorities[prop] < priorities[prop]:
                         properties[prop] = spec
                         priorities[prop] = spec.priorities[prop]
@@ -262,7 +271,7 @@ class Constructible(Samplable):
                         # This specifer can modify this prop, so we set it to do so after
                         # first checking it has not already been modified.
                         if prop in modifying:
-                            raise RuntimeParseError(f'property "{prop}" of {name} modified twice.')
+                            raise SpecifierError(f'property "{prop}" of {name} modified twice.')
 
                         modifying[prop] = spec
                 else:
@@ -309,8 +318,7 @@ class Constructible(Samplable):
             if spec._dfs_state == 2:    # finished processing this specifier
                 return
             elif spec._dfs_state == 1:  # specifier is being processed
-                raise RuntimeParseError(f'specifier {spec.name} '
-                                        'depends on itself')
+                raise SpecifierError(f'specifier {spec.name} depends on itself')
             spec._dfs_state = 1
 
             # Recurse on dependencies
@@ -320,8 +328,8 @@ class Constructible(Samplable):
                     child = properties.get(dep)
 
                 if child is None:
-                    raise RuntimeParseError(f'property {dep} required by '
-                                            f'specifier {spec} is not specified')
+                    raise SpecifierError(f'property {dep} required by '
+                                         f'specifier {spec} is not specified')
                 else:
                     dfs(child)
 
@@ -388,9 +396,9 @@ class Constructible(Samplable):
         for spec in specifiers:
             for prop in spec.priorities:
                 if prop in self._dynamicProperties:
-                    raise RuntimeParseError(f'cannot override dynamic property "{prop}"')
+                    raise SpecifierError(f'cannot override dynamic property "{prop}"')
                 if prop not in self._propertiesSet:
-                    raise RuntimeParseError(f'object has no property "{prop}" to override')
+                    raise SpecifierError(f'object has no property "{prop}" to override')
                 oldVals[prop] = getattr(self, prop)
 
         # Perform specifier resolution to find the new values of all properties
@@ -414,7 +422,7 @@ class Constructible(Samplable):
         if not needsSampling(self):
             return self
         props = { prop: value[getattr(self, prop)] for prop in self.properties }
-        return type(self)(props, constProps=self._constProps)
+        return type(self)(props, constProps=self._constProps, _internal=True)
 
     def _allProperties(self):
         return { prop: getattr(self, prop) for prop in self.properties }
@@ -845,7 +853,7 @@ class Object(OrientedPoint):
     }
 
     def __new__(cls, *args, **kwargs):
-        obj = super().__new__(cls)
+        obj = super().__new__(cls, *args, **kwargs)
         # The _dynamicProxy attribute stores a mutable copy of the object used during
         # simulations, intercepting all attribute accesses to the original object;
         # we set this attribute very early to prevent problems during unpickling.

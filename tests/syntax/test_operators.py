@@ -4,7 +4,7 @@ import math
 import pytest
 
 from scenic.core.vectors import Orientation
-from scenic.core.errors import RuntimeParseError, ScenicSyntaxError
+from scenic.core.errors import InvalidScenarioError
 from tests.utils import compileScenic, sampleEgoFrom, sampleParamP, sampleParamPFrom
 
 ## Scalar operators
@@ -19,7 +19,7 @@ def test_relative_heading():
     assert p == pytest.approx(math.radians(65 - 30))
 
 def test_relative_heading_no_ego():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic("""
             other = new Object
             ego = new Object at 2@2, facing relative heading of other
@@ -39,7 +39,7 @@ def test_apparent_heading():
     assert p == pytest.approx(math.radians(65 + 45))
 
 def test_apparent_heading_no_ego():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic("""
             other = new Object
             ego = new Object at 2@2, facing apparent heading of other
@@ -70,7 +70,7 @@ def test_angle_3d():
     assert p == pytest.approx(math.radians(-45))
 
 def test_angle_no_ego():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic("""
             other = new Object
             ego = new Object at 2@2, facing angle to other
@@ -113,7 +113,7 @@ def test_distance_3d():
     assert p == pytest.approx(math.hypot(7 - 5, -4 - 10, 15 - 20))
 
 def test_distance_no_ego():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic("""
             other = new Object
             ego = new Object at 2@2, facing distance to other
@@ -407,11 +407,11 @@ def test_heading_relative_to_heading_lazy():
     assert ego.heading == pytest.approx(1.5)
 
 def test_mistyped_relative_to():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(TypeError):
         compileScenic('ego = new Object facing 0 relative to 1@2')
 
 def test_mistyped_relative_to_lazy():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(TypeError):
         compileScenic("""
             vf = VectorField("Foo", lambda pos: 0.5)
             ego = new Object facing 1@2 relative to (0 relative to vf)
@@ -424,7 +424,7 @@ def test_orientation_relative_to_orientation():
     assert tuple(ego.orientation.q) == pytest.approx(tuple(Orientation.fromEuler(math.radians(90),0,math.radians(-90)).q))
 
 def test_relative_to_ambiguous():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(TypeError):
         compileScenic("""
             ego = new Object
             thing = ego relative to ego

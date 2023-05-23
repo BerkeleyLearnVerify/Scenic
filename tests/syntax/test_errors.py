@@ -8,7 +8,7 @@ import pytest
 
 import scenic
 from scenic.core.errors import (ScenicSyntaxError, ParseCompileError,
-    ASTParseError, RuntimeParseError)
+    ASTParseError)
 
 from tests.utils import compileScenic, sampleActionsFromScene, sampleActions
 
@@ -70,12 +70,6 @@ def test_undefined_specifier():
         compileScenic('new Object cattywampus')
     with pytest.raises(ScenicSyntaxError):
         compileScenic('new Object athwart 3')
-
-## Illegal usages of keywords
-
-def test_reserved_functions():
-    with pytest.raises(ScenicSyntaxError):
-        compileScenic('PropertyDefault()')
 
 ## Unmatched parentheses and multiline strings
 
@@ -270,8 +264,7 @@ def checkException(e, lines, program, bug, path, output, topLevel=True):
         remainingLines = lines[1:]
 
     # For SyntaxError-like exceptions, check metadata.
-    syntaxErrorLike = (isinstance(e, (ScenicSyntaxError, SyntaxError))
-                       and not isinstance(e, RuntimeParseError))
+    syntaxErrorLike = isinstance(e, (ScenicSyntaxError, SyntaxError))
     if syntaxErrorLike:
         assert e.lineno == eLine, program
         assert e.text.strip() == bug

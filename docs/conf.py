@@ -143,6 +143,30 @@ html_css_files = [
     'custom.css',
 ]
 
+# -- Generate lists of keywords for the language reference -------------------
+
+import itertools
+import math
+from scenic.syntax.parser import ScenicParser
+from scenic.core.utils import batched
+
+def maketable(items, columns=5, gap=4):
+    items = tuple(sorted(items))
+    width = max(len(item) for item in items)
+    nrows = math.ceil(len(items) / 5)
+    justified = (item.ljust(width) for item in items)
+    cols = batched(justified, nrows)
+    rows = itertools.zip_longest(*cols, fillvalue='')
+    space = ' '*gap
+    yield from (space.join(row) for row in rows)
+
+with open('_build/keywords.txt', 'w') as outFile:
+    for row in maketable(ScenicParser.KEYWORDS):
+        outFile.write(row + '\n')
+with open('_build/keywords_soft.txt', 'w') as outFile:
+    for row in maketable(ScenicParser.SOFT_KEYWORDS):
+        outFile.write(row + '\n')
+
 # -- Monkeypatch ModuleAnalyzer to handle Scenic modules ---------------------
 
 from analyzer import ScenicModuleAnalyzer
@@ -469,12 +493,15 @@ def object_description(obj):
 sphinx.util.inspect.object_description = object_description
 sphinx.ext.autodoc.object_description = object_description
 
-# Hack to prevent signatures for distributions getting quashed by the generic
-# Distribution.__new__
+# Hack to prevent signatures for certain classes getting quashed by their
+# wrapper __new__ methods.
 from scenic.core.distributions import Distribution
-distNew = Distribution.__new__
-fqname = f'{distNew.__module__}.{distNew.__qualname__}'
-sphinx.ext.autodoc._CLASS_NEW_BLACKLIST.append(fqname)
+from scenic.core.object_types import Constructible
+classes = (Distribution, Constructible)
+for cls in classes:
+    func = cls.__new__
+    fqname = f'{func.__module__}.{func.__qualname__}'
+    sphinx.ext.autodoc._CLASS_NEW_BLACKLIST.append(fqname)
 
 # -- Extension for correctly displaying Scenic code and skipping internals ---
 

@@ -7,7 +7,6 @@ import shapely.geometry
 
 from scenic.core.object_types import Object, OrientedPoint
 from scenic.core.regions import *
-from scenic.core.errors import RuntimeParseError
 from scenic.core.vectors import VectorField
 from tests.utils import sampleSceneFrom
 
@@ -260,10 +259,10 @@ def test_path_region():
     r3 = PathRegion(points=points_mixed)
     r4 = PathRegion(polylines=polylines)
 
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(TypeError):
         PathRegion(points=polylines)
 
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(TypeError):
         PathRegion(polylines=points_mixed)
 
     # Test simple containment

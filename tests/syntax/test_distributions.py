@@ -6,7 +6,8 @@ import numpy
 import re
 import subprocess
 
-from scenic.core.errors import RuntimeParseError, InvalidScenarioError, ScenicSyntaxError
+from scenic.core.distributions import RandomControlFlowError
+from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError
 from tests.utils import compileScenic, sampleScene, sampleEgo, sampleEgoFrom, sampleParamP
 
 ## Utilities
@@ -113,17 +114,17 @@ def test_options_empty_domain():
         compileScenic('x = Discrete({})')
 
 def test_options_invalid_weight():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(ValueError):
         compileScenic('x = Options({0: 1, 1: -2})')
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(TypeError):
         compileScenic('x = Options({0: 1, 1: []})')
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(TypeError):
         compileScenic('x = Options({0: 1, 1: Range(3, 5)})')
 
 def test_uniform_interval_wrong_type():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(TypeError):
         compileScenic('x = Range([], 4)')
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(TypeError):
         compileScenic('x = Range(-10, [])')
 
 def test_uniform_interval():
@@ -470,7 +471,7 @@ def test_namedtuple():
 ## Comparisons and control flow
 
 def test_comparison():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(RandomControlFlowError):
         compileScenic('ego = new Object with foo (Range(0, 1) > 0.5)')
 
 def test_len():
@@ -482,14 +483,14 @@ def test_len():
     assert any(f == 2 for f in fs)
 
 def test_iter():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(RandomControlFlowError):
         compileScenic("""
             for x in Uniform([1, 2], [3, 4]):
                 ego = new Object at x@0
         """)
 
 def test_control_flow():
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(RandomControlFlowError):
         compileScenic("""
             if Uniform(False, True):
                 ego = new Object
@@ -595,7 +596,7 @@ def test_resample():
     assert pos.x != pos.y
 
 def test_resample_complex():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(TypeError):
         compileScenic('ego = new Object at 0 @ resample(Range(0,1) + Range(1,2))')
 
 ## Dependencies and lazy evaluation

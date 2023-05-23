@@ -7,7 +7,6 @@ import numpy
 import pytest
 
 from scenic.core.distributions import Options, DiscreteRange, Range, distributionFunction
-from scenic.core.errors import ScenicSyntaxError
 from scenic.core.object_types import Object
 from scenic.core.vectors import Vector, OrientedVector, VectorField, Orientation
 from scenic.core.type_support import (
@@ -72,7 +71,7 @@ def test_coerce_to_vector():
     check(Object._with(position=Vector(4, 9)), answer=(4, 9, 0))
     check(Object._with(position=Vector(4, 9, 0)), answer=(4, 9, 0))
     assert not canCoerce(42, Vector)
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(TypeError):
         coerce([1, 2, 3, 4], Vector)
 
 def test_coerce_to_class():
@@ -103,7 +102,7 @@ def test_coerce_distribution_scalar():
     x = Options([3.14, 'zoggle'])
     y = coerce(x, float)
     assert isinstance(y, TypecheckedDistribution)
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(TypeError):
         for _ in range(60):
             y.sample()
 
@@ -115,7 +114,7 @@ def test_coerce_distribution_vector():
         x = Options(values)
         y = coerce(x, Vector)
         assert isinstance(y, TypecheckedDistribution)
-        manager = pytest.raises(ScenicSyntaxError) if fail else nullcontext()
+        manager = pytest.raises(TypeError) if fail else nullcontext()
         with manager:
             for _ in range(60):
                 y.sample()

@@ -2,7 +2,7 @@
 import pytest
 
 import scenic
-from scenic.core.errors import ScenicSyntaxError, InvalidScenarioError, RuntimeParseError
+from scenic.core.errors import ScenicSyntaxError, InvalidScenarioError
 from scenic.core.distributions import RejectionException
 from tests.utils import compileScenic, sampleScene, sampleSceneFrom, sampleEgo
 
@@ -83,7 +83,7 @@ def test_object_in_requirement():
         require new Object
         ego = new Object
     """)
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(InvalidScenarioError):
         sampleScene(scenario)
 
 def test_param_in_requirement_1():
@@ -94,7 +94,7 @@ def test_param_in_requirement_1():
         """)
 
 def test_param_in_requirement_2():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(InvalidScenarioError):
         scenario = compileScenic("""
             def func():
                 param x = 4
@@ -114,7 +114,7 @@ def test_mutate_in_requirement_1():
         sampleScene(scenario)
 
 def test_mutate_in_requirement_2():
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(InvalidScenarioError):
         scenario = compileScenic("""
             def func():
                 mutate ego
@@ -133,17 +133,17 @@ def test_require_in_requirement():
 
 ## Error handling
 
-def test_runtime_parse_error_in_requirement():
+def test_exception_in_requirement():
     scenario = compileScenic("""
         require visible 4
         ego = new Object
     """)
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(TypeError):
         sampleScene(scenario)
 
 def test_soft_requirement_with_temporal_operators():
     """Temporal operators are not allowed if prob != 1"""
-    with pytest.raises(RuntimeParseError):
+    with pytest.raises(InvalidScenarioError):
         compileScenic("""
             ego = new Object
             require[0.2] eventually ego

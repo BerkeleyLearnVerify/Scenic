@@ -5,7 +5,7 @@ import itertools
 from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
                                    needsLazyEvaluation, toLazyValue)
 from scenic.core.distributions import toDistribution
-from scenic.core.errors import RuntimeParseError
+from scenic.core.errors import InvalidScenarioError, SpecifierError
 
 ## Specifiers themselves
 
@@ -36,7 +36,7 @@ class Specifier:
 
         for p in priorities:
             if p in deps:
-                raise RuntimeParseError(f'specifier for property {p} depends on itself')
+                raise SpecifierError(f'specifier for property {p} depends on itself')
 
         self.requiredProperties = tuple(sorted(deps))
         self.name = name
@@ -88,7 +88,7 @@ class PropertyDefault:
         self.isDynamic = enabled('dynamic', False)
         self.isFinal = enabled('final', False)
         for attr in attributes:
-            raise RuntimeParseError(f'unknown property attribute "{attr}"')
+            raise RuntimeError(f'unknown property attribute "{attr}"')
 
     @staticmethod
     def forValue(value):
@@ -104,7 +104,7 @@ class PropertyDefault:
                 msg = f'"{prop}" property cannot be overridden'
                 if prop == 'heading':
                     msg += ' (perhaps this scenario requires the --2d flag?)'
-                raise RuntimeParseError(msg)
+                raise InvalidScenarioError(msg)
         if self.isAdditive:
             allReqs = self.requiredProperties
             for other in overriddenDefs:

@@ -3,6 +3,7 @@
 import collections
 from contextlib import contextmanager
 import functools
+import itertools
 import math
 import signal
 import sys
@@ -13,6 +14,16 @@ import bz2
 import trimesh
 
 sqrt2 = math.sqrt(2)
+
+if sys.version_info >= (3, 12):
+    from itertools import batched
+else:
+    def batched(iterable, n):
+        if n < 1:
+            raise ValueError('n must be at least one')
+        it = iter(iterable)
+        while batch := tuple(itertools.islice(it, n)):
+            yield batch
 
 def cached(oldMethod):
     """Decorator for making a method with no arguments cache its result"""

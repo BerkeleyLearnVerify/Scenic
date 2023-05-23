@@ -13,7 +13,7 @@ from scenic.core.object_types import (enableDynamicProxyFor, setDynamicProxyFor,
 from scenic.core.distributions import RejectionException
 import scenic.core.dynamics as dynamics
 import scenic.core.errors as errors
-from scenic.core.errors import RuntimeParseError, InvalidScenarioError, optionallyDebugRejection
+from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
 from scenic.core.requirements import RequirementType
 from scenic.core.serialization import Serializer
 from scenic.core.vectors import Vector

@@ -155,6 +155,7 @@ Positions the object at the given coordinates in a local coordinate system cente
 Also specifies :prop:`parentOrientation` to be equal to the ego's orientation.
 
 .. _beyond {vector} by ({vector} | {scalar}) [from ({vector} | {OrientedPoint})]:
+.. _beyond:
 
 beyond *vector* by (*vector* | *scalar*) [from (*vector* | *OrientedPoint*)]
 ----------------------------------------------------------------------------

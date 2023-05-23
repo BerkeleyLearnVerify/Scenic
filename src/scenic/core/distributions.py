@@ -14,7 +14,7 @@ from scenic.core.lazy_eval import (LazilyEvaluable,
     isLazy, needsSampling, dependencies,
     requiredProperties, needsLazyEvaluation, valueInContext, makeDelayedFunctionCall)
 from scenic.core.utils import DefaultIdentityDict, argsToString, cached, sqrt2
-from scenic.core.errors import RuntimeParseError
+from scenic.core.errors import ScenicError
 
 ## Misc
 
@@ -53,7 +53,7 @@ class RejectionException(Exception):
     """Exception used to signal that the sample currently being generated must be rejected."""
     pass
 
-class RandomControlFlowError(RuntimeParseError):
+class RandomControlFlowError(ScenicError):
     """Exception indicating illegal conditional control flow depending on a random value.
 
     This includes trying to iterate over a random value, making a range of random length, etc.
@@ -1083,10 +1083,10 @@ class Options(MultiplexerDistribution):
             options, weights = [], []
             for opt, prob in opts.items():
                 if not isinstance(prob, (float, int)):
-                    raise RuntimeParseError(f'discrete distribution weight {prob}'
-                                            ' is not a constant number')
+                    raise TypeError(f'discrete distribution weight {prob}'
+                                    ' is not a constant number')
                 if prob < 0:
-                    raise RuntimeParseError(f'discrete distribution weight {prob} is negative')
+                    raise ValueError(f'discrete distribution weight {prob} is negative')
                 if prob == 0:
                     continue
                 options.append(opt)
