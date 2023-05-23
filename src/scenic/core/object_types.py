@@ -39,7 +39,7 @@ from scenic.core.type_support import toVector, toHeading, toType, toScalar, toOr
 from scenic.core.lazy_eval import LazilyEvaluable, isLazy, needsLazyEvaluation
 from scenic.core.serialization import dumpAsScenicCode
 from scenic.core.utils import DefaultIdentityDict, cached_property
-from scenic.core.errors import SpecifierError
+from scenic.core.errors import InvalidScenarioError, SpecifierError
 from scenic.core.shapes import Shape, BoxShape, MeshShape
 from scenic.core.regions import IntersectionRegion
 
@@ -108,7 +108,16 @@ class Constructible(Samplable):
             dynTypes[prop] = ty
         cls._dynamicProperties = dynTypes
 
-    def __init__(self, properties, constProps=frozenset()):
+    def __new__(cls, *args, _internal=False, **kwargs):
+        if not _internal:
+            # Catch users trying to instantiate a Scenic class like a Python class
+            raise InvalidScenarioError('Scenic classes must be instantiated with "new"')
+        return super().__new__(cls)
+
+    def __getnewargs_ex__(self):
+        return ((), dict(_internal=True))
+
+    def __init__(self, properties, constProps=frozenset(), _internal=False):
         for prop, value in properties.items():
             assert not needsLazyEvaluation(value), (prop, value)
             object.__setattr__(self, prop, value)
@@ -151,7 +160,7 @@ class Constructible(Samplable):
                 )
 
         # Create the object
-        obj = cls(properties, constProps=constProps)
+        obj = cls(properties, constProps=constProps, _internal=True)
 
         # Possibly register this object
         if register:
@@ -412,7 +421,7 @@ class Constructible(Samplable):
         if not needsSampling(self):
             return self
         props = { prop: value[getattr(self, prop)] for prop in self.properties }
-        return type(self)(props, constProps=self._constProps)
+        return type(self)(props, constProps=self._constProps, _internal=True)
 
     def _allProperties(self):
         return { prop: getattr(self, prop) for prop in self.properties }
@@ -843,7 +852,7 @@ class Object(OrientedPoint):
     }
 
     def __new__(cls, *args, **kwargs):
-        obj = super().__new__(cls)
+        obj = super().__new__(cls, *args, **kwargs)
         # The _dynamicProxy attribute stores a mutable copy of the object used during
         # simulations, intercepting all attribute accesses to the original object;
         # we set this attribute very early to prevent problems during unpickling.
