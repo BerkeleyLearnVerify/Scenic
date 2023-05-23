@@ -270,6 +270,25 @@ def test_subscenario_terminate_when():
     result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
 
+def test_subscenario_terminate_with_parent():
+    """Test that subscenarios terminate when their parent does."""
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub()
+                assert False  # should never get here
+        scenario Sub():
+            setup:
+                ego = new Object
+                terminate after 1 steps
+            compose:
+                do Bottom()
+        scenario Bottom():
+            require eventually simulation().currentTime == 2
+    """)
+    result = sampleResultOnce(scenario, maxSteps=2)
+    assert result is None
+
 def test_initial_scenario_basic():
     scenario = compileScenic("""
         scenario Main():

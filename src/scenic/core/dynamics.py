@@ -403,23 +403,33 @@ class DynamicScenario(Invocable):
 
     def _stop(self, reason, quiet=False):
         """Stop the scenario's execution, for the given reason."""
+        assert self._isRunning
+
+        # Stop monitors and subscenarios.
+        for monitor in self._monitors:
+            if monitor._isRunning:
+                monitor._stop()
+        self._monitors = []
+        for sub in self._subScenarios:
+            if sub._isRunning:
+                sub._stop('parent scenario ending', quiet=quiet)
+        self._runningIterator = None
+
+        # Revert overrides.
+        for obj, oldVals in self._overrides.items():
+            obj._revert(oldVals)
+
+        # Inform the veneer we have stopped, and mark ourselves finished.
+        veneer.endScenario(self, reason, quiet=quiet)
+        super()._stop(reason)
+
+        # Reject if a temporal requirement was not satisfied.
         if not quiet:
-            # Reject if we never satisfied a 'require eventually'
             for req in self._requirementMonitors:
                 if req.lastValue.is_falsy:
                     raise RejectSimulationException(str(req))
         self._requirementMonitors = None
 
-        for monitor in self._monitors:
-            if monitor._isRunning:
-                monitor._stop()
-        self._monitors = []
-
-        super()._stop(reason)
-        veneer.endScenario(self, reason, quiet=quiet)
-        for obj, oldVals in self._overrides.items():
-            obj._revert(oldVals)
-        self._runningIterator = None
         return reason
 
     def _invokeInner(self, agent, subs):

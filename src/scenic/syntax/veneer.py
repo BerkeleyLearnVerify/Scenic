@@ -130,7 +130,7 @@ lockedModel = None
 loadingModel = False
 currentSimulation = None
 inInitialScenario = True
-runningScenarios = set()
+runningScenarios = []  # in order, oldest first
 currentBehavior = None
 simulatorFactory = None
 evaluatingGuard = False
@@ -280,7 +280,7 @@ def beginSimulation(sim):
     assert not scenarioStack
     currentSimulation = sim
     currentScenario = sim.scene.dynamicScenario
-    runningScenarios = {currentScenario}
+    runningScenarios = []   # will be updated by DynamicScenario._start
     inInitialScenario = currentScenario._setup is None
     currentScenario._bindTo(sim.scene)
     _globalParameters = dict(sim.scene.params)
@@ -295,7 +295,7 @@ def endSimulation(sim):
     global _globalParameters
     currentSimulation = None
     currentScenario = None
-    runningScenarios = set()
+    runningScenarios = []
     currentBehavior = None
     _globalParameters = {}
 
@@ -375,7 +375,8 @@ def finishScenarioSetup(scenario):
     inInitialScenario = False
 
 def startScenario(scenario):
-    runningScenarios.add(scenario)
+    assert scenario not in runningScenarios
+    runningScenarios.append(scenario)
 
 def endScenario(scenario, reason, quiet=False):
     runningScenarios.remove(scenario)

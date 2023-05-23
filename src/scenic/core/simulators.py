@@ -321,7 +321,7 @@ class Simulation:
 
             # Stop all remaining scenarios
             # (and reject if some 'require eventually' condition was never satisfied)
-            for scenario in tuple(veneer.runningScenarios):
+            for scenario in tuple(reversed(veneer.runningScenarios)):
                 scenario._stop('simulation terminated')
 
             # Record finally-recorded values
@@ -344,7 +344,7 @@ class Simulation:
             # If the simulation was terminated by an exception (including rejections),
             # some scenarios may still be running; we need to clean them up without
             # checking their requirements, which could raise rejection exceptions.
-            for scenario in tuple(veneer.runningScenarios):
+            for scenario in tuple(reversed(veneer.runningScenarios)):
                 scenario._stop('exception', quiet=True)
             veneer.endSimulation(self)
 
