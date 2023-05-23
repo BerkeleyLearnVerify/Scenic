@@ -282,8 +282,11 @@ class Scenario(_ScenarioPickleMixin):
                     if oj.allowCollisions or not staticBounds[j]:
                         continue
                     if oi.intersects(oj):
-                        raise InvalidScenarioError(f'Object at {oi.position} intersects'
-                                                   f' object at {oj.position}')
+                        oi_name = oi.name if hasattr(oi, 'name') else "Object"
+                        oj_name = oj.name if hasattr(oj, 'name') else "object"
+
+                        raise InvalidScenarioError(f'{oi_name} at {oi.position} intersects'
+                                                   f' {oj_name} at {oj.position}')
 
     def generate(self, maxIterations=2000, verbosity=0, feedback=None):
         """Sample a `Scene` from this scenario.

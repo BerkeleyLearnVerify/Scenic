@@ -134,6 +134,9 @@ def vectorDistributionMethod(method):
 class Orientation:
     """An orientation in 3D space."""
     def __init__(self, rotation):
+        if not isinstance(rotation, Rotation):
+            raise ValueError("Orientation's 'rotation' parameter must be a SciPy rotation."\
+                " Perhaps you want to use a constructor?")
         self.r = rotation
         self.q = rotation.as_quat()
 
