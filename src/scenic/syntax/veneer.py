@@ -955,14 +955,19 @@ def CanSee(X, Y):
     if currentScenario._sampledObjects is None:
         raise InvalidScenarioError('"X can see Y" cannot be evaluated before sample time')
 
-    for obj in currentScenario._sampledObjects:
-        assert not needsSampling(obj)
-
-    occluding_objects = (obj for obj in currentScenario._sampledObjects if obj.occluding \
+    occludingObjects = tuple(obj for obj in currentScenario._sampledObjects if obj.occluding \
                          and X is not obj and Y is not obj)
 
-    return X.canSee(Y, occludingObjects=occluding_objects)
+    occludingObjects = toDistribution(occludingObjects)
 
+    @distributionFunction
+    def canSeeHelper(X, Y, occludingObjects):
+        for obj in occludingObjects:
+            assert not needsSampling(obj)
+
+        return X.canSee(Y, occludingObjects=occludingObjects)
+
+    return canSeeHelper(X,Y, occludingObjects)
 ### Specifiers
 
 def With(prop, val):
