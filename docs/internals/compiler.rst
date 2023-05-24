@@ -135,12 +135,12 @@ easily distinguish Scenic-specific rules from those in the original Python gramm
 .. code-block:: pegen
 
    scenic_implication (memo):
-       | invalid_scenic_implication  # special rule to explain invalid uses of 'implies'
-       | a=disjunction 'implies' b=disjunction { s.ImpliesOp(a, b, LOCATIONS) }
+       | invalid_scenic_implication  # special rule to explain invalid uses of "implies"
+       | a=disjunction "implies" b=disjunction { s.ImpliesOp(a, b, LOCATIONS) }
        | disjunction
 
 Our rule has three alternatives, which the parser considers in order.
-For the moment, let's consider the second alternative, which is the one defining the actual syntax of ``implies``: it matches any text matching the ``disjunction`` rule, followed by the keyword ``implies``, followed by any text matching the ``disjunction`` rule.
+For the moment, let's consider the second alternative, which is the one defining the actual syntax of ``implies``: it matches any text matching the ``disjunction`` rule, followed by the word ``implies``, followed by any text matching the ``disjunction`` rule.
 In the grammar, precedence and associativity of operators are defined by using
 separate rules for each precedence level.
 The ``disjunction`` rule matches any expression defined using ``or`` or an operator with higher precedence than ``or``.
@@ -167,7 +167,7 @@ rules: those rules can then generate errors when they match.
 .. code-block:: pegen
 
    invalid_scenic_implication[NoReturn]:
-       | a=disjunction 'implies' disjunction 'implies' b=disjunction {
+       | a=disjunction "implies" disjunction "implies" b=disjunction {
            self.raise_syntax_error_known_range(
                f"`implies` must take exactly two operands", a, b
            )

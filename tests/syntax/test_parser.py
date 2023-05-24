@@ -1030,6 +1030,24 @@ class TestRequire:
             case _:
                 assert False
 
+    def test_comparison(self):
+        mod = parse_string_helper("require X > Y")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(Compare(Name("X"), [Gt()], [Name("Y")])):
+                assert True
+            case _:
+                assert False
+
+    def test_comparison_atom(self):
+        mod = parse_string_helper("require (X) > Y")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(Compare(Name("X"), [Gt()], [Name("Y")])):
+                assert True
+            case _:
+                assert False
+
     def test_prob(self):
         mod = parse_string_helper("require[0.2] X")
         stmt = mod.body[0]
@@ -1759,95 +1777,116 @@ class TestNew:
 
 class TestOperator:
     def test_implies_basic(self):
-        mod = parse_string_helper("x implies y")
+        mod = parse_string_helper("require x implies y")
         stmt = mod.body[0]
         match stmt:
-            case Expr(ImpliesOp(Name("x"), Name("y"))):
+            case Require(ImpliesOp(Name("x"), Name("y"))):
                 assert True
             case _:
                 assert False
 
     def test_implies_precedence(self):
-        mod = parse_string_helper("x implies y or z")
+        mod = parse_string_helper("require x implies y or z")
         stmt = mod.body[0]
         match stmt:
-            case Expr(ImpliesOp(Name("x"), BoolOp(Or(), [Name("y"), Name("z")]))):
+            case Require(ImpliesOp(Name("x"), BoolOp(Or(), [Name("y"), Name("z")]))):
                 assert True
             case _:
                 assert False
 
     def test_implies_three_operands(self):
         with pytest.raises(ScenicSyntaxError) as e:
-            parse_string_helper("x implies y implies z")
+            parse_string_helper("require x implies y implies z")
         assert "must take exactly two operands" in e.value.msg
 
     def test_next_implies(self):
-        mod = parse_string_helper("next x implies y")
+        mod = parse_string_helper("require next x implies y")
         stmt = mod.body[0]
         match stmt:
-            case Expr(Next(ImpliesOp(Name("x"), Name("y")))):
+            case Require(Next(ImpliesOp(Name("x"), Name("y")))):
                 assert True
             case _:
                 assert False
 
     def test_implies_next(self):
-        mod = parse_string_helper("x implies next y")
+        mod = parse_string_helper("require x implies next y")
         stmt = mod.body[0]
         match stmt:
-            case Expr(ImpliesOp(Name("x"), Next(Name("y")))):
+            case Require(ImpliesOp(Name("x"), Next(Name("y")))):
                 assert True
             case _:
                 assert False
 
     def test_until_basic(self):
-        mod = parse_string_helper("x until y")
+        mod = parse_string_helper("require x until y")
         stmt = mod.body[0]
         match stmt:
-            case Expr(UntilOp(Name("x"), Name("y"))):
+            case Require(UntilOp(Name("x"), Name("y"))):
                 assert True
             case _:
                 assert False
 
     def test_until_precedence_1(self):
-        mod = parse_string_helper("x until y or z")
+        mod = parse_string_helper("require x until y or z")
         stmt = mod.body[0]
         match stmt:
-            case Expr(UntilOp(Name("x"), BoolOp(Or(), [Name("y"), Name("z")]))):
+            case Require(UntilOp(Name("x"), BoolOp(Or(), [Name("y"), Name("z")]))):
                 assert True
             case _:
                 assert False
 
     def test_until_precedence_2(self):
-        mod = parse_string_helper("x implies y until z")
+        mod = parse_string_helper("require x implies y until z")
         stmt = mod.body[0]
         match stmt:
-            case Expr(UntilOp(ImpliesOp(Name("x"), Name("y")), Name("z"))):
+            case Require(UntilOp(ImpliesOp(Name("x"), Name("y")), Name("z"))):
                 assert True
             case _:
                 assert False
 
     def test_next_until(self):
-        mod = parse_string_helper("next x until y")
+        mod = parse_string_helper("require next x until y")
         stmt = mod.body[0]
         match stmt:
-            case Expr(UntilOp(Next(Name("x")), Name("y"))):
+            case Require(UntilOp(Next(Name("x")), Name("y"))):
                 assert True
             case _:
                 assert False
 
     def test_until_next(self):
-        mod = parse_string_helper("x until next y")
+        mod = parse_string_helper("require x until next y")
         stmt = mod.body[0]
         match stmt:
-            case Expr(UntilOp(Name("x"), Next(Name("y")))):
+            case Require(UntilOp(Name("x"), Next(Name("y")))):
                 assert True
             case _:
                 assert False
 
     def test_until_three_operands(self):
         with pytest.raises(ScenicSyntaxError) as e:
-            parse_string_helper("x until y until z")
+            parse_string_helper("require x until y until z")
         assert "must take exactly two operands" in e.value.msg
+
+    def test_temporal_boolean_ops(self):
+        mod = parse_string_helper("require x and y and not always z")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(BoolOp(
+                And(),
+                [Name("x"), Name("y"), UnaryOp(Not(), Always(Name("z")))]
+            )):
+                assert True
+            case _:
+                assert False
+
+    def test_temporal_boolean_atom(self):
+        mod = parse_string_helper("require ((eventually x) or (always y))")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(BoolOp(Or(), [Eventually(Name("x")), Always(Name("y"))])):
+                assert True
+            case _:
+                assert False
 
     def test_relative_position(self):
         mod = parse_string_helper("relative position of x")
@@ -2666,6 +2705,33 @@ class TestOperator:
         stmt = mod.body[0]
         match stmt:
             case Require(Next(Name("x"))):
+                assert True
+            case _:
+                assert False
+
+    def test_next_atom(self):
+        mod = parse_string_helper("require (next (x))")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(Next(Name("x"))):
+                assert True
+            case _:
+                assert False
+
+    def test_next_atom_2(self):
+        mod = parse_string_helper("require (y and next (x))")
+        stmt = mod.body[0]
+        match stmt:
+            case Require(BoolOp(And(), [Name("y"), Next(Name("x"))])):
+                assert True
+            case _:
+                assert False
+
+    def test_next_function(self):
+        mod = parse_string_helper("next(it)")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(Call(Name("next"), [Name("it")])):
                 assert True
             case _:
                 assert False
