@@ -75,7 +75,8 @@ def canSee(position, orientation, visibleDistance, viewAngles,
     """
     from scenic.core.object_types import Point, OrientedPoint, Object
 
-    occludingObjects = list(occludingObjects)
+    # Filter occluding objects that are obviously infeasible
+    occludingObjects = [obj for obj in occludingObjects if position.distanceTo(obj) <= visibleDistance]
 
     if rayCount is None:
         rayCount = (math.degrees(viewAngles[0])*rayDensity, math.degrees(viewAngles[1])*rayDensity)
