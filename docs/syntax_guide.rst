@@ -204,9 +204,9 @@ Additional specifiers for the :prop:`position` and :prop:`orientation` propertie
    * - :sampref:`beyond {vector} by ({vector} | {scalar}) [from ({vector} | {OrientedPoint})]`
      - Positions the object with respect to the line of sight from a point or the ego
    * - :sampref:`visible [from ({Point} | {OrientedPoint})]`
-     - Positions the object uniformly at random in the visible region of the ego, or of the given Point/OrientedPoint if given
+     - Ensures the object is visible from the ego, or from the given Point/OrientedPoint if given, while optionally specifying position to be in the appropriate visible region.
    * - :sampref:`not visible [from ({Point} | {OrientedPoint})]`
-     - Positions the object uniformly at random in the non-visible region of the ego, or of the given Point/OrientedPoint if given
+     - Ensures the object is not visible from the ego, or from the given Point/OrientedPoint if given, while optionally specifying position to be outside the appropriate visible region.
    * - :sampref:`(left | right) of ({vector} | {OrientedPoint} | {Object}) [by {scalar}] <left of>`
      - Positions the object to the left/right by the given scalar distance
    * - :sampref:`(ahead of | behind) ({vector} | {OrientedPoint} | {Object}) [by {scalar}] <ahead of>`
