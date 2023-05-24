@@ -1743,28 +1743,3 @@ class ScenicToPythonTransformer(Transformer):
             ],
             keywords=[],
         )
-
-    def visit_Always(self, node: s.Always):
-        raise self.makeSyntaxError(
-            "`always` can only be used inside requirements", node
-        )
-
-    def visit_Eventually(self, node: s.Eventually):
-        raise self.makeSyntaxError(
-            "`always` can only be used inside requirements", node
-        )
-
-    def visit_Next(self, node: s.Next):
-        raise self.makeSyntaxError(
-            "`always` can only be used inside requirements", node
-        )
-
-    def visit_ImpliesOp(self, node: s.ImpliesOp):
-        raise self.makeSyntaxError(
-            "`always` can only be used inside requirements", node
-        )
-
-    def visit_UntilOp(self, node: s.UntilOp):
-        raise self.makeSyntaxError(
-            "`always` can only be used inside requirements", node
-        )
