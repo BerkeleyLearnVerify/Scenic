@@ -975,6 +975,10 @@ def test_require_always():
         actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=50)
         assert tuple(actions) == (0, 0)
 
+def test_require_always_invalid():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("require (always (x)) > 5")
+
 def test_require_eventually():
     scenario = compileScenic("""
         behavior Foo():
@@ -1034,6 +1038,10 @@ def test_require_next_2():
         require next next ego.blah == 2
     """)
     sampleEgoActions(scenario, maxSteps=5)
+
+def test_require_next_invalid():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("require (next (x)) > 5")
 
 def test_require_until():
     scenario = compileScenic("""
