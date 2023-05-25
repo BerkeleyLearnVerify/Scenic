@@ -2125,8 +2125,7 @@ class PolygonalRegion(Region):
 
     @cached
     def __hash__(self):
-        # TODO better way to hash mutable Shapely geometries? (also for PolylineRegion)
-        return hash((str(self.polygons), self.orientation))
+        return hash((self.polygons, self.orientation))
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -2666,7 +2665,7 @@ class PolylineRegion(Region):
 
     @cached
     def __hash__(self):
-        return hash(str(self.lineString))
+        return hash(self.lineString)
 
 class PointSetRegion(Region):
     """Region consisting of a set of discrete points.

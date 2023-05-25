@@ -21,6 +21,7 @@ import math
 import random
 import numpy as np
 import shapely
+import shapely.affinity
 import trimesh
 from abc import ABC, abstractmethod
 from functools import lru_cache
