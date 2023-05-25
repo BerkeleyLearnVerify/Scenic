@@ -118,9 +118,6 @@ DEF GROUND Solid {
   children [
     DEF GROUND_SHAPE Shape {
       appearance Soil {
-        textureTransform TextureTransform {
-          scale 600 600
-        }
         color 0.8 0.2 0
       }
       geometry ElevationGrid {

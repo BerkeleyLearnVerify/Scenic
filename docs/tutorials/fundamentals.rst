@@ -519,18 +519,20 @@ A Worked Example
 
 We conclude with a larger example of a Scenic program which also illustrates the
 language's utility across domains and simulators. Specifically, we consider the problem
-of testing a motion planning algorithm for a Mars rover able to climb over rocks. Such
+of testing a motion planning algorithm for a Mars rover able to climb over hills and rocks. Such
 robots can have very complex dynamics, with the feasibility of a motion plan depending on
 exact details of the robot's hardware and the geometry of the terrain. We can use Scenic
 to write a scenario generating challenging cases for a planner to solve in simulation.
-Some of the specifiers and operators we'll use have not been discussed before in the tutorial; as usual, information about them can be found in the :ref:`syntax_guide`.
+Some of the specifiers and operators we'll use have not been discussed before in the tutorial; 
+as usual, information about them can be found in the :ref:`syntax_guide`.
 
-We will write a scenario representing a rubble field of rocks and pipes with a
+We will write a scenario representing a hilly field of rocks and pipes with a
 bottleneck between the rover and its goal that forces the path planner to consider
 climbing over a rock. First, we import a small Scenic library for the Webots robotics
-simulator (`scenic.simulators.webots.mars.model`) which defines the (empty) workspace
-and several types of objects: the :scenic:`Rover` itself, the :scenic:`Goal` (represented by a flag), and
-debris classes :scenic:`Rock`, :scenic:`BigRock`, and :scenic:`Pipe`. :scenic:`Rock` and :scenic:`BigRock` have fixed sizes, and
+simulator and a mars specific library which defines the (empty) workspace and several types of objects: 
+the :scenic:`Rover` itself, the :scenic:`Goal` (represented by a flag), the :scenic:`MarsGround` and :scenic:`MarsHill` 
+classes which are used to create the hilly terrain, and debris classes :scenic:`Rock`, :scenic:`BigRock`, 
+and :scenic:`Pipe`. :scenic:`Rock` and :scenic:`BigRock` have fixed sizes, and
 the rover can climb over them; :scenic:`Pipe` cannot be climbed over, and can represent a pipe of
 arbitrary length, controlled by the :prop:`length` property (which corresponds to Scenic's
 *Y* axis).
@@ -539,78 +541,92 @@ arbitrary length, controlled by the :prop:`length` property (which corresponds t
 	:linenos:
 
 	model scenic.simulators.webots.mars.model
+	from mars_lib import *
 
-Here we've used the :keyword:`model` statement to select the :term:`world model` for the scenario: it is equivalent to :scenic:`from scenic.simulators.webots.mars.model import *` except that the choice of model can be overridden from the command line when compiling the scenario (using the :option:`--model` option).
+Here we've used the :keyword:`model` statement to select the :term:`world model` for the scenario: it is equivalent to :scenic:`from scenic.simulators.webots.model import *` except that the choice of model can be overridden from the command line when compiling the scenario (using the :option:`--model` option).
 This is useful for scenarios that use one of Scenic's :ref:`domains`: the scenario can be written once in a simulator-agnostic manner, then used with different simulators by selecting the appropriate simulator-specific world model.
 
+Now we can start to create objects. The first object we will create will be the hilly ground. To do this, we use the :scenic:`MarsGround` which has a :prop:`terrain` property which should be set to a collection of :scenic:`MarsHill` classes, each of which adds a gaussian hill to the ground. Note that the :scenic:`MarsGround` object has :prop:`allowCollisions` set to ``True``, allowing objects to intersect and be slightly embedded in the ground. In the following code we create a ground object with 60 small hills (which are allowed to stack on top of each other):
+
+.. code-block::
+	:lineno-start: 5
+
+	ground = new MarsGround on (0,0,0), with terrain [new MarsHill for _ in range(60)]
+
 We next create the rover at a fixed position and the goal at a random position on the
-other side of the workspace:
-
-.. code-block::
-	:lineno-start: 2
-
-	ego = new Rover at (0, -2)
-	goal = new Goal at (Range(-2, 2), Range(2, 2.5))
-
-Next we pick a position for the bottleneck, requiring it to lie roughly on the way from
-the robot to its goal, and place a rock there. Since this is a 2D scenario, we can use the simple form of :specifier:`facing` which takes a scalar argument, effectively setting the yaw of the object in the global coordinate system (so that :scenic:`0 deg` is due North, for example, and :scenic:`90 deg` is due West).
-
-.. code-block::
-	:lineno-start: 4
-
-	bottleneck = new OrientedPoint offset by (Range(-1.5, 1.5), Range(0.5, 1.5)),
-	                           facing Range(-30, 30) deg
-	require abs((angle to goal) - (angle to bottleneck)) <= 10 deg
-	new BigRock at bottleneck
-
-Note how we define ``bottleneck`` as an :scenic:`OrientedPoint`, with a range of possible
-orientations: this is to set up a local coordinate system for positioning the pipes
-making up the bottleneck. Specifically, we position two pipes of varying lengths on
-either side of the bottleneck, with their ends far enough apart for the robot to be able
-to pass between:
+other side of the workspace, ensuring both are on the ground:
 
 .. code-block::
 	:lineno-start: 8
 
-	halfGapWidth = (1.2 * ego.width) / 2
-	leftEnd = new OrientedPoint left of bottleneck by halfGapWidth,
-	                        facing Range(60, 120) deg relative to bottleneck
-	rightEnd = new OrientedPoint right of bottleneck by halfGapWidth,
-	                         facing Range(-120, -60) deg relative to bottleneck
-	new Pipe ahead of leftEnd, with length Range(1, 2)
-	new Pipe ahead of rightEnd, with length Range(1, 2)
+	ego = new Rover at (0, -3), on ground, with controller 'sojourner'
+	goal = new Goal at (Range(-2, 2), Range(2, 3)), on ground, facing (0,0,0)
+
+Next we pick a position for the bottleneck, requiring it to lie roughly on the way from
+the robot to its goal, and place a rock there. Here we use the simple form of :specifier:`facing` which takes a scalar argument, effectively setting the yaw of the object in the global coordinate system (so that :scenic:`0 deg` is due North, for example, and :scenic:`90 deg` is due West).
+
+.. code-block::
+	:lineno-start: 15
+
+	bottleneck = new OrientedPoint at ego offset by Range(-1.5, 1.5) @ Range(0.5, 1.5), facing Range(-30, 30) deg
+	require abs((angle to goal) - (angle to bottleneck)) <= 10 deg
+	new BigRock at bottleneck, on ground
+
+Note how we define ``bottleneck`` as an :scenic:`OrientedPoint`, with a range of possible
+orientations: this is to set up a local coordinate system for positioning the pipes
+making up the bottleneck. Specifically, we position two pipes of varying lengths on
+either side of the bottleneck, projected onto the ground, with their ends far enough apart for the robot to be able
+to pass between. Note that we explicitly specify :prop:`parentOrientation` to be the global coordinate system, which
+prevents the pipes from lying tangent to the ground as we want them flat and partially embedded in the ground.
+
+.. code-block::
+	:lineno-start: 16
+
+	gap = 1.2 * ego.width
+	halfGap = gap / 2
+
+	leftEdge = new OrientedPoint left of bottleneck by halfGap,
+	    facing Range(60, 120) deg relative to bottleneck.heading
+	rightEdge = new OrientedPoint right of bottleneck by halfGap,
+	    facing Range(-120, -60) deg relative to bottleneck.heading
+
+	new Pipe ahead of leftEdge, with length Range(1, 2), on ground, facing leftEdge, with parentOrientation 0
+	new Pipe ahead of rightEdge, with length Range(1, 2), on ground, facing rightEdge, with parentOrientation 0
+
 
 Finally, to make the scenario slightly more interesting, we add several additional
 obstacles, positioned either on the far side of the bottleneck or anywhere at random
 (recalling that Scenic automatically ensures that no objects will overlap).
 
 .. code-block::
-	:lineno-start: 15
+	:lineno-start: 29
 
-	new BigRock beyond bottleneck by (Range(-0.5, 0.5), Range(0.5, 1))
-	new BigRock beyond bottleneck by (Range(-0.5, 0.5), Range(0.5, 1))
-	new Pipe
-	new Rock
-	new Rock
-	new Rock
+	new Pipe on ground, with parentOrientation 0
+	new BigRock beyond bottleneck by Range(0.25, 0.75) @ Range(0.75, 1), on ground
+	new BigRock beyond bottleneck by Range(-0.75, -0.25) @ Range(0.75, 1), on ground
+	new Rock on ground
+	new Rock on ground
+	new Rock on ground
 
 This completes the scenario, which can also be found in the Scenic repository under
-:file:`examples/webots/mars/narrowGoal.scenic`. Several scenes generated from the
-scenario and visualized in Webots are shown below.
+:file:`examples/webots/mars/narrowGoal.scenic`. Scenes generated from the
+scenario, and visualized in Scenic's internal visualizer and Webots, are shown below.
 
-.. figure:: /images/mars1.jpg
+.. figure:: /images/narrowGoal.png
   :width: 80%
   :figclass: align-center
-  :alt: Mars rover scenario image.
+  :alt: Mars rover scenario image, rendered in Scenic's internal visualizer.
+
+  A scene sampled from the Mars rover scenario, rendered in Scenic's internal visualizer.
+
+
+.. figure:: /images/narrowGoalWebots.png
+  :width: 80%
+  :figclass: align-center
+  :alt: Mars rover scenario image, rendered in Webots.
 
   A scene sampled from the Mars rover scenario, rendered in Webots.
 
-.. image:: /images/mars3.jpg
-   :width: 32%
-.. image:: /images/mars4.jpg
-   :width: 32%
-.. image:: /images/mars5.jpg
-   :width: 32%
 
 Further Reading
 ---------------

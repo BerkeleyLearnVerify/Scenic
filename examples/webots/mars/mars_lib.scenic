@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from scenic.simulators.webots.model import WebotsObject, Ground, Hill
+model scenic.simulators.webots.model
 
 # Set up workspace
 width = 10
@@ -12,6 +12,8 @@ workspace = Workspace(RectangularRegion(0 @ 0, 0, width, length))
 # types of objects
 
 class MarsGround(Ground):
+    width: width
+    length: length
     color: (220, 114, 9)
     gridSize: 20
 
@@ -41,18 +43,18 @@ class Rover(WebotsObject):
 class Debris(WebotsObject):
     """Abstract class for debris scattered randomly in the workspace."""
     # Recess things into the ground slightly by default
-    baseOffset: (0,0, -self.height/2-0.025)
+    baseOffset: (0, 0, -self.height/3)
 
 class BigRock(Debris):
     """Large rock."""
-    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent.parent.parent / "tools" / "meshes" / "webots_rock_large.obj.bz2")
+    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "webots_rock_large.obj.bz2")
     yaw: Range(0, 360 deg)
     webotsType: 'ROCK_BIG'
     positionOffset: Vector(0,0, -self.height/2)
 
 class Rock(Debris):
     """Small rock."""
-    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent.parent.parent / "tools" / "meshes" / "webots_rock_small.obj.bz2")
+    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "webots_rock_small.obj.bz2")
     yaw: Range(0, 360 deg)
     webotsType: 'ROCK_SMALL'
     positionOffset: Vector(0,0, -self.height/2)

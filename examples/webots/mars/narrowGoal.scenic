@@ -1,22 +1,20 @@
+model scenic.simulators.webots.model
+from mars_lib import *
 
-from scenic.simulators.webots.mars.model import *
+# Ground with random gaussian hills
+ground = new MarsGround on (0,0,0), with terrain [new MarsHill for _ in range(60)]
 
-ground = new MarsGround on (0,0,0), with terrain [new MarsHill for _ in range(20)]
-
+# Ego and goal on ground
 ego = new Rover at (0, -3), on ground, with controller 'sojourner'
-
 goal = new Goal at (Range(-2, 2), Range(2, 3)), on ground, facing (0,0,0)
 
 # Bottleneck made of two pipes with a rock in between
+bottleneck = new OrientedPoint at ego offset by Range(-1.5, 1.5) @ Range(0.5, 1.5), facing Range(-30, 30) deg
+require abs((angle to goal) - (angle to bottleneck)) <= 10 deg
+new BigRock at bottleneck, on ground
 
 gap = 1.2 * ego.width
 halfGap = gap / 2
-
-bottleneck = new OrientedPoint at ego offset by Range(-1.5, 1.5) @ Range(0.5, 1.5), facing Range(-30, 30) deg
-
-require abs((angle to goal) - (angle to bottleneck)) <= 10 deg
-
-new BigRock at bottleneck, on ground
 
 leftEdge = new OrientedPoint left of bottleneck by halfGap,
     facing Range(60, 120) deg relative to bottleneck.heading

@@ -607,7 +607,7 @@ def localPath(relpath):
     """
     filename = traceback.extract_stack(limit=2)[0].filename
     base = os.path.dirname(filename)
-    return os.path.join(base, relpath)
+    return os.path.abspath(os.path.join(base, relpath))
 
 def simulation():
     """Get the currently-running `Simulation`.
