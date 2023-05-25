@@ -551,6 +551,7 @@ scenic_stmt:
     | scenic_terminate_after_stmt
     | scenic_take_stmt
     | scenic_wait_stmt
+    | scenic_terminate_simulation_stmt
     | scenic_terminate_stmt
     | scenic_do_choose_stmt
     | scenic_do_shuffle_stmt
@@ -1871,6 +1872,8 @@ scenic_terminate_simulation_when_stmt: "terminate" "simulation" "when" v=express
 scenic_terminate_when_stmt: "terminate" "when" v=expression n=['as' a=scenic_require_stmt_name { a }] { s.TerminateWhen(v, name=n, LOCATIONS) }
 
 scenic_terminate_after_stmt: "terminate" "after" v=scenic_dynamic_duration { s.TerminateAfter(v, LOCATIONS) }
+
+scenic_terminate_simulation_stmt: "terminate" "simulation" { s.TerminateSimulation(LOCATIONS) }
 
 scenic_terminate_stmt: "terminate" { s.Terminate(LOCATIONS) }
 

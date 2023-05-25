@@ -31,17 +31,19 @@ In detail, a single time step of a dynamic simulation is executed according to t
 
 	d. If the scenario has a :keyword:`compose` block, run it for one time step (i.e. resume it until it or a subscenario it is currently running using :keyword:`do` executes :keyword:`wait`).
 	   If the block executes a :keyword:`require` statement with a false condition, reject the simulation.
-	   If it executes :keyword:`terminate`, or finishes executing, go to step (e) below to stop the scenario.
+	   If it executes :keyword:`terminate` or :keyword:`terminate simulation`, or finishes executing, go to step (e) below to stop the scenario.
 
-	e. If the scenario is stopping for one of the reasons above, first check if any of the :term:`temporal requirements` were not satisfied: if so, reject the simulation.
-	   Otherwise, the scenario returns to its parent scenario if it was invoked using :keyword:`do`; if it was the top-level scenario, we set a flag indicating the top-level scenario has terminated.
+	e. If the scenario is stopping for one of the reasons above, first recursively stop any sub-scenarios it is running, then revert the effects of any :keyword:`override` statements it executed.
+	   Next, check if any of its :term:`temporal requirements` were not satisfied: if so, reject the simulation.
+	   Otherwise, the scenario returns to its parent scenario if it was invoked using :keyword:`do`; if it was the top-level scenario, or if it executed :keyword:`terminate simulation`, we set a flag indicating the top-level scenario has terminated.
 	   (We do not terminate immediately since we still need to check monitors in the next step.)
 
 2. Save the values of all :keyword:`record` statements, as well as :keyword:`record initial` statements if it is time step 0.
 
-3. Run each :term:`monitor` for one time step (i.e. resume it until it executes :keyword:`wait`).
+3. Run each :term:`monitor` instantiated in the currently-running scenarios for one time step (i.e. resume it until it executes :keyword:`wait`).
    If it executes a :keyword:`require` statement with a false condition, reject the simulation.
-   If it executes :keyword:`terminate`, set the termination flag (and continue running any other monitors).
+   If it executes :keyword:`terminate`, stop the scenario which instantiated it as in step (1e) above.
+   If it executes :keyword:`terminate simulation`, set the termination flag (and continue running any other monitors).
 
 4. If the termination flag is set, any of the :keyword:`terminate simulation when` conditions are satisfied, or a time limit passed to `Simulator.simulate` has been reached, go to step (10) to terminate the simulation.
 
@@ -52,7 +54,8 @@ In detail, a single time step of a dynamic simulation is executed according to t
 
 	b. Resume the behavior until it (or a subbehavior it is currently running using :keyword:`do`) executes :keyword:`take` or :keyword:`wait`.
 	   If the behavior executes a :keyword:`require` statement with a false condition, reject the simulation.
-	   If it executes :keyword:`terminate`, go to step (10) to terminate the simulation.
+	   If it executes :keyword:`terminate`, stop the scenario which defined the agent as in step (1e) above.
+	   If it executes :keyword:`terminate simulation`, go to step (10) to terminate the simulation.
 	   Otherwise, save the (possibly empty) set of actions specified for the agent to take.
 
 6. For each agent, execute the :term:`actions` (if any) its behavior chose in the previous step.

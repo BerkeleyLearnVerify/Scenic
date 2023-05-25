@@ -43,9 +43,11 @@ def assertSceneEquivalence(scene1, scene2, ignoreDynamics=False, ignoreConstProp
     del scene1.sample, scene2.sample
     if ignoreDynamics:
         del scene1.dynamicScenario, scene2.dynamicScenario
-    if ignoreConstProps:
-        for obj in (scene1.objects + scene2.objects):
+    for obj in (scene1.objects + scene2.objects):
+        if ignoreConstProps:
             del obj._constProps
+        if ignoreDynamics:
+            del obj._parentScenario
     assert areEquivalent(scene1, scene2)
 
 # Exporting scenes to Scenic code

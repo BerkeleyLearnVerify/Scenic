@@ -6,11 +6,11 @@ import pytest
 
 from scenic.core.dynamics import PreconditionViolation, InvariantViolation
 from scenic.core.errors import ScenicSyntaxError, SpecifierError, InvalidScenarioError
-from scenic.core.simulators import DummySimulator
+from scenic.core.simulators import DummySimulator, TerminationType
 
 from tests.utils import (compileScenic, sampleEgo, sampleEgoFrom, sampleScene,
                          sampleSceneFrom, sampleTrajectory, sampleEgoActions,
-                         sampleResultOnce)
+                         sampleResult, sampleResultOnce)
 
 # Basics
 
@@ -77,6 +77,49 @@ def test_scenario_inside_behavior():
                     new Object at 10@10
             ego = new Object
         """)
+
+# Termination
+
+def test_time_limit():
+    scenario = compileScenic("""
+        scenario Main():
+            ego = new Object
+    """)
+    result = sampleResult(scenario, maxSteps=3)
+    assert len(result.trajectory) == 4
+    assert result.terminationType == TerminationType.timeLimit
+
+def test_terminate_when():
+    scenario = compileScenic("""
+        scenario Main():
+            ego = new Object
+            terminate when simulation().currentTime > 1
+    """)
+    result = sampleResult(scenario, maxSteps=5)
+    assert len(result.trajectory) == 3
+    assert result.terminationType == TerminationType.scenarioComplete
+
+def test_terminate_after():
+    scenario = compileScenic("""
+        scenario Main():
+            ego = new Object
+            terminate after 2 steps
+    """)
+    result = sampleResult(scenario, maxSteps=5)
+    assert len(result.trajectory) == 3
+    assert result.terminationType == TerminationType.scenarioComplete
+
+def test_terminate_in_behavior():
+    scenario = compileScenic("""
+        scenario Main():
+            behavior Foo():
+                wait
+                terminate
+            ego = new Object with behavior Foo
+    """)
+    result = sampleResult(scenario, maxSteps=5)
+    assert len(result.trajectory) == 2
+    assert result.terminationType == TerminationType.terminatedByBehavior
 
 # Preconditions and invariants
 
@@ -288,6 +331,42 @@ def test_subscenario_terminate_with_parent():
     """)
     result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
+
+def test_subscenario_terminate_behavior():
+    """Test that 'terminate' in a behavior only terminates the parent scenario."""
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub()
+                wait
+        scenario Sub():
+            behavior Foo():
+                take 1
+                terminate
+            ego = new Object with behavior Foo
+    """)
+    actions = sampleEgoActions(scenario, maxSteps=2)
+    assert tuple(actions) == (1, None)
+
+def test_subscenario_terminate_compose():
+    """Test that 'terminate' in a compose block only terminates that scenario."""
+    scenario = compileScenic("""
+        scenario Main():
+            compose:
+                do Sub()
+                wait
+        scenario Sub():
+            compose:
+                do Bottom(0)
+                terminate
+                do Bottom(10)
+        scenario Bottom(x):
+            ego = new Object at (x, 0)
+            terminate after 1 steps
+    """)
+    trajectory = sampleTrajectory(scenario, maxSteps=3)
+    assert len(trajectory) == 3
+    assert len(trajectory[2]) == 1
 
 def test_initial_scenario_basic():
     scenario = compileScenic("""

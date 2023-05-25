@@ -1178,7 +1178,18 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
     @context(Context.DYNAMIC)
     def visit_Terminate(self, node: s.Terminate):
         termination = ast.Call(
-            ast.Name("makeTerminationAction", loadCtx), [ast.Constant(node.lineno)], []
+            ast.Name("_makeTerminationAction", loadCtx),
+            [ast.Name("self", ast.Load()), ast.Constant(node.lineno)],
+            []
+        )
+        return self.generateInvocation(node, termination)
+
+    @context(Context.DYNAMIC)
+    def visit_TerminateSimulation(self, node: s.TerminateSimulation):
+        termination = ast.Call(
+            ast.Name("_makeSimulationTerminationAction", loadCtx),
+            [ast.Constant(node.lineno)],
+            []
         )
         return self.generateInvocation(node, termination)
 

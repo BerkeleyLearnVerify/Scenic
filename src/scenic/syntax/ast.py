@@ -447,6 +447,10 @@ class Terminate(AST):
     pass
 
 
+class TerminateSimulation(AST):
+    pass
+
+
 class TerminateSimulationWhen(AST):
     __match_args__ = ("cond", "name",)
 

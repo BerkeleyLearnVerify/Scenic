@@ -101,6 +101,8 @@ These statements can only be used inside a :term:`dynamic behavior`, :term:`moni
      - Take no actions this time step.
    * - :sampref:`terminate`
      - Immediately end the scenario.
+   * - :sampref:`terminate simulation`
+     - Immediately end the entire simulation.
    * - :sampref:`do {behavior/scenario}, {...}`
      - Run one or more sub-behaviors/sub-scenarios until they complete.
    * - :sampref:`do {behavior/scenario}, {...} until {boolean}`
