@@ -31,7 +31,7 @@ import sys
 import inspect
 import numbers
 import typing
-import numpy
+from typing import get_origin as get_type_origin, get_args as get_type_args
 
 from scenic.core.distributions import (Distribution, RejectionException, StarredDistribution,
                                        TupleDistribution, distributionFunction, supportInterval,
@@ -39,7 +39,6 @@ from scenic.core.distributions import (Distribution, RejectionException, Starred
 from scenic.core.lazy_eval import (DelayedArgument, valueInContext, requiredProperties,
                                    needsLazyEvaluation)
 from scenic.core.errors import saveErrorLocation
-from scenic.core.utils import get_type_origin, get_type_args
 
 ## Basic types
 
@@ -387,5 +386,4 @@ class TypeEqualityChecker(DelayedArgument):
 
 def is_typing_generic(tp):
     """Whether this is a pre-3.9 generic type from the typing module."""
-    assert sys.version_info >= (3, 7)
     return isinstance(tp, typing._GenericAlias)

@@ -7,11 +7,7 @@ import time
 import argparse
 import random
 import numpy
-
-if sys.version_info >= (3, 8):
-    from importlib import metadata
-else:
-    import importlib_metadata as metadata
+from importlib import metadata
 
 import scenic
 import scenic.syntax.translator as translator
