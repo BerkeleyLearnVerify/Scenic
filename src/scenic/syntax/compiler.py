@@ -22,10 +22,7 @@ def compileScenicAST(
     inInterruptBlock: bool = False,
 ) -> Tuple[Union[ast.AST, List[ast.AST]], List[ast.AST]]:
     """Compiles Scenic AST to Python AST"""
-    compiler = ScenicToPythonTransformer()
-
-    # set filename
-    compiler.filename = filename
+    compiler = ScenicToPythonTransformer(filename)
 
     # set optional flags
     compiler.inBehavior = inBehavior
@@ -194,6 +191,25 @@ class LocalFinder(ast.NodeVisitor):
         self.generic_visit(node)
 
 
+class Transformer(ast.NodeTransformer):
+    """Subclass of `ast.NodeTransformer` with a method for raising syntax errors."""
+
+    def __init__(self, filename):
+        super().__init__()
+        self.filename = filename
+
+    def makeSyntaxError(self, msg, node: ast.AST) -> ScenicParseError:
+        e = SyntaxError(msg)
+        e.lineno = node.lineno
+        e.offset = node.col_offset
+        if node.end_lineno is not None:
+            e.end_lineno = node.end_lineno
+        if node.end_col_offset is not None:
+            e.end_offset = node.end_col_offset
+        e.filename = self.filename
+        raise ScenicParseError(e)
+
+
 # Proposition Constructors with Temporal Operators Support
 PROPOSITION_AND = "PropositionAnd"
 PROPOSITION_OR = "PropositionOr"
@@ -215,11 +231,15 @@ PROPOSITION_FACTORY = (
     UNTIL,
     IMPLIES,
 )
+TEMPORAL_PREFIX_OPS = {
+    'always',
+    'eventually',
+    'next',
+}
 
-
-class PropositionTransformer(ast.NodeTransformer):
-    def __init__(self) -> None:
-        super().__init__()
+class PropositionTransformer(Transformer):
+    def __init__(self, filename='<unknown>') -> None:
+        super().__init__(filename)
         self.nextSyntaxId = 0
 
     def transform(
@@ -339,6 +359,15 @@ class PropositionTransformer(ast.NodeTransformer):
         )
         return ast.copy_location(newNode, node)
 
+    def visit_Call(self, node: ast.Call):
+        func = node.func
+        if isinstance(func, ast.Name) and func.id in TEMPORAL_PREFIX_OPS:
+            self.makeSyntaxError(
+                f'malformed use of the "{func.id}" temporal operator',
+                node
+            )
+        return self.generic_visit(node)
+
     def visit_Always(self, node: s.Always):
         value = self.visit(node.value)
         if not self.is_proposition_factory(value):
@@ -415,10 +444,9 @@ class Context(IntFlag):
     DYNAMIC = BEHAVIOR | MONITOR | COMPOSE
 
 
-class ScenicToPythonTransformer(ast.NodeTransformer):
-    def __init__(self) -> None:
-        super().__init__()
-        self.filename = None
+class ScenicToPythonTransformer(Transformer):
+    def __init__(self, filename) -> None:
+        super().__init__(filename)
 
         self.requirements = []
         self.nextSyntaxId = 0
@@ -440,17 +468,6 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
         self.inLoop = False
         self.usedBreak = False
         self.usedContinue = False
-
-    def makeSyntaxError(self, msg, node: ast.AST) -> ScenicParseError:
-        e = SyntaxError(msg)
-        e.lineno = node.lineno
-        e.offset = node.col_offset
-        if node.end_lineno is not None:
-            e.end_lineno = node.end_lineno
-        if node.end_col_offset is not None:
-            e.end_offset = node.end_col_offset
-        e.filename = self.filename
-        raise ScenicParseError(e)
 
     @property
     def topLevel(self):
@@ -1338,7 +1355,8 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
             name (Optional[str], optional): Optional name for requirements. Defaults to None.
             prob (Optional[float], optional): Optional probability for requirements. Defaults to None.
         """
-        newBody, self.nextSyntaxId = PropositionTransformer().transform(
+        propTransformer = PropositionTransformer(self.filename)
+        newBody, self.nextSyntaxId = propTransformer.transform(
             body, self.nextSyntaxId
         )
         newBody = self.visit(newBody)
@@ -1735,29 +1753,4 @@ class ScenicToPythonTransformer(ast.NodeTransformer):
                 self.visit(node.right),
             ],
             keywords=[],
-        )
-
-    def visit_Always(self, node: s.Always):
-        raise self.makeSyntaxError(
-            "`always` can only be used inside requirements", node
-        )
-
-    def visit_Eventually(self, node: s.Eventually):
-        raise self.makeSyntaxError(
-            "`always` can only be used inside requirements", node
-        )
-
-    def visit_Next(self, node: s.Next):
-        raise self.makeSyntaxError(
-            "`always` can only be used inside requirements", node
-        )
-
-    def visit_ImpliesOp(self, node: s.ImpliesOp):
-        raise self.makeSyntaxError(
-            "`always` can only be used inside requirements", node
-        )
-
-    def visit_UntilOp(self, node: s.UntilOp):
-        raise self.makeSyntaxError(
-            "`always` can only be used inside requirements", node
         )

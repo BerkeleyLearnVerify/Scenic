@@ -1370,7 +1370,16 @@ expressions:
 expression (memo):
     | invalid_expression
     | invalid_legacy_expression
-    | a=scenic_until 'if' b=scenic_until 'else' c=expression {
+    | a=disjunction 'if' b=disjunction 'else' c=disjunction {
+        ast.IfExp(body=a, test=b, orelse=c, LOCATIONS)
+     }
+    | disjunction
+    | lambdef
+
+scenic_temporal_expression (memo):
+    | invalid_expression
+    | invalid_legacy_expression
+    | a=scenic_until 'if' b=scenic_until 'else' c=scenic_until {
         ast.IfExp(body=a, test=b, orelse=c, LOCATIONS)
      }
     | scenic_until
@@ -1438,21 +1447,47 @@ scenic_temporal_prefix (memo):
 scenic_implication (memo):
     | invalid_scenic_implication
     # exclude implication on RHS to disallow "A implies B implies C"
-    | a=disjunction "implies" b=(scenic_temporal_prefix | disjunction) { s.ImpliesOp(a, b, LOCATIONS) }
-    | disjunction
+    | a=scenic_temporal_disjunction "implies" b=(scenic_temporal_prefix | scenic_temporal_disjunction) { s.ImpliesOp(a, b, LOCATIONS) }
+    | scenic_temporal_disjunction
 
 disjunction (memo):
-    | a=conjunction b=('or' c=(scenic_temporal_prefix | conjunction) { c })+ { ast.BoolOp(op=ast.Or(), values=[a] + b, LOCATIONS) }
+    | a=conjunction b=('or' c=conjunction { c })+ { ast.BoolOp(op=ast.Or(), values=[a] + b, LOCATIONS) }
     | conjunction
 
+scenic_temporal_disjunction (memo):
+    | a=scenic_temporal_conjunction b=('or' c=(scenic_temporal_prefix | scenic_temporal_conjunction) { c })+ { ast.BoolOp(op=ast.Or(), values=[a] + b, LOCATIONS) }
+    | scenic_temporal_conjunction
+
 conjunction (memo):
-    | a=inversion b=('and' c=(scenic_temporal_prefix | inversion) { c })+ { ast.BoolOp(op=ast.And(), values=[a] + b, LOCATIONS) }
+    | a=inversion b=('and' c=inversion { c })+ { ast.BoolOp(op=ast.And(), values=[a] + b, LOCATIONS) }
     | inversion
+
+scenic_temporal_conjunction (memo):
+    | a=scenic_temporal_inversion b=('and' c=(scenic_temporal_prefix | scenic_temporal_inversion) { c })+ { ast.BoolOp(op=ast.And(), values=[a] + b, LOCATIONS) }
+    | scenic_temporal_inversion
 
 inversion (memo):
     # [SCENIC NOTE]: Fail `not visible <inversion>` to be handled later
     | 'not' !("visible" inversion) a=inversion { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
     | comparison
+
+scenic_temporal_inversion (memo):
+    # Fail `not visible <inversion>` to be handled later
+    | 'not' !("visible" scenic_temporal_inversion) a=(scenic_temporal_prefix | scenic_temporal_inversion) { ast.UnaryOp(op=ast.Not(), operand=a, LOCATIONS) }
+    | scenic_temporal_group
+    | comparison
+
+# Parsing temporal operators only inside "require" would require duplicating
+# the entire rule hierarchy for expressions, since for example "always(X)" is a
+# valid function call in ordinary Python but should be a temporal operator
+# inside require. Instead, we only duplicate the boolean operators (above) and
+# add the following rule which allows the introduction of parentheses without
+# traversing all the way down to `atom`; the rule looks ahead for a binary
+# temporal operator or the end of the parent expression in order to prevent
+# matching expressions like "(X) > 5", which should be parsed by `comparison`
+# instead. Invalid code like "(always(X)) > 5" is parsed as an ordinary
+# expression (with a call to the "always" function) and caught in the compiler.
+scenic_temporal_group: '(' a=scenic_temporal_expression ')' &('until' | 'or' | 'and' | ')' | ';' | NEWLINE) { a }
 
 # Scenic instance creation
 # ------------------------
@@ -1833,7 +1868,7 @@ scenic_require_stmt:
         s.RequireMonitor(monitor=e, name=n, LOCATIONS)
      }
     | invalid_scenic_require_prob
-    | 'require' p=['[' a=NUMBER ']' { float(a.string) }] e=expression n=['as' a=scenic_require_stmt_name { a }] {
+    | 'require' p=['[' a=NUMBER ']' { float(a.string) }] e=scenic_temporal_expression n=['as' a=scenic_require_stmt_name { a }] {
         s.Require(cond=e, prob=p, name=n, LOCATIONS)
      }
 scenic_require_stmt_name:
@@ -2209,7 +2244,7 @@ invalid_named_expression[NoReturn]:
      }
 
 invalid_scenic_until[NoReturn]:
-    | a=disjunction 'until' scenic_implication {
+    | a=scenic_temporal_disjunction 'until' scenic_implication {
         self.raise_syntax_error_known_location(
             f"`until` must take exactly two operands", a
         )
@@ -2223,7 +2258,7 @@ invalid_scenic_implication[NoReturn]:
      }
 
 invalid_scenic_require_prob[NoReturn]:
-    | 'require' '[' !(NUMBER ']') p=expression ']' expression ['as' scenic_require_stmt_name] {
+    | 'require' '[' !(NUMBER ']') p=expression ']' scenic_temporal_expression ['as' scenic_require_stmt_name] {
         self.raise_syntax_error_known_location(
             f"'require' probability must be a constant", p
         )
