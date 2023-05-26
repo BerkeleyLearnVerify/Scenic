@@ -24,8 +24,6 @@ testFiles = (
     'polychrome.scenic',
 )
 
-@pytest.mark.skipif(sys.version_info < (3, 8),
-                    reason='need positional-only parameters')
 @pytest.mark.parametrize('name', testFiles)
 def test_sanity(request, name):
     """Make sure our test files are actually syntactically valid."""

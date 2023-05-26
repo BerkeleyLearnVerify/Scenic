@@ -5,6 +5,7 @@ import math
 import multiprocessing
 import sys
 import types
+import weakref
 
 import numpy
 import pytest
@@ -345,6 +346,13 @@ def areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs):
             if not areEquivalent(getattr(a, attr), getattr(b, attr), cache, debug):
                 fail()
                 return False
+    elif isinstance(a, weakref.ref):
+        if not areEquivalent(a(), b(), cache, debug):
+            fail()
+            return False
+        if not areEquivalent(a.__callback__, b.__callback__, cache, debug):
+            fail()
+            return False
     elif inspect.isclass(a):
         # These attributes we can check with simple equality
         attrs = ('__doc__', '__name__', '__module__')

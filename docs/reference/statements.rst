@@ -65,7 +65,7 @@ Monitor Definition
         <statement>+
 
 Defines a type of :term:`monitor`, which can be run in parallel with the simulation like a :term:`dynamic behavior`.
-Monitors are not associated with an `Object` and cannot take actions, but can :keyword:`wait` to wait for the next time step (or :keyword:`terminate` the simulation).
+Monitors are not associated with an `Object` and cannot take actions, but can :keyword:`wait` to wait for the next time step (or use :keyword:`terminate` or :keyword:`terminate simulation` to end the scenario/simulation).
 A monitor can be instantiated in a scenario with the :keyword:`require monitor` statement.
 
 The main purpose of monitors is to evaluate complex temporal properties that are not expressible using the temporal operators available for :sampref:`require {LTL formula}` statements.
@@ -307,6 +307,13 @@ terminate
 ---------
 Immediately end the scenario.
 As for :keyword:`terminate when`, if this statement is used in a :term:`modular scenario` which was invoked from another scenario, only the current scenario will end, not the entire simulation.
+Inside a :term:`behavior` being run by an agent, the "current scenario" for this purpose is the scenario which created the agent.
+
+.. _terminate simulation:
+
+terminate simulation
+--------------------
+Immediately end the entire simulation.
 
 .. _do {behavior/scenario}, {...}:
 .. _do:

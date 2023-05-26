@@ -9,6 +9,7 @@ import itertools
 import sys
 import types
 import warnings
+import weakref
 
 import rv_ltl
 
@@ -445,12 +446,15 @@ class DynamicScenario(Invocable):
                 terminationReason = sub._step()
                 if isinstance(terminationReason, EndSimulationAction):
                     yield terminationReason
+                    assert False, self  # should never get here since simulation ends
                 elif terminationReason is None:
                     newSubs.append(sub)
             self._subScenarios = newSubs
             if not newSubs:
                 return
             yield None
+            # Check if any sub-scenarios stopped during action execution
+            self._subScenarios = [sub for sub in self._subScenarios if sub._isRunning]
 
     def _evaluateRecordedExprs(self, ty):
         if ty is RequirementType.record:
@@ -474,16 +478,22 @@ class DynamicScenario(Invocable):
 
     def _runMonitors(self):
         terminationReason = None
+        endScenario = None
         for monitor in self._monitors:
             action = monitor._step()
+            # do not exit early, since subsequent monitors could reject the simulation
             if isinstance(action, EndSimulationAction):
                 terminationReason = action
-                # do not exit early, since subsequent monitors could reject the simulation
+            elif isinstance(action, EndScenarioAction):
+                assert action.scenario is None
+                endScenario = action
         for sub in self._subScenarios:
             subreason = sub._runMonitors()
             if subreason is not None:
                 terminationReason = subreason
-        return terminationReason
+        if endScenario:
+            self._stop(endScenario)
+        return terminationReason or endScenario
 
     def _checkSimulationTerminationConditions(self):
         for req in self._terminateSimulationConditions:
@@ -517,6 +527,8 @@ class DynamicScenario(Invocable):
         self._objects.append(obj)
         if getattr(obj, 'behavior', None) is not None:
             self._agents.append(obj)
+
+        obj._parentScenario = weakref.ref(self)
 
     def _addRequirement(self, ty, reqID, req, line, name, prob):
         """Save a requirement defined at compile-time for later processing."""
@@ -705,7 +717,15 @@ class Behavior(Invocable, Samplable):
         allArgs = ', '.join(items)
         return f'{self.__class__.__name__}({allArgs})'
 
-def makeTerminationAction(line):
+def _makeTerminationAction(agent, line):
+    assert not veneer.isActive()
+    if agent:
+        scenario = agent._parentScenario()
+        assert scenario is not None
+    else:
+        scenario = None
+    return EndScenarioAction(scenario, line)
+def _makeSimulationTerminationAction(line):
     assert not veneer.isActive()
     return EndSimulationAction(line)
 

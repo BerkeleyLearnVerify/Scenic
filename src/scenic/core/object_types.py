@@ -21,6 +21,7 @@ import math
 import random
 import numpy as np
 import shapely
+import shapely.affinity
 import trimesh
 from abc import ABC, abstractmethod
 from functools import lru_cache
@@ -850,6 +851,9 @@ class Object(OrientedPoint):
 
         "behavior": None,
         "lastActions": None,
+
+        # weakref to scenario which created this object, for internal use
+        "_parentScenario": None,
     }
 
     def __new__(cls, *args, **kwargs):

@@ -1156,7 +1156,26 @@ class TestCompiler:
                 Expr(
                     value=Yield(
                         value=Call(
-                            func=Name(id="makeTerminationAction", ctx=Load()),
+                            func=Name(id="_makeTerminationAction", ctx=Load()),
+                            args=[Name(id="self", ctx=Load()), Constant(value=1)],
+                            keywords=[],
+                        )
+                    )
+                ),
+                checkInvariants,
+            ]:
+                self.assert_invocation_check_invariants(checkInvariants)
+            case _:
+                assert False
+
+    def test_terminate_scenario(self):
+        node, _ = compileScenicAST(TerminateSimulation(lineno=1), inBehavior=True)
+        match node:
+            case [
+                Expr(
+                    value=Yield(
+                        value=Call(
+                            func=Name(id="_makeSimulationTerminationAction", ctx=Load()),
                             args=[Constant(value=1)],
                             keywords=[],
                         )

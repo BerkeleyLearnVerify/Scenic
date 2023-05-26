@@ -297,6 +297,15 @@ class Simulation:
                         terminationReason = str(actions)
                         terminationType = TerminationType.terminatedByBehavior
                         break
+                    elif isinstance(actions, EndScenarioAction):
+                        scenario = actions.scenario
+                        if scenario._isRunning:
+                            scenario._stop(actions)
+                        if scenario is dynamicScenario:
+                            terminationReason = str(actions)
+                            terminationType = TerminationType.terminatedByBehavior
+                            break
+                        actions = ()
                     assert isinstance(actions, tuple)
                     if len(actions) == 1 and isinstance(actions[0], (list, tuple)):
                         actions = tuple(actions[0])
@@ -709,31 +718,40 @@ class EndSimulationAction(Action):
         self.line = line
 
     def __str__(self):
-        return f'"terminate" executed on line {self.line}'
+        return f'"terminate simulation" executed on line {self.line}'
 
 class EndScenarioAction(Action):
     """Special action indicating it is time to end the current scenario.
 
     Only for internal use.
     """
-    def __init__(self, line):
+    def __init__(self, scenario, line):
+        self.scenario = scenario
         self.line = line
 
     def __str__(self):
-        return f'"terminate scenario" executed on line {self.line}'
+        return f'"terminate" executed on line {self.line}'
 
 @enum.unique
 class TerminationType(enum.Enum):
     """Enum describing the possible ways a simulation can end."""
+
     #: Simulation reached the specified time limit.
     timeLimit = 'reached simulation time limit'
-    #: The top-level scenario's :keyword:`compose` block finished executing.
+
+    #: The top-level scenario finished executing.
+    #:
+    #: (Either its :keyword:`compose` block completed, one of its termination
+    #: conditions was met, or it was terminated with :keyword:`terminate`.)
     scenarioComplete = 'the top-level scenario finished'
-    #: A user-specified termination condition was met.
+
+    #: A user-specified simulation termination condition was met.
     simulationTerminationCondition = 'a simulation termination condition was met'
-    #: A :term:`monitor` used :keyword:`terminate` to end the simulation.
+
+    #: A :term:`monitor` used :keyword:`terminate simulation` to end the simulation.
     terminatedByMonitor = 'a monitor terminated the simulation'
-    #: A :term:`dynamic behavior` used :keyword:`terminate` to end the simulation.
+
+    #: A :term:`dynamic behavior` used :keyword:`terminate simulation` to end the simulation.
     terminatedByBehavior = 'a behavior terminated the simulation'
 
 class SimulationResult:

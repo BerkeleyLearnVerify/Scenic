@@ -56,7 +56,8 @@ __all__ = (
     # Exceptions
     'GuardViolation', 'PreconditionViolation', 'InvariantViolation', 'RejectionException',
     # Internal APIs     # TODO remove?
-    '_scenic_default', 'Behavior', 'Monitor', 'makeTerminationAction',
+    '_scenic_default', 'Behavior', 'Monitor',
+    '_makeTerminationAction', '_makeSimulationTerminationAction',
     'BlockConclusion', 'runTryInterrupt', 'wrapStarredValue', 'callWithStarArgs',
     'Modifier', 'DynamicScenario',
     # Proposition Factories
@@ -84,7 +85,8 @@ from scenic.core.object_types import Mutator, Point, OrientedPoint, Object
 from scenic.core.specifiers import PropertyDefault as _scenic_default
 from scenic.core.dynamics import (Behavior, Monitor, DynamicScenario, BlockConclusion,
                                   GuardViolation, PreconditionViolation, InvariantViolation,
-                                  makeTerminationAction, runTryInterrupt)
+                                  _makeTerminationAction, _makeSimulationTerminationAction,
+                                  runTryInterrupt)
 
 # everything that should not be directly accessible from the language is imported here:
 import builtins
