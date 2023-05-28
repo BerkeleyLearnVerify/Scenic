@@ -544,17 +544,20 @@ class Road:
         for i in range(len(sec_polys)-1):
             if sec_polys[i].overlaps(sec_polys[i+1]):
                 sec_polys[i] = sec_polys[i].difference(sec_polys[i+1]).buffer(-1e-6)
+                assert not sec_polys[i].overlaps(sec_polys[i+1])
 
         for dict_i in range(len(sec_lane_polys)):
             keys, polys = sec_lane_polys[dict_i].keys(), list(sec_lane_polys[dict_i].values())
             for i in range(len(polys)-1):
                 if polys[i].overlaps(polys[i+1]):
                     polys[i] = polys[i].difference(polys[i+1]).buffer(-1e-6)
+                    assert not polys[i].overlaps(polys[i+1])
             sec_lane_polys[dict_i] = dict(zip(keys, polys))
 
         for i in range(len(lane_polys)-1):
             if lane_polys[i].overlaps(lane_polys[i+1]):
                 lane_polys[i] = lane_polys[i].difference(lane_polys[i+1]).buffer(-1e-6)
+                assert not lane_polys[i].overlaps(lane_polys[i+1])
 
         return (sec_points, sec_polys, sec_lane_polys, lane_polys, union_poly)
 

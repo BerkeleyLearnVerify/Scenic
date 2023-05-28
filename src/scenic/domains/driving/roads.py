@@ -570,6 +570,13 @@ class RoadSection(LinearElement):
                 ids[i] = lane
             self.lanesByOpenDriveID = ids
 
+        # Ensure lanes do not overlap
+        for lane_iter in range(len(self.lanes)-1):
+            if self.lanes[lane_iter].polygon.overlaps(self.lanes[lane_iter+1].polygon):
+                self.lanes[lane_iter].polygon = self.lanes[lane_iter].polygon.difference(
+                    self.lanes[lane_iter+1].polygon).buffer(-1e-6)
+            assert not self.lanes[lane_iter].polygon.overlaps(self.lanes[lane_iter+1].polygon)
+
     def _defaultHeadingAt(self, point):
         point = _toVector(point)
         lane = self.laneAt(point)
@@ -899,7 +906,7 @@ class Network:
 
         :meta private:
         """
-        return 22
+        return 23
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
