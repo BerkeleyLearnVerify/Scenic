@@ -78,8 +78,8 @@ Object
 A physical object.
 This class subclasses `OrientedPoint`, adding a variety of properties including:
 
-* :prop:`width`, :prop:`length`, and height to define the dimensions of the object;
-* :prop:`shape` to define the shape of the object;
+* :prop:`width`, :prop:`length`, and :prop:`height` to define the dimensions of the object;
+* :prop:`shape` to define the `Shape` of the object;
 * :prop:`allowCollisions`, :prop:`requireVisible`, and :prop:`regionContainedIn` to control the built-in requirements that apply to the object;
 * :prop:`behavior`, specifying the object's :term:`dynamic behavior` if any;
 * :prop:`speed`, :prop:`velocity`, and other properties capturing the dynamic state of the object during simulations.

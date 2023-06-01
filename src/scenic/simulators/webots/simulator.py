@@ -99,8 +99,8 @@ class WebotsSimulation(Simulation):
 
                 trimesh.exchange.export.export_mesh(objectScaledMesh, objFilePath)
 
-                name = f"SCENIC_ADHOC_{adhocObjectId}"
-                
+                name = self._getAdhocObjectName(adhocObjectId)
+
                 rootNode = supervisor.getRoot()
                 rootChildrenField = rootNode.getField("children")
 
@@ -169,7 +169,7 @@ class WebotsSimulation(Simulation):
                 webotsObj.getField('translation').setSFVec3f(pos)
             else:
                 pos = self.coordinateSystem.positionFromScenic(
-                    Vector(*obj.position) + Vector(*obj.positionOffset)
+                    obj.position + obj.positionOffset
                 )
                 webotsObj.getField('translation').setSFVec3f(pos)
 
@@ -232,10 +232,11 @@ class WebotsSimulation(Simulation):
         angularSpeed = math.hypot(ax, ay, az)
 
         offsetOrientation = toOrientation(obj.rotationOffset)
-        orientation = self.coordinateSystem.orientationToScenic(
+        globalOrientation = self.coordinateSystem.orientationToScenic(
             webotsObj.getField('rotation').getSFRotation(),
-            offsetOrientation,
-        ) * obj.parentOrientation.inverse
+            offsetOrientation
+        )
+        yaw, pitch, roll = self.extractEulerAngles(globalOrientation, obj.parentOrientation)
 
         densityField = getFieldSafe(webotsObj, "density")
         density = None
@@ -248,9 +249,9 @@ class WebotsSimulation(Simulation):
             speed=speed,
             angularSpeed=angularSpeed,
             angularVelocity=Vector(ax, ay, az),
-            yaw=orientation.yaw,
-            pitch=orientation.pitch,
-            roll=orientation.roll,
+            yaw=yaw,
+            pitch=pitch,
+            roll=roll,
             density=density,
             elevation=z
         )
@@ -271,17 +272,6 @@ class WebotsSimulation(Simulation):
 
     def _getAdhocObjectName(self, i: int) -> str:
         return f"SCENIC_ADHOC_{i}"
-
-def f(x: int) -> int:
-    """_summary_
-
-    Args:
-        x (int): _description_
-
-    Returns:
-        int: _description_
-    """
-    return x + x
 
 def getFieldSafe(webotsObject, fieldName):
     """Get field from webots object. Return null if no such field exists.
@@ -310,8 +300,8 @@ def getFieldSafe(webotsObject, fieldName):
 
 
 def isPhysicsEnabled(webotsObject):
-    if isinstance(webotsObject.webotsAdhoc, bool):
+    if webotsObject.webotsAdhoc is None:
         return webotsObject
     if isinstance(webotsObject.webotsAdhoc, dict):
         return webotsObject.webotsAdhoc.get("physics", True)
-    raise RuntimeError(f"webotsAdhoc must be a boolean or dictionary")
+    raise TypeError(f"webotsAdhoc must be None or a dictionary")

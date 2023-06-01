@@ -75,7 +75,7 @@ def viewAngleToPoint(point, base, heading):
     return normalizeAngle(a)
 
 def apparentHeadingAtPoint(point, heading, base):
-    x, y, = base[:2]
+    x, y = base[:2]
     ox, oy = point[:2]
     a = (heading + (math.pi / 2.0)) - math.atan2(oy - y, ox - x)
     return normalizeAngle(a)

@@ -606,16 +606,14 @@ def test_precondition_rejection():
 
         # This behavior should work properly since it has no preconditions/invariants
         behavior BehaviorA():
-            ego.foo += 1
-            wait
+            take 1
 
         # This behavior should never execute since the precondition will reject,
         # which should be converted to a PreconditionViolation
         behavior BehaviorB():
             precondition: box_region.orientation[self.position].yaw < float('inf')
 
-            ego.bar += 1
-            wait
+            take 2
 
         behavior MetaBehavior():
             while True:
@@ -630,9 +628,8 @@ def test_precondition_rejection():
         record final (ego.foo, ego.bar) as test_val
     """)
     scene = sampleScene(scenario)
-    result = sampleResultFromScene(scene, maxSteps=20)
-    assert result is not None
-    assert result.records['test_val'] == (20,0)
+    results = [sampleEgoActions(scenario, maxSteps=1) for _ in range(40)]
+    assert all(result == [1] for result in results)
 
 def test_invariant_rejection():
     scenario = compileScenic("""

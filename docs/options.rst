@@ -37,11 +37,11 @@ General Scenario Control
 
 	Specify the random seed used by Scenic, to make sampling deterministic.
 
-	This option sets the seed for the Python random number generator :mod:`random`, so
+	This option sets the seed for the Python random number generator :mod:`random`
+	and the :mod:`numpy` random number generator :mod:`numpy.random`, so
 	external Python code called from within Scenic can also be made deterministic
-	(although :mod:`random` should not be used in place of Scenic's own sampling
-	constructs in Scenic code). Note though that NumPy provides other RNGs whose seeds
-	are not set by this option (see `numpy.random`).
+	(although :mod:`random` and :mod:`numpy.random` should not be used in place of
+	Scenic's own sampling constructs in Scenic code).
 
 .. option:: --scenario <scenario>
 

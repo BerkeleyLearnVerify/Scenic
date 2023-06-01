@@ -42,9 +42,12 @@ def isFunctionCall(thing, function):
     return thing.function is underlyingFunction(function)
 
 def matchInRegion(position):
-    """Match uniform samples from a `Region`, returning the Region, if any,
-    and a lower and upper bound on the distance the object will be placed
-    along with any offset that should be added to the base."""
+    """Match uniform samples from a `Region`
+
+    Returns the Region, if any, and a lower and upper bound
+    on the distance the object will be placed along with any
+    offset that should be added to the base.
+    """
 
     # Case 1: Position is simply a point in a region
     if isinstance(position, regions.PointInRegionDistribution):
@@ -68,11 +71,11 @@ def matchInRegion(position):
     return None, 0, 0, None
 
 def matchPolygonalField(heading, position):
-    """Match headings defined by a `PolygonalVectorField` at the given position.
+    """Match orientation yaw defined by a `PolygonalVectorField` at the given position.
 
-    Matches headings exactly equal to a `PolygonalVectorField`, or offset by a
-    bounded disturbance. Returns a triple consisting of the matched field if
-    any, together with lower/upper bounds on the disturbance.
+    Matches the yaw attribute of orientations exactly equal to a `PolygonalVectorField`,
+    or offset by a bounded disturbance. Returns a triple consisting of the matched field
+    if any, together with lower/upper bounds on the disturbance.
     """
     if (isFunctionCall(heading, normalizeAngle)):
         assert len(heading.arguments) == 1
@@ -126,9 +129,10 @@ def prune(scenario, verbosity=1):
 def pruneContainment(scenario, verbosity):
     """Prune based on the requirement that individual Objects fit within their container.
 
-    Specifically, if O is positioned uniformly in region B and has container C, then we
-    can instead pick a position uniformly in their intersection. If we can also lower
-    bound the radius of O, then we can first erode C by that distance.
+    Specifically, if O is positioned uniformly (with a possible offset) in region B and
+    has container C, then we can instead pick a position uniformly in their intersection.
+    If we can also lower bound the radius of O, then we can first erode C by that distance
+    minus that maximum offset distance.
     """
     for obj in scenario.objects:
         # Extract the base region and container region, while doing minor checks.
@@ -234,7 +238,6 @@ def pruneRelativeHeading(scenario, verbosity):
             continue
 
         basePoly = regions.toPolygon(base)
-
         if basePoly is None:    # the Region must be polygonal
             continue
 
@@ -258,6 +261,7 @@ def pruneRelativeHeading(scenario, verbosity):
                     percent = 100 * (1.0 - (pruned.area / newBasePoly.area))
                     print(f'    Relative heading constraint pruned {percent:.1f}% of space.')
                 newBasePoly = pruned
+
         if newBasePoly is not basePoly:
             newBase = regions.PolygonalRegion(polygon=newBasePoly,
                                               orientation=base.orientation)

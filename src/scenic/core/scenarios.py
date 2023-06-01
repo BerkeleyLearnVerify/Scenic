@@ -156,10 +156,10 @@ class Scene(_ScenarioPickleMixin):
             dumpAsScenicCode(obj, stream)
             stream.write('\n')
 
-    def show(self, zoom=None, block=True):
-        self.show3D()
+    def show(self, axes=True):
+        self.show3D(axes=axes)
 
-    def show3D(self):
+    def show3D(self, axes):
         """Render a 3D schematic of the scene for debugging."""
         import trimesh
 
@@ -177,7 +177,11 @@ class Scene(_ScenarioPickleMixin):
         if render_scene.is_empty:
             render_scene.add_geometry(trimesh.points.PointCloud([(0.1,0,0),(0,0.1,0), (0,0,.1)], colors=[255,255,255,0]))
 
-        render_scene.show(flags={'axis': 'world'})
+        flags = dict()
+        if axes:
+            flags['axis'] = 'world'
+
+        render_scene.show(flags=flags)
 
     def show2D(self, zoom=None, block=True):
         """Render a 2D schematic of the scene for debugging."""
@@ -281,11 +285,8 @@ class Scenario(_ScenarioPickleMixin):
                     if oj.allowCollisions or not staticBounds[j]:
                         continue
                     if oi.intersects(oj):
-                        oi_name = oi.name if hasattr(oi, 'name') else "Object"
-                        oj_name = oj.name if hasattr(oj, 'name') else "object"
-
-                        raise InvalidScenarioError(f'{oi_name} at {oi.position} intersects'
-                                                   f' {oj_name} at {oj.position}')
+                        raise InvalidScenarioError(f'{oi} at {oi.position} intersects'
+                                                   f' {oj} at {oj.position}')
 
     def generate(self, maxIterations=2000, verbosity=0, feedback=None):
         """Sample a `Scene` from this scenario.
@@ -337,37 +338,30 @@ class Scenario(_ScenarioPickleMixin):
             for obj in objects:
                 sampledObj = sample[obj]
                 assert not needsSampling(sampledObj)
-                # position, heading
-                assert isinstance(sampledObj.position, Vector)
-                assert isinstance(sampledObj.heading, float)
-                # behavior
-                behavior = sampledObj.behavior
-                if behavior is not None and not isinstance(behavior, Behavior):
-                    raise InvalidScenarioError(
-                        f'behavior {behavior} of Object {obj} is not a behavior')
+
+            sampledObjects = [sample[obj] for obj in objects]
+            def occluders(source, target):
+                return tuple(obj for obj in sampledObjects
+                             if obj is not source
+                             and obj is not target
+                             and obj.occluding)
 
             # Check built-in requirements for instances
-            for i in range(len(self._instances)):
-                vi = sample[self._instances[i]]
+            for instance in self._instances:
+                vi = sample[instance]
 
                 # Require that the observing entity, if one has been specified,
                 # can see the instance.
                 if vi._observingEntity is not None:
                     observing_entity = sample[vi._observingEntity]
-                    occluding_objects = tuple(sample[obj] for obj in objects \
-                                         if sample[obj] is not observing_entity \
-                                         and sample[obj] is not vi and obj.occluding)
-                    if not observing_entity.canSee(vi, occludingObjects=occluding_objects):
+                    if not observing_entity.canSee(vi, occludingObjects=occluders(observing_entity, vi)):
                         rejection = 'instance visibility (from observing entity)'
                         break
                 # Require that the non-observing entity, if one has been specified,
                 # can see the instance.
                 if vi._nonObservingEntity is not None:
                     non_observing_entity = sample[vi._nonObservingEntity]
-                    occluding_objects = tuple(sample[obj] for obj in objects \
-                                         if sample[obj] is not non_observing_entity \
-                                         and sample[obj] is not vi and obj.occluding)
-                    if non_observing_entity.canSee(vi, occludingObjects=occluding_objects):
+                    if non_observing_entity.canSee(vi, occludingObjects=occluders(non_observing_entity, vi)):
                         rejection = 'instance visibility (from non-observing entity)'
 
             # Check built-in requirements for objects
@@ -380,10 +374,7 @@ class Scenario(_ScenarioPickleMixin):
                     break
                 # Require object to be visible from the ego object
                 if vi.requireVisible and vi is not ego:
-                    occluding_objects = tuple(sample[obj] for obj in objects if sample[obj] is not ego \
-                                         and sample[obj] is not vi and obj.occluding)
-
-                    if not ego.canSee(vi, occludingObjects=occluding_objects):
+                    if not ego.canSee(vi, occludingObjects=occluders(ego, vi)):
                         rejection = 'object visibility (from ego)'
                         break
 

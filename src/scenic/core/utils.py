@@ -71,8 +71,13 @@ def alarm(seconds, handler=None, noNesting=False):
         signal.alarm(0)
         signal.signal(signal.SIGALRM, signal.SIG_DFL)
 
-def loadMesh(path, filetype=None, compressed=None):
+def loadMesh(path, filetype, compressed, binary):
     working_path = path
+
+    if binary:
+        mode = "rb"
+    else:
+        mode = "r"
 
     # Check if file is compressed
     if compressed is None:
@@ -98,7 +103,7 @@ def loadMesh(path, filetype=None, compressed=None):
     else:
         open_function = open
 
-    with open_function(path, "r") as mesh_file:
+    with open_function(path, mode) as mesh_file:
         mesh = trimesh.load(mesh_file, file_type=filetype)
 
     return mesh

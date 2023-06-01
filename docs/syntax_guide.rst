@@ -210,7 +210,7 @@ Additional specifiers for the :prop:`position` and :prop:`orientation` propertie
    * - :sampref:`not visible [from ({Point} | {OrientedPoint})]`
      - Ensures the object is not visible from the ego, or from the given Point/OrientedPoint if given, while optionally specifying position to be outside the appropriate visible region.
    * - :sampref:`(left | right) of ({vector} | {OrientedPoint} | {Object}) [by {scalar}] <left of>`
-     - Positions the object to the left/right by the given scalar distance
+     - Positions the object to the left/right by the given scalar distance.
    * - :sampref:`(ahead of | behind) ({vector} | {OrientedPoint} | {Object}) [by {scalar}] <ahead of>`
      - Positions the object to the front/back by the given scalar distance
    * - :sampref:`(above | below) ({vector} | {OrientedPoint} | {Object}) [by {scalar}] <above>`
@@ -309,6 +309,8 @@ In the following tables, operators are grouped by the type of value they return.
      - The part of the given region visible from ego
    * - :sampref:`not visible {region}`
      - The part of the given region not visible from ego
+   * - :sampref:`{region} visible from ({Point} | {OrientedPoint})`
+     - The part of the given region visible from the given `Point` or `OrientedPoint`.
 
 .. list-table::
    :header-rows: 1

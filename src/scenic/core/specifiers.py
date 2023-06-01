@@ -10,7 +10,9 @@ from scenic.core.errors import InvalidScenarioError, SpecifierError
 ## Specifiers themselves
 
 class Specifier:
-    """Specifier providing values for properties, at various priorities,
+    """Specifier providing values for properties.
+
+    Each property is set to a value, at a given priority,
     given dependencies.
 
     Args:
@@ -51,8 +53,7 @@ class Specifier:
         return f'<{self.name} Specifier for {self.priorities}>'
 
 class ModifyingSpecifier(Specifier):
-    """Specifier providing values for properties, at various priorities,
-    given dependencies. Can also modify existing properties.
+    """Specifier providing values (or modifying) properties.
 
     Args:
         name: The name of this specifier.
@@ -114,7 +115,7 @@ class PropertyDefault:
                 for other in overriddenDefs:
                     allVals.append(other.value(context))
                 return tuple(allVals)
-            val = DelayedArgument(allReqs, concatenator, _internal=True) # TODO: @Matthew Change to dicts
+            val = DelayedArgument(allReqs, concatenator, _internal=True)
         else:
             val = DelayedArgument(self.requiredProperties, self.value, _internal=True)
 

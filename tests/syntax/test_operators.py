@@ -164,6 +164,14 @@ def test_point_can_see_vector():
     """)
     assert p == (True, False)
 
+def test_point_can_see_vector_3d():
+    p = sampleParamPFrom("""
+        ego = new Object
+        pt = new Point at (10,20,0), with visibleDistance 5
+        param p = tuple([pt can see (8,19,0), pt can see (10,26,0), pt can see (10,20,4)])
+    """)
+    assert p == (True, False, True)
+
 def test_point_can_see_point():
     p = sampleParamPFrom("""
         ego = new Object
@@ -419,7 +427,7 @@ def test_mistyped_relative_to_lazy():
 
 def test_orientation_relative_to_orientation():
     ego = sampleEgoFrom("""
-        ego = new Object facing (0 deg, -90 deg, 0 deg) relative to (90 deg, 90 deg, -90 deg)
+        ego = new Object facing Orientation.fromEuler(*((0 deg, -90 deg, 0 deg) relative to (90 deg, 90 deg, -90 deg)))
     """)
     assert tuple(ego.orientation.q) == pytest.approx(tuple(Orientation.fromEuler(math.radians(90),0,math.radians(-90)).q))
 
@@ -530,7 +538,7 @@ def test_visible():
         param p = new Point in visible reg
     """)
     for i in range(30):
-        p = sampleParamP(scenario, maxIterations=100)
+        p = sampleParamP(scenario, maxIterations=10)
         assert p.x >= 100
         assert p.y >= 200
         assert math.hypot(p.x - 100, p.y - 200) <= 10
@@ -542,7 +550,7 @@ def test_not_visible():
         reg = RectangularRegion(100@200, 0, 10, 10)
         param p = new Point in not visible reg
     """)
-    ps = [sampleParamP(scenario, maxIterations=100) for i in range(50)]
+    ps = [sampleParamP(scenario, maxIterations=10) for i in range(50)]
     assert all(p.x <= 100 or p.y <= 200 for p in ps)
     assert any(p.x > 100 for p in ps)
     assert any(p.y > 200 for p in ps)
@@ -557,7 +565,7 @@ def test_visible_from():
         param p = new Point in reg visible from ego
     """)
     for i in range(30):
-        p = sampleParamP(scenario, maxIterations=100)
+        p = sampleParamP(scenario, maxIterations=10)
         assert p.x >= 100
         assert p.y >= 200
         assert math.hypot(p.x - 100, p.y - 200) <= 10

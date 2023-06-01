@@ -1,17 +1,19 @@
 """Implementations of Scenic's visibility functions."""
 
 import math
+import itertools
 
 import numpy as np
 import trimesh
 
 from scenic.core.regions import Region
 from scenic.core.vectors import Vector
+from scenic.core.utils import batched
 
 BATCH_SIZE=128
 
 def canSee(position, orientation, visibleDistance, viewAngles, 
-            rayCount, rayDensity, distanceScaling,\
+            rayCount, rayDensity, distanceScaling,
             target, occludingObjects, debug=False):
     """Perform visibility checks on Points, OrientedPoints, or Objects, accounting for occlusion.
 
@@ -98,18 +100,14 @@ def canSee(position, orientation, visibleDistance, viewAngles,
         elif isinstance(target, Object):
             # If the object contains its center and we can see the center, the object
             # is visible.
-            if target.shape.containsCenter and \
+            if (target.shape.containsCenter and
                 canSee(position, orientation, visibleDistance, viewAngles,
                        rayCount, rayDensity, distanceScaling,
-                       target.position, occludingObjects):
+                       target.position, occludingObjects)):
                 return True
             target_region = target.occupiedSpace
 
-        # Check that the distance to the target is not greater than visibleDistance, and
-        # see if position is in the target.
-        if target.containsPoint(position):
-            return True
-
+        # Check that the distance to the target is not greater than visibleDistance,
         if target.distanceTo(position) > visibleDistance:
             return False
 
@@ -162,7 +160,7 @@ def canSee(position, orientation, visibleDistance, viewAngles,
         spherical_angles = np.zeros((len(target_vertices[:,0]), 2))
 
         spherical_angles[:,0] = np.arctan2(target_vertices[:,1], target_vertices[:,0])
-        spherical_angles[:,1] = np.arcsin(target_vertices[:,2]/ \
+        spherical_angles[:,1] = np.arcsin(target_vertices[:,2]/
                                 (np.linalg.norm(target_vertices, axis=1)))
 
         # Align azimuthal angle with y axis.
@@ -174,8 +172,8 @@ def canSee(position, orientation, visibleDistance, viewAngles,
 
         # First we check if the vertical angles overlap with the vertical view angles.
         # If not, then the object cannot be visible.
-        if np.min(spherical_angles[:,1]) > viewAngles[1]/2 or \
-           np.max(spherical_angles[:,1]) < -viewAngles[1]/2:
+        if (np.min(spherical_angles[:,1]) > viewAngles[1]/2 or
+           np.max(spherical_angles[:,1]) < -viewAngles[1]/2):
             return False 
 
         ## Compute which horizontal/vertical angle ranges to cast rays in
@@ -234,10 +232,10 @@ def canSee(position, orientation, visibleDistance, viewAngles,
 
             # Check if view range and spherical angles overlap in horizontal or
             # vertical dimensions. If not, return False
-            if  (np.max(spherical_angles[:,0]) < -viewAngles[0]/2) or \
-                (np.min(spherical_angles[:,0]) >  viewAngles[0]/2) or \
-                (np.max(spherical_angles[:,1]) < -viewAngles[1]/2) or \
-                (np.min(spherical_angles[:,1]) >  viewAngles[1]/2):
+            if ((np.max(spherical_angles[:,0]) < -viewAngles[0]/2) or
+                (np.min(spherical_angles[:,0]) >  viewAngles[0]/2) or
+                (np.max(spherical_angles[:,1]) < -viewAngles[1]/2) or
+                (np.min(spherical_angles[:,1]) >  viewAngles[1]/2)):
                 return False
 
             # Compute trimmed view angles
@@ -313,23 +311,13 @@ def canSee(position, orientation, visibleDistance, viewAngles,
 
         batch_size = BATCH_SIZE
 
-        # Use a generator to avoid having to split a large array
-        def ray_indices_generator():
-            bottom_index = 0
-            top_index = batch_size
-
-            while bottom_index < len(ray_vectors):
-                yield ray_indices[bottom_index:top_index]
-
-                bottom_index = top_index
-                top_index += batch_size
-
-        for target_ray_indices in ray_indices_generator():
-            ray_batch = ray_vectors[target_ray_indices]
+        # Use a generator to avoid having to immediately split a large array
+        for target_ray_indices in batched(ray_indices, batch_size):
+            ray_batch = ray_vectors[np.asarray(target_ray_indices)]
 
             # Check if candidate rays hit target
             raw_target_hit_info = target_region.mesh.ray.intersects_location(
-                ray_origins=[position.coordinates for ray in ray_batch],
+                ray_origins=[position.coordinates] * len(ray_batch),
                 ray_directions=ray_batch)
 
             # If no hits, this object can't be visible with these rays
@@ -479,8 +467,8 @@ def canSee(position, orientation, visibleDistance, viewAngles,
             render_scene.show()
 
         # Check if this ray is within our view cone.
-        if (not (-viewAngles[0]/2 <= relative_azimuth <= viewAngles[0]/2)) or \
-            (not (-viewAngles[1]/2 <= relative_altitude <= viewAngles[1]/2)):
+        if (not (-viewAngles[0]/2 <= relative_azimuth <= viewAngles[0]/2) or
+            not (-viewAngles[1]/2 <= relative_altitude <= viewAngles[1]/2)):
             return False
 
         # Now check if occluding objects block sight to target

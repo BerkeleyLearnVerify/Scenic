@@ -51,7 +51,7 @@ class WebotsCoordinateSystem:
             raise ValueError("Coordinate systems other than ENU is not fully supported")
 
         target = orientation * offset
-        r = R.from_quat(target.q)
+        r = target.getRotation()
         rotvec = r.as_rotvec()
         if rotvec.tolist() == [0, 0, 0]:
             webotsRotation = [1.0, 0.0, 0.0, 0.0]

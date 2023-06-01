@@ -49,7 +49,10 @@ class WebotsObject:
         elevation (float or None; dynamic): default ``None`` (see above).
         requireVisible (bool): Default value ``False`` (overriding the default
             from `Object`).
-        webotsAdhoc (bool | dict): Whether to generate a webots object ad-hoc at runtime.
+        webotsAdhoc (None | dict): None implies this object is not Adhoc. A dictionary
+            implies this is an object that Scenic should create in Webots..
+            If a dictionary, provides parameters for how to instantiate the adhoc object.
+            See `scenic.simulators.webots.model` for more details.
         webotsName (str): 'DEF' name of the Webots node to use for this object.
         webotsType (str): If ``webotsName`` is not set, the first available
             node with 'DEF' name consisting of this string followed by '_0',
@@ -67,7 +70,7 @@ class WebotsObject:
         rotationOffset (tuple[float, float, float]): Offset to add when computing the object's
             orientation in Webots; for objects whose front is not aligned with the
             Webots North axis.
-        density (float): Density of this object. The corresponding Webots object
+        density (float): Density of this object in kg/m^3. The corresponding Webots object
             must have the ``density`` field.
 
     .. _Supervisor API: https://www.cyberbotics.com/doc/reference/supervisor?tab-language=python
@@ -87,7 +90,7 @@ class WebotsObject:
     positionOffset: (0, 0, 0)
     rotationOffset: (0, 0, 0)
 
-    density[dynamic]: None # kg/m^3
+    density[dynamic]: None
 
     @classmethod
     def _prepareSpecifiers(cls, specifiers):
@@ -164,16 +167,16 @@ class Ground(WebotsObject):
         dx, dy = width / (gridSizeX - 1), length / (gridSizeY - 1)
         base_x, base_y = -width / 2, length / 2
 
-        heightmap_vertices = tuple(tuple((base_x+ix*dx, base_y-iy*dy, heights[iy][ix]) for ix in range(gridSizeX)) for iy in range(gridSizeY))
+        raw_vertices = numpy.asarray([[base_x+ix*dx, base_y-iy*dy, heights[iy][ix]]
+            for iy in range(gridSizeY) for ix in range(gridSizeX)])
+        heightmap_vertices = raw_vertices.reshape((gridSizeX, gridSizeY, 3))
 
-        raw_vertices = [v for row in heightmap_vertices for v in row]
-        top_vertices = list(dict.fromkeys(raw_vertices))
-        vertices =  top_vertices + \
+        vertices =  numpy.vstack((raw_vertices, numpy.asarray(
                     [( width/2,-length/2,-baseThickness),
                      (-width/2,-length/2,-baseThickness),
                      (-width/2, length/2,-baseThickness),
-                     ( width/2, length/2,-baseThickness),]
-        vertex_index_map = {vertices[i]:i for i in range(len(vertices))}
+                     ( width/2, length/2,-baseThickness)])))
+        vertex_index_map = {tuple(vertices[i]):i for i in range(len(vertices))}
 
         # Create top surface
         for ix in range(gridSizeX-1):
@@ -181,23 +184,22 @@ class Ground(WebotsObject):
                 # Calculate an interpolated middle point
                 tl_x, tl_y, _ = heightmap_vertices[ix][iy]
                 bl_x, bl_y, _ = heightmap_vertices[ix+1][iy+1]
-                mean_height = (heightmap_vertices[ix][iy][2] + heightmap_vertices[ix+1][iy][2] + heightmap_vertices[ix][iy+1][2] + heightmap_vertices[ix+1][iy+1][2])/4
+                mean_height = (heightmap_vertices[ix][iy][2] + heightmap_vertices[ix+1][iy][2] +
+                               heightmap_vertices[ix][iy+1][2] + heightmap_vertices[ix+1][iy+1][2])/4
                 interpolated_point = ((tl_x + bl_x)/2, (tl_y + bl_y)/2, mean_height)
 
-                # Left
-                triangles += [(heightmap_vertices[ix][iy], interpolated_point, heightmap_vertices[ix][iy+1])]
-                # Top
-                triangles += [(heightmap_vertices[ix][iy], heightmap_vertices[ix+1][iy], interpolated_point)]
-                # Right
-                triangles += [(heightmap_vertices[ix+1][iy], heightmap_vertices[ix+1][iy+1], interpolated_point)]
-                # Bottom
-                triangles += [(heightmap_vertices[ix][iy+1], interpolated_point, heightmap_vertices[ix+1][iy+1])]
+                triangles.extend([
+                    (heightmap_vertices[ix][iy], interpolated_point, heightmap_vertices[ix][iy+1]), # Left
+                    (heightmap_vertices[ix][iy], heightmap_vertices[ix+1][iy], interpolated_point), # Top
+                    (heightmap_vertices[ix+1][iy], heightmap_vertices[ix+1][iy+1], interpolated_point), # Right
+                    (heightmap_vertices[ix][iy+1], interpolated_point, heightmap_vertices[ix+1][iy+1]), # Bottom
+                ])
 
         # Create side surfaces
         side_xy_vals = [(0, -width/2), (0, width/2), (1, -length/2), (1, length/2)]
 
         for side_vals in side_xy_vals:
-            mid_side_vertices = [v for v in top_vertices if v[side_vals[0]] == side_vals[1]]
+            mid_side_vertices = [v for v in raw_vertices if v[side_vals[0]] == side_vals[1]]
 
             if side_vals[0] == 0:
                 if side_vals[1] < 0:
@@ -210,7 +212,7 @@ class Ground(WebotsObject):
                 else:
                     side_vertices = [(-width/2, length/2, -baseThickness)] + mid_side_vertices + [(width/2, length/2, -baseThickness)] + [(-width/2, length/2, -baseThickness)]
 
-            side_indices = [vertex_index_map[v] for v in side_vertices]
+            side_indices = [vertex_index_map[tuple(v)] for v in side_vertices]
 
             side_path = trimesh.path.Path3D(entities=[trimesh.path.entities.Line(side_indices)], vertices=vertices)
 
@@ -264,8 +266,8 @@ class Ground(WebotsObject):
                 heightField.insertMFFloat(-1, 0)
         # Set height values
         i = 0
-        for row in [row[::-1] for row in self.heights]:
-            for height in row:
+        for row in self.heights:
+            for height in reversed(row):
                 heightField.setMFFloat(i, height)
                 i += 1
 

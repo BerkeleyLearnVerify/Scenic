@@ -161,7 +161,7 @@ allowedOperators = [
 def makeDelayedOperatorHandler(op):
     def handler(self, *args):
         props = set(self._requiredProperties).union(*(requiredProperties(arg) for arg in args))
-        def value(context,):
+        def value(context):
             subvalues = (valueInContext(arg, context) for arg in args)
             return getattr(self.evaluateIn(context), op)(*subvalues)
         return DelayedArgument(props, value, _internal=True)

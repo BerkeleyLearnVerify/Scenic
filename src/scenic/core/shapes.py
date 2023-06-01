@@ -8,6 +8,7 @@ import numpy
 
 from scenic.core.vectors import Orientation
 from scenic.core.utils import cached_property, loadMesh
+from scenic.core.type_support import toOrientation
 
 ###################################################################################################
 # Abstract Classes and Utilities
@@ -20,13 +21,12 @@ class Shape(ABC):
     which are handled by the `Region` class. Does contain dimension information, which
     is used as a default value by any `Object` with this shape and can be overwritten.
 
+    If dimensions and scale are both specified the dimensions are first set by dimensions,
+    and then scaled by scale.
+
     Args:
-        dimensions: The raw (before scaling) dimensions of the shape. If dimensions
-          and scale are both specified the dimensions are first set by dimensions, and then
-          scaled by scale.
+        dimensions: The raw (before scaling) dimensions of the shape.
         scale: Scales all the dimensions of the shape by a multiplicative factor.
-          If dimensions and scale are both specified the dimensions are first set by dimensions,
-          and then scaled by scale.
     """
     def __init__(self, dimensions, scale):
         # Store values
@@ -81,11 +81,10 @@ class MeshShape(Shape):
         # Copy mesh and center vertices around origin
         self._mesh = mesh.copy()
         self._mesh.vertices -= self._mesh.bounding_box.center_mass
-        self._isConvex = self._mesh.is_convex
 
         # If rotation is provided, apply rotation
         if initial_rotation is not None:
-            rotation = Orientation.fromEuler(*initial_rotation)
+            rotation = toOrientation(initial_rotation)
             rotation_matrix = quaternion_matrix((rotation.w, rotation.x, rotation.y, rotation.z))
             self._mesh.apply_transform(rotation_matrix)
 
@@ -94,16 +93,15 @@ class MeshShape(Shape):
             dimensions = list(self._mesh.extents)
 
         # Scale mesh to unit size
-        scale_vals = self._mesh.extents / numpy.array([1,1,1])
+        scale_vals = numpy.array(self._mesh.extents)
         scale_matrix = numpy.eye(4)
         scale_matrix[:3, :3] /= scale_vals
         self._mesh.apply_transform(scale_matrix)
 
-        # Report samplables
         super().__init__(dimensions, scale)
 
     @classmethod
-    def fromFile(cls, path, filetype=None, compressed=None, **kwargs):
+    def fromFile(cls, path, filetype=None, compressed=None, binary=False, **kwargs):
         """Load a shape from a file, attempting to infer filetype and compression.
 
         For example: "foo.obj.bz2" is assumed to be a compressed .obj file.
@@ -111,22 +109,29 @@ class MeshShape(Shape):
         unknown filetype, so unless a filetype is provided an exception will be raised.
 
         Args:
-            path: Path to the file to import
-            filetype: Filetype of file to be imported. This will be inferred if not provided
-            compressed: Wheter or not this file is compressed (with bz2). This will be inferred
-                if not provided
+            path (str): Path to the file to import.
+            filetype (str): Filetype of file to be imported. This will be inferred if not provided.
+                The filetype must be one compatible with `trimesh.load`.
+            compressed (bool): Whether or not this file is compressed (with bz2). This will be inferred
+                if not provided.
+            binary (bool): Whether or not to open the file as a binary file.
             kwargs: Additional arguments to the MeshShape initializer.
         """
-        mesh = loadMesh(path, filetype, compressed)
+        mesh = loadMesh(path, filetype, compressed, binary)
         return cls(mesh, **kwargs)
 
     @property
     def mesh(self):
         return self._mesh
 
-    @property
+    @cached_property
     def isConvex(self):
-        return self._isConvex
+        return self._mesh.is_convex
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_mesh"] = self._mesh.copy()
+        return state
 
 class BoxShape(MeshShape):
     """A 3D box with all dimensions 1 by default."""

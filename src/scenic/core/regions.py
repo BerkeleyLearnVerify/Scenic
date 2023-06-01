@@ -13,6 +13,7 @@ import itertools
 from functools import lru_cache
 from abc import ABC, abstractmethod
 import warnings
+from subprocess import CalledProcessError
 
 import numpy
 import scipy
@@ -21,12 +22,9 @@ import shapely.geometry
 from shapely.geometry import MultiPolygon
 import shapely.ops
 import shapely.prepared
-
 import trimesh
 from trimesh.transformations import translation_matrix, quaternion_matrix, concatenate_matrices
 warnings.filterwarnings('ignore', module='trimesh') # temporarily suppress annoying warnings
-
-from subprocess import CalledProcessError
 
 from scenic.core.distributions import (Samplable, RejectionException, needsSampling, needsLazyEvaluation,
                                        distributionFunction, distributionMethod, toDistribution)
@@ -73,6 +71,11 @@ class Region(Samplable, ABC):
     @abstractmethod
     def distanceTo(self, point) -> float:
         """Distance to this region from a given point."""
+        pass
+
+    @abstractmethod
+    def projectVector(self, point, onDirection):
+        """Returns point projected onto this region along onDirection."""
         pass
 
     @property
@@ -244,9 +247,12 @@ class AllRegion(Region):
     def distanceTo(self, point):
         return 0
 
+    def projectVector(self, point, onDirection):
+        return point
+
     @property
     def AABB(self):
-        raise NotImplementedError
+        raise TypeError("AllRegion does not have a well defined AABB")
 
     def __eq__(self, other):
         return type(other) is AllRegion
@@ -283,9 +289,12 @@ class EmptyRegion(Region):
     def distanceTo(self, point):
         return float('inf')
 
+    def projectVector(self, point, onDirection):
+        raise RejectionException("Projecting vector onto empty Region")
+
     @property
     def AABB(self):
-        raise NotImplementedError
+        raise TypeError("EmptyRegion does not have a well defined AABB")
 
     def show(self, plt, style=None, **kwargs):
         pass
@@ -350,6 +359,9 @@ class IntersectionRegion(Region):
     def distanceTo(self, point):
         raise NotImplementedError
 
+    def projectVector(self, point, onDirection):
+        raise NotImplementedError(f'{type(self).__name__} does not yet support projection using "on"')
+
     @property
     def AABB(self):
         raise NotImplementedError
@@ -393,12 +405,6 @@ class IntersectionRegion(Region):
 
         raise RejectionException(f'sampling intersection of Regions {regs}')
 
-    def isEquivalentTo(self, other):
-        if type(other) is not IntersectionRegion:
-            return False
-        return (areEquivalent(set(other.regions), set(self.regions))
-                and other.orientation == self.orientation)
-
     def __repr__(self):
         return f'IntersectionRegion({self.regions!r})'
 
@@ -438,6 +444,9 @@ class DifferenceRegion(Region):
     def distanceTo(self, point):
         raise NotImplementedError
 
+    def projectVector(self, point, onDirection):
+        raise NotImplementedError(f'{type(self).__name__} does not yet support projection using "on"')
+
     @property
     def AABB(self):
         raise NotImplementedError
@@ -461,13 +470,6 @@ class DifferenceRegion(Region):
                 f'sampling difference of Regions {regionA} and {regionB}')
         return point
 
-    def isEquivalentTo(self, other):
-        if type(other) is not DifferenceRegion:
-            return False
-        return (areEquivalent(self.regionA, other.regionA)
-                and areEquivalent(self.regionB, other.regionB)
-                and other.orientation == self.orientation)
-
     def __repr__(self):
         return f'DifferenceRegion({self.regionA!r}, {self.regionB!r})'
 
@@ -483,10 +485,7 @@ def toPolygon(thing):
     else:
         return None
 
-    if poly.has_z:  # TODO revisit once we have 3D regions
-        return shapely.ops.transform(lambda x, y, z: (x, y), poly)
-    else:
-        return poly
+    return poly
 
 def regionFromShapelyObject(obj, orientation=None):
     """Build a 'Region' from Shapely geometry."""
@@ -611,7 +610,7 @@ class MeshRegion(Region):
         self.orientation = orientation
 
     @classmethod
-    def fromFile(cls, path, filetype=None, compressed=None, **kwargs):
+    def fromFile(cls, path, filetype=None, compressed=None, binary=False, **kwargs):
         """Load a region from a file, attempting to infer filetype and compression.
 
         For example: "foo.obj.bz2" is assumed to be a compressed .obj file.
@@ -619,13 +618,15 @@ class MeshRegion(Region):
         unknown filetype, so unless a filetype is provided an exception will be raised.
 
         Args:
-            path: Path to the file to import
-            filetype: Filetype of file to be imported. This will be inferred if not provided
-            compressed: Wheter or not this file is compressed (with bz2). This will be inferred
-                if not provided
+            path (str): Path to the file to import.
+            filetype (str): Filetype of file to be imported. This will be inferred if not provided.
+                The filetype must be one compatible with `trimesh.load`.
+            compressed (bool): Whether or not this file is compressed (with bz2). This will be inferred
+                if not provided.
+            binary (bool): Whether or not to open the file as a binary file.
             kwargs: Additional arguments to the MeshRegion initializer.
         """
-        mesh = loadMesh(path, filetype, compressed)
+        mesh = loadMesh(path, filetype, compressed, binary)
         return cls(mesh=mesh, **kwargs)
 
     ## API Methods ##
@@ -638,8 +639,8 @@ class MeshRegion(Region):
 
         return self._mesh
 
-    def findOn(self, point, on_direction):
-        """ Find the nearest point in the region following the on_direction.
+    def projectVector(self, point, onDirection):
+        """ Find the nearest point in the region following the onDirection.
 
         Returns None if no such points exist.
         """
@@ -653,17 +654,17 @@ class MeshRegion(Region):
         # Get first point hit in both directions of ray
         point = point.coordinates
 
-        if on_direction is not None:
-            on_direction = numpy.array(on_direction)
+        if onDirection is not None:
+            onDirection = numpy.array(onDirection)
         else:
             if isinstance(self, MeshVolumeRegion):
-                on_direction = numpy.array((0,0,1))
+                onDirection = numpy.array((0,0,1))
             elif isinstance(self, MeshSurfaceRegion):
-                on_direction = sum(self.mesh.face_normals*self.mesh.area_faces[:, numpy.newaxis])/self.mesh.area
-                on_direction = on_direction/numpy.linalg.norm(on_direction)
+                onDirection = sum(self.mesh.face_normals*self.mesh.area_faces[:, numpy.newaxis])/self.mesh.area
+                onDirection = onDirection/numpy.linalg.norm(onDirection)
 
         intersection_data, _, _ = self.mesh.ray.intersects_location(ray_origins=[point, point], \
-            ray_directions=[on_direction, -1*on_direction], multiple_hits=False)
+            ray_directions=[onDirection, -1*onDirection], multiple_hits=False)
 
         if len(intersection_data) == 0:
             return None
@@ -734,6 +735,11 @@ class MeshRegion(Region):
             dimensions=value[self.dimensions], position=value[self.position], rotation=value[self.rotation], \
             orientation=self.orientation, tolerance=self.tolerance, \
             centerMesh=self.centerMesh, onDirection=self.onDirection, engine=self.engine)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_mesh"] = self._mesh.copy()
+        return state
 
 class MeshVolumeRegion(MeshRegion):
     """ An instance of MeshRegion that performs operations over the volume of the mesh.
@@ -1713,6 +1719,9 @@ class PolygonalFootprintRegion(Region):
         """ Minimum distance from this polygonal footprint to the target point"""
         self.polygons.distance(shapely.geometry.Point(point))
 
+    def projectVector(self, point, onDirection):
+        raise NotImplementedError(f'{type(self).__name__} does not yet support projection using "on"')
+
     @property
     def AABB(self):
         raise NotImplementedError
@@ -1874,6 +1883,9 @@ class PathRegion(Region):
         raise NotImplementedError
 
     def distanceTo(self, point):
+        raise NotImplementedError
+
+    def projectVector(self, point, onDirection):
         raise NotImplementedError
 
     @cached_property
@@ -2087,6 +2099,9 @@ class PolygonalRegion(Region):
         point = toVector(point)
         nearest_point, _ = shapely.ops.nearest_points(self.polygons, shapely.geometry.Point(point))
         return point.distanceTo(Vector(nearest_point.x, nearest_point.y, self.z))
+
+    def projectVector(self, point, onDirection):
+        raise NotImplementedError(f'{type(self).__name__} does not yet support projection using "on"')
 
     @property
     def AABB(self):
@@ -2565,6 +2580,9 @@ class PolylineRegion(Region):
     def distanceTo(self, point) -> float:
         return self.lineString.distance(shapely.geometry.Point(point))
 
+    def projectVector(self, point, onDirection):
+        raise TypeError('PolylineRegion does not support projection using "on"')
+
     @distributionMethod
     def signedDistanceTo(self, point) -> float:
         """Compute the signed distance of the PolylineRegion to a point.
@@ -2761,6 +2779,9 @@ class PointSetRegion(Region):
         distance, _ = self.kdTree.query(point)
         return distance
 
+    def projectVector(self, point, onDirection):
+        raise TypeError('PointSetRegion does not support projection using "on"')
+
     @property
     def AABB(self):
         return tuple(zip(numpy.amin(self.points,axis=0), numpy.amax(self.points,axis=0)))
@@ -2778,6 +2799,11 @@ class PointSetRegion(Region):
 
 @distributionFunction
 def convertToFootprint(region):
+    """ Recursively convert a region into it's footprint.
+
+    For a polygonal region, returns the footprint. For composed regions,
+    recursively reconstructs them using the footprints of their sub regions.
+    """
     if isinstance(region, PolygonalRegion):
         return region.footprint
 
@@ -2863,6 +2889,9 @@ class GridRegion(PointSetRegion):
 
     def containsRegionInner(self, reg, tolerance):
         raise NotImplementedError
+
+    def projectVector(self, point, onDirection):
+        raise TypeError('GridRegion does not support projection using "on"')
 
 ###################################################################################################
 # View Regions

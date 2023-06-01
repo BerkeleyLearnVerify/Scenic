@@ -45,8 +45,6 @@ def test_get_type_args():
 def test_coerce_to_scalar():
     good = [42, 3.14, fractions.Fraction(1, 3), numpy.int16(7)]
     assert all(coerce(thing, float) == float(thing) for thing in good)
-    print([coerce(thing, Heading) for thing in good])
-    print([coerce(thing, Heading) == float(thing) for thing in good])
     assert all(coerce(thing, Heading) == float(thing) for thing in good)
 
     bad = ['foo', Vector(1, 2), VectorField('', lambda x: 0), [1,2,3,4]]
@@ -64,6 +62,8 @@ def test_coerce_to_vector():
         if answer is None:
             answer = thing
         assert res == answer
+    check([1,2])
+    check((1,2))
     check(Vector(1, 2))
     check(Vector(1, 2, 0))
     check([1, 2, 0])
@@ -198,7 +198,7 @@ def test_infer_getitem_str():
     assert underlyingType(y[i]) is str
     assert underlyingType(y[i:i+1]) is str
 
-def test_infer_union():
+def test_infer_union_operator():
     x = makeDistWithType(Union[float, int])
     y = x + x
     assert underlyingType(y) is float
@@ -208,3 +208,30 @@ def test_infer_union():
     x = makeDistWithType(Union[List[int], Tuple[int, ...]])
     y = x[2]
     assert underlyingType(y) is int
+
+def test_infer_optional_operator():
+    x = makeDistWithType(Optional[float])
+    y = x + x
+    assert underlyingType(y) is float
+    x = makeDistWithType(Optional[List[int]])
+    y = x[2]
+    assert underlyingType(y) is int
+
+def test_infer_union_attribute():
+    class Foo:
+        a: int
+    class Bar:
+        a: int
+    x = makeDistWithType(Union[Foo, Bar])
+    assert underlyingType(x.a) is int
+    class Baz:
+        a: str
+    x = makeDistWithType(Union[Foo, Baz])
+    assert underlyingType(x.a) is object
+    x = makeDistWithType(Union[Foo, str])
+    assert underlyingType(x.a) is object
+
+def test_infer_optional_attribute():
+    class Foo:
+        a: str
+    x = makeDistWithType(Optional[Foo])

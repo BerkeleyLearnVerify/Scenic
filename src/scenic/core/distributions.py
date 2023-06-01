@@ -368,6 +368,7 @@ class SliceDistribution(Distribution):
 
 def toDistribution(val):
     """Wrap Python data types with Distributions, if necessary.
+
     For example, tuples containing Samplables need to be converted into TupleDistributions
     in order to keep track of dependencies properly.
     """
@@ -569,6 +570,19 @@ class AttributeDistribution(Distribution):
                 return attrTy
         except Exception:
             pass    # couldn't get type annotations
+
+        # Handle unions
+        origin = typing.get_origin(ty)
+        if origin == typing.Union:
+            types = []
+            for option in typing.get_args(ty):
+                if (option is type(None) and not hasattr(None, attribute)):
+                    # None does not have this attribute; accessing it will raise an
+                    # exception, so we can ignore this case for type inference.
+                    continue
+                res = AttributeDistribution.inferType(option, attribute)
+                types.append(res)
+            return type_support.unifierOfTypes(types) if types else object
 
         # Check for a @property defined on the class with a return type
         if (ty is not object and (func := getattr(ty, attribute, None))

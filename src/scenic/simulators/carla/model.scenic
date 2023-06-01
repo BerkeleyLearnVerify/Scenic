@@ -223,7 +223,7 @@ class Prop(CarlaActor):
     """
     regionContainedIn: road
     position: new Point on road
-    yaw: Range(0, 360) deg
+    heading: Range(0, 360) deg
     width: 0.5
     length: 0.5
     physics: False

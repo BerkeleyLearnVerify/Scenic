@@ -52,14 +52,14 @@ See the `virtual environment tutorial <https://docs.python.org/3/tutorial/venv.h
 Scene Schematics Don't Appear (2D)
 ++++++++++++++++++++++++++++++++++
 
-If no window appears when you ask Scenic to generate and display a scene using the ``--2d`` flag (as in the example commands in :doc:`quickstart`), this means that Matplotlib has no `interactive backend <https://matplotlib.org/stable/users/explain/backends.html>`_ installed.
+If no window appears when you ask Scenic to generate and display a scene using the :option:`--2d` flag (as in the example commands in :doc:`quickstart`), this means that Matplotlib has no `interactive backend <https://matplotlib.org/stable/users/explain/backends.html>`_ installed.
 On Linux, try installing the ``python3-tk`` package (e.g. :command:`sudo apt-get install python3-tk`).
 
 Missing SDL
 +++++++++++
 
 If you get an error about `SDL <https://www.libsdl.org/>`_ being missing, you may need to install it.
-On Linux (or Windows with :ref:`WSL <wsl>`), install the ``libsdl2-dev`` package (e.g. :command:`sudo apt-get install libsdl2-dev`); on macOS, if you use `Homebrew <https://brew.sh/>`_ you can run :command:`brew install sdl2`.
+On Linux (or Windows with :ref:`WSL <wsl>`), install the ``libsdl2-dev`` package (e.g. :command:`sudo apt-get install libsdl2-dev`); on macOS, if you use `Homebrew <https://brew.sh/>`__ you can run :command:`brew install sdl2`.
 For other platforms, see the SDL website.
 
 Using a Local Scenic Version with VerifAI
@@ -96,8 +96,8 @@ If on an Apple-silicon machine you get an error related to pip being unable to i
 
 1. Clone the `python-fcl <https://github.com/BerkeleyAutomation/python-fcl>`_ repository.
 2. Navigate to the repository.
-3. Install dependencies using homebrew with the following command: ``brew install fcl eigen octomap``
-4. Install the package using pip with the following command: ``CPATH=$(brew --prefix)/include:$(brew --prefix)/include/eigen3 LD_LIBRARY_PATH=$(brew --prefix)/lib pip install .``
+3. Install dependencies using `Homebrew <https://brew.sh>`__ with the following command: :command:`brew install fcl eigen octomap`
+4. Install the package using pip with the following command: :command:`CPATH=$(brew --prefix)/include:$(brew --prefix)/include/eigen3 LD_LIBRARY_PATH=$(brew --prefix)/lib pip install .`
 
 Windows
 -------

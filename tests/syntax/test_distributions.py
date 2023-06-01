@@ -502,11 +502,11 @@ def test_control_flow():
 @pytest.mark.slow
 def test_specifier_order():
     values = []
-    
+
     paramPattern = re.compile(r'\s*Parameter "p": (.*)$')
     seed = random.randint(0,10000)
 
-    for _ in range(100):
+    for _ in range(30):
         args = ['scenic', '--show-params', '--gather-stats', '1', '--seed', str(seed), 'tests/core/specifier_order.scenic']
         result = subprocess.run(args, capture_output=True, text=True)
         assert result.returncode == 0

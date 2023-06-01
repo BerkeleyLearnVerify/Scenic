@@ -6,7 +6,7 @@ property definitions and :ref:`specifier resolution`).
 
 .. warning::
 
-    In 2D compatibility mode, these classes are overwritten with 2D analogs. While
+    In :ref:`2D compatibility mode`, these classes are overwritten with 2D analogs. While
     we make an effort to map imports to the correct class, this only works if imports
     use the form ``import scenic.core.object_types as object_types`` followed by accessing
     ``object_types.Object``. If you instead use ``from scenic.core.object_types import Object``,
@@ -109,6 +109,8 @@ class Constructible(Samplable):
                 ty = underlyingType(getattr(inst, prop))
             dynTypes[prop] = ty
         cls._dynamicProperties = dynTypes
+        cls._dynamicallyUpdatedProperties = {prop: val for prop, val
+            in cls._dynamicProperties.items() if prop not in cls._finalProperties}
 
     def __new__(cls, *args, _internal=False, **kwargs):
         if not _internal:
@@ -215,18 +217,15 @@ class Constructible(Samplable):
         #   - If not in properties specified, properties[p] = specifier
         #   - Otherwise, if property specified, check if specifier's priority is higher. If so, replace it with specifier
 
-        #Priorties are inversed: A lower priority number means semantically that it has a higher priority level
-
+        # Priorties are inversed: A lower priority number means semantically that it has a higher priority level
         for spec in normal_specifiers:
             assert isinstance(spec, Specifier), (name, spec)
 
             # Iterate over each property.
             for prop in spec.priorities:
-                # Check if this is a final property has been specified. If so, throw an assertion or error,
-                # depending on whether or not this object is internal.
+                # Check if this is a final property that has been specified.
                 if prop in finals:
                     raise SpecifierError(f'property "{prop}" cannot be directly specified')
-
 
                 if prop in properties:
                     # This property already exists. Check that it has not already been specified
@@ -245,29 +244,21 @@ class Constructible(Samplable):
 
         # If a modifying specifier specifies the property with a higher priority,
         # set the object's property to be specified by the modifying specifier. Otherwise,
-        # if the property exists and the priorities match, object needs to be specified
-        # by the original specifier then the resulting value is modified by the
-        # modifying specifier. 
+        # if the property exists and has already been specified at a higher or equal priority,
+        # then the resulting value is modified by the modifying specifier.
 
         # If the property is not yet being specified, the modifying specifier will 
         # act as a normal specifier for that property. 
-
-        deprecate = []
         for spec in modifying_specifiers:
             for prop in spec.priorities:
-                # If it has already been modified, which also implies this property has already been specified.
-
-
                 # Now we check if the propert has already been specified
                 if prop in properties:
                     # This property has already been specified, so we should either modify
                     # it or specify it.
-
                     if spec.priorities[prop] < priorities[prop]:
                         # Higher priority level, so it specifies
                         properties[prop] = spec
                         priorities[prop] = spec.priorities[prop]
-                        deprecate.append(prop)
                     elif prop in spec.modifiable_props:
                         # This specifer can modify this prop, so we set it to do so after
                         # first checking it has not already been modified.
@@ -279,7 +270,6 @@ class Constructible(Samplable):
                     # This property has not been specified, so we should specify it.
                     properties[prop] = spec
                     priorities[prop] = spec.priorities[prop]
-                    deprecate.append(prop)
 
         # Add any default specifiers needed
         _defaultedProperties = set()
@@ -430,7 +420,7 @@ class Constructible(Samplable):
 
     def _copyWith(self, **overrides):
         """Copy this object, possibly overriding some of its properties."""
-        # Copy all properties except for dynamic final values, which will retain their default values
+        # Copy all properties except for final values, which will retain their default values
         props = {
             prop: val
             for prop, val in self._allProperties().items()
@@ -562,11 +552,10 @@ class Point(Constructible):
           operators that expect an `Object`).
         length (float): Default value 0.
         height (float): Default value 0.
-        baseOffset (`Vector`): An offset indicating where the base of this `Point` is relative to
-          its position. Used by the :keyword:`on` specifier. Default value is (0,0,0).
-        contactTolerance (float): The maximum distance can be away from a surface to be considered
-          on the surface. Instances are placed at this distance away from a point when the 
-          :keyword:`on` specifier is used. Default value 0.
+        baseOffset (`Vector`): Only provided for compatibility with the `on` specifier.
+          Default value is (0,0,0).
+        contactTolerance (float): Only provided for compatibility with the specifiers
+          that expect an `Object`. Default value 0.
         onDirection (`Vector`): The direction used to determine where to place
           this `Point` on a region, when using the modifying :keyword:`on` specifier.
           See the :sampref:`on {region}` page for more details. Default value is None,
@@ -629,7 +618,7 @@ class Point(Constructible):
         return SpheroidRegion(position=self.position, dimensions=dimensions)
 
     @lru_cache(maxsize=None)
-    def canSee(self, other, occludingObjects=list(), debug=False) -> bool:
+    def canSee(self, other, occludingObjects=tuple(), debug=False) -> bool:
         """Whether or not this `Point` can see ``other``.
 
         Args:
@@ -637,7 +626,7 @@ class Point(Constructible):
               for visibility.
             occludingObjects: A list of objects that can occlude visibility.
         """
-        return canSee(position=self.position, orientation=None, visibleDistance=self.visibleDistance, \
+        return canSee(position=self.position, orientation=None, visibleDistance=self.visibleDistance,
             viewAngles=(math.tau, math.pi), rayCount=self.viewRayCount, rayDensity=self.viewRayDensity, 
             distanceScaling=self.viewRayDistanceScaling, target=other, occludingObjects=occludingObjects, debug=debug)
 
@@ -671,9 +660,10 @@ class Point(Constructible):
 class OrientedPoint(Point):
     """The Scenic class ``OrientedPoint``.
 
-    The default mutator for `OrientedPoint` adds Gaussian noise to ``heading``
-    with a standard deviation given by the ``headingStdDev`` property, then
-    applies the mutator for `Point`.
+    The default mutator for `OrientedPoint` adds Gaussian noise to ``yaw`` while
+    leaving ``pitch`` and ``roll`` unchanged, using the three standard deviations
+    (for yaw/pitch/roll respectively) given by the  ``orientationStdDev`` property.
+    It then also applies the mutator for `Point`.
 
     Properties:
         yaw (float; dynamic): Yaw of the `OrientedPoint` in radians in the local coordinate system
@@ -696,7 +686,7 @@ class OrientedPoint(Point):
           up to π. Values greater than these will be truncated. Default value is (2π, π)
         orientationStdDev (float): Standard deviation of Gaussian noise to add to this
           object's Euler angles (yaw, pitch, roll) when mutation is enabled with scale 1.
-          Default value (5π, 0, 0), mutating only the :prop:`yaw` of this `OrientedPoint`.
+          Default value (5°, 0, 0), mutating only the :prop:`yaw` of this `OrientedPoint`.
     """
     _scenic_properties = {
         'yaw': PropertyDefault((), {'dynamic'}, lambda self: 0),
@@ -710,6 +700,8 @@ class OrientedPoint(Point):
             lambda self: (Orientation.fromEuler(self.yaw, self.pitch, self.roll)
                       * self.parentOrientation)
         ),
+        # Heading is equal to orientation.yaw, which is equal to self.yaw if this OrientedPoint's
+        # parentOrientation is the globla orientation.
         'heading': PropertyDefault({'orientation'}, {'dynamic', 'final'},
             lambda self: self.yaw if alwaysGlobalOrientation(self.parentOrientation) else self.orientation.yaw),
 
@@ -739,11 +731,11 @@ class OrientedPoint(Point):
         long as those angles are less than π/2; larger angles yield various kinds of
         wrap-around regions. See `DefaultViewRegion` for details.
         """
-        return DefaultViewRegion(visibleDistance=self.visibleDistance, viewAngles=self.viewAngles,\
+        return DefaultViewRegion(visibleDistance=self.visibleDistance, viewAngles=self.viewAngles,
             position=self.position, rotation=self.orientation)
 
     @lru_cache(maxsize=None)
-    def canSee(self, other, occludingObjects=list(), debug=False) -> bool:
+    def canSee(self, other, occludingObjects=tuple(), debug=False) -> bool:
         """Whether or not this `OrientedPoint` can see ``other``.
 
         Args:
@@ -795,12 +787,13 @@ class Object(OrientedPoint):
           required to be contained in. If ``None``, the object need only be
           contained in the scenario's :term:`workspace`.
         baseOffset (`Vector`): An offset from the :prop:`position` of the Object
-          to the base of the object, used by the :keyword:`on` specifier. Default value
+          to the base of the object, used by the `on` specifier. Default value
           is :scenic:`(0, 0, -self.height/2)`, placing the base of the Object at the bottom
           center of the Object's bounding box.
-        contactTolerance (float): The distance away an object should be placed
-          from a point to be on the point, used by the :keyword:`on` specifier. Default
-          value 1e-4.
+        contactTolerance (float): The maximum distance this object can be away from a
+          surface to be considered on the surface. Objects are placed at half this
+          distance away from a point when the `on` specifier or a directional specifier
+          like `left of {Object}` is used. Default value 1e-4.
         sideComponentThresholds (`DimensionLimits`): Used to determine the
           various sides of an object (when using the default implementation). 
           The three interior 2-tuples represent the maximum and minimum bounds
@@ -1019,7 +1012,7 @@ class Object(OrientedPoint):
                                  position=true_position, rotation=self.orientation)
 
     @lru_cache(maxsize=None)
-    def canSee(self, other, occludingObjects=list(), debug=False) -> bool:
+    def canSee(self, other, occludingObjects=tuple(), debug=False) -> bool:
         """Whether or not this `Object` can see ``other``.
 
         Args:
@@ -1028,8 +1021,8 @@ class Object(OrientedPoint):
             occludingObjects: A list of objects that can occlude visibility.
         """
         true_position = self.position.offsetRotated(self.orientation, self.cameraOffset)
-        return canSee(position=true_position, orientation=self.orientation, visibleDistance=self.visibleDistance, \
-            viewAngles=self.viewAngles, rayCount=self.viewRayCount, rayDensity=self.viewRayDensity, 
+        return canSee(position=true_position, orientation=self.orientation, visibleDistance=self.visibleDistance,
+            viewAngles=self.viewAngles, rayCount=self.viewRayCount, rayDensity=self.viewRayDensity,
             distanceScaling=self.viewRayDistanceScaling, target=other, occludingObjects=occludingObjects, debug=debug)
 
     @cached_property
@@ -1051,8 +1044,8 @@ class Object(OrientedPoint):
     @cached_property
     def occupiedSpace(self):
         """A region representing the space this object occupies"""
-        return MeshVolumeRegion(mesh=self.shape.mesh, \
-                dimensions=(self.width, self.length, self.height), \
+        return MeshVolumeRegion(mesh=self.shape.mesh,
+                dimensions=(self.width, self.length, self.height),
                 position=self.position, rotation=self.orientation)
 
     @property
@@ -1150,38 +1143,56 @@ class Object(OrientedPoint):
         return self.topSurface
 
     @cached_property
+    def topSurface(self):
+        """A region containing the top surface of this object
+
+        For how this surface is computed, see `defaultSideSurface`.
+        """
+        return defaultSideSurface(self.occupiedSpace, dimension=2,
+            positive=True, thresholds=self.sideComponentThresholds)
+
+    @cached_property
     def rightSurface(self):
-        """A region containing the right surface of this object"""
-        return defaultSideSurface(self.occupiedSpace, dimension=0, \
+        """A region containing the right surface of this object
+
+        For how this surface is computed, see `defaultSideSurface`.
+        """
+        return defaultSideSurface(self.occupiedSpace, dimension=0,
             positive=True, thresholds=self.sideComponentThresholds)
 
     @cached_property
     def leftSurface(self):
-        """A region containing the left surface of this object"""
-        return defaultSideSurface(self.occupiedSpace, dimension=0, \
+        """A region containing the left surface of this object
+
+        For how this surface is computed, see `defaultSideSurface`.
+        """
+        return defaultSideSurface(self.occupiedSpace, dimension=0,
             positive=False, thresholds=self.sideComponentThresholds)
 
     @cached_property
     def frontSurface(self):
-        """A region containing the front surface of this object"""
+        """A region containing the front surface of this object
+
+        For how this surface is computed, see `defaultSideSurface`.
+        """
         return defaultSideSurface(self.occupiedSpace, dimension=1, \
             positive=True, thresholds=self.sideComponentThresholds)
 
     @cached_property
     def backSurface(self):
-        """A region containing the back surface of this object"""
+        """A region containing the back surface of this object
+
+        For how this surface is computed, see `defaultSideSurface`.
+        """
         return defaultSideSurface(self.occupiedSpace, dimension=1, \
             positive=False, thresholds=self.sideComponentThresholds)
 
     @cached_property
-    def topSurface(self):
-        """A region containing the top surface of this object"""
-        return defaultSideSurface(self.occupiedSpace, dimension=2, \
-            positive=True, thresholds=self.sideComponentThresholds)
-
-    @cached_property
     def bottomSurface(self):
-        """A region containing the bottom surface of this object"""
+        """A region containing the bottom surface of this object
+
+        For how this surface is computed, see `defaultSideSurface`.
+        """
         return defaultSideSurface(self.occupiedSpace, dimension=2, \
             positive=False, thresholds=self.sideComponentThresholds)
 
@@ -1203,8 +1214,8 @@ class Object(OrientedPoint):
         if self.viewAngles != (math.tau, math.pi) or self.visibleDistance != 50:
             camera_pyramid_mesh = self.visibleRegion.mesh.copy()
 
-            edges = camera_pyramid_mesh.face_adjacency_edges[camera_pyramid_mesh.face_adjacency_angles > np.radians(0.1)].copy()
-            vertices = camera_pyramid_mesh.vertices.copy()
+            edges = camera_pyramid_mesh.face_adjacency_edges[camera_pyramid_mesh.face_adjacency_angles > np.radians(0.1)]
+            vertices = camera_pyramid_mesh.vertices
 
             edge_path = trimesh.path.Path3D(**trimesh.path.exchange.misc.edges_to_path(edges, vertices))
 
@@ -1394,6 +1405,15 @@ class Object2D(OrientedPoint2D, Object):
         'requireVisible': True,
         'occluding': False,
     }
+
+    @classmethod
+    def _specify(cls, context, prop, value):
+        # If position is being set, set z value to 0
+        if prop == "position":
+            value = toVector(value, f'"{prop}" of {cls.__name__} not a vector')
+            value = (value.x, value.y, 0)
+
+        super()._specify(context, prop, value)
 
     @cached_property
     def visibleRegion(self):

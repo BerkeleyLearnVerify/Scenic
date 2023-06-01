@@ -122,6 +122,12 @@ not visible *region*
 --------------------
 The part of the given region which is *not* visible from the ego object (as above, based on the ego's :term:`visible region`).
 
+.. _{region} visible from ({Point} | {OrientedPoint}):
+
+*region* visible from (*Point* | *OrientedPoint*)
+-------------------------------------------------
+The part of the given region visible from the given `Point` or `OrientedPoint` (like :scenic:`visible {region}` but from an arbitrary `Point`/`OrientedPoint`).
+
 OrientedPoint Operators
 =======================
 

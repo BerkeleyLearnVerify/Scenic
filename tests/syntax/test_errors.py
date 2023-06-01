@@ -32,26 +32,38 @@ badNames = ('', '3', '+', 'Behavior')
 @pytest.mark.parametrize('name', badNames)
 def test_illegal_constructor_name(name):
     with pytest.raises(ScenicSyntaxError):
-        compileScenic(f'class {name}:\n' '    pass')
+        compileScenic(f"""
+            class {name}:
+                pass
+        """)
 
 @pytest.mark.parametrize('name', badNames)
 def test_illegal_constructor_superclass(name):
     with pytest.raises(ScenicSyntaxError):
-        compileScenic(f'class Foo({name}):\n' '    pass')
+        compileScenic(f"""
+            class Foo({name}):
+                pass
+        """)
 
 def test_malformed_constructor():
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('class Foo\n' '    pass')
+        compileScenic("""
+            class Foo
+                pass
+        """)
     with pytest.raises(ScenicSyntaxError):
-        compileScenic('class Foo(Bar:\n' '    pass')
-
-def test_multiple_inheritance():
-    with pytest.raises(ScenicSyntaxError):
-        compileScenic("class Bad(Object, Point):\n    pass")
+        compileScenic("""
+            class Foo(Bar:
+                pass
+        """)
 
 def test_new_python_class():
     with pytest.raises(TypeError):
-        compileScenic("class PyCls(object):\n    pass\nnew PyCls")
+        compileScenic("""
+            class PyCls(object):
+                pass
+            new PyCls
+        """)
 
 ## Soft requirements
 
@@ -87,7 +99,10 @@ def test_incomplete_multiline_string():
     with pytest.raises(TokenError):
         compileScenic('"""foobar')
     with pytest.raises(TokenError):
-        compileScenic('x = """foobar\n' 'wog\n')
+        compileScenic('''
+            x = """foobar
+            wog
+        ''')
 
 def test_incomplete_infix_operator():
     """Binary infix operator with too few arguments."""

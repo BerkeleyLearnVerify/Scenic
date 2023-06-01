@@ -291,7 +291,7 @@ def test_path_region():
     assert r4.AABB == ((0,7),(0,7),(0,3))
 
 def test_mesh_polygon_intersection():
-    r1 = BoxRegion(position=(0,0,0), dimensions=(3,3,2))
+    r1 = BoxRegion(position=(0,0,0), dimensions=(3,0.5,2))
     r2 = CircularRegion((0,0), 1, resolution=64)
 
     r = r1.intersect(r2)
@@ -301,7 +301,6 @@ def test_mesh_polygon_intersection():
     v_pts = [r.uniformPointInner() for _ in range(100)]
 
     for x, y, z in v_pts:
-        assert math.hypot(x, y) <= 1
         assert z == 0
         assert r1.containsPoint(Vector(x,y,z))
         assert r2.containsPoint(Vector(x,y,z))

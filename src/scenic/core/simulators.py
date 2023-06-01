@@ -501,7 +501,7 @@ class Simulation:
         """
         for obj in self.objects:
             # Get latest values of dynamic properties from simulation
-            dynTypes = {prop: val for prop, val in obj._dynamicProperties.items() if prop not in obj._finalProperties}
+            dynTypes = obj._dynamicallyUpdatedProperties
             properties = set(dynTypes)
             values = self.getProperties(obj, properties)
             assert properties == set(values), properties ^ set(values)
@@ -546,10 +546,6 @@ class Simulation:
             # Preserve some other properties which are assigned internally by Scenic
             for prop in self.mutableProperties(obj):
                 values[prop] = getattr(obj, prop)
-
-            # Sanitize some 2D values
-            if isinstance(obj, Object2D):
-                values["position"] = Vector(values["position"].x, values["position"].y, 0)
 
             # Make a new copy of the object to ensure that computed properties like
             # visibleRegion, etc. are recomputed
@@ -637,6 +633,11 @@ class Simulation:
 
     @classmethod
     def extractEulerAngles(cls, global_orientation, parent_orientation):
+        """ Extract local euler angles.
+
+        Extracts local euler angles from a global orientation given
+        a parent orientation.
+        """
         return (global_orientation * parent_orientation.inverse).eulerAngles
 
 

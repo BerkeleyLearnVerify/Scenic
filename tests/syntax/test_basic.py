@@ -181,15 +181,15 @@ def test_show2D_zoom():
     plt.close()
 
 def test_mode2D():
-    scenario = compileScenic(
-        'region = RectangularRegion(0 @ 0, 0, 100, 100)\n'
-        'p = new Point on region\n'
-        'op = new OrientedPoint on region\n'
-        'ego = new Object on region\n'
-        'test_obj_1 = new Object in p.visibleRegion\n'
-        'test_obj_2 = new Object in op.visibleRegion\n'
-        'test_obj_3 = new Object in ego.visibleRegion\n'
-    , mode2D=True)
+    scenario = compileScenic("""
+        region = RectangularRegion(0 @ 0, 0, 100, 100)
+        p = new Point on region
+        op = new OrientedPoint on region
+        ego = new Object on region
+        test_obj_1 = new Object in p.visibleRegion
+        test_obj_2 = new Object in op.visibleRegion
+        test_obj_3 = new Object in ego.visibleRegion
+    """, mode2D=True)
     for _ in range(5):
         scene, _ = scenario.generate()
 
@@ -214,40 +214,34 @@ def test_mode2D_heading():
         """)
 
     scenario =  compileScenic("""
-                    class TestClass:
-                        heading: 40 deg
+        class TestClass:
+            heading: 40 deg
 
-                    ego = new TestClass
-                """, mode2D=True)
+        ego = new TestClass
+    """, mode2D=True)
     scene, _ = scenario.generate()
 
     assert scene.egoObject.heading == pytest.approx(math.radians(40))
 
 def test_mode2D_interference():
-    scenario = compileScenic(
-        'region = RectangularRegion(0 @ 0, 0, 100, 100)\n'
-        'p = new Point on region\n'
-        'op = new OrientedPoint on region\n'
-        'ego = new Object on region\n'
-        'test_obj_1 = new Object in p.visibleRegion\n'
-        'test_obj_2 = new Object in op.visibleRegion\n'
-        'test_obj_3 = new Object in ego.visibleRegion\n'
-    , mode2D=True)
+    program = """
+        region = RectangularRegion(0 @ 0, 0, 100, 100)
+        p = new Point on region
+        op = new OrientedPoint on region
+        ego = new Object on region
+        test_obj_1 = new Object in p.visibleRegion
+        test_obj_2 = new Object in op.visibleRegion
+        test_obj_3 = new Object in ego.visibleRegion
+    """
+
+    scenario = compileScenic(program, mode2D=True)
     for _ in range(5):
         scene, _ = scenario.generate()
 
         for obj in scene.objects:
             assert obj.position[2] == 0
 
-    scenario = compileScenic(
-        'region = RectangularRegion(0 @ 0, 0, 100, 100)\n'
-        'p = new Point on region\n'
-        'op = new OrientedPoint on region\n'
-        'ego = new Object on region\n'
-        'test_obj_1 = new Object in p.visibleRegion\n'
-        'test_obj_2 = new Object in op.visibleRegion\n'
-        'test_obj_3 = new Object in ego.visibleRegion\n'
-    )
+    scenario = compileScenic(program)
     for _ in range(5):
         scene, _ = scenario.generate()
 

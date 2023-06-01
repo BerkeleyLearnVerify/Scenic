@@ -27,12 +27,13 @@ class Workspace(Region):
         """Render a schematic of the workspace (in 3D) for debugging"""
         if isinstance(self.region, (MeshVolumeRegion, MeshSurfaceRegion, PolygonalRegion)):
             if isinstance(self.region, (MeshVolumeRegion, MeshSurfaceRegion)):
-                workspace_mesh = self.region.mesh.copy()
+                workspace_mesh = self.region.mesh
             else:
-                workspace_mesh = self.region.footprint.boundFootprint(centerZ=self.region.z, height=0.0001).mesh.copy()
-            # We can render this workspace as the wireframe of a mesh
-            edges = workspace_mesh.face_adjacency_edges[workspace_mesh.face_adjacency_angles > np.radians(0.1)].copy()
-            vertices = workspace_mesh.vertices.copy()
+                workspace_mesh = self.region.footprint.boundFootprint(centerZ=self.region.z, height=0.0001).mesh
+            # We can render this workspace as the wireframe of a mesh.
+            # Filter out meshes that are close enough to planar
+            edges = workspace_mesh.face_adjacency_edges[workspace_mesh.face_adjacency_angles > np.radians(0.1)]
+            vertices = workspace_mesh.vertices
 
             edge_path = trimesh.path.Path3D(**trimesh.path.exchange.misc.edges_to_path(edges, vertices))
 
@@ -42,7 +43,7 @@ class Workspace(Region):
         """Render a schematic of the workspace (in 2D) for debugging"""
         try:
             aabb = self.region.AABB
-        except NotImplementedError:     # unbounded Regions don't support this
+        except (NotImplementedError, TypeError):     # unbounded Regions don't support this
             return
         ((xmin, ymin), (xmax, ymax) , _) = aabb
         plt.xlim(xmin, xmax)
@@ -99,6 +100,9 @@ class Workspace(Region):
 
     def distanceTo(self, point):
         return self.region.distanceTo(point)
+
+    def projectVector(self, point, onDirection):
+        raise self.region.projectVector(point, onDirection)
 
     @property
     def AABB(self):

@@ -6,8 +6,10 @@ import sys
 import time
 import argparse
 import random
-import numpy
 from importlib import metadata
+import warnings
+
+import numpy
 
 import scenic
 import scenic.syntax.translator as translator
@@ -50,6 +52,8 @@ intOptions.add_argument('-d', '--delay', type=float,
                              'instead of waiting for the user to close the diagram')
 intOptions.add_argument('-z', '--zoom', type=float, default=1,
                         help='zoom expansion factor, or 0 to show the whole workspace (default 1)')
+intOptions.add_argument('--axes', help='display the global coordinate axes',
+                       action='store_true')
 
 # Debugging options
 debugOpts = parser.add_argument_group('debugging options')
@@ -85,6 +89,12 @@ parser.add_argument('scenicFile', help='a Scenic file to run', metavar='FILE')
 args = parser.parse_args()
 delay = args.delay
 mode2D = getattr(args, "2d")
+
+if not mode2D:
+    if args.delay is not None:
+        warnings.warn("Delay parameter is not supported by the 3D viewer.")
+    if args.zoom != 1:
+        warnings.warn("Zoom parameter is not supported by the 3D viewer.")
 
 scenic.setDebuggingOptions(
     verbosity=args.verbosity,
@@ -191,18 +201,16 @@ try:
                     if 0 < args.count <= successCount:
                         break
             else:
-                if delay is None:
-                    if mode2D:
+                if mode2D:
+                    if delay is None:
                         scene.show2D(zoom=args.zoom)
                     else:
-                        scene.show(zoom=args.zoom)
-                else:
-                    if mode2D:
                         scene.show2D(zoom=args.zoom, block=False)
                         plt.pause(delay)
                         plt.clf()
-                    else:
-                        scene.show(zoom=args.zoom)
+                else:
+                    scene.show(axes=args.axes)
+
     else:   # Gather statistics over the specified number of scenes
         its = []
         startTime = time.time()

@@ -34,22 +34,21 @@ Trying Some Examples
 --------------------
 
 The Scenic repository contains many example scenarios, found in the :file:`examples` directory.
-They are organized by the simulator they are written for, e.g. :abbr:`GTA (Grand Theft Auto V)` or Webots; there are also cross-platform scenarios written for Scenic's abstract application domains, e.g. the :ref:`driving domain <driving_domain>`.
-
+They are organized in various directories with the name of the simulator, abstract application domain, or visualizer they are written for. For example, ``gta`` and ``webots`` for the :abbr:`GTA (Grand Theft Auto V)` and Webots simulators; the `driving` directory for the abstract :ref:`driving domain <driving_domain>`; and the ``visualizer`` directory for the built in Scenic visualizer.
 
 Each simulator has a specialized Scenic interface which requires additional setup (see :ref:`simulators`); however, for convenience Scenic provides an easy way to visualize scenarios without running a simulator.
 Simply run :command:`scenic`, giving a path to a Scenic file:
 
 .. code-block:: console
 
-	$ scenic examples/webots/vacuum/vacuum_simple.scenic
+	$ scenic --axes examples/webots/vacuum/vacuum_simple.scenic
 
-This will compile the Scenic program and sample from it (which may take several seconds), displaying a schematic of the resulting scene. Since this a simple scenario designed to evaluate the performance of a robot vacuum, you should get something like this:
+This will compile the Scenic program and sample from it (which may take several seconds), displaying a schematic of the resulting scene. Since this is a simple scenario designed to evaluate the performance of a robot vacuum, you should get something like this:
 
 .. image:: images/vacuumSimple.png
 	:width: 50%
 
-The green cylinder is the vacuum, surrounded by various pieces of furniture in a room (the coordinate axes in the center are provided to help clarify orientation).
+The green cylinder is the vacuum, surrounded by various pieces of furniture in a room (the coordinate axes in the center are displayed due to the :command:`--axes` flag, to help clarify orientation).
 You can adjust the camera angle by clicking and dragging, and zoom in and out using the mouse wheel.
 If you close the window or press :kbd:`q`, Scenic will sample another scene from the same scenario and display it.
 This will repeat until you kill the generator (:kbd:`Control-c` in the terminal on Linux; :kbd:`Command-q` in the viewer window on MacOS).

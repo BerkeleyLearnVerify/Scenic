@@ -20,7 +20,7 @@ from scenic.core.distributions import (Samplable, Distribution, MethodDistributi
     needsSampling, makeOperatorHandler, distributionMethod, distributionFunction,
     RejectionException, TupleDistribution)
 from scenic.core.lazy_eval import valueInContext, needsLazyEvaluation, makeDelayedFunctionCall
-from scenic.core.type_support import CoercionFailure, canCoerceType, coerceToFloat
+from scenic.core.type_support import CoercionFailure, canCoerceType, coerceToFloat, toOrientation
 from scenic.core.utils import argsToString, cached_property
 from scenic.core.geometry import normalizeAngle, hypot
 
@@ -135,19 +135,21 @@ class Orientation:
     """An orientation in 3D space."""
     def __init__(self, rotation):
         if not isinstance(rotation, Rotation):
-            raise ValueError("Orientation's 'rotation' parameter must be a SciPy rotation."\
-                " Perhaps you want to use a constructor?")
+            raise TypeError("Orientation's 'rotation' parameter must be a SciPy rotation."\
+                " Perhaps you want to use a factory method?")
         self.r = rotation
         self.q = rotation.as_quat()
 
     @classmethod
     def fromQuaternion(cls, quaternion) -> Orientation:
+        """ Create an `Orientation` from a quaternion"""
         r = Rotation.from_quat(quaternion)
         return cls(r)
 
     @classmethod
     @distributionFunction
     def fromEuler(cls, yaw, pitch, roll) -> Orientation:
+        """ Create an `Orientation` from yaw, pitch, and roll angles (in radians)"""
         r = Rotation.from_euler('ZXY', [yaw, pitch, roll], degrees=False)
         return cls(r)
 
@@ -201,9 +203,9 @@ class Orientation:
 
     @staticmethod
     def _canCoerceType(ty):
-        if issubclass(ty, (tuple, list, Vector)):
+        if issubclass(ty, (tuple, list, Vector, Orientation)):
             return True
-        return canCoerceType(ty, float) or issubclass(ty, Orientation) or hasattr(ty, 'toOrientation')
+        return canCoerceType(ty, float) or hasattr(ty, 'toOrientation')
 
     @cached_property
     def eulerAngles(self) -> typing.Tuple[float, float, float]:
@@ -243,11 +245,8 @@ class Orientation:
             return NotImplemented
         return self * other
 
-    def __getitem__(self, index) -> float:
-        return self.q[index]
-
     def __repr__(self):
-        return f'Orientation.fromQuaternion({list(self.q)!r})'
+        return f'Orientation.fromEuler{tuple(self.eulerAngles)!r}'
 
     def __hash__(self):
         return hash(tuple(self.q)) + hash(tuple(-self.q))
@@ -284,16 +283,6 @@ class Vector(Samplable, collections.abc.Sequence):
     def __init__(self, x, y, z=0):
         self.coordinates = (x, y, z)
         super().__init__(self.coordinates)
-
-    @classmethod
-    def fromSpherical(cls, vector):
-        """ Converts from spherical (rho, theta, phi) to cartesian coordinates"""
-        rho, theta, phi = vector
-        x = rho * cos(phi) * sin(theta)
-        y = rho * sin(phi) * sin(theta)
-        z = rho * cos(theta)
-
-        return Vector(x,y,z)
 
     @property
     def x(self) -> float:
@@ -334,12 +323,12 @@ class Vector(Samplable, collections.abc.Sequence):
     @vectorOperator
     def applyRotation(self, rotation):
         if not isinstance(rotation, Orientation):
-            return NotImplemented
+            return TypeError("rotation must be an Orientation")
         r = rotation.getRotation()
         return Vector(*r.apply(self.coordinates))
 
     @vectorOperator
-    def cartesianToSpherical(self):
+    def sphericalCoordinates(self):
         """Returns this vector in spherical coordinates (rho, theta, phi)"""
         rho = math.hypot(self.x, self.y, self.z)
         theta = math.atan2(self.y, self.x) - math.pi/2
@@ -348,7 +337,7 @@ class Vector(Samplable, collections.abc.Sequence):
 
     @zeroPreservingVectorOperator
     def rotatedBy(self, angleOrOrientation) -> Vector:
-        """Return a vector equal to this one rotated counterclockwise by the given angle."""
+        """Return a vector equal to this one rotated counterclockwise by angle/orientation."""
         if isinstance(angleOrOrientation, Orientation):
             return self.applyRotation(angleOrOrientation)
         x, y, z = self.x, self.y, self.z
@@ -383,7 +372,7 @@ class Vector(Samplable, collections.abc.Sequence):
     @scalarOperator
     def altitudeTo(self, other) -> float:
         dx, dy, dz = other.toVector() - self
-        return normalizeAngle(math.atan2(dz, math.sqrt(dx**2 + dy**2)))
+        return normalizeAngle(math.atan2(dz, math.hypot(dx, dy)))
 
     @scalarOperator
     def angleWith(self, other) -> float:
@@ -415,7 +404,7 @@ class Vector(Samplable, collections.abc.Sequence):
         cy = az*bx - ax*bz
         cz = ax*by - ay*bx
 
-        return (cx, cy, cz)
+        return Vector(cx, cy, cz)
 
     @vectorOperator
     def normalized(self) -> Vector:
@@ -463,10 +452,12 @@ class Vector(Samplable, collections.abc.Sequence):
         return f'Vector({self.x}, {self.y}, {self.z})'
 
     def __eq__(self, other):
-        """ A Vector is equal to another if their coordinates are equal,
-        or if the other is an iterable that contains the coordinates of
+        """ Check Vector equality.
+
+        A Vector is equal to another if their coordinates are equal,
+        or if the other is a tuple/list that contains the coordinates of
         the Vector. For backwards compatibility a Vector is also equal
-        to an iterable of length 2 that has a 0 z component if the Vector
+        to a tuple/list of length 2 that has a 0 z component if the Vector
         also has a 0 z component and the x and y components are equal.
         """
         if isinstance(other, Vector):
@@ -541,12 +532,7 @@ class VectorField:
     def __getitem__(self, pos) -> Orientation:
         val = self.value(pos)
         
-        if isinstance(val, (int, float)):
-            val = Orientation.fromEuler(val, 0, 0)
-        elif isinstance(val, (tuple, list)) and len(val) == 3:
-            val = Orientation.fromEuler(*val)
-
-        return val
+        return toOrientation(val, f'value function of {self.name} returned non-orientation')
 
     @vectorDistributionMethod
     def followFrom(self, pos, dist, steps=None, stepSize=None):
