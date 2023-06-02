@@ -224,7 +224,7 @@ def test_subscenario_for_time():
     scenario = compileScenic("""
         scenario Main():
             compose:
-                do Sub(1) for 1 steps
+                do Sub(1) for 1 seconds
                 do Sub(5)
         scenario Sub(x):
             ego = new Object at x @ 0

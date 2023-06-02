@@ -6,12 +6,15 @@ compilation (from `translator.constructScenarioFrom`).
 
 import math
 import time
+import builtins
+
 import shapely.geometry
 import shapely.geos
 
 from scenic.core.distributions import (Samplable, MethodDistribution, OperatorDistribution,
                                        FunctionDistribution, AttributeDistribution,
                                        needsSampling, supportInterval, underlyingFunction)
+from scenic.core.type_support import TypecheckedDistribution
 from scenic.core.object_types import Point, Object
 from scenic.core.geometry import normalizeAngle, polygonUnion, plotPolygon, hypot
 from scenic.core.vectors import (VectorField, PolygonalVectorField, VectorMethodDistribution,
@@ -48,7 +51,6 @@ def matchInRegion(position):
     on the distance the object will be placed along with any
     offset that should be added to the base.
     """
-
     # Case 1: Position is simply a point in a region
     if isinstance(position, regions.PointInRegionDistribution):
         reg = position.region
@@ -81,6 +83,9 @@ def matchPolygonalField(heading, position):
         assert len(heading.arguments) == 1
         return matchPolygonalField(heading.arguments[0], position)
 
+    if isinstance(heading, TypecheckedDistribution) and heading._valueType is builtins.float:
+        return matchPolygonalField(heading._dist, position)
+
     if (isinstance(heading, AttributeDistribution)
         and heading.attribute == 'yaw'):    # TODO generalize to other 3D angles?
         orientation = heading.object
@@ -88,7 +93,8 @@ def matchPolygonalField(heading, position):
             and isinstance(orientation.object, PolygonalVectorField)
             and orientation.arguments == (position,)):
             return orientation.object, 0, 0
-    elif isinstance(heading, OperatorDistribution) and heading.operator in ('__add__', '__radd__'):
+
+    if isinstance(heading, OperatorDistribution) and heading.operator in ('__add__', '__radd__'):
         field, lower, upper = matchPolygonalField(heading.object, position)
         if field is not None:
             assert len(heading.operands) == 1
