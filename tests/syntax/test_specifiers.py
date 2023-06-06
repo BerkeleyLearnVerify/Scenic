@@ -650,29 +650,29 @@ def test_contained_in_2d():
 
 def test_contained_in_3d():
     scenario = compileScenic(
-        'region = BoxRegion(dimensions=(5,5,5))\n'
+        'region = BoxRegion(dimensions=(2,2,2))\n'
         'ego = new Object contained in region'
     )
     for _ in range(10):
-        scene = sampleScene(scenario, maxIterations=1000)
-        pos = scene.egoObject.position
-        assert -4.5 <= pos.x <= 4.5
-        assert -4.5 <= pos.y <= 4.5
-        assert -4.5 <= pos.z <= 4.5
+        ego = sampleEgo(scenario, maxIterations=1000)
+        pos = ego.position
+        assert -0.5 <= pos.x <= 0.5
+        assert -0.5 <= pos.y <= 0.5
+        assert -0.5 <= pos.z <= 0.5
 
 # On
 def test_on_3d():
     scenario = compileScenic(
         'region = RectangularRegion(0@0, 0, 10, 20)\n'
-        'ego = new Object on region'
+        'ego = new Object on region, with contactTolerance Range(0.01,0.3)'
     )
     for i in range(30):
-        scene = sampleScene(scenario)
-        pos = scene.egoObject.position
+        ego = sampleEgo(scenario, maxIterations=1000)
+        pos = ego.position
         assert -5 <= pos.x <= 5
         assert -10 <= pos.y <= 10
-        assert pos.z == 0.5 + scene.egoObject.contactTolerance/2
-        assert scene.egoObject.orientation.approxEq(Orientation.fromEuler(0,0,0))
+        assert pos.z == 0.5 + ego.contactTolerance/2
+        assert ego.orientation.approxEq(Orientation.fromEuler(0,0,0))
 
 def test_on_object():
     scenario = compileScenic("""
@@ -680,22 +680,22 @@ def test_on_object():
         ego = new Object on floor
     """)
     for i in range(30):
-        scene = sampleScene(scenario)
-        pos = scene.egoObject.position
+        ego = sampleEgo(scenario, maxIterations=1000)
+        pos = ego.position
         assert -20 <= pos.x <= 20
         assert -20 <= pos.y <= 20
-        assert pos.z == pytest.approx(0.55+scene.egoObject.contactTolerance/2)
+        assert pos.z == pytest.approx(0.55+ego.contactTolerance/2)
 
 def test_on_position():
     scenario = compileScenic("""
         ego = new Object on (0,0,0)
     """)
     for i in range(30):
-        scene = sampleScene(scenario)
-        pos = scene.egoObject.position
+        ego = sampleEgo(scenario, maxIterations=1000)
+        pos = ego.position
         assert pos.x == 0
         assert pos.y == 0
-        assert pos.z == pytest.approx(0.5+scene.egoObject.contactTolerance/2)
+        assert pos.z == pytest.approx(0.5+ego.contactTolerance/2)
 
 def test_on_3d_heading():
     scenario = compileScenic(
@@ -704,13 +704,13 @@ def test_on_3d_heading():
         'ego = new Object on region'
     )
     for i in range(30):
-        scene = sampleScene(scenario)
-        pos = scene.egoObject.position
+        ego = sampleEgo(scenario, maxIterations=1000)
+        pos = ego.position
         assert -5 <= pos.x <= 5
         assert -10 <= pos.y <= 10
         # Account for contact tolerance and base offset
-        assert -1-scene.egoObject.contactTolerance/2 <= pos.z <= -scene.egoObject.contactTolerance/2
-        assert scene.egoObject.orientation.approxEq(Orientation.fromEuler(math.pi, math.pi, 0))
+        assert -1-ego.contactTolerance/2 <= pos.z <= -ego.contactTolerance/2
+        assert ego.orientation.approxEq(Orientation.fromEuler(math.pi, math.pi, 0))
 
 def test_on_modifying_object():
     scenario = compileScenic(
@@ -719,11 +719,11 @@ def test_on_modifying_object():
         'ego = new Object in air_region, on floor'
     )
     for i in range(30):
-        scene = sampleScene(scenario)
-        pos = scene.egoObject.position
+        ego = sampleEgo(scenario, maxIterations=1000)
+        pos = ego.position
         assert -15 <= pos.x <= 15
         assert -15 <= pos.y <= 15
-        assert pos.z == pytest.approx(0.55+scene.egoObject.contactTolerance/2)
+        assert pos.z == pytest.approx(0.55+ego.contactTolerance/2)
 
 def test_on_modifying_object_side():
     scenario = compileScenic("""
@@ -732,9 +732,9 @@ def test_on_modifying_object_side():
         ego = new Object in workspace, on box.frontSurface, with shape ConeShape()
     """)
     for i in range(30):
-        scene = sampleScene(scenario, maxIterations=1000)
-        pos = scene.egoObject.position
-        assert pos.y == pytest.approx(3+scene.egoObject.contactTolerance/2)
+        ego = sampleEgo(scenario, maxIterations=1000)
+        pos = ego.position
+        assert pos.y == pytest.approx(3+ego.contactTolerance/2)
 
 
 def test_on_modifying_object_onDirection():
@@ -745,10 +745,10 @@ def test_on_modifying_object_onDirection():
             with onDirection (0,1,0)
     """)
     for i in range(30):
-        scene = sampleScene(scenario, maxIterations=1000)
-        pos = scene.egoObject.position
-        assert pos.y == pytest.approx(-3-scene.egoObject.contactTolerance/2) or \
-               pos.y == pytest.approx(3+scene.egoObject.contactTolerance/2)
+        ego = sampleEgo(scenario, maxIterations=1000)
+        pos = ego.position
+        assert pos.y == pytest.approx(-3-ego.contactTolerance/2) or \
+               pos.y == pytest.approx(3+ego.contactTolerance/2)
 
 def test_on_modifying_surface_onDirection():
     scenario = compileScenic("""
@@ -758,10 +758,10 @@ def test_on_modifying_surface_onDirection():
             with onDirection (0,1,0)
     """)
     for i in range(30):
-        scene = sampleScene(scenario, maxIterations=1000)
-        pos = scene.egoObject.position
-        assert pos.y == pytest.approx(-3-scene.egoObject.contactTolerance/2) or \
-               pos.y == pytest.approx(3+scene.egoObject.contactTolerance/2)
+        ego = sampleEgo(scenario, maxIterations=1000)
+        pos = ego.position
+        assert pos.y == pytest.approx(-3-ego.contactTolerance/2) or \
+               pos.y == pytest.approx(3+ego.contactTolerance/2)
 
 def test_on_mistyped():
     with pytest.raises(TypeError):
@@ -811,6 +811,15 @@ def test_facing_heading():
 def test_facing_orientation():
     ego = sampleEgoFrom('ego = new Object facing (90 deg, 90 deg, 90 deg)')
     assert ego.orientation.approxEq(Orientation.fromEuler(math.pi/2, math.pi/2, math.pi/2))
+
+def test_facing_random_parentOrientation():
+    scenario = compileScenic("""
+        ego = new Object facing (90 deg, 90 deg, 90 deg),
+            with parentOrientation (Range(0, 360 deg), Range(0, 360 deg), Range(0, 360 deg))
+    """)
+    for _ in range(10):
+        ego = sampleEgo(scenario)
+        assert ego.orientation.approxEq(Orientation.fromEuler(math.pi/2, math.pi/2, math.pi/2))
 
 def test_facing_vf_2d():
     ego = sampleEgoFrom(        

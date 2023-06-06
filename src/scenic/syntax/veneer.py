@@ -94,6 +94,7 @@ import collections.abc
 from contextlib import contextmanager
 import functools
 import importlib
+import numbers
 import sys
 import os.path
 import traceback
@@ -110,7 +111,7 @@ from scenic.core.object_types import Constructible, Point2D, OrientedPoint2D, Ob
 import scenic.core.object_types
 from scenic.core.specifiers import Specifier, ModifyingSpecifier
 from scenic.core.lazy_eval import (DelayedArgument, needsLazyEvaluation, requiredProperties,
-                                   valueInContext)
+                                   valueInContext, isLazy)
 import scenic.core.errors as errors
 from scenic.core.errors import InvalidScenarioError
 from scenic.core.vectors import Orientation, alwaysGlobalOrientation
@@ -762,7 +763,7 @@ def FieldAt(X, Y):
     Y = toVector(Y, '"X at Y" with Y not a vector')
     return X[Y]
 
-def RelativeTo(X, Y) -> typing.Union[Vector, builtins.float]:
+def RelativeTo(X, Y) -> typing.Union[Vector, builtins.float, Orientation]:
     """The :scenic:`{X} relative to {Y}` polymorphic operator.
 
     Allowed forms::
@@ -771,7 +772,23 @@ def RelativeTo(X, Y) -> typing.Union[Vector, builtins.float]:
         <vector> relative to <oriented point> # and vice versa
         <vector> relative to <vector>
         <heading> relative to <heading>
+        <orientation> relative to <orientation>
     """
+    # Define lazy RelativeTo helper
+    @distributionFunction
+    def lazyRelativeTo(X, Y) -> typing.Union[Vector, builtins.float, Orientation]:
+        return RelativeTo(X, Y)
+
+    # Define type helpers
+    def knownOrientation(thing):
+        return isA(thing, Orientation) or ((not isLazy(thing)) and canCoerce(thing, Orientation) and (not canCoerce(thing, Vector)))
+
+    def knownHeading(thing):
+        return isA(thing, numbers.Real) or ((not isLazy(thing)) and canCoerce(thing, Heading))
+
+    def knownVector(thing):
+        return isA(thing, Vector) or ((not isLazy(thing)) and canCoerce(thing, Vector))
+
     xf, yf = isA(X, VectorField), isA(Y, VectorField)
     if xf or yf:
         if xf and yf and X.valueType != Y.valueType:
@@ -785,35 +802,54 @@ def RelativeTo(X, Y) -> typing.Union[Vector, builtins.float]:
             return yp + xp
         return DelayedArgument({'position'}, helper)
 
-    elif isA(X, OrientedPoint):
-        if isA(Y, OrientedPoint):
+    elif isA(X, OrientedPoint) or isA(Y, OrientedPoint):
+        # Ensure X and Y aren't both oriented points
+        if isA(X, OrientedPoint) and isA(Y, OrientedPoint):
             raise TypeError('"X relative to Y" with X, Y both oriented points')
-        Y = toVector(Y, '"X relative to Y" with X an oriented point but Y not a vector')
-        return X.relativize(Y)
 
-    elif isA(Y, OrientedPoint):
-        X = toVector(X, '"X relative to Y" with Y an oriented point but X not a vector')
-        return Y.relativize(X)
+        # Extract the single oriented point and the other value
+        if isA(X, OrientedPoint):
+            op = X
+            other = Y
+        else:
+            op = Y
+            other = X
 
-    else:
-        @distributionFunction
-        def relativeToCoerceHelper(X, Y) -> typing.Union[Vector, builtins.float]:
-            if canCoerce(X, Vector):
-                xf = toVector(X)
-                yf = toVector(Y, '"X relative to Y" with X a vector but Y not a vector')
+        # Check the other value's type
+        if isA(other, numbers.Real):
+            return op.heading + toHeading(other)
+        elif isA(other, Orientation):
+            return toOrientation(Y) * toOrientation(X)
+        elif knownVector(other):
+            other = toVector(other)
+            return op.relativize(other)
 
-                return xf + yf
+        # This case doesn't match (for now at least). Fall through.
+        pass
 
-            elif canCoerce(X, Heading):
-                xf = toHeading(X)
-                yf = toHeading(Y, '"X relative to Y" with X a heading but Y not a heading')
+    elif knownOrientation(X) and knownOrientation(Y):
+        xf = toOrientation(X)
+        yf = toOrientation(Y)
 
-                return xf + yf
+        return yf * xf
 
-            else:
-                raise TypeError('"X relative to Y" with X and/or Y not in an allowed form')
+    elif knownHeading(X) and knownHeading(Y):
+        xf = toHeading(X, f'"X relative to Y" with Y a heading but X a {type(X)}')
+        yf = toHeading(Y, f'"X relative to Y" with X a heading but Y a {type(Y)}')
 
-        return relativeToCoerceHelper(X, Y)
+        return xf + yf
+
+    elif knownVector(X) or knownVector(Y):
+        xf = toVector(X, f'"X relative to Y" with Y a vector but X a {type(X)}')
+        yf = toVector(Y, f'"X relative to Y" with X a vector but Y a {type(Y)}')
+
+        return xf + yf
+
+    if isLazy(X) or isLazy(Y):
+        # We can't determine what case to use at this point. Try again when things are sampled.
+        return lazyRelativeTo(X, Y)
+
+    raise TypeError(f'"X relative to Y" with X and Y incompatible types (X a {type(X)}, Y a {type(Y)})')
 
 def OffsetAlong(X, H, Y):
     """The :scenic:`{X} offset along {H} by {Y}` polymorphic operator.

@@ -142,7 +142,7 @@ class Orientation:
 
     @classmethod
     def fromQuaternion(cls, quaternion) -> Orientation:
-        """ Create an `Orientation` from a quaternion"""
+        """ Create an `Orientation` from a quaternion (of the form (x,y,z,w))"""
         r = Rotation.from_quat(quaternion)
         return cls(r)
 
@@ -255,7 +255,7 @@ class Orientation:
     def globalToLocalAngles(self, yaw, pitch, roll) -> typing.Tuple[float, float, float]:
         """Find Euler angles w.r.t. a given parent orientation."""
         orientation = Orientation.fromEuler(yaw, pitch, roll)
-        desiredQuat = self.inverse * orientation
+        desiredQuat = orientation*self.inverse
         return desiredQuat.eulerAngles
 
     def __eq__(self, other):

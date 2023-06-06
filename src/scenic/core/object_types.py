@@ -34,7 +34,7 @@ from scenic.core.vectors import Vector, Orientation, alwaysGlobalOrientation
 from scenic.core.geometry import (averageVectors, hypot, min,
                                   pointIsInCone, normalizeAngle)
 from scenic.core.regions import (Region, CircularRegion, SectorRegion, MeshVolumeRegion, MeshSurfaceRegion, 
-                                  BoxRegion, SpheroidRegion, DefaultViewRegion, EmptyRegion, PolygonalRegion,
+                                  BoxRegion, SpheroidRegion, ViewRegion, EmptyRegion, PolygonalRegion,
                                   convertToFootprint)
 from scenic.core.type_support import toVector, toHeading, toType, toScalar, toOrientation, underlyingType
 from scenic.core.lazy_eval import LazilyEvaluable, isLazy, needsLazyEvaluation
@@ -729,9 +729,9 @@ class OrientedPoint(Point):
         general, it is a capped rectangular pyramid subtending an angle of
         :scenic:`viewAngles[0]` horizontally and :scenic:`viewAngles[1]` vertically, as
         long as those angles are less than π/2; larger angles yield various kinds of
-        wrap-around regions. See `DefaultViewRegion` for details.
+        wrap-around regions. See `ViewRegion` for details.
         """
-        return DefaultViewRegion(visibleDistance=self.visibleDistance, viewAngles=self.viewAngles,
+        return ViewRegion(visibleDistance=self.visibleDistance, viewAngles=self.viewAngles,
             position=self.position, rotation=self.orientation)
 
     @lru_cache(maxsize=None)
@@ -1007,7 +1007,7 @@ class Object(OrientedPoint):
         :prop:`cameraOffset` (which is the zero vector by default).
         """
         true_position = self.position.offsetRotated(self.orientation, self.cameraOffset)
-        return DefaultViewRegion(visibleDistance=self.visibleDistance,
+        return ViewRegion(visibleDistance=self.visibleDistance,
                                  viewAngles=self.viewAngles,
                                  position=true_position, rotation=self.orientation)
 
@@ -1300,8 +1300,8 @@ def defaultSideSurface(occupiedSpace, dimension, positive, thresholds):
           component must be greater than the second value in the
           appropriate tuple.
         thresholds: A 3-tuple of 2-tuples, one for each dimension (x,y,z),
-          with each tuple containing the thresholds for a positive and
-          non-positive side in each dimension.
+          with each tuple containing the thresholds for a non-positive and
+          positive side, respectively, in each dimension.
         on_dimension: The on_dimension to be passed to the created surface.
     """
     # Extract mesh from object

@@ -30,7 +30,6 @@ from scenic.core.distributions import (Samplable, RejectionException, needsSampl
                                        distributionFunction, distributionMethod, toDistribution)
 from scenic.core.lazy_eval import isLazy, valueInContext
 from scenic.core.vectors import Vector, OrientedVector, VectorDistribution, VectorField, Orientation
-from scenic.core.geometry import _RotatedRectangle
 from scenic.core.geometry import sin, cos, hypot, findMinMax, pointIsInCone, averageVectors
 from scenic.core.geometry import headingOfSegment, triangulatePolygon, plotPolygon, polygonUnion
 from scenic.core.type_support import toVector, toScalar, toOrientation
@@ -102,7 +101,7 @@ class Region(Samplable, ABC):
         Check if this `Region` intersects another.
         """
         if triedReversed:
-            raise NotImplementedError
+            raise NotImplementedError(f"Cannot check intersection of {type(self)} and {type(other)}")
         else:
             return other.intersects(self, triedReversed=True)
 
@@ -531,13 +530,17 @@ class SurfaceCollisionTrimesh(trimesh.Trimesh):
         return False
 
 class MeshRegion(Region):
-    """Region given by a scaled, positioned, and rotated mesh. 
+    """Region given by a scaled, positioned, and rotated mesh.
 
-    This region can be subclassed to define whether operations are performed over the volume or surface of the mesh.
+    This is an abstract class and cannot be instantiated directly. Instead a subclass should be used, like
+    `MeshVolumeRegion` or `MeshSurfaceRegion`.
 
-    The mesh is first placed so the origin is at the center of the bounding box (unless centerMesh is ``False``).
-    The mesh is scaled to ``dimensions``, translated so the center of the bounding box of the mesh is at ``positon``,
-    and then rotated to ``rotation``.
+    The mesh is first placed so the origin is at the center of the bounding box (unless :prop:`centerMesh` is ``False``).
+    The mesh is scaled to :prop:`dimensions`, translated so the center of the bounding box of the mesh is at :prop:`positon`,
+    and then rotated to :prop:`rotation`.
+
+    Meshes are centered by default (since :prop:`centerMesh` is true by default). If you disable this operation, do note
+    that scaling and rotation transformations may not behave as expected, since they are performed around the origin.
 
     Args:
         mesh: The base mesh for this MeshRegion.
@@ -548,26 +551,16 @@ class MeshRegion(Region):
         rotation: An optional Orientation object which determines the rotation of the object in space.
         orientation: An optional vector field describing the preferred orientation at every point in
           the region.
-        tolerance: Tolerance for collision computations.
-        centerMesh: Whether or not to center the mesh after copying and before transformations. Only turn this off
-          if you know what you're doing and don't plan to scale or translate the mesh.
+        tolerance: Tolerance for internal computations.
+        centerMesh: Whether or not to center the mesh after copying and before transformations.
         onDirection: The direction to use if an object being placed on this region doesn't specify one.
         engine: Which engine to use for mesh operations. Either "blender" or "scad".
         additionalDeps: Any additional sampling dependencies this region relies on.
     """
-    def __init__(self, mesh, name=None, dimensions=None, position=None, rotation=None, orientation=None,\
-        tolerance=1e-6, centerMesh=True, onDirection=None, engine="blender", additionalDeps=[]):
-        # Copy the mesh and parameters
-        if needsSampling(mesh):
-            self._mesh = mesh
-        else:
-            if isinstance(mesh, trimesh.primitives._Primitive):
-                self._mesh = mesh.to_mesh()
-            elif isinstance(mesh, trimesh.base.Trimesh):
-                self._mesh = mesh.copy()
-            else:
-                raise ValueError(f"Got unexpected mesh parameter of type {type(mesh)}")
-
+    def __init__(self, mesh, dimensions=None, position=None, rotation=None, orientation=None,\
+        tolerance=1e-6, centerMesh=True, onDirection=None, engine="blender", name=None, additionalDeps=[]):
+        # Copy parameters
+        self._mesh = mesh
         self.dimensions = None if dimensions is None else toVector(dimensions)
         self.position = None if position is None else toVector(position)
         self.rotation = None if rotation is None else toOrientation(rotation)
@@ -580,9 +573,17 @@ class MeshRegion(Region):
         # Initialize superclass with samplables
         super().__init__(name, self._mesh, self.dimensions, self.position, self.rotation, *additionalDeps, orientation=orientation)
 
-        # If sampling is needed, delay transformations
-        if needsSampling(self) or needsLazyEvaluation(self):
+        # If our region isn't fixed yet, then compute other values later
+        if isLazy(self):
             return
+
+        # Convert extract mesh
+        if isinstance(mesh, trimesh.primitives._Primitive):
+            self._mesh = mesh.to_mesh()
+        elif isinstance(mesh, trimesh.base.Trimesh):
+            self._mesh = mesh.copy()
+        else:
+            raise ValueError(f"Got unexpected mesh parameter of type {type(mesh)}")
 
         # Center mesh unless disabled
         if centerMesh:
@@ -629,23 +630,51 @@ class MeshRegion(Region):
         mesh = loadMesh(path, filetype, compressed, binary)
         return cls(mesh=mesh, **kwargs)
 
-    ## API Methods ##
-    # Mesh Access #
-    @property
-    def mesh(self):
-        # Prevent access to mesh unless it actually represents region.
-        if isLazy(self):
-            raise ValueError("Attempting to access the Mesh of an unsampled MeshRegion.")
+    ## Lazy Construction Methods ##
+    def sampleGiven(self, value):
+        if isinstance(self, MeshVolumeRegion):
+            cls = MeshVolumeRegion
+        elif isinstance(self, MeshSurfaceRegion):
+            cls = MeshSurfaceRegion
+        else:
+            assert False
 
+        return cls(mesh=value[self._mesh], dimensions=value[self.dimensions],
+            position=value[self.position], rotation=value[self.rotation],
+            orientation=value[self.orientation], tolerance=self.tolerance,
+            centerMesh=self.centerMesh, onDirection=self.onDirection,
+            engine=self.engine, name=self.name)
+
+    def evaluateInner(self, context):
+        if isinstance(self, MeshVolumeRegion):
+            cls = MeshVolumeRegion
+        elif isinstance(self, MeshSurfaceRegion):
+            cls = MeshSurfaceRegion
+        else:
+            assert False
+
+        mesh = valueInContext(self._mesh, context)
+        dimensions = valueInContext(self.dimensions, context)
+        position = valueInContext(self.position, context)
+        rotation = valueInContext(self.rotation, context)
+        orientation = valueInContext(self.orientation, context)
+
+        return cls(mesh, dimensions, position, rotation, orientation,
+            tolerance=self.tolerance, centerMesh=self.centerMesh,
+            onDirection=self.onDirection, engine=self.engine, name=self.name)
+
+    ## API Methods ##
+    @property
+    @distributionFunction
+    def mesh(self):
         return self._mesh
 
+    @distributionFunction
     def projectVector(self, point, onDirection):
-        """ Find the nearest point in the region following the onDirection.
+        """ Find the nearest point in the region following the onDirection or its negation.
 
         Returns None if no such points exist.
         """
-        assert not needsSampling(self)
-
         # Check if this region contains the point, in which case we simply
         # return the point.
         if self.containsPoint(point):
@@ -669,23 +698,15 @@ class MeshRegion(Region):
         if len(intersection_data) == 0:
             return None
 
-        # Get point with least euclidean distance
-        def euclidean_distance(p_1, p_2):
-            diff_list = [p_1[i] - p_2[i] for i in range(3)]
-            square_list = [math.pow(p, 2) for p in diff_list]
-            return math.sqrt(sum(square_list))
-
-        distances = [euclidean_distance(point, p) for p in intersection_data]
-
-        closest_point = intersection_data[distances.index(min(distances))]
+        distances = numpy.linalg.norm(intersection_data-numpy.asarray(point))
+        closest_point = intersection_data[numpy.argmin(distances)]
 
         return Vector(*closest_point)
 
     @cached_property
+    @distributionFunction
     def circumcircle(self):
         """ Compute an upper bound on the radius of the region"""
-        assert not needsSampling(self)
-
         center_point = Vector(*self.mesh.bounding_box.center_mass)
         half_extents = [val/2 for val in self.mesh.extents]
         circumradius = hypot(*half_extents)
@@ -702,7 +723,7 @@ class MeshRegion(Region):
 
     @cached_property
     def _boundingPolygon(self):
-        assert not needsSampling(self)
+        assert not isLazy(self)
 
         # Relatively fast case for convex regions
         if self.isConvex:
@@ -719,22 +740,10 @@ class MeshRegion(Region):
         return projection
 
     @cached_property
+    @distributionFunction
     def boundingPolygon(self):
         """A PolygonalRegion bounding the mesh"""
         return PolygonalRegion(polygon=self._boundingPolygon)
-
-    def sampleGiven(self, value):
-        if isinstance(self, MeshVolumeRegion):
-            cls = MeshVolumeRegion
-        elif isinstance(self, MeshSurfaceRegion):
-            cls = MeshSurfaceRegion
-        else:
-            assert False
-
-        return cls(mesh=value[self._mesh], name=self.name, \
-            dimensions=value[self.dimensions], position=value[self.position], rotation=value[self.rotation], \
-            orientation=self.orientation, tolerance=self.tolerance, \
-            centerMesh=self.centerMesh, onDirection=self.onDirection, engine=self.engine)
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -742,18 +751,39 @@ class MeshRegion(Region):
         return state
 
 class MeshVolumeRegion(MeshRegion):
-    """ An instance of MeshRegion that performs operations over the volume of the mesh.
+    """ A region representing the volume of a mesh.
 
-    At intialization time this region assigns the property ``num_samples``,
-    which is the number of samples to attempt to get at least a 99% probability
-    of one being in the volume. This can be overwritten after initialization time,
-    but if it is too low a `RejectionException` is likely and if it is too high sampling
-    can be prolonged.
+    The mesh must represent a volume, meaning the mesh must be watertight, have consistent
+    winding and have outward facing normals.
+
+    The mesh is first placed so the origin is at the center of the bounding box (unless
+    :prop:`centerMesh` is ``False``). The mesh is scaled to :prop:`dimensions`, translated
+    so the center of the bounding box of the mesh is at :prop:`positon`, and then rotated
+    to :prop:`rotation`.
+
+    Meshes are centered by default (since :prop:`centerMesh` is true by default). If you
+    disable this operation, do note that scaling and rotation transformations may not behave
+    as expected, since they are performed around the origin.
+
+    Args:
+        mesh: The base mesh for this region.
+        name: An optional name to help with debugging.
+        dimensions: An optional 3-tuple, with the values representing width, length, height
+          respectively. The mesh will be scaled such that the bounding box for the mesh has
+          these dimensions.
+        position: An optional position, which determines where the center of the region will be.
+        rotation: An optional Orientation object which determines the rotation of the object in space.
+        orientation: An optional vector field describing the preferred orientation at every point in
+          the region.
+        tolerance: Tolerance for internal computations.
+        centerMesh: Whether or not to center the mesh after copying and before transformations.
+        onDirection: The direction to use if an object being placed on this region doesn't specify one.
+        engine: Which engine to use for mesh operations. Either "blender" or "scad".
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        if needsSampling(self):
+        if isLazy(self):
             return
 
         # Ensure the mesh is watertight so volume is well defined
@@ -770,18 +800,15 @@ class MeshVolumeRegion(MeshRegion):
             self.num_samples = min(1e6, max(1, math.ceil(math.log(0.01, 1 - p_volume))))
 
     # Property testing methods #
+    @distributionFunction
     def intersects(self, other, triedReversed=False):
         """Check if this region intersects another.
 
         This function handles intersect calculations for `MeshVolumeRegion` with:
         * `MeshVolumeRegion`
         * `MeshSurfaceRegion`
-        * `PolygonalFootprintRegion`
+        * `PolygonalFootprintRegion`other
         """
-        # Check if region is fixed, and if not returns a default implementation
-        if needsSampling(self):
-            return super().intersects(other)
-
         if isinstance(other, MeshVolumeRegion):
             # PASS 1
             # Check if bounding boxes intersect. If not, volumes cannot intersect.
@@ -806,14 +833,14 @@ class MeshVolumeRegion(MeshRegion):
             # Otherwise try to sample a point as a candidate, skipping this pass if the sample fails.
             if self.containsPoint(Vector(*self.mesh.bounding_box.center_mass)):
                 s_candidate_point = Vector(*self.mesh.bounding_box.center_mass)
-            elif len(samples:=trimesh.sample.volume_mesh(self.mesh, self.num_samples)) > 0:
+            elif samples:=trimesh.sample.volume_mesh(self.mesh, self.num_samples):
                 s_candidate_point = Vector(*samples[0])
             else:
                 s_candidate_point = None
 
             if other.containsPoint(Vector(*other.mesh.bounding_box.center_mass)):
                 o_candidate_point = Vector(*other.mesh.bounding_box.center_mass)
-            elif len(samples:=trimesh.sample.volume_mesh(other.mesh, other.num_samples)) > 0:
+            elif samples:=trimesh.sample.volume_mesh(other.mesh, other.num_samples):
                 o_candidate_point = Vector(*samples[0])
             else:
                 o_candidate_point = None
@@ -851,8 +878,8 @@ class MeshVolumeRegion(MeshRegion):
                 return True
 
             if self.mesh.is_convex and other.mesh.is_convex:
-                # Collision manager covers all cases for convex shapes,
-                # so we can just return the value.
+            # For convex shapes, the manager detects containment as well as
+            # surface intersections, so we can just return the result
                 return surface_collision
 
             # PASS 4
@@ -906,15 +933,14 @@ class MeshVolumeRegion(MeshRegion):
 
             return self.intersects(bounded_footprint)
 
-        if not triedReversed:
-            return other.intersects(self)
+        return super().intersects(other, triedReversed)
 
-        raise NotImplementedError(f"Cannot check intersection of MeshRegion with {type(other)}.")
-
+    @distributionFunction
     def containsPoint(self, point):
         """Check if this region's volume contains a point."""
-        return self.distanceTo(point) < self.tolerance
+        return self.distanceTo(point) <= self.tolerance
 
+    @distributionFunction
     def containsObject(self, obj):
         """Check if this region's volume contains an :obj:`~scenic.core.object_types.Object`."""
         # PASS 1
@@ -1029,8 +1055,8 @@ class MeshVolumeRegion(MeshRegion):
         * `PathRegion`
         * `PolylineRegion`
         """
-        # If one of the regions isn't fixed fall back on default behavior
-        if needsSampling(self) or needsSampling(other):
+        # If one of the regions isn't fixed, fall back on default behavior
+        if isLazy(self) or isLazy(other):
             return super().intersect(other, triedReversed)
 
         if isinstance(other, MeshVolumeRegion):
@@ -1042,14 +1068,14 @@ class MeshVolumeRegion(MeshRegion):
                 new_mesh = self.mesh.intersection(other_mesh, engine=self.engine)
             except CalledProcessError:
                 if self.engine == "scad":
-                    return EmptyRegion("EmptyMesh")
+                    return nowhere
                 else:
                     raise RuntimeError("Mesh boolean operation failed.")
             except ValueError as exc:
                 raise ValueError("Unable to compute mesh boolean operation. Do you have the Blender and OpenSCAD installed on your system?") from exc
 
             if new_mesh.is_empty:
-                return EmptyRegion("EmptyMesh")
+                return nowhere
             elif new_mesh.is_volume:
                 return MeshVolumeRegion(new_mesh, tolerance=min(self.tolerance, other.tolerance), centerMesh=False, engine=self.engine)
             else:
@@ -1141,15 +1167,15 @@ class MeshVolumeRegion(MeshRegion):
             slice_2d, _ = slice_3d.to_planar(to_2D=numpy.eye(4))
             polygons = MultiPolygon(slice_2d.polygons_full) & other.polygons
 
-            if isinstance(polygons, shapely.geometry.Polygon):
-                polygons = MultiPolygon([polygons])
-
             if polygons.is_empty:
                 return nowhere
 
             return PolygonalRegion(polygon=polygons, z=other.z)
 
         if isinstance(other, PathRegion):
+            # Other region is one or more 2d line segments. We can divide each line segment into pieces that are entirely inside/outside
+            # the mesh. Then we can construct a new Polyline region using only the line segments that are entirely inside.
+
             # Extract lines from region
             edges = [(other.vert_to_vec[v1], other.vert_to_vec[v2]) for v1,v2 in other.edges]
 
@@ -1191,7 +1217,7 @@ class MeshVolumeRegion(MeshRegion):
             if internal_lines:
                 return PathRegion(polylines=internal_lines)
             else:
-                return EmptyRegion("Empty mesh-polyline merge")
+                return nowhere
 
         if isinstance(other, PolylineRegion):
             # Other region is one or more 2d line segments. We can divide each line segment into pieces that are entirely inside/outside
@@ -1264,7 +1290,7 @@ class MeshVolumeRegion(MeshRegion):
             if merged_lines:
                 return PolylineRegion(polyline=shapely.ops.linemerge(internal_lines))
             else:
-                return EmptyRegion("Empty mesh-polyline merge")
+                return nowhere
 
         # Don't know how to compute this intersection, fall back to default behavior.
         return super().intersect(other, triedReversed)
@@ -1275,8 +1301,8 @@ class MeshVolumeRegion(MeshRegion):
         This function handles union computation for `MeshVolumeRegion` with:
             - `MeshVolumeRegion`
         """
-        # If one of the regions isn't fixed fall back on default behavior
-        if needsSampling(self) or needsSampling(other):
+        # If one of the regions isn't fixed, fall back on default behavior
+        if isLazy(self) or isLazy(other):
             return super().union(other, triedReversed)
 
         # If other region is represented by a mesh, we can extract the mesh to
@@ -1291,7 +1317,7 @@ class MeshVolumeRegion(MeshRegion):
                 raise ValueError("Unable to compute mesh boolean operation. Do you have the Blender and OpenSCAD installed on your system?") from exc
 
             if new_mesh.is_empty:
-                return EmptyRegion("EmptyMesh")
+                return nowhere
             elif new_mesh.is_volume:
                 return MeshVolumeRegion(new_mesh, tolerance=min(self.tolerance, other.tolerance), centerMesh=False, engine=self.engine)
             else:
@@ -1308,8 +1334,8 @@ class MeshVolumeRegion(MeshRegion):
         * `MeshVolumeRegion`
         * `PolygonalFootprintRegion`
         """
-        # If one of the regions isn't fixed fall back on default behavior
-        if needsSampling(self) or needsSampling(other):
+        # If one of the regions isn't fixed, fall back on default behavior
+        if isLazy(self) or isLazy(other):
             return super().difference(other)
 
         # If other region is represented by a mesh, we can extract the mesh to
@@ -1322,14 +1348,14 @@ class MeshVolumeRegion(MeshRegion):
                 new_mesh = self.mesh.difference(other_mesh, engine=self.engine, debug=debug)
             except CalledProcessError:
                 if self.engine == "scad":
-                    return EmptyRegion("EmptyMesh")
+                    return nowhere
                 else:
                     raise RuntimeError("Mesh boolean operation failed.")
             except ValueError as exc:
                 raise ValueError("Unable to compute mesh boolean operation. Do you have the Blender and OpenSCAD installed on your system?") from exc
 
             if new_mesh.is_empty:
-                return EmptyRegion("EmptyMesh")
+                return nowhere
             elif new_mesh.is_volume:
                 return MeshVolumeRegion(new_mesh, tolerance=min(self.tolerance, other.tolerance), centerMesh=False, engine=self.engine)
             else:
@@ -1365,9 +1391,10 @@ class MeshVolumeRegion(MeshRegion):
         else:
             return Vector(*sample[0])
 
+    @distributionFunction
     def distanceTo(self, point):
         """Get the minimum distance from this region to the specified point."""
-        point = toVector(point, "Could not convert 'point' to vector.")
+        point = toVector(point, f"Could not convert {point} to vector.")
 
         pq = trimesh.proximity.ProximityQuery(self.mesh)
 
@@ -1381,7 +1408,6 @@ class MeshVolumeRegion(MeshRegion):
 
     @cached_property
     def inradius(self):
-        assert not needsSampling(self)
         center_point = self.mesh.bounding_box.center_mass
 
         pq = trimesh.proximity.ProximityQuery(self.mesh)
@@ -1413,11 +1439,27 @@ class MeshVolumeRegion(MeshRegion):
 
 
 class MeshSurfaceRegion(MeshRegion):
-    """ An instance of MeshRegion that performs operations over the surface of the mesh.
+    """ A region representing the surface of a mesh.
 
-    If an orientation is not passed to this mesh, a default orientation is
-    provided which provides an orientation that aligns an instance's z axis 
-    with the normal vector of the face containing that point.
+    The mesh is first placed so the origin is at the center of the bounding box (unless :prop:`centerMesh` is ``False``).
+    The mesh is scaled to :prop:`dimensions`, translated so the center of the bounding box of the mesh is at :prop:`positon`,
+    and then rotated to :prop:`rotation`.
+
+    Meshes are centered by default (since :prop:`centerMesh` is true by default). If you disable this operation, do note
+    that scaling and rotation transformations may not behave as expected, since they are performed around the origin.
+
+    Args:
+        mesh: The base mesh for this region.
+        name: An optional name to help with debugging.
+        dimensions: An optional 3-tuple, with the values representing width, length, height respectively.
+          The mesh will be scaled such that the bounding box for the mesh has these dimensions.
+        position: An optional position, which determines where the center of the region will be.
+        rotation: An optional Orientation object which determines the rotation of the object in space.
+        orientation: An optional vector field describing the preferred orientation at every point in
+          the region.
+        tolerance: Tolerance for internal computations.
+        centerMesh: Whether or not to center the mesh after copying and before transformations.
+        onDirection: The direction to use if an object being placed on this region doesn't specify one.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1427,6 +1469,7 @@ class MeshSurfaceRegion(MeshRegion):
             self.orientation = VectorField("DefaultSurfaceVectorField", lambda pos: self.getFlatOrientation(pos))
 
     # Property testing methods #
+    @distributionFunction
     def intersects(self, other, triedReversed=False):
         """ Check if this region's surface intersects another.
 
@@ -1434,11 +1477,7 @@ class MeshSurfaceRegion(MeshRegion):
         * `MeshSurfaceRegion`
         * `PolygonalFootprintRegion`
         """
-        # Check if region is fixed, and if not returns a default implementation
-        if needsSampling(self):
-            return super().intersects(other)
-
-        elif isinstance(other, MeshSurfaceRegion):
+        if isinstance(other, MeshSurfaceRegion):
             # Uses Trimesh's collision manager to check for intersection of the
             # surfaces. Use SurfaceCollisionTrimesh objects to ensure collisions
             # actually imply a surface collision.
@@ -1463,12 +1502,9 @@ class MeshSurfaceRegion(MeshRegion):
 
             return self.intersects(bounded_footprint)
 
-        elif not triedReversed:
-            return other.intersects(self)
+        return super().intersects(other, triedReversed)
 
-        raise NotImplementedError("Cannot check intersection of MeshRegion with " +
-            type(other) + ".")
-
+    @distributionFunction
     def containsPoint(self, point):
         """Check if this region's surface contains a point."""
         # First compute the minimum distance to the point.
@@ -1495,6 +1531,7 @@ class MeshSurfaceRegion(MeshRegion):
     def uniformPointInner(self):
         return Vector(*trimesh.sample.sample_surface(self.mesh, 1)[0][0])
 
+    @distributionFunction
     def distanceTo(self, point):
         """Get the minimum distance from this object to the specified point."""
         point = toVector(point, "Could not convert 'point' to vector.")
@@ -1532,9 +1569,7 @@ class MeshSurfaceRegion(MeshRegion):
         face_normal_vector = self.mesh.face_normals[triangle_id][0]
 
         transform = trimesh.geometry.align_vectors([0,0,1], face_normal_vector)
-        orientation = tuple(scipy.spatial.transform.Rotation.from_matrix(transform[:3,:3]).as_euler('ZXY'))
-
-        return orientation
+        return Orientation(scipy.spatial.transform.Rotation.from_matrix(transform[:3,:3]))
 
     ## Utility Methods ##
     @lru_cache(maxsize=None)
@@ -1552,62 +1587,64 @@ class BoxRegion(MeshVolumeRegion):
 
     By default the unit box centered at the origin and aligned with the axes is used.
 
-    Args:
-        name: An optional name to help with debugging.
-        dimensions: An optional 3-tuple, with the values representing width, length, height respectively.
-          The mesh will be scaled such that the bounding box for the mesh has these dimensions.
-        position: An optional position, which determines where the center of the region will be.
-        rotation: An optional Orientation object which determines the rotation of the object in space.
-        orientation: An optional vector field describing the preferred orientation at every point in
-          the region.
-        tolerance: Tolerance for collision computations.
-        engine: Which engine to use for mesh operations. Either "blender" or "scad".
+    Parameters are the same as `MeshVolumeRegion`, with the exception of the :param:`mesh`
+    parameter which is excluded.
     """
-    def __init__(self, name=None, dimensions=None, position=None, rotation=None, orientation=None,
-                 tolerance=1e-8, onDirection=None, engine="blender"):
+    def __init__(self, **kwargs):
         box_mesh = trimesh.creation.box((1, 1, 1))
-        super().__init__(mesh=box_mesh, name=name, position=position, rotation=rotation, dimensions=dimensions,\
-        orientation=orientation, tolerance=tolerance, onDirection=onDirection, engine=engine)
+        super().__init__(mesh=box_mesh, **kwargs)
 
     @cached_property
     def isConvex(self):
         return True
 
     def sampleGiven(self, value):
-        return BoxRegion(name=self.name, dimensions=value[self.dimensions],
-            position=value[self.position], rotation=value[self.rotation], \
-            orientation=self.orientation, tolerance=self.tolerance, engine=self.engine)
+        return BoxRegion(dimensions=value[self.dimensions],
+            position=value[self.position], rotation=value[self.rotation],
+            orientation=value[self.orientation], tolerance=self.tolerance,
+            engine=self.engine, name=self.name)
+
+    def evaluateInner(self, context):
+        dimensions = valueInContext(self.dimensions, context)
+        position = valueInContext(self.position, context)
+        rotation = valueInContext(self.rotation, context)
+        orientation = valueInContext(self.orientation, context)
+
+        return BoxRegion(dimensions=dimensions, position=position,
+            rotation=rotation, orientation=orientation, tolerance=self.tolerance,
+            engine=self.engine, name=self.name)
 
 class SpheroidRegion(MeshVolumeRegion):
     """ Region in the shape of a spheroid.
 
     By default the unit sphere centered at the origin and aligned with the axes is used.
 
-    Args:
-        name: An optional name to help with debugging.
-        dimensions: An optional 3-tuple, with the values representing width, length, height respectively.
-          The mesh will be scaled such that the bounding box for the mesh has these dimensions.
-        position: An optional position, which determines where the center of the region will be.
-        rotation: An optional Orientation object which determines the rotation of the object in space.
-        orientation: An optional vector field describing the preferred orientation at every point in
-          the region.
-        tolerance: Tolerance for collision computations.
-        engine: Which engine to use for mesh operations. Either "blender" or "scad".
+    Parameters are the same as `MeshVolumeRegion`, with the exception of the :param:`mesh`
+    parameter which is excluded.
     """
-    def __init__(self, name=None, dimensions=None, position=None, rotation=None, orientation=None,
-                 tolerance=1e-8, onDirection=None, engine="blender"):
+    def __init__(self, **kwargs):
         sphere_mesh = trimesh.creation.icosphere(radius=1)
-        super().__init__(mesh=sphere_mesh, name=name, position=position, rotation=rotation, dimensions=dimensions, \
-            orientation=orientation, tolerance=tolerance, onDirection=onDirection, engine=engine)
+        super().__init__(mesh=sphere_mesh, **kwargs)
 
     @cached_property
     def isConvex(self):
         return True
 
     def sampleGiven(self, value):
-        return SpheroidRegion(name=self.name, dimensions=value[self.dimensions],
-            position=value[self.position], rotation=value[self.rotation], \
-            orientation=self.orientation, tolerance=self.tolerance, engine=self.engine)
+        return SpheroidRegion(dimensions=value[self.dimensions],
+            position=value[self.position], rotation=value[self.rotation],
+            orientation=value[self.orientation], tolerance=self.tolerance,
+            engine=self.engine, name=self.name)
+
+    def evaluateInner(self, context):
+        dimensions = valueInContext(self.dimensions, context)
+        position = valueInContext(self.position, context)
+        rotation = valueInContext(self.rotation, context)
+        orientation = valueInContext(self.orientation, context)
+
+        return SpheroidRegion(dimensions=dimensions, position=position,
+            rotation=rotation, orientation=orientation, tolerance=self.tolerance,
+            engine=self.engine, name=self.name)
 
 class PolygonalFootprintRegion(Region):
     """ Region that contains all points in a polygonal footprint, regardless of their z value. 
@@ -1615,14 +1652,20 @@ class PolygonalFootprintRegion(Region):
     This region cannot be sampled from, as it has infinite height and therefore infinite volume.
     
     Args:
-        polygon: A ``MultiPolygon`` that defines the footprint of this region.
+        polygons: A ``MultiPolygon`` that defines the footprint of this region.
         name: An optional name to help with debugging.
     """
-    def __init__(self, polygon, name=None):
-        if not isinstance(polygon, MultiPolygon):
+    def __init__(self, polygons, name=None):
+        if not isinstance(polygons, MultiPolygon):
             raise RuntimeError("'polygon' must be a shapely MultiPolygon")
 
-        self.polygon = polygon
+        if isinstance(polygons, shapely.geometry.Polygon):
+            self.polygons = shapely.geometry.MultiPolygon([polygons])
+        elif isinstance(polygons, shapely.geometry.MultiPolygon):
+            self.polygons = polygons
+        else:
+            raise TypeError(f'tried to create PolygonalFootprintRegion from non-polygon {polygons}')
+
         super().__init__(name)
         self._bounded_cache = None
 
@@ -1636,17 +1679,17 @@ class PolygonalFootprintRegion(Region):
         if isinstance(other, PolygonalFootprintRegion):
             # Other region is a PolygonalFootprintRegion, so we can just intersect the base polygons
             # and take the footprint of the result, if it isn't empty.
-            new_poly = PolygonalRegion(polygon=self.polygon).intersect(PolygonalRegion(polygon=other.polygon))
+            new_poly = self.polygons.intersect(other.polygons)
 
-            if isinstance(new_poly, EmptyRegion):
-                return new_poly
+            if new_poly.is_empty:
+                return nowhere
             else:
-                return new_poly.footprint
+                return PolygonalFootprintRegion(new_poly)
 
         if isinstance(other, PolygonalRegion):
             # Other region can be represented by a polygon. We can take the intersection of that
             # polygon with our base polygon at the correct z position, and then output the resulting polygon.
-            return PolygonalRegion(polygon=self.polygon, z=other.z).intersect(other)
+            return PolygonalRegion(polygon=self.polygons, z=other.z).intersect(other)
 
         return super().intersect(other, triedReversed)
 
@@ -1659,7 +1702,7 @@ class PolygonalFootprintRegion(Region):
         if isinstance(other, PolygonalFootprintRegion):
             # Other region is a PolygonalFootprintRegion, so we can just union the base polygons
             # and take the footprint of the result.
-            return PolygonalRegion(polygon=self.polygon).union(PolygonalRegion(polygon=other.polygon)).footprint
+            return PolygonalFootprintRegion(self.polygons.union(other.polygons))
 
         return super().union(other, triedReversed)
 
@@ -1672,12 +1715,12 @@ class PolygonalFootprintRegion(Region):
         if isinstance(other, PolygonalFootprintRegion):
             # Other region is a PolygonalFootprintRegion, so we can just difference the base polygons
             # and take the footprint of the result, if it isn't empty.
-            new_poly = PolygonalRegion(polygon=self.polygon).difference(PolygonalRegion(polygon=other.polygon))
+            new_poly = self.polygons.difference(other.polygons)
 
-            if isinstance(new_poly, EmptyRegion):
-                return new_poly
+            if new_poly.is_empty:
+                return nowhere
             else:
-                return new_poly.footprint
+                return PolygonalFootprintRegion(new_poly)
 
         return super().difference(other)
 
@@ -1693,7 +1736,7 @@ class PolygonalFootprintRegion(Region):
             point: A point to be checked for containment.
         """
         x_y_point = toVector(point)[:2]
-        return self.polygon.intersects(shapely.geometry.Point(x_y_point))
+        return self.prepared.intersects(shapely.geometry.Point(x_y_point))
 
     def containsObject(self, obj):
         """ Checks if an object is contained in the polygonal footprint.
@@ -1702,7 +1745,7 @@ class PolygonalFootprintRegion(Region):
             obj: An object to be checked for containment.
         """
         # Check containment using the bounding polygon of the object.
-        return self.polygon.contains(obj._boundingPolygon)
+        return self.prepared.contains(obj._boundingPolygon)
 
     def containsRegionInner(self, reg, tolerance):
         buffered_polygons = self.polygons.buffer(tolerance)
@@ -1711,7 +1754,7 @@ class PolygonalFootprintRegion(Region):
             return buffered_polygons.contains(reg._boundingPolygon)
 
         if isinstance(other, (PolygonalRegion, PolygonalFootprintRegion)):
-            return buffered_polygons.contains(reg.poylgons)
+            return buffered_polygons.contains(reg.polygons)
 
         raise NotImplementedError
 
@@ -1764,9 +1807,9 @@ class PolygonalFootprintRegion(Region):
         for tol_size in tol_sizes:
             # If needed, buffer the multipolygon
             if tol_size is None:
-                poly_obj = self.polygon
+                poly_obj = self.polygons
             else:
-                poly_obj = self.polygon.buffer(tol_size).simplify(tol_size)
+                poly_obj = self.polygons.buffer(tol_size).simplify(tol_size)
 
             # Extract a list of the polygon
             if isinstance(poly_obj, shapely.geometry.Polygon):
@@ -1795,30 +1838,44 @@ class PolygonalFootprintRegion(Region):
         return MeshVolumeRegion(polygon_mesh, centerMesh=False)
 
     def buffer(self, amount):
-        buffered_polygon = self.polygon.buffer(amount)
-
+        buffered_polygon = self.polygons.buffer(amount)
         if isinstance(buffered_polygon, shapely.geometry.Polygon):
             buffered_polygon = MultiPolygon([buffered_polygon])
-
-        return PolygonalFootprintRegion(polygon=buffered_polygon, name=self.name)
+        return PolygonalFootprintRegion(polygons=buffered_polygon, name=self.name)
 
     @cached_property
     def isConvex(self):
         return self.polygons.equals(self.polygons.convex_hull)
 
+    @cached_property
+    def prepared(self):
+        return shapely.prepared.prep(self.polygons)
+
+    @cached
+    def __hash__(self):
+        return hash((self.polygons, self.orientation))
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop('_cached_prepared', None)     # prepared geometries are not picklable
+        return state
+
 class PathRegion(Region):
     """A region composed of multiple polylines in 3D space.
 
-    One of points or polylines should be provided. If both are provided,
-    points will be used.
+    One of points or polylines should be provided.
 
     Args:
         points: A list of points defining a single polyline.
         polylines: A list of list of points, defining multiple polylines.
+        tolerance: Tolerance used internally.
     """
-    def __init__(self, points=None, polylines=None, name=None):
+    def __init__(self, points=None, polylines=None, tolerance=1e-8, name=None):
         super().__init__(name)
         # Standardize inputs
+        if points is None and polylines is None:
+            raise ValueError("Both points and polylines passed to PathRegion initializer")
+
         if points is not None:
             polylines = [points]
         elif polylines is not None:
@@ -1850,7 +1907,7 @@ class PathRegion(Region):
                 # Update last point
                 last_pt = cast_pt
 
-        self.vert_to_vec = {val:key for key,val in self.vec_to_vert.items()}
+        self.vert_to_vec = tuple(key for key,val in self.vec_to_vert.items())
         self.vertices = list(sorted(self.vec_to_vert.keys(), key=lambda vec: self.vec_to_vert[vec]))
 
         # Extract length of each edge
@@ -1862,8 +1919,9 @@ class PathRegion(Region):
 
             self.edge_lengths.append(c1.distanceTo(c2))
 
-    @lru_cache(maxsize=None)
-    def containsPoint(self, point, epsilon=1e-8):
+        self.tolerance = tolerance
+
+    def containsPoint(self, point):
         pt = toVector(point)
 
         # Check if each edge contains the point
@@ -1871,7 +1929,7 @@ class PathRegion(Region):
             v1, v2 = edge
             c1, c2 = self.vert_to_vec[v1], self.vert_to_vec[v2]
 
-            if (c1.distanceTo(pt) + pt.distanceTo(c2)) <= c1.distanceTo(c2) + epsilon:
+            if (c1.distanceTo(pt) + pt.distanceTo(c2)) <= c1.distanceTo(c2) + self.tolerance:
                 return True
 
         return False
@@ -1916,7 +1974,7 @@ class PathRegion(Region):
 ###################################################################################################
 
 class PolygonalRegion(Region):
-    """Region given by one or more polygons (possibly with holes).
+    """Region given by one or more polygons (possibly with holes) at a fixed z coordinate.
 
     The region may be specified by giving either a sequence of points defining the
     boundary of the polygon, or a collection of ``shapely`` polygons (a ``Polygon``
@@ -1927,15 +1985,19 @@ class PolygonalRegion(Region):
             using the **polygon** argument instead).
         polygon: ``shapely`` polygon or collection of polygons (or `None` if using
             the **points** argument instead).
+        z: The z coordinate the polygon is located at.
         orientation (`VectorField`; optional): :term:`preferred orientation` to use.
         name (str; optional): name for debugging.
     """
-    def __init__(self, points=None, polygon=None, orientation=None, name=None, z=0, additionalDeps=[]):
-        super().__init__(name, *additionalDeps, orientation=orientation)
+    def __init__(self, points=None, polygon=None, z=0, orientation=None, name=None, additionalDeps=[]):
+        super().__init__(name, points, polygon, z, *additionalDeps, orientation=orientation)
 
+        # Store main parameter
+        self._points = points
+        self._polygon = polygon
         self.z = z
 
-        # If our polygons aren't defined yet, then wait till later
+        # If our region isn't fixed yet, then compute other values later
         if isLazy(self):
             return
 
@@ -1945,18 +2007,18 @@ class PolygonalRegion(Region):
             points = tuple(pt[:2] for pt in points)
             if len(points) == 0:
                 raise ValueError('tried to create PolygonalRegion from empty point list!')
-            for point in points:
-                if any(needsSampling(coord) for coord in point):
-                    raise ValueError('only fixed PolygonalRegions are supported')
             self.points = points
             polygon = shapely.geometry.Polygon(points)
 
         if isinstance(polygon, shapely.geometry.Polygon):
-            self.polygons = shapely.geometry.MultiPolygon([polygon])
+            self._polygons = shapely.geometry.MultiPolygon([polygon])
         elif isinstance(polygon, shapely.geometry.MultiPolygon):
-            self.polygons = polygon
+            self._polygons = polygon
         else:
-            raise ValueError(f'tried to create PolygonalRegion from non-polygon {polygon}')
+            raise TypeError(f'tried to create PolygonalRegion from non-polygon {polygon}')
+
+        assert self._polygons
+
         if not self.polygons.is_valid:
             raise ValueError('tried to create PolygonalRegion with '
                              f'invalid polygon {self.polygons}')
@@ -1976,14 +2038,34 @@ class PolygonalRegion(Region):
         areas = (triangle.area for triangle in triangles)
         self.cumulativeTriangleAreas = tuple(itertools.accumulate(areas))
 
+    ## Lazy Construction Methods ##
+    def sampleGiven(self, value):
+        return PolygonalRegion(points=value[self._points], polygon=value[self._polygon],
+            z=value[self.z], orientation=value[self.orientation], name=self.name)
+
+    def evaluateInner(self, context):
+        points = valueInContext(self._points, context)
+        polygon = valueInContext(self._polygon, context)
+        z = valueInContext(self.z, context)
+        orientation = valueInContext(self.orientation, context)
+        return PolygonalRegion(points=points, polygon=polygon, z=z,
+            orientation=orientation, name=self.name)
+
+    @property
+    @distributionFunction
+    def polygons(self):
+        return self._polygons
+
     @cached_property
+    @distributionFunction
     def footprint(self):
-        assert not needsSampling(self)
         return PolygonalFootprintRegion(self.polygons)
 
+    @distributionFunction
     def containsPoint(self, point):
         return self.footprint.containsPoint(point)
 
+    @distributionFunction
     def containsObject(self, obj):
         return self.footprint.containsObject(obj)
 
@@ -1998,9 +2080,8 @@ class PolygonalRegion(Region):
             if triangle.intersects(shapely.geometry.Point(x, y)):
                 return self.orient(Vector(x, y, self.z))
 
+    @distributionFunction
     def intersects(self, other, triedReversed=False):
-        assert not needsSampling(self)
-
         if isinstance(other, PolygonalRegion):
             if self.z != other.z:
                 return False
@@ -2009,11 +2090,12 @@ class PolygonalRegion(Region):
         if poly is not None:
             intersection = self.polygons & poly
             return not intersection.is_empty
+
         return super().intersects(other, triedReversed)
 
     def intersect(self, other, triedReversed=False):
-        # If one of the regions isn't fixed fall back on default behavior
-        if needsSampling(self) or needsSampling(other):
+        # If one of the regions isn't fixed, fall back on default behavior
+        if isLazy(self) or isLazy(other):
             return super().intersect(other, triedReversed)
 
         if isinstance(other, PolygonalRegion):
@@ -2037,9 +2119,9 @@ class PolygonalRegion(Region):
         return super().intersect(other, triedReversed)
 
     def union(self, other, triedReversed=False, buf=0):
-        # If one of the regions isn't fixed fall back on default behavior
-        if needsSampling(self) or needsSampling(other):
-            return super().difference(other)
+        # If one of the regions isn't fixed, fall back on default behavior
+        if isLazy(self) or isLazy(other):
+            return super().union(other)
 
         if isinstance(other, PolygonalRegion):
             if self.z != other.z:
@@ -2054,8 +2136,8 @@ class PolygonalRegion(Region):
         return PolygonalRegion(polygon=union, orientation=orientation)
 
     def difference(self, other):
-        # If one of the regions isn't fixed fall back on default behavior
-        if needsSampling(self) or needsSampling(other):
+        # If one of the regions isn't fixed, fall back on default behavior
+        if isLazy(self) or isLazy(other):
             return super().difference(other)
 
         if isinstance(other, PolygonalRegion):
@@ -2069,7 +2151,9 @@ class PolygonalRegion(Region):
         return super().difference(other)
 
     @staticmethod
+    @distributionFunction
     def unionAll(regions, buf=0):
+        regions = tuple(regions)
         if not all([r.z == regions[0].z for r in regions]):
             raise ValueError("union of PolygonalRegions with different z values is undefined.")
 
@@ -2087,21 +2171,19 @@ class PolygonalRegion(Region):
         return PolygonalRegion(polygon=union, orientation=orientation)
 
     @property
+    @distributionFunction
     def boundary(self) -> "PolylineRegion":
         """Get the boundary of this region as a `PolylineRegion`."""
         return PolylineRegion(polyline=self.polygons.boundary)
 
-    @cached_property
-    def prepared(self):
-        return shapely.prepared.prep(self.polygons)
-
+    @distributionFunction
     def containsRegionInner(self, other, tolerance):
         poly = toPolygon(other)
         if poly is None:
             raise TypeError(f'cannot test inclusion of {other} in PolygonalRegion')
         return self.polygons.buffer(tolerance).contains(poly)
 
-    @distributionMethod
+    @distributionFunction
     def distanceTo(self, point):
         point = toVector(point)
         nearest_point, _ = shapely.ops.nearest_points(self.polygons, shapely.geometry.Point(point))
@@ -2115,6 +2197,7 @@ class PolygonalRegion(Region):
         xmin, ymin, xmax, ymax = self.polygons.bounds
         return ((xmin, ymin), (xmax, ymax), (self.z, self.z))
 
+    @distributionFunction
     def buffer(self, amount):
         buffered_polygons = self.polygons.buffer(amount)
 
@@ -2136,22 +2219,18 @@ class PolygonalRegion(Region):
         plotPolygon(self.polygons, plt, style=style, **kwargs)
 
     def __repr__(self):
-        return f'PolygonalRegion({self.polygons!r})'
+        return f'PolygonalRegion({self.polygons!r}, {self.z!r})'
 
     def __eq__(self, other):
         if type(other) is not PolygonalRegion:
             return NotImplemented
-        return (other.polygons == self.polygons
-                and other.orientation == self.orientation)
+        return (other.polygons == self.polygons and
+                self.z == other.z and
+                other.orientation == self.orientation)
 
     @cached
     def __hash__(self):
-        return hash((self.polygons, self.orientation))
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        state.pop('_cached_prepared', None)     # prepared geometries are not picklable
-        return state
+        return hash((self.polygons, self.orientation, self.z))
 
 class CircularRegion(PolygonalRegion):
     """A circular region with a possibly-random center and radius.
@@ -2166,20 +2245,21 @@ class CircularRegion(PolygonalRegion):
     def __init__(self, center, radius, resolution=32, name=None):
         self.center = toVector(center, "center of CircularRegion not a vector")
         self.radius = toScalar(radius, "radius of CircularRegion not a scalar")
-        self.circumcircle = (self.center, self.radius)
         self.resolution = resolution
+        self.circumcircle = (self.center, self.radius)
 
         deps = [self.center, self.radius]
 
-        if any(needsSampling(dep) for dep in deps):
-            # Center and radius aren't fixed, so we'll wait to pass a polygon
-            super().__init__(polygon=None, name=name, additionalDeps=deps)
-            return
+        super().__init__(polygon=self._makePolygons(center, radius, resolution),
+            z=self.center.z, name=name, additionalDeps=deps)
 
-        ctr = shapely.geometry.Point(self.center)
-        polygons = MultiPolygon([ctr.buffer(self.radius, resolution=self.resolution)])
-        super().__init__(polygon=polygons, z=self.center.z, name=name, additionalDeps=deps)
+    @staticmethod
+    @distributionFunction
+    def _makePolygons(center, radius, resolution):
+        ctr = shapely.geometry.Point(center)
+        return ctr.buffer(radius, resolution=resolution)
 
+    ## Lazy Construction Methods ##
     def sampleGiven(self, value):
         return CircularRegion(value[self.center], value[self.radius],
                               name=self.name, resolution=self.resolution)
@@ -2193,7 +2273,7 @@ class CircularRegion(PolygonalRegion):
         if isinstance(other, CircularRegion):
             return self.center.distanceTo(other.center) <= self.radius + other.radius
         
-        return super().intersects(other)
+        return super().intersects(other, triedReversed)
 
     def containsPoint(self, point):
         point = toVector(point)
@@ -2250,24 +2330,18 @@ class SectorRegion(PolygonalRegion):
         self.circumcircle = (self.center.offsetRadially(r, heading), r)
         self.resolution = resolution
 
-        if any(isLazy(dep) for dep in deps):
-            # Center and radius aren't fixed, so we'll wait to pass a polygon
-            super().__init__(polygon=None, name=name, additionalDeps=deps)
-            return
+        super().__init__(polygon=self._makePolygons(center, radius, heading, angle, resolution),
+            z=self.center.z, name=name, additionalDeps=deps)
 
-        polygons = self._make_sector_polygons()
-        super().__init__(polygon=polygons, z=self.center.z, name=name, additionalDeps=deps)
-
-    def _make_sector_polygons(self):
-        center, radius = self.center, self.radius
-        assert not (needsSampling(center) or needsSampling(radius))
+    @staticmethod
+    @distributionFunction
+    def _makePolygons(center, radius, heading, angle, resolution):
         ctr = shapely.geometry.Point(center)
-        circle = ctr.buffer(radius, resolution=self.resolution)
-        if self.angle >= math.tau - 0.001:
+        circle = ctr.buffer(radius, resolution=resolution)
+        if angle >= math.tau - 0.001:
             polygon = circle
         else:
-            heading = self.heading
-            half_angle = self.angle / 2
+            half_angle = angle / 2
             mask = shapely.geometry.Polygon([
                 center,
                 center.offsetRadially(radius, heading + half_angle),
@@ -2276,8 +2350,9 @@ class SectorRegion(PolygonalRegion):
             ])
             polygon = circle & mask
 
-        return MultiPolygon([polygon])
+        return polygon
 
+    ## Lazy Construction Methods ##
     def sampleGiven(self, value):
         return SectorRegion(value[self.center], value[self.radius],
             value[self.heading], value[self.angle],
@@ -2291,6 +2366,7 @@ class SectorRegion(PolygonalRegion):
         return SectorRegion(center, radius, heading, angle,
                             name=self.name, resolution=self.resolution)
 
+    @distributionFunction
     def containsPoint(self, point):
         point = toVector(point)
 
@@ -2339,22 +2415,18 @@ class RectangularRegion(PolygonalRegion):
             for offset in ((hw, hl), (-hw, hl), (-hw, -hl), (hw, -hl)))
         self.circumcircle = (self.position, self.radius)
 
-        if any(needsSampling(dep) or needsLazyEvaluation(dep) for dep in deps):
-            # Center and radius aren't fixed, so we'll wait to pass a polygon
-            super().__init__(polygon=None, name=name, additionalDeps=deps)
-            return
+        super().__init__(polygon=self._makePolygons(position, heading, width, length),
+            z=self.position.z, name=name, additionalDeps=deps)
 
-        polygons = self._make_rectangle_polygons()
-        super().__init__(polygon=polygons, z=self.position.z, name=name, additionalDeps=deps)
+    @staticmethod
+    @distributionFunction
+    def _makePolygons(position, heading, width, length):
+        unitBox = shapely.geometry.Polygon(((0.5, 0.5), (-0.5, 0.5), (-0.5, -0.5), (0.5, -0.5)))
+        cyaw, syaw = math.cos(heading), math.sin(heading)
+        matrix = [width*cyaw, -length*syaw, width*syaw, length*cyaw, position[0], position[1]]
+        return shapely.affinity.affine_transform(unitBox, matrix)
 
-    def _make_rectangle_polygons(self):
-        position, heading, hw, hl = self.position, self.heading, self.hw, self.hl
-        assert not any(isLazy(c) for c in (position, heading, hw, hl))
-        corners = _RotatedRectangle.makeCorners(position.x, position.y, heading, hw, hl)
-        polygon = shapely.geometry.Polygon(corners)
-        return MultiPolygon([polygon])
-
-
+    ## Lazy Construction Methods ##
     def sampleGiven(self, value):
         return RectangularRegion(value[self.position], value[self.heading],
             value[self.width], value[self.length],
@@ -2382,7 +2454,8 @@ class RectangularRegion(PolygonalRegion):
         return ((minx, miny), (maxx, maxy), (self.z, self.z))
 
     def __repr__(self):
-        return f'RectangularRegion({self.position!r},{self.heading!r},{self.width!r},{self.length!r})'
+        return (f'RectangularRegion({self.position!r}, {self.heading!r}, '
+                f'{self.width!r}, {self.length!r})')
 
 class PolylineRegion(Region):
     """Region given by one or more polylines (chain of line segments).
@@ -2408,13 +2481,13 @@ class PolylineRegion(Region):
         super().__init__(name, orientation=orientation)
 
         if points is not None:
-            points = tuple(toVector(pt).coordinates for pt in points)
+            points = tuple(points)
 
-            if any(point[2] != 0 for point in points):
+            if any(len(point) > 2 and point[2] != 0 for point in points):
                 warnings.warn('"points" passed to PolylineRegion have nonzero Z'
                               ' components. These will be replaced with 0.')
 
-            points = tuple((x,y,0) for x,y,_ in points)
+            points = tuple((p[0],p[1],0) for p in points)
 
             if len(points) < 2:
                 raise ValueError('tried to create PolylineRegion with < 2 points')
@@ -2481,35 +2554,40 @@ class PolylineRegion(Region):
     def start(self):
         """Get an `OrientedPoint` at the start of the polyline.
 
-        The OP's heading will be aligned with the orientation of the region, if
+        The OP's orientation will be aligned with the orientation of the region, if
         there is one (the default orientation pointing along the polyline).
         """
         pointA, pointB = self.segments[0]
         if self.usingDefaultOrientation:
-            heading = headingOfSegment(pointA, pointB)
+            orientation = headingOfSegment(pointA, pointB)
         elif self.orientation is not None:
-            heading = self.orientation[Vector(*pointA)].yaw
+            orientation = self.orientation[Vector(*pointA)]
         else:
-            heading = 0
+            orientation = 0
+        orientation = toOrientation(orientation)
         from scenic.core.object_types import OrientedPoint
-        return OrientedPoint._with(position=pointA, yaw=heading)
+        return OrientedPoint._with(position=pointA, yaw=orientation.yaw,
+            pitch=orientation.pitch, roll=orientation.roll)
 
     @cached_property
     def end(self):
         """Get an `OrientedPoint` at the end of the polyline.
 
-        The OP's heading will be aligned with the orientation of the region, if
+        The OP's orientation will be aligned with the orientation of the region, if
         there is one (the default orientation pointing along the polyline).
         """
         pointA, pointB = self.segments[-1]
         if self.usingDefaultOrientation:
-            heading = headingOfSegment(pointA, pointB)
+            orientation = headingOfSegment(pointA, pointB)
         elif self.orientation is not None:
-            heading = self.orientation[Vector(*pointB)].yaw
+            orientation = self.orientation[Vector(*pointB)].yaw
         else:
-            heading = 0
+            orientation = 0
         from scenic.core.object_types import OrientedPoint
-        return OrientedPoint._with(position=pointB, yaw=heading)
+        orientation = toOrientation(orientation)
+        from scenic.core.object_types import OrientedPoint
+        return OrientedPoint._with(position=pointB, yaw=orientation.yaw,
+            pitch=orientation.pitch, roll=orientation.roll)
 
     def defaultOrientation(self, point):
         start, end = self.nearestSegmentTo(point)
@@ -2630,6 +2708,9 @@ class PolylineRegion(Region):
     def equallySpacedPoints(self, num):
         return [self.pointAlongBy(d) for d in numpy.linspace(0, self.length, num)]
 
+    def pointsSeparatedBy(self, distance):
+        return [self.pointAlongBy(d) for d in numpy.arange(0, self.length, distance)]
+
     @property
     def dimensionality(self):
         return 1
@@ -2641,9 +2722,6 @@ class PolylineRegion(Region):
     @property
     def length(self):
         return self.size
-
-    def pointsSeparatedBy(self, distance):
-        return [self.pointAlongBy(d) for d in numpy.arange(0, self.length, distance)]
 
     @property
     def AABB(self):
@@ -2717,7 +2795,7 @@ class PointSetRegion(Region):
                 DeprecationWarning)
 
         for point in points:
-            if any(needsSampling(coord) for coord in point):
+            if any(isLazy(coord) for coord in point):
                 raise ValueError('only fixed PointSetRegions are supported')
         
         # Try to convert immediately, but catch case which has 2D and 3D points
@@ -2903,8 +2981,8 @@ class GridRegion(PointSetRegion):
 # View Regions
 ###################################################################################################
 
-class DefaultViewRegion(MeshVolumeRegion):
-    """ The default view region shape.
+class ViewRegion(MeshVolumeRegion):
+    """ The viewing volume of a camera defined by a radius and horizontal/vertical view angles.
 
     The default view region can take several forms, depending on the viewAngles parameter:
 
@@ -2913,18 +2991,20 @@ class DefaultViewRegion(MeshVolumeRegion):
       * Case 1.a:   viewAngles[1] = 180 degrees         => Full Sphere View Region
       * Case 1.b:   viewAngles[1] < 180 degrees         => Sphere - (Cone + Cone) (Cones on z axis expanding from origin)
 
-    * Case 2:       viewAngles[0] = 180 degrees
-
-      * Case 2.a:   viewAngles[1] = 180 degrees         => Hemisphere View Region
-      * Case 2.b:   viewAngles[1] < 180 degrees         => Hemisphere - (Cone + Cone) (Cones on appropriate hemispheres)
+    * Case 2:       viewAngles[0] > 180, Altitude < 180 => (Sphere - (Cone + Cone) (Cones on appropriate hemispheres)) - Backwards Capped Pyramid View Region
 
     * Case 3:       viewAngles[1] = 180 degrees
 
       * Case 3.a:   viewAngles[0] < 180 degrees         => Sphere intersected with Pyramid View Region
       * Case 3.b:   viewAngles[0] > 180 degrees         => Sphere - Backwards Pyramid View Region
 
-    * Case 4:       viewAngles[0 & 1] < 180             => Capped Pyramid View Region
-    * Case 5:       viewAngles[0] > 180, Altitude < 180 => (Sphere - (Cone + Cone) (Cones on appropriate hemispheres)) - Backwards Capped Pyramid View Region
+    * Case 4:       viewAngles[0] = 180 degrees
+
+      * Case 4.a:   viewAngles[1] = 180 degrees         => Hemisphere View Region
+      * Case 4.b:   viewAngles[1] < 180 degrees         => Hemisphere - (Cone + Cone) (Cones on appropriate hemispheres)
+
+    * Case 5:       viewAngles[0 & 1] < 180             => Capped Pyramid View Region
+
 
     Args:
         visibleDistance: The view distance for this region.
@@ -2939,8 +3019,6 @@ class DefaultViewRegion(MeshVolumeRegion):
     def __init__(self, visibleDistance, viewAngles, name=None, position=Vector(0,0,0), rotation=None,\
         orientation=None, tolerance=1e-8):
         # Bound viewAngles from either side.
-        viewAngles = tuple([min(angle, math.tau) for angle in viewAngles])
-
         if min(viewAngles) <= 0:
             raise ValueError("viewAngles cannot have a component less than or equal to 0")
 

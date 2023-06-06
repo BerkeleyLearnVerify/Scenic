@@ -7,6 +7,7 @@ import numpy as np
 import trimesh
 
 from scenic.core.regions import Region
+from scenic.core.type_support import toVector
 from scenic.core.vectors import Vector
 from scenic.core.utils import batched
 
@@ -86,7 +87,7 @@ def canSee(position, orientation, visibleDistance, viewAngles,
         if distanceScaling:
             target_distance = target.position.distanceTo(position)
 
-            rayCount = (rayCount[0]*viewAngles[0]*target_distance, rayCount[1]*viewAngles[1]*target_distance)
+            rayCount = (rayCount[0]*target_distance, rayCount[1]*target_distance)
 
         altitudeScaling = True
     else:
@@ -233,9 +234,7 @@ def canSee(position, orientation, visibleDistance, viewAngles,
             # Check if view range and spherical angles overlap in horizontal or
             # vertical dimensions. If not, return False
             if ((np.max(spherical_angles[:,0]) < -viewAngles[0]/2) or
-                (np.min(spherical_angles[:,0]) >  viewAngles[0]/2) or
-                (np.max(spherical_angles[:,1]) < -viewAngles[1]/2) or
-                (np.min(spherical_angles[:,1]) >  viewAngles[1]/2)):
+                (np.min(spherical_angles[:,0]) >  viewAngles[0]/2)):
                 return False
 
             # Compute trimmed view angles
@@ -278,7 +277,7 @@ def canSee(position, orientation, visibleDistance, viewAngles,
 
             ray_vectors[:,0] = -np.sin(angle_matrix[:,0])
             ray_vectors[:,1] = np.cos(angle_matrix[:,0])
-            ray_vectors[:,2] = np.tan(angle_matrix[:,1])
+            ray_vectors[:,2] = np.tan(angle_matrix[:,1]) # At 90 deg, np returns super large number
 
             ray_vectors /= np.linalg.norm(ray_vectors, axis=1)[:, np.newaxis]
             candidate_ray_list.append(ray_vectors)
@@ -317,7 +316,7 @@ def canSee(position, orientation, visibleDistance, viewAngles,
 
             # Check if candidate rays hit target
             raw_target_hit_info = target_region.mesh.ray.intersects_location(
-                ray_origins=[position.coordinates] * len(ray_batch),
+                ray_origins=np.full(ray_batch.shape, position.coordinates),
                 ray_directions=ray_batch)
 
             # If no hits, this object can't be visible with these rays
@@ -376,7 +375,7 @@ def canSee(position, orientation, visibleDistance, viewAngles,
 
                 # Test all candidate rays against this occluding object
                 object_hit_info = occ_obj.occupiedSpace.mesh.ray.intersects_location(
-                    ray_origins=[position.coordinates for ray in candidate_ray_list],
+                    ray_origins=np.full(candidate_ray_list.shape, position.coordinates),
                     ray_directions=candidate_ray_list)
 
                 # If no hits, this object doesn't occlude. We don't need to
@@ -423,11 +422,8 @@ def canSee(position, orientation, visibleDistance, viewAngles,
         # No rays hit the object and are not occluded, so the object is not visible
         return False
 
-    elif isinstance(target, (Point, OrientedPoint, Vector)):
-        if isinstance(target, (Point, OrientedPoint)):
-            target_loc = target.position
-        else:
-            target_loc = target
+    elif isinstance(target, (Point, Vector)):
+        target_loc = toVector(target)
 
         # First check if the distance to the point is less than or equal to the visible distance. If not, the object cannot
         # be visible.
@@ -436,20 +432,16 @@ def canSee(position, orientation, visibleDistance, viewAngles,
             return False
 
         # Create the single candidate ray and check that it's within viewAngles.
+        if orientation is not None:
+            target_loc = orientation.inverse.getRotation().apply([target_loc])[0]
+
         target_vertex = target_loc - position
         candidate_ray = target_vertex/np.linalg.norm(target_vertex)
 
-        azimuth = np.mod(np.arctan2(candidate_ray[1], candidate_ray[0]) - math.pi/2 + np.pi, 2*np.pi) - np.pi
-        altitude = np.arcsin(candidate_ray[2]/(np.linalg.norm(candidate_ray)))
-
-        if orientation is not None:
-            relative_azimuth = azimuth - orientation.yaw
-            relative_altitude = altitude - orientation.pitch
-        else:
-            relative_azimuth = azimuth
-            relative_altitude = altitude
-
         candidate_ray_list = np.array([candidate_ray])
+
+        azimuth = np.mod(np.arctan2(candidate_ray[1], candidate_ray[0]) - math.pi/2 + np.pi, 2*np.pi) - np.pi
+        altitude = np.arcsin(candidate_ray[2])
 
         ## DEBUG ##
         #Show all original candidate rays
@@ -467,11 +459,14 @@ def canSee(position, orientation, visibleDistance, viewAngles,
             render_scene.show()
 
         # Check if this ray is within our view cone.
-        if (not (-viewAngles[0]/2 <= relative_azimuth <= viewAngles[0]/2) or
-            not (-viewAngles[1]/2 <= relative_altitude <= viewAngles[1]/2)):
+        if (not (-viewAngles[0]/2 <= azimuth <= viewAngles[0]/2) or
+            not (-viewAngles[1]/2 <= altitude <= viewAngles[1]/2)):
             return False
 
         # Now check if occluding objects block sight to target
+        if orientation is not None:
+            candidate_ray_list = orientation.getRotation().apply(candidate_ray_list)
+
         for occ_obj in occludingObjects:
             # Test all candidate rays against this occluding object
             object_hit_info = occ_obj.occupiedSpace.mesh.ray.intersects_location(

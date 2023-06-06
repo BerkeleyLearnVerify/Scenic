@@ -289,8 +289,8 @@ def test_can_see_object_occlusion_disabled():
             with rayDensity 5
 
         seeing_obj = new Object at (0,10,5),
-            with width 2,
-            with height 2,
+            with width 20,
+            with height 20,
             with length 2,
             with name "seeingObject",
             with requireVisible True

@@ -171,14 +171,9 @@ When checking containment of an `Object` in a 2D region, Scenic will atuomatical
 
 3D regions represent points in 3D space.
 
-Most 3D regions inherit from a descendant of `MeshRegion` (an abstract class), either `MeshVolumeRegion` or `MeshSurfaceRegion`. These represent the volume (of a watertight mesh) or the surface of a mesh respectively. Various region classes are also provided to create primitive shapes. `MeshVolumeRegion` can be converted to `MeshSurfaceRegion` (and vice versa) using the the ``getSurfaceRegion`` and ``getVolumeRegion`` methods.
+Most 3D regions inherit from a descendant of `MeshRegion` (an abstract class that can't be directly instantiated), either `MeshVolumeRegion` or `MeshSurfaceRegion`. These represent the volume (of a watertight mesh) or the surface of a mesh respectively. Various region classes are also provided to create primitive shapes. `MeshVolumeRegion` can be converted to `MeshSurfaceRegion` (and vice versa) using the the ``getSurfaceRegion`` and ``getVolumeRegion`` methods.
 
 PolygonalFootprintRegions represent the :term:`footprint` of a 2D region. See `2D Regions` for more details.
-
-.. autoclass:: scenic.core.regions.MeshRegion
-    :noindex:
-    :no-show-inheritance:
-    :no-members:
 
 .. autoclass:: scenic.core.regions.MeshVolumeRegion
     :noindex:

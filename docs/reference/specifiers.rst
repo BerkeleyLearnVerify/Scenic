@@ -116,10 +116,12 @@ The base of the object is determined by adding the object's :prop:`baseOffset` t
 Note that while :specifier:`on` can be used with `Region`, `Object` and `Vector`, it cannot be used with a distribution containing anything other than `Region`. When used with an object the base of the object being placed is placed on the target object's `onSurface` and when used with a vector the base of the object being placed is set to that position.
 
 If instead :prop:`position` has already been specified with priority 1, then its value is modified by projecting it onto the given region.
-More precisely, we find the closest point in the region along :prop:`onDirection` or its negation, and place the base of the object at that point. If :prop:`onDirection` is not specified, a default value is inferred from the region. A region can either specify a default value to be used, or for volumes straight up is used and for surfaces the mean of the face normal values is used (weighted by the area of the faces).
+More precisely, we find the closest point in the region along :prop:`onDirection` (or its negation [1]_), and place the base of the object at that point. If :prop:`onDirection` is not specified, a default value is inferred from the region. A region can either specify a default value to be used, or for volumes straight up is used and for surfaces the mean of the face normal values is used (weighted by the area of the faces).
 
 If the region has a :term:`preferred orientation` (a vector field), :prop:`parentOrientation` is specified to be equal to that orientation at the object’s :prop:`position` (whether or not this specifier is being used as a modifying specifier).
 Note that this is done with higher priority than all other specifiers which optionally specify :prop:`parentOrientation`, and in particular the :specifier:`ahead of` specifier and its variants: therefore the code :scenic:`new Object ahead of taxi by 100, on road` aligns the new object with the road at the point 100 m ahead of the taxi rather than with the taxi itself (while also using projection to ensure the new object is on the surface of the road rather than under or over it if the road isn't flat).
+
+.. [1] This allows for natural projection even when an object is below the desired surface, such as placing a car, ahead of another car, on an uphill road.
 
 .. _offset by {vector}:
 

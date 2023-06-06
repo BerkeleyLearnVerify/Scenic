@@ -403,6 +403,10 @@ def test_field_relative_to_field():
     """)
     assert ego.heading == pytest.approx(2 * (3 * 0.07))
 
+def test_vector_relative_to_vector():
+    ego = sampleEgoFrom('ego = new Object at (1,2,3) relative to (4,5,6)')
+    assert ego.position == (5,7,9)
+
 def test_heading_relative_to_heading():
     ego = sampleEgoFrom('ego = new Object facing 0.5 relative to -0.3')
     assert ego.heading == pytest.approx(0.5 - 0.3)
@@ -414,6 +418,38 @@ def test_heading_relative_to_heading_lazy():
     """)
     assert ego.heading == pytest.approx(1.5)
 
+def test_orientation_relative_to_orientation():
+    ego = sampleEgoFrom("""
+        o1 = Orientation.fromEuler(90 deg, 0, 0)
+        o2 = Orientation.fromEuler(0, 90 deg, 0)
+        ego = new Object facing o2 relative to o1
+    """)
+    assert ego.orientation.approxEq(Orientation.fromEuler(math.pi/2, math.pi/2, 0))
+
+def test_heading_relative_to_orientation():
+    ego = sampleEgoFrom("""
+        h1 = 90 deg
+        o2 = Orientation.fromEuler(0, 90 deg, 0)
+        ego = new Object facing o2 relative to h1
+    """)
+    assert ego.orientation.approxEq(Orientation.fromEuler(math.pi/2, math.pi/2, 0))
+
+def test_orientation_relative_to_heading():
+    ego = sampleEgoFrom("""
+        o1 = Orientation.fromEuler(90 deg, 0, 0)
+        h2 = 90 deg
+        ego = new Object facing h2 relative to o1
+    """)
+    assert ego.orientation.approxEq(Orientation.fromEuler(math.pi, 0, 0))
+
+def test_tuple_relative_to_orientation():
+    with pytest.raises(TypeError):
+        compileScenic("""
+            o1 = Orientation.fromEuler(90 deg, 0, 0)
+            v2 = (0, 90 deg, 0)
+            ego = new Object facing v2 relative to o1
+        """)
+
 def test_mistyped_relative_to():
     with pytest.raises(TypeError):
         compileScenic('ego = new Object facing 0 relative to 1@2')
@@ -424,12 +460,6 @@ def test_mistyped_relative_to_lazy():
             vf = VectorField("Foo", lambda pos: 0.5)
             ego = new Object facing 1@2 relative to (0 relative to vf)
         """)
-
-def test_orientation_relative_to_orientation():
-    ego = sampleEgoFrom("""
-        ego = new Object facing Orientation.fromEuler(*((0 deg, -90 deg, 0 deg) relative to (90 deg, 90 deg, -90 deg)))
-    """)
-    assert tuple(ego.orientation.q) == pytest.approx(tuple(Orientation.fromEuler(math.radians(90),0,math.radians(-90)).q))
 
 def test_relative_to_ambiguous():
     with pytest.raises(TypeError):

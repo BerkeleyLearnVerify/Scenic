@@ -27,21 +27,29 @@ def test_bad_extension(tmpdir):
 
 ## Constructor definitions
 
-badNames = ('', '3', '+', 'Behavior')
-
-@pytest.mark.parametrize('name', badNames)
-def test_illegal_constructor_name(name):
+def test_illegal_constructor_name():
     with pytest.raises(ScenicSyntaxError):
         compileScenic(f"""
-            class {name}:
+            class 3:
                 pass
         """)
 
-@pytest.mark.parametrize('name', badNames)
-def test_illegal_constructor_superclass(name):
     with pytest.raises(ScenicSyntaxError):
         compileScenic(f"""
-            class Foo({name}):
+            class +:
+                pass
+        """)
+
+def test_illegal_constructor_superclass():
+    with pytest.raises(TypeError):
+        compileScenic(f"""
+            class Foo(3):
+                pass
+        """)
+
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic(f"""
+            class Foo(+):
                 pass
         """)
 

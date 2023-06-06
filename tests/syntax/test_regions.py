@@ -37,7 +37,7 @@ def test_circular_lazy():
         x = 0 relative to vf
         ego = new Object at Range(0, 1) @ 0, with foo CircularRegion(0@0, x.yaw)
     """)
-    assert ego.foo.radius == 2*ego.position.x
+    assert ego.foo.radius == pytest.approx(2*ego.position.x)
 
 # SectorRegion
 
@@ -59,7 +59,7 @@ def test_sector_lazy():
         x = 0 relative to vf
         ego = new Object at Range(0, 1) @ 0, with foo SectorRegion(0@0, x.yaw, 0, 45 deg)
     """)
-    assert ego.foo.radius == pytest.approx(2 * ego.position.x, abs=1e-6)
+    assert ego.foo.radius == pytest.approx(2 * ego.position.x)
 
 # RectangularRegion
 
