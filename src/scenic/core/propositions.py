@@ -35,12 +35,14 @@ class PropositionNode:
         """tells if the proposition is temporal"""
 
     def check_constrains_sampling(self):
-        """checks if the proposition can be used for pruning
+        """ Checks if the proposition can be used for pruning.
+
         A requirement can be used for pruning if it is evaluated on the scene generation phase before simulation, and
         violation in that phase immediately results in discarding the scene and regenerating a new one.
         For simplicity, we currently check two special cases:
         1. requirements with no temporal requirement
         2. requirements with only one always operator on top-level
+
         Returns:
             bool: True if the requirement is one of the forms above. False otherwise.
         """
@@ -57,14 +59,16 @@ class PropositionNode:
     
     @property
     def children(self) -> List["PropositionNode"]:
-        """returns all children of proposition tree
+        """ Returns all children of proposition tree.
+
         Returns:
             list: proposition nodes that are directly under this node
         """
         return []
 
     def flatten(self) -> List["PropositionNode"]:
-        """flattens the tree and return the list of nodes
+        """Flattens the tree and return the list of nodes.
+
         Returns:
             list: list of all children nodes
         """
