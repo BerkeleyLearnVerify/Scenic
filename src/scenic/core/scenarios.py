@@ -7,7 +7,6 @@ import time
 import sys
 
 import trimesh
-import rv_ltl
 
 import scenic
 from scenic.core.distributions import (Samplable, ConstantSamplable, RejectionException,
@@ -347,9 +346,8 @@ class Scenario(_ScenarioPickleMixin):
             sampledObjects = [sample[obj] for obj in objects]
             ## Check built-in requirements for instances ##
             # Possibly an early collision check to reject clearly infeasible scenes.
-            # if (not any(isinstance(obj, scenic.core.object_types.Object2D) for obj in sampledObjects)
-            #     and INITIAL_COLLISION_CHECK):
-            if INITIAL_COLLISION_CHECK:
+            if (not any(isinstance(obj, scenic.core.object_types.Object2D) for obj in sampledObjects)
+                and INITIAL_COLLISION_CHECK):
                 cm = trimesh.collision.CollisionManager()
 
                 for obj in sampledObjects:
@@ -412,7 +410,7 @@ class Scenario(_ScenarioPickleMixin):
                 continue
             # Check user-specified requirements
             for req in activeReqs:
-                if req.satisfiedBy(sample) == rv_ltl.B4.FALSE:
+                if req.falsifiedBy(sample):
                     rejection = str(req)
                     optionallyDebugRejection()
                     break

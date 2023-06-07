@@ -151,9 +151,9 @@ class CompiledRequirement:
     def constrainsSampling(self):
         return self.ty.constrainsSampling
 
-    def satisfiedBy(self, sample):
+    def falsifiedBy(self, sample):
         one_time_monitor = self.proposition.create_monitor()
-        return self.closure(sample, one_time_monitor)
+        return self.closure(sample, one_time_monitor)  == rv_ltl.B4.FALSE
 
     def __str__(self):
         if self.name:
