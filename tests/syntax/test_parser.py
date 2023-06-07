@@ -468,7 +468,6 @@ class TestBehaviorDef:
                 body()
             """
         )
-        get_docstring
         stmt = mod.body[0]
         match stmt:
             case BehaviorDef(
