@@ -284,7 +284,16 @@ def test_path_region():
         sampled_pt = target_region.uniformPointInner()
         assert target_region.containsPoint(sampled_pt)
 
-    # Test properties
+    # Test distanceTo
+    assert r2.distanceTo(Vector(3.5,3.5,1.5)) == pytest.approx(0.5)
+    assert r2.distanceTo(Vector(4,4,2)) == pytest.approx(0)
+    assert r2.distanceTo(Vector(5,5,2)) == pytest.approx(math.sqrt(2))
+    assert r2.distanceTo(Vector(5,5,3)) == pytest.approx(math.sqrt(3))
+    assert r2.distanceTo(Vector(3,0,0)) == pytest.approx(3)
+    assert r2.distanceTo(Vector(0,3,0)) == pytest.approx(3)
+    assert r2.distanceTo(Vector(0,0,0)) == pytest.approx(math.sqrt(18))
+
+    # Test AABB
     assert r1.AABB == ((0,1),(0,1),(0,0))
     assert r2.AABB == ((3,4),(3,4),(0,3))
     assert r3.AABB == ((6,7),(6,7),(0,3))
