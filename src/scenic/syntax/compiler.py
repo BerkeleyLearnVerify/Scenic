@@ -2,7 +2,7 @@ import ast
 from copy import copy
 from enum import IntFlag, auto
 import itertools
-from typing import Callable, Literal, Optional, Tuple, List, Union
+from typing import Callable, Literal, Optional, Tuple, List, Union, Any
 
 import scenic.syntax.ast as s
 from scenic.core.errors import getText, ScenicParseError
@@ -512,7 +512,7 @@ class ScenicToPythonTransformer(Transformer):
 
     def generic_visit(self, node):
         if isinstance(node, s.AST):
-            raise Exception(
+            assert False, (
                 f'Scenic AST node "{node.__class__.__name__}" needs visitor in compiler'
             )
         return super().generic_visit(node)
@@ -531,14 +531,14 @@ class ScenicToPythonTransformer(Transformer):
                     newStatements.extend(newStatement)
             return newStatements
         else:
-            raise RuntimeError(f"unknown object {node} encountered during compilation")
+            assert False, (f"unknown object {node} encountered during compilation")
 
     # helper functions
     def _register_requirement_syntax(self, syntax: ast.AST) -> int:
         self.requirements.append(syntax)
         return len(self.requirements) - 1
 
-    def visit_Name(self, node: ast.Name) -> any:
+    def visit_Name(self, node: ast.Name) -> Any:
         if node.id in builtinNames:
             if not isinstance(node.ctx, ast.Load):
                 raise self.makeSyntaxError(f'unexpected keyword "{node.id}"', node)
@@ -731,7 +731,7 @@ class ScenicToPythonTransformer(Transformer):
             node,
         )
 
-    def visit_ClassDef(self, node: ast.ClassDef) -> any:
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         # use `Object` as base if none is specified
         if not node.bases:
             node.bases = [ast.Name("Object", loadCtx)]
@@ -803,7 +803,7 @@ class ScenicToPythonTransformer(Transformer):
             keywords=[],
         )
 
-    def visit_PropertyDef(self, _: s.PropertyDef) -> any:
+    def visit_PropertyDef(self, _: s.PropertyDef) -> Any:
         assert False, "PropertyDef should be handled in `visit_ClassDef`"
 
     @context(Context.TOP_LEVEL)
@@ -1074,7 +1074,7 @@ class ScenicToPythonTransformer(Transformer):
 
         return classDefinition
 
-    def visit_Call(self, node: ast.Call) -> any:
+    def visit_Call(self, node: ast.Call) -> Any:
         newArgs = []
         wrappedStar = False
         for arg in node.args:
@@ -1377,6 +1377,7 @@ class ScenicToPythonTransformer(Transformer):
             )
         )
 
+    @context(Context.TOP_LEVEL)
     def visit_TerminateAfter(self, node: s.TerminateAfter):
         return ast.copy_location(
             ast.Expr(
@@ -1392,6 +1393,7 @@ class ScenicToPythonTransformer(Transformer):
             node,
         )
 
+    @context(Context.TOP_LEVEL)
     def visit_Simulator(self, node: s.Simulator):
         return ast.copy_location(
             ast.Expr(

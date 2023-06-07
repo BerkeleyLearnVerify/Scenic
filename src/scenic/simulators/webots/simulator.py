@@ -104,21 +104,14 @@ class WebotsSimulation(Simulation):
                 rootNode = supervisor.getRoot()
                 rootChildrenField = rootNode.getField("children")
 
-                protoDef = ""
-                if isPhysicsEnabled(obj):
-                    protoDef = dedent(f"""
-                        DEF {name} ScenicObjectWithPhysics {{
-                            url "{objFilePath}"
-                        }}
-                        """
-                    )
-                else:
-                    protoDef = dedent(f"""
-                        DEF {name} ScenicObject {{
-                            url "{objFilePath}"
-                        }}
-                        """
-                    )
+                protoName = "ScenicObjectWithPhysics" if isPhysicsEnabled(obj) else "ScenicObject"
+
+                protoDef = dedent(f"""
+                    DEF {name} {protoName} {{
+                        url "{objFilePath}"
+                    }}
+                    """
+                )
 
                 rootChildrenField.importMFNodeFromString(-1, protoDef)
                 adhocObjectId += 1

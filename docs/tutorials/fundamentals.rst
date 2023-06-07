@@ -24,7 +24,7 @@ To start with, we'll construct a very basic Scenic program:
 
 Running this program should cause a window to pop up, looking like this:
 
-.. figure:: /images/ego_box.png
+.. figure:: /images/ego_box.jpg
   :width: 40%
   :figclass: align-center
   :alt: Simple scenario with an ego box, rendered with Scenic's built-in visualizer.
@@ -63,7 +63,7 @@ We can see a few of these specifiers in action in the following slightly more co
 
 This should generate the following scene:
 
-.. figure:: /images/cone_plane_chair.png
+.. figure:: /images/cone_plane_chair.jpg
   :width: 60%
   :figclass: align-center
   :alt: A slightly more complicated scenario showing the use of specifiers.
@@ -115,11 +115,11 @@ This will generate an object with a shape that is either a box, a spheroid, or a
 It will have a random width, length, and height within the ranges specified, and uniformly random rotation angles.
 Some examples:
 
-.. image:: /images/simple_random_1.png
+.. image:: /images/simple_random_1.jpg
    :width: 32%
-.. image:: /images/simple_random_2.png
+.. image:: /images/simple_random_2.jpg
    :width: 32%
-.. image:: /images/simple_random_3.png
+.. image:: /images/simple_random_3.jpg
    :width: 32%
 
 Random values can be used almost everywhere in Scenic; the major exception is that control flow (e.g. :keyword:`if` statements and :keyword:`for` loops) cannot depend on random values.
@@ -142,7 +142,7 @@ For example, the following code:
 
 should generate a scene similar to this:
 
-.. figure:: /images/spheres_in_region.png
+.. figure:: /images/spheres_in_region.jpg
   :width: 60%
   :figclass: align-center
   :alt: Three spheres in a rectangular region
@@ -175,7 +175,7 @@ This can lead to very compact syntax for randomly placing objects on others, as 
 
 which might generate something like this:
 
-.. figure:: /images/on_chair.png
+.. figure:: /images/on_chair.jpg
   :width: 80%
   :figclass: align-center
   :alt: A cone on a chair
@@ -612,7 +612,7 @@ This completes the scenario, which can also be found in the Scenic repository un
 :file:`examples/webots/mars/narrowGoal.scenic`. Scenes generated from the
 scenario, and visualized in Scenic's internal visualizer and Webots, are shown below.
 
-.. figure:: /images/narrowGoal.png
+.. figure:: /images/narrowGoal.jpg
   :width: 80%
   :figclass: align-center
   :alt: Mars rover scenario image, rendered in Scenic's internal visualizer.
@@ -620,7 +620,7 @@ scenario, and visualized in Scenic's internal visualizer and Webots, are shown b
   A scene sampled from the Mars rover scenario, rendered in Scenic's internal visualizer.
 
 
-.. figure:: /images/narrowGoalWebots.png
+.. figure:: /images/narrowGoalWebots.jpg
   :width: 80%
   :figclass: align-center
   :alt: Mars rover scenario image, rendered in Webots.

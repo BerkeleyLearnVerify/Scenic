@@ -45,7 +45,7 @@ Simply run :command:`scenic`, giving a path to a Scenic file:
 
 This will compile the Scenic program and sample from it (which may take several seconds), displaying a schematic of the resulting scene. Since this is a simple scenario designed to evaluate the performance of a robot vacuum, you should get something like this:
 
-.. image:: images/vacuumSimple.png
+.. image:: images/vacuumSimple.jpg
 	:width: 50%
 
 The green cylinder is the vacuum, surrounded by various pieces of furniture in a room (the coordinate axes in the center are displayed due to the :command:`--axes` flag, to help clarify orientation).
@@ -79,7 +79,7 @@ Here are a few for different simulators:
 
 .. image:: images/pedestrian.png
    :width: 29%
-.. image:: images/narrowGoal.png
+.. image:: images/narrowGoal.jpg
    :width: 39%
 .. image:: images/crossing.png
    :width: 29%

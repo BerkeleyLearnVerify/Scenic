@@ -1018,7 +1018,7 @@ def With(prop, val):
 
     Specifies the given property, with no dependencies.
     """
-    return Specifier("With", {prop: 1}, {prop: val})
+    return Specifier(f"With({prop})", {prop: 1}, {prop: val})
 
 def At(pos):
     """The :grammar:`at <vector>` specifier.
@@ -1095,7 +1095,7 @@ def On(thing):
     def helper(context):
         # Pick position based on whether we are specifying or modifying
         if hasattr(context, 'position'):
-            if not isA(target, Region):
+            if isA(target, Vector):
                 raise TypeError('Cannot use modifying "on V" with V a vector.')
 
             pos = projectVectorHelper(target, context.position, context.onDirection)

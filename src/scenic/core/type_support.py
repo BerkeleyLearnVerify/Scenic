@@ -59,6 +59,10 @@ def underlyingType(thing):
 
 def isA(thing, ty):
     """Is this guaranteed to evaluate to a member of the given Scenic type?"""
+    # TODO: Remove this hack once type system is smarter.
+    if not isinstance(underlyingType(thing), type):
+        return False
+
     return issubclass(underlyingType(thing), ty)
 
 def unifyingType(opts):     # TODO improve?

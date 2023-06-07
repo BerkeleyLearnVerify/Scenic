@@ -6,8 +6,10 @@ import random
 import time
 import sys
 
+import trimesh
 import rv_ltl
 
+import scenic
 from scenic.core.distributions import (Samplable, ConstantSamplable, RejectionException,
                                        needsSampling)
 from scenic.core.lazy_eval import needsLazyEvaluation
@@ -18,6 +20,9 @@ from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
 from scenic.core.dynamics import Behavior, Monitor
 from scenic.core.requirements import BoundRequirement
 from scenic.core.serialization import Serializer, dumpAsScenicCode
+
+# Global params
+INITIAL_COLLISION_CHECK = False
 
 # Pickling support
 
@@ -340,13 +345,26 @@ class Scenario(_ScenarioPickleMixin):
                 assert not needsSampling(sampledObj)
 
             sampledObjects = [sample[obj] for obj in objects]
+            ## Check built-in requirements for instances ##
+            # Possibly an early collision check to reject clearly infeasible scenes.
+            # if (not any(isinstance(obj, scenic.core.object_types.Object2D) for obj in sampledObjects)
+            #     and INITIAL_COLLISION_CHECK):
+            if INITIAL_COLLISION_CHECK:
+                cm = trimesh.collision.CollisionManager()
+
+                for obj in sampledObjects:
+                    if not obj.allowCollisions:
+                        cm.add_object(str(obj), obj.occupiedSpace.mesh)
+
+                if cm.in_collision_internal():
+                    rejection = 'object intersection (from early check)'
+
             def occluders(source, target):
                 return tuple(obj for obj in sampledObjects
                              if obj is not source
                              and obj is not target
                              and obj.occluding)
 
-            # Check built-in requirements for instances
             for instance in self._instances:
                 vi = sample[instance]
 

@@ -286,7 +286,7 @@ In the following tables, operators are grouped by the type of value they return.
    * - :sampref:`{vectorField} at {vector}`
      - The orientation specified by the vector field at the given position
    * - :sampref:`({heading} | {vectorField}) relative to ({heading} | {vectorField})`
-     - The first direction, interpreted as an offset relative to the second direction
+     - The first direction (a heading, orientation, or vector field), interpreted as an offset relative to the second direction
 
 
 .. list-table::

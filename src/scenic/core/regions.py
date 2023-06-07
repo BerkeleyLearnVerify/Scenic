@@ -535,11 +535,11 @@ class MeshRegion(Region):
     This is an abstract class and cannot be instantiated directly. Instead a subclass should be used, like
     `MeshVolumeRegion` or `MeshSurfaceRegion`.
 
-    The mesh is first placed so the origin is at the center of the bounding box (unless :prop:`centerMesh` is ``False``).
-    The mesh is scaled to :prop:`dimensions`, translated so the center of the bounding box of the mesh is at :prop:`positon`,
-    and then rotated to :prop:`rotation`.
+    The mesh is first placed so the origin is at the center of the bounding box (unless ``centerMesh`` is ``False``).
+    The mesh is scaled to ``dimensions``, translated so the center of the bounding box of the mesh is at ``positon``,
+    and then rotated to ``rotation``.
 
-    Meshes are centered by default (since :prop:`centerMesh` is true by default). If you disable this operation, do note
+    Meshes are centered by default (since ``centerMesh`` is true by default). If you disable this operation, do note
     that scaling and rotation transformations may not behave as expected, since they are performed around the origin.
 
     Args:
@@ -756,14 +756,12 @@ class MeshVolumeRegion(MeshRegion):
     The mesh must represent a volume, meaning the mesh must be watertight, have consistent
     winding and have outward facing normals.
 
-    The mesh is first placed so the origin is at the center of the bounding box (unless
-    :prop:`centerMesh` is ``False``). The mesh is scaled to :prop:`dimensions`, translated
-    so the center of the bounding box of the mesh is at :prop:`positon`, and then rotated
-    to :prop:`rotation`.
+    The mesh is first placed so the origin is at the center of the bounding box (unless ``centerMesh`` is ``False``).
+    The mesh is scaled to ``dimensions``, translated so the center of the bounding box of the mesh is at ``positon``,
+    and then rotated to ``rotation``.
 
-    Meshes are centered by default (since :prop:`centerMesh` is true by default). If you
-    disable this operation, do note that scaling and rotation transformations may not behave
-    as expected, since they are performed around the origin.
+    Meshes are centered by default (since ``centerMesh`` is true by default). If you disable this operation, do note
+    that scaling and rotation transformations may not behave as expected, since they are performed around the origin.
 
     Args:
         mesh: The base mesh for this region.
@@ -807,7 +805,7 @@ class MeshVolumeRegion(MeshRegion):
         This function handles intersect calculations for `MeshVolumeRegion` with:
         * `MeshVolumeRegion`
         * `MeshSurfaceRegion`
-        * `PolygonalFootprintRegion`other
+        * `PolygonalFootprintRegion`
         """
         if isinstance(other, MeshVolumeRegion):
             # PASS 1
@@ -833,14 +831,14 @@ class MeshVolumeRegion(MeshRegion):
             # Otherwise try to sample a point as a candidate, skipping this pass if the sample fails.
             if self.containsPoint(Vector(*self.mesh.bounding_box.center_mass)):
                 s_candidate_point = Vector(*self.mesh.bounding_box.center_mass)
-            elif samples:=trimesh.sample.volume_mesh(self.mesh, self.num_samples):
+            elif len(samples:=trimesh.sample.volume_mesh(self.mesh, self.num_samples)) > 0:
                 s_candidate_point = Vector(*samples[0])
             else:
                 s_candidate_point = None
 
             if other.containsPoint(Vector(*other.mesh.bounding_box.center_mass)):
                 o_candidate_point = Vector(*other.mesh.bounding_box.center_mass)
-            elif samples:=trimesh.sample.volume_mesh(other.mesh, other.num_samples):
+            elif len(samples:=trimesh.sample.volume_mesh(other.mesh, other.num_samples)) > 0:
                 o_candidate_point = Vector(*samples[0])
             else:
                 o_candidate_point = None
@@ -1441,11 +1439,11 @@ class MeshVolumeRegion(MeshRegion):
 class MeshSurfaceRegion(MeshRegion):
     """ A region representing the surface of a mesh.
 
-    The mesh is first placed so the origin is at the center of the bounding box (unless :prop:`centerMesh` is ``False``).
-    The mesh is scaled to :prop:`dimensions`, translated so the center of the bounding box of the mesh is at :prop:`positon`,
-    and then rotated to :prop:`rotation`.
+    The mesh is first placed so the origin is at the center of the bounding box (unless ``centerMesh`` is ``False``).
+    The mesh is scaled to ``dimensions``, translated so the center of the bounding box of the mesh is at ``positon``,
+    and then rotated to ``rotation``.
 
-    Meshes are centered by default (since :prop:`centerMesh` is true by default). If you disable this operation, do note
+    Meshes are centered by default (since ``centerMesh`` is true by default). If you disable this operation, do note
     that scaling and rotation transformations may not behave as expected, since they are performed around the origin.
 
     Args:
@@ -1587,7 +1585,7 @@ class BoxRegion(MeshVolumeRegion):
 
     By default the unit box centered at the origin and aligned with the axes is used.
 
-    Parameters are the same as `MeshVolumeRegion`, with the exception of the :param:`mesh`
+    Parameters are the same as `MeshVolumeRegion`, with the exception of the ``mesh``
     parameter which is excluded.
     """
     def __init__(self, **kwargs):
@@ -1619,7 +1617,7 @@ class SpheroidRegion(MeshVolumeRegion):
 
     By default the unit sphere centered at the origin and aligned with the axes is used.
 
-    Parameters are the same as `MeshVolumeRegion`, with the exception of the :param:`mesh`
+    Parameters are the same as `MeshVolumeRegion`, with the exception of the ``mesh``
     parameter which is excluded.
     """
     def __init__(self, **kwargs):
@@ -2285,7 +2283,11 @@ class CircularRegion(PolygonalRegion):
 
     def distanceTo(self, point):
         point = toVector(point)
-        return max(0, point.distanceTo(self.center) - self.radius)
+
+        if point.z == 0:
+            return max(0, point.distanceTo(self.center) - self.radius)
+
+        return super().distanceTo(point)
 
     def uniformPointInner(self):
         x, y, z = self.center
@@ -3005,7 +3007,6 @@ class ViewRegion(MeshVolumeRegion):
 
     * Case 5:       viewAngles[0 & 1] < 180             => Capped Pyramid View Region
 
-
     Args:
         visibleDistance: The view distance for this region.
         viewAngles: The view angles for this region.
@@ -3014,34 +3015,22 @@ class ViewRegion(MeshVolumeRegion):
         rotation: An optional Orientation object which determines the rotation of the object in space.
         orientation: An optional vector field describing the preferred orientation at every point in
           the region.
+        angleCutoff: How close to 90/180 degrees an angle has to be to be mapped to that value.
         tolerance: Tolerance for collision computations.
     """
     def __init__(self, visibleDistance, viewAngles, name=None, position=Vector(0,0,0), rotation=None,\
-        orientation=None, tolerance=1e-8):
+        orientation=None, angleCutoff=0.01, tolerance=1e-8):
         # Bound viewAngles from either side.
         if min(viewAngles) <= 0:
             raise ValueError("viewAngles cannot have a component less than or equal to 0")
-
-        # Cases in view region computation
-        # Case 1:       Azimuth view angle = 360 degrees
-        #   Case 1.a:   Altitude view angle = 180 degrees   => Full Sphere View Region
-        #   Case 1.b:   Altitude view angle < 180 degrees   => Sphere - (Cone + Cone) (Cones on z axis expanding from origin)
-        # Case 2:       Azimuth view angle = 180 degrees
-        #   Case 2.a:   Altitude view angle = 180 degrees   => Hemisphere View Region
-        #   Case 2.b:   Altitude view angle < 180 degrees   => Hemisphere - (Cone + Cone) (Cones on appropriate hemispheres)
-        # Case 3:       Altitude view angle = 180 degrees   
-        #   Case 3.a:   Azimuth view angle < 180 degrees    => Sphere intersected with Pyramid View Region
-        #   Case 3.b:   Azimuth view angle > 180 degrees    => Sphere - Backwards Pyramid View Region 
-        # Case 4:       Both view angles < 180              => Capped Pyramid View Region
-        # Case 5:       Azimuth > 180, Altitude < 180       => (Sphere - (Cone + Cone) (Cones on appropriate hemispheres)) - Backwards Capped Pyramid View Region
 
         view_region = None
         diameter = 2*visibleDistance
         base_sphere = SpheroidRegion(dimensions=(diameter, diameter, diameter), engine="scad")
 
-        if (math.tau-0.01 <= viewAngles[0] <= math.tau+0.01):
+        if (math.tau-angleCutoff <= viewAngles[0] <= math.tau+angleCutoff):
             # Case 1
-            if viewAngles[1] > math.pi-0.01:
+            if viewAngles[1] > math.pi-angleCutoff:
                 #Case 1.a
                 view_region = base_sphere
             else:
@@ -3064,9 +3053,9 @@ class ViewRegion(MeshVolumeRegion):
 
                 view_region = base_sphere.difference(cone_1).difference(cone_2)
 
-        elif (math.pi-0.01 <= viewAngles[0] <= math.pi+0.01):
+        elif (math.pi-angleCutoff <= viewAngles[0] <= math.pi+angleCutoff):
             # Case 2
-            if viewAngles[1] > math.pi-0.01:
+            if viewAngles[1] > math.pi-angleCutoff:
                 # Case 2.a
                 padded_diameter = 1.1*diameter
                 view_region = base_sphere.intersect(BoxRegion(dimensions=(padded_diameter, padded_diameter, padded_diameter), position=(0,padded_diameter/2,0)))
@@ -3094,7 +3083,7 @@ class ViewRegion(MeshVolumeRegion):
 
                 view_region = base_hemisphere.difference(cone_1).difference(cone_2)
 
-        elif viewAngles[1] > math.pi-0.01:
+        elif viewAngles[1] > math.pi-angleCutoff:
             # Case 3
             if viewAngles[0] < math.pi:
                 view_region = base_sphere.intersect(TriangularPrismViewRegion(visibleDistance, viewAngles[0]))

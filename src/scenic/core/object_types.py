@@ -139,7 +139,7 @@ class Constructible(Samplable):
         """
         specs = []
         for prop, val in properties.items():
-            specs.append(Specifier("<internal>", {prop: 1}, {prop: val}))
+            specs.append(Specifier(f"<internal({prop})>", {prop: 1}, {prop: val}))
         return cls._withSpecifiers(specs, constProps=constProps, register=False)
 
     @classmethod
@@ -201,11 +201,11 @@ class Constructible(Samplable):
         finals = cls._finalProperties
 
         # Check for incompatible specifier combinations
-        specifier_names = [spec.name for spec in specifiers]
+        specifiers_count = collections.Counter(spec.name for spec in specifiers)
 
-        if "On" in specifier_names:
-            if collections.Counter(specifier_names)["On"] > 1:
-                raise SpecifierError(f'Cannot use "On" specifier to modify "On" specifier')
+        for spec in specifiers_count:
+            if specifiers_count[spec] > 1:
+                raise SpecifierError(f'Cannot use {spec} specifier to modify itself.')
 
         # Split the specifiers into two groups, normal and modifying. Normal specifiers set all relevant properties
         # first. Then modifying specifiers can modify or set additional properties
@@ -805,6 +805,7 @@ class Object(OrientedPoint):
           from the ``ego`` object. Default value ``False``.
         occluding (bool): Whether or not this object can occlude other objects. Default
           value ``True``.
+        showVisibleRegion (bool): Whether or not to display the visible region in the Scenic internal visualizer.
         color (tuple[float, float, float] or `None`): An optional color property that is
           used by the internal visualizer, or possibly simulators. All values should
           be between 0 and 1. Default value ``None``
@@ -834,6 +835,7 @@ class Object(OrientedPoint):
         'cameraOffset': Vector(0, 0, 0),
         'requireVisible': False,
         'occluding': True,
+        'showVisibleRegion': False,
 
         "color": None,
 
@@ -1210,8 +1212,7 @@ class Object(OrientedPoint):
 
         viewer.add_geometry(object_mesh)
 
-        # If the camera is not a sphere, render the visible pyramid as a blue wireframe
-        if self.viewAngles != (math.tau, math.pi) or self.visibleDistance != 50:
+        if self.showVisibleRegion:
             camera_pyramid_mesh = self.visibleRegion.mesh.copy()
 
             edges = camera_pyramid_mesh.face_adjacency_edges[camera_pyramid_mesh.face_adjacency_angles > np.radians(0.1)]
@@ -1379,7 +1380,7 @@ class OrientedPoint2D(Point2D, OrientedPoint):
         newspecs = []
         for spec in specifiers:
             # Map "with heading x" to "facing x"
-            if spec.name == "With" and tuple(spec.priorities.keys()) == ('heading',):
+            if spec.name == "With(heading)" and tuple(spec.priorities.keys()) == ('heading',):
                 import scenic.syntax.veneer as veneer
                 newspecs.append(veneer.Facing(spec.value['heading']))
             else:

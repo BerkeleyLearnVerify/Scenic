@@ -27,7 +27,7 @@ For details on the available specifiers and how they interact, see the :ref:`spe
 
 Instantiating an instance of `Object` has a side effect: the object is added to the scenario being defined.
 
-.. versionchanged::3.0
+.. versionchanged:: 3.0
 
     Instance creation now requires the ``new`` keyword. As a result, Scenic classes can be referred to without creating an instance.
 
@@ -90,7 +90,7 @@ The built-in requirements applying to each object are:
 * The object must be visible from the ego object if the :prop:`requireVisible` property is set to `True` (default value `False`).
 * The object must not intersect another object (i.e., their bounding boxes must not overlap), unless either of the two objects has their :prop:`allowCollisions` property set to `True`.
 
-.. versionchanged::3.0
+.. versionchanged:: 3.0
 
     :prop:`requireVisible` is now `False` by default.
 
