@@ -285,7 +285,7 @@ In the following tables, operators are grouped by the type of value they return.
      - The given angle, interpreted as being in degrees
    * - :sampref:`{vectorField} at {vector}`
      - The orientation specified by the vector field at the given position
-   * - :sampref:`({heading} | {vectorField}) relative to ({heading} | {vectorField})`
+   * - :sampref:`{direction} relative to {direction}`
      - The first direction (a heading, orientation, or vector field), interpreted as an offset relative to the second direction
 
 
