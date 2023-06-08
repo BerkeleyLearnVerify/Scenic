@@ -1923,6 +1923,10 @@ class PathRegion(Region):
             [list(self.vert_to_vec[a]) + list(self.vert_to_vec[b]) for a,b in self.edges]
         )
 
+        a = self._edgeVectorArray[:,0:3]
+        b = self._edgeVectorArray[:,3:6]
+        self._normalizedEdgeDirections = (b - a)/numpy.reshape(numpy.linalg.norm(b - a, axis=1), (len(a), 1))
+
     def containsPoint(self, point):
         pt = toVector(point)
 
@@ -1946,18 +1950,19 @@ class PathRegion(Region):
         p = numpy.asarray(point)
         a = self._edgeVectorArray[:,0:3]
         b = self._edgeVectorArray[:,3:6]
+        a_min_p = a - p
 
         d = (b - a)/numpy.linalg.norm(b - a, axis=1)
 
         # Parallel distances from each end point. Negative indicates on the line segment
-        a_dist = numpy.sum((a-p)*d, axis=1)
+        a_dist = numpy.sum((a_min_p)*d, axis=1)
         b_dist = numpy.sum((p-b)*d, axis=1)
 
         # Actual parallel distance is 0 if on the line segment.
         parallel_dist = numpy.amax([a_dist, b_dist, numpy.zeros(len(self._edgeVectorArray))], axis=0)
-        perp_dist = numpy.linalg.norm(numpy.cross(p - a, d), axis=1)
+        perp_dist = numpy.linalg.norm(numpy.cross(a_min_p, d), axis=1)
 
-        return min(numpy.hypot(parallel_dist, perp_dist))
+        return numpy.hypot(parallel_dist, perp_dist).min()
 
     def projectVector(self, point, onDirection):
         raise NotImplementedError

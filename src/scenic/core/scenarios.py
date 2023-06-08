@@ -309,8 +309,6 @@ class Scenario(_ScenarioPickleMixin):
         Raises:
             `RejectionException`: if no valid sample is found in **maxIterations** iterations.
         """
-        objects = self.objects
-
         # choose which custom requirements will be enforced for this sample
         activeReqs = [req for req in self.initialRequirements if random.random() <= req.prob]
 
@@ -336,14 +334,35 @@ class Scenario(_ScenarioPickleMixin):
                 rejection = e
                 continue
             rejection = None
-            ego = sample[self.egoObject]
 
-            # Normalize types of some built-in properties
-            for obj in objects:
+            # Ensure nothing else is lazy
+            for obj in self.objects:
                 sampledObj = sample[obj]
                 assert not needsSampling(sampledObj)
 
-            sampledObjects = [sample[obj] for obj in objects]
+            # Check validity of sample
+            rejection = self.checkSample(sample, activeReqs)
+
+            if rejection is None:
+                # The sample is valid, we're done
+                break
+            else:
+                # The sample is invalid. Debug or try again.
+                optionallyDebugRejection()
+
+        # obtained a valid sample; assemble a scene from it
+        scene = self._makeSceneFromSample(sample)
+        return scene, iterations
+
+    def checkSample(self, sample, activeReqs):
+            """ Check a sample for validity.
+
+            Returns a string describing the reason for rejection, if one
+            exists, or None if the sample is valid.
+            """
+            ego = sample[self.egoObject]
+            sampledObjects = [sample[obj] for obj in self.objects]
+
             ## Check built-in requirements for instances ##
             # Possibly an early collision check to reject clearly infeasible scenes.
             if (not any(isinstance(obj, scenic.core.object_types.Object2D) for obj in sampledObjects)
@@ -355,7 +374,7 @@ class Scenario(_ScenarioPickleMixin):
                         cm.add_object(str(obj), obj.occupiedSpace.mesh)
 
                 if cm.in_collision_internal():
-                    rejection = 'object intersection (from early check)'
+                    return 'object intersection (from early check)'
 
             def occluders(source, target):
                 return tuple(obj for obj in sampledObjects
@@ -371,53 +390,40 @@ class Scenario(_ScenarioPickleMixin):
                 if vi._observingEntity is not None:
                     observing_entity = sample[vi._observingEntity]
                     if not observing_entity.canSee(vi, occludingObjects=occluders(observing_entity, vi)):
-                        rejection = 'instance visibility (from observing entity)'
-                        break
+                        return 'instance visibility (from observing entity)'
+
                 # Require that the non-observing entity, if one has been specified,
                 # can see the instance.
                 if vi._nonObservingEntity is not None:
                     non_observing_entity = sample[vi._nonObservingEntity]
                     if non_observing_entity.canSee(vi, occludingObjects=occluders(non_observing_entity, vi)):
-                        rejection = 'instance visibility (from non-observing entity)'
+                        return 'instance visibility (from non-observing entity)'
 
             # Check built-in requirements for objects
-            for i in range(len(objects)):
-                vi = sample[objects[i]]
+            for i, vi in enumerate(sampledObjects):
                 # Require object to be contained in the workspace/valid region
                 container = self.containerOfObject(vi)
                 if not container.containsObject(vi):
-                    rejection = 'object containment'
-                    break
+                    return 'object containment'
+
                 # Require object to be visible from the ego object
                 if vi.requireVisible and vi is not ego:
                     if not ego.canSee(vi, occludingObjects=occluders(ego, vi)):
-                        rejection = 'object visibility (from ego)'
-                        break
+                        return 'object visibility (from ego)'
 
-                        break
                 # Require object to not intersect another object
                 if not vi.allowCollisions:
-                    for j in range(i):
-                        vj = sample[objects[j]]
-
+                    for vj in sampledObjects[(i+1):]:
                         if not vj.allowCollisions and vi.intersects(vj):
-                            rejection = 'object intersection'
-                            break
-                if rejection is not None:
-                    break
-            if rejection is not None:
-                optionallyDebugRejection()
-                continue
+                            return 'object intersection'
+
             # Check user-specified requirements
             for req in activeReqs:
                 if req.falsifiedBy(sample):
-                    rejection = str(req)
-                    optionallyDebugRejection()
-                    break
+                    return str(req)
 
-        # obtained a valid sample; assemble a scene from it
-        scene = self._makeSceneFromSample(sample)
-        return scene, iterations
+            # No rejection, return None
+            return None
 
     def _makeSceneFromSample(self, sample):
         sampledObjects = tuple(sample[obj] for obj in self.objects)
