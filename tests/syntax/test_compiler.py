@@ -2090,6 +2090,14 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_visible_from_op(self):
+        node, _ = compileScenicAST(NotVisibleFromOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("NotVisibleFromOp"), [Name("X"), Name("Y")]):
+                assert True
+            case _:
+                assert False
+
     @pytest.mark.parametrize(
         "node,function_name",
         [

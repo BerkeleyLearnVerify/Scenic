@@ -30,7 +30,7 @@ __all__ = (
     'AngleTo', 'AngleFrom','AltitudeTo', 'AltitudeFrom',
     # Infix operators
     'FieldAt', 'RelativeTo', 'OffsetAlong', 'CanSee', 'Until', 'Implies',
-    'VisibleFromOp',
+    'VisibleFromOp', 'NotVisibleFromOp',
     # Primitive types
     'Vector', 'Orientation', 'VectorField', 'PolygonalVectorField',
     'Shape', 'MeshShape', 'BoxShape', 'CylinderShape', 'ConeShape', 'SpheroidShape',
@@ -978,6 +978,14 @@ def VisibleFromOp(region, base):
     if not isA(base, Point):
         raise TypeError('"X visible from Y" with Y not a Point')
     return region.intersect(base.visibleRegion)
+
+def NotVisibleFromOp(region, base):
+    """The :grammar:`<region> not visible from <point>` operator."""
+    region = toType(region, Region, '"X visible from Y" with X not a Region')
+    if not isA(base, Point):
+        raise TypeError('"X not visible from Y" with Y not a Point')
+
+    return region.difference(base.visibleRegion)
 
 def CanSee(X, Y):
     """The :scenic:`{X} can see {Y}` polymorphic operator.

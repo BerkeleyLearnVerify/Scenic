@@ -1005,7 +1005,6 @@ class NotVisibleOp(AST):
         self.region = region
         self._fields = ["region"]
 
-
 class VisibleFromOp(AST):
     __match_args__ = ("region", "base")
 
@@ -1017,6 +1016,16 @@ class VisibleFromOp(AST):
         self.base = base
         self._fields = ["region", "base"]
 
+class NotVisibleFromOp(AST):
+    __match_args__ = ("region", "base")
+
+    def __init__(
+        self, region: ast.AST, base: ast.AST, *args: any, **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.region = region
+        self.base = base
+        self._fields = ["region", "base"]
 
 class PositionOfOp(AST):
     __match_args__ = ("position", "target")

@@ -2588,6 +2588,15 @@ class TestOperator:
             case _:
                 assert False
 
+    def test_not_visible_from(self):
+        mod = parse_string_helper("x not visible from y")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(NotVisibleFromOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False
+
     @pytest.mark.parametrize(
         "position,node",
         [

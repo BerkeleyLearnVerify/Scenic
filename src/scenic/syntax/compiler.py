@@ -1703,6 +1703,13 @@ class ScenicToPythonTransformer(Transformer):
             keywords=[],
         )
 
+    def visit_NotVisibleFromOp(self, node: s.VisibleFromOp):
+        return ast.Call(
+            func=ast.Name(id="NotVisibleFromOp", ctx=loadCtx),
+            args=[self.visit(node.region), self.visit(node.base)],
+            keywords=[],
+        )
+
     def visit_PositionOfOp(self, node: s.PositionOfOp):
         return ast.Call(
             func=ast.Name(id=node.position.functionName, ctx=loadCtx),

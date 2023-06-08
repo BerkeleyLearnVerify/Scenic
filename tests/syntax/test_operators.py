@@ -599,3 +599,16 @@ def test_visible_from():
         assert p.x >= 100
         assert p.y >= 200
         assert math.hypot(p.x - 100, p.y - 200) <= 10
+
+# not visible from
+def test_not_visible_from():
+    scenario = compileScenic("""
+        ego = new Object at 100 @ 200, facing -45 deg,
+                     with visibleDistance 30, with viewAngle 90 deg
+        reg = RectangularRegion(100@200, 0, 10, 10)
+        param p = new Point in reg not visible from ego
+    """)
+    ps = [sampleParamP(scenario, maxIterations=10) for i in range(50)]
+    assert all(p.x <= 100 or p.y <= 200 for p in ps)
+    assert any(p.x > 100 for p in ps)
+    assert any(p.y > 200 for p in ps)
