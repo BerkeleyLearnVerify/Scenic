@@ -501,7 +501,7 @@ class Simulation:
         """
         for obj in self.objects:
             # Get latest values of dynamic properties from simulation
-            dynTypes = obj._dynamicallyUpdatedProperties
+            dynTypes = obj._simulatorProvidedProperties
             properties = set(dynTypes)
             values = self.getProperties(obj, properties)
             assert properties == set(values), properties ^ set(values)

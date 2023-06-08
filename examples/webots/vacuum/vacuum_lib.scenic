@@ -20,7 +20,7 @@ class Vacuum(WebotsObject):
     width: 0.335
     length: 0.335
     height: 0.07
-    customData: str(random.getrandbits(32)) # Random seed for robot controller
+    customData: str(DiscreteRange(0, 2**32 - 1)) # Random seed for robot controller
 
 # Floor uses builtin Webots floor to keep Vacuum Sensors from breaking
 # Not actually linked to WebotsObject because Webots floor is 2D

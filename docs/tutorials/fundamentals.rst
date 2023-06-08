@@ -147,6 +147,7 @@ should generate a scene similar to this:
   :figclass: align-center
   :alt: Three spheres in a rectangular region
 
+Note that in this scene the coordinate axes in the center are displayed due to the :command:`--axes` flag, which can help clarify orientation.
 
 We first create a 10-unit square `RectangularRegion`, and set it as the scenario's workspace. `RectangularRegion` is a 2D region,
 meaning it does not have a volume and therefore can't really contain objects.

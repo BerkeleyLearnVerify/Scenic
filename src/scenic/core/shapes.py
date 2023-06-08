@@ -102,7 +102,7 @@ class MeshShape(Shape):
 
     @classmethod
     def fromFile(cls, path, filetype=None, compressed=None, binary=False, **kwargs):
-        """Load a shape from a file, attempting to infer filetype and compression.
+        """Load a mesh shape from a file, attempting to infer filetype and compression.
 
         For example: "foo.obj.bz2" is assumed to be a compressed .obj file.
         "foo.obj" is assumed to be an uncompressed .obj file. "foo" is an
@@ -134,23 +134,26 @@ class MeshShape(Shape):
         return state
 
 class BoxShape(MeshShape):
-    """A 3D box with all dimensions 1 by default."""
+    """A box shape with all dimensions 1 by default."""
     def __init__(self, dimensions=(1,1,1), scale=1, initial_rotation=None):
         super().__init__(trimesh.creation.box((1,1,1)), \
             dimensions, scale, initial_rotation)
 
 class CylinderShape(MeshShape):
+    """A cylinder shape with all dimensions 1 by default."""
     def __init__(self, dimensions=(1,1,1), scale=1, initial_rotation=None, sections=24):
         super().__init__(trimesh.creation.cylinder(radius=0.5, height=1, sections=sections), \
             dimensions, scale, initial_rotation)
         self.sections=sections
 
 class ConeShape(MeshShape):
+    """A cone shape with all dimensions 1 by default."""
     def __init__(self, dimensions=(1,1,1), scale=1, initial_rotation=None):
         super().__init__(trimesh.creation.cone(radius=0.5, height=1), \
             dimensions, scale, initial_rotation)
 
 class SpheroidShape(MeshShape):
+    """A spheroid shape with all dimensions 1 by default."""
     def __init__(self, dimensions=(1,1,1), scale=1, initial_rotation=None):
         super().__init__(trimesh.creation.icosphere(radius=1), \
             dimensions, scale, initial_rotation)

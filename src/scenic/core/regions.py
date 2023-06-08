@@ -612,7 +612,7 @@ class MeshRegion(Region):
 
     @classmethod
     def fromFile(cls, path, filetype=None, compressed=None, binary=False, **kwargs):
-        """Load a region from a file, attempting to infer filetype and compression.
+        """Load a mesh region from a file, attempting to infer filetype and compression.
 
         For example: "foo.obj.bz2" is assumed to be a compressed .obj file.
         "foo.obj" is assumed to be an uncompressed .obj file. "foo" is an

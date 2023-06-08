@@ -109,7 +109,7 @@ class Constructible(Samplable):
                 ty = underlyingType(getattr(inst, prop))
             dynTypes[prop] = ty
         cls._dynamicProperties = dynTypes
-        cls._dynamicallyUpdatedProperties = {prop: val for prop, val
+        cls._simulatorProvidedProperties = {prop: val for prop, val
             in cls._dynamicProperties.items() if prop not in cls._finalProperties}
 
     def __new__(cls, *args, _internal=False, **kwargs):
@@ -665,6 +665,10 @@ class OrientedPoint(Point):
     (for yaw/pitch/roll respectively) given by the  ``orientationStdDev`` property.
     It then also applies the mutator for `Point`.
 
+    The default mutator for `OrientedPoint` adds Gaussian noise to ``yaw``, ``pitch``
+    and ``roll`` according to ``orientationStdDev``. By default the standard deviations
+    for ``pitch`` and ``roll`` are zero so that, by default, only ``yaw`` is mutated.
+
     Properties:
         yaw (float; dynamic): Yaw of the `OrientedPoint` in radians in the local coordinate system
           provided by :prop:`parentOrientation`. Default value 0.
@@ -684,7 +688,7 @@ class OrientedPoint(Point):
         viewAngles (tuple[float,float]): Horizontal and vertical view angles of this `OrientedPoint`
           in radians. Horizontal view angle can be up to 2π and vertical view angle can be
           up to π. Values greater than these will be truncated. Default value is (2π, π)
-        orientationStdDev (float): Standard deviation of Gaussian noise to add to this
+        orientationStdDev (tuple[float,float,float]): Standard deviation of Gaussian noise to add to this
           object's Euler angles (yaw, pitch, roll) when mutation is enabled with scale 1.
           Default value (5°, 0, 0), mutating only the :prop:`yaw` of this `OrientedPoint`.
     """

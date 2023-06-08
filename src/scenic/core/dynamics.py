@@ -757,18 +757,20 @@ class GuardViolation(Exception):
         return f'violated {self.violationType} of {self.behaviorName} on line {self.lineno}'
 
 class PreconditionViolation(GuardViolation):
-    """ Exception raised inside a precondition.
+    """ Exception raised when a precondition is violated
 
     Raised when a precondition is violated when invoking a behavior
-    or when a precondition encounters a `RejectionException`.
+    or when a precondition encounters a `RejectionException`, so that
+    rejections count as precondition violations.
     """
     violationType = 'precondition'
 
 class InvariantViolation(GuardViolation):
-    """ Exception raised inside an invariant.
+    """ Exception raised when an invariant is violated
 
     Raised when an invariant is violated when invoking/resuming a behavior
-    or when an invariant encounters a `RejectionException`.
+    or when an invariant encounters a `RejectionException`, so that
+    rejections count as invariant violations.
     """
     violationType = 'invariant'
 
