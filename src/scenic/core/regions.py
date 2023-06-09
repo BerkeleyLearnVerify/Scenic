@@ -1081,64 +1081,6 @@ class MeshVolumeRegion(MeshRegion):
                 # Something went wrong, abort
                 return super().intersect(other, triedReversed)
 
-        # WIP Code: Currently correct but VERY slow.
-        # if isinstance(other, MeshSurfaceRegion):
-        #     # Other region is a mesh surface. We can intersect each triangle and merge them back together.
-
-        #     # Extract triangles from the other mesh
-        #     surface_triangles = other.mesh.triangles
-
-        #     # Sort triangles by whether they are fully inside/outside the mesh or intersecting. 
-        #     # Triangles fully outside can be discarded, triangles fully inside can be kept unchanged.
-        #     # Triangles that intersect the mesh will need to be intersected using an engine.
-        #     processed_triangles = []
-
-        #     cm = trimesh.collision.CollisionManager()
-        #     cm.add_object("MeshVolume", SurfaceCollisionTrimesh(faces=self.mesh.faces, vertices=self.mesh.vertices))
-
-        #     pq = trimesh.proximity.ProximityQuery(self.mesh)
-
-        #     for i, triangle in enumerate(surface_triangles):
-        #         print(f"Triangle {i}/{len(surface_triangles)}")
-        #         triangle_mesh = SurfaceCollisionTrimesh(**trimesh.triangles.to_kwargs([triangle]))
-
-        #         # TODO: Compress all these into one call?
-        #         collision = cm.in_collision_single(triangle_mesh)
-
-        #         if collision:
-        #             # Triangle intersects, compute the intersection and add it.
-        #             print("Intersecting...")
-        #             # TODO: Speed up this step. Takes a VERY long time
-        #             intersected_triangle_mesh = self.mesh.intersection(triangle_mesh)
-
-        #             if not isinstance(intersected_triangle_mesh, trimesh.Trimesh):
-        #                 # Triangle doesn't actually intersect
-        #                 continue
-
-        #             intersected_triangles = list(intersected_triangle_mesh.triangles)
-
-        #             processed_triangles += intersected_triangles
-        #             continue
-
-        #         # Triangle doesn't intersect, check if it's inside or outside the mesh
-        #         point_distances = pq.signed_distance(triangle)
-
-        #         if all(point_distances >= 0):
-        #             # Triangle is inside, we can keep it unchanged
-        #             processed_triangles.append(triangle)
-        #             continue
-        #         elif all(point_distances <= 0):
-        #             # Triangle is outside, we can discard it
-        #             continue
-        #         else:
-        #             # Triangle is intersecting, something went wrong.
-        #             assert False, point_distances
-
-        #     # Remake the surface, processing to hopefully clean it up.
-        #     new_surface = trimesh.Trimesh(**trimesh.triangles.to_kwargs(processed_triangles), process=True)
-
-        #     return MeshSurfaceRegion(mesh=new_surface, tolerance=min(self.tolerance, other.tolerance), centerMesh=False)
-
         if isinstance(other, PolygonalFootprintRegion):
             # Other region is a polygonal footprint region. We can bound it in the vertical dimension
             # and then calculate the intersection with the resulting mesh volume.
@@ -1447,6 +1389,10 @@ class MeshSurfaceRegion(MeshRegion):
     Meshes are centered by default (since ``centerMesh`` is true by default). If you disable this operation, do note
     that scaling and rotation transformations may not behave as expected, since they are performed around the origin.
 
+    If an orientation is not passed to this mesh, a default orientation is provided which provides an orientation
+    that aligns an object's z axis with the normal vector of the face containing that point, and has a yaw aligned
+    with a yaw of 0 in the global coordinate system.
+
     Args:
         mesh: The base mesh for this region.
         name: An optional name to help with debugging.
@@ -1533,7 +1479,7 @@ class MeshSurfaceRegion(MeshRegion):
     @distributionFunction
     def distanceTo(self, point):
         """Get the minimum distance from this object to the specified point."""
-        point = toVector(point, "Could not convert 'point' to vector.")
+        point = toVector(point, f"Could not convert {point} to vector.")
 
         pq = trimesh.proximity.ProximityQuery(self.mesh)
 
@@ -1554,6 +1500,8 @@ class MeshSurfaceRegion(MeshRegion):
 
         Given a point on the surface of the mesh, returns an orientation that aligns
         an instance's z axis with the normal vector of the face containing that point.
+        Since there are infinitely many such orientations, the orientation returned
+        has yaw aligned with a global yaw of 0.
 
         If ``pos`` is not within ``self.tolerance`` of the surface of the mesh, a
         ``RejectionException`` is raised.
@@ -1567,8 +1515,15 @@ class MeshSurfaceRegion(MeshRegion):
 
         face_normal_vector = self.mesh.face_normals[triangle_id][0]
 
+        # Get arbitrary orientation that aligns object with face_normal_vector
         transform = trimesh.geometry.align_vectors([0,0,1], face_normal_vector)
-        return Orientation(scipy.spatial.transform.Rotation.from_matrix(transform[:3,:3]))
+        base_orientation = Orientation(scipy.spatial.transform.Rotation.from_matrix(transform[:3,:3]))
+
+        # Add yaw offset to orientation to align object's yaw with global 0
+        yaw_offset = Vector(0,1,0).applyRotation(base_orientation.inverse).sphericalCoordinates()[1]
+        final_orientation = base_orientation * Orientation.fromEuler(yaw_offset, 0, 0)
+
+        return final_orientation
 
     ## Utility Methods ##
     @lru_cache(maxsize=None)

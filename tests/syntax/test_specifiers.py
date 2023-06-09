@@ -712,6 +712,16 @@ def test_on_3d_heading():
         assert -1-ego.contactTolerance/2 <= pos.z <= -ego.contactTolerance/2
         assert ego.orientation.approxEq(Orientation.fromEuler(math.pi, math.pi, 0))
 
+def test_on_parentOrientation():
+    # If parentOrientation isn't set properly, there will (almost) always be a collision
+    scenario = compileScenic("""
+        box = new Object facing (Range(0, 360 deg), Range(0, 360 deg), Range(0, 360 deg)),
+                with width 5, with length 5, with height 5
+        ego = new Object on box
+    """)
+    for _ in range(30):
+        sampleScene(scenario, maxIterations=1)
+
 def test_on_modifying_object():
     scenario = compileScenic(
         'floor = new Object at (0,0,0), with shape BoxShape(dimensions=(40,40,0.1))\n'

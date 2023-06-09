@@ -1285,7 +1285,7 @@ class Object(OrientedPoint):
 _unitBox = shapely.geometry.Polygon(((0.5, 0.5), (-0.5, 0.5), (-0.5, -0.5), (0.5, -0.5)))
 
 @distributionFunction
-def defaultSideSurface(occupiedSpace, dimension, positive, thresholds):
+def defaultSideSurface(occupiedSpace, dimension, positive, thresholds) -> MeshSurfaceRegion:
     """Extracts a side surface from the occupiedSpace of an object.
 
     This function is the default implementation for computing a region
