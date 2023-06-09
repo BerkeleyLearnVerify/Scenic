@@ -343,11 +343,7 @@ class Scenario(_ScenarioPickleMixin):
             # Check validity of sample
             rejection = self.checkSample(sample, activeReqs)
 
-            if rejection is None:
-                # The sample is valid, we're done
-                break
-            else:
-                # The sample is invalid. Debug or try again.
+            if rejection is not None:
                 optionallyDebugRejection()
 
         # obtained a valid sample; assemble a scene from it
@@ -355,75 +351,74 @@ class Scenario(_ScenarioPickleMixin):
         return scene, iterations
 
     def checkSample(self, sample, activeReqs):
-            """ Check a sample for validity.
+        """ Check a sample for validity.
 
-            Returns a string describing the reason for rejection, if one
-            exists, or None if the sample is valid.
-            """
-            ego = sample[self.egoObject]
-            sampledObjects = [sample[obj] for obj in self.objects]
+        Returns a string describing the reason for rejection, if one
+        exists, or None if the sample is valid.
+        """
+        ego = sample[self.egoObject]
+        sampledObjects = [sample[obj] for obj in self.objects]
 
-            ## Check built-in requirements for instances ##
-            # Possibly an early collision check to reject clearly infeasible scenes.
-            if (not any(isinstance(obj, scenic.core.object_types.Object2D) for obj in sampledObjects)
-                and INITIAL_COLLISION_CHECK):
-                cm = trimesh.collision.CollisionManager()
+        ## Check built-in requirements for instances ##
+        # Possibly an early collision check to reject clearly infeasible scenes.
+        if not self.compileOptions.mode2D and INITIAL_COLLISION_CHECK:
+            cm = trimesh.collision.CollisionManager()
 
-                for obj in sampledObjects:
-                    if not obj.allowCollisions:
-                        cm.add_object(str(obj), obj.occupiedSpace.mesh)
+            for obj in sampledObjects:
+                if not obj.allowCollisions:
+                    cm.add_object(str(obj), obj.occupiedSpace.mesh)
 
-                if cm.in_collision_internal():
-                    return 'object intersection (from early check)'
+            if cm.in_collision_internal():
+                return 'object intersection (from early check)'
 
-            def occluders(source, target):
-                return tuple(obj for obj in sampledObjects
-                             if obj is not source
-                             and obj is not target
-                             and obj.occluding)
+        def occluders(source, target):
+            return tuple(obj for obj in sampledObjects
+                         if obj is not source
+                         and obj is not target
+                         and obj.occluding)
 
-            for instance in self._instances:
-                vi = sample[instance]
+        for instance in self._instances:
+            vi = sample[instance]
 
-                # Require that the observing entity, if one has been specified,
-                # can see the instance.
-                if vi._observingEntity is not None:
-                    observing_entity = sample[vi._observingEntity]
-                    if not observing_entity.canSee(vi, occludingObjects=occluders(observing_entity, vi)):
-                        return 'instance visibility (from observing entity)'
+            # Require that the observing entity, if one has been specified,
+            # can see the instance.
+            if vi._observingEntity is not None:
+                observing_entity = sample[vi._observingEntity]
+                if not observing_entity.canSee(vi, occludingObjects=occluders(observing_entity, vi)):
+                    return 'instance visibility (from observing entity)'
 
-                # Require that the non-observing entity, if one has been specified,
-                # can see the instance.
-                if vi._nonObservingEntity is not None:
-                    non_observing_entity = sample[vi._nonObservingEntity]
-                    if non_observing_entity.canSee(vi, occludingObjects=occluders(non_observing_entity, vi)):
-                        return 'instance visibility (from non-observing entity)'
+            # Require that the non-observing entity, if one has been specified,
+            # can see the instance.
+            if vi._nonObservingEntity is not None:
+                non_observing_entity = sample[vi._nonObservingEntity]
+                if non_observing_entity.canSee(vi, occludingObjects=occluders(non_observing_entity, vi)):
+                    return 'instance visibility (from non-observing entity)'
 
-            # Check built-in requirements for objects
-            for i, vi in enumerate(sampledObjects):
-                # Require object to be contained in the workspace/valid region
-                container = self.containerOfObject(vi)
-                if not container.containsObject(vi):
-                    return 'object containment'
+        # Check built-in requirements for objects
+        for i, vi in enumerate(sampledObjects):
+            # Require object to be contained in the workspace/valid region
+            container = self.containerOfObject(vi)
+            if not container.containsObject(vi):
+                return 'object containment'
 
-                # Require object to be visible from the ego object
-                if vi.requireVisible and vi is not ego:
-                    if not ego.canSee(vi, occludingObjects=occluders(ego, vi)):
-                        return 'object visibility (from ego)'
+            # Require object to be visible from the ego object
+            if vi.requireVisible and vi is not ego:
+                if not ego.canSee(vi, occludingObjects=occluders(ego, vi)):
+                    return 'object visibility (from ego)'
 
-                # Require object to not intersect another object
-                if not vi.allowCollisions:
-                    for vj in sampledObjects[(i+1):]:
-                        if not vj.allowCollisions and vi.intersects(vj):
-                            return 'object intersection'
+            # Require object to not intersect another object
+            if not vi.allowCollisions:
+                for vj in sampledObjects[(i+1):]:
+                    if not vj.allowCollisions and vi.intersects(vj):
+                        return 'object intersection'
 
-            # Check user-specified requirements
-            for req in activeReqs:
-                if req.falsifiedBy(sample):
-                    return str(req)
+        # Check user-specified requirements
+        for req in activeReqs:
+            if req.falsifiedBy(sample):
+                return str(req)
 
-            # No rejection, return None
-            return None
+        # No rejection, return None
+        return None
 
     def _makeSceneFromSample(self, sample):
         sampledObjects = tuple(sample[obj] for obj in self.objects)

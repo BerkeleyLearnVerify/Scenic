@@ -101,7 +101,7 @@ class Region(Samplable, ABC):
         Check if this `Region` intersects another.
         """
         if triedReversed:
-            raise NotImplementedError(f"Cannot check intersection of {type(self)} and {type(other)}")
+            raise NotImplementedError(f"Cannot check intersection of {type(self).__name__} and {type(other).__name__}")
         else:
             return other.intersects(self, triedReversed=True)
 
@@ -583,7 +583,7 @@ class MeshRegion(Region):
         elif isinstance(mesh, trimesh.base.Trimesh):
             self._mesh = mesh.copy()
         else:
-            raise ValueError(f"Got unexpected mesh parameter of type {type(mesh)}")
+            raise TypeError(f"Got unexpected mesh parameter of type {type(mesh).__name__}")
 
         # Center mesh unless disabled
         if centerMesh:
@@ -747,6 +747,7 @@ class MeshRegion(Region):
 
     def __getstate__(self):
         state = self.__dict__.copy()
+        # Make copy of mesh to clear non-picklable cache
         state["_mesh"] = self._mesh.copy()
         return state
 
@@ -1588,9 +1589,9 @@ class BoxRegion(MeshVolumeRegion):
     Parameters are the same as `MeshVolumeRegion`, with the exception of the ``mesh``
     parameter which is excluded.
     """
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         box_mesh = trimesh.creation.box((1, 1, 1))
-        super().__init__(mesh=box_mesh, **kwargs)
+        super().__init__(mesh=box_mesh, *args, **kwargs)
 
     @cached_property
     def isConvex(self):
@@ -1620,9 +1621,9 @@ class SpheroidRegion(MeshVolumeRegion):
     Parameters are the same as `MeshVolumeRegion`, with the exception of the ``mesh``
     parameter which is excluded.
     """
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         sphere_mesh = trimesh.creation.icosphere(radius=1)
-        super().__init__(mesh=sphere_mesh, **kwargs)
+        super().__init__(mesh=sphere_mesh, *args, **kwargs)
 
     @cached_property
     def isConvex(self):
@@ -1650,19 +1651,16 @@ class PolygonalFootprintRegion(Region):
     This region cannot be sampled from, as it has infinite height and therefore infinite volume.
     
     Args:
-        polygons: A ``MultiPolygon`` that defines the footprint of this region.
+        polygon: A ``shapely`` ``Polygon`` or ``MultiPolygon``, that defines the footprint of this region.
         name: An optional name to help with debugging.
     """
-    def __init__(self, polygons, name=None):
-        if not isinstance(polygons, MultiPolygon):
-            raise RuntimeError("'polygon' must be a shapely MultiPolygon")
-
-        if isinstance(polygons, shapely.geometry.Polygon):
-            self.polygons = shapely.geometry.MultiPolygon([polygons])
-        elif isinstance(polygons, shapely.geometry.MultiPolygon):
-            self.polygons = polygons
+    def __init__(self, polygon, name=None):
+        if isinstance(polygon, shapely.geometry.Polygon):
+            self.polygons = shapely.geometry.MultiPolygon([polygon])
+        elif isinstance(polygon, shapely.geometry.MultiPolygon):
+            self.polygons = polygon
         else:
-            raise TypeError(f'tried to create PolygonalFootprintRegion from non-polygon {polygons}')
+            raise TypeError(f'tried to create PolygonalFootprintRegion from non-polygon {polygon}')
 
         super().__init__(name)
         self._bounded_cache = None
@@ -1677,7 +1675,7 @@ class PolygonalFootprintRegion(Region):
         if isinstance(other, PolygonalFootprintRegion):
             # Other region is a PolygonalFootprintRegion, so we can just intersect the base polygons
             # and take the footprint of the result, if it isn't empty.
-            new_poly = self.polygons.intersect(other.polygons)
+            new_poly = self.polygons.intersection(other.polygons)
 
             if new_poly.is_empty:
                 return nowhere
@@ -1837,9 +1835,8 @@ class PolygonalFootprintRegion(Region):
 
     def buffer(self, amount):
         buffered_polygon = self.polygons.buffer(amount)
-        if isinstance(buffered_polygon, shapely.geometry.Polygon):
-            buffered_polygon = MultiPolygon([buffered_polygon])
-        return PolygonalFootprintRegion(polygons=buffered_polygon, name=self.name)
+
+        return PolygonalFootprintRegion(polygon=buffered_polygon, name=self.name)
 
     @cached_property
     def isConvex(self):
@@ -1871,7 +1868,7 @@ class PathRegion(Region):
     def __init__(self, points=None, polylines=None, tolerance=1e-8, name=None):
         super().__init__(name)
         # Standardize inputs
-        if points is None and polylines is None:
+        if points is not None and polylines is not None:
             raise ValueError("Both points and polylines passed to PathRegion initializer")
 
         if points is not None:
@@ -1905,7 +1902,7 @@ class PathRegion(Region):
                 # Update last point
                 last_pt = cast_pt
 
-        self.vert_to_vec = tuple(key for key,val in self.vec_to_vert.items())
+        self.vert_to_vec = tuple(self.vec_to_vert.keys())
         self.vertices = list(sorted(self.vec_to_vert.keys(), key=lambda vec: self.vec_to_vert[vec]))
 
         # Extract length of each edge

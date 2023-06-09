@@ -88,10 +88,7 @@ class WebotsSimulation(Simulation):
             # get a name of the corresponding webots object
             name = None
             if obj.webotsAdhoc:
-                # dynamically generate object from Scenic object mesh
-                if not hasattr(obj.shape, "mesh"):
-                    raise RuntimeError(f'Cannot dynamically instantiate shape without mesh')
-                
+                # Dynamically generate object from Scenic object
                 objFilePath = path.join(tmpMeshDir, f"{adhocObjectId}.obj")
 
                 objectRawMesh = obj.shape.mesh

@@ -13,8 +13,9 @@ Primitive Data Types
 `Booleans <Boolean>`          expressing truth values
 `Scalars <Scalar>`            representing distances, angles, etc. as floating-point numbers
 `Vectors <Vector>`            representing positions and offsets in space
-`Headings <Heading>`   		    representing orientations in space
-`Vector Fields <VectorField>` associating an orientation (i.e. a heading) to each point in space
+`Headings <Heading>`   		    representing 2D orientations in the XY plane
+`Orientations <Orientation>`  representing 3D orientations in space
+`Vector Fields <VectorField>` associating an orientation to each point in space
 `Regions <Region>`            representing sets of points in space
 `Shapes <Shape>`              representing shapes (regions modulo similarity)
 ============================= ==================================================================
@@ -127,14 +128,17 @@ The Scenic class `Point` provides the basic position properties in the first tab
 Finally, the class `Object`, which represents physical objects and is the default superclass of user-defined Scenic classes, adds the properties in the third table.
 See the :ref:`objects_and_classes` for details.
 
-===================  ==============  ================================================
-   **Property**       **Default**                    **Meaning**
--------------------  --------------  ------------------------------------------------
- position [1]_        (0, 0, 0)      position in global coordinates
- viewDistance          50            distance for the ‘can see’ operator
- mutationScale         0             overall scale of :ref:`mutations <mutate>`
- positionStdDev        1             mutation standard deviation for :prop:`position`
-===================  ==============  ================================================
+=======================  ==============  =============================================================================
+   **Property**           **Default**                    **Meaning**
+-----------------------  --------------  -----------------------------------------------------------------------------
+ position [1]_           (0, 0, 0)       position in global coordinates
+ visibleDistance         50              distance for the ‘can see’ operator
+ viewRayDensity          5               determines ray count (if ray count is not provided)
+ viewRayDistanceScaling  False           whether to scale number of rays with distance (if ray count is not provided)
+ viewRayCount            None            tuple of number of rays to send in each dimension.
+ mutationScale           0               overall scale of :ref:`mutations <mutate>`
+ positionStdDev          (1,1,0)         mutation standard deviation for :prop:`position`
+=======================  ==============  =============================================================================
 
 Properties added by `OrientedPoint`:
 
@@ -146,28 +150,35 @@ Properties added by `OrientedPoint`:
  roll [1]_            0              roll in local coordinates
  parentOrientation    global         basis for local coordinate system
  viewAngles           (2π, π)        angles for visibility calculations
- headingStdDev        5 degrees      mutation standard deviation for :prop:`heading`
+ orientationStdDev    (5°, 0, 0)     mutation standard deviation for :prop:`orientation`
 ===================  ==============  ================================================
 
 Properties added by `Object`:
 
-=====================  ==================== ================================================
-   **Property**         **Default**                    **Meaning**
----------------------  -------------------- ------------------------------------------------
- width                 1                     width of bounding box (X axis)
- length                1                     length of bounding box (Y axis)
- height                1                     height of bounding box (Z axis)
- shape                 `BoxShape`            shape of the object
- speed [1]_            0                     initial (later, instantaneous) speed
- velocity [1]_         from :prop:`speed`    initial (instantaneous) velocity
- angularVelocity [1]_  (0, 0, 0)             initial (instantaneous) angular velocity
- angularSpeed [1]_     0                     angular speed (change in :prop:`heading`/time)
- behavior              `None`                :term:`dynamic behavior`, if any
- allowCollisions       `False`               whether collisions are allowed
- requireVisible        `False`               whether object must be visible from ego
- regionContainedIn     `workspace`           `Region` the object must lie within
- cameraOffset          (0, 0, 0)             position of camera for :keyword:`can see`
-=====================  ==================== ================================================
+======================== ======================= ================================================
+   **Property**           **Default**                       **Meaning**
+------------------------ ----------------------- ------------------------------------------------
+ width                   1                        width of bounding box (X axis)
+ length                  1                        length of bounding box (Y axis)
+ height                  1                        height of bounding box (Z axis)
+ shape                   `BoxShape`               shape of the object
+ allowCollisions         `False`                  whether collisions are allowed
+ regionContainedIn       `workspace`              `Region` the object must lie within
+ baseOffset              (0, 0, -self.height/2)   offset determining the base of the object
+ contactTolerance        1e-4                     max distance to be considered on a surface
+ sideComponentThresholds (-0.5, 0.5) per side     thresholds to determine side surfaces
+ cameraOffset            (0, 0, 0)                position of camera for :keyword:`can see`
+ requireVisible          `False`                  whether object must be visible from ego
+ occluding               `True`                   whether object occludes visibility
+ showVisibleRegion       `False`                  whether to display the visible region
+ color                   None                     color of object
+ velocity [1]_           from :prop:`speed`       initial (instantaneous) velocity
+ speed [1]_              0                        initial (later, instantaneous) speed
+ angularVelocity [1]_    (0, 0, 0)                initial (instantaneous) angular velocity
+ angularSpeed [1]_       0                        angular speed (change in :prop:`heading`/time)
+ behavior                `None`                   :term:`dynamic behavior`, if any
+ lastActions             `None`                   tuple of actions taken in last timestamp
+======================== ======================= ================================================
 
 .. [1] These are :term:`dynamic properties`, updated automatically every time step during
     dynamic simulations.
@@ -311,6 +322,8 @@ In the following tables, operators are grouped by the type of value they return.
      - The part of the given region not visible from ego
    * - :sampref:`{region} visible from ({Point} | {OrientedPoint})`
      - The part of the given region visible from the given `Point` or `OrientedPoint`.
+   * - :sampref:`{region} not visible from ({Point} | {OrientedPoint})`
+     - The part of the given region not visible from the given `Point` or `OrientedPoint`.
 
 .. list-table::
    :header-rows: 1

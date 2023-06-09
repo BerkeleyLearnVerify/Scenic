@@ -714,7 +714,8 @@ class OrientedPoint(Point):
 
         'mutator': PropertyDefault({'orientationStdDev'}, {'additive'},
             lambda self: OrientationMutator(self.orientationStdDev)),
-        'orientationStdDev': (math.radians(5),0,0),
+        'headingStdDev': math.radians(5), # Primarily for backwards compatibility. Set orientationStdDev instead.
+        'orientationStdDev': PropertyDefault(('headingStdDev',), set(), lambda self: (self.headingStdDev, 0, 0)),
     }
 
     def __init__(self, *args, **kwargs):
@@ -1217,10 +1218,10 @@ class Object(OrientedPoint):
         viewer.add_geometry(object_mesh)
 
         if self.showVisibleRegion:
-            camera_pyramid_mesh = self.visibleRegion.mesh.copy()
+            view_region_mesh = self.visibleRegion.mesh
 
-            edges = camera_pyramid_mesh.face_adjacency_edges[camera_pyramid_mesh.face_adjacency_angles > np.radians(0.1)]
-            vertices = camera_pyramid_mesh.vertices
+            edges = view_region_mesh.face_adjacency_edges[view_region_mesh.face_adjacency_angles > np.radians(0.1)]
+            vertices = view_region_mesh.vertices
 
             edge_path = trimesh.path.Path3D(**trimesh.path.exchange.misc.edges_to_path(edges, vertices))
 

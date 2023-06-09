@@ -78,7 +78,7 @@ class WebotsObject:
     elevation[dynamic]: None if is2DMode() else float(self.position.z)
     requireVisible: False
 
-    webotsAdhoc: False
+    webotsAdhoc: None
 
     webotsName: None
     webotsType: None

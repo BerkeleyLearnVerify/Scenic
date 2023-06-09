@@ -83,7 +83,7 @@ The given angle, interpreted as being in degrees. For example 90 deg evaluates t
 -------------------------
 The orientation specified by the vector field at the given position
 
-.. _({heading} | {vectorField}) relative to ({heading} | {vectorField}):
+.. _{direction} relative to {direction}:
 
 (*heading* | *vectorField*) relative to (*heading* | *vectorField*)
 -------------------------------------------------------------------
@@ -127,6 +127,12 @@ The part of the given region which is *not* visible from the ego object (as abov
 *region* visible from (*Point* | *OrientedPoint*)
 -------------------------------------------------
 The part of the given region visible from the given `Point` or `OrientedPoint` (like :scenic:`visible {region}` but from an arbitrary `Point`/`OrientedPoint`).
+
+.. _{region} not visible from ({Point} | {OrientedPoint}):
+
+*region* not visible from (*Point* | *OrientedPoint*)
+------------------------------------------------------
+The part of the given region not visible from the given `Point` or `OrientedPoint` (like :scenic:`not visible {region}` but from an arbitrary `Point`/`OrientedPoint`).
 
 OrientedPoint Operators
 =======================
