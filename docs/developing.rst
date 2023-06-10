@@ -18,10 +18,6 @@ Then to install Scenic and its development dependencies in your virtual environm
 
 This will perform an "editable" install, so that any changes you make to Scenic's code will take effect immediately when running Scenic in your virtual environment.
 
-.. note::
-
-	If you use `Poetry <https://python-poetry.org/>`_, you can instead run the command :command:`poetry install -E dev` to create the virtual environment and install Scenic in it, then :command:`poetry shell` to activate the environment.
-
 To find documentation (and code) for specific parts of Scenic's implementation, see our page on :doc:`internals`.
 
 Running the Test Suite

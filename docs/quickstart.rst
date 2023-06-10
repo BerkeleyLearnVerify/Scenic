@@ -7,28 +7,70 @@ Installation
 ------------
 
 Scenic requires **Python 3.8** or newer.
-You can install the latest full Scenic release from PyPI by simply running:
+Run :command:`python --version` to make sure you have a new enough version; if not, you can install one from the `Python website <https://www.python.org/downloads/>`_ or using `pyenv <https://github.com/pyenv/pyenv>`_ (e.g. running :command:`pyenv install 3.11`).
+If the version of Python you want to use is called something different than just ``python`` on your system, e.g. ``python3.11``, use that name in place of ``python`` throughout the following instructions.
 
-.. code-block:: console
+There are two ways to install Scenic:
 
-	$ python -m pip install scenic
+* from our repository, which has the very latest features but may not be stable. The repository also contains example scenarios such as those used in the instructions below and our tutorials.
 
-Alternatively, if you want to run some of our example scenarios, modify Scenic, or make use of features that have not yet been released on PyPI, you can download or clone the `Scenic repository <https://github.com/BerkeleyLearnVerify/Scenic>`_.
-Activate the `virtual environment <https://docs.python.org/3/tutorial/venv.html>`_ in which you would like to install Scenic, go into the root folder of the Scenic repository, and then run:
+* from the Python Package Index (PyPI), which will get you the latest official release of Scenic but will not include example scenarios, etc.
 
-.. code-block:: console
+If this is your first time using Scenic, we suggest installing from the repository so that you can try out the example scenarios.
 
-	$ python -m pip install -e .
+Once you've decided which method you want to use, follow the instructions below for your operating system.
+If you encounter any errors, please see our :doc:`install_notes` for suggestions.
 
-If you will be developing Scenic, you will want to use a variant of this command: see :doc:`developing`.
+.. tabs::
 
-Either installation method will install all of the dependencies which are required to run Scenic, with the exception of `Blender <https://www.blender.org/>`_ and `OpenSCAD <https://openscad.org/>`_.
-See the download pages for `Blender <https://www.blender.org/download/>`__ and `OpenSCAD <https://openscad.org/downloads.html>`__ for instructions on how to install these on your system.
+	.. tab:: macOS
+
+		Start by downloading `Blender <https://www.blender.org/download/>`__ and `OpenSCAD <https://openscad.org/downloads.html>`__ and installing them into your :file:`Applications` directory.
+
+		.. include:: _templates/installation.rst
+
+	.. tab:: Linux
+
+		Start by installing Blender and OpenSCAD.
+		You can likely use your system's package manager; e.g. on Debian/Ubuntu run:
+
+		.. code-block:: text
+
+			sudo apt-get install blender openscad
+
+		For other Linux distributions or if you need to install from source, see the download pages for `Blender <https://www.blender.org/download/>`__ and `OpenSCAD <https://openscad.org/downloads.html>`__.
+
+		.. include:: _templates/installation.rst
+
+	.. tab:: Windows
+
+		These instructions cover installing Scenic natively on Windows; if you are using the `Windows Subsystem for Linux <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ (on Windows 10 and newer), see the Linux tab instead.
+
+		Start by downloading and running the installers for `Blender <https://www.blender.org/download/>`__ and `OpenSCAD <https://openscad.org/downloads.html>`__.
+
+		.. include:: _templates/installation.rst
+			:end-before: .. venv-setup-start
+
+		.. code-block:: text
+
+			python -m venv venv
+			venv\Scripts\activate.bat
+
+		.. include:: _templates/installation.rst
+			:start-after: .. venv-setup-end
+
+You can now verify that Scenic is properly installed by running the command:
+
+.. code-block:: text
+
+	scenic --version
+
+This should print out a message like ``Scenic 2.0.0`` showing which version of Scenic is installed.
+If you get an error (or got one earlier when following the instructions above), please see our :doc:`install_notes` for suggestions.
 
 .. note::
 
-	If you are using Windows or an Apple Silicon machine, or encounter any errors during installation or when trying the examples below, please see our :doc:`install_notes` for suggestions.
-	If a Scenic feature seems to be missing, your version of Scenic may be too old: take a look at :doc:`new` to see when the feature was added.
+	If a feature described in this documentation seems to be missing, your version of Scenic may be too old: take a look at :doc:`new` to see when the feature was added.
 
 Trying Some Examples
 --------------------
@@ -39,9 +81,9 @@ They are organized in various directories with the name of the simulator, abstra
 Each simulator has a specialized Scenic interface which requires additional setup (see :ref:`simulators`); however, for convenience Scenic provides an easy way to visualize scenarios without running a simulator.
 Simply run :command:`scenic`, giving a path to a Scenic file:
 
-.. code-block:: console
+.. code-block:: text
 
-	$ scenic examples/webots/vacuum/vacuum_simple.scenic
+	scenic examples/webots/vacuum/vacuum_simple.scenic
 
 This will compile the Scenic program and sample from it (which may take several seconds), displaying a schematic of the resulting scene. Since this is a simple scenario designed to evaluate the performance of a robot vacuum, you should get something like this:
 
@@ -57,9 +99,9 @@ Some scenarios were written for older versions of Scenic, which were entirely 2D
 
 One such scenario is the badly-parked car example from our GTA case study, which can be run with the following command:
 
-.. code-block:: console
+.. code-block:: text
 
-	$ scenic --2d examples/gta/badlyParkedCar2.scenic
+	scenic --2d examples/gta/badlyParkedCar2.scenic
 
 This will open Scenic's 2D viewer, and should look something like this:
 
@@ -71,11 +113,11 @@ Here the circled rectangle is the ego car; its view cone extends to the right, w
 Scenarios for the other simulators can be viewed in the same way.
 Here are a few for different simulators:
 
-.. code-block:: console
+.. code-block:: text
 
-	$ scenic --2d examples/driving/pedestrian.scenic
-	$ scenic examples/webots/mars/narrowGoal.scenic
-	$ scenic --2d examples/webots/road/crossing.scenic
+	scenic --2d examples/driving/pedestrian.scenic
+	scenic examples/webots/mars/narrowGoal.scenic
+	scenic --2d examples/webots/road/crossing.scenic
 
 .. image:: images/pedestrian.png
    :width: 29%
