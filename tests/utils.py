@@ -346,6 +346,11 @@ def areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs):
             if not areEquivalent(getattr(a, attr), getattr(b, attr), cache, debug):
                 fail()
                 return False
+    elif isinstance(a, types.GetSetDescriptorType):
+        for attr in ('__name__', '__objclass__', '__doc__'):
+            if not areEquivalent(getattr(a, attr), getattr(b, attr), cache, debug):
+                fail()
+                return False
     elif isinstance(a, weakref.ref):
         if not areEquivalent(a(), b(), cache, debug):
             fail()

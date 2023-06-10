@@ -625,6 +625,10 @@ class Behavior(Invocable, Samplable):
     Behavior statements are translated into definitions of subclasses of this class.
     """
     def __init_subclass__(cls):
+        if '__signature__' in cls.__dict__:
+            # We're unpickling a behavior; skip this step.
+            return
+
         if cls.__module__ is not __name__:
             if veneer.currentScenario:
                 veneer.currentScenario._behaviors.append(cls)

@@ -26,9 +26,7 @@ def test_pickle_distribution_function():
     dist = hypot(Range(0, 1), 2).hex()
     tryPickling(dist)
 
-@pytest.mark.xfail(reason='dill cannot yet pickle this (issue #332)', strict=True)
 def test_pickle_distribution_method():
-    # N.B. cloudpickle *does* work in this case, but it's less common than the one above
     class Foo:
         def __init__(self, blob):
             self.blob = blob
@@ -92,3 +90,15 @@ def test_pickle_scenario_dynamic():
     scene = sampleScene(unpickled)
     sim = DummySimulator(timestep=1)
     sim.simulate(scene, maxSteps=2, maxIterations=1)
+
+def test_pickle_scenario_dynamic_default_global():
+    sc1 = compileScenic("""
+        def helper():
+            return 42
+        class Thing:
+            blah[dynamic]: helper()
+        ego = new Thing
+    """)
+    sc2 = tryPickling(sc1)
+    ego = sampleEgo(sc2)
+    assert ego.blah == 42

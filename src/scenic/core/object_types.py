@@ -72,6 +72,12 @@ class Constructible(Samplable):
 
     def __init_subclass__(cls):
         super().__init_subclass__()
+
+        if '_defaults' in cls.__dict__:
+            # This class is being unpickled by value; the pickled class already was
+            # transformed by __init_subclass__, so we skip it now.
+            return
+
         # Find all defaults provided by the class or its superclasses
         allDefs = collections.defaultdict(list)
 
