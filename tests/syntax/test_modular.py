@@ -130,7 +130,7 @@ def test_top_level_precondition():
             setup:
                 ego = new Object
     """)
-    sim = DummySimulator(timestep=1)
+    sim = DummySimulator()
     scene = sampleScene(scenario)
     with pytest.raises(PreconditionViolation):
         sim.simulate(scene, maxSteps=1, raiseGuardViolations=True)
@@ -142,7 +142,7 @@ def test_top_level_invariant():
             setup:
                 ego = new Object
     """)
-    sim = DummySimulator(timestep=1)
+    sim = DummySimulator()
     scene = sampleScene(scenario)
     with pytest.raises(InvariantViolation):
         sim.simulate(scene, maxSteps=1, raiseGuardViolations=True)
@@ -600,7 +600,7 @@ def test_compose_nested_definition():
 
 # Overrides
 
-def test_override():
+def test_override_basic():
     scenario = compileScenic("""
         scenario Main():
             setup:

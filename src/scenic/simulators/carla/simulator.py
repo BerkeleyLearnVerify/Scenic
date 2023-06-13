@@ -57,31 +57,45 @@ class CarlaSimulator(DrivingSimulator):
         self.record = record  # whether to use the carla recorder
         self.scenario_number = 0  # Number of the scenario executed
 
-    def createSimulation(self, scene, verbosity=0):
+    def createSimulation(self, scene, *, timestep, **kwargs):
+        if timestep != self.timestep:
+            raise RuntimeError(
+                'cannot customize timestep for individual CARLA simulations; '
+                'set timestep when creating the CarlaSimulator instead'
+            )
+
         self.scenario_number += 1
-        return CarlaSimulation(scene, self.client, self.tm, self.timestep,
-                               render=self.render, record=self.record,
-                               scenario_number=self.scenario_number, verbosity=verbosity)
+        return CarlaSimulation(
+            scene,
+            self.client, self.tm,
+            self.render, self.record, self.scenario_number,
+            timestep=self.timestep,
+            **kwargs
+        )
 
     def destroy(self):
+        super().destroy()
         settings = self.world.get_settings()
         settings.synchronous_mode = False
         settings.fixed_delta_seconds = None
         self.world.apply_settings(settings)
         self.tm.set_synchronous_mode(False)
 
-        super().destroy()
-
 
 class CarlaSimulation(DrivingSimulation):
-    def __init__(self, scene, client, tm, timestep, render, record, scenario_number, verbosity=0):
-        super().__init__(scene, timestep=timestep, verbosity=verbosity)
+    def __init__(self, scene, client, tm, render, record, scenario_number, **kwargs):
         self.client = client
         self.world = self.client.get_world()
         self.map = self.world.get_map()
         self.blueprintLib = self.world.get_blueprint_library()
         self.tm = tm
-        
+        self.render = render
+        self.record = record
+        self.scenario_number = scenario_number
+
+        super().__init__(scene, **kwargs)
+
+    def setup(self):
         weather = scene.params.get("weather")
         if weather is not None:
             if isinstance(weather, str):
@@ -89,13 +103,7 @@ class CarlaSimulation(DrivingSimulation):
             elif isinstance(weather, dict):
                 self.world.set_weather(carla.WeatherParameters(**weather))
 
-        # Reloads current world: destroys all actors, except traffic manager instances
-        # self.client.reload_world()
-
         # Setup HUD
-        self.render = render
-        self.record = record
-        self.scenario_number = scenario_number
         if self.render:
             self.displayDim = (1280, 720)
             self.displayClock = pygame.time.Clock()
@@ -115,23 +123,18 @@ class CarlaSimulation(DrivingSimulation):
             name = "{}/scenario{}.log".format(self.record, self.scenario_number)
             self.client.start_recorder(name)
 
-        # Create Carla actors corresponding to Scenic objects
-        self.ego = None
-        for obj in self.objects:
-            carlaActor = self.createObjectInSimulator(obj)
+        # Create objects.
+        super().setup()
 
-            # Check if ego (from carla_scenic_taks.py)
-            if obj is self.objects[0]:
-                self.ego = obj
-
-                # Set up camera manager and collision sensor for ego
-                if self.render:
-                    camIndex = 0
-                    camPosIndex = 0
-                    self.cameraManager = visuals.CameraManager(self.world, carlaActor, self.hud)
-                    self.cameraManager._transform_index = camPosIndex
-                    self.cameraManager.set_sensor(camIndex)
-                    self.cameraManager.set_transform(self.camTransform)
+        # Set up camera manager and collision sensor for ego
+        if self.render:
+            camIndex = 0
+            camPosIndex = 0
+            egoActor = self.objects[0].carlaActor
+            self.cameraManager = visuals.CameraManager(self.world, egoActor, self.hud)
+            self.cameraManager._transform_index = camPosIndex
+            self.cameraManager.set_sensor(camIndex)
+            self.cameraManager.set_transform(self.camTransform)
 
         self.world.tick() ## allowing manualgearshift to take effect    # TODO still need this?
 
@@ -141,14 +144,12 @@ class CarlaSimulation(DrivingSimulation):
 
         self.world.tick()
 
-        # Set Carla actor's initial speed (if specified)
         for obj in self.objects:
-            if obj.speed is not None:
-                equivVel = utils.scenicSpeedToCarlaVelocity(obj.speed, obj.heading)
-                if hasattr(obj.carlaActor, 'set_target_velocity'):
-                    obj.carlaActor.set_target_velocity(equivVel)
-                else:
-                    obj.carlaActor.set_velocity(equivVel)
+            if obj.speed is not None and obj.speed != 0:
+                raise RuntimeError(
+                    f'object {obj} cannot have a nonzero initial speed '
+                    '(this is not yet possible in CARLA)'
+                )
 
     def createObjectInSimulator(self, obj):
         # Extract blueprint
@@ -191,7 +192,6 @@ class CarlaSimulation(DrivingSimulation):
         # Create Carla actor
         carlaActor = self.world.try_spawn_actor(blueprint, transform)
         if carlaActor is None:
-            self.destroy()
             raise SimulationCreationError(f'Unable to spawn object {obj}')
         obj.carlaActor = carlaActor
 
@@ -201,6 +201,7 @@ class CarlaSimulation(DrivingSimulation):
             # TODO should get dimensions at compile time, not simulation time
             obj.width = carlaActor.bounding_box.extent.y * 2
             obj.length = carlaActor.bounding_box.extent.x * 2
+            obj.height = carlaActor.bounding_box.extent.z * 2
             carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
         elif isinstance(carlaActor, carla.Walker):
             carlaActor.apply_control(carla.WalkerControl())
@@ -208,7 +209,6 @@ class CarlaSimulation(DrivingSimulation):
             controller_bp = self.blueprintLib.find('controller.ai.walker')
             controller = self.world.try_spawn_actor(controller_bp, carla.Transform(), carlaActor)
             if controller is None:
-                self.destroy()
                 raise SimulationCreationError(f'Unable to spawn carla controller for object {obj}')
             obj.carlaController = controller
         return carlaActor
@@ -229,9 +229,7 @@ class CarlaSimulation(DrivingSimulation):
 
         # Render simulation
         if self.render:
-            # self.hud.tick(self.world, self.ego, self.displayClock)
             self.cameraManager.render(self.display)
-            # self.hud.render(self.display)
             pygame.display.flip()
 
     def getProperties(self, obj, properties):

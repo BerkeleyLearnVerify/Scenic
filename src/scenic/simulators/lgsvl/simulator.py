@@ -16,6 +16,8 @@ class LGSVLSimulator(simulators.Simulator):
 
     See the `SVL documentation`_ for details on how to set the parameters below.
 
+    Uses a default timestep of 0.1 seconds.
+
     Args:
         sceneID (str): Identifier for the map ("scene") to load in SVL.
         address (str): Address where SVL is running.
@@ -33,30 +35,33 @@ class LGSVLSimulator(simulators.Simulator):
             self.client.load(scene=sceneID)
         verbosePrint('Map loaded in simulator.')
 
-    def createSimulation(self, scene, verbosity=0):
-        return LGSVLSimulation(scene, self.client, verbosity=verbosity)
+    def createSimulation(self, scene, **kwargs):
+        return LGSVLSimulation(scene, self.client, **kwargs)
 
 
 class LGSVLSimulation(simulators.Simulation):
     """Subclass of `Simulation` for LGSVL."""
-    def __init__(self, scene, client, verbosity=0):
-        timestep = scene.params.get('time_step', 1.0/10)
-        super().__init__(scene, timestep=timestep, verbosity=verbosity)
+    def __init__(self, scene, client, **kwargs):
         self.client = client
         self.usingApollo = False
         self.data = {}
         self.collisionOccurred = False
 
+        if timestep is None:
+            timestep = scene.params.get('time_step', 0.1)  # backwards-compatibility
+
+        super().__init__(scene, timestep=timestep, **kwargs)
+
+    def setup(self):
         # Reset simulator (deletes all existing objects)
         self.client.reset()
 
-        # Create LGSVL objects corresponding to Scenic objects
-        for obj in self.objects:
-            if not hasattr(obj, 'lgsvlObject'):
-                continue    # not an LGSVL object
-            self.createObjectInSimulator(obj)
+        super().setup()
 
     def createObjectInSimulator(self, obj):
+        if not hasattr(obj, 'lgsvlObject'):
+            return    # not an LGSVL object
+
         # Figure out what type of LGSVL object this is
         if not hasattr(obj, 'lgsvlName'):
             raise RuntimeError(f'object {obj} does not have an lgsvlName property')
@@ -157,3 +162,6 @@ class LGSVLSimulation(simulators.Simulation):
             angularSpeed=utils.lgsvlToScenicAngularSpeed(state.rotation),
         )
         return values
+
+    def destroy(self):
+        self.client.reset()

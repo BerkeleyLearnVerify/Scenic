@@ -409,6 +409,10 @@ class Constructible(Samplable):
         for prop, val in newprops.items():
             object.__setattr__(self, prop, val)
 
+        # If we assigned a new dynamic behavior, it might need to be started.
+        if behavior := newprops['behavior']:
+            behavior._assignTo(self)
+
         return oldVals
 
     def _revert(self, oldVals):
@@ -905,10 +909,15 @@ class Object(OrientedPoint):
         object.__delattr__(proxy, name)
 
     def startDynamicSimulation(self):
-        """Hook called at the beginning of each dynamic simulation.
+        """Hook called when the object is created in a dynamic simulation.
 
         Does nothing by default; provided for objects to do simulator-specific
         initialization as needed.
+
+        .. versionchanged:: 3.0
+
+            This method is called on objects created in the middle of dynamic
+            simulations, not only objects present in the initial scene.
         """
         pass
 

@@ -88,7 +88,7 @@ def test_pickle_scenario_dynamic():
     """)
     unpickled = tryPickling(scenario)
     scene = sampleScene(unpickled)
-    sim = DummySimulator(timestep=1)
+    sim = DummySimulator()
     sim.simulate(scene, maxSteps=2, maxIterations=1)
 
 def test_pickle_scenario_dynamic_default_global():
