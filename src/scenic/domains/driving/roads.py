@@ -26,6 +26,7 @@ import struct
 import weakref
 
 import attr
+import shapely
 from shapely.geometry import Polygon, MultiPolygon
 
 from scenic.core.distributions import distributionFunction, distributionMethod
@@ -875,6 +876,10 @@ class Network:
             # TODO replace with a PolygonalVectorField for better pruning
             self.roadDirection = VectorField('roadDirection', self._defaultRoadDirection)
 
+        # Build R-tree for faster lookup of roads, etc. at given points
+        self._uidForIndex = tuple(self.elements)
+        self._rtree = shapely.STRtree([elem.polygons for elem in self.elements.values()])
+
     def _defaultRoadDirection(self, point):
         """Default value for the `roadDirection` vector field.
 
@@ -899,7 +904,7 @@ class Network:
 
         :meta private:
         """
-        return 28
+        return 29
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
@@ -1091,14 +1096,27 @@ class Network:
         are still no matches, we return None, unless **reject** is true, in which case we
         reject the current sample.
         """
-        point = _toVector(point)
-        for element in elems:
-            if element.containsPoint(point):
-                return element
-        if self.tolerance > 0:
-            for element in elems:
-                if element.distanceTo(point) <= self.tolerance:
-                    return element
+        point = shapely.geometry.Point(_toVector(point))
+
+        def findElementWithin(distance):
+            target = point if distance == 0 else point.buffer(distance)
+            indices = self._rtree.query(target, predicate='intersects')
+            candidates = {self._uidForIndex[index] for index in indices}
+            if candidates:
+                for elem in elems:
+                    if elem.uid in candidates:
+                        return elem
+            return None
+
+        # First pass: check for elements containing the point.
+        if elem := findElementWithin(0):
+            return elem
+
+        # Second pass: check for elements within tolerance of the point.
+        if self.tolerance > 0 and (elem := findElementWithin(self.tolerance)):
+            return elem
+
+        # No matches found.
         if reject:
             if isinstance(reject, str):
                 message = reject
