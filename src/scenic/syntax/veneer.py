@@ -718,6 +718,9 @@ def mutate(*objects, scale = 1):
         if not isinstance(obj, Object):
             raise TypeError('"mutate X" with X not an object')
         obj.mutationScale = scale
+        # Object will now require sampling even if it has no explicit dependencies.
+        obj._needsSampling = True
+        obj._isLazy = True
 
 ### Prefix operators
 
