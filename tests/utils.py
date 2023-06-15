@@ -9,6 +9,7 @@ import weakref
 
 import numpy
 import pytest
+import shapely
 import scipy.sparse
 import trimesh.caching
 
@@ -346,6 +347,11 @@ def areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs):
             if not areEquivalent(getattr(a, attr), getattr(b, attr), cache, debug):
                 fail()
                 return False
+    elif isinstance(a, types.GetSetDescriptorType):
+        for attr in ('__name__', '__objclass__', '__doc__'):
+            if not areEquivalent(getattr(a, attr), getattr(b, attr), cache, debug):
+                fail()
+                return False
     elif isinstance(a, weakref.ref):
         if not areEquivalent(a(), b(), cache, debug):
             fail()
@@ -377,11 +383,23 @@ def areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs):
             # Python 3.9 and earlier.
             pass
     elif isinstance(a, numpy.ndarray):
-        if not numpy.array_equal(a, b, equal_nan=True):
+        if a.dtype != b.dtype or len(a) != len(b):
+            fail()
+            return False
+        if a.dtype.kind == 'O':
+            # The equal_nan option below raises an exception for certain types of
+            # objects, so for object arrays we'll do the comparison ourselves.
+            for x, y in zip(a, b):
+                if not areEquivalent(x, y, cache, debug):
+                    fail()
+                    return False
+        elif not numpy.array_equal(a, b, equal_nan=True):
             fail()
             return False
     elif isinstance(a, scipy.sparse.spmatrix):
         return areEquivalent(a.toarray(), b.toarray(), cache, debug)
+    elif isinstance(a, shapely.STRtree):
+        return areEquivalent(a.geometries, b.geometries, cache, debug)
     elif isinstance(a, trimesh.Trimesh):
         # Avoid testing cached info which is determined by `_data` and tends to
         # contain nasty `ctypes` objects which can't be compared.

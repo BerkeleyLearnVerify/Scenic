@@ -14,6 +14,7 @@ import numpy
 import scenic
 import scenic.syntax.translator as translator
 import scenic.core.errors as errors
+from scenic.core.distributions import RejectionException
 from scenic.core.simulators import SimulationCreationError
 
 parser = argparse.ArgumentParser(prog='scenic', add_help=False,
@@ -77,7 +78,8 @@ debugOpts.add_argument('--dump-python', help='dump Python equivalent of final AS
                        action='store_true')
 debugOpts.add_argument('--no-pruning', help='disable pruning', action='store_true')
 debugOpts.add_argument('--gather-stats', type=int, metavar='N',
-                       help='collect timing statistics over this many scenes')
+                       help='collect timing statistics over this many scenes'
+                            ' (or iterations, if negative)')
 
 parser.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
                     help=argparse.SUPPRESS)
@@ -142,10 +144,10 @@ if args.verbosity >= 1:
 if args.simulate:
     simulator = errors.callBeginningScenicTrace(scenario.getSimulator)
 
-def generateScene():
+def generateScene(maxIterations=2000):
     startTime = time.time()
     scene, iterations = errors.callBeginningScenicTrace(
-        lambda: scenario.generate(verbosity=args.verbosity)
+        lambda: scenario.generate(maxIterations=maxIterations, verbosity=args.verbosity)
     )
     if args.verbosity >= 1:
         totalTime = time.time() - startTime
@@ -211,18 +213,38 @@ try:
                 else:
                     scene.show(axes=args.axes)
 
-    else:   # Gather statistics over the specified number of scenes
+    else:   # Gather statistics over the specified number of scenes/iterations
         its = []
+        maxIterations = 2000
+        iterations = 0
+        totalIterations = 0
+        if args.gather_stats >= 0:  # scenes
+            def keepGoing():
+                return len(its) < args.gather_stats
+        else:  # iterations
+            maxIterations = -args.gather_stats
+            def keepGoing():
+                global maxIterations
+                maxIterations -= iterations
+                return maxIterations > 0
+
         startTime = time.time()
-        while len(its) < args.gather_stats:
-            scene, iterations = generateScene()
-            its.append(iterations)
+        while keepGoing():
+            try:
+                scene, iterations = generateScene(maxIterations=maxIterations)
+            except RejectionException:
+                if args.gather_stats >= 0:
+                    raise
+                iterations = maxIterations
+            else:
+                its.append(iterations)
+            totalIterations += iterations
         totalTime = time.time() - startTime
-        count = len(its)
-        totalIts = sum(its)
+
+        count = len(its) if its else float('nan')
         print(f'Sampled {len(its)} scenes in {totalTime:.2f} seconds.')
-        print(f'Average iterations/scene: {totalIts/count}')
-        print(f'Average time/iteration: {totalTime/totalIts:.2g} seconds.')
+        print(f'Average iterations/scene: {totalIterations/count}')
+        print(f'Average time/iteration: {totalTime/totalIterations:.2g} seconds.')
         print(f'Average time/scene: {totalTime/count:.2f} seconds.')
 
 except KeyboardInterrupt:

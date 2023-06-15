@@ -41,7 +41,7 @@ dependencies = [
 	"pyglet ~= 1.5",
 	"python-fcl >= 0.7",
 	"Rtree ~= 1.0",
-	"rv-ltl ~= 0.1.0a1",
+	"rv-ltl ~= 0.1",
 	"scipy ~= 1.7",
 	"shapely ~= 2.0",
 	"trimesh >=3.21.6, <4",
@@ -65,6 +65,7 @@ dev = [
 	"pytest-cov >= 3.0.0",
 	"sphinx >= 5.0.0, <6",
 	"sphinx_rtd_theme >= 0.5.2",
+	"sphinx-tabs ~= 3.4.1",
 	"tox ~= 3.14",
 ]
 

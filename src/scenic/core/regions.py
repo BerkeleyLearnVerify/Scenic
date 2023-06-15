@@ -21,7 +21,6 @@ import shapely
 import shapely.geometry
 from shapely.geometry import MultiPolygon
 import shapely.ops
-import shapely.prepared
 import trimesh
 from trimesh.transformations import translation_matrix, quaternion_matrix, concatenate_matrices
 warnings.filterwarnings('ignore', module='trimesh') # temporarily suppress annoying warnings
@@ -1613,6 +1612,7 @@ class PolygonalFootprintRegion(Region):
             self.polygons = polygon
         else:
             raise TypeError(f'tried to create PolygonalFootprintRegion from non-polygon {polygon}')
+        shapely.prepare(self.polygons)
 
         super().__init__(name)
         self._bounded_cache = None
@@ -1683,8 +1683,8 @@ class PolygonalFootprintRegion(Region):
         Args:
             point: A point to be checked for containment.
         """
-        x_y_point = toVector(point)[:2]
-        return self.prepared.intersects(shapely.geometry.Point(x_y_point))
+        point = toVector(point)
+        return shapely.intersects_xy(self.polygons, point.x, point.y)
 
     def containsObject(self, obj):
         """ Checks if an object is contained in the polygonal footprint.
@@ -1693,7 +1693,7 @@ class PolygonalFootprintRegion(Region):
             obj: An object to be checked for containment.
         """
         # Check containment using the bounding polygon of the object.
-        return self.prepared.contains(obj._boundingPolygon)
+        return self.polygons.contains(obj._boundingPolygon)
 
     def containsRegionInner(self, reg, tolerance):
         buffered_polygons = self.polygons.buffer(tolerance)
@@ -1708,7 +1708,7 @@ class PolygonalFootprintRegion(Region):
 
     def distanceTo(self, point):
         """ Minimum distance from this polygonal footprint to the target point"""
-        self.polygons.distance(shapely.geometry.Point(point))
+        return self.polygons.distance(shapely.geometry.Point(point))
 
     def projectVector(self, point, onDirection):
         raise NotImplementedError(f'{type(self).__name__} does not yet support projection using "on"')
@@ -1794,18 +1794,9 @@ class PolygonalFootprintRegion(Region):
     def isConvex(self):
         return self.polygons.equals(self.polygons.convex_hull)
 
-    @cached_property
-    def prepared(self):
-        return shapely.prepared.prep(self.polygons)
-
     @cached
     def __hash__(self):
         return hash((self.polygons, self.orientation))
-
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        state.pop('_cached_prepared', None)     # prepared geometries are not picklable
-        return state
 
 class PathRegion(Region):
     """A region composed of multiple polylines in 3D space.
@@ -1999,11 +1990,13 @@ class PolygonalRegion(Region):
 
         if self.polygons.is_empty:
             raise ValueError('tried to create empty PolygonalRegion')
+        shapely.prepare(self.polygons)
 
         triangles = []
         for polygon in self.polygons.geoms:
             triangles.extend(triangulatePolygon(polygon))
         assert len(triangles) > 0, self.polygons
+        shapely.prepare(triangles)
         self.trianglesAndBounds = tuple((tri, tri.bounds) for tri in triangles)
         areas = (triangle.area for triangle in triangles)
         self.cumulativeTriangleAreas = tuple(itertools.accumulate(areas))
@@ -2047,7 +2040,7 @@ class PolygonalRegion(Region):
         # TODO improve?
         while True:
             x, y = random.uniform(minx, maxx), random.uniform(miny, maxy)
-            if triangle.intersects(shapely.geometry.Point(x, y)):
+            if shapely.intersects_xy(triangle, x, y):
                 return self.orient(Vector(x, y, self.z))
 
     @distributionFunction
@@ -2058,8 +2051,7 @@ class PolygonalRegion(Region):
 
         poly = toPolygon(other)
         if poly is not None:
-            intersection = self.polygons & poly
-            return not intersection.is_empty
+            return self.polygons.intersects(poly)
 
         return super().intersects(other, triedReversed)
 
@@ -2156,8 +2148,8 @@ class PolygonalRegion(Region):
     @distributionFunction
     def distanceTo(self, point):
         point = toVector(point)
-        nearest_point, _ = shapely.ops.nearest_points(self.polygons, shapely.geometry.Point(point))
-        return point.distanceTo(Vector(nearest_point.x, nearest_point.y, self.z))
+        dist2D = shapely.distance(self.polygons, shapely.Point(point))
+        return math.hypot(dist2D, point[2] - self.z)
 
     def projectVector(self, point, onDirection):
         raise NotImplementedError(f'{type(self).__name__} does not yet support projection using "on"')
@@ -2486,6 +2478,7 @@ class PolylineRegion(Region):
         if not self.lineString.is_valid:
             raise ValueError('tried to create PolylineRegion with '
                              f'invalid LineString {self.lineString}')
+        shapely.prepare(self.lineString)
         self.segments = self.segmentsOf(self.lineString)
         cumulativeLengths = []
         total = 0
@@ -2599,8 +2592,7 @@ class PolylineRegion(Region):
     def intersects(self, other, triedReversed=False):
         poly = toPolygon(other)
         if poly is not None:
-            intersection = self.lineString & poly
-            return not intersection.is_empty
+            return self.lineString.intersects(poly)
         return super().intersects(other, triedReversed)
 
     def difference(self, other):
@@ -2628,15 +2620,21 @@ class PolylineRegion(Region):
         newString = shapely.geometry.MultiLineString(strings)
         return PolylineRegion(polyline=newString)
 
-    def containsPoint(self, point):
-        return self.lineString.intersects(shapely.geometry.Point(point))
+    @distributionMethod
+    def containsPoint(self, point) -> bool:
+        point = toVector(point)
+        if point.z != 0:
+            return False
+        return shapely.intersects_xy(self.lineString, point.x, point.y)
 
     def containsObject(self, obj):
         return False
 
     @distributionMethod
     def distanceTo(self, point) -> float:
-        return self.lineString.distance(shapely.geometry.Point(point))
+        point = toVector(point)
+        dist2D = self.lineString.distance(shapely.geometry.Point(point))
+        return math.hypot(dist2D, point.z)
 
     def projectVector(self, point, onDirection):
         raise TypeError('PolylineRegion does not support projection using "on"')

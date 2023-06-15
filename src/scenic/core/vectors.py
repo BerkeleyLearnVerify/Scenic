@@ -597,13 +597,16 @@ class PolygonalVectorField(VectorField):
             if heading is None and headingFunction is None and defaultHeading is None:
                 raise RuntimeError(f'missing heading for cell of PolygonalVectorField')
         self.defaultHeading = defaultHeading
+        self.rtree = shapely.STRtree([cell[0] for cell in self.cells])
         super().__init__(name, self.valueAt)
 
     def valueAt(self, pos):
         point = shapely.geometry.Point(pos)
-        for cell, heading in self.cells:
-            if cell.intersects(point):
-                return self.headingFunction(pos) if heading is None else heading
+        candidates = self.rtree.query(point, predicate='intersects')
+        if len(candidates) > 0:
+            first = candidates.min()
+            cell, heading = self.cells[first]
+            return self.headingFunction(pos) if heading is None else heading
         if self.defaultHeading is not None:
             return self.defaultHeading
         raise RejectionException(f'evaluated PolygonalVectorField at undefined point')

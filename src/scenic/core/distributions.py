@@ -99,7 +99,7 @@ class Samplable(LazilyEvaluable):
         subsamples = DefaultIdentityDict()
         for q in quantities:
             if q not in subsamples:
-                subsamples[q] = q.sample(subsamples) if isinstance(q, Samplable) else q
+                subsamples[q] = q.sample(subsamples) if needsSampling(q) else q
         return subsamples
 
     def sample(self, subsamples=None):

@@ -171,6 +171,7 @@ for op in allowedOperators:
 
 def makeDelayedFunctionCall(func, args, kwargs={}):
     """Utility function for creating a lazily-evaluated function call."""
+    assert callable(func), func
     props = set().union(*(requiredProperties(arg)
                           for arg in itertools.chain(args, kwargs.values())))
     def value(context):
