@@ -75,7 +75,7 @@ class MeshShape(Shape):
     """
     def __init__(self, mesh, dimensions=None, scale=1, initial_rotation=None):
         # Ensure the mesh is watertight so volume is well defined
-        if not mesh.is_watertight:
+        if not mesh.is_volume:
             raise ValueError("A MeshShape cannot be defined with a mesh that does not have a well defined volume.")
 
         # Copy mesh and center vertices around origin
