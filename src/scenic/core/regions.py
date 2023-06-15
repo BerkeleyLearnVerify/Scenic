@@ -1507,12 +1507,9 @@ class MeshSurfaceRegion(MeshRegion):
         ``RejectionException`` is raised.
         """
         prox_query = trimesh.proximity.ProximityQuery(self.mesh)
-
         _, distance, triangle_id = prox_query.on_surface([pos.coordinates])
-
         if distance > self.tolerance:
             raise RejectionException("Attempted to get flat orientation of a mesh away from a surface.")
-
         face_normal_vector = self.mesh.face_normals[triangle_id][0]
 
         # Get arbitrary orientation that aligns object with face_normal_vector

@@ -49,10 +49,10 @@ We can see a few of these specifiers in action in the following slightly more co
 	        facing (-90 deg, 45 deg, 0)
 
 	chair = new Object at (4,0,2),
-	            with shape MeshShape.fromFile(localPath("meshes/chair.obj"), type="obj",
+	            with shape MeshShape.fromFile(localPath("meshes/chair.obj"),
 	                initial_rotation=(0,90 deg,0), dimensions=(1,1,1))
 
-	plane_shape = MeshShape.fromFile(path=localPath("meshes/plane.obj"), type="obj")
+	plane_shape = MeshShape.fromFile(path=localPath("meshes/plane.obj"))
 
 	plane = new Object left of chair by 1,
 	            with shape plane_shape,
@@ -168,7 +168,7 @@ This can lead to very compact syntax for randomly placing objects on others, as 
 	floor = workspace
 
 	chair = new Object on floor,
-	            with shape MeshShape.fromFile(path=localPath("meshes/chair.obj"), type="obj",
+	            with shape MeshShape.fromFile(path=localPath("meshes/chair.obj"),
 	                dimensions=(1,1,1), initial_rotation=(0, 90 deg, 0))
 
 	ego = new Object on chair,

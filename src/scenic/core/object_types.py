@@ -565,8 +565,12 @@ class Point(Constructible):
         viewRayDensity (float): By default determines the number of rays used during visibility checks. 
           This value is the density of rays per degree of visible range in one dimension. The total
           number of rays sent will be this value squared per square degree of this object's view angles. 
-          This value determines the default value for viewRayCount, so if viewRayCount is overwritten this value is ignored.
-          Default value 5.
+          This value determines the default value for ``viewRayCount``, so if ``viewRayCount`` is overwritten
+          this value is ignored. Default value 5.
+        viewRayCount (None | tuple[float, float]): The total number of horizontal and vertical view angles
+          to be sent, or None if this value should be computed automatically. Default value ``None``.
+        viewRayDistanceScaling (bool): Whether or not the number of rays should scale with the distance to the
+          object. Ignored if ``viewRayCount`` is passed. Default value ``False``.
         mutationScale (float): Overall scale of mutations, as set by the
           :keyword:`mutate` statement. Default value 0 (mutations disabled).
         positionStdDev (tuple[float, float, float]): Standard deviation of Gaussian noise 
