@@ -867,7 +867,7 @@ def OffsetAlong(X, H, Y):
     if isA(H, VectorField):
         H = H[X]
     H = toOrientation(H, '"X offset along H by Y" with H not an orientation or vector field')
-    return X.offsetRotated(H, Y)
+    return X.offsetLocally(H, Y)
 
 def RelativePosition(X, Y=None):
     """The :grammar:`relative position of <vector> [from <vector>]` operator.
@@ -1395,7 +1395,7 @@ def directionalSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
         new = DelayedArgument({axis}, val)
     else:
         pos = toVector(pos, f'specifier "{syntax} X" with X not a vector')
-        val = lambda self: {'position': pos.offsetRotated(self.orientation, makeOffset(self, (0,0,0), 0, dx, dy, dz))}
+        val = lambda self: {'position': pos.offsetLocally(self.orientation, makeOffset(self, (0,0,0), 0, dx, dy, dz))}
         new = DelayedArgument({axis, 'orientation'}, val)
     return Specifier(syntax, prop, new)
 

@@ -117,7 +117,7 @@ def canSee(position, orientation, visibleDistance, viewAngles,
         target_vertices = target_region.mesh.vertices - np.array(position.coordinates)
 
         if orientation is not None:
-            target_vertices = orientation.inverse.getRotation().apply(target_vertices)
+            target_vertices = orientation._inverseRotation.apply(target_vertices)
 
         # Add additional points along each edge that could potentially have a higher altitude
         # than the endpoints.
@@ -433,7 +433,7 @@ def canSee(position, orientation, visibleDistance, viewAngles,
 
         # Create the single candidate ray and check that it's within viewAngles.
         if orientation is not None:
-            target_loc = orientation.inverse.getRotation().apply([target_loc])[0]
+            target_loc = orientation._inverseRotation.apply([target_loc])[0]
 
         target_vertex = target_loc - position
         candidate_ray = target_vertex/np.linalg.norm(target_vertex)

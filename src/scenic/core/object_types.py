@@ -30,7 +30,7 @@ from scenic.core.distributions import (Samplable, RandomControlFlowError, Multip
                                        needsSampling, distributionMethod, distributionFunction,
                                        supportInterval, toDistribution)
 from scenic.core.specifiers import Specifier, PropertyDefault, ModifyingSpecifier
-from scenic.core.vectors import Vector, Orientation, alwaysGlobalOrientation
+from scenic.core.vectors import Vector, Orientation, alwaysGlobalOrientation, globalOrientation
 from scenic.core.geometry import (averageVectors, hypot, min,
                                   pointIsInCone, normalizeAngle)
 from scenic.core.regions import (Region, CircularRegion, SectorRegion, MeshVolumeRegion, MeshSurfaceRegion, 
@@ -707,7 +707,7 @@ class OrientedPoint(Point):
         'yaw': PropertyDefault((), {'dynamic'}, lambda self: 0),
         'pitch': PropertyDefault((), {'dynamic'}, lambda self: 0),
         'roll': PropertyDefault((), {'dynamic'}, lambda self: 0),
-        'parentOrientation': Orientation.fromEuler(0, 0, 0),
+        'parentOrientation': globalOrientation,
 
         'orientation': PropertyDefault(
             {'yaw', 'pitch', 'roll', 'parentOrientation'},
@@ -769,7 +769,7 @@ class OrientedPoint(Point):
         return OrientedPoint._with(position=pos, parentOrientation=self.orientation)
 
     def relativePosition(self, vec):
-        return self.position.offsetRotated(self.orientation, vec)
+        return self.position.offsetLocally(self.orientation, vec)
 
     def distancePast(self, vec):
         """Distance past a given point, assuming we've been moving in a straight line."""
@@ -1025,7 +1025,7 @@ class Object(OrientedPoint):
         `OrientedPoint.visibleRegion`) except that it is offset by the value of
         :prop:`cameraOffset` (which is the zero vector by default).
         """
-        true_position = self.position.offsetRotated(self.orientation, self.cameraOffset)
+        true_position = self.position.offsetLocally(self.orientation, self.cameraOffset)
         return ViewRegion(visibleDistance=self.visibleDistance,
                                  viewAngles=self.viewAngles,
                                  position=true_position, rotation=self.orientation)
@@ -1039,7 +1039,7 @@ class Object(OrientedPoint):
               for visibility.
             occludingObjects: A list of objects that can occlude visibility.
         """
-        true_position = self.position.offsetRotated(self.orientation, self.cameraOffset)
+        true_position = self.position.offsetLocally(self.orientation, self.cameraOffset)
         return canSee(position=true_position, orientation=self.orientation, visibleDistance=self.visibleDistance,
             viewAngles=self.viewAngles, rayCount=self.viewRayCount, rayDensity=self.viewRayDensity,
             distanceScaling=self.viewRayDistanceScaling, target=other, occludingObjects=occludingObjects, debug=debug)

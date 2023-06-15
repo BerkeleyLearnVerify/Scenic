@@ -29,8 +29,10 @@ from scenic.core.distributions import (Samplable, RejectionException, needsSampl
                                        distributionFunction, distributionMethod, toDistribution)
 from scenic.core.lazy_eval import isLazy, valueInContext
 from scenic.core.vectors import Vector, OrientedVector, VectorDistribution, VectorField, Orientation
-from scenic.core.geometry import sin, cos, hypot, findMinMax, pointIsInCone, averageVectors
-from scenic.core.geometry import headingOfSegment, triangulatePolygon, plotPolygon, polygonUnion
+from scenic.core.geometry import (
+    sin, cos, hypot, findMinMax, pointIsInCone, averageVectors, makeShapelyPoint,
+    headingOfSegment, triangulatePolygon, plotPolygon, polygonUnion
+)
 from scenic.core.type_support import toVector, toScalar, toOrientation
 from scenic.core.utils import cached, cached_property, loadMesh
 
@@ -1494,6 +1496,7 @@ class MeshSurfaceRegion(MeshRegion):
     def size(self):
         return self.mesh.area
 
+    @distributionMethod
     def getFlatOrientation(self, pos):
         """ Get a flat orientation at a point in the region.
 
@@ -1517,7 +1520,7 @@ class MeshSurfaceRegion(MeshRegion):
 
         # Add yaw offset to orientation to align object's yaw with global 0
         yaw_offset = Vector(0,1,0).applyRotation(base_orientation.inverse).sphericalCoordinates()[1]
-        final_orientation = base_orientation * Orientation.fromEuler(yaw_offset, 0, 0)
+        final_orientation = base_orientation * Orientation._fromHeading(yaw_offset)
 
         return final_orientation
 
@@ -1706,9 +1709,11 @@ class PolygonalFootprintRegion(Region):
 
         raise NotImplementedError
 
+    @distributionMethod
     def distanceTo(self, point):
         """ Minimum distance from this polygonal footprint to the target point"""
-        return self.polygons.distance(shapely.geometry.Point(point))
+        point = toVector(point)
+        return self.polygons.distance(makeShapelyPoint(point))
 
     def projectVector(self, point, onDirection):
         raise NotImplementedError(f'{type(self).__name__} does not yet support projection using "on"')
@@ -2138,7 +2143,7 @@ class PolygonalRegion(Region):
     @distributionFunction
     def distanceTo(self, point):
         point = toVector(point)
-        dist2D = shapely.distance(self.polygons, shapely.Point(point))
+        dist2D = shapely.distance(self.polygons, makeShapelyPoint(point))
         return math.hypot(dist2D, point[2] - self.z)
 
     def projectVector(self, point, onDirection):
@@ -2208,7 +2213,7 @@ class CircularRegion(PolygonalRegion):
     @staticmethod
     @distributionFunction
     def _makePolygons(center, radius, resolution):
-        ctr = shapely.geometry.Point(center)
+        ctr = makeShapelyPoint(center)
         return ctr.buffer(radius, resolution=resolution)
 
     ## Lazy Construction Methods ##
@@ -2292,7 +2297,7 @@ class SectorRegion(PolygonalRegion):
     @staticmethod
     @distributionFunction
     def _makePolygons(center, radius, heading, angle, resolution):
-        ctr = shapely.geometry.Point(center)
+        ctr = makeShapelyPoint(center)
         circle = ctr.buffer(radius, resolution=resolution)
         if angle >= math.tau - 0.001:
             polygon = circle
@@ -2623,7 +2628,7 @@ class PolylineRegion(Region):
     @distributionMethod
     def distanceTo(self, point) -> float:
         point = toVector(point)
-        dist2D = self.lineString.distance(shapely.geometry.Point(point))
+        dist2D = self.lineString.distance(makeShapelyPoint(point))
         return math.hypot(dist2D, point.z)
 
     def projectVector(self, point, onDirection):
@@ -2644,12 +2649,12 @@ class PolylineRegion(Region):
 
     @distributionMethod
     def project(self, point):
-        pt = shapely.ops.nearest_points(self.lineString, shapely.geometry.Point(point))[0]
+        pt = shapely.ops.nearest_points(self.lineString, makeShapelyPoint(point))[0]
         return Vector(*pt.coords[0])
 
     @distributionMethod
     def nearestSegmentTo(self, point):
-        dist = self.lineString.project(shapely.geometry.Point(point))
+        dist = self.lineString.project(makeShapelyPoint(point))
         # TODO optimize?
         for segment, cumLen in zip(self.segments, self.cumulativeLengths):
             if dist <= cumLen:
@@ -3005,8 +3010,8 @@ class ViewRegion(MeshVolumeRegion):
                 cone_mesh.apply_transform(position_matrix)
 
                 # Create two cones around the yaw axis
-                orientation_1 = Orientation.fromEuler(0,0,0)
-                orientation_2 = Orientation.fromEuler(0,0,math.pi)
+                orientation_1 = Orientation._fromEuler(0,0,0)
+                orientation_2 = Orientation._fromEuler(0,0,math.pi)
 
                 cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, centerMesh=False)
                 cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, centerMesh=False)
@@ -3031,8 +3036,8 @@ class ViewRegion(MeshVolumeRegion):
                 cone_mesh.apply_transform(position_matrix)
 
                 # Create two cones around the yaw axis
-                orientation_1 = Orientation.fromEuler(0,0,0)
-                orientation_2 = Orientation.fromEuler(0,0,math.pi)
+                orientation_1 = Orientation._fromEuler(0,0,0)
+                orientation_2 = Orientation._fromEuler(0,0,math.pi)
 
                 cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, centerMesh=False)
                 cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, centerMesh=False)
@@ -3048,7 +3053,7 @@ class ViewRegion(MeshVolumeRegion):
             if viewAngles[0] < math.pi:
                 view_region = base_sphere.intersect(TriangularPrismViewRegion(visibleDistance, viewAngles[0]))
             elif viewAngles[0] > math.pi:
-                back_tprism = TriangularPrismViewRegion(visibleDistance, math.tau - viewAngles[0], rotation=Orientation.fromEuler(math.pi, 0, 0))
+                back_tprism = TriangularPrismViewRegion(visibleDistance, math.tau - viewAngles[0], rotation=Orientation._fromEuler(math.pi, 0, 0))
                 view_region = base_sphere.difference(back_tprism)
             else:
                 assert False, f"{viewAngles=}"
@@ -3068,14 +3073,14 @@ class ViewRegion(MeshVolumeRegion):
             cone_mesh.apply_transform(position_matrix)
 
             # Position on the yaw axis
-            orientation_1 = Orientation.fromEuler(0,0,0)
-            orientation_2 = Orientation.fromEuler(0,0,math.pi)
+            orientation_1 = Orientation._fromEuler(0,0,0)
+            orientation_2 = Orientation._fromEuler(0,0,math.pi)
 
             cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, centerMesh=False)
             cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, centerMesh=False)
 
             backwards_view_angle = (math.tau-viewAngles[0], math.pi-0.01)
-            back_pyramid = PyramidViewRegion(visibleDistance, backwards_view_angle, rotation=Orientation.fromEuler(math.pi, 0, 0))
+            back_pyramid = PyramidViewRegion(visibleDistance, backwards_view_angle, rotation=Orientation._fromEuler(math.pi, 0, 0))
 
             # Note: Openscad does not like the result of the difference with the cones, so they must be done last.
             view_region = base_sphere.difference(back_pyramid).difference(cone_1).difference(cone_2)

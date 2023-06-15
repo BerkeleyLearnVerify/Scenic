@@ -9,6 +9,7 @@ import random
 import collections
 import functools
 import itertools
+import numbers
 import struct
 import warnings
 
@@ -22,7 +23,16 @@ from scenic.core.distributions import (Samplable, Distribution, MethodDistributi
 from scenic.core.lazy_eval import valueInContext, needsLazyEvaluation, makeDelayedFunctionCall
 from scenic.core.type_support import CoercionFailure, canCoerceType, coerceToFloat, toOrientation
 from scenic.core.utils import argsToString, cached_property
-from scenic.core.geometry import normalizeAngle, hypot
+from scenic.core.geometry import normalizeAngle, hypot, makeShapelyPoint
+
+# Suppress gimbal lock warning from scipy.spatial.transform.Rotation.
+# N.B. due to the way the pytest works, the warning will still appear when
+# running the test suite.
+warnings.filterwarnings(
+    'ignore',
+    message='Gimbal lock detected. Setting third angle to zero',
+    module='scenic.core.vectors',
+)
 
 class VectorDistribution(Distribution):
     """A distribution over Vectors."""
@@ -149,8 +159,19 @@ class Orientation:
     @classmethod
     @distributionFunction
     def fromEuler(cls, yaw, pitch, roll) -> Orientation:
-        """ Create an `Orientation` from yaw, pitch, and roll angles (in radians)"""
+        """Create an `Orientation` from yaw, pitch, and roll angles (in radians)."""
+        return cls._fromEuler(yaw, pitch, roll)
+
+    @classmethod
+    def _fromEuler(cls, yaw, pitch, roll) -> Orientation:
+        # Inner version of `fromEuler` which doesn't accept distributions.
         r = Rotation.from_euler('ZXY', [yaw, pitch, roll], degrees=False)
+        return cls(r)
+
+    @classmethod
+    def _fromHeading(cls, heading) -> Orientation:
+        # This method is faster than `from_euler` if we only have 1 angle.
+        r = Rotation.from_rotvec([0, 0, heading], degrees=False)
         return cls(r)
 
     @property
@@ -186,18 +207,20 @@ class Orientation:
 
     @staticmethod
     def _coerce(thing) -> Orientation:
-        if isinstance(thing, Orientation):
+        if isinstance(thing, (float, int)):  # fast path
+            return Orientation._fromHeading(thing)
+        elif isinstance(thing, Orientation):
             return thing
         elif hasattr(thing, 'toOrientation'):
             return thing.toOrientation()
         elif isinstance(thing, Vector):
-            return Orientation.fromEuler(*thing)
+            return Orientation._fromEuler(*thing)
         elif isinstance(thing, (tuple, list)):
             if len(thing) != 3:
                 raise CoercionFailure("Cannot coerce a tuple/list of length not 3 to an orientation")
-            return Orientation.fromEuler(*thing)
+            return Orientation._fromEuler(*thing)
         elif canCoerceType(type(thing), float):
-            return Orientation.fromEuler(coerceToFloat(thing), 0, 0)
+            return Orientation._fromHeading(coerceToFloat(thing))
         else:
             raise CoercionFailure
 
@@ -210,11 +233,7 @@ class Orientation:
     @cached_property
     def eulerAngles(self) -> typing.Tuple[float, float, float]:
         """Global intrinsic Euler angles yaw, pitch, roll."""
-        # Wrapped to catch gimbal lock warning.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            angles = self.r.as_euler('ZXY', degrees=False)
-        return angles
+        return self.r.as_euler('ZXY', degrees=False)
 
     def getRotation(self):
         return self.r
@@ -222,6 +241,10 @@ class Orientation:
     @cached_property
     def inverse(self) -> Orientation:
         return Orientation(self.r.inv())
+
+    @cached_property
+    def _inverseRotation(self):
+        return self.r.inv()
 
     @distributionMethod
     def __mul__(self, other) -> Orientation:
@@ -232,7 +255,7 @@ class Orientation:
     @distributionMethod
     def __add__(self, other) -> Orientation:
         if isinstance(other, (float, int)):
-            other = Orientation.fromEuler(other, 0, 0)
+            other = Orientation._fromHeading(other)
         elif type(other) is not Orientation:
             return NotImplemented
         return other * self
@@ -240,7 +263,7 @@ class Orientation:
     @distributionMethod
     def __radd__(self, other) -> Orientation:
         if isinstance(other, (float, int)):
-            other = Orientation.fromEuler(other, 0, 0)
+            other = Orientation._fromHeading(other)
         elif type(other) is not Orientation:
             return NotImplemented
         return self * other
@@ -254,9 +277,9 @@ class Orientation:
     @distributionFunction
     def globalToLocalAngles(self, yaw, pitch, roll) -> typing.Tuple[float, float, float]:
         """Find Euler angles w.r.t. a given parent orientation."""
-        orientation = Orientation.fromEuler(yaw, pitch, roll)
-        desiredQuat = orientation*self.inverse
-        return desiredQuat.eulerAngles
+        r = Rotation.from_euler('ZXY', [yaw, pitch, roll], degrees=False)
+        local = r * self._inverseRotation
+        return local.as_euler('ZXY', degrees=False)
 
     def __eq__(self, other):
         if not isinstance(other, Orientation):
@@ -348,6 +371,15 @@ class Vector(Samplable, collections.abc.Sequence):
     def offsetRotated(self, angleOrOrientation, offset) -> Vector:
         ro = offset.rotatedBy(angleOrOrientation)
         return self + ro
+
+    @vectorOperator
+    def offsetLocally(self, orientation, offset) -> Vector:
+        # Faster version of `offsetRotated` that only accepts Orientations.
+        r = orientation.getRotation()
+        ro = r.apply(offset)
+        x, y, z = self
+        ox, oy, oz = ro
+        return Vector(x + ox, y + oy, z + oz)
 
     @vectorOperator
     def offsetRadially(self, radius, heading) -> Vector:
@@ -531,7 +563,8 @@ class VectorField:
     @distributionMethod
     def __getitem__(self, pos) -> Orientation:
         val = self.value(pos)
-        
+        if isinstance(val, numbers.Real):  # fast path
+            return Orientation._fromHeading(val)
         return toOrientation(val, f'value function of {self.name} returned non-orientation')
 
     @vectorDistributionMethod
@@ -556,10 +589,13 @@ class VectorField:
             if stepSize is not None:
                 steps = max(steps, math.ceil(dist / stepSize))
 
-        step = dist / steps
+        stepSize = dist / steps
+        step = numpy.array([0, stepSize, 0])
         for i in range(steps):
-            pos = pos.offsetRadially(step, self[pos])
-        return pos
+            rot = self[pos].getRotation()
+            pos += rot.apply(step)
+
+        return Vector(*pos)
 
     @staticmethod
     def forUnionOf(regions, tolerance=0):
@@ -601,7 +637,7 @@ class PolygonalVectorField(VectorField):
         super().__init__(name, self.valueAt)
 
     def valueAt(self, pos):
-        point = shapely.geometry.Point(pos)
+        point = makeShapelyPoint(pos)
         candidates = self.rtree.query(point, predicate='intersects')
         if len(candidates) > 0:
             first = candidates.min()
