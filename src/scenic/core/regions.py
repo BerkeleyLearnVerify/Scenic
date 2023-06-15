@@ -1868,17 +1868,7 @@ class PathRegion(Region):
         self._normalizedEdgeDirections = (b - a)/numpy.reshape(numpy.linalg.norm(b - a, axis=1), (len(a), 1))
 
     def containsPoint(self, point):
-        pt = toVector(point)
-
-        # Check if each edge contains the point
-        for edge_iter, edge in enumerate(self.edges):
-            v1, v2 = edge
-            c1, c2 = self.vert_to_vec[v1], self.vert_to_vec[v2]
-
-            if (c1.distanceTo(pt) + pt.distanceTo(c2)) <= c1.distanceTo(c2) + self.tolerance:
-                return True
-
-        return False
+        return self.distanceTo(point) < self.tolerance
 
     def containsObject(self, obj):
         return False
@@ -1887,12 +1877,12 @@ class PathRegion(Region):
         raise NotImplementedError
 
     def distanceTo(self, point):
-        p = numpy.asarray(point)
+        p = numpy.asarray(toVector(point))
         a = self._edgeVectorArray[:,0:3]
         b = self._edgeVectorArray[:,3:6]
         a_min_p = a - p
 
-        d = (b - a)/numpy.linalg.norm(b - a, axis=1)
+        d = (b - a)/numpy.linalg.norm(b - a, axis=1).reshape(len(a), 1)
 
         # Parallel distances from each end point. Negative indicates on the line segment
         a_dist = numpy.sum((a_min_p)*d, axis=1)
