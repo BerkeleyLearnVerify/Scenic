@@ -709,7 +709,8 @@ class OrientedPoint(Point):
                       * self.parentOrientation)
         ),
         # Heading is equal to orientation.yaw, which is equal to self.yaw if this OrientedPoint's
-        # parentOrientation is the globla orientation.
+        # parentOrientation is the global orientation. Defined this way to simplify the value for pruning
+        # purposes if possible.
         'heading': PropertyDefault({'orientation'}, {'dynamic', 'final'},
             lambda self: self.yaw if alwaysGlobalOrientation(self.parentOrientation) else self.orientation.yaw),
 
