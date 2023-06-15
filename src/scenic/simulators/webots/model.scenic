@@ -33,17 +33,23 @@ def is2DMode():
 class WebotsObject:
     """Abstract class for Webots objects.
 
-    There are two ways to specify which Webots node this object corresponds to
-    (which must already exist in the world loaded into Webots): most simply,
-    you can set the ``webotsName`` property to the DEF name of the Webots node.
-    For convenience when working with many objects of the same type, you can
-    instead set the ``webotsType`` property to a prefix like 'ROCK': the
-    interface will then search for nodes called 'ROCK_0', 'ROCK_1', etc.
+    There several ways to specify which Webots node this object corresponds to:
 
-    Also defines the ``elevation`` property as a standard way to access the "up"
-    component of an object's position, since the Scenic built-in property
-    ``position`` is only 2D. If ``elevation`` is set to :obj:`None`, it will be
-    updated to the object's "up" coordinate in Webots when the simulation starts.
+     * Set the ``webotsName`` property to the DEF name of the Webots node,
+       which must already exist in the world loaded into Webots.
+
+     * Set the ``webotsType`` property to a prefix like 'ROCK': the
+       interface will then search for nodes called 'ROCK_0', 'ROCK_1', etc.
+       Again the nodes must already exist in the world loaded into Webots.
+
+     * Set the ``webotsAdhoc`` property to a dictionary of parameters. This will
+       cause Scenic to dynamically create an Object in Webots, according to the
+       parameters in the dictionary. **This is currently the only way to create
+       objects in Webots that do not correspond to an existing node**. The parameters
+       that can be contained in the dictionary are:
+
+        * ``physics``: Whether or not physics should be enabled for this object.
+          Default value is :python:`True`.
 
     Properties:
         elevation (float or None; dynamic): default ``None`` (see above).
