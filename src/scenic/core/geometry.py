@@ -91,6 +91,9 @@ def distanceToLine(point, a, b):
     px, py = point[0] - a[0], point[1] - a[1]
     return abs((px * nx) + (py * ny))
 
+# Fastest known way to make a Shapely Point from a list/tuple/Vector
+makeShapelyPoint = shapely.lib.points
+
 def polygonUnion(polys, buf=0, tolerance=0, holeTolerance=0.002):
     if not polys:
         return shapely.geometry.Polygon()
