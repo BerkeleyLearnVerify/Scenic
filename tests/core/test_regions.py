@@ -176,6 +176,9 @@ def test_polygon_region():
         assert poly.containsPoint(pt)
     for pt in [(1,1.1), (2,0.9), (2,2.1), (2.9, 1.2), (1.5,1.4)]:
         assert not poly.containsPoint(pt)
+    assert poly.distanceTo((0,0)) == pytest.approx(math.sqrt(2))
+    assert poly.distanceTo((0,0,-1)) == pytest.approx(math.sqrt(3))
+    assert poly.distanceTo((2,1.1,4)) == pytest.approx(4)
     assert poly.containsObject(Object._with(position=(2,1.25), width=0.49, length=0.49))
     assert not poly.containsObject(Object._with(position=(2,1.25), width=1, length=0.49))
     assert poly.AABB == ((1, 1), (3, 2), (0,0))
@@ -478,3 +481,74 @@ def test_orientation_inheritance():
     c.orientation = v2
     assert r.intersect(c).orientation is v
     assert c.intersect(r).orientation is v2
+
+# General test of region combinations
+
+REGIONS = {
+    MeshVolumeRegion: MeshVolumeRegion(trimesh.creation.box((0.75, 0.75, 0.75))),
+    MeshSurfaceRegion: MeshSurfaceRegion(trimesh.creation.box((0.5, 0.5, 0.5))),
+    BoxRegion: BoxRegion(),
+    SpheroidRegion: SpheroidRegion(),
+    PolygonalFootprintRegion: PolygonalRegion([(0,0.5), (0,1), (2,1), (0,0)]).footprint,
+    PathRegion: PathRegion(points=[(6,6), (6,7,1), (7,7,2), [7,6,3]]),
+    PolygonalRegion: PolygonalRegion([(0,0.5), (0,1), (2,1), (0,0)]),
+    CircularRegion: CircularRegion(Vector(29, 34), 5),
+    SectorRegion: SectorRegion(Vector(29, 34), 5, 1, 0.5),
+    RectangularRegion: RectangularRegion(Vector(1, 2), math.radians(30), 4, 2),
+    PolylineRegion: PolylineRegion([(0,2), (1,1), (0,0)]),
+    PointSetRegion: PointSetRegion('foo',  [(1,2), (3,4), (5,6)]),
+    ViewRegion: ViewRegion(50, (1,1))
+}
+
+INVALID_INTERSECTS = (
+    {MeshSurfaceRegion, PathRegion},
+    {MeshSurfaceRegion, PolygonalRegion},
+    {MeshSurfaceRegion, CircularRegion},
+    {MeshSurfaceRegion, SectorRegion},
+    {MeshSurfaceRegion, RectangularRegion},
+    {MeshSurfaceRegion, PolylineRegion},
+    {PathRegion, PolygonalRegion},
+    {PathRegion, CircularRegion},
+    {PathRegion, SectorRegion},
+    {PathRegion, RectangularRegion},
+    {PathRegion, PolylineRegion},
+)
+
+def regions_id(val):
+    return val[0].__name__
+
+@pytest.mark.slow
+@pytest.mark.parametrize("A,B", itertools.combinations(REGIONS.items(), 2), ids=regions_id)
+def test_region_combinations(A, B):
+    type_a, region_a = A
+    type_b, region_b = B
+
+    ## Check type correctness ##
+    assert isinstance(region_a, type_a)
+    assert isinstance(region_b, type_b)
+
+    ## Check all output combinations ##
+    # intersects()
+    try:
+        intersects_out_1 = region_a.intersects(region_b)
+        intersects_out_2 = region_b.intersects(region_a)
+        assert intersects_out_1 == intersects_out_2
+        assert isinstance(intersects_out_1, bool)
+    except NotImplementedError:
+        assert set([type_a, type_b]) in INVALID_INTERSECTS
+
+    # intersection()
+    intersect_out_1 = region_a.intersect(region_b)
+    intersect_out_2 = region_b.intersect(region_a)
+    assert type(intersect_out_1) == type(intersect_out_2)
+    assert isinstance(intersect_out_1, Region)
+
+    # union()
+    union_out_1 = region_a.union(region_b)
+    union_out_2 = region_b.union(region_a)
+    assert type(union_out_1) == type(union_out_2)
+    assert isinstance(union_out_1, Region)
+
+    # difference()
+    difference_out = region_a.difference(region_b)
+    assert isinstance(difference_out, Region)
