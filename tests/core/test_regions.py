@@ -250,6 +250,15 @@ def test_mesh_surface_region_sampling():
                 y == 1 or y == -1 or \
                 z == 1 or z == -1
 
+def test_mesh_intersects():
+    r1 = BoxRegion(dimensions=(1,1,1))
+    r2 = BoxRegion(dimensions=(2,2,2))
+
+    assert r1.intersects(r2)
+    assert r1.getSurfaceRegion().intersects(r2)
+    assert not r1.intersects(r2.getSurfaceRegion())
+    assert not r1.getSurfaceRegion().intersects(r2.getSurfaceRegion())
+
 def test_path_region():
     points_2d = [(0,0), [0,1], (1,1), (1,0)]
     points_3d = [(3,3,0), (3,4,1), [4,4,2], (4,3,3)]
