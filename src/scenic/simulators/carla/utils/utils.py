@@ -49,7 +49,7 @@ def carlaToScenicElevation(loc):
 
 def carlaToScenicOrientation(rot):
     angles = (rot.pitch, rot.yaw, rot.roll)
-    r = scipy.spatial.transform.Rotation.fromEuler(seq="YZX", angles=angles)
+    r = scipy.spatial.transform.Rotation.from_euler(seq="YZX", angles=angles)
     return Orientation(r)
 
 def carlaToScenicHeading(rot):
