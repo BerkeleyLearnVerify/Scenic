@@ -92,6 +92,7 @@ class CarlaSimulation(DrivingSimulation):
         self.render = render
         self.record = record
         self.scenario_number = scenario_number
+        self.cameraManager = None
 
         super().__init__(scene, **kwargs)
 
