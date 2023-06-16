@@ -33,6 +33,7 @@ def scenicToCarlaLocation(pos, z=None, world=None, blueprint=None):
 
 def scenicToCarlaRotation(orientation):
     pitch, yaw, roll = orientation.r.as_euler("YZX")
+    yaw = math.degrees(-yaw) - 90
     return carla.Rotation(pitch=pitch, yaw=yaw, roll=roll)
 
 def scenicSpeedToCarlaVelocity(speed, heading):
@@ -48,7 +49,7 @@ def carlaToScenicElevation(loc):
     return loc.z
 
 def carlaToScenicOrientation(rot):
-    angles = (rot.pitch, rot.yaw, rot.roll)
+    angles = (rot.pitch, -math.radians(rot.yaw + 90), rot.roll)
     r = scipy.spatial.transform.Rotation.from_euler(seq="YZX", angles=angles)
     return Orientation(r)
 
