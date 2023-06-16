@@ -63,7 +63,7 @@ def carlaToScenicAngularSpeed(vel):
         )
 
 def carlaToScenicAngularVel(vel):
-    return (
+    return Vector(
             math.radians(vel.x),
             -math.radians(vel.y),
             math.radians(vel.y)
