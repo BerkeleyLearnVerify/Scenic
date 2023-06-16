@@ -244,7 +244,7 @@ def test_bug_template_sanity(template, tmpdir):
     sampleActionsFromScene(scene, maxSteps=2)
 
 def checkBug(bug, template, tmpdir, pytestconfig):
-    path = os.path.join(tmpdir, 'test.sc')
+    path = os.path.join(tmpdir, 'test.scenic')
     line, program = template
     if bug is not None:
         program = program.format(bug=bug)
@@ -345,7 +345,7 @@ def runFile(path):
     '4 at 0',                       # Python execution (Scenic parse error)
     'x = _flub__',                  # Python execution (Python runtime error)
     'raise Exception',              # Python execution (program exception)
-    'new Object at Uniform(0@0, 4)' # sampling
+    'new Object at Uniform("a", 4)',# sampling
     'require 4 at 0',               # requirement evaluation (Scenic parse error)
     'require _flub__',              # requirement evaluation (Python runtime error)
 ))
