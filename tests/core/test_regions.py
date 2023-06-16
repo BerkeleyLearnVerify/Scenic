@@ -476,6 +476,38 @@ def test_pointset_region():
     assert ps.distanceTo((2,3)) == pytest.approx(math.sqrt(2))
     assert ps.AABB == ((1,5),(2,6),(0,5))
 
+# ViewRegion tests
+H_ANGLES = [0.1,90,180,270,360]
+
+V_ANGLES = [0.1,90,180]
+
+VISIBLE_DISTANCES = [1,25,50]
+
+@pytest.mark.slow
+@pytest.mark.parametrize("hAngle,vAngle,visibleDistance", 
+    itertools.product(H_ANGLES,V_ANGLES,VISIBLE_DISTANCES))
+def test_viewregion(hAngle, vAngle, visibleDistance):
+    hAngle = math.radians(hAngle)
+    vAngle = math.radians(vAngle)
+
+    sphere = SpheroidRegion(dimensions=(100,100,100))
+    vr = ViewRegion(visibleDistance, (hAngle, vAngle))
+    vr_surface = vr.getSurfaceRegion()
+
+    for pt in trimesh.sample.volume_mesh(sphere.mesh, 100):
+        x,y,z = pt
+        azimuth = -math.atan2(x, y)
+        altitude = math.atan2(z, math.hypot(x, y))
+        distance = math.hypot(*pt)
+
+        pt_contained = (
+            (-hAngle/2) <= azimuth <= (hAngle/2) and
+            (-vAngle/2) <= altitude <= (vAngle/2) and
+            distance <= visibleDistance
+        )
+
+        if vr_surface.distanceTo(pt) > 0.1:
+            assert vr.containsPoint(pt) == pt_contained
 
 # General properties of regions
 
