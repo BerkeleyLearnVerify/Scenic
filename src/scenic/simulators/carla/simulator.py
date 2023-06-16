@@ -181,7 +181,7 @@ class CarlaSimulation(DrivingSimulation):
 
         # Set up transform
         loc = utils.scenicToCarlaLocation(obj.position, world=self.world, blueprint=obj.blueprint)
-        rot = utils.scenicToCarlaRotation(obj.heading)
+        rot = utils.scenicToCarlaRotation(obj.orientation)
         transform = carla.Transform(loc, rot)
 
         # Color, cannot be set for Pedestrians
@@ -243,16 +243,24 @@ class CarlaSimulation(DrivingSimulation):
         currAngVel = carlaActor.get_angular_velocity()
 
         # Prepare Scenic object properties
+        position = utils.carlaToScenicPosition(currLoc)
         velocity = utils.carlaToScenicPosition(currVel)
         speed = math.hypot(*velocity)
+        angularSpeed= utils.carlaToScenicAngularSpeed(currAngVel)
+        angularVelocity = utils.carlaToScenicAngularVel(currAngVel)
+        yaw, pitch, roll = utils.carlaToScenicOrientation(currRot).eulerAngles
+        elevation = utils.carlaToScenicElevation(currLoc)
 
         values = dict(
-            position=utils.carlaToScenicPosition(currLoc),
-            elevation=utils.carlaToScenicElevation(currLoc),
-            heading=utils.carlaToScenicHeading(currRot),
+            position=position,
             velocity=velocity,
             speed=speed,
-            angularSpeed=utils.carlaToScenicAngularSpeed(currAngVel),
+            angularSpeed=angularSpeed,
+            angularVelocity=angularVelocity,
+            yaw=yaw,
+            pitch=pitch,
+            roll=roll,
+            elevation=elevation,
         )
         return values
 

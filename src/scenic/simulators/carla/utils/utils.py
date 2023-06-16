@@ -1,7 +1,8 @@
 import carla
 import math
+import scipy
 
-from scenic.core.vectors import Vector
+from scenic.core.vectors import Vector, Orientation
 from scenic.core.geometry import normalizeAngle
 
 
@@ -30,10 +31,9 @@ def scenicToCarlaLocation(pos, z=None, world=None, blueprint=None):
     return carla.Location(pos.x, -pos.y, z)
 
 
-def scenicToCarlaRotation(heading):
-    yaw = math.degrees(-heading) - 90
-    return carla.Rotation(yaw=yaw)
-
+def scenicToCarlaRotation(orientation):
+    pitch, yaw, roll = orientation.r.asEuler("YZX")
+    return carla.Rotation(pitch=pitch, yaw=yaw, roll=roll)
 
 def scenicSpeedToCarlaVelocity(speed, heading):
     currYaw = scenicToCarlaRotation(heading).yaw
@@ -41,18 +41,33 @@ def scenicSpeedToCarlaVelocity(speed, heading):
     yVel = speed * math.sin(currYaw)
     return scenicToCarlaVector3D(xVel, yVel)
 
-
 def carlaToScenicPosition(loc):
-    return Vector(loc.x, -loc.y)
+    return Vector(loc.x, -loc.y, loc.z)
 
 def carlaToScenicElevation(loc):
     return loc.z
+
+def carlaToScenicOrientation(rot):
+    angles = (rot.pitch, rot.yaw, rot.roll)
+    r = scipy.spatial.transform.Rotation.fromEuler(seq="YZX", angles=angles)
+    return Orientation(r)
 
 def carlaToScenicHeading(rot):
     return normalizeAngle(-math.radians(rot.yaw + 90))
 
 def carlaToScenicAngularSpeed(vel):
-    return -math.radians(vel.y)
+    return math.hypot(
+            math.radians(vel.x),
+            -math.radians(vel.y),
+            math.radians(vel.y)
+        )
+
+def carlaToScenicAngularVel(vel):
+    return (
+            math.radians(vel.x),
+            -math.radians(vel.y),
+            math.radians(vel.y)
+           )
 
 
 _scenicToCarlaMap = {
