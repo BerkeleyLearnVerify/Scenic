@@ -1645,6 +1645,14 @@ scenic_altitude_from_op:
     | "altitude" 'from' e1=scenic_prefix_operators { s.AltitudeFromOp(base=e1, LOCATIONS) }
 
 scenic_position_of_op_position:
+    | "top" "front" "left" { s.TopFrontLeft(LOCATIONS) }
+    | "top" "front" "right" { s.TopFrontRight(LOCATIONS) }
+    | "top" "back" "left" { s.TopBackLeft(LOCATIONS) }
+    | "top" "back" "right" { s.TopBackRight(LOCATIONS) }
+    | "bottom" "front" "left" { s.BottomFrontLeft(LOCATIONS) }
+    | "bottom" "front" "right" { s.BottomFrontRight(LOCATIONS) }
+    | "bottom" "back" "left" { s.BottomBackLeft(LOCATIONS) }
+    | "bottom" "back" "right" { s.BottomBackRight(LOCATIONS) }
     | "front" "left" { s.FrontLeft(LOCATIONS) }
     | "front" "right" { s.FrontRight(LOCATIONS) }
     | "back" "left" { s.BackLeft(LOCATIONS) }
@@ -1653,6 +1661,8 @@ scenic_position_of_op_position:
     | "back" { s.Back(LOCATIONS) }
     | "left" { s.Left(LOCATIONS) }
     | "right" { s.Right(LOCATIONS) }
+    | "top" { s.Top(LOCATIONS) }
+    | "bottom" { s.Bottom(LOCATIONS) }
 
 # Arithmetic operators
 # --------------------
