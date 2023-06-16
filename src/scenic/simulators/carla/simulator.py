@@ -58,7 +58,7 @@ class CarlaSimulator(DrivingSimulator):
         self.scenario_number = 0  # Number of the scenario executed
 
     def createSimulation(self, scene, *, timestep, **kwargs):
-        if timestep != self.timestep:
+        if timestep is not None and timestep != self.timestep:
             raise RuntimeError(
                 'cannot customize timestep for individual CARLA simulations; '
                 'set timestep when creating the CarlaSimulator instead'
