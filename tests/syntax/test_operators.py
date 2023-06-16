@@ -612,3 +612,35 @@ def test_not_visible_from():
     assert all(p.x <= 100 or p.y <= 200 for p in ps)
     assert any(p.x > 100 for p in ps)
     assert any(p.y > 200 for p in ps)
+
+# Directional Operators
+# NOTE: The following don't account for rotation.
+DIRECTION_LOCS = {
+    "front":                (0,0.5,0),
+    "back":                 (0,-0.5,0),
+    "right":                (0.5,0,0),
+    "left":                 (-0.5,0,0),
+    "top":                  (0,0,0.5),
+    "bottom":               (0,0,-0.5),
+    "front right":          (0.5,0.5,0),
+    "front left":           (-0.5,0.5,0),
+    "back right":           (0.5,-0.5,0),
+    "back left":            (-0.5,-0.5,0),
+    "top front right":      (0.5,0.5,0.5),
+    "top front left":       (-0.5,0.5,0.5),
+    "top back right":       (0.5,-0.5,0.5),
+    "top back left":        (-0.5,-0.5,0.5),
+    "bottom front right":   (0.5,0.5,-0.5),
+    "bottom front left":    (-0.5,0.5,-0.5),
+    "bottom back right":    (0.5,-0.5,-0.5),
+    "bottom back left":     (-0.5,-0.5,-0.5),
+}
+
+@pytest.mark.parametrize("direction,loc", DIRECTION_LOCS.items())
+def test_direction_ops(direction, loc):
+    p = sampleParamPFrom(f"""
+        ego = new Object facing (0, 180 deg, 0)
+        param p = {direction} of ego
+    """)
+    oriented_loc = (loc[0], -loc[1], -loc[2])
+    assert tuple(p.position) == pytest.approx(oriented_loc)

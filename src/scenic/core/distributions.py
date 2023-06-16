@@ -584,16 +584,13 @@ class AttributeDistribution(Distribution):
                 types.append(res)
             return type_support.unifierOfTypes(types) if types else object
 
-        # We can't tell what the attribute type is.
-        return object
-
         # Check for a @property defined on the class with a return type
         if (ty is not object and (func := getattr(ty, attribute, None))
             and isinstance(func, property)):
             return typing.get_type_hints(func.fget).get('return')
 
         # We can't tell what the attribute type is.
-        return None
+        return object
 
     def sampleGiven(self, value):
         obj = value[self.object]

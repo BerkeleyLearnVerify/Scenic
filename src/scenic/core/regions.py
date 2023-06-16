@@ -102,7 +102,16 @@ class Region(Samplable, ABC):
         Check if this `Region` intersects another.
         """
         if triedReversed:
-            raise NotImplementedError(f"Cannot check intersection of {type(self).__name__} and {type(other).__name__}")
+            # Last ditch attempt. Try computing intersection and see if we get a
+            # fixed result back.
+            intersection = self.intersect(other)
+
+            if isinstance(intersection, IntersectionRegion):
+                raise NotImplementedError(f"Cannot check intersection of {type(self).__name__} and {type(other).__name__}")
+            elif isinstance(intersection, EmptyRegion):
+                return False
+            else:
+                return True
         else:
             return other.intersects(self, triedReversed=True)
 
@@ -124,7 +133,7 @@ class Region(Samplable, ABC):
         Not supported by all region types.
         """
         if triedReversed:
-            raise NotImplementedError(f"Cannot compute union of {type(self)} and {type(other)}")
+            return UnionRegion(self, other)
         else:
             return other.union(self, triedReversed=True)
 
@@ -254,6 +263,14 @@ class AllRegion(Region):
     def AABB(self):
         raise TypeError("AllRegion does not have a well defined AABB")
 
+    @property
+    def dimensionality(self):
+        return float('inf')
+
+    @property
+    def size(self):
+        return float('inf')
+
     def __eq__(self, other):
         return type(other) is AllRegion
 
@@ -295,6 +312,14 @@ class EmptyRegion(Region):
     @property
     def AABB(self):
         raise TypeError("EmptyRegion does not have a well defined AABB")
+
+    @property
+    def dimensionality(self):
+        return 0
+
+    @property
+    def size(self):
+        return 0
 
     def show(self, plt, style=None, **kwargs):
         pass
@@ -407,6 +432,102 @@ class IntersectionRegion(Region):
 
     def __repr__(self):
         return f'IntersectionRegion({self.regions!r})'
+
+class UnionRegion(Region):
+    def __init__(self, *regions, orientation=None, sampler=None, name=None):
+        self.regions = tuple(regions)
+        if len(self.regions) < 2:
+            raise ValueError('tried to take union of fewer than 2 regions')
+        super().__init__(name, *self.regions, orientation=orientation)
+        self.sampler = sampler
+
+    def sampleGiven(self, value):
+        regs = [value[reg] for reg in self.regions]
+        # Now that regions have been sampled, attempt union again in the hopes
+        # there is a specialized sampler to handle it (unless we already have one)
+        if not self.sampler:
+            failed = False
+            union = regs[0]
+            for region in regs[1:]:
+                union = union.union(region)
+                if isinstance(union, UnionRegion):
+                    failed = True
+                    break
+            if not failed:
+                union.orientation = value[self.orientation]
+                return union
+
+        return UnionRegion(*regs, orientation=value[self.orientation],
+                                  sampler=self.sampler, name=self.name)
+
+    def evaluateInner(self, context):
+        regs = (valueInContext(reg, context) for reg in self.regions)
+        orientation = valueInContext(self.orientation, context)
+        return UnionRegion(*regs, orientation=orientation, sampler=self.sampler,
+                                  name=self.name)
+
+    def containsPoint(self, point):
+        return any(region.containsPoint(point) for region in self.footprint.regions)
+
+    def containsObject(self, obj):
+        raise NotImplementedError
+
+    def containsRegionInner(self, reg, tolerance):
+        raise NotImplementedError
+
+    def distanceTo(self, point):
+        raise NotImplementedError
+
+    def projectVector(self, point, onDirection):
+        raise NotImplementedError(f'{type(self).__name__} does not yet support projection using "on"')
+
+    @property
+    def AABB(self):
+        raise NotImplementedError
+
+    @cached_property
+    def footprint(self):
+        return convertToFootprint(self)
+
+    def uniformPointInner(self):
+        sampler = self.sampler
+        if not sampler:
+            sampler = self.genericSampler
+        return self.orient(sampler(self))
+
+    @staticmethod
+    def genericSampler(union):
+        regs = intersection.regions
+
+        # Check that all regions have well defined dimensionality
+        if any(reg.dimensionality is None for reg in regs):
+            raise UndefinedSamplingException(f'cannot sample union of Regions {regs} with '
+                'undefined dimensionality')
+
+        # Filter out all regions with 0 probability
+        max_dim = max(reg.dimensionality for reg in regs)
+        large_regs = tuple(reg for reg in regs if reg.dimensionality == max_dim)
+
+        # Check that all large regions have well defined size
+        if any(reg.size is None or reg.size == float('inf') for reg in large_regs):
+            raise UndefinedSamplingException(f'cannot sample union of Regions {regs} with '
+                'ill-defined size')
+
+        # Pick a sample, weighted by region size
+        reg_sizes = tuple(reg.size for reg in large_regs)
+        target_reg = random.choices(large_regs, weights=reg_sizes)[0]
+        point = target_reg.uniformPointInner()
+
+        # Potentially reject based on containment of the sample
+        containment_count = sum(int(reg.containsPoint(point)) for reg in regs)
+
+        if random.random() < 1-1/containment_count:
+            raise RejectionException("rejected sample from UnionRegion")
+
+        return point
+
+    def __repr__(self):
+        return f'UnionRegion({self.regions!r})'
 
 class DifferenceRegion(Region):
     def __init__(self, regionA, regionB, sampler=None, name=None):
@@ -917,9 +1038,9 @@ class MeshVolumeRegion(MeshRegion):
                 return True
 
             # PASS 3
-            # Compute intersection and check if it's empty. Expensive but guaranteed
-            # to give the right answer.
-            return not isinstance(self.intersect(other), EmptyRegion)
+            # There is no surface collision, so all points are in/out. Check the first
+            # point and return that.
+            return self.containsPoint(other.mesh.vertices[0])
 
         if isinstance(other, PolygonalFootprintRegion):
             # Determine the mesh's vertical bounds (adding a little extra to avoid mesh errors) and
@@ -1642,6 +1763,11 @@ class PolygonalFootprintRegion(Region):
             # polygon with our base polygon at the correct z position, and then output the resulting polygon.
             return PolygonalRegion(polygon=self.polygons, z=other.z).intersect(other)
 
+        if isinstance(other, PathRegion):
+            center_z = (other.AABB[2][1]+other.AABB[2][0])/2
+            height = other.AABB[2][1]-other.AABB[2][0] + 1
+            return self.approxBoundFootprint(center_z, height).intersect(other)
+
         return super().intersect(other, triedReversed)
 
     def union(self, other, triedReversed=False):
@@ -1721,6 +1847,14 @@ class PolygonalFootprintRegion(Region):
     @property
     def AABB(self):
         raise NotImplementedError
+
+    @property
+    def dimensionality(self):
+        return 3
+
+    @property
+    def size(self):
+        return float('inf')
 
     def approxBoundFootprint(self, centerZ, height):
         """ Returns an overapproximation of boundFootprint 
@@ -2574,6 +2708,8 @@ class PolylineRegion(Region):
     def intersect(self, other, triedReversed=False):
         poly = toPolygon(other)
         if poly is not None:
+            if isinstance(other, PolygonalRegion) and other.z != 0:
+                return super().intersect(other, triedReversed)
             intersection = self.lineString & poly
             line_geoms = (shapely.geometry.LineString, shapely.geometry.MultiLineString)
             if (isinstance(intersection, shapely.geometry.GeometryCollection)
@@ -2788,6 +2924,9 @@ class PointSetRegion(Region):
     def uniformPointInner(self):
         i = random.randrange(0, len(self.points))
         return self.orient(Vector(*self.points[i]))
+
+    def intersects(self, other, triedReversed=False):
+        return any(other.containsPoint(pt) for pt in self.points)
 
     def intersect(self, other, triedReversed=False):
         def sampler(intRegion):
