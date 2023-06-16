@@ -90,7 +90,7 @@ class WebotsSimulation(Simulation):
 
         # Find the name of the Webots node for this object.
         name = None
-        if obj.webotsAdhoc:
+        if obj.webotsAdhoc is not None:
             # Dynamically generate object from Scenic object
             objectRawMesh = obj.shape.mesh
             objectScaledMesh = MeshVolumeRegion(
