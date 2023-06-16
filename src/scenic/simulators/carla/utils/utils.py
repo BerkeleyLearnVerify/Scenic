@@ -32,7 +32,7 @@ def scenicToCarlaLocation(pos, z=None, world=None, blueprint=None):
 
 
 def scenicToCarlaRotation(orientation):
-    pitch, yaw, roll = orientation.r.asEuler("YZX")
+    pitch, yaw, roll = orientation.r.as_euler("YZX")
     return carla.Rotation(pitch=pitch, yaw=yaw, roll=roll)
 
 def scenicSpeedToCarlaVelocity(speed, heading):
