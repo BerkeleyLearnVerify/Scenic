@@ -244,7 +244,9 @@ class TypecheckedDistribution(Distribution):
         # Coercion failed, so we have a type error.
         if suffix is None:
             suffix = f' (expected {self._valueType.__name__}, got {type(val).__name__})'
-        raise TypeError(self._errorMessage + suffix, self._loc)
+        exc = TypeError(self._errorMessage + suffix)
+        exc._scenic_location = self._loc
+        raise exc
 
     def conditionTo(self, value):
         self._dist.conditionTo(value)

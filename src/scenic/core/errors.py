@@ -189,6 +189,8 @@ def displayScenicException(exc, seen=None):
 
     if issubclass(ty, SyntaxError) or (pseudoSyntaxError and not showInternalBacktrace):
         pass    # no backtrace for these types of errors
+    elif loc := getattr(exc, '_scenic_location', None):
+        strings.extend(traceback.format_list([loc]))
     else:
         summary = traceback.extract_tb(tb)
         if showInternalBacktrace:

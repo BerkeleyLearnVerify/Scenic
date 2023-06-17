@@ -1368,6 +1368,7 @@ expressions:
     | expression
 
 expression (memo):
+    | invalid_scenic_instance_creation
     | invalid_expression
     | invalid_legacy_expression
     | a=disjunction 'if' b=disjunction 'else' c=disjunction {
@@ -1494,6 +1495,9 @@ scenic_temporal_group: '(' a=scenic_temporal_expression ')' &('until' | 'or' | '
 scenic_new_expr: 'new' n=NAME ss=[scenic_specifiers] { s.New(className=n.string, specifiers=ss, LOCATIONS) }
 scenic_specifiers: ss=','.scenic_specifier+ { ss }
 scenic_specifier:
+    | scenic_valid_specifier
+    | invalid_scenic_specifier
+scenic_valid_specifier:
     | 'with' p=NAME v=expression { s.WithSpecifier(prop=p.string, value=v, LOCATIONS) }
     | 'at' position=expression { s.AtSpecifier(position=position, LOCATIONS) }
     | "offset" 'by' o=expression { s.OffsetBySpecifier(offset=o, LOCATIONS) }
@@ -2204,6 +2208,15 @@ invalid_kwarg[NoReturn]:
             "expression cannot contain assignment, perhaps you meant \"==\"?", a, b,
         )
      }
+
+invalid_scenic_instance_creation[NoReturn]:
+    | n=NAME s=scenic_valid_specifier {
+        self.raise_syntax_error_known_range("invalid syntax. Perhaps you forgot 'new'?", n, s)
+    }
+invalid_scenic_specifier[NoReturn]:
+    | n=NAME {
+        self.raise_syntax_error_known_location("invalid specifier.", n)
+    }
 
 expression_without_invalid[ast.AST]:
     | a=disjunction 'if' b=disjunction 'else' c=expression { ast.IfExp(body=b, test=a, orelse=c, LOCATIONS) }
