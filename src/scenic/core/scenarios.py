@@ -5,6 +5,7 @@ import io
 import random
 import time
 import sys
+import itertools
 
 import trimesh
 
@@ -17,11 +18,14 @@ from scenic.core.regions import EmptyRegion, convertToFootprint
 from scenic.core.vectors import Vector
 from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
 from scenic.core.dynamics import Behavior, Monitor
-from scenic.core.requirements import BoundRequirement
+from scenic.core.requirements import (BoundRequirement, IntersectionRequirement,
+    BlanketCollisionRequirement, ContainmentRequirement, VisibilityRequirement,
+    NonVisibilityRequirement, BasicChecker)
 from scenic.core.serialization import Serializer, dumpAsScenicCode
+from scenic.core.regions import AllRegion
 
 # Global params
-INITIAL_COLLISION_CHECK = False
+INITIAL_COLLISION_CHECK = True
 
 # Pickling support
 
@@ -211,7 +215,8 @@ class Scenario(_ScenarioPickleMixin):
                  params, externalParams,
                  requirements, requirementDeps,
                  monitors, behaviorNamespaces,
-                 dynamicScenario, astHash, compileOptions):
+                 dynamicScenario, astHash, compileOptions,
+                 checker=None):
         self.workspace = workspace
         self.simulator = simulator      # simulator for dynamic scenarios
         # make ego the first object, while otherwise preserving order
@@ -292,7 +297,7 @@ class Scenario(_ScenarioPickleMixin):
                         raise InvalidScenarioError(f'{oi} at {oi.position} intersects'
                                                    f' {oj} at {oj.position}')
 
-    def generate(self, maxIterations=2000, verbosity=0, feedback=None):
+    def generate(self, maxIterations=2000, verbosity=0, feedback=None, checker=None):
         """Sample a `Scene` from this scenario.
 
         For a description of how scene generation is done, see `scene generation`.
@@ -310,7 +315,14 @@ class Scenario(_ScenarioPickleMixin):
             `RejectionException`: if no valid sample is found in **maxIterations** iterations.
         """
         # choose which custom requirements will be enforced for this sample
+        builtinReqs = self.generateDefaultRequirements()
         activeReqs = [req for req in self.initialRequirements if random.random() <= req.prob]
+
+        requirements = builtinReqs + activeReqs
+
+        if checker is None:
+            checker = BasicChecker(requirements=requirements,
+                initialCollisionCheck=((not self.compileOptions.mode2D) and INITIAL_COLLISION_CHECK))
 
         # do rejection sampling until requirements are satisfied
         rejection = True
@@ -331,7 +343,7 @@ class Scenario(_ScenarioPickleMixin):
                 sample = Samplable.sampleAll(self.dependencies)
             except RejectionException as e:
                 optionallyDebugRejection(e)
-                rejection = e
+                rejection = f"Rejection exception: {e}"
                 continue
             rejection = None
 
@@ -341,7 +353,7 @@ class Scenario(_ScenarioPickleMixin):
                 assert not needsSampling(sampledObj)
 
             # Check validity of sample
-            rejection = self.checkSample(sample, activeReqs)
+            rejection = checker.checkRequirements(sample)
 
             if rejection is not None:
                 optionallyDebugRejection()
@@ -350,77 +362,45 @@ class Scenario(_ScenarioPickleMixin):
         scene = self._makeSceneFromSample(sample)
         return scene, iterations
 
-    def checkSample(self, sample, activeReqs):
-        """ Check a sample for validity.
+    def generateDefaultRequirements(self):
+        requirements = []
 
-        Returns a string describing the reason for rejection, if one
-        exists, or None if the sample is valid.
-        """
-        ego = sample[self.egoObject]
-        sampledObjects = [sample[obj] for obj in self.objects]
+        ## Optional Requirements ##
+        # Any collision indicates an intersection
+        requirements.append(BlanketCollisionRequirement(self.objects))
 
-        ## Check built-in requirements for instances ##
-        # Possibly an early collision check to reject clearly infeasible scenes.
-        if (not self.compileOptions.mode2D and 
-           sum(obj.allowCollisions for obj in sampledObjects) >= 3 and
-           INITIAL_COLLISION_CHECK):
-            cm = trimesh.collision.CollisionManager()
+        ## Mandatory Requirements ##
+        # Pairwise object intersection
+        colliding_objects = (obj for obj in self.objects if 
+            needsSampling(obj.allowCollisions) or not obj.allowCollisions)
+        for objA, objB in itertools.combinations(colliding_objects, 2):
+            enforced = (not objA.allowCollisions) and (not objB.allowCollisions)
+            requirements.append(IntersectionRequirement(objA, objB, enforced))
 
-            for obj in sampledObjects:
-                if not obj.allowCollisions:
-                    cm.add_object(str(obj), obj.occupiedSpace.mesh)
+        # Object containment
+        for obj in self.objects:
+            container = self.containerOfObject(obj)
+            if not isinstance(container, AllRegion):
+                requirements.append(ContainmentRequirement(obj, container))
 
-            if cm.in_collision_internal():
-                return 'object intersection (from early check)'
+        # Observing entity visibility
+        for obj in filter(lambda x: x._observingEntity is not None, self._instances):
+            requirements.append(VisibilityRequirement(obj._observingEntity,
+                obj, self.objects))
 
-        def occluders(source, target):
-            return tuple(obj for obj in sampledObjects
-                         if obj is not source
-                         and obj is not target
-                         and obj.occluding)
+        # Observing entity non visibility
+        for obj in filter(lambda x: x._nonObservingEntity is not None, self._instances):
+            requirements.append(NonVisibilityRequirement(obj._nonObservingEntity,
+                obj, self.objects))
 
-        for instance in self._instances:
-            vi = sample[instance]
+        # Visibility from the ego
+        for obj in filter(
+          lambda x: x.requireVisible and x is not self.egoObject,
+          self.objects):
+            requirements.append(VisibilityRequirement(self.egoObject,
+                obj, self.objects))
 
-            # Require that the observing entity, if one has been specified,
-            # can see the instance.
-            if vi._observingEntity is not None:
-                observing_entity = sample[vi._observingEntity]
-                if not observing_entity.canSee(vi, occludingObjects=occluders(observing_entity, vi)):
-                    return 'instance visibility (from observing entity)'
-
-            # Require that the non-observing entity, if one has been specified,
-            # can see the instance.
-            if vi._nonObservingEntity is not None:
-                non_observing_entity = sample[vi._nonObservingEntity]
-                if non_observing_entity.canSee(vi, occludingObjects=occluders(non_observing_entity, vi)):
-                    return 'instance visibility (from non-observing entity)'
-
-        # Check built-in requirements for objects
-        for i, vi in enumerate(sampledObjects):
-            # Require object to be contained in the workspace/valid region
-            container = self.containerOfObject(vi)
-            if not container.containsObject(vi):
-                return 'object containment'
-
-            # Require object to be visible from the ego object
-            if vi.requireVisible and vi is not ego:
-                if not ego.canSee(vi, occludingObjects=occluders(ego, vi)):
-                    return 'object visibility (from ego)'
-
-            # Require object to not intersect another object
-            if not vi.allowCollisions:
-                for vj in sampledObjects[(i+1):]:
-                    if not vj.allowCollisions and vi.intersects(vj):
-                        return 'object intersection'
-
-        # Check user-specified requirements
-        for req in activeReqs:
-            if req.falsifiedBy(sample):
-                return str(req)
-
-        # No rejection, return None
-        return None
+        return requirements
 
     def _makeSceneFromSample(self, sample):
         sampledObjects = tuple(sample[obj] for obj in self.objects)

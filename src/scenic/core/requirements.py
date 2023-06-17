@@ -2,9 +2,12 @@
 
 import enum
 import inspect
+import itertools
 from functools import reduce
+from abc import ABC, abstractmethod
 
 import rv_ltl
+import trimesh
 
 from scenic.core.distributions import Samplable, needsSampling
 from scenic.core.errors import InvalidScenarioError
@@ -137,30 +140,6 @@ def getAllGlobals(req, restrictTo=None):
                     globs[name] = value
     return globs
 
-class CompiledRequirement:
-    def __init__(self, pendingReq, closure, dependencies, proposition):
-        self.ty = pendingReq.ty
-        self.closure = closure
-        self.line = pendingReq.line
-        self.name = pendingReq.name
-        self.prob = pendingReq.prob
-        self.dependencies = dependencies
-        self.proposition = proposition
-
-    @property
-    def constrainsSampling(self):
-        return self.ty.constrainsSampling
-
-    def falsifiedBy(self, sample):
-        one_time_monitor = self.proposition.create_monitor()
-        return self.closure(sample, one_time_monitor)  == rv_ltl.B4.FALSE
-
-    def __str__(self):
-        if self.name:
-            return self.name
-        else:
-            return f'"{self.ty.value}" on line {self.line}'
-
 class BoundRequirement:
     def __init__(self, compiledReq, sample, proposition):
         self.ty = compiledReq.ty
@@ -259,3 +238,173 @@ class DynamicMonitorRequirement:
             return self.name
         else:
             return f'"{self.ty.value}" on line {self.line}'
+
+## Builtin Requirements
+class SamplingRequirement(ABC):
+    """ A requirement to be checked to validate a sample.
+
+    params:
+        optional: Whether or not this requirement must be
+            checked to validate the sample. Optional samples
+            can be checked, and if ``False`` imply that the
+            sample is invalid, but do not need to be checked
+            if all non-optional requirements are satisfied.
+    """
+    def __init__(self, optional):
+        self.optional=optional
+
+    @abstractmethod
+    def falsifiedBy(self, sample):
+        """Returns False if the requirement is falsifed, True otherwise"""
+        pass
+
+    @property
+    @abstractmethod
+    def violationMsg(self):
+        """Message to be printed if the requirement is violated"""
+        pass
+
+class IntersectionRequirement(SamplingRequirement):
+    def __init__(self, objA, objB, enforced, optional=False):
+        super().__init__(optional=optional)
+        self.objA = objA
+        self.objB = objB
+        self.enforced = enforced
+
+    def falsifiedBy(self, sample):
+        enforced = sample[self.enforced]
+        if not enforced:
+            return False
+
+        objA = sample[self.objA]
+        objB = sample[self.objB]
+        return objA.intersects(objB)
+
+    @property
+    def violationMsg(self):
+        return f"Intersection violation: {self.objA} intersects {self.objB}"
+
+class BlanketCollisionRequirement(SamplingRequirement):
+    def __init__(self, objects, optional=True):
+        super().__init__(optional=optional)
+        self.objects = objects
+
+    def falsifiedBy(self, sample):
+        objects = tuple(sample[obj] for obj in self.objects)
+        cm = trimesh.collision.CollisionManager()
+        for obj in objects:
+            if not obj.allowCollisions:
+                cm.add_object(str(obj), obj.occupiedSpace.mesh)
+        return cm.in_collision_internal()
+
+    @property
+    def violationMsg(self):
+        return f"Blanket collision violation: One or more objects have colliding surfaces."
+
+class ContainmentRequirement(SamplingRequirement):
+    def __init__(self, obj, container, optional=False):
+        super().__init__(optional=optional)
+        self.obj = obj
+        self.container = container
+
+    def falsifiedBy(self, sample):
+        obj = sample[self.obj]
+        container = sample[self.container]
+        return not container.containsObject(obj)
+
+    @property
+    def violationMsg(self):
+        return f"Containment violation: {self.obj} is not contained in its container"
+
+class VisibilityRequirement(SamplingRequirement):
+    def __init__(self, source, target, objects, optional=False):
+        super().__init__(optional=optional)
+        self.source = source
+        self.target = target
+        self.potential_occluders = tuple(
+            obj for obj in objects
+            if obj is not self.source
+            and obj is not self.target
+        )
+
+    def falsifiedBy(self, sample):
+        source = sample[self.source]
+        target = sample[self.target]
+        potential_occluders = tuple(sample[obj] for obj in self.potential_occluders)
+        occluders = tuple(obj for obj in potential_occluders if obj.occluding)
+        return not source.canSee(target, occludingObjects=occluders)
+
+    @property
+    def violationMsg(self):
+        return f"Visibility violation: {self.target} is not visible from {self.source}"
+
+class NonVisibilityRequirement(VisibilityRequirement):
+    def falsifiedBy(self, sample):
+        return not super().falsifiedBy(sample)
+
+    @property
+    def violationMsg(self):
+        return f"Non-visibility violation: {self.target} is visible from {self.source}"
+
+class CompiledRequirement(SamplingRequirement):
+    def __init__(self, pendingReq, closure, dependencies, proposition):
+        super().__init__(optional=False)
+        self.ty = pendingReq.ty
+        self.closure = closure
+        self.line = pendingReq.line
+        self.name = pendingReq.name
+        self.prob = pendingReq.prob
+        self.dependencies = dependencies
+        self.proposition = proposition
+
+    @property
+    def constrainsSampling(self):
+        return self.ty.constrainsSampling
+
+    def falsifiedBy(self, sample):
+        one_time_monitor = self.proposition.create_monitor()
+        return self.closure(sample, one_time_monitor)  == rv_ltl.B4.FALSE
+
+    def __str__(self):
+        if self.name:
+            return self.name
+        else:
+            return f'"{self.ty.value}" on line {self.line}'
+
+    @property
+    def violationMsg(self):
+        return f"User requirement violation: {self}"
+
+## Sample Checkers
+class SampleChecker(ABC):
+    def __init__(self, requirements):
+        self.requirements = requirements
+
+    @abstractmethod
+    def checkRequirements(self, sample):
+        pass
+
+class BasicChecker(SampleChecker):
+    """ Most basic requirement checker.
+    
+    Essentially evaluates reequirements in order, with a tiny bit of tuning.
+    """
+    def __init__(self, requirements, initialCollisionCheck):
+        target_reqs = []
+        for req in requirements:
+            if req.optional:
+                # Basic checker ignores optional requirements unless otherwise noted.
+                if (initialCollisionCheck and
+                    sum(isinstance(r, IntersectionRequirement) for r in requirements) >= 3):
+                    target_reqs.append(req)
+            else:
+                target_reqs.append(req)
+
+        super().__init__(target_reqs)
+
+    def checkRequirements(self, sample):
+        for req in self.requirements:
+            if req.falsifiedBy(sample):
+                return req.violationMsg
+
+        return None
