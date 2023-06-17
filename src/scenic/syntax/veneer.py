@@ -113,7 +113,7 @@ from scenic.core.specifiers import Specifier, ModifyingSpecifier
 from scenic.core.lazy_eval import (DelayedArgument, needsLazyEvaluation, requiredProperties,
                                    valueInContext, isLazy)
 import scenic.core.errors as errors
-from scenic.core.errors import InvalidScenarioError
+from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError
 from scenic.core.vectors import Orientation, alwaysGlobalOrientation
 from scenic.core.external_params import ExternalParameter
 import scenic.core.requirements as requirements
@@ -761,6 +761,9 @@ for op in ops:
 
 def FieldAt(X, Y):
     """The :grammar:`<vector field> at <vector>` operator."""
+    if isinstance(X, type) and issubclass(X, Constructible):
+        raise TypeError('"X at Y" with X not a vector field. (Perhaps you forgot "new"?)')
+
     if not isA(X, VectorField):
         raise TypeError('"X at Y" with X not a vector field')
     Y = toVector(Y, '"X at Y" with Y not a vector')

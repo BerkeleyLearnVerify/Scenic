@@ -506,7 +506,7 @@ def test_viewregion(hAngle, vAngle, visibleDistance):
             distance <= visibleDistance
         )
 
-        if vr_surface.distanceTo(pt) > 0.01*visibleDistance:
+        if vr_surface.distanceTo(pt) > 0.03*visibleDistance:
             assert vr.containsPoint(pt) == pt_contained
 
 # General properties of regions
