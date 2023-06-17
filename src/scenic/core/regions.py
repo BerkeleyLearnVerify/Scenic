@@ -876,8 +876,9 @@ class MeshRegion(Region):
 class MeshVolumeRegion(MeshRegion):
     """ A region representing the volume of a mesh.
 
-    The mesh must represent a volume, meaning the mesh must be watertight, have consistent
-    winding and have outward facing normals.
+    The mesh passed must be a `trimesh.base.Trimesh` object that represents a well defined 
+    volume (i.e. the ``is_volume`` property must be true), meaning the mesh must be watertight, 
+    have consistent winding and have outward facing normals.
 
     The mesh is first placed so the origin is at the center of the bounding box (unless ``centerMesh`` is ``False``).
     The mesh is scaled to ``dimensions``, translated so the center of the bounding box of the mesh is at ``positon``,

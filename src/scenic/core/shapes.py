@@ -60,7 +60,11 @@ class Shape(ABC):
 ###################################################################################################
 
 class MeshShape(Shape):
-    """ A Shape subclass defined by a Trimesh object.
+    """ A Shape subclass defined by a `Trimesh` object.
+
+    The mesh passed must be a `trimesh.base.Trimesh` object that represents a well defined 
+    volume (i.e. the ``is_volume`` property must be true), meaning the mesh must be watertight, 
+    have consistent winding and have outward facing normals.
 
     Args:
         mesh: A trimesh.Trimesh mesh object.
