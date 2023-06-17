@@ -762,7 +762,7 @@ for op in ops:
 def FieldAt(X, Y):
     """The :grammar:`<vector field> at <vector>` operator."""
     if isinstance(X, type) and issubclass(X, Constructible):
-        raise TypeError("invalid syntax. Perhaps you forgot 'new'?")
+        raise TypeError('"X at Y" with X not a vector field. (Perhaps you forgot "new"?)')
 
     if not isA(X, VectorField):
         raise TypeError('"X at Y" with X not a vector field')
