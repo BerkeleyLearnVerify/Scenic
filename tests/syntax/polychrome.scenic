@@ -27,10 +27,12 @@ lambda x, *args, \
 lots   ( of_  ,  whitespace    =  12 )
 next (it)           # not a temporal operator
 thing = newObject   # not an object definition
+visible = True  # ill-advised but legal variable name
 
 print(f"this \n is a test from {localPath(__file__)}")
 verbosePrint("zounds!", level=1)
-re.match(r'(?x) (a|b)* [^abc#\n]+')
+match = re.match(r'(?x) (a|b)* [^abc#\n]+')
+re.search(rf'(.*)\1 {foo} {{')
 
 Uniform
 new Object
@@ -56,7 +58,10 @@ new Object beyond ego by (0, 5) from spot,  # comment
                'continuation'
 new Object at spot, \
     facing 30 deg   # specifier on same logical line as previous
-new Point visible from ego
+new Point visible from ego,
+    with children [new Other for _ in range(60)],
+    with friends (new Other at 1@2 for _ in range(60)),
+    with cousins (new Thing1, new Thing2)
 pt = new Point not visible
 new Object on visible workspace
 new Object in not visible region
@@ -134,6 +139,15 @@ class OtherClass(MyClass):
         finally: yield from x
 
         raise Exception(cls.class_attr)
+
+        case = match
+        match thingy:
+            case 42 | 149:
+                return thingy
+            case Point(x=0, y=y) if y < 5:
+                return 0
+            case _:
+                return 'default'
     def __str__(self):
         return super().__str__()
     __hash__ = None

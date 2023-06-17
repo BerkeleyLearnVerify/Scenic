@@ -23,7 +23,8 @@ lambda x, *args, \
 
 print(f"this \n is a test from {localPath(__file__)}")
 verbosePrint("zounds!", level=1)
-re.match(r'(?x) (a|b)* [^abc#\n]+')
+match = re.match(r'(?x) (a|b)* [^abc#\n]+')
+case = re.search(rf'(.*)\1 {foo} {{')
 
 thing("""multiline
       string""",
@@ -82,6 +83,15 @@ class OtherClass(MyClass):
         finally: yield from x
 
         raise Exception(cls.class_attr)
+
+        case = match
+        match thingy:
+            case 42 | 149:
+                return thingy
+            case Point(x=0, y=y) if y < 5:
+                return 0
+            case _:
+                return 'default'
     def __str__(self):
         return super().__str__()
     __hash__ = None
