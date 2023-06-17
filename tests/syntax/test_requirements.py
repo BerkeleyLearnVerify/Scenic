@@ -315,3 +315,42 @@ def test_static_intersection_violation_disabled():
         ego = new Object at 0@0
         new Object at 1@0, with allowCollisions True
     """)
+
+## Tests for random properties that have special effects on constructing requirements
+def test_random_allowCollisions():
+    for _ in range(5):
+        sampleSceneFrom("""
+            new Object with allowCollisions Uniform(True, False)
+            new Object with allowCollisions Uniform(True, False)
+        """, maxIterations=10)
+
+@pytest.mark.slow
+def test_random_occlusion():
+    for _ in range(5):
+        sampleSceneFrom("""
+            workspace_region = RectangularRegion(0 @ 0, 0, 40, 40)
+            workspace = Workspace(workspace_region)
+
+            ego = new Object with visibleDistance 30,
+                at (0,0,1),
+                with width 5,
+                with length 5,
+                with height 5,
+                with pitch 45 deg,
+                with viewAngles (340 deg, 60 deg),
+                with rayDensity 5
+
+            seeing_obj = new Object at (0,10,5),
+                with width 20,
+                with height 20,
+                with length 2,
+                with name "seeingObject",
+                with requireVisible True
+
+            new Object at (0,5,4),
+                with width 10,
+                with length 0.5,
+                with height 6,
+                with name "wall",
+                with occluding Uniform(True, False)
+        """, maxIterations=20)

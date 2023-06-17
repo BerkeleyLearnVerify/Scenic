@@ -11,7 +11,7 @@ import trimesh
 
 import scenic
 from scenic.core.distributions import (Samplable, ConstantSamplable, RejectionException,
-                                       needsSampling)
+                                       needsSampling, distributionFunction)
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.external_params import ExternalSampler
 from scenic.core.regions import EmptyRegion, convertToFootprint
@@ -20,7 +20,8 @@ from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
 from scenic.core.dynamics import Behavior, Monitor
 from scenic.core.requirements import (BoundRequirement, IntersectionRequirement,
     BlanketCollisionRequirement, ContainmentRequirement, VisibilityRequirement,
-    NonVisibilityRequirement, BasicChecker)
+    NonVisibilityRequirement)
+from scenic.core.sample_checkers import (BasicChecker, WeightedAcceptanceChecker)
 from scenic.core.serialization import Serializer, dumpAsScenicCode
 from scenic.core.regions import AllRegion
 
@@ -241,8 +242,8 @@ class Scenario(_ScenarioPickleMixin):
         self.requirements = tuple(dynamicScenario._requirements)    # TODO clean up
         self.terminationConditions = tuple(dynamicScenario._terminationConditions)
         self.terminateSimulationConditions = tuple(dynamicScenario._terminateSimulationConditions)
-        self.initialRequirements = self.requirements
-        assert all(req.constrainsSampling for req in self.initialRequirements)
+        self.userRequirements = self.requirements
+        assert all(req.constrainsSampling for req in self.userRequirements)
         self.recordedExprs = tuple(dynamicScenario._recordedExprs)
         self.recordedInitialExprs = tuple(dynamicScenario._recordedInitialExprs)
         self.recordedFinalExprs = tuple(dynamicScenario._recordedFinalExprs)
@@ -256,6 +257,14 @@ class Scenario(_ScenarioPickleMixin):
         self.dependencies = self._instances + paramDeps + tuple(requirementDeps) + tuple(behaviorDeps)
 
         self.validate()
+
+        # Setup checker
+        if checker is None:
+            checker = BasicChecker(initialCollisionCheck=
+                ((not self.compileOptions.mode2D) and INITIAL_COLLISION_CHECK))
+
+        self.checker = checker
+        self.checker.addRequirements(self.generateDefaultRequirements()+self.userRequirements)
 
     def containerOfObject(self, obj):
         if hasattr(obj, 'regionContainedIn') and obj.regionContainedIn is not None:
@@ -287,7 +296,7 @@ class Scenario(_ScenarioPickleMixin):
             if staticVisibility and oi.requireVisible is True and oi is not self.egoObject:
                 if not self.egoObject.canSee(oi):
                     raise InvalidScenarioError(f'Object at {oi.position} is not visible from ego')
-            if not oi.allowCollisions:
+            if not needsSampling(oi.allowCollisions) and not oi.allowCollisions:
                 # Require object to not intersect another object
                 for j in range(i):
                     oj = objects[j]
@@ -315,14 +324,11 @@ class Scenario(_ScenarioPickleMixin):
             `RejectionException`: if no valid sample is found in **maxIterations** iterations.
         """
         # choose which custom requirements will be enforced for this sample
-        builtinReqs = self.generateDefaultRequirements()
-        activeReqs = [req for req in self.initialRequirements if random.random() <= req.prob]
-
-        requirements = builtinReqs + activeReqs
-
-        if checker is None:
-            checker = BasicChecker(requirements=requirements,
-                initialCollisionCheck=((not self.compileOptions.mode2D) and INITIAL_COLLISION_CHECK))
+        for req in self.userRequirements:
+            if random.random() <= req.prob:
+                req.active = True
+            else:
+                req.active = False
 
         # do rejection sampling until requirements are satisfied
         rejection = True
@@ -353,7 +359,7 @@ class Scenario(_ScenarioPickleMixin):
                 assert not needsSampling(sampledObj)
 
             # Check validity of sample
-            rejection = checker.checkRequirements(sample)
+            rejection = self.checker.checkRequirements(sample)
 
             if rejection is not None:
                 optionallyDebugRejection()
@@ -374,8 +380,7 @@ class Scenario(_ScenarioPickleMixin):
         colliding_objects = (obj for obj in self.objects if 
             needsSampling(obj.allowCollisions) or not obj.allowCollisions)
         for objA, objB in itertools.combinations(colliding_objects, 2):
-            enforced = (not objA.allowCollisions) and (not objB.allowCollisions)
-            requirements.append(IntersectionRequirement(objA, objB, enforced))
+            requirements.append(IntersectionRequirement(objA, objB))
 
         # Object containment
         for obj in self.objects:
@@ -400,7 +405,7 @@ class Scenario(_ScenarioPickleMixin):
             requirements.append(VisibilityRequirement(self.egoObject,
                 obj, self.objects))
 
-        return requirements
+        return tuple(requirements)
 
     def _makeSceneFromSample(self, sample):
         sampledObjects = tuple(sample[obj] for obj in self.objects)

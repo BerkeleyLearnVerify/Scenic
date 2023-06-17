@@ -243,7 +243,7 @@ class DynamicMonitorRequirement:
 class SamplingRequirement(ABC):
     """ A requirement to be checked to validate a sample.
 
-    params:
+    Args:
         optional: Whether or not this requirement must be
             checked to validate the sample. Optional samples
             can be checked, and if ``False`` imply that the
@@ -252,11 +252,15 @@ class SamplingRequirement(ABC):
     """
     def __init__(self, optional):
         self.optional=optional
+        self.active = True
 
     @abstractmethod
-    def falsifiedBy(self, sample):
+    def falsifiedByInner(self, sample):
         """Returns False if the requirement is falsifed, True otherwise"""
-        pass
+
+    def falsifiedBy(self, sample):
+        assert not self.active
+        return self.falsifiedByInner(sample)
 
     @property
     @abstractmethod
@@ -265,19 +269,16 @@ class SamplingRequirement(ABC):
         pass
 
 class IntersectionRequirement(SamplingRequirement):
-    def __init__(self, objA, objB, enforced, optional=False):
+    def __init__(self, objA, objB, optional=False):
         super().__init__(optional=optional)
         self.objA = objA
         self.objB = objB
-        self.enforced = enforced
 
-    def falsifiedBy(self, sample):
-        enforced = sample[self.enforced]
-        if not enforced:
-            return False
-
+    def falsifiedByInner(self, sample):
         objA = sample[self.objA]
         objB = sample[self.objB]
+        if objA.allowCollisions or objB.allowCollisions:
+            return False
         return objA.intersects(objB)
 
     @property
@@ -289,7 +290,7 @@ class BlanketCollisionRequirement(SamplingRequirement):
         super().__init__(optional=optional)
         self.objects = objects
 
-    def falsifiedBy(self, sample):
+    def falsifiedByInner(self, sample):
         objects = tuple(sample[obj] for obj in self.objects)
         cm = trimesh.collision.CollisionManager()
         for obj in objects:
@@ -307,7 +308,7 @@ class ContainmentRequirement(SamplingRequirement):
         self.obj = obj
         self.container = container
 
-    def falsifiedBy(self, sample):
+    def falsifiedByInner(self, sample):
         obj = sample[self.obj]
         container = sample[self.container]
         return not container.containsObject(obj)
@@ -327,7 +328,7 @@ class VisibilityRequirement(SamplingRequirement):
             and obj is not self.target
         )
 
-    def falsifiedBy(self, sample):
+    def falsifiedByInner(self, sample):
         source = sample[self.source]
         target = sample[self.target]
         potential_occluders = tuple(sample[obj] for obj in self.potential_occluders)
@@ -339,8 +340,8 @@ class VisibilityRequirement(SamplingRequirement):
         return f"Visibility violation: {self.target} is not visible from {self.source}"
 
 class NonVisibilityRequirement(VisibilityRequirement):
-    def falsifiedBy(self, sample):
-        return not super().falsifiedBy(sample)
+    def falsifiedByInner(self, sample):
+        return not super().falsifiedByInner(sample)
 
     @property
     def violationMsg(self):
@@ -361,7 +362,7 @@ class CompiledRequirement(SamplingRequirement):
     def constrainsSampling(self):
         return self.ty.constrainsSampling
 
-    def falsifiedBy(self, sample):
+    def falsifiedByInner(self, sample):
         one_time_monitor = self.proposition.create_monitor()
         return self.closure(sample, one_time_monitor)  == rv_ltl.B4.FALSE
 
@@ -374,37 +375,3 @@ class CompiledRequirement(SamplingRequirement):
     @property
     def violationMsg(self):
         return f"User requirement violation: {self}"
-
-## Sample Checkers
-class SampleChecker(ABC):
-    def __init__(self, requirements):
-        self.requirements = requirements
-
-    @abstractmethod
-    def checkRequirements(self, sample):
-        pass
-
-class BasicChecker(SampleChecker):
-    """ Most basic requirement checker.
-    
-    Essentially evaluates reequirements in order, with a tiny bit of tuning.
-    """
-    def __init__(self, requirements, initialCollisionCheck):
-        target_reqs = []
-        for req in requirements:
-            if req.optional:
-                # Basic checker ignores optional requirements unless otherwise noted.
-                if (initialCollisionCheck and
-                    sum(isinstance(r, IntersectionRequirement) for r in requirements) >= 3):
-                    target_reqs.append(req)
-            else:
-                target_reqs.append(req)
-
-        super().__init__(target_reqs)
-
-    def checkRequirements(self, sample):
-        for req in self.requirements:
-            if req.falsifiedBy(sample):
-                return req.violationMsg
-
-        return None
