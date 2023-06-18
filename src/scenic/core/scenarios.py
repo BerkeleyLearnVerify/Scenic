@@ -21,7 +21,7 @@ from scenic.core.dynamics import Behavior, Monitor
 from scenic.core.requirements import (BoundRequirement, IntersectionRequirement,
     BlanketCollisionRequirement, ContainmentRequirement, VisibilityRequirement,
     NonVisibilityRequirement)
-from scenic.core.sample_checkers import (BasicChecker, WeightedAcceptanceChecker)
+from scenic.core.sample_checking import BasicChecker
 from scenic.core.serialization import Serializer, dumpAsScenicCode
 from scenic.core.regions import AllRegion
 
@@ -216,8 +216,7 @@ class Scenario(_ScenarioPickleMixin):
                  params, externalParams,
                  requirements, requirementDeps,
                  monitors, behaviorNamespaces,
-                 dynamicScenario, astHash, compileOptions,
-                 checker=None):
+                 dynamicScenario, astHash, compileOptions):
         self.workspace = workspace
         self.simulator = simulator      # simulator for dynamic scenarios
         # make ego the first object, while otherwise preserving order
@@ -258,13 +257,14 @@ class Scenario(_ScenarioPickleMixin):
 
         self.validate()
 
-        # Setup checker
-        if checker is None:
-            checker = BasicChecker(initialCollisionCheck=
-                ((not self.compileOptions.mode2D) and INITIAL_COLLISION_CHECK))
+        # Setup the default checker
+        self.defaultRequirements = self.generateDefaultRequirements()
+        self.setSampleChecker(BasicChecker(initialCollisionCheck=
+                (not self.compileOptions.mode2D) and INITIAL_COLLISION_CHECK))
 
+    def setSampleChecker(self, checker):
         self.checker = checker
-        self.checker.addRequirements(self.generateDefaultRequirements()+self.userRequirements)
+        self.checker.addRequirements(self.defaultRequirements+self.userRequirements)
 
     def containerOfObject(self, obj):
         if hasattr(obj, 'regionContainedIn') and obj.regionContainedIn is not None:
@@ -367,6 +367,20 @@ class Scenario(_ScenarioPickleMixin):
         # obtained a valid sample; assemble a scene from it
         scene = self._makeSceneFromSample(sample)
         return scene, iterations
+
+    def generateBatch(self, numScenes, maxIterations=float('inf'), **kwargs):
+        total_iterations = 0
+        scenes = []
+
+        for _ in range(numScenes):
+            try:
+                scene, iterations = self.generate(maxIterations=maxIterations-total_iterations, **kwargs)
+                scenes.append(scene)
+                total_iterations += iterations
+            except RejectionException:
+                raise RejectionException(f'failed to generate scenario in {maxIterations} iterations')
+
+        return scene, total_iterations
 
     def generateDefaultRequirements(self):
         requirements = []
