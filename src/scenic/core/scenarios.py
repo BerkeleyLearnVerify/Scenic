@@ -306,7 +306,7 @@ class Scenario(_ScenarioPickleMixin):
                         raise InvalidScenarioError(f'{oi} at {oi.position} intersects'
                                                    f' {oj} at {oj.position}')
 
-    def generate(self, maxIterations=2000, verbosity=0, feedback=None, checker=None):
+    def generate(self, maxIterations=2000, **kwargs):
         """Sample a `Scene` from this scenario.
 
         For a description of how scene generation is done, see `scene generation`.
@@ -323,6 +323,42 @@ class Scenario(_ScenarioPickleMixin):
         Raises:
             `RejectionException`: if no valid sample is found in **maxIterations** iterations.
         """
+        scenes, iterations = self.generateBatch(numScenes=1, maxIterations=maxIterations)
+        return scenes[0], iterations
+
+    def generateBatch(self, numScenes, maxIterations=float('inf'), **kwargs):
+        """Sample several `Scene` objects from this scenario.
+
+        For a description of how scene generation is done, see `scene generation`.
+
+        Args:
+            numScenes (int): Number of scenes to generate.
+            maxIterations (int): Maximum number of rejection sampling iterations (over all scenes).
+            verbosity (int): Verbosity level.
+            feedback (float): Feedback to pass to external samplers doing active sampling.
+                See :mod:`scenic.core.external_params`.
+
+        Returns:
+            A pair with a list of the sampled `Scene` objects and the total number
+            of iterations used.
+
+        Raises:
+            `RejectionException`: if not enough valid samples are found in **maxIterations** iterations.
+        """
+        total_iterations = 0
+        scenes = []
+
+        for _ in range(numScenes):
+            try:
+                scene, iterations = self._generateInner(maxIterations=maxIterations-total_iterations, **kwargs)
+                scenes.append(scene)
+                total_iterations += iterations
+            except RejectionException:
+                raise RejectionException(f'failed to generate scenario in {maxIterations} iterations')
+
+        return scenes, total_iterations
+
+    def _generateInner(self, maxIterations, verbosity=0, feedback=None, checker=None):
         # choose which custom requirements will be enforced for this sample
         for req in self.userRequirements:
             if random.random() <= req.prob:
@@ -367,20 +403,6 @@ class Scenario(_ScenarioPickleMixin):
         # obtained a valid sample; assemble a scene from it
         scene = self._makeSceneFromSample(sample)
         return scene, iterations
-
-    def generateBatch(self, numScenes, maxIterations=float('inf'), **kwargs):
-        total_iterations = 0
-        scenes = []
-
-        for _ in range(numScenes):
-            try:
-                scene, iterations = self.generate(maxIterations=maxIterations-total_iterations, **kwargs)
-                scenes.append(scene)
-                total_iterations += iterations
-            except RejectionException:
-                raise RejectionException(f'failed to generate scenario in {maxIterations} iterations')
-
-        return scene, total_iterations
 
     def generateDefaultRequirements(self):
         requirements = []
