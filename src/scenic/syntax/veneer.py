@@ -1385,14 +1385,14 @@ def directionalSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
         prop['parentOrientation'] = 3
         obj_dims = (pos.width, pos.length, pos.height)
         val = lambda self: {
-            'position': pos.relativize(makeOffset(self, obj_dims, makeContactOffset(dist, self.contactTolerance), dx, dy, dz)),
+            'position': pos.relativePosition(makeOffset(self, obj_dims, makeContactOffset(dist, self.contactTolerance), dx, dy, dz)),
             'parentOrientation': pos.orientation
         }
         new = DelayedArgument({axis, "contactTolerance"}, val)
     elif isA(pos, OrientedPoint):
         prop['parentOrientation'] = 3
         val = lambda self: {
-            'position': pos.relativize(makeOffset(self, (0,0,0), 0, dx, dy, dz)),
+            'position': pos.relativePosition(makeOffset(self, (0,0,0), 0, dx, dy, dz)),
             'parentOrientation': pos.orientation
         }
         new = DelayedArgument({axis}, val)
