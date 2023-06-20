@@ -259,7 +259,7 @@ class SamplingRequirement(ABC):
         """Returns False if the requirement is falsifed, True otherwise"""
 
     def falsifiedBy(self, sample):
-        assert not self.active
+        assert self.active
         return self.falsifiedByInner(sample)
 
     @property

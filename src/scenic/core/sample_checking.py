@@ -45,7 +45,7 @@ class BasicChecker(SampleChecker):
 
     def checkRequirementsInner(self, sample):
         for req in self.requirements:
-            if req.active and req.falsifiedByInner(sample):
+            if req.active and req.falsifiedBy(sample):
                 return req.violationMsg
 
         return None
@@ -72,13 +72,13 @@ class WeightedAcceptanceChecker(SampleChecker):
         for req in self.sortRequirements():
             # Evaluate the requirement with timing info.
             start = time.time()
-            result = req.falsifiedByInner(sample)
+            result = req.falsifiedBy(sample)
             # Create metrics (Accepted, Time Taken)
             metrics = (result is None, time.time()-start)
 
             self.updateMetrics(req, metrics)
 
-            if req.falsifiedByInner(sample):
+            if req.falsifiedBy(sample):
                 return req.violationMsg
 
         return None
