@@ -80,6 +80,10 @@ roadDirection : VectorField = network.roadDirection
 
 ## Standard object types
 
+def is2DMode():
+    from scenic.syntax.veneer import mode2D
+    return mode2D
+
 class DrivingObject:
     """Abstract class for objects in a road network.
 
@@ -99,7 +103,7 @@ class DrivingObject:
             from `Object`).
     """
 
-    elevation[dynamic]: None
+    elevation[dynamic]: None if is2DMode() else float(self.position.z)
 
     requireVisible: False
 

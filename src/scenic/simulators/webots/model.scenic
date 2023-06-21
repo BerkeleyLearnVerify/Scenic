@@ -96,7 +96,7 @@ class WebotsObject:
     positionOffset: (0, 0, 0)
     rotationOffset: (0, 0, 0)
 
-    density[dynamic]: None
+    density: None
 
     @classmethod
     def _prepareSpecifiers(cls, specifiers):

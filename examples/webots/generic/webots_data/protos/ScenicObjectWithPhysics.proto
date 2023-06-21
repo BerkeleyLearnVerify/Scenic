@@ -28,6 +28,7 @@ PROTO ScenicObjectWithPhysics [
     physics Physics {
       # density will be set by the simulator
       density IS density
+      mass -1
     }
   }
 }

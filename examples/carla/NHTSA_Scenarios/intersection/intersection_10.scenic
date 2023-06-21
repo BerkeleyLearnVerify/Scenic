@@ -19,7 +19,7 @@ model scenic.simulators.carla.model
 # CONSTANTS                     #
 #################################
 
-MODEL = 'vehicle.lincoln.mkz2017'
+MODEL = 'vehicle.lincoln.mkz_2017'
 
 param EGO_INIT_DIST = VerifaiRange(10, 15)
 param EGO_SPEED = VerifaiRange(7, 10)

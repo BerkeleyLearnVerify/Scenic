@@ -19,7 +19,7 @@ air_region = BoxRegion(dimensions=(30,30,30), position=(0,0,15), orientation=air
 
 # Create a webots class that automatically creates adhoc objects.
 class AdhocObject(WebotsObject):
-  webotsAdhoc: True
+  webotsAdhoc: {}
 
 # Place a large cube in the workspace, which should inherit the
 # workspace's parentOrientation. 

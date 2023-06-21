@@ -237,7 +237,7 @@ def registerObject(obj):
         assert isinstance(obj, Object)
         currentScenario._registerObject(obj)
         if currentSimulation:
-            currentSimulation.createObject(obj)
+            currentSimulation._createObject(obj)
 
 # External parameter creation
 
@@ -339,7 +339,7 @@ def executeInRequirement(scenario, boundEgo, values):
     finally:
         evaluatingRequirement = False
         currentScenario._ego = oldEgo
-        currentScenario._sampledObjects = None
+        currentScenario._sampledObjects = currentScenario._objects
         if clearScenario:
             currentScenario = None
 
@@ -1447,11 +1447,7 @@ def Facing(heading):
         orientationDeps = requiredProperties(orientation)
         def helper(context):
             target_orientation = valueInContext(orientation, context)
-            euler = context.parentOrientation.globalToLocalAngles(
-                target_orientation.yaw,
-                target_orientation.pitch,
-                target_orientation.roll
-            )
+            euler = context.parentOrientation.localAnglesFor(target_orientation)
             return {'yaw': euler[0], 'pitch': euler[1], 'roll': euler[2]}
 
         return Specifier("Facing", {'yaw': 1, 'pitch': 1, 'roll': 1}, DelayedArgument({'parentOrientation'}|orientationDeps, helper))

@@ -206,9 +206,8 @@ class Pedestrian(Pedestrian, CarlaActor, Walks):
     carlaController: None
 
     def setWalkingDirection(self, heading):
-        direction = Vector(0, 1).rotatedBy(heading)
-        zComp = self.control.direction.z
-        self.control.direction = _utils.scenicToCarlaVector3D(*direction, zComp)
+        direction = Vector(0, 1, 0).rotatedBy(heading)
+        self.control.direction = _utils.scenicToCarlaVector3D(*direction)
 
     def setWalkingSpeed(self, speed):
         self.control.speed = speed

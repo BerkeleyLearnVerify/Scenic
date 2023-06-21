@@ -40,7 +40,7 @@ for numToys in NUM_TOYS_LIST:
     }
     scenario = scenic.scenarioFromFile(path, params=params)
     for i in range(ITERATION):
-        simulator = WebotsSimulator(supervisor, timestep=0.25)
+        simulator = WebotsSimulator(supervisor)
 
         iter_seed = SEED + i
         filename = getFilename(duration=DURATION, numToys=numToys, iteration=i + 1)
@@ -55,7 +55,7 @@ for numToys in NUM_TOYS_LIST:
         numpy.random.seed(iter_seed)
 
         scene, _ = scenario.generate(maxIterations=float('inf'))
-        sim_results = simulator.simulate(scene, verbosity=2).result
+        sim_results = simulator.simulate(scene, timestep=0.25, verbosity=2).result
 
         s = json.dumps({"params": params, "results": sim_results.records}, indent=4)
         with open(output_dir / filename, "x") as f:
