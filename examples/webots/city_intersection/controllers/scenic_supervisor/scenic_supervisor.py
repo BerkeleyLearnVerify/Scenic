@@ -7,10 +7,6 @@ import scenic
 from scenic.simulators.webots import WebotsSimulator
 from scenic.core.distributions import RejectionException
 
-scenic.setDebuggingOptions(
-    fullBacktrace=True,
-)
-
 supervisor = Supervisor()
 simulator = WebotsSimulator(supervisor)
 
