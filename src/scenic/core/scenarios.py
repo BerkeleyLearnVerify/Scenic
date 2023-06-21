@@ -306,7 +306,7 @@ class Scenario(_ScenarioPickleMixin):
                         raise InvalidScenarioError(f'{oi} at {oi.position} intersects'
                                                    f' {oj} at {oj.position}')
 
-    def generate(self, maxIterations=2000, **kwargs):
+    def generate(self, maxIterations=2000, verbosity=0, feedback=None):
         """Sample a `Scene` from this scenario.
 
         For a description of how scene generation is done, see `scene generation`.
@@ -323,10 +323,10 @@ class Scenario(_ScenarioPickleMixin):
         Raises:
             `RejectionException`: if no valid sample is found in **maxIterations** iterations.
         """
-        scenes, iterations = self.generateBatch(numScenes=1, maxIterations=maxIterations)
+        scenes, iterations = self.generateBatch(1, maxIterations, verbosity, feedback)
         return scenes[0], iterations
 
-    def generateBatch(self, numScenes, maxIterations=float('inf'), **kwargs):
+    def generateBatch(self, numScenes, maxIterations=float('inf'), verbosity=0, feedback=None):
         """Sample several `Scene` objects from this scenario.
 
         For a description of how scene generation is done, see `scene generation`.
@@ -350,7 +350,7 @@ class Scenario(_ScenarioPickleMixin):
 
         for _ in range(numScenes):
             try:
-                scene, iterations = self._generateInner(maxIterations=maxIterations-total_iterations, **kwargs)
+                scene, iterations = self._generateInner(maxIterations, verbosity, feedback)
                 scenes.append(scene)
                 total_iterations += iterations
             except RejectionException:
@@ -358,7 +358,7 @@ class Scenario(_ScenarioPickleMixin):
 
         return scenes, total_iterations
 
-    def _generateInner(self, maxIterations, verbosity=0, feedback=None, checker=None):
+    def _generateInner(self, maxIterations, verbosity, feedback):
         # choose which custom requirements will be enforced for this sample
         for req in self.userRequirements:
             if random.random() <= req.prob:
