@@ -31,7 +31,7 @@ from scenic.core.distributions import (Samplable, RandomControlFlowError, Multip
                                        supportInterval, toDistribution)
 from scenic.core.specifiers import Specifier, PropertyDefault, ModifyingSpecifier
 from scenic.core.vectors import Vector, Orientation, alwaysGlobalOrientation, globalOrientation
-from scenic.core.geometry import (averageVectors, hypot, min,
+from scenic.core.geometry import (averageVectors, hypot, min, max,
                                   pointIsInCone, normalizeAngle)
 from scenic.core.regions import (Region, CircularRegion, SectorRegion, MeshVolumeRegion, MeshSurfaceRegion, 
                                   BoxRegion, SpheroidRegion, ViewRegion, EmptyRegion, PolygonalRegion,
@@ -1428,6 +1428,7 @@ class Object2D(OrientedPoint2D, Object):
         'contactTolerance': 0,
         'requireVisible': True,
         'occluding': False,
+        'height': PropertyDefault(('width', 'length'), {}, lambda self: max(self.width, self.length)),
     }
 
     @classmethod
