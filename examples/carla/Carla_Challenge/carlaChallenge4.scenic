@@ -11,7 +11,7 @@ param carla_map = 'Town01'
 model scenic.simulators.carla.model
 
 ## CONSTANTS
-EGO_MODEL = "vehicle.lincoln.mkz2017"
+EGO_MODEL = "vehicle.lincoln.mkz_2017"
 BICYCLE_MIN_SPEED = 1.5
 THRESHOLD = 18
 BRAKE_ACTION = 1.0

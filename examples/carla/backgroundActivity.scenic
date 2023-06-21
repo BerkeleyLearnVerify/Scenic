@@ -8,7 +8,7 @@ param map = localPath('../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  #
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
-EGO_MODEL = "vehicle.lincoln.mkz2017"
+EGO_MODEL = "vehicle.lincoln.mkz_2017"
 EGO_SPEED = 10
 
 # EGO BEHAVIOR: Follow lane and brake when reaches threshold distance to obstacle
