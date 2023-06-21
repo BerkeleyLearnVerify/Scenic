@@ -421,7 +421,7 @@ class ScenicLexer(BetterPythonLexer):
                     'relative to', 'offset by', 'offset along', 'visible', 'not visible',
                     'front of', 'back of', 'left of', 'right of',
                     'front left of', 'front right of', 'back left of', 'back right of'),
-                   prefix=r'(?<!\.)', suffix=r'\b(?!\s*[)}\]=:.;,])'), Operator.Word),
+                   prefix=r'(?<!\.)', suffix=r'\b(?!\s*(?:[)}\]=:.;,#]|$))'), Operator.Word),
             # Postfix operators
             (words(('deg',), prefix=r'(?<!\.)', suffix=r'\b'), Operator.Word),
             # Keywords that can occur anywhere (w.r.t. our simple analysis)
