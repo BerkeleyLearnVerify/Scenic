@@ -339,7 +339,7 @@ def executeInRequirement(scenario, boundEgo, values):
     finally:
         evaluatingRequirement = False
         currentScenario._ego = oldEgo
-        currentScenario._sampledObjects = None
+        currentScenario._sampledObjects = currentScenario._objects
         if clearScenario:
             currentScenario = None
 
