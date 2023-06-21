@@ -1409,6 +1409,16 @@ class TestNew:
             case _:
                 assert False
 
+    def test_missing_new(self):
+        with pytest.raises(ScenicSyntaxError) as e:
+            parse_string_helper("Object facing x")
+        assert "forgot 'new'" in e.value.msg
+
+    def test_invalid_specifier(self):
+        with pytest.raises(ScenicSyntaxError) as e:
+            parse_string_helper("new Object blobbing")
+        assert "invalid specifier" in e.value.msg
+
     def test_specifier_at(self):
         mod = parse_string_helper("new Object at x")
         stmt = mod.body[0]

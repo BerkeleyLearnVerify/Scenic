@@ -278,6 +278,7 @@ def getFieldSafe(webotsObject, fieldName):
 
 
 def isPhysicsEnabled(webotsObject):
+    """ Whether or not physics is enabled for this `WebotsObject`"""
     if webotsObject.webotsAdhoc is None:
         return webotsObject
     if isinstance(webotsObject.webotsAdhoc, dict):

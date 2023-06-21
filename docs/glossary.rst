@@ -70,9 +70,7 @@ Glossary
 		For example, :scenic:`require always X` requires not only that the condition ``X`` be true in any scenes sampled from the scenario, but that it remain true at every time step of simulations run from those scenes.
 
 	visible region
-		The `Region` which is "visible" from a given `Object` for the purposes of the :keyword:`can see` operator, the :keyword:`visible <visible_spec>` specifier, etc.
-		The visible region of a `Point` is a sphere, while that of an `OrientedPoint` or `Object` can be a pyramid: see `OrientedPoint.visibleRegion` for details.
-		Note that while Scenic takes occlusion by other objects into account when testing visibility, the visible region itself ignores occlusion.
+		The `Region` which is "visible" from a given `Object`. See the :ref:`Visibility System <visibility>` reference for more details.
 
 	workspace
 		The region of space in which a scenario takes place.

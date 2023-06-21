@@ -113,7 +113,7 @@ from scenic.core.specifiers import Specifier, ModifyingSpecifier
 from scenic.core.lazy_eval import (DelayedArgument, needsLazyEvaluation, requiredProperties,
                                    valueInContext, isLazy)
 import scenic.core.errors as errors
-from scenic.core.errors import InvalidScenarioError
+from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError
 from scenic.core.vectors import Orientation, alwaysGlobalOrientation
 from scenic.core.external_params import ExternalParameter
 import scenic.core.requirements as requirements
@@ -718,6 +718,9 @@ def mutate(*objects, scale = 1):
         if not isinstance(obj, Object):
             raise TypeError('"mutate X" with X not an object')
         obj.mutationScale = scale
+        # Object will now require sampling even if it has no explicit dependencies.
+        obj._needsSampling = True
+        obj._isLazy = True
 
 ### Prefix operators
 
@@ -758,6 +761,9 @@ for op in ops:
 
 def FieldAt(X, Y):
     """The :grammar:`<vector field> at <vector>` operator."""
+    if isinstance(X, type) and issubclass(X, Constructible):
+        raise TypeError('"X at Y" with X not a vector field. (Perhaps you forgot "new"?)')
+
     if not isA(X, VectorField):
         raise TypeError('"X at Y" with X not a vector field')
     Y = toVector(Y, '"X at Y" with Y not a vector')
@@ -864,7 +870,7 @@ def OffsetAlong(X, H, Y):
     if isA(H, VectorField):
         H = H[X]
     H = toOrientation(H, '"X offset along H by Y" with H not an orientation or vector field')
-    return X.offsetRotated(H, Y)
+    return X.offsetLocally(H, Y)
 
 def RelativePosition(X, Y=None):
     """The :grammar:`relative position of <vector> [from <vector>]` operator.
@@ -1379,20 +1385,20 @@ def directionalSpecHelper(syntax, pos, dist, axis, toComponents, makeOffset):
         prop['parentOrientation'] = 3
         obj_dims = (pos.width, pos.length, pos.height)
         val = lambda self: {
-            'position': pos.relativize(makeOffset(self, obj_dims, makeContactOffset(dist, self.contactTolerance), dx, dy, dz)),
+            'position': pos.relativePosition(makeOffset(self, obj_dims, makeContactOffset(dist, self.contactTolerance), dx, dy, dz)),
             'parentOrientation': pos.orientation
         }
         new = DelayedArgument({axis, "contactTolerance"}, val)
     elif isA(pos, OrientedPoint):
         prop['parentOrientation'] = 3
         val = lambda self: {
-            'position': pos.relativize(makeOffset(self, (0,0,0), 0, dx, dy, dz)),
+            'position': pos.relativePosition(makeOffset(self, (0,0,0), 0, dx, dy, dz)),
             'parentOrientation': pos.orientation
         }
         new = DelayedArgument({axis}, val)
     else:
         pos = toVector(pos, f'specifier "{syntax} X" with X not a vector')
-        val = lambda self: {'position': pos.offsetRotated(self.orientation, makeOffset(self, (0,0,0), 0, dx, dy, dz))}
+        val = lambda self: {'position': pos.offsetLocally(self.orientation, makeOffset(self, (0,0,0), 0, dx, dy, dz))}
         new = DelayedArgument({axis, 'orientation'}, val)
     return Specifier(syntax, prop, new)
 

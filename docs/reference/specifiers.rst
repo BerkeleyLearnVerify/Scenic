@@ -189,7 +189,7 @@ visible [from (*Point* | *OrientedPoint*)]
 
 **Dependencies**: None
 
-Requires that this object is visible from the :scenic:`ego` or the given `Point`/`OrientedPoint`.
+Requires that this object is visible from the :scenic:`ego` or the given `Point`/`OrientedPoint`. See the :ref:`Visibility System <visibility>` reference for a discussion of the visibility model.
 
 Also optionally specifies :prop:`position` to be a uniformly random point in the :term:`visible region` of the ego, or of the given Point/OrientedPoint if given.
 Note that the position set by this specifier is slightly stricter than simply adding a requirement that the ego :keyword:`can see` the object: the specifier makes the *center* of the object (its :prop:`position`) visible, while the :keyword:`can see` condition will be satisfied even if the center is not visible as long as some other part of the object is visible.

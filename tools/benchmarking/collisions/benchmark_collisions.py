@@ -7,7 +7,7 @@ import scenic
 
 matplotlib.rcParams.update({'font.size': 4})
 
-MAX_TIME = 60
+MAX_TIME = 120
 TRIALS_PER = 50
 COLORS = ["red","blue","green","orange","yellow"]
 
@@ -68,7 +68,7 @@ if __name__ == '__main__':
 
     # Plot times
     import matplotlib.pyplot as plt
-    figure, axis = plt.subplots(len(BENCHMARKS), len(PARAMS), figsize=(8*len(PARAMS),1.75*len(BENCHMARKS)))
+    figure, axis = plt.subplots(len(BENCHMARKS), len(PARAMS), figsize=(6*len(PARAMS),1.75*len(BENCHMARKS)))
     for b_iter, benchmark in enumerate(BENCHMARKS):
         for p_iter, param in enumerate(PARAMS):
             if len(PARAMS) > 1:
@@ -87,7 +87,7 @@ if __name__ == '__main__':
 
             x, y = [v[0] for v in target_results], [v[1] for v in target_results]
             
-            target_axis.set_ylim([0, MAX_TIME])
+            # target_axis.set_ylim([0, MAX_TIME])
 
             label_locs = []
             label_vals = []
@@ -96,7 +96,8 @@ if __name__ == '__main__':
                 label_vals.append(l_val)
 
             target_axis.set_xticks(label_locs, label_vals)
-            target_axis.plot(x, y, color=COLORS[p_iter])
-
+            # target_axis.plot(x, y, color=COLORS[p_iter])
+            target_axis.bar(x, y, color ='maroon')
+ 
 
     plt.savefig("collision_results.pdf")

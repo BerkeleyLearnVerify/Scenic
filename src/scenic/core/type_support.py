@@ -160,6 +160,16 @@ def coerce(thing, ty, error='wrong type'):
     else:
         coercer = getattr(ty, '_coerce', None)
 
+    # Special case: can coerce TupleDistribution directly to Vector.
+    # (all other distributions require the usual checking below)
+    from scenic.core.vectors import Vector
+    if isinstance(thing, TupleDistribution) and ty is Vector:
+        length = len(thing)
+        if not (2 <= length <= 3):
+            msg = f'expected vector, got {thing.builder.__name__} of length {length}'
+            raise TypeError(f'{error} ({msg})')
+        return Vector(*thing)
+
     if isinstance(thing, Distribution):
         # This is a random value. If we can prove that it will always have the desired
         # type, we return it unchanged; otherwise we wrap it in a TypecheckedDistribution
@@ -244,7 +254,9 @@ class TypecheckedDistribution(Distribution):
         # Coercion failed, so we have a type error.
         if suffix is None:
             suffix = f' (expected {self._valueType.__name__}, got {type(val).__name__})'
-        raise TypeError(self._errorMessage + suffix, self._loc)
+        exc = TypeError(self._errorMessage + suffix)
+        exc._scenic_location = self._loc
+        raise exc
 
     def conditionTo(self, value):
         self._dist.conditionTo(value)

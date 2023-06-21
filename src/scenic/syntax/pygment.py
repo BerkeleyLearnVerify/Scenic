@@ -358,13 +358,6 @@ class ScenicLexer(BetterPythonLexer):
                     | (?= : \s* [^\s\#]))''',
              bygroups(Whitespace, Name.Variable.Instance, Whitespace, Punctuation),
              'property-declaration'),
-            # Instance creations
-            (rf'''(?x)
-                (new) ([^\S\n]+)
-                (?:{builtin_classes}|({uni_name})) ([^\S\n]*)''',
-             bygroups(Keyword, Whitespace,
-                      Name.Builtin.Instance, Name.Class.Instance, Whitespace),
-             'specifier-start'),
         ],
         'scenario-behavior': [
             (uni_name, Name.Class),
@@ -409,30 +402,39 @@ class ScenicLexer(BetterPythonLexer):
              bygroups(Keyword.Specifier, Whitespace, Name.Variable.Instance,
                       Keyword.Specifier),
              'specifier-inner'),
-            (r'(\#.*)?\n', Comment.Single, '#pop'),
+            default('#pop'),
         ],
         'specifier-inner': [
             (r'''(?x)
              (,) (\s*) (?: (?: (\#.*)? | (\\)) (\n\s*))?
-             | (\#.*)? (?=\n)''',
+             | (\#.*)? (?=[)}\]\n])''',
              bygroups(Punctuation, Whitespace, Comment.Single, Punctuation, Whitespace,
                       Comment.Single),
              '#pop'),
             include('expr'),
         ],
         'extra-exprs': [
-            # Operators
-            (words(('deg', 'relative heading of', 'apparent heading of', 'distance from',
+            # Prefix and infix operators
+            (words(('relative heading of', 'apparent heading of', 'distance from',
                     'distance to', 'distance past', 'angle from', 'angle to',
                     'altitude from', 'altitude to', 'can see', 'at',
                     'relative to', 'offset by', 'offset along', 'visible', 'not visible',
                     'front of', 'back of', 'left of', 'right of',
                     'front left of', 'front right of', 'back left of', 'back right of'),
-                   prefix=r'(?<!\.)', suffix=r'\b'), Operator.Word),
+                   prefix=r'(?<!\.)', suffix=r'\b(?!\s*[)}\]=:.;,])'), Operator.Word),
+            # Postfix operators
+            (words(('deg',), prefix=r'(?<!\.)', suffix=r'\b'), Operator.Word),
             # Keywords that can occur anywhere (w.r.t. our simple analysis)
-            (words(('initial scenario', 'until', 'to', 'by', 'from'),
+            (words(('initial scenario', 'until', 'as', 'to', 'by', 'from'),
                    prefix=r'(?<!\.)', suffix=r'\b'),
              Keyword),
+            # Instance creations
+            (rf'''(?x)
+                (new) ([^\S\n]+)
+                (?:{builtin_classes}|({uni_name})) ([^\S\n]*)''',
+             bygroups(Keyword, Whitespace,
+                      Name.Builtin.Instance, Name.Class.Instance, Whitespace),
+             'specifier-start'),
         ],
         'builtins': [
             inherit,
@@ -509,7 +511,10 @@ class ScenicSpecifierLexer(ScenicSnippetLexer):
 
     tokens = {
         'root': [
-            include('specifier-start'),
+            (r'(?x)'+ScenicLexer.specifier,
+             bygroups(Keyword.Specifier, Whitespace, Name.Variable.Instance,
+                      Keyword.Specifier),
+             'specifier-inner'),
             (r'with', Keyword.Specifier),   # special case for incomplete 'with'
         ],
     }

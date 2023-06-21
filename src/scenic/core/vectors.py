@@ -9,6 +9,7 @@ import random
 import collections
 import functools
 import itertools
+import numbers
 import struct
 import warnings
 
@@ -19,10 +20,21 @@ import numpy
 from scenic.core.distributions import (Samplable, Distribution, MethodDistribution,
     needsSampling, makeOperatorHandler, distributionMethod, distributionFunction,
     RejectionException, TupleDistribution)
-from scenic.core.lazy_eval import valueInContext, needsLazyEvaluation, makeDelayedFunctionCall
+from scenic.core.lazy_eval import (
+    valueInContext, needsLazyEvaluation, isLazy, makeDelayedFunctionCall,
+)
 from scenic.core.type_support import CoercionFailure, canCoerceType, coerceToFloat, toOrientation
 from scenic.core.utils import argsToString, cached_property
-from scenic.core.geometry import normalizeAngle, hypot
+from scenic.core.geometry import normalizeAngle, hypot, makeShapelyPoint
+
+# Suppress gimbal lock warning from scipy.spatial.transform.Rotation.
+# N.B. due to the way the pytest works, the warning will still appear when
+# running the test suite.
+warnings.filterwarnings(
+    'ignore',
+    message='Gimbal lock detected. Setting third angle to zero',
+    module='scenic.core.vectors',
+)
 
 class VectorDistribution(Distribution):
     """A distribution over Vectors."""
@@ -90,32 +102,58 @@ def scalarOperator(method):
             return method(self, *args, **kwargs)
     return helper
 
-def makeVectorOperatorHandler(op):
+def makeVectorOperatorHandler(op, zeroIdentity):
     def handler(self, *args):
+        # If the zero vector is the identity for this operator, and we can tell
+        # that the operand is zero, simplify the expression forest.
+        if (zeroIdentity
+            and not isLazy(args[0])
+            and all(coord == 0 for coord in args[0].coordinates)):
+            return self
+
+        # The general case.
         return VectorOperatorDistribution(op, self, args)
     return handler
-def vectorOperator(method, preservesZero=False):
+def vectorOperator(method, preservesZero=False, zeroIdentity=False):
     """Decorator for vector operators that yield vectors."""
     op = method.__name__
-    setattr(VectorDistribution, op, makeVectorOperatorHandler(op))
+    setattr(VectorDistribution, op, makeVectorOperatorHandler(op, zeroIdentity))
 
     @functools.wraps(method)
     def helper(self, *args):
-        if needsSampling(self):
-            return VectorOperatorDistribution(op, self, args)
-        elif preservesZero and all(coord == 0 for coord in self.coordinates):
+        # If this operator preserves the zero vector, and we can tell that self
+        # is zero, simplify the expression forest.
+        if (preservesZero
+            and not needsSampling(self)
+            and all(coord == 0 for coord in self.coordinates)):
             return self
-        elif any(needsSampling(arg) for arg in args):
+        
+        # General cases when the arguments are lazy.
+        if any(needsSampling(arg) for arg in args):
+            if needsSampling(self):
+                return VectorOperatorDistribution(op, self, args)
             return VectorMethodDistribution(method, self, args, {})
         elif any(needsLazyEvaluation(arg) for arg in args):
             # see analogous comment in distributionFunction
             return makeDelayedFunctionCall(helper, args, {})
+
+        # If zero is the identity, simplify when possible (see above).
+        if (zeroIdentity
+              and isinstance(args[0], (Vector, tuple, list, numpy.ndarray))
+              and all(coord == 0 for coord in args[0])):
+            return self
+
+        # General case when the arguments are not lazy.
+        if needsSampling(self):
+            return VectorOperatorDistribution(op, self, args)
         else:
             return method(self, *args)
     return helper
 
 def zeroPreservingVectorOperator(method):
     return vectorOperator(method, preservesZero=True)
+def zeroIdentityVectorOperator(method):
+    return vectorOperator(method, zeroIdentity=True)
 
 def vectorDistributionMethod(method):
     """Decorator for methods that produce vectors. See distributionMethod."""
@@ -149,8 +187,19 @@ class Orientation:
     @classmethod
     @distributionFunction
     def fromEuler(cls, yaw, pitch, roll) -> Orientation:
-        """ Create an `Orientation` from yaw, pitch, and roll angles (in radians)"""
+        """Create an `Orientation` from yaw, pitch, and roll angles (in radians)."""
+        return cls._fromEuler(yaw, pitch, roll)
+
+    @classmethod
+    def _fromEuler(cls, yaw, pitch, roll) -> Orientation:
+        # Inner version of `fromEuler` which doesn't accept distributions.
         r = Rotation.from_euler('ZXY', [yaw, pitch, roll], degrees=False)
+        return cls(r)
+
+    @classmethod
+    def _fromHeading(cls, heading) -> Orientation:
+        # This method is faster than `from_euler` if we only have 1 angle.
+        r = Rotation.from_rotvec([0, 0, heading], degrees=False)
         return cls(r)
 
     @property
@@ -186,18 +235,20 @@ class Orientation:
 
     @staticmethod
     def _coerce(thing) -> Orientation:
-        if isinstance(thing, Orientation):
+        if isinstance(thing, (float, int)):  # fast path
+            return Orientation._fromHeading(thing)
+        elif isinstance(thing, Orientation):
             return thing
         elif hasattr(thing, 'toOrientation'):
             return thing.toOrientation()
         elif isinstance(thing, Vector):
-            return Orientation.fromEuler(*thing)
+            return Orientation._fromEuler(*thing)
         elif isinstance(thing, (tuple, list)):
             if len(thing) != 3:
                 raise CoercionFailure("Cannot coerce a tuple/list of length not 3 to an orientation")
-            return Orientation.fromEuler(*thing)
+            return Orientation._fromEuler(*thing)
         elif canCoerceType(type(thing), float):
-            return Orientation.fromEuler(coerceToFloat(thing), 0, 0)
+            return Orientation._fromHeading(coerceToFloat(thing))
         else:
             raise CoercionFailure
 
@@ -210,11 +261,7 @@ class Orientation:
     @cached_property
     def eulerAngles(self) -> typing.Tuple[float, float, float]:
         """Global intrinsic Euler angles yaw, pitch, roll."""
-        # Wrapped to catch gimbal lock warning.
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            angles = self.r.as_euler('ZXY', degrees=False)
-        return angles
+        return self.r.as_euler('ZXY', degrees=False)
 
     def getRotation(self):
         return self.r
@@ -223,16 +270,25 @@ class Orientation:
     def inverse(self) -> Orientation:
         return Orientation(self.r.inv())
 
-    @distributionMethod
+    @cached_property
+    def _inverseRotation(self):
+        return self.r.inv()
+
+    # will be converted to a distributionMethod after the class definition
     def __mul__(self, other) -> Orientation:
         if type(other) is not Orientation:
             return NotImplemented
+        # Preserve existing orientation objects when possible to help pruning.
+        if self == globalOrientation:
+            return other
+        if other == globalOrientation:
+            return self
         return Orientation(self.r * other.r)
     
     @distributionMethod
     def __add__(self, other) -> Orientation:
         if isinstance(other, (float, int)):
-            other = Orientation.fromEuler(other, 0, 0)
+            other = Orientation._fromHeading(other)
         elif type(other) is not Orientation:
             return NotImplemented
         return other * self
@@ -240,7 +296,7 @@ class Orientation:
     @distributionMethod
     def __radd__(self, other) -> Orientation:
         if isinstance(other, (float, int)):
-            other = Orientation.fromEuler(other, 0, 0)
+            other = Orientation._fromHeading(other)
         elif type(other) is not Orientation:
             return NotImplemented
         return self * other
@@ -281,6 +337,8 @@ class Orientation:
         return abs(numpy.dot(self.q, other.q)) > 1 - tol
 
 globalOrientation = Orientation.fromEuler(0, 0, 0)
+
+Orientation.__mul__ = distributionMethod(Orientation.__mul__, identity=globalOrientation)
 
 def alwaysGlobalOrientation(orientation):
     """Whether this orientation is always aligned with the global coordinate system.
@@ -362,6 +420,15 @@ class Vector(Samplable, collections.abc.Sequence):
         return self + ro
 
     @vectorOperator
+    def offsetLocally(self, orientation, offset) -> Vector:
+        # Faster version of `offsetRotated` that only accepts Orientations.
+        r = orientation.getRotation()
+        ro = r.apply(offset)
+        x, y, z = self
+        ox, oy, oz = ro
+        return Vector(x + ox, y + oy, z + oz)
+
+    @vectorOperator
     def offsetRadially(self, radius, heading) -> Vector:
         return self.offsetRotated(heading, Vector(0, radius))
 
@@ -427,15 +494,15 @@ class Vector(Samplable, collections.abc.Sequence):
 
         return Vector(*(coord/l for coord in self.coordinates))
 
-    @vectorOperator
+    @zeroIdentityVectorOperator
     def __add__(self, other) -> Vector:
         return Vector(self[0] + other[0], self[1] + other[1], self[2] + other[2])
 
-    @vectorOperator
+    @zeroIdentityVectorOperator
     def __radd__(self, other) -> Vector:
         return Vector(self[0] + other[0], self[1] + other[1], self[2] + other[2])
 
-    @vectorOperator
+    @zeroIdentityVectorOperator
     def __sub__(self, other) -> Vector:
         return Vector(self[0] - other[0], self[1] - other[1], self[2] - other[2])
 
@@ -522,7 +589,7 @@ class OrientedVector(Vector):
         return hash((self.coordinates, self.heading))
 
 class VectorField:
-    """A vector field, providing a heading at every point.
+    """A vector field, providing an orientation at every point.
 
     Arguments:
         name (str): name for debugging.
@@ -543,7 +610,10 @@ class VectorField:
     @distributionMethod
     def __getitem__(self, pos) -> Orientation:
         val = self.value(pos)
-        
+        if isinstance(val, numbers.Real):  # fast path
+            return Orientation._fromHeading(val)
+        if isLazy(val):
+            raise ValueError(f'value function of {self.name} returned lazy value')
         return toOrientation(val, f'value function of {self.name} returned non-orientation')
 
     @vectorDistributionMethod
@@ -568,10 +638,13 @@ class VectorField:
             if stepSize is not None:
                 steps = max(steps, math.ceil(dist / stepSize))
 
-        step = dist / steps
+        stepSize = dist / steps
+        step = numpy.array([0, stepSize, 0])
         for i in range(steps):
-            pos = pos.offsetRadially(step, self[pos])
-        return pos
+            rot = self[pos].getRotation()
+            pos += rot.apply(step)
+
+        return Vector(*pos)
 
     @staticmethod
     def forUnionOf(regions, tolerance=0):
@@ -609,13 +682,16 @@ class PolygonalVectorField(VectorField):
             if heading is None and headingFunction is None and defaultHeading is None:
                 raise RuntimeError(f'missing heading for cell of PolygonalVectorField')
         self.defaultHeading = defaultHeading
+        self.rtree = shapely.STRtree([cell[0] for cell in self.cells])
         super().__init__(name, self.valueAt)
 
     def valueAt(self, pos):
-        point = shapely.geometry.Point(pos)
-        for cell, heading in self.cells:
-            if cell.intersects(point):
-                return self.headingFunction(pos) if heading is None else heading
+        point = makeShapelyPoint(pos)
+        candidates = self.rtree.query(point, predicate='intersects')
+        if len(candidates) > 0:
+            first = candidates.min()
+            cell, heading = self.cells[first]
+            return self.headingFunction(pos) if heading is None else heading
         if self.defaultHeading is not None:
             return self.defaultHeading
         raise RejectionException(f'evaluated PolygonalVectorField at undefined point')

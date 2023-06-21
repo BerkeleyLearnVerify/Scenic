@@ -30,7 +30,7 @@ from scenic.core.distributions import (Samplable, RandomControlFlowError, Multip
                                        needsSampling, distributionMethod, distributionFunction,
                                        supportInterval, toDistribution)
 from scenic.core.specifiers import Specifier, PropertyDefault, ModifyingSpecifier
-from scenic.core.vectors import Vector, Orientation, alwaysGlobalOrientation
+from scenic.core.vectors import Vector, Orientation, alwaysGlobalOrientation, globalOrientation
 from scenic.core.geometry import (averageVectors, hypot, min,
                                   pointIsInCone, normalizeAngle)
 from scenic.core.regions import (Region, CircularRegion, SectorRegion, MeshVolumeRegion, MeshSurfaceRegion, 
@@ -367,7 +367,8 @@ class Constructible(Samplable):
             value = toVector(value, f'"{prop}" of {cls.__name__} not a vector')
         elif prop in ('width', 'length', 'visibleDistance',
                       'viewAngle', 'speed', 'angularSpeed',
-                      'yaw', 'pitch', 'roll'):
+                      'yaw', 'pitch', 'roll',
+                      'mutationScale'):
             value = toScalar(value, f'"{prop}" of {cls.__name__} not a scalar')
 
         if prop in ['yaw', 'pitch', 'roll']:
@@ -379,6 +380,10 @@ class Constructible(Samplable):
         if prop == 'regionContainedIn':
             # 2D regions can't contain objects, so we automatically use their footprint.
             value = convertToFootprint(value)
+
+        if prop == 'color' and value is not None and not isLazy(value):
+            if any(not (0 <= v <= 1) for v in value):
+                raise ValueError("Color property contains value not between 0 and 1 (inclusive).")
 
         object.__setattr__(context, prop, value)
 
@@ -575,8 +580,12 @@ class Point(Constructible):
         viewRayDensity (float): By default determines the number of rays used during visibility checks. 
           This value is the density of rays per degree of visible range in one dimension. The total
           number of rays sent will be this value squared per square degree of this object's view angles. 
-          This value determines the default value for viewRayCount, so if viewRayCount is overwritten this value is ignored.
-          Default value 5.
+          This value determines the default value for ``viewRayCount``, so if ``viewRayCount`` is overwritten
+          this value is ignored. Default value 5.
+        viewRayCount (None | tuple[float, float]): The total number of horizontal and vertical view angles
+          to be sent, or None if this value should be computed automatically. Default value ``None``.
+        viewRayDistanceScaling (bool): Whether or not the number of rays should scale with the distance to the
+          object. Ignored if ``viewRayCount`` is passed. Default value ``False``.
         mutationScale (float): Overall scale of mutations, as set by the
           :keyword:`mutate` statement. Default value 0 (mutations disabled).
         positionStdDev (tuple[float, float, float]): Standard deviation of Gaussian noise 
@@ -649,7 +658,7 @@ class Point(Constructible):
 
     def sampleGiven(self, value):
         sample = super().sampleGiven(value)
-        if self.mutationScale != 0:
+        if value[self.mutationScale] != 0:
             for mutator in self.mutator:
                 if mutator is None:
                     continue
@@ -706,7 +715,7 @@ class OrientedPoint(Point):
         'yaw': PropertyDefault((), {'dynamic'}, lambda self: 0),
         'pitch': PropertyDefault((), {'dynamic'}, lambda self: 0),
         'roll': PropertyDefault((), {'dynamic'}, lambda self: 0),
-        'parentOrientation': Orientation.fromEuler(0, 0, 0),
+        'parentOrientation': globalOrientation,
 
         'orientation': PropertyDefault(
             {'yaw', 'pitch', 'roll', 'parentOrientation'},
@@ -715,7 +724,8 @@ class OrientedPoint(Point):
                       * self.parentOrientation)
         ),
         # Heading is equal to orientation.yaw, which is equal to self.yaw if this OrientedPoint's
-        # parentOrientation is the globla orientation.
+        # parentOrientation is the global orientation. Defined this way to simplify the value for pruning
+        # purposes if possible.
         'heading': PropertyDefault({'orientation'}, {'dynamic', 'final'},
             lambda self: self.yaw if alwaysGlobalOrientation(self.parentOrientation) else self.orientation.yaw),
 
@@ -767,7 +777,7 @@ class OrientedPoint(Point):
         return OrientedPoint._with(position=pos, parentOrientation=self.orientation)
 
     def relativePosition(self, vec):
-        return self.position.offsetRotated(self.orientation, vec)
+        return self.position.offsetLocally(self.orientation, vec)
 
     def distancePast(self, vec):
         """Distance past a given point, assuming we've been moving in a straight line."""
@@ -820,10 +830,12 @@ class Object(OrientedPoint):
           from the ``ego`` object. Default value ``False``.
         occluding (bool): Whether or not this object can occlude other objects. Default
           value ``True``.
-        showVisibleRegion (bool): Whether or not to display the visible region in the Scenic internal visualizer.
-        color (tuple[float, float, float] or `None`): An optional color property that is
-          used by the internal visualizer, or possibly simulators. All values should
-          be between 0 and 1. Default value ``None``
+        showVisibleRegion (bool): Whether or not to display the visible region in the
+          Scenic internal visualizer.
+        color (tuple[float, float, float, float] or tuple[float, float, float] or `None`):
+          An optional color (with optional alpha) property that is used by the internal
+          visualizer, or possibly simulators. All values should be between 0 and 1.
+          Default value ``None``
         velocity (`Vector`; *dynamic*): Velocity in dynamic simulations. Default value is
           the velocity determined by :prop:`speed` and :prop:`orientation`.
         speed (float; dynamic): Speed in dynamic simulations. Default value 0.
@@ -1028,7 +1040,7 @@ class Object(OrientedPoint):
         `OrientedPoint.visibleRegion`) except that it is offset by the value of
         :prop:`cameraOffset` (which is the zero vector by default).
         """
-        true_position = self.position.offsetRotated(self.orientation, self.cameraOffset)
+        true_position = self.position.offsetLocally(self.orientation, self.cameraOffset)
         return ViewRegion(visibleDistance=self.visibleDistance,
                                  viewAngles=self.viewAngles,
                                  position=true_position, rotation=self.orientation)
@@ -1042,7 +1054,7 @@ class Object(OrientedPoint):
               for visibility.
             occludingObjects: A list of objects that can occlude visibility.
         """
-        true_position = self.position.offsetRotated(self.orientation, self.cameraOffset)
+        true_position = self.position.offsetLocally(self.orientation, self.cameraOffset)
         return canSee(position=true_position, orientation=self.orientation, visibleDistance=self.visibleDistance,
             viewAngles=self.viewAngles, rayCount=self.viewRayCount, rayDensity=self.viewRayDensity,
             distanceScaling=self.viewRayDistanceScaling, target=other, occludingObjects=occludingObjects, debug=debug)
@@ -1432,7 +1444,9 @@ class Object2D(OrientedPoint2D, Object):
         # If position is being set, set z value to 0
         if prop == "position":
             value = toVector(value, f'"{prop}" of {cls.__name__} not a vector')
-            value = (value.x, value.y, 0)
+            if needsSampling(value.z) or value.z != 0:
+                # only modify value if necessary, to keep expression forest simpler
+                value = toVector((value.x, value.y, 0))
 
         super()._specify(context, prop, value)
 

@@ -361,7 +361,9 @@ class Scenario(_ScenarioPickleMixin):
 
         ## Check built-in requirements for instances ##
         # Possibly an early collision check to reject clearly infeasible scenes.
-        if not self.compileOptions.mode2D and INITIAL_COLLISION_CHECK:
+        if (not self.compileOptions.mode2D and 
+           sum(obj.allowCollisions for obj in sampledObjects) >= 3 and
+           INITIAL_COLLISION_CHECK):
             cm = trimesh.collision.CollisionManager()
 
             for obj in sampledObjects:

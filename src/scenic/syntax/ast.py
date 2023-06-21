@@ -1037,10 +1037,20 @@ class PositionOfOp(AST):
             "Back",
             "Left",
             "Right",
+            "Top",
+            "Bottom",
             "FrontLeft",
             "FrontRight",
             "BackLeft",
             "BackRight",
+            "TopFrontLeft",
+            "TopFrontRight",
+            "TopBackLeft",
+            "TopBackRight",
+            "BottomFrontLeft",
+            "BottomFrontRight",
+            "BottomBackLeft",
+            "BottomBackRight",
         ],
         target: ast.AST,
         *args: any,
@@ -1082,6 +1092,20 @@ class Right(AST):
     def __init__(self, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
 
+class Top(AST):
+    "Represents position of :scenic:`top of` operator"
+    functionName = "Top"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class Bottom(AST):
+    "Represents position of :scenic:`bottom of` operator"
+    functionName = "Bottom"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
 
 class FrontLeft(AST):
     "Represents position of :scenic:`front left of` operator"
@@ -1090,14 +1114,12 @@ class FrontLeft(AST):
     def __init__(self, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
 
-
 class FrontRight(AST):
     "Represents position of :scenic:`front right of` operator"
     functionName = "FrontRight"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
-
 
 class BackLeft(AST):
     "Represents position of :scenic:`back left of` operator"
@@ -1106,7 +1128,6 @@ class BackLeft(AST):
     def __init__(self, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
 
-
 class BackRight(AST):
     "Represents position of :scenic:`back right of` operator"
     functionName = "BackRight"
@@ -1114,6 +1135,63 @@ class BackRight(AST):
     def __init__(self, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
 
+class TopFrontLeft(AST):
+    "Represents position of :scenic:`top front left of` operator"
+    functionName = "TopFrontLeft"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+class TopFrontRight(AST):
+    "Represents position of :scenic:`top front right of` operator"
+    functionName = "TopFrontRight"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class TopBackLeft(AST):
+    "Represents position of :scenic:`top back left of` operator"
+    functionName = "TopBackLeft"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+
+class TopBackRight(AST):
+    "Represents position of :scenic:`top back right of` operator"
+    functionName = "TopBackRight"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+class BottomFrontLeft(AST):
+    "Represents position of :scenic:`bottom front left of` operator"
+    functionName = "BottomFrontLeft"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+class BottomFrontRight(AST):
+    "Represents position of :scenic:`bottom front right of` operator"
+    functionName = "BottomFrontRight"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+class BottomBackLeft(AST):
+    "Represents position of :scenic:`bottom back left of` operator"
+    functionName = "BottomBackLeft"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+
+class BottomBackRight(AST):
+    "Represents position of :scenic:`bottom back right of` operator"
+    functionName = "BottomBackRight"
+
+    def __init__(self, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
 
 class DegOp(AST):
     __match_args__ = ("operand",)
