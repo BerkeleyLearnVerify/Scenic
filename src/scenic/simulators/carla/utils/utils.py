@@ -32,7 +32,7 @@ def scenicToCarlaLocation(pos, z=None, world=None, blueprint=None):
 
 
 def scenicToCarlaRotation(orientation):
-    pitch, yaw, roll = orientation.r.as_euler("YZX", degrees=True)
+    pitch, yaw, roll = orientation.r.as_euler("XZY", degrees=True)
     yaw = -yaw - 90
     return carla.Rotation(pitch=pitch, yaw=yaw, roll=roll)
 
@@ -49,9 +49,9 @@ def carlaToScenicElevation(loc):
     return loc.z
 
 def carlaToScenicOrientation(rot):
-    angles = (rot.pitch, -rot.yaw + 90, rot.roll)
+    angles = (rot.pitch, -rot.yaw - 90, rot.roll)
     r = scipy.spatial.transform.Rotation.from_euler(
-        seq="YZX", angles=angles, degrees=True)
+        seq="XZY", angles=angles, degrees=True)
     return Orientation(r)
 
 def carlaToScenicHeading(rot):
