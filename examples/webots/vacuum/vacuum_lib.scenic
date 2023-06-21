@@ -29,14 +29,14 @@ class Floor(Object):
     length: 5
     height: 0.01
     position: (0,0,-0.005)
-    color: [200, 200, 200]
+    color: [0.785, 0.785, 0.785]
 
 class Wall(WebotsObject):
     webotsAdhoc: {'physics': False}
     width: 5
     length: 0.04
     height: 0.5
-    color: [160, 160, 160]
+    color: [0.627, 0.627, 0.627]
 
 class DiningTable(WebotsObject):
     webotsAdhoc: {'physics': True}
@@ -45,7 +45,7 @@ class DiningTable(WebotsObject):
     length: Range(0.7, 1.5)
     height: 0.75
     density: 670 # Density of solid birch
-    color: [103, 71, 54]
+    color: [0.403, 0.278, 0.212]
 
 class DiningChair(WebotsObject):
     webotsAdhoc: {'physics': True}
@@ -56,7 +56,7 @@ class DiningChair(WebotsObject):
     density: 670 # Density of solid birch
     positionStdDev: (0.05, 0.05 ,0)
     orientationStdDev: (10 deg, 0, 0)
-    color: [103, 71, 54]
+    color: [0.403, 0.278, 0.212]
 
 class Couch(WebotsObject):
     webotsAdhoc: {'physics': False}
@@ -66,7 +66,7 @@ class Couch(WebotsObject):
     height: 0.75
     positionStdDev: (0.05, 0.5 ,0)
     orientationStdDev: (5 deg, 0, 0)
-    color: [51, 51, 255]
+    color: [0.2, 0.2, 1]
 
 class CoffeeTable(WebotsObject):
     webotsAdhoc: {'physics': False}
@@ -76,7 +76,7 @@ class CoffeeTable(WebotsObject):
     height: 0.4
     positionStdDev: (0.05, 0.05 ,0)
     orientationStdDev: (5 deg, 0, 0)
-    color: [103, 71, 54]
+    color: [0.404, 0.278, 0.212]
 
 class Toy(WebotsObject):
     webotsAdhoc: {'physics': True}
@@ -85,7 +85,7 @@ class Toy(WebotsObject):
     length: 0.1
     height: 0.1
     density: 100
-    color: [255, 128, 0]
+    color: [1, 0.502, 0]
 
 class BlockToy(Toy):
     shape: BoxShape()

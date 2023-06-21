@@ -14,7 +14,7 @@ workspace = Workspace(RectangularRegion(0 @ 0, 0, width, length))
 class MarsGround(Ground):
     width: width
     length: length
-    color: (220, 114, 9)
+    color: (0.863 , 0.447, 0.0353)
     gridSize: 20
 
 class MarsHill(Hill):
@@ -30,7 +30,7 @@ class Goal(WebotsObject):
     width: 0.1
     length: 0.1
     webotsType: 'GOAL'
-    color: (9 ,163, 220)
+    color: (0.035 , 0.639, 0.784)
 
 class Rover(WebotsObject):
     """Mars rover."""

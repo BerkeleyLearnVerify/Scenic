@@ -381,6 +381,10 @@ class Constructible(Samplable):
             # 2D regions can't contain objects, so we automatically use their footprint.
             value = convertToFootprint(value)
 
+        if prop == 'color' and value is not None and not isLazy(value):
+            if any(not (0 <= v <= 1) for v in value):
+                raise ValueError("Color property contains value not between 0 and 1 (inclusive).")
+
         object.__setattr__(context, prop, value)
 
     def _register(self):
@@ -822,10 +826,12 @@ class Object(OrientedPoint):
           from the ``ego`` object. Default value ``False``.
         occluding (bool): Whether or not this object can occlude other objects. Default
           value ``True``.
-        showVisibleRegion (bool): Whether or not to display the visible region in the Scenic internal visualizer.
-        color (tuple[float, float, float] or `None`): An optional color property that is
-          used by the internal visualizer, or possibly simulators. All values should
-          be between 0 and 1. Default value ``None``
+        showVisibleRegion (bool): Whether or not to display the visible region in the
+          Scenic internal visualizer.
+        color (tuple[float, float, float, float] or tuple[float, float, float] or `None`):
+          An optional color (with optional alpha) property that is used by the internal
+          visualizer, or possibly simulators. All values should be between 0 and 1.
+          Default value ``None``
         velocity (`Vector`; *dynamic*): Velocity in dynamic simulations. Default value is
           the velocity determined by :prop:`speed` and :prop:`orientation`.
         speed (float; dynamic): Speed in dynamic simulations. Default value 0.
