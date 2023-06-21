@@ -94,16 +94,16 @@ class CarlaSimulation(DrivingSimulation):
         self.scenario_number = scenario_number
         self.cameraManager = None
 
-        weather = scene.params.get("weather")
+        super().__init__(scene, **kwargs)
+
+    def setup(self):
+        weather = self.scene.params.get("weather")
         if weather is not None:
             if isinstance(weather, str):
                 self.world.set_weather(getattr(carla.WeatherParameters, weather))
             elif isinstance(weather, dict):
                 self.world.set_weather(carla.WeatherParameters(**weather))
 
-        super().__init__(scene, **kwargs)
-
-    def setup(self):
         # Setup HUD
         if self.render:
             self.displayDim = (1280, 720)
