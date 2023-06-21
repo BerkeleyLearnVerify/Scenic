@@ -14,6 +14,10 @@ SCENE_COUNT = [1,10]
 BENCHMARKS = [
                 ("narrowGoalOld.scenic", {"mode2D": True}),
                 ("bumperToBumper.scenic", {"mode2D": True}),
+                ("badlyParkedCarPullingIn.scenic", {"mode2D": True}),
+                ("adjacentOpposingPair.scenic", {"mode2D": True}),
+                ("carInFront.scenic", {"mode2D": True}),
+                ("mediumTraffic.scenic", {"mode2D": True}),
                 ("narrowGoalNew.scenic", {}),
                 ("city_intersection.scenic", {}),
                 ("vacuum.scenic", {"numToys": 0}),
@@ -26,6 +30,17 @@ BENCHMARKS = [
 
 SAMPLE_CHECKERS = ["BasicChecker", "WeightedAcceptanceChecker"]
 
+def warmup(path, params):
+    params = params.copy()
+    if "mode2D" in params:
+        del params['mode2D']
+        mode2D = True
+    else:
+        mode2D = False
+    scenario = scenic.scenarioFromFile(Path("benchmarks") / path, params=params, mode2D=mode2D)
+
+    scenario.generateBatch(1)
+
 def run_benchmark(path, params, sample_checker, num_scenes):
     if "mode2D" in params:
         del params['mode2D']
@@ -37,9 +52,14 @@ def run_benchmark(path, params, sample_checker, num_scenes):
     if sample_checker == "WeightedAcceptanceChecker":
         scenario.setSampleChecker(WeightedAcceptanceChecker())
 
-    scenario.generateBatch(numScenes=num_scenes, maxIterations=float('inf'))
+    scenario.generateBatch(numScenes=num_scenes)
 
 if __name__ == '__main__':
+    # Warmup
+    for benchmark_name, benchmark_params in BENCHMARKS:
+        print("Warmup:", benchmark_name, benchmark_params)
+        warmup(benchmark_name, benchmark_params)
+
     # Gather times
     sc_results = {}
 

@@ -72,9 +72,9 @@ class WeightedAcceptanceChecker(SampleChecker):
         for req in self.sortRequirements():
             # Evaluate the requirement with timing info.
             start = time.time()
-            result = req.falsifiedBy(sample)
+            rejected = req.falsifiedBy(sample)
             # Create metrics (Accepted, Time Taken)
-            metrics = (result is None, time.time()-start)
+            metrics = (int(not rejected), time.time()-start)
 
             self.updateMetrics(req, metrics)
 
