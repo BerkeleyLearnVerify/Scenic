@@ -248,7 +248,8 @@ class CarlaSimulation(DrivingSimulation):
         speed = math.hypot(*velocity)
         angularSpeed= utils.carlaToScenicAngularSpeed(currAngVel)
         angularVelocity = utils.carlaToScenicAngularVel(currAngVel)
-        yaw, pitch, roll = utils.carlaToScenicOrientation(currRot).eulerAngles
+        globalOrientation = utils.carlaToScenicOrientation(currRot)
+        yaw, pitch, roll = obj.parentOrientation.localAnglesFor(globalOrientation)
         elevation = utils.carlaToScenicElevation(currLoc)
 
         values = dict(
