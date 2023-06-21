@@ -1435,7 +1435,9 @@ class Object2D(OrientedPoint2D, Object):
         # If position is being set, set z value to 0
         if prop == "position":
             value = toVector(value, f'"{prop}" of {cls.__name__} not a vector')
-            value = (value.x, value.y, 0)
+            if needsSampling(value.z) or value.z != 0:
+                # only modify value if necessary, to keep expression forest simpler
+                value = toVector((value.x, value.y, 0))
 
         super()._specify(context, prop, value)
 

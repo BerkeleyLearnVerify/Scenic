@@ -223,6 +223,16 @@ class PointInRegionDistribution(VectorDistribution):
         else:
             return 0
 
+    @property
+    def z(self) -> float:
+        # Simplify expression forest in some cases where z is known.
+        reg = self.region
+        if isinstance(reg, (GridRegion, PolylineRegion)):
+            return 0.0
+        if isinstance(reg, PolygonalRegion):
+            return reg.z
+        return super().z
+
     def __repr__(self):
         return f'PointIn({self.region!r})'
 

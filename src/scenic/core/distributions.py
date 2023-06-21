@@ -5,6 +5,7 @@ import functools
 import itertools
 import random
 import math
+import numbers
 import typing
 import warnings
 
@@ -34,6 +35,12 @@ def supmax(*vals):
 def unionOfSupports(supports):
     mins, maxes = zip(*supports)
     return supmin(*mins), supmax(*maxes)
+def addSupports(sup1, sup2):
+    l1, u1 = sup1
+    l2, u2 = sup2
+    lower = None if l1 is None or l2 is None else l1 + l2
+    upper = None if u1 is None or u2 is None else u1 + u2
+    return lower, upper
 
 def underlyingFunction(thing):
     """Original function underlying a distribution wrapper."""
@@ -529,11 +536,16 @@ class MethodDistribution(Distribution):
         args = argsToString(self.arguments, self.kwargs)
         return f'{self.object!r}.{self.method.__name__}({args})'
 
-def distributionMethod(method):
+def distributionMethod(method=None, *, identity=None):
     """Decorator for wrapping a method so that it can take distributions as arguments."""
+    if method is None:
+        return lambda method: distributionMethod(method, identity=identity)
+
     @unpacksDistributions
     @functools.wraps(method)
     def helper(self, *args, **kwargs):
+        if identity is not None and self == identity:
+            return toDistribution(args[0])
         args = tuple(toDistribution(arg) for arg in args)
         kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
         if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
@@ -809,8 +821,35 @@ allowedReversibleOperators = {
     '__pow__': '**', '__rpow__': '**',
 }
 def makeOperatorHandler(op, ty):
-    def handler(self, *args):
-        return OperatorDistribution(op, self, args, valueType=ty)
+    # Various special cases to simplify the expression forest by removing some
+    # operations that do nothing (such as adding zero to a random number).
+    if op in ('__add__', '__radd__', '__sub__'):
+        def handler(self, arg):
+            if (not isLazy(arg)
+                and issubclass(self._valueType, numbers.Number)
+                and arg == 0):
+                return self
+            return OperatorDistribution(op, self, (arg,), valueType=ty)
+    elif op in ('__mul__', '__rmul__'):
+        def handler(self, arg):
+            if not isLazy(arg):
+                if issubclass(self._valueType, numbers.Number) and arg == 1:
+                    return self
+                from scenic.core.vectors import Orientation, globalOrientation
+                if issubclass(self._valueType, Orientation) and arg == globalOrientation:
+                    return self
+            return OperatorDistribution(op, self, (arg,), valueType=ty)
+    elif op in ('__truediv__', '__floordiv__', '__pow__'):
+        def handler(self, arg):
+            if (not isLazy(arg)
+                and issubclass(self._valueType, numbers.Number)
+                and arg == 1):
+                return self
+            return OperatorDistribution(op, self, (arg,), valueType=ty)
+    else:
+        # The general case.
+        def handler(self, *args):
+            return OperatorDistribution(op, self, args, valueType=ty)
     return handler
 for data in allowedOperators:
     if isinstance(data, tuple):
