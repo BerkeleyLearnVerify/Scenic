@@ -31,7 +31,7 @@ class LGSVLSimulator(simulators.Simulator):
         super().__init__()
         verbosePrint('Connecting to LGSVL Simulator...')
         self.client = lgsvl.Simulator(address=address, port=port)
-        if alwaysReload or self.client.current_scene != lgsvl_scene:
+        if alwaysReload or self.client.current_scene != sceneID:
             self.client.load(scene=sceneID)
         verbosePrint('Map loaded in simulator.')
 
@@ -41,7 +41,7 @@ class LGSVLSimulator(simulators.Simulator):
 
 class LGSVLSimulation(simulators.Simulation):
     """Subclass of `Simulation` for LGSVL."""
-    def __init__(self, scene, client, **kwargs):
+    def __init__(self, scene, client, *, timestep, **kwargs):
         self.client = client
         self.usingApollo = False
         self.data = {}
