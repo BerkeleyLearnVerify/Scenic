@@ -8,7 +8,7 @@ from scenic.simulators.webots import WebotsSimulator
 from scenic.core.distributions import RejectionException
 
 supervisor = Supervisor()
-simulator = WebotsSimulator(supervisor, timestep=0.5)
+simulator = WebotsSimulator(supervisor)
 
 # CONSTANTS
 SEED = 39
@@ -23,7 +23,7 @@ scenario = scenic.scenarioFromFile(path)
 while True:
     scene, _ = scenario.generate(maxIterations=float('inf'))
     print('Starting new simulation...')
-    sim_results = simulator.simulate(scene, verbosity=2)
+    sim_results = simulator.simulate(scene, timestep=0.5, verbosity=2)
 
     if sim_results is None:
         print("Simulation was rejected. Trying again...")

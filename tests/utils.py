@@ -86,8 +86,13 @@ def sampleActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
 
 def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1,
                            singleAction=True, asMapping=False, timestep=1):
-    sim = DummySimulator(timestep=timestep)
-    simulation = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
+    sim = DummySimulator()
+    simulation = sim.simulate(
+        scene,
+        maxSteps=maxSteps,
+        maxIterations=maxIterations,
+        timestep=timestep,
+    )
     if not simulation:
         return None
     return getActionsFrom(simulation, singleAction=singleAction, asMapping=asMapping)
@@ -117,14 +122,19 @@ def sampleResult(scenario, maxIterations=1, maxSteps=1, maxScenes=1, timestep=1)
 
 def sampleResultOnce(scenario, maxSteps=1, timestep=1):
     scene = sampleScene(scenario)
-    sim = DummySimulator(timestep=timestep)
-    return sim.simulate(scene, maxSteps=maxSteps, maxIterations=1)
+    sim = DummySimulator()
+    return sim.simulate(scene, maxSteps=maxSteps, maxIterations=1, timestep=timestep)
 
 def sampleResultFromScene(scene, maxIterations=1, maxSteps=1, raiseGuardViolations=False,
                           timestep=1):
-    sim = DummySimulator(timestep=timestep)
-    simulation = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations,
-                              raiseGuardViolations=raiseGuardViolations)
+    sim = DummySimulator()
+    simulation = sim.simulate(
+        scene,
+        maxSteps=maxSteps,
+        maxIterations=maxIterations,
+        raiseGuardViolations=raiseGuardViolations,
+        timestep=timestep,
+    )
     if not simulation:
         return None
     return simulation.result

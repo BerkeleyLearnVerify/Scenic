@@ -27,7 +27,8 @@ lambda x, *args, \
 lots   ( of_  ,  whitespace    =  12 )
 next (it)           # not a temporal operator
 thing = newObject   # not an object definition
-visible = True  # ill-advised but legal variable name
+visible = True      # ill-advised but legal variable name
+distance = visible  # ditto
 
 print(f"this \n is a test from {localPath(__file__)}")
 verbosePrint("zounds!", level=1)

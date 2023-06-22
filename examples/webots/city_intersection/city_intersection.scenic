@@ -14,9 +14,9 @@ from pathlib import Path
 class EgoCar(WebotsObject):
     webotsName: "EGO"
     shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "bmwx5_hull.obj.bz2", initial_rotation=(90 deg, 0, 0))
-    positionOffset: Vector(-1.43580750, 0,  -0.557354985).rotatedBy(Orientation.fromEuler(*self.orientationOffset))
-    cameraOffset: Vector(-1.43580750, 0,  -0.557354985) + Vector(1.72, 0, 1.4)
-    orientationOffset: (90 deg, 0, 0)
+    positionOffset: (0, -1.4358075, -0.557354985)
+    cameraOffset: (-1.43580750, 0,  -0.557354985) offset by (1.72, 0, 1.4)
+    rotationOffset: (90 deg, 0, 0)
     viewAngles: (1.5, 60 deg)
     visibleDistance: 100
     rayDensity: 10

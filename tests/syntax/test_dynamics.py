@@ -624,8 +624,6 @@ def test_precondition_rejection():
 
         ego = new Object at (0,0,0), with foo 0, with bar 0,
             with behavior MetaBehavior()
-
-        record final (ego.foo, ego.bar) as test_val
     """)
     scene = sampleScene(scenario)
     results = [sampleEgoActions(scenario, maxSteps=1) for _ in range(40)]

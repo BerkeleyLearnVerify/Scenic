@@ -339,8 +339,9 @@ class DynamicScenario(Invocable):
 
             # Initialize behavior coroutines of agents
             for agent in self._agents:
-                assert isinstance(agent.behavior, Behavior), agent.behavior
-                agent.behavior._start(agent)
+                behavior = agent.behavior
+                assert isinstance(behavior, Behavior), behavior
+                behavior._assignTo(agent)
             # Initialize monitor coroutines
             for monitor in self._monitors:
                 monitor._start()
@@ -668,6 +669,16 @@ class Behavior(Invocable, Samplable):
         args = (value[arg] for arg in self._args)
         kwargs = { name: value[val] for name, val in self._kwargs.items() }
         return type(self)(*args, **kwargs)
+
+    def _assignTo(self, agent):
+        if self._agent and agent is self._agent._dynamicProxy:
+            # Assigned again (e.g. by override) to same agent; do nothing.
+            return
+        if self._isRunning:
+            raise InvalidScenarioError(
+                f'tried to reuse behavior object {self} already assigned to {self._agent}'
+            )
+        self._start(agent)
 
     def _start(self, agent):
         super()._start()

@@ -9,10 +9,10 @@ import trimesh
 workspace = Workspace(RectangularRegion((0, 0, 0), 0, 10, 10))
 
 class AdhocBox(WebotsObject):
-  webotsAdhoc: True
+  webotsAdhoc: {}
 
 class AdhocCone(WebotsObject):
-  webotsAdhoc: True
+  webotsAdhoc: {}
   shape: MeshShape(trimesh.creation.cone(radius=0.5, height=1))
   density: 500
 

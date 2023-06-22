@@ -308,11 +308,23 @@ class Orientation:
         return hash(tuple(self.q)) + hash(tuple(-self.q))
 
     @distributionFunction
+    def localAnglesFor(self, orientation) -> typing.Tuple[float, float, float]:
+        """Get local Euler angles for an orientation w.r.t. this orientation.
+
+        That is, considering ``self`` as the parent orientation, find the Euler angles
+        expressing the given orientation.
+        """
+        local = orientation * self.inverse
+        return local.eulerAngles
+
+    @distributionFunction
     def globalToLocalAngles(self, yaw, pitch, roll) -> typing.Tuple[float, float, float]:
-        """Find Euler angles w.r.t. a given parent orientation."""
-        r = Rotation.from_euler('ZXY', [yaw, pitch, roll], degrees=False)
-        local = r * self._inverseRotation
-        return local.as_euler('ZXY', degrees=False)
+        """Convert global Euler angles to local angles w.r.t. this orientation.
+
+        Equivalent to `localAnglesFor` but takes Euler angles as input.
+        """
+        orientation = Orientation.fromEuler(yaw, pitch, roll)
+        return self.localAnglesFor(orientation)
 
     def __eq__(self, other):
         if not isinstance(other, Orientation):
