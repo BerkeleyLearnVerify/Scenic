@@ -325,8 +325,9 @@ def executeInRequirement(scenario, boundEgo, values):
         assert currentScenario is scenario
         clearScenario = False
     oldEgo = currentScenario._ego
+    oldObjects = currentScenario._objects
 
-    currentScenario._sampledObjects = tuple(values[obj] for obj in currentScenario.objects)
+    currentScenario._objects = tuple(values[obj] for obj in currentScenario.objects)
 
     if boundEgo:
         currentScenario._ego = boundEgo
@@ -339,7 +340,7 @@ def executeInRequirement(scenario, boundEgo, values):
     finally:
         evaluatingRequirement = False
         currentScenario._ego = oldEgo
-        currentScenario._sampledObjects = currentScenario._objects
+        currentScenario._objects = oldObjects
         if clearScenario:
             currentScenario = None
 
@@ -1009,22 +1010,19 @@ def CanSee(X, Y):
 
     assert currentScenario is not None
 
-    occludingObjects = tuple(obj for obj in currentScenario._sampledObjects if obj.occluding \
-                         and X is not obj and Y is not obj)
-
-    occludingObjects = toDistribution(occludingObjects)
+    objects = toDistribution(currentScenario._objects)
 
     @distributionFunction
-    def canSeeHelper(X, Y, occludingObjects):
+    def canSeeHelper(X, Y, objects):
         if not isA(Y, Point):
             Y = toVector(Y, '"X can see Y" with X not a Vector, Point, OrientedPoint, or Object')
 
-        for obj in occludingObjects:
-            assert not needsSampling(obj)
+        occludingObjects = tuple(obj for obj in objects
+            if obj.occluding and X is not obj and Y is not obj)
 
         return X.canSee(Y, occludingObjects=occludingObjects)
 
-    return canSeeHelper(X,Y, occludingObjects)
+    return canSeeHelper(X,Y, objects)
 ### Specifiers
 
 def With(prop, val):

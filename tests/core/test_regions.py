@@ -494,7 +494,7 @@ def test_viewregion(hAngle, vAngle, visibleDistance):
     vr = ViewRegion(visibleDistance, (hAngle, vAngle))
     vr_surface = vr.getSurfaceRegion()
 
-    for pt in trimesh.sample.volume_mesh(sphere.mesh, 100):
+    for pt in trimesh.sample.volume_mesh(sphere.mesh, 1000):
         x,y,z = pt
         azimuth = -math.atan2(x, y)
         altitude = math.atan2(z, math.hypot(x, y))

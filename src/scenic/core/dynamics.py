@@ -199,6 +199,8 @@ class DynamicScenario(Invocable):
         self._ego = None
         self._workspace = None
         self._instances = []    # ordered for reproducibility
+        # _objects should contain a reference to the most complete version of
+        # the objects in this scene (sampled > unsampled)
         self._objects = []      # ordered for reproducibility
         self._sampledObjects = self._objects
         self._externalParameters = []
