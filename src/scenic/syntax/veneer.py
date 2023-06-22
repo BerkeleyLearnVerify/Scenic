@@ -1002,13 +1002,14 @@ def CanSee(X, Y):
         <point> can see <vector>
         <point> can see <point>
     """
+    if isActive():
+        raise InvalidScenarioError('"can see" operator prohibited at top level of Scenic programs')
+
     if not isA(X, Point):
         raise TypeError('"X can see Y" with X not a Point, OrientedPoint, or Object')
 
     if not canCoerce(Y, Vector):
         raise TypeError('"X can see Y" with Y not a Vector, Point, or Object')
-
-    assert currentScenario is not None
 
     objects = toDistribution(currentScenario._objects)
 

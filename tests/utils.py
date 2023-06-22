@@ -17,6 +17,7 @@ from scenic import scenarioFromString
 from scenic.core.simulators import DummySimulator, RejectSimulationException
 from scenic.core.utils import DefaultIdentityDict
 import scenic.syntax.veneer as veneer
+from scenic.core.distributions import RejectionException
 
 ## Scene generation utilities
 
@@ -55,6 +56,15 @@ def sampleParamP(scenario, maxIterations=1):
 def sampleParamPFrom(code, maxIterations=1):
     scenario = compileScenic(code)
     return sampleParamP(scenario, maxIterations=maxIterations)
+
+def checkIfSamples(code, maxIterations=1):
+    scenario = compileScenic(code)
+    try:
+        sampleScene(scenario, maxIterations=maxIterations)
+    except RejectionException:
+        return False
+
+    return True
 
 # Dynamic simulations
 

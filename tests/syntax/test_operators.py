@@ -5,7 +5,8 @@ import pytest
 
 from scenic.core.vectors import Orientation
 from scenic.core.errors import InvalidScenarioError
-from tests.utils import compileScenic, sampleEgoFrom, sampleParamP, sampleParamPFrom
+from tests.utils import (compileScenic, sampleEgoFrom, sampleParamP,
+    sampleSceneFrom, sampleParamPFrom, checkIfSamples)
 
 ## Scalar operators
 
@@ -157,57 +158,69 @@ def test_distance_past_of():
 
 # Can See
 def test_point_can_see_vector():
-    p = sampleParamPFrom("""
-        ego = new Object
-        pt = new Point at 10@20, with visibleDistance 5
-        param p = tuple([pt can see 8@19, pt can see 10@26])
-    """)
-    assert p == (True, False)
+    p = []
+    for target in ["8@19", "10@26"]:
+        p.append(checkIfSamples(f"""
+            ego = new Object
+            pt = new Point at 10@20, with visibleDistance 5
+            require pt can see {target}
+        """))
+    assert p == [True, False]
 
 def test_point_can_see_vector_3d():
-    p = sampleParamPFrom("""
-        ego = new Object
-        pt = new Point at (10,20,0), with visibleDistance 5
-        param p = tuple([pt can see (8,19,0), pt can see (10,26,0), pt can see (10,20,4)])
-    """)
-    assert p == (True, False, True)
+    p = []
+    for target in ["(8,19,0)", "(10,26,0)", "(10,20,4)"]:
+        p.append(checkIfSamples(f"""
+            ego = new Object
+            pt = new Point at (10,20,0), with visibleDistance 5
+            require pt can see {target}
+        """))
+    assert p == [True, False, True]
 
 def test_point_can_see_point():
-    p = sampleParamPFrom("""
-        ego = new Object
-        pt = new Point at 10@20, with visibleDistance 5
-        param p = tuple([pt can see (new Point at 8@19), pt can see new Point at 10@26])
-    """)
-    assert p == (True, False)
+    p = []
+    for target in ["(new Point at 8@19)", "new Point at 10@26"]:
+        p.append(checkIfSamples(f"""
+            ego = new Object
+            pt = new Point at (10,20,0), with visibleDistance 5
+            require pt can see {target}
+        """))
+    assert p == [True, False]
 
 def test_point_can_see_object():
-    p = sampleParamPFrom("""
-        ego = new Object with width 10, with length 10
-        other = new Object at 35@10
-        pt = new Point at 15@10, with visibleDistance 15
-        param p = tuple([pt can see ego, pt can see other])
-    """)
-    assert p == (True, False)
+    p = []
+    for target in ["ego", "other"]:
+        p.append(checkIfSamples(f"""
+            ego = new Object with width 10, with length 10
+            other = new Object at 35@10
+            pt = new Point at 15@10, with visibleDistance 15
+            require pt can see {target}
+        """))
+    assert p == [True, False]
 
 def test_oriented_point_can_see_vector():
-    p = sampleParamPFrom("""
-        ego = new Object facing -45 deg, with visibleDistance 5, with viewAngle 20 deg
-        param p = tuple([ego can see 2@2, ego can see 4@4, ego can see 1@0])
-    """)
-    assert p == (True, False, False)
+    p = []
+    for target in ["2@2", "4@4", "1@0"]:
+        p.append(checkIfSamples(f"""
+            ego = new Object facing -45 deg, with visibleDistance 5, with viewAngle 20 deg
+            require ego can see {target}
+        """))
+    assert p == [True, False, False]
 
 def test_oriented_point_can_see_object():
-    p = sampleParamPFrom("""
-        ego = new Object facing -45 deg, with visibleDistance 5, with viewAngle 20 deg
-        other = new Object at 4@4, with width 2, with length 2
-        other2 = new Object at 4@0, with requireVisible False
-        param p = tuple([ego can see other, ego can see other2])
-    """)
-    assert p == (True, False)
+    p = []
+    for target in ["other", "other2"]:
+        p.append(checkIfSamples(f"""
+            ego = new Object facing -45 deg, with visibleDistance 5, with viewAngle 20 deg
+            other = new Object at 4@4, with width 2, with length 2
+            other2 = new Object at 4@0, with requireVisible False
+            require ego can see {target}
+        """))
+    assert p == [True, False]
 
 @pytest.mark.slow
 def test_can_see_occlusion():
-    p = sampleParamPFrom("""
+    p = checkIfSamples("""
         workspace_region = RectangularRegion(0 @ 0, 0, 40, 40)
         workspace = Workspace(workspace_region)
 
@@ -233,11 +246,11 @@ def test_can_see_occlusion():
             with name "wall",
             with occluding False
 
-        param p = ego can see target_obj
+        require ego can see target_obj
     """)
     assert p == True
 
-    p = sampleParamPFrom("""
+    p = checkIfSamples("""
         workspace_region = RectangularRegion(0 @ 0, 0, 40, 40)
         workspace = Workspace(workspace_region)
 
@@ -262,27 +275,27 @@ def test_can_see_occlusion():
             with height 6,
             with name "wall"
 
-        param p = ego can see target_obj
+        require ego can see target_obj
     """)
     assert p == False
 
 @pytest.mark.slow
 def test_can_see_distance_scaling():
     # First test with no occlusion
-    p = sampleParamPFrom("""
+    p = checkIfSamples("""
         ego = new Object with visibleDistance 1000000,
             with viewAngles(45 deg, 45 deg),
             with viewRayDistanceScaling True
 
         target_obj = new Object at (0, 100000, 0)
 
-        param p = ego can see target_obj
+        require ego can see target_obj
     """)
 
     assert p == True
 
     # Second test with occluding object
-    p = sampleParamPFrom("""
+    p = checkIfSamples("""
         ego = new Object with visibleDistance 1000000,
             with viewAngles(45 deg, 45 deg),
             with viewRayDistanceScaling True
@@ -293,7 +306,7 @@ def test_can_see_distance_scaling():
             on target_obj.backSurface, with onDirection (0,1,0),
             with width 0.75, with length 0.75, with height 0.75
 
-        param p = ego can see target_obj
+        require ego can see target_obj
     """)
 
     assert p == True
@@ -301,7 +314,7 @@ def test_can_see_distance_scaling():
 @pytest.mark.slow
 def test_can_see_altitude_optimization():
     for roll in (0, 90, 180, 270):
-        p = sampleParamPFrom(f"""
+        p = checkIfSamples(f"""
             import trimesh
 
             foo = new Object with roll {roll} deg,
@@ -315,10 +328,18 @@ def test_can_see_altitude_optimization():
             new Object at (0,3.9,0), with width 100, with height 100,
                 with shape MeshShape(mesh=obstacle_shape)
 
-            param p = foo can see bar
+            require foo can see bar
         """)
 
         assert p == True, roll
+
+def test_can_see_top_level():
+    with pytest.raises(InvalidScenarioError):
+        sampleSceneFrom("""
+            ego = new Object
+            foo = new Object at Range(0,3) @ 2
+            v = ego can see foo
+        """)
 
 # In
 def test_point_in_region_2d():
