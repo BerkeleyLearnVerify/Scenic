@@ -78,7 +78,7 @@ class WeightedAcceptanceChecker(SampleChecker):
 
             self.updateMetrics(req, metrics)
 
-            if req.falsifiedBy(sample):
+            if rejected:
                 return req.violationMsg
 
         return None
