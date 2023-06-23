@@ -425,14 +425,15 @@ class Scenario(_ScenarioPickleMixin):
                 requirements.append(ContainmentRequirement(obj, container))
 
         # Observing entity visibility
+        possible_occluders = lambda x: (needsSampling(x.occluding) or x.occluding)
         for obj in filter(lambda x: x._observingEntity is not None, self._instances):
             requirements.append(VisibilityRequirement(obj._observingEntity,
-                obj, self.objects))
+                obj, filter(possible_occluders, self.objects)))
 
         # Observing entity non visibility
         for obj in filter(lambda x: x._nonObservingEntity is not None, self._instances):
             requirements.append(NonVisibilityRequirement(obj._nonObservingEntity,
-                obj, self.objects))
+                obj, filter(possible_occluders, self.objects)))
 
         # Visibility from the ego
         for obj in filter(
