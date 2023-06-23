@@ -13,7 +13,7 @@ import decorator
 
 from scenic.core.lazy_eval import (LazilyEvaluable,
     requiredProperties, needsLazyEvaluation, valueInContext, makeDelayedFunctionCall)
-from scenic.core.utils import DefaultIdentityDict, argsToString, cached, sqrt2
+from scenic.core.utils import DefaultIdentityDict, argsToString, cached, sqrt2, get_type_hints
 from scenic.core.errors import RuntimeParseError
 
 ## Misc
@@ -320,7 +320,7 @@ class FunctionDistribution(Distribution):
 		args = tuple(toDistribution(arg) for arg in args)
 		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
 		if valueType is None:
-			valueType = typing.get_type_hints(func).get('return')
+			valueType = get_type_hints(func).get('return')
 		super().__init__(*args, *kwargs.values(), valueType=valueType)
 		self.function = func
 		self.arguments = args
@@ -428,7 +428,7 @@ class MethodDistribution(Distribution):
 		args = tuple(toDistribution(arg) for arg in args)
 		kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
 		if valueType is None:
-			valueType = typing.get_type_hints(method).get('return')
+			valueType = get_type_hints(method).get('return')
 		super().__init__(*args, *kwargs.values(), valueType=valueType)
 		self.method = method
 		self.object = obj
@@ -492,7 +492,7 @@ class AttributeDistribution(Distribution):
 		# If the object's type is known, see if we have an attribute type annotation.
 		ty = type_support.underlyingType(obj)
 		try:
-			hints = typing.get_type_hints(ty)
+			hints = get_type_hints(ty)
 			attrTy = hints.get(attribute)
 			if attrTy:
 				return attrTy
@@ -525,7 +525,7 @@ class AttributeDistribution(Distribution):
 			if func:
 				if isinstance(func, property):
 					func = func.fget
-				retTy = typing.get_type_hints(func).get('return')
+				retTy = get_type_hints(func).get('return')
 		return OperatorDistribution('__call__', self, args, valueType=retTy)
 
 	def __repr__(self):
@@ -549,7 +549,7 @@ class OperatorDistribution(Distribution):
 		ty = type_support.underlyingType(obj)
 		op = getattr(ty, operator, None)
 		if op:
-			retTy = typing.get_type_hints(op).get('return')
+			retTy = get_type_hints(op).get('return')
 			if retTy:
 				return retTy
 

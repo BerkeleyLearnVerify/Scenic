@@ -5,6 +5,7 @@ from contextlib import contextmanager
 import math
 import signal
 import sys
+import types
 import typing
 
 import decorator
@@ -110,3 +111,17 @@ def get_type_args(tp):
             res = (list(res[:-1]), res[-1])
         return res
     return ()
+
+# Patched version of typing.get_type_hints fixing bpo-37838
+
+if (sys.version_info >= (3, 8, 1)
+    or (sys.version_info < (3, 8) and sys.version_info >= (3, 7, 6))):
+    get_type_hints = typing.get_type_hints
+else:
+    def get_type_hints(obj, globalns=None, localns=None):
+        if not isinstance(obj, (type, types.ModuleType)) and globalns is None:
+            wrapped = obj
+            while hasattr(wrapped, '__wrapped__'):
+                wrapped = wrapped.__wrapped__
+            globalns = getattr(wrapped, '__globals__', {})
+        return typing.get_type_hints(obj, globalns, localns)
