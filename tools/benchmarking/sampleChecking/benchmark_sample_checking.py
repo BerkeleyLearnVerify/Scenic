@@ -11,8 +11,8 @@ from threadpoolctl import threadpool_limits
 import scenic
 from scenic.core.sample_checking import WeightedAcceptanceChecker
 
-MAX_TIME = 1#10*60
-TRIALS_PER = 1#25
+MAX_TIME = 20*60
+TRIALS_PER = {1:25, 10:5, 100:3}
 SCENE_COUNT = [1,10,100]
 BENCHMARKS = [
                 ("narrowGoalOld.scenic", {"mode2D": True}),
@@ -76,7 +76,7 @@ if __name__ == '__main__':
             benchmark_name, benchmark_params = benchmark
             scenario = scenarios[str(benchmark)]
             times = []
-            for trial_iter in range(TRIALS_PER):
+            for trial_iter in range(TRIALS_PER[num_scenes]):
                 p = Process(target=run_benchmark, args=[scenario, sample_checker, num_scenes])
                 start = time.perf_counter()
                 p.start()
