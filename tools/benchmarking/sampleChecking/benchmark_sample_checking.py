@@ -12,7 +12,7 @@ import scenic
 from scenic.core.sample_checking import WeightedAcceptanceChecker
 
 MAX_TIME = 20*60
-TRIALS_PER = {1:25, 10:5, 100:3}
+TRIALS_PER = {1:25, 10:10, 100:5}
 SCENE_COUNT = [1,10,100]
 BENCHMARKS = [
                 ("narrowGoalOld.scenic", {"mode2D": True}),
