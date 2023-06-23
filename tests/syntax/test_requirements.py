@@ -319,10 +319,12 @@ def test_static_intersection_violation_disabled():
 ## Tests for random properties that have special effects on constructing requirements
 def test_random_allowCollisions():
     for _ in range(5):
-        sampleSceneFrom("""
+        scene = sampleSceneFrom("""
             new Object with allowCollisions Uniform(True, False)
             new Object with allowCollisions Uniform(True, False)
-        """, maxIterations=10)
+        """, maxIterations=30)
+
+        assert any(obj.allowCollisions for obj in scene.objects)
 
 @pytest.mark.slow
 def test_random_occlusion():
@@ -340,11 +342,11 @@ def test_random_occlusion():
                 with viewAngles (340 deg, 60 deg),
                 with rayDensity 5
 
-            seeing_obj = new Object at (0,10,5),
+            seen_obj = new Object at (0,10,5),
                 with width 20,
                 with height 20,
                 with length 2,
-                with name "seeingObject",
+                with name "seen_obj",
                 with requireVisible True
 
             new Object at (0,5,4),
@@ -353,4 +355,6 @@ def test_random_occlusion():
                 with height 6,
                 with name "wall",
                 with occluding Uniform(True, False)
-        """, maxIterations=20)
+        """, maxIterations=60)
+
+        assert any(obj.name == "wall" and (not obj.occluding) for obj in scene.objects)

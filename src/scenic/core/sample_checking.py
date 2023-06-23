@@ -5,6 +5,7 @@ import time
 from collections import deque
 
 from scenic.core.requirements import IntersectionRequirement, BlanketCollisionRequirement
+from scenic.core.distributions import RejectionException
 
 class SampleChecker(ABC):
     def __init__(self):
@@ -20,7 +21,10 @@ class SampleChecker(ABC):
 
     def checkRequirements(self, sample):
         assert self.requirements is not None
-        return self.checkRequirementsInner(sample)
+        try:
+            return self.checkRequirementsInner(sample)
+        except RejectionException as e:
+            return e
 
 class BasicChecker(SampleChecker):
     """ Basic requirement checker.

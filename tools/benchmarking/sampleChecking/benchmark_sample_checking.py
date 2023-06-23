@@ -4,13 +4,16 @@ from multiprocess import Process
 from pathlib import Path
 import json
 import itertools
+import statistics
+
+from threadpoolctl import threadpool_limits
 
 import scenic
 from scenic.core.sample_checking import WeightedAcceptanceChecker
 
-MAX_TIME = 10*60
-TRIALS_PER = 10
-SCENE_COUNT = [1,10]
+MAX_TIME = 1#10*60
+TRIALS_PER = 1#25
+SCENE_COUNT = [1,10,100]
 BENCHMARKS = [
                 ("narrowGoalOld.scenic", {"mode2D": True}),
                 ("bumperToBumper.scenic", {"mode2D": True}),
@@ -18,6 +21,11 @@ BENCHMARKS = [
                 ("adjacentOpposingPair.scenic", {"mode2D": True}),
                 ("carInFront.scenic", {"mode2D": True}),
                 ("mediumTraffic.scenic", {"mode2D": True}),
+                ("opposingPair.scenic", {"mode2D": True}),
+                ("angledPlatoonInFront.scenic", {"mode2D": True}),
+                ("parkedPlatoon.scenic", {"mode2D": True}),
+                ("bypassing_03.scenic", {"mode2D": True}),
+                ("pedestrian_02.scenic", {"mode2D": True}),
                 ("narrowGoalNew.scenic", {}),
                 ("city_intersection.scenic", {}),
                 ("vacuum.scenic", {"numToys": 0}),
@@ -28,61 +36,61 @@ BENCHMARKS = [
                 ("vacuum.scenic", {"numToys": 16}),
              ]
 
-SAMPLE_CHECKERS = ["BasicChecker", "WeightedAcceptanceChecker"]
+SAMPLE_CHECKERS = ["BasicChecker", "WeightedAcceptanceChecker_1", "WeightedAcceptanceChecker_10", "WeightedAcceptanceChecker_100"]
 
-def warmup(path, params):
+NUM_CORES = 16
+
+def make_scenario(path, params):
     params = params.copy()
     if "mode2D" in params:
         del params['mode2D']
         mode2D = True
     else:
         mode2D = False
-    scenario = scenic.scenarioFromFile(Path("benchmarks") / path, params=params, mode2D=mode2D)
+    return scenic.scenarioFromFile(Path("benchmarks") / path, params=params, mode2D=mode2D)
 
-    scenario.generateBatch(1)
+def run_benchmark(scenario, sample_checker, num_scenes):
+    if sample_checker == "BasicChecker":
+        pass
+    elif sample_checker == "WeightedAcceptanceChecker_1":
+        scenario.setSampleChecker(WeightedAcceptanceChecker(bufferSize=1))
+    elif sample_checker == "WeightedAcceptanceChecker_10":
+        scenario.setSampleChecker(WeightedAcceptanceChecker(bufferSize=10))
+    elif sample_checker == "WeightedAcceptanceChecker_100":
+        scenario.setSampleChecker(WeightedAcceptanceChecker(bufferSize=100))
 
-def run_benchmark(path, params, sample_checker, num_scenes):
-    if "mode2D" in params:
-        del params['mode2D']
-        mode2D = True
-    else:
-        mode2D = False
-    scenario = scenic.scenarioFromFile(Path("benchmarks") / path, params=params, mode2D=mode2D)
-
-    if sample_checker == "WeightedAcceptanceChecker":
-        scenario.setSampleChecker(WeightedAcceptanceChecker())
-
-    scenario.generateBatch(numScenes=num_scenes)
+    with threadpool_limits(limits=NUM_CORES, user_api='blas'):
+        scenario.generateBatch(numScenes=num_scenes)
 
 if __name__ == '__main__':
-    # Warmup
-    for benchmark_name, benchmark_params in BENCHMARKS:
-        print("Warmup:", benchmark_name, benchmark_params)
-        warmup(benchmark_name, benchmark_params)
-
     # Gather times
     sc_results = {}
+
+    print("Compiling scenarios...")
+    scenarios = {str(benchmark): make_scenario(*benchmark) for benchmark in BENCHMARKS}
+    print("Compiling done!")
 
     for sample_checker in SAMPLE_CHECKERS:
         results_val = {}
         for benchmark, num_scenes in itertools.product(BENCHMARKS, SCENE_COUNT):
             benchmark_name, benchmark_params = benchmark
-            total_time = 0
+            scenario = scenarios[str(benchmark)]
+            times = []
             for trial_iter in range(TRIALS_PER):
-                p = Process(target=run_benchmark, args=[benchmark_name, benchmark_params, sample_checker, num_scenes])
-                start = time.time()
+                p = Process(target=run_benchmark, args=[scenario, sample_checker, num_scenes])
+                start = time.perf_counter()
                 p.start()
                 p.join(timeout=MAX_TIME)
                 p.kill()
-                trial_time = min(time.time()-start, MAX_TIME)
+                trial_time = min(time.perf_counter()-start, MAX_TIME)
 
                 print(f"({sample_checker},{benchmark},{num_scenes},{trial_iter}): {trial_time:.2f}s")
 
-                total_time += trial_time
+                times.append(trial_time)
 
-            mean_time = total_time/TRIALS_PER
-            assert 0 <= mean_time <= MAX_TIME
-            results_val[(str(benchmark), num_scenes)] = mean_time
+            median_times = statistics.median(times)
+            assert 0 <= median_times <= MAX_TIME
+            results_val[(str(benchmark), num_scenes)] = median_times
         sc_results[sample_checker] = results_val
 
     # Dump results
@@ -96,10 +104,10 @@ if __name__ == '__main__':
 
         stats_json = sc_json["stats"]
 
-        for name, mean_time in sc_results[sample_checker].items():
+        for name, median_times in sc_results[sample_checker].items():
             stats_json[str(name)] = {
                 "status": True,
-                "rtime": mean_time
+                "rtime": median_times
             }
 
 
