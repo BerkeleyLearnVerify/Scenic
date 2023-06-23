@@ -2,14 +2,15 @@
 
 from abc import ABC, abstractmethod
 import time
+from collections import deque
 
-from scenic.core.requirements import IntersectionRequirement
+from scenic.core.requirements import IntersectionRequirement, BlanketCollisionRequirement
 
 class SampleChecker(ABC):
     def __init__(self):
         self.requirements = None
 
-    def addRequirements(self, requirements):
+    def setRequirements(self, requirements):
         assert self.requirements is None
         self.requirements = tuple(requirements)
 
@@ -30,18 +31,19 @@ class BasicChecker(SampleChecker):
         super().__init__()
         self.initialCollisionCheck = initialCollisionCheck
 
-    def addRequirements(self, requirements):
+    def setRequirements(self, requirements):
         target_reqs = []
         for req in requirements:
             if req.optional:
                 # Basic checker ignores optional requirements unless otherwise noted.
-                if (self.initialCollisionCheck and
-                    sum(isinstance(r, IntersectionRequirement) for r in requirements) >= 3):
+                if (isinstance(req, BlanketCollisionRequirement)
+                   and self.initialCollisionCheck
+                   and sum(isinstance(r, IntersectionRequirement) for r in requirements) >= 3):
                     target_reqs.append(req)
             else:
                 target_reqs.append(req)
 
-        super().addRequirements(target_reqs)
+        super().setRequirements(target_reqs)
 
     def checkRequirementsInner(self, sample):
         for req in self.requirements:
@@ -63,18 +65,20 @@ class WeightedAcceptanceChecker(SampleChecker):
         super().__init__()
         self.bufferSize = bufferSize
 
-    def addRequirements(self, requirements):
-        super().addRequirements(requirements)
+    def setRequirements(self, requirements):
+        super().setRequirements(requirements)
 
-        self.buffers = {req:[(1,0)]*self.bufferSize for req in self.requirements}
+        self.buffers = {req: deque(maxlen=self.bufferSize) for req in self.requirements}
+        for req in self.requirements:
+            self.buffers[req].extend([(0,0)]*self.bufferSize)
 
     def checkRequirementsInner(self, sample):
-        for req in self.sortRequirements():
+        for req in self.sortedRequirements():
             # Evaluate the requirement with timing info.
-            start = time.time()
+            start = time.perf_counter()
             rejected = req.falsifiedBy(sample)
             # Create metrics (Accepted, Time Taken)
-            metrics = (int(not rejected), time.time()-start)
+            metrics = (int(not rejected), time.perf_counter()-start)
 
             self.updateMetrics(req, metrics)
 
@@ -83,7 +87,7 @@ class WeightedAcceptanceChecker(SampleChecker):
 
         return None
 
-    def sortRequirements(self):
+    def sortedRequirements(self):
         """ Return the list of requirements in sorted order"""
         # Extract and sort active requirements
         reqs = [req for req in self.requirements if req.active]
@@ -98,8 +102,7 @@ class WeightedAcceptanceChecker(SampleChecker):
     def updateMetrics(self, req, metrics):
         """ Update the metrics for a given requirement"""
         target_buffer = self.buffers[req]
-        target_buffer.pop()
-        target_buffer.insert(0, metrics)
+        target_buffer.appendleft(metrics)
 
     def getWeightedAcceptanceProb(self, req):
         target_buffer = self.buffers[req]

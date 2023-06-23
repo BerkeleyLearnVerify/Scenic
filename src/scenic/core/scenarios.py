@@ -21,7 +21,7 @@ from scenic.core.dynamics import Behavior, Monitor
 from scenic.core.requirements import (BoundRequirement, IntersectionRequirement,
     BlanketCollisionRequirement, ContainmentRequirement, VisibilityRequirement,
     NonVisibilityRequirement)
-from scenic.core.sample_checking import BasicChecker
+from scenic.core.sample_checking import BasicChecker, WeightedAcceptanceChecker
 from scenic.core.serialization import Serializer, dumpAsScenicCode
 from scenic.core.regions import AllRegion
 
@@ -264,7 +264,7 @@ class Scenario(_ScenarioPickleMixin):
 
     def setSampleChecker(self, checker):
         self.checker = checker
-        self.checker.addRequirements(self.defaultRequirements+self.userRequirements)
+        self.checker.setRequirements(self.defaultRequirements+self.userRequirements)
 
     def containerOfObject(self, obj):
         if hasattr(obj, 'regionContainedIn') and obj.regionContainedIn is not None:
@@ -350,7 +350,7 @@ class Scenario(_ScenarioPickleMixin):
 
         for _ in range(numScenes):
             try:
-                scene, iterations = self._generateInner(maxIterations, verbosity, feedback)
+                scene, iterations = self._generateInner(maxIterations-total_iterations, verbosity, feedback)
                 scenes.append(scene)
                 total_iterations += iterations
             except RejectionException:
@@ -373,7 +373,7 @@ class Scenario(_ScenarioPickleMixin):
 
             if iterations > 0:  # rejected the last sample
                 if verbosity >= 2:
-                    print(f'  Rejected sample {iterations} because of: {rejection}')
+                    print(f'  Rejected sample {iterations} because of {rejection}')
                 if self.externalSampler is not None:
                     feedback = self.externalSampler.rejectionFeedback
             if iterations >= maxIterations:
@@ -385,7 +385,7 @@ class Scenario(_ScenarioPickleMixin):
                 sample = Samplable.sampleAll(self.dependencies)
             except RejectionException as e:
                 optionallyDebugRejection(e)
-                rejection = f"Rejection exception: {e}"
+                rejection = e
                 continue
             rejection = None
 

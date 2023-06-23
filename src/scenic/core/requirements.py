@@ -289,18 +289,27 @@ class BlanketCollisionRequirement(SamplingRequirement):
     def __init__(self, objects, optional=True):
         super().__init__(optional=optional)
         self.objects = objects
+        self._collidingObjects = None
 
     def falsifiedByInner(self, sample):
         objects = tuple(sample[obj] for obj in self.objects)
         cm = trimesh.collision.CollisionManager()
-        for obj in objects:
+        for i, obj in enumerate(objects):
             if not obj.allowCollisions:
-                cm.add_object(str(obj), obj.occupiedSpace.mesh)
-        return cm.in_collision_internal()
+                cm.add_object(str(i), obj.occupiedSpace.mesh)
+        collision, names = cm.in_collision_internal(return_names=True)
+
+        if collision:
+            self._collidingObjects = tuple(sorted(names))
+
+        return collision
 
     @property
     def violationMsg(self):
-        return f"Blanket collision violation: One or more objects have colliding surfaces."
+        assert self._collidingObjects is not None
+        objA_index, objB_index = map(int, self._collidingObjects[0])
+        objA, objB = self.objects[objA_index], self.objects[objB_index]
+        return f"Intersection violation: {objA} intersects {objB}"
 
 class ContainmentRequirement(SamplingRequirement):
     def __init__(self, obj, container, optional=False):
