@@ -114,7 +114,8 @@ def get_type_args(tp):
 
 # Patched version of typing.get_type_hints fixing bpo-37838
 
-if sys.version_info >= (3, 7, 6) and sys.version_info != (3, 8, 0):
+if (sys.version_info >= (3, 8, 1)
+    or (sys.version_info < (3, 8) and sys.version_info >= (3, 7, 6))):
     get_type_hints = typing.get_type_hints
 else:
     def get_type_hints(obj, globalns=None, localns=None):
