@@ -3121,7 +3121,7 @@ class ViewRegion(MeshVolumeRegion):
         rotation: An optional Orientation object which determines the rotation of the object in space.
         orientation: An optional vector field describing the preferred orientation at every point in
           the region.
-        angleCutoff: How close to 90/180 degrees an angle has to be to be mapped to that value.
+        angleCutoff: How close to 180/360 degrees an angle has to be to be mapped to that value.
         tolerance: Tolerance for collision computations.
     """
     def __init__(self, visibleDistance, viewAngles, name=None, position=Vector(0,0,0), rotation=None,\
