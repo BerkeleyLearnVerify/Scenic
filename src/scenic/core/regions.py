@@ -3103,24 +3103,15 @@ class ViewRegion(MeshVolumeRegion):
 
     The default view region can take several forms, depending on the viewAngles parameter:
 
-    * Case 1:       viewAngles[0] = 360 degrees
+    * Case 1:       viewAngles[1] = 180 degrees
 
-      * Case 1.a:   viewAngles[1] = 180 degrees         => Full Sphere View Region
-      * Case 1.b:   viewAngles[1] < 180 degrees         => Sphere - (Cone + Cone) (Cones on z axis expanding from origin)
+      * Case 2.a    viewAngles[0] = 360 degrees     => Sphere
+      * Case 2.b    viewAngles[0] < 360 degrees     => Sphere & CylinderSectionRegion
 
-    * Case 2:       viewAngles[0] > 180, Altitude < 180 => (Sphere - (Cone + Cone) (Cones on appropriate hemispheres)) - Backwards Capped Pyramid View Region
+    * Case 2:       viewAngles[1] < 180 degrees
 
-    * Case 3:       viewAngles[1] = 180 degrees
-
-      * Case 3.a:   viewAngles[0] < 180 degrees         => Sphere intersected with Pyramid View Region
-      * Case 3.b:   viewAngles[0] > 180 degrees         => Sphere - Backwards Pyramid View Region
-
-    * Case 4:       viewAngles[0] = 180 degrees
-
-      * Case 4.a:   viewAngles[1] = 180 degrees         => Hemisphere View Region
-      * Case 4.b:   viewAngles[1] < 180 degrees         => Hemisphere - (Cone + Cone) (Cones on appropriate hemispheres)
-
-    * Case 5:       viewAngles[0 & 1] < 180             => Capped Pyramid View Region
+      * Case 2.a    viewAngles[0] = 360 degrees     => Sphere - (Cone + Cone) (Cones on z axis expanding from origin)
+      * Case 2.b    viewAngles[0] < 360 degrees     => Sphere & ViewSectionRegion
 
     Args:
         visibleDistance: The view distance for this region.
@@ -3143,38 +3134,16 @@ class ViewRegion(MeshVolumeRegion):
         diameter = 2*visibleDistance
         base_sphere = SpheroidRegion(dimensions=(diameter, diameter, diameter), engine="scad")
 
-        if (math.tau-angleCutoff <= viewAngles[0] <= math.tau+angleCutoff):
+        if (math.pi-angleCutoff <= viewAngles[1]):
             # Case 1
-            if viewAngles[1] > math.pi-angleCutoff:
+            if (math.tau-angleCutoff <= viewAngles[0]):
                 #Case 1.a
                 view_region = base_sphere
             else:
-                # Case 1.b
-                # Create cone with yaw oriented around (0,0,-1)
-                padded_height = visibleDistance * 2
-                radius = padded_height*math.tan((math.pi-viewAngles[1])/2)
-
-                cone_mesh = trimesh.creation.cone(radius=radius, height=padded_height)
-
-                position_matrix = translation_matrix((0,0,-1*padded_height))
-                cone_mesh.apply_transform(position_matrix)
-
-                # Create two cones around the yaw axis
-                orientation_1 = Orientation._fromEuler(0,0,0)
-                orientation_2 = Orientation._fromEuler(0,0,math.pi)
-
-                cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, centerMesh=False)
-                cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, centerMesh=False)
-
-                view_region = base_sphere.difference(cone_1).difference(cone_2)
-
-        elif (math.pi-angleCutoff <= viewAngles[0] <= math.pi+angleCutoff):
+                view_region = base_sphere.intersect(CylinderSectionRegion(visibleDistance, viewAngles[0]))
+        else:
             # Case 2
-            if viewAngles[1] > math.pi-angleCutoff:
-                # Case 2.a
-                padded_diameter = 1.1*diameter
-                view_region = base_sphere.intersect(BoxRegion(dimensions=(padded_diameter, padded_diameter, padded_diameter), position=(0,padded_diameter/2,0)))
-            else:
+            if (math.tau-angleCutoff <= viewAngles[0]):
                 # Case 2.b
                 # Create cone with yaw oriented around (0,0,-1)
                 padded_height = visibleDistance * 2
@@ -3192,50 +3161,9 @@ class ViewRegion(MeshVolumeRegion):
                 cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, centerMesh=False)
                 cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, centerMesh=False)
 
-                padded_diameter = 1.1*diameter
-
-                base_hemisphere = base_sphere.intersect(BoxRegion(dimensions=(padded_diameter, padded_diameter, padded_diameter), position=(0,padded_diameter/2,0)))
-
-                view_region = base_hemisphere.difference(cone_1).difference(cone_2)
-
-        elif viewAngles[1] > math.pi-angleCutoff:
-            # Case 3
-            if viewAngles[0] < math.pi:
-                view_region = base_sphere.intersect(TriangularPrismViewRegion(visibleDistance, viewAngles[0]))
-            elif viewAngles[0] > math.pi:
-                back_tprism = TriangularPrismViewRegion(visibleDistance, math.tau - viewAngles[0], rotation=Orientation._fromEuler(math.pi, 0, 0))
-                view_region = base_sphere.difference(back_tprism)
+                view_region = base_sphere.difference(cone_1).difference(cone_2)
             else:
-                assert False, f"{viewAngles=}"
-
-        elif viewAngles[0] < math.pi and viewAngles[1] < math.pi:
-            # Case 4
-            view_region = base_sphere.intersect(PyramidViewRegion(visibleDistance, viewAngles))
-        elif viewAngles[0] > math.pi and viewAngles[1] < math.pi:
-            # Case 5
-            # Create cone with yaw oriented around (0,0,-1)
-            padded_height = visibleDistance * 2
-            radius = padded_height*math.tan((math.pi-viewAngles[1])/2)
-
-            cone_mesh = trimesh.creation.cone(radius=radius, height=padded_height)
-
-            position_matrix = translation_matrix((0,0,-1*padded_height))
-            cone_mesh.apply_transform(position_matrix)
-
-            # Position on the yaw axis
-            orientation_1 = Orientation._fromEuler(0,0,0)
-            orientation_2 = Orientation._fromEuler(0,0,math.pi)
-
-            cone_1 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_1, centerMesh=False)
-            cone_2 = MeshVolumeRegion(mesh=cone_mesh, rotation=orientation_2, centerMesh=False)
-
-            backwards_view_angle = (math.tau-viewAngles[0], math.pi-0.01)
-            back_pyramid = PyramidViewRegion(visibleDistance, backwards_view_angle, rotation=Orientation._fromEuler(math.pi, 0, 0))
-
-            # Note: Openscad does not like the result of the difference with the cones, so they must be done last.
-            view_region = base_sphere.difference(back_pyramid).difference(cone_1).difference(cone_2)
-        else:
-            assert False, f"{viewAngles=}"
+                view_region = base_sphere.intersect(ViewSectionRegion(visibleDistance, viewAngles))
 
         assert view_region is not None
 
@@ -3243,96 +3171,82 @@ class ViewRegion(MeshVolumeRegion):
         super().__init__(mesh=view_region.mesh, name=name, position=position, rotation=rotation, orientation=orientation, \
             tolerance=tolerance, centerMesh=False)
 
+class ViewSectionRegion(MeshVolumeRegion):
+    def __init__(self, visibleDistance, viewAngles, rotation=None, resolution=32):
+        triangles = []
 
-class PyramidViewRegion(MeshVolumeRegion):
-    """ A pyramid region, used to construct view regions.
+        # Face line
+        top_line = []
+        bot_line = []
 
-    Args:
-        visibleDistance: The view distance for this region, equal to the central height of the pyramid 
-          (will be slightly amplified to prevent mesh intersection errors).
-        viewAngles: The view angles for this region.
-        rotation: An optional Orientation object which determines the rotation of the object in space.
-    """
-    def __init__(self, visibleDistance, viewAngles, rotation=None):
-        if min(viewAngles) <= 0 or max(viewAngles) >= math.pi:
-            raise ValueError("viewAngles members must be between 0 and Pi.")
+        for azimuth in numpy.linspace(-viewAngles[0]/2, viewAngles[0]/2, num=resolution):
+            top_line.append(self.vecFromAziAlt(azimuth, viewAngles[1]/2, 2*visibleDistance))
+            bot_line.append(self.vecFromAziAlt(azimuth, -viewAngles[1]/2, 2*visibleDistance))
 
-        x_dim = 2*visibleDistance*math.tan(viewAngles[0]/2)
-        z_dim = 2*visibleDistance*math.tan(viewAngles[1]/2)
+        # Face triangles
+        for li in range(len(top_line)-1):
+            triangles.append((top_line[li], bot_line[li], top_line[li+1]))
+            triangles.append((bot_line[li], bot_line[li+1], top_line[li+1]))
 
-        dimensions = (x_dim, visibleDistance*1.01, z_dim)
+        # Side triangles
+        triangles.append((bot_line[0], top_line[0], (0,0,0)))
+        triangles.append((top_line[-1], bot_line[-1], (0,0,0)))
 
-        # Create pyramid mesh and scale it appropriately.
-        vertices = [[ 0,  0,  0],
-                    [-1,  1,  1],
-                    [ 1,  1,  1],
-                    [ 1,  1, -1],
-                    [-1,  1, -1]]
+        # Top/Bottom triangles
+        for li in range(len(top_line)-1):
+            triangles.append((top_line[li], top_line[li+1], (0,0,0)))
+            triangles.append((bot_line[li+1], bot_line[li], (0,0,0)))
 
-        faces = [[0,2,1],
-                 [0,3,2],
-                 [0,4,3],
-                 [0,1,4],
-                 [1,2,4],
-                 [2,3,4]]
+        vr_mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
 
-        pyramid_mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
+        assert vr_mesh.is_volume
 
-        scale = pyramid_mesh.extents / numpy.array(dimensions)
+        super().__init__(mesh=vr_mesh, rotation=rotation, centerMesh=False)
 
-        scale_matrix = numpy.eye(4)
-        scale_matrix[:3, :3] /= scale
+    @staticmethod
+    def vecFromAziAlt(azimuth, altitude, flat_dist):
+        raw_vec = numpy.asarray([-math.sin(azimuth), math.cos(azimuth), math.tan(altitude)])
+        scale = flat_dist/math.hypot(raw_vec[0],raw_vec[1])
+        return scale*raw_vec
 
-        pyramid_mesh.apply_transform(scale_matrix)
+class CylinderSectionRegion(MeshVolumeRegion):
+    def __init__(self, visibleDistance, viewAngle, rotation=None, resolution=32):
+        triangles = []
 
-        super().__init__(mesh=pyramid_mesh, rotation=rotation, centerMesh=False)
+        # Face line
+        top_line = []
+        bot_line = []
 
+        for azimuth in numpy.linspace(-viewAngle/2, viewAngle/2, num=resolution):
+            top_line.append(self.vecFromAzi(azimuth, 2*visibleDistance, 2*visibleDistance))
+            bot_line.append(self.vecFromAzi(azimuth, -2*visibleDistance, 2*visibleDistance))
 
-class TriangularPrismViewRegion(MeshVolumeRegion):
-    """ A triangular prism region, used to construct view regions.
+        # Face triangles
+        for li in range(len(top_line)-1):
+            triangles.append((top_line[li], bot_line[li], top_line[li+1]))
+            triangles.append((bot_line[li], bot_line[li+1], top_line[li+1]))
 
-    Args:
-        visibleDistance: The view distance for this region (will be slightly amplified to 
-          prevent mesh intersection errors).
-        viewAngles: The view angles for this region.
-        rotation: An optional Orientation object which determines the rotation of the object in space.
-    """
-    def __init__(self, visibleDistance, viewAngle, rotation=None):
-        if viewAngle <= 0 or viewAngle >= math.pi:
-            raise ValueError("viewAngles members must be between 0 and Pi.")
+        # Side triangles
+        triangles.append((bot_line[0], top_line[0], (0,0,2*visibleDistance)))
+        triangles.append((bot_line[0], (0,0,2*visibleDistance), (0,0,-2*visibleDistance)))
+        triangles.append((top_line[-1], bot_line[-1], (0,0,2*visibleDistance)))
+        triangles.append(((0,0,2*visibleDistance), bot_line[-1], (0,0,-2*visibleDistance)))
 
-        y_dim = 1.01*visibleDistance
-        z_dim = 2*y_dim
-        x_dim = 2*math.tan(viewAngle/2)*y_dim
+        # Top/Bottom triangles
+        for li in range(len(top_line)-1):
+            triangles.append((top_line[li], top_line[li+1], (0,0,2*visibleDistance)))
+            triangles.append((bot_line[li+1], bot_line[li], (0,0,-2*visibleDistance)))
 
-        dimensions = (x_dim, y_dim, z_dim)
+        vr_mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
 
-        # Create triangualr prism mesh and scale it appropriately.
-        vertices = [[ 0,  0,  1], # 0 - Top origin
-                    [ 0,  0, -1], # 1 - Bottom origin
-                    [-1,  1,  1], # 2 - Top left
-                    [ 1,  1,  1], # 3 - Top right
-                    [-1,  1, -1], # 4 - Bottom left
-                    [ 1,  1, -1]] # 5 - Bottom right
+        assert vr_mesh.is_volume
 
-        faces = [
-                 [0,3,2], # Top triangle
-                 [1,4,5], # Bottom triangle
-                 [1,0,2], # Left 1
-                 [1,2,4], # Left 2
-                 [1,3,0], # Right 1
-                 [1,5,3], # Right 2
-                 [4,2,3], # Back 1
-                 [4,3,5], # Back 2
-                ]
+        super().__init__(mesh=vr_mesh, rotation=rotation, centerMesh=False)
 
-        tprism_mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-
-        scale = tprism_mesh.extents / numpy.array(dimensions)
-
-        scale_matrix = numpy.eye(4)
-        scale_matrix[:3, :3] /= scale
-
-        tprism_mesh.apply_transform(scale_matrix)
-
-        super().__init__(mesh=tprism_mesh, rotation=rotation, centerMesh=False)
+    @staticmethod
+    def vecFromAzi(azimuth, height, dist):
+        raw_vec = numpy.asarray([-math.sin(azimuth), math.cos(azimuth), 0])
+        scale = dist/math.hypot(raw_vec[0],raw_vec[1])
+        raw_vec = scale*raw_vec
+        raw_vec[2] = height
+        return raw_vec

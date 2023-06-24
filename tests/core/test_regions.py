@@ -477,16 +477,22 @@ def test_pointset_region():
     assert ps.AABB == ((1,5),(2,6),(0,5))
 
 # ViewRegion tests
-H_ANGLES = [0.1,90,180,270,360]
+H_ANGLES = [0.1,45,90,135,179.9,180,180.1,225,270,315,359.9,360]
 
-V_ANGLES = [0.1,90,180]
+V_ANGLES = [0.1,45,90,135,179.9,180]
 
 VISIBLE_DISTANCES = [1,25,50]
 
-@pytest.mark.slow
+@pytest.mark.exhaustive
 @pytest.mark.parametrize("hAngle,vAngle,visibleDistance", 
     itertools.product(H_ANGLES,V_ANGLES,VISIBLE_DISTANCES))
-def test_viewregion(hAngle, vAngle, visibleDistance):
+def test_viewRegion_full(hAngle, vAngle, visibleDistance):
+    viewRegion_test_helper(hAngle, vAngle, visibleDistance)
+
+def test_viewRegion_minimal():
+    viewRegion_test_helper(90, 90, 50)
+
+def viewRegion_test_helper(hAngle, vAngle, visibleDistance):
     hAngle = math.radians(hAngle)
     vAngle = math.radians(vAngle)
 
@@ -506,7 +512,7 @@ def test_viewregion(hAngle, vAngle, visibleDistance):
             distance <= visibleDistance
         )
 
-        if vr_surface.distanceTo(pt) > 0.03*visibleDistance:
+        if vr_surface.distanceTo(pt) > 0.01*visibleDistance:
             assert vr.containsPoint(pt) == pt_contained
 
 # General properties of regions

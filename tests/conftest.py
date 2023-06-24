@@ -39,6 +39,8 @@ def runLocally(request):
 def pytest_addoption(parser):
     # option to skip very slow tests
     parser.addoption('--fast', action='store_true', help='skip very slow tests')
+    # option to run tests that exhaustively test certain elements, but can be VERY slow.
+    parser.addoption('--exhaustive', action='store_true', help='run exhaustive tests')
     # option to skip graphical tests
     parser.addoption('--no-graphics', action='store_true', help='skip graphical tests')
     # option to skip parser generation
@@ -58,6 +60,11 @@ def pytest_collection_modifyitems(config, items):
         mark = pytest.mark.skip(reason='slow test skipped by --fast')
         for item in items:
             if 'slow' in item.keywords:
+                item.add_marker(mark)
+    if not config.getoption('--exhaustive'):
+        mark = pytest.mark.skip(reason='exhaustive test not run because --exhaustive was not set')
+        for item in items:
+            if 'exhaustive' in item.keywords:
                 item.add_marker(mark)
     if config.getoption('--no-graphics'):
         mark = pytest.mark.skip(reason='graphical test skipped by --no-graphics')
