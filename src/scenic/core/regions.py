@@ -3137,14 +3137,14 @@ class ViewRegion(MeshVolumeRegion):
         if (math.pi-angleCutoff <= viewAngles[1]):
             # Case 1
             if (math.tau-angleCutoff <= viewAngles[0]):
-                #Case 1.a
+                # Case 1.a
                 view_region = base_sphere
             else:
                 view_region = base_sphere.intersect(CylinderSectionRegion(visibleDistance, viewAngles[0]))
         else:
             # Case 2
             if (math.tau-angleCutoff <= viewAngles[0]):
-                # Case 2.b
+                # Case 2.a
                 # Create cone with yaw oriented around (0,0,-1)
                 padded_height = visibleDistance * 2
                 radius = padded_height*math.tan((math.pi-viewAngles[1])/2)
@@ -3163,6 +3163,7 @@ class ViewRegion(MeshVolumeRegion):
 
                 view_region = base_sphere.difference(cone_1).difference(cone_2)
             else:
+                # Case 2.b
                 view_region = base_sphere.intersect(ViewSectionRegion(visibleDistance, viewAngles))
 
         assert view_region is not None
