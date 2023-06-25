@@ -3113,8 +3113,7 @@ class ViewRegion(MeshVolumeRegion):
       * Case 2.a    viewAngles[0] = 360 degrees     => Sphere - (Cone + Cone) (Cones on z axis expanding from origin)
       * Case 2.b    viewAngles[0] < 360 degrees     => Sphere & ViewSectionRegion
 
-    When making changes to this class (or `ViewSectionRegion` / `CylinderSectionRegion`), you
-    should run :cmd:`pytest -k test_viewRegion --exhaustive`.
+    When making changes to this class you should run ``pytest -k test_viewRegion --exhaustive``.
 
     Args:
         visibleDistance: The view distance for this region.
