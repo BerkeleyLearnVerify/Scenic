@@ -5,6 +5,17 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref on which to run the tests.
+        required: true
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref on which to run the tests.
+      options:
+        description: Options to pass to pytest.
 
 jobs:
   build:
@@ -15,7 +26,16 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout given ref
+      uses: actions/checkout@v3
+      if: inputs.ref != ''
+      with:
+        ref: ${{ inputs.ref }}
+    - name: Checkout current branch
+      uses: actions/checkout@v3
+      if: inputs.ref == ''
+      with:
+        ref: ${{ github.ref }}
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
@@ -28,4 +48,4 @@ jobs:
         python -m pip install -e ".[test]"
     - name: Run pytest
       run: |
-        pytest --no-graphics
+        pytest --no-graphics ${{ inputs.options }}
