@@ -3113,6 +3113,8 @@ class ViewRegion(MeshVolumeRegion):
       * Case 2.a    viewAngles[0] = 360 degrees     => Sphere - (Cone + Cone) (Cones on z axis expanding from origin)
       * Case 2.b    viewAngles[0] < 360 degrees     => Sphere & ViewSectionRegion
 
+    When making changes to this class you should run ``pytest -k test_viewRegion --exhaustive``.
+
     Args:
         visibleDistance: The view distance for this region.
         viewAngles: The view angles for this region.
@@ -3206,9 +3208,7 @@ class ViewSectionRegion(MeshVolumeRegion):
 
     @staticmethod
     def vecFromAziAlt(azimuth, altitude, flat_dist):
-        raw_vec = numpy.asarray([-math.sin(azimuth), math.cos(azimuth), math.tan(altitude)])
-        scale = flat_dist/math.hypot(raw_vec[0],raw_vec[1])
-        return scale*raw_vec
+        return flat_dist*numpy.asarray([-math.sin(azimuth), math.cos(azimuth), math.tan(altitude)])
 
 class CylinderSectionRegion(MeshVolumeRegion):
     def __init__(self, visibleDistance, viewAngle, rotation=None, resolution=32):
@@ -3246,8 +3246,6 @@ class CylinderSectionRegion(MeshVolumeRegion):
 
     @staticmethod
     def vecFromAzi(azimuth, height, dist):
-        raw_vec = numpy.asarray([-math.sin(azimuth), math.cos(azimuth), 0])
-        scale = dist/math.hypot(raw_vec[0],raw_vec[1])
-        raw_vec = scale*raw_vec
+        raw_vec = dist*numpy.asarray([-math.sin(azimuth), math.cos(azimuth), 0])
         raw_vec[2] = height
         return raw_vec
