@@ -11,6 +11,10 @@ on:
         description: Git ref on which to run the tests.
         type: string
         required: true
+      options:
+        description: Options to pass to pytest.
+        default: --no-graphics
+        type: string
   workflow_call:
     inputs:
       ref:
