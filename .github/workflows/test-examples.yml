@@ -1,0 +1,14 @@
+name: test_examples
+
+on:
+  workflow_dispatch:
+    ref:
+      description: Git ref on which to run the tests.
+      required: true
+
+jobs:
+  call-run-tests:
+    uses: ./.github/workflows/run-tests.yml
+    with:
+      ref: ${{ inputs.ref }}
+      options: examples
