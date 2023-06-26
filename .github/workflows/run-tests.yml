@@ -9,13 +9,21 @@ on:
     inputs:
       ref:
         description: Git ref on which to run the tests.
+        type: string
         required: true
+      options:
+        description: Options to pass to pytest.
+        default: --no-graphics
+        type: string
   workflow_call:
     inputs:
       ref:
         description: Git ref on which to run the tests.
+        type: string
       options:
         description: Options to pass to pytest.
+        default: --no-graphics
+        type: string
 
 jobs:
   build:
@@ -48,4 +56,4 @@ jobs:
         python -m pip install -e ".[test]"
     - name: Run pytest
       run: |
-        pytest --no-graphics ${{ inputs.options }}
+        pytest ${{ inputs.options }}

@@ -2,9 +2,11 @@ name: test_examples
 
 on:
   workflow_dispatch:
-    ref:
-      description: Git ref on which to run the tests.
-      required: true
+    inputs:
+      ref:
+        description: Git ref on which to run the tests.
+        required: true
+        type: string
 
 jobs:
   call-run-tests:
