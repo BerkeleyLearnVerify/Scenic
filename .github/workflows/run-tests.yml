@@ -18,6 +18,7 @@ on:
         type: string
       options:
         description: Options to pass to pytest.
+        default: --no-graphics
         type: string
 
 jobs:
@@ -51,4 +52,4 @@ jobs:
         python -m pip install -e ".[test]"
     - name: Run pytest
       run: |
-        pytest --no-graphics ${{ inputs.options }}
+        pytest ${{ inputs.options }}
