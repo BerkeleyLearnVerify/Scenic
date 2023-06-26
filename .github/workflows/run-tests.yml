@@ -89,4 +89,4 @@ jobs:
 
     - name: Run pytest
       run: |
-        pytest ${{ inputs.options }}
+        pytest ${{ inputs.options || '--no-graphics' }}
