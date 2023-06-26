@@ -56,4 +56,4 @@ jobs:
         python -m pip install -e ".[test]"
     - name: Run pytest
       run: |
-        pytest ${{ inputs.options }}
+        pytest ${{ inputs.options || '--no-graphics' }}
