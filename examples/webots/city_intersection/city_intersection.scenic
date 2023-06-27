@@ -9,8 +9,6 @@ import time
 import shutil
 import os
 
-import shapely
-
 class EgoCar(WebotsObject):
     webotsName: "EGO"
     shape: MeshShape.fromFile(localPath("../../../assets/meshes/bmwx5_hull.obj.bz2"), initial_rotation=(90 deg, 0, 0))

@@ -9,7 +9,7 @@ import pytest
 from scenic.formats.opendrive import OpenDriveWorkspace
 from scenic.core.geometry import TriangulationError
 
-mapFolder = (Path().parent.parent.parent / 'assets' / 'maps').resolve()
+mapFolder = Path(__file__).parent.parent.parent.parent / 'assets' / 'maps'
 maps = glob.glob(str(mapFolder / '**' / '*' / '.xodr'))
 
 @pytest.mark.slow
