@@ -68,11 +68,14 @@ class WeightedAcceptanceChecker(SampleChecker):
     def __init__(self, bufferSize=10):
         super().__init__()
         self.bufferSize = bufferSize
+        self.buffers = None
+        self.bufferSums = None
 
     def setRequirements(self, requirements):
         super().setRequirements(requirements)
 
-        self.buffers = {req: deque(maxlen=self.bufferSize) for req in self.requirements}
+        self.buffers = {req: deque() for req in self.requirements}
+        self.bufferSums = {req: (0,0) for req in self.requirements}
         for req in self.requirements:
             self.buffers[req].extend([(0,0)]*self.bufferSize)
 
@@ -103,13 +106,23 @@ class WeightedAcceptanceChecker(SampleChecker):
 
         return reqs
 
-    def updateMetrics(self, req, metrics):
+    def updateMetrics(self, req, new_metrics):
         """ Update the metrics for a given requirement"""
+        # Update buffer
         target_buffer = self.buffers[req]
-        target_buffer.appendleft(metrics)
+        old_metrics = target_buffer.popleft()
+        target_buffer.append(new_metrics)
+
+        # Unpack values
+        sum_acc, sum_time = self.bufferSums[req]
+        old_acc, old_time = old_metrics
+        new_acc, new_time = new_metrics
+
+        # Update sums
+        sum_acc += new_acc-old_acc
+        sum_time += new_time-old_time
+        self.bufferSums[req] = (sum_acc, sum_time)
 
     def getWeightedAcceptanceProb(self, req):
-        target_buffer = self.buffers[req]
-        mean_accept = sum(metric[0] for metric in target_buffer)/self.bufferSize
-        mean_time = sum(metric[1] for metric in target_buffer)/self.bufferSize
-        return mean_accept * mean_time
+        sum_acc, sum_time = self.bufferSums[req]
+        return (sum_acc/self.bufferSize)*(sum_time/self.bufferSize)

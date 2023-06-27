@@ -327,7 +327,7 @@ def test_random_allowCollisions():
 
 @pytest.mark.slow
 def test_random_occlusion():
-    sampleSceneFrom("""
+    scene = sampleSceneFrom("""
         workspace_region = RectangularRegion(0 @ 0, 0, 40, 40)
         workspace = Workspace(workspace_region)
 
@@ -355,4 +355,5 @@ def test_random_occlusion():
             with occluding Uniform(True, False)
     """, maxIterations=60)
 
-    assert any(obj.name == "wall" and (not obj.occluding) for obj in scene.objects)
+    assert any(hasattr(obj, "name") and obj.name == "wall"
+            and (not obj.occluding) for obj in scene.objects)

@@ -259,8 +259,7 @@ class Scenario(_ScenarioPickleMixin):
 
         # Setup the default checker
         self.defaultRequirements = self.generateDefaultRequirements()
-        self.setSampleChecker(BasicChecker(initialCollisionCheck=
-                (not self.compileOptions.mode2D) and INITIAL_COLLISION_CHECK))
+        self.setSampleChecker(WeightedAcceptanceChecker(bufferSize=100))
 
     def setSampleChecker(self, checker):
         self.checker = checker
