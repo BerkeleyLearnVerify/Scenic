@@ -1,7 +1,5 @@
 """Scenic model for Mars rover scenarios in Webots."""
 
-from pathlib import Path
-
 model scenic.simulators.webots.model
 
 # Set up workspace
@@ -47,14 +45,14 @@ class Debris(WebotsObject):
 
 class BigRock(Debris):
     """Large rock."""
-    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "webots_rock_large.obj.bz2")
+    shape: MeshShape.fromFile(localPath("../../../assets/meshes/webots_rock_large.obj.bz2"))
     yaw: Range(0, 360 deg)
     webotsType: 'ROCK_BIG'
     positionOffset: Vector(0,0, -self.height/2)
 
 class Rock(Debris):
     """Small rock."""
-    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "webots_rock_small.obj.bz2")
+    shape: MeshShape.fromFile(localPath("../../../assets/meshes/webots_rock_small.obj.bz2"))
     yaw: Range(0, 360 deg)
     webotsType: 'ROCK_SMALL'
     positionOffset: Vector(0,0, -self.height/2)

@@ -446,7 +446,7 @@ invoking Scenic as follows:
         --simulate \
         --model scenic.simulators.lgsvl.model \
         --time 200 \
-        --param map tests/formats/opendrive/maps/LGSVL/borregasave.xodr \
+        --param map assets/maps/LGSVL/borregasave.xodr \
         --param lgsvl_map BorregasAve
 
 Try playing around with different example scenarios and different choices of maps (making

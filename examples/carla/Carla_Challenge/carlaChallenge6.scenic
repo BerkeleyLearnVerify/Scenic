@@ -4,7 +4,7 @@ Ego-vehicle must go around a blocking object
 using the opposite lane, yielding to oncoming traffic.
 """
 
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../../assets/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town07'
 model scenic.domains.driving.model
 

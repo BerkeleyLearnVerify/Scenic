@@ -1,6 +1,6 @@
 # 3 way intersection. ego going straight. ego has right of way, but actor blocking it. 
 
-param map = localPath('maps/cubetown.xodr')
+param map = localPath('../../assets/maps/LGSVL/cubetown.xodr')
 param lgsvl_map = 'CubeTown'
 param time_step = 1.0/10
 

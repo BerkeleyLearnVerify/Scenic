@@ -8,7 +8,7 @@ import pytest
 
 from scenic.domains.driving.roads import Network
 
-mapFolder = Path('tests')/'formats'/'opendrive'/'maps'
+mapFolder = (Path().parent.parent.parent / 'assets' / 'maps').resolve()
 maps = glob.glob(str(mapFolder/'**'/'*.xodr'))
 
 # TODO fix handling of this problematic map

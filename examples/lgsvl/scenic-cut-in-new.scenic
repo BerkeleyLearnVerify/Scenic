@@ -1,5 +1,5 @@
 
-param map = localPath('maps/Straight2LaneSame.xodr')
+param map = localPath('../../assets/maps/LGSVL/Straight2LaneSame.xodr')
 param lgsvl_map = 'Straight2LaneSame'
 param apolloHDMap = 'Straight2LaneSame'
 param time_step = 1.0/2

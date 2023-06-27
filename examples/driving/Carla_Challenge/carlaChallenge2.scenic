@@ -4,7 +4,7 @@ Leading vehicle decelerates suddently due to an obstacle and
 ego-vehicle must react, performing an emergency brake or an avoidance maneuver.
 Note: The scenario may fail if the leadCar or the ego get past the intersection while following the roadDirection
 """
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../../assets/maps/CARLA/Town07.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town07'
 model scenic.domains.driving.model
 

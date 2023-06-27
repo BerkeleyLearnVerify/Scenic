@@ -1,5 +1,4 @@
-
-param map = localPath('../../formats/opendrive/maps/CARLA/Town01.xodr')
+param map = localPath('../../../assets/maps/CARLA/Town01.xodr')
 param carla_map = 'Town01'
 from scenic.simulators.carla.model import *
 

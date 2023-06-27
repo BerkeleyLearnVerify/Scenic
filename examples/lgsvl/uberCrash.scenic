@@ -1,5 +1,5 @@
 
-param map = localPath('maps/borregasave.xodr')
+param map = localPath('../../assets/maps/LGSVL/borregasave.xodr')
 param lgsvl_map = 'BorregasAve'
 model scenic.simulators.lgsvl.model
 param time_step = 1.0/10

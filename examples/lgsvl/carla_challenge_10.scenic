@@ -2,7 +2,7 @@
 # Definition: Ego-vehicle needs to negotiate with other vehicles to cross an unsignalized intersection. In this situation it is assumed that the first to enter the intersection has priority. 
 # actor arrives at 4 way intersection before ego, has right of way. crosses intersection before ego.
 
-param map = localPath('maps/borregasave.xodr')
+param map = localPath('../../assets/maps/LGSVL/borregasave.xodr')
 param lgsvl_map = 'BorregasAve'
 param time_step = 1.0/10
 

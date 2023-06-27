@@ -1,6 +1,6 @@
 
 param render = False
-param map = localPath('../../formats/opendrive/maps/CARLA/Town01.xodr')
+param map = localPath('../../../assets/maps/CARLA/Town01.xodr')
 model scenic.simulators.newtonian.driving_model
 
 ego = new Car in intersection, with behavior FollowLaneBehavior

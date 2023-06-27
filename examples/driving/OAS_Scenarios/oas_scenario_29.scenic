@@ -4,7 +4,7 @@ At 3 way intersection. The ego car turns left.
 The other car, on a different leg of the intersection, 
 has the right of the way and makes a left turn first because it is closer to the intersection.
 """
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../../assets/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
 model scenic.domains.driving.model
 

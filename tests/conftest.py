@@ -48,6 +48,7 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     config.addinivalue_line('markers', 'slow: mark test as very slow')
+    config.addinivalue_line('markers', 'exhaustive: mark test as exhaustive (very thorough, extremely slow)')
     config.addinivalue_line('markers', 'graphical: mark test as requiring graphics')
 
     if not config.getoption("skip_pegen"):
