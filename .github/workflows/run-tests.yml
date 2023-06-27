@@ -73,7 +73,8 @@ jobs:
       run: |
         Expand-Archive -Path downloads/openscad.zip -DestinationPath openscad
         Move-Item -Path openscad/openscad-2021.01 -Destination $Env:Programfiles\OpenSCAD
-        Expand-Archive -Path downloads/blender.zip -DestinationPath "$Env:Programfiles\Blender Foundation\Blender"
+        Expand-Archive -Path downloads/blender.zip -DestinationPath blender
+        Move-Item -Path blender/blender-3.6.0-windows-x64 -Destination "$Env:Programfiles\Blender Foundation\Blender"
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
