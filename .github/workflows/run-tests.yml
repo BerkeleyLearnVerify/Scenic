@@ -64,15 +64,16 @@ jobs:
     - name: Download non-Python dependencies (Windows)
       if: ${{ matrix.os == 'windows-latest' && steps.windows-cache-deps.outputs.cache-hit != 'true' }}
       run: |
-        curl https://files.openscad.org/OpenSCAD-2021.01-x86-64.zip -O downloads/openscad.zip
-        curl https://www.blender.org/download/release/Blender3.6/blender-3.6.0-windows-x64.zip -O downloads/blender.zip
+        New-Item -Path downloads -ItemType Directory -Force
+        Invoke-WebRequest https://files.openscad.org/OpenSCAD-2021.01-x86-64.zip -O downloads/openscad.zip
+        Invoke-WebRequest https://download.blender.org/release/Blender3.6/blender-3.6.0-windows-x64.zip -O downloads/blender.zip
 
     - name: Install non-Python dependencies (Windows)
       if: ${{ matrix.os == 'windows-latest' }}
       run: |
-        Expand-Archive -Path scenic-deps/openscad.zip -O openscad
+        Expand-Archive -Path downloads/openscad.zip -DestinationPath openscad
         Move-Item -Path openscad/openscad-2021.01 -Destination $Env:Programfiles\OpenSCAD
-        Expand-Archive -Path scenic-deps/blender.zip -O $Env:Programfiles\Blender Foundation\Blender
+        Expand-Archive -Path downloads/blender.zip -DestinationPath "$Env:Programfiles\Blender Foundation\Blender"
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
