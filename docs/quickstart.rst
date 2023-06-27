@@ -8,7 +8,7 @@ Installation
 
 Scenic requires **Python 3.8** or newer.
 Run :command:`python --version` to make sure you have a new enough version; if not, you can install one from the `Python website <https://www.python.org/downloads/>`_ or using `pyenv <https://github.com/pyenv/pyenv>`_ (e.g. running :command:`pyenv install 3.11`).
-If the version of Python you want to use is called something different than just ``python`` on your system, e.g. ``python3.11``, use that name in place of ``python`` throughout the following instructions.
+If the version of Python you want to use is called something different than just ``python`` on your system, e.g. ``python3.11``, use that name in place of ``python`` when creating a virtual environment below.
 
 There are two ways to install Scenic:
 
@@ -31,12 +31,12 @@ If you encounter any errors, please see our :doc:`install_notes` for suggestions
 
 	.. tab:: Linux
 
-		Start by installing Blender and OpenSCAD.
+		Start by installing the Python-Tk interface, Blender, and OpenSCAD.
 		You can likely use your system's package manager; e.g. on Debian/Ubuntu run:
 
 		.. code-block:: text
 
-			sudo apt-get install blender openscad
+			sudo apt-get install python3-tk blender openscad
 
 		For other Linux distributions or if you need to install from source, see the download pages for `Blender <https://www.blender.org/download/>`__ and `OpenSCAD <https://openscad.org/downloads.html>`__.
 
@@ -44,7 +44,7 @@ If you encounter any errors, please see our :doc:`install_notes` for suggestions
 
 	.. tab:: Windows
 
-		These instructions cover installing Scenic natively on Windows; if you are using the `Windows Subsystem for Linux <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ (on Windows 10 and newer), see the Linux tab instead.
+		These instructions cover installing Scenic natively on Windows; if you are using the `Windows Subsystem for Linux <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ (on Windows 10 and newer), see the WSL tab instead.
 
 		Start by downloading and running the installers for `Blender <https://www.blender.org/download/>`__ and `OpenSCAD <https://openscad.org/downloads.html>`__.
 
@@ -55,6 +55,37 @@ If you encounter any errors, please see our :doc:`install_notes` for suggestions
 
 			python -m venv venv
 			venv\Scripts\activate.bat
+
+		.. include:: _templates/installation.rst
+			:start-after: .. venv-setup-end
+
+	.. tab:: WSL
+
+		These instructions cover installing Scenic on the Windows Subsystem for Linux (WSL).
+
+		If you haven't already installed WSL, you can do that by running :command:`wsl --install` (in either Command Prompt or PowerShell) and restarting your computer.
+		Then open a WSL terminal and run the following commands to install Python, the Python-Tk interface, Blender, and OpenSCAD:
+
+		.. code-block:: text
+
+			sudo apt-get update
+			sudo apt-get install python3 python3-tk blender openscad
+
+		.. include:: _templates/installation.rst
+			:end-before: .. venv-setup-start
+
+		.. code-block:: text
+
+			python3 -m venv venv
+			source venv/bin/activate
+
+		If you get an error about needing a package like ``python3.10-venv``, run
+
+		.. code-block:: text
+
+			sudo apt-get install python3.10-venv
+
+		(putting in the appropriate Python version) and try the commands above again.
 
 		.. include:: _templates/installation.rst
 			:start-after: .. venv-setup-end
