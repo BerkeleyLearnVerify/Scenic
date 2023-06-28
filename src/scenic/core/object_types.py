@@ -1374,6 +1374,7 @@ def disableDynamicProxyFor(obj):
 class Point2D(Point):
     """A 2D version of `Point`, used for backwards compatibility with Scenic 2.0"""
     _scenic_properties = {}
+    _3DClass = Point
 
     @cached_property
     def visibleRegion(self):
@@ -1390,17 +1391,18 @@ class Point2D(Point):
         elif isinstance(other, (Vector, Point2D, OrientedPoint2D)):
             return self.visibleRegion.containsPoint(toVector(other))
         else:
-            raise TypeError(f"Cannot check visibility if {str(target)} of type {type(target)}")
+            assert False, other
 
     def canSee(self, other, occludingObjects):
         if not occludingObjects:
             return self._canSee2D(other)
 
-        return Point.canSee(self, other, occludingObjects)
+        return self._3DClass.canSee(self, other, occludingObjects)
 
 class OrientedPoint2D(Point2D, OrientedPoint):
     """A 2D version of `OrientedPoint`, used for backwards compatibility with Scenic 2.0"""
     _scenic_properties = {}
+    _3DClass = OrientedPoint
 
     def __init_subclass__(cls):
         if cls.__dict__.get('_props_transformed', False):
@@ -1444,12 +1446,6 @@ class OrientedPoint2D(Point2D, OrientedPoint):
         return SectorRegion(self.position, self.visibleDistance,
                             self.heading, self.viewAngle)
 
-    def canSee(self, other, occludingObjects):
-        if not occludingObjects:
-            return self._canSee2D(other)
-
-        return OrientedPoint.canSee(self, other, occludingObjects)
-
 class Object2D(OrientedPoint2D, Object):
     """A 2D version of `Object`, used for backwards compatibility with Scenic 2.0"""
     _scenic_properties = {
@@ -1459,6 +1455,7 @@ class Object2D(OrientedPoint2D, Object):
         'occluding': False,
         'height': PropertyDefault(('width', 'length'), {}, lambda self: max(self.width, self.length)),
     }
+    _3DClass = Object
 
     @classmethod
     def _specify(cls, context, prop, value):

@@ -483,4 +483,4 @@ def canSee(position, orientation, visibleDistance, viewAngles,
 
         return True
     else:
-        raise TypeError(f"Cannot check visibility if {str(target)} of type {type(target)}")
+        assert False, target
