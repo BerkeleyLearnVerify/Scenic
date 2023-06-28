@@ -39,7 +39,7 @@ def test_make_map(request, tmp_path):
 def test_mutate():
     scenario = compileScenic(f"""
         from scenic.simulators.gta.map import setLocalMap
-        setLocalMap("{__file__}", "map.npz")
+        setLocalMap(r"{__file__}", "map.npz")
         from scenic.simulators.gta.model import *
         ego = new EgoCar with color Color(0, 0, 1)
         mutate

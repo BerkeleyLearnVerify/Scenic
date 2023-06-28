@@ -4,11 +4,13 @@ To create and activate a new virtual environment called :file:`venv`, you can ru
 .. venv-setup-start
 .. code-block:: text
 
-    python -m venv venv
+    python3 -m venv venv
     source venv/bin/activate
 .. venv-setup-end
 
-Once your virtual environment is activated, make sure your :command:`pip` tool is up-to-date:
+Once your virtual environment is activated, you no longer need to use a name like ``python3`` or ``python3.11``; use just :command:`python` to ensure you're running the copy of Python in your virtual environment.
+
+Next, make sure your :command:`pip` tool is up-to-date:
 
 .. code-block:: text
 
