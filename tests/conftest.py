@@ -40,7 +40,7 @@ def pytest_addoption(parser):
     # option to skip very slow tests
     parser.addoption('--fast', action='store_true', help='skip very slow tests')
     # option to run tests that exhaustively test certain elements, but can be VERY slow.
-    parser.addoption('--exhaustive', action='store_true', help='run exhaustive tests')
+    parser.addoption('--exhaustive', action='store_true', help='run exhaustive tests (too slow to run by default)')
     # option to skip graphical tests
     parser.addoption('--no-graphics', action='store_true', help='skip graphical tests')
     # option to skip parser generation
@@ -48,6 +48,7 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     config.addinivalue_line('markers', 'slow: mark test as very slow')
+    config.addinivalue_line('markers', 'exhaustive: mark test as extremely slow and not run by default')
     config.addinivalue_line('markers', 'graphical: mark test as requiring graphics')
 
     if not config.getoption("skip_pegen"):
