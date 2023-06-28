@@ -1384,6 +1384,20 @@ class Point2D(Point):
         """
         return CircularRegion(self.position, self.visibleDistance)
 
+    def _canSee2D(self, other):
+        if isinstance(other, Object2D):
+            return self.visibleRegion.polygons.intersects(other._boundingPolygon)
+        elif isinstance(other, (Vector, Point2D, OrientedPoint2D)):
+            return self.visibleRegion.containsPoint(toVector(other))
+        else:
+            raise TypeError(f"Cannot check visibility if {str(target)} of type {type(target)}")
+
+    def canSee(self, other, occludingObjects):
+        if not occludingObjects:
+            return self._canSee2D(other)
+
+        return Point.canSee(self, other, occludingObjects)
+
 class OrientedPoint2D(Point2D, OrientedPoint):
     """A 2D version of `OrientedPoint`, used for backwards compatibility with Scenic 2.0"""
     _scenic_properties = {}
@@ -1430,6 +1444,12 @@ class OrientedPoint2D(Point2D, OrientedPoint):
         return SectorRegion(self.position, self.visibleDistance,
                             self.heading, self.viewAngle)
 
+    def canSee(self, other, occludingObjects):
+        if not occludingObjects:
+            return self._canSee2D(other)
+
+        return OrientedPoint.canSee(self, other, occludingObjects)
+
 class Object2D(OrientedPoint2D, Object):
     """A 2D version of `Object`, used for backwards compatibility with Scenic 2.0"""
     _scenic_properties = {
@@ -1462,3 +1482,9 @@ class Object2D(OrientedPoint2D, Object):
         """
         camera = self.position.offsetRotated(self.heading, self.cameraOffset)
         return SectorRegion(camera, self.visibleDistance, self.heading, self.viewAngle)
+
+    def canSee(self, other, occludingObjects):
+        if not occludingObjects:
+            return self._canSee2D(other)
+
+        return Object.canSee(self, other, occludingObjects)
