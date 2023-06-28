@@ -15,7 +15,7 @@ from scenic.core.lazy_eval import (LazilyEvaluable,
     isLazy, needsSampling, dependencies,
     requiredProperties, needsLazyEvaluation, valueInContext, makeDelayedFunctionCall)
 from scenic.core.utils import DefaultIdentityDict, argsToString, cached, sqrt2
-from scenic.core.errors import ScenicError
+from scenic.core.errors import ScenicError, InvalidScenarioError
 
 ## Misc
 
@@ -212,6 +212,11 @@ class Distribution(Samplable):
             subsamples[dist] = value
             sim.recordSampledValue(dist, subsamples)
             return value
+        elif veneer.evaluatingRequirement:
+            raise InvalidScenarioError(
+                'cannot define distributions inside a requirement'
+                ' (try moving them outside)'
+            )
         else:
             return dist
 

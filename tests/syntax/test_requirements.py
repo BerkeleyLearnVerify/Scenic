@@ -78,6 +78,14 @@ def test_unexpected_unpacking():
 
 ## Forbidden operations inside requirements
 
+def test_distribution_in_requirement():
+    scenario = compileScenic("""
+        require Range(0, 1) <= 1
+        ego = new Object
+    """)
+    with pytest.raises(InvalidScenarioError):
+        sampleScene(scenario)
+
 def test_object_in_requirement():
     scenario = compileScenic("""
         require new Object
