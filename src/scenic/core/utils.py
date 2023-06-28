@@ -9,6 +9,7 @@ import signal
 import sys
 import os
 import bz2
+import weakref
 
 import trimesh
 
@@ -36,6 +37,26 @@ def cached(oldMethod):
             value = oldMethod(self)
             setattr(self, storageName, value)
             return value
+    return wrapper
+
+_methodCaches = weakref.WeakKeyDictionary()
+
+def cached_method(oldMethod):
+    """Decorator for making a method cache its result on a per-object basis.
+
+    Like ``functools.lru_cache(maxsize=None)`` except using a separate cache
+    for each object, with the cache automatically deallocated when the object
+    is garbage collected.
+    """
+    name = oldMethod.__name__
+    @functools.wraps(oldMethod)
+    def wrapper(self, *args, **kwargs):
+        caches = _methodCaches.get(self, collections.defaultdict(dict))
+        cachedMethod = caches.get(name)
+        if cachedMethod is None:
+            cachedMethod = functools.lru_cache(maxsize=None)(oldMethod)
+            caches[name] = cachedMethod
+        return cachedMethod(self, *args, **kwargs)
     return wrapper
 
 def cached_property(oldMethod):

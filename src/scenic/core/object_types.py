@@ -24,7 +24,6 @@ import shapely
 import shapely.affinity
 import trimesh
 from abc import ABC, abstractmethod
-from functools import lru_cache
 
 from scenic.core.distributions import (Samplable, RandomControlFlowError, MultiplexerDistribution,
                                        needsSampling, distributionMethod, distributionFunction,
@@ -39,7 +38,7 @@ from scenic.core.regions import (Region, CircularRegion, SectorRegion, MeshVolum
 from scenic.core.type_support import toVector, toHeading, toType, toScalar, toOrientation, underlyingType
 from scenic.core.lazy_eval import LazilyEvaluable, isLazy, needsLazyEvaluation
 from scenic.core.serialization import dumpAsScenicCode
-from scenic.core.utils import DefaultIdentityDict, cached_property
+from scenic.core.utils import DefaultIdentityDict, cached_property, cached_method
 from scenic.core.errors import InvalidScenarioError, SpecifierError
 from scenic.core.shapes import Shape, BoxShape, MeshShape
 from scenic.core.regions import IntersectionRegion
@@ -636,7 +635,7 @@ class Point(Constructible):
         dimensions = (self.visibleDistance, self.visibleDistance, self.visibleDistance)
         return SpheroidRegion(position=self.position, dimensions=dimensions)
 
-    @lru_cache(maxsize=None)
+    @cached_method
     def canSee(self, other, occludingObjects=tuple(), debug=False) -> bool:
         """Whether or not this `Point` can see ``other``.
 
@@ -759,7 +758,7 @@ class OrientedPoint(Point):
         return ViewRegion(visibleDistance=self.visibleDistance, viewAngles=self.viewAngles,
             position=self.position, rotation=self.orientation)
 
-    @lru_cache(maxsize=None)
+    @cached_method
     def canSee(self, other, occludingObjects=tuple(), debug=False) -> bool:
         """Whether or not this `OrientedPoint` can see ``other``.
 
@@ -933,17 +932,17 @@ class Object(OrientedPoint):
         """
         pass
 
-    @lru_cache(maxsize=None)
+    @cached_method
     def containsPoint(self, point):
         """ Whether or not the space this object occupies contains a point"""
         return self.occupiedSpace.containsPoint(point)
 
-    @lru_cache(maxsize=None)
+    @cached_method
     def distanceTo(self, point):
         """ The minimal distance from the space this object occupies to a given point"""
         return self.occupiedSpace.distanceTo(point)
 
-    @lru_cache(maxsize=None)
+    @cached_method
     def intersects(self, other):
         """ Whether or not this object intersects another object"""
         # For objects that are boxes and flat, we can take a fast route
@@ -1045,7 +1044,7 @@ class Object(OrientedPoint):
                                  viewAngles=self.viewAngles,
                                  position=true_position, rotation=self.orientation)
 
-    @lru_cache(maxsize=None)
+    @cached_method
     def canSee(self, other, occludingObjects=tuple(), debug=False) -> bool:
         """Whether or not this `Object` can see ``other``.
 

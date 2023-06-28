@@ -10,7 +10,6 @@ Manipulations of meshes is done using the
 import math
 import random
 import itertools
-from functools import lru_cache
 from abc import ABC, abstractmethod
 import warnings
 from subprocess import CalledProcessError
@@ -34,7 +33,7 @@ from scenic.core.geometry import (
     headingOfSegment, triangulatePolygon, plotPolygon, polygonUnion
 )
 from scenic.core.type_support import toVector, toScalar, toOrientation
-from scenic.core.utils import cached, cached_property, loadMesh
+from scenic.core.utils import cached, cached_property, cached_method, loadMesh
 
 ###################################################################################################
 # Abstract Classes and Utilities
@@ -152,7 +151,7 @@ class Region(Samplable, ABC):
         return self
 
     ## Generic Methods (not to be overriden by subclasses) ##
-    @lru_cache(maxsize=None)
+    @cached_method
     def containsRegion(self, reg, tolerance=0):
         # Default behavior for AllRegion and EmptyRegion
         if type(self) is AllRegion or type(reg) is EmptyRegion:
@@ -1176,7 +1175,7 @@ class MeshVolumeRegion(MeshRegion):
         raise NotImplementedError
 
     # Composition methods #
-    @lru_cache(maxsize=None)
+    @cached_method
     def intersect(self, other, triedReversed=False):
         """ Get a `Region` representing the intersection of this region with another.
 
@@ -1501,7 +1500,7 @@ class MeshVolumeRegion(MeshRegion):
         return self.mesh.mass/self.mesh.density
 
     ## Utility Methods ##
-    @lru_cache(maxsize=None)
+    @cached_method
     def getSurfaceRegion(self):
         """ Return a region equivalent to this one, except as a MeshSurfaceRegion"""
         return MeshSurfaceRegion(self.mesh, self.name, orientation=self.orientation, \
@@ -1657,7 +1656,7 @@ class MeshSurfaceRegion(MeshRegion):
         return final_orientation
 
     ## Utility Methods ##
-    @lru_cache(maxsize=None)
+    @cached_method
     def getVolumeRegion(self):
         """ Return a region equivalent to this one, except as a MeshVolumeRegion"""
         return MeshVolumeRegion(self.mesh, self.name, orientation=self.orientation, \
