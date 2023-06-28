@@ -1,4 +1,4 @@
-param map = localPath('../../tests/formats/opendrive/maps/CARLA/Town03.xodr')
+param map = localPath('../../assets/maps/CARLA/Town03.xodr')
 model scenic.simulators.carla.model
 
 # Cars on adjacent lanes of the first section of Road 69

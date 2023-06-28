@@ -2,7 +2,7 @@
 # Definition: While performing a maneuver, the ego-vehicle finds an obstacle / unexpected entity on the road and must perform an emergency brake or an avoidance maneuver. 
 # ego at intersection where a maneuver is available, ego takes any turn. obstacle is stationary according to sheets... but i want it to move
 
-param map = localPath('maps/borregasave.xodr')
+param map = localPath('../../assets/maps/LGSVL/borregasave.xodr')
 param lgsvl_map = 'BorregasAve'
 param time_step = 1.0/10
 

@@ -1,6 +1,6 @@
 # 3 way intersection. ego turns left. nothing else specified?
 
-param map = localPath('maps/cubetown.xodr')
+param map = localPath('../../assets/maps/LGSVL/cubetown.xodr')
 param lgsvl_map = 'CubeTown'
 param time_step = 1.0/10
 

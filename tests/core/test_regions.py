@@ -214,10 +214,10 @@ def test_polygon_sampling():
 
 def test_mesh_region_fromFile():
     MeshVolumeRegion.fromFile(Path(".").parent.parent.parent /
-        "tools" / "meshes" / "classic_plane.obj.bz2",
+        "assets" / "meshes" / "classic_plane.obj.bz2",
         dimensions=(20,20,10), rotation=(math.radians(-90), 0, math.radians(-10)))
     MeshSurfaceRegion.fromFile(Path(".").parent.parent.parent /
-        "tools" / "meshes" / "classic_plane.obj.bz2", dimensions=(20,20,10),
+        "assets" / "meshes" / "classic_plane.obj.bz2", dimensions=(20,20,10),
         rotation=(math.radians(-90), 0, math.radians(-10)))
 
 def test_mesh_operation_blender():

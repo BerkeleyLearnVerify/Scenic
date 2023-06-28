@@ -2,7 +2,7 @@ import trimesh
 from pathlib import Path
 
 # Load chair mesh from file and create chair shape from it
-chair_shape = MeshShape.fromFile(path=Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "chair.obj.bz2", initial_rotation=(0,90 deg,0))
+chair_shape = MeshShape.fromFile(localPath("../../../assets/meshes/chair.obj.bz2"), initial_rotation=(0,90 deg,0))
 
 class Chair:
     shape: chair_shape

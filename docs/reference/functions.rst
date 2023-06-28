@@ -68,7 +68,7 @@ It is never the case that :math:`y \in (0, 1)` and :math:`z \in (5, 6)` or vice 
 
 localPath
 ---------
-The `localPath` function takes a relative path with respect to the directory containing the ``.scenic`` file where it is used, and converts it to an absolute path.
+The `localPath` function takes a relative path with respect to the directory containing the ``.scenic`` file where it is used, and converts it to an absolute path. Note that the path is returned as a `pathlib.Path` object.
 
 .. _verbosePrint_func:
 

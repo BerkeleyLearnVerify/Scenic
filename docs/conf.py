@@ -36,7 +36,7 @@ from scenic.syntax.translator import CompileOptions
 veneer.activate(CompileOptions(
     mode2D=True,
     paramOverrides=dict(
-        map='../tests/formats/opendrive/maps/opendrive.org/CulDeSac.xodr',
+        map='../assets/maps/opendrive.org/CulDeSac.xodr',
         carla_map='blah',
         lgsvl_map='blah',
     )

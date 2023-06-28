@@ -96,7 +96,7 @@ import functools
 import importlib
 import numbers
 import sys
-import os.path
+from pathlib import Path
 import traceback
 import typing
 from scenic.core.distributions import (RejectionException, Distribution, MultiplexerDistribution,
@@ -608,11 +608,12 @@ def localPath(relpath):
 
     For example, :scenic:`localPath('resource.dat')` evaluates to the absolute path
     of a file called ``resource.dat`` located in the same directory as the
-    Scenic file where this expression appears.
+    Scenic file where this expression appears. Note that the path is returned as a
+    `pathlib.Path` object.
     """
     filename = traceback.extract_stack(limit=2)[0].filename
-    base = os.path.dirname(filename)
-    return os.path.abspath(os.path.join(base, relpath))
+    base = Path(filename).parent
+    return base.joinpath(relpath).resolve()
 
 def simulation():
     """Get the currently-running `Simulation`.

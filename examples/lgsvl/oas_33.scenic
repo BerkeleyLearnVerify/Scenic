@@ -1,6 +1,6 @@
 # 3 way intersection. ego goes straight. not specified.
 
-param map = localPath('maps/borregasave.xodr')
+param map = localPath('../../assets/maps/LGSVL/borregasave.xodr')
 param lgsvl_map = 'BorregasAve'
 param time_step = 1.0/10
 

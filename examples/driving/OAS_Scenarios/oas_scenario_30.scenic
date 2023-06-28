@@ -5,7 +5,7 @@ The other car approaches from a different leg of the intersection to make a left
 ego has the right of the way because it is closer to the intersection.
 """
 
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town10HD.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../../assets/maps/CARLA/Town10HD.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town10HD'
 model scenic.domains.driving.model
 

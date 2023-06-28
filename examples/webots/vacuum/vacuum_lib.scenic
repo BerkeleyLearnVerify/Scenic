@@ -7,7 +7,6 @@ model scenic.simulators.webots.model
 import numpy as np
 import trimesh
 import random
-from pathlib import Path
 
 param numToys = 0
 param duration = 10
@@ -40,7 +39,7 @@ class Wall(WebotsObject):
 
 class DiningTable(WebotsObject):
     webotsAdhoc: {'physics': True}
-    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "dining_table.obj.bz2")
+    shape: MeshShape.fromFile(localPath("../../../assets/meshes/dining_table.obj.bz2"))
     width: Range(0.7, 1.5)
     length: Range(0.7, 1.5)
     height: 0.75
@@ -49,7 +48,7 @@ class DiningTable(WebotsObject):
 
 class DiningChair(WebotsObject):
     webotsAdhoc: {'physics': True}
-    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "dining_chair.obj.bz2", initial_rotation=(180 deg, 0, 0))
+    shape: MeshShape.fromFile(localPath("../../../assets/meshes/dining_chair.obj.bz2"), initial_rotation=(180 deg, 0, 0))
     width: 0.4
     length: 0.4
     height: 1
@@ -60,7 +59,7 @@ class DiningChair(WebotsObject):
 
 class Couch(WebotsObject):
     webotsAdhoc: {'physics': False}
-    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "couch.obj.bz2", initial_rotation=(-90 deg, 0, 0))
+    shape: MeshShape.fromFile(localPath("../../../assets/meshes/couch.obj.bz2"), initial_rotation=(-90 deg, 0, 0))
     width: 2
     length: 0.75
     height: 0.75
@@ -70,7 +69,7 @@ class Couch(WebotsObject):
 
 class CoffeeTable(WebotsObject):
     webotsAdhoc: {'physics': False}
-    shape: MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "coffee_table.obj.bz2")
+    shape: MeshShape.fromFile(localPath("../../../assets/meshes/coffee_table.obj.bz2"))
     width: 1.5
     length: 0.5
     height: 0.4

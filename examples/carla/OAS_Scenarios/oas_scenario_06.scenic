@@ -5,7 +5,7 @@ This scenario may fail if there exists any obstacle (e.g. fences) on the sidewal
 """
 
 
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town01.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../../assets/maps/CARLA/Town01.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town01'
 model scenic.domains.driving.model
 

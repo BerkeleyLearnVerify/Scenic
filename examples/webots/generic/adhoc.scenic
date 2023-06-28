@@ -4,11 +4,10 @@ Generate a complicated scene with ad-hoc Webots objects
 
 model scenic.simulators.webots.model
 
-import trimesh
-
 import numpy as np
 import random
-from pathlib import Path
+
+import trimesh
 
 # Pick a workspace
 workspace_region = RectangularRegion(0 @ 0, 0, 40.1, 40.1)
@@ -51,7 +50,7 @@ small_floor_cone = new AdhocObject below air_cube, on floor.topSurface,
 
 # Create large chair object
 chair = new AdhocObject on floor.topSurface,
-    with shape MeshShape.fromFile(Path(localPath(".")).parent.parent.parent / "tools" / "meshes" / "chair.obj.bz2")
+    with shape MeshShape.fromFile(localPath("../../../assets/meshes/chair.obj.bz2"))
 
 ego = chair
 

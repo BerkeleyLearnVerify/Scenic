@@ -1,6 +1,6 @@
 # ego turns left. ego has right of way but actor takes it (goes straight)
 
-param map = localPath('maps/cubetown.xodr')
+param map = localPath('../../assets/maps/LGSVL/cubetown.xodr')
 param lgsvl_map = 'CubeTown'
 
 model scenic.simulators.lgsvl.model
