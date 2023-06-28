@@ -1479,9 +1479,3 @@ class Object2D(OrientedPoint2D, Object):
         """
         camera = self.position.offsetRotated(self.heading, self.cameraOffset)
         return SectorRegion(camera, self.visibleDistance, self.heading, self.viewAngle)
-
-    def canSee(self, other, occludingObjects):
-        if not occludingObjects:
-            return self._canSee2D(other)
-
-        return Object.canSee(self, other, occludingObjects)
