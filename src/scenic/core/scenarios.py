@@ -7,6 +7,7 @@ import time
 import sys
 import itertools
 
+import numpy
 import trimesh
 
 import scenic
@@ -393,8 +394,12 @@ class Scenario(_ScenarioPickleMixin):
                 sampledObj = sample[obj]
                 assert not needsSampling(sampledObj)
 
-            # Check validity of sample
+            # Check validity of sample, storing state so that
+            # checker heuristics don't affect determinism
+            rand_state, np_state = random.getstate(), numpy.random.get_state()
             rejection = self.checker.checkRequirements(sample)
+            random.setstate(rand_state)
+            numpy.random.set_state(np_state)
 
             if rejection is not None:
                 optionallyDebugRejection()
