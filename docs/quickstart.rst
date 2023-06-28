@@ -96,7 +96,7 @@ You can now verify that Scenic is properly installed by running the command:
 
 	scenic --version
 
-This should print out a message like ``Scenic 2.0.0`` showing which version of Scenic is installed.
+This should print out a message like ``Scenic 3.0.0`` showing which version of Scenic is installed.
 If you get an error (or got one earlier when following the instructions above), please see our :doc:`install_notes` for suggestions.
 
 .. note::
