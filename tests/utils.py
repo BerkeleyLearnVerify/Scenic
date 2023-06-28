@@ -45,8 +45,8 @@ def sampleEgo(scenario, maxIterations=1):
     scene, iterations = generateChecked(scenario, maxIterations)
     return scene.egoObject
 
-def sampleEgoFrom(code, maxIterations=1):
-    scenario = compileScenic(code)
+def sampleEgoFrom(code, maxIterations=1, mode2D=False):
+    scenario = compileScenic(code, mode2D=mode2D)
     return sampleEgo(scenario, maxIterations=maxIterations)
 
 def sampleParamP(scenario, maxIterations=1):
