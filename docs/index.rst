@@ -27,6 +27,7 @@ Table of Contents
 
    quickstart
    install_notes
+   new
 
 .. toctree::
    :maxdepth: 1
@@ -59,7 +60,6 @@ Table of Contents
    :maxdepth: 1
    :caption: General Information
 
-   new
    publications
    credits
 
