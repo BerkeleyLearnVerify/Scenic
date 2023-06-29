@@ -14,7 +14,7 @@ import numpy
 from scenic.core.lazy_eval import (LazilyEvaluable,
     isLazy, needsSampling, dependencies,
     requiredProperties, needsLazyEvaluation, valueInContext, makeDelayedFunctionCall)
-from scenic.core.utils import DefaultIdentityDict, argsToString, cached, sqrt2
+from scenic.core.utils import DefaultIdentityDict, argsToString, cached, sqrt2, get_type_hints
 from scenic.core.errors import ScenicError, InvalidScenarioError
 
 ## Misc
@@ -407,7 +407,7 @@ class FunctionDistribution(Distribution):
         args = tuple(toDistribution(arg) for arg in args)
         kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
         if valueType is None:
-            valueType = typing.get_type_hints(func).get('return')
+            valueType = get_type_hints(func).get('return')
         super().__init__(*args, *kwargs.values(), valueType=valueType)
         self.function = func
         self.arguments = args
@@ -514,7 +514,7 @@ class MethodDistribution(Distribution):
         args = tuple(toDistribution(arg) for arg in args)
         kwargs = { name: toDistribution(arg) for name, arg in kwargs.items() }
         if valueType is None:
-            valueType = typing.get_type_hints(method).get('return')
+            valueType = get_type_hints(method).get('return')
         super().__init__(*args, *kwargs.values(), valueType=valueType)
         self.method = method
         self.object = obj
@@ -581,7 +581,7 @@ class AttributeDistribution(Distribution):
         """Attempt to infer the type of the given attribute."""
         # If the object's type is known, see if we have an attribute type annotation.
         try:
-            hints = typing.get_type_hints(ty)
+            hints = get_type_hints(ty)
             attrTy = hints.get(attribute)
             if attrTy:
                 return attrTy
@@ -604,7 +604,7 @@ class AttributeDistribution(Distribution):
         # Check for a @property defined on the class with a return type
         if (ty is not object and (func := getattr(ty, attribute, None))
             and isinstance(func, property)):
-            return typing.get_type_hints(func.fget).get('return')
+            return get_type_hints(func.fget).get('return')
 
         # We can't tell what the attribute type is.
         return object
@@ -632,7 +632,7 @@ class AttributeDistribution(Distribution):
             if func:
                 if isinstance(func, property):
                     func = func.fget
-                retTy = typing.get_type_hints(func).get('return')
+                retTy = get_type_hints(func).get('return')
         return OperatorDistribution('__call__', self, args, valueType=retTy)
 
     def __repr__(self):
@@ -668,7 +668,7 @@ class OperatorDistribution(Distribution):
         origin = type_support.get_type_origin(ty)
         op = getattr(origin if origin else ty, operator, None)
         if op:
-            retTy = typing.get_type_hints(op).get('return')
+            retTy = get_type_hints(op).get('return')
             if retTy:
                 return retTy
 
