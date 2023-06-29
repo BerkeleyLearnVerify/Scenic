@@ -1424,7 +1424,7 @@ class MeshVolumeRegion(MeshRegion):
             except CalledProcessError as e:
                 # Check if scad is complaining about an empty top level geometry.
                 # If so, just return an empty Trimesh object.
-                if "Current top level object is empty." in e.output.decode().splitlines():
+                if "Current top level object is empty." in e.output.decode():
                     return nowhere
                 else:
                     raise
