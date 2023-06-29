@@ -44,7 +44,7 @@ dependencies = [
 	"rv-ltl ~= 0.1",
 	"scipy ~= 1.7",
 	"shapely ~= 2.0",
-	"trimesh >=3.21.6, <4",
+	"trimesh >=3.22.2, <4",
 ]
 
 [project.optional-dependencies]

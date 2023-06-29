@@ -13,7 +13,6 @@ import itertools
 from functools import lru_cache
 from abc import ABC, abstractmethod
 import warnings
-from subprocess import CalledProcessError
 
 import numpy
 import scipy
@@ -1195,14 +1194,9 @@ class MeshVolumeRegion(MeshRegion):
             # Other region is a mesh volume. We can extract the mesh to perform boolean operations on it
             other_mesh = other.mesh
 
-            # Compute intersection using Trimesh (CalledProcessError usually means empty intersection for OpenSCAD)
+            # Compute intersection using Trimesh
             try:
                 new_mesh = self.mesh.intersection(other_mesh, engine=self.engine)
-            except CalledProcessError:
-                if self.engine == "scad":
-                    return nowhere
-                else:
-                    raise RuntimeError("Mesh boolean operation failed.")
             except ValueError as exc:
                 raise ValueError("Unable to compute mesh boolean operation. Do you have the Blender and OpenSCAD installed on your system?") from exc
 
@@ -1417,14 +1411,9 @@ class MeshVolumeRegion(MeshRegion):
         if isinstance(other, MeshVolumeRegion):
             other_mesh = other.mesh
 
-            # Compute difference using Trimesh (CalledProcessError usually means empty intersection for OpenSCAD)
+            # Compute difference using Trimesh
             try:
                 new_mesh = self.mesh.difference(other_mesh, engine=self.engine, debug=debug)
-            except CalledProcessError:
-                if self.engine == "scad":
-                    return nowhere
-                else:
-                    raise RuntimeError("Mesh boolean operation failed.")
             except ValueError as exc:
                 raise ValueError("Unable to compute mesh boolean operation. Do you have the Blender and OpenSCAD installed on your system?") from exc
 
