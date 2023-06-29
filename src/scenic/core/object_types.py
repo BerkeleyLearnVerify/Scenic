@@ -1479,7 +1479,7 @@ class Object2D(OrientedPoint2D, Object):
                 value = toVector((value.x, value.y, 0))
 
         if prop == "shape" and not isinstance(value, BoxShape):
-            raise InvalidScenarioError("Custom shapes not allowed in 2D compatibility mode")
+            raise InvalidScenarioError("non-box shapes not allowed in 2D compatibility mode")
 
         super()._specify(context, prop, value)
 
