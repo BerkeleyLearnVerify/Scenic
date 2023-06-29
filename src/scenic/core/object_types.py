@@ -1402,7 +1402,7 @@ class Point2D(Point):
         else:
             assert False, other
 
-    def canSee(self, other, occludingObjects):
+    def canSee(self, other, occludingObjects=tuple()):
         # Fast path when there is no occlusion (default in 2D mode).
         if not occludingObjects:
             return self._canSee2D(other)

@@ -245,11 +245,34 @@ def test_static_visibility_violation_enabled():
             new Object at 0@10, with requireVisible True
         """)
 
+def test_static_visibility_violation_enabled_2d():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic("""
+            ego = new Object at 10@0, facing -90 deg, with viewAngle 90 deg
+            new Object at 0@10, with requireVisible True
+        """, mode2D=True)
+
 def test_static_visibility_violation_disabled():
     sampleSceneFrom("""
         ego = new Object at 10@0, facing -90 deg, with viewAngle 90 deg
         new Object at 0@10, with requireVisible False
     """)
+
+def test_static_intersection_violation():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic("""
+            ego = new Object at 0@0
+            new Object at 0.5@0
+        """)
+
+def test_static_intersection_violation_disabled():
+    sampleSceneFrom("""
+        ego = new Object at 0@0
+        new Object at 1@0, with allowCollisions True
+    """)
+
+
+# Occlusion visibility requirements
 
 @pytest.mark.slow
 def test_can_see_object_occlusion_enabled():
@@ -311,18 +334,6 @@ def test_can_see_object_occlusion_disabled():
             with occluding False
     """, maxIterations=1)
 
-def test_static_intersection_violation():
-    with pytest.raises(InvalidScenarioError):
-        compileScenic("""
-            ego = new Object at 0@0
-            new Object at 0.5@0
-        """)
-
-def test_static_intersection_violation_disabled():
-    sampleSceneFrom("""
-        ego = new Object at 0@0
-        new Object at 1@0, with allowCollisions True
-    """)
 
 ## Tests for random properties that have special effects on constructing requirements
 def test_random_allowCollisions():
