@@ -4,35 +4,39 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import os
+import sys
+import warnings
+
+import sphinx
+
+# Hack to signal to Scenic that the docs are being built
+# (need to do this before importing the scenic module)
+sphinx._buildingScenicDocs = True
+
+from scenic.core.simulators import SimulatorInterfaceWarning
+import scenic.syntax.veneer as veneer
+from scenic.syntax.translator import CompileOptions
+
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-import os
-import sys
 sys.path.insert(0, os.path.abspath('../src'))
 sys.path.insert(0, os.path.abspath('.'))    # for docs-specific code
 
-# Hack to signal to Scenic that the docs are being built
-# (need to do this before importing the scenic module)
-import sphinx
-sphinx._buildingScenicDocs = True
-
 # Set up paths for Scenic maps to enable importing the world models
 import scenic.simulators.gta.map as gta_map
-gta_map.mapPath = '../tests/simulators/gta/map.npz'
-
 import scenic.simulators.webots.guideways.intersection as gw_int
-gw_int.intersectionPath = '../tests/simulators/webots/guideways/McClintock_DonCarlos_Tempe.json'
-
 import scenic.simulators.webots.road.world as wbt_road_world
+
+gta_map.mapPath = '../tests/simulators/gta/map.npz'
+gw_int.intersectionPath = '../tests/simulators/webots/guideways/McClintock_DonCarlos_Tempe.json'
 wbt_road_world.worldPath = '../tests/simulators/webots/road/simple.wbt'
 
 # Hack to set global parameters needed to import the driving domain models
-import scenic.syntax.veneer as veneer
-from scenic.syntax.translator import CompileOptions
 veneer.activate(CompileOptions(
     mode2D=True,
     paramOverrides=dict(
@@ -41,8 +45,6 @@ veneer.activate(CompileOptions(
         lgsvl_map='blah',
     )
 ))
-import warnings
-from scenic.core.simulators import SimulatorInterfaceWarning
 with warnings.catch_warnings():
     warnings.simplefilter('ignore', SimulatorInterfaceWarning)
     import scenic.simulators.carla.model

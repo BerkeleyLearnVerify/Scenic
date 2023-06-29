@@ -26,7 +26,10 @@ on:
         type: string
 
 jobs:
-  build:
+  check-format:
+    uses: ./.github/workflows/check-formatting.yml
+
+  test:
     strategy:
       fail-fast: true
       matrix:
@@ -80,6 +83,7 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
+        cache: 'pip'
 
     - name: Update pip
       run: |

@@ -78,7 +78,6 @@ from scenic.core.regions import (Region, PointSetRegion, RectangularRegion,
 from scenic.core.workspaces import Workspace
 from scenic.core.distributions import (Range, DiscreteRange, Options, Uniform, Normal,
     TruncatedNormal, RandomControlFlowError)
-Discrete = Options
 from scenic.core.external_params import (VerifaiParameter, VerifaiRange, VerifaiDiscreteRange,
                                          VerifaiOptions)
 from scenic.core.object_types import Mutator, Point, OrientedPoint, Object
@@ -87,6 +86,9 @@ from scenic.core.dynamics import (Behavior, Monitor, DynamicScenario, BlockConcl
                                   GuardViolation, PreconditionViolation, InvariantViolation,
                                   _makeTerminationAction, _makeSimulationTerminationAction,
                                   runTryInterrupt)
+Discrete = Options
+
+# isort: split
 
 # everything that should not be directly accessible from the language is imported here:
 import builtins

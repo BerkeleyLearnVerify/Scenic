@@ -12,6 +12,7 @@ import scenic
 from scenic.simulators.webots import WebotsSimulator
 
 # HELPER DATA STRUCTURES & FUNCTIONS
+
 def getFilename(duration: int, numToys: int, iteration: int) -> str:
     return f"vacuum_d{str(duration).zfill(2)}_t{str(numToys).zfill(3)}_i{str(iteration).zfill(2)}.json"
 

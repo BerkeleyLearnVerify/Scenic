@@ -7,8 +7,13 @@ import os
 import pathlib
 import time
 
+import scenic.core.errors as errors  # isort: skip
+if errors.verbosityLevel == 0:  # suppress pygame advertisement at zero verbosity
+    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
+import pygame
+import shapely
+
 from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
-import scenic.core.errors as errors
 from scenic.core.geometry import allChains, findMinMax
 from scenic.core.regions import toPolygon
 from scenic.core.simulators import SimulationCreationError
@@ -16,11 +21,6 @@ from scenic.syntax.veneer import verbosePrint
 from scenic.core.vectors import Vector, Orientation
 from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
 from scenic.domains.driving.roads import Network
-
-import shapely
-if errors.verbosityLevel == 0:  # suppress pygame advertisement at zero verbosity
-    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
-import pygame
 
 current_dir = pathlib.Path(__file__).parent.absolute()
 
