@@ -4,6 +4,7 @@ import pytest
 from scenic.core.errors import SpecifierError, InvalidScenarioError
 from scenic.core.vectors import Vector, Orientation
 from scenic.core.distributions import RejectionException
+from scenic.core.shapes import ConeShape
 from tests.utils import compileScenic, sampleScene, sampleSceneFrom, sampleEgo, sampleEgoFrom
 
 ## Dependencies and lazy evaluation
@@ -894,3 +895,13 @@ def test_apparently_facing_from():
     ego = sampleEgoFrom('ego = new Object at (1,1,0), apparently facing 90 deg from (0,0,0)')
     assert ego.heading == pytest.approx(math.radians(45))
 
+
+# Shapes
+def test_shape():
+    program = 'ego = new Object with shape ConeShape()'
+
+    ego = sampleEgoFrom(program)
+    assert isinstance(ego.shape, ConeShape)
+
+    with pytest.raises(InvalidScenarioError):
+        sampleEgoFrom(program, mode2D=True)

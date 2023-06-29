@@ -1478,6 +1478,9 @@ class Object2D(OrientedPoint2D, Object):
                 # only modify value if necessary, to keep expression forest simpler
                 value = toVector((value.x, value.y, 0))
 
+        if prop == "shape" and not isinstance(value, BoxShape):
+            raise InvalidScenarioError("Custom shapes not allowed in 2D compatibility mode")
+
         super()._specify(context, prop, value)
 
     @cached_property
