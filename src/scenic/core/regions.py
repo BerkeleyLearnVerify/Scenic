@@ -12,6 +12,7 @@ import random
 import itertools
 from abc import ABC, abstractmethod
 import warnings
+from subprocess import CalledProcessError
 
 import numpy
 import scipy
@@ -1196,6 +1197,13 @@ class MeshVolumeRegion(MeshRegion):
             # Compute intersection using Trimesh
             try:
                 new_mesh = self.mesh.intersection(other_mesh, engine=self.engine)
+            except CalledProcessError as e:
+                # Check if scad is complaining about an empty top level geometry.
+                # If so, just return an empty Trimesh object.
+                if "Current top level object is empty." in e.output.decode().split():
+                    return nowhere
+                else:
+                    raise
             except ValueError as exc:
                 raise ValueError("Unable to compute mesh boolean operation. Do you have the Blender and OpenSCAD installed on your system?") from exc
 
@@ -1413,6 +1421,13 @@ class MeshVolumeRegion(MeshRegion):
             # Compute difference using Trimesh
             try:
                 new_mesh = self.mesh.difference(other_mesh, engine=self.engine, debug=debug)
+            except CalledProcessError as e:
+                # Check if scad is complaining about an empty top level geometry.
+                # If so, just return an empty Trimesh object.
+                if "Current top level object is empty." in e.output.decode().split():
+                    return nowhere
+                else:
+                    raise
             except ValueError as exc:
                 raise ValueError("Unable to compute mesh boolean operation. Do you have the Blender and OpenSCAD installed on your system?") from exc
 
