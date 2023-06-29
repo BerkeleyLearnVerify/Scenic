@@ -266,6 +266,13 @@ def test_mesh_empty_intersection():
 
         assert isinstance(r1.intersect(r2), EmptyRegion)
 
+def test_mesh_empty_difference():
+    for engine in ["blender", "scad"]:
+        r1 = BoxRegion(dimensions=(1,1,1), engine=engine)
+        r2 = BoxRegion(dimensions=(2,2,2), engine=engine)
+
+        assert isinstance(r1.difference(r2), EmptyRegion)
+
 def test_path_region():
     points_2d = [(0,0), [0,1], (1,1), (1,0)]
     points_3d = [(3,3,0), (3,4,1), [4,4,2], (4,3,3)]
