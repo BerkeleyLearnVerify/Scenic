@@ -25,6 +25,7 @@ testFiles = (
 )
 
 @pytest.mark.parametrize('name', testFiles)
+@pytest.mark.skipif(sys.version_info < (3, 10), reason='need match statement')
 def test_sanity(request, name):
     """Make sure our test files are actually syntactically valid."""
     base = os.path.dirname(request.fspath)
@@ -39,6 +40,7 @@ def test_sanity(request, name):
         pytest.fail('unexpected test file extension')
 
 @pytest.mark.parametrize('name', testFiles)
+@pytest.mark.skipif(sys.version_info < (3, 10), reason='need match statement')
 def test_lexer(request, name):
     base = os.path.dirname(request.fspath)
     path = os.path.join(base, name)
