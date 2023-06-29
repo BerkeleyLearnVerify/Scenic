@@ -1063,7 +1063,6 @@ class Object(OrientedPoint):
     def corners(self):
         """A tuple containing the corners of this object's bounding box"""
         hw, hl, hh = self.hw, self.hl, self.hh
-        # Note: 2D show method assumes cyclic order of first 4 vertices
         return (
             self.relativePosition(Vector(hw,  hl,  hh)),
             self.relativePosition(Vector(-hw, hl,  hh)),
@@ -1073,6 +1072,17 @@ class Object(OrientedPoint):
             self.relativePosition(Vector(-hw, hl,  -hh)),
             self.relativePosition(Vector(-hw, -hl, -hh)),
             self.relativePosition(Vector(hw,  -hl, -hh)),
+        )
+
+    @cached_property
+    def _corners2D(self):
+        hw, hl = self.hw, self.hl
+        # Note: 2D show method assumes cyclic order of vertices
+        return (
+            self.relativePosition(Vector(hw,  hl)),
+            self.relativePosition(Vector(-hw, hl)),
+            self.relativePosition(Vector(-hw, -hl)),
+            self.relativePosition(Vector(hw,  -hl)),
         )
 
     @cached_property
@@ -1277,7 +1287,7 @@ class Object(OrientedPoint):
                 x, y = zip(*edge)
                 plt.plot(x, y, 'b:')
 
-        corners = [workspace.scenicToSchematicCoords(corner) for corner in self.corners[:4]]
+        corners = [workspace.scenicToSchematicCoords(corner) for corner in self._corners2D]
         x, y = zip(*corners)
         color = self.color if hasattr(self, 'color') else (1, 0, 0)
         plt.fill(x, y, color=color)
@@ -1388,15 +1398,17 @@ class Point2D(Point):
     def _canSee2D(self, other):
         if isinstance(other, Object2D):
             return self.visibleRegion.polygons.intersects(other._boundingPolygon)
-        elif isinstance(other, (Vector, Point2D, OrientedPoint2D)):
+        elif isinstance(other, (Vector, Point2D)):
             return self.visibleRegion.containsPoint(toVector(other))
         else:
             assert False, other
 
     def canSee(self, other, occludingObjects):
+        # Fast path when there is no occlusion (default in 2D mode).
         if not occludingObjects:
             return self._canSee2D(other)
 
+        # With occlusion, fall back to the general case.
         return self._3DClass.canSee(self, other, occludingObjects)
 
 class OrientedPoint2D(Point2D, OrientedPoint):

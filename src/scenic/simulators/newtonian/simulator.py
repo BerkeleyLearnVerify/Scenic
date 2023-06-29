@@ -197,7 +197,7 @@ class NewtonianSimulation(DrivingSimulation):
                 self.rotated_car = pygame.transform.rotate(self.car, math.degrees(obj.heading))
                 self.screen.blit(self.rotated_car, (rect_x, rect_y))
             else:
-                corners = [self.scenicToScreenVal(corner) for corner in obj.corners[:4]]
+                corners = [self.scenicToScreenVal(corner) for corner in obj._corners2D]
                 pygame.draw.polygon(self.screen, color, corners)
 
         pygame.display.update()

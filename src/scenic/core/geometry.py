@@ -271,9 +271,8 @@ def triangulatePolygon_mapbox(polygon):
 
     triangles = []
     points = vertices[result]
-    its = [iter(points)] * 3
-    for triple in zip(*its):
-        triangles.append(shapely.geometry.Polygon(triple))
+    coords = np.split(points, len(points)/3)
+    triangles = shapely.polygons(coords)
     return triangles
 
 def allChains(polygon):
