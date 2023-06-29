@@ -80,6 +80,10 @@ roadDirection : VectorField = network.roadDirection
 
 ## Standard object types
 
+def is2DMode():
+    from scenic.syntax.veneer import mode2D
+    return mode2D
+
 class DrivingObject:
     """Abstract class for objects in a road network.
 
@@ -99,7 +103,7 @@ class DrivingObject:
             from `Object`).
     """
 
-    elevation[dynamic]: None
+    elevation[dynamic]: None if is2DMode() else float(self.position.z)
 
     requireVisible: False
 
@@ -259,7 +263,7 @@ class Vehicle(DrivingObject):
             :obj:`Color.defaultCarColor`.
     """
     regionContainedIn: roadOrShoulder
-    position: Point on road
+    position: new Point on road
     heading: (roadDirection at self.position) + self.roadDeviation
     roadDeviation: 0
     viewAngle: 90 deg
@@ -294,45 +298,12 @@ class Pedestrian(DrivingObject):
             used by simulators, but do appear in the debugging diagram.
     """
     regionContainedIn: network.walkableRegion
-    position: Point on network.walkableRegion
+    position: new Point on network.walkableRegion
     heading: Range(0, 360) deg
     viewAngle: 90 deg
     width: 0.75
     length: 0.75
     color: [0, 0.5, 1]
-
-# Mixin classes indicating support for various types of actions
-
-class Steers:
-    """Mixin protocol for agents which can steer.
-
-    Specifically, agents must support throttling, braking, steering, setting the hand
-    brake, and going into reverse.
-    """
-    def setThrottle(self, throttle): raise NotImplementedError
-
-    def setSteering(self, steering): raise NotImplementedError
-
-    def setBraking(self, braking): raise NotImplementedError
-
-    def setHandbrake(self, handbrake): raise NotImplementedError
-
-    def setReverse(self, reverse): raise NotImplementedError
-
-class Walks:
-    """Mixin protocol for agents which can walk with a given direction and speed.
-
-    We provide a simplistic implementation which directly sets the velocity of the agent.
-    This implementation needs to be explicitly opted-into, since simulators may provide a
-    more sophisticated API that properly animates pedestrians.
-    """
-    def setWalkingDirection(self, heading):
-        velocity = Vector(0, self.speed).rotatedBy(heading)
-        self.setVelocity(velocity)
-
-    def setWalkingSpeed(self, speed):
-        velocity = speed * self.velocity.normalized()
-        self.setVelocity(velocity)
 
 ## Utility functions
 

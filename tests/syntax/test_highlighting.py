@@ -16,6 +16,7 @@ import pytest
 pygments = pytest.importorskip('pygments')
 import pygments.lexers, pygments.formatters
 
+import scenic.syntax.parser as parser
 from scenic.syntax.pygment import ScenicLexer, BetterPythonLexer
 
 testFiles = (
@@ -23,9 +24,8 @@ testFiles = (
     'polychrome.scenic',
 )
 
-@pytest.mark.skipif(sys.version_info < (3, 8),
-                    reason='need positional-only parameters')
 @pytest.mark.parametrize('name', testFiles)
+@pytest.mark.skipif(sys.version_info < (3, 10), reason='need match statement')
 def test_sanity(request, name):
     """Make sure our test files are actually syntactically valid."""
     base = os.path.dirname(request.fspath)
@@ -35,11 +35,12 @@ def test_sanity(request, name):
     if name.endswith('.py'):
         ast.parse(source)
     elif name.endswith('.scenic'):
-        pass    # TODO in 3.0, parse file here without running it
+        parser.parse_string(source, 'exec', filename=path)
     else:
         pytest.fail('unexpected test file extension')
 
 @pytest.mark.parametrize('name', testFiles)
+@pytest.mark.skipif(sys.version_info < (3, 10), reason='need match statement')
 def test_lexer(request, name):
     base = os.path.dirname(request.fspath)
     path = os.path.join(base, name)

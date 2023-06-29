@@ -15,6 +15,11 @@ import sys
 sys.path.insert(0, os.path.abspath('../src'))
 sys.path.insert(0, os.path.abspath('.'))    # for docs-specific code
 
+# Hack to signal to Scenic that the docs are being built
+# (need to do this before importing the scenic module)
+import sphinx
+sphinx._buildingScenicDocs = True
+
 # Set up paths for Scenic maps to enable importing the world models
 import scenic.simulators.gta.map as gta_map
 gta_map.mapPath = '../tests/simulators/gta/map.npz'
@@ -27,11 +32,14 @@ wbt_road_world.worldPath = '../tests/simulators/webots/road/simple.wbt'
 
 # Hack to set global parameters needed to import the driving domain models
 import scenic.syntax.veneer as veneer
-veneer._buildingSphinx = True
-veneer.activate(paramOverrides=dict(
-    map='../tests/formats/opendrive/maps/opendrive.org/CulDeSac.xodr',
-    carla_map='blah',
-    lgsvl_map='blah',
+from scenic.syntax.translator import CompileOptions
+veneer.activate(CompileOptions(
+    mode2D=True,
+    paramOverrides=dict(
+        map='../assets/maps/opendrive.org/CulDeSac.xodr',
+        carla_map='blah',
+        lgsvl_map='blah',
+    )
 ))
 import warnings
 from scenic.core.simulators import SimulatorInterfaceWarning
@@ -41,6 +49,13 @@ with warnings.catch_warnings():
     import scenic.simulators.lgsvl.model
 veneer.deactivate()
 
+# Hack to allow importing models which require 2D compatibility mode
+veneer.activate(CompileOptions(mode2D=True))
+import scenic.simulators.gta.model
+import scenic.simulators.webots.guideways.model
+import scenic.simulators.webots.road.model
+veneer.deactivate()
+
 # -- Project information -----------------------------------------------------
 
 import time
@@ -48,7 +63,7 @@ year = time.strftime('%Y', time.gmtime())
 
 project = 'Scenic'
 copyright = f'2020-{year}, Daniel J. Fremont'
-author = 'Daniel J. Fremont, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
+author = 'Daniel J. Fremont, Eric Vin, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia'
 
 
 # -- General configuration ---------------------------------------------------
@@ -64,6 +79,7 @@ extensions = [
 'sphinx.ext.napoleon',
 'sphinx.ext.viewcode',
 'sphinx.ext.intersphinx',
+'sphinx_tabs.tabs',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -106,6 +122,8 @@ intersphinx_mapping = {
     'numpy': ('https://numpy.org/doc/stable/', None),
     'scipy': ('https://docs.scipy.org/doc/scipy/', None),
     'sphinx': ('https://www.sphinx-doc.org/en/master/', None),
+    'pytest': ('https://docs.pytest.org/en/stable/', None),
+    'trimesh': ('https://trimsh.org/', None),
 }
 
 highlight_language = 'scenic'
@@ -126,6 +144,149 @@ html_static_path = ['_static']
 html_css_files = [
     'custom.css',
 ]
+
+# -- Generate lists of keywords for the language reference -------------------
+
+import itertools
+import math
+from scenic.syntax.parser import ScenicParser
+from scenic.core.utils import batched
+
+def maketable(items, columns=5, gap=4):
+    items = tuple(sorted(items))
+    width = max(len(item) for item in items)
+    nrows = math.ceil(len(items) / 5)
+    justified = (item.ljust(width) for item in items)
+    cols = batched(justified, nrows)
+    rows = itertools.zip_longest(*cols, fillvalue='')
+    space = ' '*gap
+    yield from (space.join(row) for row in rows)
+
+os.makedirs('_build', exist_ok=True)
+with open('_build/keywords.txt', 'w') as outFile:
+    for row in maketable(ScenicParser.KEYWORDS):
+        outFile.write(row + '\n')
+with open('_build/keywords_soft.txt', 'w') as outFile:
+    for row in maketable(ScenicParser.SOFT_KEYWORDS):
+        outFile.write(row + '\n')
+
+# -- Monkeypatch ModuleAnalyzer to handle Scenic modules ---------------------
+
+from analyzer import ScenicModuleAnalyzer
+import sphinx.pycode as pycode
+pycode.ModuleAnalyzer = ScenicModuleAnalyzer
+
+# -- Monkeypatch the Python domain to understand Scenic objects --------------
+
+# (Unfortunately it's easier to do this than create a separate Scenic domain,
+# since autosummary for example hard-codes the use of Python domain roles.)
+
+from docutils import nodes
+from sphinx import addnodes
+from sphinx.domains.python import (
+    PythonDomain, PyClasslike, PyFunction, PyXRefRole, ObjType,
+)
+from sphinx.ext.autodoc import ClassDocumenter, FunctionDocumenter
+from scenic.core.dynamics import Behavior, Monitor, DynamicScenario
+
+class ScenicBehavior(PyFunction):
+    """Description of a behavior."""
+
+    def get_signature_prefix(self, sig):
+        return [nodes.Text('behavior'), addnodes.desc_sig_space()]
+
+class ScenicScenario(PyFunction):
+    """Description of a modular scenario."""
+
+    def get_signature_prefix(self, sig):
+        return [nodes.Text('scenario'), addnodes.desc_sig_space()]
+
+class ScenicClass(PyClasslike):
+    """Description of a Scenic class."""
+
+    def get_signature_prefix(self, sig):
+        return [nodes.Text('class'), addnodes.desc_sig_space()]
+
+    def handle_signature(self, sig, signode):
+        name = sig.split('(')[0]
+        modname = self.options.get('module', self.env.ref_context.get('py:module'))
+        classname = self.env.ref_context.get('py:class')
+        if classname:
+            add_module = False
+            fullname = classname + '.' + name
+        else:
+            add_module = True
+            classname = ''
+            fullname = name
+
+        signode['module'] = modname
+        signode['class'] = classname
+        signode['fullname'] = fullname
+
+        sig_prefix = self.get_signature_prefix(sig)
+        signode += addnodes.desc_annotation(str(sig_prefix), '', *sig_prefix)
+
+        if modname and add_module and self.env.config.add_module_names:
+            nodetext = modname + '.'
+            signode += addnodes.desc_addname(nodetext, nodetext)
+
+        signode += addnodes.desc_name(name, name)
+        signode += addnodes.desc_sig_space()
+        signode += addnodes.desc_sig_keyword('<specifiers>', '<specifiers>')
+
+        return fullname, ''
+
+    def run(self):
+        # Hack to allow self.objtype to be 'class' even though the directive is
+        # 'py:scenicclass' in order not to collide with 'py:class'.
+        self.name = 'py:class'
+        return super().run()
+
+PythonDomain.object_types.update({
+    'behavior': ObjType('behavior', 'behavior', 'obj'),
+    'scenario': ObjType('scenario', 'scenario', 'obj'),
+})
+PythonDomain.directives.update({
+    'behavior': ScenicBehavior,
+    'scenario': ScenicScenario,
+    'scenicclass': ScenicClass,
+})
+PythonDomain.roles.update({
+    'behavior': PyXRefRole(fix_parens=True),
+    'scenario': PyXRefRole(fix_parens=True),
+})
+
+# These documenters will be installed in setup() below.
+
+class BehaviorDocumenter(FunctionDocumenter):
+    objtype = 'behavior'
+    priority = ClassDocumenter.priority + 1
+
+    @classmethod
+    def can_document_member(cls, member, membername, isattr, parent):
+        return (isinstance(member, type)
+                and issubclass(member, Behavior)
+                and member not in (Behavior, Monitor))
+
+class ScenarioDocumenter(FunctionDocumenter):
+    objtype = 'scenario'
+    priority = ClassDocumenter.priority + 1
+
+    @classmethod
+    def can_document_member(cls, member, membername, isattr, parent):
+        return (isinstance(member, type)
+                and issubclass(member, DynamicScenario)
+                and member is not DynamicScenario)
+
+class ScenicClassDocumenter(ClassDocumenter):
+    directivetype = 'scenicclass'
+    priority = ClassDocumenter.priority + 1
+
+    @classmethod
+    def can_document_member(cls, member, membername, isattr, parent):
+        return (isinstance(member, type)
+                and issubclass(member, scenic.core.object_types.Constructible)
+                and member is not scenic.core.object_types.Constructible)
 
 # -- Monkeypatch to resolve ambiguous references -----------------------------
 
@@ -193,6 +354,83 @@ def parse(self):
     orig_parse(self)
 GoogleDocstring._parse = parse
 
+# -- Monkeypatch to add autosummary tables for behaviors, etc. ---------------
+
+from scenic.syntax.translator import ScenicModule
+
+from typing import Any, Dict, List, Set, Tuple
+from sphinx.ext.autosummary.generate import (
+    logger, members_of, safe_getattr, get_documenter
+)
+import sphinx.ext.autosummary.generate as generate
+orig_gen_content = generate.generate_autosummary_content
+def generate_autosummary_content(
+    name, obj, parent, template, template_name, imported_members, app, recursive,
+    context, modname=None, qualname=None
+):
+    if not isinstance(obj, ScenicModule):
+        return orig_gen_content(
+            name, obj, parent, template, template_name, imported_members, app,
+            recursive, context, modname, qualname
+        )
+
+    def skip_member(obj: Any, name: str, objtype: str) -> bool:
+        try:
+            return app.emit_firstresult('autodoc-skip-member', objtype, name,
+                                        obj, False, {})
+        except Exception as exc:
+            logger.warning(__('autosummary: failed to determine %r to be documented, '
+                              'the following exception was raised:\n%s'),
+                           name, exc, type='autosummary')
+            return False
+
+    def get_module_members(obj: Any) -> Dict[str, Any]:
+        members = {}
+        for name in members_of(obj, app.config):
+            try:
+                members[name] = safe_getattr(obj, name)
+            except AttributeError:
+                continue
+        return members
+
+    def get_members(obj: Any, types: Set[str], include_public: List[str] = [],
+                    imported: bool = True) -> Tuple[List[str], List[str]]:
+        items: List[str] = []
+        public: List[str] = []
+
+        all_members = get_module_members(obj)
+        for name, value in all_members.items():
+            documenter = get_documenter(app, value, obj)
+            if documenter.objtype in types:
+                # skip imported members if expected
+                if imported or getattr(value, '__module__', None) == obj.__name__:
+                    skipped = skip_member(value, name, documenter.objtype)
+                    if skipped is True:
+                        pass
+                    elif skipped is False:
+                        # show the member forcedly
+                        items.append(name)
+                        public.append(name)
+                    else:
+                        items.append(name)
+                        if name in include_public or not name.startswith('_'):
+                            # considers member as public
+                            public.append(name)
+        return public, items
+
+    assert 'behaviors' not in context
+    context['behaviors'], context['all_behaviors'] = get_members(
+        obj, {'behavior'}, imported=imported_members
+    )
+    context['scenarios'], context['all_scenarios'] = get_members(
+        obj, {'scenario'}, imported=imported_members
+    )
+    return orig_gen_content(
+        name, obj, parent, template, template_name, imported_members, app,
+        recursive, context, modname, qualname
+    )
+generate.generate_autosummary_content = generate_autosummary_content
+
 # -- Monkeypatch to list private members after public ones -------------------
 
 from sphinx.ext.autodoc import Documenter
@@ -213,9 +451,11 @@ def sort_members(self, documenters, order):
 Documenter.sort_members = sort_members
 
 # -- Monkeypatch to hide private base classes --------------------------------
-# TODO use autodoc-process-bases instead (new in Sphinx 4.1)
+# N.B. can't use autodoc-process-bases since it doesn't allow suppressing the
+# entire "Bases:" line
 
 from sphinx.ext.autodoc import ClassDocumenter
+from scenic.core.dynamics import Behavior, DynamicScenario
 
 orig_add_directive_header = ClassDocumenter.add_directive_header
 def add_directive_header(self, sig):
@@ -256,12 +496,30 @@ def object_description(obj):
 sphinx.util.inspect.object_description = object_description
 sphinx.ext.autodoc.object_description = object_description
 
+# Hack to prevent signatures for certain classes getting quashed by their
+# wrapper __new__ methods.
+from scenic.core.distributions import Distribution
+from scenic.core.object_types import Constructible
+classes = (Distribution, Constructible)
+for cls in classes:
+    func = cls.__new__
+    fqname = f'{func.__module__}.{func.__qualname__}'
+    sphinx.ext.autodoc._CLASS_NEW_BLACKLIST.append(fqname)
+
 # -- Extension for correctly displaying Scenic code and skipping internals ---
 
 def setup(app):
     app.connect('viewcode-find-source', handle_find_source)
-    app.connect('autodoc-process-signature', handle_process_signature)
     app.connect('autodoc-skip-member', handle_skip_member)
+
+    # Add documenters for special types of Scenic objects
+    app.add_autodocumenter(BehaviorDocumenter)
+    app.add_autodocumenter(ScenarioDocumenter)
+    # Can't use add_autodocumenter for ScenicClassDocumenter since its objtype
+    # is 'class', the same as ClassDocumenter.
+    from sphinx.ext.autodoc.directive import AutodocDirective
+    app.registry.add_documenter('scenicclass', ScenicClassDocumenter)
+    app.add_directive('autoscenicclass', AutodocDirective)
 
     # Run our own reference resolver before the standard one, to resolve refs to
     # Scenic classes differently in the "Scenic Internals" section than elsewhere
@@ -279,9 +537,13 @@ def setup(app):
     app.add_lexer('scenic', scenic_pygment.ScenicLexer)
     # Install a better Python lexer (e.g. so function calls get better highlighting)
     app.add_lexer('python', scenic_pygment.BetterPythonLexer)
+    # Install a lexer for Pegen grammars
+    app.add_lexer('pegen', scenic_pygment.PegenLexer)
     # Also add the specialized lexers used for inline code snippets and grammar
     app.add_lexer('scenic-snippet', scenic_pygment.ScenicSnippetLexer)
+    app.add_lexer('python-snippet', scenic_pygment.PythonSnippetLexer)
     app.add_lexer('scenic-specifier', scenic_pygment.ScenicSpecifierLexer)
+    app.add_lexer('scenic-requirement', scenic_pygment.ScenicRequirementLexer)
     app.add_lexer('scenic-property', scenic_pygment.ScenicPropertyLexer)
     app.add_lexer('scenic-grammar', scenic_pygment.ScenicGrammarLexer)
 
@@ -298,6 +560,14 @@ def setup(app):
     role = roles.CustomRole('scenic', code_role, options)
     roles.register_local_role('scenic', role)
 
+    # Likewise for :python:
+    options = {
+        'class': directives.class_option('python'),
+        'language': 'python-snippet',
+    }
+    role = roles.CustomRole('python', code_role, options)
+    roles.register_local_role('python', role)
+
     # Add :specifier: role like :scenic: but for specifiers (which aren't usually
     # allowed at the top level)
     options = {
@@ -306,6 +576,14 @@ def setup(app):
     }
     role = roles.CustomRole('specifier', code_role, options)
     roles.register_local_role('specifier', role)
+
+    # Ditto for :requirement: (allowing temporal operators)
+    options = {
+        'class': directives.class_option('requirement'),
+        'language': 'scenic-requirement',
+    }
+    role = roles.CustomRole('requirement', code_role, options)
+    roles.register_local_role('requirement', role)
 
     # Add :prop: role like :scenic: but for properties
     # N.B. cannot use :property: since the RTD theme uses a 'property' HTML class
@@ -327,7 +605,6 @@ def setup(app):
     return { 'parallel_read_safe': True }
 
 import importlib
-from sphinx.pycode import ModuleAnalyzer
 from sphinx.util.docstrings import separate_metadata
 from scenic.syntax.translator import ScenicModule
 
@@ -343,7 +620,7 @@ def handle_find_source(app, modname):
 
     # Run usual analysis on the translated source to get tag dictionary
     try:
-        analyzer = ModuleAnalyzer.for_module(modname)
+        analyzer = ScenicModuleAnalyzer.for_module(modname)
         analyzer.find_tags()
     except Exception:
         return None     # bail out; viewcode will try analyzing again but oh well
@@ -364,14 +641,6 @@ def handle_collect_pages(app):
     hl.highlight_block = hacked_highlight_block
     return
     yield None  # make this a generator function
-
-def handle_process_signature(app, what, name, obj, options, signature, ret_anno):
-    if (what == 'class'
-        and issubclass(obj, scenic.core.object_types.Constructible)
-        and obj is not scenic.core.object_types.Constructible):
-        return ('(<specifiers>)', None)
-    else:
-        return None
 
 def handle_skip_member(app, what, name, obj, skip, options):
     if not skip:

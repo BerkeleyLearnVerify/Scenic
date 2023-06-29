@@ -4,7 +4,7 @@ Ego-vehicle is going straight at an intersection but a crossing vehicle
 runs a red light, forcing the ego-vehicle to perform a collision avoidance maneuver.
 Note: The traffic light control is not implemented yet, but it will soon be. 
 """
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../../assets/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
 model scenic.domains.driving.model
 
@@ -19,15 +19,15 @@ BRAKE_INTENSITY = 1.0
 
 
 behavior CrossingCarBehavior(trajectory):
-	while True:
-		do FollowTrajectoryBehavior(trajectory = trajectory)
+    while True:
+        do FollowTrajectoryBehavior(trajectory = trajectory)
 
 behavior EgoBehavior(trajectory):
-	
-	try:
-		do FollowTrajectoryBehavior(trajectory=trajectory)
-	interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
-		take SetBrakeAction(BRAKE_INTENSITY)
+    
+    try:
+        do FollowTrajectoryBehavior(trajectory=trajectory)
+    interrupt when withinDistanceToAnyObjs(self, SAFETY_DISTANCE):
+        take SetBrakeAction(BRAKE_INTENSITY)
 
 
 spawnAreas = []
@@ -47,11 +47,11 @@ crossing_car_trajectory = [csm.startLane, csm.connectingLane, csm.endLane]
 ego_spwPt = startLane.centerline[-1]
 csm_spwPt = crossing_startLane.centerline[-1]
 
-ego = Car following roadDirection from ego_spwPt for DISTANCE_TO_INTERSECTION1,
-		with behavior EgoBehavior(trajectory = ego_trajectory)
+ego = new Car following roadDirection from ego_spwPt for DISTANCE_TO_INTERSECTION1,
+        with behavior EgoBehavior(trajectory = ego_trajectory)
 
-crossing_car = Car following roadDirection from csm_spwPt for DISTANCE_TO_INTERSECTION2,
-				with behavior CrossingCarBehavior(crossing_car_trajectory)
+crossing_car = new Car following roadDirection from csm_spwPt for DISTANCE_TO_INTERSECTION2,
+                with behavior CrossingCarBehavior(crossing_car_trajectory)
 
 
 """Note: Traffic light is currently not controlled but this functionality will be added very soon """

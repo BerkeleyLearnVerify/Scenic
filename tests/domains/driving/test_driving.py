@@ -14,25 +14,26 @@ from tests.utils import compileScenic, sampleScene, sampleEgo, pickle_test, tryP
 pytestmark = pytest.mark.filterwarnings("ignore::scenic.formats.opendrive.OpenDriveWarning")
 
 template = inspect.cleandoc("""
-    param map = '{map}'
+    param map = r'{map}'
     param map_options = dict(useCache={cache})
     model scenic.domains.driving.model
 """)
 
 basicScenario = inspect.cleandoc("""
     lane = Uniform(*network.lanes)
-    ego = Car in lane
-    Car on visible lane.centerline
+    ego = new Car in lane
+    new Car on visible lane.centerline
 """)
 
-def compileDrivingScenario(cached_maps, code='', useCache=True,
-                           path='tests/formats/opendrive/maps/CARLA/Town01.xodr'):
-    path = cached_maps[path]
+from tests.domains.driving.conftest import mapFolder, map_params
+
+def compileDrivingScenario(cached_maps, code='', useCache=True, path=None):
+    if not path:
+        path = mapFolder/'CARLA'/'Town01.xodr'
+    path = cached_maps[str(path)]
     preamble = template.format(map=path, cache=useCache)
     whole = preamble + '\n' + inspect.cleandoc(code)
-    return compileScenic(whole)
-
-from tests.domains.driving.conftest import map_params
+    return compileScenic(whole, mode2D=True)
 
 @pytest.mark.slow
 @pytest.mark.parametrize("path", map_params)
@@ -51,7 +52,7 @@ def test_opendrive(path, cached_maps):
 
 def test_elements_at(cached_maps):
     scenario = compileDrivingScenario(cached_maps, """
-        ego = Car
+        ego = new Car
         posTuple = (ego.position.x, ego.position.y)
         # functions should accept Points, Vectors, and tuples
         for spot in (ego, ego.position, posTuple):
@@ -79,7 +80,7 @@ def test_intersection(cached_maps):
         intersection = Uniform(*network.intersections)
         lane = Uniform(*intersection.incomingLanes)
         maneuver = Uniform(*lane.maneuvers)
-        ego = Car on maneuver.connectingLane.centerline
+        ego = new Car on maneuver.connectingLane.centerline
     """)
     for i in range(20):
         ego = sampleEgo(scenario, maxIterations=1000)
@@ -92,20 +93,20 @@ def test_intersection(cached_maps):
         assert network.elementAt(ego) is intersection
         directions = intersection.nominalDirectionsAt(ego)
         assert directions == network.nominalDirectionsAt(ego)
-        assert any(ego.heading == pytest.approx(direction) for direction in directions)
+        assert any(ego.heading == pytest.approx(direction.yaw) for direction in directions)
         maneuvers = intersection.maneuversAt(ego)
         lane = ego.lane
         assert any(man.connectingLane is lane for man in maneuvers)
 
 def test_curb(cached_maps):
     scenario = compileDrivingScenario(cached_maps, """
-        ego = Car
-        spot = OrientedPoint on visible curb
-        Car left of spot by 0.25
+        ego = new Car
+        spot = new OrientedPoint on visible curb
+        new Car left of spot by 0.25
     """)
     ego = sampleEgo(scenario, maxIterations=1000)
     directions = ego.element.network.nominalDirectionsAt(ego)
-    assert any(ego.heading == pytest.approx(direction) for direction in directions)
+    assert any(ego.heading == pytest.approx(direction.yaw) for direction in directions)
 
 @pytest.mark.slow
 def test_caching(tmpdir):
@@ -114,7 +115,7 @@ def test_caching(tmpdir):
     In particular, make sure that links between network elements and maneuvers
     are properly reconnected after unpickling.
     """
-    origMap = 'tests/formats/opendrive/maps/CARLA/Town01.xodr'
+    origMap = mapFolder/'CARLA'/'Town01.xodr'
     path = os.path.join(tmpdir, 'map.xodr')
     cachedPath = os.path.join(tmpdir, 'map' + Network.pickledExt)
     noExtPath = os.path.join(tmpdir, 'map')
@@ -127,23 +128,23 @@ def test_caching(tmpdir):
     )
     for useCache, path in opts:
         scenario = compileScenic(f"""
-            param map = '{path}'
+            param map = r'{path}'
             param map_options = dict(useCache={useCache})
             model scenic.domains.driving.model
             lanes = filter(lambda l: l._successor, network.lanes)
             lane = Uniform(*lanes)
-            ego = Car on lane, with foo lane.network.lanes
-            Car on ego.lane.successor.centerline, with requireVisible False
-            Car on ego.lane.maneuvers[0].endLane.centerline, with requireVisible False
-        """)
+            ego = new Car on lane, with foo lane.network.lanes
+            new Car on ego.lane.successor.centerline, with requireVisible False
+            new Car on ego.lane.maneuvers[0].endLane.centerline, with requireVisible False
+        """, mode2D=True)
         sampleScene(scenario, maxIterations=1000)
 
 @pickle_test
 @pytest.mark.slow
 def test_pickle(cached_maps):
     scenario = compileDrivingScenario(cached_maps, """
-        ego = Car with behavior FollowLaneBehavior(target_speed=Range(10, 15))
-        Pedestrian on visible sidewalk
+        ego = new Car with behavior FollowLaneBehavior(target_speed=Range(10, 15))
+        new Pedestrian on visible sidewalk
     """)
     unpickled = tryPickling(scenario)
     scene = sampleScene(unpickled, maxIterations=1000)

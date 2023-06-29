@@ -7,10 +7,14 @@ import time
 import argparse
 import random
 from importlib import metadata
+import warnings
+
+import numpy
 
 import scenic
 import scenic.syntax.translator as translator
 import scenic.core.errors as errors
+from scenic.core.distributions import RejectionException
 from scenic.core.simulators import SimulationCreationError
 
 parser = argparse.ArgumentParser(prog='scenic', add_help=False,
@@ -30,6 +34,8 @@ mainOptions.add_argument('-p', '--param', help='override a global parameter',
 mainOptions.add_argument('-m', '--model', help='specify a Scenic world model', default=None)
 mainOptions.add_argument('--scenario', default=None,
                          help='name of scenario to run (if file contains multiple)')
+mainOptions.add_argument('--2d', action='store_true',
+                         help='run Scenic in 2D compatibility mode')
 
 # Simulation options
 simOpts = parser.add_argument_group('dynamic simulation options')
@@ -47,6 +53,8 @@ intOptions.add_argument('-d', '--delay', type=float,
                              'instead of waiting for the user to close the diagram')
 intOptions.add_argument('-z', '--zoom', type=float, default=1,
                         help='zoom expansion factor, or 0 to show the whole workspace (default 1)')
+intOptions.add_argument('--axes', help='display the global coordinate axes',
+                       action='store_true')
 
 # Debugging options
 debugOpts = parser.add_argument_group('debugging options')
@@ -63,14 +71,15 @@ debugOpts.add_argument('--pdb-on-reject', action='store_true',
 ver = metadata.version('scenic')
 debugOpts.add_argument('--version', action='version', version=f'Scenic {ver}',
                        help='print Scenic version information and exit')
-debugOpts.add_argument('--dump-initial-python', help='dump initial translated Python',
+debugOpts.add_argument('--dump-scenic-ast', help='dump Scenic AST',
                        action='store_true')
 debugOpts.add_argument('--dump-ast', help='dump final AST', action='store_true')
 debugOpts.add_argument('--dump-python', help='dump Python equivalent of final AST',
                        action='store_true')
 debugOpts.add_argument('--no-pruning', help='disable pruning', action='store_true')
 debugOpts.add_argument('--gather-stats', type=int, metavar='N',
-                       help='collect timing statistics over this many scenes')
+                       help='collect timing statistics over this many scenes'
+                            ' (or iterations, if negative)')
 
 parser.add_argument('-h', '--help', action='help', default=argparse.SUPPRESS,
                     help=argparse.SUPPRESS)
@@ -81,6 +90,14 @@ parser.add_argument('scenicFile', help='a Scenic file to run', metavar='FILE')
 # Parse arguments and set up configuration
 args = parser.parse_args()
 delay = args.delay
+mode2D = getattr(args, "2d")
+
+if not mode2D:
+    if args.delay is not None:
+        warnings.warn("Delay parameter is not supported by the 3D viewer.")
+    if args.zoom != 1:
+        warnings.warn("Zoom parameter is not supported by the 3D viewer.")
+
 scenic.setDebuggingOptions(
     verbosity=args.verbosity,
     fullBacktrace=args.full_backtrace,
@@ -98,13 +115,16 @@ for name, value in args.param:
         except ValueError:
             pass
     params[name] = value
-translator.dumpTranslatedPython = args.dump_initial_python
+translator.dumpScenicAST = args.dump_scenic_ast
 translator.dumpFinalAST = args.dump_ast
 translator.dumpASTPython = args.dump_python
 translator.usePruning = not args.no_pruning
-if args.seed is not None and args.verbosity >= 1:
-    print(f'Using random seed = {args.seed}')
+if args.seed is not None:
+    if args.verbosity >= 1:
+        print(f'Using random seed = {args.seed}')
+
     random.seed(args.seed)
+    numpy.random.seed(args.seed)
 
 # Load scenario from file
 if args.verbosity >= 1:
@@ -114,7 +134,8 @@ scenario = errors.callBeginningScenicTrace(
     lambda: translator.scenarioFromFile(args.scenicFile,
                                         params=params,
                                         model=args.model,
-                                        scenario=args.scenario)
+                                        scenario=args.scenario,
+                                        mode2D=mode2D)
 )
 totalTime = time.time() - startTime
 if args.verbosity >= 1:
@@ -123,10 +144,10 @@ if args.verbosity >= 1:
 if args.simulate:
     simulator = errors.callBeginningScenicTrace(scenario.getSimulator)
 
-def generateScene():
+def generateScene(maxIterations=2000):
     startTime = time.time()
     scene, iterations = errors.callBeginningScenicTrace(
-        lambda: scenario.generate(verbosity=args.verbosity)
+        lambda: scenario.generate(maxIterations=maxIterations, verbosity=args.verbosity)
     )
     if args.verbosity >= 1:
         totalTime = time.time() - startTime
@@ -182,22 +203,48 @@ try:
                     if 0 < args.count <= successCount:
                         break
             else:
-                if delay is None:
-                    scene.show(zoom=args.zoom)
+                if mode2D:
+                    if delay is None:
+                        scene.show2D(zoom=args.zoom)
+                    else:
+                        scene.show2D(zoom=args.zoom, block=False)
+                        plt.pause(delay)
+                        plt.clf()
                 else:
-                    scene.show(zoom=args.zoom, block=False)
-                    plt.pause(delay)
-                    plt.clf()
-    else:   # Gather statistics over the specified number of scenes
+                    scene.show(axes=args.axes)
+
+    else:   # Gather statistics over the specified number of scenes/iterations
         its = []
+        maxIterations = 2000
+        iterations = 0
+        totalIterations = 0
+        if args.gather_stats >= 0:  # scenes
+            def keepGoing():
+                return len(its) < args.gather_stats
+        else:  # iterations
+            maxIterations = -args.gather_stats
+            def keepGoing():
+                global maxIterations
+                maxIterations -= iterations
+                return maxIterations > 0
+
         startTime = time.time()
-        while len(its) < args.gather_stats:
-            scene, iterations = generateScene()
-            its.append(iterations)
+        while keepGoing():
+            try:
+                scene, iterations = generateScene(maxIterations=maxIterations)
+            except RejectionException:
+                if args.gather_stats >= 0:
+                    raise
+                iterations = maxIterations
+            else:
+                its.append(iterations)
+            totalIterations += iterations
         totalTime = time.time() - startTime
-        count = len(its)
+
+        count = len(its) if its else float('nan')
         print(f'Sampled {len(its)} scenes in {totalTime:.2f} seconds.')
-        print(f'Average iterations/scene: {sum(its)/count}')
+        print(f'Average iterations/scene: {totalIterations/count}')
+        print(f'Average time/iteration: {totalTime/totalIterations:.2g} seconds.')
         print(f'Average time/scene: {totalTime/count:.2f} seconds.')
 
 except KeyboardInterrupt:

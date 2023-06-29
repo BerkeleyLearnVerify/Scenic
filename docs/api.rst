@@ -32,7 +32,7 @@ the sampled values for all the global parameters and objects in the scene from t
 
 	import random, scenic
 	random.seed(12345)
-	scenario = scenic.scenarioFromString('ego = Object with foo Range(0, 5)')
+	scenario = scenic.scenarioFromString('ego = new Object with foo Range(0, 5)')
 	scene, numIterations = scenario.generate()
 	print(f'ego has foo = {scene.egoObject.foo}')
 
@@ -63,7 +63,8 @@ attribute, which is an instance of `SimulationResult` (simulator-specific subcla
 	import scenic
 	from scenic.simulators.newtonian import NewtonianSimulator
 	scenario = scenic.scenarioFromFile('examples/driving/badlyParkedCarPullingIn.scenic',
-	                                   model='scenic.simulators.newtonian.driving_model')
+	                                   model='scenic.simulators.newtonian.driving_model',
+	                                   mode2D=True)
 	scene, _ = scenario.generate()
 	simulator = NewtonianSimulator()
 	simulation = simulator.simulate(scene, maxSteps=10)
@@ -116,7 +117,7 @@ example, to save a scene to a file one could use code like the following:
 .. testcode::
 
 	import scenic, tempfile, pathlib
-	scenario = scenic.scenarioFromFile('examples/gta/parkedCar.scenic')
+	scenario = scenic.scenarioFromFile('examples/gta/parkedCar.scenic', mode2D=True)
 	scene, _ = scenario.generate()
 	data = scenario.sceneToBytes(scene)
 	with open(pathlib.Path(tempfile.gettempdir()) / 'test.scene', 'wb') as f:
@@ -133,7 +134,7 @@ Then you could restore the scene in another process, obtaining the same position
 .. testcode::
 
 	import scenic, tempfile, pathlib
-	scenario = scenic.scenarioFromFile('examples/gta/parkedCar.scenic')
+	scenario = scenic.scenarioFromFile('examples/gta/parkedCar.scenic', mode2D=True)
 	with open(pathlib.Path(tempfile.gettempdir()) / 'test.scene', 'rb') as f:
 		data = f.read()
 	scene = scenario.sceneFromBytes(data)

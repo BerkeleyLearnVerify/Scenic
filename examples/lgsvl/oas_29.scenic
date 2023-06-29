@@ -1,6 +1,6 @@
 # 3 way intersection. ego car turns left. actor has right of way.
 
-param map = localPath('maps/cubetown.xodr')
+param map = localPath('../../assets/maps/LGSVL/cubetown.xodr')
 param lgsvl_map = 'CubeTown'
 param time_step = 1.0/10
 
@@ -16,7 +16,7 @@ intersection = Uniform(*threeWayIntersections)
 left_maneuvers = filter(lambda m: m.type == ManeuverType.LEFT_TURN, intersection.maneuvers)
 ego_maneuver = Uniform(*left_maneuvers)
 ego_L_centerlines = [ego_maneuver.startLane.centerline, ego_maneuver.connectingLane.centerline, ego_maneuver.endLane.centerline]
-egoStart = (OrientedPoint at ego_maneuver.startLane.centerline[-1]) offset by Range(-2, 2) @ 0 
+egoStart = (new OrientedPoint at ego_maneuver.startLane.centerline[-1]) offset by Range(-2, 2) @ 0 
 
 # ---
 
@@ -28,24 +28,24 @@ actorStart = actor_maneuver.startLane.centerline[-1]
 
 # BEHAVIOR
 behavior EgoBehavior(thresholdDistance, target_speed=20, trajectory = None):
-	assert trajectory is not None
-	brakeIntensity = 0.7
+    assert trajectory is not None
+    brakeIntensity = 0.7
 
-	try: 
-		do FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
+    try: 
+        do FollowTrajectoryBehavior(target_speed=15, trajectory=trajectory)
 
-	interrupt when distanceToAnyCars(car=self, thresholdDistance=thresholdDistance):
-		take SetBrakeAction(brakeIntensity)
+    interrupt when distanceToAnyCars(car=self, thresholdDistance=thresholdDistance):
+        take SetBrakeAction(brakeIntensity)
 
 
 # PLACEMENT
-ego = Car following roadDirection from egoStart by -Uniform(*space),
-		with blueprint 'vehicle.tesla.model3',
-		with behavior EgoBehavior(target_speed=10, trajectory=ego_L_centerlines, thresholdDistance = 20)
+ego = new Car following roadDirection from egoStart for -Uniform(*space),
+        with blueprint 'vehicle.tesla.model3',
+        with behavior EgoBehavior(target_speed=10, trajectory=ego_L_centerlines, thresholdDistance = 20)
 
-other = Car following roadDirection from actorStart by -Uniform(*space),
-		with blueprint 'vehicle.tesla.model3',
-		with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=actor_centerlines)
+other = new Car following roadDirection from actorStart for -Uniform(*space),
+        with blueprint 'vehicle.tesla.model3',
+        with behavior FollowTrajectoryBehavior(target_speed=15, trajectory=actor_centerlines)
 
 
 # require that other car reaches the intersection before the ego car

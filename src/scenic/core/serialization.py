@@ -87,17 +87,31 @@ class Serializer:
 
     @classmethod
     def sceneFormatVersion(cls):
-        return 1
+        """Current version of the `Scene` serialization format.
+
+        Must be incremented if the `writeScene` method or any of its helper
+        methods (e.g. `writeValue`) change, or if a new codec is added.
+        """
+        return 2
 
     @classmethod
     def replayFormatVersion(cls):
-        return 1
+        """Current version of the `Simulation` replay serialization format.
+
+        Must be incremented if the `writeReplayHeader` or `writeValue` methods
+        change, or if a new codec is added.
+        """
+        return 2
 
     def writeScene(self, scenario, scene):
+        """Serialize a `Scene`."""
         version = struct.pack('<H', self.sceneFormatVersion())
         self.stream.write(version)
         assert len(scenario.astHash) == 4
         self.stream.write(scenario.astHash)
+        optionsHash = scenario.compileOptions.hash
+        assert len(optionsHash) == 4
+        self.stream.write(optionsHash)
         self.writeSample(scenario.dependencies, scene.sample)
 
     def readScene(self, scenario, verify=True):
@@ -111,6 +125,10 @@ class Serializer:
         astHash = self.stream.read(4)
         if verify and astHash != scenario.astHash:
             raise SerializationError('serialized Scene does not correspond to this Scenario')
+        optionsHash = self.stream.read(4)
+        if verify and optionsHash != scenario.compileOptions.hash:
+            raise SerializationError('serialized Scene used different compile options '
+                                     'than this Scenario')
         sample = self.readSample(scenario.dependencies)
         scene = scenario._makeSceneFromSample(sample)
         return scene
@@ -140,6 +158,7 @@ class Serializer:
             values[obj] = obj.deserializeValue(self, values)
 
     def writeReplayHeader(self, flags):
+        """Begin the encoding of a `Simulation` replay."""
         version = struct.pack('<H', self.replayFormatVersion())
         self.stream.write(version)
         self.stream.write(struct.pack('<I', flags))
@@ -171,6 +190,7 @@ class Serializer:
         cls.codecs[ty] = (encoder, decoder)
 
     def writeValue(self, value, ty):
+        """Serialize a value of the given type."""
         try:
             if ty in self.codecs:
                 encoder, decoder = self.codecs[ty]
@@ -207,17 +227,17 @@ class Serializer:
 
 def _writeNone(value, stream):
     pass
-def _readNone(value, stream):
+def _readNone(stream):
     return None
 Serializer.addCodec(type(None), _writeNone, _readNone)
 
-def _writeFloat(value, stream):
+def writeFloat(value, stream):
     stream.write(struct.pack('<d', value))
-def _readFloat(stream):
+def readFloat(stream):
     return struct.unpack('<d', stream.read(8))[0]
-Serializer.addCodec(float, _writeFloat, _readFloat)
+Serializer.addCodec(float, writeFloat, readFloat)
 
-def _writeInt(value, stream):
+def writeInt(value, stream):
     # Optimize for small nonnegative integers, which commonly arise from Options
     if 0 <= value <= 252:
         stream.write(bytes([value]))
@@ -229,11 +249,13 @@ def _writeInt(value, stream):
         stream.write(value.to_bytes(length=4, byteorder='little', signed=True))
     else:
         stream.write(bytes([255]))
-        length = max(1, math.ceil((math.log2(abs(value+0.5)) + 1) / 8))
-        assert length < 256
+        length = max(1, math.ceil((value.bit_length() + 1) / 8))    # +1 for sign
+        if length >= 256:
+            raise SerializationError('cannot serialize integers with >600 digits'
+                                     ' (what is this, cryptography?)')
         stream.write(bytes([length]))
         stream.write(value.to_bytes(length=length, byteorder='little', signed=True))
-def _readInt(stream):
+def readInt(stream):
     first = stream.read(1)[0]
     if first <= 252:
         return first
@@ -244,4 +266,26 @@ def _readInt(stream):
     else:
         length = stream.read(1)[0]
         return int.from_bytes(stream.read(length), byteorder='little', signed=True)
-Serializer.addCodec(int, _writeInt, _readInt)
+Serializer.addCodec(int, writeInt, readInt)
+
+def writeBool(value, stream):
+    writeInt(value, stream)
+def readBool(stream):
+    return bool(readInt(stream))
+Serializer.addCodec(bool, writeBool, readBool)
+
+def writeBytes(value, stream):
+    writeInt(len(value), stream)
+    stream.write(value)
+def readBytes(stream):
+    length = readInt(stream)
+    return stream.read(length)
+Serializer.addCodec(bytes, writeBytes, readBytes)
+
+def writeStr(value, stream):
+    encoded = value.encode()
+    writeBytes(encoded, stream)
+def readStr(stream):
+    encoded = readBytes(stream)
+    return encoded.decode()
+Serializer.addCodec(str, writeStr, readStr)

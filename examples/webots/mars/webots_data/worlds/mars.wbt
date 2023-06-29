@@ -1,0 +1,182 @@
+#VRML_SIM R2023a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/robots/nasa/protos/Sojourner.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/rocks/protos/Rock17cm.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/rocks/protos/Rock10cm.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/appearances/protos/Soil.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/solids/protos/SolidPipe.proto"
+
+WorldInfo {
+  info [
+    "A model of the NASA Sojourner Rover on Mars."
+    "Use the numpad to drive this robot."
+    "Author: Nicolas Uebelhart"
+    "Haute Ecole d'Ingenierie et de Gestion de Vaud (HEIG-VD)"
+  ]
+  title "Sojourner Rover"
+  gravity 3.73
+  basicTimeStep 16
+  lineScale 0.2
+}
+Viewpoint {
+  fieldOfView 0.895398
+  orientation 0.3118522992328667 -0.29486350618993956 -0.9032184985819046 4.626180105190331
+  position -0.47195295422479644 -12.510549473902085 9.874780535269485
+  near 0.1
+}
+TexturedBackground {
+  texture "mars"
+}
+TexturedBackgroundLight {
+  texture "mars"
+}
+Fog {
+  color 0.5 0.2 0
+  fogType "EXPONENTIAL"
+  visibilityRange 800
+}
+DEF GOAL Solid {
+  translation -1.2932 -0.108 0.3813
+  rotation 0 0 1 0.294
+  children [
+    Transform {
+      translation 0 0.25 0.25
+      children [
+        Shape {
+          appearance PBRAppearance {
+            baseColorMap ImageTexture {
+              url [
+                "https://raw.githubusercontent.com/cyberbotics/webots/R2022a/projects/robots/nasa/worlds/textures/panel.jpg"
+              ]
+            }
+            roughness 1
+            metalness 0
+          }
+          geometry Box {
+            size 0.01 0.5 0.5
+          }
+        }
+      ]
+    }
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.501961 0.501961 0.501961
+        roughness 1
+        metalness 0
+      }
+      geometry Cylinder {
+        height 1
+        radius 0.015
+      }
+    }
+  ]
+  name "flag"
+}
+DEF ROVER Sojourner {
+  translation 0 0 0.1088
+  rotation 0 0 1 -1.5707953071795862
+}
+DEF ROCK_BIG_0 Rock17cm {
+  translation -0.9251 -1.0081 -0.0885
+  rotation 0 0 1 -2.8628553071795864
+  color 0.8 0.35 0.3
+}
+DEF ROCK_BIG_1 Rock17cm {
+  translation -0.5519 -2.8026 -0.0938
+  rotation 0 0 1 1.92062
+  name "rock 17 cm(1)"
+  color 0.8 0.4 0.3
+}
+DEF ROCK_BIG_2 Rock17cm {
+  translation 0.1709 -1.2281 -0.0979
+  rotation 0 0 1 1.44753
+  name "rock 17 cm(2)"
+  color 0.9 0.4 0.3
+}
+DEF ROCK_SMALL_0 Rock10cm {
+  translation -0.4689 -1.8252 -0.0216
+  rotation 0 0 1 -1.5707953071795862
+  color 0.8 0.4 0.3
+}
+DEF ROCK_SMALL_1 Rock10cm {
+  translation 0.8756 -0.3002 -0.1125
+  rotation 0 0 1 -1.5707953071795862
+  name "rock 10 cm(1)"
+  color 0.9 0.4 0.35
+}
+DEF ROCK_SMALL_2 Rock10cm {
+  translation 0.1779 -0.3873 -0.1161
+  rotation 0 0 1 -1.8325953071795862
+  name "rock 10 cm(2)"
+  color 0.9 0.4 0.3
+}
+DEF GROUND Solid {
+  translation -5 5 0
+  rotation 0 0 1 -1.5708
+  children [
+    DEF GROUND_SHAPE Shape {
+      appearance Soil {
+        color 0.8 0.2 0
+      }
+      geometry ElevationGrid {
+        xDimension 20
+        xSpacing 0.5
+        yDimension 20
+        ySpacing 0.5
+        thickness 0.1
+      }
+    }
+  ]
+  name "ground"
+  boundingObject USE GROUND_SHAPE
+  locked TRUE
+}
+DEF PIPE_0 SolidPipe {
+  translation 0.96 0 0
+  height 1.1593228865509895
+  radius 0.1
+  thickness 0.01
+  appearance PBRAppearance {
+    baseColorMap ImageTexture {
+      url [
+        "https://raw.githubusercontent.com/cyberbotics/webots/R2022a/projects/default/worlds/textures/steel_floor.jpg"
+      ]
+    }
+  }
+}
+DEF PIPE_1 SolidPipe {
+  translation 0.96 0.5 0
+  name "pipe(1)"
+  height 1.6467889084074447
+  radius 0.1
+  thickness 0.01
+  appearance PBRAppearance {
+    baseColorMap ImageTexture {
+      url [
+        "https://raw.githubusercontent.com/cyberbotics/webots/R2022a/projects/default/worlds/textures/steel_floor.jpg"
+      ]
+    }
+  }
+}
+DEF PIPE_2 SolidPipe {
+  translation 0.96 1.03 0
+  name "pipe(2)"
+  height 0.9808949483143921
+  radius 0.1
+  thickness 0.01
+  appearance PBRAppearance {
+    baseColorMap ImageTexture {
+      url [
+        "https://raw.githubusercontent.com/cyberbotics/webots/R2022a/projects/default/worlds/textures/steel_floor.jpg"
+      ]
+    }
+  }
+}
+Robot {
+  name "Scenic Supervisor"
+  controller "scenic_supervisor"
+  customData "../../../narrowGoalDynamic.scenic"
+  supervisor TRUE
+}

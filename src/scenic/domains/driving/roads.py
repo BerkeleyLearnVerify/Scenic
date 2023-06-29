@@ -26,10 +26,11 @@ import struct
 import weakref
 
 import attr
+import shapely
 from shapely.geometry import Polygon, MultiPolygon
 
 from scenic.core.distributions import distributionFunction, distributionMethod
-from scenic.core.vectors import Vector, VectorField
+from scenic.core.vectors import Vector, VectorField, Orientation
 from scenic.core.regions import PolygonalRegion, PolylineRegion
 from scenic.core.object_types import Point
 import scenic.core.geometry as geometry
@@ -176,15 +177,15 @@ class Maneuver(_ElementReferencer):
     @property
     @utils.cached
     def reverseManeuvers(self) -> Tuple[Maneuver]:
-    	"""Maneuvers whose start and end roads are the reverse of this one's."""
-    	start = self.startLane.road
-    	end = self.endLane.road
-    	reverses = []
-    	for maneuver in self.intersection.maneuvers:
-    		if (maneuver.startLane.road is end
-    			and maneuver.endLane.road is start):
-    			reverses.append(maneuver)
-    	return tuple(reverses)
+        """Maneuvers whose start and end roads are the reverse of this one's."""
+        start = self.startLane.road
+        end = self.endLane.road
+        reverses = []
+        for maneuver in self.intersection.maneuvers:
+            if (maneuver.startLane.road is end
+                and maneuver.endLane.road is start):
+                reverses.append(maneuver)
+        return tuple(reverses)
 
 ## Road networks
 
@@ -230,7 +231,7 @@ class NetworkElement(_ElementReferencer, PolygonalRegion):
         super().__init__(polygon=self.polygon, orientation=self.orientation, name=self.name)
 
     @distributionFunction
-    def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[float]:
+    def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[Orientation]:
         """Get nominal traffic direction(s) at a point in this element.
 
         There must be at least one such direction. If there are multiple, we
@@ -742,11 +743,11 @@ class Intersection(NetworkElement):
         return [man]
 
     @distributionFunction
-    def nominalDirectionsAt(self, point: Vectorlike) -> List[float]:
+    def nominalDirectionsAt(self, point: Vectorlike) -> Tuple[Orientation]:
         point = _toVector(point)
         maneuvers = self.maneuversAt(point)
         assert maneuvers, self
-        return [m.connectingLane.orientation[point] for m in maneuvers]
+        return tuple(m.connectingLane.orientation[point] for m in maneuvers)
 
 @attr.s(auto_attribs=True, kw_only=True, repr=False, eq=False)
 class Signal:
@@ -875,6 +876,10 @@ class Network:
             # TODO replace with a PolygonalVectorField for better pruning
             self.roadDirection = VectorField('roadDirection', self._defaultRoadDirection)
 
+        # Build R-tree for faster lookup of roads, etc. at given points
+        self._uidForIndex = tuple(self.elements)
+        self._rtree = shapely.STRtree([elem.polygons for elem in self.elements.values()])
+
     def _defaultRoadDirection(self, point):
         """Default value for the `roadDirection` vector field.
 
@@ -899,7 +904,7 @@ class Network:
 
         :meta private:
         """
-        return 20
+        return 29
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
@@ -1091,14 +1096,27 @@ class Network:
         are still no matches, we return None, unless **reject** is true, in which case we
         reject the current sample.
         """
-        point = _toVector(point)
-        for element in elems:
-            if element.containsPoint(point):
-                return element
-        if self.tolerance > 0:
-            for element in elems:
-                if element.distanceTo(point) <= self.tolerance:
-                    return element
+        point = shapely.geometry.Point(_toVector(point))
+
+        def findElementWithin(distance):
+            target = point if distance == 0 else point.buffer(distance)
+            indices = self._rtree.query(target, predicate='intersects')
+            candidates = {self._uidForIndex[index] for index in indices}
+            if candidates:
+                for elem in elems:
+                    if elem.uid in candidates:
+                        return elem
+            return None
+
+        # First pass: check for elements containing the point.
+        if elem := findElementWithin(0):
+            return elem
+
+        # Second pass: check for elements within tolerance of the point.
+        if self.tolerance > 0 and (elem := findElementWithin(self.tolerance)):
+            return elem
+
+        # No matches found.
         if reject:
             if isinstance(reject, str):
                 message = reject
@@ -1172,7 +1190,7 @@ class Network:
         return self.findPointIn(point, self.intersections, reject)
 
     @distributionMethod
-    def nominalDirectionsAt(self, point: Vectorlike, reject=False) -> Tuple[float]:
+    def nominalDirectionsAt(self, point: Vectorlike, reject=False) -> Tuple[Orientation]:
         """Get the nominal traffic direction(s) at a given point, if any.
 
         There can be more than one such direction in an intersection, for example: a car
@@ -1210,8 +1228,8 @@ class Network:
                     pts = lane.centerline.pointsSeparatedBy(20)
                 else:
                     pts = [lane.centerline.pointAlongBy(0.5, normalized=True)]
-                hs = [lane.centerline.orientation[pt] for pt in pts]
-                x, y = zip(*pts)
+                hs = [lane.centerline.orientation[pt].yaw for pt in pts]
+                x, y, _ = zip(*pts)
                 u = [math.cos(h + (math.pi/2)) for h in hs]
                 v = [math.sin(h + (math.pi/2)) for h in hs]
                 plt.quiver(x, y, u, v,
@@ -1223,6 +1241,6 @@ class Network:
         if labelIncomingLanes:
             for intersection in self.intersections:
                 for i, lane in enumerate(intersection.incomingLanes):
-                    x, y = lane.centerline[-1]
+                    x, y, _ = lane.centerline[-1]
                     plt.plot([x], [y], '*b')
                     plt.annotate(str(i), (x, y))

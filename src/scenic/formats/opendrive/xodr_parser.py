@@ -597,6 +597,7 @@ class Road:
         shoulderSections = defaultdict(list)
         for sec, pts, sec_poly, lane_polys in zip(self.lane_secs, self.sec_points,
                                                   self.sec_polys, self.sec_lane_polys):
+            pts = [pt[:2] for pt in pts]    # drop s coordinate
             assert sec.drivable_lanes
             laneSections = {}
             for id_, lane in sec.drivable_lanes.items():

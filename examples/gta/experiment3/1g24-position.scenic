@@ -6,9 +6,9 @@ from scenic.simulators.gta.model import *
 param time = 12 * 60
 param weather = 'EXTRASUNNY'
 
-ego = EgoCar
+ego = new EgoCar
 
-c = Car on visible road,
-	apparently facing 27.0516943340308 deg,
-	with model CarModel.models['DOMINATOR'],
-	with color Color.withBytes([187, 162, 157])
+c = new Car on visible road,
+    apparently facing 27.0516943340308 deg,
+    with model CarModel.models['DOMINATOR'],
+    with color Color.withBytes([187, 162, 157])

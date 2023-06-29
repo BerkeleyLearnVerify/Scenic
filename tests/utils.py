@@ -5,25 +5,30 @@ import math
 import multiprocessing
 import sys
 import types
+import weakref
 
 import numpy
 import pytest
+import shapely
+import scipy.sparse
+import trimesh.caching
 
 from scenic import scenarioFromString
 from scenic.core.simulators import DummySimulator, RejectSimulationException
 from scenic.core.utils import DefaultIdentityDict
 import scenic.syntax.veneer as veneer
+from scenic.core.distributions import RejectionException
 
 ## Scene generation utilities
 
 # Compilation
 
-def compileScenic(code, removeIndentation=True, scenario=None):
+def compileScenic(code, removeIndentation=True, scenario=None, mode2D=False):
     if removeIndentation:
         # to allow indenting code to line up with test function
         code = inspect.cleandoc(code)
     checkVeneerIsInactive()
-    scenario = scenarioFromString(code, scenario=scenario)
+    scenario = scenarioFromString(code, scenario=scenario, mode2D=mode2D)
     checkVeneerIsInactive()
     return scenario
 
@@ -40,8 +45,8 @@ def sampleEgo(scenario, maxIterations=1):
     scene, iterations = generateChecked(scenario, maxIterations)
     return scene.egoObject
 
-def sampleEgoFrom(code, maxIterations=1):
-    scenario = compileScenic(code)
+def sampleEgoFrom(code, maxIterations=1, mode2D=False):
+    scenario = compileScenic(code, mode2D=mode2D)
     return sampleEgo(scenario, maxIterations=maxIterations)
 
 def sampleParamP(scenario, maxIterations=1):
@@ -51,6 +56,15 @@ def sampleParamP(scenario, maxIterations=1):
 def sampleParamPFrom(code, maxIterations=1):
     scenario = compileScenic(code)
     return sampleParamP(scenario, maxIterations=maxIterations)
+
+def checkIfSamples(code, maxIterations=1):
+    scenario = compileScenic(code)
+    try:
+        sampleScene(scenario, maxIterations=maxIterations)
+    except RejectionException:
+        return False
+
+    return True
 
 # Dynamic simulations
 
@@ -82,8 +96,13 @@ def sampleActions(scenario, maxIterations=1, maxSteps=1, maxScenes=1,
 
 def sampleActionsFromScene(scene, maxIterations=1, maxSteps=1,
                            singleAction=True, asMapping=False, timestep=1):
-    sim = DummySimulator(timestep=timestep)
-    simulation = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations)
+    sim = DummySimulator()
+    simulation = sim.simulate(
+        scene,
+        maxSteps=maxSteps,
+        maxIterations=maxIterations,
+        timestep=timestep,
+    )
     if not simulation:
         return None
     return getActionsFrom(simulation, singleAction=singleAction, asMapping=asMapping)
@@ -113,14 +132,19 @@ def sampleResult(scenario, maxIterations=1, maxSteps=1, maxScenes=1, timestep=1)
 
 def sampleResultOnce(scenario, maxSteps=1, timestep=1):
     scene = sampleScene(scenario)
-    sim = DummySimulator(timestep=timestep)
-    return sim.simulate(scene, maxSteps=maxSteps, maxIterations=1)
+    sim = DummySimulator()
+    return sim.simulate(scene, maxSteps=maxSteps, maxIterations=1, timestep=timestep)
 
 def sampleResultFromScene(scene, maxIterations=1, maxSteps=1, raiseGuardViolations=False,
                           timestep=1):
-    sim = DummySimulator(timestep=timestep)
-    simulation = sim.simulate(scene, maxSteps=maxSteps, maxIterations=maxIterations,
-                              raiseGuardViolations=raiseGuardViolations)
+    sim = DummySimulator()
+    simulation = sim.simulate(
+        scene,
+        maxSteps=maxSteps,
+        maxIterations=maxIterations,
+        raiseGuardViolations=raiseGuardViolations,
+        timestep=timestep,
+    )
     if not simulation:
         return None
     return simulation.result
@@ -159,6 +183,7 @@ def checkVeneerIsInactive():
     assert not veneer.lockedModel
     assert not veneer.currentSimulation
     assert not veneer.currentBehavior
+    assert not veneer.mode2D
     stopFlag = False
 
 def getActionsFrom(simulation, singleAction=True, asMapping=False):
@@ -219,7 +244,7 @@ def tryPickling(thing, checkEquivalence=True, pickler=dill):
         assert areEquivalent(unpickled, thing)
     return unpickled
 
-def areEquivalent(a, b, cache=None, ignoreCacheAttrs=False, debug=False):
+def areEquivalent(a, b, cache=None, debug=False, ignoreCacheAttrs=False):
     """Whether two objects are equivalent, i.e. have the same properties.
 
     This is only used for debugging, e.g. to check that a Distribution is the
@@ -227,8 +252,8 @@ def areEquivalent(a, b, cache=None, ignoreCacheAttrs=False, debug=False):
     objects since for example two values sampled with the same distribution are
     equivalent but not semantically identical: the code::
 
-        X = (0, 1)
-        Y = (0, 1)
+        X = Range(0, 1)
+        Y = Range(0, 1)
 
     does not make X and Y always have equal values!
 
@@ -244,13 +269,13 @@ def areEquivalent(a, b, cache=None, ignoreCacheAttrs=False, debug=False):
     if old is b:
         return True
     cache[a] = b   # prospectively assume equivalent, for recursive calls
-    if areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
+    if areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs):
         return True
     else:
         cache[a] = old     # guess was wrong; revert cache
         return False
 
-def areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
+def areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs):
     if ignoreCacheAttrs:
         def ignorable(attr):
             return attr == '__slotnames__' or attr.startswith('_cached_')
@@ -259,7 +284,7 @@ def areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
     fail = breakpoint if debug else lambda: False
 
     from scenic.core.distributions import needsSampling, needsLazyEvaluation
-    if not areEquivalent(type(a), type(b), cache, debug=debug):
+    if not areEquivalent(type(a), type(b), cache, debug):
         fail()
         return False
     elif isinstance(a, (list, tuple)):
@@ -267,7 +292,7 @@ def areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
             fail()
             return False
         for x, y in zip(a, b):
-            if not areEquivalent(x, y, cache, debug=debug):
+            if not areEquivalent(x, y, cache, debug):
                 fail()
                 return False
     elif isinstance(a, (set, frozenset)):
@@ -301,7 +326,7 @@ def areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
                 if not found:
                     fail()
                     return False
-            if not areEquivalent(v, b[y], cache, debug=debug):
+            if not areEquivalent(v, b[y], cache, debug):
                 fail()
                 return False
             kb.remove(y)
@@ -317,13 +342,13 @@ def areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
         # These attributes need a full equivalence check
         attrs = ('__defaults__', '__kwdefaults__', '__dict__', '__annotations__')
         for attr in attrs:
-            if not areEquivalent(getattr(a, attr), getattr(b, attr), cache, debug=debug):
+            if not areEquivalent(getattr(a, attr), getattr(b, attr), cache, debug):
                 fail()
                 return False
         # Lastly, we need to check that free variables are bound to equivalent objects
         # (effectively handling __closure__ and __globals__)
         if not areEquivalent(inspect.getclosurevars(a), inspect.getclosurevars(b),
-                             cache, debug=debug):
+                             cache, debug):
             fail()
             return False
     elif inspect.ismethod(a):
@@ -334,14 +359,26 @@ def areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
             return False
         # These attributes need a full equivalence check
         for attr in ('__func__', '__self__'):
-            if not areEquivalent(getattr(a, attr), getattr(b, attr), cache, debug=debug):
+            if not areEquivalent(getattr(a, attr), getattr(b, attr), cache, debug):
                 fail()
                 return False
     elif isinstance(a, property):
         for attr in ('fget', 'fset', 'fdel', '__doc__'):
-            if not areEquivalent(getattr(a, attr), getattr(b, attr), cache, debug=debug):
+            if not areEquivalent(getattr(a, attr), getattr(b, attr), cache, debug):
                 fail()
                 return False
+    elif isinstance(a, types.GetSetDescriptorType):
+        for attr in ('__name__', '__objclass__', '__doc__'):
+            if not areEquivalent(getattr(a, attr), getattr(b, attr), cache, debug):
+                fail()
+                return False
+    elif isinstance(a, weakref.ref):
+        if not areEquivalent(a(), b(), cache, debug):
+            fail()
+            return False
+        if not areEquivalent(a.__callback__, b.__callback__, cache, debug):
+            fail()
+            return False
     elif inspect.isclass(a):
         # These attributes we can check with simple equality
         attrs = ('__doc__', '__name__', '__module__')
@@ -349,16 +386,16 @@ def areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
             fail()
             return False
         # These attributes need a full equivalence check
-        if not areEquivalent(a.__bases__, b.__bases__, cache, debug=debug):
+        if not areEquivalent(a.__bases__, b.__bases__, cache, debug):
             fail()
             return False
-        if not areEquivalent(a.__dict__, b.__dict__, cache, ignoreCacheAttrs=True, debug=debug):
+        if not areEquivalent(a.__dict__, b.__dict__, cache, debug, ignoreCacheAttrs=True):
             fail()
             return False
         # Checking annotations depends on Python version, unfortunately
         if sys.version_info >= (3, 10):
             if not areEquivalent(inspect.get_annotations(a), inspect.get_annotations(b),
-                                 cache, debug=debug):
+                                 cache, debug):
                 fail()
                 return False
         else:
@@ -366,10 +403,33 @@ def areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
             # Python 3.9 and earlier.
             pass
     elif isinstance(a, numpy.ndarray):
-        if not numpy.array_equal(a, b, equal_nan=True):
+        if a.dtype != b.dtype or len(a) != len(b):
             fail()
             return False
+        if a.dtype.kind == 'O':
+            # The equal_nan option below raises an exception for certain types of
+            # objects, so for object arrays we'll do the comparison ourselves.
+            for x, y in zip(a, b):
+                if not areEquivalent(x, y, cache, debug):
+                    fail()
+                    return False
+        elif not numpy.array_equal(a, b, equal_nan=True):
+            fail()
+            return False
+    elif isinstance(a, scipy.sparse.spmatrix):
+        return areEquivalent(a.toarray(), b.toarray(), cache, debug)
+    elif isinstance(a, shapely.STRtree):
+        return areEquivalent(a.geometries, b.geometries, cache, debug)
+    elif isinstance(a, trimesh.Trimesh):
+        # Avoid testing cached info which is determined by `_data` and tends to
+        # contain nasty `ctypes` objects which can't be compared.
+        return areEquivalent(a._data, b._data, cache, debug)
+    elif isinstance(a, trimesh.caching.DataStore):
+        # Special case needed since DataStore's implementation of __eq__ fails
+        return areEquivalent(a.data, b.data, cache, debug)
     elif not needsSampling(a) and not needsLazyEvaluation(a) and a == b:
+        # This is not just a shortcut: there can be values whose internal attributes
+        # differ but which nevertheless compare equal.
         return True
     elif isinstance(a, float) and math.isnan(a):
         # Special case since NaN is not equal to itself, but we consider it equivalent.
@@ -381,8 +441,8 @@ def areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
         # we can find statically. (Objects hiding state in funny places, or with internal
         # attributes that aren't preserved by pickling & unpickling, had better define __eq__.)
         hasDict = hasattr(a, '__dict__')
-        if hasDict and not areEquivalent(a.__dict__, b.__dict__, cache,
-                                         ignoreCacheAttrs=True, debug=debug):
+        if hasDict and not areEquivalent(a.__dict__, b.__dict__, cache, debug,
+                                         ignoreCacheAttrs=True):
             fail()
             return False
         slots = set()
@@ -391,7 +451,7 @@ def areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
         sentinel = object()
         for slot in slots:
             if not areEquivalent(getattr(a, slot, sentinel), getattr(b, slot, sentinel),
-                                 cache, debug=debug):
+                                 cache, debug):
                 fail()
                 return False
         # If the object has no attributes at all, we have to fall back on __eq__

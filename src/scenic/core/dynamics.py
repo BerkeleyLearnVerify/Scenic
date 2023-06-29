@@ -1,15 +1,20 @@
 """Support for dynamic behaviors and modular scenarios."""
 
 from collections import defaultdict
+import dataclasses
 import enum
+import functools
 import inspect
 import itertools
 import sys
 import types
 import warnings
+import weakref
+
+import rv_ltl
 
 from scenic.core.distributions import Samplable, Options, toDistribution, needsSampling
-from scenic.core.errors import RuntimeParseError, InvalidScenarioError
+from scenic.core.errors import InvalidScenarioError
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
 from scenic.core.requirements import (RequirementType, PendingRequirement,
                                       DynamicRequirement)
@@ -46,7 +51,7 @@ class Invocable:
     """
     def __init__(self, *args, **kwargs):
         if veneer.evaluatingGuard:
-            raise RuntimeParseError(
+            raise InvalidScenarioError(
                 'tried to invoke behavior/scenario from inside guard or interrupt condition')
         self._args = args
         self._kwargs = kwargs
@@ -126,7 +131,7 @@ class Invocable:
             if modifier.name == 'for':  # do X for Y [seconds | steps]
                 timeLimit = modifier.value
                 if not isinstance(timeLimit, (float, int)):
-                    raise RuntimeParseError('"do X for Y" with Y not a number')
+                    raise TypeError('"do X for Y" with Y not a number')
                 assert modifier.terminator in (None, 'seconds', 'steps')
                 if modifier.terminator != 'steps':
                     timeLimit /= veneer.currentSimulation.timestep
@@ -180,6 +185,10 @@ class DynamicScenario(Invocable):
     def __init_subclass__(cls, *args, **kwargs):
         veneer.registerDynamicScenarioClass(cls)
 
+        target = cls._setup or cls._compose or (lambda self, agent: 0)
+        target = functools.partial(target, 0, 0)  # account for Scenic-inserted args
+        cls.__signature__ = inspect.signature(target)
+
     _requirementSyntax = None   # overridden by subclasses
     _simulatorFactory = None
     _globalParameters = None
@@ -189,7 +198,11 @@ class DynamicScenario(Invocable):
         super().__init__(*args, **kwargs)
         self._ego = None
         self._workspace = None
+        self._instances = []    # ordered for reproducibility
+        # _objects should contain a reference to the most complete version of
+        # the objects in this scene (sampled > unsampled)
         self._objects = []      # ordered for reproducibility
+        self._sampledObjects = self._objects
         self._externalParameters = []
         self._pendingRequirements = defaultdict(list)
         self._requirements = []
@@ -198,8 +211,8 @@ class DynamicScenario(Invocable):
         self._agents = []
         self._monitors = []
         self._behaviors = []
-        self._alwaysRequirements = []
-        self._eventuallyRequirements = []
+        self._monitorRequirements = []
+        self._temporalRequirements = []
         self._terminationConditions = []
         self._terminateSimulationConditions = []
         self._recordedExprs = []
@@ -219,12 +232,13 @@ class DynamicScenario(Invocable):
         self._eventuallySatisfied = None
         self._overrides = {}
 
+        self._requirementMonitors = None
+
     @classmethod
-    def _dummy(cls, filename, namespace):
+    def _dummy(cls, namespace):
         scenario = cls()
         scenario._setup = None
         scenario._compose = None
-        scenario._filename = filename   # for debugging
         scenario._prepared = True
         scenario._dummyNamespace = namespace
         return scenario
@@ -261,8 +275,8 @@ class DynamicScenario(Invocable):
         self._workspace = scene.workspace
         self._objects = list(scene.objects)
         self._agents = [obj for obj in scene.objects if obj.behavior is not None]
-        self._alwaysRequirements = scene.alwaysRequirements
-        self._eventuallyRequirements = scene.eventuallyRequirements
+        self._monitors = list(scene.monitors)
+        self._temporalRequirements = scene.temporalRequirements
         self._terminationConditions = scene.terminationConditions
         self._terminateSimulationConditions = scene.terminateSimulationConditions
         self._recordedExprs = scene.recordedExprs
@@ -313,8 +327,8 @@ class DynamicScenario(Invocable):
         if self._timeLimitIsInSeconds:
             self._timeLimitInSteps /= veneer.currentSimulation.timestep
 
-        # Keep track of which 'require eventually' conditions have been satisfied
-        self._eventuallySatisfied = { req: False for req in self._eventuallyRequirements }
+        # create monitors for each requirement used for this simulation
+        self._requirementMonitors = [r.toMonitor() for r in self._temporalRequirements]
 
         veneer.startScenario(self)
         with veneer.executeInScenario(self):
@@ -322,13 +336,14 @@ class DynamicScenario(Invocable):
             if self._compose is not None:
                 if not inspect.isgeneratorfunction(self._compose):
                     from scenic.syntax.translator import composeBlock
-                    raise RuntimeParseError(f'"{composeBlock}" does not invoke any scenarios')
+                    raise InvalidScenarioError(f'"{composeBlock}" does not invoke any scenarios')
                 self._runningIterator = self._compose(None, *self._args, **self._kwargs)
 
             # Initialize behavior coroutines of agents
             for agent in self._agents:
-                assert isinstance(agent.behavior, Behavior), agent.behavior
-                agent.behavior._start(agent)
+                behavior = agent.behavior
+                assert isinstance(behavior, Behavior), behavior
+                behavior._assignTo(agent)
             # Initialize monitor coroutines
             for monitor in self._monitors:
                 monitor._start()
@@ -342,16 +357,11 @@ class DynamicScenario(Invocable):
         """
         super()._step()
 
-        # Check 'require always' and 'require eventually' conditions
-        for req in self._alwaysRequirements:
-            if not req.isTrue():
-                # always requirements should never be violated at time 0, since
-                # they are enforced during scene sampling
-                assert veneer.currentSimulation.currentTime > 0
-                raise RejectSimulationException(str(req))
-        for req in self._eventuallyRequirements:
-            if not self._eventuallySatisfied[req] and req.isTrue():
-                self._eventuallySatisfied[req] = True
+        # Check temporal requirements
+        for m in self._requirementMonitors:
+             result = m.value()
+             if result == rv_ltl.B4.FALSE:
+                 raise RejectSimulationException(str(m))
 
         # Check if we have reached the time limit, if any
         if self._timeLimitInSteps is not None and self._elapsedTime >= self._timeLimitInSteps:
@@ -389,7 +399,7 @@ class DynamicScenario(Invocable):
 
         # Check if any termination conditions apply
         for req in self._terminationConditions:
-            if req.isTrue():
+            if req.evaluate():
                 return self._stop(req)
 
         # Scenario will not terminate yet
@@ -397,23 +407,39 @@ class DynamicScenario(Invocable):
 
     def _stop(self, reason, quiet=False):
         """Stop the scenario's execution, for the given reason."""
-        if not quiet:
-            # Reject if we never satisfied a 'require eventually'
-            for req in self._eventuallyRequirements:
-                if not self._eventuallySatisfied[req] and not req.isTrue():
-                    raise RejectSimulationException(str(req))
+        assert self._isRunning
 
-        super()._stop(reason)
-        veneer.endScenario(self, reason, quiet=quiet)
+        # Stop monitors and subscenarios.
+        for monitor in self._monitors:
+            if monitor._isRunning:
+                monitor._stop()
+        self._monitors = []
+        for sub in self._subScenarios:
+            if sub._isRunning:
+                sub._stop('parent scenario ending', quiet=quiet)
+        self._runningIterator = None
+
+        # Revert overrides.
         for obj, oldVals in self._overrides.items():
             obj._revert(oldVals)
-        self._runningIterator = None
+
+        # Inform the veneer we have stopped, and mark ourselves finished.
+        veneer.endScenario(self, reason, quiet=quiet)
+        super()._stop(reason)
+
+        # Reject if a temporal requirement was not satisfied.
+        if not quiet:
+            for req in self._requirementMonitors:
+                if req.lastValue.is_falsy:
+                    raise RejectSimulationException(str(req))
+        self._requirementMonitors = None
+
         return reason
 
     def _invokeInner(self, agent, subs):
         for sub in subs:
             if not isinstance(sub, DynamicScenario):
-                raise RuntimeParseError(f'expected a scenario, got {sub}')
+                raise TypeError(f'expected a scenario, got {sub}')
             sub._prepare()
             sub._start()
         self._subScenarios = list(subs)
@@ -423,12 +449,15 @@ class DynamicScenario(Invocable):
                 terminationReason = sub._step()
                 if isinstance(terminationReason, EndSimulationAction):
                     yield terminationReason
+                    assert False, self  # should never get here since simulation ends
                 elif terminationReason is None:
                     newSubs.append(sub)
             self._subScenarios = newSubs
             if not newSubs:
                 return
             yield None
+            # Check if any sub-scenarios stopped during action execution
+            self._subScenarios = [sub for sub in self._subScenarios if sub._isRunning]
 
     def _evaluateRecordedExprs(self, ty):
         if ty is RequirementType.record:
@@ -444,7 +473,7 @@ class DynamicScenario(Invocable):
     def _evaluateRecordedExprsAt(self, place):
         values = {}
         for rec in getattr(self, place):
-            values[rec.name] = rec.value()
+            values[rec.name] = rec.evaluate()
         for sub in self._subScenarios:
             subvals = sub._evaluateRecordedExprsAt(place)
             values.update(subvals)
@@ -452,20 +481,26 @@ class DynamicScenario(Invocable):
 
     def _runMonitors(self):
         terminationReason = None
+        endScenario = None
         for monitor in self._monitors:
             action = monitor._step()
+            # do not exit early, since subsequent monitors could reject the simulation
             if isinstance(action, EndSimulationAction):
                 terminationReason = action
-                # do not exit early, since subsequent monitors could reject the simulation
+            elif isinstance(action, EndScenarioAction):
+                assert action.scenario is None
+                endScenario = action
         for sub in self._subScenarios:
             subreason = sub._runMonitors()
             if subreason is not None:
                 terminationReason = subreason
-        return terminationReason
+        if endScenario:
+            self._stop(endScenario)
+        return terminationReason or endScenario
 
     def _checkSimulationTerminationConditions(self):
         for req in self._terminateSimulationConditions:
-            if req.isTrue():
+            if req.isTrue().is_truthy:
                 return req
         return None
 
@@ -479,6 +514,7 @@ class DynamicScenario(Invocable):
     def _inherit(self, other):
         if not self._workspace:
             self._workspace = other._workspace
+        self._instances.extend(other._instances)
         self._objects.extend(other._objects)
         self._agents.extend(other._agents)
         self._globalParameters.update(other._globalParameters)
@@ -486,10 +522,16 @@ class DynamicScenario(Invocable):
         self._requirements.extend(other._requirements)
         self._behaviors.extend(other._behaviors)
 
+    def _registerInstance(self, inst):
+        self._instances.append(inst)
+
     def _registerObject(self, obj):
+        self._registerInstance(obj)
         self._objects.append(obj)
         if getattr(obj, 'behavior', None) is not None:
             self._agents.append(obj)
+
+        obj._parentScenario = weakref.ref(self)
 
     def _addRequirement(self, ty, reqID, req, line, name, prob):
         """Save a requirement defined at compile-time for later processing."""
@@ -499,9 +541,15 @@ class DynamicScenario(Invocable):
 
     def _addDynamicRequirement(self, ty, req, line, name):
         """Add a requirement defined during a dynamic simulation."""
-        assert ty is not RequirementType.require
         dreq = DynamicRequirement(ty, req, line, name)
-        self._registerCompiledRequirement(dreq)
+        self._temporalRequirements.append(dreq)
+
+    def _addMonitor(self, monitor):
+        """Add a monitor during a dynamic simulation."""
+        assert isinstance(monitor, Monitor)
+        self._monitors.append(monitor)
+        if self._isRunning:
+            monitor._start()
 
     def _compileRequirements(self):
         namespace = self._dummyNamespace if self._dummyNamespace else self.__dict__
@@ -517,10 +565,8 @@ class DynamicScenario(Invocable):
     def _registerCompiledRequirement(self, req):
         if req.ty is RequirementType.require:
             place = self._requirements
-        elif req.ty is RequirementType.requireAlways:
-            place = self._alwaysRequirements
-        elif req.ty is RequirementType.requireEventually:
-            place = self._eventuallyRequirements
+        elif req.ty is RequirementType.monitor:
+            place = self._monitorRequirements
         elif req.ty is RequirementType.terminateWhen:
             place = self._terminationConditions
         elif req.ty is RequirementType.terminateSimulationWhen:
@@ -547,32 +593,19 @@ class DynamicScenario(Invocable):
     def _toScenario(self, namespace):
         assert self._prepared
 
-        if self._ego is None and self._compose is None:
-            msg = 'did not specify ego object'
-            modScenarios = namespace['_scenarios']
-            if self._dummyNamespace and len(modScenarios) == 1:
-                if modScenarios[0]._requiresArguments():
-                    msg += ('\n(Note: this Scenic file contains a modular scenario, but it\n'
-                            'cannot be used as the top-level scenario since it requires\n'
-                            'arguments; so the whole file is being used as a top-level\n'
-                            'scenario and needs an ego object.)')
-                else:
-                    msg += ('\n(Note: this Scenic file contains a modular scenario, but also\n'
-                            'other code; so the whole file is being used as a top-level\n'
-                            'scenario and needs an ego object.)')
-            raise InvalidScenarioError(msg)
-
         if not self._workspace:
             self._workspace = Workspace()     # default empty workspace
         astHash = namespace['_astHash']
+        name = None if self._dummyNamespace else self.__class__.__name__
+        options = dataclasses.replace(namespace['_compileOptions'], scenario=name)
 
         from scenic.core.scenarios import Scenario
         scenario = Scenario(self._workspace, self._simulatorFactory,
-                            self._objects, self._ego,
+                            self._instances, self._objects, self._ego,
                             self._globalParameters, self._externalParameters,
                             self._requirements, self._requirementDeps,
-                            self._monitors, self._behaviorNamespaces,
-                            self, astHash)   # TODO unify these!
+                            self._monitorRequirements, self._behaviorNamespaces,
+                            self, astHash, options)   # TODO unify these!
         return scenario
 
     def __getattr__(self, name):
@@ -595,8 +628,17 @@ class Behavior(Invocable, Samplable):
     Behavior statements are translated into definitions of subclasses of this class.
     """
     def __init_subclass__(cls):
-        if cls.__module__ is not __name__ and veneer.currentScenario:
-            veneer.currentScenario._behaviors.append(cls)
+        if '__signature__' in cls.__dict__:
+            # We're unpickling a behavior; skip this step.
+            return
+
+        if cls.__module__ is not __name__:
+            if veneer.currentScenario:
+                veneer.currentScenario._behaviors.append(cls)
+
+            target = cls.makeGenerator
+            target = functools.partial(target, 0, 0)  # account for Scenic-inserted args
+            cls.__signature__ = inspect.signature(target)
 
     def __init__(self, *args, **kwargs):
         args = tuple(toDistribution(arg) for arg in args)
@@ -604,16 +646,13 @@ class Behavior(Invocable, Samplable):
 
         # Validate arguments to the behavior
         sig = inspect.signature(self.makeGenerator)
-        try:
-            sig.bind(None, *args, **kwargs)
-        except TypeError as e:
-            raise RuntimeParseError(str(e)) from e
+        sig.bind(None, *args, **kwargs)  # raises TypeError on incompatible arguments
         Samplable.__init__(self, itertools.chain(args, kwargs.values()))
         Invocable.__init__(self, *args, **kwargs)
 
         if not inspect.isgeneratorfunction(self.makeGenerator):
-            raise RuntimeParseError(f'{self} does not take any actions'
-                                    ' (perhaps you forgot to use "take" or "do"?)')
+            raise InvalidScenarioError(f'{self} does not take any actions'
+                                       ' (perhaps you forgot to use "take" or "do"?)')
 
     @classmethod
     def _canCoerceType(cls, ty):
@@ -632,6 +671,16 @@ class Behavior(Invocable, Samplable):
         args = (value[arg] for arg in self._args)
         kwargs = { name: value[val] for name, val in self._kwargs.items() }
         return type(self)(*args, **kwargs)
+
+    def _assignTo(self, agent):
+        if self._agent and agent is self._agent._dynamicProxy:
+            # Assigned again (e.g. by override) to same agent; do nothing.
+            return
+        if self._isRunning:
+            raise InvalidScenarioError(
+                f'tried to reuse behavior object {self} already assigned to {self._agent}'
+            )
+        self._start(agent)
 
     def _start(self, agent):
         super()._start()
@@ -668,7 +717,7 @@ class Behavior(Invocable, Samplable):
         assert len(subs) == 1
         sub = subs[0]
         if not isinstance(sub, Behavior):
-            raise RuntimeParseError(f'expected a behavior, got {sub}')
+            raise TypeError(f'expected a behavior, got {sub}')
         sub._start(agent)
         with veneer.executeInBehavior(sub):
             try:
@@ -685,7 +734,15 @@ class Behavior(Invocable, Samplable):
         allArgs = ', '.join(items)
         return f'{self.__class__.__name__}({allArgs})'
 
-def makeTerminationAction(line):
+def _makeTerminationAction(agent, line):
+    assert not veneer.isActive()
+    if agent:
+        scenario = agent._parentScenario()
+        assert scenario is not None
+    else:
+        scenario = None
+    return EndScenarioAction(scenario, line)
+def _makeSimulationTerminationAction(line):
     assert not veneer.isActive()
     return EndSimulationAction(line)
 
@@ -696,20 +753,8 @@ class Monitor(Behavior):
 
     Monitor statements are translated into definitions of subclasses of this class.
     """
-    def __init_subclass__(cls):
-        super().__init_subclass__()
-        veneer.currentScenario._monitors.append(cls())
-
     def _start(self):
         return super()._start(None)
-
-monitorPrefix = '_Scenic_monitor_'
-def functionForMonitor(name):
-    return monitorPrefix + name
-def isAMonitorName(name):
-    return name.startswith(monitorPrefix)
-def monitorName(name):
-    return name[len(monitorPrefix):]
 
 # Guards
 
@@ -729,11 +774,21 @@ class GuardViolation(Exception):
         return f'violated {self.violationType} of {self.behaviorName} on line {self.lineno}'
 
 class PreconditionViolation(GuardViolation):
-    """Raised when a precondition is violated when invoking a behavior."""
+    """ Exception raised when a precondition is violated
+
+    Raised when a precondition is violated when invoking a behavior
+    or when a precondition encounters a `RejectionException`, so that
+    rejections count as precondition violations.
+    """
     violationType = 'precondition'
 
 class InvariantViolation(GuardViolation):
-    """Raised when an invariant is violated when invoking/resuming a behavior."""
+    """ Exception raised when an invariant is violated
+
+    Raised when an invariant is violated when invoking/resuming a behavior
+    or when an invariant encounters a `RejectionException`, so that
+    rejections count as invariant violations.
+    """
     violationType = 'invariant'
 
 # Try-interrupt blocks

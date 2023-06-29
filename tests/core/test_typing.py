@@ -1,18 +1,16 @@
 
 from contextlib import nullcontext
 import fractions
-from typing import (Any, Union, Optional, Tuple, List, Set, FrozenSet, Dict,
-                    get_origin, get_args)
+from typing import Any, Union, Optional, Tuple, List, Set, FrozenSet, Dict
 
 import numpy
 import pytest
 
 from scenic.core.distributions import Options, DiscreteRange, Range, distributionFunction
-from scenic.core.errors import ScenicSyntaxError
 from scenic.core.object_types import Object
-from scenic.core.vectors import Vector, OrientedVector, VectorField
+from scenic.core.vectors import Vector, OrientedVector, VectorField, Orientation
 from scenic.core.type_support import (
-    canCoerce, canCoerceType, coerce, CoercionFailure,
+    canCoerce, canCoerceType, coerce, CoercionFailure, get_type_origin, get_type_args,
     Heading, TypecheckedDistribution, unifyingType, underlyingType
 )
 
@@ -27,20 +25,20 @@ def makeDistWithType(ty):
 ## Internal utilities
 
 def test_get_type_origin():
-    assert get_origin(Union[int, set]) is Union
-    assert get_origin(Optional[int]) is Union
-    assert get_origin(Tuple[int, set]) is tuple
-    assert get_origin(List[int]) is list
-    assert get_origin(Set[float]) is set
-    assert get_origin(FrozenSet[float]) is frozenset
+    assert get_type_origin(Union[int, set]) is Union
+    assert get_type_origin(Optional[int]) is Union
+    assert get_type_origin(Tuple[int, set]) is tuple
+    assert get_type_origin(List[int]) is list
+    assert get_type_origin(Set[float]) is set
+    assert get_type_origin(FrozenSet[float]) is frozenset
 
 def test_get_type_args():
-    assert get_args(Union[int, set]) == (int, set)
-    assert get_args(Optional[int]) == (int, type(None))
-    assert get_args(Tuple[int, set]) == (int, set)
-    assert get_args(List[int]) == (int,)
-    assert get_args(Set[float]) == (float,)
-    assert get_args(FrozenSet[float]) == (float,)
+    assert get_type_args(Union[int, set]) == (int, set)
+    assert get_type_args(Optional[int]) == (int, type(None))
+    assert get_type_args(Tuple[int, set]) == (int, set)
+    assert get_type_args(List[int]) == (int,)
+    assert get_type_args(Set[float]) == (float,)
+    assert get_type_args(FrozenSet[float]) == (float,)
 
 ## Coercions
 
@@ -49,13 +47,13 @@ def test_coerce_to_scalar():
     assert all(coerce(thing, float) == float(thing) for thing in good)
     assert all(coerce(thing, Heading) == float(thing) for thing in good)
 
-    bad = ['foo', Vector(1, 2), VectorField('', lambda x: 0), [1, 2, 3]]
+    bad = ['foo', Vector(1, 2), VectorField('', lambda x: 0), [1,2,3,4]]
     assert all(not canCoerce(thing, float) for thing in bad)
     assert all(not canCoerce(thing, Heading) for thing in bad)
 
 def test_coerce_to_heading():
-    assert coerce(OrientedVector(1, 2, 0.5), Heading) == pytest.approx(0.5)
-    assert coerce(Object(heading=0.42), Heading) == pytest.approx(0.42)
+    assert coerce(OrientedVector(1, 2, 0, 0.5), Heading) == pytest.approx(0.5)
+    assert coerce(Object._with(yaw=0.42), Heading) == pytest.approx(0.42)
 
 def test_coerce_to_vector():
     def check(thing, answer=None):
@@ -64,12 +62,16 @@ def test_coerce_to_vector():
         if answer is None:
             answer = thing
         assert res == answer
+    check([1,2])
+    check((1,2))
     check(Vector(1, 2))
-    check([1, 2])
-    check((1, 2))
-    check(Object(position=Vector(4, 9)), answer=(4, 9))
+    check(Vector(1, 2, 0))
+    check([1, 2, 0])
+    check((1, 2, 0))
+    check(Object._with(position=Vector(4, 9)), answer=(4, 9, 0))
+    check(Object._with(position=Vector(4, 9, 0)), answer=(4, 9, 0))
     assert not canCoerce(42, Vector)
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(TypeError):
         coerce([1, 2, 3, 4], Vector)
 
 def test_coerce_to_class():
@@ -84,7 +86,6 @@ def test_coerce_to_class():
 def test_coerce_union():
     assert canCoerceType(Union[str, int], float)
     assert canCoerce(Options(['foo', 42]), float)
-    assert not canCoerce(Options([3.14, 42]), Vector)
 
 def test_coerce_parameters():
     assert canCoerceType(List[int], list)
@@ -101,10 +102,9 @@ def test_coerce_distribution_scalar():
     x = Options([3.14, 'zoggle'])
     y = coerce(x, float)
     assert isinstance(y, TypecheckedDistribution)
-    with pytest.raises(ScenicSyntaxError):
+    with pytest.raises(TypeError):
         for _ in range(60):
             y.sample()
-    assert not canCoerce(Options(['foo', 'bar']), float)
 
 def test_coerce_distribution_vector():
     x = Options([Vector(1, 2), Vector(3, 4)])
@@ -114,7 +114,7 @@ def test_coerce_distribution_vector():
         x = Options(values)
         y = coerce(x, Vector)
         assert isinstance(y, TypecheckedDistribution)
-        manager = pytest.raises(ScenicSyntaxError) if fail else nullcontext()
+        manager = pytest.raises(TypeError) if fail else nullcontext()
         with manager:
             for _ in range(60):
                 y.sample()

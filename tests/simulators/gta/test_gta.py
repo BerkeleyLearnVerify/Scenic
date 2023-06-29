@@ -3,28 +3,28 @@ import matplotlib.pyplot as plt
 import pytest
 
 from scenic.simulators.gta.interface import GTA
-from tests.utils import sampleScene, pickle_test, tryPickling
+from tests.utils import compileScenic, sampleScene, pickle_test, tryPickling
 
 # Skip tests if Pillow or OpenCV not installed
 pytest.importorskip("PIL")
 pytest.importorskip("cv2")
 
 def test_basic(loadLocalScenario):
-    scenario = loadLocalScenario('basic.scenic')
+    scenario = loadLocalScenario('basic.scenic', mode2D=True)
     scene = sampleScene(scenario, maxIterations=1000)
     GTA.Config(scene)
 
 @pytest.mark.graphical
-def test_show(loadLocalScenario):
-    scenario = loadLocalScenario('basic.scenic')
+def test_show2D(loadLocalScenario):
+    scenario = loadLocalScenario('basic.scenic', mode2D=True)
     scene = sampleScene(scenario, maxIterations=1000)
-    scene.show(block=False)
+    scene.show2D(block=False)
     plt.close()
-    scene.show(zoom=1, block=False)
+    scene.show2D(zoom=1, block=False)
     plt.close()
 
 def test_bumper_to_bumper(loadLocalScenario):
-    scenario = loadLocalScenario('bumperToBumper.scenic')
+    scenario = loadLocalScenario('bumperToBumper.scenic', mode2D=True)
     scene = sampleScene(scenario, maxIterations=1000)
     GTA.Config(scene)
 
@@ -36,9 +36,22 @@ def test_make_map(request, tmp_path):
     m.dumpToFile(outpath)
     outpath.unlink()
 
+def test_mutate():
+    scenario = compileScenic(f"""
+        from scenic.simulators.gta.map import setLocalMap
+        setLocalMap(r"{__file__}", "map.npz")
+        from scenic.simulators.gta.model import *
+        ego = new EgoCar with color Color(0, 0, 1)
+        mutate
+        """,
+        mode2D=True
+    )
+    scene, _ = scenario.generate(maxIterations=50)
+    assert tuple(scene.egoObject.color) != (0, 0, 1)
+
 @pickle_test
 def test_pickle(loadLocalScenario):
-    scenario = loadLocalScenario('basic.scenic')
+    scenario = loadLocalScenario('basic.scenic', mode2D=True)
     unpickled = tryPickling(scenario)
     scene = sampleScene(unpickled, maxIterations=1000)
     tryPickling(scene)

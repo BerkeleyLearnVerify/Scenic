@@ -1,7 +1,6 @@
 """Behaviors for dynamic agents in CARLA scenarios."""
 
 from scenic.domains.driving.behaviors import *	# use common driving behaviors
-import scenic.domains.driving.model as _model
 
 try:
     from scenic.simulators.carla.actions import *
@@ -13,10 +12,10 @@ behavior AutopilotBehavior():
     take SetAutopilotAction(True)
 
 behavior WalkForwardBehavior(speed=0.5):
-	take SetWalkingDirectionAction(self.heading), SetWalkingSpeedAction(speed)
+    take SetWalkingDirectionAction(self.heading), SetWalkingSpeedAction(speed)
 
 behavior WalkBehavior(maxSpeed=1.4):
-	take SetWalkAction(True, maxSpeed)
+    take SetWalkAction(True, maxSpeed)
 
 behavior CrossingBehavior(reference_actor, min_speed=1, threshold=10, final_speed=None):
     """
@@ -54,12 +53,12 @@ behavior CrossingBehavior(reference_actor, min_speed=1, threshold=10, final_spee
         if actor_speed < min_speed:
             actor_speed = min_speed
 
-        if isinstance(self, _model.Walks):
+        if isinstance(self, Walks):
             do WalkForwardBehavior(actor_speed)
-        elif isinstance(self, _model.Steers):
+        elif isinstance(self, Steers):
             take SetSpeedAction(actor_speed)
 
-    if isinstance(self, _model.Walks):
+    if isinstance(self, Walks):
         do WalkForwardBehavior(final_speed)
-    elif isinstance(self, _model.Steers):
+    elif isinstance(self, Steers):
         take SetSpeedAction(final_speed)

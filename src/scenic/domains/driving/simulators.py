@@ -6,8 +6,7 @@ from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLat
 
 class DrivingSimulator(Simulator):
     """A `Simulator` supporting the driving domain."""
-    def createSimulation(self, scene):
-        raise NotImplementedError
+    pass
 
 class DrivingSimulation(Simulation):
     """A `Simulation` with a simulator supporting the driving domain.

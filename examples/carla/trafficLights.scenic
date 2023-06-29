@@ -3,12 +3,12 @@ Example scenario of traffic lights management.
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
-param map = localPath('../../tests/formats/opendrive/maps/CARLA/Town01.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../assets/maps/CARLA/Town01.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town01'
 model scenic.simulators.carla.model
 
 ## CONSTANTS
-EGO_MODEL = "vehicle.lincoln.mkz2017"
+EGO_MODEL = "vehicle.lincoln.mkz_2017"
 EGO_SPEED = 10
 
 ## DEFINING BEHAVIORS
@@ -32,7 +32,7 @@ lane = Uniform(*network.lanes)
 ## ACTOR CREATION
 # Please refer to scenic/simulators/carla/model.scenic for detailed information about
 # the different actor attributes
-ego = Car on lane.centerline,
+ego = new Car on lane.centerline,
     with blueprint EGO_MODEL,
     with behavior EgoBehaviorTL(EGO_SPEED)
 

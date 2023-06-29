@@ -1,9 +1,16 @@
 
+import math
+
 import pytest
 import shapely.geometry
 import shapely.ops
+import trimesh
 
 import scenic.core.geometry as geometry
+from scenic.core.object_types import Object
+from scenic.core.shapes import ConeShape
+
+## Triangulation
 
 def checkTriangulation(poly, prec=1e-6):
     tris = geometry.triangulatePolygon(poly)
@@ -52,3 +59,25 @@ def test_triangulation_holes():
         ]
     )
     checkTriangulation(p)
+
+## Bounding geometries
+
+def test_object_boundingPolygon_planar():
+    obj = Object._with(width=4, length=2, position=(-5, -1))
+    verts = list(obj._boundingPolygon.exterior.coords)
+    assert verts[0] == pytest.approx((-3, 0))
+    assert verts[1] == pytest.approx((-7, 0))
+    assert verts[2] == pytest.approx((-7, -2))
+    assert verts[3] == pytest.approx((-3, -2))
+    obj = Object._with(width=6, length=8, position=(-5, -1), yaw=math.atan(3/4))
+    verts = list(obj._boundingPolygon.exterior.coords)
+    assert verts[0] == pytest.approx((-5, 4))
+    assert verts[1] == pytest.approx((-9.8, 0.4))
+    assert verts[2] == pytest.approx((-5, -6))
+    assert verts[3] == pytest.approx((-0.2, -2.4))
+
+def test_object_boundingPolygon_3D():
+    obj = Object._with(width=1, length=2, height=3, position=(4,5,6),
+                       shape=ConeShape(), pitch=math.pi/4, roll=math.pi/4)
+    for pt in trimesh.sample.volume_mesh(obj.occupiedSpace.mesh, 100):
+        assert obj._boundingPolygon.contains(shapely.geometry.Point(pt))

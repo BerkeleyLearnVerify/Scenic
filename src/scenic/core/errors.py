@@ -9,8 +9,6 @@ import types
 import sys
 import warnings
 
-import decorator
-
 import scenic
 import scenic.core
 import scenic.syntax
@@ -64,7 +62,6 @@ hiddenFolders = [
     pathlib.Path(scenic.syntax.__file__).parent,    # scenic.syntax submodules
     '<frozen importlib._bootstrap>',                # parts of importlib used internally
     pathlib.Path(importlib.__file__).parent,
-    pathlib.Path(decorator.__file__).parent,        # unhelpful frames in wrappers
 ]
 
 ## Exceptions
@@ -82,24 +79,8 @@ class ScenicSyntaxError(ScenicError):
     """
     pass
 
-class TokenParseError(ScenicSyntaxError):
-    """Parse error occurring during token translation."""
-    def __init__(self, tokenOrLine, filename, message):
-        self.filename = filename
-        self.msg = message
-        if hasattr(tokenOrLine, 'start'):
-            self.lineno, self.offset = tokenOrLine.start
-            self.end_lineno, self.end_offset = tokenOrLine.end
-            self.offset += 1
-            self.end_offset += 1
-            self.text = tokenOrLine.line
-        else:
-            self.lineno = self.end_lineno = tokenOrLine
-            self.text, self.offset, self.end_offset = getText(filename, tokenOrLine)
-        super().__init__(message)
-
-class PythonParseError(ScenicSyntaxError):
-    """Parse error occurring during Python parsing or compilation."""
+class ParseCompileError(ScenicSyntaxError):
+    """Error occurring during Scenic/Python parsing or compilation."""
     def __init__(self, exc):
         self.msg = exc.args[0]
         self.filename, self.lineno = exc.filename, exc.lineno
@@ -109,6 +90,14 @@ class PythonParseError(ScenicSyntaxError):
                                                           exc.offset, end_offset)
         super().__init__(self.msg)
         self.with_traceback(exc.__traceback__)
+
+class ScenicParseError(ParseCompileError):
+    """Error occuring during Scenic parsing or compilation."""
+    pass
+
+class PythonCompileError(ParseCompileError):
+    """Error occuring during Python compilation of translated Scenic code."""
+    pass
 
 class ASTParseError(ScenicSyntaxError):
     """Parse error occuring during modification of the Python AST."""
@@ -123,12 +112,6 @@ class ASTParseError(ScenicSyntaxError):
                                                           end_offset=end_offset)
         super().__init__(message)
 
-class RuntimeParseError(ScenicSyntaxError):
-    """A Scenic parse error generated during execution of the translated Python."""
-    def __init__(self, msg, loc=None):
-        super().__init__(msg)
-        self.loc = loc
-
 class InvalidScenarioError(ScenicError):
     """Error raised for syntactically-valid but otherwise problematic Scenic programs."""
     pass
@@ -138,6 +121,10 @@ class InconsistentScenarioError(InvalidScenarioError):
     def __init__(self, line, message):
         self.lineno = line
         super().__init__('Inconsistent requirement on line ' + str(line) + ': ' + message)
+
+class SpecifierError(ScenicError):
+    """Error for illegal uses of specifiers."""
+    pass
 
 ## Scenic backtraces
 
@@ -183,8 +170,7 @@ def displayScenicException(exc, seen=None):
         strings = ['Traceback (most recent call last; use -b to show Scenic internals):\n']
 
     # Work out how to present the exception type
-    pseudoSyntaxError = (issubclass(ty, ScenicSyntaxError)
-                         and not issubclass(ty, RuntimeParseError))
+    pseudoSyntaxError = issubclass(ty, ScenicSyntaxError)
     if issubclass(ty, ScenicError):
         if issubclass(ty, ScenicSyntaxError) and not showInternalBacktrace:
             name = 'ScenicSyntaxError'
@@ -203,8 +189,8 @@ def displayScenicException(exc, seen=None):
 
     if issubclass(ty, SyntaxError) or (pseudoSyntaxError and not showInternalBacktrace):
         pass    # no backtrace for these types of errors
-    elif issubclass(ty, RuntimeParseError) and exc.loc and not showInternalBacktrace:
-        strings.extend(traceback.format_list([exc.loc]))
+    elif loc := getattr(exc, '_scenic_location', None):
+        strings.extend(traceback.format_list([loc]))
     else:
         summary = traceback.extract_tb(tb)
         if showInternalBacktrace:
@@ -278,6 +264,8 @@ def optionallyDebugRejection(exc=None):
 
 def getText(filename, lineno, line='', offset=0, end_offset=None):
     """Attempt to recover the text of an error from the original Scenic file."""
+    if not filename or filename in {'<stream>', '<string>', '<unknown>'}:
+        return line, offset, end_offset     # don't bother with the filesystem
     try:
         with open(filename, 'r') as f:
             line = list(itertools.islice(f, lineno-1, lineno))
@@ -293,6 +281,6 @@ def getText(filename, lineno, line='', offset=0, end_offset=None):
             end_offset = adj_end_offset
         else:
             offset = min(offset, len(line))
-    except FileNotFoundError:
+    except OSError:
         pass
     return line, offset, end_offset

@@ -25,7 +25,9 @@ try:
     from pygments.lexers.python import PythonLexer
 except ModuleNotFoundError as e:
     raise ImportError("need the 'pygments' package to use the Scenic Pygments lexer") from e
-from pygments.lexer import RegexLexer, bygroups, combined, default, include, inherit, words
+from pygments.lexer import (
+    RegexLexer, bygroups, combined, default, include, inherit, using, words,
+)
 from pygments.token import *
 from pygments.style import Style
 from pygments.styles.default import DefaultStyle
@@ -198,6 +200,7 @@ class BetterPythonLexer(PythonLexer):
              bygroups(Name.Variable.Parameter.Magic, Name.Variable.Parameter, Whitespace,
                       Punctuation)),
             (r'#.*$', Comment.Single),
+            (r'\\\n', Punctuation),
             (r'=', Operator, 'default'),
             (rf'\b({uni_name})(\s*)(:)',
              bygroups(Name.Variable.Parameter, Whitespace, Punctuation),
@@ -206,15 +209,18 @@ class BetterPythonLexer(PythonLexer):
             (r'\)', Punctuation, '#pop'),
         ],
         'default': [
+            (r'\s+', Whitespace),
             (r'(,)|(?=\))', bygroups(Punctuation), '#pop'),
             include('expr'),
         ],
         'annotated-param': [
+            (r'\s+', Whitespace),
             (r'(,)|(?=\))', bygroups(Punctuation), '#pop'),
             include('expr'),
             (r'=(?!=)', Operator),
         ],
         'return-annotation': [
+            (r'\s+', Whitespace),
             (r'(?=:)', Text, '#pop'),
             include('expr'),
         ],
@@ -238,6 +244,7 @@ class BetterPythonLexer(PythonLexer):
         'function-call': [
             # Use a specific token for called functions, and parse arguments
             (r'\)', Punctuation, '#pop'),
+            (r'\s+', Whitespace),
             (r'(self|cls)\b', Name.Builtin.Pseudo),
             include('magicfuncs'),
             include('magicvars'),
@@ -271,10 +278,14 @@ class ScenicLexer(BetterPythonLexer):
     uni_name = PythonLexer.uni_name
     obj_name = rf'(?:(ego)|({uni_name}))'
 
-    simple_spec = words(('at', 'offset by', 'offset along', 'left of', 'right of', 'ahead of',
-                          'behind', 'beyond', 'visible from', 'visible', 'not visible from',
-                          'not visible', 'in', 'on', 'following', 'facing toward',
-                          'facing away from', 'facing', 'apparently facing')).get()
+    simple_spec = words((
+        'at', 'offset by', 'offset along', 'left of', 'right of', 'ahead of',
+        'above', 'below',
+        'behind', 'beyond', 'visible from', 'visible', 'not visible from',
+        'not visible', 'in', 'on', 'contained in', 'following', 'facing toward',
+        'facing away from', 'facing directly toward', 'facing directly away from',
+        'facing', 'apparently facing',
+    )).get()
     specifier = rf'''
         \b(?<!\.) (?:
             (with) (\s+) ({uni_name})
@@ -282,7 +293,7 @@ class ScenicLexer(BetterPythonLexer):
         )\b'''
 
     simple_statements = words((
-        'simulator', 'param', 'require always', 'require eventually', 'require',
+        'simulator', 'param', 'require', 'require monitor',
         'terminate when', 'terminate after', 'mutate', 'record initial', 'record final',
         'record', 'take', 'wait', 'terminate', 'do choose', 'do shuffle', 'do', 'abort',
         'interrupt when',
@@ -290,9 +301,11 @@ class ScenicLexer(BetterPythonLexer):
 
     constructible_types = ('Point', 'OrientedPoint', 'Object')
     primitive_types = (
-        'Vector', 'VectorField', 'PolygonalVectorField',
+        'Vector', 'Orientation', 'VectorField', 'PolygonalVectorField',
+        'Shape', 'MeshShape', 'BoxShape', 'CylinderShape', 'ConeShape', 'SpheroidShape',
         'Region', 'PointSetRegion', 'RectangularRegion', 'CircularRegion',
-        'SectorRegion', 'PolygonalRegion', 'PolylineRegion',
+        'SectorRegion', 'PolygonalRegion', 'PolylineRegion', 'PathRegion',
+        'MeshVolumeRegion', 'MeshSurfaceRegion', 'BoxRegion', 'SpheroidRegion',
         'Workspace',
         'Range', 'DiscreteRange', 'Options', 'Discrete', 'Uniform',
         'Normal', 'TruncatedNormal',
@@ -305,13 +318,7 @@ class ScenicLexer(BetterPythonLexer):
         'sin', 'cos', 'hypot',
     )
     magic_names = ('ego', 'workspace', 'globalParameters')
-
-    capital_consts = ('True', 'False', 'None', 'NotImplemented', 'Ellipsis')
-    nonclass_names = words(primitive_types + exceptions + capital_consts,
-                           suffix=r'\b').get()
-    nonclass_names = '(?:' + nonclass_names[1:] # make non-capturing
     builtin_classes = words(constructible_types, suffix=r'\b').get()
-    class_name = rf'(?:{builtin_classes}|(?=[{uni.Lu}]\w)(?!{nonclass_names})({uni_name}))'
 
     tokens = {
         'extra-statements': [
@@ -323,15 +330,19 @@ class ScenicLexer(BetterPythonLexer):
             # Override statement (which ends with a list of specifiers)
             (rf'''(?x)
                 ^(\s*) (override)
-                (\s*) {obj_name} ([^\S\n]*)
+                (\s+) {obj_name} ([^\S\n]*)
                 (?={specifier})''',
              bygroups(Whitespace, Keyword,
                       Whitespace, Name.Variable.Magic, Name, Whitespace),
              'specifier-start'),
             # Param statement
-            (rf'^(\s*)(param)(\s*)',
+            (r'^(\s*)(param)(\s+)',
              bygroups(Whitespace, Keyword, Whitespace),
              'param-statement'),
+            # Require statement (within which we can have temporal operators)
+            (r'^(\s*)(require)(\s+)(?!monitor)',
+             bygroups(Whitespace, Keyword, Whitespace),
+             'require-statement'),
             # Keywords that can only occur at the start of a line
             (rf'^(\s*)({simple_statements})', bygroups(Whitespace, Keyword)),
             (r'^(\s*)(try|setup|compose|precondition|invariant)(:)',
@@ -347,26 +358,6 @@ class ScenicLexer(BetterPythonLexer):
                     | (?= : \s* [^\s\#]))''',
              bygroups(Whitespace, Name.Variable.Instance, Whitespace, Punctuation),
              'property-declaration'),
-            # Instance creations, broken into two cases.
-            # The easy case is if the name of the class is followed by a specifier: then
-            # we know for sure that this is an instance creation.
-            (rf'''(?x)
-                {class_name} ([^\S\n]*)
-                (?= {specifier})''',
-             bygroups(Name.Builtin.Instance, Name.Class.Instance, Whitespace),
-             'specifier-start'),
-            # The hard case: a creation with no specifiers at all. This is ambiguous
-            # without knowing which names are Scenic classes, so we look for the most
-            # common cases (see class_name for the permitted names).
-            (rf'''(?x)
-                ^(\s*)
-                (?: {obj_name} (\s*) (=) | (return))? (\s*)
-                {class_name} ([^\S\n]*)
-                (?= (\#.*)? $)''',
-             bygroups(Whitespace,
-                      Name.Variable.Magic, Name, Whitespace, Operator, Keyword, Whitespace,
-                      Name.Builtin.Instance, Name.Class.Instance, Whitespace),
-             'specifier-start'),
         ],
         'scenario-behavior': [
             (uni_name, Name.Class),
@@ -388,6 +379,18 @@ class ScenicLexer(BetterPythonLexer):
             include('expr'),
             (r'(\#.*)?\n', Comment.Single, '#pop'),
         ],
+        'require-statement': [
+            (words(('always', 'eventually', 'next', 'until', 'implies'), suffix=r'\b'),
+             Keyword),
+            (r'\(', Punctuation, 'require-parens'),
+            include('expr'),
+            (r'(\#.*)?\n', Comment.Single, '#pop'),
+        ],
+        'require-parens': [
+            (r'\)', Punctuation, '#pop'),
+            (r'\n', Whitespace),
+            include('require-statement'),
+        ],
         'property-declaration': [
             (words(('additive', 'dynamic', 'final'), suffix=r'\b'), Keyword.Pseudo),
             (rf'{uni_name}\b', Text),
@@ -399,29 +402,39 @@ class ScenicLexer(BetterPythonLexer):
              bygroups(Keyword.Specifier, Whitespace, Name.Variable.Instance,
                       Keyword.Specifier),
              'specifier-inner'),
-            (r'(\#.*)?\n', Comment.Single, '#pop'),
+            default('#pop'),
         ],
         'specifier-inner': [
             (r'''(?x)
              (,) (\s*) (?: (?: (\#.*)? | (\\)) (\n\s*))?
-             | (\#.*)? (?=\n)''',
+             | (\#.*)? (?=[)}\]\n])''',
              bygroups(Punctuation, Whitespace, Comment.Single, Punctuation, Whitespace,
                       Comment.Single),
              '#pop'),
             include('expr'),
         ],
         'extra-exprs': [
-            # Operators
-            (words(('deg', 'relative heading of', 'apparent heading of', 'distance from',
-                    'distance to', 'distance past', 'angle from', 'angle to', 'can see', 'at',
+            # Prefix and infix operators
+            (words(('relative heading of', 'apparent heading of', 'distance from',
+                    'distance to', 'distance past', 'angle from', 'angle to',
+                    'altitude from', 'altitude to', 'can see', 'at',
                     'relative to', 'offset by', 'offset along', 'visible', 'not visible',
                     'front of', 'back of', 'left of', 'right of',
-                    'front left of', 'front right of', 'back left of', 'back right of',),
-                   prefix=r'(?<!\.)', suffix=r'\b'), Operator.Word),
+                    'front left of', 'front right of', 'back left of', 'back right of'),
+                   prefix=r'(?<!\.)', suffix=r'\b(?!\s*(?:[)}\]=:.;,#]|$))'), Operator.Word),
+            # Postfix operators
+            (words(('deg',), prefix=r'(?<!\.)', suffix=r'\b'), Operator.Word),
             # Keywords that can occur anywhere (w.r.t. our simple analysis)
-            (words(('initial scenario', 'until', 'to', 'by', 'from'),
+            (words(('initial scenario', 'until', 'as', 'to', 'by', 'from'),
                    prefix=r'(?<!\.)', suffix=r'\b'),
              Keyword),
+            # Instance creations
+            (rf'''(?x)
+                (new) ([^\S\n]+)
+                (?:{builtin_classes}|({uni_name})) ([^\S\n]*)''',
+             bygroups(Keyword, Whitespace,
+                      Name.Builtin.Instance, Name.Class.Instance, Whitespace),
+             'specifier-start'),
         ],
         'builtins': [
             inherit,
@@ -435,7 +448,9 @@ class ScenicLexer(BetterPythonLexer):
 
     def analyse_text(text):
         score = 0
-        if 'ego =' in text:
+        if 'new Object' in text:
+            score += 0.2
+        if 'ego = new ' in text:
             score += 0.2
         if ' facing ' in text:
             score += 0.2
@@ -467,6 +482,28 @@ class ScenicSnippetLexer(ScenicLexer):
     def analyse_text(text):
         return 0.0
 
+class PythonSnippetLexer(BetterPythonLexer):
+    """Variant PythonLexer for code snippets rather than complete programs.
+
+    Specifically, this lexer formats syntactic variables of the form "{name}"
+    as "name" italicized.
+    """
+    name = 'Python (snippets)'
+    aliases = ['python-snippet']
+    filenames = []
+    alias_filenames = []
+    mimetypes = []
+
+    tokens = {
+        'expr': [
+            (r'\{([\w.]*)\}', bygroups(Generic.Emph)),
+            inherit,
+        ],
+    }
+
+    def analyse_text(text):
+        return 0.0
+
 class ScenicSpecifierLexer(ScenicSnippetLexer):
     """Further variant lexer for specifiers at the top level."""
     name = 'Scenic (specifier snippets)'
@@ -474,7 +511,22 @@ class ScenicSpecifierLexer(ScenicSnippetLexer):
 
     tokens = {
         'root': [
-            include('specifier-start'),
+            (r'(?x)'+ScenicLexer.specifier,
+             bygroups(Keyword.Specifier, Whitespace, Name.Variable.Instance,
+                      Keyword.Specifier),
+             'specifier-inner'),
+            (r'with', Keyword.Specifier),   # special case for incomplete 'with'
+        ],
+    }
+
+class ScenicRequirementLexer(ScenicSnippetLexer):
+    """Further variant lexer for requirements at the top level."""
+    name = 'Scenic (requirement snippets)'
+    aliases = ['scenic-requirement']
+
+    tokens = {
+        'root': [
+            include('require-statement'),
         ],
     }
 
@@ -550,7 +602,7 @@ class ScenicStyle(Style):
         Name.Class:                     "bold #0077A6",
         Name.Class.Grammar:             "nobold italic",
         Name.Class.Instance:            "#3C8031",
-        Name.Variable:                  "#B35824",
+        Name.Variable:                  "#B34024",
         Name.Variable.Parameter.Magic:  "italic",
         Name.Variable.Magic:            "italic #B32483",
 
@@ -562,3 +614,114 @@ class ScenicStyle(Style):
 
         Error:                          "#FFFFFF bg:#FF0000",
     })
+
+class PegenLexer(BetterPythonLexer):
+    """Lexer for Pegen grammars."""
+    name = 'Pegen'
+    aliases = ['pegen']
+    filenames = ['*.gram']
+    mimetypes = ['application/x-pegen', 'text/x-pegen']
+    url = 'https://we-like-parsers.github.io/pegen/'
+
+    uni_name = PythonLexer.uni_name
+    quotes = '\'\'\'|\"\"\"'
+    constants = (
+        # Token types
+        'ENDMARKER', 'NAME', 'NUMBER', 'STRING', 'NEWLINE', 'INDENT', 'DEDENT',
+        'LPAR', 'RPAR', 'LSQB', 'RSQB', 'COLON', 'COMMA', 'SEMI', 'PLUS',
+        'MINUS', 'STAR', 'SLASH', 'VBAR', 'AMPER', 'LESS', 'GREATER', 'EQUAL',
+        'DOT', 'PERCENT', 'LBRACE', 'RBRACE', 'EQEQUAL', 'NOTEQUAL',
+        'LESSEQUAL', 'GREATEREQUAL', 'TILDE', 'CIRCUMFLEX', 'LEFTSHIFT',
+        'RIGHTSHIFT', 'DOUBLESTAR', 'PLUSEQUAL', 'MINEQUAL', 'STAREQUAL',
+        'SLASHEQUAL', 'PERCENTEQUAL', 'AMPEREQUAL', 'VBAREQUAL',
+        'CIRCUMFLEXEQUAL', 'LEFTSHIFTEQUAL', 'RIGHTSHIFTEQUAL',
+        'DOUBLESTAREQUAL', 'DOUBLESLASH', 'DOUBLESLASHEQUAL', 'AT', 'ATEQUAL',
+        'RARROW', 'ELLIPSIS', 'COLONEQUAL',
+        'OP', 'AWAIT', 'ASYNC', 'TYPE_IGNORE', 'TYPE_COMMENT', 'ERRORTOKEN',
+        'COMMENT', 'NL', 'ENCODING',
+        # Misc others
+        'SOFT_KEYWORD', '$',
+    )
+
+    tokens = {
+        'root': [
+            (r'\n', Whitespace),
+            (r'#.*$', Comment.Single),
+            # Metas with special formatting
+            (rf'(@class)([^\S\n]+)({uni_name})', bygroups(Keyword, Whitespace, Name.Class)),
+            (rf"(@(?:header|subheader|trailer))([^\S\n]*)({quotes})((?:.|\n)*)(\3)",
+             bygroups(Keyword, Whitespace, String.Interpol, using(BetterPythonLexer), String.Interpol)),
+            # Generic rules in case additional metas are added
+            (rf'(@{uni_name})(?:([^\S\n]+)({uni_name}))?(\n)',
+             bygroups(Keyword, Whitespace, Name, Whitespace)),
+            (rf"(@{uni_name})([^\S\n]*)('''|')((?:.|\n)*?\3)",
+             bygroups(Keyword, Whitespace, String.Single, String.Single)),
+            (rf'(@{uni_name})([^\S\n]*)("""|")((?:.|\n)*?\3)',
+             bygroups(Keyword, Whitespace, String.Double, String.Double)),
+            # Start of a rule
+            (uni_name, Name.Class, 'rulestart'),
+        ],
+        'rulestart': [
+            (r'\[', Punctuation, 'ruletype'),
+            (r'(\()(memo)(\))', bygroups(Punctuation, Keyword, Punctuation)),
+            (r':', Punctuation, 'rulebody'),
+            (r'[^\S\n]+', Whitespace),
+        ],
+        'ruletype': [
+            include('expr'),
+            (r'\]', Punctuation, '#pop'),
+        ],
+        'rulebody': [
+            (r'(\s*)(#.*)?(\n)', bygroups(Whitespace, Comment, Whitespace), 'altlist'),
+            include('gram-expr'),
+        ],
+        'altlist': [
+            (r'(\s+)(\|)', bygroups(Whitespace, Operator), 'gram-expr'),
+            (r'(\s+)(#.*\n)', bygroups(Whitespace, Comment.Single)),
+            default('#pop:3'),
+        ],
+        'gram-expr': [
+            (r'\(', Punctuation, 'gram-parens'),
+            (r'\[', Operator, 'gram-brackets'),
+            (r'\{', String.Interpol, 'gram-curly-brackets'),
+
+            (words(constants, suffix=r'\b'), Keyword.Constant),
+            (r'[^\S\n]+', Whitespace),
+            (r'#.*$', Comment.Single),
+            (r'[|?*+.&!~]', Operator),
+            (r"'[^']*'", String.Single),
+            (r'"[^"]*"', String.Double),
+            (rf'({uni_name})(=)', bygroups(Name.Variable.Class, Operator)),
+            (uni_name, Name),
+            (r'\n', Whitespace, '#pop'),
+        ],
+        'gram-parens': [
+            (r'\)', Punctuation, '#pop'),
+            (r'\n', Whitespace),
+            include('gram-expr'),
+        ],
+        'gram-brackets': [
+            (r'\]', Operator, '#pop'),
+            (r'\n', Whitespace),
+            include('gram-expr'),
+        ],
+        'gram-curly-brackets': [
+            include('expr'),
+            (r'\}', String.Interpol, '#pop'),
+            (r'\n', Whitespace),
+        ],
+        'expr-keywords': [
+            inherit,
+            (words(('LOCATIONS', 'UNREACHABLE'),
+                   suffix=r'\b'),
+            Keyword.Constant),
+        ],
+    }
+
+    def analyse_text(text):
+        if '@subheader' in text:
+            return 1.0
+        elif '@class' in text:
+            return 0.5
+        else:
+            return 0.0

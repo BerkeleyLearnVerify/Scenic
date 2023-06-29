@@ -11,7 +11,7 @@ SOURCE: NHSTA, #16
 # MAP AND MODEL                 #
 #################################
 
-param map = localPath('../../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')
+param map = localPath('../../../../assets/maps/CARLA/Town05.xodr')
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
@@ -19,7 +19,7 @@ model scenic.simulators.carla.model
 # CONSTANTS                     #
 #################################
 
-MODEL = 'vehicle.lincoln.mkz2017'
+MODEL = 'vehicle.lincoln.mkz_2017'
 
 param EGO_INIT_DIST = VerifaiRange(10, 15)
 param EGO_SPEED = VerifaiRange(7, 10)
@@ -38,13 +38,13 @@ TERM_DIST = 70
 #################################
 
 behavior EgoBehavior():
-	while (distance to adversary) < BYPASS_DIST:
-		take SetBrakeAction(globalParameters.EGO_BRAKE)
-	rightLaneSec = self.laneSection.laneToRight
-	do LaneChangeBehavior(
-			laneSectionToSwitch=rightLaneSec,
-			target_speed=globalParameters.EGO_SPEED)
-	do FollowLaneBehavior(target_speed=globalParameters.EGO_SPEED)
+    while (distance to adversary) < BYPASS_DIST:
+        take SetBrakeAction(globalParameters.EGO_BRAKE)
+    rightLaneSec = self.laneSection.laneToRight
+    do LaneChangeBehavior(
+            laneSectionToSwitch=rightLaneSec,
+            target_speed=globalParameters.EGO_SPEED)
+    do FollowLaneBehavior(target_speed=globalParameters.EGO_SPEED)
 
 #################################
 # SPATIAL RELATIONS             #
@@ -53,29 +53,29 @@ behavior EgoBehavior():
 intersection = Uniform(*filter(lambda i: i.is4Way, network.intersections))
 
 statInitLane = Uniform(*filter(lambda lane: 
-	all([sec._laneToRight is not None for sec in lane.sections]),
-	intersection.incomingLanes))
-statSpawnPt = OrientedPoint in statInitLane.centerline
+    all([sec._laneToRight is not None for sec in lane.sections]),
+    intersection.incomingLanes))
+statSpawnPt = new OrientedPoint in statInitLane.centerline
 
 advInitLane = statInitLane.sectionAt(statSpawnPt).laneToRight.lane
 advManeuver = Uniform(*filter(lambda m: m.type is ManeuverType.STRAIGHT, advInitLane.maneuvers))
 advTrajectory = [advInitLane, advManeuver.connectingLane, advManeuver.endLane]
-advSpawnPt = OrientedPoint in advInitLane.centerline
+advSpawnPt = new OrientedPoint in advInitLane.centerline
 
 #################################
 # SCENARIO SPECIFICATION        #
 #################################
 
-stationary = Car at statSpawnPt,
-	with blueprint MODEL
+stationary = new Car at statSpawnPt,
+    with blueprint MODEL
 
-ego = Car behind stationary by globalParameters.EGO_INIT_DIST,
-	with blueprint MODEL,
-	with behavior EgoBehavior()
+ego = new Car behind stationary by globalParameters.EGO_INIT_DIST,
+    with blueprint MODEL,
+    with behavior EgoBehavior()
 
-adversary = Car at advSpawnPt,
-	with blueprint MODEL,
-	with behavior FollowTrajectoryBehavior(target_speed=ADV_SPEED, trajectory=advTrajectory)
+adversary = new Car at advSpawnPt,
+    with blueprint MODEL,
+    with behavior FollowTrajectoryBehavior(target_speed=ADV_SPEED, trajectory=advTrajectory)
 
 require STAT_INIT_DIST[0] <= (distance from stationary to intersection) <= STAT_INIT_DIST[1]
 require ADV_INIT_DIST[0] <= (distance from adversary to intersection) <= ADV_INIT_DIST[1]

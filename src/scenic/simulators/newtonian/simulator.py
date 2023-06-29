@@ -9,11 +9,11 @@ import time
 
 from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
 import scenic.core.errors as errors
-from scenic.core.geometry import allChains
+from scenic.core.geometry import allChains, findMinMax
 from scenic.core.regions import toPolygon
 from scenic.core.simulators import SimulationCreationError
 from scenic.syntax.veneer import verbosePrint
-from scenic.core.vectors import Vector
+from scenic.core.vectors import Vector, Orientation
 from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
 from scenic.domains.driving.roads import Network
 
@@ -41,45 +41,47 @@ class NewtonianSimulator(DrivingSimulator):
 
     Args:
         network (Network): road network to display in the background, if any.
-        timestep (float): time step to use.
         render (bool): whether to render the simulation in a window.
+
+    .. versionchanged:: 3.0
+
+        The **timestep** argument is removed: it can be specified when calling
+        `simulate` instead. The default timestep for the Newtonian simulator
+        when not otherwise specified is still 0.1 seconds.
     """
-    def __init__(self, network=None, timestep=0.1, render=False):
-        self.timestep = timestep
+    def __init__(self, network=None, render=False):
+        super().__init__()
         self.render = render
         self.network = network
 
-    def createSimulation(self, scene, verbosity=0):
-        return NewtonianSimulation(scene, self.network, timestep=self.timestep,
-                                   verbosity=verbosity, render=self.render)
+    def createSimulation(self, scene, **kwargs):
+        return NewtonianSimulation(scene, self.network, self.render, **kwargs)
 
 class NewtonianSimulation(DrivingSimulation):
     """Implementation of `Simulation` for the Newtonian simulator."""
-    def __init__(self, scene, network, timestep, verbosity=0, render=False):
-        super().__init__(scene, timestep=timestep, verbosity=verbosity)
+    def __init__(self, scene, network, render, timestep, **kwargs):
         self.render = render
         self.network = network
-        self.ego = self.objects[0]
 
-        # Set actor's initial speed
-        for obj in self.objects:
-            obj.speed = math.hypot(*obj.velocity)
+        if timestep is None:
+            timestep = 0.1
+
+        super().__init__(scene, timestep=timestep, **kwargs)
+
+    def setup(self):
+        super().setup()
 
         if self.render:
             # determine window size
-            min_x, min_y = self.ego.position
-            max_x, max_y = self.ego.position
-            for obj in self.objects:
-                x, y = obj.position
-                min_x, max_x = min(min_x, x), max(max_x, x)
-                min_y, max_y = min(min_y, y), max(max_y, y)
+            min_x, max_x = findMinMax(obj.x for obj in self.objects)
+            min_y, max_y = findMinMax(obj.y for obj in self.objects)
 
             pygame.init()
             pygame.font.init()
             self.screen = pygame.display.set_mode((WIDTH,HEIGHT),
                                                   pygame.HWSURFACE | pygame.DOUBLEBUF)
             self.screen.fill((255, 255, 255))
-            x, y = self.ego.position
+            x, y, _ = self.objects[0].position
             self.min_x, self.max_x = min_x-50, max_x+50
             self.min_y, self.max_y = min_y-50, max_y+50
             self.size_x = self.max_x - self.min_x
@@ -125,16 +127,17 @@ class NewtonianSimulation(DrivingSimulation):
         addRegion(self.network.intersectionRegion, ROAD_COLOR)
 
     def scenicToScreenVal(self, pos):
-        x, y = pos
+        x, y = pos[:2]
         x_prop = (x - self.min_x) / self.size_x
         y_prop = (y - self.min_y) / self.size_y
         return int(x_prop * WIDTH), HEIGHT - 1 - int(y_prop * HEIGHT)
 
     def createObjectInSimulator(self, obj):
-        pass
+        # Set actor's initial speed
+        obj.speed = math.hypot(*obj.velocity)
 
-    def actionsAreCompatible(self, agent, actions):
-        return True
+        if hasattr(obj, 'elevation'):
+            obj.elevation = 0.0
 
     def isOnScreen(self, x, y):
         return self.min_x <= x <= self.max_x and self.min_y <= y <= self.max_y
@@ -171,6 +174,7 @@ class NewtonianSimulation(DrivingSimulation):
                 obj.speed = current_speed
             obj.position += obj.velocity * self.timestep
             obj.heading += obj.angularSpeed * self.timestep
+
         if self.render:
             self.draw_objects()
             pygame.event.pump()
@@ -180,8 +184,8 @@ class NewtonianSimulation(DrivingSimulation):
         for screenPoints, color, width in self.network_polygons:
             pygame.draw.lines(self.screen, color, False, screenPoints, width=width)
 
-        for obj in self.objects:
-            color = (255, 0, 0) if obj is self.ego else (0, 0, 255)
+        for i, obj in enumerate(self.objects):
+            color = (255, 0, 0) if i == 0 else (0, 0, 255)
             h, w = obj.length, obj.width
             pos_vec = Vector(-1.75, 1.75)
             neg_vec = Vector(w / 2, h / 2)
@@ -193,22 +197,27 @@ class NewtonianSimulation(DrivingSimulation):
                 self.rotated_car = pygame.transform.rotate(self.car, math.degrees(obj.heading))
                 self.screen.blit(self.rotated_car, (rect_x, rect_y))
             else:
-                corners = [self.scenicToScreenVal(corner) for corner in obj.corners]
+                corners = [self.scenicToScreenVal(corner) for corner in obj._corners2D]
                 pygame.draw.polygon(self.screen, color, corners)
 
         pygame.display.update()
         time.sleep(self.timestep)
 
     def getProperties(self, obj, properties):
+        yaw, _, _ = obj.parentOrientation.globalToLocalAngles(obj.heading, 0, 0)
+
         values = dict(
             position=obj.position,
-            heading=obj.heading,
+            yaw=yaw,
+            pitch=0,
+            roll=0,
             velocity=obj.velocity,
             speed=obj.speed,
             angularSpeed=obj.angularSpeed,
+            angularVelocity=obj.angularVelocity,
         )
         if 'elevation' in properties:
-            values['elevation'] = 0.0 if obj.elevation is None else obj.elevation
+            values['elevation'] = obj.elevation
         return values
 
     def destroy(self):

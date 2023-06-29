@@ -1,8 +1,12 @@
 
+from pathlib import Path
+
 import pytest
 
 from scenic.core.distributions import RejectionException
 from scenic.domains.driving.roads import Network, Intersection
+
+from tests.domains.driving.conftest import mapFolder
 
 # Suppress all warnings from OpenDRIVE parser
 pytestmark = pytest.mark.filterwarnings("ignore::scenic.formats.opendrive.OpenDriveWarning")
@@ -14,14 +18,14 @@ def test_network_invalid():
         Network.fromFile('blogobloggo_zoggle')      # search all known formats
 
 @pytest.mark.graphical
-def test_show(network):
+def test_show2D(network):
     import matplotlib.pyplot as plt
     network.show(labelIncomingLanes=True)
     plt.show(block=False)
     plt.close()
 
 def test_element_tolerance(cached_maps, pytestconfig):
-    path = cached_maps['tests/formats/opendrive/maps/CARLA/Town01.xodr']
+    path = cached_maps[str(mapFolder/'CARLA'/'Town01.xodr')]
     tol = 0.05
     network = Network.fromFile(path, tolerance=tol)
     drivable = network.drivableRegion
