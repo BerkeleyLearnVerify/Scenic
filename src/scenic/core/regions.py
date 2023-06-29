@@ -2131,15 +2131,6 @@ class PolygonalRegion(Region):
             raise ValueError('tried to create empty PolygonalRegion')
         shapely.prepare(self.polygons)
 
-        triangles = []
-        for polygon in self.polygons.geoms:
-            triangles.extend(triangulatePolygon(polygon))
-        assert len(triangles) > 0, self.polygons
-        shapely.prepare(triangles)
-        self.trianglesAndBounds = tuple((tri, tri.bounds) for tri in triangles)
-        areas = (triangle.area for triangle in triangles)
-        self.cumulativeTriangleAreas = tuple(itertools.accumulate(areas))
-
     ## Lazy Construction Methods ##
     def sampleGiven(self, value):
         return PolygonalRegion(points=value[self._points], polygon=value[self._polygon],
@@ -2171,10 +2162,21 @@ class PolygonalRegion(Region):
     def containsObject(self, obj):
         return self.footprint.containsObject(obj)
 
+    @cached_property
+    def _samplingData(self):
+        triangles = []
+        for polygon in self.polygons.geoms:
+            triangles.extend(triangulatePolygon(polygon))
+        assert len(triangles) > 0, self.polygons
+        shapely.prepare(triangles)
+        trianglesAndBounds = tuple((tri, tri.bounds) for tri in triangles)
+        areas = (triangle.area for triangle in triangles)
+        cumulativeTriangleAreas = tuple(itertools.accumulate(areas))
+        return trianglesAndBounds, cumulativeTriangleAreas
+
     def uniformPointInner(self):
-        triangle, bounds = random.choices(
-            self.trianglesAndBounds,
-            cum_weights=self.cumulativeTriangleAreas)[0]
+        trisAndBounds, cumulativeAreas = self._samplingData
+        triangle, bounds = random.choices(trisAndBounds, cum_weights=cumulativeAreas)[0]
         minx, miny, maxx, maxy = bounds
         # TODO improve?
         while True:
@@ -3072,11 +3074,11 @@ class GridRegion(PointSetRegion):
     def containsObject(self, obj):
         # TODO improve this procedure!
         # Fast check
-        for c in obj.corners:
+        for c in obj._corners2D:
             if not self.containsPoint(c):
                 return False
         # Slow check
-        gps = [self.pointToGrid(corner) for corner in obj.corners]
+        gps = [self.pointToGrid(corner) for corner in obj._corners2D]
         x, y = zip(*gps)
         minx, maxx = findMinMax(x)
         miny, maxy = findMinMax(y)

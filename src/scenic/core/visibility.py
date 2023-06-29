@@ -483,4 +483,4 @@ def canSee(position, orientation, visibleDistance, viewAngles,
 
         return True
     else:
-        raise NotImplementedError("Cannot check if " + str(target) + " of type " + type(target) + " can be seen.")
+        assert False, target

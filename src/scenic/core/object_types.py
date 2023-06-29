@@ -1062,7 +1062,6 @@ class Object(OrientedPoint):
     def corners(self):
         """A tuple containing the corners of this object's bounding box"""
         hw, hl, hh = self.hw, self.hl, self.hh
-        # Note: 2D show method assumes cyclic order of first 4 vertices
         return (
             self.relativePosition(Vector(hw,  hl,  hh)),
             self.relativePosition(Vector(-hw, hl,  hh)),
@@ -1072,6 +1071,17 @@ class Object(OrientedPoint):
             self.relativePosition(Vector(-hw, hl,  -hh)),
             self.relativePosition(Vector(-hw, -hl, -hh)),
             self.relativePosition(Vector(hw,  -hl, -hh)),
+        )
+
+    @cached_property
+    def _corners2D(self):
+        hw, hl = self.hw, self.hl
+        # Note: 2D show method assumes cyclic order of vertices
+        return (
+            self.relativePosition(Vector(hw,  hl)),
+            self.relativePosition(Vector(-hw, hl)),
+            self.relativePosition(Vector(-hw, -hl)),
+            self.relativePosition(Vector(hw,  -hl)),
         )
 
     @cached_property
@@ -1276,7 +1286,7 @@ class Object(OrientedPoint):
                 x, y = zip(*edge)
                 plt.plot(x, y, 'b:')
 
-        corners = [workspace.scenicToSchematicCoords(corner) for corner in self.corners[:4]]
+        corners = [workspace.scenicToSchematicCoords(corner) for corner in self._corners2D]
         x, y = zip(*corners)
         color = self.color if hasattr(self, 'color') else (1, 0, 0)
         plt.fill(x, y, color=color)
@@ -1373,6 +1383,7 @@ def disableDynamicProxyFor(obj):
 class Point2D(Point):
     """A 2D version of `Point`, used for backwards compatibility with Scenic 2.0"""
     _scenic_properties = {}
+    _3DClass = Point
 
     @cached_property
     def visibleRegion(self):
@@ -1383,9 +1394,26 @@ class Point2D(Point):
         """
         return CircularRegion(self.position, self.visibleDistance)
 
+    def _canSee2D(self, other):
+        if isinstance(other, Object2D):
+            return self.visibleRegion.polygons.intersects(other._boundingPolygon)
+        elif isinstance(other, (Vector, Point2D)):
+            return self.visibleRegion.containsPoint(toVector(other))
+        else:
+            assert False, other
+
+    def canSee(self, other, occludingObjects):
+        # Fast path when there is no occlusion (default in 2D mode).
+        if not occludingObjects:
+            return self._canSee2D(other)
+
+        # With occlusion, fall back to the general case.
+        return self._3DClass.canSee(self, other, occludingObjects)
+
 class OrientedPoint2D(Point2D, OrientedPoint):
     """A 2D version of `OrientedPoint`, used for backwards compatibility with Scenic 2.0"""
     _scenic_properties = {}
+    _3DClass = OrientedPoint
 
     def __init_subclass__(cls):
         if cls.__dict__.get('_props_transformed', False):
@@ -1438,6 +1466,7 @@ class Object2D(OrientedPoint2D, Object):
         'occluding': False,
         'height': PropertyDefault(('width', 'length'), {}, lambda self: max(self.width, self.length)),
     }
+    _3DClass = Object
 
     @classmethod
     def _specify(cls, context, prop, value):
@@ -1447,6 +1476,9 @@ class Object2D(OrientedPoint2D, Object):
             if needsSampling(value.z) or value.z != 0:
                 # only modify value if necessary, to keep expression forest simpler
                 value = toVector((value.x, value.y, 0))
+
+        if prop == "shape" and not isinstance(value, BoxShape):
+            raise InvalidScenarioError("non-box shapes not allowed in 2D compatibility mode")
 
         super()._specify(context, prop, value)
 
