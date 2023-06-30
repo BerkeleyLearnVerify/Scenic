@@ -1,21 +1,31 @@
 """Implementations of Scenic's visibility functions."""
 
-import math
 import itertools
+import math
 
 import numpy as np
 import trimesh
 
 from scenic.core.regions import Region
 from scenic.core.type_support import toVector
-from scenic.core.vectors import Vector
 from scenic.core.utils import batched
+from scenic.core.vectors import Vector
 
-BATCH_SIZE=128
+BATCH_SIZE = 128
 
-def canSee(position, orientation, visibleDistance, viewAngles, 
-            rayCount, rayDensity, distanceScaling,
-            target, occludingObjects, debug=False):
+
+def canSee(
+    position,
+    orientation,
+    visibleDistance,
+    viewAngles,
+    rayCount,
+    rayDensity,
+    distanceScaling,
+    target,
+    occludingObjects,
+    debug=False,
+):
     """Perform visibility checks on Points, OrientedPoints, or Objects, accounting for occlusion.
 
     For visibilty of Objects:
@@ -40,18 +50,18 @@ def canSee(position, orientation, visibleDistance, viewAngles,
        * If the object does not cross behind the viewer, take the min and
          max of the the spherical coordinate angles, while noting that this range
          is centered on the front of the viewer.
-       * If the object crosses behind the viewer but not in front, transform 
+       * If the object crosses behind the viewer but not in front, transform
          the spherical angles so they are coming from the back of the object,
          while noting that this range is centered on the back of the object.
        * If it crosses both, we do not optimize the amount of rays sent.
 
     5. Compute the intersection of the optimizated range from step 4 and
-       the viewAngles range, accounting for where the optimization range is centered. 
-       If it is empty, the object cannot be visible. If it is not empty, shoot rays at 
+       the viewAngles range, accounting for where the optimization range is centered.
+       If it is empty, the object cannot be visible. If it is not empty, shoot rays at
        the desired density in the intersection region. Keep all rays that intersect
        the object (candidate rays).
     6. If there are no candidate rays, the object is not visible.
-    7. For each occluding object in occludingObjects: check if any candidate rays 
+    7. For each occluding object in occludingObjects: check if any candidate rays
        intersect the occluding object at a distance less than the distance they intersected
        the target object. If they do, remove them from the candidate rays.
     8. If any candidate rays remain, the object is visible. If not, it is occluded
@@ -76,18 +86,23 @@ def canSee(position, orientation, visibleDistance, viewAngles,
         target: The target being viewed. Currently supports Point, OrientedPoint, and Object.
         occludingObjects: An optional list of objects which can occlude the target.
     """
-    from scenic.core.object_types import Point, OrientedPoint, Object
+    from scenic.core.object_types import Object, OrientedPoint, Point
 
     # Filter occluding objects that are obviously infeasible
-    occludingObjects = [obj for obj in occludingObjects if position.distanceTo(obj) <= visibleDistance]
+    occludingObjects = [
+        obj for obj in occludingObjects if position.distanceTo(obj) <= visibleDistance
+    ]
 
     if rayCount is None:
-        rayCount = (math.degrees(viewAngles[0])*rayDensity, math.degrees(viewAngles[1])*rayDensity)
+        rayCount = (
+            math.degrees(viewAngles[0]) * rayDensity,
+            math.degrees(viewAngles[1]) * rayDensity,
+        )
 
         if distanceScaling:
             target_distance = target.position.distanceTo(position)
 
-            rayCount = (rayCount[0]*target_distance, rayCount[1]*target_distance)
+            rayCount = (rayCount[0] * target_distance, rayCount[1] * target_distance)
 
         altitudeScaling = True
     else:
@@ -101,10 +116,17 @@ def canSee(position, orientation, visibleDistance, viewAngles,
         elif isinstance(target, Object):
             # If the object contains its center and we can see the center, the object
             # is visible.
-            if (target.shape.containsCenter and
-                canSee(position, orientation, visibleDistance, viewAngles,
-                       rayCount, rayDensity, distanceScaling,
-                       target.position, occludingObjects)):
+            if target.shape.containsCenter and canSee(
+                position,
+                orientation,
+                visibleDistance,
+                viewAngles,
+                rayCount,
+                rayDensity,
+                distanceScaling,
+                target.position,
+                occludingObjects,
+            ):
                 return True
             target_region = target.occupiedSpace
 
@@ -121,35 +143,37 @@ def canSee(position, orientation, visibleDistance, viewAngles,
 
         # Add additional points along each edge that could potentially have a higher altitude
         # than the endpoints.
-        vec_1s = np.asarray(target_vertices[target_region.mesh.edges[:,0],:])
-        vec_2s = np.asarray(target_vertices[target_region.mesh.edges[:,1],:])
-        x1, y1, z1 = vec_1s[:,0], vec_1s[:,1], vec_1s[:,2]
-        x2, y2, z2 = vec_2s[:,0], vec_2s[:,1], vec_2s[:,2]
-        D = x1*x2 + y1*y2
-        N = (x1**2 + y1**2)*z2 - D*z1
-        M = (x2**2 + y2**2)*z1 - D*z2
-        with np.errstate(divide='ignore', invalid='ignore'):
-            t_vals = N/(N+M) # t values that can be an altitude local optimum
+        vec_1s = np.asarray(target_vertices[target_region.mesh.edges[:, 0], :])
+        vec_2s = np.asarray(target_vertices[target_region.mesh.edges[:, 1], :])
+        x1, y1, z1 = vec_1s[:, 0], vec_1s[:, 1], vec_1s[:, 2]
+        x2, y2, z2 = vec_2s[:, 0], vec_2s[:, 1], vec_2s[:, 2]
+        D = x1 * x2 + y1 * y2
+        N = (x1**2 + y1**2) * z2 - D * z1
+        M = (x2**2 + y2**2) * z1 - D * z2
+        with np.errstate(divide="ignore", invalid="ignore"):
+            t_vals = N / (N + M)  # t values that can be an altitude local optimum
 
         # Keep only points where the t_value is between 0 and 1
         t_mask = np.logical_and(t_vals > 0, t_vals < 1)
-        interpolated_points = vec_1s[t_mask] + t_vals[t_mask][:,None] * (vec_2s[t_mask] - vec_1s[t_mask])
+        interpolated_points = vec_1s[t_mask] + t_vals[t_mask][:, None] * (
+            vec_2s[t_mask] - vec_1s[t_mask]
+        )
 
         target_vertices = np.concatenate((target_vertices, interpolated_points), axis=0)
 
         ## Check if the object crosses the y axis ahead and/or behind the viewer
 
         # Extract the two vectors that are part of each edge crossing the y axis.
-        with np.errstate(divide='ignore', invalid='ignore'):
-            y_cross_edges = (vec_1s[:,0]/vec_2s[:,0]) < 0
+        with np.errstate(divide="ignore", invalid="ignore"):
+            y_cross_edges = (vec_1s[:, 0] / vec_2s[:, 0]) < 0
         vec_1s = vec_1s[y_cross_edges]
         vec_2s = vec_2s[y_cross_edges]
 
         # Figure out for which t value the vectors cross the y axis
-        t = (-vec_1s[:,0])/(vec_2s[:,0]-vec_1s[:,0])
+        t = (-vec_1s[:, 0]) / (vec_2s[:, 0] - vec_1s[:, 0])
 
         # Figure out what the y value is when the y axis is crossed
-        y_intercept_points = t*(vec_2s[:,1]-vec_1s[:,1]) + vec_1s[:,1]
+        y_intercept_points = t * (vec_2s[:, 1] - vec_1s[:, 1]) + vec_1s[:, 1]
 
         # If the object crosses ahead and behind the object, or through 0,
         # we will not optimize ray casting.
@@ -158,30 +182,33 @@ def canSee(position, orientation, visibleDistance, viewAngles,
 
         ## Compute the horizontal/vertical angle ranges which bound the object
         ## (from the origin facing forwards)
-        spherical_angles = np.zeros((len(target_vertices[:,0]), 2))
+        spherical_angles = np.zeros((len(target_vertices[:, 0]), 2))
 
-        spherical_angles[:,0] = np.arctan2(target_vertices[:,1], target_vertices[:,0])
-        spherical_angles[:,1] = np.arcsin(target_vertices[:,2]/
-                                (np.linalg.norm(target_vertices, axis=1)))
+        spherical_angles[:, 0] = np.arctan2(target_vertices[:, 1], target_vertices[:, 0])
+        spherical_angles[:, 1] = np.arcsin(
+            target_vertices[:, 2] / (np.linalg.norm(target_vertices, axis=1))
+        )
 
         # Align azimuthal angle with y axis.
-        spherical_angles[:,0] = spherical_angles[:,0] - math.pi/2
+        spherical_angles[:, 0] = spherical_angles[:, 0] - math.pi / 2
 
         # Normalize angles between (-Pi,Pi)
-        spherical_angles[:,0] = np.mod(spherical_angles[:,0] + np.pi, 2*np.pi) - np.pi
-        spherical_angles[:,1] = np.mod(spherical_angles[:,1] + np.pi, 2*np.pi) - np.pi
+        spherical_angles[:, 0] = np.mod(spherical_angles[:, 0] + np.pi, 2 * np.pi) - np.pi
+        spherical_angles[:, 1] = np.mod(spherical_angles[:, 1] + np.pi, 2 * np.pi) - np.pi
 
         # First we check if the vertical angles overlap with the vertical view angles.
         # If not, then the object cannot be visible.
-        if (np.min(spherical_angles[:,1]) > viewAngles[1]/2 or
-           np.max(spherical_angles[:,1]) < -viewAngles[1]/2):
-            return False 
+        if (
+            np.min(spherical_angles[:, 1]) > viewAngles[1] / 2
+            or np.max(spherical_angles[:, 1]) < -viewAngles[1] / 2
+        ):
+            return False
 
         ## Compute which horizontal/vertical angle ranges to cast rays in
         if target_crosses_ahead and target_crosses_behind:
             # No optimizations feasible here. Just send all rays.
-            h_range = (-viewAngles[0]/2, viewAngles[0]/2)
-            v_range = (-viewAngles[1]/2, viewAngles[1]/2)
+            h_range = (-viewAngles[0] / 2, viewAngles[0] / 2)
+            v_range = (-viewAngles[1] / 2, viewAngles[1] / 2)
 
             view_ranges = [(h_range, v_range)]
 
@@ -191,37 +218,49 @@ def canSee(position, orientation, visibleDistance, viewAngles,
             # We can then check for impossible visibility/optimize which rays will be cast.
 
             # Extract the viewAngle ranges
-            va_h_range = (-viewAngles[0]/2, viewAngles[0]/2)
-            va_v_range = (-viewAngles[1]/2, viewAngles[1]/2)
+            va_h_range = (-viewAngles[0] / 2, viewAngles[0] / 2)
+            va_v_range = (-viewAngles[1] / 2, viewAngles[1] / 2)
 
             # Convert spherical angles to be centered around the back of the viewing object.
-            left_points  = spherical_angles[:,0] >= 0
-            right_points = spherical_angles[:,0] < 0
+            left_points = spherical_angles[:, 0] >= 0
+            right_points = spherical_angles[:, 0] < 0
 
-            spherical_angles[:,0][left_points]  = spherical_angles[:,0][left_points] - np.pi
-            spherical_angles[:,0][right_points] = spherical_angles[:,0][right_points] + np.pi
+            spherical_angles[:, 0][left_points] = (
+                spherical_angles[:, 0][left_points] - np.pi
+            )
+            spherical_angles[:, 0][right_points] = (
+                spherical_angles[:, 0][right_points] + np.pi
+            )
 
-            sphere_h_range = (np.min(spherical_angles[:,0]), np.max(spherical_angles[:,0]))
-            sphere_v_range = (np.min(spherical_angles[:,1]), np.max(spherical_angles[:,1]))
+            sphere_h_range = (
+                np.min(spherical_angles[:, 0]),
+                np.max(spherical_angles[:, 0]),
+            )
+            sphere_v_range = (
+                np.min(spherical_angles[:, 1]),
+                np.max(spherical_angles[:, 1]),
+            )
 
             # Extract the overlapping ranges in the horizontal and vertical view angles.
-            # Note that the spherical range must cross the back plane and the view angles 
+            # Note that the spherical range must cross the back plane and the view angles
             # must cross the front plane (and are centered on these points),
             # which means we can just add up each side of the ranges and see if they add up to
             # greater than or equal to Pi. If none do, then it's impossible for object to overlap
             # with the viewAngle range.
 
             # Otherwise we can extract the overlapping v_ranges and use those going forwards.
-            overlapping_v_range = (np.clip(sphere_v_range[0], va_v_range[0], va_v_range[1]),
-                                   np.clip(sphere_v_range[1], va_v_range[0], va_v_range[1]))
+            overlapping_v_range = (
+                np.clip(sphere_v_range[0], va_v_range[0], va_v_range[1]),
+                np.clip(sphere_v_range[1], va_v_range[0], va_v_range[1]),
+            )
             view_ranges = []
 
-            if (abs(va_h_range[0]) + abs(sphere_h_range[1]) > math.pi):
-                h_range = (va_h_range[0], -math.pi+sphere_h_range[1])
+            if abs(va_h_range[0]) + abs(sphere_h_range[1]) > math.pi:
+                h_range = (va_h_range[0], -math.pi + sphere_h_range[1])
                 view_ranges.append((h_range, overlapping_v_range))
 
-            if (abs(va_h_range[1]) + abs(sphere_h_range[0]) > math.pi):
-                h_range = (math.pi+sphere_h_range[0], va_h_range[1])
+            if abs(va_h_range[1]) + abs(sphere_h_range[0]) > math.pi:
+                h_range = (math.pi + sphere_h_range[0], va_h_range[1])
                 view_ranges.append((h_range, overlapping_v_range))
 
             if len(view_ranges) == 0:
@@ -233,15 +272,24 @@ def canSee(position, orientation, visibleDistance, viewAngles,
 
             # Check if view range and spherical angles overlap in horizontal or
             # vertical dimensions. If not, return False
-            if ((np.max(spherical_angles[:,0]) < -viewAngles[0]/2) or
-                (np.min(spherical_angles[:,0]) >  viewAngles[0]/2)):
+            if (np.max(spherical_angles[:, 0]) < -viewAngles[0] / 2) or (
+                np.min(spherical_angles[:, 0]) > viewAngles[0] / 2
+            ):
                 return False
 
             # Compute trimmed view angles
-            h_min = np.clip(np.min(spherical_angles[:,0]), -viewAngles[0]/2, viewAngles[0]/2)
-            h_max = np.clip(np.max(spherical_angles[:,0]), -viewAngles[0]/2, viewAngles[0]/2)
-            v_min = np.clip(np.min(spherical_angles[:,1]), -viewAngles[1]/2, viewAngles[1]/2)
-            v_max = np.clip(np.max(spherical_angles[:,1]), -viewAngles[1]/2, viewAngles[1]/2)
+            h_min = np.clip(
+                np.min(spherical_angles[:, 0]), -viewAngles[0] / 2, viewAngles[0] / 2
+            )
+            h_max = np.clip(
+                np.max(spherical_angles[:, 0]), -viewAngles[0] / 2, viewAngles[0] / 2
+            )
+            v_min = np.clip(
+                np.min(spherical_angles[:, 1]), -viewAngles[1] / 2, viewAngles[1] / 2
+            )
+            v_max = np.clip(
+                np.max(spherical_angles[:, 1]), -viewAngles[1] / 2, viewAngles[1] / 2
+            )
 
             h_range = (h_min, h_max)
             v_range = (v_min, v_max)
@@ -258,26 +306,43 @@ def canSee(position, orientation, visibleDistance, viewAngles,
             assert h_size > 0
             assert v_size > 0
 
-            scaled_v_ray_count = math.ceil(v_size/(viewAngles[1]) * rayCount[1])
-            v_angles = np.linspace(v_range[0],v_range[1], scaled_v_ray_count)
+            scaled_v_ray_count = math.ceil(v_size / (viewAngles[1]) * rayCount[1])
+            v_angles = np.linspace(v_range[0], v_range[1], scaled_v_ray_count)
 
             # If altitudeScaling is true, we will scale the number of rays by the cosine of the altitude
             # to get a uniform spread.
             if altitudeScaling:
-                h_ray_counts = np.maximum(np.ceil(np.cos(v_angles) * h_size/(viewAngles[0]) * rayCount[0]), 1).astype(int)
-                h_angles_list = [np.linspace(h_range[0],h_range[1], h_ray_count) for h_ray_count in h_ray_counts]
-                angle_matrices = [np.column_stack([h_angles_list[i], np.repeat([v_angles[i]], len(h_angles_list[i]))]) for i in range(len(v_angles))]
+                h_ray_counts = np.maximum(
+                    np.ceil(np.cos(v_angles) * h_size / (viewAngles[0]) * rayCount[0]), 1
+                ).astype(int)
+                h_angles_list = [
+                    np.linspace(h_range[0], h_range[1], h_ray_count)
+                    for h_ray_count in h_ray_counts
+                ]
+                angle_matrices = [
+                    np.column_stack(
+                        [
+                            h_angles_list[i],
+                            np.repeat([v_angles[i]], len(h_angles_list[i])),
+                        ]
+                    )
+                    for i in range(len(v_angles))
+                ]
                 angle_matrix = np.concatenate(angle_matrices, axis=0)
             else:
-                scaled_h_ray_count = math.ceil(h_size/(viewAngles[0]) * rayCount[0])
-                h_angles = np.linspace(h_range[0],h_range[1], scaled_h_ray_count)
-                angle_matrix = np.column_stack([np.repeat(h_angles, len(v_angles)), np.tile(v_angles, len(h_angles))])
+                scaled_h_ray_count = math.ceil(h_size / (viewAngles[0]) * rayCount[0])
+                h_angles = np.linspace(h_range[0], h_range[1], scaled_h_ray_count)
+                angle_matrix = np.column_stack(
+                    [np.repeat(h_angles, len(v_angles)), np.tile(v_angles, len(h_angles))]
+                )
 
-            ray_vectors = np.zeros((len(angle_matrix[:,0]), 3))
+            ray_vectors = np.zeros((len(angle_matrix[:, 0]), 3))
 
-            ray_vectors[:,0] = -np.sin(angle_matrix[:,0])
-            ray_vectors[:,1] = np.cos(angle_matrix[:,0])
-            ray_vectors[:,2] = np.tan(angle_matrix[:,1]) # At 90 deg, np returns super large number
+            ray_vectors[:, 0] = -np.sin(angle_matrix[:, 0])
+            ray_vectors[:, 1] = np.cos(angle_matrix[:, 0])
+            ray_vectors[:, 2] = np.tan(
+                angle_matrix[:, 1]
+            )  # At 90 deg, np returns super large number
 
             ray_vectors /= np.linalg.norm(ray_vectors, axis=1)[:, np.newaxis]
             candidate_ray_list.append(ray_vectors)
@@ -286,20 +351,26 @@ def canSee(position, orientation, visibleDistance, viewAngles,
 
         if orientation is not None:
             ray_vectors = orientation.getRotation().apply(ray_vectors)
-        
+
         ## DEBUG ##
-        #Show all original candidate rays
-        if debug:    
-            vertices = [visibleDistance*vec + position.coordinates for vec in ray_vectors]
+        # Show all original candidate rays
+        if debug:
+            vertices = [
+                visibleDistance * vec + position.coordinates for vec in ray_vectors
+            ]
             vertices = [position.coordinates] + vertices
-            lines = [trimesh.path.entities.Line([0,v]) for v in range(1,len(vertices))]
-            colors =[(0,0,255,255) for line in lines]
+            lines = [trimesh.path.entities.Line([0, v]) for v in range(1, len(vertices))]
+            colors = [(0, 0, 255, 255) for line in lines]
 
             render_scene = trimesh.scene.Scene()
-            render_scene.add_geometry(trimesh.path.Path3D(entities=lines, vertices=vertices, process=False, colors=colors))
+            render_scene.add_geometry(
+                trimesh.path.Path3D(
+                    entities=lines, vertices=vertices, process=False, colors=colors
+                )
+            )
             render_scene.add_geometry(target.occupiedSpace.mesh)
             for i in list(occludingObjects):
-              render_scene.add_geometry(i.occupiedSpace.mesh)
+                render_scene.add_geometry(i.occupiedSpace.mesh)
             render_scene.show()
 
         # Shuffle the rays and split them into smaller batches, so we get the
@@ -317,7 +388,8 @@ def canSee(position, orientation, visibleDistance, viewAngles,
             # Check if candidate rays hit target
             raw_target_hit_info = target_region.mesh.ray.intersects_location(
                 ray_origins=np.full(ray_batch.shape, position.coordinates),
-                ray_directions=ray_batch)
+                ray_directions=ray_batch,
+            )
 
             # If no hits, this object can't be visible with these rays
             if len(raw_target_hit_info[0]) == 0:
@@ -351,15 +423,24 @@ def canSee(position, orientation, visibleDistance, viewAngles,
             candidate_rays = set(target_dist_map.keys())
 
             ## DEBUG ##
-            #Show all candidate vertices that hit target
-            if debug:            
-                vertices = [visibleDistance*np.array(vec) + position.coordinates for vec in candidate_rays]
+            # Show all candidate vertices that hit target
+            if debug:
+                vertices = [
+                    visibleDistance * np.array(vec) + position.coordinates
+                    for vec in candidate_rays
+                ]
                 vertices = [position.coordinates] + vertices
-                lines = [trimesh.path.entities.Line([0,v]) for v in range(1,len(vertices))]
-                colors =[(0,0,255,255) for line in lines]
+                lines = [
+                    trimesh.path.entities.Line([0, v]) for v in range(1, len(vertices))
+                ]
+                colors = [(0, 0, 255, 255) for line in lines]
 
                 render_scene = trimesh.scene.Scene()
-                render_scene.add_geometry(trimesh.path.Path3D(entities=lines, vertices=vertices, process=False, colors=colors))
+                render_scene.add_geometry(
+                    trimesh.path.Path3D(
+                        entities=lines, vertices=vertices, process=False, colors=colors
+                    )
+                )
                 render_scene.add_geometry(target.occupiedSpace.mesh)
                 for occ_obj in list(occludingObjects):
                     render_scene.add_geometry(occ_obj.occupiedSpace.mesh)
@@ -376,7 +457,8 @@ def canSee(position, orientation, visibleDistance, viewAngles,
                 # Test all candidate rays against this occluding object
                 object_hit_info = occ_obj.occupiedSpace.mesh.ray.intersects_location(
                     ray_origins=np.full(candidate_ray_list.shape, position.coordinates),
-                    ray_directions=candidate_ray_list)
+                    ray_directions=candidate_ray_list,
+                )
 
                 # If no hits, this object doesn't occlude. We don't need to
                 # filter any rays for this object so move on the next object.
@@ -385,7 +467,9 @@ def canSee(position, orientation, visibleDistance, viewAngles,
 
                 # Check if any candidate ray hits the occluding object with a smaller
                 # distance than the target.
-                object_distances = np.linalg.norm(object_hit_info[0] - np.array(position), axis=1)
+                object_distances = np.linalg.norm(
+                    object_hit_info[0] - np.array(position), axis=1
+                )
 
                 occluded_rays = set()
 
@@ -402,16 +486,32 @@ def canSee(position, orientation, visibleDistance, viewAngles,
                 ## DEBUG ##
                 # Show occluded and non occluded rays from this object
                 if debug:
-                    occluded_vertices = [visibleDistance*np.array(vec) + position.coordinates for vec in occluded_rays]
-                    clear_vertices = [visibleDistance*np.array(vec) + position.coordinates for vec in candidate_rays]
+                    occluded_vertices = [
+                        visibleDistance * np.array(vec) + position.coordinates
+                        for vec in occluded_rays
+                    ]
+                    clear_vertices = [
+                        visibleDistance * np.array(vec) + position.coordinates
+                        for vec in candidate_rays
+                    ]
                     vertices = occluded_vertices + clear_vertices
                     vertices = [position.coordinates] + vertices
-                    lines = [trimesh.path.entities.Line([0,v]) for v in range(1,len(vertices))]
-                    occluded_colors = [(255,0,0,255) for line in occluded_vertices]
-                    clear_colors = [(0,255,0,255) for line in clear_vertices]
+                    lines = [
+                        trimesh.path.entities.Line([0, v])
+                        for v in range(1, len(vertices))
+                    ]
+                    occluded_colors = [(255, 0, 0, 255) for line in occluded_vertices]
+                    clear_colors = [(0, 255, 0, 255) for line in clear_vertices]
                     colors = occluded_colors + clear_colors
                     render_scene = trimesh.scene.Scene()
-                    render_scene.add_geometry(trimesh.path.Path3D(entities=lines, vertices=vertices, process=False, colors=colors))
+                    render_scene.add_geometry(
+                        trimesh.path.Path3D(
+                            entities=lines,
+                            vertices=vertices,
+                            process=False,
+                            colors=colors,
+                        )
+                    )
                     render_scene.add_geometry(target.occupiedSpace.mesh)
                     render_scene.add_geometry(occ_obj.occupiedSpace.mesh)
                     render_scene.show()
@@ -436,31 +536,46 @@ def canSee(position, orientation, visibleDistance, viewAngles,
             target_loc = orientation._inverseRotation.apply([target_loc])[0]
 
         target_vertex = target_loc - position
-        candidate_ray = target_vertex/np.linalg.norm(target_vertex)
+        candidate_ray = target_vertex / np.linalg.norm(target_vertex)
 
         candidate_ray_list = np.array([candidate_ray])
 
-        azimuth = np.mod(np.arctan2(candidate_ray[1], candidate_ray[0]) - math.pi/2 + np.pi, 2*np.pi) - np.pi
+        azimuth = (
+            np.mod(
+                np.arctan2(candidate_ray[1], candidate_ray[0]) - math.pi / 2 + np.pi,
+                2 * np.pi,
+            )
+            - np.pi
+        )
         altitude = np.arcsin(candidate_ray[2])
 
         ## DEBUG ##
-        #Show all original candidate rays
+        # Show all original candidate rays
         if debug:
-            vertices = [visibleDistance*vec + position.coordinates for vec in candidate_ray_list]
+            vertices = [
+                visibleDistance * vec + position.coordinates for vec in candidate_ray_list
+            ]
             vertices = [position.coordinates] + vertices
-            lines = [trimesh.path.entities.Line([0,v]) for v in range(1,len(vertices))]
-            colors =[(0,0,255,255) for line in lines]
+            lines = [trimesh.path.entities.Line([0, v]) for v in range(1, len(vertices))]
+            colors = [(0, 0, 255, 255) for line in lines]
 
             render_scene = trimesh.scene.Scene()
-            render_scene.add_geometry(trimesh.path.Path3D(entities=lines, vertices=vertices, process=False, colors=colors))
-            render_scene.add_geometry(SpheroidRegion(position=target_loc, dimensions=(0.1,0.1,0.1)))
+            render_scene.add_geometry(
+                trimesh.path.Path3D(
+                    entities=lines, vertices=vertices, process=False, colors=colors
+                )
+            )
+            render_scene.add_geometry(
+                SpheroidRegion(position=target_loc, dimensions=(0.1, 0.1, 0.1))
+            )
             for i in list(occludingObjects):
                 render_scene.add_geometry(i.occupiedSpace.mesh)
             render_scene.show()
 
         # Check if this ray is within our view cone.
-        if (not (-viewAngles[0]/2 <= azimuth <= viewAngles[0]/2) or
-            not (-viewAngles[1]/2 <= altitude <= viewAngles[1]/2)):
+        if not (-viewAngles[0] / 2 <= azimuth <= viewAngles[0] / 2) or not (
+            -viewAngles[1] / 2 <= altitude <= viewAngles[1] / 2
+        ):
             return False
 
         # Now check if occluding objects block sight to target
@@ -471,11 +586,14 @@ def canSee(position, orientation, visibleDistance, viewAngles,
             # Test all candidate rays against this occluding object
             object_hit_info = occ_obj.occupiedSpace.mesh.ray.intersects_location(
                 ray_origins=[position.coordinates for ray in candidate_ray_list],
-                ray_directions=candidate_ray_list)
+                ray_directions=candidate_ray_list,
+            )
 
             for hit_iter in range(len(object_hit_info[0])):
                 ray = tuple(candidate_ray_list[object_hit_info[1][hit_iter]])
-                occ_distance = position.distanceTo(Vector(*object_hit_info[0][hit_iter,:]))
+                occ_distance = position.distanceTo(
+                    Vector(*object_hit_info[0][hit_iter, :])
+                )
 
                 if occ_distance <= target_distance:
                     # The ray is occluded

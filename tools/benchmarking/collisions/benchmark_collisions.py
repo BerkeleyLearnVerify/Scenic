@@ -1,42 +1,45 @@
-import time
 import math
-from multiprocess import Process
+import time
+
 import matplotlib
+from multiprocess import Process
 
 import scenic
 
-matplotlib.rcParams.update({'font.size': 4})
+matplotlib.rcParams.update({"font.size": 4})
 
 MAX_TIME = 120
 TRIALS_PER = 50
-COLORS = ["red","blue","green","orange","yellow"]
+COLORS = ["red", "blue", "green", "orange", "yellow"]
 
 BENCHMARKS = [
-                ("narrowGoalOld.scenic", {"mode2D": True}),
-                ("narrowGoalNew.scenic", {}),
-                ("city_intersection.scenic", {}),
-                ("vacuum.scenic", {"numToys": 0}),
-                ("vacuum.scenic", {"numToys": 1}),
-                ("vacuum.scenic", {"numToys": 2}),
-                ("vacuum.scenic", {"numToys": 4}),
-                ("vacuum.scenic", {"numToys": 8}),
-                ("vacuum.scenic", {"numToys": 16}),
-             ]
+    ("narrowGoalOld.scenic", {"mode2D": True}),
+    ("narrowGoalNew.scenic", {}),
+    ("city_intersection.scenic", {}),
+    ("vacuum.scenic", {"numToys": 0}),
+    ("vacuum.scenic", {"numToys": 1}),
+    ("vacuum.scenic", {"numToys": 2}),
+    ("vacuum.scenic", {"numToys": 4}),
+    ("vacuum.scenic", {"numToys": 8}),
+    ("vacuum.scenic", {"numToys": 16}),
+]
 
-PARAMS =    {
-                "initialCollisionCheck": (False, True), 
-            }
+PARAMS = {
+    "initialCollisionCheck": (False, True),
+}
+
 
 def run_benchmark(path, params):
     if "mode2D" in params:
-        del params['mode2D']
+        del params["mode2D"]
         mode2D = True
     else:
         mode2D = False
     scenario = scenic.scenarioFromFile(path, params=params, mode2D=mode2D)
-    scenario.generate(maxIterations=float('inf'))
+    scenario.generate(maxIterations=float("inf"))
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     # Gather times
     results = {}
 
@@ -54,21 +57,26 @@ if __name__ == '__main__':
                     p.start()
                     p.join(timeout=MAX_TIME)
                     p.kill()
-                    trial_time = min(time.time()-start, MAX_TIME)
+                    trial_time = min(time.time() - start, MAX_TIME)
 
-                    print(f"({benchmark},{benchmark_params},{param},{param_val},{trial_iter}): {trial_time:.2f}s")
+                    print(
+                        f"({benchmark},{benchmark_params},{param},{param_val},{trial_iter}): {trial_time:.2f}s"
+                    )
 
                     total_time += trial_time
 
-                mean_time = total_time/TRIALS_PER
+                mean_time = total_time / TRIALS_PER
                 assert 0 <= mean_time <= MAX_TIME
                 results_val.append((param_val, mean_time))
 
-            results[(str((benchmark, benchmark_params)),param)] = results_val
+            results[(str((benchmark, benchmark_params)), param)] = results_val
 
     # Plot times
     import matplotlib.pyplot as plt
-    figure, axis = plt.subplots(len(BENCHMARKS), len(PARAMS), figsize=(6*len(PARAMS),1.75*len(BENCHMARKS)))
+
+    figure, axis = plt.subplots(
+        len(BENCHMARKS), len(PARAMS), figsize=(6 * len(PARAMS), 1.75 * len(BENCHMARKS))
+    )
     for b_iter, benchmark in enumerate(BENCHMARKS):
         for p_iter, param in enumerate(PARAMS):
             if len(PARAMS) > 1:
@@ -78,15 +86,15 @@ if __name__ == '__main__':
             target_results = results[(str(benchmark), param)]
 
             if p_iter == 0:
-                target_axis.xaxis.set_label_position('top')
+                target_axis.xaxis.set_label_position("top")
                 target_axis.set_ylabel(f"{benchmark[0]}, {str(benchmark[1])}")
 
             if b_iter == 0:
-                target_axis.xaxis.set_label_position('top')
+                target_axis.xaxis.set_label_position("top")
                 target_axis.set_xlabel(param)
 
             x, y = [v[0] for v in target_results], [v[1] for v in target_results]
-            
+
             # target_axis.set_ylim([0, MAX_TIME])
 
             label_locs = []
@@ -97,7 +105,6 @@ if __name__ == '__main__':
 
             target_axis.set_xticks(label_locs, label_vals)
             # target_axis.plot(x, y, color=COLORS[p_iter])
-            target_axis.bar(x, y, color ='maroon')
- 
+            target_axis.bar(x, y, color="maroon")
 
     plt.savefig("collision_results.pdf")

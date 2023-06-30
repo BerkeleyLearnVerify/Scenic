@@ -1,4 +1,3 @@
-
 from controller import Supervisor
 
 import scenic
@@ -8,10 +7,10 @@ supervisor = Supervisor()
 simulator = WebotsSimulator(supervisor)
 
 path = supervisor.getCustomData()
-print(f'Loading Scenic scenario {path}')
+print(f"Loading Scenic scenario {path}")
 scenario = scenic.scenarioFromFile(path)
 
 while True:
     scene, _ = scenario.generate()
-    print('Starting new simulation...')
+    print("Starting new simulation...")
     simulator.simulate(scene, verbosity=2)

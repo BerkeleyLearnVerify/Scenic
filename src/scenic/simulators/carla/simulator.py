@@ -10,35 +10,48 @@ import os
 import warnings
 
 import scenic.core.errors as errors
+
 if errors.verbosityLevel == 0:  # suppress pygame advertisement at zero verbosity
     import os
-    os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'
+
+    os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 import pygame
 
-from scenic.domains.driving.simulators import DrivingSimulator, DrivingSimulation
 from scenic.core.simulators import SimulationCreationError
-from scenic.syntax.veneer import verbosePrint
+from scenic.domains.driving.simulators import DrivingSimulation, DrivingSimulator
 from scenic.simulators.carla.blueprints import oldBlueprintNames
 import scenic.simulators.carla.utils.utils as utils
 import scenic.simulators.carla.utils.visuals as visuals
+from scenic.syntax.veneer import verbosePrint
 
 
 class CarlaSimulator(DrivingSimulator):
     """Implementation of `Simulator` for CARLA."""
-    def __init__(self, carla_map, map_path, address='127.0.0.1', port=2000, timeout=10,
-                 render=True, record='', timestep=0.1, traffic_manager_port=None):
+
+    def __init__(
+        self,
+        carla_map,
+        map_path,
+        address="127.0.0.1",
+        port=2000,
+        timeout=10,
+        render=True,
+        record="",
+        timestep=0.1,
+        traffic_manager_port=None,
+    ):
         super().__init__()
-        verbosePrint(f'Connecting to CARLA on port {port}')
+        verbosePrint(f"Connecting to CARLA on port {port}")
         self.client = carla.Client(address, port)
         self.client.set_timeout(timeout)  # limits networking operations (seconds)
         if carla_map is not None:
             self.world = self.client.load_world(carla_map)
         else:
-            if map_path.endswith('.xodr'):
+            if map_path.endswith(".xodr"):
                 with open(map_path) as odr_file:
                     self.world = self.client.generate_opendrive_world(odr_file.read())
             else:
-                raise RuntimeError('CARLA only supports OpenDrive maps')
+                raise RuntimeError("CARLA only supports OpenDrive maps")
         self.timestep = timestep
 
         if traffic_manager_port is None:
@@ -51,7 +64,7 @@ class CarlaSimulator(DrivingSimulator):
         settings.synchronous_mode = True
         settings.fixed_delta_seconds = timestep  # NOTE: Should not exceed 0.1
         self.world.apply_settings(settings)
-        verbosePrint('Map loaded in simulator.')
+        verbosePrint("Map loaded in simulator.")
 
         self.render = render  # visualization mode ON/OFF
         self.record = record  # whether to use the carla recorder
@@ -60,17 +73,20 @@ class CarlaSimulator(DrivingSimulator):
     def createSimulation(self, scene, *, timestep, **kwargs):
         if timestep is not None and timestep != self.timestep:
             raise RuntimeError(
-                'cannot customize timestep for individual CARLA simulations; '
-                'set timestep when creating the CarlaSimulator instead'
+                "cannot customize timestep for individual CARLA simulations; "
+                "set timestep when creating the CarlaSimulator instead"
             )
 
         self.scenario_number += 1
         return CarlaSimulation(
             scene,
-            self.client, self.tm,
-            self.render, self.record, self.scenario_number,
+            self.client,
+            self.tm,
+            self.render,
+            self.record,
+            self.scenario_number,
             timestep=self.timestep,
-            **kwargs
+            **kwargs,
         )
 
     def destroy(self):
@@ -113,8 +129,7 @@ class CarlaSimulation(DrivingSimulation):
             pygame.font.init()
             self.hud = visuals.HUD(*self.displayDim)
             self.display = pygame.display.set_mode(
-                self.displayDim,
-                pygame.HWSURFACE | pygame.DOUBLEBUF
+                self.displayDim, pygame.HWSURFACE | pygame.DOUBLEBUF
             )
             self.cameraManager = None
 
@@ -137,19 +152,21 @@ class CarlaSimulation(DrivingSimulation):
             self.cameraManager.set_sensor(camIndex)
             self.cameraManager.set_transform(self.camTransform)
 
-        self.world.tick() ## allowing manualgearshift to take effect    # TODO still need this?
+        self.world.tick()  ## allowing manualgearshift to take effect    # TODO still need this?
 
         for obj in self.objects:
             if isinstance(obj.carlaActor, carla.Vehicle):
-                obj.carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=False))
+                obj.carlaActor.apply_control(
+                    carla.VehicleControl(manual_gear_shift=False)
+                )
 
         self.world.tick()
 
         for obj in self.objects:
             if obj.speed is not None and obj.speed != 0:
                 raise RuntimeError(
-                    f'object {obj} cannot have a nonzero initial speed '
-                    '(this is not yet possible in CARLA)'
+                    f"object {obj} cannot have a nonzero initial speed "
+                    "(this is not yet possible in CARLA)"
                 )
 
     def createObjectInSimulator(self, obj):
@@ -163,37 +180,42 @@ class CarlaSimulation(DrivingSimulation):
                     try:
                         blueprint = self.blueprintLib.find(oldName)
                         found = True
-                        warnings.warn(f'CARLA blueprint {obj.blueprint} not found; '
-                                      f'using older version {oldName}')
+                        warnings.warn(
+                            f"CARLA blueprint {obj.blueprint} not found; "
+                            f"using older version {oldName}"
+                        )
                         obj.blueprint = oldName
                         break
                     except IndexError:
                         continue
             if not found:
-                raise SimulationCreationError(f'Unable to find blueprint {obj.blueprint}'
-                                              f' for object {obj}') from e
+                raise SimulationCreationError(
+                    f"Unable to find blueprint {obj.blueprint}" f" for object {obj}"
+                ) from e
         if obj.rolename is not None:
-            blueprint.set_attribute('role_name', obj.rolename)
+            blueprint.set_attribute("role_name", obj.rolename)
 
         # set walker as not invincible
-        if blueprint.has_attribute('is_invincible'):
-            blueprint.set_attribute('is_invincible', 'False')
+        if blueprint.has_attribute("is_invincible"):
+            blueprint.set_attribute("is_invincible", "False")
 
         # Set up transform
-        loc = utils.scenicToCarlaLocation(obj.position, world=self.world, blueprint=obj.blueprint)
+        loc = utils.scenicToCarlaLocation(
+            obj.position, world=self.world, blueprint=obj.blueprint
+        )
         rot = utils.scenicToCarlaRotation(obj.orientation)
         transform = carla.Transform(loc, rot)
 
         # Color, cannot be set for Pedestrians
-        if blueprint.has_attribute('color') and obj.color is not None:
+        if blueprint.has_attribute("color") and obj.color is not None:
             c = obj.color
-            c_str = f'{int(c.r*255)},{int(c.g*255)},{int(c.b*255)}'
-            blueprint.set_attribute('color', c_str)
+            c_str = f"{int(c.r*255)},{int(c.g*255)},{int(c.b*255)}"
+            blueprint.set_attribute("color", c_str)
 
         # Create Carla actor
         carlaActor = self.world.try_spawn_actor(blueprint, transform)
         if carlaActor is None:
-            raise SimulationCreationError(f'Unable to spawn object {obj}')
+            raise SimulationCreationError(f"Unable to spawn object {obj}")
         obj.carlaActor = carlaActor
 
         carlaActor.set_simulate_physics(obj.physics)
@@ -207,10 +229,14 @@ class CarlaSimulation(DrivingSimulation):
         elif isinstance(carlaActor, carla.Walker):
             carlaActor.apply_control(carla.WalkerControl())
             # spawn walker controller
-            controller_bp = self.blueprintLib.find('controller.ai.walker')
-            controller = self.world.try_spawn_actor(controller_bp, carla.Transform(), carlaActor)
+            controller_bp = self.blueprintLib.find("controller.ai.walker")
+            controller = self.world.try_spawn_actor(
+                controller_bp, carla.Transform(), carlaActor
+            )
             if controller is None:
-                raise SimulationCreationError(f'Unable to spawn carla controller for object {obj}')
+                raise SimulationCreationError(
+                    f"Unable to spawn carla controller for object {obj}"
+                )
             obj.carlaController = controller
         return carlaActor
 
@@ -246,7 +272,7 @@ class CarlaSimulation(DrivingSimulation):
         position = utils.carlaToScenicPosition(currLoc)
         velocity = utils.carlaToScenicPosition(currVel)
         speed = math.hypot(*velocity)
-        angularSpeed= utils.carlaToScenicAngularSpeed(currAngVel)
+        angularSpeed = utils.carlaToScenicAngularSpeed(currAngVel)
         angularVelocity = utils.carlaToScenicAngularVel(currAngVel)
         globalOrientation = utils.carlaToScenicOrientation(currRot)
         yaw, pitch, roll = obj.parentOrientation.localAnglesFor(globalOrientation)

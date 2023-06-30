@@ -1,13 +1,19 @@
 """Workspaces."""
 
-import trimesh
 import numpy as np
+import trimesh
 
 from scenic.core.distributions import needsSampling
-from scenic.core.regions import (Region, everywhere, MeshVolumeRegion, MeshSurfaceRegion,
-                                PolygonalRegion)
-from scenic.core.geometry import findMinMax
 from scenic.core.errors import InvalidScenarioError
+from scenic.core.geometry import findMinMax
+from scenic.core.regions import (
+    MeshSurfaceRegion,
+    MeshVolumeRegion,
+    PolygonalRegion,
+    Region,
+    everywhere,
+)
+
 
 class Workspace(Region):
     """A :term:`workspace` describing the fixed world of a scenario.
@@ -16,26 +22,35 @@ class Workspace(Region):
         region (Region): The region defining the extent of the workspace
           (default `everywhere`).
     """
+
     def __init__(self, region=everywhere):
         if needsSampling(region):
-            raise InvalidScenarioError('workspace region must be fixed')
-        super().__init__('workspace', orientation=region.orientation)
+            raise InvalidScenarioError("workspace region must be fixed")
+        super().__init__("workspace", orientation=region.orientation)
 
         self.region = region
 
     def show3D(self, viewer):
         """Render a schematic of the workspace (in 3D) for debugging"""
-        if isinstance(self.region, (MeshVolumeRegion, MeshSurfaceRegion, PolygonalRegion)):
+        if isinstance(
+            self.region, (MeshVolumeRegion, MeshSurfaceRegion, PolygonalRegion)
+        ):
             if isinstance(self.region, (MeshVolumeRegion, MeshSurfaceRegion)):
                 workspace_mesh = self.region.mesh
             else:
-                workspace_mesh = self.region.footprint.boundFootprint(centerZ=self.region.z, height=0.0001).mesh
+                workspace_mesh = self.region.footprint.boundFootprint(
+                    centerZ=self.region.z, height=0.0001
+                ).mesh
             # We can render this workspace as the wireframe of a mesh.
             # Filter out meshes that are close enough to planar
-            edges = workspace_mesh.face_adjacency_edges[workspace_mesh.face_adjacency_angles > np.radians(0.1)]
+            edges = workspace_mesh.face_adjacency_edges[
+                workspace_mesh.face_adjacency_angles > np.radians(0.1)
+            ]
             vertices = workspace_mesh.vertices
 
-            edge_path = trimesh.path.Path3D(**trimesh.path.exchange.misc.edges_to_path(edges, vertices))
+            edge_path = trimesh.path.Path3D(
+                **trimesh.path.exchange.misc.edges_to_path(edges, vertices)
+            )
 
             viewer.add_geometry(edge_path)
 
@@ -43,9 +58,9 @@ class Workspace(Region):
         """Render a schematic of the workspace (in 2D) for debugging"""
         try:
             aabb = self.region.AABB
-        except (NotImplementedError, TypeError):     # unbounded Regions don't support this
+        except (NotImplementedError, TypeError):  # unbounded Regions don't support this
             return
-        ((xmin, ymin), (xmax, ymax) , _) = aabb
+        ((xmin, ymin), (xmax, ymax), _) = aabb
         plt.xlim(xmin, xmax)
         plt.ylim(ymin, ymax)
 
@@ -60,7 +75,7 @@ class Workspace(Region):
         sx = expansion * max(self.minimumZoomSize, 2 * (maxx - minx))
         sy = expansion * max(self.minimumZoomSize, 2 * (maxy - miny))
         s = max(sx, sy) / 2.0
-        s += max(max(obj.width, obj.length) for obj in objects) # TODO improve
+        s += max(max(obj.width, obj.length) for obj in objects)  # TODO improve
         cx = (maxx + minx) / 2.0
         cy = (maxy + miny) / 2.0
         plt.xlim(cx - s, cx + s)
@@ -117,7 +132,7 @@ class Workspace(Region):
         return self.region.size
 
     def __repr__(self):
-        return f'Workspace({self.region!r})'
+        return f"Workspace({self.region!r})"
 
     def __eq__(self, other):
         if type(other) is not Workspace:

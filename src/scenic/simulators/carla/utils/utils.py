@@ -1,9 +1,10 @@
-import carla
 import math
+
+import carla
 import scipy
 
-from scenic.core.vectors import Vector, Orientation
 from scenic.core.geometry import normalizeAngle
+from scenic.core.vectors import Orientation, Vector
 
 
 def snapToGround(world, location, blueprint):
@@ -36,40 +37,40 @@ def scenicToCarlaRotation(orientation):
     yaw = -yaw - 90
     return carla.Rotation(pitch=pitch, yaw=yaw, roll=roll)
 
+
 def scenicSpeedToCarlaVelocity(speed, heading):
     currYaw = scenicToCarlaRotation(heading).yaw
     xVel = speed * math.cos(currYaw)
     yVel = speed * math.sin(currYaw)
     return scenicToCarlaVector3D(xVel, yVel)
 
+
 def carlaToScenicPosition(loc):
     return Vector(loc.x, -loc.y, loc.z)
+
 
 def carlaToScenicElevation(loc):
     return loc.z
 
+
 def carlaToScenicOrientation(rot):
     angles = (rot.pitch, -rot.yaw - 90, rot.roll)
     r = scipy.spatial.transform.Rotation.from_euler(
-        seq="XZY", angles=angles, degrees=True)
+        seq="XZY", angles=angles, degrees=True
+    )
     return Orientation(r)
+
 
 def carlaToScenicHeading(rot):
     return normalizeAngle(-math.radians(rot.yaw + 90))
 
+
 def carlaToScenicAngularSpeed(vel):
-    return math.hypot(
-            math.radians(vel.x),
-            -math.radians(vel.y),
-            math.radians(vel.y)
-        )
+    return math.hypot(math.radians(vel.x), -math.radians(vel.y), math.radians(vel.y))
+
 
 def carlaToScenicAngularVel(vel):
-    return Vector(
-            math.radians(vel.x),
-            -math.radians(vel.y),
-            math.radians(vel.y)
-           )
+    return Vector(math.radians(vel.x), -math.radians(vel.y), math.radians(vel.y))
 
 
 _scenicToCarlaMap = {
@@ -80,8 +81,10 @@ _scenicToCarlaMap = {
     "unknown": carla.TrafficLightState.Unknown,
 }
 
+
 def scenicToCarlaTrafficLightStatus(status):
     return _scenicToCarlaMap.get(status, None)
+
 
 def carlaToScenicTrafficLightStatus(status):
     return str(status).lower()

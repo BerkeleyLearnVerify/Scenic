@@ -10,15 +10,16 @@ from tokenize import COMMENT, NL
 
 from sphinx.errors import PycodeError
 from sphinx.pycode import ModuleAnalyzer
-from sphinx.pycode.parser import Parser, DefinitionFinder, VariableCommentPicker
+from sphinx.pycode.parser import DefinitionFinder, Parser, VariableCommentPicker
 
 from scenic.syntax.parser import parse_string
+
 
 class ScenicModuleAnalyzer(ModuleAnalyzer):
     def analyze(self):
         if self._analyzed:
             return
-        if not self.srcname.endswith(('.scenic', '.sc')):
+        if not self.srcname.endswith((".scenic", ".sc")):
             super().analyze()
             return
 
@@ -27,11 +28,11 @@ class ScenicModuleAnalyzer(ModuleAnalyzer):
             parser.parse()
 
             self.attr_docs = OrderedDict()
-            for (scope, comment) in parser.comments.items():
+            for scope, comment in parser.comments.items():
                 if comment:
-                    self.attr_docs[scope] = comment.splitlines() + ['']
+                    self.attr_docs[scope] = comment.splitlines() + [""]
                 else:
-                    self.attr_docs[scope] = ['']
+                    self.attr_docs[scope] = [""]
 
             self.annotations = parser.annotations
             self.finals = parser.finals
@@ -40,7 +41,8 @@ class ScenicModuleAnalyzer(ModuleAnalyzer):
             self.tagorder = parser.deforders
             self._analyzed = True
         except Exception as exc:
-            raise PycodeError('parsing %r failed: %r' % (self.srcname, exc)) from exc
+            raise PycodeError("parsing %r failed: %r" % (self.srcname, exc)) from exc
+
 
 class ScenicDefinitionFinder(DefinitionFinder):
     def parse(self):
@@ -51,29 +53,31 @@ class ScenicDefinitionFinder(DefinitionFinder):
                 break
             elif token == COMMENT:
                 pass
-            elif token == [OP, '@'] and (self.previous is None or
-                                         self.previous.match(NEWLINE, NL, INDENT, DEDENT)):
+            elif token == [OP, "@"] and (
+                self.previous is None or self.previous.match(NEWLINE, NL, INDENT, DEDENT)
+            ):
                 if self.decorator is None:
                     self.decorator = token
-            elif token.match([NAME, 'class']):
-                self.parse_definition('class')
-            elif token.match([NAME, 'def']):
-                self.parse_definition('def')
-            elif token.match([NAME, 'behavior']):
-                self.parse_definition('behavior')
-            elif token.match([NAME, 'monitor']):
-                self.parse_definition('monitor')
-            elif token.match([NAME, 'scenario']):
-                self.parse_definition('scenario')
+            elif token.match([NAME, "class"]):
+                self.parse_definition("class")
+            elif token.match([NAME, "def"]):
+                self.parse_definition("def")
+            elif token.match([NAME, "behavior"]):
+                self.parse_definition("behavior")
+            elif token.match([NAME, "monitor"]):
+                self.parse_definition("monitor")
+            elif token.match([NAME, "scenario"]):
+                self.parse_definition("scenario")
             elif token == INDENT:
-                self.indents.append(('other', None, None))
+                self.indents.append(("other", None, None))
             elif token == DEDENT:
                 self.finalize_block()
+
 
 class ScenicParser(Parser):
     def parse_comments(self):
         """Parse the code and pick up comments."""
-        tree = parse_string(self.code, 'exec')
+        tree = parse_string(self.code, "exec")
         picker = VariableCommentPicker(self.code.splitlines(True), self.encoding)
         picker.visit(tree)
         self.annotations = picker.annotations

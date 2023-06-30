@@ -2,17 +2,22 @@
 
 from abc import ABC, abstractmethod
 
-import trimesh
-from trimesh.transformations import translation_matrix, quaternion_matrix, concatenate_matrices
 import numpy
+import trimesh
+from trimesh.transformations import (
+    concatenate_matrices,
+    quaternion_matrix,
+    translation_matrix,
+)
 
-from scenic.core.vectors import Orientation
-from scenic.core.utils import cached_property, loadMesh
 from scenic.core.type_support import toOrientation
+from scenic.core.utils import cached_property, loadMesh
+from scenic.core.vectors import Orientation
 
 ###################################################################################################
 # Abstract Classes and Utilities
 ###################################################################################################
+
 
 class Shape(ABC):
     """An abstract base class for Scenic shapes.
@@ -28,6 +33,7 @@ class Shape(ABC):
         dimensions: The raw (before scaling) dimensions of the shape.
         scale: Scales all the dimensions of the shape by a multiplicative factor.
     """
+
     def __init__(self, dimensions, scale):
         # Store values
         self.raw_dimensions = dimensions
@@ -41,7 +47,7 @@ class Shape(ABC):
     def containsCenter(self):
         """Whether or not this object contains its central point"""
         pq = trimesh.proximity.ProximityQuery(self.mesh)
-        region_distance = pq.signed_distance([(0,0,0)])[0]
+        region_distance = pq.signed_distance([(0, 0, 0)])[0]
 
         return region_distance > 0
 
@@ -55,15 +61,17 @@ class Shape(ABC):
     def isConvex(self):
         pass
 
+
 ###################################################################################################
 # 3D Shape Classes
 ###################################################################################################
 
-class MeshShape(Shape):
-    """ A Shape subclass defined by a `trimesh.base.Trimesh` object.
 
-    The mesh passed must be a `trimesh.base.Trimesh` object that represents a well defined 
-    volume (i.e. the ``is_volume`` property must be true), meaning the mesh must be watertight, 
+class MeshShape(Shape):
+    """A Shape subclass defined by a `trimesh.base.Trimesh` object.
+
+    The mesh passed must be a `trimesh.base.Trimesh` object that represents a well defined
+    volume (i.e. the ``is_volume`` property must be true), meaning the mesh must be watertight,
     have consistent winding and have outward facing normals.
 
     Args:
@@ -77,10 +85,13 @@ class MeshShape(Shape):
         initial_rotation: A 3-tuple containing the yaw, pitch, and roll respectively to apply when loading
           the mesh. Note the initial_rotation must be fixed.
     """
+
     def __init__(self, mesh, dimensions=None, scale=1, initial_rotation=None):
         # Ensure the mesh is watertight so volume is well defined
         if not mesh.is_volume:
-            raise ValueError("A MeshShape cannot be defined with a mesh that does not have a well defined volume.")
+            raise ValueError(
+                "A MeshShape cannot be defined with a mesh that does not have a well defined volume."
+            )
 
         # Copy mesh and center vertices around origin
         self._mesh = mesh.copy()
@@ -89,7 +100,9 @@ class MeshShape(Shape):
         # If rotation is provided, apply rotation
         if initial_rotation is not None:
             rotation = toOrientation(initial_rotation)
-            rotation_matrix = quaternion_matrix((rotation.w, rotation.x, rotation.y, rotation.z))
+            rotation_matrix = quaternion_matrix(
+                (rotation.w, rotation.x, rotation.y, rotation.z)
+            )
             self._mesh.apply_transform(rotation_matrix)
 
         # If dimensions are not specified, infer them.
@@ -137,27 +150,45 @@ class MeshShape(Shape):
         state["_mesh"] = self._mesh.copy()
         return state
 
+
 class BoxShape(MeshShape):
     """A box shape with all dimensions 1 by default."""
-    def __init__(self, dimensions=(1,1,1), scale=1, initial_rotation=None):
-        super().__init__(trimesh.creation.box((1,1,1)), \
-            dimensions, scale, initial_rotation)
+
+    def __init__(self, dimensions=(1, 1, 1), scale=1, initial_rotation=None):
+        super().__init__(
+            trimesh.creation.box((1, 1, 1)), dimensions, scale, initial_rotation
+        )
+
 
 class CylinderShape(MeshShape):
     """A cylinder shape with all dimensions 1 by default."""
-    def __init__(self, dimensions=(1,1,1), scale=1, initial_rotation=None, sections=24):
-        super().__init__(trimesh.creation.cylinder(radius=0.5, height=1, sections=sections), \
-            dimensions, scale, initial_rotation)
-        self.sections=sections
+
+    def __init__(self, dimensions=(1, 1, 1), scale=1, initial_rotation=None, sections=24):
+        super().__init__(
+            trimesh.creation.cylinder(radius=0.5, height=1, sections=sections),
+            dimensions,
+            scale,
+            initial_rotation,
+        )
+        self.sections = sections
+
 
 class ConeShape(MeshShape):
     """A cone shape with all dimensions 1 by default."""
-    def __init__(self, dimensions=(1,1,1), scale=1, initial_rotation=None):
-        super().__init__(trimesh.creation.cone(radius=0.5, height=1), \
-            dimensions, scale, initial_rotation)
+
+    def __init__(self, dimensions=(1, 1, 1), scale=1, initial_rotation=None):
+        super().__init__(
+            trimesh.creation.cone(radius=0.5, height=1),
+            dimensions,
+            scale,
+            initial_rotation,
+        )
+
 
 class SpheroidShape(MeshShape):
     """A spheroid shape with all dimensions 1 by default."""
-    def __init__(self, dimensions=(1,1,1), scale=1, initial_rotation=None):
-        super().__init__(trimesh.creation.icosphere(radius=1), \
-            dimensions, scale, initial_rotation)
+
+    def __init__(self, dimensions=(1, 1, 1), scale=1, initial_rotation=None):
+        super().__init__(
+            trimesh.creation.icosphere(radius=1), dimensions, scale, initial_rotation
+        )

@@ -1,12 +1,17 @@
-
 """Abstract interface to simulators supporting the driving domain."""
 
-from scenic.core.simulators import Simulator, Simulation
-from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
+from scenic.core.simulators import Simulation, Simulator
+from scenic.domains.driving.controllers import (
+    PIDLateralController,
+    PIDLongitudinalController,
+)
+
 
 class DrivingSimulator(Simulator):
     """A `Simulator` supporting the driving domain."""
+
     pass
+
 
 class DrivingSimulation(Simulation):
     """A `Simulation` with a simulator supporting the driving domain.
@@ -33,7 +38,9 @@ class DrivingSimulation(Simulation):
             lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
             lat_controller = PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
         else:
-            lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+            lon_controller = PIDLongitudinalController(
+                K_P=0.25, K_D=0.025, K_I=0.0, dt=dt
+            )
             lat_controller = PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
         return lon_controller, lat_controller
 
@@ -44,7 +51,9 @@ class DrivingSimulation(Simulation):
             lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
             lat_controller = PIDLateralController(K_P=0.8, K_D=0.2, K_I=0.0, dt=dt)
         else:
-            lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+            lon_controller = PIDLongitudinalController(
+                K_P=0.25, K_D=0.025, K_I=0.0, dt=dt
+            )
             lat_controller = PIDLateralController(K_P=0.4, K_D=0.1, K_I=0.0, dt=dt)
         return lon_controller, lat_controller
 
@@ -55,6 +64,8 @@ class DrivingSimulation(Simulation):
             lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
             lat_controller = PIDLateralController(K_P=0.08, K_D=0.3, K_I=0.0, dt=dt)
         else:
-            lon_controller = PIDLongitudinalController(K_P=0.25, K_D=0.025, K_I=0.0, dt=dt)
+            lon_controller = PIDLongitudinalController(
+                K_P=0.25, K_D=0.025, K_I=0.0, dt=dt
+            )
             lat_controller = PIDLateralController(K_P=0.1, K_D=0.3, K_I=0.0, dt=dt)
         return lon_controller, lat_controller
