@@ -36,6 +36,7 @@ from scenic.core.serialization import Serializer, dumpAsScenicCode
 from scenic.core.vectors import Vector
 
 # Global params
+
 INITIAL_COLLISION_CHECK = True
 
 # Pickling support
@@ -92,8 +93,8 @@ class _Deactivator:
         self.oldModules = oldModules
 
     def deactivate(self):
-        import scenic.syntax.veneer as veneer
         from scenic.syntax.translator import purgeModulesUnsafeToCache
+        import scenic.syntax.veneer as veneer
 
         veneer.deactivate()
         assert not veneer.isActive(), "nested pickle of Scene/Scenario"
