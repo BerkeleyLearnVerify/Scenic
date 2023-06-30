@@ -7,6 +7,10 @@ all: $(PARSER)
 $(PARSER): $(GRAMMAR)
 	python -m pegen $(GRAMMAR) -o $(PARSER)
 
+format:
+	isort .
+	black .
+
 .PHONY: clean
 clean:
 	-rm $(PARSER)

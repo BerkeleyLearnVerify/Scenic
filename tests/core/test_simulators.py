@@ -1,32 +1,39 @@
 import pytest
 
-from scenic.core.simulators import DummySimulator, DummySimulation, Simulation
-from tests.utils import sampleSceneFrom, compileScenic, sampleResultFromScene
+from scenic.core.simulators import DummySimulation, DummySimulator, Simulation
+from tests.utils import compileScenic, sampleResultFromScene, sampleSceneFrom
+
 
 def test_old_style_simulator():
     with pytest.raises(RuntimeError) as e:
+
         class MySimulation(Simulation):
             def run(*args, **kwargs):
                 assert False
-    assert 'old-style simulation API' in str(e)
+
+    assert "old-style simulation API" in str(e)
 
     with pytest.raises(RuntimeError) as e:
+
         class MySimulation(Simulation):
             def createObject(*args, **kwargs):
                 assert False
-    assert 'old-style simulation API' in str(e)
+
+    assert "old-style simulation API" in str(e)
+
 
 def test_simulator_destruction():
     sim = DummySimulator()
-    scene = sampleSceneFrom('ego = new Object')
+    scene = sampleSceneFrom("ego = new Object")
     sim.simulate(scene, maxSteps=1)
     sim.destroy()
     with pytest.raises(RuntimeError) as e:
         sim.simulate(scene, maxSteps=1)
-    assert 'simulator cannot run additional simulations' in str(e)
+    assert "simulator cannot run additional simulations" in str(e)
     with pytest.raises(RuntimeError) as e:
         sim.destroy()
-    assert 'destroy() called twice' in str(e)
+    assert "destroy() called twice" in str(e)
+
 
 def test_simulator_set_property():
     class TestSimulation(DummySimulation):
@@ -38,8 +45,8 @@ def test_simulator_set_property():
         def createSimulation(self, scene, **kwargs):
             return TestSimulation(scene, drift=self.drift, **kwargs)
 
-
-    scenario = compileScenic("""
+    scenario = compileScenic(
+        """
         class TestObj:
             foo: None
 
@@ -48,11 +55,12 @@ def test_simulator_set_property():
         record ego.foo as test_val_1
         record initial ego.foo as test_val_2
         record final ego.foo as test_val_3
-    """)
+    """
+    )
 
     scene, _ = scenario.generate(maxIterations=1)
     simulator = TestSimulator()
     result = simulator.simulate(scene, maxSteps=2)
     assert result is not None
-    assert result.records['test_val_1'] == [(0, "bar"), (1, "bar"), (2, "bar")]
-    assert result.records['test_val_2'] == result.records["test_val_3"] == "bar"
+    assert result.records["test_val_1"] == [(0, "bar"), (1, "bar"), (2, "bar")]
+    assert result.records["test_val_2"] == result.records["test_val_3"] == "bar"

@@ -2,16 +2,17 @@ import json
 from pathlib import Path
 import sys
 
-import matplotlib.pyplot as plt
-from matplotlib.path import Path as PlotPath
-from matplotlib.patches import PathPatch
 from matplotlib.collections import PatchCollection
+from matplotlib.patches import PathPatch
+from matplotlib.path import Path as PlotPath
+import matplotlib.pyplot as plt
 import numpy as np
-from shapely.geometry import box, LineString
+from shapely.geometry import LineString, box
 
 vacuum_radius = 0.335 / 2
 
 # pass the path to the log to argv[1] and it will make a plot
+
 
 def main(debug=False, plot=False):
     with open(sys.argv[1]) as f:
@@ -34,6 +35,7 @@ def main(debug=False, plot=False):
         ax.set_ylim([-2.5, 2.5])
         plot_polygon(ax, dilated, facecolor="lightblue", edgecolor="red")
         plt.show()
+
 
 # Plots a Polygon to pyplot `ax`
 def plot_polygon(ax, poly, **kwargs):

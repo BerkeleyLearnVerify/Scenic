@@ -6,6 +6,8 @@ Developing Scenic
 This page covers information useful if you will be developing Scenic, either changing the
 language itself or adding new built-in libraries or simulator interfaces.
 
+To find documentation (and code) for specific parts of Scenic's implementation, see our page on :doc:`internals`.
+
 Getting Started
 ---------------
 
@@ -18,7 +20,9 @@ Then to install Scenic and its development dependencies in your virtual environm
 
 This will perform an "editable" install, so that any changes you make to Scenic's code will take effect immediately when running Scenic in your virtual environment.
 
-To find documentation (and code) for specific parts of Scenic's implementation, see our page on :doc:`internals`.
+Scenic uses the `isort <https://pycqa.github.io/isort/>`_ and `black <https://black.readthedocs.io/en/stable/index.html>`_ tools to automatically sort ``import`` statements and enforce a consistent code style.
+Run the command :command:`pre-commit install` to set up hooks which will run every time you commit and correct any formatting problems (you can then inspect the files and try committing again).
+You can also manually run the formatters with the command :command:`make format` in the root directory of the repository.
 
 Running the Test Suite
 ----------------------

@@ -5,5 +5,5 @@ as well as a generic dynamic simulator interface and world model for Webots.
 More detailed world models for particular types of scenarios are in submodules.
 """
 
-from .utils import ENU, NUE, EUN
 from .simulator import WebotsSimulator
+from .utils import ENU, EUN, NUE

@@ -1,6 +1,7 @@
 import pytest
 
+
 @pytest.fixture
 def options(options):
-    pytest.importorskip('verifai')
+    pytest.importorskip("verifai")
     return options

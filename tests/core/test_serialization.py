@@ -8,14 +8,21 @@ import io
 import random
 import subprocess
 import sys
-import numpy
 
+import numpy
 import pytest
 
-from scenic.core.serialization import Serializer, SerializationError
-from scenic.core.simulators import DummySimulator, DivergenceError
-from tests.utils import (areEquivalent, compileScenic, sampleScene, sampleSceneFrom,
-                         sampleEgoActionsFromScene, getEgoActionsFrom, runInSubprocess)
+from scenic.core.serialization import SerializationError, Serializer
+from scenic.core.simulators import DivergenceError, DummySimulator
+from tests.utils import (
+    areEquivalent,
+    compileScenic,
+    getEgoActionsFrom,
+    runInSubprocess,
+    sampleEgoActionsFromScene,
+    sampleScene,
+    sampleSceneFrom,
+)
 
 # Utilities
 
@@ -31,10 +38,12 @@ simpleScenario = """
     param baz = ({'a', 'b', 'c', 'd'}, frozenset({'e', 'f', 'g', 'h'}))
 """
 
+
 def skeleton(scene):
     # Simple picklable representation of the main parameters of the scene
-    objs = [(o.position, o.heading, getattr(o, 'foo', 0)) for o in scene.objects]
-    return { 'objects': objs, 'params': scene.params }
+    objs = [(o.position, o.heading, getattr(o, "foo", 0)) for o in scene.objects]
+    return {"objects": objs, "params": scene.params}
+
 
 def assertSceneEquivalence(scene1, scene2, ignoreDynamics=False, ignoreConstProps=False):
     assert skeleton(scene1) == skeleton(scene2)
@@ -43,14 +52,16 @@ def assertSceneEquivalence(scene1, scene2, ignoreDynamics=False, ignoreConstProp
     del scene1.sample, scene2.sample
     if ignoreDynamics:
         del scene1.dynamicScenario, scene2.dynamicScenario
-    for obj in (scene1.objects + scene2.objects):
+    for obj in scene1.objects + scene2.objects:
         if ignoreConstProps:
             del obj._constProps
         if ignoreDynamics:
             del obj._parentScenario
     assert areEquivalent(scene1, scene2)
 
+
 # Exporting scenes to Scenic code
+
 
 class TestExportToScenicCode:
     def test_simple(self):
@@ -61,7 +72,9 @@ class TestExportToScenicCode:
         scene2 = sampleSceneFrom(code)
         assertSceneEquivalence(scene1, scene2, ignoreDynamics=True, ignoreConstProps=True)
 
+
 # Serializing scenes and simulations given a compiled scenario
+
 
 def checkReconstruction(code, n=20):
     # Repeat the test several times to catch nondeterminism due to hash
@@ -76,8 +89,10 @@ def checkReconstruction(code, n=20):
         data = scenario.sceneToBytes(scene)
         runInSubprocess(subprocessHelper, code, seed, data, skel)
 
+
 def subprocessHelper(code, seed, data, skel):
     import scenic.core.errors as errors
+
     errors.showInternalBacktrace = True
     scenario = compileScenic(code)
     print(scenario.astHash)
@@ -91,6 +106,7 @@ def subprocessHelper(code, seed, data, skel):
     assert skeleton(scene2) == skel
     assertSceneEquivalence(scene1, scene2)
 
+
 def checkValueEncoding(val, ty, allowPickle=False):
     enc = Serializer(allowPickle=allowPickle)
     enc.writeValue(val, ty)
@@ -99,9 +115,11 @@ def checkValueEncoding(val, ty, allowPickle=False):
     val2 = dec.readValue(ty)
     assert areEquivalent(val, val2)
 
+
 class Thingy:
     def __init__(self, x):
         self.x = x
+
 
 class TestExportToBytes:
     def test_int(self):
@@ -117,7 +135,7 @@ class TestExportToBytes:
         checkValueEncoding(2**64 - 1, int)
         checkValueEncoding(2**64, int)
         checkValueEncoding(3**30, int)
-        checkValueEncoding(-5**21, int)
+        checkValueEncoding(-(5**21), int)
 
     def test_huge_int(self):
         # Check that this fails with a SerializationError rather than silently
@@ -134,25 +152,27 @@ class TestExportToBytes:
         checkValueEncoding(-2.71828, float)
         checkValueEncoding(4.123e50, float)
         checkValueEncoding(7.89e-50, float)
-        checkValueEncoding(float('inf'), float)
-        checkValueEncoding(float('nan'), float)
+        checkValueEncoding(float("inf"), float)
+        checkValueEncoding(float("nan"), float)
 
     def test_bytes(self):
-        checkValueEncoding(b'', bytes)
-        checkValueEncoding(b'\x00', bytes)
-        checkValueEncoding(b'\xFF', bytes)
-        checkValueEncoding(b'\x00123456', bytes)
+        checkValueEncoding(b"", bytes)
+        checkValueEncoding(b"\x00", bytes)
+        checkValueEncoding(b"\xFF", bytes)
+        checkValueEncoding(b"\x00123456", bytes)
 
     def test_str(self):
-        checkValueEncoding('', str)
-        checkValueEncoding('0', str)
-        checkValueEncoding('123456', str)
-        checkValueEncoding('squeamish ossifrage', str)
+        checkValueEncoding("", str)
+        checkValueEncoding("0", str)
+        checkValueEncoding("123456", str)
+        checkValueEncoding("squeamish ossifrage", str)
 
     def test_object_with_encodeTo(self):
         from scenic.simulators.utils.colors import Color
+
         checkValueEncoding(Color(0.5, 1.0, 0.2), Color)
         from scenic.core.vectors import Vector
+
         checkValueEncoding(Vector(-7.5, 42), Vector)
 
         class Foo:
@@ -167,11 +187,12 @@ class TestExportToBytes:
             def decodeFrom(stream):
                 data = stream.read(4)
                 return Foo(data[2])
+
         checkValueEncoding(Foo(13), Foo)
 
     def test_object_pickle(self):
         checkValueEncoding(Thingy(42), object, allowPickle=True)
-        checkValueEncoding(Thingy('foo'), Thingy, allowPickle=True)
+        checkValueEncoding(Thingy("foo"), Thingy, allowPickle=True)
 
     def test_simple_scene(self):
         scenario = compileScenic(simpleScenario)
@@ -184,7 +205,7 @@ class TestExportToBytes:
     def test_scene_comment(self):
         """Adding comments to a scenario should not break deserialization."""
         sc1 = compileScenic(simpleScenario)
-        sc2 = compileScenic(simpleScenario+"    # this shouldn't change anything")
+        sc2 = compileScenic(simpleScenario + "    # this shouldn't change anything")
         scene1 = sampleScene(sc1)
         data = sc1.sceneToBytes(scene1)
         scene2 = sc2.sceneFromBytes(data)
@@ -193,7 +214,7 @@ class TestExportToBytes:
 
     def test_scene_different_scenario(self):
         sc1 = compileScenic(simpleScenario)
-        sc2 = compileScenic(simpleScenario+"\n    mutate")
+        sc2 = compileScenic(simpleScenario + "\n    mutate")
         scene1 = sampleScene(sc1)
         data = sc1.sceneToBytes(scene1)
         with pytest.raises(SerializationError):
@@ -207,7 +228,7 @@ class TestExportToBytes:
                 ego = new Object at (10, 10)
         """
         sc1 = compileScenic(code)
-        sc2 = compileScenic(code, scenario='Foo')
+        sc2 = compileScenic(code, scenario="Foo")
         scene1 = sampleScene(sc1)
         data = sc1.sceneToBytes(scene1)
         with pytest.raises(SerializationError):
@@ -222,13 +243,15 @@ class TestExportToBytes:
             sc2.sceneFromBytes(data)
 
     def test_scene_behavior(self):
-        scenario = compileScenic("""
+        scenario = compileScenic(
+            """
             glob = Range(1, 2)
             behavior Foo(x):
                 take glob
                 take x
             ego = new Object with behavior Foo(Range(3, 4))
-        """)
+        """
+        )
         scene1 = sampleScene(scenario)
         a11, a12 = sampleEgoActionsFromScene(scene1, maxSteps=2)
         assert 1 <= a11 <= 2
@@ -238,7 +261,7 @@ class TestExportToBytes:
         a21, a22 = sampleEgoActionsFromScene(scene2, maxSteps=2)
         assert a21 == a11
         assert a22 == a12
-        print(a11,a21,a12,a22)
+        print(a11, a21, a12, a22)
 
     behaviorLocalsScenario = """
         behavior Foo(x):
@@ -265,17 +288,20 @@ class TestExportToBytes:
     def test_separate_interpreters_locals(self):
         checkReconstruction(self.behaviorLocalsScenario)
 
+
 class TestSimulationReplay:
     def simulateReplayFrom(self, code, steps=1, steps2=None, maxIterations=1, **kwargs):
         if not steps2:
             steps2 = steps
         scene = sampleSceneFrom(code)
         simulator = DummySimulator()
-        sim1 = simulator.simulate(scene, maxSteps=steps,
-                                  maxIterations=maxIterations, **kwargs)
+        sim1 = simulator.simulate(
+            scene, maxSteps=steps, maxIterations=maxIterations, **kwargs
+        )
         replay = sim1.getReplay()
-        sim2 = simulator.replay(scene, replay, maxSteps=steps2,
-                                maxIterations=maxIterations, **kwargs)
+        sim2 = simulator.replay(
+            scene, replay, maxSteps=steps2, maxIterations=maxIterations, **kwargs
+        )
         return sim1, sim2
 
     def checkReplay(self, code, steps=1, **kwargs):
@@ -285,33 +311,41 @@ class TestSimulationReplay:
         return actions
 
     def test_basic(self):
-        self.checkReplay("""
+        self.checkReplay(
+            """
             behavior Foo():
                 take Range(1, 2)
                 take 42
                 take Uniform('refuge', 'umbrage', 'a hike')
             ego = new Object with behavior Foo
-        """, steps=3)
+        """,
+            steps=3,
+        )
 
     def test_global(self):
-        self.checkReplay("""
+        self.checkReplay(
+            """
             x = Range(1, 2)
             behavior Foo():
                 take x
             ego = new Object with behavior Foo
-        """)
+        """
+        )
 
     def test_argument(self):
-        self.checkReplay("""
+        self.checkReplay(
+            """
             behavior Foo(x):
                 take x
             ego = new Object with behavior Foo(Range(-1, 1))
-        """)
+        """
+        )
 
     @pytest.mark.slow
     def test_soft_requirement(self):
         for i in range(100):
-            self.checkReplay("""
+            self.checkReplay(
+                """
                 checkCount = 0
                 def check(x):
                     global checkCount
@@ -323,15 +357,22 @@ class TestSimulationReplay:
                         require[0.9] check(x)
                         take checkCount
                 ego = new Object with behavior Foo
-            """, steps=2, maxIterations=100)
+            """,
+                steps=2,
+                maxIterations=100,
+            )
 
     def test_continue_after_replay(self):
-        sim1, sim2 = self.simulateReplayFrom("""
+        sim1, sim2 = self.simulateReplayFrom(
+            """
             behavior Foo():
                 while True:
                     take Range(0, 1)
             ego = new Object with behavior Foo
-        """, steps=2, steps2=4)
+        """,
+            steps=2,
+            steps2=4,
+        )
         a1 = getEgoActionsFrom(sim1)
         assert len(a1) == 2
         a2 = getEgoActionsFrom(sim2)
@@ -341,16 +382,19 @@ class TestSimulationReplay:
         assert a2[3] not in a2[:2]
 
     def divergenceHelper(self, drift, maxSteps=1):
-        scene = sampleSceneFrom("""
+        scene = sampleSceneFrom(
+            """
             behavior Foo():
                 while True:
                     take Range(0, 1)
             ego = new Object with behavior Foo
             new Object at (10, 0)
-        """)
+        """
+        )
         simulator1 = DummySimulator(drift=drift)
-        sim1 = simulator1.simulate(scene, maxSteps=maxSteps, maxIterations=1,
-                                   enableDivergenceCheck=True)
+        sim1 = simulator1.simulate(
+            scene, maxSteps=maxSteps, maxIterations=1, enableDivergenceCheck=True
+        )
         replay = sim1.getReplay()
         return scene, replay
 
@@ -382,19 +426,24 @@ class TestSimulationReplay:
             sim.replay(scene, replay, maxSteps=5, divergenceTolerance=0.004)
 
     def test_divergence_continue(self):
-        scene = sampleSceneFrom("""
+        scene = sampleSceneFrom(
+            """
             behavior Foo():
                 while True:
                     take Range(0, 1)
             ego = new Object with behavior Foo
             new Object at (10, 0)
-        """)
+        """
+        )
         simulator1 = DummySimulator(drift=1.0)
-        sim1 = simulator1.simulate(scene, maxSteps=1, maxIterations=1,
-                                   enableDivergenceCheck=True)
+        sim1 = simulator1.simulate(
+            scene, maxSteps=1, maxIterations=1, enableDivergenceCheck=True
+        )
         replay = sim1.getReplay()
         simulator2 = DummySimulator(drift=1.1)
-        sim2 = simulator2.replay(scene, replay, maxSteps=2, continueAfterDivergence=True, verbosity=3)
+        sim2 = simulator2.replay(
+            scene, replay, maxSteps=2, continueAfterDivergence=True, verbosity=3
+        )
         a1, a2 = getEgoActionsFrom(sim1), getEgoActionsFrom(sim2)
         assert len(a1) == 1
         assert len(a2) == 2
@@ -402,11 +451,13 @@ class TestSimulationReplay:
         assert a2[1] != a1[0]
 
     def test_combined_serialization(self):
-        scenario = compileScenic("""
+        scenario = compileScenic(
+            """
             behavior Foo():
                 take Range(0, 1)
             ego = new Object with behavior Foo
-        """)
+        """
+        )
         scene = sampleScene(scenario)
         simulator = DummySimulator()
         sim1 = simulator.simulate(scene, maxSteps=1, maxIterations=1)

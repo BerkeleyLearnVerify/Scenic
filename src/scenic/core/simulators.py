@@ -11,41 +11,54 @@ simulation as a `SimulationResult` object).
 """
 
 import abc
+from collections import OrderedDict, defaultdict
 import enum
 import math
 import numbers
 import time
 import types
-from collections import OrderedDict, defaultdict
 
-from scenic.core.object_types import (enableDynamicProxyFor, setDynamicProxyFor,
-                                      disableDynamicProxyFor, Object2D)
 from scenic.core.distributions import RejectionException
 import scenic.core.dynamics as dynamics
 import scenic.core.errors as errors
 from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
+from scenic.core.object_types import (
+    Object2D,
+    disableDynamicProxyFor,
+    enableDynamicProxyFor,
+    setDynamicProxyFor,
+)
 from scenic.core.requirements import RequirementType
 from scenic.core.serialization import Serializer
 from scenic.core.vectors import Vector
 
+
 class SimulatorInterfaceWarning(UserWarning):
     """Warning indicating an issue with the interface to an external simulator."""
+
     pass
+
 
 class SimulationCreationError(Exception):
     """Exception indicating a simulation could not be run from the given scene.
 
     Can also be issued during a simulation if dynamic object creation fails.
     """
+
     pass
+
 
 class DivergenceError(Exception):
     """Exception indicating simulation replay failed due to simulator nondeterminism."""
+
     pass
+
 
 class RejectSimulationException(Exception):
     """Exception indicating a requirement was violated at runtime."""
+
     pass
+
 
 class Simulator(abc.ABC):
     """A simulator which can execute dynamic simulations from Scenic scenes.
@@ -61,14 +74,26 @@ class Simulator(abc.ABC):
     when they are finished running simulations to allow the interface to do any
     necessary cleanup.
     """
+
     def __init__(self):
         self._destroyed = False
 
-    def simulate(self, scene, maxSteps=None, maxIterations=1, *,
-                 timestep=None,
-                 verbosity=None, raiseGuardViolations=False, replay=None,
-                 enableReplay=True, enableDivergenceCheck=False, divergenceTolerance=0,
-                 continueAfterDivergence=False, allowPickle=False):
+    def simulate(
+        self,
+        scene,
+        maxSteps=None,
+        maxIterations=1,
+        *,
+        timestep=None,
+        verbosity=None,
+        raiseGuardViolations=False,
+        replay=None,
+        enableReplay=True,
+        enableDivergenceCheck=False,
+        divergenceTolerance=0,
+        continueAfterDivergence=False,
+        allowPickle=False,
+    ):
         """Run a simulation for a given scene.
 
         For details on how simulations are run, see `dynamic scenario semantics`.
@@ -144,8 +169,8 @@ class Simulator(abc.ABC):
 
         if self._destroyed:
             raise RuntimeError(
-                'simulator cannot run additional simulations '
-                '(the destroy() method has already been called)'
+                "simulator cannot run additional simulations "
+                "(the destroy() method has already been called)"
             )
         if verbosity is None:
             verbosity = errors.verbosityLevel
@@ -156,12 +181,18 @@ class Simulator(abc.ABC):
         while not simulation and (maxIterations is None or iterations < maxIterations):
             iterations += 1
             simulation = self._runSingleSimulation(
-                scene, maxSteps,
-                name=iterations, verbosity=verbosity, timestep=timestep,
-                raiseGuardViolations=raiseGuardViolations, replay=replay,
-                enableReplay=enableReplay, enableDivergenceCheck=enableDivergenceCheck,
+                scene,
+                maxSteps,
+                name=iterations,
+                verbosity=verbosity,
+                timestep=timestep,
+                raiseGuardViolations=raiseGuardViolations,
+                replay=replay,
+                enableReplay=enableReplay,
+                enableDivergenceCheck=enableDivergenceCheck,
                 divergenceTolerance=divergenceTolerance,
-                continueAfterDivergence=continueAfterDivergence, allowPickle=allowPickle,
+                continueAfterDivergence=continueAfterDivergence,
+                allowPickle=allowPickle,
             )
         return simulation
 
@@ -175,18 +206,29 @@ class Simulator(abc.ABC):
         """
         return self.simulate(scene, replay=replay, **kwargs)
 
-    def _runSingleSimulation(self, scene, maxSteps, *, name, verbosity,
-                             raiseGuardViolations=False, **kwargs):
+    def _runSingleSimulation(
+        self, scene, maxSteps, *, name, verbosity, raiseGuardViolations=False, **kwargs
+    ):
         if verbosity >= 2:
-            print(f'  Starting simulation {name}...')
+            print(f"  Starting simulation {name}...")
         try:
             simulation = self.createSimulation(
-                scene, maxSteps=maxSteps, name=name, verbosity=verbosity, **kwargs,
+                scene,
+                maxSteps=maxSteps,
+                name=name,
+                verbosity=verbosity,
+                **kwargs,
             )
-        except (RejectSimulationException, RejectionException, dynamics.GuardViolation) as e:
+        except (
+            RejectSimulationException,
+            RejectionException,
+            dynamics.GuardViolation,
+        ) as e:
             if verbosity >= 2:
-                print(f'  Rejected simulation {name} at time step '
-                      f'{simulation.currentTime} because: {e}')
+                print(
+                    f"  Rejected simulation {name} at time step "
+                    f"{simulation.currentTime} because: {e}"
+                )
             if raiseGuardViolations and isinstance(e, dynamics.GuardViolation):
                 raise
             else:
@@ -195,10 +237,12 @@ class Simulator(abc.ABC):
 
         # Completed the simulation without violating a requirement
         if not isinstance(simulation, Simulation):
-            raise TypeError(f'simulator returned non-Simulation {simulation}')
+            raise TypeError(f"simulator returned non-Simulation {simulation}")
         if verbosity >= 2:
-            print(f'  Simulation {name} ended successfully at time step '
-                  f'{simulation.currentTime} because: {simulation.result.terminationReason}')
+            print(
+                f"  Simulation {name} ended successfully at time step "
+                f"{simulation.currentTime} because: {simulation.result.terminationReason}"
+            )
         return simulation
 
     @abc.abstractmethod
@@ -225,8 +269,9 @@ class Simulator(abc.ABC):
         method being called twice on the same `Simulator`.
         """
         if self._destroyed:
-            raise RuntimeError('Simulator.destroy() called twice')
+            raise RuntimeError("Simulator.destroy() called twice")
         self._destroyed = True
+
 
 class Simulation(abc.ABC):
     """A single simulation run.
@@ -271,17 +316,25 @@ class Simulation(abc.ABC):
     def __init_subclass__(cls):
         super().__init_subclass__()
 
-        if hasattr(cls, 'run') or hasattr(cls, 'createObject'):
+        if hasattr(cls, "run") or hasattr(cls, "createObject"):
             raise RuntimeError(
-                f'{cls.__name__} implements old-style simulation API; '
-                'see documentation for how to upgrade to support Scenic 3'
+                f"{cls.__name__} implements old-style simulation API; "
+                "see documentation for how to upgrade to support Scenic 3"
             )
 
     def __init__(
-        self, scene, *,
-        maxSteps, name, timestep,
-        replay=None, enableReplay=True, allowPickle=False,
-        enableDivergenceCheck=False, divergenceTolerance=0, continueAfterDivergence=False,
+        self,
+        scene,
+        *,
+        maxSteps,
+        name,
+        timestep,
+        replay=None,
+        enableReplay=True,
+        allowPickle=False,
+        enableDivergenceCheck=False,
+        divergenceTolerance=0,
+        continueAfterDivergence=False,
         verbosity=0,
     ):
         self.result = None
@@ -308,6 +361,7 @@ class Simulation(abc.ABC):
         try:
             # Prepare global veneer state for running the simulation.
             import scenic.syntax.veneer as veneer
+
             veneer.beginSimulation(self)
             dynamicScenario = self.scene.dynamicScenario
 
@@ -327,7 +381,7 @@ class Simulation(abc.ABC):
             # Stop all remaining scenarios.
             # (and reject if some 'require eventually' condition was never satisfied)
             for scenario in tuple(reversed(veneer.runningScenarios)):
-                scenario._stop('simulation terminated')
+                scenario._stop("simulation terminated")
 
             # Record finally-recorded values.
             values = dynamicScenario._evaluateRecordedExprs(RequirementType.recordFinal)
@@ -340,7 +394,7 @@ class Simulation(abc.ABC):
                 self.actionSequence,
                 terminationType,
                 terminationReason,
-                self.records
+                self.records,
             )
             self.result = result
             return self
@@ -355,7 +409,7 @@ class Simulation(abc.ABC):
             # some scenarios may still be running; we need to clean them up without
             # checking their requirements, which could raise rejection exceptions.
             for scenario in tuple(reversed(veneer.runningScenarios)):
-                scenario._stop('exception', quiet=True)
+                scenario._stop("exception", quiet=True)
             veneer.endSimulation(self)
 
     def _run(self, dynamicScenario, maxSteps):
@@ -363,7 +417,7 @@ class Simulation(abc.ABC):
 
         while True:
             if self.verbosity >= 3:
-                print(f'    Time step {self.currentTime}:')
+                print(f"    Time step {self.currentTime}:")
 
             # Run compose blocks of compositional scenarios
             # (and check if any requirements defined therein fail)
@@ -390,7 +444,7 @@ class Simulation(abc.ABC):
             if terminationReason is not None:
                 return TerminationType.simulationTerminationCondition, terminationReason
             if maxSteps and self.currentTime >= maxSteps:
-                return TerminationType.timeLimit, f'reached time limit ({maxSteps} steps)'
+                return TerminationType.timeLimit, f"reached time limit ({maxSteps} steps)"
 
             # Compute the actions of the agents in this time step
             allActions = OrderedDict()
@@ -417,7 +471,7 @@ class Simulation(abc.ABC):
                     actions = tuple(actions[0])
                 if not self.actionsAreCompatible(agent, actions):
                     raise InvalidScenarioError(
-                        f'agent {agent} tried incompatible action(s) {actions}'
+                        f"agent {agent} tried incompatible action(s) {actions}"
                     )
 
                 # Save actions for execution below
@@ -426,7 +480,7 @@ class Simulation(abc.ABC):
             # Execute the actions
             if self.verbosity >= 3:
                 for agent, actions in allActions.items():
-                    print(f'      Agent {agent} takes action(s) {actions}')
+                    print(f"      Agent {agent} takes action(s) {actions}")
                     agent.lastActions = actions
             self.actionSequence.append(allActions)
             self.executeActions(allActions)
@@ -468,7 +522,7 @@ class Simulation(abc.ABC):
 
     def _createObject(self, obj):
         if self.verbosity >= 3:
-            print(f'      Creating object {obj}')
+            print(f"      Creating object {obj}")
 
         # Add the new object to our lists.
         self.objects.append(obj)
@@ -530,7 +584,7 @@ class Simulation(abc.ABC):
             return
         self.replaying = False
         if self.verbosity >= 2:
-            print(f'    Continuing past end of replay at time step {self.currentTime}')
+            print(f"    Continuing past end of replay at time step {self.currentTime}")
 
     def recordSampledValue(self, dist, values):
         if self._replayOut:
@@ -618,8 +672,10 @@ class Simulation(abc.ABC):
                 if not isinstance(value, ty):
                     actual = type(value).__name__
                     expected = ty.__name__
-                    raise RuntimeError(f'simulator provided value for property "{prop}" '
-                                       f'with type {actual} instead of expected {expected}')
+                    raise RuntimeError(
+                        f'simulator provided value for property "{prop}" '
+                        f"with type {actual} instead of expected {expected}"
+                    )
 
             # If saving a replay with divergence-checking support, save all the new values;
             # if running a replay with such support, check for divergence.
@@ -631,12 +687,16 @@ class Simulation(abc.ABC):
                     expected = self._replayIn.readValue(ty)
                     actual = values[prop]
                     if self.valuesHaveDiverged(obj, prop, expected, actual):
-                        msg = (f'expected "{prop}" of {obj} to have value '
-                               f'{expected}, but got {actual}')
+                        msg = (
+                            f'expected "{prop}" of {obj} to have value '
+                            f"{expected}, but got {actual}"
+                        )
                         if self.continueAfterDivergence:
                             if self.verbosity >= 2:
-                                print(f'    Continuing past divergence at time step '
-                                      f'{self.currentTime} ({msg})')
+                                print(
+                                    f"    Continuing past divergence at time step "
+                                    f"{self.currentTime} ({msg})"
+                                )
                             self.replaying = False
                             break
                         else:
@@ -677,12 +737,12 @@ class Simulation(abc.ABC):
         elif isinstance(expected, Vector):
             diff = (actual - expected).norm()
         if diff:
-            return (diff > self.divergenceTolerance)
+            return diff > self.divergenceTolerance
         else:
-            return (actual != expected)
+            return actual != expected
 
     def mutableProperties(self, obj):
-        return {'lastActions', 'behavior'}
+        return {"lastActions", "behavior"}
 
     @abc.abstractmethod
     def getProperties(self, obj, properties):
@@ -729,12 +789,13 @@ class Simulation(abc.ABC):
         Requires that the simulation was run with ``enableReplay=True`` (the default).
         """
         if not self._replayOut:
-            raise RuntimeError('cannot save replay without replay support enabled')
+            raise RuntimeError("cannot save replay without replay support enabled")
         return self._replayOut.getBytes()
 
 
 class ReplayMode(enum.IntFlag):
     checkDivergence = enum.auto()
+
 
 class DummySimulator(Simulator):
     """Simulator which does (almost) nothing, for testing and debugging purposes.
@@ -742,6 +803,7 @@ class DummySimulator(Simulator):
     To allow testing the change of dynamic properties over time, all objects drift
     upward by **drift** every time step.
     """
+
     def __init__(self, drift=0):
         super().__init__()
         self.drift = drift
@@ -749,8 +811,10 @@ class DummySimulator(Simulator):
     def createSimulation(self, scene, **kwargs):
         return DummySimulation(scene, drift=self.drift, **kwargs)
 
+
 class DummySimulation(Simulation):
     """Minimal `Simulation` subclass for `DummySimulator`."""
+
     def __init__(self, scene, drift=0, **kwargs):
         self.drift = drift
         super().__init__(scene, **kwargs)
@@ -769,17 +833,25 @@ class DummySimulation(Simulation):
             obj.position += Vector(0, self.drift)
 
     def getProperties(self, obj, properties):
-        vals = dict(position=obj.position,
-                    yaw=obj.yaw, pitch=obj.pitch, roll=obj.roll,
-                    velocity=Vector(0, 0, 0), angularVelocity=Vector(0,0,0),
-                    speed=0.0, angularSpeed=0.0)
+        vals = dict(
+            position=obj.position,
+            yaw=obj.yaw,
+            pitch=obj.pitch,
+            roll=obj.roll,
+            velocity=Vector(0, 0, 0),
+            angularVelocity=Vector(0, 0, 0),
+            speed=0.0,
+            angularSpeed=0.0,
+        )
         for prop in properties:
             if prop not in vals:
                 vals[prop] = None
         return vals
 
+
 class Action(abc.ABC):
     """An :term:`action` which can be taken by an agent for one step of a simulation."""
+
     def canBeTakenBy(self, agent):
         """Whether this action is allowed to be taken by the given agent.
 
@@ -805,11 +877,13 @@ class Action(abc.ABC):
         """
         raise NotImplementedError
 
+
 class EndSimulationAction(Action):
     """Special action indicating it is time to end the simulation.
 
     Only for internal use.
     """
+
     def __init__(self, line):
         self.line = line
 
@@ -819,11 +893,13 @@ class EndSimulationAction(Action):
     def applyTo(self, agent, simulation):
         assert False
 
+
 class EndScenarioAction(Action):
     """Special action indicating it is time to end the current scenario.
 
     Only for internal use.
     """
+
     def __init__(self, scenario, line):
         self.scenario = scenario
         self.line = line
@@ -834,27 +910,29 @@ class EndScenarioAction(Action):
     def applyTo(self, agent, simulation):
         assert False
 
+
 @enum.unique
 class TerminationType(enum.Enum):
     """Enum describing the possible ways a simulation can end."""
 
     #: Simulation reached the specified time limit.
-    timeLimit = 'reached simulation time limit'
+    timeLimit = "reached simulation time limit"
 
     #: The top-level scenario finished executing.
     #:
     #: (Either its :keyword:`compose` block completed, one of its termination
     #: conditions was met, or it was terminated with :keyword:`terminate`.)
-    scenarioComplete = 'the top-level scenario finished'
+    scenarioComplete = "the top-level scenario finished"
 
     #: A user-specified simulation termination condition was met.
-    simulationTerminationCondition = 'a simulation termination condition was met'
+    simulationTerminationCondition = "a simulation termination condition was met"
 
     #: A :term:`monitor` used :keyword:`terminate simulation` to end the simulation.
-    terminatedByMonitor = 'a monitor terminated the simulation'
+    terminatedByMonitor = "a monitor terminated the simulation"
 
     #: A :term:`dynamic behavior` used :keyword:`terminate simulation` to end the simulation.
-    terminatedByBehavior = 'a behavior terminated the simulation'
+    terminatedByBehavior = "a behavior terminated the simulation"
+
 
 class SimulationResult:
     """Result of running a simulation.
@@ -871,6 +949,7 @@ class SimulationResult:
         records (dict): For each :keyword:`record` statement, the value or time series of
             values its expression took during the simulation.
     """
+
     def __init__(self, trajectory, actions, terminationType, terminationReason, records):
         self.trajectory = tuple(trajectory)
         assert self.trajectory

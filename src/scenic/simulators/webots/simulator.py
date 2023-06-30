@@ -15,18 +15,20 @@ documentation for details.
 """
 
 from collections import defaultdict
-import math
-import tempfile
-from os import path
-from textwrap import dedent
 import ctypes
+import math
+from os import path
+import tempfile
+from textwrap import dedent
 
 import trimesh
+
 from scenic.core.regions import MeshVolumeRegion
-from scenic.core.simulators import Simulator, Simulation
-from scenic.core.vectors import Vector
-from scenic.simulators.webots.utils import WebotsCoordinateSystem, ENU
+from scenic.core.simulators import Simulation, Simulator
 from scenic.core.type_support import toOrientation
+from scenic.core.vectors import Vector
+from scenic.simulators.webots.utils import ENU, WebotsCoordinateSystem
+
 
 class WebotsSimulator(Simulator):
     """`Simulator` object for Webots.
@@ -34,27 +36,27 @@ class WebotsSimulator(Simulator):
     Args:
         supervisor: Supervisor node handle from the Webots Python API.
     """
+
     def __init__(self, supervisor):
         super().__init__()
         self.supervisor = supervisor
-        topLevelNodes = supervisor.getRoot().getField('children')
+        topLevelNodes = supervisor.getRoot().getField("children")
         worldInfo = None
         for i in range(topLevelNodes.getCount()):
             child = topLevelNodes.getMFNode(i)
-            if child.getTypeName() == 'WorldInfo':
+            if child.getTypeName() == "WorldInfo":
                 worldInfo = child
                 break
         if not worldInfo:
-            raise RuntimeError('Webots world does not contain a WorldInfo node')
-        system = worldInfo.getField('coordinateSystem').getSFString()
+            raise RuntimeError("Webots world does not contain a WorldInfo node")
+        system = worldInfo.getField("coordinateSystem").getSFString()
         self.coordinateSystem = WebotsCoordinateSystem(system)
 
     def createSimulation(self, scene, **kwargs):
         return WebotsSimulation(
-            scene, self.supervisor,
-            coordinateSystem=self.coordinateSystem,
-            **kwargs
+            scene, self.supervisor, coordinateSystem=self.coordinateSystem, **kwargs
         )
+
 
 class WebotsSimulation(Simulation):
     """`Simulation` object for Webots.
@@ -64,6 +66,7 @@ class WebotsSimulation(Simulation):
             exposed for the use of scenarios which need to call Webots APIs
             directly; e.g. :scenic:`simulation().supervisor.setLabel({...})`.
     """
+
     def __init__(self, scene, supervisor, coordinateSystem=ENU, *, timestep, **kwargs):
         self.supervisor = supervisor
         self.coordinateSystem = coordinateSystem
@@ -85,8 +88,8 @@ class WebotsSimulation(Simulation):
         self.supervisor.simulationResetPhysics()
 
     def createObjectInSimulator(self, obj):
-        if not hasattr(obj, 'webotsName'):
-            return    # not a Webots object
+        if not hasattr(obj, "webotsName"):
+            return  # not a Webots object
 
         # Find the name of the Webots node for this object.
         name = None
@@ -101,8 +104,11 @@ class WebotsSimulation(Simulation):
             trimesh.exchange.export.export_mesh(objectScaledMesh, objFilePath)
 
             name = self._getAdhocObjectName(self.nextAdHocObjectId)
-            protoName = "ScenicObjectWithPhysics" if isPhysicsEnabled(obj) else "ScenicObject"
-            protoDef = dedent(f"""
+            protoName = (
+                "ScenicObjectWithPhysics" if isPhysicsEnabled(obj) else "ScenicObject"
+            )
+            protoDef = dedent(
+                f"""
                 DEF {name} {protoName} {{
                     url "{objFilePath}"
                 }}
@@ -119,18 +125,18 @@ class WebotsSimulation(Simulation):
             else:
                 ty = obj.webotsType
                 if not ty:
-                    raise RuntimeError(f'object {obj} has no webotsName or webotsType')
+                    raise RuntimeError(f"object {obj} has no webotsName or webotsType")
                 nextID = self.usedObjectNames[ty]
                 self.usedObjectNames[ty] += 1
                 if nextID == 0 and self.supervisor.getFromDef(ty):
                     name = ty
                 else:
-                    name = f'{ty}_{nextID}'
+                    name = f"{ty}_{nextID}"
 
         # Get handle to Webots node.
         webotsObj = self.supervisor.getFromDef(name)
         if webotsObj is None:
-            raise SimulationCreationError(f'Webots object {name} does not exist in world')
+            raise SimulationCreationError(f"Webots object {name} does not exist in world")
         obj.webotsObject = webotsObj
         obj.webotsName = name
 
@@ -140,7 +146,7 @@ class WebotsSimulation(Simulation):
         if self.mode2D:  # 2D compatibility mode
             # Set initial elevation if unspecified
             if obj.elevation is None:
-                pos = webotsObj.getField('translation').getSFVec3f()
+                pos = webotsObj.getField("translation").getSFVec3f()
                 spos = self.coordinateSystem.positionToScenic(pos)
                 obj.elevation = spos[2]
 
@@ -148,17 +154,19 @@ class WebotsSimulation(Simulation):
             pos = self.coordinateSystem.positionFromScenic(
                 Vector(obj.position.x, obj.position.y, obj.elevation) + obj.positionOffset
             )
-            webotsObj.getField('translation').setSFVec3f(pos)
+            webotsObj.getField("translation").setSFVec3f(pos)
         else:
             pos = self.coordinateSystem.positionFromScenic(
                 obj.position + obj.positionOffset
             )
-            webotsObj.getField('translation').setSFVec3f(pos)
+            webotsObj.getField("translation").setSFVec3f(pos)
 
         # orientation
         offsetOrientation = toOrientation(obj.rotationOffset)
         webotsObj.getField("rotation").setSFRotation(
-            self.coordinateSystem.orientationFromScenic(obj.orientation, offsetOrientation)
+            self.coordinateSystem.orientationFromScenic(
+                obj.orientation, offsetOrientation
+            )
         )
 
         # density
@@ -171,25 +179,25 @@ class WebotsSimulation(Simulation):
                 densityField.setSFFloat(float(obj.density))
 
         # battery
-        battery = getattr(obj, 'battery', None)
+        battery = getattr(obj, "battery", None)
         if battery:
             if not isinstance(battery, (tuple, list)) or len(battery) != 3:
                 raise TypeError(f'"battery" of {name} does not have 3 components')
-            field = webotsObj.getField('battery')
+            field = webotsObj.getField("battery")
             field.setMFFloat(0, battery[0])
             field.setMFFloat(1, battery[1])
             field.setMFFloat(2, battery[2])
 
         # customData
-        customData = getattr(obj, 'customData', None)
+        customData = getattr(obj, "customData", None)
         if customData:
             if not isinstance(customData, str):
                 raise TypeError(f'"customData" of {name} is not a string')
-            webotsObj.getField('customData').setSFString(customData)
+            webotsObj.getField("customData").setSFString(customData)
 
         # controller
         if obj.controller:
-            controllerField = webotsObj.getField('controller')
+            controllerField = webotsObj.getField("controller")
             curCont = controllerField.getSFString()
             if obj.controller != curCont:
                 # the following operation also causes the controller to be restarted
@@ -202,11 +210,11 @@ class WebotsSimulation(Simulation):
         self.supervisor.step(ms)
 
     def getProperties(self, obj, properties):
-        webotsObj = getattr(obj, 'webotsObject', None)
-        if not webotsObj:   # static object with no Webots counterpart
-            return { prop: getattr(obj, prop) for prop in properties }
+        webotsObj = getattr(obj, "webotsObject", None)
+        if not webotsObj:  # static object with no Webots counterpart
+            return {prop: getattr(obj, prop) for prop in properties}
 
-        pos = webotsObj.getField('translation').getSFVec3f()
+        pos = webotsObj.getField("translation").getSFVec3f()
         x, y, z = self.coordinateSystem.positionToScenic(pos)
         lx, ly, lz, ax, ay, az = webotsObj.getVelocity()
         vx, vy, vz = self.coordinateSystem.positionToScenic((lx, ly, lz))
@@ -216,8 +224,7 @@ class WebotsSimulation(Simulation):
 
         offsetOrientation = toOrientation(obj.rotationOffset)
         globalOrientation = self.coordinateSystem.orientationToScenic(
-            webotsObj.getField('rotation').getSFRotation(),
-            offsetOrientation
+            webotsObj.getField("rotation").getSFRotation(), offsetOrientation
         )
         yaw, pitch, roll = obj.parentOrientation.localAnglesFor(globalOrientation)
 
@@ -230,13 +237,13 @@ class WebotsSimulation(Simulation):
             yaw=yaw,
             pitch=pitch,
             roll=roll,
-            elevation=z
+            elevation=z,
         )
 
-        if hasattr(obj, 'battery'):
-            field = webotsObj.getField('battery')
+        if hasattr(obj, "battery"):
+            field = webotsObj.getField("battery")
             val = (field.getMFFloat(0), obj.battery[1], obj.battery[2])
-            values['battery'] = val
+            values["battery"] = val
 
         return values
 
@@ -249,6 +256,7 @@ class WebotsSimulation(Simulation):
 
     def _getAdhocObjectName(self, i: int) -> str:
         return f"SCENIC_ADHOC_{i}"
+
 
 def getFieldSafe(webotsObject, fieldName):
     """Get field from webots object. Return null if no such field exists.
@@ -267,18 +275,18 @@ def getFieldSafe(webotsObject, fieldName):
     # this seems to always return some object, but return None if field is None
     if field is None:
         return None
-    
+
     # if field is valid, it has a valid pointer
     if isinstance(field._ref, ctypes.c_void_p) and field._ref.value is not None:
         # then the field is valid and we return the reference
         return field
-    
+
     # if the pointer points to None, then the field does not exist on this object
     return None
 
 
 def isPhysicsEnabled(webotsObject):
-    """ Whether or not physics is enabled for this `WebotsObject`"""
+    """Whether or not physics is enabled for this `WebotsObject`"""
     if webotsObject.webotsAdhoc is None:
         return webotsObject
     if isinstance(webotsObject.webotsAdhoc, dict):

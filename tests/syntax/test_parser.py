@@ -1,8 +1,8 @@
 # pytest: python >= 3.10
 
 from ast import *
-from typing import Any
 from inspect import cleandoc
+from typing import Any
 
 import pytest
 
@@ -64,12 +64,8 @@ class TestTry:
             case TryInterrupt(
                 body=[Expr(Call(Name("foo")))],
                 interrupt_when_handlers=[
-                    InterruptWhenHandler(
-                        cond=Name("x"), body=[Expr(Call(Name("bar")))]
-                    ),
-                    InterruptWhenHandler(
-                        cond=Name("y"), body=[Expr(Call(Name("baz")))]
-                    ),
+                    InterruptWhenHandler(cond=Name("x"), body=[Expr(Call(Name("bar")))]),
+                    InterruptWhenHandler(cond=Name("y"), body=[Expr(Call(Name("baz")))]),
                 ],
                 except_handlers=[],
                 orelse=[],
@@ -1230,6 +1226,7 @@ class TestTerminateAfter:
             parse_string_helper("terminate after 20")
         assert "duration must specify a unit" in e.value.msg
 
+
 class TestSimulator:
     def test_simulator(self):
         mod = parse_string_helper("simulator foo")
@@ -1880,10 +1877,9 @@ class TestOperator:
         mod = parse_string_helper("require x and y and not always z")
         stmt = mod.body[0]
         match stmt:
-            case Require(BoolOp(
-                And(),
-                [Name("x"), Name("y"), UnaryOp(Not(), Always(Name("z")))]
-            )):
+            case Require(
+                BoolOp(And(), [Name("x"), Name("y"), UnaryOp(Not(), Always(Name("z")))])
+            ):
                 assert True
             case _:
                 assert False
@@ -1969,9 +1965,7 @@ class TestOperator:
             ),
             (
                 "relative position of A << B",
-                BinOp(
-                    RelativePositionOp(Name("A", Load())), LShift(), Name("B", Load())
-                ),
+                BinOp(RelativePositionOp(Name("A", Load())), LShift(), Name("B", Load())),
             ),
             (
                 "relative position of A + B",
@@ -2054,9 +2048,7 @@ class TestOperator:
             ),
             (
                 "relative heading of A << B",
-                BinOp(
-                    RelativeHeadingOp(Name("A", Load())), LShift(), Name("B", Load())
-                ),
+                BinOp(RelativeHeadingOp(Name("A", Load())), LShift(), Name("B", Load())),
             ),
             (
                 "relative heading of A + B",
@@ -2139,9 +2131,7 @@ class TestOperator:
             ),
             (
                 "apparent heading of A << B",
-                BinOp(
-                    ApparentHeadingOp(Name("A", Load())), LShift(), Name("B", Load())
-                ),
+                BinOp(ApparentHeadingOp(Name("A", Load())), LShift(), Name("B", Load())),
             ),
             (
                 "apparent heading of A + B",

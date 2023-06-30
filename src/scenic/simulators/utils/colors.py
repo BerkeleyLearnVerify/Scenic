@@ -1,21 +1,22 @@
-
 """A basic color type.
 
 This used for example to represent car colors in the abstract driving domain,
 as well as in the interfaces to GTA and Webots.
 """
 
-import colorsys
 from collections import namedtuple
+import colorsys
 import random
 import struct
 
-from scenic.core.distributions import Distribution, Range, Normal, Options, toDistribution
+from scenic.core.distributions import Distribution, Normal, Options, Range, toDistribution
 from scenic.core.lazy_eval import valueInContext
 from scenic.core.object_types import Mutator
 
-class Color(namedtuple('Color', ['r', 'g', 'b'])):
+
+class Color(namedtuple("Color", ["r", "g", "b"])):
     """A color as an RGB tuple."""
+
     @classmethod
     def withBytes(cls, color):
         return cls._make(c / 255.0 for c in color)
@@ -26,11 +27,11 @@ class Color(namedtuple('Color', ['r', 'g', 'b'])):
 
     @staticmethod
     def encodeTo(color, stream):
-        stream.write(struct.pack('<ddd', *color))
+        stream.write(struct.pack("<ddd", *color))
 
     @staticmethod
     def decodeFrom(stream):
-        return Color(*struct.unpack('<ddd', stream.read(24)))
+        return Color(*struct.unpack("<ddd", stream.read(24)))
 
     @staticmethod
     def uniformColor():
@@ -49,22 +50,23 @@ class Color(namedtuple('Color', ['r', 'g', 'b'])):
         """
         baseColors = {
             (248, 248, 248): 0.24,  # white
-            (50, 50, 50): 0.19,     # black
+            (50, 50, 50): 0.19,  # black
             (188, 185, 183): 0.16,  # silver
             (130, 130, 130): 0.15,  # gray
-            (194, 92, 85): 0.10,    # red
-            (75, 119, 157): 0.07,   # blue
+            (194, 92, 85): 0.10,  # red
+            (75, 119, 157): 0.07,  # blue
             (197, 166, 134): 0.05,  # brown/beige
             (219, 191, 105): 0.02,  # yellow/gold
-            (68, 160, 135): 0.02,   # green
+            (68, 160, 135): 0.02,  # green
         }
-        converted = { Color.withBytes(color): prob for color, prob in baseColors.items() }
+        converted = {Color.withBytes(color): prob for color, prob in baseColors.items()}
         baseColor = Options(converted)
         # TODO improve this?
         hueNoise = Normal(0, 0.1)
         satNoise = Normal(0, 0.1)
         lightNoise = Normal(0, 0.1)
         return NoisyColorDistribution(baseColor, hueNoise, satNoise, lightNoise)
+
 
 class NoisyColorDistribution(Distribution):
     """A distribution given by HSL noise around a base color.
@@ -93,8 +95,11 @@ class NoisyColorDistribution(Distribution):
 
     def sampleGiven(self, value):
         bc = value[self.baseColor]
-        return Color(*self.addNoiseTo(bc, value[self.hueNoise],
-            value[self.lightNoise], value[self.satNoise]))
+        return Color(
+            *self.addNoiseTo(
+                bc, value[self.hueNoise], value[self.lightNoise], value[self.satNoise]
+            )
+        )
 
     def evaluateInner(self, context):
         self.baseColor = valueInContext(self.baseColor, context)
@@ -102,12 +107,16 @@ class NoisyColorDistribution(Distribution):
         self.satNoise = valueInContext(self.satNoise, context)
         self.lightNoise = valueInContext(self.lightNoise, context)
 
+
 class ColorMutator(Mutator):
     """Mutator that adds Gaussian HSL noise to the ``color`` property."""
+
     def appliedTo(self, obj):
         stddev = 0.05 * obj.mutationScale
         hueNoise = random.gauss(0, stddev)
         satNoise = random.gauss(0, stddev)
         lightNoise = random.gauss(0, stddev)
-        color = NoisyColorDistribution.addNoiseTo(obj.color, hueNoise, lightNoise, satNoise)
-        return (obj._copyWith(color=color), True)       # allow further mutation
+        color = NoisyColorDistribution.addNoiseTo(
+            obj.color, hueNoise, lightNoise, satNoise
+        )
+        return (obj._copyWith(color=color), True)  # allow further mutation

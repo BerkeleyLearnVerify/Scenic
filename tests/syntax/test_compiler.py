@@ -6,7 +6,7 @@ import pytest
 
 from scenic.core.errors import ScenicSyntaxError
 from scenic.syntax.ast import *
-from scenic.syntax.compiler import compileScenicAST, PropositionTransformer
+from scenic.syntax.compiler import PropositionTransformer, compileScenicAST
 from tests.utils import compileScenic, sampleEgoFrom, sampleSceneFrom
 
 
@@ -191,13 +191,7 @@ class TestCompiler:
                     ExceptHandler(
                         Constant(True),
                         None,
-                        [
-                            Expr(
-                                Call(
-                                    Name("handle_except", Load()), args=[], keywords=[]
-                                )
-                            )
-                        ],
+                        [Expr(Call(Name("handle_except", Load()), args=[], keywords=[]))],
                     )
                 ],
                 orelse=[],
@@ -406,7 +400,7 @@ class TestCompiler:
                     Assign(
                         targets=[Name("_scenic_properties", Store())],
                         value=Dict([], []),
-                    )
+                    ),
                 ],
             ):
                 assert True
@@ -567,9 +561,7 @@ class TestCompiler:
         node, _ = compileScenicAST(Model("model"))
         match node:
             case Expr(
-                Call(
-                    Name("model"), [Name("_Scenic_module_namespace"), Constant("model")]
-                )
+                Call(Name("model"), [Name("_Scenic_module_namespace"), Constant("model")])
             ):
                 assert True
             case _:
@@ -616,9 +608,7 @@ class TestCompiler:
     def test_mutate_scale(self):
         node, _ = compileScenicAST(Mutate([Name("x")], Constant(2)))
         match node:
-            case Expr(
-                Call(Name("mutate"), [Name("x")], [keyword("scale", Constant(2))])
-            ):
+            case Expr(Call(Name("mutate"), [Name("x")], [keyword("scale", Constant(2))])):
                 assert True
             case _:
                 assert False
@@ -683,7 +673,12 @@ class TestCompiler:
                     [
                         Constant(0),  # reqId
                         Call(
-                            Name("AtomicProposition"), [Lambda(arguments(), )]
+                            Name("AtomicProposition"),
+                            [
+                                Lambda(
+                                    arguments(),
+                                )
+                            ],
                         ),
                         Constant(2),  # lineno
                         Constant(name),  # name
@@ -768,7 +763,9 @@ class TestCompiler:
                                             op=Not(),
                                             operand=Compare(
                                                 left=Attribute(
-                                                    value=Name("_Scenic_current_behavior"),
+                                                    value=Name(
+                                                        "_Scenic_current_behavior"
+                                                    ),
                                                     attr="localvar",
                                                 ),
                                                 ops=[Gt()],
@@ -791,7 +788,7 @@ class TestCompiler:
                                 handlers=[
                                     ExceptHandler(
                                         type=Name("RejectionException"),
-                                        name='e',
+                                        name="e",
                                         body=[
                                             Raise(
                                                 exc=Call(
@@ -799,12 +796,13 @@ class TestCompiler:
                                                     args=[
                                                         Name("_Scenic_current_behavior"),
                                                         Constant(3),
-                                                    ]),
+                                                    ],
+                                                ),
                                                 cause=Name("e"),
                                             )
-                                        ]
+                                        ],
                                     )
-                                ]
+                                ],
                             ),
                         ],
                     ),
@@ -825,7 +823,9 @@ class TestCompiler:
                                             op=Not(),
                                             operand=Compare(
                                                 left=Attribute(
-                                                    value=Name("_Scenic_current_behavior"),
+                                                    value=Name(
+                                                        "_Scenic_current_behavior"
+                                                    ),
                                                     attr="localvar",
                                                 ),
                                                 ops=[Gt()],
@@ -848,7 +848,7 @@ class TestCompiler:
                                 handlers=[
                                     ExceptHandler(
                                         type=Name("RejectionException"),
-                                        name='e',
+                                        name="e",
                                         body=[
                                             Raise(
                                                 exc=Call(
@@ -856,12 +856,13 @@ class TestCompiler:
                                                     args=[
                                                         Name("_Scenic_current_behavior"),
                                                         Constant(2),
-                                                    ]),
+                                                    ],
+                                                ),
                                                 cause=Name("e"),
                                             )
-                                        ]
+                                        ],
                                     )
-                                ]
+                                ],
                             ),
                         ],
                     ),
@@ -1445,9 +1446,7 @@ class TestCompiler:
                     Name("record"),
                     [
                         Constant(0),  # reqId
-                        Call(
-                            Name("AtomicProposition"), [Lambda(arguments(), Name("C"))]
-                        ),
+                        Call(Name("AtomicProposition"), [Lambda(arguments(), Name("C"))]),
                         Constant(2),  # lineno
                         Constant(None),  # name
                     ],
@@ -1472,9 +1471,7 @@ class TestCompiler:
                     Name("record_initial"),
                     [
                         Constant(0),  # reqId
-                        Call(
-                            Name("AtomicProposition"), [Lambda(arguments(), Name("C"))]
-                        ),
+                        Call(Name("AtomicProposition"), [Lambda(arguments(), Name("C"))]),
                         Constant(2),  # lineno
                         Constant(None),  # name
                     ],
@@ -1490,9 +1487,7 @@ class TestCompiler:
                 assert False
 
     def test_record_final(self):
-        node, requirements = compileScenicAST(
-            RecordFinal(Name("C", lineno=2), lineno=2)
-        )
+        node, requirements = compileScenicAST(RecordFinal(Name("C", lineno=2), lineno=2))
         match node:
             case Expr(
                 Call(
@@ -1500,9 +1495,7 @@ class TestCompiler:
                     [
                         Constant(0),  # reqId
                         # transformed requirement
-                        Call(
-                            Name("AtomicProposition"), [Lambda(arguments(), Name("C"))]
-                        ),
+                        Call(Name("AtomicProposition"), [Lambda(arguments(), Name("C"))]),
                         Constant(2),  # lineno
                         Constant(None),  # name
                     ],
@@ -1529,9 +1522,7 @@ class TestCompiler:
                     [
                         Constant(0),  # reqId
                         # transformed requirement
-                        Call(
-                            Name("AtomicProposition"), [Lambda(arguments(), Name("C"))]
-                        ),
+                        Call(Name("AtomicProposition"), [Lambda(arguments(), Name("C"))]),
                         Constant(2),  # lineno
                         Constant(None),  # name
                     ],
@@ -1558,9 +1549,7 @@ class TestCompiler:
                     Name("terminate_simulation_when"),
                     [
                         Constant(0),  # reqId
-                        Call(
-                            Name("AtomicProposition"), [Lambda(arguments(), Name("C"))]
-                        ),
+                        Call(Name("AtomicProposition"), [Lambda(arguments(), Name("C"))]),
                         Constant(2),  # lineno
                         Constant(None),  # name
                     ],
@@ -1600,9 +1589,7 @@ class TestCompiler:
         node, _ = compileScenicAST(Simulator(Name("foo")))
         match node:
             case Expr(
-                Call(
-                    Name("simulator"), [Lambda(args=arguments(), body=Name("foo"))], []
-                )
+                Call(Name("simulator"), [Lambda(args=arguments(), body=Name("foo"))], [])
             ):
                 assert True
             case _:

@@ -2,49 +2,69 @@
 
 from __future__ import annotations
 
-import math
-from math import sin, cos
-import typing
-import random
 import collections
 import functools
 import itertools
+import math
+from math import cos, sin
 import numbers
+import random
 import struct
+import typing
 import warnings
 
-import shapely.geometry
-from scipy.spatial.transform import Rotation
 import numpy
+from scipy.spatial.transform import Rotation
+import shapely.geometry
 
-from scenic.core.distributions import (Samplable, Distribution, MethodDistribution,
-    needsSampling, makeOperatorHandler, distributionMethod, distributionFunction,
-    RejectionException, TupleDistribution)
-from scenic.core.lazy_eval import (
-    valueInContext, needsLazyEvaluation, isLazy, makeDelayedFunctionCall,
+from scenic.core.distributions import (
+    Distribution,
+    MethodDistribution,
+    RejectionException,
+    Samplable,
+    TupleDistribution,
+    distributionFunction,
+    distributionMethod,
+    makeOperatorHandler,
+    needsSampling,
 )
-from scenic.core.type_support import CoercionFailure, canCoerceType, coerceToFloat, toOrientation
+from scenic.core.geometry import hypot, makeShapelyPoint, normalizeAngle
+from scenic.core.lazy_eval import (
+    isLazy,
+    makeDelayedFunctionCall,
+    needsLazyEvaluation,
+    valueInContext,
+)
+from scenic.core.type_support import (
+    CoercionFailure,
+    canCoerceType,
+    coerceToFloat,
+    toOrientation,
+)
 from scenic.core.utils import argsToString, cached_property
-from scenic.core.geometry import normalizeAngle, hypot, makeShapelyPoint
 
 # Suppress gimbal lock warning from scipy.spatial.transform.Rotation.
 # N.B. due to the way the pytest works, the warning will still appear when
 # running the test suite.
 warnings.filterwarnings(
-    'ignore',
-    message='Gimbal lock detected. Setting third angle to zero',
-    module='scenic.core.vectors',
+    "ignore",
+    message="Gimbal lock detected. Setting third angle to zero",
+    module="scenic.core.vectors",
 )
+
 
 class VectorDistribution(Distribution):
     """A distribution over Vectors."""
-    _defaultValueType = None        # will be set after Vector is defined
+
+    _defaultValueType = None  # will be set after Vector is defined
 
     def toVector(self):
         return self
 
+
 class VectorOperatorDistribution(VectorDistribution):
     """Vector version of OperatorDistribution."""
+
     def __init__(self, operator, obj, operands):
         super().__init__(obj, *operands)
         self.operator = operator
@@ -63,10 +83,12 @@ class VectorOperatorDistribution(VectorDistribution):
         return VectorOperatorDistribution(self.operator, obj, operands)
 
     def __repr__(self):
-        return f'{self.object!r}.{self.operator}({argsToString(self.operands)})'
+        return f"{self.object!r}.{self.operator}({argsToString(self.operands)})"
+
 
 class VectorMethodDistribution(VectorDistribution):
     """Vector version of MethodDistribution."""
+
     def __init__(self, method, obj, args, kwargs):
         super().__init__(*args, *kwargs.values())
         self.method = method
@@ -76,18 +98,19 @@ class VectorMethodDistribution(VectorDistribution):
 
     def sampleGiven(self, value):
         args = (value[arg] for arg in self.arguments)
-        kwargs = { name: value[arg] for name, arg in self.kwargs.items() }
+        kwargs = {name: value[arg] for name, arg in self.kwargs.items()}
         return self.method(self.object, *args, **kwargs)
 
     def evaluateInner(self, context):
         obj = valueInContext(self.object, context)
         arguments = tuple(valueInContext(arg, context) for arg in self.arguments)
-        kwargs = { name: valueInContext(arg, context) for name, arg in self.kwargs.items() }
+        kwargs = {name: valueInContext(arg, context) for name, arg in self.kwargs.items()}
         return VectorMethodDistribution(self.method, obj, arguments, kwargs)
 
     def __repr__(self):
         args = argsToString(self.arguments, self.kwargs)
-        return f'{self.object!r}.{self.method.__name__}({args})'
+        return f"{self.object!r}.{self.method.__name__}({args})"
+
 
 def scalarOperator(method):
     """Decorator for vector operators that yield scalars."""
@@ -100,20 +123,27 @@ def scalarOperator(method):
             return MethodDistribution(method, self, args, kwargs)
         else:
             return method(self, *args, **kwargs)
+
     return helper
+
 
 def makeVectorOperatorHandler(op, zeroIdentity):
     def handler(self, *args):
         # If the zero vector is the identity for this operator, and we can tell
         # that the operand is zero, simplify the expression forest.
-        if (zeroIdentity
+        if (
+            zeroIdentity
             and not isLazy(args[0])
-            and all(coord == 0 for coord in args[0].coordinates)):
+            and all(coord == 0 for coord in args[0].coordinates)
+        ):
             return self
 
         # The general case.
         return VectorOperatorDistribution(op, self, args)
+
     return handler
+
+
 def vectorOperator(method, preservesZero=False, zeroIdentity=False):
     """Decorator for vector operators that yield vectors."""
     op = method.__name__
@@ -123,11 +153,13 @@ def vectorOperator(method, preservesZero=False, zeroIdentity=False):
     def helper(self, *args):
         # If this operator preserves the zero vector, and we can tell that self
         # is zero, simplify the expression forest.
-        if (preservesZero
+        if (
+            preservesZero
             and not needsSampling(self)
-            and all(coord == 0 for coord in self.coordinates)):
+            and all(coord == 0 for coord in self.coordinates)
+        ):
             return self
-        
+
         # General cases when the arguments are lazy.
         if any(needsSampling(arg) for arg in args):
             if needsSampling(self):
@@ -138,9 +170,11 @@ def vectorOperator(method, preservesZero=False, zeroIdentity=False):
             return makeDelayedFunctionCall(helper, args, {})
 
         # If zero is the identity, simplify when possible (see above).
-        if (zeroIdentity
-              and isinstance(args[0], (Vector, tuple, list, numpy.ndarray))
-              and all(coord == 0 for coord in args[0])):
+        if (
+            zeroIdentity
+            and isinstance(args[0], (Vector, tuple, list, numpy.ndarray))
+            and all(coord == 0 for coord in args[0])
+        ):
             return self
 
         # General case when the arguments are not lazy.
@@ -148,39 +182,51 @@ def vectorOperator(method, preservesZero=False, zeroIdentity=False):
             return VectorOperatorDistribution(op, self, args)
         else:
             return method(self, *args)
+
     return helper
+
 
 def zeroPreservingVectorOperator(method):
     return vectorOperator(method, preservesZero=True)
+
+
 def zeroIdentityVectorOperator(method):
     return vectorOperator(method, zeroIdentity=True)
 
+
 def vectorDistributionMethod(method):
     """Decorator for methods that produce vectors. See distributionMethod."""
+
     @functools.wraps(method)
     def helper(self, *args, **kwargs):
         if any(needsSampling(arg) for arg in itertools.chain(args, kwargs.values())):
             return VectorMethodDistribution(method, self, args, kwargs)
-        elif any(needsLazyEvaluation(arg)
-                 for arg in itertools.chain(args, kwargs.values())):
+        elif any(
+            needsLazyEvaluation(arg) for arg in itertools.chain(args, kwargs.values())
+        ):
             # see analogous comment in distributionFunction
             return makeDelayedFunctionCall(helper, (self,) + args, kwargs)
         else:
             return method(self, *args, **kwargs)
+
     return helper
+
 
 class Orientation:
     """An orientation in 3D space."""
+
     def __init__(self, rotation):
         if not isinstance(rotation, Rotation):
-            raise TypeError("Orientation's 'rotation' parameter must be a SciPy rotation."\
-                " Perhaps you want to use a factory method?")
+            raise TypeError(
+                "Orientation's 'rotation' parameter must be a SciPy rotation."
+                " Perhaps you want to use a factory method?"
+            )
         self.r = rotation
         self.q = rotation.as_quat()
 
     @classmethod
     def fromQuaternion(cls, quaternion) -> Orientation:
-        """ Create an `Orientation` from a quaternion (of the form (x,y,z,w))"""
+        """Create an `Orientation` from a quaternion (of the form (x,y,z,w))"""
         r = Rotation.from_quat(quaternion)
         return cls(r)
 
@@ -193,7 +239,7 @@ class Orientation:
     @classmethod
     def _fromEuler(cls, yaw, pitch, roll) -> Orientation:
         # Inner version of `fromEuler` which doesn't accept distributions.
-        r = Rotation.from_euler('ZXY', [yaw, pitch, roll], degrees=False)
+        r = Rotation.from_euler("ZXY", [yaw, pitch, roll], degrees=False)
         return cls(r)
 
     @classmethod
@@ -211,11 +257,11 @@ class Orientation:
         return self.q[0]
 
     @property
-    def y(self) -> float:  
+    def y(self) -> float:
         return self.q[1]
 
     @property
-    def z(self) -> float: 
+    def z(self) -> float:
         return self.q[2]
 
     @property
@@ -239,13 +285,15 @@ class Orientation:
             return Orientation._fromHeading(thing)
         elif isinstance(thing, Orientation):
             return thing
-        elif hasattr(thing, 'toOrientation'):
+        elif hasattr(thing, "toOrientation"):
             return thing.toOrientation()
         elif isinstance(thing, Vector):
             return Orientation._fromEuler(*thing)
         elif isinstance(thing, (tuple, list)):
             if len(thing) != 3:
-                raise CoercionFailure("Cannot coerce a tuple/list of length not 3 to an orientation")
+                raise CoercionFailure(
+                    "Cannot coerce a tuple/list of length not 3 to an orientation"
+                )
             return Orientation._fromEuler(*thing)
         elif canCoerceType(type(thing), float):
             return Orientation._fromHeading(coerceToFloat(thing))
@@ -256,12 +304,12 @@ class Orientation:
     def _canCoerceType(ty):
         if issubclass(ty, (tuple, list, Vector, Orientation)):
             return True
-        return canCoerceType(ty, float) or hasattr(ty, 'toOrientation')
+        return canCoerceType(ty, float) or hasattr(ty, "toOrientation")
 
     @cached_property
     def eulerAngles(self) -> typing.Tuple[float, float, float]:
         """Global intrinsic Euler angles yaw, pitch, roll."""
-        return self.r.as_euler('ZXY', degrees=False)
+        return self.r.as_euler("ZXY", degrees=False)
 
     def getRotation(self):
         return self.r
@@ -284,7 +332,7 @@ class Orientation:
         if other == globalOrientation:
             return self
         return Orientation(self.r * other.r)
-    
+
     @distributionMethod
     def __add__(self, other) -> Orientation:
         if isinstance(other, (float, int)):
@@ -302,7 +350,7 @@ class Orientation:
         return self * other
 
     def __repr__(self):
-        return f'Orientation.fromEuler{tuple(self.eulerAngles)!r}'
+        return f"Orientation.fromEuler{tuple(self.eulerAngles)!r}"
 
     def __hash__(self):
         return hash(tuple(self.q)) + hash(tuple(-self.q))
@@ -336,9 +384,11 @@ class Orientation:
             return NotImplemented
         return abs(numpy.dot(self.q, other.q)) > 1 - tol
 
+
 globalOrientation = Orientation.fromEuler(0, 0, 0)
 
 Orientation.__mul__ = distributionMethod(Orientation.__mul__, identity=globalOrientation)
+
 
 def alwaysGlobalOrientation(orientation):
     """Whether this orientation is always aligned with the global coordinate system.
@@ -348,8 +398,10 @@ def alwaysGlobalOrientation(orientation):
     """
     return isinstance(orientation, Orientation) and orientation == globalOrientation
 
+
 class Vector(Samplable, collections.abc.Sequence):
     """A 3D vector, whose coordinates can be distributions."""
+
     def __init__(self, x, y, z=0):
         self.coordinates = (x, y, z)
         super().__init__(self.coordinates)
@@ -371,15 +423,16 @@ class Vector(Samplable, collections.abc.Sequence):
 
     @staticmethod
     def _canCoerceType(ty):
-        return issubclass(ty, (tuple, list, numpy.ndarray)) or hasattr(ty, 'toVector')
+        return issubclass(ty, (tuple, list, numpy.ndarray)) or hasattr(ty, "toVector")
 
     @staticmethod
     def _coerce(thing) -> Vector:
         if isinstance(thing, (tuple, list, numpy.ndarray)):
             l = len(thing)
             if not 2 <= l <= 3:
-                raise CoercionFailure('expected 2D/3D vector, got '
-                                      f'{type(thing).__name__} of length {l}')
+                raise CoercionFailure(
+                    "expected 2D/3D vector, got " f"{type(thing).__name__} of length {l}"
+                )
             return Vector(*thing)
         else:
             return thing.toVector()
@@ -401,8 +454,8 @@ class Vector(Samplable, collections.abc.Sequence):
     def sphericalCoordinates(self):
         """Returns this vector in spherical coordinates (rho, theta, phi)"""
         rho = math.hypot(self.x, self.y, self.z)
-        theta = math.atan2(self.y, self.x) - math.pi/2
-        phi = math.atan2(self.z, math.hypot(self.x,self.y))
+        theta = math.atan2(self.y, self.x) - math.pi / 2
+        phi = math.atan2(self.z, math.hypot(self.x, self.y))
         return Vector(rho, theta, phi)
 
     @zeroPreservingVectorOperator
@@ -479,9 +532,9 @@ class Vector(Samplable, collections.abc.Sequence):
         ax, ay, az = self.x, self.y, self.z
         bx, by, ba = other.x, other.y, other.z
 
-        cx = ay*bz - az*by
-        cy = az*bx - ax*bz
-        cz = ax*by - ay*bx
+        cx = ay * bz - az * by
+        cy = az * bx - ax * bz
+        cz = ax * by - ay * bx
 
         return Vector(cx, cy, cz)
 
@@ -490,9 +543,9 @@ class Vector(Samplable, collections.abc.Sequence):
         l = math.hypot(*self.coordinates)
 
         if l == 0:
-            return Vector(0,0,0)
+            return Vector(0, 0, 0)
 
-        return Vector(*(coord/l for coord in self.coordinates))
+        return Vector(*(coord / l for coord in self.coordinates))
 
     @zeroIdentityVectorOperator
     def __add__(self, other) -> Vector:
@@ -512,14 +565,14 @@ class Vector(Samplable, collections.abc.Sequence):
 
     @vectorOperator
     def __mul__(self, other) -> Vector:
-        return Vector(*(coord*other for coord in self.coordinates))
+        return Vector(*(coord * other for coord in self.coordinates))
 
     def __rmul__(self, other) -> Vector:
         return self.__mul__(other)
 
     @vectorOperator
     def __truediv__(self, other) -> Vector:
-        return Vector(*(coord/other for coord in self.coordinates))
+        return Vector(*(coord / other for coord in self.coordinates))
 
     def __len__(self):
         return len(self.coordinates)
@@ -528,10 +581,10 @@ class Vector(Samplable, collections.abc.Sequence):
         return self.coordinates[index]
 
     def __repr__(self):
-        return f'Vector({self.x}, {self.y}, {self.z})'
+        return f"Vector({self.x}, {self.y}, {self.z})"
 
     def __eq__(self, other):
-        """ Check Vector equality.
+        """Check Vector equality.
 
         A Vector is equal to another if their coordinates are equal,
         or if the other is a tuple/list that contains the coordinates of
@@ -554,13 +607,15 @@ class Vector(Samplable, collections.abc.Sequence):
 
     @classmethod
     def encodeTo(cls, vec, stream):
-        stream.write(struct.pack('<ddd', *vec.coordinates))
+        stream.write(struct.pack("<ddd", *vec.coordinates))
 
     @classmethod
     def decodeFrom(cls, stream):
-        return cls(*struct.unpack('<ddd', stream.read(24)))
+        return cls(*struct.unpack("<ddd", stream.read(24)))
+
 
 VectorDistribution._defaultValueType = Vector
+
 
 class OrientedVector(Vector):
     def __init__(self, x, y, z, heading):
@@ -577,16 +632,18 @@ class OrientedVector(Vector):
 
     def evaluateInner(self, context):
         hdg = valueInContext(self.heading, context)
-        return OrientedVector(*(valueInContext(coord, context) for coord in self.coordinates), hdg)
+        return OrientedVector(
+            *(valueInContext(coord, context) for coord in self.coordinates), hdg
+        )
 
     def __eq__(self, other):
         if type(other) is not OrientedVector:
             return NotImplemented
-        return (other.coordinates == self.coordinates
-            and other.heading == self.heading)
+        return other.coordinates == self.coordinates and other.heading == self.heading
 
     def __hash__(self):
         return hash((self.coordinates, self.heading))
+
 
 class VectorField:
     """A vector field, providing an orientation at every point.
@@ -600,6 +657,7 @@ class VectorField:
             single step is longer than this value, but if the distance to travel is small
             then the steps may be smaller.
     """
+
     def __init__(self, name, value, minSteps=4, defaultStepSize=5):
         self.name = name
         self.value = value
@@ -613,8 +671,10 @@ class VectorField:
         if isinstance(val, numbers.Real):  # fast path
             return Orientation._fromHeading(val)
         if isLazy(val):
-            raise ValueError(f'value function of {self.name} returned lazy value')
-        return toOrientation(val, f'value function of {self.name} returned non-orientation')
+            raise ValueError(f"value function of {self.name} returned lazy value")
+        return toOrientation(
+            val, f"value function of {self.name} returned non-orientation"
+        )
 
     @vectorDistributionMethod
     def followFrom(self, pos, dist, steps=None, stepSize=None):
@@ -653,12 +713,13 @@ class VectorField:
         If none of the regions have an orientation, returns :obj:`None` instead.
         """
         if any(reg.orientation for reg in regions):
-            return PiecewiseVectorField('Union', regions, tolerance=tolerance)
+            return PiecewiseVectorField("Union", regions, tolerance=tolerance)
         else:
             return None
 
     def __str__(self):
-        return f'<{type(self).__name__} {self.name}>'
+        return f"<{type(self).__name__} {self.name}>"
+
 
 class PolygonalVectorField(VectorField):
     """A piecewise-constant vector field defined over polygonal cells.
@@ -673,6 +734,7 @@ class PolygonalVectorField(VectorField):
         defaultHeading: heading for points not contained in any cell (default
             :obj:`None`, meaning reject such points).
     """
+
     def __init__(self, name, cells, headingFunction=None, defaultHeading=None):
         self.cells = tuple(cells)
         if headingFunction is None and defaultHeading is not None:
@@ -680,21 +742,22 @@ class PolygonalVectorField(VectorField):
         self.headingFunction = headingFunction
         for cell, heading in self.cells:
             if heading is None and headingFunction is None and defaultHeading is None:
-                raise RuntimeError(f'missing heading for cell of PolygonalVectorField')
+                raise RuntimeError(f"missing heading for cell of PolygonalVectorField")
         self.defaultHeading = defaultHeading
         self.rtree = shapely.STRtree([cell[0] for cell in self.cells])
         super().__init__(name, self.valueAt)
 
     def valueAt(self, pos):
         point = makeShapelyPoint(pos)
-        candidates = self.rtree.query(point, predicate='intersects')
+        candidates = self.rtree.query(point, predicate="intersects")
         if len(candidates) > 0:
             first = candidates.min()
             cell, heading = self.cells[first]
             return self.headingFunction(pos) if heading is None else heading
         if self.defaultHeading is not None:
             return self.defaultHeading
-        raise RejectionException(f'evaluated PolygonalVectorField at undefined point')
+        raise RejectionException(f"evaluated PolygonalVectorField at undefined point")
+
 
 class PiecewiseVectorField(VectorField):
     """A vector field defined by patching together several regions.
@@ -714,6 +777,7 @@ class PiecewiseVectorField(VectorField):
         defaultHeading (float): the heading for points not in any region with an
             orientation (default :obj:`None`, meaning reject such points).
     """
+
     def __init__(self, name, regions, tolerance=0, defaultHeading=None):
         self.regions = tuple(region for region in regions if region.orientation)
         self.tolerance = tolerance
@@ -730,7 +794,8 @@ class PiecewiseVectorField(VectorField):
                     return region.orientation[point]
         if self.defaultHeading is not None:
             return self.defaultHeading
-        raise RejectionException(f'evaluated PiecewiseVectorField at undefined point')
+        raise RejectionException(f"evaluated PiecewiseVectorField at undefined point")
+
 
 class PolyhedronVectorField(VectorField):
     pass

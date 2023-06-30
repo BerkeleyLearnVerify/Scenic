@@ -9,6 +9,7 @@ _projectRootDir = _syntaxDir.parent.parent.parent
 _grammarPath = _syntaxDir / "scenic.gram"
 _parserPath = _syntaxDir / "parser.py"
 
+
 def buildParser():
     try:
         import pegen
@@ -31,9 +32,12 @@ def buildParser():
     )
     return result
 
+
 if not _parserPath.exists():
     _result = buildParser()
     _retcode = _result.returncode
     if _retcode != 0:
-        print(f'STDERR FROM PARSER GENERATOR:\n{_result.stderr}', file=_sys.stderr)
-        raise RuntimeError(f"Failed to generate the Scenic parser (return code {_retcode})")
+        print(f"STDERR FROM PARSER GENERATOR:\n{_result.stderr}", file=_sys.stderr)
+        raise RuntimeError(
+            f"Failed to generate the Scenic parser (return code {_retcode})"
+        )

@@ -2,34 +2,45 @@
 
 import dataclasses
 import io
-import random
-import time
-import sys
 import itertools
+import random
+import sys
+import time
 
 import numpy
 import trimesh
 
 import scenic
-from scenic.core.distributions import (Samplable, ConstantSamplable, RejectionException,
-                                       needsSampling, distributionFunction)
-from scenic.core.lazy_eval import needsLazyEvaluation
-from scenic.core.external_params import ExternalSampler
-from scenic.core.regions import EmptyRegion, convertToFootprint
-from scenic.core.vectors import Vector
-from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
+from scenic.core.distributions import (
+    ConstantSamplable,
+    RejectionException,
+    Samplable,
+    distributionFunction,
+    needsSampling,
+)
 from scenic.core.dynamics import Behavior, Monitor
-from scenic.core.requirements import (BoundRequirement, IntersectionRequirement,
-    BlanketCollisionRequirement, ContainmentRequirement, VisibilityRequirement,
-    NonVisibilityRequirement)
+from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
+from scenic.core.external_params import ExternalSampler
+from scenic.core.lazy_eval import needsLazyEvaluation
+from scenic.core.regions import AllRegion, EmptyRegion, convertToFootprint
+from scenic.core.requirements import (
+    BlanketCollisionRequirement,
+    BoundRequirement,
+    ContainmentRequirement,
+    IntersectionRequirement,
+    NonVisibilityRequirement,
+    VisibilityRequirement,
+)
 from scenic.core.sample_checking import BasicChecker, WeightedAcceptanceChecker
 from scenic.core.serialization import Serializer, dumpAsScenicCode
-from scenic.core.regions import AllRegion
+from scenic.core.vectors import Vector
 
 # Global params
+
 INITIAL_COLLISION_CHECK = True
 
 # Pickling support
+
 
 class _ScenarioPickleMixin:
     def __getstate__(self):
@@ -41,17 +52,18 @@ class _ScenarioPickleMixin:
         oldModules = []
         options = dataclasses.replace(
             self.compileOptions,
-            paramOverrides=self.params, # save all params, not just those from --param
+            paramOverrides=self.params,  # save all params, not just those from --param
         )
         elements = (
             _Activator(options, oldModules),
             self.__dict__,
-            _Deactivator(oldModules)
+            _Deactivator(oldModules),
         )
         return elements
 
     def __setstate__(self, state):
         self.__dict__.update(state[1])
+
 
 class _Activator:
     def __init__(self, compileOptions, oldModules):
@@ -61,6 +73,7 @@ class _Activator:
 
     def activate(self):
         import scenic.syntax.veneer as veneer
+
         assert not veneer.isActive()
         veneer.activate(self.compileOptions)
 
@@ -74,16 +87,18 @@ class _Activator:
         self.__dict__.update(state)
         self.activate()
 
+
 class _Deactivator:
     def __init__(self, oldModules):
         self.oldModules = oldModules
 
     def deactivate(self):
-        import scenic.syntax.veneer as veneer
-        veneer.deactivate()
-        assert not veneer.isActive(), 'nested pickle of Scene/Scenario'
-        # Purge Scenic modules imported during pickling
         from scenic.syntax.translator import purgeModulesUnsafeToCache
+        import scenic.syntax.veneer as veneer
+
+        veneer.deactivate()
+        assert not veneer.isActive(), "nested pickle of Scene/Scenario"
+        # Purge Scenic modules imported during pickling
         purgeModulesUnsafeToCache(self.oldModules)
 
     def __getstate__(self):
@@ -96,7 +111,9 @@ class _Deactivator:
         self.__dict__.update(state)
         self.deactivate()
 
+
 # Scenes and scenarios
+
 
 class Scene(_ScenarioPickleMixin):
     """Scene()
@@ -117,11 +134,25 @@ class Scene(_ScenarioPickleMixin):
 
         The ``egoObject`` attribute can now be `None`.
     """
-    def __init__(self, workspace, objects, egoObject, params,
-                 temporalReqs=(),terminationConds=(), termSimulationConds=(),
-                 recordedExprs=(), recordedInitialExprs=(), recordedFinalExprs=(),
-                 monitors=(), behaviorNamespaces={}, dynamicScenario=None,
-                 sample={}, compileOptions={}):
+
+    def __init__(
+        self,
+        workspace,
+        objects,
+        egoObject,
+        params,
+        temporalReqs=(),
+        terminationConds=(),
+        termSimulationConds=(),
+        recordedExprs=(),
+        recordedInitialExprs=(),
+        recordedFinalExprs=(),
+        monitors=(),
+        behaviorNamespaces={},
+        dynamicScenario=None,
+        sample={},
+        compileOptions={},
+    ):
         self.workspace = workspace
         self.objects = tuple(objects)
         self.egoObject = egoObject
@@ -156,15 +187,15 @@ class Scene(_ScenarioPickleMixin):
         """
         for name, value in self.params.items():
             if str.isidentifier(name):
-                stream.write(f'param {name} = ')
+                stream.write(f"param {name} = ")
             else:
                 stream.write(f'param "{name}" = ')
             dumpAsScenicCode(value, stream)
-            stream.write('\n')
-        stream.write('ego = ')
+            stream.write("\n")
+        stream.write("ego = ")
         for obj in self.objects:
             dumpAsScenicCode(obj, stream)
-            stream.write('\n')
+            stream.write("\n")
 
     def show(self, axes=True):
         self.show3D(axes=axes)
@@ -185,18 +216,23 @@ class Scene(_ScenarioPickleMixin):
         # If nothing else is in the viewer, add some constructs
         # to avoid a crash
         if render_scene.is_empty:
-            render_scene.add_geometry(trimesh.points.PointCloud([(0.1,0,0),(0,0.1,0), (0,0,.1)], colors=[255,255,255,0]))
+            render_scene.add_geometry(
+                trimesh.points.PointCloud(
+                    [(0.1, 0, 0), (0, 0.1, 0), (0, 0, 0.1)], colors=[255, 255, 255, 0]
+                )
+            )
 
         flags = dict()
         if axes:
-            flags['axis'] = 'world'
+            flags["axis"] = "world"
 
         render_scene.show(flags=flags)
 
     def show2D(self, zoom=None, block=True):
         """Render a 2D schematic of the scene for debugging."""
         import matplotlib.pyplot as plt
-        plt.gca().set_aspect('equal')
+
+        plt.gca().set_aspect("equal")
         # display map
         self.workspace.show2D(plt)
         # draw objects
@@ -207,19 +243,32 @@ class Scene(_ScenarioPickleMixin):
             self.workspace.zoomAround(plt, self.objects, expansion=zoom)
         plt.show(block=block)
 
+
 class Scenario(_ScenarioPickleMixin):
     """Scenario()
 
     A compiled Scenic scenario, from which scenes can be sampled.
     """
-    def __init__(self, workspace, simulator,
-                 instances, objects, egoObject,
-                 params, externalParams,
-                 requirements, requirementDeps,
-                 monitors, behaviorNamespaces,
-                 dynamicScenario, astHash, compileOptions):
+
+    def __init__(
+        self,
+        workspace,
+        simulator,
+        instances,
+        objects,
+        egoObject,
+        params,
+        externalParams,
+        requirements,
+        requirementDeps,
+        monitors,
+        behaviorNamespaces,
+        dynamicScenario,
+        astHash,
+        compileOptions,
+    ):
         self.workspace = workspace
-        self.simulator = simulator      # simulator for dynamic scenarios
+        self.simulator = simulator  # simulator for dynamic scenarios
         # make ego the first object, while otherwise preserving order
         ordered = []
         for obj in objects:
@@ -231,7 +280,9 @@ class Scenario(_ScenarioPickleMixin):
         self.egoObject = egoObject
         self.params = dict(params)
         self.externalParams = tuple(externalParams)
-        self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)
+        self.externalSampler = ExternalSampler.forParameters(
+            self.externalParams, self.params
+        )
         self.monitors = tuple(monitors)
         self.behaviorNamespaces = behaviorNamespaces
         self.dynamicScenario = dynamicScenario
@@ -239,9 +290,11 @@ class Scenario(_ScenarioPickleMixin):
         self.compileOptions = compileOptions
 
         staticReqs, alwaysReqs, terminationConds = [], [], []
-        self.requirements = tuple(dynamicScenario._requirements)    # TODO clean up
+        self.requirements = tuple(dynamicScenario._requirements)  # TODO clean up
         self.terminationConditions = tuple(dynamicScenario._terminationConditions)
-        self.terminateSimulationConditions = tuple(dynamicScenario._terminateSimulationConditions)
+        self.terminateSimulationConditions = tuple(
+            dynamicScenario._terminateSimulationConditions
+        )
         self.userRequirements = self.requirements
         assert all(req.constrainsSampling for req in self.userRequirements)
         self.recordedExprs = tuple(dynamicScenario._recordedExprs)
@@ -254,7 +307,9 @@ class Scenario(_ScenarioPickleMixin):
             for value in namespace.values():
                 if isinstance(value, Samplable):
                     behaviorDeps.append(value)
-        self.dependencies = self._instances + paramDeps + tuple(requirementDeps) + tuple(behaviorDeps)
+        self.dependencies = (
+            self._instances + paramDeps + tuple(requirementDeps) + tuple(behaviorDeps)
+        )
 
         self.validate()
 
@@ -264,10 +319,10 @@ class Scenario(_ScenarioPickleMixin):
 
     def setSampleChecker(self, checker):
         self.checker = checker
-        self.checker.setRequirements(self.defaultRequirements+self.userRequirements)
+        self.checker.setRequirements(self.defaultRequirements + self.userRequirements)
 
     def containerOfObject(self, obj):
-        if hasattr(obj, 'regionContainedIn') and obj.regionContainedIn is not None:
+        if hasattr(obj, "regionContainedIn") and obj.regionContainedIn is not None:
             return obj.regionContainedIn
         else:
             return convertToFootprint(self.workspace.region)
@@ -278,24 +333,29 @@ class Scenario(_ScenarioPickleMixin):
         :meta private:
         """
         objects = self.objects
-        staticVisibility = self.egoObject and not needsSampling(self.egoObject.visibleRegion)
+        ego = self.egoObject
+        staticVisibility = ego and not needsSampling(ego.visibleRegion)
         staticBounds = [obj._hasStaticBounds for obj in objects]
         for i in range(len(objects)):
             oi = objects[i]
             container = self.containerOfObject(oi)
             # Trivial case where container is empty
             if isinstance(container, EmptyRegion):
-                raise InvalidScenarioError(f'Container region of {oi} is empty')
+                raise InvalidScenarioError(f"Container region of {oi} is empty")
             # skip objects with unknown positions or bounding boxes
             if not staticBounds[i]:
                 continue
             # Require object to be contained in the workspace/valid region
             if not needsSampling(container) and not container.containsObject(oi):
-                raise InvalidScenarioError(f'Object at {oi.position} does not fit in container')
+                raise InvalidScenarioError(
+                    f"Object at {oi.position} does not fit in container"
+                )
             # Require object to be visible from the ego object
-            if staticVisibility and oi.requireVisible is True and oi is not self.egoObject:
-                if not self.egoObject.canSee(oi):
-                    raise InvalidScenarioError(f'Object at {oi.position} is not visible from ego')
+            if staticVisibility and oi.requireVisible is True and oi is not ego:
+                if not ego.canSee(oi):
+                    raise InvalidScenarioError(
+                        f"Object at {oi.position} is not visible from ego"
+                    )
             if not needsSampling(oi.allowCollisions) and not oi.allowCollisions:
                 # Require object to not intersect another object
                 for j in range(i):
@@ -303,8 +363,9 @@ class Scenario(_ScenarioPickleMixin):
                     if oj.allowCollisions or not staticBounds[j]:
                         continue
                     if oi.intersects(oj):
-                        raise InvalidScenarioError(f'{oi} at {oi.position} intersects'
-                                                   f' {oj} at {oj.position}')
+                        raise InvalidScenarioError(
+                            f"{oi} at {oi.position} intersects" f" {oj} at {oj.position}"
+                        )
 
     def generate(self, maxIterations=2000, verbosity=0, feedback=None):
         """Sample a `Scene` from this scenario.
@@ -326,7 +387,9 @@ class Scenario(_ScenarioPickleMixin):
         scenes, iterations = self.generateBatch(1, maxIterations, verbosity, feedback)
         return scenes[0], iterations
 
-    def generateBatch(self, numScenes, maxIterations=float('inf'), verbosity=0, feedback=None):
+    def generateBatch(
+        self, numScenes, maxIterations=float("inf"), verbosity=0, feedback=None
+    ):
         """Sample several `Scene` objects from this scenario.
 
         For a description of how scene generation is done, see `scene generation`.
@@ -345,18 +408,21 @@ class Scenario(_ScenarioPickleMixin):
         Raises:
             `RejectionException`: if not enough valid samples are found in **maxIterations** iterations.
         """
-        total_iterations = 0
+        totalIterations = 0
         scenes = []
 
         for _ in range(numScenes):
             try:
-                scene, iterations = self._generateInner(maxIterations-total_iterations, verbosity, feedback)
+                remainingIts = maxIterations - totalIterations
+                scene, iterations = self._generateInner(remainingIts, verbosity, feedback)
                 scenes.append(scene)
-                total_iterations += iterations
+                totalIterations += iterations
             except RejectionException:
-                raise RejectionException(f'failed to generate scenario in {maxIterations} iterations')
+                raise RejectionException(
+                    f"failed to generate scenario in {maxIterations} iterations"
+                )
 
-        return scenes, total_iterations
+        return scenes, totalIterations
 
     def _generateInner(self, maxIterations, verbosity, feedback):
         # choose which custom requirements will be enforced for this sample
@@ -370,14 +436,15 @@ class Scenario(_ScenarioPickleMixin):
         rejection = True
         iterations = 0
         while rejection is not None:
-
             if iterations > 0:  # rejected the last sample
                 if verbosity >= 2:
-                    print(f'  Rejected sample {iterations} because of {rejection}')
+                    print(f"  Rejected sample {iterations} because of {rejection}")
                 if self.externalSampler is not None:
                     feedback = self.externalSampler.rejectionFeedback
             if iterations >= maxIterations:
-                raise RejectionException(f'failed to generate scenario in {iterations} iterations')
+                raise RejectionException(
+                    f"failed to generate scenario in {iterations} iterations"
+                )
             iterations += 1
             try:
                 if self.externalSampler is not None:
@@ -417,8 +484,11 @@ class Scenario(_ScenarioPickleMixin):
 
         ## Mandatory Requirements ##
         # Pairwise object intersection
-        colliding_objects = (obj for obj in self.objects if 
-            needsSampling(obj.allowCollisions) or not obj.allowCollisions)
+        colliding_objects = (
+            obj
+            for obj in self.objects
+            if needsSampling(obj.allowCollisions) or not obj.allowCollisions
+        )
         for objA, objB in itertools.combinations(colliding_objects, 2):
             requirements.append(IntersectionRequirement(objA, objB))
 
@@ -430,23 +500,24 @@ class Scenario(_ScenarioPickleMixin):
 
         # Observing entity visibility
         possible_occluders = filter(
-            lambda x: (needsSampling(x.occluding) or x.occluding),
-            self.objects)
+            lambda x: (needsSampling(x.occluding) or x.occluding), self.objects
+        )
         for obj in filter(lambda x: x._observingEntity is not None, self._instances):
-            requirements.append(VisibilityRequirement(obj._observingEntity,
-                obj, possible_occluders))
+            requirements.append(
+                VisibilityRequirement(obj._observingEntity, obj, possible_occluders)
+            )
 
         # Observing entity non visibility
         for obj in filter(lambda x: x._nonObservingEntity is not None, self._instances):
-            requirements.append(NonVisibilityRequirement(obj._nonObservingEntity,
-                obj, possible_occluders))
+            requirements.append(
+                NonVisibilityRequirement(obj._nonObservingEntity, obj, possible_occluders)
+            )
 
         # Visibility from the ego
         for obj in filter(
-          lambda x: x.requireVisible and x is not self.egoObject,
-          self.objects):
-            requirements.append(VisibilityRequirement(self.egoObject,
-                obj, self.objects))
+            lambda x: x.requireVisible and x is not self.egoObject, self.objects
+        ):
+            requirements.append(VisibilityRequirement(self.egoObject, obj, self.objects))
 
         return tuple(requirements)
 
@@ -460,30 +531,56 @@ class Scenario(_ScenarioPickleMixin):
             sampledParams[param] = sampledValue
         sampledNamespaces = {}
         for modName, namespace in self.behaviorNamespaces.items():
-            sampledNamespace = { name: sample[value] for name, value in namespace.items() }
+            sampledNamespace = {name: sample[value] for name, value in namespace.items()}
             sampledNamespaces[modName] = (namespace, sampledNamespace, namespace.copy())
-        temporalReqs = (BoundRequirement(req, sample, req.proposition) for req in self.requirements)
+        temporalReqs = (
+            BoundRequirement(req, sample, req.proposition) for req in self.requirements
+        )
         monitors = []
         for req in self.monitors:
             breq = BoundRequirement(req, sample, None)
             monitor = breq.evaluate()
             if not isinstance(monitor, Monitor):
-                raise TypeError(f'"require monitor X" with X not a monitor on line {breq.line}')
+                raise TypeError(
+                    f'"require monitor X" with X not a monitor on line {breq.line}'
+                )
             monitors.append(monitor)
-        terminationConds = (BoundRequirement(req, sample, req.proposition)
-                            for req in self.terminationConditions)
-        termSimulationConds = (BoundRequirement(req, sample, req.proposition)
-                               for req in self.terminateSimulationConditions)
-        recordedExprs = (BoundRequirement(req, sample, req.proposition) for req in self.recordedExprs)
-        recordedInitialExprs = (BoundRequirement(req, sample, req.proposition)
-                                for req in self.recordedInitialExprs)
-        recordedFinalExprs = (BoundRequirement(req, sample, req.proposition)
-                              for req in self.recordedFinalExprs)
-        scene = Scene(self.workspace, sampledObjects, ego, sampledParams,
-                      temporalReqs, terminationConds, termSimulationConds,
-                      recordedExprs, recordedInitialExprs,recordedFinalExprs,
-                      monitors, sampledNamespaces, self.dynamicScenario,
-                      sample, self.compileOptions)
+        terminationConds = (
+            BoundRequirement(req, sample, req.proposition)
+            for req in self.terminationConditions
+        )
+        termSimulationConds = (
+            BoundRequirement(req, sample, req.proposition)
+            for req in self.terminateSimulationConditions
+        )
+        recordedExprs = (
+            BoundRequirement(req, sample, req.proposition) for req in self.recordedExprs
+        )
+        recordedInitialExprs = (
+            BoundRequirement(req, sample, req.proposition)
+            for req in self.recordedInitialExprs
+        )
+        recordedFinalExprs = (
+            BoundRequirement(req, sample, req.proposition)
+            for req in self.recordedFinalExprs
+        )
+        scene = Scene(
+            self.workspace,
+            sampledObjects,
+            ego,
+            sampledParams,
+            temporalReqs,
+            terminationConds,
+            termSimulationConds,
+            recordedExprs,
+            recordedInitialExprs,
+            recordedFinalExprs,
+            monitors,
+            sampledNamespaces,
+            self.dynamicScenario,
+            sample,
+            self.compileOptions,
+        )
         return scene
 
     def resetExternalSampler(self):
@@ -492,7 +589,9 @@ class Scenario(_ScenarioPickleMixin):
         If the Python random seed is reset before calling this function, this
         should cause the sequence of generated scenes to be deterministic.
         """
-        self.externalSampler = ExternalSampler.forParameters(self.externalParams, self.params)
+        self.externalSampler = ExternalSampler.forParameters(
+            self.externalParams, self.params
+        )
 
     def conditionOn(self, scene=None, objects=(), params={}):
         """Condition the scenario on particular values for some objects or parameters.
@@ -536,8 +635,9 @@ class Scenario(_ScenarioPickleMixin):
 
     def getSimulator(self):
         if self.simulator is None:
-            raise RuntimeError('scenario does not specify a simulator')
+            raise RuntimeError("scenario does not specify a simulator")
         import scenic.syntax.veneer as veneer
+
         return veneer.instantiateSimulator(self.simulator, self.params)
 
     def sceneToBytes(self, scene, allowPickle=False):
@@ -603,8 +703,9 @@ class Scenario(_ScenarioPickleMixin):
         replay = simulation.getReplay()
         return sceneData + replay
 
-    def simulationFromBytes(self, data, simulator, *,
-                            verify=True, allowPickle=False, **kwargs):
+    def simulationFromBytes(
+        self, data, simulator, *, verify=True, allowPickle=False, **kwargs
+    ):
         """Replay a `Simulation` serialized with `simulationToBytes`.
 
         Args:

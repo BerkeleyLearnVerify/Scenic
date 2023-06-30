@@ -1,11 +1,12 @@
 """The SampleChecker class and it's implementations."""
 
 from abc import ABC, abstractmethod
-import time
 from collections import deque
+import time
 
-from scenic.core.requirements import IntersectionRequirement, BlanketCollisionRequirement
 from scenic.core.distributions import RejectionException
+from scenic.core.requirements import BlanketCollisionRequirement, IntersectionRequirement
+
 
 class SampleChecker(ABC):
     def __init__(self):
@@ -26,11 +27,13 @@ class SampleChecker(ABC):
         except RejectionException as e:
             return e
 
+
 class BasicChecker(SampleChecker):
-    """ Basic requirement checker.
-    
+    """Basic requirement checker.
+
     Evaluates requirements in order, with a tiny bit of tuning.
     """
+
     def __init__(self, initialCollisionCheck):
         super().__init__()
         self.initialCollisionCheck = initialCollisionCheck
@@ -40,9 +43,12 @@ class BasicChecker(SampleChecker):
         for req in requirements:
             if req.optional:
                 # Basic checker ignores optional requirements unless otherwise noted.
-                if (isinstance(req, BlanketCollisionRequirement)
-                   and self.initialCollisionCheck
-                   and sum(isinstance(r, IntersectionRequirement) for r in requirements) >= 3):
+                if (
+                    isinstance(req, BlanketCollisionRequirement)
+                    and self.initialCollisionCheck
+                    and sum(isinstance(r, IntersectionRequirement) for r in requirements)
+                    >= 3
+                ):
                     target_reqs.append(req)
             else:
                 target_reqs.append(req)
@@ -56,8 +62,9 @@ class BasicChecker(SampleChecker):
 
         return None
 
+
 class WeightedAcceptanceChecker(SampleChecker):
-    """ Picks the requirement with the lowest time-weighted acceptance chance.
+    """Picks the requirement with the lowest time-weighted acceptance chance.
 
     Incentivizes exploration by initializing all buffer values to 0.
 
@@ -65,6 +72,7 @@ class WeightedAcceptanceChecker(SampleChecker):
         bufferSize: Max samples to use when calculating time-weighted
             rejection chance.
     """
+
     def __init__(self, bufferSize=10):
         super().__init__()
         self.bufferSize = bufferSize
@@ -75,9 +83,9 @@ class WeightedAcceptanceChecker(SampleChecker):
         super().setRequirements(requirements)
 
         self.buffers = {req: deque() for req in self.requirements}
-        self.bufferSums = {req: (0,0) for req in self.requirements}
+        self.bufferSums = {req: (0, 0) for req in self.requirements}
         for req in self.requirements:
-            self.buffers[req].extend([(0,0)]*self.bufferSize)
+            self.buffers[req].extend([(0, 0)] * self.bufferSize)
 
     def checkRequirementsInner(self, sample):
         for req in self.sortedRequirements():
@@ -85,7 +93,7 @@ class WeightedAcceptanceChecker(SampleChecker):
             start = time.perf_counter()
             rejected = req.falsifiedBy(sample)
             # Create metrics (Accepted, Time Taken)
-            metrics = (int(not rejected), time.perf_counter()-start)
+            metrics = (int(not rejected), time.perf_counter() - start)
 
             self.updateMetrics(req, metrics)
 
@@ -95,7 +103,7 @@ class WeightedAcceptanceChecker(SampleChecker):
         return None
 
     def sortedRequirements(self):
-        """ Return the list of requirements in sorted order"""
+        """Return the list of requirements in sorted order"""
         # Extract and sort active requirements
         reqs = [req for req in self.requirements if req.active]
         reqs.sort(key=self.getWeightedAcceptanceProb)
@@ -107,7 +115,7 @@ class WeightedAcceptanceChecker(SampleChecker):
         return reqs
 
     def updateMetrics(self, req, new_metrics):
-        """ Update the metrics for a given requirement"""
+        """Update the metrics for a given requirement"""
         # Update buffer
         target_buffer = self.buffers[req]
         old_metrics = target_buffer.popleft()
@@ -119,10 +127,10 @@ class WeightedAcceptanceChecker(SampleChecker):
         new_acc, new_time = new_metrics
 
         # Update sums
-        sum_acc += new_acc-old_acc
-        sum_time += new_time-old_time
+        sum_acc += new_acc - old_acc
+        sum_time += new_time - old_time
         self.bufferSums[req] = (sum_acc, sum_time)
 
     def getWeightedAcceptanceProb(self, req):
         sum_acc, sum_time = self.bufferSums[req]
-        return (sum_acc/self.bufferSize)*(sum_time/self.bufferSize)
+        return (sum_acc / self.bufferSize) * (sum_time / self.bufferSize)
