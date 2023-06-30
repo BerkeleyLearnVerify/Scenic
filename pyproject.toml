@@ -90,7 +90,7 @@ build-backend = "flit_core.buildapi"
 
 [tool.black]
 line-length = 90
-extend-exclude = '''
+force-exclude = '''
 ^/src/scenic/syntax/parser\.py
 | ^/src/scenic/simulators/webots/WBT.*
 | ^/tests/syntax/polychrome.*
