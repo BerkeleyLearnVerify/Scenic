@@ -89,7 +89,7 @@ def test_support_operators():
 def similarDistributions(pytestconfig):
     samples = 3000 if pytestconfig.getoption("--fast") else 100000
 
-    def checker(d1, d2, p=1e-4):
+    def checker(d1, d2, p=1e-5):
         s1 = [d1.sample() for i in range(samples)]
         s2 = [d2.sample() for i in range(samples)]
         with warnings.catch_warnings():
