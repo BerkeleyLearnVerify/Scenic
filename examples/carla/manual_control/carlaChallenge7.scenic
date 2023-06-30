@@ -6,7 +6,7 @@ forcing the ego-vehicle to avoid the collision.
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../../assets/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
 param render = '0'
 model scenic.simulators.carla.model
@@ -17,7 +17,7 @@ SAFETY_DISTANCE = 20
 BRAKE_INTENSITY = 1.0
 
 ## MONITORS
-monitor TrafficLights:
+monitor TrafficLights():
     freezeTrafficLights()
     while True:
         if withinDistanceToTrafficLight(ego, 100):
@@ -25,6 +25,7 @@ monitor TrafficLights:
         if withinDistanceToTrafficLight(adversary, 100):
             setClosestTrafficLightStatus(adversary, "red")
         wait
+require monitor TrafficLights()
 
 ## DEFINING BEHAVIORS
 behavior AdversaryBehavior(trajectory):
@@ -51,16 +52,16 @@ adv_maneuver = Uniform(*adv_maneuvers)
 adv_trajectory = [adv_maneuver.startLane, adv_maneuver.connectingLane, adv_maneuver.endLane]
 
 ## OBJECT PLACEMENT
-ego_spawn_pt = OrientedPoint in ego_maneuver.startLane.centerline
-adv_spawn_pt = OrientedPoint in adv_maneuver.startLane.centerline
+ego_spawn_pt = new OrientedPoint in ego_maneuver.startLane.centerline
+adv_spawn_pt = new OrientedPoint in adv_maneuver.startLane.centerline
 
 # Set a specific vehicle model for the Truck. 
 # The referenceable types of vehicles supported in carla are listed in scenic/simulators/carla/model.scenic
 # For each vehicle type, the supported models are listed in scenic/simulators/carla/blueprints.scenic
-ego = Car at ego_spawn_pt,
+ego = new Car at ego_spawn_pt,
     with rolename "hero"
 
-adversary = Car at adv_spawn_pt,
+adversary = new Car at adv_spawn_pt,
     with behavior AdversaryBehavior(adv_trajectory)
 
 require 15 <= (distance to intersec) <= 20

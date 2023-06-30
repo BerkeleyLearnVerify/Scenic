@@ -61,13 +61,19 @@ Monitor Definition
 
 .. code-block:: scenic-grammar
 
-    monitor <name>:
+    monitor <name>(<arguments>):
         <statement>+
 
-Defines a Scenic :term:`monitor`, which runs in parallel with the simulation like a :term:`dynamic behavior`.
-Monitors are not associated with an `Object` and cannot take actions, but can :keyword:`wait` to wait for the next time step (or :keyword:`terminate` the simulation).
-The main purpose of monitors is to evaluate complex temporal properties that do not fit into the :keyword:`require always` and :keyword:`require eventually` statements: they can maintain state and use :keyword:`require` to enforce requirements depending on that state.
+Defines a type of :term:`monitor`, which can be run in parallel with the simulation like a :term:`dynamic behavior`.
+Monitors are not associated with an `Object` and cannot take actions, but can :keyword:`wait` to wait for the next time step (or use :keyword:`terminate` or :keyword:`terminate simulation` to end the scenario/simulation).
+A monitor can be instantiated in a scenario with the :keyword:`require monitor` statement.
+
+The main purpose of monitors is to evaluate complex temporal properties that are not expressible using the temporal operators available for :sampref:`require {LTL formula}` statements.
+They can maintain state and use :keyword:`require` to enforce requirements depending on that state.
 For examples of monitors, see our tutorial on :ref:`dynamics`.
+
+.. versionchanged:: 3.0
+    Monitors may take arguments, and must be explicitly instantiated using a :keyword:`require monitor` statement.
 
 .. _modularScenarioDef:
 .. _scenario-stmt:
@@ -149,10 +155,6 @@ import *module*
 Import a Scenic or Python module. This statement behaves :ref:`as in Python <import>`, but when importing a Scenic module it also imports any objects created and requirements imposed in that module.
 Scenic also supports the form :scenic:`from {module} import {identifier}, {...}` , which as in Python imports the module plus one or more identifiers from its namespace.
 
-.. note::
-
-    Scenic modules can only be imported at the top level, or in a top-level try-except block that does not create any objects (so that you can catch `ModuleNotFoundError` for example). Python modules can be imported dynamically inside functions as usual.
-
 .. _param {name} = {value}, {...}:
 .. _param:
 
@@ -192,13 +194,42 @@ require[*number*] *boolean*
 Defines a soft requirement; like :keyword:`require` above but enforced only with the given probability, thereby requiring that the given condition hold with at least that probability (which must be a literal number, not an expression).
 For example, :scenic:`require[0.75] ego in parking_lot` would require that the ego be in the parking lot at least 75% percent of the time.
 
-.. _require (always | eventually) {boolean}:
-.. _require always:
-.. _require eventually:
+.. _require {LTL formula}:
 
-require (always | eventually) *boolean*
----------------------------------------
-Require a condition hold at each time step (``always``) or at some point during the simulation (``eventually``).
+require *LTL formula*
+---------------------
+Defines a :term:`temporal requirement`, requiring that the given Linear Temporal Logic formula hold in a dynamic scenario.
+See :ref:`temporal operators` for the list of supported LTL operators.
+
+Note that an expression that does not use any temporal operators is evaluated only in the current time step.
+So for example:
+
+* :scenic:`require A and always B` will only require that ``A`` hold at time step zero, while ``B`` must hold at every time step (note that this is the same behavior you would get if you wrote :scenic:`require A` and :scenic:`require always B` separately);
+* :scenic:`require (always A) implies B` requires that if ``A`` is true at every time step, then ``B`` must be true at time step zero;
+* :scenic:`require always A implies B` requires that in *every* time step when ``A`` is true, ``B`` must also be true (since ``B`` is within the scope of the :keyword:`always` operator).
+
+.. _require monitor {monitor}:
+.. _require monitor:
+
+require monitor *monitor*
+-------------------------
+Require a condition encoded by a :term:`monitor` hold during the scenario.
+See :ref:`monitorDef` for how to define types of monitors.
+
+It is legal to create multiple instances of a monitor with varying parameters.
+For example::
+
+    monitor ReachesBefore(obj1, region, obj2):
+        reached = False
+        while not reached:
+            if obj1 in region:
+                reached = True
+            else:
+                require obj2 not in region
+                wait
+
+    require monitor ReachesBefore(ego, goal, racecar2)
+    require monitor ReachesBefore(ego, goal, racecar3)
 
 .. _terminate when {boolean}:
 .. _terminate when:
@@ -276,6 +307,13 @@ terminate
 ---------
 Immediately end the scenario.
 As for :keyword:`terminate when`, if this statement is used in a :term:`modular scenario` which was invoked from another scenario, only the current scenario will end, not the entire simulation.
+Inside a :term:`behavior` being run by an agent, the "current scenario" for this purpose is the scenario which created the agent.
+
+.. _terminate simulation:
+
+terminate simulation
+--------------------
+Immediately end the entire simulation.
 
 .. _do {behavior/scenario}, {...}:
 .. _do:

@@ -26,34 +26,73 @@ on:
         type: string
 
 jobs:
-  build:
+  check-format:
+    uses: ./.github/workflows/check-formatting.yml
+
+  test:
     strategy:
       fail-fast: true
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+
     steps:
     - name: Checkout given ref
       uses: actions/checkout@v3
       if: inputs.ref != ''
       with:
         ref: ${{ inputs.ref }}
+
     - name: Checkout current branch
       uses: actions/checkout@v3
       if: inputs.ref == ''
       with:
         ref: ${{ github.ref }}
+
+    - name: Install non-Python dependencies (Linux)
+      if: ${{ matrix.os == 'ubuntu-latest' }}
+      uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: blender openscad
+
+    - name: Restore cached non-Python dependencies (Windows)
+      id: windows-cache-deps
+      if: ${{ matrix.os == 'windows-latest' }}
+      uses: actions/cache@v3
+      with:
+        path: downloads
+        key: windows-deps
+
+    - name: Download non-Python dependencies (Windows)
+      if: ${{ matrix.os == 'windows-latest' && steps.windows-cache-deps.outputs.cache-hit != 'true' }}
+      run: |
+        New-Item -Path downloads -ItemType Directory -Force
+        Invoke-WebRequest https://files.openscad.org/OpenSCAD-2021.01-x86-64.zip -O downloads/openscad.zip
+        Invoke-WebRequest https://download.blender.org/release/Blender3.6/blender-3.6.0-windows-x64.zip -O downloads/blender.zip
+
+    - name: Install non-Python dependencies (Windows)
+      if: ${{ matrix.os == 'windows-latest' }}
+      run: |
+        Expand-Archive -Path downloads/openscad.zip -DestinationPath openscad
+        Move-Item -Path openscad/openscad-2021.01 -Destination $Env:Programfiles\OpenSCAD
+        Expand-Archive -Path downloads/blender.zip -DestinationPath blender
+        Move-Item -Path blender/blender-3.6.0-windows-x64 -Destination "$Env:Programfiles\Blender Foundation\Blender"
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
     - name: Update pip
       run: |
         python -m pip install --upgrade pip
+
     - name: Install Scenic and dependencies
       run: |
         python -m pip install -e ".[test]"
+
     - name: Run pytest
       run: |
         pytest ${{ inputs.options || '--no-graphics' }}

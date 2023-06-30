@@ -3,7 +3,7 @@
 Syntax Guide
 ============
 
-This page summarizes the syntax of Scenic (excluding syntax inherited from Python).
+This page summarizes the syntax of Scenic, excluding the basic syntax of variable assignments, functions, loops, etc., which is identical to Python (see the `Python Tutorial <https://docs.python.org/3/tutorial/>`_ for an introduction).
 For more details, click the links for individual language constructs to go to the corresponding section of the `language reference`.
 
 
@@ -13,9 +13,11 @@ Primitive Data Types
 `Booleans <Boolean>`          expressing truth values
 `Scalars <Scalar>`            representing distances, angles, etc. as floating-point numbers
 `Vectors <Vector>`            representing positions and offsets in space
-`Headings <Heading>`   		    representing orientations in space
-`Vector Fields <VectorField>` associating an orientation (i.e. a heading) to each point in space
+`Headings <Heading>`   		    representing 2D orientations in the XY plane
+`Orientations <Orientation>`  representing 3D orientations in space
+`Vector Fields <VectorField>` associating an orientation to each point in space
 `Regions <Region>`            representing sets of points in space
+`Shapes <Shape>`              representing shapes (regions modulo similarity)
 ============================= ==================================================================
 
 
@@ -28,7 +30,7 @@ Distributions
 :sampref:`TruncatedNormal({mean}, {stdDev}, {low}, {high})`      normal distribution truncated to the given window
 :sampref:`Uniform({value}, {...})`                               uniform over a finite set of values
 :sampref:`Discrete(\{{value}: {weight}, {...}\})<DiscreteDistr>` discrete with given values and weights
-:sampref:`Point (in | on) {region} <uniform_in_region>`                 uniformly-distributed `Point` in a region
+:sampref:`new Point in {region} <uniform_in_region>`                 uniformly-distributed `Point` in a region
 ================================================================ ==================================
 
 Statements
@@ -46,7 +48,7 @@ Compound Statements
      - Defines a Scenic class.
    * - :sampref:`behavior {name}({arguments}): <behaviorDef>`
      - Defines a :term:`dynamic behavior`.
-   * - :sampref:`monitor {name}: <monitorDef>`
+   * - :sampref:`monitor {name}({arguments}): <monitorDef>`
      - Defines a :term:`monitor`.
    * - :sampref:`scenario {name}({arguments}): <modularScenarioDef>`
      - Defines a :term:`modular scenario`.
@@ -71,8 +73,10 @@ Simple Statements
      - Define a hard requirement.
    * - :sampref:`require[{number}] {boolean}`
      - Define a soft requirement.
-   * - :sampref:`require (always | eventually) {boolean}`
+   * - :sampref:`require {LTL formula}`
      - Define a dynamic hard requirement.
+   * - :sampref:`require monitor {monitor}`
+     - Define a dynamic requirement using a monitor.
    * - :sampref:`terminate when {boolean}`
      - Define a termination condition.
    * - :sampref:`terminate after {scalar} (seconds | steps)`
@@ -98,6 +102,8 @@ These statements can only be used inside a :term:`dynamic behavior`, :term:`moni
      - Take no actions this time step.
    * - :sampref:`terminate`
      - Immediately end the scenario.
+   * - :sampref:`terminate simulation`
+     - Immediately end the entire simulation.
    * - :sampref:`do {behavior/scenario}, {...}`
      - Run one or more sub-behaviors/sub-scenarios until they complete.
    * - :sampref:`do {behavior/scenario}, {...} until {boolean}`
@@ -116,47 +122,63 @@ These statements can only be used inside a :term:`dynamic behavior`, :term:`moni
 Objects
 -------
 
-The syntax :sampref:`{class} {specifier}, {...} <objectCreate>` creates an instance of a Scenic class.
+The syntax :sampref:`new {class} {specifier}, {...} <objectCreate>` creates an instance of a Scenic class.
 
 The Scenic class `Point` provides the basic position properties in the first table below; its subclass `OrientedPoint` adds the orientation properties in the second table.
 Finally, the class `Object`, which represents physical objects and is the default superclass of user-defined Scenic classes, adds the properties in the third table.
 See the :ref:`objects_and_classes` for details.
 
-===================  ==============  ================================================
-   **Property**       **Default**                    **Meaning**
--------------------  --------------  ------------------------------------------------
- position [1]_        (0, 0)         position in global coordinates
- viewDistance          50            distance for the ‘can see’ operator
- mutationScale         0             overall scale of :ref:`mutations <mutate>`
- positionStdDev        1             mutation standard deviation for :prop:`position`
-===================  ==============  ================================================
+=======================  ==============  =============================================================================
+   **Property**           **Default**                    **Meaning**
+-----------------------  --------------  -----------------------------------------------------------------------------
+ position [1]_           (0, 0, 0)       position in global coordinates
+ visibleDistance         50              distance for the ‘can see’ operator
+ viewRayDensity          5               determines ray count (if ray count is not provided)
+ viewRayDistanceScaling  False           whether to scale number of rays with distance (if ray count is not provided)
+ viewRayCount            None            tuple of number of rays to send in each dimension.
+ mutationScale           0               overall scale of :ref:`mutations <mutate>`
+ positionStdDev          (1,1,0)         mutation standard deviation for :prop:`position`
+=======================  ==============  =============================================================================
 
 Properties added by `OrientedPoint`:
 
 ===================  ==============  ================================================
    **Property**       **Default**                    **Meaning**
 -------------------  --------------  ------------------------------------------------
- heading [1]_          0             heading in global coordinates
- viewAngle            360 degrees    angle for the ‘can see’ operator
- headingStdDev         5 degrees     mutation standard deviation for :prop:`heading`
+ yaw [1]_             0              yaw in local coordinates
+ pitch [1]_           0              pitch in local coordinates
+ roll [1]_            0              roll in local coordinates
+ parentOrientation    global         basis for local coordinate system
+ viewAngles           (2π, π)        angles for visibility calculations
+ orientationStdDev    (5°, 0, 0)     mutation standard deviation for :prop:`orientation`
 ===================  ==============  ================================================
 
 Properties added by `Object`:
 
-===================  ====================== ================================================
-   **Property**       **Default**                    **Meaning**
--------------------  ---------------------- ------------------------------------------------
- width                 1                    width of bounding box (X axis)
- length                1                    length of bounding box (Y axis)
- speed [1]_            0                    initial speed (later, instantaneous speed)
- velocity [1]_       from :prop:`speed`     initial velocity (later, instantaneous velocity)
- angularSpeed [1]_     0                    angular speed (change in heading/time)
- behavior              `None`               :term:`dynamic behavior`, if any
- allowCollisions      `False`               whether collisions are allowed
- requireVisible       `True`                whether object must be visible from ego
- regionContainedIn    `workspace`           Region the object must lie within
- cameraOffset          (0, 0)               position of camera for ‘can see’
-===================  ====================== ================================================
+======================== ======================= ================================================
+   **Property**           **Default**                       **Meaning**
+------------------------ ----------------------- ------------------------------------------------
+ width                   1                        width of bounding box (X axis)
+ length                  1                        length of bounding box (Y axis)
+ height                  1                        height of bounding box (Z axis)
+ shape                   `BoxShape`               shape of the object
+ allowCollisions         `False`                  whether collisions are allowed
+ regionContainedIn       `workspace`              `Region` the object must lie within
+ baseOffset              (0, 0, -self.height/2)   offset determining the base of the object
+ contactTolerance        1e-4                     max distance to be considered on a surface
+ sideComponentThresholds (-0.5, 0.5) per side     thresholds to determine side surfaces
+ cameraOffset            (0, 0, 0)                position of camera for :keyword:`can see`
+ requireVisible          `False`                  whether object must be visible from ego
+ occluding               `True`                   whether object occludes visibility
+ showVisibleRegion       `False`                  whether to display the visible region
+ color                   None                     color of object
+ velocity [1]_           from :prop:`speed`       initial (instantaneous) velocity
+ speed [1]_              0                        initial (later, instantaneous) speed
+ angularVelocity [1]_    (0, 0, 0)                initial (instantaneous) angular velocity
+ angularSpeed [1]_       0                        angular speed (change in :prop:`heading`/time)
+ behavior                `None`                   :term:`dynamic behavior`, if any
+ lastActions             `None`                   tuple of actions taken in last timestamp
+======================== ======================= ================================================
 
 .. [1] These are :term:`dynamic properties`, updated automatically every time step during
     dynamic simulations.
@@ -165,14 +187,14 @@ Specifiers
 ----------
 
 The :sampref:`with {property} {value}` specifier can specify any property, including new properties not built into Scenic.
-Additional specifiers for the :prop:`position` and :prop:`heading` properties are listed below.
+Additional specifiers for the :prop:`position` and :prop:`orientation` properties are listed below.
 
 .. figure:: images/Specifier_Figure.png
   :width: 60%
   :figclass: align-center
   :alt: Diagram illustrating several specifiers.
 
-  Illustration of the :scenic:`beyond`, :scenic:`behind`, and :scenic:`offset by` specifiers.
+  Illustration of the :specifier:`beyond`, :specifier:`behind`, and :specifier:`offset by` specifiers.
   Each :scenic:`OrientedPoint` (e.g. ``P``) is shown as a bold arrow.
 
 .. list-table::
@@ -182,32 +204,28 @@ Additional specifiers for the :prop:`position` and :prop:`heading` properties ar
      - Meaning
    * - :sampref:`at {vector}`
      - Positions the object at the given global coordinates
+   * - :sampref:`in {region}`
+     - Positions the object uniformly at random in the given Region
+   * - :sampref:`contained in {region}`
+     - Positions the object uniformly at random entirely contained in the given Region
+   * - :sampref:`on {region}`
+     - Positions the base of the object uniformly at random in the given Region, or modifies the position so that the base is in the Region.
    * - :sampref:`offset by {vector}`
      - Positions the object at the given coordinates in the local coordinate system of ego (which must already be defined)
    * - :sampref:`offset along {direction} by {vector}`
      - Positions the object at the given coordinates, in a local coordinate system centered at ego and oriented along the given direction
-   * - :sampref:`(left | right) of {vector} [by {scalar}]`
-     - Positions the object further to the left/right by the given scalar distance
-   * - :sampref:`(ahead of | behind) {vector} [by {scalar}]`
-     - As above, except placing the object ahead of or behind the given position
-   * - :sampref:`beyond {vector} by {vector} [from {vector}]`
-     - Positions the object at coordinates given by the second vector, centered at the first vector and oriented along the line of sight from the third vector/ego
+   * - :sampref:`beyond {vector} by ({vector} | {scalar}) [from ({vector} | {OrientedPoint})]`
+     - Positions the object with respect to the line of sight from a point or the ego
    * - :sampref:`visible [from ({Point} | {OrientedPoint})]`
-     - Positions the object uniformly at random in the visible region of the ego, or of the given Point/OrientedPoint if given
+     - Ensures the object is visible from the ego, or from the given Point/OrientedPoint if given, while optionally specifying position to be in the appropriate visible region.
    * - :sampref:`not visible [from ({Point} | {OrientedPoint})]`
-     - Positions the object uniformly at random in the non-visible region of the ego, or of the given Point/OrientedPoint if given
-
-.. list-table::
-   :header-rows: 1
-
-   * - Specifier for :prop:`position` and optionally :prop:`heading`
-     - Meaning
-   * - :sampref:`(in | on) {region}`
-     - Positions the object uniformly at random in the given Region
-   * - :sampref:`(left | right) of ({OrientedPoint} | {Object}) [by {scalar}]`
-     - Positions the object to the left/right of the given OrientedPoint, depending on the object’s width
-   * - :sampref:`(ahead of | behind) ({OrientedPoint} | {Object}) [by {scalar}]`
-     - As above, except positioning the object ahead of or behind the given OrientedPoint, thereby depending on length
+     - Ensures the object is not visible from the ego, or from the given Point/OrientedPoint if given, while optionally specifying position to be outside the appropriate visible region.
+   * - :sampref:`(left | right) of ({vector} | {OrientedPoint} | {Object}) [by {scalar}] <left of>`
+     - Positions the object to the left/right by the given scalar distance.
+   * - :sampref:`(ahead of | behind) ({vector} | {OrientedPoint} | {Object}) [by {scalar}] <ahead of>`
+     - Positions the object to the front/back by the given scalar distance
+   * - :sampref:`(above | below) ({vector} | {OrientedPoint} | {Object}) [by {scalar}] <above>`
+     - Positions the object above/below by the given scalar distance
    * - :sampref:`following {vectorField} [from {vector}] for {scalar}`
      - Position by following the given vector field for the given distance starting from ego or the given vector
 
@@ -215,20 +233,24 @@ Additional specifiers for the :prop:`position` and :prop:`heading` properties ar
 .. list-table::
    :header-rows: 1
 
-   * - Specifier for :prop:`heading`
+   * - Specifier for :prop:`orientation`
      - Meaning
-   * - :sampref:`facing {heading}`
-     - Orients the object along the given heading in global coordinates
+   * - :sampref:`facing {orientation}`
+     - Orients the object along the given orientation in global coordinates
    * - :sampref:`facing {vectorField}`
      - Orients the object along the given vector field at the object’s position
    * - :sampref:`facing (toward | away from) {vector}`
      - Orients the object toward/away from the given position (thereby depending on the object’s position)
+   * - :sampref:`facing directly (toward | away from) {vector}`
+     - Orients the object *directly* toward/away from the given position (thereby depending on the object’s position)
    * - :sampref:`apparently facing {heading} [from {vector}]`
      - Orients the object so that it has the given heading with respect to the line of sight from ego (or the given vector)
 
 
 Operators
 ---------
+
+In the following tables, operators are grouped by the type of value they return.
 
 .. figure:: images/Operator_Figure.png
   :width: 70%
@@ -250,7 +272,9 @@ Operators
    * - :sampref:`distance [from {vector}] to {vector}`
      - The distance to the given position from ego (or the ``from`` vector)
    * - :sampref:`angle [from {vector}] to {vector}`
-     - The heading to the given position from ego (or the ``from`` vector)
+     - The heading (azimuth) to the given position from ego (or the ``from`` vector)
+   * - :sampref:`altitude [from {vector}] to {vector}`
+     - The altitude to the given position from ego (or the ``from`` vector)
 
 .. list-table::
    :header-rows: 1
@@ -266,14 +290,14 @@ Operators
 .. list-table::
    :header-rows: 1
 
-   * - Heading Operators
+   * - Orientation Operators
      - Meaning
    * - :sampref:`{scalar} deg`
-     - The given heading, interpreted as being in degrees
+     - The given angle, interpreted as being in degrees
    * - :sampref:`{vectorField} at {vector}`
-     - The heading specified by the vector field at the given position
+     - The orientation specified by the vector field at the given position
    * - :sampref:`{direction} relative to {direction}`
-     - The first direction, interpreted as an offset relative to the second direction
+     - The first direction (a heading, orientation, or vector field), interpreted as an offset relative to the second direction
 
 
 .. list-table::
@@ -296,6 +320,10 @@ Operators
      - The part of the given region visible from ego
    * - :sampref:`not visible {region}`
      - The part of the given region not visible from ego
+   * - :sampref:`{region} visible from ({Point} | {OrientedPoint})`
+     - The part of the given region visible from the given `Point` or `OrientedPoint`.
+   * - :sampref:`{region} not visible from ({Point} | {OrientedPoint})`
+     - The part of the given region not visible from the given `Point` or `OrientedPoint`.
 
 .. list-table::
    :header-rows: 1
@@ -307,11 +335,31 @@ Operators
    * - :sampref:`{OrientedPoint} offset by {vector}`
      - Equivalent to :scenic:`vector relative to OrientedPoint` above
    * - :sampref:`(front | back | left | right) of {Object}`
-     - The midpoint of the corresponding edge of the bounding box of the Object, oriented along its heading
+     - The midpoint of the corresponding side of the bounding box of the Object, inheriting the Object's orientation.
    * - :sampref:`(front | back) (left | right) of {Object}`
-     - The corresponding corner of the Object’s bounding box, also oriented along its heading
+     - The midpoint of the corresponding edge of the bounding box of the Object, inheriting the Object's orientation.
+   * - :sampref:`(front | back) (left | right) of {Object}`
+     - The midpoint of the corresponding edge of the bounding box of the Object, inheriting the Object's orientation.
+   * - :sampref:`(top | bottom) (front | back) (left | right) of {Object}`
+     - The corresponding corner of the bounding box of the Object, inheriting the Object's orientation.
 
-Built in Functions
+.. list-table::
+   :header-rows: 1
+
+   * - Temporal Operators
+     - Meaning
+   * - :sampref:`always {condition}`
+     - Require the condition to hold at every time step.
+   * - :sampref:`eventually {condition}`
+     - Require the condition to hold at some time step.
+   * - :sampref:`next {condition}`
+     - Require the condition to hold in the next time step.
+   * - :sampref:`{condition} until {condition}`
+     - Require the first condition to hold until the second becomes true.
+   * - :sampref:`{condition} implies {condition}`
+     - Require the second condition to hold if the first condition holds.
+
+Built-in Functions
 ------------------
 
 .. list-table::
@@ -320,7 +368,7 @@ Built in Functions
    * - Function
      - Description
    * - :ref:`Misc Python functions <gen_lifted_funcs>`
-     - Various Python functions including :scenic:`min`, :scenic:`max`, :scenic:`sin`, :scenic:`cos`, etc.
+     - Various Python functions including :scenic:`min`, :scenic:`max`, :scenic:`open`, etc.
    * - :ref:`filter_func`
      - Filter a possibly-random list (allowing limited randomized control flow).
    * - :ref:`resample_func`

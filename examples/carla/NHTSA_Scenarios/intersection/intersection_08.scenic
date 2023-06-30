@@ -11,7 +11,7 @@ SOURCE: NHSTA, #30
 # MAP AND MODEL                 #
 #################################
 
-param map = localPath('../../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')
+param map = localPath('../../../../assets/maps/CARLA/Town05.xodr')
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
@@ -19,7 +19,7 @@ model scenic.simulators.carla.model
 # CONSTANTS                     #
 #################################
 
-MODEL = 'vehicle.lincoln.mkz2017'
+MODEL = 'vehicle.lincoln.mkz_2017'
 
 EGO_INIT_DIST = [20, 40]
 param EGO_SPEED = VerifaiRange(7, 10)
@@ -37,12 +37,12 @@ TERM_DIST = 70
 #################################
 
 behavior EgoBehavior(trajectory):
-	try:
-		do FollowTrajectoryBehavior(target_speed=globalParameters.EGO_SPEED, trajectory=trajectory)
-	interrupt when withinDistanceToAnyObjs(self, globalParameters.SAFETY_DIST):
-		take SetBrakeAction(globalParameters.EGO_BRAKE)
-	interrupt when withinDistanceToAnyObjs(self, CRASH_DIST):
-		terminate
+    try:
+        do FollowTrajectoryBehavior(target_speed=globalParameters.EGO_SPEED, trajectory=trajectory)
+    interrupt when withinDistanceToAnyObjs(self, globalParameters.SAFETY_DIST):
+        take SetBrakeAction(globalParameters.EGO_BRAKE)
+    interrupt when withinDistanceToAnyObjs(self, CRASH_DIST):
+        terminate
 
 #################################
 # SPATIAL RELATIONS             #
@@ -53,27 +53,27 @@ intersection = Uniform(*filter(lambda i: i.is3Way, network.intersections))
 egoInitLane = Uniform(*intersection.incomingLanes)
 egoManeuver = Uniform(*filter(lambda m: m.type is ManeuverType.STRAIGHT, egoInitLane.maneuvers))
 egoTrajectory = [egoInitLane, egoManeuver.connectingLane, egoManeuver.endLane]
-egoSpawnPt = OrientedPoint in egoInitLane.centerline
+egoSpawnPt = new OrientedPoint in egoInitLane.centerline
 
 advInitLane = Uniform(*filter(lambda m:
-		m.type is ManeuverType.STRAIGHT,
-		egoManeuver.reverseManeuvers)
-	).startLane
+        m.type is ManeuverType.STRAIGHT,
+        egoManeuver.reverseManeuvers)
+    ).startLane
 advManeuver = Uniform(*filter(lambda m: m.type is ManeuverType.LEFT_TURN, advInitLane.maneuvers))
 advTrajectory = [advInitLane, advManeuver.connectingLane, advManeuver.endLane]
-advSpawnPt = OrientedPoint in advInitLane.centerline
+advSpawnPt = new OrientedPoint in advInitLane.centerline
 
 #################################
 # SCENARIO SPECIFICATION        #
 #################################
 
-ego = Car at egoSpawnPt,
-	with blueprint MODEL,
-	with behavior EgoBehavior(egoTrajectory)
+ego = new Car at egoSpawnPt,
+    with blueprint MODEL,
+    with behavior EgoBehavior(egoTrajectory)
 
-adversary = Car at advSpawnPt,
-	with blueprint MODEL,
-	with behavior FollowTrajectoryBehavior(target_speed=globalParameters.ADV_SPEED, trajectory=advTrajectory)
+adversary = new Car at advSpawnPt,
+    with blueprint MODEL,
+    with behavior FollowTrajectoryBehavior(target_speed=globalParameters.ADV_SPEED, trajectory=advTrajectory)
 
 require EGO_INIT_DIST[0] <= (distance to intersection) <= EGO_INIT_DIST[1]
 require ADV_INIT_DIST[0] <= (distance from adversary to intersection) <= ADV_INIT_DIST[1]

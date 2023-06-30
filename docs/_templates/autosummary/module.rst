@@ -15,6 +15,8 @@
    {% for item in modules|sort %}
       {{item.rpartition('.')[2]}}
    {%- endfor %}
+
+   .. comment to get Sphinx to recognize end of autosummary directive
    {% endif %}
    {% endblock %}
 
@@ -45,6 +47,18 @@
    {% endif %}
    {% endblock %}
 
+   {% block behaviors %}
+   {% if behaviors %}
+   .. rubric:: Behaviors
+
+   .. autosummary::
+      :nosignatures:
+   {% for item in behaviors %}
+      {{ item }}
+   {%- endfor %}
+   {% endif %}
+   {% endblock %}
+
    {% block classes %}
    {% if classes %}
    .. rubric:: Classes
@@ -64,6 +78,18 @@
    .. autosummary::
       :nosignatures:
    {% for item in exceptions %}
+      {{ item }}
+   {%- endfor %}
+   {% endif %}
+   {% endblock %}
+
+   {% block scenarios %}
+   {% if scenarios %}
+   .. rubric:: Scenarios
+
+   .. autosummary::
+      :nosignatures:
+   {% for item in scenarios %}
       {{ item }}
    {%- endfor %}
    {% endif %}

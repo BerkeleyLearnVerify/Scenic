@@ -80,6 +80,10 @@ roadDirection : VectorField = network.roadDirection
 
 ## Standard object types
 
+def is2DMode():
+    from scenic.syntax.veneer import mode2D
+    return mode2D
+
 class DrivingObject:
     """Abstract class for objects in a road network.
 
@@ -99,7 +103,7 @@ class DrivingObject:
             from `Object`).
     """
 
-    elevation[dynamic]: None
+    elevation[dynamic]: None if is2DMode() else float(self.position.z)
 
     requireVisible: False
 
@@ -259,7 +263,7 @@ class Vehicle(DrivingObject):
             :obj:`Color.defaultCarColor`.
     """
     regionContainedIn: roadOrShoulder
-    position: Point on road
+    position: new Point on road
     heading: (roadDirection at self.position) + self.roadDeviation
     roadDeviation: 0
     viewAngle: 90 deg
@@ -294,7 +298,7 @@ class Pedestrian(DrivingObject):
             used by simulators, but do appear in the debugging diagram.
     """
     regionContainedIn: network.walkableRegion
-    position: Point on network.walkableRegion
+    position: new Point on network.walkableRegion
     heading: Range(0, 360) deg
     viewAngle: 90 deg
     width: 0.75

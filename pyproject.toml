@@ -1,9 +1,10 @@
 [project]
 name = "scenic"
-version = "2.1.0"
+version = "3.0.0b2"
 description = "The Scenic scenario description language."
 authors = [
 	{ name = "Daniel Fremont", email = "dfremont@ucsc.edu" },
+	{ name = "Eric Vin" },
 	{ name = "Edward Kim" },
 	{ name = "Tommaso Dreossi" },
 	{ name = "Shromona Ghosh" },
@@ -15,7 +16,7 @@ maintainers = [
 	{ name = "Daniel Fremont", email = "dfremont@ucsc.edu" },
 ]
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 license = { file = "LICENSE" }
 classifiers = [
 	"Operating System :: OS Independent",
@@ -27,18 +28,23 @@ classifiers = [
 dependencies = [
 	"antlr4-python3-runtime ~= 4.11",
 	"attrs >= 19.3.0",
-	"decorator ~= 5.0",
 	"dotmap ~= 1.3",
-	'importlib_metadata >= 3.7, <5; python_version < "3.8"',
 	"mapbox_earcut >= 0.12.10",
 	"matplotlib ~= 3.2",
-	"numpy ~= 1.21",
+	"networkx >= 2.6",
+	"numpy ~= 1.24",
 	"opencv-python ~= 4.5",
+	"pegen >= 0.2",
 	"pillow ~= 9.1",
 	'pygame >= 2.1.3.dev8, <3; python_version >= "3.11"',
 	'pygame ~= 2.0; python_version < "3.11"',
-	"scipy ~= 1.6",
-	"shapely ~= 1.7",
+	"pyglet ~= 1.5",
+	"python-fcl >= 0.7",
+	"Rtree ~= 1.0",
+	"rv-ltl ~= 0.1",
+	"scipy ~= 1.7",
+	"shapely ~= 2.0",
+	"trimesh >=3.22.2, <4",
 ]
 
 [project.optional-dependencies]
@@ -47,18 +53,22 @@ guideways = [
 	'pyproj ~= 3.3; python_version >= "3.10"',
 ]
 test = [	# minimum dependencies for running tests (used for tox virtualenvs)
-	"pytest >= 6.0.0, <8",
+	"pytest >= 7.0.0, <8",
 	"pytest-randomly ~= 3.2",
 ]
 dev = [
 	"scenic[test]",		# all dependencies from 'test' extra above
 	"scenic[guideways]", # for running guideways modules
 	"astor >= 0.8.1",
+	"black ~= 23.0",
 	"inflect ~= 5.5",
+	"isort ~= 5.11",
+	"pre-commit ~= 3.0",
 	"pygments ~= 2.11",
 	"pytest-cov >= 3.0.0",
 	"sphinx >= 5.0.0, <6",
 	"sphinx_rtd_theme >= 0.5.2",
+	"sphinx-tabs ~= 3.4.1",
 	"tox ~= 3.14",
 ]
 
@@ -78,3 +88,26 @@ scenic = "scenic.syntax.pygment:ScenicStyle"
 [build-system]
 requires = ["flit_core >= 3.2, <4"]
 build-backend = "flit_core.buildapi"
+
+[tool.black]
+line-length = 90
+force-exclude = '''
+^/src/scenic/syntax/parser\.py
+| ^/src/scenic/simulators/webots/WBT.*
+| ^/tests/syntax/polychrome.*
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 90
+combine_as_imports = "true"
+force_sort_within_sections = "true"
+treat_all_comments_as_code = "true"
+skip_gitignore = "true"
+extend_skip_glob = [
+	"src/scenic/simulators/webots/WBT.*",
+	"tests/syntax/polychrome.*",
+]
+
+[tool.pytest.ini_options]
+norecursedirs = ["examples"]

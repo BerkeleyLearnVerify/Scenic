@@ -6,6 +6,8 @@ Developing Scenic
 This page covers information useful if you will be developing Scenic, either changing the
 language itself or adding new built-in libraries or simulator interfaces.
 
+To find documentation (and code) for specific parts of Scenic's implementation, see our page on :doc:`internals`.
+
 Getting Started
 ---------------
 
@@ -18,11 +20,9 @@ Then to install Scenic and its development dependencies in your virtual environm
 
 This will perform an "editable" install, so that any changes you make to Scenic's code will take effect immediately when running Scenic in your virtual environment.
 
-.. note::
-
-	If you use `Poetry <https://python-poetry.org/>`_, you can instead run the command :command:`poetry install -E dev` to create the virtual environment and install Scenic in it, then :command:`poetry shell` to activate the environment.
-
-To find documentation (and code) for specific parts of Scenic's implementation, see our page on :doc:`internals`.
+Scenic uses the `isort <https://pycqa.github.io/isort/>`_ and `black <https://black.readthedocs.io/en/stable/index.html>`_ tools to automatically sort ``import`` statements and enforce a consistent code style.
+Run the command :command:`pre-commit install` to set up hooks which will run every time you commit and correct any formatting problems (you can then inspect the files and try committing again).
+You can also manually run the formatters on the files changed since the last commit with :command:`pre-commit run`. [#f1]_
 
 Running the Test Suite
 ----------------------
@@ -119,3 +119,7 @@ commonly-used features are:
 	  emphasizing variables like :rst:role:`samp`;
 	* the :rst:role:`term` role for glossary terms is extended so that the cross-reference will
 	  work even if the link is plural but the glossary entry is singular or vice versa.
+
+.. rubric:: Footnotes
+
+.. [#f1] To run the formatters on *all* files, changed or otherwise, use :command:`make format` in the root directory of the repository. But this should not be necessary if you installed the pre-commit hooks and so all files already committed are clean.
