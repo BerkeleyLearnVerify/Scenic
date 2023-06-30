@@ -4,6 +4,8 @@ Ego-vehicle must go around a blocking object
 using the opposite lane, yielding to oncoming traffic.
 """
 
+# N.B. Town07 is not included with CARLA by default; see installation instructions at
+# https://carla.readthedocs.io/en/latest/start_quickstart/#import-additional-assets
 param map = localPath('../../../assets/maps/CARLA/Town07.xodr')
 param carla_map = 'Town07'
 model scenic.simulators.carla.model

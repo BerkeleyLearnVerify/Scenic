@@ -44,7 +44,10 @@ class CarlaSimulator(DrivingSimulator):
         self.client = carla.Client(address, port)
         self.client.set_timeout(timeout)  # limits networking operations (seconds)
         if carla_map is not None:
-            self.world = self.client.load_world(carla_map)
+            try:
+                self.world = self.client.load_world(carla_map)
+            except Exception as e:
+                raise RuntimeError(f"CARLA could not load world '{carla_map}'") from e
         else:
             if map_path.endswith(".xodr"):
                 with open(map_path) as odr_file:
