@@ -332,12 +332,10 @@ class Road:
         # NOTE: sec_points, sec_polys, sec_lane_polys should be ordered according to lane_secs.
         self.sec_points = []  # List of lists of points, one for each LaneSection.
         self.sec_polys = []  # List of Polygons, one for each LaneSections.
-        self.sec_lane_polys = (
-            []
-        )  # List of dict of lane id to Polygon for each LaneSection.
-        self.lane_polys = (
-            []
-        )  # List of lane polygons. Not a dict b/c lane id is not unique along road.
+        # List of dict of lane id to Polygon for each LaneSection.
+        self.sec_lane_polys = []
+        # List of lane polygons. Not a dict b/c lane id is not unique along road.
+        self.lane_polys = []
         # Each polygon in lane_polys is the union of connected lane section polygons.
         # lane_polys is currently not used.
         # Reference line offset:
@@ -818,9 +816,8 @@ class Road:
                 for id_, lane in sec.drivable_lanes.items():
                     newLane = section.lanesByOpenDriveID[id_]
                     if newLane.isForward:
-                        newLane._successor = (
-                            lane.succ
-                        )  # will correct inter-road links later
+                        # will correct inter-road links later
+                        newLane._successor = lane.succ
                     else:
                         newLane._predecessor = lane.succ
                 continue

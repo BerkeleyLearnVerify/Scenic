@@ -12,9 +12,8 @@ import warnings
 import scenic.core.errors as errors
 
 if errors.verbosityLevel == 0:  # suppress pygame advertisement at zero verbosity
-    import os
-
     os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
+
 import pygame
 
 from scenic.core.simulators import SimulationCreationError

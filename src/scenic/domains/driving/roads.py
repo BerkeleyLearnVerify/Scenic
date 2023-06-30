@@ -563,9 +563,8 @@ class Lane(_ContainsCenterline, LinearElement):
 
     adjacentLanes: Tuple[Lane] = ()  # adjacent lanes of same type, if any
 
-    maneuvers: Tuple[
-        Maneuver
-    ] = ()  # possible maneuvers upon reaching the end of this lane
+    # possible maneuvers upon reaching the end of this lane
+    maneuvers: Tuple[Maneuver] = ()
 
     @distributionFunction
     def sectionAt(self, point: Vectorlike, reject=False) -> Union[LaneSection, None]:

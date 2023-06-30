@@ -1281,17 +1281,7 @@ class Object(OrientedPoint):
         min_length, max_length = supportInterval(length)
         min_height, max_height = supportInterval(height)
 
-        if any(
-            val == None
-            for val in [
-                min_width,
-                max_width,
-                min_length,
-                max_length,
-                min_height,
-                max_height,
-            ]
-        ):
+        if None in [min_width, max_width, min_length, max_length, min_height, max_height]:
             # Can't get a bound on one or more dimensions, abort
             return 0
 
@@ -1632,19 +1622,18 @@ class OrientedPoint2D(Point2D, OrientedPoint):
             pass
         else:
             cls._props_transformed = True
+            props = cls._scenic_properties
             # Raise error if parentOrientation already defined
-            if "parentOrientation" in cls._scenic_properties:
+            if "parentOrientation" in props:
                 raise RuntimeError(
                     "this scenario cannot be run with the --2d flag (the "
                     f'{cls.__name__} class defines "parentOrientation")'
                 )
 
             # Map certain properties to their 3D analog
-            if "heading" in cls._scenic_properties:
-                cls._scenic_properties["parentOrientation"] = cls._scenic_properties[
-                    "heading"
-                ]
-                del cls._scenic_properties["heading"]
+            if "heading" in props:
+                props["parentOrientation"] = props["heading"]
+                del props["heading"]
 
         super().__init_subclass__()
 
@@ -1654,9 +1643,7 @@ class OrientedPoint2D(Point2D, OrientedPoint):
         newspecs = []
         for spec in specifiers:
             # Map "with heading x" to "facing x"
-            if spec.name == "With(heading)" and tuple(spec.priorities.keys()) == (
-                "heading",
-            ):
+            if spec.name == "With(heading)" and tuple(spec.priorities) == ("heading",):
                 import scenic.syntax.veneer as veneer
 
                 newspecs.append(veneer.Facing(spec.value["heading"]))

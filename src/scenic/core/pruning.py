@@ -281,9 +281,8 @@ def pruneRelativeHeading(scenario, verbosity):
         position = currentPropValue(obj, "position")
         base, _, _, offset = matchInRegion(position)
 
-        if base is None or needsSampling(
-            base
-        ):  # obj must be positioned uniformly in a Region
+        # obj must be positioned uniformly in a Region
+        if base is None or needsSampling(base):
             continue
 
         if offset is not None:
@@ -298,9 +297,8 @@ def pruneRelativeHeading(scenario, verbosity):
             if isinstance(rel, RelativeHeadingRelation) and rel.target in fields:
                 tField, tOffsetL, tOffsetR = fields[rel.target]
                 maxDist = maxDistanceBetween(scenario, obj, rel.target)
-                if maxDist == float(
-                    "inf"
-                ):  # the distance between the objects must be bounded
+                if maxDist == float("inf"):
+                    # the distance between the objects must be bounded
                     continue
                 feasible = feasibleRHPolygon(
                     field,
@@ -313,9 +311,8 @@ def pruneRelativeHeading(scenario, verbosity):
                     rel.upper,
                     maxDist,
                 )
-                if (
-                    feasible is None
-                ):  # the RH bounds may be too weak to restrict the space
+                if feasible is None:
+                    # the RH bounds may be too weak to restrict the space
                     continue
                 try:
                     pruned = newBasePoly & feasible
@@ -396,10 +393,8 @@ def feasibleRHPolygon(
         return None
     polygons = []
     expanded = [(poly.buffer(maxDist), heading) for poly, heading in tField.cells]
-    for (
-        baseCell,
-        baseHeading,
-    ) in field.cells:  # TODO skip cells not contained in base region?
+    for baseCell, baseHeading in field.cells:
+        # TODO skip cells not contained in base region?
         for expandedTargetCell, targetHeading in expanded:
             lower, upper = relativeHeadingRange(
                 baseHeading, offsetL, offsetR, targetHeading, tOffsetL, tOffsetR
@@ -418,9 +413,8 @@ def relativeHeadingRange(
     baseHeading, offsetL, offsetR, targetHeading, tOffsetL, tOffsetR
 ):
     """Lower/upper bound the possible RH between two headings with bounded disturbances."""
-    if (
-        baseHeading is None or targetHeading is None
-    ):  # heading may not be constant within cell
+    if baseHeading is None or targetHeading is None:
+        # heading may not be constant within cell
         return -math.pi, math.pi
     lower = normalizeAngle(baseHeading + offsetL)
     upper = normalizeAngle(baseHeading + offsetR)

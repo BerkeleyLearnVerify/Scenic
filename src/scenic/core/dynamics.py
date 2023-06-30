@@ -229,9 +229,8 @@ class DynamicScenario(Invocable):
         self._externalParameters = []
         self._pendingRequirements = defaultdict(list)
         self._requirements = []
-        self._requirementDeps = (
-            set()
-        )  # things needing to be sampled to evaluate the requirements
+        # things needing to be sampled to evaluate the requirements
+        self._requirementDeps = set()
 
         self._agents = []
         self._monitors = []

@@ -49,16 +49,14 @@ class LazilyEvaluable:
 
         The object must define all of the properties on which this value depends.
         """
-        cache = (
-            context._evaluated
-        )  # cache of lazy values already evaluated in this context
+        # cache of lazy values already evaluated in this context
+        cache = context._evaluated
         if self in cache:
             return cache[self]  # avoid making a new evaluated copy of this value
         assert all(hasattr(context, prop) for prop in self._requiredProperties)
         value = self.evaluateInner(context)
-        assert not needsLazyEvaluation(
-            value
-        )  # value should not require further evaluation
+        # value should not require further evaluation
+        assert not needsLazyEvaluation(value)
         cache[self] = value
         return value
 

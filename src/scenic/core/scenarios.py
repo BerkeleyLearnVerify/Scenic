@@ -93,12 +93,11 @@ class _Deactivator:
 
     def deactivate(self):
         import scenic.syntax.veneer as veneer
+        from scenic.syntax.translator import purgeModulesUnsafeToCache
 
         veneer.deactivate()
         assert not veneer.isActive(), "nested pickle of Scene/Scenario"
         # Purge Scenic modules imported during pickling
-        from scenic.syntax.translator import purgeModulesUnsafeToCache
-
         purgeModulesUnsafeToCache(self.oldModules)
 
     def __getstate__(self):
@@ -333,9 +332,8 @@ class Scenario(_ScenarioPickleMixin):
         :meta private:
         """
         objects = self.objects
-        staticVisibility = self.egoObject and not needsSampling(
-            self.egoObject.visibleRegion
-        )
+        ego = self.egoObject
+        staticVisibility = ego and not needsSampling(ego.visibleRegion)
         staticBounds = [obj._hasStaticBounds for obj in objects]
         for i in range(len(objects)):
             oi = objects[i]
@@ -352,12 +350,8 @@ class Scenario(_ScenarioPickleMixin):
                     f"Object at {oi.position} does not fit in container"
                 )
             # Require object to be visible from the ego object
-            if (
-                staticVisibility
-                and oi.requireVisible is True
-                and oi is not self.egoObject
-            ):
-                if not self.egoObject.canSee(oi):
+            if staticVisibility and oi.requireVisible is True and oi is not ego:
+                if not ego.canSee(oi):
                     raise InvalidScenarioError(
                         f"Object at {oi.position} is not visible from ego"
                     )
@@ -413,22 +407,21 @@ class Scenario(_ScenarioPickleMixin):
         Raises:
             `RejectionException`: if not enough valid samples are found in **maxIterations** iterations.
         """
-        total_iterations = 0
+        totalIterations = 0
         scenes = []
 
         for _ in range(numScenes):
             try:
-                scene, iterations = self._generateInner(
-                    maxIterations - total_iterations, verbosity, feedback
-                )
+                remainingIts = maxIterations - totalIterations
+                scene, iterations = self._generateInner(remainingIts, verbosity, feedback)
                 scenes.append(scene)
-                total_iterations += iterations
+                totalIterations += iterations
             except RejectionException:
                 raise RejectionException(
                     f"failed to generate scenario in {maxIterations} iterations"
                 )
 
-        return scenes, total_iterations
+        return scenes, totalIterations
 
     def _generateInner(self, maxIterations, verbosity, feedback):
         # choose which custom requirements will be enforced for this sample

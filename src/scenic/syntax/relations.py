@@ -198,22 +198,19 @@ class RequirementMatcher:
         target = matchAtom(arg)
         if target is not None:  # abs(QUANTITY) </= CONST
             return (-const, const, target)
-        elif isinstance(arg, BinOp) and isinstance(
-            arg.op, (Add, Sub)
-        ):  # abs(X +/- Y) </= CONST
+        elif isinstance(arg, BinOp) and isinstance(arg.op, (Add, Sub)):
+            # abs(X +/- Y) </= CONST
             match = None
             slconst = self.matchConstant(arg.left)
             target = matchAtom(arg.right)
-            if (
-                isinstance(slconst, (int, float)) and target is not None
-            ):  # abs(CONST +/- QUANTITY) </= CONST
+            if isinstance(slconst, (int, float)) and target is not None:
+                # abs(CONST +/- QUANTITY) </= CONST
                 match = slconst
             else:
                 srconst = self.matchConstant(arg.right)
                 target = matchAtom(arg.left)
-                if (
-                    isinstance(srconst, (int, float)) and target is not None
-                ):  # abs(QUANTITY +/- CONST) </= CONST
+                if isinstance(srconst, (int, float)) and target is not None:
+                    # abs(QUANTITY +/- CONST) </= CONST
                     match = srconst
             if match is not None:
                 if isinstance(arg.op, Add):  # abs(QUANTITY + CONST) </= CONST
