@@ -1,6 +1,6 @@
 [project]
 name = "scenic"
-version = "3.0.0b1"
+version = "3.0.0b2"
 description = "The Scenic scenario description language."
 authors = [
 	{ name = "Daniel Fremont", email = "dfremont@ucsc.edu" },
@@ -63,6 +63,7 @@ dev = [
 	"black ~= 23.0",
 	"inflect ~= 5.5",
 	"isort ~= 5.11",
+	"pre-commit ~= 3.0",
 	"pygments ~= 2.11",
 	"pytest-cov >= 3.0.0",
 	"sphinx >= 5.0.0, <6",
