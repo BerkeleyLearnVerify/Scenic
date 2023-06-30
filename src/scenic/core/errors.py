@@ -54,6 +54,7 @@ postMortemDebugging = False
 #: Whether or not to do "post-mortem" debugging of rejected scenes/simulations.
 postMortemRejections = False
 
+# fmt: off
 #: Folders elided from backtraces when :obj:`showInternalBacktrace` is false.
 #:
 #: :meta hide-value:
@@ -63,6 +64,7 @@ hiddenFolders = [
     '<frozen importlib._bootstrap>',                # parts of importlib used internally
     pathlib.Path(importlib.__file__).parent,
 ]
+# fmt: on
 
 ## Exceptions
 

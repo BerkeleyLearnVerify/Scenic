@@ -577,6 +577,7 @@ class ScenicStyle(Style):
     # Inherit styles from the default style for any token types we don't use
     styles = DefaultStyle.styles
 
+    # fmt: off
     styles.update({
         Punctuation:                    "#656E81",
         Comment:                        "italic #707274",
@@ -614,6 +615,7 @@ class ScenicStyle(Style):
 
         Error:                          "#FFFFFF bg:#FF0000",
     })
+    # fmt: on
 
 class PegenLexer(BetterPythonLexer):
     """Lexer for Pegen grammars."""

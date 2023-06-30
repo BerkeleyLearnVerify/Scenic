@@ -165,6 +165,8 @@ def test_multiple_requirements():
 # If the hole is replaced by an empty string, the program should compile.
 # Each entry in the list is a pair, with the first element being the line
 # number the error should be reported on.
+
+# fmt: off
 templates = [
 (1,     # on first line
 '''{bug}
@@ -231,6 +233,7 @@ ego = new Object with behavior foo
 '''
 ),
 ]
+# fmt: on
 
 @pytest.mark.parametrize('template', templates + dynamicTemplates)
 def test_bug_template_sanity(template, tmpdir):
@@ -334,6 +337,7 @@ def runFile(path):
     scene, _ = scenario.generate(maxIterations=1)
     sampleActionsFromScene(scene, maxSteps=2)
 
+# fmt: off
 @pytest.mark.parametrize('bug', (
     # BUGGY CODE                    ERROR CAUGHT DURING:
     '4 = 2',                        # Scenic parsing
@@ -349,14 +353,17 @@ def runFile(path):
     'require 4 at 0',               # requirement evaluation (Scenic parse error)
     'require _flub__',              # requirement evaluation (Python runtime error)
 ))
+# fmt: on
 @pytest.mark.parametrize('template', templates + dynamicTemplates)
 def test_line_numbering(bug, template, tmpdir, pytestconfig):
     """Line numbering for parse errors."""
     checkBug(bug, template, tmpdir, pytestconfig)
 
+# fmt: off
 @pytest.mark.parametrize('bug', (
     'mutate',           # caught during AST surgery
 ))
+# fmt: on
 @pytest.mark.parametrize('template', dynamicTemplates)
 def test_line_numbering_dynamic(bug, template, tmpdir, pytestconfig):
     """Line numbering for parse errors only occurring in dynamic behaviors."""
@@ -371,6 +378,7 @@ def test_line_numbering_double(bug, template, tmpdir, pytestconfig):
     """Line numbering for errors arising in reused syntax elements."""
     checkBug(bug, template, tmpdir, pytestconfig)
 
+# fmt: off
 chainedTemplates = [
 ((5, 3),
 '''ego = new Object
@@ -392,6 +400,7 @@ except Exception as e:
 '''
 ),
 ]
+# fmt: on
 
 @pytest.mark.parametrize('bug', (
     'raise ValueError',
