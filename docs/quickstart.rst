@@ -103,6 +103,9 @@ If you get an error (or got one earlier when following the instructions above), 
 
 	If a feature described in this documentation seems to be missing, your version of Scenic may be too old: take a look at :doc:`new` to see when the feature was added.
 
+To help read Scenic code, we suggest you install a syntax highlighter plugin for your text editor.
+Plugins for Sublime Text and Visual Studio Code can be installed from within those tools; for other editors supporting the TextMate grammar format, the grammar is available `here <https://github.com/UCSCFormalMethods/Scenic-tmLanguage>`__.
+
 Trying Some Examples
 --------------------
 

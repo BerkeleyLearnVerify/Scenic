@@ -74,6 +74,9 @@ Major new features:
 	  Similarly, executed `Simulation` objects can be saved and replayed.
 	  See :ref:`serialization` for details.
 
+	* Scenic syntax highlighters for Sublime Text, Visual Studio Code, and other TextMate-compatible editors are now available: see :doc:`quickstart`.
+	  For users of `Pygments <https://pygments.org/>`_, the ``scenic`` package automatically installs a Pygments lexer (and associated style) for Scenic.
+
 Minor new features:
 
 	* It is no longer necessary to define an :scenic:`ego` object.
