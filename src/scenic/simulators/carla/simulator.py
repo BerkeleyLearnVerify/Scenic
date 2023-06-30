@@ -221,9 +221,12 @@ class CarlaSimulation(DrivingSimulation):
 
         if isinstance(carlaActor, carla.Vehicle):
             # TODO should get dimensions at compile time, not simulation time
-            obj.width = carlaActor.bounding_box.extent.y * 2
-            obj.length = carlaActor.bounding_box.extent.x * 2
-            obj.height = carlaActor.bounding_box.extent.z * 2
+            extent = carlaActor.bounding_box.extent
+            ex, ey, ez = extent.x, extent.y, extent.z
+            # Ensure each extent is positive to work around CARLA issue #5841
+            obj.width = ey * 2 if ey > 0 else obj.width
+            obj.length = ex * 2 if ex > 0 else obj.length
+            obj.height = ez * 2 if ez > 0 else obj.height
             carlaActor.apply_control(carla.VehicleControl(manual_gear_shift=True, gear=1))
         elif isinstance(carlaActor, carla.Walker):
             carlaActor.apply_control(carla.WalkerControl())
