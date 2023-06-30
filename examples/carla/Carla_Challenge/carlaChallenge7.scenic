@@ -4,9 +4,9 @@ Ego-vehicle is going straight at an intersection but a crossing vehicle
 runs a red light, forcing the ego-vehicle to perform a collision avoidance maneuver.
 Note: The traffic light control is not implemented yet, but it will soon be. 
 """
-param map = localPath('../../../assets/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../../assets/maps/CARLA/Town05.xodr')
 param carla_map = 'Town05'
-model scenic.domains.driving.model
+model scenic.simulators.carla.model
 
 DELAY_TIME_1 = 1 # the delay time for ego
 DELAY_TIME_2 = 40 # the delay time for the slow car

@@ -2,9 +2,9 @@
 Based on 2019 Carla Challenge Traffic Scenario 09.
 Ego-vehicle is performing a right turn at an intersection, yielding to crossing traffic.
 """
-param map = localPath('../../../assets/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../../assets/maps/CARLA/Town05.xodr')
 param carla_map = 'Town05'
-model scenic.domains.driving.model
+model scenic.simulators.carla.model
 
 DELAY_TIME_1 = 1 # the delay time for ego
 DELAY_TIME_2 = 40 # the delay time for the slow car
