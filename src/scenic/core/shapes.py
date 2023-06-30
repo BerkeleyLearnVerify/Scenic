@@ -42,6 +42,9 @@ class Shape(ABC):
         self.width = self.dimensions[0]
         self.length = self.dimensions[1]
         self.height = self.dimensions[2]
+        for dim, name in zip(self.dimensions, ("width", "length", "height")):
+            if dim <= 0:
+                raise ValueError(f"{name} of shape must be positive")
 
     @cached_property
     def containsCenter(self):

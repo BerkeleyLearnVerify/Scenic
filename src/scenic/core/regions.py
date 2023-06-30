@@ -1060,6 +1060,12 @@ class MeshVolumeRegion(MeshRegion):
         if isLazy(self):
             return
 
+        # Validate dimensions
+        if self.dimensions is not None:
+            for dim, name in zip(self.dimensions, ("width", "length", "height")):
+                if dim <= 0:
+                    raise ValueError(f"{name} of MeshVolumeRegion must be positive")
+
         # Ensure the mesh is watertight so volume is well defined
         if not self._mesh.is_volume:
             raise ValueError(
@@ -1787,6 +1793,12 @@ class MeshSurfaceRegion(MeshRegion):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Validate dimensions
+        if self.dimensions is not None:
+            for dim, name in zip(self.dimensions, ("width", "length", "height")):
+                if dim < 0:
+                    raise ValueError(f"{name} of MeshSurfaceRegion must be nonnegative")
 
         # Set default orientation to one inferred from face norms if none is provided.
         if self.orientation is None:

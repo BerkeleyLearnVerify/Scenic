@@ -232,6 +232,19 @@ def test_mesh_region_fromFile():
     )
 
 
+def test_mesh_volume_region_zero_dimension():
+    for dims in ((0, 1, 1), (1, 0, 1), (1, 1, 0)):
+        with pytest.raises(ValueError):
+            BoxRegion(dimensions=dims)
+
+
+def test_mesh_surface_region_negative_dimension():
+    mesh = trimesh.creation.box((0.5, 0.5, 0.5))
+    for dims in ((-1, 1, 1), (1, -1, 1), (1, 1, -1)):
+        with pytest.raises(ValueError):
+            MeshSurfaceRegion(mesh, dimensions=dims)
+
+
 def test_mesh_operation_blender():
     r1 = BoxRegion(position=(0, 0, 0), dimensions=(1, 1, 1), engine="blender")
     r2 = BoxRegion(position=(0, 0, 0), dimensions=(2, 2, 2), engine="blender")
