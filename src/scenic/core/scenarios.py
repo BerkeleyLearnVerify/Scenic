@@ -197,11 +197,19 @@ class Scene(_ScenarioPickleMixin):
             dumpAsScenicCode(obj, stream)
             stream.write("\n")
 
-    def show(self, axes=True, viewer="gl"):
-        self.show3D(axes=axes, viewer=viewer)
+    def show(self, axes=True):
+        self.show3D(axes=axes)
 
-    def show3D(self, axes, viewer):
+    def show3D(self, axes):
         """Render a 3D schematic of the scene for debugging."""
+        flags = dict()
+        if axes:
+            flags["axis"] = "world"
+
+        self.viewer3D().show(flags=flags)
+
+    def viewer3D(self):
+        """Return a 3D schematic of the scene for debugging."""
         import trimesh
 
         # Create a new trimesh scene to contain meshes
@@ -222,11 +230,7 @@ class Scene(_ScenarioPickleMixin):
                 )
             )
 
-        flags = dict()
-        if axes:
-            flags["axis"] = "world"
-
-        render_scene.show(flags=flags, viewer=viewer)
+        return render_scene
 
     def show2D(self, zoom=None, block=True):
         """Render a 2D schematic of the scene for debugging."""
