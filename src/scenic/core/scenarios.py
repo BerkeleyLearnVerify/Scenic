@@ -205,7 +205,7 @@ class Scene(_ScenarioPickleMixin):
         import trimesh
 
         # Create a new trimesh scene to contain meshes
-        render_scene = trimesh.scene.Scene(viewer=viewer)
+        render_scene = trimesh.scene.Scene()
 
         # display map
         self.workspace.show3D(render_scene)
@@ -226,7 +226,7 @@ class Scene(_ScenarioPickleMixin):
         if axes:
             flags["axis"] = "world"
 
-        render_scene.show(flags=flags)
+        render_scene.show(flags=flags, viewer=viewer)
 
     def show2D(self, zoom=None, block=True):
         """Render a 2D schematic of the scene for debugging."""
