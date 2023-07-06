@@ -197,15 +197,15 @@ class Scene(_ScenarioPickleMixin):
             dumpAsScenicCode(obj, stream)
             stream.write("\n")
 
-    def show(self, axes=True):
-        self.show3D(axes=axes)
+    def show(self, axes=True, viewer="gl"):
+        self.show3D(axes=axes, viewer=viewer)
 
-    def show3D(self, axes):
+    def show3D(self, axes, viewer):
         """Render a 3D schematic of the scene for debugging."""
         import trimesh
 
         # Create a new trimesh scene to contain meshes
-        render_scene = trimesh.scene.Scene()
+        render_scene = trimesh.scene.Scene(viewer=viewer)
 
         # display map
         self.workspace.show3D(render_scene)
