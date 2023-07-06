@@ -213,7 +213,7 @@ class Scene(_ScenarioPickleMixin):
         import trimesh
 
         # Create a new trimesh scene to contain meshes
-        render_scene = trimesh.scene.Scene()
+        render_scene = trimesh.Scene()
 
         # display map
         self.workspace.show3D(render_scene)
