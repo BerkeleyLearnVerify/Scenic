@@ -202,18 +202,10 @@ class Scene(_ScenarioPickleMixin):
 
     def show3D(self, axes):
         """Render a 3D schematic of the scene for debugging."""
-        flags = dict()
-        if axes:
-            flags["axis"] = "world"
-
-        self.viewer3D().show(flags=flags)
-
-    def viewer3D(self):
-        """Return a 3D schematic of the scene for debugging."""
         import trimesh
 
         # Create a new trimesh scene to contain meshes
-        render_scene = trimesh.Scene()
+        render_scene = trimesh.scene.Scene()
 
         # display map
         self.workspace.show3D(render_scene)
@@ -230,7 +222,11 @@ class Scene(_ScenarioPickleMixin):
                 )
             )
 
-        return render_scene
+        flags = dict()
+        if axes:
+            flags["axis"] = "world"
+
+        return render_scene.show(flags=flags)
 
     def show2D(self, zoom=None, block=True):
         """Render a 2D schematic of the scene for debugging."""
