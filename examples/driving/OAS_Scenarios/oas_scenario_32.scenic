@@ -4,7 +4,7 @@ At 3-way intersection, ego turns left and the other car on a different leg of th
 intersection goes straight. There is no requirement on which vehicle has the right of the way.
 """
 
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town10HD.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../../assets/maps/CARLA/Town10HD.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town10HD'
 model scenic.domains.driving.model
 
@@ -29,25 +29,25 @@ ego_L_endLane = leftTurn_maneuver.endLane
 ego_L_centerlines = [ego_L_startLane, ego_L_connectingLane, ego_L_endLane]
 
 behavior FollowTrafficBehavior(target_speed, trajectory):
-	do FollowTrajectoryBehavior(target_speed, trajectory)
-	terminate
+    do FollowTrajectoryBehavior(target_speed, trajectory)
+    terminate
 
 
 behavior SafeBehavior(thresholdDistance, target_speed=10, trajectory = None):
-	assert trajectory is not None
-	brakeIntensity = 0.7
+    assert trajectory is not None
+    brakeIntensity = 0.7
 
-	try: 
-		do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
-		terminate
+    try:
+        do FollowTrajectoryBehavior(target_speed=target_speed, trajectory=trajectory)
+        terminate
 
-	interrupt when withinDistanceToObjsInLane(vehicle=self, thresholdDistance=thresholdDistance):
-		take SetBrakeAction(brakeIntensity)
+    interrupt when withinDistanceToObjsInLane(vehicle=self, thresholdDistance=thresholdDistance):
+        take SetBrakeAction(brakeIntensity)
 
 # PLACEMENT
-ego = Car on ego_L_startLane.centerline,
-		with behavior SafeBehavior(SAFE_DIST,target_speed=8, trajectory=ego_L_centerlines)
+ego = new Car on ego_L_startLane.centerline,
+        with behavior SafeBehavior(SAFE_DIST,target_speed=8, trajectory=ego_L_centerlines)
 
-other = Car on startLane.centerline,
-		with behavior FollowTrafficBehavior(target_speed=10, trajectory=centerlines)
+other = new Car on startLane.centerline,
+        with behavior FollowTrafficBehavior(target_speed=10, trajectory=centerlines)
 

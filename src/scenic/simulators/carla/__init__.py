@@ -14,9 +14,9 @@ For details of additional CARLA-specific functionality, see the world model
 # import would raise an exception.
 carla = None
 try:
-   import carla
+    import carla
 except ImportError:
-   pass
+    pass
 if carla:
-   from .simulator import CarlaSimulator
+    from .simulator import CarlaSimulator
 del carla

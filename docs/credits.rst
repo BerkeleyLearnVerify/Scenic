@@ -13,6 +13,9 @@ The language was initially developed by Daniel J. Fremont, Tommaso Dreossi, Shro
 
 Edward Kim assisted in developing the library for dynamic driving scenarios and putting together this documentation.
 
+Eric Vin, Matthew Rhea, and Ellen Kalvan developed Scenic's support for 3D geometry.
+Shun Kashiwa developed the auto-generated parser for Scenic 3.0 and its support for temporal requirements.
+
 The Scenic tool and example scenarios have benefitted from additional code contributions from:
 
 	* Johnathan Chiu

@@ -14,8 +14,10 @@ Miscellaneous Python Functions
 The following functions work in the same way as their Python counterparts except that they accept random values:
 
 * :obj:`~math.sin`, :obj:`~math.cos`, :obj:`~math.hypot` (from the Python `math` module)
-* `max`, `min`
-* `str`
+* `len`, `max`, `min`, `round`
+* `float`, `int`, `str`
+
+The other Python built-in functions (e.g. `enumerate`, `range`, `open`) are available but do not accept random arguments.
 
 .. note::
 
@@ -66,7 +68,7 @@ It is never the case that :math:`y \in (0, 1)` and :math:`z \in (5, 6)` or vice 
 
 localPath
 ---------
-The `localPath` function takes a relative path with respect to the directory containing the ``.scenic`` file where it is used, and converts it to an absolute path.
+The `localPath` function takes a relative path with respect to the directory containing the ``.scenic`` file where it is used, and converts it to an absolute path. Note that the path is returned as a `pathlib.Path` object.
 
 .. _verbosePrint_func:
 

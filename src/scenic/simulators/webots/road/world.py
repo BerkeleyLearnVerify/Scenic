@@ -5,6 +5,7 @@ import os.path
 #: Path to the WBT file to load the Webots world from
 worldPath = None
 
+
 def setLocalWorld(module, relpath):
     """Select a WBT file relative to the given module.
 

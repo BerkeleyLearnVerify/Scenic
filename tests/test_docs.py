@@ -1,11 +1,11 @@
-
 import os
 import socket
 import subprocess
 
 import pytest
 
-pytest.importorskip('sphinx')
+pytest.importorskip("sphinx")
+
 
 @pytest.mark.slow
 def test_build_docs():
@@ -15,14 +15,14 @@ def test_build_docs():
     and has other side-effects that aren't reset afterward.
     """
     try:
-        socket.getaddrinfo('docs.python.org', 80)
+        socket.getaddrinfo("docs.python.org", 80)
     except OSError:
-        pytest.skip('cannot connect to python.org for Intersphinx')
+        pytest.skip("cannot connect to python.org for Intersphinx")
 
     oldDirectory = os.getcwd()
     try:
-        os.chdir('docs')
-        subprocess.run(['make', 'clean', 'html', 'SPHINXOPTS=-W'], check=True)
-        subprocess.run(['make', 'doctest', 'SPHINXOPTS=-W'], check=True)
+        os.chdir("docs")
+        subprocess.run(["make", "clean", "html", "SPHINXOPTS=-W"], check=True)
+        subprocess.run(["make", "doctest", "SPHINXOPTS=-W"], check=True)
     finally:
         os.chdir(oldDirectory)

@@ -9,8 +9,10 @@
 """ Module with auxiliary functions. """
 
 import math
-import numpy as np
+
 import carla
+import numpy as np
+
 
 def draw_waypoints(world, waypoints, z=0.5):
     """
@@ -37,7 +39,8 @@ def get_speed(vehicle):
     """
     vel = vehicle.get_velocity()
 
-    return 3.6 * math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2)
+    return 3.6 * math.sqrt(vel.x**2 + vel.y**2 + vel.z**2)
+
 
 def is_within_distance_ahead(target_transform, current_transform, max_distance):
     """
@@ -49,7 +52,12 @@ def is_within_distance_ahead(target_transform, current_transform, max_distance):
     :param max_distance: maximum allowed distance
     :return: True if target object is within max_distance ahead of the reference object
     """
-    target_vector = np.array([target_transform.location.x - current_transform.location.x, target_transform.location.y - current_transform.location.y])
+    target_vector = np.array(
+        [
+            target_transform.location.x - current_transform.location.x,
+            target_transform.location.y - current_transform.location.y,
+        ]
+    )
     norm_target = np.linalg.norm(target_vector)
 
     # If the vector is too short, we can simply stop here
@@ -61,11 +69,21 @@ def is_within_distance_ahead(target_transform, current_transform, max_distance):
 
     fwd = current_transform.get_forward_vector()
     forward_vector = np.array([fwd.x, fwd.y])
-    d_angle = math.degrees(math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
+    d_angle = math.degrees(
+        math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1.0, 1.0))
+    )
 
     return d_angle < 90.0
 
-def is_within_distance(target_location, current_location, orientation, max_distance, d_angle_th_up, d_angle_th_low=0):
+
+def is_within_distance(
+    target_location,
+    current_location,
+    orientation,
+    max_distance,
+    d_angle_th_up,
+    d_angle_th_low=0,
+):
     """
     Check if a target object is within a certain distance from a reference object.
     A vehicle in front would be something around 0 deg, while one behind around 180 deg.
@@ -78,7 +96,9 @@ def is_within_distance(target_location, current_location, orientation, max_dista
         :param d_angle_th_low: low thereshold for angle (optional, default is 0)
         :return: True if target object is within max_distance ahead of the reference object
     """
-    target_vector = np.array([target_location.x - current_location.x, target_location.y - current_location.y])
+    target_vector = np.array(
+        [target_location.x - current_location.x, target_location.y - current_location.y]
+    )
     norm_target = np.linalg.norm(target_vector)
 
     # If the vector is too short, we can simply stop here
@@ -89,8 +109,11 @@ def is_within_distance(target_location, current_location, orientation, max_dista
         return False
 
     forward_vector = np.array(
-        [math.cos(math.radians(orientation)), math.sin(math.radians(orientation))])
-    d_angle = math.degrees(math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
+        [math.cos(math.radians(orientation)), math.sin(math.radians(orientation))]
+    )
+    d_angle = math.degrees(
+        math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1.0, 1.0))
+    )
 
     return d_angle_th_low < d_angle < d_angle_th_up
 
@@ -104,11 +127,17 @@ def compute_magnitude_angle(target_location, current_location, orientation):
         :param orientation: orientation of the reference object
         :return: a tuple composed by the distance to the object and the angle between both objects
     """
-    target_vector = np.array([target_location.x - current_location.x, target_location.y - current_location.y])
+    target_vector = np.array(
+        [target_location.x - current_location.x, target_location.y - current_location.y]
+    )
     norm_target = np.linalg.norm(target_vector)
 
-    forward_vector = np.array([math.cos(math.radians(orientation)), math.sin(math.radians(orientation))])
-    d_angle = math.degrees(math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
+    forward_vector = np.array(
+        [math.cos(math.radians(orientation)), math.sin(math.radians(orientation))]
+    )
+    d_angle = math.degrees(
+        math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1.0, 1.0))
+    )
 
     return (norm_target, d_angle)
 
@@ -161,5 +190,3 @@ def positive(num):
         :param num: value to check
     """
     return num if num > 0.0 else 0.0
-
-    

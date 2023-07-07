@@ -16,12 +16,15 @@ field = VectorField('myfield', lambda pos: 30 / pos.x)
 region = nowhere.union(PolygonalRegion([[0, 0], [1, 0], [1, 1], [0, 1]]))
 stuff = filter(lambda thing={}: bool(thing["foo"]),
                ({ "foo": 12.2, },))
+lots   ( of  ,  whitespace    =  12 )
+next (it)
 lambda x, *args, \
     **kwargs: NotImplemented
 
 print(f"this \n is a test from {localPath(__file__)}")
 verbosePrint("zounds!", level=1)
-re.match(r'(?x) (a|b)* [^abc#\n]+')
+match = re.match(r'(?x) (a|b)* [^abc#\n]+')
+case = re.search(rf'(.*)\1 {foo} {{')
 
 thing("""multiline
       string""",
@@ -37,7 +40,9 @@ class MyClass:
 class OtherClass(MyClass):
     foo: 21
     def method(self, arg:Union[list,types.Wuggle]=[1,2], *args, distance=5,    # comment
-        **kwargs):
+        blah, \
+        **kwargs: anno
+    ):
         """Docstring."""
         thing = args[0] if len(args) > 0 else 6
         return self.foo + distance
@@ -78,6 +83,15 @@ class OtherClass(MyClass):
         finally: yield from x
 
         raise Exception(cls.class_attr)
+
+        case = match
+        match thingy:
+            case 42 | 149:
+                return thingy
+            case Point(x=0, y=y) if y < 5:
+                return 0
+            case _:
+                return 'default'
     def __str__(self):
         return super().__str__()
     __hash__ = None

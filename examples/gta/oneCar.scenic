@@ -5,5 +5,5 @@ from scenic.simulators.gta.model import *
 
 wiggle = Range(-10 deg, 10 deg)
 
-ego = EgoCar with roadDeviation wiggle
-Car visible, with roadDeviation resample(wiggle)
+ego = new EgoCar with roadDeviation wiggle
+new Car visible, with roadDeviation resample(wiggle)
