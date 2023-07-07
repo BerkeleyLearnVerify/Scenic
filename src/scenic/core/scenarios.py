@@ -198,7 +198,7 @@ class Scene(_ScenarioPickleMixin):
             stream.write("\n")
 
     def show(self, axes=True):
-        self.show3D(axes=axes)
+        return self.show3D(axes=axes)
 
     def show3D(self, axes):
         """Render a 3D schematic of the scene for debugging."""
@@ -226,7 +226,7 @@ class Scene(_ScenarioPickleMixin):
         if axes:
             flags["axis"] = "world"
 
-        render_scene.show(flags=flags)
+        return render_scene.show(flags=flags)
 
     def show2D(self, zoom=None, block=True):
         """Render a 2D schematic of the scene for debugging."""
