@@ -587,15 +587,13 @@ class Road:
                 sec_polys[i] = sec_polys[i].difference(sec_polys[i + 1]).buffer(-1e-6)
                 assert not sec_polys[i].overlaps(sec_polys[i + 1])
 
-        for dict_i in range(len(sec_lane_polys)):
-            keys, polys = sec_lane_polys[dict_i].keys(), list(
-                sec_lane_polys[dict_i].values()
-            )
-            for i in range(len(polys) - 1):
-                if polys[i].overlaps(polys[i + 1]):
-                    polys[i] = polys[i].difference(polys[i + 1]).buffer(-1e-6)
-                    assert not polys[i].overlaps(polys[i + 1])
-            sec_lane_polys[dict_i] = dict(zip(keys, polys))
+        for polys in sec_lane_polys:
+            ids = sorted(polys)  # order adjacent lanes consecutively
+            for i in range(len(ids) - 1):
+                polyA, polyB = polys[ids[i]], polys[ids[i + 1]]
+                if polyA.overlaps(polyB):
+                    polys[ids[i]] = polyA.difference(polyB).buffer(-1e-6)
+                    assert not polys[ids[i]].overlaps(polyB)
 
         for i in range(len(lane_polys) - 1):
             if lane_polys[i].overlaps(lane_polys[i + 1]):
