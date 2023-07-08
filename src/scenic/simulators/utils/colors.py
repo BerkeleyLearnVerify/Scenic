@@ -87,7 +87,10 @@ class NoisyColorDistribution(Distribution):
 
     @staticmethod
     def addNoiseTo(color, hueNoise, lightNoise, satNoise):
-        hue, lightness, saturation = colorsys.rgb_to_hls(*color)
+        try:
+            hue, lightness, saturation = colorsys.rgb_to_hls(*color)
+        except ZeroDivisionError:
+            hue, lightness, saturation = 0.0, 1.0, 0.0
         hue = max(0, min(1, hue + hueNoise))
         lightness = max(0, min(1, lightness + lightNoise))
         saturation = max(0, min(1, saturation + satNoise))
