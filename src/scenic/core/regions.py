@@ -1185,6 +1185,14 @@ class MeshVolumeRegion(MeshRegion):
                 return surface_collision
 
             # PASS 4
+            # If we have 2 candidate points and both regions have only one body,
+            # we can just check if either region contains the candidate point of the
+            # other.
+            if (s_candidate_point is not None and o_candidate_point is not None
+                and self.mesh.body_count == 1 and other.mesh.body_count == 1):
+                return self.containsPoint(o_candidate_point) or other.containsPoint(s_candidate_point)
+
+            # PASS 5
             # Compute intersection and check if it's empty. Expensive but guaranteed
             # to give the right answer.
             return not isinstance(self.intersect(other), EmptyRegion)
