@@ -11,6 +11,7 @@ import signal
 import sys
 import typing
 import weakref
+from subprocess import CalledProcessError
 
 import trimesh
 
@@ -141,6 +142,29 @@ def loadMesh(path, filetype, compressed, binary):
         mesh = trimesh.load(mesh_file, file_type=filetype)
 
     return mesh
+
+def unifyMesh(mesh):
+    """Attempt to merge mesh bodies, aborting if something fails.
+
+    Should only be used with meshes that are volumes.
+    """
+    assert mesh.is_volume
+
+    # No need to unify a mesh with less than 2 bodies
+    if mesh.body_count < 2:
+        return mesh
+
+    try:
+        unified_mesh = trimesh.boolean.union(mesh.split(), engine="scad")
+    except CalledProcessError:
+        # Something went wrong, return the original mesh
+        return mesh
+
+    # Check that the output is still a valid mesh
+    if unified_mesh.is_volume:
+        return unified_mesh
+    else:
+        return mesh
 
 
 class DefaultIdentityDict:

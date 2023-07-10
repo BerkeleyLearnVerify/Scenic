@@ -55,7 +55,7 @@ from scenic.core.geometry import (
 )
 from scenic.core.lazy_eval import isLazy, valueInContext
 from scenic.core.type_support import toOrientation, toScalar, toVector
-from scenic.core.utils import cached, cached_method, cached_property, loadMesh
+from scenic.core.utils import cached, cached_method, cached_property, loadMesh, unifyMesh
 from scenic.core.vectors import (
     Orientation,
     OrientedVector,
@@ -867,6 +867,10 @@ class MeshRegion(Region):
             kwargs: Additional arguments to the MeshRegion initializer.
         """
         mesh = loadMesh(path, filetype, compressed, binary)
+
+        if issubclass(cls, MeshVolumeRegion):
+            mesh = unifyMesh(mesh)
+
         return cls(mesh=mesh, **kwargs)
 
     ## Lazy Construction Methods ##

@@ -11,7 +11,7 @@ from trimesh.transformations import (
 )
 
 from scenic.core.type_support import toOrientation
-from scenic.core.utils import cached_property, loadMesh
+from scenic.core.utils import cached_property, loadMesh, unifyMesh
 from scenic.core.vectors import Orientation
 
 ###################################################################################################
@@ -137,7 +137,7 @@ class MeshShape(Shape):
             binary (bool): Whether or not to open the file as a binary file.
             kwargs: Additional arguments to the MeshShape initializer.
         """
-        mesh = loadMesh(path, filetype, compressed, binary)
+        mesh = unifyMesh(loadMesh(path, filetype, compressed, binary))
         return cls(mesh, **kwargs)
 
     @property
