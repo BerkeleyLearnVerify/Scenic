@@ -8,10 +8,10 @@ import itertools
 import math
 import os
 import signal
+from subprocess import CalledProcessError
 import sys
 import typing
 import weakref
-from subprocess import CalledProcessError
 
 import trimesh
 
@@ -142,6 +142,7 @@ def loadMesh(path, filetype, compressed, binary):
         mesh = trimesh.load(mesh_file, file_type=filetype)
 
     return mesh
+
 
 def unifyMesh(mesh):
     """Attempt to merge mesh bodies, aborting if something fails.
