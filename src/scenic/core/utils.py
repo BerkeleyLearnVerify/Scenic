@@ -155,8 +155,13 @@ def unifyMesh(mesh):
     if mesh.body_count < 2:
         return mesh
 
+    mesh_bodies = mesh.split()
+
+    if not all(m.is_volume for m in mesh_bodies):
+        return mesh
+
     try:
-        unified_mesh = trimesh.boolean.union(mesh.split(), engine="scad")
+        unified_mesh = trimesh.boolean.union(mesh_bodies, engine="scad")
     except CalledProcessError:
         # Something went wrong, return the original mesh
         return mesh
