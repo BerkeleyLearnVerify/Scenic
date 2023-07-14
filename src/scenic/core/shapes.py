@@ -142,7 +142,7 @@ class MeshShape(Shape):
         """
         mesh = loadMesh(path, filetype, compressed, binary)
         if unify:
-            mesh = unifyMesh(mesh)
+            mesh = unifyMesh(mesh, verbose=True)
         return cls(mesh, **kwargs)
 
     @property

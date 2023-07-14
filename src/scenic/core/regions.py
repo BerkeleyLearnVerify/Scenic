@@ -872,7 +872,7 @@ class MeshRegion(Region):
         mesh = loadMesh(path, filetype, compressed, binary)
 
         if unify and issubclass(cls, MeshVolumeRegion):
-            mesh = unifyMesh(mesh)
+            mesh = unifyMesh(mesh, verbose=True)
 
         return cls(mesh=mesh, **kwargs)
 
