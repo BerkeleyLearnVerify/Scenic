@@ -56,15 +56,22 @@ test = [	# minimum dependencies for running tests (used for tox virtualenvs)
 	"pytest >= 7.0.0, <8",
 	"pytest-randomly ~= 3.2",
 ]
-dev = [
-	"scenic[test]",		# all dependencies from 'test' extra above
-	"scenic[guideways]", # for running guideways modules
+test-full = [  # like 'test' but adds dependencies for optional features
+	"scenic[test]",       # all dependencies from 'test' extra above
+	"scenic[guideways]",  # for running guideways modules
 	"astor >= 0.8.1",
+	'carla; platform_system == "Linux" or platform_system == "Windows"',
+	"dill",
+	"exceptiongroup",
+	"pygments ~= 2.11",
+	"verifai >= 2.1.0b1",
+]
+dev = [
+	"scenic[test-full]",
 	"black ~= 23.0",
 	"inflect ~= 5.5",
 	"isort ~= 5.11",
 	"pre-commit ~= 3.0",
-	"pygments ~= 2.11",
 	"pytest-cov >= 3.0.0",
 	"sphinx >= 5.0.0, <6",
 	"sphinx_rtd_theme >= 0.5.2",
