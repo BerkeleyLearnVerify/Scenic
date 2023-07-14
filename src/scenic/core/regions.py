@@ -782,7 +782,7 @@ class MeshRegion(Region):
         tolerance=1e-6,
         centerMesh=True,
         onDirection=None,
-        engine="blender",
+        engine="scad",
         name=None,
         additionalDeps=[],
     ):
