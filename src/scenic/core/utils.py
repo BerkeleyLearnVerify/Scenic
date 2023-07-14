@@ -12,6 +12,7 @@ from subprocess import CalledProcessError
 import sys
 import typing
 import weakref
+import warnings
 
 import trimesh
 
@@ -168,6 +169,11 @@ def unifyMesh(mesh):
 
     # Check that the output is still a valid mesh
     if unified_mesh.is_volume:
+        if unified_mesh.body_count == 1:
+            warnings.warn("The mesh that you loaded was composed of multiple bodies,"
+                " but we were able to unify it into one single body. To save on compile"
+                " time in the future, consider running unifyMesh on your mesh outside"
+                " of Scenic and using that output instead.")
         return unified_mesh
     else:
         return mesh
