@@ -850,7 +850,7 @@ class MeshRegion(Region):
         self.orientation = orientation
 
     @classmethod
-    def fromFile(cls, path, filetype=None, compressed=None, binary=False, **kwargs):
+    def fromFile(cls, path, filetype=None, compressed=None, binary=False, unify=True, **kwargs):
         """Load a mesh region from a file, attempting to infer filetype and compression.
 
         For example: "foo.obj.bz2" is assumed to be a compressed .obj file.
@@ -864,11 +864,12 @@ class MeshRegion(Region):
             compressed (bool): Whether or not this file is compressed (with bz2). This will be inferred
                 if not provided.
             binary (bool): Whether or not to open the file as a binary file.
+            unify (bool): Whether or not to attempt to unify this mesh.
             kwargs: Additional arguments to the MeshRegion initializer.
         """
         mesh = loadMesh(path, filetype, compressed, binary)
 
-        if issubclass(cls, MeshVolumeRegion):
+        if unify and issubclass(cls, MeshVolumeRegion):
             mesh = unifyMesh(mesh)
 
         return cls(mesh=mesh, **kwargs)
