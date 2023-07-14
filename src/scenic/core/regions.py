@@ -850,7 +850,9 @@ class MeshRegion(Region):
         self.orientation = orientation
 
     @classmethod
-    def fromFile(cls, path, filetype=None, compressed=None, binary=False, unify=True, **kwargs):
+    def fromFile(
+        cls, path, filetype=None, compressed=None, binary=False, unify=True, **kwargs
+    ):
         """Load a mesh region from a file, attempting to infer filetype and compression.
 
         For example: "foo.obj.bz2" is assumed to be a compressed .obj file.

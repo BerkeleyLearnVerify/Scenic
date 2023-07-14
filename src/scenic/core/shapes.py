@@ -121,7 +121,9 @@ class MeshShape(Shape):
         super().__init__(dimensions, scale)
 
     @classmethod
-    def fromFile(cls, path, filetype=None, compressed=None, binary=False, unify=True, **kwargs):
+    def fromFile(
+        cls, path, filetype=None, compressed=None, binary=False, unify=True, **kwargs
+    ):
         """Load a mesh shape from a file, attempting to infer filetype and compression.
 
         For example: "foo.obj.bz2" is assumed to be a compressed .obj file.
