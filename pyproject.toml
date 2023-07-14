@@ -3,8 +3,9 @@ name = "scenic"
 version = "3.0.0b2"
 description = "The Scenic scenario description language."
 authors = [
-	{ name = "Daniel Fremont", email = "dfremont@ucsc.edu" },
+	{ name = "Daniel Fremont" },
 	{ name = "Eric Vin" },
+	{ name = "Shun Kashiwa" },
 	{ name = "Edward Kim" },
 	{ name = "Tommaso Dreossi" },
 	{ name = "Shromona Ghosh" },
