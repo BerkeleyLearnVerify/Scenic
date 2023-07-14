@@ -55,7 +55,7 @@ from scenic.core.geometry import (
 )
 from scenic.core.lazy_eval import isLazy, valueInContext
 from scenic.core.type_support import toOrientation, toScalar, toVector
-from scenic.core.utils import cached, cached_method, cached_property, loadMesh
+from scenic.core.utils import cached, cached_method, cached_property, loadMesh, unifyMesh
 from scenic.core.vectors import (
     Orientation,
     OrientedVector,
@@ -782,7 +782,7 @@ class MeshRegion(Region):
         tolerance=1e-6,
         centerMesh=True,
         onDirection=None,
-        engine="blender",
+        engine="scad",
         name=None,
         additionalDeps=[],
     ):
@@ -850,7 +850,9 @@ class MeshRegion(Region):
         self.orientation = orientation
 
     @classmethod
-    def fromFile(cls, path, filetype=None, compressed=None, binary=False, **kwargs):
+    def fromFile(
+        cls, path, filetype=None, compressed=None, binary=False, unify=True, **kwargs
+    ):
         """Load a mesh region from a file, attempting to infer filetype and compression.
 
         For example: "foo.obj.bz2" is assumed to be a compressed .obj file.
@@ -864,9 +866,14 @@ class MeshRegion(Region):
             compressed (bool): Whether or not this file is compressed (with bz2). This will be inferred
                 if not provided.
             binary (bool): Whether or not to open the file as a binary file.
+            unify (bool): Whether or not to attempt to unify this mesh.
             kwargs: Additional arguments to the MeshRegion initializer.
         """
         mesh = loadMesh(path, filetype, compressed, binary)
+
+        if unify and issubclass(cls, MeshVolumeRegion):
+            mesh = unifyMesh(mesh, verbose=True)
+
         return cls(mesh=mesh, **kwargs)
 
     ## Lazy Construction Methods ##
@@ -1185,6 +1192,20 @@ class MeshVolumeRegion(MeshRegion):
                 return surface_collision
 
             # PASS 4
+            # If we have 2 candidate points and both regions have only one body,
+            # we can just check if either region contains the candidate point of the
+            # other. (This is because we previously ruled out surface intersections)
+            if (
+                s_candidate_point is not None
+                and o_candidate_point is not None
+                and self.mesh.body_count == 1
+                and other.mesh.body_count == 1
+            ):
+                return self.containsPoint(o_candidate_point) or other.containsPoint(
+                    s_candidate_point
+                )
+
+            # PASS 5
             # Compute intersection and check if it's empty. Expensive but guaranteed
             # to give the right answer.
             return not isinstance(self.intersect(other), EmptyRegion)

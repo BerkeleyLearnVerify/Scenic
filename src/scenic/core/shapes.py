@@ -11,7 +11,7 @@ from trimesh.transformations import (
 )
 
 from scenic.core.type_support import toOrientation
-from scenic.core.utils import cached_property, loadMesh
+from scenic.core.utils import cached_property, loadMesh, unifyMesh
 from scenic.core.vectors import Orientation
 
 ###################################################################################################
@@ -121,7 +121,9 @@ class MeshShape(Shape):
         super().__init__(dimensions, scale)
 
     @classmethod
-    def fromFile(cls, path, filetype=None, compressed=None, binary=False, **kwargs):
+    def fromFile(
+        cls, path, filetype=None, compressed=None, binary=False, unify=True, **kwargs
+    ):
         """Load a mesh shape from a file, attempting to infer filetype and compression.
 
         For example: "foo.obj.bz2" is assumed to be a compressed .obj file.
@@ -135,9 +137,12 @@ class MeshShape(Shape):
             compressed (bool): Whether or not this file is compressed (with bz2). This will be inferred
                 if not provided.
             binary (bool): Whether or not to open the file as a binary file.
+            unify (bool): Whether or not to attempt to unify this mesh.
             kwargs: Additional arguments to the MeshShape initializer.
         """
         mesh = loadMesh(path, filetype, compressed, binary)
+        if unify:
+            mesh = unifyMesh(mesh, verbose=True)
         return cls(mesh, **kwargs)
 
     @property

@@ -8,8 +8,10 @@ import itertools
 import math
 import os
 import signal
+from subprocess import CalledProcessError
 import sys
 import typing
+import warnings
 import weakref
 
 import trimesh
@@ -141,6 +143,77 @@ def loadMesh(path, filetype, compressed, binary):
         mesh = trimesh.load(mesh_file, file_type=filetype)
 
     return mesh
+
+
+def unifyMesh(mesh, verbose=False):
+    """Attempt to merge mesh bodies, aborting if something fails.
+
+    Should only be used with meshes that are volumes. Returns the
+    original mesh if something goes wrong.
+    """
+    assert mesh.is_volume
+
+    # No need to unify a mesh with less than 2 bodies
+    if mesh.body_count < 2:
+        return mesh
+
+    mesh_bodies = mesh.split()
+
+    if not all(m.is_volume for m in mesh_bodies):
+        if verbose:
+            warnings.warn(
+                "The mesh that you loaded was composed of multiple bodies,"
+                " but Scenic was unable to unify it because some of those bodies"
+                " are non-volumetric (e.g. hollow portions of a volume). This is probably"
+                " not an issue, but note that if any of these bodies have"
+                " intersecting faces, Scenic may give undefined resuls. To suppress"
+                " this warning in the future, consider adding the 'unify=False' parameter"
+                " to your fromFile call."
+            )
+        return mesh
+
+    try:
+        unified_mesh = trimesh.boolean.union(mesh_bodies, engine="scad")
+    except CalledProcessError:
+        # Something went wrong, return the original mesh
+        if verbose:
+            warnings.warn(
+                "The mesh that you loaded was composed of multiple bodies,"
+                " but Scenic was unable to unify it because OpenSCAD raised"
+                " an error."
+            )
+        return mesh
+
+    # Check that the output is still a valid mesh
+    if unified_mesh.is_volume:
+        if verbose:
+            if unified_mesh.body_count == 1:
+                warnings.warn(
+                    "The mesh that you loaded was composed of multiple bodies,"
+                    " but Scenic was able to unify it into one single body. To save on compile"
+                    " time in the future, consider running unifyMesh on your mesh outside"
+                    " of Scenic and using that output instead."
+                )
+            elif unified_mesh.body_count < mesh.body_count:
+                warnings.warn(
+                    "The mesh that you loaded was composed of multiple bodies,"
+                    " but Scenic was able to unify it into fewer bodies. To save on compile"
+                    " time in the future, consider running unifyMesh on your mesh outside"
+                    " of Scenic and using that output instead. Note that if any of these"
+                    " bodies have intersecting faces, Scenic may give undefined resuls."
+                )
+
+        return unified_mesh
+    else:
+        if verbose:
+            warnings.warn(
+                "The mesh that you loaded was composed of multiple bodies,"
+                " and Scenic was unable to unify it into fewer bodies. To save on compile"
+                " time in the future, consider adding the 'unify=False' parameter to your"
+                " fromFile call. Note that if any of these bodies have intersecting faces,"
+                " Scenic may give undefined resuls."
+            )
+        return mesh
 
 
 class DefaultIdentityDict:
