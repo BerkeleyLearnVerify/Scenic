@@ -1194,7 +1194,7 @@ class MeshVolumeRegion(MeshRegion):
             # PASS 4
             # If we have 2 candidate points and both regions have only one body,
             # we can just check if either region contains the candidate point of the
-            # other.
+            # other. (This is because we previously ruled out surface intersections)
             if (
                 s_candidate_point is not None
                 and o_candidate_point is not None
