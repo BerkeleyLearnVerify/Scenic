@@ -197,7 +197,7 @@ def unifyMesh(mesh, verbose=False):
             elif unified_mesh.body_count < mesh.body_count:
                 warnings.warn(
                     "The mesh that you loaded was composed of multiple bodies,"
-                    " but Scenic was able to unify it into less bodies. To save on compile"
+                    " but Scenic was able to unify it into fewer bodies. To save on compile"
                     " time in the future, consider running unifyMesh on your mesh outside"
                     " of Scenic and using that output instead. Note that if any of these"
                     " bodies have intersecting faces, Scenic may give undefined resuls."
@@ -208,7 +208,7 @@ def unifyMesh(mesh, verbose=False):
         if verbose:
             warnings.warn(
                 "The mesh that you loaded was composed of multiple bodies,"
-                " and Scenic was unable to unify it into less bodies. To save on compile"
+                " and Scenic was unable to unify it into fewer bodies. To save on compile"
                 " time in the future, consider adding the 'unify=False' parameter to your"
                 " fromFile call. Note that if any of these bodies have intersecting faces,"
                 " Scenic may give undefined resuls."
