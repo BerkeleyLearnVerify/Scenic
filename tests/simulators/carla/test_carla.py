@@ -13,6 +13,11 @@ def test_basic(loadLocalScenario):
     scenario.generate(maxIterations=1000)
 
 
+def test_simulator_import():
+    pytest.importorskip("carla")
+    from scenic.simulators.carla import CarlaSimulator
+
+
 @pickle_test
 @pytest.mark.slow
 def test_pickle(loadLocalScenario):
