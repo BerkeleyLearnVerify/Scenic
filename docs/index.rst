@@ -6,12 +6,12 @@ A Scenic program defines a distribution over *scenes*, configurations of physica
 Scenic can also define (probabilistic) policies for dynamic agents, allowing modeling scenarios where agents take actions over time in response to the state of the world.
 
 Scenic was designed and implemented by Daniel J. Fremont, Eric Vin, Edward Kim, Tommaso Dreossi, Shromona Ghosh, Xiangyu Yue, Alberto L. Sangiovanni-Vincentelli, and Sanjit A. Seshia, with contributions from :doc:`many others <credits>`.
-For a description of the language and some of its applications, see `our journal paper <https://doi.org/10.1007/s10994-021-06120-5>`_, which extends `our PLDI 2019 paper <https://arxiv.org/abs/1809.09310>`_ on Scenic 1.x.
+For a description of the language and some of its applications, see `our journal paper <https://doi.org/10.1007/s10994-021-06120-5>`_ on Scenic 2, which extends `our PLDI 2019 paper <https://arxiv.org/abs/1809.09310>`_ on Scenic 1; the new features in Scenic 3 are described in `our CAV 2023 paper <https://arxiv.org/abs/2307.03325>`_.
 Our :doc:`publications <publications>` page lists additional papers using Scenic.
 
 .. note::
 
-   The syntax of Scenic 3.0 is not completely backwards-compatible with earlier versions of Scenic, which were used in our papers prior to 2023.
+   The syntax of Scenic 3 is not completely backwards-compatible with earlier versions of Scenic, which were used in our papers prior to 2023.
    See :doc:`new` for a list of syntax changes and new features.
    Old code can likely be easily ported; you can also install older releases if necessary from
    `GitHub <https://github.com/BerkeleyLearnVerify/Scenic/releases>`__.
