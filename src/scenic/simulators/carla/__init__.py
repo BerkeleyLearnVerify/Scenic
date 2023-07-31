@@ -1,5 +1,7 @@
 """Interface to the CARLA driving simulator.
 
+This interface must be used with 2D compatibility mode.
+
 This interface has been tested with `CARLA <https://carla.org/>`_ versions 0.9.9,
 0.9.10, and 0.9.11.
 It supports dynamic scenarios involving vehicles, pedestrians, and props.

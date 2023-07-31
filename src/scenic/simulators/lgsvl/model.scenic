@@ -3,6 +3,9 @@
 from scenic.domains.driving.model import *
 from scenic.simulators.lgsvl.behaviors import *
 
+raise RuntimeError("The LGSVL Simulator interface was deprecated in Scenic 3."
+    " To continue to use the interface, please use Scenic 2.")
+
 try:
     import lgsvl
     EGO_TYPE = lgsvl.AgentType.EGO
