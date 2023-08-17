@@ -326,7 +326,7 @@ def tryPickling(thing, checkEquivalence=True, pickler=dill):
     return unpickled
 
 
-def areEquivalent(a, b, cache=None, debug=True, ignoreCacheAttrs=False, extraIgnores=()):
+def areEquivalent(a, b, cache=None, debug=False, ignoreCacheAttrs=False, extraIgnores=()):
     """Whether two objects are equivalent, i.e. have the same properties.
 
     This is only used for debugging, e.g. to check that a Distribution is the
