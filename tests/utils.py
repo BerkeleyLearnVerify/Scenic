@@ -1,5 +1,6 @@
 """Utilities used throughout the test suite."""
 
+from importlib import metadata
 import inspect
 import math
 import multiprocessing
@@ -310,6 +311,7 @@ try:
     import dill
 except ModuleNotFoundError:
     dill = None
+dill_version = metadata.version("dill")
 pickle_test = pytest.mark.skipif(not dill, reason="dill required for pickling tests")
 
 
@@ -324,7 +326,7 @@ def tryPickling(thing, checkEquivalence=True, pickler=dill):
     return unpickled
 
 
-def areEquivalent(a, b, cache=None, debug=False, ignoreCacheAttrs=False):
+def areEquivalent(a, b, cache=None, debug=True, ignoreCacheAttrs=False, extraIgnores=()):
     """Whether two objects are equivalent, i.e. have the same properties.
 
     This is only used for debugging, e.g. to check that a Distribution is the
@@ -349,18 +351,22 @@ def areEquivalent(a, b, cache=None, debug=False, ignoreCacheAttrs=False):
     if old is b:
         return True
     cache[a] = b  # prospectively assume equivalent, for recursive calls
-    if areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs):
+    if areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs, extraIgnores):
         return True
     else:
         cache[a] = old  # guess was wrong; revert cache
         return False
 
 
-def areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs):
+def areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs, extraIgnores):
     if ignoreCacheAttrs:
 
         def ignorable(attr):
-            return attr == "__slotnames__" or attr.startswith("_cached_")
+            return (
+                attr == "__slotnames__"
+                or attr.startswith("_cached_")
+                or attr in extraIgnores
+            )
 
     else:
         ignorable = lambda attr: False
@@ -466,15 +472,29 @@ def areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs):
             return False
     elif inspect.isclass(a):
         # These attributes we can check with simple equality
-        attrs = ("__doc__", "__name__", "__module__")
+        attrs = ("__doc__", "__name__")
         if any(getattr(a, attr) != getattr(b, attr) for attr in attrs):
+            fail()
+            return False
+        # The __module__ attribute can be checked with simple equality, but we allow
+        # certain mismatches to work around https://github.com/uqfoundation/dill/issues/612
+        if a.__module__ != b.__module__ and (
+            a.__module__ != "dill._dill" or dill_version != "0.3.7"
+        ):
             fail()
             return False
         # These attributes need a full equivalence check
         if not areEquivalent(a.__bases__, b.__bases__, cache, debug):
             fail()
             return False
-        if not areEquivalent(a.__dict__, b.__dict__, cache, debug, ignoreCacheAttrs=True):
+        if not areEquivalent(
+            a.__dict__,
+            b.__dict__,
+            cache,
+            debug,
+            ignoreCacheAttrs=True,
+            extraIgnores=("__module__",),
+        ):
             fail()
             return False
         # Checking annotations depends on Python version, unfortunately
