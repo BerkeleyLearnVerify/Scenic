@@ -1621,7 +1621,11 @@ class OrientedPoint2D(Point2D, OrientedPoint):
             # Can get here when cls is unpickled (the transformed version was pickled)
             pass
         else:
-            cls._props_transformed = True
+            # Mark class as being transformed.
+            # To work around https://github.com/uqfoundation/dill/issues/612,
+            # use a different truthy value for each class.
+            cls._props_transformed = str(cls)
+
             props = cls._scenic_properties
             # Raise error if parentOrientation already defined
             if "parentOrientation" in props:

@@ -68,7 +68,7 @@ jobs:
       if: ${{ matrix.os == 'windows-latest' && steps.windows-cache-deps.outputs.cache-hit != 'true' }}
       run: |
         New-Item -Path downloads -ItemType Directory -Force
-        Invoke-WebRequest https://files.openscad.org/OpenSCAD-2021.01-x86-64.zip -O downloads/openscad.zip
+        Invoke-WebRequest https://github.com/openscad/openscad/releases/download/openscad-2021.01/OpenSCAD-2021.01-x86-64.zip -O downloads/openscad.zip
         Invoke-WebRequest https://download.blender.org/release/Blender3.6/blender-3.6.0-windows-x64.zip -O downloads/blender.zip
 
     - name: Install non-Python dependencies (Windows)
