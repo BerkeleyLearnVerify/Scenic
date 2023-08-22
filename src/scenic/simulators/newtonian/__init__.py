@@ -1,6 +1,6 @@
 """Simple Newtonian physics simulator.
 
-This interface must be used with 2D compatibility mode.
+This interface must be used in `2D compatibility mode`.
 
 This simulator allows dynamic scenarios to be tested without installing an
 external simulator. It is currently very simplistic (e.g. not modeling

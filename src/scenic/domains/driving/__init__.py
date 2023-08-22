@@ -1,6 +1,6 @@
 """Domain for driving scenarios.
 
-This domain must be used with 2D compatibility mode.
+This domain must currently be used in `2D compatibility mode`.
 
 The :doc:`world model <scenic.domains.driving.model>` defines Scenic classes for cars,
 pedestrians, etc., actions for dynamic agents which walk or drive, as well as simple
