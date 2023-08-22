@@ -360,6 +360,7 @@ class Record(AST):
         super().__init__(*args, **kwargs)
         self.value = value
         self.name = name
+        self._fields = ["value", "name"]
 
 
 class RecordInitial(AST):
@@ -371,6 +372,7 @@ class RecordInitial(AST):
         super().__init__(*args, **kwargs)
         self.value = value
         self.name = name
+        self._fields = ["value", "name"]
 
 
 class RecordFinal(AST):
@@ -382,6 +384,7 @@ class RecordFinal(AST):
         super().__init__(*args, **kwargs)
         self.value = value
         self.name = name
+        self._fields = ["value", "name"]
 
 
 class Mutate(AST):
@@ -523,7 +526,7 @@ class DoUntil(AST):
         super().__init__(*args, **kwargs)
         self.elts = elts
         self.cond = cond
-        self._fields = ["value", "cond"]
+        self._fields = ["elts", "cond"]
 
 
 class DoChoose(AST):
@@ -1035,6 +1038,7 @@ class PositionOfOp(AST):
         super().__init__(*args, **kwargs)
         self.position = position
         self.target = target
+        self._fields = ["position", "target"]
 
 
 class Front(AST):
@@ -1187,6 +1191,7 @@ class DegOp(AST):
     def __init__(self, operand: ast.AST, *args: any, **kwargs: any) -> None:
         super().__init__(*args, **kwargs)
         self.operand = operand
+        self._fields = ["operand"]
 
 
 class VectorOp(AST):
@@ -1206,6 +1211,7 @@ class FieldAtOp(AST):
         super().__init__(*args, **kwargs)
         self.left = left
         self.right = right
+        self._fields = ["left", "right"]
 
 
 class RelativeToOp(AST):
@@ -1215,6 +1221,7 @@ class RelativeToOp(AST):
         super().__init__(*args, **kwargs)
         self.left = left
         self.right = right
+        self._fields = ["left", "right"]
 
 
 class OffsetAlongOp(AST):
@@ -1232,6 +1239,7 @@ class OffsetAlongOp(AST):
         self.base = base
         self.direction = direction
         self.offset = offset
+        self._fields = ["base", "direction", "offset"]
 
 
 class CanSeeOp(AST):
@@ -1241,3 +1249,4 @@ class CanSeeOp(AST):
         super().__init__(*args, **kwargs)
         self.left = left
         self.right = right
+        self._fields = ["left", "right"]
