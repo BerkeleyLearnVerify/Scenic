@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy
+import pytest
 import trimesh
 
 from scenic.core.utils import loadMesh, repairMesh
