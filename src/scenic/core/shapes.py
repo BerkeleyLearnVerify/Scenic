@@ -94,6 +94,7 @@ class MeshShape(Shape):
         if not mesh.is_volume:
             raise ValueError(
                 "A MeshShape cannot be defined with a mesh that does not have a well defined volume."
+                " Consider using scenic.core.utils.repairMesh."
             )
 
         # Copy mesh and center vertices around origin
