@@ -43,6 +43,7 @@ dependencies = [
 	"python-fcl >= 0.7",
 	"Rtree ~= 1.0",
 	"rv-ltl ~= 0.1",
+	"scikit-image ~= 0.21",
 	"scipy ~= 1.7",
 	"shapely ~= 2.0",
 	"trimesh >=3.22.5, <4",
