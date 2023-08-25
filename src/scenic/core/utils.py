@@ -234,6 +234,10 @@ def repairMesh(mesh, pitch=(1 / 2) ** 6, verbose=True):
     Repair is finally attempted by using the convex hull, which is unlikely to
     be accurate but is guaranteed to result in a volume.
     """
+    # If mesh is already a volume, we're done.
+    if mesh.is_volume:
+        return mesh
+
     ## Trimesh Processing ##
     processed_mesh = mesh.process(validate=True, merge_tex=True, merge_norm=True).copy()
 
