@@ -235,7 +235,7 @@ def repairMesh(mesh, pitch=(1 / 2) ** 6, verbose=True):
     be accurate but is guaranteed to result in a volume.
     """
     ## Trimesh Processing ##
-    processed_mesh = mesh.process(validate=True, merge_tex=True, merge_norm=True)
+    processed_mesh = mesh.process(validate=True, merge_tex=True, merge_norm=True).copy()
 
     if processed_mesh.is_volume:
         if verbose:
@@ -251,9 +251,11 @@ def repairMesh(mesh, pitch=(1 / 2) ** 6, verbose=True):
 
     ## Voxelization + Marching Cubes ##
     # Extract largest dimension and scale so that it is unit length
-    scale = numpy.max(numpy.abs(numpy.diff(processed_mesh.bounds, axis=0)))
+    dims = numpy.abs(processed_mesh.extents)
+    position = processed_mesh.bounding_box.center_mass
+    scale = numpy.max(dims)
 
-    processed_mesh.vertices -= processed_mesh.bounding_box.center_mass
+    processed_mesh.vertices -= position
 
     scale_matrix = numpy.eye(4)
     scale_matrix[:3, :3] /= scale
@@ -272,6 +274,19 @@ def repairMesh(mesh, pitch=(1 / 2) ** 6, verbose=True):
                     f" with pitch {curr_pitch}. Check the output to ensure it"
                     f" looks reasonable."
                 )
+
+            # Center new mesh
+            new_mesh.vertices -= new_mesh.bounding_box.center_mass
+
+            # Rescale mesh to original size
+            orig_scale = new_mesh.extents / dims
+            scale_matrix = numpy.eye(4)
+            scale_matrix[:3, :3] /= orig_scale
+            new_mesh.apply_transform(scale_matrix)
+
+            # # Return mesh center to original position
+            new_mesh.vertices += position
+
             return new_mesh
 
         pitch *= 2
