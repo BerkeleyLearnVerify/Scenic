@@ -1087,6 +1087,9 @@ class MeshVolumeRegion(MeshRegion):
         else:
             self.num_samples = min(1e6, max(1, math.ceil(math.log(0.01, 1 - p_volume))))
 
+        # Always try to take at least 8 samples to avoid surface point total rejections
+        self.num_samples = max(self.num_samples, 8)
+
     # Property testing methods #
     @distributionFunction
     def intersects(self, other, triedReversed=False):
