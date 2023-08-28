@@ -233,6 +233,13 @@ def repairMesh(mesh, pitch=(1 / 2) ** 6, verbose=True):
 
     Repair is finally attempted by using the convex hull, which is unlikely to
     be accurate but is guaranteed to result in a volume.
+
+    Args:
+        mesh: The input mesh to be repaired.
+        pitch: The target pitch to be used when attempting to repair the mesh via
+            voxelization. The actual pitch used may be higher if needed to get a
+            manifold mesh.
+        verbose: Whether or not to print warnings describing attempts to repair the mesh.
     """
     # If mesh is already a volume, we're done.
     if mesh.is_volume:
