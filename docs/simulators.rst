@@ -111,3 +111,11 @@ This interface is part of the VerifAI toolkit; documentation and examples can be
 .. _our VerifAI paper: https://doi.org/10.1007/978-3-030-25540-4_25
 
 .. _VerifAI repository: https://github.com/BerkeleyLearnVerify/VerifAI
+
+Deprecated Simulators
+======================
+
+LGSVL
+-----
+
+The LGSVL simulator was deprecated in Scenic 3.0, with the last version of Scenic supporting this simulator being 2.1. The original simulator is no longer usable due to LG shutting down its cloud service, but we are open to a PR targeting one of its forks.
