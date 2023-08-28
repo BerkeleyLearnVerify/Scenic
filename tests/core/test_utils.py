@@ -8,12 +8,9 @@ from scenic.core.utils import loadMesh, repairMesh
 
 
 @pytest.mark.slow
-def test_mesh_repair():
+def test_mesh_repair(getAssetPath):
     plane_mesh = loadMesh(
-        path=Path(".").parent.parent.parent
-        / "assets"
-        / "meshes"
-        / "classic_plane.obj.bz2",
+        path=getAssetPath("meshes/classic_plane.obj.bz2"),
         filetype="obj",
         compressed=True,
         binary=False,
