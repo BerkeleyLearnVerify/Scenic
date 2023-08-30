@@ -1076,6 +1076,7 @@ class MeshVolumeRegion(MeshRegion):
         if not self._mesh.is_volume:
             raise ValueError(
                 "A MeshVolumeRegion cannot be defined with a mesh that does not have a well defined volume."
+                " Consider using scenic.core.utils.repairMesh."
             )
 
         # Compute how many samples are necessary to achieve 99% probability

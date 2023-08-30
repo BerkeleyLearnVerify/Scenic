@@ -219,14 +219,14 @@ def test_polygon_sampling():
     assert sum(y >= 1.5 for y in ys) >= 1250
 
 
-def test_mesh_region_fromFile():
+def test_mesh_region_fromFile(getAssetPath):
     MeshVolumeRegion.fromFile(
-        Path(".").parent.parent.parent / "assets" / "meshes" / "classic_plane.obj.bz2",
+        getAssetPath("meshes/classic_plane.obj.bz2"),
         dimensions=(20, 20, 10),
         rotation=(math.radians(-90), 0, math.radians(-10)),
     )
     MeshSurfaceRegion.fromFile(
-        Path(".").parent.parent.parent / "assets" / "meshes" / "classic_plane.obj.bz2",
+        getAssetPath("meshes/classic_plane.obj.bz2"),
         dimensions=(20, 20, 10),
         rotation=(math.radians(-90), 0, math.radians(-10)),
     )
