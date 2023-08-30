@@ -173,7 +173,7 @@ def unifyMesh(mesh, verbose=False):
         return mesh
 
     try:
-        unified_mesh = trimesh.boolean.union(mesh_bodies, engine="scad")
+        unified_mesh = trimesh.boolean.union(mesh_bodies)
     except CalledProcessError:
         # Something went wrong, return the original mesh
         if verbose:

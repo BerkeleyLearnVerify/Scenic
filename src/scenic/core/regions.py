@@ -781,7 +781,7 @@ class MeshRegion(Region):
         tolerance=1e-6,
         centerMesh=True,
         onDirection=None,
-        engine="scad",
+        engine="manifold",
         name=None,
         additionalDeps=[],
     ):
