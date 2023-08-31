@@ -234,6 +234,8 @@ def repairMesh(mesh, pitch=(1 / 2) ** 6, verbose=True):
     Repair is finally attempted by using the convex hull, which is unlikely to
     be accurate but is guaranteed to result in a volume.
 
+    NOTE: For planar meshes, this function will throw an error.
+
     Args:
         mesh: The input mesh to be repaired.
         pitch: The target pitch to be used when attempting to repair the mesh via
@@ -244,6 +246,10 @@ def repairMesh(mesh, pitch=(1 / 2) ** 6, verbose=True):
     # If mesh is already a volume, we're done.
     if mesh.is_volume:
         return mesh
+
+    # If mesh is planar, we can't fix it.
+    if numpy.any(mesh.bounds == 0):
+        raise ValueError("repairMesh is undefined for planar meshes.")
 
     ## Trimesh Processing ##
     processed_mesh = mesh.process(validate=True, merge_tex=True, merge_norm=True).copy()

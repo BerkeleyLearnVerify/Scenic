@@ -47,3 +47,12 @@ def test_mesh_repair(getAssetPath):
     assert numpy.allclose(
         numpy.mean(random_soup.bounds, axis=0), numpy.mean(new_soup.bounds, axis=0)
     )
+
+    # Test a planar mesh, which should raise an error.
+    plane = trimesh.Trimesh(
+        vertices=[(0, 0, 0), (0, 1, 0), (1, 1, 0), (1, 0, 0)],
+        faces=[(0, 1, 2), (0, 2, 3)],
+    )
+
+    with pytest.raises(ValueError):
+        repairMesh(plane)
