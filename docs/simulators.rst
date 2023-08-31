@@ -1,18 +1,25 @@
 ..  _simulators:
 
+********************
 Supported Simulators
-====================
+********************
 
 Scenic is designed to be easily interfaced to any simulator (see :ref:`new_simulator`).
 On this page we list interfaces that we and others have developed; if you have a new interface, let us know and we'll list it here!
 
-.. contents:: Supported Simulators:
+Note that not every interface supports all Scenic features: in particular, some interfaces do not support dynamic scenarios.
+See the individual entries for details on each interface's capabilities and how to set it up.
+
+.. contents:: List of Simulators
    :local:
+
+Currently Supported
+===================
 
 Built-in Newtonian Simulator
 ----------------------------
 
-To enable debugging of dynamic scenarios without having to install an external simulator, Scenic includes a simple Newtonian physics simulator.
+To enable debugging of dynamic scenarios without having to install an external simulator, Scenic includes a simple 2D Newtonian physics simulator.
 The simulator supports scenarios written using the cross-platform :ref:`driving_domain`, and can render top-down views showing the positions of objects relative to the road network.
 See the documentation of the `scenic.simulators.newtonian` module for details.
 
@@ -112,10 +119,14 @@ This interface is part of the VerifAI toolkit; documentation and examples can be
 
 .. _VerifAI repository: https://github.com/BerkeleyLearnVerify/VerifAI
 
-Deprecated Simulators
-======================
+
+Deprecated
+==========
+
+Scenic previously provided interfaces to these simulators, but no longer does.
+See individual entries for the last version of Scenic providing the interface and the reason it is no longer supported.
 
 LGSVL
 -----
 
-The LGSVL simulator was deprecated in Scenic 3.0, with the last version of Scenic supporting this simulator being 2.1. The original simulator is no longer usable due to LG shutting down its cloud service, but we are open to a PR targeting one of its forks.
+The LGSVL simulator (a.k.a. SVL Simulator) was deprecated in Scenic 3.0, with the last version of Scenic supporting this simulator being 2.1. The original simulator is no longer usable due to LG shutting down its cloud service, but we are open to a PR targeting one of its forks.
