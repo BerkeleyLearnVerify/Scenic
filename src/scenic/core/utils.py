@@ -239,8 +239,9 @@ def repairMesh(mesh, pitch=(1 / 2) ** 6, verbose=True):
     Args:
         mesh: The input mesh to be repaired.
         pitch: The target pitch to be used when attempting to repair the mesh via
-            voxelization. The actual pitch used may be higher if needed to get a
-            manifold mesh.
+            voxelization. A lower pitch uses smaller voxels, and thus a closer
+            approximation, but can require significant additional processsing time.
+            The actual pitch used may be larger if needed to get a manifold mesh.
         verbose: Whether or not to print warnings describing attempts to repair the mesh.
     """
     # If mesh is already a volume, we're done.
@@ -250,6 +251,10 @@ def repairMesh(mesh, pitch=(1 / 2) ** 6, verbose=True):
     # If mesh is planar, we can't fix it.
     if numpy.any(mesh.extents == 0):
         raise ValueError("repairMesh is undefined for planar meshes.")
+
+    # Pitch must be positive
+    if pitch <= 0:
+        raise ValueError("pitch parameter must be positive.")
 
     ## Trimesh Processing ##
     processed_mesh = mesh.process(validate=True, merge_tex=True, merge_norm=True).copy()
