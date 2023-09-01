@@ -660,7 +660,12 @@ def ego(obj=None):
         if egoObject is None:
             raise InvalidScenarioError("referred to ego object not yet assigned")
     elif not isinstance(obj, Object):
-        raise TypeError("tried to make non-object the ego object")
+        if isinstance(obj, type) and issubclass(obj, Object):
+            suffix = " (perhaps you forgot 'new'?)"
+        else:
+            suffix = ""
+        ty = type(obj).__name__
+        raise TypeError(f"tried to make non-object (of type {ty}) the ego object{suffix}")
     else:
         currentScenario._ego = obj
         for scenario in runningScenarios:
