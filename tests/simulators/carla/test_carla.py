@@ -16,9 +16,9 @@ def test_simulator_import():
     from scenic.simulators.carla import CarlaSimulator
 
 
-def test_consistent_object_type(getAssetPath):
+def test_consistent_object_type():
     pytest.importorskip("carla")
-    mapPath = getAssetPath("maps/CARLA/Town01.xodr")
+    mapPath = "../../formats/opendrive/maps/CARLA/Town01.xodr"
     code = f"""
         param map = r'{mapPath}'
         param carla_map = 'Town01'
