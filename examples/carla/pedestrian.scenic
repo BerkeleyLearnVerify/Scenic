@@ -3,4 +3,4 @@ param carla_map = 'Town03'
 model scenic.simulators.carla.model
 
 ego = Car
-new Pedestrian on visible sidewalk
+Pedestrian on visible sidewalk
