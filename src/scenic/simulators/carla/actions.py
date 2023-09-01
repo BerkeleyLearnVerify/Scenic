@@ -40,9 +40,18 @@ class SetTransformAction(Action):	# TODO eliminate
 # Actions specific to carla.Vehicle objects #
 #############################################
 
+
+class _CarlaVehicle:
+    # Mixin identifying CARLA vehicles.
+    # Used to avoid importing the Vehicle class from the CARLA model, which is
+    # a Scenic module not importable from Python.
+    pass
+
+
 class VehicleAction(Action):
-	def canBeTakenBy(self, agent):
-		return isinstance(agent, _carlaModel.Vehicle)
+    def canBeTakenBy(self, agent):
+        return isinstance(agent, _CarlaVehicle)
+
 
 class SetManualGearShiftAction(VehicleAction):
 	def __init__(self, manualGearShift):
@@ -121,9 +130,16 @@ class SetVehicleLightStateAction(VehicleAction):
 # Actions available to all carla.Walker objects #
 #################################################
 
+
+class _CarlaPedestrian:
+    # Mixin identifying CARLA pedestrians. (see _CarlaVehicle)
+    pass
+
+
 class PedestrianAction(Action):
-	def canBeTakenBy(self, agent):
-		return isinstance(agent, _carlaModel.Pedestrian)
+    def canBeTakenBy(self, agent):
+        return isinstance(agent, _CarlaPedestrian)
+
 
 class SetJumpAction(PedestrianAction):
 	def __init__(self, jump):
