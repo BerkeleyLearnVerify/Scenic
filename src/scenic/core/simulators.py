@@ -66,9 +66,9 @@ class Simulator(abc.ABC):
     Simulator interfaces which support dynamic simulations should implement a
     subclass of `Simulator`. An instance of the class represents a connection to
     the simulator suitable for running multiple simulations (not necessarily of
-    the same Scenic program). For a simple example of how to implement this class,
+    the same Scenic program). For an example of how to implement this class,
     and its counterpart `Simulation` for individual simulations, see
-    :mod:`scenic.simulators.lgsvl.simulator`.
+    :mod:`scenic.simulators.webots.simulator`.
 
     Users who create an instance of `Simulator` should call its `destroy` method
     when they are finished running simulations to allow the interface to do any

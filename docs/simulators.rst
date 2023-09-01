@@ -1,18 +1,25 @@
 ..  _simulators:
 
+********************
 Supported Simulators
-====================
+********************
 
 Scenic is designed to be easily interfaced to any simulator (see :ref:`new_simulator`).
 On this page we list interfaces that we and others have developed; if you have a new interface, let us know and we'll list it here!
 
-.. contents:: Supported Simulators:
+Note that not every interface supports all Scenic features: in particular, some interfaces do not support dynamic scenarios.
+See the individual entries for details on each interface's capabilities and how to set it up.
+
+.. contents:: List of Simulators
    :local:
+
+Currently Supported
+===================
 
 Built-in Newtonian Simulator
 ----------------------------
 
-To enable debugging of dynamic scenarios without having to install an external simulator, Scenic includes a simple Newtonian physics simulator.
+To enable debugging of dynamic scenarios without having to install an external simulator, Scenic includes a simple 2D Newtonian physics simulator.
 The simulator supports scenarios written using the cross-platform :ref:`driving_domain`, and can render top-down views showing the positions of objects relative to the road network.
 See the documentation of the `scenic.simulators.newtonian` module for details.
 
@@ -80,17 +87,6 @@ See the paper and `scenic.simulators.gta` for documentation.
 Importing scenes into GTA V and capturing rendered images requires a GTA V plugin, which you can find `here <https://github.com/xyyue/scenic2gta>`__.
 
 
-LGSVL
------
-
-We have developed an interface to the LGSVL simulator for autonomous driving, used in our `ITSC 2020 <ITSC2020>`__ paper.
-The interface supports dynamic scenarios written using the LGSVL world model (:obj:`scenic.simulators.lgsvl.model`) as well as scenarios using the cross-platform :ref:`driving_domain`.
-
-To use the interface, first install the simulator from the `LGSVL Simulator <https://www.lgsvlsimulator.com/>`_ website.
-Then, within the Python virtual environment where you installed Scenic, install LGSVL's Python API package from `source <https://github.com/lgsvl/PythonAPI>`__.
-
-An example of how to run a dynamic Scenic scenario in LGSVL is given in :ref:`dynamics`.
-
 Webots
 ------
 
@@ -122,3 +118,15 @@ This interface is part of the VerifAI toolkit; documentation and examples can be
 .. _our VerifAI paper: https://doi.org/10.1007/978-3-030-25540-4_25
 
 .. _VerifAI repository: https://github.com/BerkeleyLearnVerify/VerifAI
+
+
+Deprecated
+==========
+
+Scenic previously provided interfaces to these simulators, but no longer does.
+See individual entries for the last version of Scenic providing the interface and the reason it is no longer supported.
+
+LGSVL
+-----
+
+The LGSVL simulator (a.k.a. SVL Simulator) was deprecated in Scenic 3.0, with the last version of Scenic supporting this simulator being 2.1. The original simulator is no longer usable due to LG shutting down its cloud service, but we are open to a PR targeting one of its forks.

@@ -3,6 +3,15 @@
 from scenic.domains.driving.model import *
 from scenic.simulators.lgsvl.behaviors import *
 
+# Deprecation error on import, but allow for doc building.
+try:
+    import sphinx
+    if not sphinx._buildingScenicDocs:
+        raise RuntimeError("The LGSVL Simulator interface was deprecated in Scenic 3."
+            " To continue to use the interface, please use Scenic 2.")
+except ModuleNotFoundError:
+    pass
+
 try:
     import lgsvl
     EGO_TYPE = lgsvl.AgentType.EGO
