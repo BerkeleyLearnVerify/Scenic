@@ -38,12 +38,11 @@ def test_mesh_repair(getAssetPath):
         numpy.mean(broken_mesh.bounds, axis=0), numpy.mean(plane_mesh.bounds, axis=0)
     )
 
-    # Test triangle soup
-    random_soup = trimesh.creation.random_soup(face_count=10)
-    assert not random_soup.is_volume
-    new_soup = repairMesh(random_soup, verbose=False)
-    assert new_soup.is_volume
-    assert numpy.allclose(random_soup.bounds, new_soup.bounds)
-    assert numpy.allclose(
-        numpy.mean(random_soup.bounds, axis=0), numpy.mean(new_soup.bounds, axis=0)
+    # Test a planar mesh, which should raise an error.
+    plane = trimesh.Trimesh(
+        vertices=[(0, 0, 0), (0, 1, 0), (1, 1, 0), (1, 0, 0)],
+        faces=[(0, 1, 2), (0, 2, 3)],
     )
+
+    with pytest.raises(ValueError):
+        repairMesh(plane)
