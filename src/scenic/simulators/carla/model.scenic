@@ -67,6 +67,9 @@ except ModuleNotFoundError:
         raise RuntimeError('the "carla" package is required to run simulations '
                            'from this scenario')
 
+    class _CarlaVehicle: pass
+    class _CarlaPedestrian: pass
+
 param carla_map = None
 param address = '127.0.0.1'
 param port = 2000
