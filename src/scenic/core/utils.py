@@ -248,7 +248,7 @@ def repairMesh(mesh, pitch=(1 / 2) ** 6, verbose=True):
         return mesh
 
     # If mesh is planar, we can't fix it.
-    if numpy.any(mesh.bounds == 0):
+    if numpy.any(mesh.extents == 0):
         raise ValueError("repairMesh is undefined for planar meshes.")
 
     ## Trimesh Processing ##
@@ -306,17 +306,9 @@ def repairMesh(mesh, pitch=(1 / 2) ** 6, verbose=True):
 
             return new_mesh
 
-        pitch *= 2
+        curr_pitch *= 2
 
-    if verbose:
-        warnings.warn(
-            "Mesh could not be repaired via voxelization + marching cubes."
-            " Using convex hull."
-        )
-
-    ## Convex hull ##
-    # Guaranteed to work, but not very accurate.
-    return processed_mesh.convex_hull
+    raise ValueError("Mesh could not be repaired.")
 
 
 class DefaultIdentityDict:
