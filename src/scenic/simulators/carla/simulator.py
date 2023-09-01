@@ -49,7 +49,7 @@ class CarlaSimulator(DrivingSimulator):
             except Exception as e:
                 raise RuntimeError(f"CARLA could not load world '{carla_map}'") from e
         else:
-            if map_path.endswith(".xodr"):
+            if str(map_path).endswith(".xodr"):
                 with open(map_path) as odr_file:
                     self.world = self.client.generate_opendrive_world(odr_file.read())
             else:

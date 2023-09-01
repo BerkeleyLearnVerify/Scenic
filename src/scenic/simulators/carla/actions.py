@@ -5,7 +5,6 @@ import math as _math
 import carla as _carla
 
 from scenic.domains.driving.actions import *
-import scenic.simulators.carla.model as _carlaModel
 import scenic.simulators.carla.utils.utils as _utils
 
 ################################################
@@ -43,9 +42,16 @@ class SetTransformAction(Action):  # TODO eliminate
 #############################################
 
 
+class _CarlaVehicle:
+    # Mixin identifying CARLA vehicles.
+    # Used to avoid importing the Vehicle class from the CARLA model, which is
+    # a Scenic module not importable from Python.
+    pass
+
+
 class VehicleAction(Action):
     def canBeTakenBy(self, agent):
-        return isinstance(agent, _carlaModel.Vehicle)
+        return isinstance(agent, _CarlaVehicle)
 
 
 class SetManualGearShiftAction(VehicleAction):
@@ -131,9 +137,14 @@ class SetVehicleLightStateAction(VehicleAction):
 #################################################
 
 
+class _CarlaPedestrian:
+    # Mixin identifying CARLA pedestrians. (see _CarlaVehicle)
+    pass
+
+
 class PedestrianAction(Action):
     def canBeTakenBy(self, agent):
-        return isinstance(agent, _carlaModel.Pedestrian)
+        return isinstance(agent, _CarlaPedestrian)
 
 
 class SetJumpAction(PedestrianAction):

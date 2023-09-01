@@ -49,6 +49,7 @@ from scenic.simulators.utils.colors import Color
 try:
     from scenic.simulators.carla.simulator import CarlaSimulator    # for use in scenarios
     from scenic.simulators.carla.actions import *
+    from scenic.simulators.carla.actions import _CarlaVehicle, _CarlaPedestrian
     import scenic.simulators.carla.utils.utils as _utils
 except ModuleNotFoundError:
     # for convenience when testing without the carla package
@@ -65,6 +66,9 @@ except ModuleNotFoundError:
         """
         raise RuntimeError('the "carla" package is required to run simulations '
                            'from this scenario')
+
+    class _CarlaVehicle: pass
+    class _CarlaPedestrian: pass
 
 param carla_map = None
 param address = '127.0.0.1'
@@ -140,7 +144,7 @@ class CarlaActor(DrivingObject):
         else:
             self.carlaActor.set_velocity(cvel)
 
-class Vehicle(Vehicle, CarlaActor, Steers):
+class Vehicle(Vehicle, CarlaActor, Steers, _CarlaVehicle):
     """Abstract class for steerable vehicles."""
 
     def setThrottle(self, throttle):
@@ -194,7 +198,7 @@ class Truck(Vehicle):
     blueprint: Uniform(*blueprints.truckModels)
 
 
-class Pedestrian(Pedestrian, CarlaActor, Walks):
+class Pedestrian(Pedestrian, CarlaActor, Walks, _CarlaPedestrian):
     """A pedestrian.
 
     The default ``blueprint`` (see `CarlaActor`) is a uniform distribution over the
