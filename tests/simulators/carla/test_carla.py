@@ -19,8 +19,8 @@ def test_simulator_import():
 def test_consistent_object_type(getAssetPath):
     pytest.importorskip("carla")
     mapPath = getAssetPath("maps/CARLA/Town01.xodr")
-    code = rf"""
-        param map = '{mapPath}'
+    code = f"""
+        param map = r'{mapPath}'
         param carla_map = 'Town01'
         model scenic.simulators.carla.model
         action = SetGearAction(0)
