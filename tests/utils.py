@@ -1,10 +1,14 @@
 """Utilities used throughout the test suite."""
 
-from importlib import metadata
 import inspect
 import math
 import sys
 import types
+
+if sys.version_info >= (3, 8):
+    from importlib import metadata
+else:
+    import importlib_metadata as metadata
 
 import numpy
 import pytest
