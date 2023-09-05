@@ -1,4 +1,3 @@
-
 import pytest
 
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
@@ -18,9 +17,8 @@ def test_simulator_import():
 
 def test_consistent_object_type():
     pytest.importorskip("carla")
-    mapPath = "../../formats/opendrive/maps/CARLA/Town01.xodr"
     code = f"""
-        param map = r'{mapPath}'
+        param map = 'tests/formats/opendrive/maps/CARLA/Town01.xodr'
         param carla_map = 'Town01'
         model scenic.simulators.carla.model
         action = SetGearAction(0)
@@ -28,7 +26,7 @@ def test_consistent_object_type():
         assert action.canBeTakenBy(ego)
     """
     for _ in range(2):
-        compileScenic(code, mode2D=True)
+        compileScenic(code)
 
 
 @pickle_test
