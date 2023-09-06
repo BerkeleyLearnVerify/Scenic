@@ -5,6 +5,11 @@ import math
 import sys
 import types
 
+if sys.version_info >= (3, 8):
+    from importlib import metadata
+else:
+    import importlib_metadata as metadata
+
 import numpy
 import pytest
 
@@ -189,7 +194,11 @@ try:
     import dill
 except ModuleNotFoundError:
     dill = None
-pickle_test = pytest.mark.skipif(not dill, reason='dill required for pickling tests')
+    dill_version = None
+else:
+    dill_version = metadata.version("dill")
+pickle_test = pytest.mark.skipif(not dill, reason="dill required for pickling tests")
+
 
 def tryPickling(thing, checkEquivalence=True, pickler=dill):
     checkVeneerIsInactive()
@@ -201,7 +210,8 @@ def tryPickling(thing, checkEquivalence=True, pickler=dill):
         assert areEquivalent(unpickled, thing)
     return unpickled
 
-def areEquivalent(a, b, cache=None, ignoreCacheAttrs=False, debug=False):
+
+def areEquivalent(a, b, cache=None, debug=False, ignoreCacheAttrs=False, extraIgnores=()):
     """Whether two objects are equivalent, i.e. have the same properties.
 
     This is only used for debugging, e.g. to check that a Distribution is the
@@ -225,17 +235,24 @@ def areEquivalent(a, b, cache=None, ignoreCacheAttrs=False, debug=False):
     old = cache[a]
     if old is b:
         return True
-    cache[a] = b   # prospectively assume equivalent, for recursive calls
-    if areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
+    cache[a] = b  # prospectively assume equivalent, for recursive calls
+    if areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs, extraIgnores):
         return True
     else:
         cache[a] = old     # guess was wrong; revert cache
         return False
 
-def areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
+
+def areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs, extraIgnores):
     if ignoreCacheAttrs:
+
         def ignorable(attr):
-            return attr == '__slotnames__' or attr.startswith('_cached_')
+            return (
+                attr == "__slotnames__"
+                or attr.startswith("_cached_")
+                or attr in extraIgnores
+            )
+
     else:
         ignorable = lambda attr: False
     fail = breakpoint if debug else lambda: False
@@ -326,15 +343,29 @@ def areEquivalentInner(a, b, cache, ignoreCacheAttrs, debug):
                 return False
     elif inspect.isclass(a):
         # These attributes we can check with simple equality
-        attrs = ('__doc__', '__name__', '__module__')
+        attrs = ("__doc__", "__name__")
         if any(getattr(a, attr) != getattr(b, attr) for attr in attrs):
+            fail()
+            return False
+        # The __module__ attribute can be checked with simple equality, but we allow
+        # certain mismatches to work around https://github.com/uqfoundation/dill/issues/612
+        if a.__module__ != b.__module__ and (
+            a.__module__ != "dill._dill" or dill_version != "0.3.7"
+        ):
             fail()
             return False
         # These attributes need a full equivalence check
         if not areEquivalent(a.__bases__, b.__bases__, cache, debug=debug):
             fail()
             return False
-        if not areEquivalent(a.__dict__, b.__dict__, cache, ignoreCacheAttrs=True, debug=debug):
+        if not areEquivalent(
+            a.__dict__,
+            b.__dict__,
+            cache,
+            debug,
+            ignoreCacheAttrs=True,
+            extraIgnores=("__module__",),
+        ):
             fail()
             return False
         # Checking annotations depends on Python version, unfortunately
