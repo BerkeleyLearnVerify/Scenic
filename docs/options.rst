@@ -76,7 +76,7 @@ Dynamic Simulations
 
 .. option:: --count <number>
 
-	Number of successful simulations to run (i.e., not counting rejected simulations).
+	Number of successful scenes to generate or simulations to run (i.e., not counting rejected scenes/simulations).
 	The default is to run forever.
 
 Debugging

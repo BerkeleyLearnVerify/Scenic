@@ -67,7 +67,7 @@ simOpts.add_argument(
 )
 simOpts.add_argument(
     "--count",
-    help="number of successful simulations to run (default infinity)",
+    help="number of successful scenes to generate or simulations to run (default infinity)",
     type=int,
     default=0,
 )
@@ -254,7 +254,7 @@ def runSimulation(scene):
 
 
 try:
-    if args.gather_stats is None:  # Generate scenes interactively until killed
+    if args.gather_stats is None:  # Generate scenes interactively until killed/count reached
         if not args.simulate:  # will need matplotlib to draw scene schematic
             import matplotlib
             import matplotlib.pyplot as plt
@@ -272,9 +272,8 @@ try:
                 success = runSimulation(scene)
                 if success:
                     successCount += 1
-                    if 0 < args.count <= successCount:
-                        break
             else:
+                successCount += 1
                 if mode2D:
                     if delay is None:
                         scene.show2D(zoom=args.zoom)
@@ -284,6 +283,9 @@ try:
                         plt.clf()
                 else:
                     scene.show(axes=args.axes)
+
+            if 0 < args.count <= successCount:
+                break
 
     else:  # Gather statistics over the specified number of scenes/iterations
         its = []
