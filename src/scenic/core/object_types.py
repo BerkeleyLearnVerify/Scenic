@@ -1265,7 +1265,7 @@ class Object(OrientedPoint):
             )
             return shapeRegion.inradius
 
-        # If we havea uniform distribution over shapes and a supportInterval for each dimension,
+        # If we have a uniform distribution over shapes and a supportInterval for each dimension,
         # we can compute a supportInterval for this object's inradius
 
         # Define helper class

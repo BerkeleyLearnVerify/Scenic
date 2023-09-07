@@ -21,6 +21,25 @@ def test_containment_in():
     assert any(0.5 <= x <= 0.7 or 1.3 <= x <= 1.5 for x in xs)
 
 
+def test_containment_2d_region():
+    """Test pruning based on object containment in a 2D region.
+
+    Specifically tests that vertical portions of baseOffset are not added
+    to maxDistance, and that if objects are known to be flat in the plane,
+    their height is not considered as part of the minRadius.
+    """
+    scenario = compileScenic(
+        """
+        workspace = Workspace(PolygonalRegion([0@0, 2@0, 2@2, 0@2]))
+        ego = new Object in workspace, with height 100
+    """
+    )
+    # Sampling should only require 1 iteration after pruning
+    xs = [sampleEgo(scenario).position.x for i in range(60)]
+    assert all(0.5 <= x <= 1.5 for x in xs)
+    assert any(0.5 <= x <= 0.7 or 1.3 <= x <= 1.5 for x in xs)
+
+
 def test_containment_in_polyline():
     """As above, but when the object is placed on a polyline."""
     scenario = compileScenic(

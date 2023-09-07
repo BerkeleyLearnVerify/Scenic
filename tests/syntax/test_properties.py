@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
 
+from scenic.core.distributions import supportInterval
 from scenic.core.errors import SpecifierError
-from tests.utils import compileScenic, sampleEgoFrom
+from tests.utils import compileScenic, sampleEgo, sampleEgoFrom
 
 
 def test_position_wrong_type():
@@ -128,3 +129,59 @@ def test_backRight():
 def test_heading_set_directly():
     with pytest.raises(SpecifierError):
         compileScenic("ego = new Object with heading 4")
+
+
+def test_object_inradius():
+    # Statically Sized Cube Example
+    scenario = compileScenic(
+        """
+        ego = new Object with width 3, with length 3, with height 3,
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert supportInterval(scenario.objects[0].inradius) == (1.5, 1.5)
+    assert ego.inradius == 1.5
+
+    # Randomly Sized Cube Example
+    scenario = compileScenic(
+        """
+        ego = new Object with width Range(1, 3),
+            with length Range(1, 3), with height Range(1, 3),
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert supportInterval(scenario.objects[0].inradius) == (0.5, 1.5)
+    assert ego.inradius == pytest.approx(min(ego.width, ego.length, ego.height) / 2)
+
+    # Hollow Static Object Example
+    scenario = compileScenic(
+        """
+        import trimesh
+        hollow_mesh = trimesh.creation.icosphere().difference(
+            trimesh.creation.icosphere(radius=0.5))
+        ego = new Object with width 3, with length 3, with height 3,
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg),
+            with shape MeshShape(hollow_mesh)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert supportInterval(scenario.objects[0].inradius) == (0, 0)
+    assert ego.inradius == 0
+
+    # Hollow Random Object Example
+    scenario = compileScenic(
+        """
+        import trimesh
+        hollow_mesh = trimesh.creation.icosphere().difference(
+            trimesh.creation.icosphere(radius=0.5))
+        ego = new Object with width Range(1, 3),
+            with length Range(1, 3), with height Range(1, 3),
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg),
+            with shape MeshShape(hollow_mesh)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert supportInterval(scenario.objects[0].inradius) == (0, 0)
+    assert ego.inradius == 0

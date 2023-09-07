@@ -1739,7 +1739,7 @@ class MeshVolumeRegion(MeshRegion):
         center_point = self.mesh.bounding_box.center_mass
 
         pq = trimesh.proximity.ProximityQuery(self.mesh)
-        region_distance = abs(pq.signed_distance([center_point])[0])
+        region_distance = pq.signed_distance([center_point])[0]
 
         if region_distance < 0:
             return 0
