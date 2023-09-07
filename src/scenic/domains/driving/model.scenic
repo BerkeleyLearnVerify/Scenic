@@ -349,3 +349,16 @@ def withinDistanceToObjsInLane(vehicle, thresholdDistance):
         if (distance from vehicle to obj) < thresholdDistance:
             return True
     return False
+
+
+monitor RecordingMonitor(car, path, recording_start=1, subsample=1):
+    # Exclude the first recording_start steps, e.g., because cars are spawned in the air and need to drop down first
+    for _ in range(1, recording_start):
+        wait
+
+    frame_number = 1
+    while True:
+        car.save_observations(path, frame_number=frame_number)
+        frame_number += 1
+        for _ in range(subsample):
+            wait

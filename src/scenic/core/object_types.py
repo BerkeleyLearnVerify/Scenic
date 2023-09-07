@@ -967,6 +967,9 @@ class Object(OrientedPoint):
           value ``None``.
         lastActions: Tuple of :term:`actions` taken by this agent in the last time step
           (or `None` if the object is not an agent or this is the first time step).
+        sensors: Dict of ("name": sensor) that populate the observations field every time step
+        observations: Dict of ("name": observation) storing the latest observation of the sensor
+          with the same name
     """
 
     _scenic_properties = {
@@ -994,6 +997,9 @@ class Object(OrientedPoint):
         "lastActions": None,
         # weakref to scenario which created this object, for internal use
         "_parentScenario": None,
+        # Sensor properties
+        "sensors": {},
+        "observations": {}
     }
 
     def __new__(cls, *args, **kwargs):
@@ -1430,7 +1436,7 @@ class Object(OrientedPoint):
 
             edges = view_region_mesh.face_adjacency_edges[
                 view_region_mesh.face_adjacency_angles > np.radians(0.1)
-            ]
+                ]
             vertices = view_region_mesh.vertices
 
             edge_path = trimesh.path.Path3D(
@@ -1482,9 +1488,9 @@ class Object(OrientedPoint):
     def _isPlanarBox(self):
         """Whether this object is a box aligned with the XY plane."""
         return (
-            isinstance(self.shape, BoxShape)
-            and self.orientation.pitch == 0
-            and self.orientation.roll == 0
+                isinstance(self.shape, BoxShape)
+                and self.orientation.pitch == 0
+                and self.orientation.roll == 0
         )
 
     @cached_property
@@ -1502,10 +1508,17 @@ class Object(OrientedPoint):
                 length * cyaw,
                 pos[0],
                 pos[1],
-            ]
+                ]
             return shapely.affinity.affine_transform(_unitBox, matrix)
 
         return self.occupiedSpace._boundingPolygon
+
+    def save_observations(self, save_path, frame_number):
+        import os
+        for key, sensor in self.sensors.items():
+            sensor_path = os.path.join(save_path, key)
+            os.makedirs(sensor_path, exist_ok=True)
+            sensor.save_last_observation(save_path=sensor_path, frame_number=frame_number)
 
 
 _unitBox = shapely.geometry.Polygon(((0.5, 0.5), (-0.5, 0.5), (-0.5, -0.5), (0.5, -0.5)))
