@@ -76,6 +76,7 @@ class SetPositionAction(Action):
 
 class SetHeadingAction(Action):
     """Rotate an agent to the given heading."""
+
     def __init__(self, heading: float):
         self.heading = heading
 
