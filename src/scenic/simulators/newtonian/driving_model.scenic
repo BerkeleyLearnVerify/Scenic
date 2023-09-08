@@ -32,7 +32,7 @@ class NewtonianActor(DrivingObject):
 
     def setHeading(self, heading):
         self.heading = heading
-	
+
     def setVelocity(self, vel):
         self.velocity = vel
 
