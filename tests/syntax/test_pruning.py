@@ -57,22 +57,19 @@ def test_containment_2d_region():
     # that should be accounted for and the height is random.
     scenario = compileScenic(
         """
+        class TestObject:
+            baseOffset: (0.1, 0, self.height/2)
+
         workspace = Workspace(PolygonalRegion([0@0, 2@0, 2@2, 0@2]))
-        ego = new Object in workspace, with height Range(0.1,0.5),
-                with baseOffset (0.1,0,self.height/2)
+        ego = new Object in workspace, with height Range(0.1,0.5)
     """
     )
     # Sampling should fail ~30.56% of the time, so
     # 34 rejections are allowed to get the failure probability
-    # to ~1e-18. We want to see at least one sample with
-    # an x value in the range (0.4, 0.5), since that indicates
-    # that Scenic has not pruned too much by ignoring the entire
-    # baseOffset. The chance of a sample not being in this range
-    # is 90%, so we need 375 samples to get this probability
-    # down to ~1e-18.
-    xs = [sampleEgo(scenario, maxIterations=34).position.x for i in range(375)]
-    assert all(0.4 <= x <= 1.4 for x in xs)
-    assert any(0.4 <= x <= 0.5 for x in xs)
+    # to ~1e-18.
+    xs = [sampleEgo(scenario, maxIterations=34).position.x for i in range(60)]
+    assert all(0.5 <= x <= 1.5 for x in xs)
+    assert any(0.5 <= x <= 0.7 or 1.3 <= x <= 1.5 for x in xs)
 
 
 def test_containment_in_polyline():

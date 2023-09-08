@@ -25,10 +25,16 @@ from scenic.core.errors import InvalidScenarioError
 from scenic.core.geometry import hypot, normalizeAngle, plotPolygon, polygonUnion
 from scenic.core.object_types import Object, Point
 import scenic.core.regions as regions
-from scenic.core.regions import EmptyRegion, MeshSurfaceRegion, MeshVolumeRegion
+from scenic.core.regions import (
+    EmptyRegion,
+    MeshSurfaceRegion,
+    MeshVolumeRegion,
+    PolygonalRegion,
+)
 from scenic.core.type_support import TypecheckedDistribution
 from scenic.core.vectors import (
     PolygonalVectorField,
+    Vector,
     VectorField,
     VectorMethodDistribution,
     VectorOperatorDistribution,
@@ -62,8 +68,7 @@ def isFunctionCall(thing, function):
 def matchInRegion(position):
     """Match uniform samples from a `Region`
 
-    Returns the Region, if any, and a lower and upper bound
-    on the distance the object will be placed along with any
+    Returns the Region, if any, along with any
     offset that should be added to the base.
     """
     # Case 1: Position is simply a point in a region
@@ -71,7 +76,7 @@ def matchInRegion(position):
         reg = position.region
         if isinstance(reg, Workspace):
             reg = reg.region
-        return reg, 0, 0, None
+        return reg, None
 
     # Case 2: Position is a point in a region with a vector offset.
     if isinstance(position, VectorOperatorDistribution) and position.operator in (
@@ -80,15 +85,14 @@ def matchInRegion(position):
     ):
         if isinstance(position.object, regions.PointInRegionDistribution):
             reg = position.object.region
+            if isinstance(reg, Workspace):
+                reg = reg.region
             assert len(position.operands) == 1
             offset = position.operands[0]
-            # TODO: Proper vector supportInterval calculations. Right now this gives us None
-            # if value is not exact
-            lower, upper = supportInterval(offset.norm())
 
-            return reg, lower, upper, offset
+            return reg, offset
 
-    return None, 0, 0, None
+    return None, None
 
 
 def matchPolygonalField(heading, position):
@@ -174,7 +178,7 @@ def pruneContainment(scenario, verbosity):
     """
     for obj in scenario.objects:
         # Extract the base region and container region, while doing minor checks.
-        base, _, maxDistance, offset = matchInRegion(obj.position)
+        base, offset = matchInRegion(obj.position)
 
         if base is None or needsSampling(base):
             continue
@@ -190,9 +194,29 @@ def pruneContainment(scenario, verbosity):
         if isinstance(container, regions.EmptyRegion):
             raise InvalidScenarioError(f"Object {obj} contained in empty region")
 
-        # Erode the container region if possible.
-        minRadius, _ = supportInterval(obj.inradius)
+        # Compute the maximum distance the object can be from the sampled point
+        # TODO: Proper vector supportInterval calculations. Right now this gives us None
+        # if value is not exact
+        if offset is not None:
+            if isinstance(base, PolygonalRegion):
+                # Special handling for 2D regions that ignores vertical component of offset
+                offset_2d = Vector(offset.x, offset.y, 0)
+                _, maxDistance = supportInterval(offset_2d.norm())
+            else:
+                _, maxDistance = supportInterval(offset.norm())
+        else:
+            maxDistance = 0
 
+        # Compute the minimum radius of the object, with respect to the
+        # bounded dimensions of the container.
+        if isinstance(base, PolygonalRegion):
+            # Special handling for 2D regions, using planar inradius instead.
+            minRadius, _ = supportInterval(obj.planarInradius)
+        else:
+            # For most regions, use full object inradius.
+            minRadius, _ = supportInterval(obj.inradius)
+
+        # Erode the container region if possible.
         if (
             hasattr(container, "buffer")
             and maxDistance is not None
@@ -279,7 +303,7 @@ def pruneRelativeHeading(scenario, verbosity):
     # Check for relative heading relations among such objects
     for obj, (field, offsetL, offsetR) in fields.items():
         position = currentPropValue(obj, "position")
-        base, _, _, offset = matchInRegion(position)
+        base, offset = matchInRegion(position)
 
         # obj must be positioned uniformly in a Region
         if base is None or needsSampling(base):
