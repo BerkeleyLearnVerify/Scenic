@@ -2680,6 +2680,18 @@ class PolygonalRegion(Region):
         dist2D = shapely.distance(self.polygons, makeShapelyPoint(point))
         return math.hypot(dist2D, point[2] - self.z)
 
+    @cached_property
+    def inradius(self):
+        minx, miny, maxx, maxy = self.polygons.bounds
+        center = makeShapelyPoint(((minx + maxx) / 2, (maxy + miny) / 2))
+
+        # Check if center is contained
+        if not self.polygons.contains(center):
+            return 0
+
+        # Return the distance to the nearest boundary
+        return shapely.distance(self.polygons.boundary, center)
+
     def projectVector(self, point, onDirection):
         raise NotImplementedError(
             f'{type(self).__name__} does not yet support projection using "on"'

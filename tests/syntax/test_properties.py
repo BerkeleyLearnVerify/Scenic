@@ -159,8 +159,8 @@ def test_object_inradius():
     scenario = compileScenic(
         """
         import trimesh
-        hollow_mesh = trimesh.creation.icosphere().difference(
-            trimesh.creation.icosphere(radius=0.5))
+        hollow_mesh = trimesh.creation.box((1,1,1)).difference(
+            trimesh.creation.box((0.5,0.5,0.5)))
         ego = new Object with width 3, with length 3, with height 3,
             facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg),
             with shape MeshShape(hollow_mesh)
@@ -174,8 +174,8 @@ def test_object_inradius():
     scenario = compileScenic(
         """
         import trimesh
-        hollow_mesh = trimesh.creation.icosphere().difference(
-            trimesh.creation.icosphere(radius=0.5))
+        hollow_mesh = trimesh.creation.box((1,1,1)).difference(
+            trimesh.creation.box((0.5,0.5,0.5)))
         ego = new Object with width Range(1, 3),
             with length Range(1, 3), with height Range(1, 3),
             facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg),
@@ -185,3 +185,63 @@ def test_object_inradius():
     ego = sampleEgo(scenario)
     assert supportInterval(scenario.objects[0].inradius) == (0, 0)
     assert ego.inradius == 0
+
+
+def test_object_planarInradius():
+    # Statically Sized Cube Example
+    scenario = compileScenic(
+        """
+        ego = new Object with width 3, with length 3, with height 0.5,
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert supportInterval(scenario.objects[0].planarInradius) == (1.5, 1.5)
+    assert ego.planarInradius == 1.5
+
+    # Randomly Sized Cube Example
+    scenario = compileScenic(
+        """
+        ego = new Object with width Range(1, 3),
+            with length Range(1, 3), with height Range(0.25, 0.5),
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert supportInterval(scenario.objects[0].planarInradius) == (0.5, 1.5)
+    assert ego.planarInradius == pytest.approx(min(ego.width, ego.length) / 2)
+
+    # Hollow Static Object Example
+    scenario = compileScenic(
+        """
+        import trimesh
+        hollow_mesh = trimesh.creation.box((1,1,1)).difference(
+            trimesh.creation.box((0.5,0.5,0.5)))
+        ego = new Object with width 3, with length 3, with height 0.5,
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg),
+            with shape MeshShape(hollow_mesh)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert supportInterval(scenario.objects[0].planarInradius) == pytest.approx(
+        (1.5, 1.5)
+    )
+    assert ego.planarInradius == pytest.approx(1.5)
+
+    # Hollow Random Object Example
+    scenario = compileScenic(
+        """
+        import trimesh
+        hollow_mesh = trimesh.creation.box((1,1,1)).difference(
+            trimesh.creation.box((0.5,0.5,0.5)))
+        ego = new Object with width Range(1, 3),
+            with length Range(1, 3), with height Range(0.25, 0.5),
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg),
+            with shape MeshShape(hollow_mesh)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert supportInterval(scenario.objects[0].planarInradius) == pytest.approx(
+        (0.5, 1.5)
+    )
+    assert ego.planarInradius == pytest.approx(min(ego.width, ego.length) / 2)

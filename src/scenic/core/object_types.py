@@ -1257,8 +1257,7 @@ class Object(OrientedPoint):
         """A lower bound on the inradius of this object"""
         # First check if all needed variables are defined. If so, we can
         # compute the inradius exactly.
-        width, length, height = self.width, self.length, self.height
-        shape = self.shape
+        width, length, height, shape = self.width, self.length, self.height, self.shape
         if not any(needsSampling(val) for val in (width, length, height, shape)):
             shapeRegion = MeshVolumeRegion(
                 mesh=shape.mesh, dimensions=(width, length, height)
@@ -1310,6 +1309,70 @@ class Object(OrientedPoint):
         ]
         max_distances = [
             MeshVolumeRegion(mesh=shape.mesh, dimensions=max_bounds).inradius
+            for shape in shapes
+        ]
+
+        distance_range = (min(min_distances), max(max_distances))
+
+        return InradiusHelper(support=distance_range)
+
+    @cached_property
+    def planarInradius(self):
+        """A lower bound on the planar inradius of this object.
+
+        This is defined as the inradius of the polygon of the occupiedSpace
+        of this object projected into the XY plane.
+        """
+        # First check if all needed variables are defined. If so, we can
+        # compute the inradius exactly.
+        width, length, shape = self.width, self.length, self.shape
+        if not any(needsSampling(val) for val in (width, length, shape)):
+            shapeRegion = MeshVolumeRegion(mesh=shape.mesh, dimensions=(width, length, 1))
+            return shapeRegion.boundingPolygon.inradius
+
+        # If we have a uniform distribution over shapes and a supportInterval for each dimension,
+        # we can compute a supportInterval for this object's planar inradius
+
+        # Define helper class
+        class InradiusHelper:
+            def __init__(self, support):
+                self.support = support
+
+            def supportInterval(self):
+                return self.support
+
+        # Extract bounds on all dimensions
+        min_width, max_width = supportInterval(width)
+        min_length, max_length = supportInterval(length)
+
+        if None in [min_width, max_width, min_length, max_length]:
+            # Can't get a bound on one or more dimensions, abort
+            return 0
+
+        min_bounds = np.array([min_width, min_length, 1])
+        max_bounds = np.array([max_width, max_length, 1])
+
+        # Extract a list of possible shapes
+        if isinstance(shape, Shape):
+            shapes = [shape]
+        elif isinstance(shape, MultiplexerDistribution):
+            if all(isinstance(opt, Shape) for opt in shape.options):
+                shapes = shape.options
+            else:
+                # Something we don't recognize, abort
+                return 0
+
+        # Get the inradius of the projected for each shape with the min and max bounds
+        min_distances = [
+            MeshVolumeRegion(
+                mesh=shape.mesh, dimensions=min_bounds
+            ).boundingPolygon.inradius
+            for shape in shapes
+        ]
+        max_distances = [
+            MeshVolumeRegion(
+                mesh=shape.mesh, dimensions=max_bounds
+            ).boundingPolygon.inradius
             for shape in shapes
         ]
 
