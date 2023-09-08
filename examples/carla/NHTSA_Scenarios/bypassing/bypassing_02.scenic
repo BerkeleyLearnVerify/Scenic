@@ -10,7 +10,7 @@ SOURCE: NHSTA, #16
 # MAP AND MODEL                 #
 #################################
 
-param map = localPath('../../../../tests/formats/opendrive/maps/CARLA/Town03.xodr')
+param map = localPath('../../../../assets/maps/CARLA/Town03.xodr')
 param carla_map = 'Town03'
 model scenic.simulators.carla.model
 
@@ -18,7 +18,7 @@ model scenic.simulators.carla.model
 # CONSTANTS                     #
 #################################
 
-MODEL = 'vehicle.lincoln.mkz2017'
+MODEL = 'vehicle.lincoln.mkz_2017'
 
 param EGO_SPEED = VerifaiRange(2, 4)
 
@@ -34,42 +34,42 @@ TERM_TIME = 5
 #################################
 
 behavior AdversaryBehavior():
-	try:
-		do FollowLaneBehavior(target_speed=globalParameters.ADV_SPEED)
-	interrupt when withinDistanceToAnyObjs(self, BYPASS_DIST[0]):
-		fasterLaneSec = self.laneSection.fasterLane
-		do LaneChangeBehavior(
-				laneSectionToSwitch=fasterLaneSec,
-				target_speed=globalParameters.ADV_SPEED)
-		do FollowLaneBehavior(
-				target_speed=globalParameters.ADV_SPEED,
-				laneToFollow=fasterLaneSec.lane) \
-			until (distance to adversary) > BYPASS_DIST[1]
-		slowerLaneSec = self.laneSection.slowerLane
-		do LaneChangeBehavior(
-				laneSectionToSwitch=slowerLaneSec,
-				target_speed=globalParameters.ADV_SPEED)
-		do FollowLaneBehavior(target_speed=globalParameters.ADV_SPEED) for TERM_TIME seconds
-		terminate 
+    try:
+        do FollowLaneBehavior(target_speed=globalParameters.ADV_SPEED)
+    interrupt when withinDistanceToAnyObjs(self, BYPASS_DIST[0]):
+        fasterLaneSec = self.laneSection.fasterLane
+        do LaneChangeBehavior(
+                laneSectionToSwitch=fasterLaneSec,
+                target_speed=globalParameters.ADV_SPEED)
+        do FollowLaneBehavior(
+                target_speed=globalParameters.ADV_SPEED,
+                laneToFollow=fasterLaneSec.lane) \
+            until (distance to adversary) > BYPASS_DIST[1]
+        slowerLaneSec = self.laneSection.slowerLane
+        do LaneChangeBehavior(
+                laneSectionToSwitch=slowerLaneSec,
+                target_speed=globalParameters.ADV_SPEED)
+        do FollowLaneBehavior(target_speed=globalParameters.ADV_SPEED) for TERM_TIME seconds
+        terminate 
 
 #################################
 # SPATIAL RELATIONS             #
 #################################
 
 initLane = Uniform(*network.lanes)
-egoSpawnPt = OrientedPoint in initLane.centerline
+egoSpawnPt = new OrientedPoint in initLane.centerline
 
 #################################
 # SCENARIO SPECIFICATION        #
 #################################
 
-ego = Car at egoSpawnPt,
-	with blueprint MODEL,
-	with behavior FollowLaneBehavior(target_speed=globalParameters.EGO_SPEED)
+ego = new Car at egoSpawnPt,
+    with blueprint MODEL,
+    with behavior FollowLaneBehavior(target_speed=globalParameters.EGO_SPEED)
 
-adversary = Car following roadDirection for globalParameters.ADV_DIST,
-	with blueprint MODEL,
-	with behavior AdversaryBehavior()
+adversary = new Car following roadDirection for globalParameters.ADV_DIST,
+    with blueprint MODEL,
+    with behavior AdversaryBehavior()
 
 require (distance to intersection) > INIT_DIST
 require (distance from adversary to intersection) > INIT_DIST

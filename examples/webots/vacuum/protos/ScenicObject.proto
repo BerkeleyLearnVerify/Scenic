@@ -1,0 +1,30 @@
+#VRML_SIM R2023a utf8
+# Describe the functionality of your PROTO here.
+
+
+PROTO ScenicObject [
+  field SFVec3f translation 0 0 0
+  field SFRotation rotation 0 0 1 0
+  field SFString name "solid"
+  field SFVec3f angularVelocity 0 0 0
+  field MFString url ""
+]
+{
+  Solid {
+    translation IS translation
+    rotation IS rotation
+    name IS name
+    angularVelocity IS angularVelocity
+    children [
+      CadShape {
+        url IS url
+        castShadows FALSE
+      }
+    ]
+    boundingObject Shape {
+      geometry Mesh {
+        url IS url
+      }
+    }
+  }
+}

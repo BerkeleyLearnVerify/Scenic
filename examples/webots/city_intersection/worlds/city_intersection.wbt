@@ -1,0 +1,352 @@
+#VRML_SIM R2023a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/road/protos/RoadLine.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/road/protos/StraightRoadSegment.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/vehicles/protos/bmw/BmwX5.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/buildings/protos/CommercialBuilding.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/buildings/protos/BigGlassTower.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/buildings/protos/ResidentialBuilding.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/road/protos/RoadIntersection.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/traffic/protos/YieldSign.proto"
+
+IMPORTABLE EXTERNPROTO "../protos/ScenicObject.proto"
+IMPORTABLE EXTERNPROTO "../protos/ScenicObjectWithPhysics.proto"
+
+WorldInfo {
+  info [
+    "Autonomous Vehicle Simulation"
+    "The simple controller example uses an on-board camera to follow the yellow road lines and a SICK sensor to avoid the obstacles."
+    "The control of the vehicle is done using the driver library."
+    "The vehicle based on the Car PROTO is modelled with realistic physics properties: motor torques, body mass, friction forces, suspensions, etc."
+  ]
+  title "City"
+  ERP 0.6
+  basicTimeStep 10
+  lineScale 1
+  contactProperties [
+    ContactProperties {
+      coulombFriction [
+        8
+      ]
+      softCFM 1e-05
+      bumpSound ""
+      rollSound ""
+      slideSound ""
+    }
+    ContactProperties {
+      material2 "CitroenCZeroWheels"
+      coulombFriction [
+        8
+      ]
+      softCFM 1e-05
+      bumpSound ""
+      rollSound ""
+      slideSound ""
+    }
+    ContactProperties {
+      material2 "ToyotaPriusWheels"
+      coulombFriction [
+        8
+      ]
+      softCFM 1e-05
+      bumpSound ""
+      rollSound ""
+      slideSound ""
+    }
+    ContactProperties {
+      material2 "LincolnMKZWheels"
+      coulombFriction [
+        8
+      ]
+      softCFM 1e-05
+      bumpSound ""
+      rollSound ""
+      slideSound ""
+    }
+    ContactProperties {
+      material2 "RangeRoverSportSVRWheels"
+      coulombFriction [
+        8
+      ]
+      softCFM 1e-05
+      bumpSound ""
+      rollSound ""
+      slideSound ""
+    }
+    ContactProperties {
+      material2 "TruckWheels"
+      coulombFriction [
+        8
+      ]
+      softCFM 1e-05
+      bumpSound ""
+      rollSound ""
+      slideSound ""
+    }
+  ]
+}
+Viewpoint {
+  orientation -0.2006343776508108 0.17969712943513502 0.9630445411181375 1.718141824623655
+  position 1.5410478795311295 -112.49914224110546 52.72668524857105
+  near 1
+  follow "EGO"
+  followSmoothness 0
+}
+TexturedBackground {
+}
+TexturedBackgroundLight {
+}
+Robot {
+  name "Supervisor"
+  controller "scenic_supervisor"
+  customData "../../city_intersection.scenic"
+  supervisor TRUE
+}
+Fog {
+  color 0.38 0.35 0.32
+  visibilityRange 1000
+}
+DEF GROUND Solid {
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.8 0.8 0.8
+        baseColorMap ImageTexture {
+          url [
+            "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/vehicles/worlds/textures/ground.jpg"
+          ]
+        }
+        roughness 0.5
+        metalness 0
+        textureTransform TextureTransform {
+          scale 500 500
+        }
+      }
+      geometry DEF GROUND_PLANE Plane {
+        size 2000 2000
+      }
+    }
+  ]
+  boundingObject USE GROUND_PLANE
+  locked TRUE
+}
+DEF ROAD_INTERSECTION RoadIntersection {
+  translation 0 0 0.02
+  rotation 0 0 1 0.7853981633974483
+  roadsWidth 5
+  startRoadsLine [
+    RoadLine {
+      color 0.85 0.75 0.3
+    }
+    RoadLine {
+      color 0.85 0.75 0.3
+      type "double"
+    }
+  ]
+  startRoadBorder FALSE
+}
+DEF BUILDING_RESIDENTIAL_0 ResidentialBuilding {
+  translation 186.91 110.27 0
+  rotation 0 0 1 1.01503e-06
+  name "BUILDING_RESIDENTIAL"
+}
+DEF BUILDING_RESIDENTIAL_1 ResidentialBuilding {
+  translation 186.91 3.89 0
+  rotation 0 0 1 1.01503e-06
+  name "BUILDING_RESIDENTIAL(1)"
+}
+DEF BUILDING_RESIDENTIAL_2 ResidentialBuilding {
+  translation 186.91 -99.23 0
+  rotation 0 0 1 1.01503e-06
+  name "BUILDING_RESIDENTIAL(2)"
+}
+DEF BUILDING_GLASS_0 BigGlassTower {
+  translation 225.35 115.65 0
+  name "BUILDING_GLASS"
+}
+DEF BUILDING_GLASS_1 BigGlassTower {
+  translation 225.35 10.68 0
+  name "BUILDING_GLASS(1)"
+}
+DEF EGO BmwX5 {
+  translation -45 45.88 0.4
+  rotation 0 0 1 3.14159
+  name "ego"
+  controller "autonomous_vehicle"
+  frontSpotLights FALSE
+  sensorsSlotTop [
+    Camera {
+      translation 0.72 0 -0.05
+      rotation 0 -1 0 -0.15
+      children [
+        Transform {
+          translation -0.05 0 0
+          rotation 0 -1 0 1.5708
+          children [
+            Shape {
+              appearance PBRAppearance {
+                baseColor 0.8 0.8 0.8
+                roughness 1
+                metalness 0
+              }
+              geometry Cylinder {
+                height 0.1
+                radius 0.04
+              }
+            }
+          ]
+        }
+      ]
+      fieldOfView 1.5
+      width 1920
+      height 1080
+    }
+  ]
+  sensorsSlotCenter [
+    GPS {
+    }
+    Gyro {
+    }
+  ]
+}
+DEF CAR BmwX5 {
+  translation -45 45.88 0.4
+  rotation 0 0 1 3.14159
+  controller "autonomous_vehicle"
+  frontSpotLights FALSE
+  sensorsSlotTop [
+    Camera {
+      translation 0.72 0 -0.05
+      rotation 0 -1 0 -0.15
+      children [
+        Transform {
+          translation -0.05 0 0
+          rotation 0 -1 0 1.5708
+          children [
+            Shape {
+              appearance PBRAppearance {
+                baseColor 0.8 0.8 0.8
+                roughness 1
+                metalness 0
+              }
+              geometry Cylinder {
+                height 0.1
+                radius 0.04
+              }
+            }
+          ]
+        }
+      ]
+      fieldOfView 1
+      width 128
+    }
+  ]
+  sensorsSlotCenter [
+    GPS {
+    }
+    Gyro {
+    }
+  ]
+}
+StraightRoadSegment {
+  translation 0 -7.5 0.02
+  rotation 0 0 1 -1.5708
+  name "ROAD_BOT"
+  id "1"
+  width 5
+  numberOfForwardLanes 2
+  lines [
+    RoadLine {
+      color 0.85 0.75 0.3
+    }
+    RoadLine {
+      color 0.85 0.75 0.3
+      type "double"
+    }
+  ]
+  rightBorder FALSE
+  leftBorder FALSE
+  length 100
+}
+StraightRoadSegment {
+  translation 0 7.5 0.02
+  rotation 0 0 1 1.5708
+  name "ROAD_TOP"
+  id "1"
+  width 5
+  numberOfForwardLanes 2
+  lines [
+    RoadLine {
+      color 0.85 0.75 0.3
+    }
+    RoadLine {
+      color 0.85 0.75 0.3
+      type "double"
+    }
+  ]
+  rightBorder FALSE
+  leftBorder FALSE
+  length 100
+}
+StraightRoadSegment {
+  translation -7.5 0 0.02
+  rotation 0 0 1 3.14159
+  name "ROAD_LEFT"
+  id "1"
+  width 5
+  numberOfForwardLanes 2
+  lines [
+    RoadLine {
+      color 0.85 0.75 0.3
+    }
+    RoadLine {
+      color 0.85 0.75 0.3
+      type "double"
+    }
+  ]
+  rightBorder FALSE
+  leftBorder FALSE
+  length 100
+}
+StraightRoadSegment {
+  translation 7.5 0 0.02
+  name "ROAD_RIGHT"
+  id "1"
+  width 5
+  numberOfForwardLanes 2
+  lines [
+    RoadLine {
+      color 0.85 0.75 0.3
+    }
+    RoadLine {
+      color 0.85 0.75 0.3
+      type "double"
+    }
+  ]
+  rightBorder FALSE
+  leftBorder FALSE
+  length 100
+}
+DEF BUILDING_COMMERCIAL_0 CommercialBuilding {
+  translation 155.5 109.95 0
+  name "BUILDING_COMMERCIAL"
+}
+DEF BUILDING_COMMERCIAL_1 CommercialBuilding {
+  translation 155.5 4.53 0
+  name "BUILDING_COMMERCIAL(1)"
+}
+DEF BUILDING_COMMERCIAL_2 CommercialBuilding {
+  translation 155.5 -117.46 0
+  name "BUILDING_COMMERCIAL(2)"
+}
+YieldSign {
+  translation 3.65 -3.74 0
+  rotation 0 0 1 -1.5707953071795862
+}
+YieldSign {
+  translation -3.31003 3.43 0
+  rotation 0 0 1 1.5708
+  name "yield sign(1)"
+}

@@ -3,7 +3,7 @@ setLocalMap(__file__, 'map.npz')
 
 from scenic.simulators.gta.model import *
 
-ego = Car
+ego = new Car
 
 for i in range(10):
-	Car visible
+    new Car visible

@@ -37,11 +37,11 @@ General Scenario Control
 
 	Specify the random seed used by Scenic, to make sampling deterministic.
 
-	This option sets the seed for the Python random number generator :mod:`random`, so
+	This option sets the seed for the Python random number generator :mod:`random`
+	and the :mod:`numpy` random number generator :mod:`numpy.random`, so
 	external Python code called from within Scenic can also be made deterministic
-	(although :mod:`random` should not be used in place of Scenic's own sampling
-	constructs in Scenic code). Note though that NumPy provides other RNGs whose seeds
-	are not set by this option (see `numpy.random`).
+	(although :mod:`random` and :mod:`numpy.random` should not be used in place of
+	Scenic's own sampling constructs in Scenic code).
 
 .. option:: --scenario <scenario>
 
@@ -49,6 +49,12 @@ General Scenario Control
 	The named :term:`modular scenario` must not require any arguments.
 
 	The equivalent of this option for the Python API is the ``scenario`` argument to `scenic.scenarioFromFile`.
+
+.. option:: --2d
+
+	Compile the scenario in :ref:`2D compatibility mode`.
+
+	The equivalent of this option for the Python API is the ``mode2D`` argument to `scenic.scenarioFromFile`.
 
 Dynamic Simulations
 -------------------
@@ -98,6 +104,8 @@ Debugging
 			Additionally, the :term:`actions` taken by each agent at each time step of a dynamic
 			simulation are printed.
 
+	This option can be configured from the Python API using `scenic.setDebuggingOptions`.
+
 .. option:: --show-params
 
 	Show values of :term:`global parameters` for each generated scene.
@@ -111,12 +119,18 @@ Debugging
 	Include Scenic's internals in backtraces printed for uncaught exceptions.
 	This information will probably only be useful if you are developing Scenic.
 
+	This option can be enabled from the Python API using `scenic.setDebuggingOptions`.
+
 .. option:: --pdb
 
 	If an error occurs, enter the Python interactive debugger :mod:`pdb`.
 	Implies the :option:`-b` option.
 
+	This option can be enabled from the Python API using `scenic.setDebuggingOptions`.
+
 .. option:: --pdb-on-reject
 
 	If a scene/simulation is rejected (so that another must be sampled), enter :mod:`pdb`.
 	Implies the :option:`-b` option.
+
+	This option can be enabled from the Python API using `scenic.setDebuggingOptions`.

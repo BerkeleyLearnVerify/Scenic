@@ -1,13 +1,27 @@
-
 """Extracting relations (for later pruning) from the syntax of requirements."""
 
-import math
+from ast import (
+    Add,
+    BinOp,
+    Call,
+    Compare,
+    Eq,
+    Expression,
+    Gt,
+    GtE,
+    Lt,
+    LtE,
+    Name,
+    NotEq,
+    Sub,
+)
 from collections import defaultdict
-from ast import Compare, BinOp, Eq, NotEq, Lt, LtE, Gt, GtE, Call, Add, Sub, Expression, Name
+import math
 
 from scenic.core.distributions import needsSampling
-from scenic.core.object_types import Point, Object
-from scenic.core.errors import InvalidScenarioError, InconsistentScenarioError
+from scenic.core.errors import InconsistentScenarioError, InvalidScenarioError
+from scenic.core.object_types import Object, Point
+
 
 def inferRelationsFrom(reqNode, namespace, ego, line):
     """Infer relations between objects implied by a requirement."""
@@ -16,61 +30,72 @@ def inferRelationsFrom(reqNode, namespace, ego, line):
     inferRelativeHeadingRelations(matcher, reqNode, ego, line)
     inferDistanceRelations(matcher, reqNode, ego, line)
 
+
 def inferRelativeHeadingRelations(matcher, reqNode, ego, line):
     """Infer bounds on relative headings from a requirement."""
-    rhMatcher = lambda node: matcher.matchUnaryFunction('RelativeHeading', node)
+    rhMatcher = lambda node: matcher.matchUnaryFunction("RelativeHeading", node)
     allBounds = matcher.matchBounds(reqNode, rhMatcher)
     for target, bounds in allBounds:
         if not isinstance(target, Object):
             continue
         assert target is not ego
         if ego is None:
-            raise InvalidScenarioError('relative heading w.r.t. unassigned ego on line {line}')
+            raise InvalidScenarioError(
+                "relative heading w.r.t. unassigned ego on line {line}"
+            )
         lower, upper = bounds
         if lower < -math.pi:
             lower = -math.pi
         if upper > math.pi:
             upper = math.pi
         if lower == -math.pi and upper == math.pi:
-            continue    # skip trivial bounds
+            continue  # skip trivial bounds
         rel = RelativeHeadingRelation(target, lower, upper)
         ego._relations.append(rel)
         conv = RelativeHeadingRelation(ego, -upper, -lower)
         target._relations.append(conv)
 
+
 def inferDistanceRelations(matcher, reqNode, ego, line):
     """Infer bounds on distances from a requirement."""
-    distMatcher = lambda node: matcher.matchUnaryFunction('DistanceFrom', node)
+    distMatcher = lambda node: matcher.matchUnaryFunction("DistanceFrom", node)
     allBounds = matcher.matchBounds(reqNode, distMatcher)
     for target, bounds in allBounds:
         if not isinstance(target, Object):
             continue
         assert target is not ego
         if ego is None:
-            raise InvalidScenarioError('distance w.r.t. unassigned ego on line {line}')
+            raise InvalidScenarioError("distance w.r.t. unassigned ego on line {line}")
         lower, upper = bounds
         if lower < 0:
             lower = 0
-            if upper == float('inf'):
-                continue    # skip trivial bounds
+            if upper == float("inf"):
+                continue  # skip trivial bounds
         rel = DistanceRelation(target, lower, upper)
         ego._relations.append(rel)
         conv = DistanceRelation(ego, lower, upper)
         target._relations.append(conv)
 
+
 class BoundRelation:
     """Abstract relation bounding something about another object."""
+
     def __init__(self, target, lower, upper):
         self.target = target
         self.lower, self.upper = lower, upper
 
+
 class RelativeHeadingRelation(BoundRelation):
     """Relation bounding another object's relative heading with respect to this one."""
+
     pass
+
 
 class DistanceRelation(BoundRelation):
     """Relation bounding another object's distance from this one."""
+
     pass
+
 
 class RequirementMatcher:
     def __init__(self, namespace):
@@ -81,8 +106,11 @@ class RequirementMatcher:
 
     def matchUnaryFunction(self, name, node):
         """Match a call to a specified unary function, returning the value of its argument."""
-        if not (isinstance(node, Call) and isinstance(node.func, Name)
-                and node.func.id == name):
+        if not (
+            isinstance(node, Call)
+            and isinstance(node.func, Name)
+            and node.func.id == name
+        ):
             return None
         if len(node.args) != 1:
             return None
@@ -98,7 +126,7 @@ class RequirementMatcher:
         """
         if not isinstance(node, Compare):
             return {}
-        bounds = defaultdict(lambda: (float('-inf'), float('inf')))
+        bounds = defaultdict(lambda: (float("-inf"), float("inf")))
         targets = {}
         first = node.left
         for second, op in zip(node.comparators, node.ops):
@@ -106,7 +134,7 @@ class RequirementMatcher:
             first = second
             if target is None:
                 continue
-            targetID = id(target)    # use id to support unhashable types
+            targetID = id(target)  # use id to support unhashable types
             targets[targetID] = target
             bestLower, bestUpper = bounds[targetID]
             if lower is not None and lower > bestLower:
@@ -127,55 +155,67 @@ class RequirementMatcher:
         lconst = self.matchConstant(left)
         if isinstance(lconst, (int, float)):
             target = matchAtom(right)
-            if target is not None:     # CONST op QUANTITY
-                return (lconst, lconst, target) if isinstance(op, Eq) else (lconst, None, target)
+            if target is not None:  # CONST op QUANTITY
+                return (
+                    (lconst, lconst, target)
+                    if isinstance(op, Eq)
+                    else (lconst, None, target)
+                )
             else:
                 bounds = self.matchAbsBounds(right, lconst, op, False, matchAtom)
-                if bounds is not None:      # CONST op abs(QUANTITY [+/- CONST])
+                if bounds is not None:  # CONST op abs(QUANTITY [+/- CONST])
                     return bounds
         # Try matching a constant upper bound on the atom or its absolute value
         rconst = self.matchConstant(right)
         if isinstance(rconst, (int, float)):
             target = matchAtom(left)
-            if target is not None:      # QUANTITY op CONST
-                return (rconst, rconst, target) if isinstance(op, Eq) else (None, rconst, target)
+            if target is not None:  # QUANTITY op CONST
+                return (
+                    (rconst, rconst, target)
+                    if isinstance(op, Eq)
+                    else (None, rconst, target)
+                )
             else:
                 bounds = self.matchAbsBounds(left, rconst, op, True, matchAtom)
-                if bounds is not None:      # abs(QUANTITY [+/- CONST]) op CONST
+                if bounds is not None:  # abs(QUANTITY [+/- CONST]) op CONST
                     return bounds
         return None, None, None
 
     def matchAbsBounds(self, node, const, op, isUpperBound, matchAtom):
         """Extract bounds on an atom from a comparison involving its absolute value."""
-        if not (isinstance(node, Call) and isinstance(node.func, Name)
-                and node.func.id == 'abs'):
-            return None     # not an invocation of abs
+        if not (
+            isinstance(node, Call)
+            and isinstance(node.func, Name)
+            and node.func.id == "abs"
+        ):
+            return None  # not an invocation of abs
         if not isUpperBound and not isinstance(op, Eq):
-            return None     # lower bounds on abs value don't bound underlying quantity
+            return None  # lower bounds on abs value don't bound underlying quantity
         if const < 0:
-            self.inconsistencyError(node, f'absolute value cannot be negative')
+            self.inconsistencyError(node, f"absolute value cannot be negative")
         assert len(node.args) == 1
         arg = node.args[0]
         target = matchAtom(arg)
-        if target is not None:   # abs(QUANTITY) </= CONST
+        if target is not None:  # abs(QUANTITY) </= CONST
             return (-const, const, target)
-        elif isinstance(arg, BinOp) and isinstance(arg.op, (Add, Sub)):   # abs(X +/- Y) </= CONST
+        elif isinstance(arg, BinOp) and isinstance(arg.op, (Add, Sub)):
+            # abs(X +/- Y) </= CONST
             match = None
             slconst = self.matchConstant(arg.left)
             target = matchAtom(arg.right)
-            if (isinstance(slconst, (int, float))
-                and target is not None):   # abs(CONST +/- QUANTITY) </= CONST
+            if isinstance(slconst, (int, float)) and target is not None:
+                # abs(CONST +/- QUANTITY) </= CONST
                 match = slconst
             else:
                 srconst = self.matchConstant(arg.right)
                 target = matchAtom(arg.left)
-                if (isinstance(srconst, (int, float))
-                    and target is not None):    # abs(QUANTITY +/- CONST) </= CONST
+                if isinstance(srconst, (int, float)) and target is not None:
+                    # abs(QUANTITY +/- CONST) </= CONST
                     match = srconst
             if match is not None:
-                if isinstance(arg.op, Add):    # abs(QUANTITY + CONST) </= CONST
+                if isinstance(arg.op, Add):  # abs(QUANTITY + CONST) </= CONST
                     return (-const - match, const - match, target)
-                else:   # abs(QUANTITY - CONST) </= CONST
+                else:  # abs(QUANTITY - CONST) </= CONST
                     return (-const + match, const + match, target)
         return None
 
@@ -191,7 +231,7 @@ class RequirementMatcher:
         requirements should not have side-effects to begin with.
         """
         try:
-            code = compile(Expression(node), '<internal>', 'eval')
+            code = compile(Expression(node), "<internal>", "eval")
             value = eval(code, dict(self.namespace))
         except Exception:
             return None

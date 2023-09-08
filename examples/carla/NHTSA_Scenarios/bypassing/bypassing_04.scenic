@@ -10,7 +10,7 @@ SOURCE: NHSTA, #16
 # MAP AND MODEL                 #
 #################################
 
-param map = localPath('../../../../tests/formats/opendrive/maps/CARLA/Town03.xodr')
+param map = localPath('../../../../assets/maps/CARLA/Town03.xodr')
 param carla_map = 'Town03'
 model scenic.simulators.carla.model
 
@@ -18,7 +18,7 @@ model scenic.simulators.carla.model
 # CONSTANTS                     #
 #################################
 
-MODEL = 'vehicle.lincoln.mkz2017'
+MODEL = 'vehicle.lincoln.mkz_2017'
 
 param EGO_SPEED = VerifaiRange(6, 8)
 
@@ -35,53 +35,51 @@ TERM_DIST = globalParameters.ADV2_DIST + 15
 #################################
 
 behavior EgoBehavior():
-	try:
-		do FollowLaneBehavior(target_speed=globalParameters.EGO_SPEED)
-	interrupt when (distance to adversary_1) < BYPASS_DIST:
-		newLaneSec = self.laneSection.laneToRight
-		do LaneChangeBehavior(
-			laneSectionToSwitch=newLaneSec,
-			target_speed=globalParameters.EGO_SPEED)
-	interrupt when (distance to adversary_2) < BYPASS_DIST:
-		newLaneSec = self.laneSection.laneToLeft
-		do LaneChangeBehavior(
-			laneSectionToSwitch=newLaneSec,
-			target_speed=globalParameters.EGO_SPEED)
+    try:
+        do FollowLaneBehavior(target_speed=globalParameters.EGO_SPEED)
+    interrupt when (distance to adversary_1) < BYPASS_DIST:
+        newLaneSec = self.laneSection.laneToRight
+        do LaneChangeBehavior(
+            laneSectionToSwitch=newLaneSec,
+            target_speed=globalParameters.EGO_SPEED)
+    interrupt when (distance to adversary_2) < BYPASS_DIST:
+        newLaneSec = self.laneSection.laneToLeft
+        do LaneChangeBehavior(
+            laneSectionToSwitch=newLaneSec,
+            target_speed=globalParameters.EGO_SPEED)
 
 behavior Adversary2Behavior():
-	rightLaneSec = self.laneSection.laneToRight
-	do LaneChangeBehavior(
-		laneSectionToSwitch=rightLaneSec,
-		target_speed=globalParameters.ADV_SPEED)
-	do FollowLaneBehavior(target_speed=globalParameters.ADV_SPEED)
+    rightLaneSec = self.laneSection.laneToRight
+    do LaneChangeBehavior(
+        laneSectionToSwitch=rightLaneSec,
+        target_speed=globalParameters.ADV_SPEED)
+    do FollowLaneBehavior(target_speed=globalParameters.ADV_SPEED)
 
 #################################
 # SPATIAL RELATIONS             #
 #################################
 
 initLane = Uniform(*filter(lambda lane:
-	all([sec._laneToRight is not None for sec in lane.sections]),
-	network.lanes))
-egoSpawnPt = OrientedPoint in initLane.centerline
+    all([sec._laneToRight is not None for sec in lane.sections]),
+    network.lanes))
+egoSpawnPt = new OrientedPoint in initLane.centerline
 egoLaneSecToSwitch = initLane.sectionAt(egoSpawnPt).laneToRight
 
 #################################
 # SCENARIO SPECIFICATION        #
 #################################
 
-adversary_1, adversary_2, adversary_3 = Car, Car, Car
+ego = new Car at egoSpawnPt,
+    with blueprint MODEL,
+    with behavior EgoBehavior()
 
-ego = Car at egoSpawnPt,
-	with blueprint MODEL,
-	with behavior EgoBehavior()
+adversary_1 = new Car following roadDirection for globalParameters.ADV1_DIST,
+    with blueprint MODEL,
+    with behavior FollowLaneBehavior(target_speed=globalParameters.ADV_SPEED)
 
-adversary_1 = Car following roadDirection for globalParameters.ADV1_DIST,
-	with blueprint MODEL,
-	with behavior FollowLaneBehavior(target_speed=globalParameters.ADV_SPEED)
-
-adversary_2 = Car following roadDirection for globalParameters.ADV2_DIST,
-	with blueprint MODEL,
-	with behavior Adversary2Behavior()
+adversary_2 = new Car following roadDirection for globalParameters.ADV2_DIST,
+    with blueprint MODEL,
+    with behavior Adversary2Behavior()
 
 require (distance to intersection) > INIT_DIST
 require (distance from adversary_1 to intersection) > INIT_DIST

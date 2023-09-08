@@ -6,10 +6,10 @@ from scenic.simulators.gta.model import *
 param time = 12 * 60
 param weather = 'EXTRASUNNY'
 
-ego = EgoCar
+ego = new EgoCar
 
 posOffset = (-625.4444493298472 - -628.78787878787944) @ (-530.76549003839568 - -540.60676779463461)
 angleOffset = (8.287256822061408 deg - -359.16913666080427 deg) - 360 deg
 
-c = Car offset by posOffset,
-	facing angleOffset relative to ego.heading
+c = new Car at ego offset by posOffset,
+    facing angleOffset relative to ego.heading

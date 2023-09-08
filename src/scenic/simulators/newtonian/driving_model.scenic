@@ -59,7 +59,10 @@ class Car(Vehicle, Steers):
     def isCar(self):
         return True
 
+class Pedestrian(Pedestrian, NewtonianActor, Walks):
+    pass
+
 class Debris:
-	"""Abstract class for debris scattered randomly in the workspace."""
-	position: Point in workspace
-	heading: Range(0, 360) deg
+    """Abstract class for debris scattered randomly in the workspace."""
+    position: Point in workspace
+    yaw: Range(0, 360) deg

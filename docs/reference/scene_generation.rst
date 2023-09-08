@@ -11,7 +11,7 @@ In this page, we describe how scenes are generated from a Scenic program.
 
 In Scenic, a scene consists of the following data:
 
-	* a set of `objects <Object>` present in the scene (one of which is designated the :scenic:`ego` object);
+	* a set of `objects <Object>` present in the scene (one of which *may* be designated the :scenic:`ego` object);
 	* concrete values for all of the properties of these objects, such as :prop:`position`, :prop:`heading`, etc.;
 	* concrete values for each :term:`global parameter`.
 

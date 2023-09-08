@@ -17,8 +17,8 @@ For example, here is a scenario which creates a parked car on the shoulder of th
     scenario ParkedCar(gap=0.25):
         precondition: ego.laneGroup._shoulder != None
         setup:
-            spot = OrientedPoint on visible ego.laneGroup.curb
-            parkedCar = Car left of spot by gap
+            spot = new OrientedPoint on visible ego.laneGroup.curb
+            parkedCar = new Car left of spot by gap
 
 The ``setup`` block contains Scenic code which executes when the scenario is instantiated, and which can define classes, create objects, declare requirements, etc. as in any ordinary Scenic scenario.
 Additionally, we can define preconditions and invariants, which operate in the same way as for :ref:`dynamic behaviors <guards>`.
@@ -27,7 +27,7 @@ Having now defined the ``ParkedCar`` scenario, we can use it in a more complex s
 
     scenario Main():
         setup:
-            ego = Car
+            ego = new Car
         compose:
             do ParkedCar(), ParkedCar(0.5)
 
@@ -85,7 +85,7 @@ To enable changing the :prop:`behavior` or other properties of an object in a su
     scenario ParkedCarPullingAheadOf(target):
         setup:
             override target with behavior FollowLaneAvoidingCollisions
-            parkedCar = Car left of ...
+            parkedCar = new Car left of ...
 
 Here we override the :prop:`behavior` property of ``target`` for the duration of the scenario, reverting it back to its original value (and thereby continuing to execute the old behavior) when the scenario terminates.
 The :sampref:`override {object} {specifier}, {...}` statement takes a comma-separated list of specifiers like an :ref:`instance creation <objectCreate>`, and can specify any properties of the object except for :term:`dynamic properties` like :prop:`position` or :prop:`speed` which can only be indirectly controlled by taking actions.
@@ -98,11 +98,11 @@ For instance::
             if initial scenario:  # create ego on random 2-lane road
                 roads = filter(lambda r: len(r.lanes) == 2, network.roads)
                 road = Uniform(*roads)  # pick uniformly from list
-                ego = Car on road
+                ego = new Car on road
             else:  # use existing ego car; require it is on a 2-lane road
                 require len(ego.road.lanes) == 2
                 road = ego.road
-            Pedestrian on visible road.sidewalkRegion, with behavior ...
+            new Pedestrian on visible road.sidewalkRegion, with behavior ...
 
 Random Selection of Scenarios
 -----------------------------

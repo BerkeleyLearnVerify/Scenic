@@ -15,6 +15,8 @@ Many of the simulator interfaces provide utility functions which are useful when
 scenarios for particular simulators. See the documentation for each simulator on the
 :ref:`simulators` page, as well as the corresponding module under `scenic.simulators`.
 
+.. _domains:
+
 Abstract Domains
 ================
 

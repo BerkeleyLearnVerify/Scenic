@@ -5,10 +5,10 @@ from scenic.simulators.gta.model import *
 
 numCars = 3
 
-ego = Car with visibleDistance 60
+ego = new Car with visibleDistance 60
 
-spot = OrientedPoint on visible curb
-parked = Car left of (spot offset by -0.25 @ 0)
+spot = new OrientedPoint on visible curb
+parked = new Car left of (spot offset by -0.25 @ 0)
 platoon = createPlatoonAt(parked, numCars, dist=Range(2, 5))
 last = platoon[-1]
 

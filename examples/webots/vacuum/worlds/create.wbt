@@ -1,0 +1,39 @@
+#VRML_SIM R2023a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/floors/protos/Floor.proto"
+EXTERNPROTO "../protos/Create.proto"
+IMPORTABLE EXTERNPROTO "../protos/ScenicObject.proto"
+IMPORTABLE EXTERNPROTO "../protos/ScenicObjectWithPhysics.proto"
+
+WorldInfo {
+  info [
+    "iRobot Create simulation"
+    "The vacuum cleaner robot goes randomly into the apartment while a supervisor tracks its position and alterates the ground texture."
+    "The robot can be stopped by the virtual walls emitting IR light."
+  ]
+  title "iRobot Create"
+  basicTimeStep 20
+  defaultDamping Damping {
+  }
+}
+Viewpoint {
+  orientation 0.36895104882333746 0.7282767074008142 -0.5774843383413859 1.397038466031713
+  position -5.0079784295160685 5.251538308976754 13.867107042232021
+  near 0.1
+}
+TexturedBackground {
+}
+Robot {
+  name "Supervisor"
+  controller "scenic_supervisor"
+  customData "../../vacuum.scenic"
+  supervisor TRUE
+}
+DEF IROBOT_CREATE Create {
+  translation -3.69248 0.0193578 0.0899546
+}
+Floor {
+  name "FLOOR"
+  size 5 5
+}

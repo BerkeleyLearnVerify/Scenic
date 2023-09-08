@@ -1,5 +1,7 @@
 """Interface to the CARLA driving simulator.
 
+This interface must currently be used in `2D compatibility mode`.
+
 This interface has been tested with `CARLA <https://carla.org/>`_ versions 0.9.9,
 0.9.10, and 0.9.11.
 It supports dynamic scenarios involving vehicles, pedestrians, and props.
@@ -14,9 +16,9 @@ For details of additional CARLA-specific functionality, see the world model
 # import would raise an exception.
 carla = None
 try:
-   import carla
+    import carla
 except ImportError:
-   pass
+    pass
 if carla:
-   from .simulator import CarlaSimulator
+    from .simulator import CarlaSimulator
 del carla

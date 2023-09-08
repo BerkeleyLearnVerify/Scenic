@@ -15,7 +15,7 @@ This returns a `Scenario` object representing the scenario; to sample a scene fr
 Scenes are represented by `Scene` objects, from which you can extract the objects and their properties as well as the values of the global parameters (see the `Scene` documentation for details).
 
 Supporting dynamic scenarios requires additionally implementing a subclass of `Simulator` which communicates periodically with your simulator to implement the actions taken by dynamic agents and read back the state of the simulation.
-See the :obj:`scenic.simulators.carla.simulator` and :obj:`scenic.simulators.lgsvl.simulator` modules for examples.
+See the documentation of `Simulator` and `Simulation` for details on the methods which need to be implemented, and the :obj:`scenic.simulators.carla.simulator` and :obj:`scenic.simulators.webots.simulator` modules for examples.
 
 .. _defining_world_model:
 
@@ -33,7 +33,6 @@ This :term:`world model` could include:
 
 Then any Scenic programs for your simulator can import this world model and make use of the information within.
 
-Each of the simulators natively supported by Scenic has a corresponding :file:``model.scenic`` file containing its world model.
+Each of the simulators natively supported by Scenic has a corresponding :file:`model.scenic` file containing its world model.
 See the :ref:`simulators` page for links to the module under `scenic.simulators` for each simulator, where the world model can be found.
-The `scenic.simulators.webots.mars` model is particularly simple and would be a good place to start.
-For a more complex example, see the `scenic.simulators.lgsvl` model, which specializes the simulator-agnostic model provided by the :ref:`driving_domain` (in `scenic.domains.driving.model`).
+For an example, see the `scenic.simulators.lgsvl` model, which specializes the simulator-agnostic model provided by the :ref:`driving_domain` (in `scenic.domains.driving.model`).

@@ -1,0 +1,32 @@
+#VRML_SIM R2023a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+IMPORTABLE EXTERNPROTO "../protos/ScenicObject.proto"
+IMPORTABLE EXTERNPROTO "../protos/ScenicObjectWithPhysics.proto"
+
+WorldInfo {
+  gravity 9.8
+  basicTimeStep 2
+  contactProperties [
+    ContactProperties {
+      coulombFriction [
+        0.8
+      ]
+    }
+  ]
+}
+Viewpoint {
+  orientation -0.19729161510865992 0.07408415124219735 0.977541588446517 2.4380019050245862
+  position 6.683615307234937 -5.5006366813466805 4.16419445995153
+}
+TexturedBackground {
+}
+TexturedBackgroundLight {
+}
+Robot {
+  name "Supervisor"
+  controller "scenic_supervisor"
+  customData "../../../adhoc_compose.scenic"
+  supervisor TRUE
+}

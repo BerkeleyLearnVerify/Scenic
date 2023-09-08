@@ -10,7 +10,7 @@ SOURCE: Carla Challenge, #04
 # MAP AND MODEL                 #
 #################################
 
-param map = localPath('../../../../tests/formats/opendrive/maps/CARLA/Town05.xodr')
+param map = localPath('../../../../assets/maps/CARLA/Town05.xodr')
 param carla_map = 'Town05'
 model scenic.simulators.carla.model
 
@@ -18,7 +18,7 @@ model scenic.simulators.carla.model
 # CONSTANTS                     #
 #################################
 
-MODEL = 'vehicle.lincoln.mkz2017'
+MODEL = 'vehicle.lincoln.mkz_2017'
 
 EGO_INIT_DIST = [20, 25]
 param EGO_SPEED = VerifaiRange(7, 10)
@@ -52,7 +52,7 @@ intersection = Uniform(*filter(lambda i: i.is4Way or i.is3Way, network.intersect
 egoManeuver = Uniform(*filter(lambda m: m.type is ManeuverType.LEFT_TURN, intersection.maneuvers))
 egoInitLane = egoManeuver.startLane
 egoTrajectory = [egoInitLane, egoManeuver.connectingLane, egoManeuver.endLane]
-egoSpawnPt = OrientedPoint in egoInitLane.centerline
+egoSpawnPt = new OrientedPoint in egoInitLane.centerline
 
 tempManeuver = Uniform(*filter(lambda m: m.type is ManeuverType.RIGHT_TURN, egoManeuver.reverseManeuvers))
 tempInitLane = tempManeuver.startLane
@@ -62,11 +62,11 @@ tempSpawnPt = tempInitLane.centerline[-1]
 # SCENARIO SPECIFICATION        #
 #################################
 
-ego = Car at egoSpawnPt,
+ego = new Car at egoSpawnPt,
     with blueprint MODEL,
     with behavior EgoBehavior(egoTrajectory)
 
-ped = Pedestrian right of tempSpawnPt by 3,
+ped = new Pedestrian right of tempSpawnPt by 3,
     with heading ego.heading,
     with regionContainedIn None,
     with behavior CrossingBehavior(ego, PED_MIN_SPEED, PED_THRESHOLD)

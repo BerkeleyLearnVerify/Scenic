@@ -6,12 +6,12 @@ emergency brake or an avoidance maneuver.
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
-param map = localPath('../../../tests/formats/opendrive/maps/CARLA/Town01.xodr')  # or other CARLA map that definitely works
+param map = localPath('../../../assets/maps/CARLA/Town01.xodr')
 param carla_map = 'Town01'
 model scenic.simulators.carla.model
 
 ## CONSTANTS
-EGO_MODEL = "vehicle.lincoln.mkz2017"
+EGO_MODEL = "vehicle.lincoln.mkz_2017"
 EGO_SPEED = 10
 EGO_BRAKING_THRESHOLD = 12
 
@@ -44,12 +44,12 @@ behavior LeadingCarBehavior(speed=10):
 # make sure to put '*' to uniformly randomly select from all elements of the list, 'lanes'
 lane = Uniform(*network.lanes)
 
-obstacle = Trash on lane.centerline
+obstacle = new Trash on lane.centerline
 
-leadCar = Car following roadDirection from obstacle for Range(-50, -30),
+leadCar = new Car following roadDirection from obstacle for Range(-50, -30),
         with behavior LeadingCarBehavior(LEAD_CAR_SPEED)
 
-ego = Car following roadDirection from leadCar for Range(-15, -10),
+ego = new Car following roadDirection from leadCar for Range(-15, -10),
         with blueprint EGO_MODEL,
         with behavior EgoBehavior(EGO_SPEED)
 

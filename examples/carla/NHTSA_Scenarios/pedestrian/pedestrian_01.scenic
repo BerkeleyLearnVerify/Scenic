@@ -10,7 +10,7 @@ SOURCE: Carla Challenge, #03
 # MAP AND MODEL                 #
 #################################
 
-param map = localPath('../../../../tests/formats/opendrive/maps/CARLA/Town01.xodr')
+param map = localPath('../../../../assets/maps/CARLA/Town01.xodr')
 param carla_map = 'Town01'
 model scenic.simulators.carla.model
 
@@ -18,7 +18,7 @@ model scenic.simulators.carla.model
 # CONSTANTS                     #
 #################################
 
-MODEL = 'vehicle.lincoln.mkz2017'
+MODEL = 'vehicle.lincoln.mkz_2017'
 
 param EGO_INIT_DIST = VerifaiRange(-30, -20)
 param EGO_SPEED = VerifaiRange(7, 10)
@@ -49,17 +49,17 @@ behavior EgoBehavior():
 #################################
 
 lane = Uniform(*network.lanes)
-spawnPt = OrientedPoint on lane.centerline
+spawnPt = new OrientedPoint on lane.centerline
 
 #################################
 # SCENARIO SPECIFICATION        #
 #################################
 
-ego = Car following roadDirection from spawnPt for globalParameters.EGO_INIT_DIST,
+ego = new Car following roadDirection from spawnPt for globalParameters.EGO_INIT_DIST,
     with blueprint MODEL,
     with behavior EgoBehavior()
 
-ped = Pedestrian right of spawnPt by 3,
+ped = new Pedestrian right of spawnPt by 3,
     with heading 90 deg relative to spawnPt.heading,
     with regionContainedIn None,
     with behavior CrossingBehavior(ego, PED_MIN_SPEED, PED_THRESHOLD)

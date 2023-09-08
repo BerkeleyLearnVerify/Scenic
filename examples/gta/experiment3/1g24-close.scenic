@@ -6,8 +6,8 @@ from scenic.simulators.gta.model import *
 param time = 12 * 60
 param weather = 'EXTRASUNNY'
 
-ego = EgoCar
+ego = new EgoCar
 
-c = Car offset by Range(-5, 5) @ Range(7, 12),
-	with model CarModel.models['DOMINATOR'],
-	with color Color.withBytes([187, 162, 157])
+c = new Car at ego offset by Range(-5, 5) @ Range(7, 12),
+    with model CarModel.models['DOMINATOR'],
+    with color Color.withBytes([187, 162, 157])

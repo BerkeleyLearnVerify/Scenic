@@ -3,7 +3,7 @@
 Credits
 =======
 
-If you use Scenic, we request that you cite our `2022 journal paper <https://doi.org/10.1007/s10994-021-06120-5>`_ and/or our original `PLDI 2019 paper <https://people.eecs.berkeley.edu/~sseshia/pubs/b2hd-fremont-pldi19.html>`_.
+If you use Scenic, we request that you cite our `CAV 2023 paper <https://arxiv.org/abs/2307.03325>`_, our `2022 journal paper <https://doi.org/10.1007/s10994-021-06120-5>`_, and/or our original `PLDI 2019 paper <https://people.eecs.berkeley.edu/~sseshia/pubs/b2hd-fremont-pldi19.html>`_.
 
 Scenic is primarily maintained by Daniel J. Fremont.
 
@@ -13,22 +13,24 @@ The language was initially developed by Daniel J. Fremont, Tommaso Dreossi, Shro
 
 Edward Kim assisted in developing the library for dynamic driving scenarios and putting together this documentation.
 
+Eric Vin, Matthew Rhea, and Ellen Kalvan developed Scenic's support for 3D geometry.
+Shun Kashiwa developed the auto-generated parser for Scenic 3.0 and its support for temporal requirements.
+
 The Scenic tool and example scenarios have benefitted from additional code contributions from:
 
 	* Johnathan Chiu
 	* Greg Crow
 	* Francis Indaheng
-	* Ellen Kalvan
 	* Martin Jansa (LG Electronics, Inc.)
+	* Abolfazl Karimi
 	* Kevin Li
 	* Guillermo López
 	* Shalin Mehta
 	* Joel Moriana
 	* Gaurav Rao
-	* Matthew Rhea
 	* Ameesh Shah
 	* Jay Shenoy
-	* Eric Vin
+	* Mirco Theile
 	* Kesav Viswanadha
 	* Wilson Wu
 
@@ -38,8 +40,9 @@ Finally, many other people provided helpful advice and discussions, including:
 	* Alastair Donaldson
 	* Andrew Gordon
 	* Steve Lemke
+	* Dejan Nickovic
 	* Jonathan Ragan-Kelley
 	* Sriram Rajamani
 	* German Ros
 	* Marcell Vazquez-Chanlatte
-
+	* everyone who has reported bugs at our `GitHub repository <https://github.com/BerkeleyLearnVerify/Scenic/issues>`_.

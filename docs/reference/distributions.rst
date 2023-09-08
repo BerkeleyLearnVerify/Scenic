@@ -53,7 +53,7 @@ Each value is sampled with probability proportional to its weight.
 
 Uniform Distribution over a Region
 ----------------------------------
-Scenic can also sample points uniformly at random from a `Region`, using the :sampref:`(in | on) {region}` specifier.
+Scenic can also sample points uniformly at random from a `Region`, using the :sampref:`in {region}` and :sampref:`on {region}` specifiers.
 Most subclasses of `Region` support random sampling.
 A few regions, such as the `everywhere` region representing all space, cannot be sampled from since a uniform distribution over them does not exist.
 

@@ -1,9 +1,9 @@
-
 # stub to allow changing the map without having to alter gta_model.sc
 
 import os
 
-mapPath = 'map.npz'
+mapPath = "map.npz"
+
 
 def setLocalMap(module, relpath):
     global mapPath
