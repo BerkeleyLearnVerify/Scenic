@@ -216,15 +216,13 @@ def pruneContainment(scenario, verbosity):
             # For most regions, use full object inradius.
             minRadius, _ = supportInterval(obj.inradius)
 
-        # Erode the container region if possible.
-        if (
-            hasattr(container, "buffer")
-            and maxDistance is not None
-            and minRadius is not None
-        ):
-            maxErosion = minRadius - maxDistance
-            if maxErosion > 0:
-                container = container.buffer(-maxErosion)
+        # Erode the container if possible
+        if maxDistance is not None and minRadius is not None:
+            if hasattr(container, "buffer"):
+                # We can do an exact erosion
+                maxErosion = minRadius - maxDistance
+                if maxErosion > 0:
+                    container = container.buffer(-maxErosion)
 
         # Restrict the base region to the container, unless
         # they're the same in which case we're done
@@ -242,23 +240,24 @@ def pruneContainment(scenario, verbosity):
         if isinstance(newBase, EmptyRegion):
             raise InvalidScenarioError(f"Object {obj} does not fit in container")
 
-        if verbosity >= 1:
-            if (
-                base.dimensionality is None
-                or newBase.dimensionality is None
-                or base.dimensionality != newBase.dimensionality
-            ):
+        if (
+            base.dimensionality is None
+            or newBase.dimensionality is None
+            or base.dimensionality != newBase.dimensionality
+        ):
+            if verbosity >= 1:
                 print(
                     f"    Region containment constraint pruning attempted but could not compute percentage for {base} and {newBase}."
                 )
-            elif base.dimensionality == newBase.dimensionality:
-                ratio = newBase.size / base.size
-                percent = max(0, 100 * (1.0 - ratio))
+        elif base.dimensionality == newBase.dimensionality:
+            ratio = newBase.size / base.size
+            percent = max(0, 100 * (1.0 - ratio))
 
-                if percent <= 0.001:
-                    # We didn't really prune anything, don't bother setting new position
-                    continue
+            if percent <= 0.001:
+                # We didn't really prune anything, don't bother setting new position
+                continue
 
+            if verbosity >= 1:
                 print(
                     f"    Region containment constraint pruned {percent:.1f}% of space."
                 )
