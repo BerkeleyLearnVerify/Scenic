@@ -521,6 +521,30 @@ def test_pointset_region():
     assert ps.AABB == ((1, 5), (2, 6), (0, 5))
 
 
+def test_voxel_region():
+    encoding = [
+        [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
+        [[0, 1, 1], [0, 1, 0], [1, 1, 0]],
+        [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
+    ]
+    vr = VoxelRegion(
+        encoding=numpy.asarray(encoding), dimensions=(3, 3, 3), position=(4, 5, 6)
+    )
+
+    assert vr.containsPoint((4, 5, 6))
+    assert vr.containsPoint((4, 6, 5))
+    assert vr.containsPoint((4, 4, 7))
+    assert not vr.containsPoint((4, 6, 7))
+    assert not vr.containsPoint((4, 4, 5))
+    assert not vr.containsPoint((100, 100, 100))
+
+    for _ in range(100):
+        sampled_pt = vr.uniformPointInner()
+        assert vr.containsPoint(sampled_pt)
+
+    assert vr.AABB == ((2.5, 5.5), (3.5, 6.5), (4.5, 7.5))
+
+
 # ViewRegion tests
 H_ANGLES = [0.1, 45, 90, 135, 179.9, 180, 180.1, 225, 270, 315, 359.9, 360]
 

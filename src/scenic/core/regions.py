@@ -21,7 +21,8 @@ from shapely.geometry import MultiPolygon
 import shapely.ops
 import trimesh
 from trimesh.transformations import (
-    concatenate_matrices,
+    compose_matrix,
+    identity_matrix,
     quaternion_matrix,
     translation_matrix,
 )
@@ -987,9 +988,9 @@ class MeshRegion(Region):
     @property
     def AABB(self):
         return (
-            tuple(self.mesh.bounds[0]),
-            tuple(self.mesh.bounds[1]),
-            tuple(self.mesh.bounds[2]),
+            tuple(self.mesh.bounds[:, 0]),
+            tuple(self.mesh.bounds[:, 1]),
+            tuple(self.mesh.bounds[:, 2]),
         )
 
     @cached_property
@@ -1417,6 +1418,7 @@ class MeshVolumeRegion(MeshRegion):
             # Other region is a mesh volume. We can extract the mesh to perform boolean operations on it
             other_mesh = other.mesh
 
+            # If dimensions are prov
             # Compute intersection using Trimesh
             try:
                 new_mesh = self.mesh.intersection(other_mesh, engine=self.engine)
@@ -2053,6 +2055,123 @@ class SpheroidRegion(MeshVolumeRegion):
             engine=self.engine,
             name=self.name,
         )
+
+
+class VoxelRegion(Region):
+    """Region represented by a voxel grid in 3D space.
+
+    Args:
+        encoding: A numpy array encoding the voxel grid.
+        dimensions: An optional 3-tuple, with the values representing width, length, height
+          respectively. The voxel region will be scaled to have these dimensions. Note that
+          all dimensions must be equal. Default value (1,1,1).
+        position: A position, which determines where the center of the region will be. Default
+          value is the origin, (0,0,0).
+        orientation: An optional vector field describing the preferred orientation at every point in
+          the region.
+        name: An optional name to help with debugging.
+    """
+
+    def __init__(
+        self,
+        encoding,
+        dimensions=None,
+        position=None,
+        rotation=None,
+        orientation=None,
+        name=None,
+    ):
+        # Copy parameters
+        self.encoding = encoding
+        self.dimensions = None if dimensions is None else toVector(dimensions)
+        self.position = None if position is None else toVector(position)
+        self.orientation = None if orientation is None else toDistribution(orientation)
+
+        # Initialize superclass with samplables
+        super().__init__(
+            name, self.encoding, self.dimensions, self.position, orientation=orientation
+        )
+
+        # If our region isn't fixed yet, then compute other values later
+        if isLazy(self):
+            return
+
+        # Ensure encoding is a numpy array
+        if not isinstance(self.encoding, numpy.ndarray):
+            raise ValueError("The 'encoding' parameter must be a numpy array.")
+
+        self._voxelGrid = trimesh.voxel.VoxelGrid(self.encoding)
+
+        # If dimensions are provided, scale mesh to those dimension
+        if self.dimensions is not None:
+            if not all(dim == self.dimensions[0] for dim in self.dimensions):
+                raise ValueError("All values in 'dimensions' must all be equal.")
+
+            scale = self._voxelGrid.extents / numpy.array(self.dimensions)
+
+            scale_matrix = numpy.eye(4)
+            scale_matrix[:3, :3] /= scale
+
+            self._voxelGrid.apply_transform(scale_matrix)
+
+        # Center voxel grid
+        centering_matrix = translation_matrix(
+            (self._voxelGrid.pitch - self._voxelGrid.extents) / 2
+        )
+        self._voxelGrid.apply_transform(centering_matrix)
+
+        # Translate mesh. Note that trimesh sets (0,0) to position,
+        # not center, so we need to do some additional manipulations.
+        if self.position is not None:
+            position_matrix = translation_matrix(self.position)
+            self._voxelGrid.apply_transform(position_matrix)
+
+        # Transform voxel grid points and extract pitch
+        self.voxel_points = trimesh.transformations.transform_points(
+            self._voxelGrid.points, matrix=self._voxelGrid.transform
+        )
+        self.pitch = self._voxelGrid.pitch[0]
+
+    @cached_property
+    @distributionFunction
+    def voxelGrid(self):
+        return self._voxelGrid
+
+    def containsPoint(self, point):
+        point = toVector(point)
+
+        # Check voxel containment
+        voxel_lows = self.voxel_points - self.pitch / 2
+        voxel_highs = self.voxel_points + self.pitch / 2
+        return numpy.any(
+            numpy.all(voxel_lows < point, axis=1) & numpy.all(point < voxel_highs, axis=1)
+        )
+
+    def containsObject(self, obj):
+        raise NotImplementedError
+
+    def containsRegionInner(self, reg):
+        raise NotImplementedError
+
+    def distanceTo(self, point):
+        raise NotImplementedError
+
+    def projectVector(self, point, onDirection):
+        raise NotImplementedError
+
+    def uniformPointInner(self):
+        # First generate a point uniformly in a cube with dimensions
+        # equal to pitch, centered at the origin.
+        base_pt = (numpy.random.random_sample(3) - 0.5) * self.pitch
+
+        # Then pick a random voxel point and add the base point to that point.
+        return Vector(*(random.choice(self.voxel_points) + base_pt))
+
+    @property
+    def AABB(self):
+        np_pos = numpy.asarray(self.position)
+        raw_aabb = (np_pos - self.dimensions[0] / 2, np_pos + self.dimensions[0] / 2)
+        return tuple((raw_aabb[0][i], raw_aabb[1][i]) for i in range(3))
 
 
 class PolygonalFootprintRegion(Region):
