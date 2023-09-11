@@ -2173,6 +2173,14 @@ class VoxelRegion(Region):
         raw_aabb = (np_pos - self.dimensions[0] / 2, np_pos + self.dimensions[0] / 2)
         return tuple((raw_aabb[0][i], raw_aabb[1][i]) for i in range(3))
 
+    @property
+    def volume(self):
+        return self.voxelGrid.volume
+
+    @property
+    def dimensionality(self):
+        return 3
+
 
 class PolygonalFootprintRegion(Region):
     """Region that contains all points in a polygonal footprint, regardless of their z value.

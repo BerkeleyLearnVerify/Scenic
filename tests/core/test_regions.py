@@ -527,22 +527,29 @@ def test_voxel_region():
         [[0, 1, 1], [0, 1, 0], [1, 1, 0]],
         [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
     ]
-    vr = VoxelRegion(
+    vr1 = VoxelRegion(
         encoding=numpy.asarray(encoding), dimensions=(3, 3, 3), position=(4, 5, 6)
     )
 
-    assert vr.containsPoint((4, 5, 6))
-    assert vr.containsPoint((4, 6, 5))
-    assert vr.containsPoint((4, 4, 7))
-    assert not vr.containsPoint((4, 6, 7))
-    assert not vr.containsPoint((4, 4, 5))
-    assert not vr.containsPoint((100, 100, 100))
+    assert vr1.containsPoint((4, 5, 6))
+    assert vr1.containsPoint((4, 6, 5))
+    assert vr1.containsPoint((4, 4, 7))
+    assert not vr1.containsPoint((4, 6, 7))
+    assert not vr1.containsPoint((4, 4, 5))
+    assert not vr1.containsPoint((100, 100, 100))
 
     for _ in range(100):
-        sampled_pt = vr.uniformPointInner()
-        assert vr.containsPoint(sampled_pt)
+        sampled_pt = vr1.uniformPointInner()
+        assert vr1.containsPoint(sampled_pt)
 
-    assert vr.AABB == ((2.5, 5.5), (3.5, 6.5), (4.5, 7.5))
+    assert vr1.AABB == ((2.5, 5.5), (3.5, 6.5), (4.5, 7.5))
+
+    vr2 = VoxelRegion(
+        encoding=numpy.asarray(encoding), dimensions=(5, 5, 5), position=(4, 5, 6)
+    )
+
+    assert vr2.volume == pytest.approx(7 * (5 / 3) ** 3)
+    assert vr2.dimensionality == 3
 
 
 # ViewRegion tests
