@@ -8,8 +8,11 @@ import builtins
 import math
 import time
 
+import numpy
+import scipy
 import shapely.geometry
 import shapely.geos
+from trimesh.transformations import translation_matrix
 
 from scenic.core.distributions import (
     AttributeDistribution,
@@ -30,6 +33,7 @@ from scenic.core.regions import (
     MeshSurfaceRegion,
     MeshVolumeRegion,
     PolygonalRegion,
+    VoxelRegion,
 )
 from scenic.core.type_support import TypecheckedDistribution
 from scenic.core.vectors import (
@@ -216,15 +220,51 @@ def pruneContainment(scenario, verbosity):
             # For most regions, use full object inradius.
             minRadius, _ = supportInterval(obj.inradius)
 
-        # Erode the container if possible
-        if maxDistance is not None and minRadius is not None:
+        # Compute the maximum safe erosion
+        maxErosion = minRadius - maxDistance
+
+        # Erode the container if possible and productive
+        if maxDistance is not None and minRadius is not None and maxErosion > 0:
             if hasattr(container, "buffer"):
                 # We can do an exact erosion
-                maxErosion = minRadius - maxDistance
-                if maxErosion > 0:
-                    container = container.buffer(-maxErosion)
+                container = container.buffer(-maxErosion)
+            elif isinstance(container, MeshVolumeRegion):
+                # We can attempt to erode a voxel approximation of the MeshVolumeRegion.
+                # Compute a voxel overapproximation of the mesh.
+                container_mesh = container.mesh
+                target_pitch = 0.005 * max(container_mesh.extents)
+                container_voxels = container_mesh.voxelized(target_pitch).fill()
+                voxelized_container = VoxelRegion(voxelGrid=container_voxels)
 
-        # Restrict the base region to the container, unless
+                # Erode the voxel region. Erosion is done with a rank 3 structuring unit with
+                # connectivity 3 (a 3x3x3 cube of voxels). Each erosion pass can erode by at
+                # most math.hypot([1.5*pitch]*3). Therefore we can safely make at most
+                # floor(maxErosion/math.hypot([1.5*pitch]*3)) passes without eroding more
+                # than maxErosion.
+                structure = scipy.ndimage.generate_binary_structure(3, 3)
+                iterations = math.floor(
+                    maxErosion / math.hypot(*([1.5 * target_pitch] * 3))
+                )
+                eroded_voxelized_container = voxelized_container.erode(
+                    structure=structure, iterations=iterations
+                )
+
+                print("Original Volume:", container_mesh.volume)
+                print("Voxelized Volume:", voxelized_container.volume)
+                print("Eroded Volume:", eroded_voxelized_container.volume)
+
+                # Now check if this erosion is useful, i.e. do we have less volume to sample from.
+                # If so, replace the original container.
+                if eroded_container.volume < container.volume:
+                    container = eroded_voxelized_container
+
+                # import trimesh
+                # render_scene = trimesh.scene.Scene()
+                # render_scene.add_geometry(eroded_voxelized_container.voxelGrid.as_boxes())
+                # render_scene.add_geometry(container_mesh)
+                # render_scene.show()
+
+        # Restrict the base region to the possibly eroded container, unless
         # they're the same in which case we're done
         if base is container:
             continue

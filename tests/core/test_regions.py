@@ -552,6 +552,19 @@ def test_voxel_region():
     assert vr2.dimensionality == 3
 
 
+def test_mesh_voxelization(getAssetPath):
+    plane_region = MeshVolumeRegion.fromFile(getAssetPath("meshes/classic_plane.obj.bz2"))
+    voxel_grid = plane_region.mesh.voxelized(max(plane_region.mesh.extents) / 100).fill()
+    vr = VoxelRegion(voxelGrid=voxel_grid)
+
+    for sampled_pt in trimesh.sample.volume_mesh(plane_region.mesh, 100):
+        assert vr.containsPoint(sampled_pt)
+
+    for _ in range(100):
+        sampled_pt = vr.uniformPointInner()
+        assert vr.containsPoint(sampled_pt)
+
+
 # ViewRegion tests
 H_ANGLES = [0.1, 45, 90, 135, 179.9, 180, 180.1, 225, 270, 315, 359.9, 360]
 

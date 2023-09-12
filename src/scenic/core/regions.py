@@ -2063,10 +2063,12 @@ class VoxelRegion(Region):
     Args:
         encoding: A numpy array encoding the voxel grid.
         dimensions: An optional 3-tuple, with the values representing width, length, height
-          respectively. The voxel region will be scaled to have these dimensions. Note that
-          all dimensions must be equal. Default value (1,1,1).
+          respectively. The voxel region will be scaled to have these dimensions. Default
+          value (1,1,1).
         position: A position, which determines where the center of the region will be. Default
           value is the origin, (0,0,0).
+        voxelGrid: Optionally, just pass in the final trimesh voxelGrid to be used. Passing this
+          parameter will result in encoding, dimensions, and position being ignored.
         orientation: An optional vector field describing the preferred orientation at every point in
           the region.
         name: An optional name to help with debugging.
@@ -2074,10 +2076,12 @@ class VoxelRegion(Region):
 
     def __init__(
         self,
-        encoding,
+        encoding=None,
         dimensions=None,
         position=None,
+        transform=None,
         rotation=None,
+        voxelGrid=None,
         orientation=None,
         name=None,
     ):
@@ -2096,41 +2100,48 @@ class VoxelRegion(Region):
         if isLazy(self):
             return
 
-        # Ensure encoding is a numpy array
-        if not isinstance(self.encoding, numpy.ndarray):
-            raise ValueError("The 'encoding' parameter must be a numpy array.")
+        if voxelGrid is not None:
+            self._voxelGrid = voxelGrid
+        else:
+            # Ensure encoding is a numpy array
+            if not isinstance(self.encoding, numpy.ndarray):
+                raise ValueError("The 'encoding' parameter must be a numpy array.")
 
-        self._voxelGrid = trimesh.voxel.VoxelGrid(self.encoding)
+            self._voxelGrid = trimesh.voxel.VoxelGrid(self.encoding)
 
-        # If dimensions are provided, scale mesh to those dimension
-        if self.dimensions is not None:
-            if not all(dim == self.dimensions[0] for dim in self.dimensions):
-                raise ValueError("All values in 'dimensions' must all be equal.")
+            # Center voxel grid
 
-            scale = self._voxelGrid.extents / numpy.array(self.dimensions)
+            centering_matrix = translation_matrix(
+                (self._voxelGrid.scale - self._voxelGrid.extents) / 2
+            )
+            self._voxelGrid.apply_transform(centering_matrix)
 
-            scale_matrix = numpy.eye(4)
-            scale_matrix[:3, :3] /= scale
+            # If dimensions are provided, scale mesh to those dimension
+            if self.dimensions is not None:
+                scale = self._voxelGrid.extents / numpy.array(self.dimensions)
 
-            self._voxelGrid.apply_transform(scale_matrix)
+                scale_matrix = numpy.eye(4)
+                scale_matrix[:3, :3] /= scale
 
-        # Center voxel grid
-        centering_matrix = translation_matrix(
-            (self._voxelGrid.pitch - self._voxelGrid.extents) / 2
+                self._voxelGrid.apply_transform(scale_matrix)
+
+            # If position is provided, translate mesh to that position.
+            if self.position is not None:
+                position_matrix = translation_matrix(self.position)
+                self._voxelGrid.apply_transform(position_matrix)
+
+        # Work around Trimesh caching bug
+        self._voxelGrid = trimesh.voxel.VoxelGrid(
+            self._voxelGrid.encoding, transform=self._voxelGrid.transform.copy()
         )
-        self._voxelGrid.apply_transform(centering_matrix)
 
-        # Translate mesh. Note that trimesh sets (0,0) to position,
-        # not center, so we need to do some additional manipulations.
-        if self.position is not None:
-            position_matrix = translation_matrix(self.position)
-            self._voxelGrid.apply_transform(position_matrix)
+        # Check that the encoding isn't empty. In that case, raise an error.
+        if self._voxelGrid.encoding.is_empty:
+            raise ValueError("Tried to create an empty VoxelRegion.")
 
-        # Transform voxel grid points and extract pitch
-        self.voxel_points = trimesh.transformations.transform_points(
-            self._voxelGrid.points, matrix=self._voxelGrid.transform
-        )
-        self.pitch = self._voxelGrid.pitch[0]
+        # Transform voxel grid points and extract scale
+        self.voxel_points = self._voxelGrid.points
+        self.scale = self._voxelGrid.scale
 
     @cached_property
     @distributionFunction
@@ -2141,10 +2152,11 @@ class VoxelRegion(Region):
         point = toVector(point)
 
         # Check voxel containment
-        voxel_lows = self.voxel_points - self.pitch / 2
-        voxel_highs = self.voxel_points + self.pitch / 2
+        voxel_lows = self.voxel_points - self.scale / 2
+        voxel_highs = self.voxel_points + self.scale / 2
         return numpy.any(
-            numpy.all(voxel_lows < point, axis=1) & numpy.all(point < voxel_highs, axis=1)
+            numpy.all(voxel_lows <= point, axis=1)
+            & numpy.all(point <= voxel_highs, axis=1)
         )
 
     def containsObject(self, obj):
@@ -2160,18 +2172,43 @@ class VoxelRegion(Region):
         raise NotImplementedError
 
     def uniformPointInner(self):
-        # First generate a point uniformly in a cube with dimensions
-        # equal to pitch, centered at the origin.
-        base_pt = (numpy.random.random_sample(3) - 0.5) * self.pitch
+        # First generate a point uniformly in a box with dimensions
+        # equal to scale, centered at the origin.
+        base_pt = numpy.random.random_sample(3) - 0.5
+        scaled_pt = base_pt * self.scale
+        voxel_base = random.choice(self.voxel_points)
+        offset_pt = voxel_base + scaled_pt
 
         # Then pick a random voxel point and add the base point to that point.
-        return Vector(*(random.choice(self.voxel_points) + base_pt))
+        return Vector(*offset_pt)
+
+    def erode(self, structure, iterations):
+        # Compute an eroded encoding
+        eroded_encoding = trimesh.voxel.encoding.DenseEncoding(
+            scipy.ndimage.binary_erosion(
+                trimesh.voxel.morphology._dense(self.voxelGrid.encoding, rank=3),
+                structure=structure,
+                iterations=iterations,
+            )
+        )
+
+        # Check if the encoding is empty, in which case we should return the empty region.
+        if eroded_encoding.is_empty:
+            return nowhere
+
+        # Otherwise, return a VoxelRegion representing the eroded region.
+        eroded_voxel_grid = trimesh.voxel.VoxelGrid(
+            eroded_encoding, transform=self.voxelGrid.transform
+        )
+        return VoxelRegion(voxelGrid=eroded_voxel_grid)
 
     @property
     def AABB(self):
-        np_pos = numpy.asarray(self.position)
-        raw_aabb = (np_pos - self.dimensions[0] / 2, np_pos + self.dimensions[0] / 2)
-        return tuple((raw_aabb[0][i], raw_aabb[1][i]) for i in range(3))
+        return (
+            tuple(self.voxelGrid.bounds[:, 0]),
+            tuple(self.voxelGrid.bounds[:, 1]),
+            tuple(self.voxelGrid.bounds[:, 2]),
+        )
 
     @property
     def volume(self):
