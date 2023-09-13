@@ -38,6 +38,12 @@ simpleScenario = """
     param baz = ({'a', 'b', 'c', 'd'}, frozenset({'e', 'f', 'g', 'h'}))
 """
 
+randomScenario = """
+    box = BoxRegion(dimensions=(5,5,5))
+    new Object in box, facing (Range(0,360) deg, Range(0,360) deg, Range(0,360) deg)
+    new Object on box.getSurfaceRegion()
+"""
+
 
 def skeleton(scene):
     # Simple picklable representation of the main parameters of the scene
@@ -196,6 +202,14 @@ class TestExportToBytes:
 
     def test_simple_scene(self):
         scenario = compileScenic(simpleScenario)
+        scene1 = sampleScene(scenario)
+        data = scenario.sceneToBytes(scene1)
+        scene2 = scenario.sceneFromBytes(data)
+        assert scenario.sceneToBytes(scene2) == data
+        assertSceneEquivalence(scene1, scene2)
+
+    def test_random_scene(self):
+        scenario = compileScenic(randomScenario)
         scene1 = sampleScene(scenario)
         data = scenario.sceneToBytes(scene1)
         scene2 = scenario.sceneFromBytes(data)
