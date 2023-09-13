@@ -384,6 +384,14 @@ class Orientation:
             return NotImplemented
         return abs(numpy.dot(self.q, other.q)) > 1 - tol
 
+    @classmethod
+    def encodeTo(cls, orientation, stream):
+        stream.write(struct.pack("<dddd", *orientation.q))
+
+    @classmethod
+    def decodeFrom(cls, stream):
+        return cls.fromQuaternion(struct.unpack("<dddd", stream.read(32)))
+
 
 globalOrientation = Orientation.fromEuler(0, 0, 0)
 
