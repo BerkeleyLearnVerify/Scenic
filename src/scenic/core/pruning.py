@@ -230,7 +230,10 @@ def pruneContainment(scenario, verbosity):
                 container = container.buffer(-maxErosion)
             elif isinstance(container, MeshVolumeRegion):
                 # We can attempt to erode a voxel approximation of the MeshVolumeRegion.
-                # Compute a voxel overapproximation of the mesh.
+                # Compute a voxel overapproximation of the mesh. Technically this is not
+                # an overapproximation, but one dilation with a rank 3 structuring unit
+                # with connectivity 3 is. To simplify, we just erode one less time than
+                # needed.
                 target_pitch = 0.005 * max(container.mesh.extents)
                 voxelized_container = container.voxelized(target_pitch)
 
@@ -238,14 +241,18 @@ def pruneContainment(scenario, verbosity):
                 # connectivity 3 (a 3x3x3 cube of voxels). Each erosion pass can erode by at
                 # most math.hypot([pitch]*3). Therefore we can safely make at most
                 # floor(maxErosion/math.hypot([pitch]*3)) passes without eroding more
-                # than maxErosion.
-                iterations = math.floor(maxErosion / math.hypot(*([target_pitch] * 3)))
-                eroded_container = voxelized_container.erode(iterations=iterations)
+                # than maxErosion. We also subtract 1 iteration for the reasons above.
+                iterations = (
+                    math.floor(maxErosion / math.hypot(*([target_pitch] * 3))) - 1
+                )
 
-                # Now check if this erosion is useful, i.e. do we have less volume to sample from.
-                # If so, replace the original container.
-                if eroded_container.size < container.size:
-                    container = eroded_container
+                if iterations > 0:
+                    eroded_container = voxelized_container.erode(iterations=iterations)
+
+                    # Now check if this erosion is useful, i.e. do we have less volume to sample from.
+                    # If so, replace the original container.
+                    if eroded_container.size < container.size:
+                        container = eroded_container
 
         # Restrict the base region to the possibly eroded container, unless
         # they're the same in which case we're done
