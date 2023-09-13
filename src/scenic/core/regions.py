@@ -2080,63 +2080,20 @@ class VoxelRegion(Region):
 
     def __init__(
         self,
-        encoding=None,
-        dimensions=None,
-        position=None,
-        transform=None,
-        rotation=None,
-        voxelGrid=None,
+        voxelGrid,
         orientation=None,
         name=None,
     ):
-        # Copy parameters
-        self.encoding = encoding
-        self.dimensions = None if dimensions is None else toVector(dimensions)
-        self.position = None if position is None else toVector(position)
-        self.orientation = None if orientation is None else toDistribution(orientation)
-
-        # Initialize superclass with samplables
-        super().__init__(
-            name, self.encoding, self.dimensions, self.position, orientation=orientation
-        )
+        # Initialize superclass
+        super().__init__(name, orientation=orientation)
 
         # If our region isn't fixed yet, then compute other values later
         if isLazy(self):
             return
 
-        if voxelGrid is not None:
-            self._voxelGrid = voxelGrid
-        else:
-            # Ensure encoding is a numpy array
-            if not isinstance(self.encoding, numpy.ndarray):
-                raise ValueError("The 'encoding' parameter must be a numpy array.")
-
-            self._voxelGrid = trimesh.voxel.VoxelGrid(self.encoding)
-
-            # Center voxel grid
-
-            centering_matrix = translation_matrix(
-                (self._voxelGrid.scale - self._voxelGrid.extents) / 2
-            )
-            self._voxelGrid.apply_transform(centering_matrix)
-
-            # If dimensions are provided, scale mesh to those dimension
-            if self.dimensions is not None:
-                scale = self._voxelGrid.extents / numpy.array(self.dimensions)
-
-                scale_matrix = numpy.eye(4)
-                scale_matrix[:3, :3] /= scale
-
-                self._voxelGrid.apply_transform(scale_matrix)
-
-            # If position is provided, translate mesh to that position.
-            if self.position is not None:
-                position_matrix = translation_matrix(self.position)
-                self._voxelGrid.apply_transform(position_matrix)
-
         # Work around Trimesh caching bug
         self._voxelGrid = trimesh.voxel.VoxelGrid(
-            self._voxelGrid.encoding, transform=self._voxelGrid.transform.copy()
+            voxelGrid.encoding, transform=voxelGrid.transform.copy()
         )
 
         # Check that the encoding isn't empty. In that case, raise an error.

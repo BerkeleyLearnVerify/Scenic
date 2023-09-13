@@ -527,9 +527,21 @@ def test_voxel_region():
         [[0, 1, 1], [0, 1, 0], [1, 1, 0]],
         [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
     ]
-    vr1 = VoxelRegion(
-        encoding=numpy.asarray(encoding), dimensions=(3, 3, 3), position=(4, 5, 6)
-    )
+
+    vg1 = trimesh.voxel.VoxelGrid(encoding=numpy.asarray(encoding))
+
+    centering_matrix = translation_matrix((vg1.scale - vg1.extents) / 2)
+    vg1.apply_transform(centering_matrix)
+
+    scale = vg1.extents / numpy.array((3, 3, 3))
+    scale_matrix = numpy.eye(4)
+    scale_matrix[:3, :3] /= scale
+    vg1.apply_transform(scale_matrix)
+
+    position_matrix = translation_matrix((4, 5, 6))
+    vg1.apply_transform(position_matrix)
+
+    vr1 = VoxelRegion(vg1)
 
     assert vr1.containsPoint((4, 5, 6))
     assert vr1.containsPoint((4, 6, 5))
@@ -544,11 +556,19 @@ def test_voxel_region():
 
     assert vr1.AABB == ((2.5, 5.5), (3.5, 6.5), (4.5, 7.5))
 
-    vr2 = VoxelRegion(
-        encoding=numpy.asarray(encoding), dimensions=(5, 5, 5), position=(4, 5, 6)
-    )
+    vg2 = trimesh.voxel.VoxelGrid(encoding=numpy.asarray(encoding))
 
-    assert vr2.size == pytest.approx(7 * (5 / 3) ** 3)
+    centering_matrix = translation_matrix((vg2.scale - vg2.extents) / 2)
+    vg2.apply_transform(centering_matrix)
+
+    scale = vg2.extents / numpy.array((5, 5, 3))
+    scale_matrix = numpy.eye(4)
+    scale_matrix[:3, :3] /= scale
+    vg2.apply_transform(scale_matrix)
+
+    vr2 = VoxelRegion(vg2)
+
+    assert vr2.size == pytest.approx((7 / 27) * 5 * 5 * 3)
     assert vr2.dimensionality == 3
 
 
