@@ -2087,10 +2087,6 @@ class VoxelRegion(Region):
         # Initialize superclass
         super().__init__(name, orientation=orientation)
 
-        # If our region isn't fixed yet, then compute other values later
-        if isLazy(self):
-            return
-
         # Work around Trimesh caching bug
         self._voxelGrid = trimesh.voxel.VoxelGrid(
             voxelGrid.encoding, transform=voxelGrid.transform.copy()
