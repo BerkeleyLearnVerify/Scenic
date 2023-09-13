@@ -1757,6 +1757,10 @@ class MeshVolumeRegion(MeshRegion):
         return self.mesh.mass / self.mesh.density
 
     ## Utility Methods ##
+    def voxelized(self, pitch):
+        """Returns a VoxelRegion representing a filled voxelization of this mesh"""
+        return VoxelRegion(voxelGrid=self.mesh.voxelized(pitch).fill())
+
     @cached_method
     def getSurfaceRegion(self):
         """Return a region equivalent to this one, except as a MeshSurfaceRegion"""
@@ -2182,7 +2186,10 @@ class VoxelRegion(Region):
         # Then pick a random voxel point and add the base point to that point.
         return Vector(*offset_pt)
 
-    def erode(self, structure, iterations):
+    def erode(self, iterations, structure=None):
+        if structure == None:
+            structure = scipy.ndimage.generate_binary_structure(3, 3)
+
         # Compute an eroded encoding
         eroded_encoding = trimesh.voxel.encoding.DenseEncoding(
             scipy.ndimage.binary_erosion(
@@ -2211,7 +2218,7 @@ class VoxelRegion(Region):
         )
 
     @property
-    def volume(self):
+    def size(self):
         return self.voxelGrid.volume
 
     @property

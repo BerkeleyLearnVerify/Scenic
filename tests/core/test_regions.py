@@ -548,7 +548,7 @@ def test_voxel_region():
         encoding=numpy.asarray(encoding), dimensions=(5, 5, 5), position=(4, 5, 6)
     )
 
-    assert vr2.volume == pytest.approx(7 * (5 / 3) ** 3)
+    assert vr2.size == pytest.approx(7 * (5 / 3) ** 3)
     assert vr2.dimensionality == 3
 
 
@@ -563,6 +563,13 @@ def test_mesh_voxelization(getAssetPath):
     for _ in range(100):
         sampled_pt = vr.uniformPointInner()
         assert vr.containsPoint(sampled_pt)
+
+
+def test_empty_erosion():
+    box_region = BoxRegion(position=(0, 0, 0), dimensions=(1, 1, 1))
+    vr = box_region.voxelized(pitch=0.1)
+    erosion = vr.erode(iterations=6)
+    assert isinstance(erosion, EmptyRegion)
 
 
 # ViewRegion tests
