@@ -2144,6 +2144,9 @@ class VoxelRegion(Region):
         return Vector(*offset_pt)
 
     def erode(self, iterations, structure=None):
+        if iterations == 0:
+            return self
+
         if structure == None:
             structure = scipy.ndimage.generate_binary_structure(3, 3)
 
