@@ -210,7 +210,7 @@ class TestExportToBytes:
 
     def test_random_scene(self):
         scenario = compileScenic(randomScenario)
-        scene1 = sampleScene(scenario)
+        scene1 = sampleScene(scenario, maxIterations=10)
         data = scenario.sceneToBytes(scene1)
         scene2 = scenario.sceneFromBytes(data)
         assert scenario.sceneToBytes(scene2) == data
