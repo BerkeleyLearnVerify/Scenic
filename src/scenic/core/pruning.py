@@ -236,12 +236,10 @@ def pruneContainment(scenario, verbosity):
 
                 # Erode the voxel region. Erosion is done with a rank 3 structuring unit with
                 # connectivity 3 (a 3x3x3 cube of voxels). Each erosion pass can erode by at
-                # most math.hypot([1.5*pitch]*3). Therefore we can safely make at most
-                # floor(maxErosion/math.hypot([1.5*pitch]*3)) passes without eroding more
+                # most math.hypot([pitch]*3). Therefore we can safely make at most
+                # floor(maxErosion/math.hypot([pitch]*3)) passes without eroding more
                 # than maxErosion.
-                iterations = math.floor(
-                    maxErosion / math.hypot(*([1.5 * target_pitch] * 3))
-                )
+                iterations = math.floor(maxErosion / math.hypot(*([target_pitch] * 3)))
                 eroded_container = voxelized_container.erode(iterations=iterations)
 
                 # Now check if this erosion is useful, i.e. do we have less volume to sample from.
