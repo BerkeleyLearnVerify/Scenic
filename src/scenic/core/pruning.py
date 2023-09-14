@@ -212,8 +212,13 @@ def pruneContainment(scenario, verbosity):
 
         # Compute the minimum radius of the object, with respect to the
         # bounded dimensions of the container.
-        if isinstance(base, PolygonalRegion):
-            # Special handling for 2D regions, using planar inradius instead.
+        if (
+            isinstance(base, PolygonalRegion)
+            and supportInterval(obj.pitch) == (0, 0)
+            and supportInterval(obj.roll) == (0, 0)
+        ):
+            # Special handling for 2D regions with no pitch or roll,
+            # using planar inradius instead.
             minRadius, _ = supportInterval(obj.planarInradius)
         else:
             # For most regions, use full object inradius.

@@ -1321,7 +1321,8 @@ class Object(OrientedPoint):
         """A lower bound on the planar inradius of this object.
 
         This is defined as the inradius of the polygon of the occupiedSpace
-        of this object projected into the XY plane.
+        of this object projected into the XY plane, assuming that pitch and
+        roll are both 0.
         """
         # First check if all needed variables are defined. If so, we can
         # compute the inradius exactly.
