@@ -390,7 +390,11 @@ class Orientation:
 
     @classmethod
     def decodeFrom(cls, stream):
-        return cls.fromQuaternion(struct.unpack("<dddd", stream.read(32)))
+        # Quaternion constructor does not roundtrip so we manually
+        # construct a rotation and pass that in.
+        quaternion = struct.unpack("<dddd", stream.read(32))
+        rotation = Rotation(quaternion, normalize=False)
+        return cls(rotation)
 
 
 globalOrientation = Orientation.fromEuler(0, 0, 0)
