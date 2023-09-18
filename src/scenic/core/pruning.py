@@ -142,8 +142,6 @@ def matchPolygonalField(heading, position):
 
 
 ### Pruning procedures
-
-
 def prune(scenario, verbosity=1):
     """Prune a `Scenario`, removing infeasible parts of the space.
 
@@ -162,6 +160,7 @@ def prune(scenario, verbosity=1):
 
     pruneContainment(scenario, verbosity)
     pruneRelativeHeading(scenario, verbosity)
+    pruneVisibility(scenario, verbosity)
 
     if verbosity >= 1:
         totalTime = time.time() - startTime
@@ -169,8 +168,6 @@ def prune(scenario, verbosity=1):
 
 
 ## Pruning based on containment
-
-
 def pruneContainment(scenario, verbosity):
     """Prune based on the requirement that individual Objects fit within their container.
 
@@ -272,31 +269,28 @@ def pruneContainment(scenario, verbosity):
         if isinstance(base, MeshVolumeRegion) and isinstance(newBase, MeshSurfaceRegion):
             continue
 
+        # Check newBase properties
         if isinstance(newBase, EmptyRegion):
             raise InvalidScenarioError(f"Object {obj} does not fit in container")
 
-        if (
-            base.dimensionality is None
-            or newBase.dimensionality is None
-            or base.dimensionality != newBase.dimensionality
-        ):
+        percentage_pruned = percentagePruned(base, newBase)
+
+        if percentage_pruned is None:
             if verbosity >= 1:
                 print(
                     f"    Region containment constraint pruning attempted but could not compute percentage for {base} and {newBase}."
                 )
-        elif base.dimensionality == newBase.dimensionality:
-            ratio = newBase.size / base.size
-            percent = max(0, 100 * (1.0 - ratio))
-
-            if percent <= 0.001:
+        else:
+            if percentage_pruned <= 0.001:
                 # We didn't really prune anything, don't bother setting new position
                 continue
 
             if verbosity >= 1:
                 print(
-                    f"    Region containment constraint pruned {percent:.1f}% of space."
+                    f"    Region containment constraint pruned {percentage_pruned:.1f}% of space."
                 )
 
+        # Condition object to pruned position
         newPos = regions.Region.uniformPointIn(newBase)
 
         if offset is not None:
@@ -306,8 +300,6 @@ def pruneContainment(scenario, verbosity):
 
 
 ## Pruning based on orientation
-
-
 def pruneRelativeHeading(scenario, verbosity):
     """Prune based on requirements bounding the relative heading of an Object.
 
@@ -389,6 +381,79 @@ def pruneRelativeHeading(scenario, verbosity):
             )
             newPos = regions.Region.uniformPointIn(newBase)
             obj.position.conditionTo(newPos)
+
+
+# Pruning based on visibility
+def pruneVisibility(scenario, verbosity):
+    ego = scenario.egoObject
+
+    for obj in scenario.objects:
+        # Extract the base region if it exists
+        base, offset = matchInRegion(obj.position)
+
+        if base is None or needsSampling(base):
+            continue
+
+        newBase = base
+
+        # Prune based off visibility/non-visibility requirements
+
+        # TBD: This can cause a circular dependency
+        # if obj.requireVisible:
+        #     # We can restrict the base region to the visible region
+        #     # of the ego.
+        #     if base is not ego.visibleRegion:
+        #         if verbosity >= 1:
+        #             print(f"    Pruning restricted base region of {obj} to visible region of ego.")
+        #         newBase = newBase.intersect(ego.visibleRegion)
+
+        if obj._observingEntity:
+            # We can restrict the base region to the visible region
+            # of the observing entity.
+            if base is not obj._observingEntity.visibleRegion:
+                if verbosity >= 1:
+                    print(
+                        f"    Pruning restricted base region of {obj} to visible region of {obj._observingEntity}."
+                    )
+                newBase = newBase.intersect(obj._observingEntity.visibleRegion)
+
+        if obj._nonObservingEntity:
+            # We can subtract the visible region of the observing entity
+            # from the base region.
+            if verbosity >= 1:
+                print(
+                    f"    Pruning subtracted visible region of {obj._nonObservingEntity} from base region of {obj}."
+                )
+            newBase = newBase.difference(obj._nonObservingEntity.visibleRegion)
+
+        # Check newBase properties
+        if isinstance(newBase, EmptyRegion):
+            raise InvalidScenarioError(
+                f"Object {obj} can not satisfy visibility/non-visibility constraints."
+            )
+
+        percentage_pruned = percentagePruned(base, newBase)
+
+        if percentage_pruned is None:
+            if verbosity >= 1:
+                print(
+                    f"    Visibility pruning attempted but could not compute percentage for {base} and {newBase}."
+                )
+        else:
+            if percentage_pruned <= 0.001:
+                # We didn't really prune anything, don't bother setting new position
+                continue
+
+            if verbosity >= 1:
+                print(f"    Visibility pruning pruned {percentage_pruned:.1f}% of space.")
+
+        # Condition object to pruned position
+        newPos = regions.Region.uniformPointIn(newBase)
+
+        if offset is not None:
+            newPos += offset
+
+        obj.position.conditionTo(newPos)
 
 
 def maxDistanceBetween(scenario, obj, target):
@@ -486,3 +551,16 @@ def relativeHeadingRange(
         tPoints.extend((math.pi, -math.pi))
     rhs = [tp - p for tp in tPoints for p in points]  # TODO improve
     return min(rhs), max(rhs)
+
+
+def percentagePruned(base, newBase):
+    if (
+        base.dimensionality
+        and newBase.dimensionality
+        and base.dimensionality == newBase.dimensionality
+    ):
+        ratio = newBase.size / base.size
+        percent = max(0, 100 * (1.0 - ratio))
+        return percent
+
+    return None
