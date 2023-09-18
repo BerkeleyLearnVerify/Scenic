@@ -51,6 +51,12 @@ mainOptions.add_argument(
     metavar=("PARAM", "VALUE"),
 )
 mainOptions.add_argument(
+    "--count",
+    help="number of successful scenes to generate or simulations to run (default infinity)",
+    type=int,
+    default=0,
+)
+mainOptions.add_argument(
     "-m", "--model", help="specify a Scenic world model", default=None
 )
 mainOptions.add_argument(
@@ -65,12 +71,7 @@ simOpts = parser.add_argument_group("dynamic simulation options")
 simOpts.add_argument(
     "--time", help="time bound for simulations (default none)", type=int, default=None
 )
-simOpts.add_argument(
-    "--count",
-    help="number of successful scenes to generate or simulations to run (default infinity)",
-    type=int,
-    default=0,
-)
+
 simOpts.add_argument(
     "--max-sims-per-scene",
     type=int,
