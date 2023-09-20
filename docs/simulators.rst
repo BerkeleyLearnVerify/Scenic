@@ -13,8 +13,15 @@ See the individual entries for details on each interface's capabilities and how 
 .. contents:: List of Simulators
    :local:
 
+
+
 Currently Supported
 ===================
+
+Airsim
+------
+
+
 
 Built-in Newtonian Simulator
 ----------------------------
@@ -120,6 +127,8 @@ This interface is part of the VerifAI toolkit; documentation and examples can be
 .. _VerifAI repository: https://github.com/BerkeleyLearnVerify/VerifAI
 
 
+
+
 Deprecated
 ==========
 
@@ -130,3 +139,6 @@ LGSVL
 -----
 
 The LGSVL simulator (a.k.a. SVL Simulator) was deprecated in Scenic 3.0, with the last version of Scenic supporting this simulator being 2.1. The original simulator is no longer usable due to LG shutting down its cloud service, but we are open to a PR targeting one of its forks.
+
+
+
