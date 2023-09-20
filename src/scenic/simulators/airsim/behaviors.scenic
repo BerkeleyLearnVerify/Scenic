@@ -49,39 +49,27 @@ behavior FlyToPosition(newPos, speed = 5,tolerance = 1):
 
     newPos = scenicToAirsimVector(toVector(newPos))
 
-    distance = 0
-    while True:
-        print("started loop")
-        curPos = client.simGetVehiclePose(self.realObjName).position + scenicToAirsimVector(toVector(self._startPos))
-        print(curPos.y_val)
-        curToNew = newPos - curPos
-        distance = curToNew.get_length()
-        print("dis = ",distance)
-        if distance <= tolerance:
-            print("less")
-            break
+    do waitForPromise(createPromise(
+        client.moveToPositionAsync(
+            newPos.x_val,
+            newPos.y_val,
+            newPos.z_val,
+            velocity=speed,
+            vehicle_name=self.realObjName,
+        )
+    ))
 
-        curToNew = (curToNew / distance) * min(speed * distance, speed)
-        
-        do waitForPromise(createPromise(
-                client.moveByVelocityAsync(
-                    curToNew.x_val,
-                    curToNew.y_val,
-                    curToNew.z_val,
-                    duration=simulation().simulator.timestep,
-                    vehicle_name=self.realObjName,
-                )
-            ))
-
-        
-        
     return
+
+
+
 
 behavior Patrol(positions, loop=True):
     
     while True:
         for pos in positions:
             do FlyToPosition(pos)
+           
         if not loop:
             return
 
@@ -104,24 +92,8 @@ behavior MoveByVelocity(velocity,seconds):
     ))
 
 
-# ? how to run
 behavior FlyToStart():
     print(self._startPos)
     do FlyToPosition(self._startPos)
 
     
-
-
-behavior Follow(obj,speed = 5, interval = 5):
-    client = simulation().client
-    while True:
-        position = scenicToAirsimLocationVector(obj.position)
-        print(obj.position)
-        # client.moveToPositionAsync(
-        #     position.x,position.y,position.z,
-        #     speed,
-        #     vehicle_name=self.realObjName,
-        # )
-        do FlyToPosition(obj.position)
-        # for i in range(interval):
-        #     wait
