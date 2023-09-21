@@ -13,7 +13,7 @@ from scenic.core.distributions import (
     monotonicDistributionFunction,
     needsSampling,
 )
-from scenic.core.lazy_eval import isLazy
+from scenic.core.lazy_eval import isLazy, needsLazyEvaluation
 from scenic.core.utils import cached_property
 
 
@@ -274,18 +274,14 @@ class TriangulationError(RuntimeError):
 def triangulatePolygon(polygon):
     """Triangulate the given Shapely polygon.
 
-        Note that we can't use ``shapely.ops.triangulate`` since it triangulates
-        point sets, not polygons (i.e., it doesn't respect edges). We need an
-        algorithm for triangulation of polygons with holes (it doesn't need to be a
-        Delaunay triangulation).
-
-        We use ``mapbox_earcut`` by default. If it is not installed, we allow fallback to
-        ``pypoly2tri`` for historical reasons (we originally used the GPC library, which is
-        not free for commercial use, falling back to ``pypoly2tri`` if not installed).
     Note that we can't use ``shapely.ops.triangulate`` since it triangulates
     point sets, not polygons (i.e., it doesn't respect edges). We need an
     algorithm for triangulation of polygons with holes (it doesn't need to be a
     Delaunay triangulation).
+
+    We use ``mapbox_earcut`` by default. If it is not installed, we allow fallback to
+    ``pypoly2tri`` for historical reasons (we originally used the GPC library, which is
+    not free for commercial use, falling back to ``pypoly2tri`` if not installed).
 
     Args:
         polygon (shapely.geometry.Polygon): Polygon to triangulate.
@@ -350,7 +346,9 @@ def triangulatePolygon_mapbox(polygon):
         rings.append(len(vertices))
     vertices = np.array(vertices, dtype=np.float64)
     rings = np.array(rings)
-    result = mapbox_earcut.triangulate_float64(vertices[:, :2], rings) # only supporting 2D 
+    result = mapbox_earcut.triangulate_float64(
+        vertices[:, :2], rings
+    )  # only supporting 2D
 
     triangles = []
     points = vertices[result]
@@ -398,33 +396,37 @@ def plotPolygon(polygon, plt, style="r-", **kwargs):
         x, y = chain.xy
         plt.plot(x, y, style, **kwargs)
 
+
 class _RotatedRectangle:
-	"""mixin providing collision detection for rectangular objects and regions"""
-	def containsPoint(self, point):
-		pt = shapely.geometry.Point(point)
-		return self.polygon.intersects(pt)
+    """mixin providing collision detection for rectangular objects and regions"""
 
-	def intersects(self, rect):
-		return self.polygon.intersects(rect.polygon)
+    def containsPoint(self, point):
+        pt = shapely.geometry.Point(point)
+        return self.polygon.intersects(pt)
 
-	@cached_property
-	def polygon(self):
-		position, heading, hw, hl = self.position, self.heading, self.hw, self.hl
-		if any(needsSampling(c) or needsLazyEvaluation(c)
-		       for c in (position, heading, hw, hl)):
-			return None		# can only convert fixed Regions to Polygons
-		corners = _RotatedRectangle.makeCorners(position.x, position.y, heading, hw, hl)
-		return shapely.geometry.Polygon(corners)
+    def intersects(self, rect):
+        return self.polygon.intersects(rect.polygon)
 
-	@staticmethod
-	def makeCorners(px, py, heading, hw, hl):
-		s, c = sin(heading), cos(heading)
-		s_hw, c_hw = s*hw, c*hw
-		s_hl, c_hl = s*hl, c*hl
-		corners = (
-			(px + c_hw - s_hl, py + s_hw + c_hl),
-			(px - c_hw - s_hl, py - s_hw + c_hl),
-			(px - c_hw + s_hl, py - s_hw - c_hl),
-			(px + c_hw + s_hl, py + s_hw - c_hl)
-		)
-		return corners
+    @cached_property
+    def polygon(self):
+        position, heading, hw, hl = self.position, self.heading, self.hw, self.hl
+        if any(
+            needsSampling(c) or needsLazyEvaluation(c)
+            for c in (position, heading, hw, hl)
+        ):
+            return None  # can only convert fixed Regions to Polygons
+        corners = _RotatedRectangle.makeCorners(position.x, position.y, heading, hw, hl)
+        return shapely.geometry.Polygon(corners)
+
+    @staticmethod
+    def makeCorners(px, py, heading, hw, hl):
+        s, c = sin(heading), cos(heading)
+        s_hw, c_hw = s * hw, c * hw
+        s_hl, c_hl = s * hl, c * hl
+        corners = (
+            (px + c_hw - s_hl, py + s_hw + c_hl),
+            (px - c_hw - s_hl, py - s_hw + c_hl),
+            (px - c_hw + s_hl, py - s_hw - c_hl),
+            (px + c_hw + s_hl, py + s_hw - c_hl),
+        )
+        return corners
