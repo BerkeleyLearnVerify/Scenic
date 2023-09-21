@@ -274,14 +274,14 @@ class TriangulationError(RuntimeError):
 def triangulatePolygon(polygon):
     """Triangulate the given Shapely polygon.
 
-	Note that we can't use ``shapely.ops.triangulate`` since it triangulates
-	point sets, not polygons (i.e., it doesn't respect edges). We need an
-	algorithm for triangulation of polygons with holes (it doesn't need to be a
-	Delaunay triangulation).
+        Note that we can't use ``shapely.ops.triangulate`` since it triangulates
+        point sets, not polygons (i.e., it doesn't respect edges). We need an
+        algorithm for triangulation of polygons with holes (it doesn't need to be a
+        Delaunay triangulation).
 
-	We use ``mapbox_earcut`` by default. If it is not installed, we allow fallback to
-	``pypoly2tri`` for historical reasons (we originally used the GPC library, which is
-	not free for commercial use, falling back to ``pypoly2tri`` if not installed).
+        We use ``mapbox_earcut`` by default. If it is not installed, we allow fallback to
+        ``pypoly2tri`` for historical reasons (we originally used the GPC library, which is
+        not free for commercial use, falling back to ``pypoly2tri`` if not installed).
     Note that we can't use ``shapely.ops.triangulate`` since it triangulates
     point sets, not polygons (i.e., it doesn't respect edges). We need an
     algorithm for triangulation of polygons with holes (it doesn't need to be a
@@ -304,51 +304,60 @@ def triangulatePolygon(polygon):
 
 
 def triangulatePolygon_pypoly2tri(polygon):
-	import pypoly2tri
-	polyline = []
-	for c in polygon.exterior.coords[:-1]:
-		polyline.append(pypoly2tri.shapes.Point(c[0],c[1]))
-	cdt = pypoly2tri.cdt.CDT(polyline)
-	for i in polygon.interiors:
-		polyline = []
-		for c in i.coords[:-1]:
-			polyline.append(pypoly2tri.shapes.Point(c[0],c[1]))
-		cdt.AddHole(polyline)
-	try:
-		cdt.Triangulate()
-	except RecursionError:		# polygon too big for pypoly2tri
-		raise TriangulationError('pypoly2tri unable to triangulate large polygon; for '
-		                         'non-commercial use, try "pip install Polygon3"')
+    import pypoly2tri
 
-	triangles = list()
-	for t in cdt.GetTriangles():
-		triangles.append(shapely.geometry.Polygon([
-			t.GetPoint(0).toTuple(),
-			t.GetPoint(1).toTuple(),
-			t.GetPoint(2).toTuple()
-		]))
-	return triangles
+    polyline = []
+    for c in polygon.exterior.coords[:-1]:
+        polyline.append(pypoly2tri.shapes.Point(c[0], c[1]))
+    cdt = pypoly2tri.cdt.CDT(polyline)
+    for i in polygon.interiors:
+        polyline = []
+        for c in i.coords[:-1]:
+            polyline.append(pypoly2tri.shapes.Point(c[0], c[1]))
+        cdt.AddHole(polyline)
+    try:
+        cdt.Triangulate()
+    except RecursionError:  # polygon too big for pypoly2tri
+        raise TriangulationError(
+            "pypoly2tri unable to triangulate large polygon; for "
+            'non-commercial use, try "pip install Polygon3"'
+        )
+
+    triangles = list()
+    for t in cdt.GetTriangles():
+        triangles.append(
+            shapely.geometry.Polygon(
+                [
+                    t.GetPoint(0).toTuple(),
+                    t.GetPoint(1).toTuple(),
+                    t.GetPoint(2).toTuple(),
+                ]
+            )
+        )
+    return triangles
+
 
 def triangulatePolygon_mapbox(polygon):
-	import mapbox_earcut
-	vertices, rings = [], []
-	ring = polygon.exterior.coords[:-1]		# despite 'ring' name, actually need a chain
-	vertices.extend(ring)
-	rings.append(len(vertices))
-	for interior in polygon.interiors:
-		ring = interior.coords[:-1]
-		vertices.extend(ring)
-		rings.append(len(vertices))
-	vertices = np.array(vertices, dtype=np.float64)
-	rings = np.array(rings)
-	result = mapbox_earcut.triangulate_float64(vertices, rings)
+    import mapbox_earcut
 
-	triangles = []
-	points = vertices[result]
-	its = [iter(points)] * 3
-	for triple in zip(*its):
-		triangles.append(shapely.geometry.Polygon(triple))
-	return triangles
+    vertices, rings = [], []
+    ring = polygon.exterior.coords[:-1]  # despite 'ring' name, actually need a chain
+    vertices.extend(ring)
+    rings.append(len(vertices))
+    for interior in polygon.interiors:
+        ring = interior.coords[:-1]
+        vertices.extend(ring)
+        rings.append(len(vertices))
+    vertices = np.array(vertices, dtype=np.float64)
+    rings = np.array(rings)
+    result = mapbox_earcut.triangulate_float64(vertices[:, :2], rings) # only supporting 2D 
+
+    triangles = []
+    points = vertices[result]
+    its = [iter(points)] * 3
+    for triple in zip(*its):
+        triangles.append(shapely.geometry.Polygon(triple))
+    return triangles
 
 
 def allChains(polygon):
@@ -388,3 +397,34 @@ def plotPolygon(polygon, plt, style="r-", **kwargs):
     for chain in allChains(polygon):
         x, y = chain.xy
         plt.plot(x, y, style, **kwargs)
+
+class _RotatedRectangle:
+	"""mixin providing collision detection for rectangular objects and regions"""
+	def containsPoint(self, point):
+		pt = shapely.geometry.Point(point)
+		return self.polygon.intersects(pt)
+
+	def intersects(self, rect):
+		return self.polygon.intersects(rect.polygon)
+
+	@cached_property
+	def polygon(self):
+		position, heading, hw, hl = self.position, self.heading, self.hw, self.hl
+		if any(needsSampling(c) or needsLazyEvaluation(c)
+		       for c in (position, heading, hw, hl)):
+			return None		# can only convert fixed Regions to Polygons
+		corners = _RotatedRectangle.makeCorners(position.x, position.y, heading, hw, hl)
+		return shapely.geometry.Polygon(corners)
+
+	@staticmethod
+	def makeCorners(px, py, heading, hw, hl):
+		s, c = sin(heading), cos(heading)
+		s_hw, c_hw = s*hw, c*hw
+		s_hl, c_hl = s*hl, c*hl
+		corners = (
+			(px + c_hw - s_hl, py + s_hw + c_hl),
+			(px - c_hw - s_hl, py - s_hw + c_hl),
+			(px - c_hw + s_hl, py - s_hw - c_hl),
+			(px + c_hw + s_hl, py + s_hw - c_hl)
+		)
+		return corners

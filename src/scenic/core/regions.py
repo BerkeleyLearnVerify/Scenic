@@ -4,7 +4,7 @@ Manipulations of polygons and line segments are done using the
 `shapely <https://github.com/shapely/shapely>`_ package.
 
 Manipulations of meshes is done using the
-`trimesh <https://trimsh.org/>`_ package.
+`trimesh <https://trimesh.org/>`_ package.
 """
 
 from abc import ABC, abstractmethod
@@ -15,6 +15,7 @@ import warnings
 
 import numpy
 import scipy
+from scenic.core.geometry import _RotatedRectangle
 import shapely
 import shapely.geometry
 from shapely.geometry import MultiPolygon
@@ -354,6 +355,41 @@ class EmptyRegion(Region):
 
     def distanceTo(self, point):
         return float("inf")
+
+    def show(self, plt, style=None, **kwargs):
+        pass
+
+    def projectVector(self, point, onDirection):
+        return point
+
+    @property
+    def AABB(self):
+        raise TypeError("NoneRegion does not have a well defined AABB")
+
+    @property
+    def dimensionality(self):
+        return 0
+
+    @property
+    def size(self):
+        return 0
+
+    def __eq__(self, other):
+        return type(other) is EmptyRegion
+
+    def __hash__(self):
+        return hash(EmptyRegion)
+
+#: A `Region` containing all points.
+#:
+#: Points may not be sampled from this region, as no uniform distribution over it exists.
+everywhere = AllRegion(name='everywhere')
+
+#: A `Region` containing no points.
+#:
+#: Attempting to sample from this region causes the sample to be rejected.
+nowhere = EmptyRegion(name='nowhere')
+
 class CircularRegion(Region):
 	def __init__(self, center, radius, resolution=32):
 		super().__init__('Circle', center, radius)
@@ -368,29 +404,29 @@ class CircularRegion(Region):
 		ctr = shapely.geometry.Point(self.center)
 		return ctr.buffer(self.radius, resolution=self.resolution)
 
-    def projectVector(self, point, onDirection):
-        raise RejectionException("Projecting vector onto empty Region")
+	def projectVector(self, point, onDirection):
+		raise RejectionException("Projecting vector onto empty Region")
 
-    @property
-    def AABB(self):
-        raise TypeError("EmptyRegion does not have a well defined AABB")
+	@property
+	def AABB(self):
+		raise TypeError("EmptyRegion does not have a well defined AABB")
 
-    @property
-    def dimensionality(self):
-        return 0
+	@property
+	def dimensionality(self):
+		return 0
 
-    @property
-    def size(self):
-        return 0
+	@property
+	def size(self):
+		return 0
 
-    def show(self, plt, style=None, **kwargs):
-        pass
+	def show(self, plt, style=None, **kwargs):
+		pass
 
-    def __eq__(self, other):
-        return type(other) is EmptyRegion
+	def __eq__(self, other):
+		return type(other) is EmptyRegion
 
-    def __hash__(self):
-        return hash(EmptyRegion)
+	def __hash__(self):
+		return hash(EmptyRegion)
 
 class SectorRegion(Region):
 	def __init__(self, center, radius, heading, angle, resolution=32):
@@ -420,11 +456,6 @@ class SectorRegion(Region):
 			    center.offsetRadially(radius, heading - half_angle)
 			])
 			return circle & mask
-
-#: A `Region` containing no points.
-#:
-#: Attempting to sample from this region causes the sample to be rejected.
-nowhere = EmptyRegion("nowhere")
 
 	def evaluateInner(self, context):
 		center = valueInContext(self.center, context)
@@ -459,7 +490,7 @@ nowhere = EmptyRegion("nowhere")
 	def __str__(self):
 		return f'SectorRegion({self.center},{self.radius},{self.heading},{self.angle})'
 
-class RectangularRegion(RotatedRectangle, Region):
+class RectangularRegion(_RotatedRectangle, Region):
 	def __init__(self, position, heading, width, height):
 		super().__init__('Rectangle', position, heading, width, height)
 		self.position = position.toVector()
