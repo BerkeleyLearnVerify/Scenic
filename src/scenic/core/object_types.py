@@ -45,7 +45,12 @@ from scenic.core.geometry import (
     normalizeAngle,
     pointIsInCone,
 )
-from scenic.core.lazy_eval import LazilyEvaluable, isLazy, needsLazyEvaluation
+from scenic.core.lazy_eval import (
+    LazilyEvaluable,
+    isLazy,
+    needsLazyEvaluation,
+    valueInContext,
+)
 from scenic.core.regions import (
     BoxRegion,
     CircularRegion,
@@ -141,7 +146,7 @@ class Constructible(Samplable):
         resolvedDefs = {}
         dyns = []
         finals = []
-        dynFinals = []
+        dynFinals = {}
         for prop, defs in allDefs.items():
             primary, rest = defs[0], defs[1:]
             spec = primary.resolveFor(prop, rest)
@@ -152,7 +157,7 @@ class Constructible(Samplable):
             if primary.isFinal:
                 finals.append(prop)
                 if isDynamic:
-                    dynFinals.append(prop)
+                    dynFinals[prop] = primary.value
         cls._defaults = resolvedDefs
         cls._finalProperties = frozenset(finals)
 
@@ -182,12 +187,11 @@ class Constructible(Samplable):
 
         # Extract order in which to recompute dynamic final properties each time step
         if defaultValues:
-            dynFinals = set(dynFinals)
-            order = []
+            recomputers = {}
             for prop in defaultValues:  # order is that from specifier resolution
                 if prop in dynFinals:
-                    order.append(prop)
-            cls._dynamicFinalProperties = tuple(order)
+                    recomputers[prop] = dynFinals[prop]
+            cls._dynamicFinalProperties = recomputers
         else:
             # No new dynamic properties: just inherit the order from the superclass
             pass
@@ -445,17 +449,11 @@ class Constructible(Samplable):
 
     def _recomputeDynamicFinals(self):
         # Evaluate default value expression for each dynamic final property
-        defaults = self._defaults
-        context = LazilyEvaluable.makeContext(**self._allProperties())
-        for prop in self._dynamicFinalProperties:
-            values = defaults[prop].getValuesFor(context)
-            assert len(values) == 1, (prop, values)
-            value = values[prop]  # no need for toDistribution since we're mid-simulation
-            self._specify(context, prop, value)
-        properties = LazilyEvaluable.getContextValues(context)
-
-        # Apply the obtained values
-        self.__dict__.update(properties)
+        # and assign the obtained value
+        for prop, recomputer in self._dynamicFinalProperties.items():
+            rawVal = recomputer(self)
+            value = valueInContext(rawVal, self)
+            self._specify(self, prop, value)
 
     @classmethod
     def _specify(cls, context, prop, value):
