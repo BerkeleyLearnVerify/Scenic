@@ -653,12 +653,13 @@ class Simulation(abc.ABC):
         subroutine `getProperties` below.
         """
         for obj in self.objects:
-            # Get latest values of dynamic properties from simulation
+            # Get latest values of dynamic properties from simulation and assign them
             dynTypes = obj._simulatorProvidedProperties
             properties = set(dynTypes)
             values = self.getProperties(obj, properties)
             assert properties == set(values), properties ^ set(values)
             for prop, value in values.items():
+                # Check new value has the expected type
                 ty = dynTypes[prop]
                 if ty is float and isinstance(value, numbers.Real):
                     # Special case for scalars so that we don't penalize simulator interfaces
@@ -676,6 +677,9 @@ class Simulation(abc.ABC):
                         f'simulator provided value for property "{prop}" '
                         f"with type {actual} instead of expected {expected}"
                     )
+
+                # Assign the new value
+                setattr(obj, prop, value)
 
             # If saving a replay with divergence-checking support, save all the new values;
             # if running a replay with such support, check for divergence.
@@ -702,13 +706,12 @@ class Simulation(abc.ABC):
                         else:
                             raise DivergenceError(msg)
 
-            # Preserve some other properties which are assigned internally by Scenic
-            for prop in self.mutableProperties(obj):
-                values[prop] = getattr(obj, prop)
+            # Recompute dynamic final properties
+            obj._recomputeDynamicFinals()
 
-            # Make a new copy of the object to ensure that computed properties like
-            # visibleRegion, etc. are recomputed
-            setDynamicProxyFor(obj, obj._copyWith(**values))
+            # Clear caches to ensure that cached properties like visibleRegion, etc.
+            # are recomputed
+            obj._clearCaches()
 
     def valuesHaveDiverged(self, obj, prop, expected, actual):
         """Decide whether the value of a dynamic property has diverged from the replay.
@@ -740,9 +743,6 @@ class Simulation(abc.ABC):
             return diff > self.divergenceTolerance
         else:
             return actual != expected
-
-    def mutableProperties(self, obj):
-        return {"lastActions", "behavior"}
 
     @abc.abstractmethod
     def getProperties(self, obj, properties):

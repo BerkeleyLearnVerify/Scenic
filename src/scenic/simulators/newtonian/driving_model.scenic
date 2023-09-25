@@ -61,5 +61,5 @@ class Pedestrian(Pedestrian, NewtonianActor, Walks):
 
 class Debris:
     """Abstract class for debris scattered randomly in the workspace."""
-    position: Point in workspace
+    position: new Point in workspace
     yaw: Range(0, 360) deg
