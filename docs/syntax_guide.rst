@@ -282,9 +282,11 @@ In the following tables, operators are grouped by the type of value they return.
    * - Boolean Operators
      - Meaning
    * - :sampref:`({Point} | {OrientedPoint}) can see ({vector} | {Object})`
-     - Whether or not a position or `Object` is visible from a `Point` or `OrientedPoint`.
+     - Whether or not a position or `Object` is visible from a `Point` or `OrientedPoint`
    * - :sampref:`({vector} | {Object}) in {region}`
-     -  Whether a position or `Object` lies in the region
+     - Whether a position or `Object` lies in the region
+   * - :sampref:`({Object} | {region}) intersects ({Object} | {region})`
+     - Whether an `Object`/`Region` intersects with an `Object`/`Region`.
 
 
 .. list-table::

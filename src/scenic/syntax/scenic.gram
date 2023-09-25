@@ -1573,6 +1573,7 @@ bitwise_or:
     | scenic_visible_from
     | scenic_not_visible_from
     | scenic_can_see
+    | scenic_intersects
     | a=bitwise_or '|' b=bitwise_xor { ast.BinOp(left=a, op=ast.BitOr(), right=b, LOCATIONS) }
     | bitwise_xor
 
@@ -1581,6 +1582,8 @@ scenic_visible_from: a=bitwise_or "visible" 'from' b=bitwise_xor { s.VisibleFrom
 scenic_not_visible_from: a=bitwise_or "not" "visible" 'from' b=bitwise_xor { s.NotVisibleFromOp(region=a, base=b, LOCATIONS) }
 
 scenic_can_see: a=bitwise_or "can" "see" b=bitwise_xor { s.CanSeeOp(left=a, right=b, LOCATIONS) }
+
+scenic_intersects: a=bitwise_or "intersects" b=bitwise_xor { s.IntersectsOp(left=a, right=b, LOCATIONS) }
 
 bitwise_xor:
     | scenic_offset_along

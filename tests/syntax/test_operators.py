@@ -503,6 +503,56 @@ def test_object_in_region_3d():
     assert p == (True, True, False, False)
 
 
+# Intersects
+def test_intersects_obj_obj():
+    p = sampleParamPFrom(
+        """
+    obj1 = new Object at (-1,0,0.1), with allowCollisions True
+    obj2 = new Object at (1,0,0), with allowCollisions True
+    obj3 = new Object with width 10, with length 10, with height 10, with allowCollisions True
+    param p = tuple([obj1 intersects obj2, obj1 intersects obj3, obj2 intersects obj3])
+    """
+    )
+    assert p == (False, True, True)
+
+
+def test_intersects_region_region():
+    p = sampleParamPFrom(
+        """
+    reg1 = BoxRegion(position=(-1,0,0.1))
+    reg2 = BoxRegion(position=(1,0,0))
+    reg3 = BoxRegion(dimensions=(10,10,10))
+    param p = tuple([reg1 intersects reg2, reg1 intersects reg3, reg2 intersects reg3])
+    """
+    )
+    assert p == (False, True, True)
+
+
+def test_intersects_obj_region():
+    p = sampleParamPFrom(
+        """
+    reg1 = BoxRegion(position=(-1,0,0.1))
+    obj2 = new Object at (1,0,0), with allowCollisions True
+    obj3 = new Object with width 10, with length 10, with height 10, with allowCollisions True
+    param p = tuple([reg1 intersects obj2, obj2 intersects reg1,
+        reg1 intersects obj3, obj3 intersects reg1])
+    """
+    )
+    assert p == (False, False, True, True)
+
+
+def test_intersects_fast_paths():
+    p = sampleParamPFrom(
+        """
+    obj1 = new Object at (0.25,0,0), with allowCollisions True
+    obj2 = new Object at (-0.25,0,0), with allowCollisions True
+    reg = RectangularRegion((0,0,0), 0, 10, 10)
+    param p = tuple([obj1 intersects obj2, obj1 intersects reg])
+    """
+    )
+    assert p == (True, True)
+
+
 ## Heading operators
 
 

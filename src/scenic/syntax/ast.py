@@ -1250,3 +1250,13 @@ class CanSeeOp(AST):
         self.left = left
         self.right = right
         self._fields = ["left", "right"]
+
+
+class IntersectsOp(AST):
+    __match_args__ = ("left", "right")
+
+    def __init__(self, left: ast.AST, right: ast.AST, *args: any, **kwargs: any) -> None:
+        super().__init__(*args, **kwargs)
+        self.left = left
+        self.right = right
+        self._fields = ["left", "right"]

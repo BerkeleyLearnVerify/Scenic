@@ -67,6 +67,12 @@ See the :ref:`Visibility System <visibility>` reference for a discussion of the 
 ----------------------------------
 Whether a position or `Object` lies in the `Region`; for the latter, the object must be completely contained in the region.
 
+.. _({Object} | {region}) intersects ({Object} | {region}):
+
+(*Object* | *region*) intersects (*Object* | *region*)
+------------------------------------------------------
+Whether an `Object`/`Region` intersects another `Object`/`Region`, i.e. whether any portion of the occupied spaces intersect.
+
 
 Orientation Operators
 =====================

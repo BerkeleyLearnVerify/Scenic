@@ -79,6 +79,7 @@ __all__ = (
     "RelativeTo",
     "OffsetAlong",
     "CanSee",
+    "Intersects",
     "Until",
     "Implies",
     "VisibleFromOp",
@@ -1351,6 +1352,14 @@ def CanSee(X, Y):
         return X.canSee(Y, occludingObjects=occludingObjects)
 
     return canSeeHelper(X, Y, objects)
+
+
+def Intersects(X, Y):
+    """The :scenic:`{X} intersects {Y}` operator."""
+    if isA(X, Object):
+        return X.intersects(Y)
+    else:
+        return Y.intersects(X)
 
 
 ### Specifiers
