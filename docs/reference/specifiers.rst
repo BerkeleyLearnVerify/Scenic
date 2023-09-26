@@ -98,10 +98,11 @@ contained in *region*
 Like :sampref:`in {region}`, but also enforces that the object be entirely contained in the given `Region`.
 
 .. _on {region}:
+.. _on ({region} | {Object} | {vector}):
 .. _on:
 
-on *region*
------------
+on (*region* | *Object* | *vector*)
+-----------------------------------
 
 **Specifies**:
 
@@ -110,12 +111,12 @@ on *region*
 
 **Dependencies**: :prop:`baseOffset` • :prop:`contactTolerance` • :prop:`onDirection`
 
-If :prop:`position` is not already specified with priority 1, positions the *base* of the object uniformly at random in the given `Region`, offset by :prop:`contactTolerance` (to avoid a collision).
+If :prop:`position` is not already specified with priority 1, positions the *base* of the object uniformly at random in the given `Region`, on the :prop:`onSurface` of the given `Object`, or with the base of the object at the given vector. The position is always offset by half of :prop:`contactTolerance` (to avoid a collision).
 The base of the object is determined by adding the object's :prop:`baseOffset` to its :prop:`position`.
 
-Note that while :specifier:`on` can be used with `Region`, `Object` and `Vector`, it cannot be used with a distribution containing anything other than `Region`. When used with an object the base of the object being placed is placed on the target object's `onSurface` and when used with a vector the base of the object being placed is set to that position.
+Note that while :specifier:`on` can be used with `Region`, `Object` and `Vector`, it cannot be used with a distribution containing anything other than `Region`. 
 
-If instead :prop:`position` has already been specified with priority 1, then its value is modified by projecting it onto the given region.
+If instead :prop:`position` has already been specified with priority 1, then its value is modified by projecting it onto the given region. Not that this modifying version of the specifier does not accept a vector.
 More precisely, we find the closest point in the region along :prop:`onDirection` (or its negation [1]_), and place the base of the object at that point. If :prop:`onDirection` is not specified, a default value is inferred from the region. A region can either specify a default value to be used, or for volumes straight up is used and for surfaces the mean of the face normal values is used (weighted by the area of the faces).
 
 If the region has a :term:`preferred orientation` (a vector field), :prop:`parentOrientation` is specified to be equal to that orientation at the object’s :prop:`position` (whether or not this specifier is being used as a modifying specifier).
