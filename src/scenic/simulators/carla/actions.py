@@ -6,12 +6,12 @@ import carla as _carla
 
 from scenic.domains.driving.actions import *
 import scenic.simulators.carla.utils.utils as _utils
+from scenic.core.vectors import Orientation
 
 ################################################
 # Actions available to all carla.Actor objects #
 ################################################
 
-SetLocationAction = SetPositionAction  # TODO refactor
 
 
 class SetAngularVelocityAction(Action):
@@ -25,14 +25,14 @@ class SetAngularVelocityAction(Action):
         obj.carlaActor.set_angular_velocity(newAngularVel)
 
 
-class SetTransformAction(Action):  # TODO eliminate
-    def __init__(self, pos, heading):
-        self.pos = pos
+class SetPoseAction(Action):
+    def __init__(self, position, heading):
+        self.position = position
         self.heading = heading
 
     def applyTo(self, obj, sim):
-        loc = _utils.scenicToCarlaLocation(self.pos, z=obj.elevation)
-        rot = _utils.scenicToCarlaRotation(self.heading)
+        loc = _utils.scenicToCarlaLocation(self.position, z=obj.elevation)
+        rot = _utils.scenicToCarlaRotation(Orientation._fromHeading(self.heading))
         transform = _carla.Transform(loc, rot)
         obj.carlaActor.set_transform(transform)
 
