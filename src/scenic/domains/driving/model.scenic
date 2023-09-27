@@ -239,10 +239,10 @@ class DrivingObject:
 
     # Simulator interface implemented by subclasses
 
-    def setPose(self, position, heading):
+    def setPosition(self, pos, elevation):
         raise NotImplementedError
 
-    def setHeading(self, heading):
+    def setPose(self, position, heading):
         raise NotImplementedError
 
     def setVelocity(self, vel):
