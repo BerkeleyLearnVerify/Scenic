@@ -81,7 +81,7 @@ def test_circular_sampling():
 
 
 def test_sector_sampling():
-    assert CircularRegion(Vector(4, 5, 2), 2, 1, 1).uniformPointInner().z == 2
+    assert SectorRegion(Vector(4, 5, 2), 2, 1, 1).uniformPointInner().z == 2
 
 
 def test_rectangular_region():
