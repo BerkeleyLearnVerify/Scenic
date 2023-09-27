@@ -13,7 +13,6 @@ from scenic.core.vectors import Orientation
 ################################################
 
 
-
 class SetAngularVelocityAction(Action):
     def __init__(self, angularVel):
         self.angularVel = angularVel
