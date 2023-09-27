@@ -4,9 +4,9 @@ import math as _math
 
 import carla as _carla
 
+from scenic.core.vectors import Orientation
 from scenic.domains.driving.actions import *
 import scenic.simulators.carla.utils.utils as _utils
-from scenic.core.vectors import Orientation
 
 ################################################
 # Actions available to all carla.Actor objects #
