@@ -39,7 +39,22 @@ def test_dynamic_property():
     assert len(actions) == 3
 
 
-def test_dynamic_derived_property():
+def test_dynamic_final_property():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            for i in range(3):
+                self.yaw = self.yaw + 0.1
+                wait
+        ego = new Object with behavior Foo
+        terminate when ego.heading >= 0.25
+    """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert len(actions) == 3
+
+
+def test_dynamic_cached_property():
     scenario = compileScenic(
         """
         behavior Foo():
@@ -48,6 +63,21 @@ def test_dynamic_derived_property():
                 wait
         ego = new Object with behavior Foo
         terminate when ego.left.position.y >= 3
+    """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert len(actions) == 3
+
+
+def test_dynamic_cached_method():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            for i in range(3):
+                self.position = self.position + 0@1
+                wait
+        ego = new Object with behavior Foo
+        terminate when ego.distanceTo(0@4) < 1
     """
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
