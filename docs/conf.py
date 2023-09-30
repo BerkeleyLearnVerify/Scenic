@@ -129,7 +129,7 @@ intersphinx_mapping = {
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
     "pytest": ("https://docs.pytest.org/en/stable/", None),
-    "trimesh": ("https://trimsh.org/", None),
+    "trimesh": ("https://trimesh.org/", None),
 }
 
 highlight_language = "scenic"
