@@ -286,7 +286,7 @@ In the following tables, operators are grouped by the type of value they return.
    * - :sampref:`({vector} | {Object}) in {region}`
      - Whether a position or `Object` lies in the region
    * - :sampref:`({Object} | {region}) intersects ({Object} | {region})`
-     - Whether an `Object`/`Region` intersects with an `Object`/`Region`.
+     - Whether an `Object`/`Region` intersects an `Object`/`Region`.
 
 
 .. list-table::
