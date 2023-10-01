@@ -202,7 +202,8 @@ from sphinx.domains.python import (
 )
 from sphinx.ext.autodoc import ClassDocumenter, FunctionDocumenter
 
-from scenic.core.dynamics import Behavior, DynamicScenario, Monitor
+from scenic.core.dynamics.behaviors import Behavior, Monitor
+from scenic.core.dynamics.scenarios import DynamicScenario
 
 
 class ScenicBehavior(PyFunction):
@@ -557,7 +558,8 @@ Documenter.sort_members = sort_members
 
 from sphinx.ext.autodoc import ClassDocumenter
 
-from scenic.core.dynamics import Behavior, DynamicScenario
+from scenic.core.dynamics.behaviors import Behavior
+from scenic.core.dynamics.scenarios import DynamicScenario
 
 orig_add_directive_header = ClassDocumenter.add_directive_header
 
