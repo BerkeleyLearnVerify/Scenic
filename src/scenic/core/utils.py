@@ -157,7 +157,7 @@ def loadMesh(path, filetype, compressed, binary):
         open_function = open
 
     with open_function(path, mode) as mesh_file:
-        mesh = trimesh.load(mesh_file, file_type=filetype)
+        mesh = trimesh.load(mesh_file, file_type=filetype, force="mesh")
 
     return mesh
 
