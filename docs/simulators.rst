@@ -21,7 +21,90 @@ Currently Supported
 Airsim
 ------
 
+The interface to airsim (https://microsoft.github.io/AirSim/) enables
+the user to create dynamic scenarios using any airsim binary.
 
+**Installation**
+~~~~~~~~~~~~~~~~
+
+1. Begin by installing Scenic, which you can find detailed instructions
+   for
+   `here <https://scenic-lang.readthedocs.io/en/latest/quickstart.html>`__.
+
+2. Additionally, you’ll need to install the following dependencies in
+   your python environment:
+
+   (Note: In the past, some users have encountered issues with AirSim
+   indicating that numpy is not installed. If you run into this problem,
+   consider utilizing a conda environment, which should resolve the
+   issue.)
+
+.. code:: bash
+
+   pip install airsim
+   pip install msgpack-rpc-python
+   pip install promise
+   pip install numpy
+
+Example Usage
+~~~~~~~~~~~~~
+
+Generate World Info
+^^^^^^^^^^^^^^^^^^^
+
+Before running Scenic, it’s essential to generate world information. To
+achieve this, utilize the
+`createWorldInfo.py <http://createworldinfo.py/>`__ script located at
+Scenic/src/scenic/simulators/airsim/generators/createWorldInfo.py. If
+you require assistance, run the script with the -h flag to access usage
+instructions.
+
+Next, in your Scenic file, specify the path for your world info like
+this:
+
+.. code:: python
+
+   param worldInfoPath = "[YOUR PATH HERE]"
+
+**Configure AirSim Settings**
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Before running Scenic, we also need to ensure that AirSim has been
+launched with the appropriate settings. The choice of settings file
+depends on your simulation requirements. To generate a basic settings
+file tailored to your needs, utilize the
+`generateAirsimSettings.py <http://generateairsimsettings.py/>`__ script
+found at
+Scenic/src/scenic/simulators/airsim/generators/generateAirsimSettings.py
+. Use the -h flag for detailed usage instructions.
+
+Linux Example:
+
+.. code:: bash
+
+   python Scenic/src/scenic/simulators/airsim/generators/generateAirsimSettings.py -o airsimsettings.json  --maxdrones 5
+
+Once you’ve generated a settings file, you can run AirSim with it. For
+Linux, it might look like this:
+
+Linux Example:
+
+.. code:: bash
+
+   $ Blocks/LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh -settings="Scenic/src/scenic/simulators/airsim/objs/cubes/airsimSettings.json"
+
+Running Scenic
+''''''''''''''
+
+Once AirSim is up and running with the appropriate settings, you can
+proceed to run your Scenic code:
+
+.. code:: bash
+
+   scenic Scenic/examples/airsim/multi_drone.scenic --simulate
+
+That’s all there is to it! This sequence of steps will set up and
+execute your Airsim simulations using Scenic.
 
 Built-in Newtonian Simulator
 ----------------------------

@@ -2,9 +2,7 @@ model scenic.simulators.airsim.model
 from scenic.simulators.airsim.utils import getPrexistingObj
 import random
 
-print("\nMY STUFFFFFFFFFFFFFFFFF")
 ground = getPrexistingObj("ground")
-print(ground.position)
 
 ground.highlight()
 

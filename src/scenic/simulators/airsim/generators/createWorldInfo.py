@@ -9,6 +9,7 @@ import json
 import re
 import time
 import sys
+import argparse
 from warnings import warn
 from scenic.simulators.airsim.utils import (
     airsimToScenicOrientationTuple,
@@ -18,9 +19,20 @@ from scenic.core.utils import repairMesh
 
 
 # get output directory
-if len(sys.argv) < 2:
-    raise RuntimeError("please specify output directory as first argument")
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "-o",
+    "--outputDirectory",
+    type=str,
+    help="the directory where the world info should be dumped. This should be a directory that doesn't exist.",
+    required=True,
+)
+args = parser.parse_args()
+
+
 outputDirectory = sys.argv[1] + "/"
+
+
 
 # start airsim client
 client = None
@@ -29,8 +41,14 @@ try:
     client.confirmConnection()
     client.simPause(True)
 except Exception:
-    raise RuntimeError("Airsim must be running on before executing scenic")
+    raise RuntimeError("Airsim must be running on before executing this code")
 
+
+
+try:
+    os.makedirs(args.outputDirectory, exist_ok=False)
+except:
+    raise RuntimeError("output directory already exists")
 
 os.makedirs(outputDirectory + "assets", exist_ok=True)
 os.makedirs(outputDirectory + "objectMeshes", exist_ok=True)

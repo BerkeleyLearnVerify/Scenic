@@ -17,12 +17,10 @@ def createPromise(future):
     def promFunc(resolve, reject):
         
         def joinAsync():
-            print("joinAsync")
             future.join()
             resolve(True)
         
         def waitAsync():
-            # print("waitAsync")
             while not future._set_flag:
                 time.sleep(.01)
             resolve(True)
@@ -40,7 +38,6 @@ def createPromise(future):
 
 behavior waitForPromise(promise):
     while not promise.is_fulfilled:
-        # print("waiting")
         wait
 
 

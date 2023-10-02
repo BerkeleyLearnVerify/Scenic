@@ -76,13 +76,13 @@ class StaticObj(AirSimActor):
 
 
 # ---------- body ----------
+
 # Create prexisiting airsim objs
 prexisitingObjs = {}
 with open(
     globalParameters.worldInfoPath+"worldInfo.json",
     "r",
 ) as inFile:
-    # todo raise warning if there isn't a volume
     meshDatas = json.load(inFile)
     verbosePrint("\n\nPrexisting Object Names:\n",[md["name"] for md in meshDatas], level=1)
     for meshData in meshDatas:
