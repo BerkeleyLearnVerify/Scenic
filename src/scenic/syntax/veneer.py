@@ -1425,15 +1425,15 @@ def On(thing):
     if isA(thing, Object):
         # Target is an Object: use its onSurface.
         target = thing.onSurface
+    elif canCoerce(thing, Vector, exact=True):
+        # Target is a vector
+        target = toVector(thing)
     elif canCoerce(thing, Region):
         # Target is a region (or could theoretically be coerced to one),
         # so we can use it as a target.
-        target = thing
+        target = toType(thing, Region)
     else:
-        # Target is a vector, so we can use it as a target.
-        target = toType(
-            thing, Vector, 'specifier "on R" with R not a Region, Object, or Vector'
-        )
+        raise TypeError('specifier "on R" with R not a Region, Object, or Vector')
 
     props = {"position": 1}
 

@@ -98,7 +98,9 @@ contained in *region*
 Like :sampref:`in {region}`, but also enforces that the object be entirely contained in the given `Region`.
 
 .. _on {region}:
+.. _on ({region} | {Object}):
 .. _on ({region} | {Object} | {vector}):
+.. _on {vector}:
 .. _on:
 
 on (*region* | *Object* | *vector*)
@@ -113,8 +115,6 @@ on (*region* | *Object* | *vector*)
 
 If :prop:`position` is not already specified with priority 1, positions the *base* of the object uniformly at random in the given `Region`, on the :prop:`onSurface` of the given `Object`, or with the base of the object at the given vector. The position is always offset by half of :prop:`contactTolerance` (to avoid a collision).
 The base of the object is determined by adding the object's :prop:`baseOffset` to its :prop:`position`.
-
-Note that while :specifier:`on` can be used with `Region`, `Object` and `Vector`, it cannot be used with a distribution containing anything other than `Region`. 
 
 If instead :prop:`position` has already been specified with priority 1, then its value is modified by projecting it onto the given region (or the :prop:`onSurface` of the given object). Note that this modifying version of the specifier does not accept a vector.
 More precisely, we find the closest point in the region along :prop:`onDirection` (or its negation [1]_), and place the base of the object at that point. If :prop:`onDirection` is not specified, a default value is inferred from the region. A region can either specify a default value to be used, or for volumes straight up is used and for surfaces the mean of the face normal values is used (weighted by the area of the faces).
