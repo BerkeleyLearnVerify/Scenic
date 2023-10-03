@@ -1072,7 +1072,7 @@ class MeshVolumeRegion(MeshRegion):
                 if dim <= 0:
                     raise ValueError(f"{name} of MeshVolumeRegion must be positive")
 
-        # Ensure the mesh is watertight so volume is well defined
+        # Ensure the mesh is a well defined volume
         if not self._mesh.is_volume:
             raise ValueError(
                 "A MeshVolumeRegion cannot be defined with a mesh that does not have a well defined volume."
