@@ -45,7 +45,12 @@ from scenic.core.geometry import (
     normalizeAngle,
     pointIsInCone,
 )
-from scenic.core.lazy_eval import LazilyEvaluable, isLazy, needsLazyEvaluation
+from scenic.core.lazy_eval import (
+    LazilyEvaluable,
+    isLazy,
+    needsLazyEvaluation,
+    valueInContext,
+)
 from scenic.core.regions import (
     BoxRegion,
     CircularRegion,
@@ -114,6 +119,21 @@ class Constructible(Samplable):
             # transformed by __init_subclass__, so we skip it now.
             return
 
+        # Identify cached properties/methods which will need to be cleared
+        # each time step during dynamic simulations.
+        clearers = {}
+        for attr, value in cls.__dict__.items():
+            if isinstance(value, property):
+                value = value.fget
+            if clearer := getattr(value, "_scenic_cache_clearer", None):
+                clearers[attr] = clearer
+        for sc in cls.__mro__:
+            if sclearers := getattr(sc, "_cache_clearers", None):
+                for attr, clearer in sclearers.items():
+                    if attr not in clearers:
+                        clearers[attr] = clearer
+        cls._cache_clearers = clearers
+
         # Find all defaults provided by the class or its superclasses
         allDefs = collections.defaultdict(list)
 
@@ -126,29 +146,37 @@ class Constructible(Samplable):
         resolvedDefs = {}
         dyns = []
         finals = []
+        dynFinals = {}
         for prop, defs in allDefs.items():
             primary, rest = defs[0], defs[1:]
             spec = primary.resolveFor(prop, rest)
             resolvedDefs[prop] = spec
 
-            if any(defn.isDynamic for defn in defs):
+            if isDynamic := any(defn.isDynamic for defn in defs):
                 dyns.append(prop)
             if primary.isFinal:
                 finals.append(prop)
+                if isDynamic:
+                    dynFinals[prop] = primary.value
         cls._defaults = resolvedDefs
-        cls._finalProperties = tuple(finals)
+        cls._finalProperties = frozenset(finals)
 
         # Determine types of dynamic properties
         dynTypes = {}
-        inst = None
+        defaultValues = None  # compute only if necessary
         for prop in dyns:
             ty = super(cls, cls)._dynamicProperties.get(prop)
             if not ty:
-                # First time this property has been defined; create a dummy object to
-                # run specifier resolution and determine the property's default value
-                if not inst:
-                    inst = cls._withSpecifiers((), register=False)
-                ty = underlyingType(getattr(inst, prop))
+                # First time this property has been defined; get the type of
+                # its default value.
+                if not defaultValues:
+                    # N.B. Here we evaluate the default value expressions, which is
+                    # risky since global state like the workspace may not have been set
+                    # up yet. For this reason we only compute default values when they
+                    # are actually needed; a better solution would be to have syntax for
+                    # annotating the types of dynamic properties.
+                    defaultValues, _ = cls._resolveSpecifiers(())
+                ty = underlyingType(defaultValues[prop])
             dynTypes[prop] = ty
         cls._dynamicProperties = dynTypes
         cls._simulatorProvidedProperties = {
@@ -156,6 +184,17 @@ class Constructible(Samplable):
             for prop, val in cls._dynamicProperties.items()
             if prop not in cls._finalProperties
         }
+
+        # Extract order in which to recompute dynamic final properties each time step
+        if defaultValues:
+            recomputers = {}
+            for prop in defaultValues:  # order is that from specifier resolution
+                if prop in dynFinals:
+                    recomputers[prop] = dynFinals[prop]
+            cls._dynamicFinalProperties = recomputers
+        else:
+            # No new dynamic properties: just inherit the order from the superclass
+            pass
 
     def __new__(cls, *args, _internal=False, **kwargs):
         if not _internal:
@@ -408,6 +447,14 @@ class Constructible(Samplable):
         )
         return properties, constProps
 
+    def _recomputeDynamicFinals(self):
+        # Evaluate default value expression for each dynamic final property
+        # and assign the obtained value
+        for prop, recomputer in self._dynamicFinalProperties.items():
+            rawVal = recomputer(self)
+            value = valueInContext(rawVal, self)
+            self._specify(self, prop, value)
+
     @classmethod
     def _specify(cls, context, prop, value):
         # Normalize types of some built-in properties
@@ -504,11 +551,15 @@ class Constructible(Samplable):
         props = {
             prop: val
             for prop, val in self._allProperties().items()
-            if prop not in set(self._finalProperties)
+            if prop not in self._finalProperties
         }
         props.update(overrides)
         constProps = self._constProps.difference(overrides)
         return self._withProperties(props, constProps=constProps)
+
+    def _clearCaches(self):
+        for clearer in self._cache_clearers.values():
+            clearer(self)
 
     def dumpAsScenicCode(self, stream, skipConstProperties=True):
         stream.write(f"new {self.__class__.__name__}")

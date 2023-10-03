@@ -77,6 +77,11 @@ def test_circular_sampling():
     xs, ys, zs = zip(*pts)
     assert sum(x >= 4 for x in xs) >= 1250
     assert sum(y >= -3 for y in ys) >= 1250
+    assert CircularRegion(Vector(4, 5, 2), 2).uniformPointInner().z == 2
+
+
+def test_sector_sampling():
+    assert SectorRegion(Vector(4, 5, 2), 2, 1, 1).uniformPointInner().z == 2
 
 
 def test_rectangular_region():
@@ -96,6 +101,7 @@ def test_rectangular_region():
     assert miny == pytest.approx(1 - math.sqrt(3) / 2)
     assert maxx == pytest.approx(1.5 + math.sqrt(3))
     assert minx == pytest.approx(0.5 - math.sqrt(3))
+    assert RectangularRegion(Vector(2.5, 4.5, 3), 1, 1, 1).uniformPointInner().z == 3
 
 
 def test_polyline_region():
@@ -201,6 +207,10 @@ def test_polygon_region():
     d = poly.difference(poly2)
     assert isinstance(d, PolygonalRegion)
     assert not d.containsPoint((2, 2))
+    assert (
+        PolygonalRegion([(1, 1), (3, 1), (2, 2), (1.3, 1.15)], z=3).uniformPointInner().z
+        == 3
+    )
 
 
 def test_polygon_sampling():

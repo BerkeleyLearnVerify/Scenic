@@ -2987,7 +2987,7 @@ class RectangularRegion(PolygonalRegion):
         hw, hl = self.hw, self.hl
         rx = random.uniform(-hw, hw)
         ry = random.uniform(-hl, hl)
-        pt = self.position.offsetRotated(self.heading, Vector(rx, ry, self.position.z))
+        pt = self.position.offsetRotated(self.heading, Vector(rx, ry, 0))
         return self.orient(pt)
 
     @property
