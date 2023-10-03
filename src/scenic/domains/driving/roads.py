@@ -518,6 +518,13 @@ class LaneGroup(LinearElement):
     #: Opposite lane group of the same road, if any.
     _opposite: Union[LaneGroup, None] = None
 
+    def __attrs_post_init__(self):
+        super().__attrs_post_init__()
+
+        # Ensure lanes do not overlap
+        for i in range(len(self.lanes) - 1):
+            assert not self.lanes[i].polygon.overlaps(self.lanes[i + 1].polygon)
+
     @property
     def sidewalk(self) -> Sidewalk:
         """The adjacent sidewalk; rejects if there is none."""
@@ -973,7 +980,7 @@ class Network:
 
         :meta private:
         """
-        return 30
+        return 31
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
