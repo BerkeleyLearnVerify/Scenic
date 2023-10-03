@@ -129,7 +129,7 @@ intersphinx_mapping = {
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
     "pytest": ("https://docs.pytest.org/en/stable/", None),
-    "trimesh": ("https://trimsh.org/", None),
+    "trimesh": ("https://trimesh.org/", None),
 }
 
 highlight_language = "scenic"
@@ -202,7 +202,8 @@ from sphinx.domains.python import (
 )
 from sphinx.ext.autodoc import ClassDocumenter, FunctionDocumenter
 
-from scenic.core.dynamics import Behavior, DynamicScenario, Monitor
+from scenic.core.dynamics.behaviors import Behavior, Monitor
+from scenic.core.dynamics.scenarios import DynamicScenario
 
 
 class ScenicBehavior(PyFunction):
@@ -557,7 +558,8 @@ Documenter.sort_members = sort_members
 
 from sphinx.ext.autodoc import ClassDocumenter
 
-from scenic.core.dynamics import Behavior, DynamicScenario
+from scenic.core.dynamics.behaviors import Behavior
+from scenic.core.dynamics.scenarios import DynamicScenario
 
 orig_add_directive_header = ClassDocumenter.add_directive_header
 

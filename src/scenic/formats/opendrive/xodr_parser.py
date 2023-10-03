@@ -569,13 +569,13 @@ class Road:
                     next_lane_polys[id_] = [cur_sec_lane_polys[id_]]
             for id_ in cur_lane_polys:
                 poly = buffer_union(cur_lane_polys[id_], tolerance=tolerance)
+                self.lane_secs[i - 1].get_lane(id_).parent_lane_poly = len(lane_polys)
                 lane_polys.append(poly)
-                self.lane_secs[i - 1].get_lane(id_).parent_lane_poly = poly
             cur_lane_polys = next_lane_polys
         for id_ in cur_lane_polys:
             poly = buffer_union(cur_lane_polys[id_], tolerance=tolerance)
+            cur_sec.get_lane(id_).parent_lane_poly = len(lane_polys)
             lane_polys.append(poly)
-            cur_sec.get_lane(id_).parent_lane_poly = poly
         union_poly = buffer_union(sec_polys, tolerance=tolerance)
         if last_lefts and last_rights:
             self.end_bounds_left.update(last_lefts)
@@ -599,6 +599,13 @@ class Road:
             if lane_polys[i].overlaps(lane_polys[i + 1]):
                 lane_polys[i] = lane_polys[i].difference(lane_polys[i + 1]).buffer(-1e-6)
                 assert not lane_polys[i].overlaps(lane_polys[i + 1])
+
+        # Set parent lane polygon references to corrected polygons
+        for sec in self.lane_secs:
+            for lane in sec.lanes.values():
+                parentIndex = lane.parent_lane_poly
+                if isinstance(parentIndex, int):
+                    lane.parent_lane_poly = lane_polys[parentIndex]
 
         return (sec_points, sec_polys, sec_lane_polys, lane_polys, union_poly)
 

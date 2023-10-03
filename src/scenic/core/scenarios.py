@@ -18,7 +18,7 @@ from scenic.core.distributions import (
     distributionFunction,
     needsSampling,
 )
-from scenic.core.dynamics import Behavior, Monitor
+from scenic.core.dynamics.behaviors import Behavior, Monitor
 from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
 from scenic.core.external_params import ExternalSampler
 from scenic.core.lazy_eval import needsLazyEvaluation

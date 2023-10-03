@@ -189,18 +189,14 @@ from scenic.core.distributions import (
     TruncatedNormal,
     Uniform,
 )
-from scenic.core.dynamics import (
-    Behavior,
-    BlockConclusion,
-    DynamicScenario,
+from scenic.core.dynamics.behaviors import Behavior, Monitor
+from scenic.core.dynamics.guards import (
     GuardViolation,
     InvariantViolation,
-    Monitor,
     PreconditionViolation,
-    _makeSimulationTerminationAction,
-    _makeTerminationAction,
-    runTryInterrupt,
 )
+from scenic.core.dynamics.invocables import BlockConclusion, runTryInterrupt
+from scenic.core.dynamics.scenarios import DynamicScenario
 from scenic.core.external_params import (
     VerifaiDiscreteRange,
     VerifaiOptions,
@@ -264,6 +260,7 @@ from scenic.core.distributions import (
     needsSampling,
     toDistribution,
 )
+from scenic.core.dynamics.actions import _EndScenarioAction, _EndSimulationAction
 import scenic.core.errors as errors
 from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError
 from scenic.core.external_params import ExternalParameter
@@ -396,6 +393,8 @@ def deactivate():
 
 
 # Instance/Object creation
+
+
 def registerInstance(inst):
     """Add a Scenic instance to the global list of created objects.
 
@@ -629,6 +628,21 @@ def executeInGuard():
         yield
     finally:
         evaluatingGuard = False
+
+
+def _makeTerminationAction(agent, line):
+    assert activity == 0
+    if agent:
+        scenario = agent._parentScenario()
+        assert scenario is not None
+    else:
+        scenario = None
+    return _EndScenarioAction(scenario, line)
+
+
+def _makeSimulationTerminationAction(line):
+    assert activity == 0
+    return _EndSimulationAction(line)
 
 
 ### Parsing support

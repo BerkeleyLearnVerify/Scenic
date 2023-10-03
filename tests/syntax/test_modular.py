@@ -178,7 +178,7 @@ def test_top_level_precondition():
     sim = DummySimulator()
     scene = sampleScene(scenario)
     with pytest.raises(PreconditionViolation):
-        sim.simulate(scene, maxSteps=1, raiseGuardViolations=True)
+        sim.simulate(scene, maxSteps=1, raiseGuardViolations=True, verbosity=2)
 
 
 def test_top_level_invariant():
