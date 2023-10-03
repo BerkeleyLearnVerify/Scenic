@@ -25,13 +25,13 @@ class SetAngularVelocityAction(Action):
 
 
 class SetPoseAction(Action):
-    def __init__(self, position, heading):
+    def __init__(self, position, orientation):
         self.position = position
-        self.heading = heading
+        self.orientation = orientation
 
     def applyTo(self, obj, sim):
         loc = _utils.scenicToCarlaLocation(self.position, z=obj.elevation)
-        rot = _utils.scenicToCarlaRotation(Orientation._fromHeading(self.heading))
+        rot = _utils.scenicToCarlaRotation(self.orientation)
         transform = _carla.Transform(loc, rot)
         obj.carlaActor.set_transform(transform)
 

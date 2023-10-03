@@ -16,6 +16,7 @@ the following terms:
 import math
 
 from scenic.core.simulators import Action
+from scenic.core.type_support import toOrientation
 from scenic.core.vectors import Vector
 
 ## Mixin classes indicating support for various types of actions.
@@ -77,12 +78,13 @@ class SetPositionAction(Action):
 class SetPoseAction(Action):
     """Teleport an agent to the given pose (position and orientation)."""
 
-    def __init__(self, position: Vector, heading: float):
+    def __init__(self, position: Vector, orientation):
         self.position = position
-        self.heading = heading
+        self.orientation = toOrientation(orientation,
+                                         'SetPoseAction(p, o) with o not an Orientation')
 
     def applyTo(self, obj, sim):
-        obj.setPose(self.position, self.heading)
+        obj.setPose(self.position, self.orientation)
 
 
 class OffsetAction(Action):
