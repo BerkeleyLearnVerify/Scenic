@@ -28,7 +28,8 @@ class SetPoseAction(Action):
     def __init__(self, position, orientation):
         self.position = position
         self.orientation = toOrientation(
-            orientation, "SetPoseAction(p, o) with o not an Orientation")
+            orientation, "SetPoseAction(p, o) with o not an Orientation"
+            )
 
     def applyTo(self, obj, sim):
         loc = _utils.scenicToCarlaLocation(self.position, z=obj.elevation)
