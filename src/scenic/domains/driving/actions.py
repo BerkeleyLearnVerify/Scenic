@@ -82,7 +82,7 @@ class SetPoseAction(Action):
         self.position = position
         self.orientation = toOrientation(
             orientation, "SetPoseAction(p, o) with o not an Orientation"
-            )
+        )
 
     def applyTo(self, obj, sim):
         obj.setPose(self.position, self.orientation)
