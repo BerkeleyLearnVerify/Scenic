@@ -37,7 +37,7 @@ def scenicToCarlaRotation(orientation):
     scenic_y_axis = (0, 1, 0)
     obj_3d_heading = orientation.r.apply(scenic_y_axis)
     scenic_yaw = headingOfSegment(origin, obj_3d_heading)
-    carla_yaw = -90-math.degrees(scenic_yaw)
+    carla_yaw = -90 - math.degrees(scenic_yaw)
     return carla.Rotation(pitch=0, yaw=carla_yaw, roll=0)
 
 
