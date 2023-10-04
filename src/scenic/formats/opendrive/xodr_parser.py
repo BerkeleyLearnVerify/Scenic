@@ -1447,7 +1447,7 @@ class RoadMap:
                     curve = Clothoid(x0, y0, hdg, length, curv0, curv1)
                 elif curve_elem.tag == "poly3":
                     a, b, c, d = (
-                        cubic_elem.get("a"),
+                        float(curve_elem.get("a")),
                         float(curve_elem.get("b")),
                         float(curve_elem.get("c")),
                         float(curve_elem.get("d")),
