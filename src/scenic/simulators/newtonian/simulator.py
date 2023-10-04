@@ -79,6 +79,12 @@ class NewtonianSimulation(DrivingSimulation):
     def setup(self):
         super().setup()
 
+        # If we are rendering, ensure that there is some top level object
+        if self.render and len(self.objects) == 0:
+            raise RuntimeError(
+                "Cannot run NewtonianSimulation with 'render' set to True and no top level Objects"
+            )
+
         if self.render:
             # determine window size
             min_x, max_x = findMinMax(obj.x for obj in self.objects)
