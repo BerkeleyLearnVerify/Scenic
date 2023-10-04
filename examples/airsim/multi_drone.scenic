@@ -1,4 +1,8 @@
+# NOTE: add your world info path here
+# param worldInfoPath = "[YOUR PATH HERE]"
+
 model scenic.simulators.airsim.model
+
 
 ground = getPrexistingObj("ground")
 

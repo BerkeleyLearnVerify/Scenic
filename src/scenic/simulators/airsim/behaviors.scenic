@@ -13,6 +13,7 @@ from .utils import (
     scenicToAirsimScale,
 )
 
+# creates a promise from an msgpackrpc future (the futures that are used in airsim)
 def createPromise(future):
     def promFunc(resolve, reject):
         
@@ -36,11 +37,12 @@ def createPromise(future):
 
     return prom
 
+# waits for a promise to be fulfilled
 behavior waitForPromise(promise):
     while not promise.is_fulfilled:
         wait
 
-
+# Flies the drone to a position
 behavior FlyToPosition(newPos, speed = 5,tolerance = 1):
     client = simulation().client
 

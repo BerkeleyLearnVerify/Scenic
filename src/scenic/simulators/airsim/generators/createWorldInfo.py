@@ -17,7 +17,6 @@ from scenic.simulators.airsim.utils import (
 )
 from scenic.core.utils import repairMesh
 
-
 # get output directory
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -30,8 +29,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-outputDirectory = sys.argv[1] + "/"
-
+outputDirectory = args.outputDirectory + "/"
 
 
 # start airsim client
@@ -42,7 +40,6 @@ try:
     client.simPause(True)
 except Exception:
     raise RuntimeError("Airsim must be running on before executing this code")
-
 
 
 try:
@@ -72,15 +69,19 @@ for asset in assets:
     )
     objNameDict[asset] = objName.lower()
 
+print("getting mesh data, this may take a few minutes")
 meshes = client.simGetMeshPositionVertexBuffers()
 
-print("got meshes")
+# cleanup
+for mesh in objNameDict.values():
+    client.simDestroyObject(mesh)
+
+print("collected mesh data")
 meshDict = {}
 for asset in assets:
     objName = objNameDict[asset]
     for mesh in meshes:
         if mesh.name == objName:
-            # print(mesh.name)
             meshDict[asset] = mesh
             break
 
@@ -100,31 +101,31 @@ def makeTrimsh(mesh):
     tmesh = trimesh.Trimesh(
         vertices=vertices_reshaped, faces=indices_reshaped, process=True
     )
-    
 
     if tmesh.body_count > 1:
         tmesh.fix_normals(multibody=True)
     else:
         tmesh.fix_normals()
 
-    
     try:
         tmesh = repairMesh(tmesh, verbose=True)
     except Exception as e:
         warn(e)
-        print("could not repair mesh:",mesh.name)
+        print("could not repair mesh:", mesh.name)
         return None
-    
-    
+
     return tmesh
 
 
 # function for creating a default mesh if needed
 _defaultMesh = None
+
+
 def defaultMesh():
     if not _defaultMesh:
-        _defaultMesh = trimesh.creation.box((1,1,1))
+        _defaultMesh = trimesh.creation.box((1, 1, 1))
     return _defaultMesh
+
 
 # save an obj file for each asset
 for assetName in assets:
@@ -167,7 +168,6 @@ for mesh in meshes:
 
 worldInfo = []
 for mesh in cleanedMeshes:
-    
     tmesh = makeTrimsh(mesh)
     objectName = mesh.name
 
@@ -192,3 +192,5 @@ for mesh in cleanedMeshes:
 
 with open(outputDirectory + "worldInfo.json", "w") as outfile:
     json.dump(worldInfo, outfile, indent=4)
+
+print("created world info at:", outputDirectory + "worldInfo.json")

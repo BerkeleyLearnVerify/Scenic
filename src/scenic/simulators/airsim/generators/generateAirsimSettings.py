@@ -60,9 +60,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 if not args.outfile.endswith("json"):
-    raise argparse.ArgumentTypeError(
-            "The --outfile argument must be a json file."
-        )
+    raise argparse.ArgumentTypeError("The --outfile argument must be a json file.")
 
 droneConfig = None
 if args.droneconfigpath:
@@ -77,7 +75,12 @@ else:
 
 maxDrones = args.maxdrones
 
-settings = {"SimMode": "Multirotor", "ClockSpeed": 1, "Vehicles": {}}
+settings = {
+    "SettingsVersion": 1.2,
+    "SimMode": "Multirotor",
+    "ClockSpeed": 1,
+    "Vehicles": {},
+}
 
 
 for i in range(maxDrones):

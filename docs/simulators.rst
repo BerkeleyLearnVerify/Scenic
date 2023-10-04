@@ -46,6 +46,7 @@ the user to create dynamic scenarios using any airsim binary.
    pip install promise
    pip install numpy
 
+
 Example Usage
 ~~~~~~~~~~~~~
 
@@ -59,13 +60,14 @@ Scenic/src/scenic/simulators/airsim/generators/createWorldInfo.py. If
 you require assistance, run the script with the -h flag to access usage
 instructions.
 
-Next, in your Scenic file, specify the path for your world info like
-this:
+Next, in your Scenic file, specify the path for your world info by adding this line before declaring `model scenic.simulators.airsim.model`:
 
 .. code:: python
 
    param worldInfoPath = "[YOUR PATH HERE]"
 
+   model scenic.simulators.airsim.model
+   
 **Configure AirSim Settings**
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

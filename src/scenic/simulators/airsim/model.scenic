@@ -5,6 +5,7 @@ from scenic.simulators.airsim.simulator import AirSimSimulator
 from scenic.simulators.airsim.actions import *
 from scenic.simulators.airsim.behaviors import *
 from scenic.simulators.airsim.utils import _addPrexistingObj, getPrexistingObj
+from scenic.core.simulators import SimulationCreationError
 
 
 # ---------- global parameters ----------
@@ -13,12 +14,14 @@ from scenic.simulators.airsim.utils import _addPrexistingObj, getPrexistingObj
 param timestep = 1
 param airsimWorldInfoPth = None
 param idleStoragePos = (1000,1000,1000)
-param worldInfoPath = "/home/mary/Documents/Scenic/src/scenic/simulators/airsim/objs/cubes/"
+param worldInfoPath = None
+worldInfoPath = globalParameters.worldInfoPath
+
 
 # ---------- helper functions ----------
 
 def createMeshShape(subFolder, assetName):
-    tmesh = trimesh.load( globalParameters.worldInfoPath+subFolder+"/"+assetName+".obj")
+    tmesh = trimesh.load( worldInfoPath+subFolder+"/"+assetName+".obj")
     
 
 
@@ -77,14 +80,23 @@ class StaticObj(AirSimActor):
 
 # ---------- body ----------
 
+
+
+# ensure worldInfoPath is set
+if not worldInfoPath:
+    raise SimulationCreationError('\nworldInfoPath not set, use:\n param worldInfoPath = "[YOUR PATH HERE]" \n\n more information on creating and using worldInfo in docs')
+else:
+    worldInfoPath += "/"
+    
+
 # Create prexisiting airsim objs
 prexisitingObjs = {}
 with open(
-    globalParameters.worldInfoPath+"worldInfo.json",
+    worldInfoPath+"worldInfo.json",
     "r",
 ) as inFile:
     meshDatas = json.load(inFile)
-    verbosePrint("\n\nPrexisting Object Names:\n",[md["name"] for md in meshDatas], level=1)
+    verbosePrint("\n\nPrexisting Object Names:\n",[md["name"] for md in meshDatas], level=2)
     for meshData in meshDatas:
         newObj = new AirSimPrexisting with name meshData["name"],
             at meshData["position"],

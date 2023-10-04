@@ -1,4 +1,5 @@
 {
+    "SettingsVersion": 1.2,
     "SimMode": "Multirotor",
     "ClockSpeed": 1,
     "Vehicles": {

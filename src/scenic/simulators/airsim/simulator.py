@@ -20,6 +20,7 @@ from scenic.core.simulators import (
     SimulationCreationError,
     SimulatorInterfaceWarning,
 )
+from scenic.syntax.veneer import verbosePrint
 from .utils import (
     scenicToAirsimVector,
     scenicToAirsimOrientation,
@@ -44,6 +45,11 @@ class AirSimSimulator(Simulator):
         self.idleStoragePos = idleStoragePos
         self.timestep = timestep
 
+        verbosePrint(
+            "\n\nAll Asset Names:\n",
+            [name for name in self.client.simListAssets()],
+            level=2,
+        )
         # call super
         super().__init__()
 
@@ -206,7 +212,6 @@ class AirSimSimulation(Simulation):
     # ------------------- Other Simulator methods -------------------
 
     def destroy(self):
-
         # reinstantiate client
         client = airsim.MultirotorClient()
         client.confirmConnection()
