@@ -160,7 +160,7 @@ def prune(scenario, verbosity=1):
 
     pruneContainment(scenario, verbosity)
     pruneRelativeHeading(scenario, verbosity)
-    pruneVisibility(scenario, verbosity)
+    # pruneVisibility(scenario, verbosity)
 
     if verbosity >= 1:
         totalTime = time.time() - startTime

@@ -1290,12 +1290,13 @@ class Object(OrientedPoint):
         # Extract a list of possible shapes
         if isinstance(shape, Shape):
             shapes = [shape]
-        elif isinstance(shape, MultiplexerDistribution):
-            if all(isinstance(opt, Shape) for opt in shape.options):
-                shapes = shape.options
-            else:
-                # Something we don't recognize, abort
-                return 0
+        elif isinstance(shape, MultiplexerDistribution) and all(
+            isinstance(opt, Shape) for opt in shape.options
+        ):
+            shapes = shape.options
+        else:
+            # Something we don't recognize, abort
+            return 0
 
         # Check that all possible shapes contain the origin
         if not all(shape.containsCenter for shape in shapes):

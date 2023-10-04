@@ -469,6 +469,7 @@ class Scenario(_ScenarioPickleMixin):
             numpy.random.set_state(np_state)
 
             if rejection is not None:
+                # breakpoint()
                 optionallyDebugRejection()
 
         # obtained a valid sample; assemble a scene from it
