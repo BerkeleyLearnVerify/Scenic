@@ -160,7 +160,7 @@ def prune(scenario, verbosity=1):
 
     pruneContainment(scenario, verbosity)
     pruneRelativeHeading(scenario, verbosity)
-    # pruneVisibility(scenario, verbosity)
+    pruneVisibility(scenario, verbosity)
 
     if verbosity >= 1:
         totalTime = time.time() - startTime
@@ -389,7 +389,8 @@ def pruneVisibility(scenario, verbosity):
 
     for obj in scenario.objects:
         # Extract the base region if it exists
-        base, offset = matchInRegion(obj.position)
+        position = currentPropValue(obj, "position")
+        base, offset = matchInRegion(position)
 
         if base is None or needsSampling(base):
             continue
