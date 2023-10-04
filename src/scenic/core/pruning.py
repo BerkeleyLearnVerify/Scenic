@@ -410,8 +410,11 @@ def pruneVisibility(scenario, verbosity):
 
         if obj._observingEntity:
             # We can restrict the base region to the visible region
-            # of the observing entity.
-            if base is not obj._observingEntity.visibleRegion:
+            # of the observing entity. Only do this if the visible
+            # region is fixed, to avoid creating it at every timestep.
+            if base is not obj._observingEntity.visibleRegion and not needsSampling(
+                obj._observingEntity.visibleRegion
+            ):
                 if verbosity >= 1:
                     print(
                         f"    Pruning restricted base region of {obj} to visible region of {obj._observingEntity}."
@@ -420,12 +423,14 @@ def pruneVisibility(scenario, verbosity):
 
         if obj._nonObservingEntity:
             # We can subtract the visible region of the observing entity
-            # from the base region.
-            if verbosity >= 1:
-                print(
-                    f"    Pruning subtracted visible region of {obj._nonObservingEntity} from base region of {obj}."
-                )
-            newBase = newBase.difference(obj._nonObservingEntity.visibleRegion)
+            # from the base region. Only do this if the visible region
+            # is fixed, to avoid creating it at every timestep.
+            if not needsSampling(obj._nonObservingEntity.visibleRegion):
+                if verbosity >= 1:
+                    print(
+                        f"    Pruning subtracted visible region of {obj._nonObservingEntity} from base region of {obj}."
+                    )
+                newBase = newBase.difference(obj._nonObservingEntity.visibleRegion)
 
         # Check newBase properties
         if isinstance(newBase, EmptyRegion):
