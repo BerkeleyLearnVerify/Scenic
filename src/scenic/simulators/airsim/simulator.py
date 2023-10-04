@@ -1,32 +1,33 @@
 # standard libs
-import math
-import time
 from cmath import atan, pi, tan
-from math import sin, radians, degrees, copysign
+import math
+from math import copysign, degrees, radians, sin
 import subprocess
 import threading
+import time
 
 # third party libs
 import airsim
-import scipy
 import numpy as np
+import scipy
 
 # scenic libs
-from scenic.core.vectors import Orientation, Vector
-from scenic.core.type_support import toVector
 from scenic.core.simulators import (
-    Simulator,
     Simulation,
     SimulationCreationError,
+    Simulator,
     SimulatorInterfaceWarning,
 )
+from scenic.core.type_support import toVector
+from scenic.core.vectors import Orientation, Vector
 from scenic.syntax.veneer import verbosePrint
+
 from .utils import (
-    scenicToAirsimVector,
-    scenicToAirsimOrientation,
     airsimToScenicLocation,
     airsimToScenicOrientation,
+    scenicToAirsimOrientation,
     scenicToAirsimScale,
+    scenicToAirsimVector,
 )
 
 

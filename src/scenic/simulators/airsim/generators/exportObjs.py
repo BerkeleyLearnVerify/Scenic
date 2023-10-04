@@ -1,21 +1,22 @@
-import cv2
-import airsim
-import numpy as np
+import json
 import os
 import pprint
-import tempfile
-import trimesh
-import json
 import re
-import time
 import sys
+import tempfile
+import time
 from warnings import warn
-from scenic.simulators.airsim.utils import (
-    airsimToScenicOrientationTuple,
-    airsimToScenicLocationTuple,
-)
-from scenic.core.utils import repairMesh
 
+import airsim
+import cv2
+import numpy as np
+import trimesh
+
+from scenic.core.utils import repairMesh
+from scenic.simulators.airsim.utils import (
+    airsimToScenicLocationTuple,
+    airsimToScenicOrientationTuple,
+)
 
 # get output directory
 if len(sys.argv) < 2:
@@ -82,31 +83,31 @@ def makeTrimsh(mesh):
     tmesh = trimesh.Trimesh(
         vertices=vertices_reshaped, faces=indices_reshaped, process=True
     )
-    
 
     if tmesh.body_count > 1:
         tmesh.fix_normals(multibody=True)
     else:
         tmesh.fix_normals()
 
-    
     try:
         tmesh = repairMesh(tmesh, verbose=True)
     except Exception as e:
         warn(e)
-        print("could not repair mesh:",mesh.name)
+        print("could not repair mesh:", mesh.name)
         return None
-    
-    
+
     return tmesh
 
 
 # function for creating a default mesh if needed
 _defaultMesh = None
+
+
 def defaultMesh():
     if not _defaultMesh:
-        _defaultMesh = trimesh.creation.box((1,1,1))
+        _defaultMesh = trimesh.creation.box((1, 1, 1))
     return _defaultMesh
+
 
 # save an obj file for each asset
 for assetName in assets:
@@ -149,7 +150,6 @@ for mesh in meshes:
 
 worldInfo = []
 for mesh in cleanedMeshes:
-    
     tmesh = makeTrimsh(mesh)
     objectName = mesh.name
 

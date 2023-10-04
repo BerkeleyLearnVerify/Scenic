@@ -1,21 +1,23 @@
-import cv2
-import airsim
-import numpy as np
+import argparse
+import json
 import os
 import pprint
-import tempfile
-import trimesh
-import json
 import re
-import time
 import sys
-import argparse
+import tempfile
+import time
 from warnings import warn
-from scenic.simulators.airsim.utils import (
-    airsimToScenicOrientationTuple,
-    airsimToScenicLocationTuple,
-)
+
+import airsim
+import cv2
+import numpy as np
+import trimesh
+
 from scenic.core.utils import repairMesh
+from scenic.simulators.airsim.utils import (
+    airsimToScenicLocationTuple,
+    airsimToScenicOrientationTuple,
+)
 
 # get output directory
 parser = argparse.ArgumentParser()

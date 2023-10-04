@@ -16,6 +16,7 @@ property definitions and :ref:`specifier resolution`).
 
 from abc import ABC, abstractmethod
 import collections
+import enum
 import math
 import random
 import typing
@@ -85,6 +86,16 @@ from scenic.core.visibility import canSee
 Interval = typing.Tuple[float, float]
 #: Type alias for limits on dimensions (a triple of intervals).
 DimensionLimits = typing.Tuple[Interval, Interval, Interval]
+
+
+@enum.unique
+class CollisionMode(enum.Enum):
+    COLLIDABLE = enum.auto()  # Collides only with other collidable objects
+    NO_COLLISION = enum.auto()  # Does not collide with anything
+    COLLIDABLE_WITH_ALL = (
+        enum.auto()
+    )  # Collides with both collidable and non-collidable objects
+
 
 ## Abstract base class
 
@@ -927,7 +938,7 @@ class Object(OrientedPoint):
           Default value of 1 inherited from the object's :prop:`shape`.
         shape (`Shape`): The shape of the object, which must be an instance of `Shape`.
           The default shape is a box, with default unit dimensions.
-        allowCollisions (bool): Whether the object is allowed to intersect
+        collisionMode (CollisionMode): The collision mode of the object. Default value is ``COLLIDE_WITH_COLLIDABLES``.
           other objects. Default value ``False``.
         regionContainedIn (`Region` or ``None``): A `Region` the object is
           required to be contained in. If ``None``, the object need only be
@@ -974,7 +985,7 @@ class Object(OrientedPoint):
         "length": PropertyDefault(("shape",), {}, lambda self: self.shape.length),
         "height": PropertyDefault(("shape",), {}, lambda self: self.shape.height),
         "shape": BoxShape(),
-        "allowCollisions": False,
+        "collisionMode": CollisionMode.COLLIDE_WITH_COLLIDABLES,
         "regionContainedIn": None,
         "baseOffset": PropertyDefault(
             ("height",), {}, lambda self: Vector(0, 0, -self.height / 2)

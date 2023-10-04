@@ -1,7 +1,8 @@
 import airsim
+import scipy
+
 from scenic.core.type_support import toVector
 from scenic.core.vectors import Orientation, Vector
-import scipy
 
 
 def tupleToVector3r(tuple):
@@ -30,7 +31,7 @@ def airsimToScenicOrientationTuple(orientation):
 
 def scenicToAirsimVector(position):
     position = toVector(position)
-    return airsim.Vector3r(position.y,position.x, -position.z)
+    return airsim.Vector3r(position.y, position.x, -position.z)
 
 
 def airsimToScenicLocation(position):
@@ -43,7 +44,6 @@ def airsimToScenicLocation(position):
 
 def airsimToScenicLocationTuple(position):
     return (
-        
         position.y_val,
         position.x_val,
         -position.z_val,
@@ -58,8 +58,11 @@ def scenicToAirsimScale(obj):
 
 
 _prexistingObjs = {}
+
+
 def _addPrexistingObj(obj):
     _prexistingObjs[obj.name] = obj
+
 
 def getPrexistingObj(objName):
     return _prexistingObjs[objName]
