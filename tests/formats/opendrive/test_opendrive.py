@@ -7,11 +7,11 @@ import pytest
 
 from scenic.core.geometry import TriangulationError
 from scenic.formats.opendrive import OpenDriveWorkspace
-from tests.domains.driving.conftest import map_params
+from tests.formats.opendrive.conftest import maps
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("path", map_params)
+@pytest.mark.parametrize("path", maps)
 @pytest.mark.filterwarnings("ignore::scenic.formats.opendrive.OpenDriveWarning")
 def test_map(path, pytestconfig):
     try:
