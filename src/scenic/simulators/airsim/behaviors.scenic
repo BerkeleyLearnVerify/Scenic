@@ -92,7 +92,6 @@ behavior MoveByVelocity(velocity,seconds):
 
 
 behavior FlyToStart():
-    print(self._startPos)
     do FlyToPosition(self._startPos)
 
     

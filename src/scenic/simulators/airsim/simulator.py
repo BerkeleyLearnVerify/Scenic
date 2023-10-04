@@ -192,15 +192,6 @@ class AirSimSimulation(Simulation):
     def step(self):
         self.client.simContinueForTime(self.simulator.timestep)
 
-    # UNUSED
-    def waitForJoinables(self):
-        self.client.simPause(False)
-        for joinable in self.joinables:
-            joinable.join()
-        self.client.simPause(True)
-        print("joined " + str(len(self.joinables)))
-        self.joinables = []
-
     def getDronePositions(self):
         positions = {}
         for droneName, realDroneName in self.drones.items():
