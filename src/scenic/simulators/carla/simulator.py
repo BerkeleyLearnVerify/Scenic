@@ -115,12 +115,6 @@ class CarlaSimulation(DrivingSimulation):
         super().__init__(scene, **kwargs)
 
     def setup(self):
-        # If we are rendering, ensure that there is some top level object
-        if self.render and len(self.objects) == 0:
-            raise RuntimeError(
-                "Cannot run CarlaSimulation with 'render' set to True and no top level Objects"
-            )
-
         weather = self.scene.params.get("weather")
         if weather is not None:
             if isinstance(weather, str):
@@ -149,6 +143,12 @@ class CarlaSimulation(DrivingSimulation):
 
         # Create objects.
         super().setup()
+
+        # If we are rendering, ensure that there is some top level object
+        if self.render and len(self.objects) == 0:
+            raise RuntimeError(
+                "Cannot run CarlaSimulation with 'render' set to True and no top level Objects"
+            )
 
         # Set up camera manager and collision sensor for ego
         if self.render:
