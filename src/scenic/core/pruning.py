@@ -19,6 +19,7 @@ from scenic.core.distributions import (
     MethodDistribution,
     OperatorDistribution,
     Samplable,
+    dependencies,
     needsSampling,
     supportInterval,
     underlyingFunction,
@@ -399,21 +400,28 @@ def pruneVisibility(scenario, verbosity):
 
         # Prune based off visibility/non-visibility requirements
 
-        # TBD: This can cause a circular dependency
-        # if obj.requireVisible:
-        #     # We can restrict the base region to the visible region
-        #     # of the ego.
-        #     if base is not ego.visibleRegion:
-        #         if verbosity >= 1:
-        #             print(f"    Pruning restricted base region of {obj} to visible region of ego.")
-        #         newBase = newBase.intersect(ego.visibleRegion)
+        if obj.requireVisible:
+            # We can restrict the base region to the visible region
+            # of the ego.
+            if (
+                base is not ego.visibleRegion
+                and not needsSampling(ego.visibleRegion)
+                and newBase not in computeCurrentDeps(ego.visibleRegion)
+            ):
+                if verbosity >= 1:
+                    print(
+                        f"    Pruning restricted base region of {obj} to visible region of ego."
+                    )
+                newBase = newBase.intersect(ego.visibleRegion)
 
         if obj._observingEntity:
             # We can restrict the base region to the visible region
             # of the observing entity. Only do this if the visible
             # region is fixed, to avoid creating it at every timestep.
-            if base is not obj._observingEntity.visibleRegion and not needsSampling(
-                obj._observingEntity.visibleRegion
+            if (
+                base is not obj._observingEntity.visibleRegion
+                and not needsSampling(obj._observingEntity.visibleRegion)
+                and newBase not in computeCurrentDeps(obj._observingEntity.visibleRegion)
             ):
                 if verbosity >= 1:
                     print(
@@ -425,7 +433,11 @@ def pruneVisibility(scenario, verbosity):
             # We can subtract the visible region of the observing entity
             # from the base region. Only do this if the visible region
             # is fixed, to avoid creating it at every timestep.
-            if not needsSampling(obj._nonObservingEntity.visibleRegion):
+            if not needsSampling(
+                obj._nonObservingEntity.visibleRegion
+            ) and newBase not in computeCurrentDeps(
+                obj._nonObservingEntity.visibleRegion
+            ):
                 if verbosity >= 1:
                     print(
                         f"    Pruning subtracted visible region of {obj._nonObservingEntity} from base region of {obj}."
@@ -570,3 +582,12 @@ def percentagePruned(base, newBase):
         return percent
 
     return None
+
+
+def computeCurrentDeps(samp):
+    samp = samp._conditioned if isinstance(samp, Samplable) else samp
+    if dependencies(samp):
+        deps = [computeCurrentDeps(dep) for dep in dependencies(samp)]
+        return set.union(*deps)
+    else:
+        return {samp}
