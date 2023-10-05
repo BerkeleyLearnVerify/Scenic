@@ -1737,6 +1737,7 @@ class MeshVolumeRegion(MeshRegion):
         return abs(dist)
 
     @cached_property
+    @distributionFunction
     def inradius(self):
         center_point = self.mesh.bounding_box.center_mass
 
@@ -2808,6 +2809,7 @@ class PolygonalRegion(Region):
         return math.hypot(dist2D, point[2] - self.z)
 
     @cached_property
+    @distributionFunction
     def inradius(self):
         minx, miny, maxx, maxy = self.polygons.bounds
         center = makeShapelyPoint(((minx + maxx) / 2, (maxy + miny) / 2))
