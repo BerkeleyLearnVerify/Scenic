@@ -213,6 +213,24 @@ def test_polygon_region():
     )
 
 
+def test_polygon_unionAll():
+    poly1 = PolygonalRegion([(1, 0), (1, 1), (2, 1), (2, 0)], z=2)
+    poly2 = PolygonalRegion([(-1, 0), (-1, 1), (0, 1), (0, 0)], z=2)
+    union = PolygonalRegion.unionAll((poly1, nowhere, poly2))
+    assert isinstance(union, PolygonalRegion)
+    assert union.z == 2
+    assert union.containsPoint((1.5, 0.5))
+    assert union.containsPoint((-0.5, 0.5))
+    assert not union.containsPoint((0.5, 0.5))
+
+    poly3 = PolygonalRegion([(0, 0), (1, 1), (1, 0)], z=1)
+    with pytest.raises(ValueError):
+        PolygonalRegion.unionAll((poly1, poly3))
+
+    with pytest.raises(TypeError):
+        PolygonalRegion.unionAll((poly1, everywhere))
+
+
 def test_polygon_sampling():
     p = shapely.geometry.Polygon(
         [(0, 0), (0, 3), (3, 3), (3, 0)], holes=[[(1, 1), (1, 2), (2, 2), (2, 1)]]
