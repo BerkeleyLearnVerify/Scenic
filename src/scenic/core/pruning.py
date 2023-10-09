@@ -5,6 +5,7 @@ compilation (from `translator.constructScenarioFrom`).
 """
 
 import builtins
+import collections
 import math
 import time
 
@@ -399,14 +400,13 @@ def pruneVisibility(scenario, verbosity):
         newBase = base
 
         # Prune based off visibility/non-visibility requirements
-
         if obj.requireVisible:
             # We can restrict the base region to the visible region
             # of the ego.
             if (
                 base is not ego.visibleRegion
                 and not needsSampling(ego.visibleRegion)
-                and newBase not in computeCurrentDeps(ego.visibleRegion)
+                and not checkCyclical(scenario, base, ego.visibleRegion)
             ):
                 if verbosity >= 1:
                     print(
@@ -421,7 +421,7 @@ def pruneVisibility(scenario, verbosity):
             if (
                 base is not obj._observingEntity.visibleRegion
                 and not needsSampling(obj._observingEntity.visibleRegion)
-                and newBase not in computeCurrentDeps(obj._observingEntity.visibleRegion)
+                and not checkCyclical(scenario, base, obj._observingEntity.visibleRegion)
             ):
                 if verbosity >= 1:
                     print(
@@ -435,8 +435,8 @@ def pruneVisibility(scenario, verbosity):
             # is fixed, to avoid creating it at every timestep.
             if not needsSampling(
                 obj._nonObservingEntity.visibleRegion
-            ) and newBase not in computeCurrentDeps(
-                obj._nonObservingEntity.visibleRegion
+            ) and not checkCyclical(
+                scenario, base, obj._nonObservingEntity.visibleRegion
             ):
                 if verbosity >= 1:
                     print(
@@ -584,10 +584,45 @@ def percentagePruned(base, newBase):
     return None
 
 
-def computeCurrentDeps(samp):
-    samp = samp._conditioned if isinstance(samp, Samplable) else samp
-    if dependencies(samp):
-        deps = [computeCurrentDeps(dep) for dep in dependencies(samp)]
-        return set.union(*deps)
-    else:
-        return {samp}
+def checkCyclical(scenario, A, B):
+    """Check for a potential circular dependency
+
+    Returns True if the scenario would have a circular dependency
+    if A depended on B.
+
+    This function runs DFS on the scenario, with the dependency edges
+    reversed for convenience (this should not affect whether or not a
+    cycle exists).
+    """
+    state = collections.defaultdict(lambda: 0)
+
+    def dfs(target):
+        # Check if the target is already completed/in-process
+        if state[target] == 2:
+            return False
+        elif state[target] == 1:
+            return True
+
+        # Set to in-process
+        state[target] = 1
+
+        # Recurse on children
+        deps = conditionedDeps(target)
+
+        if target is A:
+            deps.append(B)
+
+        for child in deps:
+            if dfs(child):
+                return True
+
+        # Set to completed
+        state[target] = 2
+
+        return False
+
+    return dfs(scenario)
+
+
+def conditionedDeps(samp):
+    return list(dependencies(samp._conditioned if isinstance(samp, Samplable) else samp))
