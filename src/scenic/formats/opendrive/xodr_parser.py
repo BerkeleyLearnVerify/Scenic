@@ -233,7 +233,7 @@ class Lane:
         w_poly, s_off = self.width[ind]
         w = w_poly.eval_at(s - s_off)
         if w < -1e-6:  # allow for numerical error
-            raise RuntimeError("OpenDRIVE lane has negative width")
+            warn(f"OpenDRIVE lane has negative width ({w})")
         return max(w, 0)
 
 
