@@ -259,6 +259,8 @@ class TypecheckedDistribution(Distribution):
     `Point` will be converted to a `Vector` in a context which expects the latter).
     """
 
+    _deterministic = True
+
     def __init__(self, dist, ty, errorMessage, coercer=None):
         super().__init__(dist, valueType=ty)
         self._dist = dist

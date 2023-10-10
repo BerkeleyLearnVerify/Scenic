@@ -2643,10 +2643,14 @@ class PolygonalRegion(Region):
     @distributionFunction
     def unionAll(regions, buf=0):
         regions = tuple(regions)
-        if not all([r.z == regions[0].z for r in regions]):
-            raise ValueError(
-                "union of PolygonalRegions with different z values is undefined."
-            )
+        z = None
+        for reg in regions:
+            if z is not None and isinstance(reg, PolygonalRegion) and reg.z != z:
+                raise ValueError(
+                    "union of PolygonalRegions with different z values is undefined."
+                )
+            if isinstance(reg, PolygonalRegion) and z is None:
+                z = reg.z
 
         regs, polys = [], []
         for reg in regions:
@@ -2659,7 +2663,8 @@ class PolygonalRegion(Region):
             raise TypeError(f"cannot take union of regions {regions}")
         union = polygonUnion(polys, buf=buf)
         orientation = VectorField.forUnionOf(regs, tolerance=buf)
-        return PolygonalRegion(polygon=union, orientation=orientation)
+        z = 0 if z is None else z
+        return PolygonalRegion(polygon=union, orientation=orientation, z=z)
 
     @property
     @distributionFunction
