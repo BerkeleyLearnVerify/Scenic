@@ -588,7 +588,7 @@ def test_mesh_voxelization(getAssetPath):
 def test_empty_erosion():
     box_region = BoxRegion(position=(0, 0, 0), dimensions=(1, 1, 1))
     vr = box_region.voxelized(pitch=0.1)
-    erosion = vr.erode(iterations=6)
+    erosion = vr.dilation(iterations=-6)
     assert isinstance(erosion, EmptyRegion)
 
 

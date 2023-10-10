@@ -2140,16 +2140,33 @@ class VoxelRegion(Region):
         # Then pick a random voxel point and add the base point to that point.
         return Vector(*offset_pt)
 
-    def erode(self, iterations, structure=None):
+    def dilation(self, iterations, structure=None):
+        """Returns a dilated/eroded version of this VoxelRegion.
+
+        Args:
+            iterations: How many times repeat the dilation/erosion. A positive
+              number indicates a dilation and a negative number indicates an
+              erosion.
+            structure: The structure to use. If none is provided, a rank 3
+              structuring unit with connectivity 3 is used.
+        """
+        # Parse parameters
         if iterations == 0:
             return self
+
+        if iterations > 0:
+            morphology_func = scipy.ndimage.binary_dilation
+        else:
+            morphology_func = scipy.ndimage.binary_erosion
+
+        iterations = abs(iterations)
 
         if structure == None:
             structure = scipy.ndimage.generate_binary_structure(3, 3)
 
-        # Compute an eroded encoding
-        eroded_encoding = trimesh.voxel.encoding.DenseEncoding(
-            scipy.ndimage.binary_erosion(
+        # Compute a dilated/eroded encoding
+        new_encoding = trimesh.voxel.encoding.DenseEncoding(
+            morphology_func(
                 trimesh.voxel.morphology._dense(self.voxelGrid.encoding, rank=3),
                 structure=structure,
                 iterations=iterations,
@@ -2157,14 +2174,14 @@ class VoxelRegion(Region):
         )
 
         # Check if the encoding is empty, in which case we should return the empty region.
-        if eroded_encoding.is_empty:
+        if new_encoding.is_empty:
             return nowhere
 
         # Otherwise, return a VoxelRegion representing the eroded region.
-        eroded_voxel_grid = trimesh.voxel.VoxelGrid(
-            eroded_encoding, transform=self.voxelGrid.transform
+        new_voxel_grid = trimesh.voxel.VoxelGrid(
+            new_encoding, transform=self.voxelGrid.transform
         )
-        return VoxelRegion(voxelGrid=eroded_voxel_grid)
+        return VoxelRegion(voxelGrid=new_voxel_grid)
 
     @property
     def AABB(self):

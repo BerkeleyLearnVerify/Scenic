@@ -251,7 +251,9 @@ def pruneContainment(scenario, verbosity):
                 )
 
                 if iterations > 0:
-                    eroded_container = voxelized_container.erode(iterations=iterations)
+                    eroded_container = voxelized_container.dilation(
+                        iterations=-iterations
+                    )
 
                     # Now check if this erosion is useful, i.e. do we have less volume to sample from.
                     # If so, replace the original container.
@@ -399,9 +401,29 @@ def pruneVisibility(scenario, verbosity):
 
         newBase = base
 
+        # Define a helper function to buffer an oberver's visibleRegion, resulting
+        # in a region that contains all points that could feasibly be the position
+        # of obj, if it is visible from the observer.
+        def bufferHelper(viewRegion):
+            # Compute a voxel overapproximation of the mesh. Technically this is not
+            # an overapproximation, but one dilation with a rank 3 structuring unit
+            # with connectivity 3 is. To simplify, we just dilate one additional time.
+            target_pitch = 0.005 * max(viewRegion.mesh.extents)
+            voxelized_vr = viewRegion.voxelized(target_pitch)
+
+            # Dilate the voxel region. Dilation is done with a rank 3 structuring unit with
+            # connectivity 3 (a 3x3x3 cube of voxels). Each dilation pass must dilate by at
+            # least pitch. Therefore we must make at least ceiling((radius/2)/pitch) passes
+            # to ensure we have dilated by the half the circumradius of the object. We also
+            # add 1 iteration for the reasons above.
+            iterations = math.ceil((obj.radius / 2) / target_pitch) + 1
+            dilated_vr = voxelized_vr.dilation(iterations=iterations)
+
+            return dilated_vr
+
         # Prune based off visibility/non-visibility requirements
         if obj.requireVisible:
-            # We can restrict the base region to the visible region
+            # We can restrict the base region to the buffered visible region
             # of the ego.
             if (
                 base is not ego.visibleRegion
@@ -412,10 +434,10 @@ def pruneVisibility(scenario, verbosity):
                     print(
                         f"    Pruning restricted base region of {obj} to visible region of ego."
                     )
-                newBase = newBase.intersect(ego.visibleRegion)
+                newBase = newBase.intersect(bufferHelper(ego.visibleRegion))
 
         if obj._observingEntity:
-            # We can restrict the base region to the visible region
+            # We can restrict the base region to the buffered visible region
             # of the observing entity. Only do this if the visible
             # region is fixed, to avoid creating it at every timestep.
             if (
@@ -427,22 +449,9 @@ def pruneVisibility(scenario, verbosity):
                     print(
                         f"    Pruning restricted base region of {obj} to visible region of {obj._observingEntity}."
                     )
-                newBase = newBase.intersect(obj._observingEntity.visibleRegion)
-
-        if obj._nonObservingEntity:
-            # We can subtract the visible region of the observing entity
-            # from the base region. Only do this if the visible region
-            # is fixed, to avoid creating it at every timestep.
-            if not needsSampling(
-                obj._nonObservingEntity.visibleRegion
-            ) and not checkCyclical(
-                scenario, base, obj._nonObservingEntity.visibleRegion
-            ):
-                if verbosity >= 1:
-                    print(
-                        f"    Pruning subtracted visible region of {obj._nonObservingEntity} from base region of {obj}."
-                    )
-                newBase = newBase.difference(obj._nonObservingEntity.visibleRegion)
+                newBase = newBase.intersect(
+                    bufferHelper(obj._observingEntity.visibleRegion)
+                )
 
         # Check newBase properties
         if isinstance(newBase, EmptyRegion):
