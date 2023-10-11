@@ -4,7 +4,8 @@ import random
 import pytest
 
 from scenic.core.errors import InconsistentScenarioError
-from tests.utils import compileScenic, sampleEgo
+from scenic.core.vectors import Vector
+from tests.utils import compileScenic, sampleEgo, sampleParamP
 
 
 def test_containment_in():
@@ -157,3 +158,63 @@ def test_relative_heading_inconsistent():
             require abs(relative heading of other) < -1
         """
         )
+
+
+def test_visibility_pruning():
+    """Test visibility pruning in general.
+
+    The following scenarios are equivalent except for how they specify that foo
+    must be visible from ego. The size of the workspace and the visibleDistance
+    of ego are chosen such that without pruning the chance of sampling a valid
+    scene over 100 tries is 1-(1-Decimal(3.14)/Decimal(10000000000**2))**100 = ~1e-18.
+    Assuming the approximately buffered volume of the viewRegion has a 50% chance of
+    ejecting (i.e. it is twice as large as the true buffered viewRegion, which testing
+    indicates in this case has about a 10% increase in volume for this case), the chance
+    of not finding a sample in 100 iterations is 1e-31.
+
+    We also want to confirm that we aren't pruning too much, i.e. placing the position
+    in the viewRegion instead of at any point where the object intersects the view region.
+    Because of this, we want to see at least one sample where the position is outside
+    the viewRegion but the object intersects the viewRegion. The chance of this happening
+    is 1-((4/3)*math.pi*(1)**3)/((4/3)*math.pi*(1.1)**3) = ~25%, so by repeating the process
+    30 times we have a 1e-19 chance of not gettin a single point in this zone.
+    """
+    # requireVisible
+    scenario = compileScenic(
+        """
+        workspace = Workspace(RectangularRegion(0@0, 0, 10000000000, 10000000000))
+        ego = new Object at (0,0,0), with visibleDistance 1
+        foo = new Object in workspace, with requireVisible True,
+            with shape SpheroidShape(dimensions=(0.2,0.2,0.2))
+        param p = foo.position
+    """
+    )
+    positions = [sampleParamP(scenario, maxIterations=100) for i in range(30)]
+    assert all(pos.distanceTo(Vector(0, 0, 0)) <= 1.1 for pos in positions)
+    assert any(pos.distanceTo(Vector(0, 0, 0)) >= 1 for pos in positions)
+
+    # visible
+    scenario = compileScenic(
+        """
+        workspace = Workspace(RectangularRegion(0@0, 0, 10000000000, 10000000000))
+        ego = new Object at (0,0,0), with visibleDistance 1
+        foo = new Object in workspace, visible,
+            with shape SpheroidShape(dimensions=(0.2,0.2,0.2))
+        param p = foo.position
+    """
+    )
+    positions = [sampleParamP(scenario, maxIterations=100) for i in range(30)]
+    assert all(pos.distanceTo(Vector(0, 0, 0)) <= 1.1 for pos in positions)
+    assert any(pos.distanceTo(Vector(0, 0, 0)) >= 1 for pos in positions)
+
+
+def test_visibility_pruning_cyclical():
+    """A case where a cyclical dependency could be introduced if pruning is not done carefully."""
+    scenario = compileScenic(
+        """
+        workspace = Workspace(PolygonalRegion([0@0, 100@0, 100@100, 0@100]))
+        foo = new Object with requireVisible True, in workspace
+        ego = new Object visible from foo, in workspace
+    """
+    )
+    sampleEgo(scenario, maxIterations=100)
