@@ -208,8 +208,10 @@ Additional specifiers for the :prop:`position` and :prop:`orientation` propertie
      - Positions the object uniformly at random in the given Region
    * - :sampref:`contained in {region}`
      - Positions the object uniformly at random entirely contained in the given Region
-   * - :sampref:`on {region}`
-     - Positions the base of the object uniformly at random in the given Region, or modifies the position so that the base is in the Region.
+   * - :sampref:`on {vector}`
+     - Positions the base of the object at the given global coordinates
+   * - :sampref:`on ({region} | {Object})`
+     - Positions the object uniformly at random or modifies the position so that base of the Object is in the given Region/on the given Object.
    * - :sampref:`offset by {vector}`
      - Positions the object at the given coordinates in the local coordinate system of ego (which must already be defined)
    * - :sampref:`offset along {direction} by {vector}`
