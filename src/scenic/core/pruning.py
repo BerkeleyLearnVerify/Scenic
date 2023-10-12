@@ -197,9 +197,8 @@ def pruneContainment(scenario, verbosity):
             raise InvalidScenarioError(f"Object {obj} contained in empty region")
 
         # Compute the maximum distance the object can be from the sampled point
-        # TODO: Proper vector supportInterval calculations. Right now this gives us None
-        # if value is not exact
         if offset is not None:
+            # TODO: Support interval doesn't really work here for random values.
             if isinstance(base, PolygonalRegion):
                 # Special handling for 2D regions that ignores vertical component of offset
                 offset_2d = Vector(offset.x, offset.y, 0)
