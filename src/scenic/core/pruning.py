@@ -49,6 +49,8 @@ from scenic.syntax.relations import DistanceRelation, RelativeHeadingRelation
 
 ### Utilities
 
+PRUNING_PITCH = 0.01
+
 
 def currentPropValue(obj, prop):
     """Get the current value of an object's property, taking into account prior pruning."""
@@ -237,8 +239,8 @@ def pruneContainment(scenario, verbosity):
                 # an overapproximation, but one dilation with a rank 3 structuring unit
                 # with connectivity 3 is. To simplify, we just erode one less time than
                 # needed.
-                target_pitch = 0.005 * max(container.mesh.extents)
-                voxelized_container = container.voxelized(target_pitch)
+                target_pitch = PRUNING_PITCH * max(container.mesh.extents)
+                voxelized_container = container.voxelized(target_pitch, lazy=True)
 
                 # Erode the voxel region. Erosion is done with a rank 3 structuring unit with
                 # connectivity 3 (a 3x3x3 cube of voxels). Each erosion pass can erode by at
@@ -407,8 +409,8 @@ def pruneVisibility(scenario, verbosity):
             # Compute a voxel overapproximation of the mesh. Technically this is not
             # an overapproximation, but one dilation with a rank 3 structuring unit
             # with connectivity 3 is. To simplify, we just dilate one additional time.
-            target_pitch = 0.005 * max(viewRegion.mesh.extents)
-            voxelized_vr = viewRegion.voxelized(target_pitch)
+            target_pitch = PRUNING_PITCH * max(viewRegion.mesh.extents)
+            voxelized_vr = viewRegion.voxelized(target_pitch, lazy=True)
 
             # Dilate the voxel region. Dilation is done with a rank 3 structuring unit with
             # connectivity 3 (a 3x3x3 cube of voxels). Each dilation pass must dilate by at

@@ -1758,9 +1758,9 @@ class MeshVolumeRegion(MeshRegion):
         return self.mesh.mass / self.mesh.density
 
     ## Utility Methods ##
-    def voxelized(self, pitch):
+    def voxelized(self, pitch, lazy=False):
         """Returns a VoxelRegion representing a filled voxelization of this mesh"""
-        return VoxelRegion(voxelGrid=self.mesh.voxelized(pitch).fill())
+        return VoxelRegion(voxelGrid=self.mesh.voxelized(pitch).fill(), lazy=lazy)
 
     @cached_method
     def getSurfaceRegion(self):
@@ -2077,14 +2077,11 @@ class VoxelRegion(Region):
         orientation: An optional vector field describing the preferred orientation at every point in
           the region.
         name: An optional name to help with debugging.
+        lazy: Whether or not to be lazy about pre-computing internal values. Set this to True if this
+          VoxelRegion is unlikely to be used outside of an intermediate step in compiling/pruning.
     """
 
-    def __init__(
-        self,
-        voxelGrid,
-        orientation=None,
-        name=None,
-    ):
+    def __init__(self, voxelGrid, orientation=None, name=None, lazy=False):
         # Initialize superclass
         super().__init__(name, orientation=orientation)
 
@@ -2101,20 +2098,31 @@ class VoxelRegion(Region):
         self.voxel_points = self._voxelGrid.points
         self.scale = self._voxelGrid.scale
 
+        # Initialize KD-Tree for containment checking if not lazy
+        if not lazy:
+            self.kdTree
+
     @cached_property
-    @distributionFunction
     def voxelGrid(self):
         return self._voxelGrid
+
+    @cached_property
+    def kdTree(self):
+        return scipy.spatial.KDTree(self.voxel_points)
 
     def containsPoint(self, point):
         point = toVector(point)
 
+        # Find closest voxel point
+        _, index = self.kdTree.query([point])
+        closest_point = self.voxel_points[index]
+
         # Check voxel containment
-        voxel_lows = self.voxel_points - self.scale / 2
-        voxel_highs = self.voxel_points + self.scale / 2
-        return numpy.any(
-            numpy.all(voxel_lows <= point, axis=1)
-            & numpy.all(point <= voxel_highs, axis=1)
+        voxel_low = closest_point - self.scale / 2
+        voxel_high = closest_point + self.scale / 2
+
+        return numpy.all(voxel_low <= point, axis=1) & numpy.all(
+            point <= voxel_high, axis=1
         )
 
     def containsObject(self, obj):
@@ -2134,7 +2142,7 @@ class VoxelRegion(Region):
         # equal to scale, centered at the origin.
         base_pt = numpy.random.random_sample(3) - 0.5
         scaled_pt = base_pt * self.scale
-        voxel_base = random.choice(self.voxel_points)
+        voxel_base = self.voxel_points[random.randrange(len(self.voxel_points))]
         offset_pt = voxel_base + scaled_pt
 
         # Then pick a random voxel point and add the base point to that point.
