@@ -286,7 +286,6 @@ class ComponentBehavior:
 
     def _step(self):
         _, actions = self.behavior.run({})
-        print("THROTTLE", actions[0].throttle)
         return tuple(actions)
 
     def _stop(self, reason=None):

@@ -181,7 +181,6 @@ __all__ = (
     "BaseComponent",
     "ActionComponent",
     "ComposeComponent",
-    "runComponentsSimulation",
 )
 
 # various Python types and functions used in the language but defined elsewhere
@@ -254,12 +253,7 @@ import sys
 import traceback
 import typing
 
-from scenic.contracts.components import (
-    ActionComponent,
-    BaseComponent,
-    ComposeComponent,
-    runComponentsSimulation,
-)
+from scenic.contracts.components import ActionComponent, BaseComponent, ComposeComponent
 from scenic.core.distributions import (
     Distribution,
     MultiplexerDistribution,

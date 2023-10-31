@@ -11,6 +11,7 @@ from scenic.syntax.veneer import *
 from scenic.syntax.translator import scenarioFromFile
 from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
 from scenic.domains.driving.actions import RegulatedControlAction
+from scenic.contracts.components import runComponentsSimulation
 
 # ## World File ##
 ENVIRONMENT = scenarioFromFile(localPath("highway.scenic"), mode2D=True)
