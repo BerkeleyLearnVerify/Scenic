@@ -14,6 +14,7 @@ from typing import (
     Any, Callable, Iterator, List, Literal, Tuple, TypeVar, Union, NoReturn
 )
 
+import scenic.syntax.tokenize as tokenize
 from scenic.syntax.tokenize import generate_tokens
 from pegen.tokenizer import Tokenizer
 
