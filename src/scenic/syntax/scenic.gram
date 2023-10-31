@@ -978,7 +978,7 @@ scenic_component_qualified_name:
 
 
 scenic_implement_stmt:
-    | 'implement' linked_name=NAME 'with' component=primary 'as' name=NAME {s.ImplementStmt(name.string, component, linked_name.string, LOCATIONS)}
+    | 'implement' linked_name=STRING 'with' component=primary 'as' name=NAME {s.ImplementStmt(name.string, component, linked_name.string[1:-1], LOCATIONS)}
 
 # Function definitions
 # --------------------

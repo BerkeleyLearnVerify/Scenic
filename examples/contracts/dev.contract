@@ -248,5 +248,5 @@ MAX_SPEED = 26.8224 # 60 mph in m/s
 MIN_DIST = 0
 MIN_SLOWDOWN = 4.57 # 15 feet per second in m/s
 
-implement EgoCar with Car(STDDEV, TARGET_DIST, MAX_SPEED, MIN_DIST, MIN_SLOWDOWN) as car
+implement "EgoCar" with Car(STDDEV, TARGET_DIST, MAX_SPEED, MIN_DIST, MIN_SLOWDOWN) as car
 runComponentsSimulation(ENVIRONMENT, [car])
