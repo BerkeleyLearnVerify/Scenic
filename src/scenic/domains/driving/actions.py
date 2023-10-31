@@ -227,8 +227,8 @@ class RegulatedControlAction(SteeringAction):
             throttle = min(throttle, max_throttle)
             brake = 0
         else:
-            throttle = 0
             brake = min(abs(throttle), max_brake)
+            throttle = 0
 
         # Steering regulation: changes cannot happen abruptly, can't steer too much.
 

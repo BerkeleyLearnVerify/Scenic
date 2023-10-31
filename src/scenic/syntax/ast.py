@@ -1250,3 +1250,41 @@ class CanSeeOp(AST):
         self.left = left
         self.right = right
         self._fields = ["left", "right"]
+
+
+## Scenic + Contracts ##
+# Components
+class ComponentDef(AST):
+    def __init__(
+        self,
+        name,
+        args,
+        docstring,
+        sensors,
+        inputs,
+        outputs,
+        actions,
+        state,
+        body,
+        composition,
+        *_args,
+        **kwargs,
+    ) -> None:
+        self.name = name
+        self.args = args
+        self.docstring = docstring
+        self.sensors = sensors
+        self.inputs = inputs
+        self.outputs = outputs
+        self.actions = actions
+        self.state = state
+        self.body = body
+        self.composition = composition
+
+
+class ImplementStmt(AST):
+    def __init__(self, name, component, linked_name, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.name = name
+        self.component = component
+        self.linked_name = linked_name

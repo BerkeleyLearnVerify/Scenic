@@ -26,6 +26,7 @@ import shapely
 import shapely.affinity
 import trimesh
 
+from scenic.contracts.components import ComponentBehavior
 from scenic.core.distributions import (
     MultiplexerDistribution,
     RandomControlFlowError,
@@ -1067,7 +1068,11 @@ class Object(OrientedPoint):
     @classmethod
     def _specify(cls, context, prop, value):
         # Normalize types of some built-in properties
-        if prop == "behavior" and value != None:
+        if (
+            prop == "behavior"
+            and value != None
+            and not isinstance(value, ComponentBehavior)
+        ):
             import scenic.syntax.veneer as veneer  # TODO improve?
 
             value = toType(

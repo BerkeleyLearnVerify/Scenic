@@ -1746,3 +1746,661 @@ class ScenicToPythonTransformer(Transformer):
             ],
             keywords=[],
         )
+
+    # Scenic + Contracts
+    def toComponentName(self, name):
+        return f"_SCENIC_INTERNAL_COMPONENT_{name}"
+
+    def makeComponentBaseDef(
+        self,
+        name,
+        args,
+        docstring,
+        sensors,
+        inputs,
+        outputs,
+        state,
+        body,
+    ):
+        component_body = []
+
+        ## '__init__' Function ##
+        # Update args to add option for a Scenic object to link to.
+        init_arguments = ast.arguments(
+            args.posonlyargs,
+            [ast.arg("self")] + args.args + [ast.arg("_SCENIC_INTERNAL_LINKED_OBJ_NAME")],
+            args.vararg,
+            args.kwonlyargs,
+            args.kw_defaults,
+            args.kwarg,
+            args.defaults + [ast.Constant(value=None)],
+        )
+
+        init_body = []
+
+        # Store info on sensors, inputs, outputs, and state.
+        init_body.append(
+            ast.Assign(
+                targets=[
+                    ast.Attribute(
+                        value=ast.Name(id="self", ctx=loadCtx),
+                        attr="sensors_values",
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        init_body.append(
+            ast.Assign(
+                targets=[
+                    ast.Attribute(
+                        value=ast.Name(id="self", ctx=loadCtx),
+                        attr="sensors_types",
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for s in sensors:
+            init_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Attribute(
+                                value=ast.Name(id="self", ctx=loadCtx),
+                                attr="sensors_values",
+                                ctx=loadCtx,
+                            ),
+                            slice=ast.Constant(value=s[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=ast.Constant(s[1]),
+                )
+            )
+            init_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Attribute(
+                                value=ast.Name(id="self", ctx=loadCtx),
+                                attr="sensors_types",
+                                ctx=loadCtx,
+                            ),
+                            slice=ast.Constant(value=s[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=s[2],
+                )
+            )
+
+        init_body.append(
+            ast.Assign(
+                targets=[
+                    ast.Attribute(
+                        value=ast.Name(id="self", ctx=loadCtx),
+                        attr="inputs_types",
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for i in inputs:
+            init_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Attribute(
+                                value=ast.Name(id="self", ctx=loadCtx),
+                                attr="inputs_types",
+                                ctx=loadCtx,
+                            ),
+                            slice=ast.Constant(value=i[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=i[1],
+                )
+            )
+
+        init_body.append(
+            ast.Assign(
+                targets=[
+                    ast.Attribute(
+                        value=ast.Name(id="self", ctx=loadCtx),
+                        attr="outputs_types",
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for o in outputs:
+            init_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Attribute(
+                                value=ast.Name(id="self", ctx=loadCtx),
+                                attr="outputs_types",
+                                ctx=loadCtx,
+                            ),
+                            slice=ast.Constant(value=o[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=o[1],
+                )
+            )
+
+        init_body.append(
+            ast.Assign(
+                targets=[
+                    ast.Attribute(
+                        value=ast.Name(id="self", ctx=loadCtx),
+                        attr="state_inits",
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        init_body.append(
+            ast.Assign(
+                targets=[
+                    ast.Attribute(
+                        value=ast.Name(id="self", ctx=loadCtx),
+                        attr="state_types",
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for s in state:
+            init_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Attribute(
+                                value=ast.Name(id="self", ctx=loadCtx),
+                                attr="state_inits",
+                                ctx=loadCtx,
+                            ),
+                            slice=ast.Constant(value=s[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=s[1],
+                )
+            )
+            init_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Attribute(
+                                value=ast.Name(id="self", ctx=loadCtx),
+                                attr="state_types",
+                                ctx=loadCtx,
+                            ),
+                            slice=ast.Constant(value=s[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=s[2],
+                )
+            )
+
+        # Make super() init call
+        super_kwargs = itertools.chain(
+            init_arguments.posonlyargs, init_arguments.args, init_arguments.kwonlyargs
+        )
+        super_kwargs = [
+            ast.keyword(arg=arg.arg, value=ast.Name(id=arg.arg, ctx=loadCtx))
+            for arg in super_kwargs
+            if arg.arg != "self"
+        ]
+        init_body.append(
+            ast.Expr(
+                value=ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Call(
+                            func=ast.Name(id="super", ctx=loadCtx), args=[], keywords=[]
+                        ),
+                        attr="__init__",
+                        ctx=loadCtx,
+                    ),
+                    args=[],
+                    keywords=super_kwargs,
+                )
+            )
+        )
+
+        # Create init function and add it to the component body
+        init_func = ast.FunctionDef(
+            name="__init__",
+            args=init_arguments,
+            body=init_body,
+            decorator_list=[],
+            returns=None,
+            type_params=[],
+        )
+        component_body.append(init_func)
+
+        ## 'run' Function ##
+        new_args = (
+            [ast.arg(arg="state")]
+            + [ast.arg(arg=i[0]) for i in inputs]
+            + [ast.arg(s[0]) for s in sensors]
+        )
+
+        run_args = ast.arguments(
+            new_args + args.posonlyargs,
+            args.args,
+            args.vararg,
+            args.kwonlyargs,
+            [],
+            args.kwarg,
+            [],
+        )
+        run_body = []
+
+        # Add component body code
+        run_body += body
+
+        run_func = ast.FunctionDef(
+            name="run_inner",
+            args=run_args,
+            body=run_body,
+            decorator_list=[ast.Name(id="staticmethod", ctx=loadCtx)],
+            returns=None,
+            type_params=[],
+        )
+        component_body.append(run_func)
+
+        # Create and return the new component class
+        component_class = ast.ClassDef(
+            name=self.toComponentName(name),
+            bases=[ast.Name(id="BaseComponent", ctx=loadCtx)],
+            body=component_body,
+            keywords=[],
+            decorator_list=[],
+            type_params=[],
+        )
+        return component_class
+
+    def makeComponentActionDef(
+        self,
+        name: str,
+        args: Optional[ast.arguments],
+        docstring: Optional[str],
+        actions: List[Tuple[str, ast.AST]],
+    ):
+        ## '__init__' Function ##
+        # Update args to add option for a Scenic object to link to.
+        init_arguments = ast.arguments(
+            args.posonlyargs,
+            [ast.arg("self")] + args.args + [ast.arg("_SCENIC_INTERNAL_LINKED_OBJ_NAME")],
+            args.vararg,
+            args.kwonlyargs,
+            args.kw_defaults,
+            args.kwarg,
+            args.defaults + [ast.Constant(value=None)],
+        )
+
+        init_body = []
+        init_body.append(
+            ast.Assign(
+                targets=[
+                    ast.Attribute(
+                        value=ast.Name(id="self", ctx=loadCtx),
+                        attr="inputs_types",
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for a in actions:
+            init_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Attribute(
+                                value=ast.Name(id="self", ctx=loadCtx),
+                                attr="inputs_types",
+                                ctx=loadCtx,
+                            ),
+                            slice=ast.Constant(value=a[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=a[1],
+                )
+            )
+
+        # Make super() init call
+        super_kwargs = itertools.chain(
+            init_arguments.posonlyargs, init_arguments.args, init_arguments.kwonlyargs
+        )
+        super_kwargs = [
+            ast.keyword(arg=arg.arg, value=ast.Name(id=arg.arg, ctx=loadCtx))
+            for arg in super_kwargs
+            if arg.arg != "self"
+        ]
+        init_body.append(
+            ast.Expr(
+                value=ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Call(
+                            func=ast.Name(id="super", ctx=loadCtx), args=[], keywords=[]
+                        ),
+                        attr="__init__",
+                        ctx=loadCtx,
+                    ),
+                    args=[],
+                    keywords=super_kwargs,
+                )
+            )
+        )
+
+        init_func = ast.FunctionDef(
+            name="__init__",
+            args=init_arguments,
+            body=init_body,
+            decorator_list=[],
+            returns=None,
+            type_params=[],
+        )
+        component_body = [init_func]
+        return ast.ClassDef(
+            name=self.toComponentName(name),
+            bases=[ast.Name(id="ActionComponent", ctx=loadCtx)],
+            body=component_body,
+            keywords=[],
+            decorator_list=[],
+            type_params=[],
+        )
+
+    def makeComponentComposeDef(
+        self,
+        name: str,
+        args: Optional[ast.arguments],
+        docstring: Optional[str],
+        inputs: List[Tuple[str, ast.AST]],
+        outputs: List[Tuple[str, ast.AST]],
+        composition: List[ast.AST],
+    ):
+        component_body = []
+
+        ## '__init__' Function ##
+        # Update args to add option for a Scenic object to link to.
+        init_arguments = ast.arguments(
+            args.posonlyargs,
+            [ast.arg("self")] + args.args,
+            args.vararg,
+            args.kwonlyargs + [ast.arg("_SCENIC_INTERNAL_LINKED_OBJ_NAME")],
+            args.kw_defaults + [ast.Constant(value=None)],
+            args.kwarg,
+            args.defaults,
+        )
+
+        init_body = []
+        init_body.append(
+            ast.Assign(
+                targets=[
+                    ast.Attribute(
+                        value=ast.Name(id="self", ctx=loadCtx),
+                        attr="inputs_types",
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for i in inputs:
+            init_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Attribute(
+                                value=ast.Name(id="self", ctx=loadCtx),
+                                attr="inputs_types",
+                                ctx=loadCtx,
+                            ),
+                            slice=ast.Constant(value=i[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=i[1],
+                )
+            )
+
+        init_body.append(
+            ast.Assign(
+                targets=[
+                    ast.Attribute(
+                        value=ast.Name(id="self", ctx=loadCtx),
+                        attr="outputs_types",
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for o in outputs:
+            init_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Attribute(
+                                value=ast.Name(id="self", ctx=loadCtx),
+                                attr="outputs_types",
+                                ctx=loadCtx,
+                            ),
+                            slice=ast.Constant(value=o[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=o[1],
+                )
+            )
+
+        subcomponent_stmts = [(a, b) for n, a, b in composition if n == "subcomponent"]
+        connect_stmts = [(a, b) for n, a, b in composition if n == "connect"]
+
+        init_body.append(
+            ast.Assign(
+                targets=[
+                    ast.Attribute(
+                        value=ast.Name(id="self", ctx=loadCtx),
+                        attr="subcomponents",
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+
+        # Ensure there are no duplicate subcomponent names
+        subcomponent_names = [name for name, _ in subcomponent_stmts]
+        assert len(set(subcomponent_names)) == len(subcomponent_names)
+
+        for sub_name, expr in subcomponent_stmts:
+            assert isinstance(expr, ast.Call)
+            assert isinstance(expr.func, ast.Name)
+            # Add reference to linked object
+            expr.keywords.append(
+                ast.keyword(
+                    arg="_SCENIC_INTERNAL_LINKED_OBJ_NAME",
+                    value=ast.Name(id="_SCENIC_INTERNAL_LINKED_OBJ_NAME", ctx=loadCtx),
+                )
+            )
+            # Map subcomponent name to internal name
+            expr.func.id = self.toComponentName(expr.func.id)
+
+            init_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Attribute(
+                                value=ast.Name(id="self", ctx=loadCtx),
+                                attr="subcomponents",
+                                ctx=loadCtx,
+                            ),
+                            slice=ast.Constant(value=sub_name),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=expr,
+                )
+            )
+
+        init_body.append(
+            ast.Assign(
+                targets=[
+                    ast.Attribute(
+                        value=ast.Name(id="self", ctx=loadCtx),
+                        attr="connections",
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=ast.List(elts=[], ctx=loadCtx),
+            )
+        )
+        for source_target in connect_stmts:
+            init_body.append(
+                ast.Expr(
+                    value=ast.Call(
+                        func=ast.Attribute(
+                            value=ast.Attribute(
+                                value=ast.Name(id="self", ctx=loadCtx),
+                                attr="connections",
+                                ctx=loadCtx,
+                            ),
+                            attr="append",
+                            ctx=loadCtx,
+                        ),
+                        args=[ast.Constant(value=source_target)],
+                        keywords=[],
+                    )
+                )
+            )
+
+        # Make super() init call
+        super_kwargs = itertools.chain(
+            init_arguments.posonlyargs, init_arguments.args, init_arguments.kwonlyargs
+        )
+        super_kwargs = [
+            ast.keyword(arg=arg.arg, value=ast.Name(id=arg.arg, ctx=loadCtx))
+            for arg in super_kwargs
+            if arg.arg != "self"
+        ]
+        init_body.append(
+            ast.Expr(
+                value=ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Call(
+                            func=ast.Name(id="super", ctx=loadCtx), args=[], keywords=[]
+                        ),
+                        attr="__init__",
+                        ctx=loadCtx,
+                    ),
+                    args=[],
+                    keywords=super_kwargs,
+                )
+            )
+        )
+
+        # Create init function and add it to the component body
+        init_func = ast.FunctionDef(
+            name="__init__",
+            args=init_arguments,
+            body=init_body,
+            decorator_list=[],
+            returns=None,
+            type_params=[],
+        )
+        component_body.append(init_func)
+
+        return ast.ClassDef(
+            name=self.toComponentName(name),
+            bases=[ast.Name(id="ComposeComponent", ctx=loadCtx)],
+            body=component_body,
+            keywords=[],
+            decorator_list=[],
+            type_params=[],
+        )
+
+    def visit_ComponentDef(self, node: s.ComponentDef):
+        if node.body:
+            assert (not node.actions) and (not node.composition)
+
+            return self.makeComponentBaseDef(
+                node.name,
+                node.args,
+                node.docstring,
+                node.sensors,
+                node.inputs,
+                node.outputs,
+                node.state,
+                node.body,
+            )
+
+        elif node.actions:
+            assert (
+                (not node.sensors)
+                and (not node.inputs)
+                and (not node.outputs)
+                and (not node.state)
+                and (not node.body)
+                and (not node.composition)
+            )
+
+            return self.makeComponentActionDef(
+                node.name,
+                node.args,
+                node.docstring,
+                node.actions,
+            )
+
+        elif node.composition:
+            assert (not node.sensors) and (not node.state) and (not node.body)
+
+            return self.makeComponentComposeDef(
+                node.name,
+                node.args,
+                node.docstring,
+                node.inputs,
+                node.outputs,
+                node.composition,
+            )
+
+        else:
+            assert False
+
+    def visit_ImplementStmt(self, node: s.ImplementStmt):
+        assert isinstance(node.component, ast.Call)
+
+        # Rename target to use mapped name
+        node.component.func = ast.Name(
+            id=self.toComponentName(node.component.func.id), ctx=loadCtx
+        )
+
+        # Add linking object keyword argument
+        node.component.keywords.append(
+            ast.keyword(
+                arg="_SCENIC_INTERNAL_LINKED_OBJ_NAME",
+                value=ast.Constant(value=node.linked_name),
+            )
+        )
+
+        implementation_stmt = ast.Assign(
+            targets=[ast.Name(id=node.name, ctx=ast.Store())], value=node.component
+        )
+
+        return implementation_stmt

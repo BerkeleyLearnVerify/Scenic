@@ -560,6 +560,7 @@ scenic_stmt:
     | scenic_do_stmt
     | scenic_abort_stmt
     | scenic_simulator_stmt
+    | scenic_implement_stmt
 
 scenic_compound_stmt:
     | scenic_tracked_assign_new_stmt
@@ -570,6 +571,7 @@ scenic_compound_stmt:
     | scenic_scenario_def
     | scenic_try_interrupt_stmt
     | scenic_override_stmt
+    | scenic_component_def
 
 # SIMPLE STATEMENTS
 # =================
@@ -904,6 +906,79 @@ scenic_override_stmt:
     | "override" e=primary ss=scenic_specifiers ',' NEWLINE INDENT t=scenic_new_block_body DEDENT {
         s.Override(target=e, specifiers=ss + t)
      }
+
+
+# Component
+# ---------
+
+scenic_component_def:
+    | "component" a=NAME '(' b=[params] ')' &&':' c=scenic_component_def_block {
+        s.ComponentDef(
+            a.string,
+            args=b or self.make_arguments(None, [], None, [], None),
+            docstring=c[0],
+            sensors=c[1],
+            inputs=c[2],
+            outputs=c[3],
+            actions=c[4],
+            state=c[5],
+            body=c[6],
+            composition=c[7],
+            LOCATIONS,
+        )
+     }
+
+scenic_component_def_block:
+    | NEWLINE INDENT a=[x=STRING NEWLINE { x.string }] b=[scenic_component_sensors_block] \
+    c=[scenic_component_inputs_block] d=[scenic_component_outputs_block] \
+    e=[scenic_component_actions_block] f=[scenic_component_state_block] \
+    g=[scenic_component_body_block] h=[scenic_component_composition_block] DEDENT \
+    {(a, b or [], c or [], d or [], e or [], f or [], g or [], h or [])}
+
+scenic_component_sensors_block:
+    | "sensors" &&':' NEWLINE INDENT a=(scenic_component_sensor)+ DEDENT {a}
+
+scenic_component_inputs_block:
+    | "inputs" &&':' NEWLINE INDENT a=(scenic_component_port)+ DEDENT {a}
+
+scenic_component_outputs_block:
+    | "outputs" &&':' NEWLINE INDENT a=(scenic_component_port)+ DEDENT {a}
+
+scenic_component_actions_block:
+    | "actions" &&':' NEWLINE INDENT a=(scenic_component_port)+ DEDENT {a}
+
+scenic_component_state_block:
+    | "state" &&':' NEWLINE INDENT a=(scenic_component_state)+ DEDENT {a}
+
+scenic_component_body_block:
+    | "body" &&':' a=block {a}
+
+scenic_component_composition_block:
+    | "compose" &&':' NEWLINE INDENT a=(scenic_composition_stmt)+ DEDENT {a}
+
+
+scenic_component_sensor:
+    | source=scenic_component_qualified_name ':' type=primary 'as' name=NAME NEWLINE {(name.string, source, type)}
+
+
+scenic_component_port:
+    | a=NAME ':' b=primary NEWLINE {(a.string, b)}
+
+scenic_component_state:
+    | a=NAME ':' type=primary '=' val=primary NEWLINE {(a.string, val, type)}
+
+
+scenic_composition_stmt:
+    | "connect" a=scenic_component_qualified_name 'to' b=scenic_component_qualified_name NEWLINE {("connect", a, b)}
+    | a=NAME '=' b=primary NEWLINE {("subcomponent", a.string, b)}
+
+scenic_component_qualified_name:
+    | parent=NAME '.' a=NAME {(a.string, parent.string)}
+    | a=NAME {(a.string, None)}
+
+
+scenic_implement_stmt:
+    | 'implement' linked_name=NAME 'with' component=primary 'as' name=NAME {s.ImplementStmt(name.string, component, linked_name.string, LOCATIONS)}
 
 # Function definitions
 # --------------------

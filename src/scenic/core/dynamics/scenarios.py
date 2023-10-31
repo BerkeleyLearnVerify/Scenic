@@ -8,6 +8,7 @@ import weakref
 
 import rv_ltl
 
+from scenic.contracts.components import ComponentBehavior
 import scenic.core.dynamics as dynamics
 from scenic.core.errors import InvalidScenarioError
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
@@ -202,7 +203,7 @@ class DynamicScenario(Invocable):
             # Initialize behavior coroutines of agents
             for agent in self._agents:
                 behavior = agent.behavior
-                assert isinstance(behavior, Behavior), behavior
+                assert isinstance(behavior, (Behavior, ComponentBehavior)), behavior
                 behavior._assignTo(agent)
             # Initialize monitor coroutines
             for monitor in self._monitors:
