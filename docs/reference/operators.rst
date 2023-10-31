@@ -71,7 +71,7 @@ Whether a position or `Object` lies in the `Region`; for the latter, the object 
 
 (*Object* | *region*) intersects (*Object* | *region*)
 ------------------------------------------------------
-Whether an `Object`/`Region` intersects another `Object`/`Region`, i.e. whether any portion of the occupied spaces intersect.
+Whether an `Object`/`Region` intersects another `Object`/`Region`, i.e. whether any portion of the occupied spaces intersect. It can often be useful to check intersection with the :term:`footprint` of a region, e.g. when checking whether a car intersects a given lane. In this case, one would write :scenic:`car intersects lane.footprint` instead of :scenic:`car intersects lane`. For more details, see :term:`footprint`.
 
 
 Orientation Operators

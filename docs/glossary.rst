@@ -47,7 +47,7 @@ Glossary
 	footprint
 		The infinite extrusion of a 2D `region` in the positive and negative Z directions.
 		Testing containment of an `object` in a 2D region automatically uses its footprint, so that the object is considered contained if and only if its projection into the plane of the region is contained in the region.
-		Footprints are represented internally by instances of the `PolygonalFootprintRegion` class.
+		Footprints are represented internally by instances of the `PolygonalFootprintRegion` class, and can be accessed using the `fooprint` attribute.
 
 	global parameters
 		Parameters of a scene like weather or time of day which are not associated with any object.
