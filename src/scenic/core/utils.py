@@ -45,6 +45,14 @@ def cached(oldMethod):
             setattr(self, storageName, value)
             return value
 
+    def clearer(self):
+        try:
+            delattr(self, storageName)
+        except AttributeError:
+            pass
+
+    wrapper._scenic_cache_clearer = clearer
+
     return wrapper
 
 
@@ -68,6 +76,14 @@ def cached_method(oldMethod):
             cachedMethod = functools.lru_cache(maxsize=None)(oldMethod)
             caches[name] = cachedMethod
         return cachedMethod(self, *args, **kwargs)
+
+    def clearer(self):
+        caches = _methodCaches.get(self, collections.defaultdict(dict))
+        cachedMethod = caches.get(name)
+        if cachedMethod:
+            cachedMethod.cache_clear()
+
+    wrapper._scenic_cache_clearer = clearer
 
     return wrapper
 
@@ -141,7 +157,7 @@ def loadMesh(path, filetype, compressed, binary):
         open_function = open
 
     with open_function(path, mode) as mesh_file:
-        mesh = trimesh.load(mesh_file, file_type=filetype)
+        mesh = trimesh.load(mesh_file, file_type=filetype, force="mesh")
 
     return mesh
 
