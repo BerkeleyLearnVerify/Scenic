@@ -1,4 +1,4 @@
-"""3.12 Python Tokenizer,opied from CPython"""
+"""3.12 Python Tokenizer, copied from CPython"""
 
 __author__ = "Ka-Ping Yee <ping@lfw.org>"
 __credits__ = (
