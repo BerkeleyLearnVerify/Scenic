@@ -1143,7 +1143,7 @@ class Object(OrientedPoint):
             return self._boundingPolygon.intersects(other.polygons)
 
         ## Default Case
-        # Extract other's occupied space if it's a region
+        # Extract other's occupied space if it's an object
         if isinstance(other, Object):
             other_occupied_space = other.occupiedSpace
         else:
