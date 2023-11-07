@@ -1368,6 +1368,7 @@ def CanSee(X, Y):
     return canSeeHelper(X, Y, objects)
 
 
+@distributionFunction
 def Intersects(X, Y):
     """The :scenic:`{X} intersects {Y}` operator."""
     if isA(X, Object):
