@@ -242,6 +242,9 @@ component Car(stddev, target_dist, max_speed, min_dist, min_slowdown):
 ## Contracts ##
 contract AccurateDistance(perception_distance, abs_dist_err=0.5):
     """ Contract proving that perceived distance is relatively accurate."""
+    objects:
+        self
+
     globals:
         objects
 
@@ -269,6 +272,9 @@ contract AccurateDistance(perception_distance, abs_dist_err=0.5):
         # Guarantee that if we are not behind a car (or out of visible range), that any reported
         # distance is greater than our visible range.
         always (not behind_car) implies (dist > perception_distance+abs_dist_err))
+
+        ##! EXAMPLE. DELETE ME LATER !##
+        always predicted_pos within abs_dist_err of (future[2] actual_pos)
 
 # Instantiate Car component and link to object.
 # NOTE: This will set the behavior of the object (based off the Car component).
