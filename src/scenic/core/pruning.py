@@ -47,11 +47,11 @@ from scenic.core.vectors import (
 from scenic.core.workspaces import Workspace
 from scenic.syntax.relations import DistanceRelation, RelativeHeadingRelation
 
-### Utilities
-
+### Constants
 PRUNING_PITCH = 0.01
 
 
+### Utilities
 def currentPropValue(obj, prop):
     """Get the current value of an object's property, taking into account prior pruning."""
     value = getattr(obj, prop)
