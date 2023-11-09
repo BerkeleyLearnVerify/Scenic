@@ -6,7 +6,6 @@ import pytest
 
 import scenic
 from scenic.core.errors import ASTParseError, ParseCompileError, ScenicSyntaxError
-from scenic.syntax.tokenize import TokenError
 from tests.utils import compileScenic, sampleActions, sampleActionsFromScene
 
 ### File errors
