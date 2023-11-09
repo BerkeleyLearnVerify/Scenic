@@ -1117,9 +1117,16 @@ class Object(OrientedPoint):
 
     @cached_method
     def intersects(self, other):
-        """Whether or not this object intersects another object"""
-        # For objects that are boxes and flat, we can take a fast route
-        if self._isPlanarBox and other._isPlanarBox:
+        """Whether or not this object intersects another object or region"""
+        ## Type Checking ##
+        if not isinstance(other, (Object, Region)):
+            raise TypeError(
+                f"Cannot compute intersection of Scenic Object with {type(other)}."
+            )
+
+        ## Heuristic Fast Paths ##
+        # For two objects that are boxes and flat, we can take a fast route
+        if self._isPlanarBox and (isinstance(other, Object) and other._isPlanarBox):
             if abs(self.position.z - other.position.z) > (self.height + other.height) / 2:
                 return False
 
@@ -1127,12 +1134,27 @@ class Object(OrientedPoint):
             other_poly = other._boundingPolygon
             return self_poly.intersects(other_poly)
 
-        if isLazy(self.occupiedSpace) or isLazy(other.occupiedSpace):
+        # For an object that is a box and flat with a polygonal region, we can
+        # also take a fast route.
+        if self._isPlanarBox and (
+            isinstance(other, PolygonalRegion)
+            and abs(self.position.z - other.z) <= self.height / 2
+        ):
+            return self._boundingPolygon.intersects(other.polygons)
+
+        ## Default Case
+        # Extract other's occupied space if it's an object
+        if isinstance(other, Object):
+            other_occupied_space = other.occupiedSpace
+        else:
+            other_occupied_space = other
+
+        if isLazy(self.occupiedSpace) or isLazy(other_occupied_space):
             raise RandomControlFlowError(
                 "Cannot compute intersection between Objects with non-fixed values."
             )
 
-        return self.occupiedSpace.intersects(other.occupiedSpace)
+        return self.occupiedSpace.intersects(other_occupied_space)
 
     @cached_property
     def left(self):

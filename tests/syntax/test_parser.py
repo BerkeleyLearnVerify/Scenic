@@ -2845,3 +2845,12 @@ class TestOperator:
                 assert True
             case _:
                 assert False
+
+    def test_intersects(self):
+        mod = parse_string_helper("x intersects y ")
+        stmt = mod.body[0]
+        match stmt:
+            case Expr(IntersectsOp(Name("x"), Name("y"))):
+                assert True
+            case _:
+                assert False

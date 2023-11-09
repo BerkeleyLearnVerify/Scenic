@@ -456,7 +456,7 @@ def test_point_in_region_2d():
         ptA = new Point at 11@4.5
         ptB = new Point at 11@3.5
         ptC = new Point at (11, 4.5, 1)
-        param p = tuple([9@5.5 in reg, 9@7 in reg, (11, 4.5, -1) in reg, ptA in reg, ptB in reg, ptC in reg])
+        param p = (9@5.5 in reg, 9@7 in reg, (11, 4.5, -1) in reg, ptA in reg, ptB in reg, ptC in reg)
     """
     )
     assert p == (True, False, True, True, False, True)
@@ -469,7 +469,7 @@ def test_object_in_region_2d():
         ego = new Object at 11.5@5.5, with width 0.25, with length 0.25
         other_1 = new Object at 9@4.5, with width 2.5
         other_2 = new Object at (11.5, 5.5, 2), with width 0.25, with length 0.25
-        param p = tuple([ego in reg, other_1 in reg, other_2 in reg])
+        param p = (ego in reg, other_1 in reg, other_2 in reg)
     """
     )
     assert p == (True, False, True)
@@ -482,7 +482,7 @@ def test_point_in_region_3d():
         reg = BoxRegion()
         ptA = new Point at (0.25,0.25,0.25)
         ptB = new Point at (1,1,1)
-        param p = tuple([(0,0,0) in reg, (0.49,0.49,0.49) in reg, (0.5,0.5,0.5) in reg, (0.51,0.51,0.51) in reg, ptA in reg, ptB in reg])
+        param p = ((0,0,0) in reg, (0.49,0.49,0.49) in reg, (0.5,0.5,0.5) in reg, (0.51,0.51,0.51) in reg, ptA in reg, ptB in reg)
     """
     )
     assert p == (True, True, True, False, True, False)
@@ -497,10 +497,109 @@ def test_object_in_region_3d():
         obj_2 = new Object at (0.49, 0.49, 0.49), with allowCollisions True
         obj_3 = new Object at (0.75, 0.75, 0.75), with allowCollisions True
         obj_4 = new Object at (3,3,3), with allowCollisions True
-        param p = tuple([obj_1 in reg, obj_2 in reg, obj_3 in reg, obj_4 in reg])
+        param p = (obj_1 in reg, obj_2 in reg, obj_3 in reg, obj_4 in reg)
     """
     )
     assert p == (True, True, False, False)
+
+
+# Intersects
+def test_intersects_obj_obj():
+    p = sampleParamPFrom(
+        """
+        obj1 = new Object at (-1,0,0.1), with allowCollisions True
+        obj2 = new Object at (1,0,0), with allowCollisions True
+        obj3 = new Object with width 10, with length 10, with height 10, with allowCollisions True
+        param p = (obj1 intersects obj2, obj1 intersects obj3, obj2 intersects obj3)
+    """
+    )
+    assert p == (False, True, True)
+
+    # Case where neither corners or centers intersect, but
+    # Objects still intersect.
+    p = sampleParamPFrom(
+        """
+        obj1 = new Object at (10,0,0), with width 30, with allowCollisions True
+        obj2 = new Object at (0,10,0), with length 30, with allowCollisions True
+        param p = (obj1 intersects obj2,
+            obj1.position in obj2.occupiedSpace, obj2.position in obj1.occupiedSpace,
+            any((c in obj2.occupiedSpace) for c in obj1.corners),
+            any((c in obj1.occupiedSpace) for c in obj2.corners))
+    """
+    )
+    assert p == (True, False, False, False, False)
+
+
+def test_intersects_region_region():
+    p = sampleParamPFrom(
+        """
+        reg1 = BoxRegion(position=(-1,0,0.1))
+        reg2 = BoxRegion(position=(1,0,0))
+        reg3 = BoxRegion(dimensions=(10,10,10))
+        param p = (reg1 intersects reg2, reg1 intersects reg3, reg2 intersects reg3)
+    """
+    )
+    assert p == (False, True, True)
+
+
+def test_intersects_obj_region():
+    p = sampleParamPFrom(
+        """
+        reg1 = BoxRegion(position=(-1,0,0.1))
+        obj2 = new Object at (1,0,0), with allowCollisions True
+        obj3 = new Object with width 10, with length 10, with height 10, with allowCollisions True
+        param p = (reg1 intersects obj2, obj2 intersects reg1,
+            reg1 intersects obj3, obj3 intersects reg1)
+    """
+    )
+    assert p == (False, False, True, True)
+
+
+def test_intersects_2d():
+    p = sampleParamPFrom(
+        """
+        obj1 = new Object at (0.2,0,0), with allowCollisions True
+        obj2 = new Object at (-0.2,0,0), with allowCollisions True
+        reg = RectangularRegion((0,0,0), 0, 10, 10)
+        param p = (obj1 intersects obj2, obj1 intersects reg)
+    """
+    )
+    assert p == (True, True)
+
+
+def test_intersects_non_0_z():
+    p = sampleParamPFrom(
+        """
+        obj1 = new Object at (0.2,0,1), with allowCollisions True
+        obj2 = new Object at (-0.2,0,1), with allowCollisions True
+        reg = RectangularRegion((0,0,1), 0, 10, 10)
+        param p = (obj1 intersects obj2, obj1 intersects reg)
+    """
+    )
+    assert p == (True, True)
+
+
+def test_intersects_overlap():
+    p = sampleParamPFrom(
+        """
+        obj = new Object at (0,0,0), with allowCollisions True
+        reg = RectangularRegion((0.5,0,0), 0, 1, 1)
+        param p = obj intersects reg
+    """
+    )
+    assert p == True
+
+
+def test_intersects_diff_z():
+    p = sampleParamPFrom(
+        """
+        obj1 = new Object at (0,0,0.1), with allowCollisions True
+        obj2 = new Object at (0,0,10), with allowCollisions True
+        reg = RectangularRegion((0,0,0), 0, 10, 10)
+        param p = (obj1 intersects reg, obj2 intersects reg, obj1 intersects obj2)
+    """
+    )
+    assert p == (True, False, False)
 
 
 ## Heading operators

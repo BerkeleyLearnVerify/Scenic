@@ -1746,3 +1746,13 @@ class ScenicToPythonTransformer(Transformer):
             ],
             keywords=[],
         )
+
+    def visit_IntersectsOp(self, node: s.IntersectsOp):
+        return ast.Call(
+            func=ast.Name(id="Intersects", ctx=loadCtx),
+            args=[
+                self.visit(node.left),
+                self.visit(node.right),
+            ],
+            keywords=[],
+        )
