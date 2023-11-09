@@ -1,6 +1,7 @@
 import os.path
 import subprocess
 import sys
+from tokenize import TokenError
 
 import pytest
 
