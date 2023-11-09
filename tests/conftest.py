@@ -41,6 +41,17 @@ def runLocally(request):
     return manager
 
 
+@pytest.fixture
+def getAssetPath():
+    base = Path(__file__).parent.parent / "assets"
+
+    def loader(relpath, **kwargs):
+        path = os.path.join(base, relpath)
+        return path
+
+    return loader
+
+
 ## Command-line options
 
 

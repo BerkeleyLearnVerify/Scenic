@@ -14,6 +14,7 @@ import typing
 import warnings
 import weakref
 
+import numpy
 import trimesh
 
 sqrt2 = math.sqrt(2)
@@ -44,6 +45,14 @@ def cached(oldMethod):
             setattr(self, storageName, value)
             return value
 
+    def clearer(self):
+        try:
+            delattr(self, storageName)
+        except AttributeError:
+            pass
+
+    wrapper._scenic_cache_clearer = clearer
+
     return wrapper
 
 
@@ -67,6 +76,14 @@ def cached_method(oldMethod):
             cachedMethod = functools.lru_cache(maxsize=None)(oldMethod)
             caches[name] = cachedMethod
         return cachedMethod(self, *args, **kwargs)
+
+    def clearer(self):
+        caches = _methodCaches.get(self, collections.defaultdict(dict))
+        cachedMethod = caches.get(name)
+        if cachedMethod:
+            cachedMethod.cache_clear()
+
+    wrapper._scenic_cache_clearer = clearer
 
     return wrapper
 
@@ -140,7 +157,7 @@ def loadMesh(path, filetype, compressed, binary):
         open_function = open
 
     with open_function(path, mode) as mesh_file:
-        mesh = trimesh.load(mesh_file, file_type=filetype)
+        mesh = trimesh.load(mesh_file, file_type=filetype, force="mesh")
 
     return mesh
 
@@ -214,6 +231,105 @@ def unifyMesh(mesh, verbose=False):
                 " Scenic may give undefined resuls."
             )
         return mesh
+
+
+def repairMesh(mesh, pitch=(1 / 2) ** 6, verbose=True):
+    """Attempt to repair a mesh, returning a proper 2-manifold.
+
+    Repair is attempted via several steps, each sacrificing more accuracy
+    but with a higher chance of returning a proper volumetric mesh.
+
+    Repair is first attempted with easy fixes, like merging vertices and fixing
+    winding. These will usually not deteriorate the quality of the mesh.
+
+    Repair is then attempted by voxelizing the mesh, filling it, and then running
+    marching cubes on the mesh. This approach is somewhat accurate but always
+    produces solid objects. (This is to be expected since non watertight hollow
+    objects aren't well defined).
+
+    Repair is finally attempted by using the convex hull, which is unlikely to
+    be accurate but is guaranteed to result in a volume.
+
+    NOTE: For planar meshes, this function will throw an error.
+
+    Args:
+        mesh: The input mesh to be repaired.
+        pitch: The target pitch to be used when attempting to repair the mesh via
+            voxelization. A lower pitch uses smaller voxels, and thus a closer
+            approximation, but can require significant additional processsing time.
+            The actual pitch used may be larger if needed to get a manifold mesh.
+        verbose: Whether or not to print warnings describing attempts to repair the mesh.
+    """
+    # If mesh is already a volume, we're done.
+    if mesh.is_volume:
+        return mesh
+
+    # If mesh is planar, we can't fix it.
+    if numpy.any(mesh.extents == 0):
+        raise ValueError("repairMesh is undefined for planar meshes.")
+
+    # Pitch must be positive
+    if pitch <= 0:
+        raise ValueError("pitch parameter must be positive.")
+
+    ## Trimesh Processing ##
+    processed_mesh = mesh.process(validate=True, merge_tex=True, merge_norm=True).copy()
+
+    if processed_mesh.is_volume:
+        if verbose:
+            warnings.warn("Mesh was repaired via Trimesh process function.")
+
+        return processed_mesh
+
+    if verbose:
+        warnings.warn(
+            "Mesh could not be repaired via Trimesh process function."
+            " attempting voxelization + marching cubes."
+        )
+
+    ## Voxelization + Marching Cubes ##
+    # Extract largest dimension and scale so that it is unit length
+    dims = numpy.abs(processed_mesh.extents)
+    position = processed_mesh.bounding_box.center_mass
+    scale = numpy.max(dims)
+
+    processed_mesh.vertices -= position
+
+    scale_matrix = numpy.eye(4)
+    scale_matrix[:3, :3] /= scale
+    processed_mesh.apply_transform(scale_matrix)
+
+    # Compute new mesh with largest possible pitch
+    curr_pitch = pitch
+
+    while curr_pitch < 1:
+        new_mesh = processed_mesh.voxelized(pitch=curr_pitch).fill().marching_cubes
+
+        if new_mesh.is_volume:
+            if verbose:
+                warnings.warn(
+                    f"Mesh was repaired via voxelization + marching cubes"
+                    f" with pitch {curr_pitch}. Check the output to ensure it"
+                    f" looks reasonable."
+                )
+
+            # Center new mesh
+            new_mesh.vertices -= new_mesh.bounding_box.center_mass
+
+            # Rescale mesh to original size
+            orig_scale = new_mesh.extents / dims
+            scale_matrix = numpy.eye(4)
+            scale_matrix[:3, :3] /= orig_scale
+            new_mesh.apply_transform(scale_matrix)
+
+            # # Return mesh center to original position
+            new_mesh.vertices += position
+
+            return new_mesh
+
+        curr_pitch *= 2
+
+    raise ValueError("Mesh could not be repaired.")
 
 
 class DefaultIdentityDict:

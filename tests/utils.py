@@ -311,7 +311,9 @@ try:
     import dill
 except ModuleNotFoundError:
     dill = None
-dill_version = metadata.version("dill")
+    dill_version = None
+else:
+    dill_version = metadata.version("dill")
 pickle_test = pytest.mark.skipif(not dill, reason="dill required for pickling tests")
 
 

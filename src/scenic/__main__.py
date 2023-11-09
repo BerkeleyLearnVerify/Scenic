@@ -51,6 +51,12 @@ mainOptions.add_argument(
     metavar=("PARAM", "VALUE"),
 )
 mainOptions.add_argument(
+    "--count",
+    help="number of successful scenes to generate or simulations to run (default infinity)",
+    type=int,
+    default=0,
+)
+mainOptions.add_argument(
     "-m", "--model", help="specify a Scenic world model", default=None
 )
 mainOptions.add_argument(
@@ -65,12 +71,7 @@ simOpts = parser.add_argument_group("dynamic simulation options")
 simOpts.add_argument(
     "--time", help="time bound for simulations (default none)", type=int, default=None
 )
-simOpts.add_argument(
-    "--count",
-    help="number of successful simulations to run (default infinity)",
-    type=int,
-    default=0,
-)
+
 simOpts.add_argument(
     "--max-sims-per-scene",
     type=int,
@@ -254,7 +255,8 @@ def runSimulation(scene):
 
 
 try:
-    if args.gather_stats is None:  # Generate scenes interactively until killed
+    if args.gather_stats is None:
+        # Generate scenes interactively until killed/count reached
         if not args.simulate:  # will need matplotlib to draw scene schematic
             import matplotlib
             import matplotlib.pyplot as plt
@@ -272,9 +274,8 @@ try:
                 success = runSimulation(scene)
                 if success:
                     successCount += 1
-                    if 0 < args.count <= successCount:
-                        break
             else:
+                successCount += 1
                 if mode2D:
                     if delay is None:
                         scene.show2D(zoom=args.zoom)
@@ -284,6 +285,9 @@ try:
                         plt.clf()
                 else:
                     scene.show(axes=args.axes)
+
+            if 0 < args.count <= successCount:
+                break
 
     else:  # Gather statistics over the specified number of scenes/iterations
         its = []

@@ -15,7 +15,7 @@ This returns a `Scenario` object representing the scenario; to sample a scene fr
 Scenes are represented by `Scene` objects, from which you can extract the objects and their properties as well as the values of the global parameters (see the `Scene` documentation for details).
 
 Supporting dynamic scenarios requires additionally implementing a subclass of `Simulator` which communicates periodically with your simulator to implement the actions taken by dynamic agents and read back the state of the simulation.
-See the :obj:`scenic.simulators.carla.simulator` and :obj:`scenic.simulators.lgsvl.simulator` modules for examples.
+See the documentation of `Simulator` and `Simulation` for details on the methods which need to be implemented, and the :obj:`scenic.simulators.carla.simulator` and :obj:`scenic.simulators.webots.simulator` modules for examples.
 
 .. _defining_world_model:
 

@@ -6,9 +6,9 @@ import pytest
 from scenic.core.shapes import BoxShape, MeshShape
 
 
-def test_shape_fromFile():
+def test_shape_fromFile(getAssetPath):
     MeshShape.fromFile(
-        Path(".").parent.parent.parent / "assets" / "meshes" / "classic_plane.obj.bz2",
+        getAssetPath("meshes/classic_plane.obj.bz2"),
         dimensions=(20, 20, 10),
         initial_rotation=(math.radians(-90), 0, math.radians(-10)),
     )

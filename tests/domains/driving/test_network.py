@@ -33,22 +33,22 @@ def test_element_tolerance(cached_maps, pytestconfig):
     tol = 0.05
     network = Network.fromFile(path, tolerance=tol)
     drivable = network.drivableRegion
+    toofar = drivable.buffer(2 * tol).difference(drivable.buffer(1.5 * tol))
+    toofar_noint = toofar.difference(network.intersectionRegion)
     road = network.roads[0]
     nearby = road.buffer(tol).difference(road)
-    rounds = 1 if pytestconfig.getoption("--fast") else 20
+    rounds = 30 if pytestconfig.getoption("--fast") else 300
     for i in range(rounds):
         pt = None
         while not pt or pt in drivable:
             pt = nearby.uniformPointInner()
         assert network.elementAt(pt) is not None
         assert network.roadAt(pt) is not None
-        toofar = drivable.buffer(2 * tol).difference(drivable.buffer(1.5 * tol))
         pt = toofar.uniformPointInner()
         assert network.roadAt(pt) is None
         with pytest.raises(RejectionException):
             network.roadAt(pt, reject=True)
-        toofar = toofar.difference(network.intersectionRegion)
-        pt = toofar.uniformPointInner()
+        pt = toofar_noint.uniformPointInner()
         assert network.elementAt(pt) is None
         assert not network.nominalDirectionsAt(pt)
 
@@ -137,8 +137,9 @@ def test_linkage(network):
                     assert section.group is group
                     assert section.road is road
                     assert section.isForward == (group is road.forwardLanes)
-                    pt = section.uniformPointInner()
-                    assert lane.sectionAt(pt) is section
+                    for i in range(30):
+                        pt = section.uniformPointInner()
+                        assert lane.sectionAt(pt) is section
                     fastSlow = (section._fasterLane, section._slowerLane)
                     leftRight = (section._laneToLeft, section._laneToRight)
                     if section._fasterLane:
@@ -179,8 +180,9 @@ def test_linkage(network):
                             section.laneToRight
                 for maneuver in lane.maneuvers:
                     assert maneuver.startLane is lane
-                pt = lane.uniformPointInner()
-                assert group.laneAt(pt) is lane
+                for i in range(30):
+                    pt = lane.uniformPointInner()
+                    assert group.laneAt(pt) is lane
 
         if road.forwardLanes:
             checkGroup(road.forwardLanes)

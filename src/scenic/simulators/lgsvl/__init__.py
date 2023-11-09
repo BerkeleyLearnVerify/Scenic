@@ -1,10 +1,6 @@
 """Interface to the LGSVL driving simulator.
 
-This interface has been tested with `LGSVL <https://www.lgsvlsimulator.com/>`_ version
-2020.06. It supports dynamic scenarios involving vehicles and pedestrians.
-
-The interface implements the :obj:`scenic.domains.driving` abstract domain, so any
-object types, behaviors, utility functions, etc. from that domain may be used freely.
+The LGSVL Simulator interface was deprecated in Scenic 3. To continue to use the interface, please use Scenic 2.
 """
 
 # Only import LGSVLSimulator if the lgsvl package is installed; otherwise the
