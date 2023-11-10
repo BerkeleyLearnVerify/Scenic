@@ -3567,10 +3567,7 @@ class ViewRegion(MeshVolumeRegion):
       * Case 2.a    viewAngles[0] = 360 degrees     => Sphere
       * Case 2.b    viewAngles[0] < 360 degrees     => Sphere & CylinderSectionRegion
 
-    * Case 2:       viewAngles[1] < 180 degrees
-
-      * Case 2.a    viewAngles[0] = 360 degrees     => Sphere - (Cone + Cone) (Cones on z axis expanding from origin)
-      * Case 2.b    viewAngles[0] < 360 degrees     => Sphere & ViewSectionRegion
+    * Case 2:       viewAngles[1] < 180 degrees     => Sphere & ViewSectionRegion
 
     When making changes to this class you should run ``pytest -k test_viewRegion --exhaustive``.
 
@@ -3594,12 +3591,18 @@ class ViewRegion(MeshVolumeRegion):
         position=Vector(0, 0, 0),
         rotation=None,
         orientation=None,
-        angleCutoff=0.01,
+        angleCutoff=0.001,
         tolerance=1e-8,
     ):
         # Bound viewAngles from either side.
         if min(viewAngles) <= 0:
             raise ValueError("viewAngles cannot have a component less than or equal to 0")
+
+        if math.tau - angleCutoff <= viewAngles[0]:
+            viewAngles = (math.tau, viewAngles[1])
+
+        if math.pi - angleCutoff <= viewAngles[1]:
+            viewAngles = (viewAngles[0], math.pi)
 
         view_region = None
         diameter = 2 * visibleDistance
@@ -3607,45 +3610,23 @@ class ViewRegion(MeshVolumeRegion):
 
         if math.pi - angleCutoff <= viewAngles[1]:
             # Case 1
-            if math.tau - angleCutoff <= viewAngles[0]:
+            if viewAngles[0] == math.tau:
                 # Case 1.a
                 view_region = base_sphere
             else:
+                # Case 1.b
                 view_region = base_sphere.intersect(
                     CylinderSectionRegion(visibleDistance, viewAngles[0])
                 )
         else:
             # Case 2
-            if math.tau - angleCutoff <= viewAngles[0]:
-                # Case 2.a
-                # Create cone with yaw oriented around (0,0,-1)
-                padded_height = visibleDistance * 2
-                radius = padded_height * math.tan((math.pi - viewAngles[1]) / 2)
-
-                cone_mesh = trimesh.creation.cone(radius=radius, height=padded_height)
-
-                position_matrix = translation_matrix((0, 0, -1 * padded_height))
-                cone_mesh.apply_transform(position_matrix)
-
-                # Create two cones around the yaw axis
-                orientation_1 = Orientation._fromEuler(0, 0, 0)
-                orientation_2 = Orientation._fromEuler(0, 0, math.pi)
-
-                cone_1 = MeshVolumeRegion(
-                    mesh=cone_mesh, rotation=orientation_1, centerMesh=False
-                )
-                cone_2 = MeshVolumeRegion(
-                    mesh=cone_mesh, rotation=orientation_2, centerMesh=False
-                )
-
-                view_region = base_sphere.difference(cone_1).difference(cone_2)
-            else:
-                # Case 2.b
-                view_region = base_sphere.intersect(
-                    ViewSectionRegion(visibleDistance, viewAngles)
-                )
+            view_region = base_sphere.intersect(
+                ViewSectionRegion(visibleDistance, viewAngles, angleCutoff)
+            )
 
         assert view_region is not None
+        assert isinstance(view_region, MeshVolumeRegion)
+        assert view_region.containsPoint(Vector(0, 0, 0))
 
         # Initialize volume region
         super().__init__(
@@ -3683,8 +3664,9 @@ class ViewSectionRegion(MeshVolumeRegion):
             triangles.append((bot_line[li], bot_line[li + 1], top_line[li + 1]))
 
         # Side triangles
-        triangles.append((bot_line[0], top_line[0], (0, 0, 0)))
-        triangles.append((top_line[-1], bot_line[-1], (0, 0, 0)))
+        if viewAngles[0] < math.tau:
+            triangles.append((bot_line[0], top_line[0], (0, 0, 0)))
+            triangles.append((top_line[-1], bot_line[-1], (0, 0, 0)))
 
         # Top/Bottom triangles
         for li in range(len(top_line) - 1):
