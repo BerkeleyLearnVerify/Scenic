@@ -430,7 +430,9 @@ class Simulation(abc.ABC):
             for obj in self.objects:
                 if not obj.sensors:
                     continue
-                obj.observations.update({key: sensor.get_observation() for key, sensor in obj.sensors.items()})
+                obj.observations.update(
+                    {key: sensor.get_observation() for key, sensor in obj.sensors.items()}
+                )
 
             # Record current state of the simulation
             self.recordCurrentState()

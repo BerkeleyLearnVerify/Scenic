@@ -10,7 +10,6 @@ class Sensor:
 
 
 class ActiveSensor(Sensor):
-
     def __init__(self):
         self.observation = None
         self.frame = 0

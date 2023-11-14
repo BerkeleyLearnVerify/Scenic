@@ -29,16 +29,16 @@ class CarlaSimulator(DrivingSimulator):
     """Implementation of `Simulator` for CARLA."""
 
     def __init__(
-            self,
-            carla_map,
-            map_path,
-            address="127.0.0.1",
-            port=2000,
-            timeout=10,
-            render=True,
-            record="",
-            timestep=0.1,
-            traffic_manager_port=None,
+        self,
+        carla_map,
+        map_path,
+        address="127.0.0.1",
+        port=2000,
+        timeout=10,
+        render=True,
+        record="",
+        timestep=0.1,
+        traffic_manager_port=None,
     ):
         super().__init__()
         verbosePrint(f"Connecting to CARLA on port {port}")
@@ -254,7 +254,9 @@ class CarlaSimulation(DrivingSimulation):
                     if sensor_bp.has_attribute(key):
                         sensor_bp.set_attribute(key, str(val))
 
-                carla_sensor = self.world.spawn_actor(sensor_bp, sensor.transform, attach_to=obj.carlaActor)
+                carla_sensor = self.world.spawn_actor(
+                    sensor_bp, sensor.transform, attach_to=obj.carlaActor
+                )
                 carla_sensor.listen(sensor.on_data)
                 sensor.carla_sensor = carla_sensor
             obj.observations = {}

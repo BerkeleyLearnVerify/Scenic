@@ -999,7 +999,7 @@ class Object(OrientedPoint):
         "_parentScenario": None,
         # Sensor properties
         "sensors": {},
-        "observations": {}
+        "observations": {},
     }
 
     def __new__(cls, *args, **kwargs):
@@ -1436,7 +1436,7 @@ class Object(OrientedPoint):
 
             edges = view_region_mesh.face_adjacency_edges[
                 view_region_mesh.face_adjacency_angles > np.radians(0.1)
-                ]
+            ]
             vertices = view_region_mesh.vertices
 
             edge_path = trimesh.path.Path3D(
@@ -1488,9 +1488,9 @@ class Object(OrientedPoint):
     def _isPlanarBox(self):
         """Whether this object is a box aligned with the XY plane."""
         return (
-                isinstance(self.shape, BoxShape)
-                and self.orientation.pitch == 0
-                and self.orientation.roll == 0
+            isinstance(self.shape, BoxShape)
+            and self.orientation.pitch == 0
+            and self.orientation.roll == 0
         )
 
     @cached_property
@@ -1508,13 +1508,14 @@ class Object(OrientedPoint):
                 length * cyaw,
                 pos[0],
                 pos[1],
-                ]
+            ]
             return shapely.affinity.affine_transform(_unitBox, matrix)
 
         return self.occupiedSpace._boundingPolygon
 
     def save_observations(self, save_path, frame_number):
         import os
+
         for key, sensor in self.sensors.items():
             sensor_path = os.path.join(save_path, key)
             os.makedirs(sensor_path, exist_ok=True)

@@ -1,22 +1,33 @@
+import os
 from time import sleep
 
 import carla
+import cv2
 import numpy as np
 
 from scenic.core.sensors import ActiveSensor
-import os
-import cv2
+
 
 class CarlaVisionSensor(ActiveSensor):
-
-    def __init__(self, offset=(0, 0, 0), rotation=(0, 0, 0), attributes=None,
-                 blueprint='sensor.camera.rgb', convert=None, record_npy=False):
+    def __init__(
+        self,
+        offset=(0, 0, 0),
+        rotation=(0, 0, 0),
+        attributes=None,
+        blueprint="sensor.camera.rgb",
+        convert=None,
+        record_npy=False,
+    ):
         super().__init__()
-        self.transform = carla.Transform(carla.Location(x=offset[0], y=offset[1], z=offset[2]),
-                                         carla.Rotation(pitch=rotation[0], yaw=rotation[1], roll=rotation[2]))
+        self.transform = carla.Transform(
+            carla.Location(x=offset[0], y=offset[1], z=offset[2]),
+            carla.Rotation(pitch=rotation[0], yaw=rotation[1], roll=rotation[2]),
+        )
         self.blueprint = blueprint
         if isinstance(attributes, str):
-            raise NotImplementedError("String parsing for attributes is not yet implemented. Feel free to do so.")
+            raise NotImplementedError(
+                "String parsing for attributes is not yet implemented. Feel free to do so."
+            )
         elif isinstance(attributes, dict):
             self.attributes = attributes
         else:
@@ -50,13 +61,19 @@ class CarlaVisionSensor(ActiveSensor):
 
 
 class CarlaRGBSensor(CarlaVisionSensor):
-    def __init__(self, offset=(0, 0, 0), rotation=(0, 0, 0), attributes=None,
-                 record_npy=False):
-        super().__init__(offset=offset, rotation=rotation, attributes=attributes,
-                         blueprint='sensor.camera.rgb', convert=None, record_npy=record_npy)
+    def __init__(
+        self, offset=(0, 0, 0), rotation=(0, 0, 0), attributes=None, record_npy=False
+    ):
+        super().__init__(
+            offset=offset,
+            rotation=rotation,
+            attributes=attributes,
+            blueprint="sensor.camera.rgb",
+            convert=None,
+            record_npy=record_npy,
+        )
 
     def processing(self, data):
-
         array = np.frombuffer(data.raw_data, dtype=np.dtype("uint8"))
         array = np.reshape(array, (data.height, data.width, 4))  # BGRA format
         array = array[:, :, :3]  # Take only RGB
@@ -75,11 +92,22 @@ class CarlaRGBSensor(CarlaVisionSensor):
 
 
 class CarlaSSSensor(CarlaVisionSensor):
-    def __init__(self, offset=(0, 0, 0), rotation=(0, 0, 0), attributes=None, convert=None,
-                 record_npy=False):
-        super().__init__(offset=offset, rotation=rotation, attributes=attributes,
-                         blueprint='sensor.camera.semantic_segmentation', convert=convert,
-                         record_npy=record_npy)
+    def __init__(
+        self,
+        offset=(0, 0, 0),
+        rotation=(0, 0, 0),
+        attributes=None,
+        convert=None,
+        record_npy=False,
+    ):
+        super().__init__(
+            offset=offset,
+            rotation=rotation,
+            attributes=attributes,
+            blueprint="sensor.camera.semantic_segmentation",
+            convert=convert,
+            record_npy=record_npy,
+        )
 
     def processing(self, data):
         if self.convert is not None:
