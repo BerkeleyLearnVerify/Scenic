@@ -572,6 +572,7 @@ scenic_compound_stmt:
     | scenic_try_interrupt_stmt
     | scenic_override_stmt
     | scenic_component_def
+    | scenic_contract_def
 
 # SIMPLE STATEMENTS
 # =================
@@ -929,23 +930,15 @@ scenic_component_def:
      }
 
 scenic_component_def_block:
-    | NEWLINE INDENT a=[x=STRING NEWLINE { x.string }] b=[scenic_component_sensors_block] \
-    c=[scenic_component_inputs_block] d=[scenic_component_outputs_block] \
-    e=[scenic_component_actions_block] f=[scenic_component_state_block] \
-    g=[scenic_component_body_block] h=[scenic_component_composition_block] DEDENT \
+    | NEWLINE INDENT a=[x=STRING NEWLINE { x.string }] \
+    b=[scenic_component_sensors_block] c=[scenic_component_inputs_block] \
+    d=[scenic_component_outputs_block] e=[scenic_component_actions_block] \
+    f=[scenic_component_state_block] g=[scenic_component_body_block] \
+    h=[scenic_component_composition_block] DEDENT \
     {(a, b or [], c or [], d or [], e or [], f or [], g or [], h or [])}
 
 scenic_component_sensors_block:
     | "sensors" &&':' NEWLINE INDENT a=(scenic_component_sensor)+ DEDENT {a}
-
-scenic_component_inputs_block:
-    | "inputs" &&':' NEWLINE INDENT a=(scenic_component_port)+ DEDENT {a}
-
-scenic_component_outputs_block:
-    | "outputs" &&':' NEWLINE INDENT a=(scenic_component_port)+ DEDENT {a}
-
-scenic_component_actions_block:
-    | "actions" &&':' NEWLINE INDENT a=(scenic_component_port)+ DEDENT {a}
 
 scenic_component_state_block:
     | "state" &&':' NEWLINE INDENT a=(scenic_component_state)+ DEDENT {a}
@@ -979,6 +972,71 @@ scenic_component_qualified_name:
 
 scenic_implement_stmt:
     | 'implement' linked_name=STRING 'with' component=primary 'as' name=NAME {s.ImplementStmt(name.string, component, linked_name.string[1:-1], LOCATIONS)}
+
+# Contract
+# --------
+
+scenic_contract_def:
+    | "contract" a=NAME '(' b=[params] ')' &&':' c=scenic_contract_def_block {
+        s.ContractDef(
+            a.string,
+            args=b or self.make_arguments(None, [], None, [], None),
+            docstring=c[0],
+            objects=c[1],
+            environment=c[2],
+            inputs=c[3],
+            outputs=c[4],
+            definitions=c[5],
+            assumptions=c[6],
+            guarantees=c[7],
+            LOCATIONS,
+        )
+     }
+
+scenic_contract_def_block:
+    | NEWLINE INDENT a=[x=STRING NEWLINE { x.string }] \
+    b=[scenic_contract_objects_block] c=[scenic_contract_environment_block] \
+    d=[scenic_component_inputs_block] e=[scenic_component_outputs_block] \
+    f=[scenic_contract_definitions_block] g=[scenic_contract_assumptions_block] \
+    h=[scenic_contract_guarantees_block] DEDENT \
+    {(a, b or [], c or [], d or [], e or [], f or [], g or [], h or [])}
+
+scenic_contract_objects_block:
+    | "objects" &&':' NEWLINE INDENT a=(scenic_contract_name_line)+ DEDENT {a}
+
+scenic_contract_environment_block:
+    | "environment" &&':' NEWLINE INDENT a=(scenic_contract_name_line)+ DEDENT {a}
+
+scenic_contract_definitions_block:
+    | "definitions" &&':' NEWLINE INDENT a=(scenic_contract_definition)+ DEDENT {a}
+
+scenic_contract_assumptions_block:
+    | "assumptions" &&':' NEWLINE INDENT a=(scenic_contract_temporal_expression_line)+ DEDENT {a}
+
+scenic_contract_guarantees_block:
+    | "guarantees" &&':' NEWLINE INDENT a=(scenic_contract_temporal_expression_line)+ DEDENT {a}
+
+scenic_contract_name_line:
+    | a=NAME NEWLINE {a.string}
+
+scenic_contract_definition:
+    | a=NAME '=' b=expression NEWLINE {(a.string, b)}
+
+scenic_contract_temporal_expression_line:
+    | a=scenic_temporal_expression NEWLINE {a}
+
+# Component/Contracts General
+# ---------------------------
+
+scenic_component_inputs_block:
+    | "inputs" &&':' NEWLINE INDENT a=(scenic_component_port)+ DEDENT {a}
+
+scenic_component_outputs_block:
+    | "outputs" &&':' NEWLINE INDENT a=(scenic_component_port)+ DEDENT {a}
+
+scenic_component_actions_block:
+    | "actions" &&':' NEWLINE INDENT a=(scenic_component_port)+ DEDENT {a}
+
 
 # Function definitions
 # --------------------

@@ -15,4 +15,4 @@ filename = Path(os.path.dirname(os.path.realpath(__file__))) / "dev.contract"
 scenic_ast = parse_file(filename)
 python_ast, _ = compileScenicAST(scenic_ast)
 print(ast.unparse(python_ast))
-exec(compile(python_ast, filename, "exec"))
+# exec(compile(python_ast, filename, "exec"))

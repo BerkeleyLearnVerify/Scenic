@@ -177,10 +177,11 @@ __all__ = (
     "Always",
     "Eventually",
     "Next",
-    # Contracts
+    # Scenic+Contracts
     "BaseComponent",
     "ActionComponent",
     "ComposeComponent",
+    "Contract",
 )
 
 # various Python types and functions used in the language but defined elsewhere

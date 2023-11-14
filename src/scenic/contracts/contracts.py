@@ -1,0 +1,2 @@
+class Contract:
+    pass

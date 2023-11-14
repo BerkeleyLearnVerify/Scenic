@@ -1764,6 +1764,104 @@ class ScenicToPythonTransformer(Transformer):
     ):
         component_body = []
 
+        ## Class Attributes ##
+        # Store type info for inputs, outputs, sensors, and state
+        component_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="inputs_types", ctx=ast.Store())],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for i in inputs:
+            component_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Name(id="inputs_types", ctx=loadCtx),
+                            slice=ast.Constant(value=i[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=i[1],
+                )
+            )
+
+        component_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="outputs_types", ctx=ast.Store())],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for o in outputs:
+            component_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Name(id="outputs_types", ctx=loadCtx),
+                            slice=ast.Constant(value=o[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=o[1],
+                )
+            )
+        component_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="sensors_values", ctx=ast.Store())],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        component_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="sensors_types", ctx=ast.Store())],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for s in sensors:
+            component_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Name(id="sensors_values", ctx=loadCtx),
+                            slice=ast.Constant(value=s[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=ast.Constant(s[1]),
+                )
+            )
+            component_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Name(id="sensors_types", ctx=loadCtx),
+                            slice=ast.Constant(value=s[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=s[2],
+                )
+            )
+        component_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="state_types", ctx=ast.Store())],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for s in state:
+            component_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Name(id="state_types", ctx=loadCtx),
+                            slice=ast.Constant(value=s[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=s[2],
+                )
+            )
+
         ## '__init__' Function ##
         # Update args to add option for a Scenic object to link to.
         init_arguments = ast.arguments(
@@ -1778,143 +1876,13 @@ class ScenicToPythonTransformer(Transformer):
 
         init_body = []
 
-        # Store info on sensors, inputs, outputs, and state.
-        init_body.append(
-            ast.Assign(
-                targets=[
-                    ast.Attribute(
-                        value=ast.Name(id="self", ctx=loadCtx),
-                        attr="sensors_values",
-                        ctx=ast.Store(),
-                    )
-                ],
-                value=ast.Dict(keys=[], values=[]),
-            )
-        )
-        init_body.append(
-            ast.Assign(
-                targets=[
-                    ast.Attribute(
-                        value=ast.Name(id="self", ctx=loadCtx),
-                        attr="sensors_types",
-                        ctx=ast.Store(),
-                    )
-                ],
-                value=ast.Dict(keys=[], values=[]),
-            )
-        )
-        for s in sensors:
-            init_body.append(
-                ast.Assign(
-                    targets=[
-                        ast.Subscript(
-                            value=ast.Attribute(
-                                value=ast.Name(id="self", ctx=loadCtx),
-                                attr="sensors_values",
-                                ctx=loadCtx,
-                            ),
-                            slice=ast.Constant(value=s[0]),
-                            ctx=ast.Store(),
-                        )
-                    ],
-                    value=ast.Constant(s[1]),
-                )
-            )
-            init_body.append(
-                ast.Assign(
-                    targets=[
-                        ast.Subscript(
-                            value=ast.Attribute(
-                                value=ast.Name(id="self", ctx=loadCtx),
-                                attr="sensors_types",
-                                ctx=loadCtx,
-                            ),
-                            slice=ast.Constant(value=s[0]),
-                            ctx=ast.Store(),
-                        )
-                    ],
-                    value=s[2],
-                )
-            )
-
-        init_body.append(
-            ast.Assign(
-                targets=[
-                    ast.Attribute(
-                        value=ast.Name(id="self", ctx=loadCtx),
-                        attr="inputs_types",
-                        ctx=ast.Store(),
-                    )
-                ],
-                value=ast.Dict(keys=[], values=[]),
-            )
-        )
-        for i in inputs:
-            init_body.append(
-                ast.Assign(
-                    targets=[
-                        ast.Subscript(
-                            value=ast.Attribute(
-                                value=ast.Name(id="self", ctx=loadCtx),
-                                attr="inputs_types",
-                                ctx=loadCtx,
-                            ),
-                            slice=ast.Constant(value=i[0]),
-                            ctx=ast.Store(),
-                        )
-                    ],
-                    value=i[1],
-                )
-            )
-
-        init_body.append(
-            ast.Assign(
-                targets=[
-                    ast.Attribute(
-                        value=ast.Name(id="self", ctx=loadCtx),
-                        attr="outputs_types",
-                        ctx=ast.Store(),
-                    )
-                ],
-                value=ast.Dict(keys=[], values=[]),
-            )
-        )
-        for o in outputs:
-            init_body.append(
-                ast.Assign(
-                    targets=[
-                        ast.Subscript(
-                            value=ast.Attribute(
-                                value=ast.Name(id="self", ctx=loadCtx),
-                                attr="outputs_types",
-                                ctx=loadCtx,
-                            ),
-                            slice=ast.Constant(value=o[0]),
-                            ctx=ast.Store(),
-                        )
-                    ],
-                    value=o[1],
-                )
-            )
-
+        # Store state initial values.
         init_body.append(
             ast.Assign(
                 targets=[
                     ast.Attribute(
                         value=ast.Name(id="self", ctx=loadCtx),
                         attr="state_inits",
-                        ctx=ast.Store(),
-                    )
-                ],
-                value=ast.Dict(keys=[], values=[]),
-            )
-        )
-        init_body.append(
-            ast.Assign(
-                targets=[
-                    ast.Attribute(
-                        value=ast.Name(id="self", ctx=loadCtx),
-                        attr="state_types",
                         ctx=ast.Store(),
                     )
                 ],
@@ -1936,22 +1904,6 @@ class ScenicToPythonTransformer(Transformer):
                         )
                     ],
                     value=s[1],
-                )
-            )
-            init_body.append(
-                ast.Assign(
-                    targets=[
-                        ast.Subscript(
-                            value=ast.Attribute(
-                                value=ast.Name(id="self", ctx=loadCtx),
-                                attr="state_types",
-                                ctx=loadCtx,
-                            ),
-                            slice=ast.Constant(value=s[0]),
-                            ctx=ast.Store(),
-                        )
-                    ],
-                    value=s[2],
                 )
             )
 
@@ -2040,6 +1992,29 @@ class ScenicToPythonTransformer(Transformer):
         docstring: Optional[str],
         actions: List[Tuple[str, ast.AST]],
     ):
+        component_body = []
+
+        ## Class Attributes ##
+        component_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="inputs_types", ctx=ast.Store())],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for a in actions:
+            component_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Name(id="inputs_types", ctx=loadCtx),
+                            slice=ast.Constant(value=a[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=a[1],
+                )
+            )
+
         ## '__init__' Function ##
         # Update args to add option for a Scenic object to link to.
         init_arguments = ast.arguments(
@@ -2053,35 +2028,6 @@ class ScenicToPythonTransformer(Transformer):
         )
 
         init_body = []
-        init_body.append(
-            ast.Assign(
-                targets=[
-                    ast.Attribute(
-                        value=ast.Name(id="self", ctx=loadCtx),
-                        attr="inputs_types",
-                        ctx=ast.Store(),
-                    )
-                ],
-                value=ast.Dict(keys=[], values=[]),
-            )
-        )
-        for a in actions:
-            init_body.append(
-                ast.Assign(
-                    targets=[
-                        ast.Subscript(
-                            value=ast.Attribute(
-                                value=ast.Name(id="self", ctx=loadCtx),
-                                attr="inputs_types",
-                                ctx=loadCtx,
-                            ),
-                            slice=ast.Constant(value=a[0]),
-                            ctx=ast.Store(),
-                        )
-                    ],
-                    value=a[1],
-                )
-            )
 
         # Make super() init call
         super_kwargs = itertools.chain(
@@ -2116,7 +2062,7 @@ class ScenicToPythonTransformer(Transformer):
             returns=None,
             type_params=[],
         )
-        component_body = [init_func]
+        component_body.append(init_func)
         return ast.ClassDef(
             name=self.toComponentName(name),
             bases=[ast.Name(id="ActionComponent", ctx=loadCtx)],
@@ -2137,6 +2083,47 @@ class ScenicToPythonTransformer(Transformer):
     ):
         component_body = []
 
+        ## Class Attributes ##
+        component_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="inputs_types", ctx=ast.Store())],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for i in inputs:
+            component_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Name(id="inputs_types", ctx=loadCtx),
+                            slice=ast.Constant(value=i[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=i[1],
+                )
+            )
+
+        component_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="outputs_types", ctx=ast.Store())],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for o in outputs:
+            component_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Name(id="outputs_types", ctx=loadCtx),
+                            slice=ast.Constant(value=o[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=o[1],
+                )
+            )
+
         ## '__init__' Function ##
         # Update args to add option for a Scenic object to link to.
         init_arguments = ast.arguments(
@@ -2150,65 +2137,6 @@ class ScenicToPythonTransformer(Transformer):
         )
 
         init_body = []
-        init_body.append(
-            ast.Assign(
-                targets=[
-                    ast.Attribute(
-                        value=ast.Name(id="self", ctx=loadCtx),
-                        attr="inputs_types",
-                        ctx=ast.Store(),
-                    )
-                ],
-                value=ast.Dict(keys=[], values=[]),
-            )
-        )
-        for i in inputs:
-            init_body.append(
-                ast.Assign(
-                    targets=[
-                        ast.Subscript(
-                            value=ast.Attribute(
-                                value=ast.Name(id="self", ctx=loadCtx),
-                                attr="inputs_types",
-                                ctx=loadCtx,
-                            ),
-                            slice=ast.Constant(value=i[0]),
-                            ctx=ast.Store(),
-                        )
-                    ],
-                    value=i[1],
-                )
-            )
-
-        init_body.append(
-            ast.Assign(
-                targets=[
-                    ast.Attribute(
-                        value=ast.Name(id="self", ctx=loadCtx),
-                        attr="outputs_types",
-                        ctx=ast.Store(),
-                    )
-                ],
-                value=ast.Dict(keys=[], values=[]),
-            )
-        )
-        for o in outputs:
-            init_body.append(
-                ast.Assign(
-                    targets=[
-                        ast.Subscript(
-                            value=ast.Attribute(
-                                value=ast.Name(id="self", ctx=loadCtx),
-                                attr="outputs_types",
-                                ctx=loadCtx,
-                            ),
-                            slice=ast.Constant(value=o[0]),
-                            ctx=ast.Store(),
-                        )
-                    ],
-                    value=o[1],
-                )
-            )
 
         subcomponent_stmts = [(a, b) for n, a, b in composition if n == "subcomponent"]
         connect_stmts = [(a, b) for n, a, b in composition if n == "connect"]
@@ -2404,3 +2332,72 @@ class ScenicToPythonTransformer(Transformer):
         )
 
         return implementation_stmt
+
+    def toContractName(self, name):
+        return f"_SCENIC_INTERNAL_CONTRACT_{name}"
+
+    def visit_ContractDef(self, node: s.ContractDef):
+        contract_body = []
+
+        ## Class Attributes ##
+        contract_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="objects", ctx=ast.Store())],
+                value=ast.Constant(value=tuple(node.objects)),
+            )
+        )
+
+        contract_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="environment", ctx=ast.Store())],
+                value=ast.Constant(value=tuple(node.environment)),
+            )
+        )
+        contract_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="inputs_types", ctx=ast.Store())],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for i in node.inputs:
+            contract_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Name(id="inputs_types", ctx=loadCtx),
+                            slice=ast.Constant(value=i[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=i[1],
+                )
+            )
+
+        contract_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="outputs_types", ctx=ast.Store())],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+        for o in node.outputs:
+            contract_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Name(id="outputs_types", ctx=loadCtx),
+                            slice=ast.Constant(value=o[0]),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=o[1],
+                )
+            )
+
+        return ast.ClassDef(
+            name=self.toContractName(node.name),
+            bases=[ast.Name(id="Contract", ctx=loadCtx)],
+            body=contract_body,
+            keywords=[],
+            decorator_list=[],
+            type_params=[],
+        )

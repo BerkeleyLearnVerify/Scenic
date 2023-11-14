@@ -1288,3 +1288,32 @@ class ImplementStmt(AST):
         self.name = name
         self.component = component
         self.linked_name = linked_name
+
+
+# Contracts
+class ContractDef(AST):
+    def __init__(
+        self,
+        name,
+        args,
+        docstring,
+        objects,
+        environment,
+        inputs,
+        outputs,
+        definitions,
+        assumptions,
+        guarantees,
+        *_args,
+        **kwargs,
+    ) -> None:
+        self.name = name
+        self.args = args
+        self.docstring = docstring
+        self.objects = objects
+        self.environment = environment
+        self.inputs = inputs
+        self.outputs = outputs
+        self.definitions = definitions
+        self.assumptions = assumptions
+        self.guarantees = guarantees
