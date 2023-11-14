@@ -44,18 +44,6 @@ class CarlaVisionSensor(ActiveSensor):
 
         self.record_npy = record_npy
 
-    # def processing(self, data):
-    #     if self.convert is not None:
-    #         data.convert(self.convert)
-    #         return data
-    #
-    #     array = np.frombuffer(data.raw_data, dtype=np.dtype("uint8"))
-    #     array = np.reshape(array, (data.height, data.width, 4))  # BGRA format
-    #     array = array[:, :, :3]  # Take only RGB
-    #     array = array[:, :, ::-1]  # Revert order
-    #
-    #     return array
-
     def save_last_observation(self, save_path, frame_number=None):
         raise NotImplementedError()
 

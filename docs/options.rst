@@ -33,6 +33,11 @@ General Scenario Control
 
 	The equivalent of this option for the Python API is the ``params`` argument to `scenic.scenarioFromFile` (which, however, does not attempt to convert strings to numbers).
 
+.. option:: --count <number>
+
+	Number of successful scenes to generate or simulations to run (i.e., not counting rejected scenes/simulations).
+	The default is to run forever.
+
 .. option:: -s <seed>, --seed <seed>
 
 	Specify the random seed used by Scenic, to make sampling deterministic.
@@ -73,11 +78,6 @@ Dynamic Simulations
 
 	Maximum number of time steps to run each simulation (the default is infinity).
 	Simulations may end earlier if termination criteria defined in the scenario are met (see :keyword:`terminate when` and :keyword:`terminate`).
-
-.. option:: --count <number>
-
-	Number of successful simulations to run (i.e., not counting rejected simulations).
-	The default is to run forever.
 
 Debugging
 ---------

@@ -142,6 +142,11 @@ class MeshShape(Shape):
             kwargs: Additional arguments to the MeshShape initializer.
         """
         mesh = loadMesh(path, filetype, compressed, binary)
+        if not mesh.is_volume:
+            raise ValueError(
+                "A MeshShape cannot be defined with a mesh that does not have a well defined volume."
+                " Consider using scenic.core.utils.repairMesh."
+            )
         if unify:
             mesh = unifyMesh(mesh, verbose=True)
         return cls(mesh, **kwargs)

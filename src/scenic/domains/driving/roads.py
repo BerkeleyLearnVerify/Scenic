@@ -518,6 +518,13 @@ class LaneGroup(LinearElement):
     #: Opposite lane group of the same road, if any.
     _opposite: Union[LaneGroup, None] = None
 
+    def __attrs_post_init__(self):
+        super().__attrs_post_init__()
+
+        # Ensure lanes do not overlap
+        for i in range(len(self.lanes) - 1):
+            assert not self.lanes[i].polygon.overlaps(self.lanes[i + 1].polygon)
+
     @property
     def sidewalk(self) -> Sidewalk:
         """The adjacent sidewalk; rejects if there is none."""
@@ -916,9 +923,18 @@ class Network:
             self.shoulderRegion = PolygonalRegion.unionAll(self.shoulders)
 
         if self.drivableRegion is None:
-            self.drivableRegion = self.laneRegion.union(self.intersectionRegion)
+            self.drivableRegion = PolygonalRegion.unionAll(
+                (
+                    self.laneRegion,
+                    self.roadRegion,  # can contain points slightly outside laneRegion
+                    self.intersectionRegion,
+                )
+            )
         assert self.drivableRegion.containsRegion(
             self.laneRegion, tolerance=self.tolerance
+        )
+        assert self.drivableRegion.containsRegion(
+            self.roadRegion, tolerance=self.tolerance
         )
         assert self.drivableRegion.containsRegion(
             self.intersectionRegion, tolerance=self.tolerance
@@ -973,7 +989,7 @@ class Network:
 
         :meta private:
         """
-        return 30
+        return 32
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""

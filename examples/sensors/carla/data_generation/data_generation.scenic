@@ -19,11 +19,14 @@ ego = new Car at spot,
     with blueprint car_model,
     with behavior AutopilotBehavior(),
     with sensors {"front_ss": SSSensor(offset=(1.6, 0, 1.7), convert='CityScapesPalette', attributes=attrs),
-                  "front_rgb": RGBSensor(offset=(1.6, 0, 1.7), attributes=attrs)}
+                  "front_rgb": RGBSensor(offset=(1.6, 0, 1.7), attributes=attrs)
+                  }
+
 
 other = new Car offset by 0 @ Range(10, 30),
     with behavior AutopilotBehavior()
 
+record ego.observations["front_rgb"] as "front_rgb"
 #record ego.observations["front_rgb"] as "front_rgb" after 5s every 1s # TODO Implement
 #record ego.observations["front_rgb"] after 5s every 1s to localPath("data/generation") # TODO Implement
 

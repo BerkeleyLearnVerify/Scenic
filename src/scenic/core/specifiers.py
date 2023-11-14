@@ -102,6 +102,8 @@ class PropertyDefault:
         self.isFinal = enabled("final", False)
         for attr in attributes:
             raise RuntimeError(f'unknown property attribute "{attr}"')
+        if self.isAdditive and self.isDynamic:
+            raise InvalidScenarioError("additive properties cannot be dynamic")
 
     @staticmethod
     def forValue(value):

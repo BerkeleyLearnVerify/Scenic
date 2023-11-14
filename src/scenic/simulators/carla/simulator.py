@@ -1,5 +1,4 @@
 """Simulator interface for CARLA."""
-from time import sleep
 
 try:
     import carla
