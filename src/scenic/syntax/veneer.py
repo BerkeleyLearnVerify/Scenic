@@ -255,6 +255,7 @@ import traceback
 import typing
 
 from scenic.contracts.components import ActionComponent, BaseComponent, ComposeComponent
+from scenic.contracts.contracts import Contract
 from scenic.core.distributions import (
     Distribution,
     MultiplexerDistribution,

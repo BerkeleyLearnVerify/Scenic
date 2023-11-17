@@ -26,7 +26,7 @@ import shapely
 import shapely.affinity
 import trimesh
 
-from scenic.contracts.components import ComponentBehavior
+from scenic.contracts.utils import ComponentBehavior
 from scenic.core.distributions import (
     MultiplexerDistribution,
     RandomControlFlowError,

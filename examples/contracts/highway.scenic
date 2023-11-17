@@ -8,7 +8,7 @@ import shapely
 from scenic.core.distributions import distributionFunction
 from scenic.core.type_support import toVector
 
-from .utils import leadDistance
+from scenic.contracts.utils import leadDistance
 
 STARTING_DISTANCE = 5
 
@@ -36,7 +36,7 @@ ego = new EgoCar at roadDirection.followFrom(toVector(leadCar), -STARTING_DISTAN
 # Create/activate monitor to store lead distance
 monitor UpdateDistance(tailCar, leadCar):
     while True:
-        tailCar.leadDist = float(leadDistance(tailCar, leadCar))
+        tailCar.leadDist = float(leadDistance(tailCar, leadCar, network))
         wait
 
 require monitor UpdateDistance(ego, leadCar)

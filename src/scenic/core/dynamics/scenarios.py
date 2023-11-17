@@ -8,7 +8,7 @@ import weakref
 
 import rv_ltl
 
-from scenic.contracts.components import ComponentBehavior
+from scenic.contracts.utils import ComponentBehavior
 import scenic.core.dynamics as dynamics
 from scenic.core.errors import InvalidScenarioError
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation

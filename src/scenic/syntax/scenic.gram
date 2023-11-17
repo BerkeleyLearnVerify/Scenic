@@ -953,10 +953,6 @@ scenic_component_composition_block:
 scenic_component_sensor:
     | source=scenic_component_qualified_name ':' type=primary 'as' name=NAME NEWLINE {(name.string, source, type)}
 
-
-scenic_component_port:
-    | a=NAME ':' b=primary NEWLINE {(a.string, b)}
-
 scenic_component_state:
     | a=NAME ':' type=primary '=' val=primary NEWLINE {(a.string, val, type)}
 
@@ -983,7 +979,7 @@ scenic_contract_def:
             args=b or self.make_arguments(None, [], None, [], None),
             docstring=c[0],
             objects=c[1],
-            environment=c[2],
+            globals=c[2],
             inputs=c[3],
             outputs=c[4],
             definitions=c[5],
@@ -995,17 +991,17 @@ scenic_contract_def:
 
 scenic_contract_def_block:
     | NEWLINE INDENT a=[x=STRING NEWLINE { x.string }] \
-    b=[scenic_contract_objects_block] c=[scenic_contract_environment_block] \
+    b=[scenic_contract_objects_block] c=[scenic_contract_globals_block] \
     d=[scenic_component_inputs_block] e=[scenic_component_outputs_block] \
     f=[scenic_contract_definitions_block] g=[scenic_contract_assumptions_block] \
     h=[scenic_contract_guarantees_block] DEDENT \
-    {(a, b or [], c or [], d or [], e or [], f or [], g or [], h or [])}
+    {(a, b or ["self"], c or [], d or [], e or [], f or [], g or [], h or [])}
 
 scenic_contract_objects_block:
     | "objects" &&':' NEWLINE INDENT a=(scenic_contract_name_line)+ DEDENT {a}
 
-scenic_contract_environment_block:
-    | "environment" &&':' NEWLINE INDENT a=(scenic_contract_name_line)+ DEDENT {a}
+scenic_contract_globals_block:
+    | "globals" &&':' NEWLINE INDENT a=(scenic_contract_name_line)+ DEDENT {a}
 
 scenic_contract_definitions_block:
     | "definitions" &&':' NEWLINE INDENT a=(scenic_contract_definition)+ DEDENT {a}
@@ -1036,6 +1032,9 @@ scenic_component_outputs_block:
 
 scenic_component_actions_block:
     | "actions" &&':' NEWLINE INDENT a=(scenic_component_port)+ DEDENT {a}
+
+scenic_component_port:
+    | a=NAME ':' b=primary NEWLINE {(a.string, b)}
 
 
 # Function definitions

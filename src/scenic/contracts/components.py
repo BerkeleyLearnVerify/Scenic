@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
 import graphlib
-import warnings
 
+from scenic.contracts.utils import lookuplinkedObject
 from scenic.core.dynamics.actions import Action
-from scenic.core.specifiers import Specifier
 
 
 class Component(ABC):
@@ -34,6 +33,8 @@ class BaseComponent(Component):
 
     def reset(self):
         self.linkedObject = None
+        self.last_inputs = {}
+        self.last_outputs = {}
         self.state = ComponentState(self.state_types)
 
         for name, val in self.state_inits.items():
@@ -46,6 +47,7 @@ class BaseComponent(Component):
         )
         for input_name, input_val in inputs.items():
             assert isinstance(input_val, self.inputs_types[input_name])
+        self.last_inputs = inputs
 
         # Extract sensor values and check validity
         sensors = {}
@@ -67,6 +69,7 @@ class BaseComponent(Component):
         )
         for output_name, output_val in outputs.items():
             assert isinstance(output_val, self.outputs_types[output_name])
+        self.last_outputs = outputs
 
         return (outputs, [])
 
@@ -99,11 +102,14 @@ class ActionComponent(Component):
 
     def reset(self):
         self.linkedObject = None
+        self.last_inputs = {}
+        self.last_outputs = {}
 
     def run(self, actions):
         for action_name, action in actions.items():
             assert action_name in self.inputs_types
             assert isinstance(action, self.inputs_types[action_name])
+        self.last_inputs = actions
 
         return ({}, list(actions.values()))
 
@@ -184,6 +190,9 @@ class ComposeComponent(Component):
 
     def reset(self):
         self.linkedObject = None
+        self.last_inputs = {}
+        self.last_outputs = {}
+
         for sc in self.subcomponents.values():
             sc.reset()
 
@@ -194,6 +203,7 @@ class ComposeComponent(Component):
         )
         for input_name, input_val in inputs.items():
             assert isinstance(input_val, self.inputs_types[input_name])
+        self.inputs = inputs
 
         # Initialize actions list/values dictionary and load in inputs
         actions = []
@@ -239,6 +249,7 @@ class ComposeComponent(Component):
         )
         for output_name, output_val in outputs.items():
             assert isinstance(output_val, self.outputs_types[output_name])
+        self.outputs = outputs
 
         return outputs, actions
 
@@ -264,77 +275,3 @@ class ComponentState:
             )
 
         object.__setattr__(self, name, value)
-
-
-# Component behavior
-class ComponentBehavior:
-    def __init__(self, behavior):
-        assert len(behavior.inputs_types) == 0
-        self.behavior = behavior
-        self._agent = None
-        self._isRunning = False
-
-    def _assignTo(self, agent):
-        if self._agent and agent is self._agent._dynamicProxy:
-            # Assigned again (e.g. by override) to same agent; do nothing.
-            return
-        self._start(agent)
-
-    def _start(self, agent):
-        self._agent = agent
-        self._isRunning = True
-
-    def _step(self):
-        _, actions = self.behavior.run({})
-        return tuple(actions)
-
-    def _stop(self, reason=None):
-        self._agent = None
-        self._isRunning = False
-
-
-# Utility functions
-def lookuplinkedObject(scene, name):
-    target_objects = [
-        obj for obj in scene.objects if hasattr(obj, "name") and obj.name == name
-    ]
-
-    if len(target_objects) == 0:
-        raise RuntimeError(f"No object in scenario with name '{name}'")
-
-    if len(target_objects) > 1:
-        raise RuntimeError(f"Multiple objects in scenario with name '{name}'")
-
-    return target_objects[0]
-
-
-def runComponentsSimulation(scenario, components, time=200):
-    # Generate a scene and override component behaviors.
-    scene, _ = scenario.generate()
-
-    for component in components:
-        component.link(scene)
-
-        if component.linkedObject.behavior:
-            warnings.warn(
-                f"Overriding behavior of {component.linkedObjectName} with component behavior."
-            )
-
-        component.linkedObject._override(
-            [
-                Specifier(
-                    "ComponentBehaviorOverride",
-                    {"behavior": 1},
-                    {"behavior": ComponentBehavior(component)},
-                )
-            ]
-        )
-
-    # Instantiate simulator and run simulation
-    simulator = scenario.getSimulator()
-
-    simulation = simulator.simulate(scene, maxSteps=time)
-
-    # Reset components
-    for component in components:
-        component.reset()

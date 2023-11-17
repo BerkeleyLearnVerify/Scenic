@@ -11,9 +11,7 @@ from scenic.syntax.veneer import *
 from scenic.syntax.translator import scenarioFromFile
 from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
 from scenic.domains.driving.actions import RegulatedControlAction
-from scenic.contracts.components import runComponentsSimulation
-
-from .utils import leadDistance
+from scenic.contracts.utils import runComponentsSimulation, leadDistance
 
 # ## World File ##
 ENVIRONMENT = scenarioFromFile(localPath("highway.scenic"), mode2D=True)
@@ -255,18 +253,16 @@ component Car(stddev, target_dist, max_speed, min_dist, min_slowdown):
 
 contract AccurateDistance(perception_distance, abs_dist_err=0.5):
     """ Contract proving that perceived distance is relatively accurate."""
-    objects:
-        self
-
-    environment:
+    globals:
         objects
+        workspace
 
     outputs:
         dist: float
 
     definitions:
         cars = [obj for obj in objects if isinstance(obj, Vehicle) and obj is not self]
-        lead_distances = {car: leadDistance(self, car, maxDistance=2*perception_distance) for car in cars}
+        lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
         lead_car = sorted(cars, lambda x: lead_distances[x])[0]
         lead_dist = lead_distances[lead_car]
         behind_car = lead_dist <= perception_distance
@@ -333,4 +329,4 @@ MIN_DIST = 0
 MIN_SLOWDOWN = 4.57 # 15 feet per second in m/s
 
 implement "EgoCar" with Car(STDDEV, TARGET_DIST, MAX_SPEED, MIN_DIST, MIN_SLOWDOWN) as car
-runComponentsSimulation(ENVIRONMENT, [car])
+# runComponentsSimulation(ENVIRONMENT, [car], time=100)

@@ -1298,7 +1298,7 @@ class ContractDef(AST):
         args,
         docstring,
         objects,
-        environment,
+        globals,
         inputs,
         outputs,
         definitions,
@@ -1311,7 +1311,7 @@ class ContractDef(AST):
         self.args = args
         self.docstring = docstring
         self.objects = objects
-        self.environment = environment
+        self.globals = globals
         self.inputs = inputs
         self.outputs = outputs
         self.definitions = definitions

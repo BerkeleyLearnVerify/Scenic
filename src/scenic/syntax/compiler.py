@@ -236,10 +236,36 @@ TEMPORAL_PREFIX_OPS = {
 }
 
 
+class ContractAtomicTransformer(Transformer):
+    def __init__(self, variables, filename="<unknown>"):
+        super().__init__(filename)
+
+        self.variables = variables
+
+    def visit_Name(self, node):
+        if node.id not in self.variables:
+            return node
+        else:
+            return ast.Subscript(
+                value=node,
+                slice=ast.Name(id="SCENIC_INTERNAL_TIME", ctx=loadCtx),
+                ctx=loadCtx,
+            )
+
+
 class PropositionTransformer(Transformer):
-    def __init__(self, filename="<unknown>") -> None:
+    def __init__(
+        self, filename="<unknown>", atomic_args=None, atomic_transformer=None
+    ) -> None:
         super().__init__(filename)
         self.nextSyntaxId = 0
+
+        if atomic_args is None:
+            self.atomic_args = noArgs
+        else:
+            self.atomic_args = atomic_args
+
+        self.atomic_transformer = atomic_transformer
 
     def transform(
         self, node: ast.AST, nextSyntaxId=0
@@ -283,7 +309,11 @@ class PropositionTransformer(Transformer):
         lineNum = ast.Constant(node.lineno)
         ast.copy_location(lineNum, node)
 
-        closure = ast.Lambda(noArgs, node)
+        transformed_node = (
+            self.atomic_transformer.visit(node) if self.atomic_transformer else node
+        )
+
+        closure = ast.Lambda(self.atomic_args, node)
         ast.copy_location(closure, node)
 
         syntaxId = self._register_requirement_syntax(node)
@@ -1865,13 +1895,15 @@ class ScenicToPythonTransformer(Transformer):
         ## '__init__' Function ##
         # Update args to add option for a Scenic object to link to.
         init_arguments = ast.arguments(
-            args.posonlyargs,
-            [ast.arg("self")] + args.args + [ast.arg("_SCENIC_INTERNAL_LINKED_OBJ_NAME")],
-            args.vararg,
-            args.kwonlyargs,
-            args.kw_defaults,
-            args.kwarg,
-            args.defaults + [ast.Constant(value=None)],
+            posonlyargs=args.posonlyargs,
+            args=[ast.arg("self")]
+            + args.args
+            + [ast.arg("_SCENIC_INTERNAL_LINKED_OBJ_NAME")],
+            vararg=args.vararg,
+            kwonlyargs=args.kwonlyargs,
+            kw_defaults=args.kw_defaults,
+            kwarg=args.kwarg,
+            defaults=args.defaults + [ast.Constant(value=None)],
         )
 
         init_body = []
@@ -1943,7 +1975,7 @@ class ScenicToPythonTransformer(Transformer):
         )
         component_body.append(init_func)
 
-        ## 'run' Function ##
+        ## 'run_inner' Function ##
         new_args = (
             [ast.arg(arg="state")]
             + [ast.arg(arg=i[0]) for i in inputs]
@@ -1951,13 +1983,13 @@ class ScenicToPythonTransformer(Transformer):
         )
 
         run_args = ast.arguments(
-            new_args + args.posonlyargs,
-            args.args,
-            args.vararg,
-            args.kwonlyargs,
-            [],
-            args.kwarg,
-            [],
+            posonlyargs=new_args + args.posonlyargs,
+            args=args.args,
+            vararg=args.vararg,
+            kwonlyargs=args.kwonlyargs,
+            kw_defaults=[],
+            kwarg=args.kwarg,
+            defaults=[],
         )
         run_body = []
 
@@ -1974,7 +2006,7 @@ class ScenicToPythonTransformer(Transformer):
         )
         component_body.append(run_func)
 
-        # Create and return the new component class
+        ## Component Class Definition ##
         component_class = ast.ClassDef(
             name=self.toComponentName(name),
             bases=[ast.Name(id="BaseComponent", ctx=loadCtx)],
@@ -2018,13 +2050,15 @@ class ScenicToPythonTransformer(Transformer):
         ## '__init__' Function ##
         # Update args to add option for a Scenic object to link to.
         init_arguments = ast.arguments(
-            args.posonlyargs,
-            [ast.arg("self")] + args.args + [ast.arg("_SCENIC_INTERNAL_LINKED_OBJ_NAME")],
-            args.vararg,
-            args.kwonlyargs,
-            args.kw_defaults,
-            args.kwarg,
-            args.defaults + [ast.Constant(value=None)],
+            posonlyargs=args.posonlyargs,
+            args=[ast.arg("self")]
+            + args.args
+            + [ast.arg("_SCENIC_INTERNAL_LINKED_OBJ_NAME")],
+            vararg=args.vararg,
+            kwonlyargs=args.kwonlyargs,
+            kw_defaults=args.kw_defaults,
+            kwarg=args.kwarg,
+            defaults=args.defaults + [ast.Constant(value=None)],
         )
 
         init_body = []
@@ -2063,6 +2097,8 @@ class ScenicToPythonTransformer(Transformer):
             type_params=[],
         )
         component_body.append(init_func)
+
+        ## Component Class Definition ##
         return ast.ClassDef(
             name=self.toComponentName(name),
             bases=[ast.Name(id="ActionComponent", ctx=loadCtx)],
@@ -2127,13 +2163,13 @@ class ScenicToPythonTransformer(Transformer):
         ## '__init__' Function ##
         # Update args to add option for a Scenic object to link to.
         init_arguments = ast.arguments(
-            args.posonlyargs,
-            [ast.arg("self")] + args.args,
-            args.vararg,
-            args.kwonlyargs + [ast.arg("_SCENIC_INTERNAL_LINKED_OBJ_NAME")],
-            args.kw_defaults + [ast.Constant(value=None)],
-            args.kwarg,
-            args.defaults,
+            posonlyargs=args.posonlyargs,
+            args=[ast.arg("self")] + args.args,
+            vararg=args.vararg,
+            kwonlyargs=args.kwonlyargs + [ast.arg("_SCENIC_INTERNAL_LINKED_OBJ_NAME")],
+            kw_defaults=args.kw_defaults + [ast.Constant(value=None)],
+            kwarg=args.kwarg,
+            defaults=args.defaults,
         )
 
         init_body = []
@@ -2255,6 +2291,7 @@ class ScenicToPythonTransformer(Transformer):
         )
         component_body.append(init_func)
 
+        ## Component Class Definition ##
         return ast.ClassDef(
             name=self.toComponentName(name),
             bases=[ast.Name(id="ComposeComponent", ctx=loadCtx)],
@@ -2349,8 +2386,8 @@ class ScenicToPythonTransformer(Transformer):
 
         contract_body.append(
             ast.Assign(
-                targets=[ast.Name(id="environment", ctx=ast.Store())],
-                value=ast.Constant(value=tuple(node.environment)),
+                targets=[ast.Name(id="globals", ctx=ast.Store())],
+                value=ast.Constant(value=tuple(node.globals)),
             )
         )
         contract_body.append(
@@ -2393,6 +2430,185 @@ class ScenicToPythonTransformer(Transformer):
                 )
             )
 
+        ## `init` Function ##
+
+        ## '__init__' Function ##
+        init_arguments = node.args
+        init_body = []
+
+        # Make super() init call
+        super_kwargs = itertools.chain(
+            init_arguments.posonlyargs, init_arguments.args, init_arguments.kwonlyargs
+        )
+        super_kwargs = [
+            ast.keyword(arg=arg.arg, value=ast.Name(id=arg.arg, ctx=loadCtx))
+            for arg in super_kwargs
+            if arg.arg != "self"
+        ]
+        init_body.append(
+            ast.Expr(
+                value=ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Call(
+                            func=ast.Name(id="super", ctx=loadCtx), args=[], keywords=[]
+                        ),
+                        attr="__init__",
+                        ctx=loadCtx,
+                    ),
+                    args=[],
+                    keywords=super_kwargs,
+                )
+            )
+        )
+
+        # Create init function and add it to the component body
+        init_func = ast.FunctionDef(
+            name="__init__",
+            args=init_arguments,
+            body=init_body,
+            decorator_list=[],
+            returns=None,
+            type_params=[],
+        )
+        contract_body.append(init_func)
+
+        ## `prop_factory` Function ##
+        # Create arguments for lambdas
+        lambda_arg_names = ["SCENIC_INTERNAL_TIME"]
+        lambda_arg_names += node.objects
+        lambda_arg_names += node.globals
+        lambda_arg_names += [name for name, _ in node.inputs]
+        lambda_arg_names += [name for name, _ in node.outputs]
+
+        lambda_args = ast.arguments(
+            posonlyargs=[],
+            args=[ast.arg(name) for name in lambda_arg_names],
+            vararg=None,
+            kwonlyargs=[],
+            kw_defaults=[],
+            kwarg=None,
+            defaults=[],
+        )
+
+        # Definition names aren't included in args yet
+        lambda_arg_names += [name for name, _ in node.definitions]
+
+        # Create atomic transformer
+        atomic_transformer = ContractAtomicTransformer(lambda_arg_names, self.filename)
+
+        # Create lambda factory function and add it to the component body
+        prop_fac_args = ast.arguments(
+            node.args.posonlyargs,
+            node.args.args,
+            node.args.vararg,
+            node.args.kwonlyargs,
+            [],
+            node.args.kwarg,
+            [],
+        )
+
+        prop_fac_body = []
+
+        prop_fac_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="_SCENIC_INTERNAL_DEFINITIONS", ctx=ast.Store())],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
+
+        for def_name, def_expr in node.definitions:
+            def_lambda = ast.Lambda(
+                args=lambda_args, body=atomic_transformer.visit(def_expr)
+            )
+            prop_fac_body.append(
+                ast.Assign(
+                    targets=[
+                        ast.Subscript(
+                            value=ast.Name(
+                                id="_SCENIC_INTERNAL_DEFINITIONS", ctx=loadCtx
+                            ),
+                            slice=ast.Constant(value=def_name),
+                            ctx=ast.Store(),
+                        )
+                    ],
+                    value=def_lambda,
+                )
+            )
+
+            # Update lambda_args
+            lambda_args = ast.arguments(
+                posonlyargs=[],
+                args=lambda_args.args + [ast.arg(def_name)],
+                vararg=None,
+                kwonlyargs=[],
+                kw_defaults=[],
+                kwarg=None,
+                defaults=[],
+            )
+
+        propTransformer = PropositionTransformer(
+            self.filename, atomic_args=lambda_args, atomic_transformer=atomic_transformer
+        )
+
+        prop_fac_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="_SCENIC_INTERNAL_ASSUMPTIONS", ctx=ast.Store())],
+                value=ast.List(elts=[], ctx=loadCtx),
+            )
+        )
+        for a in node.assumptions:
+            assumption_prop = propTransformer.visit(a)
+            prop_fac_body.append(
+                ast.Expr(
+                    value=ast.Call(
+                        func=ast.Attribute(
+                            value=ast.Name(
+                                id="_SCENIC_INTERNAL_ASSUMPTIONS", ctx=loadCtx
+                            ),
+                            attr="append",
+                            ctx=loadCtx,
+                        ),
+                        args=[assumption_prop],
+                        keywords=[],
+                    )
+                )
+            )
+
+        prop_fac_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="_SCENIC_INTERNAL_REQUIREMENTS", ctx=ast.Store())],
+                value=ast.List(elts=[], ctx=loadCtx),
+            )
+        )
+        for g in node.guarantees:
+            guarantee_prop = propTransformer.visit(g)
+            prop_fac_body.append(
+                ast.Expr(
+                    value=ast.Call(
+                        func=ast.Attribute(
+                            value=ast.Name(
+                                id="_SCENIC_INTERNAL_REQUIREMENTS", ctx=loadCtx
+                            ),
+                            attr="append",
+                            ctx=loadCtx,
+                        ),
+                        args=[guarantee_prop],
+                        keywords=[],
+                    )
+                )
+            )
+
+        prop_fac = ast.FunctionDef(
+            name="prop_factory",
+            args=prop_fac_args,
+            body=prop_fac_body,
+            decorator_list=[ast.Name(id="staticmethod", ctx=loadCtx)],
+            returns=None,
+            type_params=[],
+        )
+        contract_body.append(prop_fac)
+
+        ## Contract Class Definition ##
         return ast.ClassDef(
             name=self.toContractName(node.name),
             bases=[ast.Name(id="Contract", ctx=loadCtx)],

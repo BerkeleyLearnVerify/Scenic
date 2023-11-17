@@ -110,8 +110,8 @@ class Atomic(PropositionNode):
             f"(AP syntax_id={self.syntax_id})" if self.syntax_id is not None else "(AP)"
         )
 
-    def evaluate(self):
-        return self.closure()
+    def evaluate(self, kwargs={}):
+        return self.closure(**kwargs)
 
 
 class UnaryProposition(PropositionNode):
