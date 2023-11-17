@@ -93,7 +93,7 @@ class ScenicTesting:
         ## Evaluate Contract ##
         # Instantiate simulator
         simulator = self.scenario.getSimulator()
-        simulation = simulator.simulate(scene, maxSteps=50, manual=True, verbosity=3)
+        simulation = simulator.simulate(scene, maxSteps=50, manual=True)
 
         # Step contract till termination
         t = 0

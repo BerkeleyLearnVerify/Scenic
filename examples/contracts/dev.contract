@@ -127,12 +127,7 @@ component ThrottleSafetyFilter(min_dist, min_slowdown, max_brake=5, buffer_paddi
         # Update last_dist
         state.last_dist = dist
 
-        print()
-        print("REL", rel_speed)
-        print("REAL_DIST:", dist, "    DANGER_DIST:", danger_dist)
-
         if dist < danger_dist:
-            print("EMERGENCY BRAKE!!!")
             return {"modulated_throttle": -1.0}
         else:
             return {"modulated_throttle": float(throttle)}
@@ -323,7 +318,7 @@ contract AccurateDistance(perception_distance, abs_dist_err=0.5):
 
 # Instantiate Car component and link to object.
 # NOTE: This will set the behavior of the object (based off the Car component).
-STDDEV = 4
+STDDEV = 0.5
 TARGET_DIST = 10
 MAX_SPEED = 26.8224 # 60 mph in m/s
 MIN_DIST = 0
@@ -336,4 +331,5 @@ st = ScenicTesting(
     _SCENIC_INTERNAL_CONTRACT_AccurateDistance(PERCEPTION_DISTANCE),
     component=car.subcomponents["ps"],
     time=200, scenario=ENVIRONMENT, obj=car)
-print(st.run_test())
+
+print([st.run_test() for _ in range(10)])

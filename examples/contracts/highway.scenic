@@ -1,5 +1,6 @@
 param map = localPath('../../assets/maps/CARLA/Town06.xodr')
 param carla_map = 'Town06'
+param render = False
 model scenic.simulators.newtonian.driving_model
 
 import math
