@@ -10,13 +10,9 @@ class Component(ABC):
 
 
 class BaseComponent(Component):
-    def __init__(self, **kwargs):
-        # Extract linked Scenic object, if one exists.
-        assert "_SCENIC_INTERNAL_LINKED_OBJ_NAME" in kwargs
-        self.linkedObjectName = kwargs["_SCENIC_INTERNAL_LINKED_OBJ_NAME"]
-        del kwargs["_SCENIC_INTERNAL_LINKED_OBJ_NAME"]
-
-        # Save args
+    def __init__(self, *, _SCENIC_INTERNAL_LINKED_OBJ_NAME, **kwargs):
+        # Save arguments
+        self.linkedObjectName = _SCENIC_INTERNAL_LINKED_OBJ_NAME
         self.kwargs = kwargs
 
         # Ensure that all input/output types are actually types
@@ -80,13 +76,9 @@ class BaseComponent(Component):
 
 
 class ActionComponent(Component):
-    def __init__(self, **kwargs):
-        # Extract linked Scenic object, if one exists.
-        assert "_SCENIC_INTERNAL_LINKED_OBJ_NAME" in kwargs
-        self.linkedObjectName = kwargs["_SCENIC_INTERNAL_LINKED_OBJ_NAME"]
-        del kwargs["_SCENIC_INTERNAL_LINKED_OBJ_NAME"]
-
-        # Save args
+    def __init__(self, *, _SCENIC_INTERNAL_LINKED_OBJ_NAME, **kwargs):
+        # Save arguments
+        self.linkedObjectName = _SCENIC_INTERNAL_LINKED_OBJ_NAME
         self.kwargs = kwargs
 
         # Ensure that all action types are actually types
@@ -115,13 +107,9 @@ class ActionComponent(Component):
 
 
 class ComposeComponent(Component):
-    def __init__(self, **kwargs):
-        # Extract linked Scenic object, if one exists.
-        assert "_SCENIC_INTERNAL_LINKED_OBJ_NAME" in kwargs
-        self.linkedObjectName = kwargs["_SCENIC_INTERNAL_LINKED_OBJ_NAME"]
-        del kwargs["_SCENIC_INTERNAL_LINKED_OBJ_NAME"]
-
-        # Save args
+    def __init__(self, *, _SCENIC_INTERNAL_LINKED_OBJ_NAME, **kwargs):
+        # Save arguments
+        self.linkedObjectName = _SCENIC_INTERNAL_LINKED_OBJ_NAME
         self.kwargs = kwargs
 
         # Ensure that all input/output types are actually types
