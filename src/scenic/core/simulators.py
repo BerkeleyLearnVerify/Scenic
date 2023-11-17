@@ -88,6 +88,7 @@ class Simulator(abc.ABC):
         divergenceTolerance=0,
         continueAfterDivergence=False,
         allowPickle=False,
+        manual=False,
     ):
         """Run a simulation for a given scene.
 
@@ -133,11 +134,13 @@ class Simulator(abc.ABC):
             allowPickle (bool): Whether to use `pickle` to (de)serialize custom object
                 types. See `sceneFromBytes` for a discussion of when this may be needed
                 (rarely) and its security implications.
+            manual (bool): Whether or not this simulation should be "manually" run, i.e.
+                require the step function to be called to advance it.
 
         Returns:
-            A `Simulation` object representing the completed simulation, or `None` if no
-            simulation satisfying the requirements could be found within
-            **maxIterations** iterations.
+            A `Simulation` object representing the completed simulation (if manual is False),
+            an initialized simulation (if manual is True), or `None` if no simulation satisfying
+            the requirements could be found within **maxIterations** iterations.
 
         Raises:
             SimulationCreationError: if an error occurred while trying to run a
@@ -170,6 +173,23 @@ class Simulator(abc.ABC):
         if verbosity is None:
             verbosity = errors.verbosityLevel
 
+        # If a manual simulation was requested, initialize one and return it.
+        if manual:
+            return self.createSimulation(
+                scene,
+                maxSteps=maxSteps,
+                name="ManualSimulation",
+                verbosity=verbosity,
+                timestep=timestep,
+                replay=replay,
+                enableReplay=enableReplay,
+                enableDivergenceCheck=enableDivergenceCheck,
+                divergenceTolerance=divergenceTolerance,
+                continueAfterDivergence=continueAfterDivergence,
+                allowPickle=allowPickle,
+                manual=manual,
+            )
+
         # Repeatedly run simulations until we find one satisfying the requirements
         iterations = 0
         simulation = None
@@ -188,6 +208,7 @@ class Simulator(abc.ABC):
                 divergenceTolerance=divergenceTolerance,
                 continueAfterDivergence=continueAfterDivergence,
                 allowPickle=allowPickle,
+                manual=manual,
             )
         return simulation
 
@@ -279,6 +300,9 @@ class Simulation(abc.ABC):
     Other methods can be overridden if necessary, e.g. `setup` for initialization
     at the start of the simulation and `destroy` for cleanup afterward.
 
+    Note that if manual mode is enabled, you MUST CALL `cleanup` if you want to move
+    on from a simulation without it terminating.
+
     .. versionchanged:: 3.0
 
         The ``__init__`` method of subclasses should no longer create objects;
@@ -327,6 +351,7 @@ class Simulation(abc.ABC):
         divergenceTolerance=0,
         continueAfterDivergence=False,
         verbosity=0,
+        manual=False,
     ):
         self.result = None
         self.scene = scene
@@ -337,10 +362,13 @@ class Simulation(abc.ABC):
         self.currentTime = 0
         self.timestep = 1 if timestep is None else float(timestep)
         self.verbosity = verbosity
+        self.maxSteps = maxSteps
         self.name = name
         self.worker_num = 0
 
         self.actionSequence = []
+
+        self._cleaned = False
 
         # Prepare to save or load a replay.
         self.initializeReplay(replay, enableReplay, enableDivergenceCheck, allowPickle)
@@ -354,136 +382,174 @@ class Simulation(abc.ABC):
             import scenic.syntax.veneer as veneer
 
             veneer.beginSimulation(self)
-            dynamicScenario = self.scene.dynamicScenario
+            self.dynamicScenario = self.scene.dynamicScenario
 
             # Create objects and perform simulator-specific initialization.
             self.setup()
 
             # Initialize the top-level dynamic scenario.
-            dynamicScenario._start()
+            self.dynamicScenario._start()
 
             # Update all objects in case the simulator has adjusted any dynamic
             # properties during setup.
             self.updateObjects()
 
-            # Run the simulation.
-            terminationType, terminationReason = self._run(dynamicScenario, maxSteps)
+            # Set terminationType and terminationReason to default None
+            self.terminationType = None
+            self.terminationReason = None
 
-            # Stop all remaining scenarios.
-            # (and reject if some 'require eventually' condition was never satisfied)
-            for scenario in tuple(reversed(veneer.runningScenarios)):
-                scenario._stop("simulation terminated")
+            # Run the simulation, if not in manual mode.
+            if not manual:
+                self._run()
 
-            # Record finally-recorded values.
-            values = dynamicScenario._evaluateRecordedExprs(RequirementType.recordFinal)
-            for name, val in values.items():
-                self.records[name] = val
-
-            # Package up simulation results into a compact object.
-            result = SimulationResult(
-                self.trajectory,
-                self.actionSequence,
-                terminationType,
-                terminationReason,
-                self.records,
-            )
-            self.result = result
         except (RejectSimulationException, RejectionException, GuardViolation) as e:
             # This simulation will be thrown out, but attach it to the exception
             # to aid in debugging.
             e.simulation = self
             raise
         finally:
-            self.destroy()
-            for obj in self.objects:
-                disableDynamicProxyFor(obj)
-            for agent in self.agents:
-                if agent.behavior._isRunning:
-                    agent.behavior._stop()
-            # If the simulation was terminated by an exception (including rejections),
-            # some scenarios may still be running; we need to clean them up without
-            # checking their requirements, which could raise rejection exceptions.
-            for scenario in tuple(reversed(veneer.runningScenarios)):
-                scenario._stop("exception", quiet=True)
-            veneer.endSimulation(self)
+            if not manual:
+                self.cleanup()
 
-    def _run(self, dynamicScenario, maxSteps):
+    def _run(self):
         assert self.currentTime == 0
 
         while True:
-            if self.verbosity >= 3:
-                print(f"    Time step {self.currentTime}:")
+            self.advance()
 
-            # Run compose blocks of compositional scenarios
-            # (and check if any requirements defined therein fail)
-            # N.B. if the top-level scenario completes, we don't immediately end
-            # the simulation since we need to check if any monitors reject first.
-            terminationReason = dynamicScenario._step()
-            terminationType = TerminationType.scenarioComplete
+            if self.terminationType:
+                return
 
-            # Record current state of the simulation
-            self.recordCurrentState()
+    def advance(self):
+        if self.terminationType:
+            raise TerminatedSimulationException()
 
-            # Run monitors
-            newReason = dynamicScenario._runMonitors()
-            if newReason is not None:
-                terminationReason = newReason
-                terminationType = TerminationType.terminatedByMonitor
+        if self.verbosity >= 3:
+            print(f"    Time step {self.currentTime}:")
 
-            # "Always" and scenario-level requirements have been checked;
-            # now safe to terminate if the top-level scenario has finished,
-            # a monitor requested termination, or we've hit the timeout
-            if terminationReason is not None:
-                return terminationType, terminationReason
-            terminationReason = dynamicScenario._checkSimulationTerminationConditions()
-            if terminationReason is not None:
-                return TerminationType.simulationTerminationCondition, terminationReason
-            if maxSteps and self.currentTime >= maxSteps:
-                return TerminationType.timeLimit, f"reached time limit ({maxSteps} steps)"
+        # Run compose blocks of compositional scenarios
+        # (and check if any requirements defined therein fail)
+        # N.B. if the top-level scenario completes, we don't immediately end
+        # the simulation since we need to check if any monitors reject first.
+        terminationReason = self.dynamicScenario._step()
+        terminationType = TerminationType.scenarioComplete
 
-            # Compute the actions of the agents in this time step
-            allActions = OrderedDict()
-            schedule = self.scheduleForAgents()
-            for agent in schedule:
-                # Run the agent's behavior to get its actions
-                actions = agent.behavior._step()
+        # Record current state of the simulation
+        self.recordCurrentState()
 
-                # Handle pseudo-actions marking the end of a simulation/scenario
-                if isinstance(actions, _EndSimulationAction):
-                    return TerminationType.terminatedByBehavior, str(actions)
-                elif isinstance(actions, _EndScenarioAction):
-                    scenario = actions.scenario
-                    if scenario._isRunning:
-                        scenario._stop(actions)
-                    if scenario is dynamicScenario:
-                        # Top-level scenario was terminated, so whole simulation will end.
-                        return TerminationType.terminatedByBehavior, str(actions)
-                    actions = ()
+        # Run monitors
+        newReason = self.dynamicScenario._runMonitors()
+        if newReason is not None:
+            terminationReason = newReason
+            terminationType = TerminationType.terminatedByMonitor
 
-                # Check ordinary actions for compatibility
-                assert isinstance(actions, tuple)
-                if len(actions) == 1 and isinstance(actions[0], (list, tuple)):
-                    actions = tuple(actions[0])
-                if not self.actionsAreCompatible(agent, actions):
-                    raise InvalidScenarioError(
-                        f"agent {agent} tried incompatible action(s) {actions}"
-                    )
+        # "Always" and scenario-level requirements have been checked;
+        # now safe to terminate if the top-level scenario has finished,
+        # a monitor requested termination, or we've hit the timeout
+        if terminationReason is not None:
+            return self.terminateSimulation(terminationType, terminationReason)
+        terminationReason = self.dynamicScenario._checkSimulationTerminationConditions()
+        if terminationReason is not None:
+            return self.terminateSimulation(TerminationType.simulationTerminationCondition, terminationReason)
+        if self.maxSteps and self.currentTime >= self.maxSteps:
+            return self.terminateSimulation(TerminationType.timeLimit, f"reached time limit ({self.maxSteps} steps)")
 
-                # Save actions for execution below
-                allActions[agent] = actions
+        # Compute the actions of the agents in this time step
+        allActions = OrderedDict()
+        schedule = self.scheduleForAgents()
+        for agent in schedule:
+            # Run the agent's behavior to get its actions
+            actions = agent.behavior._step()
 
-            # Execute the actions
-            if self.verbosity >= 3:
-                for agent, actions in allActions.items():
-                    print(f"      Agent {agent} takes action(s) {actions}")
-                    agent.lastActions = actions
-            self.actionSequence.append(allActions)
-            self.executeActions(allActions)
+            # Handle pseudo-actions marking the end of a simulation/scenario
+            if isinstance(actions, _EndSimulationAction):
+                return self.terminateSimulation(TerminationType.terminatedByBehavior, str(actions))
+            elif isinstance(actions, _EndScenarioAction):
+                scenario = actions.scenario
+                if scenario._isRunning:
+                    scenario._stop(actions)
+                if scenario is self.dynamicScenario:
+                    # Top-level scenario was terminated, so whole simulation will end.
+                    return self.terminateSimulation(TerminationType.terminatedByBehavior, str(actions))
+                actions = ()
 
-            # Run the simulation for a single step and read its state back into Scenic
-            self.step()
-            self.currentTime += 1
-            self.updateObjects()
+            # Check ordinary actions for compatibility
+            assert isinstance(actions, tuple)
+            if len(actions) == 1 and isinstance(actions[0], (list, tuple)):
+                actions = tuple(actions[0])
+            if not self.actionsAreCompatible(agent, actions):
+                raise InvalidScenarioError(
+                    f"agent {agent} tried incompatible action(s) {actions}"
+                )
+
+            # Save actions for execution below
+            allActions[agent] = actions
+
+        # Execute the actions
+        if self.verbosity >= 3:
+            for agent, actions in allActions.items():
+                print(f"      Agent {agent} takes action(s) {actions}")
+                agent.lastActions = actions
+        self.actionSequence.append(allActions)
+        self.executeActions(allActions)
+
+        # Run the simulation for a single step and read its state back into Scenic
+        self.step()
+        self.currentTime += 1
+        self.updateObjects()
+
+    def terminateSimulation(self, terimnationType, terminationReason):
+        import scenic.syntax.veneer as veneer
+
+        # Log terminationType and terminatioReason
+        self.terminationType = terimnationType
+        self.terminationReason = terminationReason
+
+        # Stop all remaining scenarios.
+        # (and reject if some 'require eventually' condition was never satisfied)
+        for scenario in tuple(reversed(veneer.runningScenarios)):
+            scenario._stop("simulation terminated")
+
+        # Record finally-recorded values.
+        values = self.dynamicScenario._evaluateRecordedExprs(RequirementType.recordFinal)
+        for name, val in values.items():
+            self.records[name] = val
+
+        # Package up simulation results into a compact object.
+        result = SimulationResult(
+            self.trajectory,
+            self.actionSequence,
+            self.terminationType,
+            self.terminationReason,
+            self.records,
+        )
+        self.result = result
+
+        # Run cleanup
+        self.cleanup()
+
+    def cleanup(self):
+        # No need to repeat cleanup if we've already done it
+        if self._cleaned:
+            return
+
+        # Remember that we have cleaned up.
+        self.cleaned = True
+
+        import scenic.syntax.veneer as veneer
+
+        self.destroy()
+        for obj in self.objects:
+            disableDynamicProxyFor(obj)
+        for agent in self.agents:
+            if agent.behavior._isRunning:
+                agent.behavior._stop()
+        # If the simulation was terminated by an exception (including rejections),
+        # some scenarios may still be running; we need to clean them up without
+        # checking their requirements, which could raise rejection exceptions.
+        for scenario in tuple(reversed(veneer.runningScenarios)):
+            scenario._stop("exception", quiet=True)
+        veneer.endSimulation(self)
 
     def setup(self):
         """Set up the simulation to run in the simulator.
@@ -891,3 +957,6 @@ class SimulationResult:
         self.terminationType = terminationType
         self.terminationReason = str(terminationReason)
         self.records = dict(records)
+
+class TerminatedSimulationException(Exception):
+    pass
