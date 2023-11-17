@@ -24,6 +24,18 @@ def runComponentsSimulation(scenario, components, time=200):
     # Generate a scene and override component behaviors.
     scene, _ = scenario.generate()
 
+    linkSetBehavior(scene, components)
+
+    # Instantiate simulator and run simulation
+    simulator = scenario.getSimulator()
+    simulation = simulator.simulate(scene, maxSteps=time)
+
+    # Reset components
+    for component in components:
+        component.reset()
+
+
+def linkSetBehavior(scene, components):
     for component in components:
         component.link(scene)
 
@@ -41,14 +53,6 @@ def runComponentsSimulation(scenario, components, time=200):
                 )
             ]
         )
-
-    # Instantiate simulator and run simulation
-    simulator = scenario.getSimulator()
-    simulation = simulator.simulate(scene, maxSteps=time)
-
-    # Reset components
-    for component in components:
-        component.reset()
 
 
 ## Component behavior

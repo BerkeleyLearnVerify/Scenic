@@ -11,6 +11,7 @@ from scenic.syntax.veneer import *
 from scenic.syntax.translator import scenarioFromFile
 from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
 from scenic.domains.driving.actions import RegulatedControlAction
+from scenic.contracts.contracts import ScenicTesting
 from scenic.contracts.utils import runComponentsSimulation, leadDistance
 
 # ## World File ##
@@ -261,9 +262,9 @@ contract AccurateDistance(perception_distance, abs_dist_err=0.5):
         dist: float
 
     definitions:
-        cars = [obj for obj in objects if isinstance(obj, Vehicle) and obj is not self]
+        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj is not self]
         lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
-        lead_car = sorted(cars, lambda x: lead_distances[x])[0]
+        lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
         lead_dist = lead_distances[lead_car]
         behind_car = lead_dist <= perception_distance
 
@@ -322,11 +323,17 @@ contract AccurateDistance(perception_distance, abs_dist_err=0.5):
 
 # Instantiate Car component and link to object.
 # NOTE: This will set the behavior of the object (based off the Car component).
-STDDEV = 0
+STDDEV = 4
 TARGET_DIST = 10
 MAX_SPEED = 26.8224 # 60 mph in m/s
 MIN_DIST = 0
 MIN_SLOWDOWN = 4.57 # 15 feet per second in m/s
+PERCEPTION_DISTANCE = 250
 
 implement "EgoCar" with Car(STDDEV, TARGET_DIST, MAX_SPEED, MIN_DIST, MIN_SLOWDOWN) as car
 # runComponentsSimulation(ENVIRONMENT, [car], time=100)
+st = ScenicTesting(
+    _SCENIC_INTERNAL_CONTRACT_AccurateDistance(PERCEPTION_DISTANCE),
+    component=car.subcomponents["ps"],
+    time=200, scenario=ENVIRONMENT, obj=car)
+print(st.run_test())

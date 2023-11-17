@@ -15,11 +15,14 @@ class PropositionMonitor:
         self._proposition = proposition
         self._monitor = proposition.ltl_node.create_monitor()
 
-    def update(self):
+    def update(self, params=None):
+        if params is None:
+            params = []
+
         atomic_propositions = self._proposition.atomics()
         state = {}
         for ap in atomic_propositions:
-            b = ap.closure()
+            b = ap.closure(*params)
             if needsLazyEvaluation(b):
                 raise InvalidScenarioError(
                     f"value undefined outside of object definition"

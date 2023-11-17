@@ -2433,7 +2433,15 @@ class ScenicToPythonTransformer(Transformer):
         ## `init` Function ##
 
         ## '__init__' Function ##
-        init_arguments = node.args
+        init_arguments = ast.arguments(
+            posonlyargs=node.args.posonlyargs,
+            args=[ast.arg("self")] + node.args.args,
+            vararg=node.args.vararg,
+            kwonlyargs=node.args.kwonlyargs,
+            kw_defaults=node.args.kw_defaults,
+            kwarg=node.args.kwarg,
+            defaults=node.args.defaults,
+        )
         init_body = []
 
         # Make super() init call
@@ -2576,7 +2584,7 @@ class ScenicToPythonTransformer(Transformer):
 
         prop_fac_body.append(
             ast.Assign(
-                targets=[ast.Name(id="_SCENIC_INTERNAL_REQUIREMENTS", ctx=ast.Store())],
+                targets=[ast.Name(id="_SCENIC_INTERNAL_GUARANTEES", ctx=ast.Store())],
                 value=ast.List(elts=[], ctx=loadCtx),
             )
         )
@@ -2586,9 +2594,7 @@ class ScenicToPythonTransformer(Transformer):
                 ast.Expr(
                     value=ast.Call(
                         func=ast.Attribute(
-                            value=ast.Name(
-                                id="_SCENIC_INTERNAL_REQUIREMENTS", ctx=loadCtx
-                            ),
+                            value=ast.Name(id="_SCENIC_INTERNAL_GUARANTEES", ctx=loadCtx),
                             attr="append",
                             ctx=loadCtx,
                         ),
@@ -2597,6 +2603,19 @@ class ScenicToPythonTransformer(Transformer):
                     )
                 )
             )
+
+        prop_fac_body.append(
+            ast.Return(
+                value=ast.Tuple(
+                    elts=[
+                        ast.Name(id="_SCENIC_INTERNAL_DEFINITIONS", ctx=loadCtx),
+                        ast.Name(id="_SCENIC_INTERNAL_ASSUMPTIONS", ctx=loadCtx),
+                        ast.Name(id="_SCENIC_INTERNAL_GUARANTEES", ctx=loadCtx),
+                    ],
+                    ctx=loadCtx,
+                )
+            )
+        )
 
         prop_fac = ast.FunctionDef(
             name="prop_factory",

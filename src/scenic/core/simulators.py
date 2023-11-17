@@ -450,9 +450,13 @@ class Simulation(abc.ABC):
             return self.terminateSimulation(terminationType, terminationReason)
         terminationReason = self.dynamicScenario._checkSimulationTerminationConditions()
         if terminationReason is not None:
-            return self.terminateSimulation(TerminationType.simulationTerminationCondition, terminationReason)
+            return self.terminateSimulation(
+                TerminationType.simulationTerminationCondition, terminationReason
+            )
         if self.maxSteps and self.currentTime >= self.maxSteps:
-            return self.terminateSimulation(TerminationType.timeLimit, f"reached time limit ({self.maxSteps} steps)")
+            return self.terminateSimulation(
+                TerminationType.timeLimit, f"reached time limit ({self.maxSteps} steps)"
+            )
 
         # Compute the actions of the agents in this time step
         allActions = OrderedDict()
@@ -463,14 +467,18 @@ class Simulation(abc.ABC):
 
             # Handle pseudo-actions marking the end of a simulation/scenario
             if isinstance(actions, _EndSimulationAction):
-                return self.terminateSimulation(TerminationType.terminatedByBehavior, str(actions))
+                return self.terminateSimulation(
+                    TerminationType.terminatedByBehavior, str(actions)
+                )
             elif isinstance(actions, _EndScenarioAction):
                 scenario = actions.scenario
                 if scenario._isRunning:
                     scenario._stop(actions)
                 if scenario is self.dynamicScenario:
                     # Top-level scenario was terminated, so whole simulation will end.
-                    return self.terminateSimulation(TerminationType.terminatedByBehavior, str(actions))
+                    return self.terminateSimulation(
+                        TerminationType.terminatedByBehavior, str(actions)
+                    )
                 actions = ()
 
             # Check ordinary actions for compatibility
@@ -957,6 +965,7 @@ class SimulationResult:
         self.terminationType = terminationType
         self.terminationReason = str(terminationReason)
         self.records = dict(records)
+
 
 class TerminatedSimulationException(Exception):
     pass

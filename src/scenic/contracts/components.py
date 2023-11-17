@@ -171,6 +171,9 @@ class ComposeComponent(Component):
             sc for sc in sorter.static_order() if sc not in {"SELF_INPUT", "SELF_OUTPUT"}
         ]
 
+        # Initialize state
+        self.reset()
+
     def link(self, scene):
         self.linkedObject = lookuplinkedObject(scene, self.linkedObjectName)
         for sc in self.subcomponents.values():
@@ -191,7 +194,7 @@ class ComposeComponent(Component):
         )
         for input_name, input_val in inputs.items():
             assert isinstance(input_val, self.inputs_types[input_name])
-        self.inputs = inputs
+        self.last_inputs = inputs
 
         # Initialize actions list/values dictionary and load in inputs
         actions = []
@@ -237,7 +240,7 @@ class ComposeComponent(Component):
         )
         for output_name, output_val in outputs.items():
             assert isinstance(output_val, self.outputs_types[output_name])
-        self.outputs = outputs
+        self.last_outputs = outputs
 
         return outputs, actions
 
