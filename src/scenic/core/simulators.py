@@ -12,6 +12,7 @@ simulation as a `SimulationResult` object).
 
 import abc
 from collections import OrderedDict, defaultdict
+from contextlib import contextmanager
 import enum
 import math
 import numbers
@@ -88,7 +89,6 @@ class Simulator(abc.ABC):
         divergenceTolerance=0,
         continueAfterDivergence=False,
         allowPickle=False,
-        manual=False,
     ):
         """Run a simulation for a given scene.
 
@@ -134,8 +134,6 @@ class Simulator(abc.ABC):
             allowPickle (bool): Whether to use `pickle` to (de)serialize custom object
                 types. See `sceneFromBytes` for a discussion of when this may be needed
                 (rarely) and its security implications.
-            manual (bool): Whether or not this simulation should be "manually" run, i.e.
-                require the step function to be called to advance it.
 
         Returns:
             A `Simulation` object representing the completed simulation (if manual is False),
@@ -173,23 +171,6 @@ class Simulator(abc.ABC):
         if verbosity is None:
             verbosity = errors.verbosityLevel
 
-        # If a manual simulation was requested, initialize one and return it.
-        if manual:
-            return self.createSimulation(
-                scene,
-                maxSteps=maxSteps,
-                name="ManualSimulation",
-                verbosity=verbosity,
-                timestep=timestep,
-                replay=replay,
-                enableReplay=enableReplay,
-                enableDivergenceCheck=enableDivergenceCheck,
-                divergenceTolerance=divergenceTolerance,
-                continueAfterDivergence=continueAfterDivergence,
-                allowPickle=allowPickle,
-                manual=manual,
-            )
-
         # Repeatedly run simulations until we find one satisfying the requirements
         iterations = 0
         simulation = None
@@ -208,9 +189,56 @@ class Simulator(abc.ABC):
                 divergenceTolerance=divergenceTolerance,
                 continueAfterDivergence=continueAfterDivergence,
                 allowPickle=allowPickle,
-                manual=manual,
+                manual=False,
             )
         return simulation
+
+    @contextmanager
+    def simulateStepped(
+        self,
+        scene,
+        maxSteps=None,
+        *,
+        timestep=None,
+        verbosity=None,
+        replay=None,
+        enableReplay=True,
+        enableDivergenceCheck=False,
+        divergenceTolerance=0,
+        continueAfterDivergence=False,
+        allowPickle=False,
+    ):
+        if self._destroyed:
+            raise RuntimeError(
+                "simulator cannot run additional simulations "
+                "(the destroy() method has already been called)"
+            )
+        if verbosity is None:
+            verbosity = errors.verbosityLevel
+
+        simulation = self.createSimulation(
+            scene,
+            maxSteps=maxSteps,
+            name="SteppedSimulation",
+            verbosity=verbosity,
+            timestep=timestep,
+            replay=replay,
+            enableReplay=enableReplay,
+            enableDivergenceCheck=enableDivergenceCheck,
+            divergenceTolerance=divergenceTolerance,
+            continueAfterDivergence=continueAfterDivergence,
+            allowPickle=allowPickle,
+            manual=True
+        )
+        try:
+            yield simulation
+        except (RejectSimulationException, RejectionException, GuardViolation) as e:
+            # This simulation will be thrown out, but attach it to the exception
+            # to aid in debugging.
+            e.simulation = self
+            raise
+        finally:
+            simulation.cleanup()
 
     def replay(self, scene, replay, **kwargs):
         """Replay a simulation.
@@ -246,6 +274,8 @@ class Simulator(abc.ABC):
             else:
                 optionallyDebugRejection(e)
                 return None
+        finally:
+            simulation.cleanup()
 
         # Completed the simulation without violating a requirement
         if not isinstance(simulation, Simulation):
@@ -407,10 +437,7 @@ class Simulation(abc.ABC):
             # to aid in debugging.
             e.simulation = self
             raise
-        finally:
-            if not manual:
-                self.cleanup()
-
+                
     def _run(self):
         assert self.currentTime == 0
 
@@ -421,7 +448,7 @@ class Simulation(abc.ABC):
                 return
 
     def advance(self):
-        if self.terminationType:
+        if self.terminationType or self._cleaned:
             raise TerminatedSimulationException()
 
         if self.verbosity >= 3:
@@ -533,16 +560,13 @@ class Simulation(abc.ABC):
         )
         self.result = result
 
-        # Run cleanup
-        self.cleanup()
-
     def cleanup(self):
         # No need to repeat cleanup if we've already done it
         if self._cleaned:
             return
 
         # Remember that we have cleaned up.
-        self.cleaned = True
+        self._cleaned = True
 
         import scenic.syntax.veneer as veneer
 
