@@ -1,5 +1,6 @@
 # NOTE: add your world info path here
 # param worldInfoPath = "[YOUR PATH HERE]"
+param worldInfoPath = "C:\Users\Mary\Documents\Code\Scenic\more\worldInfo"
 
 model scenic.simulators.airsim.model
 

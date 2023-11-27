@@ -8,7 +8,7 @@ blocks = []
 for i in range(blockCount):
     blocks.append(new StaticObj on ground, 
         contained in centerArea,
-        with assetName Uniform
+        with assetName Uniform(assets)
         with width Range(3,10),
         with length Range(3,10),
         with height 10)

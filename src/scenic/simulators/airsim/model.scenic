@@ -116,4 +116,5 @@ for file in os.listdir(worldInfoPath+"/assets"):
         # append the obj name without the .obj extension
         assets.append(filename[:-4])
 
-print("assets = ",assets)
+
+param assets = Uniform(assets)
