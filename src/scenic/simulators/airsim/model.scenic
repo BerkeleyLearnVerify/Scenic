@@ -1,5 +1,6 @@
 import trimesh
 import json
+import os
 
 from scenic.simulators.airsim.simulator import AirSimSimulator 
 from scenic.simulators.airsim.actions import *
@@ -22,15 +23,18 @@ worldInfoPath = globalParameters.worldInfoPath
 
 def createMeshShape(subFolder, assetName):
     tmesh = trimesh.load( worldInfoPath+subFolder+"/"+assetName+".obj")
-    
-
-
     return MeshShape(tmesh ,scale=.01)
+
 
 
 # ---------- simulator creation ----------
 simulator AirSimSimulator(timestep=globalParameters.timestep,idleStoragePos=globalParameters.idleStoragePos) 
 
+
+# ---------- simulator getter funcs ----------
+
+def getAssetNames():
+    return self.client.simListAssets()
 
 # ---------- base classes ----------
 class AirSimPrexisting:
@@ -104,3 +108,12 @@ with open(
         
         _addPrexistingObj(newObj)
 
+
+# generate list of assets
+assets = []
+for file in os.listdir(worldInfoPath+"/assets"):
+    if filename.endswith(".obj"):
+        # append the obj name without the .obj extension
+        assets.append(filename[:-4])
+
+print("assets = ",assets)

@@ -1,5 +1,6 @@
 # NOTE: add your world info path here
 # param worldInfoPath = "[YOUR PATH HERE]"
+param worldInfoPath = "/home/msts/Testing/more/worldInfo"
 
 model scenic.simulators.airsim.model
 
