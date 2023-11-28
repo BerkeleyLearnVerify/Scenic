@@ -39,10 +39,10 @@ def linkSetBehavior(scene, components):
     for component in components:
         component.link(scene)
 
-        if component.linkedObject.behavior:
-            warnings.warn(
-                f"Overriding behavior of {component.linkedObjectName} with component behavior."
-            )
+        # if component.linkedObject.behavior:
+        #     warnings.warn(
+        #         f"Overriding behavior of {component.linkedObjectName} with component behavior."
+        #     )
 
         component.linkedObject._override(
             [

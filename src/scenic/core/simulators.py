@@ -228,7 +228,7 @@ class Simulator(abc.ABC):
             divergenceTolerance=divergenceTolerance,
             continueAfterDivergence=continueAfterDivergence,
             allowPickle=allowPickle,
-            manual=True
+            manual=True,
         )
         try:
             yield simulation
@@ -437,7 +437,7 @@ class Simulation(abc.ABC):
             # to aid in debugging.
             e.simulation = self
             raise
-                
+
     def _run(self):
         assert self.currentTime == 0
 

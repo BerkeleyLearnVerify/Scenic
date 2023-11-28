@@ -15,13 +15,15 @@ from pathlib import Path
 # scenario = scenarioFromFile(Path(os.path.dirname(os.path.realpath(__file__))) / "highway.scenic", mode2D=True)
 # scene, _ = scenario.generate()
 # simulator = scenario.getSimulator()
-# simulation = simulator.simulate(scene, maxSteps=50, manual=True, verbosity=3)
 
-# while True:
-# 	simulation.advance()
-# 	if simulation.terminationType:
-# 		print(simulation.result)
-# 		breakpoint()
+# with simulator.simulateStepped(scene, maxSteps=50, verbosity=3) as simulation:
+# 	while True:
+# 		simulation.advance()
+# 		if simulation.terminationType is not None:
+# 			print(simulation.result)
+# 			break
+
+# breakpoint()
 
 from inspect import cleandoc
 

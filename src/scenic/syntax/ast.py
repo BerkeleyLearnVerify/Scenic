@@ -1317,3 +1317,51 @@ class ContractDef(AST):
         self.definitions = definitions
         self.assumptions = assumptions
         self.guarantees = guarantees
+
+
+class ContractTest(AST):
+    def __init__(
+        self,
+        component,
+        contract,
+        specifiers,
+    ) -> None:
+        self.component = component
+        self.contract = contract
+        self.specifiers = specifiers
+
+
+class ContractTestTechnique(AST):
+    def __init__(
+        self,
+        technique,
+    ) -> None:
+        self.technique = technique
+
+
+class ContractTestTermCond(AST):
+    def __init__(
+        self,
+        cond_type,
+        args,
+    ) -> None:
+        self.cond_type = cond_type
+        self.args = args
+
+
+class ContractTestReqCond(AST):
+    def __init__(
+        self,
+        cond_type,
+        args,
+    ) -> None:
+        self.cond_type = cond_type
+        self.args = args
+
+
+class ContractVerify(AST):
+    def __init__(
+        self,
+        target,
+    ) -> None:
+        self.target = target

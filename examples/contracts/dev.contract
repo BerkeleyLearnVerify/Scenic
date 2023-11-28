@@ -11,20 +11,20 @@ from scenic.syntax.veneer import *
 from scenic.syntax.translator import scenarioFromFile
 from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
 from scenic.domains.driving.actions import RegulatedControlAction
-from scenic.contracts.contracts import ScenicTesting
+from scenic.contracts.testing import SimulationTesting, TimeTerminationCondition, CountTerminationCondition, GapTerminationCondition
 from scenic.contracts.utils import runComponentsSimulation, leadDistance
 
 # ## World File ##
 ENVIRONMENT = scenarioFromFile(localPath("highway.scenic"), mode2D=True)
 
-SEED=3
+SEED=4
 random.seed(SEED)
 numpy.random.seed(SEED)
 
 ## Components ##
 
 # sensors components
-component NoisyDistanceSystem(stddev, init_seed=1, overestimate=True):
+component NoisyDistanceSystem(stddev, init_seed=1, overestimate=False):
     """ A component that provides noisy distance to the car in front."""
     sensors:
         self.leadDist: builtins.float as sensors_distance
@@ -265,7 +265,7 @@ contract AccurateDistance(perception_distance, abs_dist_err=0.5):
 
     assumptions:
         # Assume we are in a lane
-        always self.lane is not None
+        always self._lane is not None
 
     guarantees:
         # Guarantee that if we're behind a car (in visible range), that the reported distance
@@ -326,10 +326,24 @@ MIN_SLOWDOWN = 4.57 # 15 feet per second in m/s
 PERCEPTION_DISTANCE = 250
 
 implement "EgoCar" with Car(STDDEV, TARGET_DIST, MAX_SPEED, MIN_DIST, MIN_SLOWDOWN) as car
-# runComponentsSimulation(ENVIRONMENT, [car], time=100)
-st = ScenicTesting(
-    _SCENIC_INTERNAL_CONTRACT_AccurateDistance(PERCEPTION_DISTANCE),
-    component=car.subcomponents["ps"],
-    time=200, scenario=ENVIRONMENT, obj=car)
 
-print([st.run_test() for _ in range(10)])
+# distance_testing = SimulationTesting(
+#         scenario=ENVIRONMENT,
+#         maxSteps=1,
+#         confidence=0.95,
+#         batchSize=5,
+#         contract=_SCENIC_INTERNAL_CONTRACT_AccurateDistance(PERCEPTION_DISTANCE),
+#         component=car.subcomponents["ps"],
+#         obj=car,
+#         termConditions=[TimeTerminationCondition(5), CountTerminationCondition(100), GapTerminationCondition(0.01)],
+#         reqConditions=[])
+# distance_testing.verify()
+
+distance_testing = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE),\
+    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=1, confidence=0.95),
+    terminating after 5 seconds,
+    terminating after 100 samples,
+    terminating with 0.01 gap,
+    requiring 0.95 correctness
+
+verify distance_testing

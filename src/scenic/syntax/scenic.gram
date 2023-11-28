@@ -561,6 +561,7 @@ scenic_stmt:
     | scenic_abort_stmt
     | scenic_simulator_stmt
     | scenic_implement_stmt
+    | scenic_verify_stmt
 
 scenic_compound_stmt:
     | scenic_tracked_assign_new_stmt
@@ -573,6 +574,8 @@ scenic_compound_stmt:
     | scenic_override_stmt
     | scenic_component_def
     | scenic_contract_def
+    | scenic_assign_contract_test_stmt
+    | scenic_contract_test_stmt
 
 # SIMPLE STATEMENTS
 # =================
@@ -951,20 +954,19 @@ scenic_component_composition_block:
 
 
 scenic_component_sensor:
-    | source=scenic_component_qualified_name ':' type=primary 'as' name=NAME NEWLINE {(name.string, source, type)}
+    | source=scenic_component_dot_name ':' type=primary 'as' name=NAME NEWLINE {(name.string, source, type)}
 
 scenic_component_state:
     | a=NAME ':' type=primary '=' val=primary NEWLINE {(a.string, val, type)}
 
 
 scenic_composition_stmt:
-    | "connect" a=scenic_component_qualified_name 'to' b=scenic_component_qualified_name NEWLINE {("connect", a, b)}
+    | "connect" a=scenic_component_dot_name 'to' b=scenic_component_dot_name NEWLINE {("connect", a, b)}
     | a=NAME '=' b=primary NEWLINE {("subcomponent", a.string, b)}
 
-scenic_component_qualified_name:
+scenic_component_dot_name:
     | parent=NAME '.' a=NAME {(a.string, parent.string)}
     | a=NAME {(a.string, None)}
-
 
 scenic_implement_stmt:
     | 'implement' linked_name=STRING 'with' component=primary 'as' name=NAME {s.ImplementStmt(name.string, component, linked_name.string[1:-1], LOCATIONS)}
@@ -1021,6 +1023,53 @@ scenic_contract_definition:
 scenic_contract_temporal_expression_line:
     | a=scenic_temporal_expression NEWLINE {a}
 
+# Contract Testing
+# ----------------
+
+scenic_assign_contract_test_stmt:
+    | a=(z=star_targets '=' { z })+ b=scenic_contract_test_stmt {
+         ast.Assign(targets=a, value=b, LOCATIONS)
+     }
+
+scenic_contract_test_stmt:
+    | a=scenic_contract_test_expr b=[scenic_contract_test_block] {s.ContractTest(a[0], a[1], a[2] + (b or []))}
+
+scenic_contract_test_block:
+    | ',' NEWLINE INDENT b=scenic_contract_test_block_inner DEDENT {b}
+
+scenic_contract_test_block_inner:
+    # without trailing comma
+    | b=(x=scenic_contract_test_spec ',' NEWLINE { x })* c=scenic_contract_test_spec NEWLINE {(b or []) + [c]}
+    # with trailing comma
+    | b=(x=scenic_contract_test_spec ',' NEWLINE { x })+ {b + [c]}
+
+scenic_contract_test_expr:
+    | "test" component=scenic_subcomponent_name \
+      "satisfies" contract=primary \
+      ts=(',' x=scenic_contract_test_spec {x})* \
+      {(component, contract, (ts or []))}
+
+scenic_contract_test_spec:
+    | "using" technique=primary {s.ContractTestTechnique(technique)}
+    | tc=scenic_contract_test_term_cond {tc}
+    | rc=scenic_contract_test_req_cond {rc}
+
+scenic_contract_test_term_cond:
+    | "terminating" "after" x=NUMBER "seconds"  {s.ContractTestTermCond("time", [x])}
+    | "terminating" "after" x=NUMBER "minutes"  {s.ContractTestTermCond("time", [60*x])}
+    | "terminating" "after" x=NUMBER "hours"    {s.ContractTestTermCond("time", [60*60*x])}
+    | "terminating" "after" x=NUMBER "samples"  {s.ContractTestTermCond("samples", [x])}
+    | "terminating" "with" x=NUMBER "gap"       {s.ContractTestTermCond("gap", [x])}
+
+scenic_contract_test_req_cond:
+    | "requiring" x=NUMBER "correctness" {s.ContractTestReqCond("correctness", x)}
+
+# Contract Verification
+# ---------------------
+
+scenic_verify_stmt:
+    | "verify" a=NAME {s.ContractVerify(a)}
+
 # Component/Contracts General
 # ---------------------------
 
@@ -1036,6 +1085,9 @@ scenic_component_actions_block:
 scenic_component_port:
     | a=NAME ':' b=primary NEWLINE {(a.string, b)}
 
+scenic_subcomponent_name:
+    | parent=NAME '.' child=scenic_subcomponent_name {(parent.string,) + child}
+    | a=NAME {(a.string,)}
 
 # Function definitions
 # --------------------

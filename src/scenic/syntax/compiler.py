@@ -2636,3 +2636,23 @@ class ScenicToPythonTransformer(Transformer):
             decorator_list=[],
             type_params=[],
         )
+
+
+def visit_ContractTest(self, node: s.ContractTest):
+    raise NotImplentedError()
+
+
+def visit_ContractTestTechnique(self, node: s.ContractTestTechnique):
+    raise NotImplentedError()
+
+
+def visit_ContractTestTermCond(self, node: s.ContractTestTermCond):
+    raise NotImplentedError()
+
+
+def visit_ContractTestReqCond(self, node: s.ContractTestReqCond):
+    raise NotImplentedError()
+
+
+def visit_ContractVerify(self, node: s.ContractVerify):
+    raise NotImplentedError()
