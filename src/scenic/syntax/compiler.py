@@ -320,11 +320,18 @@ class PropositionTransformer(Transformer):
         syntaxIdConst = ast.Constant(syntaxId)
         ast.copy_location(syntaxIdConst, node)
 
+        try:
+            with open(self.filename, mode="r") as file:
+                source_segment = ast.get_source_segment(file.read(), node)
+        except FileNotFoundError:
+            source_segment = None
+
         ap = ast.Call(
             func=ast.Name(id=ATOMIC_PROPOSITION, ctx=loadCtx),
             args=[closure],
             keywords=[
                 ast.keyword(arg="syntaxId", value=syntaxIdConst),
+                ast.keyword(arg="source", value=ast.Constant(source_segment)),
             ],
         )
         ast.copy_location(ap, node)

@@ -102,13 +102,17 @@ class PropositionNode:
 
 
 class Atomic(PropositionNode):
-    def __init__(self, closure, syntax_id):
+    def __init__(self, closure, syntax_id, source=None):
         ap = rv_ltl.Atomic(identifier=str(syntax_id))
         super().__init__(ap)
         self.syntax_id = syntax_id
         self.closure = closure
+        self.source = source
 
     def __str__(self):
+        if self.source:
+            return f"({self.source})"
+
         return (
             f"(AP syntax_id={self.syntax_id})" if self.syntax_id is not None else "(AP)"
         )

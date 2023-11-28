@@ -2103,8 +2103,8 @@ def range(*args):
 ### Temporal Operators Factories
 
 
-def AtomicProposition(closure, syntaxId):
-    return propositions.Atomic(closure, syntaxId)
+def AtomicProposition(closure, syntaxId, source=None):
+    return propositions.Atomic(closure, syntaxId, source)
 
 
 def PropositionAnd(reqs):

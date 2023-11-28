@@ -10,3 +10,28 @@ class Contract:
 
         # TODO: Handle contracts w/ more than one object
         assert len(self.objects) <= 1
+
+
+class ContractResult:
+    def __init__(self, assumptions, guarantees, evidence):
+        self.assumptions = assumptions
+        self.guarantees = guarantees
+        self.evidence = evidence
+
+    def __str__(self):
+        string = "ContractResult:\n" "  Assumptions:\n"
+
+        for a in self.assumptions:
+            string += f"    {a}\n"
+
+        string += "  Guarantees:\n"
+
+        for g in self.guarantees:
+            string += f"    {g}\n"
+
+        string += f"  Evidence: {self.evidence}\n"
+        return string
+
+
+class ContractEvidence:
+    pass

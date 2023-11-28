@@ -5,6 +5,7 @@ import time
 import rv_ltl
 import scipy
 
+from scenic.contracts.contracts import ContractEvidence, ContractResult
 from scenic.contracts.utils import linkSetBehavior, lookuplinkedObject
 from scenic.core.distributions import RejectionException
 from scenic.core.dynamics import GuardViolation, RejectSimulationException
@@ -69,8 +70,15 @@ class SimulationTesting:
                 print(f"  {cond} = {cond.check(self.evidence)}")
 
         # Check requirements
+        self.evidence.requirementsMet = all(
+            cond.check(self.evidence) for cond in self.reqConditions
+        )
 
-        return self.evidence
+        # Package contract result and return
+        result = ContractResult(
+            self.contract.assumptions, self.contract.guarantees, self.evidence
+        )
+        return result
 
     def runTests(self, num_tests):
         # Generate scenes
@@ -230,11 +238,11 @@ class SimulationTestData(TestData):
         self.sim_replay = sim_replay
 
 
-class ProbabilisticEvidence:
+class ProbabilisticEvidence(ContractEvidence):
     def __init__(self, confidence):
         self.confidence = confidence
         self.testData = []
-        self.requirements_met = None
+        self.requirementsMet = None
 
         # Initialize metrics
         self.elapsed_time = 0
@@ -281,7 +289,7 @@ class ProbabilisticEvidence:
         return self.testData
 
     def __str__(self):
-        return f"Probabilistic Evidence: {100*self.correctness:.2f}% Correctness with {100*self.confidence:.2f}% Confidence"
+        return f"Probabilistic ({100*self.correctness:.2f}% Correctness with {100*self.confidence:.2f}% Confidence)"
 
 
 ## Termination/Requirement Conditions
