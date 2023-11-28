@@ -75,6 +75,11 @@ class Drone(AirSimActor):
     assetName: "Quadrotor1"
     _startPos: None
 
+class PX4Drone(Drone):
+    blueprint: "PX4Drone"
+    startHovering: True
+    _startPos: None
+
 
 class StaticObj(AirSimActor):
     blueprint: "StaticObj"
@@ -117,4 +122,4 @@ for file in os.listdir(worldInfoPath+"/assets"):
         assets.append(filename[:-4])
 
 
-param assets = Uniform(assets)
+param assets = assets

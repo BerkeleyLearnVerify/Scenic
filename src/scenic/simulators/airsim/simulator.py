@@ -6,6 +6,7 @@ import subprocess
 import threading
 import time
 
+
 # third party libs
 import airsim
 import numpy as np
@@ -22,6 +23,9 @@ from scenic.core.type_support import toVector
 from scenic.core.vectors import Orientation, Vector
 from scenic.syntax.veneer import verbosePrint
 
+
+import scenic.simulators.airsim.MavsdkUtils as mavutils
+
 from .utils import (
     airsimToScenicLocation,
     airsimToScenicOrientation,
@@ -29,6 +33,10 @@ from .utils import (
     scenicToAirsimScale,
     scenicToAirsimVector,
 )
+
+
+# Constants
+PX4_DRONE = "PX4Drone"
 
 
 class AirSimSimulator(Simulator):
@@ -72,7 +80,10 @@ class AirSimSimulation(Simulation):
         self.objTrove = []  # objs to delete on simulation complete
         self.objs = {}  # obj name to objrealname dict
         self.drones = {}  # obj name to objrealname dict only for drones
-        self.startDrones = self.client.listVehicles()
+        self.startDrones = (
+            self.client.listVehicles()
+        )  # todo filter by simpleflight drones
+        self.PX4Drone = self.client.listVehicles().find(PX4_DRONE)
 
         super().__init__(scene, **kwargs)
 
@@ -93,7 +104,7 @@ class AirSimSimulation(Simulation):
             self.client.moveByVelocityAsync(0, 0, 0, 1, vehicle_name=drone)
 
         self.client.simPause(True)
-        self.nextAvalibleDroneIndex = 0
+        self.nextDroneIndex = 0
 
         # create objs
         super().setup()
@@ -130,25 +141,24 @@ class AirSimSimulation(Simulation):
 
         # create obj in airsim
         if obj.blueprint == "Drone":
+            realObjName = "Drone" + self.nextDroneIndex
             obj._startPos = obj.position
 
             # if there is an avalible drone, take it, else create one
-            if self.nextAvalibleDroneIndex < len(self.startDrones):
-                realObjName = self.startDrones[self.nextAvalibleDroneIndex]
-                self.nextAvalibleDroneIndex += 1
+            if self.nextDroneIndex < len(self.startDrones):
+                realObjName = self.startDrones[self.nextDroneIndex]
                 obj.realObjName = realObjName
             else:
                 self.client.simAddVehicle(
                     vehicle_name=realObjName, vehicle_type="simpleflight", pose=pose
                 )
+            self.nextDroneIndex += 1
 
             obj.realObjName = realObjName
             self.objs[obj.name] = realObjName
             self.drones[obj.name] = realObjName
 
             # start the drone and place it in the world
-
-            # self.client.simPause(False)
             self.client.enableApiControl(True, realObjName)
             self.client.armDisarm(True, realObjName)
             self.client.simSetVehiclePose(
@@ -161,7 +171,20 @@ class AirSimSimulation(Simulation):
             else:
                 # shut off drone propellers
                 self.client.moveByVelocityAsync(0, 0, 0, -1, vehicle_name=realObjName)
-            # self.client.simPause(True)
+
+        elif obj.blueprint == "PX4Drone":
+            realObjName = PX4_DRONE
+            if self.PX4Drone:
+                raise RuntimeError("more than 1 px4 drone is not currently supported")
+
+            self.client.simAddVehicle(
+                vehicle_name=realObjName, vehicle_type="PX4Multirotor", pose=pose
+            )
+            self.client.simSetVehiclePose(
+                vehicle_name=realObjName, pose=pose, ignore_collision=True
+            )
+            # mavutils.connect()
+            # TODO need this to be async?
 
         elif obj.blueprint == "StaticObj":
             # ensure user is creating an object that uses an existing asset
@@ -187,6 +210,7 @@ class AirSimSimulation(Simulation):
             obj.realObjName = realObjName
             self.objs[obj.name] = realObjName
             self.objTrove.append(realObjName)
+
         else:
             raise RuntimeError("object blueprint does not exist", obj.blueprint)
 
