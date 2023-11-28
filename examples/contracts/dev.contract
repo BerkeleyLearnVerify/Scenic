@@ -235,17 +235,6 @@ component Car(stddev, target_dist, max_speed, min_dist, min_slowdown):
         connect cs.control_action to cc.control_action
 
 ## Contracts ##
-# contract AccurateSpeed():
-#     """ Assume ground truth speed"""
-#     objects:
-#         self
-
-#     output:
-#         speed: float
-
-#     guarantees:
-#         always self.speed == speed
-
 contract AccurateDistance(perception_distance, abs_dist_err=0.5):
     """ Contract proving that perceived distance is relatively accurate."""
     globals:
@@ -274,7 +263,7 @@ contract AccurateDistance(perception_distance, abs_dist_err=0.5):
         # distance is greater than our visible range.
         always (not behind_car) implies (dist > perception_distance+abs_dist_err)
 
-# contract AccurateRelativeSpeeds(perception_distance, max_brake=1, max_accel=1, abs_dist_err=1, abs_speed_err=1):
+# contract AccurateRelativeSpeeds(perception_distance, max_brake=1, max_accel=1, abs_dist_err=0.5, abs_speed_err=1):
 #     """ Contract proving that if we have access to relatively accurate distance, 
 #     we can get a relatively accurate relative speed between the two cars (Assuming
 #     max braking/acceleration forces).
@@ -284,20 +273,18 @@ contract AccurateDistance(perception_distance, abs_dist_err=0.5):
 
 #     globals:
 #         objects
+#         workspace
 #         timestep
 
 #     input:
 #         dist: float
 
 #     definitions:
-#         cars = [obj for obj in objects 
-#             if isinstance(obj, Vehicle) and obj is not self]
-#         lead_cars = [car for car in cars if car in self.lane and car is ahead of self]
-#         cars_ahead = len(lead_cars) > 0
-#         lead_car = argmin over car in lead_cars with key (distance from car to self)
-#         lead_dist = distance from lead_car to self
-#         in_visible_range = lead_dist <= perception_distance
-#         behind_car = in_visible_range if cars_ahead else False
+#         cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj is not self]
+#         lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
+#         lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
+#         lead_dist = lead_distances[lead_car]
+#         behind_car = lead_dist <= perception_distance
 
 #         # Lead speed can be roughly calculated by comparing two timesteps
 #         relative_speed = ((next dist) - dist)/timestep

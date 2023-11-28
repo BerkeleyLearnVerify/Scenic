@@ -9,6 +9,7 @@ from scenic.contracts.contracts import ContractEvidence, ContractResult
 from scenic.contracts.utils import linkSetBehavior, lookuplinkedObject
 from scenic.core.distributions import RejectionException
 from scenic.core.dynamics import GuardViolation, RejectSimulationException
+from scenic.core.scenarios import Scenario
 
 
 class SimulationTesting:
@@ -43,7 +44,9 @@ class SimulationTesting:
         assert len(termConditions) + len(reqConditions) > 0
 
     def verify(self):
-        self.evidence = ProbabilisticEvidence(confidence=self.confidence)
+        self.evidence = SimulationEvidence(
+            confidence=self.confidence, source=self.scenario
+        )
 
         while not any(cond.check(self.evidence) for cond in self.termConditions):
             self.evidence.addTests(self.runTests(self.batchSize))
@@ -65,14 +68,21 @@ class SimulationTesting:
                 print()
 
         if self.verbose:
-            print("Terminating:")
+            print("Termination Conditions:")
             for cond in self.termConditions:
                 print(f"  {cond} = {cond.check(self.evidence)}")
+            print()
 
         # Check requirements
         self.evidence.requirementsMet = all(
             cond.check(self.evidence) for cond in self.reqConditions
         )
+
+        if self.verbose:
+            print("Requirements:")
+            for cond in self.reqConditions:
+                print(f"  {cond} = {cond.check(self.evidence)}")
+            print()
 
         # Package contract result and return
         result = ContractResult(
@@ -200,7 +210,10 @@ class SimulationTesting:
     @staticmethod
     def createTestData(result, scenario, scene, simulation, start_time):
         return SimulationTestData(
-            result, scenario.sceneToBytes(scene), simulation.getReplay(), start_time
+            result,
+            scenario.sceneToBytes(scene),
+            simulation.getReplay(),
+            time.time() - start_time,
         )
 
 
@@ -231,15 +244,23 @@ class TestData:
         self.elapsed_time = elapsed_time
 
 
+class SceneTestData(TestData):
+    def __init__(self, result, scene_bytes, elapsed_time):
+        super().__init__(result, elapsed_time)
+        self.scene_bytes = scene_bytes
+
+
 class SimulationTestData(TestData):
-    def __init__(self, result, scene_bytes, sim_replay, start_time):
-        super().__init__(result, time.time() - start_time)
+    def __init__(self, result, scene_bytes, sim_replay, elapsed_time):
+        super().__init__(result, elapsed_time)
         self.scene_bytes = scene_bytes
         self.sim_replay = sim_replay
 
 
-class ProbabilisticEvidence(ContractEvidence):
+class ProbabilisticEvidence(ContractEvidence, ABC):
     def __init__(self, confidence):
+        assert self.source_hash
+
         self.confidence = confidence
         self.testData = []
         self.requirementsMet = None
@@ -282,6 +303,11 @@ class ProbabilisticEvidence(ContractEvidence):
         ci = bt.proportion_ci(confidence_level=self.confidence)
         return ci.low
 
+    @property
+    @abstractmethod
+    def _source_info(self):
+        raise NotImplementedError()
+
     def __len__(self):
         return len(self.testData)
 
@@ -289,11 +315,60 @@ class ProbabilisticEvidence(ContractEvidence):
         return self.testData
 
     def __str__(self):
-        return f"Probabilistic ({100*self.correctness:.2f}% Correctness with {100*self.confidence:.2f}% Confidence)"
+        string = f"    Probabilistic Evidence\n"
+        string += f"    {100*self.correctness:.2f}% Correctness with {100*self.confidence:.2f}% Confidence\n"
+        string += f"    Sampled from {self._source_info}\n"
+        return string
+
+
+class ScenarioEvidence(ProbabilisticEvidence):
+    def __init__(self, confidence, source):
+        # Validate and store source
+        if not isinstance(source, Scenario):
+            raise ValueError("ScenarioEvidence must have a Scenario object as a source")
+
+        self.source_hash = source.astHash
+
+        super().__init__(confidence)
+
+    def addTests(self, newTests):
+        if any(not isinstance(t, SceneTestData) for t in newTests):
+            raise ValueError(
+                "ScenarioEvidence can only accept tests of class SceneTestData"
+            )
+
+        super().addTests(newTests)
+
+    @property
+    def _source_info(self):
+        return f"Scenario w/ Hash={int.from_bytes(self.source_hash)}"
+
+
+class SimulationEvidence(ProbabilisticEvidence):
+    def __init__(self, confidence, source):
+        # Validate and store source
+        if not isinstance(source, Scenario):
+            raise ValueError("SimulationEvidence must have a Scenario object as a source")
+
+        self.source_hash = source.astHash
+
+        super().__init__(confidence)
+
+    def addTests(self, newTests):
+        if any(not isinstance(t, SimulationTestData) for t in newTests):
+            raise ValueError(
+                "SimulationEvidence can only accept tests of class SimulationTestData"
+            )
+
+        super().addTests(newTests)
+
+    @property
+    def _source_info(self):
+        return f"Scenario w/ Hash={int.from_bytes(self.source_hash)}"
 
 
 ## Termination/Requirement Conditions
-class TermReqCondition(ABC):
+class Condition(ABC):
     @abstractmethod
     def check(self, evidence):
         raise NotImplementedError()
@@ -302,7 +377,7 @@ class TermReqCondition(ABC):
         return repr(self)
 
 
-class TimeTerminationCondition(TermReqCondition):
+class TimeTerminationCondition(Condition):
     def __init__(self, timeout):
         self.timeout = timeout
 
@@ -313,7 +388,7 @@ class TimeTerminationCondition(TermReqCondition):
         return f"{self.__class__.__name__}({self.timeout})"
 
 
-class CountTerminationCondition(TermReqCondition):
+class CountTerminationCondition(Condition):
     def __init__(self, count):
         self.count = count
 
@@ -324,7 +399,7 @@ class CountTerminationCondition(TermReqCondition):
         return f"{self.__class__.__name__}({self.count})"
 
 
-class GapTerminationCondition(TermReqCondition):
+class GapTerminationCondition(Condition):
     def __init__(self, gap):
         self.gap = gap
 
@@ -335,7 +410,7 @@ class GapTerminationCondition(TermReqCondition):
         return f"{self.__class__.__name__}({self.gap})"
 
 
-class CorrectnessRequirementCondition(TermReqCondition):
+class CorrectnessRequirementCondition(Condition):
     def __init__(self, correctness):
         self.correctness = correctness
 

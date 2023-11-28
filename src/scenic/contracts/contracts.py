@@ -19,7 +19,8 @@ class ContractResult:
         self.evidence = evidence
 
     def __str__(self):
-        string = "ContractResult:\n" "  Assumptions:\n"
+        string = "ContractResult:\n"
+        string += "  Assumptions:\n"
 
         for a in self.assumptions:
             string += f"    {a}\n"
@@ -29,7 +30,8 @@ class ContractResult:
         for g in self.guarantees:
             string += f"    {g}\n"
 
-        string += f"  Evidence: {self.evidence}\n"
+        string += f"  Evidence: \n"
+        string += f"{self.evidence}"
         return string
 
 
