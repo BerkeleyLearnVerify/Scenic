@@ -2637,22 +2637,94 @@ class ScenicToPythonTransformer(Transformer):
             type_params=[],
         )
 
+    def visit_ContractTest(self, node: s.ContractTest):
+        # Extract testing technique
+        technique_specs = [
+            i for i in node.specifiers if isinstance(i, s.ContractTestTechnique)
+        ]
 
-def visit_ContractTest(self, node: s.ContractTest):
-    raise NotImplentedError()
+        if len(technique_specs) == 0:
+            raise self.makeSyntaxError("No 'using' specifier used.", node)
 
+        if len(technique_specs) > 1:
+            raise self.makeSyntaxError("More than one 'using' specifier used.", node)
 
-def visit_ContractTestTechnique(self, node: s.ContractTestTechnique):
-    raise NotImplentedError()
+        assert len(technique_specs) == 1
+        technique = self.visit(technique_specs[0])
 
+        # Extract termination and requirement conditions
+        term_conds = [
+            self.visit(i)
+            for i in node.specifiers
+            if isinstance(i, s.ContractTestTermCond)
+        ]
+        req_conds = [
+            self.visit(i) for i in node.specifiers if isinstance(i, s.ContractTestReqCond)
+        ]
 
-def visit_ContractTestTermCond(self, node: s.ContractTestTermCond):
-    raise NotImplentedError()
+        # Create component keyword
+        obj_val = ast.Name(node.component[0], loadCtx)
+        component_val = obj_val
 
+        if len(node.component) > 1:
+            for sub_name in node.component[1:]:
+                component_val = ast.Subscript(
+                    ast.Attribute(component_val, "subcomponents", loadCtx),
+                    ast.Constant(sub_name),
+                    loadCtx,
+                )
 
-def visit_ContractTestReqCond(self, node: s.ContractTestReqCond):
-    raise NotImplentedError()
+        # Map contract name
+        assert isinstance(node.contract, ast.Call)
+        assert isinstance(node.contract.func, ast.Name)
+        node.contract.func.id = self.toContractName(node.contract.func.id)
 
+        # Augment technique call keywords
+        technique.keywords.append(ast.keyword("contract", node.contract))
+        technique.keywords.append(ast.keyword("component", component_val))
+        technique.keywords.append(ast.keyword("obj", obj_val))
+        technique.keywords.append(
+            ast.keyword("termConditions", ast.List(term_conds, loadCtx))
+        )
+        technique.keywords.append(
+            ast.keyword("reqConditions", ast.List(req_conds, loadCtx))
+        )
 
-def visit_ContractVerify(self, node: s.ContractVerify):
-    raise NotImplentedError()
+        return technique
+
+    def visit_ContractTestTechnique(self, node: s.ContractTestTechnique):
+        if not isinstance(node.technique, ast.Call):
+            raise self.makeSyntaxError("Testing technique is malformed.", node)
+
+        return node.technique
+
+    def visit_ContractTestTermCond(self, node: s.ContractTestTermCond):
+        if node.cond_type == "time":
+            func_name = "TimeTerminationCondition"
+        elif node.cond_type == "samples":
+            func_name = "CountTerminationCondition"
+        elif node.cond_type == "gap":
+            func_name = "GapTerminationCondition"
+        else:
+            assert False, node.cond_type
+
+        return ast.Call(
+            func=ast.Name(func_name, loadCtx),
+            args=[self.visit(a) for a in node.args],
+            keywords=[],
+        )
+
+    def visit_ContractTestReqCond(self, node: s.ContractTestReqCond):
+        if node.cond_type == "correctness":
+            func_name = "CorrectnessRequirementCondition"
+        else:
+            assert False, node.cond_type
+
+        return ast.Call(
+            func=ast.Name(func_name, loadCtx),
+            args=[self.visit(a) for a in node.args],
+            keywords=[],
+        )
+
+    def visit_ContractVerify(self, node: s.ContractVerify):
+        return ast.Call(ast.Attribute(node.target, "verify", loadCtx), [], [])

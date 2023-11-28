@@ -16,6 +16,7 @@ class SimulationTesting:
         scenario,
         maxSteps,
         batchSize=1,
+        verbose=False,
         *,
         confidence,
         contract,
@@ -28,6 +29,7 @@ class SimulationTesting:
         self.scenario = scenario
         self.maxSteps = maxSteps
         self.batchSize = batchSize
+        self.verbose = verbose
 
         # Store general args
         self.confidence = confidence
@@ -45,22 +47,28 @@ class SimulationTesting:
         while not any(cond.check(self.evidence) for cond in self.termConditions):
             self.evidence.addTests(self.runTests(self.batchSize))
 
-            print(f"{len(self.evidence)} Tests Accumulated")
-            print(f"Elaped Time: {self.evidence.elapsed_time}")
-            print(
-                f"{self.evidence.v_count} Verified,  {self.evidence.r_count} Rejected,  "
-                f"{self.evidence.a_count} A-Violated,  {self.evidence.g_count} G-Violated"
-            )
-            print(
-                f"Mean Correctness: {self.evidence.v_count/(self.evidence.v_count+self.evidence.g_count)*100:.2f}%"
-            )
-            print(f"Confidence Gap: {self.evidence.confidenceGap}")
-            print(f"Correctness Guarantee (Low): {self.evidence.correctness*100:.2f}%")
-            print()
+            if self.verbose:
+                print(f"{len(self.evidence)} Tests Accumulated")
+                print(f"Elaped Time: {self.evidence.elapsed_time}")
+                print(
+                    f"{self.evidence.v_count} Verified,  {self.evidence.r_count} Rejected,  "
+                    f"{self.evidence.a_count} A-Violated,  {self.evidence.g_count} G-Violated"
+                )
+                print(
+                    f"Mean Correctness: {self.evidence.v_count/(self.evidence.v_count+self.evidence.g_count)*100:.2f}%"
+                )
+                print(f"Confidence Gap: {self.evidence.confidenceGap}")
+                print(
+                    f"Correctness Guarantee (Low): {self.evidence.correctness*100:.2f}%"
+                )
+                print()
 
-        print("Terminating:")
-        for cond in self.termConditions:
-            print(f"  {cond} = {cond.check(self.evidence)}")
+        if self.verbose:
+            print("Terminating:")
+            for cond in self.termConditions:
+                print(f"  {cond} = {cond.check(self.evidence)}")
+
+        # Check requirements
 
         return self.evidence
 
@@ -226,6 +234,7 @@ class ProbabilisticEvidence:
     def __init__(self, confidence):
         self.confidence = confidence
         self.testData = []
+        self.requirements_met = None
 
         # Initialize metrics
         self.elapsed_time = 0
@@ -271,9 +280,12 @@ class ProbabilisticEvidence:
     def __iter__(self):
         return self.testData
 
+    def __str__(self):
+        return f"Probabilistic Evidence: {100*self.correctness:.2f}% Correctness with {100*self.confidence:.2f}% Confidence"
+
 
 ## Termination/Requirement Conditions
-class TerminationCondition(ABC):
+class TermReqCondition(ABC):
     @abstractmethod
     def check(self, evidence):
         raise NotImplementedError()
@@ -282,7 +294,7 @@ class TerminationCondition(ABC):
         return repr(self)
 
 
-class TimeTerminationCondition(TerminationCondition):
+class TimeTerminationCondition(TermReqCondition):
     def __init__(self, timeout):
         self.timeout = timeout
 
@@ -293,7 +305,7 @@ class TimeTerminationCondition(TerminationCondition):
         return f"{self.__class__.__name__}({self.timeout})"
 
 
-class CountTerminationCondition(TerminationCondition):
+class CountTerminationCondition(TermReqCondition):
     def __init__(self, count):
         self.count = count
 
@@ -304,7 +316,7 @@ class CountTerminationCondition(TerminationCondition):
         return f"{self.__class__.__name__}({self.count})"
 
 
-class GapTerminationCondition(TerminationCondition):
+class GapTerminationCondition(TermReqCondition):
     def __init__(self, gap):
         self.gap = gap
 
@@ -313,3 +325,14 @@ class GapTerminationCondition(TerminationCondition):
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.gap})"
+
+
+class CorrectnessRequirementCondition(TermReqCondition):
+    def __init__(self, correctness):
+        self.correctness = correctness
+
+    def check(self, evidence):
+        return evidence.correctness >= self.correctness
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.correctness})"

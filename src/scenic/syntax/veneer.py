@@ -182,9 +182,15 @@ __all__ = (
     "ActionComponent",
     "ComposeComponent",
     "Contract",
+    "SimulationTesting",
+    "TimeTerminationCondition",
+    "CountTerminationCondition",
+    "GapTerminationCondition",
+    "CorrectnessRequirementCondition",
 )
 
 # various Python types and functions used in the language but defined elsewhere
+from scenic.contracts.testing import SimulationTesting
 from scenic.core.distributions import (
     DiscreteRange,
     Normal,
@@ -256,6 +262,12 @@ import typing
 
 from scenic.contracts.components import ActionComponent, BaseComponent, ComposeComponent
 from scenic.contracts.contracts import Contract
+from scenic.contracts.testing import (
+    CorrectnessRequirementCondition,
+    CountTerminationCondition,
+    GapTerminationCondition,
+    TimeTerminationCondition,
+)
 from scenic.core.distributions import (
     Distribution,
     MultiplexerDistribution,

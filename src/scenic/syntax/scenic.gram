@@ -561,7 +561,6 @@ scenic_stmt:
     | scenic_abort_stmt
     | scenic_simulator_stmt
     | scenic_implement_stmt
-    | scenic_verify_stmt
 
 scenic_compound_stmt:
     | scenic_tracked_assign_new_stmt
@@ -1032,7 +1031,7 @@ scenic_assign_contract_test_stmt:
      }
 
 scenic_contract_test_stmt:
-    | a=scenic_contract_test_expr b=[scenic_contract_test_block] {s.ContractTest(a[0], a[1], a[2] + (b or []))}
+    | a=scenic_contract_test_expr b=[scenic_contract_test_block] {s.ContractTest(a[0], a[1], a[2] + (b or []), LOCATIONS)}
 
 scenic_contract_test_block:
     | ',' NEWLINE INDENT b=scenic_contract_test_block_inner DEDENT {b}
@@ -1047,28 +1046,23 @@ scenic_contract_test_expr:
     | "test" component=scenic_subcomponent_name \
       "satisfies" contract=primary \
       ts=(',' x=scenic_contract_test_spec {x})* \
-      {(component, contract, (ts or []))}
+      {(contract, component, (ts or []))}
 
 scenic_contract_test_spec:
-    | "using" technique=primary {s.ContractTestTechnique(technique)}
+    | "using" technique=primary {s.ContractTestTechnique(technique, LOCATIONS)}
     | tc=scenic_contract_test_term_cond {tc}
     | rc=scenic_contract_test_req_cond {rc}
 
 scenic_contract_test_term_cond:
-    | "terminating" "after" x=NUMBER "seconds"  {s.ContractTestTermCond("time", [x])}
-    | "terminating" "after" x=NUMBER "minutes"  {s.ContractTestTermCond("time", [60*x])}
-    | "terminating" "after" x=NUMBER "hours"    {s.ContractTestTermCond("time", [60*60*x])}
-    | "terminating" "after" x=NUMBER "samples"  {s.ContractTestTermCond("samples", [x])}
-    | "terminating" "with" x=NUMBER "gap"       {s.ContractTestTermCond("gap", [x])}
+    | "terminating" "after" x=expression "seconds"  {s.ContractTestTermCond("time", [x], LOCATIONS)}
+    | "terminating" "after" x=expression "minutes"  {s.ContractTestTermCond("time", [ast.Mult(ast.Constant(60),x)], LOCATIONS)}
+    | "terminating" "after" x=expression "hours"    {s.ContractTestTermCond("time", [ast.Mult(ast.Constant(60*60), x)], LOCATIONS)}
+    | "terminating" "after" x=expression "samples"  {s.ContractTestTermCond("samples", [x], LOCATIONS)}
+    | "terminating" "with" x=expression "gap"       {s.ContractTestTermCond("gap", [x], LOCATIONS)}
 
 scenic_contract_test_req_cond:
-    | "requiring" x=NUMBER "correctness" {s.ContractTestReqCond("correctness", x)}
+    | "requiring" x=expression "correctness" {s.ContractTestReqCond("correctness", [x], LOCATIONS)}
 
-# Contract Verification
-# ---------------------
-
-scenic_verify_stmt:
-    | "verify" a=NAME {s.ContractVerify(a)}
 
 # Component/Contracts General
 # ---------------------------
@@ -1813,6 +1807,7 @@ scenic_prefix_operators:
     | "visible" e=scenic_prefix_operators { s.VisibleOp(region=e, LOCATIONS) }
     | 'not' "visible" e=scenic_prefix_operators { s.NotVisibleOp(region=e, LOCATIONS) }
     | p=scenic_position_of_op_position 'of' e=scenic_prefix_operators { s.PositionOfOp(position=p, target=e, LOCATIONS) }
+    | "verify" e=scenic_prefix_operators {s.ContractVerify(e, LOCATIONS)}
     | sum
 
 scenic_distance_from_op:

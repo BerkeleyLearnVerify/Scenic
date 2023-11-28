@@ -11,7 +11,6 @@ from scenic.syntax.veneer import *
 from scenic.syntax.translator import scenarioFromFile
 from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
 from scenic.domains.driving.actions import RegulatedControlAction
-from scenic.contracts.testing import SimulationTesting, TimeTerminationCondition, CountTerminationCondition, GapTerminationCondition
 from scenic.contracts.utils import runComponentsSimulation, leadDistance
 
 # ## World File ##
@@ -327,23 +326,12 @@ PERCEPTION_DISTANCE = 250
 
 implement "EgoCar" with Car(STDDEV, TARGET_DIST, MAX_SPEED, MIN_DIST, MIN_SLOWDOWN) as car
 
-# distance_testing = SimulationTesting(
-#         scenario=ENVIRONMENT,
-#         maxSteps=1,
-#         confidence=0.95,
-#         batchSize=5,
-#         contract=_SCENIC_INTERNAL_CONTRACT_AccurateDistance(PERCEPTION_DISTANCE),
-#         component=car.subcomponents["ps"],
-#         obj=car,
-#         termConditions=[TimeTerminationCondition(5), CountTerminationCondition(100), GapTerminationCondition(0.01)],
-#         reqConditions=[])
-# distance_testing.verify()
-
 distance_testing = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE),\
-    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=1, confidence=0.95),
+    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=1, confidence=0.95, verbose=True),
     terminating after 5 seconds,
     terminating after 100 samples,
     terminating with 0.01 gap,
     requiring 0.95 correctness
 
-verify distance_testing
+distance_evidence = verify distance_testing
+print(distance_evidence)

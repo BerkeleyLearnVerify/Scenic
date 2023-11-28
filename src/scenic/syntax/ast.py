@@ -1307,6 +1307,7 @@ class ContractDef(AST):
         *_args,
         **kwargs,
     ) -> None:
+        super().__init__(*_args, **kwargs)
         self.name = name
         self.args = args
         self.docstring = docstring
@@ -1322,12 +1323,15 @@ class ContractDef(AST):
 class ContractTest(AST):
     def __init__(
         self,
-        component,
         contract,
+        component,
         specifiers,
+        *args,
+        **kwargs,
     ) -> None:
-        self.component = component
+        super().__init__(*args, **kwargs)
         self.contract = contract
+        self.component = component
         self.specifiers = specifiers
 
 
@@ -1335,7 +1339,10 @@ class ContractTestTechnique(AST):
     def __init__(
         self,
         technique,
+        *args,
+        **kwargs,
     ) -> None:
+        super().__init__(*args, **kwargs)
         self.technique = technique
 
 
@@ -1344,7 +1351,10 @@ class ContractTestTermCond(AST):
         self,
         cond_type,
         args,
+        *_args,
+        **kwargs,
     ) -> None:
+        super().__init__(*_args, **kwargs)
         self.cond_type = cond_type
         self.args = args
 
@@ -1354,7 +1364,10 @@ class ContractTestReqCond(AST):
         self,
         cond_type,
         args,
+        *_args,
+        **kwargs,
     ) -> None:
+        super().__init__(*_args, **kwargs)
         self.cond_type = cond_type
         self.args = args
 
@@ -1363,5 +1376,8 @@ class ContractVerify(AST):
     def __init__(
         self,
         target,
+        *_args,
+        **kwargs,
     ) -> None:
+        super().__init__(*_args, **kwargs)
         self.target = target
