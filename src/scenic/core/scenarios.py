@@ -287,6 +287,7 @@ class Scenario(_ScenarioPickleMixin):
         self.behaviorNamespaces = behaviorNamespaces
         self.dynamicScenario = dynamicScenario
         self.astHash = astHash
+        self.filename = "<unknown>"
         self.compileOptions = compileOptions
 
         staticReqs, alwaysReqs, terminationConds = [], [], []

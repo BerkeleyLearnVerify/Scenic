@@ -1808,6 +1808,7 @@ scenic_prefix_operators:
     | 'not' "visible" e=scenic_prefix_operators { s.NotVisibleOp(region=e, LOCATIONS) }
     | p=scenic_position_of_op_position 'of' e=scenic_prefix_operators { s.PositionOfOp(position=p, target=e, LOCATIONS) }
     | "verify" e=scenic_prefix_operators {s.ContractVerify(e, LOCATIONS)}
+    | "next" e=scenic_prefix_operators {s.ContractNext(e, 1, LOCATIONS)}
     | sum
 
 scenic_distance_from_op:

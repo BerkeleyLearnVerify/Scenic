@@ -241,16 +241,50 @@ class ContractAtomicTransformer(Transformer):
         super().__init__(filename)
 
         self.variables = variables
+        self.current_lookahead = 0
+        self.max_lookahead = 0
 
     def visit_Name(self, node):
-        if node.id not in self.variables:
-            return node
-        else:
-            return ast.Subscript(
+        if node.id == "workspace":
+            node.id = "WORKSPACE"
+
+        if node.id in self.variables:
+            node = ast.Subscript(
                 value=node,
                 slice=ast.Name(id="SCENIC_INTERNAL_TIME", ctx=loadCtx),
                 ctx=loadCtx,
             )
+
+        return node
+
+    def visit_ContractNext(self, node):
+        self.current_lookahead += node.step
+        self.max_lookahead = max(self.max_lookahead, self.current_lookahead)
+
+        new_node = ast.Call(
+            func=ast.Lambda(
+                args=ast.arguments(
+                    posonlyargs=[],
+                    args=[ast.arg(arg="SCENIC_INTERNAL_TIME")],
+                    kwonlyargs=[],
+                    kw_defaults=[],
+                    defaults=[
+                        ast.BinOp(
+                            left=ast.Name(id="SCENIC_INTERNAL_TIME", ctx=loadCtx),
+                            op=ast.Add(),
+                            right=ast.Constant(value=node.step),
+                        )
+                    ],
+                ),
+                body=self.visit(node.target),
+            ),
+            args=[],
+            keywords=[],
+        )
+
+        self.current_lookahead -= node.step
+
+        return new_node
 
 
 class PropositionTransformer(Transformer):
@@ -309,9 +343,7 @@ class PropositionTransformer(Transformer):
         lineNum = ast.Constant(node.lineno)
         ast.copy_location(lineNum, node)
 
-        transformed_node = (
-            self.atomic_transformer.visit(node) if self.atomic_transformer else node
-        )
+        node = self.atomic_transformer.visit(node) if self.atomic_transformer else node
 
         closure = ast.Lambda(self.atomic_args, node)
         ast.copy_location(closure, node)
@@ -2391,6 +2423,7 @@ class ScenicToPythonTransformer(Transformer):
             )
         )
 
+        node.globals = ["WORKSPACE" if g == "workspace" else g for g in node.globals]
         contract_body.append(
             ast.Assign(
                 targets=[ast.Name(id="globals", ctx=ast.Store())],
@@ -2508,9 +2541,6 @@ class ScenicToPythonTransformer(Transformer):
         # Definition names aren't included in args yet
         lambda_arg_names += [name for name, _ in node.definitions]
 
-        # Create atomic transformer
-        atomic_transformer = ContractAtomicTransformer(lambda_arg_names, self.filename)
-
         # Create lambda factory function and add it to the component body
         prop_fac_args = ast.arguments(
             node.args.posonlyargs,
@@ -2531,10 +2561,19 @@ class ScenicToPythonTransformer(Transformer):
             )
         )
 
+        max_lookahead = 0
+
         for def_name, def_expr in node.definitions:
+            atomic_transformer = ContractAtomicTransformer(
+                lambda_arg_names, self.filename
+            )
+
             def_lambda = ast.Lambda(
                 args=lambda_args, body=atomic_transformer.visit(def_expr)
             )
+
+            max_lookahead = max(max_lookahead, atomic_transformer.max_lookahead)
+
             prop_fac_body.append(
                 ast.Assign(
                     targets=[
@@ -2546,7 +2585,7 @@ class ScenicToPythonTransformer(Transformer):
                             ctx=ast.Store(),
                         )
                     ],
-                    value=def_lambda,
+                    value=self.visit(def_lambda),
                 )
             )
 
@@ -2561,10 +2600,6 @@ class ScenicToPythonTransformer(Transformer):
                 defaults=[],
             )
 
-        propTransformer = PropositionTransformer(
-            self.filename, atomic_args=lambda_args, atomic_transformer=atomic_transformer
-        )
-
         prop_fac_body.append(
             ast.Assign(
                 targets=[ast.Name(id="_SCENIC_INTERNAL_ASSUMPTIONS", ctx=ast.Store())],
@@ -2572,7 +2607,19 @@ class ScenicToPythonTransformer(Transformer):
             )
         )
         for a in node.assumptions:
-            assumption_prop = propTransformer.visit(a)
+            atomic_transformer = ContractAtomicTransformer(
+                lambda_arg_names, self.filename
+            )
+            propTransformer = PropositionTransformer(
+                self.filename,
+                atomic_args=lambda_args,
+                atomic_transformer=atomic_transformer,
+            )
+
+            assumption_prop = self.visit(propTransformer.visit(a))
+
+            max_lookahead = max(max_lookahead, atomic_transformer.max_lookahead)
+
             prop_fac_body.append(
                 ast.Expr(
                     value=ast.Call(
@@ -2596,7 +2643,19 @@ class ScenicToPythonTransformer(Transformer):
             )
         )
         for g in node.guarantees:
-            guarantee_prop = propTransformer.visit(g)
+            atomic_transformer = ContractAtomicTransformer(
+                lambda_arg_names, self.filename
+            )
+            propTransformer = PropositionTransformer(
+                self.filename,
+                atomic_args=lambda_args,
+                atomic_transformer=atomic_transformer,
+            )
+
+            guarantee_prop = self.visit(propTransformer.visit(g))
+
+            max_lookahead = max(max_lookahead, atomic_transformer.max_lookahead)
+
             prop_fac_body.append(
                 ast.Expr(
                     value=ast.Call(
@@ -2633,6 +2692,14 @@ class ScenicToPythonTransformer(Transformer):
             type_params=[],
         )
         contract_body.append(prop_fac)
+
+        contract_body.insert(
+            0,
+            ast.Assign(
+                targets=[ast.Name("max_lookahead", ast.Store())],
+                value=ast.Constant(value=max_lookahead),
+            ),
+        )
 
         ## Contract Class Definition ##
         return ast.ClassDef(
@@ -2735,3 +2802,6 @@ class ScenicToPythonTransformer(Transformer):
 
     def visit_ContractVerify(self, node: s.ContractVerify):
         return ast.Call(ast.Attribute(node.target, "verify", loadCtx), [], [])
+
+    def visit_ContractNext(self, node: s.ContractNext):
+        raise self.makeSyntaxError("'next' used outside of temporal requirement.", node)

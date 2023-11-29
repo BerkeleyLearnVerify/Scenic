@@ -174,7 +174,9 @@ def _scenarioFromStream(
         if not _cacheImports:
             purgeModulesUnsafeToCache(oldModules)
     # Construct a Scenario from the resulting namespace
-    return constructScenarioFrom(namespace, scenario)
+    scenario = constructScenarioFrom(namespace, scenario)
+    scenario.filename = filename
+    return scenario
 
 
 @contextmanager

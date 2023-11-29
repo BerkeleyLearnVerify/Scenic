@@ -1376,8 +1376,21 @@ class ContractVerify(AST):
     def __init__(
         self,
         target,
-        *_args,
+        *args,
         **kwargs,
     ) -> None:
-        super().__init__(*_args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.target = target
+
+
+class ContractNext(AST):
+    def __init__(
+        self,
+        target,
+        step,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.target = target
+        self.step = step

@@ -31,7 +31,7 @@ class ContractResult:
             string += f"    {g}\n"
 
         string += f"  Evidence: \n"
-        string += f"{self.evidence}"
+        string += "    " + str(self.evidence).replace("\n", "\n    ")
         return string
 
 

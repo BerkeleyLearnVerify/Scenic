@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import enum
+from pathlib import Path
 import time
 
 import rv_ltl
@@ -12,83 +13,119 @@ from scenic.core.dynamics import GuardViolation, RejectSimulationException
 from scenic.core.scenarios import Scenario
 
 
-class SimulationTesting:
+class Testing:
     def __init__(
         self,
-        scenario,
-        maxSteps,
-        batchSize=1,
-        verbose=False,
-        *,
+        ## Testing Specific ##
         confidence,
+        batchSize,
+        verbose,
+        ## Compiler Provided ##
         contract,
         component,
         obj,
         termConditions,
         reqConditions,
     ):
-        # Store technique specific args
-        self.scenario = scenario
-        self.maxSteps = maxSteps
-        self.batchSize = batchSize
-        self.verbose = verbose
-
         # Store general args
         self.confidence = confidence
+        self.batchSize = batchSize
+        self.verbose = verbose
         self.contract = contract
         self.component = component
         self.obj = obj
         self.termConditions = termConditions
         self.reqConditions = reqConditions
 
-        assert len(termConditions) + len(reqConditions) > 0
-
     def verify(self):
-        self.evidence = SimulationEvidence(
-            confidence=self.confidence, source=self.scenario
+        evidence = self._newEvidence()
+        result = ProbabilisticContractResult(
+            self.contract.assumptions, self.contract.guarantees, evidence
         )
 
-        while not any(cond.check(self.evidence) for cond in self.termConditions):
-            self.evidence.addTests(self.runTests(self.batchSize))
+        activeTermConditions = (
+            self.termConditions if self.termConditions else self.reqConditions
+        )
+
+        while not any(
+            cond.check(evidence) for cond in self.termConditions + self.reqConditions
+        ):
+            evidence.addTests(self.runTests(self.batchSize))
 
             if self.verbose:
-                print(f"{len(self.evidence)} Tests Accumulated")
-                print(f"Elaped Time: {self.evidence.elapsed_time}")
-                print(
-                    f"{self.evidence.v_count} Verified,  {self.evidence.r_count} Rejected,  "
-                    f"{self.evidence.a_count} A-Violated,  {self.evidence.g_count} G-Violated"
-                )
-                print(
-                    f"Mean Correctness: {self.evidence.v_count/(self.evidence.v_count+self.evidence.g_count)*100:.2f}%"
-                )
-                print(f"Confidence Gap: {self.evidence.confidenceGap}")
-                print(
-                    f"Correctness Guarantee (Low): {self.evidence.correctness*100:.2f}%"
-                )
+                print(result)
                 print()
 
         if self.verbose:
             print("Termination Conditions:")
             for cond in self.termConditions:
-                print(f"  {cond} = {cond.check(self.evidence)}")
+                print(f"  {cond} = {cond.check(evidence)}")
             print()
 
         # Check requirements
-        self.evidence.requirementsMet = all(
-            cond.check(self.evidence) for cond in self.reqConditions
+        evidence.requirementsMet = all(
+            cond.check(evidence) for cond in self.reqConditions
         )
 
         if self.verbose:
             print("Requirements:")
             for cond in self.reqConditions:
-                print(f"  {cond} = {cond.check(self.evidence)}")
+                print(f"  {cond} = {cond.check(evidence)}")
             print()
 
-        # Package contract result and return
-        result = ContractResult(
-            self.contract.assumptions, self.contract.guarantees, self.evidence
-        )
         return result
+
+    @abstractmethod
+    def _newEvidence(self):
+        raise NotImplementedError()
+
+
+class SimulationTesting(Testing):
+    def __init__(
+        self,
+        scenario,
+        maxSteps,
+        *,
+        ## Testing Specific ##
+        confidence=0.95,
+        batchSize=1,
+        verbose=False,
+        ## Compiler Provided ##
+        contract,
+        component,
+        obj,
+        termConditions,
+        reqConditions,
+    ):
+        super().__init__(
+            confidence=confidence,
+            batchSize=batchSize,
+            verbose=verbose,
+            contract=contract,
+            component=component,
+            obj=obj,
+            termConditions=termConditions,
+            reqConditions=reqConditions,
+        )
+
+        # Store technique specific args
+        self.scenario = scenario
+        self.maxSteps = maxSteps
+
+        assert len(termConditions) + len(reqConditions) > 0
+
+    def _newEvidence(self):
+        return SimulationEvidence(self.confidence, self.scenario)
+
+    @staticmethod
+    def _createTestData(result, violations, scenario, scene, simulation, start_time):
+        return SimulationTestData(
+            result,
+            violations,
+            scenario.sceneToBytes(scene),
+            simulation.getReplay(),
+            time.time() - start_time,
+        )
 
     def runTests(self, num_tests):
         # Generate scenes
@@ -105,61 +142,70 @@ class SimulationTesting:
         start_time = time.time()
 
         # Link object
-        assert self.obj
         linkSetBehavior(scene, [self.obj])
 
-        ## Create and link ValueWindows ##
-        value_windows = {}
+        ## Create and link EagerValueWindows ##
+        base_value_windows = {}
         # Objects
         assert len(self.contract.objects) == 1
         object_name = self.contract.objects[0]
         obj_ptr = lookuplinkedObject(scene, self.component.linkedObjectName)
-        value_windows[object_name] = ValueWindow((lambda t: obj_ptr))
+        base_value_windows[object_name] = EagerValueWindow((lambda: obj_ptr))
 
         # Globals
         for global_name in self.contract.globals:
             if global_name == "objects":
                 objects_ptr = scene.objects
-                value_windows[global_name] = ValueWindow((lambda t: objects_ptr))
-            elif global_name == "workspace":
+                base_value_windows[global_name] = EagerValueWindow((lambda: objects_ptr))
+            elif global_name == "WORKSPACE":
                 workspace_ptr = scene.workspace
-                value_windows[global_name] = ValueWindow((lambda t: workspace_ptr))
+                base_value_windows[global_name] = EagerValueWindow(
+                    (lambda: workspace_ptr)
+                )
             else:
                 raise ValueError(f"Unrecognized global value '{global_name}'")
 
         # Inputs
         for input_name in self.contract.inputs_types.keys():
-            value_windows[input_name] = ValueWindow(
-                (lambda t: self.component.last_inputs[input_name])
+            base_value_windows[input_name] = EagerValueWindow(
+                (lambda: self.component.last_inputs[input_name])
             )
 
         # Outputs
         for output_name in self.contract.outputs_types.keys():
-            value_windows[output_name] = ValueWindow(
-                (lambda t: self.component.last_outputs[output_name])
+            base_value_windows[output_name] = EagerValueWindow(
+                (lambda: self.component.last_outputs[output_name])
             )
+
+        value_windows = {**base_value_windows}
 
         # Definitions
         for def_name, def_lambda in self.contract.definitions.items():
             def_closure = lambda l, x: lambda t: l(t, *x.values())
-            value_windows[def_name] = ValueWindow(
+            value_windows[def_name] = LazyValueWindow(
                 def_closure(def_lambda, value_windows.copy())
             )
 
         ## Create Monitors for Assumptions/Guarantees
         assumptions_monitors = [a.create_monitor() for a in self.contract.assumptions]
+        assumptions_values = [
+            rv_ltl.B4.PRESUMABLY_TRUE for a in self.contract.assumptions
+        ]
         guarantees_monitors = [g.create_monitor() for g in self.contract.guarantees]
         guarantees_values = [rv_ltl.B4.PRESUMABLY_TRUE for g in self.contract.guarantees]
 
-        ## Evaluate Contract ##
+        ## Evaluate Contract on Simulation ##
+        sim_step = 0
+        eval_step = 0
+
         # Instantiate simulator
         simulator = self.scenario.getSimulator()
 
         # Step contract till termination
-        step = 0
-        prop_params = [step] + list(value_windows.values())
         with simulator.simulateStepped(scene, maxSteps=self.maxSteps) as simulation:
-            while True:
+            # Populate with lookahead values
+            for _ in range(self.contract.max_lookahead):
+                print(guarantees_values)
                 # Advance simulation one time step, catching any rejections
                 try:
                     simulation.advance()
@@ -168,65 +214,161 @@ class SimulationTesting:
                     RejectionException,
                     GuardViolation,
                 ) as e:
-                    return self.createTestData(
-                        TestResult.R, self.scenario, scene, simulation, start_time
+                    return self._createTestData(
+                        TestResult.R, [], self.scenario, scene, simulation, start_time
                     )
 
-                # Update all value windows
-                for vw_name, vw in value_windows.items():
-                    vw.update(step)
+                # Update all base value windows
+                for vw_name, vw in base_value_windows.items():
+                    vw.update()
 
-                # Check all assumptions and guarantees
-                for assumption in assumptions_monitors:
-                    a_val = assumption.update(prop_params)
-                    if a_val == rv_ltl.B4.FALSE:
-                        return self.createTestData(
-                            TestResult.A, self.scenario, scene, simulation, start_time
-                        )
+                sim_step += 1
 
-                for g_iter, guarantee in enumerate(guarantees_monitors):
-                    r_val = guarantee.update(prop_params)
-                    guarantees_values[g_iter] = r_val
-
-                # Check if the simulation has ended, and if so break
                 if simulation.result:
                     break
 
-                # Increment time
-                step += 1
+            # Finish simulation
+            while eval_step <= sim_step:
+                for vw_name, vw in value_windows.items():
+                    if vw_name in [
+                        "dist",
+                        "lead_dist",
+                        "relative_speed",
+                        "true_relative_speed",
+                    ]:
+                        print(vw_name, vw.window)
+                # If simulation not terminated, advance simulation one time step, catching any rejections
+                if not simulation.result:
+                    try:
+                        simulation.advance()
+                    except (
+                        RejectSimulationException,
+                        RejectionException,
+                        GuardViolation,
+                    ) as e:
+                        return self._createTestData(
+                            TestResult.R, [], self.scenario, scene, simulation, start_time
+                        )
 
-        if any(
-            g == rv_ltl.B4.PRESUMABLY_FALSE or g == rv_ltl.B4.FALSE
-            for g in guarantees_values
-        ):
-            return self.createTestData(
-                TestResult.G, self.scenario, scene, simulation, start_time
+                    # Update all base value windows
+                    for vw_name, vw in base_value_windows.items():
+                        vw.update()
+
+                    # Increment simulation step
+                    sim_step += 1
+
+                # Check all assumptions and guarantees
+                prop_params = [eval_step] + list(value_windows.values())
+                for a_iter, assumption in enumerate(assumptions_monitors):
+                    try:
+                        a_val = assumption.update(prop_params)
+                        assumptions_values[a_iter] = a_val
+                    except InvalidTimeException as e:
+                        if e.time < sim_step and simulation.result:
+                            raise
+
+                # If we've definitely violated an assumption, we can terminate early.
+                violated_assumptions = [
+                    ai
+                    for ai, av in enumerate(assumptions_values)
+                    if av == rv_ltl.B4.FALSE
+                ]
+
+                if violated_assumptions:
+                    return self._createTestData(
+                        TestResult.A,
+                        violated_assumptions,
+                        self.scenario,
+                        scene,
+                        simulation,
+                        start_time,
+                    )
+
+                for g_iter, guarantee in enumerate(guarantees_monitors):
+                    try:
+                        r_val = guarantee.update(prop_params)
+                        guarantees_values[g_iter] = r_val
+                    except InvalidTimeException as e:
+                        if e.time < sim_step and simulation.result:
+                            raise
+
+                # Increment evaluation step
+                eval_step += 1
+
+        # Check final status assumptions and guarantees
+        violated_assumptions = [
+            ai
+            for ai, av in enumerate(assumptions_values)
+            if av == rv_ltl.B4.PRESUMABLY_FALSE or av == rv_ltl.B4.FALSE
+        ]
+        if violated_assumptions:
+            return self._createTestData(
+                TestResult.A,
+                violated_assumptions,
+                self.scenario,
+                scene,
+                simulation,
+                start_time,
+            )
+
+        violated_guarantees = [
+            gi
+            for gi, gv in enumerate(guarantees_values)
+            if gv == rv_ltl.B4.PRESUMABLY_FALSE or gv == rv_ltl.B4.FALSE
+        ]
+        if len(violated_guarantees) > 0:
+            return self._createTestData(
+                TestResult.G,
+                violated_guarantees,
+                self.scenario,
+                scene,
+                simulation,
+                start_time,
             )
         else:
-            return self.createTestData(
-                TestResult.V, self.scenario, scene, simulation, start_time
+            return self._createTestData(
+                TestResult.V, [], self.scenario, scene, simulation, start_time
             )
 
-    @staticmethod
-    def createTestData(result, scenario, scene, simulation, start_time):
-        return SimulationTestData(
-            result,
-            scenario.sceneToBytes(scene),
-            simulation.getReplay(),
-            time.time() - start_time,
-        )
 
-
-class ValueWindow:
+class EagerValueWindow:
     def __init__(self, get_val):
+        self.elapsed_time = 0
         self.get_val = get_val
         self.window = []
 
-    def update(self, time):
-        self.window.append(self.get_val(time))
+    def update(self):
+        new_val = self.get_val()
+        self.elapsed_time += 1
+        self.window.append(new_val)
 
-    def __getitem__(self, key):
-        return self.window[key]
+    def __getitem__(self, time):
+        if not time < self.elapsed_time:
+            raise InvalidTimeException(time)
+
+        return self.window[time]
+
+
+class LazyValueWindow:
+    def __init__(self, get_val):
+        self.elapsed_time = 0
+        self.get_val = get_val
+        self.window = {}
+
+    def update(self, time):
+        self.window[time] = self.get_val(time)
+        self.elapsed_time += max(self.elapsed_time, time)
+
+    def __getitem__(self, time):
+        if time not in self.window:
+            self.update(time)
+
+        return self.window[time]
+
+
+class InvalidTimeException(Exception):
+    def __init__(self, time):
+        self.time = time
 
 
 ## Test Data Classes
@@ -239,20 +381,15 @@ class TestResult(enum.Enum):
 
 
 class TestData:
-    def __init__(self, result, elapsed_time):
+    def __init__(self, result, violations, elapsed_time):
         self.result = result
+        self.violations = violations
         self.elapsed_time = elapsed_time
 
 
-class SceneTestData(TestData):
-    def __init__(self, result, scene_bytes, elapsed_time):
-        super().__init__(result, elapsed_time)
-        self.scene_bytes = scene_bytes
-
-
 class SimulationTestData(TestData):
-    def __init__(self, result, scene_bytes, sim_replay, elapsed_time):
-        super().__init__(result, elapsed_time)
+    def __init__(self, result, violations, scene_bytes, sim_replay, elapsed_time):
+        super().__init__(result, violations, elapsed_time)
         self.scene_bytes = scene_bytes
         self.sim_replay = sim_replay
 
@@ -285,7 +422,7 @@ class ProbabilisticEvidence(ContractEvidence, ABC):
 
     @property
     def confidenceGap(self):
-        if len(self) == 0:
+        if len(self) == 0 or (self.v_count + self.g_count) == 0:
             return 1
 
         bt = scipy.stats.binomtest(k=self.v_count, n=self.v_count + self.g_count)
@@ -294,7 +431,7 @@ class ProbabilisticEvidence(ContractEvidence, ABC):
 
     @property
     def correctness(self):
-        if len(self) == 0:
+        if len(self) == 0 or (self.v_count + self.g_count) == 0:
             return 0
 
         bt = scipy.stats.binomtest(
@@ -315,33 +452,16 @@ class ProbabilisticEvidence(ContractEvidence, ABC):
         return self.testData
 
     def __str__(self):
-        string = f"    Probabilistic Evidence\n"
-        string += f"    {100*self.correctness:.2f}% Correctness with {100*self.confidence:.2f}% Confidence\n"
-        string += f"    Sampled from {self._source_info}\n"
+        string = (
+            f"Probabilistic Evidence\n"
+            f"{100*self.correctness:.2f}% Correctness with {100*self.confidence:.2f}% Confidence\n"
+            f"Sampled from {self._source_info}\n"
+            f"{self.v_count} Verified,  {self.r_count} Rejected,  "
+            f"{self.a_count} A-Violated,  {self.g_count} G-Violated\n"
+            f"{len(self.testData)} Samples, {self.elapsed_time:.2f} Seconds\n"
+            f"Confidence Gap: {self.confidenceGap}"
+        )
         return string
-
-
-class ScenarioEvidence(ProbabilisticEvidence):
-    def __init__(self, confidence, source):
-        # Validate and store source
-        if not isinstance(source, Scenario):
-            raise ValueError("ScenarioEvidence must have a Scenario object as a source")
-
-        self.source_hash = source.astHash
-
-        super().__init__(confidence)
-
-    def addTests(self, newTests):
-        if any(not isinstance(t, SceneTestData) for t in newTests):
-            raise ValueError(
-                "ScenarioEvidence can only accept tests of class SceneTestData"
-            )
-
-        super().addTests(newTests)
-
-    @property
-    def _source_info(self):
-        return f"Scenario w/ Hash={int.from_bytes(self.source_hash)}"
 
 
 class SimulationEvidence(ProbabilisticEvidence):
@@ -350,6 +470,7 @@ class SimulationEvidence(ProbabilisticEvidence):
         if not isinstance(source, Scenario):
             raise ValueError("SimulationEvidence must have a Scenario object as a source")
 
+        self.source_filename = source.filename
         self.source_hash = source.astHash
 
         super().__init__(confidence)
@@ -364,7 +485,55 @@ class SimulationEvidence(ProbabilisticEvidence):
 
     @property
     def _source_info(self):
-        return f"Scenario w/ Hash={int.from_bytes(self.source_hash)}"
+        return f"Scenario '{Path(self.source_filename).name}' (Hash={int.from_bytes(self.source_hash)})"
+
+
+class ProbabilisticContractResult(ContractResult):
+    def __init__(self, assumptions, guarantees, evidence):
+        if not isinstance(evidence, ProbabilisticEvidence):
+            raise ValueError("Evidence provided is not ProbabilisticEvidence")
+
+        super().__init__(assumptions, guarantees, evidence)
+
+    def __str__(self):
+        string = "ContractResult:\n"
+        string += "  Assumptions:\n"
+
+        for ai, a in enumerate(self.assumptions):
+            if self.evidence.a_count == 0:
+                percent_violated = 0
+            else:
+                percent_violated = (
+                    sum(
+                        1 / len(at.violations)
+                        for at in self.evidence.testData
+                        if at.result == TestResult.A and ai in at.violations
+                    )
+                    / self.evidence.a_count
+                )
+
+            string += f"    ({percent_violated*100:6.2f}%) {a}\n"
+
+        string += "  Guarantees:\n"
+
+        for gi, g in enumerate(self.guarantees):
+            if self.evidence.g_count == 0:
+                percent_violated = 0
+            else:
+                percent_violated = (
+                    sum(
+                        1 / len(gt.violations)
+                        for gt in self.evidence.testData
+                        if gt.result == TestResult.G and gi in gt.violations
+                    )
+                    / self.evidence.g_count
+                )
+
+            string += f"    ({percent_violated*100:6.2f}%) {g}\n"
+
+        string += f"  Evidence: \n"
+        string += "    " + str(self.evidence).replace("\n", "\n    ")
+        return string
 
 
 ## Termination/Requirement Conditions

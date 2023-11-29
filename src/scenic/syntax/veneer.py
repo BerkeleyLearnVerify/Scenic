@@ -2137,3 +2137,7 @@ def Until(lhs, rhs):
 
 def Implies(lhs, rhs):
     return propositions.Implies(lhs, rhs)
+
+
+def Next():
+    raise SyntaxError("'next' operator used outside of requirement")
