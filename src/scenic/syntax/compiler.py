@@ -249,11 +249,14 @@ class ContractAtomicTransformer(Transformer):
             node.id = "WORKSPACE"
 
         if node.id in self.variables:
-            node = ast.Subscript(
+            new_node = ast.Subscript(
                 value=node,
                 slice=ast.Name(id="SCENIC_INTERNAL_TIME", ctx=loadCtx),
                 ctx=loadCtx,
             )
+
+            ast.copy_location(new_node, node)
+            node = new_node
 
         return node
 
@@ -283,6 +286,7 @@ class ContractAtomicTransformer(Transformer):
         )
 
         self.current_lookahead -= node.step
+        ast.copy_location(new_node, node)
 
         return new_node
 
@@ -355,6 +359,10 @@ class PropositionTransformer(Transformer):
         try:
             with open(self.filename, mode="r") as file:
                 source_segment = ast.get_source_segment(file.read(), node)
+                if source_segment is None:
+                    breakpoint()
+                pass
+
         except FileNotFoundError:
             source_segment = None
 
@@ -2615,8 +2623,9 @@ class ScenicToPythonTransformer(Transformer):
                 atomic_args=lambda_args,
                 atomic_transformer=atomic_transformer,
             )
-
-            assumption_prop = self.visit(propTransformer.visit(a))
+            assumption_prop, self.nextSyntaxId = propTransformer.transform(
+                a, self.nextSyntaxId
+            )
 
             max_lookahead = max(max_lookahead, atomic_transformer.max_lookahead)
 
@@ -2651,8 +2660,9 @@ class ScenicToPythonTransformer(Transformer):
                 atomic_args=lambda_args,
                 atomic_transformer=atomic_transformer,
             )
-
-            guarantee_prop = self.visit(propTransformer.visit(g))
+            guarantee_prop, self.nextSyntaxId = propTransformer.transform(
+                g, self.nextSyntaxId
+            )
 
             max_lookahead = max(max_lookahead, atomic_transformer.max_lookahead)
 

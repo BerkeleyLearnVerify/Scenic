@@ -56,7 +56,7 @@ class Testing:
                 print(result)
                 print()
 
-        if self.verbose:
+        if self.verbose and self.termConditions:
             print("Termination Conditions:")
             for cond in self.termConditions:
                 print(f"  {cond} = {cond.check(evidence)}")
@@ -67,8 +67,8 @@ class Testing:
             cond.check(evidence) for cond in self.reqConditions
         )
 
-        if self.verbose:
-            print("Requirements:")
+        if self.verbose and self.reqConditions:
+            print("Requirement Conditions:")
             for cond in self.reqConditions:
                 print(f"  {cond} = {cond.check(evidence)}")
             print()
@@ -205,7 +205,6 @@ class SimulationTesting(Testing):
         with simulator.simulateStepped(scene, maxSteps=self.maxSteps) as simulation:
             # Populate with lookahead values
             for _ in range(self.contract.max_lookahead):
-                print(guarantees_values)
                 # Advance simulation one time step, catching any rejections
                 try:
                     simulation.advance()
@@ -229,14 +228,6 @@ class SimulationTesting(Testing):
 
             # Finish simulation
             while eval_step <= sim_step:
-                for vw_name, vw in value_windows.items():
-                    if vw_name in [
-                        "dist",
-                        "lead_dist",
-                        "relative_speed",
-                        "true_relative_speed",
-                    ]:
-                        print(vw_name, vw.window)
                 # If simulation not terminated, advance simulation one time step, catching any rejections
                 if not simulation.result:
                     try:
@@ -430,8 +421,15 @@ class ProbabilisticEvidence(ContractEvidence, ABC):
         return ci.high - ci.low
 
     @property
+    def meanCorrectness(self):
+        if self.v_count + self.g_count == 0:
+            return float("nan")
+
+        return self.v_count / (self.v_count + self.g_count)
+
+    @property
     def correctness(self):
-        if len(self) == 0 or (self.v_count + self.g_count) == 0:
+        if self.v_count + self.g_count == 0:
             return 0
 
         bt = scipy.stats.binomtest(
@@ -459,7 +457,8 @@ class ProbabilisticEvidence(ContractEvidence, ABC):
             f"{self.v_count} Verified,  {self.r_count} Rejected,  "
             f"{self.a_count} A-Violated,  {self.g_count} G-Violated\n"
             f"{len(self.testData)} Samples, {self.elapsed_time:.2f} Seconds\n"
-            f"Confidence Gap: {self.confidenceGap}"
+            f"Mean Correctness: {100*self.meanCorrectness:.2f}%\n"
+            f"Confidence Gap: {self.confidenceGap:.4f}"
         )
         return string
 
