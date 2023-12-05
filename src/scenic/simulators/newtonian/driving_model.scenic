@@ -32,9 +32,7 @@ class NewtonianActor(DrivingObject):
 
     def setPose(self, position, orientation):
         self.position = position
-        self.yaw = orientation.yaw
-        self.pitch = orientation.pitch
-        self.roll = orientation.roll
+        self.heading = orientation.yaw
 
     def setVelocity(self, vel):
         self.velocity = vel
