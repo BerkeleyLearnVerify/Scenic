@@ -965,6 +965,13 @@ class Network:
         self._uidForIndex = tuple(self.elements)
         self._rtree = shapely.STRtree([elem.polygons for elem in self.elements.values()])
 
+        # Assert that laneSections do not overlap with their successors or predecessors.
+        for sec in self.laneSections:
+            if sec._successor:
+                assert not sec.polygons.overlaps(sec._successor.polygons)
+            if sec._predecessor:
+                assert not sec.polygons.overlaps(sec._predecessor.polygons)
+
     def _defaultRoadDirection(self, point):
         """Default value for the `roadDirection` vector field.
 
