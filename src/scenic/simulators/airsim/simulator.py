@@ -83,7 +83,7 @@ class AirSimSimulation(Simulation):
         self.startDrones = (
             self.client.listVehicles()
         )  # todo filter by simpleflight drones
-        self.PX4Drone = self.client.listVehicles().find(PX4_DRONE)
+        self.PX4Drone = PX4_DRONE if (PX4_DRONE in self.client.listVehicles()) else None
 
         super().__init__(scene, **kwargs)
 
@@ -108,7 +108,6 @@ class AirSimSimulation(Simulation):
 
         # create objs
         super().setup()
-
         # ensure that drones are in the correct places
         self.client.simPause(False)
         time.sleep(1)
@@ -141,7 +140,7 @@ class AirSimSimulation(Simulation):
 
         # create obj in airsim
         if obj.blueprint == "Drone":
-            realObjName = "Drone" + self.nextDroneIndex
+            realObjName = "Drone" + str(self.nextDroneIndex)
             obj._startPos = obj.position
 
             # if there is an avalible drone, take it, else create one
@@ -183,8 +182,9 @@ class AirSimSimulation(Simulation):
             self.client.simSetVehiclePose(
                 vehicle_name=realObjName, pose=pose, ignore_collision=True
             )
-            # mavutils.connect()
+            mavutils.connect()
             # TODO need this to be async?
+            # asyncio.run
 
         elif obj.blueprint == "StaticObj":
             # ensure user is creating an object that uses an existing asset
@@ -229,8 +229,9 @@ class AirSimSimulation(Simulation):
 
     def destroy(self):
         # reinstantiate client
-        client = airsim.MultirotorClient()
-        client.confirmConnection()
+        client = self.client
+        client.client._loop.stop()  # stop any running tasks to prevent errors
+
         client.simPause(True)
 
         # destroy all objs
@@ -238,11 +239,14 @@ class AirSimSimulation(Simulation):
             client.simDestroyObject(obj_name)
 
         for droneName, realDroneName in self.drones.items():
-            self.client.moveByVelocityAsync(0, 0, 0, -1, vehicle_name=realDroneName)
+            client.cancelLastTask(vehicle_name=realDroneName)
+            client.moveByVelocityAsync(0, 0, 0, -1, vehicle_name=realDroneName)
 
         # reset the client
         client.reset()
+
         super().destroy()
+        print("canceled simulation")
 
     def getProperties(self, obj, properties):
         if obj.blueprint == "AirSimPrexisting":
@@ -262,7 +266,7 @@ class AirSimSimulation(Simulation):
         velocity, speed, angularSpeed, angularVelocity = None, None, None, None
 
         # get obj data
-        if obj.blueprint == "Drone":
+        if obj.blueprint == "Drone" or obj.blueprint == "PX4Drone":
             pose = self.client.simGetVehiclePose(objName)
             kinematics = self.client.simGetGroundTruthKinematics(objName)
             velocity = airsimToScenicLocation(kinematics.linear_velocity)

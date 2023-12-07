@@ -7,7 +7,7 @@ from scenic.simulators.airsim.actions import *
 from scenic.simulators.airsim.behaviors import *
 from scenic.simulators.airsim.utils import _addPrexistingObj, getPrexistingObj
 from scenic.core.simulators import SimulationCreationError
-
+from scenic.core.distributions import distributionFunction 
 
 # ---------- global parameters ----------
 
@@ -15,14 +15,25 @@ from scenic.core.simulators import SimulationCreationError
 param timestep = 1
 param airsimWorldInfoPth = None
 param idleStoragePos = (1000,1000,1000)
-param worldInfoPath = None
+param worldInfoPath = r"C:/Users/Mary/Documents/Code/Scenic/more/worldInfo/" #TODO: revert
 worldInfoPath = globalParameters.worldInfoPath
 
 
 # ---------- helper functions ----------
 
+@distributionFunction 
+def printFinal(val):
+    print(val)
+
+@distributionFunction 
 def createMeshShape(subFolder, assetName):
-    tmesh = trimesh.load( worldInfoPath+subFolder+"/"+assetName+".obj")
+    # print(worldInfoPath+subFolder+"/"+assetName+".obj")
+    objFile = assetName+".obj"
+    # tmesh = trimesh.load(os.path.join(worldInfoPath,subFolder,objFile))
+    # tmesh = trimesh.load(open(worldInfoPath+subFolder+"/"+objFile,"r"))
+    tmesh = trimesh.load(worldInfoPath+subFolder+"/"+objFile)
+    # tmesh = trimesh.load("C:/Users/Mary/Documents/Code/Scenic/more/worldInfo/assets/Cube.obj")
+
     return MeshShape(tmesh ,scale=.01)
 
 
@@ -105,7 +116,7 @@ with open(
     "r",
 ) as inFile:
     meshDatas = json.load(inFile)
-    verbosePrint("\n\nPrexisting Object Names:\n",[md["name"] for md in meshDatas], level=2)
+    # verbosePrint("\n\nPrexisting Object Names:\n",[md["name"] for md in meshDatas], level=2)
     for meshData in meshDatas:
         newObj = new AirSimPrexisting with name meshData["name"],
             at meshData["position"],
@@ -116,7 +127,7 @@ with open(
 
 # generate list of assets
 assets = []
-for file in os.listdir(worldInfoPath+"/assets"):
+for filename in os.listdir(worldInfoPath+"/assets"):
     if filename.endswith(".obj"):
         # append the obj name without the .obj extension
         assets.append(filename[:-4])

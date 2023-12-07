@@ -35,5 +35,5 @@ for i in range(blockCount):
 
 ranBlock = blocks[random.randint(0,blockCount-1)]
 
-drone = new Drone contained in centerArea, on ranBlock
+drone = new Drone on ranBlock, with behavior Patrol([(10,10,10),(2,2,2)])
 

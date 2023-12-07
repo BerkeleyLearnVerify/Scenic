@@ -63,11 +63,18 @@ behavior FlyToPosition(newPos, speed = 5,tolerance = 1):
 
 
 
-behavior Patrol(positions, loop=True):
+behavior Patrol(positions, loop=True, smooth = False):
+    
+    verbosePrint("Drone",self.name,"patrolling",positions)
     
     while True:
         for pos in positions:
-            do FlyToPosition(pos)
+            if smooth:
+            #     distance = self.position - pos
+            #    take MoveByVelocityUntilStopped(distance)
+                pass
+            else:
+                do FlyToPosition(pos)
            
         if not loop:
             return
@@ -90,6 +97,37 @@ behavior MoveByVelocity(velocity,seconds):
         )
     ))
 
+
+class MoveByVelocityUntilStopped(Action):
+    def __init__(self, velocity):
+        self.newVelocity = scenicToAirsimVector(toVector(velocity))
+        
+    def applyTo(self,obj,sim):
+        client = sim.client
+        client.cancelLastTask(vehicle_name=obj.realObjName)
+        client.moveByVelocityAsync(
+            self.newVelocity.x_val,
+            self.newVelocity.y_val,
+            self.newVelocity.z_val,
+            duration=1000,
+            vehicle_name=obj.realObjName,
+        )
+
+# behavior MoveByVelocityUntilStopped(velocity):
+#     client = simulation().client
+
+#     client.cancelLastTask(vehicle_name=self.realObjName)
+
+#     newVelocity = scenicToAirsimVector(toVector(velocity))
+#     client.moveByVelocityAsync(
+#         newVelocity.x_val,
+#         newVelocity.y_val,
+#         newVelocity.z_val,
+#         duration=1000,
+#         vehicle_name=self.realObjName,
+#     )
+#     wait
+    
 
 behavior FlyToStart():
     do FlyToPosition(self._startPos)
