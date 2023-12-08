@@ -233,7 +233,7 @@ class Lane:
         w_poly, s_off = self.width[ind]
         w = w_poly.eval_at(s - s_off)
         if w < -1e-6:  # allow for numerical error
-            raise RuntimeError("OpenDRIVE lane has negative width")
+            warn(f"OpenDRIVE lane has negative width ({w})")
         return max(w, 0)
 
 
@@ -1447,7 +1447,7 @@ class RoadMap:
                     curve = Clothoid(x0, y0, hdg, length, curv0, curv1)
                 elif curve_elem.tag == "poly3":
                     a, b, c, d = (
-                        cubic_elem.get("a"),
+                        float(curve_elem.get("a")),
                         float(curve_elem.get("b")),
                         float(curve_elem.get("c")),
                         float(curve_elem.get("d")),
