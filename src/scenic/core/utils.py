@@ -367,6 +367,7 @@ if sys.version_info >= (3, 8, 1) or (
 ):
     get_type_hints = typing.get_type_hints
 else:
+    import types
 
     def get_type_hints(obj, globalns=None, localns=None):
         if not isinstance(obj, (type, types.ModuleType)) and globalns is None:
