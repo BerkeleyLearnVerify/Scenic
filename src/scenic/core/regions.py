@@ -3591,7 +3591,7 @@ class ViewRegion(MeshVolumeRegion):
         position=Vector(0, 0, 0),
         rotation=None,
         orientation=None,
-        angleCutoff=0.001,
+        angleCutoff=0.017,
         tolerance=1e-8,
     ):
         # Bound viewAngles from either side.
@@ -3621,7 +3621,7 @@ class ViewRegion(MeshVolumeRegion):
         else:
             # Case 2
             view_region = base_sphere.intersect(
-                ViewSectionRegion(visibleDistance, viewAngles, angleCutoff)
+                ViewSectionRegion(visibleDistance, viewAngles)
             )
 
         assert view_region is not None
