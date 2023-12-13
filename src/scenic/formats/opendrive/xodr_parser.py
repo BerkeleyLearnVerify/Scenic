@@ -368,6 +368,9 @@ class Road:
         transition_points = [sec.s0 for sec in self.lane_secs[1:]]
         last_s = 0
         for piece in self.ref_line:
+            # INVESTIGATE HERE (transition_points strange behavior)
+            # if self.id_ == 18:
+            #     breakpoint()
             piece_points = piece.to_points(num, extra_points=transition_points)
             assert piece_points, "Failed to get piece points"
             if ref_points:
@@ -1172,6 +1175,24 @@ class RoadMap:
                 sidewalk_lane_types=self.sidewalk_lane_types,
                 shoulder_lane_types=self.shoulder_lane_types,
             )
+
+        # TODO
+        # # Cleanup lanes and lane sections that overlap with their successors
+        # for t_id, t_road in self.roads.items():
+        #     if t_road.successor is not None:
+        #         s_id = t_road.successor
+        #         s_road = self.roads[s_id]
+        #         s_poly = shapely.unary_union(s_road.lane_polys)
+
+        #         # Don't trim loops
+        #         if t_id == s_id:
+        #             continue
+
+        #         # Trim lanes and lane sections
+        #         t_road.lane_polys = [lp.difference(s_poly) for lp in t_road.lane_polys]
+        #         t_road.lane_sec_polys = [{k: lsp.difference(s_poly) for k, lsp in l} for l in t_road.lane_sec_polys]
+
+        for road in self.roads.values():
             self.sec_lane_polys.extend(road.sec_lane_polys)
             self.lane_polys.extend(road.lane_polys)
 
