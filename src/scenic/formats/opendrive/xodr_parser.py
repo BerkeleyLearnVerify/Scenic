@@ -369,9 +369,6 @@ class Road:
         transition_points = [sec.s0 for sec in self.lane_secs[1:]]
         last_s = 0
         for piece in self.ref_line:
-            # INVESTIGATE HERE (transition_points strange behavior)
-            # if self.id_ == 18:
-            #     breakpoint()
             target_transition_points = [
                 s - last_s for s in transition_points if s >= last_s
             ]
@@ -603,10 +600,10 @@ class Road:
                     polys[ids[i]] = polyA.difference(polyB).buffer(-1e-6)
                     assert not polys[ids[i]].overlaps(polyB)
 
-        for i in range(len(lane_polys) - 1):
-            if lane_polys[i].overlaps(lane_polys[i + 1]):
-                lane_polys[i] = lane_polys[i].difference(lane_polys[i + 1]).buffer(-1e-6)
-                assert not lane_polys[i].overlaps(lane_polys[i + 1])
+        for i, j in itertools.combinations(range(len(lane_polys)), 2):
+            if lane_polys[i].overlaps(lane_polys[j]):
+                lane_polys[i] = lane_polys[i].difference(lane_polys[j]).buffer(-1e-6)
+                assert not lane_polys[i].overlaps(lane_polys[j])
 
         # Set parent lane polygon references to corrected polygons
         for sec in self.lane_secs:
