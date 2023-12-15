@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 from scipy.integrate import quad, solve_ivp
 from scipy.optimize import brentq
+import shapely
 from shapely.geometry import GeometryCollection, MultiPoint, MultiPolygon, Point, Polygon
 from shapely.ops import snap, unary_union
 
@@ -1176,21 +1177,56 @@ class RoadMap:
                 shoulder_lane_types=self.shoulder_lane_types,
             )
 
-        # TODO
+        # TODO Fix this?
         # # Cleanup lanes and lane sections that overlap with their successors
         # for t_id, t_road in self.roads.items():
+        #     t_poly = polygonUnion(t_road.lane_polys)
+
+        #     if t_road.predecessor is not None:
+        #         p_id = t_road.predecessor
+
+        #         # Don't trim loops
+        #         if t_id == p_id:
+        #             continue
+
+        #         # Find successor roads
+        #         if p_id in self.roads:
+        #             p_roads = [self.roads[p_id]]
+        #         elif p_id in self.junctions:
+        #             p_roads = [self.roads[p_id] for p_id in self.junctions[p_id].paths]
+        #         else:
+        #             assert False
+
+        #         # Trim all successor roads
+        #         for p_road in p_roads:
+        #             # Trim lanes and lane sections
+        #             p_road.lane_polys = [lp.difference(t_poly) for lp in p_road.lane_polys]
+        #             p_road.sec_polys = [sp.difference(t_poly) for sp in p_road.sec_polys]
+        #             p_road.sec_lane_polys = [{k: lsp.difference(t_poly) for k, lsp in l.items()} for l in p_road.sec_lane_polys]
+
         #     if t_road.successor is not None:
         #         s_id = t_road.successor
-        #         s_road = self.roads[s_id]
-        #         s_poly = shapely.unary_union(s_road.lane_polys)
 
         #         # Don't trim loops
         #         if t_id == s_id:
         #             continue
 
-        #         # Trim lanes and lane sections
-        #         t_road.lane_polys = [lp.difference(s_poly) for lp in t_road.lane_polys]
-        #         t_road.lane_sec_polys = [{k: lsp.difference(s_poly) for k, lsp in l} for l in t_road.lane_sec_polys]
+        #         # Find successor roads
+        #         if s_id in self.roads:
+        #             s_roads = [self.roads[s_id]]
+        #         elif s_id in self.junctions:
+        #             s_roads = [self.roads[s_id] for s_id in self.junctions[s_id].paths]
+        #         else:
+        #             assert False
+
+        #         # Trim all successor roads
+        #         for s_road in s_roads:
+        #             s_poly = polygonUnion(s_road.lane_polys)
+
+        #             # Trim lanes and lane sections
+        #             t_road.lane_polys = [lp.difference(s_poly) for lp in t_road.lane_polys]
+        #             t_road.sec_polys = [sp.difference(s_poly) for sp in t_road.sec_polys]
+        #             t_road.sec_lane_polys = [{k: lsp.difference(s_poly) for k, lsp in l.items()} for l in t_road.sec_lane_polys]
 
         for road in self.roads.values():
             self.sec_lane_polys.extend(road.sec_lane_polys)
