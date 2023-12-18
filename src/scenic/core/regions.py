@@ -3598,6 +3598,9 @@ class ViewRegion(MeshVolumeRegion):
         if min(viewAngles) <= 0:
             raise ValueError("viewAngles cannot have a component less than or equal to 0")
 
+        # TODO True surface representation
+        viewAngles = (max(viewAngles[0], angleCutoff), max(viewAngles[1], angleCutoff))
+
         if math.tau - angleCutoff <= viewAngles[0]:
             viewAngles = (math.tau, viewAngles[1])
 
