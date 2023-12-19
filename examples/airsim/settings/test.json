@@ -3,7 +3,7 @@
     "SimMode": "Multirotor",
     "ClockType": "SteppableClock",
     "Vehicles": {
-        "PX4": {
+        "PX4Drone": {
             "VehicleType": "PX4Multirotor",
             "UseSerial": false,
             "LockStep": true,

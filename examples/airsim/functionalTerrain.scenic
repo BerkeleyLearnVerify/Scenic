@@ -39,5 +39,6 @@ for i in range(blockCount):
 
 ranBlock = blocks[random.randint(0,blockCount-1)]
 
-drone = new Drone on positions[0], with behavior Patrol(positions)
+
+drone = new Drone on positions[0], with behavior Patrol(positions,smooth=True,speed=5)
 

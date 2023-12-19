@@ -1,9 +1,6 @@
 from mavsdk import System
 import asyncio
 
-# import airsim
-
-
 async def connect():
     drone = System()
     await drone.connect(system_address="udp://:14550")
@@ -18,3 +15,21 @@ async def connect():
         break
 
     return drone
+
+
+async def takeoff(drone):
+    print("-- Arming")
+    await drone.action.arm()
+
+    print("-- Taking off")
+    await drone.action.takeoff()
+    print("done")
+
+
+async def move(drone,location):
+    print("moving")
+    await drone.action.goto_location(location[0], location[1], location[2], 0)
+    print("done moving")
+
+
+    await asyncio.sleep(10)

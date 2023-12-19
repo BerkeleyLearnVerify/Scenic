@@ -12,10 +12,10 @@ from scenic.core.distributions import distributionFunction
 # ---------- global parameters ----------
 
 # setting Default global parameters for any missing parameters
-param timestep = 1
+param timestep = .1
 param airsimWorldInfoPth = None
 param idleStoragePos = (1000,1000,1000)
-param worldInfoPath = r"C:/Users/Mary/Documents/Code/Scenic/more/worldInfo/" #TODO: revert
+param worldInfoPath = r"/home/mary/Documents/scenic/more/worldInfo" #TODO: revert
 worldInfoPath = globalParameters.worldInfoPath
 
 
@@ -27,12 +27,8 @@ def printFinal(val):
 
 @distributionFunction 
 def createMeshShape(subFolder, assetName):
-    # print(worldInfoPath+subFolder+"/"+assetName+".obj")
     objFile = assetName+".obj"
-    # tmesh = trimesh.load(os.path.join(worldInfoPath,subFolder,objFile))
-    # tmesh = trimesh.load(open(worldInfoPath+subFolder+"/"+objFile,"r"))
     tmesh = trimesh.load(worldInfoPath+subFolder+"/"+objFile)
-    # tmesh = trimesh.load("C:/Users/Mary/Documents/Code/Scenic/more/worldInfo/assets/Cube.obj")
 
     return MeshShape(tmesh ,scale=.01)
 
@@ -116,7 +112,6 @@ with open(
     "r",
 ) as inFile:
     meshDatas = json.load(inFile)
-    # verbosePrint("\n\nPrexisting Object Names:\n",[md["name"] for md in meshDatas], level=2)
     for meshData in meshDatas:
         newObj = new AirSimPrexisting with name meshData["name"],
             at meshData["position"],

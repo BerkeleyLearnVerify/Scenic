@@ -3,6 +3,8 @@ from scenic.core.simulators import Action
 import airsim
 import time
 import threading
+import sys
+import math
 from promise import Promise
 from scenic.core.type_support import toVector
 from .utils import (
@@ -12,6 +14,9 @@ from .utils import (
     airsimToScenicOrientation,
     scenicToAirsimScale,
 )
+
+def magnitude(v):
+    return math.hypot(v.x, v.y, v.z)
 
 # creates a promise from an msgpackrpc future (the futures that are used in airsim)
 def createPromise(future):
@@ -30,8 +35,6 @@ def createPromise(future):
             threading.Thread(target=joinAsync).start()
         else:
             threading.Thread(target=waitAsync).start()
-       
-            
 
     prom = Promise(promFunc)
 
@@ -43,38 +46,43 @@ behavior waitForPromise(promise):
         wait
 
 # Flies the drone to a position
-behavior FlyToPosition(newPos, speed = 5,tolerance = 1):
+behavior FlyToPosition(newPos, speed = 5,tolerance = 1,pidMode = True):
     client = simulation().client
 
-    newPos = scenicToAirsimVector(toVector(newPos))
+    
 
-    do waitForPromise(createPromise(
-        client.moveToPositionAsync(
-            newPos.x_val,
-            newPos.y_val,
-            newPos.z_val,
-            velocity=speed,
-            vehicle_name=self.realObjName,
-        )
-    ))
+    if pidMode:
+        newPos = scenicToAirsimVector(toVector(newPos))
+        do waitForPromise(createPromise(
+            client.moveToPositionAsync(
+                newPos.x_val,
+                newPos.y_val,
+                newPos.z_val,
+                velocity=speed,
+                vehicle_name=self.realObjName,
+            )
+        ))
+    else:
+        while True:
+            direction = newPos -self.position 
+            distance = magnitude(direction)
+            
+            if distance < tolerance:
+                break
+            direction= (direction/distance)*speed
+            take MoveByVelocityUntilStopped(direction)
+            wait
+        
 
     return
 
 
 
 
-behavior Patrol(positions, loop=True, smooth = False):
-    
-    verbosePrint("Drone",self.name,"patrolling",positions)
-    
+behavior Patrol(positions, loop=True, smooth = False, speed = 5,tolerance = 2):
     while True:
         for pos in positions:
-            if smooth:
-            #     distance = self.position - pos
-            #    take MoveByVelocityUntilStopped(distance)
-                pass
-            else:
-                do FlyToPosition(pos)
+            do FlyToPosition(pos,speed=speed,pidMode= not smooth,tolerance=tolerance)
            
         if not loop:
             return
@@ -109,24 +117,9 @@ class MoveByVelocityUntilStopped(Action):
             self.newVelocity.x_val,
             self.newVelocity.y_val,
             self.newVelocity.z_val,
-            duration=1000,
+            duration=5,
             vehicle_name=obj.realObjName,
         )
-
-# behavior MoveByVelocityUntilStopped(velocity):
-#     client = simulation().client
-
-#     client.cancelLastTask(vehicle_name=self.realObjName)
-
-#     newVelocity = scenicToAirsimVector(toVector(velocity))
-#     client.moveByVelocityAsync(
-#         newVelocity.x_val,
-#         newVelocity.y_val,
-#         newVelocity.z_val,
-#         duration=1000,
-#         vehicle_name=self.realObjName,
-#     )
-#     wait
     
 
 behavior FlyToStart():

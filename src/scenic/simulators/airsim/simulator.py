@@ -5,7 +5,7 @@ from math import copysign, degrees, radians, sin
 import subprocess
 import threading
 import time
-
+import asyncio
 
 # third party libs
 import airsim
@@ -83,8 +83,12 @@ class AirSimSimulation(Simulation):
         self.startDrones = (
             self.client.listVehicles()
         )  # todo filter by simpleflight drones
-        self.PX4Drone = PX4_DRONE if (PX4_DRONE in self.client.listVehicles()) else None
-
+        
+        self.PX4Drone = None
+        print("self.startDrones",self.startDrones)
+        if PX4_DRONE in self.startDrones:
+            self.startDrones.remove(PX4_DRONE)
+        
         super().__init__(scene, **kwargs)
 
     def setup(self):
@@ -176,15 +180,14 @@ class AirSimSimulation(Simulation):
             if self.PX4Drone:
                 raise RuntimeError("more than 1 px4 drone is not currently supported")
 
-            self.client.simAddVehicle(
-                vehicle_name=realObjName, vehicle_type="PX4Multirotor", pose=pose
-            )
+            self.PX4Drone= PX4_DRONE
+            # self.client.simAddVehicle(
+            #     vehicle_name=realObjName, vehicle_type="PX4Multirotor", pose=pose
+            # )
             self.client.simSetVehiclePose(
                 vehicle_name=realObjName, pose=pose, ignore_collision=True
             )
-            mavutils.connect()
-            # TODO need this to be async?
-            # asyncio.run
+            # asyncio.run(mavutils.connect())
 
         elif obj.blueprint == "StaticObj":
             # ensure user is creating an object that uses an existing asset

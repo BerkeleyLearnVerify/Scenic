@@ -9,16 +9,16 @@ model scenic.simulators.airsim.model
 def magnitude(v):
     return math.hypot(v.x, v.y, v.z)
 
-behavior Follow(target, speed = 5,tolerance = 2):
+behavior Follow(target, speed = 5,tolerance = 2, offset = (0,0,1)):
     client = simulation().client
 
     while True:
-        targetPosition = target.position - (3,0,0)
-        distance = magnitude(self.position - targetPosition)
-        velocity = (targetPosition-self.position) / distance * speed
+        targetPosition = target.position + offset
+        
+        velocity = targetPosition-self.position
+        distance = magnitude(velocity)
+        velocity = (velocity / distance) * speed
         if distance > tolerance:
-            # TODO is there a way to make the timesteps smaller?
-            print("rerouted")
             take MoveByVelocityUntilStopped(velocity)
         wait
 
