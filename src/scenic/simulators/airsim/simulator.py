@@ -80,21 +80,21 @@ class AirSimSimulation(Simulation):
         self.objTrove = []  # objs to delete on simulation complete
         self.objs = {}  # obj name to objrealname dict
         self.drones = {}  # obj name to objrealname dict only for drones
-        self.startDrones = (
-            self.client.listVehicles()
-        )  # todo filter by simpleflight drones
-        
         self.PX4Drone = None
-        print("self.startDrones",self.startDrones)
-        if PX4_DRONE in self.startDrones:
-            self.startDrones.remove(PX4_DRONE)
-        
+        self.startDrones = None
+        self.nextDroneIndex = 0
+
         super().__init__(scene, **kwargs)
 
     def setup(self):
-        # init properties
+        # set up startDrones
+        self.startDrones = self.client.listVehicles()
 
-        # move all drones to offscreen position
+        # remove px4 drone from start drones bc it is handled differently
+        if PX4_DRONE in self.startDrones:
+            self.startDrones.remove(PX4_DRONE)
+
+        # move all drones (except px4 drone) to offscreen position
         self.client.simPause(False)
         for i, drone in enumerate(self.startDrones):
             newPose = airsim.Pose(
@@ -105,13 +105,15 @@ class AirSimSimulation(Simulation):
             self.client.simSetVehiclePose(
                 vehicle_name=drone, pose=newPose, ignore_collision=False
             )
-            self.client.moveByVelocityAsync(0, 0, 0, 1, vehicle_name=drone)
+            self.client.moveByVelocityAsync(
+                0, 0, 0, 1, vehicle_name=drone
+            )  # make drone hover
 
         self.client.simPause(True)
-        self.nextDroneIndex = 0
 
         # create objs
         super().setup()
+
         # ensure that drones are in the correct places
         self.client.simPause(False)
         time.sleep(1)
@@ -133,10 +135,10 @@ class AirSimSimulation(Simulation):
                 "there is already an object of the name " + obj.name + " in the simulator"
             )
 
-        # set realObjName
+        # set default realObjName
         realObjName = obj.name + str(hash(obj))
 
-        # set pose
+        # set object airsim pose
         pose = airsim.Pose(
             position_val=scenicToAirsimVector(obj.position),
             orientation_val=scenicToAirsimOrientation(obj.orientation),
@@ -155,8 +157,10 @@ class AirSimSimulation(Simulation):
                 self.client.simAddVehicle(
                     vehicle_name=realObjName, vehicle_type="simpleflight", pose=pose
                 )
+
             self.nextDroneIndex += 1
 
+            # save the drone name
             obj.realObjName = realObjName
             self.objs[obj.name] = realObjName
             self.drones[obj.name] = realObjName
@@ -177,17 +181,17 @@ class AirSimSimulation(Simulation):
 
         elif obj.blueprint == "PX4Drone":
             realObjName = PX4_DRONE
+
             if self.PX4Drone:
                 raise RuntimeError("more than 1 px4 drone is not currently supported")
 
-            self.PX4Drone= PX4_DRONE
-            # self.client.simAddVehicle(
-            #     vehicle_name=realObjName, vehicle_type="PX4Multirotor", pose=pose
-            # )
+            self.PX4Drone = PX4_DRONE
             self.client.simSetVehiclePose(
                 vehicle_name=realObjName, pose=pose, ignore_collision=True
             )
-            # asyncio.run(mavutils.connect())
+
+            obj.realObjName = realObjName
+            self.objs[obj.name] = realObjName
 
         elif obj.blueprint == "StaticObj":
             # ensure user is creating an object that uses an existing asset
@@ -219,14 +223,6 @@ class AirSimSimulation(Simulation):
 
     def step(self):
         self.client.simContinueForTime(self.simulator.timestep)
-
-    def getDronePositions(self):
-        positions = {}
-        for droneName, realDroneName in self.drones.items():
-            positions[droneName] = airsimToScenicLocation(
-                self.client.simGetVehiclePose(realDroneName).position
-            )
-        return positions
 
     # ------------------- Other Simulator methods -------------------
 
@@ -306,11 +302,3 @@ class AirSimSimulation(Simulation):
         )
 
         return values
-
-    # ------------------- Utils -------------------
-
-    def objInScene(self, objName):
-        return objName in self.client.simListSceneObjects()
-
-
-# -------------- Static helper functions --------------

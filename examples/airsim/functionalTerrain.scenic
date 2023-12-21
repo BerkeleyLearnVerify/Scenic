@@ -1,11 +1,15 @@
 import math
+from scenic.simulators.airsim.utils import getPrexistingObj
+import random
 
 # NOTE: add your world info path here
 # param worldInfoPath = "[YOUR PATH HERE]"
 
+param timestep = .1
+
 model scenic.simulators.airsim.model
-from scenic.simulators.airsim.utils import getPrexistingObj
-import random
+
+
 
 ground = getPrexistingObj("ground")
 

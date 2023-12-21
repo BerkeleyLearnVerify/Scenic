@@ -1,4 +1,4 @@
-from scenic.core.simulators import Action
+
 
 import airsim
 import time
@@ -14,6 +14,8 @@ from .utils import (
     airsimToScenicOrientation,
     scenicToAirsimScale,
 )
+from scenic.simulators.airsim.actions import *
+
 
 def magnitude(v):
     return math.hypot(v.x, v.y, v.z)
@@ -47,6 +49,8 @@ behavior waitForPromise(promise):
 
 # Flies the drone to a position
 behavior FlyToPosition(newPos, speed = 5,tolerance = 1,pidMode = True):
+    # pidMode is true if we want the drone to slow down as it reaches its destination
+    
     client = simulation().client
 
     
@@ -70,7 +74,7 @@ behavior FlyToPosition(newPos, speed = 5,tolerance = 1,pidMode = True):
             if distance < tolerance:
                 break
             direction= (direction/distance)*speed
-            take MoveByVelocityUntilStopped(direction)
+            take SetVelocity(direction)
             wait
         
 
@@ -106,21 +110,7 @@ behavior MoveByVelocity(velocity,seconds):
     ))
 
 
-class MoveByVelocityUntilStopped(Action):
-    def __init__(self, velocity):
-        self.newVelocity = scenicToAirsimVector(toVector(velocity))
-        
-    def applyTo(self,obj,sim):
-        client = sim.client
-        client.cancelLastTask(vehicle_name=obj.realObjName)
-        client.moveByVelocityAsync(
-            self.newVelocity.x_val,
-            self.newVelocity.y_val,
-            self.newVelocity.z_val,
-            duration=5,
-            vehicle_name=obj.realObjName,
-        )
-    
+
 
 behavior FlyToStart():
     do FlyToPosition(self._startPos)

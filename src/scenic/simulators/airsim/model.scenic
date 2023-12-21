@@ -12,10 +12,10 @@ from scenic.core.distributions import distributionFunction
 # ---------- global parameters ----------
 
 # setting Default global parameters for any missing parameters
-param timestep = .1
+param timestep = 1
 param airsimWorldInfoPth = None
 param idleStoragePos = (1000,1000,1000)
-param worldInfoPath = r"/home/mary/Documents/scenic/more/worldInfo" #TODO: revert
+param worldInfoPath = ""
 worldInfoPath = globalParameters.worldInfoPath
 
 
