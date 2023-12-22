@@ -17,11 +17,9 @@ See the individual entries for details on each interface's capabilities and how 
 
 Currently Supported
 ===================
-Docs
-====
 
 AirSim
-======
+------
 
 The interface to AirSim (https://microsoft.github.io/AirSim/) enables
 the user to create dynamic scenarios using any AirSim binary.
@@ -185,12 +183,6 @@ PX4 firmware in SITL mode.
 
    make px4_sitl_default none_iris
 
-Troubleshooting crashes
-~~~~~~~~~~~~~~~~~~~~~~~
-
--  make clean
--  wait a bit after starting airsim for the messages to go away
-
 Built-in Newtonian Simulator
 ----------------------------
 
@@ -307,6 +299,3 @@ LGSVL
 -----
 
 The LGSVL simulator (a.k.a. SVL Simulator) was deprecated in Scenic 3.0, with the last version of Scenic supporting this simulator being 2.1. The original simulator is no longer usable due to LG shutting down its cloud service, but we are open to a PR targeting one of its forks.
-
-
-
