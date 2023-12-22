@@ -1,11 +1,11 @@
 # standard libs
+import asyncio
 from cmath import atan, pi, tan
 import math
 from math import copysign, degrees, radians, sin
 import subprocess
 import threading
 import time
-import asyncio
 
 # third party libs
 import airsim
@@ -21,10 +21,8 @@ from scenic.core.simulators import (
 )
 from scenic.core.type_support import toVector
 from scenic.core.vectors import Orientation, Vector
-from scenic.syntax.veneer import verbosePrint
-
-
 import scenic.simulators.airsim.MavsdkUtils as mavutils
+from scenic.syntax.veneer import verbosePrint
 
 from .utils import (
     airsimToScenicLocation,
@@ -33,7 +31,6 @@ from .utils import (
     scenicToAirsimScale,
     scenicToAirsimVector,
 )
-
 
 # Constants
 PX4_DRONE = "PX4Drone"
