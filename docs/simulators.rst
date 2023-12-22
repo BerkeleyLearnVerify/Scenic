@@ -17,7 +17,6 @@ See the individual entries for details on each interface's capabilities and how 
 
 Currently Supported
 ===================
-
 AirSim
 ------
 
@@ -25,7 +24,7 @@ The interface to AirSim (https://microsoft.github.io/AirSim/) enables
 the user to create dynamic scenarios using any AirSim binary.
 
 **Installation**
-----------------
+~~~~~~~~~~~~~~~~
 
 1. Begin by installing Scenic, which you can find detailed instructions
    for
@@ -50,10 +49,10 @@ If you’re using px4, you will also need:
    pip install kconfiglib
 
 Example Usage
--------------
+~~~~~~~~~~~~~
 
 Generate World Info
-~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^
 
 Before running Scenic, it’s essential to generate world information. To
 achieve this, utilize the
@@ -70,7 +69,7 @@ this:
    param worldInfoPath = "[YOUR PATH HERE]"
 
 **Configure AirSim Settings**
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Before running Scenic, we also need to ensure that AirSim has been
 launched with the appropriate settings. The choice of settings file
@@ -97,7 +96,7 @@ Linux Example:
    $ Blocks/LinuxBlocks1.8.1/LinuxNoEditor/Blocks.sh -settings="Scenic/src/scenic/simulators/airsim/objs/cubes/airsimSettings.json"
 
 Running Scenic
-~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^
 
 Once AirSim is up and running with the appropriate settings, you can
 proceed to run your Scenic code:
@@ -110,23 +109,23 @@ That’s all there is to it! This sequence of steps will set up and
 execute your Airsim simulations using Scenic.
 
 Using **MAVSDK-Python** with AirSim
------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Obtaining PX4**
-~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^
 
 To utilize MAVSDK-Python with AirSim, clone the PX4-Autopilot repository
 using the following link: https://github.com/PX4/PX4-Autopilot
 
 **Concurrent Operation of AirSim and PX4**
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Running AirSim with PX4 requires both to be running at the same time.
 Follow the steps below to get both running simultaneously and compatible
 with each other.
 
 Running AirSim
-~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^
 
 Before launching AirSim, it is important to ensure it is set up to
 communicate with PX4.
@@ -173,7 +172,7 @@ following AirSim settings should suffice.
    }
 
 Running PX4
-~~~~~~~~~~~
+^^^^^^^^^^^
 
 In the cloned PX4 directory, run the makefile with the correct settings
 by running the following command in the terminal. This will start the
@@ -182,7 +181,7 @@ PX4 firmware in SITL mode.
 .. code:: jsx
 
    make px4_sitl_default none_iris
-
+   
 Built-in Newtonian Simulator
 ----------------------------
 
