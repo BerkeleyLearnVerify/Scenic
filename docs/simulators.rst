@@ -181,7 +181,11 @@ PX4 firmware in SITL mode.
 .. code:: jsx
 
    make px4_sitl_default none_iris
-   
+
+After this step, you can run Scenic files normally as shown in the
+“Running Scenic” section above.
+
+
 Built-in Newtonian Simulator
 ----------------------------
 
