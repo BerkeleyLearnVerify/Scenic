@@ -163,7 +163,7 @@ def loadMesh(path, filetype, compressed, binary):
 
 
 def unifyMesh(mesh, verbose=False):
-    """Attempt to merge mesh bodies, raising an error if something fails.
+    """Attempt to merge mesh bodies, raising a `ValueError` if something fails.
 
     Should only be used with meshes that are volumes.
 
@@ -197,14 +197,26 @@ def unifyMesh(mesh, verbose=False):
                 assert m.is_volume
                 holes.append(m)
 
-        # For each volume, subtract all holes fully contained in the volume.
+        # For each volume, subtract all holes fully contained in the volume,
+        # keeping track of which holes are fully contained in at least one solid.
         differenced_volumes = []
+        contained_holes = set()
 
         for v in volumes:
             for h in filter(lambda h: h.volume < v.volume, holes):
                 if h.difference(v).is_empty:
+                    contained_holes.add(h)
                     v = v.difference(h)
             differenced_volumes.append(v)
+
+        # If one or more holes was not fully contained (and thus ignored),
+        # raise a warning.
+        if verbose:
+            if contained_holes != set(holes):
+                warnings.warn(
+                    "One or more holes in the provided mesh was not fully contained"
+                    " in any solid (and was ignored)."
+                )
 
         # Union all the differenced volumes together.
         unified_mesh = trimesh.boolean.union(differenced_volumes)

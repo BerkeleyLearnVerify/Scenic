@@ -3564,8 +3564,8 @@ class ViewRegion(MeshVolumeRegion):
 
     * Case 1:       viewAngles[1] = 180 degrees
 
-      * Case 2.a    viewAngles[0] = 360 degrees     => Sphere
-      * Case 2.b    viewAngles[0] < 360 degrees     => Sphere & CylinderSectionRegion
+      * Case 1.a    viewAngles[0] = 360 degrees     => Sphere
+      * Case 1.b    viewAngles[0] < 360 degrees     => Sphere & CylinderSectionRegion
 
     * Case 2:       viewAngles[1] < 180 degrees     => Sphere & ViewSectionRegion
 

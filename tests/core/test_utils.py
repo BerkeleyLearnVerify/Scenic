@@ -63,4 +63,6 @@ def test_unify_mesh():
         nested_sphere, trimesh.creation.box(bounds=((0, 0, 0), (3, 5, 3)))
     )
 
-    unifyMesh(bad_mesh)
+    fixed_mesh = unifyMesh(bad_mesh)
+    assert fixed_mesh.is_volume
+    assert fixed_mesh.body_count == 1
