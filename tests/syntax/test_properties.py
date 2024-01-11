@@ -186,7 +186,6 @@ def test_object_inradius():
         """
     )
     ego = sampleEgo(scenario)
-    assert isinstance(scenario.objects[0].inradius, Distribution)
     assert supportInterval(scenario.objects[0].inradius) == (0, 0)
     assert ego.inradius == 0
 

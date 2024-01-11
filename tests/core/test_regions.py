@@ -574,8 +574,7 @@ def test_voxel_region():
 
 def test_mesh_voxelization(getAssetPath):
     plane_region = MeshVolumeRegion.fromFile(getAssetPath("meshes/classic_plane.obj.bz2"))
-    voxel_grid = plane_region.mesh.voxelized(max(plane_region.mesh.extents) / 100).fill()
-    vr = VoxelRegion(voxelGrid=voxel_grid)
+    vr = plane_region.voxelized(max(plane_region.mesh.extents) / 100)
 
     for sampled_pt in trimesh.sample.volume_mesh(plane_region.mesh, 100):
         assert vr.containsPoint(sampled_pt)

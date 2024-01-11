@@ -146,6 +146,8 @@ def matchPolygonalField(heading, position):
 
 
 ### Pruning procedures
+
+
 def prune(scenario, verbosity=1):
     """Prune a `Scenario`, removing infeasible parts of the space.
 

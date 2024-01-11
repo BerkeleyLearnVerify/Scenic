@@ -1257,12 +1257,6 @@ class Object(OrientedPoint):
     def inradius(self):
         """A lower bound on the inradius of this object"""
 
-        # Define a helper function that computes the actual inradius
-        def inradiusActual(width, length, height, shape):
-            return MeshVolumeRegion(
-                mesh=shape.mesh, dimensions=(width, length, height)
-            ).inradius
-
         # Define a helper function that computes the support of the inradius,
         # given the sub supports.
         def inradiusSupport(width_s, length_s, height_s, shape_s):
@@ -1310,14 +1304,15 @@ class Object(OrientedPoint):
 
             return distance_range
 
-        # Return either the inradius or a FunctionDistribution using the above helpers
-        args = toDistribution((self.width, self.length, self.height, self.shape))
-        if not isLazy(args):
-            return inradiusActual(*args)
-        else:
-            return FunctionDistribution(
-                args=args, kwargs={}, func=inradiusActual, support=inradiusSupport
-            )
+        # Define a helper function that computes the actual inradius
+        @distributionFunction(support=inradiusSupport)
+        def inradiusActual(width, length, height, shape):
+            return MeshVolumeRegion(
+                mesh=shape.mesh, dimensions=(width, length, height)
+            ).inradius
+
+        # Return the inradius (possibly a distribution) with proper support information
+        return inradiusActual(self.width, self.length, self.height, self.shape)
 
     @cached_property
     def planarInradius(self):
@@ -1327,12 +1322,6 @@ class Object(OrientedPoint):
         of this object projected into the XY plane, assuming that pitch and
         roll are both 0.
         """
-
-        # Define a helper function that computes the actual planarInradius
-        def planarInradiusActual(width, length, shape):
-            return MeshVolumeRegion(
-                mesh=shape.mesh, dimensions=(width, length, 1)
-            ).boundingPolygon.inradius
 
         # Define a helper function that computes the support of the inradius,
         # given the sub supports.
@@ -1377,17 +1366,15 @@ class Object(OrientedPoint):
 
             return distance_range
 
-        # Return either the inradius or a FunctionDistribution using the above helpers
-        args = toDistribution((self.width, self.length, self.shape))
-        if not isLazy(args):
-            return planarInradiusActual(*args)
-        else:
-            return FunctionDistribution(
-                args=args,
-                kwargs={},
-                func=planarInradiusActual,
-                support=planarInradiusSupport,
-            )
+        # Define a helper function that computes the actual planarInradius
+        @distributionFunction(support=planarInradiusSupport)
+        def planarInradiusActual(width, length, shape):
+            return MeshVolumeRegion(
+                mesh=shape.mesh, dimensions=(width, length, 1)
+            ).boundingPolygon.inradius
+
+        # Return the planar inradius (possibly a distribution) with proper support information
+        return planarInradiusActual(self.width, self.length, self.shape)
 
     @cached_property
     def surface(self):

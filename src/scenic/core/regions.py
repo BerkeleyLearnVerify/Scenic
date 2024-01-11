@@ -1418,7 +1418,6 @@ class MeshVolumeRegion(MeshRegion):
             # Other region is a mesh volume. We can extract the mesh to perform boolean operations on it
             other_mesh = other.mesh
 
-            # If dimensions are prov
             # Compute intersection using Trimesh
             try:
                 new_mesh = self.mesh.intersection(other_mesh, engine=self.engine)
@@ -2066,14 +2065,7 @@ class VoxelRegion(Region):
     """Region represented by a voxel grid in 3D space.
 
     Args:
-        encoding: A numpy array encoding the voxel grid.
-        dimensions: An optional 3-tuple, with the values representing width, length, height
-          respectively. The voxel region will be scaled to have these dimensions. Default
-          value (1,1,1).
-        position: A position, which determines where the center of the region will be. Default
-          value is the origin, (0,0,0).
-        voxelGrid: Optionally, just pass in the final trimesh voxelGrid to be used. Passing this
-          parameter will result in encoding, dimensions, and position being ignored.
+        voxelGrid: The Trimesh voxelGrid to be used.
         orientation: An optional vector field describing the preferred orientation at every point in
           the region.
         name: An optional name to help with debugging.
@@ -2085,26 +2077,20 @@ class VoxelRegion(Region):
         # Initialize superclass
         super().__init__(name, orientation=orientation)
 
-        # Work around Trimesh caching bug
-        self._voxelGrid = trimesh.voxel.VoxelGrid(
-            voxelGrid.encoding, transform=voxelGrid.transform.copy()
-        )
-
         # Check that the encoding isn't empty. In that case, raise an error.
-        if self._voxelGrid.encoding.is_empty:
+        if voxelGrid.encoding.is_empty:
             raise ValueError("Tried to create an empty VoxelRegion.")
 
-        # Transform voxel grid points and extract scale
-        self.voxel_points = self._voxelGrid.points
-        self.scale = self._voxelGrid.scale
+        # Store voxel grid and extract points and scale
+        self.voxelGrid = trimesh.voxel.VoxelGrid(
+            voxelGrid.encoding, transform=voxelGrid.transform.copy()
+        )
+        self.voxel_points = self.voxelGrid.points
+        self.scale = self.voxelGrid.scale
 
         # Initialize KD-Tree for containment checking if not lazy
         if not lazy:
             self.kdTree
-
-    @cached_property
-    def voxelGrid(self):
-        return self._voxelGrid
 
     @cached_property
     def kdTree(self):
@@ -2114,16 +2100,14 @@ class VoxelRegion(Region):
         point = toVector(point)
 
         # Find closest voxel point
-        _, index = self.kdTree.query([point])
+        _, index = self.kdTree.query(point)
         closest_point = self.voxel_points[index]
 
         # Check voxel containment
         voxel_low = closest_point - self.scale / 2
         voxel_high = closest_point + self.scale / 2
 
-        return numpy.all(voxel_low <= point, axis=1) & numpy.all(
-            point <= voxel_high, axis=1
-        )
+        return numpy.all(voxel_low <= point) & numpy.all(point <= voxel_high)
 
     def containsObject(self, obj):
         raise NotImplementedError
@@ -2142,10 +2126,11 @@ class VoxelRegion(Region):
         # equal to scale, centered at the origin.
         base_pt = numpy.random.random_sample(3) - 0.5
         scaled_pt = base_pt * self.scale
+
+        # Pick a random voxel point and add it to base_pt.
         voxel_base = self.voxel_points[random.randrange(len(self.voxel_points))]
         offset_pt = voxel_base + scaled_pt
 
-        # Then pick a random voxel point and add the base point to that point.
         return Vector(*offset_pt)
 
     def dilation(self, iterations, structure=None):

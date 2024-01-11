@@ -62,7 +62,7 @@ def test_containment_2d_region():
             baseOffset: (0.1, 0, self.height/2)
 
         workspace = Workspace(PolygonalRegion([0@0, 2@0, 2@2, 0@2]))
-        ego = new Object in workspace, with height Range(0.1,0.5)
+        ego = new TestObject on workspace, with height Range(0.1,0.5)
     """
     )
     # Sampling should fail ~30.56% of the time, so
@@ -166,9 +166,9 @@ def test_visibility_pruning():
     The following scenarios are equivalent except for how they specify that foo
     must be visible from ego. The size of the workspace and the visibleDistance
     of ego are chosen such that without pruning the chance of sampling a valid
-    scene over 100 tries is 1-(1-Decimal(3.14)/Decimal(10000000000**2))**100 = ~1e-18.
+    scene over 100 tries is 1-(1-Decimal(3.14)/Decimal(1e10**2))**100 = ~1e-18.
     Assuming the approximately buffered volume of the viewRegion has a 50% chance of
-    ejecting (i.e. it is twice as large as the true buffered viewRegion, which testing
+    rejecting (i.e. it is twice as large as the true buffered viewRegion, which testing
     indicates in this case has about a 10% increase in volume for this case), the chance
     of not finding a sample in 100 iterations is 1e-31.
 
@@ -176,13 +176,13 @@ def test_visibility_pruning():
     in the viewRegion instead of at any point where the object intersects the view region.
     Because of this, we want to see at least one sample where the position is outside
     the viewRegion but the object intersects the viewRegion. The chance of this happening
-    is 1-((4/3)*math.pi*(1)**3)/((4/3)*math.pi*(1.1)**3) = ~25%, so by repeating the process
-    30 times we have a 1e-19 chance of not gettin a single point in this zone.
+    per sample is 1 - (1 / 1.1)**3 = ~25%, so by repeating the process 30 times we have
+    a 1e-19 chance of not getting a single point in this zone.
     """
     # requireVisible
     scenario = compileScenic(
         """
-        workspace = Workspace(RectangularRegion(0@0, 0, 10000000000, 10000000000))
+        workspace = Workspace(RectangularRegion(0@0, 0, 1e10, 1e10))
         ego = new Object at (0,0,0), with visibleDistance 1
         foo = new Object in workspace, with requireVisible True,
             with shape SpheroidShape(dimensions=(0.2,0.2,0.2))
@@ -196,7 +196,7 @@ def test_visibility_pruning():
     # visible
     scenario = compileScenic(
         """
-        workspace = Workspace(RectangularRegion(0@0, 0, 10000000000, 10000000000))
+        workspace = Workspace(RectangularRegion(0@0, 0, 1e10, 1e10))
         ego = new Object at (0,0,0), with visibleDistance 1
         foo = new Object in workspace, visible,
             with shape SpheroidShape(dimensions=(0.2,0.2,0.2))
