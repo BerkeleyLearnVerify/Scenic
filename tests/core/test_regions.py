@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 import shapely.geometry
+import trimesh.voxel
 
 from scenic.core.object_types import Object, OrientedPoint
 from scenic.core.regions import *
