@@ -26,7 +26,7 @@ from trimesh.transformations import (
     quaternion_matrix,
     translation_matrix,
 )
-from trimesh.voxel import VoxelGrid
+import trimesh.voxel
 
 warnings.filterwarnings(
     "ignore", module="trimesh"
@@ -2051,7 +2051,7 @@ class VoxelRegion(Region):
             raise ValueError("Tried to create an empty VoxelRegion.")
 
         # Store voxel grid and extract points and scale
-        self.voxelGrid = VoxelGrid(
+        self.voxelGrid = trimesh.voxel.VoxelGrid(
             voxelGrid.encoding, transform=voxelGrid.transform.copy()
         )
         self.voxel_points = self.voxelGrid.points
@@ -2136,7 +2136,9 @@ class VoxelRegion(Region):
             return nowhere
 
         # Otherwise, return a VoxelRegion representing the eroded region.
-        new_voxel_grid = VoxelGrid(new_encoding, transform=self.voxelGrid.transform)
+        new_voxel_grid = trimesh.voxel.VoxelGrid(
+            new_encoding, transform=self.voxelGrid.transform
+        )
         return VoxelRegion(voxelGrid=new_voxel_grid)
 
     @property
