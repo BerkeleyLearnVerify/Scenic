@@ -431,7 +431,7 @@ def pruneVisibility(scenario, verbosity):
             if (
                 base is not ego.visibleRegion
                 and not needsSampling(ego.visibleRegion)
-                and not checkCyclical(scenario, base, ego.visibleRegion)
+                and not checkCyclical(base, ego.visibleRegion)
             ):
                 if verbosity >= 1:
                     print(
@@ -446,7 +446,7 @@ def pruneVisibility(scenario, verbosity):
             if (
                 base is not obj._observingEntity.visibleRegion
                 and not needsSampling(obj._observingEntity.visibleRegion)
-                and not checkCyclical(scenario, base, obj._observingEntity.visibleRegion)
+                and not checkCyclical(base, obj._observingEntity.visibleRegion)
             ):
                 if verbosity >= 1:
                     print(
@@ -596,15 +596,11 @@ def percentagePruned(base, newBase):
     return None
 
 
-def checkCyclical(scenario, A, B):
+def checkCyclical(A, B):
     """Check for a potential circular dependency
 
     Returns True if the scenario would have a circular dependency
     if A depended on B.
-
-    This function runs DFS on the scenario, with the dependency edges
-    reversed for convenience (this should not affect whether or not a
-    cycle exists).
     """
     state = collections.defaultdict(lambda: 0)
 
@@ -621,10 +617,10 @@ def checkCyclical(scenario, A, B):
         # Recurse on children
         deps = conditionedDeps(target)
 
-        if target is A:
-            deps.append(B)
-
         for child in deps:
+            if child is A:
+                return True
+
             if dfs(child):
                 return True
 
@@ -633,7 +629,7 @@ def checkCyclical(scenario, A, B):
 
         return False
 
-    return dfs(scenario)
+    return dfs(B)
 
 
 def conditionedDeps(samp):

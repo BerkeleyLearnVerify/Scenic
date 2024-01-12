@@ -2088,10 +2088,6 @@ class VoxelRegion(Region):
         self.voxel_points = self.voxelGrid.points
         self.scale = self.voxelGrid.scale
 
-        # Initialize KD-Tree for containment checking if not lazy
-        if not lazy:
-            self.kdTree
-
     @cached_property
     def kdTree(self):
         return scipy.spatial.KDTree(self.voxel_points)
