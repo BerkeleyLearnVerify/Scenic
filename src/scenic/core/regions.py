@@ -26,6 +26,7 @@ from trimesh.transformations import (
     quaternion_matrix,
     translation_matrix,
 )
+import trimesh.voxel
 
 warnings.filterwarnings(
     "ignore", module="trimesh"
