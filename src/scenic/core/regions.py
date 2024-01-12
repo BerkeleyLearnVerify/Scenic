@@ -21,7 +21,8 @@ from shapely.geometry import MultiPolygon
 import shapely.ops
 import trimesh
 from trimesh.transformations import (
-    concatenate_matrices,
+    compose_matrix,
+    identity_matrix,
     quaternion_matrix,
     translation_matrix,
 )
@@ -982,9 +983,9 @@ class MeshRegion(Region):
     @property
     def AABB(self):
         return (
-            tuple(self.mesh.bounds[0]),
-            tuple(self.mesh.bounds[1]),
-            tuple(self.mesh.bounds[2]),
+            tuple(self.mesh.bounds[:, 0]),
+            tuple(self.mesh.bounds[:, 1]),
+            tuple(self.mesh.bounds[:, 2]),
         )
 
     @cached_property
@@ -1709,11 +1710,12 @@ class MeshVolumeRegion(MeshRegion):
         return abs(dist)
 
     @cached_property
+    @distributionFunction
     def inradius(self):
         center_point = self.mesh.bounding_box.center_mass
 
         pq = trimesh.proximity.ProximityQuery(self.mesh)
-        region_distance = abs(pq.signed_distance([center_point])[0])
+        region_distance = pq.signed_distance([center_point])[0]
 
         if region_distance < 0:
             return 0
@@ -1729,6 +1731,10 @@ class MeshVolumeRegion(MeshRegion):
         return self.mesh.mass / self.mesh.density
 
     ## Utility Methods ##
+    def voxelized(self, pitch, lazy=False):
+        """Returns a VoxelRegion representing a filled voxelization of this mesh"""
+        return VoxelRegion(voxelGrid=self.mesh.voxelized(pitch).fill(), lazy=lazy)
+
     @cached_method
     def getSurfaceRegion(self):
         """Return a region equivalent to this one, except as a MeshSurfaceRegion"""
@@ -2021,6 +2027,134 @@ class SpheroidRegion(MeshVolumeRegion):
             tolerance=self.tolerance,
             name=self.name,
         )
+
+
+class VoxelRegion(Region):
+    """Region represented by a voxel grid in 3D space.
+
+    Args:
+        voxelGrid: The Trimesh voxelGrid to be used.
+        orientation: An optional vector field describing the preferred orientation at every point in
+          the region.
+        name: An optional name to help with debugging.
+        lazy: Whether or not to be lazy about pre-computing internal values. Set this to True if this
+          VoxelRegion is unlikely to be used outside of an intermediate step in compiling/pruning.
+    """
+
+    def __init__(self, voxelGrid, orientation=None, name=None, lazy=False):
+        # Initialize superclass
+        super().__init__(name, orientation=orientation)
+
+        # Check that the encoding isn't empty. In that case, raise an error.
+        if voxelGrid.encoding.is_empty:
+            raise ValueError("Tried to create an empty VoxelRegion.")
+
+        # Store voxel grid and extract points and scale
+        self.voxelGrid = trimesh.voxel.VoxelGrid(
+            voxelGrid.encoding, transform=voxelGrid.transform.copy()
+        )
+        self.voxel_points = self.voxelGrid.points
+        self.scale = self.voxelGrid.scale
+
+    @cached_property
+    def kdTree(self):
+        return scipy.spatial.KDTree(self.voxel_points)
+
+    def containsPoint(self, point):
+        point = toVector(point)
+
+        # Find closest voxel point
+        _, index = self.kdTree.query(point)
+        closest_point = self.voxel_points[index]
+
+        # Check voxel containment
+        voxel_low = closest_point - self.scale / 2
+        voxel_high = closest_point + self.scale / 2
+
+        return numpy.all(voxel_low <= point) & numpy.all(point <= voxel_high)
+
+    def containsObject(self, obj):
+        raise NotImplementedError
+
+    def containsRegionInner(self, reg):
+        raise NotImplementedError
+
+    def distanceTo(self, point):
+        raise NotImplementedError
+
+    def projectVector(self, point, onDirection):
+        raise NotImplementedError
+
+    def uniformPointInner(self):
+        # First generate a point uniformly in a box with dimensions
+        # equal to scale, centered at the origin.
+        base_pt = numpy.random.random_sample(3) - 0.5
+        scaled_pt = base_pt * self.scale
+
+        # Pick a random voxel point and add it to base_pt.
+        voxel_base = self.voxel_points[random.randrange(len(self.voxel_points))]
+        offset_pt = voxel_base + scaled_pt
+
+        return Vector(*offset_pt)
+
+    def dilation(self, iterations, structure=None):
+        """Returns a dilated/eroded version of this VoxelRegion.
+
+        Args:
+            iterations: How many times repeat the dilation/erosion. A positive
+              number indicates a dilation and a negative number indicates an
+              erosion.
+            structure: The structure to use. If none is provided, a rank 3
+              structuring unit with connectivity 3 is used.
+        """
+        # Parse parameters
+        if iterations == 0:
+            return self
+
+        if iterations > 0:
+            morphology_func = scipy.ndimage.binary_dilation
+        else:
+            morphology_func = scipy.ndimage.binary_erosion
+
+        iterations = abs(iterations)
+
+        if structure == None:
+            structure = scipy.ndimage.generate_binary_structure(3, 3)
+
+        # Compute a dilated/eroded encoding
+        new_encoding = trimesh.voxel.encoding.DenseEncoding(
+            morphology_func(
+                trimesh.voxel.morphology._dense(self.voxelGrid.encoding, rank=3),
+                structure=structure,
+                iterations=iterations,
+            )
+        )
+
+        # Check if the encoding is empty, in which case we should return the empty region.
+        if new_encoding.is_empty:
+            return nowhere
+
+        # Otherwise, return a VoxelRegion representing the eroded region.
+        new_voxel_grid = trimesh.voxel.VoxelGrid(
+            new_encoding, transform=self.voxelGrid.transform
+        )
+        return VoxelRegion(voxelGrid=new_voxel_grid)
+
+    @property
+    def AABB(self):
+        return (
+            tuple(self.voxelGrid.bounds[:, 0]),
+            tuple(self.voxelGrid.bounds[:, 1]),
+            tuple(self.voxelGrid.bounds[:, 2]),
+        )
+
+    @property
+    def size(self):
+        return self.voxelGrid.volume
+
+    @property
+    def dimensionality(self):
+        return 3
 
 
 class PolygonalFootprintRegion(Region):
@@ -2652,6 +2786,19 @@ class PolygonalRegion(Region):
         point = toVector(point)
         dist2D = shapely.distance(self.polygons, makeShapelyPoint(point))
         return math.hypot(dist2D, point[2] - self.z)
+
+    @cached_property
+    @distributionFunction
+    def inradius(self):
+        minx, miny, maxx, maxy = self.polygons.bounds
+        center = makeShapelyPoint(((minx + maxx) / 2, (maxy + miny) / 2))
+
+        # Check if center is contained
+        if not self.polygons.contains(center):
+            return 0
+
+        # Return the distance to the nearest boundary
+        return shapely.distance(self.polygons.boundary, center)
 
     def projectVector(self, point, onDirection):
         raise NotImplementedError(
