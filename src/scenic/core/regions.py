@@ -767,7 +767,6 @@ class MeshRegion(Region):
         tolerance: Tolerance for internal computations.
         centerMesh: Whether or not to center the mesh after copying and before transformations.
         onDirection: The direction to use if an object being placed on this region doesn't specify one.
-        engine: Which engine to use for mesh operations. Either "blender" or "scad".
         additionalDeps: Any additional sampling dependencies this region relies on.
     """
 
@@ -781,7 +780,6 @@ class MeshRegion(Region):
         tolerance=1e-6,
         centerMesh=True,
         onDirection=None,
-        engine="scad",
         name=None,
         additionalDeps=[],
     ):
@@ -794,7 +792,6 @@ class MeshRegion(Region):
         self.tolerance = tolerance
         self.centerMesh = centerMesh
         self.onDirection = onDirection
-        self.engine = engine
 
         # Initialize superclass with samplables
         super().__init__(
@@ -812,7 +809,7 @@ class MeshRegion(Region):
             return
 
         # Convert extract mesh
-        if isinstance(mesh, trimesh.primitives._Primitive):
+        if isinstance(mesh, trimesh.primitives.Primitive):
             self._mesh = mesh.to_mesh()
         elif isinstance(mesh, trimesh.base.Trimesh):
             self._mesh = mesh.copy()
@@ -893,7 +890,6 @@ class MeshRegion(Region):
             tolerance=self.tolerance,
             centerMesh=self.centerMesh,
             onDirection=self.onDirection,
-            engine=self.engine,
             name=self.name,
         )
 
@@ -920,7 +916,6 @@ class MeshRegion(Region):
             tolerance=self.tolerance,
             centerMesh=self.centerMesh,
             onDirection=self.onDirection,
-            engine=self.engine,
             name=self.name,
         )
 
@@ -1057,7 +1052,6 @@ class MeshVolumeRegion(MeshRegion):
         tolerance: Tolerance for internal computations.
         centerMesh: Whether or not to center the mesh after copying and before transformations.
         onDirection: The direction to use if an object being placed on this region doesn't specify one.
-        engine: Which engine to use for mesh operations. Either "blender" or "scad".
     """
 
     def __init__(self, *args, **kwargs):
@@ -1418,12 +1412,7 @@ class MeshVolumeRegion(MeshRegion):
             other_mesh = other.mesh
 
             # Compute intersection using Trimesh
-            try:
-                new_mesh = self.mesh.intersection(other_mesh, engine=self.engine)
-            except ValueError as exc:
-                raise ValueError(
-                    "Unable to compute mesh boolean operation. Do you have the Blender and OpenSCAD installed on your system?"
-                ) from exc
+            new_mesh = self.mesh.intersection(other_mesh)
 
             if new_mesh.is_empty:
                 return nowhere
@@ -1432,7 +1421,6 @@ class MeshVolumeRegion(MeshRegion):
                     new_mesh,
                     tolerance=min(self.tolerance, other.tolerance),
                     centerMesh=False,
-                    engine=self.engine,
                 )
             else:
                 # Something went wrong, abort
@@ -1629,12 +1617,7 @@ class MeshVolumeRegion(MeshRegion):
             other_mesh = other.mesh
 
             # Compute union using Trimesh
-            try:
-                new_mesh = self.mesh.union(other_mesh, engine=self.engine)
-            except ValueError as exc:
-                raise ValueError(
-                    "Unable to compute mesh boolean operation. Do you have the Blender and OpenSCAD installed on your system?"
-                ) from exc
+            new_mesh = self.mesh.union(other_mesh)
 
             if new_mesh.is_empty:
                 return nowhere
@@ -1643,7 +1626,6 @@ class MeshVolumeRegion(MeshRegion):
                     new_mesh,
                     tolerance=min(self.tolerance, other.tolerance),
                     centerMesh=False,
-                    engine=self.engine,
                 )
             else:
                 # Something went wrong, abort
@@ -1669,14 +1651,7 @@ class MeshVolumeRegion(MeshRegion):
             other_mesh = other.mesh
 
             # Compute difference using Trimesh
-            try:
-                new_mesh = self.mesh.difference(
-                    other_mesh, engine=self.engine, debug=debug
-                )
-            except ValueError as exc:
-                raise ValueError(
-                    "Unable to compute mesh boolean operation. Do you have the Blender and OpenSCAD installed on your system?"
-                ) from exc
+            new_mesh = self.mesh.difference(other_mesh)
 
             if new_mesh.is_empty:
                 return nowhere
@@ -1685,7 +1660,6 @@ class MeshVolumeRegion(MeshRegion):
                     new_mesh,
                     tolerance=min(self.tolerance, other.tolerance),
                     centerMesh=False,
-                    engine=self.engine,
                 )
             else:
                 # Something went wrong, abort
@@ -1765,7 +1739,6 @@ class MeshVolumeRegion(MeshRegion):
             tolerance=self.tolerance,
             centerMesh=False,
             onDirection=self.onDirection,
-            engine=self.engine,
         )
 
     def getVolumeRegion(self):
@@ -1957,7 +1930,6 @@ class MeshSurfaceRegion(MeshRegion):
             tolerance=self.tolerance,
             centerMesh=False,
             onDirection=self.onDirection,
-            engine=self.engine,
         )
 
     def getSurfaceRegion(self):
@@ -1989,7 +1961,6 @@ class BoxRegion(MeshVolumeRegion):
             rotation=value[self.rotation],
             orientation=value[self.orientation],
             tolerance=self.tolerance,
-            engine=self.engine,
             name=self.name,
         )
 
@@ -2005,7 +1976,6 @@ class BoxRegion(MeshVolumeRegion):
             rotation=rotation,
             orientation=orientation,
             tolerance=self.tolerance,
-            engine=self.engine,
             name=self.name,
         )
 
@@ -2034,7 +2004,6 @@ class SpheroidRegion(MeshVolumeRegion):
             rotation=value[self.rotation],
             orientation=value[self.orientation],
             tolerance=self.tolerance,
-            engine=self.engine,
             name=self.name,
         )
 
@@ -2050,7 +2019,6 @@ class SpheroidRegion(MeshVolumeRegion):
             rotation=rotation,
             orientation=orientation,
             tolerance=self.tolerance,
-            engine=self.engine,
             name=self.name,
         )
 
@@ -3596,13 +3564,10 @@ class ViewRegion(MeshVolumeRegion):
 
     * Case 1:       viewAngles[1] = 180 degrees
 
-      * Case 2.a    viewAngles[0] = 360 degrees     => Sphere
-      * Case 2.b    viewAngles[0] < 360 degrees     => Sphere & CylinderSectionRegion
+      * Case 1.a    viewAngles[0] = 360 degrees     => Sphere
+      * Case 1.b    viewAngles[0] < 360 degrees     => Sphere & CylinderSectionRegion
 
-    * Case 2:       viewAngles[1] < 180 degrees
-
-      * Case 2.a    viewAngles[0] = 360 degrees     => Sphere - (Cone + Cone) (Cones on z axis expanding from origin)
-      * Case 2.b    viewAngles[0] < 360 degrees     => Sphere & ViewSectionRegion
+    * Case 2:       viewAngles[1] < 180 degrees     => Sphere & ViewSectionRegion
 
     When making changes to this class you should run ``pytest -k test_viewRegion --exhaustive``.
 
@@ -3626,60 +3591,45 @@ class ViewRegion(MeshVolumeRegion):
         position=Vector(0, 0, 0),
         rotation=None,
         orientation=None,
-        angleCutoff=0.01,
+        angleCutoff=0.017,
         tolerance=1e-8,
     ):
         # Bound viewAngles from either side.
         if min(viewAngles) <= 0:
             raise ValueError("viewAngles cannot have a component less than or equal to 0")
 
+        # TODO True surface representation
+        viewAngles = (max(viewAngles[0], angleCutoff), max(viewAngles[1], angleCutoff))
+
+        if math.tau - angleCutoff <= viewAngles[0]:
+            viewAngles = (math.tau, viewAngles[1])
+
+        if math.pi - angleCutoff <= viewAngles[1]:
+            viewAngles = (viewAngles[0], math.pi)
+
         view_region = None
         diameter = 2 * visibleDistance
-        base_sphere = SpheroidRegion(
-            dimensions=(diameter, diameter, diameter), engine="scad"
-        )
+        base_sphere = SpheroidRegion(dimensions=(diameter, diameter, diameter))
 
         if math.pi - angleCutoff <= viewAngles[1]:
             # Case 1
-            if math.tau - angleCutoff <= viewAngles[0]:
+            if viewAngles[0] == math.tau:
                 # Case 1.a
                 view_region = base_sphere
             else:
+                # Case 1.b
                 view_region = base_sphere.intersect(
                     CylinderSectionRegion(visibleDistance, viewAngles[0])
                 )
         else:
             # Case 2
-            if math.tau - angleCutoff <= viewAngles[0]:
-                # Case 2.a
-                # Create cone with yaw oriented around (0,0,-1)
-                padded_height = visibleDistance * 2
-                radius = padded_height * math.tan((math.pi - viewAngles[1]) / 2)
-
-                cone_mesh = trimesh.creation.cone(radius=radius, height=padded_height)
-
-                position_matrix = translation_matrix((0, 0, -1 * padded_height))
-                cone_mesh.apply_transform(position_matrix)
-
-                # Create two cones around the yaw axis
-                orientation_1 = Orientation._fromEuler(0, 0, 0)
-                orientation_2 = Orientation._fromEuler(0, 0, math.pi)
-
-                cone_1 = MeshVolumeRegion(
-                    mesh=cone_mesh, rotation=orientation_1, centerMesh=False
-                )
-                cone_2 = MeshVolumeRegion(
-                    mesh=cone_mesh, rotation=orientation_2, centerMesh=False
-                )
-
-                view_region = base_sphere.difference(cone_1).difference(cone_2)
-            else:
-                # Case 2.b
-                view_region = base_sphere.intersect(
-                    ViewSectionRegion(visibleDistance, viewAngles)
-                )
+            view_region = base_sphere.intersect(
+                ViewSectionRegion(visibleDistance, viewAngles)
+            )
 
         assert view_region is not None
+        assert isinstance(view_region, MeshVolumeRegion)
+        assert view_region.containsPoint(Vector(0, 0, 0))
 
         # Initialize volume region
         super().__init__(
@@ -3717,8 +3667,9 @@ class ViewSectionRegion(MeshVolumeRegion):
             triangles.append((bot_line[li], bot_line[li + 1], top_line[li + 1]))
 
         # Side triangles
-        triangles.append((bot_line[0], top_line[0], (0, 0, 0)))
-        triangles.append((top_line[-1], bot_line[-1], (0, 0, 0)))
+        if viewAngles[0] < math.tau:
+            triangles.append((bot_line[0], top_line[0], (0, 0, 0)))
+            triangles.append((top_line[-1], bot_line[-1], (0, 0, 0)))
 
         # Top/Bottom triangles
         for li in range(len(top_line) - 1):

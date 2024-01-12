@@ -273,18 +273,13 @@ def test_mesh_surface_region_negative_dimension():
             MeshSurfaceRegion(mesh, dimensions=dims)
 
 
-def test_mesh_operation_blender():
-    r1 = BoxRegion(position=(0, 0, 0), dimensions=(1, 1, 1), engine="blender")
-    r2 = BoxRegion(position=(0, 0, 0), dimensions=(2, 2, 2), engine="blender")
+def test_mesh_operation():
+    r1 = BoxRegion(position=(0, 0, 0), dimensions=(2, 2, 2))
+    r2 = BoxRegion(position=(0, 0, 0), dimensions=(1, 1, 1))
 
-    r = r1.intersect(r2)
-
-
-def test_mesh_operation_scad():
-    r1 = BoxRegion(position=(0, 0, 0), dimensions=(1, 1, 1), engine="scad")
-    r2 = BoxRegion(position=(0, 0, 0), dimensions=(2, 2, 2), engine="scad")
-
-    r = r1.intersect(r2)
+    r1.intersect(r2)
+    r1.union(r2)
+    r1.difference(r2)
 
 
 def test_mesh_volume_region_sampling():
@@ -316,19 +311,17 @@ def test_mesh_intersects():
 
 
 def test_mesh_empty_intersection():
-    for engine in ["blender", "scad"]:
-        r1 = BoxRegion(position=(0, 0, 0), engine=engine)
-        r2 = BoxRegion(position=(10, 10, 10), engine=engine)
+    r1 = BoxRegion(position=(0, 0, 0))
+    r2 = BoxRegion(position=(10, 10, 10))
 
-        assert isinstance(r1.intersect(r2), EmptyRegion)
+    assert isinstance(r1.intersect(r2), EmptyRegion)
 
 
 def test_mesh_empty_difference():
-    for engine in ["blender", "scad"]:
-        r1 = BoxRegion(dimensions=(1, 1, 1), engine=engine)
-        r2 = BoxRegion(dimensions=(2, 2, 2), engine=engine)
+    r1 = BoxRegion(dimensions=(1, 1, 1))
+    r2 = BoxRegion(dimensions=(2, 2, 2))
 
-        assert isinstance(r1.difference(r2), EmptyRegion)
+    assert isinstance(r1.difference(r2), EmptyRegion)
 
 
 def test_path_region():
@@ -550,9 +543,9 @@ def test_pointset_region():
 
 
 # ViewRegion tests
-H_ANGLES = [0.1, 45, 90, 135, 179.9, 180, 180.1, 225, 270, 315, 359.9, 360]
+H_ANGLES = [0.95, 45, 90, 135, 177.5, 180, 180.01, 225, 270, 315, 358.99, 360]
 
-V_ANGLES = [0.1, 45, 90, 135, 179.9, 180]
+V_ANGLES = [0.95, 45, 90, 135, 177.5, 180]
 
 VISIBLE_DISTANCES = [1, 25, 50]
 
