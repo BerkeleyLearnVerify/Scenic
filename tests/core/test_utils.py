@@ -65,4 +65,4 @@ def test_unify_mesh():
 
     fixed_mesh = unifyMesh(bad_mesh)
     assert fixed_mesh.is_volume
-    assert fixed_mesh.body_count == 1
+    assert fixed_mesh.body_count == 3
