@@ -2049,9 +2049,7 @@ class VoxelRegion(Region):
             raise ValueError("Tried to create an empty VoxelRegion.")
 
         # Store voxel grid and extract points and scale
-        self.voxelGrid = trimesh.voxel.VoxelGrid(
-            voxelGrid.encoding, transform=voxelGrid.transform.copy()
-        )
+        self.voxelGrid = voxelGrid
         self.voxel_points = self.voxelGrid.points
         self.scale = self.voxelGrid.scale
 
