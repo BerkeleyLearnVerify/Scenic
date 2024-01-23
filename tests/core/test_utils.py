@@ -4,18 +4,12 @@ import numpy
 import pytest
 import trimesh
 
-from scenic.core.utils import loadMesh, repairMesh, unifyMesh
+from scenic.core.utils import repairMesh, unifyMesh
 
 
 @pytest.mark.slow
 def test_mesh_repair(getAssetPath):
-    plane_mesh = loadMesh(
-        path=getAssetPath("meshes/classic_plane.obj.bz2"),
-        filetype="obj",
-        compressed=True,
-        binary=False,
-    )
-
+    plane_mesh = trimesh.load(getAssetPath("meshes/classic_plane.obj.bz2"), force="mesh")
     # Test simple fix
     inverted_mesh = plane_mesh.copy()
     inverted_mesh.invert()

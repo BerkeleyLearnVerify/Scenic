@@ -56,7 +56,7 @@ from scenic.core.geometry import (
 )
 from scenic.core.lazy_eval import isLazy, valueInContext
 from scenic.core.type_support import toOrientation, toScalar, toVector
-from scenic.core.utils import cached, cached_method, cached_property, loadMesh, unifyMesh
+from scenic.core.utils import cached, cached_method, cached_property, unifyMesh
 from scenic.core.vectors import (
     Orientation,
     OrientedVector,
@@ -848,9 +848,7 @@ class MeshRegion(Region):
         self.orientation = orientation
 
     @classmethod
-    def fromFile(
-        cls, path, filetype=None, compressed=None, binary=False, unify=True, **kwargs
-    ):
+    def fromFile(cls, path, unify=True, **kwargs):
         """Load a mesh region from a file, attempting to infer filetype and compression.
 
         For example: "foo.obj.bz2" is assumed to be a compressed .obj file.
@@ -867,7 +865,7 @@ class MeshRegion(Region):
             unify (bool): Whether or not to attempt to unify this mesh.
             kwargs: Additional arguments to the MeshRegion initializer.
         """
-        mesh = loadMesh(path, filetype, compressed, binary)
+        mesh = trimesh.load(path, force="mesh")
 
         if unify and issubclass(cls, MeshVolumeRegion):
             mesh = unifyMesh(mesh, verbose=True)
@@ -2051,9 +2049,7 @@ class VoxelRegion(Region):
             raise ValueError("Tried to create an empty VoxelRegion.")
 
         # Store voxel grid and extract points and scale
-        self.voxelGrid = trimesh.voxel.VoxelGrid(
-            voxelGrid.encoding, transform=voxelGrid.transform.copy()
-        )
+        self.voxelGrid = voxelGrid
         self.voxel_points = self.voxelGrid.points
         self.scale = self.voxelGrid.scale
 

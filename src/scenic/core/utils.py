@@ -124,44 +124,6 @@ def alarm(seconds, handler=None, noNesting=False):
         signal.signal(signal.SIGALRM, signal.SIG_DFL)
 
 
-def loadMesh(path, filetype, compressed, binary):
-    working_path = path
-
-    if binary:
-        mode = "rb"
-    else:
-        mode = "r"
-
-    # Check if file is compressed
-    if compressed is None:
-        root, ext = os.path.splitext(working_path)
-
-        if ext == ".bz2":
-            compressed = True
-            working_path = root
-        else:
-            compressed = False
-
-    # Check mesh filetype
-    if filetype is None:
-        root, ext = os.path.splitext(working_path)
-
-        if ext == "":
-            raise ValueError("Mesh filetype not provided, but could not be extracted")
-
-        filetype = ext
-
-    if compressed:
-        open_function = bz2.open
-    else:
-        open_function = open
-
-    with open_function(path, mode) as mesh_file:
-        mesh = trimesh.load(mesh_file, file_type=filetype, force="mesh")
-
-    return mesh
-
-
 def unifyMesh(mesh, verbose=False):
     """Attempt to merge mesh bodies, raising a `ValueError` if something fails.
 
