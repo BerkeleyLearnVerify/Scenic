@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import pprint
@@ -19,9 +20,19 @@ from scenic.simulators.airsim.utils import (
 )
 
 # get output directory
-if len(sys.argv) < 2:
-    raise RuntimeError("please specify output directory as first argument")
-outputDirectory = sys.argv[1] + "/"
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "-o",
+    "--outputDirectory",
+    type=str,
+    help="the directory where the world info should be dumped. This should be a directory that doesn't exist.",
+    required=True,
+)
+args = parser.parse_args()
+
+
+outputDirectory = args.outputDirectory + "/"
+
 
 # start airsim client
 client = None
@@ -30,8 +41,13 @@ try:
     client.confirmConnection()
     client.simPause(True)
 except Exception:
-    raise RuntimeError("Airsim must be running on before executing scenic")
+    raise RuntimeError("Airsim must be running on before executing this code")
 
+
+try:
+    os.makedirs(args.outputDirectory, exist_ok=False)
+except:
+    raise RuntimeError("output directory already exists")
 
 os.makedirs(outputDirectory + "assets", exist_ok=True)
 os.makedirs(outputDirectory + "objectMeshes", exist_ok=True)
@@ -55,15 +71,19 @@ for asset in assets:
     )
     objNameDict[asset] = objName.lower()
 
+print("getting mesh data, this may take a few minutes")
 meshes = client.simGetMeshPositionVertexBuffers()
 
-print("got meshes")
+# cleanup
+for mesh in objNameDict.values():
+    client.simDestroyObject(mesh)
+
+print("collected mesh data")
 meshDict = {}
 for asset in assets:
     objName = objNameDict[asset]
     for mesh in meshes:
         if mesh.name == objName:
-            # print(mesh.name)
             meshDict[asset] = mesh
             break
 
@@ -174,3 +194,5 @@ for mesh in cleanedMeshes:
 
 with open(outputDirectory + "worldInfo.json", "w") as outfile:
     json.dump(worldInfo, outfile, indent=4)
+
+print("created world info at:", outputDirectory + "worldInfo.json")

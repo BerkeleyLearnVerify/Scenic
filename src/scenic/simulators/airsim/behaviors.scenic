@@ -1,8 +1,10 @@
-from scenic.core.simulators import Action
+
 
 import airsim
 import time
 import threading
+import sys
+import math
 from promise import Promise
 from scenic.core.type_support import toVector
 from .utils import (
@@ -12,17 +14,21 @@ from .utils import (
     airsimToScenicOrientation,
     scenicToAirsimScale,
 )
+from scenic.simulators.airsim.actions import *
 
+
+def magnitude(v):
+    return math.hypot(v.x, v.y, v.z)
+
+# creates a promise from an msgpackrpc future (the futures that are used in airsim)
 def createPromise(future):
     def promFunc(resolve, reject):
         
         def joinAsync():
-            print("joinAsync")
             future.join()
             resolve(True)
         
         def waitAsync():
-            # print("waitAsync")
             while not future._set_flag:
                 time.sleep(.01)
             resolve(True)
@@ -31,44 +37,56 @@ def createPromise(future):
             threading.Thread(target=joinAsync).start()
         else:
             threading.Thread(target=waitAsync).start()
-       
-            
 
     prom = Promise(promFunc)
 
     return prom
 
+# waits for a promise to be fulfilled
 behavior waitForPromise(promise):
     while not promise.is_fulfilled:
-        # print("waiting")
         wait
 
-
-behavior FlyToPosition(newPos, speed = 5,tolerance = 1):
+# Flies the drone to a position
+behavior FlyToPosition(newPos, speed = 5,tolerance = 1,pidMode = True):
+    # pidMode is true if we want the drone to slow down as it reaches its destination
+    
     client = simulation().client
 
-    newPos = scenicToAirsimVector(toVector(newPos))
+    
 
-    do waitForPromise(createPromise(
-        client.moveToPositionAsync(
-            newPos.x_val,
-            newPos.y_val,
-            newPos.z_val,
-            velocity=speed,
-            vehicle_name=self.realObjName,
-        )
-    ))
+    if pidMode:
+        newPos = scenicToAirsimVector(toVector(newPos))
+        do waitForPromise(createPromise(
+            client.moveToPositionAsync(
+                newPos.x_val,
+                newPos.y_val,
+                newPos.z_val,
+                velocity=speed,
+                vehicle_name=self.realObjName,
+            )
+        ))
+    else:
+        while True:
+            direction = newPos -self.position 
+            distance = magnitude(direction)
+            
+            if distance < tolerance:
+                break
+            direction= (direction/distance)*speed
+            take SetVelocity(direction)
+            wait
+        
 
     return
 
 
 
 
-behavior Patrol(positions, loop=True):
-    
+behavior Patrol(positions, loop=True, smooth = False, speed = 5,tolerance = 2):
     while True:
         for pos in positions:
-            do FlyToPosition(pos)
+            do FlyToPosition(pos,speed=speed,pidMode= not smooth,tolerance=tolerance)
            
         if not loop:
             return
@@ -92,8 +110,9 @@ behavior MoveByVelocity(velocity,seconds):
     ))
 
 
+
+
 behavior FlyToStart():
-    print(self._startPos)
     do FlyToPosition(self._startPos)
 
     

@@ -1,10 +1,11 @@
+# NOTE: add your world info path here
+# param worldInfoPath = "[YOUR PATH HERE]"
+
 model scenic.simulators.airsim.model
 from scenic.simulators.airsim.utils import getPrexistingObj
 import random
 
-print("\nMY STUFFFFFFFFFFFFFFFFF")
 ground = getPrexistingObj("ground")
-print(ground.position)
 
 ground.highlight()
 
@@ -34,5 +35,5 @@ for i in range(blockCount):
 
 ranBlock = blocks[random.randint(0,blockCount-1)]
 
-drone = new Drone contained in centerArea, on ranBlock
+drone = new Drone on ranBlock, with behavior Patrol([(10,10,10),(2,2,2)])
 

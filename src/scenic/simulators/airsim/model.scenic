@@ -1,11 +1,13 @@
 import trimesh
 import json
+import os
 
 from scenic.simulators.airsim.simulator import AirSimSimulator 
 from scenic.simulators.airsim.actions import *
 from scenic.simulators.airsim.behaviors import *
 from scenic.simulators.airsim.utils import _addPrexistingObj, getPrexistingObj
-
+from scenic.core.simulators import SimulationCreationError
+from scenic.core.distributions import distributionFunction 
 
 # ---------- global parameters ----------
 
@@ -13,21 +15,33 @@ from scenic.simulators.airsim.utils import _addPrexistingObj, getPrexistingObj
 param timestep = 1
 param airsimWorldInfoPth = None
 param idleStoragePos = (1000,1000,1000)
-param worldInfoPath = "/home/mary/Documents/Scenic/src/scenic/simulators/airsim/objs/cubes/"
+param worldInfoPath = ""
+worldInfoPath = globalParameters.worldInfoPath
+
 
 # ---------- helper functions ----------
 
-def createMeshShape(subFolder, assetName):
-    tmesh = trimesh.load( globalParameters.worldInfoPath+subFolder+"/"+assetName+".obj")
-    
+@distributionFunction 
+def printFinal(val):
+    print(val)
 
+@distributionFunction 
+def createMeshShape(subFolder, assetName):
+    objFile = assetName+".obj"
+    tmesh = trimesh.load(worldInfoPath+subFolder+"/"+objFile)
 
     return MeshShape(tmesh ,scale=.01)
+
 
 
 # ---------- simulator creation ----------
 simulator AirSimSimulator(timestep=globalParameters.timestep,idleStoragePos=globalParameters.idleStoragePos) 
 
+
+# ---------- simulator getter funcs ----------
+
+def getAssetNames():
+    return self.client.simListAssets()
 
 # ---------- base classes ----------
 class AirSimPrexisting:
@@ -68,6 +82,11 @@ class Drone(AirSimActor):
     assetName: "Quadrotor1"
     _startPos: None
 
+class PX4Drone(Drone):
+    blueprint: "PX4Drone"
+    startHovering: True
+    _startPos: None
+
 
 class StaticObj(AirSimActor):
     blueprint: "StaticObj"
@@ -76,15 +95,23 @@ class StaticObj(AirSimActor):
 
 
 # ---------- body ----------
+
+
+
+# ensure worldInfoPath is set
+if not worldInfoPath:
+    raise SimulationCreationError('\nworldInfoPath not set, use:\n param worldInfoPath = "[YOUR PATH HERE]" \n\n more information on creating and using worldInfo in docs')
+else:
+    worldInfoPath += "/"
+    
+
 # Create prexisiting airsim objs
 prexisitingObjs = {}
 with open(
-    globalParameters.worldInfoPath+"worldInfo.json",
+    worldInfoPath+"worldInfo.json",
     "r",
 ) as inFile:
-    # todo raise warning if there isn't a volume
     meshDatas = json.load(inFile)
-    verbosePrint("\n\nPrexisting Object Names:\n",[md["name"] for md in meshDatas], level=1)
     for meshData in meshDatas:
         newObj = new AirSimPrexisting with name meshData["name"],
             at meshData["position"],
@@ -92,3 +119,13 @@ with open(
         
         _addPrexistingObj(newObj)
 
+
+# generate list of assets
+assets = []
+for filename in os.listdir(worldInfoPath+"/assets"):
+    if filename.endswith(".obj"):
+        # append the obj name without the .obj extension
+        assets.append(filename[:-4])
+
+
+param assets = assets
