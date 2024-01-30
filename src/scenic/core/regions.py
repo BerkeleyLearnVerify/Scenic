@@ -2397,11 +2397,21 @@ class PathRegion(Region):
     Args:
         points: A list of points defining a single polyline.
         polylines: A list of list of points, defining multiple polylines.
+        orientation:
         tolerance: Tolerance used internally.
     """
 
-    def __init__(self, points=None, polylines=None, tolerance=1e-8, name=None):
-        super().__init__(name)
+    def __init__(
+        self, points=None, polylines=None, tolerance=1e-8, orientation=True, name=None
+    ):
+        if orientation is True:
+            orientation = VectorField("Path", self.defaultOrientation)
+            self.usingDefaultOrientation = True
+        else:
+            self.usingDefaultOrientation = False
+
+        super().__init__(name, orientation=orientation)
+
         # Standardize inputs
         if points is not None and polylines is not None:
             raise ValueError("Both points and polylines passed to PathRegion initializer")
@@ -2473,6 +2483,16 @@ class PathRegion(Region):
         raise NotImplementedError
 
     def distanceTo(self, point):
+        return self._segmentDistanceHelper(point).min()
+
+    def nearestSegmentTo(self, point):
+        nearest_segment = self._edgeVectorArray[
+            self._segmentDistanceHelper(point).argmin()
+        ]
+        return toVector(nearest_segment[0:3]), toVector(nearest_segment[3:6])
+
+    def _segmentDistanceHelper(self, point):
+        """Returns distance to point from each line segment"""
         p = numpy.asarray(toVector(point))
         a = self._edgeVectorArray[:, 0:3]
         b = self._edgeVectorArray[:, 3:6]
@@ -2490,7 +2510,11 @@ class PathRegion(Region):
         )
         perp_dist = numpy.linalg.norm(numpy.cross(a_min_p, d), axis=1)
 
-        return numpy.hypot(parallel_dist, perp_dist).min()
+        return numpy.hypot(parallel_dist, perp_dist)
+
+    def defaultOrientation(self, point):
+        start, end = self.nearestSegmentTo(point)
+        return Orientation.fromEuler(start.azimuthTo(end), start.altitudeTo(end), 0)
 
     def projectVector(self, point, onDirection):
         raise NotImplementedError

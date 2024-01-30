@@ -167,6 +167,19 @@ def test_mesh_region_distribution():
     )
 
 
+def test_path_region_default_orientation():
+    ego = sampleEgoFrom(
+        """
+        import math
+        region = PathRegion(points=[(0,0,0), (1,1,math.sqrt(2)), (2,2,2*math.sqrt(2))])
+        ego = new Object in region
+    """
+    )
+    assert ego.orientation.yaw == pytest.approx(math.radians(-45))
+    assert ego.orientation.pitch == pytest.approx(math.radians(45))
+    assert ego.orientation.roll == pytest.approx(0)
+
+
 # View Regions
 def test_view_region_construction():
     sampleSceneFrom(
