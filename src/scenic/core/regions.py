@@ -2397,7 +2397,8 @@ class PathRegion(Region):
     Args:
         points: A list of points defining a single polyline.
         polylines: A list of list of points, defining multiple polylines.
-        orientation:
+        orientation (optional): :term:`preferred orientation` to use, or `True` to use an
+            orientation aligned with the direction of the path (the default).
         tolerance: Tolerance used internally.
     """
 
