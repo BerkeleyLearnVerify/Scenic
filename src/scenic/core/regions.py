@@ -2407,9 +2407,9 @@ class PathRegion(Region):
     ):
         if orientation is True:
             orientation = VectorField("Path", self.defaultOrientation)
-            self.usingDefaultOrientation = True
+            self._usingDefaultOrientation = True
         else:
-            self.usingDefaultOrientation = False
+            self._usingDefaultOrientation = False
 
         super().__init__(name, orientation=orientation)
 
@@ -3165,9 +3165,9 @@ class PolylineRegion(Region):
     def __init__(self, points=None, polyline=None, orientation=True, name=None):
         if orientation is True:
             orientation = VectorField("Polyline", self.defaultOrientation)
-            self.usingDefaultOrientation = True
+            self._usingDefaultOrientation = True
         else:
-            self.usingDefaultOrientation = False
+            self._usingDefaultOrientation = False
         super().__init__(name, orientation=orientation)
 
         if points is not None:
@@ -3257,7 +3257,7 @@ class PolylineRegion(Region):
         there is one (the default orientation pointing along the polyline).
         """
         pointA, pointB = self.segments[0]
-        if self.usingDefaultOrientation:
+        if self._usingDefaultOrientation:
             orientation = headingOfSegment(pointA, pointB)
         elif self.orientation is not None:
             orientation = self.orientation[Vector(*pointA)]
@@ -3281,7 +3281,7 @@ class PolylineRegion(Region):
         there is one (the default orientation pointing along the polyline).
         """
         pointA, pointB = self.segments[-1]
-        if self.usingDefaultOrientation:
+        if self._usingDefaultOrientation:
             orientation = headingOfSegment(pointA, pointB)
         elif self.orientation is not None:
             orientation = self.orientation[Vector(*pointB)].yaw
@@ -3309,7 +3309,7 @@ class PolylineRegion(Region):
         )[0]
         interpolation = random.random()
         x, y = averageVectors(pointA, pointB, weight=interpolation)
-        if self.usingDefaultOrientation:
+        if self._usingDefaultOrientation:
             return OrientedVector(x, y, 0, headingOfSegment(pointA, pointB))
         else:
             return self.orient(Vector(x, y, 0))
