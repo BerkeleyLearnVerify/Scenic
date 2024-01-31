@@ -870,9 +870,11 @@ class OrientedPoint(Point):
         "heading": PropertyDefault(
             {"orientation"},
             {"dynamic", "final"},
-            lambda self: self.yaw
-            if alwaysGlobalOrientation(self.parentOrientation)
-            else self.orientation.yaw,
+            lambda self: (
+                self.yaw
+                if alwaysGlobalOrientation(self.parentOrientation)
+                else self.orientation.yaw
+            ),
         ),
         "viewAngle": math.tau,  # Primarily for backwards compatibility. Set viewAngles instead.
         "viewAngles": PropertyDefault(
