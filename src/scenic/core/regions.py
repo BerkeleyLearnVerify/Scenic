@@ -886,9 +886,11 @@ class MeshRegion(Region):
             dimensions=value[self.dimensions],
             position=value[self.position],
             rotation=value[self.rotation],
-            orientation=True
-            if self.__dict__.get("_usingDefaultOrientation", False)
-            else value[self.orientation],
+            orientation=(
+                True
+                if self.__dict__.get("_usingDefaultOrientation", False)
+                else value[self.orientation]
+            ),
             tolerance=self.tolerance,
             centerMesh=self.centerMesh,
             onDirection=self.onDirection,
