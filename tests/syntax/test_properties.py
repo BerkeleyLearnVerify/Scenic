@@ -17,7 +17,7 @@ def test_position_oriented_point():
         a = new OrientedPoint at 1@0
         b = new OrientedPoint at 0@1
         ego = new Object with position Uniform(a, b)
-    """
+        """
     )
 
 
@@ -26,7 +26,7 @@ def test_position_numpy_types():
         """
         import numpy as np
         ego = new Object with position np.single(3.4) @ np.single(7)
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((3.4, 7, 0))
 
@@ -41,7 +41,7 @@ def test_yaw_numpy_types():
         """
         import numpy as np
         ego = new Object with yaw np.single(3.1)
-    """
+        """
     )
     assert ego.yaw == pytest.approx(3.1)
 
@@ -51,7 +51,7 @@ def test_left():
         """
         other = new Object with width 4
         ego = new Object at other.left offset by 0@5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((-2, 5, 0))
 
@@ -61,7 +61,7 @@ def test_right():
         """
         other = new Object with width 4
         ego = new Object at other.right offset by 0@5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((2, 5, 0))
 
@@ -71,7 +71,7 @@ def test_front():
         """
         other = new Object with length 4
         ego = new Object at other.front offset by 0@5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((0, 7, 0))
 
@@ -81,7 +81,7 @@ def test_back():
         """
         other = new Object with length 4
         ego = new Object at other.back offset by 0@-5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((0, -7, 0))
 
@@ -91,7 +91,7 @@ def test_frontLeft():
         """
         other = new Object with length 4, with width 2
         ego = new Object at other.frontLeft offset by 0@5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((-1, 7, 0))
 
@@ -101,7 +101,7 @@ def test_frontRight():
         """
         other = new Object with length 4, with width 2
         ego = new Object at other.frontRight offset by 0@5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((1, 7, 0))
 
@@ -111,7 +111,7 @@ def test_backLeft():
         """
         other = new Object with length 4, with width 2
         ego = new Object at other.backLeft offset by 0@-5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((-1, -7, 0))
 
@@ -121,7 +121,7 @@ def test_backRight():
         """
         other = new Object with length 4, with width 2
         ego = new Object at other.backRight offset by 0@-5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((1, -7, 0))
 

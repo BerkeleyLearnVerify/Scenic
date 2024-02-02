@@ -11,7 +11,7 @@ def test_max_min():
         a = Range(0, 1)
         b = Range(0, 1)
         ego = new Object with foo max(a, b), with bar min(a, b)
-    """
+        """
     )
     assert ego.foo >= ego.bar
     ego = sampleEgoFrom("ego = new Object with foo min([], default=Range(1,2))")
@@ -56,7 +56,7 @@ def test_unpacking():
         def func(*args, **kwargs):
             return [args, kwargs]
         ego = new Object with foo func(*[1,2,3], func=4)
-    """
+        """
     )
     assert ego.foo == [(1, 2, 3), {"func": 4}]
 
@@ -68,7 +68,7 @@ def test_unpacking_distribution():
             return [y, x]
         pairs = Uniform([1,2], [3,4])
         ego = new Object with foo func(*pairs)
-    """
+        """
     )
     assert ego.foo[0] > ego.foo[1]
 
