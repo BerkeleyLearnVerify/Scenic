@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 import shapely.geometry
+import trimesh.voxel
 
 from scenic.core.object_types import Object, OrientedPoint
 from scenic.core.regions import *
@@ -273,18 +274,13 @@ def test_mesh_surface_region_negative_dimension():
             MeshSurfaceRegion(mesh, dimensions=dims)
 
 
-def test_mesh_operation_blender():
-    r1 = BoxRegion(position=(0, 0, 0), dimensions=(1, 1, 1), engine="blender")
-    r2 = BoxRegion(position=(0, 0, 0), dimensions=(2, 2, 2), engine="blender")
+def test_mesh_operation():
+    r1 = BoxRegion(position=(0, 0, 0), dimensions=(2, 2, 2))
+    r2 = BoxRegion(position=(0, 0, 0), dimensions=(1, 1, 1))
 
-    r = r1.intersect(r2)
-
-
-def test_mesh_operation_scad():
-    r1 = BoxRegion(position=(0, 0, 0), dimensions=(1, 1, 1), engine="scad")
-    r2 = BoxRegion(position=(0, 0, 0), dimensions=(2, 2, 2), engine="scad")
-
-    r = r1.intersect(r2)
+    r1.intersect(r2)
+    r1.union(r2)
+    r1.difference(r2)
 
 
 def test_mesh_volume_region_sampling():
@@ -316,19 +312,17 @@ def test_mesh_intersects():
 
 
 def test_mesh_empty_intersection():
-    for engine in ["blender", "scad"]:
-        r1 = BoxRegion(position=(0, 0, 0), engine=engine)
-        r2 = BoxRegion(position=(10, 10, 10), engine=engine)
+    r1 = BoxRegion(position=(0, 0, 0))
+    r2 = BoxRegion(position=(10, 10, 10))
 
-        assert isinstance(r1.intersect(r2), EmptyRegion)
+    assert isinstance(r1.intersect(r2), EmptyRegion)
 
 
 def test_mesh_empty_difference():
-    for engine in ["blender", "scad"]:
-        r1 = BoxRegion(dimensions=(1, 1, 1), engine=engine)
-        r2 = BoxRegion(dimensions=(2, 2, 2), engine=engine)
+    r1 = BoxRegion(dimensions=(1, 1, 1))
+    r2 = BoxRegion(dimensions=(2, 2, 2))
 
-        assert isinstance(r1.difference(r2), EmptyRegion)
+    assert isinstance(r1.difference(r2), EmptyRegion)
 
 
 def test_path_region():
@@ -549,10 +543,80 @@ def test_pointset_region():
     assert ps.AABB == ((1, 5), (2, 6), (0, 5))
 
 
-# ViewRegion tests
-H_ANGLES = [0.1, 45, 90, 135, 179.9, 180, 180.1, 225, 270, 315, 359.9, 360]
+def test_voxel_region():
+    encoding = [
+        [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
+        [[0, 1, 1], [0, 1, 0], [1, 1, 0]],
+        [[0, 0, 0], [0, 1, 0], [0, 0, 0]],
+    ]
 
-V_ANGLES = [0.1, 45, 90, 135, 179.9, 180]
+    vg1 = trimesh.voxel.VoxelGrid(encoding=numpy.asarray(encoding))
+
+    centering_matrix = translation_matrix((vg1.scale - vg1.extents) / 2)
+    vg1.apply_transform(centering_matrix)
+
+    scale = vg1.extents / numpy.array((3, 3, 3))
+    scale_matrix = numpy.eye(4)
+    scale_matrix[:3, :3] /= scale
+    vg1.apply_transform(scale_matrix)
+
+    position_matrix = translation_matrix((4, 5, 6))
+    vg1.apply_transform(position_matrix)
+
+    vr1 = VoxelRegion(vg1)
+
+    assert vr1.containsPoint((4, 5, 6))
+    assert vr1.containsPoint((4, 6, 5))
+    assert vr1.containsPoint((4, 4, 7))
+    assert not vr1.containsPoint((4, 6, 7))
+    assert not vr1.containsPoint((4, 4, 5))
+    assert not vr1.containsPoint((100, 100, 100))
+
+    for _ in range(100):
+        sampled_pt = vr1.uniformPointInner()
+        assert vr1.containsPoint(sampled_pt)
+
+    assert vr1.AABB == ((2.5, 5.5), (3.5, 6.5), (4.5, 7.5))
+
+    vg2 = trimesh.voxel.VoxelGrid(encoding=numpy.asarray(encoding))
+
+    centering_matrix = translation_matrix((vg2.scale - vg2.extents) / 2)
+    vg2.apply_transform(centering_matrix)
+
+    scale = vg2.extents / numpy.array((5, 5, 3))
+    scale_matrix = numpy.eye(4)
+    scale_matrix[:3, :3] /= scale
+    vg2.apply_transform(scale_matrix)
+
+    vr2 = VoxelRegion(vg2)
+
+    assert vr2.size == pytest.approx((7 / 27) * 5 * 5 * 3)
+    assert vr2.dimensionality == 3
+
+
+def test_mesh_voxelization(getAssetPath):
+    plane_region = MeshVolumeRegion.fromFile(getAssetPath("meshes/classic_plane.obj.bz2"))
+    vr = plane_region.voxelized(max(plane_region.mesh.extents) / 100)
+
+    for sampled_pt in trimesh.sample.volume_mesh(plane_region.mesh, 100):
+        assert vr.containsPoint(sampled_pt)
+
+    for _ in range(100):
+        sampled_pt = vr.uniformPointInner()
+        assert vr.containsPoint(sampled_pt)
+
+
+def test_empty_erosion():
+    box_region = BoxRegion(position=(0, 0, 0), dimensions=(1, 1, 1))
+    vr = box_region.voxelized(pitch=0.1)
+    erosion = vr.dilation(iterations=-6)
+    assert isinstance(erosion, EmptyRegion)
+
+
+# ViewRegion tests
+H_ANGLES = [0.95, 45, 90, 135, 177.5, 180, 180.01, 225, 270, 315, 358.99, 360]
+
+V_ANGLES = [0.95, 45, 90, 135, 177.5, 180]
 
 VISIBLE_DISTANCES = [1, 25, 50]
 

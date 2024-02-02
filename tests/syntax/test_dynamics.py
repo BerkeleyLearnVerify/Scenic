@@ -1466,6 +1466,18 @@ def test_require_monitor_invalid():
         sampleScene(scenario)
 
 
+def test_require_monitor_error():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic(
+            """
+            monitor Monitor():
+                wait
+            ego = new Object
+            require Monitor()
+        """
+        )
+
+
 def test_old_style_monitor():
     with pytest.raises(ScenicSyntaxError):
         compileScenic(

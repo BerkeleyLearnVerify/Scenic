@@ -21,10 +21,12 @@ from shapely.geometry import MultiPolygon
 import shapely.ops
 import trimesh
 from trimesh.transformations import (
-    concatenate_matrices,
+    compose_matrix,
+    identity_matrix,
     quaternion_matrix,
     translation_matrix,
 )
+import trimesh.voxel
 
 warnings.filterwarnings(
     "ignore", module="trimesh"
@@ -54,7 +56,7 @@ from scenic.core.geometry import (
 )
 from scenic.core.lazy_eval import isLazy, valueInContext
 from scenic.core.type_support import toOrientation, toScalar, toVector
-from scenic.core.utils import cached, cached_method, cached_property, loadMesh, unifyMesh
+from scenic.core.utils import cached, cached_method, cached_property, unifyMesh
 from scenic.core.vectors import (
     Orientation,
     OrientedVector,
@@ -767,7 +769,6 @@ class MeshRegion(Region):
         tolerance: Tolerance for internal computations.
         centerMesh: Whether or not to center the mesh after copying and before transformations.
         onDirection: The direction to use if an object being placed on this region doesn't specify one.
-        engine: Which engine to use for mesh operations. Either "blender" or "scad".
         additionalDeps: Any additional sampling dependencies this region relies on.
     """
 
@@ -781,7 +782,6 @@ class MeshRegion(Region):
         tolerance=1e-6,
         centerMesh=True,
         onDirection=None,
-        engine="scad",
         name=None,
         additionalDeps=[],
     ):
@@ -794,7 +794,6 @@ class MeshRegion(Region):
         self.tolerance = tolerance
         self.centerMesh = centerMesh
         self.onDirection = onDirection
-        self.engine = engine
 
         # Initialize superclass with samplables
         super().__init__(
@@ -812,7 +811,7 @@ class MeshRegion(Region):
             return
 
         # Convert extract mesh
-        if isinstance(mesh, trimesh.primitives._Primitive):
+        if isinstance(mesh, trimesh.primitives.Primitive):
             self._mesh = mesh.to_mesh()
         elif isinstance(mesh, trimesh.base.Trimesh):
             self._mesh = mesh.copy()
@@ -849,9 +848,7 @@ class MeshRegion(Region):
         self.orientation = orientation
 
     @classmethod
-    def fromFile(
-        cls, path, filetype=None, compressed=None, binary=False, unify=True, **kwargs
-    ):
+    def fromFile(cls, path, unify=True, **kwargs):
         """Load a mesh region from a file, attempting to infer filetype and compression.
 
         For example: "foo.obj.bz2" is assumed to be a compressed .obj file.
@@ -868,7 +865,7 @@ class MeshRegion(Region):
             unify (bool): Whether or not to attempt to unify this mesh.
             kwargs: Additional arguments to the MeshRegion initializer.
         """
-        mesh = loadMesh(path, filetype, compressed, binary)
+        mesh = trimesh.load(path, force="mesh")
 
         if unify and issubclass(cls, MeshVolumeRegion):
             mesh = unifyMesh(mesh, verbose=True)
@@ -893,7 +890,6 @@ class MeshRegion(Region):
             tolerance=self.tolerance,
             centerMesh=self.centerMesh,
             onDirection=self.onDirection,
-            engine=self.engine,
             name=self.name,
         )
 
@@ -920,7 +916,6 @@ class MeshRegion(Region):
             tolerance=self.tolerance,
             centerMesh=self.centerMesh,
             onDirection=self.onDirection,
-            engine=self.engine,
             name=self.name,
         )
 
@@ -987,9 +982,9 @@ class MeshRegion(Region):
     @property
     def AABB(self):
         return (
-            tuple(self.mesh.bounds[0]),
-            tuple(self.mesh.bounds[1]),
-            tuple(self.mesh.bounds[2]),
+            tuple(self.mesh.bounds[:, 0]),
+            tuple(self.mesh.bounds[:, 1]),
+            tuple(self.mesh.bounds[:, 2]),
         )
 
     @cached_property
@@ -1057,7 +1052,6 @@ class MeshVolumeRegion(MeshRegion):
         tolerance: Tolerance for internal computations.
         centerMesh: Whether or not to center the mesh after copying and before transformations.
         onDirection: The direction to use if an object being placed on this region doesn't specify one.
-        engine: Which engine to use for mesh operations. Either "blender" or "scad".
     """
 
     def __init__(self, *args, **kwargs):
@@ -1418,12 +1412,7 @@ class MeshVolumeRegion(MeshRegion):
             other_mesh = other.mesh
 
             # Compute intersection using Trimesh
-            try:
-                new_mesh = self.mesh.intersection(other_mesh, engine=self.engine)
-            except ValueError as exc:
-                raise ValueError(
-                    "Unable to compute mesh boolean operation. Do you have the Blender and OpenSCAD installed on your system?"
-                ) from exc
+            new_mesh = self.mesh.intersection(other_mesh)
 
             if new_mesh.is_empty:
                 return nowhere
@@ -1432,7 +1421,6 @@ class MeshVolumeRegion(MeshRegion):
                     new_mesh,
                     tolerance=min(self.tolerance, other.tolerance),
                     centerMesh=False,
-                    engine=self.engine,
                 )
             else:
                 # Something went wrong, abort
@@ -1629,12 +1617,7 @@ class MeshVolumeRegion(MeshRegion):
             other_mesh = other.mesh
 
             # Compute union using Trimesh
-            try:
-                new_mesh = self.mesh.union(other_mesh, engine=self.engine)
-            except ValueError as exc:
-                raise ValueError(
-                    "Unable to compute mesh boolean operation. Do you have the Blender and OpenSCAD installed on your system?"
-                ) from exc
+            new_mesh = self.mesh.union(other_mesh)
 
             if new_mesh.is_empty:
                 return nowhere
@@ -1643,7 +1626,6 @@ class MeshVolumeRegion(MeshRegion):
                     new_mesh,
                     tolerance=min(self.tolerance, other.tolerance),
                     centerMesh=False,
-                    engine=self.engine,
                 )
             else:
                 # Something went wrong, abort
@@ -1669,14 +1651,7 @@ class MeshVolumeRegion(MeshRegion):
             other_mesh = other.mesh
 
             # Compute difference using Trimesh
-            try:
-                new_mesh = self.mesh.difference(
-                    other_mesh, engine=self.engine, debug=debug
-                )
-            except ValueError as exc:
-                raise ValueError(
-                    "Unable to compute mesh boolean operation. Do you have the Blender and OpenSCAD installed on your system?"
-                ) from exc
+            new_mesh = self.mesh.difference(other_mesh)
 
             if new_mesh.is_empty:
                 return nowhere
@@ -1685,7 +1660,6 @@ class MeshVolumeRegion(MeshRegion):
                     new_mesh,
                     tolerance=min(self.tolerance, other.tolerance),
                     centerMesh=False,
-                    engine=self.engine,
                 )
             else:
                 # Something went wrong, abort
@@ -1735,11 +1709,12 @@ class MeshVolumeRegion(MeshRegion):
         return abs(dist)
 
     @cached_property
+    @distributionFunction
     def inradius(self):
         center_point = self.mesh.bounding_box.center_mass
 
         pq = trimesh.proximity.ProximityQuery(self.mesh)
-        region_distance = abs(pq.signed_distance([center_point])[0])
+        region_distance = pq.signed_distance([center_point])[0]
 
         if region_distance < 0:
             return 0
@@ -1755,6 +1730,10 @@ class MeshVolumeRegion(MeshRegion):
         return self.mesh.mass / self.mesh.density
 
     ## Utility Methods ##
+    def voxelized(self, pitch, lazy=False):
+        """Returns a VoxelRegion representing a filled voxelization of this mesh"""
+        return VoxelRegion(voxelGrid=self.mesh.voxelized(pitch).fill(), lazy=lazy)
+
     @cached_method
     def getSurfaceRegion(self):
         """Return a region equivalent to this one, except as a MeshSurfaceRegion"""
@@ -1765,7 +1744,6 @@ class MeshVolumeRegion(MeshRegion):
             tolerance=self.tolerance,
             centerMesh=False,
             onDirection=self.onDirection,
-            engine=self.engine,
         )
 
     def getVolumeRegion(self):
@@ -1957,7 +1935,6 @@ class MeshSurfaceRegion(MeshRegion):
             tolerance=self.tolerance,
             centerMesh=False,
             onDirection=self.onDirection,
-            engine=self.engine,
         )
 
     def getSurfaceRegion(self):
@@ -1989,7 +1966,6 @@ class BoxRegion(MeshVolumeRegion):
             rotation=value[self.rotation],
             orientation=value[self.orientation],
             tolerance=self.tolerance,
-            engine=self.engine,
             name=self.name,
         )
 
@@ -2005,7 +1981,6 @@ class BoxRegion(MeshVolumeRegion):
             rotation=rotation,
             orientation=orientation,
             tolerance=self.tolerance,
-            engine=self.engine,
             name=self.name,
         )
 
@@ -2034,7 +2009,6 @@ class SpheroidRegion(MeshVolumeRegion):
             rotation=value[self.rotation],
             orientation=value[self.orientation],
             tolerance=self.tolerance,
-            engine=self.engine,
             name=self.name,
         )
 
@@ -2050,9 +2024,134 @@ class SpheroidRegion(MeshVolumeRegion):
             rotation=rotation,
             orientation=orientation,
             tolerance=self.tolerance,
-            engine=self.engine,
             name=self.name,
         )
+
+
+class VoxelRegion(Region):
+    """Region represented by a voxel grid in 3D space.
+
+    Args:
+        voxelGrid: The Trimesh voxelGrid to be used.
+        orientation: An optional vector field describing the preferred orientation at every point in
+          the region.
+        name: An optional name to help with debugging.
+        lazy: Whether or not to be lazy about pre-computing internal values. Set this to True if this
+          VoxelRegion is unlikely to be used outside of an intermediate step in compiling/pruning.
+    """
+
+    def __init__(self, voxelGrid, orientation=None, name=None, lazy=False):
+        # Initialize superclass
+        super().__init__(name, orientation=orientation)
+
+        # Check that the encoding isn't empty. In that case, raise an error.
+        if voxelGrid.encoding.is_empty:
+            raise ValueError("Tried to create an empty VoxelRegion.")
+
+        # Store voxel grid and extract points and scale
+        self.voxelGrid = voxelGrid
+        self.voxel_points = self.voxelGrid.points
+        self.scale = self.voxelGrid.scale
+
+    @cached_property
+    def kdTree(self):
+        return scipy.spatial.KDTree(self.voxel_points)
+
+    def containsPoint(self, point):
+        point = toVector(point)
+
+        # Find closest voxel point
+        _, index = self.kdTree.query(point)
+        closest_point = self.voxel_points[index]
+
+        # Check voxel containment
+        voxel_low = closest_point - self.scale / 2
+        voxel_high = closest_point + self.scale / 2
+
+        return numpy.all(voxel_low <= point) & numpy.all(point <= voxel_high)
+
+    def containsObject(self, obj):
+        raise NotImplementedError
+
+    def containsRegionInner(self, reg):
+        raise NotImplementedError
+
+    def distanceTo(self, point):
+        raise NotImplementedError
+
+    def projectVector(self, point, onDirection):
+        raise NotImplementedError
+
+    def uniformPointInner(self):
+        # First generate a point uniformly in a box with dimensions
+        # equal to scale, centered at the origin.
+        base_pt = numpy.random.random_sample(3) - 0.5
+        scaled_pt = base_pt * self.scale
+
+        # Pick a random voxel point and add it to base_pt.
+        voxel_base = self.voxel_points[random.randrange(len(self.voxel_points))]
+        offset_pt = voxel_base + scaled_pt
+
+        return Vector(*offset_pt)
+
+    def dilation(self, iterations, structure=None):
+        """Returns a dilated/eroded version of this VoxelRegion.
+
+        Args:
+            iterations: How many times repeat the dilation/erosion. A positive
+              number indicates a dilation and a negative number indicates an
+              erosion.
+            structure: The structure to use. If none is provided, a rank 3
+              structuring unit with connectivity 3 is used.
+        """
+        # Parse parameters
+        if iterations == 0:
+            return self
+
+        if iterations > 0:
+            morphology_func = scipy.ndimage.binary_dilation
+        else:
+            morphology_func = scipy.ndimage.binary_erosion
+
+        iterations = abs(iterations)
+
+        if structure == None:
+            structure = scipy.ndimage.generate_binary_structure(3, 3)
+
+        # Compute a dilated/eroded encoding
+        new_encoding = trimesh.voxel.encoding.DenseEncoding(
+            morphology_func(
+                trimesh.voxel.morphology._dense(self.voxelGrid.encoding, rank=3),
+                structure=structure,
+                iterations=iterations,
+            )
+        )
+
+        # Check if the encoding is empty, in which case we should return the empty region.
+        if new_encoding.is_empty:
+            return nowhere
+
+        # Otherwise, return a VoxelRegion representing the eroded region.
+        new_voxel_grid = trimesh.voxel.VoxelGrid(
+            new_encoding, transform=self.voxelGrid.transform
+        )
+        return VoxelRegion(voxelGrid=new_voxel_grid)
+
+    @property
+    def AABB(self):
+        return (
+            tuple(self.voxelGrid.bounds[:, 0]),
+            tuple(self.voxelGrid.bounds[:, 1]),
+            tuple(self.voxelGrid.bounds[:, 2]),
+        )
+
+    @property
+    def size(self):
+        return self.voxelGrid.volume
+
+    @property
+    def dimensionality(self):
+        return 3
 
 
 class PolygonalFootprintRegion(Region):
@@ -2684,6 +2783,19 @@ class PolygonalRegion(Region):
         point = toVector(point)
         dist2D = shapely.distance(self.polygons, makeShapelyPoint(point))
         return math.hypot(dist2D, point[2] - self.z)
+
+    @cached_property
+    @distributionFunction
+    def inradius(self):
+        minx, miny, maxx, maxy = self.polygons.bounds
+        center = makeShapelyPoint(((minx + maxx) / 2, (maxy + miny) / 2))
+
+        # Check if center is contained
+        if not self.polygons.contains(center):
+            return 0
+
+        # Return the distance to the nearest boundary
+        return shapely.distance(self.polygons.boundary, center)
 
     def projectVector(self, point, onDirection):
         raise NotImplementedError(
@@ -3596,13 +3708,10 @@ class ViewRegion(MeshVolumeRegion):
 
     * Case 1:       viewAngles[1] = 180 degrees
 
-      * Case 2.a    viewAngles[0] = 360 degrees     => Sphere
-      * Case 2.b    viewAngles[0] < 360 degrees     => Sphere & CylinderSectionRegion
+      * Case 1.a    viewAngles[0] = 360 degrees     => Sphere
+      * Case 1.b    viewAngles[0] < 360 degrees     => Sphere & CylinderSectionRegion
 
-    * Case 2:       viewAngles[1] < 180 degrees
-
-      * Case 2.a    viewAngles[0] = 360 degrees     => Sphere - (Cone + Cone) (Cones on z axis expanding from origin)
-      * Case 2.b    viewAngles[0] < 360 degrees     => Sphere & ViewSectionRegion
+    * Case 2:       viewAngles[1] < 180 degrees     => Sphere & ViewSectionRegion
 
     When making changes to this class you should run ``pytest -k test_viewRegion --exhaustive``.
 
@@ -3626,60 +3735,45 @@ class ViewRegion(MeshVolumeRegion):
         position=Vector(0, 0, 0),
         rotation=None,
         orientation=None,
-        angleCutoff=0.01,
+        angleCutoff=0.017,
         tolerance=1e-8,
     ):
         # Bound viewAngles from either side.
         if min(viewAngles) <= 0:
             raise ValueError("viewAngles cannot have a component less than or equal to 0")
 
+        # TODO True surface representation
+        viewAngles = (max(viewAngles[0], angleCutoff), max(viewAngles[1], angleCutoff))
+
+        if math.tau - angleCutoff <= viewAngles[0]:
+            viewAngles = (math.tau, viewAngles[1])
+
+        if math.pi - angleCutoff <= viewAngles[1]:
+            viewAngles = (viewAngles[0], math.pi)
+
         view_region = None
         diameter = 2 * visibleDistance
-        base_sphere = SpheroidRegion(
-            dimensions=(diameter, diameter, diameter), engine="scad"
-        )
+        base_sphere = SpheroidRegion(dimensions=(diameter, diameter, diameter))
 
         if math.pi - angleCutoff <= viewAngles[1]:
             # Case 1
-            if math.tau - angleCutoff <= viewAngles[0]:
+            if viewAngles[0] == math.tau:
                 # Case 1.a
                 view_region = base_sphere
             else:
+                # Case 1.b
                 view_region = base_sphere.intersect(
                     CylinderSectionRegion(visibleDistance, viewAngles[0])
                 )
         else:
             # Case 2
-            if math.tau - angleCutoff <= viewAngles[0]:
-                # Case 2.a
-                # Create cone with yaw oriented around (0,0,-1)
-                padded_height = visibleDistance * 2
-                radius = padded_height * math.tan((math.pi - viewAngles[1]) / 2)
-
-                cone_mesh = trimesh.creation.cone(radius=radius, height=padded_height)
-
-                position_matrix = translation_matrix((0, 0, -1 * padded_height))
-                cone_mesh.apply_transform(position_matrix)
-
-                # Create two cones around the yaw axis
-                orientation_1 = Orientation._fromEuler(0, 0, 0)
-                orientation_2 = Orientation._fromEuler(0, 0, math.pi)
-
-                cone_1 = MeshVolumeRegion(
-                    mesh=cone_mesh, rotation=orientation_1, centerMesh=False
-                )
-                cone_2 = MeshVolumeRegion(
-                    mesh=cone_mesh, rotation=orientation_2, centerMesh=False
-                )
-
-                view_region = base_sphere.difference(cone_1).difference(cone_2)
-            else:
-                # Case 2.b
-                view_region = base_sphere.intersect(
-                    ViewSectionRegion(visibleDistance, viewAngles)
-                )
+            view_region = base_sphere.intersect(
+                ViewSectionRegion(visibleDistance, viewAngles)
+            )
 
         assert view_region is not None
+        assert isinstance(view_region, MeshVolumeRegion)
+        assert view_region.containsPoint(Vector(0, 0, 0))
 
         # Initialize volume region
         super().__init__(
@@ -3717,8 +3811,9 @@ class ViewSectionRegion(MeshVolumeRegion):
             triangles.append((bot_line[li], bot_line[li + 1], top_line[li + 1]))
 
         # Side triangles
-        triangles.append((bot_line[0], top_line[0], (0, 0, 0)))
-        triangles.append((top_line[-1], bot_line[-1], (0, 0, 0)))
+        if viewAngles[0] < math.tau:
+            triangles.append((bot_line[0], top_line[0], (0, 0, 0)))
+            triangles.append((top_line[-1], bot_line[-1], (0, 0, 0)))
 
         # Top/Bottom triangles
         for li in range(len(top_line) - 1):
