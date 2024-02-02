@@ -192,8 +192,7 @@ visible [from (*Point* | *OrientedPoint*)]
 
 Requires that this object is visible from the :scenic:`ego` or the given `Point`/`OrientedPoint`. See the :ref:`Visibility System <visibility>` reference for a discussion of the visibility model.
 
-Also optionally specifies :prop:`position` to be a uniformly random point in the :term:`visible region` of the ego, or of the given Point/OrientedPoint if given.
-Note that the position set by this specifier is slightly stricter than simply adding a requirement that the ego :keyword:`can see` the object: the specifier makes the *center* of the object (its :prop:`position`) visible, while the :keyword:`can see` condition will be satisfied even if the center is not visible as long as some other part of the object is visible.
+Also optionally specifies :prop:`position` to be uniformly random over all points that could result in a visible object (note that the above requirement will ensure the object is in fact visible).
 
 .. _not visible [from ({Point} | {OrientedPoint})]:
 
@@ -209,8 +208,7 @@ not visible [from (*Point* | *OrientedPoint*)]
 
 Requires that this object is *not* visible from the ego or the given `Point`/`OrientedPoint`.
 
-Similarly to :sampref:`visible [from ({Point} | {OrientedPoint})]`, this specifier can position the object uniformly at random in the *non-visible* region of the ego.
-However, it depends on :prop:`regionContainedIn`, in order to restrict the non-visible region to the :term:`container` of the object being created, which is hopefully a bounded region (if the non-visible region is unbounded, it cannot be uniformly sampled from and an error will be raised).
+Similarly to :sampref:`visible [from ({Point} | {OrientedPoint})]`, this specifier can optionally position the object uniformly at random over all points that could result in a non-visible object (note that the above requirement will ensure the object is in fact not-visible).
 
 .. _(left | right) of {vector} [by {scalar}]:
 .. _left of:

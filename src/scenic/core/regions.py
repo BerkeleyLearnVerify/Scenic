@@ -1721,6 +1721,11 @@ class MeshVolumeRegion(MeshRegion):
         else:
             return region_distance
 
+    @cached_property
+    @distributionFunction
+    def circumradius(self):
+        hypot(*(self.mesh.extents / 2))
+
     @property
     def dimensionality(self):
         return 3
@@ -1733,6 +1738,54 @@ class MeshVolumeRegion(MeshRegion):
     def voxelized(self, pitch, lazy=False):
         """Returns a VoxelRegion representing a filled voxelization of this mesh"""
         return VoxelRegion(voxelGrid=self.mesh.voxelized(pitch).fill(), lazy=lazy)
+
+    def _erodeOverapproximate(self, maxErosion, pitch):
+        """Compute an overapproximation of this region eroded.
+
+        Erode as much as possible, but no more than maxErosion, outputting
+        a VoxelRegion. Note that this can sometimes return a larger region
+        than the original mesh
+        """
+        # Compute a voxel overapproximation of the mesh. Technically this is not
+        # an overapproximation, but one dilation with a rank 3 structuring unit
+        # with connectivity 3 is. To simplify, we just erode one less time than
+        # needed.
+        target_pitch = pitch * max(self.mesh.extents)
+        voxelized_mesh = self.voxelized(target_pitch, lazy=True)
+
+        # Erode the voxel region. Erosion is done with a rank 3 structuring unit with
+        # connectivity 3 (a 3x3x3 cube of voxels). Each erosion pass can erode by at
+        # most math.hypot([pitch]*3). Therefore we can safely make at most
+        # floor(maxErosion/math.hypot([pitch]*3)) passes without eroding more
+        # than maxErosion. We also subtract 1 iteration for the reasons above.
+        iterations = math.floor(maxErosion / math.hypot(*([target_pitch] * 3))) - 1
+
+        eroded_mesh = voxelized_mesh.dilation(iterations=-iterations)
+
+        return eroded_mesh
+
+    def _bufferOverapproximate(self, minBuffer, pitch):
+        """Compute an overapproximation of this region buffered.
+
+        Buffer as little as possible, but at least minBuffer, outputting
+        a VoxelRegion.
+        """
+        # Compute a voxel overapproximation of the mesh. Technically this is not
+        # an overapproximation, but one dilation with a rank 3 structuring unit
+        # with connectivity 3 is. To simplify, we just dilate one additional time
+        # than needed.
+        target_pitch = pitch * max(self.mesh.extents)
+        voxelized_mesh = self.voxelized(target_pitch, lazy=True)
+
+        # Dilate the voxel region. Dilation is done with a rank 3 structuring unit with
+        # connectivity 3 (a 3x3x3 cube of voxels). Each dilation pass must dilate by at
+        # least pitch. Therefore we must make at least ceil(minBuffer/pitch) passes to
+        # guarantee dilating at least minBuffer. We also add 1 iteration for the reasons above.
+        iterations = math.ceil(minBuffer / pitch) + 1
+
+        dilated_mesh = voxelized_mesh.dilation(iterations=iterations)
+
+        return dilated_mesh
 
     @cached_method
     def getSurfaceRegion(self):

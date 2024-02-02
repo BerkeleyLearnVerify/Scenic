@@ -237,31 +237,14 @@ def pruneContainment(scenario, verbosity):
                 container = container.buffer(-maxErosion)
             elif isinstance(container, MeshVolumeRegion):
                 # We can attempt to erode a voxel approximation of the MeshVolumeRegion.
-                # Compute a voxel overapproximation of the mesh. Technically this is not
-                # an overapproximation, but one dilation with a rank 3 structuring unit
-                # with connectivity 3 is. To simplify, we just erode one less time than
-                # needed.
-                target_pitch = PRUNING_PITCH * max(container.mesh.extents)
-                voxelized_container = container.voxelized(target_pitch, lazy=True)
-
-                # Erode the voxel region. Erosion is done with a rank 3 structuring unit with
-                # connectivity 3 (a 3x3x3 cube of voxels). Each erosion pass can erode by at
-                # most math.hypot([pitch]*3). Therefore we can safely make at most
-                # floor(maxErosion/math.hypot([pitch]*3)) passes without eroding more
-                # than maxErosion. We also subtract 1 iteration for the reasons above.
-                iterations = (
-                    math.floor(maxErosion / math.hypot(*([target_pitch] * 3))) - 1
+                eroded_container = container._erodeOverapproximate(
+                    maxErosion, PRUNING_PITCH
                 )
 
-                if iterations > 0:
-                    eroded_container = voxelized_container.dilation(
-                        iterations=-iterations
-                    )
-
-                    # Now check if this erosion is useful, i.e. do we have less volume to sample from.
-                    # If so, replace the original container.
-                    if eroded_container.size < container.size:
-                        container = eroded_container
+                # Now check if this erosion is useful, i.e. do we have less volume to sample from.
+                # If so, replace the original container.
+                if eroded_container.size < container.size:
+                    container = eroded_container
 
         # Restrict the base region to the possibly eroded container, unless
         # they're the same in which case we're done
@@ -408,21 +391,7 @@ def pruneVisibility(scenario, verbosity):
         # in a region that contains all points that could feasibly be the position
         # of obj, if it is visible from the observer.
         def bufferHelper(viewRegion):
-            # Compute a voxel overapproximation of the mesh. Technically this is not
-            # an overapproximation, but one dilation with a rank 3 structuring unit
-            # with connectivity 3 is. To simplify, we just dilate one additional time.
-            target_pitch = PRUNING_PITCH * max(viewRegion.mesh.extents)
-            voxelized_vr = viewRegion.voxelized(target_pitch, lazy=True)
-
-            # Dilate the voxel region. Dilation is done with a rank 3 structuring unit with
-            # connectivity 3 (a 3x3x3 cube of voxels). Each dilation pass must dilate by at
-            # least pitch. Therefore we must make at least ceiling((radius/2)/pitch) passes
-            # to ensure we have dilated by the half the circumradius of the object. We also
-            # add 1 iteration for the reasons above.
-            iterations = math.ceil((obj.radius / 2) / target_pitch) + 1
-            dilated_vr = voxelized_vr.dilation(iterations=iterations)
-
-            return dilated_vr
+            return viewRegion._bufferOverapproximate(obj.radius / 2, PRUNING_PITCH)
 
         # Prune based off visibility/non-visibility requirements
         if obj.requireVisible:
