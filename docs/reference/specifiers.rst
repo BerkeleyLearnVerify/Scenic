@@ -194,6 +194,10 @@ Requires that this object is visible from the :scenic:`ego` or the given `Point`
 
 Also optionally specifies :prop:`position` to be uniformly random over all points that could result in a visible object (note that the above requirement will ensure the object is in fact visible).
 
+.. versionchanged:: 3.0
+
+    This specifier now specifies position uniformly randomly over all points that could result in a visible object. This accounts for objects who's position might be out of the visible region, but who have a portion of their occupied space visible (e.g. a corner that is visible), which would never be generated with the previous semantics.
+
 .. _not visible [from ({Point} | {OrientedPoint})]:
 
 not visible [from (*Point* | *OrientedPoint*)]
@@ -209,6 +213,11 @@ not visible [from (*Point* | *OrientedPoint*)]
 Requires that this object is *not* visible from the ego or the given `Point`/`OrientedPoint`.
 
 Similarly to :sampref:`visible [from ({Point} | {OrientedPoint})]`, this specifier can optionally position the object uniformly at random over all points that could result in a non-visible object (note that the above requirement will ensure the object is in fact not-visible).
+
+.. versionchanged:: 3.0
+
+    This specifier now specifies position uniformly randomly over all points that could result in a non-visible object. This accounts for objects who's position might be out of the visible region, but who have a portion of their occupied space visible (e.g. a corner that is visible), which could be generated with the previous semantics (and now will not).
+
 
 .. _(left | right) of {vector} [by {scalar}]:
 .. _left of:
