@@ -315,7 +315,7 @@ simulatorFactory = None
 evaluatingGuard = False
 mode2D = False
 _originalConstructibles = (Point, OrientedPoint, Object)
-BUFFERING_PITCH = 0.05
+BUFFERING_PITCH = 0.1
 
 ## APIs used internally by the rest of Scenic
 
@@ -1631,12 +1631,6 @@ def VisibleFrom(base):
             position = Region.uniformPointIn(buffered_vr)
 
             return {"position": position, "_observingEntity": base}
-
-    return Specifier(
-        "Visible/VisibleFrom",
-        {"position": 3, "_observingEntity": 1},
-        {"position": Region.uniformPointIn(base.visibleRegion), "_observingEntity": base},
-    )
 
     return Specifier(
         "Visible/VisibleFrom",

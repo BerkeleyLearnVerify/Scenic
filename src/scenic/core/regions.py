@@ -1739,6 +1739,7 @@ class MeshVolumeRegion(MeshRegion):
         """Returns a VoxelRegion representing a filled voxelization of this mesh"""
         return VoxelRegion(voxelGrid=self.mesh.voxelized(pitch).fill(), lazy=lazy)
 
+    @distributionFunction
     def _erodeOverapproximate(self, maxErosion, pitch):
         """Compute an overapproximation of this region eroded.
 
@@ -1764,6 +1765,7 @@ class MeshVolumeRegion(MeshRegion):
 
         return eroded_mesh
 
+    @distributionFunction
     def _bufferOverapproximate(self, minBuffer, pitch):
         """Compute an overapproximation of this region buffered.
 
