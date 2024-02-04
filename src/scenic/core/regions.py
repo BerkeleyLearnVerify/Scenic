@@ -1789,7 +1789,7 @@ class MeshSurfaceRegion(MeshRegion):
     def __init__(self, *args, orientation=True, **kwargs):
         if orientation is True:
             orientation = VectorField(
-                "DefaultSurfaceVectorField", lambda pos: self.getFlatOrientation(pos)
+                "DefaultSurfaceVectorField", self.getFlatOrientation
             )
             self._usingDefaultOrientation = True
         else:
