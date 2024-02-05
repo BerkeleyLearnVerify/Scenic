@@ -1,0 +1,40 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <model name="handle_wheel_valve_wall">
+    <include>
+      <uri>model://drc_practice_valve_wall</uri>
+      <name>wall</name>
+      <static>false</static>
+    </include>
+    <joint name="wall-joint" type="revolute">
+      <parent>world</parent>
+      <child>wall::link</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>0</lower>
+          <upper>0</upper>
+        </limit>
+        <use_parent_model_frame>true</use_parent_model_frame>
+      </axis>
+    </joint>
+    <include>
+      <uri>model://drc_practice_handle_wheel_valve</uri>
+      <name>valve_0</name>
+      <pose>0.614335 -0.0092 0.9 3.14159 0 1.5707</pose>
+    </include>
+    <joint name="handle-joint" type="revolute">
+      <parent>wall::link</parent>
+      <child>handle::link</child>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <limit>
+          <lower>0</lower>
+          <upper>0</upper>
+        </limit>
+        <use_parent_model_frame>true</use_parent_model_frame>
+      </axis>
+    </joint>
+
+  </model>
+</sdf>
