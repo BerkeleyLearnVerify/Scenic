@@ -15,7 +15,7 @@ import os
 # Will be converted backstage for other purposes
 simulator GazeboSimulator()
 # TODO fill int he prefix/suffixes to where you store your sdf/urdf files
-object_prefix = '/home/ek65/Scenic/src/scenic/simulators/Gazebo_sawyer' + '/gazebo_models/' # TODO your model's path
+object_prefix = '<Your prefix>/Scenic/src/scenic/simulators/Gazebo_sawyer' + '/gazebo_models/' # TODO your model's path
 default_file_name = "model.sdf"
 get_sdf_dir = lambda s: object_prefix +  s + "/" + default_file_name
 
