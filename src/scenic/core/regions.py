@@ -886,7 +886,11 @@ class MeshRegion(Region):
             dimensions=value[self.dimensions],
             position=value[self.position],
             rotation=value[self.rotation],
-            orientation=value[self.orientation],
+            orientation=(
+                True
+                if self.__dict__.get("_usingDefaultOrientation", False)
+                else value[self.orientation]
+            ),
             tolerance=self.tolerance,
             centerMesh=self.centerMesh,
             onDirection=self.onDirection,
@@ -905,7 +909,11 @@ class MeshRegion(Region):
         dimensions = valueInContext(self.dimensions, context)
         position = valueInContext(self.position, context)
         rotation = valueInContext(self.rotation, context)
-        orientation = valueInContext(self.orientation, context)
+        orientation = (
+            True
+            if self.__dict__.get("_usingDefaultOrientation", False)
+            else valueInContext(self.orientation, context)
+        )
 
         return cls(
             mesh,
@@ -1795,7 +1803,6 @@ class MeshVolumeRegion(MeshRegion):
         return MeshSurfaceRegion(
             self.mesh,
             self.name,
-            orientation=self.orientation,
             tolerance=self.tolerance,
             centerMesh=False,
             onDirection=self.onDirection,
@@ -1834,20 +1841,22 @@ class MeshSurfaceRegion(MeshRegion):
         onDirection: The direction to use if an object being placed on this region doesn't specify one.
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, orientation=True, **kwargs):
+        if orientation is True:
+            orientation = VectorField(
+                "DefaultSurfaceVectorField", self.getFlatOrientation
+            )
+            self._usingDefaultOrientation = True
+        else:
+            self._usingDefaultOrientation = False
+
+        super().__init__(*args, orientation=orientation, **kwargs)
 
         # Validate dimensions
         if self.dimensions is not None:
             for dim, name in zip(self.dimensions, ("width", "length", "height")):
                 if dim < 0:
                     raise ValueError(f"{name} of MeshSurfaceRegion must be nonnegative")
-
-        # Set default orientation to one inferred from face norms if none is provided.
-        if self.orientation is None:
-            self.orientation = VectorField(
-                "DefaultSurfaceVectorField", lambda pos: self.getFlatOrientation(pos)
-            )
 
     # Property testing methods #
     @distributionFunction
@@ -1986,7 +1995,6 @@ class MeshSurfaceRegion(MeshRegion):
         return MeshVolumeRegion(
             self.mesh,
             self.name,
-            orientation=self.orientation,
             tolerance=self.tolerance,
             centerMesh=False,
             onDirection=self.onDirection,
@@ -2452,11 +2460,22 @@ class PathRegion(Region):
     Args:
         points: A list of points defining a single polyline.
         polylines: A list of list of points, defining multiple polylines.
+        orientation (optional): :term:`preferred orientation` to use, or `True` to use an
+            orientation aligned with the direction of the path (the default).
         tolerance: Tolerance used internally.
     """
 
-    def __init__(self, points=None, polylines=None, tolerance=1e-8, name=None):
-        super().__init__(name)
+    def __init__(
+        self, points=None, polylines=None, tolerance=1e-8, orientation=True, name=None
+    ):
+        if orientation is True:
+            orientation = VectorField("Path", self.defaultOrientation)
+            self._usingDefaultOrientation = True
+        else:
+            self._usingDefaultOrientation = False
+
+        super().__init__(name, orientation=orientation)
+
         # Standardize inputs
         if points is not None and polylines is not None:
             raise ValueError("Both points and polylines passed to PathRegion initializer")
@@ -2528,6 +2547,16 @@ class PathRegion(Region):
         raise NotImplementedError
 
     def distanceTo(self, point):
+        return self._segmentDistanceHelper(point).min()
+
+    def nearestSegmentTo(self, point):
+        nearest_segment = self._edgeVectorArray[
+            self._segmentDistanceHelper(point).argmin()
+        ]
+        return toVector(nearest_segment[0:3]), toVector(nearest_segment[3:6])
+
+    def _segmentDistanceHelper(self, point):
+        """Returns distance to point from each line segment"""
         p = numpy.asarray(toVector(point))
         a = self._edgeVectorArray[:, 0:3]
         b = self._edgeVectorArray[:, 3:6]
@@ -2545,7 +2574,11 @@ class PathRegion(Region):
         )
         perp_dist = numpy.linalg.norm(numpy.cross(a_min_p, d), axis=1)
 
-        return numpy.hypot(parallel_dist, perp_dist).min()
+        return numpy.hypot(parallel_dist, perp_dist)
+
+    def defaultOrientation(self, point):
+        start, end = self.nearestSegmentTo(point)
+        return Orientation.fromEuler(start.azimuthTo(end), start.altitudeTo(end), 0)
 
     def projectVector(self, point, onDirection):
         raise NotImplementedError
@@ -3195,9 +3228,9 @@ class PolylineRegion(Region):
     def __init__(self, points=None, polyline=None, orientation=True, name=None):
         if orientation is True:
             orientation = VectorField("Polyline", self.defaultOrientation)
-            self.usingDefaultOrientation = True
+            self._usingDefaultOrientation = True
         else:
-            self.usingDefaultOrientation = False
+            self._usingDefaultOrientation = False
         super().__init__(name, orientation=orientation)
 
         if points is not None:
@@ -3287,7 +3320,7 @@ class PolylineRegion(Region):
         there is one (the default orientation pointing along the polyline).
         """
         pointA, pointB = self.segments[0]
-        if self.usingDefaultOrientation:
+        if self._usingDefaultOrientation:
             orientation = headingOfSegment(pointA, pointB)
         elif self.orientation is not None:
             orientation = self.orientation[Vector(*pointA)]
@@ -3311,7 +3344,7 @@ class PolylineRegion(Region):
         there is one (the default orientation pointing along the polyline).
         """
         pointA, pointB = self.segments[-1]
-        if self.usingDefaultOrientation:
+        if self._usingDefaultOrientation:
             orientation = headingOfSegment(pointA, pointB)
         elif self.orientation is not None:
             orientation = self.orientation[Vector(*pointB)].yaw
@@ -3339,7 +3372,7 @@ class PolylineRegion(Region):
         )[0]
         interpolation = random.random()
         x, y = averageVectors(pointA, pointB, weight=interpolation)
-        if self.usingDefaultOrientation:
+        if self._usingDefaultOrientation:
             return OrientedVector(x, y, 0, headingOfSegment(pointA, pointB))
         else:
             return self.orient(Vector(x, y, 0))
@@ -3776,8 +3809,6 @@ class ViewRegion(MeshVolumeRegion):
         name: An optional name to help with debugging.
         position: An optional position, which determines where the center of the region will be.
         rotation: An optional Orientation object which determines the rotation of the object in space.
-        orientation: An optional vector field describing the preferred orientation at every point in
-          the region.
         angleCutoff: How close to 180/360 degrees an angle has to be to be mapped to that value.
         tolerance: Tolerance for collision computations.
     """
@@ -3789,7 +3820,6 @@ class ViewRegion(MeshVolumeRegion):
         name=None,
         position=Vector(0, 0, 0),
         rotation=None,
-        orientation=None,
         angleCutoff=0.017,
         tolerance=1e-8,
     ):
@@ -3836,7 +3866,6 @@ class ViewRegion(MeshVolumeRegion):
             name=name,
             position=position,
             rotation=rotation,
-            orientation=orientation,
             tolerance=tolerance,
             centerMesh=False,
         )
