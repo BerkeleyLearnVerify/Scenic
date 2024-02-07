@@ -25,7 +25,7 @@ def lazyTestScenario(expr, offset="0"):
         vf = VectorField("Foo", lambda pos: 2 * pos.x)
         x = ({offset} relative to vf).yaw
         ego = new Object at 0.5 @ 0, with output {expr}
-    """
+        """
     )
 
 
@@ -225,7 +225,7 @@ def test_method():
         field = VectorField("Foo", lambda pos: pos[1])
         ang = field[0 @ Range(1, 2)].yaw
         ego = new Object with output ang
-    """
+        """
     )
     angles = [sampleEgo(scenario).output for i in range(60)]
     assert all(1 <= x <= 2 for x in angles)
@@ -243,7 +243,7 @@ def test_method_lazy():
                 return -arg
         vf = VectorField("Baz", lambda pos: 1 + pos.x)
         ego = new Object with foo Foo().bar(Range(100, 200) * (0 relative to vf).yaw)
-    """
+        """
     )
     values = [sampleEgo(scenario).foo for i in range(60)]
     assert all(-200 <= x <= -100 for x in values)
@@ -262,7 +262,7 @@ def test_method_lazy_2():
                 return -arg.yaw * Range(100, 200)
         vf = VectorField("Baz", lambda pos: 1 + pos.x)
         ego = new Object with foo Foo().bar(0 relative to vf)
-    """
+        """
     )
     values = [sampleEgo(scenario).foo for i in range(60)]
     assert all(-200 <= x <= -100 for x in values)
@@ -276,7 +276,7 @@ def test_method_lazy_3():
         reg = PolylineRegion([0@0, 2@0])
         vf = VectorField('Foo', lambda pos: 1 + pos.x)
         ego = new Object with foo reg.distanceTo((1 @ (Range(0, 1) relative to vf).yaw))
-    """
+        """
     )
     fs = [sampleEgo(scenario).foo for i in range(60)]
     assert all(1 <= f <= 2 for f in fs)
@@ -294,7 +294,7 @@ def test_method_starred():
                 return sum(args)
         vs = Uniform([5], [-2, -3])
         ego = new Object with baz Foo().bar(Range(0, 1), *vs)
-    """
+        """
     )
     bs = [sampleEgo(scenario).baz for i in range(60)]
     assert all(5 <= b <= 6 or -5 <= b <= -4 for b in bs)
@@ -307,7 +307,7 @@ def test_attribute():
         """
         place = Uniform(1 @ 1, 2 @ 4, 3 @ 9)
         ego = new Object at place.x @ place.y
-    """
+        """
     )
     xs = [sampleEgo(scenario).position.x for i in range(100)]
     assert all(x == 1 or x == 2 or x == 3 for x in xs)
@@ -383,7 +383,7 @@ def test_list_param():
         """
         ego = new Object
         param p = [3, Uniform(1, 2)]
-    """
+        """
     )
     ts = [sampleParamP(scenario) for i in range(60)]
     assert all(type(t) is list for t in ts)
@@ -401,7 +401,7 @@ def test_list_param_lazy():
             x = 0 relative to vf
             param p = Uniform([0, x], [0, x*2])[1]
             ego = new Object
-        """
+            """
         )
 
 
@@ -419,7 +419,7 @@ def test_list_sliced():
         x = Uniform([1, 2, 3, 4], [5, 6, 7])
         i = DiscreteRange(0, 1)
         ego = new Object with foo x[i:i+2]
-    """
+        """
     )
     ss = [sampleEgo(scenario).foo for i in range(60)]
     opts = ([1, 2], [2, 3], [5, 6], [6, 7])
@@ -444,7 +444,7 @@ def test_list_nested():
         """
         mylist = Uniform(list(range(1000)), [1000])
         ego = new Object with foo Uniform(*mylist)
-    """
+        """
     )
     vs = [sampleEgo(scenario).foo for i in range(60)]
     assert 5 <= sum((v == 1000) for v in vs) <= 55
@@ -455,7 +455,7 @@ def test_list_nested_argument():
         """
         mylist = Uniform(list(range(1000)), [1, 1, 1, 1, 2000])
         ego = new Object with foo max(*mylist)
-    """
+        """
     )
     vs = [sampleEgo(scenario).foo for i in range(60)]
     assert 5 <= sum((v == 2000) for v in vs) <= 55
@@ -467,7 +467,7 @@ def test_list_filtered():
         mylist = [Range(-10, -5), Range(3, 7), Range(-1, 1)]
         filtered = filter(lambda x: x > 0, mylist)
         ego = new Object with foo Uniform(*filtered)
-    """
+        """
     )
     vs = [sampleEgo(scenario).foo for i in range(60)]
     assert all(v > 0 for v in vs)
@@ -488,7 +488,7 @@ def test_list_filtered_empty_1():
         mylist = [Range(-10, -5), Range(-3, 1)]
         filtered = filter(lambda x: x > 0, mylist)
         ego = new Object with foo Uniform(*filtered)
-    """
+        """
     )
     vs = [sampleEgo(scenario, maxIterations=100).foo for i in range(60)]
     assert all(0 <= v <= 1 for v in vs)
@@ -502,7 +502,7 @@ def test_list_filtered_empty_2():
         mylist = [Range(-10, -5), Range(-3, 1)]
         filtered = filter(lambda x: x > 0, mylist)
         ego = new Object with foo Uniform(*filtered, 2)
-    """
+        """
     )
     vs = [sampleEgo(scenario).foo for i in range(150)]
     assert all(0 <= v <= 1 or v == 2 for v in vs)
@@ -529,7 +529,7 @@ def test_tuple_iteration():
             data.append(item)
         ego = new Object at 2@2, with foo data
         require other.foo[1] == 3
-    """,
+        """,
         maxIterations=60,
     )
     assert type(ego.foo) is list
@@ -541,7 +541,7 @@ def test_tuple_param():
         """
         ego = new Object
         param p = tuple([3, Uniform(1, 2)])
-    """
+        """
     )
     ts = [sampleParamP(scenario) for i in range(60)]
     assert all(type(t) is tuple for t in ts)
@@ -557,7 +557,7 @@ def test_namedtuple():
         from collections import namedtuple
         Data = namedtuple("Data", ["bar", "baz"])
         ego = new Object with foo Data(bar=3, baz=Uniform(1, 2))
-    """
+        """
     )
     ts = [sampleEgo(scenario).foo for i in range(60)]
     assert all(t.bar == 3 for t in ts)
@@ -589,7 +589,7 @@ def test_iter():
             """
             for x in Uniform([1, 2], [3, 4]):
                 ego = new Object at x@0
-        """
+            """
         )
 
 
@@ -601,7 +601,7 @@ def test_control_flow():
                 ego = new Object
             else:
                 ego = new Object at 1@1
-        """
+            """
         )
 
 
@@ -648,7 +648,7 @@ def test_reproducibility():
         param foo = Uniform(1, 4, 9, 16, 25, 36)
         x = Range(0, 1)
         require x > 0.8
-    """
+        """
     )
     seeds = [random.randint(0, 100000) for i in range(10)]
     for seed in seeds:
@@ -714,7 +714,7 @@ def test_resample():
         """
         x = Range(0, 1)
         ego = new Object at x @ resample(x)
-    """
+        """
     )
     pos = sampleEgo(scenario).position
     assert pos.x != pos.y
@@ -733,7 +733,7 @@ def test_shared_dependency():
         """
         x = Range(-1, 1)
         ego = new Object at (x * x) @ 0
-    """
+        """
     )
     xs = [sampleEgo(scenario).position.x for i in range(60)]
     assert all(0 <= x <= 1 for x in xs)
@@ -748,7 +748,7 @@ def test_shared_dependency_lazy_1():
         x = (1 relative to vf).yaw
         y = Uniform(0, x)
         ego = new Object with foo y, with bar y
-    """
+        """
     )
     for i in range(60):
         ego = sampleEgo(scenario)
@@ -763,7 +763,7 @@ def test_shared_dependency_lazy_2():
         x = Range(0, 1) relative to vf
         ego = new Object at 1 @ 0, facing x
         other = new Object at -1 @ 0, facing x
-    """
+        """
     )
     for i in range(60):
         scene = sampleScene(scenario, maxIterations=1)
@@ -792,7 +792,7 @@ def test_object_expression():
         v = Uniform((new Object at Range(-2,-1) @ 0), new Object at Range(1,2) @ 5).position.x
         ego = new Object facing v, at 0 @ 10
         require abs(v) > 1.5
-    """
+        """
     )
     for i in range(3):
         scene = sampleScene(scenario, maxIterations=50)

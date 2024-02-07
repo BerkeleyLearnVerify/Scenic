@@ -15,7 +15,7 @@ def test_containment_in():
         """
         workspace = Workspace(PolygonalRegion([0@0, 2@0, 2@2, 0@2]))
         ego = new Object in workspace
-    """
+        """
     )
     # Sampling should only require 1 iteration after pruning
     xs = [sampleEgo(scenario).position.x for i in range(60)]
@@ -35,7 +35,7 @@ def test_containment_2d_region():
         """
         workspace = Workspace(PolygonalRegion([0@0, 2@0, 2@2, 0@2]))
         ego = new Object on workspace
-    """
+        """
     )
     # Sampling should only require 1 iteration after pruning
     xs = [sampleEgo(scenario).position.x for i in range(60)]
@@ -47,7 +47,7 @@ def test_containment_2d_region():
         """
         workspace = Workspace(PolygonalRegion([0@0, 2@0, 2@2, 0@2]))
         ego = new Object in workspace, with height 0.1
-    """
+        """
     )
     # Sampling should only require 1 iteration after pruning
     xs = [sampleEgo(scenario).position.x for i in range(60)]
@@ -64,7 +64,7 @@ def test_containment_2d_region():
 
         workspace = Workspace(PolygonalRegion([0@0, 2@0, 2@2, 0@2]))
         ego = new TestObject on workspace, with height Range(0.1,0.5)
-    """
+        """
     )
     # Sampling should fail ~30.56% of the time, so
     # 34 rejections are allowed to get the failure probability
@@ -81,7 +81,7 @@ def test_containment_in_polyline():
         workspace = Workspace(PolygonalRegion([0@0, 2@0, 2@2, 0@2]))
         line = PolylineRegion([0@0, 1@1, 2@0])
         ego = new Object in line, facing 0
-    """
+        """
     )
     # Sampling should only require 1 iteration after pruning
     xs = [sampleEgo(scenario).position.x for i in range(60)]
@@ -100,7 +100,7 @@ def test_relative_heading_require_visible():
         ego = new Object in union, facing vf                # Objects can be in either cell
         other = new Object in union, facing vf, with requireVisible True
         require (relative heading of other) >= 60 deg   # Forces ego in cell 1, other in cell 2
-    """
+        """
     )
     # Sampling should only require 1 iteration after pruning
     xs = [sampleEgo(scenario).position.x for i in range(60)]
@@ -119,7 +119,7 @@ def test_relative_heading_visible_from():
         ego = new Object in union, facing vf                # Objects can be in either cell
         other = new Object in union, facing vf, visible from ego
         require (relative heading of other) >= 60 deg   # Forces ego in cell 1, other in cell 2
-    """
+        """
     )
     # Sampling should only require 1 iteration after pruning
     xs = [sampleEgo(scenario).position.x for i in range(60)]
@@ -141,7 +141,7 @@ def test_relative_heading_distance():
         other = new Object in union, facing vf
         require (relative heading of other) >= 60 deg       # Forces ego in cell 1, other cell 2/3
         require (distance to other) <= 35                   # Forces other in cell 2
-    """
+        """
     )
     # Sampling should only require 1 iteration after pruning
     xs = [sampleEgo(scenario).position.x for i in range(60)]
@@ -188,7 +188,7 @@ def test_visibility_pruning():
         foo = new Object in workspace, with requireVisible True,
             with shape SpheroidShape(dimensions=(0.2,0.2,0.2))
         param p = foo.position
-    """
+        """
     )
     positions = [sampleParamP(scenario, maxIterations=100) for i in range(30)]
     assert all(pos.distanceTo(Vector(0, 0, 0)) <= 1.1 for pos in positions)
@@ -202,7 +202,7 @@ def test_visibility_pruning():
         foo = new Object in workspace, visible,
             with shape SpheroidShape(dimensions=(0.2,0.2,0.2))
         param p = foo.position
-    """
+        """
     )
     positions = [sampleParamP(scenario, maxIterations=100) for i in range(30)]
     assert all(pos.distanceTo(Vector(0, 0, 0)) <= 1.1 for pos in positions)
@@ -219,7 +219,7 @@ def test_visibility_pruning_cyclical():
         workspace = Workspace(PolygonalRegion([0@0, 100@0, 100@100, 0@100]))
         foo = new Object with requireVisible True, in workspace
         ego = new Object visible from foo, in workspace
-    """
+        """
     )
 
     sampleEgo(scenario, maxIterations=100)
@@ -231,7 +231,7 @@ def test_checkCyclical():
         workspace = Workspace(PolygonalRegion([0@0, 100@0, 100@100, 0@100]))
         foo = new Object in workspace
         ego = new Object in workspace
-    """
+        """
     )
     assert not checkCyclical(scenario.objects[1].position, scenario.objects[0].position)
 
@@ -240,7 +240,7 @@ def test_checkCyclical():
         workspace = Workspace(PolygonalRegion([0@0, 100@0, 100@100, 0@100]))
         foo = new Object with requireVisible True, in workspace
         ego = new Object visible from foo
-    """
+        """
     )
 
     assert checkCyclical(scenario.objects[1].position, scenario.objects[0].visibleRegion)
