@@ -508,9 +508,9 @@ def test_visible():
     for i in range(30):
         scene = sampleScene(scenario, maxIterations=10)
         ego, base = scene.objects
-        assert ego.position.distanceTo(base.position) <= 10
-        assert ego.position.x >= base.position.x
-        assert ego.position.y >= base.position.y
+        assert ego.position.distanceTo(base.position) <= 10 + math.sqrt(3 * 0.5**2)
+        assert ego.position.x >= base.position.x - math.sqrt(3 * 0.5**2)
+        assert ego.position.y >= base.position.y - math.sqrt(3 * 0.5**2)
 
 
 def test_visible_no_ego():
@@ -525,7 +525,9 @@ def test_visible_from_point():
     )
     for i in range(20):
         scene = sampleScene(scenario, maxIterations=10)
-        assert scene.egoObject.position.distanceTo(Vector(300, 200)) <= 2
+        assert scene.egoObject.position.distanceTo(Vector(300, 200)) <= 2 + math.sqrt(
+            3 * 0.5**2
+        )
 
 
 def test_visible_from_point_3d():
@@ -535,7 +537,9 @@ def test_visible_from_point_3d():
     )
     for i in range(20):
         scene = sampleScene(scenario, maxIterations=10)
-        assert scene.egoObject.position.distanceTo(Vector(300, 200, 500)) <= 2
+        assert scene.egoObject.position.distanceTo(
+            Vector(300, 200, 500)
+        ) <= 2 + math.sqrt(3 * 0.5**2)
 
 
 def test_visible_from_oriented_point():
@@ -548,9 +552,9 @@ def test_visible_from_oriented_point():
     for i in range(20):
         scene = sampleScene(scenario, maxIterations=10)
         pos = scene.egoObject.position
-        assert pos.distanceTo(base) <= 5
-        assert pos.x <= base.x
-        assert pos.y >= base.y
+        assert pos.distanceTo(base) <= 5 + math.sqrt(3 * 0.5**2)
+        assert pos.x <= base.x + math.sqrt(3 * 0.5**2)
+        assert pos.y >= base.y - math.sqrt(3 * 0.5**2)
 
 
 @pytest.mark.slow

@@ -1630,7 +1630,7 @@ def VisibleFrom(base):
 
             position = Region.uniformPointIn(buffered_vr)
 
-            return {"position": position, "_observingEntity": base}
+        return {"position": position, "_observingEntity": base}
 
     return Specifier(
         "Visible/VisibleFrom",
