@@ -10,7 +10,7 @@ This repo contains the code to the Scenic-Gazebo interface applied to Sawyer rob
 ## Instructions for Use
 
  1. Before running Scenic, start the Sawyer simulator and unpause the
-    simulation.
+    simulation. Remember to set the `electric_gripper` field for the launch file to be true.
  2. Open a separate terminal, run `scenic <YOUR PROGRAM>.scenic --simulate`(see https://scenic-lang.readthedocs.io/en/latest/options.html for more
     command-line options). See the files in the `demos` foler for examples.
  3. In general, any launch files should be run before starting Scenic.
@@ -65,3 +65,7 @@ This repo contains the code to the Scenic-Gazebo interface applied to Sawyer rob
 	- A set of actions for the Sawyer robot is implemented as well as behaviors
     - Importantly, the code in the Sawyer API that does the waiting-until-finish for each action is implemented as a behavior, `SawyerWaitFor` , in `behavior.scenic` , and the actions in `actions.py` does not wait for the action to finish.
     - To perform actions such as moving the end effector, where it is needed to wait for the sawyer to finish moving before performing the next action, the user should call the behavior implemented in the `behavior.scenic` file that has the same name as the action. This is because the wait code for the actions are implemented as a behavior, and the way actions are usually performed is to put the `take` clause that performs the action and the `do` clause that performs the waiting behavior in the same behavior. See `behavior.scenic` for examples.
+
+
+## Other Notes:
+- The `gazebo_models` folder contains the description files for models that can be added to the simulation. The folder is a clone of this repo: https://github.com/osrf/gazebo_models

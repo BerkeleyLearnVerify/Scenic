@@ -5,10 +5,11 @@ This repo contains the code to the Scenic-Gazebo interface.
  - Scenic 3 is required, as well as Python 3.8+, ROS Noetic, and Ubuntu 20.04.
  - Before you install, it might be good to consider installing Scenic outside any virtual environment for Gazebo/ROS purposes since Gazebo/ROS utilizes some Ubuntu native packages that is difficult to get from conda/pip
  - When installing Scenic, please do the "Repository" install outlined in this page: https://scenic-lang.readthedocs.io/en/latest/quickstart.html#installation 
+ - In terms of using ROS and Gazebo, it should be fine to control your robot without ROS. However, Gazebo needs to be started with ROS.
 
 ## Instructions for Use
 
- 1. Before running Scenic, start the Gazebo simulator with ROS and unpause the
+ 1. Before running Scenic, start the Gazebo simulator with ROS, launch and bringup any ROS stack you need, and unpause the
     simulation. 
  2. Open a separate terminal, run `scenic <YOUR PROGRAM>.scenic --simulate`(see https://scenic-lang.readthedocs.io/en/latest/options.html for more
     command-line options). Make sure you sourced the corresponding `.bash` or `.zsh` needed to run your simulaton in this terminal, too!.
@@ -70,3 +71,8 @@ This repo contains the code to the Scenic-Gazebo interface.
 ## On Implementing Actions and Behaviors:
 - One important thing when adapting your robot to the Gazebo interface is to separate out any code that handles waiting-until-finish for each action when implementing actions in `actions.py` . This is because it is important to not have any code that blocks execution of Scenic in the background. 
 - Instead, implement your action, and write the wait code as a behavior in `behavior.scenic`, and chain the `take` clause for the action and the `do` clause for the wait behavior inside another behavior, and call this new behavior to perform the action in your Scenic program. See the Sawyer implementation as an example.
+- In general, any kind of complex action/function from the robot's API that will block code execution should be written as a `behavior` rather than an `Action`.
+-
+-
+## Other notes: 
+- The `gazebo_models` contains object models that can be added to the simulation. This folder is a clone of this repo: https://github.com/osrf/gazebo_models
