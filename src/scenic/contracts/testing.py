@@ -203,6 +203,7 @@ class SimulationTesting(Testing):
 
         # Step contract till termination
         with simulator.simulateStepped(scene, maxSteps=self.maxSteps) as simulation:
+            print(self.contract.max_lookahead)
             # Populate with lookahead values
             for _ in range(self.contract.max_lookahead):
                 # Advance simulation one time step, catching any rejections
@@ -217,16 +218,17 @@ class SimulationTesting(Testing):
                         TestResult.R, [], self.scenario, scene, simulation, start_time
                     )
 
+                # If the simulation finished, move on.
+                if simulation.result:
+                    break
+
                 # Update all base value windows
                 for vw_name, vw in base_value_windows.items():
                     vw.update()
 
                 sim_step += 1
 
-                if simulation.result:
-                    break
-
-            # Finish simulation
+            # Run remaining simulation
             while eval_step <= sim_step:
                 # If simulation not terminated, advance simulation one time step, catching any rejections
                 if not simulation.result:
@@ -241,12 +243,16 @@ class SimulationTesting(Testing):
                             TestResult.R, [], self.scenario, scene, simulation, start_time
                         )
 
-                    # Update all base value windows
-                    for vw_name, vw in base_value_windows.items():
-                        vw.update()
+                    # If the simulation didn't finish, update value windows
+                    if not simulation.result:
+                        # Update all base value windows
+                        for vw_name, vw in base_value_windows.items():
+                            vw.update()
 
-                    # Increment simulation step
-                    sim_step += 1
+                        # Increment simulation step
+                        sim_step += 1
+
+                print(value_windows["lead_dist"].window)
 
                 # Check all assumptions and guarantees
                 prop_params = [eval_step] + list(value_windows.values())
@@ -265,7 +271,7 @@ class SimulationTesting(Testing):
                     if av == rv_ltl.B4.FALSE
                 ]
 
-                if violated_assumptions:
+                if violated_assumptions and False:
                     return self._createTestData(
                         TestResult.A,
                         violated_assumptions,
