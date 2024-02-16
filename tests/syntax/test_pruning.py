@@ -4,7 +4,7 @@ import random
 import pytest
 
 from scenic.core.errors import InconsistentScenarioError
-from scenic.core.pruning import checkCyclical
+from scenic.core.pruning import checkCyclicalVisiblityPruning
 from scenic.core.vectors import Vector
 from tests.utils import compileScenic, sampleEgo, sampleParamP
 
@@ -210,10 +210,7 @@ def test_visibility_pruning():
 
 
 def test_visibility_pruning_cyclical():
-    """A case where a cyclical dependency could be introduced if pruning is not done carefully.
-
-    NOTE: We don't currently prune this case so this test is a sentinel for future behavior.
-    """
+    """A case where a cyclical dependency could be introduced if pruning is not done carefully."""
     scenario = compileScenic(
         """
         workspace = Workspace(PolygonalRegion([0@0, 100@0, 100@100, 0@100]))
@@ -223,24 +220,3 @@ def test_visibility_pruning_cyclical():
     )
 
     sampleEgo(scenario, maxIterations=100)
-
-
-def test_checkCyclical():
-    scenario = compileScenic(
-        """
-        workspace = Workspace(PolygonalRegion([0@0, 100@0, 100@100, 0@100]))
-        foo = new Object in workspace
-        ego = new Object in workspace
-        """
-    )
-    assert not checkCyclical(scenario.objects[1].position, scenario.objects[0].position)
-
-    scenario = compileScenic(
-        """
-        workspace = Workspace(PolygonalRegion([0@0, 100@0, 100@100, 0@100]))
-        foo = new Object with requireVisible True, in workspace
-        ego = new Object visible from foo
-        """
-    )
-
-    assert checkCyclical(scenario.objects[1].position, scenario.objects[0].visibleRegion)

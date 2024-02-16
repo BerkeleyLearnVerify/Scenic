@@ -34,6 +34,7 @@ from scenic.core.regions import (
     MeshSurfaceRegion,
     MeshVolumeRegion,
     PolygonalRegion,
+    Region,
     VoxelRegion,
 )
 from scenic.core.type_support import TypecheckedDistribution
@@ -400,7 +401,7 @@ def pruneVisibility(scenario, verbosity):
             if (
                 base is not ego.visibleRegion
                 and not needsSampling(ego.visibleRegion)
-                and not checkCyclical(base, ego.visibleRegion)
+                and not checkCyclicalVisiblityPruning(base, ego.visibleRegion)
             ):
                 if verbosity >= 1:
                     print(
@@ -415,7 +416,9 @@ def pruneVisibility(scenario, verbosity):
             if (
                 base is not obj._observingEntity.visibleRegion
                 and not needsSampling(obj._observingEntity.visibleRegion)
-                and not checkCyclical(base, obj._observingEntity.visibleRegion)
+                and not checkCyclicalVisiblityPruning(
+                    base, obj._observingEntity.visibleRegion
+                )
             ):
                 if verbosity >= 1:
                     print(
@@ -565,40 +568,36 @@ def percentagePruned(base, newBase):
     return None
 
 
-def checkCyclical(A, B):
-    """Check for a potential circular dependency
+def checkCyclicalVisiblityPruning(A, B):
+    """Check for a potential new circular dependency when visibility pruning.
+
+    Returns True if a new circular dependency would be introduced if A
+    depended on a PointInRegionDistribution over B. In other words, check
+    if B depends on A.
+
+    A should be any samplable and B should be some region.
 
     Returns True if the scenario would have a circular dependency
-    if A depended on B.
+    if A depended on a PointInRegionDistribution over B.
     """
-    state = collections.defaultdict(lambda: 0)
+    assert isinstance(B, Region)
 
-    def dfs(target):
-        # Check if the target is already completed/in-process
-        if state[target] == 2:
-            return False
-        elif state[target] == 1:
+    deps = set()
+    unseen_deps = conditionedDeps(B)
+
+    while unseen_deps:
+        target_dep = unseen_deps.pop(0)
+        new_deps = conditionedDeps(target_dep)
+
+        if any(
+            isinstance(d, regions.PointInRegionDistribution) and d is B for d in new_deps
+        ):
             return True
 
-        # Set to in-process
-        state[target] = 1
+        unseen_deps += [d for d in unseen_deps if d not in deps]
+        deps.add(new_deps)
 
-        # Recurse on children
-        deps = conditionedDeps(target)
-
-        for child in deps:
-            if child is A:
-                return True
-
-            if dfs(child):
-                return True
-
-        # Set to completed
-        state[target] = 2
-
-        return False
-
-    return dfs(B)
+    return False
 
 
 def conditionedDeps(samp):
