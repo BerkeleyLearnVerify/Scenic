@@ -390,18 +390,21 @@ def pruneVisibility(scenario, verbosity):
 
         # Define a helper function to buffer an oberver's visibleRegion, resulting
         # in a region that contains all points that could feasibly be the position
-        # of obj, if it is visible from the observer.
+        # of obj, if it is visible from the observer. Does a more thorough job if
+        # we'll get a fixed result at pruning time, and makes a very fast attempt
+        # if it the result will be computed at sample time.
         def bufferHelper(viewRegion):
-            return viewRegion._bufferOverapproximate(obj.radius / 2, PRUNING_PITCH)
+            if needsSampling(viewRegion):
+                return viewRegion._bufferOverapproximate(obj.radius / 2, 1)
+            else:
+                return viewRegion._bufferOverapproximate(obj.radius / 2, PRUNING_PITCH)
 
         # Prune based off visibility/non-visibility requirements
         if obj.requireVisible:
             # We can restrict the base region to the buffered visible region
             # of the ego.
-            if (
-                base is not ego.visibleRegion
-                and not needsSampling(ego.visibleRegion)
-                and not checkCyclicalVisiblityPruning(base, ego.visibleRegion)
+            if base is not ego.visibleRegion and not checkCyclicalVisiblityPruning(
+                base, ego.visibleRegion
             ):
                 if verbosity >= 1:
                     print(
@@ -415,7 +418,6 @@ def pruneVisibility(scenario, verbosity):
             # region is fixed, to avoid creating it at every timestep.
             if (
                 base is not obj._observingEntity.visibleRegion
-                and not needsSampling(obj._observingEntity.visibleRegion)
                 and not checkCyclicalVisiblityPruning(
                     base, obj._observingEntity.visibleRegion
                 )
@@ -595,7 +597,7 @@ def checkCyclicalVisiblityPruning(A, B):
             return True
 
         unseen_deps += [d for d in unseen_deps if d not in deps]
-        deps.add(new_deps)
+        deps.update(new_deps)
 
     return False
 

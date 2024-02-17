@@ -1777,25 +1777,29 @@ class MeshVolumeRegion(MeshRegion):
     def _bufferOverapproximate(self, minBuffer, pitch):
         """Compute an overapproximation of this region buffered.
 
-        Buffer as little as possible, but at least minBuffer, outputting
-        a VoxelRegion.
+        Buffer as little as possible, but at least minBuffer. If pitch is
+        less than 1, the output is a VoxelRegion. If pitch is 1, a fast
+        path is taken which returns a MeshVolumeRegion.
         """
-        # Compute a voxel overapproximation of the mesh. Technically this is not
-        # an overapproximation, but one dilation with a rank 3 structuring unit
-        # with connectivity 3 is. To simplify, we just dilate one additional time
-        # than needed.
-        target_pitch = pitch * max(self.mesh.extents)
-        voxelized_mesh = self.voxelized(target_pitch, lazy=True)
+        if pitch >= 1:
+            breakpoint()
+        else:
+            # Compute a voxel overapproximation of the mesh. Technically this is not
+            # an overapproximation, but one dilation with a rank 3 structuring unit
+            # with connectivity 3 is. To simplify, we just dilate one additional time
+            # than needed.
+            target_pitch = pitch * max(self.mesh.extents)
+            voxelized_mesh = self.voxelized(target_pitch, lazy=True)
 
-        # Dilate the voxel region. Dilation is done with a rank 3 structuring unit with
-        # connectivity 3 (a 3x3x3 cube of voxels). Each dilation pass must dilate by at
-        # least pitch. Therefore we must make at least ceil(minBuffer/pitch) passes to
-        # guarantee dilating at least minBuffer. We also add 1 iteration for the reasons above.
-        iterations = math.ceil(minBuffer / pitch) + 1
+            # Dilate the voxel region. Dilation is done with a rank 3 structuring unit with
+            # connectivity 3 (a 3x3x3 cube of voxels). Each dilation pass must dilate by at
+            # least pitch. Therefore we must make at least ceil(minBuffer/pitch) passes to
+            # guarantee dilating at least minBuffer. We also add 1 iteration for the reasons above.
+            iterations = math.ceil(minBuffer / pitch) + 1
 
-        dilated_mesh = voxelized_mesh.dilation(iterations=iterations)
+            dilated_mesh = voxelized_mesh.dilation(iterations=iterations)
 
-        return dilated_mesh
+            return dilated_mesh
 
     @cached_method
     def getSurfaceRegion(self):
