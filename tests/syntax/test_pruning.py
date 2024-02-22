@@ -4,7 +4,6 @@ import random
 import pytest
 
 from scenic.core.errors import InconsistentScenarioError
-from scenic.core.pruning import checkCyclicalVisiblityPruning
 from scenic.core.vectors import Vector
 from tests.utils import compileScenic, sampleEgo, sampleParamP
 

@@ -1613,29 +1613,15 @@ def VisibleFrom(base):
     if not isA(base, Point):
         raise TypeError('specifier "visible from O" with O not a Point')
 
-    def helper(self):
-        if mode2D:
-            position = Region.uniformPointIn(base.visibleRegion)
-        else:
-            # We can limit the potential positions to an overapproximation of the
-            # visible region.
-            hw = self.width / 2
-            hl = self.length / 2
-            hh = self.height / 2
-            radius = hypot(hw, hl, hh)
-
-            buffered_vr = base.visibleRegion._bufferOverapproximate(
-                radius / 2, BUFFERING_PITCH
-            )
-
-            position = Region.uniformPointIn(buffered_vr)
-
-        return {"position": position, "_observingEntity": base}
+    if mode2D:
+        position = Region.uniformPointIn(base.visibleRegion)
+    else:
+        position = Region.uniformPointIn(everywhere)
 
     return Specifier(
         "Visible/VisibleFrom",
         {"position": 3, "_observingEntity": 1},
-        DelayedArgument({"width", "length", "height"}, helper),
+        {"position": position, "_observingEntity": base},
     )
 
 

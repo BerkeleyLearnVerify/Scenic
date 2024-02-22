@@ -184,6 +184,14 @@ class Region(Samplable, ABC):
     def sampleGiven(self, value):
         return self
 
+    def _trueContainsPoint(self, point) -> bool:
+        """Whether or not this region could produce point when sampled.
+
+        By default this method calls `containsPoint`, but should be overwritten if
+        `containsPoint` does not properly represent the points that can be sampled.
+        """
+        return self.containsPoint(point)
+
     ## Generic Methods (not to be overriden by subclasses) ##
     @cached_method
     def containsRegion(self, reg, tolerance=0):
@@ -402,6 +410,7 @@ class IntersectionRegion(Region):
         self.sampler = sampler
 
     def sampleGiven(self, value):
+        breakpoint()
         regs = [value[reg] for reg in self.regions]
         # Now that regions have been sampled, attempt intersection again in the hopes
         # there is a specialized sampler to handle it (unless we already have one)
@@ -464,31 +473,40 @@ class IntersectionRegion(Region):
     @staticmethod
     def genericSampler(intersection):
         regs = intersection.regions
+        # Filter out all regions with known dimensionality greater than the minimum
+        known_dim_regions = [
+            r.dimensionality for r in regs if r.dimensionality is not None
+        ]
+        min_dim = min(known_dim_regions) if known_dim_regions else float("inf")
+        sampling_regions = [
+            r for r in regs if r.dimensionality is None or r.dimensionality <= min_dim
+        ]
 
-        # Get a candidate point from each region
-        points = []
-
+        # Try to sample a point from all sampling regions
         num_regs_undefined = 0
 
-        for reg in regs:
+        for reg in sampling_regions:
             try:
-                points.append(reg.uniformPointInner())
+                point = reg.uniformPointInner()
             except UndefinedSamplingException:
                 num_regs_undefined += 1
-                pass
+                continue
+            except RejectionException:
+                continue
 
-        if num_regs_undefined == len(regs):
+            if all(region._trueContainsPoint(point) for region in regs):
+                return point
+
+        # No points were successfully sampled.
+        # If all regions were undefined for sampling, raise the appropriate exception.
+        # Otherwise, reject.
+        if num_regs_undefined == len(sampling_regions):
             # All regions do not support sampling, so the
             # intersection doesn't either.
             raise UndefinedSamplingException(
-                f"All regions in {regs}"
+                f"All regions in {sampling_regions}"
                 " do not support sampling, so the intersection doesn't either."
             )
-
-        # Check each point for containment each region.
-        for point in points:
-            if all(region.containsPoint(point) for region in regs):
-                return point
 
         raise RejectionException(f"sampling intersection of Regions {regs}")
 
@@ -591,7 +609,7 @@ class UnionRegion(Region):
         point = target_reg.uniformPointInner()
 
         # Potentially reject based on containment of the sample
-        containment_count = sum(int(reg.containsPoint(point)) for reg in regs)
+        containment_count = sum(int(reg._trueContainsPoint(point)) for reg in regs)
 
         if random.random() < 1 - 1 / containment_count:
             raise RejectionException("rejected sample from UnionRegion")
@@ -670,7 +688,7 @@ class DifferenceRegion(Region):
     def genericSampler(difference):
         regionA, regionB = difference.regionA, difference.regionB
         point = regionA.uniformPointInner()
-        if regionB.containsPoint(point):
+        if regionB._trueContainsPoint(point):
             raise RejectionException(
                 f"sampling difference of Regions {regionA} and {regionB}"
             )
@@ -1779,10 +1797,15 @@ class MeshVolumeRegion(MeshRegion):
 
         Buffer as little as possible, but at least minBuffer. If pitch is
         less than 1, the output is a VoxelRegion. If pitch is 1, a fast
-        path is taken which returns a MeshVolumeRegion.
+        path is taken which returns a BoxRegion.
         """
         if pitch >= 1:
-            breakpoint()
+            # First extract the bounding box of the mesh, and then extend each dimension
+            # by minBuffer.
+            bounds = self.mesh.bounds
+            midpoint = numpy.mean(bounds, axis=0)
+            extents = numpy.diff(bounds, axis=0)[0] + 2 * minBuffer
+            return BoxRegion(position=toVector(midpoint), dimensions=list(extents))
         else:
             # Compute a voxel overapproximation of the mesh. Technically this is not
             # an overapproximation, but one dilation with a rank 3 structuring unit
@@ -2723,6 +2746,10 @@ class PolygonalRegion(Region):
     @distributionFunction
     def containsPoint(self, point):
         return self.footprint.containsPoint(point)
+
+    @distributionFunction
+    def _trueContainsPoint(self, point):
+        return point.z == self.z and self.containsPoint
 
     @distributionFunction
     def containsObject(self, obj):
