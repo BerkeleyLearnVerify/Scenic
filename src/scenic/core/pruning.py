@@ -386,7 +386,18 @@ def pruneVisibility(scenario, verbosity):
         position = currentPropValue(obj, "position")
         base, offset, pir_dist = matchInRegion(position)
 
-        if base is None or needsSampling(base) or offset is not None:
+        # Compute the maximum distance the object can be from the sampled point
+        if offset is not None:
+            _, maxDistance = supportInterval(offset.norm())
+        else:
+            maxDistance = 0
+
+        if (
+            base is None
+            or needsSampling(base)
+            or needsSampling(obj.radius)
+            or maxDistance is None
+        ):
             continue
 
         currBase = base
@@ -398,14 +409,15 @@ def pruneVisibility(scenario, verbosity):
         # of obj, if it is visible from the observer. If possible buffer exactly, otherwise
         # try to buffer approximately, and if that is also not feasible just return the viewRegion.
         def bufferHelper(viewRegion):
+            buffer_quantity = obj.radius / 2 + maxDistance
             if hasattr(viewRegion, "buffer"):
-                return viewRegion.buffer(obj.radius / 2)
+                return viewRegion.buffer(buffer_quantity)
             elif hasattr(viewRegion, "_bufferOverapproximate"):
                 if needsSampling(viewRegion):
-                    return viewRegion._bufferOverapproximate(obj.radius / 2, 1)
+                    return viewRegion._bufferOverapproximate(buffer_quantity, 1)
                 else:
                     return viewRegion._bufferOverapproximate(
-                        obj.radius / 2, PRUNING_PITCH
+                        buffer_quantity, PRUNING_PITCH
                     )
             else:
                 return viewRegion

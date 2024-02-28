@@ -217,9 +217,9 @@ class Region(Samplable, ABC):
         return self.containsRegionInner(reg, tolerance)
 
     @staticmethod
-    def uniformPointIn(region):
+    def uniformPointIn(region, tag=None):
         """Get a uniform `Distribution` over points in a `Region`."""
-        return PointInRegionDistribution(region)
+        return PointInRegionDistribution(region, tag=tag)
 
     def __contains__(self, thing) -> bool:
         """Check if this `Region` contains an object or vector."""
@@ -253,9 +253,10 @@ class Region(Samplable, ABC):
 class PointInRegionDistribution(VectorDistribution):
     """Uniform distribution over points in a Region"""
 
-    def __init__(self, region):
+    def __init__(self, region, tag=None):
         super().__init__(region)
         self.region = region
+        self.tag = tag
 
     def sampleGiven(self, value):
         return value[self.region].uniformPointInner()

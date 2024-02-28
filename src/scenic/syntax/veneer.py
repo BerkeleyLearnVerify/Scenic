@@ -1613,15 +1613,28 @@ def VisibleFrom(base):
     if not isA(base, Point):
         raise TypeError('specifier "visible from O" with O not a Point')
 
-    if mode2D:
-        position = Region.uniformPointIn(base.visibleRegion)
-    else:
-        position = Region.uniformPointIn(everywhere)
+    def helper(self):
+        if mode2D:
+            position = Region.uniformPointIn(base.visibleRegion)
+        else:
+            containing_region = (
+                currentScenario._workspace.region
+                if self.regionContainedIn is None
+                and currentScenario._workspace is not None
+                else self.regionContainedIn
+            )
+            position = (
+                Region.uniformPointIn(everywhere, tag="visible")
+                if containing_region is None
+                else Region.uniformPointIn(containing_region)
+            )
+
+        return {"position": position, "_observingEntity": base}
 
     return Specifier(
         "Visible/VisibleFrom",
         {"position": 3, "_observingEntity": 1},
-        {"position": position, "_observingEntity": base},
+        DelayedArgument({"regionContainedIn"}, helper),
     )
 
 

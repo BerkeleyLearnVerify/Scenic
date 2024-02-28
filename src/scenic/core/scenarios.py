@@ -22,7 +22,12 @@ from scenic.core.dynamics.behaviors import Behavior, Monitor
 from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
 from scenic.core.external_params import ExternalSampler
 from scenic.core.lazy_eval import needsLazyEvaluation
-from scenic.core.regions import AllRegion, EmptyRegion, convertToFootprint
+from scenic.core.regions import (
+    AllRegion,
+    EmptyRegion,
+    PointInRegionDistribution,
+    convertToFootprint,
+)
 from scenic.core.requirements import (
     BlanketCollisionRequirement,
     BoundRequirement,
@@ -366,6 +371,18 @@ class Scenario(_ScenarioPickleMixin):
                         raise InvalidScenarioError(
                             f"{oi} at {oi.position} intersects" f" {oj} at {oj.position}"
                         )
+            if isinstance(oi.position, PointInRegionDistribution) and isinstance(
+                oi.position.region, AllRegion
+            ):
+                if oi.position.tag == "visible":
+                    raise InvalidScenarioError(
+                        f"Object {oi} uses the visible specifier to specify position, but it lacks enough information to do so."
+                        f" The simplest solution to this is to define a workspace or specify position in some other fashion."
+                    )
+                else:
+                    raise InvalidScenarioError(
+                        f"Object {oi} has position sampled from everywhere."
+                    )
 
     def generate(self, maxIterations=2000, verbosity=0, feedback=None):
         """Sample a `Scene` from this scenario.
