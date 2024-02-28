@@ -410,7 +410,6 @@ class IntersectionRegion(Region):
         self.sampler = sampler
 
     def sampleGiven(self, value):
-        breakpoint()
         regs = [value[reg] for reg in self.regions]
         # Now that regions have been sampled, attempt intersection again in the hopes
         # there is a specialized sampler to handle it (unless we already have one)
@@ -2226,6 +2225,194 @@ class VoxelRegion(Region):
             new_encoding, transform=self.voxelGrid.transform
         )
         return VoxelRegion(voxelGrid=new_voxel_grid)
+
+    def mesh(self):
+        # Extract values for original voxel grid and the surface of the voxel grid.
+        dense_encoding = self.voxelGrid.encoding.dense
+        hpitch = self.voxelGrid.pitch[0] / 2
+        hollow_vr = trimesh.voxel.VoxelGrid(
+            trimesh.voxel.morphology.surface(self.voxelGrid.encoding),
+            transform=self.voxelGrid.transform,
+        )
+
+        surface_indices = numpy.argwhere(hollow_vr.encoding.dense == True)
+        surface_centers = hollow_vr.indices_to_points(hollow_vr.sparse_indices)
+
+        # Determine which faces should be added for each voxel in our extracted surface.
+        point_face_mask_list = []
+
+        def index_in_bounds(index):
+            return all((0, 0, 0) <= index) and all(index < dense_encoding.shape)
+
+        def actual_face(index):
+            return (
+                not index_in_bounds(target_index)
+                or not dense_encoding[tuple(target_index)]
+            )
+
+        for i in range(len(surface_indices)):
+            base_index = surface_indices[i]
+            base_center = surface_centers[i]
+
+            face_mask = [0] * 6
+
+            # Right
+            target_index = numpy.asarray(
+                [base_index[0] + 1, base_index[1], base_index[2]]
+            )
+            if actual_face(target_index):
+                # # Check for an existing interior/exterior face. If an interior is found,
+                # # wipe it. If an exterior is found, don't set this one.
+                # conflicting_points = [(p, fm) for p, fm in point_face_mask_list
+                #     if p[1] == base_index[1] and p[2] == base_index[2]]
+                face_mask[0] = True
+
+            # Left
+            target_index = numpy.asarray(
+                [base_index[0] - 1, base_index[1], base_index[2]]
+            )
+            if actual_face(target_index):
+                face_mask[1] = True
+
+            # Front
+            target_index = numpy.asarray(
+                [base_index[0], base_index[1] + 1, base_index[2]]
+            )
+            if actual_face(target_index):
+                face_mask[2] = True
+
+            # Back
+            target_index = numpy.asarray(
+                [base_index[0], base_index[1] - 1, base_index[2]]
+            )
+            if actual_face(target_index):
+                face_mask[3] = True
+
+            # Top
+            target_index = numpy.asarray(
+                [base_index[0], base_index[1], base_index[2] + 1]
+            )
+            if actual_face(target_index):
+                face_mask[4] = True
+
+            # Bottom
+            target_index = numpy.asarray(
+                [base_index[0], base_index[1], base_index[2] - 1]
+            )
+            if actual_face(target_index):
+                face_mask[5] = True
+
+            point_face_mask_list.append((base_center, face_mask))
+
+        # Construct triangles for mesh
+        triangles = []
+
+        for base_center, face_mask in point_face_mask_list:
+            # Right
+            if face_mask[0]:
+                triangles.append(
+                    [
+                        base_center + [hpitch, hpitch, -hpitch],
+                        base_center + [hpitch, hpitch, hpitch],
+                        base_center + [hpitch, -hpitch, hpitch],
+                    ]
+                )
+                triangles.append(
+                    [
+                        base_center + [hpitch, hpitch, -hpitch],
+                        base_center + [hpitch, -hpitch, hpitch],
+                        base_center + [hpitch, -hpitch, -hpitch],
+                    ]
+                )
+
+            # Left
+            if face_mask[1]:
+                triangles.append(
+                    [
+                        base_center + [-hpitch, hpitch, -hpitch],
+                        base_center + [-hpitch, -hpitch, hpitch],
+                        base_center + [-hpitch, hpitch, hpitch],
+                    ]
+                )
+                triangles.append(
+                    [
+                        base_center + [-hpitch, hpitch, -hpitch],
+                        base_center + [-hpitch, -hpitch, -hpitch],
+                        base_center + [-hpitch, -hpitch, hpitch],
+                    ]
+                )
+
+            # Front
+            if face_mask[2]:
+                triangles.append(
+                    [
+                        base_center + [hpitch, hpitch, -hpitch],
+                        base_center + [-hpitch, hpitch, hpitch],
+                        base_center + [hpitch, hpitch, hpitch],
+                    ]
+                )
+                triangles.append(
+                    [
+                        base_center + [hpitch, hpitch, -hpitch],
+                        base_center + [-hpitch, hpitch, -hpitch],
+                        base_center + [-hpitch, hpitch, hpitch],
+                    ]
+                )
+            # Back
+            if face_mask[3]:
+                triangles.append(
+                    [
+                        base_center + [hpitch, -hpitch, -hpitch],
+                        base_center + [hpitch, -hpitch, hpitch],
+                        base_center + [-hpitch, -hpitch, hpitch],
+                    ]
+                )
+                triangles.append(
+                    [
+                        base_center + [hpitch, -hpitch, -hpitch],
+                        base_center + [-hpitch, -hpitch, hpitch],
+                        base_center + [-hpitch, -hpitch, -hpitch],
+                    ]
+                )
+
+            # Top
+            if face_mask[4]:
+                triangles.append(
+                    [
+                        base_center + [hpitch, -hpitch, hpitch],
+                        base_center + [hpitch, hpitch, hpitch],
+                        base_center + [-hpitch, hpitch, hpitch],
+                    ]
+                )
+                triangles.append(
+                    [
+                        base_center + [hpitch, -hpitch, hpitch],
+                        base_center + [-hpitch, hpitch, hpitch],
+                        base_center + [-hpitch, -hpitch, hpitch],
+                    ]
+                )
+
+            # Bottom
+            if face_mask[5]:
+                triangles.append(
+                    [
+                        base_center + [hpitch, -hpitch, -hpitch],
+                        base_center + [-hpitch, hpitch, -hpitch],
+                        base_center + [hpitch, hpitch, -hpitch],
+                    ]
+                )
+                triangles.append(
+                    [
+                        base_center + [hpitch, -hpitch, -hpitch],
+                        base_center + [-hpitch, -hpitch, -hpitch],
+                        base_center + [-hpitch, hpitch, -hpitch],
+                    ]
+                )
+
+        out_mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
+        out_mesh.show()
+        assert out_mesh.is_volume
+        return out_mesh
 
     @property
     def AABB(self):
