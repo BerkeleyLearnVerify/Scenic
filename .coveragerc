@@ -1,5 +1,6 @@
 # .coveragerc to control coverage.py
 [run]
+branch = True
 omit =
     src/scenic/simulators/webots/WBT*.py
 
@@ -20,3 +21,6 @@ exclude_lines =
     @(abc\.)?abstractmethod
 
 ignore_errors = True
+show_missing = True
+skip_empty = True
+precision = 2
