@@ -27,6 +27,7 @@ import shapely.affinity
 import trimesh
 
 from scenic.core.distributions import (
+    FunctionDistribution,
     MultiplexerDistribution,
     RandomControlFlowError,
     Samplable,
@@ -869,9 +870,11 @@ class OrientedPoint(Point):
         "heading": PropertyDefault(
             {"orientation"},
             {"dynamic", "final"},
-            lambda self: self.yaw
-            if alwaysGlobalOrientation(self.parentOrientation)
-            else self.orientation.yaw,
+            lambda self: (
+                self.yaw
+                if alwaysGlobalOrientation(self.parentOrientation)
+                else self.orientation.yaw
+            ),
         ),
         "viewAngle": math.tau,  # Primarily for backwards compatibility. Set viewAngles instead.
         "viewAngles": PropertyDefault(
@@ -1328,67 +1331,125 @@ class Object(OrientedPoint):
     @cached_property
     def inradius(self):
         """A lower bound on the inradius of this object"""
-        # First check if all needed variables are defined. If so, we can
-        # compute the inradius exactly.
-        width, length, height = self.width, self.length, self.height
-        shape = self.shape
-        if not any(needsSampling(val) for val in (width, length, height, shape)):
-            shapeRegion = MeshVolumeRegion(
-                mesh=shape.mesh, dimensions=(width, length, height)
-            )
-            return shapeRegion.inradius
 
-        # If we havea uniform distribution over shapes and a supportInterval for each dimension,
-        # we can compute a supportInterval for this object's inradius
+        # Define a helper function that computes the support of the inradius,
+        # given the sub supports.
+        def inradiusSupport(width_s, length_s, height_s, shape_s):
+            # Unpack the dimension supports (and ignore the shape support)
+            min_width, max_width = width_s
+            min_length, max_length = length_s
+            min_height, max_height = height_s
 
-        # Define helper class
-        class InradiusHelper:
-            def __init__(self, support):
-                self.support = support
+            if None in [
+                min_width,
+                max_width,
+                min_length,
+                max_length,
+                min_height,
+                max_height,
+            ]:
+                # Can't get a bound on one or more dimensions, abort
+                return None, None
 
-            def supportInterval(self):
-                return self.support
+            min_bounds = np.array([min_width, min_length, min_height])
+            max_bounds = np.array([max_width, max_length, max_height])
 
-        # Extract bounds on all dimensions
-        min_width, max_width = supportInterval(width)
-        min_length, max_length = supportInterval(length)
-        min_height, max_height = supportInterval(height)
-
-        if None in [min_width, max_width, min_length, max_length, min_height, max_height]:
-            # Can't get a bound on one or more dimensions, abort
-            return 0
-
-        min_bounds = np.array([min_width, min_length, min_height])
-        max_bounds = np.array([max_width, max_length, max_height])
-
-        # Extract a list of possible shapes
-        if isinstance(shape, Shape):
-            shapes = [shape]
-        elif isinstance(shape, MultiplexerDistribution):
-            if all(isinstance(opt, Shape) for opt in shape.options):
-                shapes = shape.options
+            # Extract a list of possible shapes
+            if isinstance(self.shape, Shape):
+                shapes = [self.shape]
+            elif isinstance(self.shape, MultiplexerDistribution) and all(
+                isinstance(opt, Shape) for opt in self.shape.options
+            ):
+                shapes = self.shape.options
             else:
                 # Something we don't recognize, abort
-                return 0
+                return None, None
 
-        # Check that all possible shapes contain the origin
-        if not all(shape.containsCenter for shape in shapes):
-            # One or more shapes has inradius 0
-            return 0
+            # Get the inradius for each shape with the min and max bounds
+            min_distances = [
+                MeshVolumeRegion(mesh=shape.mesh, dimensions=min_bounds).inradius
+                for shape in shapes
+            ]
+            max_distances = [
+                MeshVolumeRegion(mesh=shape.mesh, dimensions=max_bounds).inradius
+                for shape in shapes
+            ]
 
-        # Get the inradius for each shape with the min and max bounds
-        min_distances = [
-            MeshVolumeRegion(mesh=shape.mesh, dimensions=min_bounds).inradius
-            for shape in shapes
-        ]
-        max_distances = [
-            MeshVolumeRegion(mesh=shape.mesh, dimensions=max_bounds).inradius
-            for shape in shapes
-        ]
+            distance_range = (min(min_distances), max(max_distances))
 
-        distance_range = (min(min_distances), max(max_distances))
+            return distance_range
 
-        return InradiusHelper(support=distance_range)
+        # Define a helper function that computes the actual inradius
+        @distributionFunction(support=inradiusSupport)
+        def inradiusActual(width, length, height, shape):
+            return MeshVolumeRegion(
+                mesh=shape.mesh, dimensions=(width, length, height)
+            ).inradius
+
+        # Return the inradius (possibly a distribution) with proper support information
+        return inradiusActual(self.width, self.length, self.height, self.shape)
+
+    @cached_property
+    def planarInradius(self):
+        """A lower bound on the planar inradius of this object.
+
+        This is defined as the inradius of the polygon of the occupiedSpace
+        of this object projected into the XY plane, assuming that pitch and
+        roll are both 0.
+        """
+
+        # Define a helper function that computes the support of the inradius,
+        # given the sub supports.
+        def planarInradiusSupport(width_s, length_s, shape_s):
+            # Unpack the dimension supports (and ignore the shape support)
+            min_width, max_width = width_s
+            min_length, max_length = length_s
+
+            if None in [min_width, max_width, min_length, max_length]:
+                # Can't get a bound on one or more dimensions, abort
+                return None, None
+
+            min_bounds = np.array([min_width, min_length, 1])
+            max_bounds = np.array([max_width, max_length, 1])
+
+            # Extract a list of possible shapes
+            if isinstance(self.shape, Shape):
+                shapes = [self.shape]
+            elif isinstance(self.shape, MultiplexerDistribution) and all(
+                isinstance(opt, Shape) for opt in self.shape.options
+            ):
+                shapes = self.shape.options
+            else:
+                # Something we don't recognize, abort
+                return None, None
+
+            # Get the inradius of the projected for each shape with the min and max bounds
+            min_distances = [
+                MeshVolumeRegion(
+                    mesh=shape.mesh, dimensions=min_bounds
+                ).boundingPolygon.inradius
+                for shape in shapes
+            ]
+            max_distances = [
+                MeshVolumeRegion(
+                    mesh=shape.mesh, dimensions=max_bounds
+                ).boundingPolygon.inradius
+                for shape in shapes
+            ]
+
+            distance_range = (min(min_distances), max(max_distances))
+
+            return distance_range
+
+        # Define a helper function that computes the actual planarInradius
+        @distributionFunction(support=planarInradiusSupport)
+        def planarInradiusActual(width, length, shape):
+            return MeshVolumeRegion(
+                mesh=shape.mesh, dimensions=(width, length, 1)
+            ).boundingPolygon.inradius
+
+        # Return the planar inradius (possibly a distribution) with proper support information
+        return planarInradiusActual(self.width, self.length, self.shape)
 
     @cached_property
     def surface(self):

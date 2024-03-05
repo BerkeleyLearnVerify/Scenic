@@ -90,7 +90,7 @@ def test_multiple_imports(runLocally):
             import helper
             ego = new Object
             import helper
-        """
+            """
         )
         assert len(scenario.objects) == 2
         scene = sampleScene(scenario)
@@ -107,7 +107,7 @@ def test_import_in_try(runLocally):
             finally:
                 y = 4
             ego = new Caerbannog at x @ y
-        """
+            """
         )
 
 
@@ -120,7 +120,7 @@ def test_import_in_except(runLocally):
             except ImportError:
                 from helper import Caerbannog
             ego = new Caerbannog
-        """
+            """
         )
 
 
@@ -146,7 +146,7 @@ def test_import_override_param():
         param helper_file = 'foo'
         import tests.syntax.helper
         ego = new Object
-    """
+        """
     )
     assert scene.params["helper_file"] != "foo"
 
@@ -178,7 +178,7 @@ def test_model_not_override_param():
         param helper_file = 'foo'
         model tests.syntax.helper
         ego = new Object
-    """
+        """
     )
     assert scene.params["helper_file"] == "foo"
 
@@ -189,7 +189,7 @@ def test_model_respects_all():
             """
             model tests.syntax.helper4
             ego = new Object with foo bar
-        """
+            """
         )
 
 
