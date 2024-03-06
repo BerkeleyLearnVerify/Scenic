@@ -3,6 +3,9 @@
 branch = True
 omit =
     src/scenic/simulators/webots/WBT*.py
+    examples/conftest.py
+    tests/*
+    */__init__.py
 
 [report]
 # Regexes for lines to exclude from consideration
