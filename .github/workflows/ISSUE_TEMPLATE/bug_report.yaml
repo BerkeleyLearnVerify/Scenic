@@ -15,15 +15,22 @@ body:
       label: System Details
       description: |
         Please provide the following system information to help us diagnose the bug.
+        1. Python Version
+        2. Scenic Version
+        3. Operating System / Platform
+        4. Simulator Version (Optional, only applies if bug is simular specific)
+
       placeholder: |
         1. Python Version: `python --version`
         2. Scenic Version: `scenic --version`
         3. Operating System / Platform: get from system preferences
+        4. Simulator Version: simulator version
 
         Example:
         1. Python Version: Python 3.11.7
         2. Scenic Version: Scenic 3.0.0b2
         3. Operating System / Platform: Apple M2 Pro macOS Sonoma 14.2.1
+        4. Simulator Version: CARLA 0.9.14
       validations:
         required: true
 
