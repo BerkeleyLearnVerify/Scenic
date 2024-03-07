@@ -1,0 +1,50 @@
+name: Simulator Failure
+description: A failure regarding Scenic interaction with a simulator
+labels: ["type: simulator", "status: triage"]
+
+body:
+    - type: markdown
+    attributes:
+      value: >
+        #### Thank you for contributing! Before reporting a simulator failure, please make sure it has no duplicate and/or has already been addressed by searching through [the existing and past issues](https://github.com/BerkeleyLearnVerify/Scenic/issues)
+
+  - type: textarea
+    attributes:
+    label: Simulator Details
+    description: |
+        Please provide the following simulator information to help us diagnose the issue.
+    placeholder: |
+        1. Simulator Version: simulator details
+        2. Operating System / Platform: get from system preferences
+        
+        Example:
+        1. Simulator Version: CARLA 0.9.14
+        2. Operating System / Platform: Apple M2 Pro macOS Sonoma 14.2.1
+    validations:
+    required: true
+    
+    - type: textarea
+      attributes:
+        label: Detailed Description
+        description: |
+          Please provide a clear and concise description of what the bug is and paste the error log below. Please rerun your simulation error with the `-b` parameter for a full stack trace.
+          It helps improving readability if the error log is wrapped in ```` ```triple quotes blocks``` ````.
+
+          Related data files (images, videos, etc) should be attached below as well. If the data files are too big, feel free to upload them to a online drive, share them and put the link below.
+        placeholder: |
+          A clear and concise description of what the bug is. You can rerun your Scenic simulation with `-b` to get a full stack trace.
+        
+          ```
+          # error full stack trace
+          ```
+      validations:
+        required: true
+  
+  - type: checkboxes
+  attributes:
+  label: Issue Submission Checklist
+  options:
+      - label: I report the issue, it's not a question
+      required: true
+      - label: I checked the open issues, forum, etc. and have not found any solution
+      - label: There is reproducer code and related data files (videos, images, online drive links, etc)
