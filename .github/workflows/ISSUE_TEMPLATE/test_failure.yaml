@@ -1,11 +1,13 @@
 name: Test Failure
 description: A test failure in CI
-labels: ["type: test", "status: triage"]
+labels:
+  - "type: test"
+  - "status: triage"
 
 body:
-    - type: markdown
+  - type: markdown
     attributes:
-        value: >
+      value: >
         #### Thank you for contributing! Before reporting a test failure, please make sure it has no duplicate and/or has already been addressed by searching through [the existing and past issues](https://github.com/BerkeleyLearnVerify/Scenic/issues)
 
   - type: input
@@ -15,6 +17,7 @@ body:
       description: A link to a Github Actions or Jenkins job with the failure
     validations:
       required: true
+
   - type: dropdown
     id: reproducible
     attributes:
@@ -30,7 +33,7 @@ body:
     id: branches
     attributes:
       label: Applicable branches
-      description: Branch names this failure has occurred on 
+      description: Branch names this failure has occurred on
     validations:
       required: true
 
@@ -51,10 +54,7 @@ body:
       required: true
 
   - type: checkboxes
-  attributes:
-  label: Issue Submission Checklist
-  options:
-      - label: I report the issue, it's not a question
-      required: true
-      - label: I checked the open issues, forum, etc. and have not found any solution
-      - label: There is reproducer code and related data files (videos, images, online drive links, etc)
+    attributes:
+      label: Issue Submission Checklist
+      options:
+        - label: I checked the open issues, forum, etc. and have not found any solution
