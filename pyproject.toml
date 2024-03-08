@@ -122,4 +122,6 @@ extend_skip_glob = [
 
 [tool.pytest.ini_options]
 norecursedirs = ["examples"]
-addopts = "--cov ."
+
+[tool.coverage.run]
+source = ["."]
