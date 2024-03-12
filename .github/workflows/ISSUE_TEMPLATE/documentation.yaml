@@ -8,13 +8,13 @@ body:
   - type: markdown
     attributes:
       value: >
-        #### Thank you for contributing! Before submitting a doc issue, please make sure it has no duplicate and/or has already been addressed by searching through [the existing and past issues](https://github.com/BerkeleyLearnVerify/Scenic/issues)
+        #### Thank you for contributing! Before submitting a doc issue, please make sure it has no duplicate and has not already been addressed by searching through [the existing and past issues](https://github.com/BerkeleyLearnVerify/Scenic/issues)
 
   - type: textarea
     attributes:
       label: Describe the doc issue or enhancement
       description: >
-        Please provide a clear and concise description of what content in https://scenic-lang.readthedocs.io/ is an issue or needs enhancement.
+        Please provide a clear and concise description of what content in https://scenic-lang.readthedocs.io/ has an issue or needs enhancement.
       placeholder: |
         Link to location in the docs: https://scenic-lang.readthedocs.io/
     validations:
@@ -30,6 +30,6 @@ body:
     attributes:
       label: Issue Submission Checklist
       options:
-        - label: I report the issue, it's not a question
+        - label: I am reporting an issue, not asking a question
           required: true
         - label: I checked the open issues, forum, etc. and have not found any solution

@@ -8,7 +8,7 @@ body:
   - type: markdown
     attributes:
       value: >
-        #### Thank you for contributing! Before reporting a bug, please make sure it has no duplicate and/or has already been addressed by searching through [the existing and past issues](https://github.com/BerkeleyLearnVerify/Scenic/issues)
+        #### Thank you for contributing! Before reporting a bug, please make sure it has no duplicate and has not already been addressed by searching through [the existing and past issues](https://github.com/BerkeleyLearnVerify/Scenic/issues)
 
   - type: textarea
     attributes:
@@ -18,7 +18,7 @@ body:
         1. Python Version
         2. Scenic Version
         3. Operating System / Platform
-        4. Simulator Version (Optional, only applies if bug is simular specific)
+        4. Simulator Version (Optional, only applies if bug is simulator specific)
 
       placeholder: |
         1. Python Version: `python --version`
@@ -38,7 +38,7 @@ body:
     attributes:
       label: Detailed Description
       description: |
-        Please provide a clear and concise description of what the bug is and paste the error log below. Please rerun your simulation error with the `-b` parameter for a full stack trace.
+        Please provide a clear and concise description of what the bug is and paste the error log below. Please rerun your simulation error with the **`-b`** parameter for a full stack trace.
         It helps improving readability if the error log is wrapped in ```triple quotes blocks```.
       placeholder: |
         A clear and concise description of what the bug is. You can rerun your Scenic simulation with `-b` to get a full stack trace.
@@ -53,8 +53,8 @@ body:
     attributes:
       label: Steps To Reproduce
       description: |
-        Please provide a minimal example to help us reproduce the bug. Code should be wrapped with ```triple quotes blocks``` to improve readability. If the code is too long, please attach as a file or create and link a public gist: https://gist.github.com.
-        Related data files (images, videos, etc.) should be attached below as well. If the data files are too big, feel free to upload them to an online drive, share them, and put the link below.
+        Please provide a minimal example to help us reproduce the bug. Code should be wrapped with ```triple quotes blocks``` to improve readability. 
+        If it is not possible to reproduce the bug with a short self-contained Scenic or Python file, for example if a specific mesh is required, you can attach any required files below or include a link to them.
       placeholder: |
         1. First step to reproduce bug
         2. Second step, etc
@@ -69,7 +69,7 @@ body:
     attributes:
       label: Issue Submission Checklist
       options:
-        - label: I report the issue, it's not a question
+        - label: I am reporting an issue, not asking a question
           required: true
         - label: I checked the open issues, forum, etc. and have not found any solution
-        - label: There is reproducer code and related data files (videos, images, online drive links, etc)
+        - label: I have provided all necessary code, etc. to reproduce the issue
