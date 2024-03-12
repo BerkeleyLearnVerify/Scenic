@@ -7,7 +7,7 @@
 ### Checklist
 - [ ] I have tested the changes locally via `pytest` and/or other means
 - [ ] I have added or updated relevant documentation
-- [ ] I have auto formatted the code to black and istio conventions
+- [ ] I have autoformatted the code with black and isort
 - [ ] I have added test cases (if applicable)
 
 ### Additional Notes
