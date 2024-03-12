@@ -7,11 +7,8 @@ import builtins
 import numpy
 
 from scenic.core.geometry import normalizeAngle
-from scenic.syntax.veneer import *
-from scenic.syntax.translator import scenarioFromFile
 from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
 from scenic.domains.driving.actions import RegulatedControlAction
-from scenic.contracts.utils import runComponentsSimulation, leadDistance
 
 # ## World File ##
 ENVIRONMENT = scenarioFromFile(localPath("highway.scenic"), mode2D=True)
@@ -245,7 +242,7 @@ contract AccurateDistance(perception_distance, abs_dist_err=0.5):
         dist: float
 
     definitions:
-        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj is not self]
+        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj.position is not self.position]
         lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
         lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
         lead_dist = lead_distances[lead_car]
@@ -276,7 +273,7 @@ contract AccurateRelativeSpeeds(perception_distance, abs_dist_err=0.5, abs_speed
         dist: float
 
     definitions:
-        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj is not self]
+        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj.position is not self.position]
         lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
         lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
         lead_dist = lead_distances[lead_car]
@@ -314,22 +311,16 @@ ABS_SPEED_ERR = 4
 implement "EgoCar" with Car(STDDEV, TARGET_DIST, MAX_SPEED, MIN_DIST, MIN_SLOWDOWN) as car
 
 distance_testing = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR),\
-    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=1, verbose=False),
-    terminating after 1 samples
+    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
+    terminating after 100 samples
 
 speed_testing = test car.cs satisfies AccurateRelativeSpeeds(
-    PERCEPTION_DISTANCE, 
+    PERCEPTION_DISTANCE,
     abs_dist_err=ABS_DIST_ERR,
     abs_speed_err=ABS_SPEED_ERR),
-    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=1, verbose=False),
-    terminating after 1 samples
+    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
+    terminating after 100 samples
 
-SEED=5
-random.seed(SEED)
-numpy.random.seed(SEED)
-distance_evidence = verify distance_testing
+distance_assumption = assume car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR)
 
-SEED=5
-random.seed(SEED)
-numpy.random.seed(SEED)
-speed_evidence = verify speed_testing
+verify distance_assumption

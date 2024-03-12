@@ -6,10 +6,11 @@ import time
 import rv_ltl
 import scipy
 
-from scenic.contracts.contracts import ContractEvidence, ContractResult
+from scenic.contracts.contracts import ContractEvidence, ProbabilisticContractResult
 from scenic.contracts.utils import linkSetBehavior, lookuplinkedObject
 from scenic.core.distributions import RejectionException
 from scenic.core.dynamics import GuardViolation, RejectSimulationException
+import scenic.core.object_types
 from scenic.core.scenarios import Scenario
 
 
@@ -39,9 +40,7 @@ class Testing:
 
     def verify(self):
         evidence = self._newEvidence()
-        result = ProbabilisticContractResult(
-            self.contract.assumptions, self.contract.guarantees, evidence
-        )
+        result = ProbabilisticContractResult(self.contract, self.component, evidence)
 
         activeTermConditions = (
             self.termConditions if self.termConditions else self.reqConditions
@@ -203,33 +202,7 @@ class SimulationTesting(Testing):
 
         # Step contract till termination
         with simulator.simulateStepped(scene, maxSteps=self.maxSteps) as simulation:
-            print(self.contract.max_lookahead)
-            # Populate with lookahead values
-            for _ in range(self.contract.max_lookahead):
-                # Advance simulation one time step, catching any rejections
-                try:
-                    simulation.advance()
-                except (
-                    RejectSimulationException,
-                    RejectionException,
-                    GuardViolation,
-                ) as e:
-                    return self._createTestData(
-                        TestResult.R, [], self.scenario, scene, simulation, start_time
-                    )
-
-                # If the simulation finished, move on.
-                if simulation.result:
-                    break
-
-                # Update all base value windows
-                for vw_name, vw in base_value_windows.items():
-                    vw.update()
-
-                sim_step += 1
-
-            # Run remaining simulation
-            while eval_step <= sim_step:
+            while not simulation.result or eval_step < sim_step:
                 # If simulation not terminated, advance simulation one time step, catching any rejections
                 if not simulation.result:
                     try:
@@ -243,18 +216,23 @@ class SimulationTesting(Testing):
                             TestResult.R, [], self.scenario, scene, simulation, start_time
                         )
 
-                    # If the simulation didn't finish, update value windows
-                    if not simulation.result:
-                        # Update all base value windows
-                        for vw_name, vw in base_value_windows.items():
-                            vw.update()
+                    # If the simulation finished, no need to update value windows.
+                    if simulation.result:
+                        continue
 
-                        # Increment simulation step
-                        sim_step += 1
+                    # If the simulation didn't finish, update all base value windows
+                    for vw_name, vw in base_value_windows.items():
+                        vw.update()
 
-                print(value_windows["lead_dist"].window)
+                    # Increment simulation step
+                    sim_step += 1
 
-                # Check all assumptions and guarantees
+                    # If the sim_step isn't sufficiently ahead of eval_step, hold off on assumption/guarantee
+                    # evaluation for now.
+                    if sim_step - eval_step <= self.contract.max_lookahead:
+                        continue
+
+                # Check all assumptions
                 prop_params = [eval_step] + list(value_windows.values())
                 for a_iter, assumption in enumerate(assumptions_monitors):
                     try:
@@ -281,6 +259,7 @@ class SimulationTesting(Testing):
                         start_time,
                     )
 
+                # Check all guarantees
                 for g_iter, guarantee in enumerate(guarantees_monitors):
                     try:
                         r_val = guarantee.update(prop_params)
@@ -330,17 +309,33 @@ class SimulationTesting(Testing):
 
 class EagerValueWindow:
     def __init__(self, get_val):
-        self.elapsed_time = 0
+        self._elapsed_time = 0
         self.get_val = get_val
         self.window = []
 
     def update(self):
         new_val = self.get_val()
-        self.elapsed_time += 1
+
+        # Try to replace objects with their concrete proxies.
+        # TODO: Find a better approach for this?
+        if isinstance(new_val, scenic.core.object_types.Object):
+            new_val = new_val._copyWith()
+        elif isinstance(new_val, list):
+            new_val = [
+                v._copyWith() if isinstance(v, scenic.core.object_types.Object) else v
+                for v in new_val
+            ]
+        elif isinstance(new_val, tuple):
+            new_val = tuple(
+                v._copyWith() if isinstance(v, scenic.core.object_types.Object) else v
+                for v in new_val
+            )
+
+        self._elapsed_time += 1
         self.window.append(new_val)
 
     def __getitem__(self, time):
-        if not time < self.elapsed_time:
+        if not time < self._elapsed_time:
             raise InvalidTimeException(time)
 
         return self.window[time]
@@ -348,13 +343,11 @@ class EagerValueWindow:
 
 class LazyValueWindow:
     def __init__(self, get_val):
-        self.elapsed_time = 0
         self.get_val = get_val
         self.window = {}
 
     def update(self, time):
         self.window[time] = self.get_val(time)
-        self.elapsed_time += max(self.elapsed_time, time)
 
     def __getitem__(self, time):
         if time not in self.window:
@@ -458,7 +451,7 @@ class ProbabilisticEvidence(ContractEvidence, ABC):
     def __str__(self):
         string = (
             f"Probabilistic Evidence\n"
-            f"{100*self.correctness:.2f}% Correctness with {100*self.confidence:.2f}% Confidence\n"
+            f"Minimum {100*self.correctness:.2f}% Correctness with {100*self.confidence:.2f}% Confidence\n"
             f"Sampled from {self._source_info}\n"
             f"{self.v_count} Verified,  {self.r_count} Rejected,  "
             f"{self.a_count} A-Violated,  {self.g_count} G-Violated\n"
@@ -491,54 +484,6 @@ class SimulationEvidence(ProbabilisticEvidence):
     @property
     def _source_info(self):
         return f"Scenario '{Path(self.source_filename).name}' (Hash={int.from_bytes(self.source_hash)})"
-
-
-class ProbabilisticContractResult(ContractResult):
-    def __init__(self, assumptions, guarantees, evidence):
-        if not isinstance(evidence, ProbabilisticEvidence):
-            raise ValueError("Evidence provided is not ProbabilisticEvidence")
-
-        super().__init__(assumptions, guarantees, evidence)
-
-    def __str__(self):
-        string = "ContractResult:\n"
-        string += "  Assumptions:\n"
-
-        for ai, a in enumerate(self.assumptions):
-            if self.evidence.a_count == 0:
-                percent_violated = 0
-            else:
-                percent_violated = (
-                    sum(
-                        1 / len(at.violations)
-                        for at in self.evidence.testData
-                        if at.result == TestResult.A and ai in at.violations
-                    )
-                    / self.evidence.a_count
-                )
-
-            string += f"    ({percent_violated*100:6.2f}%) {a}\n"
-
-        string += "  Guarantees:\n"
-
-        for gi, g in enumerate(self.guarantees):
-            if self.evidence.g_count == 0:
-                percent_violated = 0
-            else:
-                percent_violated = (
-                    sum(
-                        1 / len(gt.violations)
-                        for gt in self.evidence.testData
-                        if gt.result == TestResult.G and gi in gt.violations
-                    )
-                    / self.evidence.g_count
-                )
-
-            string += f"    ({percent_violated*100:6.2f}%) {g}\n"
-
-        string += f"  Evidence: \n"
-        string += "    " + str(self.evidence).replace("\n", "\n    ")
-        return string
 
 
 ## Termination/Requirement Conditions

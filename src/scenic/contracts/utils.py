@@ -122,6 +122,8 @@ def leadDistanceInner(pos, tpos, lane, maxDistance):
 
 
 def leadDistance(source, target, network, maxDistance=250):
+    # print(source.position, target.position, hash(network))
+
     # Find all lanes this point could be a part of and recurse on them.
     viable_lanes = [lane for lane in network.lanes if lane.containsPoint(source.position)]
 

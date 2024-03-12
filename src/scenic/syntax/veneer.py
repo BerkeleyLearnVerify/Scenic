@@ -177,20 +177,9 @@ __all__ = (
     "Always",
     "Eventually",
     "Next",
-    # Scenic+Contracts
-    "BaseComponent",
-    "ActionComponent",
-    "ComposeComponent",
-    "Contract",
-    "SimulationTesting",
-    "TimeTerminationCondition",
-    "CountTerminationCondition",
-    "GapTerminationCondition",
-    "CorrectnessRequirementCondition",
 )
 
 # various Python types and functions used in the language but defined elsewhere
-from scenic.contracts.testing import SimulationTesting
 from scenic.core.distributions import (
     DiscreteRange,
     Normal,

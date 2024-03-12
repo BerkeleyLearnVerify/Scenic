@@ -574,7 +574,7 @@ scenic_compound_stmt:
     | scenic_component_def
     | scenic_contract_def
     | scenic_assign_contract_test_stmt
-    | scenic_contract_test_stmt
+    | scenic_assign_contract_assume_stmt
 
 # SIMPLE STATEMENTS
 # =================
@@ -1022,8 +1022,8 @@ scenic_contract_definition:
 scenic_contract_temporal_expression_line:
     | a=scenic_temporal_expression NEWLINE {a}
 
-# Contract Testing
-# ----------------
+# Contract Test Statements
+# ------------------------
 
 scenic_assign_contract_test_stmt:
     | a=(z=star_targets '=' { z })+ b=scenic_contract_test_stmt {
@@ -1063,6 +1063,17 @@ scenic_contract_test_term_cond:
 scenic_contract_test_req_cond:
     | "requiring" x=expression "correctness" {s.ContractTestReqCond("correctness", [x], LOCATIONS)}
 
+# Contract Assume Statements
+# --------------------------
+
+scenic_assign_contract_assume_stmt:
+    | a=(z=star_targets '=' { z })+ b=scenic_contract_assume_expr NEWLINE {
+         ast.Assign(targets=a, value=b, LOCATIONS)
+     }
+
+scenic_contract_assume_expr:
+    | "assume" component=scenic_subcomponent_name \
+      "satisfies" contract=primary {s.ContractAssume(contract, component)}
 
 # Component/Contracts General
 # ---------------------------

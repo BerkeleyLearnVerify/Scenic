@@ -2810,8 +2810,37 @@ class ScenicToPythonTransformer(Transformer):
             keywords=[],
         )
 
+    def visit_ContractAssume(self, node: s.ContractTest):
+        # Create component keyword
+        obj_val = ast.Name(node.component[0], loadCtx)
+        component_val = obj_val
+
+        if len(node.component) > 1:
+            for sub_name in node.component[1:]:
+                component_val = ast.Subscript(
+                    ast.Attribute(component_val, "subcomponents", loadCtx),
+                    ast.Constant(sub_name),
+                    loadCtx,
+                )
+
+        # Map contract name
+        assert isinstance(node.contract, ast.Call)
+        assert isinstance(node.contract.func, ast.Name)
+        node.contract.func.id = self.toContractName(node.contract.func.id)
+
+        # Package keywords
+        keywords = []
+        keywords.append(ast.keyword("contract", node.contract))
+        keywords.append(ast.keyword("component", component_val))
+
+        return ast.Call(
+            func=ast.Name("Assumption", loadCtx),
+            args=[],
+            keywords=keywords,
+        )
+
     def visit_ContractVerify(self, node: s.ContractVerify):
-        return ast.Call(ast.Attribute(node.target, "verify", loadCtx), [], [])
+        return ast.Call(ast.Name("registerVerifyStatement", loadCtx), [node.target], [])
 
     def visit_ContractNext(self, node: s.ContractNext):
         raise self.makeSyntaxError("'next' used outside of temporal requirement.", node)

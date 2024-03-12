@@ -11,11 +11,207 @@ import warnings
 import numpy
 
 import scenic
+from scenic.contracts.translator import compileContractsFile
 from scenic.core.distributions import RejectionException
 import scenic.core.errors as errors
 from scenic.core.simulators import SimulationCreationError
 import scenic.syntax.translator as translator
 
+
+def scenic_generate(args):
+    delay = args.delay
+    mode2D = getattr(args, "2d")
+
+    if not mode2D:
+        if args.delay is not None:
+            warnings.warn("Delay parameter is not supported by the 3D viewer.")
+        if args.zoom != 1:
+            warnings.warn("Zoom parameter is not supported by the 3D viewer.")
+
+    scenic.setDebuggingOptions(
+        verbosity=args.verbosity,
+        fullBacktrace=args.full_backtrace,
+        debugExceptions=args.pdb,
+        debugRejections=args.pdb_on_reject,
+    )
+    params = {}
+    for name, value in args.param:
+        # Convert params to ints or floats if possible
+        try:
+            value = int(value)
+        except ValueError:
+            try:
+                value = float(value)
+            except ValueError:
+                pass
+        params[name] = value
+    translator.dumpScenicAST = args.dump_scenic_ast
+    translator.dumpFinalAST = args.dump_ast
+    translator.dumpASTPython = args.dump_python
+    translator.usePruning = not args.no_pruning
+    if args.seed is not None:
+        if args.verbosity >= 1:
+            print(f"Using random seed = {args.seed}")
+
+        random.seed(args.seed)
+        numpy.random.seed(args.seed)
+
+    # Load scenario from file
+    if args.verbosity >= 1:
+        print("Beginning scenario construction...")
+    startTime = time.time()
+    scenario = errors.callBeginningScenicTrace(
+        lambda: translator.scenarioFromFile(
+            args.scenicFile,
+            params=params,
+            model=args.model,
+            scenario=args.scenario,
+            mode2D=mode2D,
+        )
+    )
+    totalTime = time.time() - startTime
+    if args.verbosity >= 1:
+        print(f"Scenario constructed in {totalTime:.2f} seconds.")
+
+    if args.simulate:
+        simulator = errors.callBeginningScenicTrace(scenario.getSimulator)
+
+    def generateScene(maxIterations=2000):
+        startTime = time.time()
+        scene, iterations = errors.callBeginningScenicTrace(
+            lambda: scenario.generate(
+                maxIterations=maxIterations, verbosity=args.verbosity
+            )
+        )
+        if args.verbosity >= 1:
+            totalTime = time.time() - startTime
+            print(
+                f"  Generated scene in {iterations} iterations, {totalTime:.4g} seconds."
+            )
+            if args.show_params:
+                for param, value in scene.params.items():
+                    print(f'    Parameter "{param}": {value}')
+        return scene, iterations
+
+    def runSimulation(scene):
+        startTime = time.time()
+        if args.verbosity >= 1:
+            print(f"  Beginning simulation of {scene.dynamicScenario}...")
+        try:
+            simulation = errors.callBeginningScenicTrace(
+                lambda: simulator.simulate(
+                    scene,
+                    maxSteps=args.time,
+                    verbosity=args.verbosity,
+                    maxIterations=args.max_sims_per_scene,
+                )
+            )
+        except SimulationCreationError as e:
+            if args.verbosity >= 1:
+                print(f"  Failed to create simulation: {e}")
+            return False
+        if args.verbosity >= 1:
+            totalTime = time.time() - startTime
+            print(f"  Ran simulation in {totalTime:.4g} seconds.")
+        if simulation and args.show_records:
+            for name, value in simulation.result.records.items():
+                if isinstance(value, list):
+                    print(f'    Record "{name}": (time series)')
+                    for step, subval in value:
+                        print(f"      {step:4d}: {subval}")
+                else:
+                    print(f'    Record "{name}": {value}')
+        return simulation is not None
+
+    try:
+        if args.gather_stats is None:
+            # Generate scenes interactively until killed/count reached
+            if not args.simulate:  # will need matplotlib to draw scene schematic
+                import matplotlib
+                import matplotlib.pyplot as plt
+
+                if matplotlib.get_backend().lower() == "agg":
+                    raise RuntimeError(
+                        "need an interactive matplotlib backend to display scenes\n"
+                        "(try installing python3-tk)"
+                    )
+
+            successCount = 0
+            while True:
+                scene, _ = generateScene()
+                if args.simulate:
+                    success = runSimulation(scene)
+                    if success:
+                        successCount += 1
+                else:
+                    successCount += 1
+                    if mode2D:
+                        if delay is None:
+                            scene.show2D(zoom=args.zoom)
+                        else:
+                            scene.show2D(zoom=args.zoom, block=False)
+                            plt.pause(delay)
+                            plt.clf()
+                    else:
+                        scene.show(axes=args.axes)
+
+                if 0 < args.count <= successCount:
+                    break
+
+        else:  # Gather statistics over the specified number of scenes/iterations
+            its = []
+            maxIterations = 2000
+            iterations = 0
+            totalIterations = 0
+            if args.gather_stats >= 0:  # scenes
+
+                def keepGoing():
+                    return len(its) < args.gather_stats
+
+            else:  # iterations
+                maxIterations = -args.gather_stats
+
+                def keepGoing():
+                    global maxIterations
+                    maxIterations -= iterations
+                    return maxIterations > 0
+
+            startTime = time.time()
+            while keepGoing():
+                try:
+                    scene, iterations = generateScene(maxIterations=maxIterations)
+                except RejectionException:
+                    if args.gather_stats >= 0:
+                        raise
+                    iterations = maxIterations
+                else:
+                    its.append(iterations)
+                totalIterations += iterations
+            totalTime = time.time() - startTime
+
+            count = len(its) if its else float("nan")
+            print(f"Sampled {len(its)} scenes in {totalTime:.2f} seconds.")
+            print(f"Average iterations/scene: {totalIterations/count}")
+            print(f"Average time/iteration: {totalTime/totalIterations:.2g} seconds.")
+            print(f"Average time/scene: {totalTime/count:.2f} seconds.")
+
+    except KeyboardInterrupt:
+        pass
+
+    finally:
+        if args.simulate:
+            simulator.destroy()
+
+
+def scenic_verify(args):
+    compileContractsFile(args.scenicFile)
+
+
+def dummy():  # for the 'scenic' entry point to call after importing this module
+    pass
+
+
+# Intialize parser
 parser = argparse.ArgumentParser(
     prog="scenic",
     add_help=False,
@@ -23,8 +219,18 @@ parser = argparse.ArgumentParser(
     description="Sample from a Scenic scenario, optionally "
     "running dynamic simulations.",
 )
+subparsers = parser.add_subparsers()
 
-mainOptions = parser.add_argument_group("main options")
+parser.add_argument(
+    "-h", "--help", action="help", default=argparse.SUPPRESS, help=argparse.SUPPRESS
+)
+
+## Scenic "generate" Command ##
+generate_parser = subparsers.add_parser("generate")
+generate_parser.set_defaults(func=scenic_generate)
+
+
+mainOptions = generate_parser.add_argument_group("main options")
 mainOptions.add_argument(
     "-S",
     "--simulate",
@@ -67,7 +273,7 @@ mainOptions.add_argument(
 )
 
 # Simulation options
-simOpts = parser.add_argument_group("dynamic simulation options")
+simOpts = generate_parser.add_argument_group("dynamic simulation options")
 simOpts.add_argument(
     "--time", help="time bound for simulations (default none)", type=int, default=None
 )
@@ -81,7 +287,7 @@ simOpts.add_argument(
 )
 
 # Interactive rendering options
-intOptions = parser.add_argument_group("static scene diagramming options")
+intOptions = generate_parser.add_argument_group("static scene diagramming options")
 intOptions.add_argument(
     "-d",
     "--delay",
@@ -101,7 +307,7 @@ intOptions.add_argument(
 )
 
 # Debugging options
-debugOpts = parser.add_argument_group("debugging options")
+debugOpts = generate_parser.add_argument_group("debugging options")
 debugOpts.add_argument(
     "--show-params", help="show values of global parameters", action="store_true"
 )
@@ -142,197 +348,19 @@ debugOpts.add_argument(
     " (or iterations, if negative)",
 )
 
-parser.add_argument(
-    "-h", "--help", action="help", default=argparse.SUPPRESS, help=argparse.SUPPRESS
-)
+## Scenic "verify" Command ##
+verify_parser = subparsers.add_parser("verify")
+verify_parser.set_defaults(func=scenic_verify)
 
 # Positional arguments
 parser.add_argument("scenicFile", help="a Scenic file to run", metavar="FILE")
 
 # Parse arguments and set up configuration
+# Use generate if no subcommand specified
+sys.argv = sys.argv
+subcommand_list = ["generate", "verify"]
+if sys.argv[1] not in subcommand_list:
+    sys.argv.insert(1, "generate")
+
 args = parser.parse_args()
-delay = args.delay
-mode2D = getattr(args, "2d")
-
-if not mode2D:
-    if args.delay is not None:
-        warnings.warn("Delay parameter is not supported by the 3D viewer.")
-    if args.zoom != 1:
-        warnings.warn("Zoom parameter is not supported by the 3D viewer.")
-
-scenic.setDebuggingOptions(
-    verbosity=args.verbosity,
-    fullBacktrace=args.full_backtrace,
-    debugExceptions=args.pdb,
-    debugRejections=args.pdb_on_reject,
-)
-params = {}
-for name, value in args.param:
-    # Convert params to ints or floats if possible
-    try:
-        value = int(value)
-    except ValueError:
-        try:
-            value = float(value)
-        except ValueError:
-            pass
-    params[name] = value
-translator.dumpScenicAST = args.dump_scenic_ast
-translator.dumpFinalAST = args.dump_ast
-translator.dumpASTPython = args.dump_python
-translator.usePruning = not args.no_pruning
-if args.seed is not None:
-    if args.verbosity >= 1:
-        print(f"Using random seed = {args.seed}")
-
-    random.seed(args.seed)
-    numpy.random.seed(args.seed)
-
-# Load scenario from file
-if args.verbosity >= 1:
-    print("Beginning scenario construction...")
-startTime = time.time()
-scenario = errors.callBeginningScenicTrace(
-    lambda: translator.scenarioFromFile(
-        args.scenicFile,
-        params=params,
-        model=args.model,
-        scenario=args.scenario,
-        mode2D=mode2D,
-    )
-)
-totalTime = time.time() - startTime
-if args.verbosity >= 1:
-    print(f"Scenario constructed in {totalTime:.2f} seconds.")
-
-if args.simulate:
-    simulator = errors.callBeginningScenicTrace(scenario.getSimulator)
-
-
-def generateScene(maxIterations=2000):
-    startTime = time.time()
-    scene, iterations = errors.callBeginningScenicTrace(
-        lambda: scenario.generate(maxIterations=maxIterations, verbosity=args.verbosity)
-    )
-    if args.verbosity >= 1:
-        totalTime = time.time() - startTime
-        print(f"  Generated scene in {iterations} iterations, {totalTime:.4g} seconds.")
-        if args.show_params:
-            for param, value in scene.params.items():
-                print(f'    Parameter "{param}": {value}')
-    return scene, iterations
-
-
-def runSimulation(scene):
-    startTime = time.time()
-    if args.verbosity >= 1:
-        print(f"  Beginning simulation of {scene.dynamicScenario}...")
-    try:
-        simulation = errors.callBeginningScenicTrace(
-            lambda: simulator.simulate(
-                scene,
-                maxSteps=args.time,
-                verbosity=args.verbosity,
-                maxIterations=args.max_sims_per_scene,
-            )
-        )
-    except SimulationCreationError as e:
-        if args.verbosity >= 1:
-            print(f"  Failed to create simulation: {e}")
-        return False
-    if args.verbosity >= 1:
-        totalTime = time.time() - startTime
-        print(f"  Ran simulation in {totalTime:.4g} seconds.")
-    if simulation and args.show_records:
-        for name, value in simulation.result.records.items():
-            if isinstance(value, list):
-                print(f'    Record "{name}": (time series)')
-                for step, subval in value:
-                    print(f"      {step:4d}: {subval}")
-            else:
-                print(f'    Record "{name}": {value}')
-    return simulation is not None
-
-
-try:
-    if args.gather_stats is None:
-        # Generate scenes interactively until killed/count reached
-        if not args.simulate:  # will need matplotlib to draw scene schematic
-            import matplotlib
-            import matplotlib.pyplot as plt
-
-            if matplotlib.get_backend().lower() == "agg":
-                raise RuntimeError(
-                    "need an interactive matplotlib backend to display scenes\n"
-                    "(try installing python3-tk)"
-                )
-
-        successCount = 0
-        while True:
-            scene, _ = generateScene()
-            if args.simulate:
-                success = runSimulation(scene)
-                if success:
-                    successCount += 1
-            else:
-                successCount += 1
-                if mode2D:
-                    if delay is None:
-                        scene.show2D(zoom=args.zoom)
-                    else:
-                        scene.show2D(zoom=args.zoom, block=False)
-                        plt.pause(delay)
-                        plt.clf()
-                else:
-                    scene.show(axes=args.axes)
-
-            if 0 < args.count <= successCount:
-                break
-
-    else:  # Gather statistics over the specified number of scenes/iterations
-        its = []
-        maxIterations = 2000
-        iterations = 0
-        totalIterations = 0
-        if args.gather_stats >= 0:  # scenes
-
-            def keepGoing():
-                return len(its) < args.gather_stats
-
-        else:  # iterations
-            maxIterations = -args.gather_stats
-
-            def keepGoing():
-                global maxIterations
-                maxIterations -= iterations
-                return maxIterations > 0
-
-        startTime = time.time()
-        while keepGoing():
-            try:
-                scene, iterations = generateScene(maxIterations=maxIterations)
-            except RejectionException:
-                if args.gather_stats >= 0:
-                    raise
-                iterations = maxIterations
-            else:
-                its.append(iterations)
-            totalIterations += iterations
-        totalTime = time.time() - startTime
-
-        count = len(its) if its else float("nan")
-        print(f"Sampled {len(its)} scenes in {totalTime:.2f} seconds.")
-        print(f"Average iterations/scene: {totalIterations/count}")
-        print(f"Average time/iteration: {totalTime/totalIterations:.2g} seconds.")
-        print(f"Average time/scene: {totalTime/count:.2f} seconds.")
-
-except KeyboardInterrupt:
-    pass
-
-finally:
-    if args.simulate:
-        simulator.destroy()
-
-
-def dummy():  # for the 'scenic' entry point to call after importing this module
-    pass
+args.func(args)
