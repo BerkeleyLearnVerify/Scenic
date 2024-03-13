@@ -3,7 +3,6 @@
 branch = True
 omit =
     tests/*
-    */__init__.py
     src/scenic/simulators/*
     examples/conftest.py
 
@@ -25,5 +24,4 @@ exclude_lines =
 
 ignore_errors = True
 show_missing = True
-skip_empty = True
 precision = 2
