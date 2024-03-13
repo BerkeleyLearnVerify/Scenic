@@ -56,4 +56,4 @@ jobs:
 
     - name: Run and report code coverage
       run: |
-        pytest --cov
+        pytest --cov=.
