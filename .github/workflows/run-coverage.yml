@@ -56,4 +56,10 @@ jobs:
 
     - name: Run and report code coverage
       run: |
-        pytest --cov=.
+        pytest --cov=. --cov-report json
+    
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v4.0.1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        slug: BerkeleyLearnVerify/Scenic
