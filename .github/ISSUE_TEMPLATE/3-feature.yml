@@ -15,8 +15,8 @@ body:
       label: Describe the feature and motivation
       description: |
         Please provide a clear and concise proposal of the feature and outline the motivation.
-      validations:
-        required: true
+    validations:
+      required: true
 
   - type: textarea
     attributes:

@@ -31,8 +31,8 @@ body:
         2. Scenic Version: Scenic 3.0.0b2
         3. Operating System / Platform: Apple M2 Pro macOS Sonoma 14.2.1
         4. Simulator Version: CARLA 0.9.14
-      validations:
-        required: true
+    validations:
+      required: true
 
   - type: textarea
     attributes:
@@ -46,8 +46,8 @@ body:
         ```
         # error full stack trace
         ```
-      validations:
-        required: true
+    validations:
+      required: true
 
   - type: textarea
     attributes:
@@ -62,8 +62,8 @@ body:
         ```
         # sample code to reproduce the bug
         ```
-      validations:
-        required: true
+    validations:
+      required: true
 
   - type: checkboxes
     attributes:
