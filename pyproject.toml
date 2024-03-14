@@ -124,4 +124,4 @@ extend_skip_glob = [
 norecursedirs = ["examples"]
 
 [tool.coverage.run]
-source = ["."]
+source = ["src"]
