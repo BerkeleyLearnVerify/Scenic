@@ -3,7 +3,11 @@
 branch = True
 omit =
     tests/*
-    src/scenic/simulators/*
+    src/scenic/simulators/carla/*
+    src/scenic/simulators/gta/*
+    src/scenic/simulators/lgsvl/*
+    src/scenic/simulators/webots/*
+    src/scenic/simulators/xplane/*
     examples/conftest.py
 
 [report]
