@@ -27,6 +27,9 @@ import datetime
 import math
 import weakref
 
+import cv2
+import imageio as iio
+
 import carla
 from carla import ColorConverter as cc
 import numpy as np
@@ -266,10 +269,13 @@ class CollisionSensor(object):
 
 
 class CameraManager(object):
-    def __init__(self, world, actor, hud):
+    def __init__(self, world, actor, hud, fps=30, resolution='848x480', video_output_path=None):
         self.sensor = None
         self._surface = None
         self._actor = actor
+        self.output_path = video_output_path
+        self.resolution = resolution
+        self.recording = video_output_path is not None
         self._hud = hud
         self.images = []
         self._camera_transforms = [
@@ -299,6 +305,17 @@ class CameraManager(object):
             ["sensor.lidar.ray_cast", None, "Lidar (Ray-Cast)"],
         ]
         self._world = world
+        self.video_writer = None
+        self.other_video_writer = None
+        if self.recording:
+            self.resolution = [int(x) for x in resolution.split("x")]
+            self.other_video_writer = cv2.VideoWriter(
+                video_output_path + "_cv2.mp4", cv2.VideoWriter_fourcc(*"mp4v"), fps, 
+                (self.resolution[0], self.resolution[1])
+            )
+            self.video_writer = iio.get_writer(
+                video_output_path, fps=fps, codec='libx264', quality=10
+            )
         bp_library = self._world.get_blueprint_library()
         for item in self._sensors:
             bp = bp_library.find(item[0])
@@ -365,9 +382,18 @@ class CameraManager(object):
             array = array[:, :, :3]
             array = array[:, :, ::-1]
             self._surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+            if self.recording:
+                try:
+                    self.video_writer.append_data(array)
+                except Exception as e:
+                    print("Failed to write video:", e)
         self.images.append(image)
 
     def destroy_sensor(self):
         if self.sensor is not None:
             self.sensor.stop()
             self.sensor.destroy()
+
+    def __del__(self):
+        if self.video_writer:
+            self.video_writer.close()
