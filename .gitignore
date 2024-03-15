@@ -17,6 +17,9 @@ poetry.lock
 *.sublime-project
 *.sublime-workspace
 
+# VSCode files
+*.vscode
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
