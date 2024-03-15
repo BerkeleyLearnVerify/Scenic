@@ -240,14 +240,26 @@ def pruneContainment(scenario, verbosity):
                 # We can do an exact erosion
                 container = container.buffer(-maxErosion)
             elif isinstance(container, MeshVolumeRegion):
-                # We can attempt to erode a voxel approximation of the MeshVolumeRegion.
-                eroded_container = container._erodeOverapproximate(
-                    maxErosion, PRUNING_PITCH
-                )
+                current_pitch = PRUNING_PITCH
+                eroded_container = None
 
-                # Now check if this erosion is useful, i.e. do we have less volume to sample from.
-                # If so, replace the original container.
-                if eroded_container.size < container.size:
+                while eroded_container is None:
+                    # We can attempt to erode a voxel approximation of the MeshVolumeRegion.
+                    eroded_container = container._erodeOverapproximate(
+                        maxErosion, PRUNING_PITCH
+                    )
+
+                    if isinstance(eroded_container, VoxelRegion):
+                        eroded_container = eroded_container.mesh
+
+                    current_pitch = min(2 * current_pitch, 1)
+
+                # Now check if this erosion is valid and useful, i.e. do we have less volume
+                # to sample from. If so, replace the original container.
+                if (
+                    eroded_container is not None
+                    and eroded_container.size < container.size
+                ):
                     container = eroded_container
 
         # Restrict the base region to the possibly eroded container, unless
@@ -416,9 +428,22 @@ def pruneVisibility(scenario, verbosity):
                 if needsSampling(viewRegion):
                     return viewRegion._bufferOverapproximate(buffer_quantity, 1)
                 else:
-                    return viewRegion._bufferOverapproximate(
-                        buffer_quantity, PRUNING_PITCH
-                    )
+                    current_pitch = PRUNING_PITCH
+                    buffered_container = None
+
+                    while buffered_container is None:
+                        buffered_container = viewRegion._bufferOverapproximate(
+                            buffer_quantity, current_pitch
+                        )
+
+                        if isinstance(buffered_container, VoxelRegion):
+                            buffered_container = buffered_container.mesh
+
+                        current_pitch = min(2 * current_pitch, 1)
+
+                    assert buffered_container is not None
+
+                    return buffered_container
             else:
                 return viewRegion
 

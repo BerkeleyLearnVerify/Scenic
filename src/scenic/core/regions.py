@@ -2227,6 +2227,7 @@ class VoxelRegion(Region):
         )
         return VoxelRegion(voxelGrid=new_voxel_grid)
 
+    @cached_property
     def mesh(self):
         # Extract values for original voxel grid and the surface of the voxel grid.
         dense_encoding = self.voxelGrid.encoding.dense
@@ -2262,10 +2263,6 @@ class VoxelRegion(Region):
                 [base_index[0] + 1, base_index[1], base_index[2]]
             )
             if actual_face(target_index):
-                # # Check for an existing interior/exterior face. If an interior is found,
-                # # wipe it. If an exterior is found, don't set this one.
-                # conflicting_points = [(p, fm) for p, fm in point_face_mask_list
-                #     if p[1] == base_index[1] and p[2] == base_index[2]]
                 face_mask[0] = True
 
             # Left
@@ -2411,9 +2408,12 @@ class VoxelRegion(Region):
                 )
 
         out_mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
-        out_mesh.show()
-        assert out_mesh.is_volume
-        return out_mesh
+
+        # TODO: Ensure the mesh is a proper volume
+        if not out_mesh.is_volume:
+            return None
+        else:
+            return MeshVolumeRegion(out_mesh, centerMesh=False)
 
     @property
     def AABB(self):

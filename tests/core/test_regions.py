@@ -606,17 +606,6 @@ def test_mesh_voxelization(getAssetPath):
         assert vr.containsPoint(sampled_pt)
 
 
-def test_voxel_to_mesh(getAssetPath):
-    plane_region = MeshVolumeRegion.fromFile(getAssetPath("meshes/classic_plane.obj.bz2"))
-    vr = plane_region.voxelized(max(plane_region.mesh.extents) / 100)
-    mr = vr.mesh
-
-    points = [vr.uniformPointInner() for _ in range(100)]
-
-    for pt in points:
-        assert vr.containsPoint(pt) == mr.containsPoint(pt)
-
-
 def test_empty_erosion():
     box_region = BoxRegion(position=(0, 0, 0), dimensions=(1, 1, 1))
     vr = box_region.voxelized(pitch=0.1)

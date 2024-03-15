@@ -316,8 +316,6 @@ class Scenario(_ScenarioPickleMixin):
             self._instances + paramDeps + tuple(requirementDeps) + tuple(behaviorDeps)
         )
 
-        self.validate()
-
         # Setup the default checker
         self.defaultRequirements = self.generateDefaultRequirements()
         self.setSampleChecker(WeightedAcceptanceChecker(bufferSize=100))
@@ -347,6 +345,19 @@ class Scenario(_ScenarioPickleMixin):
             # Trivial case where container is empty
             if isinstance(container, EmptyRegion):
                 raise InvalidScenarioError(f"Container region of {oi} is empty")
+            # Ensure we are not sampling position from AllRegion
+            if isinstance(
+                oi.position._conditioned, PointInRegionDistribution
+            ) and isinstance(oi.position._conditioned.region, AllRegion):
+                if oi.position.tag == "visible":
+                    raise InvalidScenarioError(
+                        f"Object {oi} uses the visible specifier to specify position, but it lacks enough information to do so."
+                        f" The simplest solution to this is to define a workspace or specify position in some other fashion."
+                    )
+                else:
+                    raise InvalidScenarioError(
+                        f"Object {oi} has position sampled from everywhere."
+                    )
             # skip objects with unknown positions or bounding boxes
             if not staticBounds[i]:
                 continue
@@ -371,18 +382,6 @@ class Scenario(_ScenarioPickleMixin):
                         raise InvalidScenarioError(
                             f"{oi} at {oi.position} intersects" f" {oj} at {oj.position}"
                         )
-            if isinstance(oi.position, PointInRegionDistribution) and isinstance(
-                oi.position.region, AllRegion
-            ):
-                if oi.position.tag == "visible":
-                    raise InvalidScenarioError(
-                        f"Object {oi} uses the visible specifier to specify position, but it lacks enough information to do so."
-                        f" The simplest solution to this is to define a workspace or specify position in some other fashion."
-                    )
-                else:
-                    raise InvalidScenarioError(
-                        f"Object {oi} has position sampled from everywhere."
-                    )
 
     def generate(self, maxIterations=2000, verbosity=0, feedback=None):
         """Sample a `Scene` from this scenario.
