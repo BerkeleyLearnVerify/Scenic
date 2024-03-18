@@ -505,12 +505,13 @@ def test_visible():
         "             with visibleDistance 10, with viewAngle 90 deg\n"
         "ego = new Object visible"
     )
+    radius = math.sqrt(3 * 0.5**2)
     for i in range(30):
         scene = sampleScene(scenario, maxIterations=10)
         ego, base = scene.objects
-        assert ego.position.distanceTo(base.position) <= 10 + math.sqrt(3 * 0.5**2)
-        assert ego.position.x >= base.position.x - math.sqrt(3 * 0.5**2)
-        assert ego.position.y >= base.position.y - math.sqrt(3 * 0.5**2)
+        assert ego.position.distanceTo(base.position) <= 10 + radius
+        assert ego.position.x >= base.position.x - radius
+        assert ego.position.y >= base.position.y - radius
 
 
 def test_visible_no_ego():
@@ -523,11 +524,10 @@ def test_visible_from_point():
         "x = new Point at 300@200, with visibleDistance 2\n"
         "ego = new Object visible from x"
     )
+    radius = math.sqrt(3 * 0.5**2)
     for i in range(20):
         scene = sampleScene(scenario, maxIterations=10)
-        assert scene.egoObject.position.distanceTo(Vector(300, 200)) <= 2 + math.sqrt(
-            3 * 0.5**2
-        )
+        assert scene.egoObject.position.distanceTo(Vector(300, 200)) <= 2 + radius
 
 
 def test_visible_from_point_3d():
@@ -535,11 +535,10 @@ def test_visible_from_point_3d():
         "x = new Point at (300, 200, 500), with visibleDistance 2\n"
         "ego = new Object visible from x"
     )
+    radius = math.sqrt(3 * 0.5**2)
     for i in range(20):
         scene = sampleScene(scenario, maxIterations=10)
-        assert scene.egoObject.position.distanceTo(
-            Vector(300, 200, 500)
-        ) <= 2 + math.sqrt(3 * 0.5**2)
+        assert scene.egoObject.position.distanceTo(Vector(300, 200, 500)) <= 2 + radius
 
 
 def test_visible_from_oriented_point():
