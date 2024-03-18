@@ -216,7 +216,7 @@ not visible [from (*Point* | *OrientedPoint*)]
 
 Requires that this object is *not* visible from the ego or the given `Point`/`OrientedPoint`.
 
-Similarly to :sampref:`visible [from ({Point} | {OrientedPoint})]`, this specifier can optionally position the object uniformly at random over all points that could result in a non-visible object (note that the above requirement will ensure the object is in fact not-visible).
+Similarly to :sampref:`visible [from ({Point} | {OrientedPoint})]`, this specifier can optionally position the object uniformly at random over all points that could result in a non-visible object (note that the above requirement will ensure the object is in fact not visible).
 
 .. versionchanged:: 3.0
 

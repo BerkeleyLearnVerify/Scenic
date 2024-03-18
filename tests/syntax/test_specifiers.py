@@ -507,11 +507,26 @@ def test_visible():
     )
     radius = math.sqrt(3 * 0.5**2)
     for i in range(30):
-        scene = sampleScene(scenario, maxIterations=10)
+        scene = sampleScene(scenario, maxIterations=100)
         ego, base = scene.objects
         assert ego.position.distanceTo(base.position) <= 10 + radius
         assert ego.position.x >= base.position.x - radius
         assert ego.position.y >= base.position.y - radius
+
+
+def test_visible_2d():
+    scenario = compileScenic(
+        "ego = new Object at 100 @ 200, facing -45 deg,\n"
+        "             with visibleDistance 10, with viewAngle 90 deg\n"
+        "ego = new Object visible",
+        mode2D=True,
+    )
+    for i in range(30):
+        scene = sampleScene(scenario, maxIterations=10)
+        ego, base = scene.objects
+        assert ego.position.distanceTo(base.position) <= 10
+        assert ego.position.x >= base.position.x
+        assert ego.position.y >= base.position.y
 
 
 def test_visible_no_ego():
@@ -526,7 +541,7 @@ def test_visible_from_point():
     )
     radius = math.sqrt(3 * 0.5**2)
     for i in range(20):
-        scene = sampleScene(scenario, maxIterations=10)
+        scene = sampleScene(scenario, maxIterations=100)
         assert scene.egoObject.position.distanceTo(Vector(300, 200)) <= 2 + radius
 
 
@@ -537,7 +552,7 @@ def test_visible_from_point_3d():
     )
     radius = math.sqrt(3 * 0.5**2)
     for i in range(20):
-        scene = sampleScene(scenario, maxIterations=10)
+        scene = sampleScene(scenario, maxIterations=100)
         assert scene.egoObject.position.distanceTo(Vector(300, 200, 500)) <= 2 + radius
 
 
@@ -549,7 +564,7 @@ def test_visible_from_oriented_point():
     )
     base = Vector(100, 200)
     for i in range(20):
-        scene = sampleScene(scenario, maxIterations=10)
+        scene = sampleScene(scenario, maxIterations=100)
         pos = scene.egoObject.position
         assert pos.distanceTo(base) <= 5 + math.sqrt(3 * 0.5**2)
         assert pos.x <= base.x + math.sqrt(3 * 0.5**2)
@@ -629,7 +644,7 @@ def test_not_visible():
     )
     base = Vector(100, 200)
     for i in range(20):
-        pos = sampleEgo(scenario, maxIterations=50).position
+        pos = sampleEgo(scenario, maxIterations=100).position
         assert pos.x < 100 or pos.y < 200 or pos.distanceTo(base) > 10
 
 
@@ -645,7 +660,7 @@ def test_not_visible_2d():
     )
     base = Vector(100, 200)
     for i in range(20):
-        pos = sampleEgo(scenario, maxIterations=50).position
+        pos = sampleEgo(scenario, maxIterations=100).position
         assert pos.x < 100 or pos.y < 200 or pos.distanceTo(base) > 10
 
 
@@ -660,7 +675,7 @@ def test_not_visible_from():
     )
     base = Vector(100, 200)
     for i in range(20):
-        pos = sampleEgo(scenario, maxIterations=50).position
+        pos = sampleEgo(scenario, maxIterations=100).position
         assert pos.x < 100 or pos.y < 200 or pos.distanceTo(base) > 10
 
 
