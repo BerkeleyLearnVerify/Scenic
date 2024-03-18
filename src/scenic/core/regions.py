@@ -2114,7 +2114,9 @@ class SpheroidRegion(MeshVolumeRegion):
 
 
 class VoxelRegion(Region):
-    """Region represented by a voxel grid in 3D space.
+    """(WIP) Region represented by a voxel grid in 3D space.
+
+    NOTE: This region is a work in progress and is currently only recommended for internal use.
 
     Args:
         voxelGrid: The Trimesh voxelGrid to be used.
@@ -2224,6 +2226,11 @@ class VoxelRegion(Region):
 
     @cached_property
     def mesh(self):
+        """(WIP) Return a MeshVolumeRegion representation of this region.
+
+        NOTE: This region is a WIP and will sometimes return None if the transformation
+        is not feasible.
+        """
         # Extract values for original voxel grid and the surface of the voxel grid.
         dense_encoding = self.voxelGrid.encoding.dense
         hpitch = self.voxelGrid.pitch[0] / 2
