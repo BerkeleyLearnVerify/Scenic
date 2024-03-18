@@ -57,6 +57,7 @@ guideways = [
 ]
 test = [	# minimum dependencies for running tests (used for tox virtualenvs)
 	"pytest >= 7.0.0, <8",
+	"pytest-cov >= 3.0.0",
 	"pytest-randomly ~= 3.2",
 ]
 test-full = [  # like 'test' but adds dependencies for optional features
@@ -79,7 +80,7 @@ dev = [
 	"isort ~= 5.11",
 	"pre-commit ~= 3.0",
 	"pytest-cov >= 3.0.0",
-	"tox ~= 3.14",
+	"tox ~= 4.0",
 ]
 
 [project.urls]
@@ -121,3 +122,6 @@ extend_skip_glob = [
 
 [tool.pytest.ini_options]
 norecursedirs = ["examples"]
+
+[tool.coverage.run]
+source = ["src"]
