@@ -53,7 +53,7 @@ Specifically:
 
 * The specifier :specifier:`with heading {X}` is replaced with :specifier:`facing {X}`.
 
-* The :specifier:`visible` and :specifier:`not visible` will behave as they did in Scenic 2. Specifically, :specifier:`visible` will specify position from the observing object's visible region and :specifier:`not visible` will specify position from the difference of the workspace and the observing object's visible region.
+* The :specifier:`visible` and :specifier:`not visible` will behave as they did in Scenic 2, requiring the *center* of the object to be visible rather than *any* part of the object. More precisely, :specifier:`visible` will specify :prop:`position` to be uniformly random in the observing object's :term:`visible region` and :specifier:`not visible` will specify :prop:`position` to be uniformly random in the difference of the :term:`workspace` and the observing object's visible region.
 
 Note that despite these changes, Scenic will still use 3D geometry internally.
 For example, if you write :scenic:`ego = new Object at (1, 2)` the value of :scenic:`ego.position` will be the 3D vector :scenic:`(1, 2, 0)`.

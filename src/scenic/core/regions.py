@@ -1747,11 +1747,6 @@ class MeshVolumeRegion(MeshRegion):
         else:
             return region_distance
 
-    @cached_property
-    @distributionFunction
-    def circumradius(self):
-        hypot(*(self.mesh.extents / 2))
-
     @property
     def dimensionality(self):
         return 3

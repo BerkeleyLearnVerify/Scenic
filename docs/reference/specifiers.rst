@@ -196,7 +196,11 @@ Also optionally specifies :prop:`position` to be uniformly random over all point
 
 .. versionchanged:: 3.0
 
-    This specifier now specifies position uniformly randomly over all points that could result in a visible object. This accounts for objects who's position might be out of the visible region, but who have a portion of their occupied space visible (e.g. a corner that is visible), which would never be generated with the previous semantics.
+	This specifier now specifies :prop:`position` uniformly randomly over all points that could result in a visible object. This allows for objects whose :prop:`position` might be out of the visible region, but which have a portion of their occupied space visible (e.g. a corner that is visible). With the previous semantics, such configurations would never be generated because the *center* of the object was required to be visible.
+
+.. note::
+	
+	As an implementation detial, position is initially set to be sample from `AllRegion` (or the workspace if one has been set). Scenic will then attempt to further restrict the sampled via various pruning techniques, but sometimes this is not possible. If this occurs and Scenic has not been able to further restrict the sampled region from `AllRegion`, an error will be raised at compile time. The simplest way to remedy this is by setting a workspace or specifying position with a higher priority using a different specifier.
 
 .. _not visible [from ({Point} | {OrientedPoint})]:
 
@@ -216,8 +220,7 @@ Similarly to :sampref:`visible [from ({Point} | {OrientedPoint})]`, this specifi
 
 .. versionchanged:: 3.0
 
-    This specifier now specifies position uniformly randomly over all points that could result in a non-visible object. This accounts for objects who's position might be out of the visible region, but who have a portion of their occupied space visible (e.g. a corner that is visible), which could be generated with the previous semantics (and now will not).
-
+	This specifier now specifies :prop:`position` uniformly randomly over all points that could result in a non-visible object. This allows for objects whose :prop:`position` might be out of the visible region, but which have a portion of their occupied space visible (e.g. a corner that is visible). With the previous semantics, such configurations would sometimes be generated because the *center* of the object was required to be non-visible
 
 .. _(left | right) of {vector} [by {scalar}]:
 .. _left of:
