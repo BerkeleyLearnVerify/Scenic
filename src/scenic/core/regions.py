@@ -1770,7 +1770,7 @@ class MeshVolumeRegion(MeshRegion):
         """
         # Compute a voxel overapproximation of the mesh. Technically this is not
         # an overapproximation, but one dilation with a rank 3 structuring unit
-        # with connectivity 3 is. To simplify, we just erode one less time than
+        # with connectivity 3 is. To simplify, we just erode one fewer time than
         # needed.
         target_pitch = pitch * max(self.mesh.extents)
         voxelized_mesh = self.voxelized(target_pitch, lazy=True)
