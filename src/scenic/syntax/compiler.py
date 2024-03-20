@@ -2421,6 +2421,12 @@ class ScenicToPythonTransformer(Transformer):
         return f"_SCENIC_INTERNAL_CONTRACT_{name}"
 
     def visit_ContractDef(self, node: s.ContractDef):
+        if node.actions:
+            assert (not node.inputs) and (not node.outputs)
+
+            node.inputs = node.actions
+            node.actions = []
+
         contract_body = []
 
         ## Class Attributes ##

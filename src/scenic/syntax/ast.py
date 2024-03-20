@@ -1301,6 +1301,7 @@ class ContractDef(AST):
         globals,
         inputs,
         outputs,
+        actions,
         definitions,
         assumptions,
         guarantees,
@@ -1315,6 +1316,7 @@ class ContractDef(AST):
         self.globals = globals
         self.inputs = inputs
         self.outputs = outputs
+        self.actions = actions
         self.definitions = definitions
         self.assumptions = assumptions
         self.guarantees = guarantees

@@ -349,15 +349,15 @@ contract MaxBrakingForce(min_slowdown):
         control_action: RegulatedControlAction
 
     definitions:
-        no_throttle = throttle_action.throttle == 0
-        full_brake = brake_action.brake == 1
+        no_throttle = control_action.throttle == 0
+        full_brake = control_action.brake == 1
 
     guarantees:
         always ((no_throttle and full_brake) 
             implies ((next self.speed) <= self.speed - min_slowdown)
         )
 
-contract KeepsDistance(perception_distance, min_dist, min_slowdown, max_brake=, abs_dist_err=, abs_speed_err=):
+contract KeepsDistance(perception_distance, min_dist, min_slowdown, abs_dist_err=0.5, abs_speed_err=0.5, max_brake=float("inf")):
     """ Contract guaranteeing that we always stay at least min_dist away from
     any car in front of us.
     """
@@ -403,7 +403,7 @@ contract KeepsDistance(perception_distance, min_dist, min_slowdown, max_brake=, 
 
     guarantees:
         # Guarantee that we always stay at least min_dist behind the lead car
-        guarantee always behind_car implies (lead_dist > min_dist)
+        always behind_car implies (lead_dist > min_dist)
 
 
 # Instantiate Car component and link to object.

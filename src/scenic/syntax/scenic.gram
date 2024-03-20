@@ -983,9 +983,10 @@ scenic_contract_def:
             globals=c[2],
             inputs=c[3],
             outputs=c[4],
-            definitions=c[5],
-            assumptions=c[6],
-            guarantees=c[7],
+            actions=c[5],
+            definitions=c[6],
+            assumptions=c[7],
+            guarantees=c[8],
             LOCATIONS,
         )
      }
@@ -994,9 +995,9 @@ scenic_contract_def_block:
     | NEWLINE INDENT a=[x=STRING NEWLINE { x.string }] \
     b=[scenic_contract_objects_block] c=[scenic_contract_globals_block] \
     d=[scenic_component_inputs_block] e=[scenic_component_outputs_block] \
-    f=[scenic_contract_definitions_block] g=[scenic_contract_assumptions_block] \
-    h=[scenic_contract_guarantees_block] DEDENT \
-    {(a, b or ["self"], c or [], d or [], e or [], f or [], g or [], h or [])}
+    f=[scenic_component_actions_block] g=[scenic_contract_definitions_block] \
+    h=[scenic_contract_assumptions_block] i=[scenic_contract_guarantees_block] DEDENT \
+    {(a, b or ["self"], c or [], d or [], e or [], f or [], g or [], h or [], i or [])}
 
 scenic_contract_objects_block:
     | "objects" &&':' NEWLINE INDENT a=(scenic_contract_name_line)+ DEDENT {a}
