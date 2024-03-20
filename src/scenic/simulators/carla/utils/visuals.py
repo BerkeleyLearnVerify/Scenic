@@ -29,6 +29,7 @@ import weakref
 
 import cv2
 import imageio as iio
+import pdb
 
 import carla
 from carla import ColorConverter as cc
@@ -309,8 +310,9 @@ class CameraManager(object):
         self.other_video_writer = None
         if self.recording:
             self.resolution = [int(x) for x in resolution.split("x")]
+            video_file_name = video_output_path.split('.')[0]
             self.other_video_writer = cv2.VideoWriter(
-                video_output_path + "_cv2.mp4", cv2.VideoWriter_fourcc(*"mp4v"), fps, 
+                video_file_name + "_cv2.mp4", cv2.VideoWriter_fourcc(*"mp4v"), fps, 
                 (self.resolution[0], self.resolution[1])
             )
             self.video_writer = iio.get_writer(
@@ -383,8 +385,11 @@ class CameraManager(object):
             array = array[:, :, ::-1]
             self._surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
             if self.recording:
+                pdb.set_trace()
                 try:
+                    swapped_array = array.swapaxes(0, 1)
                     self.video_writer.append_data(array)
+                    self.other_video_writer.append_data(array)
                 except Exception as e:
                     print("Failed to write video:", e)
         self.images.append(image)
