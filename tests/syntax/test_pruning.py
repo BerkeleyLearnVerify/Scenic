@@ -207,20 +207,22 @@ def test_visibility_pruning():
     assert all(pos.distanceTo(Vector(0, 0, 0)) <= 1.1 for pos in positions)
     assert any(pos.distanceTo(Vector(0, 0, 0)) >= 1 for pos in positions)
 
-    # A minor variation with a miniscule offset
+    # A minor variation with a small offset
+    baseOffsetVal = 0.0001
     scenario = compileScenic(
-        """
+        f"""
         workspace = Workspace(RectangularRegion(0@0, 0, 1e10, 1e10))
         ego = new Object at (0,0,0), with visibleDistance 1
         foo = new Object on workspace, visible,
             with shape SpheroidShape(dimensions=(0.2,0.2,0.2)),
-            with baseOffset (0,0,0.00000001)
+            with baseOffset (0,0,{baseOffsetVal}), with contactTolerance 0
         param p = foo.position
         """
     )
     positions = [sampleParamP(scenario, maxIterations=100) for i in range(30)]
     assert all(pos.distanceTo(Vector(0, 0, 0)) <= 1.1 for pos in positions)
     assert any(pos.distanceTo(Vector(0, 0, 0)) >= 1 for pos in positions)
+    assert all(pos.z == -baseOffsetVal for pos in positions)
 
 
 def test_visibility_pruning_cyclical():
