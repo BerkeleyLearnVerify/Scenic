@@ -529,6 +529,22 @@ def test_visible_2d():
         assert ego.position.y >= base.position.y
 
 
+def test_visible_position_underspecified():
+    with pytest.raises(InvalidScenarioError):
+        scenario = compileScenic(
+            """
+            from scenic.core.distributions import distributionFunction
+
+            @distributionFunction
+            def dummyFunc(arg):
+                return arg.position[2]
+
+            foo = new Object at (0,0,Range(1,2))
+            ego = new Object visible from foo, with width dummyFunc(foo)
+            """,
+        )
+
+
 def test_visible_no_ego():
     with pytest.raises(InvalidScenarioError):
         compileScenic("ego = new Object visible")
@@ -750,6 +766,11 @@ def test_in_heading():
         assert -50 <= pos.y <= 50
         assert pos.x == pytest.approx(-pos.y)
         assert scene.egoObject.heading == pytest.approx(math.radians(45))
+
+
+def test_in_everywhere():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic("ego = new Object in everywhere")
 
 
 def test_in_mistyped():
