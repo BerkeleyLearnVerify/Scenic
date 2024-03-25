@@ -1076,6 +1076,17 @@ scenic_contract_assume_expr:
     | "assume" component=scenic_subcomponent_name \
       "satisfies" contract=primary {s.ContractAssume(contract, component)}
 
+# Contract Compose Statements
+# ---------------------------
+
+scenic_contract_compose_stmt:
+    | a=(z=star_targets '=' { z })+ b=scenic_contract_compose_expr NEWLINE {
+         ast.Assign(targets=a, value=b, LOCATIONS)
+     }
+
+scenic_contract_compose_expr:
+    | "compose"
+
 # Component/Contracts General
 # ---------------------------
 
