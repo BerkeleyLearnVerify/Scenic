@@ -4,7 +4,6 @@ import random
 import pytest
 
 from scenic.core.errors import InconsistentScenarioError
-from scenic.core.pruning import checkCyclical
 from scenic.core.vectors import Vector
 from tests.utils import compileScenic, sampleEgo, sampleParamP
 
@@ -208,12 +207,43 @@ def test_visibility_pruning():
     assert all(pos.distanceTo(Vector(0, 0, 0)) <= 1.1 for pos in positions)
     assert any(pos.distanceTo(Vector(0, 0, 0)) >= 1 for pos in positions)
 
+    # requireVisible with offset
+    baseOffsetVal = 0.0001
+    scenario = compileScenic(
+        f"""
+        workspace = Workspace(RectangularRegion(0@0, 0, 1e10, 1e10))
+        ego = new Object at (0,0,0), with visibleDistance 1
+        foo = new Object on workspace, with requireVisible True,
+            with shape SpheroidShape(dimensions=(0.2,0.2,0.2)),
+            with baseOffset (0,0,{baseOffsetVal}), with contactTolerance 0
+        param p = foo.position
+        """
+    )
+    positions = [sampleParamP(scenario, maxIterations=100) for i in range(30)]
+    assert all(pos.distanceTo(Vector(0, 0, 0)) <= 1.1 for pos in positions)
+    assert any(pos.distanceTo(Vector(0, 0, 0)) >= 1 for pos in positions)
+    assert all(pos.z == -baseOffsetVal for pos in positions)
+
+    # visible with offset
+    baseOffsetVal = 0.0001
+    scenario = compileScenic(
+        f"""
+        workspace = Workspace(RectangularRegion(0@0, 0, 1e10, 1e10))
+        ego = new Object at (0,0,0), with visibleDistance 1
+        foo = new Object on workspace, visible,
+            with shape SpheroidShape(dimensions=(0.2,0.2,0.2)),
+            with baseOffset (0,0,{baseOffsetVal}), with contactTolerance 0
+        param p = foo.position
+        """
+    )
+    positions = [sampleParamP(scenario, maxIterations=100) for i in range(30)]
+    assert all(pos.distanceTo(Vector(0, 0, 0)) <= 1.1 for pos in positions)
+    assert any(pos.distanceTo(Vector(0, 0, 0)) >= 1 for pos in positions)
+    assert all(pos.z == -baseOffsetVal for pos in positions)
+
 
 def test_visibility_pruning_cyclical():
-    """A case where a cyclical dependency could be introduced if pruning is not done carefully.
-
-    NOTE: We don't currently prune this case so this test is a sentinel for future behavior.
-    """
+    """A case where a cyclical dependency could be introduced if pruning is not done carefully."""
     scenario = compileScenic(
         """
         workspace = Workspace(PolygonalRegion([0@0, 100@0, 100@100, 0@100]))
@@ -223,24 +253,3 @@ def test_visibility_pruning_cyclical():
     )
 
     sampleEgo(scenario, maxIterations=100)
-
-
-def test_checkCyclical():
-    scenario = compileScenic(
-        """
-        workspace = Workspace(PolygonalRegion([0@0, 100@0, 100@100, 0@100]))
-        foo = new Object in workspace
-        ego = new Object in workspace
-        """
-    )
-    assert not checkCyclical(scenario.objects[1].position, scenario.objects[0].position)
-
-    scenario = compileScenic(
-        """
-        workspace = Workspace(PolygonalRegion([0@0, 100@0, 100@100, 0@100]))
-        foo = new Object with requireVisible True, in workspace
-        ego = new Object visible from foo
-        """
-    )
-
-    assert checkCyclical(scenario.objects[1].position, scenario.objects[0].visibleRegion)
