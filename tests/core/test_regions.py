@@ -633,8 +633,28 @@ def test_intersection_sampler():
         return samples
 
     for pt in attempt_sample(100):
-        for reg in regions:
-            assert reg.containsPoint(pt)
+        assert all(reg.containsPoint(pt) for reg in regions)
+
+
+def test_union_sampler():
+    reg1 = BoxRegion(position=(0, 0, 0), dimensions=(0.5, 1, 1))
+    reg2 = CircularRegion((0, 0, 0), 1)
+
+    regions = (reg1, reg2)
+
+    union_region = UnionRegion(*regions)
+
+    def attempt_sample(num_samples):
+        samples = []
+        for _ in range(num_samples):
+            try:
+                samples.append(union_region.uniformPointInner())
+            except RejectionException:
+                pass
+        return samples
+
+    for pt in attempt_sample(100):
+        assert any(reg.containsPoint(pt) for reg in regions)
 
 
 # ViewRegion tests

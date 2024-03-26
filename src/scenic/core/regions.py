@@ -585,7 +585,7 @@ class UnionRegion(Region):
 
     @staticmethod
     def genericSampler(union):
-        regs = intersection.regions
+        regs = union.regions
 
         # Check that all regions have well defined dimensionality
         if any(reg.dimensionality is None for reg in regs):
