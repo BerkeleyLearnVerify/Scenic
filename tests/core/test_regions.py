@@ -613,6 +613,30 @@ def test_empty_erosion():
     assert isinstance(erosion, EmptyRegion)
 
 
+def test_intersection_sampler():
+    reg1 = BoxRegion(position=(0, 0, 0), dimensions=(0.5, 1, 1))
+    reg2 = AllRegion("all")
+    reg3 = CircularRegion((0, 0, 0), 1)
+    reg4 = reg3.footprint
+
+    regions = (reg1, reg2, reg3, reg4)
+
+    intersection_region = IntersectionRegion(*regions)
+
+    def attempt_sample(num_samples):
+        samples = []
+        for _ in range(num_samples):
+            try:
+                samples.append(intersection_region.uniformPointInner())
+            except RejectionException:
+                pass
+        return samples
+
+    for pt in attempt_sample(100):
+        for reg in regions:
+            assert reg.containsPoint(pt)
+
+
 # ViewRegion tests
 H_ANGLES = [0.95, 45, 90, 135, 177.5, 180, 180.01, 225, 270, 315, 358.99, 360]
 
