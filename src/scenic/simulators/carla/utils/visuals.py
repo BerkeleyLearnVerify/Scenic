@@ -29,12 +29,12 @@ import weakref
 
 import cv2
 import imageio as iio
-import pdb
 
 import carla
 from carla import ColorConverter as cc
 import numpy as np
 import pygame
+
 
 
 def get_actor_display_name(actor, truncate=250):
@@ -270,7 +270,7 @@ class CollisionSensor(object):
 
 
 class CameraManager(object):
-    def __init__(self, world, actor, hud, fps=30, resolution='848x480', video_output_path=None):
+    def __init__(self, world, actor, hud, fps=30.0, resolution='848x480', video_output_path=None, enable_bird_view=False):
         self.sensor = None
         self._surface = None
         self._actor = actor
@@ -279,9 +279,14 @@ class CameraManager(object):
         self.recording = video_output_path is not None
         self._hud = hud
         self.images = []
+        bird_eye_view_transform = carla.Transform(
+            carla.Location(x=0, y=0, z=10),  # 10 meters above the ground
+            carla.Rotation(pitch=-90, yaw=0, roll=0)  # Pointing straight down
+        )
         self._camera_transforms = [
             carla.Transform(carla.Location(x=-5.5, z=2.8), carla.Rotation(pitch=-15)),
             carla.Transform(carla.Location(x=1.6, z=1.7)),
+            bird_eye_view_transform,
         ]
         self._transform_index = 1
         self._sensors = [
@@ -307,17 +312,15 @@ class CameraManager(object):
         ]
         self._world = world
         self.video_writer = None
-        self.other_video_writer = None
         if self.recording:
             self.resolution = [int(x) for x in resolution.split("x")]
             video_file_name = video_output_path.split('.')[0]
-            self.other_video_writer = cv2.VideoWriter(
-                video_file_name + "_cv2.mp4", cv2.VideoWriter_fourcc(*"mp4v"), fps, 
-                (self.resolution[0], self.resolution[1])
-            )
+            if enable_bird_view:
+                video_file_name += "_bev"
+                self.bev = True
+            video_output_path = video_file_name + ".mp4"
             self.video_writer = iio.get_writer(
-                video_output_path, fps=fps, codec='libx264', quality=10
-            )
+                video_output_path, fps=fps)
         bp_library = self._world.get_blueprint_library()
         for item in self._sensors:
             bp = bp_library.find(item[0])
@@ -328,7 +331,7 @@ class CameraManager(object):
         self._index = None
 
     def toggle_camera(self):
-        set_transform((self._transform_index + 1) % len(self._camera_transforms))
+        self.set_transform((self._transform_index + 1) % len(self._camera_transforms))
 
     def set_transform(self, idx):
         self._transform_index = idx
@@ -385,11 +388,15 @@ class CameraManager(object):
             array = array[:, :, ::-1]
             self._surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
             if self.recording:
-                pdb.set_trace()
+                # make sure we are in bird's eye view
+                if self.bev:
+                    if self._transform_index != 2:
+                        self.set_transform(2)
+
+                im = np.reshape(np.copy(image.raw_data).astype(np.uint8), (image.height, image.width, 4))
                 try:
-                    swapped_array = array.swapaxes(0, 1)
-                    self.video_writer.append_data(array)
-                    self.other_video_writer.append_data(array)
+                    self.video_writer.append_data(im)
+                    self.cv2_video_writer.write(im)
                 except Exception as e:
                     print("Failed to write video:", e)
         self.images.append(image)

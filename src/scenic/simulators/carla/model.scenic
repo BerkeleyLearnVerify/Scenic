@@ -97,6 +97,7 @@ param weather = Uniform(
 )
 param resolution = '848x480' # '1280x720'
 param video_output_path = None
+param enable_bird_view = False
 
 simulator CarlaSimulator(
     carla_map=globalParameters.carla_map,
@@ -108,7 +109,8 @@ simulator CarlaSimulator(
     record=globalParameters.record,
     timestep=float(globalParameters.timestep),
     resolution=globalParameters.resolution,
-    video_output_path=globalParameters.video_output_path
+    video_output_path=globalParameters.video_output_path,
+    enable_bird_view=globalParameters.enable_bird_view
 )
 
 class CarlaActor(DrivingObject):

@@ -39,7 +39,8 @@ class CarlaSimulator(DrivingSimulator):
         timestep=0.1,
         traffic_manager_port=None,
         resolution='1280x720',
-        video_output_path=None
+        video_output_path=None,
+        enable_bird_view=False
     ):
         super().__init__()
         verbosePrint(f"Connecting to CARLA on port {port}")
@@ -76,6 +77,7 @@ class CarlaSimulator(DrivingSimulator):
 
         self.resolution = resolution
         self.video_output_path = video_output_path
+        self.enable_bird_view = enable_bird_view
 
     def createSimulation(self, scene, *, timestep, **kwargs):
         if timestep is not None and timestep != self.timestep:
@@ -95,6 +97,7 @@ class CarlaSimulator(DrivingSimulator):
             timestep=self.timestep,
             resolution=self.resolution,
             video_output_path=self.video_output_path,
+            enable_bird_view=self.enable_bird_view,
             **kwargs,
         )
 
@@ -109,7 +112,7 @@ class CarlaSimulator(DrivingSimulator):
 
 class CarlaSimulation(DrivingSimulation):
     def __init__(self, scene, client, tm, render, record, scenario_number, 
-                 resolution, video_output_path, **kwargs):
+                 resolution, video_output_path, enable_bird_view, **kwargs):
         self.client = client
         self.world = self.client.get_world()
         self.map = self.world.get_map()
@@ -121,6 +124,7 @@ class CarlaSimulation(DrivingSimulation):
         self.cameraManager = None
         self.resolution = resolution
         self.video_output_path = video_output_path
+        self.enable_bird_view = enable_bird_view
 
         super().__init__(scene, **kwargs)
 
@@ -163,6 +167,7 @@ class CarlaSimulation(DrivingSimulation):
                 self.world, egoActor, self.hud, 
                 fps=1.0 / self.timestep, 
                 resolution=self.resolution, video_output_path=self.video_output_path,
+                enable_bird_view=self.enable_bird_view
             )
             self.cameraManager._transform_index = camPosIndex
             self.cameraManager.set_sensor(camIndex)
