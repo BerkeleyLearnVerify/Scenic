@@ -1,0 +1,24 @@
+Mon Nov 13 18:07:17 2023
+WARNING: mju_openResource: unknown file 'humanoid.xml'
+
+Mon Nov 13 18:14:19 2023
+WARNING: mju_openResource: unknown file 'humanoid.xml'
+
+Mon Nov 13 18:15:06 2023
+WARNING: mju_openResource: unknown file '/path/to/mjcf.xml'
+
+Mon Nov 13 18:24:20 2023
+WARNING: mju_openResource: unknown file 'humanoid.xml'
+
+Wed Jan 24 08:12:05 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 2. The simulation is unstable. Time = 341.2420.
+
+Wed Jan 24 08:15:17 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 5. The simulation is unstable. Time = 92.6140.
+
+Wed Jan 24 08:16:23 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 2. The simulation is unstable. Time = 28.7420.
+
+Wed Jan 24 08:19:01 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 2. The simulation is unstable. Time = 341.2420.
+
