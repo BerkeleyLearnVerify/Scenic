@@ -1,11 +1,20 @@
 import pytest
 
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
+from scenic.simulators.carla import CarlaSimulator
 
 # Suppress potential warning about missing the carla package
 pytestmark = pytest.mark.filterwarnings(
     "ignore::scenic.core.simulators.SimulatorInterfaceWarning"
 )
+
+def test_dynamic_throttle(loadLocalScenario):
+    scenario = loadLocalScenario("car_throttle.scenic", mode2D=True)
+    scene, _ = scenario.generate(maxIterations=1000)
+    simulator = CarlaSimulator(carla_map='Town05', map_path="../../../assets/maps/CARLA/Town05.xodr")
+    # simulator = scenario.getSimulator()
+    result = simulator.simulate(scene, maxSteps=1)
+    assert result is not None
 
 
 def test_basic(loadLocalScenario):
