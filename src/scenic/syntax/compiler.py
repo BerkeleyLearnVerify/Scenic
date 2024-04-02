@@ -35,7 +35,7 @@ def compileScenicAST(
         node = [ast.fix_missing_locations(n) for n in tree]
     else:
         node = ast.fix_missing_locations(tree)
-    return node, compiler.requirements
+    return node, compiler.syntaxTrees
 
 
 # constants
@@ -293,10 +293,14 @@ class ContractAtomicTransformer(Transformer):
 
 class PropositionTransformer(Transformer):
     def __init__(
-        self, filename="<unknown>", atomic_args=None, atomic_transformer=None
+        self,
+        filename="<unknown>",
+        syntaxTrees=None,
+        atomic_args=None,
+        atomic_transformer=None,
     ) -> None:
         super().__init__(filename)
-        self.nextSyntaxId = 0
+        self.syntaxTrees = syntaxTrees if syntaxTrees is not None else []
 
         if atomic_args is None:
             self.atomic_args = noArgs
@@ -305,26 +309,22 @@ class PropositionTransformer(Transformer):
 
         self.atomic_transformer = atomic_transformer
 
-    def transform(
-        self, node: ast.AST, nextSyntaxId=0
-    ) -> Tuple[ast.AST, List[ast.AST], int]:
+    def transform(self, node: ast.AST) -> Tuple[ast.AST, List[ast.AST], int]:
         """`transform` takes an AST node and apply transformations needed for temporal evaluation
 
         Args:
             node (ast.AST): AST node to perform proposition transformation
-            nextSyntaxId (int, optional): Assign syntax ids starting at this number. Defaults to 0.
 
         Returns:
             ast.AST: Transformed AST node
         """
-        self.nextSyntaxId = nextSyntaxId
         wrapped = self.visit(ast.fix_missing_locations(node))
         if self.is_proposition_factory(wrapped):
-            return wrapped, self.nextSyntaxId
+            return wrapped
         newNode = self._create_atomic_proposition_factory(node)
-        return newNode, self.nextSyntaxId
+        return newNode
 
-    def _register_requirement_syntax(self, syntax):
+    def _register_syntax(self, syntax):
         """register requirement syntax for later use
         returns an ID for retrieving the syntax
 
@@ -334,9 +334,8 @@ class PropositionTransformer(Transformer):
         Returns:
             int: generated requirement syntax ID
         """
-        syntaxId = self.nextSyntaxId
-        self.nextSyntaxId += 1
-        return syntaxId
+        self.syntaxTrees.append(syntax)
+        return len(self.syntaxTrees) - 1
 
     def _create_atomic_proposition_factory(self, node):
         """
@@ -352,16 +351,13 @@ class PropositionTransformer(Transformer):
         closure = ast.Lambda(self.atomic_args, node)
         ast.copy_location(closure, node)
 
-        syntaxId = self._register_requirement_syntax(node)
+        syntaxId = self._register_syntax(node)
         syntaxIdConst = ast.Constant(syntaxId)
         ast.copy_location(syntaxIdConst, node)
 
         try:
             with open(self.filename, mode="r") as file:
                 source_segment = ast.get_source_segment(file.read(), node)
-                if source_segment is None:
-                    breakpoint()
-                pass
 
         except FileNotFoundError:
             source_segment = None
@@ -523,8 +519,7 @@ class ScenicToPythonTransformer(Transformer):
     def __init__(self, filename) -> None:
         super().__init__(filename)
 
-        self.requirements = []
-        self.nextSyntaxId = 0
+        self.syntaxTrees = []
 
         self.inBehavior: bool = False
         "True if the transformer is processing behavior body"
@@ -607,9 +602,9 @@ class ScenicToPythonTransformer(Transformer):
             assert False, f"unknown object {node} encountered during compilation"
 
     # helper functions
-    def _register_requirement_syntax(self, syntax: ast.AST) -> int:
-        self.requirements.append(syntax)
-        return len(self.requirements) - 1
+    def _register_syntax(self, syntax: ast.AST) -> int:
+        self.syntaxTrees.append(syntax)
+        return len(self.syntaxTrees) - 1
 
     def visit_Name(self, node: ast.Name) -> Any:
         if node.id in builtinNames:
@@ -1417,10 +1412,10 @@ class ScenicToPythonTransformer(Transformer):
             name (Optional[str], optional): Optional name for requirements. Defaults to None.
             prob (Optional[float], optional): Optional probability for requirements. Defaults to None.
         """
-        propTransformer = PropositionTransformer(self.filename)
-        newBody, self.nextSyntaxId = propTransformer.transform(body, self.nextSyntaxId)
+        propTransformer = PropositionTransformer(self.filename, self.syntaxTrees)
+        newBody = propTransformer.transform(body)
         newBody = self.visit(newBody)
-        requirementId = self._register_requirement_syntax(body)
+        requirementId = self._register_syntax(body)
 
         return ast.Expr(
             value=ast.Call(
@@ -2626,13 +2621,11 @@ class ScenicToPythonTransformer(Transformer):
             )
             propTransformer = PropositionTransformer(
                 self.filename,
+                self.syntaxTrees,
                 atomic_args=lambda_args,
                 atomic_transformer=atomic_transformer,
             )
-            assumption_prop, self.nextSyntaxId = propTransformer.transform(
-                a, self.nextSyntaxId
-            )
-
+            assumption_prop = propTransformer.transform(a)
             max_lookahead = max(max_lookahead, atomic_transformer.max_lookahead)
 
             prop_fac_body.append(
@@ -2663,12 +2656,11 @@ class ScenicToPythonTransformer(Transformer):
             )
             propTransformer = PropositionTransformer(
                 self.filename,
+                self.syntaxTrees,
                 atomic_args=lambda_args,
                 atomic_transformer=atomic_transformer,
             )
-            guarantee_prop, self.nextSyntaxId = propTransformer.transform(
-                g, self.nextSyntaxId
-            )
+            guarantee_prop = propTransformer.transform(g)
 
             max_lookahead = max(max_lookahead, atomic_transformer.max_lookahead)
 
@@ -2841,6 +2833,39 @@ class ScenicToPythonTransformer(Transformer):
 
         return ast.Call(
             func=ast.Name("Assumption", loadCtx),
+            args=[],
+            keywords=keywords,
+        )
+
+    def visit_ContractUse(self, node: s.ContractUse):
+        # TODO: Add a check to ensure this is of proper type?
+        return ast.Name(node.name, loadCtx)
+
+    def visit_ContractCompose(self, node: s.ContractCompose):
+        # Create component keyword
+        obj_val = ast.Name(node.component[0], loadCtx)
+        component_val = obj_val
+
+        if len(node.component) > 1:
+            for sub_name in node.component[1:]:
+                component_val = ast.Subscript(
+                    ast.Attribute(component_val, "subcomponents", loadCtx),
+                    ast.Constant(sub_name),
+                    loadCtx,
+                )
+
+        # Compile sub statements
+        sub_stmts = ast.List(
+            elts=[self.visit(sub_stmt) for sub_stmt in node.sub_stmts], ctx=loadCtx
+        )
+
+        # Package keywords
+        keywords = []
+        keywords.append(ast.keyword("component", component_val))
+        keywords.append(ast.keyword("sub_stmts", sub_stmts))
+
+        return ast.Call(
+            func=ast.Name("Composition", loadCtx),
             args=[],
             keywords=keywords,
         )

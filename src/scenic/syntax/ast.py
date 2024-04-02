@@ -1387,6 +1387,30 @@ class ContractAssume(AST):
         self.component = component
 
 
+class ContractCompose(AST):
+    def __init__(
+        self,
+        component,
+        sub_stmts,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.component = component
+        self.sub_stmts = sub_stmts
+
+
+class ContractUse(AST):
+    def __init__(
+        self,
+        name,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.name = name
+
+
 class ContractVerify(AST):
     def __init__(
         self,
@@ -1395,6 +1419,19 @@ class ContractVerify(AST):
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
+        self.target = target
+
+
+class ContractRefine(AST):
+    def __init__(
+        self,
+        name,
+        target,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.name = name
         self.target = target
 
 

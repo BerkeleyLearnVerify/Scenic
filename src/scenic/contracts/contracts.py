@@ -1,3 +1,6 @@
+from abc import ABC, abstractmethod
+
+
 class Contract:
     def __init__(self, **kwargs):
         # Create and store lambdas for definitions, assumptions, and guarantees
@@ -10,6 +13,10 @@ class Contract:
 
         # TODO: Handle contracts w/ more than one object
         assert len(self.objects) <= 1
+
+
+class VerificationTechnique(ABC):
+    pass
 
 
 class _ContractResultBase:

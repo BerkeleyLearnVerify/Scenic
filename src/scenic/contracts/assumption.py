@@ -1,7 +1,11 @@
-from scenic.contracts.contracts import ContractEvidence, ContractResult
+from scenic.contracts.contracts import (
+    ContractEvidence,
+    ContractResult,
+    VerificationTechnique,
+)
 
 
-class Assumption:
+class Assumption(VerificationTechnique):
     def __init__(
         self,
         ## Compiler Provided ##

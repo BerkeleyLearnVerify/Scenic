@@ -21,7 +21,7 @@ def makeLocations(lineno=1, col_offset=0, end_lineno=1, end_col_offset=0):
 
 class TestPropositionTransformer:
     def test_atomic(self):
-        node, _ = PropositionTransformer().transform(Name("A", lineno=1))
+        node = PropositionTransformer().transform(Name("A", lineno=1))
         match node:
             case Call(Name("AtomicProposition"), [Lambda(arguments(), Name("A"))]):
                 assert True
@@ -36,7 +36,7 @@ class TestPropositionTransformer:
         ],
     )
     def test_boolop_basic(self, op, factory):
-        node, _ = PropositionTransformer().transform(
+        node = PropositionTransformer().transform(
             BoolOp(op, [Name("A", lineno=1), Name("B", lineno=1)])
         )
 
@@ -63,7 +63,7 @@ class TestPropositionTransformer:
                 assert False
 
     def test_boolop_nested(self):
-        node, _ = PropositionTransformer().transform(
+        node = PropositionTransformer().transform(
             # A and not B
             BoolOp(
                 And(),
@@ -99,7 +99,7 @@ class TestPropositionTransformer:
                 assert False
 
     def test_unaryop_not(self):
-        node, _ = PropositionTransformer().transform(
+        node = PropositionTransformer().transform(
             UnaryOp(Not(), Name("A", lineno=1), lineno=1)
         )
 
@@ -118,7 +118,7 @@ class TestPropositionTransformer:
                 assert False
 
     def test_unaryop_other(self):
-        node, _ = PropositionTransformer().transform(
+        node = PropositionTransformer().transform(
             # +x
             UnaryOp(UAdd(), Name("x"), lineno=1)
         )
@@ -134,7 +134,7 @@ class TestPropositionTransformer:
                 assert False
 
     def test_until_op(self):
-        node, _ = PropositionTransformer().transform(
+        node = PropositionTransformer().transform(
             UntilOp(Name("x"), Name("y"), lineno=1, col_offset=0)
         )
         match node:
@@ -156,7 +156,7 @@ class TestPropositionTransformer:
                 assert False
 
     def test_implies_op(self):
-        node, _ = PropositionTransformer().transform(ImpliesOp(Name("x"), Name("y")))
+        node = PropositionTransformer().transform(ImpliesOp(Name("x"), Name("y")))
         match node:
             case Call(
                 Name("Implies"),

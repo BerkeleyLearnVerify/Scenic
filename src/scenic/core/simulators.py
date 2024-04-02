@@ -136,8 +136,7 @@ class Simulator(abc.ABC):
                 (rarely) and its security implications.
 
         Returns:
-            A `Simulation` object representing the completed simulation (if manual is False),
-            an initialized simulation (if manual is True), or `None` if no simulation satisfying
+            An initialized simulation, or `None` if no simulation satisfying
             the requirements could be found within **maxIterations** iterations.
 
         Raises:
@@ -189,7 +188,6 @@ class Simulator(abc.ABC):
                 divergenceTolerance=divergenceTolerance,
                 continueAfterDivergence=continueAfterDivergence,
                 allowPickle=allowPickle,
-                manual=False,
             )
         return simulation
 
@@ -199,6 +197,7 @@ class Simulator(abc.ABC):
         scene,
         maxSteps=None,
         *,
+        name="SteppedSimulation",
         timestep=None,
         verbosity=None,
         replay=None,
@@ -219,7 +218,7 @@ class Simulator(abc.ABC):
         simulation = self.createSimulation(
             scene,
             maxSteps=maxSteps,
-            name="SteppedSimulation",
+            name=name,
             verbosity=verbosity,
             timestep=timestep,
             replay=replay,
@@ -228,7 +227,6 @@ class Simulator(abc.ABC):
             divergenceTolerance=divergenceTolerance,
             continueAfterDivergence=continueAfterDivergence,
             allowPickle=allowPickle,
-            manual=True,
         )
         try:
             yield simulation
@@ -256,13 +254,15 @@ class Simulator(abc.ABC):
         if verbosity >= 2:
             print(f"  Starting simulation {name}...")
         try:
-            simulation = self.createSimulation(
+            with self.simulateStepped(
                 scene,
                 maxSteps=maxSteps,
                 name=name,
                 verbosity=verbosity,
                 **kwargs,
-            )
+            ) as simulation:
+                simulation._run()
+
         except (RejectSimulationException, RejectionException, GuardViolation) as e:
             if verbosity >= 2:
                 print(
@@ -274,8 +274,6 @@ class Simulator(abc.ABC):
             else:
                 optionallyDebugRejection(e)
                 return None
-        finally:
-            simulation.cleanup()
 
         # Completed the simulation without violating a requirement
         if not isinstance(simulation, Simulation):
@@ -330,9 +328,6 @@ class Simulation(abc.ABC):
     Other methods can be overridden if necessary, e.g. `setup` for initialization
     at the start of the simulation and `destroy` for cleanup afterward.
 
-    Note that if manual mode is enabled, you MUST CALL `cleanup` if you want to move
-    on from a simulation without it terminating.
-
     .. versionchanged:: 3.0
 
         The ``__init__`` method of subclasses should no longer create objects;
@@ -381,7 +376,6 @@ class Simulation(abc.ABC):
         divergenceTolerance=0,
         continueAfterDivergence=False,
         verbosity=0,
-        manual=False,
     ):
         self.result = None
         self.scene = scene
@@ -428,13 +422,10 @@ class Simulation(abc.ABC):
             self.terminationType = None
             self.terminationReason = None
 
-            # Run the simulation, if not in manual mode.
-            if not manual:
-                self._run()
-
         except (RejectSimulationException, RejectionException, GuardViolation) as e:
             # This simulation will be thrown out, but attach it to the exception
             # to aid in debugging.
+            self.cleanup()
             e.simulation = self
             raise
 
@@ -559,6 +550,8 @@ class Simulation(abc.ABC):
             self.records,
         )
         self.result = result
+
+        self.cleanup()
 
     def cleanup(self):
         # No need to repeat cleanup if we've already done it

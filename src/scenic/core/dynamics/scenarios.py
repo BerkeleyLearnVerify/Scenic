@@ -42,7 +42,7 @@ class DynamicScenario(Invocable):
         target = functools.partial(target, 0, 0)  # account for Scenic-inserted args
         cls.__signature__ = inspect.signature(target)
 
-    _requirementSyntax = None  # overridden by subclasses
+    _syntaxTrees = None  # overridden by subclasses
     _simulatorFactory = None
     _globalParameters = None
     _locals = ()
@@ -426,10 +426,10 @@ class DynamicScenario(Invocable):
 
     def _compileRequirements(self):
         namespace = self._dummyNamespace if self._dummyNamespace else self.__dict__
-        requirementSyntax = self._requirementSyntax
-        assert requirementSyntax is not None
+        syntaxTrees = self._syntaxTrees
+        assert syntaxTrees is not None
         for reqID, requirement in self._pendingRequirements.items():
-            syntax = requirementSyntax[reqID] if requirementSyntax else None
+            syntax = syntaxTrees[reqID] if syntaxTrees else None
             compiledReq = requirement.compile(namespace, self, syntax)
 
             self._registerCompiledRequirement(compiledReq)

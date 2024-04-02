@@ -296,7 +296,7 @@ def compileStream(stream, namespace, compileOptions, filename):
             print("### End Scenic AST")
 
         # Compile the Scenic AST into a Python AST
-        tree, requirements = compileScenicAST(scenic_tree, filename=filename)
+        tree, syntaxTrees = compileScenicAST(scenic_tree, filename=filename)
         astHasher = hashlib.blake2b(digest_size=4)
         astHasher.update(ast.dump(tree).encode())
 
@@ -324,7 +324,7 @@ def compileStream(stream, namespace, compileOptions, filename):
 
         # Extract scenario state from veneer and store it
         astHash = astHasher.digest()
-        storeScenarioStateIn(namespace, requirements, astHash, compileOptions)
+        storeScenarioStateIn(namespace, syntaxTrees, astHash, compileOptions)
     finally:
         veneer.deactivate()
     if errors.verbosityLevel >= 2:
@@ -574,7 +574,7 @@ def executeCodeIn(code, namespace):
 ### TRANSLATION PHASE SEVEN: scenario construction
 
 
-def storeScenarioStateIn(namespace, requirementSyntax, astHash, options):
+def storeScenarioStateIn(namespace, syntaxTrees, astHash, options):
     """Post-process an executed Scenic module, extracting state from the veneer."""
 
     # Save requirement syntax and other module-level information
@@ -585,7 +585,7 @@ def storeScenarioStateIn(namespace, requirementSyntax, astHash, options):
     bns = gatherBehaviorNamespacesFrom(moduleScenario._behaviors)
 
     def handle(scenario):
-        scenario._requirementSyntax = requirementSyntax
+        scenario._syntaxTrees = syntaxTrees
         if isinstance(scenario, type):
             scenario._simulatorFactory = staticmethod(factory)
         else:

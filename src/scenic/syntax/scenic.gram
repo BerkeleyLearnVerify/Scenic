@@ -575,6 +575,7 @@ scenic_compound_stmt:
     | scenic_contract_def
     | scenic_assign_contract_test_stmt
     | scenic_assign_contract_assume_stmt
+    | scenic_assign_contract_compose_stmt
 
 # SIMPLE STATEMENTS
 # =================
@@ -968,7 +969,13 @@ scenic_component_dot_name:
     | a=NAME {(a.string, None)}
 
 scenic_implement_stmt:
-    | 'implement' linked_name=STRING 'with' component=primary 'as' name=NAME {s.ImplementStmt(name.string, component, linked_name.string[1:-1], LOCATIONS)}
+    | "implement" linked_name=STRING 'with' component=primary 'as' name=NAME {s.ImplementStmt(name.string, component, linked_name.string[1:-1], LOCATIONS)}
+
+scenic_verify_expr:
+    | "verify" e=scenic_prefix_operators {s.ContractVerify(e, LOCATIONS)}
+
+scenic_refine_expr:
+    | "refine" name=NAME "as" e=scenic_prefix_operators {s.ContractRefine(name, e, LOCATIONS)}
 
 # Contract
 # --------
@@ -1032,7 +1039,7 @@ scenic_assign_contract_test_stmt:
      }
 
 scenic_contract_test_stmt:
-    | a=scenic_contract_test_expr b=[scenic_contract_test_block] {s.ContractTest(a[0], a[1], a[2] + (b or []), LOCATIONS)}
+    | a=scenic_contract_test_header b=[scenic_contract_test_block] {s.ContractTest(a[0], a[1], a[2] + (b or []), LOCATIONS)}
 
 scenic_contract_test_block:
     | ',' NEWLINE INDENT b=scenic_contract_test_block_inner DEDENT {b}
@@ -1043,7 +1050,7 @@ scenic_contract_test_block_inner:
     # with trailing comma
     | b=(x=scenic_contract_test_spec ',' NEWLINE { x })+ {b + [c]}
 
-scenic_contract_test_expr:
+scenic_contract_test_header:
     | "test" component=scenic_subcomponent_name \
       "satisfies" contract=primary \
       ts=(',' x=scenic_contract_test_spec {x})* \
@@ -1068,24 +1075,32 @@ scenic_contract_test_req_cond:
 # --------------------------
 
 scenic_assign_contract_assume_stmt:
-    | a=(z=star_targets '=' { z })+ b=scenic_contract_assume_expr NEWLINE {
+    | a=(z=star_targets '=' { z })+ b=scenic_contract_assume_stmt  {
          ast.Assign(targets=a, value=b, LOCATIONS)
      }
 
-scenic_contract_assume_expr:
+scenic_contract_assume_stmt:
     | "assume" component=scenic_subcomponent_name \
-      "satisfies" contract=primary {s.ContractAssume(contract, component)}
+      "satisfies" contract=primary NEWLINE {s.ContractAssume(contract, component)}
 
 # Contract Compose Statements
 # ---------------------------
 
-scenic_contract_compose_stmt:
-    | a=(z=star_targets '=' { z })+ b=scenic_contract_compose_expr NEWLINE {
+scenic_assign_contract_compose_stmt:
+    | a=(z=star_targets '=' { z })+ b=scenic_contract_compose_stmt {
          ast.Assign(targets=a, value=b, LOCATIONS)
      }
 
-scenic_contract_compose_expr:
-    | "compose"
+scenic_contract_compose_stmt:
+    | "compose" "over" name=scenic_subcomponent_name ':' NEWLINE INDENT a=(scenic_contract_compose_inner)+ DEDENT {s.ContractCompose(name, a)}
+
+scenic_contract_compose_inner:
+    | scenic_contract_test_stmt
+    | scenic_contract_assume_stmt
+    | scenic_contract_use_stmt
+
+scenic_contract_use_stmt:
+    | "use" component=NAME NEWLINE {s.ContractUse(component.string)}
 
 # Component/Contracts General
 # ---------------------------
@@ -1830,8 +1845,9 @@ scenic_prefix_operators:
     | "visible" e=scenic_prefix_operators { s.VisibleOp(region=e, LOCATIONS) }
     | 'not' "visible" e=scenic_prefix_operators { s.NotVisibleOp(region=e, LOCATIONS) }
     | p=scenic_position_of_op_position 'of' e=scenic_prefix_operators { s.PositionOfOp(position=p, target=e, LOCATIONS) }
-    | "verify" e=scenic_prefix_operators {s.ContractVerify(e, LOCATIONS)}
+    | scenic_refine_expr
     | "next" e=scenic_prefix_operators {s.ContractNext(e, 1, LOCATIONS)}
+    | scenic_verify_expr
     | sum
 
 scenic_distance_from_op:

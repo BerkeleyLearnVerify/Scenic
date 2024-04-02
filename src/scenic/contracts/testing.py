@@ -6,7 +6,11 @@ import time
 import rv_ltl
 import scipy
 
-from scenic.contracts.contracts import ContractEvidence, ProbabilisticContractResult
+from scenic.contracts.contracts import (
+    ContractEvidence,
+    ProbabilisticContractResult,
+    VerificationTechnique,
+)
 from scenic.contracts.utils import linkSetBehavior, lookuplinkedObject
 from scenic.core.distributions import RejectionException
 from scenic.core.dynamics import GuardViolation, RejectSimulationException
@@ -14,7 +18,7 @@ import scenic.core.object_types
 from scenic.core.scenarios import Scenario
 
 
-class Testing:
+class Testing(VerificationTechnique):
     def __init__(
         self,
         ## Testing Specific ##
