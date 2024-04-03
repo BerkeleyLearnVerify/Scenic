@@ -10,19 +10,53 @@ pytestmark = pytest.mark.filterwarnings(
 )
 
 
-def test_atm_object(loadLocalScenario):
+def test_all_objects(loadLocalScenario):
     pytest.importorskip("carla")
     from scenic.simulators.carla import CarlaSimulator
 
-    scenario = loadLocalScenario("atm.scenic", mode2D=True)
+    scenario = loadLocalScenario("all_objects.scenic", mode2D=True)
     scene, _ = scenario.generate(maxIterations=10000)
     simulator = CarlaSimulator(
         carla_map="Town05", map_path="../../../assets/maps/CARLA/Town05.xodr"
     )
     simulation = simulator.simulate(scene)
-    object_class_type = str(type(simulation.objects[1]))
-    atm_class_type = re.search(r"\.([A-Za-z]+)\'>", object_class_type).group(1)
-    assert atm_class_type == "ATM"
+    objects = simulation.objects
+    expected_objects = [
+        "ATM",
+        "Advertisement",
+        "Barrel",
+        "Barrier",
+        "Bench",
+        "Bicycle",
+        "Box",
+        "BusStop",
+        "Car",
+        "Case",
+        "Chair",
+        "Cone",
+        "Container",
+        "CreasedBox",
+        "Debris",
+        "Garbage",
+        "Gnome",
+        "IronPlate",
+        "Kiosk",
+        "Mailbox",
+        "Motorcycle",
+        "NPCCar",
+        "Pedestrian",
+        "PlantPot",
+        "Table",
+        "TrafficWarning",
+        "Trash",
+        "Truck",
+        "VendingMachine",
+    ]
+    assert len(objects) == len(expected_objects)
+    for i in range(len(expected_objects)):
+        object = str(type(objects[i]))
+        object_class = re.search(r"\.([A-Za-z]+)\'>", object).group(1)
+        assert object_class in expected_objects
 
 
 def test_throttle(loadLocalScenario):
