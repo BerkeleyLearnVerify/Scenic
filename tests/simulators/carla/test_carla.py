@@ -2,7 +2,6 @@ import re
 
 import pytest
 
-from scenic.simulators.carla import CarlaSimulator
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
 # Suppress potential warning about missing the carla package
@@ -13,6 +12,8 @@ pytestmark = pytest.mark.filterwarnings(
 
 def test_atm_object(loadLocalScenario):
     pytest.importorskip("carla")
+    from scenic.simulators.carla import CarlaSimulator
+
     scenario = loadLocalScenario("atm.scenic", mode2D=True)
     scene, _ = scenario.generate(maxIterations=10000)
     simulator = CarlaSimulator(
@@ -26,6 +27,8 @@ def test_atm_object(loadLocalScenario):
 
 def test_throttle(loadLocalScenario):
     pytest.importorskip("carla")
+    from scenic.simulators.carla import CarlaSimulator
+
     scenario = loadLocalScenario("car_throttle.scenic", mode2D=True)
     scene, _ = scenario.generate(maxIterations=10)
     simulator = CarlaSimulator(
@@ -38,6 +41,8 @@ def test_throttle(loadLocalScenario):
 
 def test_brake(loadLocalScenario):
     pytest.importorskip("carla")
+    from scenic.simulators.carla import CarlaSimulator
+
     scenario = loadLocalScenario("car_throttle.scenic", mode2D=True)
     scene, _ = scenario.generate(maxIterations=10)
     simulator = CarlaSimulator(
