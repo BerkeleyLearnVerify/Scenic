@@ -1,27 +1,33 @@
 import pytest
 
-from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 from scenic.simulators.carla import CarlaSimulator
+from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
 # Suppress potential warning about missing the carla package
 pytestmark = pytest.mark.filterwarnings(
     "ignore::scenic.core.simulators.SimulatorInterfaceWarning"
 )
 
+
 def test_throttle(loadLocalScenario):
     scenario = loadLocalScenario("car_throttle.scenic", mode2D=True)
     scene, _ = scenario.generate(maxIterations=10)
-    simulator = CarlaSimulator(carla_map='Town05', map_path="../../../assets/maps/CARLA/Town05.xodr")
+    simulator = CarlaSimulator(
+        carla_map="Town05", map_path="../../../assets/maps/CARLA/Town05.xodr"
+    )
     simulation = simulator.simulate(scene)
-    records = simulation.result.records['CarSpeed']
-    assert records[len(records)//2][1] < records[-1][1]
+    records = simulation.result.records["CarSpeed"]
+    assert records[len(records) // 2][1] < records[-1][1]
+
 
 def test_brake(loadLocalScenario):
     scenario = loadLocalScenario("car_throttle.scenic", mode2D=True)
     scene, _ = scenario.generate(maxIterations=10)
-    simulator = CarlaSimulator(carla_map='Town05', map_path="../../../assets/maps/CARLA/Town05.xodr")
+    simulator = CarlaSimulator(
+        carla_map="Town05", map_path="../../../assets/maps/CARLA/Town05.xodr"
+    )
     simulation = simulator.simulate(scene)
-    records = simulation.result.records['CarSpeed']
+    records = simulation.result.records["CarSpeed"]
     threshold = 3
     assert int(records[-1][1]) < threshold
 
