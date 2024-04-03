@@ -8,13 +8,22 @@ pytestmark = pytest.mark.filterwarnings(
     "ignore::scenic.core.simulators.SimulatorInterfaceWarning"
 )
 
-def test_dynamic_throttle(loadLocalScenario):
+def test_throttle(loadLocalScenario):
     scenario = loadLocalScenario("car_throttle.scenic", mode2D=True)
-    scene, _ = scenario.generate(maxIterations=1000)
+    scene, _ = scenario.generate(maxIterations=10)
     simulator = CarlaSimulator(carla_map='Town05', map_path="../../../assets/maps/CARLA/Town05.xodr")
-    # simulator = scenario.getSimulator()
-    result = simulator.simulate(scene, maxSteps=1)
-    assert result is not None
+    simulation = simulator.simulate(scene)
+    records = simulation.result.records['CarSpeed']
+    assert records[len(records)//2][1] < records[-1][1]
+
+def test_brake(loadLocalScenario):
+    scenario = loadLocalScenario("car_throttle.scenic", mode2D=True)
+    scene, _ = scenario.generate(maxIterations=10)
+    simulator = CarlaSimulator(carla_map='Town05', map_path="../../../assets/maps/CARLA/Town05.xodr")
+    simulation = simulator.simulate(scene)
+    records = simulation.result.records['CarSpeed']
+    threshold = 3
+    assert int(records[-1][1]) < threshold
 
 
 def test_basic(loadLocalScenario):
@@ -36,7 +45,7 @@ def test_consistent_object_type(getAssetPath):
         model scenic.simulators.carla.model
         action = SetGearAction(0)
         ego = new Car
-        assert action.canBeTakenBy(ego)
+        as action.canBeTakenBy(ego)
     """
     for _ in range(2):
         compileScenic(code, mode2D=True)

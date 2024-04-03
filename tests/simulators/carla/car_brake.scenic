@@ -6,7 +6,7 @@ model scenic.simulators.carla.model
 
 behavior DriveWithAppliedThrottle():
     do FollowLaneBehavior() for 2 seconds
-    take SetThrottleAction(0.9)
+    take SetBrakeAction(1)
 
 ego = new Car with behavior DriveWithAppliedThrottle
 record ego.speed as CarSpeed
