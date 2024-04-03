@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from scenic.simulators.carla import CarlaSimulator
@@ -9,7 +11,21 @@ pytestmark = pytest.mark.filterwarnings(
 )
 
 
+def test_atm_object(loadLocalScenario):
+    pytest.importorskip("carla")
+    scenario = loadLocalScenario("atm.scenic", mode2D=True)
+    scene, _ = scenario.generate(maxIterations=10000)
+    simulator = CarlaSimulator(
+        carla_map="Town05", map_path="../../../assets/maps/CARLA/Town05.xodr"
+    )
+    simulation = simulator.simulate(scene)
+    object_class_type = str(type(simulation.objects[1]))
+    atm_class_type = re.search(r"\.([A-Za-z]+)\'>", object_class_type).group(1)
+    assert atm_class_type == "ATM"
+
+
 def test_throttle(loadLocalScenario):
+    pytest.importorskip("carla")
     scenario = loadLocalScenario("car_throttle.scenic", mode2D=True)
     scene, _ = scenario.generate(maxIterations=10)
     simulator = CarlaSimulator(
@@ -21,6 +37,7 @@ def test_throttle(loadLocalScenario):
 
 
 def test_brake(loadLocalScenario):
+    pytest.importorskip("carla")
     scenario = loadLocalScenario("car_throttle.scenic", mode2D=True)
     scene, _ = scenario.generate(maxIterations=10)
     simulator = CarlaSimulator(
