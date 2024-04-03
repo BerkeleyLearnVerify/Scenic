@@ -107,7 +107,7 @@ def test_consistent_object_type(getAssetPath):
         model scenic.simulators.carla.model
         action = SetGearAction(0)
         ego = new Car
-        as action.canBeTakenBy(ego)
+        assert action.canBeTakenBy(ego)
     """
     for _ in range(2):
         compileScenic(code, mode2D=True)
