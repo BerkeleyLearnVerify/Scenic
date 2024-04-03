@@ -55,7 +55,7 @@ jobs:
                 ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
 
                   # Now we have got the access of EC2 and we will start the deploy .
-                  bash /opt/carla-simulator/CarlaUE4.sh & &&
+                  bash /opt/carla-simulator/CarlaUE4.sh &
                   ls /home/ubuntu/ &&
                   cd /home/ubuntu/actions/ &&
                   git clone --branch $(basename "${{ github.ref }}") --single-branch https://$GH_ACCESS_TOKEN@github.com/BerkeleyLearnVerify/Scenic.git &&
