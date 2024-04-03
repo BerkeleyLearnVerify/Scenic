@@ -10,11 +10,51 @@ pytestmark = pytest.mark.filterwarnings(
 )
 
 
-def test_all_objects(loadLocalScenario):
+def test_all_objects(getAssetPath):
     pytest.importorskip("carla")
     from scenic.simulators.carla import CarlaSimulator
 
-    scenario = loadLocalScenario("all_objects.scenic", mode2D=True)
+    mapPath = getAssetPath("maps/CARLA/Town05.xodr")
+    code = f"""
+        param map = r'{mapPath}'
+        param carla_map = 'Town05'
+        param time_step = 1.0/10
+
+        model scenic.simulators.carla.model
+
+        ego = new Car
+        atm = new ATM
+        advertisement = new Advertisement
+        barrel = new Barrel
+        barrier = new Barrier
+        bench = new Bench
+        bicycle = new Bicycle
+        box = new Box
+        busstop = new BusStop
+        casev = new Case
+        chair = new Chair
+        cone = new Cone
+        container = new Container
+        creasedbox = new CreasedBox
+        debris = new Debris
+        garbage = new Garbage
+        gnome = new Gnome
+        ironplate = new IronPlate
+        kiosk = new Kiosk
+        mailbox = new Mailbox
+        motorcycle = new Motorcycle
+        npccar = new NPCCar
+        pedestrian = new Pedestrian
+        plantpot = new PlantPot
+        table = new Table
+        trafficwarning = new TrafficWarning
+        trash = new Trash
+        truck = new Truck
+        vendingmachine = new VendingMachine
+
+        terminate after 0.2 seconds
+    """
+    scenario = compileScenic(code, mode2D=True)
     scene, _ = scenario.generate(maxIterations=10000)
     simulator = CarlaSimulator(
         carla_map="Town05", map_path="../../../assets/maps/CARLA/Town05.xodr"
@@ -59,11 +99,27 @@ def test_all_objects(loadLocalScenario):
         assert object_class in expected_objects
 
 
-def test_throttle(loadLocalScenario):
+def test_throttle(getAssetPath):
     pytest.importorskip("carla")
     from scenic.simulators.carla import CarlaSimulator
 
-    scenario = loadLocalScenario("car_throttle.scenic", mode2D=True)
+    mapPath = getAssetPath("maps/CARLA/Town05.xodr")
+    code = f"""
+        param map = r'{mapPath}'
+        param carla_map = 'Town05'
+        param time_step = 1.0/10
+
+        model scenic.simulators.carla.model
+
+        behavior DriveWithAppliedThrottle():
+            do FollowLaneBehavior() for 2 seconds
+            take SetThrottleAction(0.9)
+
+        ego = new Car with behavior DriveWithAppliedThrottle
+        record ego.speed as CarSpeed
+        terminate after 4 seconds
+    """
+    scenario = compileScenic(code, mode2D=True)
     scene, _ = scenario.generate(maxIterations=10)
     simulator = CarlaSimulator(
         carla_map="Town05", map_path="../../../assets/maps/CARLA/Town05.xodr"
@@ -73,11 +129,27 @@ def test_throttle(loadLocalScenario):
     assert records[len(records) // 2][1] < records[-1][1]
 
 
-def test_brake(loadLocalScenario):
+def test_brake(getAssetPath):
     pytest.importorskip("carla")
     from scenic.simulators.carla import CarlaSimulator
 
-    scenario = loadLocalScenario("car_throttle.scenic", mode2D=True)
+    mapPath = getAssetPath("maps/CARLA/Town05.xodr")
+    code = f"""
+        param map = r'{mapPath}'
+        param carla_map = 'Town05'
+        param time_step = 1.0/10
+
+        model scenic.simulators.carla.model
+
+        behavior DriveWithAppliedThrottle():
+            do FollowLaneBehavior() for 2 seconds
+            take SetBrakeAction(1)
+
+        ego = new Car with behavior DriveWithAppliedThrottle
+        record ego.speed as CarSpeed
+        terminate after 4 seconds
+    """
+    scenario = compileScenic(code, mode2D=True)
     scene, _ = scenario.generate(maxIterations=10)
     simulator = CarlaSimulator(
         carla_map="Town05", map_path="../../../assets/maps/CARLA/Town05.xodr"
