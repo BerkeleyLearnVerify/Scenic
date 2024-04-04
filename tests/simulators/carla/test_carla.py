@@ -22,7 +22,7 @@ def test_old_blue_prints(getAssetPath):
             param time_step = 1.0/10
 
             model scenic.simulators.carla.model
-            ego = new Car with blueprint r'{old_model}'
+            ego = new Car, with blueprint r'{old_model}'
             terminate after 1 time_step
         """
         scenario = compileScenic(code, mode2D=True)
@@ -31,8 +31,8 @@ def test_old_blue_prints(getAssetPath):
             carla_map="Town05", map_path="../../../assets/maps/CARLA/Town05.xodr"
         )
         simulation = simulator.simulate(scene)
-        objects = simulation.objects
-        import pdb; pdb.set_trace()
+        object = simulation.objects[0]
+        assert object.blueprint == curr_model[0]
 
 def test_all_objects(getAssetPath):
     pytest.importorskip("carla")
