@@ -9,6 +9,30 @@ pytestmark = pytest.mark.filterwarnings(
     "ignore::scenic.core.simulators.SimulatorInterfaceWarning"
 )
 
+def test_old_blue_prints(getAssetPath):
+    pytest.importorskip("carla")
+    from scenic.simulators.carla import CarlaSimulator
+    from scenic.simulators.carla.blueprints import oldBlueprintNames 
+    mapPath = getAssetPath("maps/CARLA/Town01.xodr")
+    town = 'Town01'
+    for old_model,curr_model in oldBlueprintNames.items():
+        code = f"""
+            param map = r'{mapPath}'
+            param carla_map = r'{town}'
+            param time_step = 1.0/10
+
+            model scenic.simulators.carla.model
+            ego = new Car with blueprint r'{old_model}'
+            terminate after 1 time_step
+        """
+        scenario = compileScenic(code, mode2D=True)
+        scene, _ = scenario.generate(maxIterations=10000)
+        simulator = CarlaSimulator(
+            carla_map="Town05", map_path="../../../assets/maps/CARLA/Town05.xodr"
+        )
+        simulation = simulator.simulate(scene)
+        objects = simulation.objects
+        import pdb; pdb.set_trace()
 
 def test_all_objects(getAssetPath):
     pytest.importorskip("carla")
