@@ -42,8 +42,3 @@ _syntaxTrees = None
 def registerVerifyStatement(stmt):
     """Add a verify statement to the global tracker"""
     _verifyStatements.append(stmt)
-
-
-def getSyntaxTrees():
-    assert _syntaxTrees is not None
-    return _syntaxTrees

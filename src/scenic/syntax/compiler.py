@@ -1,5 +1,5 @@
 import ast
-from copy import copy
+from copy import copy, deepcopy
 from enum import IntFlag, auto
 import itertools
 from typing import Any, Callable, List, Literal, Optional, Tuple, Union
@@ -189,6 +189,14 @@ class LocalFinder(ast.NodeVisitor):
         self.generic_visit(node)
 
 
+class NameFinder(ast.NodeVisitor):
+    def __init__(self):
+        self.names = set()
+
+    def visit_Name(self, node):
+        self.names.add(node.id)
+
+
 class Transformer(ast.NodeTransformer):
     """Subclass of `ast.NodeTransformer` with a method for raising syntax errors."""
 
@@ -291,6 +299,30 @@ class ContractAtomicTransformer(Transformer):
         return new_node
 
 
+class NameMapTransformer(Transformer):
+    def __init__(self, name_map, filename="<unknown>"):
+        super().__init__(filename)
+        self.name_map = name_map
+
+    def visit_Name(self, node):
+        if node.id in self.name_map:
+            return self.visit(deepcopy(self.name_map[node.id]))
+
+        return node
+
+
+class NameSwapTransformer(Transformer):
+    def __init__(self, name_map, filename="<unknown>"):
+        super().__init__(filename)
+        self.name_map = name_map
+
+    def visit_Name(self, node):
+        if node.id in self.name_map:
+            return ast.Name(self.name_map[node_id], node.ctx)
+
+        return node
+
+
 class PropositionTransformer(Transformer):
     def __init__(
         self,
@@ -298,6 +330,7 @@ class PropositionTransformer(Transformer):
         syntaxTrees=None,
         atomic_args=None,
         atomic_transformer=None,
+        syntax_transformer=None,
     ) -> None:
         super().__init__(filename)
         self.syntaxTrees = syntaxTrees if syntaxTrees is not None else []
@@ -308,6 +341,7 @@ class PropositionTransformer(Transformer):
             self.atomic_args = atomic_args
 
         self.atomic_transformer = atomic_transformer
+        self.syntax_transformer = syntax_transformer
 
     def transform(self, node: ast.AST) -> Tuple[ast.AST, List[ast.AST], int]:
         """`transform` takes an AST node and apply transformations needed for temporal evaluation
@@ -351,7 +385,13 @@ class PropositionTransformer(Transformer):
         closure = ast.Lambda(self.atomic_args, node)
         ast.copy_location(closure, node)
 
-        syntaxId = self._register_syntax(node)
+        syntax_mapped_node = (
+            self.syntax_transformer.visit(deepcopy(node))
+            if self.syntax_transformer
+            else node
+        )
+
+        syntaxId = self._register_syntax(syntax_mapped_node)
         syntaxIdConst = ast.Constant(syntaxId)
         ast.copy_location(syntaxIdConst, node)
 
@@ -2550,6 +2590,9 @@ class ScenicToPythonTransformer(Transformer):
         # Definition names aren't included in args yet
         lambda_arg_names += [name for name, _ in node.definitions]
 
+        # Create transformer to unwrap definitions
+        def_unwrap_transformer = NameMapTransformer(dict(node.definitions))
+
         # Create lambda factory function and add it to the component body
         prop_fac_args = ast.arguments(
             node.args.posonlyargs,
@@ -2624,6 +2667,7 @@ class ScenicToPythonTransformer(Transformer):
                 self.syntaxTrees,
                 atomic_args=lambda_args,
                 atomic_transformer=atomic_transformer,
+                syntax_transformer=def_unwrap_transformer,
             )
             assumption_prop = propTransformer.transform(a)
             max_lookahead = max(max_lookahead, atomic_transformer.max_lookahead)
@@ -2659,6 +2703,7 @@ class ScenicToPythonTransformer(Transformer):
                 self.syntaxTrees,
                 atomic_args=lambda_args,
                 atomic_transformer=atomic_transformer,
+                syntax_transformer=def_unwrap_transformer,
             )
             guarantee_prop = propTransformer.transform(g)
 

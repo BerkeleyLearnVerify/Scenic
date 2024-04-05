@@ -270,7 +270,7 @@ contract AccurateRelativeSpeeds(perception_distance, abs_dist_err=0.5, abs_speed
         workspace
 
     inputs:
-        dist: float
+        dist: builtins.float
 
     definitions:
         cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj.position is not self.position]
@@ -295,6 +295,56 @@ contract AccurateRelativeSpeeds(perception_distance, abs_dist_err=0.5, abs_speed
         # Guarantee that the perceived speed of the lead car is relatively accurate
         always (behind_car implies (relative_speed-abs_speed_err <= true_relative_speed <= relative_speed+abs_speed_err))
 
+contract SafeThrottleFilter(perception_distance, min_dist, min_slowdown, abs_speed_err=0.5, max_brake=float("inf")):
+    globals:
+        objects
+        workspace
+
+    inputs:
+        dist: builtins.float
+        speed: builtins.float
+        throttle: builtins.float
+
+    outputs:
+        modulated_throttle: builtins.float
+
+    definitions:
+        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj.position is not self.position]
+        lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
+        lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
+        lead_dist = lead_distances[lead_car]
+        behind_car = lead_dist <= perception_distance
+
+        # Lead speed can be roughly calculated by comparing two timesteps
+        relative_speed = ((next dist) - dist)/self.timestep if (next(next dist)) else ((next dist) - dist)/self.timestep
+        true_relative_speed =  lead_car.speed - self.speed
+
+        stopping_time = math.ceil(self.speed/min_slowdown)+1
+        rel_dist_covered = stopping_time*self.speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
+        buffer_dist = min_dist + rel_dist_covered
+
+    guarantees:
+        # Guarantee that if we are ACTUALLY too close to the car in front of us, we brake with max force.
+        always behind_car implies (
+            lead_dist < buffer_dist implies modulated_throttle == -1)
+
+contract PassthroughBrakingActionGenerator():
+    inputs:
+        throttle: builtins.float
+
+    outputs:
+        control_action: RegulatedControlAction
+
+    definitions:
+        accelerating = throttle >= 0
+        braking = throttle < 0
+
+    guarantees:
+        always accelerating implies (control_action.throttle == throttle and control_action.brake == 0)
+        always braking implies (control_action.throttle == 0 and control_action.brake == -throttle)
+        # TODO: Remove below when PACTI can deduce them from the above
+        always throttle == -1 implies (control_action.throttle == 0 and control_action.brake == 1)
+
 contract BrakesWhenClose(perception_distance, min_dist, min_slowdown, abs_dist_err=0.5, abs_speed_err=0.5, max_brake=float("inf"), max_accel=float("inf")):
     """ A contract that just says that if we are in the "danger zone",
     we will issue an action to brake with max force.
@@ -304,7 +354,7 @@ contract BrakesWhenClose(perception_distance, min_dist, min_slowdown, abs_dist_e
         workspace
 
     inputs:
-        dist: float
+        dist: builtins.float
 
     outputs:
         control_action: RegulatedControlAction
@@ -321,11 +371,11 @@ contract BrakesWhenClose(perception_distance, min_dist, min_slowdown, abs_dist_e
         true_relative_speed =  lead_car.speed - self.speed
 
         stopping_time = math.ceil(self.speed/min_slowdown)+1
-        rel_dist_covered = stopping_time*speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
+        rel_dist_covered = stopping_time*self.speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
         buffer_dist = min_dist + rel_dist_covered
 
-        no_throttle = throttle_action.throttle == 0
-        full_brake = brake_action.brake == 1
+        no_throttle = control_action.throttle == 0
+        full_brake = control_action.brake == 1
 
     assumptions:
         # Assume we are in a lane
@@ -376,7 +426,7 @@ contract SlowdownMaintainsDistance(perception_distance, min_dist, min_slowdown, 
         true_relative_speed =  lead_car.speed - self.speed
 
         stopping_time = math.ceil(self.speed/min_slowdown)+1
-        rel_dist_covered = stopping_time*speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
+        rel_dist_covered = stopping_time*self.speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
         buffer_dist = min_dist + rel_dist_covered
 
         no_throttle = throttle_action.throttle == 0
@@ -419,7 +469,7 @@ contract KeepsDistance(perception_distance, min_dist, max_brake=float("inf"), ma
         true_relative_speed =  lead_car.speed - self.speed
 
         stopping_time = math.ceil(self.speed/min_slowdown)+1
-        rel_dist_covered = stopping_time*speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
+        rel_dist_covered = stopping_time*self.speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
         buffer_dist = min_dist + rel_dist_covered
 
     assumptions:
@@ -461,20 +511,23 @@ accurate_distance = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE, 
     using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
     terminating after 100 samples
 
-keeps_distance_raw = compose over car:
-    use accurate_distance
-
-    # TODO: Replace with proof
-    test car.cs satisfies AccurateRelativeSpeeds(
+cs_safety = compose over car.cs:
+    assume car.cs satisfies AccurateRelativeSpeeds(
         PERCEPTION_DISTANCE,
         abs_dist_err=ABS_DIST_ERR,
         abs_speed_err=ABS_SPEED_ERR,
         max_brake=MAX_BRAKE,
-        max_accel=MAX_ACCEL),
-        using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
-        terminating after 100 samples
+        max_accel=MAX_ACCEL)
 
-    # TODO: NEED TO UNPACK
+    assume car.cs.tsf satisfies SafeThrottleFilter(
+        PERCEPTION_DISTANCE,
+        MIN_DIST,
+        MIN_SLOWDOWN,
+        abs_speed_err=ABS_SPEED_ERR,
+        max_brake=MAX_BRAKE)
+
+    assume car.cs.ag satisfies PassthroughBrakingActionGenerator()
+
     assume car.cs satisfies BrakesWhenClose(
         PERCEPTION_DISTANCE,
         MIN_DIST,
@@ -484,16 +537,39 @@ keeps_distance_raw = compose over car:
         max_brake=MAX_BRAKE,
         max_accel=MAX_ACCEL)
 
-    assume car.cc satisfies MaxBrakingForce(MIN_SLOWDOWN)
+# keeps_distance_raw = compose over car:
+#     use accurate_distance
 
-    # TODO: Replace with proof
-    assume car satisfies SlowdownMaintainsDistance(
-        PERCEPTION_DISTANCE,
-        MIN_DIST,
-        MIN_SLOWDOWN,
-        abs_dist_err=ABS_DIST_ERR,
-        abs_speed_err=ABS_SPEED_ERR,
-        max_brake=MAX_BRAKE)
+#     # TODO: Replace with proof
+#     test car.cs satisfies AccurateRelativeSpeeds(
+#         PERCEPTION_DISTANCE,
+#         abs_dist_err=ABS_DIST_ERR,
+#         abs_speed_err=ABS_SPEED_ERR,
+#         max_brake=MAX_BRAKE,
+#         max_accel=MAX_ACCEL),
+#         using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
+#         terminating after 100 samples
+
+#     # TODO: NEED TO UNPACK
+#     assume car.cs satisfies BrakesWhenClose(
+#         PERCEPTION_DISTANCE,
+#         MIN_DIST,
+#         MIN_SLOWDOWN,
+#         abs_dist_err=ABS_DIST_ERR,
+#         abs_speed_err=ABS_SPEED_ERR,
+#         max_brake=MAX_BRAKE,
+#         max_accel=MAX_ACCEL)
+
+#     assume car.cc satisfies MaxBrakingForce(MIN_SLOWDOWN)
+
+#     # TODO: Replace with proof
+#     assume car satisfies SlowdownMaintainsDistance(
+#         PERCEPTION_DISTANCE,
+#         MIN_DIST,
+#         MIN_SLOWDOWN,
+#         abs_dist_err=ABS_DIST_ERR,
+#         abs_speed_err=ABS_SPEED_ERR,
+#         max_brake=MAX_BRAKE)
 
 # keeps_distance = refine keeps_distance_raw as KeepsDistance(PERCEPTION_DISTANCE,
 #     MIN_DIST,
@@ -502,4 +578,4 @@ keeps_distance_raw = compose over car:
 #     max_brake=MAX_BRAKE,
 #     max_accel=MAX_ACCEL)
 
-# verify keeps_distance
+verify accurate_distance

@@ -190,12 +190,16 @@ class SimulationTesting(Testing):
             )
 
         ## Create Monitors for Assumptions/Guarantees
-        assumptions_monitors = [a.create_monitor() for a in self.contract.assumptions]
-        assumptions_values = [
-            rv_ltl.B4.PRESUMABLY_TRUE for a in self.contract.assumptions
+        assumptions_monitors = [
+            a.create_monitor() for a in self.contract.assumptions_props
         ]
-        guarantees_monitors = [g.create_monitor() for g in self.contract.guarantees]
-        guarantees_values = [rv_ltl.B4.PRESUMABLY_TRUE for g in self.contract.guarantees]
+        assumptions_values = [
+            rv_ltl.B4.PRESUMABLY_TRUE for a in self.contract.assumptions_props
+        ]
+        guarantees_monitors = [g.create_monitor() for g in self.contract.guarantees_props]
+        guarantees_values = [
+            rv_ltl.B4.PRESUMABLY_TRUE for g in self.contract.guarantees_props
+        ]
 
         ## Evaluate Contract on Simulation ##
         sim_step = 0

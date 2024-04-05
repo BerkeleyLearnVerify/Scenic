@@ -1,13 +1,25 @@
 from abc import ABC, abstractmethod
 
+from scenic.contracts.specifications import SpecNode
+
 
 class Contract:
     def __init__(self, **kwargs):
         # Create and store lambdas for definitions, assumptions, and guarantees
         props = self.prop_factory(**kwargs)
+        import scenic.contracts.veneer as contract_veneer
+
         self.definitions = props[0]
-        self.assumptions = props[1]
-        self.guarantees = props[2]
+        self.assumptions_props = props[1]
+        self.guarantees_props = props[2]
+        self.assumptions = [
+            SpecNode.propToSpec(a, contract_veneer._syntaxTrees)
+            for a in self.assumptions_props
+        ]
+        self.guarantees = [
+            SpecNode.propToSpec(g, contract_veneer._syntaxTrees)
+            for g in self.guarantees_props
+        ]
 
         self.kwargs = kwargs
 
