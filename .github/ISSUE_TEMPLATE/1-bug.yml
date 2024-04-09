@@ -49,6 +49,8 @@ body:
       description: |
         Please provide a minimal example to help us reproduce the bug. Code should be wrapped with ```triple quotes blocks``` to improve readability. 
         If it is not possible to reproduce the bug with a short self-contained Scenic or Python file, for example if a specific mesh is required, you can attach any required files below or include a link to them.
+
+        If possible/applicable, please specify a seed that will reproduce the issue by running scenic with the seed argument: `scenic -s SEED, --seed SEED  random seed`
       placeholder: |
         1. First step to reproduce bug
         2. Second step, etc
