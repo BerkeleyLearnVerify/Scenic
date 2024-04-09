@@ -2,7 +2,6 @@ from contextlib import contextmanager
 import os.path
 from pathlib import Path
 import re
-import subprocess
 import sys
 
 import pytest
@@ -51,6 +50,14 @@ def getAssetPath():
 
     return loader
 
+@pytest.fixture
+def webotsAvailable():
+    def loader(webotsPath, **kwargs):
+        if not os.path.exists(webotsPath): 
+            pytest.skip(f"Webots is not available at {webotsPath}")
+        return
+
+    return loader
 
 ## Command-line options
 
