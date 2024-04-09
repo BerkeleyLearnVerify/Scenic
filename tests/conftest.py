@@ -50,14 +50,16 @@ def getAssetPath():
 
     return loader
 
+
 @pytest.fixture
 def webotsAvailable():
     def loader(webotsPath, **kwargs):
-        if not os.path.exists(webotsPath): 
+        if not os.path.exists(webotsPath):
             pytest.skip(f"Webots is not available at {webotsPath}")
         return
 
     return loader
+
 
 ## Command-line options
 
