@@ -45,6 +45,21 @@ jobs:
                 echo "Waiting 2 minutes for full startup..."
                 sleep 120
             
+            - name: Check for Simulator Version Updates
+              env:
+                PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+                HOSTNAME: ${{secrets.SSH_HOST}}
+                USER_NAME: ${{secrets.SSH_USERNAME}}
+              run: |
+                echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+                ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
+                  cd /home/ubuntu/actions/ &&
+                  rm -rf Scenic &&
+                  git clone --branch $(basename "${{ github.ref }}") --single-branch https://$GH_ACCESS_TOKEN@github.com/BerkeleyLearnVerify/Scenic.git &&
+                  cd Scenic &&
+                  python3 .github/check_latest_simulators.py
+                '
+            
             - name: SSH into EC2 and Run Simulator Tests
               env:
                 PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -56,19 +71,15 @@ jobs:
 
                   # Now we have got the access of EC2 and we will start the deploy .
                   bash /opt/carla-simulator/CarlaUE4.sh &
-                  ls /home/ubuntu/ &&
-                  cd /home/ubuntu/actions/ &&
-                  git clone --branch $(basename "${{ github.ref }}") --single-branch https://$GH_ACCESS_TOKEN@github.com/BerkeleyLearnVerify/Scenic.git &&
-                  cd Scenic &&
+                  cd /home/ubuntu/actions/Scenic &&
                   python3 -m venv venv &&
                   source venv/bin/activate &&
                   python3 -m pip install -e . &&
                   python3 -m pip install -e .[test-full] &&
                   python3 -m pip install -e .[guideways] &&
                   pytest tests/simulators/* &&
-                  cd /home/ubuntu/ &&
-                  rm -rf /home/ubuntu/actions/Scenic
                   '
+                  
             - name: Stop EC2 Instance
               env:
                 INSTANCE_ID: ${{ secrets.AWS_EC2_INSTANCE_ID }}
