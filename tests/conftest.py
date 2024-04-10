@@ -2,7 +2,6 @@ from contextlib import contextmanager
 import os.path
 from pathlib import Path
 import re
-import subprocess
 import sys
 
 import pytest
@@ -51,6 +50,17 @@ def getAssetPath():
 
     return loader
 
+@pytest.fixture(params=['town'])
+def getCarlaSimulator():
+    from scenic.simulators.carla import CarlaSimulator
+    base = Path(__file__).parent.parent / "assets" / "maps" / "CARLA"
+
+    def _getCarlaSimulator(town):
+            path = os.path.join(base, town + '.xodr')
+            simulator = CarlaSimulator(carla_map=town, map_path=path)
+            return (simulator, town, path)
+    
+    return _getCarlaSimulator
 
 ## Command-line options
 
