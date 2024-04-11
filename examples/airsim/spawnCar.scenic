@@ -1,5 +1,5 @@
 # NOTE: add your world info path here
-param worldInfoPath = "C:/Users/piegu/Scenic/examples/airsim/testCar"
+param worldInfoPath = "C:/Users/piegu/Scenic/src/scenic/simulators/airsim/more/tests/testCar"
 
 model scenic.simulators.airsim.modelCar
 
