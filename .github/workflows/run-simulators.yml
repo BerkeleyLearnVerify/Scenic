@@ -1,5 +1,7 @@
 name: run_simulators
 on:
+  # IMPORTANT: this workflow should only be triggered manually via the Actions
+  # portal of the repo!!! Do not modify this workflow's trigger!
   workflow_dispatch:
 
 jobs:
