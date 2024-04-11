@@ -2,10 +2,12 @@ from contextlib import contextmanager
 import os.path
 from pathlib import Path
 import re
-import sys
 import subprocess
-import pytest
+import sys
 import time
+
+import pytest
+
 from scenic.syntax import buildParser
 
 ## Fixtures for use in tests
@@ -50,32 +52,38 @@ def getAssetPath():
 
     return loader
 
+
 @pytest.fixture
 def launchCarlaServer():
-    carla_process = subprocess.Popen("bash /opt/carla-simulator/CarlaUE4.sh -RenderOffScreen", shell=True)
+    carla_process = subprocess.Popen(
+        "bash /opt/carla-simulator/CarlaUE4.sh -RenderOffScreen", shell=True
+    )
     # NOTE: CARLA server takes time to start up
     time.sleep(3)
     yield
     while carla_process.poll() is None:
         carla_process.kill()
         time.sleep(0.1)
-    # NOTE: CARLA server hangs. The first `kill` usually works, 
+    # NOTE: CARLA server hangs. The first `kill` usually works,
     # but for safe measure we needed to kill hanging zombie processes
     for _ in range(10):
         carla_process.kill()
         time.sleep(0.1)
 
+
 @pytest.fixture
 def getCarlaSimulator():
     from scenic.simulators.carla import CarlaSimulator
+
     base = Path(__file__).parent.parent / "assets" / "maps" / "CARLA"
 
     def _getCarlaSimulator(town):
-            path = os.path.join(base, town + '.xodr')
-            simulator = CarlaSimulator(carla_map=town, map_path=path)
-            return (simulator, town, path)
-    
+        path = os.path.join(base, town + ".xodr")
+        simulator = CarlaSimulator(carla_map=town, map_path=path)
+        return (simulator, town, path)
+
     return _getCarlaSimulator
+
 
 ## Command-line options
 

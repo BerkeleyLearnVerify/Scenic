@@ -1,4 +1,5 @@
 import pytest
+
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
 # Suppress potential warning about missing the carla package
@@ -6,9 +7,10 @@ pytestmark = pytest.mark.filterwarnings(
     "ignore::scenic.core.simulators.SimulatorInterfaceWarning"
 )
 
+
 def test_throttle(getCarlaSimulator, launchCarlaServer):
     pytest.importorskip("carla")
-    simulator, town, mapPath = getCarlaSimulator('Town01')
+    simulator, town, mapPath = getCarlaSimulator("Town01")
     code = f"""
         param map = r'{mapPath}'
         param carla_map = '{town}'
@@ -33,7 +35,7 @@ def test_throttle(getCarlaSimulator, launchCarlaServer):
 
 def test_brake(getCarlaSimulator, launchCarlaServer):
     pytest.importorskip("carla")
-    simulator, town, mapPath = getCarlaSimulator('Town01')
+    simulator, town, mapPath = getCarlaSimulator("Town01")
     code = f"""
         param map = r'{mapPath}'
         param carla_map = '{town}'
@@ -56,9 +58,11 @@ def test_brake(getCarlaSimulator, launchCarlaServer):
     threshold = 3
     assert int(records[-1][1]) < threshold
 
+
 def test_basic(loadLocalScenario):
     scenario = loadLocalScenario("basic.scenic", mode2D=True)
     scenario.generate(maxIterations=1000)
+
 
 def test_simulator_import():
     pytest.importorskip("carla")
