@@ -7,9 +7,10 @@ pytestmark = pytest.mark.filterwarnings(
     "ignore::scenic.core.simulators.SimulatorInterfaceWarning"
 )
 
+pytest.importorskip("carla")
+
 
 def test_throttle(getCarlaSimulator, launchCarlaServer):
-    pytest.importorskip("carla")
     simulator, town, mapPath = getCarlaSimulator("Town01")
     code = f"""
         param map = r'{mapPath}'
@@ -18,11 +19,12 @@ def test_throttle(getCarlaSimulator, launchCarlaServer):
 
         model scenic.simulators.carla.model
 
-        behavior DriveWithAppliedThrottle():
+        behavior DriveThenApplyThrottle():
             do FollowLaneBehavior() for 2 seconds
             take SetThrottleAction(0.9)
-
-        ego = new Car with behavior DriveWithAppliedThrottle
+        
+        p = new Point at (369, -326)
+        ego = new Car at p, with behavior DriveThenApplyThrottle
         record ego.speed as CarSpeed
         terminate after 4 seconds
     """
@@ -33,8 +35,10 @@ def test_throttle(getCarlaSimulator, launchCarlaServer):
     assert records[len(records) // 2][1] < records[-1][1]
 
 
+pytest.importorskip("carla")
+
+
 def test_brake(getCarlaSimulator, launchCarlaServer):
-    pytest.importorskip("carla")
     simulator, town, mapPath = getCarlaSimulator("Town01")
     code = f"""
         param map = r'{mapPath}'
@@ -43,11 +47,12 @@ def test_brake(getCarlaSimulator, launchCarlaServer):
 
         model scenic.simulators.carla.model
 
-        behavior DriveWithAppliedThrottle():
+        behavior DriveThenBrake():
             do FollowLaneBehavior() for 2 seconds
             take SetBrakeAction(1)
 
-        ego = new Car with behavior DriveWithAppliedThrottle
+        p = new Point at (369, -326)
+        ego = new Car at p, with behavior DriveThenBrake
         record ego.speed as CarSpeed
         terminate after 4 seconds
     """
