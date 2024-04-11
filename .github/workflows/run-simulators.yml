@@ -74,6 +74,7 @@ jobs:
                   python3 -m pip install -e . &&
                   python3 -m pip install -e .[test-full] &&
                   python3 -m pip install -e .[guideways] &&
+                  pip install carla &&
                   export DISPLAY=:1 &&
                   pytest tests/simulators/* &&
                 '
