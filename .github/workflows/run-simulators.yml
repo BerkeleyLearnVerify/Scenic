@@ -68,17 +68,15 @@ jobs:
               run: |
                 echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
                 ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
-
-                  # Now we have got the access of EC2 and we will start the deploy .
-                  bash /opt/carla-simulator/CarlaUE4.sh &
                   cd /home/ubuntu/actions/Scenic &&
                   python3 -m venv venv &&
                   source venv/bin/activate &&
                   python3 -m pip install -e . &&
                   python3 -m pip install -e .[test-full] &&
                   python3 -m pip install -e .[guideways] &&
+                  export DISPLAY=:1 &&
                   pytest tests/simulators/* &&
-                  '
+                '
                   
             - name: Stop EC2 Instance
               env:
