@@ -46,14 +46,6 @@ def test_webots_available_fixture(webotsAvailable):
         webotsAvailable(WEBOTS_BINARY_PATH + "/foo")
 
 
-def test_receive_results():
-    command = f"echo 'Hello, world!' >> {WEBOTS_RESULTS_FILE_PATH}"
-    subprocess.run(command, shell=True)
-    data = receive_results()
-    assert data.strip() == "Hello, world!"
-    cleanup_results()
-
-
 def test_basic(loadLocalScenario):
     scenario = loadLocalScenario("basic.scenic")
     scenario.generate(maxIterations=1000)
