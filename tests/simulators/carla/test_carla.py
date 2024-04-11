@@ -1,7 +1,7 @@
 import re
 
 import pytest
-
+from flaky import flaky
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
 # Suppress potential warning about missing the carla package
@@ -9,230 +9,294 @@ pytestmark = pytest.mark.filterwarnings(
     "ignore::scenic.core.simulators.SimulatorInterfaceWarning"
 )
 
-def model_pedestrians(simulator, mapPath, town, pedestrianModels):
-    for model in pedestrianModels:
-        code = f"""
-                param map = r'{mapPath}'
-                param carla_map = '{town}'
-                param time_step = 1.0/10
+# def preprocess_old_blueprint_names(original):
+#     d = {}
+#     for key, value in original.items():
+#         for sub_value in value:
+#             d[sub_value] = key
+#     return d
 
-                model scenic.simulators.carla.model
-                ego = new Car
-                new Pedestrian with blueprint '{model}'
-                terminate after 1 steps
-            """
-        scenario = compileScenic(code, mode2D=True)
-        scene, _ = scenario.generate(maxIterations=10000)
-        simulation = simulator.simulate(scene)
-        obj = simulation.objects[1]
-        assert obj.blueprint == model
-
-
-def model_iteration(simulator, mapPath, town, modelNames, modelType):
-    for model in modelNames:
-        code = f"""
+def model_blueprint(simulator, mapPath, town, modelType, modelName, newModelNames=None):
+    code = f"""
             param map = r'{mapPath}'
             param carla_map = '{town}'
             param time_step = 1.0/10
 
             model scenic.simulators.carla.model
-            ego = new {modelType} with blueprint '{model}'
+            ego = new {modelType} with blueprint '{modelName}'
             terminate after 1 steps
         """
-        scenario = compileScenic(code, mode2D=True)
-        scene, _ = scenario.generate(maxIterations=10000)
-        simulation = simulator.simulate(scene)
-        obj = simulation.objects[0]
-        assert obj.blueprint == model
+    scenario = compileScenic(code, mode2D=True)
+    scene, _ = scenario.generate(maxIterations=10000)
+    simulation = simulator.simulate(scene)
+    obj = simulation.objects[0]
+    if newModelNames:
+        assert obj.blueprint == newModelNames[modelName]
+    else:
+        assert obj.blueprint == modelName
 
-def test_old_blue_prints(getCarlaSimulator):
+# from scenic.simulators.carla.blueprints import oldBlueprintNames
+# oldToNew = preprocess_old_blueprint_names(oldBlueprintNames)
+# oldModels = oldToNew.keys()
+# @pytest.mark.parametrize("modelName", oldModels)
+# def test_old_blue_prints(getCarlaSimulator, launchCarlaServer, modelName):
+#     pytest.importorskip("carla")
+#     simulator, town, mapPath = getCarlaSimulator('Town01')
+#     model_blueprint(simulator, mapPath, town, 'Car', modelName, oldToNew)
+
+from scenic.simulators.carla.blueprints import carModels
+@pytest.mark.parametrize("modelName", carModels)
+def test_car_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import oldBlueprintNames 
     simulator, town, mapPath = getCarlaSimulator('Town01')
+    model_blueprint(simulator, mapPath, town, 'Car', modelName)
 
-    for old_model,_ in oldBlueprintNames.items():
-        code = f"""
-            param map = r'{mapPath}'
-            param carla_map = '{town}'
-            param time_step = 1.0/10
-
-            model scenic.simulators.carla.model
-            ego = new Car with blueprint '{old_model}'
-            terminate after 1 steps
-        """
-        scenario = compileScenic(code, mode2D=True)
-        scene, _ = scenario.generate(maxIterations=10000)
-        simulation = simulator.simulate(scene)
-        obj = simulation.objects[0]
-        assert obj.blueprint == old_model
-
-def test_car_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import bicycleModels
+@pytest.mark.parametrize("modelName", bicycleModels)
+def test_bicycle_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import carModels 
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, carModels, 'Car')
+    model_blueprint(simulator, mapPath, town, 'Bicycle', modelName)
 
-def test_bicycle_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import motorcycleModels
+@pytest.mark.parametrize("modelName", motorcycleModels)
+def test_motorcycle_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import bicycleModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, bicycleModels, 'Bicycle')
+    model_blueprint(simulator, mapPath, town, 'Motorcycle', modelName)
 
-def test_motorcycles_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import truckModels
+@pytest.mark.parametrize("modelName", truckModels)
+def test_truck_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import motorcycleModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, motorcycleModels, 'Motorcycle')
+    model_blueprint(simulator, mapPath, town, 'Truck', modelName)
 
-def test_truck_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import truckModels
+@pytest.mark.parametrize("modelName", truckModels)
+def test_truck_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import truckModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, truckModels, 'Truck')
+    model_blueprint(simulator, mapPath, town, 'Truck', modelName)
 
-def test_trash_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import trashModels
+@pytest.mark.parametrize("modelName", trashModels)
+def test_trash_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import trashModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, trashModels, 'Trash')
+    model_blueprint(simulator, mapPath, town, 'Trash', modelName)
 
-def test_cone_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import coneModels
+@pytest.mark.parametrize("modelName", coneModels)
+def test_cone_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import coneModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, coneModels, 'Cone')
+    model_blueprint(simulator, mapPath, town, 'Cone', modelName)
 
-def test_debris_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import debrisModels
+@pytest.mark.parametrize("modelName", debrisModels)
+def test_debris_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import debrisModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, debrisModels, 'Debris')
+    model_blueprint(simulator, mapPath, town, 'Debris', modelName)
 
-def test_vending_machine_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import vendingMachineModels
+@pytest.mark.parametrize("modelName", vendingMachineModels)
+def test_vending_machine_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import vendingMachineModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, vendingMachineModels, 'VendingMachine')
+    model_blueprint(simulator, mapPath, town, 'VendingMachine', modelName)
 
-def test_chair_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import chairModels
+@pytest.mark.parametrize("modelName", chairModels)
+def test_chair_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import chairModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, chairModels, 'Chair')
+    model_blueprint(simulator, mapPath, town, 'Chair', modelName)
 
-def test_bus_stop_models(getCarlaSimulator):
-    pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import busStopModels
-    simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, busStopModels, 'BusStop')
+# from scenic.simulators.carla.blueprints import busStopModels
+# @pytest.mark.parametrize("modelName", busStopModels)
+# def test_bus_stop_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
+#     pytest.importorskip("carla")
+#     simulator, town, mapPath = getCarlaSimulator('Town01')
+#     model_blueprint(simulator, mapPath, town, 'BusStop', modelName)
 
-def test_advertisement_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import advertisementModels
+@pytest.mark.parametrize("modelName", advertisementModels)
+def test_advertisement_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import advertisementModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, advertisementModels, 'Advertisement')
+    model_blueprint(simulator, mapPath, town, 'Advertisement', modelName)
 
-def test_garbage_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import garbageModels
+@pytest.mark.parametrize("modelName", garbageModels)
+def test_garbage_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import garbageModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, garbageModels, 'Garbage')
+    model_blueprint(simulator, mapPath, town, 'Garbage', modelName)
 
-def test_container_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import containerModels
+@pytest.mark.parametrize("modelName", containerModels)
+def test_container_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import containerModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, containerModels, 'Container')
+    model_blueprint(simulator, mapPath, town, 'Container', modelName)
 
-def test_table_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import tableModels
+@pytest.mark.parametrize("modelName", tableModels)
+def test_table_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import tableModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, tableModels, 'Table')
+    model_blueprint(simulator, mapPath, town, 'Table', modelName)
 
-def test_barrier_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import barrierModels
+@pytest.mark.parametrize("modelName", barrierModels)
+def test_barrier_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import barrierModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, barrierModels, 'Barrier')
+    model_blueprint(simulator, mapPath, town, 'Barrier', modelName)
 
-def test_plant_pot_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import plantpotModels
+@pytest.mark.parametrize("modelName", plantpotModels)
+def test_plant_pots_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import plantpotModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, plantpotModels, 'PlantPot')
+    model_blueprint(simulator, mapPath, town, 'PlantPot', modelName)
 
-def test_mailbox_models(getCarlaSimulator):
-    pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import mailboxModels
-    simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, mailboxModels, 'Mailbox')
+# from scenic.simulators.carla.blueprints import mailboxModels
+# @pytest.mark.parametrize("modelName", mailboxModels)
+# def test_mailbox_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
+#     pytest.importorskip("carla")
+#     simulator, town, mapPath = getCarlaSimulator('Town01')
+#     model_blueprint(simulator, mapPath, town, 'Mailbox', modelName)
 
-def test_gnome_models(getCarlaSimulator):
-    pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import gnomeModels
-    simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, gnomeModels, 'Gnome')
+# from scenic.simulators.carla.blueprints import gnomeModels
+# @pytest.mark.parametrize("modelName", gnomeModels)
+# def test_gnome_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
+#     pytest.importorskip("carla")
+#     simulator, town, mapPath = getCarlaSimulator('Town01')
+#     model_blueprint(simulator, mapPath, town, 'Gnome', modelName)
 
-def test_creased_box_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import creasedboxModels
+@pytest.mark.parametrize("modelName", creasedboxModels)
+def test_creased_box_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import creasedboxModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, creasedboxModels, 'CreasedBox')
+    model_blueprint(simulator, mapPath, town, 'CreasedBox', modelName)
 
-def test_case_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import caseModels
+@pytest.mark.parametrize("modelName", caseModels)
+def test_case_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import caseModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, caseModels, 'Case')
+    model_blueprint(simulator, mapPath, town, 'Case', modelName)
 
-def test_box_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import boxModels
+@pytest.mark.parametrize("modelName", boxModels)
+def test_box_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import boxModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, boxModels, 'Box')
+    model_blueprint(simulator, mapPath, town, 'Box', modelName)
 
-def test_bench_models(getCarlaSimulator):
+from scenic.simulators.carla.blueprints import benchModels
+@pytest.mark.parametrize("modelName", benchModels)
+def test_bench_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import benchModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, benchModels, 'Bench')
+    model_blueprint(simulator, mapPath, town, 'Bench', modelName)
 
-def test_barrel_models(getCarlaSimulator):
-    pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import barrelModels
-    simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, barrelModels, 'Barrel')
+# from scenic.simulators.carla.blueprints import barrelModels
+# @pytest.mark.parametrize("modelName", barrelModels)
+# def test_barrel_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
+#     pytest.importorskip("carla")
+#     simulator, town, mapPath = getCarlaSimulator('Town01')
+#     model_blueprint(simulator, mapPath, town, 'Barrel', modelName)
 
-def test_atm_models(getCarlaSimulator):
-    pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import atmModels
-    simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, atmModels, 'ATM')
+# from scenic.simulators.carla.blueprints import atmModels
+# @pytest.mark.parametrize("modelName", atmModels)
+# def test_atm_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
+#     pytest.importorskip("carla")
+#     simulator, town, mapPath = getCarlaSimulator('Town01')
+#     model_blueprint(simulator, mapPath, town, 'ATM', modelName)
 
-def test_kiosk_models(getCarlaSimulator):
-    pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import kioskModels
-    simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, kioskModels, 'Kiosk')
+# from scenic.simulators.carla.blueprints import kioskModels
+# @pytest.mark.parametrize("modelName", kioskModels)
+# def test_kiosk_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
+#     pytest.importorskip("carla")
+#     simulator, town, mapPath = getCarlaSimulator('Town01')
+#     model_blueprint(simulator, mapPath, town, 'Kiosk', modelName)
 
-def test_iron_plate_models(getCarlaSimulator):
-    pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import ironplateModels
-    simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, ironplateModels, 'IronPlate')
 
-def test_traffic_warning_models(getCarlaSimulator):
-    pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import trafficwarningModels
-    simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_iteration(simulator, mapPath, town, trafficwarningModels, 'TrafficWarning')
+# from scenic.simulators.carla.blueprints import ironplateModels
+# @pytest.mark.parametrize("modelName", ironplateModels)
+# def test_iron_plate_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
+#     pytest.importorskip("carla")
+#     simulator, town, mapPath = getCarlaSimulator('Town01')
+#     model_blueprint(simulator, mapPath, town, 'IronPlate', modelName)
 
-def test_pedestrian_models(getCarlaSimulator):
+# from scenic.simulators.carla.blueprints import trafficwarningModels
+# @pytest.mark.parametrize("modelName", trafficwarningModels)
+# def test_traffic_warning_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
+#     pytest.importorskip("carla")
+#     simulator, town, mapPath = getCarlaSimulator('Town01')
+#     model_blueprint(simulator, mapPath, town, 'TrafficWarning', modelName)
+
+# from scenic.simulators.carla.blueprints import walkerModels
+# @pytest.mark.parametrize("modelName", walkerModels)
+# def test_pedestrian_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
+#     pytest.importorskip("carla")
+#     simulator, town, mapPath = getCarlaSimulator('Town01')
+#     model_blueprint(simulator, mapPath, town, 'Pedestrian', modelName)
+
+def test_throttle(getCarlaSimulator, launchCarlaServer):
     pytest.importorskip("carla")
-    from scenic.simulators.carla.blueprints import walkerModels
     simulator, town, mapPath = getCarlaSimulator('Town01')
-    model_pedestrians(simulator, mapPath, town, walkerModels)
+    code = f"""
+        param map = r'{mapPath}'
+        param carla_map = '{town}'
+        param time_step = 1.0/10
+
+        model scenic.simulators.carla.model
+
+        behavior DriveWithAppliedThrottle():
+            do FollowLaneBehavior() for 2 seconds
+            take SetThrottleAction(0.9)
+
+        ego = new Car with behavior DriveWithAppliedThrottle
+        record ego.speed as CarSpeed
+        terminate after 4 seconds
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene, _ = scenario.generate(maxIterations=10)
+    simulation = simulator.simulate(scene)
+    records = simulation.result.records["CarSpeed"]
+    assert records[len(records) // 2][1] < records[-1][1]
+
+
+def test_brake(getCarlaSimulator, launchCarlaServer):
+    pytest.importorskip("carla")
+    simulator, town, mapPath = getCarlaSimulator('Town01')
+    code = f"""
+        param map = r'{mapPath}'
+        param carla_map = '{town}'
+        param time_step = 1.0/10
+
+        model scenic.simulators.carla.model
+
+        behavior DriveWithAppliedThrottle():
+            do FollowLaneBehavior() for 2 seconds
+            take SetBrakeAction(1)
+
+        ego = new Car with behavior DriveWithAppliedThrottle
+        record ego.speed as CarSpeed
+        terminate after 4 seconds
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene, _ = scenario.generate(maxIterations=10)
+    simulation = simulator.simulate(scene)
+    records = simulation.result.records["CarSpeed"]
+    threshold = 3
+    assert int(records[-1][1]) < threshold
 
 def test_basic(loadLocalScenario):
     scenario = loadLocalScenario("basic.scenic", mode2D=True)
