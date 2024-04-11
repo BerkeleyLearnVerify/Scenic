@@ -50,24 +50,10 @@ def getAssetPath():
 
     return loader
 
-def clean_up():
-    try:
-        port = 2000
-        pid = subprocess.check_output(["lsof", "-ti", f":{port}", "-sTCP:LISTEN"], text=True).strip()
-        print(f"PID: {pid}")
-        if len(pid) != 0:
-            try:
-                subprocess.check_call(["kill", "-9", pid])
-            except subprocess.CalledProcessError:
-                pass
-            time.sleep(2)
-    except:
-        pass
-
 @pytest.fixture
 def launchCarlaServer():
-    # clean_up()
-    carla_process = subprocess.Popen("bash /software/CARLA_0.9.14/CarlaUE4.sh -RenderOffScreen", shell=True)
+    carla_process = subprocess.Popen("bash /opt/carla-simulator/CarlaUE4.sh -RenderOffScreen", shell=True)
+    # NOTE: CARLA server takes time to start up
     time.sleep(3)
     yield
     while carla_process.poll() is None:
