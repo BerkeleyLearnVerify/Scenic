@@ -1,0 +1,73 @@
+name: sync_issues_with_jira
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  generate-issue-link:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync issue with Jira
+        uses: actions/github-script@v4
+        env:
+            JIRA_DOMAIN: ${{ secrets.JIRA_DOMAIN }}
+            JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+            JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fetch = require('node-fetch');
+            const repoName = context.payload.repository.full_name;
+            const issueNumber = context.payload.issue.number;
+            const issueTitle = context.payload.issue.title;
+            const issueLink = `https://github.com/${repoName}/issues/${issueNumber}`;
+            console.log(`Issue Title: ${issueTitle}`);
+            console.log(`Issue Link: ${issueLink}`);
+
+            const bodyData = `
+            "fields": {
+                "description": {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "text": "${issueLink}",
+                          "type": "text"
+                        }
+                      ],
+                      "type": "paragraph"
+                    }
+                  ],
+                  "type": "doc",
+                  "version": 1
+                },
+                "summary": "${issueTitle}",
+                "issuetype": {
+                  "id": "10001"
+                },
+                "project": {
+                  "key": "SCENIC"
+                }
+              }
+            `;
+
+            fetch(`https://${JIRA_DOMAIN}.atlassian.net/rest/api/3/issue`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Basic ${Buffer.from(
+                `${JIRA_EMAIL}:{JIRA_API_TOKEN}`
+                ).toString('base64')}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: bodyData
+            })
+            .then(response => {
+                console.log(
+                `Response: ${response.status} ${response.statusText}`
+                );
+                return response.text();
+            })
+            .then(text => console.log(text))
+            .catch(err => console.error(err));
+
