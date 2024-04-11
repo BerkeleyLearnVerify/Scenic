@@ -11,14 +11,17 @@ WEBOTS_WORLD_FILE_PATH = (
     f"{os.path.dirname(__file__)}/dynamic/webots_data/worlds/world.wbt"
 )
 
+
 def receive_results():
     with open(WEBOTS_RESULTS_FILE_PATH, "r") as file:
         content = file.read()
     return content
 
+
 def cleanup_results():
     command = f"rm -f {WEBOTS_RESULTS_FILE_PATH}"
     subprocess.run(command, shell=True)
+
 
 def test_dynamics_scenarios(webotsAvailable):
     webotsAvailable(WEBOTS_BINARY_PATH)
@@ -37,16 +40,19 @@ def test_dynamics_scenarios(webotsAvailable):
     tolerance = 0.01
     assert end_z == pytest.approx(expected_value, abs=tolerance)
 
+
 def test_webots_available_fixture(webotsAvailable):
     with pytest.raises(pytest.skip.Exception):
         webotsAvailable(WEBOTS_BINARY_PATH + "/foo")
+
 
 def test_receive_results():
     command = f"echo 'Hello, world!' >> {WEBOTS_RESULTS_FILE_PATH}"
     subprocess.run(command, shell=True)
     data = receive_results()
-    assert data.strip() == 'Hello, world!'
+    assert data.strip() == "Hello, world!"
     cleanup_results()
+
 
 def test_basic(loadLocalScenario):
     scenario = loadLocalScenario("basic.scenic")
