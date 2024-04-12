@@ -1,7 +1,7 @@
 import math
 
 # NOTE: add your world info path here
-param worldInfoPath = "C:/Users/piegu/Scenic/examples/worldInfo/droneBlocks"
+param worldInfoPath = "C:/Users/piegu/Scenic/examples/airsim/worldInfo/droneBlocks"
 
 model scenic.simulators.airsim.model
 
@@ -58,8 +58,7 @@ behavior FindAdversary(speed = 5):
     # https://scenic-lang.readthedocs.io/en/latest/reference/statements.html#try-interrupt-statement
     try:
         # if doing online path solution then do api call for that here, and remove the patrolPoints/patrolPointsProb
-        do FlyToPosition(selectedPoint, speed)
-        wait for 5 seconds
+        do FlyToPosition(selectedPoint, speed) for 10 seconds
         # resample point since didn't find adversary at that position
         selectedPoint = Discrete({drone1.patrolPoints[0]:drone1.patrolPointsProb[0], 
             drone1.patrolPoints[1]:drone1.patrolPointsProb[1], 
@@ -89,11 +88,10 @@ behavior Follow(target, speed = 5,tolerance = 2, offset = (0,0,1)):
 # Generic behaviors can be found in behaviors.scenic
 
 # Adversary behavior. Continuously patrol to each of these positions.
-behavior Adversary(positions, speed):
+behavior Adversary(speed):
     client = simulation().client
 
-    try:
-        do Patrol(positions, loop=True, speed=speed)
+    do Patrol(self.patrolPoints, loop=True, speed=speed)
 
 
 
@@ -105,7 +103,7 @@ ego = new Drone at (Range(-10,10),Range(-10,10),Range(0,10)),
 
 # Adversary drone moving around various points
 drone1 = new AdversaryDrone at (Range(-10,10),Range(-10,10),Range(0,10)),
-    with behavior Adversary(patrolPoints, True, speed=2)
+    with behavior Adversary(speed=2)
 drone1.patrolPoints = [(-1,2,2),(1,4,2),(-1,4,2),(-1,2,4)]
 drone1.patrolPointsProb = [0.4, 0.2, 0.1, 0.3]
 # Using your API, do some sort of probability distribution on the patrolPoints to create patrolPointsProb
