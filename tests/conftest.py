@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+import os
 import os.path
 from pathlib import Path
 import re
@@ -53,10 +54,18 @@ def getAssetPath():
     return loader
 
 
+def checkCarlaPath():
+    CARLA_ROOT = os.environment.get("CARLA_ROOT")
+    if not CARLA_ROOT:
+        pytest.skip("CARLA_ROOT env variable not set.")
+    return CARLA_ROOT
+
+
 @pytest.fixture
 def launchCarlaServer():
+    CARLA_ROOT = checkCarlaPath()
     carla_process = subprocess.Popen(
-        "bash /opt/carla-simulator/CarlaUE4.sh -RenderOffScreen", shell=True
+        f"bash {CARLA_ROOT}/CarlaUE4.sh -RenderOffScreen", shell=True
     )
     # NOTE: CARLA server takes time to start up
     time.sleep(3)

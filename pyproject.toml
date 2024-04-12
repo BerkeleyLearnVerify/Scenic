@@ -64,6 +64,7 @@ test-full = [  # like 'test' but adds dependencies for optional features
 	"scenic[test]",       # all dependencies from 'test' extra above
 	"scenic[guideways]",  # for running guideways modules
 	"astor >= 0.8.1",
+	"carla >= 0.9.12",
 	"dill",
 	"exceptiongroup",
 	"inflect ~= 5.5",
@@ -72,9 +73,6 @@ test-full = [  # like 'test' but adds dependencies for optional features
 	"sphinx_rtd_theme >= 0.5.2",
 	"sphinx-tabs ~= 3.4.1",
 	"verifai >= 2.1.0b1",
-]
-test-sim = [
-	'carla >= 0.9.12; python_version <= "3.8" and (platform_system == "Linux" or platform_system == "Windows")',
 ]
 dev = [
 	"scenic[test-full]",
