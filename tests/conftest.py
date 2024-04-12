@@ -55,7 +55,7 @@ def getAssetPath():
 
 
 def checkCarlaPath():
-    CARLA_ROOT = os.environment.get("CARLA_ROOT")
+    CARLA_ROOT = os.environ.get("CARLA_ROOT")
     if not CARLA_ROOT:
         pytest.skip("CARLA_ROOT env variable not set.")
     return CARLA_ROOT
