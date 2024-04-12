@@ -11,6 +11,17 @@ jobs:
         concurrency:
           group: sim
         
+        strategy:
+          matrix:
+            carla_root:
+              - "/software/CARLA_0.9.15"
+              - "/software/CARLA_0.9.14"
+              # Add more versions as needed
+            webots_root:
+              - "/software/webotsR2023b/webots"
+              - "/software/webotsR2023a/webots"
+              # Add more versions as needed
+        
         steps:
             - name: Start EC2 Instance
               env:
@@ -67,6 +78,8 @@ jobs:
                 PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
                 HOSTNAME: ${{secrets.SSH_HOST}}
                 USER_NAME: ${{secrets.SSH_USERNAME}}
+                CARLA_ROOT: ${{ matrix.carla_root }}
+                WEBOTS_ROOT: ${{ matrix.webots_root }}
               run: |
                 echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
                 ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
@@ -74,8 +87,8 @@ jobs:
                   python3 -m venv venv &&
                   source venv/bin/activate &&
                   python3 -m pip install -e .[test-full] &&
-                  export CARLA_ROOT="/software/CARLA_0.9.15" &&
-                  export WEBOTS_ROOT="/software/webotsR2023b/webots" &&
+                  export CARLA_ROOT="${CARLA_ROOT}" &&
+                  export WEBOTS_ROOT="${WEBOTS_ROOT}" &&
                   export DISPLAY=:1 &&
                   pytest tests/simulators/* &&
                 '
