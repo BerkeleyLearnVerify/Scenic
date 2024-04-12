@@ -73,10 +73,9 @@ jobs:
                   cd /home/ubuntu/actions/Scenic &&
                   python3 -m venv venv &&
                   source venv/bin/activate &&
-                  python3 -m pip install -e . &&
                   python3 -m pip install -e .[test-full] &&
-                  python3 -m pip install -e .[guideways] &&
-                  pip install carla &&
+                  export CARLA_ROOT="/software/CARLA_0.9.15" &&
+                  export WEBOTS_ROOT="/software/webotsR2023b/webots" &&
                   export DISPLAY=:1 &&
                   pytest tests/simulators/* &&
                 '
