@@ -1,4 +1,4 @@
-Next, activate the `virtual environment <https://docs.python.org/3/tutorial/venv.html>`_ in which you want to install Scenic.
+Activate the `virtual environment <https://docs.python.org/3/tutorial/venv.html>`_ in which you want to install Scenic.
 To create and activate a new virtual environment called :file:`venv`, you can run the following commands:
 
 .. venv-setup-start

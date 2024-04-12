@@ -1,0 +1,18 @@
+# this config file is specific for: KMWH Runway 4
+
+## Runway geometry
+
+# latitude and longitude of start and end of runway centerline
+start_lat: 47.196736
+start_lon: -119.332917
+end_lat: 47.212778
+end_lon: -119.300297
+# file storing elevations along the length of the runway
+elevations: 'elevations.csv'
+
+## Scenic coordinate system
+
+origin_X: -25163.9477   # OpenGL coordinates of origin of Scenic coordinate system
+origin_Z: 33693.3450
+heading: 54.331   # Heading of (Y-axis of) Scenic coordinate system
+radians: False    # set to True if provided heading is already in radians

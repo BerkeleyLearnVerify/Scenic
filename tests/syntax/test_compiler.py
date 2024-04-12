@@ -2154,6 +2154,14 @@ class TestCompiler:
             case _:
                 assert False
 
+    def test_intersects_op(self):
+        node, _ = compileScenicAST(IntersectsOp(Name("X"), Name("Y")))
+        match node:
+            case Call(Name("Intersects"), [Name("X"), Name("Y")]):
+                assert True
+            case _:
+                assert False
+
 
 # Test cases inherited from the old translator for checking edge cases
 

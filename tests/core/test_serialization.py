@@ -5,6 +5,7 @@ For pickling, see ``test_pickle.py`` and many other tests marked with
 """
 
 import io
+import math
 import random
 import subprocess
 import sys
@@ -171,9 +172,12 @@ class TestExportToBytes:
         from scenic.simulators.utils.colors import Color
 
         checkValueEncoding(Color(0.5, 1.0, 0.2), Color)
-        from scenic.core.vectors import Vector
+        from scenic.core.vectors import Orientation, Vector
 
         checkValueEncoding(Vector(-7.5, 42), Vector)
+        checkValueEncoding(
+            Orientation.fromEuler(0.2 * math.pi, 0.6 * math.pi, 0), Orientation
+        )
 
         class Foo:
             def __init__(self, x):
@@ -197,6 +201,19 @@ class TestExportToBytes:
     def test_simple_scene(self):
         scenario = compileScenic(simpleScenario)
         scene1 = sampleScene(scenario)
+        data = scenario.sceneToBytes(scene1)
+        scene2 = scenario.sceneFromBytes(data)
+        assert scenario.sceneToBytes(scene2) == data
+        assertSceneEquivalence(scene1, scene2)
+
+    def test_scene_random_orientation(self):
+        program = """
+            box = BoxRegion(dimensions=(5,5,5))
+            new Object in box, facing (Range(0,360) deg, Range(0,360) deg, Range(0,360) deg)
+            new Object on box.getSurfaceRegion()
+        """
+        scenario = compileScenic(program)
+        scene1 = sampleScene(scenario, maxIterations=10)
         data = scenario.sceneToBytes(scene1)
         scene2 = scenario.sceneFromBytes(data)
         assert scenario.sceneToBytes(scene2) == data

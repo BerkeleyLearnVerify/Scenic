@@ -1,0 +1,25 @@
+codecov:
+  coverage:
+    precision: 2
+    round: down
+    range: "70...100"
+    status:
+      project:
+        default:
+          target: 80%
+          threshold: 1%
+        changes:
+          target: 80%
+          threshold: 1%
+  comment:
+    layout: "reach, diff, flags, files"
+    behavior: default
+  require_ci_to_pass: true
+  ignore:
+    - "src/scenic/simulators/**"
+    - "!src/scenic/simulators/newtonian/**"
+    - "!src/scenic/simulators/utils/**"
+cli:
+  plugins:
+    pycoverage:
+      report_type: "json"

@@ -27,6 +27,7 @@ import shapely.affinity
 import trimesh
 
 from scenic.core.distributions import (
+    FunctionDistribution,
     MultiplexerDistribution,
     RandomControlFlowError,
     Samplable,
@@ -45,7 +46,12 @@ from scenic.core.geometry import (
     normalizeAngle,
     pointIsInCone,
 )
-from scenic.core.lazy_eval import LazilyEvaluable, isLazy, needsLazyEvaluation
+from scenic.core.lazy_eval import (
+    LazilyEvaluable,
+    isLazy,
+    needsLazyEvaluation,
+    valueInContext,
+)
 from scenic.core.regions import (
     BoxRegion,
     CircularRegion,
@@ -114,6 +120,21 @@ class Constructible(Samplable):
             # transformed by __init_subclass__, so we skip it now.
             return
 
+        # Identify cached properties/methods which will need to be cleared
+        # each time step during dynamic simulations.
+        clearers = {}
+        for attr, value in cls.__dict__.items():
+            if isinstance(value, property):
+                value = value.fget
+            if clearer := getattr(value, "_scenic_cache_clearer", None):
+                clearers[attr] = clearer
+        for sc in cls.__mro__:
+            if sclearers := getattr(sc, "_cache_clearers", None):
+                for attr, clearer in sclearers.items():
+                    if attr not in clearers:
+                        clearers[attr] = clearer
+        cls._cache_clearers = clearers
+
         # Find all defaults provided by the class or its superclasses
         allDefs = collections.defaultdict(list)
 
@@ -126,29 +147,37 @@ class Constructible(Samplable):
         resolvedDefs = {}
         dyns = []
         finals = []
+        dynFinals = {}
         for prop, defs in allDefs.items():
             primary, rest = defs[0], defs[1:]
             spec = primary.resolveFor(prop, rest)
             resolvedDefs[prop] = spec
 
-            if any(defn.isDynamic for defn in defs):
+            if isDynamic := any(defn.isDynamic for defn in defs):
                 dyns.append(prop)
             if primary.isFinal:
                 finals.append(prop)
+                if isDynamic:
+                    dynFinals[prop] = primary.value
         cls._defaults = resolvedDefs
-        cls._finalProperties = tuple(finals)
+        cls._finalProperties = frozenset(finals)
 
         # Determine types of dynamic properties
         dynTypes = {}
-        inst = None
+        defaultValues = None  # compute only if necessary
         for prop in dyns:
             ty = super(cls, cls)._dynamicProperties.get(prop)
             if not ty:
-                # First time this property has been defined; create a dummy object to
-                # run specifier resolution and determine the property's default value
-                if not inst:
-                    inst = cls._withSpecifiers((), register=False)
-                ty = underlyingType(getattr(inst, prop))
+                # First time this property has been defined; get the type of
+                # its default value.
+                if not defaultValues:
+                    # N.B. Here we evaluate the default value expressions, which is
+                    # risky since global state like the workspace may not have been set
+                    # up yet. For this reason we only compute default values when they
+                    # are actually needed; a better solution would be to have syntax for
+                    # annotating the types of dynamic properties.
+                    defaultValues, _ = cls._resolveSpecifiers(())
+                ty = underlyingType(defaultValues[prop])
             dynTypes[prop] = ty
         cls._dynamicProperties = dynTypes
         cls._simulatorProvidedProperties = {
@@ -156,6 +185,17 @@ class Constructible(Samplable):
             for prop, val in cls._dynamicProperties.items()
             if prop not in cls._finalProperties
         }
+
+        # Extract order in which to recompute dynamic final properties each time step
+        if defaultValues:
+            recomputers = {}
+            for prop in defaultValues:  # order is that from specifier resolution
+                if prop in dynFinals:
+                    recomputers[prop] = dynFinals[prop]
+            cls._dynamicFinalProperties = recomputers
+        else:
+            # No new dynamic properties: just inherit the order from the superclass
+            pass
 
     def __new__(cls, *args, _internal=False, **kwargs):
         if not _internal:
@@ -408,6 +448,14 @@ class Constructible(Samplable):
         )
         return properties, constProps
 
+    def _recomputeDynamicFinals(self):
+        # Evaluate default value expression for each dynamic final property
+        # and assign the obtained value
+        for prop, recomputer in self._dynamicFinalProperties.items():
+            rawVal = recomputer(self)
+            value = valueInContext(rawVal, self)
+            self._specify(self, prop, value)
+
     @classmethod
     def _specify(cls, context, prop, value):
         # Normalize types of some built-in properties
@@ -504,11 +552,15 @@ class Constructible(Samplable):
         props = {
             prop: val
             for prop, val in self._allProperties().items()
-            if prop not in set(self._finalProperties)
+            if prop not in self._finalProperties
         }
         props.update(overrides)
         constProps = self._constProps.difference(overrides)
         return self._withProperties(props, constProps=constProps)
+
+    def _clearCaches(self):
+        for clearer in self._cache_clearers.values():
+            clearer(self)
 
     def dumpAsScenicCode(self, stream, skipConstProperties=True):
         stream.write(f"new {self.__class__.__name__}")
@@ -818,9 +870,11 @@ class OrientedPoint(Point):
         "heading": PropertyDefault(
             {"orientation"},
             {"dynamic", "final"},
-            lambda self: self.yaw
-            if alwaysGlobalOrientation(self.parentOrientation)
-            else self.orientation.yaw,
+            lambda self: (
+                self.yaw
+                if alwaysGlobalOrientation(self.parentOrientation)
+                else self.orientation.yaw
+            ),
         ),
         "viewAngle": math.tau,  # Primarily for backwards compatibility. Set viewAngles instead.
         "viewAngles": PropertyDefault(
@@ -1066,9 +1120,16 @@ class Object(OrientedPoint):
 
     @cached_method
     def intersects(self, other):
-        """Whether or not this object intersects another object"""
-        # For objects that are boxes and flat, we can take a fast route
-        if self._isPlanarBox and other._isPlanarBox:
+        """Whether or not this object intersects another object or region"""
+        ## Type Checking ##
+        if not isinstance(other, (Object, Region)):
+            raise TypeError(
+                f"Cannot compute intersection of Scenic Object with {type(other)}."
+            )
+
+        ## Heuristic Fast Paths ##
+        # For two objects that are boxes and flat, we can take a fast route
+        if self._isPlanarBox and (isinstance(other, Object) and other._isPlanarBox):
             if abs(self.position.z - other.position.z) > (self.height + other.height) / 2:
                 return False
 
@@ -1076,12 +1137,27 @@ class Object(OrientedPoint):
             other_poly = other._boundingPolygon
             return self_poly.intersects(other_poly)
 
-        if isLazy(self.occupiedSpace) or isLazy(other.occupiedSpace):
+        # For an object that is a box and flat with a polygonal region, we can
+        # also take a fast route.
+        if self._isPlanarBox and (
+            isinstance(other, PolygonalRegion)
+            and abs(self.position.z - other.z) <= self.height / 2
+        ):
+            return self._boundingPolygon.intersects(other.polygons)
+
+        ## Default Case
+        # Extract other's occupied space if it's an object
+        if isinstance(other, Object):
+            other_occupied_space = other.occupiedSpace
+        else:
+            other_occupied_space = other
+
+        if isLazy(self.occupiedSpace) or isLazy(other_occupied_space):
             raise RandomControlFlowError(
                 "Cannot compute intersection between Objects with non-fixed values."
             )
 
-        return self.occupiedSpace.intersects(other.occupiedSpace)
+        return self.occupiedSpace.intersects(other_occupied_space)
 
     @cached_property
     def left(self):
@@ -1255,67 +1331,125 @@ class Object(OrientedPoint):
     @cached_property
     def inradius(self):
         """A lower bound on the inradius of this object"""
-        # First check if all needed variables are defined. If so, we can
-        # compute the inradius exactly.
-        width, length, height = self.width, self.length, self.height
-        shape = self.shape
-        if not any(needsSampling(val) for val in (width, length, height, shape)):
-            shapeRegion = MeshVolumeRegion(
-                mesh=shape.mesh, dimensions=(width, length, height)
-            )
-            return shapeRegion.inradius
 
-        # If we havea uniform distribution over shapes and a supportInterval for each dimension,
-        # we can compute a supportInterval for this object's inradius
+        # Define a helper function that computes the support of the inradius,
+        # given the sub supports.
+        def inradiusSupport(width_s, length_s, height_s, shape_s):
+            # Unpack the dimension supports (and ignore the shape support)
+            min_width, max_width = width_s
+            min_length, max_length = length_s
+            min_height, max_height = height_s
 
-        # Define helper class
-        class InradiusHelper:
-            def __init__(self, support):
-                self.support = support
+            if None in [
+                min_width,
+                max_width,
+                min_length,
+                max_length,
+                min_height,
+                max_height,
+            ]:
+                # Can't get a bound on one or more dimensions, abort
+                return None, None
 
-            def supportInterval(self):
-                return self.support
+            min_bounds = np.array([min_width, min_length, min_height])
+            max_bounds = np.array([max_width, max_length, max_height])
 
-        # Extract bounds on all dimensions
-        min_width, max_width = supportInterval(width)
-        min_length, max_length = supportInterval(length)
-        min_height, max_height = supportInterval(height)
-
-        if None in [min_width, max_width, min_length, max_length, min_height, max_height]:
-            # Can't get a bound on one or more dimensions, abort
-            return 0
-
-        min_bounds = np.array([min_width, min_length, min_height])
-        max_bounds = np.array([max_width, max_length, max_height])
-
-        # Extract a list of possible shapes
-        if isinstance(shape, Shape):
-            shapes = [shape]
-        elif isinstance(shape, MultiplexerDistribution):
-            if all(isinstance(opt, Shape) for opt in shape.options):
-                shapes = shape.options
+            # Extract a list of possible shapes
+            if isinstance(self.shape, Shape):
+                shapes = [self.shape]
+            elif isinstance(self.shape, MultiplexerDistribution) and all(
+                isinstance(opt, Shape) for opt in self.shape.options
+            ):
+                shapes = self.shape.options
             else:
                 # Something we don't recognize, abort
-                return 0
+                return None, None
 
-        # Check that all possible shapes contain the origin
-        if not all(shape.containsCenter for shape in shapes):
-            # One or more shapes has inradius 0
-            return 0
+            # Get the inradius for each shape with the min and max bounds
+            min_distances = [
+                MeshVolumeRegion(mesh=shape.mesh, dimensions=min_bounds).inradius
+                for shape in shapes
+            ]
+            max_distances = [
+                MeshVolumeRegion(mesh=shape.mesh, dimensions=max_bounds).inradius
+                for shape in shapes
+            ]
 
-        # Get the inradius for each shape with the min and max bounds
-        min_distances = [
-            MeshVolumeRegion(mesh=shape.mesh, dimensions=min_bounds).inradius
-            for shape in shapes
-        ]
-        max_distances = [
-            MeshVolumeRegion(mesh=shape.mesh, dimensions=max_bounds).inradius
-            for shape in shapes
-        ]
+            distance_range = (min(min_distances), max(max_distances))
 
-        distance_range = (min(min_distances), max(max_distances))
+            return distance_range
 
-        return InradiusHelper(support=distance_range)
+        # Define a helper function that computes the actual inradius
+        @distributionFunction(support=inradiusSupport)
+        def inradiusActual(width, length, height, shape):
+            return MeshVolumeRegion(
+                mesh=shape.mesh, dimensions=(width, length, height)
+            ).inradius
+
+        # Return the inradius (possibly a distribution) with proper support information
+        return inradiusActual(self.width, self.length, self.height, self.shape)
+
+    @cached_property
+    def planarInradius(self):
+        """A lower bound on the planar inradius of this object.
+
+        This is defined as the inradius of the polygon of the occupiedSpace
+        of this object projected into the XY plane, assuming that pitch and
+        roll are both 0.
+        """
+
+        # Define a helper function that computes the support of the inradius,
+        # given the sub supports.
+        def planarInradiusSupport(width_s, length_s, shape_s):
+            # Unpack the dimension supports (and ignore the shape support)
+            min_width, max_width = width_s
+            min_length, max_length = length_s
+
+            if None in [min_width, max_width, min_length, max_length]:
+                # Can't get a bound on one or more dimensions, abort
+                return None, None
+
+            min_bounds = np.array([min_width, min_length, 1])
+            max_bounds = np.array([max_width, max_length, 1])
+
+            # Extract a list of possible shapes
+            if isinstance(self.shape, Shape):
+                shapes = [self.shape]
+            elif isinstance(self.shape, MultiplexerDistribution) and all(
+                isinstance(opt, Shape) for opt in self.shape.options
+            ):
+                shapes = self.shape.options
+            else:
+                # Something we don't recognize, abort
+                return None, None
+
+            # Get the inradius of the projected for each shape with the min and max bounds
+            min_distances = [
+                MeshVolumeRegion(
+                    mesh=shape.mesh, dimensions=min_bounds
+                ).boundingPolygon.inradius
+                for shape in shapes
+            ]
+            max_distances = [
+                MeshVolumeRegion(
+                    mesh=shape.mesh, dimensions=max_bounds
+                ).boundingPolygon.inradius
+                for shape in shapes
+            ]
+
+            distance_range = (min(min_distances), max(max_distances))
+
+            return distance_range
+
+        # Define a helper function that computes the actual planarInradius
+        @distributionFunction(support=planarInradiusSupport)
+        def planarInradiusActual(width, length, shape):
+            return MeshVolumeRegion(
+                mesh=shape.mesh, dimensions=(width, length, 1)
+            ).boundingPolygon.inradius
+
+        # Return the planar inradius (possibly a distribution) with proper support information
+        return planarInradiusActual(self.width, self.length, self.shape)
 
     @cached_property
     def surface(self):

@@ -33,13 +33,28 @@ def test_dynamic_property():
                 wait
         ego = new Object with behavior Foo
         terminate when ego.position.x >= 3
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert len(actions) == 3
 
 
-def test_dynamic_derived_property():
+def test_dynamic_final_property():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            for i in range(3):
+                self.yaw = self.yaw + 0.1
+                wait
+        ego = new Object with behavior Foo
+        terminate when ego.heading >= 0.25
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert len(actions) == 3
+
+
+def test_dynamic_cached_property():
     scenario = compileScenic(
         """
         behavior Foo():
@@ -48,7 +63,22 @@ def test_dynamic_derived_property():
                 wait
         ego = new Object with behavior Foo
         terminate when ego.left.position.y >= 3
-    """
+        """
+    )
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert len(actions) == 3
+
+
+def test_dynamic_cached_method():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            for i in range(3):
+                self.position = self.position + 0@1
+                wait
+        ego = new Object with behavior Foo
+        terminate when ego.distanceTo(0@4) < 1
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert len(actions) == 3
@@ -64,7 +94,7 @@ def test_current_time():
             while True:
                 take simulation().currentTime
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (0, 1, 2)
@@ -87,7 +117,7 @@ def test_behavior_actions():
             take 3
             take 5
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=2)
     assert tuple(actions) == (3, 5)
@@ -100,7 +130,7 @@ def test_behavior_multiple_actions():
             take 1, 4, 9
             take 5
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=2, singleAction=False)
     assert tuple(actions) == ((1, 4, 9), (5,))
@@ -113,7 +143,7 @@ def test_behavior_tuple_actions():
             take (1, 4, 9)
             take 5
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=2, singleAction=False)
     assert tuple(actions) == ((1, 4, 9), (5,))
@@ -126,7 +156,7 @@ def test_behavior_list_actions():
             take [1, 4, 9]
             take 5
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=2, singleAction=False)
     assert tuple(actions) == ((1, 4, 9), (5,))
@@ -142,7 +172,7 @@ def test_invalid_behavior_name():
             behavior 101():
                 wait
             ego = new Object
-        """
+            """
         )
 
 
@@ -155,7 +185,7 @@ def test_behavior_no_actions():
             behavior Bar():
                 Foo()   # forgot to use 'do'
             ego = new Object with behavior Bar
-        """
+            """
         )
 
 
@@ -169,7 +199,7 @@ def test_behavior_stuck(monkeypatch):
             time.sleep(1.5)
             wait
         ego = new Object with behavior Foo
-    """
+        """
     )
     monkeypatch.setattr(dynamics, "stuckBehaviorWarningTimeout", 1)
     with pytest.warns(dynamics.StuckBehaviorWarning):
@@ -184,7 +214,7 @@ def test_behavior_create_object():
                 new Object at 10@10
                 wait
             ego = new Object with behavior Bar
-        """
+            """
         )
         sampleResultOnce(scenario)
 
@@ -197,7 +227,7 @@ def test_behavior_define_param():
                 param foo = 3
                 wait
             ego = new Object with behavior Bar
-        """
+            """
         )
         sampleResultOnce(scenario)
 
@@ -210,7 +240,7 @@ def test_behavior_illegal_yield():
                 yield 1
                 wait
             ego = new Object with behavior Foo
-        """
+            """
         )
     with pytest.raises(ScenicSyntaxError):
         compileScenic(
@@ -219,7 +249,7 @@ def test_behavior_illegal_yield():
                 yield from []
                 wait
             ego = new Object with behavior Foo
-        """
+            """
         )
 
 
@@ -232,7 +262,7 @@ def test_behavior_nested_defn():
                 behavior Bar():
                     wait
             ego = new Object with behavior Foo
-        """
+            """
         )
 
 
@@ -282,7 +312,7 @@ def test_behavior_object_argument():
             wait
         other = new Object with flag 0, with behavior Bar
         ego = new Object at (10, 0), with behavior Foo(other)
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=2)
     assert actions[1] == 1
@@ -299,7 +329,7 @@ def test_behavior_globals_read():
                 take other.position.x
         ego = new Object with behavior Foo
         other = new Object at Range(10, 20) @ 15
-    """
+        """
     )
     actions1 = sampleEgoActions(scenario, maxSteps=2)
     assert len(actions1) == 2
@@ -319,7 +349,7 @@ def test_behavior_globals_read_module(runLocally):
                 while True:
                     take helper4.foo
             ego = new Object with behavior Foo
-        """
+            """
         )
         actions1 = sampleEgoActions(scenario, maxSteps=2)
         assert len(actions1) == 2
@@ -338,7 +368,7 @@ def test_behavior_globals_read_list():
                 take foo[1]
         ego = new Object with behavior Foo
         foo = [5, Range(10, 20)]
-    """
+        """
     )
     actions1 = sampleEgoActions(scenario, maxSteps=2)
     assert len(actions1) == 2
@@ -363,7 +393,7 @@ def test_behavior_globals_write():
                 take (glob < 1)
         other = new Object with behavior Foo
         ego = new Object at 10@10, with behavior Bar
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert len(actions) == 3
@@ -387,7 +417,7 @@ def test_behavior_namespace_interference(runLocally):
                 behavior Foo():
                     take sub.subsub.myglobal
                 ego = new Object with behavior Foo
-            """
+                """
             )
             actions = sampleEgoActions(scenario)
             assert len(actions) == 1
@@ -403,7 +433,7 @@ def test_behavior_self():
         behavior Foo():
             take self.bar
         ego = new Object with behavior Foo, with bar 3
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=1)
     assert tuple(actions) == (3,)
@@ -416,7 +446,7 @@ def test_behavior_lazy():
         behavior Foo():
             take (1 relative to vf).yaw
         ego = new Object at 0.5@0, with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=1)
     assert tuple(actions) == (pytest.approx(1.5),)
@@ -435,7 +465,7 @@ def test_behavior_lazy_nested():
             do Bar(); do Bar()
         new Object at -1.25@0, with behavior Baz
         ego = new Object at 0.5@0, with behavior Foo
-    """
+        """
     )
     actions = sampleActions(scenario, maxSteps=2)
     assert tuple(actions) == (pytest.approx((1.5, -0.25)), pytest.approx((-0.5, -0.25)))
@@ -450,7 +480,7 @@ def test_behavior_end_early():
         behavior Foo():
             take 5
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (5, None, None)
@@ -464,7 +494,7 @@ def test_terminate():
             terminate
             take 2
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (1,)
@@ -481,7 +511,7 @@ def test_terminate_when():
             take 2
         ego = new Object with behavior Foo
         terminate when flag as termCond
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (1, 2)
@@ -529,7 +559,7 @@ def test_behavior_ordering_default():
         new Object with name 'A', with behavior Foo
         new Object with name 'B', at 10@0, with behavior Foo
         ego = new Object with name 'C', at 20@0, with behavior Foo
-    """
+        """
     )
     scene = sampleScene(scenario)
     objsByName = {}
@@ -558,7 +588,7 @@ def test_behavior_nesting():
             do Foo(2)
             take 3
         ego = new Object with behavior Bar
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, 2, 2, 3)
@@ -574,7 +604,7 @@ def test_subbehavior_for_steps():
             do Foo() for 3 steps
             take 2
         ego = new Object with behavior Bar
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, 1, 1, 2)
@@ -590,7 +620,7 @@ def test_subbehavior_for_time():
             do Foo() for 3 seconds
             take 2
         ego = new Object with behavior Bar
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=7, timestep=0.5)
     assert tuple(actions) == (1, 1, 1, 1, 1, 1, 2)
@@ -606,7 +636,7 @@ def test_subbehavior_until():
             do Foo() until simulation().currentTime == 2
             take 2
         ego = new Object with behavior Bar
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, 1, 2, None)
@@ -621,7 +651,7 @@ def test_subbehavior_incompatible_modifiers():
             behavior Bar():
                 do Foo() for 5 steps until False
             ego = new Object with behavior Bar
-        """
+            """
         )
 
 
@@ -634,7 +664,7 @@ def test_subbehavior_misplaced_modifier():
             behavior Bar():
                 do Foo() for 5 steps, Foo()
             ego = new Object with behavior Bar
-        """
+            """
         )
 
 
@@ -644,7 +674,7 @@ def test_behavior_invoke_mistyped():
         behavior Foo():
             do 12
         ego = new Object with behavior Foo
-    """
+        """
     )
     with pytest.raises(TypeError):
         sampleActions(scenario)
@@ -659,7 +689,7 @@ def test_behavior_invoke_multiple():
             behavior Bar():
                 do Foo(), Foo()
             ego = new Object with behavior Bar
-        """
+            """
         )
 
 
@@ -672,7 +702,7 @@ def test_behavior_calls():
         behavior Foo():
             take [func(4, 5, 6, blah=4, c=10)]
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=1)
     assert tuple(actions) == ([4, 2, 10, 1, 1],)
@@ -689,7 +719,7 @@ def test_behavior_calls_nested():
         behavior Foo():
             take funcA(funcB(5))
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=1)
     assert tuple(actions) == (11,)
@@ -707,7 +737,7 @@ def test_behavior_calls_side_effects():
             while True:
                 take func()
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, 2, 3, 4)
@@ -723,7 +753,7 @@ def test_behavior_precondition():
             precondition: self.position.x > 0
             take self.position.x
         ego = new Object at Range(-1, 1) @ 0, with behavior Foo
-    """
+        """
     )
     for i in range(30):
         actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=1, maxScenes=50)
@@ -739,7 +769,7 @@ def test_behavior_invariant():
                 take self.position.x
                 self.position -= Range(0, 2) @ 0
         ego = new Object at 1 @ 0, with behavior Foo
-    """
+        """
     )
     for i in range(30):
         actions = sampleEgoActions(scenario, maxSteps=3, maxIterations=50)
@@ -771,7 +801,7 @@ def test_precondition_rejection():
 
         ego = new Object at (0,0,0), with foo 0, with bar 0,
             with behavior MetaBehavior()
-    """
+        """
     )
     scene = sampleScene(scenario)
     results = [sampleEgoActions(scenario, maxSteps=1) for _ in range(40)]
@@ -807,7 +837,7 @@ def test_invariant_rejection():
             with behavior MetaBehavior()
 
         record final (ego.foo, ego.bar) as test_val
-    """
+        """
     )
     scene = sampleScene(scenario)
     result = sampleResultFromScene(scene, maxSteps=20)
@@ -841,7 +871,7 @@ def test_precondition_rejection_choose():
             with behavior MetaBehavior()
 
         record final (ego.foo, ego.bar) as test_val
-    """
+        """
     )
     scene = sampleScene(scenario)
     result = sampleResultFromScene(scene, maxSteps=20)
@@ -875,7 +905,7 @@ def test_invariant_rejection_choose():
             with behavior MetaBehavior()
 
         record final (ego.foo, ego.bar) as test_val
-    """
+        """
     )
     scene = sampleScene(scenario)
     result = sampleResultFromScene(scene, maxSteps=20)
@@ -909,7 +939,7 @@ def test_precondition_rejection_shuffle():
             with behavior MetaBehavior()
 
         record final (ego.foo, ego.bar) as test_val
-    """
+        """
     )
     for _ in range(20):
         scene = sampleScene(scenario)
@@ -944,7 +974,7 @@ def test_invariant_rejection_shuffle():
             with behavior MetaBehavior()
 
         record final (ego.foo, ego.bar) as test_val
-    """
+        """
     )
     for _ in range(20):
         scene = sampleScene(scenario)
@@ -965,7 +995,7 @@ def test_choose_1():
         behavior Bar(x):
             take x
         ego = new Object with behavior Foo
-    """
+        """
     )
     ts = [sampleEgoActions(scenario, maxSteps=2) for i in range(40)]
     assert any(t[0] == 1 for t in ts)
@@ -984,7 +1014,7 @@ def test_choose_2():
             precondition: self.position.x == p
             take (self.position.x == p)
         ego = new Object at Uniform(1, 2) @ 0, with behavior Foo
-    """
+        """
     )
     for i in range(30):
         actions = sampleEgoActions(scenario, maxSteps=2)
@@ -1000,7 +1030,7 @@ def test_choose_3():
         behavior Sub(x):
             take x
         ego = new Object with behavior Foo
-    """
+        """
     )
     xs = [sampleEgoActions(scenario)[0] for i in range(200)]
     assert all(x == 0 or x == 1 for x in xs)
@@ -1016,7 +1046,7 @@ def test_choose_deadlock():
             precondition: self.position.x == p
             wait
         ego = new Object at 3 @ 0, with behavior Foo
-    """
+        """
     )
     result = sampleResultOnce(scenario)
     assert result is None
@@ -1032,7 +1062,7 @@ def test_shuffle_1():
             precondition: simulation().currentTime >= x
             take x
         ego = new Object with behavior Foo
-    """
+        """
     )
     for i in range(30):
         actions = sampleEgoActions(scenario, maxSteps=3)
@@ -1047,7 +1077,7 @@ def test_shuffle_2():
         behavior Sub(x):
             take x
         ego = new Object with behavior Foo
-    """
+        """
     )
     ts = [sampleEgoActions(scenario, maxSteps=2) for i in range(30)]
     assert all(tuple(t) == (1, 3) or tuple(t) == (3, 1) for t in ts)
@@ -1063,7 +1093,7 @@ def test_shuffle_3():
         behavior Sub(x):
             take x
         ego = new Object with behavior Foo
-    """
+        """
     )
     ts = [sampleEgoActions(scenario, maxSteps=2) for i in range(200)]
     assert all(tuple(t) == (0, 1) or tuple(t) == (1, 0) for t in ts)
@@ -1079,7 +1109,7 @@ def test_shuffle_deadlock():
             precondition: simulation().currentTime == 0
             wait
         ego = new Object with behavior Foo
-    """
+        """
     )
     result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
@@ -1097,7 +1127,7 @@ def test_behavior_require():
                 take x
                 require x < 0
         ego = new Object with behavior Foo
-    """
+        """
     )
     for i in range(50):
         actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=50, maxScenes=1)
@@ -1114,7 +1144,7 @@ def test_behavior_require_scene():
                 take self.foo
                 require self.foo < 0
         ego = new Object with foo Range(-1, 1), with behavior Foo
-    """
+        """
     )
     for i in range(50):
         actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=1, maxScenes=50)
@@ -1131,7 +1161,7 @@ def test_behavior_require_call():
             require len(x) > 0
             take [x]
         ego = new Object with behavior Foo
-    """
+        """
     )
     for i in range(30):
         actions = sampleEgoActions(scenario, maxSteps=1, maxIterations=30)
@@ -1146,7 +1176,7 @@ def test_behavior_require_soft():
             require[0.9] x >= 0
             take x
         ego = new Object with behavior Foo
-    """
+        """
     )
     xs = []
     for i in range(350):
@@ -1169,7 +1199,7 @@ def test_require_always():
                 self.blah += DiscreteRange(0, 1)
         ego = new Object with behavior Foo, with blah 0
         require always ego.blah < 1
-    """
+        """
     )
     for i in range(30):
         actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=50)
@@ -1190,7 +1220,7 @@ def test_require_eventually():
                 self.blah += DiscreteRange(0, 1)
         ego = new Object with behavior Foo, with blah 0
         require eventually ego.blah > 0
-    """
+        """
     )
     for i in range(30):
         actions = sampleEgoActions(scenario, maxSteps=2, maxIterations=50)
@@ -1208,7 +1238,7 @@ def test_require_eventually_2():
         require eventually ego.blah == 0
         require eventually ego.blah == 1
         require eventually ego.blah == 2
-    """
+        """
     )
     sampleEgoActions(scenario, maxSteps=3)
 
@@ -1222,7 +1252,7 @@ def test_require_eventually_3():
                 self.blah += 1
         ego = new Object with behavior Foo, with blah 0
         require eventually ego.blah == -1
-    """
+        """
     )
     with pytest.raises(RejectSimulationException):
         sampleEgoActions(scenario, maxSteps=3)
@@ -1237,7 +1267,7 @@ def test_require_next_1():
                 take self.blah
         ego = new Object with behavior Foo, with blah 0
         require next ego.blah == 1
-    """
+        """
     )
     sampleEgoActions(scenario, maxSteps=5)
 
@@ -1251,7 +1281,7 @@ def test_require_next_2():
                 take self.blah
         ego = new Object with behavior Foo, with blah 0
         require next next ego.blah == 2
-    """
+        """
     )
     sampleEgoActions(scenario, maxSteps=5)
 
@@ -1270,7 +1300,7 @@ def test_require_until():
                 take self.blah
         ego = new Object with behavior Foo, with blah 0
         require ego.blah < 3 until ego.blah >= 3
-    """
+        """
     )
     sampleEgoActions(scenario, maxSteps=5)
 
@@ -1284,7 +1314,7 @@ def test_require_until_2():
                 take self.blah
         ego = new Object with behavior Foo, with blah 0
         require False until ego.blah > 3
-    """
+        """
     )
     with pytest.raises(RejectSimulationException):
         sampleEgoActions(scenario, maxSteps=5)
@@ -1299,7 +1329,7 @@ def test_require_until_3():
                 take self.blah
         ego = new Object with behavior Foo, with blah 0
         require True until False
-    """
+        """
     )
     with pytest.raises(RejectSimulationException):
         sampleEgoActions(scenario, maxSteps=5)
@@ -1314,7 +1344,7 @@ def test_require_implies_1():
                 take self.blah
         ego = new Object with behavior Foo, with blah 0
         require ego.blah == 3 implies ego.blah % 2 == 1
-    """
+        """
     )
     sampleEgoActions(scenario, maxSteps=5)
 
@@ -1328,7 +1358,7 @@ def test_require_implies_2():
                 take self.blah
         ego = new Object with behavior Foo, with blah 0
         require always ego.blah % 2 == 0 implies next ego.blah % 2 == 1
-    """
+        """
     )
     sampleEgoActions(scenario, maxSteps=5)
 
@@ -1342,7 +1372,7 @@ def test_require_implies_3():
                 take self.blah
         ego = new Object with behavior Foo, with blah 0
         require always ego.blah % 2 == 0 implies ego.blah == 0
-    """
+        """
     )
     result = sampleResultOnce(scenario, maxSteps=5)
     assert result is None
@@ -1365,7 +1395,7 @@ def test_monitor():
                 take self.blah
                 self.blah += 1
         ego = new Object with blah 0, with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=5)
     assert tuple(actions) == (0, 1, 2, 3)
@@ -1386,7 +1416,7 @@ def test_monitor_arguments():
                 take self.blah
                 self.blah += 1
         ego = new Object with blah 0, with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=5)
     assert tuple(actions) == (0, 1, 2)
@@ -1407,7 +1437,7 @@ def test_monitor_samplable_arguments():
                 take self.blah
                 self.blah += 1
         ego = new Object with blah 0, with behavior Foo
-    """
+        """
     )
     lengths = [len(sampleEgoActions(scenario, maxSteps=5)) for i in range(60)]
     assert all(2 <= length <= 3 for length in lengths)
@@ -1434,6 +1464,18 @@ def test_require_monitor_invalid():
         """
         )
         sampleScene(scenario)
+
+
+def test_require_monitor_error():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic(
+            """
+            monitor Monitor():
+                wait
+            ego = new Object
+            require Monitor()
+        """
+        )
 
 
 def test_old_style_monitor():
@@ -1479,7 +1521,7 @@ def test_invocable_signature(ty):
         {ty} Blah(foo, *bar, baz=12, **qux):
             wait
         ego = new Object with thing Blah
-    """
+        """
     )
     sig = inspect.signature(ego.thing)
     params = tuple(sig.parameters.items())
@@ -1514,7 +1556,7 @@ def test_interrupt():
             interrupt when simulation().currentTime % 3 == 2:
                 take 2
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=6)
     assert tuple(actions) == (1, 1, 2, 1, 1, 2)
@@ -1530,7 +1572,7 @@ def test_interrupt_first():
             interrupt when simulation().currentTime == 0:
                 take 2
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (2, 1, 1)
@@ -1548,7 +1590,7 @@ def test_interrupt_priority():
             interrupt when simulation().currentTime == 0:
                 take 3
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (3, 2, 1)
@@ -1567,7 +1609,7 @@ def test_interrupt_interrupted():
             interrupt when simulation().currentTime == 1:
                 take 4
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=5)
     assert tuple(actions) == (2, 4, 3, 1, 1)
@@ -1584,7 +1626,7 @@ def test_interrupt_actionless():
             interrupt when i == 1:
                 i = 2
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=5)
     assert tuple(actions) == (1, 1, 1, None, None)
@@ -1600,7 +1642,7 @@ def test_interrupt_define_local():
                 pass
             take i
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=1)
     assert tuple(actions) == (1,)
@@ -1617,7 +1659,7 @@ def test_interrupt_define_local_2():
                 abort
             take i
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=1)
     assert tuple(actions) == (1,)
@@ -1638,7 +1680,7 @@ def test_interrupt_no_handlers():
             except Exception:
                 take 2
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=3)
     assert tuple(actions) == (1, 2, None)
@@ -1658,7 +1700,7 @@ def test_interrupt_except():
             except Exception:
                 take 4
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, 2, 4, None)
@@ -1679,7 +1721,7 @@ def test_interrupt_except_else():
             else:
                 take 5
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=7)
     assert tuple(actions) == (1, 2, 3, 1, 1, 5, None)
@@ -1703,7 +1745,7 @@ def test_interrupt_nested():
             interrupt when simulation().currentTime == 1:
                 take 3
         ego = new Object with behavior Bar
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=6)
     assert tuple(actions) == (1, 3, 2, 1, 1, None)
@@ -1725,7 +1767,7 @@ def test_interrupt_nested_2():
             interrupt when simulation().currentTime == 2:
                 take 4
         ego = new Object with behavior Bar
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=7)
     assert tuple(actions) == (1, 2, 4, 3, 1, 1, None)
@@ -1744,7 +1786,7 @@ def test_interrupt_nested_3():
             interrupt when simulation().currentTime == 1:
                 take 3
         ego = new Object with behavior Bar
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=6)
     assert tuple(actions) == (1, 3, 2, 1, 1, None)
@@ -1766,7 +1808,7 @@ def test_interrupt_break():
                     break
                     take 3
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, 1, 2, None)
@@ -1785,7 +1827,7 @@ def test_interrupt_break_2():
                         take 2
                         break
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (1, 2, 1, 1)
@@ -1805,7 +1847,7 @@ def test_interrupt_continue():
                     continue
                     take 3
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=7)
     assert tuple(actions) == (4, 1, 2, 4, 1, 1, 4)
@@ -1825,7 +1867,7 @@ def test_interrupt_continue_2():
                             continue
                         take 2
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=5)
     assert tuple(actions) == (1, 2, 2, 1, 1)
@@ -1845,7 +1887,7 @@ def test_interrupt_abort():
                         take 2
                         abort
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=8)
     assert tuple(actions) == (3, 1, 2, 3, 1, 1, 1, 3)
@@ -1876,7 +1918,7 @@ def test_interrupt_return():
                         take 2
                         return
         ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (3, 1, 2, None)
@@ -1923,7 +1965,7 @@ def test_interrupt_unassigned_local():
             interrupt when i == 1:
                 i = 2
         ego = new Object with behavior Foo
-    """
+        """
     )
     if sys.version_info >= (3, 10, 3):  # see veneer.executeInBehavior
         exc_type = NameError
@@ -1943,7 +1985,7 @@ def test_interrupt_guard_subbehavior():
             interrupt when Foo():
                 wait
         ego = new Object with behavior Foo
-    """
+        """
     )
     with pytest.raises(InvalidScenarioError):
         sampleEgoActions(scenario, maxSteps=1)
@@ -1956,7 +1998,7 @@ def test_termination_reason_time():
     scenario = compileScenic(
         """
         ego = new Object
-    """
+        """
     )
     result = sampleResult(scenario, maxSteps=2)
     assert result.terminationType == TerminationType.timeLimit
@@ -1971,7 +2013,7 @@ def test_termination_reason_condition_1():
                 wait
         ego = new Object with behavior Foo
         terminate when ego.position.x >= 1
-    """
+        """
     )
     result = sampleResult(scenario, maxSteps=2)
     assert result.terminationType == TerminationType.scenarioComplete
@@ -1986,7 +2028,7 @@ def test_termination_reason_condition_2():
                 wait
         ego = new Object with behavior Foo
         terminate simulation when ego.position.x >= 1
-    """
+        """
     )
     result = sampleResult(scenario, maxSteps=2)
     assert result.terminationType == TerminationType.simulationTerminationCondition
@@ -1998,7 +2040,7 @@ def test_termination_reason_behavior():
         behavior Foo():
             terminate
         ego = new Object with behavior Foo
-    """
+        """
     )
     result = sampleResult(scenario, maxSteps=2)
     assert result.terminationType == TerminationType.terminatedByBehavior
@@ -2011,7 +2053,7 @@ def test_termination_reason_monitor():
             terminate
         require monitor Foo()
         ego = new Object
-    """
+        """
     )
     result = sampleResult(scenario, maxSteps=2)
     assert result.terminationType == TerminationType.terminatedByMonitor
@@ -2032,7 +2074,7 @@ def test_record():
         record initial ego.position as initial
         record final ego.position as final
         record ego.position as position
-    """
+        """
     )
     result = sampleResult(scenario, maxSteps=4)
     assert result.records["initial"] == (0, 0, 0)
