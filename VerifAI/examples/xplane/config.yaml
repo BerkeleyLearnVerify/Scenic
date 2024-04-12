@@ -1,0 +1,17 @@
+## Experiment configuration file
+
+scenario: 'example.sc'    # Scenic scenario to use
+controller: True  # True to run plane controller; False to leave plane fixed in place
+framerate: 10     # framerate for running controller (and recording videos)
+specification: 'F[0, 10] G nearcenterline'   # MTL specification to monitor
+runs: -1    # number of runs (-1 to run until interrupted)
+
+safe_table: 'safe_table.csv'    # table of safe runs
+error_table: 'error_table.csv'  # table of unsafe runs
+cross_entropy: 'ce_dists.txt'   # file to dump final cross-entropy distributions into (if applicable)
+
+video:
+  record: false   # whether to record videos
+  threshold: 0    # save videos only for runs where robustness of spec <= threshold
+  region: {top: 100, left: 100, width: 1720, height: 960}   # part of screen to capture
+  size: {width: 430, height: 240}   # size of images to save

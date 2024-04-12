@@ -1,0 +1,1192 @@
+#VRML_SIM R2018b utf8
+WorldInfo {
+  info [
+    "World generated using the Open Street Map to Webots importer"
+    "Author: David Mansolino <david.mansolino@epfl.ch>"
+  ]
+  northDirection 0 0 1
+  gpsCoordinateSystem "WGS84"
+  gpsReference 37.870725 -122.26795 0
+  lineScale 1
+}
+Viewpoint {
+  orientation 0.06461770486551385 0.9482822723560247 0.3107817307262565 3.5309412842670214
+  position -151.48866564657106 284.2468628234057 -365.5475579495917
+  near 3
+}
+TexturedBackground {
+}
+TexturedBackgroundLight {
+}
+Floor {
+  translation 0 -0.02 0
+  size 164 249
+  texture [
+    "textures/grass.jpg"
+  ]
+}
+Crossroad {
+  translation -54.900549 0.01 -34.266181
+  name "crossroad(1)"
+  id "2053883367"
+  shape []
+  connectedRoadIDs [
+    "194859187"
+    "194872388"
+  ]
+}
+Crossroad {
+  translation 39.444071 0.01 -51.095293
+  name "crossroad(2)"
+  id "2069144153"
+  shape []
+  connectedRoadIDs [
+    "196599890"
+    "34815522"
+  ]
+}
+Crossroad {
+  translation -18.059856 0.01 5.423113
+  name "crossroad(3)"
+  id "2124160133"
+  shape []
+  connectedRoadIDs [
+    "193256685"
+    "202447070"
+  ]
+}
+Crossroad {
+  translation -20.265521 0.01 66.22361
+  name "crossroad(4)"
+  id "4168207053"
+  shape []
+  connectedRoadIDs [
+    "196739959"
+    "415878140"
+  ]
+}
+Crossroad {
+  translation 9.053299 0.01 -45.608661
+  name "crossroad(5)"
+  id "53050568"
+  shape [
+    3.621615 0 -9.230596
+    3.614296 0 -9.237431
+    3.604582 0 -9.239861
+    -9.227884 0 -3.62306
+    -9.236793 0 -3.615386
+    -9.239849 0 -3.604031
+    -6.189498 0 5.195355
+    -6.182768 0 5.204677
+    -1.768499 0 8.587793
+    -1.757462 0 8.591887
+    7.745813 0 4.1043
+    7.75354 0 4.097847
+    7.757144 0 4.088447
+    7.626889 0 2.669112
+    6.182796 0 -5.201291
+    3.621615 0 -9.230596
+  ]
+  connectedRoadIDs [
+    "196599890"
+    "288515137"
+    "34815523"
+    "415876825"
+  ]
+}
+Crossroad {
+  translation -13.818544 0.01 -41.445837
+  name "crossroad(6)"
+  id "53050570"
+  shape [
+    -2.912672 0 -7.283319
+    -2.923702 0 -7.281045
+    -7.61869 0 -2.691689
+    -7.624268 0 -2.681564
+    -6.1872 0 5.196052
+    -5.879973 0 6.502041
+    -5.874328 0 6.511914
+    -5.864213 0 6.517114
+    4.594815 0 7.465291
+    4.60636 0 7.462841
+    7.620033 0 2.69257
+    7.62312 0 2.68201
+    6.190279 0 -5.192384
+    6.18511 0 -5.202569
+    4.07372 0 -6.705776
+    4.063762 0 -6.709414
+    -2.912672 0 -7.283319
+  ]
+  connectedRoadIDs [
+    "193256685"
+    "194859187"
+    "195430727"
+    "34815523"
+  ]
+}
+Crossroad {
+  translation 30.450702 0.01 49.370647
+  name "crossroad(7)"
+  id "53096083"
+  shape [
+    4.819604 0 -4.532706
+    4.815042 0 -4.543329
+    4.805363 0 -4.549653
+    -5.644029 0 -3.444973
+    -5.654724 0 -3.440451
+    -5.661104 0 -3.43075
+    -5.240716 0 0.554795
+    -5.232536 0 0.627263
+    -4.756315 0 4.598953
+    -4.751645 0 4.609584
+    -4.741856 0 4.61583
+    5.691249 0 3.36639
+    5.701841 0 3.361755
+    5.708097 0 3.352032
+    4.819604 0 -4.532706
+  ]
+  connectedRoadIDs [
+    "26379240"
+    "288515137"
+    "288515145"
+    "435607778"
+  ]
+}
+Crossroad {
+  translation -20.356243 0.01 58.024471
+  name "crossroad(8)"
+  id "53096121"
+  shape [
+    5.224888 0 -4.05875
+    5.221393 0 -4.069823
+    5.212335 0 -4.077088
+    -5.294677 0 -3.960972
+    -5.305749 0 -3.957477
+    -5.313015 0 -3.94842
+    -5.225421 0 4.058064
+    -5.221927 0 4.069137
+    -5.212871 0 4.076403
+    5.294156 0 3.961668
+    5.30523 0 3.958174
+    5.312496 0 3.949118
+    5.269677 0 -0.058308
+    5.224888 0 -4.05875
+  ]
+  connectedRoadIDs [
+    "196739902"
+    "196739959"
+    "202447070"
+    "288515145"
+  ]
+}
+Road {
+  translation 41.75936 0.01 152.251684
+  name "Shattuck Avenue"
+  id "26379240"
+  endJunction "53096083"
+  width 10.5
+  numberOfLanes 3
+  numberOfForwardLanes 3
+  speedLimit 11.176
+  dashedLine [
+    TRUE
+    TRUE
+  ]
+  rightBorder FALSE
+  leftBorder FALSE
+  wayPoints [
+    0 0 0
+    0.058161 0 -8.289073
+    -10.25461 0 -94.090275
+    -10.830162 0 -98.890383
+  ]
+  endingAngle [
+    3.022403
+  ]
+  endLine [
+    "textures/road_line_triangle.png"
+    "textures/road_line_triangle.png"
+    "textures/road_line_triangle.png"
+  ]
+  splineSubdivision 0
+}
+PedestrianCrossing {
+  translation 41.817521 -0.07 143.962612
+  rotation 0 1 0 0.11962
+  name "pedestrian crossing(1)"
+  size 10.5 4.2
+}
+PedestrianCrossing {
+  translation 31.504751 -0.07 58.161409
+  rotation 0 1 0 0.119334
+  name "pedestrian crossing(2)"
+  size 10.5 4.2
+}
+Road {
+  translation 228.850909 0.01 -84.234343
+  name "Center Street"
+  id "34815522"
+  endJunction "2069144153"
+  width 8
+  speedLimit 11.176
+  dashedLine [
+    FALSE
+  ]
+  wayPoints [
+    0 0 0
+    -8.098594 0 1.439187
+    -66.363657 0 11.448375
+    -102.315539 0 17.81027
+    -134.674844 0 23.533913
+    -189.406838 0 33.13905
+  ]
+  endingAngle [
+    1.397071
+  ]
+  splineSubdivision 0
+  texture [
+    "textures/road_no_border_line.jpg"
+  ]
+}
+PedestrianCrossing {
+  translation 220.752315 -0.07 -82.795155
+  rotation 0 1 0 -1.40067
+  name "pedestrian crossing(3)"
+  size 8 3.2
+}
+PedestrianCrossing {
+  translation 126.53537 -0.07 -66.424072
+  rotation 0 1 0 -1.395729
+  name "pedestrian crossing(4)"
+  size 8 3.2
+}
+Road {
+  translation 1.537032 0.01 -44.240651
+  name "Center Street(1)"
+  id "34815523"
+  startJunction "53050568"
+  endJunction "53050570"
+  width 8
+  speedLimit 11.176
+  dashedLine [
+    FALSE
+  ]
+  wayPoints [
+    0 0 0
+    -8.449207 0 1.537811
+  ]
+  startingAngle [
+    1.237105
+  ]
+  endingAngle [
+    1.390804
+  ]
+  startLine [
+    "textures/road_line_dashed.png"
+    "textures/road_line_triangle.png"
+  ]
+  endLine [
+    "textures/road_line_triangle.png"
+    "textures/road_line_dashed.png"
+  ]
+  splineSubdivision 0
+  texture [
+    "textures/road_no_border_line.jpg"
+  ]
+}
+Road {
+  translation -14.452287 0.01 -34.454548
+  name "Shattuck Avenue(1)"
+  id "193256685"
+  startJunction "53050570"
+  endJunction "2124160133"
+  width 10.5
+  numberOfLanes 3
+  numberOfForwardLanes 3
+  speedLimit 11.176
+  dashedLine [
+    TRUE
+    TRUE
+  ]
+  rightBorder FALSE
+  leftBorder FALSE
+  wayPoints [
+    0 0 0
+    -0.313401 0 3.457357
+    -1.705634 0 18.836062
+    -3.607569 0 39.877661
+  ]
+  startingAngle [
+    0.090409
+  ]
+  endingAngle [
+    0.090144
+  ]
+  startLine [
+    "textures/road_line_dashed.png"
+    "textures/road_line_dashed.png"
+    "textures/road_line_dashed.png"
+  ]
+  splineSubdivision 0
+}
+PedestrianCrossing {
+  translation -14.765687 -0.07 -30.997191
+  rotation 0 1 0 -0.090284
+  name "pedestrian crossing(5)"
+  size 10.5 4.2
+}
+Road {
+  translation -54.900549 0.01 -34.266181
+  name "Center Street(2)"
+  id "194859187"
+  startJunction "2053883367"
+  endJunction "53050570"
+  width 8
+  speedLimit 11.176
+  dashedLine [
+    FALSE
+  ]
+  wayPoints [
+    0 0 0
+    15.521509 0 -2.651694
+    31.622389 0 -5.452151
+    34.176955 0 -5.918663
+  ]
+  startingAngle [
+    -1.740003
+  ]
+  endingAngle [
+    -1.751236
+  ]
+  endLine [
+    "textures/road_line_triangle.png"
+    "textures/road_line_dashed.png"
+  ]
+  splineSubdivision 0
+  texture [
+    "textures/road_no_border_line.jpg"
+  ]
+}
+PedestrianCrossing {
+  translation -23.27816 -0.07 -39.718332
+  rotation 0 1 0 -1.390168
+  name "pedestrian crossing(6)"
+  size 8 3.2
+}
+Road {
+  translation -106.778873 0.01 -25.33712
+  name "Center Street(3)"
+  id "194872388"
+  endJunction "2053883367"
+  width 8
+  speedLimit 11.176
+  dashedLine [
+    FALSE
+  ]
+  wayPoints [
+    0 0 0
+    8.599559 0 -1.476736
+    13.527377 0 -2.325445
+    25.139819 0 -4.325144
+    51.878324 0 -8.929061
+  ]
+  endingAngle [
+    -1.740003
+  ]
+  splineSubdivision 0
+  texture [
+    "textures/road_no_border_line.jpg"
+  ]
+}
+PedestrianCrossing {
+  translation -93.251495 -0.07 -27.662564
+  rotation 0 1 0 -1.400266
+  name "pedestrian crossing(7)"
+  size 8 3.2
+}
+Road {
+  translation -7.116999 0.01 -145.843972
+  name "Shattuck Avenue(2)"
+  id "195430727"
+  endJunction "53050570"
+  numberOfForwardLanes 2
+  speedLimit 11.176
+  rightBorder FALSE
+  leftBorder FALSE
+  wayPoints [
+    0 0 0
+    -0.135274 0 7.424198
+    -0.566281 0 14.151675
+    -2.22047 0 44.356513
+    -4.219928 0 74.275569
+    -5.930657 0 95.027172
+    -6.126 0 97.401768
+  ]
+  endingAngle [
+    0.082079
+  ]
+  endLine [
+    "textures/road_line_triangle.png"
+    "textures/road_line_triangle.png"
+  ]
+  splineSubdivision 0
+}
+PedestrianCrossing {
+  translation -7.252273 -0.07 -138.419774
+  rotation 0 1 0 -0.063979
+  name "pedestrian crossing(8)"
+  size 7 2.8
+}
+PedestrianCrossing {
+  translation -13.047656 -0.07 -50.8168
+  rotation 0 1 0 -0.082079
+  name "pedestrian crossing(9)"
+  size 7 2.8
+}
+Road {
+  translation 39.444071 0.01 -51.095293
+  name "Center Street(4)"
+  id "196599890"
+  startJunction "2069144153"
+  endJunction "53050568"
+  width 8
+  speedLimit 11.176
+  dashedLine [
+    FALSE
+  ]
+  wayPoints [
+    0 0 0
+    -6.702332 0 1.139937
+    -23.486091 0 4.219662
+  ]
+  startingAngle [
+    1.397071
+  ]
+  endingAngle [
+    1.389331
+  ]
+  endLine [
+    "textures/road_line_triangle.png"
+    "textures/road_line_dashed.png"
+  ]
+  splineSubdivision 0
+  texture [
+    "textures/road_no_border_line.jpg"
+  ]
+}
+PedestrianCrossing {
+  translation 32.741739 -0.07 -49.955356
+  rotation 0 1 0 -1.389321
+  name "pedestrian crossing(10)"
+  size 8 3.2
+}
+Road {
+  translation -25.615979 0.01 58.945969
+  name "Addison Street"
+  id "196739902"
+  startJunction "53096121"
+  width 4
+  numberOfLanes 1
+  speedLimit 11.176
+  dashedLine []
+  wayPoints [
+    0 0 0
+    -5.017198 0 0.879006
+    -36.120279 0 6.327117
+    -45.711081 0 8.133381
+  ]
+  startingAngle [
+    1.559856
+  ]
+  startLine [
+    "textures/road_line_dashed.png"
+    "textures/road_line_triangle.png"
+  ]
+  splineSubdivision 0
+  texture [
+    "textures/road_no_border_line.jpg"
+  ]
+}
+PedestrianCrossing {
+  translation -30.633177 -0.07 59.824975
+  rotation 0 1 0 -1.397392
+  name "pedestrian crossing(11)"
+  size 4 1.6
+}
+Road {
+  translation -20.311774 0.01 62.043465
+  name "Shattuck Avenue(3)"
+  id "196739959"
+  startJunction "53096121"
+  endJunction "4168207053"
+  width 10.5
+  numberOfLanes 3
+  numberOfForwardLanes 3
+  speedLimit 11.176
+  dashedLine [
+    TRUE
+    TRUE
+  ]
+  rightBorder FALSE
+  leftBorder FALSE
+  wayPoints [
+    0 0 0
+    0.046252 0 4.180145
+  ]
+  startingAngle [
+    -0.010919
+  ]
+  endingAngle [
+    -0.094731
+  ]
+  startLine [
+    "textures/road_line_dashed.png"
+    "textures/road_line_dashed.png"
+    "textures/road_line_dashed.png"
+  ]
+  splineSubdivision 0
+}
+PedestrianCrossing {
+  translation -20.331906 -0.07 60.223977
+  rotation 0 1 0 0.011064
+  name "pedestrian crossing(12)"
+  size 10.5 4.2
+}
+Road {
+  translation -18.059856 0.01 5.423113
+  name "Shattuck Avenue(4)"
+  id "202447070"
+  startJunction "2124160133"
+  endJunction "53096121"
+  width 10.5
+  numberOfLanes 3
+  numberOfForwardLanes 3
+  speedLimit 11.176
+  dashedLine [
+    TRUE
+    TRUE
+  ]
+  rightBorder FALSE
+  leftBorder FALSE
+  wayPoints [
+    0 0 0
+    -2.557519 0 40.619864
+    -2.384584 0 44.72398
+    -2.341384 0 48.58237
+  ]
+  startingAngle [
+    0.090144
+  ]
+  endingAngle [
+    -0.011051
+  ]
+  endLine [
+    "textures/road_line_triangle.png"
+    "textures/road_line_triangle.png"
+    "textures/road_line_triangle.png"
+  ]
+  splineSubdivision 0
+}
+PedestrianCrossing {
+  translation -20.444439 -0.07 50.147094
+  rotation 0 1 0 0.011196
+  name "pedestrian crossing(13)"
+  size 10.5 4.2
+}
+Road {
+  translation 30.027579 0.01 45.373735
+  name "Shattuck Avenue(5)"
+  id "288515137"
+  startJunction "53096083"
+  endJunction "53050568"
+  width 10.5
+  numberOfLanes 3
+  numberOfForwardLanes 3
+  speedLimit 11.176
+  dashedLine [
+    TRUE
+    TRUE
+  ]
+  rightBorder FALSE
+  leftBorder FALSE
+  wayPoints [
+    0 0 0
+    -0.488812 0 -4.61743
+    -4.931833 0 -46.269782
+    -9.218396 0 -65.72052
+    -12.344865 0 -72.952703
+    -16.341112 0 -81.176693
+    -17.975787 0 -84.636341
+  ]
+  startingAngle [
+    3.036267
+  ]
+  endingAngle [
+    2.700419
+  ]
+  startLine [
+    "textures/road_line_dashed.png"
+    "textures/road_line_dashed.png"
+    "textures/road_line_dashed.png"
+  ]
+  endLine [
+    "textures/road_line_triangle.png"
+    "textures/road_line_triangle.png"
+    "textures/road_line_triangle.png"
+  ]
+  splineSubdivision 0
+}
+PedestrianCrossing {
+  translation 29.538767 -0.07 40.756305
+  rotation 0 1 0 0.106267
+  name "pedestrian crossing(14)"
+  size 10.5 4.2
+}
+PedestrianCrossing {
+  translation 13.686467 -0.07 -35.802958
+  rotation 0 1 0 0.441404
+  name "pedestrian crossing(15)"
+  size 10.5 4.2
+}
+Road {
+  translation -15.095987 0.01 57.124647
+  name "Addison Street(1)"
+  id "288515145"
+  startJunction "53096121"
+  endJunction "53096083"
+  width 4
+  numberOfLanes 1
+  speedLimit 11.176
+  dashedLine []
+  wayPoints [
+    0 0 0
+    4.393352 0 -0.751531
+    33.749723 0 -5.741915
+    40.345314 0 -6.866856
+  ]
+  startingAngle [
+    -1.581992
+  ]
+  endingAngle [
+    -1.690131
+  ]
+  startLine [
+    "textures/road_line_dashed.png"
+    "textures/road_line_triangle.png"
+  ]
+  endLine [
+    "textures/road_line_triangle.png"
+    "textures/road_line_dashed.png"
+  ]
+  splineSubdivision 0
+  texture [
+    "textures/road_no_border_line.jpg"
+  ]
+}
+PedestrianCrossing {
+  translation -10.702635 -0.07 56.373117
+  rotation 0 1 0 -1.402413
+  name "pedestrian crossing(16)"
+  size 4 1.6
+}
+PedestrianCrossing {
+  translation 18.653736 -0.07 51.382732
+  rotation 0 1 0 -1.401862
+  name "pedestrian crossing(17)"
+  size 4 1.6
+}
+Road {
+  translation 6.23804 0.01 -52.038542
+  name "Shattuck Avenue(6)"
+  id "415876825"
+  startJunction "53050568"
+  width 14
+  numberOfLanes 4
+  numberOfForwardLanes 4
+  speedLimit 11.176
+  dashedLine [
+    TRUE
+    TRUE
+    TRUE
+  ]
+  rightBorder FALSE
+  leftBorder FALSE
+  wayPoints [
+    0 0 0
+    -0.704577 0 -1.609211
+    -4.463878 0 -13.263678
+    -5.068356 0 -23.045494
+    -4.414131 0 -33.835811
+  ]
+  startingAngle [
+    2.729012
+  ]
+  startLine [
+    "textures/road_line_dashed.png"
+    "textures/road_line_dashed.png"
+    "textures/road_line_dashed.png"
+    "textures/road_line_dashed.png"
+  ]
+  splineSubdivision 0
+}
+PedestrianCrossing {
+  translation 5.533463 -0.07 -53.647753
+  rotation 0 1 0 0.312026
+  name "pedestrian crossing(18)"
+  size 14 5.6
+}
+Road {
+  translation -20.265521 0.01 66.22361
+  name "Shattuck Avenue(7)"
+  id "415878140"
+  startJunction "4168207053"
+  width 10.5
+  numberOfLanes 3
+  numberOfForwardLanes 3
+  speedLimit 11.176
+  dashedLine [
+    TRUE
+    TRUE
+  ]
+  rightBorder FALSE
+  leftBorder FALSE
+  wayPoints [
+    0 0 0
+    4.189725 0 44.095415
+  ]
+  startingAngle [
+    -0.094731
+  ]
+  splineSubdivision 0
+}
+PedestrianCrossing {
+  translation -19.697988 -0.07 72.196708
+  rotation 0 1 0 0.094731
+  name "pedestrian crossing(19)"
+  size 10.5 4.2
+}
+Road {
+  translation 35.682517 0.01 48.496019
+  name "Addison Street(2)"
+  id "435607778"
+  startJunction "53096083"
+  width 4
+  numberOfLanes 1
+  speedLimit 11.176
+  dashedLine []
+  wayPoints [
+    0 0 0
+    5.353239 0 -0.894927
+    75.996715 0 -12.677411
+    122.772794 0 -20.544355
+    191.237266 0 -32.064681
+    200.838542 0 -33.670951
+  ]
+  startingAngle [
+    -1.683008
+  ]
+  startLine [
+    "textures/road_line_dashed.png"
+  ]
+  splineSubdivision 0
+  texture [
+    "textures/road_no_border_line.jpg"
+  ]
+}
+PedestrianCrossing {
+  translation 41.035756 -0.07 47.601092
+  rotation 0 1 0 -1.40553
+  name "pedestrian crossing(20)"
+  size 4 1.6
+}
+PedestrianCrossing {
+  translation 158.455312 -0.07 27.951664
+  rotation 0 1 0 -1.404091
+  name "pedestrian crossing(21)"
+  size 4 1.6
+}
+PedestrianCrossing {
+  translation 226.919784 -0.07 16.431338
+  rotation 0 1 0 -1.405034
+  name "pedestrian crossing(22)"
+  size 4 1.6
+}
+SimpleBuilding {
+  translation -23.59 0 -91.82
+  name "building(1)"
+  corners [
+    0 0
+    -0.97 13.67
+    -30.27 18.71
+    -32.54 5.6
+    -20.41 3.51
+  ]
+  wallType "old brick wall"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation -59 0 -72.23
+  name "building(2)"
+  corners [
+    0 0
+    5.14 -0.88
+    34.43 -5.93
+    32.53 20.59
+    2.2 25.83
+  ]
+  wallType "office building"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation 17.89 0 84.13
+  name "building(3)"
+  corners [
+    0 0
+    -22.82 3.97
+    -23.46 -1.91
+    -24.64 -12.87
+    -25.35 -19.51
+    -13.74 -21.51
+    -2.21 -23.49
+    -0.36 -3.86
+  ]
+  wallType "stone brick"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation 89.84 0 -70.23
+  name "2150 Shattuck"
+  floorHeight 4
+  floorNumber 14
+  corners [
+    0 0
+    -0.23 -1.31
+    -4.23 -24.08
+    -22.02 -22.3
+    -57.14 -18.8
+    -58.46 -18.74
+    -53.89 9.38
+    -52.19 9.09
+  ]
+  wallType "classic building"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation 24.13 0 -74.44
+  name "Downtown Berkeley"
+  corners [
+    0 0
+    0.41 4.04
+    0.83 8.05
+    -2.48 8.17
+    -4.56 10.54
+    -7.08 11.55
+    -9.94 11.45
+    -12.56 10.11
+    -14.45 7.54
+    -14.84 6.21
+    -14.94 4.54
+    -14 1.6
+    -12.35 -0.26
+    -9.5 -1.52
+    -6.11 -1.28
+    -3.33 0.57
+  ]
+  wallType "old brick building"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation -66.74 0 44.04
+  name "building(5)"
+  corners [
+    0 0
+    1.57 -0.22
+    36.07 -4.94
+    34.2 8.3
+    1.54 12.91
+  ]
+  wallType "glass highrise"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation -54.96 0 89.21
+  name "Studio Building"
+  corners [
+    0 0
+    -2.51 -15.45
+    19.26 -19.07
+    22.24 -17.25
+    23.44 -3.67
+  ]
+  wallType "old brick wall"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation 45.09 0 72.29
+  name "building(6)"
+  corners [
+    0 0
+    45.5 -7.37
+    45.7 -5.44
+    61.73 -7.97
+    62.81 6.18
+    27.05 12.69
+    2.66 16.76
+    1.57 16.96
+  ]
+  wallType "concrete building"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation 45.09 0 72.29
+  name "S.H. Kress Building"
+  corners [
+    0 0
+    -1.41 0.01
+    -2.56 -16.28
+    59.79 -26.21
+    61.73 -7.97
+    45.7 -5.44
+    45.5 -7.37
+  ]
+  wallType "red and white building"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation 40.2 0 -3.26
+  name "building(9)"
+  corners [
+    0 0
+    -0.69 -7.53
+    28.93 -12.47
+    30.17 -5.1
+    23.84 -4.04
+    20.31 -3.44
+  ]
+  wallType "transparent highrise"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation 39.5 0 -10.78
+  name "building(10)"
+  corners [
+    0 0
+    -0.97 -10.53
+    18.17 -13.8
+    27.84 -15.45
+    29.62 -4.94
+  ]
+  wallType "old house"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation 38.53 0 -21.32
+  name "Chamber of Commerce Building"
+  floorNumber 12
+  corners [
+    0 0
+    -1.84 -20.01
+    16.16 -22.8
+    48.84 -27.83
+    55.33 9.62
+    31.84 12.97
+    30.59 5.6
+    28.81 -4.92
+    19.14 -3.27
+  ]
+  wallType "blue glass building"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation 44.03 0 38.35
+  name "Francis Kittredge Shattuck Building"
+  floorNumber 4
+  corners [
+    0 0
+    27.01 -4.25
+    20 -45.64
+    16.47 -45.05
+    -3.84 -41.6
+  ]
+  wallType "blue glass building"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation 54.7 0 -44.11
+  name "building(12)"
+  floorHeight 4.5
+  floorNumber 12
+  corners [
+    0 0
+    -18 2.78
+    -16.16 22.8
+    2.98 19.53
+  ]
+  wallType "office building"
+}
+SimpleBuilding {
+  translation 84.14 0 -74.71
+  name "building(13)"
+  floorHeight 3.77
+  floorNumber 13
+  corners [
+    0 0
+    -3.29 -18.76
+    -50.76 -10.5
+    -47.44 8.26
+  ]
+  wallType "gray glass building"
+}
+SimpleBuilding {
+  translation 32.68 0 -26.81
+  name "building(14)"
+  corners [
+    0 0
+    -0.18 -2.72
+    -2.61 -2.56
+    -2.43 0.15
+  ]
+  wallType "brick building"
+}
+SimpleBuilding {
+  translation 81.52 0 -78.07
+  name "building(15)"
+  floorHeight 4
+  floorNumber 14
+  startingFloor 13
+  corners [
+    0 0
+    -43.71 7.6
+    -45.84 -4.56
+    -2.14 -12.16
+  ]
+  wallType "concrete building"
+  bottom TRUE
+}
+SimpleBuilding {
+  translation 87.37 0 -49.15
+  name "building(16)"
+  floorNumber 2
+  corners [
+    0 0
+    -32.67 5.04
+    -29.7 24.57
+    -20.02 22.91
+    -18.24 33.43
+    -17 40.8
+    6.49 37.45
+  ]
+  wallType "old brick building"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation 36.69 0 -66.45
+  name "building(17)"
+  floorNumber 2
+  corners [
+    0 0
+    0.67 3.75
+    52.91 -5.09
+    48.92 -27.86
+    31.12 -26.08
+    -4 -22.58
+    -3.32 -18.76
+    44.15 -27.02
+    47.44 -8.26
+  ]
+  wallType "old building"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation 37.64 0 -61.15
+  name "building(18)"
+  floorNumber 2
+  startingFloor 2
+  corners [
+    0 0
+    -1.7 0.29
+    -6.26 -27.82
+    -4.95 -27.89
+    -4.27 -24.07
+    -0.95 -5.31
+    -0.28 -1.56
+    51.96 -10.39
+    52.19 -9.09
+  ]
+  wallType "factory building"
+  roofShape "flat roof"
+  bottom TRUE
+}
+SimpleBuilding {
+  translation 24.96 0 -66.39
+  name "building(19)"
+  floorNumber 1
+  corners [
+    0 0
+    -3.31 0.13
+    -10.97 0.4
+    -11.65 -6.21
+    -4.16 -7.48
+    -0.83 -8.05
+    -0.42 -4.01
+  ]
+  wallType "transparent highrise"
+  roofShape "flat roof"
+}
+SimpleBuilding {
+  translation 13.31 0 -72.61
+  name "building(20)"
+  corners [
+    0 0
+    0.69 6.61
+    8.34 6.34
+    6.26 8.71
+    3.74 9.71
+    0.88 9.61
+    -1.74 8.27
+    -3.62 5.7
+    -3.99 4.38
+    -4.11 2.71
+    -3.18 -0.24
+    -1.53 -2.1
+    1.32 -3.36
+    4.72 -3.12
+    7.49 -1.27
+  ]
+  wallType "transparent highrise"
+  roofShape "flat roof"
+}
+DEF EgoCar BmwX5 {
+  translation -6.631316157005797 -0.0522634286958059 -127.80657228197518
+  rotation 0.3508702546057875 0.9363657364932186 0.010453322647940558 -0.06362067511004037
+  controller "camera"
+  sensorsSlotFront [
+    Camera {
+      width 1242
+      height 375
+    }
+  ]
+}
+DEF BrokenCar ToyotaPrius {
+  translation -8.555792580696 -0.09732863173262865 -87.43932390638221
+  rotation 0.005112108871586753 0.9998670278796185 0.015485247885109642 -2.5052861539248794
+  color 1 1 1
+  name "vehicle(1)"
+}
+DEF TrafficCone1 TrafficCone {
+  translation -7.3129421779434445 0 -99.52492364059157
+  rotation 0 1 0 -5.6748522770429455
+}
+DEF TrafficCone2 TrafficCone {
+  translation -8.969604867523527 0 -96.0993168711621
+  rotation 0 1 0 -0.6746554881491255
+  name "traffic cone(1)"
+}
+DEF TrafficCone0 TrafficCone {
+  translation -6.22736021299578 0 -100.69513161119235
+  rotation 0 1 0 -4.607678493488908
+  name "traffic cone(2)"
+}
+Supervisor {
+  controller "scenic_cones_supervisor"
+}
