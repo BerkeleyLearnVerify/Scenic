@@ -153,6 +153,8 @@ class CarlaSimulation(DrivingSimulation):
             if not os.path.exists(self.record):
                 os.mkdir(self.record)
             name = "{}/scenario{}.log".format(self.record, self.scenario_number)
+            # Carla is looking for an absolute path, so convert it if necessary.
+            name = os.path.abspath(name)
             self.client.start_recorder(name)
 
         # Create objects.

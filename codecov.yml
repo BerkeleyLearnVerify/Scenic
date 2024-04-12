@@ -15,6 +15,10 @@ codecov:
     layout: "reach, diff, flags, files"
     behavior: default
   require_ci_to_pass: true
+  ignore:
+    - "src/scenic/simulators/**"
+    - "!src/scenic/simulators/newtonian/**"
+    - "!src/scenic/simulators/utils/**"
 cli:
   plugins:
     pycoverage:
