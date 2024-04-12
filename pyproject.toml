@@ -64,7 +64,7 @@ test-full = [  # like 'test' but adds dependencies for optional features
 	"scenic[test]",       # all dependencies from 'test' extra above
 	"scenic[guideways]",  # for running guideways modules
 	"astor >= 0.8.1",
-	"carla >= 0.9.12",
+	"carla",
 	"dill",
 	"exceptiongroup",
 	"inflect ~= 5.5",
