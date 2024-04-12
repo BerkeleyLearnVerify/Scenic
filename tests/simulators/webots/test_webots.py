@@ -5,7 +5,6 @@ import pytest
 
 from tests.utils import pickle_test, sampleScene, tryPickling
 
-WEBOTS_BINARY_PATH = "/usr/local/bin/webots"
 WEBOTS_RESULTS_FILE_PATH = f"{os.path.dirname(__file__)}/dynamic/results.txt"
 WEBOTS_WORLD_FILE_PATH = (
     f"{os.path.dirname(__file__)}/dynamic/webots_data/worlds/world.wbt"
@@ -23,12 +22,10 @@ def cleanup_results():
     subprocess.run(command, shell=True)
 
 
-def test_dynamics_scenarios(webotsAvailable):
-    webotsAvailable(WEBOTS_BINARY_PATH)
+def test_dynamics_scenarios(launchWebots):
+    WEBOTS_ROOT = launchWebots()
     cleanup_results()
-    command = (
-        f"bash {WEBOTS_BINARY_PATH} --no-rendering --minimize {WEBOTS_WORLD_FILE_PATH}"
-    )
+    command = f"bash {WEBOTS_ROOT} --no-rendering --minimize {WEBOTS_WORLD_FILE_PATH}"
     subprocess.run(command, shell=True)
     data = receive_results()
     assert data != None
@@ -39,11 +36,6 @@ def test_dynamics_scenarios(webotsAvailable):
     expected_value = 0.09
     tolerance = 0.01
     assert end_z == pytest.approx(expected_value, abs=tolerance)
-
-
-def test_webots_available_fixture(webotsAvailable):
-    with pytest.raises(pytest.skip.Exception):
-        webotsAvailable(WEBOTS_BINARY_PATH + "/foo")
 
 
 def test_basic(loadLocalScenario):

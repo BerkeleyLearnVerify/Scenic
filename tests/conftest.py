@@ -52,13 +52,14 @@ def getAssetPath():
 
 
 @pytest.fixture
-def webotsAvailable():
-    def loader(webotsPath, **kwargs):
-        if not os.path.exists(webotsPath):
-            pytest.skip(f"Webots is not available at {webotsPath}")
-        return
-
-    return loader
+def launchWebots():
+    DISPLAY = os.environ.get("DISPLAY")
+    if not DISPLAY:
+        pytest.skip("DISPLAY env variable not set.")
+    WEBOTS_ROOT = os.environ.get("WEBOTS_ROOT")
+    if not WEBOTS_ROOT:
+        pytest.skip("WEBOTS_ROOT env variable not set.")
+    return WEBOTS_ROOT
 
 
 ## Command-line options
