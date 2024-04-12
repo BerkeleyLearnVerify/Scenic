@@ -411,6 +411,7 @@ def test_brake(getCarlaSimulator, launchCarlaServer):
     threshold = 3
     assert int(records[-1][1]) < threshold
 
+
 def test_basic(loadLocalScenario):
     scenario = loadLocalScenario("basic.scenic", mode2D=True)
     scenario.generate(maxIterations=1000)
