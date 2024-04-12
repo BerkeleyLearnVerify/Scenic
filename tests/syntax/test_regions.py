@@ -47,7 +47,7 @@ def test_circular_lazy():
         vf = VectorField("Foo", lambda pos: 2 * pos.x)
         x = 0 relative to vf
         ego = new Object at Range(0, 1) @ 0, with foo CircularRegion(0@0, x.yaw)
-    """
+        """
     )
     assert ego.foo.radius == pytest.approx(2 * ego.position.x)
 
@@ -74,7 +74,7 @@ def test_sector_lazy():
         vf = VectorField("Foo", lambda pos: 2 * pos.x)
         x = 0 relative to vf
         ego = new Object at Range(0, 1) @ 0, with foo SectorRegion(0@0, x.yaw, 0, 45 deg)
-    """
+        """
     )
     assert ego.foo.radius == pytest.approx(2 * ego.position.x)
 
@@ -103,7 +103,7 @@ def test_rectangular_lazy():
         vf = VectorField("Foo", lambda pos: 2 * pos.x)
         x = 0 relative to vf
         ego = new Object at Range(-1, 1) @ 0, with foo RectangularRegion(0@0, 0, x.yaw, 1)
-    """
+        """
     )
     assert ego.foo.width == pytest.approx(2 * ego.position.x)
 
@@ -117,7 +117,7 @@ def test_polygonal_empty_intersection():
         r1 = PolygonalRegion([0@0, 10@0, 10@10, 0@10])
         ego = new Object at -10@0, facing Range(-90, 0) deg, with viewAngle 60 deg
         new Object in visible r1, with requireVisible False
-    """
+        """
     )
     for i in range(10):
         sampleScene(scenario, maxIterations=1000)
@@ -132,7 +132,7 @@ def test_polyline_start():
         r = PolylineRegion([1@1, 3@-1, 6@2])
         pt = r.start
         ego = new Object at pt, facing pt.heading
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((1, 1, 0))
     assert ego.heading == pytest.approx(math.radians(-135))
@@ -144,7 +144,7 @@ def test_polyline_end():
         r = PolylineRegion([1@1, 3@-1, 6@2])
         pt = r.end
         ego = new Object at pt, facing pt.heading
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((6, 2, 0))
     assert ego.heading == pytest.approx(math.radians(-45))
@@ -162,9 +162,22 @@ def test_mesh_region_distribution():
         region = SpheroidRegion(position=position, dimensions=dimensions, rotation=rotation)
 
         ego = new Object in region
-    """,
+        """,
         maxIterations=100,
     )
+
+
+def test_path_region_default_orientation():
+    ego = sampleEgoFrom(
+        """
+        import math
+        region = PathRegion(points=[(0,0,0), (1,1,math.sqrt(2)), (2,2,2*math.sqrt(2))])
+        ego = new Object in region
+        """
+    )
+    assert ego.orientation.yaw == pytest.approx(math.radians(-45))
+    assert ego.orientation.pitch == pytest.approx(math.radians(45))
+    assert ego.orientation.roll == pytest.approx(0)
 
 
 # View Regions
@@ -244,7 +257,7 @@ def test_view_region_construction():
             with visibleDistance 5,
             with viewAngles (200 deg, 40 deg),
             with requireVisible True
-    """,
+        """,
         maxIterations=1000,
     )
 
@@ -259,7 +272,7 @@ def test_workspace():
         ego = new Object in workspace
         require 6@11 in workspace
         require ego in workspace
-    """
+        """
     )
     assert 3 <= ego.position.x <= 7
     assert 8 <= ego.position.y <= 12

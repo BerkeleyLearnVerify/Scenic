@@ -55,10 +55,9 @@ class GTA:
         cameraHeading = GTA.langToGTAHeading(ego.heading)
 
         params = dict(scene.params)
-        time = int(round(params.pop("time")))
-        minute = time % 60
-        hour = int((time - minute) / 60)
-        assert hour < 24
+        time = int(round(params.pop("time"))) % 1440
+        hour, minute = divmod(time, 60)
+        assert hour < 24, scene.params["time"]
         weather = params.pop("weather")
         for param in params:
             print(f'WARNING: unused scene parameter "{param}"')

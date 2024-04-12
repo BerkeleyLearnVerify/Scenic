@@ -13,7 +13,7 @@ def test_requirement():
         """
         ego = new Object at Range(-10, 10) @ 0
         require ego.position.x >= 0
-    """
+        """
     )
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
     assert all(0 <= x <= 10 for x in xs)
@@ -24,7 +24,7 @@ def test_soft_requirement():
         """
         ego = new Object at Range(-10, 10) @ 0
         require[0.9] ego.position.x >= 0
-    """
+        """
     )
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(350)]
     count = sum(x >= 0 for x in xs)
@@ -37,7 +37,7 @@ def test_illegal_soft_probability():
             """
             ego = new Object
             require[1.1] ego.position.x >= 0
-        """
+            """
         )
 
 
@@ -48,7 +48,7 @@ def test_named_requirement():
         require ego.position.x >= 5 as posReq
         require True as 'myReq'
         require True as 101
-    """
+        """
     )
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
     assert all(5 <= x <= 10 for x in xs)
@@ -62,7 +62,7 @@ def test_named_soft_requirement():
         require[0.9] ego.position.x >= 5 as posReq
         require[0.8] True as 'myReq'
         require[0.75] True as 101
-    """
+        """
     )
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(350)]
     count = sum(x >= 5 for x in xs)
@@ -75,7 +75,7 @@ def test_named_requirement_invalid():
             """
             ego = new Object
             require True as +
-        """
+            """
         )
 
 
@@ -85,7 +85,7 @@ def test_unexpected_keyword_arg():
             """
             ego = new Object
             require True, line=5
-        """
+            """
         )
 
 
@@ -96,7 +96,7 @@ def test_unexpected_unpacking():
             ego = new Object
             a = (True,)
             require *a
-        """
+            """
         )
 
 
@@ -108,7 +108,7 @@ def test_distribution_in_requirement():
         """
         require Range(0, 1) <= 1
         ego = new Object
-    """
+        """
     )
     with pytest.raises(InvalidScenarioError):
         sampleScene(scenario)
@@ -119,7 +119,7 @@ def test_object_in_requirement():
         """
         require new Object
         ego = new Object
-    """
+        """
     )
     with pytest.raises(InvalidScenarioError):
         sampleScene(scenario)
@@ -131,7 +131,7 @@ def test_param_in_requirement_1():
             """
             require param x = 4
             ego = new Object
-        """
+            """
         )
 
 
@@ -144,7 +144,7 @@ def test_param_in_requirement_2():
                 return True
             require func()
             ego = new Object
-        """
+            """
         )
         sampleScene(scenario)
 
@@ -155,7 +155,7 @@ def test_mutate_in_requirement_1():
         """
         require mutate
         ego = new Object
-    """
+        """
     )
     with pytest.raises(ScenicSyntaxError):
         sampleScene(scenario)
@@ -170,7 +170,7 @@ def test_mutate_in_requirement_2():
                 return True
             require func()
             ego = new Object
-        """
+            """
         )
         sampleScene(scenario)
 
@@ -181,7 +181,7 @@ def test_require_in_requirement():
             """
             require (require True)
             ego = new Object
-        """
+            """
         )
 
 
@@ -193,7 +193,7 @@ def test_exception_in_requirement():
         """
         require visible 4
         ego = new Object
-    """
+        """
     )
     with pytest.raises(TypeError):
         sampleScene(scenario)
@@ -206,7 +206,7 @@ def test_soft_requirement_with_temporal_operators():
             """
             ego = new Object
             require[0.2] eventually ego
-        """
+            """
         )
 
 
@@ -218,7 +218,7 @@ def test_containment_requirement():
         """
         foo = RectangularRegion(0@0, 0, 10, 10)
         ego = new Object at Range(0, 10) @ 0, with regionContainedIn foo
-    """
+        """
     )
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
     assert all(0 <= x <= 5 for x in xs)
@@ -229,7 +229,7 @@ def test_containment_workspace():
         """
         workspace = Workspace(RectangularRegion(0@0, 0, 10, 10))
         ego = new Object at Range(0, 10) @ 0
-    """
+        """
     )
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
     assert all(0 <= x <= 5 for x in xs)
@@ -240,7 +240,7 @@ def test_visibility_requirement():
         """
         ego = new Object with visibleDistance 10, with viewAngle 90 deg, facing 45 deg
         other = new Object at Range(-10, 10) @ 0, with requireVisible True
-    """
+        """
     )
     xs = [
         sampleScene(scenario, maxIterations=60).objects[1].position.x for i in range(60)
@@ -253,7 +253,7 @@ def test_visibility_requirement_disabled():
         """
         ego = new Object with visibleDistance 10, with viewAngle 90 deg, facing 45 deg
         other = new Object at Range(-10, 10) @ 0, with requireVisible False
-    """
+        """
     )
     xs = [
         sampleScene(scenario, maxIterations=60).objects[1].position.x for i in range(60)
@@ -266,7 +266,7 @@ def test_intersection_requirement():
         """
         ego = new Object at Range(0, 2) @ 0
         other = new Object
-    """
+        """
     )
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
     assert all(x >= 1 for x in xs)
@@ -277,7 +277,7 @@ def test_intersection_requirement_disabled_1():
         """
         ego = new Object at Range(0, 2) @ 0, with allowCollisions True
         other = new Object
-    """
+        """
     )
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
     assert any(x < 1 for x in xs)
@@ -288,7 +288,7 @@ def test_intersection_requirement_disabled_2():
         """
         ego = new Object at Range(0, 2) @ 0
         other = new Object with allowCollisions True
-    """
+        """
     )
     xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
     assert any(x < 1 for x in xs)
@@ -303,7 +303,7 @@ def test_static_containment_violation():
             """
             foo = RectangularRegion(0@0, 0, 5, 5)
             ego = new Object at 10@10, with regionContainedIn foo
-        """
+            """
         )
 
 
@@ -313,7 +313,7 @@ def test_static_containment_workspace():
             """
             workspace = Workspace(RectangularRegion(0@0, 0, 5, 5))
             ego = new Object at 10@10
-        """
+            """
         )
 
 
@@ -323,7 +323,7 @@ def test_static_empty_container():
             """
             foo = PolylineRegion([0@0, 1@1]).intersect(PolylineRegion([1@0, 2@1]))
             ego = new Object at Range(0, 2) @ Range(0, 1), with regionContainedIn foo
-        """
+            """
         )
 
 
@@ -333,7 +333,7 @@ def test_static_visibility_violation_enabled():
             """
             ego = new Object at 10@0, facing -90 deg, with viewAngle 90 deg
             new Object at 0@10, with requireVisible True
-        """
+            """
         )
 
 
@@ -343,7 +343,7 @@ def test_static_visibility_violation_enabled_2d():
             """
             ego = new Object at 10@0, facing -90 deg, with viewAngle 90 deg
             new Object at 0@10, with requireVisible True
-        """,
+            """,
             mode2D=True,
         )
 
@@ -353,7 +353,7 @@ def test_static_visibility_violation_disabled():
         """
         ego = new Object at 10@0, facing -90 deg, with viewAngle 90 deg
         new Object at 0@10, with requireVisible False
-    """
+        """
     )
 
 
@@ -363,7 +363,7 @@ def test_static_intersection_violation():
             """
             ego = new Object at 0@0
             new Object at 0.5@0
-        """
+            """
         )
 
 
@@ -372,7 +372,7 @@ def test_static_intersection_violation_disabled():
         """
         ego = new Object at 0@0
         new Object at 1@0, with allowCollisions True
-    """
+        """
     )
 
 
@@ -408,7 +408,7 @@ def test_can_see_object_occlusion_enabled():
                 with length 0.5,
                 with height 6,
                 with name "wall",
-        """,
+            """,
             maxIterations=1,
         )
 
@@ -442,7 +442,7 @@ def test_can_see_object_occlusion_disabled():
             with height 6,
             with name "wall",
             with occluding False
-    """,
+        """,
         maxIterations=1,
     )
 
@@ -453,7 +453,7 @@ def test_random_allowCollisions():
         """
         new Object with allowCollisions Uniform(True, False)
         new Object with allowCollisions Uniform(True, False)
-    """,
+        """,
         maxIterations=30,
     )
 
@@ -489,7 +489,7 @@ def test_random_occlusion():
             with height 6,
             with name "wall",
             with occluding Uniform(True, False)
-    """,
+        """,
         maxIterations=60,
     )
 

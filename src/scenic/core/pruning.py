@@ -5,11 +5,14 @@ compilation (from `translator.constructScenarioFrom`).
 """
 
 import builtins
+import collections
 import math
 import time
 
+import numpy
 import shapely.geometry
 import shapely.geos
+from trimesh.transformations import translation_matrix
 
 from scenic.core.distributions import (
     AttributeDistribution,
@@ -17,6 +20,7 @@ from scenic.core.distributions import (
     MethodDistribution,
     OperatorDistribution,
     Samplable,
+    dependencies,
     needsSampling,
     supportInterval,
     underlyingFunction,
@@ -25,10 +29,17 @@ from scenic.core.errors import InvalidScenarioError
 from scenic.core.geometry import hypot, normalizeAngle, plotPolygon, polygonUnion
 from scenic.core.object_types import Object, Point
 import scenic.core.regions as regions
-from scenic.core.regions import EmptyRegion, MeshSurfaceRegion, MeshVolumeRegion
+from scenic.core.regions import (
+    EmptyRegion,
+    MeshSurfaceRegion,
+    MeshVolumeRegion,
+    PolygonalRegion,
+    VoxelRegion,
+)
 from scenic.core.type_support import TypecheckedDistribution
 from scenic.core.vectors import (
     PolygonalVectorField,
+    Vector,
     VectorField,
     VectorMethodDistribution,
     VectorOperatorDistribution,
@@ -36,9 +47,11 @@ from scenic.core.vectors import (
 from scenic.core.workspaces import Workspace
 from scenic.syntax.relations import DistanceRelation, RelativeHeadingRelation
 
+### Constants
+PRUNING_PITCH = 0.01
+
+
 ### Utilities
-
-
 def currentPropValue(obj, prop):
     """Get the current value of an object's property, taking into account prior pruning."""
     value = getattr(obj, prop)
@@ -62,8 +75,7 @@ def isFunctionCall(thing, function):
 def matchInRegion(position):
     """Match uniform samples from a `Region`
 
-    Returns the Region, if any, and a lower and upper bound
-    on the distance the object will be placed along with any
+    Returns the Region, if any, along with any
     offset that should be added to the base.
     """
     # Case 1: Position is simply a point in a region
@@ -71,7 +83,7 @@ def matchInRegion(position):
         reg = position.region
         if isinstance(reg, Workspace):
             reg = reg.region
-        return reg, 0, 0, None
+        return reg, None
 
     # Case 2: Position is a point in a region with a vector offset.
     if isinstance(position, VectorOperatorDistribution) and position.operator in (
@@ -80,15 +92,14 @@ def matchInRegion(position):
     ):
         if isinstance(position.object, regions.PointInRegionDistribution):
             reg = position.object.region
+            if isinstance(reg, Workspace):
+                reg = reg.region
             assert len(position.operands) == 1
             offset = position.operands[0]
-            # TODO: Proper vector supportInterval calculations. Right now this gives us None
-            # if value is not exact
-            lower, upper = supportInterval(offset.norm())
 
-            return reg, lower, upper, offset
+            return reg, offset
 
-    return None, 0, 0, None
+    return None, None
 
 
 def matchPolygonalField(heading, position):
@@ -155,6 +166,7 @@ def prune(scenario, verbosity=1):
 
     pruneContainment(scenario, verbosity)
     pruneRelativeHeading(scenario, verbosity)
+    pruneVisibility(scenario, verbosity)
 
     if verbosity >= 1:
         totalTime = time.time() - startTime
@@ -162,8 +174,6 @@ def prune(scenario, verbosity=1):
 
 
 ## Pruning based on containment
-
-
 def pruneContainment(scenario, verbosity):
     """Prune based on the requirement that individual Objects fit within their container.
 
@@ -174,7 +184,7 @@ def pruneContainment(scenario, verbosity):
     """
     for obj in scenario.objects:
         # Extract the base region and container region, while doing minor checks.
-        base, _, maxDistance, offset = matchInRegion(obj.position)
+        base, offset = matchInRegion(obj.position)
 
         if base is None or needsSampling(base):
             continue
@@ -190,19 +200,70 @@ def pruneContainment(scenario, verbosity):
         if isinstance(container, regions.EmptyRegion):
             raise InvalidScenarioError(f"Object {obj} contained in empty region")
 
-        # Erode the container region if possible.
-        minRadius, _ = supportInterval(obj.inradius)
+        # Compute the maximum distance the object can be from the sampled point
+        if offset is not None:
+            # TODO: Support interval doesn't really work here for random values.
+            if isinstance(base, PolygonalRegion):
+                # Special handling for 2D regions that ignores vertical component of offset
+                offset_2d = Vector(offset.x, offset.y, 0)
+                _, maxDistance = supportInterval(offset_2d.norm())
+            else:
+                _, maxDistance = supportInterval(offset.norm())
+        else:
+            maxDistance = 0
 
+        # Compute the minimum radius of the object, with respect to the
+        # bounded dimensions of the container.
         if (
-            hasattr(container, "buffer")
-            and maxDistance is not None
-            and minRadius is not None
+            isinstance(base, PolygonalRegion)
+            and supportInterval(obj.pitch) == (0, 0)
+            and supportInterval(obj.roll) == (0, 0)
         ):
-            maxErosion = minRadius - maxDistance
-            if maxErosion > 0:
-                container = container.buffer(-maxErosion)
+            # Special handling for 2D regions with no pitch or roll,
+            # using planar inradius instead.
+            minRadius, _ = supportInterval(obj.planarInradius)
+        else:
+            # For most regions, use full object inradius.
+            minRadius, _ = supportInterval(obj.inradius)
 
-        # Restrict the base region to the container, unless
+        # Erode the container if possible and productive
+        if (
+            maxDistance is not None
+            and minRadius is not None
+            and (maxErosion := minRadius - maxDistance) > 0
+        ):
+            if hasattr(container, "buffer"):
+                # We can do an exact erosion
+                container = container.buffer(-maxErosion)
+            elif isinstance(container, MeshVolumeRegion):
+                # We can attempt to erode a voxel approximation of the MeshVolumeRegion.
+                # Compute a voxel overapproximation of the mesh. Technically this is not
+                # an overapproximation, but one dilation with a rank 3 structuring unit
+                # with connectivity 3 is. To simplify, we just erode one less time than
+                # needed.
+                target_pitch = PRUNING_PITCH * max(container.mesh.extents)
+                voxelized_container = container.voxelized(target_pitch, lazy=True)
+
+                # Erode the voxel region. Erosion is done with a rank 3 structuring unit with
+                # connectivity 3 (a 3x3x3 cube of voxels). Each erosion pass can erode by at
+                # most math.hypot([pitch]*3). Therefore we can safely make at most
+                # floor(maxErosion/math.hypot([pitch]*3)) passes without eroding more
+                # than maxErosion. We also subtract 1 iteration for the reasons above.
+                iterations = (
+                    math.floor(maxErosion / math.hypot(*([target_pitch] * 3))) - 1
+                )
+
+                if iterations > 0:
+                    eroded_container = voxelized_container.dilation(
+                        iterations=-iterations
+                    )
+
+                    # Now check if this erosion is useful, i.e. do we have less volume to sample from.
+                    # If so, replace the original container.
+                    if eroded_container.size < container.size:
+                        container = eroded_container
+
+        # Restrict the base region to the possibly eroded container, unless
         # they're the same in which case we're done
         if base is container:
             continue
@@ -215,30 +276,28 @@ def pruneContainment(scenario, verbosity):
         if isinstance(base, MeshVolumeRegion) and isinstance(newBase, MeshSurfaceRegion):
             continue
 
+        # Check newBase properties
         if isinstance(newBase, EmptyRegion):
             raise InvalidScenarioError(f"Object {obj} does not fit in container")
 
-        if verbosity >= 1:
-            if (
-                base.dimensionality is None
-                or newBase.dimensionality is None
-                or base.dimensionality != newBase.dimensionality
-            ):
+        percentage_pruned = percentagePruned(base, newBase)
+
+        if percentage_pruned is None:
+            if verbosity >= 1:
                 print(
                     f"    Region containment constraint pruning attempted but could not compute percentage for {base} and {newBase}."
                 )
-            elif base.dimensionality == newBase.dimensionality:
-                ratio = newBase.size / base.size
-                percent = max(0, 100 * (1.0 - ratio))
+        else:
+            if percentage_pruned <= 0.001:
+                # We didn't really prune anything, don't bother setting new position
+                continue
 
-                if percent <= 0.001:
-                    # We didn't really prune anything, don't bother setting new position
-                    continue
-
+            if verbosity >= 1:
                 print(
-                    f"    Region containment constraint pruned {percent:.1f}% of space."
+                    f"    Region containment constraint pruned {percentage_pruned:.1f}% of space."
                 )
 
+        # Condition object to pruned position
         newPos = regions.Region.uniformPointIn(newBase)
 
         if offset is not None:
@@ -248,8 +307,6 @@ def pruneContainment(scenario, verbosity):
 
 
 ## Pruning based on orientation
-
-
 def pruneRelativeHeading(scenario, verbosity):
     """Prune based on requirements bounding the relative heading of an Object.
 
@@ -279,7 +336,7 @@ def pruneRelativeHeading(scenario, verbosity):
     # Check for relative heading relations among such objects
     for obj, (field, offsetL, offsetR) in fields.items():
         position = currentPropValue(obj, "position")
-        base, _, _, offset = matchInRegion(position)
+        base, offset = matchInRegion(position)
 
         # obj must be positioned uniformly in a Region
         if base is None or needsSampling(base):
@@ -331,6 +388,102 @@ def pruneRelativeHeading(scenario, verbosity):
             )
             newPos = regions.Region.uniformPointIn(newBase)
             obj.position.conditionTo(newPos)
+
+
+# Pruning based on visibility
+def pruneVisibility(scenario, verbosity):
+    ego = scenario.egoObject
+
+    for obj in scenario.objects:
+        # Extract the base region if it exists
+        position = currentPropValue(obj, "position")
+        base, offset = matchInRegion(position)
+
+        if base is None or needsSampling(base):
+            continue
+
+        newBase = base
+
+        # Define a helper function to buffer an oberver's visibleRegion, resulting
+        # in a region that contains all points that could feasibly be the position
+        # of obj, if it is visible from the observer.
+        def bufferHelper(viewRegion):
+            # Compute a voxel overapproximation of the mesh. Technically this is not
+            # an overapproximation, but one dilation with a rank 3 structuring unit
+            # with connectivity 3 is. To simplify, we just dilate one additional time.
+            target_pitch = PRUNING_PITCH * max(viewRegion.mesh.extents)
+            voxelized_vr = viewRegion.voxelized(target_pitch, lazy=True)
+
+            # Dilate the voxel region. Dilation is done with a rank 3 structuring unit with
+            # connectivity 3 (a 3x3x3 cube of voxels). Each dilation pass must dilate by at
+            # least pitch. Therefore we must make at least ceiling((radius/2)/pitch) passes
+            # to ensure we have dilated by the half the circumradius of the object. We also
+            # add 1 iteration for the reasons above.
+            iterations = math.ceil((obj.radius / 2) / target_pitch) + 1
+            dilated_vr = voxelized_vr.dilation(iterations=iterations)
+
+            return dilated_vr
+
+        # Prune based off visibility/non-visibility requirements
+        if obj.requireVisible:
+            # We can restrict the base region to the buffered visible region
+            # of the ego.
+            if (
+                base is not ego.visibleRegion
+                and not needsSampling(ego.visibleRegion)
+                and not checkCyclical(base, ego.visibleRegion)
+            ):
+                if verbosity >= 1:
+                    print(
+                        f"    Pruning restricted base region of {obj} to visible region of ego."
+                    )
+                newBase = newBase.intersect(bufferHelper(ego.visibleRegion))
+
+        if obj._observingEntity:
+            # We can restrict the base region to the buffered visible region
+            # of the observing entity. Only do this if the visible
+            # region is fixed, to avoid creating it at every timestep.
+            if (
+                base is not obj._observingEntity.visibleRegion
+                and not needsSampling(obj._observingEntity.visibleRegion)
+                and not checkCyclical(base, obj._observingEntity.visibleRegion)
+            ):
+                if verbosity >= 1:
+                    print(
+                        f"    Pruning restricted base region of {obj} to visible region of {obj._observingEntity}."
+                    )
+                newBase = newBase.intersect(
+                    bufferHelper(obj._observingEntity.visibleRegion)
+                )
+
+        # Check newBase properties
+        if isinstance(newBase, EmptyRegion):
+            raise InvalidScenarioError(
+                f"Object {obj} can not satisfy visibility/non-visibility constraints."
+            )
+
+        percentage_pruned = percentagePruned(base, newBase)
+
+        if percentage_pruned is None:
+            if verbosity >= 1:
+                print(
+                    f"    Visibility pruning attempted but could not compute percentage for {base} and {newBase}."
+                )
+        else:
+            if percentage_pruned <= 0.001:
+                # We didn't really prune anything, don't bother setting new position
+                continue
+
+            if verbosity >= 1:
+                print(f"    Visibility pruning pruned {percentage_pruned:.1f}% of space.")
+
+        # Condition object to pruned position
+        newPos = regions.Region.uniformPointIn(newBase)
+
+        if offset is not None:
+            newPos += offset
+
+        obj.position.conditionTo(newPos)
 
 
 def maxDistanceBetween(scenario, obj, target):
@@ -428,3 +581,56 @@ def relativeHeadingRange(
         tPoints.extend((math.pi, -math.pi))
     rhs = [tp - p for tp in tPoints for p in points]  # TODO improve
     return min(rhs), max(rhs)
+
+
+def percentagePruned(base, newBase):
+    if (
+        base.dimensionality
+        and newBase.dimensionality
+        and base.dimensionality == newBase.dimensionality
+    ):
+        ratio = newBase.size / base.size
+        percent = max(0, 100 * (1.0 - ratio))
+        return percent
+
+    return None
+
+
+def checkCyclical(A, B):
+    """Check for a potential circular dependency
+
+    Returns True if the scenario would have a circular dependency
+    if A depended on B.
+    """
+    state = collections.defaultdict(lambda: 0)
+
+    def dfs(target):
+        # Check if the target is already completed/in-process
+        if state[target] == 2:
+            return False
+        elif state[target] == 1:
+            return True
+
+        # Set to in-process
+        state[target] = 1
+
+        # Recurse on children
+        deps = conditionedDeps(target)
+
+        for child in deps:
+            if child is A:
+                return True
+
+            if dfs(child):
+                return True
+
+        # Set to completed
+        state[target] = 2
+
+        return False
+
+    return dfs(B)
+
+
+def conditionedDeps(samp):
+    return list(dependencies(samp._conditioned if isinstance(samp, Samplable) else samp))

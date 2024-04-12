@@ -1,4 +1,4 @@
-name: tests
+name: run_coverage
 
 on:
   push:
@@ -11,31 +11,20 @@ on:
         description: Git ref on which to run the tests.
         type: string
         required: true
-      options:
-        description: Options to pass to pytest.
-        default: --no-graphics
-        type: string
   workflow_call:
     inputs:
       ref:
         description: Git ref on which to run the tests.
         type: string
-      options:
-        description: Options to pass to pytest.
-        default: --no-graphics
-        type: string
 
 jobs:
-  check-format:
-    uses: ./.github/workflows/check-formatting.yml
-
-  test:
+  coverage:
     strategy:
       fail-fast: true
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        os: [ubuntu-latest, windows-latest]
-        extras: ["test", "test-full"]
+        python-version: ["3.11"]
+        os: [ubuntu-latest]
+        extras: ["test-full"]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -65,6 +54,12 @@ jobs:
       run: |
         python -m pip install -e ".[${{ matrix.extras }}]"
 
-    - name: Run pytest
+    - name: Run and report code coverage
       run: |
-        pytest ${{ inputs.options || '--no-graphics' }}
+        pytest --cov --cov-report json
+    
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v4.0.1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        slug: BerkeleyLearnVerify/Scenic

@@ -11,7 +11,7 @@ import os
 import sys
 import token
 from typing import (
-    Any, Callable, Iterator, List, Literal, Tuple, TypeVar, Union, NoReturn
+    Any, Callable, Iterator, List, Literal, NoReturn, Sequence, Tuple, TypeVar, Union
 )
 
 from pegen.tokenizer import Tokenizer
@@ -231,17 +231,96 @@ class Parser(Parser):
         node.ctx = context
         return node
 
-    def ensure_real(self, number: ast.Constant):
+    def ensure_real(self, number: ast.Constant) -> float:
         value = ast.literal_eval(number.string)
         if type(value) is complex:
             self.raise_syntax_error_known_location("real number required in complex literal", number)
         return value
 
-    def ensure_imaginary(self, number:  ast.Constant):
+    def ensure_imaginary(self, number: ast.Constant) -> complex:
         value = ast.literal_eval(number.string)
         if type(value) is not complex:
             self.raise_syntax_error_known_location("imaginary number required in complex literal", number)
         return value
+
+    def check_fstring_conversion(self, mark: tokenize.TokenInfo, name: tokenize.TokenInfo) -> tokenize.TokenInfo:
+        if mark.lineno != name.lineno or mark.col_offset != name.col_offset:
+            self.raise_syntax_error_known_range(
+                "f-string: conversion type must come right after the exclamanation mark",
+                mark,
+                name
+            )
+
+        s = name.string
+        if len(s) > 1 or s not in ("s", "r", "a"):
+            self.raise_syntax_error_known_location(
+                f"f-string: invalid conversion character '{s}': expected 's', 'r', or 'a'",
+                name,
+            )
+
+        return name
+
+    def _concat_strings_in_constant(self, parts) -> Union[str, bytes]:
+        s = ast.literal_eval(parts[0].string)
+        for ss in parts[1:]:
+            s += ast.literal_eval(ss.string)
+        args = dict(
+            value=s,
+            lineno=parts[0].start[0],
+            col_offset=parts[0].start[1],
+            end_lineno=parts[-1].end[0],
+            end_col_offset=parts[0].end[1],
+        )
+        if parts[0].string.startswith("u"):
+            args["kind"] = "u"
+        return ast.Constant(**args)
+
+
+    def concatenate_strings(self, parts):
+        """Concatenate multiple tokens and ast.JoinedStr"""
+        # Get proper start and stop
+        start = end = None
+        if isinstance(parts[0], ast.JoinedStr):
+            start = parts[0].lineno, parts[0].col_offset
+        if isinstance(parts[-1], ast.JoinedStr):
+            end = parts[-1].end_lineno, parts[-1].end_col_offset
+
+        # Combine the different parts
+        seen_joined = False
+        values = []
+        ss = []
+        for p in parts:
+            if isinstance(p, ast.JoinedStr):
+                seen_joined = True
+                if ss:
+                    values.append(self._concat_strings_in_constant(ss))
+                    ss.clear()
+                values.extend(p.values)
+            else:
+                ss.append(p)
+
+        if ss:
+            values.append(self._concat_strings_in_constant(ss))
+
+        consolidated = []
+        for p in values:
+            if consolidated and isinstance(consolidated[-1], ast.Constant) and isinstance(p, ast.Constant):
+                consolidated[-1].value += p.value
+                consolidated[-1].end_lineno = p.end_lineno
+                consolidated[-1].end_col_offset = p.end_col_offset
+            else:
+                consolidated.append(p)
+
+        if not seen_joined and len(values) == 1 and isinstance(values[0], ast.Constant):
+            return values[0]
+        else:
+            return ast.JoinedStr(
+                values=consolidated,
+                lineno=start[0] if start else values[0].lineno,
+                col_offset=start[1] if start else values[0].col_offset,
+                end_lineno=end[0] if end else values[-1].end_lineno,
+                end_col_offset=end[1] if end else values[-1].end_col_offset,
+            )
 
     def generate_ast_for_string(self, tokens):
         """Generate AST nodes for strings."""
@@ -397,15 +476,18 @@ class Parser(Parser):
     def expect_forced(self, res: Any, expectation: str) -> Optional[tokenize.TokenInfo]:
         if res is None:
             last_token = self._tokenizer.diagnose()
+            end = last_token.start
+            if sys.version_info >= (3, 12) or (sys.version_info >= (3, 11) and last_token.type != 4):  # i.e. not a \n
+                end = last_token.end
             self.raise_raw_syntax_error(
-                f"expected {expectation}", last_token.start, last_token.start
+                f"expected {expectation}", last_token.start, end
             )
         return res
 
     def raise_syntax_error(self, message: str) -> NoReturn:
         """Raise a syntax error."""
         tok = self._tokenizer.diagnose()
-        raise self._build_syntax_error(message, tok.start, tok.end if tok.type != 4 else tok.start)
+        raise self._build_syntax_error(message, tok.start, tok.end if sys.version_info >= (3, 12) or tok.type != 4 else tok.start)
 
     def raise_syntax_error_known_location(
         self, message: str, node: Union[ast.AST, tokenize.TokenInfo]
@@ -467,6 +549,10 @@ class Parser(Parser):
 
         self.raise_syntax_error_known_location(msg, invalid_target)
 
+    def raise_syntax_error_on_next_token(self, message: str) -> NoReturn:
+        next_token = self._tokenizer.peek()
+        raise self._build_syntax_error(message, next_token.start, next_token.end)
+
     # scenic helpers
     def extend_new_specifiers(self, node: s.New, specifiers: List[ast.AST]) -> s.New:
         node.specifiers.extend(specifiers)
@@ -514,6 +600,7 @@ scenic_stmts[list]:
 # will throw a SyntaxError.
 simple_stmt (memo):
     | assignment
+    | &"type" type_alias
     | e=star_expressions { ast.Expr(value=e, LOCATIONS) }
     | &'return' return_stmt
     | &('import' | 'from') import_stmt
@@ -659,7 +746,10 @@ assert_stmt[ast.Assert]: 'assert' a=expression b=[',' z=expression { z }] {
     ast.Assert(test=a, msg=b, LOCATIONS)
 }
 
-import_stmt[ast.Import]: import_name | import_from
+import_stmt[ast.Import]:
+    | invalid_import
+    | import_name
+    | import_from
 
 # Import statements
 # -----------------
@@ -728,14 +818,26 @@ class_def[ast.ClassDef]:
 
 class_def_raw[ast.ClassDef]:
     | invalid_class_def_raw
-    | 'class' a=NAME b=['(' z=[arguments] ')' { z }] &&':' c=scenic_class_def_block {
-        ast.ClassDef(
-            a.string,
-            bases=b[0] if b else [],
-            keywords=b[1] if b else [],
-            body=c,
-            decorator_list=[],
-            LOCATIONS,
+    | 'class' a=NAME t=[type_params] b=['(' z=[arguments] ')' { z }] &&':' c=scenic_class_def_block {
+        (
+            ast.ClassDef(
+                a.string,
+                bases=b[0] if b else [],
+                keywords=b[1] if b else [],
+                body=c,
+                decorator_list=[],
+                type_params=t or [],
+                LOCATIONS,
+            )
+            if sys.version_info >= (3, 12) else
+            ast.ClassDef(
+                a.string,
+                bases=b[0] if b else [],
+                keywords=b[1] if b else [],
+                body=c,
+                decorator_list=[],
+                LOCATIONS,
+            )
         )
      }
 
@@ -914,21 +1016,18 @@ function_def[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
 
 function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
     | invalid_def_raw
-    | 'def' n=NAME &&'(' params=[params] ')' a=['->' z=expression { z }] &&':' tc=[func_type_comment] b=block {
-        ast.FunctionDef(
-            name=n.string,
-            args=params or self.make_arguments(None, [], None, [], None),
-            returns=a,
-            body=b,
-            type_comment=tc,
-            LOCATIONS,
-        )
-     }
-    | 'async' 'def' n=NAME &&'(' params=[params] ')' a=['->' z=expression { z }] &&':' tc=[func_type_comment] b=block {
-       self.check_version(
-            (3, 5),
-            "Async functions are",
-            ast.AsyncFunctionDef(
+    | 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] &&':' tc=[func_type_comment] b=block {
+        (
+            ast.FunctionDef(
+                name=n.string,
+                args=params or self.make_arguments(None, [], None, [], None),
+                returns=a,
+                body=b,
+                type_comment=tc,
+                type_params=t or [],
+                LOCATIONS,
+            ) if sys.version_info >= (3, 12) else
+            ast.FunctionDef(
                 name=n.string,
                 args=params or self.make_arguments(None, [], None, [], None),
                 returns=a,
@@ -937,6 +1036,35 @@ function_def_raw[Union[ast.FunctionDef, ast.AsyncFunctionDef]]:
                 LOCATIONS,
             )
         )
+     }
+    | 'async' 'def' n=NAME t=[type_params] &&'(' params=[params] ')' a=['->' z=expression { z }] &&':' tc=[func_type_comment] b=block {
+       (
+            self.check_version(
+                (3, 5),
+                "Async functions are",
+                ast.AsyncFunctionDef(
+                    name=n.string,
+                    args=params or self.make_arguments(None, [], None, [], None),
+                    returns=a,
+                    body=b,
+                    type_comment=tc,
+                    type_params=t or [],
+                    LOCATIONS,
+                )
+            ) if sys.version_info >= (3, 12) else
+            self.check_version(
+                (3, 5),
+                "Async functions are",
+                ast.AsyncFunctionDef(
+                    name=n.string,
+                    args=params or self.make_arguments(None, [], None, [], None),
+                    returns=a,
+                    body=b,
+                    type_comment=tc,
+                    LOCATIONS,
+                )
+            )
+       )
      }
 
 # Function parameters
@@ -981,6 +1109,7 @@ slash_with_default[List[Tuple[ast.arg, Any]]]:
 star_etc[Tuple[Optional[ast.arg], List[Tuple[ast.arg, Any]], Optional[ast.arg]]]:
     | invalid_star_etc
     | '*' a=param_no_default b=param_maybe_default* c=[kwds] { (a, b, c) }
+    | '*' a=param_no_default_star_annotation b=param_maybe_default* c=[kwds] { (a, b, c) }
     | '*' ',' b=param_maybe_default+ c=[kwds] { (None, b, c) }
     | a=kwds { (None, [], a) }
 
@@ -1004,6 +1133,9 @@ kwds[ast.arg]:
 param_no_default[ast.arg]:
     | a=param ',' tc=TYPE_COMMENT? { self.set_arg_type_comment(a, tc) }
     | a=param tc=TYPE_COMMENT? &')' { self.set_arg_type_comment(a, tc) }
+param_no_default_star_annotation[ast.arg]:
+    | a=param_star_annotation ',' tc=TYPE_COMMENT? { self.set_arg_type_comment(a, tc) }
+    | a=param_star_annotation tc=TYPE_COMMENT? &')' { self.set_arg_type_comment(a, tc) }
 param_with_default[Tuple[ast.arg, Any]]:
     | a=param c=default ',' tc=TYPE_COMMENT? { (self.set_arg_type_comment(a, tc), c) }
     | a=param c=default tc=TYPE_COMMENT? &')' { (self.set_arg_type_comment(a, tc), c) }
@@ -1011,7 +1143,11 @@ param_maybe_default[Tuple[ast.arg, Any]]:
     | a=param c=default? ',' tc=TYPE_COMMENT? { (self.set_arg_type_comment(a, tc), c) }
     | a=param c=default? tc=TYPE_COMMENT? &')' { (self.set_arg_type_comment(a, tc), c) }
 param: a=NAME b=annotation? { ast.arg(arg=a.string, annotation=b, LOCATIONS) }
+param_star_annotation: a=NAME b=star_annotation {
+    ast.arg(arg=a.string, annotations=b, LOCATIONS)
+ }
 annotation: ':' a=expression { a }
+star_annotation: ':' a=star_expression { a }
 default: '=' a=expression { a } | invalid_default
 
 # If statement
@@ -1101,6 +1237,17 @@ try_stmt[ast.Try]:
     | 'try' &&':' b=block ex=except_block+ el=[else_block] f=[finally_block] {
         ast.Try(body=b, handlers=ex, orelse=el or [], finalbody=f or [], LOCATIONS)
      }
+    | 'try' &&':' b=block ex=except_star_block+ el=[else_block] f=[finally_block] {
+        self.check_version(
+            (3, 11),
+            "Exception groups are",
+            (
+                ast.TryStar(body=b, handlers=ex, orelse=el or [], finalbody=f or [], LOCATIONS)
+                if sys.version_info >= (3, 11)
+                else None
+            )
+        )
+     }
 
 scenic_try_interrupt_stmt[s.TryInterrupt]:
     | 'try' &&':' b=block iw=interrupt_when_block+ ex=except_block* el=[else_block] f=[finally_block] {
@@ -1128,6 +1275,12 @@ except_block[ast.ExceptHandler]:
     | 'except' e=expression t=['as' z=NAME { z.string }] ':' b=block {
         ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS) }
     | 'except' ':' b=block { ast.ExceptHandler(type=None, name=None, body=b, LOCATIONS) }
+    | invalid_except_stmt
+except_star_block[ast.ExceptHandler]:
+    | invalid_except_star_stmt_indent
+    | 'except' '*' e=expression t=['as' z=NAME { z.string }] ':' b=block {
+        ast.ExceptHandler(type=e, name=t, body=b, LOCATIONS)
+     }
     | invalid_except_stmt
 finally_block[list]:
     | invalid_finally_stmt
@@ -1358,6 +1511,82 @@ keyword_patterns:
 keyword_pattern:
     | arg=NAME '=' value=pattern { (arg.string, value) }
 
+# Type statement
+# ---------------
+
+type_alias["ast.TypeAlias"]:
+    | "type" n=NAME t=[type_params] '=' b=expression {
+        self.check_version(
+            (3, 12),
+            "Type statement is",
+            (
+                ast.TypeAlias(
+                    name=ast.Name(
+                        id=n.string,
+                        ctx=Store,
+                        lineno=n.start[0],
+                        col_offset=n.start[1],
+                        end_lineno=n.end[0],
+                        end_col_offset=n.end[1],
+                    ),
+                    type_params=t or [],
+                    value=b,
+                    LOCATIONS
+                )
+                if sys.version_info >= (3, 12)
+                else None
+            )
+        )
+     }
+
+# Type parameter declaration
+# --------------------------
+
+type_params[list]: '[' t=type_param_seq  ']' {
+    self.check_version(
+        (3, 12),
+        "Type parameter lists are",
+        t
+    )
+ }
+
+type_param_seq: a=','.type_param+ [','] { a }
+
+type_param (memo):
+    | a=NAME b=[type_param_bound] {
+        ast.TypeVar(name=a.string, bound=b, LOCATIONS)
+        if sys.version_info >= (3, 12)
+        else object()
+     }
+    | '*' a=NAME colon=":" e=expression {
+        self.raise_syntax_error_starting_from(
+            "cannot use constraints with TypeVarTuple"
+            if isinstance(e, ast.Tuple)
+            else "cannot use bound with TypeVarTuple",
+            colon
+        )
+     }
+    | '*' a=NAME {
+        ast.TypeVarTuple(name=a.string, LOCATIONS)
+        if sys.version_info >= (3, 12)
+        else object()
+     }
+    | '**' a=NAME colon=":" e=expression {
+        self.raise_syntax_error_starting_from(
+            "cannot use constraints with ParamSpec"
+            if isinstance(e, ast.Tuple)
+            else "cannot use bound with ParamSpec",
+            colon
+        )
+     }
+    | '**' a=NAME {
+        ast.ParamSpec(name=a.string, LOCATIONS)
+        if sys.version_info >= (3, 12)
+        else object()
+     }
+
+type_param_bound: ":" e=expression { e }
+
 # EXPRESSIONS
 # -----------
 
@@ -1573,6 +1802,7 @@ bitwise_or:
     | scenic_visible_from
     | scenic_not_visible_from
     | scenic_can_see
+    | scenic_intersects
     | a=bitwise_or '|' b=bitwise_xor { ast.BinOp(left=a, op=ast.BitOr(), right=b, LOCATIONS) }
     | bitwise_xor
 
@@ -1581,6 +1811,8 @@ scenic_visible_from: a=bitwise_or "visible" 'from' b=bitwise_xor { s.VisibleFrom
 scenic_not_visible_from: a=bitwise_or "not" "visible" 'from' b=bitwise_xor { s.NotVisibleFromOp(region=a, base=b, LOCATIONS) }
 
 scenic_can_see: a=bitwise_or "can" "see" b=bitwise_xor { s.CanSeeOp(left=a, right=b, LOCATIONS) }
+
+scenic_intersects: a=bitwise_or "intersects" b=bitwise_xor { s.IntersectsOp(left=a, right=b, LOCATIONS) }
 
 bitwise_xor:
     | scenic_offset_along
@@ -1730,7 +1962,7 @@ primary:
 
 slices:
     | a=slice !',' { a }
-    | a=','.slice+ [','] {
+    | a=','.(slice | starred_expression)+ [','] {
         ast.Tuple(elts=a, ctx=Load, LOCATIONS)
         if sys.version_info >= (3, 9) else
         (
@@ -1774,7 +2006,7 @@ atom:
         if sys.version_info >= (3, 9) else
         ast.Constant(value=None, kind=None, LOCATIONS)
      }
-    | &STRING strings
+    | &(STRING|FSTRING_START) strings
     | a=NUMBER {
         ast.Constant(value=ast.literal_eval(a.string), LOCATIONS)
         if sys.version_info >= (3, 9) else
@@ -1949,10 +2181,53 @@ scenic_simulator_stmt: "simulator" e=expression { s.Simulator(value=e, LOCATIONS
 # LITERALS
 # ========
 
-strings[ast.Str] (memo): a=STRING+ { self.generate_ast_for_string(a) }
+fstring_mid:
+    | fstring_replacement_field
+    | t=FSTRING_MIDDLE { ast.Constant(value=t.string, LOCATIONS) }
+fstring_replacement_field:
+    | '{' a=(yield_expr | star_expressions) debug_expr="="? conversion=[fstring_conversion] format=[fstring_full_format_spec] rbrace='}' {
+        ast.FormattedValue(
+            value=a,
+            conversion=(
+                conversion.decode()[0]
+                if conversion else
+                (b'r'[0] if debug_expr else -1)
+            ),
+            format_spec=format,
+            LOCATIONS
+        )
+     }
+    | invalid_replacement_field
+fstring_conversion[int]:
+    | conv_token="!" conv=NAME { self.check_fstring_conversion(conv_token, conv) }
+fstring_full_format_spec:
+    | ':' spec=fstring_format_spec* {
+        ast.JoinedStr(
+            values=spec if spec and (len(spec) > 1 or spec[0].value) else [],
+            LOCATIONS,
+        )
+     }
+fstring_format_spec:
+    | t=FSTRING_MIDDLE { ast.Constant(value=t.string, LOCATIONS) }
+    | fstring_replacement_field
+fstring:
+    | a=FSTRING_START b=fstring_mid* c=FSTRING_END {
+        ast.JoinedStr(values=b, LOCATIONS)
+     }
+
+strings (memo): a=(fstring|STRING)+ {
+    self.concatenate_strings(a) if sys.version_info >= (3, 12) else self.generate_ast_for_string(a)
+ }
+
 
 list[ast.List]:
     | '[' a=[star_named_expressions] ']' { ast.List(elts=a or [], ctx=Load, LOCATIONS) }
+    | a='**' expression '=' b=expression {
+        self.raise_syntax_error_known_range(
+            "cannot assign to keyword argument unpacking", a, b
+        )
+     }
+
 
 tuple[ast.Tuple]:
     | '(' a=[y=star_named_expression ',' z=[star_named_expressions] { [y] + (z or []) } ] ')' {
@@ -2038,6 +2313,7 @@ kwargs[list]:
     | ','.kwarg_or_double_starred+
 
 starred_expression:
+    | invalid_starred_expression
     | '*' a=expression { ast.Starred(value=a, ctx=Load, LOCATIONS) }
 
 kwarg_or_starred:
@@ -2173,6 +2449,9 @@ invalid_arguments[NoReturn]:
             "invalid syntax. Maybe you meant '==' or ':=' instead of '='?", a, b
         )
      }
+    | (args ',')? a=NAME b='=' &(',' | ')') {
+        self.raise_syntax_error_known_range("expected argument value expression", a, b)
+     }
     | a=args b=for_if_clauses {
         self.raise_syntax_error_known_range(
             "Generator expression must be parenthesized",
@@ -2223,7 +2502,7 @@ expression_without_invalid[ast.AST]:
     | disjunction
     | lambdef
 invalid_legacy_expression:
-    | a=NAME !'(' b=expression_without_invalid {
+    | a=NAME !'(' b=star_expressions {
         self.raise_syntax_error_known_range(
             f"Missing parentheses in call to '{a.string}' . Did you mean {a.string}(...)?", a, b,
         ) if a.string in ("exec", "print") else
@@ -2242,6 +2521,11 @@ invalid_expression[NoReturn]:
      }
     | a=disjunction 'if' b=disjunction !('else'|':') {
         self.raise_syntax_error_known_range("expected 'else' after 'if' expression", a, b)
+     }
+    | a='lambda' [lambda_params] b=':' &(FSTRING_MIDDLE | fstring_replacement_field)  {
+        self.raise_syntax_error_known_range(
+            "f-string: lambda expressions are not allowed without parentheses", a, b
+        )
      }
 invalid_named_expression[NoReturn]:
     | a=expression ':=' expression {
@@ -2346,17 +2630,21 @@ invalid_dict_comprehension[NoReturn]:
         self.raise_syntax_error_known_location("dict unpacking cannot be used in dict comprehension", a)
      }
 invalid_parameters[NoReturn]:
-    | param_no_default* invalid_parameters_helper a=param_no_default {
-        self.raise_syntax_error_known_location("non-default argument follows default argument", a)
-     }
-    | param_no_default* a='(' param_no_default+ ','? b=')' {
-        self.raise_syntax_error_known_range("Function parameters cannot be parenthesized", a, b)
-     }
     | a="/" ',' {
         self.raise_syntax_error_known_location("at least one argument must precede /", a)
      }
     | (slash_no_default | slash_with_default) param_maybe_default* a='/' {
         self.raise_syntax_error_known_location("/ may appear only once", a)
+     }
+    | slash_no_default? param_no_default* invalid_parameters_helper a=param_no_default {
+        self.raise_syntax_error_known_location(
+            "parameter without a default follows parameter with a default", a
+        )
+     }
+    | param_no_default* a='(' param_no_default+ ','? b=')' {
+        self.raise_syntax_error_known_range(
+            "Function parameters cannot be parenthesized", a, b
+        )
      }
     | (slash_no_default | slash_with_default)? param_maybe_default* '*' (',' | param_no_default) param_maybe_default* a='/' {
         self.raise_syntax_error_known_location("/ must be ahead of *", a)
@@ -2393,17 +2681,21 @@ invalid_parameters_helper: # This is only there to avoid type errors
     | a=slash_with_default { [a] }
     | a=param_with_default+
 invalid_lambda_parameters[NoReturn]:
-    | lambda_param_no_default* invalid_lambda_parameters_helper a=lambda_param_no_default {
-        self.raise_syntax_error_known_location("non-default argument follows default argument", a)
-     }
-    | lambda_param_no_default* a='(' ','.lambda_param+ ','? b=')' {
-        self.raise_syntax_error_known_range("Lambda expression parameters cannot be parenthesized", a, b)
-     }
     | a="/" ',' {
         self.raise_syntax_error_known_location("at least one argument must precede /", a)
      }
     | (lambda_slash_no_default | lambda_slash_with_default) lambda_param_maybe_default* a='/' {
         self.raise_syntax_error_known_location("/ may appear only once", a)
+     }
+    | lambda_slash_no_default? lambda_param_no_default* invalid_lambda_parameters_helper a=lambda_param_no_default {
+        self.raise_syntax_error_known_location(
+            "parameter without a default follows parameter with a default", a
+        )
+     }
+    | lambda_param_no_default* a='(' ','.lambda_param+ ','? b=')' {
+        self.raise_syntax_error_known_range(
+            "Lambda expression parameters cannot be parenthesized", a, b
+        )
      }
     | (lambda_slash_no_default | lambda_slash_with_default)? lambda_param_maybe_default* '*' (',' | lambda_param_no_default) lambda_param_maybe_default* a='/' {
         self.raise_syntax_error_known_location("/ must be ahead of *", a)
@@ -2455,6 +2747,12 @@ invalid_group[NoReturn]:
     | '(' a='**' expression ')' {
         self.raise_syntax_error_known_location("cannot use double starred expression here", a)
      }
+invalid_import:
+    | a='import' ','.dotted_name+ 'from' dotted_name {
+        self.raise_syntax_error_starting_from(
+            "Did you mean to use 'from ... import ...' instead?", a
+        )
+     }
 invalid_import_from_targets[NoReturn]:
     | import_from_as_names ',' NEWLINE {
         self.raise_syntax_error("trailing comma not allowed without surrounding parentheses")
@@ -2484,12 +2782,25 @@ invalid_try_stmt[NoReturn]:
     | 'try' ':' block !('except' | 'finally') {
         self.raise_syntax_error("expected 'except' or 'finally' block")
      }
+    | 'try' ':' block* except_block+ a='except' b='*' expression ['as' NAME] ':' {
+        self.raise_syntax_error_known_range(
+            "cannot have both 'except' and 'except*' on the same 'try'", a, b
+        )
+     }
+    | 'try' ':' block* except_star_block+ a='except' [expression ['as' NAME]] ':' {
+        self.raise_syntax_error_known_location(
+            "cannot have both 'except' and 'except*' on the same 'try'", a
+        )
+     }
 invalid_except_stmt[None]:
-    | 'except' a=expression ',' expressions ['as' NAME ] ':' {
+    | 'except' '*'? a=expression ',' expressions ['as' NAME ] ':' {
         self.raise_syntax_error_starting_from("multiple exception types must be parenthesized", a)
      }
-    | a='except' expression ['as' NAME ] NEWLINE { self.raise_syntax_error("expected ':'") }
-    | a='except' NEWLINE { self.raise_syntax_error("expected ':'") }
+    | a='except' '*'? expression ['as' NAME ] NEWLINE { self.raise_syntax_error("expected ':'") }
+    | a='except' '*'? NEWLINE { self.raise_syntax_error("expected ':'") }
+    | a='except' '*' (NEWLINE | ':') {
+        self.raise_syntax_error("expected one or more exception types")
+     }
 invalid_finally_stmt[NoReturn]:
     | a='finally' ':' NEWLINE !INDENT {
         self.raise_indentation_error(
@@ -2505,6 +2816,12 @@ invalid_except_stmt_indent[NoReturn]:
     | a='except' ':' NEWLINE !INDENT {
         self.raise_indentation_error(
             f"expected an indented block after 'except' statement on line {a.start[0]}"
+        )
+     }
+invalid_except_star_stmt_indent:
+    | a='except' '*' expression ['as' NAME ] ':' NEWLINE !INDENT {
+        self.raise_indentation_error(
+            f"expected an indented block after 'except*' statement on line {a.start[0]}"
         )
      }
 invalid_match_stmt[NoReturn]:
@@ -2574,19 +2891,21 @@ invalid_while_stmt[NoReturn]:
         )
      }
 invalid_for_stmt[NoReturn]:
+    | [ASYNC] 'for' star_targets 'in' star_expressions NEWLINE { self.raise_syntax_error("expected ':'") }
     | ['async'] a='for' star_targets 'in' star_expressions ':' NEWLINE !INDENT {
         self.raise_indentation_error(
             f"expected an indented block after 'for' statement on line {a.start[0]}"
         )
      }
 invalid_def_raw[NoReturn]:
-    | ['async'] a='def' NAME '(' [params] ')' ['->' expression] ':' NEWLINE !INDENT {
+    | ['async'] a='def' NAME  [type_params] '(' [params] ')' ['->' expression] ':' NEWLINE !INDENT {
         self.raise_indentation_error(
             f"expected an indented block after function definition on line {a.start[0]}"
         )
      }
 invalid_class_def_raw[NoReturn]:
-    | a='class' NAME ['(' [arguments] ')'] ':' NEWLINE !INDENT {
+    | 'class' NAME [type_params] ['(' [arguments] ')'] NEWLINE { self.raise_syntax_error("expected ':'") }
+    | a='class' NAME  [type_params] ['(' [arguments] ')'] ':' NEWLINE !INDENT {
         self.raise_indentation_error(
             f"expected an indented block after class definition on line {a.start[0]}"
         )
@@ -2611,6 +2930,46 @@ invalid_kvpair[None]:
     | expression ':' a='*' bitwise_or {
         self.raise_syntax_error_starting_from("cannot use a starred expression in a dictionary value", a)
      }
+    | expression a=':' &('}'|',') {
+        self.raise_syntax_error_known_location(
+            "expression expected after dictionary key and ':'", a
+        )
+     }
     | expression a=':' {
         self.raise_syntax_error_known_location("expression expected after dictionary key and ':'", a)
      }
+invalid_starred_expression:
+    | a='*' expression '=' b=expression {
+        self.raise_syntax_error_known_range(
+            "cannot assign to iterable argument unpacking", a, b
+        )
+     }
+invalid_replacement_field:
+    | '{' a='=' { self.raise_syntax_error_known_location("f-string: valid expression required before '='", a) }
+    | '{' a='!' { self.raise_syntax_error_known_location("f-string: valid expression required before '!'", a) }
+    | '{' a=':' { self.raise_syntax_error_known_location("f-string: valid expression required before ':'", a) }
+    | '{' a='}' { self.raise_syntax_error_known_location("f-string: valid expression required before '}'", a) }
+    | '{' !(yield_expr | star_expressions) {
+        self.raise_syntax_error_on_next_token(
+            "f-string: expecting a valid expression after '{'"
+        )
+     }
+    | '{' (yield_expr | star_expressions) !('=' | '!' | ':' | '}') {
+        self.raise_syntax_error_on_next_token("f-string: expecting '=', or '!', or ':', or '}'") }
+    | '{' (yield_expr | star_expressions) '=' !('!' | ':' | '}') {
+       self.raise_syntax_error_on_next_token("f-string: expecting '!', or ':', or '}'")
+     }
+    | '{' (yield_expr | star_expressions) '='? invalid_conversion_character
+    | '{' (yield_expr | star_expressions) '='? ['!' NAME] !(':' | '}') {
+        self.raise_syntax_error_on_next_token("f-string: expecting ':' or '}'")
+     }
+    | '{' (yield_expr | star_expressions) '='? ['!' NAME] ':' fstring_format_spec* !'}' {
+        self.raise_syntax_error_on_next_token("f-string: expecting '}', or format specs")
+     }
+    | '{' (yield_expr | star_expressions) '='? ['!' NAME] !'}' {
+        self.raise_syntax_error_on_next_token("f-string: expecting '}'")
+     }
+
+invalid_conversion_character:
+    | '!' &(':' | '}') { self.raise_syntax_error_on_next_token("f-string: missing conversion character") }
+    | '!' !NAME { self.raise_syntax_error_on_next_token("f-string: invalid conversion character") }

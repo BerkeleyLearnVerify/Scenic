@@ -21,7 +21,7 @@ from scenic.core.simulators import (
 )
 from scenic.core.type_support import toVector
 from scenic.core.vectors import Orientation, Vector
-import scenic.simulators.airsim.MavsdkUtils as mavutils
+# import scenic.simulators.airsim.MavsdkUtils as mavutils
 from scenic.syntax.veneer import verbosePrint
 
 from .utils import (
