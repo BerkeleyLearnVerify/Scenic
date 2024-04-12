@@ -13,13 +13,13 @@ from verifai.monitor import specification_monitor
 #             return True
 #         super().__init__(specification)
 
-path_to_scenic_script = 'C:/Users/piegu/Scenic/examples/airsim/multi_drone.scenic'
+path_to_scenic_script = 'C:/Users/piegu/Scenic/examples/airsim/followDrone.scenic'
 sampler = ScenicSampler.fromScenario(path_to_scenic_script)
 
 class confidence_spec(specification_monitor):
     def __init__(self):
-        def specification(traj):
-            return bool(traj['yTrue'] == traj['yPred'])
+        def specification(simulation):
+            return simulation.result.records['dist'] < 3
         super().__init__(specification)
 
 MAX_ITERS = 1
@@ -38,7 +38,7 @@ server_options = DotMap(port=PORT, bufsize=BUFSIZE, maxreqs=MAXREQS, verbosity=1
 
 falsifier = generic_falsifier(sampler=sampler,
                               falsifier_params=falsifier_params,
-                            #   monitor=confidence_spec,
+                              monitor=confidence_spec,
                               server_class=ScenicServer,
                               server_options=server_options)
 falsifier.run_falsifier()

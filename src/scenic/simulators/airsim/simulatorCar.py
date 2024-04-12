@@ -85,15 +85,15 @@ class AirSimSimulation(Simulation):
 
         # move all cars  to offscreen position
         self.client.simPause(False)
-        for i, car in enumerate(self.startCars):
-            newPose = airsim.Pose(
-                position_val=scenicToAirsimVector(self.simulator.idleStoragePos)
-                + airsim.Vector3r(i, 0, 0)
-            )
-            self.client.enableApiControl(True, car)
-            self.client.simSetVehiclePose(
-                vehicle_name=car, pose=newPose, ignore_collision=False
-            )
+        # for i, car in enumerate(self.startCars):
+        #     newPose = airsim.Pose(
+        #         position_val=scenicToAirsimVector(self.simulator.idleStoragePos)
+        #         + airsim.Vector3r(i, 0, 0)
+        #     )
+        #     self.client.enableApiControl(True, car)
+        #     self.client.simSetVehiclePose(
+        #         vehicle_name=car, pose=newPose, ignore_collision=False
+        #     )
 
         self.client.simPause(True)
 

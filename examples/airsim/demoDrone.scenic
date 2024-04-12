@@ -67,6 +67,9 @@ behavior FindAdversary(speed = 5):
     interrupt when self can see drone1:
         # when I can see adversary, follow it
         do Follow(drone1)
+    # interrupt when distance from self to drone1 < 10:
+    #     # when I can see adversary (i'm within 10 meters of it), follow it
+    #     do Follow(drone1)
     interrupt when distance from self to drone1 < 2:
         # when I get within 2 meters of adversary, terminate scenario
         terminate

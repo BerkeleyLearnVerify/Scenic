@@ -21,6 +21,7 @@ from scenic.core.simulators import (
 )
 from scenic.core.type_support import toVector
 from scenic.core.vectors import Orientation, Vector
+# TODO: Uncomment this out to use PX4 drones/MAVSDK.
 # import scenic.simulators.airsim.MavsdkUtils as mavutils
 from scenic.syntax.veneer import verbosePrint
 
