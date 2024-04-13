@@ -78,6 +78,7 @@ def launchCarlaServer():
     for _ in range(10):
         carla_process.kill()
         time.sleep(0.1)
+    time.sleep(5)
 
 
 @pytest.fixture

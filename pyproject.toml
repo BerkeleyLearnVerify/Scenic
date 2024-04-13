@@ -67,6 +67,7 @@ test-full = [  # like 'test' but adds dependencies for optional features
 	'carla >= 0.9.12; python_version <= "3.10"',
 	"dill",
 	"exceptiongroup",
+	"flaky",
 	"inflect ~= 5.5",
 	"pygments ~= 2.11",
 	"sphinx >= 5.0.0, <6",

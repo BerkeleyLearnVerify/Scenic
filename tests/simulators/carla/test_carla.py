@@ -1,3 +1,4 @@
+from flaky import flaky
 import pytest
 
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
@@ -358,6 +359,7 @@ def test_pedestrian_blueprints(getCarlaSimulator, launchCarlaServer, modelName):
     model_blueprint(simulator, mapPath, town, "Pedestrian", modelName)
 
 
+@flaky(max_runs=5, min_passes=1)
 def test_throttle(getCarlaSimulator, launchCarlaServer):
     simulator, town, mapPath = getCarlaSimulator("Town01")
     code = f"""
@@ -386,6 +388,7 @@ def test_throttle(getCarlaSimulator, launchCarlaServer):
 pytest.importorskip("carla")
 
 
+@flaky(max_runs=5, min_passes=1)
 def test_brake(getCarlaSimulator, launchCarlaServer):
     simulator, town, mapPath = getCarlaSimulator("Town01")
     code = f"""
