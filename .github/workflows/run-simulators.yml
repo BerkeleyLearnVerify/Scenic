@@ -108,6 +108,7 @@ jobs:
           run: |
             echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
             ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
+              Xvfb :99 -screen 0 1024x768x16 &
               cd /home/ubuntu/actions/Scenic &&
               python3 -m venv venv &&
               source venv/bin/activate &&
@@ -116,10 +117,10 @@ jobs:
                 "/software/webotsR2023b/webots"
                 "/software/webotsR2023a/webots"
               ) &&
+              export DISPLAY=:99 &&
               for version in "${webots_versions[@]}"; do
                 echo "============================= Webots $version ============================="
                 export WEBOTS_ROOT="$version"
-                export DISPLAY=:1 &&
                 pytest tests/simulators/webots/test_webots.py
               done
             '
@@ -127,7 +128,7 @@ jobs:
     stop_ec2_instance:
       name: stop_ec2_instance
       runs-on: ubuntu-latest
-      needs: run_webots_simulators
+      needs: [run_carla_simulators, run_webots_simulators]
       steps:       
         - name: Stop EC2 Instance
           env:
