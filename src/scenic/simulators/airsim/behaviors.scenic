@@ -48,8 +48,12 @@ behavior waitForPromise(promise):
         wait
 
 behavior MoveToPosition(position, speed):
-    while ((distance from position to self.position) < 1):
+    while ((distance from position to self.position) > 1):
         take MoveToPositionAsync(position, speed)
+
+behavior SetVelocityBehavior(direction):
+    while True:
+        take SetVelocity(direction)
 
 # Flies the drone to a position
 behavior FlyToPosition(newPos, speed = 5,tolerance = 1,pidMode = True):
