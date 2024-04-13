@@ -43,9 +43,6 @@ class AdversaryDrone(Drone):
 # Find the adversary. drone1 is the adversary target
 # https://scenic-lang.readthedocs.io/en/latest/reference/visibility.html
 behavior FindAdversary(speed = 5):
-    # Gets the airsim client to call airsim's apis
-    client = simulation().client
-
     # Randomly select point/region to look at given the weights
     # https://scenic-lang.readthedocs.io/en/latest/reference/distributions.html
     # Discrete({value: weight, … })
@@ -58,7 +55,7 @@ behavior FindAdversary(speed = 5):
     # https://scenic-lang.readthedocs.io/en/latest/reference/statements.html#try-interrupt-statement
     try:
         # if doing online path solution then do api call for that here, and remove the patrolPoints/patrolPointsProb
-        do FlyToPosition(selectedPoint, speed) for 10 seconds
+        do MoveToPosition(selectedPoint, speed) for 10 seconds
         # resample point since didn't find adversary at that position
         selectedPoint = Discrete({drone1.patrolPoints[0]:drone1.patrolPointsProb[0], 
             drone1.patrolPoints[1]:drone1.patrolPointsProb[1], 
@@ -66,38 +63,14 @@ behavior FindAdversary(speed = 5):
             drone1.patrolPoints[3]:drone1.patrolPointsProb[3]})
     interrupt when self can see drone1:
         # when I can see adversary, follow it
-        do Follow(drone1)
-    # interrupt when distance from self to drone1 < 10:
-    #     # when I can see adversary (i'm within 10 meters of it), follow it
-    #     do Follow(drone1)
+        do MoveToPosition(drone1.position, speed)
     interrupt when distance from self to drone1 < 2:
         # when I get within 2 meters of adversary, terminate scenario
         terminate
 
-behavior Follow(target, speed = 5,tolerance = 2, offset = (0,0,1)):
-    client = simulation().client
-
-    while True:
-        targetPosition = target.position + offset
-        
-        velocity = targetPosition-self.position
-        distance = magnitude(velocity)
-        velocity = (velocity / distance) * speed
-        if distance > tolerance:
-            take SetVelocity(velocity)
-        wait
-# Note: SetVelocity is an action in actions.py. Actions are 1 time events that a scenic object takes
-# Behaviors are continuous events that a scenic object takes, that change depending on conditions met
-# Generic behaviors can be found in behaviors.scenic
-
 # Adversary behavior. Continuously patrol to each of these positions.
 behavior Adversary(speed):
-    client = simulation().client
-
     do Patrol(self.patrolPoints, loop=True, speed=speed)
-
-
-
 
 ego = new Drone at (Range(-10,10),Range(-10,10),Range(0,10)),
     with behavior FindAdversary(),

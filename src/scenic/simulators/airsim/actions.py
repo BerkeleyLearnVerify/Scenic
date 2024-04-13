@@ -44,6 +44,8 @@ class NameOfAction(Action): # Make sure to always inherit the "Action" Class
 
 class SetVelocity(Action):
     def __init__(self, velocity):
+        # velocity = (vx, vy, vz) where vx := speed in x axis
+        # Note that we need use the following helper function "scenicToAirsimVector" to convert Scenic's position to AirSim's position
         self.newVelocity = scenicToAirsimVector(toVector(velocity))
 
     def applyTo(self, obj, sim):
