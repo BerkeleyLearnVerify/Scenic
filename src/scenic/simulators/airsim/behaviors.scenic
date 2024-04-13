@@ -47,13 +47,15 @@ behavior waitForPromise(promise):
     while not promise.is_fulfilled:
         wait
 
+behavior MoveToPosition(position, speed):
+    while ((distance from position to self.position) < 1):
+        take MoveToPositionAsync(position, speed)
+
 # Flies the drone to a position
 behavior FlyToPosition(newPos, speed = 5,tolerance = 1,pidMode = True):
     # pidMode is true if we want the drone to slow down as it reaches its destination
     
     client = simulation().client
-
-    
 
     if pidMode:
         newPos = scenicToAirsimVector(toVector(newPos))
@@ -76,8 +78,6 @@ behavior FlyToPosition(newPos, speed = 5,tolerance = 1,pidMode = True):
             direction= (direction/distance)*speed
             take SetVelocity(direction)
             wait
-        
-
     return
 
 
