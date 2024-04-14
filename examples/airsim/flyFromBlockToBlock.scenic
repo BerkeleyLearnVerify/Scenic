@@ -29,4 +29,4 @@ for plat in platforms:
 ego = new Drone at Uniform(*points) + (0,0,1),
     with behavior Patrol(points,True)
 
-terminate after 2 seconds
+# terminate after 2 seconds
