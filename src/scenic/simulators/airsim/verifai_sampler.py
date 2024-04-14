@@ -5,7 +5,7 @@ from verifai.scenic_server import ScenicServer
 from verifai.monitor import specification_monitor
 import math
 
-path_to_scenic_script = 'C:/Users/piegu/Scenic/examples/airsim/catchDrone.scenic'
+path_to_scenic_script = 'C:/Users/piegu/Scenic/examples/airsim/test.scenic'
 sampler = ScenicSampler.fromScenario(path_to_scenic_script)
 
 class confidence_spec(specification_monitor):
@@ -38,7 +38,7 @@ server_options = DotMap(port=PORT, bufsize=BUFSIZE, maxreqs=MAXREQS, verbosity=1
 
 falsifier = generic_falsifier(sampler=sampler,
                               falsifier_params=falsifier_params,
-                              monitor=confidence_spec(),
+                            #   monitor=confidence_spec(),
                               server_class=ScenicServer,
                               server_options=server_options)
 falsifier.run_falsifier()
