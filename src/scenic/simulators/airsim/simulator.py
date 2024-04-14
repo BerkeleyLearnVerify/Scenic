@@ -153,7 +153,7 @@ class AirSimSimulation(Simulation):
                 obj.realObjName = realObjName
             else:
                 self.client.simAddVehicle(
-                    vehicle_name=realObjName, vehicle_type="simpleflight", pose=pose
+                    vehicle_name=realObjName, vehicle_type="simpleflight", pose=airsim.Pose()
                 )
 
             self.nextDroneIndex += 1

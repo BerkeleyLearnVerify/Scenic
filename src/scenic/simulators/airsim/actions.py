@@ -58,19 +58,3 @@ class SetVelocity(Action):
             duration=5,
             vehicle_name=obj.realObjName,
         )
-
-class MoveToPositionAsync(Action):
-    def __init__(self, position, speed):
-        self.position = scenicToAirsimVector(toVector(position))
-        self.speed = speed
-
-    def applyTo(self, obj, sim):
-        client = sim.client 
-        client.cancelLastTask(vehicle_name=obj.realObjName)
-        client.moveToPositionAsync(
-                self.position.x_val,
-                self.position.y_val,
-                self.position.z_val,
-                velocity=self.speed,
-                vehicle_name=obj.realObjName,
-            )
