@@ -21,9 +21,6 @@ for i in range(blockCount):
         with height 10)
 
 
-
-
-
 points = []
 for plat in platforms:
     point = new Point on plat
@@ -32,4 +29,4 @@ for plat in platforms:
 ego = new Drone at Uniform(*points) + (0,0,1),
     with behavior Patrol(points,True)
 
-terminate after 30 seconds
+terminate after 2 seconds

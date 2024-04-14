@@ -16,7 +16,6 @@ from .utils import (
 )
 from scenic.simulators.airsim.actions import *
 
-
 def magnitude(v):
     return math.hypot(v.x, v.y, v.z)
 
@@ -53,10 +52,10 @@ behavior FlyToPosition(newPos, speed = 5,tolerance = 1,pidMode = True):
     
     client = simulation().client
 
-    
-
     if pidMode:
         newPos = scenicToAirsimVector(toVector(newPos))
+        # NOTE: in a typical behavior, we would take an action for moveToPositionAsync, BUT with the way the airsim API is set up, we need to use promises
+        # I do not know why this one needs a promise and the SetVelocity (which calls moveByVelocityAsync in actions.py) does not
         do waitForPromise(createPromise(
             client.moveToPositionAsync(
                 newPos.x_val,
@@ -76,23 +75,7 @@ behavior FlyToPosition(newPos, speed = 5,tolerance = 1,pidMode = True):
             direction= (direction/distance)*speed
             take SetVelocity(direction)
             wait
-        
-
     return
-
-
-
-
-behavior Patrol(positions, loop=True, smooth = False, speed = 5,tolerance = 2):
-    while True:
-        for pos in positions:
-            do FlyToPosition(pos,speed=speed,pidMode= not smooth,tolerance=tolerance)
-           
-        if not loop:
-            return
-
-
-
 
 behavior MoveByVelocity(velocity,seconds):
     client = simulation().client
@@ -109,10 +92,27 @@ behavior MoveByVelocity(velocity,seconds):
         )
     ))
 
-
-
-
 behavior FlyToStart():
     do FlyToPosition(self._startPos)
 
     
+behavior Patrol(positions, loop=True, smooth = False, speed = 5,tolerance = 2):
+    while True:
+        for pos in positions:
+            do FlyToPosition(pos,speed=speed,pidMode= not smooth,tolerance=tolerance)
+           
+        if not loop:
+            return
+
+behavior Follow(target, speed = 5,tolerance = 2, offset = (0,0,1)):
+    client = simulation().client
+
+    while True:
+        targetPosition = target.position + offset
+        
+        velocity = targetPosition-self.position
+        distance = magnitude(velocity)
+        velocity = (velocity / distance) * speed
+        if distance > tolerance:
+            take SetVelocity(velocity)
+        wait
