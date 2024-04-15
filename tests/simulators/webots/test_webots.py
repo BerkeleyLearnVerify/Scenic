@@ -23,7 +23,7 @@ def cleanup_results():
 
 
 def test_dynamics_scenarios(launchWebots):
-    WEBOTS_ROOT = launchWebots()
+    WEBOTS_ROOT = launchWebots
     cleanup_results()
     command = f"bash {WEBOTS_ROOT}/webots --no-rendering --minimize --batch {WEBOTS_WORLD_FILE_PATH}"
     subprocess.run(command, shell=True)
