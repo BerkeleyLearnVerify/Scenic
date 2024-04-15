@@ -56,6 +56,7 @@ guideways = [
 	'pyproj ~= 3.3; python_version >= "3.10"',
 ]
 test = [	# minimum dependencies for running tests (used for tox virtualenvs)
+	"flaky",
 	"pytest >= 7.0.0, <8",
 	"pytest-cov >= 3.0.0",
 	"pytest-randomly ~= 3.2",
@@ -67,7 +68,6 @@ test-full = [  # like 'test' but adds dependencies for optional features
 	'carla >= 0.9.12; python_version <= "3.10"',
 	"dill",
 	"exceptiongroup",
-	"flaky",
 	"inflect ~= 5.5",
 	"pygments ~= 2.11",
 	"sphinx >= 5.0.0, <6",
