@@ -25,7 +25,7 @@ def cleanup_results():
 def test_dynamics_scenarios(launchWebots):
     WEBOTS_ROOT = launchWebots()
     cleanup_results()
-    command = f"bash {WEBOTS_ROOT} --no-rendering --minimize {WEBOTS_WORLD_FILE_PATH}"
+    command = f"bash {WEBOTS_ROOT}/webots --no-rendering --minimize {WEBOTS_WORLD_FILE_PATH}"
     subprocess.run(command, shell=True)
     data = receive_results()
     assert data != None
