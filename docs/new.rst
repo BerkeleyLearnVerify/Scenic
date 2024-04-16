@@ -30,8 +30,6 @@ Backwards-incompatible syntax changes:
 	  Classes providing a default value for :prop:`heading` should instead provide a default value for :prop:`parentOrientation`.
 	  Code like :specifier:`with heading 30 deg` should be replaced with the more idiomatic :specifier:`facing 30 deg`.
 
-	* The :specifier:`visible` and :specifier:`not visible` now specify position uniformly randomly over all points that could result in a visible/not visible object (accounting for occlusion). This is different from previous versions, where the specifiers would simply place the center of an object either inside or outside the view region of the observing object.
-
 Backwards-incompatible semantics changes:
 
 	* Objects are no longer required to be visible from the :scenic:`ego` by default.
@@ -47,6 +45,8 @@ Backwards-incompatible semantics changes:
 	* The :sampref:`left of {Object}` specifier and its variants now correctly take into account the dimensions of both the object being created *and* the given object (the implementation previously did not account for the latter, despite the documentation saying otherwise).
 
 	* The :specifier:`offset by` specifier now optionally specifies :prop:`parentOrientation`.
+
+	* The :specifier:`visible` and :specifier:`not visible` specifiers now take into account occlusion and the shapes of objects. In previous versions, they only checked whether the center of the object was visible/not visible, ignoring occlusion.
 
 Backwards-incompatible API changes:
 

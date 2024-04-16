@@ -188,7 +188,7 @@ visible [from (*Point* | *OrientedPoint*)]
 	* :prop:`position` with priority 3
 	* also adds a requirement (see below)
 
-**Dependencies**: None
+**Dependencies**: :prop:`regionContainedIn`
 
 Requires that this object is visible from the :scenic:`ego` or the given `Point`/`OrientedPoint`. See the :ref:`Visibility System <visibility>` reference for a discussion of the visibility model.
 
