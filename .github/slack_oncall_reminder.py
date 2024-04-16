@@ -4,7 +4,6 @@ import requests
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-
 # Put users into the dict
 def save_users(users_array):
     users = {}
