@@ -4,7 +4,7 @@ import requests
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-# Put users into the dict
+
 def save_users(users_array):
     users = {}
     for user in users_array:
@@ -25,9 +25,7 @@ def grab_whos_on_call(OPS_GENIE_API_TOKEN, ROTATION_SCHEDULE_ID):
     else:
         print(f"Request failed with status code {response.status_code}")
         print("Response content:")
-        print(
-            response.content.decode("utf-8")
-        )  # Decode response content if it's in bytes
+        print(response.content.decode("utf-8"))
     return data["data"]["onCallParticipants"][0]["name"]
 
 
@@ -64,7 +62,7 @@ if __name__ == "__main__":
     OPS_GENIE_API_TOKEN = args.ops_genie_api_token
     # NOTE: Feel free to grab the relevant channel ID to post the message to but ensure the App is installed within the channel
     CHANNEL_ID = "C06N9KJHN2J"
-    # NOTE: Rotation schedule is grabbed directly from within the OpsGenie
+    # NOTE: Rotation schedule is grabbed directly from within the OpsGenie site
     ROTATION_SCHEDULE_ID = "904cd122-f269-418d-8c29-3e6751716bae"
 
     client = WebClient(token=SLACK_API_TOKEN)
