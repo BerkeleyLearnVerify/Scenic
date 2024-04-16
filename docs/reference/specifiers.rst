@@ -200,7 +200,7 @@ Also optionally specifies :prop:`position` to be uniformly random over all point
 
 .. note::
 	
-	As an implementation detial, position is initially set to be sample from `AllRegion` (or the workspace if one has been set). Scenic will then attempt to further restrict the sampled via various pruning techniques, but sometimes this is not possible. If this occurs and Scenic has not been able to further restrict the sampled region from `AllRegion`, an error will be raised at compile time. The simplest way to remedy this is by setting a workspace or specifying position with a higher priority using a different specifier.
+	As an implementation detail, :prop:`position` is initially set to be sampled from `everywhere` (or the :term:`workspace` if one has been set). Scenic will then attempt to further restrict the sample region via various pruning techniques, but sometimes this is not possible. If this occurs and Scenic has not been able to further restrict the sampled region from `everywhere`, an error will be raised at compile time. The simplest way to remedy this is by setting a workspace or specifying :prop:`position` with a higher priority using a different specifier.
 
 .. _not visible [from ({Point} | {OrientedPoint})]:
 
@@ -220,7 +220,7 @@ Similarly to :sampref:`visible [from ({Point} | {OrientedPoint})]`, this specifi
 
 .. versionchanged:: 3.0
 
-	This specifier now specifies :prop:`position` uniformly randomly over all points that could result in a non-visible object. This allows for objects whose :prop:`position` might be out of the visible region, but which have a portion of their occupied space visible (e.g. a corner that is visible). With the previous semantics, such configurations would sometimes be generated because the *center* of the object was required to be non-visible
+	This specifier now specifies :prop:`position` uniformly randomly over all points that could result in a non-visible object. This disallows objects whose :prop:`position` is out of the visible region, but which have a portion of their occupied space visible (e.g. a corner that is visible). With the previous semantics, such configurations would sometimes be generated because only the *center* of the object was required to be non-visible.
 
 .. _(left | right) of {vector} [by {scalar}]:
 .. _left of:

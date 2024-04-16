@@ -416,7 +416,7 @@ def pruneVisibility(scenario, verbosity):
         currDist = pir_dist
         currPos = position
 
-        # Define a helper function to attempt buffer an oberver's visibleRegion, resulting
+        # Define a helper function to attempt to buffer an observer's visibleRegion, resulting
         # in a region that contains all points that could feasibly be the position
         # of obj, if it is visible from the observer. If possible buffer exactly, otherwise
         # try to buffer approximately, and if that is also not feasible just return the viewRegion.
