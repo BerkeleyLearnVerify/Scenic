@@ -421,7 +421,7 @@ def pruneVisibility(scenario, verbosity):
         # of obj, if it is visible from the observer. If possible buffer exactly, otherwise
         # try to buffer approximately, and if that is also not feasible just return the viewRegion.
         def bufferHelper(viewRegion):
-            buffer_quantity = obj.radius / 2 + maxDistance
+            buffer_quantity = obj.radius + maxDistance
             if hasattr(viewRegion, "buffer"):
                 return viewRegion.buffer(buffer_quantity)
             elif hasattr(viewRegion, "_bufferOverapproximate"):
@@ -445,7 +445,7 @@ def pruneVisibility(scenario, verbosity):
 
                     return buffered_container
             else:
-                return viewRegion
+                assert False
 
         # Prune based off visibility/non-visibility requirements
         if obj.requireVisible and obj is not ego:
@@ -632,6 +632,9 @@ def percentagePruned(base, newBase):
 
 def checkConditionedCycle(A, B):
     """Returns true if A depends on B"""
+    if A is B:
+        return True
+
     deps = set()
     unseen_deps = conditionedDeps(A)
 
@@ -639,10 +642,10 @@ def checkConditionedCycle(A, B):
     B = conditionedVal(B)
 
     while unseen_deps:
-        target_dep = unseen_deps.pop(0)
+        target_dep = unseen_deps.pop()
         new_deps = conditionedDeps(target_dep)
 
-        if any(d is B for d in new_deps):
+        if target_dep is B or any(d is B for d in new_deps):
             return True
 
         unseen_deps += [d for d in new_deps if d not in deps]

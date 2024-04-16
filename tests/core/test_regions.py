@@ -11,6 +11,16 @@ from scenic.core.vectors import VectorField
 from tests.utils import sampleSceneFrom
 
 
+def sample_ignoring_rejections(region, num_samples):
+    samples = []
+    for _ in range(num_samples):
+        try:
+            samples.append(region.uniformPointInner())
+        except RejectionException:
+            pass
+    return samples
+
+
 def test_all_region():
     ar = AllRegion("all")
     assert ar in {ar}  # check hashability
@@ -246,6 +256,14 @@ def test_polygon_sampling():
     assert sum(1 <= y <= 2 for y in ys) <= 870
     assert sum(x >= 1.5 for x in xs) >= 1250
     assert sum(y >= 1.5 for y in ys) >= 1250
+
+
+def test_polygon_trueContainsPoint():
+    r = CircularRegion((0, 0), 1, resolution=64)
+
+    assert r._trueContainsPoint(Vector(0, 0, 0))
+    assert not r._trueContainsPoint(Vector(0, 0, 1))
+    assert not r._trueContainsPoint(Vector(1000, 1000, 0))
 
 
 def test_mesh_region_fromFile(getAssetPath):
@@ -623,16 +641,7 @@ def test_intersection_sampler():
 
     intersection_region = IntersectionRegion(*regions)
 
-    def attempt_sample(num_samples):
-        samples = []
-        for _ in range(num_samples):
-            try:
-                samples.append(intersection_region.uniformPointInner())
-            except RejectionException:
-                pass
-        return samples
-
-    for pt in attempt_sample(100):
+    for pt in sample_ignoring_rejections(intersection_region, 100):
         assert all(reg.containsPoint(pt) for reg in regions)
 
 
@@ -644,16 +653,7 @@ def test_union_sampler():
 
     union_region = UnionRegion(*regions)
 
-    def attempt_sample(num_samples):
-        samples = []
-        for _ in range(num_samples):
-            try:
-                samples.append(union_region.uniformPointInner())
-            except RejectionException:
-                pass
-        return samples
-
-    for pt in attempt_sample(100):
+    for pt in sample_ignoring_rejections(union_region, 100):
         assert any(reg.containsPoint(pt) for reg in regions)
 
 

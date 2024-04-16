@@ -2249,165 +2249,124 @@ class VoxelRegion(Region):
             return all((0, 0, 0) <= index) and all(index < dense_encoding.shape)
 
         def actual_face(index):
-            return (
-                not index_in_bounds(target_index)
-                or not dense_encoding[tuple(target_index)]
-            )
+            return not index_in_bounds(index) or not dense_encoding[tuple(index)]
+
+        offsets = (
+            [1, 0, 0],
+            [-1, 0, 0],
+            [0, 1, 0],
+            [0, -1, 0],
+            [0, 0, 1],
+            [0, 0, -1],
+        )
+
+        triangles = []
 
         for i in range(len(surface_indices)):
             base_index = surface_indices[i]
             base_center = surface_centers[i]
 
-            face_mask = [0] * 6
+            for i, offset in enumerate(offsets):
+                if actual_face(base_index + offset):
+                    if i == 0:
+                        triangles.append(
+                            [
+                                base_center + [hpitch, hpitch, -hpitch],
+                                base_center + [hpitch, hpitch, hpitch],
+                                base_center + [hpitch, -hpitch, hpitch],
+                            ]
+                        )
+                        triangles.append(
+                            [
+                                base_center + [hpitch, hpitch, -hpitch],
+                                base_center + [hpitch, -hpitch, hpitch],
+                                base_center + [hpitch, -hpitch, -hpitch],
+                            ]
+                        )
 
-            # Right
-            target_index = numpy.asarray(
-                [base_index[0] + 1, base_index[1], base_index[2]]
-            )
-            if actual_face(target_index):
-                face_mask[0] = True
+                    # Left
+                    if i == 1:
+                        triangles.append(
+                            [
+                                base_center + [-hpitch, hpitch, -hpitch],
+                                base_center + [-hpitch, -hpitch, hpitch],
+                                base_center + [-hpitch, hpitch, hpitch],
+                            ]
+                        )
+                        triangles.append(
+                            [
+                                base_center + [-hpitch, hpitch, -hpitch],
+                                base_center + [-hpitch, -hpitch, -hpitch],
+                                base_center + [-hpitch, -hpitch, hpitch],
+                            ]
+                        )
 
-            # Left
-            target_index = numpy.asarray(
-                [base_index[0] - 1, base_index[1], base_index[2]]
-            )
-            if actual_face(target_index):
-                face_mask[1] = True
+                    # Front
+                    if i == 2:
+                        triangles.append(
+                            [
+                                base_center + [hpitch, hpitch, -hpitch],
+                                base_center + [-hpitch, hpitch, hpitch],
+                                base_center + [hpitch, hpitch, hpitch],
+                            ]
+                        )
+                        triangles.append(
+                            [
+                                base_center + [hpitch, hpitch, -hpitch],
+                                base_center + [-hpitch, hpitch, -hpitch],
+                                base_center + [-hpitch, hpitch, hpitch],
+                            ]
+                        )
+                    # Back
+                    if i == 3:
+                        triangles.append(
+                            [
+                                base_center + [hpitch, -hpitch, -hpitch],
+                                base_center + [hpitch, -hpitch, hpitch],
+                                base_center + [-hpitch, -hpitch, hpitch],
+                            ]
+                        )
+                        triangles.append(
+                            [
+                                base_center + [hpitch, -hpitch, -hpitch],
+                                base_center + [-hpitch, -hpitch, hpitch],
+                                base_center + [-hpitch, -hpitch, -hpitch],
+                            ]
+                        )
 
-            # Front
-            target_index = numpy.asarray(
-                [base_index[0], base_index[1] + 1, base_index[2]]
-            )
-            if actual_face(target_index):
-                face_mask[2] = True
+                    # Top
+                    if i == 4:
+                        triangles.append(
+                            [
+                                base_center + [hpitch, -hpitch, hpitch],
+                                base_center + [hpitch, hpitch, hpitch],
+                                base_center + [-hpitch, hpitch, hpitch],
+                            ]
+                        )
+                        triangles.append(
+                            [
+                                base_center + [hpitch, -hpitch, hpitch],
+                                base_center + [-hpitch, hpitch, hpitch],
+                                base_center + [-hpitch, -hpitch, hpitch],
+                            ]
+                        )
 
-            # Back
-            target_index = numpy.asarray(
-                [base_index[0], base_index[1] - 1, base_index[2]]
-            )
-            if actual_face(target_index):
-                face_mask[3] = True
-
-            # Top
-            target_index = numpy.asarray(
-                [base_index[0], base_index[1], base_index[2] + 1]
-            )
-            if actual_face(target_index):
-                face_mask[4] = True
-
-            # Bottom
-            target_index = numpy.asarray(
-                [base_index[0], base_index[1], base_index[2] - 1]
-            )
-            if actual_face(target_index):
-                face_mask[5] = True
-
-            point_face_mask_list.append((base_center, face_mask))
-
-        # Construct triangles for mesh
-        triangles = []
-
-        for base_center, face_mask in point_face_mask_list:
-            # Right
-            if face_mask[0]:
-                triangles.append(
-                    [
-                        base_center + [hpitch, hpitch, -hpitch],
-                        base_center + [hpitch, hpitch, hpitch],
-                        base_center + [hpitch, -hpitch, hpitch],
-                    ]
-                )
-                triangles.append(
-                    [
-                        base_center + [hpitch, hpitch, -hpitch],
-                        base_center + [hpitch, -hpitch, hpitch],
-                        base_center + [hpitch, -hpitch, -hpitch],
-                    ]
-                )
-
-            # Left
-            if face_mask[1]:
-                triangles.append(
-                    [
-                        base_center + [-hpitch, hpitch, -hpitch],
-                        base_center + [-hpitch, -hpitch, hpitch],
-                        base_center + [-hpitch, hpitch, hpitch],
-                    ]
-                )
-                triangles.append(
-                    [
-                        base_center + [-hpitch, hpitch, -hpitch],
-                        base_center + [-hpitch, -hpitch, -hpitch],
-                        base_center + [-hpitch, -hpitch, hpitch],
-                    ]
-                )
-
-            # Front
-            if face_mask[2]:
-                triangles.append(
-                    [
-                        base_center + [hpitch, hpitch, -hpitch],
-                        base_center + [-hpitch, hpitch, hpitch],
-                        base_center + [hpitch, hpitch, hpitch],
-                    ]
-                )
-                triangles.append(
-                    [
-                        base_center + [hpitch, hpitch, -hpitch],
-                        base_center + [-hpitch, hpitch, -hpitch],
-                        base_center + [-hpitch, hpitch, hpitch],
-                    ]
-                )
-            # Back
-            if face_mask[3]:
-                triangles.append(
-                    [
-                        base_center + [hpitch, -hpitch, -hpitch],
-                        base_center + [hpitch, -hpitch, hpitch],
-                        base_center + [-hpitch, -hpitch, hpitch],
-                    ]
-                )
-                triangles.append(
-                    [
-                        base_center + [hpitch, -hpitch, -hpitch],
-                        base_center + [-hpitch, -hpitch, hpitch],
-                        base_center + [-hpitch, -hpitch, -hpitch],
-                    ]
-                )
-
-            # Top
-            if face_mask[4]:
-                triangles.append(
-                    [
-                        base_center + [hpitch, -hpitch, hpitch],
-                        base_center + [hpitch, hpitch, hpitch],
-                        base_center + [-hpitch, hpitch, hpitch],
-                    ]
-                )
-                triangles.append(
-                    [
-                        base_center + [hpitch, -hpitch, hpitch],
-                        base_center + [-hpitch, hpitch, hpitch],
-                        base_center + [-hpitch, -hpitch, hpitch],
-                    ]
-                )
-
-            # Bottom
-            if face_mask[5]:
-                triangles.append(
-                    [
-                        base_center + [hpitch, -hpitch, -hpitch],
-                        base_center + [-hpitch, hpitch, -hpitch],
-                        base_center + [hpitch, hpitch, -hpitch],
-                    ]
-                )
-                triangles.append(
-                    [
-                        base_center + [hpitch, -hpitch, -hpitch],
-                        base_center + [-hpitch, -hpitch, -hpitch],
-                        base_center + [-hpitch, hpitch, -hpitch],
-                    ]
-                )
+                    # Bottom
+                    if i == 5:
+                        triangles.append(
+                            [
+                                base_center + [hpitch, -hpitch, -hpitch],
+                                base_center + [-hpitch, hpitch, -hpitch],
+                                base_center + [hpitch, hpitch, -hpitch],
+                            ]
+                        )
+                        triangles.append(
+                            [
+                                base_center + [hpitch, -hpitch, -hpitch],
+                                base_center + [-hpitch, -hpitch, -hpitch],
+                                base_center + [-hpitch, hpitch, -hpitch],
+                            ]
+                        )
 
         out_mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
 
@@ -2939,7 +2898,7 @@ class PolygonalRegion(Region):
 
     @distributionFunction
     def _trueContainsPoint(self, point):
-        return point.z == self.z and self.containsPoint
+        return point.z == self.z and self.containsPoint(point)
 
     @distributionFunction
     def containsObject(self, obj):

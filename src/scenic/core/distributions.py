@@ -811,7 +811,7 @@ class OperatorDistribution(Distribution):
         if result is NotImplemented and self.symbol:
             raise TypeError(
                 f"unsupported operand type(s) for {self.symbol}: "
-                f"'{type(first).__name__}', '{type(rest[0]).__name__}'"
+                f"'{type(first).__name__}' and '{type(rest[0]).__name__}'"
             )
         return result
 
