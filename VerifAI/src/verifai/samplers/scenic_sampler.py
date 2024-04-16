@@ -194,7 +194,7 @@ def spaceForScenario(scenario, ignoredProperties):
     assert scenario.egoObject is scenario.objects[0]
     doms = (domainForObject(obj, ignoredProperties)
             for obj in scenario.objects)
-    objects = Struct({ f'object{i}': dom for i, dom in enumerate(doms) })
+    objects = Struct({ f'object{i:04d}': dom for i, dom in enumerate(doms) })
 
     # create domains for global parameters
     paramDoms = {}
@@ -285,7 +285,7 @@ class ScenicSampler(FeatureSampler):
         assert scene.egoObject is scene.objects[0]
         objDomain = dom.domainNamed['objects']
         assert len(objDomain.domains) == len(scene.objects)
-        objects = (pointForObject(objDomain.domainNamed[f'object{i}'], obj)
+        objects = (pointForObject(objDomain.domainNamed[f'object{i:04d}'], obj)
                    for i, obj in enumerate(scene.objects))
         objPoint = objDomain.makePoint(*objects)
 
