@@ -12,7 +12,8 @@ def save_users(users_array):
         profile = user["profile"]
         if "email" in profile.keys():
             user_email = profile["email"]
-            users[user_email] = user
+            username = user_email.split('@')[0]
+            users[username] = user
     return users
 
 
@@ -26,7 +27,7 @@ def grab_whos_on_call(OPS_GENIE_API_TOKEN, ROTATION_SCHEDULE_ID):
         print(f"Request failed with status code {response.status_code}")
         print("Response content:")
         print(response.content.decode("utf-8"))
-    return data["data"]["onCallParticipants"][0]["name"]
+    return data["data"]["onCallParticipants"][0]["name"].split('@')[0]
 
 
 def postSlackMessage(client, CHANNEL_ID, OPS_GENIE_API_TOKEN, ROTATION_SCHEDULE_ID):
