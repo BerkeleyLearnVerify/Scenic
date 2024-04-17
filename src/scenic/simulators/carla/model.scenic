@@ -70,7 +70,8 @@ except ModuleNotFoundError:
     class _CarlaVehicle: pass
     class _CarlaPedestrian: pass
 
-param carla_map = None
+map_town = ((str(globalParameters.map).split('/'))[-1]).split('.')[0]
+param carla_map = map_town if globalParameters.map else None
 param address = '127.0.0.1'
 param port = 2000
 param timeout = 10
