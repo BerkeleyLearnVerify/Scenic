@@ -15,7 +15,7 @@ It can be set up as follows:
 
 The `falsify_distance.py` example does falsification with a given driving scenario written in Scenic, trying to falsify a specification stating that the ego car always maintains a minimum distance of 5 meters to any other object.
 We have included in the `newtonian` and `carla` subfolders examples of Scenic scenarios that work with this falsifier and run in Scenic's built-in Newtonian simulator and the CARLA driving simulator respectively.
-These examples are [CARLA Challenge scenarios](https://carlachallenge.org/challenge/nhtsa/>) derived from the [National Highway Traffic Safety Administration (NHTSA) pre-crash typology](https://www.nhtsa.gov/sites/nhtsa.gov/files/pre-crash_scenario_typology-final_pdf_version_5-2-07.pdf/>).
+These examples are [CARLA Challenge scenarios](https://web.archive.org/web/20221219223342/https://carlachallenge.org/challenge/nhtsa/) derived from the [National Highway Traffic Safety Administration (NHTSA) pre-crash typology](https://www.nhtsa.gov/sites/nhtsa.gov/files/pre-crash_scenario_typology-final_pdf_version_5-2-07.pdf).
 Many more examples can be found in the [Scenic repo](https://github.com/BerkeleyLearnVerify/Scenic/tree/master/examples).
 
 (Note: the CARLA examples use the CARLA interface provided by Scenic.

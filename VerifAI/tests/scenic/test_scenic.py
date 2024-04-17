@@ -71,8 +71,14 @@ def test_object_order(new_Object):
     sample = sampler.nextSample()
     objects = sample.objects
     assert len(objects) == 11
-    for i, obj in enumerate(objects):
+    for i in range(len(objects)):
+        name = ScenicSampler.nameForObject(i)
+        obj = getattr(objects, name)
         assert obj.position[:2] == pytest.approx((2*i, 0))
+
+    flat = sampler.space.flatten(sample)
+    unflat = sampler.space.unflatten(flat)
+    assert unflat == sample
 
 ## Active sampling
 

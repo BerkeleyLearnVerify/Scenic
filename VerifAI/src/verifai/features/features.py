@@ -721,7 +721,21 @@ class ScalarArray(Array):
         return f'ScalarArray({self.domain}, {self.shape})'
 
 class Struct(Domain):
-    """A domain consisting of named sub-domains."""
+    """A domain consisting of named sub-domains.
+
+    The order of the sub-domains is arbitrary: two Structs are considered equal
+    if they have the same named sub-domains, regardless of order. As the order
+    is an implementation detail, accessing the values of sub-domains in points
+    sampled from a Struct should be done by name:
+
+    >>> struct = Struct({'a': Box((0, 1)), 'b': Box((2, 3))})
+    >>> point = struct.uniformPoint()
+    >>> point.b
+    (2.20215292046797,)
+
+    Within a given version of VerifAI, the sub-domain order is consistent, so
+    that the order of columns in error tables is also consistent.
+    """
 
     def __init__(self, domains):
         self.namedDomains = tuple(sorted(domains.items(), key=lambda i: i[0]))

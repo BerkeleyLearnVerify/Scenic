@@ -194,7 +194,10 @@ def spaceForScenario(scenario, ignoredProperties):
     assert scenario.egoObject is scenario.objects[0]
     doms = (domainForObject(obj, ignoredProperties)
             for obj in scenario.objects)
-    objects = Struct({ f'object{i:04d}': dom for i, dom in enumerate(doms) })
+    objects = Struct({
+        ScenicSampler.nameForObject(i): dom
+        for i, dom in enumerate(doms)
+    })
 
     # create domains for global parameters
     paramDoms = {}
@@ -279,15 +282,30 @@ class ScenicSampler(FeatureSampler):
         return self.pointForScene(self.lastScene)
 
     def pointForScene(self, scene):
-        """Convert a sampled Scenic :obj:`Scene` to a point in our feature space."""
+        """Convert a sampled Scenic :obj:`~scenic.core.scenarios.Scene` to a point in our feature space.
+
+        The `FeatureSpace` used by this sampler consists of 2 features:
+
+            * ``objects``, which is a `Struct` consisting of attributes ``object0``,
+              ``object1``, etc. with the properties of the corresponding objects
+              in the Scenic program. The names of these attributes may change in a
+              future version of VerifAI: use the `nameForObject` function to
+              generate them.
+            * ``params``, which is a `Struct` storing the values of the
+              :term:`global parameters` of the Scenic program (use
+              `paramDictForSample` to extract them).
+        """
         lengths, dom = self.space.domains
         assert lengths is None
         assert scene.egoObject is scene.objects[0]
         objDomain = dom.domainNamed['objects']
         assert len(objDomain.domains) == len(scene.objects)
-        objects = (pointForObject(objDomain.domainNamed[f'object{i:04d}'], obj)
-                   for i, obj in enumerate(scene.objects))
-        objPoint = objDomain.makePoint(*objects)
+        objects = {
+            self.nameForObject(i):
+            pointForObject(objDomain.domainNamed[self.nameForObject(i)], obj)
+            for i, obj in enumerate(scene.objects)
+        }
+        objPoint = objDomain.makePoint(**objects)
 
         paramDomain = dom.domainNamed['params']
         params = {}
@@ -298,8 +316,17 @@ class ScenicSampler(FeatureSampler):
 
         return self.space.makePoint(objects=objPoint, params=paramPoint)
 
+    @staticmethod
+    def nameForObject(i):
+        """Name used in the `FeatureSpace` for the Scenic object with index i.
+
+        That is, if ``scene`` is a :obj:`~scenic.core.scenarios.Scene`, the object
+        ``scene.objects[i]``.
+        """
+        return f'object{i}'
+
     def paramDictForSample(self, sample):
-        """Recover the dict of global parameters from a `ScenicSampler` sample."""
+        """Recover the dict of :term:`global parameters` from a `ScenicSampler` sample."""
         params = sample.params._asdict()
         corrected = {}
         for newName, quotedParam in self.quotedParams.items():
