@@ -70,6 +70,7 @@ class NewtonianSimulation(DrivingSimulation):
     def __init__(self, scene, network, render, timestep, **kwargs):
         self.render = render
         self.network = network
+        self.screen = None
 
         if timestep is None:
             timestep = 0.1
@@ -186,6 +187,11 @@ class NewtonianSimulation(DrivingSimulation):
             obj.heading += obj.angularSpeed * self.timestep
 
         if self.render:
+            # Handle closing out pygame screen
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.destroy()
+                    return
             self.draw_objects()
             pygame.event.pump()
 
