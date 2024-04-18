@@ -328,6 +328,7 @@ class Simulation(abc.ABC):
         continueAfterDivergence=False,
         verbosity=0,
     ):
+        self.screen = None
         self.result = None
         self.scene = scene
         self.objects = []
