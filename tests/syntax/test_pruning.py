@@ -200,9 +200,9 @@ def test_visibility_pruning():
         """
         workspace = Workspace(RectangularRegion(0@0, 0, 1e10, 1e10))
         ego = new Object at (0,0,0), with visibleDistance 1, with allowCollisions True
-        foo = new Object in workspace,
+        foo = new Object in workspace, visible,
             with shape SpheroidShape(dimensions=(2,2,2)),
-            with allowCollisions True, visible
+            with allowCollisions True
         param p = foo.position
         """
     )
@@ -234,9 +234,9 @@ def test_visibility_pruning():
         f"""
         workspace = Workspace(RectangularRegion(0@0, 0, 1e10, 1e10))
         ego = new Object at (0,0,0), with visibleDistance 1, with allowCollisions True
-        foo = new Object on workspace,
+        foo = new Object on workspace, visible,
             with shape SpheroidShape(dimensions=(2,2,2)),
-            with allowCollisions True, visible,
+            with allowCollisions True,
             with baseOffset (0,0,{baseOffsetVal}), with contactTolerance 0
         param p = foo.position
         """
