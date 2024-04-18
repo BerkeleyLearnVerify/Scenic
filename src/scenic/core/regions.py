@@ -2260,23 +2260,31 @@ class VoxelRegion(Region):
             [0, 0, -1],
         )
 
+        # fmt: off
         pitch_signs = [
-            ([[1, 1, -1], [1, 1, 1], [1, -1, 1]], [[1, 1, -1], [1, -1, 1], [1, -1, -1]]),
+            (
+                [[1, 1, -1], [1, 1, 1], [1, -1, 1]],
+                [[1, 1, -1], [1, -1, 1], [1, -1, -1]]),
             (
                 [[-1, 1, -1], [-1, -1, 1], [-1, 1, 1]],
                 [[-1, 1, -1], [-1, -1, -1], [-1, -1, 1]],
             ),
-            ([[1, 1, -1], [-1, 1, 1], [1, 1, 1]], [[1, 1, -1], [-1, 1, -1], [-1, 1, 1]]),
+            (
+                [[1, 1, -1], [-1, 1, 1], [1, 1, 1]],
+                [[1, 1, -1], [-1, 1, -1], [-1, 1, 1]]),
             (
                 [[1, -1, -1], [1, -1, 1], [-1, -1, 1]],
                 [[1, -1, -1], [-1, -1, 1], [-1, -1, -1]],
             ),
-            ([[1, -1, 1], [1, 1, 1], [-1, 1, 1]], [[1, -1, 1], [-1, 1, 1], [-1, -1, 1]]),
+            (
+                [[1, -1, 1], [1, 1, 1], [-1, 1, 1]],
+                [[1, -1, 1], [-1, 1, 1], [-1, -1, 1]]),
             (
                 [[1, -1, -1], [-1, 1, -1], [1, 1, -1]],
                 [[1, -1, -1], [-1, -1, -1], [-1, 1, -1]],
             ),
         ]
+        # fmt: on
 
         triangles = []
 
@@ -2286,18 +2294,13 @@ class VoxelRegion(Region):
 
             for i, offset in enumerate(offsets):
                 if actual_face(base_index + offset):
-                    triangles.append(
-                        [
-                            base_center + hpitch * numpy.array(signs)
-                            for signs in pitch_signs[i][0]
-                        ]
-                    )
-                    triangles.append(
-                        [
-                            base_center + hpitch * numpy.array(signs)
-                            for signs in pitch_signs[i][1]
-                        ]
-                    )
+                    for t_num in range(2):
+                        triangles.append(
+                            [
+                                base_center + hpitch * numpy.array(signs)
+                                for signs in pitch_signs[i][t_num]
+                            ]
+                        )
 
         out_mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
 
