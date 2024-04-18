@@ -505,7 +505,7 @@ def test_visible():
         ego = new Object at 100 @ 200, facing -45 deg,
                      with visibleDistance 10, with viewAngle 90 deg
         ego = new Object visible
-    """
+        """
     )
     radius = math.hypot(0.5, 0.5, 0.5)
     for i in range(30):
