@@ -2260,6 +2260,24 @@ class VoxelRegion(Region):
             [0, 0, -1],
         )
 
+        pitch_signs = [
+            ([[1, 1, -1], [1, 1, 1], [1, -1, 1]], [[1, 1, -1], [1, -1, 1], [1, -1, -1]]),
+            (
+                [[-1, 1, -1], [-1, -1, 1], [-1, 1, 1]],
+                [[-1, 1, -1], [-1, -1, -1], [-1, -1, 1]],
+            ),
+            ([[1, 1, -1], [-1, 1, 1], [1, 1, 1]], [[1, 1, -1], [-1, 1, -1], [-1, 1, 1]]),
+            (
+                [[1, -1, -1], [1, -1, 1], [-1, -1, 1]],
+                [[1, -1, -1], [-1, -1, 1], [-1, -1, -1]],
+            ),
+            ([[1, -1, 1], [1, 1, 1], [-1, 1, 1]], [[1, -1, 1], [-1, 1, 1], [-1, -1, 1]]),
+            (
+                [[1, -1, -1], [-1, 1, -1], [1, 1, -1]],
+                [[1, -1, -1], [-1, -1, -1], [-1, 1, -1]],
+            ),
+        ]
+
         triangles = []
 
         for i in range(len(surface_indices)):
@@ -2268,105 +2286,18 @@ class VoxelRegion(Region):
 
             for i, offset in enumerate(offsets):
                 if actual_face(base_index + offset):
-                    if i == 0:
-                        triangles.append(
-                            [
-                                base_center + [hpitch, hpitch, -hpitch],
-                                base_center + [hpitch, hpitch, hpitch],
-                                base_center + [hpitch, -hpitch, hpitch],
-                            ]
-                        )
-                        triangles.append(
-                            [
-                                base_center + [hpitch, hpitch, -hpitch],
-                                base_center + [hpitch, -hpitch, hpitch],
-                                base_center + [hpitch, -hpitch, -hpitch],
-                            ]
-                        )
-
-                    # Left
-                    if i == 1:
-                        triangles.append(
-                            [
-                                base_center + [-hpitch, hpitch, -hpitch],
-                                base_center + [-hpitch, -hpitch, hpitch],
-                                base_center + [-hpitch, hpitch, hpitch],
-                            ]
-                        )
-                        triangles.append(
-                            [
-                                base_center + [-hpitch, hpitch, -hpitch],
-                                base_center + [-hpitch, -hpitch, -hpitch],
-                                base_center + [-hpitch, -hpitch, hpitch],
-                            ]
-                        )
-
-                    # Front
-                    if i == 2:
-                        triangles.append(
-                            [
-                                base_center + [hpitch, hpitch, -hpitch],
-                                base_center + [-hpitch, hpitch, hpitch],
-                                base_center + [hpitch, hpitch, hpitch],
-                            ]
-                        )
-                        triangles.append(
-                            [
-                                base_center + [hpitch, hpitch, -hpitch],
-                                base_center + [-hpitch, hpitch, -hpitch],
-                                base_center + [-hpitch, hpitch, hpitch],
-                            ]
-                        )
-                    # Back
-                    if i == 3:
-                        triangles.append(
-                            [
-                                base_center + [hpitch, -hpitch, -hpitch],
-                                base_center + [hpitch, -hpitch, hpitch],
-                                base_center + [-hpitch, -hpitch, hpitch],
-                            ]
-                        )
-                        triangles.append(
-                            [
-                                base_center + [hpitch, -hpitch, -hpitch],
-                                base_center + [-hpitch, -hpitch, hpitch],
-                                base_center + [-hpitch, -hpitch, -hpitch],
-                            ]
-                        )
-
-                    # Top
-                    if i == 4:
-                        triangles.append(
-                            [
-                                base_center + [hpitch, -hpitch, hpitch],
-                                base_center + [hpitch, hpitch, hpitch],
-                                base_center + [-hpitch, hpitch, hpitch],
-                            ]
-                        )
-                        triangles.append(
-                            [
-                                base_center + [hpitch, -hpitch, hpitch],
-                                base_center + [-hpitch, hpitch, hpitch],
-                                base_center + [-hpitch, -hpitch, hpitch],
-                            ]
-                        )
-
-                    # Bottom
-                    if i == 5:
-                        triangles.append(
-                            [
-                                base_center + [hpitch, -hpitch, -hpitch],
-                                base_center + [-hpitch, hpitch, -hpitch],
-                                base_center + [hpitch, hpitch, -hpitch],
-                            ]
-                        )
-                        triangles.append(
-                            [
-                                base_center + [hpitch, -hpitch, -hpitch],
-                                base_center + [-hpitch, -hpitch, -hpitch],
-                                base_center + [-hpitch, hpitch, -hpitch],
-                            ]
-                        )
+                    triangles.append(
+                        [
+                            base_center + hpitch * numpy.array(signs)
+                            for signs in pitch_signs[i][0]
+                        ]
+                    )
+                    triangles.append(
+                        [
+                            base_center + hpitch * numpy.array(signs)
+                            for signs in pitch_signs[i][1]
+                        ]
+                    )
 
         out_mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
 

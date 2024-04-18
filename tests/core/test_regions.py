@@ -624,6 +624,20 @@ def test_mesh_voxelization(getAssetPath):
         assert vr.containsPoint(sampled_pt)
 
 
+def test_voxel_to_mesh():
+    orig_mesh = BoxRegion(rotation=(math.pi / 4, math.pi / 4, 0), position=(1, 1, 1))
+    voxel = orig_mesh.voxelized(max(orig_mesh.mesh.extents) / 10)
+    mesh = voxel.mesh
+
+    assert isinstance(mesh, MeshVolumeRegion)
+
+    voxel_pts = sample_ignoring_rejections(voxel, 100)
+    mesh_pts = sample_ignoring_rejections(mesh, 100)
+
+    assert all(voxel.containsPoint(pt) for pt in mesh_pts)
+    assert all(mesh.containsPoint(pt) for pt in voxel_pts)
+
+
 def test_empty_erosion():
     box_region = BoxRegion(position=(0, 0, 0), dimensions=(1, 1, 1))
     vr = box_region.voxelized(pitch=0.1)
