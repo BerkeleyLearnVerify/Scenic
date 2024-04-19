@@ -2,7 +2,7 @@ name: on_call_reminder
 
 on:
   schedule:
-    - cron: '0 17 * * 1-5'  # Runs Monday to Friday at 10am PST (17:00 UTC)
+    - cron: '0 17 * * 2'  # Runs every Wednesday at 9am PST (17:00 UTC)
   workflow_dispatch:  # Allows manual triggering of the workflow
 
 jobs:

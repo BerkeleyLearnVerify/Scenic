@@ -39,7 +39,7 @@ def postSlackMessage(client, CHANNEL_ID, OPS_GENIE_API_TOKEN, ROTATION_SCHEDULE_
 
         result = client.chat_postMessage(
             channel=CHANNEL_ID,
-            text=f"""🛠️ Maintenance On-Call: <@{slack_id}>\n
+            text=f"""🛠️Maintenance On-Call: <@{slack_id}>, you will be on-call for the next week. Resources:\n
     📖 <https://https://scenic-lang.atlassian.net/l/cp/cnaQtVXY|On Call Best Practices>
     🔍 <https://scenic-lang.atlassian.net/l/cp/jR0CifEf|Issue Triage Guide>
     📊 <https://scenic-lang.atlassian.net/jira/software/projects/SCENIC/boards/1|Jira Board to monitor active workstreams>
