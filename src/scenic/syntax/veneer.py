@@ -315,6 +315,7 @@ simulatorFactory = None
 evaluatingGuard = False
 mode2D = False
 _originalConstructibles = (Point, OrientedPoint, Object)
+BUFFERING_PITCH = 0.1
 
 ## APIs used internally by the rest of Scenic
 
@@ -1612,10 +1613,28 @@ def VisibleFrom(base):
     if not isA(base, Point):
         raise TypeError('specifier "visible from O" with O not a Point')
 
+    def helper(self):
+        if mode2D:
+            position = Region.uniformPointIn(base.visibleRegion)
+        else:
+            containing_region = (
+                currentScenario._workspace.region
+                if self.regionContainedIn is None
+                and currentScenario._workspace is not None
+                else self.regionContainedIn
+            )
+            position = (
+                Region.uniformPointIn(everywhere, tag="visible")
+                if containing_region is None
+                else Region.uniformPointIn(containing_region)
+            )
+
+        return {"position": position, "_observingEntity": base}
+
     return Specifier(
         "Visible/VisibleFrom",
         {"position": 3, "_observingEntity": 1},
-        {"position": Region.uniformPointIn(base.visibleRegion), "_observingEntity": base},
+        DelayedArgument({"regionContainedIn"}, helper),
     )
 
 
@@ -1649,9 +1668,8 @@ def NotVisibleFrom(base):
         if mode2D:
             position = Region.uniformPointIn(region.difference(base.visibleRegion))
         else:
-            position = Region.uniformPointIn(
-                convertToFootprint(region).difference(base.visibleRegion)
-            )
+            # We can't limit the available region since any spot could potentially be occluded.
+            position = Region.uniformPointIn(convertToFootprint(region))
 
         return {"position": position, "_nonObservingEntity": base}
 

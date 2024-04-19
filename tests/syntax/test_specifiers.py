@@ -501,9 +501,29 @@ def test_beyond_from_3d():
 # Visible
 def test_visible():
     scenario = compileScenic(
-        "ego = new Object at 100 @ 200, facing -45 deg,\n"
-        "             with visibleDistance 10, with viewAngle 90 deg\n"
-        "ego = new Object visible"
+        """
+        ego = new Object at 100 @ 200, facing -45 deg,
+                     with visibleDistance 10, with viewAngle 90 deg
+        ego = new Object visible
+        """
+    )
+    radius = math.hypot(0.5, 0.5, 0.5)
+    for i in range(30):
+        scene = sampleScene(scenario, maxIterations=100)
+        ego, base = scene.objects
+        assert ego.position.distanceTo(base.position) <= 10 + radius
+        assert ego.position.x >= base.position.x - radius
+        assert ego.position.y >= base.position.y - radius
+
+
+def test_visible_2d():
+    scenario = compileScenic(
+        """
+        ego = new Object at 100 @ 200, facing -45 deg,
+                     with visibleDistance 10, with viewAngle 90 deg
+        ego = new Object visible
+        """,
+        mode2D=True,
     )
     for i in range(30):
         scene = sampleScene(scenario, maxIterations=10)
@@ -511,6 +531,22 @@ def test_visible():
         assert ego.position.distanceTo(base.position) <= 10
         assert ego.position.x >= base.position.x
         assert ego.position.y >= base.position.y
+
+
+def test_visible_position_underspecified():
+    with pytest.raises(InvalidScenarioError):
+        scenario = compileScenic(
+            """
+            from scenic.core.distributions import distributionFunction
+
+            @distributionFunction
+            def dummyFunc(arg):
+                return arg.position[2]
+
+            foo = new Object at (0,0,Range(1,2))
+            ego = new Object visible from foo, with width dummyFunc(foo)
+            """,
+        )
 
 
 def test_visible_no_ego():
@@ -523,9 +559,10 @@ def test_visible_from_point():
         "x = new Point at 300@200, with visibleDistance 2\n"
         "ego = new Object visible from x"
     )
+    radius = math.hypot(0.5, 0.5, 0.5)
     for i in range(20):
-        scene = sampleScene(scenario, maxIterations=10)
-        assert scene.egoObject.position.distanceTo(Vector(300, 200)) <= 2
+        scene = sampleScene(scenario, maxIterations=100)
+        assert scene.egoObject.position.distanceTo(Vector(300, 200)) <= 2 + radius
 
 
 def test_visible_from_point_3d():
@@ -533,9 +570,10 @@ def test_visible_from_point_3d():
         "x = new Point at (300, 200, 500), with visibleDistance 2\n"
         "ego = new Object visible from x"
     )
+    radius = math.hypot(0.5, 0.5, 0.5)
     for i in range(20):
-        scene = sampleScene(scenario, maxIterations=10)
-        assert scene.egoObject.position.distanceTo(Vector(300, 200, 500)) <= 2
+        scene = sampleScene(scenario, maxIterations=100)
+        assert scene.egoObject.position.distanceTo(Vector(300, 200, 500)) <= 2 + radius
 
 
 def test_visible_from_oriented_point():
@@ -546,11 +584,11 @@ def test_visible_from_oriented_point():
     )
     base = Vector(100, 200)
     for i in range(20):
-        scene = sampleScene(scenario, maxIterations=10)
+        scene = sampleScene(scenario, maxIterations=100)
         pos = scene.egoObject.position
-        assert pos.distanceTo(base) <= 5
-        assert pos.x <= base.x
-        assert pos.y >= base.y
+        assert pos.distanceTo(base) <= 5 + math.hypot(0.5, 0.5, 0.5)
+        assert pos.x <= base.x + math.hypot(0.5, 0.5, 0.5)
+        assert pos.y >= base.y - math.hypot(0.5, 0.5, 0.5)
 
 
 @pytest.mark.slow
@@ -626,7 +664,7 @@ def test_not_visible():
     )
     base = Vector(100, 200)
     for i in range(20):
-        pos = sampleEgo(scenario, maxIterations=50).position
+        pos = sampleEgo(scenario, maxIterations=100).position
         assert pos.x < 100 or pos.y < 200 or pos.distanceTo(base) > 10
 
 
@@ -642,7 +680,7 @@ def test_not_visible_2d():
     )
     base = Vector(100, 200)
     for i in range(20):
-        pos = sampleEgo(scenario, maxIterations=50).position
+        pos = sampleEgo(scenario, maxIterations=100).position
         assert pos.x < 100 or pos.y < 200 or pos.distanceTo(base) > 10
 
 
@@ -657,7 +695,7 @@ def test_not_visible_from():
     )
     base = Vector(100, 200)
     for i in range(20):
-        pos = sampleEgo(scenario, maxIterations=50).position
+        pos = sampleEgo(scenario, maxIterations=100).position
         assert pos.x < 100 or pos.y < 200 or pos.distanceTo(base) > 10
 
 
@@ -732,6 +770,11 @@ def test_in_heading():
         assert -50 <= pos.y <= 50
         assert pos.x == pytest.approx(-pos.y)
         assert scene.egoObject.heading == pytest.approx(math.radians(45))
+
+
+def test_in_everywhere():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic("ego = new Object in everywhere")
 
 
 def test_in_mistyped():

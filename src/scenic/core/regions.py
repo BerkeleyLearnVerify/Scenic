@@ -184,6 +184,14 @@ class Region(Samplable, ABC):
     def sampleGiven(self, value):
         return self
 
+    def _trueContainsPoint(self, point) -> bool:
+        """Whether or not this region could produce point when sampled.
+
+        By default this method calls `containsPoint`, but should be overwritten if
+        `containsPoint` does not properly represent the points that can be sampled.
+        """
+        return self.containsPoint(point)
+
     ## Generic Methods (not to be overriden by subclasses) ##
     @cached_method
     def containsRegion(self, reg, tolerance=0):
@@ -209,9 +217,9 @@ class Region(Samplable, ABC):
         return self.containsRegionInner(reg, tolerance)
 
     @staticmethod
-    def uniformPointIn(region):
+    def uniformPointIn(region, tag=None):
         """Get a uniform `Distribution` over points in a `Region`."""
-        return PointInRegionDistribution(region)
+        return PointInRegionDistribution(region, tag=tag)
 
     def __contains__(self, thing) -> bool:
         """Check if this `Region` contains an object or vector."""
@@ -245,9 +253,10 @@ class Region(Samplable, ABC):
 class PointInRegionDistribution(VectorDistribution):
     """Uniform distribution over points in a Region"""
 
-    def __init__(self, region):
+    def __init__(self, region, tag=None):
         super().__init__(region)
         self.region = region
+        self.tag = tag
 
     def sampleGiven(self, value):
         return value[self.region].uniformPointInner()
@@ -464,31 +473,40 @@ class IntersectionRegion(Region):
     @staticmethod
     def genericSampler(intersection):
         regs = intersection.regions
+        # Filter out all regions with known dimensionality greater than the minimum
+        known_dim_regions = [
+            r.dimensionality for r in regs if r.dimensionality is not None
+        ]
+        min_dim = min(known_dim_regions) if known_dim_regions else float("inf")
+        sampling_regions = [
+            r for r in regs if r.dimensionality is None or r.dimensionality <= min_dim
+        ]
 
-        # Get a candidate point from each region
-        points = []
-
+        # Try to sample a point from all sampling regions
         num_regs_undefined = 0
 
-        for reg in regs:
+        for reg in sampling_regions:
             try:
-                points.append(reg.uniformPointInner())
+                point = reg.uniformPointInner()
             except UndefinedSamplingException:
                 num_regs_undefined += 1
-                pass
+                continue
+            except RejectionException:
+                continue
 
-        if num_regs_undefined == len(regs):
+            if all(region._trueContainsPoint(point) for region in regs):
+                return point
+
+        # No points were successfully sampled.
+        # If all regions were undefined for sampling, raise the appropriate exception.
+        # Otherwise, reject.
+        if num_regs_undefined == len(sampling_regions):
             # All regions do not support sampling, so the
             # intersection doesn't either.
             raise UndefinedSamplingException(
-                f"All regions in {regs}"
+                f"All regions in {sampling_regions}"
                 " do not support sampling, so the intersection doesn't either."
             )
-
-        # Check each point for containment each region.
-        for point in points:
-            if all(region.containsPoint(point) for region in regs):
-                return point
 
         raise RejectionException(f"sampling intersection of Regions {regs}")
 
@@ -567,7 +585,7 @@ class UnionRegion(Region):
 
     @staticmethod
     def genericSampler(union):
-        regs = intersection.regions
+        regs = union.regions
 
         # Check that all regions have well defined dimensionality
         if any(reg.dimensionality is None for reg in regs):
@@ -591,7 +609,7 @@ class UnionRegion(Region):
         point = target_reg.uniformPointInner()
 
         # Potentially reject based on containment of the sample
-        containment_count = sum(int(reg.containsPoint(point)) for reg in regs)
+        containment_count = sum(int(reg._trueContainsPoint(point)) for reg in regs)
 
         if random.random() < 1 - 1 / containment_count:
             raise RejectionException("rejected sample from UnionRegion")
@@ -670,7 +688,7 @@ class DifferenceRegion(Region):
     def genericSampler(difference):
         regionA, regionB = difference.regionA, difference.regionB
         point = regionA.uniformPointInner()
-        if regionB.containsPoint(point):
+        if regionB._trueContainsPoint(point):
             raise RejectionException(
                 f"sampling difference of Regions {regionA} and {regionB}"
             )
@@ -1742,6 +1760,65 @@ class MeshVolumeRegion(MeshRegion):
         """Returns a VoxelRegion representing a filled voxelization of this mesh"""
         return VoxelRegion(voxelGrid=self.mesh.voxelized(pitch).fill(), lazy=lazy)
 
+    @distributionFunction
+    def _erodeOverapproximate(self, maxErosion, pitch):
+        """Compute an overapproximation of this region eroded.
+
+        Erode as much as possible, but no more than maxErosion, outputting
+        a VoxelRegion. Note that this can sometimes return a larger region
+        than the original mesh
+        """
+        # Compute a voxel overapproximation of the mesh. Technically this is not
+        # an overapproximation, but one dilation with a rank 3 structuring unit
+        # with connectivity 3 is. To simplify, we just erode one fewer time than
+        # needed.
+        target_pitch = pitch * max(self.mesh.extents)
+        voxelized_mesh = self.voxelized(target_pitch, lazy=True)
+
+        # Erode the voxel region. Erosion is done with a rank 3 structuring unit with
+        # connectivity 3 (a 3x3x3 cube of voxels). Each erosion pass can erode by at
+        # most math.hypot([pitch]*3). Therefore we can safely make at most
+        # floor(maxErosion/math.hypot([pitch]*3)) passes without eroding more
+        # than maxErosion. We also subtract 1 iteration for the reasons above.
+        iterations = math.floor(maxErosion / math.hypot(*([target_pitch] * 3))) - 1
+
+        eroded_mesh = voxelized_mesh.dilation(iterations=-iterations)
+
+        return eroded_mesh
+
+    @distributionFunction
+    def _bufferOverapproximate(self, minBuffer, pitch):
+        """Compute an overapproximation of this region buffered.
+
+        Buffer as little as possible, but at least minBuffer. If pitch is
+        less than 1, the output is a VoxelRegion. If pitch is 1, a fast
+        path is taken which returns a BoxRegion.
+        """
+        if pitch >= 1:
+            # First extract the bounding box of the mesh, and then extend each dimension
+            # by minBuffer.
+            bounds = self.mesh.bounds
+            midpoint = numpy.mean(bounds, axis=0)
+            extents = numpy.diff(bounds, axis=0)[0] + 2 * minBuffer
+            return BoxRegion(position=toVector(midpoint), dimensions=list(extents))
+        else:
+            # Compute a voxel overapproximation of the mesh. Technically this is not
+            # an overapproximation, but one dilation with a rank 3 structuring unit
+            # with connectivity 3 is. To simplify, we just dilate one additional time
+            # than needed.
+            target_pitch = pitch * max(self.mesh.extents)
+            voxelized_mesh = self.voxelized(target_pitch, lazy=True)
+
+            # Dilate the voxel region. Dilation is done with a rank 3 structuring unit with
+            # connectivity 3 (a 3x3x3 cube of voxels). Each dilation pass must dilate by at
+            # least pitch. Therefore we must make at least ceil(minBuffer/pitch) passes to
+            # guarantee dilating at least minBuffer. We also add 1 iteration for the reasons above.
+            iterations = math.ceil(minBuffer / pitch) + 1
+
+            dilated_mesh = voxelized_mesh.dilation(iterations=iterations)
+
+            return dilated_mesh
+
     @cached_method
     def getSurfaceRegion(self):
         """Return a region equivalent to this one, except as a MeshSurfaceRegion"""
@@ -2037,7 +2114,9 @@ class SpheroidRegion(MeshVolumeRegion):
 
 
 class VoxelRegion(Region):
-    """Region represented by a voxel grid in 3D space.
+    """(WIP) Region represented by a voxel grid in 3D space.
+
+    NOTE: This region is a work in progress and is currently only recommended for internal use.
 
     Args:
         voxelGrid: The Trimesh voxelGrid to be used.
@@ -2144,6 +2223,83 @@ class VoxelRegion(Region):
             new_encoding, transform=self.voxelGrid.transform
         )
         return VoxelRegion(voxelGrid=new_voxel_grid)
+
+    @cached_property
+    def mesh(self):
+        """(WIP) Return a MeshVolumeRegion representation of this region.
+
+        NOTE: This region is a WIP and will sometimes return None if the transformation
+        is not feasible.
+        """
+        # Extract values for original voxel grid and the surface of the voxel grid.
+        dense_encoding = self.voxelGrid.encoding.dense
+        hpitch = self.voxelGrid.pitch[0] / 2
+        hollow_vr = trimesh.voxel.VoxelGrid(
+            trimesh.voxel.morphology.surface(self.voxelGrid.encoding),
+            transform=self.voxelGrid.transform,
+        )
+
+        surface_indices = numpy.argwhere(hollow_vr.encoding.dense == True)
+        surface_centers = hollow_vr.indices_to_points(hollow_vr.sparse_indices)
+
+        # Determine which faces should be added for each voxel in our extracted surface.
+        point_face_mask_list = []
+
+        def index_in_bounds(index):
+            return all((0, 0, 0) <= index) and all(index < dense_encoding.shape)
+
+        def actual_face(index):
+            return not index_in_bounds(index) or not dense_encoding[tuple(index)]
+
+        offsets = (
+            [1, 0, 0],
+            [-1, 0, 0],
+            [0, 1, 0],
+            [0, -1, 0],
+            [0, 0, 1],
+            [0, 0, -1],
+        )
+
+        # fmt: off
+        pitch_signs = [
+            ([[1, 1, -1],  [1, 1, 1],    [1, -1, 1]],
+             [[1, 1, -1],  [1, -1, 1],   [1, -1, -1]]),
+            ([[-1, 1, -1], [-1, -1, 1],  [-1, 1, 1]],
+             [[-1, 1, -1], [-1, -1, -1], [-1, -1, 1]]),
+            ([[1, 1, -1],  [-1, 1, 1],   [1, 1, 1]],
+             [[1, 1, -1],  [-1, 1, -1],  [-1, 1, 1]]),
+            ([[1, -1, -1], [1, -1, 1],   [-1, -1, 1]],
+             [[1, -1, -1], [-1, -1, 1],  [-1, -1, -1]]),
+            ([[1, -1, 1],  [1, 1, 1],    [-1, 1, 1]],
+             [[1, -1, 1],  [-1, 1, 1],   [-1, -1, 1]]),
+            ([[1, -1, -1], [-1, 1, -1],  [1, 1, -1]],
+             [[1, -1, -1], [-1, -1, -1], [-1, 1, -1]]),
+        ]
+        # fmt: on
+
+        triangles = []
+
+        for i in range(len(surface_indices)):
+            base_index = surface_indices[i]
+            base_center = surface_centers[i]
+
+            for i, offset in enumerate(offsets):
+                if actual_face(base_index + offset):
+                    for t_num in range(2):
+                        triangles.append(
+                            [
+                                base_center + hpitch * numpy.array(signs)
+                                for signs in pitch_signs[i][t_num]
+                            ]
+                        )
+
+        out_mesh = trimesh.Trimesh(**trimesh.triangles.to_kwargs(triangles))
+
+        # TODO: Ensure the mesh is a proper volume
+        if not out_mesh.is_volume:
+            return None
+        else:
+            return MeshVolumeRegion(out_mesh, centerMesh=False)
 
     @property
     def AABB(self):
@@ -2664,6 +2820,10 @@ class PolygonalRegion(Region):
     @distributionFunction
     def containsPoint(self, point):
         return self.footprint.containsPoint(point)
+
+    @distributionFunction
+    def _trueContainsPoint(self, point):
+        return point.z == self.z and self.containsPoint(point)
 
     @distributionFunction
     def containsObject(self, obj):

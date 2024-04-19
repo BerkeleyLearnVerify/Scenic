@@ -687,4 +687,7 @@ def constructScenarioFrom(namespace, scenarioName=None):
     if usePruning:
         pruning.prune(scenario, verbosity=errors.verbosityLevel)
 
+    # Validate scenario
+    scenario.validate()
+
     return scenario
