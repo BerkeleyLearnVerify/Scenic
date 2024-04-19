@@ -114,7 +114,7 @@ jobs:
     run_webots_simulators:
       name: run_webots_simulators
       runs-on: ubuntu-latest
-      needs: run_carla_simulators
+      needs: check_simulator_version_updates
       steps:
         - name: Run Webots Tests
           env:
