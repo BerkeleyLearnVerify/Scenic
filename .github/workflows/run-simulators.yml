@@ -41,11 +41,30 @@ jobs:
                 echo "Unknown instance state: $instance_state"
                 exit 1
             fi
-            
-            # Wait for 2 minutes
-            echo "Waiting 2 minutes for full startup..."
-            sleep 120
-    
+
+            # wait for status checks to pass 
+            TIMEOUT=120  # Timeout in seconds
+            START_TIME=$(date +%s)
+            END_TIME=$((START_TIME + TIMEOUT))
+            while true; do
+                response=$(aws ec2 describe-instance-status --instance-ids $INSTANCE_ID)
+                system_status=$(echo "$response" | jq -r '.InstanceStatuses[0].SystemStatus.Status')
+                instance_status=$(echo "$response" | jq -r '.InstanceStatuses[0].InstanceStatus.Status')
+
+                if [[ "$system_status" == "ok" && "$instance_status" == "ok" ]]; then
+                    echo "Both SystemStatus and InstanceStatus are 'ok'"
+                    exit 0
+                fi
+
+                CURRENT_TIME=$(date +%s)
+                if [[ "$CURRENT_TIME" -ge "$END_TIME" ]]; then
+                    echo "Timeout: Both SystemStatus and InstanceStatus have not reached 'ok' state within $TIMEOUT seconds."
+                    exit 1
+                fi
+
+                sleep 10  # Check status every 10 seconds
+            done
+
     check_simulator_version_updates:
       name: check_simulator_version_updates
       runs-on: ubuntu-latest
@@ -80,11 +99,11 @@ jobs:
           run: |
             echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
             ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
-              cd /home/ubuntu/actions/Scenic &&
-              python3 -m venv venv &&
+              cd /home/ubuntu/actions &&
               source venv/bin/activate &&
+              cd Scenic &&
               python3 -m pip install -e .[test-full] &&
-              carla_versions=($(find /software -maxdepth 1 -type d -name 'CARLA_*')) &&
+              carla_versions=($(find /software -maxdepth 1 -type d -name 'carla*')) &&
               for version in "${carla_versions[@]}"; do
                 echo "============================= CARLA $version ============================="  
                 export CARLA_ROOT="$version"
@@ -106,9 +125,9 @@ jobs:
             echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
             ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
               Xvfb :99 -screen 0 1024x768x16 &
-              cd /home/ubuntu/actions/Scenic &&
-              python3 -m venv venv &&
+              cd /home/ubuntu/actions &&
               source venv/bin/activate &&
+              cd Scenic &&
               python3 -m pip install -e .[test-full] &&
               webots_versions=($(find /software -maxdepth 1 -type d -name 'webots*')) &&
               export DISPLAY=:99 &&

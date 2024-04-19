@@ -3,6 +3,16 @@ import re
 
 import requests
 
+SIMULATORS = ["carla", "webots"]
+SIMULATOR_URLS = {
+    "carla": "https://github.com/carla-simulator/carla/releases/latest",
+    "webots": "https://github.com/cyberbotics/webots/releases/latest",
+}
+SIMULATORS_REGEXES = {
+    "carla": 'carla-simulator/carla/releases/tag/([^"]+)',
+    "webots": 'cyberbotics/webots/releases/tag/([^"]+)',
+}
+
 
 def check_path_exists(version, simulator):
     path = f"/software/{simulator}{version}"
@@ -22,26 +32,17 @@ def check_path_exists(version, simulator):
         )
 
 
-print("Checking for CARLA...")
-carla_url = "https://github.com/carla-simulator/carla/releases/latest"
-carla_response = requests.get(carla_url)
-carla_match = re.search(
-    r'carla-simulator/carla/releases/tag/([^"]+)', carla_response.text
-)
+def version_check(regex_match, sim_name):
+    try:
+        version = regex_match.group(1)
+        check_path_exists(version, sim_name)
+    except AttributeError:
+        print(f"Error: Unable to find the latest {sim_name} version using regex.")
 
-try:
-    version = carla_match.group(1)
-    check_path_exists(version, "CARLA_")
-except AttributeError:
-    print("Error: Unable to find the latest CARLA version using regex.")
 
-print("Checking for Webots...")
-webots_url = "https://github.com/cyberbotics/webots/releases/latest"
-webots_response = requests.get(webots_url)
-webots_match = re.search(r'cyberbotics/webots/releases/tag/([^"]+)', webots_response.text)
-
-try:
-    version = webots_match.group(1)
-    check_path_exists(version, "webots")
-except AttributeError:
-    print("Error: Unable to find the latest Webots version using regex.")
+for sim in SIMULATORS:
+    print(f"Checking for {sim}...")
+    url = SIMULATOR_URLS[sim]
+    response = requests.get(url)
+    regex_match = re.search(SIMULATORS_REGEXES[sim], response.text)
+    version_check(regex_match, sim)
