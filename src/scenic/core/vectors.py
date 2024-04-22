@@ -324,9 +324,11 @@ class Orientation:
 
     # will be converted to a distributionMethod after the class definition
     def __mul__(self, other) -> Orientation:
-        """To compose rotations, i.e. apply rotation A followed by rotation B,
-        one should compute A*B. Note that as rotations are represented intrinsically,
-        A should come first.
+        """Apply a rotation to this orientation, yielding a new orientation.
+
+        As we represent orientations as intrinsic rotations, rotation A followed by rotation B is
+        given by the quaternion product A*B, not B*A.
+
         See https://en.wikipedia.org/wiki/Davenport_chained_rotations#Conversion_to_extrinsic_rotations
         for more details.
         """
