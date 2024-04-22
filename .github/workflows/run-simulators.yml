@@ -102,7 +102,6 @@ jobs:
               cd /home/ubuntu/actions &&
               source venv/bin/activate &&
               cd Scenic &&
-              python3 -m pip install -e .[test-full] &&
               carla_versions=($(find /software -maxdepth 1 -type d -name 'carla*')) &&
               for version in "${carla_versions[@]}"; do
                 echo "============================= CARLA $version ============================="  
@@ -128,7 +127,6 @@ jobs:
               cd /home/ubuntu/actions &&
               source venv/bin/activate &&
               cd Scenic &&
-              python3 -m pip install -e .[test-full] &&
               webots_versions=($(find /software -maxdepth 1 -type d -name 'webots*')) &&
               export DISPLAY=:99 &&
               for version in "${webots_versions[@]}"; do
