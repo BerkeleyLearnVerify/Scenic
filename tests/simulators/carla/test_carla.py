@@ -7,6 +7,7 @@ pytestmark = pytest.mark.filterwarnings(
     "ignore::scenic.core.simulators.SimulatorInterfaceWarning"
 )
 
+
 def test_map_param_parse(getAssetPath):
     pytest.importorskip("carla")
     mapPath = getAssetPath("maps/CARLA/Town01.xodr")
@@ -16,6 +17,7 @@ def test_map_param_parse(getAssetPath):
         ego = new Car
     """
     compileScenic(code, mode2D=True)
+
 
 def test_basic(loadLocalScenario):
     scenario = loadLocalScenario("basic.scenic", mode2D=True)
