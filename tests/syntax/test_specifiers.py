@@ -1111,6 +1111,21 @@ def test_facing_directly_away_from():
     assert ego.roll == 0
 
 
+def test_facing_directly_toward_parent_orientation():
+    ego = sampleEgoFrom(
+        """
+        ego = new Object facing directly toward (1,1,2**0.5),
+            with parentOrientation (90 deg, 0, 0)
+    """
+    )
+    assert ego.yaw == pytest.approx(-math.radians(135))
+    assert ego.pitch == pytest.approx(math.radians(45))
+    assert ego.roll == pytest.approx(0)
+    assert ego.orientation.approxEq(
+        Orientation.fromEuler(math.radians(45), math.radians(45), 0)
+    )
+
+
 # Apparently Facing
 def test_apparently_facing():
     ego = sampleEgoFrom(
