@@ -35,9 +35,10 @@ def check_path_exists(version, simulator):
 def version_check(regex_match, sim_name):
     try:
         version = regex_match.group(1)
-        check_path_exists(version, sim_name)
     except AttributeError:
         print(f"Error: Unable to find the latest {sim_name} version using regex.")
+    else:
+        check_path_exists(version, sim_name)
 
 
 for sim in SIMULATORS:
