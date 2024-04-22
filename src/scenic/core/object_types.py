@@ -860,8 +860,8 @@ class OrientedPoint(Point):
             {"yaw", "pitch", "roll", "parentOrientation"},
             {"dynamic", "final"},
             lambda self: (
-                Orientation.fromEuler(self.yaw, self.pitch, self.roll)
-                * self.parentOrientation
+                self.parentOrientation
+                * Orientation.fromEuler(self.yaw, self.pitch, self.roll)
             ),
         ),
         # Heading is equal to orientation.yaw, which is equal to self.yaw if this OrientedPoint's

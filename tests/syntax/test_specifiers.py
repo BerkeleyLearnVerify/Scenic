@@ -10,6 +10,7 @@ from tests.utils import (
     compileScenic,
     sampleEgo,
     sampleEgoFrom,
+    sampleParamPFrom,
     sampleScene,
     sampleSceneFrom,
 )
@@ -1069,6 +1070,20 @@ def test_facing_vf_3d():
     )
 
 
+def test_facing_equivalence():
+    p = sampleParamPFrom(
+        """
+        a = new OrientedPoint facing (Orientation.fromEuler(-135 deg, 45 deg, 0)
+        relative to Orientation.fromEuler(90 deg, 0, 0))
+
+        b = new OrientedPoint with parentOrientation (90 deg, 0, 0), with yaw -135 deg, with pitch 45 deg, with roll 0
+        param p = (a, b)
+        """
+    )
+    a, b = p
+    assert a.orientation.eulerAngles == pytest.approx(b.orientation.eulerAngles)
+
+
 # Facing Toward/Away From
 def test_facing_toward():
     ego = sampleEgoFrom(
@@ -1122,7 +1137,7 @@ def test_facing_directly_toward_parent_orientation():
     assert ego.pitch == pytest.approx(math.radians(45))
     assert ego.roll == pytest.approx(0)
     assert ego.orientation.approxEq(
-        Orientation.fromEuler(math.radians(45), math.radians(45), 0)
+        Orientation.fromEuler(math.radians(-45), math.radians(45), 0)
     )
 
 
