@@ -98,7 +98,7 @@ The orientation specified by the vector field at the given position
 The orientation obtained by starting in the second direction and then rotating according to the first direction. For example, :scenic:`-5 deg relative to 90 deg` is simply 85 degrees. If either direction is a vector field, then this operator yields an expression depending on the :prop:`position` property of the object being specified. Both operator values must be of type `heading`, `Orientation`, or `vectorField`, not tuples, as tuples are by default intepreted as `Vector` objects.
 
 .. note::
-	This operator is not necessarily commutative, for example, when composing two 3D orientations,
+	This operator is not necessarily commutative, for example, when composing two 3D orientations.
 
 
 Vector Operators
