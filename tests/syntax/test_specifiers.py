@@ -1136,3 +1136,30 @@ def test_shape():
 
     with pytest.raises(InvalidScenarioError):
         sampleEgoFrom(program, mode2D=True)
+
+
+# Color
+def test_color():
+    program = """
+        ego = new Object with color (0.5,0.5,0.5,0.5)
+        """
+    ego = sampleEgoFrom(program)
+    assert ego.color == (0.5, 0.5, 0.5, 0.5)
+
+    program = """
+        ego = new Object with color (0.5,0.5,0.5)
+        """
+    ego = sampleEgoFrom(program)
+    assert ego.color == (0.5, 0.5, 0.5, 1)
+
+    with pytest.raises(ValueError):
+        program = """
+            ego = new Object with color (255,0,0)
+            """
+        sampleEgoFrom(program)
+
+    with pytest.raises(ValueError):
+        program = """
+            ego = new Object with color (1,1,1,1,1)
+            """
+        sampleEgoFrom(program)

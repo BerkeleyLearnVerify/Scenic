@@ -499,9 +499,7 @@ class Constructible(Samplable):
 
             if len(value) == 3:
                 value = (value[0], value[1], value[2], 1)
-            if len(value) == 4:
-                pass
-            else:
+            elif len(value) != 4:
                 raise ValueError(f"Color property has incorrect length {len(value)}.")
 
         object.__setattr__(context, prop, value)
