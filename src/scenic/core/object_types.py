@@ -818,14 +818,11 @@ class Point(Constructible):
 class OrientedPoint(Point):
     """The Scenic class ``OrientedPoint``.
 
-    The default mutator for `OrientedPoint` adds Gaussian noise to ``yaw`` while
-    leaving ``pitch`` and ``roll`` unchanged, using the three standard deviations
-    (for yaw/pitch/roll respectively) given by the  ``orientationStdDev`` property.
-    It then also applies the mutator for `Point`.
-
     The default mutator for `OrientedPoint` adds Gaussian noise to ``yaw``, ``pitch``
-    and ``roll`` according to ``orientationStdDev``. By default the standard deviations
-    for ``pitch`` and ``roll`` are zero so that, by default, only ``yaw`` is mutated.
+    and ``roll``, using the three standard deviations (for yaw/pitch/roll respectively)
+    given by the  ``orientationStdDev`` property. It then also applies the mutator for `Point`.
+    By default the standard deviations for ``pitch`` and ``roll`` are zero so that, by
+    default, only ``yaw`` is mutated.
 
     Properties:
         yaw (float; dynamic): Yaw of the `OrientedPoint` in radians in the local coordinate system
