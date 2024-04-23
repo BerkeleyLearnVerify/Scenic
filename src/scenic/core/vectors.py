@@ -324,6 +324,14 @@ class Orientation:
 
     # will be converted to a distributionMethod after the class definition
     def __mul__(self, other) -> Orientation:
+        """Apply a rotation to this orientation, yielding a new orientation.
+
+        As we represent orientations as intrinsic rotations, rotation A followed by rotation B is
+        given by the quaternion product A*B, not B*A.
+
+        See https://en.wikipedia.org/wiki/Davenport_chained_rotations#Conversion_to_extrinsic_rotations
+        for more details.
+        """
         if type(other) is not Orientation:
             return NotImplemented
         # Preserve existing orientation objects when possible to help pruning.
@@ -339,7 +347,7 @@ class Orientation:
             other = Orientation._fromHeading(other)
         elif type(other) is not Orientation:
             return NotImplemented
-        return other * self
+        return self * other
 
     @distributionMethod
     def __radd__(self, other) -> Orientation:
@@ -347,7 +355,7 @@ class Orientation:
             other = Orientation._fromHeading(other)
         elif type(other) is not Orientation:
             return NotImplemented
-        return self * other
+        return other * self
 
     def __repr__(self):
         return f"Orientation.fromEuler{tuple(self.eulerAngles)!r}"
@@ -362,7 +370,7 @@ class Orientation:
         That is, considering ``self`` as the parent orientation, find the Euler angles
         expressing the given orientation.
         """
-        local = orientation * self.inverse
+        local = self.inverse * orientation
         return local.eulerAngles
 
     @distributionFunction
