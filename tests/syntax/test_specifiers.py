@@ -1180,7 +1180,7 @@ def test_color():
         ego = new Object with color (0.5,0.5,0.5)
         """
     ego = sampleEgoFrom(program)
-    assert ego.color == (0.5, 0.5, 0.5, 1)
+    assert ego.color == (0.5, 0.5, 0.5)
 
     with pytest.raises(ValueError):
         program = """
