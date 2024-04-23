@@ -1560,6 +1560,8 @@ class Object(OrientedPoint):
                 a = 1
             elif len(self.color) == 4:
                 r, g, b, a = self.color
+            else:
+                assert False
 
             object_mesh.visual.face_colors = [255 * r, 255 * g, 255 * b, 255 * a]
 
