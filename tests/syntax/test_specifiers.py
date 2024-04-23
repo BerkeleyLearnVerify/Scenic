@@ -1074,7 +1074,7 @@ def test_facing_equivalence():
     p = sampleParamPFrom(
         """
         a = new OrientedPoint facing (Orientation.fromEuler(-135 deg, 45 deg, 0)
-        relative to Orientation.fromEuler(90 deg, 0, 0))
+            relative to Orientation.fromEuler(90 deg, 0, 0))
 
         b = new OrientedPoint with parentOrientation (90 deg, 0, 0), with yaw -135 deg, with pitch 45 deg, with roll 0
         param p = (a, b)
@@ -1129,7 +1129,7 @@ def test_facing_directly_away_from():
 def test_facing_directly_toward_parent_orientation():
     ego = sampleEgoFrom(
         """
-        ego = new Object facing directly toward (1,1,2**0.5),
+        ego = new Object facing directly toward (1, 1, 2**0.5),
             with parentOrientation (90 deg, 0, 0)
     """
     )
