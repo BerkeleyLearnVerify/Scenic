@@ -33,6 +33,18 @@ def test_orientation_equality():
     assert o1 != o3 and not o1.approxEq(o3)
 
 
+def test_orientation_localAnglesFor():
+    for i in range(100):
+        parent = Orientation.fromEuler(
+            *[random.uniform(-math.pi, math.pi) for _ in range(3)]
+        )
+        target = Orientation.fromEuler(
+            *[random.uniform(-math.pi, math.pi) for _ in range(3)]
+        )
+        local = Orientation.fromEuler(*parent.localAnglesFor(target))
+        assert target.approxEq(parent * local)
+
+
 def test_distribution_method_encapsulation():
     vf = VectorField("Foo", lambda pos: 0)
     pt = vf.followFrom(Vector(0, 0), Options([1, 2]), steps=1)
