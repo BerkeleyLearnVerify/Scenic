@@ -497,9 +497,7 @@ class Constructible(Samplable):
                     "Color property contains value not between 0 and 1 (inclusive)."
                 )
 
-            if len(value) == 3:
-                value = (value[0], value[1], value[2], 1)
-            elif len(value) != 4:
+            if not 3 <= len(value) <= 4:
                 raise ValueError(f"Color property has incorrect length {len(value)}.")
 
         object.__setattr__(context, prop, value)
@@ -1557,7 +1555,12 @@ class Object(OrientedPoint):
         if highlight:
             object_mesh.visual.face_colors = [30, 179, 0, 255]
         elif self.color is not None:
-            r, g, b, a = self.color
+            if len(self.color) == 3:
+                r, g, b = self.color
+                a = 1
+            elif len(self.color) == 4:
+                r, g, b, a = self.color
+
             object_mesh.visual.face_colors = [255 * r, 255 * g, 255 * b, 255 * a]
 
         viewer.add_geometry(object_mesh)
