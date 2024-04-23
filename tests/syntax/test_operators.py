@@ -692,8 +692,8 @@ def test_orientation_relative_to_orientation2():
     ego = sampleEgoFrom(
         """
         ego = new Object facing (Orientation.fromEuler(-135 deg, 45 deg, 0)
-        relative to Orientation.fromEuler(90 deg, 0, 0))
-    """
+            relative to Orientation.fromEuler(90 deg, 0, 0))
+        """
     )
     assert ego.yaw == pytest.approx(math.radians(-45))
     assert ego.pitch == pytest.approx(math.radians(45))
