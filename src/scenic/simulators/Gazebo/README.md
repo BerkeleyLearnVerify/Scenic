@@ -72,5 +72,3 @@ This repo contains the code to the Scenic-Gazebo interface.
 - One important thing when adapting your robot to the Gazebo interface is to separate out any code that handles waiting-until-finish for each action when implementing actions in `actions.py` . This is because it is important to not have any code that blocks execution of Scenic in the background. 
 - Instead, implement your action, and write the wait code as a behavior in `behavior.scenic`, and chain the `take` clause for the action and the `do` clause for the wait behavior inside another behavior, and call this new behavior to perform the action in your Scenic program. See the Sawyer implementation as an example.
 - In general, any kind of complex action/function from the robot's API that will block code execution should be written as a `behavior` rather than an `Action`.
--
--
