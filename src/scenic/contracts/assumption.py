@@ -1,3 +1,5 @@
+from functools import cached_property
+
 from scenic.contracts.contracts import (
     ContractEvidence,
     ContractResult,
@@ -15,8 +17,21 @@ class Assumption(VerificationTechnique):
         self.contract = contract
         self.component = component
 
+    @cached_property
+    def assumptions(self):
+        return self.contract.assumptions
+
+    @cached_property
+    def guarantees(self):
+        return self.contract.guarantees
+
     def verify(self):
-        return ContractResult(self.contract, self.component, AssumptionEvidence())
+        return ContractResult(
+            self.contract.assumptions,
+            self.contract.guarantees,
+            self.component,
+            AssumptionEvidence(),
+        )
 
 
 class AssumptionEvidence(ContractEvidence):

@@ -179,6 +179,7 @@ component ControlSystem(target_dist, max_speed, min_dist, min_slowdown):
         heading: builtins.float
 
     outputs:
+        foo: builtins.float
         control_action: RegulatedControlAction
 
     compose:
@@ -187,6 +188,9 @@ component ControlSystem(target_dist, max_speed, min_dist, min_slowdown):
         tsf = ThrottleSafetyFilter(min_dist, min_slowdown)
         pid_ss = PIDSteeringSystem()
         ag = ActionGenerator()
+
+        # DEBUG
+        connect dist to foo
 
         # Connect sensors inputss
         connect dist to pid_ts.dist
@@ -402,7 +406,7 @@ contract MaxBrakingForce(min_slowdown):
         no_throttle = control_action.throttle == 0
         full_brake = control_action.brake == 1
 
-    assumptions:
+    guarantees:
         always ((no_throttle and full_brake) 
             implies ((next self.speed) <= self.speed - min_slowdown)
         )
@@ -507,18 +511,22 @@ ABS_SPEED_ERR = 4
 # NOTE: This will set the behavior of the object (based off the Car component).
 implement "EgoCar" with Car(STDDEV, TARGET_DIST, MAX_SPEED, MIN_DIST, MIN_SLOWDOWN) as car
 
-accurate_distance = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR),\
+accurate_distance = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR),
     using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
     terminating after 100 samples
 
 cs_safety = compose over car.cs:
-    assume car.cs satisfies AccurateRelativeSpeeds(
+    # TODO: Replace with proof
+    test car.cs satisfies AccurateRelativeSpeeds(
         PERCEPTION_DISTANCE,
         abs_dist_err=ABS_DIST_ERR,
         abs_speed_err=ABS_SPEED_ERR,
         max_brake=MAX_BRAKE,
-        max_accel=MAX_ACCEL)
+        max_accel=MAX_ACCEL),
+        using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
+        terminating after 100 samples
 
+    # TODO: Replace with proof
     assume car.cs.tsf satisfies SafeThrottleFilter(
         PERCEPTION_DISTANCE,
         MIN_DIST,
@@ -526,8 +534,10 @@ cs_safety = compose over car.cs:
         abs_speed_err=ABS_SPEED_ERR,
         max_brake=MAX_BRAKE)
 
+    # TODO: Replace with proof
     assume car.cs.ag satisfies PassthroughBrakingActionGenerator()
 
+    # TODO:Replace with proof
     assume car.cs satisfies BrakesWhenClose(
         PERCEPTION_DISTANCE,
         MIN_DIST,
@@ -537,39 +547,32 @@ cs_safety = compose over car.cs:
         max_brake=MAX_BRAKE,
         max_accel=MAX_ACCEL)
 
-# keeps_distance_raw = compose over car:
-#     use accurate_distance
+keeps_distance_raw = compose over car:
+    use accurate_distance
 
-#     # TODO: Replace with proof
-#     test car.cs satisfies AccurateRelativeSpeeds(
-#         PERCEPTION_DISTANCE,
-#         abs_dist_err=ABS_DIST_ERR,
-#         abs_speed_err=ABS_SPEED_ERR,
-#         max_brake=MAX_BRAKE,
-#         max_accel=MAX_ACCEL),
-#         using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
-#         terminating after 100 samples
+    # TODO: Replace with proof
+    test car.cs satisfies AccurateRelativeSpeeds(
+        PERCEPTION_DISTANCE,
+        abs_dist_err=ABS_DIST_ERR,
+        abs_speed_err=ABS_SPEED_ERR,
+        max_brake=MAX_BRAKE,
+        max_accel=MAX_ACCEL),
+        using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
+        terminating after 100 samples
 
-#     # TODO: NEED TO UNPACK
-#     assume car.cs satisfies BrakesWhenClose(
-#         PERCEPTION_DISTANCE,
-#         MIN_DIST,
-#         MIN_SLOWDOWN,
-#         abs_dist_err=ABS_DIST_ERR,
-#         abs_speed_err=ABS_SPEED_ERR,
-#         max_brake=MAX_BRAKE,
-#         max_accel=MAX_ACCEL)
+    use cs_safety
 
-#     assume car.cc satisfies MaxBrakingForce(MIN_SLOWDOWN)
+    # TODO: Add probability?
+    assume car.cc satisfies MaxBrakingForce(MIN_SLOWDOWN)
 
-#     # TODO: Replace with proof
-#     assume car satisfies SlowdownMaintainsDistance(
-#         PERCEPTION_DISTANCE,
-#         MIN_DIST,
-#         MIN_SLOWDOWN,
-#         abs_dist_err=ABS_DIST_ERR,
-#         abs_speed_err=ABS_SPEED_ERR,
-#         max_brake=MAX_BRAKE)
+    # TODO: Replace with proof
+    assume car satisfies SlowdownMaintainsDistance(
+        PERCEPTION_DISTANCE,
+        MIN_DIST,
+        MIN_SLOWDOWN,
+        abs_dist_err=ABS_DIST_ERR,
+        abs_speed_err=ABS_SPEED_ERR,
+        max_brake=MAX_BRAKE)
 
 # keeps_distance = refine keeps_distance_raw as KeepsDistance(PERCEPTION_DISTANCE,
 #     MIN_DIST,
@@ -578,4 +581,4 @@ cs_safety = compose over car.cs:
 #     max_brake=MAX_BRAKE,
 #     max_accel=MAX_ACCEL)
 
-verify accurate_distance
+verify keeps_distance_raw

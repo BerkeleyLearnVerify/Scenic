@@ -318,7 +318,7 @@ class NameSwapTransformer(Transformer):
 
     def visit_Name(self, node):
         if node.id in self.name_map:
-            return ast.Name(self.name_map[node_id], node.ctx)
+            return ast.Name(self.name_map[node.id], node.ctx)
 
         return node
 
@@ -2128,6 +2128,12 @@ class ScenicToPythonTransformer(Transformer):
                     value=a[1],
                 )
             )
+        component_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="outputs_types", ctx=ast.Store())],
+                value=ast.Dict(keys=[], values=[]),
+            )
+        )
 
         ## '__init__' Function ##
         # Update args to add option for a Scenic object to link to.

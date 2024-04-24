@@ -4,6 +4,7 @@ from copy import deepcopy
 from itertools import zip_longest
 
 import scenic.core.propositions as propositions
+from scenic.syntax.compiler import NameFinder
 
 
 class SpecNode(ABC):
@@ -40,7 +41,11 @@ class SpecNode(ABC):
             assert False
 
     @abstractmethod
-    def applyAtomicTransformer(transformer):
+    def applyAtomicTransformer(self, transformer):
+        pass
+
+    @abstractmethod
+    def getAtomicNames(self):
         pass
 
     @staticmethod
@@ -68,12 +73,14 @@ class SpecNode(ABC):
                     "ctx",
                 }:
                     continue
-                if not equivalentAST(val, getattr(node2, name)):
+                if not SpecNode.equivalentAST(val, getattr(node2, name)):
                     return False
             return True
 
         elif isinstance(node1, list) and isinstance(node2, list):
-            return all(equivalentAST(n1, n2) for n1, n2 in zip_longest(node1, node2))
+            return all(
+                SpecNode.equivalentAST(n1, n2) for n1, n2 in zip_longest(node1, node2)
+            )
         else:
             return node1 == node2
 
@@ -83,14 +90,22 @@ class Atomic(SpecNode):
         self.ast = ast
         self.source_str = source_str
 
-    def applyAtomicTransformer(transformer):
+    def applyAtomicTransformer(self, transformer):
         self.ast = transformer.visit(self.ast)
 
+    def getAtomicNames(self):
+        nf = NameFinder()
+        nf.visit(self.ast)
+        return nf.names
+
+    def clearSourceStrings(self):
+        self.source_str = None
+
     def __eq__(self, other):
-        return type(self) is type(other) and SpecNode.equivalentAST(self.ast, other.ast)
+        return type(self) is type(other) and self.equivalentAST(self.ast, other.ast)
 
     def __str__(self):
-        return self.source_str if self.source_str else "Atomic"
+        return self.source_str if self.source_str else ast.unparse(self.ast)
 
 
 class UnarySpecNode(SpecNode):
@@ -98,8 +113,14 @@ class UnarySpecNode(SpecNode):
         assert isinstance(sub, SpecNode)
         self.sub = sub
 
-    def applyAtomicTransformer(transformer):
-        applyAtomicTransformer(self.sub)
+    def applyAtomicTransformer(self, transformer):
+        self.sub.applyAtomicTransformer(transformer)
+
+    def getAtomicNames(self):
+        return self.sub.getAtomicNames()
+
+    def clearSourceStrings(self):
+        self.sub.clearSourceStrings()
 
     def __eq__(self, other):
         return type(self) is type(other) and self.sub == other.sub
@@ -110,9 +131,16 @@ class BinarySpecNode(SpecNode):
         assert isinstance(sub1, SpecNode) and isinstance(sub2, SpecNode)
         self.sub1, self.sub2 = sub1, sub2
 
-    def applyAtomicTransformer(transformer):
-        applyAtomicTransformer(self.sub1)
-        applyAtomicTransformer(self.sub2)
+    def applyAtomicTransformer(self, transformer):
+        self.sub1.applyAtomicTransformer(transformer)
+        self.sub2.applyAtomicTransformer(transformer)
+
+    def getAtomicNames(self):
+        return self.sub1.getAtomicNames() | self.sub2.getAtomicNames()
+
+    def clearSourceStrings(self):
+        self.sub1.clearSourceStrings()
+        self.sub2.clearSourceStrings()
 
     def __eq__(self, other):
         return (
@@ -127,9 +155,16 @@ class NarySpecNode(SpecNode):
         assert all(isinstance(sub, SpecNode) for sub in subs)
         self.subs = subs
 
-    def applyAtomicTransformer(transformer):
+    def applyAtomicTransformer(self, transformer):
         for sub in self.subs:
-            applyAtomicTransformer(sub)
+            sub.applyAtomicTransformer(transformer)
+
+    def getAtomicNames(self):
+        return set().union(*(sub.getAtomicNames() for sub in self.subs))
+
+    def clearSourceStrings(self):
+        for sub in self.subs:
+            self.sub.clearSourceStrings()
 
     def __eq__(self, other):
         return type(self) is type(other) and self.subs == other.subs

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import enum
+from functools import cached_property
 from pathlib import Path
 import time
 
@@ -42,9 +43,19 @@ class Testing(VerificationTechnique):
         self.termConditions = termConditions
         self.reqConditions = reqConditions
 
+    @cached_property
+    def assumptions(self):
+        return self.contract.assumptions
+
+    @cached_property
+    def guarantees(self):
+        return self.contract.guarantees
+
     def verify(self):
         evidence = self._newEvidence()
-        result = ProbabilisticContractResult(self.contract, self.component, evidence)
+        result = ProbabilisticContractResult(
+            self.contract.assumptions, self.contract.guarantees, self.component, evidence
+        )
 
         activeTermConditions = (
             self.termConditions if self.termConditions else self.reqConditions

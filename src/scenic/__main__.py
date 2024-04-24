@@ -204,6 +204,13 @@ def scenic_generate(args):
 
 
 def scenic_verify(args):
+    scenic.setDebuggingOptions(
+        verbosity=0,
+        fullBacktrace=False,
+        debugExceptions=args.pdb,
+        debugRejections=False,
+    )
+
     compileContractsFile(args.scenicFile)
 
 
@@ -351,6 +358,13 @@ debugOpts.add_argument(
 ## Scenic "verify" Command ##
 verify_parser = subparsers.add_parser("verify")
 verify_parser.set_defaults(func=scenic_verify)
+
+debugOpts = verify_parser.add_argument_group("debugging options")
+debugOpts.add_argument(
+    "--pdb",
+    action="store_true",
+    help='enter interactive debugger on errors (implies "-b")',
+)
 
 # Positional arguments
 parser.add_argument("scenicFile", help="a Scenic file to run", metavar="FILE")
