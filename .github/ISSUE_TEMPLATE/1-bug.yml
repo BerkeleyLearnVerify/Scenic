@@ -36,7 +36,7 @@ body:
 
         1. Clear and concise description of the bug
         2. `scenic` command you ran locally (e.g. `scenic test.scenic --count 1 -b`, etc.). Please rerun your simulation error with the **`-b`** parameter for a full stack trace.
-        2. Error log. It helps improving readability if the error log is wrapped in ```triple quotes blocks```.
+        3. Error log. It helps improving readability if the error log is wrapped in ```triple quotes blocks```.
 
       placeholder: |
         1. Scenic has a bug
