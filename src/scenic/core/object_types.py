@@ -1304,6 +1304,7 @@ class Object(OrientedPoint):
             dimensions=(self.width, self.length, self.height),
             position=self.position,
             rotation=self.orientation,
+            centerMesh=False,
         )
 
     @property
