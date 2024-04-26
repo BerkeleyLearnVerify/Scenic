@@ -842,26 +842,17 @@ class MeshRegion(Region):
         if centerMesh:
             self.mesh.vertices -= self.mesh.bounding_box.center_mass
 
-        # If dimensions are provided, scale mesh to those dimension
+        # Apply scaling, rotation, and translation, if any
         if self.dimensions is not None:
-            scale = self.mesh.extents / numpy.array(self.dimensions)
-
-            scale_matrix = numpy.eye(4)
-            scale_matrix[:3, :3] /= scale
-
-            self.mesh.apply_transform(scale_matrix)
-
-        # If rotation is provided, apply rotation
+            scale = numpy.array(self.dimensions) / self.mesh.extents
+        else:
+            scale = None
         if self.rotation is not None:
-            rotation_matrix = quaternion_matrix(
-                (self.rotation.w, self.rotation.x, self.rotation.y, self.rotation.z)
-            )
-            self.mesh.apply_transform(rotation_matrix)
-
-        # If position is provided, translate mesh.
-        if self.position is not None:
-            position_matrix = translation_matrix(self.position)
-            self.mesh.apply_transform(position_matrix)
+            angles = self.rotation._trimeshEulerAngles()
+        else:
+            angles = None
+        matrix = compose_matrix(scale=scale, angles=angles, translate=self.position)
+        self.mesh.apply_transform(matrix)
 
         self.orientation = orientation
 
