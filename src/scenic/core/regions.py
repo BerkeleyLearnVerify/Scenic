@@ -1123,11 +1123,13 @@ class MeshVolumeRegion(MeshRegion):
             # Check if bounding boxes intersect. If not, volumes cannot intersect.
             # For bounding boxes to intersect there must be overlap of the bounds
             # in all 3 dimensions.
-            range_overlaps = [
-                (self.mesh.bounds[0, dim] <= other.mesh.bounds[1, dim])
-                and (other.mesh.bounds[0, dim] <= self.mesh.bounds[1, dim])
+            bounds = self._mesh.bounds
+            obounds = other._mesh.bounds
+            range_overlaps = (
+                (bounds[0, dim] <= obounds[1, dim])
+                and (obounds[0, dim] <= bounds[1, dim])
                 for dim in range(3)
-            ]
+            )
             bb_overlap = all(range_overlaps)
 
             if not bb_overlap:
