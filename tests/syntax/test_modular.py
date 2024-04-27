@@ -829,7 +829,7 @@ def test_override_none_behavior():
             while True:
                 take x
                 x -= 1
-    """,
+        """,
         scenario="Main",
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
