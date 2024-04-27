@@ -810,9 +810,7 @@ class Point(Constructible):
         if hasattr(Vector, attr):
             return getattr(self.toVector(), attr)
         else:
-            raise AttributeError(
-                f"'{type(self).__name__}' object has no attribute '{attr}'"
-            )
+            self.__getattribute__(attr)
 
 
 ## OrientedPoint
