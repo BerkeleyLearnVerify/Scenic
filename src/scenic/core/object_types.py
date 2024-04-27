@@ -613,15 +613,15 @@ class Mutator:
     """
 
     def appliedTo(self, obj):
-        """Return a mutated copy of the given object. Implemented by subclasses.
+        """Return a mutated version of the given object. Implemented by subclasses.
 
         The mutator may inspect the ``mutationScale`` attribute of the given object
         to scale its effect according to the scale given in ``mutate O by S``.
 
         Returns:
-            A pair consisting of the mutated copy of the object (which is most easily
-            created using `_copyWith`) together with a Boolean indicating whether the
-            mutator inherited from the superclass (if any) should also be applied.
+            A pair consisting of the mutated version of the object together with a
+            Boolean indicating whether the mutator inherited from the superclass
+            (if any) should also be applied.
         """
         raise NotImplementedError
 
@@ -642,8 +642,8 @@ class PositionMutator(Mutator):
             random.gauss(0, self.stddevs[1] * obj.mutationScale),
             random.gauss(0, self.stddevs[2] * obj.mutationScale),
         )
-        pos = obj.position + noise
-        return (obj._copyWith(position=pos), True)  # allow further mutation
+        obj.position += noise
+        return (obj, True)  # allow further mutation
 
     def __eq__(self, other):
         if type(other) is not type(self):
@@ -665,13 +665,11 @@ class OrientationMutator(Mutator):
         self.stddevs = tuple(stddevs)
 
     def appliedTo(self, obj):
-        yaw = obj.yaw + random.gauss(0, self.stddevs[0] * obj.mutationScale)
-        pitch = obj.pitch + random.gauss(0, self.stddevs[1] * obj.mutationScale)
-        roll = obj.roll + random.gauss(0, self.stddevs[2] * obj.mutationScale)
+        obj.yaw += random.gauss(0, self.stddevs[0] * obj.mutationScale)
+        obj.pitch += random.gauss(0, self.stddevs[1] * obj.mutationScale)
+        obj.roll += random.gauss(0, self.stddevs[2] * obj.mutationScale)
 
-        new_obj = obj._copyWith(yaw=yaw, pitch=pitch, roll=roll)
-
-        return (new_obj, True)  # allow further mutation
+        return (obj, True)  # allow further mutation
 
     def __eq__(self, other):
         if type(other) is not type(self):
@@ -803,6 +801,7 @@ class Point(Constructible):
                 sample, proceed = mutator.appliedTo(sample)
                 if not proceed:
                     break
+            sample._recomputeDynamicFinals()
         return sample
 
     # Points automatically convert to Vectors when needed

@@ -119,7 +119,7 @@ class ColorMutator(Mutator):
         hueNoise = random.gauss(0, stddev)
         satNoise = random.gauss(0, stddev)
         lightNoise = random.gauss(0, stddev)
-        color = NoisyColorDistribution.addNoiseTo(
+        obj.color = NoisyColorDistribution.addNoiseTo(
             obj.color, hueNoise, lightNoise, satNoise
         )
-        return (obj._copyWith(color=color), True)  # allow further mutation
+        return (obj, True)  # allow further mutation

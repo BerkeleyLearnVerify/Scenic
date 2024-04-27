@@ -111,7 +111,10 @@ def test_param_write():
 def test_mutate():
     scenario = compileScenic(
         """
-        ego = new Object at 3@1, facing 0
+        class Thing:
+            foo: self.heading
+
+        ego = new Thing at 3@1, facing 0
         mutate
         """
     )
@@ -119,6 +122,7 @@ def test_mutate():
     assert ego1.position.x != pytest.approx(3)
     assert ego1.position.y != pytest.approx(1)
     assert ego1.heading != pytest.approx(0)
+    assert ego1.foo == 0
 
 
 def test_mutate_object():
@@ -158,7 +162,7 @@ def test_mutate_nonobject():
             """
             ego = new Object
             mutate sin
-        """
+            """
         )
 
 
