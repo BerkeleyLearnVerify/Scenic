@@ -1020,7 +1020,7 @@ class Object(OrientedPoint):
         behavior: Behavior for dynamic agents, if any (see :ref:`dynamics`). Default
           value ``None``.
         lastActions: Tuple of :term:`actions` taken by this agent in the last time step
-          (or `None` if the object is not an agent or this is the first time step).
+          (an empty tuple if the object is not an agent or this is the first time step).
     """
 
     _scenic_properties = {
@@ -1045,7 +1045,7 @@ class Object(OrientedPoint):
         "angularVelocity": PropertyDefault((), {"dynamic"}, lambda self: Vector(0, 0, 0)),
         "angularSpeed": PropertyDefault((), {"dynamic"}, lambda self: 0),
         "behavior": None,
-        "lastActions": None,
+        "lastActions": tuple(),
         # weakref to scenario which created this object, for internal use
         "_parentScenario": None,
     }

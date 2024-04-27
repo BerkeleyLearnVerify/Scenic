@@ -331,7 +331,6 @@ class Simulation(abc.ABC):
         self.result = None
         self.scene = scene
         self.objects = []
-        self.agents = []
         self.trajectory = []
         self.records = defaultdict(list)
         self.currentTime = 0
@@ -441,6 +440,10 @@ class Simulation(abc.ABC):
             if maxSteps and self.currentTime >= maxSteps:
                 return TerminationType.timeLimit, f"reached time limit ({maxSteps} steps)"
 
+            # Clear lastActions for all objects
+            for obj in self.objects:
+                obj.lastActions = tuple()
+
             # Compute the actions of the agents in this time step
             allActions = OrderedDict()
             schedule = self.scheduleForAgents()
@@ -472,11 +475,14 @@ class Simulation(abc.ABC):
                 # Save actions for execution below
                 allActions[agent] = actions
 
+                # Log lastActions
+                agent.lastActions = actions
+
             # Execute the actions
             if self.verbosity >= 3:
                 for agent, actions in allActions.items():
                     print(f"      Agent {agent} takes action(s) {actions}")
-                    agent.lastActions = actions
+
             self.actionSequence.append(allActions)
             self.executeActions(allActions)
 
@@ -521,8 +527,6 @@ class Simulation(abc.ABC):
 
         # Add the new object to our lists.
         self.objects.append(obj)
-        if obj.behavior:
-            self.agents.append(obj)
 
         # Enable dynamic proxy for the object so that any mutations will not
         # affect the original object (e.g. if the simulator sets some of its
@@ -764,6 +768,10 @@ class Simulation(abc.ABC):
         The default implementation returns a tuple of the positions of all objects.
         """
         return tuple(obj.position for obj in self.objects)
+
+    @property
+    def agents(self):
+        return [obj for obj in self.objects if obj.behavior is not None]
 
     @property
     def currentRealTime(self):

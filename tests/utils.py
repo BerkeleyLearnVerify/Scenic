@@ -92,7 +92,7 @@ def sampleEgoActions(
         asMapping=False,
         timestep=timestep,
     )
-    return [actions[0] for actions in allActions]
+    return [actions[0] if actions else None for actions in allActions]
 
 
 def sampleEgoActionsFromScene(

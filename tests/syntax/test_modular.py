@@ -831,7 +831,7 @@ def test_override_none_behavior():
         scenario="Main",
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
-    assert tuple(actions) == (1, -1, -2, 2)
+    assert tuple(actions) == (None, -1, -2, None)
 
 
 def test_override_dynamic():
@@ -1103,11 +1103,12 @@ def test_lastActions_modular():
         scenario="Main",
     )
     result = sampleResult(scenario, maxSteps=6)
-    assert result.records["lastActions"] == (
-        (0, (-1)),
-        (1, (-2)),
-        (2, tuple()),
+    assert tuple(result.records["lastActions"]) == (
+        (0, tuple()),
+        (1, (-1,)),
+        (2, (-2,)),
         (3, tuple()),
-        (4, (-1)),
-        (5, (-2)),
+        (4, tuple()),
+        (5, (-1,)),
+        (6, (-2,)),
     )
