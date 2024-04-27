@@ -287,4 +287,4 @@ class CompositionEvidence:
         return prod(result.confidence for result in self.sub_results)
 
     def __str__(self):
-        return "\n".join(str(result) for result in self.sub_results) + "\n"
+        return "\n".join(str(result) for result in self.sub_results)
