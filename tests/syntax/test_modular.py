@@ -9,6 +9,8 @@ from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError, Specifie
 from scenic.core.simulators import DummySimulator, TerminationType
 from tests.utils import (
     compileScenic,
+    generateChecked,
+    sampleActionsFromScene,
     sampleEgo,
     sampleEgoActions,
     sampleEgoFrom,
@@ -832,6 +834,66 @@ def test_override_none_behavior():
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
     assert tuple(actions) == (None, -1, -2, None)
+
+
+def test_override_leakage():
+    scenario = compileScenic(
+        """
+        scenario Main():
+            setup:
+                ego = new Object with prop 1
+            compose:
+                do Sub1()
+        scenario Sub1():
+            setup:
+                override ego with prop 2
+                override ego with behavior Bar
+        behavior Bar():
+            terminate
+        """,
+        scenario="Main",
+    )
+    scene, _ = generateChecked(scenario, 1)
+    assert scene.objects[0].prop == 1
+    sampleActionsFromScene(
+        scene,
+        maxIterations=1,
+        maxSteps=1,
+        singleAction=True,
+        asMapping=False,
+        timestep=1,
+    )
+    assert scene.objects[0].prop == 1
+
+    scenario = compileScenic(
+        """
+        scenario Main():
+            setup:
+                ego = new Object with prop 1
+            compose:
+                do Sub1()
+        scenario Sub1():
+            setup:
+                override ego with prop 2
+                override ego with behavior Bar
+        behavior Bar():
+            raise NotImplementedError()
+            wait
+        """,
+        scenario="Main",
+    )
+    scene, _ = generateChecked(scenario, 1)
+    assert scene.objects[0].prop == 1
+    with pytest.raises(NotImplementedError):
+        sampleActionsFromScene(
+            scene,
+            maxIterations=1,
+            maxSteps=1,
+            singleAction=True,
+            asMapping=False,
+            timestep=1,
+        )
+    assert scene.objects[0].prop == 1
 
 
 def test_override_dynamic():
