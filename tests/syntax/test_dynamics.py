@@ -639,7 +639,7 @@ def test_subbehavior_until():
         """
     )
     actions = sampleEgoActions(scenario, maxSteps=4)
-    assert tuple(actions) == (1, 1, 2, None)
+    assert tuple(actions) == (1, 1, 2, actionsNone)
 
 
 def test_subbehavior_incompatible_modifiers():
@@ -2084,4 +2084,33 @@ def test_record():
         (1, (2, 0, 0)),
         (2, (4, 0, 0)),
         (3, (6, 0, 0)),
+    )
+
+
+## lastActions Property
+def test_lastActions():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            for i in range(3):
+                take i
+                wait
+        ego = new Object with behavior Foo
+        other = new Object
+        record ego.lastActions as ego_lastActions
+        record other.lastActions as other_lastActions
+        """
+    )
+    result = sampleResult(scenario, maxSteps=4)
+    assert tuple(result.records["ego_lastActions"]) == (
+        (0, (0)),
+        (1, (1)),
+        (2, (2)),
+        (3, (3)),
+    )
+    assert tuple(result.records["other.lastActions"]) == (
+        (0, tuple()),
+        (1, tuple()),
+        (2, tuple()),
+        (3, tuple()),
     )
