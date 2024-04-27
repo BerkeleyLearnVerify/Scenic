@@ -1299,12 +1299,15 @@ class Object(OrientedPoint):
     @cached_property
     def occupiedSpace(self):
         """A region representing the space this object occupies"""
+        shape = self.shape
         return MeshVolumeRegion(
-            mesh=self.shape.mesh,
+            mesh=shape.mesh,
             dimensions=(self.width, self.length, self.height),
             position=self.position,
             rotation=self.orientation,
             centerMesh=False,
+            _internal=True,
+            _isConvex=shape.isConvex,
         )
 
     @property

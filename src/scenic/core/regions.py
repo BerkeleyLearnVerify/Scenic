@@ -1071,8 +1071,9 @@ class MeshVolumeRegion(MeshRegion):
         onDirection: The direction to use if an object being placed on this region doesn't specify one.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, _internal=False, _isConvex=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self._isConvex = _isConvex
 
         if isLazy(self):
             return
@@ -1084,7 +1085,7 @@ class MeshVolumeRegion(MeshRegion):
                     raise ValueError(f"{name} of MeshVolumeRegion must be positive")
 
         # Ensure the mesh is a well defined volume
-        if not self._mesh.is_volume:
+        if not _internal and not self._mesh.is_volume:
             raise ValueError(
                 "A MeshVolumeRegion cannot be defined with a mesh that does not have a well defined volume."
                 " Consider using scenic.core.utils.repairMesh."
@@ -1737,6 +1738,10 @@ class MeshVolumeRegion(MeshRegion):
             return 0
         else:
             return region_distance
+
+    @cached_property
+    def isConvex(self):
+        return self.mesh.is_convex if self._isConvex is None else self._isConvex
 
     @property
     def dimensionality(self):
