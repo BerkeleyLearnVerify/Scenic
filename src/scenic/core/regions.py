@@ -1005,12 +1005,17 @@ class MeshRegion(Region):
         )
 
     @cached_property
+    def _boundingPolygonHull(self):
+        assert not isLazy(self)
+        return shapely.multipoints(self.mesh.vertices).convex_hull
+
+    @cached_property
     def _boundingPolygon(self):
         assert not isLazy(self)
 
         # Relatively fast case for convex regions
         if self.isConvex:
-            return shapely.geometry.MultiPoint(self.mesh.vertices).convex_hull
+            return self._boundingPolygonHull
 
         # Generic case for arbitrary shapes
         if self.mesh.is_watertight:
@@ -2420,7 +2425,18 @@ class PolygonalFootprintRegion(Region):
         Args:
             obj: An object to be checked for containment.
         """
-        # Check containment using the bounding polygon of the object.
+        # Fast path for convex objects, whose bounding polygons are relatively
+        # easy to compute.
+        if obj._isConvex:
+            return self.polygons.contains(obj._boundingPolygon)
+
+        # Quick check using the projected convex hull of the object, which
+        # overapproximates the actual bounding polygon.
+        hullPoly = obj.occupiedSpace._boundingPolygonHull
+        if self.polygons.contains(hullPoly):
+            return True
+
+        # Need to compute exact bounding polygon.
         return self.polygons.contains(obj._boundingPolygon)
 
     def containsRegionInner(self, reg, tolerance):
