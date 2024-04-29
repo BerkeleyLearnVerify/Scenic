@@ -542,7 +542,7 @@ class TestingContractResult(ContractResult):
     @property
     def evidenceSummary(self):
         string = (
-            f"Probabilistic Evidence\n"
+            f"Simulation-Based Testing\n"
             f"Sampled from {self._source_info}\n"
             f"{self.v_count} Verified,  {self.r_count} Rejected,  "
             f"{self.a_count} A-Violated,  {self.g_count} G-Violated\n"

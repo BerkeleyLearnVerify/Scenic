@@ -52,6 +52,7 @@ class ContractResult(ABC):
 
     def __str__(self):
         is_probabilistic = self.correctness != 1 or self.confidence != 1
+        empty_clause = "    None\n"
 
         string = (
             "Probabilistic Contract Result:\n"
@@ -61,8 +62,8 @@ class ContractResult(ABC):
         string += f"  Component: {self.component}\n"
         if is_probabilistic:
             string += f"  Minimum {100*self.correctness:.2f}% Correctness with {100*self.confidence:.2f}% Confidence\n"
-        string += f"  Assumptions:\n{self.assumptionsSummary}"
-        string += f"  Guarantees:\n{self.guaranteesSummary}"
+        string += f"  Assumptions:\n{self.assumptionsSummary if self.assumptionsSummary else empty_clause}"
+        string += f"  Guarantees:\n{self.guaranteesSummary if self.guaranteesSummary else empty_clause}"
 
         evidenceSummary = self.evidenceSummary.replace("\n", "\n    ")
         string += f"  Evidence:\n    {evidenceSummary}"

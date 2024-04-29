@@ -1039,22 +1039,28 @@ scenic_assign_contract_test_stmt:
      }
 
 scenic_contract_test_stmt:
-    | a=scenic_contract_test_header b=[scenic_contract_test_block] {s.ContractTest(a[0], a[1], a[2] + (b or []), LOCATIONS)}
-
-scenic_contract_test_block:
-    | ',' NEWLINE INDENT b=scenic_contract_test_block_inner DEDENT {b}
-
-scenic_contract_test_block_inner:
-    # without trailing comma
-    | b=(x=scenic_contract_test_spec ',' NEWLINE { x })* c=scenic_contract_test_spec NEWLINE {(b or []) + [c]}
-    # with trailing comma
-    | b=(x=scenic_contract_test_spec ',' NEWLINE { x })+ {b + [c]}
+    | a=scenic_contract_test_header ',' NEWLINE b=[scenic_contract_test_block] {s.ContractTest(a[0], a[1], a[2] + (b or []), LOCATIONS)}
+    | a=scenic_contract_test_header NEWLINE {s.ContractTest(a[0], a[1], a[2], LOCATIONS)}
 
 scenic_contract_test_header:
     | "test" component=scenic_subcomponent_name \
       "satisfies" contract=primary \
-      ts=(',' x=scenic_contract_test_spec {x})* \
+      ts=[',' x=scenic_contract_test_specs {x}] \
       {(contract, component, (ts or []))}
+
+scenic_contract_test_block:
+    | INDENT b=scenic_contract_test_block_inner DEDENT {b}
+
+scenic_contract_test_block_inner:
+    # without trailing comma
+    | xss=(x=scenic_contract_test_specs ',' NEWLINE { x })* \
+    c=scenic_contract_test_specs NEWLINE {([x for xs in xss for x in xs] or []) + c}
+    # with trailing comma
+    | xss=(x=scenic_contract_test_specs ',' NEWLINE { x })+ {[x for xs in xss for x in xs]}
+
+
+scenic_contract_test_specs:
+    | a=','.scenic_contract_test_spec+ {a}
 
 scenic_contract_test_spec:
     | "using" technique=primary {s.ContractTestTechnique(technique, LOCATIONS)}
