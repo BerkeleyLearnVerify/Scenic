@@ -511,50 +511,13 @@ ABS_SPEED_ERR = 4
 # NOTE: This will set the behavior of the object (based off the Car component).
 implement "EgoCar" with Car(STDDEV, TARGET_DIST, MAX_SPEED, MIN_DIST, MIN_SLOWDOWN) as car
 
-# Test a lot of different parsing
-accurate_distance = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR), using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False), terminating after 100 samples
-accurate_distance = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR), 
-    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False), terminating after 100 samples
-accurate_distance = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR), 
-    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
-    terminating after 100 samples,
+
 accurate_distance = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR), 
     using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
     terminating after 100 samples
 
-# Test a lot of different parsing
-safe_throttle_filter = assume car.cs.tsf satisfies SafeThrottleFilter(
-        PERCEPTION_DISTANCE,
-        MIN_DIST,
-        MIN_SLOWDOWN,
-        abs_speed_err=ABS_SPEED_ERR,
-        max_brake=MAX_BRAKE), with confidence 0.95, with correctness 0.95
 
-safe_throttle_filter = assume car.cs.tsf satisfies SafeThrottleFilter(
-        PERCEPTION_DISTANCE,
-        MIN_DIST,
-        MIN_SLOWDOWN,
-        abs_speed_err=ABS_SPEED_ERR,
-        max_brake=MAX_BRAKE), with correctness 0.95,
-        with confidence 0.95
-
-safe_throttle_filter = assume car.cs.tsf satisfies SafeThrottleFilter(
-        PERCEPTION_DISTANCE,
-        MIN_DIST,
-        MIN_SLOWDOWN,
-        abs_speed_err=ABS_SPEED_ERR,
-        max_brake=MAX_BRAKE),
-        with correctness 0.95,
-        with confidence 0.95,
-
-safe_throttle_filter = assume car.cs.tsf satisfies SafeThrottleFilter(
-        PERCEPTION_DISTANCE,
-        MIN_DIST,
-        MIN_SLOWDOWN,
-        abs_speed_err=ABS_SPEED_ERR,
-        max_brake=MAX_BRAKE),
-        with correctness 0.95,
-        with confidence 0.95
+max_braking_force = assume car.cc satisfies MaxBrakingForce(MIN_SLOWDOWN), with correctness 0.99, with confidence 0.99
 
 cs_safety = compose over car.cs:
     # TODO: Replace with proof
@@ -567,7 +530,12 @@ cs_safety = compose over car.cs:
         using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
         terminating after 100 samples
 
-    use safe_throttle_filter
+    assume car.cs.tsf satisfies SafeThrottleFilter(
+            PERCEPTION_DISTANCE,
+            MIN_DIST,
+            MIN_SLOWDOWN,
+            abs_speed_err=ABS_SPEED_ERR,
+            max_brake=MAX_BRAKE)
 
     # TODO: Replace with proof
     assume car.cs.ag satisfies PassthroughBrakingActionGenerator()
@@ -597,8 +565,7 @@ keeps_distance_raw = compose over car:
 
     use cs_safety
 
-    # TODO: Add probability?
-    assume car.cc satisfies MaxBrakingForce(MIN_SLOWDOWN)
+    use max_braking_force
 
     # TODO: Replace with proof
     assume car satisfies SlowdownMaintainsDistance(
