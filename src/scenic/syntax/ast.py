@@ -1379,12 +1379,14 @@ class ContractAssume(AST):
         self,
         contract,
         component,
+        specs,
         *args,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.contract = contract
         self.component = component
+        self.specs = specs
 
 
 class ContractCompose(AST):

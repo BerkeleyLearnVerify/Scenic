@@ -1045,8 +1045,8 @@ scenic_contract_test_stmt:
 scenic_contract_test_header:
     | "test" component=scenic_subcomponent_name \
       "satisfies" contract=primary \
-      ts=[',' x=scenic_contract_test_specs {x}] \
-      {(contract, component, (ts or []))}
+      specs=[',' x=scenic_contract_test_specs {x}] \
+      {(contract, component, (specs or []))}
 
 scenic_contract_test_block:
     | INDENT b=scenic_contract_test_block_inner DEDENT {b}
@@ -1086,8 +1086,31 @@ scenic_assign_contract_assume_stmt:
      }
 
 scenic_contract_assume_stmt:
+    | a=scenic_contract_assume_header ',' NEWLINE b=[scenic_contract_assume_block] \
+      {s.ContractAssume(a[0], a[1], a[2] + (b or []), LOCATIONS)}
+    | a=scenic_contract_assume_header NEWLINE {s.ContractAssume(a[0], a[1], a[2], LOCATIONS)}
+
+scenic_contract_assume_header:
     | "assume" component=scenic_subcomponent_name \
-      "satisfies" contract=primary NEWLINE {s.ContractAssume(contract, component)}
+      "satisfies" contract=primary specs=[',' x=scenic_contract_assume_specs {x}] \
+      {(contract, component, (specs or []))}
+
+scenic_contract_assume_block:
+    | INDENT b=scenic_contract_assume_block_inner DEDENT {b}
+
+scenic_contract_assume_block_inner:
+    # without trailing comma
+    | xss=(x=scenic_contract_assume_specs ',' NEWLINE { x })* \
+    c=scenic_contract_assume_specs NEWLINE {([x for xs in xss for x in xs] or []) + c}
+    # with trailing comma
+    | xss=(x=scenic_contract_assume_specs ',' NEWLINE { x })+ {[x for xs in xss for x in xs]}
+
+scenic_contract_assume_specs:
+    | a=','.scenic_contract_assume_spec+ {a}
+
+scenic_contract_assume_spec:
+    | "with" "correctness" x=expression {("correctness", x)}
+    | "with" "confidence" x=expression {("confidence", x)}
 
 # Contract Compose Statements
 # ---------------------------

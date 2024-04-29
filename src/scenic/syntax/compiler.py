@@ -2919,10 +2919,24 @@ class ScenicToPythonTransformer(Transformer):
         assert isinstance(node.contract.func, ast.Name)
         node.contract.func.id = self.toContractName(node.contract.func.id)
 
+        # Handle specifiers
+        correctness = ast.Constant(1)
+        confidence = ast.Constant(1)
+        assert len({name for name, _ in node.specs}) == len(node.specs)
+        for name, val in node.specs:
+            if name == "correctness":
+                correctness = val
+            elif name == "confidence":
+                confidence = val
+            else:
+                assert False
+
         # Package keywords
         keywords = []
         keywords.append(ast.keyword("contract", node.contract))
         keywords.append(ast.keyword("component", component_val))
+        keywords.append(ast.keyword("correctness", correctness))
+        keywords.append(ast.keyword("confidence", confidence))
 
         return ast.Call(
             func=ast.Name("Assumption", loadCtx),

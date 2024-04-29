@@ -517,16 +517,44 @@ accurate_distance = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE, 
     using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False), terminating after 100 samples
 accurate_distance = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR), 
     using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
+    terminating after 100 samples,
+accurate_distance = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR), 
+    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
     terminating after 100 samples
 
-
-# TODO: Replace with proof
+# Test a lot of different parsing
 safe_throttle_filter = assume car.cs.tsf satisfies SafeThrottleFilter(
         PERCEPTION_DISTANCE,
         MIN_DIST,
         MIN_SLOWDOWN,
         abs_speed_err=ABS_SPEED_ERR,
-        max_brake=MAX_BRAKE)
+        max_brake=MAX_BRAKE), with confidence 0.95, with correctness 0.95
+
+safe_throttle_filter = assume car.cs.tsf satisfies SafeThrottleFilter(
+        PERCEPTION_DISTANCE,
+        MIN_DIST,
+        MIN_SLOWDOWN,
+        abs_speed_err=ABS_SPEED_ERR,
+        max_brake=MAX_BRAKE), with correctness 0.95,
+        with confidence 0.95
+
+safe_throttle_filter = assume car.cs.tsf satisfies SafeThrottleFilter(
+        PERCEPTION_DISTANCE,
+        MIN_DIST,
+        MIN_SLOWDOWN,
+        abs_speed_err=ABS_SPEED_ERR,
+        max_brake=MAX_BRAKE),
+        with correctness 0.95,
+        with confidence 0.95,
+
+safe_throttle_filter = assume car.cs.tsf satisfies SafeThrottleFilter(
+        PERCEPTION_DISTANCE,
+        MIN_DIST,
+        MIN_SLOWDOWN,
+        abs_speed_err=ABS_SPEED_ERR,
+        max_brake=MAX_BRAKE),
+        with correctness 0.95,
+        with confidence 0.95
 
 cs_safety = compose over car.cs:
     # TODO: Replace with proof
