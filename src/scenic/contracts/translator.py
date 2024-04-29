@@ -36,3 +36,4 @@ def compileContractsFile(filename):
 
     for v_stmt in scenic.contracts.veneer._verifyStatements:
         print(v_stmt.verify())
+        print()

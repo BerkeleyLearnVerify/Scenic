@@ -29,12 +29,12 @@ class Contract:
 
 
 class VerificationTechnique(ABC):
-    @cached_property
+    @property
     @abstractmethod
     def assumptions(self):
         pass
 
-    @cached_property
+    @property
     @abstractmethod
     def guarantees(self):
         pass
@@ -44,106 +44,49 @@ class VerificationTechnique(ABC):
         pass
 
 
-class _ContractResultBase:
-    def __init__(self, assumptions, guarantees, component, evidence):
+class ContractResult(ABC):
+    def __init__(self, assumptions, guarantees, component):
         self.assumptions = assumptions
         self.guarantees = guarantees
         self.component = component
-        self.evidence = evidence
 
-
-class ContractResult(_ContractResultBase):
     def __str__(self):
-        string = "ContractResult:\n"
+        is_probabilistic = self.correctness != 1 or self.confidence != 1
+
+        string = (
+            "Probabilistic Contract Result:\n"
+            if is_probabilistic
+            else "Contract Result:\n"
+        )
         string += f"  Component: {self.component}\n"
+        if is_probabilistic:
+            string += f"  Minimum {100*self.correctness:.2f}% Correctness with {100*self.confidence:.2f}% Confidence\n"
+        string += f"  Assumptions:\n{self.assumptionsSummary}"
+        string += f"  Guarantees:\n{self.guaranteesSummary}"
 
-        string += "  Assumptions:\n"
-        for a in self.assumptions:
-            string += f"    {a}\n"
-
-        string += "  Guarantees:\n"
-        for g in self.guarantees:
-            string += f"    {g}\n"
-
-        string += f"  Evidence: \n"
-        string += "    " + str(self.evidence).replace("\n", "\n    ")
+        evidenceSummary = self.evidenceSummary.replace("\n", "\n    ")
+        string += f"  Evidence:\n    {evidenceSummary}"
         return string
 
     @property
+    @abstractmethod
     def correctness(self):
-        return 1
+        pass
 
     @property
+    @abstractmethod
     def confidence(self):
-        return 1
-
-
-class ProbabilisticContractResult(_ContractResultBase):
-    def __init__(self, assumptions, guarantees, component, evidence):
-        from scenic.contracts.testing import ProbabilisticEvidence
-
-        super().__init__(assumptions, guarantees, component, evidence)
+        pass
 
     @property
-    def correctness(self):
-        return self.evidence.correctness
+    def assumptionsSummary(self):
+        return "".join(f"    {a}\n" for a in self.assumptions)
 
     @property
-    def confidence(self):
-        return self.evidence.confidence
+    def guaranteesSummary(self):
+        return "".join(f"    {g}\n" for g in self.assumptions)
 
-    def __str__(self):
-        string = "ProbabilisticContractResult:\n"
-        string += f"  Minimum {100*self.correctness:.2f}% Correctness with {100*self.confidence:.2f}% Confidence\n"
-        string += f"  Component: {self.component}\n"
-        from scenic.contracts.testing import ProbabilisticEvidence, TestResult
-
-        if isinstance(self.evidence, ProbabilisticEvidence):
-            string += "  Assumptions:\n"
-            for ai, a in enumerate(self.assumptions):
-                if self.evidence.a_count == 0:
-                    percent_violated = 0
-                else:
-                    percent_violated = (
-                        sum(
-                            1 / len(at.violations)
-                            for at in self.evidence.testData
-                            if at.result == TestResult.A and ai in at.violations
-                        )
-                        / self.evidence.a_count
-                    )
-
-                string += f"    ({percent_violated*100:6.2f}%) {a}\n"
-
-            string += "  Guarantees:\n"
-
-            for gi, g in enumerate(self.guarantees):
-                if self.evidence.g_count == 0:
-                    percent_violated = 0
-                else:
-                    percent_violated = (
-                        sum(
-                            1 / len(gt.violations)
-                            for gt in self.evidence.testData
-                            if gt.result == TestResult.G and gi in gt.violations
-                        )
-                        / self.evidence.g_count
-                    )
-
-                string += f"    ({percent_violated*100:6.2f}%) {g}\n"
-        else:
-            string += "  Assumptions:\n"
-            for a in self.assumptions:
-                string += f"    {a}\n"
-
-            string += "  Guarantees:\n"
-            for g in self.guarantees:
-                string += f"    {g}\n"
-
-        string += f"  Evidence: \n"
-        string += "    " + str(self.evidence).replace("\n", "\n    ")
-        return string
-
-
-class ContractEvidence:
-    pass
+    @property
+    @abstractmethod
+    def evidenceSummary(self):
+        pass

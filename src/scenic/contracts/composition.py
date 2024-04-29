@@ -3,12 +3,7 @@ from functools import cached_property
 from math import prod
 
 from scenic.contracts.components import ActionComponent, BaseComponent, ComposeComponent
-from scenic.contracts.contracts import (
-    ContractEvidence,
-    ContractResult,
-    ProbabilisticContractResult,
-    VerificationTechnique,
-)
+from scenic.contracts.contracts import ContractResult, VerificationTechnique
 from scenic.syntax.compiler import NameFinder, NameSwapTransformer
 
 
@@ -246,21 +241,10 @@ class Composition(VerificationTechnique):
         return self._guarantees
 
     def verify(self):
-        # Compute sub results and package as evidence
         sub_results = [stmt.verify() for stmt in self.sub_stmts]
-        evidence = CompositionEvidence(sub_results)
-
-        # Check what kind of contract result we want
-        if any(isinstance(result, ProbabilisticContractResult) for result in sub_results):
-            result = ProbabilisticContractResult(
-                self.assumptions, self.guarantees, self.component, evidence
-            )
-        else:
-            result = ContractResult(
-                self.assumptions, self.guarantees, self.component, evidence
-            )
-
-        return result
+        return CompositionContractResult(
+            self.assumptions, self.guarantees, self.component, sub_results
+        )
 
     def tempVarName(self):
         var_name = f"SCENIC_INTERNAL_VAR_{self.var_num}"
@@ -272,8 +256,9 @@ class Composition(VerificationTechnique):
         return {var for var in var_iterable if var.startswith("SCENIC_INTERNAL_VAR_")}
 
 
-class CompositionEvidence:
-    def __init__(self, sub_results):
+class CompositionContractResult(ContractResult):
+    def __init__(self, assumptions, guarantees, component, sub_results):
+        super().__init__(assumptions, guarantees, component)
         self.sub_results = sub_results
 
     @cached_property
@@ -286,5 +271,6 @@ class CompositionEvidence:
     def confidence(self):
         return prod(result.confidence for result in self.sub_results)
 
-    def __str__(self):
+    @property
+    def evidenceSummary(self):
         return "\n".join(str(result) for result in self.sub_results)

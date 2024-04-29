@@ -7,11 +7,7 @@ import time
 import rv_ltl
 import scipy
 
-from scenic.contracts.contracts import (
-    ContractEvidence,
-    ProbabilisticContractResult,
-    VerificationTechnique,
-)
+from scenic.contracts.contracts import ContractResult, VerificationTechnique
 from scenic.contracts.utils import linkSetBehavior, lookuplinkedObject
 from scenic.core.distributions import RejectionException
 from scenic.core.dynamics import GuardViolation, RejectSimulationException
@@ -52,19 +48,16 @@ class Testing(VerificationTechnique):
         return self.contract.guarantees
 
     def verify(self):
-        evidence = self._newEvidence()
-        result = ProbabilisticContractResult(
-            self.contract.assumptions, self.contract.guarantees, self.component, evidence
-        )
+        result = self._newContractResult()
 
         activeTermConditions = (
             self.termConditions if self.termConditions else self.reqConditions
         )
 
         while not any(
-            cond.check(evidence) for cond in self.termConditions + self.reqConditions
+            cond.check(result) for cond in self.termConditions + self.reqConditions
         ):
-            evidence.addTests(self.runTests(self.batchSize))
+            result.addTests(self.runTests(self.batchSize))
 
             if self.verbose:
                 print(result)
@@ -73,24 +66,22 @@ class Testing(VerificationTechnique):
         if self.verbose and self.termConditions:
             print("Termination Conditions:")
             for cond in self.termConditions:
-                print(f"  {cond} = {cond.check(evidence)}")
+                print(f"  {cond} = {cond.check(result)}")
             print()
 
         # Check requirements
-        evidence.requirementsMet = all(
-            cond.check(evidence) for cond in self.reqConditions
-        )
+        result.requirementsMet = all(cond.check(result) for cond in self.reqConditions)
 
         if self.verbose and self.reqConditions:
             print("Requirement Conditions:")
             for cond in self.reqConditions:
-                print(f"  {cond} = {cond.check(evidence)}")
+                print(f"  {cond} = {cond.check(result)}")
             print()
 
         return result
 
     @abstractmethod
-    def _newEvidence(self):
+    def _newContractResult(self):
         raise NotImplementedError()
 
 
@@ -128,8 +119,14 @@ class SimulationTesting(Testing):
 
         assert len(termConditions) + len(reqConditions) > 0
 
-    def _newEvidence(self):
-        return SimulationEvidence(self.confidence, self.scenario)
+    def _newContractResult(self):
+        return SimulationTestingContractResult(
+            self.contract.assumptions,
+            self.contract.guarantees,
+            self.component,
+            self.confidence,
+            self.scenario,
+        )
 
     @staticmethod
     def _createTestData(result, violations, scenario, scene, simulation, start_time):
@@ -380,131 +377,6 @@ class InvalidTimeException(Exception):
         self.time = time
 
 
-## Test Data Classes
-@enum.unique
-class TestResult(enum.Enum):
-    V = "Valid: The contract was successfully validated"
-    R = "Rejected: The scenario was rejected or a guard was violated"
-    A = "Assumptions: An assumption was violated"
-    G = "Guarantees: A guarantee was violated"
-
-
-class TestData:
-    def __init__(self, result, violations, elapsed_time):
-        self.result = result
-        self.violations = violations
-        self.elapsed_time = elapsed_time
-
-
-class SimulationTestData(TestData):
-    def __init__(self, result, violations, scene_bytes, sim_replay, elapsed_time):
-        super().__init__(result, violations, elapsed_time)
-        self.scene_bytes = scene_bytes
-        self.sim_replay = sim_replay
-
-
-class ProbabilisticEvidence(ContractEvidence, ABC):
-    def __init__(self, confidence):
-        assert self.source_hash
-
-        self.confidence = confidence
-        self.testData = []
-        self.requirementsMet = None
-
-        # Initialize metrics
-        self.elapsed_time = 0
-        self.v_count = 0
-        self.r_count = 0
-        self.a_count = 0
-        self.g_count = 0
-
-    def addTests(self, newTests):
-        # Update metrics
-        self.elapsed_time += sum(t.elapsed_time for t in newTests)
-        self.v_count += len(list(filter(lambda t: t.result == TestResult.V, newTests)))
-        self.r_count += len(list(filter(lambda t: t.result == TestResult.R, newTests)))
-        self.a_count += len(list(filter(lambda t: t.result == TestResult.A, newTests)))
-        self.g_count += len(list(filter(lambda t: t.result == TestResult.G, newTests)))
-
-        # Add new tests
-        self.testData += newTests
-
-    @property
-    def confidenceGap(self):
-        if len(self) == 0 or (self.v_count + self.g_count) == 0:
-            return 1
-
-        bt = scipy.stats.binomtest(k=self.v_count, n=self.v_count + self.g_count)
-        ci = bt.proportion_ci(confidence_level=self.confidence)
-        return ci.high - ci.low
-
-    @property
-    def meanCorrectness(self):
-        if self.v_count + self.g_count == 0:
-            return float("nan")
-
-        return self.v_count / (self.v_count + self.g_count)
-
-    @property
-    def correctness(self):
-        if self.v_count + self.g_count == 0:
-            return 0
-
-        bt = scipy.stats.binomtest(
-            k=self.v_count, n=self.v_count + self.g_count, alternative="greater"
-        )
-        ci = bt.proportion_ci(confidence_level=self.confidence)
-        return ci.low
-
-    @property
-    @abstractmethod
-    def _source_info(self):
-        raise NotImplementedError()
-
-    def __len__(self):
-        return len(self.testData)
-
-    def __iter__(self):
-        return self.testData
-
-    def __str__(self):
-        string = (
-            f"Probabilistic Evidence\n"
-            f"Minimum {100*self.correctness:.2f}% Correctness with {100*self.confidence:.2f}% Confidence\n"
-            f"Sampled from {self._source_info}\n"
-            f"{self.v_count} Verified,  {self.r_count} Rejected,  "
-            f"{self.a_count} A-Violated,  {self.g_count} G-Violated\n"
-            f"{len(self.testData)} Samples, {self.elapsed_time:.2f} Seconds\n"
-            f"Mean Correctness: {100*self.meanCorrectness:.2f}%\n"
-            f"Confidence Gap: {self.confidenceGap:.4f}"
-        )
-        return string
-
-
-class SimulationEvidence(ProbabilisticEvidence):
-    def __init__(self, confidence, source):
-        # Validate and store source
-        if not isinstance(source, Scenario):
-            raise ValueError("SimulationEvidence must have a Scenario object as a source")
-
-        self.source_filename = source.filename
-        self.source_hash = source.astHash
-
-        super().__init__(confidence)
-
-    def addTests(self, newTests):
-        if any(not isinstance(t, SimulationTestData) for t in newTests):
-            raise ValueError(
-                "SimulationEvidence can only accept tests of class SimulationTestData"
-            )
-
-        super().addTests(newTests)
-
-    @property
-    def _source_info(self):
-        return f"Scenario '{Path(self.source_filename).name}' (Hash={int.from_bytes(self.source_hash)})"
-
-
 ## Termination/Requirement Conditions
 class Condition(ABC):
     @abstractmethod
@@ -557,3 +429,171 @@ class CorrectnessRequirementCondition(Condition):
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.correctness})"
+
+
+## Contract Results and Test Data Classes
+class TestingContractResult(ContractResult):
+    def __init__(self, assumptions, guarantees, component, confidence):
+        super().__init__(assumptions, guarantees, component)
+        self._confidence = confidence
+        self.testData = []
+        self.requirementsMet = None
+
+        # Initialize metrics
+        self.elapsed_time = 0
+        self.v_count = 0
+        self.r_count = 0
+        self.a_count = 0
+        self.g_count = 0
+
+    def addTests(self, newTests):
+        # Update metrics
+        self.elapsed_time += sum(t.elapsed_time for t in newTests)
+        self.v_count += len(list(filter(lambda t: t.result == TestResult.V, newTests)))
+        self.r_count += len(list(filter(lambda t: t.result == TestResult.R, newTests)))
+        self.a_count += len(list(filter(lambda t: t.result == TestResult.A, newTests)))
+        self.g_count += len(list(filter(lambda t: t.result == TestResult.G, newTests)))
+
+        # Add new tests
+        self.testData += newTests
+
+    @property
+    def correctness(self):
+        if self.v_count + self.g_count == 0:
+            return 0
+
+        bt = scipy.stats.binomtest(
+            k=self.v_count, n=self.v_count + self.g_count, alternative="greater"
+        )
+        ci = bt.proportion_ci(confidence_level=self.confidence)
+        return ci.low
+
+    @property
+    def confidence(self):
+        return self._confidence
+
+    @property
+    def confidenceGap(self):
+        if len(self) == 0 or (self.v_count + self.g_count) == 0:
+            return 1
+
+        bt = scipy.stats.binomtest(k=self.v_count, n=self.v_count + self.g_count)
+        ci = bt.proportion_ci(confidence_level=self.confidence)
+        return ci.high - ci.low
+
+    @property
+    def meanCorrectness(self):
+        if self.v_count + self.g_count == 0:
+            return float("nan")
+
+        return self.v_count / (self.v_count + self.g_count)
+
+    @property
+    @abstractmethod
+    def _source_info(self):
+        pass
+
+    def __len__(self):
+        return len(self.testData)
+
+    def __iter__(self):
+        return self.testData
+
+    @property
+    def assumptionsSummary(self):
+        string = ""
+        for ai, a in enumerate(self.assumptions):
+            if self.a_count == 0:
+                percent_violated = 0
+            else:
+                percent_violated = (
+                    sum(
+                        1 / len(at.violations)
+                        for at in self.testData
+                        if at.result == TestResult.A and ai in at.violations
+                    )
+                    / self.a_count
+                )
+
+            string += f"    ({percent_violated*100:6.2f}%) {a}\n"
+
+        return string
+
+    @property
+    def guaranteesSummary(self):
+        string = ""
+        for gi, g in enumerate(self.guarantees):
+            if self.g_count == 0:
+                percent_violated = 0
+            else:
+                percent_violated = (
+                    sum(
+                        1 / len(gt.violations)
+                        for gt in self.testData
+                        if gt.result == TestResult.G and gi in gt.violations
+                    )
+                    / self.g_count
+                )
+
+            string += f"    ({percent_violated*100:6.2f}%) {g}\n"
+
+        return string
+
+    @property
+    def evidenceSummary(self):
+        string = (
+            f"Probabilistic Evidence\n"
+            f"Sampled from {self._source_info}\n"
+            f"{self.v_count} Verified,  {self.r_count} Rejected,  "
+            f"{self.a_count} A-Violated,  {self.g_count} G-Violated\n"
+            f"{len(self.testData)} Samples, {self.elapsed_time:.2f} Seconds\n"
+            f"Mean Correctness: {100*self.meanCorrectness:.2f}%\n"
+            f"Confidence Gap: {self.confidenceGap:.4f}"
+        )
+        return string
+
+
+class SimulationTestingContractResult(TestingContractResult):
+    def __init__(self, assumptions, guarantees, component, confidence, source):
+        # Validate and store source
+        if not isinstance(source, Scenario):
+            raise ValueError("SimulationEvidence must have a Scenario object as a source")
+
+        self.source_filename = source.filename
+        self.source_hash = source.astHash
+
+        super().__init__(assumptions, guarantees, component, confidence)
+
+    def addTests(self, newTests):
+        if any(not isinstance(t, SimulationTestData) for t in newTests):
+            raise ValueError(
+                "SimulationEvidence can only accept tests of class SimulationTestData"
+            )
+
+        super().addTests(newTests)
+
+    @property
+    def _source_info(self):
+        return f"Scenario '{Path(self.source_filename).name}' (Hash={int.from_bytes(self.source_hash)})"
+
+
+@enum.unique
+class TestResult(enum.Enum):
+    V = "Valid: The contract was successfully validated"
+    R = "Rejected: The scenario was rejected or a guard was violated"
+    A = "Assumptions: An assumption was violated"
+    G = "Guarantees: A guarantee was violated"
+
+
+class TestData:
+    def __init__(self, result, violations, elapsed_time):
+        self.result = result
+        self.violations = violations
+        self.elapsed_time = elapsed_time
+
+
+class SimulationTestData(TestData):
+    def __init__(self, result, violations, scene_bytes, sim_replay, elapsed_time):
+        super().__init__(result, violations, elapsed_time)
+        self.scene_bytes = scene_bytes
+        self.sim_replay = sim_replay

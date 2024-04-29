@@ -515,6 +515,14 @@ accurate_distance = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE, 
     using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
     terminating after 100 samples
 
+# TODO: Replace with proof
+safe_throttle_filter = assume car.cs.tsf satisfies SafeThrottleFilter(
+        PERCEPTION_DISTANCE,
+        MIN_DIST,
+        MIN_SLOWDOWN,
+        abs_speed_err=ABS_SPEED_ERR,
+        max_brake=MAX_BRAKE)
+
 cs_safety = compose over car.cs:
     # TODO: Replace with proof
     test car.cs satisfies AccurateRelativeSpeeds(
@@ -526,13 +534,7 @@ cs_safety = compose over car.cs:
         using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
         terminating after 100 samples
 
-    # TODO: Replace with proof
-    assume car.cs.tsf satisfies SafeThrottleFilter(
-        PERCEPTION_DISTANCE,
-        MIN_DIST,
-        MIN_SLOWDOWN,
-        abs_speed_err=ABS_SPEED_ERR,
-        max_brake=MAX_BRAKE)
+    use safe_throttle_filter
 
     # TODO: Replace with proof
     assume car.cs.ag satisfies PassthroughBrakingActionGenerator()
@@ -574,11 +576,14 @@ keeps_distance_raw = compose over car:
         abs_speed_err=ABS_SPEED_ERR,
         max_brake=MAX_BRAKE)
 
+# verify keeps_distance_raw
+
+foo = assume car.cc satisfies MaxBrakingForce(MIN_SLOWDOWN)
+verify foo
+
 # keeps_distance = refine keeps_distance_raw as KeepsDistance(PERCEPTION_DISTANCE,
 #     MIN_DIST,
 #     abs_dist_err=ABS_DIST_ERR,
 #     abs_speed_err=ABS_SPEED_ERR,
 #     max_brake=MAX_BRAKE,
 #     max_accel=MAX_ACCEL)
-
-verify keeps_distance_raw

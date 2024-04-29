@@ -1990,6 +1990,20 @@ class ScenicToPythonTransformer(Transformer):
 
         init_body = []
 
+        # Store original name
+        init_body.append(
+            ast.Assign(
+                targets=[
+                    ast.Attribute(
+                        value=ast.Name(id="self", ctx=loadCtx),
+                        attr="originalName",
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=ast.Constant(value=name),
+            )
+        )
+
         # Store state initial values.
         init_body.append(
             ast.Assign(
@@ -2151,6 +2165,20 @@ class ScenicToPythonTransformer(Transformer):
 
         init_body = []
 
+        # Store original name
+        init_body.append(
+            ast.Assign(
+                targets=[
+                    ast.Attribute(
+                        value=ast.Name(id="self", ctx=loadCtx),
+                        attr="originalName",
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=ast.Constant(value=name),
+            )
+        )
+
         # Make super() init call
         super_kwargs = itertools.chain(
             init_arguments.posonlyargs, init_arguments.args, init_arguments.kwonlyargs
@@ -2261,6 +2289,20 @@ class ScenicToPythonTransformer(Transformer):
         )
 
         init_body = []
+
+        # Store original name
+        init_body.append(
+            ast.Assign(
+                targets=[
+                    ast.Attribute(
+                        value=ast.Name(id="self", ctx=loadCtx),
+                        attr="originalName",
+                        ctx=ast.Store(),
+                    )
+                ],
+                value=ast.Constant(value=name),
+            )
+        )
 
         subcomponent_stmts = [(a, b) for n, a, b in composition if n == "subcomponent"]
         connect_stmts = [(a, b) for n, a, b in composition if n == "connect"]

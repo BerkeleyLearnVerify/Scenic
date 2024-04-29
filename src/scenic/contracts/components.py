@@ -6,7 +6,9 @@ from scenic.core.dynamics.actions import Action
 
 
 class Component(ABC):
-    pass
+    def __str__(self):
+        args_string = ", ".join(f"{k}={v}" for k, v in self.kwargs.items())
+        return f"{self.originalName}({args_string})"
 
 
 class BaseComponent(Component):
