@@ -84,7 +84,7 @@ class ContractResult(ABC):
 
     @property
     def guaranteesSummary(self):
-        return "".join(f"    {g}\n" for g in self.assumptions)
+        return "".join(f"    {g}\n" for g in self.guarantees)
 
     @property
     @abstractmethod
