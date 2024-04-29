@@ -16,6 +16,8 @@ property definitions and :ref:`specifier resolution`).
 
 from abc import ABC, abstractmethod
 import collections
+import functools
+import inspect
 import math
 import random
 import typing
@@ -77,7 +79,7 @@ from scenic.core.type_support import (
     toVector,
     underlyingType,
 )
-from scenic.core.utils import DefaultIdentityDict, cached_method, cached_property
+from scenic.core.utils import DefaultIdentityDict, cached, cached_method, cached_property
 from scenic.core.vectors import (
     Orientation,
     Vector,
@@ -214,6 +216,7 @@ class Constructible(Samplable):
         self.properties = tuple(sorted(properties.keys()))
         self._propertiesSet = set(self.properties)
         self._constProps = constProps
+        self._sampleParent = None
 
     @classmethod
     def _withProperties(cls, properties, constProps=None):
@@ -544,7 +547,9 @@ class Constructible(Samplable):
         if not needsSampling(self):
             return self
         props = {prop: value[getattr(self, prop)] for prop in self.properties}
-        return type(self)(props, constProps=self._constProps, _internal=True)
+        obj = type(self)(props, constProps=self._constProps, _internal=True)
+        obj._sampleParent = self
+        return obj
 
     def _allProperties(self):
         return {prop: getattr(self, prop) for prop in self.properties}
@@ -597,6 +602,35 @@ class Constructible(Samplable):
         else:
             allProps = "<under construction>"
         return f"{type(self).__name__}({allProps})"
+
+
+def precomputed_property(func):
+    """A @property which can be precomputed if its dependencies are not random.
+
+    Converts a function inside a subclass of `Constructible` into a method; the
+    function's arguments must correspond to the properties of the object needed
+    to compute this property. If any of those dependencies have random values,
+    this property will evaluate to `None`; otherwise it will be computed once
+    the first time it is needed and then reused across samples.
+    """
+    deps = tuple(inspect.signature(func).parameters)
+
+    @cached
+    @functools.wraps(func)
+    def method(self):
+        args = [getattr(self, prop) for prop in deps]
+        if any(needsSampling(arg) for arg in args):
+            return None
+        return func(*args)
+
+    @functools.wraps(func)
+    def wrapper(self):
+        parent = self._sampleParent or self
+        return method(parent)
+
+    wrapper._scenic_cache_clearer = method._scenic_cache_clearer
+
+    return property(wrapper)
 
 
 ## Mutators
@@ -1297,6 +1331,12 @@ class Object(OrientedPoint):
     def occupiedSpace(self):
         """A region representing the space this object occupies"""
         shape = self.shape
+        ss = self._scaledShape
+        if ss is not None:
+            candData = (ss._candidatePoint, ss._candidateRadii)
+            volume = ss._mesh.volume
+        else:
+            candData = volume = None
         return MeshVolumeRegion(
             mesh=shape.mesh,
             dimensions=(self.width, self.length, self.height),
@@ -1305,6 +1345,17 @@ class Object(OrientedPoint):
             centerMesh=False,
             _internal=True,
             _isConvex=shape.isConvex,
+            _candidatePointData=candData,
+            _volume=volume,
+        )
+
+    @precomputed_property
+    def _scaledShape(shape, width, length, height):
+        return MeshVolumeRegion(
+            mesh=shape.mesh,
+            dimensions=(width, length, height),
+            centerMesh=False,
+            _internal=True,
         )
 
     @property

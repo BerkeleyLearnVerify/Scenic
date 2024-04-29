@@ -851,8 +851,11 @@ class MeshRegion(Region):
             angles = self.rotation._trimeshEulerAngles()
         else:
             angles = None
-        matrix = compose_matrix(scale=scale, angles=angles, translate=self.position)
-        self.mesh.apply_transform(matrix)
+        self._transform = compose_matrix(
+            scale=scale, angles=angles, translate=self.position
+        )
+        self._rigidTransform = compose_matrix(angles=angles, translate=self.position)
+        self.mesh.apply_transform(self._transform)
 
         self.orientation = orientation
 
@@ -1076,9 +1079,18 @@ class MeshVolumeRegion(MeshRegion):
         onDirection: The direction to use if an object being placed on this region doesn't specify one.
     """
 
-    def __init__(self, *args, _internal=False, _isConvex=None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        _internal=False,
+        _isConvex=None,
+        _candidatePointData=None,
+        _volume=None,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self._isConvex = _isConvex
+        self._candidatePointData = _candidatePointData
 
         if isLazy(self):
             return
@@ -1098,7 +1110,8 @@ class MeshVolumeRegion(MeshRegion):
 
         # Compute how many samples are necessary to achieve 99% probability
         # of success when rejection sampling volume.
-        p_volume = self._mesh.volume / self._mesh.bounding_box.volume
+        volume = _volume or self._mesh.volume
+        p_volume = volume / self._mesh.bounding_box.volume
 
         if p_volume > 0.99:
             self.num_samples = 1
@@ -1142,57 +1155,21 @@ class MeshVolumeRegion(MeshRegion):
             # If the candidate points are farther apart than the sum of the circumradius
             # values, they can't intersect.
 
-            # Get a candidate point from each mesh. If the center of the object is in the mesh use that.
-            # Otherwise try to sample a point as a candidate, skipping this pass if the sample fails.
-            if self.containsPoint(Vector(*self.mesh.bounding_box.center_mass)):
-                s_candidate_point = Vector(*self.mesh.bounding_box.center_mass)
-            elif (
-                len(samples := trimesh.sample.volume_mesh(self.mesh, self.num_samples))
-                > 0
-            ):
-                s_candidate_point = Vector(*samples[0])
-            else:
-                s_candidate_point = None
+            # Get a candidate point from each mesh and the corresponding
+            # inradius/circumradius around that point.
+            s_candidate_point = self._candidatePoint
+            s_inradius, s_circumradius = self._candidateRadii
+            o_candidate_point = other._candidatePoint
+            o_inradius, o_circumradius = other._candidateRadii
 
-            if other.containsPoint(Vector(*other.mesh.bounding_box.center_mass)):
-                o_candidate_point = Vector(*other.mesh.bounding_box.center_mass)
-            elif (
-                len(samples := trimesh.sample.volume_mesh(other.mesh, other.num_samples))
-                > 0
-            ):
-                o_candidate_point = Vector(*samples[0])
-            else:
-                o_candidate_point = None
+            # Get the distance between the two points and check for mandatory or impossible collision.
+            point_distance = numpy.linalg.norm(s_candidate_point - o_candidate_point)
 
-            if s_candidate_point is not None and o_candidate_point is not None:
-                # Compute the inradius of each object from its candidate point.
-                s_inradius = abs(
-                    trimesh.proximity.ProximityQuery(self.mesh).signed_distance(
-                        [s_candidate_point]
-                    )[0]
-                )
-                o_inradius = abs(
-                    trimesh.proximity.ProximityQuery(other.mesh).signed_distance(
-                        [o_candidate_point]
-                    )[0]
-                )
+            if point_distance < s_inradius + o_inradius:
+                return True
 
-                # Compute the circumradius of each object from its candidate point.
-                s_circumradius = numpy.max(
-                    numpy.linalg.norm(self.mesh.vertices - s_candidate_point, axis=1)
-                )
-                o_circumradius = numpy.max(
-                    numpy.linalg.norm(other.mesh.vertices - o_candidate_point, axis=1)
-                )
-
-                # Get the distance between the two points and check for mandatory or impossible collision.
-                point_distance = s_candidate_point.distanceTo(o_candidate_point)
-
-                if point_distance < s_inradius + o_inradius:
-                    return True
-
-                if point_distance > s_circumradius + o_circumradius:
-                    return False
+            if point_distance > s_circumradius + o_circumradius:
+                return False
 
             # PASS 3
             # Use Trimesh's collision manager to check for intersection.
@@ -1200,15 +1177,15 @@ class MeshVolumeRegion(MeshRegion):
             # Cheaper than computing volumes immediately.
             collision_manager = trimesh.collision.CollisionManager()
 
-            collision_manager.add_object("SelfRegion", self.mesh)
-            collision_manager.add_object("OtherRegion", other.mesh)
+            collision_manager.add_object("SelfRegion", self._mesh)
+            collision_manager.add_object("OtherRegion", other._mesh)
 
             surface_collision = collision_manager.in_collision_internal()
 
             if surface_collision:
                 return True
 
-            if self.mesh.is_convex and other.mesh.is_convex:
+            if self.isConvex and other.isConvex:
                 # For convex shapes, the manager detects containment as well as
                 # surface intersections, so we can just return the result
                 return surface_collision
@@ -1217,15 +1194,10 @@ class MeshVolumeRegion(MeshRegion):
             # If we have 2 candidate points and both regions have only one body,
             # we can just check if either region contains the candidate point of the
             # other. (This is because we previously ruled out surface intersections)
-            if (
-                s_candidate_point is not None
-                and o_candidate_point is not None
-                and self.mesh.body_count == 1
-                and other.mesh.body_count == 1
-            ):
-                return self.containsPoint(o_candidate_point) or other.containsPoint(
-                    s_candidate_point
-                )
+            if self.mesh.body_count == 1 and other.mesh.body_count == 1:
+                return self._containsPointExact(
+                    o_candidate_point
+                ) or other._containsPointExact(s_candidate_point)
 
             # PASS 5
             # Compute intersection and check if it's empty. Expensive but guaranteed
@@ -1291,6 +1263,9 @@ class MeshVolumeRegion(MeshRegion):
     def containsPoint(self, point):
         """Check if this region's volume contains a point."""
         return self.distanceTo(point) <= self.tolerance
+
+    def _containsPointExact(self, point):
+        return self._mesh.contains([point])[0]
 
     @distributionFunction
     def containsObject(self, obj):
@@ -1836,6 +1811,56 @@ class MeshVolumeRegion(MeshRegion):
     def getVolumeRegion(self):
         """Returns this object, as it is already a MeshVolumeRegion"""
         return self
+
+    @cached_property
+    def _candidatePoint(self):
+        # Use precomputed point if available (transformed appropriately)
+        if self._candidatePointData:
+            raw = self._candidatePointData[0]
+            homog = numpy.append(raw, [1])
+            return numpy.dot(self._rigidTransform, homog)[:3]
+
+        # Use center of mass if it's contained
+        mesh = self._mesh
+        com = mesh.bounding_box.center_mass
+        if mesh.contains([com])[0]:
+            return com
+
+        # Try sampling a point inside the volume
+        samples = trimesh.sample.volume_mesh(mesh, self.num_samples)
+        if samples.size > 0:
+            # Found at least one interior point; choose the closest to the CoM
+            distances = numpy.linalg.norm(samples - com)
+            return samples[numpy.argmin(distances)]
+
+        # If all else fails, take a point from the surface and move inward
+        surfacePt, index = list(zip(*mesh.sample(1, return_index=True)))[0]
+        inward = -mesh.face_normals[index]
+        startPt = surfacePt + 1e-6 * inward
+        hits, _, _ = mesh.ray.intersects_location(
+            ray_origins=[startPt],
+            ray_directions=[inward],
+            multiple_hits=False,
+        )
+        if hits.size > 0:
+            endPt = hits[0]
+            midPt = (surfacePt + endPt) / 2.0
+            if mesh.contains([midPt])[0]:
+                return midPt
+        return surfacePt
+
+    @cached_property
+    def _candidateRadii(self):
+        # Use precomputed radii if available
+        if self._candidatePointData:
+            return self._candidatePointData[1]
+
+        # Compute inradius and circumradius w.r.t. the candidate point
+        point = self._candidatePoint
+        pq = trimesh.proximity.ProximityQuery(self._mesh)
+        inradius = abs(pq.signed_distance([point])[0])
+        circumradius = numpy.max(numpy.linalg.norm(self._mesh.vertices - point, axis=1))
+        return inradius, circumradius
 
 
 class MeshSurfaceRegion(MeshRegion):

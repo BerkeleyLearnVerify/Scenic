@@ -54,6 +54,7 @@ def assertSceneEquivalence(scene1, scene2, ignoreDynamics=False, ignoreConstProp
     if ignoreDynamics:
         del scene1.dynamicScenario, scene2.dynamicScenario
     for obj in scene1.objects + scene2.objects:
+        del obj._sampleParent
         if ignoreConstProps:
             del obj._constProps
         if ignoreDynamics:
