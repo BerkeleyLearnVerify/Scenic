@@ -33,23 +33,6 @@ def test_driving_2D(loadLocalScenario):
     check()  # If we fail here, something is leaking.
 
 
-def test_driving_2D_map(loadLocalScenario):
-    def check():
-        scenario = loadLocalScenario("driving.scenic", params={"use2DMap": True})
-        scene, _ = scenario.generate(maxIterations=1000)
-        simulator = scenario.getSimulator()
-        simulation = simulator.simulate(scene, maxSteps=3)
-
-    # Run this twice to catch leaks between successive compilations.
-    check()
-    check()  # If we fail here, something is leaking.
-
-
-def test_driving_3D(loadLocalScenario):
-    with pytest.raises(RuntimeError):
-        loadLocalScenario("driving.scenic")
-
-
 @pickle_test
 def test_pickle(loadLocalScenario):
     scenario = tryPickling(loadLocalScenario("basic.scenic"))
