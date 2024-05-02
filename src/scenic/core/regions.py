@@ -842,26 +842,17 @@ class MeshRegion(Region):
         if centerMesh:
             self.mesh.vertices -= self.mesh.bounding_box.center_mass
 
-        # If dimensions are provided, scale mesh to those dimension
+        # Apply scaling, rotation, and translation, if any
         if self.dimensions is not None:
-            scale = self.mesh.extents / numpy.array(self.dimensions)
-
-            scale_matrix = numpy.eye(4)
-            scale_matrix[:3, :3] /= scale
-
-            self.mesh.apply_transform(scale_matrix)
-
-        # If rotation is provided, apply rotation
+            scale = numpy.array(self.dimensions) / self.mesh.extents
+        else:
+            scale = None
         if self.rotation is not None:
-            rotation_matrix = quaternion_matrix(
-                (self.rotation.w, self.rotation.x, self.rotation.y, self.rotation.z)
-            )
-            self.mesh.apply_transform(rotation_matrix)
-
-        # If position is provided, translate mesh.
-        if self.position is not None:
-            position_matrix = translation_matrix(self.position)
-            self.mesh.apply_transform(position_matrix)
+            angles = self.rotation._trimeshEulerAngles()
+        else:
+            angles = None
+        matrix = compose_matrix(scale=scale, angles=angles, translate=self.position)
+        self.mesh.apply_transform(matrix)
 
         self.orientation = orientation
 
@@ -1014,12 +1005,17 @@ class MeshRegion(Region):
         )
 
     @cached_property
+    def _boundingPolygonHull(self):
+        assert not isLazy(self)
+        return shapely.multipoints(self.mesh.vertices).convex_hull
+
+    @cached_property
     def _boundingPolygon(self):
         assert not isLazy(self)
 
         # Relatively fast case for convex regions
         if self.isConvex:
-            return shapely.geometry.MultiPoint(self.mesh.vertices).convex_hull
+            return self._boundingPolygonHull
 
         # Generic case for arbitrary shapes
         if self.mesh.is_watertight:
@@ -1080,8 +1076,9 @@ class MeshVolumeRegion(MeshRegion):
         onDirection: The direction to use if an object being placed on this region doesn't specify one.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, _internal=False, _isConvex=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self._isConvex = _isConvex
 
         if isLazy(self):
             return
@@ -1093,7 +1090,7 @@ class MeshVolumeRegion(MeshRegion):
                     raise ValueError(f"{name} of MeshVolumeRegion must be positive")
 
         # Ensure the mesh is a well defined volume
-        if not self._mesh.is_volume:
+        if not _internal and not self._mesh.is_volume:
             raise ValueError(
                 "A MeshVolumeRegion cannot be defined with a mesh that does not have a well defined volume."
                 " Consider using scenic.core.utils.repairMesh."
@@ -1126,11 +1123,13 @@ class MeshVolumeRegion(MeshRegion):
             # Check if bounding boxes intersect. If not, volumes cannot intersect.
             # For bounding boxes to intersect there must be overlap of the bounds
             # in all 3 dimensions.
-            range_overlaps = [
-                (self.mesh.bounds[0, dim] <= other.mesh.bounds[1, dim])
-                and (other.mesh.bounds[0, dim] <= self.mesh.bounds[1, dim])
+            bounds = self._mesh.bounds
+            obounds = other._mesh.bounds
+            range_overlaps = (
+                (bounds[0, dim] <= obounds[1, dim])
+                and (obounds[0, dim] <= bounds[1, dim])
                 for dim in range(3)
-            ]
+            )
             bb_overlap = all(range_overlaps)
 
             if not bb_overlap:
@@ -1746,6 +1745,10 @@ class MeshVolumeRegion(MeshRegion):
             return 0
         else:
             return region_distance
+
+    @cached_property
+    def isConvex(self):
+        return self.mesh.is_convex if self._isConvex is None else self._isConvex
 
     @property
     def dimensionality(self):
@@ -2424,7 +2427,18 @@ class PolygonalFootprintRegion(Region):
         Args:
             obj: An object to be checked for containment.
         """
-        # Check containment using the bounding polygon of the object.
+        # Fast path for convex objects, whose bounding polygons are relatively
+        # easy to compute.
+        if obj._isConvex:
+            return self.polygons.contains(obj._boundingPolygon)
+
+        # Quick check using the projected convex hull of the object, which
+        # overapproximates the actual bounding polygon.
+        hullPoly = obj.occupiedSpace._boundingPolygonHull
+        if self.polygons.contains(hullPoly):
+            return True
+
+        # Need to compute exact bounding polygon.
         return self.polygons.contains(obj._boundingPolygon)
 
     def containsRegionInner(self, reg, tolerance):
