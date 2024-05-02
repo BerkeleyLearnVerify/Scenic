@@ -18,6 +18,8 @@ Global Parameters:
     timestep (float): Timestep to use for simulations (i.e., how frequently Scenic
         interrupts CARLA to run behaviors, check requirements, etc.), in seconds. Default
         is 0.1 seconds.
+    snapToGroundDefault (bool): Default value for snapToGround on `CarlaActor` objects.
+        Default is True if 2D mode is enabled and false otherwise. 
 
     weather (str or dict): Weather to use for the simulation. Can be either a
         string identifying one of the CARLA weather presets (e.g. 'ClearSunset') or a
@@ -119,6 +121,7 @@ class CarlaActor(DrivingObject):
         rolename (str): Can be used to differentiate specific actors during runtime. Default
             value ``None``.
         physics (bool): Whether physics is enabled for this object in CARLA. Default true.
+        snapToGround (bool): Whether or not to snap this object to the ground when placed in Carla.
     """
     carlaActor: None
     blueprint: None

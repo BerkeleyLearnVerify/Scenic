@@ -17,6 +17,12 @@ If you are writing a generic scenario that supports multiple maps, you may leave
 ``map`` parameter undefined; then running the scenario will produce an error unless the
 user uses the :option:`--param` command-line option to specify the map.
 
+The ``use2DMap`` global parameter determines whether or not maps are generated in 2D. Currently
+3D maps are not supported, but are under development. If 2D mode is enabled, this parameter is
+set to `True`, and otherwise it is set to `False` by default. If 2D mode is disabled, this 
+flag can still be manually set to `True`, allowing full Scenic 3D functionality, albeit with
+2D maps.
+
 .. note::
 
     If you are using a simulator, you may have to also define simulator-specific global
