@@ -43,13 +43,6 @@ def scenicToCarlaRotation(orientation):
     return carla.Rotation(pitch=pitch, yaw=yaw, roll=roll)
 
 
-def scenicSpeedToCarlaVelocity(speed, heading):
-    currYaw = scenicToCarlaRotation(heading).yaw
-    xVel = speed * math.cos(currYaw)
-    yVel = speed * math.sin(currYaw)
-    return scenicToCarlaVector3D(xVel, yVel)
-
-
 def carlaToScenicPosition(loc):
     return Vector(loc.x, -loc.y, loc.z)
 
