@@ -16,7 +16,8 @@ def test_map_param_parse(getAssetPath):
         model scenic.simulators.carla.model
         ego = new Car
     """
-    compileScenic(code, mode2D=True)
+    scenario = compileScenic(code, mode2D=True)
+    assert scenario.params["carla_map"] == "Town01"
 
 
 def test_basic(loadLocalScenario):
