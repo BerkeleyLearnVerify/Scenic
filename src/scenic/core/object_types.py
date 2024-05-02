@@ -1770,7 +1770,7 @@ class OrientedPoint2D(Point2D, OrientedPoint):
 
             props = cls._scenic_properties
             # Raise error if parentOrientation already defined
-            if "parentOrientation" in props:
+            if "parentOrientation" in props and "heading" in props:
                 raise RuntimeError(
                     "this scenario cannot be run with the --2d flag (the "
                     f'{cls.__name__} class defines "parentOrientation")'

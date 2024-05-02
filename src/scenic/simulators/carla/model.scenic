@@ -95,6 +95,8 @@ param weather = Uniform(
     'MidRainSunset',
     'HardRainSunset'
 )
+if "snapToGroundDefault" not in globalParameters:
+    param snapToGroundDefault = is2DMode()
 
 simulator CarlaSimulator(
     carla_map=globalParameters.carla_map,
@@ -123,6 +125,7 @@ class CarlaActor(DrivingObject):
     rolename: None
     color: None
     physics: True
+    snapToGround: globalParameters.snapToGroundDefault
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -221,12 +224,12 @@ class Prop(CarlaActor):
     """Abstract class for props, i.e. non-moving objects.
 
     Properties:
-        heading (float): Default value overridden to be uniformly random.
+        parentOrientation (Orientation): Default value overridden to have uniformly random yaw.
         physics (bool): Default value overridden to be false.
     """
     regionContainedIn: road
     position: new Point on road
-    heading: Range(0, 360) deg
+    parentOrientation: Range(0, 360) deg
     width: 0.5
     length: 0.5
     physics: False

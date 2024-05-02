@@ -3,6 +3,7 @@ import math
 import carla
 import scipy
 
+import scenic
 from scenic.core.geometry import normalizeAngle
 from scenic.core.vectors import Orientation, Vector
 
@@ -25,11 +26,13 @@ def scenicToCarlaVector3D(x, y, z=0.0):
     return carla.Vector3D(x, -y, z)
 
 
-def scenicToCarlaLocation(pos, z=None, world=None, blueprint=None):
-    if z is None:
+def scenicToCarlaLocation(pos, world=None, blueprint=None, snapToGround=False):
+    if snapToGround:
         assert world is not None
-        return snapToGround(world, carla.Location(pos.x, -pos.y, 0.0), blueprint)
-    return carla.Location(pos.x, -pos.y, z)
+        return scenic.simulators.carla.utils.utils.snapToGround(
+            world, carla.Location(pos.x, -pos.y, 0.0), blueprint
+        )
+    return carla.Location(pos.x, -pos.y, pos.z)
 
 
 def scenicToCarlaRotation(orientation):

@@ -38,6 +38,23 @@ from scenic.domains.driving.behaviors import *
 from scenic.core.distributions import RejectionException
 from scenic.simulators.utils.colors import Color
 
+## 2D mode flag & checks
+
+def is2DMode():
+    from scenic.syntax.veneer import mode2D
+    return mode2D
+
+if 'use2DMap' not in globalParameters:
+    param use2DMap = True if is2DMode() else False
+
+if is2DMode() and not globalParameters.use2DMap:
+    raise RuntimeError('if using 2D mode global parameter "use2DMap" must be False')
+
+# Note: The following should be removed when 3D maps are supported
+if not globalParameters.use2DMap:
+    raise RuntimeError('3D maps not supported at this time.'
+        '(to use 2D maps set global parameter "use2DMap" to True)')
+
 ## Load map and set up workspace
 
 if 'map' not in globalParameters:
@@ -79,10 +96,6 @@ intersection : Region = network.intersectionRegion
 roadDirection : VectorField = network.roadDirection
 
 ## Standard object types
-
-def is2DMode():
-    from scenic.syntax.veneer import mode2D
-    return mode2D
 
 class DrivingObject:
     """Abstract class for objects in a road network.
@@ -250,10 +263,10 @@ class Vehicle(DrivingObject):
 
     Properties:
         position: The default position is uniformly random over the `road`.
-        heading: The default heading is aligned with `roadDirection`, plus an offset
+        parentOrientation: The default parentOrientation is aligned with `roadDirection`, plus an offset
             given by **roadDeviation**.
         roadDeviation (float): Relative heading with respect to the road direction at
-            the `Vehicle`'s position. Used by the default value for **heading**.
+            the `Vehicle`'s position. Used by the default value for **parentOrientation**.
         regionContainedIn: The default container is :obj:`roadOrShoulder`.
         viewAngle: The default view angle is 90 degrees.
         width: The default width is 2 meters.
@@ -264,7 +277,7 @@ class Vehicle(DrivingObject):
     """
     regionContainedIn: roadOrShoulder
     position: new Point on road
-    heading: (roadDirection at self.position) + self.roadDeviation
+    parentOrientation: (roadDirection at self.position) + self.roadDeviation
     roadDeviation: 0
     viewAngle: 90 deg
     width: 2
@@ -290,7 +303,7 @@ class Pedestrian(DrivingObject):
 
     Properties:
         position: The default position is uniformly random over sidewalks and crosswalks.
-        heading: The default heading is uniformly random.
+        parentOrientation: The default parentOrientation has uniformly random yaw.
         viewAngle: The default view angle is 90 degrees.
         width: The default width is 0.75 m.
         length: The default length is 0.75 m.
@@ -299,7 +312,7 @@ class Pedestrian(DrivingObject):
     """
     regionContainedIn: network.walkableRegion
     position: new Point on network.walkableRegion
-    heading: Range(0, 360) deg
+    parentOrientation: Range(0, 360) deg
     viewAngle: 90 deg
     width: 0.75
     length: 0.75
