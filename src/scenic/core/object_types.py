@@ -1773,7 +1773,7 @@ class OrientedPoint2D(Point2D, OrientedPoint):
             if "parentOrientation" in props and "heading" in props:
                 raise RuntimeError(
                     "this scenario cannot be run with the --2d flag (the "
-                    f'{cls.__name__} class defines "parentOrientation")'
+                    f'{cls.__name__} class defines "parentOrientation and heading")'
                 )
 
             # Map certain properties to their 3D analog
