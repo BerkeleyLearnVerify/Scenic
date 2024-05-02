@@ -1769,7 +1769,7 @@ class OrientedPoint2D(Point2D, OrientedPoint):
             cls._props_transformed = str(cls)
 
             props = cls._scenic_properties
-            # Raise error if parentOrientation already defined
+            # Raise error if parentOrientation and heading already defined
             if "parentOrientation" in props and "heading" in props:
                 raise RuntimeError(
                     "this scenario cannot be run with the --2d flag (the "
