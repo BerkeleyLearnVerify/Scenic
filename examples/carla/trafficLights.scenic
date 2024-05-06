@@ -1,5 +1,8 @@
 """ Scenario Description
 Example scenario of traffic lights management.
+
+To run this file:
+    scenic examples/carla/trafficLights.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)

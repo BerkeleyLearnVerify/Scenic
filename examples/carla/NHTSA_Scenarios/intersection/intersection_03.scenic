@@ -5,6 +5,9 @@ DESCRIPTION: Ego vehicle either goes straight or makes a left turn at
 4-way intersection and must suddenly stop to avoid collision when 
 adversary vehicle from lateral lane continues straight.
 SOURCE: NHSTA, #28 #29
+
+To run this file:
+    scenic examples/carla/NHTSA_Scenarios/intersection/intersection_03.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
 #################################

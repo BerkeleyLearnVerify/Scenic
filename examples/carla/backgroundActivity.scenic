@@ -2,6 +2,9 @@
 Background Activity
 The simulation is filled with vehicles that freely roam around the town.
 This simulates normal driving conditions, without any abnormal behaviors
+
+To run this file: 
+    scenic examples/carla/backgroundActivity.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 # SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
 param map = localPath('../../assets/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
@@ -17,6 +20,10 @@ behavior EgoBehavior(speed=10):
         do FollowLaneBehavior(speed)
     interrupt when withinDistanceToObjsInLane(self, 10):
         take SetBrakeAction(1.0)
+
+# PEDESTRIAN BEHAVIOR: cross the street
+behavior PedestrianBehavior(min_speed=1, threshold=10):
+    do CrossingBehavior(ego, min_speed, threshold)
 
 ## DEFINING SPATIAL RELATIONS
 # Please refer to scenic/domains/driving/roads.py how to access detailed road infrastructure
@@ -36,7 +43,7 @@ background_walkers = []
 for _ in range(10):
     sideWalk = Uniform(*network.sidewalks)
     background_walker = new Pedestrian in sideWalk,
-        with behavior WalkBehavior()
+        with behavior PedestrianBehavior()
     background_walkers.append(background_walker)
 
 

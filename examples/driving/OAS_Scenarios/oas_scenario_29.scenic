@@ -3,6 +3,9 @@ Voyage OAS Scenario Unique ID: 3-2-NSW-I-L-CAR:S>W:02
 At 3 way intersection. The ego car turns left. 
 The other car, on a different leg of the intersection, 
 has the right of the way and makes a left turn first because it is closer to the intersection.
+
+To run this file:
+    scenic examples/driving/OAS_Scenarios/oas_scenario_29.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 param map = localPath('../../../assets/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'

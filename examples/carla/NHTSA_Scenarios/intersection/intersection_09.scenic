@@ -4,6 +4,9 @@ AUTHOR: Francis Indaheng, findaheng@berkeley.edu
 DESCRIPTION: Ego vehicle makes a right turn at 3-way intersection 
 while adversary vehicle from lateral lane goes straight.
 SOURCE: NHSTA, #28 #29
+
+To run this file:
+    scenic examples/carla/NHTSA_Scenarios/intersection/intersection_09.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
 #################################

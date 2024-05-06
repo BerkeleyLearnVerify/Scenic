@@ -5,6 +5,9 @@ DESCRIPTION: Ego Vehicle waits at 4-way intersection while adversary
 vehicle in adjacent lane passes before performing a lane change to 
 bypass a stationary vehicle waiting to make a left turn.
 SOURCE: NHSTA, #16
+
+To run this file:
+    scenic examples/carla/NHTSA_Scenarios/intersection/intersection_10.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
 #################################

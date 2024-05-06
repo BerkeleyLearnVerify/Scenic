@@ -4,6 +4,9 @@ AUTHOR: Francis Indaheng, findaheng@berkeley.edu
 DESCRIPTION: Ego vehicle makes a right turn at 4-way intersection while 
 adversary vehicle from lateral lane goes straight.
 SOURCE: NHSTA, #25 #26
+
+To run this file:
+    scenic examples/carla/NHTSA_Scenarios/intersection/intersection_06.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
 #################################

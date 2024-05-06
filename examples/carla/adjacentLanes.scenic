@@ -1,3 +1,8 @@
+'''
+To run this file: 
+    scenic examples/carla/adjacentLanes.scenic --2d --model scenic.simulators.carla.model
+'''
+
 param map = localPath('../../assets/maps/CARLA/Town03.xodr')
 model scenic.simulators.carla.model
 

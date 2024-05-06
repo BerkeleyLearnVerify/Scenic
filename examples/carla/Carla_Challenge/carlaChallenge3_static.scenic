@@ -3,6 +3,9 @@ Traffic Scenario 03 (static).
 Obstacle avoidance without prior action.
 The ego-vehicle encounters an obstacle / unexpected entity on the road and must perform an
 emergency brake or an avoidance maneuver.
+
+To run this file:
+    scenic examples/carla/Carla_Challenge/carlaChallenge3_static.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)

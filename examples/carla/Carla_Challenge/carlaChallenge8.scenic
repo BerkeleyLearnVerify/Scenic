@@ -3,6 +3,9 @@ Traffic Scenario 08.
 Unprotected left turn at intersection with oncoming traffic.
 The ego-vehicle is performing an unprotected left turn at an intersection, yielding to oncoming
 traffic.
+
+To run this file:
+    scenic examples/carla/Carla_Challenge/carlaChallenge8.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)

@@ -4,6 +4,9 @@ AUTHOR: Francis Indaheng, findaheng@berkeley.edu
 DESCRIPTION: Ego vehicle makes a left turn at an intersection and must 
 suddenly stop to avoid collision when pedestrian crosses the crosswalk.
 SOURCE: Carla Challenge, #04
+
+To run this file:
+    scenic examples/carla/NHTSA_Scenarios/pedestrian/pedestrian_03.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
 #################################
