@@ -104,6 +104,17 @@ def test_brake(getCarlaSimulator, launchCarlaServer):
     assert int(records[-1][1]) < threshold
 
 
+def test_map_param_parse(getAssetPath):
+    mapPath = getAssetPath("maps/CARLA/Town01.xodr")
+    code = f"""
+        param map = r'{mapPath}'
+        model scenic.simulators.carla.model
+        ego = new Car
+    """
+    scenario = compileScenic(code, mode2D=True)
+    assert scenario.params["carla_map"] == "Town01"
+
+
 def test_basic(loadLocalScenario):
     scenario = loadLocalScenario("basic.scenic", mode2D=True)
     scenario.generate(maxIterations=1000)

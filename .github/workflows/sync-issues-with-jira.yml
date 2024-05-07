@@ -1,0 +1,64 @@
+name: sync_issues_with_jira
+on:
+  issues:
+    types: [opened]
+
+jobs:
+    generate-issue-link:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Get issue details
+            id: get_issue_details
+            uses: actions/github-script@v4
+            with:
+              github-token: ${{ secrets.GH_ACCESS_TOKEN }}
+              script: |
+                const repoName = context.payload.repository.full_name;
+                const issueNumber = context.payload.issue.number;
+                const issueTitle = context.payload.issue.title;
+                const issueLink = `https://github.com/${repoName}/issues/${issueNumber}`;
+                console.log(`::set-output name=issueTitle::${issueTitle}`);
+                console.log(`::set-output name=issueLink::${issueLink}`);
+        
+          - name: Create Jira Ticket
+            env:
+                JIRA_DOMAIN: ${{ secrets.JIRA_DOMAIN }}
+                JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+                JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+                ISSUE_TITLE: ${{ steps.get_issue_details.outputs.issueTitle }}
+                ISSUE_LINK: ${{ steps.get_issue_details.outputs.issueLink }}
+            run: |
+                echo "Issue Title: $ISSUE_TITLE"
+                echo "Issue Link: $ISSUE_LINK"
+            
+                curl --request POST \
+                --url "https://$JIRA_DOMAIN.atlassian.net/rest/api/3/issue" \
+                --user "$JIRA_EMAIL:$JIRA_API_TOKEN" \
+                --header "Accept: application/json" \
+                --header "Content-Type: application/json" \
+                --data '{
+                    "fields": {
+                        "description": {
+                            "content": [
+                            {
+                                "content": [
+                                {
+                                    "text": "'"$ISSUE_LINK"'",
+                                    "type": "text"
+                                }
+                                ],
+                                "type": "paragraph"
+                            }
+                            ],
+                            "type": "doc",
+                            "version": 1
+                        },
+                        "summary": "'"$ISSUE_TITLE"'",
+                        "issuetype": {
+                            "id": "10001"
+                        },
+                        "project": {
+                            "key": "SCENIC"
+                        }
+                    }
+                }'

@@ -32,6 +32,7 @@ The Scenic tool and example scenarios have benefitted from additional code contr
 	* Jay Shenoy
 	* Mirco Theile
 	* Kesav Viswanadha
+	* Qiancheng Wu
 	* Wilson Wu
 
 Finally, many other people provided helpful advice and discussions, including:

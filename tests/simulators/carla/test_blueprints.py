@@ -5,6 +5,8 @@ try:
 except ModuleNotFoundError:
     pytest.skip("carla package not installed", allow_module_level=True)
 
+from test_carla import getCarlaSimulator, launchCarlaServer
+
 from scenic.simulators.carla.blueprints import (
     advertisementModels,
     atmModels,
@@ -38,13 +40,16 @@ from scenic.simulators.carla.blueprints import (
 )
 from tests.utils import compileScenic, sampleScene
 
-from test_carla import getCarlaSimulator, launchCarlaServer
+pytest.mark.skip_blueprints = pytest.mark.skip(
+    reason="Skipping test due to Carla memory leak issues"
+)
 
-pytest.mark.skip_blueprints = pytest.mark.skip(reason="Skipping test due to Carla memory leak issues")
+
 @pytest.fixture(autouse=True)
 def skip_tests_with_blueprints(request):
-    if 'blueprints' in request.node.name.lower():
+    if "blueprints" in request.node.name.lower():
         pytest.skip("Skipping test due to Carla memory leak issues")
+
 
 def preprocess_old_blueprint_names(original):
     d = {}

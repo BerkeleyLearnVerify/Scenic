@@ -39,7 +39,7 @@ Global Parameters:
 .. _carla.WeatherParameters: https://carla.readthedocs.io/en/latest/python_api/#carlaweatherparameters
 
 """
-
+import pathlib
 from scenic.domains.driving.model import *
 
 import scenic.simulators.carla.blueprints as blueprints
@@ -70,7 +70,8 @@ except ModuleNotFoundError:
     class _CarlaVehicle: pass
     class _CarlaPedestrian: pass
 
-param carla_map = None
+map_town = pathlib.Path(globalParameters.map).stem
+param carla_map = map_town
 param address = '127.0.0.1'
 param port = 2000
 param timeout = 10

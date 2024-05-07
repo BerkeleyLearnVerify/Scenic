@@ -1,0 +1,30 @@
+name: on_call_reminder
+
+on:
+  schedule:
+    - cron: '0 17 * * 2'  # Runs every Wednesday at 9am PST (17:00 UTC)
+  workflow_dispatch:  # Allows manual triggering of the workflow
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests slack_sdk argparse
+
+      - name: Run Python script
+        env:
+          SLACK_API_TOKEN: ${{ secrets.SLACK_API_TOKEN }}
+          OPS_GENIE_API_TOKEN: ${{ secrets.OPS_GENIE_API_TOKEN }}
+        run: python .github/slack_oncall_reminder.py --slack_api_token $SLACK_API_TOKEN --ops_genie_api_token $OPS_GENIE_API_TOKEN
