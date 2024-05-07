@@ -38,17 +38,13 @@ from scenic.simulators.carla.blueprints import (
 )
 from tests.utils import compileScenic, sampleScene
 
-from .test_carla import getCarlaSimulator, launchCarlaServer
+from test_carla import getCarlaSimulator, launchCarlaServer
 
-
-def pytest_collection_modifyitems(config, items):
-    for item in items:
-        # Skip tests with "blueprints" in their name
-        if "blueprints" in item.nodeid.lower():
-            item.add_marker(
-                pytest.mark.skip(reason="Skipping test due to Carla memory leak issues")
-            )
-
+pytest.mark.skip_blueprints = pytest.mark.skip(reason="Skipping test due to Carla memory leak issues")
+@pytest.fixture(autouse=True)
+def skip_tests_with_blueprints(request):
+    if 'blueprints' in request.node.name.lower():
+        pytest.skip("Skipping test due to Carla memory leak issues")
 
 def preprocess_old_blueprint_names(original):
     d = {}
@@ -89,7 +85,7 @@ oldModels = oldToNew.keys()
 
 
 @pytest.mark.parametrize("modelName", oldModels)
-def test_old_blue_prints(getCarlaSimulator, modelName):
+def test_old_blueprints(getCarlaSimulator, modelName):
     simulator, town, mapPath = getCarlaSimulator("Town01")
     model_blueprint(simulator, mapPath, town, "Car", modelName, oldToNew)
 

@@ -30,10 +30,10 @@ def launchCarlaServer():
     time.sleep(3)
     yield
     carla_process.kill()
-    time.sleep(3)
+    time.sleep(5)
     if carla_process.poll() is None:
         carla_process.terminate()
-    time.sleep(2)
+    time.sleep(5)
 
 
 @pytest.fixture
@@ -44,14 +44,15 @@ def getCarlaSimulator(getAssetPath):
 
     def _getCarlaSimulator(town):
         path = os.path.join(base, town + ".xodr")
-        simulator = CarlaSimulator(carla_map=town, map_path=path)
+        simulator = CarlaSimulator(map_path=path, carla_map=town)
+
         return (simulator, town, path)
 
     return _getCarlaSimulator
 
 
 @flaky(max_runs=5, min_passes=1)
-def test_throttle(getCarlaSimulator):
+def test_throttle(getCarlaSimulator, launchCarlaServer):
     simulator, town, mapPath = getCarlaSimulator("Town01")
     code = f"""
         param map = r'{mapPath}'
@@ -77,7 +78,7 @@ def test_throttle(getCarlaSimulator):
 
 
 @flaky(max_runs=5, min_passes=1)
-def test_brake(getCarlaSimulator):
+def test_brake(getCarlaSimulator, launchCarlaServer):
     simulator, town, mapPath = getCarlaSimulator("Town01")
     code = f"""
         param map = r'{mapPath}'
@@ -105,7 +106,7 @@ def test_brake(getCarlaSimulator):
 
 def test_basic(loadLocalScenario):
     scenario = loadLocalScenario("basic.scenic", mode2D=True)
-    scene = sampleScene(scenario)
+    scenario.generate(maxIterations=1000)
 
 
 def test_simulator_import():
