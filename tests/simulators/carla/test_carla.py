@@ -5,6 +5,11 @@ import time
 from flaky import flaky
 import pytest
 
+try:
+    import carla
+except ModuleNotFoundError:
+    pytest.skip("carla package not installed", allow_module_level=True)
+
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
 # Suppress potential warning about missing the carla package
