@@ -9,7 +9,6 @@ pytestmark = pytest.mark.filterwarnings(
 
 
 def test_map_param_parse(getAssetPath):
-    pytest.importorskip("carla")
     mapPath = getAssetPath("maps/CARLA/Town01.xodr")
     code = f"""
         param map = r'{mapPath}'
