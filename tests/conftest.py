@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-import os
 import os.path
 from pathlib import Path
 import re
