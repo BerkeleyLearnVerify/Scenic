@@ -206,10 +206,12 @@ class VerifaiSampler(ExternalSampler):
         if usingProbs and samplerType == "ce":
             if samplerParams is None:
                 samplerParams = DotMap()
+            else:
+                samplerParams = samplerParams.copy()  # avoid mutating original
             if "cont" in samplerParams or "disc" in samplerParams:
                 raise RuntimeError(
                     "CE distributions specified in both VerifaiParameters"
-                    "and verifaiSamplerParams"
+                    " and verifaiSamplerParams"
                 )
             cont_buckets = []
             cont_dists = []
