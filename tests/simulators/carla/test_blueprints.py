@@ -5,7 +5,7 @@ try:
 except ModuleNotFoundError:
     pytest.skip("carla package not installed", allow_module_level=True)
 
-from test_carla import getCarlaSimulator, launchCarlaServer
+from test_actions import getCarlaSimulator
 
 from scenic.simulators.carla.blueprints import (
     advertisementModels,
