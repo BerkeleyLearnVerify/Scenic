@@ -25,6 +25,7 @@ def checkCarlaPath():
     return CARLA_ROOT
 
 
+@pytest.fixture
 def launchCarlaServer():
     CARLA_ROOT = checkCarlaPath()
     carla_process = subprocess.Popen(
@@ -41,7 +42,7 @@ def launchCarlaServer():
 
 
 @pytest.fixture
-def getCarlaSimulator(getAssetPath):
+def getCarlaSimulator(getAssetPath, launchCarlaServer):
     from scenic.simulators.carla import CarlaSimulator
 
     base = getAssetPath("maps/CARLA")
