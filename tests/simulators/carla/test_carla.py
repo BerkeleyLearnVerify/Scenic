@@ -25,7 +25,6 @@ def checkCarlaPath():
     return CARLA_ROOT
 
 
-@pytest.fixture
 def launchCarlaServer():
     CARLA_ROOT = checkCarlaPath()
     carla_process = subprocess.Popen(
@@ -48,6 +47,7 @@ def getCarlaSimulator(getAssetPath):
     base = getAssetPath("maps/CARLA")
 
     def _getCarlaSimulator(town):
+        launchCarlaServer()
         path = os.path.join(base, town + ".xodr")
         simulator = CarlaSimulator(map_path=path, carla_map=town)
 
@@ -57,7 +57,7 @@ def getCarlaSimulator(getAssetPath):
 
 
 @flaky(max_runs=5, min_passes=1)
-def test_throttle(getCarlaSimulator, launchCarlaServer):
+def test_throttle(getCarlaSimulator):
     simulator, town, mapPath = getCarlaSimulator("Town01")
     code = f"""
         param map = r'{mapPath}'
@@ -83,7 +83,7 @@ def test_throttle(getCarlaSimulator, launchCarlaServer):
 
 
 @flaky(max_runs=5, min_passes=1)
-def test_brake(getCarlaSimulator, launchCarlaServer):
+def test_brake(getCarlaSimulator):
     simulator, town, mapPath = getCarlaSimulator("Town01")
     code = f"""
         param map = r'{mapPath}'
