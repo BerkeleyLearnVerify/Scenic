@@ -55,7 +55,7 @@ def is2DMode():
 param use2DMap = True if is2DMode() else False
 
 if is2DMode() and not globalParameters.use2DMap:
-    raise RuntimeError('if using 2D mode global parameter "use2DMap" must be False')
+    raise RuntimeError('in 2D mode, global parameter "use2DMap" must be True')
 
 # Note: The following should be removed when 3D maps are supported
 if not globalParameters.use2DMap:
