@@ -34,7 +34,7 @@ jobs:
       fail-fast: true
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         extras: ["test", "test-full"]
     runs-on: ${{ matrix.os }}
 
