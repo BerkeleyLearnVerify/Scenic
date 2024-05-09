@@ -17,6 +17,7 @@ codecov:
   require_ci_to_pass: true
   ignore:
     - "src/scenic/simulators/**"
+    - "tests/**"
     - "!src/scenic/simulators/newtonian/**"
     - "!src/scenic/simulators/utils/**"
 cli:
