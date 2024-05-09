@@ -305,9 +305,7 @@ def test_mode2D_heading_parentOrientation():
             ego = new Bar
         """
 
-    scenario = compileScenic(program, mode2D=True)
-    scene, _ = scenario.generate()
-    obj = scene.objects[0]
+    obj = sampleEgo(program, mode2D=True)
     assert obj.heading == obj.parentOrientation.yaw == 1.2
 
     program = """
@@ -320,7 +318,5 @@ def test_mode2D_heading_parentOrientation():
             ego = new Foo
         """
 
-    scenario = compileScenic(program, mode2D=True)
-    scene, _ = scenario.generate()
-    obj = scene.objects[0]
+    obj = sampleEgo(program, mode2D=True)
     assert obj.heading == obj.parentOrientation.yaw == 0.56

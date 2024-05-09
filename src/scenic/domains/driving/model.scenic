@@ -18,10 +18,12 @@ If you are writing a generic scenario that supports multiple maps, you may leave
 user uses the :option:`--param` command-line option to specify the map.
 
 The ``use2DMap`` global parameter determines whether or not maps are generated in 2D. Currently
-3D maps are not supported, but are under development. If 2D mode is enabled, this parameter is
-set to `True`, and otherwise it is set to `False` by default. If 2D mode is disabled, this 
-flag can still be manually set to `True`, allowing full Scenic 3D functionality, albeit with
-2D maps.
+3D maps are not supported, but are under development. By default, this parameter is `False`
+(so that future versions of Scenic will automatically use 3D maps), unless
+:ref:`2D compatibility mode` is enabled, in which case the default is `True`. The parameter
+can be manually set to `True` to ensure 2D maps are used even if the scenario is not compiled
+in 2D compatibility mode.
+
 
 .. note::
 
@@ -50,8 +52,7 @@ def is2DMode():
     from scenic.syntax.veneer import mode2D
     return mode2D
 
-if 'use2DMap' not in globalParameters:
-    param use2DMap = True if is2DMode() else False
+param use2DMap = True if is2DMode() else False
 
 if is2DMode() and not globalParameters.use2DMap:
     raise RuntimeError('if using 2D mode global parameter "use2DMap" must be False')

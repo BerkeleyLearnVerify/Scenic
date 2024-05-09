@@ -3,12 +3,11 @@ import math
 import carla
 import scipy
 
-import scenic
 from scenic.core.geometry import normalizeAngle
 from scenic.core.vectors import Orientation, Vector
 
 
-def snapToGround(world, location, blueprint):
+def _snapToGround(world, location, blueprint):
     """Mutates @location to have the same z-coordinate as the nearest waypoint in @world."""
     waypoint = world.get_map().get_waypoint(location)
     # patch to avoid the spawn error issue with vehicles and walkers.
@@ -29,9 +28,7 @@ def scenicToCarlaVector3D(x, y, z=0.0):
 def scenicToCarlaLocation(pos, world=None, blueprint=None, snapToGround=False):
     if snapToGround:
         assert world is not None
-        return scenic.simulators.carla.utils.utils.snapToGround(
-            world, carla.Location(pos.x, -pos.y, 0.0), blueprint
-        )
+        return _snapToGround(world, carla.Location(pos.x, -pos.y, 0.0), blueprint)
     return carla.Location(pos.x, -pos.y, pos.z)
 
 

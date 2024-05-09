@@ -97,8 +97,7 @@ param weather = Uniform(
     'MidRainSunset',
     'HardRainSunset'
 )
-if "snapToGroundDefault" not in globalParameters:
-    param snapToGroundDefault = is2DMode()
+param snapToGroundDefault = is2DMode()
 
 simulator CarlaSimulator(
     carla_map=globalParameters.carla_map,
