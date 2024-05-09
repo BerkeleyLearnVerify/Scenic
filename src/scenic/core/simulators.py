@@ -482,7 +482,6 @@ class Simulation(abc.ABC):
             if self.verbosity >= 3:
                 for agent, actions in allActions.items():
                     print(f"      Agent {agent} takes action(s) {actions}")
-
             self.actionSequence.append(allActions)
             self.executeActions(allActions)
 

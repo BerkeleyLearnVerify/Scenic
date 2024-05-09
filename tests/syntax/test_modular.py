@@ -9,7 +9,6 @@ from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError, Specifie
 from scenic.core.simulators import DummySimulator, TerminationType
 from tests.utils import (
     compileScenic,
-    generateChecked,
     sampleActionsFromScene,
     sampleEgo,
     sampleEgoActions,
@@ -853,16 +852,9 @@ def test_override_leakage():
         """,
         scenario="Main",
     )
-    scene, _ = generateChecked(scenario, 1)
+    scene = sampleScene(scenario)
     assert scene.objects[0].prop == 1
-    sampleActionsFromScene(
-        scene,
-        maxIterations=1,
-        maxSteps=1,
-        singleAction=True,
-        asMapping=False,
-        timestep=1,
-    )
+    sampleActionsFromScene(scene)
     assert scene.objects[0].prop == 1
 
     scenario = compileScenic(
@@ -882,17 +874,10 @@ def test_override_leakage():
         """,
         scenario="Main",
     )
-    scene, _ = generateChecked(scenario, 1)
+    scene = sampleScene(scenario)
     assert scene.objects[0].prop == 1
     with pytest.raises(NotImplementedError):
-        sampleActionsFromScene(
-            scene,
-            maxIterations=1,
-            maxSteps=1,
-            singleAction=True,
-            asMapping=False,
-            timestep=1,
-        )
+        sampleActionsFromScene(scene)
     assert scene.objects[0].prop == 1
 
 
