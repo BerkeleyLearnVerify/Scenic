@@ -16,12 +16,18 @@ coverage:
         threshold: 5%
 ignore:
   - "tests/"
+  - "docs/"
   - "src/scenic/simulators/airsim/"
   - "src/scenic/simulators/carla/"
   - "src/scenic/simulators/gta/"
   - "src/scenic/simulators/lgsvl/"
   - "src/scenic/simulators/webots/"
   - "src/scenic/simulators/xplane/"
+  - "**/*.md"
+  - "**/*.txt"
+  - "**/*.xodr"
+  - "**/*.snet"
+  - "**/*.yml"
 comment:
   layout: "reach, diff, flags, files"
   behavior: default
