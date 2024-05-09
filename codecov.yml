@@ -10,7 +10,10 @@ coverage:
       default:
         target: 80%
         threshold: 5%
-    patch: off
+    patch:
+      default:
+        target: 75%
+        threshold: 5%
 ignore:
   - "tests/"
   - "src/scenic/simulators/airsim/"
