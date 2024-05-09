@@ -13,7 +13,13 @@ from scenic.core.errors import (
     setDebuggingOptions,
 )
 from scenic.core.object_types import Object
-from tests.utils import compileScenic, sampleEgo, sampleParamPFrom, sampleScene
+from tests.utils import (
+    compileScenic,
+    sampleEgo,
+    sampleEgoFrom,
+    sampleParamPFrom,
+    sampleScene,
+)
 
 
 def test_minimal():
@@ -305,7 +311,7 @@ def test_mode2D_heading_parentOrientation():
             ego = new Bar
         """
 
-    obj = sampleEgo(program, mode2D=True)
+    obj = sampleEgoFrom(program, mode2D=True)
     assert obj.heading == obj.parentOrientation.yaw == 1.2
 
     program = """
@@ -318,5 +324,5 @@ def test_mode2D_heading_parentOrientation():
             ego = new Foo
         """
 
-    obj = sampleEgo(program, mode2D=True)
+    obj = sampleEgoFrom(program, mode2D=True)
     assert obj.heading == obj.parentOrientation.yaw == 0.56
