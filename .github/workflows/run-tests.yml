@@ -35,7 +35,7 @@ jobs:
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         os: [ubuntu-latest, windows-latest, macos-13, macos-latest]
-        extras: ["test", "test-full"]
+        extras: ["test-full"]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -70,5 +70,5 @@ jobs:
         pytest ${{ inputs.options || '--fast --no-graphics' }}
     
     - name: Run pytest in full mode
-      if: ${{ matrix.extras == 'test-full' && matrix.python-version == '3.12' }}
+      if: ${{ matrix.python-version == '3.12' }}
       run: pytest --no-graphics
