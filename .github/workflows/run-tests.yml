@@ -13,7 +13,7 @@ on:
         required: true
       options:
         description: Options to pass to pytest.
-        default: --no-graphics
+        default: --fast --no-graphics
         type: string
   workflow_call:
     inputs:
@@ -22,7 +22,7 @@ on:
         type: string
       options:
         description: Options to pass to pytest.
-        default: --no-graphics
+        default: --fast --no-graphics
         type: string
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
       fail-fast: true
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-13, macos-latest]
         extras: ["test", "test-full"]
     runs-on: ${{ matrix.os }}
 
@@ -65,6 +65,10 @@ jobs:
       run: |
         python -m pip install -e ".[${{ matrix.extras }}]"
 
-    - name: Run pytest
+    - name: Run fast version pytest
       run: |
         pytest ${{ inputs.options || '--no-graphics' }}
+    
+    - name: Run full tests
+      if: ${{ matrix.extras == 'test-full' && matrix.python-version == '3.12' }}
+      run: pytest --no-graphics
