@@ -94,6 +94,8 @@ We have several interfaces to the `Webots robotics simulator <https://cyberbotic
 Our main interface provides a generic world model that can be used with any Webots world and supports dynamic scenarios.
 See the :file:`examples/webots` folder for example Scenic scenarios and Webots worlds using this interface, and `scenic.simulators.webots` for documentation.
 
+Scenic currently interfaces with Webots versions greater than 2023a.
+
 Scenic also includes more specialized world models for use with Webots:
 
 	* A general model for traffic scenarios, used in `our VerifAI paper`_.
