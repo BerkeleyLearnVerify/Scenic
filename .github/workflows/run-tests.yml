@@ -73,7 +73,7 @@ jobs:
       if: ${{ matrix.python-version == '3.12' }}
       run: |
         if [ "${{ runner.os }}" == "macOS" ]; then
-          python -m pip uninstall Pillow
-          python -m pip install Pillow
+          python -m pip uninstall Pillow -y
+          python -m pip install Pillow -y
         fi
         pytest --no-graphics
