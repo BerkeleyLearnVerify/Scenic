@@ -25,12 +25,12 @@ import scenic.syntax.veneer as veneer
 # Compilation
 
 
-def compileScenic(code, removeIndentation=True, scenario=None, mode2D=False):
+def compileScenic(code, removeIndentation=True, scenario=None, mode2D=False, params={}):
     if removeIndentation:
         # to allow indenting code to line up with test function
         code = inspect.cleandoc(code)
     checkVeneerIsInactive()
-    scenario = scenarioFromString(code, scenario=scenario, mode2D=mode2D)
+    scenario = scenarioFromString(code, scenario=scenario, mode2D=mode2D, params=params)
     checkVeneerIsInactive()
     return scenario
 

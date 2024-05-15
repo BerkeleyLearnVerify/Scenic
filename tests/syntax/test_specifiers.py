@@ -555,6 +555,11 @@ def test_visible_no_ego():
         compileScenic("ego = new Object visible")
 
 
+def test_visible_no_ego_2():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic("new Object visible")
+
+
 def test_visible_from_point():
     scenario = compileScenic(
         "x = new Point at 300@200, with visibleDistance 2\n"
