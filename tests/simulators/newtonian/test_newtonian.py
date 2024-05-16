@@ -21,7 +21,7 @@ def test_render(loadLocalScenario):
     simulator.simulate(scene, maxSteps=3)
 
 
-def test_driving(loadLocalScenario):
+def test_driving_2D(loadLocalScenario):
     def check():
         scenario = loadLocalScenario("driving.scenic", mode2D=True)
         scene, _ = scenario.generate(maxIterations=1000)

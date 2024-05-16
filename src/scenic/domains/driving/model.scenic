@@ -17,6 +17,14 @@ If you are writing a generic scenario that supports multiple maps, you may leave
 ``map`` parameter undefined; then running the scenario will produce an error unless the
 user uses the :option:`--param` command-line option to specify the map.
 
+The ``use2DMap`` global parameter determines whether or not maps are generated in 2D. Currently
+3D maps are not supported, but are under development. By default, this parameter is `False`
+(so that future versions of Scenic will automatically use 3D maps), unless
+:ref:`2D compatibility mode` is enabled, in which case the default is `True`. The parameter
+can be manually set to `True` to ensure 2D maps are used even if the scenario is not compiled
+in 2D compatibility mode.
+
+
 .. note::
 
     If you are using a simulator, you may have to also define simulator-specific global
@@ -37,6 +45,22 @@ from scenic.domains.driving.behaviors import *
 
 from scenic.core.distributions import RejectionException
 from scenic.simulators.utils.colors import Color
+
+## 2D mode flag & checks
+
+def is2DMode():
+    from scenic.syntax.veneer import mode2D
+    return mode2D
+
+param use2DMap = True if is2DMode() else False
+
+if is2DMode() and not globalParameters.use2DMap:
+    raise RuntimeError('in 2D mode, global parameter "use2DMap" must be True')
+
+# Note: The following should be removed when 3D maps are supported
+if not globalParameters.use2DMap:
+    raise RuntimeError('3D maps not supported at this time.'
+        '(to use 2D maps set global parameter "use2DMap" to True)')
 
 ## Load map and set up workspace
 
@@ -79,10 +103,6 @@ intersection : Region = network.intersectionRegion
 roadDirection : VectorField = network.roadDirection
 
 ## Standard object types
-
-def is2DMode():
-    from scenic.syntax.veneer import mode2D
-    return mode2D
 
 class DrivingObject:
     """Abstract class for objects in a road network.
@@ -250,10 +270,10 @@ class Vehicle(DrivingObject):
 
     Properties:
         position: The default position is uniformly random over the `road`.
-        heading: The default heading is aligned with `roadDirection`, plus an offset
+        parentOrientation: The default parentOrientation is aligned with `roadDirection`, plus an offset
             given by **roadDeviation**.
         roadDeviation (float): Relative heading with respect to the road direction at
-            the `Vehicle`'s position. Used by the default value for **heading**.
+            the `Vehicle`'s position. Used by the default value for **parentOrientation**.
         regionContainedIn: The default container is :obj:`roadOrShoulder`.
         viewAngle: The default view angle is 90 degrees.
         width: The default width is 2 meters.
@@ -264,7 +284,7 @@ class Vehicle(DrivingObject):
     """
     regionContainedIn: roadOrShoulder
     position: new Point on road
-    heading: (roadDirection at self.position) + self.roadDeviation
+    parentOrientation: (roadDirection at self.position) + self.roadDeviation
     roadDeviation: 0
     viewAngle: 90 deg
     width: 2
@@ -290,7 +310,7 @@ class Pedestrian(DrivingObject):
 
     Properties:
         position: The default position is uniformly random over sidewalks and crosswalks.
-        heading: The default heading is uniformly random.
+        parentOrientation: The default parentOrientation has uniformly random yaw.
         viewAngle: The default view angle is 90 degrees.
         width: The default width is 0.75 m.
         length: The default length is 0.75 m.
@@ -299,7 +319,7 @@ class Pedestrian(DrivingObject):
     """
     regionContainedIn: network.walkableRegion
     position: new Point on network.walkableRegion
-    heading: Range(0, 360) deg
+    parentOrientation: Range(0, 360) deg
     viewAngle: 90 deg
     width: 0.75
     length: 0.75
