@@ -533,6 +533,10 @@ class Scenario(_ScenarioPickleMixin):
         for obj in filter(
             lambda x: x.requireVisible and x is not self.egoObject, self.objects
         ):
+            if not self.egoObject:
+                raise InvalidScenarioError(
+                    "requireVisible set to true but no ego is defined"
+                )
             requirements.append(VisibilityRequirement(self.egoObject, obj, self.objects))
 
         return tuple(requirements)

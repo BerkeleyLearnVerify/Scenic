@@ -9,6 +9,7 @@ import io
 import math
 import pickle
 import struct
+import types
 
 from scenic.core.distributions import Samplable, needsSampling
 from scenic.core.utils import DefaultIdentityDict
@@ -39,6 +40,30 @@ def dumpAsScenicCode(value, stream):
         value.dumpAsScenicCode(stream)
     else:
         stream.write(repr(value))
+
+
+## Pickles
+
+# If dill is installed, register some custom handlers to improve the pickling
+# of Scene and Scenario objects.
+
+try:
+    import dill
+except Exception:
+    pass
+else:
+    _orig_save_module = dill.Pickler.dispatch[types.ModuleType]
+
+    @dill.register(types.ModuleType)
+    def patched_save_module(pickler, obj):
+        # Save Scenic's internal modules by reference to avoid inconsistent versions
+        # as well as some unpicklable objects (and shrink the size of pickles while
+        # we're at it).
+        name = obj.__name__
+        if name == "scenic" or name.startswith("scenic."):
+            pickler.save_reduce(dill._dill._import_module, (name,), obj=obj)
+            return
+        _orig_save_module(pickler, obj)
 
 
 ## Binary serialization format
