@@ -297,7 +297,7 @@ class Simulation(abc.ABC):
         agents: List of :term:`agents` in the simulation. An agent is any object that has
             or had a behavior at any point in the simulation. The agents list may have objects
             appended to the end as the simulation progresses (if a non-agent object has its
-            behavior overriden), but once an object is in the agents list its position is fixed.
+            behavior overridden), but once an object is in the agents list its position is fixed.
         result (`SimulationResult`): Result of the simulation, or `None` if it has not
             yet completed. This is the primary object which should be inspected to get
             data out of the simulation: the other undocumented attributes of this class
