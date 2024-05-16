@@ -91,6 +91,20 @@ If on an Apple-silicon machine you get an error related to pip being unable to i
 4. Activate your virtual environment if you haven't already.
 5. Install the package using pip with the following command: :command:`CPATH=$(brew --prefix)/include:$(brew --prefix)/include/eigen3 LD_LIBRARY_PATH=$(brew --prefix)/lib python -m pip install .`
 
+.. _pygletversion:
+
+Scenic generates only one scene on Apple silicon
++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+If on an Apple-silicon machine you get an error where your run a ``.scenic`` file and it only generates a single scene, you may need to downgrade the version of ``pyglet`` as follows:
+
+1. Follow the MacOS instructions on :ref:`quickstart` for the repository installation.
+2. Inside the root of the Scenic repo, update the ``pyglet`` version from ``"pyglet ~= 1.5"`` to ``"pyglet == 1.5.26"``. 
+3. Activate the virutal environment if you haven't done so already and run: ``python -m pip install -e .``
+4. Confirm that you are using the updated version of ``pyglet`` by running: ``pip freeze``.
+
+For more updates on the related issue, please refer to the `GitHub open issue <https://github.com/BerkeleyLearnVerify/Scenic/issues/230>`_.
+
 Windows
 -------
 
