@@ -845,8 +845,7 @@ def test_override_leakage():
                 do Sub1()
         scenario Sub1():
             setup:
-                override ego with prop 2
-                override ego with behavior Bar
+                override ego with prop 2, with behavior Bar
         behavior Bar():
             terminate
         """,
@@ -866,8 +865,7 @@ def test_override_leakage():
                 do Sub1()
         scenario Sub1():
             setup:
-                override ego with prop 2
-                override ego with behavior Bar
+                override ego with prop 2, with behavior Bar
         behavior Bar():
             raise NotImplementedError()
             wait
