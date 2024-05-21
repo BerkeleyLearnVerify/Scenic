@@ -5,10 +5,10 @@ raw_safe_auto_brake = compose over car:
         using SimulationTesting(),
         terminating after 100 samples
 
-    prove car.cs satisfies SafeControls(10),
+    prove car.c satisfies SafeControls(10),
         using Lean4Proof("proof.lean")
 
-    assume MinBrakingEffect(10, 0.1)
+    assume car.va satisfies MinBrakingEffect(10, 0.1)
 
 safe_auto_brake = refine raw_safe_auto_brake as SafeAutoBrake()
 

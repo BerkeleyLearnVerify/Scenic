@@ -1,16 +1,16 @@
 
 component PerceptionSystem(model):
     sensors:
-        self.frontCamera: float as img
+        self.frontCamera: Image as img
 
     outputs:
         dist: float
 
     body:
-        dist = model(img)
+        dist = model(img) # Evaluate NN
         return {"dist": dist}
 
-component ControlSystem(target_dist=10):
+component Controller(target_dist=10):
     inputs:
         dist: float
 
@@ -31,17 +31,17 @@ component ControlSystem(target_dist=10):
         )
         return {"action": action}
 
-component VehicleControls:
+component VehicleActuator:
     actions:
         control_action: RegulatedControlAction
 
 component Car:
     compose:
-        ps = PerceptionSystem(stddev)
-        cs = ControlSystem()
-        vc = VehicleControls()
+        ps = PerceptionSystem()
+        c = Controller()
+        va = VehicleActuator()
 
-        connect ps.dist to cs.dist
-        connect cs.action to vc.control_action
+        connect ps.dist to c.dist
+        connect c.action to va.control_action
 
 
