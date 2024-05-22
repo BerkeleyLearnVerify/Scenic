@@ -9,6 +9,7 @@ from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError, Specifie
 from scenic.core.simulators import DummySimulator, TerminationType
 from tests.utils import (
     compileScenic,
+    sampleActionsFromScene,
     sampleEgo,
     sampleEgoActions,
     sampleEgoFrom,
@@ -809,6 +810,75 @@ def test_override_behavior():
     assert tuple(actions) == (1, -1, -2, 2)
 
 
+def test_override_none_behavior():
+    scenario = compileScenic(
+        """
+        scenario Main():
+            setup:
+                ego = new Object
+            compose:
+                wait
+                do Sub() for 2 steps
+                wait
+        scenario Sub():
+            setup:
+                override ego with behavior Bar
+        behavior Bar():
+            x = -1
+            while True:
+                take x
+                x -= 1
+        """,
+        scenario="Main",
+    )
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (None, -1, -2, None)
+
+
+def test_override_leakage():
+    scenario = compileScenic(
+        """
+        scenario Main():
+            setup:
+                ego = new Object with prop 1
+            compose:
+                do Sub1()
+        scenario Sub1():
+            setup:
+                override ego with prop 2, with behavior Bar
+        behavior Bar():
+            terminate
+        """,
+        scenario="Main",
+    )
+    scene = sampleScene(scenario)
+    assert scene.objects[0].prop == 1
+    sampleActionsFromScene(scene)
+    assert scene.objects[0].prop == 1
+
+    scenario = compileScenic(
+        """
+        scenario Main():
+            setup:
+                ego = new Object with prop 1
+            compose:
+                do Sub1()
+        scenario Sub1():
+            setup:
+                override ego with prop 2, with behavior Bar
+        behavior Bar():
+            raise NotImplementedError()
+            wait
+        """,
+        scenario="Main",
+    )
+    scene = sampleScene(scenario)
+    assert scene.objects[0].prop == 1
+    with pytest.raises(NotImplementedError):
+        sampleActionsFromScene(scene)
+    assert scene.objects[0].prop == 1
+
+
 def test_override_dynamic():
     with pytest.raises(SpecifierError):
         compileScenic(
@@ -1048,3 +1118,42 @@ def test_scenario_signature(body):
     assert name4 == "qux"
     assert p4.default is inspect.Parameter.empty
     assert p4.kind is inspect.Parameter.VAR_KEYWORD
+
+
+# lastActions Property
+def test_lastActions_modular():
+    scenario = compileScenic(
+        """
+        scenario Main():
+            setup:
+                ego = new Object
+                record ego.lastActions as lastActions
+            compose:
+                do Sub1() for 2 steps
+                do Sub2() for 2 steps
+                do Sub1() for 2 steps
+                wait
+        scenario Sub1():
+            setup:
+                override ego with behavior Bar
+        scenario Sub2():
+            setup:
+                override ego with behavior None
+        behavior Bar():
+            x = -1
+            while True:
+                take x
+                x -= 1
+        """,
+        scenario="Main",
+    )
+    result = sampleResult(scenario, maxSteps=6)
+    assert tuple(result.records["lastActions"]) == (
+        (0, tuple()),
+        (1, (-1,)),
+        (2, (-2,)),
+        (3, tuple()),
+        (4, tuple()),
+        (5, (-1,)),
+        (6, (-2,)),
+    )
