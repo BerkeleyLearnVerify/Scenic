@@ -196,7 +196,7 @@ class NewtonianSimulation(DrivingSimulation):
             pygame.event.pump()
 
     def draw_objects(self):
-        self.screen.fill((255, 255, 255))
+        # self.screen.fill((255, 255, 255))
         for screenPoints, color, width in self.network_polygons:
             pygame.draw.lines(self.screen, color, False, screenPoints, width=width)
 
