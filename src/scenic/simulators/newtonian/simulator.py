@@ -58,14 +58,16 @@ class NewtonianSimulator(DrivingSimulator):
         when not otherwise specified is still 0.1 seconds.
     """
 
-    def __init__(self, network=None, render=False):
+    def __init__(self, network=None, render=False, export_gif=False):
         super().__init__()
+        self.export_gif = export_gif
         self.render = render
         self.network = network
 
     def createSimulation(self, scene, **kwargs):
         simulation = NewtonianSimulation(scene, self.network, self.render, **kwargs)
-        simulation.generate_gif("simulation.gif")
+        if self.export_gif:
+            simulation.generate_gif("simulation.gif")
         return simulation
 
 
@@ -220,9 +222,10 @@ class NewtonianSimulation(DrivingSimulation):
 
         pygame.display.update()
 
-        frame = pygame.surfarray.array3d(self.screen)
-        frame = np.transpose(frame, (1, 0, 2))
-        self.frames.append(frame)
+        if self.export_gif:
+            frame = pygame.surfarray.array3d(self.screen)
+            frame = np.transpose(frame, (1, 0, 2))
+            self.frames.append(frame)
 
         time.sleep(self.timestep)
 
