@@ -1,7 +1,7 @@
 """ Scenario Description
 Example scenario of traffic lights management.
 
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/carla/trafficLights.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 

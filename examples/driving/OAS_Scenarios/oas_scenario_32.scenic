@@ -3,7 +3,7 @@ Voyage OAS Scenario Unique ID: 3-2-W-I-L-CAR:N>S
 At 3-way intersection, ego turns left and the other car on a different leg of the
 intersection goes straight. There is no requirement on which vehicle has the right of the way.
 
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/driving/OAS_Scenarios/oas_scenario_32.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 

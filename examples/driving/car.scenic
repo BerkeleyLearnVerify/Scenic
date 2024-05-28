@@ -1,5 +1,5 @@
 '''
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/driving/car.scenic --2d --model scenic.simulators.carla.model --simulate
 '''
 

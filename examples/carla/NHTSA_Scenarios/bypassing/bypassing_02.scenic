@@ -5,7 +5,7 @@ DESCRIPTION: Adversary vehicle performs a lane change to bypass the
 slow ego vehicle before returning to its original lane.
 SOURCE: NHSTA, #16
 
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/carla/NHTSA_Scenarios/bypassing/bypassing_02.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 

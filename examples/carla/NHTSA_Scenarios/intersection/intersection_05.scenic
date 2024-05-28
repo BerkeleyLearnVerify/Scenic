@@ -5,7 +5,7 @@ DESCRIPTION: Ego vehicle makes a right turn at 4-way intersection
 while adversary vehicle from opposite lane makes a left turn.
 SOURCE: NHSTA, #25
 
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/carla/NHTSA_Scenarios/intersection/intersection_05.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 

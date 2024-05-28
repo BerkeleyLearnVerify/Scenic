@@ -4,7 +4,7 @@ Ego-vehicle is going straight at an intersection but a crossing vehicle
 runs a red light, forcing the ego-vehicle to perform a collision avoidance maneuver.
 Note: The traffic light control is not implemented yet, but it will soon be. 
 
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/carla/Carla_Challenge/carlaChallenge7.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 param map = localPath('../../../assets/maps/CARLA/Town05.xodr')

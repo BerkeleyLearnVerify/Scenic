@@ -4,7 +4,7 @@ Crossing negotiation at an unsignalized intersection.
 The ego-vehicle needs to negotiate with other vehicles to cross an unsignalized intersection. In
 this situation it is assumed that the first to enter the intersection has priority.
 
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/carla/Carla_Challenge/carlaChallenge10.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 

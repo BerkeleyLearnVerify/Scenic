@@ -6,7 +6,7 @@ DESCRIPTION: Ego vehicle either goes straight or makes a left turn at
 adversary vehicle from lateral lane makes a left turn.
 SOURCE: NHSTA, #28 #29
 
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/carla/NHTSA_Scenarios/intersection/intersection_04.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 

@@ -4,7 +4,7 @@ Obstacle avoidance without prior action.
 The ego-vehicle encounters an obstacle / unexpected entity on the road and must perform an
 emergency brake or an avoidance maneuver.
 
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/carla/manual_control/carlaChallenge4.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 

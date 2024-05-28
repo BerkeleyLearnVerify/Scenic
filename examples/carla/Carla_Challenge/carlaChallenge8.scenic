@@ -4,7 +4,7 @@ Unprotected left turn at intersection with oncoming traffic.
 The ego-vehicle is performing an unprotected left turn at an intersection, yielding to oncoming
 traffic.
 
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/carla/Carla_Challenge/carlaChallenge8.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 

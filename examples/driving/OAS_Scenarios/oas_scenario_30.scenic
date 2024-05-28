@@ -4,7 +4,7 @@ At 3 way intersection. The ego car turns left.
 The other car approaches from a different leg of the intersection to make a left turn, but
 ego has the right of the way because it is closer to the intersection.
 
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/driving/OAS_Scenarios/oas_scenario_30.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 

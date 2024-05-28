@@ -6,7 +6,7 @@ suddenly stop to avoid collision when adversary vehicle makes a left
 turn.
 SOURCE: NHSTA, #30
 
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/carla/NHTSA_Scenarios/intersection/intersection_08.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 

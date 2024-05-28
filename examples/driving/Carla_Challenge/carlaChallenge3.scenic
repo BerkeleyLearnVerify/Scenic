@@ -3,7 +3,7 @@ Based on 2019 Carla Challenge Traffic Scenario 03.
 Leading vehicle decelerates suddenly due to an obstacle and 
 ego-vehicle must react, performing an emergency brake or an avoidance maneuver.
 
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/driving/Carla_Challenge/carlaChallenge3.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 param map = localPath('../../../assets/maps/CARLA/Town01.xodr')  # or other CARLA map that definitely works

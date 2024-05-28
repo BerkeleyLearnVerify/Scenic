@@ -1,5 +1,5 @@
 '''
-To run this file: 
+To run this file using the Carla simulator:
     scenic examples/carla/pedestrian.scenic --2d --model scenic.simulators.carla.model --simulate
 '''
 param map = localPath('../../assets/maps/CARLA/Town03.xodr')

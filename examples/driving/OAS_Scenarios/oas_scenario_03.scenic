@@ -2,7 +2,7 @@
 Voyage OAS Scenario Unique ID: 2-2-XX-CF-STR-CAR
 The ego vehicle follows the lead car
 
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/driving/OAS_Scenarios/oas_scenario_03.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 

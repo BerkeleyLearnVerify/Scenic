@@ -3,7 +3,7 @@ Background Activity
 The simulation is filled with vehicles that freely roam around the town.
 This simulates normal driving conditions, without any abnormal behaviors
 
-To run this file: 
+To run this file using the Carla simulator:
     scenic examples/carla/backgroundActivity.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 # SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)

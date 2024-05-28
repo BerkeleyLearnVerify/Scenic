@@ -5,7 +5,7 @@ DESCRIPTION: Ego vehicle makes a right turn at an intersection and must
 yield when pedestrian crosses the crosswalk.
 SOURCE: Carla Challenge, #04
 
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/carla/NHTSA_Scenarios/pedestrian/pedestrian_04.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 

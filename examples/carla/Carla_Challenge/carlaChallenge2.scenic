@@ -4,7 +4,7 @@ Longitudinal control after leading vehicle’s brake.
 The leading vehicle decelerates suddenly due to an obstacle and the ego-vehicle must perform an
 emergency brake or an avoidance maneuver.
 
-To run this file:
+To run this file using the Carla simulator:
     scenic examples/carla/Carla_Challenge/carlaChallenge2.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
