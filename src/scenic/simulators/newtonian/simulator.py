@@ -68,10 +68,8 @@ class NewtonianSimulator(DrivingSimulator):
         simulation = NewtonianSimulation(
             scene, self.network, self.render, self.export_gif, **kwargs
         )
-        if self.export_gif:
-            print("Starting to generate gif")
+        if self.export_gif and self.render:
             simulation.generate_gif("simulation.gif")
-            print("Ending generation for gif")
         return simulation
 
 
