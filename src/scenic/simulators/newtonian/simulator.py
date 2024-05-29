@@ -65,16 +65,21 @@ class NewtonianSimulator(DrivingSimulator):
         self.network = network
 
     def createSimulation(self, scene, **kwargs):
-        simulation = NewtonianSimulation(scene, self.network, self.render, **kwargs)
+        simulation = NewtonianSimulation(
+            scene, self.network, self.render, self.export_gif, **kwargs
+        )
         if self.export_gif:
+            print("Starting to generate gif")
             simulation.generate_gif("simulation.gif")
+            print("Ending generation for gif")
         return simulation
 
 
 class NewtonianSimulation(DrivingSimulation):
     """Implementation of `Simulation` for the Newtonian simulator."""
 
-    def __init__(self, scene, network, render, timestep, **kwargs):
+    def __init__(self, scene, network, render, export_gif, timestep, **kwargs):
+        self.export_gif = export_gif
         self.render = render
         self.network = network
         self.frames = []

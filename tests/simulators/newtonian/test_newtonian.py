@@ -1,5 +1,10 @@
+import os
+from pathlib import Path
+
+from PIL import Image as IPImage
 import pytest
 
+from scenic.domains.driving.roads import Network
 from scenic.simulators.newtonian import NewtonianSimulator
 from tests.utils import pickle_test, sampleScene, tryPickling
 
@@ -31,6 +36,17 @@ def test_driving_2D(loadLocalScenario):
     # Run this twice to catch leaks between successive compilations.
     check()
     check()  # If we fail here, something is leaking.
+
+
+def test_gif_creation(loadLocalScenario):
+    scenario = loadLocalScenario("driving.scenic", mode2D=True)
+    scene, _ = scenario.generate(maxIterations=1000)
+    path = Path("assets") / "maps" / "CARLA" / "Town01.xodr"
+    network = Network.fromFile(path)
+    simulator = NewtonianSimulator(render=True, network=network, export_gif=True)
+    simulation = simulator.simulate(scene, maxSteps=100)
+    gif_path = Path("") / "simulation.gif"
+    assert os.path.exists(gif_path)
 
 
 @pickle_test
