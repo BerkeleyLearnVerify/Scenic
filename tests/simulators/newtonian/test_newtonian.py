@@ -37,6 +37,7 @@ def test_driving_2D(loadLocalScenario):
     check()
     check()  # If we fail here, something is leaking.
 
+
 @pytest.mark.graphical
 def test_gif_creation(loadLocalScenario):
     scenario = loadLocalScenario("driving.scenic", mode2D=True)
