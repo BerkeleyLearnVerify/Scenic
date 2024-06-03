@@ -55,21 +55,33 @@ class NewtonianSimulator(DrivingSimulator):
         when not otherwise specified is still 0.1 seconds.
     """
 
-    def __init__(self, network=None, render=False):
+    def __init__(self, network=None, render=False, Longitudinal_K_P=0.5, Longitudinal_K_D=0.1, Longitudinal_K_I=0.2, Lateral_K_P=0.3, Lateral_K_D=0.2, Lateral_K_I=0.0):
         super().__init__()
         self.render = render
         self.network = network
+        self.Longitudinal_K_P = Longitudinal_K_P
+        self.Longitudinal_K_D = Longitudinal_K_D
+        self.Longitudinal_K_I = Longitudinal_K_I
+        self.Lateral_K_P = Lateral_K_P
+        self.Lateral_K_D = Lateral_K_D
+        self.Lateral_K_I = Lateral_K_I
 
     def createSimulation(self, scene, **kwargs):
-        return NewtonianSimulation(scene, self.network, self.render, **kwargs)
+        return NewtonianSimulation(scene, self.network, self.render, self.Longitudinal_K_P, self.Longitudinal_K_D, self.Longitudinal_K_I, self.Lateral_K_P ,self.Lateral_K_D, self.Lateral_K_I, **kwargs)
 
 
 class NewtonianSimulation(DrivingSimulation):
     """Implementation of `Simulation` for the Newtonian simulator."""
 
-    def __init__(self, scene, network, render, timestep, **kwargs):
+    def __init__(self, scene, network, render, Longitudinal_K_P, Longitudinal_K_D, Longitudinal_K_I, Lateral_K_P, Lateral_K_D, Lateral_K_I, timestep, **kwargs):
         self.render = render
         self.network = network
+        self.Longitudinal_K_P = Longitudinal_K_P
+        self.Longitudinal_K_D = Longitudinal_K_D
+        self.Longitudinal_K_I = Longitudinal_K_I
+        self.Lateral_K_P = Lateral_K_P
+        self.Lateral_K_D = Lateral_K_D
+        self.Lateral_K_I = Lateral_K_I
 
         if timestep is None:
             timestep = 0.1
@@ -239,8 +251,18 @@ class NewtonianSimulation(DrivingSimulation):
     def getLaneFollowingControllers(self, agent):
         dt = self.timestep
         if agent.isCar:
-            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-            lat_controller = PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.02, dt=dt)
+            # print("Longitudinal PID Constants")
+            # print("="*30)
+            # print("K_P: ", self.Longitudinal_K_P)
+            # print("K_D: ", self.Longitudinal_K_D)
+            # print("K_I: ", self.Longitudinal_K_I)
+            # print("Lateral PID Constants")
+            # print("="*30)
+            # print("K_P: ", self.Lateral_K_P)
+            # print("K_D: ", self.Lateral_K_D)
+            # print("K_I: ", self.Lateral_K_I)
+            lon_controller = PIDLongitudinalController(K_P=self.Longitudinal_K_P, K_D=self.Longitudinal_K_D, K_I=self.Longitudinal_K_I, dt=dt)
+            lat_controller = PIDLateralController(K_P=self.Lateral_K_P, K_D=self.Lateral_K_D, K_I=self.Lateral_K_I, dt=dt)
         else:
             lon_controller = PIDLongitudinalController(
                 K_P=0.25, K_D=0.025, K_I=0.0, dt=dt
