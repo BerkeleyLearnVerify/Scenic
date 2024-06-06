@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: Questions
-    url: https://forum.scenic-lang.org/latest
-    about: Send your questions to our Discourse
+    url: https://forum.scenic-lang.org/
+    about: Post your questions on our community forum
