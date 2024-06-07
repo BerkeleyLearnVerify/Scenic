@@ -1,4 +1,4 @@
-# Scenic
+[<img src="docs/images/logo-full.svg" alt="Scenic Logo" height="100">](https://scenic-lang.org/)
 
 [![Documentation Status](https://readthedocs.org/projects/scenic-lang/badge/?version=latest)](https://scenic-lang.readthedocs.io/en/latest/?badge=latest)
 [![Tests Status](https://github.com/BerkeleyLearnVerify/Scenic/actions/workflows/run-tests.yml/badge.svg)](https://github.com/BerkeleyLearnVerify/Scenic/actions/workflows/run-tests.yml)
