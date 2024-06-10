@@ -79,6 +79,7 @@ __all__ = (
     "RelativeTo",
     "OffsetAlong",
     "CanSee",
+    "Intersects",
     "Until",
     "Implies",
     "VisibleFromOp",
@@ -314,6 +315,7 @@ simulatorFactory = None
 evaluatingGuard = False
 mode2D = False
 _originalConstructibles = (Point, OrientedPoint, Object)
+BUFFERING_PITCH = 0.1
 
 ## APIs used internally by the rest of Scenic
 
@@ -1367,6 +1369,15 @@ def CanSee(X, Y):
     return canSeeHelper(X, Y, objects)
 
 
+@distributionFunction
+def Intersects(X, Y):
+    """The :scenic:`{X} intersects {Y}` operator."""
+    if isA(X, Object):
+        return X.intersects(Y)
+    else:
+        return Y.intersects(X)
+
+
 ### Specifiers
 
 
@@ -1439,15 +1450,15 @@ def On(thing):
     if isA(thing, Object):
         # Target is an Object: use its onSurface.
         target = thing.onSurface
+    elif canCoerce(thing, Vector, exact=True):
+        # Target is a vector
+        target = toVector(thing)
     elif canCoerce(thing, Region):
         # Target is a region (or could theoretically be coerced to one),
         # so we can use it as a target.
-        target = thing
+        target = toType(thing, Region)
     else:
-        # Target is a vector, so we can use it as a target.
-        target = toType(
-            thing, Vector, 'specifier "on R" with R not a Region, Object, or Vector'
-        )
+        raise TypeError('specifier "on R" with R not a Region, Object, or Vector')
 
     props = {"position": 1}
 
@@ -1602,10 +1613,28 @@ def VisibleFrom(base):
     if not isA(base, Point):
         raise TypeError('specifier "visible from O" with O not a Point')
 
+    def helper(self):
+        if mode2D:
+            position = Region.uniformPointIn(base.visibleRegion)
+        else:
+            containing_region = (
+                currentScenario._workspace.region
+                if self.regionContainedIn is None
+                and currentScenario._workspace is not None
+                else self.regionContainedIn
+            )
+            position = (
+                Region.uniformPointIn(everywhere, tag="visible")
+                if containing_region is None
+                else Region.uniformPointIn(containing_region)
+            )
+
+        return {"position": position, "_observingEntity": base}
+
     return Specifier(
         "Visible/VisibleFrom",
         {"position": 3, "_observingEntity": 1},
-        {"position": Region.uniformPointIn(base.visibleRegion), "_observingEntity": base},
+        DelayedArgument({"regionContainedIn"}, helper),
     )
 
 
@@ -1639,9 +1668,8 @@ def NotVisibleFrom(base):
         if mode2D:
             position = Region.uniformPointIn(region.difference(base.visibleRegion))
         else:
-            position = Region.uniformPointIn(
-                convertToFootprint(region).difference(base.visibleRegion)
-            )
+            # We can't limit the available region since any spot could potentially be occluded.
+            position = Region.uniformPointIn(convertToFootprint(region))
 
         return {"position": position, "_nonObservingEntity": base}
 

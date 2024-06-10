@@ -67,6 +67,14 @@ See the :ref:`Visibility System <visibility>` reference for a discussion of the 
 ----------------------------------
 Whether a position or `Object` lies in the `Region`; for the latter, the object must be completely contained in the region.
 
+.. _({Object} | {region}) intersects ({Object} | {region}):
+
+(*Object* | *region*) intersects (*Object* | *region*)
+------------------------------------------------------
+Whether an `Object`/`Region` intersects another `Object`/`Region`, i.e. whether any portion of the occupied spaces intersect.
+
+When working with 2D regions, it can be useful to check intersection with the :term:`footprint` of a region, e.g. when checking whether a car intersects a given lane. In this case, one would write :scenic:`car intersects lane.footprint` instead of :scenic:`car intersects lane`. For more details, see :term:`footprint`.
+
 
 Orientation Operators
 =====================
@@ -85,9 +93,12 @@ The orientation specified by the vector field at the given position
 
 .. _{direction} relative to {direction}:
 
-(*heading* | *vectorField*) relative to (*heading* | *vectorField*)
+(*direction*) relative to (*direction*)
 -------------------------------------------------------------------
-The first heading/vector field, interpreted as an offset relative to the second heading/vector field. For example, :scenic:`-5 deg relative to 90 deg` is simply 85 degrees. If either direction is a vector field, then this operator yields an expression depending on the :prop:`position` property of the object being specified.
+The orientation obtained by starting in the second direction and then rotating according to the first direction. For example, :scenic:`-5 deg relative to 90 deg` is simply 85 degrees. If either direction is a vector field, then this operator yields an expression depending on the :prop:`position` property of the object being specified. Both operator values must be of type `heading`, `Orientation`, or `vectorField`, not tuples, as tuples are by default intepreted as `Vector` objects.
+
+.. note::
+	This operator is not necessarily commutative, for example, when composing two 3D orientations.
 
 
 Vector Operators

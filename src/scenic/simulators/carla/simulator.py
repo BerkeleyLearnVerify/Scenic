@@ -140,6 +140,8 @@ class CarlaSimulation(DrivingSimulation):
             if not os.path.exists(self.record):
                 os.mkdir(self.record)
             name = "{}/scenario{}.log".format(self.record, self.scenario_number)
+            # Carla is looking for an absolute path, so convert it if necessary.
+            name = os.path.abspath(name)
             self.client.start_recorder(name)
 
         # Create objects.
@@ -204,7 +206,10 @@ class CarlaSimulation(DrivingSimulation):
 
         # Set up transform
         loc = utils.scenicToCarlaLocation(
-            obj.position, world=self.world, blueprint=obj.blueprint
+            obj.position,
+            world=self.world,
+            blueprint=obj.blueprint,
+            snapToGround=obj.snapToGround,
         )
         rot = utils.scenicToCarlaRotation(obj.orientation)
         transform = carla.Transform(loc, rot)

@@ -78,8 +78,6 @@ When checking containment of an `Object` in a 2D region, Scenic will atuomatical
 
 Most 3D regions inherit from either `MeshVolumeRegion` or `MeshSurfaceRegion`, which represent the volume (of a watertight mesh) and the surface of a mesh respectively. Various region classes are also provided to create primitive shapes. `MeshVolumeRegion` can be converted to `MeshSurfaceRegion` (and vice versa) using the the ``getSurfaceRegion`` and ``getVolumeRegion`` methods.
 
-Mesh regions can use one of two engines for mesh operations: Blender or OpenSCAD. This can be controlled using the ``engine`` parameter, passing ``"blender"`` or ``"scad"`` respectively. Blender is generally more tolerant but can produce unreliable output, such as meshes that have microscopic holes. OpenSCAD is generally more precise, but may crash on certain inputs that it considers ill-defined. By default, Scenic uses Blender internally.
-
 PolygonalFootprintRegions represent the :term:`footprint` of a 2D region. See `2D Regions` for more details.
 
 .. autoclass:: scenic.core.regions.MeshVolumeRegion

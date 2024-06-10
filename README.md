@@ -1,4 +1,4 @@
-# Scenic
+[<img src="docs/images/logo-full.svg" alt="Scenic Logo" height="100">](https://scenic-lang.org/)
 
 [![Documentation Status](https://readthedocs.org/projects/scenic-lang/badge/?version=latest)](https://scenic-lang.readthedocs.io/en/latest/?badge=latest)
 [![Tests Status](https://github.com/BerkeleyLearnVerify/Scenic/actions/workflows/run-tests.yml/badge.svg)](https://github.com/BerkeleyLearnVerify/Scenic/actions/workflows/run-tests.yml)
@@ -15,7 +15,7 @@ Scenic was initially designed and implemented by Daniel J. Fremont, Tommaso Dreo
 Additionally, Edward Kim made major contributions to Scenic 2, and Eric Vin, Shun Kashiwa, Matthew Rhea, and Ellen Kalvan to Scenic 3.
 Please see our [Credits](https://scenic-lang.readthedocs.io/en/latest/credits.html) page for details and more contributors.
 
-If you have any problems using Scenic, please submit an issue to [our GitHub repository](https://github.com/BerkeleyLearnVerify/Scenic).
+If you have any problems using Scenic, please submit an issue to [our GitHub repository](https://github.com/BerkeleyLearnVerify/Scenic) or start a conversation on our [community forum](https://forum.scenic-lang.org/).
 
 The repository is organized as follows:
 

@@ -13,7 +13,13 @@ from scenic.core.errors import (
     setDebuggingOptions,
 )
 from scenic.core.object_types import Object
-from tests.utils import compileScenic, sampleEgo, sampleParamPFrom, sampleScene
+from tests.utils import (
+    compileScenic,
+    sampleEgo,
+    sampleEgoFrom,
+    sampleParamPFrom,
+    sampleScene,
+)
 
 
 def test_minimal():
@@ -98,7 +104,7 @@ def test_param_read():
         ego = new Object
         param q = Range(3, 5)
         param p = globalParameters.q + 10
-    """
+        """
     )
     assert 13 <= p <= 15
 
@@ -111,14 +117,18 @@ def test_param_write():
 def test_mutate():
     scenario = compileScenic(
         """
-        ego = new Object at 3@1, facing 0
+        class Thing:
+            foo: self.heading
+
+        ego = new Thing at 3@1, facing 0
         mutate
-    """
+        """
     )
     ego1 = sampleEgo(scenario)
     assert ego1.position.x != pytest.approx(3)
     assert ego1.position.y != pytest.approx(1)
     assert ego1.heading != pytest.approx(0)
+    assert ego1.foo == 0
 
 
 def test_mutate_object():
@@ -127,7 +137,7 @@ def test_mutate_object():
         ego = new Object at 30@1, facing 0
         other = new Object
         mutate other
-    """
+        """
     )
     scene = sampleScene(scenario)
     ego, other = scene.objects
@@ -144,7 +154,7 @@ def test_mutate_scaled():
         """
         ego = new Object at 3@1, facing 0
         mutate ego by 4
-    """
+        """
     )
     ego1 = sampleEgo(scenario)
     assert ego1.position.x != pytest.approx(3)
@@ -158,7 +168,7 @@ def test_mutate_nonobject():
             """
             ego = new Object
             mutate sin
-        """
+            """
         )
 
 
@@ -206,7 +216,7 @@ def test_show2D_zoom():
         """
         ego = new Object
         new Object at 10@20
-    """
+        """
     )
     scene = sampleScene(scenario)
     scene.show2D(zoom=1, block=False)
@@ -226,7 +236,7 @@ def test_mode2D():
         test_obj_1 = new Object in p.visibleRegion
         test_obj_2 = new Object in op.visibleRegion
         test_obj_3 = new Object in ego.visibleRegion
-    """,
+        """,
         mode2D=True,
     )
     for _ in range(5):
@@ -261,7 +271,7 @@ def test_mode2D_heading():
             heading: 40 deg
 
         ego = new TestClass
-    """,
+        """,
         mode2D=True,
     )
     scene, _ = scenario.generate()
@@ -278,7 +288,7 @@ def test_mode2D_interference():
         test_obj_1 = new Object in p.visibleRegion
         test_obj_2 = new Object in op.visibleRegion
         test_obj_3 = new Object in ego.visibleRegion
-    """
+        """
 
     scenario = compileScenic(program, mode2D=True)
     for _ in range(5):
@@ -292,3 +302,31 @@ def test_mode2D_interference():
         scene, _ = scenario.generate()
 
         assert any(obj.position[2] != 0 for obj in scene.objects)
+
+
+def test_mode2D_heading_parentOrientation():
+    program = """
+            class Foo:
+                heading: 0.56
+
+            class Bar(Foo):
+                parentOrientation: 1.2
+
+            ego = new Bar
+        """
+
+    obj = sampleEgoFrom(program, mode2D=True)
+    assert obj.heading == obj.parentOrientation.yaw == 1.2
+
+    program = """
+            class Bar:
+                parentOrientation: 1.2
+
+            class Foo(Bar):
+                heading: 0.56
+
+            ego = new Foo
+        """
+
+    obj = sampleEgoFrom(program, mode2D=True)
+    assert obj.heading == obj.parentOrientation.yaw == 0.56

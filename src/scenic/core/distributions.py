@@ -330,8 +330,8 @@ class Distribution(Samplable):
             return object.__getattribute__(self, name)
         return AttributeDistribution(name, self)
 
-    def __call__(self, *args):
-        return OperatorDistribution("__call__", self, args)
+    def __call__(self, *args, **kwargs):
+        return OperatorDistribution("__call__", self, args, kwargs)
 
     def __iter__(self):
         raise RandomControlFlowError(f"cannot iterate through a random value")
@@ -684,7 +684,7 @@ class AttributeDistribution(Distribution):
             return unionOfSupports(supportInterval(attr) for attr in attrs)
         return None, None
 
-    def __call__(self, *args):
+    def __call__(self, *args, **kwargs):
         vty = self.object._valueType
         retTy = None
         if vty is not object:
@@ -693,7 +693,7 @@ class AttributeDistribution(Distribution):
                 if isinstance(func, property):
                     func = func.fget
                 retTy = get_type_hints(func).get("return")
-        return OperatorDistribution("__call__", self, args, valueType=retTy)
+        return OperatorDistribution("__call__", self, args, kwargs, valueType=retTy)
 
     def __repr__(self):
         return f"{self.object!r}.{self.attribute}"
@@ -704,15 +704,18 @@ class OperatorDistribution(Distribution):
 
     _deterministic = True
 
-    def __init__(self, operator, obj, operands, valueType=None):
+    def __init__(self, operator, obj, operands, kwoperands, valueType=None):
         operands = tuple(toDistribution(arg) for arg in operands)
+        kwoperands = {key: toDistribution(kwarg) for key, kwarg in kwoperands.items()}
+        dependencies = operands + tuple(kwoperands.values())
         if valueType is None:
             ty = type_support.underlyingType(obj)
-            valueType = self.inferType(ty, operator, operands)
-        super().__init__(obj, *operands, valueType=valueType)
+            valueType = self.inferType(ty, operator, operands, kwoperands)
+        super().__init__(obj, *dependencies, valueType=valueType)
         self.operator = operator
         self.object = obj
         self.operands = operands
+        self.kwoperands = kwoperands
         self.symbol = allowedReversibleOperators.get(operator)
         if self.symbol:
             if operator[:3] == "__r":
@@ -723,7 +726,7 @@ class OperatorDistribution(Distribution):
             self.reverse = None
 
     @staticmethod
-    def inferType(ty, operator, operands):
+    def inferType(ty, operator, operands, kwoperands):
         """Attempt to infer the result type of the given operator application."""
         # If the object's type is known, see if we have a return type annotation.
         origin = type_support.get_type_origin(ty)
@@ -741,7 +744,9 @@ class OperatorDistribution(Distribution):
                     # None does not support this operator; using it will raise an
                     # exception, so we can ignore this case for type inference.
                     continue
-                res = OperatorDistribution.inferType(option, operator, operands)
+                res = OperatorDistribution.inferType(
+                    option, operator, operands, kwoperands
+                )
                 types.append(res)
             return type_support.unifierOfTypes(types) if types else object
 
@@ -796,10 +801,11 @@ class OperatorDistribution(Distribution):
     def sampleGiven(self, value):
         first = value[self.object]
         rest = [value[child] for child in self.operands]
+        kwargs = {key: value[child] for key, child in self.kwoperands.items()}
         op = getattr(first, self.operator)
-        result = op(*rest)
+        result = op(*rest, **kwargs)
         if result is NotImplemented and self.reverse:
-            assert len(rest) == 1
+            assert len(rest) == 1 and len(kwargs) == 0
             rop = getattr(rest[0], self.reverse)
             result = rop(first)
         if result is NotImplemented and self.symbol:
@@ -812,7 +818,10 @@ class OperatorDistribution(Distribution):
     def evaluateInner(self, context):
         obj = valueInContext(self.object, context)
         operands = tuple(valueInContext(arg, context) for arg in self.operands)
-        return OperatorDistribution(self.operator, obj, operands)
+        kwoperands = {
+            key: valueInContext(arg, context) for key, kwarg in self.kwoperands.items()
+        }
+        return OperatorDistribution(self.operator, obj, operands, kwoperands)
 
     def supportInterval(self):
         if self.operator in (
@@ -825,7 +834,7 @@ class OperatorDistribution(Distribution):
             "__truediv__",
             "__rtruediv__",
         ):
-            assert len(self.operands) == 1
+            assert len(self.operands) == 1 and len(self.kwoperands) == 0
             l1, r1 = supportInterval(self.object)
             l2, r2 = supportInterval(self.operands[0])
             if l1 is None or l2 is None or r1 is None or r2 is None:
@@ -859,7 +868,7 @@ class OperatorDistribution(Distribution):
                 raise AssertionError(f"unexpected operator {self.operator}")
             return l, r
         elif self.operator in ("__neg__", "__abs__"):
-            assert len(self.operands) == 0
+            assert len(self.operands) == 0 and len(self.kwoperands) == 0
             l, r = supportInterval(self.object)
             if self.operator == "__neg__":
                 return -r, -l
@@ -921,7 +930,7 @@ def makeOperatorHandler(op, ty):
                 and arg == 0
             ):
                 return self
-            return OperatorDistribution(op, self, (arg,), valueType=ty)
+            return OperatorDistribution(op, self, (arg,), {}, valueType=ty)
 
     elif op in ("__mul__", "__rmul__"):
 
@@ -933,7 +942,7 @@ def makeOperatorHandler(op, ty):
 
                 if issubclass(self._valueType, Orientation) and arg == globalOrientation:
                     return self
-            return OperatorDistribution(op, self, (arg,), valueType=ty)
+            return OperatorDistribution(op, self, (arg,), {}, valueType=ty)
 
     elif op in ("__truediv__", "__floordiv__", "__pow__"):
 
@@ -944,12 +953,12 @@ def makeOperatorHandler(op, ty):
                 and arg == 1
             ):
                 return self
-            return OperatorDistribution(op, self, (arg,), valueType=ty)
+            return OperatorDistribution(op, self, (arg,), {}, valueType=ty)
 
     else:
         # The general case.
         def handler(self, *args):
-            return OperatorDistribution(op, self, args, valueType=ty)
+            return OperatorDistribution(op, self, args, {}, valueType=ty)
 
     return handler
 

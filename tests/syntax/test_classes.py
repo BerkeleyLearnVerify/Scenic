@@ -14,7 +14,7 @@ def test_old_constructor_statement():
             constructor Foo:
                 blah: (19, -3)
             ego = new Foo with blah 12
-        """
+            """
         )
 
 
@@ -25,7 +25,7 @@ def test_python_class():
             def __init__(self, x):
                  self.x = x
         ego = new Object with width Foo(4).x
-    """
+        """
     )
     scene = sampleScene(scenario, maxIterations=1)
     ego = scene.egoObject
@@ -38,7 +38,7 @@ def test_invalid_attribute():
             """
             class Foo:\n
                 blah[baloney_attr]: 4
-        """
+            """
         )
 
 
@@ -48,7 +48,7 @@ def test_invalid_attribute_2():
             """
             class Foo:\n
                 blah[additive, baloney_attr]: 4
-        """
+            """
         )
 
 
@@ -58,7 +58,7 @@ def test_invalid_attribute_3():
             """
             class Foo:\n
                 blah[additive, 'dynamic']: 4
-        """
+            """
         )
 
 
@@ -68,7 +68,7 @@ def test_invalid_attribute_4():
             """
             class Foo:\n
                 blah[additive + dynamic]: 4
-        """
+            """
         )
 
 
@@ -79,7 +79,7 @@ def test_property_simple():
             position: (3, 9, 0)
             flubber: -12
         ego = new Foo
-    """
+        """
     )
     scene = sampleScene(scenario, maxIterations=1)
     ego = scene.egoObject
@@ -95,7 +95,7 @@ def test_property_dependency():
             bar: self.position.x + self.baz
             baz: 5
         ego = new Foo at (10, 3)
-    """
+        """
     )
     assert ego.bar == 15
 
@@ -106,7 +106,7 @@ def test_property_raw_self():
             """
             class Foo:
                 bar: self
-        """
+            """
         )
 
 
@@ -118,7 +118,7 @@ def test_property_inheritance():
         class Bar(Foo):
             flubber: 7
         ego = new Bar
-    """
+        """
     )
     scene = sampleScene(scenario, maxIterations=1)
     ego = scene.egoObject
@@ -134,7 +134,7 @@ def test_property_additive():
         class Bar(Foo):
             flubber[additive]: 7
         ego = new Bar
-    """
+        """
     )
     scene = sampleScene(scenario, maxIterations=1)
     ego = scene.egoObject
@@ -151,7 +151,7 @@ def test_property_additive_2():
         class Child(Parent):
             foo[additive]: 2
         ego = new Child
-    """
+        """
     )
     assert ego.foo == (2, 1)
 
@@ -195,7 +195,7 @@ def test_isinstance_issubclass():
             new Object at (20, 0)
         if issubclass(Foo, Point):
             new Object at (30, 0)
-    """
+        """
     )
     scene = sampleScene(scenario)
     assert len(scene.objects) == 4
