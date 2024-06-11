@@ -52,13 +52,13 @@ class LogImageAction(Action):
     def applyTo(self, obj, sim):
         print("Other Car Visible:", self.visible)
         
-        target_path = str(self.path) + "/"
-        target_path += "visible" if self.visible else "invisible"
+        target_path = self.path
+        target_path /= "visible" if self.visible else "invisible"
 
         if not os.path.exists(target_path):
             os.makedirs(target_path)
 
-        target_path += "/" + str(self.count) + ".jpeg"
+        target_path /= f"{self.count}.jpeg"
 
         print("IMG Path:", target_path)
 
