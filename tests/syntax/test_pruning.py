@@ -55,7 +55,7 @@ def test_containment_2d_region():
 
     # Test both combined, in a slightly more complicated case.
     # Specifically, there is a non vertical component to baseOffset
-    # that should be accounted.
+    # that should be accounted for.
     scenario = compileScenic(
         """
         class TestObject:
