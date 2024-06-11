@@ -1,0 +1,18 @@
+Best distance: 0.49654734812061624
+Best longitudinal params, Longitudinal_K_P: 0.1, Longitudinal_K_D: 0.1, Longitudinal_K_I:0.1
+Best lateral params, Lateral_K_P: 0.1, Lateral_K_D: 0.1, Lateral_K_I:0.1
+Best distance: 0.1518427000590441
+Best longitudinal params, Longitudinal_K_P: 0.1, Longitudinal_K_D: 0.1, Longitudinal_K_I:0.1
+Best lateral params, Lateral_K_P: 0.1, Lateral_K_D: 0.2, Lateral_K_I:0.2
+Best distance: 0.11038584023653919
+Best longitudinal params, Longitudinal_K_P: 0.1, Longitudinal_K_D: 0.1, Longitudinal_K_I:0.1
+Best lateral params, Lateral_K_P: 0.1, Lateral_K_D: 0.30000000000000004, Lateral_K_I:0.1
+Best distance: 0.0350778115140823
+Best longitudinal params, Longitudinal_K_P: 0.1, Longitudinal_K_D: 0.1, Longitudinal_K_I:0.1
+Best lateral params, Lateral_K_P: 0.1, Lateral_K_D: 0.4, Lateral_K_I:0.9
+Best distance: 0.003166426177106839
+Best longitudinal params, Longitudinal_K_P: 0.1, Longitudinal_K_D: 0.1, Longitudinal_K_I:0.1
+Best lateral params, Lateral_K_P: 0.2, Lateral_K_D: 0.30000000000000004, Lateral_K_I:0.1
+Best distance: 0.0007385326363356749
+Best longitudinal params, Longitudinal_K_P: 0.1, Longitudinal_K_D: 0.1, Longitudinal_K_I:0.1
+Best lateral params, Lateral_K_P: 0.6, Lateral_K_D: 0.4, Lateral_K_I:0.9
