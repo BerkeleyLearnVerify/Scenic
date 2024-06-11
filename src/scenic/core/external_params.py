@@ -263,11 +263,11 @@ class VerifaiSampler(ExternalSampler):
 
     def valueFor(self, param):
         return getattr(self.cachedSample, self.nameForParam(param.index))
-    
+
     @staticmethod
     def nameForParam(i):
         """Paramter name for a given index in the Feature Space."""
-        return f'param{i}'
+        return f"param{i}"
 
 
 class ExternalParameter(Distribution):
