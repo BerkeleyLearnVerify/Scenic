@@ -29,4 +29,4 @@ record distance to ego.lane.centerline
 # terminate when ((distance from ego to target) <= max(ego.width, ego.length) + 0.05)
 
 # Terminate the simulation after 5 seconds
-terminate after 5 seconds
+terminate after 10 seconds

@@ -411,7 +411,7 @@ def webotsToScenicPosition(pos):
         Use ``WebotsCoordinateSystem`` instead.
     """
     x, y, z = pos
-    return (x, z)
+    return (x, xz)
 
 
 def scenicToWebotsPosition(pos, y=0, coordinateSystem="ENU"):
