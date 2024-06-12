@@ -267,9 +267,17 @@ class TemplateSimulation(Simulation):
         Obtains the current values for each Scenic agent/object's properties
         such as current position, orientation, speed, etc. 
 
+        There are certain properties that you have to obtain for all objects.
+        The 'values' dictionary in Example 1 below contains these core properties.
+        If any of these core properties does not apply to you or does not matter,
+        feel free to always set them to 0 (like with pitch and roll values in Example 1)
+
+
         Example 1:
             position = YourSimulatorAPI.get_position(obj.id)
             yaw = YourSimulatorAPI.get_orientation(obj.id)
+            velocity = YourSimulatorAPI.get_velocity(obj.id)
+            etc etc ...
 
             values = dict(
                 position=position,
@@ -281,9 +289,86 @@ class TemplateSimulation(Simulation):
                 angularSpeed=angularSpeed,
                 angularVelocity=angularVelocity,
             )
+
+        Example 2 (from the Newtonian simulator interface):
+            
+            You can also update properties unique to each object class 
+            like how we update the 'elevation' property below
+            
+            yaw, _, _ = obj.parentOrientation.globalToLocalAngles(obj.heading, 0, 0)
+            values = dict(
+                position=obj.position,
+                yaw=yaw,
+                pitch=0,
+                roll=0,
+                velocity=obj.velocity,
+                speed=obj.speed,
+                angularSpeed=obj.angularSpeed,
+                angularVelocity=obj.angularVelocity,
+            )
+
+            if "elevation" in properties:
+                values["elevation"] = obj.elevation
+            return values
+
+
+        Example 3:
+
+            You can also update non-core properties without using the values dictionary,
+            like what we do with the obj.camera_observation below
+            
+             
+            position = YourSimulatorAPI.get_position(obj.id)
+            yaw = YourSimulatorAPI.get_orientation(obj.id)
+            velocity = YourSimulatorAPI.get_velocity(obj.id)
+            etc etc ...
+
+            values = dict(
+                position=position,
+                yaw=yaw,
+                pitch=0,
+                roll=0,
+                velocity=obj.velocity,
+                speed=obj.speed,
+                angularSpeed=obj.angularSpeed,
+                angularVelocity=obj.angularVelocity,
+            )
+
+            camera_observation = YourSimulatorAPI.get_camera_observation(obj.id)
+
+            obj.camear_observation.append(camera_observation)
+
+            return values
         """
 
     def destroy(self):
+        """
+        You should delete/destroy/unspawn objects created by Scenic here when needed.
+        Data processing at the end of simulation can also be done here.
+        Similar to some other methods here, super().destroy() should be called
+
+
+        Example 1:
+        You can always use the self.objects field, inherited from the 
+        Simulation class from scenic.core.simulator, to access the objects/agents
+        spawned by Scenic
+
+            for obj in self.objects:
+                if obj is Robot:
+                    YourSimulatorAPI.shut_down_robot(obj.robot_id)
+                    YourSimulatorAPI.delete_robot(obj.robot_id)
+                else:
+                    YourSimulatorAPI.delete_object(obj.object_id)
+
+            # Making videos of the simulation, assuming self.observations
+            # contains the observations we have made throughout the simulation
+
+            video_save_path = your/video/save/path/
+            YourSimulatorAPI.make_video(self.observations, path=video_save_path + "video_1.mp4")
+
+            super().destroy()
+            return
+        """
         super().destroy()
         return
 
