@@ -1,30 +1,41 @@
-import math
-from scenic.simulators.Gazebo.simulator import GazeboSimulator, GazeboSimulation
-from scenic.core.utils import repairMesh
-import os
+"""
+Introduction to Models
 
-simulator GazeboSimulator()
-object_prefix = '' # TODO fill in the prefix/suffixes to where you store your sdf/urdf files
-default_file_name = "model.sdf"
-get_sdf_dir = lambda s: object_prefix +  s + "/" + default_file_name
+In this file, you will define all the Scenic
+classes that will represent your object and agent models
 
-class Robot:
+"""
+
+
+"""
+By default, all classes inherit the Scenic Object class
+See the Scenic docs for more details
+
+You can add any attribute/methods you need to a Scenic class.
+"""
+
+class Agent:
     """
-    The default class for the robot agents. Can be used as a superclass
+    Instance variables are assigned with the colon
+    like in Python dataclasses, whereas class variables
+    are assigned with '='
     """
-    name: 'robot'
-    object_type: 'robot'
-    domain_name: ''
-    position: (0.0, 0.0, 0.93)    
-    yaw:-math.pi/2
-    roll: 0.0
-    pitch: 0.0
-    yaw_offset: 0.0
-    shape: CylinderShape(dimensions=(0.43,0.43, 1.8))
-    positionOffset: (0, 0, -0.5) # vectorpointing from center of object to its ref frame
-    holdingObject: False
+    name: "agent"
+    agent_controller: None
+    class_name = 'agent'
+
+    """
+    You can add distributions to instance and class attributes
+    For class attributes, the value will be the same for all
+    instances of the class within the same scene.
+    """
+    position: (Range(0, 1), Range(0, 10), Range(1, 2))
+    robot_language = Uniform{'English', 'Japanese', 'Hungarian'}
 
 
+    """
+    You can add in methods just like in Python classes
+    """
     def distanceToClosest(self, object_class):
         objects = simulation().objects
         minDist = float('inf')
@@ -35,30 +46,47 @@ class Robot:
             if 0 < d < minDist:
                 minDist = d
         return minDist
-
-    def getClosest(self, object_class):
-        objects = simulation().objects
-        minDist = float('inf')
-        tgt = None
-        for obj in objects:
-            if not isinstance(obj, object_class):
-                continue
-            d = distance from self to obj
-            if 0 < d < minDist:
-                minDist = d
-                tgt = obj
-        return tgt
-
-
-class GazeboObject:
+    
     """
-    Superclass for non-agent objects
+    Decorators such as property, getter, and setter etc. works as well
     """
-    name: 'gazebo_object'
-    object_type: 'gazebo_object'
-    description_file: ''
-    description_file_type: 'sdf'
-    width: 1
-    length: 1
-    height: 1
-    positionOffset:(0, 0, 0)
+    @property
+    def PositionNorm(self):
+        return self.position.norm()
+
+"""
+Inheritance works the same way as in Python
+"""
+class Robot(Agent):
+    name: "robot"
+    agent_controller: YourRobotAPI.robot_controller
+    class_name = "robot"
+
+"""
+Mixin's are also supported
+"""
+
+class RobotArm(Robot):
+    name: "robot_arm"
+    agent_controller: YourRobotAPI.robot_controller
+    class_name = "robot_arm"
+
+    @property
+    def gripper_position(self):
+        return YourRobotAPI.gripper_pos()
+
+
+class RobotMobileBase(Robot):
+    name: "robot_base"
+    agent_controller: YourRobotAPI.robot_controller
+    class_name = "robot_base"
+
+    @property
+    def base_position(self):
+        return YourRobotAPI.base_pos()
+
+class MobileManipulator(RobotArm, RobotMobileBase):
+    name: "mobile_manipulator"
+    agent_controller: YourRobotAPI.robot_controller
+    class_name = "mobile_manipulator"
+
