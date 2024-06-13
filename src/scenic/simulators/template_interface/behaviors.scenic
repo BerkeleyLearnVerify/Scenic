@@ -11,10 +11,8 @@ examples of using behaviors when you write your own Scenic interface.
 
 """
 Example 1: Using behaviors to get around
-having background code that blocks background 
+having Action code that blocks background 
 Scenic execution (mentioned in actions.py)
-
-This should be useful for robotics people
 """
 
 behavior MoveToPosition(x, y, z):
@@ -34,7 +32,7 @@ behavior MoveToPosition(x, y, z):
     below:
     """
 
-    take SetRobotGoalPointAction(x, y, z) # This Action calls set_robot_goal_point
+    take SetRobotGoalPointAction(x, y, z) # This Action calls set_robot_goal_point, but does not have the while loop
 
     while <robot has not reached goal>: # This while loop waits until the robot reaches its goal point
         wait
@@ -46,7 +44,6 @@ behavior MoveToPosition(x, y, z):
     So when you write your Scenic programs, rather than simply taking the
     Action that tells the robot to move to a goal point, you would just
     call this behavior instead.
-    
 
     You can also put the while loop above in its own behavior and call that 
     for all your robot's Actions like shown below:

@@ -30,7 +30,7 @@ class Agent:
     instances of the class within the same scene.
     """
     position: (Range(0, 1), Range(0, 10), Range(1, 2))
-    robot_language = Uniform{'English', 'Japanese', 'Hungarian'}
+    robot_language = Uniform('English', 'Japanese', 'Hungarian')
 
 
     """
@@ -48,7 +48,7 @@ class Agent:
         return minDist
     
     """
-    Decorators such as property, getter, and setter etc. works as well
+    Decorators such as property, getter, and setter etc. work as well
     """
     @property
     def PositionNorm(self):
@@ -62,10 +62,10 @@ class Robot(Agent):
     agent_controller: YourRobotAPI.robot_controller
     class_name = "robot"
 
+
 """
 Mixin's are also supported
 """
-
 class RobotArm(Robot):
     name: "robot_arm"
     agent_controller: YourRobotAPI.robot_controller
