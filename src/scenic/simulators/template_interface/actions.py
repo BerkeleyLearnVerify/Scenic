@@ -113,8 +113,7 @@ class MoveAction(Action):
 
 """
 An example for a BAD Action:
-If for some reason, you cannot pause the simulator between calls of the step() method
-in simulator.py, you should no have any code in Action that blocks code execution
+You should NOT have any code in Actions that blocks code execution
 
 This prevents Scenic from simultaneously (at least approximately simulatenaously) manage 
 all the agents, objects, and simulation world.
