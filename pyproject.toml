@@ -86,7 +86,7 @@ dev = [
 [project.urls]
 Homepage = "https://scenic-lang.org/"
 Repository = "https://github.com/BerkeleyLearnVerify/Scenic"
-Documentation = "https://scenic-lang.readthedocs.io"
+Documentation = "https://docs.scenic-lang.org"
 
 [project.scripts]
 scenic = 'scenic.__main__:dummy'
