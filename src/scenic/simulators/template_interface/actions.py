@@ -22,8 +22,9 @@ class ExampleAction1(Action):
 
     def __init__(self):
         """
-        __init__ can have any arguments beside self based on the need of your actions
-        for instance, you can have
+        __init__ can have any arguments beside based on the need of your actions
+
+        For instance, you can have
 
         def __init__(self, x, y, z)
 
@@ -32,8 +33,8 @@ class ExampleAction1(Action):
 
         take ExampleAction1(x, y, z)
 
-        You should not be execute or send the command
-        for the action in __init__. That is the applyTo method's job.
+        You should not execute or send the command
+        for the Action in __init__. That is the applyTo method's job.
 
         Other than that, there is no requirement as to what to do in __init__. You can
         fill in the code according to your needs
@@ -55,7 +56,7 @@ class ExampleAction1(Action):
 
         You can choose to let it return anything or None based on your needs. However,
         remember that your implementation for the step() and executeAction() in simulator.py
-        to account for this
+        should account for this
 
         """
         pass
@@ -63,7 +64,7 @@ class ExampleAction1(Action):
 
 
 """
-Let's see an example Actions
+Let's see an example Action
 """
 
 class MoveAction(Action):
@@ -136,12 +137,12 @@ class BadAction(Action):
         This will cause problems as Scenic is prevented from
         managing and sending the action commands for other agents.
         Scenic would also not be able to get information of the simulation world
-        during the Time when the agent is moving.
+        during the time when the agent is moving.
         
 
         This kind of blocking code can be common in robot API's, where 
         methods that commands the robot often conatins code that waits
-        until the robot has finished executing its actions.
+        until the robot has finished executing its commands.
 
         We will see a way around this problem in behaviors.scenic
         """
@@ -150,7 +151,7 @@ class BadAction(Action):
 
         YourSimulatorAPI.move_agent(agent_id=agent_id, target_coordinate=self.target_coord)
 
-        while not YourSimulatorAPI.agent_reached_goal(agent_id):
+        while not YourSimulatorAPI.agent_reached_goal(agent_id): # this code blocks Scenic's execution
             continue
 
 
