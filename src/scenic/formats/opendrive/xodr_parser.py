@@ -10,6 +10,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 from scipy.integrate import quad, solve_ivp
 from scipy.optimize import brentq
+import shapely
 from shapely.geometry import GeometryCollection, MultiPoint, MultiPolygon, Point, Polygon
 from shapely.ops import snap, unary_union
 
@@ -233,7 +234,7 @@ class Lane:
         w_poly, s_off = self.width[ind]
         w = w_poly.eval_at(s - s_off)
         if w < -1e-6:  # allow for numerical error
-            raise RuntimeError("OpenDRIVE lane has negative width")
+            warn(f"OpenDRIVE lane has negative width ({w})")
         return max(w, 0)
 
 
@@ -368,13 +369,17 @@ class Road:
         transition_points = [sec.s0 for sec in self.lane_secs[1:]]
         last_s = 0
         for piece in self.ref_line:
-            piece_points = piece.to_points(num, extra_points=transition_points)
+            target_transition_points = [
+                s - last_s for s in transition_points if s >= last_s
+            ]
+            piece_points = piece.to_points(num, extra_points=target_transition_points)
+
             assert piece_points, "Failed to get piece points"
-            if ref_points:
-                last_s = ref_points[-1][-1][2]
-                piece_points = [(p[0], p[1], p[2] + last_s) for p in piece_points]
+
+            piece_points = [(p[0], p[1], p[2] + last_s) for p in piece_points]
             ref_points.append(piece_points)
-            transition_points = [s - last_s for s in transition_points if s > last_s]
+            last_s = ref_points[-1][-1][2]
+
         return ref_points
 
     def heading_at(self, point):
@@ -595,10 +600,10 @@ class Road:
                     polys[ids[i]] = polyA.difference(polyB).buffer(-1e-6)
                     assert not polys[ids[i]].overlaps(polyB)
 
-        for i in range(len(lane_polys) - 1):
-            if lane_polys[i].overlaps(lane_polys[i + 1]):
-                lane_polys[i] = lane_polys[i].difference(lane_polys[i + 1]).buffer(-1e-6)
-                assert not lane_polys[i].overlaps(lane_polys[i + 1])
+        for i, j in itertools.combinations(range(len(lane_polys)), 2):
+            if lane_polys[i].overlaps(lane_polys[j]):
+                lane_polys[i] = lane_polys[i].difference(lane_polys[j]).buffer(-1e-6)
+                assert not lane_polys[i].overlaps(lane_polys[j])
 
         # Set parent lane polygon references to corrected polygons
         for sec in self.lane_secs:
@@ -1172,6 +1177,59 @@ class RoadMap:
                 sidewalk_lane_types=self.sidewalk_lane_types,
                 shoulder_lane_types=self.shoulder_lane_types,
             )
+
+        # TODO Fix this?
+        # # Cleanup lanes and lane sections that overlap with their successors
+        # for t_id, t_road in self.roads.items():
+        #     t_poly = polygonUnion(t_road.lane_polys)
+
+        #     if t_road.predecessor is not None:
+        #         p_id = t_road.predecessor
+
+        #         # Don't trim loops
+        #         if t_id == p_id:
+        #             continue
+
+        #         # Find successor roads
+        #         if p_id in self.roads:
+        #             p_roads = [self.roads[p_id]]
+        #         elif p_id in self.junctions:
+        #             p_roads = [self.roads[p_id] for p_id in self.junctions[p_id].paths]
+        #         else:
+        #             assert False
+
+        #         # Trim all successor roads
+        #         for p_road in p_roads:
+        #             # Trim lanes and lane sections
+        #             p_road.lane_polys = [lp.difference(t_poly) for lp in p_road.lane_polys]
+        #             p_road.sec_polys = [sp.difference(t_poly) for sp in p_road.sec_polys]
+        #             p_road.sec_lane_polys = [{k: lsp.difference(t_poly) for k, lsp in l.items()} for l in p_road.sec_lane_polys]
+
+        #     if t_road.successor is not None:
+        #         s_id = t_road.successor
+
+        #         # Don't trim loops
+        #         if t_id == s_id:
+        #             continue
+
+        #         # Find successor roads
+        #         if s_id in self.roads:
+        #             s_roads = [self.roads[s_id]]
+        #         elif s_id in self.junctions:
+        #             s_roads = [self.roads[s_id] for s_id in self.junctions[s_id].paths]
+        #         else:
+        #             assert False
+
+        #         # Trim all successor roads
+        #         for s_road in s_roads:
+        #             s_poly = polygonUnion(s_road.lane_polys)
+
+        #             # Trim lanes and lane sections
+        #             t_road.lane_polys = [lp.difference(s_poly) for lp in t_road.lane_polys]
+        #             t_road.sec_polys = [sp.difference(s_poly) for sp in t_road.sec_polys]
+        #             t_road.sec_lane_polys = [{k: lsp.difference(s_poly) for k, lsp in l.items()} for l in t_road.sec_lane_polys]
+
+        for road in self.roads.values():
             self.sec_lane_polys.extend(road.sec_lane_polys)
             self.lane_polys.extend(road.lane_polys)
 
@@ -1447,7 +1505,7 @@ class RoadMap:
                     curve = Clothoid(x0, y0, hdg, length, curv0, curv1)
                 elif curve_elem.tag == "poly3":
                     a, b, c, d = (
-                        cubic_elem.get("a"),
+                        float(curve_elem.get("a")),
                         float(curve_elem.get("b")),
                         float(curve_elem.get("c")),
                         float(curve_elem.get("d")),
