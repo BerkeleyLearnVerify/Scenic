@@ -2,7 +2,7 @@ import scenic
 from scenic.simulators.newtonian import NewtonianSimulator
 from scenic.domains.driving.roads import Network
 import random
-from skopt import gp_minimize
+from scipy.optimize import differential_evolution
 import numpy as np 
 
 # Simulate function
@@ -59,19 +59,9 @@ def simulate_pid(params):
 
 # Define the objective function to minimize
 def objective_function(params):
-    print("Runing new simulation:")
+    print("Running new simulation:")
     print("="*20)
     return simulate_pid(params)
-
-# Initial PID controller constants
-initial_params = [
-    # 0.5,  # Longitudinal_K_P
-    # 0.1,  # Longitudinal_K_D
-    # 0.7,  # Longitudinal_K_I
-    0.1,  # Lateral_K_P
-    0.1,  # Lateral_K_D
-    0.02   # Lateral_K_I
-]
 
 # Define the parameter bounds for the optimization
 # test only lateral, bound from 0, average all seeds
@@ -87,9 +77,9 @@ param_bounds = [
     (0.0, 2.0)   # Lateral_K_I bounds
 ]
 
-# Run optimization using Gaussian process minimization
-print("Running Gaussian process minimization")
-result = gp_minimize(objective_function, param_bounds, x0=initial_params, n_calls=200, random_state=0)
+# Run optimization using Differential Evolution
+print("Running Differential Evolution optimization")
+result = differential_evolution(objective_function, param_bounds, strategy='best1bin', maxiter=200, popsize=15, tol=0.01, mutation=(0.5, 1), recombination=0.7, seed=0)
 
 print(f"Optimal PID parameters: {result.x}")
 print(f"Minimum deviation from centerline: {result.fun}")

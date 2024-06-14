@@ -261,7 +261,7 @@ class NewtonianSimulation(DrivingSimulation):
             # print("K_P: ", self.Lateral_K_P)
             # print("K_D: ", self.Lateral_K_D)
             # print("K_I: ", self.Lateral_K_I)
-            lon_controller = PIDLongitudinalController(K_P=self.Longitudinal_K_P, K_D=self.Longitudinal_K_D, K_I=self.Longitudinal_K_I, dt=dt)
+            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
             lat_controller = PIDLateralController(K_P=self.Lateral_K_P, K_D=self.Lateral_K_D, K_I=self.Lateral_K_I, dt=dt)
         else:
             lon_controller = PIDLongitudinalController(
@@ -274,7 +274,7 @@ class NewtonianSimulation(DrivingSimulation):
         dt = self.timestep
         if agent.isCar:
             lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-            lat_controller = PIDLateralController(K_P=0.2, K_D=0.2, K_I=0.2, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.02, dt=dt)
         else:
             lon_controller = PIDLongitudinalController(
                 K_P=0.25, K_D=0.025, K_I=0.0, dt=dt

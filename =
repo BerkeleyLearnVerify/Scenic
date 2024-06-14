@@ -1,0 +1,6 @@
+Collecting carla
+  Using cached carla-0.9.5.tar.gz (3.9 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'error'

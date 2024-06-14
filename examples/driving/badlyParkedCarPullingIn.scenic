@@ -1,8 +1,12 @@
 param map = localPath('../../assets/maps/CARLA/Town05.xodr')
 param carla_map = 'Town05'
 param time_step = 1.0/10
+# import random
 
-model scenic.domains.driving.model
+# model scenic.domains.driving.model
+model scenic.simulators.newtonian.driving_model
+
+# random.seed(10)
 
 behavior PullIntoRoad():
     while (distance from self to ego) > 15:
@@ -29,4 +33,7 @@ monitor StopAfterInteraction():
         wait
     terminate
 require monitor StopAfterInteraction()
+
+record distance to ego.lane.centerline
+
 terminate after 15 seconds   # in case ego never breaks
