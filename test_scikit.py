@@ -75,6 +75,8 @@ initial_params = [
 
 # Define the parameter bounds for the optimization
 # test only lateral, bound from 0, average all seeds
+# Optimal PID parameters: [0.42239561 0.12354368 0.72921939]
+# Minimum deviation from centerline: 0.05937322230768433
 # try these optimizers as well: https://docs.scipy.org/doc/scipy/reference/optimize.html#global-optimization
 # differential evolution
 # long term, LQR controller instead of PID controller
@@ -89,7 +91,7 @@ param_bounds = [
 
 # Run optimization using Gaussian process minimization
 print("Running Gaussian process minimization")
-result = gp_minimize(objective_function, param_bounds, x0=initial_params, n_calls=200, random_state=0)
+result = gp_minimize(objective_function, param_bounds, x0=initial_params, n_calls=20, random_state=0)
 
 print(f"Optimal PID parameters: {result.x}")
 print(f"Minimum deviation from centerline: {result.fun}")
