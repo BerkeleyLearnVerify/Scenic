@@ -4,7 +4,7 @@ This repo contains the code to the Scenic-Gazebo interface applied to Sawyer rob
 
  - Scenic 3 is required, as well as Python 3.8+, ROS Noetic, and Ubuntu 20.04.
  - The Ubuntu 20.04 requirement is due to ROS Noetic officicially supporting it. It should not be strictly required if you can get ROS Noetic running with Gazebo on your machine. Though this interface is only tested on Ubuntu 20.04.
- - Other than the official installation, ROS Noetic can also be installed with [RoboStack](https://robostack.github.io/index.html), which can be helpful if you are on MacOS.
+ - Other than the official installation, ROS Noetic can also be installed with [RoboStack](https://robostack.github.io/index.html), which can be helpful if you are on MacOS or Windows.
  - Before you install, it might be good to consider installing Scenic outside any virtual environment for Gazebo/ROS purposes since Gazebo/ROS utilizes some Ubuntu native packages that is difficult to get from conda/pip
  - When installing Scenic, please do the "Repository" install outlined in this page: https://scenic-lang.readthedocs.io/en/latest/quickstart.html#installation 
  - For the Sawyer simulator, please install according to the instruction here: https://github.com/RethinkRobotics/sawyer_simulator
