@@ -349,54 +349,6 @@ contract PassthroughBrakingActionGenerator():
         # TODO: Remove below when PACTI can deduce them from the above
         always throttle == -1 implies (control_action.throttle == 0 and control_action.brake == 1)
 
-contract BrakesWhenClose(perception_distance, min_dist, min_slowdown, abs_dist_err=0.5, abs_speed_err=0.5, max_brake=float("inf"), max_accel=float("inf")):
-    """ A contract that just says that if we are in the "danger zone",
-    we will issue an action to brake with max force.
-    """
-    globals:
-        objects
-        workspace
-
-    inputs:
-        dist: builtins.float
-
-    outputs:
-        control_action: RegulatedControlAction
-
-    definitions:
-        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj.position is not self.position]
-        lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
-        lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
-        lead_dist = lead_distances[lead_car]
-        behind_car = lead_dist <= perception_distance
-
-        # Lead speed can be roughly calculated by comparing two timesteps
-        relative_speed = ((next dist) - dist)/self.timestep if (next(next dist)) else ((next dist) - dist)/self.timestep
-        true_relative_speed =  lead_car.speed - self.speed
-
-        stopping_time = math.ceil(self.speed/min_slowdown)+1
-        rel_dist_covered = stopping_time*self.speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
-        buffer_dist = min_dist + rel_dist_covered
-
-        no_throttle = control_action.throttle == 0
-        full_brake = control_action.brake == 1
-
-    assumptions:
-        # Assume we are in a lane
-        always self._lane is not None
-
-        # Assume we have relatively accurate distance and relative speed
-        always (behind_car implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err))
-        always (behind_car implies (relative_speed-abs_speed_err <= true_relative_speed <= relative_speed+abs_speed_err))
-
-        # Assume that the lead car is not going to brake or accelerate with too much force.
-        always behind_car implies (-max_brake <= (next lead_car.speed) - lead_car.speed <= max_accel)
-
-    guarantees:
-        # Guarantee that if we are ACTUALLY too close to the car in front of us, we brake with max force.
-        always behind_car implies (
-            lead_dist < buffer_dist implies (no_throttle and full_brake))
-
 # This contract is an example of an assumption we can make to help prove larger contracts, ideally from our specs or testing.
 contract MaxBrakingForce(min_slowdown):
     actions:
