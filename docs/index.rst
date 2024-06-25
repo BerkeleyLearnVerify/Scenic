@@ -16,7 +16,7 @@ Our :doc:`publications <publications>` page lists additional papers using Scenic
    Old code can likely be easily ported; you can also install older releases if necessary from
    `GitHub <https://github.com/BerkeleyLearnVerify/Scenic/releases>`__.
 
-If you have any problems using Scenic, please submit an issue to `our GitHub repository <https://github.com/BerkeleyLearnVerify/Scenic>`_ or contact Daniel at dfremont@ucsc.edu.
+If you have any problems using Scenic, please submit an issue to `our GitHub repository <https://github.com/BerkeleyLearnVerify/Scenic>`_ or ask a question on `our community forum <https://forum.scenic-lang.org/>`_.
 
 Table of Contents
 =================

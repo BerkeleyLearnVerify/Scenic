@@ -151,6 +151,13 @@ html_css_files = [
     "custom.css",
 ]
 
+html_logo = "images/logo-full.svg"
+html_favicon = "images/favicon.ico"
+
+html_theme_options = {
+    "logo_only": True,
+}
+
 # -- Generate lists of keywords for the language reference -------------------
 
 import itertools

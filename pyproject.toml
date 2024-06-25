@@ -1,6 +1,6 @@
 [project]
 name = "scenic"
-version = "3.0.0rc1"
+version = "3.0.0"
 description = "The Scenic scenario description language."
 authors = [
 	{ name = "Daniel Fremont" },
@@ -84,8 +84,9 @@ dev = [
 ]
 
 [project.urls]
+Homepage = "https://scenic-lang.org/"
 Repository = "https://github.com/BerkeleyLearnVerify/Scenic"
-Documentation = "https://scenic-lang.readthedocs.io"
+Documentation = "https://docs.scenic-lang.org"
 
 [project.scripts]
 scenic = 'scenic.__main__:dummy'
@@ -99,6 +100,9 @@ scenic = "scenic.syntax.pygment:ScenicStyle"
 [build-system]
 requires = ["flit_core >= 3.2, <4"]
 build-backend = "flit_core.buildapi"
+
+[tool.flit.sdist]
+include = ["docs/images/logo-full.svg"]
 
 [tool.black]
 line-length = 90
