@@ -54,18 +54,13 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libfreetype6-dev libportmidi-dev libjpeg-dev libpng-dev
-        sudo bash -c 'cat <<EOL > /etc/asound.conf
-        pcm.!default {
-            type hw
-            card 0
-        }
-
-        ctl.!default {
-            type hw
-            card 0
-        }
-        EOL'
+        sudo apt-get install -y xvfb libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libfreetype6-dev libportmidi-dev libjpeg-dev libpng-dev
+  
+    - name: Start Xvfb
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        Xvfb :99 -screen 0 1024x768x16 &
+        export DISPLAY=:99
 
     - name: Install Scenic and dependencies
       run: |
