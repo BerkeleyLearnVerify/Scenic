@@ -1,0 +1,93 @@
+
+component CameraDistanceSystem(model):
+    """ A component that provides noisy distance to the car in front."""
+    sensors:
+        self.frontCamera: Img as image
+
+    outputs:
+        dist: float
+
+    body:
+        return {"dist": model(image)}
+
+component RadarDistanceSystem():
+    # TODO: Do research but directional distance/velocity?
+
+component LidarDistanceSystem():
+    # TODO: Point cloud 
+
+component DistanceVotingSystem():
+    inputs:
+        c_dist: float
+        r_dist: float
+        l_dist: float
+
+    outputs:
+        med_dist: float
+
+    body:
+        # TODO: Do we need to unpack this or can we use stdlib? (For analysis)
+        median_dist = median(c_dist, r_dist, l_dist)
+        return {"dist": median_dist}
+
+component FusionDistanceSystem():
+    outputs:
+        dist: float
+
+    compose:
+        cds = CameraDistanceSystem()
+        rds = RadarDistanceSystem()
+        lds = LidarDistanceSystem()
+        dvs = DistanceVotingSystem()
+
+        connect cds.dist to dvs.c_dist
+        connect rds.dist to dvs.r_dist
+        connect lds.dist to dvs.l_dist
+
+        connect dvs.med_dist to dist
+
+# QUESTION: Can we paramterize the manufacturer condition?
+contract RadarManufacturerSpec(abs_dist_err, perception_distance):
+    outputs:
+        dist: float
+
+    assumptions:
+        always in_lane
+
+    guarantees:
+        always (behind_car and radar_manufacturer_cond) implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err)
+        always (not behind_car) implies (dist > perception_distance+abs_dist_err)
+
+contract LidarManufacturerSpec(abs_dist_err, perception_distance):
+    outputs:
+        dist: float
+
+    assumptions:
+        always in_lane
+
+    guarantees:
+        always (behind_car and lidar_manufacturer_cond) implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err)
+        always (not behind_car) implies (dist > perception_distance+abs_dist_err)
+
+contract AccurateDistance(abs_dist_err, perception_distance):
+    outputs:
+        dist: float
+
+    assumptions:
+        always in_lane
+
+    guarantees:
+        always behind_car implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err)
+        always (not behind_car) implies (dist > perception_distance+abs_dist_err)
+
+implement "EgoCar" with FusionDistanceSystem() as fds
+
+fds_manufacturer_specs = compose over fds:
+    assume fds.rds satisfies RadarManufacturerSpec(ABS_DIST_ERR, PERCEPTION_DISTANCE)
+    assume fds.rds satisfies RadarManufacturerSpec(ABS_DIST_ERR, PERCEPTION_DISTANCE)
+
+missing_specs = AccurateDistance(ABS_DIST_ERR, PERCEPTION_DISTANCE) - fds_manufacturer_specs
+
+# TODO: Scenic verifies missing_specs. Many different routes
+# (e.g. test unconfirmed parts of radar/lidar system or test camera system,
+# or combination of both?)
