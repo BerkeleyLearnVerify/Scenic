@@ -1,6 +1,8 @@
 # test_suite_2_grid.scenic
 """Test Suite 2: Grid Formation."""
 
+model scenic.simulators.robosuite.model
+
 class GridCube(Object):
     width: 0.1
     length: 0.1

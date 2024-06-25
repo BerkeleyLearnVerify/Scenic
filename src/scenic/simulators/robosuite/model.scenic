@@ -64,6 +64,46 @@ class SawyerRobot(Robot):
     initial_qpos: [0, -0.785, 0, 1.571, 0, -0.785, 0]
     height: 1.0
 
+# Arena classes
+class EmptyArena(RoboSuiteObject):
+    """Empty arena with just a floor."""
+    width: 0
+    length: 0
+    height: 0
+
+class TableArena(RoboSuiteObject):
+    """Arena with a table in the center."""
+    width: 0
+    length: 0
+    height: 0
+
+class BinsArena(RoboSuiteObject):
+    """Arena with bins for sorting tasks."""
+    width: 0
+    length: 0
+    height: 0
+
+class CustomArena(RoboSuiteObject):
+    """Custom arena from XML."""
+    xml_string: ""
+    width: 0
+    length: 0
+    height: 0
+
+# Table classes
+class Table(RoboSuiteObject):
+    """Standard table (part of TableArena)."""
+    width: 1.2
+    length: 0.8
+    height: 0.8
+
+class PositionableTable(RoboSuiteObject):
+    """Table that can be positioned anywhere."""
+    width: 1.0
+    length: 0.8
+    height: 0.8
+    color: (0.9, 0.9, 0.9)  # Light gray
+
 # Actions
 import scenic.core.dynamics as dynamics
 

@@ -7,7 +7,7 @@ import mujoco
 try:
     import robosuite as suite
     from robosuite.models import MujocoWorldBase
-    from robosuite.models.arenas import EmptyArena
+    from robosuite.models.arenas import EmptyArena, TableArena, BinsArena
     from robosuite.models.objects import BoxObject, BallObject, CylinderObject
     from robosuite.robots import ROBOT_CLASS_MAPPING
 except ImportError as e:
@@ -17,6 +17,7 @@ except ImportError as e:
 from scenic.core.simulators import Simulation, Simulator
 from scenic.core.vectors import Vector
 from .utils import scenic_to_rgba
+from .xml_builder import RoboSuiteXMLBuilder
 
 
 class RobosuiteSimulator(Simulator):
@@ -49,6 +50,9 @@ class RobosuiteSimulation(Simulation):
         self._body_id_map = {}
         self._prev_positions = {}
         self._robots = []
+        self._arena = None
+        self._tables = []
+        self._xml_builder = RoboSuiteXMLBuilder()
         
         # Set timestep parameters
         self.timestep = kwargs.get('timestep') or 0.1
@@ -59,12 +63,20 @@ class RobosuiteSimulation(Simulation):
         
     def setup(self):
         """Set up the RoboSuite simulation."""
-        # Create world with empty arena
+        # Create world
         self.world = MujocoWorldBase()
-        arena = EmptyArena()
-        self.world.merge(arena)
         
-        # Create objects
+        # Check if scene has an arena object, otherwise use EmptyArena
+        arena_obj = self._find_arena_in_scene()
+        if arena_obj:
+            self._arena = self._create_arena_from_object(arena_obj)
+        else:
+            self._arena = EmptyArena()
+        
+        # Merge arena into world
+        self.world.merge(self._arena)
+        
+        # Create objects (including tables)
         super().setup()
         
         # Build MuJoCo model
@@ -90,6 +102,38 @@ class RobosuiteSimulation(Simulation):
                 self.viewer = mujoco.viewer.launch_passive(self.model, self.data)
             except:
                 self.viewer = None
+    
+    def _find_arena_in_scene(self):
+        """Find arena object in the scene."""
+        for obj in self.objects:
+            if self._is_arena_object(obj):
+                return obj
+        return None
+    
+    def _is_arena_object(self, obj):
+        """Check if object is an arena."""
+        arena_classes = self._get_arena_classes()
+        return type(obj).__name__ in arena_classes
+    
+    def _get_arena_classes(self):
+        """Get list of arena class names."""
+        return ['EmptyArena', 'TableArena', 'BinsArena', 'PegArena', 'CustomArena']
+    
+    def _create_arena_from_object(self, arena_obj):
+        """Create RoboSuite arena from Scenic arena object."""
+        arena_type = type(arena_obj).__name__
+        
+        if arena_type == 'EmptyArena':
+            return EmptyArena()
+        elif arena_type == 'TableArena':
+            return TableArena()
+        elif arena_type == 'BinsArena':
+            return BinsArena()
+        elif arena_type == 'CustomArena' and hasattr(arena_obj, 'xml_string'):
+            return self._xml_builder.create_arena_from_xml_string(arena_obj.xml_string)
+        else:
+            # Default to empty arena
+            return EmptyArena()
     
     def _setup_body_mapping(self):
         """Map body names to MuJoCo IDs."""
@@ -140,8 +184,14 @@ class RobosuiteSimulation(Simulation):
     
     def createObjectInSimulator(self, obj):
         """Create a Scenic object in the RoboSuite simulator."""
+        # Skip arena objects as they're handled in setup
+        if self._is_arena_object(obj):
+            return
+            
         if hasattr(obj, 'robot_type'):
             self._create_robot(obj)
+        elif type(obj).__name__ in ['Table', 'PositionableTable']:
+            self._create_table(obj)
         else:
             self._create_object(obj)
     
@@ -214,6 +264,29 @@ class RobosuiteSimulation(Simulation):
         
         self.world.worldbody.append(mj_obj)
         obj._robosuite_name = name
+    
+    def _create_table(self, obj):
+        """Create a table object in the simulation."""
+        # For PositionableTable, create a custom table at specific position
+        if type(obj).__name__ == 'PositionableTable':
+            table_size = [obj.width, obj.length, obj.height]
+            table_obj = self._xml_builder.create_positionable_table_object(
+                table_size, 
+                name=f"table_{len(self._tables)}",
+                orientation=getattr(obj, 'orientation', None)
+            )
+            
+            # Set position
+            pos = obj.position
+            table_obj.set_base_xpos([pos.x, pos.y, pos.z])
+            
+            # Merge into world
+            self.world.merge(table_obj)
+            self._tables.append(obj)
+            obj._robosuite_name = table_obj.naming_prefix
+        else:
+            # Regular Table object - this should have been handled as arena
+            pass
     
     def executeActions(self, allActions):
         """Execute actions for all agents."""

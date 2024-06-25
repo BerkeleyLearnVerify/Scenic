@@ -2,6 +2,8 @@
 # test_suite_4_circle.scenic
 """Test Suite 4: Circular Formation."""
 
+model scenic.simulators.robosuite.model
+
 class CircleCube(Object):
     width: 0.08
     length: 0.08
