@@ -60,6 +60,12 @@ jobs:
     - name: Update pip
       run: |
         python -m pip install --upgrade pip
+    
+    - name: Install Dependencies
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libfreetype6-dev libportmidi-dev libjpeg-dev libpng-dev
 
     - name: Install Scenic and dependencies
       run: |
