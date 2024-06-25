@@ -22,7 +22,7 @@ def test_basic(loadLocalScenario):
 def test_render(loadLocalScenario):
     scenario = loadLocalScenario("basic.scenic")
     scene, _ = scenario.generate(maxIterations=1)
-    simulator = NewtonianSimulator(render=True)
+    simulator = NewtonianSimulator()
     simulator.simulate(scene, maxSteps=3)
 
 
@@ -44,7 +44,7 @@ def test_gif_creation(loadLocalScenario):
     scene, _ = scenario.generate(maxIterations=1000)
     path = Path("assets") / "maps" / "CARLA" / "Town01.xodr"
     network = Network.fromFile(path)
-    simulator = NewtonianSimulator(render=True, network=network, export_gif=True)
+    simulator = NewtonianSimulator(network=network, export_gif=True)
     simulation = simulator.simulate(scene, maxSteps=100)
     gif_path = Path("") / "simulation.gif"
     assert os.path.exists(gif_path)
