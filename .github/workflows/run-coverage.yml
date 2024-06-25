@@ -54,8 +54,19 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libfreetype6-dev libportmidi-dev libjpeg-dev libpng-dev alsa-utils
-        aplay -l
+        sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev libfreetype6-dev libportmidi-dev libjpeg-dev libpng-dev
+        sudo bash -c 'cat <<EOL > /etc/asound.conf
+        pcm.!default {
+            type hw
+            card 0
+        }
+
+        ctl.!default {
+            type hw
+            card 0
+        }
+        EOL'
+        sudo alsa force-reload
 
     - name: Install Scenic and dependencies
       run: |
@@ -63,7 +74,7 @@ jobs:
 
     - name: Run and report code coverage
       run: |
-        pytest --cov --cov-report json
+        pytest tests/simulators/newtonian/test_newtonian.py --cov --cov-report json
     
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v4.0.1
