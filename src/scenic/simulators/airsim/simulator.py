@@ -243,7 +243,7 @@ class AirSimSimulation(Simulation):
         client.reset()
 
         super().destroy()
-        print("canceled simulation")
+        print("Simulation Complete/Destroyed")
 
     def getProperties(self, obj, properties):
         if obj.blueprint == "AirSimPrexisting":

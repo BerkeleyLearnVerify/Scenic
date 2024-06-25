@@ -1,5 +1,7 @@
 from scenic.core.simulators import Action
 from scenic.core.type_support import toVector
+import airsim
+from scenic.core.vectors import Orientation, Vector
 
 from .utils import (
     airsimToScenicLocation,
@@ -57,4 +59,20 @@ class SetVelocity(Action):
             self.newVelocity.z_val,
             duration=5,
             vehicle_name=obj.realObjName,
+        )
+
+class SetObjectPose(Action):
+    def __init__(self, position, orientation):
+        pitch = orientation[0]
+        roll = orientation[1]
+        yaw = orientation[2]
+        self.newPosition = scenicToAirsimVector(toVector(position))
+        self.newOrientation = scenicToAirsimOrientation(Orientation.fromEuler(pitch, roll, yaw))
+
+    def applyTo(self, obj, sim):
+        client = sim.client
+        client.simSetObjectPose(
+            obj.realObjName,
+            airsim.Pose(self.newPosition, self.newOrientation),
+            teleport=True,
         )

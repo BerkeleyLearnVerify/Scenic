@@ -1,7 +1,7 @@
 import math
 
 # NOTE: add your world info path here
-param worldInfoPath = "examples/airsim/worldInfo/droneBlocks"
+param worldInfoPath = "examples/airsim/worldInfo/nh"
 
 model scenic.simulators.airsim.model
 
@@ -42,8 +42,11 @@ behavior FindAdversary(positions, speed = 5):
 behavior AdversaryBehavior(points, speed):
     do Patrol(points, loop=True, speed=speed) # Patrol behavior defined in behaviors.scenic
 
-ground = getPrexistingObj("ground")
-workspaceArea = RectangularRegion(Vector(0,200,30), 0, 100, 100)
+ground = getPrexistingObj("nh")
+area1 = RectangularRegion(Vector(0,0,0), 0, 10, 70)
+area2 = RectangularRegion(Vector(0,0,0), 0, 70, 10)
+
+workspaceArea = area1.union(area2)
 
 platforms = []
 blockCount = 4
@@ -65,13 +68,14 @@ adversarySpawn = Options(points)
 
 # Adversary drone spawning at random point
 drone1 = new AdversaryDrone at adversarySpawn + (0,0,2),
-    with behavior AdversaryBehavior(points, speed=5)
+    with behavior AdversaryBehavior(points, speed=2)
 # drone1.patrolPoints = possiblePoints
 drone1.patrolPointsProb = [0.4, 0.2, 0.1, 0.3] # Probability distribution on the patrolPoints
 
-# ego drone spawning somwhere in the workspace area
-ego = new Drone at (0,Range(150, 250),12),
+# ego drone spawning somwhere in the middle of the workspace area
+ego = new Drone at (Range(-5, 5),Range(-5, 5),10),
     with behavior FindAdversary(points, speed=5)
+
 
 
 # took too long to locate so terminate after x seconds

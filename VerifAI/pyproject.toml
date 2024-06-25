@@ -1,6 +1,6 @@
 [project]
 name = "verifai"
-version = "2.1.0"
+version = "2.1.1"
 description = "A toolkit for the formal design and analysis of systems that include artificial intelligence (AI) and machine learning (ML) components."
 authors = [
 	{ name = "Tommaso Dreossi" },
