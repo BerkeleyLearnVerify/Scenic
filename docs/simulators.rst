@@ -66,6 +66,15 @@ this:
 
    param worldInfoPath = "[YOUR PATH HERE]"
 
+Note: This world info generation only works on small environments such
+as the Blocks environment. For larger environments, you will need to
+manually create the world info file.
+
+Possible work around for now is to generate the 3d model of the
+environment by getting its voxel grid information and using the
+helper python script `binvoxToObj.py <http://binvoxToObj.py/>`__ to
+put into the assets and objectMeshes folder of your worldInfo folder.
+
 **Configure AirSim Settings**
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
