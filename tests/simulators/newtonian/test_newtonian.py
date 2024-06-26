@@ -48,6 +48,7 @@ def test_gif_creation(loadLocalScenario):
     simulation = simulator.simulate(scene, maxSteps=100)
     gif_path = Path("") / "simulation.gif"
     assert os.path.exists(gif_path)
+    os.remove(gif_path)
 
 
 @pickle_test
