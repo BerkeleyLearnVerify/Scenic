@@ -1,8 +1,7 @@
 import os
+import socket
 import subprocess
-import time
 
-from flaky import flaky
 import pytest
 
 try:
@@ -20,30 +19,30 @@ def checkCarlaPath():
     return CARLA_ROOT
 
 
-@pytest.fixture
 def launchCarlaServer():
     CARLA_ROOT = checkCarlaPath()
-    carla_process = subprocess.Popen(
-        f"bash {CARLA_ROOT}/CarlaUE4.sh -RenderOffScreen", shell=True
-    )
-    # NOTE: CARLA server takes time to start up
-    time.sleep(3)
-    yield
-    carla_process.kill()
-    time.sleep(5)
-    if carla_process.poll() is None:
-        carla_process.terminate()
-    time.sleep(5)
+    subprocess.Popen(f"bash {CARLA_ROOT}/CarlaUE4.sh -RenderOffScreen", shell=True)
+
+
+def isCarlaServerRunning(host="localhost", port=2000):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(1)  # Set a timeout of 1 second
+        try:
+            sock.connect((host, port))
+            return True
+        except (socket.timeout, ConnectionRefusedError):
+            return False
 
 
 @pytest.fixture
-def getCarlaSimulator(getAssetPath, launchCarlaServer):
+def getCarlaSimulator(getAssetPath):
     from scenic.simulators.carla import CarlaSimulator
 
     base = getAssetPath("maps/CARLA")
 
     def _getCarlaSimulator(town):
-        launchCarlaServer()
+        if not isCarlaServerRunning():
+            launchCarlaServer()
         path = os.path.join(base, town + ".xodr")
         simulator = CarlaSimulator(map_path=path, carla_map=town)
 
@@ -52,7 +51,6 @@ def getCarlaSimulator(getAssetPath, launchCarlaServer):
     return _getCarlaSimulator
 
 
-@flaky(max_runs=5, min_passes=1)
 def test_throttle(getCarlaSimulator):
     simulator, town, mapPath = getCarlaSimulator("Town01")
     code = f"""
@@ -78,7 +76,6 @@ def test_throttle(getCarlaSimulator):
     assert records[len(records) // 2][1] < records[-1][1]
 
 
-@flaky(max_runs=5, min_passes=1)
 def test_brake(getCarlaSimulator):
     simulator, town, mapPath = getCarlaSimulator("Town01")
     code = f"""

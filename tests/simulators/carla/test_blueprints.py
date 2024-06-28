@@ -29,7 +29,6 @@ from scenic.simulators.carla.blueprints import (
     kioskModels,
     mailboxModels,
     motorcycleModels,
-    oldBlueprintNames,
     plantpotModels,
     tableModels,
     trafficwarningModels,
@@ -51,15 +50,7 @@ def skip_tests_with_blueprints(request):
         pytest.skip("Skipping test due to Carla memory leak issues")
 
 
-def preprocess_old_blueprint_names(original):
-    d = {}
-    for key, value in original.items():
-        for sub_value in value:
-            d[sub_value] = key
-    return d
-
-
-def model_blueprint(simulator, mapPath, town, modelType, modelName, newModelNames=None):
+def model_blueprint(simulator, mapPath, town, modelType, modelName):
     code = f"""
             param map = r'{mapPath}'
             param carla_map = '{town}'
@@ -73,26 +64,13 @@ def model_blueprint(simulator, mapPath, town, modelType, modelName, newModelName
     scene = sampleScene(scenario)
     simulation = simulator.simulate(scene)
     obj = simulation.objects[0]
-    if newModelNames:
-        assert obj.blueprint == newModelNames[modelName]
-    else:
-        assert obj.blueprint == modelName
+    assert obj.blueprint == modelName
 
 
 @pytest.mark.parametrize("modelName", carModels)
 def test_car_blueprints(getCarlaSimulator, modelName):
     simulator, town, mapPath = getCarlaSimulator("Town01")
     model_blueprint(simulator, mapPath, town, "Car", modelName)
-
-
-oldToNew = preprocess_old_blueprint_names(oldBlueprintNames)
-oldModels = oldToNew.keys()
-
-
-@pytest.mark.parametrize("modelName", oldModels)
-def test_old_blueprints(getCarlaSimulator, modelName):
-    simulator, town, mapPath = getCarlaSimulator("Town01")
-    model_blueprint(simulator, mapPath, town, "Car", modelName, oldToNew)
 
 
 @pytest.mark.parametrize("modelName", bicycleModels)
