@@ -39,16 +39,6 @@ from scenic.simulators.carla.blueprints import (
 )
 from tests.utils import compileScenic, sampleScene
 
-pytest.mark.skip_blueprints = pytest.mark.skip(
-    reason="Skipping test due to Carla memory leak issues"
-)
-
-
-@pytest.fixture(autouse=True)
-def skip_tests_with_blueprints(request):
-    if "blueprints" in request.node.name.lower():
-        pytest.skip("Skipping test due to Carla memory leak issues")
-
 
 def model_blueprint(simulator, mapPath, town, modelType, modelName):
     code = f"""
