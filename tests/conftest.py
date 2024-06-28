@@ -2,7 +2,6 @@ from contextlib import contextmanager
 import os.path
 from pathlib import Path
 import re
-import subprocess
 import sys
 
 import pytest
