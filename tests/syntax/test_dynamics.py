@@ -2085,3 +2085,33 @@ def test_record():
         (2, (4, 0, 0)),
         (3, (6, 0, 0)),
     )
+
+
+## lastActions Property
+def test_lastActions():
+    scenario = compileScenic(
+        """
+        behavior Foo():
+            for i in range(4):
+                take i
+        ego = new Object with behavior Foo, with allowCollisions True
+        other = new Object with allowCollisions True
+        record ego.lastActions as ego_lastActions
+        record other.lastActions as other_lastActions
+        """
+    )
+    result = sampleResult(scenario, maxSteps=4)
+    assert tuple(result.records["ego_lastActions"]) == (
+        (0, tuple()),
+        (1, (0,)),
+        (2, (1,)),
+        (3, (2,)),
+        (4, (3,)),
+    )
+    assert tuple(result.records["other_lastActions"]) == (
+        (0, tuple()),
+        (1, tuple()),
+        (2, tuple()),
+        (3, tuple()),
+        (4, tuple()),
+    )

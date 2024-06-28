@@ -11,6 +11,16 @@ from scenic.core.vectors import VectorField
 from tests.utils import sampleSceneFrom
 
 
+def sample_ignoring_rejections(region, num_samples):
+    samples = []
+    for _ in range(num_samples):
+        try:
+            samples.append(region.uniformPointInner())
+        except RejectionException:
+            pass
+    return samples
+
+
 def test_all_region():
     ar = AllRegion("all")
     assert ar in {ar}  # check hashability
@@ -246,6 +256,14 @@ def test_polygon_sampling():
     assert sum(1 <= y <= 2 for y in ys) <= 870
     assert sum(x >= 1.5 for x in xs) >= 1250
     assert sum(y >= 1.5 for y in ys) >= 1250
+
+
+def test_polygon_trueContainsPoint():
+    r = CircularRegion((0, 0), 1, resolution=64)
+
+    assert r._trueContainsPoint(Vector(0, 0, 0))
+    assert not r._trueContainsPoint(Vector(0, 0, 1))
+    assert not r._trueContainsPoint(Vector(1000, 1000, 0))
 
 
 def test_mesh_region_fromFile(getAssetPath):
@@ -606,11 +624,51 @@ def test_mesh_voxelization(getAssetPath):
         assert vr.containsPoint(sampled_pt)
 
 
+def test_voxel_to_mesh():
+    orig_mesh = BoxRegion(rotation=(math.pi / 4, math.pi / 4, 0), position=(1, 1, 1))
+    voxel = orig_mesh.voxelized(max(orig_mesh.mesh.extents) / 10)
+    mesh = voxel.mesh
+
+    assert isinstance(mesh, MeshVolumeRegion)
+
+    voxel_pts = sample_ignoring_rejections(voxel, 100)
+    mesh_pts = sample_ignoring_rejections(mesh, 100)
+
+    assert all(voxel.containsPoint(pt) for pt in mesh_pts)
+    assert all(mesh.containsPoint(pt) for pt in voxel_pts)
+
+
 def test_empty_erosion():
     box_region = BoxRegion(position=(0, 0, 0), dimensions=(1, 1, 1))
     vr = box_region.voxelized(pitch=0.1)
     erosion = vr.dilation(iterations=-6)
     assert isinstance(erosion, EmptyRegion)
+
+
+def test_intersection_sampler():
+    reg1 = BoxRegion(position=(0, 0, 0), dimensions=(0.5, 1, 1))
+    reg2 = AllRegion("all")
+    reg3 = CircularRegion((0, 0, 0), 1)
+    reg4 = reg3.footprint
+
+    regions = (reg1, reg2, reg3, reg4)
+
+    intersection_region = IntersectionRegion(*regions)
+
+    for pt in sample_ignoring_rejections(intersection_region, 100):
+        assert all(reg.containsPoint(pt) for reg in regions)
+
+
+def test_union_sampler():
+    reg1 = BoxRegion(position=(0, 0, 0), dimensions=(0.5, 1, 1))
+    reg2 = CircularRegion((0, 0, 0), 1)
+
+    regions = (reg1, reg2)
+
+    union_region = UnionRegion(*regions)
+
+    for pt in sample_ignoring_rejections(union_region, 100):
+        assert any(reg.containsPoint(pt) for reg in regions)
 
 
 # ViewRegion tests

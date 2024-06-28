@@ -7,6 +7,9 @@ import os
 import pathlib
 import time
 
+from PIL import Image
+import numpy as np
+
 import scenic.core.errors as errors  # isort: skip
 
 if errors.verbosityLevel == 0:  # suppress pygame advertisement at zero verbosity
@@ -55,21 +58,29 @@ class NewtonianSimulator(DrivingSimulator):
         when not otherwise specified is still 0.1 seconds.
     """
 
-    def __init__(self, network=None, render=False):
+    def __init__(self, network=None, render=False, export_gif=False):
         super().__init__()
+        self.export_gif = export_gif
         self.render = render
         self.network = network
 
     def createSimulation(self, scene, **kwargs):
-        return NewtonianSimulation(scene, self.network, self.render, **kwargs)
+        simulation = NewtonianSimulation(
+            scene, self.network, self.render, self.export_gif, **kwargs
+        )
+        if self.export_gif and self.render:
+            simulation.generate_gif("simulation.gif")
+        return simulation
 
 
 class NewtonianSimulation(DrivingSimulation):
     """Implementation of `Simulation` for the Newtonian simulator."""
 
-    def __init__(self, scene, network, render, timestep, **kwargs):
+    def __init__(self, scene, network, render, export_gif, timestep, **kwargs):
+        self.export_gif = export_gif
         self.render = render
         self.network = network
+        self.frames = []
 
         if timestep is None:
             timestep = 0.1
@@ -213,7 +224,17 @@ class NewtonianSimulation(DrivingSimulation):
                 pygame.draw.polygon(self.screen, color, corners)
 
         pygame.display.update()
+
+        if self.export_gif:
+            frame = pygame.surfarray.array3d(self.screen)
+            frame = np.transpose(frame, (1, 0, 2))
+            self.frames.append(frame)
+
         time.sleep(self.timestep)
+
+    def generate_gif(self, filename="simulation.gif"):
+        imgs = [Image.fromarray(frame) for frame in self.frames]
+        imgs[0].save(filename, save_all=True, append_images=imgs[1:], duration=50, loop=0)
 
     def getProperties(self, obj, properties):
         yaw, _, _ = obj.parentOrientation.globalToLocalAngles(obj.heading, 0, 0)

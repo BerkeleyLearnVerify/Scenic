@@ -497,6 +497,9 @@ class Constructible(Samplable):
                     "Color property contains value not between 0 and 1 (inclusive)."
                 )
 
+            if not 3 <= len(value) <= 4:
+                raise ValueError(f"Color property has incorrect length {len(value)}.")
+
         object.__setattr__(context, prop, value)
 
     def _register(self):
@@ -610,15 +613,15 @@ class Mutator:
     """
 
     def appliedTo(self, obj):
-        """Return a mutated copy of the given object. Implemented by subclasses.
+        """Return a mutated version of the given object. Implemented by subclasses.
 
         The mutator may inspect the ``mutationScale`` attribute of the given object
         to scale its effect according to the scale given in ``mutate O by S``.
 
         Returns:
-            A pair consisting of the mutated copy of the object (which is most easily
-            created using `_copyWith`) together with a Boolean indicating whether the
-            mutator inherited from the superclass (if any) should also be applied.
+            A pair consisting of the mutated version of the object together with a
+            Boolean indicating whether the mutator inherited from the superclass
+            (if any) should also be applied.
         """
         raise NotImplementedError
 
@@ -639,8 +642,8 @@ class PositionMutator(Mutator):
             random.gauss(0, self.stddevs[1] * obj.mutationScale),
             random.gauss(0, self.stddevs[2] * obj.mutationScale),
         )
-        pos = obj.position + noise
-        return (obj._copyWith(position=pos), True)  # allow further mutation
+        obj.position += noise
+        return (obj, True)  # allow further mutation
 
     def __eq__(self, other):
         if type(other) is not type(self):
@@ -662,13 +665,11 @@ class OrientationMutator(Mutator):
         self.stddevs = tuple(stddevs)
 
     def appliedTo(self, obj):
-        yaw = obj.yaw + random.gauss(0, self.stddevs[0] * obj.mutationScale)
-        pitch = obj.pitch + random.gauss(0, self.stddevs[1] * obj.mutationScale)
-        roll = obj.roll + random.gauss(0, self.stddevs[2] * obj.mutationScale)
+        obj.yaw += random.gauss(0, self.stddevs[0] * obj.mutationScale)
+        obj.pitch += random.gauss(0, self.stddevs[1] * obj.mutationScale)
+        obj.roll += random.gauss(0, self.stddevs[2] * obj.mutationScale)
 
-        new_obj = obj._copyWith(yaw=yaw, pitch=pitch, roll=roll)
-
-        return (new_obj, True)  # allow further mutation
+        return (obj, True)  # allow further mutation
 
     def __eq__(self, other):
         if type(other) is not type(self):
@@ -800,6 +801,7 @@ class Point(Constructible):
                 sample, proceed = mutator.appliedTo(sample)
                 if not proceed:
                     break
+            sample._recomputeDynamicFinals()
         return sample
 
     # Points automatically convert to Vectors when needed
@@ -807,9 +809,7 @@ class Point(Constructible):
         if hasattr(Vector, attr):
             return getattr(self.toVector(), attr)
         else:
-            raise AttributeError(
-                f"'{type(self).__name__}' object has no attribute '{attr}'"
-            )
+            self.__getattribute__(attr)
 
 
 ## OrientedPoint
@@ -818,14 +818,11 @@ class Point(Constructible):
 class OrientedPoint(Point):
     """The Scenic class ``OrientedPoint``.
 
-    The default mutator for `OrientedPoint` adds Gaussian noise to ``yaw`` while
-    leaving ``pitch`` and ``roll`` unchanged, using the three standard deviations
-    (for yaw/pitch/roll respectively) given by the  ``orientationStdDev`` property.
-    It then also applies the mutator for `Point`.
-
     The default mutator for `OrientedPoint` adds Gaussian noise to ``yaw``, ``pitch``
-    and ``roll`` according to ``orientationStdDev``. By default the standard deviations
-    for ``pitch`` and ``roll`` are zero so that, by default, only ``yaw`` is mutated.
+    and ``roll``, using the three standard deviations (for yaw/pitch/roll respectively)
+    given by the  ``orientationStdDev`` property. It then also applies the mutator for `Point`.
+    By default the standard deviations for ``pitch`` and ``roll`` are zero so that, by
+    default, only ``yaw`` is mutated.
 
     Properties:
         yaw (float; dynamic): Yaw of the `OrientedPoint` in radians in the local coordinate system
@@ -860,8 +857,8 @@ class OrientedPoint(Point):
             {"yaw", "pitch", "roll", "parentOrientation"},
             {"dynamic", "final"},
             lambda self: (
-                Orientation.fromEuler(self.yaw, self.pitch, self.roll)
-                * self.parentOrientation
+                self.parentOrientation
+                * Orientation.fromEuler(self.yaw, self.pitch, self.roll)
             ),
         ),
         # Heading is equal to orientation.yaw, which is equal to self.yaw if this OrientedPoint's
@@ -1020,7 +1017,7 @@ class Object(OrientedPoint):
         behavior: Behavior for dynamic agents, if any (see :ref:`dynamics`). Default
           value ``None``.
         lastActions: Tuple of :term:`actions` taken by this agent in the last time step
-          (or `None` if the object is not an agent or this is the first time step).
+          (an empty tuple if the object is not an agent or this is the first time step).
     """
 
     _scenic_properties = {
@@ -1045,7 +1042,7 @@ class Object(OrientedPoint):
         "angularVelocity": PropertyDefault((), {"dynamic"}, lambda self: Vector(0, 0, 0)),
         "angularSpeed": PropertyDefault((), {"dynamic"}, lambda self: 0),
         "behavior": None,
-        "lastActions": None,
+        "lastActions": tuple(),
         # weakref to scenario which created this object, for internal use
         "_parentScenario": None,
     }
@@ -1299,11 +1296,15 @@ class Object(OrientedPoint):
     @cached_property
     def occupiedSpace(self):
         """A region representing the space this object occupies"""
+        shape = self.shape
         return MeshVolumeRegion(
-            mesh=self.shape.mesh,
+            mesh=shape.mesh,
             dimensions=(self.width, self.length, self.height),
             position=self.position,
             rotation=self.orientation,
+            centerMesh=False,
+            _internal=True,
+            _isConvex=shape.isConvex,
         )
 
     @property
@@ -1555,7 +1556,15 @@ class Object(OrientedPoint):
         if highlight:
             object_mesh.visual.face_colors = [30, 179, 0, 255]
         elif self.color is not None:
-            object_mesh.visual.face_colors = self.color
+            if len(self.color) == 3:
+                r, g, b = self.color
+                a = 1
+            elif len(self.color) == 4:
+                r, g, b, a = self.color
+            else:
+                assert False
+
+            object_mesh.visual.face_colors = [255 * r, 255 * g, 255 * b, 255 * a]
 
         viewer.add_geometry(object_mesh)
 
@@ -1761,11 +1770,10 @@ class OrientedPoint2D(Point2D, OrientedPoint):
             cls._props_transformed = str(cls)
 
             props = cls._scenic_properties
-            # Raise error if parentOrientation already defined
-            if "parentOrientation" in props:
+            # Raise error if parentOrientation and heading already defined
+            if "parentOrientation" in props and "heading" in props:
                 raise RuntimeError(
-                    "this scenario cannot be run with the --2d flag (the "
-                    f'{cls.__name__} class defines "parentOrientation")'
+                    f'{cls.__name__} defines both "parentOrientation" and "heading"'
                 )
 
             # Map certain properties to their 3D analog

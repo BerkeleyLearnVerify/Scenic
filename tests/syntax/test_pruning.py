@@ -4,7 +4,6 @@ import random
 import pytest
 
 from scenic.core.errors import InconsistentScenarioError
-from scenic.core.pruning import checkCyclical
 from scenic.core.vectors import Vector
 from tests.utils import compileScenic, sampleEgo, sampleParamP
 
@@ -56,14 +55,14 @@ def test_containment_2d_region():
 
     # Test both combined, in a slightly more complicated case.
     # Specifically, there is a non vertical component to baseOffset
-    # that should be accounted for and the height is random.
+    # that should be accounted for.
     scenario = compileScenic(
         """
         class TestObject:
             baseOffset: (0.1, 0, self.height/2)
 
         workspace = Workspace(PolygonalRegion([0@0, 2@0, 2@2, 0@2]))
-        ego = new TestObject on workspace, with height Range(0.1,0.5)
+        ego = new TestObject on workspace, with height 100
         """
     )
     # Sampling should fail ~30.56% of the time, so
@@ -167,7 +166,7 @@ def test_visibility_pruning():
     The following scenarios are equivalent except for how they specify that foo
     must be visible from ego. The size of the workspace and the visibleDistance
     of ego are chosen such that without pruning the chance of sampling a valid
-    scene over 100 tries is 1-(1-Decimal(3.14)/Decimal(1e10**2))**100 = ~1e-18.
+    scene over 100 tries is 1-(1-(3.14*2**2)/(1e10**2))**100 = ~1e-18.
     Assuming the approximately buffered volume of the viewRegion has a 50% chance of
     rejecting (i.e. it is twice as large as the true buffered viewRegion, which testing
     indicates in this case has about a 10% increase in volume for this case), the chance
@@ -177,43 +176,79 @@ def test_visibility_pruning():
     in the viewRegion instead of at any point where the object intersects the view region.
     Because of this, we want to see at least one sample where the position is outside
     the viewRegion but the object intersects the viewRegion. The chance of this happening
-    per sample is 1 - (1 / 1.1)**3 = ~25%, so by repeating the process 30 times we have
-    a 1e-19 chance of not getting a single point in this zone.
+    per sample is ((1 / 2)**2), so by repeating the process 30 times we have
+    ~1e-19 chance of not getting a single point in this zone.
     """
     # requireVisible
     scenario = compileScenic(
         """
         workspace = Workspace(RectangularRegion(0@0, 0, 1e10, 1e10))
-        ego = new Object at (0,0,0), with visibleDistance 1
-        foo = new Object in workspace, with requireVisible True,
-            with shape SpheroidShape(dimensions=(0.2,0.2,0.2))
+        ego = new Object at (0,0,0), with visibleDistance 1, with allowCollisions True
+        foo = new Object in workspace,
+            with shape SpheroidShape(dimensions=(2,2,2)),
+            with allowCollisions True,
+            with requireVisible True
         param p = foo.position
         """
     )
     positions = [sampleParamP(scenario, maxIterations=100) for i in range(30)]
-    assert all(pos.distanceTo(Vector(0, 0, 0)) <= 1.1 for pos in positions)
+    assert all(pos.distanceTo(Vector(0, 0, 0)) <= 2 for pos in positions)
     assert any(pos.distanceTo(Vector(0, 0, 0)) >= 1 for pos in positions)
 
     # visible
     scenario = compileScenic(
         """
         workspace = Workspace(RectangularRegion(0@0, 0, 1e10, 1e10))
-        ego = new Object at (0,0,0), with visibleDistance 1
+        ego = new Object at (0,0,0), with visibleDistance 1, with allowCollisions True
         foo = new Object in workspace, visible,
-            with shape SpheroidShape(dimensions=(0.2,0.2,0.2))
+            with shape SpheroidShape(dimensions=(2,2,2)),
+            with allowCollisions True
         param p = foo.position
         """
     )
     positions = [sampleParamP(scenario, maxIterations=100) for i in range(30)]
-    assert all(pos.distanceTo(Vector(0, 0, 0)) <= 1.1 for pos in positions)
+    assert all(pos.distanceTo(Vector(0, 0, 0)) <= 2 for pos in positions)
     assert any(pos.distanceTo(Vector(0, 0, 0)) >= 1 for pos in positions)
+
+    # requireVisible with offset
+    baseOffsetVal = 0.0001
+    scenario = compileScenic(
+        f"""
+        workspace = Workspace(RectangularRegion(0@0, 0, 1e10, 1e10))
+        ego = new Object at (0,0,0), with visibleDistance 1, with allowCollisions True
+        foo = new Object on workspace,
+            with shape SpheroidShape(dimensions=(2,2,2)),
+            with allowCollisions True,
+            with requireVisible True,
+            with baseOffset (0,0,{baseOffsetVal}), with contactTolerance 0
+        param p = foo.position
+        """
+    )
+    positions = [sampleParamP(scenario, maxIterations=100) for i in range(30)]
+    assert all(pos.distanceTo(Vector(0, 0, 0)) <= 2 for pos in positions)
+    assert any(pos.distanceTo(Vector(0, 0, 0)) >= 1 for pos in positions)
+    assert all(pos.z == -baseOffsetVal for pos in positions)
+
+    # visible with offset
+    scenario = compileScenic(
+        f"""
+        workspace = Workspace(RectangularRegion(0@0, 0, 1e10, 1e10))
+        ego = new Object at (0,0,0), with visibleDistance 1, with allowCollisions True
+        foo = new Object on workspace, visible,
+            with shape SpheroidShape(dimensions=(2,2,2)),
+            with allowCollisions True,
+            with baseOffset (0,0,{baseOffsetVal}), with contactTolerance 0
+        param p = foo.position
+        """
+    )
+    positions = [sampleParamP(scenario, maxIterations=100) for i in range(30)]
+    assert all(pos.distanceTo(Vector(0, 0, 0)) <= 2 for pos in positions)
+    assert any(pos.distanceTo(Vector(0, 0, 0)) >= 1 for pos in positions)
+    assert all(pos.z == -baseOffsetVal for pos in positions)
 
 
 def test_visibility_pruning_cyclical():
-    """A case where a cyclical dependency could be introduced if pruning is not done carefully.
-
-    NOTE: We don't currently prune this case so this test is a sentinel for future behavior.
-    """
+    """A case where a cyclical dependency could be introduced if pruning is not done carefully."""
     scenario = compileScenic(
         """
         workspace = Workspace(PolygonalRegion([0@0, 100@0, 100@100, 0@100]))
@@ -223,24 +258,3 @@ def test_visibility_pruning_cyclical():
     )
 
     sampleEgo(scenario, maxIterations=100)
-
-
-def test_checkCyclical():
-    scenario = compileScenic(
-        """
-        workspace = Workspace(PolygonalRegion([0@0, 100@0, 100@100, 0@100]))
-        foo = new Object in workspace
-        ego = new Object in workspace
-        """
-    )
-    assert not checkCyclical(scenario.objects[1].position, scenario.objects[0].position)
-
-    scenario = compileScenic(
-        """
-        workspace = Workspace(PolygonalRegion([0@0, 100@0, 100@100, 0@100]))
-        foo = new Object with requireVisible True, in workspace
-        ego = new Object visible from foo
-        """
-    )
-
-    assert checkCyclical(scenario.objects[1].position, scenario.objects[0].visibleRegion)
