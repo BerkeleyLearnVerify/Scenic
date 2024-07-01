@@ -1,2 +1,2 @@
-from scenic.simulators.newtonian.simulator import MetaDriveSimulator 
+from scenic.simulators.metadrive.simulator import MetaDriveSimulator 
 simulator MetaDriveSimulator()
