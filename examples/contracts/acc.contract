@@ -98,7 +98,7 @@ component FusionDistanceSystem():
         connect dvs.med_dist to dist
 
 component Speedometer():
-    """ Fetches and outputss ground truth speed."""
+    """ A component that provides ground truth speed."""
     sensors:
         self.speed: builtins.float as speed_val
 
@@ -450,7 +450,7 @@ contract MaxBrakingForce(min_slowdown):
 
     guarantees:
         always ((no_throttle and full_brake) 
-            implies ((next self.speed) <= self.speed - min_slowdown)
+            implies (self.speed == 0 or ((next self.speed) <= self.speed - min_slowdown))
         )
 
 ## Overall System Spec ##
@@ -516,7 +516,7 @@ ad_known = lidar_manufacturer_spec & radar_manufacturer_spec
 
 ad_missing = ad_goal - ad_known
 
-ad_tests = test car.ps satisfies ad_missing, 
+ad_tests = test car.ps satisfies ad_missing,
     using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
     terminating after 100 samples
 
@@ -562,4 +562,4 @@ keeps_distance = refine keeps_distance_raw as KeepsDistance(PERCEPTION_DISTANCE,
     max_brake=MAX_BRAKE,
     max_accel=MAX_ACCEL) using PROOF
 
-verify keeps_distance_raw
+verify keeps_distance
