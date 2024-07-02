@@ -18,6 +18,7 @@ from scenic.core.simulators import Simulation, Simulator
 from scenic.core.vectors import Vector
 from .utils import scenic_to_rgba
 from .xml_builder import RoboSuiteXMLBuilder
+from .xml_objects import create_xml_object
 
 
 class RobosuiteSimulator(Simulator):
@@ -192,6 +193,8 @@ class RobosuiteSimulation(Simulation):
             self._create_robot(obj)
         elif type(obj).__name__ in ['Table', 'PositionableTable']:
             self._create_table(obj)
+        elif hasattr(obj, 'xml_path') or hasattr(obj, 'xml_string'):
+            self._create_xml_object(obj)
         else:
             self._create_object(obj)
     
@@ -287,6 +290,24 @@ class RobosuiteSimulation(Simulation):
         else:
             # Regular Table object - this should have been handled as arena
             pass
+    
+    def _create_xml_object(self, obj):
+        """Create an object from XML definition."""
+        name = f"xml_obj_{len(self.world.worldbody)}"
+        
+        # Use xml_objects module to create the object
+        rs_obj = create_xml_object(obj, name)
+        
+        # Get the object model
+        mj_obj = rs_obj.get_obj()
+        
+        # Set position
+        pos = obj.position
+        mj_obj.set('pos', f'{pos.x} {pos.y} {pos.z}')
+        
+        # Add to world
+        self.world.worldbody.append(mj_obj)
+        obj._robosuite_name = name
     
     def executeActions(self, allActions):
         """Execute actions for all agents."""

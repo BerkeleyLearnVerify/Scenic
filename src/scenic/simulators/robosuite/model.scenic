@@ -104,6 +104,20 @@ class PositionableTable(RoboSuiteObject):
     height: 0.8
     color: (0.9, 0.9, 0.9)  # Light gray
 
+# XML-based objects
+class XMLObject(RoboSuiteObject):
+    """Object defined by XML file or string."""
+    xml_path: None
+    xml_string: None
+    xml_size: None  # Optional size override [width, length, height]
+    width: 0.1
+    length: 0.1
+    height: 0.1
+
+class CustomXMLObject(XMLObject):
+    """Convenience class for custom XML objects."""
+    pass
+
 # Actions
 import scenic.core.dynamics as dynamics
 
