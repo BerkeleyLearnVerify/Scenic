@@ -1078,6 +1078,16 @@ class ScenicToPythonTransformer(Transformer):
                 newArgs.append(self.visit(arg))
         newKeywords = [self.visit(kwarg) for kwarg in node.keywords]
         newFunc = self.visit(node.func)
+
+        # Convert primitive type conversions to their Scenic equivalents
+        if isinstance(newFunc, ast.Name):
+            if newFunc.id == "str":
+                newFunc.id = "_toStrScenic"
+            elif newFunc.id == "float":
+                newFunc.id = "_toFloatScenic"
+            elif newFunc.id == "int":
+                newFunc.id = "_toIntScenic"
+
         if wrappedStar:
             newNode = ast.Call(
                 ast.Name("callWithStarArgs", ast.Load()),
