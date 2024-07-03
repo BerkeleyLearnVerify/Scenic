@@ -2074,27 +2074,24 @@ def ApparentlyFacing(heading, fromPt=None):
 # functions seems to break pickling/unpickling
 
 
-class str(str):
-    @distributionFunction
-    def __call__(*args, **kwargs):
-        return builtins.str(*args, **kwargs)
-
-
-class float(float):
-    @distributionFunction
-    def __call__(*args, **kwargs):
-        return builtins.float(*args, **kwargs)
-
-
-class int(int):
-    @distributionFunction
-    def __call__(*args, **kwargs):
-        return builtins.int(*args, **kwargs)
-
-
 @distributionFunction
 def filter(function, iterable):
     return list(builtins.filter(function, iterable))
+
+
+@distributionFunction
+def str(*args, **kwargs):
+    return builtins.str(*args, **kwargs)
+
+
+@distributionFunction
+def float(*args, **kwargs):
+    return builtins.float(*args, **kwargs)
+
+
+@distributionFunction
+def int(*args, **kwargs):
+    return builtins.int(*args, **kwargs)
 
 
 @distributionFunction
