@@ -506,13 +506,17 @@ ABS_SPEED_ERR = 4
 # Instantiate Car component and link to object.
 implement "EgoCar" with Car(TARGET_DIST, MAX_SPEED, MIN_DIST, MIN_SLOWDOWN) as car
 
+# Instantiate over keyword?
 ad_goal = AccurateDistance(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR)
 
-lidar_manufacturer_spec = assume car.ps.lds
+lds_manufac_guar = assume car.ps.lds
     satisfies LidarManufacturerSpec(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR)
-radar_manufacturer_spec = assume car.ps.rds
+rds_manufac_guar = assume car.ps.rds
     satisfies RadarManufacturerSpec(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR)
-ad_known = lidar_manufacturer_spec & radar_manufacturer_spec
+
+ad_known = compose over car.ps:
+    use lds_manufac_guar
+    use rds_manufac_guar
 
 ad_missing = ad_goal - ad_known
 
@@ -520,9 +524,7 @@ ad_tests = test car.ps satisfies ad_missing,
     using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
     terminating after 100 samples
 
-accurate_distance = compose over car.ps refining ad_goal:
-    use ad_known
-    use ad_test
+accurate_distance = refine (ad_known and ad_test) as ad_goal:
 
 # TODO: Replace with proof
 accurate_speed = assume car.cs satisfies AccurateRelativeSpeeds(
@@ -550,9 +552,7 @@ cs_safety = compose over car.cs:
 
 keeps_distance_raw = compose over car:
     use ps_accuracy
-
     use cs_safety
-
     use max_braking_force
 
 keeps_distance = refine keeps_distance_raw as KeepsDistance(PERCEPTION_DISTANCE,
