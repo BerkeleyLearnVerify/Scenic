@@ -2072,17 +2072,17 @@ def ApparentlyFacing(heading, fromPt=None):
 
 
 @distributionFunction
-def _toStrScenic(*args, **kwargs):
+def _toStrScenic(*args, **kwargs) -> str:
     return builtins.str(*args, **kwargs)
 
 
 @distributionFunction
-def _toFloatScenic(*args, **kwargs):
+def _toFloatScenic(*args, **kwargs) -> float:
     return builtins.float(*args, **kwargs)
 
 
 @distributionFunction
-def _toIntScenic(*args, **kwargs):
+def _toIntScenic(*args, **kwargs) -> int:
     return builtins.int(*args, **kwargs)
 
 
