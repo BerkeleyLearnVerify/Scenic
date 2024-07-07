@@ -57,7 +57,7 @@ def _toVector(thing: Vectorlike) -> Vector:
 
 
 def _rejectSample(message):
-    if veneer.isActive():
+    if not veneer.allowSampleRejection():
         raise InvalidScenarioError(message)
     else:
         raise RejectionException(message)

@@ -299,6 +299,7 @@ from scenic.core.vectors import Orientation, alwaysGlobalOrientation
 ### Internals
 
 activity = 0
+heuristicSampling = 0
 currentScenario = None
 scenarioStack = []
 scenarios = []
@@ -329,6 +330,25 @@ def isActive():
     Scenic modules.
     """
     return activity > 0
+
+
+def allowSampleRejection():
+    """Should a RejectionException() be allowed
+
+    Returning True means a RejectionException is valid. Returning False indicates
+    a RejectionException() means the scenario is invalid.
+    """
+    return isActive() or heuristicSampling
+
+
+@contextmanager
+def enableHeuristicSampling():
+    global heuristicSampling
+    heuristicSampling += 1
+    try:
+        yield
+    finally:
+        heuristicSampling -= 1
 
 
 def activate(options, namespace=None):
@@ -1517,7 +1537,8 @@ def alwaysProvidesOrientation(region):
         return True
     else:  # TODO improve somehow!
         try:
-            sample = region.sample()
+            with enableHeuristicSampling():
+                sample = region.sample()
             return sample.orientation is not None or sample is nowhere
         except RejectionException:
             return False
