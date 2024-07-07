@@ -497,3 +497,24 @@ def test_random_occlusion():
         hasattr(obj, "name") and obj.name == "wall" and (not obj.occluding)
         for obj in scene.objects
     )
+
+
+def test_deep_not():
+    """Test that a not deep inside a requirement is interpreted correctly.
+
+    Number of objects (8) is chosen such that the chance that no objects are
+    violate the requirement is low (0.5**8=0.003), thus making it likely that
+    the test will detect an issue.
+
+    Number of iterations (11000) is chosen such that the chance of a valid scene
+    not being found is low ((1-0.5**8)**11000~=2e-19)
+    """
+    scene = sampleSceneFrom(
+        """
+        region = RectangularRegion(0@0, 0, 20, 20)
+        objs = [new Object in region for _ in range(8)]
+        require all(not o.x > 0 for o in objs)
+        """,
+        maxIterations=11000,
+    )
+    assert all(not o.x > 0 for o in scene.objects)
