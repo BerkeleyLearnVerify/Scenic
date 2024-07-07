@@ -29,3 +29,10 @@ To avoid confusion, we recommend not using ``distance``, ``angle``, ``offset``, 
 
 .. literalinclude:: /_build/keywords_soft.txt
     :language: text
+
+There are also three additional names in Scenic that are transformed internally when called: ``str``, ``int``, and ``float``. Calls using these names are transformed to versions that can handle distributions and lazy values as arguments, but are otherwise equivalent. If these names are re-defined in a Scenic program, then calls referencing them will **not** use the new definition. For example, in the following code block the ``newInt`` function will **not** be executed::
+
+	def newInt(*args, **kwargs):
+		...
+	int = newInt
+	int(1.5)
