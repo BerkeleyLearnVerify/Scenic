@@ -316,8 +316,16 @@ class RobosuiteSimulation(Simulation):
         for robot_obj in self._robots:
             if robot_obj in allActions and allActions[robot_obj]:
                 for action in allActions[robot_obj]:
-                    if action and action.__class__.__name__ == 'SetJointPositions':
-                        self._apply_robot_action(robot_obj, action.positions)
+                    if action:
+                        action_name = action.__class__.__name__
+                        if action_name == 'SetJointPositions':
+                            self._apply_robot_action(robot_obj, action.positions)
+                        elif action_name == 'SetGripperState':
+                            self._apply_gripper_action(robot_obj, action.state)
+                        elif action_name == 'MoveToPosition':
+                            self._apply_move_action(robot_obj, action.position, action.duration)
+                        elif action_name == 'SetJointVelocities':
+                            self._apply_velocity_action(robot_obj, action.velocities)
     
     def _apply_robot_action(self, robot_obj, positions):
         """Apply joint position control to a robot."""
@@ -333,6 +341,40 @@ class RobosuiteSimulation(Simulation):
                 if actuator_id != -1:
                     self.data.ctrl[actuator_id] = float(positions[i])
     
+    def _apply_gripper_action(self, robot_obj, state):
+        """Apply gripper open/close action."""
+        robot_model = robot_obj._robot_model
+        
+        # Find gripper actuators (usually last 2 actuators)
+        gripper_actuators = robot_model.actuators[-2:]
+        
+        for actuator in gripper_actuators:
+            actuator_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, actuator)
+            if actuator_id != -1:
+                # state: 1.0 for open, -1.0 for closed
+                if state > 0:
+                    self.data.ctrl[actuator_id] = 0.04  # Open position
+                else:
+                    self.data.ctrl[actuator_id] = 0.0   # Closed position
+    
+    def _apply_move_action(self, robot_obj, target_position, duration):
+        """Apply end-effector movement action (simplified)."""
+        # This is a simplified implementation - in practice would use IK
+        # For now, just store the target for future implementation
+        robot_obj._target_position = target_position
+        robot_obj._move_duration = duration
+    
+    def _apply_velocity_action(self, robot_obj, velocities):
+        """Apply joint velocity control."""
+        robot_model = robot_obj._robot_model
+        
+        if not isinstance(velocities, (list, tuple)):
+            return
+            
+        # For velocity control, we'd need to implement a velocity controller
+        # For now, store velocities for future implementation
+        robot_obj._target_velocities = velocities
+    
     def getProperties(self, obj, properties):
         """Read object properties from the simulator."""
         if hasattr(obj, '_robot_model'):
@@ -342,10 +384,21 @@ class RobosuiteSimulation(Simulation):
             return {prop: getattr(obj, prop) for prop in properties}
         
         values = {}
+        body_id = self._body_id_map.get(obj._robosuite_name, -1)
+        
         for prop in properties:
-            if prop == 'position':
-                # For now, return the original position
-                values[prop] = obj.position
+            if prop == 'position' and body_id != -1:
+                # Get actual position from simulator
+                pos = self.data.xpos[body_id]
+                values[prop] = Vector(pos[0], pos[1], pos[2])
+            elif prop == 'velocity' and body_id != -1:
+                # Get linear velocity
+                vel = self.data.cvel[body_id][:3]
+                values[prop] = Vector(vel[0], vel[1], vel[2])
+            elif prop == 'orientation' and body_id != -1:
+                # Get quaternion orientation
+                quat = self.data.xquat[body_id]
+                values[prop] = list(quat)
             else:
                 values[prop] = getattr(obj, prop)
                 
@@ -374,10 +427,75 @@ class RobosuiteSimulation(Simulation):
                 values[prop] = joint_pos
                 # Update object's attribute for record statement
                 obj.joint_positions = joint_pos
+            elif prop == 'joint_velocities':
+                joint_vel = []
+                for joint in obj._robot_model.joints:
+                    joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, joint)
+                    if joint_id != -1:
+                        qvel_addr = self.model.jnt_dofadr[joint_id]
+                        joint_vel.append(self.data.qvel[qvel_addr])
+                values[prop] = joint_vel
+            elif prop == 'end_effector_position':
+                # Get end-effector body position
+                ee_name = obj._robot_model.naming_prefix + "gripper0_grip_site"
+                site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, ee_name)
+                if site_id != -1:
+                    pos = self.data.site_xpos[site_id]
+                    values[prop] = Vector(pos[0], pos[1], pos[2])
+                else:
+                    values[prop] = Vector(0, 0, 0)
+            elif prop == 'gripper_state':
+                # Get gripper joint positions
+                gripper_joints = obj._robot_model.joints[-2:]  # Usually last 2 joints
+                gripper_pos = []
+                for joint in gripper_joints:
+                    joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, joint)
+                    if joint_id != -1:
+                        qpos_addr = self.model.jnt_qposadr[joint_id]
+                        gripper_pos.append(self.data.qpos[qpos_addr])
+                # Average position: > 0.02 is open, < 0.02 is closed
+                avg_pos = sum(gripper_pos) / len(gripper_pos) if gripper_pos else 0
+                values[prop] = 'open' if avg_pos > 0.02 else 'closed'
             else:
                 values[prop] = getattr(obj, prop)
         
         return values
+    
+    def step(self):
+        """Run one simulation step."""
+        super().step()
+        
+        # Physics stepping
+        for _ in range(self.physics_steps):
+            mujoco.mj_step(self.model, self.data)
+        
+        # Update viewer if rendering
+        if self.viewer and self.viewer.is_running():
+            self.viewer.sync()
+            
+            # Control simulation speed
+            if self.real_time:
+                import time
+                time.sleep(self.physics_timestep / self.speed)
+        
+        # Update step count
+        self._step_count += 1
+        
+        # Update tracked properties for all objects
+        self._update_tracked_properties()
+    
+    def _update_tracked_properties(self):
+        """Update positions and velocities for tracked objects."""
+        for obj_name, body_id in self._body_id_map.items():
+            if body_id != -1:
+                # Store current position for velocity calculation
+                current_pos = self.data.xpos[body_id].copy()
+                if obj_name in self._prev_positions:
+                    # Calculate velocity (simplified) - for future use
+                    # dt = self.timestep
+                    # vel = (current_pos - self._prev_positions[obj_name]) / dt
+                    pass
+                self._prev_positions[obj_name] = current_pos
         
     def destroy(self):
         """Clean up the simulation."""

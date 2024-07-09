@@ -47,7 +47,10 @@ class Robot(RoboSuiteObject):
     width: 0.2
     length: 0.2
     height: 0.5
-    joint_positions: [] 
+    joint_positions: []
+    joint_velocities: []
+    end_effector_position: Vector(0, 0, 0)
+    gripper_state: "open" 
 
 # Specific robot implementations
 class PandaRobot(Robot):
@@ -128,4 +131,32 @@ class SetJointPositions(dynamics.Action):
     
     def applyTo(self, agent, sim):
         """Apply joint position action to robot."""
+        pass
+
+class SetGripperState(dynamics.Action):
+    """Action to open/close robot gripper."""
+    def __init__(self, state):
+        self.state = state  # 1.0 for open, -1.0 for closed
+    
+    def applyTo(self, agent, sim):
+        """Apply gripper action to robot."""
+        pass
+
+class MoveToPosition(dynamics.Action):
+    """Action to move robot end-effector to position."""
+    def __init__(self, position, duration=2.0):
+        self.position = position
+        self.duration = duration
+    
+    def applyTo(self, agent, sim):
+        """Apply movement action to robot."""
+        pass
+
+class SetJointVelocities(dynamics.Action):
+    """Action to set robot joint velocities."""
+    def __init__(self, velocities):
+        self.velocities = velocities
+    
+    def applyTo(self, agent, sim):
+        """Apply joint velocity action to robot."""
         pass
