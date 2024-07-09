@@ -266,7 +266,7 @@ class VerifaiSampler(ExternalSampler):
 
     @staticmethod
     def nameForParam(i):
-        """Paramter name for a given index in the Feature Space."""
+        """Parameter name for a given index in the Feature Space."""
         return f"param{i}"
 
 
