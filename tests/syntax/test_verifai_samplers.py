@@ -195,3 +195,11 @@ def test_noninterference():
         for j in range(5):
             scene, iterations = scenario.generate(maxIterations=1)
             assert len(scenario.externalSampler.cachedSample) == 1
+
+
+def test_feature_order():
+    scenario = compileScenic("param p = [VerifaiRange(x, x + 0.5) for x in range(105)]")
+    values = sampleParamP(scenario)
+    assert len(values) == 105
+    for x, val in enumerate(values):
+        assert x <= val <= x + 0.5
