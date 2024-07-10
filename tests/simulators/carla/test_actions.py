@@ -74,13 +74,11 @@ def test_throttle(getCarlaSimulator):
         model scenic.simulators.carla.model
 
         behavior DriveThenApplyThrottle():
-            do FollowLaneBehavior() for 2 seconds
             take SetThrottleAction(0.9)
         
-        p = new Point at (369, -326)
-        ego = new Car at p, with behavior DriveThenApplyThrottle
+        ego = new Car at (369, -326), with behavior DriveThenApplyThrottle
         record ego.speed as CarSpeed
-        terminate after 4 seconds
+        terminate after 2 steps
     """
     scenario = compileScenic(code, mode2D=True)
     scene = sampleScene(scenario)
@@ -99,17 +97,17 @@ def test_brake(getCarlaSimulator):
         model scenic.simulators.carla.model
 
         behavior DriveThenBrake():
-            do FollowLaneBehavior() for 2 seconds
+            do take SetThrottleAction(0.9) for 1 step
             take SetBrakeAction(1)
 
-        p = new Point at (369, -326)
-        ego = new Car at p, with behavior DriveThenBrake
-        record ego.speed as CarSpeed
-        terminate after 4 seconds
+        ego = new Car at (369, -326), with behavior DriveThenBrake
+        record final ego.speed as CarSpeed
+        terminate after 2 steps
     """
     scenario = compileScenic(code, mode2D=True)
     scene = sampleScene(scenario)
     simulation = simulator.simulate(scene)
     records = simulation.result.records["CarSpeed"]
+    # TODO: document where the threshold comes from
     threshold = 3
     assert int(records[-1][1]) < threshold
