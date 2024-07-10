@@ -42,7 +42,7 @@ import scenic.core.type_support as type_support
 import scenic.core.utils as utils
 from scenic.core.vectors import Orientation, Vector, VectorField
 import scenic.syntax.veneer as veneer
-from scenic.syntax.veneer import verbosePrint
+from scenic.syntax.veneer import rejectSample, verbosePrint
 
 ## Typing and utilities
 
@@ -56,16 +56,9 @@ def _toVector(thing: Vectorlike) -> Vector:
     return type_support.toVector(thing)
 
 
-def _rejectSample(message):
-    if not veneer.allowSampleRejection():
-        raise InvalidScenarioError(message)
-    else:
-        raise RejectionException(message)
-
-
 def _rejectIfNonexistent(element, name="network element"):
     if element is None:
-        _rejectSample(f"requested {name} does not exist")
+        rejectSample(f"requested {name} does not exist")
     return element
 
 
@@ -1219,7 +1212,7 @@ class Network:
                 message = reject
             else:
                 message = "requested element does not exist"
-            _rejectSample(message)
+            rejectSample(message)
         return None
 
     def _findPointInAll(self, point, things, key=lambda e: e):

@@ -332,13 +332,11 @@ def isActive():
     return activity > 0
 
 
-def allowSampleRejection():
-    """Should a RejectionException() be allowed
-
-    Returning True means a RejectionException is valid. Returning False indicates
-    a RejectionException() means the scenario is invalid.
-    """
-    return isActive() or heuristicSampling
+def rejectSample(message):
+    if not isActive() or heuristicSampling:
+        raise RejectionException(message)
+    else:
+        raise InvalidScenarioError(message)
 
 
 @contextmanager
@@ -1428,6 +1426,7 @@ def In(region):
     pos = Region.uniformPointIn(region)
     props = {"position": 1}
     values = {"position": pos}
+    breakpoint()
     if alwaysProvidesOrientation(region):
         props["parentOrientation"] = 3
         values["parentOrientation"] = region.orientation[pos]
