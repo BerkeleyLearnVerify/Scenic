@@ -15,6 +15,7 @@ import sphinx
 sphinx._buildingScenicDocs = True
 
 from scenic.core.simulators import SimulatorInterfaceWarning
+import scenic.syntax.compiler
 from scenic.syntax.translator import CompileOptions
 import scenic.syntax.veneer as veneer
 
