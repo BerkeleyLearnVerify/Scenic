@@ -1426,7 +1426,6 @@ def In(region):
     pos = Region.uniformPointIn(region)
     props = {"position": 1}
     values = {"position": pos}
-    breakpoint()
     if alwaysProvidesOrientation(region):
         props["parentOrientation"] = 3
         values["parentOrientation"] = region.orientation[pos]
