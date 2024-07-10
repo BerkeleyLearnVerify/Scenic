@@ -185,6 +185,10 @@ with open("_build/keywords.txt", "w") as outFile:
 with open("_build/keywords_soft.txt", "w") as outFile:
     for row in maketable(ScenicParser.SOFT_KEYWORDS):
         outFile.write(row + "\n")
+with open("_build/builtin_names.txt", "w") as outFile:
+    for row in maketable(scenic.syntax.compiler.builtinNames):
+        outFile.write(row + "\n")
+
 
 # -- Monkeypatch ModuleAnalyzer to handle Scenic modules ---------------------
 
