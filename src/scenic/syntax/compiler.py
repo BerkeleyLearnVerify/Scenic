@@ -58,7 +58,7 @@ finishedFlag = ast.Attribute(
 
 trackedNames = {"ego", "workspace"}
 globalParametersName = "globalParameters"
-builtinNames = {globalParametersName}
+builtinNames = {globalParametersName, "str", "int", "float"}
 
 
 # shorthands for convenience
@@ -540,7 +540,11 @@ class ScenicToPythonTransformer(Transformer):
         if node.id in builtinNames:
             if not isinstance(node.ctx, ast.Load):
                 raise self.makeSyntaxError(f'unexpected keyword "{node.id}"', node)
-            node = ast.copy_location(ast.Call(ast.Name(node.id, loadCtx), [], []), node)
+            # Convert global parameters name to a call
+            if node.id == globalParametersName:
+                node = ast.copy_location(
+                    ast.Call(ast.Name(node.id, loadCtx), [], []), node
+                )
         elif node.id in trackedNames:
             if not isinstance(node.ctx, ast.Load):
                 raise self.makeSyntaxError(

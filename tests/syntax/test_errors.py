@@ -25,6 +25,19 @@ def test_bad_extension(tmpdir):
 
 ### Parse errors
 
+
+## Reserved names
+def test_reserved_type_names():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("float = 3")
+
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("int = 3")
+
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("str = 3")
+
+
 ## Constructor definitions
 
 
