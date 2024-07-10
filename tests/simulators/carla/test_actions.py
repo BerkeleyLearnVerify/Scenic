@@ -21,7 +21,15 @@ def checkCarlaPath():
 
 def launchCarlaServer():
     CARLA_ROOT = checkCarlaPath()
-    subprocess.Popen(f"bash {CARLA_ROOT}/CarlaUE4.sh -RenderOffScreen", shell=True)
+    server_process = subprocess.Popen(
+        f"bash {CARLA_ROOT}/CarlaUE4.sh -RenderOffScreen", shell=True
+    )
+    return server_process
+
+
+def terminateCarlaServer(server_process):
+    server_process.terminate()
+    server_process.wait()
 
 
 def isCarlaServerRunning(host="localhost", port=2000):
@@ -34,21 +42,26 @@ def isCarlaServerRunning(host="localhost", port=2000):
             return False
 
 
-@pytest.fixture
+@pytest.fixture(scope="package")
 def getCarlaSimulator(getAssetPath):
     from scenic.simulators.carla import CarlaSimulator
 
     base = getAssetPath("maps/CARLA")
 
+    if not isCarlaServerRunning():
+        server_process = launchCarlaServer()
+    else:
+        server_process = None
+
     def _getCarlaSimulator(town):
-        if not isCarlaServerRunning():
-            launchCarlaServer()
         path = os.path.join(base, town + ".xodr")
         simulator = CarlaSimulator(map_path=path, carla_map=town)
-
         return (simulator, town, path)
 
-    return _getCarlaSimulator
+    yield _getCarlaSimulator
+
+    if server_process:
+        terminateCarlaServer(server_process)
 
 
 def test_throttle(getCarlaSimulator):
