@@ -240,7 +240,7 @@ class PropositionTransformer(Transformer):
     def __init__(self, filename="<unknown>") -> None:
         super().__init__(filename)
         self.nextSyntaxId = 0
-        self.in_atomic = False
+        self.inAtomic = False
 
     def transform(
         self, node: ast.AST, nextSyntaxId=0
@@ -263,10 +263,10 @@ class PropositionTransformer(Transformer):
 
     def generic_visit(self, node):
         # Don't recurse inside atomics.
-        old_in_atomic = self.in_atomic
-        self.in_atomic = True
+        old_inAtomic = self.inAtomic
+        self.inAtomic = True
         super_val = super().generic_visit(node)
-        self.in_atomic = old_in_atomic
+        self.inAtomic = old_inAtomic
         return super_val
 
     def _register_requirement_syntax(self, syntax):
@@ -346,7 +346,7 @@ class PropositionTransformer(Transformer):
 
     def visit_UnaryOp(self, node):
         # rewrite `not` in requirements into a proposition factory
-        if not isinstance(node.op, ast.Not) or self.in_atomic:
+        if not isinstance(node.op, ast.Not) or self.inAtomic:
             return self.generic_visit(node)
 
         lineNum = ast.Constant(node.lineno)
