@@ -3049,7 +3049,14 @@ class PolygonalRegion(Region):
 
     @cached
     def __hash__(self):
-        return hash((self.polygons, self.orientation, self.z))
+        return hash(
+            (
+                tuple(self._points) if self._points else None,
+                self._polygon,
+                self.orientation,
+                self.z,
+            )
+        )
 
 
 class CircularRegion(PolygonalRegion):

@@ -5,6 +5,7 @@ import pytest
 import shapely.geometry
 import trimesh.voxel
 
+from scenic.core.distributions import RandomControlFlowError, Range
 from scenic.core.object_types import Object, OrientedPoint
 from scenic.core.regions import *
 from scenic.core.vectors import VectorField
@@ -222,6 +223,14 @@ def test_polygon_region():
         PolygonalRegion([(1, 1), (3, 1), (2, 2), (1.3, 1.15)], z=3).uniformPointInner().z
         == 3
     )
+    assert i != d
+    hash(i)
+    e = CircularRegion((0, 0), Range(1, 3))
+    with pytest.raises(RandomControlFlowError):
+        i == e
+    with pytest.raises(RandomControlFlowError):
+        e == i
+    hash(e)
 
 
 def test_polygon_unionAll():
