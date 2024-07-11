@@ -218,3 +218,15 @@ def test_invalid_road_scenario(cached_maps):
             param foo = ego.oppositeLaneGroup.sidewalk
             """,
         )
+
+    with pytest.raises(InvalidScenarioError):
+        # Set regionContainedIn to everywhere to hit driving domain specific code
+        # instead of high level not contained in workspace rejection.
+        scenario = compileDrivingScenario(
+            cached_maps,
+            """
+            ego = new Car at 10000@10000,
+                with color (1,1,1), with regionContainedIn everywhere
+            param foo = ego.lane
+            """,
+        )

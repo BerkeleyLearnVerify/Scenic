@@ -1211,7 +1211,7 @@ class Network:
                 message = reject
             else:
                 message = "requested element does not exist"
-            rejectSample(message)
+            raise RejectionException(message)
         return None
 
     def _findPointInAll(self, point, things, key=lambda e: e):
