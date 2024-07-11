@@ -240,7 +240,7 @@ class PropositionTransformer(Transformer):
     def __init__(self, filename="<unknown>") -> None:
         super().__init__(filename)
         self.nextSyntaxId = 0
-        self.in_atomic = False
+        self.inAtomic = False
 
     def transform(
         self, node: ast.AST, nextSyntaxId=0
