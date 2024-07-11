@@ -332,23 +332,6 @@ def isActive():
     return activity > 0
 
 
-def rejectSample(message):
-    if not isActive() or heuristicSampling:
-        raise RejectionException(message)
-    else:
-        raise InvalidScenarioError(message)
-
-
-@contextmanager
-def enableHeuristicSampling():
-    global heuristicSampling
-    heuristicSampling += 1
-    try:
-        yield
-    finally:
-        heuristicSampling -= 1
-
-
 def activate(options, namespace=None):
     """Activate the veneer when beginning to compile a Scenic module."""
     global activity, _globalParameters, lockedParameters, lockedModel, currentScenario
@@ -1535,8 +1518,7 @@ def alwaysProvidesOrientation(region):
         return True
     else:  # TODO improve somehow!
         try:
-            with enableHeuristicSampling():
-                sample = region.sample()
+            sample = region.sample()
             return sample.orientation is not None or sample is nowhere
         except RejectionException:
             return False

@@ -34,7 +34,6 @@ from scenic.core.distributions import (
     distributionFunction,
     distributionMethod,
 )
-from scenic.core.errors import InvalidScenarioError
 import scenic.core.geometry as geometry
 from scenic.core.object_types import Point
 from scenic.core.regions import PolygonalRegion, PolylineRegion
@@ -42,7 +41,7 @@ import scenic.core.type_support as type_support
 import scenic.core.utils as utils
 from scenic.core.vectors import Orientation, Vector, VectorField
 import scenic.syntax.veneer as veneer
-from scenic.syntax.veneer import rejectSample, verbosePrint
+from scenic.syntax.veneer import verbosePrint
 
 ## Typing and utilities
 
@@ -58,7 +57,7 @@ def _toVector(thing: Vectorlike) -> Vector:
 
 def _rejectIfNonexistent(element, name="network element"):
     if element is None:
-        rejectSample(f"requested {name} does not exist")
+        raise RejectionException(f"requested {name} does not exist")
     return element
 
 
