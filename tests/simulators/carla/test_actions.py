@@ -1,11 +1,16 @@
 import os
+from pathlib import Path
+import signal
 import socket
 import subprocess
+import time
 
 import pytest
 
 try:
     import carla
+
+    from scenic.simulators.carla import CarlaSimulator
 except ModuleNotFoundError:
     pytest.skip("carla package not installed", allow_module_level=True)
 
@@ -21,15 +26,25 @@ def checkCarlaPath():
 
 def launchCarlaServer():
     CARLA_ROOT = checkCarlaPath()
-    server_process = subprocess.Popen(
-        f"bash {CARLA_ROOT}/CarlaUE4.sh -RenderOffScreen", shell=True
-    )
-    return server_process
+    subprocess.Popen(f"bash {CARLA_ROOT}/CarlaUE4.sh -RenderOffScreen", shell=True)
+
+    for _ in range(30):
+        if not isCarlaServerRunning():
+            time.sleep(1)
+
+    # extra 3 seconds to ensure server startup
+    time.sleep(3)
+    return
 
 
-def terminateCarlaServer(server_process):
-    server_process.terminate()
-    server_process.wait()
+def terminateCarlaServer():
+    result = subprocess.run("lsof -i :2000", capture_output=True, text=True, shell=True)
+    if result.stdout:
+        lines = result.stdout.strip().split("\n")
+        for line in lines[1:]:
+            parts = line.split()
+            pid = int(parts[1])
+            os.kill(pid, signal.SIGTERM)
 
 
 def isCarlaServerRunning(host="localhost", port=2000):
@@ -43,25 +58,23 @@ def isCarlaServerRunning(host="localhost", port=2000):
 
 
 @pytest.fixture(scope="package")
-def getCarlaSimulator(getAssetPath):
-    from scenic.simulators.carla import CarlaSimulator
-
-    base = getAssetPath("maps/CARLA")
-
+def getCarlaSimulator(request):
     if not isCarlaServerRunning():
-        server_process = launchCarlaServer()
-    else:
-        server_process = None
+        launchCarlaServer()
+
+    def cleanup():
+        terminateCarlaServer()
+
+    request.addfinalizer(cleanup)
+
+    base = Path(__file__).parent.parent.parent.parent / "assets" / "maps" / "CARLA"
 
     def _getCarlaSimulator(town):
-        path = os.path.join(base, town + ".xodr")
+        path = os.path.join(base, f"{town}.xodr")
         simulator = CarlaSimulator(map_path=path, carla_map=town)
-        return (simulator, town, path)
+        return simulator, town, path
 
-    yield _getCarlaSimulator
-
-    if server_process:
-        terminateCarlaServer(server_process)
+    return _getCarlaSimulator
 
 
 def test_throttle(getCarlaSimulator):
@@ -73,12 +86,12 @@ def test_throttle(getCarlaSimulator):
 
         model scenic.simulators.carla.model
 
-        behavior DriveThenApplyThrottle():
-            take SetThrottleAction(0.9)
+        behavior DriveWithThrottle():
+            take SetThrottleAction(1)
         
-        ego = new Car at (369, -326), with behavior DriveThenApplyThrottle
+        ego = new Car at (369, -326), with behavior DriveWithThrottle
         record ego.speed as CarSpeed
-        terminate after 2 steps
+        terminate after 50 steps
     """
     scenario = compileScenic(code, mode2D=True)
     scene = sampleScene(scenario)
@@ -96,18 +109,25 @@ def test_brake(getCarlaSimulator):
 
         model scenic.simulators.carla.model
 
+        behavior DriveWithThrottle():
+            while True:
+                take SetThrottleAction(1)
+
+        behavior Brake():
+            while True:
+                take SetThrottleAction(0)
+                take SetBrakeAction(1)
+
         behavior DriveThenBrake():
-            do take SetThrottleAction(0.9) for 1 step
-            take SetBrakeAction(1)
+            do DriveWithThrottle() for 25 steps
+            do Brake() for 25 steps
 
         ego = new Car at (369, -326), with behavior DriveThenBrake
         record final ego.speed as CarSpeed
-        terminate after 2 steps
+        terminate after 50 steps
     """
     scenario = compileScenic(code, mode2D=True)
     scene = sampleScene(scenario)
     simulation = simulator.simulate(scene)
     records = simulation.result.records["CarSpeed"]
-    # TODO: document where the threshold comes from
-    threshold = 3
-    assert int(records[-1][1]) < threshold
+    assert records == 0.0
