@@ -1199,7 +1199,7 @@ class RoadMap:
             s_id = t_road.successor
 
             if t_road.predecessor is not None and t_id != p_id:
-                # Find successor roads
+                # Find predecessor roads
                 if p_id in self.roads:
                     p_roads = [self.roads[p_id]]
                 elif p_id in self.junctions:
@@ -1207,7 +1207,7 @@ class RoadMap:
                 else:
                     assert False
 
-                # Trim all successor roads
+                # Trim all predecessor roads
                 for p_road in p_roads:
                     # Trim lanes and lane sections
                     p_road.lane_polys = [
