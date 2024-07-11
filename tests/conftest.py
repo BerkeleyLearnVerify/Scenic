@@ -40,7 +40,7 @@ def runLocally(request):
     return manager
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def getAssetPath():
     base = Path(__file__).parent.parent / "assets"
 

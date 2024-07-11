@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import signal
 import socket
 import subprocess
 import time
@@ -34,7 +35,7 @@ def isCarlaServerRunning(host="localhost", port=2000):
 
 
 @pytest.fixture(scope="package")
-def getCarlaSimulator():
+def getCarlaSimulator(getAssetPath):
     carla_process = None
     if not isCarlaServerRunning():
         CARLA_ROOT = checkCarlaPath()
@@ -50,7 +51,7 @@ def getCarlaSimulator():
         # Extra 5 seconds to ensure server startup
         time.sleep(5)
 
-    base = Path(__file__).parent.parent.parent.parent / "assets" / "maps" / "CARLA"
+    base = getAssetPath("maps/CARLA")
 
     def _getCarlaSimulator(town):
         path = os.path.join(base, f"{town}.xodr")
@@ -73,7 +74,8 @@ def test_throttle(getCarlaSimulator):
         model scenic.simulators.carla.model
 
         behavior DriveWithThrottle():
-            take SetThrottleAction(1)
+            while True:
+                take SetThrottleAction(1)
         
         ego = new Car at (369, -326), with behavior DriveWithThrottle
         record ego.speed as CarSpeed
