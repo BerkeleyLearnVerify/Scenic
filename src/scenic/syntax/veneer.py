@@ -299,7 +299,6 @@ from scenic.core.vectors import Orientation, alwaysGlobalOrientation
 ### Internals
 
 activity = 0
-heuristicSampling = 0
 currentScenario = None
 scenarioStack = []
 scenarios = []
