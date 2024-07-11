@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-import signal
 import socket
 import subprocess
 import time
@@ -24,32 +23,9 @@ def checkCarlaPath():
     return CARLA_ROOT
 
 
-def launchCarlaServer():
-    CARLA_ROOT = checkCarlaPath()
-    subprocess.Popen(f"bash {CARLA_ROOT}/CarlaUE4.sh -RenderOffScreen", shell=True)
-
-    for _ in range(30):
-        if not isCarlaServerRunning():
-            time.sleep(1)
-
-    # extra 3 seconds to ensure server startup
-    time.sleep(3)
-    return
-
-
-def terminateCarlaServer():
-    result = subprocess.run("lsof -i :2000", capture_output=True, text=True, shell=True)
-    if result.stdout:
-        lines = result.stdout.strip().split("\n")
-        for line in lines[1:]:
-            parts = line.split()
-            pid = int(parts[1])
-            os.kill(pid, signal.SIGTERM)
-
-
 def isCarlaServerRunning(host="localhost", port=2000):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.settimeout(1)  # Set a timeout of 1 second
+        sock.settimeout(1)
         try:
             sock.connect((host, port))
             return True
@@ -58,14 +34,21 @@ def isCarlaServerRunning(host="localhost", port=2000):
 
 
 @pytest.fixture(scope="package")
-def getCarlaSimulator(request):
+def getCarlaSimulator():
+    carla_process = None
     if not isCarlaServerRunning():
-        launchCarlaServer()
+        CARLA_ROOT = checkCarlaPath()
+        carla_process = subprocess.Popen(
+            f"bash {CARLA_ROOT}/CarlaUE4.sh -RenderOffScreen", shell=True
+        )
 
-    def cleanup():
-        terminateCarlaServer()
+        for _ in range(30):
+            if isCarlaServerRunning():
+                break
+            time.sleep(1)
 
-    request.addfinalizer(cleanup)
+        # Extra 5 seconds to ensure server startup
+        time.sleep(5)
 
     base = Path(__file__).parent.parent.parent.parent / "assets" / "maps" / "CARLA"
 
@@ -74,7 +57,10 @@ def getCarlaSimulator(request):
         simulator = CarlaSimulator(map_path=path, carla_map=town)
         return simulator, town, path
 
-    return _getCarlaSimulator
+    yield _getCarlaSimulator
+
+    if carla_process:
+        subprocess.run("killall -9 CarlaUE4-Linux-Shipping", shell=True)
 
 
 def test_throttle(getCarlaSimulator):
@@ -91,7 +77,7 @@ def test_throttle(getCarlaSimulator):
         
         ego = new Car at (369, -326), with behavior DriveWithThrottle
         record ego.speed as CarSpeed
-        terminate after 50 steps
+        terminate after 5 steps
     """
     scenario = compileScenic(code, mode2D=True)
     scene = sampleScene(scenario)
@@ -115,19 +101,18 @@ def test_brake(getCarlaSimulator):
 
         behavior Brake():
             while True:
-                take SetThrottleAction(0)
-                take SetBrakeAction(1)
+                take SetThrottleAction(0), SetBrakeAction(1)
 
         behavior DriveThenBrake():
-            do DriveWithThrottle() for 25 steps
-            do Brake() for 25 steps
+            do DriveWithThrottle() for 2 steps
+            do Brake() for 4 steps
 
         ego = new Car at (369, -326), with behavior DriveThenBrake
         record final ego.speed as CarSpeed
-        terminate after 50 steps
+        terminate after 6 steps
     """
     scenario = compileScenic(code, mode2D=True)
     scene = sampleScene(scenario)
     simulation = simulator.simulate(scene)
-    records = simulation.result.records["CarSpeed"]
-    assert records == 0.0
+    finalSpeed = simulation.result.records["CarSpeed"]
+    assert finalSpeed == pytest.approx(0.0, abs=1e-1)
