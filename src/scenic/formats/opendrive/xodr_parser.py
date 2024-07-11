@@ -39,6 +39,27 @@ def buffer_union(polys, tolerance=0.01):
     return polygonUnion(polys, buf=tolerance, tolerance=tolerance)
 
 
+def separate_polys(polyA, polyB, tolerance=-1e-6):
+    """Return a version of polyA separated from polyB"""
+    assert polyA.is_valid
+    assert polyB.is_valid
+
+    if not polyA.overlaps(polyB):
+        return polyA
+
+    polyA = polyA.difference(polyB)
+    assert polyA.is_valid
+
+    if not polyA.overlaps(polyB):
+        return polyA
+
+    polyA = polyA.buffer(tolerance)
+    assert polyA.is_valid
+
+    assert not polyA.overlaps(polyB)
+    return polyA
+
+
 class Poly3:
     """Cubic polynomial."""
 
@@ -588,22 +609,15 @@ class Road:
 
         # Difference and slightly erode all overlapping polygons
         for i in range(len(sec_polys) - 1):
-            if sec_polys[i].overlaps(sec_polys[i + 1]):
-                sec_polys[i] = sec_polys[i].difference(sec_polys[i + 1]).buffer(-1e-6)
-                assert not sec_polys[i].overlaps(sec_polys[i + 1])
+            sec_polys[i] = separate_polys(sec_polys[i], sec_polys[i + 1])
 
         for polys in sec_lane_polys:
             ids = sorted(polys)  # order adjacent lanes consecutively
             for i in range(len(ids) - 1):
-                polyA, polyB = polys[ids[i]], polys[ids[i + 1]]
-                if polyA.overlaps(polyB):
-                    polys[ids[i]] = polyA.difference(polyB).buffer(-1e-6)
-                    assert not polys[ids[i]].overlaps(polyB)
+                polys[ids[i]] = separate_polys(polys[ids[i]], polys[ids[i + 1]])
 
         for i, j in itertools.combinations(range(len(lane_polys)), 2):
-            if lane_polys[i].overlaps(lane_polys[j]):
-                lane_polys[i] = lane_polys[i].difference(lane_polys[j]).buffer(-1e-6)
-                assert not lane_polys[i].overlaps(lane_polys[j])
+            lane_polys[i] = separate_polys(lane_polys[i], lane_polys[j])
 
         # Set parent lane polygon references to corrected polygons
         for sec in self.lane_secs:
@@ -1181,14 +1195,33 @@ class RoadMap:
         # Cleanup lanes and lane sections that overlap with their successors
         for t_id, t_road in self.roads.items():
             t_poly = polygonUnion(t_road.lane_polys)
+            p_id = t_road.predecessor
+            s_id = t_road.successor
 
-            if t_road.successor is not None:
-                s_id = t_road.successor
+            if t_road.predecessor is not None and t_id != p_id:
+                # Find successor roads
+                if p_id in self.roads:
+                    p_roads = [self.roads[p_id]]
+                elif p_id in self.junctions:
+                    p_roads = [self.roads[p_id] for p_id in self.junctions[p_id].paths]
+                else:
+                    assert False
 
-                # Don't trim loops
-                if t_id == s_id:
-                    continue
+                # Trim all successor roads
+                for p_road in p_roads:
+                    # Trim lanes and lane sections
+                    p_road.lane_polys = [
+                        separate_polys(lp, t_poly) for lp in p_road.lane_polys
+                    ]
+                    p_road.sec_polys = [
+                        separate_polys(sp, t_poly) for sp in p_road.sec_polys
+                    ]
+                    p_road.sec_lane_polys = [
+                        {k: separate_polys(lsp, t_poly) for k, lsp in l.items()}
+                        for l in p_road.sec_lane_polys
+                    ]
 
+            if t_road.successor is not None and t_id != s_id:
                 # Find successor roads
                 if s_id in self.roads:
                     s_roads = [self.roads[s_id]]
@@ -1204,23 +1237,15 @@ class RoadMap:
 
                     # Trim lanes and lane sections
                     t_road.lane_polys = [
-                        lp.difference(s_poly).buffer(-1e-6) for lp in t_road.lane_polys
+                        separate_polys(lp, s_poly) for lp in t_road.lane_polys
                     ]
                     t_road.sec_polys = [
-                        sp.difference(s_poly).buffer(-1e-6) for sp in t_road.sec_polys
+                        separate_polys(sp, s_poly) for sp in t_road.sec_polys
                     ]
                     t_road.sec_lane_polys = [
-                        {k: lsp.difference(s_poly).buffer(-1e-6) for k, lsp in l.items()}
+                        {k: separate_polys(lsp, s_poly) for k, lsp in l.items()}
                         for l in t_road.sec_lane_polys
                     ]
-
-                    # Ensure all polygons are now separate from s_poly
-                    assert all(not lp.overlaps(s_poly) for lp in t_road.lane_polys)
-                    assert all(not sp.overlaps(s_poly) for sp in t_road.sec_polys)
-                    assert all(
-                        all(not lsp.overlaps(s_poly) for lsp in l.values())
-                        for l in t_road.sec_lane_polys
-                    )
 
         for road in self.roads.values():
             self.sec_lane_polys.extend(road.sec_lane_polys)
