@@ -162,6 +162,7 @@ jobs:
                 export WEBOTS_ROOT="$version"
                 pytest tests/simulators/webots
               done
+              kill %1
             '
       
     stop_ec2_instance:
