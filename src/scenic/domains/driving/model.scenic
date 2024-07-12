@@ -146,12 +146,12 @@ class DrivingObject:
         The simulation is rejected if the object is not in a lane.
         (Use `DrivingObject._lane` to get `None` instead.)
         """
-        return network.laneAt(self, reject='object is not in a lane')
+        return network.laneAt(self.position, reject='object is not in a lane')
 
     @property
     def _lane(self) -> Optional[Lane]:
         """The `Lane` at the object's current position, if any."""
-        return network.laneAt(self)
+        return network.laneAt(self.position)
 
     @property
     def laneSection(self) -> LaneSection:
@@ -159,12 +159,12 @@ class DrivingObject:
 
         The simulation is rejected if the object is not in a lane.
         """
-        return network.laneSectionAt(self, reject='object is not in a lane')
+        return network.laneSectionAt(self.position, reject='object is not in a lane')
 
     @property
     def _laneSection(self) -> Optional[LaneSection]:
         """The `LaneSection` at the object's current position, if any."""
-        return network.laneSectionAt(self)
+        return network.laneSectionAt(self.position)
 
     @property
     def laneGroup(self) -> LaneGroup:
@@ -172,12 +172,12 @@ class DrivingObject:
 
         The simulation is rejected if the object is not in a lane.
         """
-        return network.laneGroupAt(self, reject='object is not in a lane')
+        return network.laneGroupAt(self.position, reject='object is not in a lane')
 
     @property
     def _laneGroup(self) -> Optional[LaneGroup]:
         """The `LaneGroup` at the object's current position, if any."""
-        return network.laneGroupAt(self)
+        return network.laneGroupAt(self.position)
 
     @property
     def oppositeLaneGroup(self) -> LaneGroup:
@@ -193,12 +193,12 @@ class DrivingObject:
 
         The simulation is rejected if the object is not on a road.
         """
-        return network.roadAt(self, reject='object is not on a road')
+        return network.roadAt(self.position, reject='object is not on a road')
 
     @property
     def _road(self) -> Optional[Road]:
         """The `Road` at the object's current position, if any."""
-        return network.roadAt(self)
+        return network.roadAt(self.position)
 
     @property
     def intersection(self) -> Intersection:
@@ -206,12 +206,12 @@ class DrivingObject:
 
         The simulation is rejected if the object is not in an intersection.
         """
-        return network.intersectionAt(self, reject='object is not in an intersection')
+        return network.intersectionAt(self.position, reject='object is not in an intersection')
 
     @property
     def _intersection(self) -> Optional[Intersection]:
         """The `Intersection` at the object's current position, if any."""
-        return network.intersectionAt(self)
+        return network.intersectionAt(self.position)
 
     @property
     def crossing(self) -> PedestrianCrossing:
@@ -219,12 +219,12 @@ class DrivingObject:
 
         The simulation is rejected if the object is not in a crosswalk.
         """
-        return network.crossingAt(self, reject='object is not in a crossing')
+        return network.crossingAt(self.position, reject='object is not in a crossing')
 
     @property
     def _crossing(self) -> Optional[PedestrianCrossing]:
         """The `PedestrianCrossing` at the object's current position, if any."""
-        return network.crossingAt(self)
+        return network.crossingAt(self.position)
 
     @property
     def element(self) -> NetworkElement:
@@ -233,12 +233,12 @@ class DrivingObject:
         See `Network.elementAt` for the details of how this is determined.
         The simulation is rejected if the object is not in any network element.
         """
-        return network.elementAt(self, reject='object is not on any network element')
+        return network.elementAt(self.position, reject='object is not on any network element')
 
     @property
     def _element(self) -> Optional[NetworkElement]:
         """The highest-level `NetworkElement` at the object's current position, if any."""
-        return network.elementAt(self)
+        return network.elementAt(self.position)
 
     # Utility functions
 

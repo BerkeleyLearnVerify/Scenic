@@ -217,7 +217,7 @@ def test_invalid_road_scenario(cached_maps):
         scenario = compileDrivingScenario(
             cached_maps,
             """
-            ego = new Car at 80.6354425964952@-327.5431187869811, with color (1,1,1)
+            ego = new Car at 80.6354425964952@-327.5431187869811
             param foo = ego.oppositeLaneGroup.sidewalk
             """,
         )
@@ -228,8 +228,7 @@ def test_invalid_road_scenario(cached_maps):
         scenario = compileDrivingScenario(
             cached_maps,
             """
-            ego = new Car at 10000@10000,
-                with color (1,1,1), with regionContainedIn everywhere
+            ego = new Car at 10000@10000, with regionContainedIn everywhere
             param foo = ego.lane
             """,
         )
