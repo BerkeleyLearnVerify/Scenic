@@ -107,11 +107,11 @@ def test_brake(getCarlaSimulator):
 
         behavior DriveThenBrake():
             do DriveWithThrottle() for 2 steps
-            do Brake() for 4 steps
+            do Brake() for 8 steps
 
         ego = new Car at (369, -326), with behavior DriveThenBrake
         record final ego.speed as CarSpeed
-        terminate after 6 steps
+        terminate after 10 steps
     """
     scenario = compileScenic(code, mode2D=True)
     scene = sampleScene(scenario)
