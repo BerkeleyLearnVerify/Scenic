@@ -353,7 +353,7 @@ class ScenicLexer(BetterPythonLexer):
     filenames = ["*.scenic"]
     alias_filenames = ["*.sc"]
     mimetypes = ["application/x-scenic", "text/x-scenic"]
-    url = "https://scenic-lang.readthedocs.org/"
+    url = "https://scenic-lang.org/"
 
     uni_name = PythonLexer.uni_name
     obj_name = rf"(?:(ego)|({uni_name}))"

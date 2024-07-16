@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
 
+from scenic.core.distributions import Distribution, supportInterval
 from scenic.core.errors import SpecifierError
-from tests.utils import compileScenic, sampleEgoFrom
+from tests.utils import compileScenic, sampleEgo, sampleEgoFrom
 
 
 def test_position_wrong_type():
@@ -16,7 +17,7 @@ def test_position_oriented_point():
         a = new OrientedPoint at 1@0
         b = new OrientedPoint at 0@1
         ego = new Object with position Uniform(a, b)
-    """
+        """
     )
 
 
@@ -25,7 +26,7 @@ def test_position_numpy_types():
         """
         import numpy as np
         ego = new Object with position np.single(3.4) @ np.single(7)
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((3.4, 7, 0))
 
@@ -40,7 +41,7 @@ def test_yaw_numpy_types():
         """
         import numpy as np
         ego = new Object with yaw np.single(3.1)
-    """
+        """
     )
     assert ego.yaw == pytest.approx(3.1)
 
@@ -50,7 +51,7 @@ def test_left():
         """
         other = new Object with width 4
         ego = new Object at other.left offset by 0@5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((-2, 5, 0))
 
@@ -60,7 +61,7 @@ def test_right():
         """
         other = new Object with width 4
         ego = new Object at other.right offset by 0@5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((2, 5, 0))
 
@@ -70,7 +71,7 @@ def test_front():
         """
         other = new Object with length 4
         ego = new Object at other.front offset by 0@5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((0, 7, 0))
 
@@ -80,7 +81,7 @@ def test_back():
         """
         other = new Object with length 4
         ego = new Object at other.back offset by 0@-5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((0, -7, 0))
 
@@ -90,7 +91,7 @@ def test_frontLeft():
         """
         other = new Object with length 4, with width 2
         ego = new Object at other.frontLeft offset by 0@5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((-1, 7, 0))
 
@@ -100,7 +101,7 @@ def test_frontRight():
         """
         other = new Object with length 4, with width 2
         ego = new Object at other.frontRight offset by 0@5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((1, 7, 0))
 
@@ -110,7 +111,7 @@ def test_backLeft():
         """
         other = new Object with length 4, with width 2
         ego = new Object at other.backLeft offset by 0@-5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((-1, -7, 0))
 
@@ -120,7 +121,7 @@ def test_backRight():
         """
         other = new Object with length 4, with width 2
         ego = new Object at other.backRight offset by 0@-5
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((1, -7, 0))
 
@@ -128,3 +129,156 @@ def test_backRight():
 def test_heading_set_directly():
     with pytest.raises(SpecifierError):
         compileScenic("ego = new Object with heading 4")
+
+
+def test_object_inradius():
+    # Statically Sized Cube Example
+    scenario = compileScenic(
+        """
+        ego = new Object with width 3, with length 3, with height 3,
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert scenario.objects[0].inradius == 1.5
+    assert supportInterval(scenario.objects[0].inradius) == (1.5, 1.5)
+    assert ego.inradius == 1.5
+
+    # Randomly Sized Cube Example
+    scenario = compileScenic(
+        """
+        ego = new Object with width Range(1, 3),
+            with length Range(1, 3), with height Range(1, 3),
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert isinstance(scenario.objects[0].inradius, Distribution)
+    assert supportInterval(scenario.objects[0].inradius) == (0.5, 1.5)
+    assert ego.inradius == pytest.approx(min(ego.width, ego.length, ego.height) / 2)
+
+    # Hollow Static Object Example
+    scenario = compileScenic(
+        """
+        import trimesh
+        hollow_mesh = trimesh.creation.box((1,1,1)).difference(
+            trimesh.creation.box((0.5,0.5,0.5)))
+        ego = new Object with width 3, with length 3, with height 3,
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg),
+            with shape MeshShape(hollow_mesh)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert scenario.objects[0].inradius == 0
+    assert supportInterval(scenario.objects[0].inradius) == (0, 0)
+    assert ego.inradius == 0
+
+    # Hollow Random Object Example
+    scenario = compileScenic(
+        """
+        import trimesh
+        hollow_mesh = trimesh.creation.box((1,1,1)).difference(
+            trimesh.creation.box((0.5,0.5,0.5)))
+        ego = new Object with width Range(1, 3),
+            with length Range(1, 3), with height Range(1, 3),
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg),
+            with shape MeshShape(hollow_mesh)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert supportInterval(scenario.objects[0].inradius) == (0, 0)
+    assert ego.inradius == 0
+
+    # Random Shape Example
+    scenario = compileScenic(
+        """
+        import trimesh
+        annulus_shape = MeshShape(trimesh.creation.annulus(0.5,1,1))
+        ego = new Object with width Range(1, 3),
+            with length Range(1, 3), with height Range(1, 3),
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg),
+            with shape Uniform(BoxShape(), annulus_shape)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert isinstance(scenario.objects[0].inradius, Distribution)
+    assert supportInterval(scenario.objects[0].inradius) == (0, 1.5)
+
+
+def test_object_planarInradius():
+    # Statically Sized Cube Example
+    scenario = compileScenic(
+        """
+        ego = new Object with width 3, with length 3, with height 0.5,
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert scenario.objects[0].planarInradius == 1.5
+    assert supportInterval(scenario.objects[0].planarInradius) == (1.5, 1.5)
+    assert ego.planarInradius == 1.5
+
+    # Randomly Sized Cube Example
+    scenario = compileScenic(
+        """
+        ego = new Object with width Range(1, 3),
+            with length Range(1, 3), with height Range(0.25, 0.5),
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert isinstance(scenario.objects[0].planarInradius, Distribution)
+    assert supportInterval(scenario.objects[0].planarInradius) == (0.5, 1.5)
+    assert ego.planarInradius == pytest.approx(min(ego.width, ego.length) / 2)
+
+    # Hollow Static Object Example
+    scenario = compileScenic(
+        """
+        import trimesh
+        hollow_mesh = trimesh.creation.box((1,1,1)).difference(
+            trimesh.creation.box((0.5,0.5,0.5)))
+        ego = new Object with width 3, with length 3, with height 0.5,
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg),
+            with shape MeshShape(hollow_mesh)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert scenario.objects[0].planarInradius == pytest.approx(1.5)
+    assert supportInterval(scenario.objects[0].planarInradius) == pytest.approx(
+        (1.5, 1.5)
+    )
+    assert ego.planarInradius == pytest.approx(1.5)
+
+    # Hollow Random Object Example
+    scenario = compileScenic(
+        """
+        import trimesh
+        hollow_mesh = trimesh.creation.box((1,1,1)).difference(
+            trimesh.creation.box((0.5,0.5,0.5)))
+        ego = new Object with width Range(1, 3),
+            with length Range(1, 3), with height Range(0.25, 0.5),
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg),
+            with shape MeshShape(hollow_mesh)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert isinstance(scenario.objects[0].planarInradius, Distribution)
+    assert supportInterval(scenario.objects[0].planarInradius) == pytest.approx(
+        (0.5, 1.5)
+    )
+    assert ego.planarInradius == pytest.approx(min(ego.width, ego.length) / 2)
+
+    # Random Shape Example
+    scenario = compileScenic(
+        """
+        import trimesh
+        annulus_shape = MeshShape(trimesh.creation.annulus(0.5,1,1))
+        ego = new Object with width Range(1, 3),
+            with length Range(1, 3), with height Range(1, 3),
+            facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg),
+            with shape Uniform(BoxShape(), annulus_shape)
+        """
+    )
+    ego = sampleEgo(scenario)
+    assert isinstance(scenario.objects[0].planarInradius, Distribution)
+    assert supportInterval(scenario.objects[0].planarInradius) == (0, 1.5)

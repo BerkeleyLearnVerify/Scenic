@@ -25,6 +25,19 @@ def test_bad_extension(tmpdir):
 
 ### Parse errors
 
+
+## Reserved names
+def test_reserved_type_names():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("float = 3")
+
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("int = 3")
+
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("str = 3")
+
+
 ## Constructor definitions
 
 
@@ -34,7 +47,7 @@ def test_illegal_constructor_name():
             f"""
             class 3:
                 pass
-        """
+            """
         )
 
     with pytest.raises(ScenicSyntaxError):
@@ -42,7 +55,7 @@ def test_illegal_constructor_name():
             f"""
             class +:
                 pass
-        """
+            """
         )
 
 
@@ -52,7 +65,7 @@ def test_illegal_constructor_superclass():
             f"""
             class Foo(3):
                 pass
-        """
+            """
         )
 
     with pytest.raises(ScenicSyntaxError):
@@ -60,7 +73,7 @@ def test_illegal_constructor_superclass():
             f"""
             class Foo(+):
                 pass
-        """
+            """
         )
 
 
@@ -70,14 +83,14 @@ def test_malformed_constructor():
             """
             class Foo
                 pass
-        """
+            """
         )
     with pytest.raises(ScenicSyntaxError):
         compileScenic(
             """
             class Foo(Bar:
                 pass
-        """
+            """
         )
 
 
@@ -88,7 +101,7 @@ def test_new_python_class():
             class PyCls(object):
                 pass
             new PyCls
-        """
+            """
         )
 
 
@@ -136,7 +149,7 @@ def test_incomplete_multiline_string():
             '''
             x = """foobar
             wog
-        '''
+            '''
         )
 
 

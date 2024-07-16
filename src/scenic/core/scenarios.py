@@ -22,7 +22,12 @@ from scenic.core.dynamics.behaviors import Behavior, Monitor
 from scenic.core.errors import InvalidScenarioError, optionallyDebugRejection
 from scenic.core.external_params import ExternalSampler
 from scenic.core.lazy_eval import needsLazyEvaluation
-from scenic.core.regions import AllRegion, EmptyRegion, convertToFootprint
+from scenic.core.regions import (
+    AllRegion,
+    EmptyRegion,
+    PointInRegionDistribution,
+    convertToFootprint,
+)
 from scenic.core.requirements import (
     BlanketCollisionRequirement,
     BoundRequirement,
@@ -312,8 +317,6 @@ class Scenario(_ScenarioPickleMixin):
             self._instances + paramDeps + tuple(requirementDeps) + tuple(behaviorDeps)
         )
 
-        self.validate()
-
         # Setup the default checker
         self.defaultRequirements = self.generateDefaultRequirements()
         self.setSampleChecker(WeightedAcceptanceChecker(bufferSize=100))
@@ -343,6 +346,19 @@ class Scenario(_ScenarioPickleMixin):
             # Trivial case where container is empty
             if isinstance(container, EmptyRegion):
                 raise InvalidScenarioError(f"Container region of {oi} is empty")
+            # Ensure we are not sampling position from AllRegion
+            if isinstance(
+                oi.position._conditioned, PointInRegionDistribution
+            ) and isinstance(oi.position._conditioned.region, AllRegion):
+                if oi.position.tag == "visible":
+                    raise InvalidScenarioError(
+                        f"Object {oi} uses the visible specifier to specify position, but it lacks enough information to do so."
+                        f" The simplest solution to this is to define a workspace or specify position in some other fashion."
+                    )
+                else:
+                    raise InvalidScenarioError(
+                        f"Object {oi} has position sampled from everywhere."
+                    )
             # skip objects with unknown positions or bounding boxes
             if not staticBounds[i]:
                 continue
@@ -518,6 +534,10 @@ class Scenario(_ScenarioPickleMixin):
         for obj in filter(
             lambda x: x.requireVisible and x is not self.egoObject, self.objects
         ):
+            if not self.egoObject:
+                raise InvalidScenarioError(
+                    "requireVisible set to true but no ego is defined"
+                )
             requirements.append(VisibilityRequirement(self.egoObject, obj, self.objects))
 
         return tuple(requirements)

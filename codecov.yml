@@ -1,0 +1,33 @@
+codecov: 
+  require_ci_to_pass: true
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 5%
+    patch:
+      default:
+        target: 80%
+        threshold: 5%
+ignore:
+  - "tests/"
+  - "docs/"
+  - "src/scenic/simulators/airsim/"
+  - "src/scenic/simulators/carla/"
+  - "src/scenic/simulators/gta/"
+  - "src/scenic/simulators/lgsvl/"
+  - "src/scenic/simulators/webots/"
+  - "src/scenic/simulators/xplane/"
+  - "!**/*.py"
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+cli:
+  plugins:
+    pycoverage:
+      report_type: "json"

@@ -154,12 +154,12 @@ def canCoerceType(typeA, typeB):
         return issubclass(typeA, typeB)
 
 
-def canCoerce(thing, ty):
+def canCoerce(thing, ty, exact=False):
     """Can this value be coerced into the given type?"""
     tt = underlyingType(thing)
     if canCoerceType(tt, ty):
         return True
-    elif isinstance(thing, Distribution):
+    elif (not exact) and isinstance(thing, Distribution):
         return True  # fall back on type-checking at runtime
     else:
         return False

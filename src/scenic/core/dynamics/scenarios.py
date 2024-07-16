@@ -1,5 +1,6 @@
 """Dynamic scenarios."""
 
+import ast
 from collections import defaultdict
 import dataclasses
 import functools
@@ -8,9 +9,10 @@ import weakref
 
 import rv_ltl
 
+import scenic
 from scenic.contracts.utils import ComponentBehavior
 import scenic.core.dynamics as dynamics
-from scenic.core.errors import InvalidScenarioError
+from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
 from scenic.core.requirements import (
     DynamicRequirement,
@@ -430,6 +432,23 @@ class DynamicScenario(Invocable):
         assert syntaxTrees is not None
         for reqID, requirement in self._pendingRequirements.items():
             syntax = syntaxTrees[reqID] if syntaxTrees else None
+
+            # Catch the simple case where someone has most likely forgotten the "monitor"
+            # keyword.
+            if (
+                (not requirement.ty == RequirementType.monitor)
+                and isinstance(syntax, ast.Call)
+                and isinstance(syntax.func, ast.Name)
+                and syntax.func.id in namespace
+                and isinstance(namespace[syntax.func.id], type)
+                and issubclass(
+                    namespace[syntax.func.id], scenic.core.dynamics.behaviors.Monitor
+                )
+            ):
+                raise ScenicSyntaxError(
+                    f"Missing 'monitor' keyword after 'require' when instantiating '{syntax.func.id}'"
+                )
+
             compiledReq = requirement.compile(namespace, self, syntax)
 
             self._registerCompiledRequirement(compiledReq)

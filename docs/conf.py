@@ -15,6 +15,7 @@ import sphinx
 sphinx._buildingScenicDocs = True
 
 from scenic.core.simulators import SimulatorInterfaceWarning
+import scenic.syntax.compiler
 from scenic.syntax.translator import CompileOptions
 import scenic.syntax.veneer as veneer
 
@@ -151,6 +152,13 @@ html_css_files = [
     "custom.css",
 ]
 
+html_logo = "images/logo-full.svg"
+html_favicon = "images/favicon.ico"
+
+html_theme_options = {
+    "logo_only": True,
+}
+
 # -- Generate lists of keywords for the language reference -------------------
 
 import itertools
@@ -178,6 +186,10 @@ with open("_build/keywords.txt", "w") as outFile:
 with open("_build/keywords_soft.txt", "w") as outFile:
     for row in maketable(ScenicParser.SOFT_KEYWORDS):
         outFile.write(row + "\n")
+with open("_build/builtin_names.txt", "w") as outFile:
+    for row in maketable(scenic.syntax.compiler.builtinNames):
+        outFile.write(row + "\n")
+
 
 # -- Monkeypatch ModuleAnalyzer to handle Scenic modules ---------------------
 
