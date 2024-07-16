@@ -43,7 +43,7 @@ jobs:
             fi
 
             # wait for status checks to pass 
-            TIMEOUT=120  # Timeout in seconds
+            TIMEOUT=300  # Timeout in seconds
             START_TIME=$(date +%s)
             END_TIME=$((START_TIME + TIMEOUT))
             while true; do
@@ -135,7 +135,7 @@ jobs:
               for version in "${carla_versions[@]}"; do
                 echo "============================= CARLA $version ============================="  
                 export CARLA_ROOT="$version"
-                pytest tests/simulators/carla/test_carla.py
+                pytest tests/simulators/carla
               done
             '
             
@@ -160,8 +160,9 @@ jobs:
               for version in "${webots_versions[@]}"; do
                 echo "============================= Webots $version ============================="
                 export WEBOTS_ROOT="$version"
-                pytest tests/simulators/webots/test_webots.py
+                pytest tests/simulators/webots
               done
+              kill %1
             '
       
     stop_ec2_instance:
