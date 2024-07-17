@@ -3,7 +3,6 @@
 import math
 import random
 from typing import Union
-import builtins
 import numpy
 
 from scenic.core.geometry import normalizeAngle
@@ -19,86 +18,28 @@ numpy.random.seed(SEED)
 
 ## Components ##
 
-# Sensors
-component CameraDistanceSystem(model):
+# Dummy Sensors components
+component NoisyDistanceSystem(stddev, init_seed=1, overestimate=False):
     """ A component that provides noisy distance to the car in front."""
     sensors:
-        self.frontCamera: Img as image
+        self.leadDist: float as sensors_distance
 
     outputs:
         dist: float
 
-    body:
-        return {"dist": model(image)}
-
-component RadarDistanceSystem():
-    sensors:
-        self.frontRadar: float as rdist
-
-    outputs:
-        dist: float
+    state:
+        seed: int = init_seed
 
     body:
-        return {"dist": rdist}
-
-component LaserDistanceSystem():
-    sensors:
-        self.frontLaser: float as ldist
-
-    outputs:
-        dist: float
-
-    body:
-        return {"dist": ldist}
-
-component DistanceVotingSystem():
-    inputs:
-        c_dist: float
-        r_dist: float
-        l_dist: float
-
-    outputs:
-        med_dist: float
-
-    body:
-        # Unpacked median to make analysis easier.
-        # TODO: Is this necessary and how can provide syntax to scale this?
-        if c_dist <= r_dist and c_dist <= l_dist:
-            if r_dist <= l_dist:
-                med_dist = r_dist
-            else:
-                med_dist = l_dist
-        elif r_dist <= c_dist and r_dist <= l_dist:
-            if c_dist <= l_dist:
-                med_dist = c_dist
-            else:
-                med_dist = l_dist
-        else: #l_dist <= c_dist and l_dist <= r_dist
-            if c_dist <= r_dist:
-                med_dist = c_dist
-            else:
-                med_dist = r_dist
-
-        return {"med_dist": med_dist}
-
-component FusionDistanceSystem():
-    outputs:
-        dist: float
-
-    compose:
-        cds = CameraDistanceSystem()
-        rds = RadarDistanceSystem()
-        lds = LidarDistanceSystem()
-        dvs = DistanceVotingSystem()
-
-        connect cds.dist to dvs.c_dist
-        connect rds.dist to dvs.r_dist
-        connect lds.dist to dvs.l_dist
-
-        connect dvs.med_dist to dist
+        noise = random.gauss(sigma=stddev)
+        if overestimate:
+            noise = abs(noise)
+        noisy_distance = sensors_distance + noise
+        state.seed = random.randint(1,1000000)
+        return {"dist": noisy_distance}
 
 component Speedometer():
-    """ A component that provides ground truth speed."""
+    """ Fetches and outputss ground truth speed."""
     sensors:
         self.speed: float as speed_val
 
@@ -276,9 +217,9 @@ component CarControls():
     actions:
         control_action: RegulatedControlAction
 
-component Car(target_dist, max_speed, min_dist, min_slowdown):
+component Car(stddev, target_dist, max_speed, min_dist, min_slowdown):
     compose:
-        ps = FusionDistanceSystem()
+        ps = NoisyDistanceSystem(stddev)
         sm = Speedometer()
         ds = DirectionSystem()
         cs = ControlSystem(target_dist, max_speed, min_dist, min_slowdown)
@@ -294,48 +235,6 @@ component Car(target_dist, max_speed, min_dist, min_slowdown):
         connect cs.control_action to cc.control_action
 
 ## Contracts ##
-contract RadarManufacturerSpec(perception_distance, abs_dist_err=0.5):
-    outputs:
-        dist: float
-
-    definitions:
-        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj.position is not self.position]
-        lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
-        lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
-        lead_dist = lead_distances[lead_car]
-        behind_car = lead_dist <= perception_distance
-
-        radar_manufacturer_cond = False # TODO
-
-    assumptions:
-        # Assume we are in a lane
-        always self._lane is not None
-
-    guarantees:
-        always (behind_car and radar_manufacturer_cond) implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err)
-        always (not behind_car) implies (dist > perception_distance+abs_dist_err)
-
-contract LidarManufacturerSpec(perception_distance, abs_dist_err=0.5):
-    outputs:
-        dist: float
-
-    definitions:
-        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj.position is not self.position]
-        lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
-        lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
-        lead_dist = lead_distances[lead_car]
-        behind_car = lead_dist <= perception_distance
-
-        lidar_manufacturer_cond = False # TODO
-
-    assumptions:
-        # Assume we are in a lane
-        always self._lane is not None
-
-    guarantees:
-        always (behind_car and lidar_manufacturer_cond) implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err)
-        always (not behind_car) implies (dist > perception_distance+abs_dist_err)
-
 contract AccurateDistance(perception_distance, abs_dist_err=0.5):
     """ Contract proving that perceived distance is relatively accurate."""
     globals:
@@ -373,7 +272,7 @@ contract AccurateRelativeSpeeds(perception_distance, abs_dist_err=0.5, abs_speed
         objects
         workspace
 
-    outputs:
+    inputs:
         dist: float
 
     definitions:
@@ -400,7 +299,10 @@ contract AccurateRelativeSpeeds(perception_distance, abs_dist_err=0.5, abs_speed
         always (behind_car implies (relative_speed-abs_speed_err <= true_relative_speed <= relative_speed+abs_speed_err))
 
 contract SafeThrottleFilter(perception_distance, min_dist, min_slowdown, abs_speed_err=0.5, max_brake=float("inf")):
-    """ A contract stating that if inputs indicate we are too close for safety, we issue a braking action."""
+    globals:
+        objects
+        workspace
+
     inputs:
         dist: float
         speed: float
@@ -410,20 +312,26 @@ contract SafeThrottleFilter(perception_distance, min_dist, min_slowdown, abs_spe
         modulated_throttle: float
 
     definitions:
+        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj.position is not self.position]
+        lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
+        lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
+        lead_dist = lead_distances[lead_car]
+        behind_car = lead_dist <= perception_distance
+
         # Lead speed can be roughly calculated by comparing two timesteps
         relative_speed = ((next dist) - dist)/self.timestep if (next(next dist)) else ((next dist) - dist)/self.timestep
-        true_relative_speed =  lead_car.speed - speed
+        true_relative_speed =  lead_car.speed - self.speed
 
-        stopping_time = math.ceil(speed/min_slowdown)+1
-        rel_dist_covered = stopping_time*speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
+        stopping_time = math.ceil(self.speed/min_slowdown)+1
+        rel_dist_covered = stopping_time*self.speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
         buffer_dist = min_dist + rel_dist_covered
 
     guarantees:
-        # Guarantee that if we sense we are too close to the car in front of us, we brake with max force.
-        always (dist < buffer_dist) implies (modulated_throttle == -1)
+        # Guarantee that if we are ACTUALLY too close to the car in front of us, we brake with max force.
+        always behind_car implies (
+            lead_dist < buffer_dist implies modulated_throttle == -1)
 
 contract PassthroughBrakingActionGenerator():
-    """ A contract stating that the outputted action represents the input throttle"""
     inputs:
         throttle: float
 
@@ -440,6 +348,55 @@ contract PassthroughBrakingActionGenerator():
         # TODO: Remove below when PACTI can deduce them from the above
         always throttle == -1 implies (control_action.throttle == 0 and control_action.brake == 1)
 
+contract BrakesWhenClose(perception_distance, min_dist, min_slowdown, abs_dist_err=0.5, abs_speed_err=0.5, max_brake=float("inf"), max_accel=float("inf")):
+    """ A contract that just says that if we are in the "danger zone",
+    we will issue an action to brake with max force.
+    """
+    globals:
+        objects
+        workspace
+
+    inputs:
+        dist: float
+
+    outputs:
+        control_action: RegulatedControlAction
+
+    definitions:
+        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj.position is not self.position]
+        lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
+        lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
+        lead_dist = lead_distances[lead_car]
+        behind_car = lead_dist <= perception_distance
+
+        # Lead speed can be roughly calculated by comparing two timesteps
+        relative_speed = ((next dist) - dist)/self.timestep if (next(next dist)) else ((next dist) - dist)/self.timestep
+        true_relative_speed =  lead_car.speed - self.speed
+
+        stopping_time = math.ceil(self.speed/min_slowdown)+1
+        rel_dist_covered = stopping_time*self.speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
+        buffer_dist = min_dist + rel_dist_covered
+
+        no_throttle = control_action.throttle == 0
+        full_brake = control_action.brake == 1
+
+    assumptions:
+        # Assume we are in a lane
+        always self._lane is not None
+
+        # Assume we have relatively accurate distance and relative speed
+        always (behind_car implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err))
+        always (behind_car implies (relative_speed-abs_speed_err <= true_relative_speed <= relative_speed+abs_speed_err))
+
+        # Assume that the lead car is not going to brake or accelerate with too much force.
+        always behind_car implies (-max_brake <= (next lead_car.speed) - lead_car.speed <= max_accel)
+
+    guarantees:
+        # Guarantee that if we are ACTUALLY too close to the car in front of us, we brake with max force.
+        always behind_car implies (
+            lead_dist < buffer_dist implies (no_throttle and full_brake))
+
+# This contract is an example of an assumption we can make to help prove larger contracts, ideally from our specs or testing.
 contract MaxBrakingForce(min_slowdown):
     actions:
         control_action: RegulatedControlAction
@@ -450,12 +407,57 @@ contract MaxBrakingForce(min_slowdown):
 
     guarantees:
         always ((no_throttle and full_brake) 
-            implies (self.speed == 0 or ((next self.speed) <= self.speed - min_slowdown))
+            implies ((next self.speed) <= self.speed - min_slowdown)
         )
 
-## Overall System Spec ##
+
+contract SlowdownMaintainsDistance(perception_distance, min_dist, min_slowdown, abs_dist_err=0.5, abs_speed_err=0.5, max_brake=float("inf")):
+    """ Contract guaranteeing that we always stay at least min_dist away from
+    any car in front of us.
+    """
+    globals:
+        objects
+        workspace
+
+    definitions:
+        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj.position is not self.position]
+        lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
+        lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
+        lead_dist = lead_distances[lead_car]
+        behind_car = lead_dist <= perception_distance
+
+        true_relative_speed =  lead_car.speed - self.speed
+
+        stopping_time = math.ceil(self.speed/min_slowdown)+1
+        rel_dist_covered = stopping_time*self.speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
+        buffer_dist = min_dist + rel_dist_covered
+
+        no_throttle = throttle_action.throttle == 0
+        full_brake = brake_action.brake == 1
+
+    assumptions:
+        # Assume we are in a lane
+        always self._lane is not None
+
+        # Assume the lead car will not brake with more power than max_brake
+        always behind_car implies ((next lead_car.speed) >= max(0, lead_car.speed - max_brake))
+
+        # Assume the lead car is not reversing
+        always behind_car implies (lead_car.speed >= 0)
+
+        # Assume we start outside the danger zone
+        lead_dist > buffer_dist
+
+        # Assume that we slowdown if we are behind a car and relatively close
+        always behind_car implies (
+            lead_dist < buffer_dist implies ((next self.speed) <= self.speed - min_slowdown)
+        )
+
+    guarantees:
+        # Guarantee that we always stay at least min_dist behind the lead car
+        always behind_car implies (lead_dist > min_dist)
+
 contract KeepsDistance(perception_distance, min_dist, max_brake=float("inf"), max_accel=float("inf")):
-    """ A contract stating we stay a safe distance from the car in front of us."""
     globals:
         objects
         workspace
@@ -490,8 +492,9 @@ contract KeepsDistance(perception_distance, min_dist, max_brake=float("inf"), ma
         # Guarantee that we always stay at least min_dist behind the lead car
         always behind_car implies (lead_dist > min_dist)
 
-## Verification Steps ##
+
 # Constants
+STDDEV = 0.1
 TARGET_DIST = 10
 MAX_SPEED = 26.8224 # 60 mph in m/s
 MIN_DIST = 5
@@ -504,42 +507,28 @@ ABS_DIST_ERR = 0.5
 ABS_SPEED_ERR = 4
 
 # Instantiate Car component and link to object.
-implement "EgoCar" with Car(TARGET_DIST, MAX_SPEED, MIN_DIST, MIN_SLOWDOWN) as car
+# NOTE: This will set the behavior of the object (based off the Car component).
+implement "EgoCar" with Car(STDDEV, TARGET_DIST, MAX_SPEED, MIN_DIST, MIN_SLOWDOWN) as car
 
-# Instantiate over keyword?
-ad_goal = AccurateDistance(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR)
 
-lds_manufac_guar = assume car.ps.lds
-    satisfies LidarManufacturerSpec(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR)
-rds_manufac_guar = assume car.ps.rds
-    satisfies RadarManufacturerSpec(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR)
-
-ad_known = compose over car.ps:
-    use lds_manufac_guar
-    use rds_manufac_guar
-
-ad_missing = ad_goal - ad_known
-
-ad_tests = test car.ps satisfies ad_missing,
+accurate_distance = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR), 
     using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
     terminating after 100 samples
 
-accurate_distance = refine (ad_known and ad_test) as ad_goal:
-
-# TODO: Replace with proof
-accurate_speed = assume car.cs satisfies AccurateRelativeSpeeds(
-        PERCEPTION_DISTANCE,
-        abs_dist_err=ABS_DIST_ERR,
-        abs_speed_err=ABS_SPEED_ERR,
-        max_brake=MAX_BRAKE,
-        max_accel=MAX_ACCEL)
-
-ps_accuracy = accurate_distance and accurate_speed
 
 max_braking_force = assume car.cc satisfies MaxBrakingForce(MIN_SLOWDOWN), with correctness 0.99, with confidence 0.99
 
 cs_safety = compose over car.cs:
     # TODO: Replace with proof
+    test car.cs satisfies AccurateRelativeSpeeds(
+        PERCEPTION_DISTANCE,
+        abs_dist_err=ABS_DIST_ERR,
+        abs_speed_err=ABS_SPEED_ERR,
+        max_brake=MAX_BRAKE,
+        max_accel=MAX_ACCEL),
+        using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
+        terminating after 100 samples
+
     assume car.cs.tsf satisfies SafeThrottleFilter(
             PERCEPTION_DISTANCE,
             MIN_DIST,
@@ -550,16 +539,47 @@ cs_safety = compose over car.cs:
     # TODO: Replace with proof
     assume car.cs.ag satisfies PassthroughBrakingActionGenerator()
 
+    # TODO:Replace with proof
+    assume car.cs satisfies BrakesWhenClose(
+        PERCEPTION_DISTANCE,
+        MIN_DIST,
+        MIN_SLOWDOWN,
+        abs_dist_err=ABS_DIST_ERR,
+        abs_speed_err=ABS_SPEED_ERR,
+        max_brake=MAX_BRAKE,
+        max_accel=MAX_ACCEL)
+
 keeps_distance_raw = compose over car:
-    use ps_accuracy
+    use accurate_distance
+
+    # TODO: Replace with proof
+    test car.cs satisfies AccurateRelativeSpeeds(
+        PERCEPTION_DISTANCE,
+        abs_dist_err=ABS_DIST_ERR,
+        abs_speed_err=ABS_SPEED_ERR,
+        max_brake=MAX_BRAKE,
+        max_accel=MAX_ACCEL),
+        using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
+        terminating after 100 samples
+
     use cs_safety
+
     use max_braking_force
 
-keeps_distance = refine keeps_distance_raw as KeepsDistance(PERCEPTION_DISTANCE,
-    MIN_DIST,
-    abs_dist_err=ABS_DIST_ERR,
-    abs_speed_err=ABS_SPEED_ERR,
-    max_brake=MAX_BRAKE,
-    max_accel=MAX_ACCEL) using PROOF
+    # TODO: Replace with proof
+    assume car satisfies SlowdownMaintainsDistance(
+        PERCEPTION_DISTANCE,
+        MIN_DIST,
+        MIN_SLOWDOWN,
+        abs_dist_err=ABS_DIST_ERR,
+        abs_speed_err=ABS_SPEED_ERR,
+        max_brake=MAX_BRAKE)
 
-verify keeps_distance
+verify keeps_distance_raw
+
+# keeps_distance = refine keeps_distance_raw as KeepsDistance(PERCEPTION_DISTANCE,
+#     MIN_DIST,
+#     abs_dist_err=ABS_DIST_ERR,
+#     abs_speed_err=ABS_SPEED_ERR,
+#     max_brake=MAX_BRAKE,
+#     max_accel=MAX_ACCEL)
