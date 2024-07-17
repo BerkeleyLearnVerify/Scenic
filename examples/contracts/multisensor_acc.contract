@@ -412,10 +412,9 @@ contract SafeThrottleFilter(perception_distance, min_dist, min_slowdown, abs_spe
     definitions:
         # Lead speed can be roughly calculated by comparing two timesteps
         relative_speed = ((next dist) - dist)/self.timestep if (next(next dist)) else ((next dist) - dist)/self.timestep
-        true_relative_speed =  lead_car.speed - speed
 
         stopping_time = math.ceil(speed/min_slowdown)+1
-        rel_dist_covered = stopping_time*speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
+        rel_dist_covered = stopping_time*speed + (relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
         buffer_dist = min_dist + rel_dist_covered
 
     guarantees:

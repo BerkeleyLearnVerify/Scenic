@@ -48,11 +48,23 @@ class SpecNode(ABC):
     def getAtomicNames(self):
         pass
 
+    @abstractmethod
+    def toPACTIStr(self, syntaxMappings):
+        pass
+
+    @abstractmethod
+    def toPACTITemp(self, syntaxMappings):
+        # TODO: Remove this temp function once PACTI supports nested functions/temporal ops.
+        pass
+
+    def getContractVars(self):
+        return self.extractTempVars(self.getAtomicNames())
+
     @staticmethod
     def syntaxTreeToSyntaxVal(targetTree, syntaxMappings):
         # Check if there's a tree in the mappings that's equivalent to this one
         for existingTree in syntaxMappings:
-            if equivalentAST(targetTree, existingTree):
+            if SpecNode.equivalentAST(targetTree, existingTree):
                 return syntaxMappings[existingTree]
 
         syntaxMappings[targetTree] = len(syntaxMappings)
@@ -84,28 +96,11 @@ class SpecNode(ABC):
         else:
             return node1 == node2
 
+    @staticmethod
+    def extractTempVars(var_iterable):
+        from scenic.contracts.composition import Composition
 
-class Atomic(SpecNode):
-    def __init__(self, ast, source_str=None):
-        self.ast = ast
-        self.source_str = source_str
-
-    def applyAtomicTransformer(self, transformer):
-        self.ast = transformer.visit(self.ast)
-
-    def getAtomicNames(self):
-        nf = NameFinder()
-        nf.visit(self.ast)
-        return nf.names
-
-    def clearSourceStrings(self):
-        self.source_str = None
-
-    def __eq__(self, other):
-        return type(self) is type(other) and self.equivalentAST(self.ast, other.ast)
-
-    def __str__(self):
-        return self.source_str if self.source_str else ast.unparse(self.ast)
+        return {var for var in var_iterable if Composition.isTempVar(var)}
 
 
 class UnarySpecNode(SpecNode):
@@ -153,6 +148,7 @@ class BinarySpecNode(SpecNode):
 class NarySpecNode(SpecNode):
     def __init__(self, subs):
         assert all(isinstance(sub, SpecNode) for sub in subs)
+        assert len(subs) > 1
         self.subs = subs
 
     def applyAtomicTransformer(self, transformer):
@@ -170,41 +166,128 @@ class NarySpecNode(SpecNode):
         return type(self) is type(other) and self.subs == other.subs
 
 
+class Atomic(SpecNode):
+    def __init__(self, ast, source_str=None):
+        self.ast = ast
+        self.source_str = source_str
+
+    def applyAtomicTransformer(self, transformer):
+        self.ast = transformer.visit(self.ast)
+
+    def getAtomicNames(self):
+        nf = NameFinder()
+        nf.visit(self.ast)
+        return nf.names
+
+    def toPACTIStr(self, syntaxMappings):
+        func_name = self.syntaxTreeToSyntaxVal(self.ast, syntaxMappings)
+        func_vars = ", ".join(self.getContractVars())
+        return f"Atomic_{func_name}({func_vars})"
+
+    def toPACTITemp(self, syntaxMappings):
+        return f"Atomic_{self.syntaxTreeToSyntaxVal(self.ast, syntaxMappings)}"
+
+    def clearSourceStrings(self):
+        self.source_str = None
+
+    def __eq__(self, other):
+        return type(self) is type(other) and self.equivalentAST(self.ast, other.ast)
+
+    def __str__(self):
+        return self.source_str if self.source_str else ast.unparse(self.ast)
+
+
 class Always(UnarySpecNode):
+    def toPACTIStr(self, syntaxMappings):
+        return f"{self.toPACTITemp(syntaxMappings)}({', '.join(self.getContractVars())})"
+
+    def toPACTITemp(self, syntaxMappings):
+        return f"ALW_{self.sub.toPACTITemp(syntaxMappings)}"
+
     def __str__(self):
         return f"always ({self.sub})"
 
 
 class Eventually(UnarySpecNode):
+    def toPACTIStr(self, syntaxMappings):
+        return f"{self.toPACTITemp(syntaxMappings)}({', '.join(self.getContractVars())})"
+
+    def toPACTITemp(self, syntaxMappings):
+        return f"EVN_{self.sub.toPACTITemp(syntaxMappings)}"
+
     def __str__(self):
         return f"eventually ({self.sub})"
 
 
 class Next(UnarySpecNode):
+    def toPACTIStr(self, syntaxMappings):
+        return f"{self.toPACTITemp(syntaxMappings)}({', '.join(self.getContractVars())})"
+
+    def toPACTITemp(self, syntaxMappings):
+        return f"NXT_{self.sub.toPACTITemp(syntaxMappings)}"
+
     def __str__(self):
         return f"next ({self.sub})"
 
 
 class Not(UnarySpecNode):
+    def toPACTIStr(self, syntaxMappings):
+        return f"~({self.sub.toPACTIStr(syntaxMappings)})"
+
+    def toPACTITemp(self, syntaxMappings):
+        return f"NOT_{self.sub.toPACTITemp(syntaxMappings)}"
+
     def __str__(self):
         return f"not ({self.sub})"
 
 
 class Until(BinarySpecNode):
+    def toPACTIStr(self, syntaxMappings):
+        return f"{self.toPACTITemp(syntaxMappings)}({', '.join(self.getContractVars())})"
+
+    def toPACTITemp(self, syntaxMappings):
+        return f"UNTIL_{self.sub1.toPACTITemp(syntaxMappings)}_{self.sub2.toPACTITemp(syntaxMappings)}"
+
     def __str__(self):
         return f"({self.sub1}) until ({self.sub2})"
 
 
 class Implies(BinarySpecNode):
+    def toPACTIStr(self, syntaxMappings):
+        return f"({self.sub1.toPACTIStr(syntaxMappings)}) => ({self.sub2.toPACTIStr(syntaxMappings)})"
+
+    def toPACTITemp(self, syntaxMappings):
+        return f"IMP_{self.sub1.toPACTITemp(syntaxMappings)}_{self.sub2.toPACTITemp(syntaxMappings)}"
+
     def __str__(self):
         return f"({self.sub1}) implies ({self.sub2})"
 
 
 class And(NarySpecNode):
+    def toPACTIStr(self, syntaxMappings):
+        pacti_str = f"({self.sub1.toPACTIStr(syntaxMappings)}) & ({self.sub2.toPACTIStr(syntaxMappings)})"
+        for sub in self.subs[2:]:
+            pacti_str = "(" + pacti_str + f" & {self.sub.toPACTIStr(syntaxMappings)})"
+
+        return pacti_str
+
+    def toPACTITemp(self, syntaxMappings):
+        return f"AND_{'_'.join(sub.toPACTITemp(syntaxMappings) for sub in self.subs)}"
+
     def __str__(self):
         return " and ".join(f"({str(sub)})" for sub in self.subs)
 
 
 class Or(NarySpecNode):
+    def toPACTIStr(self, syntaxMappings):
+        pacti_str = f"({self.sub1.toPACTIStr(syntaxMappings)}) | ({self.sub2.toPACTIStr(syntaxMappings)})"
+        for sub in self.subs[2:]:
+            pacti_str = "(" + pacti_str + f" | {self.sub.toPACTIStr(syntaxMappings)})"
+
+        return pacti_str
+
+    def toPACTITemp(self, syntaxMappings):
+        return f"OR_{'_'.join(sub.toPACTITemp(syntaxMappings) for sub in self.subs)}"
+
     def __str__(self):
         return " or ".join(f"({str(sub)})" for sub in self.subs)

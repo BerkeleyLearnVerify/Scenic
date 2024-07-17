@@ -1,6 +1,8 @@
 from copy import deepcopy
-from functools import cached_property
+from functools import cached_property, reduce
 from math import prod
+
+from pacti.contracts import PropositionalIoContract
 
 from scenic.contracts.components import ActionComponent, BaseComponent, ComposeComponent
 from scenic.contracts.contracts import ContractResult, VerificationTechnique
@@ -137,72 +139,119 @@ class Composition(VerificationTechnique):
             guarantee_decoding_map[encoding_map[((port, None))]] = port
         guarantee_decoding_transformer = NameSwapTransformer(guarantee_decoding_map)
 
-        # Move through sub_stmts linearly, checking assumptions and accumulating guarantees
-        tl_assumptions = []
-        tl_guarantees = []
+        # Initialize syntaxMappings
+        syntaxMappings = {}
+
+        # Convert all sub_stmts to PACTI contracts and order/cluster according to sub-component
+        stmt_groups = [[] for _ in range(len(self.sub_stmts))]
+        stmt_group_loc = {stmt: pos for pos, stmt in enumerate(self.sub_stmts)}
 
         for sub_stmt in self.sub_stmts:
+            # Copy and encode variables for assumptions and guarantees
             encoding_transformer = encoding_transformers[sub_stmt.component]
-
-            ## Copy and encode assumptions and guarantees ##
             assumptions = [deepcopy(spec) for spec in sub_stmt.assumptions]
             guarantees = [deepcopy(spec) for spec in sub_stmt.guarantees]
 
             for spec in assumptions + guarantees:
                 spec.applyAtomicTransformer(encoding_transformer)
 
-            #### START TODO: REPLACE THIS BLOCK WITH PACTI
+            # Convert all assumptions and guarantees to PACTI-compatible strings
+            pstring_assumptions = [a.toPACTIStr(syntaxMappings) for a in assumptions]
+            pstring_guarantees = [g.toPACTIStr(syntaxMappings) for g in guarantees]
 
-            ## Split out purely external assumptions.
-            # External assumptions can be moved to the top level contract
-            internal_assumptions = []
+            # Encode IO variables, create PACTI contract, and store it in the appropriate group
+            encoded_input_vars = [
+                encoding_transformer.name_map[i]
+                for i in sub_stmt.component.inputs_types.keys()
+            ]
+            encoded_output_vars = [
+                encoding_transformer.name_map[o]
+                for o in sub_stmt.component.outputs_types.keys()
+            ]
 
-            for assumption in assumptions:
-                names = assumption.getAtomicNames()
-                temp_var_names = self.extractTempVars(names)
-                if temp_var_names <= input_temp_vars:
-                    tl_assumptions.append(assumption)
-                else:
-                    internal_assumptions.append(assumption)
+            pacti_contract = PropositionalIoContract.from_strings(
+                input_vars=encoded_input_vars,
+                output_vars=encoded_output_vars,
+                assumptions=pstring_assumptions,
+                guarantees=pstring_guarantees,
+            )
 
-            ## Attempt to discharge all internal assumptions using accumulated top-level
-            ## assumptions and guarantees.
-            for assumption in internal_assumptions:
-                # TACTIC 1: Discharge if we already have this assumption in our accumulated
-                # assumptions and guarantees.
-                if any(assumption == spec for spec in tl_assumptions + tl_guarantees):
-                    continue
+            stmt_groups[stmt_group_loc[sub_stmt]].append(pacti_contract)
 
-                # We couldn't prove this assumption :(
-                ## DEBUG ##
-                print("Assumptions:")
-                for a in tl_assumptions:
-                    print(f"    {a}")
+        # Merge all groups, then compose in order.
+        merged_contracts = [
+            reduce(lambda x, y: x.merge(y), group) for group in stmt_groups
+        ]
+        composed_contract = reduce(lambda x, y: x.compose(y), merged_contracts)
 
-                print("Guarantees:")
-                for g in tl_guarantees:
-                    print(f"    {g}")
-                breakpoint()
+        breakpoint()
+        pass
 
-            ## Add guarantees to accumulated top-level guarantees
-            tl_guarantees += guarantees
+        # #### START TODO: REPLACE THIS BLOCK WITH PACTI
+        # # Move through sub_stmts linearly, checking assumptions and accumulating guarantees
+        # tl_assumptions = []
+        # tl_guarantees = []
 
-            ## Simplify assumptions and guarantees, removing duplicates
-            new_tl_assumptions = []
-            for spec in tl_assumptions:
-                if not any(spec == e_spec for e_spec in new_tl_assumptions):
-                    new_tl_assumptions.append(spec)
-            tl_assumptions = new_tl_assumptions
+        # for sub_stmt in self.sub_stmts:
+        #     encoding_transformer = encoding_transformers[sub_stmt.component]
 
-            new_tl_guarantees = []
-            for spec in tl_guarantees:
-                if not any(spec == e_spec for e_spec in new_tl_guarantees) and not any(
-                    spec == e_spec for e_spec in new_tl_assumptions
-                ):
-                    new_tl_guarantees.append(spec)
-            tl_guarantees = new_tl_guarantees
+        #     ## Copy and encode assumptions and guarantees ##
+        #     assumptions = [deepcopy(spec) for spec in sub_stmt.assumptions]
+        #     guarantees = [deepcopy(spec) for spec in sub_stmt.guarantees]
 
-            #### END TODO: REPLACE THIS BLOCK WITH PACTI
+        #     for spec in assumptions + guarantees:
+        #         spec.applyAtomicTransformer(encoding_transformer)
+
+        #     ## Split out purely external assumptions.
+        #     # External assumptions can be moved to the top level contract
+        #     internal_assumptions = []
+
+        #     for assumption in assumptions:
+        #         names = assumption.getAtomicNames()
+        #         temp_var_names = self.extractTempVars(names)
+        #         if temp_var_names <= input_temp_vars:
+        #             tl_assumptions.append(assumption)
+        #         else:
+        #             internal_assumptions.append(assumption)
+
+        #     ## Attempt to discharge all internal assumptions using accumulated top-level
+        #     ## assumptions and guarantees.
+        #     for assumption in internal_assumptions:
+        #         # TACTIC 1: Discharge if we already have this assumption in our accumulated
+        #         # assumptions and guarantees.
+        #         if any(assumption == spec for spec in tl_assumptions + tl_guarantees):
+        #             continue
+
+        #         # We couldn't prove this assumption :(
+        #         ## DEBUG ##
+        #         print("Assumptions:")
+        #         for a in tl_assumptions:
+        #             print(f"    {a}")
+
+        #         print("Guarantees:")
+        #         for g in tl_guarantees:
+        #             print(f"    {g}")
+        #         breakpoint()
+
+        #     ## Add guarantees to accumulated top-level guarantees
+        #     tl_guarantees += guarantees
+
+        #     ## Simplify assumptions and guarantees, removing duplicates
+        #     new_tl_assumptions = []
+        #     for spec in tl_assumptions:
+        #         if not any(spec == e_spec for e_spec in new_tl_assumptions):
+        #             new_tl_assumptions.append(spec)
+        #     tl_assumptions = new_tl_assumptions
+
+        #     new_tl_guarantees = []
+        #     for spec in tl_guarantees:
+        #         if not any(spec == e_spec for e_spec in new_tl_guarantees) and not any(
+        #             spec == e_spec for e_spec in new_tl_assumptions
+        #         ):
+        #             new_tl_guarantees.append(spec)
+        #     tl_guarantees = new_tl_guarantees
+
+        #     #### END TODO: REPLACE THIS BLOCK WITH PACTI
 
         ## Decode top level assumptions and guarantees ##
         # If any assumptions are still using internal temporary variable names after decoding, then
@@ -252,8 +301,12 @@ class Composition(VerificationTechnique):
         return var_name
 
     @staticmethod
+    def isTempVar(var):
+        return var.startswith("SCENIC_INTERNAL_VAR_")
+
+    @staticmethod
     def extractTempVars(var_iterable):
-        return {var for var in var_iterable if var.startswith("SCENIC_INTERNAL_VAR_")}
+        return {var for var in var_iterable if Composition.isTempVar(var)}
 
 
 class CompositionContractResult(ContractResult):
