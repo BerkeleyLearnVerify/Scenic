@@ -211,9 +211,6 @@ def test_pickle(cached_maps):
 
 def test_invalid_road_scenario(cached_maps):
     with pytest.raises(InvalidScenarioError):
-        # Set color to fixed value to avoid creating a distribution and allow
-        # us to detect the invalid scenario at compile time.
-        # TODO: Can we remove this limitation?
         scenario = compileDrivingScenario(
             cached_maps,
             """
