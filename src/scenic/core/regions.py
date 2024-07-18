@@ -2774,7 +2774,6 @@ class PolygonalRegion(Region):
             points = tuple(pt[:2] for pt in points)
             if len(points) == 0:
                 raise ValueError("tried to create PolygonalRegion from empty point list!")
-            self.points = points
             polygon = shapely.geometry.Polygon(points)
 
         if isinstance(polygon, shapely.geometry.Polygon):
@@ -2790,13 +2789,6 @@ class PolygonalRegion(Region):
             raise ValueError(
                 "tried to create PolygonalRegion with " f"invalid polygon {self.polygons}"
             )
-
-        if (
-            points is None
-            and len(self.polygons.geoms) == 1
-            and len(self.polygons.geoms[0].interiors) == 0
-        ):
-            self.points = tuple(self.polygons.geoms[0].exterior.coords[:-1])
 
         if self.polygons.is_empty:
             raise ValueError("tried to create empty PolygonalRegion")
@@ -2971,6 +2963,16 @@ class PolygonalRegion(Region):
         orientation = VectorField.forUnionOf(regs, tolerance=buf)
         z = 0 if z is None else z
         return PolygonalRegion(polygon=union, orientation=orientation, z=z)
+
+    @property
+    @distributionFunction
+    def points(self):
+        warnings.warn(
+            "The `points` method is deprecated and will be removed in Scenic 3.3.0."
+            "Users should use the `boundary` method instead.",
+            DeprecationWarning,
+        )
+        return self.boundary.points
 
     @property
     @distributionFunction
