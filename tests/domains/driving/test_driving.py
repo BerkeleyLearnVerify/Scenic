@@ -5,6 +5,7 @@ import shutil
 import pytest
 
 from scenic.core.distributions import RejectionException
+from scenic.core.errors import InvalidScenarioError
 from scenic.core.geometry import TriangulationError
 from scenic.domains.driving.roads import Network
 from tests.utils import compileScenic, pickle_test, sampleEgo, sampleScene, tryPickling
@@ -206,3 +207,25 @@ def test_pickle(cached_maps):
     unpickled = tryPickling(scenario)
     scene = sampleScene(unpickled, maxIterations=1000)
     tryPickling(scene)
+
+
+def test_invalid_road_scenario(cached_maps):
+    with pytest.raises(InvalidScenarioError):
+        scenario = compileDrivingScenario(
+            cached_maps,
+            """
+            ego = new Car at 80.6354425964952@-327.5431187869811
+            param foo = ego.oppositeLaneGroup.sidewalk
+            """,
+        )
+
+    with pytest.raises(InvalidScenarioError):
+        # Set regionContainedIn to everywhere to hit driving domain specific code
+        # instead of high level not contained in workspace rejection.
+        scenario = compileDrivingScenario(
+            cached_maps,
+            """
+            ego = new Car at 10000@10000, with regionContainedIn everywhere
+            param foo = ego.lane
+            """,
+        )
