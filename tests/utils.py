@@ -1,9 +1,11 @@
 """Utilities used throughout the test suite."""
 
 from importlib import metadata
+import importlib.metadata
 import inspect
 import math
 import multiprocessing
+import re
 import sys
 import types
 import weakref
@@ -576,3 +578,10 @@ def areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs, extraIgnores):
                 fail()
                 return False
     return True
+
+
+def maxVersion(max_version):
+    m_ver = tuple(re.split(r"\D+", max_version)[:3])
+    c_ver = tuple(re.split(r"\D+", importlib.metadata.version("scenic"))[:3])
+
+    return m_ver > c_ver
