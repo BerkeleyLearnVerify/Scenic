@@ -4,6 +4,9 @@ AUTHOR: Francis Indaheng, findaheng@berkeley.edu
 DESCRIPTION: Ego vehicle must suddenly stop to avoid collision when 
 pedestrian crosses the road unexpectedly.
 SOURCE: Carla Challenge, #03
+
+To run this file using the Carla simulator:
+    scenic examples/carla/NHTSA_Scenarios/pedestrian/pedestrian_01.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
 #################################
