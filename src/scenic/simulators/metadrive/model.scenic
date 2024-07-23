@@ -6,7 +6,7 @@ import pathlib
 map_town = pathlib.Path(globalParameters.map).stem
 param map = map_town
 param timestep = 0.1
-param render = 0
+param render = 1
 
 simulator MetaDriveSimulator(
     timestep=float(globalParameters.timestep),
