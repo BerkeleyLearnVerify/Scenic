@@ -169,6 +169,7 @@ jobs:
       name: stop_ec2_instance
       runs-on: ubuntu-latest
       needs: [run_carla_simulators, run_webots_simulators]
+      if: success() || failure()
       steps:       
         - name: Stop EC2 Instance
           env:
