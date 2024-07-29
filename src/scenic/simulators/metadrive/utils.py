@@ -8,6 +8,14 @@ from metadrive.engine.asset_loader import AssetLoader
 from metadrive.manager.sumo_map_manager import SumoMapManager
 from metadrive.obs.observation_base import DummyObservation
 
+from scenic.core.geometry import normalizeAngle
+from scenic.core.vectors import Orientation, Vector
+
+def metadriveToScenicPosition(loc):
+    return Vector(loc[0], -loc[1], 0)
+
+def scenicToMetaDrivePosition(vec):
+    return (vec[0], -vec[-1])
 
 
 class DriveManager(BaseManager):

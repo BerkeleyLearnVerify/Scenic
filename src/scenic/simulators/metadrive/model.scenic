@@ -1,5 +1,6 @@
 from scenic.simulators.metadrive.simulator import MetaDriveSimulator 
 from scenic.domains.driving.model import *
+from scenic.simulators.metadrive.actions import *
 import pathlib
 
 # TODO: research on open drive conversion for metadrive
@@ -25,38 +26,43 @@ class MetaDriveActor(DrivingObject):
             value ``None``.
     """
     metaDriveActor: None
-    rolename: None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def setPosition(self, pos):
-        self.metaDriveActor.set_location(pos)
+        self.metaDriveActor.last_position = pos
+        pass
 
     def setVelocity(self, vel):
-        self.metaDriveActor.set_velocity(vel, 1, in_local_frame=True)
+        self.metaDriveActor.before_step([0, vel])
 
 
 class Vehicle(Vehicle, MetaDriveActor):
     """Abstract class for steerable vehicles."""
 
     def setThrottle(self, throttle):
-        self.metaDriveActor._apply_throttle_brake(0)
+        self.metaDriveActor.before_step([0, throttle])
 
     def setSteering(self, steering):
-        self.control.steer = steering
+        self.metaDriveActor.before_step([steering, 0])
 
     def setBraking(self, braking):
-        self.control.brake = braking
+        self.metaDriveActor.before_step([0, -braking])
 
-    def setHandbrake(self, handbrake):
-        self.control.hand_brake = handbrake
+    # def setHandbrake(self, handbrake):
+    #     self.control.hand_brake = handbrake
 
-    def setReverse(self, reverse):
-        self.control.reverse = reverse
+    # def setReverse(self, reverse):
+    #     self.control.reverse = reverse
 
-class Car:
-    blueprint: None
+class Car(Vehicle):
     @property
     def isCar(self):
         return True
+
+# require ego
+# try:
+#     ego
+# except NameError:
+#     raise NameError("The 'ego' variable is not defined in the .scenic file. Please define an ego vehicle.")

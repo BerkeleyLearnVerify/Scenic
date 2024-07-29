@@ -299,6 +299,9 @@ class CarlaSimulation(DrivingSimulation):
             roll=roll,
             elevation=elevation,
         )
+
+        import pdb; pdb.set_trace()
+        
         return values
 
     def destroy(self):

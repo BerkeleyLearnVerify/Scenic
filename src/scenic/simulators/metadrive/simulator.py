@@ -20,6 +20,7 @@ from metadrive.engine.asset_loader import AssetLoader
 from metadrive.engine.asset_loader import initialize_asset_loader
 import logging
 
+import scenic.simulators.metadrive.utils as utils
 
 class MetaDriveSimulator(DrivingSimulator):
     def __init__(
@@ -31,17 +32,6 @@ class MetaDriveSimulator(DrivingSimulator):
         super().__init__()
         # check to see if metadrive map is active
         self.render = render
-
-        self.client = DriveEnv(
-            dict(
-                use_render=self.render,
-                # map_config=self.metadrive_map,
-                vehicle_config={"spawn_position_heading": [(20, 20), 0]},
-                use_mesh_terrain=True,
-                log_level=logging.CRITICAL,
-            )
-        )
-        self.client.reset()
 
         self.scenario_number = 0
         self.timestep = timestep
@@ -66,7 +56,6 @@ class MetaDriveSimulator(DrivingSimulator):
         self.scenario_number += 1 
         return MetaDriveSimulation(
             scene, 
-            self.client, 
             self.render,
             self.scenario_number,
             timestep=self.timestep,
@@ -74,18 +63,17 @@ class MetaDriveSimulator(DrivingSimulator):
         )
 
     def destroy(self):
-        self.client.close()
         super().destroy()
 
 
 class MetaDriveSimulation(DrivingSimulation):
-    def __init__(self, scene, client, render, scenario_number, **kwargs):
-        self.client = client
+    def __init__(self, scene, render, scenario_number, **kwargs):
         self.render = render
         self.scenario_number = scenario_number
-        self.client = client
+        self.defined_ego = False
+        self.client = None
         super().__init__(scene, **kwargs)
-    
+
     def setup(self):
         super().setup()
     
@@ -101,7 +89,24 @@ class MetaDriveSimulation(DrivingSimulation):
 
         
     def createObjectInSimulator(self, obj):
-        import pdb; pdb.set_trace()
+        if not self.defined_ego:
+            self.client = DriveEnv(
+                dict(
+                    use_render=self.render,
+                    # map_config=self.metadrive_map,
+                    vehicle_config={"spawn_position_heading": [utils.scenicToMetaDrivePosition(obj.position), obj.heading]},
+                    use_mesh_terrain=True,
+                    log_level=logging.CRITICAL,
+                )
+            )
+            self.client.reset()
+        
+            metadrive_objects = self.client.engine.get_objects()
+            for _,v in metadrive_objects.items():
+                metaDriveActor = v
+                obj.metaDriveActor = metaDriveActor
+                return metaDriveActor
+        
         if isinstance(obj.metaDriveActor, DefaultVehicle):
             metadriveActor = self.client.engine.spawn_object(DefaultVehicle, 
                                   vehicle_config=dict(), 
@@ -118,13 +123,37 @@ class MetaDriveSimulation(DrivingSimulation):
     def destroy(self):
         try:
             self.client.reset()
+            self.client.close()
         except AssertionError as ae:
             print(f"Assertion error during reset: {ae}")
         
         super().destroy()
 
     def getProperties(self, obj, properties):
-        return {}#super().getProperties(obj, properties)
+        metaDriveActor = obj.metaDriveActor
+        position = utils.metadriveToScenicPosition(metaDriveActor.last_position)
+        velocity = utils.metadriveToScenicPosition(metaDriveActor.last_velocity)
+        speed = metaDriveActor.last_speed
+        angularSpeed=0
+        angularVelocity=utils.metadriveToScenicPosition((0,0))
+        yaw=0
+        pitch = metaDriveActor.last_position[0]
+        roll = metaDriveActor.last_position[1]
+        elevation = 0
+
+        values = dict(
+            position=position,
+            velocity=velocity,
+            speed=speed,
+            angularSpeed=angularSpeed,
+            angularVelocity=angularVelocity,
+            yaw=yaw,
+            pitch=pitch,
+            roll=roll,
+            elevation=elevation,
+        )
+
+        return values
 
 
         
