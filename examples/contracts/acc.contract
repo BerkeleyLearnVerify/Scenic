@@ -364,6 +364,9 @@ contract KeepsDistance(perception_distance, min_dist, max_brake=float("inf"), ma
         rel_dist_covered = stopping_time*self.speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
         buffer_dist = min_dist + rel_dist_covered
 
+        # Maximum distance delta in one timestep. Here we use speed diff of 150 km/h and timestep of 0.1 seconds.
+        transition_dist = buffer_dist + 4
+
     assumptions:
         # Assume we are in a lane
         always self._lane is not None
@@ -376,6 +379,12 @@ contract KeepsDistance(perception_distance, min_dist, max_brake=float("inf"), ma
 
         # Assume we start outside the danger zone
         lead_dist > buffer_dist
+
+        # Assume no one cuts in front us too closely
+        always (lead_dist > buffer_dist and next (lead_dist <= buffer_dist)) implies (lead_dist < transition_dist)
+
+        # Upper bound on reduction in lead distance assuming the same car in front of us (above)
+        always ((lead_dist <= buffer_dist) implies ((next lead_dist) >= lead_dist + (lead_car.speed - self.speed)))
 
     guarantees:
         # Guarantee that we always stay at least min_dist behind the lead car

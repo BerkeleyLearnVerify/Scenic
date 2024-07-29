@@ -1,0 +1,10 @@
+component CameraPerceptionSystem(model):
+    """ A component that provides noisy distance to the car in front."""
+    sensors:
+        self.frontCamera: Img as image
+
+    outputs:
+        dist: float
+
+    body:
+        return {"dist": model(image)}
