@@ -581,15 +581,15 @@ def areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs, extraIgnores):
     return True
 
 
-def deprecationTest(max_version):
+def deprecationTest(removalVersion):
     def decorator(function):
         @functools.wraps(function)
         def wrapper(*args, **kwargs):
-            m_ver = tuple(re.split(r"\D+", max_version)[:3])
+            m_ver = tuple(re.split(r"\D+", removalVersion)[:3])
             c_ver = tuple(re.split(r"\D+", importlib.metadata.version("scenic"))[:3])
             assert (
                 m_ver > c_ver
-            ), "Maximum version exceeded. This functionality should be deprecated and this test removed."
+            ), "Maximum version exceeded. The tested functionality and the test itself should be removed."
 
             with pytest.deprecated_call():
                 return function(*args, **kwargs)
