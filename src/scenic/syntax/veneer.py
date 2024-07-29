@@ -36,10 +36,10 @@ __all__ = (
     "hypot",
     "max",
     "min",
+    "_toStrScenic",
+    "_toFloatScenic",
+    "_toIntScenic",
     "filter",
-    "str",
-    "float",
-    "int",
     "round",
     "len",
     "range",
@@ -2068,6 +2068,24 @@ def ApparentlyFacing(heading, fromPt=None):
     )
 
 
+### Primitive internal functions, utilized after compiler conversion
+
+
+@distributionFunction
+def _toStrScenic(*args, **kwargs) -> str:
+    return builtins.str(*args, **kwargs)
+
+
+@distributionFunction
+def _toFloatScenic(*args, **kwargs) -> float:
+    return builtins.float(*args, **kwargs)
+
+
+@distributionFunction
+def _toIntScenic(*args, **kwargs) -> int:
+    return builtins.int(*args, **kwargs)
+
+
 ### Primitive functions overriding Python builtins
 
 # N.B. applying functools.wraps to preserve the metadata of the original
@@ -2077,21 +2095,6 @@ def ApparentlyFacing(heading, fromPt=None):
 @distributionFunction
 def filter(function, iterable):
     return list(builtins.filter(function, iterable))
-
-
-@distributionFunction
-def str(*args, **kwargs):
-    return builtins.str(*args, **kwargs)
-
-
-@distributionFunction
-def float(*args, **kwargs):
-    return builtins.float(*args, **kwargs)
-
-
-@distributionFunction
-def int(*args, **kwargs):
-    return builtins.int(*args, **kwargs)
 
 
 @distributionFunction

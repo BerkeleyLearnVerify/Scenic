@@ -15,6 +15,7 @@ import sphinx
 sphinx._buildingScenicDocs = True
 
 from scenic.core.simulators import SimulatorInterfaceWarning
+import scenic.syntax.compiler
 from scenic.syntax.translator import CompileOptions
 import scenic.syntax.veneer as veneer
 
@@ -185,6 +186,10 @@ with open("_build/keywords.txt", "w") as outFile:
 with open("_build/keywords_soft.txt", "w") as outFile:
     for row in maketable(ScenicParser.SOFT_KEYWORDS):
         outFile.write(row + "\n")
+with open("_build/builtin_names.txt", "w") as outFile:
+    for row in maketable(scenic.syntax.compiler.builtinNames):
+        outFile.write(row + "\n")
+
 
 # -- Monkeypatch ModuleAnalyzer to handle Scenic modules ---------------------
 

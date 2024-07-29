@@ -497,3 +497,14 @@ def test_random_occlusion():
         hasattr(obj, "name") and obj.name == "wall" and (not obj.occluding)
         for obj in scene.objects
     )
+
+
+def test_deep_not():
+    """Test that a not deep inside a requirement is interpreted correctly."""
+    with pytest.raises(RejectionException):
+        sampleSceneFrom(
+            """
+            objs = [new Object at 10@10, new Object at 20@20]
+            require all(not o.x > 0 for o in objs)
+            """
+        )

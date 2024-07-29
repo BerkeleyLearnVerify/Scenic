@@ -263,7 +263,7 @@ class Chair(Prop):
 
 
 class BusStop(Prop):
-    blueprint: Uniform(*blueprints.busStopsModels)
+    blueprint: Uniform(*blueprints.busStopModels)
 
 
 class Advertisement(Prop):
