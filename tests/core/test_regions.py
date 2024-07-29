@@ -5,10 +5,11 @@ import pytest
 import shapely.geometry
 import trimesh.voxel
 
+from scenic.core.distributions import RandomControlFlowError, Range
 from scenic.core.object_types import Object, OrientedPoint
 from scenic.core.regions import *
 from scenic.core.vectors import VectorField
-from tests.utils import sampleSceneFrom
+from tests.utils import deprecationTest, sampleSceneFrom
 
 
 def sample_ignoring_rejections(region, num_samples):
@@ -222,6 +223,14 @@ def test_polygon_region():
         PolygonalRegion([(1, 1), (3, 1), (2, 2), (1.3, 1.15)], z=3).uniformPointInner().z
         == 3
     )
+    assert i != d
+    hash(i)
+    e = CircularRegion((0, 0), Range(1, 3))
+    with pytest.raises(RandomControlFlowError):
+        i == e
+    with pytest.raises(RandomControlFlowError):
+        e == i
+    hash(e)
 
 
 def test_polygon_unionAll():
@@ -808,3 +817,11 @@ def test_region_combinations(A, B):
     # difference()
     difference_out = region_a.difference(region_b)
     assert isinstance(difference_out, Region)
+
+
+## Deprecation Tests
+@deprecationTest("3.3.0")
+def test_polygons_points():
+    points = ((1, 0, 0), (1, 1, 0), (2, 1, 0), (2, 0, 0))
+    poly = PolygonalRegion(points)
+    assert set(poly.points) == set(points)

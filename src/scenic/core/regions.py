@@ -2748,7 +2748,7 @@ class PolygonalRegion(Region):
 
     def __init__(
         self,
-        points=None,
+        points=(),
         polygon=None,
         z=0,
         orientation=None,
@@ -2759,8 +2759,8 @@ class PolygonalRegion(Region):
             name, points, polygon, z, *additionalDeps, orientation=orientation
         )
 
-        # Store main parameter
-        self._points = points
+        # Normalize and store main parameters
+        self._points = () if points is None else tuple(points)
         self._polygon = polygon
         self.z = z
 
@@ -2774,7 +2774,6 @@ class PolygonalRegion(Region):
             points = tuple(pt[:2] for pt in points)
             if len(points) == 0:
                 raise ValueError("tried to create PolygonalRegion from empty point list!")
-            self.points = points
             polygon = shapely.geometry.Polygon(points)
 
         if isinstance(polygon, shapely.geometry.Polygon):
@@ -2790,13 +2789,6 @@ class PolygonalRegion(Region):
             raise ValueError(
                 "tried to create PolygonalRegion with " f"invalid polygon {self.polygons}"
             )
-
-        if (
-            points is None
-            and len(self.polygons.geoms) == 1
-            and len(self.polygons.geoms[0].interiors) == 0
-        ):
-            self.points = tuple(self.polygons.geoms[0].exterior.coords[:-1])
 
         if self.polygons.is_empty:
             raise ValueError("tried to create empty PolygonalRegion")
@@ -2974,6 +2966,16 @@ class PolygonalRegion(Region):
 
     @property
     @distributionFunction
+    def points(self):
+        warnings.warn(
+            "The `points` method is deprecated and will be removed in Scenic 3.3.0."
+            "Users should use the `boundary` method instead.",
+            DeprecationWarning,
+        )
+        return self.boundary.points
+
+    @property
+    @distributionFunction
     def boundary(self) -> "PolylineRegion":
         """Get the boundary of this region as a `PolylineRegion`."""
         return PolylineRegion(polyline=self.polygons.boundary)
@@ -3049,7 +3051,14 @@ class PolygonalRegion(Region):
 
     @cached
     def __hash__(self):
-        return hash((self.polygons, self.orientation, self.z))
+        return hash(
+            (
+                self._points,
+                self._polygon,
+                self.orientation,
+                self.z,
+            )
+        )
 
 
 class CircularRegion(PolygonalRegion):
