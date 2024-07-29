@@ -2748,7 +2748,7 @@ class PolygonalRegion(Region):
 
     def __init__(
         self,
-        points=tuple(),
+        points=(),
         polygon=None,
         z=0,
         orientation=None,
@@ -2760,7 +2760,7 @@ class PolygonalRegion(Region):
         )
 
         # Normalize and store main parameters
-        self._points = tuple() if points is None else tuple(points)
+        self._points = () if points is None else tuple(points)
         self._polygon = polygon
         self.z = z
 

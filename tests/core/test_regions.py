@@ -9,7 +9,7 @@ from scenic.core.distributions import RandomControlFlowError, Range
 from scenic.core.object_types import Object, OrientedPoint
 from scenic.core.regions import *
 from scenic.core.vectors import VectorField
-from tests.utils import maxVersion, sampleSceneFrom
+from tests.utils import deprecationTest, sampleSceneFrom
 
 
 def sample_ignoring_rejections(region, num_samples):
@@ -820,9 +820,8 @@ def test_region_combinations(A, B):
 
 
 ## Deprecation Tests
+@deprecationTest("3.3.0")
 def test_polygons_points():
-    assert maxVersion("3.3.0")
-
     points = ((1, 0, 0), (1, 1, 0), (2, 1, 0), (2, 0, 0))
     poly = PolygonalRegion(points)
     assert set(poly.points) == set(points)
