@@ -5,14 +5,20 @@ import pathlib
 
 # TODO: research on open drive conversion for metadrive
 map_town = pathlib.Path(globalParameters.map).stem
+sumo_map = pathlib.Path(globalParameters.sumo_map).stem
+
 param map = map_town
+param sumo_map = sumo_map
 param timestep = 0.1
 param render = 1
+
+# (xmin, ymin), (xmax, ymax), _ = road.AABB
+# param map_center_offset = ...
 
 simulator MetaDriveSimulator(
     timestep=float(globalParameters.timestep),
     render=bool(globalParameters.render),
-    metadrive_map=globalParameters.map,
+    sumo_map=globalParameters.sumo_map,
 )
 
 class MetaDriveActor(DrivingObject):
@@ -38,7 +44,7 @@ class MetaDriveActor(DrivingObject):
         self.metaDriveActor.before_step([0, vel])
 
 
-class Vehicle(Vehicle, MetaDriveActor):
+class Vehicle(Vehicle, Steers, MetaDriveActor):
     """Abstract class for steerable vehicles."""
 
     def setThrottle(self, throttle):

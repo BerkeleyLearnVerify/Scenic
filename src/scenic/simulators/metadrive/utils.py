@@ -10,6 +10,7 @@ from metadrive.obs.observation_base import DummyObservation
 
 from scenic.core.geometry import normalizeAngle
 from scenic.core.vectors import Orientation, Vector
+import sys
 
 def metadriveToScenicPosition(loc):
     return Vector(loc[0], -loc[1], 0)
@@ -54,6 +55,6 @@ class DriveEnv(BaseEnv):
     
     def setup_engine(self):
         super().setup_engine()
-        map_path = AssetLoader.file_path("carla", "CARLA_town01.net.xml", unix_style=False)
-        self.engine.register_manager("map_manager", SumoMapManager(map_path))
-        # self.engine.register_manager("drive_mgr", DriveManager())
+        posix_path = self.config["sumo_map"]
+        final_path = str(posix_path) if not sys.platform.startswith("win") else posix_path.as_posix()
+        self.engine.register_manager("map_manager", SumoMapManager(final_path))

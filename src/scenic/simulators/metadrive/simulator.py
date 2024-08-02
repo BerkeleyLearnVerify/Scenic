@@ -27,25 +27,16 @@ class MetaDriveSimulator(DrivingSimulator):
             self,
             timestep=0.1,
             render=True,
-            metadrive_map={},
+            sumo_map=None,
         ):
         super().__init__()
-        # check to see if metadrive map is active
         self.render = render
-
         self.scenario_number = 0
         self.timestep = timestep
-    
-        # self.cleanup()  # Ensure cleanup before reset
-        # import pdb;pdb.set_trace()
-        # self.client.reset()
-        # current_map = draw_top_down_map(self.client.current_map)
-        # fig, ax = plt.subplots(figsize=(10, 10))  # Adjust figsize as needed
-        # draw_top_down_map(current_map, ax)
-        # ax.set_aspect('equal')  # Ensure aspect ratio is maintained
-        # plt.show()
-        # self.client.agent_manager.reset()
-        # self.client.reset()
+        if not sumo_map:
+            raise AssertionError("sumo_map needs to be specified")
+        self.sumo_map = sumo_map
+ 
     
     def createSimulation(self, scene, *, timestep, **kwargs):
         if timestep is not None and timestep != self.timestep:
@@ -56,9 +47,10 @@ class MetaDriveSimulator(DrivingSimulator):
         self.scenario_number += 1 
         return MetaDriveSimulation(
             scene, 
-            self.render,
-            self.scenario_number,
+            render=self.render,
+            scenario_number=self.scenario_number,
             timestep=self.timestep,
+            sumo_map=self.sumo_map,
             **kwargs,
         )
 
@@ -67,12 +59,17 @@ class MetaDriveSimulator(DrivingSimulator):
 
 
 class MetaDriveSimulation(DrivingSimulation):
-    def __init__(self, scene, render, scenario_number, **kwargs):
+    def __init__(self, scene, render, scenario_number, timestep, sumo_map, **kwargs):
+        if len(scene.objects) == 0:
+            raise AssertionError("The Metadrive interface requires you to define at least one Scenic object within the scene.")
+
         self.render = render
         self.scenario_number = scenario_number
         self.defined_ego = False
         self.client = None
-        super().__init__(scene, **kwargs)
+        self.timestep = timestep
+        self.sumo_map = sumo_map
+        super().__init__(scene, timestep=timestep, **kwargs)
 
     def setup(self):
         super().setup()
@@ -87,18 +84,17 @@ class MetaDriveSimulation(DrivingSimulation):
             print(f"Error during step: {e}")
         # self.client.render(mode="top_down", text={"Quit": "ESC"}, film_size=(2000, 2000))
 
-        
     def createObjectInSimulator(self, obj):
         if not self.defined_ego:
             self.client = DriveEnv(
                 dict(
                     use_render=self.render,
-                    # map_config=self.metadrive_map,
                     vehicle_config={"spawn_position_heading": [utils.scenicToMetaDrivePosition(obj.position), obj.heading]},
                     use_mesh_terrain=True,
                     log_level=logging.CRITICAL,
                 )
             )
+            self.client.config['sumo_map'] = self.sumo_map
             self.client.reset()
         
             metadrive_objects = self.client.engine.get_objects()
@@ -116,29 +112,28 @@ class MetaDriveSimulation(DrivingSimulation):
             
             
         return metadriveActor
-        # if obj.rolename is not None:
-        #     blueprint.set_attribute("role_name", obj.rolename)
-        # return 
+
     
     def destroy(self):
-        try:
+        if self.client:
             self.client.reset()
             self.client.close()
-        except AssertionError as ae:
-            print(f"Assertion error during reset: {ae}")
-        
         super().destroy()
 
     def getProperties(self, obj, properties):
+        # breakpoint()
+
         metaDriveActor = obj.metaDriveActor
         position = utils.metadriveToScenicPosition(metaDriveActor.last_position)
         velocity = utils.metadriveToScenicPosition(metaDriveActor.last_velocity)
         speed = metaDriveActor.last_speed
         angularSpeed=0
         angularVelocity=utils.metadriveToScenicPosition((0,0))
-        yaw=0
-        pitch = metaDriveActor.last_position[0]
-        roll = metaDriveActor.last_position[1]
+        yaw, pitch, _ = obj.parentOrientation.globalToLocalAngles(metaDriveActor.last_heading_dir[0], metaDriveActor.last_heading_dir[1], 0)
+
+        yaw = yaw
+        pitch = pitch
+        roll = 0
         elevation = 0
 
         values = dict(
