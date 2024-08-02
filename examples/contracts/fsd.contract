@@ -1,10 +1,248 @@
-component CameraPerceptionSystem(model):
-    """ A component that provides noisy distance to the car in front."""
+""" Inspired by Autoware (with modifications)"""
+
+## Components
+
+component FrontCamera():
     sensors:
         self.frontCamera: Img as image
 
     outputs:
-        dist: float
+        img: Img
 
     body:
-        return {"dist": model(image)}
+        return {"img": image}
+
+component GNSS():
+    sensors:
+        self.gps: Tuple[float, float, float] as gps
+
+    outputs:
+        geo_coords: Vector
+
+    body:
+        return {"geo_coords": gps[0], gps[1]}
+
+component IMU():
+    sensors:
+        self.imu_static: Orientation
+        self.imu_dynamic: TwistAccel
+
+    outputs:
+        orientation: Orientation
+        twist_accel: TwistAccel
+
+    body:
+        return {"orientation": self.imu_static, "twist_accel": self.imu_dynamic} 
+
+# TODO: Map component?
+#   - Autoware has one, but do we need one or should we abstract that to the controller?
+#   - If we do include one, how should we model the dataflow? One transfer of info?
+#     Every timestep? Should it be based on current GPS position? (another component?)
+
+component PosePrediction(hist_length=10):
+    inputs:
+        geo_coords: Vector
+        orientation: Orientation
+        twist_accel: TwistAccel
+
+    outputs:
+        pose: Pose
+
+    state:
+        last_pose: Optional[Pose] = None
+        last_geo_coords: List[Vector] = []
+
+    body:
+        geo_coords_hist = ([geo_coords] + last_geo_coords)[:hist_length]
+        if isConsistent(geo_coords_hist):
+            new_pose = poseFromGNSS(geo_coords, orientation)
+        else:
+            new_pose = poseFromDeadReckoning(twist_accel, last_pose)
+
+        state.last_geo_coords = geo_coords_hist
+        state.last_pose = new_pose
+        return {"pose": new_pose}
+
+component LocalizationSystem():
+    outputs:
+        twist_accel: TwistAccel
+        pose: Pose
+
+    compose:
+        gnss = GNSS()
+        imu = IMU()
+        pose_pred = PosePrediction()
+
+        connect gnss.geo_coords to pose_pred.geo_coords
+        connect imu.orientation to pose_pred.orientation
+        connect imu.twist_accel to pose_pred.twist_accel
+
+        connect pose_pred.pose to pose
+        connect imu.twist_accel to twist_accel
+
+component PerceptionSystem():
+    inputs:
+        img: Img
+        pose: Pose
+
+    outputs:
+        objects: List[RoadObject]
+        occupancy_grid: ndarray
+
+    body:
+        pass # TODO
+
+component PlanningSystem(destination):
+    inputs:
+        objects: List[RoadObject]
+        occupancy_grid: ndarray
+
+    outputs:
+        trajectory: PolylineRegion
+
+    body:
+        pass # TODO
+
+
+component ControlSystem():
+    inputs:
+        pose: Pose
+        twist_accel: TwistAccel
+        trajectory: PolylineRegion
+
+    outputs:
+        control_action: RegulatedControlAction
+
+    state:
+        past_steer: float = 0.0
+
+    body:
+        throttle, steer = pass # TODO
+        action = RegulatedControlAction(throttle, steer, state.past_steer,
+            max_throttle=1, max_brake=1, max_steer=1)
+        state.past_steer = steer
+        return {"control_action": action}
+
+component VehicleActuator():
+    actions:
+        control_action: RegulatedControlAction
+
+
+component Car(destination):
+    front_camera = FrontCamera()
+    localization_sys = LocalizationSystem()
+    perception_sys = PerceptionSystem()
+    planning_sys = PlanningSystem(destination)
+    control_sys = ControlSystem()
+    veh_actuator = VehicleActuator()
+
+    connect front_camera.img to perception_sys.img
+    connect localization_sys.pose to perception_sys.pose, planning_sys.pose, control_sys.pose
+    connect localization_sys.twist_accel to control_sys.twist_accel
+
+    connect perception_sys.objects to planning_sys.objects
+    connect perception_sys.occupancy_grid to planning_sys.occupancy_grid
+
+    connect planning_sys.trajectory to control_sys.trajectory
+
+    connect control_sys.control_action to veh_actuator.control_action
+
+## Contracts
+
+contract AccurateGNSS():
+    outputs:
+        geo_coords: Vector
+
+    definitions:
+        unobstructed_areas = ... # Region with 
+
+    guarantees:
+        always (self in unobstructed_areas) implies approxEqual(self.position, pose.position)
+
+contract AccuratePose():
+    outputs:
+        pose: Pose
+
+    guarantees:
+        always approxEqual(self.position, pose.position)
+
+contract PerceivesVisibleObjects():
+    globals:
+        objects
+
+    outputs:
+        perceived_objects: List[RoadObject]
+
+    definitions:
+        road_objects = [obj for obj in objects if isRoadObj(obj)]
+
+    guarantees:
+        forall obj in road_objects, (self can see obj) implies containsRelativeMatch(obj, perceived_objects)
+
+contract AccurateOccupancyGrid(threshold=0.5):
+    outputs:
+        occupancy_grid: ndarray
+
+    definitions:
+        road_objects = [obj for obj in objects if isRoadObj(obj)]
+
+    guarantees:
+        # Function should check that all values on the occupancy grid containing this object are above threshold
+        forall obj in road_objects, occupancyGridThreshold(obj, occupancy_grid, threshold)
+
+contract TrajectoryAvoidsCollisions():
+    inputs:
+        objects: List[RoadObject]
+
+    outputs:
+        trajectory: PolylineRegion
+
+    guarantees:
+        # TODO: Guarantee that our trajectory avoids objects and high risk pieces of the occupancy grid?
+
+contract ControlsFollowPlan():
+    inputs:
+        trajectory: PolylineRegion
+
+    outputs:
+        control_action: RegulatedControlAction
+
+    definitions:
+        next_waypoint = ...
+        ideal_angle = nearest_traj_point.angleTo(next_waypoint)
+
+    guarantees:
+        always control_action.steer == ideal_angle # Need to relativize
+
+contract ControlsEffect():
+    actions:
+        control_action: RegulatedControlAction
+
+    guarantees:
+        # TODO control_action has an expected effect for steering/throttle. 
+
+contract FullSelfDriving():
+    globals:
+        objects
+        workspace
+
+    definitions:
+        road_objects = [obj for obj in objects if isRoadObj(obj)]
+
+    assumptions:
+        ## TODO: Other road agents behave legally?
+
+        ## Base Cases for Safety invariants
+        # Assume we start in a lane
+        self._lane is not None
+
+        # Assume we start not colliding with anything
+        forall obj in road_objects, not (self intersects obj)
+
+    guarantees:
+        ## Safety properties
+        # Assume we always stay in a lane
+        always self._lane is not None
+
+        # The car never collides with any road objects
+        forall obj in road_objects, always not (self intersects obj) 
