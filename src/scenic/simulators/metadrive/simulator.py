@@ -12,12 +12,9 @@ except ImportError as e:
     raise ModuleNotFoundError('Metadrive scenarios require the "metadrive" Python package') from e
 
 from .utils import DriveEnv
-import matplotlib.pyplot as plt
 from scenic.core.simulators import SimulationCreationError
 from scenic.domains.driving.simulators import DrivingSimulation, DrivingSimulator
-from scenic.domains.driving.roads import Network
-from metadrive.engine.asset_loader import AssetLoader
-from metadrive.engine.asset_loader import initialize_asset_loader
+from scenic.simulators.metadrive.actions import *
 import logging
 
 import scenic.simulators.metadrive.utils as utils
@@ -34,9 +31,8 @@ class MetaDriveSimulator(DrivingSimulator):
         self.scenario_number = 0
         self.timestep = timestep
         if not sumo_map:
-            raise AssertionError("sumo_map needs to be specified")
+            raise SimulationCreationError("sumo_map needs to be specified")
         self.sumo_map = sumo_map
- 
     
     def createSimulation(self, scene, *, timestep, **kwargs):
         if timestep is not None and timestep != self.timestep:
@@ -61,7 +57,7 @@ class MetaDriveSimulator(DrivingSimulator):
 class MetaDriveSimulation(DrivingSimulation):
     def __init__(self, scene, render, scenario_number, timestep, sumo_map, **kwargs):
         if len(scene.objects) == 0:
-            raise AssertionError("The Metadrive interface requires you to define at least one Scenic object within the scene.")
+            raise SimulationCreationError("The Metadrive interface requires you to define at least one Scenic object within the scene.")
 
         self.render = render
         self.scenario_number = scenario_number
@@ -75,14 +71,10 @@ class MetaDriveSimulation(DrivingSimulation):
         super().setup()
     
     def step(self):
-        # import pdb; pdb.set_trace()
-        # for i in range(1, 100000):
-        # o, r, tm, tc, info = self.client.step(expert(self.client.agent))
-        try:
-            o, r, tm, tc, info = self.client.step([0,0])
-        except Exception as e:
-            print(f"Error during step: {e}")
-        # self.client.render(mode="top_down", text={"Quit": "ESC"}, film_size=(2000, 2000))
+        if (len(self.scene.objects) > 0):
+            obj = self.scene.objects[0]
+            action = obj.metaDriveActor.last_current_action[-1]
+            o, r, tm, tc, info = self.client.step(action)
 
     def createObjectInSimulator(self, obj):
         if not self.defined_ego:
@@ -96,33 +88,40 @@ class MetaDriveSimulation(DrivingSimulation):
             )
             self.client.config['sumo_map'] = self.sumo_map
             self.client.reset()
-        
+
+            self.defined_ego = True
+
             metadrive_objects = self.client.engine.get_objects()
             for _,v in metadrive_objects.items():
                 metaDriveActor = v
                 obj.metaDriveActor = metaDriveActor
                 return metaDriveActor
         
-        if isinstance(obj.metaDriveActor, DefaultVehicle):
-            metadriveActor = self.client.engine.spawn_object(DefaultVehicle, 
+        if (type(obj).__name__ == "Car"):
+            metaDriveActor = self.client.engine.spawn_object(DefaultVehicle, 
                                   vehicle_config=dict(), 
-                                  position=(0, 0), 
-                                  heading=0)
-            # metadriveActor.setThrottle(0)
+                                  position=utils.scenicToMetaDrivePosition(obj.position), 
+                                  heading=obj.heading)    
+            obj.metaDriveActor = metaDriveActor     
             
-            
-        return metadriveActor
+        return metaDriveActor
 
+    def safe_clear_objects(self, object_ids):
+        # Filter the list of object IDs to include only those that exist in the engine's spawned objects
+        existing_object_ids = [obj_id for obj_id in object_ids if obj_id in self.client.engine._spawned_objects]
+        breakpoint()
+        # Call the clear_objects method with the filtered list
+        self.client.engine.clear_objects(existing_object_ids, force_destroy=False)
     
     def destroy(self):
         if self.client:
-            self.client.reset()
+            self.safe_clear_objects(list(self.client.engine._spawned_objects.keys()))
+            # TODO: Clear only existing objects to avoid KeyError
             self.client.close()
+
         super().destroy()
 
     def getProperties(self, obj, properties):
-        # breakpoint()
-
         metaDriveActor = obj.metaDriveActor
         position = utils.metadriveToScenicPosition(metaDriveActor.last_position)
         velocity = utils.metadriveToScenicPosition(metaDriveActor.last_velocity)

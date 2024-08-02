@@ -3,7 +3,6 @@ from scenic.domains.driving.model import *
 from scenic.simulators.metadrive.actions import *
 import pathlib
 
-# TODO: research on open drive conversion for metadrive
 map_town = pathlib.Path(globalParameters.map).stem
 sumo_map = pathlib.Path(globalParameters.sumo_map).stem
 

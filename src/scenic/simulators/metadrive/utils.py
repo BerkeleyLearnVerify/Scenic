@@ -22,18 +22,15 @@ def scenicToMetaDrivePosition(vec):
 class DriveManager(BaseManager):
     def __init__(self):
         super(DriveManager, self).__init__()
-        self.generated_v = None
-        self.ped = None
-        self.generate_ts = 0
 
     def reset(self):
-        super().reset()  # Call super method after cleanup
+        super().reset()
         
     def before_step(self):
         pass
         
     def after_step(self):
-        pass
+        pass      
         
 
 class DriveEnv(BaseEnv):
