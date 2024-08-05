@@ -8,6 +8,7 @@ pytestmark = pytest.mark.filterwarnings(
     "ignore::scenic.core.simulators.SimulatorInterfaceWarning"
 )
 
+
 @pytest.mark.skip("Work to add setup and requirements to CI/CD")
 def test_basic(loadLocalScenario):
     scenario = loadLocalScenario("basic.scenic", mode2D=True)
@@ -19,10 +20,12 @@ def test_simulator_import():
     pytest.importorskip("metadrive")
     from scenic.simulators.metadrive import MetaDriveSimulator
 
+
 @pytest.mark.skip("Work to add setup and requirements to CI/CD")
 def test_no_metadrive_agents_present(getAssetPath):
     pytest.importorskip("metadrive")
     from scenic.simulators.metadrive import MetaDriveSimulator
+
     mapPath = getAssetPath("maps/CARLA/Town01.xodr")
     sudoMapPath = getAssetPath("maps/CARLA/Town01.net.xml")
     code = f"""
