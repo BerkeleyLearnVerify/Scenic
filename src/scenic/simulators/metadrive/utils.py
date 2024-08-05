@@ -1,38 +1,19 @@
-from metadrive.envs import MetaDriveEnv
-from metadrive.manager import BaseManager
-from metadrive.envs import BaseEnv
-from metadrive.component.vehicle.vehicle_type import DefaultVehicle
-from metadrive.policy.idm_policy import IDMPolicy
-from metadrive.component.traffic_participants.pedestrian import Pedestrian
-from metadrive.engine.asset_loader import AssetLoader
-from metadrive.manager.sumo_map_manager import SumoMapManager
-from metadrive.obs.observation_base import DummyObservation
+try:
+    from metadrive.envs import BaseEnv
+    from metadrive.manager.sumo_map_manager import SumoMapManager
+    from metadrive.obs.observation_base import DummyObservation
+except ImportError as e:
+    raise ModuleNotFoundError('Metadrive scenarios require the "metadrive" package') from e
 
-from scenic.core.geometry import normalizeAngle
-from scenic.core.vectors import Orientation, Vector
+from scenic.core.vectors import Vector
 import sys
 
 def metadriveToScenicPosition(loc):
     return Vector(loc[0], -loc[1], 0)
 
-def scenicToMetaDrivePosition(vec):
-    return (vec[0], -vec[-1])
-
-
-class DriveManager(BaseManager):
-    def __init__(self):
-        super(DriveManager, self).__init__()
-
-    def reset(self):
-        super().reset()
+def scenicToMetaDrivePosition(vec, center_x, center_y):
+    return (vec[0] + -center_x, vec[-1] + -center_y)   
         
-    def before_step(self):
-        pass
-        
-    def after_step(self):
-        pass      
-        
-
 class DriveEnv(BaseEnv):
     def reward_function(self, agent):
         """Dummy reward function."""

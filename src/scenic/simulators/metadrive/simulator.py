@@ -1,23 +1,15 @@
 try:
     from metadrive.component.vehicle.vehicle_type import DefaultVehicle
-    from metadrive.component.map.base_map import BaseMap
-    from metadrive.component.map.pg_map import MapGenerateMethod
-    from metadrive.examples.ppo_expert.numpy_expert import expert
-    from metadrive.utils.opendrive.map_load import load_opendrive_map
-    from metadrive.component.road_network.edge_road_network import OpenDriveRoadNetwork
-    from metadrive.component.opendrive_block.opendrive_block import OpenDriveBlock
-    from metadrive.policy.idm_policy import IDMPolicy
-    from metadrive.utils.draw_top_down_map import draw_top_down_map
 except ImportError as e:
-    raise ModuleNotFoundError('Metadrive scenarios require the "metadrive" Python package') from e
+    raise ModuleNotFoundError('Metadrive scenarios require the "metadrive" package') from e
 
 from .utils import DriveEnv
 from scenic.core.simulators import SimulationCreationError
 from scenic.domains.driving.simulators import DrivingSimulation, DrivingSimulator
 from scenic.simulators.metadrive.actions import *
-import logging
-
 import scenic.simulators.metadrive.utils as utils
+import logging
+import sys
 
 class MetaDriveSimulator(DrivingSimulator):
     def __init__(
@@ -25,14 +17,16 @@ class MetaDriveSimulator(DrivingSimulator):
             timestep=0.1,
             render=True,
             sumo_map=None,
+            center_x = None,
+            center_y = None,
         ):
         super().__init__()
         self.render = render
         self.scenario_number = 0
         self.timestep = timestep
-        if not sumo_map:
-            raise SimulationCreationError("sumo_map needs to be specified")
         self.sumo_map = sumo_map
+        self.center_x = center_x
+        self.center_y = center_y
     
     def createSimulation(self, scene, *, timestep, **kwargs):
         if timestep is not None and timestep != self.timestep:
@@ -47,6 +41,8 @@ class MetaDriveSimulator(DrivingSimulator):
             scenario_number=self.scenario_number,
             timestep=self.timestep,
             sumo_map=self.sumo_map,
+            center_x = self.center_x,
+            center_y = self.center_y,
             **kwargs,
         )
 
@@ -55,9 +51,16 @@ class MetaDriveSimulator(DrivingSimulator):
 
 
 class MetaDriveSimulation(DrivingSimulation):
-    def __init__(self, scene, render, scenario_number, timestep, sumo_map, **kwargs):
-        if len(scene.objects) == 0:
-            raise SimulationCreationError("The Metadrive interface requires you to define at least one Scenic object within the scene.")
+    def __init__(self, scene, render, scenario_number, timestep, sumo_map, center_x, center_y, **kwargs):
+        # NOTE: MetaDrive requires at least one agent to be defined per simulation run
+        try:
+            if len(scene.objects) == 0:
+                raise SimulationCreationError(
+                    "The Metadrive interface requires you to define at least one Scenic object."
+                )
+        except SimulationCreationError as e:
+            print(e)
+            sys.exit(1) 
 
         self.render = render
         self.scenario_number = scenario_number
@@ -65,6 +68,8 @@ class MetaDriveSimulation(DrivingSimulation):
         self.client = None
         self.timestep = timestep
         self.sumo_map = sumo_map
+        self.center_x = center_x
+        self.center_y = center_y
         super().__init__(scene, timestep=timestep, **kwargs)
 
     def setup(self):
@@ -81,15 +86,13 @@ class MetaDriveSimulation(DrivingSimulation):
             self.client = DriveEnv(
                 dict(
                     use_render=self.render,
-                    vehicle_config={"spawn_position_heading": [utils.scenicToMetaDrivePosition(obj.position), obj.heading]},
+                    vehicle_config={"spawn_position_heading": [utils.scenicToMetaDrivePosition(obj.position, self.center_x, self.center_y), obj.heading]},
                     use_mesh_terrain=True,
                     log_level=logging.CRITICAL,
                 )
             )
             self.client.config['sumo_map'] = self.sumo_map
             self.client.reset()
-
-            self.defined_ego = True
 
             metadrive_objects = self.client.engine.get_objects()
             for _,v in metadrive_objects.items():
@@ -98,25 +101,18 @@ class MetaDriveSimulation(DrivingSimulation):
                 return metaDriveActor
         
         if (type(obj).__name__ == "Car"):
-            metaDriveActor = self.client.engine.spawn_object(DefaultVehicle, 
+            metaDriveActor = self.client.engine.agent_manager.spawn_object(DefaultVehicle, 
                                   vehicle_config=dict(), 
-                                  position=utils.scenicToMetaDrivePosition(obj.position), 
+                                  position=utils.scenicToMetaDrivePosition(obj.position, self.center_x, self.center_y), 
                                   heading=obj.heading)    
             obj.metaDriveActor = metaDriveActor     
             
         return metaDriveActor
-
-    def safe_clear_objects(self, object_ids):
-        # Filter the list of object IDs to include only those that exist in the engine's spawned objects
-        existing_object_ids = [obj_id for obj_id in object_ids if obj_id in self.client.engine._spawned_objects]
-        breakpoint()
-        # Call the clear_objects method with the filtered list
-        self.client.engine.clear_objects(existing_object_ids, force_destroy=False)
     
     def destroy(self):
         if self.client:
-            self.safe_clear_objects(list(self.client.engine._spawned_objects.keys()))
-            # TODO: Clear only existing objects to avoid KeyError
+            object_ids = list(self.client.engine._spawned_objects.keys())
+            self.client.engine.agent_manager.clear_objects(object_ids)
             self.client.close()
 
         super().destroy()
