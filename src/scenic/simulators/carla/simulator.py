@@ -299,7 +299,7 @@ class CarlaSimulation(DrivingSimulation):
             roll=roll,
             elevation=elevation,
         )
-        
+
         return values
 
     def destroy(self):
