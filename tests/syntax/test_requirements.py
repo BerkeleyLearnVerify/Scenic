@@ -528,3 +528,13 @@ def test_deep_or():
             require all(o.x < 0 or o.x < -1 for o in objs)
             """
         )
+
+
+def test_temporal_in_atomic():
+    with pytest.raises(ScenicSyntaxError):
+        sampleSceneFrom(
+            """
+            objs = [new Object at 10@10, new Object at 20@20]
+            require all(eventually(o.x > 0) for o in objs)
+            """
+        )
