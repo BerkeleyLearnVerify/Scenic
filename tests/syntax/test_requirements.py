@@ -508,3 +508,23 @@ def test_deep_not():
             require all(not o.x > 0 for o in objs)
             """
         )
+
+
+def test_deep_and():
+    with pytest.raises(RejectionException):
+        sampleSceneFrom(
+            """
+            objs = [new Object at 10@10, new Object at 20@20]
+            require all(o.x > 0 and o.x < 0 for o in objs)
+            """
+        )
+
+
+def test_deep_or():
+    with pytest.raises(RejectionException):
+        sampleSceneFrom(
+            """
+            objs = [new Object at 10@10, new Object at 20@20]
+            require all(o.x < 0 or o.x < -1 for o in objs)
+            """
+        )
