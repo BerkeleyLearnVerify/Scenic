@@ -236,11 +236,20 @@ TEMPORAL_PREFIX_OPS = {
 }
 
 
+class AtomicCheckTransformer(Transformer):
+    def visit_Call(self, node: ast.Call):
+        func = node.func
+        if isinstance(func, ast.Name) and func.id in TEMPORAL_PREFIX_OPS:
+            self.makeSyntaxError(
+                f'malformed use of the "{func.id}" temporal operator', node
+            )
+        return self.generic_visit(node)
+
+
 class PropositionTransformer(Transformer):
     def __init__(self, filename="<unknown>") -> None:
         super().__init__(filename)
         self.nextSyntaxId = 0
-        self.inAtomic = False
 
     def transform(
         self, node: ast.AST, nextSyntaxId=0
@@ -262,12 +271,9 @@ class PropositionTransformer(Transformer):
         return newNode, self.nextSyntaxId
 
     def generic_visit(self, node):
-        # Don't recurse inside atomics.
-        old_inAtomic = self.inAtomic
-        self.inAtomic = True
-        super_val = super().generic_visit(node)
-        self.inAtomic = old_inAtomic
-        return super_val
+        acv = AtomicCheckTransformer(self.filename)
+        acv.visit(node)
+        return node
 
     def _register_requirement_syntax(self, syntax):
         """register requirement syntax for later use
@@ -346,7 +352,7 @@ class PropositionTransformer(Transformer):
 
     def visit_UnaryOp(self, node):
         # rewrite `not` in requirements into a proposition factory
-        if not isinstance(node.op, ast.Not) or self.inAtomic:
+        if not isinstance(node.op, ast.Not):
             return self.generic_visit(node)
 
         lineNum = ast.Constant(node.lineno)
@@ -366,14 +372,6 @@ class PropositionTransformer(Transformer):
             keywords=[],
         )
         return ast.copy_location(newNode, node)
-
-    def visit_Call(self, node: ast.Call):
-        func = node.func
-        if isinstance(func, ast.Name) and func.id in TEMPORAL_PREFIX_OPS:
-            self.makeSyntaxError(
-                f'malformed use of the "{func.id}" temporal operator', node
-            )
-        return self.generic_visit(node)
 
     def visit_Always(self, node: s.Always):
         value = self.visit(node.value)
