@@ -75,7 +75,7 @@ def test_circular_region():
     assert not circ3.intersects(circ)
     assert circ.distanceTo(Vector(4, -3)) == 0
     assert circ.distanceTo(Vector(1, -7)) == pytest.approx(3)
-    assert circ.AABB == ((2, -5), (6, -1), (0, 0))
+    assert circ.AABB == ((2, -5, 0), (6, -1, 0))
 
 
 def test_circular_sampling():
@@ -108,7 +108,7 @@ def test_rectangular_region():
     r3 = RectangularRegion(Vector(2.5, 4.5), 0, 1, 1)
     assert not rect.intersects(r3)
     assert rect.distanceTo((1 + 2 * math.sqrt(3), 4)) == pytest.approx(2)
-    (minx, miny), (maxx, maxy), _ = rect.AABB
+    (minx, miny, _), (maxx, maxy, _) = rect.AABB
     assert maxy == pytest.approx(3 + math.sqrt(3) / 2)
     assert miny == pytest.approx(1 - math.sqrt(3) / 2)
     assert maxx == pytest.approx(1.5 + math.sqrt(3))
@@ -136,7 +136,7 @@ def test_polyline_region():
     assert pl.equallySpacedPoints(3) == list(pl.points)
     assert pl.pointsSeparatedBy(math.sqrt(2)) == list(pl.points[:-1])
     assert pl.length == pytest.approx(2 * math.sqrt(2))
-    assert pl.AABB == ((0, 0), (1, 2), (0, 0))
+    assert pl.AABB == ((0, 0, 0), (1, 2, 0))
     start = pl.start
     assert isinstance(start, OrientedPoint)
     assert start.position == (0, 2)
@@ -205,7 +205,7 @@ def test_polygon_region():
     assert poly.distanceTo((2, 1.1, 4)) == pytest.approx(4)
     assert poly.containsObject(Object._with(position=(2, 1.25), width=0.49, length=0.49))
     assert not poly.containsObject(Object._with(position=(2, 1.25), width=1, length=0.49))
-    assert poly.AABB == ((1, 1), (3, 2), (0, 0))
+    assert poly.AABB == ((1, 1, 0), (3, 2, 0))
     line = PolylineRegion([(1, 1), (2, 1.8)])
     assert poly.intersects(line)
     assert line.intersects(poly)
@@ -399,10 +399,10 @@ def test_path_region():
     assert r2.distanceTo(Vector(0, 0, 0)) == pytest.approx(math.sqrt(18))
 
     # Test AABB
-    assert r1.AABB == ((0, 1), (0, 1), (0, 0))
-    assert r2.AABB == ((3, 4), (3, 4), (0, 3))
-    assert r3.AABB == ((6, 7), (6, 7), (0, 3))
-    assert r4.AABB == ((0, 7), (0, 7), (0, 3))
+    assert r1.AABB == ((0, 0, 0), (1, 1, 0))
+    assert r2.AABB == ((3, 3, 0), (4, 4, 3))
+    assert r3.AABB == ((6, 6, 0), (7, 7, 3))
+    assert r4.AABB == ((0, 0, 0), (7, 7, 3))
 
 
 def test_mesh_polygon_intersection():
@@ -567,7 +567,7 @@ def test_pointset_region():
     assert ps.distanceTo((3, 4)) == 0
     assert ps.distanceTo((3, 5)) == pytest.approx(1)
     assert ps.distanceTo((2, 3)) == pytest.approx(math.sqrt(2))
-    assert ps.AABB == ((1, 5), (2, 6), (0, 5))
+    assert ps.AABB == ((1, 2, 0), (5, 6, 5))
 
 
 def test_voxel_region():
@@ -603,7 +603,7 @@ def test_voxel_region():
         sampled_pt = vr1.uniformPointInner()
         assert vr1.containsPoint(sampled_pt)
 
-    assert vr1.AABB == ((2.5, 5.5), (3.5, 6.5), (4.5, 7.5))
+    assert vr1.AABB == ((2.5, 3.5, 4.5), (5.5, 6.5, 7.5))
 
     vg2 = trimesh.voxel.VoxelGrid(encoding=numpy.asarray(encoding))
 
@@ -741,25 +741,32 @@ def test_orientation_inheritance():
     assert c.intersect(r).orientation is v2
 
 
-# General test of region combinations
+## Automated Region Tests
 
 REGIONS = {
-    MeshVolumeRegion: MeshVolumeRegion(trimesh.creation.box((0.75, 0.75, 0.75))),
-    MeshSurfaceRegion: MeshSurfaceRegion(trimesh.creation.box((0.5, 0.5, 0.5))),
-    BoxRegion: BoxRegion(),
-    SpheroidRegion: SpheroidRegion(),
-    PolygonalFootprintRegion: PolygonalRegion(
-        [(0, 0.5), (0, 1), (2, 1), (0, 0)]
-    ).footprint,
-    PathRegion: PathRegion(points=[(6, 6), (6, 7, 1), (7, 7, 2), [7, 6, 3]]),
-    PolygonalRegion: PolygonalRegion([(0, 0.5), (0, 1), (2, 1), (0, 0)]),
-    CircularRegion: CircularRegion(Vector(29, 34), 5),
-    SectorRegion: SectorRegion(Vector(29, 34), 5, 1, 0.5),
-    RectangularRegion: RectangularRegion(Vector(1, 2), math.radians(30), 4, 2),
-    PolylineRegion: PolylineRegion([(0, 2), (1, 1), (0, 0)]),
-    PointSetRegion: PointSetRegion("foo", [(1, 2), (3, 4), (5, 6)]),
-    ViewRegion: ViewRegion(50, (1, 1)),
+    AllRegion("all"),
+    EmptyRegion("none"),
+    MeshVolumeRegion(trimesh.creation.box((0.75, 0.75, 0.75))),
+    MeshSurfaceRegion(trimesh.creation.box((0.5, 0.5, 0.5))),
+    BoxRegion(),
+    SpheroidRegion(),
+    PolygonalRegion([(0, 0.5), (0, 1), (2, 1), (0, 0)]).footprint,
+    PathRegion(points=[(6, 6), (6, 7, 1), (7, 7, 2), [7, 6, 3]]),
+    PolygonalRegion([(0, 0.5), (0, 1), (2, 1), (0, 0)]),
+    CircularRegion(Vector(29, 34), 5),
+    SectorRegion(Vector(29, 34), 5, 1, 0.5),
+    RectangularRegion(Vector(1, 2), math.radians(30), 4, 2),
+    PolylineRegion([(0, 2), (1, 1), (0, 0)]),
+    PointSetRegion("foo", [(1, 2), (3, 4), (5, 6)]),
+    ViewRegion(50, (1, 1)),
 }
+
+
+def regions_id(val):
+    return type(val).__name__
+
+
+# General test of region combinations
 
 INVALID_INTERSECTS = (
     {MeshSurfaceRegion, PathRegion},
@@ -776,21 +783,14 @@ INVALID_INTERSECTS = (
 )
 
 
-def regions_id(val):
-    return val[0].__name__
-
-
 @pytest.mark.slow
-@pytest.mark.parametrize(
-    "A,B", itertools.combinations(REGIONS.items(), 2), ids=regions_id
-)
+@pytest.mark.parametrize("A,B", itertools.combinations(REGIONS, 2), ids=regions_id)
 def test_region_combinations(A, B):
-    type_a, region_a = A
-    type_b, region_b = B
+    region_a = A
+    region_b = B
 
-    ## Check type correctness ##
-    assert isinstance(region_a, type_a)
-    assert isinstance(region_b, type_b)
+    type_a = type(A)
+    type_b = type(B)
 
     ## Check all output combinations ##
     # intersects()
@@ -817,6 +817,28 @@ def test_region_combinations(A, B):
     # difference()
     difference_out = region_a.difference(region_b)
     assert isinstance(difference_out, Region)
+
+
+# Test Region AABB
+@pytest.mark.slow
+@pytest.mark.parametrize("region", REGIONS, ids=regions_id)
+def test_region_AABB(region):
+    # Ensure region actually supports AABB
+    try:
+        region.AABB
+    except (NotImplementedError, TypeError):
+        return
+
+    # Check general structure
+    assert isinstance(region.AABB, tuple)
+    assert all(isinstance(b, tuple) for b in region.AABB)
+    assert len(region.AABB) == 2
+    assert all(len(b) == 3 for b in region.AABB)
+
+    # Sample some points and check that they're all contained
+    for pt in sample_ignoring_rejections(region, 1000):
+        for i in range(len(pt)):
+            assert region.AABB[0][i] <= pt[i] <= region.AABB[1][i]
 
 
 ## Deprecation Tests
