@@ -1,6 +1,7 @@
 from scenic.simulators.metadrive.simulator import MetaDriveSimulator 
 from scenic.domains.driving.model import *
 from scenic.simulators.metadrive.actions import *
+from scenic.simulators.metadrive.behaviors import *
 import pathlib
 
 try:
