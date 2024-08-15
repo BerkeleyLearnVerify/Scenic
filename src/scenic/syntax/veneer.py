@@ -249,6 +249,7 @@ from pathlib import Path
 import sys
 import traceback
 import typing
+import warnings
 
 from scenic.core.distributions import (
     Distribution,
@@ -1520,6 +1521,11 @@ def alwaysProvidesOrientation(region):
             sample = region.sample()
             return sample.orientation is not None or sample is nowhere
         except RejectionException:
+            return False
+        except Exception as e:
+            warnings.warn(
+                f"alwaysProvidesOrientation raised the following exception: {repr(e)}"
+            )
             return False
 
 
