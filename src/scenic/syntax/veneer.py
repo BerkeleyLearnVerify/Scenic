@@ -1524,7 +1524,7 @@ def alwaysProvidesOrientation(region):
             return False
         except Exception as e:
             warnings.warn(
-                f"alwaysProvidesOrientation raised the following exception: {repr(e)}"
+                f"While sampling internally to determine if a random region provides an orientation, the following exception was raised: {repr(e)}"
             )
             return False
 
