@@ -5,17 +5,17 @@ This repo contains the code to the Scenic-Gazebo interface.
  - Scenic 3 is required, as well as Python 3.8+, ROS Noetic, and Ubuntu 20.04.
  - The Ubuntu 20.04 requirement is due to ROS Noetic officicially supporting it. It should not be strictly required if you can get ROS Noetic running with Gazebo on your machine. Though this interface is only tested on Ubuntu 20.04.
  - Other than the official installation, ROS Noetic can also be installed with [RoboStack](https://robostack.github.io/index.html), which can be helpful if you are on MacOS or Windows.
- - Before you install, it might be good to consider installing Scenic outside any virtual environment for Gazebo/ROS purposes since Gazebo/ROS utilizes some Ubuntu native packages that is difficult to get from conda/pip
+ - It is strongly recommended to install Scenic outside any virtual environment for Gazebo/ROS purposes since Gazebo/ROS utilizes some Ubuntu native packages that is difficult to get from conda/pip
  - When installing Scenic, please do the "Repository" install outlined in this page: https://scenic-lang.readthedocs.io/en/latest/quickstart.html#installation 
  - In terms of using ROS and Gazebo, it should be fine to control your robot without ROS. However, Gazebo needs to be started with ROS.
 
 ## Instructions for Use
-
+If you are new to Gazebo/ROS, we highly recommend you start by going through the [ROS tutorial](https://wiki.ros.org/ROS/Tutorials)
  1. Before running Scenic, start the Gazebo simulator with ROS, launch and bringup any ROS stack you need, and unpause the
-    simulation. 
+    simulation.
  2. Open a separate terminal, run `scenic <YOUR PROGRAM>.scenic --simulate`(see https://scenic-lang.readthedocs.io/en/latest/options.html for more
-    command-line options). Make sure you sourced the corresponding `.bash` or `.zsh` needed to run your simulaton in this terminal, too!.
- 3. In general, any launch files should be run before starting Scenic.
+    command-line options). Make sure you sourced the corresponding `.bash` or `.zsh` in your ROS workspace needed to run your simulaton in this terminal, too!.
+ 3. In general, any ROS launch files should be run before starting Scenic.
  4. Any new models (e.g. furniture, small objects) should be added in `model.scenic`. See below for more notes on adding models. 
 
 ## Important Notes

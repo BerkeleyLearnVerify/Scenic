@@ -3,7 +3,6 @@ from scenic.simulators.Gazebo_sawyer.simulator import GazeboSimulator, GazeboSim
 from scenic.core.utils import repairMesh
 import os
 
-#TODO delete spawn model in the initialization of the robot simulator world.
 # Convention:
 # for new objects: let the width  be the dimension along the gazebo y direcition,
 # the length the direction along the gazebo x axis,
@@ -11,9 +10,10 @@ import os
 
 # Positions are the 'map' frame NOT according to gazebo but to the robot
 # Will be converted backstage for other purposes
+
 simulator GazeboSimulator()
 # TODO fill int he prefix/suffixes to where you store your sdf/urdf files
-object_prefix = '<Your prefix>/Scenic/src/scenic/simulators/Gazebo_sawyer' + '/gazebo_models/' # TODO your model's path
+object_prefix = '<Your prefix>' + '/gazebo_models/' # TODO put here where you cloned gazebo_models
 default_file_name = "model.sdf"
 get_sdf_dir = lambda s: object_prefix +  s + "/" + default_file_name
 

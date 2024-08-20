@@ -5,17 +5,17 @@ This repo contains the code to the Scenic-Gazebo interface applied to Sawyer rob
  - Scenic 3 is required, as well as Python 3.8+, ROS Noetic, and Ubuntu 20.04.
  - The Ubuntu 20.04 requirement is due to ROS Noetic officicially supporting it. It should not be strictly required if you can get ROS Noetic running with Gazebo on your machine. Though this interface is only tested on Ubuntu 20.04.
  - Other than the official installation, ROS Noetic can also be installed with [RoboStack](https://robostack.github.io/index.html), which can be helpful if you are on MacOS or Windows.
- - Before you install, it might be good to consider installing Scenic outside any virtual environment for Gazebo/ROS purposes since Gazebo/ROS utilizes some Ubuntu native packages that is difficult to get from conda/pip
+ - It is highly recommended to install Scenic outside any virtual environment for Gazebo/ROS purposes since Gazebo/ROS utilizes some Ubuntu native packages that is difficult to get from conda/pip
  - When installing Scenic, please do the "Repository" install outlined in this page: https://scenic-lang.readthedocs.io/en/latest/quickstart.html#installation 
- - For the Sawyer simulator, please install according to the instruction here: https://github.com/RethinkRobotics/sawyer_simulator
- - For object models (sdf files), please clone this repo into the interface directory: https://github.com/osrf/gazebo_models
+ - For the Sawyer simulator, please install according to the instruction here: https://github.com/RethinkRobotics/sawyer_simulator, note to use the `noetic-devel` branch of the cloned Sawyer repo.
+ - For object models (sdf files), please clone this [repo](https://github.com/osrf/gazebo_models) and update the `object_prefix` variable at the beginning of `model.scenic` with directory of the cloned repo. This repo contains a number of useful sdf files for object models and is used for the running `demos/example.scenic`. However, if you are not running that example, you don't have to clone this repo.
 
 ## Instructions for Use
-
+If you are new to ROS, we highly recommend starting with the [ROS tutorial](https://wiki.ros.org/ROS/Tutorials).
  1. Before running Scenic, start the Sawyer simulator and unpause the
     simulation. Remember to set the `electric_gripper` field for the launch file to be true.
  2. Open a separate terminal, run `scenic <YOUR PROGRAM>.scenic --simulate`(see https://scenic-lang.readthedocs.io/en/latest/options.html for more
-    command-line options). See the files in the `demos` foler for examples.
+    command-line options). See the files in the `demos` folder for examples. As always with ROS, don't forget to source the `devel/setup.bash` or `devel/setup.zsh` file in your ROS workspace beforehand!!!
  3. In general, any launch files should be run before starting Scenic.
  4. Any new models (e.g. furniture, small objects) should be added in `model.scenic`. See below for more notes on adding models. 
 
