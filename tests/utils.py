@@ -1,9 +1,12 @@
 """Utilities used throughout the test suite."""
 
+import functools
 from importlib import metadata
+import importlib.metadata
 import inspect
 import math
 import multiprocessing
+import re
 import sys
 import types
 import weakref
@@ -576,3 +579,21 @@ def areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs, extraIgnores):
                 fail()
                 return False
     return True
+
+
+def deprecationTest(removalVersion):
+    def decorator(function):
+        @functools.wraps(function)
+        def wrapper(*args, **kwargs):
+            m_ver = tuple(re.split(r"\D+", removalVersion)[:3])
+            c_ver = tuple(re.split(r"\D+", importlib.metadata.version("scenic"))[:3])
+            assert (
+                m_ver > c_ver
+            ), "Maximum version exceeded. The tested functionality and the test itself should be removed."
+
+            with pytest.deprecated_call():
+                return function(*args, **kwargs)
+
+        return wrapper
+
+    return decorator

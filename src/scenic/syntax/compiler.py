@@ -342,6 +342,9 @@ class PropositionTransformer(Transformer):
 
         self.atomic_transformer = atomic_transformer
         self.syntax_transformer = syntax_transformer
+        self.nextSyntaxId = 0
+
+        self.inAtomic = False
 
     def transform(self, node: ast.AST) -> Tuple[ast.AST, List[ast.AST], int]:
         """`transform` takes an AST node and apply transformations needed for temporal evaluation
@@ -357,6 +360,14 @@ class PropositionTransformer(Transformer):
             return wrapped
         newNode = self._create_atomic_proposition_factory(node)
         return newNode
+
+    def generic_visit(self, node):
+        # Don't recurse inside atomics.
+        old_inAtomic = self.inAtomic
+        self.inAtomic = True
+        super_val = super().generic_visit(node)
+        self.inAtomic = old_inAtomic
+        return super_val
 
     def _register_syntax(self, syntax):
         """register requirement syntax for later use
@@ -450,7 +461,7 @@ class PropositionTransformer(Transformer):
 
     def visit_UnaryOp(self, node):
         # rewrite `not` in requirements into a proposition factory
-        if not isinstance(node.op, ast.Not):
+        if not isinstance(node.op, ast.Not) or self.inAtomic:
             return self.generic_visit(node)
 
         lineNum = ast.Constant(node.lineno)

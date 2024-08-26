@@ -797,3 +797,19 @@ def test_object_expression():
     for i in range(3):
         scene = sampleScene(scenario, maxIterations=50)
         assert len(scene.objects) == 3
+
+
+## Rejection vs Invalid Scenario Errors
+
+
+def test_rejection_invalid():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic(
+            """
+            from scenic.core.distributions import RejectionException
+            def foo():
+                raise RejectionException("foo")
+                return Vector(1,1,1)
+            new Object at foo()
+            """
+        )
