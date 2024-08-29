@@ -28,7 +28,7 @@ from scenic.simulators.Gazebo_sawyer.utils.start_gazebo import (
     ResetGazeboWorldAndSim,
     UnpauseGazebo,
 )
-from scenic.simulators.Gazebo_sawyer.utils.state_utils import (  # GetGazeboWorldModelNames,; GetGazeboWorldProperties,
+from scenic.simulators.Gazebo_sawyer.utils.state_utils import ( 
     GetObjectPose,
     GetObjectState,
     SetModelPose,

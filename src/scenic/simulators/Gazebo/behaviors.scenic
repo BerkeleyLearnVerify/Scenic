@@ -18,5 +18,4 @@ behavior WaitForTimeROS(wait_time):
     while (t1.secs + t1.nsecs/(10**9) - t0.secs - t0.nsecs/(10**9)) < wait_time:
         wait
         t1 = rospy.get_rostime()
-        # print((t1.secs + t1.nsecs/(10**9) - t0.secs - t0.nsecs/(10**9)))
 
