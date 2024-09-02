@@ -249,6 +249,7 @@ from pathlib import Path
 import sys
 import traceback
 import typing
+import warnings
 
 from scenic.contracts.components import ActionComponent, BaseComponent, ComposeComponent
 from scenic.contracts.contracts import Contract
@@ -1528,6 +1529,11 @@ def alwaysProvidesOrientation(region):
             sample = region.sample()
             return sample.orientation is not None or sample is nowhere
         except RejectionException:
+            return False
+        except Exception as e:
+            warnings.warn(
+                f"While sampling internally to determine if a random region provides an orientation, the following exception was raised: {repr(e)}"
+            )
             return False
 
 

@@ -1198,3 +1198,19 @@ def test_color():
             ego = new Object with color (1,1,1,1,1)
             """
         sampleEgoFrom(program)
+
+
+# alwaysProvidesOrientation
+def test_alwaysProvidesOrientation_exception():
+    with pytest.warns(UserWarning):
+        compileScenic(
+            """
+            from scenic.core.distributions import distributionFunction
+
+            @distributionFunction
+            def foo(bar):
+                assert False
+
+            new Object in foo(Range(0,1))
+            """
+        )

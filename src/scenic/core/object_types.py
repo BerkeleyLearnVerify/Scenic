@@ -1038,6 +1038,7 @@ class Object(OrientedPoint):
         "occluding": True,
         "showVisibleRegion": False,
         "color": None,
+        "render": True,
         "velocity": PropertyDefault((), {"dynamic"}, lambda self: Vector(0, 0, 0)),
         "speed": PropertyDefault((), {"dynamic"}, lambda self: 0),
         "angularVelocity": PropertyDefault((), {"dynamic"}, lambda self: Vector(0, 0, 0)),
@@ -1555,6 +1556,9 @@ class Object(OrientedPoint):
         if needsSampling(self):
             raise RuntimeError("tried to show() symbolic Object")
 
+        if not self.render:
+            return
+
         # Render the object
         object_mesh = self.occupiedSpace.mesh.copy()
 
@@ -1569,7 +1573,12 @@ class Object(OrientedPoint):
             else:
                 assert False
 
-            object_mesh.visual.face_colors = [255 * r, 255 * g, 255 * b, 255 * a]
+            object_mesh.visual.face_colors = [
+                int(255 * r),
+                int(255 * g),
+                int(255 * b),
+                int(255 * a),
+            ]
 
         viewer.add_geometry(object_mesh)
 
