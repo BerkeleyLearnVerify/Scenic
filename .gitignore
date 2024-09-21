@@ -140,4 +140,5 @@ dmypy.json
 # generated parser
 src/scenic/syntax/parser.py
 
-simulation.gif
+# airsim
+src/scenic/simulators/airsim/more
