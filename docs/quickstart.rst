@@ -25,28 +25,22 @@ If you encounter any errors, please see our :doc:`install_notes` for suggestions
 
 	.. tab:: macOS
 
-		Start by downloading `Blender <https://www.blender.org/download/>`__ and `OpenSCAD <https://openscad.org/downloads.html>`__ and installing them into your :file:`Applications` directory.
-
 		.. include:: _templates/installation.rst
 
 	.. tab:: Linux
 
-		Start by installing the Python-Tk interface, Blender, and OpenSCAD.
+		Start by installing the Python-Tk interface.
 		You can likely use your system's package manager; e.g. on Debian/Ubuntu run:
 
 		.. code-block:: text
 
-			sudo apt-get install python3-tk blender openscad
-
-		For other Linux distributions or if you need to install from source, see the download pages for `Blender <https://www.blender.org/download/>`__ and `OpenSCAD <https://openscad.org/downloads.html>`__.
+			sudo apt-get install python3-tk
 
 		.. include:: _templates/installation.rst
 
 	.. tab:: Windows
 
 		These instructions cover installing Scenic natively on Windows; if you are using the `Windows Subsystem for Linux <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ (on Windows 10 and newer), see the WSL tab instead.
-
-		Start by downloading and running the installers for `Blender <https://www.blender.org/download/>`__ and `OpenSCAD <https://openscad.org/downloads.html>`__.
 
 		.. include:: _templates/installation.rst
 			:end-before: .. venv-setup-start
@@ -64,12 +58,12 @@ If you encounter any errors, please see our :doc:`install_notes` for suggestions
 		These instructions cover installing Scenic on the Windows Subsystem for Linux (WSL).
 
 		If you haven't already installed WSL, you can do that by running :command:`wsl --install` (in either Command Prompt or PowerShell) and restarting your computer.
-		Then open a WSL terminal and run the following commands to install Python, the Python-Tk interface, Blender, and OpenSCAD:
+		Then open a WSL terminal and run the following commands to install Python and the Python-Tk interface:
 
 		.. code-block:: text
 
 			sudo apt-get update
-			sudo apt-get install python3 python3-tk blender openscad
+			sudo apt-get install python3 python3-tk
 
 		.. include:: _templates/installation.rst
 			:end-before: .. venv-setup-start
@@ -177,3 +171,5 @@ Depending on what you'd like to do with Scenic, different parts of the documenta
 	* If you want to control Scenic from Python rather than using the command-line tool (for example if you want to collect data from the generated scenarios), see :doc:`api`.
 
 	* If you want to add a feature to the language or otherwise need to understand Scenic's inner workings, see our pages on :doc:`developing` and :ref:`internals`.
+
+If you can't find something in the documentation, or have any question about Scenic, feel free to post on our `community forum <https://forum.scenic-lang.org/>`_.

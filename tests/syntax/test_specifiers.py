@@ -10,6 +10,7 @@ from tests.utils import (
     compileScenic,
     sampleEgo,
     sampleEgoFrom,
+    sampleParamPFrom,
     sampleScene,
     sampleSceneFrom,
 )
@@ -33,14 +34,14 @@ def test_lazy_cyclic_dependency():
             """
             vf = VectorField("Foo", lambda pos: 3 * pos.x)
             ego = new Object at 0 @ (0 relative to vf)
-        """
+            """
         )
     with pytest.raises(SpecifierError):
         compileScenic(
             """
             vf = VectorField("Foo", lambda pos: 3 * pos.x)
             ego = new Object at (0, 0 relative to vf)
-        """
+            """
         )
 
 
@@ -467,7 +468,7 @@ def test_beyond_3d():
         import math
         ego = new Object at (10, 5, 15)
         ego = new Object beyond (11, 6, 15 + math.sqrt(2)) by (0, 10, 0)
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx(
         (16, 11, 15 + math.sqrt(2) + (10 / math.sqrt(2)))
@@ -491,7 +492,7 @@ def test_beyond_from_3d():
         """
         import math
         ego = new Object beyond (11, 6, 15 + math.sqrt(2)) by (0, 10, 0) from (10, 5, 15)
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx(
         (16, 11, 15 + math.sqrt(2) + (10 / math.sqrt(2)))
@@ -501,9 +502,29 @@ def test_beyond_from_3d():
 # Visible
 def test_visible():
     scenario = compileScenic(
-        "ego = new Object at 100 @ 200, facing -45 deg,\n"
-        "             with visibleDistance 10, with viewAngle 90 deg\n"
-        "ego = new Object visible"
+        """
+        ego = new Object at 100 @ 200, facing -45 deg,
+                     with visibleDistance 10, with viewAngle 90 deg
+        ego = new Object visible
+        """
+    )
+    radius = math.hypot(0.5, 0.5, 0.5)
+    for i in range(30):
+        scene = sampleScene(scenario, maxIterations=100)
+        ego, base = scene.objects
+        assert ego.position.distanceTo(base.position) <= 10 + radius
+        assert ego.position.x >= base.position.x - radius
+        assert ego.position.y >= base.position.y - radius
+
+
+def test_visible_2d():
+    scenario = compileScenic(
+        """
+        ego = new Object at 100 @ 200, facing -45 deg,
+                     with visibleDistance 10, with viewAngle 90 deg
+        ego = new Object visible
+        """,
+        mode2D=True,
     )
     for i in range(30):
         scene = sampleScene(scenario, maxIterations=10)
@@ -513,9 +534,30 @@ def test_visible():
         assert ego.position.y >= base.position.y
 
 
+def test_visible_position_underspecified():
+    with pytest.raises(InvalidScenarioError):
+        scenario = compileScenic(
+            """
+            from scenic.core.distributions import distributionFunction
+
+            @distributionFunction
+            def dummyFunc(arg):
+                return arg.position[2]
+
+            foo = new Object at (0,0,Range(1,2))
+            ego = new Object visible from foo, with width dummyFunc(foo)
+            """,
+        )
+
+
 def test_visible_no_ego():
     with pytest.raises(InvalidScenarioError):
         compileScenic("ego = new Object visible")
+
+
+def test_visible_no_ego_2():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic("new Object visible")
 
 
 def test_visible_from_point():
@@ -523,9 +565,10 @@ def test_visible_from_point():
         "x = new Point at 300@200, with visibleDistance 2\n"
         "ego = new Object visible from x"
     )
+    radius = math.hypot(0.5, 0.5, 0.5)
     for i in range(20):
-        scene = sampleScene(scenario, maxIterations=10)
-        assert scene.egoObject.position.distanceTo(Vector(300, 200)) <= 2
+        scene = sampleScene(scenario, maxIterations=100)
+        assert scene.egoObject.position.distanceTo(Vector(300, 200)) <= 2 + radius
 
 
 def test_visible_from_point_3d():
@@ -533,9 +576,10 @@ def test_visible_from_point_3d():
         "x = new Point at (300, 200, 500), with visibleDistance 2\n"
         "ego = new Object visible from x"
     )
+    radius = math.hypot(0.5, 0.5, 0.5)
     for i in range(20):
-        scene = sampleScene(scenario, maxIterations=10)
-        assert scene.egoObject.position.distanceTo(Vector(300, 200, 500)) <= 2
+        scene = sampleScene(scenario, maxIterations=100)
+        assert scene.egoObject.position.distanceTo(Vector(300, 200, 500)) <= 2 + radius
 
 
 def test_visible_from_oriented_point():
@@ -546,11 +590,11 @@ def test_visible_from_oriented_point():
     )
     base = Vector(100, 200)
     for i in range(20):
-        scene = sampleScene(scenario, maxIterations=10)
+        scene = sampleScene(scenario, maxIterations=100)
         pos = scene.egoObject.position
-        assert pos.distanceTo(base) <= 5
-        assert pos.x <= base.x
-        assert pos.y >= base.y
+        assert pos.distanceTo(base) <= 5 + math.hypot(0.5, 0.5, 0.5)
+        assert pos.x <= base.x + math.hypot(0.5, 0.5, 0.5)
+        assert pos.y >= base.y - math.hypot(0.5, 0.5, 0.5)
 
 
 @pytest.mark.slow
@@ -579,7 +623,7 @@ def test_point_visible_from_object():
             with height 6,
             with name "wall",
             with occluding False
-    """,
+        """,
         maxIterations=1,
     )
 
@@ -622,11 +666,11 @@ def test_not_visible():
         ego = new Object at 100 @ 200, facing -45 deg,
                      with visibleDistance 10, with viewAngle 90 deg
         ego = new Object not visible
-    """
+        """
     )
     base = Vector(100, 200)
     for i in range(20):
-        pos = sampleEgo(scenario, maxIterations=50).position
+        pos = sampleEgo(scenario, maxIterations=100).position
         assert pos.x < 100 or pos.y < 200 or pos.distanceTo(base) > 10
 
 
@@ -637,12 +681,12 @@ def test_not_visible_2d():
         ego = new Object at 100 @ 200, facing -45 deg,
                      with visibleDistance 10, with viewAngle 90 deg
         ego = new Object not visible
-    """,
+        """,
         mode2D=True,
     )
     base = Vector(100, 200)
     for i in range(20):
-        pos = sampleEgo(scenario, maxIterations=50).position
+        pos = sampleEgo(scenario, maxIterations=100).position
         assert pos.x < 100 or pos.y < 200 or pos.distanceTo(base) > 10
 
 
@@ -653,11 +697,11 @@ def test_not_visible_from():
         ego = new Object at 100 @ 200, facing -45 deg,
                      with visibleDistance 10, with viewAngle 90 deg
         ego = new Object in workspace, not visible from ego
-    """
+        """
     )
     base = Vector(100, 200)
     for i in range(20):
-        pos = sampleEgo(scenario, maxIterations=50).position
+        pos = sampleEgo(scenario, maxIterations=100).position
         assert pos.x < 100 or pos.y < 200 or pos.distanceTo(base) > 10
 
 
@@ -668,7 +712,7 @@ def test_not_visible_from_2d():
         ego = new Object at 100 @ 200, facing -45 deg,
                      with visibleDistance 10, with viewAngle 90 deg
         ego = new Object not visible from ego
-    """,
+        """,
         mode2D=True,
     )
     base = Vector(100, 200)
@@ -732,6 +776,11 @@ def test_in_heading():
         assert -50 <= pos.y <= 50
         assert pos.x == pytest.approx(-pos.y)
         assert scene.egoObject.heading == pytest.approx(math.radians(45))
+
+
+def test_in_everywhere():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic("ego = new Object in everywhere")
 
 
 def test_in_mistyped():
@@ -811,7 +860,7 @@ def test_on_object():
         """
         floor = new Object with shape BoxShape(dimensions=(40,40,0.1))
         ego = new Object on floor
-    """
+        """
     )
     for i in range(30):
         ego = sampleEgo(scenario, maxIterations=1000)
@@ -825,7 +874,7 @@ def test_on_position():
     scenario = compileScenic(
         """
         ego = new Object on (0,0,0)
-    """
+        """
     )
     for i in range(30):
         ego = sampleEgo(scenario, maxIterations=1000)
@@ -858,7 +907,7 @@ def test_on_parentOrientation():
         box = new Object facing (Range(0, 360 deg), Range(0, 360 deg), Range(0, 360 deg)),
                 with width 5, with length 5, with height 5
         ego = new Object on box
-    """
+        """
     )
     for _ in range(30):
         sampleScene(scenario, maxIterations=1)
@@ -884,7 +933,7 @@ def test_on_modifying_object_side():
         workspace = Workspace(BoxRegion(dimensions=(10,10,10)))
         box = new Object with width 5, with length 5, with height 5
         ego = new Object in workspace, on box.frontSurface, with shape ConeShape()
-    """
+        """
     )
     for i in range(30):
         ego = sampleEgo(scenario, maxIterations=1000)
@@ -899,7 +948,7 @@ def test_on_modifying_object_onDirection():
         box = new Object with width 5, with length 5, with height 5
         ego = new Object in workspace, on box.surface, with shape ConeShape(),
             with onDirection (0,1,0)
-    """
+        """
     )
     for i in range(30):
         ego = sampleEgo(scenario, maxIterations=1000)
@@ -916,7 +965,7 @@ def test_on_modifying_surface_onDirection():
         box = BoxRegion(dimensions=(5,5,5), onDirection=(0,1,0)).getSurfaceRegion()
         ego = new Object in workspace, on box, with shape ConeShape(),
             with onDirection (0,1,0)
-    """
+        """
     )
     for i in range(30):
         ego = sampleEgo(scenario, maxIterations=1000)
@@ -937,7 +986,7 @@ def test_on_incompatible():
             """
             box = BoxRegion()
             ego = new Object on box, on box
-        """
+            """
         )
 
 
@@ -949,7 +998,7 @@ def test_following():
                          minSteps=4, defaultStepSize=1)
         ego = new Object at 1@1
         ego = new Object following vf for 4
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((-1, 3, 0))
     assert ego.heading == pytest.approx(math.radians(90))
@@ -961,7 +1010,7 @@ def test_following_from():
         vf = VectorField("Foo", lambda pos: 90 deg * (pos.x + pos.y - 1),
                          minSteps=4, defaultStepSize=1)
         ego = new Object following vf from 1@1 for 4
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((-1, 3, 0))
     assert ego.heading == pytest.approx(math.radians(90))
@@ -973,7 +1022,7 @@ def test_following_random():
         vf = VectorField('Foo', lambda pos: -90 deg)
         x = Range(1, 2)
         ego = new Object following vf from 1@2 for x, facing x
-    """
+        """
     )
     assert tuple(ego.position) == pytest.approx((1 + ego.heading, 2, 0))
 
@@ -999,7 +1048,7 @@ def test_facing_random_parentOrientation():
         """
         ego = new Object facing (90 deg, 90 deg, 90 deg),
             with parentOrientation (Range(0, 360 deg), Range(0, 360 deg), Range(0, 360 deg))
-    """
+        """
     )
     for _ in range(10):
         ego = sampleEgo(scenario)
@@ -1024,6 +1073,20 @@ def test_facing_vf_3d():
     assert ego.orientation.approxEq(
         Orientation.fromEuler(math.radians(1), math.radians(5), math.radians(3))
     )
+
+
+def test_facing_equivalence():
+    p = sampleParamPFrom(
+        """
+        a = new OrientedPoint facing (Orientation.fromEuler(-135 deg, 45 deg, 0)
+            relative to Orientation.fromEuler(90 deg, 0, 0))
+
+        b = new OrientedPoint with parentOrientation (90 deg, 0, 0), with yaw -135 deg, with pitch 45 deg, with roll 0
+        param p = (a, b)
+        """
+    )
+    a, b = p
+    assert a.orientation.eulerAngles == pytest.approx(b.orientation.eulerAngles)
 
 
 # Facing Toward/Away From
@@ -1068,6 +1131,21 @@ def test_facing_directly_away_from():
     assert ego.roll == 0
 
 
+def test_facing_directly_toward_parent_orientation():
+    ego = sampleEgoFrom(
+        """
+        ego = new Object facing directly toward (1, 1, 2**0.5),
+            with parentOrientation (90 deg, 0, 0)
+    """
+    )
+    assert ego.yaw == pytest.approx(-math.radians(135))
+    assert ego.pitch == pytest.approx(math.radians(45))
+    assert ego.roll == pytest.approx(0)
+    assert ego.orientation.approxEq(
+        Orientation.fromEuler(math.radians(-45), math.radians(45), 0)
+    )
+
+
 # Apparently Facing
 def test_apparently_facing():
     ego = sampleEgoFrom(
@@ -1093,3 +1171,46 @@ def test_shape():
 
     with pytest.raises(InvalidScenarioError):
         sampleEgoFrom(program, mode2D=True)
+
+
+# Color
+def test_color():
+    program = """
+        ego = new Object with color (0.5,0.5,0.5,0.5)
+        """
+    ego = sampleEgoFrom(program)
+    assert ego.color == (0.5, 0.5, 0.5, 0.5)
+
+    program = """
+        ego = new Object with color (0.5,0.5,0.5)
+        """
+    ego = sampleEgoFrom(program)
+    assert ego.color == (0.5, 0.5, 0.5)
+
+    with pytest.raises(ValueError):
+        program = """
+            ego = new Object with color (255,0,0)
+            """
+        sampleEgoFrom(program)
+
+    with pytest.raises(ValueError):
+        program = """
+            ego = new Object with color (1,1,1,1,1)
+            """
+        sampleEgoFrom(program)
+
+
+# alwaysProvidesOrientation
+def test_alwaysProvidesOrientation_exception():
+    with pytest.warns(UserWarning):
+        compileScenic(
+            """
+            from scenic.core.distributions import distributionFunction
+
+            @distributionFunction
+            def foo(bar):
+                assert False
+
+            new Object in foo(Range(0,1))
+            """
+        )

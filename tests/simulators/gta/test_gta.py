@@ -31,6 +31,21 @@ def test_bumper_to_bumper(loadLocalScenario):
     GTA.Config(scene)
 
 
+def test_time_near_midnight():
+    scenario = compileScenic(
+        f"""
+        from scenic.simulators.gta.map import setLocalMap
+        setLocalMap(r"{__file__}", "map.npz")
+        model scenic.simulators.gta.model
+        param time = 1439.9
+        ego = new EgoCar
+        """,
+        mode2D=True,
+    )
+    scene, _ = scenario.generate(maxIterations=50)
+    GTA.Config(scene)
+
+
 def test_make_map(request, tmp_path):
     from scenic.simulators.gta.interface import Map
 

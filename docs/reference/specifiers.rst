@@ -98,10 +98,13 @@ contained in *region*
 Like :sampref:`in {region}`, but also enforces that the object be entirely contained in the given `Region`.
 
 .. _on {region}:
+.. _on ({region} | {Object}):
+.. _on ({region} | {Object} | {vector}):
+.. _on {vector}:
 .. _on:
 
-on *region*
------------
+on (*region* | *Object* | *vector*)
+-----------------------------------
 
 **Specifies**:
 
@@ -110,12 +113,10 @@ on *region*
 
 **Dependencies**: :prop:`baseOffset` • :prop:`contactTolerance` • :prop:`onDirection`
 
-If :prop:`position` is not already specified with priority 1, positions the *base* of the object uniformly at random in the given `Region`, offset by :prop:`contactTolerance` (to avoid a collision).
+If :prop:`position` is not already specified with priority 1, positions the *base* of the object uniformly at random in the given `Region`, on the :prop:`onSurface` of the given `Object`, or with the base of the object at the given vector. The position is always offset by half of :prop:`contactTolerance` (to avoid a collision).
 The base of the object is determined by adding the object's :prop:`baseOffset` to its :prop:`position`.
 
-Note that while :specifier:`on` can be used with `Region`, `Object` and `Vector`, it cannot be used with a distribution containing anything other than `Region`. When used with an object the base of the object being placed is placed on the target object's `onSurface` and when used with a vector the base of the object being placed is set to that position.
-
-If instead :prop:`position` has already been specified with priority 1, then its value is modified by projecting it onto the given region.
+If instead :prop:`position` has already been specified with priority 1, then its value is modified by projecting it onto the given region (or the :prop:`onSurface` of the given object). Note that this modifying version of the specifier does not accept a vector.
 More precisely, we find the closest point in the region along :prop:`onDirection` (or its negation [1]_), and place the base of the object at that point. If :prop:`onDirection` is not specified, a default value is inferred from the region. A region can either specify a default value to be used, or for volumes straight up is used and for surfaces the mean of the face normal values is used (weighted by the area of the faces).
 
 If the region has a :term:`preferred orientation` (a vector field), :prop:`parentOrientation` is specified to be equal to that orientation at the object’s :prop:`position` (whether or not this specifier is being used as a modifying specifier).
@@ -187,12 +188,19 @@ visible [from (*Point* | *OrientedPoint*)]
 	* :prop:`position` with priority 3
 	* also adds a requirement (see below)
 
-**Dependencies**: None
+**Dependencies**: :prop:`regionContainedIn`
 
 Requires that this object is visible from the :scenic:`ego` or the given `Point`/`OrientedPoint`. See the :ref:`Visibility System <visibility>` reference for a discussion of the visibility model.
 
-Also optionally specifies :prop:`position` to be a uniformly random point in the :term:`visible region` of the ego, or of the given Point/OrientedPoint if given.
-Note that the position set by this specifier is slightly stricter than simply adding a requirement that the ego :keyword:`can see` the object: the specifier makes the *center* of the object (its :prop:`position`) visible, while the :keyword:`can see` condition will be satisfied even if the center is not visible as long as some other part of the object is visible.
+Also optionally specifies :prop:`position` to be uniformly random over all points that could result in a visible object (note that the above requirement will ensure the object is in fact visible).
+
+.. versionchanged:: 3.0
+
+	This specifier now specifies :prop:`position` uniformly randomly over all points that could result in a visible object. This allows for objects whose :prop:`position` might be out of the visible region, but which have a portion of their occupied space visible (e.g. a corner that is visible). With the previous semantics, such configurations would never be generated because the *center* of the object was required to be visible.
+
+.. note::
+	
+	As an implementation detail, :prop:`position` is initially set to be sampled from `everywhere` (or the :term:`workspace` if one has been set). Scenic will then attempt to further restrict the sample region via various pruning techniques, but sometimes this is not possible. If this occurs and Scenic has not been able to further restrict the sampled region from `everywhere`, an error will be raised at compile time. The simplest way to remedy this is by setting a workspace or specifying :prop:`position` with a higher priority using a different specifier.
 
 .. _not visible [from ({Point} | {OrientedPoint})]:
 
@@ -208,8 +216,11 @@ not visible [from (*Point* | *OrientedPoint*)]
 
 Requires that this object is *not* visible from the ego or the given `Point`/`OrientedPoint`.
 
-Similarly to :sampref:`visible [from ({Point} | {OrientedPoint})]`, this specifier can position the object uniformly at random in the *non-visible* region of the ego.
-However, it depends on :prop:`regionContainedIn`, in order to restrict the non-visible region to the :term:`container` of the object being created, which is hopefully a bounded region (if the non-visible region is unbounded, it cannot be uniformly sampled from and an error will be raised).
+Similarly to :sampref:`visible [from ({Point} | {OrientedPoint})]`, this specifier can optionally position the object uniformly at random over all points that could result in a non-visible object (note that the above requirement will ensure the object is in fact not visible).
+
+.. versionchanged:: 3.0
+
+	This specifier now specifies :prop:`position` uniformly randomly over all points that could result in a non-visible object. This disallows objects whose :prop:`position` is out of the visible region, but which have a portion of their occupied space visible (e.g. a corner that is visible). With the previous semantics, such configurations would sometimes be generated because only the *center* of the object was required to be non-visible.
 
 .. _(left | right) of {vector} [by {scalar}]:
 .. _left of:

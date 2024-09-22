@@ -15,6 +15,7 @@ import sphinx
 sphinx._buildingScenicDocs = True
 
 from scenic.core.simulators import SimulatorInterfaceWarning
+import scenic.syntax.compiler
 from scenic.syntax.translator import CompileOptions
 import scenic.syntax.veneer as veneer
 
@@ -129,7 +130,7 @@ intersphinx_mapping = {
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
     "pytest": ("https://docs.pytest.org/en/stable/", None),
-    "trimesh": ("https://trimsh.org/", None),
+    "trimesh": ("https://trimesh.org/", None),
 }
 
 highlight_language = "scenic"
@@ -150,6 +151,13 @@ html_static_path = ["_static"]
 html_css_files = [
     "custom.css",
 ]
+
+html_logo = "images/logo-full.svg"
+html_favicon = "images/favicon.ico"
+
+html_theme_options = {
+    "logo_only": True,
+}
 
 # -- Generate lists of keywords for the language reference -------------------
 
@@ -178,6 +186,10 @@ with open("_build/keywords.txt", "w") as outFile:
 with open("_build/keywords_soft.txt", "w") as outFile:
     for row in maketable(ScenicParser.SOFT_KEYWORDS):
         outFile.write(row + "\n")
+with open("_build/builtin_names.txt", "w") as outFile:
+    for row in maketable(scenic.syntax.compiler.builtinNames):
+        outFile.write(row + "\n")
+
 
 # -- Monkeypatch ModuleAnalyzer to handle Scenic modules ---------------------
 
@@ -202,7 +214,8 @@ from sphinx.domains.python import (
 )
 from sphinx.ext.autodoc import ClassDocumenter, FunctionDocumenter
 
-from scenic.core.dynamics import Behavior, DynamicScenario, Monitor
+from scenic.core.dynamics.behaviors import Behavior, Monitor
+from scenic.core.dynamics.scenarios import DynamicScenario
 
 
 class ScenicBehavior(PyFunction):
@@ -557,7 +570,8 @@ Documenter.sort_members = sort_members
 
 from sphinx.ext.autodoc import ClassDocumenter
 
-from scenic.core.dynamics import Behavior, DynamicScenario
+from scenic.core.dynamics.behaviors import Behavior
+from scenic.core.dynamics.scenarios import DynamicScenario
 
 orig_add_directive_header = ClassDocumenter.add_directive_header
 

@@ -154,12 +154,12 @@ def canCoerceType(typeA, typeB):
         return issubclass(typeA, typeB)
 
 
-def canCoerce(thing, ty):
+def canCoerce(thing, ty, exact=False):
     """Can this value be coerced into the given type?"""
     tt = underlyingType(thing)
     if canCoerceType(tt, ty):
         return True
-    elif isinstance(thing, Distribution):
+    elif (not exact) and isinstance(thing, Distribution):
         return True  # fall back on type-checking at runtime
     else:
         return False
@@ -258,6 +258,8 @@ class TypecheckedDistribution(Distribution):
     transform the sampled value according to the coercion rules above (e.g. a sampled
     `Point` will be converted to a `Vector` in a context which expects the latter).
     """
+
+    _deterministic = True
 
     def __init__(self, dist, ty, errorMessage, coercer=None):
         super().__init__(dist, valueType=ty)

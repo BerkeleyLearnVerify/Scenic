@@ -1,9 +1,12 @@
 """Utilities used throughout the test suite."""
 
+import functools
 from importlib import metadata
+import importlib.metadata
 import inspect
 import math
 import multiprocessing
+import re
 import sys
 import types
 import weakref
@@ -25,12 +28,12 @@ import scenic.syntax.veneer as veneer
 # Compilation
 
 
-def compileScenic(code, removeIndentation=True, scenario=None, mode2D=False):
+def compileScenic(code, removeIndentation=True, scenario=None, mode2D=False, params={}):
     if removeIndentation:
         # to allow indenting code to line up with test function
         code = inspect.cleandoc(code)
     checkVeneerIsInactive()
-    scenario = scenarioFromString(code, scenario=scenario, mode2D=mode2D)
+    scenario = scenarioFromString(code, scenario=scenario, mode2D=mode2D, params=params)
     checkVeneerIsInactive()
     return scenario
 
@@ -92,7 +95,10 @@ def sampleEgoActions(
         asMapping=False,
         timestep=timestep,
     )
-    return [actions[0] for actions in allActions]
+    return [
+        actions[0] if actions else (None if singleAction else tuple())
+        for actions in allActions
+    ]
 
 
 def sampleEgoActionsFromScene(
@@ -108,7 +114,10 @@ def sampleEgoActionsFromScene(
     )
     if allActions is None:
         return None
-    return [actions[0] for actions in allActions]
+    return [
+        actions[0] if actions else (None if singleAction else tuple())
+        for actions in allActions
+    ]
 
 
 def sampleActions(
@@ -570,3 +579,21 @@ def areEquivalentInner(a, b, cache, debug, ignoreCacheAttrs, extraIgnores):
                 fail()
                 return False
     return True
+
+
+def deprecationTest(removalVersion):
+    def decorator(function):
+        @functools.wraps(function)
+        def wrapper(*args, **kwargs):
+            m_ver = tuple(re.split(r"\D+", removalVersion)[:3])
+            c_ver = tuple(re.split(r"\D+", importlib.metadata.version("scenic"))[:3])
+            assert (
+                m_ver > c_ver
+            ), "Maximum version exceeded. The tested functionality and the test itself should be removed."
+
+            with pytest.deprecated_call():
+                return function(*args, **kwargs)
+
+        return wrapper
+
+    return decorator

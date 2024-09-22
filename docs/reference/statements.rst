@@ -131,7 +131,7 @@ If there are multiple ``interrupt`` clauses, successive clauses take precedence 
 Likewise, if ``try-interrupt`` statements are nested, the outermost statement takes precedence and can interrupt the inner statement at any time.
 When one handler interrupts another and then completes, the original handler is resumed (and it may even be interrupted again before control finally returns to the ``try`` block).
 
-The ``try-interrupt`` statement may conclude with any number of ``except`` blocks, which function identically to their :ref:`Python counterparts <except>`.
+The ``try-interrupt`` statement may conclude with any number of ``except`` blocks, which function identically to their :ref:`Python counterparts <except>` (though Scenic does not allow ``except*`` blocks).
 
 Simple Statements
 =================

@@ -9,7 +9,7 @@ import itertools
 import rv_ltl
 import trimesh
 
-from scenic.core.distributions import Samplable, needsSampling
+from scenic.core.distributions import Samplable, needsSampling, toDistribution
 from scenic.core.errors import InvalidScenarioError
 from scenic.core.lazy_eval import needsLazyEvaluation
 from scenic.core.propositions import Atomic, PropositionNode
@@ -70,6 +70,10 @@ class PendingRequirement:
         """
         bindings, ego, line = self.bindings, self.egoObject, self.line
         condition, ty = self.condition, self.ty
+
+        # Convert bound values to distributions as needed
+        for name, value in bindings.items():
+            bindings[name] = toDistribution(value)
 
         # Check whether requirement implies any relations used for pruning
         canPrune = condition.check_constrains_sampling()

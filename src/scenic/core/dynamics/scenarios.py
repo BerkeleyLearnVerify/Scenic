@@ -1,201 +1,30 @@
-"""Support for dynamic behaviors and modular scenarios."""
+"""Dynamic scenarios."""
 
+import ast
 from collections import defaultdict
 import dataclasses
-import enum
 import functools
 import inspect
-import itertools
-import sys
-import types
-import warnings
 import weakref
 
 import rv_ltl
 
-from scenic.core.distributions import Options, Samplable, needsSampling, toDistribution
-from scenic.core.errors import InvalidScenarioError
+import scenic
+import scenic.core.dynamics as dynamics
+from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError
 from scenic.core.lazy_eval import DelayedArgument, needsLazyEvaluation
 from scenic.core.requirements import (
     DynamicRequirement,
     PendingRequirement,
     RequirementType,
 )
-from scenic.core.simulators import (
-    EndScenarioAction,
-    EndSimulationAction,
-    RejectSimulationException,
-)
-from scenic.core.type_support import CoercionFailure
 from scenic.core.utils import alarm, argsToString
 from scenic.core.workspaces import Workspace
 
-# Utilities
-
-
-class StuckBehaviorWarning(UserWarning):
-    """Warning issued when a behavior/scenario may have gotten stuck.
-
-    When a behavior or compose block of a modular scenario executes for a long
-    time without yielding control, there is no way to tell whether it has
-    entered an infinite loop with no take/wait statements, or is actually doing
-    some long computation. But since forgetting a wait statement in a wait loop
-    is an easy mistake, we raise this warning after a behavior/scenario has run
-    for `stuckBehaviorWarningTimeout` seconds without yielding.
-    """
-
-    pass
-
-
-#: Timeout in seconds after which a `StuckBehaviorWarning` will be raised.
-stuckBehaviorWarningTimeout = 10
-
-# Scenarios
-
-
-class Invocable:
-    """Abstract class with common code for behaviors and modular scenarios.
-
-    Both of these types of objects can be called like functions, can have guards, and can
-    suspend their own execution to invoke sub-behaviors/scenarios.
-    """
-
-    def __init__(self, *args, **kwargs):
-        if veneer.evaluatingGuard:
-            raise InvalidScenarioError(
-                "tried to invoke behavior/scenario from inside guard or interrupt condition"
-            )
-        self._args = args
-        self._kwargs = kwargs
-        self._agent = None
-        self._runningIterator = None
-        self._isRunning = False
-
-    def _start(self):
-        assert not self._isRunning
-        self._isRunning = True
-        self._finalizeArguments()
-
-    def _step(self):
-        assert self._isRunning
-
-    def _stop(self, reason=None):
-        assert self._isRunning
-        self._isRunning = False
-
-    def _finalizeArguments(self):
-        # Evaluate any lazy arguments whose evaluation was deferred until just before
-        # this invocable starts running.
-        args = []
-        for arg in self._args:
-            if needsLazyEvaluation(arg):
-                assert isinstance(arg, DelayedArgument)
-                args.append(arg.evaluateInner(None))
-            else:
-                args.append(arg)
-        self._args = tuple(args)
-        for name, arg in self._kwargs.items():
-            if needsLazyEvaluation(arg):
-                assert isinstance(arg, DelayedArgument)
-                self._kwargs[name] = arg.evaluateInner(None)
-
-    def _invokeSubBehavior(self, agent, subs, modifier=None, schedule=None):
-        def pickEnabledInvocable(opts):
-            enabled = {}
-            if isinstance(opts, dict):
-                for sub, weight in opts.items():
-                    if sub._isEnabledForAgent(agent):
-                        enabled[sub] = weight
-            else:
-                for sub in opts:
-                    if sub._isEnabledForAgent(agent):
-                        enabled[sub] = 1
-            if not enabled:
-                raise RejectSimulationException('deadlock in "do choose/shuffle"')
-            if len(enabled) == 1:
-                choice = list(enabled)[0]
-            else:
-                choice = Options(enabled)
-            return choice
-
-        scheduler = None
-        if schedule == "choose":
-            if len(subs) == 1 and isinstance(subs[0], dict):
-                subs = subs[0]
-            subs = (pickEnabledInvocable(subs),)
-        elif schedule == "shuffle":
-            if len(subs) == 1 and isinstance(subs[0], dict):
-                subs = subs[0]
-            else:
-                subs = {item: 1 for item in subs}
-
-            def scheduler():
-                while subs:
-                    choice = pickEnabledInvocable(subs)
-                    subs.pop(choice)
-                    yield from self._invokeInner(agent, (choice,))
-
-        else:
-            assert schedule is None
-        if not scheduler:
-
-            def scheduler():
-                yield from self._invokeInner(agent, subs)
-
-        if modifier:
-            if modifier.name == "for":  # do X for Y [seconds | steps]
-                timeLimit = modifier.value
-                if not isinstance(timeLimit, (float, int)):
-                    raise TypeError('"do X for Y" with Y not a number')
-                assert modifier.terminator in (None, "seconds", "steps")
-                if modifier.terminator != "steps":
-                    timeLimit /= veneer.currentSimulation.timestep
-                startTime = veneer.currentSimulation.currentTime
-                condition = (
-                    lambda: veneer.currentSimulation.currentTime - startTime >= timeLimit
-                )
-            elif modifier.name == "until":  # do X until Y
-                condition = modifier.value
-            else:
-                raise RuntimeError(
-                    f"internal parsing error: impossible modifier {modifier}"
-                )
-
-            def body(behavior, agent):
-                yield from scheduler()
-
-            def handler(behavior, agent):
-                for sub in subs:
-                    if sub._isRunning:
-                        sub._stop(f'"{modifier.name}" condition met')
-                return BlockConclusion.ABORT
-
-            yield from runTryInterrupt(self, agent, body, [condition], [handler])
-        else:
-            yield from scheduler()
-
-    def _invokeInner(self, agent, subs):
-        """Run the given sub-behavior/scenario(s) in parallel.
-
-        Implemented by subclasses.
-        """
-        raise NotImplementedError
-
-    def _checkAllPreconditions(self):
-        self.checkPreconditions(self._agent, *self._args, **self._kwargs)
-        self.checkInvariants(self._agent, *self._args, **self._kwargs)
-
-    def _isEnabledForAgent(self, agent):
-        assert not self._isRunning
-        assert self._agent is None
-        try:
-            self._agent = agent  # in case `self` is used in a precondition
-            self._checkAllPreconditions()
-            return True
-        except GuardViolation:
-            return False
-        finally:
-            self._agent = None
+from .actions import _EndScenarioAction, _EndSimulationAction
+from .behaviors import Behavior, Monitor
+from .invocables import Invocable
+from .utils import RejectSimulationException, StuckBehaviorWarning
 
 
 class DynamicScenario(Invocable):
@@ -206,6 +35,8 @@ class DynamicScenario(Invocable):
     """
 
     def __init_subclass__(cls, *args, **kwargs):
+        import scenic.syntax.veneer as veneer
+
         veneer.registerDynamicScenarioClass(cls)
 
         target = cls._setup or cls._compose or (lambda self, agent: 0)
@@ -309,6 +140,8 @@ class DynamicScenario(Invocable):
 
     def _prepare(self, delayPreconditionCheck=False):
         """Prepare the scenario for execution, executing its setup block."""
+        import scenic.syntax.veneer as veneer
+
         assert not self._prepared
         self._prepared = True
 
@@ -338,6 +171,8 @@ class DynamicScenario(Invocable):
 
     def _start(self):
         """Start the scenario, starting its compose block, behaviors, and monitors."""
+        import scenic.syntax.veneer as veneer
+
         super()._start()
         assert self._prepared
 
@@ -382,6 +217,8 @@ class DynamicScenario(Invocable):
             `None` if the scenario will continue executing; otherwise a string describing
             why it has terminated.
         """
+        import scenic.syntax.veneer as veneer
+
         super()._step()
 
         # Check temporal requirements
@@ -413,12 +250,11 @@ class DynamicScenario(Invocable):
                     StuckBehaviorWarning,
                 )
 
-            with veneer.executeInScenario(self), alarm(
-                stuckBehaviorWarningTimeout, alarmHandler
-            ):
+            timeout = dynamics.stuckBehaviorWarningTimeout
+            with veneer.executeInScenario(self), alarm(timeout, alarmHandler):
                 try:
                     result = self._runningIterator.send(None)
-                    if isinstance(result, (EndSimulationAction, EndScenarioAction)):
+                    if isinstance(result, (_EndSimulationAction, _EndScenarioAction)):
                         return self._stop(result)
                 except StopIteration:
                     self._runningIterator = None
@@ -443,6 +279,8 @@ class DynamicScenario(Invocable):
 
     def _stop(self, reason, quiet=False):
         """Stop the scenario's execution, for the given reason."""
+        import scenic.syntax.veneer as veneer
+
         assert self._isRunning
 
         # Stop monitors and subscenarios.
@@ -483,7 +321,7 @@ class DynamicScenario(Invocable):
             newSubs = []
             for sub in self._subScenarios:
                 terminationReason = sub._step()
-                if isinstance(terminationReason, EndSimulationAction):
+                if isinstance(terminationReason, _EndSimulationAction):
                     yield terminationReason
                     assert False, self  # should never get here since simulation ends
                 elif terminationReason is None:
@@ -521,9 +359,9 @@ class DynamicScenario(Invocable):
         for monitor in self._monitors:
             action = monitor._step()
             # do not exit early, since subsequent monitors could reject the simulation
-            if isinstance(action, EndSimulationAction):
+            if isinstance(action, _EndSimulationAction):
                 terminationReason = action
-            elif isinstance(action, EndScenarioAction):
+            elif isinstance(action, _EndScenarioAction):
                 assert action.scenario is None
                 endScenario = action
         for sub in self._subScenarios:
@@ -593,6 +431,23 @@ class DynamicScenario(Invocable):
         assert requirementSyntax is not None
         for reqID, requirement in self._pendingRequirements.items():
             syntax = requirementSyntax[reqID] if requirementSyntax else None
+
+            # Catch the simple case where someone has most likely forgotten the "monitor"
+            # keyword.
+            if (
+                (not requirement.ty == RequirementType.monitor)
+                and isinstance(syntax, ast.Call)
+                and isinstance(syntax.func, ast.Name)
+                and syntax.func.id in namespace
+                and isinstance(namespace[syntax.func.id], type)
+                and issubclass(
+                    namespace[syntax.func.id], scenic.core.dynamics.behaviors.Monitor
+                )
+            ):
+                raise ScenicSyntaxError(
+                    f"Missing 'monitor' keyword after 'require' when instantiating '{syntax.func.id}'"
+                )
+
             compiledReq = requirement.compile(namespace, self, syntax)
 
             self._registerCompiledRequirement(compiledReq)
@@ -668,274 +523,3 @@ class DynamicScenario(Invocable):
         else:
             args = argsToString(self._args, self._kwargs)
             return f"{self.__class__.__name__}({args})"
-
-
-# Behaviors
-
-
-class Behavior(Invocable, Samplable):
-    """Dynamic behaviors of agents.
-
-    Behavior statements are translated into definitions of subclasses of this class.
-    """
-
-    def __init_subclass__(cls):
-        if "__signature__" in cls.__dict__:
-            # We're unpickling a behavior; skip this step.
-            return
-
-        if cls.__module__ is not __name__:
-            if veneer.currentScenario:
-                veneer.currentScenario._behaviors.append(cls)
-
-            target = cls.makeGenerator
-            target = functools.partial(target, 0, 0)  # account for Scenic-inserted args
-            cls.__signature__ = inspect.signature(target)
-
-    def __init__(self, *args, **kwargs):
-        args = tuple(toDistribution(arg) for arg in args)
-        kwargs = {name: toDistribution(arg) for name, arg in kwargs.items()}
-
-        # Validate arguments to the behavior
-        sig = inspect.signature(self.makeGenerator)
-        sig.bind(None, *args, **kwargs)  # raises TypeError on incompatible arguments
-        Samplable.__init__(self, itertools.chain(args, kwargs.values()))
-        Invocable.__init__(self, *args, **kwargs)
-
-        if not inspect.isgeneratorfunction(self.makeGenerator):
-            raise InvalidScenarioError(
-                f"{self} does not take any actions"
-                ' (perhaps you forgot to use "take" or "do"?)'
-            )
-
-    @classmethod
-    def _canCoerceType(cls, ty):
-        return issubclass(ty, cls) or ty in (type, type(None))
-
-    @classmethod
-    def _coerce(cls, thing):
-        if thing is None or isinstance(thing, cls):
-            return thing
-        elif issubclass(thing, cls):
-            return thing()
-        else:
-            raise CoercionFailure(f"expected type of behavior, got {thing}")
-
-    def sampleGiven(self, value):
-        args = (value[arg] for arg in self._args)
-        kwargs = {name: value[val] for name, val in self._kwargs.items()}
-        return type(self)(*args, **kwargs)
-
-    def _assignTo(self, agent):
-        if self._agent and agent is self._agent._dynamicProxy:
-            # Assigned again (e.g. by override) to same agent; do nothing.
-            return
-        if self._isRunning:
-            raise InvalidScenarioError(
-                f"tried to reuse behavior object {self} already assigned to {self._agent}"
-            )
-        self._start(agent)
-
-    def _start(self, agent):
-        super()._start()
-        self._agent = agent
-        self._runningIterator = self.makeGenerator(agent, *self._args, **self._kwargs)
-        self._checkAllPreconditions()
-
-    def _step(self):
-        super()._step()
-        assert self._runningIterator
-
-        def alarmHandler(signum, frame):
-            if sys.gettrace():
-                return  # skip the warning if we're in the debugger
-            warnings.warn(
-                f"the behavior {self} is taking a long time to take an action; "
-                "maybe you have an infinite loop with no take/wait statements?",
-                StuckBehaviorWarning,
-            )
-
-        with veneer.executeInBehavior(self), alarm(
-            stuckBehaviorWarningTimeout, alarmHandler
-        ):
-            try:
-                actions = self._runningIterator.send(None)
-            except StopIteration:
-                actions = ()  # behavior ended early
-        return actions
-
-    def _stop(self, reason=None):
-        super()._stop(reason)
-        self._agent = None
-        self._runningIterator = None
-
-    @property
-    def _isFinished(self):
-        return self._runningIterator is None
-
-    def _invokeInner(self, agent, subs):
-        assert len(subs) == 1
-        sub = subs[0]
-        if not isinstance(sub, Behavior):
-            raise TypeError(f"expected a behavior, got {sub}")
-        sub._start(agent)
-        with veneer.executeInBehavior(sub):
-            try:
-                yield from sub._runningIterator
-            finally:
-                if sub._isRunning:
-                    sub._stop()
-
-    def __repr__(self):
-        items = itertools.chain(
-            (repr(arg) for arg in self._args),
-            (f"{key}={repr(val)}" for key, val in self._kwargs.items()),
-        )
-        allArgs = ", ".join(items)
-        return f"{self.__class__.__name__}({allArgs})"
-
-
-def _makeTerminationAction(agent, line):
-    assert not veneer.isActive()
-    if agent:
-        scenario = agent._parentScenario()
-        assert scenario is not None
-    else:
-        scenario = None
-    return EndScenarioAction(scenario, line)
-
-
-def _makeSimulationTerminationAction(line):
-    assert not veneer.isActive()
-    return EndSimulationAction(line)
-
-
-# Monitors
-
-
-class Monitor(Behavior):
-    """Monitors for dynamic simulations.
-
-    Monitor statements are translated into definitions of subclasses of this class.
-    """
-
-    def _start(self):
-        return super()._start(None)
-
-
-# Guards
-
-
-class GuardViolation(Exception):
-    """Abstract exception raised when a guard of a behavior is violated.
-
-    This will never be raised directly; either of the subclasses `PreconditionViolation`
-    or `InvariantViolation` will be used, as appropriate.
-    """
-
-    violationType = "guard"
-
-    def __init__(self, behavior, lineno):
-        self.behaviorName = behavior.__class__.__name__
-        self.lineno = lineno
-
-    def __str__(self):
-        return (
-            f"violated {self.violationType} of {self.behaviorName} on line {self.lineno}"
-        )
-
-
-class PreconditionViolation(GuardViolation):
-    """Exception raised when a precondition is violated
-
-    Raised when a precondition is violated when invoking a behavior
-    or when a precondition encounters a `RejectionException`, so that
-    rejections count as precondition violations.
-    """
-
-    violationType = "precondition"
-
-
-class InvariantViolation(GuardViolation):
-    """Exception raised when an invariant is violated
-
-    Raised when an invariant is violated when invoking/resuming a behavior
-    or when an invariant encounters a `RejectionException`, so that
-    rejections count as invariant violations.
-    """
-
-    violationType = "invariant"
-
-
-# Try-interrupt blocks
-
-
-def runTryInterrupt(behavior, agent, body, conditions, handlers):
-    body = InterruptBlock(None, body)
-    interrupts = [InterruptBlock(c, h) for c, h in zip(conditions, handlers)]
-    while True:
-        # find next block to run, if any
-        block = body
-        for interrupt in interrupts:
-            if interrupt.isEnabled or interrupt.isRunning:
-                block = interrupt
-                break
-        result, concluded = block.step(behavior, agent)
-        if concluded:
-            if result is BlockConclusion.FINISHED and block is not body:
-                continue  # interrupt handler finished
-            else:
-                return result  # entire try-interrupt statement will terminate
-        else:
-            yield result
-            behavior.checkInvariants(None, *behavior._args, **behavior._kwargs)
-
-
-@enum.unique
-class BlockConclusion(enum.Enum):
-    FINISHED = enum.auto()
-    ABORT = enum.auto()
-    RETURN = enum.auto()
-    BREAK = enum.auto()
-    CONTINUE = enum.auto()
-
-    def __call__(self, value):
-        self.return_value = value
-        return self
-
-
-class InterruptBlock:
-    def __init__(self, condition, body):
-        self.condition = condition
-        self.body = body
-        self.runningIterator = None
-
-    @property
-    def isEnabled(self):
-        with veneer.executeInGuard():
-            result = self.condition()
-            if isinstance(result, DelayedArgument):
-                # Condition cannot yet be evaluated because it depends on a scenario
-                # local not yet initialized; we consider it to be false.
-                return False
-            return bool(result)
-
-    @property
-    def isRunning(self):
-        return self.runningIterator is not None
-
-    def step(self, behavior, agent):
-        if not self.runningIterator:
-            it = self.body(behavior, agent)
-            if not isinstance(it, types.GeneratorType):
-                return (it, True)
-            self.runningIterator = it
-        try:
-            result = self.runningIterator.send(None)
-            return (result, False)
-        except StopIteration as e:
-            self.runningIterator = None
-            return (e.value, True)
-
-
-import scenic.syntax.veneer as veneer

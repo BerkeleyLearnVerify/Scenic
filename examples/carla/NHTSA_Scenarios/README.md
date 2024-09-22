@@ -4,7 +4,7 @@ This folder includes a library of Scenic programs written for use with the CARLA
 
 For questions and concerns, please contact Francis Indaheng at <findaheng@berkeley.edu> or post an issue to this repo.
 
-*Note:* These scenarios require [VerifAI](https://verifai.readthedocs.io/) to be installed, since they use VerifAI's Halton sampler by default (the sampler type can be configured as explained [here](https://scenic-lang.readthedocs.io/en/latest/modules/scenic.core.external_params.html): for example, you can add `--param verifaiSamplerType random` when running Scenic to use random sampling instead).
+*Note:* These scenarios require [VerifAI](https://verifai.readthedocs.io/) to be installed, since they use VerifAI's Halton sampler by default (the sampler type can be configured as explained [here](https://docs.scenic-lang.org/en/latest/modules/scenic.core.external_params.html): for example, you can add `--param verifaiSamplerType random` when running Scenic to use random sampling instead).
 
 
 ## Intersection
