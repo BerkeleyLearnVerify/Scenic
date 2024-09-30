@@ -39,10 +39,3 @@ drone1 = new Drone at (0,0,0),
 
 ego = new Drone in centerArea,
     with behavior Catch(drone1)
-
-# NOTE: verifai errors: 'float' object is not iterable when -
-# ego uses range and drone1 uses relative position operator or range
-# AND when ego uses absolute position and drone1 uses range
-# AND when using custom meshes?
-
-terminate after 5 seconds
