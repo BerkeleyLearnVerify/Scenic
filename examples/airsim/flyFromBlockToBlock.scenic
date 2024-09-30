@@ -1,8 +1,10 @@
 # NOTE: add your world info path here
-# param worldInfoPath = "[YOUR PATH HERE]"
+param worldInfoPath = "C:/Users/piegu/Scenic/examples/airsim/worldInfo/droneBlocks"
 
 model scenic.simulators.airsim.model
 
+# Spawns 10 arbritrary static obstacles on the ground
+# drone patrols to these positions uniformly randomly
 
 platforms = []
 ground = getPrexistingObj("ground")
@@ -19,13 +21,12 @@ for i in range(blockCount):
         with height 10)
 
 
-
-
-
 points = []
 for plat in platforms:
     point = new Point on plat
     points.append(point.position)
 
-drone1 = new Drone at Uniform(*points) + (0,0,1),
+ego = new Drone at Uniform(*points) + (0,0,1),
     with behavior Patrol(points,True)
+
+# terminate after 2 seconds

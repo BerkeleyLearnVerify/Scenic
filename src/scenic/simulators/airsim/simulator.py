@@ -21,7 +21,8 @@ from scenic.core.simulators import (
 )
 from scenic.core.type_support import toVector
 from scenic.core.vectors import Orientation, Vector
-import scenic.simulators.airsim.MavsdkUtils as mavutils
+# TODO: Uncomment this out to use PX4 drones/MAVSDK.
+# import scenic.simulators.airsim.MavsdkUtils as mavutils
 from scenic.syntax.veneer import verbosePrint
 
 from .utils import (
@@ -152,7 +153,7 @@ class AirSimSimulation(Simulation):
                 obj.realObjName = realObjName
             else:
                 self.client.simAddVehicle(
-                    vehicle_name=realObjName, vehicle_type="simpleflight", pose=pose
+                    vehicle_name=realObjName, vehicle_type="simpleflight", pose=airsim.Pose()
                 )
 
             self.nextDroneIndex += 1
@@ -242,7 +243,7 @@ class AirSimSimulation(Simulation):
         client.reset()
 
         super().destroy()
-        print("canceled simulation")
+        print("Simulation Complete/Destroyed")
 
     def getProperties(self, obj, properties):
         if obj.blueprint == "AirSimPrexisting":

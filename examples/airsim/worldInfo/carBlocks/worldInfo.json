@@ -1,0 +1,2303 @@
+[
+    {
+        "name": "cone_5",
+        "position": [
+            -34.39999771118164,
+            34.5,
+            1.6799999475479126
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "cylinder2",
+        "position": [
+            -94.0,
+            -46.79999923706055,
+            0.47999998927116394
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "cylinder3",
+        "position": [
+            -95.0,
+            -43.70000076293945,
+            0.47999998927116394
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "cylinder4",
+        "position": [
+            -95.0,
+            -37.0,
+            0.47999998927116394
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "cylinder5",
+        "position": [
+            -92.0,
+            -39.599998474121094,
+            0.47999998927116394
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "cylinder6",
+        "position": [
+            -97.0999984741211,
+            -41.89999771118164,
+            0.47999998927116394
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "cylinder7",
+        "position": [
+            -89.79999542236328,
+            -42.39999771118164,
+            0.47999998927116394
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "cylinder8",
+        "position": [
+            -99.29999542236328,
+            -40.0,
+            0.47999998927116394
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "cylinder_2",
+        "position": [
+            -87.79999542236328,
+            -45.5,
+            0.47999998927116394
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "ground",
+        "position": [
+            -1.5,
+            -56.89999771118164,
+            -1.0199999809265137
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "ground_2",
+        "position": [
+            78.5,
+            -56.89999771118164,
+            -1.0199999809265137
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "ground_3",
+        "position": [
+            78.5,
+            23.100000381469727,
+            -1.0199999809265137
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "ground_4",
+        "position": [
+            -81.5,
+            -56.89999771118164,
+            -1.0199999809265137
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "ground_5",
+        "position": [
+            -1.899999976158142,
+            23.100000381469727,
+            -1.0199999809265137
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "ground_6",
+        "position": [
+            -81.5,
+            23.100000381469727,
+            -1.0199999809265137
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "orangeball",
+        "position": [
+            33.099998474121094,
+            34.25,
+            3.684560537338257
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_48",
+        "position": [
+            -16.5,
+            58.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_10",
+        "position": [
+            -26.5,
+            -31.899999618530273,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_100",
+        "position": [
+            23.5,
+            -21.899999618530273,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_101",
+        "position": [
+            33.5,
+            -31.899999618530273,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_102",
+        "position": [
+            23.5,
+            -31.899999618530273,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_103",
+        "position": [
+            -6.5,
+            48.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_104",
+        "position": [
+            -16.5,
+            48.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_105",
+        "position": [
+            13.5,
+            48.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_106",
+        "position": [
+            13.5,
+            48.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_108",
+        "position": [
+            3.5,
+            48.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_109",
+        "position": [
+            -56.5,
+            18.100000381469727,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_110",
+        "position": [
+            -56.5,
+            18.100000381469727,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_111",
+        "position": [
+            -66.5,
+            18.100000381469727,
+            16.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_112",
+        "position": [
+            -66.5,
+            18.100000381469727,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_113",
+        "position": [
+            -66.5,
+            18.100000381469727,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_114",
+        "position": [
+            -66.5,
+            18.100000381469727,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_115",
+        "position": [
+            -6.5,
+            58.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_116",
+        "position": [
+            -16.5,
+            58.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_117",
+        "position": [
+            13.5,
+            58.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_119",
+        "position": [
+            63.5,
+            18.100000381469727,
+            16.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_120",
+        "position": [
+            63.5,
+            18.100000381469727,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_121",
+        "position": [
+            63.5,
+            18.100000381469727,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_122",
+        "position": [
+            63.5,
+            18.100000381469727,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_123",
+        "position": [
+            53.5,
+            28.099998474121094,
+            16.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_124",
+        "position": [
+            -16.5,
+            38.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_125",
+        "position": [
+            -16.5,
+            48.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_126",
+        "position": [
+            -6.5,
+            58.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_128",
+        "position": [
+            3.5,
+            58.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_129",
+        "position": [
+            63.5,
+            28.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_13",
+        "position": [
+            -36.5,
+            -21.899999618530273,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_130",
+        "position": [
+            63.5,
+            28.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_131",
+        "position": [
+            -56.5,
+            28.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_132",
+        "position": [
+            -56.5,
+            28.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_133",
+        "position": [
+            13.5,
+            58.099998474121094,
+            16.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_134",
+        "position": [
+            -56.5,
+            28.099998474121094,
+            16.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_135",
+        "position": [
+            -66.5,
+            28.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_136",
+        "position": [
+            -66.5,
+            28.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_137",
+        "position": [
+            -66.5,
+            28.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_138",
+        "position": [
+            3.5,
+            48.099998474121094,
+            21.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_139",
+        "position": [
+            13.5,
+            58.099998474121094,
+            21.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_140",
+        "position": [
+            -66.5,
+            18.100000381469727,
+            21.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_141",
+        "position": [
+            63.5,
+            18.100000381469727,
+            21.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_142",
+        "position": [
+            53.5,
+            -71.9000015258789,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_143",
+        "position": [
+            53.5,
+            -71.9000015258789,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_144",
+        "position": [
+            53.5,
+            28.099998474121094,
+            21.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_145",
+        "position": [
+            -56.5,
+            28.099998474121094,
+            21.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_146",
+        "position": [
+            53.5,
+            -71.9000015258789,
+            16.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_147",
+        "position": [
+            -6.5,
+            28.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_148",
+        "position": [
+            -16.5,
+            28.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_149",
+        "position": [
+            13.5,
+            28.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_150",
+        "position": [
+            3.5,
+            28.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_151",
+        "position": [
+            -56.5,
+            -71.9000015258789,
+            16.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_152",
+        "position": [
+            -56.5,
+            -71.9000015258789,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_153",
+        "position": [
+            -16.5,
+            48.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_154",
+        "position": [
+            53.5,
+            -71.9000015258789,
+            21.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_155",
+        "position": [
+            -6.5,
+            58.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_156",
+        "position": [
+            -16.5,
+            58.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_157",
+        "position": [
+            13.5,
+            58.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_158",
+        "position": [
+            3.5,
+            58.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_159",
+        "position": [
+            -116.5,
+            58.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_160",
+        "position": [
+            -116.5,
+            58.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_173",
+        "position": [
+            113.5,
+            48.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_174",
+        "position": [
+            113.5,
+            48.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_175",
+        "position": [
+            103.5,
+            48.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_176",
+        "position": [
+            103.5,
+            48.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_185",
+        "position": [
+            113.5,
+            -92.0,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_186",
+        "position": [
+            113.5,
+            -91.9000015258789,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_187",
+        "position": [
+            103.5,
+            -91.9000015258789,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_196",
+        "position": [
+            -106.5,
+            -91.9000015258789,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_197",
+        "position": [
+            -116.5,
+            -91.9000015258789,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_198",
+        "position": [
+            -116.5,
+            -91.9000015258789,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_199",
+        "position": [
+            -106.5,
+            -81.9000015258789,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_200",
+        "position": [
+            -106.5,
+            -81.9000015258789,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_209",
+        "position": [
+            -106.5,
+            48.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_210",
+        "position": [
+            -116.5,
+            48.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_211",
+        "position": [
+            -106.5,
+            58.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_212",
+        "position": [
+            -116.5,
+            58.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_217",
+        "position": [
+            -56.5,
+            18.100000381469727,
+            16.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_218",
+        "position": [
+            -56.5,
+            18.100000381469727,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_231",
+        "position": [
+            53.5,
+            18.100000381469727,
+            16.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_232",
+        "position": [
+            53.5,
+            18.100000381469727,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_233",
+        "position": [
+            53.5,
+            18.100000381469727,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_234",
+        "position": [
+            53.5,
+            18.100000381469727,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_243",
+        "position": [
+            53.5,
+            28.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_244",
+        "position": [
+            53.5,
+            28.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_245",
+        "position": [
+            53.5,
+            28.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_246",
+        "position": [
+            63.5,
+            28.099998474121094,
+            16.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_247",
+        "position": [
+            63.5,
+            28.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_256",
+        "position": [
+            -56.5,
+            28.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_257",
+        "position": [
+            -66.5,
+            28.099998474121094,
+            16.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_26",
+        "position": [
+            13.5,
+            28.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_266",
+        "position": [
+            -56.5,
+            18.100000381469727,
+            21.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_267",
+        "position": [
+            53.5,
+            18.100000381469727,
+            21.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_268",
+        "position": [
+            63.5,
+            28.099998474121094,
+            21.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_269",
+        "position": [
+            -66.5,
+            28.099998474121094,
+            21.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_282",
+        "position": [
+            -16.5,
+            38.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_283",
+        "position": [
+            13.5,
+            38.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_284",
+        "position": [
+            13.5,
+            48.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_31",
+        "position": [
+            -16.5,
+            38.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_4",
+        "position": [
+            23.5,
+            -31.899999618530273,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_45",
+        "position": [
+            13.5,
+            58.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_47",
+        "position": [
+            3.5,
+            58.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_48",
+        "position": [
+            -26.5,
+            -21.899999618530273,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_49",
+        "position": [
+            -26.5,
+            -21.899999618530273,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_50",
+        "position": [
+            13.5,
+            48.099998474121094,
+            16.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_51",
+        "position": [
+            3.5,
+            48.099998474121094,
+            16.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_52",
+        "position": [
+            -36.5,
+            -21.899999618530273,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_53",
+        "position": [
+            3.5,
+            58.099998474121094,
+            16.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_54",
+        "position": [
+            13.5,
+            48.099998474121094,
+            21.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_55",
+        "position": [
+            -36.5,
+            -31.899999618530273,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_56",
+        "position": [
+            -36.5,
+            -31.899999618530273,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_57",
+        "position": [
+            3.5,
+            58.099998474121094,
+            21.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_6",
+        "position": [
+            -26.5,
+            -31.899999618530273,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_60",
+        "position": [
+            53.5,
+            -71.9000015258789,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_61",
+        "position": [
+            23.5,
+            -21.899999618530273,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_62",
+        "position": [
+            23.5,
+            -21.899999618530273,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_63",
+        "position": [
+            -56.5,
+            -71.9000015258789,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_64",
+        "position": [
+            -56.5,
+            -71.9000015258789,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_65",
+        "position": [
+            33.5,
+            -21.899999618530273,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_66",
+        "position": [
+            33.5,
+            -21.899999618530273,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_67",
+        "position": [
+            -106.5,
+            58.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_68",
+        "position": [
+            -106.5,
+            58.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_69",
+        "position": [
+            -36.5,
+            -31.899999618530273,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_7",
+        "position": [
+            23.5,
+            -31.899999618530273,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_70",
+        "position": [
+            -36.5,
+            -31.899999618530273,
+            16.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_71",
+        "position": [
+            -106.5,
+            48.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_72",
+        "position": [
+            -106.5,
+            48.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_73",
+        "position": [
+            -116.5,
+            48.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_74",
+        "position": [
+            -116.5,
+            48.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_75",
+        "position": [
+            -6.5,
+            28.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_76",
+        "position": [
+            -6.5,
+            28.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_77",
+        "position": [
+            -16.5,
+            28.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_78",
+        "position": [
+            -16.5,
+            28.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_79",
+        "position": [
+            113.5,
+            58.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_8",
+        "position": [
+            33.5,
+            -31.899999618530273,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_80",
+        "position": [
+            113.5,
+            58.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_81",
+        "position": [
+            103.5,
+            58.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_82",
+        "position": [
+            103.5,
+            58.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_83",
+        "position": [
+            13.5,
+            28.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_84",
+        "position": [
+            3.5,
+            28.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_85",
+        "position": [
+            3.5,
+            28.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_86",
+        "position": [
+            103.5,
+            -92.0,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_87",
+        "position": [
+            113.5,
+            -81.9000015258789,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_88",
+        "position": [
+            113.5,
+            -81.9000015258789,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_89",
+        "position": [
+            103.5,
+            -82.0,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_9",
+        "position": [
+            33.5,
+            -31.899999618530273,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_90",
+        "position": [
+            103.5,
+            -81.9000015258789,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_91",
+        "position": [
+            -106.5,
+            -91.9000015258789,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_92",
+        "position": [
+            -6.5,
+            38.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_93",
+        "position": [
+            13.5,
+            38.099998474121094,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_94",
+        "position": [
+            13.5,
+            38.099998474121094,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_96",
+        "position": [
+            3.5,
+            38.099998474121094,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_97",
+        "position": [
+            -116.5,
+            -81.9000015258789,
+            6.480000019073486
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_98",
+        "position": [
+            -116.5,
+            -81.9000015258789,
+            1.4800000190734863
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "templatecube_rounded_99",
+        "position": [
+            33.5,
+            -21.899999618530273,
+            11.479999542236328
+        ],
+        "orientation": [
+            0.0,
+            0.0,
+            0.0
+        ]
+    },
+    {
+        "name": "externalcamera",
+        "position": [
+            0.0001884073717519641,
+            -7.517541408538818,
+            2.038674831390381
+        ],
+        "orientation": [
+            -0.17453288714747114,
+            -1.0863151490019528e-05,
+            6.255900784692341e-05
+        ]
+    },
+    {
+        "name": "physxcar_camera_front_center",
+        "position": [
+            6.049900548532605e-05,
+            2.0,
+            -0.03748573362827301
+        ],
+        "orientation": [
+            -2.1898450562798716e-23,
+            1.0689272394044488e-10,
+            6.160861088833568e-05
+        ]
+    },
+    {
+        "name": "physxcar_camera_front_left",
+        "position": [
+            -0.12493949383497238,
+            2.0,
+            -0.03747802600264549
+        ],
+        "orientation": [
+            -2.1898450562798716e-23,
+            1.0689272394044488e-10,
+            6.160861088833568e-05
+        ]
+    },
+    {
+        "name": "physxcar_camera_front_right",
+        "position": [
+            0.12506049871444702,
+            2.0,
+            -0.03749343752861023
+        ],
+        "orientation": [
+            -2.1898450562798716e-23,
+            1.0689272394044488e-10,
+            6.160861088833568e-05
+        ]
+    },
+    {
+        "name": "physxcar_camera_driver",
+        "position": [
+            -0.24992407858371735,
+            -6.673048602579001e-08,
+            0.21252967417240143
+        ],
+        "orientation": [
+            -2.1898450562798716e-23,
+            1.0689272394044488e-10,
+            6.160861088833568e-05
+        ]
+    },
+    {
+        "name": "physxcar_camera_back_center",
+        "position": [
+            6.049857984180562e-05,
+            -2.0,
+            -0.03748573362827301
+        ],
+        "orientation": [
+            6.44409576137878e-19,
+            3.141592295961861,
+            -6.160857811234952e-05
+        ]
+    }
+]
