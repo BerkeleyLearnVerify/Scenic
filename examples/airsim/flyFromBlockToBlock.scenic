@@ -1,5 +1,5 @@
 # NOTE: add your world info path here
-param worldInfoPath = "C:/Users/piegu/Scenic/examples/airsim/worldInfo/droneBlocks"
+# param worldInfoPath = "[YOUR PATH HERE]"
 
 model scenic.simulators.airsim.model
 

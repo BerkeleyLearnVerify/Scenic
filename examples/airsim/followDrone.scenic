@@ -1,7 +1,7 @@
 import math
 
 # NOTE: add your world info path here
-param worldInfoPath = "C:/Users/piegu/Scenic/examples/airsim/worldInfo/droneBlocks"
+# param worldInfoPath = "[YOUR PATH HERE]"
 
 # Spawns 1 drone (ego) that patrols specific points, drone 2 follows ego
 
