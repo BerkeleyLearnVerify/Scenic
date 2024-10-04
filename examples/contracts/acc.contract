@@ -170,7 +170,6 @@ component ControlSystem(target_dist, max_speed, min_dist, min_slowdown):
         heading: float
 
     outputs:
-        foo: float
         control_action: RegulatedControlAction
 
     compose:
@@ -179,9 +178,6 @@ component ControlSystem(target_dist, max_speed, min_dist, min_slowdown):
         tsf = ThrottleSafetyFilter(min_dist, min_slowdown)
         pid_ss = PIDSteeringSystem()
         ag = ActionGenerator()
-
-        # DEBUG
-        connect dist to foo
 
         # Connect sensors inputss
         connect dist to pid_ts.dist
@@ -275,7 +271,7 @@ contract AccurateRelativeSpeeds(perception_distance, abs_dist_err=0.5, abs_speed
         behind_car = lead_dist <= perception_distance
 
         # Lead speed can be roughly calculated by comparing two timesteps
-        relative_speed = ((next dist) - dist)/self.timestep if (next(next dist)) else ((next dist) - dist)/self.timestep
+        relative_speed = ((next dist) - dist)/self.timestep
         true_relative_speed =  lead_car.speed - self.speed
 
     assumptions:
@@ -340,7 +336,7 @@ contract MaxBrakingForce(min_slowdown):
         full_brake = control_action.brake == 1
 
     guarantees:
-        always ((no_throttle and full_brake) 
+        always ((no_throttle and full_brake)
             implies (self.speed == 0 or ((next self.speed) <= self.speed - min_slowdown))
         )
 
@@ -361,7 +357,7 @@ contract KeepsDistance(perception_distance, min_dist, max_brake=float("inf"), ma
         true_relative_speed =  lead_car.speed - self.speed
 
         stopping_time = math.ceil(self.speed/min_slowdown)+1
-        rel_dist_covered = stopping_time*self.speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
+        rel_dist_covered = stopping_time*self.speed + (true_relative_speed+abs_speed_err)*(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
         buffer_dist = min_dist + rel_dist_covered
 
         # Maximum distance delta in one timestep. Here we use speed diff of 150 km/h and timestep of 0.1 seconds.
@@ -420,8 +416,6 @@ accurate_speed = assume car.cs satisfies AccurateRelativeSpeeds(
 
 ps_accuracy = accurate_distance and accurate_speed
 
-max_braking_force = assume car.cc satisfies MaxBrakingForce(MIN_SLOWDOWN), with correctness 0.99, with confidence 0.99
-
 cs_safety = compose over car.cs:
     # TODO: Replace with proof
     assume car.cs.tsf satisfies SafeThrottleFilter(
@@ -433,6 +427,8 @@ cs_safety = compose over car.cs:
 
     # TODO: Replace with proof
     assume car.cs.ag satisfies PassthroughBrakingActionGenerator()
+
+max_braking_force = assume car.cc satisfies MaxBrakingForce(MIN_SLOWDOWN), with correctness 0.99, with confidence 0.99
 
 keeps_distance_raw = compose over car:
     use ps_accuracy
