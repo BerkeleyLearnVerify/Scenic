@@ -11,6 +11,29 @@ jobs:
       concurrency:
         group: sim
       steps:
+        - name: Create Volume from Latest Snapshot and Attach to Instance
+          env:
+            INSTANCE_ID: ${{ secrets.AWS_EC2_INSTANCE_ID }}
+            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+          run: |
+            #  Retrieve the latest snapshot ID
+            LATEST_SNAPSHOT_ID=$(aws ec2 describe-snapshots --owner-ids self --query 'Snapshots | sort_by(@, &StartTime) | [-1].SnapshotId' --output text)
+            echo "Using latest snapshot with ID: $LATEST_SNAPSHOT_ID"
+
+            # Create a new volume from the latest snapshot
+            volume_id=$(aws ec2 create-volume --snapshot-id $LATEST_SNAPSHOT_ID --availability-zone $(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].Placement.AvailabilityZone" --output text) --volume-type gp2 --query "VolumeId" --output text)
+            echo "Created volume with ID: $volume_id"
+
+            # Wait until the volume is available
+            aws ec2 wait volume-available --volume-ids $volume_id
+            echo "Volume is now available"
+
+            # Attach the volume to the instance
+            aws ec2 attach-volume --volume-id $volume_id --instance-id $INSTANCE_ID --device /dev/sdf
+            echo "Volume $volume_id attached to instance $INSTANCE_ID as /dev/sdf"
+
         - name: Start EC2 Instance
           env:
             INSTANCE_ID: ${{ secrets.AWS_EC2_INSTANCE_ID }}
