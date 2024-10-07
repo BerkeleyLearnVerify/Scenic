@@ -25,6 +25,7 @@ jobs:
             # Create a new volume from the latest snapshot
             volume_id=$(aws ec2 create-volume --snapshot-id $LATEST_SNAPSHOT_ID --availability-zone $(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].Placement.AvailabilityZone" --output text) --volume-type gp2 --query "VolumeId" --output text)
             echo "Created volume with ID: $volume_id"
+            echo "::set-output name=volume_id::$volume_id"
 
             # Wait until the volume is available
             aws ec2 wait volume-available --volume-ids $volume_id
@@ -201,26 +202,42 @@ jobs:
             AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
             AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
           run: |
-            # Get the instance state
+            # Get the instance state and stop it if running
             instance_state=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID | jq -r '.Reservations[].Instances[].State.Name')
-
-            # If the machine is pending wait for it to fully start
-            while [ "$instance_state" == "pending" ]; do
-                echo "Instance is pending startup, waiting for it to fully start..."
-                sleep 10
-                instance_state=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID | jq -r '.Reservations[].Instances[].State.Name')
-            done
-
-            # Check if instance state is "stopped"
             if [[ "$instance_state" == "running" ]]; then
-                echo "Instance is running, stopping it..."
-                aws ec2 stop-instances --instance-ids $INSTANCE_ID
-            elif [[ "$instance_state" == "stopping" ]]; then
-                echo "Instance is stopping..."
+              echo "Instance is running, stopping it..."
+              aws ec2 stop-instances --instance-ids $INSTANCE_ID
+              aws ec2 wait instance-stopped --instance-ids $INSTANCE_ID
+              echo "Instance has stopped."
             elif [[ "$instance_state" == "stopped" ]]; then
-                echo "Instance is already stopped..."
-                exit 0
+              echo "Instance is already stopped."
             else
-                echo "Unknown instance state: $instance_state"
-                exit 1
+              echo "Unexpected instance state: $instance_state"
+              exit 1
             fi
+
+        - name: Take Snapshot of Volume
+          env:
+            VOLUME_ID: ${{ needs.start_ec2_instance.outputs.created_volume_id }}
+            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+          run: |
+            # Create a snapshot of the volume
+            snapshot_id=$(aws ec2 create-snapshot --volume-id $VOLUME_ID --description "Snapshot before deletion" --query "SnapshotId" --output text)
+            echo "Snapshot ID: $snapshot_id"
+
+            # Wait for the snapshot to complete
+            aws ec2 wait snapshot-completed --snapshot-ids $snapshot_id
+            echo "Snapshot completed."
+
+        - name: Delete Volume
+          env:
+            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+            VOLUME_ID: ${{ needs.start_ec2_instance.outputs.created_volume_id }}
+          run: |
+            # Delete the volume after snapshot is complete
+            aws ec2 delete-volume --volume-id $VOLUME_ID
+            echo "Volume $VOLUME_ID deleted."
