@@ -218,7 +218,7 @@ jobs:
 
         - name: Take Snapshot of Volume
           env:
-            VOLUME_ID: ${{ needs.start_ec2_instance.outputs.created_volume_id }}
+            VOLUME_ID: ${{ needs.start_ec2_instance.outputs.volume_id }}
             AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
             AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
             AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
