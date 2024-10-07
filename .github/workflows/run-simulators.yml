@@ -32,8 +32,8 @@ jobs:
             echo "Volume is now available"
 
             # Attach the volume to the instance
-            aws ec2 attach-volume --volume-id $volume_id --instance-id $INSTANCE_ID --device /dev/sdf
-            echo "Volume $volume_id attached to instance $INSTANCE_ID as /dev/sdf"
+            aws ec2 attach-volume --volume-id $volume_id --instance-id $INSTANCE_ID --device /dev/sda1
+            echo "Volume $volume_id attached to instance $INSTANCE_ID as /dev/sda1"
 
         - name: Start EC2 Instance
           env:
@@ -236,7 +236,7 @@ jobs:
             AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
             AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
             AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-            VOLUME_ID: ${{ needs.start_ec2_instance.outputs.created_volume_id }}
+            VOLUME_ID: ${{ needs.start_ec2_instance.outputs.volume_id }}
           run: |
             # Delete the volume after snapshot is complete
             aws ec2 delete-volume --volume-id $VOLUME_ID
