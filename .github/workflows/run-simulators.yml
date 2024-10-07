@@ -27,7 +27,7 @@ jobs:
                 sleep 10
                 instance_state=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID | jq -r '.Reservations[].Instances[].State.Name')
             done
-            
+
             # Check if instance state is "stopped"
             if [[ "$instance_state" == "stopped" ]]; then
                 echo "Instance is stopped, starting it..."
@@ -42,7 +42,7 @@ jobs:
                 exit 1
             fi
 
-            # wait for status checks to pass 
+            # wait for status checks to pass
             TIMEOUT=300  # Timeout in seconds
             START_TIME=$(date +%s)
             END_TIME=$((START_TIME + TIMEOUT))
@@ -69,7 +69,7 @@ jobs:
       name: check_simulator_version_updates
       runs-on: ubuntu-latest
       needs: start_ec2_instance
-      steps: 
+      steps:
         - name: Check for Simulator Version Updates
           env:
             PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -109,11 +109,11 @@ jobs:
                 echo "NVIDIA Driver is not set"
                 exit 1
               fi
-            '  
+            '
         - name: NVIDIA Driver is not set
           if: ${{ failure() }}
           run: |
-            echo "NVIDIA SMI is not working, please run the steps here on the instance:" 
+            echo "NVIDIA SMI is not working, please run the steps here on the instance:"
             echo "https://scenic-lang.atlassian.net/wiki/spaces/KAN/pages/2785287/Setting+Up+AWS+VM?parentProduct=JSW&initialAllowedFeatures=byline-contributors.byline-extensions.page-comments.delete.page-reactions.inline-comments.non-licensed-share&themeState=dark%253Adark%2520light%253Alight%2520spacing%253Aspacing%2520colorMode%253Alight&locale=en-US#Install-NVIDIA-Drivers"
 
     run_carla_simulators:
@@ -133,12 +133,12 @@ jobs:
               source venv/bin/activate &&
               carla_versions=($(find /software -maxdepth 1 -type d -name 'carla*')) &&
               for version in "${carla_versions[@]}"; do
-                echo "============================= CARLA $version ============================="  
+                echo "============================= CARLA $version ============================="
                 export CARLA_ROOT="$version"
                 pytest tests/simulators/carla
               done
             '
-            
+
     run_webots_simulators:
       name: run_webots_simulators
       runs-on: ubuntu-latest
@@ -164,12 +164,13 @@ jobs:
               done
               kill %1
             '
-      
+
     stop_ec2_instance:
       name: stop_ec2_instance
       runs-on: ubuntu-latest
-      needs: [run_carla_simulators, run_webots_simulators]
-      steps:       
+      needs: [start_ec2_instance, check_simulator_version_updates, check_nvidia_smi, run_carla_simulators, run_webots_simulators]
+      if: always()
+      steps:
         - name: Stop EC2 Instance
           env:
             INSTANCE_ID: ${{ secrets.AWS_EC2_INSTANCE_ID }}
@@ -186,7 +187,7 @@ jobs:
                 sleep 10
                 instance_state=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID | jq -r '.Reservations[].Instances[].State.Name')
             done
-            
+
             # Check if instance state is "stopped"
             if [[ "$instance_state" == "running" ]]; then
                 echo "Instance is running, stopping it..."
