@@ -25,7 +25,9 @@ jobs:
             # Create a new volume from the latest snapshot
             volume_id=$(aws ec2 create-volume --snapshot-id $LATEST_SNAPSHOT_ID --availability-zone $(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].Placement.AvailabilityZone" --output text) --volume-type gp2 --query "VolumeId" --output text)
             echo "Created volume with ID: $volume_id"
-            echo "::set-output name=volume_id::$volume_id"
+
+            # Store volume_id in GITHUB_ENV
+            echo "volume_id=$volume_id" >> $GITHUB_ENV
 
             # Wait until the volume is available
             aws ec2 wait volume-available --volume-ids $volume_id
@@ -218,7 +220,7 @@ jobs:
 
         - name: Take Snapshot of Volume
           env:
-            VOLUME_ID: ${{ needs.start_ec2_instance.outputs.volume_id }}
+            VOLUME_ID: ${{ env.volume_id }}
             AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
             AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
             AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
@@ -236,7 +238,7 @@ jobs:
             AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
             AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
             AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-            VOLUME_ID: ${{ needs.start_ec2_instance.outputs.volume_id }}
+            VOLUME_ID: ${{ env.volume_id }}
           run: |
             # Delete the volume after snapshot is complete
             aws ec2 delete-volume --volume-id $VOLUME_ID
