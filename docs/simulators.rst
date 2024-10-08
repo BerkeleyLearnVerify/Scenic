@@ -56,22 +56,22 @@ Generate World Info
 
 Before running Scenic, it’s essential to generate world information. To
 achieve this, utilize the scripts located at
-Scenic/src/scenic/simulators/airsim/generators/
+:file:`src/scenic/simulators/airsim/generators/`
 
 Using Unreal Engine (recommended)
 """""""""""""""""""""""""""""""""
 
-First, run the generateUnrealWorldInfo.py script inside unreal engine by
+First, run the :file:`generateUnrealWorldInfo.py` script inside Unreal Engine by
 simply entering in the file path in the engine’s python console.
 
 Then run
-`thegenerateWorldInfoFromUnrealWorldInfo.py <http://thegenerateWorldInfoFromUnrealWorldInfo.py>`__
+the :file:`generateWorldInfoFromUnrealWorldInfo.py`
 script
 
 Using Airsim
 """"""""""""
 
-Run the generateWorldInfo.py script
+Run the :file:`generateWorldInfo.py` script
 
 **Configure AirSim Settings**
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
