@@ -71,7 +71,7 @@ script
 Using Airsim
 """"""""""""
 
-Run the generateWorldInfo.py script
+Run the :file:`generateWorldInfo.py` script
 
 **Configure AirSim Settings**
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
