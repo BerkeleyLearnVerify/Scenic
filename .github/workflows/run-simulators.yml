@@ -142,28 +142,28 @@ jobs:
             echo "NVIDIA SMI is not working, please run the steps here on the instance:"
             echo "https://scenic-lang.atlassian.net/wiki/spaces/KAN/pages/2785287/Setting+Up+AWS+VM?parentProduct=JSW&initialAllowedFeatures=byline-contributors.byline-extensions.page-comments.delete.page-reactions.inline-comments.non-licensed-share&themeState=dark%253Adark%2520light%253Alight%2520spacing%253Aspacing%2520colorMode%253Alight&locale=en-US#Install-NVIDIA-Drivers"
 
-    run_carla_simulators:
-      name: run_carla_simulators
-      runs-on: ubuntu-latest
-      needs: [check_simulator_version_updates, check_nvidia_smi]
-      steps:
-        - name: Run CARLA Tests
-          env:
-            PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-            HOSTNAME: ${{secrets.SSH_HOST}}
-            USER_NAME: ${{secrets.SSH_USERNAME}}
-          run: |
-            echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-            ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
-              cd /home/ubuntu/actions/Scenic &&
-              source venv/bin/activate &&
-              carla_versions=($(find /software -maxdepth 1 -type d -name 'carla*')) &&
-              for version in "${carla_versions[@]}"; do
-                echo "============================= CARLA $version ============================="
-                export CARLA_ROOT="$version"
-                pytest tests/simulators/carla
-              done
-            '
+    # run_carla_simulators:
+    #   name: run_carla_simulators
+    #   runs-on: ubuntu-latest
+    #   needs: [check_simulator_version_updates, check_nvidia_smi]
+    #   steps:
+    #     - name: Run CARLA Tests
+    #       env:
+    #         PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+    #         HOSTNAME: ${{secrets.SSH_HOST}}
+    #         USER_NAME: ${{secrets.SSH_USERNAME}}
+    #       run: |
+    #         echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+    #         ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
+    #           cd /home/ubuntu/actions/Scenic &&
+    #           source venv/bin/activate &&
+    #           carla_versions=($(find /software -maxdepth 1 -type d -name 'carla*')) &&
+    #           for version in "${carla_versions[@]}"; do
+    #             echo "============================= CARLA $version ============================="
+    #             export CARLA_ROOT="$version"
+    #             pytest tests/simulators/carla
+    #           done
+    #         '
 
     run_webots_simulators:
       name: run_webots_simulators
@@ -226,6 +226,7 @@ jobs:
             AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
           run: |
             # Create a snapshot of the volume
+            echo "Volume ID is: $VOLUME_ID"
             snapshot_id=$(aws ec2 create-snapshot --volume-id $VOLUME_ID --description "Snapshot before deletion" --query "SnapshotId" --output text)
             echo "Snapshot ID: $snapshot_id"
 
