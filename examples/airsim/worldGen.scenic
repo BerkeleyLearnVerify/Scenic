@@ -33,6 +33,6 @@ for i in range(blockCount):
         with height 10)
     
 
-ranBlock = blocks[random.randint(0,blockCount-1)]
+ranBlock = Uniform(*blocks)
 
 drone = new Drone on ranBlock, with behavior Patrol([(10,10,10),(2,2,2)])
