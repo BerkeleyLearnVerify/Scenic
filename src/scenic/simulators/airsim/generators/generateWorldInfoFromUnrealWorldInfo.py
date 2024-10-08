@@ -1,13 +1,14 @@
 import argparse
 import json
 import os
+import shutil
 from warnings import warn
+
+import bpy
 import numpy as np
 import trimesh
-import bpy
-import shutil
-from scenic.core.utils import repairMesh
 
+from scenic.core.utils import repairMesh
 
 WORLD_SCALE = 10000
 DEFAULT_MESH = trimesh.creation.box((1, 1, 1))
@@ -54,7 +55,6 @@ assetsInputDir = inputDirectory + "assets/"
 tmeshes = {}
 for filename in os.listdir(assetsInputDir):
     if filename.endswith(".fbx"):
-
         # make fbx into stl so that trimesh can read it
         name = os.path.splitext(filename)[0].lower()
         filepath = os.path.join(assetsInputDir, filename)
@@ -107,7 +107,6 @@ worldInfo = []
 with open(inputDirectory + "/actorInfo.json") as file:
     actorInfoList = json.load(file)
     for actorInfo in actorInfoList:
-
         if not (actorInfo["meshName"].lower() in tmeshes):
             continue
 
