@@ -25,7 +25,9 @@ jobs:
             # Create a new volume from the latest snapshot
             volume_id=$(aws ec2 create-volume --snapshot-id $LATEST_SNAPSHOT_ID --availability-zone $(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query "Reservations[0].Instances[0].Placement.AvailabilityZone" --output text) --volume-type gp2 --query "VolumeId" --output text)
             echo "Created volume with ID: $volume_id"
-            echo "::set-output name=volume_id::$volume_id"
+
+            # Set volume_id as output
+            echo "volume_id=$volume_id" >> $GITHUB_OUTPUT
 
             # Wait until the volume is available
             aws ec2 wait volume-available --volume-ids $volume_id
