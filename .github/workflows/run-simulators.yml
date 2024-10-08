@@ -10,6 +10,8 @@ jobs:
       runs-on: ubuntu-latest
       concurrency:
         group: sim
+      outputs:
+        volume_id: ${{ steps.create_volume_step.outputs.volume_id }}
       env:
         INSTANCE_ID: ${{ secrets.AWS_EC2_INSTANCE_ID }}
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -17,6 +19,7 @@ jobs:
         AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
       steps:
         - name: Create Volume from Latest Snapshot and Attach to Instance
+          id: create_volume_step
           run: |
             #  Retrieve the latest snapshot ID
             LATEST_SNAPSHOT_ID=$(aws ec2 describe-snapshots --owner-ids self --query 'Snapshots | sort_by(@, &StartTime) | [-1].SnapshotId' --output text)
@@ -28,6 +31,7 @@ jobs:
 
             # Set volume_id as output
             echo "volume_id=$volume_id" >> $GITHUB_OUTPUT
+            cat $GITHUB_OUTPUT
 
             # Wait until the volume is available
             aws ec2 wait volume-available --volume-ids $volume_id
