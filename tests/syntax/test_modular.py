@@ -9,6 +9,7 @@ from scenic.core.errors import InvalidScenarioError, ScenicSyntaxError, Specifie
 from scenic.core.simulators import DummySimulator, TerminationType
 from tests.utils import (
     compileScenic,
+    sampleActionsFromScene,
     sampleEgo,
     sampleEgoActions,
     sampleEgoFrom,
@@ -28,7 +29,7 @@ def test_single_scenario():
         scenario Blob():
             setup:
                 ego = new Object at (1, 2, 3)
-    """
+        """
     )
     assert tuple(ego.position) == (1, 2, 3)
 
@@ -40,7 +41,7 @@ def test_simple_scenario():
             behavior Foo():
                 wait
             ego = new Object at (1, 2, 3), with behavior Foo
-    """
+        """
     )
     assert tuple(ego.position) == (1, 2, 3)
 
@@ -52,7 +53,7 @@ def test_main_scenario():
             ego = new Object at (10, 5)
         scenario Main():
             ego = new Object at (1, 2)
-    """
+        """
     )
     assert len(scene.objects) == 1
     assert tuple(scene.egoObject.position) == (1, 2, 0)
@@ -65,7 +66,7 @@ def test_requirement():
             setup:
                 ego = new Object with width Range(1, 3)
                 require ego.width > 2
-    """
+        """
     )
     ws = [sampleEgo(scenario, maxIterations=60).width for i in range(60)]
     assert all(2 < w <= 3 for w in ws)
@@ -78,7 +79,7 @@ def test_soft_requirement():
             setup:
                 ego = new Object with width Range(1, 3)
                 require[0.9] ego.width >= 2
-    """
+        """
     )
     ws = [sampleEgo(scenario, maxIterations=60).width for i in range(350)]
     count = sum(w >= 2 for w in ws)
@@ -115,7 +116,7 @@ def test_time_limit():
         """
         scenario Main():
             ego = new Object
-    """
+        """
     )
     result = sampleResult(scenario, maxSteps=3)
     assert len(result.trajectory) == 4
@@ -128,7 +129,7 @@ def test_terminate_when():
         scenario Main():
             ego = new Object
             terminate when simulation().currentTime > 1
-    """
+        """
     )
     result = sampleResult(scenario, maxSteps=5)
     assert len(result.trajectory) == 3
@@ -141,7 +142,7 @@ def test_terminate_after():
         scenario Main():
             ego = new Object
             terminate after 2 steps
-    """
+        """
     )
     result = sampleResult(scenario, maxSteps=5)
     assert len(result.trajectory) == 3
@@ -156,7 +157,7 @@ def test_terminate_in_behavior():
                 wait
                 terminate
             ego = new Object with behavior Foo
-    """
+        """
     )
     result = sampleResult(scenario, maxSteps=5)
     assert len(result.trajectory) == 2
@@ -173,12 +174,12 @@ def test_top_level_precondition():
             precondition: simulation().currentTime > 0
             setup:
                 ego = new Object
-    """
+        """
     )
     sim = DummySimulator()
     scene = sampleScene(scenario)
     with pytest.raises(PreconditionViolation):
-        sim.simulate(scene, maxSteps=1, raiseGuardViolations=True)
+        sim.simulate(scene, maxSteps=1, raiseGuardViolations=True, verbosity=2)
 
 
 def test_top_level_invariant():
@@ -188,7 +189,7 @@ def test_top_level_invariant():
             invariant: simulation().currentTime > 0
             setup:
                 ego = new Object
-    """
+        """
     )
     sim = DummySimulator()
     scene = sampleScene(scenario)
@@ -351,7 +352,7 @@ def test_subscenario_require_eventually():
             ego = new Object
             require eventually simulation().currentTime == 2
             terminate after 1 steps
-    """
+        """
     )
     result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
@@ -373,7 +374,7 @@ def test_subscenario_require_monitor():
             ego = new Object
             require monitor TimeLimit()
             terminate after 2 steps
-    """
+        """
     )
     result = sampleResultOnce(scenario, maxSteps=3)
     assert result is not None
@@ -392,7 +393,7 @@ def test_subscenario_terminate_when():
             ego = new Object
             require eventually simulation().currentTime == 2
             terminate when simulation().currentTime == 1
-    """
+        """
     )
     result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
@@ -414,7 +415,7 @@ def test_subscenario_terminate_with_parent():
                 do Bottom()
         scenario Bottom():
             require eventually simulation().currentTime == 2
-    """
+        """
     )
     result = sampleResultOnce(scenario, maxSteps=2)
     assert result is None
@@ -433,7 +434,7 @@ def test_subscenario_terminate_behavior():
                 take 1
                 terminate
             ego = new Object with behavior Foo
-    """
+        """
     )
     actions = sampleEgoActions(scenario, maxSteps=2)
     assert tuple(actions) == (1, None)
@@ -455,7 +456,7 @@ def test_subscenario_terminate_compose():
         scenario Bottom(x):
             ego = new Object at (x, 0)
             terminate after 1 steps
-    """
+        """
     )
     trajectory = sampleTrajectory(scenario, maxSteps=3)
     assert len(trajectory) == 3
@@ -809,6 +810,75 @@ def test_override_behavior():
     assert tuple(actions) == (1, -1, -2, 2)
 
 
+def test_override_none_behavior():
+    scenario = compileScenic(
+        """
+        scenario Main():
+            setup:
+                ego = new Object
+            compose:
+                wait
+                do Sub() for 2 steps
+                wait
+        scenario Sub():
+            setup:
+                override ego with behavior Bar
+        behavior Bar():
+            x = -1
+            while True:
+                take x
+                x -= 1
+        """,
+        scenario="Main",
+    )
+    actions = sampleEgoActions(scenario, maxSteps=4)
+    assert tuple(actions) == (None, -1, -2, None)
+
+
+def test_override_leakage():
+    scenario = compileScenic(
+        """
+        scenario Main():
+            setup:
+                ego = new Object with prop 1
+            compose:
+                do Sub1()
+        scenario Sub1():
+            setup:
+                override ego with prop 2, with behavior Bar
+        behavior Bar():
+            terminate
+        """,
+        scenario="Main",
+    )
+    scene = sampleScene(scenario)
+    assert scene.objects[0].prop == 1
+    sampleActionsFromScene(scene)
+    assert scene.objects[0].prop == 1
+
+    scenario = compileScenic(
+        """
+        scenario Main():
+            setup:
+                ego = new Object with prop 1
+            compose:
+                do Sub1()
+        scenario Sub1():
+            setup:
+                override ego with prop 2, with behavior Bar
+        behavior Bar():
+            raise NotImplementedError()
+            wait
+        """,
+        scenario="Main",
+    )
+    scene = sampleScene(scenario)
+    assert scene.objects[0].prop == 1
+    with pytest.raises(NotImplementedError):
+        sampleActionsFromScene(scene)
+    assert scene.objects[0].prop == 1
+
+
 def test_override_dynamic():
     with pytest.raises(SpecifierError):
         compileScenic(
@@ -1030,7 +1100,7 @@ def test_scenario_signature(body):
         scenario Blah(foo, *bar, baz=12, **qux):
             {body}
         ego = new Object with thing Blah
-    """
+        """
     )
     sig = inspect.signature(ego.thing)
     params = tuple(sig.parameters.items())
@@ -1048,3 +1118,42 @@ def test_scenario_signature(body):
     assert name4 == "qux"
     assert p4.default is inspect.Parameter.empty
     assert p4.kind is inspect.Parameter.VAR_KEYWORD
+
+
+# lastActions Property
+def test_lastActions_modular():
+    scenario = compileScenic(
+        """
+        scenario Main():
+            setup:
+                ego = new Object
+                record ego.lastActions as lastActions
+            compose:
+                do Sub1() for 2 steps
+                do Sub2() for 2 steps
+                do Sub1() for 2 steps
+                wait
+        scenario Sub1():
+            setup:
+                override ego with behavior Bar
+        scenario Sub2():
+            setup:
+                override ego with behavior None
+        behavior Bar():
+            x = -1
+            while True:
+                take x
+                x -= 1
+        """,
+        scenario="Main",
+    )
+    result = sampleResult(scenario, maxSteps=6)
+    assert tuple(result.records["lastActions"]) == (
+        (0, tuple()),
+        (1, (-1,)),
+        (2, (-2,)),
+        (3, tuple()),
+        (4, tuple()),
+        (5, (-1,)),
+        (6, (-2,)),
+    )

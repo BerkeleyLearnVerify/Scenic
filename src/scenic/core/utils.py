@@ -45,6 +45,14 @@ def cached(oldMethod):
             setattr(self, storageName, value)
             return value
 
+    def clearer(self):
+        try:
+            delattr(self, storageName)
+        except AttributeError:
+            pass
+
+    wrapper._scenic_cache_clearer = clearer
+
     return wrapper
 
 
@@ -68,6 +76,14 @@ def cached_method(oldMethod):
             cachedMethod = functools.lru_cache(maxsize=None)(oldMethod)
             caches[name] = cachedMethod
         return cachedMethod(self, *args, **kwargs)
+
+    def clearer(self):
+        caches = _methodCaches.get(self, collections.defaultdict(dict))
+        cachedMethod = caches.get(name)
+        if cachedMethod:
+            cachedMethod.cache_clear()
+
+    wrapper._scenic_cache_clearer = clearer
 
     return wrapper
 
@@ -108,49 +124,16 @@ def alarm(seconds, handler=None, noNesting=False):
         signal.signal(signal.SIGALRM, signal.SIG_DFL)
 
 
-def loadMesh(path, filetype, compressed, binary):
-    working_path = path
-
-    if binary:
-        mode = "rb"
-    else:
-        mode = "r"
-
-    # Check if file is compressed
-    if compressed is None:
-        root, ext = os.path.splitext(working_path)
-
-        if ext == ".bz2":
-            compressed = True
-            working_path = root
-        else:
-            compressed = False
-
-    # Check mesh filetype
-    if filetype is None:
-        root, ext = os.path.splitext(working_path)
-
-        if ext == "":
-            raise ValueError("Mesh filetype not provided, but could not be extracted")
-
-        filetype = ext
-
-    if compressed:
-        open_function = bz2.open
-    else:
-        open_function = open
-
-    with open_function(path, mode) as mesh_file:
-        mesh = trimesh.load(mesh_file, file_type=filetype)
-
-    return mesh
-
-
 def unifyMesh(mesh, verbose=False):
-    """Attempt to merge mesh bodies, aborting if something fails.
+    """Attempt to merge mesh bodies, raising a `ValueError` if something fails.
 
-    Should only be used with meshes that are volumes. Returns the
-    original mesh if something goes wrong.
+    Should only be used with meshes that are volumes.
+
+    If a mesh is composed of multiple bodies, the following process
+    is applied:
+    1. Split mesh into volumes and holes.
+    2. From each volume, subtract each hole that is fully contained.
+    3. Union all the resulting volumes.
     """
     assert mesh.is_volume
 
@@ -160,30 +143,45 @@ def unifyMesh(mesh, verbose=False):
 
     mesh_bodies = mesh.split()
 
-    if not all(m.is_volume for m in mesh_bodies):
-        if verbose:
-            warnings.warn(
-                "The mesh that you loaded was composed of multiple bodies,"
-                " but Scenic was unable to unify it because some of those bodies"
-                " are non-volumetric (e.g. hollow portions of a volume). This is probably"
-                " not an issue, but note that if any of these bodies have"
-                " intersecting faces, Scenic may give undefined resuls. To suppress"
-                " this warning in the future, consider adding the 'unify=False' parameter"
-                " to your fromFile call."
-            )
-        return mesh
+    if all(m.is_volume for m in mesh_bodies):
+        # If all mesh bodies are volumes, we can just return the union.
+        unified_mesh = trimesh.boolean.union(mesh_bodies)
 
-    try:
-        unified_mesh = trimesh.boolean.union(mesh_bodies, engine="scad")
-    except CalledProcessError:
-        # Something went wrong, return the original mesh
+    else:
+        # Split the mesh bodies into volumes and holes.
+        volumes = []
+        holes = []
+        for m in mesh_bodies:
+            if m.is_volume:
+                volumes.append(m)
+            else:
+                m.fix_normals()
+                assert m.is_volume
+                holes.append(m)
+
+        # For each volume, subtract all holes fully contained in the volume,
+        # keeping track of which holes are fully contained in at least one solid.
+        differenced_volumes = []
+        contained_holes = set()
+
+        for v in volumes:
+            for h in filter(lambda h: h.volume < v.volume, holes):
+                if h.difference(v).is_empty:
+                    contained_holes.add(h)
+                    v = v.difference(h)
+            differenced_volumes.append(v)
+
+        # If one or more holes was not fully contained (and thus ignored),
+        # raise a warning.
         if verbose:
-            warnings.warn(
-                "The mesh that you loaded was composed of multiple bodies,"
-                " but Scenic was unable to unify it because OpenSCAD raised"
-                " an error."
-            )
-        return mesh
+            if contained_holes != set(holes):
+                warnings.warn(
+                    "One or more holes in the provided mesh was not fully contained"
+                    " in any solid (and was ignored)."
+                )
+
+        # Union all the differenced volumes together.
+        unified_mesh = trimesh.boolean.union(differenced_volumes)
 
     # Check that the output is still a valid mesh
     if unified_mesh.is_volume:
@@ -191,30 +189,23 @@ def unifyMesh(mesh, verbose=False):
             if unified_mesh.body_count == 1:
                 warnings.warn(
                     "The mesh that you loaded was composed of multiple bodies,"
-                    " but Scenic was able to unify it into one single body. To save on compile"
+                    " but Scenic was able to unify it into one single body (though"
+                    " you should verify that the result is correct). To save on compile"
                     " time in the future, consider running unifyMesh on your mesh outside"
                     " of Scenic and using that output instead."
                 )
             elif unified_mesh.body_count < mesh.body_count:
                 warnings.warn(
                     "The mesh that you loaded was composed of multiple bodies,"
-                    " but Scenic was able to unify it into fewer bodies. To save on compile"
+                    " but Scenic was able to unify it into fewer bodies (though"
+                    " you should verify that the result is correct). To save on compile"
                     " time in the future, consider running unifyMesh on your mesh outside"
-                    " of Scenic and using that output instead. Note that if any of these"
-                    " bodies have intersecting faces, Scenic may give undefined resuls."
+                    " of Scenic and using that output instead."
                 )
 
         return unified_mesh
     else:
-        if verbose:
-            warnings.warn(
-                "The mesh that you loaded was composed of multiple bodies,"
-                " and Scenic was unable to unify it into fewer bodies. To save on compile"
-                " time in the future, consider adding the 'unify=False' parameter to your"
-                " fromFile call. Note that if any of these bodies have intersecting faces,"
-                " Scenic may give undefined resuls."
-            )
-        return mesh
+        raise ValueError("Unable to unify mesh.")
 
 
 def repairMesh(mesh, pitch=(1 / 2) ** 6, verbose=True):
@@ -351,6 +342,7 @@ if sys.version_info >= (3, 8, 1) or (
 ):
     get_type_hints = typing.get_type_hints
 else:
+    import types
 
     def get_type_hints(obj, globalns=None, localns=None):
         if not isinstance(obj, (type, types.ModuleType)) and globalns is None:

@@ -58,7 +58,7 @@ finishedFlag = ast.Attribute(
 
 trackedNames = {"ego", "workspace"}
 globalParametersName = "globalParameters"
-builtinNames = {globalParametersName}
+builtinNames = {globalParametersName, "str", "int", "float"}
 
 
 # shorthands for convenience
@@ -236,6 +236,16 @@ TEMPORAL_PREFIX_OPS = {
 }
 
 
+class AtomicCheckTransformer(Transformer):
+    def visit_Call(self, node: ast.Call):
+        func = node.func
+        if isinstance(func, ast.Name) and func.id in TEMPORAL_PREFIX_OPS:
+            self.makeSyntaxError(
+                f'malformed use of the "{func.id}" temporal operator', node
+            )
+        return self.generic_visit(node)
+
+
 class PropositionTransformer(Transformer):
     def __init__(self, filename="<unknown>") -> None:
         super().__init__(filename)
@@ -259,6 +269,11 @@ class PropositionTransformer(Transformer):
             return wrapped, self.nextSyntaxId
         newNode = self._create_atomic_proposition_factory(node)
         return newNode, self.nextSyntaxId
+
+    def generic_visit(self, node):
+        acv = AtomicCheckTransformer(self.filename)
+        acv.visit(node)
+        return node
 
     def _register_requirement_syntax(self, syntax):
         """register requirement syntax for later use
@@ -357,14 +372,6 @@ class PropositionTransformer(Transformer):
             keywords=[],
         )
         return ast.copy_location(newNode, node)
-
-    def visit_Call(self, node: ast.Call):
-        func = node.func
-        if isinstance(func, ast.Name) and func.id in TEMPORAL_PREFIX_OPS:
-            self.makeSyntaxError(
-                f'malformed use of the "{func.id}" temporal operator', node
-            )
-        return self.generic_visit(node)
 
     def visit_Always(self, node: s.Always):
         value = self.visit(node.value)
@@ -495,9 +502,11 @@ class ScenicToPythonTransformer(Transformer):
                     ctx = "inside a compose block"
                 if ctx:
                     raise self.makeSyntaxError(
-                        f'Cannot use "{node.__class__.__name__}" {ctx}'
-                        if errorBuilder is None
-                        else errorBuilder(ctx),
+                        (
+                            f'Cannot use "{node.__class__.__name__}" {ctx}'
+                            if errorBuilder is None
+                            else errorBuilder(ctx)
+                        ),
                         node,
                     )
                 return visitor(self, node)
@@ -538,7 +547,11 @@ class ScenicToPythonTransformer(Transformer):
         if node.id in builtinNames:
             if not isinstance(node.ctx, ast.Load):
                 raise self.makeSyntaxError(f'unexpected keyword "{node.id}"', node)
-            node = ast.copy_location(ast.Call(ast.Name(node.id, loadCtx), [], []), node)
+            # Convert global parameters name to a call
+            if node.id == globalParametersName:
+                node = ast.copy_location(
+                    ast.Call(ast.Name(node.id, loadCtx), [], []), node
+                )
         elif node.id in trackedNames:
             if not isinstance(node.ctx, ast.Load):
                 raise self.makeSyntaxError(
@@ -1076,6 +1089,16 @@ class ScenicToPythonTransformer(Transformer):
                 newArgs.append(self.visit(arg))
         newKeywords = [self.visit(kwarg) for kwarg in node.keywords]
         newFunc = self.visit(node.func)
+
+        # Convert primitive type conversions to their Scenic equivalents
+        if isinstance(newFunc, ast.Name):
+            if newFunc.id == "str":
+                newFunc.id = "_toStrScenic"
+            elif newFunc.id == "float":
+                newFunc.id = "_toFloatScenic"
+            elif newFunc.id == "int":
+                newFunc.id = "_toIntScenic"
+
         if wrappedStar:
             newNode = ast.Call(
                 ast.Name("callWithStarArgs", ast.Load()),
@@ -1108,9 +1131,11 @@ class ScenicToPythonTransformer(Transformer):
             value=ast.Call(
                 func=ast.Name(id="mutate", ctx=loadCtx),
                 args=[self.visit(el) for el in node.elts],
-                keywords=[ast.keyword(arg="scale", value=self.visit(node.scale))]
-                if node.scale is not None
-                else [],
+                keywords=(
+                    [ast.keyword(arg="scale", value=self.visit(node.scale))]
+                    if node.scale is not None
+                    else []
+                ),
             )
         )
 
@@ -1354,9 +1379,11 @@ class ScenicToPythonTransformer(Transformer):
                     ast.Constant(lineno),  # line number
                     ast.Constant(name),  # requirement name
                 ],
-                keywords=[ast.keyword(arg="prob", value=ast.Constant(prob))]
-                if prob is not None
-                else [],
+                keywords=(
+                    [ast.keyword(arg="prob", value=ast.Constant(prob))]
+                    if prob is not None
+                    else []
+                ),
             )
         )
 
@@ -1468,9 +1495,11 @@ class ScenicToPythonTransformer(Transformer):
         return ast.Call(
             func=ast.Name(id="Beyond", ctx=loadCtx),
             args=[self.visit(node.position), self.visit(node.offset)],
-            keywords=[ast.keyword(arg="fromPt", value=self.visit(node.base))]
-            if node.base is not None
-            else [],
+            keywords=(
+                [ast.keyword(arg="fromPt", value=self.visit(node.base))]
+                if node.base is not None
+                else []
+            ),
         )
 
     def visit_VisibleSpecifier(self, node: s.VisibleSpecifier):
@@ -1524,9 +1553,11 @@ class ScenicToPythonTransformer(Transformer):
         return ast.Call(
             func=ast.Name(id="Following", ctx=loadCtx),
             args=[self.visit(node.field), self.visit(node.distance)],
-            keywords=[ast.keyword(arg="fromPt", value=self.visit(node.base))]
-            if node.base is not None
-            else [],
+            keywords=(
+                [ast.keyword(arg="fromPt", value=self.visit(node.base))]
+                if node.base is not None
+                else []
+            ),
         )
 
     def visit_FacingSpecifier(self, node: s.FacingSpecifier):
@@ -1570,9 +1601,11 @@ class ScenicToPythonTransformer(Transformer):
         return ast.Call(
             func=ast.Name(id="ApparentlyFacing", ctx=loadCtx),
             args=[self.visit(node.heading)],
-            keywords=[ast.keyword(arg="fromPt", value=self.visit(node.base))]
-            if node.base is not None
-            else [],
+            keywords=(
+                [ast.keyword(arg="fromPt", value=self.visit(node.base))]
+                if node.base is not None
+                else []
+            ),
         )
 
     # Operators
@@ -1581,45 +1614,55 @@ class ScenicToPythonTransformer(Transformer):
         return ast.Call(
             func=ast.Name(id="RelativePosition", ctx=loadCtx),
             args=[self.visit(node.target)],
-            keywords=[]
-            if node.base is None
-            else [ast.keyword(arg="Y", value=self.visit(node.base))],
+            keywords=(
+                []
+                if node.base is None
+                else [ast.keyword(arg="Y", value=self.visit(node.base))]
+            ),
         )
 
     def visit_RelativeHeadingOp(self, node: s.RelativeHeadingOp):
         return ast.Call(
             func=ast.Name(id="RelativeHeading", ctx=loadCtx),
             args=[self.visit(node.target)],
-            keywords=[]
-            if node.base is None
-            else [ast.keyword(arg="Y", value=self.visit(node.base))],
+            keywords=(
+                []
+                if node.base is None
+                else [ast.keyword(arg="Y", value=self.visit(node.base))]
+            ),
         )
 
     def visit_ApparentHeadingOp(self, node: s.ApparentHeadingOp):
         return ast.Call(
             func=ast.Name(id="ApparentHeading", ctx=loadCtx),
             args=[self.visit(node.target)],
-            keywords=[]
-            if node.base is None
-            else [ast.keyword(arg="Y", value=self.visit(node.base))],
+            keywords=(
+                []
+                if node.base is None
+                else [ast.keyword(arg="Y", value=self.visit(node.base))]
+            ),
         )
 
     def visit_DistanceFromOp(self, node: s.DistanceFromOp):
         return ast.Call(
             func=ast.Name(id="DistanceFrom", ctx=loadCtx),
             args=[self.visit(node.target)],
-            keywords=[ast.keyword(arg="Y", value=self.visit(node.base))]
-            if node.base is not None
-            else [],
+            keywords=(
+                [ast.keyword(arg="Y", value=self.visit(node.base))]
+                if node.base is not None
+                else []
+            ),
         )
 
     def visit_DistancePastOp(self, node: s.DistancePastOp):
         return ast.Call(
             func=ast.Name(id="DistancePast", ctx=loadCtx),
             args=[self.visit(node.target)],
-            keywords=[]
-            if node.base is None
-            else [ast.keyword(arg="Y", value=self.visit(node.base))],
+            keywords=(
+                []
+                if node.base is None
+                else [ast.keyword(arg="Y", value=self.visit(node.base))]
+            ),
         )
 
     def visit_AngleFromOp(self, node: s.AngleFromOp):
@@ -1740,6 +1783,16 @@ class ScenicToPythonTransformer(Transformer):
     def visit_CanSeeOp(self, node: s.CanSeeOp):
         return ast.Call(
             func=ast.Name(id="CanSee", ctx=loadCtx),
+            args=[
+                self.visit(node.left),
+                self.visit(node.right),
+            ],
+            keywords=[],
+        )
+
+    def visit_IntersectsOp(self, node: s.IntersectsOp):
+        return ast.Call(
+            func=ast.Name(id="Intersects", ctx=loadCtx),
             args=[
                 self.visit(node.left),
                 self.visit(node.right),

@@ -2,7 +2,6 @@ from contextlib import contextmanager
 import os.path
 from pathlib import Path
 import re
-import subprocess
 import sys
 
 import pytest
@@ -41,7 +40,7 @@ def runLocally(request):
     return manager
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def getAssetPath():
     base = Path(__file__).parent.parent / "assets"
 

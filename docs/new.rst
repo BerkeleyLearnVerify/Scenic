@@ -46,6 +46,8 @@ Backwards-incompatible semantics changes:
 
 	* The :specifier:`offset by` specifier now optionally specifies :prop:`parentOrientation`.
 
+	* The :specifier:`visible` and :specifier:`not visible` specifiers now take into account occlusion and the shapes of objects. In previous versions, they only checked whether the center of the object was visible/not visible, ignoring occlusion.
+
 Backwards-incompatible API changes:
 
 	* The **maxIterations** argument of `Simulator.simulate` now has default value 1, rather than 100.

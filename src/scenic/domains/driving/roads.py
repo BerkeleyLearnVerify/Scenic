@@ -34,7 +34,6 @@ from scenic.core.distributions import (
     distributionFunction,
     distributionMethod,
 )
-from scenic.core.errors import InvalidScenarioError
 import scenic.core.geometry as geometry
 from scenic.core.object_types import Point
 from scenic.core.regions import PolygonalRegion, PolylineRegion
@@ -56,16 +55,9 @@ def _toVector(thing: Vectorlike) -> Vector:
     return type_support.toVector(thing)
 
 
-def _rejectSample(message):
-    if veneer.isActive():
-        raise InvalidScenarioError(message)
-    else:
-        raise RejectionException(message)
-
-
 def _rejectIfNonexistent(element, name="network element"):
     if element is None:
-        _rejectSample(f"requested {name} does not exist")
+        raise RejectionException(f"requested {name} does not exist")
     return element
 
 
@@ -518,6 +510,13 @@ class LaneGroup(LinearElement):
     #: Opposite lane group of the same road, if any.
     _opposite: Union[LaneGroup, None] = None
 
+    def __attrs_post_init__(self):
+        super().__attrs_post_init__()
+
+        # Ensure lanes do not overlap
+        for i in range(len(self.lanes) - 1):
+            assert not self.lanes[i].polygon.overlaps(self.lanes[i + 1].polygon)
+
     @property
     def sidewalk(self) -> Sidewalk:
         """The adjacent sidewalk; rejects if there is none."""
@@ -916,9 +915,18 @@ class Network:
             self.shoulderRegion = PolygonalRegion.unionAll(self.shoulders)
 
         if self.drivableRegion is None:
-            self.drivableRegion = self.laneRegion.union(self.intersectionRegion)
+            self.drivableRegion = PolygonalRegion.unionAll(
+                (
+                    self.laneRegion,
+                    self.roadRegion,  # can contain points slightly outside laneRegion
+                    self.intersectionRegion,
+                )
+            )
         assert self.drivableRegion.containsRegion(
             self.laneRegion, tolerance=self.tolerance
+        )
+        assert self.drivableRegion.containsRegion(
+            self.roadRegion, tolerance=self.tolerance
         )
         assert self.drivableRegion.containsRegion(
             self.intersectionRegion, tolerance=self.tolerance
@@ -973,7 +981,7 @@ class Network:
 
         :meta private:
         """
-        return 30
+        return 33
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
@@ -1203,7 +1211,7 @@ class Network:
                 message = reject
             else:
                 message = "requested element does not exist"
-            _rejectSample(message)
+            raise RejectionException(message)
         return None
 
     def _findPointInAll(self, point, things, key=lambda e: e):

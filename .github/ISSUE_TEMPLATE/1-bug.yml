@@ -1,0 +1,76 @@
+name: Bug Report
+description: Create a report to help us reproduce and fix a bug
+labels:
+  - "type: bug"
+  - "status: triage"
+
+body:
+  - type: markdown
+    attributes:
+      value: >
+        #### Thank you for contributing! Before reporting a bug, please make sure it has no duplicate and has not already been addressed by searching through [the existing and past issues](https://github.com/BerkeleyLearnVerify/Scenic/issues)
+
+  - type: textarea
+    attributes:
+      label: System Details
+      description: |
+        Please provide the following system information to help us diagnose the bug.
+        1. Python Version (e.g. Python 3.11.7)
+        2. Scenic Version (e.g. Scenic 3.0.0b2)
+        3. Operating System / Platform (e.g. Apple M2 Pro macOS Sonoma 14.2.1)
+        4. Simulator Version (Optional, only applies if bug is simulator specific) (e.g. CARLA 0.9.14)
+
+      placeholder: |
+        1. Python Version: `python --version`
+        2. Scenic Version: `scenic --version`
+        3. Operating System / Platform: get from system preferences
+        4. Simulator Version: simulator version
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Detailed Description
+      description: |
+        Please provide a clear and concise description of what the bug is and paste the error log below.
+
+        1. Clear and concise description of the bug
+        2. `scenic` command you ran locally (e.g. `scenic test.scenic --count 1 -b`, etc.). Please rerun your simulation error with the **`-b`** parameter for a full stack trace.
+        3. Error log. It helps improving readability if the error log is wrapped in ```triple quotes blocks```.
+
+      placeholder: |
+        1. Scenic has a bug
+        2. `scenic test.scenic -b`
+        3. Error Log
+        ```
+        # error full stack trace
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Steps To Reproduce
+      description: |
+        Please provide a minimal example to help us reproduce the bug. Code should be wrapped with ```triple quotes blocks``` to improve readability. 
+        If it is not possible to reproduce the bug with a short self-contained Scenic or Python file, for example if a specific mesh is required, you can attach any required files below or include a link to them.
+
+        If possible/applicable, please specify a seed that will reproduce the issue by running scenic with the seed argument: `scenic -s SEED, --seed SEED  random seed`
+      placeholder: |
+        1. First step to reproduce bug
+        2. Second step, etc
+        ...
+        ```
+        # sample code to reproduce the bug
+        ```
+    validations:
+      required: true
+
+  - type: checkboxes
+    attributes:
+      label: Issue Submission Checklist
+      options:
+        - label: I am reporting an issue, not asking a question
+          required: true
+        - label: I checked the open and closed issues, forum, etc. and have not found any solution
+        - label: I have provided all necessary code, etc. to reproduce the issue

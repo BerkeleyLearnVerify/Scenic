@@ -36,7 +36,7 @@ import types
 from typing import Optional
 
 from scenic.core.distributions import RejectionException, toDistribution
-import scenic.core.dynamics as dynamics
+from scenic.core.dynamics.scenarios import DynamicScenario
 import scenic.core.errors as errors
 from scenic.core.errors import InvalidScenarioError, PythonCompileError
 from scenic.core.lazy_eval import needsLazyEvaluation
@@ -653,7 +653,7 @@ def constructScenarioFrom(namespace, scenarioName=None):
     modularScenarios = namespace["_scenarios"]
 
     def isModularScenario(thing):
-        return isinstance(thing, type) and issubclass(thing, dynamics.DynamicScenario)
+        return isinstance(thing, type) and issubclass(thing, DynamicScenario)
 
     if not scenarioName and isModularScenario(namespace.get("Main", None)):
         scenarioName = "Main"
@@ -686,5 +686,8 @@ def constructScenarioFrom(namespace, scenarioName=None):
     # Prune infeasible parts of the space
     if usePruning:
         pruning.prune(scenario, verbosity=errors.verbosityLevel)
+
+    # Validate scenario
+    scenario.validate()
 
     return scenario

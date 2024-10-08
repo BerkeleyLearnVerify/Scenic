@@ -208,8 +208,10 @@ Additional specifiers for the :prop:`position` and :prop:`orientation` propertie
      - Positions the object uniformly at random in the given Region
    * - :sampref:`contained in {region}`
      - Positions the object uniformly at random entirely contained in the given Region
-   * - :sampref:`on {region}`
-     - Positions the base of the object uniformly at random in the given Region, or modifies the position so that the base is in the Region.
+   * - :sampref:`on {vector}`
+     - Positions the base of the object at the given global coordinates
+   * - :sampref:`on ({region} | {Object})`
+     - Positions the object uniformly at random or modifies the position so that base of the Object is in the given Region/on the given Object.
    * - :sampref:`offset by {vector}`
      - Positions the object at the given coordinates in the local coordinate system of ego (which must already be defined)
    * - :sampref:`offset along {direction} by {vector}`
@@ -217,9 +219,9 @@ Additional specifiers for the :prop:`position` and :prop:`orientation` propertie
    * - :sampref:`beyond {vector} by ({vector} | {scalar}) [from ({vector} | {OrientedPoint})]`
      - Positions the object with respect to the line of sight from a point or the ego
    * - :sampref:`visible [from ({Point} | {OrientedPoint})]`
-     - Ensures the object is visible from the ego, or from the given Point/OrientedPoint if given, while optionally specifying position to be in the appropriate visible region.
+     - Ensures the object is visible from the ego, or from the given Point/OrientedPoint if given, while optionally specifying position to be uniformly random over all positions that result in a visible object.
    * - :sampref:`not visible [from ({Point} | {OrientedPoint})]`
-     - Ensures the object is not visible from the ego, or from the given Point/OrientedPoint if given, while optionally specifying position to be outside the appropriate visible region.
+     - Ensures the object is not visible from the ego, or from the given Point/OrientedPoint if given, while optionally specifying position to be uniformly random over all positions that result in a non-visible object.
    * - :sampref:`(left | right) of ({vector} | {OrientedPoint} | {Object}) [by {scalar}] <left of>`
      - Positions the object to the left/right by the given scalar distance.
    * - :sampref:`(ahead of | behind) ({vector} | {OrientedPoint} | {Object}) [by {scalar}] <ahead of>`
@@ -282,9 +284,11 @@ In the following tables, operators are grouped by the type of value they return.
    * - Boolean Operators
      - Meaning
    * - :sampref:`({Point} | {OrientedPoint}) can see ({vector} | {Object})`
-     - Whether or not a position or `Object` is visible from a `Point` or `OrientedPoint`.
+     - Whether or not a position or `Object` is visible from a `Point` or `OrientedPoint`
    * - :sampref:`({vector} | {Object}) in {region}`
-     -  Whether a position or `Object` lies in the region
+     - Whether a position or `Object` lies in the region
+   * - :sampref:`({Object} | {region}) intersects ({Object} | {region})`
+     - Whether an `Object`/`Region` intersects an `Object`/`Region`.
 
 
 .. list-table::
