@@ -65,7 +65,7 @@ First, run the :file:`generateUnrealWorldInfo.py` script inside Unreal Engine by
 simply entering in the file path in the engine’s python console.
 
 Then run
-`thegenerateWorldInfoFromUnrealWorldInfo.py <http://thegenerateWorldInfoFromUnrealWorldInfo.py>`__
+the :file:`generateWorldInfoFromUnrealWorldInfo.py`
 script
 
 Using Airsim
