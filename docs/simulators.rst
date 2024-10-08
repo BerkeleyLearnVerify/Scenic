@@ -61,7 +61,7 @@ achieve this, utilize the scripts located at
 Using Unreal Engine (recommended)
 """""""""""""""""""""""""""""""""
 
-First, run the generateUnrealWorldInfo.py script inside unreal engine by
+First, run the :file:`generateUnrealWorldInfo.py` script inside Unreal Engine by
 simply entering in the file path in the engine’s python console.
 
 Then run
