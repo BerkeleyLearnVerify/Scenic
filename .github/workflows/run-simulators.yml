@@ -90,16 +90,6 @@ jobs:
                 sleep 10  # Check status every 10 seconds
             done
 
-        - name: Check Disc Usage After Volume Attachment
-          env:
-            PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-            HOSTNAME: ${{ secrets.SSH_HOST }}
-            USER_NAME: ${{ secrets.SSH_USERNAME }}
-          run: |
-            echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-            ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} 'df -h /dev/sda1'
-
-
     check_simulator_version_updates:
       name: check_simulator_version_updates
       runs-on: ubuntu-latest
@@ -156,15 +146,6 @@ jobs:
       runs-on: ubuntu-latest
       needs: [check_simulator_version_updates, check_nvidia_smi]
       steps:
-        - name: Check Disk Usage Before CARLA Tests
-          env:
-            PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-            HOSTNAME: ${{ secrets.SSH_HOST }}
-            USER_NAME: ${{ secrets.SSH_USERNAME }}
-          run: |
-            echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-            ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} 'df -h /dev/sda1'
-
         - name: Run CARLA Tests
           env:
             PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -183,29 +164,11 @@ jobs:
               done
             '
 
-        - name: Check Disk Usage After CARLA Tests
-          env:
-            PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-            HOSTNAME: ${{ secrets.SSH_HOST }}
-            USER_NAME: ${{ secrets.SSH_USERNAME }}
-          run: |
-            echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-            ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} 'df -h /dev/sda1'
-
     run_webots_simulators:
       name: run_webots_simulators
       runs-on: ubuntu-latest
       needs: [check_simulator_version_updates, check_nvidia_smi]
       steps:
-        - name: Check Disk Usage Before Webots Tests
-          env:
-            PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-            HOSTNAME: ${{ secrets.SSH_HOST }}
-            USER_NAME: ${{ secrets.SSH_USERNAME }}
-          run: |
-            echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-            ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} 'df -h /dev/sda1'
-
         - name: Run Webots Tests
           env:
             PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -226,14 +189,6 @@ jobs:
               done
               kill %1
             '
-        - name: Check Disk Usage After Webots Tests
-          env:
-            PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-            HOSTNAME: ${{ secrets.SSH_HOST }}
-            USER_NAME: ${{ secrets.SSH_USERNAME }}
-          run: |
-            echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-            ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} 'df -h /dev/sda1'
 
     stop_ec2_instance:
       name: stop_ec2_instance
@@ -247,15 +202,6 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
       steps:
-        - name: Check Disk Before Stopping EC2 Instance
-          env:
-            PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-            HOSTNAME: ${{ secrets.SSH_HOST }}
-            USER_NAME: ${{ secrets.SSH_USERNAME }}
-          run: |
-            echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-            ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} 'df -h /dev/sda1'
-
         - name: Stop EC2 Instance
           run: |
             # Get the instance state and stop it if running
@@ -271,17 +217,6 @@ jobs:
               echo "Unexpected instance state: $instance_state"
               exit 1
             fi
-
-        - name: Take Snapshot of Volume
-          run: |
-            # Create a snapshot of the volume
-            echo "Volume ID is: $VOLUME_ID"
-            snapshot_id=$(aws ec2 create-snapshot --volume-id $VOLUME_ID --description "Snapshot before deletion" --query "SnapshotId" --output text)
-            echo "Snapshot ID: $snapshot_id"
-
-            # Wait for the snapshot to complete
-            aws ec2 wait snapshot-completed --snapshot-ids $snapshot_id
-            echo "Snapshot completed."
 
         - name: Detach Volume
           run: |
