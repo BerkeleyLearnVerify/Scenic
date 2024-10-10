@@ -26,7 +26,7 @@ jobs:
             echo "Using latest snapshot with ID: $LATEST_SNAPSHOT_ID"
 
             # Create a new volume from the latest snapshot
-            volume_id=$(aws ec2 create-volume --snapshot-id $LATEST_SNAPSHOT_ID --availability-zone us-west-1b --volume-type standard --size 400 --query "VolumeId" --output text)
+            volume_id=$(aws ec2 create-volume --snapshot-id $LATEST_SNAPSHOT_ID --availability-zone us-west-1b --volume-type sc1 --size 100 --query "VolumeId" --output text)
             echo "Created volume with ID: $volume_id"
 
             # Set volume_id as output
