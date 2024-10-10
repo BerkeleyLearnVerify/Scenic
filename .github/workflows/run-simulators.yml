@@ -41,16 +41,6 @@ jobs:
             aws ec2 attach-volume --volume-id $volume_id --instance-id $INSTANCE_ID --device /dev/sda1
             echo "Volume $volume_id attached to instance $INSTANCE_ID as /dev/sda1"
 
-        - name: Check Disc Usage After Volume Attachment
-          env:
-            PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-            HOSTNAME: ${{ secrets.SSH_HOST }}
-            USER_NAME: ${{ secrets.SSH_USERNAME }}
-          run: |
-            echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-            ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} 'df -h /dev/sda1'
-
-
         - name: Start EC2 Instance
           run: |
             # Get the instance state
@@ -99,6 +89,16 @@ jobs:
 
                 sleep 10  # Check status every 10 seconds
             done
+
+        - name: Check Disc Usage After Volume Attachment
+          env:
+            PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+            HOSTNAME: ${{ secrets.SSH_HOST }}
+            USER_NAME: ${{ secrets.SSH_USERNAME }}
+          run: |
+            echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+            ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} 'df -h /dev/sda1'
+
 
     check_simulator_version_updates:
       name: check_simulator_version_updates
