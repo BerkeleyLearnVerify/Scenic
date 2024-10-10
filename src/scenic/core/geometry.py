@@ -60,9 +60,9 @@ def averageVectors(a, b, weight=0.5):
 
 
 def rotateVector(vector, angle):
-    x, y = vector
+    x, y, z = vector
     c, s = cos(angle), sin(angle)
-    return ((c * x) - (s * y), (s * x) + (c * y))
+    return ((c * x) - (s * y), (s * x) + (c * y), z)
 
 
 def findMinMax(iterable):
