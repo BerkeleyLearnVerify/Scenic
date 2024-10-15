@@ -23,7 +23,19 @@ jobs:
           run: |
             #  Retrieve the latest snapshot ID
             LATEST_SNAPSHOT_ID=$(aws ec2 describe-snapshots --owner-ids self --query 'Snapshots | sort_by(@, &StartTime) | [-1].SnapshotId' --output text)
-            echo "Using latest snapshot with ID: $LATEST_SNAPSHOT_ID"
+            echo "Checking availability for snapshot: $LATEST_SNAPSHOT_ID"
+
+            # Wait until snapshot is in 'completed' status
+            while true; do
+              snapshot_status=$(aws ec2 describe-snapshots --snapshot-ids $LATEST_SNAPSHOT_ID --query 'Snapshots[0].State' --output text)
+              if [ "$snapshot_status" == "completed" ]; then
+                echo "Snapshot is ready."
+                break
+              else
+                echo "Snapshot still in $snapshot_status state, waiting..."
+                sleep 10
+              fi
+            done
 
             # Create a new volume from the latest snapshot
             volume_id=$(aws ec2 create-volume --snapshot-id $LATEST_SNAPSHOT_ID --availability-zone us-west-1b --volume-type standard --size 100 --query "VolumeId" --output text)
@@ -67,8 +79,25 @@ jobs:
                 exit 1
             fi
 
-            # wait for status checks to pass
-            TIMEOUT=300  # Timeout in seconds
+        - name: Get and Log Instance State
+          run: |
+            # Capture detailed instance status
+            instance_state=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID | jq -r '.Reservations[].Instances[].State.Name')
+            instance_status=$(aws ec2 describe-instance-status --instance-ids $INSTANCE_ID | jq -r '.InstanceStatuses[0].InstanceStatus.Status')
+            system_status=$(aws ec2 describe-instance-status --instance-ids $INSTANCE_ID | jq -r '.InstanceStatuses[0].SystemStatus.Status')
+            echo "Instance State: $instance_state"
+            echo "Instance Status: $instance_status"
+            echo "System Status: $system_status"
+
+            # Check for any errors in status
+            if [[ "$instance_status" != "ok" || "$system_status" != "ok" ]]; then
+              echo "Instance failed to initialize correctly. Exiting job with failure."
+              exit 1
+            fi
+
+        - name: Wait for Status Checks to Pass
+          run: |
+            TIMEOUT=600  # Timeout in seconds
             START_TIME=$(date +%s)
             END_TIME=$((START_TIME + TIMEOUT))
             while true; do
