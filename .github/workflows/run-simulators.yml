@@ -79,24 +79,7 @@ jobs:
                 exit 1
             fi
 
-        - name: Get and Log Instance State
-          run: |
-            # Capture detailed instance status
-            instance_state=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID | jq -r '.Reservations[].Instances[].State.Name')
-            instance_status=$(aws ec2 describe-instance-status --instance-ids $INSTANCE_ID | jq -r '.InstanceStatuses[0].InstanceStatus.Status')
-            system_status=$(aws ec2 describe-instance-status --instance-ids $INSTANCE_ID | jq -r '.InstanceStatuses[0].SystemStatus.Status')
-            echo "Instance State: $instance_state"
-            echo "Instance Status: $instance_status"
-            echo "System Status: $system_status"
-
-            # Check for any errors in status
-            if [[ "$instance_status" != "ok" || "$system_status" != "ok" ]]; then
-              echo "Instance failed to initialize correctly. Exiting job with failure."
-              exit 1
-            fi
-
-        - name: Wait for Status Checks to Pass
-          run: |
+            # wait for status checks to pass
             TIMEOUT=600  # Timeout in seconds
             START_TIME=$(date +%s)
             END_TIME=$((START_TIME + TIMEOUT))
