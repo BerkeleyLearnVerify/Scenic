@@ -26,7 +26,7 @@ jobs:
             echo "Using latest snapshot with ID: $LATEST_SNAPSHOT_ID"
 
             # Create a new volume from the latest snapshot
-            volume_id=$(aws ec2 create-volume --snapshot-id $LATEST_SNAPSHOT_ID --availability-zone us-west-1b --volume-type sc1 --size 150 --query "VolumeId" --output text)
+            volume_id=$(aws ec2 create-volume --snapshot-id $LATEST_SNAPSHOT_ID --availability-zone us-west-1b --volume-type standard --size 100 --query "VolumeId" --output text)
             echo "Created volume with ID: $volume_id"
 
             # Set volume_id as output
@@ -68,7 +68,7 @@ jobs:
             fi
 
             # wait for status checks to pass
-            TIMEOUT=600  # Timeout in seconds
+            TIMEOUT=300  # Timeout in seconds
             START_TIME=$(date +%s)
             END_TIME=$((START_TIME + TIMEOUT))
             while true; do
@@ -225,8 +225,8 @@ jobs:
             aws ec2 wait volume-available --volume-ids $VOLUME_ID
             echo "Volume $VOLUME_ID detached."
 
-        # - name: Delete Volume
-        #   run: |
-        #     # Delete the volume after snapshot is complete
-        #     aws ec2 delete-volume --volume-id $VOLUME_ID
-        #     echo "Volume $VOLUME_ID deleted."
+        - name: Delete Volume
+          run: |
+            # Delete the volume after snapshot is complete
+            aws ec2 delete-volume --volume-id $VOLUME_ID
+            echo "Volume $VOLUME_ID deleted."
