@@ -49,14 +49,7 @@ A client directly communicates with a specific METSR-SIM server.
 
 class METSRClient(threading.Thread):
     def __init__(
-        self,
-        host,
-        port,
-        index,
-        docker_id=None,
-        manager=None,
-        retry_threshold=10,
-        verbose=False,
+        self, host, port, index, manager=None, retry_threshold=10, verbose=False
     ):
         super().__init__()
 
@@ -64,14 +57,13 @@ class METSRClient(threading.Thread):
         self.host = host
         self.port = port
         self.uri = f"ws://{host}:{port}"
-        print(f"DEBUG URI: {self.uri}")
         self.index = index
         self.state = "connecting"
         self.retry_threshold = (
             retry_threshold  # time out for resending the same message if no response
         )
         self.verbose = verbose
-        self.docker_id = docker_id
+        # self.docker_id = docker_id
 
         # a pointer to the manager
         self.manager = manager
@@ -168,7 +160,9 @@ class METSRClient(threading.Thread):
     # Method for handle messages
     def handle_step_message(self, decoded_msg):
         tick = decoded_msg["TICK"]
-        if tick > self.current_tick:  # tick less than current_tick is ignored
+        if (
+            tick == self.current_tick + 1
+        ):  # tick not equal to the current tick + 1 is ignored
             self.current_tick = tick
 
     def handle_answer_message(self, ws, decoded_msg):
@@ -202,21 +196,36 @@ class METSRClient(threading.Thread):
         self,
     ):  # synchronized, wait until the simulator finish the corresponding step
         while self.current_tick <= self.prev_tick:
-            time.sleep(0.002)
+            time.sleep(0.001)
+
         self.send_step_message(self.current_tick)
+
+        while self.current_tick + 1 <= self.prev_tick:
+            time.sleep(0.001)
+            if time.time() - self.prev_time > self.retry_threshold:
+                return False, f"Tick time out, the current tick is {self.current_tick}"
 
     def send_query_message(
         self, msg
     ):  # asynchronized, other tasks can be done while waiting for the answer
-        time.sleep(0.005)  # wait for some time to avoid blocking the message pending
+        # time.sleep(0.005) # wait for some time to avoid blocking the message pending
         while not self.ready:
             time.sleep(1)
 
         self.prev_time = time.time()
         self.ws.send(json.dumps(msg))
 
+        ans_type = msg["TYPE"].replace("QUERY", "ANS")
+        while self.latest_message is None or self.latest_message["TYPE"] != ans_type:
+            time.sleep(0.001)
+            if time.time() - self.prev_time > self.retry_threshold:
+                return False, f"Query time out, the message is {msg}"
+        res = self.latest_message.copy()
+        self.latest_message = None
+        return True, res
+
     def send_control_message(self, msg):  # synchronized, wait until receive the answer
-        time.sleep(0.005)  # wait for some time to avoid blocking the message pending
+        # time.sleep(0.005) # wait for some time to avoid blocking the message pending
         while not self.ready:
             time.sleep(1)
 
@@ -224,7 +233,7 @@ class METSRClient(threading.Thread):
         sent_time = time.time()
         # wait until receive the answer or time out
         while self.latest_message is None or self.latest_message["TYPE"] != msg["TYPE"]:
-            time.sleep(0.005)
+            time.sleep(0.001)
             if time.time() - sent_time > self.retry_threshold:
                 return False, f"Control time out, the message is {msg}"
         res = self.latest_message.copy()
@@ -234,124 +243,70 @@ class METSRClient(threading.Thread):
         else:
             return False, f"Control failed, the reply is {res}"
 
-    def process_query_message(self, msg):
-        ans_type = msg["TYPE"].replace("QUERY", "ANS")
-        while self.latest_message is None or self.latest_message["TYPE"] != ans_type:
-            time.sleep(0.001)
-            if time.time() - self.prev_time > self.retry_threshold:
-                return "Query failed"
-        res = self.latest_message.copy()
-        self.latest_message = None
-        return res
-
-    def process_query_message_with_id(self, msg):
-        ans_type = msg["TYPE"].replace("QUERY", "ANS")
-        while (
-            self.latest_message is None
-            or self.latest_message["TYPE"] != ans_type
-            or "ID" not in self.latest_message
-            or self.latest_message["ID"] != msg["ID"]
-        ):
-            time.sleep(0.001)
-            if time.time() - self.prev_time > self.retry_threshold:
-                return "Query failed"
-        res = self.latest_message.copy()
-        self.latest_message = None
-        return res
-
     # QUERY: inspect the state of the simulator
     # By default query public vehicles
     def query_vehicle(self, id=None, private_veh=False, transform_coords=False):
         my_msg = {}
         my_msg["TYPE"] = "QUERY_vehicle"
-        if id is None:
-            self.send_query_message(my_msg)
-            return self.process_query_message(my_msg)
-        else:
+        if id is not None:
             my_msg["ID"] = id
             my_msg["PRV"] = private_veh
             my_msg["TRAN"] = transform_coords
-            self.send_query_message(my_msg)
-            return self.process_query_message_with_id(my_msg)
+        return self.send_query_message(my_msg)
 
     # query taxi
     def query_taxi(self, id=None):
         my_msg = {}
         my_msg["TYPE"] = "QUERY_taxi"
-        if id is None:
-            self.send_query_message(my_msg)
-            return self.process_query_message(my_msg)
-        else:
+        if id is not None:
             my_msg["ID"] = id
-            self.send_query_message(my_msg)
-            return self.process_query_message_with_id(my_msg)
+        return self.send_query_message(my_msg)
 
     # query bus
     def query_bus(self, id=None):
         my_msg = {}
         my_msg["TYPE"] = "QUERY_bus"
-        if id is None:
-            self.send_query_message(my_msg)
-            return self.process_query_message(my_msg)
-        else:
+        if id is not None:
             my_msg["ID"] = id
-            self.send_query_message(my_msg)
-            return self.process_query_message_with_id(my_msg)
+        return self.send_query_message(my_msg)
 
     # query road
     def query_road(self, id=None):
         my_msg = {}
         my_msg["TYPE"] = "QUERY_road"
-        if id is None:
-            self.send_query_message(my_msg)
-            return self.process_query_message(my_msg)
-        else:
+        if id is not None:
             my_msg["ID"] = id
-            self.send_query_message(my_msg)
-            return self.process_query_message_with_id(my_msg)
+        return self.send_query_message(my_msg)
 
     # query zone
     def query_zone(self, id=None):
         my_msg = {}
         my_msg["TYPE"] = "QUERY_zone"
-        if id is None:
-            self.send_query_message(my_msg)
-            return self.process_query_message(my_msg)
-        else:
+        if id is not None:
             my_msg["ID"] = id
-            self.send_query_message(my_msg)
-            return self.process_query_message_with_id(my_msg)
+        return self.send_query_message(my_msg)
 
     # query signal
     def query_signal(self, id=None):
         my_msg = {}
         my_msg["TYPE"] = "QUERY_signal"
-        if id is None:
-            self.send_query_message(my_msg)
-            return self.process_query_message(my_msg)
-        else:
+        if id is not None:
             my_msg["ID"] = id
-            self.send_query_message(my_msg)
-            return self.process_query_message_with_id(my_msg)
+        return self.send_query_message(my_msg)
 
     # query chargingStation
     def query_chargingStation(self, id=None):
         my_msg = {}
         my_msg["TYPE"] = "QUERY_chargingStation"
-        if id is None:
-            self.send_query_message(my_msg)
-            return self.process_query_message(my_msg)
-        else:
+        if id is not None:
             my_msg["ID"] = id
-            self.send_query_message(my_msg)
-            return self.process_query_message_with_id(my_msg)
+        return self.send_query_message(my_msg)
 
     # query vehicleID within the co-sim road
     def query_coSimVehicle(self):
         my_msg = {}
         my_msg["TYPE"] = "QUERY_coSimVehicle"
-        self.send_query_message(my_msg)
-        return self.process_query_message(my_msg)
+        return self.send_query_message(my_msg)
 
     # CONTROL: change the state of the simulator
     # set the road for co-simulation
@@ -419,27 +374,12 @@ class METSRClient(threading.Thread):
         return self.send_control_message(my_msg)
 
     # reset the simulation with a property file
-    def reset_same(self):
-        # # print current working directory
-        # print(f"Current working directory: {os.getcwd()}")
-        # print(f"Docker ID: {self.docker_id}")
-        # # copy prop_file (a file) to the sim folder
-        # docker_cp_command = f"docker cp ~/Downloads/METS-R_HPC/data/{prop_file} {self.docker_id}:/home/test/data/"
-        # subprocess.run(docker_cp_command, shell=True, check=True)
-
-        my_msg = {}
-        my_msg["TYPE"] = "CTRL_reset"
-        my_msg["propertyFile"] = "Data.properties"
-        self.current_tick = self.prev_tick = -1
-
-        return self.send_control_message(my_msg)
-
     def reset(self, prop_file):
-        # # print current working directory
+        # print current working directory
         # print(f"Current working directory: {os.getcwd()}")
         # print(f"Docker ID: {self.docker_id}")
-        # # copy prop_file (a file) to the sim folder
-        # docker_cp_command = f"docker cp ~/Downloads/METS-R_HPC/data/{prop_file} {self.docker_id}:/home/test/data/"
+        # copy prop_file (a file) to the sim folder
+        # docker_cp_command = f"docker cp data/{prop_file} {self.docker_id}:/home/test/data/"
         # subprocess.run(docker_cp_command, shell=True, check=True)
 
         my_msg = {}
@@ -451,7 +391,7 @@ class METSRClient(threading.Thread):
 
     # reset the simulation with a map name
     def reset_map(self, map_name):
-        # # find the property file for the map
+        # find the property file for the map
         if map_name == "CARLA":
             # copy CARLA data in the sim folder
             # source_path = "data/CARLA"
@@ -474,6 +414,9 @@ class METSRClient(threading.Thread):
         my_msg = {}
         my_msg["TYPE"] = "CTRL_end"
         return self.send_control_message(my_msg)
+
+    def close(self):
+        self.ws.close()
 
     # override __str__ for logging
     def __str__(self):

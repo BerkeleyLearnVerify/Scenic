@@ -11,18 +11,15 @@ from scenic.simulators.metsr.client import METSRClient
 class METSRSimulator(Simulator):
     def __init__(self, host, port, map_name):
         super().__init__()
-
-        self.client = METSRClient(host=host, port=port, index=42, verbose=True)
-        self.client.start()
-        self.client.tick()
-        self.client.ready = True
+        self.host = host
+        self.port = port
         self.map_name = map_name
 
     def createSimulation(self, scene, **kwargs):
-        return METSRSimulation(scene, self.client, self.map_name, **kwargs)
+        client = METSRClient(host=self.host, port=self.port, index=42, verbose=True)
+        return METSRSimulation(scene, client, self.map_name, **kwargs)
 
     def destroy(self):
-        self.client.terminate()
         super().destroy()
 
 
@@ -33,23 +30,31 @@ class METSRSimulation(Simulation):
         super().__init__(scene, **kwargs)
 
     def setup(self):
-        print("SETUP")
-        self.client.reset_same()
+        # Initialize METS-R Sim Client and Server Connection
+        self.client.start()
+        self.client.tick()
+        self.client.ready = True
+        self.client.reset_map("CARLA")
+
         super().setup()  # Calls createObjectInSimulator for each object
 
     def createObjectInSimulator(self, obj):
         assert obj.origin
         assert obj.destination
 
-        self.client.generate_trip(0, origin=obj.origin, destination=obj.destination)
+        success = self.client.generate_trip(
+            0, origin=obj.origin, destination=obj.destination
+        )
+        assert success
 
     def step(self):
-        print("STEP")
         self.client.tick()
 
     def getProperties(self, obj, properties):
-        print("GET PROPERTIES")
-        raw_data = self.client.query_vehicle(0, private_veh=True, transform_coords=True)
+        success, raw_data = self.client.query_vehicle(
+            0, private_veh=True, transform_coords=True
+        )
+        assert success
 
         position = Vector(raw_data["x"], raw_data["y"], 0)
         speed = raw_data["speed"]
@@ -73,4 +78,4 @@ class METSRSimulation(Simulation):
         return values
 
     def destroy(self):
-        pass
+        self.client.close()
