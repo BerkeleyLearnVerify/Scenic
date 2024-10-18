@@ -13,6 +13,8 @@ See the individual entries for details on each interface's capabilities and how 
 .. contents:: List of Simulators
    :local:
 
+
+
 Currently Supported
 ===================
 AirSim
@@ -54,31 +56,22 @@ Generate World Info
 
 Before running Scenic, it’s essential to generate world information. To
 achieve this, utilize the scripts located at
-Scenic/src/scenic/simulators/airsim/generators/
+:file:`src/scenic/simulators/airsim/generators/`
 
 Using Unreal Engine (recommended)
 """""""""""""""""""""""""""""""""
 
-First, run the generateUnrealWorldInfo.py script inside unreal engine by
+First, run the :file:`generateUnrealWorldInfo.py` script inside Unreal Engine by
 simply entering in the file path in the engine’s python console.
 
 Then run
-`thegenerateWorldInfoFromUnrealWorldInfo.py <http://thegenerateWorldInfoFromUnrealWorldInfo.py>`__
+the :file:`generateWorldInfoFromUnrealWorldInfo.py`
 script
 
 Using Airsim
 """"""""""""
 
-Run the generateWorldInfo.py script
-
-Note: This world info generation only works on small environments such
-as the Blocks environment. For larger environments, you will need to
-manually create the world info file.
-
-Possible work around for now is to generate the 3d model of the
-environment by getting its voxel grid information and using the
-helper python script `binvoxToObj.py <http://binvoxToObj.py/>`__ to
-put into the assets and objectMeshes folder of your worldInfo folder.
+Run the :file:`generateWorldInfo.py` script
 
 **Configure AirSim Settings**
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -197,6 +190,7 @@ PX4 firmware in SITL mode.
 After this step, you can run Scenic files normally as shown in the
 “Running Scenic” section above.
 
+
 Built-in Newtonian Simulator
 ----------------------------
 
@@ -299,6 +293,8 @@ This interface is part of the VerifAI toolkit; documentation and examples can be
 .. _our VerifAI paper: https://doi.org/10.1007/978-3-030-25540-4_25
 
 .. _VerifAI repository: https://github.com/BerkeleyLearnVerify/VerifAI
+
+
 
 
 Deprecated
