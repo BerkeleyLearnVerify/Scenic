@@ -13,4 +13,4 @@ ego = new Object with origin 2, with destination 9
 
 record ego.position as "pos"
 
-terminate after 10 steps
+terminate after 2000 steps

@@ -135,15 +135,15 @@ class METSRClient(threading.Thread):
         # all clients are disconnected
         wait_time = 0
 
-        # wait until the server is up, or timeout after 60 seconds
+        # wait until the server is up, or timeout after 30 seconds
         while not check_socket(self.host, self.port):
             # count the real-world seconds
             wait_time += 1
             if wait_time > 20:
                 print(
-                    f"Waiting for the server to be up at {self.uri}.. time out in {60-wait_time} seconds.."
+                    f"Waiting for the server to be up at {self.uri}.. time out in {30-wait_time} seconds.."
                 )
-            if wait_time > 60:
+            if wait_time > 30:
                 print(
                     "Waiting overtime, please check the connection and restart the simulation."
                 )
@@ -153,23 +153,29 @@ class METSRClient(threading.Thread):
                 os.system("docker-compose down")
                 break
 
-        if wait_time <= 60:
+        if wait_time <= 30:
             print(f"Sever is active at {self.uri},  running client..")
             self.ws.run_forever()
 
     # Method for handle messages
     def handle_step_message(self, decoded_msg):
-        tick = decoded_msg["TICK"]
-        if (
-            tick == self.current_tick + 1
-        ):  # tick not equal to the current tick + 1 is ignored
-            self.current_tick = tick
+        with self.lock:  # for thread safety
+            tick = decoded_msg["TICK"]
+            if not self.ready:
+                self.send_step_message(
+                    0
+                )  # This will initialize the simulator data structures if it is first ran, otherwise, it will be ignored
+                self.ready = True
+            if (
+                tick > self.current_tick
+            ):  # tick not equal to the current_tick + 1 is ignored
+                self.current_tick = tick
 
     def handle_answer_message(self, ws, decoded_msg):
-        if decoded_msg["TYPE"] == "ANS_ready":
-            print("SIM is ready!!")
-            self.ready = True
-        elif decoded_msg["TYPE"] == "ANS_TaxiUCB":
+        # if decoded_msg['TYPE'] == "ANS_ready":
+        #     print("SIM is ready!!")
+        #     self.ready = True
+        if decoded_msg["TYPE"] == "ANS_TaxiUCB":
             size = int(decoded_msg["SIZE"])
             candidate_paths = {}
             od = decoded_msg["OD"]
@@ -229,19 +235,25 @@ class METSRClient(threading.Thread):
         while not self.ready:
             time.sleep(1)
 
-        self.ws.send(json.dumps(msg))
-        sent_time = time.time()
-        # wait until receive the answer or time out
-        while self.latest_message is None or self.latest_message["TYPE"] != msg["TYPE"]:
-            time.sleep(0.001)
-            if time.time() - sent_time > self.retry_threshold:
-                return False, f"Control time out, the message is {msg}"
-        res = self.latest_message.copy()
-        self.latest_message = None
-        if res["CODE"] == "OK":
-            return True, res
-        else:
-            return False, f"Control failed, the reply is {res}"
+        with self.lock:
+            self.ws.send(json.dumps(msg))
+            sent_time = time.time()
+            # wait until receive the answer or time out
+            while (
+                self.latest_message is None or self.latest_message["TYPE"] != msg["TYPE"]
+            ):
+                time.sleep(0.001)
+                if time.time() - sent_time > self.retry_threshold:
+                    return False, f"Control time out, the message is {msg}"
+            res = self.latest_message.copy()
+            self.latest_message = None
+            if res["CODE"] == "OK":
+                if msg["TYPE"] == "CTRL_reset":
+                    self.current_tick = -1
+                    self.prev_tick = -1
+                return True, res
+            else:
+                return False, f"Control failed, the reply is {res}"
 
     # QUERY: inspect the state of the simulator
     # By default query public vehicles
@@ -385,7 +397,6 @@ class METSRClient(threading.Thread):
         my_msg = {}
         my_msg["TYPE"] = "CTRL_reset"
         my_msg["propertyFile"] = prop_file
-        self.current_tick = self.prev_tick = -1
 
         return self.send_control_message(my_msg)
 
@@ -414,9 +425,6 @@ class METSRClient(threading.Thread):
         my_msg = {}
         my_msg["TYPE"] = "CTRL_end"
         return self.send_control_message(my_msg)
-
-    def close(self):
-        self.ws.close()
 
     # override __str__ for logging
     def __str__(self):

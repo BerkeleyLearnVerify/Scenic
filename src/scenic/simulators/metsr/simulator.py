@@ -32,8 +32,6 @@ class METSRSimulation(Simulation):
     def setup(self):
         # Initialize METS-R Sim Client and Server Connection
         self.client.start()
-        self.client.tick()
-        self.client.ready = True
         self.client.reset_map("CARLA")
 
         super().setup()  # Calls createObjectInSimulator for each object
@@ -78,4 +76,4 @@ class METSRSimulation(Simulation):
         return values
 
     def destroy(self):
-        self.client.close()
+        self.client.ws.close()
