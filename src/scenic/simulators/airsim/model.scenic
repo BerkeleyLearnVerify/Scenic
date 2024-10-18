@@ -95,9 +95,6 @@ class StaticObj(AirSimActor):
 
 
 # ---------- body ----------
-
-
-
 # ensure worldInfoPath is set
 if not worldInfoPath:
     raise SimulationCreationError('\nworldInfoPath not set, use:\n param worldInfoPath = "[YOUR PATH HERE]" \n\n more information on creating and using worldInfo in docs')
