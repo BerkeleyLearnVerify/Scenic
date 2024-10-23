@@ -12,16 +12,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.x'
-
-      - name: Install isort and black
-        run: pip install isort black
-
       - name: Run black to check formatting
-        run: black --check .
+        uses: psf/black@stable
 
       - name: Run isort to check import order
-        run: isort --check-only --diff .
+        uses: isort/isort-action@v1
