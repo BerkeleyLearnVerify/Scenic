@@ -43,12 +43,22 @@ def getCarlaSimulator(getAssetPath):
             f"bash {CARLA_ROOT}/CarlaUE4.sh -RenderOffScreen", shell=True
         )
 
-        for _ in range(120):
+        # Start timing the connection process
+        start_time = time.time()
+
+        for _ in range(300):
             if isCarlaServerRunning():
                 break
             time.sleep(1)
         else:
             pytest.fail("Unable to connect to CARLA.")
+
+        # End timing and calculate elapsed time
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+
+        # Print the time it took to connect
+        print(f"Connected to CARLA after {elapsed_time:.2f} seconds.")
 
         # Extra 5 seconds to ensure server startup
         time.sleep(5)
