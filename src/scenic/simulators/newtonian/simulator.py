@@ -5,6 +5,7 @@ import math
 from math import copysign, degrees, radians, sin
 import os
 import pathlib
+import statistics
 import time
 
 from PIL import Image
@@ -106,6 +107,19 @@ class NewtonianSimulation(DrivingSimulation):
             self.min_y, self.max_y = min_y - 50, max_y + 50
             self.size_x = self.max_x - self.min_x
             self.size_y = self.max_y - self.min_y
+
+            self.screenScaling = min(WIDTH / self.size_x, HEIGHT / self.size_y)
+            # Calculate a screen translation that brings the mean vehicle
+            # position to the center of the screen.
+            self.screenTranslation = (0, 0)
+
+            scaled_positions = map(
+                lambda x: self.scenicToScreenVal(x.position), self.objects
+            )
+            mean_x, mean_y = map(statistics.mean, zip(*scaled_positions))
+
+            self.screenTranslation = (WIDTH / 2 - mean_x, HEIGHT / 2 - mean_y)
+
             self.screen_poly = shapely.geometry.Polygon(
                 (
                     (self.min_x, self.min_y),
@@ -117,7 +131,7 @@ class NewtonianSimulation(DrivingSimulation):
 
             img_path = os.path.join(current_dir, "car.png")
             self.car = pygame.image.load(img_path)
-            self.car_width = int(3.5 * WIDTH / self.size_x)
+            self.car_width = int(3.5 * self.screenScaling)
             self.car_height = self.car_width
             self.car = pygame.transform.scale(self.car, (self.car_width, self.car_height))
             self.parse_network()
@@ -149,9 +163,14 @@ class NewtonianSimulation(DrivingSimulation):
 
     def scenicToScreenVal(self, pos):
         x, y = pos[:2]
-        x_prop = (x - self.min_x) / self.size_x
-        y_prop = (y - self.min_y) / self.size_y
-        return int(x_prop * WIDTH), HEIGHT - 1 - int(y_prop * HEIGHT)
+
+        screen_x = int((x - self.min_x) * self.screenScaling)
+        screen_y = HEIGHT - 1 - int((y - self.min_y) * self.screenScaling)
+
+        screen_x = screen_x + self.screenTranslation[0]
+        screen_y = screen_y + self.screenTranslation[1]
+
+        return screen_x, screen_y
 
     def createObjectInSimulator(self, obj):
         # Set actor's initial speed
@@ -211,17 +230,19 @@ class NewtonianSimulation(DrivingSimulation):
             pos_vec = Vector(-1.75, 1.75)
             neg_vec = Vector(w / 2, h / 2)
             heading_vec = Vector(0, 10).rotatedBy(obj.heading)
-            dx, dy = int(heading_vec.x), -int(heading_vec.y)
-            x, y = self.scenicToScreenVal(obj.position)
+            # dx, dy = int(heading_vec.x), -int(heading_vec.y)
+            # x, y = self.scenicToScreenVal(obj.position)
+
             rect_x, rect_y = self.scenicToScreenVal(obj.position + pos_vec)
-            if hasattr(obj, "isCar") and obj.isCar:
-                self.rotated_car = pygame.transform.rotate(
-                    self.car, math.degrees(obj.heading)
-                )
-                self.screen.blit(self.rotated_car, (rect_x, rect_y))
-            else:
-                corners = [self.scenicToScreenVal(corner) for corner in obj._corners2D]
-                pygame.draw.polygon(self.screen, color, corners)
+            # else:
+            corners = [self.scenicToScreenVal(corner) for corner in obj._corners2D]
+            pygame.draw.polygon(self.screen, color, corners)
+            # if hasattr(obj, "isCar") and obj.isCar:
+            # TODO: Top left changes. Use sprite?
+            self.rotated_car = pygame.transform.rotate(
+                self.car, math.degrees(obj.heading)
+            )
+            self.screen.blit(self.rotated_car, (rect_x, rect_y))
 
         pygame.display.update()
 
