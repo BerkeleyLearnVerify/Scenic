@@ -139,9 +139,6 @@ class NewtonianSimulation(DrivingSimulation):
 
             img_path = os.path.join(current_dir, "car.png")
             self.car = pygame.image.load(img_path)
-            self.car_width = int(self.objects[0].width * self.screenScaling)
-            self.car_height = int(self.objects[0].height * self.screenScaling)
-            self.car = pygame.transform.scale(self.car, (self.car_width, self.car_height))
 
             self.parse_network()
             self.draw_objects()
@@ -258,7 +255,10 @@ class NewtonianSimulation(DrivingSimulation):
         pygame.draw.polygon(self.screen, color, corners)
 
     def draw_car(self, obj):
-        rotated_car = pygame.transform.rotate(self.car, math.degrees(obj.heading))
+        car_width = int(obj.width * self.screenScaling)
+        car_height = int(obj.height * self.screenScaling)
+        scaled_car = pygame.transform.scale(self.car, (car_width, car_height))
+        rotated_car = pygame.transform.rotate(scaled_car, math.degrees(obj.heading))
         car_rect = rotated_car.get_rect()
         car_rect.center = self.scenicToScreenVal(obj.position)
         self.screen.blit(rotated_car, car_rect)
