@@ -49,7 +49,7 @@ A client directly communicates with a specific METSR-SIM server.
 
 class METSRClient(threading.Thread):
     def __init__(
-        self, host, port, index, manager=None, retry_threshold=10, verbose=False
+        self, host, port, index, manager=None, retry_threshold=20, verbose=False
     ):
         super().__init__()
 
@@ -74,7 +74,8 @@ class METSRClient(threading.Thread):
         self.prev_time = time.time()
 
         # latest message from the server
-        self.latest_message = None
+        self.latest_ans_message = None
+        self.latest_ctrl_message = None
 
         # Create a listener socket
         self.ws = websocket.WebSocketApp(
@@ -110,11 +111,11 @@ class METSRClient(threading.Thread):
             self.handle_step_message(decoded_msg)
         elif decoded_msg["TYPE"].split("_")[0] == "ANS":
             self.handle_answer_message(ws, decoded_msg)
-            self.latest_message = decoded_msg
+            self.latest_ans_message = decoded_msg
         elif decoded_msg["TYPE"].split("_")[0] == "ATK":
             self.handle_attack_message(ws, decoded_msg)
         elif decoded_msg["TYPE"].split("_")[0] == "CTRL":
-            self.latest_message = decoded_msg
+            self.latest_ctrl_message = decoded_msg
 
     def on_error(self, ws, error):
         self.state = "error"
@@ -168,7 +169,7 @@ class METSRClient(threading.Thread):
                 self.ready = True
             if (
                 tick > self.current_tick
-            ):  # tick not equal to the current_tick + 1 is ignored
+            ):  # tick smaller or equal to the current_tick is ignored
                 self.current_tick = tick
 
     def handle_answer_message(self, ws, decoded_msg):
@@ -222,12 +223,14 @@ class METSRClient(threading.Thread):
         self.ws.send(json.dumps(msg))
 
         ans_type = msg["TYPE"].replace("QUERY", "ANS")
-        while self.latest_message is None or self.latest_message["TYPE"] != ans_type:
+        while (
+            self.latest_ans_message is None or self.latest_ans_message["TYPE"] != ans_type
+        ):
             time.sleep(0.001)
             if time.time() - self.prev_time > self.retry_threshold:
                 return False, f"Query time out, the message is {msg}"
-        res = self.latest_message.copy()
-        self.latest_message = None
+        res = self.latest_ans_message.copy()
+        self.latest_ans_message = None
         return True, res
 
     def send_control_message(self, msg):  # synchronized, wait until receive the answer
@@ -235,25 +238,25 @@ class METSRClient(threading.Thread):
         while not self.ready:
             time.sleep(1)
 
-        with self.lock:
-            self.ws.send(json.dumps(msg))
-            sent_time = time.time()
-            # wait until receive the answer or time out
-            while (
-                self.latest_message is None or self.latest_message["TYPE"] != msg["TYPE"]
-            ):
-                time.sleep(0.001)
-                if time.time() - sent_time > self.retry_threshold:
-                    return False, f"Control time out, the message is {msg}"
-            res = self.latest_message.copy()
-            self.latest_message = None
-            if res["CODE"] == "OK":
-                if msg["TYPE"] == "CTRL_reset":
-                    self.current_tick = -1
-                    self.prev_tick = -1
-                return True, res
-            else:
-                return False, f"Control failed, the reply is {res}"
+        self.ws.send(json.dumps(msg))
+        sent_time = time.time()
+        # wait until receive the answer or time out
+        while (
+            self.latest_ctrl_message is None
+            or self.latest_ctrl_message["TYPE"] != msg["TYPE"]
+        ):
+            time.sleep(0.001)
+            if time.time() - sent_time > self.retry_threshold:
+                return False, f"Control time out, the message is {msg}"
+        res = self.latest_ctrl_message.copy()
+        self.latest_ctrl_message = None
+        if res["CODE"] == "OK":
+            if msg["TYPE"] == "CTRL_reset":
+                self.current_tick = -1
+                self.prev_tick = -1
+            return True, res
+        else:
+            return False, f"Control failed, the reply is {res}"
 
     # QUERY: inspect the state of the simulator
     # By default query public vehicles
@@ -397,6 +400,8 @@ class METSRClient(threading.Thread):
         my_msg = {}
         my_msg["TYPE"] = "CTRL_reset"
         my_msg["propertyFile"] = prop_file
+        self.latest_ans_message = None
+        self.latest_ctrl_message = None
 
         return self.send_control_message(my_msg)
 
