@@ -44,7 +44,7 @@ def getCarlaSimulator(getAssetPath):
             f"bash {CARLA_ROOT}/CarlaUE4.sh -RenderOffScreen", shell=True
         )
 
-        for _ in range(600):
+        for _ in range(180):
             if isCarlaServerRunning():
                 break
             time.sleep(1)
@@ -62,8 +62,12 @@ def getCarlaSimulator(getAssetPath):
     base = getAssetPath("maps/CARLA")
 
     def _getCarlaSimulator(town):
+        start_connect_time = time.time()
         path = os.path.join(base, f"{town}.xodr")
-        simulator = CarlaSimulator(map_path=path, carla_map=town, timeout=60)
+        simulator = CarlaSimulator(map_path=path, carla_map=town, timeout=180)
+        end_connect_time = time.time()
+        connect_elapsed_time = end_connect_time - start_connect_time
+        print(f"CARLA connection established in {connect_elapsed_time:.2f} seconds.")
         return simulator, town, path
 
     yield _getCarlaSimulator
