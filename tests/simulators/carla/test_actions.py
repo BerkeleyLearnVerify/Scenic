@@ -64,7 +64,7 @@ def getCarlaSimulator(getAssetPath):
     def _getCarlaSimulator(town):
         start_connect_time = time.time()
         path = os.path.join(base, f"{town}.xodr")
-        simulator = CarlaSimulator(map_path=path, carla_map=town, timeout=120)
+        simulator = CarlaSimulator(map_path=path, carla_map=town, timeout=180)
         end_connect_time = time.time()
         connect_elapsed_time = end_connect_time - start_connect_time
         print(f"CARLA connection established in {connect_elapsed_time:.2f} seconds.")
