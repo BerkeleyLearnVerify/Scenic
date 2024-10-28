@@ -57,14 +57,14 @@ def getCarlaSimulator(getAssetPath):
         print(f"CARLA started successfully in {elapsed_time:.2f} seconds.")
 
         # Extra 5 seconds to ensure server startup
-        time.sleep(5)
+        time.sleep(10)
 
     base = getAssetPath("maps/CARLA")
 
     def _getCarlaSimulator(town):
         start_connect_time = time.time()
         path = os.path.join(base, f"{town}.xodr")
-        simulator = CarlaSimulator(map_path=path, carla_map=town, timeout=60)
+        simulator = CarlaSimulator(map_path=path, carla_map=town, timeout=120)
         end_connect_time = time.time()
         connect_elapsed_time = end_connect_time - start_connect_time
         print(f"CARLA connection established in {connect_elapsed_time:.2f} seconds.")
