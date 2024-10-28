@@ -37,18 +37,24 @@ def isCarlaServerRunning(host="localhost", port=2000):
 @pytest.fixture(scope="package")
 def getCarlaSimulator(getAssetPath):
     carla_process = None
+    start_time = time.time()
     if not isCarlaServerRunning():
         CARLA_ROOT = checkCarlaPath()
         carla_process = subprocess.Popen(
             f"bash {CARLA_ROOT}/CarlaUE4.sh -RenderOffScreen", shell=True
         )
 
-        for _ in range(120):
+        for _ in range(600):
             if isCarlaServerRunning():
                 break
             time.sleep(1)
         else:
             pytest.fail("Unable to connect to CARLA.")
+
+        # Log the time it took for CARLA to start
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"CARLA started successfully in {elapsed_time:.2f} seconds.")
 
         # Extra 5 seconds to ensure server startup
         time.sleep(5)
