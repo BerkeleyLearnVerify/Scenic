@@ -44,7 +44,7 @@ def getCarlaSimulator(getAssetPath):
             f"bash {CARLA_ROOT}/CarlaUE4.sh -RenderOffScreen", shell=True
         )
 
-        for _ in range(180):
+        for _ in range(360):
             if isCarlaServerRunning():
                 break
             time.sleep(1)
