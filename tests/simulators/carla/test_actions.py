@@ -37,7 +37,6 @@ def isCarlaServerRunning(host="localhost", port=2000):
 @pytest.fixture(scope="package")
 def getCarlaSimulator(getAssetPath):
     carla_process = None
-    start_time = time.time()
     if not isCarlaServerRunning():
         CARLA_ROOT = checkCarlaPath()
         carla_process = subprocess.Popen(
@@ -51,23 +50,14 @@ def getCarlaSimulator(getAssetPath):
         else:
             pytest.fail("Unable to connect to CARLA.")
 
-        # Log the time it took for CARLA to start
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        print(f"CARLA started successfully in {elapsed_time:.2f} seconds.")
-
         # Extra 5 seconds to ensure server startup
         time.sleep(10)
 
     base = getAssetPath("maps/CARLA")
 
     def _getCarlaSimulator(town):
-        start_connect_time = time.time()
         path = os.path.join(base, f"{town}.xodr")
         simulator = CarlaSimulator(map_path=path, carla_map=town, timeout=180)
-        end_connect_time = time.time()
-        connect_elapsed_time = end_connect_time - start_connect_time
-        print(f"CARLA connection established in {connect_elapsed_time:.2f} seconds.")
         return simulator, town, path
 
     yield _getCarlaSimulator
