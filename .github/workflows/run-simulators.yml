@@ -165,7 +165,7 @@ jobs:
             USER_NAME: ${{secrets.SSH_USERNAME}}
           run: |
             echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-            ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
+            ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -i private_key ${USER_NAME}@${HOSTNAME} '
               cd /home/ubuntu/actions/Scenic &&
               source venv/bin/activate &&
               carla_versions=($(find /software -maxdepth 1 -type d -name 'carla*')) &&
