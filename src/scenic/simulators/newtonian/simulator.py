@@ -170,13 +170,13 @@ class NewtonianSimulation(DrivingSimulation):
     def scenicToScreenVal(self, pos):
         x, y = pos[:2]
 
-        screen_x = int((x - self.min_x) * self.screenScaling)
-        screen_y = HEIGHT - 1 - int((y - self.min_y) * self.screenScaling)
+        screen_x = (x - self.min_x) * self.screenScaling
+        screen_y = HEIGHT - 1 - (y - self.min_y) * self.screenScaling
 
         screen_x = screen_x + self.screenTranslation[0]
         screen_y = screen_y + self.screenTranslation[1]
 
-        return screen_x, screen_y
+        return int(screen_x), int(screen_y)
 
     def createObjectInSimulator(self, obj):
         # Set actor's initial speed
