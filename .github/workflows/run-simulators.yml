@@ -25,17 +25,9 @@ jobs:
             LATEST_SNAPSHOT_ID=$(aws ec2 describe-snapshots --owner-ids self --query 'Snapshots | sort_by(@, &StartTime) | [-1].SnapshotId' --output text)
             echo "Checking availability for snapshot: $LATEST_SNAPSHOT_ID"
 
-            # Wait until snapshot is in 'completed' status
-            while true; do
-              snapshot_status=$(aws ec2 describe-snapshots --snapshot-ids $LATEST_SNAPSHOT_ID --query 'Snapshots[0].State' --output text)
-              if [ "$snapshot_status" == "completed" ]; then
-                echo "Snapshot is ready."
-                break
-              else
-                echo "Snapshot still in $snapshot_status state, waiting..."
-                sleep 10
-              fi
-            done
+            # Wait for the snapshot to complete
+            aws ec2 wait snapshot-completed --snapshot-ids $LATEST_SNAPSHOT_ID
+            echo "Snapshot is ready."
 
             # Create a new volume from the latest snapshot
             volume_id=$(aws ec2 create-volume --snapshot-id $LATEST_SNAPSHOT_ID --availability-zone us-west-1b --volume-type gp3 --size 400 --throughput 250 --query "VolumeId" --output text)
@@ -79,28 +71,11 @@ jobs:
                 exit 1
             fi
 
-            # wait for status checks to pass
-            TIMEOUT=600  # Timeout in seconds
-            START_TIME=$(date +%s)
-            END_TIME=$((START_TIME + TIMEOUT))
-            while true; do
-                response=$(aws ec2 describe-instance-status --instance-ids $INSTANCE_ID)
-                system_status=$(echo "$response" | jq -r '.InstanceStatuses[0].SystemStatus.Status')
-                instance_status=$(echo "$response" | jq -r '.InstanceStatuses[0].InstanceStatus.Status')
+            # Wait for instance status checks to pass
+            echo "Waiting for instance status checks to pass..."
+            aws ec2 wait instance-status-ok --instance-ids $INSTANCE_ID
+            echo "Instance is now ready for use."
 
-                if [[ "$system_status" == "ok" && "$instance_status" == "ok" ]]; then
-                    echo "Both SystemStatus and InstanceStatus are 'ok'"
-                    exit 0
-                fi
-
-                CURRENT_TIME=$(date +%s)
-                if [[ "$CURRENT_TIME" -ge "$END_TIME" ]]; then
-                    echo "Timeout: Both SystemStatus and InstanceStatus have not reached 'ok' state within $TIMEOUT seconds."
-                    exit 1
-                fi
-
-                sleep 10  # Check status every 10 seconds
-            done
 
     check_simulator_version_updates:
       name: check_simulator_version_updates
