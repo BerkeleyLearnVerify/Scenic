@@ -118,6 +118,10 @@ class NewtonianSimulation(DrivingSimulation):
 
             # Calculate a screen translation that brings the mean vehicle
             # position to the center of the screen.
+
+            # N.B. screenTranslation is initialized to (0, 0) here intentionally.
+            # so that the actual screenTranslation can be set later based off what
+            # was computed with this null value.
             self.screenTranslation = (0, 0)
 
             scaled_positions = map(
