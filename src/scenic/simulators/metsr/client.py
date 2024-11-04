@@ -33,6 +33,8 @@ class METSRClient:
                     raise RuntimeError("Could not connect to METS-R Sim")
                 time.sleep(10)
 
+        assert self.ws
+
         # Ensure server is initialized by waiting to receive an initial packet
         # (could be ANS_ready or a heartbeat)
         self.receive_msg(ignore_heartbeats=False)

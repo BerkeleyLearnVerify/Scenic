@@ -2,6 +2,9 @@ param startTime = 0
 param map = "CARLA_TOWN5"
 model scenic.simulators.metsr.model
 
+# TODO: Test distribution as parameter default
+# TODO: Ask Zengxiang what benchmark performance is
+
 scenario CustomCommuterTrafficStream(origin, destination):
     setup:
         num_commuters = Range(100, 200)
