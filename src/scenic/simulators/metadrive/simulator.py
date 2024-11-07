@@ -96,13 +96,18 @@ class MetaDriveSimulation(DrivingSimulation):
             obj = self.scene.objects[0]
             action = obj.metaDriveActor.last_current_action[-1]
             o, r, tm, tc, info = self.client.step(action)
+            # Print step-by-step discrepancies
+            print(f"Step Scenic position: {obj.position}")
+            print(f"Step MetaDrive position: {obj.metaDriveActor.last_position}")
+            print(f"Step Scenic heading: {obj.heading}")
+            print(f"Step MetaDrive heading: {obj.metaDriveActor.last_heading_dir}")
     
     def executeActions(self, allActions):
         super().executeActions(allActions)
 
     def createObjectInSimulator(self, obj):
         if not self.defined_ego:
-            breakpoint()
+            # breakpoint()
             '''
             Object Heading appears to be the same each time:
             (Pdb) obj.heading
@@ -158,6 +163,13 @@ class MetaDriveSimulation(DrivingSimulation):
             for _, v in metadrive_objects.items():
                 metaDriveActor = v
                 obj.metaDriveActor = metaDriveActor
+
+                # Initial positions and headings
+                print(f"Initial Scenic position: {obj.position}")
+                print(f"Initial MetaDrive position: {metaDriveActor.last_position}")
+                print(f"Initial Scenic heading: {obj.heading}")
+                print(f"Initial MetaDrive heading: {metaDriveActor.last_heading_dir}")
+
                 return metaDriveActor
 
         if type(obj).__name__ == "Car":
