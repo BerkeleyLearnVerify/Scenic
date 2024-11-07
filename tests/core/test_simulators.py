@@ -1,6 +1,11 @@
 import pytest
 
-from scenic.core.simulators import DummySimulation, DummySimulator, Simulation
+from scenic.core.simulators import (
+    DummySimulation,
+    DummySimulator,
+    Simulation,
+    TerminatedSimulationException,
+)
 from tests.utils import compileScenic, sampleResultFromScene, sampleSceneFrom
 
 
@@ -33,6 +38,29 @@ def test_simulator_destruction():
     with pytest.raises(RuntimeError) as e:
         sim.destroy()
     assert "destroy() called twice" in str(e)
+
+
+def test_simulator_stepped():
+    simulator = DummySimulator()
+    scene = sampleSceneFrom("ego = new Object")
+
+    with simulator.simulateStepped(scene, maxSteps=5) as simulation:
+        while simulation.result is None:
+            simulation.advance()
+
+        assert simulation.result is not None
+        assert simulation.currentTime == 5
+
+        # advance() should do nothing but raise an exception
+        # if the simulation is already terminated
+        with pytest.raises(TerminatedSimulationException):
+            simulation.advance()
+
+        assert simulation.currentTime == 5
+
+    # Ensure all values are preserved after leaving the context manager
+    assert simulation.result is not None
+    assert simulation.currentTime == 5
 
 
 def test_simulator_set_property():
