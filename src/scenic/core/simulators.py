@@ -420,10 +420,6 @@ class Simulation(abc.ABC):
             # properties during setup.
             self.updateObjects()
 
-            # Set terminationType and terminationReason to default None
-            self.terminationType = None
-            self.terminationReason = None
-
         except (RejectSimulationException, RejectionException, GuardViolation) as e:
             # This simulation will be thrown out, but attach it to the exception
             # to aid in debugging.
@@ -437,11 +433,11 @@ class Simulation(abc.ABC):
         while True:
             self.advance()
 
-            if self.terminationType:
+            if self.result:
                 return
 
     def advance(self):
-        if self.terminationType or self._cleaned:
+        if self.result or self._cleaned:
             raise TerminatedSimulationException()
 
         if self.verbosity >= 3:
@@ -543,12 +539,8 @@ class Simulation(abc.ABC):
         self.currentTime += 1
         self.updateObjects()
 
-    def terminateSimulation(self, terimnationType, terminationReason):
+    def terminateSimulation(self, terminationType, terminationReason):
         import scenic.syntax.veneer as veneer
-
-        # Log terminationType and terminationReason
-        self.terminationType = terimnationType
-        self.terminationReason = terminationReason
 
         # Stop all remaining scenarios.
         # (and reject if some 'require eventually' condition was never satisfied)
@@ -564,8 +556,8 @@ class Simulation(abc.ABC):
         result = SimulationResult(
             self.trajectory,
             self.actionSequence,
-            self.terminationType,
-            self.terminationReason,
+            terminationType,
+            terminationReason,
             self.records,
         )
         self.result = result
