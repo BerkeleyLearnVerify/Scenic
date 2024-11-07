@@ -1,4 +1,4 @@
-from scenic.simulators.metadrive.simulator import MetaDriveSimulator 
+from scenic.simulators.metadrive.simulator import MetaDriveSimulator
 from scenic.domains.driving.model import *
 from scenic.simulators.metadrive.actions import *
 from scenic.simulators.metadrive.behaviors import *
@@ -18,10 +18,15 @@ param sumo_map = sumo_map
 param timestep = 0.1
 param render = 1
 
-(xmin, ymin), (xmax, ymax), _ = road.AABB
+# Handle both 2D and 3D AABB cases from road.AABB
+road_aabb = road.AABB
+if len(road_aabb[0]) == 2:  # 2D case
+    (xmin, ymin), (xmax, ymax) = road_aabb
+else:  # 3D case
+    (xmin, ymin, _), (xmax, ymax, _) = road_aabb
 
-# NOTE: MetaDrive currently has their own coordinate 
-# system where (0,0) is centered around the middle of 
+# NOTE: MetaDrive currently has their own coordinate
+# system where (0,0) is centered around the middle of
 # the SUMO Map. To preserve the original SUMO map coordinates
 # we will offset by the computed center x and y coordinates
 # https://github.com/metadriverse/metadrive/blob/aaed1f7f2512061ddd8349d1d411e374dab87a43/metadrive/utils/sumo/map_utils.py#L165-L172
