@@ -14,12 +14,12 @@ from scenic.core.vectors import Vector
 def metadriveToScenicPosition(loc, center_x, center_y):
     # print("loc: ", loc)
     output = Vector(loc[0] + center_x, loc[1] + center_y, 0)
-    print("output: ", output)
+    # print("output: ", output)
     return output
 
 
 def scenicToMetaDrivePosition(vec, center_x, center_y):
-    print("vec: ", vec)
+    # print("vec: ", vec)
     # breakpoint()
     '''
     WORKING ON ROAD EXAMPLE

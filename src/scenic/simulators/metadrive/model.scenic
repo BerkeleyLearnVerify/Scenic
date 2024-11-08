@@ -18,6 +18,8 @@ param sumo_map = sumo_map
 param timestep = 0.1
 param render = 1
 
+# (xmin, ymin), (xmax, ymax), _ = road.AABB
+
 # Handle both 2D and 3D AABB cases from road.AABB
 road_aabb = road.AABB
 if len(road_aabb[0]) == 2:  # 2D case

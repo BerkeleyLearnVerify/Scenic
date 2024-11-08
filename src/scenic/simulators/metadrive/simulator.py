@@ -16,7 +16,6 @@ import numpy as np
 
 from .utils import DriveEnv
 
-
 class MetaDriveSimulator(DrivingSimulator):
     def __init__(
         self,
@@ -97,10 +96,16 @@ class MetaDriveSimulation(DrivingSimulation):
             action = obj.metaDriveActor.last_current_action[-1]
             o, r, tm, tc, info = self.client.step(action)
             # Print step-by-step discrepancies
-            print(f"Step Scenic position: {obj.position}")
-            print(f"Step MetaDrive position: {obj.metaDriveActor.last_position}")
-            print(f"Step Scenic heading: {obj.heading}")
-            print(f"Step MetaDrive heading: {obj.metaDriveActor.last_heading_dir}")
+            # print(f"Step Scenic position: {obj.position}")
+            # print(f"Step MetaDrive position: {obj.metaDriveActor.last_position}")
+            # print(f"Step Scenic heading: {obj.heading}")
+            # print(f"Step MetaDrive heading: {obj.metaDriveActor.last_heading_dir}")
+             # Add the road direction check here after initialization
+            if self.scenario_number == 1:  # Check on the first scenario step, for example
+                # check road direction!!!!
+                pass
+
+            
     
     def executeActions(self, allActions):
         super().executeActions(allActions)
@@ -165,11 +170,11 @@ class MetaDriveSimulation(DrivingSimulation):
                 obj.metaDriveActor = metaDriveActor
 
                 # Initial positions and headings
-                print(f"Initial Scenic position: {obj.position}")
-                print(f"Initial MetaDrive position: {metaDriveActor.last_position}")
+                # print(f"Initial Scenic position: {obj.position}")
+                # print(f"Initial MetaDrive position: {metaDriveActor.last_position}")
                 print(f"Initial Scenic heading: {obj.heading}")
-                print(f"Initial MetaDrive heading: {metaDriveActor.last_heading_dir}")
-
+                print(f"Initial MetaDrive heading: {metaDriveActor.heading_theta}")
+            
                 return metaDriveActor
 
         if type(obj).__name__ == "Car":
