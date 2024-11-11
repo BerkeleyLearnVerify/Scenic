@@ -17,6 +17,7 @@ param map = map_town
 param sumo_map = sumo_map
 param timestep = 0.1
 param render = 1
+param render3D = 0  # Default to 0 (2D view)
 
 # (xmin, ymin), (xmax, ymax), _ = road.AABB
 
@@ -39,7 +40,8 @@ param center_y = center_y
 
 simulator MetaDriveSimulator(
     timestep=float(globalParameters.timestep),
-    render=bool(globalParameters.render),
+    render=bool(globalParameters.render), 
+    render3D=bool(globalParameters.render3D),
     sumo_map=globalParameters.sumo_map,
     center_x = globalParameters.center_x,
     center_y = globalParameters.center_y,

@@ -20,13 +20,15 @@ class MetaDriveSimulator(DrivingSimulator):
     def __init__(
         self,
         timestep=0.1,
-        render=True,
+        render=False,
+        render3D=False,
         sumo_map=None,
         center_x=None,
         center_y=None,
     ):
         super().__init__()
         self.render = render
+        self.render3D = render3D
         self.scenario_number = 0
         self.timestep = timestep
         self.sumo_map = sumo_map
@@ -43,6 +45,7 @@ class MetaDriveSimulator(DrivingSimulator):
         return MetaDriveSimulation(
             scene,
             render=self.render,
+            render3D=self.render3D,
             scenario_number=self.scenario_number,
             timestep=self.timestep,
             sumo_map=self.sumo_map,
@@ -60,6 +63,7 @@ class MetaDriveSimulation(DrivingSimulation):
         self,
         scene,
         render,
+        render3D,
         scenario_number,
         timestep,
         sumo_map,
@@ -78,6 +82,7 @@ class MetaDriveSimulation(DrivingSimulation):
             sys.exit(1)
 
         self.render = render
+        self.render3D = render3D
         self.scenario_number = scenario_number
         self.defined_ego = False
         self.client = None
@@ -145,6 +150,7 @@ class MetaDriveSimulation(DrivingSimulation):
             self.client = DriveEnv(
                 dict(
                     use_render=self.render,
+                    _render_mode="onscreen" if self.render3D else "topdown",
                     vehicle_config={
                         "spawn_position_heading": [
                             utils.scenicToMetaDrivePosition(
@@ -157,7 +163,7 @@ class MetaDriveSimulation(DrivingSimulation):
                             obj.heading,
                         ]
                     },
-                    use_mesh_terrain=True,
+                    use_mesh_terrain=self.render3D,
                     log_level=logging.CRITICAL,
                 )
             )
