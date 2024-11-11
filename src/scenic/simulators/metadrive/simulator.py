@@ -101,9 +101,9 @@ class MetaDriveSimulation(DrivingSimulation):
             # print(f"Step Scenic heading: {obj.heading}")
             # print(f"Step MetaDrive heading: {obj.metaDriveActor.last_heading_dir}")
              # Add the road direction check here after initialization
-            if self.scenario_number == 1:  # Check on the first scenario step, for example
-                # check road direction!!!!
-                pass
+            # if self.scenario_number == 1:  # Check on the first scenario step, for example
+            #     # check road direction!!!!
+            #     pass
 
             
     
@@ -157,9 +157,6 @@ class MetaDriveSimulation(DrivingSimulation):
                             obj.heading,
                         ]
                     },
-                    # vehicle_config = {
-                    #     "spawn_position_heading": (0, 0, 0)
-                    # },
                     use_mesh_terrain=True,
                     log_level=logging.CRITICAL,
                 )

@@ -29,7 +29,8 @@ Initial Scenic heading: -0.0
 Initial MetaDrive heading: 0.0
 '''
 
-ego = new Car facing 0 deg
+# ego = new Car facing 270 deg
+ego = new Car with heading 0
 '''
 Test results: matching in scenic and metadrive (East) car facing north
 Initial Scenic heading: 1.5707963267948966
