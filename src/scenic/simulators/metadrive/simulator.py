@@ -157,6 +157,9 @@ class MetaDriveSimulation(DrivingSimulation):
                             obj.heading,
                         ]
                     },
+                    # vehicle_config = {
+                    #     "spawn_position_heading": (0, 0, 0)
+                    # },
                     use_mesh_terrain=True,
                     log_level=logging.CRITICAL,
                 )
