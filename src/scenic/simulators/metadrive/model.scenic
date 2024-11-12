@@ -40,7 +40,7 @@ param center_y = center_y
 
 simulator MetaDriveSimulator(
     timestep=float(globalParameters.timestep),
-    render=bool(globalParameters.render), 
+    render=bool(globalParameters.render),
     render3D=bool(globalParameters.render3D),
     sumo_map=globalParameters.sumo_map,
     center_x = globalParameters.center_x,

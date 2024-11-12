@@ -8,19 +8,21 @@ except ImportError as e:
 import logging
 import sys
 
+import numpy as np
+
 from scenic.core.simulators import SimulationCreationError
 from scenic.domains.driving.simulators import DrivingSimulation, DrivingSimulator
 from scenic.simulators.metadrive.actions import *
 import scenic.simulators.metadrive.utils as utils
-import numpy as np
 
 from .utils import DriveEnv
+
 
 class MetaDriveSimulator(DrivingSimulator):
     def __init__(
         self,
         timestep=0.1,
-        render=False,
+        render=True,
         render3D=False,
         sumo_map=None,
         center_x=None,
@@ -95,6 +97,13 @@ class MetaDriveSimulation(DrivingSimulation):
     def setup(self):
         super().setup()
 
+        print("RENDER 3D?????: ", self.render3D)
+        if not self.render3D:
+            self.client.render(
+                mode="topdown",
+                window=self.render,
+            )
+
     def step(self):
         if len(self.scene.objects) > 0:
             obj = self.scene.objects[0]
@@ -105,20 +114,18 @@ class MetaDriveSimulation(DrivingSimulation):
             # print(f"Step MetaDrive position: {obj.metaDriveActor.last_position}")
             # print(f"Step Scenic heading: {obj.heading}")
             # print(f"Step MetaDrive heading: {obj.metaDriveActor.last_heading_dir}")
-             # Add the road direction check here after initialization
+            # Add the road direction check here after initialization
             # if self.scenario_number == 1:  # Check on the first scenario step, for example
             #     # check road direction!!!!
             #     pass
 
-            
-    
     def executeActions(self, allActions):
         super().executeActions(allActions)
 
     def createObjectInSimulator(self, obj):
         if not self.defined_ego:
             # breakpoint()
-            '''
+            """
             Object Heading appears to be the same each time:
             (Pdb) obj.heading
             -1.5706744740097156
@@ -146,11 +153,10 @@ class MetaDriveSimulation(DrivingSimulation):
             *** AttributeError: 'MetaDriveSimulation' object has no attribute 'object'
             (Pdb) self.objects[0].heading
             1.570715067335482
-            '''
+            """
             self.client = DriveEnv(
                 dict(
-                    use_render=self.render,
-                    _render_mode="onscreen" if self.render3D else "topdown",
+                    use_render=self.render if self.render3D else False,
                     vehicle_config={
                         "spawn_position_heading": [
                             utils.scenicToMetaDrivePosition(
@@ -180,7 +186,7 @@ class MetaDriveSimulation(DrivingSimulation):
                 # print(f"Initial MetaDrive position: {metaDriveActor.last_position}")
                 print(f"Initial Scenic heading: {obj.heading}")
                 print(f"Initial MetaDrive heading: {metaDriveActor.heading_theta}")
-            
+
                 return metaDriveActor
 
         if type(obj).__name__ == "Car":
@@ -206,11 +212,17 @@ class MetaDriveSimulation(DrivingSimulation):
 
     def getProperties(self, obj, properties):
         metaDriveActor = obj.metaDriveActor
-        position = utils.metadriveToScenicPosition(metaDriveActor.last_position, self.center_x, self.center_y)
-        velocity = utils.metadriveToScenicPosition(metaDriveActor.last_velocity, self.center_x, self.center_y)
+        position = utils.metadriveToScenicPosition(
+            metaDriveActor.last_position, self.center_x, self.center_y
+        )
+        velocity = utils.metadriveToScenicPosition(
+            metaDriveActor.last_velocity, self.center_x, self.center_y
+        )
         speed = metaDriveActor.last_speed
         angularSpeed = 0
-        angularVelocity = utils.metadriveToScenicPosition((0, 0), self.center_x, self.center_y)
+        angularVelocity = utils.metadriveToScenicPosition(
+            (0, 0), self.center_x, self.center_y
+        )
         yaw, pitch, _ = obj.parentOrientation.globalToLocalAngles(
             metaDriveActor.last_heading_dir[0], metaDriveActor.last_heading_dir[1], 0
         )
