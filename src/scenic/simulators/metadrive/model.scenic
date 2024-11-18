@@ -42,6 +42,7 @@ simulator MetaDriveSimulator(
     timestep=float(globalParameters.timestep),
     render=bool(globalParameters.render),
     render3D=bool(globalParameters.render3D),
+    # render3D=True,
     sumo_map=globalParameters.sumo_map,
     center_x = globalParameters.center_x,
     center_y = globalParameters.center_y,

@@ -30,7 +30,7 @@ class MetaDriveSimulator(DrivingSimulator):
     ):
         super().__init__()
         self.render = render
-        self.render3D = render3D
+        self.render3D = render3D if render else False  # Enforce no rendering if render=False
         self.scenario_number = 0
         self.timestep = timestep
         self.sumo_map = sumo_map
@@ -97,13 +97,7 @@ class MetaDriveSimulation(DrivingSimulation):
     def setup(self):
         super().setup()
 
-        print("RENDER 3D?????: ", self.render3D)
-        if not self.render3D:
-            self.client.render(
-                mode="topdown",
-                window=self.render,
-            )
-
+            
     def step(self):
         if len(self.scene.objects) > 0:
             obj = self.scene.objects[0]
@@ -118,42 +112,15 @@ class MetaDriveSimulation(DrivingSimulation):
             # if self.scenario_number == 1:  # Check on the first scenario step, for example
             #     # check road direction!!!!
             #     pass
+        if self.render and not self.render3D:
+            # self.client.render(mode="topdown", scaling=1.5, camera_position=(0,0))
+            self.client.render(mode="topdown")
 
     def executeActions(self, allActions):
         super().executeActions(allActions)
 
     def createObjectInSimulator(self, obj):
         if not self.defined_ego:
-            # breakpoint()
-            """
-            Object Heading appears to be the same each time:
-            (Pdb) obj.heading
-            -1.5706744740097156
-
-            THERE IS SOMETHING WRONG WITH HOW METADRIVE WILL DEFINE WHAT DIRECTION THE CAR
-            SHOULD BE FACING
-            (Pdb) self.client.engine.get_objects()['d9abbad9-7c93-450f-b662-78569a9cfad1'].last_heading_dir
-            (1.0, 0.0)
-            (Pdb) obj.heading
-            -1.5712431204764379
-
-            Relying on the Scenic probabilistic scene to generate the heading direction
-            (Pdb) obj.heading
-            -3.1410703658320345
-            (Pdb) self.client.engine.get_objects()
-            {'a2fc38fa-a858-41f9-a43a-ea16e83a9d11': DefaultVehicle, ID:a2fc38fa-a858-41f9-a43a-ea16e83a9d11}
-            (Pdb) self.client.engine.get_objects()['a2fc38fa-a858-41f9-a43a-ea16e83a9d11'].last_heading_dir
-            (-0.9999998634905004, -0.0005225121820975668)
-
-            (Pdb) self.client.engine.get_objects()['d55626f4-7200-4ffc-af87-f5594195d5eb'].last_heading_dir
-            (8.12594588518524e-05, 0.9999999966984502)
-            (Pdb) self.obj.heading
-            *** AttributeError: 'MetaDriveSimulation' object has no attribute 'obj'
-            (Pdb) self.object.heading
-            *** AttributeError: 'MetaDriveSimulation' object has no attribute 'object'
-            (Pdb) self.objects[0].heading
-            1.570715067335482
-            """
             self.client = DriveEnv(
                 dict(
                     use_render=self.render if self.render3D else False,
@@ -162,10 +129,6 @@ class MetaDriveSimulation(DrivingSimulation):
                             utils.scenicToMetaDrivePosition(
                                 obj.position, self.center_x, self.center_y
                             ),
-                            # DEFINED FROM MANUAL CALCULATIONS
-                            # (195.3623156838, -143.1532659478),
-                            # obj.heading,
-                            # np.pi / 2,
                             obj.heading,
                         ]
                     },
@@ -184,9 +147,14 @@ class MetaDriveSimulation(DrivingSimulation):
                 # Initial positions and headings
                 # print(f"Initial Scenic position: {obj.position}")
                 # print(f"Initial MetaDrive position: {metaDriveActor.last_position}")
+                # Print statements for debugging position
+                # print(f"Scenic Position (absolute): {obj.position}")
+                # meta_position = utils.scenicToMetaDrivePosition(obj.position, self.center_x, self.center_y)
+                # print(f"Converted MetaDrive Position (relative): {meta_position}")
                 print(f"Initial Scenic heading: {obj.heading}")
                 print(f"Initial MetaDrive heading: {metaDriveActor.heading_theta}")
 
+                self.defined_ego = True
                 return metaDriveActor
 
         if type(obj).__name__ == "Car":
