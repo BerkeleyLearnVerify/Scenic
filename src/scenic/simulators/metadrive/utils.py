@@ -8,8 +8,10 @@ except ImportError as e:
     ) from e
 
 import sys
+import math
 
 from scenic.core.vectors import Vector
+
 
 def metadriveToScenicPosition(loc, center_x, center_y):
     # print("loc: ", loc)
@@ -21,7 +23,7 @@ def metadriveToScenicPosition(loc, center_x, center_y):
 def scenicToMetaDrivePosition(vec, center_x, center_y):
     # print("vec: ", vec)
     # breakpoint()
-    '''
+    """
     WORKING ON ROAD EXAMPLE
     vec:  Vector(87.46780276591852, -101.87887262172462, 0)
     (Pdb) center_x
@@ -33,9 +35,9 @@ def scenicToMetaDrivePosition(vec, center_x, center_y):
 
     adjusted for metadrive x: 165.3295194353
     adjust for metadrive y: 165.2535787373
-    '''
+    """
 
-    '''
+    """
     THIS ONE IS NOT WORKING BUT IT APPEARS THE REASON MAY BE RELATED TO THE SIGNS
     vec[0], vec[1]
     (392.5373157291839, -307.43332657898054)
@@ -48,8 +50,8 @@ def scenicToMetaDrivePosition(vec, center_x, center_y):
     adjust for metadrive y: -471.7133872101
 
     Actual adjustments that are needed: -143.1532659478
-    '''
-    
+    """
+
     if vec[0] > 0:
         adjusted_x = vec[0] - center_x
     else:
@@ -62,6 +64,11 @@ def scenicToMetaDrivePosition(vec, center_x, center_y):
 
     return (adjusted_x, adjusted_y)
 
+def scenicToMetaDriveHeading(scenicHeading):
+    return scenicHeading + (math.pi / 2)
+
+def metaDriveToScenicHeading(metaDriveHeading):
+    return metaDriveHeading - (math.pi / 2)
 
 class DriveEnv(BaseEnv):
     def reward_function(self, agent):

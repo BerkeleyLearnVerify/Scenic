@@ -23,6 +23,7 @@ param render3D = 0  # Default to 0 (2D view)
 
 # Handle both 2D and 3D AABB cases from road.AABB
 road_aabb = road.AABB
+print("ROAD AABB: ", road.AABB)
 if len(road_aabb[0]) == 2:  # 2D case
     (xmin, ymin), (xmax, ymax) = road_aabb
 else:  # 3D case
