@@ -115,7 +115,7 @@ class MetaDriveSimulation(DrivingSimulation):
             #     pass
         if self.render and not self.render3D:
             # self.client.render(mode="topdown", scaling=1.5, camera_position=(0,0))
-            self.client.render(mode="topdown")
+            self.client.render(mode="topdown", semantic_map=True)
 
     def executeActions(self, allActions):
         super().executeActions(allActions)
@@ -131,7 +131,7 @@ class MetaDriveSimulation(DrivingSimulation):
                             utils.scenicToMetaDrivePosition(
                                 obj.position, self.center_x, self.center_y
                             ),
-                            utils.scenicToMetaDriveHeading(obj.heading)
+                            utils.scenicToMetaDriveHeading(obj.heading),
                         ]
                     },
                     use_mesh_terrain=self.render3D,
@@ -194,7 +194,7 @@ class MetaDriveSimulation(DrivingSimulation):
         angularVelocity = utils.metadriveToScenicPosition(
             (0, 0), self.center_x, self.center_y
         )
-        
+
         converted_heading = utils.metaDriveToScenicHeading(metaDriveActor.heading_theta)
 
         if self.render3D:
@@ -208,7 +208,6 @@ class MetaDriveSimulation(DrivingSimulation):
             pitch = 0
             roll = 0
             elevation = 0
-
 
         values = dict(
             position=position,
