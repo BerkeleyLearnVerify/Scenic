@@ -197,17 +197,10 @@ class MetaDriveSimulation(DrivingSimulation):
 
         converted_heading = utils.metaDriveToScenicHeading(metaDriveActor.heading_theta)
 
-        if self.render3D:
-            yaw, pitch, _ = obj.parentOrientation.globalToLocalAngles(
-                np.cos(converted_heading), np.sin(converted_heading), 0
-            )
-            roll = 0
-            elevation = 0
-        else:
-            yaw = converted_heading
-            pitch = 0
-            roll = 0
-            elevation = 0
+        yaw, pitch, roll = obj.parentOrientation.globalToLocalAngles(
+            converted_heading, 0, 0
+        )
+        elevation = 0
 
         values = dict(
             position=position,
