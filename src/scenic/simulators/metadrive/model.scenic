@@ -80,16 +80,11 @@ class MetaDriveActor(DrivingObject):
         ]
         self.metaDriveActor.before_step(action)
 
-        # Normalize the inputs to [-1, 1]
-        # steering = max(min(self._control["steering"], 1), -1)
-        # throttle_brake = max(min(self._control["throttle"] - self._control["brake"], 1), -1)
-        # action = [steering, throttle_brake]
-        # self.metaDriveActor.before_step(action)
-
     def setPosition(self, pos):
-        self.metaDriveActor.last_position = pos
+        self.metaDriveActor.last_position = scenicToMetaDrivePosition(pos, center_x, center_y)
 
     def setVelocity(self, vel):
+        # look into this
         self.metaDriveActor.before_step([0, vel])
 
 
