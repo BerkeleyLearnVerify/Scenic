@@ -60,6 +60,31 @@ class MetaDriveActor(DrivingObject):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Initialize the control dictionary
+        self._control = {"steering": 0, "throttle": 0, "brake": 0}
+
+    @property
+    def control(self):
+        """Returns the current accumulated control inputs."""
+        return self._control
+
+    def resetControl(self):
+        """Reset the control inputs after they've been applied."""
+        self._control = {"steering": 0, "throttle": 0, "brake": 0}
+
+    def applyControl(self):
+        """Applies the accumulated control inputs using `before_step`."""
+        action = [
+            self._control["steering"],
+            self._control["throttle"] - self._control["brake"],
+        ]
+        self.metaDriveActor.before_step(action)
+
+        # Normalize the inputs to [-1, 1]
+        # steering = max(min(self._control["steering"], 1), -1)
+        # throttle_brake = max(min(self._control["throttle"] - self._control["brake"], 1), -1)
+        # action = [steering, throttle_brake]
+        # self.metaDriveActor.before_step(action)
 
     def setPosition(self, pos):
         self.metaDriveActor.last_position = pos
@@ -72,13 +97,13 @@ class Vehicle(Vehicle, Steers, MetaDriveActor):
     """Abstract class for steerable vehicles."""
 
     def setThrottle(self, throttle):
-        self.metaDriveActor.before_step([0, throttle])
+        self.control["throttle"] = throttle
 
     def setSteering(self, steering):
-        self.metaDriveActor.before_step([steering, 0])
+        self.control["steering"] = steering
 
     def setBraking(self, braking):
-        self.metaDriveActor.before_step([0, -braking])
+        self.control["brake"] = braking
 
 
 class Car(Vehicle):

@@ -104,21 +104,22 @@ class MetaDriveSimulation(DrivingSimulation):
             obj = self.scene.objects[0]
             action = obj.metaDriveActor.last_current_action[-1]
             o, r, tm, tc, info = self.client.step(action)
-            # Print step-by-step discrepancies
-            # print(f"Step Scenic position: {obj.position}")
-            # print(f"Step MetaDrive position: {obj.metaDriveActor.last_position}")
-            # print(f"Step Scenic heading: {obj.heading}")
-            # print(f"Step MetaDrive heading: {obj.metaDriveActor.last_heading_dir}")
-            # Add the road direction check here after initialization
-            # if self.scenario_number == 1:  # Check on the first scenario step, for example
-            #     # check road direction!!!!
-            #     pass
         if self.render and not self.render3D:
             # self.client.render(mode="topdown", scaling=1.5, camera_position=(0,0))
             self.client.render(mode="topdown", semantic_map=True)
 
     def executeActions(self, allActions):
+        """Execute actions for all vehicles in the simulation."""
         super().executeActions(allActions)
+
+        # Iterate through all agents in the scene
+        for obj in self.scene.objects:
+            if hasattr(obj, "metaDriveActor") and obj.metaDriveActor is not None:
+                # Apply the accumulated control inputs using before_step
+                obj.applyControl()
+
+                # Reset control inputs after they are applied
+                obj.resetControl()
 
     def createObjectInSimulator(self, obj):
         if not self.defined_ego:
