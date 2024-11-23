@@ -19,6 +19,18 @@ def test_requirement():
     assert all(0 <= x <= 10 for x in xs)
 
 
+def test_requirement_in_loop():
+    scenario = compileScenic(
+        """
+        ego = new Object at Range(-10, 10) @ Range(-10, 10)
+        for i in range(2):
+            require ego.position[i] >= 0
+        """
+    )
+    poss = [sampleEgo(scenario, maxIterations=150).position for i in range(60)]
+    assert all(0 <= pos.x <= 10 and 0 <= pos.y <= 10 for pos in poss)
+
+
 def test_soft_requirement():
     scenario = compileScenic(
         """

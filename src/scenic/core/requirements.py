@@ -102,12 +102,14 @@ class PendingRequirement:
 
         # Construct closure
         def closure(values, monitor=None):
-            # rebind any names referring to sampled objects
+            # rebind any names referring to sampled objects (for require statements,
+            # rebind all names, since we want their values at the time the requirement
+            # was created)
             # note: need to extract namespace here rather than close over value
             # from above because of https://github.com/uqfoundation/dill/issues/532
             namespace = condition.atomics()[0].closure.__globals__
             for name, value in bindings.items():
-                if value in values:
+                if ty == RequirementType.require or value in values:
                     namespace[name] = values[value]
             # rebind ego object, which can be referred to implicitly
             boundEgo = None if ego is None else values[ego]
