@@ -31,6 +31,38 @@ def test_requirement_in_loop():
     assert all(0 <= pos.x <= 10 and 0 <= pos.y <= 10 for pos in poss)
 
 
+def test_requirement_in_function():
+    scenario = compileScenic(
+        """
+        ego = new Object at Range(-10, 10) @ Range(-10, 10)
+        def f(i):
+            require ego.position[i] >= 0
+        for i in range(2):
+            f(i)
+        """
+    )
+    poss = [sampleEgo(scenario, maxIterations=150).position for i in range(60)]
+    assert all(0 <= pos.x <= 10 and 0 <= pos.y <= 10 for pos in poss)
+
+
+def test_requirement_in_function_helper():
+    scenario = compileScenic(
+        """
+        ego = new Object at Range(-10, 10) @ Range(-10, 10)
+        m = 0
+        def f():
+            assert m == 0
+            return ego.y + m
+        def g():
+            require ego.x < f()
+        g()
+        m = -100
+        """
+    )
+    poss = [sampleEgo(scenario, maxIterations=60).position for i in range(60)]
+    assert all(pos.x < pos.y for pos in poss)
+
+
 def test_soft_requirement():
     scenario = compileScenic(
         """

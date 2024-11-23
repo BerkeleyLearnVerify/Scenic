@@ -53,7 +53,7 @@ class PendingRequirement:
         bindings = {}
         atomGlobals = None
         for atom in atoms:
-            bindings.update(getAllGlobals(atom.closure))
+            bindings.update(getNameBindings(atom.closure))
             globs = atom.closure.__globals__
             if atomGlobals is not None:
                 assert globs is atomGlobals
@@ -134,24 +134,30 @@ class PendingRequirement:
         return CompiledRequirement(self, closure, deps, condition)
 
 
-def getAllGlobals(req, restrictTo=None):
+def getNameBindings(req, restrictTo=None):
     """Find all names the given lambda depends on, along with their current bindings."""
     namespace = req.__globals__
     if restrictTo is not None and restrictTo is not namespace:
         return {}
     externals = inspect.getclosurevars(req)
-    assert not externals.nonlocals  # TODO handle these
-    globs = dict(externals.builtins)
-    for name, value in externals.globals.items():
-        globs[name] = value
-        if inspect.isfunction(value):
-            subglobs = getAllGlobals(value, restrictTo=namespace)
-            for name, value in subglobs.items():
-                if name in globs:
-                    assert value is globs[name]
-                else:
-                    globs[name] = value
-    return globs
+    allBindings = dict(externals.builtins)
+
+    def addBindings(bindings):
+        for name, value in bindings.items():
+            allBindings[name] = value
+            if inspect.isfunction(value):
+                subglobs = getNameBindings(value, restrictTo=namespace)
+                for name, value in subglobs.items():
+                    if name in allBindings:
+                        assert value is allBindings[name]
+                    else:
+                        allBindings[name] = value
+
+    addBindings(externals.globals)
+    if restrictTo is None:
+        # At the top level, include nonlocal variables captured in the closure
+        addBindings(externals.nonlocals)
+    return allBindings
 
 
 class BoundRequirement:
