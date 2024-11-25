@@ -23,7 +23,7 @@ param render3D = 0  # Default to 0 (2D view)
 
 # Handle both 2D and 3D AABB cases from road.AABB
 road_aabb = road.AABB
-print("ROAD AABB: ", road.AABB)
+# print("ROAD AABB: ", road.AABB)
 if len(road_aabb[0]) == 2:  # 2D case
     (xmin, ymin), (xmax, ymax) = road_aabb
 else:  # 3D case
@@ -74,17 +74,24 @@ class MetaDriveActor(DrivingObject):
 
     def applyControl(self):
         """Applies the accumulated control inputs using `before_step`."""
-        action = [
-            self._control["steering"],
-            self._control["throttle"] - self._control["brake"],
-        ]
+        max_steering_angle = 20  # degrees (limit sharp turns)
+        max_throttle = 0.5       # cap throttle to reduce speed
+        max_brake = 1.0          # allow full braking
+
+        steering = max(min(self._control["steering"], max_steering_angle), -max_steering_angle)
+        throttle = min(self._control["throttle"], max_throttle)
+        brake = min(self._control["brake"], max_brake)
+
+        action = [steering, throttle - brake]
         self.metaDriveActor.before_step(action)
 
     def setPosition(self, pos):
+        print("Setting position to: ", pos)
         self.metaDriveActor.last_position = scenicToMetaDrivePosition(pos, center_x, center_y)
 
     def setVelocity(self, vel):
         # look into this
+        print("Setting velocity to: ", vel)
         self.metaDriveActor.before_step([0, vel])
 
 

@@ -11,6 +11,10 @@ import sys
 import numpy as np
 
 from scenic.core.simulators import SimulationCreationError
+from scenic.domains.driving.controllers import (
+    PIDLateralController,
+    PIDLongitudinalController,
+)
 from scenic.domains.driving.simulators import DrivingSimulation, DrivingSimulator
 from scenic.simulators.metadrive.actions import *
 import scenic.simulators.metadrive.utils as utils
@@ -216,3 +220,39 @@ class MetaDriveSimulation(DrivingSimulation):
         )
 
         return values
+
+    def getLaneFollowingControllers(self, agent):
+        dt = self.timestep
+        if agent.isCar:
+            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.2, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.02, K_D=0.25, K_I=0.005, dt=dt)
+        else:
+            lon_controller = PIDLongitudinalController(
+                K_P=0.25, K_D=0.025, K_I=0.0, dt=dt
+            )
+            lat_controller = PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
+        return lon_controller, lat_controller
+
+    def getTurningControllers(self, agent):
+        dt = self.timestep
+        if agent.isCar:
+            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.2, K_D=0.2, K_I=0.2, dt=dt)
+        else:
+            lon_controller = PIDLongitudinalController(
+                K_P=0.25, K_D=0.025, K_I=0.0, dt=dt
+            )
+            lat_controller = PIDLateralController(K_P=0.4, K_D=0.1, K_I=0.0, dt=dt)
+        return lon_controller, lat_controller
+
+    def getLaneChangingControllers(self, agent):
+        dt = self.timestep
+        if agent.isCar:
+            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.2, K_D=0.2, K_I=0.02, dt=dt)
+        else:
+            lon_controller = PIDLongitudinalController(
+                K_P=0.25, K_D=0.025, K_I=0.0, dt=dt
+            )
+            lat_controller = PIDLateralController(K_P=0.1, K_D=0.3, K_I=0.0, dt=dt)
+        return lon_controller, lat_controller
