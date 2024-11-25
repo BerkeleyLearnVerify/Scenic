@@ -63,6 +63,43 @@ def test_requirement_in_function_helper():
     assert all(pos.x < pos.y for pos in poss)
 
 
+def test_requirement_in_function_random_local():
+    scenario = compileScenic(
+        """
+        ego = new Object at Range(-10, 10) @ 0
+        def f():
+            local = Range(0, 1)
+            require ego.x < local
+        f()
+        """
+    )
+    xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
+    assert all(-10 <= x <= 1 for x in xs)
+
+
+def test_requirement_in_function_random_cell():
+    scenario = compileScenic(
+        """
+        ego = new Object at Range(-10, 10) @ 0
+        def f(i):
+            def g():
+                return i
+            return g
+        g = f(Range(0, 1))  # global function with a cell containing a random value
+        def h():
+            local = Uniform(True, False)
+            def inner():  # local function likewise
+                return local
+            require (g() >= 0) and ((ego.x < -5) if inner() else (ego.x > 5))
+        h()
+        """
+    )
+    xs = [sampleEgo(scenario, maxIterations=150).position.x for i in range(60)]
+    assert all(x < -5 or x > 5 for x in xs)
+    assert any(x < -5 for x in xs)
+    assert any(x > 5 for x in xs)
+
+
 def test_soft_requirement():
     scenario = compileScenic(
         """
