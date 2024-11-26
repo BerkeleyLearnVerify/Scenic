@@ -43,7 +43,6 @@ simulator MetaDriveSimulator(
     timestep=float(globalParameters.timestep),
     render=bool(globalParameters.render),
     render3D=bool(globalParameters.render3D),
-    # render3D=True,
     sumo_map=globalParameters.sumo_map,
     center_x = globalParameters.center_x,
     center_y = globalParameters.center_y,
@@ -74,24 +73,17 @@ class MetaDriveActor(DrivingObject):
 
     def applyControl(self):
         """Applies the accumulated control inputs using `before_step`."""
-        max_steering_angle = 20  # degrees (limit sharp turns)
-        max_throttle = 0.5       # cap throttle to reduce speed
-        max_brake = 1.0          # allow full braking
-
-        steering = max(min(self._control["steering"], max_steering_angle), -max_steering_angle)
-        throttle = min(self._control["throttle"], max_throttle)
-        brake = min(self._control["brake"], max_brake)
-
-        action = [steering, throttle - brake]
+        action = [
+            self._control["steering"],
+            self._control["throttle"] - self._control["brake"],
+        ]
         self.metaDriveActor.before_step(action)
 
     def setPosition(self, pos):
-        print("Setting position to: ", pos)
         self.metaDriveActor.last_position = scenicToMetaDrivePosition(pos, center_x, center_y)
 
     def setVelocity(self, vel):
-        # look into this
-        print("Setting velocity to: ", vel)
+        # need to change
         self.metaDriveActor.before_step([0, vel])
 
 

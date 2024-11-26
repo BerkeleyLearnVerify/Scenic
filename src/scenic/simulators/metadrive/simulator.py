@@ -127,7 +127,9 @@ class MetaDriveSimulation(DrivingSimulation):
 
     def createObjectInSimulator(self, obj):
         if not self.defined_ego:
-            print("INITIALIZING!!!!!!!")
+            print(f"Scenic Heading: {obj.heading}")
+            converted_heading = utils.scenicToMetaDriveHeading(obj.heading)
+            print(f"Converted MetaDrive Heading: {converted_heading}")
             self.client = DriveEnv(
                 dict(
                     use_render=self.render if self.render3D else False,
@@ -150,17 +152,7 @@ class MetaDriveSimulation(DrivingSimulation):
             for _, v in metadrive_objects.items():
                 metaDriveActor = v
                 obj.metaDriveActor = metaDriveActor
-
-                # Initial positions and headings
-                # print(f"Initial Scenic position: {obj.position}")
-                # print(f"Initial MetaDrive position: {metaDriveActor.last_position}")
-                # Print statements for debugging position
-                # print(f"Scenic Position (absolute): {obj.position}")
-                # meta_position = utils.scenicToMetaDrivePosition(obj.position, self.center_x, self.center_y)
-                # print(f"Converted MetaDrive Position (relative): {meta_position}")
-                print(f"Initial Scenic heading: {obj.heading}")
-                print(f"Initial MetaDrive heading: {metaDriveActor.heading_theta}")
-
+                print(f"MetaDrive Actor Heading: {metaDriveActor.heading_theta}")
                 self.defined_ego = True
                 return metaDriveActor
 
@@ -224,8 +216,8 @@ class MetaDriveSimulation(DrivingSimulation):
     def getLaneFollowingControllers(self, agent):
         dt = self.timestep
         if agent.isCar:
-            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.2, dt=dt)
-            lat_controller = PIDLateralController(K_P=0.02, K_D=0.25, K_I=0.005, dt=dt)
+            lon_controller = PIDLongitudinalController(K_P=0.3, K_D=0.05, K_I=0.1, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.01, K_D=0.1, K_I=0.002, dt=dt)
         else:
             lon_controller = PIDLongitudinalController(
                 K_P=0.25, K_D=0.025, K_I=0.0, dt=dt

@@ -7,8 +7,8 @@ except ImportError as e:
         'Metadrive scenarios require the "metadrive" package'
     ) from e
 
-import sys
 import math
+import sys
 
 from scenic.core.vectors import Vector
 
@@ -64,11 +64,20 @@ def scenicToMetaDrivePosition(vec, center_x, center_y):
 
     return (adjusted_x, adjusted_y)
 
+
 def scenicToMetaDriveHeading(scenicHeading):
-    return scenicHeading + (math.pi / 2)
+    # Add π/2 to shift from North-based (Scenic) to East-based (MetaDrive)
+    metadriveHeading = scenicHeading + (math.pi / 2)
+    # Normalize to [-π, π]
+    return (metadriveHeading + math.pi) % (2 * math.pi) - math.pi
+
 
 def metaDriveToScenicHeading(metaDriveHeading):
-    return metaDriveHeading - (math.pi / 2)
+    # Subtract π/2 to shift from East-based (MetaDrive) to North-based (Scenic)
+    scenicHeading = metaDriveHeading - (math.pi / 2)
+    # Normalize to [-π, π]
+    return (scenicHeading + math.pi) % (2 * math.pi) - math.pi
+
 
 class DriveEnv(BaseEnv):
     def reward_function(self, agent):

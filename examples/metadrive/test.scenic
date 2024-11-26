@@ -8,4 +8,4 @@ import numpy as np
 # car heading North
 # ego = new Car with heading np.pi/2
 
-ego = new Car facing 30 deg
+ego = new Car facing 0 deg
