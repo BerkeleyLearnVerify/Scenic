@@ -29,24 +29,22 @@ def airsimToScenicOrientationTuple(orientation):
     return angles
 
 
-def scenicToAirsimVector(position):
+def scenicToAirsimLocation(position):
     position = toVector(position)
-    return airsim.Vector3r(position.y, position.x, -position.z)
+    return airsim.Vector3r(position.x, position.y, position.z)
 
 
 def airsimToScenicLocation(position):
-    return Vector(
-        position.y_val,
-        position.x_val,
-        -position.z_val,
-    )
+    scenicLoc = airsimToScenicLocationTuple(position)
+    return Vector(scenicLoc[1], scenicLoc[2], scenicLoc[0]) / 100000000
 
 
 def airsimToScenicLocationTuple(position):
+
     return (
-        position.y_val,
-        position.x_val,
-        -position.z_val,
+        position.x_val * 100,
+        position.y_val * 100,
+        position.z_val * 100,
     )
 
 
@@ -54,7 +52,7 @@ def scenicToAirsimScale(obj):
     # movment function in meters
     # drone size in blender is 98.1694 m
     # coords scaled by 100? https://microsoft.github.io/AirSim/apis/#:~:text=All%20AirSim%20API%20uses%20NED,in%20centimeters%20instead%20of%20meters.
-    return airsim.Vector3r(obj.width, obj.length, obj.height)
+    return airsim.Vector3r(obj.length, obj.width, obj.height)
 
 
 _prexistingObjs = {}

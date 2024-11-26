@@ -29,7 +29,7 @@ from .utils import (
     airsimToScenicOrientation,
     scenicToAirsimOrientation,
     scenicToAirsimScale,
-    scenicToAirsimVector,
+    scenicToAirsimLocation,
 )
 
 # Constants
@@ -137,7 +137,7 @@ class AirSimSimulation(Simulation):
 
         # set object airsim pose
         pose = airsim.Pose(
-            position_val=scenicToAirsimVector(obj.position),
+            position_val=scenicToAirsimLocation(obj.position),
             orientation_val=scenicToAirsimOrientation(obj.orientation),
         )
 

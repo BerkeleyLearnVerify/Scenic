@@ -8,7 +8,7 @@ import math
 from promise import Promise
 from scenic.core.type_support import toVector
 from .utils import (
-    scenicToAirsimVector,
+    airsimToScenicLocation,
     scenicToAirsimOrientation,
     airsimToScenicLocation,
     airsimToScenicOrientation,

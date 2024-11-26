@@ -85,9 +85,12 @@ for filename in os.listdir(assetsInputDir):
 
         # save tmesh
 
-        scale = np.array([1, 1, 1])
-        matrix = trimesh.transformations.compose_matrix(scale=scale)
-        tmesh.apply_transform(matrix)
+        # scale = np.array([0.01, 0.01, 0.01])
+        # matrix = trimesh.transformations.compose_matrix(scale=scale)
+        # tmesh.apply_transform(matrix)
+
+        rotation_matrix = trimesh.transformations.rotation_matrix(-np.pi / 2, [1, 0, 0])
+        tmesh.apply_transform(rotation_matrix)
 
         tmeshes[name] = tmesh
         with open(
@@ -132,11 +135,11 @@ with open(inputDirectory + "/actorInfo.json") as file:
             dict(
                 name=actorInfo["name"],
                 position=[
-                    loc[1] / WORLD_SCALE,
-                    loc[0] / WORLD_SCALE,
-                    loc[2] / WORLD_SCALE,
+                    loc[0],
+                    loc[1],
+                    loc[2],
                 ],
-                orientation=[rot["yaw"], rot["pitch"], rot["roll"]],
+                orientation=[rot["pitch"], rot["roll"], rot["yaw"]],
             ),
         )
 

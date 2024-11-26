@@ -6,7 +6,7 @@ from .utils import (
     airsimToScenicOrientation,
     scenicToAirsimOrientation,
     scenicToAirsimScale,
-    scenicToAirsimVector,
+    scenicToAirsimLocation,
 )
 
 

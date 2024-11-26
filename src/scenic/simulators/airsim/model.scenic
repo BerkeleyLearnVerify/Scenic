@@ -9,6 +9,15 @@ from scenic.simulators.airsim.utils import _addPrexistingObj, getPrexistingObj
 from scenic.core.simulators import SimulationCreationError
 from scenic.core.distributions import distributionFunction 
 
+from scenic.simulators.airsim.utils import (
+    airsimToScenicLocation,
+    airsimToScenicOrientation,
+    scenicToAirsimOrientation,
+    scenicToAirsimScale,
+    scenicToAirsimLocation,
+)
+
+
 # ---------- global parameters ----------
 
 # setting Default global parameters for any missing parameters
@@ -28,9 +37,21 @@ def printFinal(val):
 @distributionFunction 
 def createMeshShape(subFolder, assetName):
     objFile = assetName+".obj"
+    
     tmesh = trimesh.load(worldInfoPath+subFolder+"/"+objFile)
 
-    return MeshShape(tmesh ,scale=.01)
+
+    # scale_matrix = trimesh.transformations.scale_matrix([0, 0, -1])
+    # tmesh.apply_transform(scale_matrix)
+    
+    center = (tmesh.bounds[0] + tmesh.bounds[1]) / 2
+    print(center)
+    
+    
+    # return MeshShape(tmesh)
+    # todo other option to specify center
+    blender_rot_conversion = (0, 90 deg, 0)
+    return MeshShape(tmesh,initial_rotation=blender_rot_conversion, scale = .01)
 
 
 
@@ -48,18 +69,9 @@ class AirSimPrexisting:
     name: None
     shape: createMeshShape("objectMeshes",self.name)
     allowCollisions: True
+    regionContainedIn: everywhere
     blueprint: "AirSimPrexisting"
 
-    def highlight(self):
-        tmesh = self.shape.mesh
-        
-        color = trimesh.visual.random_color()
-        for vert in tmesh.visual.vertex_colors:
-            vert[0] = color[0]
-            vert[1] = color[1]
-            vert[2] = color[2]
-        
-        self.shape = MeshShape(tmesh ,scale=.01)
 
 class AirSimActor:
         
@@ -113,9 +125,16 @@ with open(
 ) as inFile:
     meshDatas = json.load(inFile)
     for meshData in meshDatas:
+        # convert unreal position to airsim position
+        # TODO fix world info generator for airsim binaries
+        position = Vector(meshData["position"][0],meshData["position"][1],meshData["position"][2])
+        position = Vector(position.x,position.y,-position.z) # airsim uses -z as up instead of +z
+        position *= 100 # airsim uses centimeters instead of meters
+
+        rot = meshData["orientation"]
         newObj = new AirSimPrexisting with name meshData["name"],
-            at meshData["position"],
-            facing meshData["orientation"]
+            at airsimToScenicLocation(airsim.Vector3r(position.x, position.y, position.z)),
+            facing airsimToScenicOrientation(airsim.to_quaternion(rot[0] , rot[1],rot[2] ))
         
         _addPrexistingObj(newObj)
 
