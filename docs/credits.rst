@@ -18,6 +18,7 @@ Shun Kashiwa developed the auto-generated parser for Scenic 3.0 and its support 
 
 The Scenic tool and example scenarios have benefitted from additional code contributions from:
 
+	* Armando Bañuelos
 	* Johnathan Chiu
 	* Greg Crow
 	* Francis Indaheng

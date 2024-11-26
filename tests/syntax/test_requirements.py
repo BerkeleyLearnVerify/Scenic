@@ -19,6 +19,87 @@ def test_requirement():
     assert all(0 <= x <= 10 for x in xs)
 
 
+def test_requirement_in_loop():
+    scenario = compileScenic(
+        """
+        ego = new Object at Range(-10, 10) @ Range(-10, 10)
+        for i in range(2):
+            require ego.position[i] >= 0
+        """
+    )
+    poss = [sampleEgo(scenario, maxIterations=150).position for i in range(60)]
+    assert all(0 <= pos.x <= 10 and 0 <= pos.y <= 10 for pos in poss)
+
+
+def test_requirement_in_function():
+    scenario = compileScenic(
+        """
+        ego = new Object at Range(-10, 10) @ Range(-10, 10)
+        def f(i):
+            require ego.position[i] >= 0
+        for i in range(2):
+            f(i)
+        """
+    )
+    poss = [sampleEgo(scenario, maxIterations=150).position for i in range(60)]
+    assert all(0 <= pos.x <= 10 and 0 <= pos.y <= 10 for pos in poss)
+
+
+def test_requirement_in_function_helper():
+    scenario = compileScenic(
+        """
+        ego = new Object at Range(-10, 10) @ Range(-10, 10)
+        m = 0
+        def f():
+            assert m == 0
+            return ego.y + m
+        def g():
+            require ego.x < f()
+        g()
+        m = -100
+        """
+    )
+    poss = [sampleEgo(scenario, maxIterations=60).position for i in range(60)]
+    assert all(pos.x < pos.y for pos in poss)
+
+
+def test_requirement_in_function_random_local():
+    scenario = compileScenic(
+        """
+        ego = new Object at Range(-10, 10) @ 0
+        def f():
+            local = Range(0, 1)
+            require ego.x < local
+        f()
+        """
+    )
+    xs = [sampleEgo(scenario, maxIterations=60).position.x for i in range(60)]
+    assert all(-10 <= x <= 1 for x in xs)
+
+
+def test_requirement_in_function_random_cell():
+    scenario = compileScenic(
+        """
+        ego = new Object at Range(-10, 10) @ 0
+        def f(i):
+            def g():
+                return i
+            return g
+        g = f(Range(0, 1))  # global function with a cell containing a random value
+        def h():
+            local = Uniform(True, False)
+            def inner():  # local function likewise
+                return local
+            require (g() >= 0) and ((ego.x < -5) if inner() else (ego.x > 5))
+        h()
+        """
+    )
+    xs = [sampleEgo(scenario, maxIterations=150).position.x for i in range(60)]
+    assert all(x < -5 or x > 5 for x in xs)
+    assert any(x < -5 for x in xs)
+    assert any(x > 5 for x in xs)
+
+
 def test_soft_requirement():
     scenario = compileScenic(
         """
@@ -497,3 +578,44 @@ def test_random_occlusion():
         hasattr(obj, "name") and obj.name == "wall" and (not obj.occluding)
         for obj in scene.objects
     )
+
+
+def test_deep_not():
+    """Test that a not deep inside a requirement is interpreted correctly."""
+    with pytest.raises(RejectionException):
+        sampleSceneFrom(
+            """
+            objs = [new Object at 10@10, new Object at 20@20]
+            require all(not o.x > 0 for o in objs)
+            """
+        )
+
+
+def test_deep_and():
+    with pytest.raises(RejectionException):
+        sampleSceneFrom(
+            """
+            objs = [new Object at 10@10, new Object at 20@20]
+            require all(o.x > 0 and o.x < 0 for o in objs)
+            """
+        )
+
+
+def test_deep_or():
+    with pytest.raises(RejectionException):
+        sampleSceneFrom(
+            """
+            objs = [new Object at 10@10, new Object at 20@20]
+            require all(o.x < 0 or o.x < -1 for o in objs)
+            """
+        )
+
+
+def test_temporal_in_atomic():
+    with pytest.raises(ScenicSyntaxError):
+        sampleSceneFrom(
+            """
+            objs = [new Object at 10@10, new Object at 20@20]
+            require all(eventually(o.x > 0) for o in objs)
+            """
+        )
