@@ -3,12 +3,15 @@ Traffic Scenario 07.
 Crossing traffic running a red light at an intersection.
 The ego-vehicle is going straight at an intersection but a crossing vehicle runs a red light,
 forcing the ego-vehicle to avoid the collision.
+
+To run this file using the Carla simulator:
+    scenic examples/carla/manual_control/carlaChallenge7.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
 ## SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
 param map = localPath('../../../assets/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
-param render = '0'
+param render = 0
 model scenic.simulators.carla.model
 
 ## CONSTANTS
