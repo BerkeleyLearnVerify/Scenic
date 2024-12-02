@@ -34,8 +34,9 @@ else:  # 3D case
 # the SUMO Map. To preserve the original SUMO map coordinates
 # we will offset by the computed center x and y coordinates
 # https://github.com/metadriverse/metadrive/blob/aaed1f7f2512061ddd8349d1d411e374dab87a43/metadrive/utils/sumo/map_utils.py#L165-L172
-center_x = abs(xmin + xmax)/2
-center_y = abs(ymin + ymax)/2
+
+center_x = (xmin + xmax) / 2
+center_y = (ymin + ymax) / 2
 param center_x = center_x
 param center_y = center_y
 

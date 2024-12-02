@@ -14,10 +14,14 @@ from scenic.core.vectors import Vector
 
 
 def metadriveToScenicPosition(loc, center_x, center_y):
-    # print("loc: ", loc)
-    output = Vector(loc[0] + center_x, loc[1] + center_y, 0)
-    # print("output: ", output)
-    return output
+    # # print("loc: ", loc)
+    # output = Vector(loc[0] + center_x, loc[1] + center_y, 0)
+    # # print("output: ", output)
+    # return output
+    x_scenic = loc[0] + center_x
+    y_scenic = loc[1] + center_y
+    # print(f"MetaDrive Position: {loc}, Scenic Position: ({x_scenic}, {y_scenic})")
+    return Vector(x_scenic, y_scenic, 0)
 
 
 def scenicToMetaDrivePosition(vec, center_x, center_y):
@@ -52,16 +56,21 @@ def scenicToMetaDrivePosition(vec, center_x, center_y):
     Actual adjustments that are needed: -143.1532659478
     """
 
-    if vec[0] > 0:
-        adjusted_x = vec[0] - center_x
+    # if vec[0] > 0:
+    #     adjusted_x = vec[0] - center_x
     # else:
     #     adjusted_x = center_x + vec[0]
 
-    if vec[1] > 0:
-        adjusted_y = vec[1] - center_y
-    else:
-        adjusted_y = center_y + vec[1]
+    # if vec[1] > 0:
+    #     adjusted_y = vec[1] - center_y
+    # else:
+    #     adjusted_y = center_y + vec[1]
 
+    # return (adjusted_x, adjusted_y)
+
+    adjusted_x = vec[0] - center_x
+    adjusted_y = vec[1] - center_y
+    # print(f"Scenic Position: {vec}, MetaDrive Position: ({adjusted_x}, {adjusted_y})")
     return (adjusted_x, adjusted_y)
 
 
