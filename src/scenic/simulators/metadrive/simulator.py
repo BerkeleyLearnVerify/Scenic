@@ -147,6 +147,7 @@ class MetaDriveSimulation(DrivingSimulation):
             )
             self.client.config["sumo_map"] = self.sumo_map
             self.client.reset()
+            self.map_data = self.client.engine.map_manager.current_map
 
             metadrive_objects = self.client.engine.get_objects()
             for _, v in metadrive_objects.items():
@@ -216,8 +217,10 @@ class MetaDriveSimulation(DrivingSimulation):
     def getLaneFollowingControllers(self, agent):
         dt = self.timestep
         if agent.isCar:
+            # lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+            # lat_controller = PIDLateralController(K_P=0.05, K_D=0.05, K_I=0.02, dt=dt)
             lon_controller = PIDLongitudinalController(K_P=0.3, K_D=0.05, K_I=0.1, dt=dt)
-            lat_controller = PIDLateralController(K_P=0.01, K_D=0.1, K_I=0.002, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.001, K_D=0.01, K_I=0.001, dt=dt)
         else:
             lon_controller = PIDLongitudinalController(
                 K_P=0.25, K_D=0.025, K_I=0.0, dt=dt

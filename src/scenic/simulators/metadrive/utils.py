@@ -54,8 +54,8 @@ def scenicToMetaDrivePosition(vec, center_x, center_y):
 
     if vec[0] > 0:
         adjusted_x = vec[0] - center_x
-    else:
-        adjusted_x = center_x + vec[0]
+    # else:
+    #     adjusted_x = center_x + vec[0]
 
     if vec[1] > 0:
         adjusted_y = vec[1] - center_y
