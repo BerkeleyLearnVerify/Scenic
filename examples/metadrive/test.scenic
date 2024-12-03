@@ -12,4 +12,5 @@ import numpy as np
 # ego = new Car with heading 90 deg
 
 # ego = new Car at (0, 0), with regionContainedIn everywhere
-ego = new Car at (0, 100), with regionContainedIn everywhere
+# ego = new Car at (155, -20), with regionContainedIn everywhere
+ego = new Car at (130, -5), with regionContainedIn everywhere

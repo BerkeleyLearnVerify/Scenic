@@ -13,65 +13,28 @@ import sys
 from scenic.core.vectors import Vector
 
 
-def metadriveToScenicPosition(loc, center_x, center_y):
-    # # print("loc: ", loc)
-    # output = Vector(loc[0] + center_x, loc[1] + center_y, 0)
-    # # print("output: ", output)
-    # return output
-    x_scenic = loc[0] + center_x
-    y_scenic = loc[1] + center_y
-    # print(f"MetaDrive Position: {loc}, Scenic Position: ({x_scenic}, {y_scenic})")
-    return Vector(x_scenic, y_scenic, 0)
-
-
-def scenicToMetaDrivePosition(vec, center_x, center_y):
-    # print("vec: ", vec)
+def metadriveToScenicPosition(loc, center_x, center_y, offset_x=-1.5, offset_y=0):
+    # print(f"Input MetaDrive Position: {loc}")
+    x_scenic = loc[0] + center_x + offset_x
+    y_scenic = loc[1] + center_y + offset_y
+    result = Vector(x_scenic, y_scenic, 0)
+    # print(f"Converted to Scenic Position: {result}")
     # breakpoint()
-    """
-    WORKING ON ROAD EXAMPLE
-    vec:  Vector(87.46780276591852, -101.87887262172462, 0)
-    (Pdb) center_x
-    197.17500004534386
-    (Pdb) center_y
-    164.28006063115316
-    (Pdb) vec[0], vec[1]
-    (362.504519480603, -0.9735181061390716)
+    return result
 
-    adjusted for metadrive x: 165.3295194353
-    adjust for metadrive y: 165.2535787373
-    """
 
-    """
-    THIS ONE IS NOT WORKING BUT IT APPEARS THE REASON MAY BE RELATED TO THE SIGNS
-    vec[0], vec[1]
-    (392.5373157291839, -307.43332657898054)
-    (Pdb) center_x
-    197.17500004534386
-    (Pdb) center_y
-    164.28006063115316
-
-    adjusted for metadrive x: 195.3623156838
-    adjust for metadrive y: -471.7133872101
-
-    Actual adjustments that are needed: -143.1532659478
-    """
-
-    # if vec[0] > 0:
-    #     adjusted_x = vec[0] - center_x
-    # else:
-    #     adjusted_x = center_x + vec[0]
-
-    # if vec[1] > 0:
-    #     adjusted_y = vec[1] - center_y
-    # else:
-    #     adjusted_y = center_y + vec[1]
-
-    # return (adjusted_x, adjusted_y)
-
-    adjusted_x = vec[0] - center_x
-    adjusted_y = vec[1] - center_y
+def scenicToMetaDrivePosition(vec, center_x, center_y, offset_x=-1.5, offset_y=0):
+    # print(f"Input Scenic Position: {vec}")
+    adjusted_x = vec[0] - center_x - offset_x
+    adjusted_y = vec[1] - center_y - offset_y
+    result = (adjusted_x, adjusted_y)
+    # print(f"Converted to MetaDrive Position: {result}")
+    # # Validate reverse conversion
+    # reverse = metadriveToScenicPosition(result, center_x, center_y, offset_x, offset_y)
+    # print(f"Reverse Converted Scenic Position: {reverse}")
+    # breakpoint()
     # print(f"Scenic Position: {vec}, MetaDrive Position: ({adjusted_x}, {adjusted_y})")
-    return (adjusted_x, adjusted_y)
+    return result
 
 
 def scenicToMetaDriveHeading(scenicHeading):
