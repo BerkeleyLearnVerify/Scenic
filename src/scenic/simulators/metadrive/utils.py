@@ -9,13 +9,23 @@ except ImportError as e:
 
 import math
 import sys
+import xml.etree.ElementTree as ET
 
 from scenic.core.vectors import Vector
 
 
-def metadriveToScenicPosition(loc, center_x, center_y, offset_x=-1.5, offset_y=0):
+def extractNetOffsetAndBoundary(net_file_path):
+    tree = ET.parse(net_file_path)
+    root = tree.getroot()
+    location_tag = root.find("location")
+    net_offset = tuple(map(float, location_tag.attrib["netOffset"].split(",")))
+    conv_boundary = tuple(map(float, location_tag.attrib["convBoundary"].split(",")))
+    return net_offset, conv_boundary
+
+
+def metadriveToScenicPosition(loc, center_x, center_y, offset_y=0):
     # print(f"Input MetaDrive Position: {loc}")
-    x_scenic = loc[0] + center_x + offset_x
+    x_scenic = loc[0] + center_x
     y_scenic = loc[1] + center_y + offset_y
     result = Vector(x_scenic, y_scenic, 0)
     # print(f"Converted to Scenic Position: {result}")
@@ -23,9 +33,11 @@ def metadriveToScenicPosition(loc, center_x, center_y, offset_x=-1.5, offset_y=0
     return result
 
 
-def scenicToMetaDrivePosition(vec, center_x, center_y, offset_x=-1.5, offset_y=0):
+def scenicToMetaDrivePosition(vec, center_x, center_y, offset_y=0):
+    print("offset: ", offset_y)
+    offset_y = -(offset_y)
     # print(f"Input Scenic Position: {vec}")
-    adjusted_x = vec[0] - center_x - offset_x
+    adjusted_x = vec[0] - center_x
     adjusted_y = vec[1] - center_y - offset_y
     result = (adjusted_x, adjusted_y)
     # print(f"Converted to MetaDrive Position: {result}")

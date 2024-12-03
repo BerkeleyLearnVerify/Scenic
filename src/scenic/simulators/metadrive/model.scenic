@@ -2,6 +2,7 @@ from scenic.simulators.metadrive.simulator import MetaDriveSimulator
 from scenic.domains.driving.model import *
 from scenic.simulators.metadrive.actions import *
 from scenic.simulators.metadrive.behaviors import *
+from scenic.simulators.metadrive.utils import extractNetOffsetAndBoundary
 import pathlib
 
 try:
@@ -9,25 +10,15 @@ try:
 except Exception as e:
     raise RuntimeError("'map' is not defined") from e
 try:
-    sumo_map = pathlib.Path(globalParameters.sumo_map).stem
+    sumo_map_path = pathlib.Path(globalParameters.sumo_map)
 except Exception as e:
     raise RuntimeError("'sumo_map' is not defined") from e
 
 param map = map_town
-param sumo_map = sumo_map
+param sumo_map = sumo_map_path.stem
 param timestep = 0.1
 param render = 1
-param render3D = 0  # Default to 0 (2D view)
-
-# (xmin, ymin), (xmax, ymax), _ = road.AABB
-
-# Handle both 2D and 3D AABB cases from road.AABB
-road_aabb = road.AABB
-print("ROAD AABB: ", road.AABB)
-if len(road_aabb[0]) == 2:  # 2D case
-    (xmin, ymin), (xmax, ymax) = road_aabb
-else:  # 3D case
-    (xmin, ymin, _), (xmax, ymax, _) = road_aabb
+param render3D = 0
 
 # NOTE: MetaDrive currently has their own coordinate
 # system where (0,0) is centered around the middle of
@@ -35,18 +26,28 @@ else:  # 3D case
 # we will offset by the computed center x and y coordinates
 # https://github.com/metadriverse/metadrive/blob/aaed1f7f2512061ddd8349d1d411e374dab87a43/metadrive/utils/sumo/map_utils.py#L165-L172
 
-center_x = (xmin + xmax) / 2
-center_y = (ymin + ymax) / 2
-param center_x = center_x
-param center_y = center_y
+net_offset, conv_boundary = extractNetOffsetAndBoundary(sumo_map_path)
+if net_offset and conv_boundary:
+    xmin, ymin, xmax, ymax = conv_boundary
+    center_x = (xmin + xmax) / 2
+    center_y = (ymin + ymax) / 2
+    offset_y = net_offset[1]  # Extract Y offset from netOffset
+else:
+    raise RuntimeError("Failed to extract netOffset or convBoundary from SUMO map.")
+
+# Print extracted values for debugging
+print(f"Net Offset: {net_offset}")
+print(f"Conv Boundary: {conv_boundary}")
+print(f"Center: ({center_x}, {center_y})")
 
 simulator MetaDriveSimulator(
     timestep=float(globalParameters.timestep),
     render=bool(globalParameters.render),
     render3D=bool(globalParameters.render3D),
     sumo_map=globalParameters.sumo_map,
-    center_x = globalParameters.center_x,
-    center_y = globalParameters.center_y,
+    center_x = center_x,
+    center_y = center_y,
+    offset_y = offset_y,
 )
 
 class MetaDriveActor(DrivingObject):
