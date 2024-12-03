@@ -89,15 +89,18 @@ for filename in os.listdir(assetsInputDir):
         # matrix = trimesh.transformations.compose_matrix(scale=scale)
         # tmesh.apply_transform(matrix)
 
-        rotation_matrix = trimesh.transformations.rotation_matrix(-np.pi / 2, [1, 0, 0])
-        tmesh.apply_transform(rotation_matrix)
-
         tmeshes[name] = tmesh
+
+        asset_tmesh = tmesh.copy()
+        # apply mesh rotation
+        rotation_matrix = trimesh.transformations.rotation_matrix(-np.pi / 2, [1, 0, 0])
+        asset_tmesh.apply_transform(rotation_matrix)
+
         with open(
             assetDir + name + ".obj",
             "w",
         ) as outfile:
-            outfile.write(trimesh.exchange.obj.export_obj(tmesh))
+            outfile.write(trimesh.exchange.obj.export_obj(asset_tmesh))
 
 bpy.ops.wm.quit_blender()
 
@@ -117,9 +120,14 @@ with open(inputDirectory + "/actorInfo.json") as file:
         # save scaled tmesh
         tmesh = tmeshes[actorInfo["meshName"].lower()].copy()
 
+        # apply mesh scale
         scale = np.array(actorInfo["scale"])
         matrix = trimesh.transformations.compose_matrix(scale=scale)
         tmesh.apply_transform(matrix)
+
+        # apply mesh rotation
+        rotation_matrix = trimesh.transformations.rotation_matrix(-np.pi / 2, [1, 0, 0])
+        tmesh.apply_transform(rotation_matrix)
 
         with open(
             objectMeshesDir + actorInfo["name"] + ".obj",

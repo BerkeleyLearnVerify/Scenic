@@ -7,14 +7,12 @@ from scenic.simulators.airsim.utils import getPrexistingObj
 # automatically place all objs on the ground in the workspace
 # workspace = Workspace(RectangularRegion(Vector(0,0,30), 0, 100,100))
 
-# ground = getPrexistingObj("Ground")
+ground = getPrexistingObj("Ground")
 
 
-drone1 = new Drone at (0,0,0)
+# drone1 = new Drone at (0,0,0)
 
-# tree = new StaticObj on ground,
-#     contained in centerArea,
-#     with assetName "tree",
-#     with width 1,
-#     with length 1,
-#     with height 1
+# point  = new Point on ground
+
+tree = new StaticObj on ground,
+    with assetName "tree"

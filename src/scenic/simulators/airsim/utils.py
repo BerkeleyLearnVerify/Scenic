@@ -15,17 +15,32 @@ def scenicToAirsimOrientation(orientation):
 
 
 def airsimToScenicOrientation(orientation):
+
+    # convert to unreal
+
+    pitch, roll, yaw = airsim.to_eularian_angles(orientation)
+    angles = (pitch, roll, yaw)
+
+    conversion = 180 / 3.14
+    conversioned = (
+        angles[0] * conversion,
+        angles[1] * conversion,
+        angles[2] * conversion,
+    )
+    print("angles = ,", conversioned)
+
     r = scipy.spatial.transform.Rotation.from_euler(
-        seq="XZY", angles=airsimToScenicOrientationTuple(orientation), degrees=False
+        seq="XYZ", angles=angles, degrees=False
     )
     return Orientation(r)
 
 
 def airsimToScenicOrientationTuple(orientation):
+    # ! DONT TOUCH NOW
     # intrinsic angles
     pitch, roll, yaw = airsim.to_eularian_angles(orientation)
-    angles = (pitch, yaw, roll)
-
+    # angles = (pitch, yaw, roll)
+    angles = (-yaw, pitch, roll)
     return angles
 
 
@@ -35,17 +50,17 @@ def scenicToAirsimLocation(position):
 
 
 def airsimToScenicLocation(position):
-    scenicLoc = airsimToScenicLocationTuple(position)
-    return Vector(scenicLoc[1], scenicLoc[2], scenicLoc[0]) / 100000000
-
-
-def airsimToScenicLocationTuple(position):
-
-    return (
-        position.x_val * 100,
-        position.y_val * 100,
-        position.z_val * 100,
+    loc = Vector(
+        position.x_val,
+        position.y_val,
+        position.z_val,
     )
+
+    # convert to scenic
+    loc = Vector(loc.x, -loc.y, loc.z)  # left hand coords
+    loc = loc / 10000  # account for mesh scaling by .01
+
+    return loc
 
 
 def scenicToAirsimScale(obj):

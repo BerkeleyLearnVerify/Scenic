@@ -1,6 +1,8 @@
 import trimesh
 import json
 import os
+import numpy as np
+import scipy
 
 from scenic.simulators.airsim.simulator import AirSimSimulator 
 from scenic.simulators.airsim.actions import *
@@ -41,17 +43,30 @@ def createMeshShape(subFolder, assetName):
     tmesh = trimesh.load(worldInfoPath+subFolder+"/"+objFile)
 
 
+    center = (tmesh.bounds[0] + tmesh.bounds[1]) / 2
+    print("center=",center)
+
     # scale_matrix = trimesh.transformations.scale_matrix([0, 0, -1])
     # tmesh.apply_transform(scale_matrix)
     
-    center = (tmesh.bounds[0] + tmesh.bounds[1]) / 2
-    print(center)
+    
+    # print(center)
     
     
     # return MeshShape(tmesh)
-    # todo other option to specify center
-    blender_rot_conversion = (0, 90 deg, 0)
-    return MeshShape(tmesh,initial_rotation=blender_rot_conversion, scale = .01)
+
+    scale_matrix = trimesh.transformations.compose_matrix(scale=(.01,.01,.01))
+    tmesh.apply_transform(scale_matrix)
+
+    rotation_matrix = trimesh.transformations.rotation_matrix(np.pi / 2, [1, 0, 0])
+    tmesh.apply_transform(rotation_matrix)
+
+
+    center = (tmesh.bounds[0] + tmesh.bounds[1]) / 2
+    print("NEW center=",center)
+
+    return MeshShape(tmesh), center
+
 
 
 
@@ -65,12 +80,14 @@ def getAssetNames():
     return self.client.simListAssets()
 
 # ---------- base classes ----------
+# TODO OFFSETS
 class AirSimPrexisting:
     name: None
-    shape: createMeshShape("objectMeshes",self.name)
+    shape: None
     allowCollisions: True
     regionContainedIn: everywhere
     blueprint: "AirSimPrexisting"
+    color: [.3,0,0] if self.name == "Ground" else [0.5, 0.5, 0.5]
 
 
 class AirSimActor:
@@ -81,7 +98,7 @@ class AirSimActor:
     realObjName: None 
 
     # override
-    shape: createMeshShape("assets",self.assetName)
+    shape: createMeshShape("assets",self.assetName)[0]
 
     def __str__(self):
         return self.assetName
@@ -125,17 +142,35 @@ with open(
 ) as inFile:
     meshDatas = json.load(inFile)
     for meshData in meshDatas:
+
+        actorName = meshData["name"]
+        print("\n\nname = ",actorName)
+
+        meshShape,center = createMeshShape("objectMeshes",actorName)
+
         # convert unreal position to airsim position
         # TODO fix world info generator for airsim binaries
         position = Vector(meshData["position"][0],meshData["position"][1],meshData["position"][2])
-        position = Vector(position.x,position.y,-position.z) # airsim uses -z as up instead of +z
-        position *= 100 # airsim uses centimeters instead of meters
+        position += center*10000
 
         rot = meshData["orientation"]
-        newObj = new AirSimPrexisting with name meshData["name"],
-            at airsimToScenicLocation(airsim.Vector3r(position.x, position.y, position.z)),
-            facing airsimToScenicOrientation(airsim.to_quaternion(rot[0] , rot[1],rot[2] ))
+        pitch,roll,yaw = rot[0] , rot[1],rot[2] 
         
+        angles = (-yaw - 90, pitch,roll)
+        r = scipy.spatial.transform.Rotation.from_euler(
+            seq="ZXY", angles=angles, degrees=True
+        )
+
+    
+        orientation =  Orientation(r)
+
+
+
+        newObj = new AirSimPrexisting with shape meshShape, with name actorName,
+            at airsimToScenicLocation(airsim.Vector3r(position.x, position.y, position.z)),
+            facing orientation # pitch, roll, yaw
+     
+
         _addPrexistingObj(newObj)
 
 
