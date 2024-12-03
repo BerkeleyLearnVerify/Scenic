@@ -13,4 +13,5 @@ import numpy as np
 
 # ego = new Car at (0, 0), with regionContainedIn everywhere
 # ego = new Car at (155, -20), with regionContainedIn everywhere
-ego = new Car at (130, -5), with regionContainedIn everywhere
+# ego = new Car at (130, -5), with regionContainedIn everywhere
+ego = new Car at (-180, -180), with regionContainedIn everywhere
