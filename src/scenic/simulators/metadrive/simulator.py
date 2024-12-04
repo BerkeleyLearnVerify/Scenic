@@ -33,6 +33,7 @@ class MetaDriveSimulator(DrivingSimulator):
         center_y=None,
         offset_x=0,
         offset_y=0,
+        sumo_map_boundary=None,
     ):
         super().__init__()
         self.render = render
@@ -46,6 +47,7 @@ class MetaDriveSimulator(DrivingSimulator):
         self.center_y = center_y
         self.offset_x = offset_x
         self.offset_y = offset_y
+        self.sumo_map_boundary = sumo_map_boundary
 
     def createSimulation(self, scene, *, timestep, **kwargs):
         if timestep is not None and timestep != self.timestep:
@@ -65,6 +67,7 @@ class MetaDriveSimulator(DrivingSimulator):
             center_y=self.center_y,
             offset_x=self.offset_x,
             offset_y=self.offset_y,
+            sumo_map_boundary=self.sumo_map_boundary,
             **kwargs,
         )
 
@@ -85,6 +88,7 @@ class MetaDriveSimulation(DrivingSimulation):
         center_y,
         offset_x=0,
         offset_y=0,
+        sumo_map_boundary=None,
         **kwargs,
     ):
         # NOTE: MetaDrive requires at least one agent to be defined per simulation run
@@ -108,6 +112,7 @@ class MetaDriveSimulation(DrivingSimulation):
         self.center_y = center_y
         self.offset_x = offset_x
         self.offset_y = offset_y
+        self.sumo_map_boundary = sumo_map_boundary
         super().__init__(scene, timestep=timestep, **kwargs)
 
     def setup(self):
@@ -119,8 +124,11 @@ class MetaDriveSimulation(DrivingSimulation):
             action = obj.metaDriveActor.last_current_action[-1]
             o, r, tm, tc, info = self.client.step(action)
         if self.render and not self.render3D:
-            # self.client.render(mode="topdown", scaling=1.5, camera_position=(0,0))
-            self.client.render(mode="topdown", semantic_map=True)
+            scaling = 5
+            film_size = utils.calculateFilmSize(self.sumo_map_boundary, scaling)
+            self.client.render(
+                mode="topdown", semantic_map=True, film_size=film_size, scaling=scaling
+            )
 
     def executeActions(self, allActions):
         """Execute actions for all vehicles in the simulation."""
@@ -159,7 +167,6 @@ class MetaDriveSimulation(DrivingSimulation):
             )
             self.client.config["sumo_map"] = self.sumo_map
             self.client.reset()
-            # self.map_data = self.client.engine.map_manager.current_map
 
             metadrive_objects = self.client.engine.get_objects()
             for _, v in metadrive_objects.items():

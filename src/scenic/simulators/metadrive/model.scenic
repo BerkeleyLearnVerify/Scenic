@@ -26,9 +26,9 @@ param render3D = 0
 # we will offset by the computed center x and y coordinates
 # https://github.com/metadriverse/metadrive/blob/aaed1f7f2512061ddd8349d1d411e374dab87a43/metadrive/utils/sumo/map_utils.py#L165-L172
 
-net_offset, conv_boundary = extractNetOffsetAndBoundary(sumo_map_path)
-if net_offset and conv_boundary:
-    xmin, ymin, xmax, ymax = conv_boundary
+net_offset, sumo_map_boundary = extractNetOffsetAndBoundary(sumo_map_path)
+if net_offset and sumo_map_boundary:
+    xmin, ymin, xmax, ymax = sumo_map_boundary
     center_x = (xmin + xmax) / 2
     center_y = (ymin + ymax) / 2
     offset_x = net_offset[0]
@@ -38,7 +38,7 @@ else:
 
 # Print extracted values for debugging
 print(f"Net Offset: {net_offset}")
-print(f"Conv Boundary: {conv_boundary}")
+print(f"Sumo Map Boundary: {sumo_map_boundary}")
 print(f"Center: ({center_x}, {center_y})")
 print("map: ", sumo_map_path)
 
@@ -51,6 +51,7 @@ simulator MetaDriveSimulator(
     center_y = center_y,
     offset_x = offset_x,
     offset_y = offset_y,
+    sumo_map_boundary = sumo_map_boundary,
 )
 
 class MetaDriveActor(DrivingObject):

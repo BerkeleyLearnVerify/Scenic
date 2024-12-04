@@ -14,13 +14,29 @@ import xml.etree.ElementTree as ET
 from scenic.core.vectors import Vector
 
 
+def calculateFilmSize(sumo_map_boundary, scaling=5, margin_factor=1.1):
+    xmin, ymin, xmax, ymax = sumo_map_boundary
+    width = xmax - xmin
+    height = ymax - ymin
+
+    # Apply margin
+    adjusted_width = width * margin_factor
+    adjusted_height = height * margin_factor
+
+    # Convert to pixels for film_size
+    film_size_x = int(adjusted_width * scaling)
+    film_size_y = int(adjusted_height * scaling)
+
+    return (film_size_x, film_size_y)
+
+
 def extractNetOffsetAndBoundary(net_file_path):
     tree = ET.parse(net_file_path)
     root = tree.getroot()
     location_tag = root.find("location")
     net_offset = tuple(map(float, location_tag.attrib["netOffset"].split(",")))
-    conv_boundary = tuple(map(float, location_tag.attrib["convBoundary"].split(",")))
-    return net_offset, conv_boundary
+    sumo_map_boundary = tuple(map(float, location_tag.attrib["convBoundary"].split(",")))
+    return net_offset, sumo_map_boundary
 
 
 def metadriveToScenicPosition(loc, center_x, center_y, offset_x, offset_y):
@@ -34,7 +50,8 @@ def metadriveToScenicPosition(loc, center_x, center_y, offset_x, offset_y):
 
 
 def scenicToMetaDrivePosition(vec, center_x, center_y, offset_x, offset_y):
-    print("offset: ", offset_y)
+    print("offset x: ", offset_x)
+    print("offset y: ", offset_y)
     # print(f"Input Scenic Position: {vec}")
     adjusted_x = vec[0] - center_x + offset_x
     adjusted_y = vec[1] - center_y + offset_y
