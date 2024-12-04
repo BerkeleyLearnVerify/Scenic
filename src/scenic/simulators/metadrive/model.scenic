@@ -31,6 +31,7 @@ if net_offset and conv_boundary:
     xmin, ymin, xmax, ymax = conv_boundary
     center_x = (xmin + xmax) / 2
     center_y = (ymin + ymax) / 2
+    offset_x = net_offset[0]
     offset_y = net_offset[1]  # Extract Y offset from netOffset
 else:
     raise RuntimeError("Failed to extract netOffset or convBoundary from SUMO map.")
@@ -39,6 +40,7 @@ else:
 print(f"Net Offset: {net_offset}")
 print(f"Conv Boundary: {conv_boundary}")
 print(f"Center: ({center_x}, {center_y})")
+print("map: ", sumo_map_path)
 
 simulator MetaDriveSimulator(
     timestep=float(globalParameters.timestep),
@@ -47,6 +49,7 @@ simulator MetaDriveSimulator(
     sumo_map=globalParameters.sumo_map,
     center_x = center_x,
     center_y = center_y,
+    offset_x = offset_x,
     offset_y = offset_y,
 )
 
@@ -82,7 +85,7 @@ class MetaDriveActor(DrivingObject):
         self.metaDriveActor.before_step(action)
 
     def setPosition(self, pos):
-        self.metaDriveActor.last_position = scenicToMetaDrivePosition(pos, center_x, center_y)
+        self.metaDriveActor.last_position = scenicToMetaDrivePosition(pos, center_x, center_y, offset_x, offset_y)
 
     def setVelocity(self, vel):
         # need to change

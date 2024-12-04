@@ -31,6 +31,7 @@ class MetaDriveSimulator(DrivingSimulator):
         sumo_map=None,
         center_x=None,
         center_y=None,
+        offset_x=0,
         offset_y=0,
     ):
         super().__init__()
@@ -43,6 +44,7 @@ class MetaDriveSimulator(DrivingSimulator):
         self.sumo_map = sumo_map
         self.center_x = center_x
         self.center_y = center_y
+        self.offset_x = offset_x
         self.offset_y = offset_y
 
     def createSimulation(self, scene, *, timestep, **kwargs):
@@ -61,6 +63,7 @@ class MetaDriveSimulator(DrivingSimulator):
             sumo_map=self.sumo_map,
             center_x=self.center_x,
             center_y=self.center_y,
+            offset_x=self.offset_x,
             offset_y=self.offset_y,
             **kwargs,
         )
@@ -80,6 +83,7 @@ class MetaDriveSimulation(DrivingSimulation):
         sumo_map,
         center_x,
         center_y,
+        offset_x=0,
         offset_y=0,
         **kwargs,
     ):
@@ -102,6 +106,7 @@ class MetaDriveSimulation(DrivingSimulation):
         self.sumo_map = sumo_map
         self.center_x = center_x
         self.center_y = center_y
+        self.offset_x = offset_x
         self.offset_y = offset_y
         super().__init__(scene, timestep=timestep, **kwargs)
 
@@ -135,7 +140,7 @@ class MetaDriveSimulation(DrivingSimulation):
             print("Scenic Position: ", obj.position)
             print("Scenic Heading: ", obj.heading)
             converted_position = utils.scenicToMetaDrivePosition(
-                obj.position, self.center_x, self.center_y, self.offset_y
+                obj.position, self.center_x, self.center_y, self.offset_x, self.offset_y
             )
             converted_heading = utils.scenicToMetaDriveHeading(obj.heading)
             print(f"Converted MetaDrive Heading: {converted_heading}")
@@ -170,7 +175,11 @@ class MetaDriveSimulation(DrivingSimulation):
                 DefaultVehicle,
                 vehicle_config=dict(),
                 position=utils.scenicToMetaDrivePosition(
-                    obj.position, self.center_x, self.center_y, self.offset_y
+                    obj.position,
+                    self.center_x,
+                    self.center_y,
+                    self.offset_x,
+                    self.offset_y,
                 ),
                 heading=utils.scenicToMetaDriveHeading(obj.heading),
             )
@@ -189,15 +198,23 @@ class MetaDriveSimulation(DrivingSimulation):
     def getProperties(self, obj, properties):
         metaDriveActor = obj.metaDriveActor
         position = utils.metadriveToScenicPosition(
-            metaDriveActor.last_position, self.center_x, self.center_y, self.offset_y
+            metaDriveActor.last_position,
+            self.center_x,
+            self.center_y,
+            self.offset_x,
+            self.offset_y,
         )
         velocity = utils.metadriveToScenicPosition(
-            metaDriveActor.last_velocity, self.center_x, self.center_y, self.offset_y
+            metaDriveActor.last_velocity,
+            self.center_x,
+            self.center_y,
+            self.offset_x,
+            self.offset_y,
         )
         speed = metaDriveActor.last_speed
         angularSpeed = 0
         angularVelocity = utils.metadriveToScenicPosition(
-            (0, 0), self.center_x, self.center_y, self.offset_y
+            (0, 0), self.center_x, self.center_y, self.offset_x, self.offset_y
         )
 
         converted_heading = utils.metaDriveToScenicHeading(metaDriveActor.heading_theta)

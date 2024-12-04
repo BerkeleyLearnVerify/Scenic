@@ -23,22 +23,21 @@ def extractNetOffsetAndBoundary(net_file_path):
     return net_offset, conv_boundary
 
 
-def metadriveToScenicPosition(loc, center_x, center_y, offset_y=0):
+def metadriveToScenicPosition(loc, center_x, center_y, offset_x, offset_y):
     # print(f"Input MetaDrive Position: {loc}")
-    x_scenic = loc[0] + center_x
-    y_scenic = loc[1] + center_y + offset_y
+    x_scenic = loc[0] + center_x - offset_x
+    y_scenic = loc[1] + center_y - offset_y
     result = Vector(x_scenic, y_scenic, 0)
     # print(f"Converted to Scenic Position: {result}")
     # breakpoint()
     return result
 
 
-def scenicToMetaDrivePosition(vec, center_x, center_y, offset_y=0):
+def scenicToMetaDrivePosition(vec, center_x, center_y, offset_x, offset_y):
     print("offset: ", offset_y)
-    offset_y = -(offset_y)
     # print(f"Input Scenic Position: {vec}")
-    adjusted_x = vec[0] - center_x
-    adjusted_y = vec[1] - center_y - offset_y
+    adjusted_x = vec[0] - center_x + offset_x
+    adjusted_y = vec[1] - center_y + offset_y
     result = (adjusted_x, adjusted_y)
     # print(f"Converted to MetaDrive Position: {result}")
     # # Validate reverse conversion
