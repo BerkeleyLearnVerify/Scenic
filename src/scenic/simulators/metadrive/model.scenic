@@ -37,10 +37,10 @@ else:
     raise RuntimeError("Failed to extract netOffset or convBoundary from SUMO map.")
 
 # Print extracted values for debugging
-print(f"Net Offset: {net_offset}")
-print(f"Sumo Map Boundary: {sumo_map_boundary}")
-print(f"Center: ({center_x}, {center_y})")
-print("map: ", sumo_map_path)
+# print(f"Net Offset: {net_offset}")
+# print(f"Sumo Map Boundary: {sumo_map_boundary}")
+# print(f"Center: ({center_x}, {center_y})")
+# print("map: ", sumo_map_path)
 
 simulator MetaDriveSimulator(
     timestep=float(globalParameters.timestep),
@@ -71,6 +71,8 @@ class MetaDriveActor(DrivingObject):
     @property
     def control(self):
         """Returns the current accumulated control inputs."""
+        print("CONTROLLL: ", self.metaDriveActor, ": ", self._control)
+        # breakpoint()
         return self._control
 
     def resetControl(self):
@@ -78,19 +80,40 @@ class MetaDriveActor(DrivingObject):
         self._control = {"steering": 0, "throttle": 0, "brake": 0}
 
     def applyControl(self):
+        # Log the velocity before applying the control
+        print(f"Before applying control - Velocity of {self.metaDriveActor}: {self.metaDriveActor.velocity}")
         """Applies the accumulated control inputs using `before_step`."""
         action = [
             self._control["steering"],
             self._control["throttle"] - self._control["brake"],
         ]
+
+        print(f"Scenic Controls for {self.metaDriveActor} - Steering: {self._control['steering']}, "
+            f"Throttle: {self._control['throttle']}, Brake: {self._control['brake']}")
+
         self.metaDriveActor.before_step(action)
 
     def setPosition(self, pos):
-        self.metaDriveActor.last_position = scenicToMetaDrivePosition(pos, center_x, center_y, offset_x, offset_y)
+        converted_position = scenicToMetaDrivePosition(pos, center_x, center_y, offset_x, offset_y)
+        self.metaDriveActor.set_position(converted_position)
+        # self.metaDriveActor.last_position = scenicToMetaDrivePosition(pos, center_x, center_y, offset_x, offset_y)
 
     def setVelocity(self, vel):
-        # need to change
-        self.metaDriveActor.before_step([0, vel])
+        print("SCENIC VELOCITY: ", vel)
+        xVel, yVel, _ = vel  # Extract 2D components; ignore zVel
+
+        # Check if velocity is near zero
+        if np.isclose([xVel, yVel], [0, 0], atol=1e-6).all():
+            # Explicitly stop the car in MetaDrive
+            self.metaDriveActor.set_velocity([0, 0], 0)
+            return
+
+        vel_vector = np.array([xVel, yVel])  # Create a 2D velocity vector
+        direction = vel_vector / (np.linalg.norm(vel_vector) + 1e-6)  # Normalize
+        speed = np.linalg.norm(vel_vector)  # Calculate speed
+
+        # Use MetaDrive's `set_velocity` API
+        self.metaDriveActor.set_velocity(direction, speed)
 
 
 class Vehicle(Vehicle, Steers, MetaDriveActor):

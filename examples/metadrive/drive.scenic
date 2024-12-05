@@ -5,7 +5,7 @@ model scenic.simulators.metadrive.model
 
 # behavior EgoBehavior():
 #     do FollowLaneBehavior()
-    
+
 # ego = new Car with behavior EgoBehavior
 
 # This also is not working

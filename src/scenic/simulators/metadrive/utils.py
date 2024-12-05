@@ -11,6 +11,8 @@ import math
 import sys
 import xml.etree.ElementTree as ET
 
+import numpy as np
+
 from scenic.core.vectors import Vector
 
 
@@ -50,8 +52,8 @@ def metadriveToScenicPosition(loc, center_x, center_y, offset_x, offset_y):
 
 
 def scenicToMetaDrivePosition(vec, center_x, center_y, offset_x, offset_y):
-    print("offset x: ", offset_x)
-    print("offset y: ", offset_y)
+    # print("offset x: ", offset_x)
+    # print("offset y: ", offset_y)
     # print(f"Input Scenic Position: {vec}")
     adjusted_x = vec[0] - center_x + offset_x
     adjusted_y = vec[1] - center_y + offset_y
@@ -77,6 +79,17 @@ def metaDriveToScenicHeading(metaDriveHeading):
     scenicHeading = metaDriveHeading - (math.pi / 2)
     # Normalize to [-π, π]
     return (scenicHeading + math.pi) % (2 * math.pi) - math.pi
+
+
+def scenicToMetaDriveVelocity(vel):
+    vel_vector = np.array([vel[0], vel[1]])
+    direction = vel_vector / (np.linalg.norm(vel_vector) + 1e-6)
+    speed = np.linalg.norm(vel_vector)
+    return direction, speed
+
+
+def metadriveToScenicVelocity(vel):
+    return Vector(vel[0], vel[1], 0)
 
 
 class DriveEnv(BaseEnv):

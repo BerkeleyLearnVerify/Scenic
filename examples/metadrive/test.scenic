@@ -1,5 +1,5 @@
 param map = localPath('../../assets/maps/CARLA/Town05.xodr')
-param sumo_map = localPath('../../assets/maps/CARLA/Town055.net.xml')
+param sumo_map = localPath('../../assets/maps/CARLA/Town05.net.xml')
 model scenic.simulators.metadrive.model
 import numpy as np
 
