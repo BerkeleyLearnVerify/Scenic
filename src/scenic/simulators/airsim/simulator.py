@@ -95,7 +95,7 @@ class AirSimSimulation(Simulation):
         self.client.simPause(False)
         for i, drone in enumerate(self.startDrones):
             newPose = airsim.Pose(
-                position_val=scenicToAirsimVector(self.simulator.idleStoragePos)
+                position_val=scenicToAirsimLocation(self.simulator.idleStoragePos)
                 + airsim.Vector3r(i, 0, 0)
             )
             self.client.enableApiControl(True, drone)
@@ -117,6 +117,7 @@ class AirSimSimulation(Simulation):
         self.client.simPause(True)
 
     def createObjectInSimulator(self, obj):
+        print("obj = ", obj)
         # create AirSimPrexisting
         if obj.blueprint == "AirSimPrexisting":
             self.objs[obj.name] = obj.name
@@ -205,7 +206,7 @@ class AirSimSimulation(Simulation):
                 object_name=realObjName,
                 asset_name=obj.assetName,
                 pose=pose,
-                scale=scenicToAirsimScale(obj),
+                scale=scenicToAirsimScale(obj.width, obj.length, obj.height),
                 physics_enabled=obj.physEnabled,
                 is_blueprint=False,
             )

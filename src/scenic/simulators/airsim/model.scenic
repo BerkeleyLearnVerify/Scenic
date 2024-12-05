@@ -44,7 +44,6 @@ def createMeshShape(subFolder, assetName):
 
 
     center = (tmesh.bounds[0] + tmesh.bounds[1]) / 2
-    print("center=",center)
 
     # scale_matrix = trimesh.transformations.scale_matrix([0, 0, -1])
     # tmesh.apply_transform(scale_matrix)
@@ -55,15 +54,15 @@ def createMeshShape(subFolder, assetName):
     
     # return MeshShape(tmesh)
 
-    scale_matrix = trimesh.transformations.compose_matrix(scale=(.01,.01,.01))
-    tmesh.apply_transform(scale_matrix)
+    # scale_matrix = trimesh.transformations.compose_matrix(scale=(.01,.01,.01))
+    # tmesh.apply_transform(scale_matrix)
 
     rotation_matrix = trimesh.transformations.rotation_matrix(np.pi / 2, [1, 0, 0])
     tmesh.apply_transform(rotation_matrix)
 
 
     center = (tmesh.bounds[0] + tmesh.bounds[1]) / 2
-    print("NEW center=",center)
+    center *= 100 #extra multiplication to fix center after coords get divided by 100 in scenic
 
     return MeshShape(tmesh), center
 
@@ -88,7 +87,10 @@ class AirSimPrexisting:
     regionContainedIn: everywhere
     blueprint: "AirSimPrexisting"
     color: [.3,0,0] if self.name == "Ground" else [0.5, 0.5, 0.5]
+    
 
+
+# TODOmake it so that we can save the original mesh offset and real mesh size in the class when we define it
 
 class AirSimActor:
         
@@ -98,7 +100,7 @@ class AirSimActor:
     realObjName: None 
 
     # override
-    shape: createMeshShape("assets",self.assetName)[0]
+    shape, ya: createMeshShape("assets",self.assetName)
 
     def __str__(self):
         return self.assetName
@@ -144,26 +146,23 @@ with open(
     for meshData in meshDatas:
 
         actorName = meshData["name"]
-        print("\n\nname = ",actorName)
-
-        meshShape,center = createMeshShape("objectMeshes",actorName)
+        meshShape,centerOffset = createMeshShape("objectMeshes",actorName)
 
         # convert unreal position to airsim position
         # TODO fix world info generator for airsim binaries
         position = Vector(meshData["position"][0],meshData["position"][1],meshData["position"][2])
-        position += center*10000
+        position += centerOffset
 
+        # get orientation
         rot = meshData["orientation"]
         pitch,roll,yaw = rot[0] , rot[1],rot[2] 
-        
         angles = (-yaw - 90, pitch,roll)
         r = scipy.spatial.transform.Rotation.from_euler(
             seq="ZXY", angles=angles, degrees=True
         )
-
-    
         orientation =  Orientation(r)
 
+        print(actorName,centerOffset)
 
 
         newObj = new AirSimPrexisting with shape meshShape, with name actorName,
