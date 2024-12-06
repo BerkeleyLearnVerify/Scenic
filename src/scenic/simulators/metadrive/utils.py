@@ -81,17 +81,6 @@ def metaDriveToScenicHeading(metaDriveHeading):
     return (scenicHeading + math.pi) % (2 * math.pi) - math.pi
 
 
-def scenicToMetaDriveVelocity(vel):
-    vel_vector = np.array([vel[0], vel[1]])
-    direction = vel_vector / (np.linalg.norm(vel_vector) + 1e-6)
-    speed = np.linalg.norm(vel_vector)
-    return direction, speed
-
-
-def metadriveToScenicVelocity(vel):
-    return Vector(vel[0], vel[1], 0)
-
-
 class DriveEnv(BaseEnv):
     def reward_function(self, agent):
         """Dummy reward function."""

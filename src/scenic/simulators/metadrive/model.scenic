@@ -71,7 +71,7 @@ class MetaDriveActor(DrivingObject):
     @property
     def control(self):
         """Returns the current accumulated control inputs."""
-        print("CONTROLLL: ", self.metaDriveActor, ": ", self._control)
+        # print("CONTROLLL: ", self.metaDriveActor, ": ", self._control)
         # breakpoint()
         return self._control
 
@@ -81,7 +81,6 @@ class MetaDriveActor(DrivingObject):
 
     def applyControl(self):
         # Log the velocity before applying the control
-        print(f"Before applying control - Velocity of {self.metaDriveActor}: {self.metaDriveActor.velocity}")
         """Applies the accumulated control inputs using `before_step`."""
         action = [
             self._control["steering"],
@@ -100,20 +99,18 @@ class MetaDriveActor(DrivingObject):
 
     def setVelocity(self, vel):
         print("SCENIC VELOCITY: ", vel)
-        xVel, yVel, _ = vel  # Extract 2D components; ignore zVel
+        # xVel, yVel, _ = vel  # Extract 2D components; ignore zVel
 
-        # Check if velocity is near zero
-        if np.isclose([xVel, yVel], [0, 0], atol=1e-6).all():
-            # Explicitly stop the car in MetaDrive
-            self.metaDriveActor.set_velocity([0, 0], 0)
-            return
+        # vel_vector = np.array([xVel, yVel])  # Create a 2D velocity vector
+        # direction = vel_vector / (np.linalg.norm(vel_vector) + 1e-6)  # Normalize
+        # speed = np.linalg.norm(vel_vector)  # Calculate speed
 
-        vel_vector = np.array([xVel, yVel])  # Create a 2D velocity vector
-        direction = vel_vector / (np.linalg.norm(vel_vector) + 1e-6)  # Normalize
-        speed = np.linalg.norm(vel_vector)  # Calculate speed
+        # # Use MetaDrive's `set_velocity` API
+        # self.metaDriveActor.set_velocity(direction, speed)
 
-        # Use MetaDrive's `set_velocity` API
-        self.metaDriveActor.set_velocity(direction, speed)
+        # need to change
+        # self.metaDriveActor.before_step([0, vel])
+        raise NotImplementedError
 
 
 class Vehicle(Vehicle, Steers, MetaDriveActor):
