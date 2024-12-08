@@ -13,6 +13,7 @@ import math
 import random
 import warnings
 
+import fcl
 import numpy
 import scipy
 import shapely
@@ -1083,13 +1084,12 @@ class MeshVolumeRegion(MeshRegion):
         *args,
         _internal=False,
         _isConvex=None,
-        _candidatePointData=None,
-        _volume=None,
+        _scaledShape=None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self._isConvex = _isConvex
-        self._candidatePointData = _candidatePointData
+        self._scaledShape = _scaledShape
 
         if isLazy(self):
             return
@@ -1109,13 +1109,13 @@ class MeshVolumeRegion(MeshRegion):
 
         # Compute how many samples are necessary to achieve 99% probability
         # of success when rejection sampling volume.
-        volume = _volume or self._mesh.volume
+        volume = _scaledShape._mesh.volume if _scaledShape else self._mesh.volume
         p_volume = volume / self._mesh.bounding_box.volume
 
         if p_volume > 0.99:
             self.num_samples = 1
         else:
-            self.num_samples = min(1e6, max(1, math.ceil(math.log(0.01, 1 - p_volume))))
+            self.num_samples = math.ceil(min(1e6, max(1, math.log(0.01, 1 - p_volume))))
 
         # Always try to take at least 8 samples to avoid surface point total rejections
         self.num_samples = max(self.num_samples, 8)
@@ -1156,13 +1156,13 @@ class MeshVolumeRegion(MeshRegion):
 
             # Get a candidate point from each mesh and the corresponding
             # inradius/circumradius around that point.
-            s_candidate_point = self._candidatePoint
+            s_point = self._candidatePoint
             s_inradius, s_circumradius = self._candidateRadii
-            o_candidate_point = other._candidatePoint
+            o_point = other._candidatePoint
             o_inradius, o_circumradius = other._candidateRadii
 
             # Get the distance between the two points and check for mandatory or impossible collision.
-            point_distance = numpy.linalg.norm(s_candidate_point - o_candidate_point)
+            point_distance = numpy.linalg.norm(s_point - o_point)
 
             if point_distance < s_inradius + o_inradius:
                 return True
@@ -1171,21 +1171,19 @@ class MeshVolumeRegion(MeshRegion):
                 return False
 
             # PASS 3
-            # Use Trimesh's collision manager to check for intersection.
+            # Use FCL to check for intersection between the surfaces.
             # If the surfaces collide, that implies a collision of the volumes.
             # Cheaper than computing volumes immediately.
-            collision_manager = trimesh.collision.CollisionManager()
 
-            collision_manager.add_object("SelfRegion", self._mesh)
-            collision_manager.add_object("OtherRegion", other._mesh)
-
-            surface_collision = collision_manager.in_collision_internal()
+            selfObj = fcl.CollisionObject(*self._fclData)
+            otherObj = fcl.CollisionObject(*other._fclData)
+            surface_collision = fcl.collide(selfObj, otherObj)
 
             if surface_collision:
                 return True
 
             if self.isConvex and other.isConvex:
-                # For convex shapes, the manager detects containment as well as
+                # For convex shapes, FCL detects containment as well as
                 # surface intersections, so we can just return the result
                 return surface_collision
 
@@ -1194,9 +1192,9 @@ class MeshVolumeRegion(MeshRegion):
             # we can just check if either region contains the candidate point of the
             # other. (This is because we previously ruled out surface intersections)
             if self.mesh.body_count == 1 and other.mesh.body_count == 1:
-                return self._containsPointExact(
-                    o_candidate_point
-                ) or other._containsPointExact(s_candidate_point)
+                return self._containsPointExact(o_point) or other._containsPointExact(
+                    s_point
+                )
 
             # PASS 5
             # Compute intersection and check if it's empty. Expensive but guaranteed
@@ -1814,8 +1812,8 @@ class MeshVolumeRegion(MeshRegion):
     @cached_property
     def _candidatePoint(self):
         # Use precomputed point if available (transformed appropriately)
-        if self._candidatePointData:
-            raw = self._candidatePointData[0]
+        if self._scaledShape:
+            raw = self._scaledShape._candidatePoint
             homog = numpy.append(raw, [1])
             return numpy.dot(self._rigidTransform, homog)[:3]
 
@@ -1828,9 +1826,7 @@ class MeshVolumeRegion(MeshRegion):
         # Try sampling a point inside the volume
         samples = trimesh.sample.volume_mesh(mesh, self.num_samples)
         if samples.size > 0:
-            # Found at least one interior point; choose the closest to the CoM
-            distances = numpy.linalg.norm(samples - com)
-            return samples[numpy.argmin(distances)]
+            return samples[0]
 
         # If all else fails, take a point from the surface and move inward
         surfacePt, index = list(zip(*mesh.sample(1, return_index=True)))[0]
@@ -1851,8 +1847,8 @@ class MeshVolumeRegion(MeshRegion):
     @cached_property
     def _candidateRadii(self):
         # Use precomputed radii if available
-        if self._candidatePointData:
-            return self._candidatePointData[1]
+        if self._scaledShape:
+            return self._scaledShape._candidateRadii
 
         # Compute inradius and circumradius w.r.t. the candidate point
         point = self._candidatePoint
@@ -1860,6 +1856,32 @@ class MeshVolumeRegion(MeshRegion):
         inradius = abs(pq.signed_distance([point])[0])
         circumradius = numpy.max(numpy.linalg.norm(self._mesh.vertices - point, axis=1))
         return inradius, circumradius
+
+    @cached_property
+    def _fclData(self):
+        # Use precomputed geometry if available
+        if self._scaledShape:
+            geom = self._scaledShape._fclData[0]
+            trans = fcl.Transform(self.rotation.r.as_matrix(), numpy.array(self.position))
+            return geom, trans
+
+        mesh = self._mesh
+        if self.isConvex:
+            vertCounts = 3 * numpy.ones((len(mesh.faces), 1), dtype=numpy.int64)
+            faces = numpy.concatenate((vertCounts, mesh.faces), axis=1)
+            geom = fcl.Convex(mesh.vertices, len(faces), faces.flatten())
+        else:
+            geom = fcl.BVHModel()
+            geom.beginModel(num_tris_=len(mesh.faces), num_vertices_=len(mesh.vertices))
+            geom.addSubModel(mesh.vertices, mesh.faces)
+            geom.endModel()
+        trans = fcl.Transform()
+        return geom, trans
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state.pop("_cached__fclData", None)  # remove non-picklable FCL objects
+        return state
 
 
 class MeshSurfaceRegion(MeshRegion):

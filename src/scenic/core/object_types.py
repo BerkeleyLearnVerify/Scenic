@@ -1332,12 +1332,6 @@ class Object(OrientedPoint):
     def occupiedSpace(self):
         """A region representing the space this object occupies"""
         shape = self.shape
-        ss = self._scaledShape
-        if ss is not None:
-            candData = (ss._candidatePoint, ss._candidateRadii)
-            volume = ss._mesh.volume
-        else:
-            candData = volume = None
         return MeshVolumeRegion(
             mesh=shape.mesh,
             dimensions=(self.width, self.length, self.height),
@@ -1346,8 +1340,7 @@ class Object(OrientedPoint):
             centerMesh=False,
             _internal=True,
             _isConvex=shape.isConvex,
-            _candidatePointData=candData,
-            _volume=volume,
+            _scaledShape=self._scaledShape,
         )
 
     @precomputed_property

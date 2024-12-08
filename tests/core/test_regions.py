@@ -1,6 +1,7 @@
 import math
 from pathlib import Path
 
+import fcl
 import pytest
 import shapely.geometry
 import trimesh.voxel
@@ -8,7 +9,7 @@ import trimesh.voxel
 from scenic.core.distributions import RandomControlFlowError, Range
 from scenic.core.object_types import Object, OrientedPoint
 from scenic.core.regions import *
-from scenic.core.vectors import VectorField
+from scenic.core.vectors import Orientation, VectorField
 from tests.utils import deprecationTest, sampleSceneFrom
 
 
@@ -336,6 +337,60 @@ def test_mesh_intersects():
     assert r1.getSurfaceRegion().intersects(r2)
     assert not r1.intersects(r2.getSurfaceRegion())
     assert not r1.getSurfaceRegion().intersects(r2.getSurfaceRegion())
+
+
+def test_mesh_candidatePoint():
+    regions = [
+        BoxRegion(dimensions=(1, 2, 3), position=(4, 5, 6)),
+        BoxRegion().difference(BoxRegion(dimensions=(0.1, 0.1, 0.1))),
+    ]
+    d = 1e6
+    r = BoxRegion(dimensions=(d, d, d)).difference(
+        BoxRegion(dimensions=(d - 1, d - 1, d - 1))
+    )
+    r.num_samples = 8  # ensure sampling won't yield a good point
+    regions.append(r)
+
+    bo = Orientation.fromEuler(math.pi / 4, math.pi / 4, math.pi / 4)
+    r2 = MeshVolumeRegion(r.mesh, position=(15, 20, 5), rotation=bo, _scaledShape=r)
+    regions.append(r2)
+
+    for reg in regions:
+        cp = reg._candidatePoint
+        # N.B. _containsPointExact can fail with embreex installed!
+        assert reg.containsPoint(cp)
+        inr, circumr = reg._candidateRadii
+        d = 1.99 * inr
+        assert reg.containsRegion(SpheroidRegion(dimensions=(d, d, d), position=cp))
+        d = 2.01 * circumr
+        assert SpheroidRegion(dimensions=(d, d, d), position=cp).containsRegion(reg)
+
+
+def test_mesh_fcl():
+    """Test internal construction of FCL models for MeshVolumeRegions."""
+    r1 = BoxRegion(dimensions=(2, 2, 2)).difference(BoxRegion(dimensions=(1, 1, 3)))
+
+    for heading, shouldInt in ((0, False), (math.pi / 4, True), (math.pi / 2, False)):
+        o = Orientation.fromEuler(heading, 0, 0)
+        r2 = BoxRegion(dimensions=(1.5, 1.5, 0.5), position=(2, 0, 0), rotation=o)
+        assert r1.intersects(r2) == shouldInt
+
+        o1 = fcl.CollisionObject(*r1._fclData)
+        o2 = fcl.CollisionObject(*r2._fclData)
+        assert fcl.collide(o1, o2) == shouldInt
+
+    bo = Orientation.fromEuler(math.pi / 4, math.pi / 4, math.pi / 4)
+    r3 = MeshVolumeRegion(r1.mesh, position=(15, 20, 5), rotation=bo, _scaledShape=r1)
+    o3 = fcl.CollisionObject(*r3._fclData)
+    r4pos = r3.position.offsetLocally(bo, (0, 2, 0))
+
+    for heading, shouldInt in ((0, False), (math.pi / 4, True), (math.pi / 2, False)):
+        o = bo * Orientation.fromEuler(heading, 0, 0)
+        r4 = BoxRegion(dimensions=(1.5, 1.5, 0.5), position=r4pos, rotation=o)
+        assert r3.intersects(r4) == shouldInt
+
+        o4 = fcl.CollisionObject(*r4._fclData)
+        assert fcl.collide(o3, o4) == shouldInt
 
 
 def test_mesh_empty_intersection():
