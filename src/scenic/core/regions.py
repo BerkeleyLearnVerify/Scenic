@@ -1191,7 +1191,7 @@ class MeshVolumeRegion(MeshRegion):
             # If we have 2 candidate points and both regions have only one body,
             # we can just check if either region contains the candidate point of the
             # other. (This is because we previously ruled out surface intersections)
-            if self.mesh.body_count == 1 and other.mesh.body_count == 1:
+            if self._bodyCount == 1 and other._bodyCount == 1:
                 return self._containsPointExact(o_point) or other._containsPointExact(
                     s_point
                 )
@@ -1856,6 +1856,14 @@ class MeshVolumeRegion(MeshRegion):
         inradius = abs(pq.signed_distance([point])[0])
         circumradius = numpy.max(numpy.linalg.norm(self._mesh.vertices - point, axis=1))
         return inradius, circumradius
+
+    @cached_property
+    def _bodyCount(self):
+        # Use precomputed geometry if available
+        if self._scaledShape:
+            return self._scaledShape._bodyCount
+
+        return self.mesh.body_count
 
     @cached_property
     def _fclData(self):
