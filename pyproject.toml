@@ -47,7 +47,7 @@ dependencies = [
 	"scikit-image ~= 0.21",
 	"scipy ~= 1.7",
 	"shapely ~= 2.0",
-	"trimesh >=4.0.9, <5",
+	"trimesh >=4.4.8, <5",
 ]
 
 [project.optional-dependencies]

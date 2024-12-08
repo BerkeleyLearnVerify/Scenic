@@ -833,7 +833,7 @@ class MeshRegion(Region):
         if isinstance(mesh, trimesh.primitives.Primitive):
             self._mesh = mesh.to_mesh()
         elif isinstance(mesh, trimesh.base.Trimesh):
-            self._mesh = mesh.copy()
+            self._mesh = mesh.copy(include_visual=False)
         else:
             raise TypeError(
                 f"Got unexpected mesh parameter of type {type(mesh).__name__}"
