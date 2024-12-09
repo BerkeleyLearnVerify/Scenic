@@ -1331,16 +1331,24 @@ class Object(OrientedPoint):
     @cached_property
     def occupiedSpace(self):
         """A region representing the space this object occupies"""
-        shape = self.shape
+        scaledShape = self._scaledShape
+        if scaledShape:
+            mesh = scaledShape.mesh
+            dimensions = None  # mesh does not need to be scaled
+            convex = scaledShape.isConvex
+        else:
+            mesh = self.shape.mesh
+            dimensions = (self.width, self.length, self.height)
+            convex = self.shape.isConvex
         return MeshVolumeRegion(
-            mesh=shape.mesh,
-            dimensions=(self.width, self.length, self.height),
+            mesh=mesh,
+            dimensions=dimensions,
             position=self.position,
             rotation=self.orientation,
             centerMesh=False,
             _internal=True,
-            _isConvex=shape.isConvex,
-            _scaledShape=self._scaledShape,
+            _isConvex=convex,
+            _scaledShape=scaledShape,
         )
 
     @precomputed_property
@@ -1350,6 +1358,7 @@ class Object(OrientedPoint):
             dimensions=(width, length, height),
             centerMesh=False,
             _internal=True,
+            _isConvex=shape.isConvex,
         )
 
     @property
