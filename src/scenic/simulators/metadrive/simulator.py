@@ -1,4 +1,5 @@
 try:
+    from metadrive.component.traffic_participants.pedestrian import Pedestrian
     from metadrive.component.vehicle.vehicle_type import DefaultVehicle
 except ImportError as e:
     raise ModuleNotFoundError(
@@ -236,18 +237,28 @@ class MetaDriveSimulation(DrivingSimulation):
             print("OTHER CAR: ", obj.metaDriveActor)
             return metaDriveActor
 
+        if type(obj).__name__ == "Pedestrian":
+            print("IN PEDESTRIAN CREATION")
+            metaDriveActor = self.client.engine.agent_manager.spawn_object(
+                Pedestrian,
+                position=converted_position,
+                heading_theta=converted_heading,
+            )
+            obj.metaDriveActor = metaDriveActor
+            return metaDriveActor
+
         return None
 
     def destroy(self):
-        print("------END POSITIONS----------")
-        ego = self.scene.objects[0]
-        scenic_position = ego.position
-        print("SCENIC END POSITION: ", scenic_position)
-        converted_position = utils.scenicToMetaDrivePosition(
-            scenic_position, self.center_x, self.center_y, self.offset_x, self.offset_y
-        )
-        print("METADRIVE END POSITION: ", ego.metaDriveActor.position)
-        print("CONVERTED POSITION: ", converted_position)
+        # print("------END POSITIONS----------")
+        # ego = self.scene.objects[0]
+        # scenic_position = ego.position
+        # print("SCENIC END POSITION: ", scenic_position)
+        # converted_position = utils.scenicToMetaDrivePosition(
+        #     scenic_position, self.center_x, self.center_y, self.offset_x, self.offset_y
+        # )
+        # print("METADRIVE END POSITION: ", ego.metaDriveActor.position)
+        # print("CONVERTED POSITION: ", converted_position)
 
         if self.client:
             object_ids = list(self.client.engine._spawned_objects.keys())
@@ -259,18 +270,18 @@ class MetaDriveSimulation(DrivingSimulation):
     def getProperties(self, obj, properties):
         metaDriveActor = obj.metaDriveActor
         position = utils.metadriveToScenicPosition(
-            metaDriveActor.last_position,
+            metaDriveActor.position,
             self.center_x,
             self.center_y,
             self.offset_x,
             self.offset_y,
         )
-        velocity = Vector(*metaDriveActor.last_velocity, 0)  # [x,y,z]
+        velocity = Vector(*metaDriveActor.velocity, 0)  # [x,y,z]
 
         # print("IN GET PROPERTIES")
         # print("METADRIVE ACTOR LAST VELOCITY: ", metaDriveActor.last_velocity)
         # print("METADRIVE TO SCENIC VEL: ", velocity)
-        speed = metaDriveActor.last_speed
+        speed = metaDriveActor.speed
         angularSpeed = 0
         angularVelocity = utils.metadriveToScenicPosition(
             (0, 0), self.center_x, self.center_y, self.offset_x, self.offset_y

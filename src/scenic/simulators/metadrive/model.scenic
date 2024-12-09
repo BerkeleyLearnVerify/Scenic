@@ -80,7 +80,6 @@ class MetaDriveActor(DrivingObject):
         self._control = {"steering": 0, "throttle": 0, "brake": 0}
 
     def applyControl(self):
-        # Log the velocity before applying the control
         """Applies the accumulated control inputs using `before_step`."""
         # Invert steering to match MetaDrive's convention
         steering = -self._control["steering"]  # Invert the steering
@@ -136,3 +135,14 @@ class Car(Vehicle):
     @property
     def isCar(self):
         return True
+
+class Pedestrian(Pedestrian, MetaDriveActor, Walks):
+
+    def setWalkingDirection(self, heading):
+        print("PEDESTRIAN: HEADING: ", heading)
+        direction = Vector(0, 1, 0).rotatedBy(heading)
+        self.control.direction = _utils.scenicToCarlaVector3D(*direction)
+
+    def setWalkingSpeed(self, speed):
+        print("PEDESTRIAN: SPEED: ", speed)
+        self.control.speed = speed
