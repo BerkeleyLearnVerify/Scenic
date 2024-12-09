@@ -15,4 +15,4 @@ ground = getPrexistingObj("Ground")
 # point  = new Point on ground
 
 tree = new StaticObj at (2,2,24.84665039),
-    with assetName "tree", with name "tree2", with width 1, with length 1, with height 1
+    with assetName "tree", with name "tree2"

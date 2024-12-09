@@ -57,14 +57,18 @@ def createMeshShape(subFolder, assetName):
     # scale_matrix = trimesh.transformations.compose_matrix(scale=(.01,.01,.01))
     # tmesh.apply_transform(scale_matrix)
 
+    
     rotation_matrix = trimesh.transformations.rotation_matrix(np.pi / 2, [1, 0, 0])
     tmesh.apply_transform(rotation_matrix)
 
 
     center = (tmesh.bounds[0] + tmesh.bounds[1]) / 2
-    center *= 100 #extra multiplication to fix center after coords get divided by 100 in scenic
+    # center *= 100 #extra multiplication to fix center after coords get divided by 100 in scenic
+    # center = toVector(center) * 100
 
-    return MeshShape(tmesh), center
+    dimensions = Vector(tmesh.bounding_box.extents[0],tmesh.bounding_box.extents[1],tmesh.bounding_box.extents[2])
+
+    return MeshShape(tmesh), center, dimensions
 
 
 
@@ -100,7 +104,10 @@ class AirSimActor:
     realObjName: None 
 
     # override
-    shape, ya: createMeshShape("assets",self.assetName)
+    _shapeData: createMeshShape("assets",self.assetName)
+    shape: self._shapeData[0]
+    centerOffset: self._shapeData[1] #offset in unreal coords
+    dims: self._shapeData[2] #save original dims before scenic scales mesh
 
     def __str__(self):
         return self.assetName
@@ -146,11 +153,12 @@ with open(
     for meshData in meshDatas:
 
         actorName = meshData["name"]
-        meshShape,centerOffset = createMeshShape("objectMeshes",actorName)
+        meshShape,centerOffset,dims = createMeshShape("objectMeshes",actorName)
 
         # convert unreal position to airsim position
         # TODO fix world info generator for airsim binaries
-        position = Vector(meshData["position"][0],meshData["position"][1],meshData["position"][2])
+        position = Vector(meshData["position"][0],meshData["position"][1],meshData["position"][2]) #unreal position
+        print("\n\n bfr pos = ",position)
         position += centerOffset
 
         # get orientation
@@ -162,8 +170,9 @@ with open(
         )
         orientation =  Orientation(r)
 
-        print(actorName,centerOffset)
+        # print(actorName,centerOffset)
 
+        print(actorName,"prex pos = ",position)
 
         newObj = new AirSimPrexisting with shape meshShape, with name actorName,
             at airsimToScenicLocation(airsim.Vector3r(position.x, position.y, position.z)),
