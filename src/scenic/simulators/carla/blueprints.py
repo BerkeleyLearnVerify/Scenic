@@ -31,7 +31,7 @@ carModels = [
     'vehicle.ambulance.ford',
     'vehicle.nissan.patrol',
     'vehicle.mini.cooper',
-    'vehicle.lincoln.mkz'
+    'vehicle.lincoln.mkz',
 ]
 
 #: blueprints for bicycles
