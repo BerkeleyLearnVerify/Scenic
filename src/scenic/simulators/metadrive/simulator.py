@@ -119,13 +119,13 @@ class MetaDriveSimulation(DrivingSimulation):
         super().setup()
 
     def step(self):
-        print("IN STEP")
-
         # decision_repeat = math.ceil(self.timestep / 0.02)
         # physics_world_step_size = self.timestep / decision_repeat
 
         # self.client.config["decision_repeat"] = decision_repeat
         # self.client.config["physics_world_step_size"] = physics_world_step_size
+
+        # self.client.engine.step()
 
         if len(self.scene.objects) > 0:
             obj = self.scene.objects[0]
@@ -300,10 +300,8 @@ class MetaDriveSimulation(DrivingSimulation):
     def getLaneFollowingControllers(self, agent):
         dt = self.timestep
         if agent.isCar:
-            # lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-            # lat_controller = PIDLateralController(K_P=0.05, K_D=0.05, K_I=0.02, dt=dt)
-            lon_controller = PIDLongitudinalController(K_P=0.3, K_D=0.05, K_I=0.1, dt=dt)
-            lat_controller = PIDLateralController(K_P=0.001, K_D=0.01, K_I=0.001, dt=dt)
+            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.05, K_D=0.05, K_I=0.02, dt=dt)
         else:
             lon_controller = PIDLongitudinalController(
                 K_P=0.25, K_D=0.025, K_I=0.0, dt=dt

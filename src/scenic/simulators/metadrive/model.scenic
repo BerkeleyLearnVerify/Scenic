@@ -82,10 +82,16 @@ class MetaDriveActor(DrivingObject):
     def applyControl(self):
         # Log the velocity before applying the control
         """Applies the accumulated control inputs using `before_step`."""
+        # Invert steering to match MetaDrive's convention
+        steering = -self._control["steering"]  # Invert the steering
         action = [
-            self._control["steering"],
+            steering,
             self._control["throttle"] - self._control["brake"],
         ]
+        # action = [
+        #     self._control["steering"],
+        #     self._control["throttle"] - self._control["brake"],
+        # ]
 
         print(f"Scenic Controls for {self.metaDriveActor} - Steering: {self._control['steering']}, "
             f"Throttle: {self._control['throttle']}, Brake: {self._control['brake']}")
