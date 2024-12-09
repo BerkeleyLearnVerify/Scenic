@@ -4,8 +4,8 @@ Ego-vehicle is going straight at an intersection but a crossing vehicle
 runs a red light, forcing the ego-vehicle to perform a collision avoidance maneuver.
 Note: The traffic light control is not implemented yet, but it will soon be. 
 """
-param map = localPath('../../../assets/maps/CARLA/Town05.xodr')
-param carla_map = 'Town05'
+param map = localPath('../../../assets/maps/CARLA/Town10HD_Opt.xodr')
+param carla_map = 'Town10HD_Opt'
 model scenic.simulators.carla.model
 
 DELAY_TIME_1 = 1 # the delay time for ego
@@ -52,6 +52,3 @@ ego = new Car following roadDirection from ego_spwPt for DISTANCE_TO_INTERSECTIO
 
 crossing_car = new Car following roadDirection from csm_spwPt for DISTANCE_TO_INTERSECTION2,
                 with behavior CrossingCarBehavior(crossing_car_trajectory)
-
-
-"""Note: Traffic light is currently not controlled but this functionality will be added very soon """

@@ -4,12 +4,9 @@ Ego-vehicle must go around a blocking object
 using the opposite lane, yielding to oncoming traffic.
 """
 
-# N.B. Town07 is not included with CARLA by default; see installation instructions at
-# https://carla.readthedocs.io/en/latest/start_quickstart/#import-additional-assets
-param map = localPath('../../../assets/maps/CARLA/Town07.xodr')
-param carla_map = 'Town07'
+param map = localPath('../../../assets/maps/CARLA/Town10HD_Opt.xodr')
+param carla_map = 'Town10HD_Opt'
 model scenic.simulators.carla.model
-
 
 #CONSTANTS
 ONCOMING_THROTTLE = 0.6
@@ -78,7 +75,7 @@ oncomingCar = new Car on leftLaneSec.centerline,
 
 ego = new Car at spawnPt,
     with behavior EgoBehavior(leftLaneSec)
-    
+
 blockingCar = new Car following roadDirection from ego for BLOCKING_CAR_DIST,
                 with viewAngle 90 deg
 
