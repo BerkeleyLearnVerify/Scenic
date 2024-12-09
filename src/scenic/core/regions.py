@@ -829,34 +829,12 @@ class MeshRegion(Region):
         if isLazy(self):
             return
 
-        # Convert extract mesh
-        if isinstance(mesh, trimesh.primitives.Primitive):
-            self._mesh = mesh.to_mesh()
-        elif isinstance(mesh, trimesh.base.Trimesh):
-            self._mesh = mesh.copy(include_visual=False)
-        else:
-            raise TypeError(
-                f"Got unexpected mesh parameter of type {type(mesh).__name__}"
-            )
-
-        # Center mesh unless disabled
-        if centerMesh:
-            self.mesh.vertices -= self.mesh.bounding_box.center_mass
-
         # Apply scaling, rotation, and translation, if any
-        if self.dimensions is not None:
-            scale = numpy.array(self.dimensions) / self.mesh.extents
-        else:
-            scale = None
         if self.rotation is not None:
             angles = self.rotation._trimeshEulerAngles()
         else:
             angles = None
-        self._transform = compose_matrix(
-            scale=scale, angles=angles, translate=self.position
-        )
         self._rigidTransform = compose_matrix(angles=angles, translate=self.position)
-        self.mesh.apply_transform(self._transform)
 
         self.orientation = orientation
 
@@ -941,10 +919,41 @@ class MeshRegion(Region):
         )
 
     ## API Methods ##
-    @property
+    @cached_property
     @distributionFunction
     def mesh(self):
-        return self._mesh
+        mesh = self._mesh
+
+        # Convert/extract mesh
+        if isinstance(mesh, trimesh.primitives.Primitive):
+            mesh = mesh.to_mesh()
+        elif isinstance(mesh, trimesh.base.Trimesh):
+            mesh = mesh.copy(include_visual=False)
+        else:
+            raise TypeError(
+                f"Got unexpected mesh parameter of type {type(mesh).__name__}"
+            )
+
+        # Center mesh unless disabled
+        if self.centerMesh:
+            mesh.vertices -= mesh.bounding_box.center_mass
+
+        # Apply scaling, rotation, and translation, if any
+        if self.dimensions is not None:
+            scale = numpy.array(self.dimensions) / mesh.extents
+        else:
+            scale = None
+        if self.rotation is not None:
+            angles = self.rotation._trimeshEulerAngles()
+        else:
+            angles = None
+        self._transform = compose_matrix(
+            scale=scale, angles=angles, translate=self.position
+        )
+        mesh.apply_transform(self._transform)
+
+        self._mesh = mesh
+        return mesh
 
     @distributionFunction
     def projectVector(self, point, onDirection):
@@ -1090,6 +1099,7 @@ class MeshVolumeRegion(MeshRegion):
         super().__init__(*args, **kwargs)
         self._isConvex = _isConvex
         self._scaledShape = _scaledShape
+        self._num_samples = None
 
         if isLazy(self):
             return
@@ -1107,19 +1117,6 @@ class MeshVolumeRegion(MeshRegion):
                 " Consider using scenic.core.utils.repairMesh."
             )
 
-        # Compute how many samples are necessary to achieve 99% probability
-        # of success when rejection sampling volume.
-        volume = _scaledShape._mesh.volume if _scaledShape else self._mesh.volume
-        p_volume = volume / self._mesh.bounding_box.volume
-
-        if p_volume > 0.99:
-            self.num_samples = 1
-        else:
-            self.num_samples = math.ceil(min(1e6, max(1, math.log(0.01, 1 - p_volume))))
-
-        # Always try to take at least 8 samples to avoid surface point total rejections
-        self.num_samples = max(self.num_samples, 8)
-
     # Property testing methods #
     @distributionFunction
     def intersects(self, other, triedReversed=False):
@@ -1135,8 +1132,8 @@ class MeshVolumeRegion(MeshRegion):
             # Check if bounding boxes intersect. If not, volumes cannot intersect.
             # For bounding boxes to intersect there must be overlap of the bounds
             # in all 3 dimensions.
-            bounds = self._mesh.bounds
-            obounds = other._mesh.bounds
+            bounds = self.mesh.bounds
+            obounds = other.mesh.bounds
             range_overlaps = (
                 (bounds[0, dim] <= obounds[1, dim])
                 and (obounds[0, dim] <= bounds[1, dim])
@@ -1262,7 +1259,7 @@ class MeshVolumeRegion(MeshRegion):
         return self.distanceTo(point) <= self.tolerance
 
     def _containsPointExact(self, point):
-        return self._mesh.contains([point])[0]
+        return self.mesh.contains([point])[0]
 
     @distributionFunction
     def containsObject(self, obj):
@@ -1809,6 +1806,25 @@ class MeshVolumeRegion(MeshRegion):
         """Returns this object, as it is already a MeshVolumeRegion"""
         return self
 
+    @property
+    def num_samples(self):
+        if self._num_samples is not None:
+            return self._num_samples
+
+        # Compute how many samples are necessary to achieve 99% probability
+        # of success when rejection sampling volume.
+        volume = self._scaledShape.mesh.volume if self._scaledShape else self.mesh.volume
+        p_volume = volume / self.mesh.bounding_box.volume
+
+        if p_volume > 0.99:
+            num_samples = 1
+        else:
+            num_samples = math.ceil(min(1e6, max(1, math.log(0.01, 1 - p_volume))))
+
+        # Always try to take at least 8 samples to avoid surface point total rejections
+        self._num_samples = max(num_samples, 8)
+        return self._num_samples
+
     @cached_property
     def _candidatePoint(self):
         # Use precomputed point if available (transformed appropriately)
@@ -1818,7 +1834,7 @@ class MeshVolumeRegion(MeshRegion):
             return numpy.dot(self._rigidTransform, homog)[:3]
 
         # Use center of mass if it's contained
-        mesh = self._mesh
+        mesh = self.mesh
         com = mesh.bounding_box.center_mass
         if mesh.contains([com])[0]:
             return com
@@ -1852,9 +1868,9 @@ class MeshVolumeRegion(MeshRegion):
 
         # Compute inradius and circumradius w.r.t. the candidate point
         point = self._candidatePoint
-        pq = trimesh.proximity.ProximityQuery(self._mesh)
+        pq = trimesh.proximity.ProximityQuery(self.mesh)
         inradius = abs(pq.signed_distance([point])[0])
-        circumradius = numpy.max(numpy.linalg.norm(self._mesh.vertices - point, axis=1))
+        circumradius = numpy.max(numpy.linalg.norm(self.mesh.vertices - point, axis=1))
         return inradius, circumradius
 
     @cached_property
@@ -1873,7 +1889,7 @@ class MeshVolumeRegion(MeshRegion):
             trans = fcl.Transform(self.rotation.r.as_matrix(), numpy.array(self.position))
             return geom, trans
 
-        mesh = self._mesh
+        mesh = self.mesh
         if self.isConvex:
             vertCounts = 3 * numpy.ones((len(mesh.faces), 1), dtype=numpy.int64)
             faces = numpy.concatenate((vertCounts, mesh.faces), axis=1)

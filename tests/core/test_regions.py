@@ -348,7 +348,7 @@ def test_mesh_candidatePoint():
     r = BoxRegion(dimensions=(d, d, d)).difference(
         BoxRegion(dimensions=(d - 1, d - 1, d - 1))
     )
-    r.num_samples = 8  # ensure sampling won't yield a good point
+    r._num_samples = 8  # ensure sampling won't yield a good point
     regions.append(r)
 
     bo = Orientation.fromEuler(math.pi / 4, math.pi / 4, math.pi / 4)
