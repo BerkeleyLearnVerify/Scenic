@@ -96,7 +96,7 @@ class AirSimSimulation(Simulation):
         for i, drone in enumerate(self.startDrones):
             newPose = airsim.Pose(
                 position_val=scenicToAirsimLocation(
-                    self.simulator.idleStoragePos, Vector(0, 0, 0)
+                    toVector(self.simulator.idleStoragePos), Vector(0, 0, 0)
                 )
                 + airsim.Vector3r(i, 0, 0)
             )
@@ -286,7 +286,7 @@ class AirSimSimulation(Simulation):
         globalOrientation = airsimToScenicOrientation(pose.orientation)
         yaw, pitch, roll = obj.parentOrientation.localAnglesFor(globalOrientation)
 
-        location = airsimToScenicLocation(pose.position)
+        location = airsimToScenicLocation(pose.position, obj.centerOffset)
 
         speed = math.hypot(velocity.x, velocity.y, velocity.z)
         angularSpeed = math.hypot(angularVelocity.x, angularVelocity.y, angularVelocity.z)

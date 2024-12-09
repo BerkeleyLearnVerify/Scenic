@@ -54,7 +54,7 @@ def createMeshShape(subFolder, assetName):
     
     # return MeshShape(tmesh)
 
-    # scale_matrix = trimesh.transformations.compose_matrix(scale=(.01,.01,.01))
+    # scale_matrix = trimesh.transformations.compose_matrix(scale=(100,100,100))
     # tmesh.apply_transform(scale_matrix)
 
     
@@ -63,7 +63,7 @@ def createMeshShape(subFolder, assetName):
 
 
     center = (tmesh.bounds[0] + tmesh.bounds[1]) / 2
-    # center *= 100 #extra multiplication to fix center after coords get divided by 100 in scenic
+    center *= 100 #extra multiplication to fix center after coords get divided by 100 in scenic
     # center = toVector(center) * 100
 
     dimensions = Vector(tmesh.bounding_box.extents[0],tmesh.bounding_box.extents[1],tmesh.bounding_box.extents[2])
@@ -158,8 +158,6 @@ with open(
         # convert unreal position to airsim position
         # TODO fix world info generator for airsim binaries
         position = Vector(meshData["position"][0],meshData["position"][1],meshData["position"][2]) #unreal position
-        print("\n\n bfr pos = ",position)
-        position += centerOffset
 
         # get orientation
         rot = meshData["orientation"]
@@ -170,16 +168,16 @@ with open(
         )
         orientation =  Orientation(r)
 
-        # print(actorName,centerOffset)
+        print(actorName,centerOffset,position)
 
-        print(actorName,"prex pos = ",position)
-
+        scenicLoc = airsimToScenicLocation(airsim.Vector3r(position.x, position.y, position.z),centerOffset,fromPose=False)
         newObj = new AirSimPrexisting with shape meshShape, with name actorName,
-            at airsimToScenicLocation(airsim.Vector3r(position.x, position.y, position.z)),
+            at scenicLoc,
             facing orientation # pitch, roll, yaw
      
 
         _addPrexistingObj(newObj)
+        # break
 
 
 # generate list of assets

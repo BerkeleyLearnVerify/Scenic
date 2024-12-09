@@ -10,28 +10,21 @@ def tupleToVector3r(tuple):
 
 
 def scenicToAirsimOrientation(orientation):
-    pitch, yaw, roll = orientation.r.as_euler("XZY", degrees=False)
-    return airsim.to_quaternion(pitch, roll, yaw)
+    # pitch, yaw, roll = orientation.r.as_euler("XZY", degrees=False)
+    rad90 = 1.5708
+    yaw, pitch, roll = orientation.r.as_euler("ZXY", degrees=False)
+    yaw = -yaw - rad90
+    return airsim.to_quaternion(pitch=pitch, yaw=yaw, roll=roll)
 
 
 def airsimToScenicOrientation(orientation):
 
-    # convert to unreal
-
     pitch, roll, yaw = airsim.to_eularian_angles(orientation)
-    angles = (pitch, roll, yaw)
-
-    conversion = 180 / 3.14
-    conversioned = (
-        angles[0] * conversion,
-        angles[1] * conversion,
-        angles[2] * conversion,
-    )
-    # print("angles = ,", conversioned)
-
+    angles = (pitch, -yaw - 90, roll)
     r = scipy.spatial.transform.Rotation.from_euler(
-        seq="XYZ", angles=angles, degrees=False
+        seq="ZXY", angles=angles, degrees=True
     )
+    orientation = Orientation(r)
     return Orientation(r)
 
 
@@ -44,34 +37,53 @@ def airsimToScenicOrientationTuple(orientation):
     return angles
 
 
-def scenicToAirsimLocation(position, centerOffset):
+# forPose - if the output will be fed into airsim's airsim.Pose() function
+def scenicToAirsimLocation(position, centerOffset, forPose=True):
+
+    print("pos=", position, "center offset = ", centerOffset)
 
     # turn position to a vector
     position = Vector(position.x, position.y, position.z)
 
-    # undo airsim.Vector3r's future adjustments
-    position = (position - centerOffset) / 100  # divide by 100
-    position = Vector(position.x, position.y, -position.z)  # negate z axis
+    # convert to unreal
+    position *= 100
+    position = Vector(position.x, -position.y, position.z)  # left hand coords
 
-    airsimPos = airsim.Vector3r(
+    position -= centerOffset
+
+    if forPose:
+        # undo airsim's adjustments
+        position /= 100  # divide by 100
+        position = Vector(position.x, position.y, -position.z)  # negate z axis
+
+    position = airsim.Vector3r(
         position.x, position.y, position.z
     )  # multiplies by 100 and negates z axis
 
-    return airsimPos
+    return position
 
 
-def airsimToScenicLocation(position):
-    loc = Vector(
+# fromPose - if position was gained from simGetObjectPose
+def airsimToScenicLocation(position, centerOffset, fromPose=True):
+
+    position = Vector(
         position.x_val,
         position.y_val,
         position.z_val,
     )
 
-    # convert to scenic
-    loc = Vector(loc.x, -loc.y, loc.z)  # left hand coords
-    loc = loc / 100  # account for mesh scaling by .01
+    if fromPose:
+        # undo airsim's adjustments
+        position *= 100  # mult by 100
+        position = Vector(position.x, position.y, -position.z)  # negate z axis
 
-    return loc
+    position += centerOffset
+
+    # convert to scenic
+    position /= 100  # account for mesh scaling by .01
+    position = Vector(position.x, -position.y, position.z)  # left hand coords
+
+    return position
 
 
 def scenicToAirsimScale(size, dims):
