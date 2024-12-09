@@ -1331,6 +1331,9 @@ class Object(OrientedPoint):
     @cached_property
     def occupiedSpace(self):
         """A region representing the space this object occupies"""
+        if self._sampleParent and self._sampleParent._hasStaticBounds:
+            return self._sampleParent.occupiedSpace
+
         scaledShape = self._scaledShape
         if scaledShape:
             mesh = scaledShape.mesh
