@@ -129,15 +129,13 @@ class MetaDriveSimulation(DrivingSimulation):
 
         if len(self.scene.objects) > 0:
             obj = self.scene.objects[0]
-            print(
-                # f"Before Action - Velocity of EGO: {obj.metaDriveActor.velocity}"
-            )
+            print(f"Before Action - Velocity of EGO: {obj.metaDriveActor.velocity}")
             action = obj.metaDriveActor.last_current_action[-1]
             print("ACTION FOR EGO IN METADRIVE IS: ", action)
             # if action == [0, -1]:
             #     breakpoint()
             o, r, tm, tc, info = self.client.step(action)
-            # print(f"After Action - Velocity of EGO: {obj.metaDriveActor.velocity}")
+            print(f"After Action - Velocity of EGO: {obj.metaDriveActor.velocity}")
             # print(f"Speed of EGO: {obj.metaDriveActor.speed_km_h}")
             # print(f"Position of EGO: {obj.metaDriveActor.position}")
 
@@ -202,12 +200,14 @@ class MetaDriveSimulation(DrivingSimulation):
                         "spawn_position_heading": [
                             converted_position,
                             converted_heading,
-                        ]
+                        ],
+                        # "enable_reverse": True,
                     },
                     use_mesh_terrain=self.render3D,
                     log_level=logging.CRITICAL,
                 )
             )
+            # self.client.config["max_brake_force"] = 100
             self.client.config["sumo_map"] = self.sumo_map
             self.client.reset()
 
