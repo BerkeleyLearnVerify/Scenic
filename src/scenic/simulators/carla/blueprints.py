@@ -15,24 +15,23 @@ oldBlueprintNames = {
 
 #: blueprints for cars
 carModels = [
-    "vehicle.audi.a2",
-    "vehicle.audi.etron",
-    "vehicle.audi.tt",
-    "vehicle.bmw.grandtourer",
-    "vehicle.chevrolet.impala",
-    "vehicle.citroen.c3",
-    "vehicle.dodge.charger_police",
-    "vehicle.jeep.wrangler_rubicon",
-    "vehicle.lincoln.mkz_2017",
-    "vehicle.mercedes.coupe",
-    "vehicle.mini.cooper_s",
-    "vehicle.ford.mustang",
-    "vehicle.nissan.micra",
-    "vehicle.nissan.patrol",
-    "vehicle.seat.leon",
-    "vehicle.tesla.model3",
-    "vehicle.toyota.prius",
-    "vehicle.volkswagen.t2",
+    'vehicle.taxi.ford',
+    'vehicle.dodgecop.charger',
+    'vehicle.fuso.mitsubishi',
+    'vehicle.carlacola.actros',
+    'vehicle.ue4.chevrolet.impala',
+    'vehicle.ue4.ford.mustang',
+    'vehicle.ue4.mercedes.ccc',
+    'vehicle.firetruck.actros',
+    'vehicle.ue4.bmw.grantourer',
+    'vehicle.ue4.ford.crown',
+    'vehicle.ue4.audi.tt',
+    'vehicle.dodge.charger',
+    'vehicle.sprinter.mercedes',
+    'vehicle.ambulance.ford',
+    'vehicle.nissan.patrol',
+    'vehicle.mini.cooper',
+    'vehicle.lincoln.mkz'
 ]
 
 #: blueprints for bicycles
@@ -59,12 +58,7 @@ truckModels = [
 
 #: blueprints for trash cans
 trashModels = [
-    "static.prop.trashcan01",
-    "static.prop.trashcan02",
-    "static.prop.trashcan03",
-    "static.prop.trashcan04",
-    "static.prop.trashcan05",
-    "static.prop.bin",
+    "static.prop.dumpster",
 ]
 
 #: blueprints for traffic cones

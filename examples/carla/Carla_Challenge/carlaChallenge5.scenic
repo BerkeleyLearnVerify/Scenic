@@ -2,8 +2,8 @@
 Based on 2019 Carla Challenge Traffic Scenario 05.
 Ego-vehicle performs a lane changing to evade a leading vehicle, which is moving too slowly.
 """
-param map = localPath('../../../assets/maps/CARLA/Town05.xodr')
-param carla_map = 'Town05'
+param map = localPath('../../../assets/maps/CARLA/Town10HD_Opt.xodr')
+param carla_map = 'Town10HD_Opt'
 model scenic.simulators.carla.model
 
 #CONSTANTS

@@ -35,37 +35,31 @@ class DrivingSimulation(Simulation):
         """
         dt = self.timestep
         if agent.isCar:
-            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-            lat_controller = PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
+            lon_controller = PIDLongitudinalController(K_P=1.0, K_D=0.2, K_I=1.4, dt=dt)
+            lat_controller = PIDLateralController(K_P=1.0, K_D=0.2, K_I=0.0, dt=dt)
         else:
-            lon_controller = PIDLongitudinalController(
-                K_P=0.25, K_D=0.025, K_I=0.0, dt=dt
-            )
-            lat_controller = PIDLateralController(K_P=0.2, K_D=0.1, K_I=0.0, dt=dt)
+            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.05, K_I=0.0, dt=dt)
+            lat_controller = PIDLateralController(K_P=1.0, K_D=0.2, K_I=0.0, dt=dt)
         return lon_controller, lat_controller
 
     def getTurningControllers(self, agent):
         """Get longitudinal and lateral controllers for turning."""
         dt = self.timestep
         if agent.isCar:
-            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-            lat_controller = PIDLateralController(K_P=0.8, K_D=0.2, K_I=0.0, dt=dt)
+            lon_controller = PIDLongitudinalController(K_P=1.0, K_D=0.2, K_I=1.4, dt=dt)
+            lat_controller = PIDLateralController(K_P=2.0, K_D=0.2, K_I=0.0, dt=dt)
         else:
-            lon_controller = PIDLongitudinalController(
-                K_P=0.25, K_D=0.025, K_I=0.0, dt=dt
-            )
-            lat_controller = PIDLateralController(K_P=0.4, K_D=0.1, K_I=0.0, dt=dt)
+            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.05, K_I=0.0, dt=dt)
+            lat_controller = PIDLateralController(K_P=2.0, K_D=0.2, K_I=0.0, dt=dt)
         return lon_controller, lat_controller
 
     def getLaneChangingControllers(self, agent):
         """Get longitudinal and lateral controllers for lane changing."""
         dt = self.timestep
         if agent.isCar:
-            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
+            lon_controller = PIDLongitudinalController(K_P=1.0, K_D=0.2, K_I=1.4, dt=dt)
             lat_controller = PIDLateralController(K_P=0.08, K_D=0.3, K_I=0.0, dt=dt)
         else:
-            lon_controller = PIDLongitudinalController(
-                K_P=0.25, K_D=0.025, K_I=0.0, dt=dt
-            )
+            lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.05, K_I=0.0, dt=dt)
             lat_controller = PIDLateralController(K_P=0.1, K_D=0.3, K_I=0.0, dt=dt)
         return lon_controller, lat_controller
