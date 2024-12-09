@@ -1146,7 +1146,7 @@ class MeshVolumeRegion(MeshRegion):
             if center_distance > self._circumradius + other._circumradius:
                 return False
 
-            # PASS 1.5
+            # PASS 2A
             # If precomputed inradii are available, check if the volumes are close enough
             # to ensure a collision. (While we're at it, check circumradii too.)
             if self._scaledShape and other._scaledShape:
@@ -1163,26 +1163,31 @@ class MeshVolumeRegion(MeshRegion):
                 if point_distance > s_circumradius + o_circumradius:
                     return False
 
-            # PASS 2
-            # Check if bounding boxes intersect. If not, volumes cannot intersect.
+            # PASS 2B
+            # If precomputed geometry is not available, compute the bounding boxes
+            # (requiring that we construct the meshes, if they were previously lazy;
+            # hence we only do this check if we'll be constructing meshes anyway).
             # For bounding boxes to intersect there must be overlap of the bounds
             # in all 3 dimensions.
-            bounds = self.mesh.bounds
-            obounds = other.mesh.bounds
-            range_overlaps = (
-                (bounds[0, dim] <= obounds[1, dim])
-                and (obounds[0, dim] <= bounds[1, dim])
-                for dim in range(3)
-            )
-            bb_overlap = all(range_overlaps)
+            else:
+                bounds = self.mesh.bounds
+                obounds = other.mesh.bounds
+                range_overlaps = (
+                    (bounds[0, dim] <= obounds[1, dim])
+                    and (obounds[0, dim] <= bounds[1, dim])
+                    for dim in range(3)
+                )
+                bb_overlap = all(range_overlaps)
 
-            if not bb_overlap:
-                return False
+                if not bb_overlap:
+                    return False
 
             # PASS 3
             # Use FCL to check for intersection between the surfaces.
             # If the surfaces collide, that implies a collision of the volumes.
             # Cheaper than computing volumes immediately.
+            # (N.B. Does not require explicitly building the mesh, if we have a
+            # precomputed _scaledShape available.)
 
             selfObj = fcl.CollisionObject(*self._fclData)
             otherObj = fcl.CollisionObject(*other._fclData)
