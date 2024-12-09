@@ -57,7 +57,13 @@ from scenic.core.geometry import (
 )
 from scenic.core.lazy_eval import isLazy, valueInContext
 from scenic.core.type_support import toOrientation, toScalar, toVector
-from scenic.core.utils import cached, cached_method, cached_property, unifyMesh
+from scenic.core.utils import (
+    cached,
+    cached_method,
+    cached_property,
+    findMeshInteriorPoint,
+    unifyMesh,
+)
 from scenic.core.vectors import (
     Orientation,
     OrientedVector,
@@ -807,7 +813,7 @@ class MeshRegion(Region):
         # Copy parameters
         self._mesh = mesh
         self.dimensions = None if dimensions is None else toVector(dimensions)
-        self.position = None if position is None else toVector(position)
+        self.position = Vector(0, 0, 0) if position is None else toVector(position)
         self.rotation = None if rotation is None else toOrientation(rotation)
         self.orientation = None if orientation is None else toDistribution(orientation)
         self.tolerance = tolerance
@@ -939,17 +945,6 @@ class MeshRegion(Region):
             mesh.vertices -= mesh.bounding_box.center_mass
 
         # Apply scaling, rotation, and translation, if any
-        if self.dimensions is not None:
-            scale = numpy.array(self.dimensions) / mesh.extents
-        else:
-            scale = None
-        if self.rotation is not None:
-            angles = self.rotation._trimeshEulerAngles()
-        else:
-            angles = None
-        self._transform = compose_matrix(
-            scale=scale, angles=angles, translate=self.position
-        )
         mesh.apply_transform(self._transform)
 
         self._mesh = mesh
@@ -1015,6 +1010,19 @@ class MeshRegion(Region):
             tuple(self.mesh.bounds[0]),
             tuple(self.mesh.bounds[1]),
         )
+
+    @cached_property
+    def _transform(self):
+        if self.dimensions is not None:
+            scale = numpy.array(self.dimensions) / self._mesh.extents
+        else:
+            scale = None
+        if self.rotation is not None:
+            angles = self.rotation._trimeshEulerAngles()
+        else:
+            angles = None
+        transform = compose_matrix(scale=scale, angles=angles, translate=self.position)
+        return transform
 
     @cached_property
     def _boundingPolygonHull(self):
@@ -1093,11 +1101,13 @@ class MeshVolumeRegion(MeshRegion):
         *args,
         _internal=False,
         _isConvex=None,
+        _shape=None,
         _scaledShape=None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self._isConvex = _isConvex
+        self._shape = _shape
         self._scaledShape = _scaledShape
         self._num_samples = None
 
@@ -1129,6 +1139,31 @@ class MeshVolumeRegion(MeshRegion):
         """
         if isinstance(other, MeshVolumeRegion):
             # PASS 1
+            # Check if the centers of the regions are far enough apart that the regions
+            # cannot overlap. This check only requires the circumradius of each region,
+            # which we can often precompute without explicitly constructing the mesh.
+            center_distance = numpy.linalg.norm(self.position - other.position)
+            if center_distance > self._circumradius + other._circumradius:
+                return False
+
+            # PASS 1.5
+            # If precomputed inradii are available, check if the volumes are close enough
+            # to ensure a collision. (While we're at it, check circumradii too.)
+            if self._scaledShape and other._scaledShape:
+                s_point = self._interiorPoint
+                s_inradius, s_circumradius = self._interiorPointRadii
+                o_point = other._interiorPoint
+                o_inradius, o_circumradius = other._interiorPointRadii
+
+                point_distance = numpy.linalg.norm(s_point - o_point)
+
+                if point_distance < s_inradius + o_inradius:
+                    return True
+
+                if point_distance > s_circumradius + o_circumradius:
+                    return False
+
+            # PASS 2
             # Check if bounding boxes intersect. If not, volumes cannot intersect.
             # For bounding boxes to intersect there must be overlap of the bounds
             # in all 3 dimensions.
@@ -1142,29 +1177,6 @@ class MeshVolumeRegion(MeshRegion):
             bb_overlap = all(range_overlaps)
 
             if not bb_overlap:
-                return False
-
-            # PASS 2
-            # Compute inradius and circumradius for a candidate point in each region,
-            # and compute the inradius and circumradius of each point. If the candidate
-            # points are closer than the sum of the inradius values, they must intersect.
-            # If the candidate points are farther apart than the sum of the circumradius
-            # values, they can't intersect.
-
-            # Get a candidate point from each mesh and the corresponding
-            # inradius/circumradius around that point.
-            s_point = self._candidatePoint
-            s_inradius, s_circumradius = self._candidateRadii
-            o_point = other._candidatePoint
-            o_inradius, o_circumradius = other._candidateRadii
-
-            # Get the distance between the two points and check for mandatory or impossible collision.
-            point_distance = numpy.linalg.norm(s_point - o_point)
-
-            if point_distance < s_inradius + o_inradius:
-                return True
-
-            if point_distance > s_circumradius + o_circumradius:
                 return False
 
             # PASS 3
@@ -1185,13 +1197,14 @@ class MeshVolumeRegion(MeshRegion):
                 return surface_collision
 
             # PASS 4
-            # If we have 2 candidate points and both regions have only one body,
-            # we can just check if either region contains the candidate point of the
-            # other. (This is because we previously ruled out surface intersections)
+            # If both regions have only one body, we can just check if either region
+            # contains an arbitrary interior point of the other. (This is because we
+            # previously ruled out surface intersections)
             if self._bodyCount == 1 and other._bodyCount == 1:
-                return self._containsPointExact(o_point) or other._containsPointExact(
-                    s_point
-                )
+                overlap = self._containsPointExact(
+                    other._interiorPoint
+                ) or other._containsPointExact(self._interiorPoint)
+                return overlap
 
             # PASS 5
             # Compute intersection and check if it's empty. Expensive but guaranteed
@@ -1826,48 +1839,37 @@ class MeshVolumeRegion(MeshRegion):
         return self._num_samples
 
     @cached_property
-    def _candidatePoint(self):
-        # Use precomputed point if available (transformed appropriately)
+    def _circumradius(self):
         if self._scaledShape:
-            raw = self._scaledShape._candidatePoint
-            homog = numpy.append(raw, [1])
-            return numpy.dot(self._rigidTransform, homog)[:3]
+            return self._scaledShape._circumradius
+        if self._shape:
+            scale = max(self.dimensions) if self.dimensions else 1
+            return scale * self._shape._circumradius
 
-        # Use center of mass if it's contained
-        mesh = self.mesh
-        com = mesh.bounding_box.center_mass
-        if mesh.contains([com])[0]:
-            return com
-
-        # Try sampling a point inside the volume
-        samples = trimesh.sample.volume_mesh(mesh, self.num_samples)
-        if samples.size > 0:
-            return samples[0]
-
-        # If all else fails, take a point from the surface and move inward
-        surfacePt, index = list(zip(*mesh.sample(1, return_index=True)))[0]
-        inward = -mesh.face_normals[index]
-        startPt = surfacePt + 1e-6 * inward
-        hits, _, _ = mesh.ray.intersects_location(
-            ray_origins=[startPt],
-            ray_directions=[inward],
-            multiple_hits=False,
-        )
-        if hits.size > 0:
-            endPt = hits[0]
-            midPt = (surfacePt + endPt) / 2.0
-            if mesh.contains([midPt])[0]:
-                return midPt
-        return surfacePt
+        return numpy.max(numpy.linalg.norm(self.mesh.vertices, axis=1))
 
     @cached_property
-    def _candidateRadii(self):
+    def _interiorPoint(self):
+        # Use precomputed point if available (transformed appropriately)
+        if self._scaledShape:
+            raw = self._scaledShape._interiorPoint
+            homog = numpy.append(raw, [1])
+            return numpy.dot(self._rigidTransform, homog)[:3]
+        if self._shape:
+            raw = self._shape._interiorPoint
+            homog = numpy.append(raw, [1])
+            return numpy.dot(self._transform, homog)[:3]
+
+        return findMeshInteriorPoint(self.mesh, num_samples=self.num_samples)
+
+    @cached_property
+    def _interiorPointRadii(self):
         # Use precomputed radii if available
         if self._scaledShape:
-            return self._scaledShape._candidateRadii
+            return self._scaledShape._interiorPointRadii
 
-        # Compute inradius and circumradius w.r.t. the candidate point
-        point = self._candidatePoint
+        # Compute inradius and circumradius w.r.t. the point
+        point = self._interiorPoint
         pq = trimesh.proximity.ProximityQuery(self.mesh)
         inradius = abs(pq.signed_distance([point])[0])
         circumradius = numpy.max(numpy.linalg.norm(self.mesh.vertices - point, axis=1))

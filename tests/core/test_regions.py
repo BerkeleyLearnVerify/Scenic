@@ -9,6 +9,7 @@ import trimesh.voxel
 from scenic.core.distributions import RandomControlFlowError, Range
 from scenic.core.object_types import Object, OrientedPoint
 from scenic.core.regions import *
+from scenic.core.shapes import MeshShape
 from scenic.core.vectors import Orientation, VectorField
 from tests.utils import deprecationTest, sampleSceneFrom
 
@@ -339,7 +340,21 @@ def test_mesh_intersects():
     assert not r1.getSurfaceRegion().intersects(r2.getSurfaceRegion())
 
 
-def test_mesh_candidatePoint():
+def test_mesh_circumradius(getAssetPath):
+    r1 = BoxRegion(dimensions=(1, 2, 3), position=(4, 5, 6))
+    bo = Orientation.fromEuler(math.pi / 4, math.pi / 4, math.pi / 4)
+    r2 = MeshVolumeRegion(r1.mesh, position=(15, 20, 5), rotation=bo, _scaledShape=r1)
+    planePath = getAssetPath("meshes/classic_plane.obj.bz2")
+    r3 = MeshVolumeRegion.fromFile(planePath, dimensions=(20, 20, 10))
+    shape = MeshShape.fromFile(planePath)
+    r4 = MeshVolumeRegion(shape.mesh, dimensions=(0.5, 2, 1.5), rotation=bo, _shape=shape)
+    for reg in (r1, r2, r3, r4):
+        pos = reg.position
+        d = 2.01 * reg._circumradius
+        assert SpheroidRegion(dimensions=(d, d, d), position=pos).containsRegion(reg)
+
+
+def test_mesh_interiorPoint():
     regions = [
         BoxRegion(dimensions=(1, 2, 3), position=(4, 5, 6)),
         BoxRegion().difference(BoxRegion(dimensions=(0.1, 0.1, 0.1))),
@@ -355,11 +370,15 @@ def test_mesh_candidatePoint():
     r2 = MeshVolumeRegion(r.mesh, position=(15, 20, 5), rotation=bo, _scaledShape=r)
     regions.append(r2)
 
+    shape = MeshShape(BoxRegion(dimensions=(1, 2, 3)).mesh)
+    r3 = MeshVolumeRegion(shape.mesh, position=(-10, -5, 30), rotation=bo, _shape=shape)
+    regions.append(r3)
+
     for reg in regions:
-        cp = reg._candidatePoint
+        cp = reg._interiorPoint
         # N.B. _containsPointExact can fail with embreex installed!
         assert reg.containsPoint(cp)
-        inr, circumr = reg._candidateRadii
+        inr, circumr = reg._interiorPointRadii
         d = 1.99 * inr
         assert reg.containsRegion(SpheroidRegion(dimensions=(d, d, d), position=cp))
         d = 2.01 * circumr

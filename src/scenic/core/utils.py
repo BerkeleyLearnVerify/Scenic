@@ -307,6 +307,40 @@ def repairMesh(mesh, pitch=(1 / 2) ** 6, verbose=True):
     raise ValueError("Mesh could not be repaired.")
 
 
+def findMeshInteriorPoint(mesh, num_samples=None):
+    # Use center of mass if it's contained
+    com = mesh.bounding_box.center_mass
+    if mesh.contains([com])[0]:
+        return com
+
+    # Try sampling a point inside the volume
+    if num_samples is None:
+        p_volume = mesh.volume / mesh.bounding_box.volume
+        if p_volume > 0.99:
+            num_samples = 1
+        else:
+            num_samples = math.ceil(min(1e6, max(1, math.log(0.01, 1 - p_volume))))
+    samples = trimesh.sample.volume_mesh(mesh, num_samples)
+    if samples.size > 0:
+        return samples[0]
+
+    # If all else fails, take a point from the surface and move inward
+    surfacePt, index = list(zip(*mesh.sample(1, return_index=True)))[0]
+    inward = -mesh.face_normals[index]
+    startPt = surfacePt + 1e-6 * inward
+    hits, _, _ = mesh.ray.intersects_location(
+        ray_origins=[startPt],
+        ray_directions=[inward],
+        multiple_hits=False,
+    )
+    if hits.size > 0:
+        endPt = hits[0]
+        midPt = (surfacePt + endPt) / 2.0
+        if mesh.contains([midPt])[0]:
+            return midPt
+    return surfacePt
+
+
 class DefaultIdentityDict:
     """Dictionary which is the identity map by default.
 

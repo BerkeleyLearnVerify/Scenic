@@ -1334,15 +1334,16 @@ class Object(OrientedPoint):
         if self._sampleParent and self._sampleParent._hasStaticBounds:
             return self._sampleParent.occupiedSpace
 
+        shape = self.shape
         scaledShape = self._scaledShape
         if scaledShape:
             mesh = scaledShape.mesh
             dimensions = None  # mesh does not need to be scaled
             convex = scaledShape.isConvex
         else:
-            mesh = self.shape.mesh
+            mesh = shape.mesh
             dimensions = (self.width, self.length, self.height)
-            convex = self.shape.isConvex
+            convex = shape.isConvex
         return MeshVolumeRegion(
             mesh=mesh,
             dimensions=dimensions,
@@ -1351,6 +1352,7 @@ class Object(OrientedPoint):
             centerMesh=False,
             _internal=True,
             _isConvex=convex,
+            _shape=shape,
             _scaledShape=scaledShape,
         )
 
