@@ -17,22 +17,19 @@ from scenic.core.vectors import Vector
 
 
 def calculateFilmSize(sumo_map_boundary, scaling=5, margin_factor=1.1):
+    """Calculates the film size for rendering based on the map's boundary."""
     xmin, ymin, xmax, ymax = sumo_map_boundary
     width = xmax - xmin
     height = ymax - ymin
 
-    # Apply margin
+    # Apply margin and convert to pixels
     adjusted_width = width * margin_factor
     adjusted_height = height * margin_factor
-
-    # Convert to pixels for film_size
-    film_size_x = int(adjusted_width * scaling)
-    film_size_y = int(adjusted_height * scaling)
-
-    return (film_size_x, film_size_y)
+    return int(adjusted_width * scaling), int(adjusted_height * scaling)
 
 
 def extractNetOffsetAndBoundary(net_file_path):
+    """Extracts the net offset and boundary from the given SUMO map file."""
     tree = ET.parse(net_file_path)
     root = tree.getroot()
     location_tag = root.find("location")
@@ -42,33 +39,24 @@ def extractNetOffsetAndBoundary(net_file_path):
 
 
 def metadriveToScenicPosition(loc, center_x, center_y, offset_x, offset_y):
-    # print(f"Input MetaDrive Position: {loc}")
     x_scenic = loc[0] + center_x - offset_x
     y_scenic = loc[1] + center_y - offset_y
-    result = Vector(x_scenic, y_scenic, 0)
-    # print(f"Converted to Scenic Position: {result}")
-    # breakpoint()
-    return result
+    return Vector(x_scenic, y_scenic, 0)
 
 
 def scenicToMetaDrivePosition(vec, center_x, center_y, offset_x, offset_y):
-    # print("offset x: ", offset_x)
-    # print("offset y: ", offset_y)
-    # print(f"Input Scenic Position: {vec}")
     adjusted_x = vec[0] - center_x + offset_x
     adjusted_y = vec[1] - center_y + offset_y
-    result = (adjusted_x, adjusted_y)
-    # print(f"Converted to MetaDrive Position: {result}")
-    # # Validate reverse conversion
-    # reverse = metadriveToScenicPosition(result, center_x, center_y, offset_x, offset_y)
-    # print(f"Reverse Converted Scenic Position: {reverse}")
-    # breakpoint()
-    # print(f"Scenic Position: {vec}, MetaDrive Position: ({adjusted_x}, {adjusted_y})")
-    return result
+    return adjusted_x, adjusted_y
 
 
 def scenicToMetaDriveHeading(scenicHeading):
-    # Add π/2 to shift from North-based (Scenic) to East-based (MetaDrive)
+    """
+    Converts Scenic heading to MetaDrive heading by adding π/2 (90 degrees).
+
+    Scenic's coordinate system has 0 radians pointing North, while MetaDrive uses
+    0 radians pointing East. This function shifts the heading to align with MetaDrive's system.
+    """
     metadriveHeading = scenicHeading + (math.pi / 2)
     # Normalize to [-π, π]
     return (metadriveHeading + math.pi) % (2 * math.pi) - math.pi

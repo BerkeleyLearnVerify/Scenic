@@ -9,8 +9,6 @@ except ImportError as e:
 import logging
 import sys
 
-import numpy as np
-
 from scenic.core.simulators import SimulationCreationError
 from scenic.domains.driving.controllers import (
     PIDLateralController,
@@ -24,6 +22,8 @@ from .utils import DriveEnv
 
 
 class MetaDriveSimulator(DrivingSimulator):
+    """Implementation of `Simulator` for MetaDrive."""
+
     def __init__(
         self,
         timestep=0.1,
@@ -38,9 +38,7 @@ class MetaDriveSimulator(DrivingSimulator):
     ):
         super().__init__()
         self.render = render
-        self.render3D = (
-            render3D if render else False
-        )  # Enforce no rendering if render=False
+        self.render3D = render3D if render else False
         self.scenario_number = 0
         self.timestep = timestep
         self.sumo_map = sumo_map
@@ -130,15 +128,8 @@ class MetaDriveSimulation(DrivingSimulation):
 
         if len(self.scene.objects) > 0:
             obj = self.scene.objects[0]
-            print(f"Before Action - Velocity of EGO: {obj.metaDriveActor.velocity}")
             action = obj.metaDriveActor.last_current_action[-1]
-            print("ACTION FOR EGO IN METADRIVE IS: ", action)
-            # if action == [0, -1]:
-            #     breakpoint()
             o, r, tm, tc, info = self.client.step(action)
-            print(f"After Action - Velocity of EGO: {obj.metaDriveActor.velocity}")
-            # print(f"Speed of EGO: {obj.metaDriveActor.speed_km_h}")
-            # print(f"Position of EGO: {obj.metaDriveActor.position}")
 
         if self.render and not self.render3D:
             scaling = 5
@@ -146,7 +137,6 @@ class MetaDriveSimulation(DrivingSimulation):
             self.client.render(
                 mode="topdown", semantic_map=True, film_size=film_size, scaling=scaling
             )
-        # breakpoint()
 
     def executeActions(self, allActions):
         """Execute actions for all vehicles in the simulation."""
@@ -157,13 +147,6 @@ class MetaDriveSimulation(DrivingSimulation):
             if hasattr(obj, "metaDriveActor") and obj.metaDriveActor is not None:
                 # Apply the accumulated control inputs using before_step
                 obj.applyControl()
-
-                # print(
-                #     f"MetaDriveActor State - Steering: {obj.metaDriveActor.last_current_action[-1][0]}, "
-                #     f"Throttle/Brake: {obj.metaDriveActor.last_current_action[-1][1]}"
-                # )
-
-                # breakpoint()
 
                 # Reset control inputs after they are applied
                 obj.resetControl()
@@ -182,12 +165,6 @@ class MetaDriveSimulation(DrivingSimulation):
         converted_heading = utils.scenicToMetaDriveHeading(obj.heading)
 
         if not self.defined_ego:
-            # print("Initial Scenic Position: ", obj.position)
-            # print(f"Converted Position: {converted_position}")
-
-            # print("Scenic Heading: ", obj.heading)
-            # print(f"Converted Heading: {converted_heading}")
-
             decision_repeat = math.ceil(self.timestep / 0.02)
             physics_world_step_size = self.timestep / decision_repeat
 
@@ -208,20 +185,14 @@ class MetaDriveSimulation(DrivingSimulation):
                     log_level=logging.CRITICAL,
                 )
             )
-            # self.client.config["max_brake_force"] = 100
             self.client.config["sumo_map"] = self.sumo_map
             self.client.reset()
 
             # Assign the MetaDrive actor to the ego
             metadrive_objects = self.client.engine.get_objects()
             if metadrive_objects:
-                ego_metaDriveActor = list(metadrive_objects.values())[
-                    0
-                ]  # Assuming the ego is the first object
+                ego_metaDriveActor = list(metadrive_objects.values())[0]
                 obj.metaDriveActor = ego_metaDriveActor
-                print("EGO CAR: ", obj.metaDriveActor)
-                # breakpoint()
-                # print("INITIAL METADRIVE POSITION: ", obj.metaDriveActor.position)
                 self.defined_ego = True
                 return obj.metaDriveActor
 
@@ -234,11 +205,10 @@ class MetaDriveSimulation(DrivingSimulation):
                 heading=converted_heading,
             )
             obj.metaDriveActor = metaDriveActor
-            print("OTHER CAR: ", obj.metaDriveActor)
             return metaDriveActor
 
+        # For pedestrians
         if type(obj).__name__ == "Pedestrian":
-            print("IN PEDESTRIAN CREATION")
             metaDriveActor = self.client.engine.agent_manager.spawn_object(
                 Pedestrian,
                 position=converted_position,
@@ -250,16 +220,6 @@ class MetaDriveSimulation(DrivingSimulation):
         return None
 
     def destroy(self):
-        # print("------END POSITIONS----------")
-        # ego = self.scene.objects[0]
-        # scenic_position = ego.position
-        # print("SCENIC END POSITION: ", scenic_position)
-        # converted_position = utils.scenicToMetaDrivePosition(
-        #     scenic_position, self.center_x, self.center_y, self.offset_x, self.offset_y
-        # )
-        # print("METADRIVE END POSITION: ", ego.metaDriveActor.position)
-        # print("CONVERTED POSITION: ", converted_position)
-
         if self.client:
             object_ids = list(self.client.engine._spawned_objects.keys())
             self.client.engine.agent_manager.clear_objects(object_ids)
@@ -276,19 +236,13 @@ class MetaDriveSimulation(DrivingSimulation):
             self.offset_x,
             self.offset_y,
         )
-        velocity = Vector(*metaDriveActor.velocity, 0)  # [x,y,z]
-
-        # print("IN GET PROPERTIES")
-        # print("METADRIVE ACTOR LAST VELOCITY: ", metaDriveActor.last_velocity)
-        # print("METADRIVE TO SCENIC VEL: ", velocity)
+        velocity = Vector(*metaDriveActor.velocity, 0)
         speed = metaDriveActor.speed
         angularSpeed = 0
         angularVelocity = utils.metadriveToScenicPosition(
             (0, 0), self.center_x, self.center_y, self.offset_x, self.offset_y
         )
-
         converted_heading = utils.metaDriveToScenicHeading(metaDriveActor.heading_theta)
-
         yaw, pitch, roll = obj.parentOrientation.globalToLocalAngles(
             converted_heading, 0, 0
         )

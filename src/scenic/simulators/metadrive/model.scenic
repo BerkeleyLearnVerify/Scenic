@@ -26,21 +26,16 @@ param render3D = 0
 # we will offset by the computed center x and y coordinates
 # https://github.com/metadriverse/metadrive/blob/aaed1f7f2512061ddd8349d1d411e374dab87a43/metadrive/utils/sumo/map_utils.py#L165-L172
 
+# Extract network offset and boundary for SUMO map
 net_offset, sumo_map_boundary = extractNetOffsetAndBoundary(sumo_map_path)
 if net_offset and sumo_map_boundary:
     xmin, ymin, xmax, ymax = sumo_map_boundary
     center_x = (xmin + xmax) / 2
     center_y = (ymin + ymax) / 2
     offset_x = net_offset[0]
-    offset_y = net_offset[1]  # Extract Y offset from netOffset
+    offset_y = net_offset[1]
 else:
     raise RuntimeError("Failed to extract netOffset or convBoundary from SUMO map.")
-
-# Print extracted values for debugging
-# print(f"Net Offset: {net_offset}")
-# print(f"Sumo Map Boundary: {sumo_map_boundary}")
-# print(f"Center: ({center_x}, {center_y})")
-# print("map: ", sumo_map_path)
 
 simulator MetaDriveSimulator(
     timestep=float(globalParameters.timestep),
@@ -71,8 +66,6 @@ class MetaDriveActor(DrivingObject):
     @property
     def control(self):
         """Returns the current accumulated control inputs."""
-        # print("CONTROLLL: ", self.metaDriveActor, ": ", self._control)
-        # breakpoint()
         return self._control
 
     def resetControl(self):
@@ -81,20 +74,13 @@ class MetaDriveActor(DrivingObject):
 
     def applyControl(self):
         """Applies the accumulated control inputs using `before_step`."""
-        # Invert steering to match MetaDrive's convention
-        steering = -self._control["steering"]  # Invert the steering
+        steering = -self._control["steering"]  # Invert the steering to match MetaDrive's convention
         action = [
             steering,
             self._control["throttle"] - self._control["brake"],
         ]
-        # action = [
-        #     self._control["steering"],
-        #     self._control["throttle"] - self._control["brake"],
-        # ]
-
-        print(f"Scenic Controls for {self.metaDriveActor} - Steering: {self._control['steering']}, "
-            f"Throttle: {self._control['throttle']}, Brake: {self._control['brake']}")
-
+        # print(f"Scenic Controls for {self.metaDriveActor} - Steering: {self._control['steering']}, "
+        #     f"Throttle: {self._control['throttle']}, Brake: {self._control['brake']}")
         self.metaDriveActor.before_step(action)
 
     def setPosition(self, pos):
@@ -103,7 +89,7 @@ class MetaDriveActor(DrivingObject):
         # self.metaDriveActor.last_position = scenicToMetaDrivePosition(pos, center_x, center_y, offset_x, offset_y)
 
     def setVelocity(self, vel):
-        print("SCENIC VELOCITY: ", vel)
+        # TODO
         # xVel, yVel, _ = vel  # Extract 2D components; ignore zVel
 
         # vel_vector = np.array([xVel, yVel])  # Create a 2D velocity vector
@@ -139,10 +125,10 @@ class Car(Vehicle):
 class Pedestrian(Pedestrian, MetaDriveActor, Walks):
 
     def setWalkingDirection(self, heading):
-        print("PEDESTRIAN: HEADING: ", heading)
+        # TODO
         direction = Vector(0, 1, 0).rotatedBy(heading)
         self.control.direction = _utils.scenicToCarlaVector3D(*direction)
 
     def setWalkingSpeed(self, speed):
-        print("PEDESTRIAN: SPEED: ", speed)
+        # TODO
         self.control.speed = speed
