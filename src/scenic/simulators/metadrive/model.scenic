@@ -127,7 +127,7 @@ class Pedestrian(Pedestrian, MetaDriveActor, Walks):
     def setWalkingDirection(self, heading):
         # TODO
         direction = Vector(0, 1, 0).rotatedBy(heading)
-        self.control.direction = _utils.scenicToCarlaVector3D(*direction)
+        self.control.direction = direction
 
     def setWalkingSpeed(self, speed):
         # TODO
