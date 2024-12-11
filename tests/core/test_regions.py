@@ -14,6 +14,11 @@ from scenic.core.vectors import Orientation, VectorField
 from tests.utils import deprecationTest, sampleSceneFrom
 
 
+def assertPolygonsEqual(p1, p2, prec=1e-6):
+    assert p1.difference(p2).area == pytest.approx(0, abs=prec)
+    assert p2.difference(p1).area == pytest.approx(0, abs=prec)
+
+
 def sample_ignoring_rejections(region, num_samples):
     samples = []
     for _ in range(num_samples):
@@ -340,7 +345,23 @@ def test_mesh_intersects():
     assert not r1.getSurfaceRegion().intersects(r2.getSurfaceRegion())
 
 
-def test_mesh_circumradius(getAssetPath):
+def test_mesh_boundingPolygon(getAssetPath, pytestconfig):
+    r = BoxRegion(dimensions=(8, 6, 2)).difference(BoxRegion(dimensions=(2, 2, 3)))
+    bp = r.boundingPolygon
+    poly = shapely.geometry.Polygon(
+        [(-4, 3), (4, 3), (4, -3), (-4, -3)], [[(-1, 1), (1, 1), (1, -1), (-1, -1)]]
+    )
+    assertPolygonsEqual(bp.polygons, poly)
+
+    shape = MeshShape(BoxRegion(dimensions=(1, 2, 3)).mesh)
+    o = Orientation.fromEuler(0, 0, math.pi / 4)
+    r = MeshVolumeRegion(shape.mesh, dimensions=(2, 4, 2), rotation=o, _shape=shape)
+    bp = r.boundingPolygon
+    sr2 = math.sqrt(2)
+    poly = shapely.geometry.Polygon([(-sr2, 2), (sr2, 2), (sr2, -2), (-sr2, -2)])
+    assertPolygonsEqual(bp.polygons, poly)
+
+    samples = 50 if pytestconfig.getoption("--fast") else 200
     r1 = BoxRegion(dimensions=(1, 2, 3), position=(4, 5, 6))
     bo = Orientation.fromEuler(math.pi / 4, math.pi / 4, math.pi / 4)
     r2 = MeshVolumeRegion(r1.mesh, position=(15, 20, 5), rotation=bo, _scaledShape=r1)
@@ -349,6 +370,29 @@ def test_mesh_circumradius(getAssetPath):
     shape = MeshShape.fromFile(planePath)
     r4 = MeshVolumeRegion(shape.mesh, dimensions=(0.5, 2, 1.5), rotation=bo, _shape=shape)
     for reg in (r1, r2, r3, r4):
+        bp = reg.boundingPolygon
+        pts = trimesh.sample.volume_mesh(reg.mesh, samples)
+        assert all(bp.containsPoint(pt) for pt in pts)
+
+
+def test_mesh_circumradius(getAssetPath):
+    r1 = BoxRegion(dimensions=(1, 2, 3), position=(4, 5, 6))
+
+    bo = Orientation.fromEuler(math.pi / 4, math.pi / 4, math.pi / 4)
+    r2 = MeshVolumeRegion(r1.mesh, position=(15, 20, 5), rotation=bo, _scaledShape=r1)
+
+    planePath = getAssetPath("meshes/classic_plane.obj.bz2")
+    r3 = MeshVolumeRegion.fromFile(planePath, dimensions=(20, 20, 10))
+
+    shape = MeshShape.fromFile(planePath)
+    r4 = MeshVolumeRegion(shape.mesh, dimensions=(0.5, 2, 1.5), rotation=bo, _shape=shape)
+
+    r = BoxRegion(dimensions=(1, 2, 3)).difference(BoxRegion(dimensions=(0.5, 1, 1)))
+    shape = MeshShape(r.mesh)
+    scaled = MeshVolumeRegion(shape.mesh, dimensions=(6, 5, 4)).mesh
+    r5 = MeshVolumeRegion(scaled, position=(-10, -5, 30), rotation=bo, _shape=shape)
+
+    for reg in (r1, r2, r3, r4, r5):
         pos = reg.position
         d = 2.01 * reg._circumradius
         assert SpheroidRegion(dimensions=(d, d, d), position=pos).containsRegion(reg)
@@ -373,6 +417,12 @@ def test_mesh_interiorPoint():
     shape = MeshShape(BoxRegion(dimensions=(1, 2, 3)).mesh)
     r3 = MeshVolumeRegion(shape.mesh, position=(-10, -5, 30), rotation=bo, _shape=shape)
     regions.append(r3)
+
+    r = BoxRegion(dimensions=(1, 2, 3)).difference(BoxRegion(dimensions=(0.5, 1, 1)))
+    shape = MeshShape(r.mesh)
+    scaled = MeshVolumeRegion(shape.mesh, dimensions=(0.1, 0.1, 0.1)).mesh
+    r4 = MeshVolumeRegion(scaled, position=(-10, -5, 30), rotation=bo, _shape=shape)
+    regions.append(r4)
 
     for reg in regions:
         cp = reg._interiorPoint

@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 
 import numpy
+import shapely
 import trimesh
 from trimesh.transformations import (
     concatenate_matrices,
@@ -71,6 +72,10 @@ class Shape(ABC):
     @cached_property
     def _interiorPoint(self):
         return findMeshInteriorPoint(self.mesh)
+
+    @cached_property
+    def _multipoint(self):
+        return shapely.multipoints(self.mesh.vertices)
 
 
 ###################################################################################################

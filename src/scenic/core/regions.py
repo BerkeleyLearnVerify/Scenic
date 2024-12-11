@@ -1013,6 +1013,10 @@ class MeshRegion(Region):
 
     @cached_property
     def _transform(self):
+        """Transform from input mesh to final mesh.
+
+        :meta private:
+        """
         if self.dimensions is not None:
             scale = numpy.array(self.dimensions) / self._mesh.extents
         else:
@@ -1025,8 +1029,32 @@ class MeshRegion(Region):
         return transform
 
     @cached_property
+    def _shapeTransform(self):
+        """Transform from Shape mesh (scaled to unit dimensions) to final mesh.
+
+        :meta private:
+        """
+        if self.dimensions is not None:
+            scale = numpy.array(self.dimensions)
+        else:
+            scale = self._mesh.extents
+        if self.rotation is not None:
+            angles = self.rotation._trimeshEulerAngles()
+        else:
+            angles = None
+        transform = compose_matrix(scale=scale, angles=angles, translate=self.position)
+        return transform
+
+    @cached_property
     def _boundingPolygonHull(self):
         assert not isLazy(self)
+        if self._shape:
+            raw = self._shape._multipoint
+            tr = self._shapeTransform
+            matrix = numpy.concatenate((tr[0:3, 0:3].flatten(), tr[0:3, 3]))
+            transformed = shapely.affinity.affine_transform(raw, matrix)
+            return transformed.convex_hull
+
         return shapely.multipoints(self.mesh.vertices).convex_hull
 
     @cached_property
@@ -1848,7 +1876,8 @@ class MeshVolumeRegion(MeshRegion):
         if self._scaledShape:
             return self._scaledShape._circumradius
         if self._shape:
-            scale = max(self.dimensions) if self.dimensions else 1
+            dims = self.dimensions or self._mesh.extents
+            scale = max(dims)
             return scale * self._shape._circumradius
 
         return numpy.max(numpy.linalg.norm(self.mesh.vertices, axis=1))
@@ -1863,7 +1892,7 @@ class MeshVolumeRegion(MeshRegion):
         if self._shape:
             raw = self._shape._interiorPoint
             homog = numpy.append(raw, [1])
-            return numpy.dot(self._transform, homog)[:3]
+            return numpy.dot(self._shapeTransform, homog)[:3]
 
         return findMeshInteriorPoint(self.mesh, num_samples=self.num_samples)
 
