@@ -5,9 +5,7 @@ model scenic.simulators.airsim.model
 from scenic.simulators.airsim.utils import getPrexistingObj
 import random
 
-ground = getPrexistingObj("ground")
-
-ground.highlight()
+ground = getPrexistingObj("Ground")
 
 
 ego = new StaticObj on ground,

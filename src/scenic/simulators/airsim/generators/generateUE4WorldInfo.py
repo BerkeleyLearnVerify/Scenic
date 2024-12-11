@@ -20,6 +20,7 @@ args = parser.parse_args()
 outputDirectory = args.outputDirectory + "/"
 asset_dir = outputDirectory + "/assets"
 actorInfo_dir = outputDirectory + "/actorInfo.json"
+worldCenter_dir = outputDirectory + "/worldCenter.json"
 
 # make output dirs
 # TODO make false
@@ -94,5 +95,24 @@ for i, actor in enumerate(actors):
 # export actor info
 with open(actorInfo_dir, "w") as outfile:
     json.dump(actor_info_list, outfile, indent=4, sort_keys=True)
+
+
+worldCenter = None
+for actor in unreal.EditorLevelLibrary.get_all_level_actors():
+    if actor.get_actor_label() == "PlayerStart":
+        worldCenter = actor.get_actor_location()
+        break
+
+
+if worldCenter:
+    # export actor info
+    with open(worldCenter_dir, "w") as outfile:
+        json.dump(
+            vecToTuple(worldCenter),
+            outfile,
+            indent=4,
+            sort_keys=True,
+        )
+
 
 print("World Info Generated!")

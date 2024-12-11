@@ -56,7 +56,7 @@ behavior FlyToPosition(newPos, speed = 5,tolerance = 1,pidMode = True):
     
 
     if pidMode:
-        newPos = scenicToAirsimVector(toVector(newPos))
+        newPos = scenicToAirsimLocation(toVector(newPos))
         do waitForPromise(createPromise(
             client.moveToPositionAsync(
                 newPos.x_val,
@@ -97,7 +97,7 @@ behavior Patrol(positions, loop=True, smooth = False, speed = 5,tolerance = 2):
 behavior MoveByVelocity(velocity,seconds):
     client = simulation().client
 
-    newVelocity = scenicToAirsimVector(toVector(velocity))
+    newVelocity = scenicToAirsimLocation(toVector(velocity))
 
     do waitForPromise(createPromise(
         client.moveByVelocityAsync(

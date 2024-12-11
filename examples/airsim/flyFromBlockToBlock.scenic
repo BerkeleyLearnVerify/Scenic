@@ -5,7 +5,7 @@ model scenic.simulators.airsim.model
 
 
 platforms = []
-ground = getPrexistingObj("ground")
+ground = getPrexistingObj("Ground")
 centerArea = RectangularRegion(Vector(0,200,30), 0, 100,100)
 
 
@@ -24,8 +24,9 @@ for i in range(blockCount):
 
 points = []
 for plat in platforms:
-    point = new Point on plat
-    points.append(point.position)
+    platRegion = plat.occupiedSpace.boundingPolygon
+    point = new Point on platRegion
+    points.append(point.position + Vector(0,0,5))
 
-drone1 = new Drone at Uniform(*points) + (0,0,1),
+drone1 = new Drone at Uniform(*points) + (0,0,5),
     with behavior Patrol(points,True)

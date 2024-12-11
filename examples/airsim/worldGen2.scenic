@@ -5,8 +5,7 @@ model scenic.simulators.airsim.model
 from scenic.simulators.airsim.utils import getPrexistingObj
 import random
 
-ground = getPrexistingObj("ground")
-ground.highlight()
+ground = getPrexistingObj("Ground")
 
 centerArea = RectangularRegion(Vector(0,200,30), 0, 100,100)
 

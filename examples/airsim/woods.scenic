@@ -8,12 +8,10 @@ from scenic.simulators.airsim.utils import getPrexistingObj
 # workspace = Workspace(RectangularRegion(Vector(0,0,30), 0, 100,100))
 
 ground = getPrexistingObj("Ground")
-orangeBall = getPrexistingObj("OrangeBall")
-
 
 floor = new StaticObj with assetName "Cube", with width 1000, with length 1000, with height 0.01, with color [.5,.5,.5], at (0,0,0)
 
-# drone1 = new Drone at (0,0,0)
+drone1 = new Drone at (0,0,5)
 
 
 # tree = new StaticObj at (2,2,24.84665039),
@@ -29,6 +27,8 @@ floor = new StaticObj with assetName "Cube", with width 1000, with length 1000, 
 #     with assetName "Cone",  facing (0, 0, 90 deg)
 
 
+
+
 regionSize = 100
 for i in range(2):
     for j in range(2):
@@ -39,7 +39,12 @@ for i in range(2):
 
         tree = new StaticObj on floor,
             contained in chunkArea,
-            with assetName "tree1",
+            with assetName "pine",
+
+        # tree2 = new StaticObj on floor,
+        #     contained in chunkArea,
+        #     with assetName "shrub",
+
 
         # print(tree.width,tree.length)
         # for i in range(2):
