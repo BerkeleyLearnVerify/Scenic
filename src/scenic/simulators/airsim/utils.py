@@ -46,7 +46,7 @@ def scenicToAirsimLocation(position, centerOffset, forPose=True):
     position = Vector(position.x, position.y, position.z)
 
     # convert to unreal
-    position *= 100
+    position *= 100  # account for mesh scaling
     position = Vector(position.x, -position.y, position.z)  # left hand coords
 
     position -= centerOffset

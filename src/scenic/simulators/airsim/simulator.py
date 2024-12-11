@@ -214,6 +214,9 @@ class AirSimSimulation(Simulation):
                 is_blueprint=False,
             )
 
+            if obj.materialName:
+                self.client.simSetObjectMaterial(realObjName, obj.materialName)
+
             # add obj to sim lists
             obj.realObjName = realObjName
             self.objs[obj.name] = realObjName

@@ -11,7 +11,7 @@ ground = getPrexistingObj("Ground")
 orangeBall = getPrexistingObj("OrangeBall")
 
 
-floor = new StaticObj with assetName "Cube", with width 1000, with length 1000, with height 0.01, with color [.5,.5,.5], at (0,0,3)
+floor = new StaticObj with assetName "Cube", with width 1000, with length 1000, with height 0.01, with color [.5,.5,.5], at (0,0,0)
 
 # drone1 = new Drone at (0,0,0)
 
@@ -39,8 +39,8 @@ for i in range(2):
 
         tree = new StaticObj on floor,
             contained in chunkArea,
-            with assetName "tree"
+            with assetName "tree1",
 
-        print(tree.width,tree.length)
-        for i in range(1):
-            bush = new Object with assetName "Cube", on floor, contained in chunkArea
+        # print(tree.width,tree.length)
+        # for i in range(2):
+        #     bush = new StaticObj with assetName "bush1", on floor, contained in chunkArea

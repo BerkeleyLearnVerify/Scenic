@@ -129,6 +129,7 @@ class PX4Drone(Drone):
 class StaticObj(AirSimActor):
     blueprint: "StaticObj"
     physEnabled: False
+    materialName: None
 
 
 
