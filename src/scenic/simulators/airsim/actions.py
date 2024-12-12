@@ -12,7 +12,8 @@ from .utils import (
 
 class SetVelocity(Action):
     def __init__(self, velocity):
-        self.newVelocity = scenicToAirsimVector(toVector(velocity))
+        print("vel=", velocity)
+        self.newVelocity = airsimToScenicLocation(toVector(velocity))
 
     def applyTo(self, obj, sim):
         client = sim.client

@@ -11,10 +11,7 @@ model scenic.simulators.airsim.model
 
 
 
-ground = getPrexistingObj("ground")
-
-ground.highlight()
-
+ground = getPrexistingObj("Ground")
 
 ego = new StaticObj on ground,
     with assetName "Cone",
@@ -33,15 +30,15 @@ positions = []
 
 for i in range(blockCount):
     pos = Vector(i*3,math.cos(i)*Uniform(1,3),1)
-    positions.append(pos)
-    blocks.append(new StaticObj at pos - Vector(0,0,1), 
-        with assetName "Sphere",
+    positions.append(pos+ Vector(0,0,3))
+
+    new StaticObj at pos + Vector(0,0,1), 
+        with assetName "Cone",
         with width 1,
         with length 1,
-        with height 1)
-    
+        with height 1
 
-ranBlock = blocks[random.randint(0,blockCount-1)]
+    
 
 
 drone = new Drone on positions[0], with behavior Patrol(positions,smooth=True,speed=5)
