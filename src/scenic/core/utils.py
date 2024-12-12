@@ -338,7 +338,10 @@ def findMeshInteriorPoint(mesh, num_samples=None):
         midPt = (surfacePt + endPt) / 2.0
         if mesh.contains([midPt])[0]:
             return midPt
-    return surfacePt
+
+    # Should never get here with reasonable geometry, but we return a surface
+    # point just in case.
+    return surfacePt  # pragma: no cover
 
 
 class DefaultIdentityDict:

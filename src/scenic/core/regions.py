@@ -835,6 +835,11 @@ class MeshRegion(Region):
         if isLazy(self):
             return
 
+        if not isinstance(mesh, (trimesh.primitives.Primitive, trimesh.base.Trimesh)):
+            raise TypeError(
+                f"Got unexpected mesh parameter of type {type(mesh).__name__}"
+            )
+
         # Apply scaling, rotation, and translation, if any
         if self.rotation is not None:
             angles = self.rotation._trimeshEulerAngles()
@@ -936,9 +941,7 @@ class MeshRegion(Region):
         elif isinstance(mesh, trimesh.base.Trimesh):
             mesh = mesh.copy(include_visual=False)
         else:
-            raise TypeError(
-                f"Got unexpected mesh parameter of type {type(mesh).__name__}"
-            )
+            assert False, f"mesh of invalid type {type(mesh).__name__}"
 
         # Center mesh unless disabled
         if self.centerMesh:

@@ -295,6 +295,13 @@ def test_mesh_region_fromFile(getAssetPath):
     )
 
 
+def test_mesh_region_invalid_mesh():
+    with pytest.raises(TypeError):
+        MeshVolumeRegion(42)
+    with pytest.raises(TypeError):
+        MeshSurfaceRegion(42)
+
+
 def test_mesh_volume_region_zero_dimension():
     for dims in ((0, 1, 1), (1, 0, 1), (1, 1, 0)):
         with pytest.raises(ValueError):
@@ -354,6 +361,11 @@ def test_mesh_boundingPolygon(getAssetPath, pytestconfig):
     assertPolygonsEqual(bp.polygons, poly)
 
     shape = MeshShape(BoxRegion(dimensions=(1, 2, 3)).mesh)
+    r = MeshVolumeRegion(shape.mesh, dimensions=(2, 4, 2), _shape=shape)
+    bp = r.boundingPolygon
+    poly = shapely.geometry.Polygon([(-1, 2), (1, 2), (1, -2), (-1, -2)])
+    assertPolygonsEqual(bp.polygons, poly)
+
     o = Orientation.fromEuler(0, 0, math.pi / 4)
     r = MeshVolumeRegion(shape.mesh, dimensions=(2, 4, 2), rotation=o, _shape=shape)
     bp = r.boundingPolygon
