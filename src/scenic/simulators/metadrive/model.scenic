@@ -6,15 +6,10 @@ from scenic.simulators.metadrive.utils import extractNetOffsetAndBoundary
 import pathlib
 
 try:
-    map_town = pathlib.Path(globalParameters.map).stem
-except Exception as e:
-    raise RuntimeError("'map' is not defined") from e
-try:
     sumo_map_path = pathlib.Path(globalParameters.sumo_map)
 except Exception as e:
     raise RuntimeError("'sumo_map' is not defined") from e
 
-param map = map_town
 param sumo_map = sumo_map_path.stem
 param timestep = 0.1
 param render = 1
