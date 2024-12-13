@@ -950,7 +950,6 @@ class MeshRegion(Region):
         # Apply scaling, rotation, and translation, if any
         mesh.apply_transform(self._transform)
 
-        self._mesh = mesh
         return mesh
 
     @distributionFunction

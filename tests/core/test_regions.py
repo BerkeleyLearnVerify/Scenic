@@ -9,13 +9,17 @@ import trimesh.voxel
 from scenic.core.distributions import RandomControlFlowError, Range
 from scenic.core.object_types import Object, OrientedPoint
 from scenic.core.regions import *
-from scenic.core.shapes import MeshShape
+from scenic.core.shapes import ConeShape, MeshShape
 from scenic.core.vectors import Orientation, VectorField
 from tests.utils import deprecationTest, sampleSceneFrom
 
 
 def assertPolygonsEqual(p1, p2, prec=1e-6):
     assert p1.difference(p2).area == pytest.approx(0, abs=prec)
+    assert p2.difference(p1).area == pytest.approx(0, abs=prec)
+
+
+def assertPolygonCovers(p1, p2, prec=1e-6):
     assert p2.difference(p1).area == pytest.approx(0, abs=prec)
 
 
@@ -359,12 +363,15 @@ def test_mesh_boundingPolygon(getAssetPath, pytestconfig):
         [(-4, 3), (4, 3), (4, -3), (-4, -3)], [[(-1, 1), (1, 1), (1, -1), (-1, -1)]]
     )
     assertPolygonsEqual(bp.polygons, poly)
+    poly = shapely.geometry.Polygon([(-4, 3), (4, 3), (4, -3), (-4, -3)])
+    assertPolygonsEqual(r._boundingPolygonHull, poly)
 
     shape = MeshShape(BoxRegion(dimensions=(1, 2, 3)).mesh)
     r = MeshVolumeRegion(shape.mesh, dimensions=(2, 4, 2), _shape=shape)
     bp = r.boundingPolygon
     poly = shapely.geometry.Polygon([(-1, 2), (1, 2), (1, -2), (-1, -2)])
     assertPolygonsEqual(bp.polygons, poly)
+    assertPolygonsEqual(r._boundingPolygonHull, poly)
 
     o = Orientation.fromEuler(0, 0, math.pi / 4)
     r = MeshVolumeRegion(shape.mesh, dimensions=(2, 4, 2), rotation=o, _shape=shape)
@@ -372,19 +379,41 @@ def test_mesh_boundingPolygon(getAssetPath, pytestconfig):
     sr2 = math.sqrt(2)
     poly = shapely.geometry.Polygon([(-sr2, 2), (sr2, 2), (sr2, -2), (-sr2, -2)])
     assertPolygonsEqual(bp.polygons, poly)
+    assertPolygonsEqual(r._boundingPolygonHull, poly)
 
     samples = 50 if pytestconfig.getoption("--fast") else 200
-    r1 = BoxRegion(dimensions=(1, 2, 3), position=(4, 5, 6))
+    regions = []
+    # Convex
+    r = BoxRegion(dimensions=(1, 2, 3), position=(4, 5, 6))
+    regions.append(r)
+    # Convex, with scaledShape plus transform
     bo = Orientation.fromEuler(math.pi / 4, math.pi / 4, math.pi / 4)
-    r2 = MeshVolumeRegion(r1.mesh, position=(15, 20, 5), rotation=bo, _scaledShape=r1)
+    regions.append(
+        MeshVolumeRegion(r.mesh, position=(15, 20, 5), rotation=bo, _scaledShape=r)
+    )
+    # Convex, with shape and scaledShape plus transform
+    s = MeshShape(r.mesh)
+    regions.append(
+        MeshVolumeRegion(
+            r.mesh, rotation=bo, position=(4, 5, 6), _shape=s, _scaledShape=r
+        )
+    )
+    # Not convex
     planePath = getAssetPath("meshes/classic_plane.obj.bz2")
-    r3 = MeshVolumeRegion.fromFile(planePath, dimensions=(20, 20, 10))
+    regions.append(MeshVolumeRegion.fromFile(planePath, dimensions=(20, 20, 10)))
+    # Not convex, with shape plus transform
     shape = MeshShape.fromFile(planePath)
-    r4 = MeshVolumeRegion(shape.mesh, dimensions=(0.5, 2, 1.5), rotation=bo, _shape=shape)
-    for reg in (r1, r2, r3, r4):
+    regions.append(
+        MeshVolumeRegion(shape.mesh, dimensions=(0.5, 2, 1.5), rotation=bo, _shape=shape)
+    )
+    for reg in regions:
         bp = reg.boundingPolygon
         pts = trimesh.sample.volume_mesh(reg.mesh, samples)
         assert all(bp.containsPoint(pt) for pt in pts)
+        bphull = reg._boundingPolygonHull
+        assertPolygonCovers(bphull, bp.polygons)
+        simple = shapely.multipoints(reg.mesh.vertices).convex_hull
+        assertPolygonsEqual(bphull, simple)
 
 
 def test_mesh_circumradius(getAssetPath):
