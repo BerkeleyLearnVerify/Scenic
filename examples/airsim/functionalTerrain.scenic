@@ -41,5 +41,5 @@ for i in range(blockCount):
     
 
 
-drone = new Drone on positions[0], with behavior Patrol(positions,smooth=True,speed=5)
+drone = new Drone on positions[0], with behavior Patrol(positions,smooth=False,speed=5)
 

@@ -9,6 +9,14 @@ def tupleToVector3r(tuple):
     return airsim.Vector3r(tuple[0], tuple[1], tuple[2])
 
 
+def VectorToAirsimVec(vec):
+    return airsim.Vector3r(vec.x, vec.y, vec.z)
+
+
+def AirsimVecToVector(vec):
+    return Vector(vec.x_val, vec.y_val, vec.z_val)
+
+
 def scenicToAirsimOrientation(orientation):
     # pitch, yaw, roll = orientation.r.as_euler("XZY", degrees=False)
     rad90 = 1.5708

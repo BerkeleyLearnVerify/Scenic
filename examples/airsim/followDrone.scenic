@@ -26,8 +26,8 @@ behavior Follow(target, speed = 5,tolerance = 2, offset = (0,0,1)):
 
 
 
-drone1 = new Drone at (0,0,0),
+drone1 = new Drone at (0,0,3),
     with behavior Patrol([(-1,2,2),(1,4,2),(-1,4,2),(-1,2,4),(1,2,4),(1,4,4),(-1,4,4)],True)
 
-drone2 = new Drone at (0,1,0),
-    with behavior Follow(drone1)
+drone2 = new Drone at (0,10,3),
+    with behavior Patrol([(-5,6,6),(5,8,6),(-5,8,6),(-5,6,8),(5,6,8),(5,8,8),(-5,8,8)],True)
