@@ -999,9 +999,8 @@ class MeshRegion(Region):
     @property
     def AABB(self):
         return (
-            tuple(self.mesh.bounds[:, 0]),
-            tuple(self.mesh.bounds[:, 1]),
-            tuple(self.mesh.bounds[:, 2]),
+            tuple(self.mesh.bounds[0]),
+            tuple(self.mesh.bounds[1]),
         )
 
     @cached_property
@@ -2307,9 +2306,8 @@ class VoxelRegion(Region):
     @property
     def AABB(self):
         return (
-            tuple(self.voxelGrid.bounds[:, 0]),
-            tuple(self.voxelGrid.bounds[:, 1]),
-            tuple(self.voxelGrid.bounds[:, 2]),
+            tuple(self.voxelGrid.bounds[0]),
+            tuple(self.voxelGrid.bounds[1]),
         )
 
     @property
@@ -2368,8 +2366,8 @@ class PolygonalFootprintRegion(Region):
             return PolygonalRegion(polygon=self.polygons, z=other.z).intersect(other)
 
         if isinstance(other, PathRegion):
-            center_z = (other.AABB[2][1] + other.AABB[2][0]) / 2
-            height = other.AABB[2][1] - other.AABB[2][0] + 1
+            center_z = (other.AABB[0][2] + other.AABB[1][2]) / 2
+            height = other.AABB[1][2] - other.AABB[0][2] + 1
             return self.approxBoundFootprint(center_z, height).intersect(other)
 
         return super().intersect(other, triedReversed)
@@ -2700,8 +2698,9 @@ class PathRegion(Region):
 
     @cached_property
     def AABB(self):
-        return tuple(
-            zip(numpy.amin(self.vertices, axis=0), numpy.amax(self.vertices, axis=0))
+        return (
+            tuple(numpy.amin(self.vertices, axis=0)),
+            tuple(numpy.amax(self.vertices, axis=0)),
         )
 
     def uniformPointInner(self):
@@ -2748,7 +2747,7 @@ class PolygonalRegion(Region):
 
     def __init__(
         self,
-        points=None,
+        points=(),
         polygon=None,
         z=0,
         orientation=None,
@@ -2759,8 +2758,8 @@ class PolygonalRegion(Region):
             name, points, polygon, z, *additionalDeps, orientation=orientation
         )
 
-        # Store main parameter
-        self._points = points
+        # Normalize and store main parameters
+        self._points = () if points is None else tuple(points)
         self._polygon = polygon
         self.z = z
 
@@ -2774,7 +2773,6 @@ class PolygonalRegion(Region):
             points = tuple(pt[:2] for pt in points)
             if len(points) == 0:
                 raise ValueError("tried to create PolygonalRegion from empty point list!")
-            self.points = points
             polygon = shapely.geometry.Polygon(points)
 
         if isinstance(polygon, shapely.geometry.Polygon):
@@ -2790,13 +2788,6 @@ class PolygonalRegion(Region):
             raise ValueError(
                 "tried to create PolygonalRegion with " f"invalid polygon {self.polygons}"
             )
-
-        if (
-            points is None
-            and len(self.polygons.geoms) == 1
-            and len(self.polygons.geoms[0].interiors) == 0
-        ):
-            self.points = tuple(self.polygons.geoms[0].exterior.coords[:-1])
 
         if self.polygons.is_empty:
             raise ValueError("tried to create empty PolygonalRegion")
@@ -2974,6 +2965,16 @@ class PolygonalRegion(Region):
 
     @property
     @distributionFunction
+    def points(self):
+        warnings.warn(
+            "The `points` method is deprecated and will be removed in Scenic 3.3.0."
+            "Users should use the `boundary` method instead.",
+            DeprecationWarning,
+        )
+        return self.boundary.points
+
+    @property
+    @distributionFunction
     def boundary(self) -> "PolylineRegion":
         """Get the boundary of this region as a `PolylineRegion`."""
         return PolylineRegion(polyline=self.polygons.boundary)
@@ -3012,7 +3013,7 @@ class PolygonalRegion(Region):
     @property
     def AABB(self):
         xmin, ymin, xmax, ymax = self.polygons.bounds
-        return ((xmin, ymin), (xmax, ymax), (self.z, self.z))
+        return ((xmin, ymin, self.z), (xmax, ymax, self.z))
 
     @distributionFunction
     def buffer(self, amount):
@@ -3049,7 +3050,14 @@ class PolygonalRegion(Region):
 
     @cached
     def __hash__(self):
-        return hash((self.polygons, self.orientation, self.z))
+        return hash(
+            (
+                self._points,
+                self._polygon,
+                self.orientation,
+                self.z,
+            )
+        )
 
 
 class CircularRegion(PolygonalRegion):
@@ -3131,7 +3139,7 @@ class CircularRegion(PolygonalRegion):
     def AABB(self):
         x, y, _ = self.center
         r = self.radius
-        return ((x - r, y - r), (x + r, y + r), (self.z, self.z))
+        return ((x - r, y - r, self.z), (x + r, y + r, self.z))
 
     def __repr__(self):
         return f"CircularRegion({self.center!r}, {self.radius!r})"
@@ -3267,7 +3275,9 @@ class RectangularRegion(PolygonalRegion):
         self.circumcircle = (self.position, self.radius)
 
         super().__init__(
-            polygon=self._makePolygons(position, heading, width, length),
+            polygon=self._makePolygons(
+                self.position, self.heading, self.width, self.length
+            ),
             z=self.position.z,
             name=name,
             additionalDeps=deps,
@@ -3319,7 +3329,7 @@ class RectangularRegion(PolygonalRegion):
         x, y, z = zip(*self.corners)
         minx, maxx = findMinMax(x)
         miny, maxy = findMinMax(y)
-        return ((minx, miny), (maxx, maxy), (self.z, self.z))
+        return ((minx, miny, self.z), (maxx, maxy, self.z))
 
     def __repr__(self):
         return (
@@ -3630,7 +3640,7 @@ class PolylineRegion(Region):
     @property
     def AABB(self):
         xmin, ymin, xmax, ymax = self.lineString.bounds
-        return ((xmin, ymin), (xmax, ymax), (0, 0))
+        return ((xmin, ymin, 0), (xmax, ymax, 0))
 
     def show(self, plt, style="r-", **kwargs):
         plotPolygon(self.lineString, plt, style=style, **kwargs)
@@ -3734,6 +3744,10 @@ class PointSetRegion(Region):
         return any(other.containsPoint(pt) for pt in self.points)
 
     def intersect(self, other, triedReversed=False):
+        # Try other way first before falling back to IntersectionRegion with sampler.
+        if triedReversed is False:
+            return other.intersect(self)
+
         def sampler(intRegion):
             o = intRegion.regions[1]
             center, radius = o.circumcircle
@@ -3784,8 +3798,9 @@ class PointSetRegion(Region):
 
     @property
     def AABB(self):
-        return tuple(
-            zip(numpy.amin(self.points, axis=0), numpy.amax(self.points, axis=0))
+        return (
+            tuple(numpy.amin(self.points, axis=0)),
+            tuple(numpy.amax(self.points, axis=0)),
         )
 
     def __eq__(self, other):

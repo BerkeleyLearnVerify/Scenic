@@ -58,7 +58,7 @@ class DynamicScenario(Invocable):
         self._objects = []  # ordered for reproducibility
         self._sampledObjects = self._objects
         self._externalParameters = []
-        self._pendingRequirements = defaultdict(list)
+        self._pendingRequirements = []
         self._requirements = []
         # things needing to be sampled to evaluate the requirements
         self._requirementDeps = set()
@@ -409,9 +409,8 @@ class DynamicScenario(Invocable):
 
     def _addRequirement(self, ty, reqID, req, line, name, prob):
         """Save a requirement defined at compile-time for later processing."""
-        assert reqID not in self._pendingRequirements
         preq = PendingRequirement(ty, req, line, prob, name, self._ego)
-        self._pendingRequirements[reqID] = preq
+        self._pendingRequirements.append((reqID, preq))
 
     def _addDynamicRequirement(self, ty, req, line, name):
         """Add a requirement defined during a dynamic simulation."""
@@ -429,7 +428,7 @@ class DynamicScenario(Invocable):
         namespace = self._dummyNamespace if self._dummyNamespace else self.__dict__
         requirementSyntax = self._requirementSyntax
         assert requirementSyntax is not None
-        for reqID, requirement in self._pendingRequirements.items():
+        for reqID, requirement in self._pendingRequirements:
             syntax = requirementSyntax[reqID] if requirementSyntax else None
 
             # Catch the simple case where someone has most likely forgotten the "monitor"

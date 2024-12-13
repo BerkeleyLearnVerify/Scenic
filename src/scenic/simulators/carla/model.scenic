@@ -18,6 +18,8 @@ Global Parameters:
     timestep (float): Timestep to use for simulations (i.e., how frequently Scenic
         interrupts CARLA to run behaviors, check requirements, etc.), in seconds. Default
         is 0.1 seconds.
+    snapToGroundDefault (bool): Default value for :prop:`snapToGround` on `CarlaActor` objects.
+        Default is True if :ref:`2D compatibility mode` is enabled and False otherwise. 
 
     weather (str or dict): Weather to use for the simulation. Can be either a
         string identifying one of the CARLA weather presets (e.g. 'ClearSunset') or a
@@ -96,6 +98,7 @@ param weather = Uniform(
     'MidRainSunset',
     'HardRainSunset'
 )
+param snapToGroundDefault = is2DMode()
 
 simulator CarlaSimulator(
     carla_map=globalParameters.carla_map,
@@ -118,12 +121,15 @@ class CarlaActor(DrivingObject):
         rolename (str): Can be used to differentiate specific actors during runtime. Default
             value ``None``.
         physics (bool): Whether physics is enabled for this object in CARLA. Default true.
+        snapToGround (bool): Whether or not to snap this object to the ground when placed in CARLA.
+            The default is set by the ``snapToGroundDefault`` global parameter above.
     """
     carlaActor: None
     blueprint: None
     rolename: None
     color: None
     physics: True
+    snapToGround: globalParameters.snapToGroundDefault
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -222,12 +228,12 @@ class Prop(CarlaActor):
     """Abstract class for props, i.e. non-moving objects.
 
     Properties:
-        heading (float): Default value overridden to be uniformly random.
+        parentOrientation (Orientation): Default value overridden to have uniformly random yaw.
         physics (bool): Default value overridden to be false.
     """
     regionContainedIn: road
     position: new Point on road
-    heading: Range(0, 360) deg
+    parentOrientation: Range(0, 360) deg
     width: 0.5
     length: 0.5
     physics: False
@@ -253,7 +259,7 @@ class Chair(Prop):
 
 
 class BusStop(Prop):
-    blueprint: Uniform(*blueprints.busStopsModels)
+    blueprint: Uniform(*blueprints.busStopModels)
 
 
 class Advertisement(Prop):

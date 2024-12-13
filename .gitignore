@@ -139,3 +139,5 @@ dmypy.json
 
 # generated parser
 src/scenic/syntax/parser.py
+
+simulation.gif

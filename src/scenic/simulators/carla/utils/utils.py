@@ -7,7 +7,7 @@ from scenic.core.geometry import normalizeAngle
 from scenic.core.vectors import Orientation, Vector
 
 
-def snapToGround(world, location, blueprint):
+def _snapToGround(world, location, blueprint):
     """Mutates @location to have the same z-coordinate as the nearest waypoint in @world."""
     waypoint = world.get_map().get_waypoint(location)
     # patch to avoid the spawn error issue with vehicles and walkers.
@@ -25,11 +25,11 @@ def scenicToCarlaVector3D(x, y, z=0.0):
     return carla.Vector3D(x, -y, z)
 
 
-def scenicToCarlaLocation(pos, z=None, world=None, blueprint=None):
-    if z is None:
+def scenicToCarlaLocation(pos, world=None, blueprint=None, snapToGround=False):
+    if snapToGround:
         assert world is not None
-        return snapToGround(world, carla.Location(pos.x, -pos.y, 0.0), blueprint)
-    return carla.Location(pos.x, -pos.y, z)
+        return _snapToGround(world, carla.Location(pos.x, -pos.y, 0.0), blueprint)
+    return carla.Location(pos.x, -pos.y, pos.z)
 
 
 def scenicToCarlaRotation(orientation):
@@ -38,13 +38,6 @@ def scenicToCarlaRotation(orientation):
     yaw, pitch, roll = orientation.r.as_euler("ZXY", degrees=True)
     yaw = -yaw - 90
     return carla.Rotation(pitch=pitch, yaw=yaw, roll=roll)
-
-
-def scenicSpeedToCarlaVelocity(speed, heading):
-    currYaw = scenicToCarlaRotation(heading).yaw
-    xVel = speed * math.cos(currYaw)
-    yVel = speed * math.sin(currYaw)
-    return scenicToCarlaVector3D(xVel, yVel)
 
 
 def carlaToScenicPosition(loc):
