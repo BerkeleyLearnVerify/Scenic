@@ -2,7 +2,9 @@ from scenic.simulators.metadrive.simulator import MetaDriveSimulator
 from scenic.domains.driving.model import *
 from scenic.simulators.metadrive.actions import *
 from scenic.simulators.metadrive.behaviors import *
-from scenic.simulators.metadrive.utils import extractNetOffsetAndBoundary
+from scenic.simulators.metadrive.utils import scenicToMetaDriveHeading
+from metadrive.utils.math import norm
+
 
 param sumo_map = globalParameters.sumo_map
 param timestep = 0.1
@@ -59,7 +61,6 @@ class MetaDriveActor(DrivingObject):
     def setPosition(self, pos):
         converted_position = scenicToMetaDrivePosition(pos, self.sumo_map)
         self.metaDriveActor.set_position(converted_position)
-        # self.metaDriveActor.last_position = scenicToMetaDrivePosition(pos, center_x, center_y, offset_x, offset_y)
 
     def setVelocity(self, vel):
         # TODO
@@ -96,12 +97,50 @@ class Car(Vehicle):
         return True
 
 class Pedestrian(Pedestrian, MetaDriveActor, Walks):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Initialize the current speed model, default to the first option in SPEED_LIST
+        self.current_speed_model = 0.4  # Default speed, can be adjusted
 
     def setWalkingDirection(self, heading):
-        # TODO
-        direction = Vector(0, 1, 0).rotatedBy(heading)
-        self.control.direction = direction
+        print("HERE IN SET_WALKING_DIRECTION")
+
+        metadrive_heading = scenicToMetaDriveHeading(heading)
+
+        # Calculate the direction vector in MetaDrive using the heading
+        direction = Vector(0, self.current_speed_model).rotatedBy(metadrive_heading)
+
+        # Use MetaDrive's set_velocity to update the pedestrian's velocity
+        self.set_velocity([direction.x, direction.y])
 
     def setWalkingSpeed(self, speed):
-        # TODO
-        self.control.speed = speed
+        print("HERE IN SET_WALKING_SPEED")
+
+        # Adjust speed in MetaDrive using the set_velocity method
+        if hasattr(self, 'velocity') and self.velocity is not None:
+            direction = self.velocity.normalized()  # Keep current walking direction
+        else:
+            # If no velocity has been set yet, default to the current direction
+            direction = Vector(0, self.current_speed_model).rotatedBy(0)  # Default direction
+
+        # Apply new speed
+        self.set_velocity([direction.x, direction.y], speed)
+
+    def set_velocity(self, velocity, value=None):
+        """
+        Update the pedestrian's velocity.
+        This method mimics the `set_velocity` from MetaDrive's Pedestrian class.
+        """
+        # If a specific speed is provided, adjust the velocity accordingly
+        if value is not None:
+            velocity_magnitude = value  # Use the specified speed
+        else:
+            velocity_magnitude = norm(velocity[0], velocity[1])  # Calculate magnitude of velocity vector
+
+        # Create a new velocity vector, normalize and apply the magnitude
+        direction = Vector(*velocity)
+        direction = direction.normalized() * velocity_magnitude
+        self.velocity = direction  # Update velocity
+
+        print(f"Setting velocity to: {self.velocity}")
+        # Further logic for moving the pedestrian can be added here

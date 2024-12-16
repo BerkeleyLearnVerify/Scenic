@@ -100,6 +100,7 @@ class MetaDriveSimulation(DrivingSimulation):
         # self.client.config["physics_world_step_size"] = physics_world_step_size
 
         # self.client.engine.step()
+        # print("IN STEP")
 
         if len(self.scene.objects) > 0:
             obj = self.scene.objects[0]
@@ -115,6 +116,7 @@ class MetaDriveSimulation(DrivingSimulation):
 
     def executeActions(self, allActions):
         """Execute actions for all vehicles in the simulation."""
+        print("ALL ACTIONS: ", allActions)
         super().executeActions(allActions)
 
         # Iterate through all agents in the scene
