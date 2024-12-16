@@ -3,14 +3,8 @@ from scenic.domains.driving.model import *
 from scenic.simulators.metadrive.actions import *
 from scenic.simulators.metadrive.behaviors import *
 from scenic.simulators.metadrive.utils import extractNetOffsetAndBoundary
-import pathlib
 
-try:
-    sumo_map_path = pathlib.Path(globalParameters.sumo_map)
-except Exception as e:
-    raise RuntimeError("'sumo_map' is not defined") from e
-
-param sumo_map = sumo_map_path.stem
+param sumo_map = globalParameters.sumo_map
 param timestep = 0.1
 param render = 1
 param render3D = 0
@@ -21,27 +15,11 @@ param render3D = 0
 # we will offset by the computed center x and y coordinates
 # https://github.com/metadriverse/metadrive/blob/aaed1f7f2512061ddd8349d1d411e374dab87a43/metadrive/utils/sumo/map_utils.py#L165-L172
 
-# Extract network offset and boundary for SUMO map
-net_offset, sumo_map_boundary = extractNetOffsetAndBoundary(sumo_map_path)
-if net_offset and sumo_map_boundary:
-    xmin, ymin, xmax, ymax = sumo_map_boundary
-    center_x = (xmin + xmax) / 2
-    center_y = (ymin + ymax) / 2
-    offset_x = net_offset[0]
-    offset_y = net_offset[1]
-else:
-    raise RuntimeError("Failed to extract netOffset or convBoundary from SUMO map.")
-
 simulator MetaDriveSimulator(
     timestep=float(globalParameters.timestep),
     render=bool(globalParameters.render),
     render3D=bool(globalParameters.render3D),
     sumo_map=globalParameters.sumo_map,
-    center_x = center_x,
-    center_y = center_y,
-    offset_x = offset_x,
-    offset_y = offset_y,
-    sumo_map_boundary = sumo_map_boundary,
 )
 
 class MetaDriveActor(DrivingObject):
@@ -79,7 +57,7 @@ class MetaDriveActor(DrivingObject):
         self.metaDriveActor.before_step(action)
 
     def setPosition(self, pos):
-        converted_position = scenicToMetaDrivePosition(pos, center_x, center_y, offset_x, offset_y)
+        converted_position = scenicToMetaDrivePosition(pos, self.sumo_map)
         self.metaDriveActor.set_position(converted_position)
         # self.metaDriveActor.last_position = scenicToMetaDrivePosition(pos, center_x, center_y, offset_x, offset_y)
 

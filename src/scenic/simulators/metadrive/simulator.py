@@ -30,11 +30,6 @@ class MetaDriveSimulator(DrivingSimulator):
         render=True,
         render3D=False,
         sumo_map=None,
-        center_x=None,
-        center_y=None,
-        offset_x=0,
-        offset_y=0,
-        sumo_map_boundary=None,
     ):
         super().__init__()
         self.render = render
@@ -42,11 +37,6 @@ class MetaDriveSimulator(DrivingSimulator):
         self.scenario_number = 0
         self.timestep = timestep
         self.sumo_map = sumo_map
-        self.center_x = center_x
-        self.center_y = center_y
-        self.offset_x = offset_x
-        self.offset_y = offset_y
-        self.sumo_map_boundary = sumo_map_boundary
 
     def createSimulation(self, scene, *, timestep, **kwargs):
         if timestep is not None and timestep != self.timestep:
@@ -62,11 +52,6 @@ class MetaDriveSimulator(DrivingSimulator):
             scenario_number=self.scenario_number,
             timestep=self.timestep,
             sumo_map=self.sumo_map,
-            center_x=self.center_x,
-            center_y=self.center_y,
-            offset_x=self.offset_x,
-            offset_y=self.offset_y,
-            sumo_map_boundary=self.sumo_map_boundary,
             **kwargs,
         )
 
@@ -83,11 +68,6 @@ class MetaDriveSimulation(DrivingSimulation):
         scenario_number,
         timestep,
         sumo_map,
-        center_x,
-        center_y,
-        offset_x=0,
-        offset_y=0,
-        sumo_map_boundary=None,
         **kwargs,
     ):
         # NOTE: MetaDrive requires at least one agent to be defined per simulation run
@@ -107,11 +87,6 @@ class MetaDriveSimulation(DrivingSimulation):
         self.client = None
         self.timestep = timestep
         self.sumo_map = sumo_map
-        self.center_x = center_x
-        self.center_y = center_y
-        self.offset_x = offset_x
-        self.offset_y = offset_y
-        self.sumo_map_boundary = sumo_map_boundary
         super().__init__(scene, timestep=timestep, **kwargs)
 
     def setup(self):
@@ -133,7 +108,7 @@ class MetaDriveSimulation(DrivingSimulation):
 
         if self.render and not self.render3D:
             scaling = 5
-            film_size = utils.calculateFilmSize(self.sumo_map_boundary, scaling)
+            film_size = utils.calculateFilmSize(self.sumo_map, scaling)
             self.client.render(
                 mode="topdown", semantic_map=True, film_size=film_size, scaling=scaling
             )
@@ -159,9 +134,7 @@ class MetaDriveSimulation(DrivingSimulation):
         For additional cars, it spawns objects using the provided position and heading.
         """
         # Convert position and heading from Scenic to MetaDrive
-        converted_position = utils.scenicToMetaDrivePosition(
-            obj.position, self.center_x, self.center_y, self.offset_x, self.offset_y
-        )
+        converted_position = utils.scenicToMetaDrivePosition(obj.position, self.sumo_map)
         converted_heading = utils.scenicToMetaDriveHeading(obj.heading)
 
         if not self.defined_ego:
@@ -229,19 +202,11 @@ class MetaDriveSimulation(DrivingSimulation):
 
     def getProperties(self, obj, properties):
         metaDriveActor = obj.metaDriveActor
-        position = utils.metadriveToScenicPosition(
-            metaDriveActor.position,
-            self.center_x,
-            self.center_y,
-            self.offset_x,
-            self.offset_y,
-        )
+        position = utils.metadriveToScenicPosition(metaDriveActor.position, self.sumo_map)
         velocity = Vector(*metaDriveActor.velocity, 0)
         speed = metaDriveActor.speed
         angularSpeed = 0
-        angularVelocity = utils.metadriveToScenicPosition(
-            (0, 0), self.center_x, self.center_y, self.offset_x, self.offset_y
-        )
+        angularVelocity = utils.metadriveToScenicPosition((0, 0), self.sumo_map)
         converted_heading = utils.metaDriveToScenicHeading(metaDriveActor.heading_theta)
         yaw, pitch, roll = obj.parentOrientation.globalToLocalAngles(
             converted_heading, 0, 0
