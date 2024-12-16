@@ -1,5 +1,6 @@
 # NOTE: add your world info path here
 # param worldInfoPath = "[YOUR PATH HERE]"
+param worldOffset = Vector(0,0,50) # blocks world offset
 
 model scenic.simulators.airsim.model
 from scenic.simulators.airsim.utils import getPrexistingObj

@@ -5,6 +5,7 @@ import random
 # NOTE: add your world info path here
 # param worldInfoPath = "[YOUR PATH HERE]"
 
+param worldOffset = Vector(0,0,50) # blocks world offset
 param timestep = .1
 
 model scenic.simulators.airsim.model

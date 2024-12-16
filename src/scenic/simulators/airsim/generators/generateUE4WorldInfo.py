@@ -23,14 +23,10 @@ actorInfo_dir = outputDirectory + "/actorInfo.json"
 worldCenter_dir = outputDirectory + "/worldCenter.json"
 
 # make output dirs
-# TODO make false
-os.makedirs(outputDirectory, exist_ok=True)
-os.makedirs(asset_dir, exist_ok=True)
+os.makedirs(outputDirectory, exist_ok=False)
+os.makedirs(asset_dir, exist_ok=False)
 
 
-# assetSubsystem = unreal.get_editor_subsystem(unreal.EditorAssetSubsystem)
-# actorSubsystem = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
-# staticmeshsubsystem = unreal.get_editor_subsystem(unreal.StaticMeshEditorSubsystem)
 asset_registry = unreal.AssetRegistryHelpers.get_asset_registry()
 system_lib = unreal.SystemLibrary()
 

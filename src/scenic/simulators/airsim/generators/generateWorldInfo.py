@@ -177,11 +177,13 @@ for mesh in cleanedMeshes:
     position = airsimToScenicLocationTuple(pose.position)
     orientation = airsimToScenicOrientationTuple(pose.orientation)
 
+    pitch, roll, yaw = airsim.to_eularian_angles(orientation)
+
     worldInfo.append(
         dict(
             name=objectName,
             position=position,
-            orientation=orientation,
+            orientation=(pitch, roll, yaw),
         ),
     )
 

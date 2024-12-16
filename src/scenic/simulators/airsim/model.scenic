@@ -11,13 +11,15 @@ from scenic.simulators.airsim.utils import _addPrexistingObj, getPrexistingObj
 from scenic.core.simulators import SimulationCreationError
 from scenic.core.distributions import distributionFunction 
 
+import scenic.simulators.airsim.utils as airsimUtils
 from scenic.simulators.airsim.utils import (
     airsimToScenicLocation,
     airsimToScenicOrientation,
     scenicToAirsimOrientation,
     scenicToAirsimScale,
-    scenicToAirsimLocation,
+    scenicToAirsimLocation
 )
+
 
 
 # ---------- global parameters ----------
@@ -26,16 +28,15 @@ from scenic.simulators.airsim.utils import (
 param timestep = 1
 param airsimWorldInfoPth = None
 param idleStoragePos = (1000,1000,1000)
-# param worldInfoPath = ""
 param worldInfoPath = r"C:\Users\Mary\Documents\Code\Scenic\more\blocksWorldInfo2" #TODO remove
+param worldOffset = Vector(0,0,0)
 worldInfoPath = globalParameters.worldInfoPath
+worldOffset = globalParameters.worldOffset
 
+airsimUtils.worldOffset = globalParameters.worldOffset
 
 # ---------- helper functions ----------
 
-@distributionFunction 
-def printFinal(val):
-    print(val)
 
 @distributionFunction 
 def createMeshShape(subFolder, assetName):
@@ -46,18 +47,6 @@ def createMeshShape(subFolder, assetName):
 
     center = (tmesh.bounds[0] + tmesh.bounds[1]) / 2
 
-    # scale_matrix = trimesh.transformations.scale_matrix([0, 0, -1])
-    # tmesh.apply_transform(scale_matrix)
-    
-    
-    # print(center)
-    
-    
-    # return MeshShape(tmesh)
-
-    # scale_matrix = trimesh.transformations.compose_matrix(scale=(100,100,100))
-    # tmesh.apply_transform(scale_matrix)
-
     
     rotation_matrix = trimesh.transformations.rotation_matrix(np.pi / 2, [1, 0, 0])
     tmesh.apply_transform(rotation_matrix)
@@ -65,7 +54,6 @@ def createMeshShape(subFolder, assetName):
 
     center = (tmesh.bounds[0] + tmesh.bounds[1]) / 2
     center *= 100 #extra multiplication to fix center after coords get divided by 100 in scenic
-    # center = toVector(center) * 100
 
     dimensions = Vector(tmesh.bounding_box.extents[0],tmesh.bounding_box.extents[1],tmesh.bounding_box.extents[2])
 
@@ -84,25 +72,20 @@ def getAssetNames():
     return self.client.simListAssets()
 
 # ---------- base classes ----------
-# TODO OFFSETS
-class AirSimPrexisting:
+class AirSimPreExisting:
     name: None
     shape: None
     allowCollisions: True
-    regionContainedIn: everywhere
-    blueprint: "AirSimPrexisting"
-    color: [.3,0,0] if self.name == "Ground" else [0.5, 0.5, 0.5]
+    blueprint: "AirSimPreExisting"
     
 
 
-# TODOmake it so that we can save the original mesh offset and real mesh size in the class when we define it
-
 class AirSimActor:
-        
     name: None
+    realObjName: None 
     assetName: None
     blueprint: None
-    realObjName: None 
+    
 
     # override
     _shapeData: createMeshShape("assets",self.assetName)
@@ -117,8 +100,8 @@ class AirSimActor:
 # ---------- inherited classes ----------
 class Drone(AirSimActor):
     blueprint: "Drone"
-    startHovering: True
     assetName: "Quadrotor1"
+    startHovering: True
     _startPos: None
 
 class PX4Drone(Drone):
@@ -158,7 +141,6 @@ with open(
         meshShape,centerOffset,dims = createMeshShape("objectMeshes",actorName)
 
         # convert unreal position to airsim position
-        # TODO fix world info generator for airsim binaries
         position = Vector(meshData["position"][0],meshData["position"][1],meshData["position"][2]) #unreal position
 
         # get orientation
@@ -170,16 +152,13 @@ with open(
         )
         orientation =  Orientation(r)
 
-        print(actorName,centerOffset,position)
-
         scenicLoc = airsimToScenicLocation(airsim.Vector3r(position.x, position.y, position.z),centerOffset,fromPose=False)
-        newObj = new AirSimPrexisting with shape meshShape, with name actorName,
+        newObj = new AirSimPreExisting with shape meshShape, with name actorName,
             at scenicLoc,
             facing orientation # pitch, roll, yaw
      
 
         _addPrexistingObj(newObj)
-        # break
 
 
 # generate list of assets

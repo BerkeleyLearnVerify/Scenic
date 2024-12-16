@@ -61,6 +61,13 @@ achieve this, utilize the scripts located at
 Using Unreal Engine (recommended)
 """""""""""""""""""""""""""""""""
 
+Enable these plugins in UE5:
+- Python Editor Script Plugin
+- Editor Scripting Utilities
+
+First, run the `generateUE4WorldInfo.py` or `generateUE5WorldInfo.py` script inside unreal engine by simply entering in the file path in the engine’s python console.
+Then run `generateWorldInfoFromUnrealWorldInfo.py` script
+
 First, run the :file:`generateUnrealWorldInfo.py` script inside Unreal Engine by
 simply entering in the file path in the engine’s python console.
 

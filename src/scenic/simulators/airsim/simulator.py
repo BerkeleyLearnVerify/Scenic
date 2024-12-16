@@ -21,7 +21,6 @@ from scenic.core.simulators import (
 )
 from scenic.core.type_support import toVector
 from scenic.core.vectors import Orientation, Vector
-import scenic.simulators.airsim.MavsdkUtils as mavutils
 from scenic.syntax.veneer import verbosePrint
 
 from .utils import (
@@ -119,8 +118,8 @@ class AirSimSimulation(Simulation):
         self.client.simPause(True)
 
     def createObjectInSimulator(self, obj):
-        # create AirSimPrexisting
-        if obj.blueprint == "AirSimPrexisting":
+        # create AirSimPreExisting
+        if obj.blueprint == "AirSimPreExisting":
             self.objs[obj.name] = obj.name
             return
 
@@ -252,7 +251,7 @@ class AirSimSimulation(Simulation):
         print("canceled simulation")
 
     def getProperties(self, obj, properties):
-        if obj.blueprint == "AirSimPrexisting":
+        if obj.blueprint == "AirSimPreExisting":
             return dict(
                 position=obj.position,
                 velocity=Vector(0, 0, 0),
@@ -276,7 +275,7 @@ class AirSimSimulation(Simulation):
 
             angularVelocity = airsimToScenicLocation(kinematics.angular_velocity)
 
-        elif obj.blueprint == "StaticObj" or obj.blueprint == "AirSimPrexisting":
+        elif obj.blueprint == "StaticObj" or obj.blueprint == "AirSimPreExisting":
             pose = self.client.simGetObjectPose(objName)
 
             # static objs don't have velocity
