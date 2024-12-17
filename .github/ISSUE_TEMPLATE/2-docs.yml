@@ -1,5 +1,5 @@
 name: Documentation
-description: Report an issue or enhancement related to https://scenic-lang.readthedocs.io/
+description: Report an issue or enhancement related to https://docs.scenic-lang.org/
 labels:
   - "type: documentation"
   - "status: triage"
@@ -8,15 +8,15 @@ body:
   - type: markdown
     attributes:
       value: >
-        #### Thank you for contributing! Before submitting a doc issue, please make sure it has no duplicate and has not already been addressed by searching through [the existing and past issues](https://github.com/BerkeleyLearnVerify/Scenic/issues)
+        #### Thank you for contributing! Before submitting a doc issue, please make sure it has no duplicate and has not already been addressed by searching through [the existing and past open and closed issues](https://github.com/BerkeleyLearnVerify/Scenic/issues)
 
   - type: textarea
     attributes:
       label: Describe the doc issue or enhancement
       description: >
-        Please provide a clear and concise description of what content in https://scenic-lang.readthedocs.io/ has an issue or needs enhancement.
+        Please provide a clear and concise description of what content in https://docs.scenic-lang.org/ has an issue or needs enhancement.
       placeholder: |
-        Link to location in the docs: https://scenic-lang.readthedocs.io/
+        Link to location in the docs: https://docs.scenic-lang.org/
     validations:
       required: true
 
@@ -32,4 +32,4 @@ body:
       options:
         - label: I am reporting an issue, not asking a question
           required: true
-        - label: I checked the open issues, forum, etc. and have not found any solution
+        - label: I checked the open and closed issues, forum, etc. and have not found any solution

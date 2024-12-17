@@ -555,6 +555,11 @@ def test_visible_no_ego():
         compileScenic("ego = new Object visible")
 
 
+def test_visible_no_ego_2():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic("new Object visible")
+
+
 def test_visible_from_point():
     scenario = compileScenic(
         "x = new Point at 300@200, with visibleDistance 2\n"
@@ -1193,3 +1198,19 @@ def test_color():
             ego = new Object with color (1,1,1,1,1)
             """
         sampleEgoFrom(program)
+
+
+# alwaysProvidesOrientation
+def test_alwaysProvidesOrientation_exception():
+    with pytest.warns(UserWarning):
+        compileScenic(
+            """
+            from scenic.core.distributions import distributionFunction
+
+            @distributionFunction
+            def foo(bar):
+                assert False
+
+            new Object in foo(Range(0,1))
+            """
+        )

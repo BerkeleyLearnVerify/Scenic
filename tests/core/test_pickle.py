@@ -1,5 +1,8 @@
+import sys
+
 import pytest
 
+import scenic
 from scenic.core.distributions import (
     Normal,
     Options,
@@ -93,6 +96,22 @@ def test_pickle_scenario():
 def test_pickle_scene():
     scene = sampleSceneFrom("ego = new Object at Range(1, 2) @ 3")
     tryPickling(scene)
+
+
+def test_pickle_scenario_2D_module():
+    """Tests a nasty bug involving pickling the scenic module in 2D mode."""
+    scenario = compileScenic(
+        """
+        import scenic
+        ego = new Object with favoriteModule scenic
+        """,
+        mode2D=True,
+    )
+    sc = tryPickling(scenario)
+    assert sys.modules["scenic.core.object_types"].Object is Object
+    ego = sampleEgo(sc)
+    assert isinstance(ego, Object)
+    assert ego.favoriteModule is scenic
 
 
 def test_pickle_scenario_dynamic():

@@ -55,14 +55,14 @@ def test_containment_2d_region():
 
     # Test both combined, in a slightly more complicated case.
     # Specifically, there is a non vertical component to baseOffset
-    # that should be accounted for and the height is random.
+    # that should be accounted for.
     scenario = compileScenic(
         """
         class TestObject:
             baseOffset: (0.1, 0, self.height/2)
 
         workspace = Workspace(PolygonalRegion([0@0, 2@0, 2@2, 0@2]))
-        ego = new TestObject on workspace, with height Range(0.1,0.5)
+        ego = new TestObject on workspace, with height 100
         """
     )
     # Sampling should fail ~30.56% of the time, so

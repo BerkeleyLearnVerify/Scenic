@@ -303,7 +303,7 @@ class Hill(Terrain):
 
     height: 1
     spread: 0.25
-    color: (0,0,0,0)
+    render: False
 
     def heightAtOffset(self, offset):
         dx, dy, _ = offset

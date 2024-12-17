@@ -11,7 +11,7 @@ simulation as a `SimulationResult` object).
 """
 
 import abc
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 import enum
 import math
 import numbers
@@ -294,7 +294,10 @@ class Simulation(abc.ABC):
         timestep (float): Length of each time step in seconds.
         objects: List of Scenic objects (instances of `Object`) existing in the
             simulation. This list will change if objects are created dynamically.
-        agents: List of :term:`agents` in the simulation.
+        agents: List of :term:`agents` in the simulation. An agent is any object that has
+            or had a behavior at any point in the simulation. The agents list may have objects
+            appended to the end as the simulation progresses (if a non-agent object has its
+            behavior overridden), but once an object is in the agents list its position is fixed.
         result (`SimulationResult`): Result of the simulation, or `None` if it has not
             yet completed. This is the primary object which should be inspected to get
             data out of the simulation: the other undocumented attributes of this class
@@ -332,7 +335,6 @@ class Simulation(abc.ABC):
         self.result = None
         self.scene = scene
         self.objects = []
-        self.agents = []
         self.trajectory = []
         self.records = defaultdict(list)
         self.currentTime = 0
@@ -399,7 +401,7 @@ class Simulation(abc.ABC):
             for obj in self.objects:
                 disableDynamicProxyFor(obj)
             for agent in self.agents:
-                if agent.behavior._isRunning:
+                if agent.behavior and agent.behavior._isRunning:
                     agent.behavior._stop()
             # If the simulation was terminated by an exception (including rejections),
             # some scenarios may still be running; we need to clean them up without
@@ -449,10 +451,25 @@ class Simulation(abc.ABC):
             if maxSteps and self.currentTime >= maxSteps:
                 return TerminationType.timeLimit, f"reached time limit ({maxSteps} steps)"
 
+            # Clear lastActions for all objects
+            for obj in self.objects:
+                obj.lastActions = tuple()
+
+            # Update agents with any objects that now have behaviors (and are not already agents)
+            self.agents += [
+                obj for obj in self.objects if obj.behavior and obj not in self.agents
+            ]
+
             # Compute the actions of the agents in this time step
-            allActions = OrderedDict()
+            allActions = defaultdict(tuple)
             schedule = self.scheduleForAgents()
+            if not set(self.agents) == set(schedule):
+                raise RuntimeError("Simulator schedule does not contain all agents")
             for agent in schedule:
+                # If agent doesn't have a behavior right now, continue
+                if not agent.behavior:
+                    continue
+
                 # Run the agent's behavior to get its actions
                 actions = agent.behavior._step()
 
@@ -480,11 +497,13 @@ class Simulation(abc.ABC):
                 # Save actions for execution below
                 allActions[agent] = actions
 
+                # Log lastActions
+                agent.lastActions = actions
+
             # Execute the actions
             if self.verbosity >= 3:
                 for agent, actions in allActions.items():
                     print(f"      Agent {agent} takes action(s) {actions}")
-                    agent.lastActions = actions
             self.actionSequence.append(allActions)
             self.executeActions(allActions)
 
@@ -500,6 +519,7 @@ class Simulation(abc.ABC):
         but should call the parent implementation to create the objects in the
         initial scene (through `createObjectInSimulator`).
         """
+        self.agents = []
         for obj in self.scene.objects:
             self._createObject(obj)
 
@@ -632,9 +652,9 @@ class Simulation(abc.ABC):
         functionality.
 
         Args:
-            allActions: an :obj:`~collections.OrderedDict` mapping each agent to a tuple
-                of actions. The order of agents in the dict should be respected in case
-                the order of actions matters.
+            allActions: a :obj:`~collections.defaultdict` mapping each agent to a tuple
+                of actions, with the default value being an empty tuple. The order of
+                agents in the dict should be respected in case the order of actions matters.
         """
         for agent, actions in allActions.items():
             for action in actions:

@@ -205,7 +205,10 @@ class CarlaSimulation(DrivingSimulation):
 
         # Set up transform
         loc = utils.scenicToCarlaLocation(
-            obj.position, world=self.world, blueprint=obj.blueprint
+            obj.position,
+            world=self.world,
+            blueprint=obj.blueprint,
+            snapToGround=obj.snapToGround,
         )
         rot = utils.scenicToCarlaRotation(obj.orientation)
         transform = carla.Transform(loc, rot)

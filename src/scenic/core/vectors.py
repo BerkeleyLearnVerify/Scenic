@@ -311,6 +311,9 @@ class Orientation:
         """Global intrinsic Euler angles yaw, pitch, roll."""
         return self.r.as_euler("ZXY", degrees=False)
 
+    def _trimeshEulerAngles(self):
+        return self.r.as_euler("xyz", degrees=False)
+
     def getRotation(self):
         return self.r
 

@@ -18,6 +18,7 @@ Shun Kashiwa developed the auto-generated parser for Scenic 3.0 and its support 
 
 The Scenic tool and example scenarios have benefitted from additional code contributions from:
 
+	* Armando Bañuelos
 	* Johnathan Chiu
 	* Greg Crow
 	* Francis Indaheng
@@ -32,6 +33,7 @@ The Scenic tool and example scenarios have benefitted from additional code contr
 	* Jay Shenoy
 	* Mirco Theile
 	* Kesav Viswanadha
+	* Qiancheng Wu
 	* Wilson Wu
 
 Finally, many other people provided helpful advice and discussions, including:
@@ -45,5 +47,4 @@ Finally, many other people provided helpful advice and discussions, including:
 	* Sriram Rajamani
 	* German Ros
 	* Marcell Vazquez-Chanlatte
-	* Qiangcheng Wu
 	* everyone who has reported bugs at our `GitHub repository <https://github.com/BerkeleyLearnVerify/Scenic/issues>`_.
