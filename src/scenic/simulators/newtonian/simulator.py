@@ -84,6 +84,7 @@ class NewtonianSimulation(DrivingSimulation):
         self.export_gif = export_gif
         self.render = render
         self.network = network
+        self.screen = None
         self.frames = []
         self.debug_render = debug_render
 
@@ -226,6 +227,11 @@ class NewtonianSimulation(DrivingSimulation):
             obj.heading += obj.angularSpeed * self.timestep
 
         if self.render:
+            # Handle closing out pygame screen
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.destroy()
+                    return
             self.draw_objects()
             pygame.event.pump()
 
