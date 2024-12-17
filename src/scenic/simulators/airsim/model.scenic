@@ -28,7 +28,7 @@ from scenic.simulators.airsim.utils import (
 param timestep = 1
 param airsimWorldInfoPth = None
 param idleStoragePos = (1000,1000,1000)
-param worldInfoPath = r"C:\Users\Mary\Documents\Code\Scenic\more\blocksWorldInfo2" #TODO remove
+param worldInfoPath = ""
 param worldOffset = Vector(0,0,0)
 worldInfoPath = globalParameters.worldInfoPath
 worldOffset = globalParameters.worldOffset

@@ -20,7 +20,7 @@ Currently Supported
 AirSim
 ------
 
-The interface to AirSim (https://microsoft.github.io/AirSim/) enables
+The interface to AirSim (https://github.com/microsoft/AirSim/tree/main) enables
 the user to create dynamic scenarios using any AirSim binary.
 
 **Installation**
@@ -61,22 +61,22 @@ achieve this, utilize the scripts located at
 Using Unreal Engine (recommended)
 """""""""""""""""""""""""""""""""
 
-Enable these plugins in UE5:
+Enable these plugins in Unreal Engine:
 - Python Editor Script Plugin
 - Editor Scripting Utilities
 
-First, run the `generateUE4WorldInfo.py` or `generateUE5WorldInfo.py` script inside unreal engine by simply entering in the file path in the engine’s python console.
+First, run the :file:`generateUE4WorldInfo.py` or `generateUE5WorldInfo.py` script inside unreal engine by simply entering in the file path in the engine’s python console.
 Then run `generateWorldInfoFromUnrealWorldInfo.py` script
 
 First, run the :file:`generateUnrealWorldInfo.py` script inside Unreal Engine by
 simply entering in the file path in the engine’s python console.
 
-Then run
-the :file:`generateWorldInfoFromUnrealWorldInfo.py`
-script
+Then run the :file:`generateWorldInfoFromUnrealWorldInfo.py` script
 
 Using Airsim
 """"""""""""
+
+Note: The newest version of airsim is required to to run :file:`generateWorldInfo.py`. Some precompiled binaires from https://github.com/microsoft/AirSim/releases may not be supported.
 
 Run the :file:`generateWorldInfo.py` script
 

@@ -14,10 +14,7 @@ import numpy as np
 import trimesh
 
 from scenic.core.utils import repairMesh
-from scenic.simulators.airsim.utils import (
-    airsimToScenicLocationTuple,
-    airsimToScenicOrientationTuple,
-)
+from scenic.core.vectors import Orientation, Vector
 
 # get output directory
 parser = argparse.ArgumentParser()
@@ -104,6 +101,10 @@ def makeTrimsh(mesh):
         vertices=vertices_reshaped, faces=indices_reshaped, process=True
     )
 
+    # apply mesh rotation
+    rotation_matrix = trimesh.transformations.rotation_matrix(-np.pi / 2, [1, 0, 0])
+    tmesh.apply_transform(rotation_matrix)
+
     if tmesh.body_count > 1:
         tmesh.fix_normals(multibody=True)
     else:
@@ -174,15 +175,22 @@ for mesh in cleanedMeshes:
     objectName = mesh.name
 
     pose = client.simGetObjectPose(objectName)
-    position = airsimToScenicLocationTuple(pose.position)
-    orientation = airsimToScenicOrientationTuple(pose.orientation)
 
-    pitch, roll, yaw = airsim.to_eularian_angles(orientation)
+    position = pose.position
+    position = Vector(
+        position.x_val,
+        position.y_val,
+        position.z_val,
+    )
+    position *= 100  # divide by 100
+    position = Vector(position.x, position.y, -position.z)  # negate z axis
+
+    pitch, roll, yaw = airsim.to_eularian_angles(pose.orientation)
 
     worldInfo.append(
         dict(
             name=objectName,
-            position=position,
+            position=(position.x, position.y, position.z),
             orientation=(pitch, roll, yaw),
         ),
     )

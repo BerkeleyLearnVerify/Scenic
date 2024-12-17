@@ -55,7 +55,6 @@ assetsInputDir = inputDirectory + "assets/"
 tmeshes = {}
 for filename in os.listdir(assetsInputDir):
     if filename.endswith(".fbx"):
-
         # make fbx into stl so that trimesh can read it
         name = os.path.splitext(filename)[0].lower()
         filepath = os.path.join(assetsInputDir, filename)
@@ -114,7 +113,6 @@ worldInfo = []
 with open(inputDirectory + "/actorInfo.json") as file:
     actorInfoList = json.load(file)
     for actorInfo in actorInfoList:
-
         if not (actorInfo["meshName"].lower() in tmeshes):
             continue
 

@@ -27,7 +27,6 @@ def scenicToAirsimOrientation(orientation):
 
 
 def airsimToScenicOrientation(orientation):
-
     pitch, roll, yaw = airsim.to_eularian_angles(orientation)
     angles = (pitch, -yaw - 90, roll)
     r = scipy.spatial.transform.Rotation.from_euler(
@@ -39,7 +38,6 @@ def airsimToScenicOrientation(orientation):
 
 # forPose - if the output will be fed into airsim's airsim.Pose() function
 def scenicToAirsimLocation(position, centerOffset=Vector(0, 0, 0), forPose=True):
-
     # turn position to a vector
     position = Vector(position.x, position.y, position.z)
 
@@ -64,7 +62,6 @@ def scenicToAirsimLocation(position, centerOffset=Vector(0, 0, 0), forPose=True)
 
 # fromPose - if position was gained from simGetObjectPose
 def airsimToScenicLocation(position, centerOffset=Vector(0, 0, 0), fromPose=True):
-
     position = Vector(
         position.x_val,
         position.y_val,
