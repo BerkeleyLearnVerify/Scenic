@@ -51,6 +51,17 @@ def getAssetPath():
     return loader
 
 
+@pytest.fixture
+def launchWebots():
+    DISPLAY = os.environ.get("DISPLAY")
+    if not DISPLAY:
+        pytest.skip("DISPLAY env variable not set.")
+    WEBOTS_ROOT = os.environ.get("WEBOTS_ROOT")
+    if not WEBOTS_ROOT:
+        pytest.skip("WEBOTS_ROOT env variable not set.")
+    return WEBOTS_ROOT
+
+
 ## Command-line options
 
 
