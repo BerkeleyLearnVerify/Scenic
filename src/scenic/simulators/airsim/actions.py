@@ -2,12 +2,12 @@ from scenic.core.simulators import Action
 from scenic.core.type_support import toVector
 
 from .utils import (
+    VectorToAirsimVec,
     airsimToScenicLocation,
     airsimToScenicOrientation,
+    scenicToAirsimLocation,
     scenicToAirsimOrientation,
     scenicToAirsimScale,
-    scenicToAirsimLocation,
-    VectorToAirsimVec,
 )
 
 

@@ -26,9 +26,9 @@ from scenic.syntax.veneer import verbosePrint
 from .utils import (
     airsimToScenicLocation,
     airsimToScenicOrientation,
+    scenicToAirsimLocation,
     scenicToAirsimOrientation,
     scenicToAirsimScale,
-    scenicToAirsimLocation,
 )
 
 # Constants

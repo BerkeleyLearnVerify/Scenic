@@ -1,8 +1,9 @@
-import unreal
-from pathlib import Path
-import os
 import argparse
 import json
+import os
+from pathlib import Path
+
+import unreal
 
 # get output directory
 parser = argparse.ArgumentParser()

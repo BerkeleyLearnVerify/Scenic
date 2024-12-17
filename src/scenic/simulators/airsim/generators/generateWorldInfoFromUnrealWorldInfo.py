@@ -1,13 +1,14 @@
 import argparse
 import json
 import os
+import shutil
 from warnings import warn
+
+import bpy
 import numpy as np
 import trimesh
-import bpy
-import shutil
-from scenic.core.utils import repairMesh
 
+from scenic.core.utils import repairMesh
 
 WORLD_SCALE = 10000
 DEFAULT_MESH = trimesh.creation.box((1, 1, 1))
