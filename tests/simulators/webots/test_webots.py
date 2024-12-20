@@ -25,8 +25,16 @@ def cleanup_results():
 def test_dynamics_scenarios(launchWebots):
     WEBOTS_ROOT = launchWebots
     cleanup_results()
+
+    timeout_seconds = 300
+    
     command = f"bash {WEBOTS_ROOT}/webots --no-rendering --minimize --batch {WEBOTS_WORLD_FILE_PATH}"
-    subprocess.run(command, shell=True)
+
+    try:
+        subprocess.run(command, shell=True, timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+        pytest.fail(f"Webots test exceeded the timeout of {timeout_seconds} seconds and failed.")
+        
     data = receive_results()
     assert data != None
     start_z = float(data.split(",")[1].strip(" )]"))
