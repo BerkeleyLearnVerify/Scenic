@@ -1,3 +1,9 @@
+# NOTE: MetaDrive currently has their own coordinate
+# system where (0,0) is centered around the middle of
+# the SUMO Map. To preserve the original SUMO map coordinates
+# we will offset by the computed center x and y coordinates
+# https://github.com/metadriverse/metadrive/blob/aaed1f7f2512061ddd8349d1d411e374dab87a43/metadrive/utils/sumo/map_utils.py#L165-L172
+
 try:
     from metadrive.envs import BaseEnv
     from metadrive.manager.sumo_map_manager import SumoMapManager
@@ -15,8 +21,7 @@ import numpy as np
 
 from scenic.core.vectors import Vector
 
-# Dictionary to store calculated map parameters
-_map_parameters_cache = {}
+_map_parameters = None
 
 
 def calculateFilmSize(sumo_map_path, scaling=5, margin_factor=1.1):
@@ -46,9 +51,10 @@ def extractNetOffsetAndBoundary(sumo_map_path):
 
 
 def getMapParameters(sumo_map_path):
-    """Get cached map parameters or calculate them if not cached."""
-    if sumo_map_path in _map_parameters_cache:
-        return _map_parameters_cache[sumo_map_path]
+    """Retrieve the map parameters."""
+    global _map_parameters
+    if _map_parameters is not None:
+        return _map_parameters
 
     # If parameters are not cached, calculate and cache them
     net_offset, sumo_map_boundary = extractNetOffsetAndBoundary(sumo_map_path)
@@ -60,14 +66,14 @@ def getMapParameters(sumo_map_path):
         offset_y = net_offset[1]
 
         # Cache the parameters
-        _map_parameters_cache[sumo_map_path] = (
+        _map_parameters = (
             center_x,
             center_y,
             offset_x,
             offset_y,
             sumo_map_boundary,
         )
-        return center_x, center_y, offset_x, offset_y, sumo_map_boundary
+        return _map_parameters
     else:
         raise RuntimeError("Failed to extract netOffset or convBoundary from SUMO map.")
 

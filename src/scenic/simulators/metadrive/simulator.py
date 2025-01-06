@@ -1,3 +1,5 @@
+"""Simulator interface for MetaDrive."""
+
 try:
     from metadrive.component.traffic_participants.pedestrian import Pedestrian
     from metadrive.component.vehicle.vehicle_type import DefaultVehicle
@@ -17,8 +19,6 @@ from scenic.domains.driving.controllers import (
 from scenic.domains.driving.simulators import DrivingSimulation, DrivingSimulator
 from scenic.simulators.metadrive.actions import *
 import scenic.simulators.metadrive.utils as utils
-
-from .utils import DriveEnv
 
 
 class MetaDriveSimulator(DrivingSimulator):
@@ -92,42 +92,6 @@ class MetaDriveSimulation(DrivingSimulation):
     def setup(self):
         super().setup()
 
-    def step(self):
-        # decision_repeat = math.ceil(self.timestep / 0.02)
-        # physics_world_step_size = self.timestep / decision_repeat
-
-        # self.client.config["decision_repeat"] = decision_repeat
-        # self.client.config["physics_world_step_size"] = physics_world_step_size
-
-        # self.client.engine.step()
-        # print("IN STEP")
-
-        if len(self.scene.objects) > 0:
-            obj = self.scene.objects[0]
-            action = obj.metaDriveActor.last_current_action[-1]
-            o, r, tm, tc, info = self.client.step(action)
-
-        if self.render and not self.render3D:
-            scaling = 5
-            film_size = utils.calculateFilmSize(self.sumo_map, scaling)
-            self.client.render(
-                mode="topdown", semantic_map=True, film_size=film_size, scaling=scaling
-            )
-
-    def executeActions(self, allActions):
-        """Execute actions for all vehicles in the simulation."""
-        print("ALL ACTIONS: ", allActions)
-        super().executeActions(allActions)
-
-        # Iterate through all agents in the scene
-        for obj in self.scene.objects:
-            if hasattr(obj, "metaDriveActor") and obj.metaDriveActor is not None:
-                # Apply the accumulated control inputs using before_step
-                obj.applyControl()
-
-                # Reset control inputs after they are applied
-                obj.resetControl()
-
     def createObjectInSimulator(self, obj):
         """
         Create an object in the MetaDrive simulator.
@@ -135,7 +99,7 @@ class MetaDriveSimulation(DrivingSimulation):
         If it's the first object, it initializes the client and sets it up for the ego car.
         For additional cars, it spawns objects using the provided position and heading.
         """
-        # Convert position and heading from Scenic to MetaDrive
+
         converted_position = utils.scenicToMetaDrivePosition(obj.position, self.sumo_map)
         converted_heading = utils.scenicToMetaDriveHeading(obj.heading)
 
@@ -144,7 +108,7 @@ class MetaDriveSimulation(DrivingSimulation):
             physics_world_step_size = self.timestep / decision_repeat
 
             # Initialize the simulator with ego vehicle
-            self.client = DriveEnv(
+            self.client = utils.DriveEnv(
                 dict(
                     decision_repeat=decision_repeat,
                     physics_world_step_size=physics_world_step_size,
@@ -154,7 +118,6 @@ class MetaDriveSimulation(DrivingSimulation):
                             converted_position,
                             converted_heading,
                         ],
-                        # "enable_reverse": True,
                     },
                     use_mesh_terrain=self.render3D,
                     log_level=logging.CRITICAL,
@@ -169,10 +132,15 @@ class MetaDriveSimulation(DrivingSimulation):
                 ego_metaDriveActor = list(metadrive_objects.values())[0]
                 obj.metaDriveActor = ego_metaDriveActor
                 self.defined_ego = True
+                # print("INITIAL META HEADING: ", obj.metaDriveActor.heading_theta)
                 return obj.metaDriveActor
+            else:
+                raise SimulationCreationError(
+                    f"Unable to initialize MetaDrive ego vehicle for object {obj}"
+                )
 
         # For additional cars
-        if type(obj).__name__ == "Car":
+        if obj.isCar:
             metaDriveActor = self.client.engine.agent_manager.spawn_object(
                 DefaultVehicle,
                 vehicle_config=dict(),
@@ -183,7 +151,7 @@ class MetaDriveSimulation(DrivingSimulation):
             return metaDriveActor
 
         # For pedestrians
-        if type(obj).__name__ == "Pedestrian":
+        if obj.isPedestrian:
             metaDriveActor = self.client.engine.agent_manager.spawn_object(
                 Pedestrian,
                 position=converted_position,
@@ -192,7 +160,49 @@ class MetaDriveSimulation(DrivingSimulation):
             obj.metaDriveActor = metaDriveActor
             return metaDriveActor
 
-        return None
+        # If the object type is unsupported, raise an error
+        raise SimulationCreationError(
+            f"Unsupported object type: {type(obj)} for object {obj}."
+        )
+
+    def executeActions(self, allActions):
+        """Execute actions for all vehicles in the simulation."""
+        super().executeActions(allActions)
+
+        # Apply control updates which were accumulated while executing the actions
+        for idx, obj in enumerate(self.scene.objects):
+            if obj.isCar:
+                if idx == 0:  # Skip the ego car
+                    pass
+                else:
+                    steering = -obj._control["steering"]
+                    action = [
+                        steering,
+                        obj._control["throttle"] - obj._control["brake"],
+                    ]
+                    obj.metaDriveActor.before_step(action)
+                    obj.resetControl()
+
+    def step(self):
+        # Special handling for the ego vehicle
+        ego_obj = self.scene.objects[0]
+        if ego_obj.isCar:
+            steering = -ego_obj._control[
+                "steering"
+            ]  # Invert the steering to match MetaDrive's convention
+            action = [
+                steering,
+                ego_obj._control["throttle"] - ego_obj._control["brake"],
+            ]
+            self.client.step(action)  # Apply action in the simulator
+            ego_obj.resetControl()
+
+        # Render the scene in 2D if needed
+        if self.render and not self.render3D:
+            film_size = utils.calculateFilmSize(self.sumo_map, scaling=5)
+            self.client.render(
+                mode="topdown", semantic_map=True, film_size=film_size, scaling=5
+            )
 
     def destroy(self):
         if self.client:
@@ -233,7 +243,9 @@ class MetaDriveSimulation(DrivingSimulation):
         dt = self.timestep
         if agent.isCar:
             lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-            lat_controller = PIDLateralController(K_P=0.05, K_D=0.05, K_I=0.02, dt=dt)
+            # lat_controller = PIDLateralController(K_P=0.05, K_D=0.05, K_I=0.02, dt=dt)
+            # lat_controller = PIDLateralController(K_P=0.1, K_D=0.05, K_I=0.03, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.03, dt=dt)
         else:
             lon_controller = PIDLongitudinalController(
                 K_P=0.25, K_D=0.025, K_I=0.0, dt=dt

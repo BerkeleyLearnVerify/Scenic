@@ -33,4 +33,3 @@ leadCar = new Car on select_lane.centerline,
 
 ego = new Car following roadDirection from leadCar for INITIAL_DISTANCE_APART,
         with behavior FollowLeadCarBehavior()
-

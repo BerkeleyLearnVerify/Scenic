@@ -18,7 +18,7 @@ behavior StopWalking():
         take SetWalkingSpeedAction(0)
 
 behavior WalkThenStop():
-    do WalkForward() for 30 steps
+    do WalkForward() for 500 steps
     do StopWalking() for 10 steps
 
 

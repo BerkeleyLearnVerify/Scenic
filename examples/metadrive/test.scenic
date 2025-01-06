@@ -6,7 +6,7 @@ import numpy as np
 ego = new Car
 
 # car heading North
-# ego = new Car with heading np.pi/2
+# ego = new Car with heading 0
 
 # 90 deg should be west
 # ego = new Car with heading 90 deg
