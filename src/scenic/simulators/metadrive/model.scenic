@@ -47,7 +47,7 @@ class MetaDriveActor(DrivingObject):
     #         self.metaDriveActor.before_step(action)
 
     def setPosition(self, pos):
-        converted_position = scenicToMetaDrivePosition(pos, self.sumo_map)
+        converted_position = scenicToMetaDrivePosition(pos, self.center_x, self.center_y, self.offset_x, self.offset_y)
         self.metaDriveActor.set_position(converted_position)
 
     def setVelocity(self, vel):

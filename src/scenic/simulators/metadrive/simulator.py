@@ -38,6 +38,19 @@ class MetaDriveSimulator(DrivingSimulator):
         self.timestep = timestep
         self.sumo_map = sumo_map
 
+        (
+            self.center_x,
+            self.center_y,
+            self.offset_x,
+            self.offset_y,
+            self.sumo_map_boundary,
+        ) = self._get_map_parameters()
+
+    def _get_map_parameters(self):
+        """Helper method to extract map parameters."""
+        # Use utility function to get the map parameters
+        return utils.getMapParameters(self.sumo_map)
+
     def createSimulation(self, scene, *, timestep, **kwargs):
         if timestep is not None and timestep != self.timestep:
             raise RuntimeError(
@@ -52,6 +65,11 @@ class MetaDriveSimulator(DrivingSimulator):
             scenario_number=self.scenario_number,
             timestep=self.timestep,
             sumo_map=self.sumo_map,
+            center_x=self.center_x,
+            center_y=self.center_y,
+            offset_x=self.offset_x,
+            offset_y=self.offset_y,
+            sumo_map_boundary=self.sumo_map_boundary,
             **kwargs,
         )
 
@@ -68,6 +86,11 @@ class MetaDriveSimulation(DrivingSimulation):
         scenario_number,
         timestep,
         sumo_map,
+        center_x,
+        center_y,
+        offset_x,
+        offset_y,
+        sumo_map_boundary,
         **kwargs,
     ):
         # NOTE: MetaDrive requires at least one agent to be defined per simulation run
@@ -87,6 +110,11 @@ class MetaDriveSimulation(DrivingSimulation):
         self.client = None
         self.timestep = timestep
         self.sumo_map = sumo_map
+        self.center_x = center_x
+        self.center_y = center_y
+        self.offset_x = offset_x
+        self.offset_y = offset_y
+        self.sumo_map_boundary = sumo_map_boundary
         super().__init__(scene, timestep=timestep, **kwargs)
 
     def setup(self):
@@ -100,7 +128,9 @@ class MetaDriveSimulation(DrivingSimulation):
         For additional cars, it spawns objects using the provided position and heading.
         """
 
-        converted_position = utils.scenicToMetaDrivePosition(obj.position, self.sumo_map)
+        converted_position = utils.scenicToMetaDrivePosition(
+            obj.position, self.center_x, self.center_y, self.offset_x, self.offset_y
+        )
         converted_heading = utils.scenicToMetaDriveHeading(obj.heading)
 
         if not self.defined_ego:
@@ -199,7 +229,7 @@ class MetaDriveSimulation(DrivingSimulation):
 
         # Render the scene in 2D if needed
         if self.render and not self.render3D:
-            film_size = utils.calculateFilmSize(self.sumo_map, scaling=5)
+            film_size = utils.calculateFilmSize(self.sumo_map_boundary, scaling=5)
             self.client.render(
                 mode="topdown", semantic_map=True, film_size=film_size, scaling=5
             )
@@ -214,11 +244,19 @@ class MetaDriveSimulation(DrivingSimulation):
 
     def getProperties(self, obj, properties):
         metaDriveActor = obj.metaDriveActor
-        position = utils.metadriveToScenicPosition(metaDriveActor.position, self.sumo_map)
+        position = utils.metadriveToScenicPosition(
+            metaDriveActor.position,
+            self.center_x,
+            self.center_y,
+            self.offset_x,
+            self.offset_y,
+        )
         velocity = Vector(*metaDriveActor.velocity, 0)
         speed = metaDriveActor.speed
         angularSpeed = 0
-        angularVelocity = utils.metadriveToScenicPosition((0, 0), self.sumo_map)
+        angularVelocity = utils.metadriveToScenicPosition(
+            (0, 0), self.center_x, self.center_y, self.offset_x, self.offset_y
+        )
         converted_heading = utils.metaDriveToScenicHeading(metaDriveActor.heading_theta)
         yaw, pitch, roll = obj.parentOrientation.globalToLocalAngles(
             converted_heading, 0, 0
@@ -243,8 +281,6 @@ class MetaDriveSimulation(DrivingSimulation):
         dt = self.timestep
         if agent.isCar:
             lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-            # lat_controller = PIDLateralController(K_P=0.05, K_D=0.05, K_I=0.02, dt=dt)
-            # lat_controller = PIDLateralController(K_P=0.1, K_D=0.05, K_I=0.03, dt=dt)
             lat_controller = PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.03, dt=dt)
         else:
             lon_controller = PIDLongitudinalController(
