@@ -201,29 +201,21 @@ class MetaDriveSimulation(DrivingSimulation):
 
         # Apply control updates which were accumulated while executing the actions
         for idx, obj in enumerate(self.scene.objects):
-            if obj.isCar:
+            if hasattr(obj, "isCar") and obj.isCar:
                 if idx == 0:  # Skip the ego car
                     pass
                 else:
-                    steering = -obj._control["steering"]
-                    action = [
-                        steering,
-                        obj._control["throttle"] - obj._control["brake"],
-                    ]
+                    action = obj.collectAction()
                     obj.metaDriveActor.before_step(action)
                     obj.resetControl()
+            elif hasattr(obj, "isPedestrian") and obj.isPedestrian:
+                obj.updateMovement()
 
     def step(self):
         # Special handling for the ego vehicle
         ego_obj = self.scene.objects[0]
         if ego_obj.isCar:
-            steering = -ego_obj._control[
-                "steering"
-            ]  # Invert the steering to match MetaDrive's convention
-            action = [
-                steering,
-                ego_obj._control["throttle"] - ego_obj._control["brake"],
-            ]
+            action = ego_obj.collectAction()
             self.client.step(action)  # Apply action in the simulator
             ego_obj.resetControl()
 

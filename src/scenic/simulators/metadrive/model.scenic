@@ -24,38 +24,23 @@ class MetaDriveActor(DrivingObject):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+
+class Vehicle(Vehicle, Steers, MetaDriveActor):
+    """Abstract class for steerable vehicles."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._control = {"steering": 0, "throttle": 0, "brake": 0}
 
     @property
     def control(self):
-        """Returns the current accumulated control inputs."""
+        """Returns the current accumulated control inputs (throttle, brake, and steering)."""
         return self._control
 
     def resetControl(self):
         """Reset the control inputs after they've been applied."""
         self._control = {"steering": 0, "throttle": 0, "brake": 0}
-
-    # def applyControl(self):
-    #     """Applies the accumulated control inputs using `before_step`."""
-    #     print("SELF: ", self)
-    #     if isinstance(self, Car):  # Apply to cars only
-    #         steering = -self._control["steering"]  # Invert the steering to match MetaDrive's convention
-    #         action = [
-    #             steering,
-    #             self._control["throttle"] - self._control["brake"],
-    #         ]
-    #         self.metaDriveActor.before_step(action)
-
-    def setPosition(self, pos):
-        converted_position = scenicToMetaDrivePosition(pos, self.center_x, self.center_y, self.offset_x, self.offset_y)
-        self.metaDriveActor.set_position(converted_position)
-
-    def setVelocity(self, vel):
-        raise NotImplementedError
-
-
-class Vehicle(Vehicle, Steers, MetaDriveActor):
-    """Abstract class for steerable vehicles."""
 
     def setThrottle(self, throttle):
         self.control["throttle"] = throttle
@@ -66,6 +51,14 @@ class Vehicle(Vehicle, Steers, MetaDriveActor):
     def setBraking(self, braking):
         self.control["brake"] = braking
 
+    def collectAction(self):
+        """For vehicles, accumulate the throttle, brake, and steering, and return the action."""
+        steering = -self.control["steering"]  # Invert the steering to match MetaDrive's convention
+        action = [
+            steering,
+            self.control["throttle"] - self.control["brake"],
+        ]
+        return action
 
 class Car(Vehicle):
     @property
@@ -75,21 +68,39 @@ class Car(Vehicle):
 class Pedestrian(Pedestrian, MetaDriveActor, Walks):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._heading = None
+        self._speed = None
 
     @property
     def isPedestrian(self):
         return True
 
     def setWalkingDirection(self, heading):
-        converted_heading = scenicToMetaDriveHeading(heading)
-        # self.metaDriveActor.set_heading_theta(converted_heading)
-        direction = Vector(math.cos(converted_heading), math.sin(converted_heading))
-        self.metaDriveActor.set_velocity([direction.x, direction.y])
+        """Accumulate the heading for the pedestrian."""
+        self._heading = heading  # Store the heading
 
     def setWalkingSpeed(self, speed):
-        # Get the current heading
-        current_heading = self.metaDriveActor.heading_theta  # This is in radians
-        # Convert heading to direction vector
-        direction = Vector(math.cos(current_heading), math.sin(current_heading))
-        # Set the velocity with the desired speed
-        self.metaDriveActor.set_velocity([direction.x, direction.y], speed)
+        """Accumulate the speed for the pedestrian."""
+        self._speed = speed  # Store the speed
+
+    def updateMovement(self):
+        """Accumulate both heading and speed, and set velocity once."""
+        if self._heading is not None and self._speed is not None:
+            # Both heading and speed are provided
+            converted_heading = scenicToMetaDriveHeading(self._heading)
+            direction = Vector(math.cos(converted_heading), math.sin(converted_heading))
+            self.metaDriveActor.set_velocity([direction.x, direction.y], self._speed)
+        elif self._heading is not None:
+            # Only heading is provided
+            converted_heading = scenicToMetaDriveHeading(self._heading)
+            direction = Vector(math.cos(converted_heading), math.sin(converted_heading))
+            self.metaDriveActor.set_velocity([direction.x, direction.y])
+        elif self._speed is not None:
+            # Only speed is provided
+            current_heading = self.metaDriveActor.heading_theta
+            direction = Vector(math.cos(current_heading), math.sin(current_heading))
+            self.metaDriveActor.set_velocity([direction.x, direction.y], self._speed)
+
+        # Reset heading and speed after applying velocity
+        self._heading = None
+        self._speed = None
