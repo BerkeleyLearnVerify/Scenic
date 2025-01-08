@@ -270,7 +270,12 @@ class MetaDriveSimulation(DrivingSimulation):
         dt = self.timestep
         if agent.isCar:
             lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-            lat_controller = PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.03, dt=dt)
+            # lat_controller = PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.03, dt=dt)
+            # lat_controller = PIDLateralController(K_P=0.15, K_D=0.1, K_I=0.03, dt=dt)
+            # lat_controller = PIDLateralController(K_P=0.1, K_D=0.3, K_I=0.05, dt=dt)
+            # lat_controller = PIDLateralController(K_P=0.11, K_D=0.3, K_I=0.05, dt=dt)
+            # lat_controller = PIDLateralController(K_P=0.12, K_D=0.3, K_I=0.05, dt=dt)
+            lat_controller = PIDLateralController(K_P=0.13, K_D=0.3, K_I=0.05, dt=dt)
         else:
             lon_controller = PIDLongitudinalController(
                 K_P=0.25, K_D=0.025, K_I=0.0, dt=dt
