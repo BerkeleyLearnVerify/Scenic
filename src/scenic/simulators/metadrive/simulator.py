@@ -125,7 +125,7 @@ class MetaDriveSimulation(DrivingSimulation):
         Create an object in the MetaDrive simulator.
 
         If it's the first object, it initializes the client and sets it up for the ego car.
-        For additional cars, it spawns objects using the provided position and heading.
+        For additional cars and pedestrians, it spawns objects using the provided position and heading.
         """
 
         converted_position = utils.scenicToMetaDrivePosition(
@@ -162,7 +162,6 @@ class MetaDriveSimulation(DrivingSimulation):
                 ego_metaDriveActor = list(metadrive_objects.values())[0]
                 obj.metaDriveActor = ego_metaDriveActor
                 self.defined_ego = True
-                # print("INITIAL META HEADING: ", obj.metaDriveActor.heading_theta)
                 return obj.metaDriveActor
             else:
                 raise SimulationCreationError(
@@ -201,15 +200,13 @@ class MetaDriveSimulation(DrivingSimulation):
 
         # Apply control updates which were accumulated while executing the actions
         for idx, obj in enumerate(self.scene.objects):
-            if hasattr(obj, "isCar") and obj.isCar:
+            if obj.isCar:
                 if idx == 0:  # Skip the ego car
                     pass
                 else:
                     action = obj.collectAction()
                     obj.metaDriveActor.before_step(action)
                     obj.resetControl()
-            elif hasattr(obj, "isPedestrian") and obj.isPedestrian:
-                obj.updateMovement()
 
     def step(self):
         # Special handling for the ego vehicle
