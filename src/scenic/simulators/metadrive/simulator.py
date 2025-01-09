@@ -213,7 +213,7 @@ class MetaDriveSimulation(DrivingSimulation):
         ego_obj = self.scene.objects[0]
         if ego_obj.isCar:
             action = ego_obj.collectAction()
-            self.client.step(action)  # Apply action in the simulator
+            o, r, tm, tc, info = self.client.step(action)  # Apply action in the simulator
             ego_obj.resetControl()
 
         # Render the scene in 2D if needed
@@ -270,11 +270,6 @@ class MetaDriveSimulation(DrivingSimulation):
         dt = self.timestep
         if agent.isCar:
             lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
-            # lat_controller = PIDLateralController(K_P=0.1, K_D=0.1, K_I=0.03, dt=dt)
-            # lat_controller = PIDLateralController(K_P=0.15, K_D=0.1, K_I=0.03, dt=dt)
-            # lat_controller = PIDLateralController(K_P=0.1, K_D=0.3, K_I=0.05, dt=dt)
-            # lat_controller = PIDLateralController(K_P=0.11, K_D=0.3, K_I=0.05, dt=dt)
-            # lat_controller = PIDLateralController(K_P=0.12, K_D=0.3, K_I=0.05, dt=dt)
             lat_controller = PIDLateralController(K_P=0.13, K_D=0.3, K_I=0.05, dt=dt)
         else:
             lon_controller = PIDLongitudinalController(
