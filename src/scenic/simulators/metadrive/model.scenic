@@ -23,14 +23,12 @@ Global Parameters:
         as long as the specified timestep. If False, the simulation may run faster, based on the time it takes
         to process each step.
 """
-
 from scenic.simulators.metadrive.simulator import MetaDriveSimulator
 from scenic.domains.driving.model import *
 from scenic.simulators.metadrive.actions import *
 from scenic.simulators.metadrive.behaviors import *
 from scenic.simulators.metadrive.utils import scenicToMetaDriveHeading
 from metadrive.utils.math import norm
-
 
 param sumo_map = globalParameters.sumo_map
 param timestep = 0.1
@@ -47,7 +45,17 @@ simulator MetaDriveSimulator(
 )
 
 class MetaDriveActor(DrivingObject):
-    """Abstract class for MetaDrive objects."""
+    """Abstract class for MetaDrive objects.
+
+    This class serves as a base for objects in the MetaDrive simulator. It provides essential
+    functionality for associating Scenic objects with their corresponding MetaDrive simulation objects.
+
+    Properties:
+        metaDriveActor: A reference to the MetaDrive actor (e.g., vehicle or pedestrian) associated
+                        with this Scenic object. This is set when the object is created in the simulator.
+                        It allows interaction with MetaDrive's simulation environment, such as applying actions
+                        or retrieving simulation data (position, velocity, etc.).
+    """
     metaDriveActor: None
 
     def __init__(self, *args, **kwargs):
