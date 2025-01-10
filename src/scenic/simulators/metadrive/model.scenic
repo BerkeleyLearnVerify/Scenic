@@ -1,3 +1,29 @@
+"""Scenic world model for traffic scenarios in MetaDrive.
+
+The model currently supports vehicles and pedestrians. It implements the
+basic `Vehicle`, `Car` and `Pedestrian` classes from the :obj:`scenic.domains.driving` domain.
+Vehicles and pedestrians support the basic actions and behaviors from the driving domain.
+
+The model defines several global parameters, whose default values can be overridden
+in scenarios using the ``param`` statement or on the command line using the
+:option:`--param` option:
+
+Global Parameters:
+    sumo_map (str or Path): Path to the SUMO map (``.net.xml`` file) to use in the simulation.
+        This map should correspond to the **map** file used in the scenario, which must be in the OpenDrive
+        format (``.xodr`` file).
+    timestep (float): The interval (in seconds) between each simulation step. This determines how often Scenic
+        interrupts MetaDrive to run behaviors, check requirements, and update the simulation state.
+        The default value is 0.1 seconds.
+    render (bool): Whether to render the simulation screen. If True (default), it will open a screen and render
+        the simulation. If False, rendering is disabled.
+    render3D (bool): Whether to render the simulation in 3D. If True, it will render the simulation in 3D.
+        If False (default), it will render in 2D.
+    real_time (bool): If True (default), the simulation will run in real time, ensuring each step takes at least
+        as long as the specified timestep. If False, the simulation may run faster, based on the time it takes
+        to process each step.
+"""
+
 from scenic.simulators.metadrive.simulator import MetaDriveSimulator
 from scenic.domains.driving.model import *
 from scenic.simulators.metadrive.actions import *
@@ -10,15 +36,13 @@ param sumo_map = globalParameters.sumo_map
 param timestep = 0.1
 param render = 1
 param render3D = 0
-# If True, the simulation will run in real time, ensuring each step takes at least as long as the specified timestep.
-# If False, the simulation may run faster, based on the time it takes to process each step.
 param real_time = 1
 
 simulator MetaDriveSimulator(
+    sumo_map=globalParameters.sumo_map,
     timestep=float(globalParameters.timestep),
     render=bool(globalParameters.render),
     render3D=bool(globalParameters.render3D),
-    sumo_map=globalParameters.sumo_map,
     real_time=bool(globalParameters.real_time),
 )
 
