@@ -10,6 +10,7 @@ except ImportError as e:
 
 import logging
 import sys
+import time
 
 from scenic.core.simulators import SimulationCreationError
 from scenic.domains.driving.controllers import (
@@ -30,6 +31,7 @@ class MetaDriveSimulator(DrivingSimulator):
         render=True,
         render3D=False,
         sumo_map=None,
+        real_time=True,
     ):
         super().__init__()
         self.render = render
@@ -37,7 +39,7 @@ class MetaDriveSimulator(DrivingSimulator):
         self.scenario_number = 0
         self.timestep = timestep
         self.sumo_map = sumo_map
-
+        self.real_time = real_time
         (
             self.center_x,
             self.center_y,
@@ -65,6 +67,7 @@ class MetaDriveSimulator(DrivingSimulator):
             scenario_number=self.scenario_number,
             timestep=self.timestep,
             sumo_map=self.sumo_map,
+            real_time=self.real_time,
             center_x=self.center_x,
             center_y=self.center_y,
             offset_x=self.offset_x,
@@ -86,6 +89,7 @@ class MetaDriveSimulation(DrivingSimulation):
         scenario_number,
         timestep,
         sumo_map,
+        real_time,
         center_x,
         center_y,
         offset_x,
@@ -110,6 +114,7 @@ class MetaDriveSimulation(DrivingSimulation):
         self.client = None
         self.timestep = timestep
         self.sumo_map = sumo_map
+        self.real_time = real_time
         self.center_x = center_x
         self.center_y = center_y
         self.offset_x = offset_x
@@ -209,6 +214,8 @@ class MetaDriveSimulation(DrivingSimulation):
                     obj.resetControl()
 
     def step(self):
+        start_time = time.monotonic()
+
         # Special handling for the ego vehicle
         ego_obj = self.scene.objects[0]
         if ego_obj.isCar:
@@ -222,6 +229,13 @@ class MetaDriveSimulation(DrivingSimulation):
             self.client.render(
                 mode="topdown", semantic_map=True, film_size=film_size, scaling=5
             )
+
+        # If real-time synchronization is enabled, sleep to maintain real-time pace
+        if self.real_time:
+            end_time = time.monotonic()
+            elapsed_time = end_time - start_time
+            if elapsed_time < self.timestep:
+                time.sleep(self.timestep - elapsed_time)
 
     def destroy(self):
         if self.client:

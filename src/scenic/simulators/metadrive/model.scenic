@@ -10,12 +10,16 @@ param sumo_map = globalParameters.sumo_map
 param timestep = 0.1
 param render = 1
 param render3D = 0
+# If True, the simulation will run in real time, ensuring each step takes at least as long as the specified timestep.
+# If False, the simulation may run faster, based on the time it takes to process each step.
+param real_time = 1
 
 simulator MetaDriveSimulator(
     timestep=float(globalParameters.timestep),
     render=bool(globalParameters.render),
     render3D=bool(globalParameters.render3D),
     sumo_map=globalParameters.sumo_map,
+    real_time=bool(globalParameters.real_time),
 )
 
 class MetaDriveActor(DrivingObject):
