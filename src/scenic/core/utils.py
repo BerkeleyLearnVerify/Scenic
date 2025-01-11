@@ -320,7 +320,12 @@ def findMeshInteriorPoint(mesh, num_samples=None):
             num_samples = 1
         else:
             num_samples = math.ceil(min(1e6, max(1, math.log(0.01, 1 - p_volume))))
-    samples = trimesh.sample.volume_mesh(mesh, num_samples)
+
+    # Do the "random" number generation ourselves so that it's deterministic
+    # (this helps debugging and reproducibility)
+    rng = numpy.random.default_rng(49493130352093220597973654454967996892)
+    pts = (rng.random((num_samples, 3)) * mesh.extents) + mesh.bounds[0]
+    samples = pts[mesh.contains(pts)]
     if samples.size > 0:
         return samples[0]
 
