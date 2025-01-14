@@ -94,7 +94,7 @@ jobs:
             ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
               cd /home/ubuntu/actions/ &&
               rm -rf Scenic &&
-              git clone --branch $(basename "${GH_REF}") --single-branch https://$GH_ACCESS_TOKEN@github.com/BerkeleyLearnVerify/Scenic.git &&
+              git clone --branch $(basename "$GH_REF") --single-branch https://$GH_ACCESS_TOKEN@github.com/BerkeleyLearnVerify/Scenic.git &&
               cd Scenic &&
               python3 -m venv venv &&
               source venv/bin/activate &&
