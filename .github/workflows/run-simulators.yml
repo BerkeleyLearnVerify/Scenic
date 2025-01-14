@@ -96,7 +96,6 @@ jobs:
               echo "GitHub Ref inside SSH: $GH_REF"
               echo "Cloning branch: $(basename "$GH_REF")"
               echo "With: ${GH_REF}"
-              echo "With double: ${{GH_REF}}"
               cd /home/ubuntu/actions/ &&
               rm -rf Scenic &&
               git clone --branch $(basename "$GH_REF") --single-branch https://$GH_ACCESS_TOKEN@github.com/BerkeleyLearnVerify/Scenic.git &&
