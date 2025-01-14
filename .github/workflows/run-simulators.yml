@@ -91,10 +91,8 @@ jobs:
             GH_REF: ${{ github.ref }}
           run: |
             echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-            echo "GitHub Ref: $GH_REF"
-            ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
+            ssh -o StrictHostKeyChecking=no -o SendEnv=GH_REF -i private_key ${USER_NAME}@${HOSTNAME} '
               echo "GitHub Ref inside SSH: $GH_REF"
-              echo "Cloning branch: $(basename "$GH_REF")"
               echo "With: ${GH_REF}"
               cd /home/ubuntu/actions/ &&
               rm -rf Scenic &&
