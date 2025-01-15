@@ -107,7 +107,7 @@ component ThrottleSafetyFilter(min_dist, min_slowdown, max_brake=5, buffer_paddi
 
         # If we are in the "danger zone", brake HARD. Otherwise, pass through the inputs actions action.
         rel_speed = (state.last_dist - dist)/timestep
-        stopping_time = math.ceil(rel_speed/min_slowdown)+1
+        stopping_time = math.ceil(speed/max_brake)
         rel_dist_covered = stopping_time*speed + (max_brake - min_slowdown)*(stopping_time*(stopping_time+1))/2
         danger_dist = min_dist + buffer_padding + max(0, rel_dist_covered)
 
@@ -286,7 +286,7 @@ contract AccurateRelativeSpeeds(perception_distance, abs_dist_err=0.5, abs_speed
         # Guarantee that the perceived speed of the lead car is relatively accurate
         always (behind_car implies (relative_speed-abs_speed_err <= true_relative_speed <= relative_speed+abs_speed_err))
 
-contract SafeThrottleFilter(perception_distance, min_dist, min_slowdown, abs_speed_err=0.5, max_brake=float("inf")):
+contract SafeThrottleFilter(perception_distance, min_dist, min_slowdown, abs_dist_err=0.5, abs_speed_err=0.5, max_brake=float("inf")):
     """ A contract stating that if inputs indicate we are too close for safety, we issue a braking action."""
     inputs:
         dist: float
@@ -307,7 +307,7 @@ contract SafeThrottleFilter(perception_distance, min_dist, min_slowdown, abs_spe
 
     guarantees:
         # Guarantee that if we sense we are too close to the car in front of us, we brake with max force.
-        always (dist < buffer_dist) implies (modulated_throttle == -1)
+        always (dist < buffer_dist+abs_dist_error) implies (modulated_throttle == -1)
 
 contract PassthroughBrakingActionGenerator():
     """ A contract stating that the outputted action represents the input throttle"""
@@ -337,7 +337,7 @@ contract MaxBrakingForce(min_slowdown):
 
     guarantees:
         always ((no_throttle and full_brake)
-            implies (self.speed == 0 or ((next self.speed) <= self.speed - min_slowdown))
+            implies (self.speed == 0 or ((next self.speed) == self.speed - max_brake))
         )
 
 ## Overall System Spec ##
@@ -354,33 +354,35 @@ contract KeepsDistance(perception_distance, min_dist, max_brake=float("inf"), ma
         lead_dist = lead_distances[lead_car]
         behind_car = lead_dist <= perception_distance
 
-        true_relative_speed =  lead_car.speed - self.speed
+        true_relative_speed = lead_car.speed - self.speed
 
-        stopping_time = math.ceil(self.speed/min_slowdown)+1
-        rel_dist_covered = stopping_time*self.speed + (true_relative_speed+abs_speed_err)*(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
-        buffer_dist = min_dist + rel_dist_covered
-
-        # Maximum distance delta in one timestep. Here we use speed diff of 150 km/h and timestep of 0.1 seconds.
-        transition_dist = buffer_dist + 4
+        stopping_time = math.ceil(self.speed/max_brake)
+        rel_dist_covered = stopping_time*self.speed + (true_relative_speed + abs_speed_err)
+        delta_stopping_time = math.ceil((self.speed+max_accel)/max_brake)
+        max_rdc_delta = delta_stopping_time*self.speed + (true_relative_speed + max_brake + max_accel + abs_speed_err)
+        buffer_dist = min_dist + (max(0, max_rdc_delta + rel_dist_covered))
 
     assumptions:
         # Assume we are in a lane
         always self._lane is not None
 
+        # Assume lower and upper bounds on our speed.
+        always 0 <= self.speed <= max_speed
+
+        # Assume lower and upper bounds on the lead car's speed.
+        always 0 <= lead_car.speed <= max_speed
+
+        # Assume that the we are not going to brake or accelerate with too much force.
+        always -max_brake <= (next self.speed) - self.speed <= max_accel
+
         # Assume that the lead car is not going to brake or accelerate with too much force.
-        always behind_car implies (-max_brake <= (next lead_car.speed) - lead_car.speed <= max_accel)
+        always -max_brake <= (next lead_car.speed) - lead_car.speed <= max_accel
 
-        # Assume the lead car is not reversing
-        always behind_car implies (lead_car.speed >= 0)
-
-        # Assume we start outside the danger zone
-        lead_dist > buffer_dist
+        # Assume we start stopped outside the danger zone
+        (lead_dist > buffer_dist) and (self.speed == 0)
 
         # Assume no one cuts in front us too closely
-        always (lead_dist > buffer_dist and next (lead_dist <= buffer_dist)) implies (lead_dist < transition_dist)
-
-        # Upper bound on reduction in lead distance assuming the same car in front of us (above)
-        always ((lead_dist <= buffer_dist) implies ((next lead_dist) >= lead_dist + (lead_car.speed - self.speed)))
+        always ((next lead_dist) == (lead_dist - true_relative_speed))
 
     guarantees:
         # Guarantee that we always stay at least min_dist behind the lead car
@@ -440,6 +442,6 @@ keeps_distance = refine keeps_distance_raw as KeepsDistance(PERCEPTION_DISTANCE,
     abs_dist_err=ABS_DIST_ERR,
     abs_speed_err=ABS_SPEED_ERR,
     max_brake=MAX_BRAKE,
-    max_accel=MAX_ACCEL) using PROOF
+    max_accel=MAX_ACCEL) using LeanProof("KeepsDistanceRefinement")
 
 verify keeps_distance
