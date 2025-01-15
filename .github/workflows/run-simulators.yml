@@ -90,16 +90,15 @@ jobs:
             GH_ACCESS_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
             GH_REF: ${{ github.ref }}
           run: |
+            export LC_GH_REF="$GH_REF"
+            echo "LC GH REF: $LC_GH_REF"
             echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
             ssh -o StrictHostKeyChecking=no -o SendEnv=LC_GH_REF -i private_key ${USER_NAME}@${HOSTNAME} '
-              GH_REF=$LC_GH_REF
-              unset LC_GH_REF
-              export GH_REF
-              echo "GitHub Ref inside SSH: $GH_REF"
-              echo "With: ${GH_REF}"
+              echo "LC GH Ref inside SSH: $LC_GH_REF"
+              echo "With: ${LC_GH_REF}"
               cd /home/ubuntu/actions/ &&
               rm -rf Scenic &&
-              git clone --branch $(basename "$GH_REF") --single-branch https://$GH_ACCESS_TOKEN@github.com/BerkeleyLearnVerify/Scenic.git &&
+              git clone --branch $(basename "$LC_GH_REF") --single-branch https://$GH_ACCESS_TOKEN@github.com/BerkeleyLearnVerify/Scenic.git &&
               cd Scenic &&
               python3 -m venv venv &&
               source venv/bin/activate &&
