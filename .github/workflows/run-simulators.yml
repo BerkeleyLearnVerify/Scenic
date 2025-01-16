@@ -91,8 +91,8 @@ jobs:
             GH_REF: ${{ github.ref }}
           run: |
             echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+            export GH_REF="${GH_REF}"
             ssh -o StrictHostKeyChecking=no -o SendEnv=GH_REF -i private_key ${USER_NAME}@${HOSTNAME} '
-              echo "GH ref: $GH_REF"
               cd /home/ubuntu/actions/ &&
               rm -rf Scenic &&
               git clone --branch $(basename "$GH_REF") --single-branch https://$GH_ACCESS_TOKEN@github.com/BerkeleyLearnVerify/Scenic.git &&
