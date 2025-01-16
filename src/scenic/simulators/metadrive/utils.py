@@ -14,10 +14,7 @@ except ImportError as e:
     ) from e
 
 import math
-import sys
 import xml.etree.ElementTree as ET
-
-import numpy as np
 
 from scenic.core.vectors import Vector
 
