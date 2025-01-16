@@ -283,22 +283,23 @@ contract AccurateRelativeSpeeds(perception_distance, abs_dist_err=0.5, abs_speed
         behind_car = lead_dist <= perception_distance
 
         # Lead speed can be roughly calculated by comparing two timesteps
-        relative_speed = ((next dist) - dist)/self.timestep if (next(next dist)) else ((next dist) - dist)/self.timestep
+        relative_speed = ((next dist) - dist)/self.timestep
         true_relative_speed =  lead_car.speed - self.speed
 
     assumptions:
         # Assume we are in a lane and have relatively accurate distance
         always self._lane is not None
+
         always (behind_car implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err))
 
         # Assume that the lead car is not going to brake or accelerate with too much force.
-        always behind_car implies (-max_brake <= (next lead_car.speed) - lead_car.speed <= max_accel)
+        always (-max_brake <= (next lead_car.speed) - lead_car.speed <= max_accel)
 
     guarantees:
         # Guarantee that the perceived speed of the lead car is relatively accurate
         always (behind_car implies (relative_speed-abs_speed_err <= true_relative_speed <= relative_speed+abs_speed_err))
 
-contract SafeThrottleFilter(perception_distance, min_dist, min_slowdown, abs_speed_err=0.5, max_brake=float("inf")):
+contract SafeThrottleFilter(perception_distance, min_dist, abs_dist_err=0.5, abs_speed_err=0.5, max_brake=float("inf")):
     """ A contract stating that if inputs indicate we are too close for safety, we issue a braking action."""
     inputs:
         dist: float
@@ -313,13 +314,13 @@ contract SafeThrottleFilter(perception_distance, min_dist, min_slowdown, abs_spe
         relative_speed = ((next dist) - dist)/self.timestep if (next(next dist)) else ((next dist) - dist)/self.timestep
         true_relative_speed =  lead_car.speed - speed
 
-        stopping_time = math.ceil(speed/min_slowdown)+1
+        stopping_time = math.ceil(speed/max_brake)
         rel_dist_covered = stopping_time*speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
         buffer_dist = min_dist + rel_dist_covered
 
     guarantees:
         # Guarantee that if we sense we are too close to the car in front of us, we brake with max force.
-        always (dist < buffer_dist) implies (modulated_throttle == -1)
+        always (dist < buffer_dist+abs_dist_error) implies (modulated_throttle == -1)
 
 contract PassthroughBrakingActionGenerator():
     """ A contract stating that the outputted action represents the input throttle"""
@@ -334,9 +335,6 @@ contract PassthroughBrakingActionGenerator():
         braking = throttle < 0
 
     guarantees:
-        always accelerating implies (control_action.throttle == throttle and control_action.brake == 0)
-        always braking implies (control_action.throttle == 0 and control_action.brake == -throttle)
-        # TODO: Remove below when PACTI can deduce them from the above
         always throttle == -1 implies (control_action.throttle == 0 and control_action.brake == 1)
 
 contract MaxBrakingForce(min_slowdown):
@@ -348,8 +346,8 @@ contract MaxBrakingForce(min_slowdown):
         full_brake = control_action.brake == 1
 
     guarantees:
-        always ((no_throttle and full_brake) 
-            implies (self.speed == 0 or ((next self.speed) <= self.speed - min_slowdown))
+        always ((no_throttle and full_brake)
+            implies (self.speed == 0 or ((next self.speed) == self.speed - max_brake))
         )
 
 ## Overall System Spec ##
@@ -366,24 +364,35 @@ contract KeepsDistance(perception_distance, min_dist, max_brake=float("inf"), ma
         lead_dist = lead_distances[lead_car]
         behind_car = lead_dist <= perception_distance
 
-        true_relative_speed =  lead_car.speed - self.speed
+        true_relative_speed = lead_car.speed - self.speed
 
-        stopping_time = math.ceil(self.speed/min_slowdown)+1
-        rel_dist_covered = stopping_time*self.speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
-        buffer_dist = min_dist + rel_dist_covered
+        stopping_time = math.ceil(self.speed/max_brake)
+        rel_dist_covered = stopping_time*self.speed + (true_relative_speed + abs_speed_err)
+        delta_stopping_time = math.ceil((self.speed+max_accel)/max_brake)
+        max_rdc_delta = delta_stopping_time*self.speed + (true_relative_speed + max_brake + max_accel + abs_speed_err)
+        buffer_dist = min_dist + (max(0, max_rdc_delta + rel_dist_covered))
 
     assumptions:
         # Assume we are in a lane
         always self._lane is not None
 
+        # Assume lower and upper bounds on our speed.
+        always 0 <= self.speed <= max_speed
+
+        # Assume lower and upper bounds on the lead car's speed.
+        always 0 <= lead_car.speed <= max_speed
+
+        # Assume that the we are not going to brake or accelerate with too much force.
+        always -max_brake <= (next self.speed) - self.speed <= max_accel
+
         # Assume that the lead car is not going to brake or accelerate with too much force.
-        always behind_car implies (-max_brake <= (next lead_car.speed) - lead_car.speed <= max_accel)
+        always -max_brake <= (next lead_car.speed) - lead_car.speed <= max_accel
 
-        # Assume the lead car is not reversing
-        always behind_car implies (lead_car.speed >= 0)
+        # Assume we start stopped outside the danger zone
+        (lead_dist > buffer_dist) and (self.speed == 0)
 
-        # Assume we start outside the danger zone
-        lead_dist > buffer_dist
+        # Assume no one cuts in front us too closely
+        always ((next lead_dist) == (lead_dist - true_relative_speed))
 
     guarantees:
         # Guarantee that we always stay at least min_dist behind the lead car
@@ -404,14 +413,25 @@ ABS_DIST_ERR = 0.5
 ABS_SPEED_ERR = 4
 
 # Instantiate Car component and link to object.
-# NOTE: This will set the behavior of the object (based off the Car component).
 implement "EgoCar" with Car(STDDEV, TARGET_DIST, MAX_SPEED, MIN_DIST, MIN_SLOWDOWN) as car
 
-accurate_distance = test car.ps satisfies AccurateDistance(PERCEPTION_DISTANCE, abs_dist_err=ABS_DIST_ERR),
+accurate_distance = test car.ps satisfies AccurateDistance(
+    PERCEPTION_DISTANCE,
+    abs_dist_err=ABS_DIST_ERR),
     using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
     terminating after 100 samples
 
-max_braking_force = assume car.cc satisfies MaxBrakingForce(MIN_SLOWDOWN), with correctness 0.99, with confidence 0.99
+# TODO: Replace with proof
+accurate_speed = assume car.ps satisfies AccurateRelativeSpeeds(
+        PERCEPTION_DISTANCE,
+        abs_dist_err=ABS_DIST_ERR,
+        abs_speed_err=ABS_SPEED_ERR,
+        max_brake=MAX_BRAKE,
+        max_accel=MAX_ACCEL)
+
+ps_accuracy = compose over car.ps:
+    use accurate_distance
+    use accurate_speed
 
 cs_safety = compose over car.cs:
     # TODO: Replace with proof
@@ -425,9 +445,18 @@ cs_safety = compose over car.cs:
     # TODO: Replace with proof
     assume car.cs.ag satisfies PassthroughBrakingActionGenerator()
 
+max_braking_force = assume car.cc satisfies MaxBrakingForce(MIN_SLOWDOWN), with correctness 0.99, with confidence 0.99
+
 keeps_distance_raw = compose over car:
-    use accurate_distance
+    use ps_accuracy
     use cs_safety
     use max_braking_force
+
+# keeps_distance = refine keeps_distance_raw as KeepsDistance(PERCEPTION_DISTANCE,
+#     MIN_DIST,
+#     abs_dist_err=ABS_DIST_ERR,
+#     abs_speed_err=ABS_SPEED_ERR,
+#     max_brake=MAX_BRAKE,
+#     max_accel=MAX_ACCEL) using LeanProof("KeepsDistanceRefinement")
 
 verify keeps_distance_raw
