@@ -15,6 +15,8 @@ __all__ = (
     "registerVerifyStatement",
     "Assumption",
     "Composition",
+    "Refinement",
+    "LeanProof",
 )
 
 # various Python types and functions used in the language but defined elsewhere
@@ -27,6 +29,7 @@ from scenic.contracts.assumption import Assumption
 from scenic.contracts.components import ActionComponent, BaseComponent, ComposeComponent
 from scenic.contracts.composition import Composition
 from scenic.contracts.contracts import Contract
+from scenic.contracts.refinement import LeanProof, Refinement
 from scenic.contracts.testing import (
     CorrectnessRequirementCondition,
     CountTerminationCondition,

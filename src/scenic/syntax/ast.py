@@ -1423,6 +1423,21 @@ class ContractUse(AST):
         self.name = name
 
 
+class ContractRefine(AST):
+    def __init__(
+        self,
+        name,
+        contract,
+        method,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.name = name
+        self.contract = contract
+        self.method = method
+
+
 class ContractVerify(AST):
     def __init__(
         self,
@@ -1431,19 +1446,6 @@ class ContractVerify(AST):
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.target = target
-
-
-class ContractRefine(AST):
-    def __init__(
-        self,
-        name,
-        target,
-        *args,
-        **kwargs,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.name = name
         self.target = target
 
 

@@ -3031,6 +3031,24 @@ class ScenicToPythonTransformer(Transformer):
             keywords=keywords,
         )
 
+    def visit_ContractRefine(self, node: s.ContractRefine):
+        # Map contract name
+        assert isinstance(node.contract, ast.Call)
+        assert isinstance(node.contract.func, ast.Name)
+        node.contract.func.id = self.toContractName(node.contract.func.id)
+
+        # Package keywords
+        keywords = []
+        keywords.append(ast.keyword("stmt", ast.Name(node.name, loadCtx)))
+        keywords.append(ast.keyword("contract", node.contract))
+        keywords.append(ast.keyword("method", node.method))
+
+        return ast.Call(
+            func=ast.Name("Refinement", loadCtx),
+            args=[],
+            keywords=keywords,
+        )
+
     def visit_ContractVerify(self, node: s.ContractVerify):
         return ast.Call(ast.Name("registerVerifyStatement", loadCtx), [node.target], [])
 

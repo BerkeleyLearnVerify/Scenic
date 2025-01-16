@@ -182,6 +182,7 @@ class Composition(VerificationTechnique):
                 print("Guarantees:")
                 for g in tl_guarantees:
                     print(f"    {g}")
+                assert False
                 breakpoint()
 
             ## Add guarantees to accumulated top-level guarantees

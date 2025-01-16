@@ -663,6 +663,7 @@ scenic_compound_stmt:
     | scenic_assign_contract_test_stmt
     | scenic_assign_contract_assume_stmt
     | scenic_assign_contract_compose_stmt
+    | scenic_assign_contract_refine_stmt
 
 # SIMPLE STATEMENTS
 # =================
@@ -1076,9 +1077,6 @@ scenic_implement_stmt:
 scenic_verify_expr:
     | "verify" e=scenic_prefix_operators {s.ContractVerify(e, LOCATIONS)}
 
-scenic_refine_expr:
-    | "refine" name=NAME "as" e=scenic_prefix_operators {s.ContractRefine(name, e, LOCATIONS)}
-
 # Contract
 # --------
 
@@ -1223,7 +1221,7 @@ scenic_assign_contract_compose_stmt:
      }
 
 scenic_contract_compose_stmt:
-    | "compose" "over" name=scenic_subcomponent_name ':' NEWLINE INDENT a=(scenic_contract_compose_inner)+ DEDENT {s.ContractCompose(name, a)}
+    | "compose" "over" name=scenic_subcomponent_name ':' NEWLINE INDENT a=(scenic_contract_compose_inner)+ DEDENT {s.ContractCompose(name, a, LOCATIONS)}
 
 scenic_contract_compose_inner:
     | scenic_contract_test_stmt
@@ -1232,6 +1230,16 @@ scenic_contract_compose_inner:
 
 scenic_contract_use_stmt:
     | "use" component=NAME NEWLINE {s.ContractUse(component.string)}
+
+# Contract Refine Statements
+# ---------------------------
+scenic_assign_contract_refine_stmt:
+    | a=(z=star_targets '=' { z })+ b=scenic_contract_refine_stmt {
+         ast.Assign(targets=a, value=b, LOCATIONS)
+     }
+
+scenic_contract_refine_stmt:
+    | "refine" name=NAME "as" contract=primary "using" method=primary NEWLINE {s.ContractRefine(name.string, contract, method, LOCATIONS)}
 
 # Component/Contracts General
 # ---------------------------
@@ -2106,7 +2114,6 @@ scenic_prefix_operators:
     | "visible" e=scenic_prefix_operators { s.VisibleOp(region=e, LOCATIONS) }
     | 'not' "visible" e=scenic_prefix_operators { s.NotVisibleOp(region=e, LOCATIONS) }
     | p=scenic_position_of_op_position 'of' e=scenic_prefix_operators { s.PositionOfOp(position=p, target=e, LOCATIONS) }
-    | scenic_refine_expr
     | "next" e=scenic_prefix_operators {s.ContractNext(e, 1, LOCATIONS)}
     | scenic_verify_expr
     | sum

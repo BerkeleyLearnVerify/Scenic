@@ -367,7 +367,7 @@ contract KeepsDistance(perception_distance, min_dist, max_brake=float("inf"), ma
         true_relative_speed = lead_car.speed - self.speed
 
         stopping_time = math.ceil(self.speed/max_brake)
-        rel_dist_covered = stopping_time*self.speed + (true_relative_speed + abs_speed_err)
+        rel_dist_covered = stopping_time*self.speed + (true_relative_speed)
         delta_stopping_time = math.ceil((self.speed+max_accel)/max_brake)
         max_rdc_delta = delta_stopping_time*self.speed + (true_relative_speed + max_brake + max_accel + abs_speed_err)
         buffer_dist = min_dist + (max(0, max_rdc_delta + rel_dist_covered))
@@ -389,7 +389,7 @@ contract KeepsDistance(perception_distance, min_dist, max_brake=float("inf"), ma
         always -max_brake <= (next lead_car.speed) - lead_car.speed <= max_accel
 
         # Assume we start stopped outside the danger zone
-        (lead_dist > buffer_dist) and (self.speed == 0)
+        (lead_dist > (buffer_dist+10)) and (self.speed == 0)
 
         # Assume no one cuts in front us too closely
         always ((next lead_dist) == (lead_dist - true_relative_speed))
@@ -452,11 +452,9 @@ keeps_distance_raw = compose over car:
     use cs_safety
     use max_braking_force
 
-# keeps_distance = refine keeps_distance_raw as KeepsDistance(PERCEPTION_DISTANCE,
-#     MIN_DIST,
-#     abs_dist_err=ABS_DIST_ERR,
-#     abs_speed_err=ABS_SPEED_ERR,
-#     max_brake=MAX_BRAKE,
-#     max_accel=MAX_ACCEL) using LeanProof("KeepsDistanceRefinement")
+keeps_distance = refine keeps_distance_raw as KeepsDistance(PERCEPTION_DISTANCE,
+    MIN_DIST,
+    max_brake=MAX_BRAKE,
+    max_accel=MAX_ACCEL) using LeanProof("KeepsDistanceRefinement")
 
-verify keeps_distance_raw
+verify keeps_distance
