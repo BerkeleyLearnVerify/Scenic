@@ -323,6 +323,18 @@ class NameSwapTransformer(Transformer):
         return node
 
 
+class NameConstantTransformer(Transformer):
+    def __init__(self, name_map, filename="<unknown>"):
+        super().__init__(filename)
+        self.name_map = name_map
+
+    def visit_Name(self, node):
+        if node.id in self.name_map:
+            return ast.Constant(self.name_map[node.id])
+
+        return node
+
+
 class AtomicCheckTransformer(Transformer):
     def visit_Call(self, node: ast.Call):
         func = node.func
@@ -2621,6 +2633,18 @@ class ScenicToPythonTransformer(Transformer):
                 )
             )
 
+        # Store definition syntax trees and log id_offset
+        def_id_offset = len(self.syntaxTrees)
+        contract_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="def_id_offset", ctx=ast.Store())],
+                value=ast.Constant(value=def_id_offset),
+            )
+        )
+        self.syntaxTrees += [deepcopy(d) for _, d in node.definitions]
+        self.syntaxTrees += [deepcopy(a) for a in node.assumptions]
+        self.syntaxTrees += [deepcopy(g) for g in node.guarantees]
+
         ## `init` Function ##
 
         ## '__init__' Function ##
@@ -2693,7 +2717,7 @@ class ScenicToPythonTransformer(Transformer):
         lambda_arg_names += [name for name, _ in node.definitions]
 
         # Create transformer to unwrap definitions
-        def_unwrap_transformer = NameMapTransformer(dict(node.definitions))
+        # def_unwrap_transformer = NameMapTransformer(dict(node.definitions))
 
         # Create lambda factory function and add it to the component body
         prop_fac_args = ast.arguments(
@@ -2769,7 +2793,7 @@ class ScenicToPythonTransformer(Transformer):
                 self.syntaxTrees,
                 atomic_args=lambda_args,
                 atomic_transformer=atomic_transformer,
-                syntax_transformer=def_unwrap_transformer,
+                # syntax_transformer=def_unwrap_transformer,
             )
             assumption_prop = propTransformer.transform(a)
             max_lookahead = max(max_lookahead, atomic_transformer.max_lookahead)
@@ -2805,7 +2829,7 @@ class ScenicToPythonTransformer(Transformer):
                 self.syntaxTrees,
                 atomic_args=lambda_args,
                 atomic_transformer=atomic_transformer,
-                syntax_transformer=def_unwrap_transformer,
+                # syntax_transformer=def_unwrap_transformer,
             )
             guarantee_prop = propTransformer.transform(g)
 

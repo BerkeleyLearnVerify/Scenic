@@ -9,7 +9,7 @@ class Refinement(VerificationTechnique):
         self.contract = contract
         self.method = method
 
-        self.method.check()
+        self.method.check(self.stmt, self.contract)
 
     @cached_property
     def assumptions(self):
@@ -51,11 +51,13 @@ class RefinementContractResult(ContractResult):
         return string
 
 
-class LeanProof:
+class LeanRefinementProof:
     def __init__(self, proof_loc):
         self.proof_loc = proof_loc
 
-    def check(self):
+    def check(self, stmt, contract):
+        # breakpoint()
+        #
         pass
 
     def __str__(self):

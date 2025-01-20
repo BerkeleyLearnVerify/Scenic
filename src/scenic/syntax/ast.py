@@ -1460,3 +1460,16 @@ class ContractNext(AST):
         super().__init__(*args, **kwargs)
         self.target = target
         self.step = step
+        self._fields = ["target", "step"]
+
+    def __reduce__(self):
+        return (
+            type(self),
+            (self.target, self.step),
+            {
+                "lineno": self.lineno,
+                "end_lineno": self.end_lineno,
+                "col_offset": self.col_offset,
+                "end_col_offset": self.end_col_offset,
+            },
+        )

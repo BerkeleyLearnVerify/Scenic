@@ -455,6 +455,6 @@ keeps_distance_raw = compose over car:
 keeps_distance = refine keeps_distance_raw as KeepsDistance(PERCEPTION_DISTANCE,
     MIN_DIST,
     max_brake=MAX_BRAKE,
-    max_accel=MAX_ACCEL) using LeanProof("KeepsDistanceRefinement")
+    max_accel=MAX_ACCEL) using LeanRefinementProof("KeepsDistanceRefinement")
 
 verify keeps_distance
