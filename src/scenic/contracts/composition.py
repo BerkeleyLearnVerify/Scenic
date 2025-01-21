@@ -48,7 +48,7 @@ class Composition(VerificationTechnique):
         # Compute general port-variable mapping
         # Encoding map is a dictionary mapping tuples (port_name, subcomponent_name)
         # to a temporary variable. Top level ports have None as subcomponent name.
-        encoding_map = {}
+        self.encoding_map = {}
         self.var_num = 0
 
         # Assign variables to all connections
@@ -56,12 +56,14 @@ class Composition(VerificationTechnique):
             # Check if we already have a temporary variable name and if not
             # come up with a new intermediate variable name.
             temp_var_name = (
-                encoding_map[source] if source in encoding_map else self.tempVarName()
+                self.encoding_map[source]
+                if source in self.encoding_map
+                else self.tempVarName()
             )
 
             # Map both variables to the new name
-            encoding_map[source] = temp_var_name
-            encoding_map[dest] = temp_var_name
+            self.encoding_map[source] = temp_var_name
+            self.encoding_map[dest] = temp_var_name
 
         # Assign any remaining subcomponent port variables to temp names
         for sc_name, sc_obj in subcomponents.items():
@@ -70,8 +72,8 @@ class Composition(VerificationTechnique):
             for port in ports:
                 key = (port, sc_name)
 
-                if key not in encoding_map:
-                    encoding_map[key] = self.tempVarName()
+                if key not in self.encoding_map:
+                    self.encoding_map[key] = self.tempVarName()
 
         # Assign any remaining top level port variables to temp names
         tl_ports = list(self.component.inputs_types.keys()) + list(
@@ -80,48 +82,48 @@ class Composition(VerificationTechnique):
         for port in tl_ports:
             key = (port, None)
 
-            if key not in encoding_map:
-                encoding_map[key] = self.tempVarName()
+            if key not in self.encoding_map:
+                self.encoding_map[key] = self.tempVarName()
 
         # Compute which temporary variables are internal/external.
         input_temp_vars = {
             var
-            for key, var in encoding_map.items()
+            for key, var in self.encoding_map.items()
             if key[1] is None and key[0] in self.component.inputs_types
         }
         output_temp_vars = {
             var
-            for key, var in encoding_map.items()
+            for key, var in self.encoding_map.items()
             if key[1] is None and key[0] in self.component.outputs_types
         }
-        internal_temp_vars = set(encoding_map.values()) - (
+        internal_temp_vars = set(self.encoding_map.values()) - (
             input_temp_vars | output_temp_vars
         )
 
         # Compute encoding transformer for each subcomponent and the top level component
         # The encoding transformer should encode all port variables to the appropriate
         # temp variable.
-        encoding_transformers = {}
+        self.encoding_transformers = {}
 
         # Subcomponents
         for subcomponent in subcomponents:
             name_map = {}
 
-            for source_info, target_name in encoding_map.items():
+            for source_info, target_name in self.encoding_map.items():
                 if source_info[1] == subcomponent:
                     name_map[source_info[0]] = target_name
 
-            encoding_transformers[
+            self.encoding_transformers[
                 self.component.subcomponents[subcomponent]
             ] = NameSwapTransformer(name_map)
 
         # Top level component
         name_map = {}
-        for source_info, target_name in encoding_map.items():
+        for source_info, target_name in self.encoding_map.items():
             if source_info[1] == None:
                 name_map[source_info[0]] = target_name
 
-        encoding_transformers[self.component] = NameSwapTransformer(name_map)
+        self.encoding_transformers[self.component] = NameSwapTransformer(name_map)
 
         # Compute decoding transformer for assumptions and guarantees
         # We need two decoding transformers because temp variables can get mapped to different
@@ -129,12 +131,12 @@ class Composition(VerificationTechnique):
         # (specifically in the case where a variable is passed through a component unchanged).
         assumption_decoding_map = {}
         for port in self.component.inputs_types.keys():
-            assumption_decoding_map[encoding_map[((port, None))]] = port
+            assumption_decoding_map[self.encoding_map[((port, None))]] = port
         assumption_decoding_transformer = NameSwapTransformer(assumption_decoding_map)
 
         guarantee_decoding_map = {}
         for port in self.component.outputs_types.keys():
-            guarantee_decoding_map[encoding_map[((port, None))]] = port
+            guarantee_decoding_map[self.encoding_map[((port, None))]] = port
         guarantee_decoding_transformer = NameSwapTransformer(guarantee_decoding_map)
 
         # Move through sub_stmts linearly, checking assumptions and accumulating guarantees
@@ -142,7 +144,7 @@ class Composition(VerificationTechnique):
         tl_guarantees = []
 
         for sub_stmt in self.sub_stmts:
-            encoding_transformer = encoding_transformers[sub_stmt.component]
+            encoding_transformer = self.encoding_transformers[sub_stmt.component]
 
             ## Copy and encode assumptions and guarantees ##
             assumptions = [deepcopy(spec) for spec in sub_stmt.assumptions]

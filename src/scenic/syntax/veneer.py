@@ -36,6 +36,7 @@ __all__ = (
     "hypot",
     "max",
     "min",
+    "ceil",
     "_toStrScenic",
     "_toFloatScenic",
     "_toIntScenic",
@@ -204,7 +205,7 @@ from scenic.core.external_params import (
     VerifaiParameter,
     VerifaiRange,
 )
-from scenic.core.geometry import cos, hypot, max, min, sin
+from scenic.core.geometry import ceil, cos, hypot, max, min, sin
 from scenic.core.object_types import Mutator, Object, OrientedPoint, Point
 from scenic.core.regions import (
     BoxRegion,

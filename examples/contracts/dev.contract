@@ -88,7 +88,7 @@ component PIDThrottleSystem(target_dist, max_speed):
 
         return {"throttle": float(throttle)}
 
-component ThrottleSafetyFilter(min_dist, min_slowdown, max_brake=5, buffer_padding=0):
+component ThrottleSafetyFilter(min_dist, max_brake=5, buffer_padding=0):
     """ A component that modulates actions, passing them through unchanged
     unless we are dangerously close to the car in front of us, in which case
     the actions are swapped to brake with maximum force.
@@ -115,8 +115,8 @@ component ThrottleSafetyFilter(min_dist, min_slowdown, max_brake=5, buffer_paddi
 
         # If we are in the "danger zone", brake HARD. Otherwise, pass through the inputs actions action.
         rel_speed = (state.last_dist - dist)/timestep
-        stopping_time = math.ceil(rel_speed/min_slowdown)+1
-        rel_dist_covered = stopping_time*speed + (max_brake - min_slowdown)*(stopping_time*(stopping_time+1))/2
+        stopping_time = ceil(rel_speed/max_brake)+1
+        rel_dist_covered = stopping_time*rel_speed
         danger_dist = min_dist + buffer_padding + max(0, rel_dist_covered)
 
         # Update last_dist
@@ -167,7 +167,7 @@ component ActionGenerator():
         return {"control_action": action}
 
 
-component ControlSystem(target_dist, max_speed, min_dist, min_slowdown):
+component ControlSystem(target_dist, max_speed, min_dist, max_brake):
     """ The control system for a car, combining a PID controller with a
     safety filter to generate actions.
     """
@@ -184,7 +184,7 @@ component ControlSystem(target_dist, max_speed, min_dist, min_slowdown):
     compose:
         # Create sub-components
         pid_ts = PIDThrottleSystem(target_dist, max_speed)
-        tsf = ThrottleSafetyFilter(min_dist, min_slowdown)
+        tsf = ThrottleSafetyFilter(min_dist, max_brake)
         pid_ss = PIDSteeringSystem()
         ag = ActionGenerator()
 
@@ -217,12 +217,12 @@ component CarControls():
     actions:
         control_action: RegulatedControlAction
 
-component Car(stddev, target_dist, max_speed, min_dist, min_slowdown):
+component Car(stddev, target_dist, max_speed, min_dist, max_brake):
     compose:
         ps = NoisyDistanceSystem(stddev)
         sm = Speedometer()
         ds = DirectionSystem()
-        cs = ControlSystem(target_dist, max_speed, min_dist, min_slowdown)
+        cs = ControlSystem(target_dist, max_speed, min_dist, max_brake)
         cc = CarControls()
 
         # Connect sensors inputss to controller
@@ -314,8 +314,8 @@ contract SafeThrottleFilter(perception_distance, min_dist, abs_dist_err=0.5, abs
         relative_speed = ((next dist) - dist)/self.timestep if (next(next dist)) else ((next dist) - dist)/self.timestep
         true_relative_speed =  lead_car.speed - speed
 
-        stopping_time = math.ceil(speed/max_brake)
-        rel_dist_covered = stopping_time*speed + (true_relative_speed+abs_speed_err)(max_brake-min_slowdown)*(stopping_time*(stopping_time+1))/2
+        stopping_time = ceil(speed/max_brake)
+        rel_dist_covered = stopping_time*(speed + abs_speed_err)
         buffer_dist = min_dist + rel_dist_covered
 
     guarantees:
@@ -337,7 +337,7 @@ contract PassthroughBrakingActionGenerator():
     guarantees:
         always throttle == -1 implies (control_action.throttle == 0 and control_action.brake == 1)
 
-contract MaxBrakingForce(min_slowdown):
+contract MaxBrakingForce(max_brake):
     actions:
         control_action: RegulatedControlAction
 
@@ -351,7 +351,7 @@ contract MaxBrakingForce(min_slowdown):
         )
 
 ## Overall System Spec ##
-contract KeepsDistance(perception_distance, min_dist, max_brake=float("inf"), max_accel=float("inf")):
+contract KeepsDistance(perception_distance, min_dist, max_speed, abs_dist_err, abs_speed_err, max_brake=float("inf"), max_accel=float("inf")):
     """ A contract stating we stay a safe distance from the car in front of us."""
     globals:
         objects
@@ -366,9 +366,9 @@ contract KeepsDistance(perception_distance, min_dist, max_brake=float("inf"), ma
 
         true_relative_speed = lead_car.speed - self.speed
 
-        stopping_time = math.ceil(self.speed/max_brake)
+        stopping_time = ceil(self.speed/max_brake)
         rel_dist_covered = stopping_time*self.speed + (true_relative_speed)
-        delta_stopping_time = math.ceil((self.speed+max_accel)/max_brake)
+        delta_stopping_time = ceil((self.speed+max_accel)/max_brake)
         max_rdc_delta = delta_stopping_time*self.speed + (true_relative_speed + max_brake + max_accel + abs_speed_err)
         buffer_dist = min_dist + (max(0, max_rdc_delta + rel_dist_covered))
 
@@ -401,19 +401,19 @@ contract KeepsDistance(perception_distance, min_dist, max_brake=float("inf"), ma
 ## Verification Steps ##
 # Constants
 STDDEV = 0.1
-TARGET_DIST = 10
-MAX_SPEED = 26.8224 # 60 mph in m/s
 MIN_DIST = 5
-MIN_SLOWDOWN = 4.57 # 15 feet per second in m/s
-MAX_BRAKE = 5 # TODO: Find reasonable value
-MAX_ACCEL = 5 # TODO: Find reasonable value
-PERCEPTION_DISTANCE = 250
+MAX_BRAKE = 0.9
+MAX_ACCEL = 0.5
+PERCEPTION_DISTANCE = 1000
+ABS_DIST_ERR = 1
+ABS_SPEED_ERR = 0.4
+MAX_SPEED = 5.4
 
-ABS_DIST_ERR = 0.5
-ABS_SPEED_ERR = 4
+TARGET_DIST = 10
+
 
 # Instantiate Car component and link to object.
-implement "EgoCar" with Car(STDDEV, TARGET_DIST, MAX_SPEED, MIN_DIST, MIN_SLOWDOWN) as car
+implement "EgoCar" with Car(STDDEV, TARGET_DIST, MAX_SPEED, MIN_DIST, MAX_BRAKE) as car
 
 accurate_distance = test car.ps satisfies AccurateDistance(
     PERCEPTION_DISTANCE,
@@ -438,14 +438,13 @@ cs_safety = compose over car.cs:
     assume car.cs.tsf satisfies SafeThrottleFilter(
             PERCEPTION_DISTANCE,
             MIN_DIST,
-            MIN_SLOWDOWN,
             abs_speed_err=ABS_SPEED_ERR,
             max_brake=MAX_BRAKE)
 
     # TODO: Replace with proof
     assume car.cs.ag satisfies PassthroughBrakingActionGenerator()
 
-max_braking_force = assume car.cc satisfies MaxBrakingForce(MIN_SLOWDOWN), with correctness 0.99, with confidence 0.99
+max_braking_force = assume car.cc satisfies MaxBrakingForce(MAX_BRAKE), with correctness 0.99, with confidence 0.99
 
 keeps_distance_raw = compose over car:
     use ps_accuracy
@@ -454,7 +453,10 @@ keeps_distance_raw = compose over car:
 
 keeps_distance = refine keeps_distance_raw as KeepsDistance(PERCEPTION_DISTANCE,
     MIN_DIST,
+    MAX_SPEED,
+    ABS_DIST_ERR,
+    ABS_SPEED_ERR,
     max_brake=MAX_BRAKE,
-    max_accel=MAX_ACCEL) using LeanRefinementProof("KeepsDistanceRefinement")
+    max_accel=MAX_ACCEL) using LeanRefinementProof(localPath("KeepsDistanceRefinement"))
 
 verify keeps_distance
