@@ -90,7 +90,6 @@ jobs:
             GH_ACCESS_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
             GH_REF: ${{ github.ref }}
           run: |
-            export GH_REF="$GH_REF"
             echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
             ssh -o StrictHostKeyChecking=no -o SendEnv=GH_REF -i private_key ${USER_NAME}@${HOSTNAME} '
               cd /home/ubuntu/actions/ &&
