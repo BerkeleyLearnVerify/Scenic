@@ -224,7 +224,7 @@ class Atomic(SpecNode):
 
     def toLean(self, ctx=bool):
         # TODO: Better name replacement
-        return str(self).replace("[", "_").replace("]", "_")
+        return str(self).replace("[", "_").replace("]", "_").replace(" ", "_")
 
     def __eq__(self, other):
         return type(self) is type(other) and self.equivalentAST(
@@ -254,9 +254,12 @@ class DefSpecNode(SpecNode):
         return self.defSpecs[self.name].getAtomicNames()
 
     def getDefs(self):
-        return ((self.name, self.defSpecs[self.name]),) + self.defSpecs[
-            self.name
-        ].getDefs()
+        return (
+            (
+                list(self.defSpecs.keys()).index(self.name),
+                (self.name, self.defSpecs[self.name]),
+            ),
+        ) + self.defSpecs[self.name].getDefs()
 
     def getAtomics(self, ctx=bool):
         return self.defSpecs[self.name].getAtomics(ctx)
@@ -566,7 +569,7 @@ class And(NarySpecNode):
     ctx = bool
 
     def toLean(self, ctx=bool):
-        return f"({self.sub1.toLean()}) ∧ ({self.sub2.toLean()})"
+        return " ∧ ".join(f"({sub.toLean()})" for sub in self.subs)
 
     def __str__(self):
         return " and ".join(f"({str(sub)})" for sub in self.subs)
@@ -576,7 +579,7 @@ class Or(NarySpecNode):
     ctx = bool
 
     def toLean(self, ctx=bool):
-        return f"({self.sub1.toLean()}) ∨ ({self.sub2.toLean()})"
+        return " ∨ ".join(f"({sub.toLean()})" for sub in self.subs)
 
     def __str__(self):
         return " or ".join(f"({str(sub)})" for sub in self.subs)

@@ -1,9 +1,11 @@
 from copy import deepcopy
 from functools import cached_property
+import itertools
 from math import prod
 
 from scenic.contracts.components import ActionComponent, BaseComponent, ComposeComponent
 from scenic.contracts.contracts import ContractResult, VerificationTechnique
+import scenic.contracts.specifications as specs
 from scenic.syntax.compiler import NameFinder, NameSwapTransformer
 
 
@@ -135,7 +137,9 @@ class Composition(VerificationTechnique):
         assumption_decoding_transformer = NameSwapTransformer(assumption_decoding_map)
 
         guarantee_decoding_map = {}
-        for port in self.component.outputs_types.keys():
+        for port in itertools.chain(
+            self.component.outputs_types.keys(), self.component.inputs_types.keys()
+        ):
             guarantee_decoding_map[self.encoding_map[((port, None))]] = port
         guarantee_decoding_transformer = NameSwapTransformer(guarantee_decoding_map)
 
@@ -223,15 +227,41 @@ class Composition(VerificationTechnique):
             assert len(self.extractTempVars(spec.getAtomicNames())) == 0
 
         # TODO: Replace this with assertion above when PACTI implemented
-        tl_guarantees = [
+        valid_guarantees = [
             spec
             for spec in tl_guarantees
             if len(self.extractTempVars(spec.getAtomicNames())) == 0
         ]
 
+        ## TODO: Deprecate below with PACTI integration
+        ## Try to salvage other guarantees
+        dropped_guarantees = [
+            spec
+            for spec in tl_guarantees
+            if len(self.extractTempVars(spec.getAtomicNames())) != 0
+        ]
+
+        while dropped_guarantees:
+            g1 = dropped_guarantees.pop(0)
+
+            if isinstance(g1, specs.Always) and isinstance(g1.sub, specs.Implies):
+                for g2 in filter(
+                    lambda x: isinstance(x, specs.Always)
+                    and isinstance(x.sub, specs.Implies),
+                    dropped_guarantees,
+                ):
+                    g1_a, g1_b = g1.sub.sub1, g1.sub.sub2
+                    g2_a, g2_b = g2.sub.sub1, g2.sub.sub2
+
+                    if g1_b == g2_a:
+                        new_g = specs.Always(specs.Implies(g1_a, g2_b))
+
+                        if len(self.extractTempVars(new_g.getAtomicNames())) == 0:
+                            valid_guarantees.append(new_g)
+
         ## Store assumptions and guarantees
         self._assumptions = tl_assumptions
-        self._guarantees = tl_guarantees
+        self._guarantees = valid_guarantees
 
         # TODO: Clear atomic source syntax strings?
 

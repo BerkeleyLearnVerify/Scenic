@@ -178,7 +178,6 @@ component ControlSystem(target_dist, max_speed, min_dist, max_brake):
         heading: float
 
     outputs:
-        foo: float
         control_action: RegulatedControlAction
 
     compose:
@@ -187,9 +186,6 @@ component ControlSystem(target_dist, max_speed, min_dist, max_brake):
         tsf = ThrottleSafetyFilter(min_dist, max_brake)
         pid_ss = PIDSteeringSystem()
         ag = ActionGenerator()
-
-        # DEBUG
-        connect dist to foo
 
         # Connect sensors inputss
         connect dist to pid_ts.dist
@@ -284,7 +280,7 @@ contract AccurateRelativeSpeeds(perception_distance, abs_dist_err=0.5, abs_speed
 
         # Lead speed can be roughly calculated by comparing two timesteps
         relative_speed = ((next dist) - dist)/self.timestep
-        true_relative_speed =  lead_car.speed - self.speed
+        true_relative_speed = self.speed - lead_car.speed
 
     assumptions:
         # Assume we are in a lane and have relatively accurate distance
@@ -299,7 +295,7 @@ contract AccurateRelativeSpeeds(perception_distance, abs_dist_err=0.5, abs_speed
         # Guarantee that the perceived speed of the lead car is relatively accurate
         always (behind_car implies (relative_speed-abs_speed_err <= true_relative_speed <= relative_speed+abs_speed_err))
 
-contract SafeThrottleFilter(perception_distance, min_dist, abs_dist_err=0.5, abs_speed_err=0.5, max_brake=float("inf")):
+contract SafeThrottleFilter(perception_distance, min_dist, max_speed, abs_dist_err=0.5, abs_speed_err=0.5, max_brake=float("inf"), max_accel=float("inf")):
     """ A contract stating that if inputs indicate we are too close for safety, we issue a braking action."""
     inputs:
         dist: float
@@ -310,17 +306,23 @@ contract SafeThrottleFilter(perception_distance, min_dist, abs_dist_err=0.5, abs
         modulated_throttle: float
 
     definitions:
+        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj.position is not self.position]
+        lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
+        lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
+
         # Lead speed can be roughly calculated by comparing two timesteps
         relative_speed = ((next dist) - dist)/self.timestep if (next(next dist)) else ((next dist) - dist)/self.timestep
-        true_relative_speed =  lead_car.speed - speed
+        true_relative_speed =  self.speed - lead_car.speed
 
-        stopping_time = ceil(speed/max_brake)
-        rel_dist_covered = stopping_time*(speed + abs_speed_err)
-        buffer_dist = min_dist + rel_dist_covered
+        stopping_time = ceil(self.speed/max_brake)
+        rel_dist_covered = stopping_time * (true_relative_speed+abs_speed_err)
+        delta_stopping_time = ceil((self.speed+max_accel)/max_brake)
+        max_rdc_delta = delta_stopping_time * (true_relative_speed + max_brake + max_accel + abs_speed_err) - rel_dist_covered 
+        buffer_dist = min_dist + (max(0, max_rdc_delta + rel_dist_covered)) + max_speed + 1
 
     guarantees:
         # Guarantee that if we sense we are too close to the car in front of us, we brake with max force.
-        always (dist < buffer_dist+abs_dist_error) implies (modulated_throttle == -1)
+        always (dist <= buffer_dist+abs_dist_err) implies (modulated_throttle == -1)
 
 contract PassthroughBrakingActionGenerator():
     """ A contract stating that the outputted action represents the input throttle"""
@@ -347,7 +349,7 @@ contract MaxBrakingForce(max_brake):
 
     guarantees:
         always ((no_throttle and full_brake)
-            implies (self.speed == 0 or ((next self.speed) == self.speed - max_brake))
+            implies (((next self.speed) == 0) or ((next self.speed) == self.speed - max_brake))
         )
 
 ## Overall System Spec ##
@@ -364,13 +366,13 @@ contract KeepsDistance(perception_distance, min_dist, max_speed, abs_dist_err, a
         lead_dist = lead_distances[lead_car]
         behind_car = lead_dist <= perception_distance
 
-        true_relative_speed = lead_car.speed - self.speed
+        true_relative_speed = self.speed - lead_car.speed
 
         stopping_time = ceil(self.speed/max_brake)
-        rel_dist_covered = stopping_time*self.speed + (true_relative_speed)
+        rel_dist_covered = stopping_time * (true_relative_speed+abs_speed_err)
         delta_stopping_time = ceil((self.speed+max_accel)/max_brake)
-        max_rdc_delta = delta_stopping_time*self.speed + (true_relative_speed + max_brake + max_accel + abs_speed_err)
-        buffer_dist = min_dist + (max(0, max_rdc_delta + rel_dist_covered))
+        max_rdc_delta = delta_stopping_time * (true_relative_speed + max_brake + max_accel + abs_speed_err) - rel_dist_covered 
+        buffer_dist = min_dist + (max(0, max_rdc_delta + rel_dist_covered)) + max_speed + 1
 
     assumptions:
         # Assume we are in a lane
@@ -389,14 +391,16 @@ contract KeepsDistance(perception_distance, min_dist, max_speed, abs_dist_err, a
         always -max_brake <= (next lead_car.speed) - lead_car.speed <= max_accel
 
         # Assume we start stopped outside the danger zone
-        (lead_dist > (buffer_dist+10)) and (self.speed == 0)
+        (lead_dist > buffer_dist) and (self.speed == 0)
 
         # Assume no one cuts in front us too closely
         always ((next lead_dist) == (lead_dist - true_relative_speed))
 
+        always (self.timestep == 0.1)
+
     guarantees:
         # Guarantee that we always stay at least min_dist behind the lead car
-        always behind_car implies (lead_dist > min_dist)
+        always lead_dist > min_dist
 
 ## Verification Steps ##
 # Constants
@@ -438,8 +442,11 @@ cs_safety = compose over car.cs:
     assume car.cs.tsf satisfies SafeThrottleFilter(
             PERCEPTION_DISTANCE,
             MIN_DIST,
+            MAX_SPEED,
+            abs_dist_err=ABS_DIST_ERR,
             abs_speed_err=ABS_SPEED_ERR,
-            max_brake=MAX_BRAKE)
+            max_brake=MAX_BRAKE,
+            max_accel=MAX_ACCEL)
 
     # TODO: Replace with proof
     assume car.cs.ag satisfies PassthroughBrakingActionGenerator()

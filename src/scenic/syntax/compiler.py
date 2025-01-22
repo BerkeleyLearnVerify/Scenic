@@ -312,15 +312,20 @@ class NameMapTransformer(Transformer):
 
 
 class NameSwapTransformer(Transformer):
-    def __init__(self, name_map, filename="<unknown>"):
+    def __init__(self, name_map, swapAttributes=False, filename="<unknown>"):
         super().__init__(filename)
         self.name_map = name_map
+        self.swapAttributes = swapAttributes
 
     def visit_Name(self, node):
         if node.id in self.name_map:
             return ast.Name(self.name_map[node.id], node.ctx)
 
         return node
+
+    def visitAttribute(self, node):
+        new_attr = self.visit(node.attr) if self.swapAttributes else node.attr
+        return ast.Attribute(value=self.visit(node.value), attr=node.attr, ctx=node.ctx)
 
 
 class NameConstantTransformer(Transformer):
