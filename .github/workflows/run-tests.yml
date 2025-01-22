@@ -47,12 +47,14 @@ jobs:
       if: inputs.ref != ''
       with:
         ref: ${{ inputs.ref }}
+        persist-credentials: false
 
     - name: Checkout current branch
       uses: actions/checkout@v3
       if: inputs.ref == ''
       with:
         ref: ${{ github.ref }}
+        persist-credentials: false
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
@@ -69,5 +71,8 @@ jobs:
         python -m pip install -e ".[test-full]"
 
     - name: Run pytest
+      env:
+        TEST_OPTIONS: ${{ inputs.options || (matrix.slow && '--no-graphics' || '--fast --no-graphics') }}
+      shell: sh
       run: |
-        pytest ${{ inputs.options || (matrix.slow && '--no-graphics' || '--fast --no-graphics') }}
+        pytest ${TEST_OPTIONS}
