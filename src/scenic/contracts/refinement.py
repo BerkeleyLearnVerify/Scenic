@@ -112,6 +112,10 @@ class LeanRefinementProof:
         prop_atomics = [a for a, _ in filter(lambda x: x[1] is bool, atomics)]
         real_atomics = [a for a, _ in filter(lambda x: x[1] is float, atomics)]
 
+        # Sort atomics lists to keep signal names from swapping
+        prop_atomics.sort(key=str)
+        real_atomics.sort(key=str)
+
         ## Extract defs from all specs
         defs = {}
         for spec in i_assumptions + i_guarantees + tl_assumptions + tl_guarantees:
