@@ -393,13 +393,14 @@ class Eventually(UnarySpecNode):
 
 
 class Next(UnarySpecNode):
-    ctx = bool
-
     def toLean(self, ctx=bool):
         if ctx is bool:
             return f"Xʷ ({self.sub.toLean(ctx)})"
         else:
             return f"X ({self.sub.toLean(ctx)})"
+
+    def getAtomics(self, ctx=bool):
+        return self.sub.getAtomics(ctx)
 
     def __str__(self):
         return f"next ({self.sub})"

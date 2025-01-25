@@ -661,6 +661,7 @@ scenic_compound_stmt:
     | scenic_component_def
     | scenic_contract_def
     | scenic_assign_contract_test_stmt
+    | scenic_assign_contract_prove_stmt
     | scenic_assign_contract_assume_stmt
     | scenic_assign_contract_compose_stmt
     | scenic_assign_contract_refine_stmt
@@ -1177,6 +1178,24 @@ scenic_contract_test_term_cond:
 scenic_contract_test_req_cond:
     | "requiring" x=expression "correctness" {s.ContractTestReqCond("correctness", [x], LOCATIONS)}
 
+# Contract Prove Statements
+# --------------------------
+
+scenic_assign_contract_prove_stmt:
+    | a=(z=star_targets '=' { z })+ b=scenic_contract_prove_stmt  {
+         ast.Assign(targets=a, value=b, LOCATIONS)
+     }
+
+scenic_contract_prove_stmt:
+    | a=scenic_contract_prove_header NEWLINE {s.ContractProof(a[0], a[1], a[2], LOCATIONS)}
+
+scenic_contract_prove_header:
+    | "prove" component=scenic_subcomponent_name \
+      "satisfies" contract=primary \
+      "using" method=primary \
+      {(contract, component, method)}
+
+
 # Contract Assume Statements
 # --------------------------
 
@@ -1225,6 +1244,7 @@ scenic_contract_compose_stmt:
 
 scenic_contract_compose_inner:
     | scenic_contract_test_stmt
+    | scenic_contract_prove_stmt
     | scenic_contract_assume_stmt
     | scenic_contract_use_stmt
 

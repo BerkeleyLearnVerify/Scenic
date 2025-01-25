@@ -106,14 +106,14 @@ class ContractResult(ABC):
         pass
 
     @property
+    @abstractmethod
+    def evidenceSummary(self):
+        pass
+
+    @property
     def assumptionsSummary(self):
         return "".join(f"    {a}\n" for a in self.assumptions)
 
     @property
     def guaranteesSummary(self):
         return "".join(f"    {g}\n" for g in self.guarantees)
-
-    @property
-    @abstractmethod
-    def evidenceSummary(self):
-        pass

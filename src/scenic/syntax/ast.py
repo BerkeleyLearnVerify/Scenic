@@ -1384,6 +1384,21 @@ class ContractTestReqCond(AST):
         self.args = args
 
 
+class ContractProof(AST):
+    def __init__(
+        self,
+        contract,
+        component,
+        method,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.contract = contract
+        self.component = component
+        self.method = method
+
+
 class ContractAssume(AST):
     def __init__(
         self,

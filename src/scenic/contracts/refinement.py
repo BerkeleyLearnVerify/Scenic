@@ -1,7 +1,9 @@
 from copy import deepcopy
 from functools import cached_property
+import json
 import os
 from pathlib import Path
+import subprocess
 
 from scenic.contracts.composition import Composition
 from scenic.contracts.contracts import ContractResult, VerificationTechnique
@@ -58,8 +60,10 @@ class RefinementContractResult(ContractResult):
 
 
 class LeanRefinementProof:
-    def __init__(self, proof_loc):
+    def __init__(self, proof_loc, proof_dir, repl_loc):
         self.proof_loc = proof_loc
+        self.proof_dir = proof_dir
+        self.repl_loc = repl_loc
 
     def check(self, stmt, contract):
         ## Extract and standardize internal assumptions and guarantees
@@ -132,10 +136,12 @@ class LeanRefinementProof:
                         assert False
 
         ## Setup proof directory
-        Path(self.proof_loc).mkdir(parents=True, exist_ok=True)
+        Path(self.proof_loc / "Sceniclean" / self.proof_dir).mkdir(
+            parents=True, exist_ok=True
+        )
 
         ## Output Lean Data File
-        with open(self.proof_loc / "Lib.lean", "w") as f:
+        with open(self.proof_loc / "Sceniclean" / self.proof_dir / "Lib.lean", "w") as f:
             # Imports
             f.write("import Sceniclean.Basic\n\n")
 
@@ -214,23 +220,66 @@ class LeanRefinementProof:
             f.write("\n")
 
         ## Output Lean Proof Files
-        if not os.path.exists(self.proof_loc / "AssumptionProof.lean"):
-            with open(self.proof_loc / "AssumptionProof.lean", "w") as f:
-                f.write("import Lib\n")
+        if not os.path.exists(
+            self.proof_loc / "Sceniclean" / self.proof_dir / "AssumptionProof.lean"
+        ):
+            with open(
+                self.proof_loc / "Sceniclean" / self.proof_dir / "AssumptionProof.lean",
+                "w",
+            ) as f:
+                f.write(f"import Sceniclean.{self.proof_dir}.Lib\n")
                 f.write("\n")
                 f.write(
                     "theorem imp_assumptions : FLTL[(assumptions)] ⇒ FLTL[i_assumptions] := by\n"
                 )
                 f.write("  sorry\n")
 
-        if not os.path.exists(self.proof_loc / "GuaranteesProof.lean"):
-            with open(self.proof_loc / "GuaranteesProof.lean", "w") as f:
-                f.write("import Lib\n")
+        if not os.path.exists(
+            self.proof_loc / "Sceniclean" / self.proof_dir / "GuaranteesProof.lean"
+        ):
+            with open(
+                self.proof_loc / "Sceniclean" / self.proof_dir / "GuaranteesProof.lean",
+                "w",
+            ) as f:
+                f.write(f"import Sceniclean.{self.proof_dir}.Lib\n")
                 f.write("\n")
                 f.write(
                     "theorem imp_guarantees : FLTL[(assumptions ∧ i_guarantees)] ⇒ FLTL[guarantees] := by\n"
                 )
                 f.write("  sorry\n")
 
+        # Check validity of proofs
+        assert self.checkProof(
+            Path("Sceniclean") / self.proof_dir / "AssumptionProof.lean",
+            self.repl_loc,
+            self.proof_loc,
+        )
+        assert self.checkProof(
+            Path("Sceniclean") / self.proof_dir / "GuaranteesProof.lean",
+            self.repl_loc,
+            self.proof_loc,
+        )
+
+    def checkProof(self, file, repl_loc, lib_loc):
+        input_cmd = '{"path": "' + str(file) + '", "allTactics": false}'
+        repl_loc_full = str(repl_loc) + "/.lake/build/bin/repl"
+        result = subprocess.run(
+            ["lake", "env", repl_loc_full],
+            input=input_cmd,
+            capture_output=True,
+            text=True,
+            cwd=lib_loc,
+        )
+        result_dict = json.loads(result.stdout)
+
+        assert result_dict["env"] == 0
+
+        for msg in result_dict.get("messages", []):
+            assert msg["severity"] != "error", "Error in Lean proof"
+
+        assert "sorries" not in result_dict, "Sorry used in Lean proof"
+
+        return True
+
     def __str__(self):
-        return f"LeanProof ('{self.proof_loc}')"
+        return f"LeanProof: ('{self.proof_loc}')"

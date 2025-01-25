@@ -1948,6 +1948,17 @@ class ScenicToPythonTransformer(Transformer):
         component_body = []
 
         ## Class Attributes ##
+        # Store body source info
+        def_id_offset = len(self.syntaxTrees)
+        component_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="def_id_offset", ctx=ast.Store())],
+                value=ast.Constant(value=def_id_offset),
+            )
+        )
+
+        self.syntaxTrees.append(body)
+
         # Store type info for inputs, outputs, sensors, and state
         component_body.append(
             ast.Assign(
@@ -2984,7 +2995,32 @@ class ScenicToPythonTransformer(Transformer):
             keywords=[],
         )
 
-    def visit_ContractAssume(self, node: s.ContractTest):
+    def visit_ContractProof(self, node: s.ContractProof):
+        # Create component keyword
+        obj_val = ast.Name(node.component[0], loadCtx)
+        component_val = obj_val
+
+        if len(node.component) > 1:
+            for sub_name in node.component[1:]:
+                component_val = ast.Subscript(
+                    ast.Attribute(component_val, "subcomponents", loadCtx),
+                    ast.Constant(sub_name),
+                    loadCtx,
+                )
+
+        # Map contract name
+        assert isinstance(node.contract, ast.Call)
+        assert isinstance(node.contract.func, ast.Name)
+        node.contract.func.id = self.toContractName(node.contract.func.id)
+
+        # Visit method
+        method = self.visit(node.method)
+        method.keywords.append(ast.keyword("contract", node.contract))
+        method.keywords.append(ast.keyword("component", component_val))
+
+        return method
+
+    def visit_ContractAssume(self, node: s.ContractAssume):
         # Create component keyword
         obj_val = ast.Name(node.component[0], loadCtx)
         component_val = obj_val
