@@ -216,13 +216,17 @@ class SimulationTesting(Testing):
         # Instantiate simulator
         simulator = self.scenario.getSimulator()
 
+        def vw_update_hook():
+            for vw_name, vw in base_value_windows.items():
+                vw.update()
+
         # Step contract till termination
         with simulator.simulateStepped(scene, maxSteps=self.maxSteps) as simulation:
             while not simulation.result or eval_step < sim_step:
                 # If simulation not terminated, advance simulation one time step, catching any rejections
                 if not simulation.result:
                     try:
-                        simulation.advance()
+                        simulation.advance(vw_update_hook)
                     except (
                         RejectSimulationException,
                         RejectionException,
@@ -237,8 +241,6 @@ class SimulationTesting(Testing):
                         continue
 
                     # If the simulation didn't finish, update all base value windows
-                    for vw_name, vw in base_value_windows.items():
-                        vw.update()
 
                     # Increment simulation step
                     sim_step += 1

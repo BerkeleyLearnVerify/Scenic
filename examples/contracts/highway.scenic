@@ -32,7 +32,8 @@ class EgoCar(Car):
     targetDir[dynamic, final]: float(roadDirection[self.position].yaw)
 
 ego = new EgoCar at roadDirection.followFrom(toVector(leadCar), -STARTING_DISTANCE, stepSize=0.1),
-        with leadDist STARTING_DISTANCE, with behavior FollowLaneBehavior(), with name "EgoCar", with timestep 0.1
+        with leadDist STARTING_DISTANCE,
+        with behavior FollowLaneBehavior(), with name "EgoCar", with timestep 0.1
 
 # Create/activate monitor to store lead distance
 monitor UpdateDistance(tailCar, leadCar):

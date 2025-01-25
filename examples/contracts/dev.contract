@@ -5,6 +5,7 @@ import random
 from typing import Union
 import numpy
 
+import scenic
 from scenic.core.geometry import normalizeAngle
 from scenic.domains.driving.controllers import PIDLongitudinalController, PIDLateralController
 from scenic.domains.driving.actions import RegulatedControlAction
@@ -396,7 +397,7 @@ cs_safety = compose over car.cs:
             max_brake=MAX_BRAKE,
             max_accel=MAX_ACCEL) using LeanContractProof(localPath("ScenicLean/"), "SafeThrottleFilter", localPath("repl"))
 
-max_braking_force = assume car.cac satisfies MaxBrakingForce(MAX_BRAKE), with correctness 0.99, with confidence 0.99
+max_braking_force = assume car.cac satisfies MaxBrakingForce(MAX_BRAKE), with correctness 0.9, with confidence 0.95
 
 keeps_distance_raw = compose over car:
     use accurate_distance
