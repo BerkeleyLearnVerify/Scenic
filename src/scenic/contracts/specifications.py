@@ -224,7 +224,22 @@ class Atomic(SpecNode):
 
     def toLean(self, ctx=bool):
         # TODO: Better name replacement
-        return str(self).replace("[", "_").replace("]", "_").replace(" ", "_")
+        str_map = {
+            "(": "",
+            ")": "",
+            "[": "_",
+            "]": "_",
+            " ": "_",
+            '"': "_",
+            "'": "_",
+            "==": "_EQ_",
+        }
+
+        self_str = str(self)
+        for m in str_map.items():
+            self_str = self_str.replace(m[0], m[1])
+
+        return self_str
 
     def __eq__(self, other):
         return type(self) is type(other) and self.equivalentAST(

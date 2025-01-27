@@ -12,6 +12,9 @@ from scenic.core.type_support import toVector
 from scenic.contracts.utils import leadDistance
 
 STARTING_DISTANCE = 5
+# 0 = Sunny, 1 = Cloudy, 2 = Rainy, 3 = Rainy
+param weather = Discrete({0: 0.5, 1: 0.2, 2: 0.2, 3: 0.1})
+param lead_car_width = Range(1.6, 2)
 
 roads = network.roads
 select_road = Uniform(*roads)
@@ -25,14 +28,14 @@ behavior BrakeChecking():
 
 # Set up lead and ego cars
 leadCar = new Car on select_lane.centerline,
-        with behavior BrakeChecking()
+        with behavior BrakeChecking(), with width globalParameters.lead_car_width
 
 
 class EgoCar(Car):
     targetDir[dynamic, final]: float(roadDirection[self.position].yaw)
 
 ego = new EgoCar at roadDirection.followFrom(toVector(leadCar), -STARTING_DISTANCE, stepSize=0.1),
-        with leadDist STARTING_DISTANCE,
+        with leadDist STARTING_DISTANCE, with weather float(globalParameters.weather), with lead_car_width globalParameters.lead_car_width,
         with behavior FollowLaneBehavior(), with name "EgoCar", with timestep 0.1
 
 # Create/activate monitor to store lead distance

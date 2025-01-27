@@ -173,6 +173,9 @@ class SimulationTesting(Testing):
                 base_value_windows[global_name] = EagerValueWindow(
                     (lambda: workspace_ptr)
                 )
+            elif global_name == "params":
+                params_ptr = scene.params
+                base_value_windows[global_name] = EagerValueWindow((lambda: params_ptr))
             else:
                 raise ValueError(f"Unrecognized global value '{global_name}'")
 

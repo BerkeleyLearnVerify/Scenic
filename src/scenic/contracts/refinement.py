@@ -14,10 +14,9 @@ class Refinement(VerificationTechnique):
     def __init__(self, stmt, contract, method):
         assert isinstance(stmt, Composition)
         self.stmt = stmt
+        self.component = self.stmt.component
         self.contract = contract
         self.method = method
-
-        self.method.check(self.stmt, self.contract)
 
     @cached_property
     def assumptions(self):
@@ -28,6 +27,8 @@ class Refinement(VerificationTechnique):
         return self.contract.guarantees
 
     def verify(self):
+        self.method.check(self.stmt, self.contract)
+
         return RefinementContractResult(
             self.assumptions,
             self.guarantees,
@@ -80,6 +81,7 @@ class LeanRefinementProof:
                 spec.applyAtomicTransformer(encoding_transformer)
 
             ## Add specs to accumulated i specs
+            i_assumptions += assumptions
             i_guarantees += guarantees
 
         ## Simplify assumptions and guarantees, removing duplicates

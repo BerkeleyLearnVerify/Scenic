@@ -1427,6 +1427,19 @@ class ContractCompose(AST):
         self.sub_stmts = sub_stmts
 
 
+class ContractMerge(AST):
+    def __init__(
+        self,
+        component,
+        sub_stmts,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.component = component
+        self.sub_stmts = sub_stmts
+
+
 class ContractUse(AST):
     def __init__(
         self,

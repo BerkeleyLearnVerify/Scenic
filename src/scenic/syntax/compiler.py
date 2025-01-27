@@ -3089,9 +3089,40 @@ class ScenicToPythonTransformer(Transformer):
         keywords = []
         keywords.append(ast.keyword("component", component_val))
         keywords.append(ast.keyword("sub_stmts", sub_stmts))
+        keywords.append(ast.keyword("environment", ast.Name("ENVIRONMENT", ctx=loadCtx)))
 
         return ast.Call(
             func=ast.Name("Composition", loadCtx),
+            args=[],
+            keywords=keywords,
+        )
+
+    def visit_ContractMerge(self, node: s.ContractCompose):
+        # Create component keyword
+        obj_val = ast.Name(node.component[0], loadCtx)
+        component_val = obj_val
+
+        if len(node.component) > 1:
+            for sub_name in node.component[1:]:
+                component_val = ast.Subscript(
+                    ast.Attribute(component_val, "subcomponents", loadCtx),
+                    ast.Constant(sub_name),
+                    loadCtx,
+                )
+
+        # Compile sub statements
+        sub_stmts = ast.List(
+            elts=[self.visit(sub_stmt) for sub_stmt in node.sub_stmts], ctx=loadCtx
+        )
+
+        # Package keywords
+        keywords = []
+        keywords.append(ast.keyword("component", component_val))
+        keywords.append(ast.keyword("sub_stmts", sub_stmts))
+        keywords.append(ast.keyword("environment", ast.Name("ENVIRONMENT", ctx=loadCtx)))
+
+        return ast.Call(
+            func=ast.Name("Merge", loadCtx),
             args=[],
             keywords=keywords,
         )

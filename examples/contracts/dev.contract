@@ -20,24 +20,65 @@ numpy.random.seed(SEED)
 ## Components ##
 
 # Dummy Sensors components
-component NoisyDistanceSystem(stddev, init_seed=1, overestimate=False):
+component RadarDistanceSystem(stddev):
     """ A component that provides noisy distance to the car in front."""
     sensors:
         self.leadDist: float as sensors_distance
+        self.lead_car_width: float as lead_car_width
 
     outputs:
         dist: float
 
-    state:
-        seed: int = init_seed
+    body:
+        if lead_car_width < 1.8:
+            noise = random.gauss(sigma=stddev)
+        else:
+            noise = 0
+        noisy_distance = sensors_distance + noise
+        return {"dist": noisy_distance}
+
+component LaserDistanceSystem(stddev):
+    """ A component that provides noisy distance to the car in front."""
+    sensors:
+        self.leadDist: float as sensors_distance
+        self.weather: float as weather
+
+    outputs:
+        dist: float
 
     body:
-        noise = random.gauss(sigma=stddev)
-        if overestimate:
-            noise = abs(noise)
+        if weather == 2 or weather == 3:
+            noise = random.gauss(sigma=stddev)
+        else:
+            noise = 0
         noisy_distance = sensors_distance + noise
-        state.seed = random.randint(1,1000000)
         return {"dist": noisy_distance}
+
+component MeanDistanceFilter():
+    inputs:
+        dist1: float
+        dist2: float
+
+    outputs:
+        mean_dist: float
+
+    body:
+        mean_dist = (dist1 + dist2)/2
+        return {"mean_dist": mean_dist}
+
+component PerceptionSystem(stddev):
+    outputs:
+        dist: float
+
+    compose:
+            rds = RadarDistanceSystem(stddev)
+            lds = LaserDistanceSystem(stddev)
+            mdf = MeanDistanceFilter()
+
+            connect rds.dist to mdf.dist1
+            connect lds.dist to mdf.dist2
+
+            connect mdf.mean_dist to dist
 
 component Speedometer():
     """ Fetches and outputss ground truth speed."""
@@ -226,7 +267,7 @@ component CarActionControls():
 
 component Car(stddev, target_dist, max_speed, min_dist, max_accel, max_brake, abs_speed_err):
     compose:
-        ps = NoisyDistanceSystem(stddev)
+        ps = PerceptionSystem(stddev)
         sm = Speedometer()
         ds = DirectionSystem()
         cs = ControlSystem(target_dist, max_speed, min_dist, max_accel, max_brake, abs_speed_err)
@@ -243,11 +284,143 @@ component Car(stddev, target_dist, max_speed, min_dist, max_accel, max_brake, ab
         connect cs.steer to cac.steer
 
 ## Contracts ##
+contract RadarManufacturerDistanceAccuracy(perception_distance, abs_dist_err=0.5):
+    """ Contract proving that perceived distance is relatively accurate."""
+    globals:
+        objects
+        workspace
+        params
+
+    outputs:
+        dist: float
+
+    definitions:
+        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj.position is not self.position]
+        lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
+        lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
+        lead_dist = lead_distances[lead_car]
+        behind_car = lead_dist <= perception_distance
+
+    assumptions:
+        # Assume we are in a lane
+        always self._lane is not None
+
+        # Can reliably detect cars with width greater than or equal to 1.8 meters
+        params["lead_car_width"] >= 1.8
+
+    guarantees:
+        # Guarantee that if we're behind a car (in visible range), that the reported distance
+        # is relatively accurate.
+        always (behind_car implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err))
+        # Guarantee that if we are not behind a car (or out of visible range), that any reported
+        # distance is greater than our visible range.
+        always ((not behind_car) implies (dist > perception_distance+abs_dist_err))
+
+contract LaserManufacturerDistanceAccuracy(perception_distance, abs_dist_err=0.5):
+    """ Contract proving that perceived distance is relatively accurate."""
+    globals:
+        objects
+        workspace
+        params
+
+    outputs:
+        dist: float
+
+    definitions:
+        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj.position is not self.position]
+        lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
+        lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
+        lead_dist = lead_distances[lead_car]
+        behind_car = lead_dist <= perception_distance
+
+    assumptions:
+        # Assume we are in a lane
+        always self._lane is not None
+
+        # Can reliably detect cars in sunny or cloudy weather (no occluding atmospheric particles)
+        params["weather"] == 0 or params["weather"] == 1
+
+    guarantees:
+        # Guarantee that if we're behind a car (in visible range), that the reported distance
+        # is relatively accurate.
+        always (behind_car implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err))
+        # Guarantee that if we are not behind a car (or out of visible range), that any reported
+        # distance is greater than our visible range.
+        always ((not behind_car) implies (dist > perception_distance+abs_dist_err))
+
+contract AccurateDistanceKnownConds(perception_distance, abs_dist_err=0.5):
+    """ Contract proving that perceived distance is relatively accurate outside of manufacturer spec conditions"""
+    globals:
+        objects
+        workspace
+        params
+
+    outputs:
+        dist: float
+
+    definitions:
+        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj.position is not self.position]
+        lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
+        lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
+        lead_dist = lead_distances[lead_car]
+        behind_car = lead_dist <= perception_distance
+
+    assumptions:
+        # Assume we are in a lane
+        always self._lane is not None
+
+        (params["weather"] == 0 or params["weather"] == 1) and params["lead_car_width"] >= 1.8
+
+    guarantees:
+        # Guarantee that if we're behind a car (in visible range), that the reported distance
+        # is relatively accurate.
+        always (behind_car implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err))
+
+contract AccurateDistanceUnknownConds(perception_distance, abs_dist_err=0.5):
+    """ Contract proving that perceived distance is relatively accurate outside of manufacturer spec conditions"""
+    globals:
+        objects
+        workspace
+        params
+
+    outputs:
+        dist: float
+
+    definitions:
+        cars = [obj for obj in objects if hasattr(obj, "isVehicle") and obj.isVehicle and obj.position is not self.position]
+        lead_distances = {car: leadDistance(self, car, workspace.network, maxDistance=2*perception_distance) for car in cars}
+        lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
+        lead_dist = lead_distances[lead_car]
+        behind_car = lead_dist <= perception_distance
+
+    assumptions:
+        # Assume we are in a lane
+        always self._lane is not None
+
+        not ((params["weather"] == 0 or params["weather"] == 1) and params["lead_car_width"] >= 1.8)
+
+    guarantees:
+        # Guarantee that if we're behind a car (in visible range), that the reported distance
+        # is relatively accurate.
+        always (behind_car implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err))
+
+contract MeanDistanceFilterSemantics():
+    inputs:
+        dist1: float
+        dist2: float
+
+    outputs:
+        mean_dist: float
+
+    guarantees:
+        always (mean_dist == (dist1 + dist2)/2)
+
 contract AccurateDistance(perception_distance, abs_dist_err=0.5):
     """ Contract proving that perceived distance is relatively accurate."""
     globals:
         objects
         workspace
+        params
 
     outputs:
         dist: float
@@ -267,9 +440,6 @@ contract AccurateDistance(perception_distance, abs_dist_err=0.5):
         # Guarantee that if we're behind a car (in visible range), that the reported distance
         # is relatively accurate.
         always (behind_car implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err))
-        # Guarantee that if we are not behind a car (or out of visible range), that any reported
-        # distance is greater than our visible range.
-        always ((not behind_car) implies (dist > perception_distance+abs_dist_err))
 
 contract AccurateSpeed():
     outputs:
@@ -356,8 +526,6 @@ contract KeepsDistance(perception_distance, min_dist, max_speed, abs_dist_err, a
         # Assume no one cuts in front us too closely
         always ((next lead_dist) == (lead_dist - true_relative_speed))
 
-        always (self.timestep == 0.1)
-
     guarantees:
         # Guarantee that we always stay at least min_dist behind the lead car
         always lead_dist > min_dist
@@ -379,11 +547,41 @@ TARGET_DIST = 10
 # Instantiate Car component and link to object.
 implement "EgoCar" with Car(STDDEV, TARGET_DIST, MAX_SPEED, MIN_DIST, MAX_ACCEL, MAX_BRAKE, ABS_SPEED_ERR) as car
 
+radar_accurate_distance = assume car.ps.rds satisfies RadarManufacturerDistanceAccuracy(
+    PERCEPTION_DISTANCE,
+    abs_dist_err=ABS_DIST_ERR)
+
+laser_accurate_distance = assume car.ps.lds satisfies LaserManufacturerDistanceAccuracy(
+    PERCEPTION_DISTANCE,
+    abs_dist_err=ABS_DIST_ERR) 
+
+mean_dist_filter_sem = prove car.ps.mdf satisfies MeanDistanceFilterSemantics() \
+    using LeanContractProof(localPath("ScenicLean/"), "MeanDistanceFilterSemantics", localPath("repl"))
+
+accurate_distance_known_raw = compose over car.ps:
+    use radar_accurate_distance
+    use laser_accurate_distance
+    use mean_dist_filter_sem
+
+accurate_distance_known = refine accurate_distance_known_raw as AccurateDistanceKnownConds(
+    PERCEPTION_DISTANCE,
+    abs_dist_err=ABS_DIST_ERR) using LeanRefinementProof(localPath("ScenicLean/"), "AccurateDistanceKnownRefinement", localPath("repl"))
+
+accurate_distance_unknown = test car.ps satisfies AccurateDistanceUnknownConds(
+    PERCEPTION_DISTANCE,
+    abs_dist_err=ABS_DIST_ERR),
+    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=600, confidence=0.95, batchSize=10, verbose=False),
+    terminating after 30*60 seconds
+
+accurate_distance = merge over car.ps:
+    use accurate_distance_known
+    use accurate_distance_unknown
+
 accurate_distance = test car.ps satisfies AccurateDistance(
     PERCEPTION_DISTANCE,
     abs_dist_err=ABS_DIST_ERR),
-    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=6, confidence=0.95, batchSize=10, verbose=False),
-    terminating after 100 samples
+    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=600, confidence=0.95, batchSize=10, verbose=False),
+    terminating after 5*60 seconds
 
 accurate_speed = assume car.sm satisfies AccurateSpeed()
 

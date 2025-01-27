@@ -1,4 +1,5 @@
-from copy import deepcopy
+import ast
+from copy import copy, deepcopy
 from functools import cached_property
 import itertools
 from math import prod
@@ -6,6 +7,7 @@ from math import prod
 from scenic.contracts.components import ActionComponent, BaseComponent, ComposeComponent
 from scenic.contracts.contracts import ContractResult, VerificationTechnique
 import scenic.contracts.specifications as specs
+from scenic.core.distributions import Options, Range
 from scenic.syntax.compiler import NameFinder, NameSwapTransformer
 
 
@@ -21,6 +23,7 @@ class Composition(VerificationTechnique):
         ## Compiler Provided ##
         component,
         sub_stmts,
+        environment,
     ):
         ## Initialization ##
         # Store parameters
@@ -307,3 +310,177 @@ class CompositionContractResult(ContractResult):
     @property
     def evidenceSummary(self):
         return "\n".join(str(result) for result in self.sub_results)
+
+
+class Merge(VerificationTechnique):
+    def __init__(self, sub_stmts, component, environment):
+        ## Initialization ##
+        # Store parameters
+        self.component = component
+        self.sub_stmts = sub_stmts
+        self.environment = environment
+
+        # Ensure all sub statements are of a valid form
+        for stmt in self.sub_stmts:
+            assert isinstance(stmt, VerificationTechnique)
+
+        # Check that all sub-statements are applied to this component
+        for stmt in self.sub_stmts:
+            assert stmt.component is self.component
+
+        # TODO: Handle more than two statements
+        assert len(self.sub_stmts) == 2
+
+        assert (
+            sub_stmts[0].guarantees == sub_stmts[1].guarantees
+        ), "Merged guarantees are not equivalent"
+
+        assumptions_1 = copy(sub_stmts[0].assumptions)
+        assumptions_2 = copy(sub_stmts[1].assumptions)
+
+        def standardize_spec(spec):
+            if isinstance(spec, specs.Not):
+                return (True, spec.sub)
+
+            return (False, spec)
+
+        split_specs = None
+
+        for a1, a2 in itertools.product(assumptions_1, assumptions_2):
+            sa1 = standardize_spec(a1)
+            sa2 = standardize_spec(a2)
+
+            if (sa1[0] != sa2[0]) and (sa1[1] == sa2[1]):
+                # Found a split
+                split_specs = (a1, a2)
+                break
+
+        assert (
+            split_specs is not None
+        ), "Couldn't find a pair of assumptions that split the space"
+
+        # Determine probability of each side of the split
+        prob1, _ = self.getSpecProb(split_specs[0])
+        prob2, _ = self.getSpecProb(split_specs[1])
+        assert (prob1 is not None) or (prob2 is not None)
+        assert prob1 + prob2 == 1.0
+
+        self.result_weights = (prob1, prob2)
+        self.guarantees = deepcopy(sub_stmts[0].guarantees)
+
+        assumptions_1.remove(split_specs[0])
+        assumptions_2.remove(split_specs[1])
+
+        assert assumptions_1 == assumptions_2
+
+        self.assumptions = deepcopy(assumptions_1)
+
+    # TODO: Better handling for this. Right now we have a pretty brittle way of asserting
+    # probs are computed properly.
+    def getSpecProb(self, spec):
+        def extractConstant(spec):
+            if isinstance(spec, specs.ConstantSpecNode):
+                return spec.value
+
+        def extractDist(spec):
+            if (
+                isinstance(spec, specs.Atomic)
+                and isinstance(spec.ast, ast.Subscript)
+                and isinstance(spec.ast.value, ast.Name)
+                and spec.ast.value.id == "params"
+            ):
+                assert isinstance(spec.ast.slice.value, str)
+                param_name = spec.ast.slice.value
+
+                return param_name, self.environment.params[param_name]
+
+        if isinstance(spec, specs.Not):
+            sub_call = self.getSpecProb(spec.sub)
+            return 1 - sub_call[0], sub_call[1]
+        elif isinstance(spec, specs.And):
+            sub_calls = [self.getSpecProb(sub) for sub in spec.subs]
+            deps = list(itertools.chain(*[sub[1] for sub in sub_calls]))
+            assert len(deps) == len(set(deps))
+            return prod(sub[0] for sub in sub_calls), set(deps)
+        elif isinstance(spec, specs.Or):
+            sub_calls = [self.getSpecProb(sub) for sub in spec.subs]
+            deps = set(itertools.chain(*[sub[1] for sub in sub_calls]))
+            assert set(sub_calls[0][1]) == deps
+            return 1 - prod((1 - sub[0]) for sub in sub_calls), deps
+        elif isinstance(spec, specs.Equal) or isinstance(spec, specs.GE):
+            if (extractConstant(spec.sub1) is not None) and (
+                extractDist(spec.sub2) is not None
+            ):
+                val = extractConstant(spec.sub1)
+                dist = extractDist(spec.sub2)
+            elif (extractConstant(spec.sub2) is not None) and (
+                extractDist(spec.sub1) is not None
+            ):
+                val = extractConstant(spec.sub2)
+                dist = extractDist(spec.sub1)
+            else:
+                assert False
+
+            deps, dist = dist
+
+            if isinstance(dist, Options):
+                assert isinstance(spec, specs.Equal)
+                for opt, weight in dist.optWeights.items():
+                    if opt == val:
+                        return weight, (deps,)
+                assert False
+            elif isinstance(dist, Range):
+                assert isinstance(spec, specs.GE)
+                if dist.high <= val:
+                    return 0, (deps,)
+                else:
+                    prob = (dist.high - val) / (dist.high - dist.low)
+                    return prob, (deps,)
+
+        breakpoint()
+
+        assert False
+
+    @cached_property
+    def assumptions(self):
+        return self._assumptions
+
+    @cached_property
+    def guarantees(self):
+        return self._guarantees
+
+    def verify(self):
+        sub_results = [stmt.verify() for stmt in self.sub_stmts]
+        return MergeContractResult(
+            self.assumptions,
+            self.guarantees,
+            self.component,
+            sub_results,
+            self.result_weights,
+        )
+
+
+class MergeContractResult(ContractResult):
+    def __init__(self, assumptions, guarantees, component, sub_results, result_weights):
+        super().__init__(assumptions, guarantees, component)
+        self.sub_results = sub_results
+        self.result_weights = result_weights
+
+    @cached_property
+    def correctness(self):
+        overall_correctness = 0
+        for i, stmt in enumerate(self.sub_results):
+            weight = self.result_weights[i]
+            overall_correctness += stmt.correctness * weight
+        return overall_correctness
+
+    @cached_property
+    def confidence(self):
+        return prod(result.confidence for result in self.sub_results)
+
+    @property
+    def evidenceSummary(self):
+        summary = "Result Merge:\n"
+        for i, result in enumerate(self.sub_results):
+            summary += f"Sub Result (Weight={self.result_weights[i]:.2f}, Sub-correctness={result.correctness*self.result_weights[i]:.2f}):\n{result}\n"
+        return summary
