@@ -33,6 +33,7 @@ dependencies = [
 	"mapbox_earcut >= 0.12.10",
 	"matplotlib ~= 3.2",
 	"manifold3d == 2.3.0",
+	"metadrive-simulator >= 0.4.3",
 	"networkx >= 2.6",
 	"numpy >= 1.24",
 	"opencv-python ~= 4.5",
@@ -47,6 +48,7 @@ dependencies = [
 	"scikit-image ~= 0.21",
 	"scipy ~= 1.7",
 	"shapely ~= 2.0",
+	"sumolib >= 1.21.0",
 	"trimesh >=4.0.9, <5",
 ]
 
