@@ -3,8 +3,6 @@
 try:
     from metadrive.component.traffic_participants.pedestrian import Pedestrian
     from metadrive.component.vehicle.vehicle_type import DefaultVehicle
-
-    # from metadrive.component.vehicle.vehicle_type import vehicle_type
 except ImportError as e:
     raise ModuleNotFoundError(
         'Metadrive scenarios require the "metadrive" package'
@@ -143,7 +141,6 @@ class MetaDriveSimulation(DrivingSimulation):
         if not self.defined_ego:
             decision_repeat = math.ceil(self.timestep / 0.02)
             physics_world_step_size = self.timestep / decision_repeat
-            # vehicle_type["metadrive_vehicle"] = utils.MetadriveVehicle
 
             # Initialize the simulator with ego vehicle
             self.client = utils.DriveEnv(
@@ -151,11 +148,6 @@ class MetaDriveSimulation(DrivingSimulation):
                     decision_repeat=decision_repeat,
                     physics_world_step_size=physics_world_step_size,
                     use_render=self.render if self.render3D else False,
-                    # agent_configs={
-                    #     "default_agent": {
-                    #         "vehicle_model": "metadrive_vehicle",
-                    #     }
-                    # },
                     vehicle_config={
                         "spawn_position_heading": [
                             converted_position,
@@ -168,13 +160,11 @@ class MetaDriveSimulation(DrivingSimulation):
             )
             self.client.config["sumo_map"] = self.sumo_map
             self.client.reset()
-            # self.client.config["vehicle_model"] = utils.MetadriveVehicle
 
             # Assign the MetaDrive actor to the ego
             metadrive_objects = self.client.engine.get_objects()
             if metadrive_objects:
                 ego_metaDriveActor = list(metadrive_objects.values())[0]
-                # ego_metaDriveActor.config["vehicle_model"] = utils.MetadriveVehicle
                 obj.metaDriveActor = ego_metaDriveActor
                 self.defined_ego = True
                 return obj.metaDriveActor
@@ -186,7 +176,6 @@ class MetaDriveSimulation(DrivingSimulation):
         # For additional cars
         if obj.isCar:
             metaDriveActor = self.client.engine.agent_manager.spawn_object(
-                # utils.MetadriveVehicle,
                 DefaultVehicle,
                 vehicle_config=dict(),
                 position=converted_position,
@@ -214,29 +203,25 @@ class MetaDriveSimulation(DrivingSimulation):
         """Execute actions for all vehicles in the simulation."""
         super().executeActions(allActions)
 
-        # Apply control updates which were accumulated while executing the actions
-        for idx, obj in enumerate(self.scene.objects):
+        # Apply control updates to vehicles
+        for obj in self.scene.objects:
             if obj.isCar:
-                if idx == 0:  # Skip the ego car
-                    pass
-                else:
-                    action = obj.collectAction()
-                    obj.metaDriveActor.before_step(action)
-                    if action[1] < 0:
-                        obj.apply_throttle_brake(action[1])
-                    obj.resetControl()
+                # Collect the action (steering and throttle/brake)
+                action = obj.collectAction()
+                # Apply the action to the vehicle
+                obj.metaDriveActor.before_step(action)
+                throttle_break = action[1]
+                # Check if the vehicle should be braking (throttle/brake value is negative)
+                if throttle_break < 0:
+                    # Ensure the vehicle comes to a full stop if braking is applied
+                    obj.ensure_vehicle_stops(throttle_break)
+                obj.resetControl()
 
     def step(self):
         start_time = time.monotonic()
 
-        # Special handling for the ego vehicle
-        # ego_obj = self.scene.objects[0]
-        # if ego_obj.isCar:
-        #     action = ego_obj.collectAction()
-        #     o, r, tm, tc, info = self.client.step(action)  # Apply action in the simulator
-        #     ego_obj.resetControl()
-
-        o, r, tm, tc, info = utils.full_stop_workaround_step(self)
+        # Execute a step in the MetaDrive simulator using our DriveEnv custom step
+        self.client.step()
 
         # Render the scene in 2D if needed
         if self.render and not self.render3D:

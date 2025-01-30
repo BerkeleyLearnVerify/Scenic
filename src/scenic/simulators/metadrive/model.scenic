@@ -96,9 +96,26 @@ class Vehicle(Vehicle, Steers, MetaDriveActor):
         ]
         return action
 
-    def apply_throttle_brake(self, throttle_brake):
+    def ensure_vehicle_stops(self, throttle_brake):
+        """
+        Ensures the vehicle comes to a complete stop, even if MetaDrive's default behavior
+        doesn't apply sufficient braking force.
+
+        This code was added by MetaDrive to fix the issue where vehicles do not
+        stop completely when full brake is applied. Since the latest version of MetaDrive
+        available on PyPI does not include this fix, we have added it here to
+        ensure that vehicles come to a full stop.
+
+        The function applies force and brake to stop the vehicle:
+        1. If reverse is enabled, it applies throttle to stop and ensures no brake.
+        2. If the speed is above a defined threshold (DEADZONE), it applies engine force or brake.
+        3. If the speed is low enough (below DEADZONE), it forces the brake to stop the vehicle completely.
+
+        This workaround should be removed or replaced once MetaDrive's fix is included in the PyPI release.
+        """
         max_engine_force = self.metaDriveActor.config["max_engine_force"]
         max_brake_force = self.metaDriveActor.config["max_brake_force"]
+
         for wheel_index in range(4):
             if self.metaDriveActor.enable_reverse:
                 self.metaDriveActor.system.applyEngineForce(max_engine_force * throttle_brake, wheel_index)
