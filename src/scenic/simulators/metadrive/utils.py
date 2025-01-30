@@ -116,13 +116,14 @@ class DriveEnv(BaseEnv):
         )
 
 
-def full_stop_workaround_step_simi(self, actions, ego_obj, throttle_break):
+def full_stop_workaround_step_simulator(self, actions, ego_obj, throttle_break):
     # prepare for stepping the simulation
     scene_manager_before_step_infos = self.client.engine.before_step(actions)
     if throttle_break < 0:
         ego_obj.apply_throttle_brake(throttle_break)
     # step all entities and the simulator
     self.client.engine.step(self.client.config["decision_repeat"])
+    ego_obj.resetControl()
     # update states, if restore from episode data, position and heading will be force set in update_state() function
     scene_manager_after_step_infos = self.client.engine.after_step()
 
@@ -137,16 +138,15 @@ def full_stop_workaround_step_simi(self, actions, ego_obj, throttle_break):
 
 def full_stop_workaround_step(self):
     ego_obj = self.scene.objects[0]
-    if ego_obj.isCar:
-        action = ego_obj.collectAction()
-        actions = self.client._preprocess_actions(action)
-        throttle_break = action[1]
-        engine_info = full_stop_workaround_step_simi(
-            self, actions, ego_obj, throttle_break
-        )
-        while self.client.in_stop:
-            self.client.engine.taskMgr.step()
-        return self.client._get_step_return(actions, engine_info=engine_info)
+    action = ego_obj.collectAction()
+    actions = self.client._preprocess_actions(action)
+    throttle_break = action[1]
+    engine_info = full_stop_workaround_step_simulator(
+        self, actions, ego_obj, throttle_break
+    )
+    while self.client.in_stop:
+        self.client.engine.taskMgr.step()
+    return self.client._get_step_return(actions, engine_info=engine_info)
 
 
 # class MetadriveVehicle(DefaultVehicle):
