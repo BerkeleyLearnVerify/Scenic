@@ -96,6 +96,28 @@ class Vehicle(Vehicle, Steers, MetaDriveActor):
         ]
         return action
 
+    def apply_throttle_brake(self, throttle_brake):
+        max_engine_force = self.metaDriveActor.config["max_engine_force"]
+        max_brake_force = self.metaDriveActor.config["max_brake_force"]
+        for wheel_index in range(4):
+            if self.metaDriveActor.enable_reverse:
+                self.metaDriveActor.system.applyEngineForce(max_engine_force * throttle_brake, wheel_index)
+                self.metaDriveActor.system.setBrake(0, wheel_index)
+            else:
+                DEADZONE = 0.01
+
+                heading = self.metaDriveActor.heading
+                velocity = self.metaDriveActor.velocity
+                speed_in_heading = velocity[0] * heading[0] + velocity[1] * heading[1]
+
+                if speed_in_heading < DEADZONE:
+                    self.metaDriveActor.system.applyEngineForce(0.0, wheel_index)
+                    self.metaDriveActor.system.setBrake(2, wheel_index)
+                else:
+                    self.metaDriveActor.system.applyEngineForce(0.0, wheel_index)
+                    self.metaDriveActor.system.setBrake(abs(throttle_brake) * max_brake_force, wheel_index)
+
+
 class Car(Vehicle):
     @property
     def isCar(self):

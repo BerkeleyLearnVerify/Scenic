@@ -5,9 +5,11 @@
 # https://github.com/metadriverse/metadrive/blob/aaed1f7f2512061ddd8349d1d411e374dab87a43/metadrive/utils/sumo/map_utils.py#L165-L172
 
 try:
+    from metadrive.component.vehicle.vehicle_type import DefaultVehicle
     from metadrive.envs import BaseEnv
     from metadrive.manager.sumo_map_manager import SumoMapManager
     from metadrive.obs.observation_base import DummyObservation
+    from metadrive.utils import merge_dicts
 except ImportError as e:
     raise ModuleNotFoundError(
         'Metadrive scenarios require the "metadrive" package'
@@ -112,3 +114,76 @@ class DriveEnv(BaseEnv):
         self.engine.register_manager(
             "map_manager", SumoMapManager(self.config["sumo_map"])
         )
+
+
+def full_stop_workaround_step_simi(self, actions, ego_obj, throttle_break):
+    # prepare for stepping the simulation
+    scene_manager_before_step_infos = self.client.engine.before_step(actions)
+    if throttle_break < 0:
+        ego_obj.apply_throttle_brake(throttle_break)
+    # step all entities and the simulator
+    self.client.engine.step(self.client.config["decision_repeat"])
+    # update states, if restore from episode data, position and heading will be force set in update_state() function
+    scene_manager_after_step_infos = self.client.engine.after_step()
+
+    # Note that we use shallow update for info dict in this function! This will accelerate system.
+    return merge_dicts(
+        scene_manager_after_step_infos,
+        scene_manager_before_step_infos,
+        allow_new_keys=True,
+        without_copy=True,
+    )
+
+
+def full_stop_workaround_step(self):
+    ego_obj = self.scene.objects[0]
+    if ego_obj.isCar:
+        action = ego_obj.collectAction()
+        actions = self.client._preprocess_actions(action)
+        throttle_break = action[1]
+        engine_info = full_stop_workaround_step_simi(
+            self, actions, ego_obj, throttle_break
+        )
+        while self.client.in_stop:
+            self.client.engine.taskMgr.step()
+        return self.client._get_step_return(actions, engine_info=engine_info)
+
+
+# class MetadriveVehicle(DefaultVehicle):
+#     """
+#     This class is a custom subclass of DefaultVehicle. It overrides the `_apply_throttle_brake`
+#     method to implement a fix for the car stopping fully, which is not included in the latest
+#     version of MetaDrive on PyPI (as of now).
+
+#     In the latest version of MetaDrive, the car doesn't come to a full stop reliably,
+#     so this fix has been added here.
+#     """
+
+#     def _apply_throttle_brake(self, throttle_brake):
+#         max_engine_force = self.config["max_engine_force"]
+#         max_brake_force = self.config["max_brake_force"]
+#         for wheel_index in range(4):
+#             if throttle_brake >= 0:
+#                 self.system.setBrake(2.0, wheel_index)
+#                 if self.speed_km_h > self.max_speed_km_h:
+#                     self.system.applyEngineForce(0.0, wheel_index)
+#                 else:
+#                     self.system.applyEngineForce(max_engine_force * throttle_brake, wheel_index)
+#             else:
+#                 if self.enable_reverse:
+#                     self.system.applyEngineForce(max_engine_force * throttle_brake, wheel_index)
+#                     self.system.setBrake(0, wheel_index)
+#                 else:
+#                     DEADZONE = 0.01
+
+#                     # Speed m/s in car's heading:
+#                     heading = self.heading
+#                     velocity = self.velocity
+#                     speed_in_heading = velocity[0] * heading[0] + velocity[1] * heading[1]
+
+#                     if speed_in_heading < DEADZONE:
+#                         self.system.applyEngineForce(0.0, wheel_index)
+#                         self.system.setBrake(2, wheel_index)
+#                     else:
+#                         self.system.applyEngineForce(0.0, wheel_index)
+#                         self.system.setBrake(abs(throttle_brake) * max_brake_force, wheel_index)
