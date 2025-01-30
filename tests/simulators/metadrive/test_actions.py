@@ -26,11 +26,6 @@ def getMetadriveSimulator(getAssetPath):
     yield _getMetadriveSimulator
 
 
-# def test_basic(loadLocalScenario):
-#     scenario = loadLocalScenario("basic.scenic", mode2D=True)
-#     scenario.generate(maxIterations=1000)
-
-
 def test_throttle(getMetadriveSimulator):
     simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
     code = f"""
@@ -84,3 +79,39 @@ def test_brake(getMetadriveSimulator):
     simulation = simulator.simulate(scene)
     finalSpeed = simulation.result.records["CarSpeed"]
     assert finalSpeed == pytest.approx(0.0, abs=1e-1)
+
+
+def test_pedestrian_movement(getMetadriveSimulator):
+    simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
+    code = f"""
+        param map = r'{openDrivePath}'
+        param sumo_map = r'{sumoPath}'
+
+        model scenic.simulators.metadrive.model
+
+        behavior WalkForward():
+            while True:
+                take SetWalkingDirectionAction(self.heading)
+                take SetWalkingSpeedAction(0.5)
+
+        behavior StopWalking():
+            while True:
+                take SetWalkingSpeedAction(0)
+
+        behavior WalkThenStop():
+            do WalkForward() for 6 steps
+            do StopWalking() for 2 steps
+
+        ego = new Car
+        pedestrian = new Pedestrian with behavior WalkThenStop
+
+        record initial pedestrian.position as InitialPos
+        record final pedestrian.position as FinalPos
+        terminate after 8 steps
+    """
+    scenario = compileScenic(code, mode2D=True)
+    scene = sampleScene(scenario)
+    simulation = simulator.simulate(scene)
+    initialPos = simulation.result.records["InitialPos"]
+    finalPos = simulation.result.records["FinalPos"]
+    assert initialPos != finalPos
