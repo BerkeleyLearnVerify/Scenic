@@ -240,7 +240,7 @@ class MetaDriveSimulation(DrivingSimulation):
                 time.sleep(self.timestep - elapsed_time)
 
     def destroy(self):
-        if self.client:
+        if self.client and self.client.engine:
             object_ids = list(self.client.engine._spawned_objects.keys())
             self.client.engine.agent_manager.clear_objects(object_ids)
             self.client.close()

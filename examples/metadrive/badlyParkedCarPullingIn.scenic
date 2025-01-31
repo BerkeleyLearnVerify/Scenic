@@ -1,6 +1,5 @@
-param map = localPath('../../assets/maps/CARLA/Town05.xodr')
-param sumo_map = localPath('../../assets/maps/CARLA/Town05.net.xml')
-param carla_map = 'Town05'
+param map = localPath('../../assets/maps/CARLA/Town01.xodr')
+param sumo_map = localPath('../../assets/maps/CARLA/Town01.net.xml')
 param time_step = 1.0/10
 
 model scenic.simulators.metadrive.model
