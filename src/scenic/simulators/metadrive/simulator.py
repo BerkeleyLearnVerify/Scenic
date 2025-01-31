@@ -204,24 +204,26 @@ class MetaDriveSimulation(DrivingSimulation):
         super().executeActions(allActions)
 
         # Apply control updates to vehicles
-        for obj in self.scene.objects:
+        for idx, obj in enumerate(self.scene.objects):
             if obj.isCar:
-                # Collect the action (steering and throttle/brake)
-                action = obj.collectAction()
-                # Apply the action to the vehicle
-                obj.metaDriveActor.before_step(action)
-                throttle_break = action[1]
-                # Check if the vehicle should be braking (throttle/brake value is negative)
-                if throttle_break < 0:
-                    # Ensure the vehicle comes to a full stop if braking is applied
-                    obj.ensure_vehicle_stops(throttle_break)
-                obj.resetControl()
+                if idx == 0:  # Skip the ego car
+                    pass
+                else:
+                    # Collect the action (steering and throttle/brake)
+                    action = obj.collectAction()
+                    # Apply the action to the vehicle in MetaDrive
+                    obj.metaDriveActor.before_step(action)
+                    obj.resetControl()
 
     def step(self):
         start_time = time.monotonic()
 
-        # Execute a step in the MetaDrive simulator using our DriveEnv custom step
-        self.client.step()
+        # Special handling for the ego vehicle
+        ego_obj = self.scene.objects[0]
+        if ego_obj.isCar:
+            action = ego_obj.collectAction()
+            o, r, tm, tc, info = self.client.step(action)  # Apply action in the simulator
+            ego_obj.resetControl()
 
         # Render the scene in 2D if needed
         if self.render and not self.render3D:

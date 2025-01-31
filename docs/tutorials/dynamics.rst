@@ -396,10 +396,9 @@ You can see all of the above syntax in action by running some of our examples of
 scenarios. We have examples written for the CARLA and LGSVL driving simulators, and those
 in :file:`examples/driving` in particular are designed to use Scenic's abstract
 :ref:`driving domain <driving_domain>` and so work in either of these simulators, as well
-as Scenic's built-in Newtonian physics simulator. The Newtonian simulator is convenient
-for testing and simple experiments; you can find details on how to install the more
-realistic simulators in our :ref:`simulators` page (they should work on both Linux and
-Windows, but not macOS, at the moment).
+as Scenic's built-in MetaDrive and Newtonian physics simulator. While the Newtonian simulator is convenient
+for testing and simple experiments, we recommend using MetaDrive for more realistic driving scenarios. You can find details on these simulators and how to install them on
+our :ref:`simulators` page.
 
 Let's try running
 :file:`examples/driving/badlyParkedCarPullingIn.scenic`, which implements the "a
@@ -414,16 +413,17 @@ usual schematic diagram of the generated scenes:
 To run dynamic simulations, add the :option:`--simulate` option (:option:`-S` for short).
 Since this scenario is not written for a particular simulator, you'll need to specify
 which one you want by using the :option:`--model` option (:option:`-m` for short) to
-select the corresponding Scenic :term:`world model`: for example, to use the Newtonian simulator we could add
-``--model scenic.simulators.newtonian.driving_model``. It's also a good idea to put a time bound on
-the simulations, which we can do using the :option:`--time` option.
+select the corresponding Scenic :term:`world model`: for example, to use the Metadrive simulator we could add
+``--model scenic.simulators.metadrive.model`` and include the ``--param sumo_map`` option with the corresponding SUMO map for the OpenDRIVE map you are using.
+It's also a good idea to put a time bound on the simulations, which we can do using the :option:`--time` option.
 
 .. code-block:: console
 
     $ scenic examples/driving/badlyParkedCarPullingIn.scenic \
         --2d       \
         --simulate \
-        --model scenic.simulators.newtonian.driving_model \
+        --model scenic.simulators.metadrive.model \
+        --param sumo_map assets/maps/CARLA/Town05.net.xml \
         --time 200
 
 Running the scenario in CARLA is exactly the same, except we use the

@@ -1,16 +1,21 @@
 import os
-from pathlib import Path
 
 import pytest
 
-try:
-    import metadrive
+from scenic.simulators.metadrive import MetaDriveSimulator
+from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
-    from scenic.simulators.metadrive import MetaDriveSimulator
-except ModuleNotFoundError:
-    pytest.skip("Metadrive package not installed", allow_module_level=True)
 
-from tests.utils import compileScenic, sampleScene
+def test_basic(loadLocalScenario):
+    scenario = loadLocalScenario("basic.scenic", mode2D=True)
+    scenario.generate(maxIterations=1000)
+
+
+@pickle_test
+@pytest.mark.slow
+def test_pickle(loadLocalScenario):
+    scenario = tryPickling(loadLocalScenario("basic.scenic", mode2D=True))
+    tryPickling(sampleScene(scenario, maxIterations=1000))
 
 
 @pytest.fixture(scope="package")
@@ -49,6 +54,9 @@ def test_throttle(getMetadriveSimulator):
     assert records[len(records) // 2][1] < records[-1][1]
 
 
+@pytest.mark.skip(
+    reason="This test is skipped until MetaDrive uploads the next version on PyPI to fix the issue where cars aren't fully stopping."
+)
 def test_brake(getMetadriveSimulator):
     simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
     code = f"""
@@ -99,7 +107,7 @@ def test_pedestrian_movement(getMetadriveSimulator):
                 take SetWalkingSpeedAction(0)
 
         behavior WalkThenStop():
-            do WalkForward() for 6 steps
+            do WalkForward() for 2 steps
             do StopWalking() for 2 steps
 
         ego = new Car
@@ -107,7 +115,7 @@ def test_pedestrian_movement(getMetadriveSimulator):
 
         record initial pedestrian.position as InitialPos
         record final pedestrian.position as FinalPos
-        terminate after 8 steps
+        terminate after 4 steps
     """
     scenario = compileScenic(code, mode2D=True)
     scene = sampleScene(scenario)

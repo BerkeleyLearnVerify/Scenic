@@ -112,17 +112,3 @@ class DriveEnv(BaseEnv):
         self.engine.register_manager(
             "map_manager", SumoMapManager(self.config["sumo_map"])
         )
-
-    def step(self):
-        """
-        Custom step function to bypass MetaDrive's before_step and after_step.
-
-        In MetaDrive, the typical step includes before_step, step, and after_step
-        processes. However, in this class, we have already applied the necessary actions
-        to the vehicles in the `MetaDriveSimulation` class's `executeActions`. Therefore,
-        here we skip MetaDrive's `before_step` and directly call the engine's step and after_step.
-        """
-        self.engine.step(self.config["decision_repeat"])
-        self.engine.after_step()
-        while self.in_stop:
-            self.engine.taskMgr.step()
