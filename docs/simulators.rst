@@ -20,9 +20,13 @@ Built-in MetaDrive Simulator
 ----------------------------
 
 Scenic includes the `MetaDrive <https://metadriverse.github.io/metadrive/>`_ simulator as a built-in tool, enabling users to describe dynamic simulations of vehicles, pedestrians, and traffic scenarios without the need for separate installation.
+
 Scenic supports both 2D and 3D rendering modes for MetaDrive simulations.
-2D rendering is available on all systems, providing a top-down view, while 3D rendering requires OpenGL, which may not work properly on macOS devices with M-series chips due to deprecated OpenGL support.
-If you encounter issues with 3D rendering, consider using 2D mode instead which is set by default.
+Scenic supports both 2D and 3D rendering modes for MetaDrive simulations.
+2D rendering is available on all systems, providing a top-down view.
+However, 3D rendering may not work properly on macOS devices with M-series chips.
+Additionally, there is an issue where cars do not fully brake in certain scenarios.
+These issues are expected to be addressed in the next version of MetaDrive.
 
 Scenic uses OpenDRIVE maps, while MetaDrive relies on SUMO maps. Scenic provides corresponding SUMO maps for OpenDRIVE maps under the :file:`assets/maps/CARLA` directory.
 Additionally, you can convert your own OpenDRIVE maps to SUMO maps using the `netconvert <https://sumo.dlr.de/docs/Networks/Import/OpenDRIVE.html/>`_ tool.
