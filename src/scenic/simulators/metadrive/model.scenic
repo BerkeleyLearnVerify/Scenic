@@ -1,7 +1,7 @@
 """Scenic world model for traffic scenarios in MetaDrive.
 
 The model currently supports vehicles and pedestrians. It implements the
-basic `Vehicle`, `Car` and `Pedestrian` classes from the :obj:`scenic.domains.driving` domain.
+basic :obj:`~scenic.domains.driving.model.Car` and `Pedestrian` classes from the :obj:`scenic.domains.driving` domain.
 Vehicles and pedestrians support the basic actions and behaviors from the driving domain.
 
 The model defines several global parameters, whose default values can be overridden
