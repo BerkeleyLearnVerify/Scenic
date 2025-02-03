@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python-version: ["3.11"]
+        python-version: ["3.12"]
         os: [ubuntu-latest]
         extras: ["test-full"]
     runs-on: ${{ matrix.os }}
@@ -33,12 +33,14 @@ jobs:
       if: inputs.ref != ''
       with:
         ref: ${{ inputs.ref }}
+        persist-credentials: false
 
     - name: Checkout current branch
       uses: actions/checkout@v3
       if: inputs.ref == ''
       with:
         ref: ${{ github.ref }}
+        persist-credentials: false
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4

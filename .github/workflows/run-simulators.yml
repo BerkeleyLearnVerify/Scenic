@@ -88,12 +88,13 @@ jobs:
             HOSTNAME: ${{ secrets.SSH_HOST }}
             USER_NAME: ${{ secrets.SSH_USERNAME }}
             GH_ACCESS_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+            GH_REF: ${{ github.ref }}
           run: |
             echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
-            ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
+            ssh -o StrictHostKeyChecking=no -o SendEnv=GH_REF -i private_key ${USER_NAME}@${HOSTNAME} '
               cd /home/ubuntu/actions/ &&
               rm -rf Scenic &&
-              git clone --branch $(basename "${{ github.ref }}") --single-branch https://$GH_ACCESS_TOKEN@github.com/BerkeleyLearnVerify/Scenic.git &&
+              git clone --branch $(basename "$GH_REF") --single-branch https://$GH_ACCESS_TOKEN@github.com/BerkeleyLearnVerify/Scenic.git &&
               cd Scenic &&
               python3 -m venv venv &&
               source venv/bin/activate &&
