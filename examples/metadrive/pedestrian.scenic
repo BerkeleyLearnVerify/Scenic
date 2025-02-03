@@ -18,8 +18,8 @@ behavior StopWalking():
         take SetWalkingSpeedAction(0)
 
 behavior WalkThenStop():
-    do WalkForward() for 100 steps
-    do StopWalking() for 6 steps
+    do WalkForward() for 20 steps
+    do StopWalking() for 5 steps
 
 
 new Pedestrian on visible right_sidewalk, with behavior WalkThenStop
