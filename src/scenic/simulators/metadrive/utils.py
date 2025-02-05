@@ -1,8 +1,7 @@
-# NOTE: MetaDrive currently has their own coordinate
-# system where (0,0) is centered around the middle of
-# the SUMO Map. To preserve the original SUMO map coordinates
-# we will offset by the computed center x and y coordinates
-# https://github.com/metadriverse/metadrive/blob/aaed1f7f2512061ddd8349d1d411e374dab87a43/metadrive/utils/sumo/map_utils.py#L165-L172
+# NOTE: MetaDrive uses a coordinate system where (0,0) is centered
+# around the middle of the SUMO map. To ensure alignment, we shift
+# positions using both the computed SUMO map center (center_x, center_y)
+# and adjust for SUMO’s netOffset (offset_x, offset_y).
 
 try:
     from metadrive.envs import BaseEnv

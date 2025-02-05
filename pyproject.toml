@@ -35,7 +35,7 @@ dependencies = [
 	"manifold3d == 2.3.0",
 	"metadrive-simulator >= 0.4.3",
 	"networkx >= 2.6",
-	"numpy >= 1.24",
+	"numpy ~= 1.24",
 	"opencv-python ~= 4.5",
 	"pegen >= 0.3.0",
 	"pillow >= 9.1",
