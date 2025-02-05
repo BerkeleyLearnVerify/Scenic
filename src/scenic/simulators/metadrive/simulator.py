@@ -205,15 +205,10 @@ class MetaDriveSimulation(DrivingSimulation):
 
         # Apply control updates to vehicles
         for idx, obj in enumerate(self.scene.objects):
-            if obj.isCar:
-                if idx == 0:  # Skip the ego car
-                    pass
-                else:
-                    # Collect the action (steering and throttle/brake)
-                    action = obj.collectAction()
-                    # Apply the action to the vehicle in MetaDrive
-                    obj.metaDriveActor.before_step(action)
-                    obj.resetControl()
+            if obj.isCar and idx != 0:  # Skip ego vehicle (it is handled separately)
+                action = obj.collectAction()
+                obj.metaDriveActor.before_step(action)
+                obj.resetControl()
 
     def step(self):
         start_time = time.monotonic()
