@@ -25,6 +25,7 @@ Global Parameters:
 """
 import pathlib
 from scenic.domains.driving.model import *
+from scenic.core.errors import InvalidScenarioError
 
 from scenic.simulators.metadrive.simulator import MetaDriveSimulator
 from scenic.simulators.metadrive.actions import *

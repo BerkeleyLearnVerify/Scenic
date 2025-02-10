@@ -33,7 +33,6 @@ dependencies = [
 	"mapbox_earcut >= 0.12.10",
 	"matplotlib ~= 3.2",
 	"manifold3d == 2.3.0",
-	"metadrive-simulator >= 0.4.3",
 	"networkx >= 2.6",
 	"numpy ~= 1.24",
 	"opencv-python ~= 4.5",
@@ -48,7 +47,6 @@ dependencies = [
 	"scikit-image ~= 0.21",
 	"scipy ~= 1.7",
 	"shapely ~= 2.0",
-	"sumolib >= 1.21.0",
 	"trimesh >=4.0.9, <5",
 ]
 
@@ -56,6 +54,10 @@ dependencies = [
 guideways = [
 	'pyproj ~= 3.0; python_version < "3.10"',
 	'pyproj ~= 3.3; python_version >= "3.10"',
+]
+metadrive = [
+	"metadrive-simulator >= 0.4.3",
+	"sumolib >= 1.21.0",
 ]
 test = [	# minimum dependencies for running tests (used for tox virtualenvs)
 	"pytest >= 7.0.0, <8",
@@ -65,6 +67,7 @@ test = [	# minimum dependencies for running tests (used for tox virtualenvs)
 test-full = [  # like 'test' but adds dependencies for optional features
 	"scenic[test]",       # all dependencies from 'test' extra above
 	"scenic[guideways]",  # for running guideways modules
+	'scenic[metadrive]; python_version <= "3.11"',  # MetaDrive only supports Python ≤ 3.11; excluded for newer versions
 	"astor >= 0.8.1",
 	'carla >= 0.9.12; python_version <= "3.10" and (platform_system == "Linux" or platform_system == "Windows")',
 	"dill",
