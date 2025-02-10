@@ -16,10 +16,16 @@ See the individual entries for details on each interface's capabilities and how 
 Currently Supported
 ===================
 
-Built-in MetaDrive Simulator
+MetaDrive (Optional)
 ----------------------------
 
-Scenic includes the `MetaDrive <https://metadriverse.github.io/metadrive/>`_ simulator as a built-in tool, enabling users to describe dynamic simulations of vehicles, pedestrians, and traffic scenarios without the need for separate installation.
+Scenic supports integration with the `MetaDrive <https://metadriverse.github.io/metadrive/>`_ simulator as an optional dependency,
+enabling users to describe dynamic simulations of vehicles, pedestrians, and traffic scenarios.
+If your system supports it, you can install it with:
+
+.. code-block:: console
+
+    pip install scenic[metadrive]
 
 Scenic supports both 2D and 3D rendering modes for MetaDrive simulations.
 2D rendering is available on all systems, providing a top-down view.
@@ -29,11 +35,15 @@ These issues are expected to be addressed in the next version of MetaDrive.
 
 Scenic uses OpenDRIVE maps, while MetaDrive relies on SUMO maps. Scenic provides corresponding SUMO maps for OpenDRIVE maps under the :file:`assets/maps/CARLA` directory.
 Additionally, you can convert your own OpenDRIVE maps to SUMO maps using the `netconvert <https://sumo.dlr.de/docs/Networks/Import/OpenDRIVE.html/>`_ tool.
+To avoid setting the SUMO map manually, name it the same as your OpenDRIVE file.
+Otherwise, specify it explicitly with:
+
+.. code-block:: console
+
+    --param sumo_map your_map.net.xml
 
 The simulator is compatible with scenarios written using Scenic's :ref:`driving_domain`.
 For more information, refer to the documentation of the `scenic.simulators.metadrive` module.
-
-Examples using the MetaDrive interface can be found in the :file:`examples/metadrive directory`.
 
 
 Built-in Newtonian Simulator
