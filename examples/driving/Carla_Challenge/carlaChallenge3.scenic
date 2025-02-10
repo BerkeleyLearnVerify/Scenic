@@ -1,7 +1,10 @@
 """ Scenario Description
 Based on 2019 Carla Challenge Traffic Scenario 03.
-Leading vehicle decelerates suddenly due to an obstacle and 
+Leading vehicle decelerates suddenly due to an obstacle and
 ego-vehicle must react, performing an emergency brake or an avoidance maneuver.
+
+To run this file using the MetaDrive simulator:
+    scenic examples/driving/Carla_Challenge/carlaChallenge3.scenic --2d --model scenic.simulators.metadrive.model --simulate
 
 To run this file using the Carla simulator:
     scenic examples/driving/Carla_Challenge/carlaChallenge3.scenic --2d --model scenic.simulators.carla.model --simulate

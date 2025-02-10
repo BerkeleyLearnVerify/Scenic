@@ -23,14 +23,29 @@ Global Parameters:
         as long as the specified timestep. If False, the simulation may run faster, based on the time it takes
         to process each step.
 """
-from scenic.simulators.metadrive.simulator import MetaDriveSimulator
+import pathlib
 from scenic.domains.driving.model import *
+
+from scenic.simulators.metadrive.simulator import MetaDriveSimulator
 from scenic.simulators.metadrive.actions import *
 from scenic.simulators.metadrive.behaviors import *
 from scenic.simulators.metadrive.utils import scenicToMetaDriveHeading
 from metadrive.utils.math import norm
 
-param sumo_map = globalParameters.sumo_map
+
+if globalParameters.get("sumo_map") is None:
+    sumo_map_path = str(pathlib.Path(globalParameters.map).with_suffix(".net.xml"))
+
+    if not pathlib.Path(sumo_map_path).exists():
+        raise InvalidScenarioError(
+            f"Missing SUMO map: Expected '{sumo_map_path}' but the file does not exist.\n"
+            "The SUMO map should have the same base name as the 'map' parameter, with the '.net.xml' extension.\n"
+            "Ensure that the corresponding '.net.xml' file is located in the same directory as the '.xodr' file."
+        )
+else:
+    sumo_map_path = globalParameters.sumo_map
+
+param sumo_map = sumo_map_path
 param timestep = 0.1
 param render = 1
 param render3D = 0
