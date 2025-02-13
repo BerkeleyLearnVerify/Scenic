@@ -3275,7 +3275,9 @@ class RectangularRegion(PolygonalRegion):
         self.circumcircle = (self.position, self.radius)
 
         super().__init__(
-            polygon=self._makePolygons(position, heading, width, length),
+            polygon=self._makePolygons(
+                self.position, self.heading, self.width, self.length
+            ),
             z=self.position.z,
             name=name,
             additionalDeps=deps,
