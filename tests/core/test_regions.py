@@ -408,8 +408,10 @@ def test_mesh_boundingPolygon(getAssetPath, pytestconfig):
     )
     for reg in regions:
         bp = reg.boundingPolygon
-        pts = trimesh.sample.volume_mesh(reg.mesh, samples)
-        assert all(bp.containsPoint(pt) for pt in pts)
+        for pt in trimesh.sample.volume_mesh(reg.mesh, samples):
+            pt[2] = 0
+            # exact containment check may fail since polygon is approximate
+            assert bp.distanceTo(pt) <= 1e-3
         bphull = reg._boundingPolygonHull
         assertPolygonCovers(bphull, bp.polygons)
         simple = shapely.multipoints(reg.mesh.vertices).convex_hull
