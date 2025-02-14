@@ -156,6 +156,86 @@ class BehaviorDef(AST):
         self.body = body
         self._fields = ["name", "args", "docstring", "header", "body"]
 
+class ModalBehaviorDef(AST):
+    __match_args__ = ("name", "args", "docstring", "header", "body")
+
+    def __init__(
+        self,
+        name: str,
+        args: ast.arguments,
+        docstring: Optional[str],
+        header: typing.List[Union["Precondition", "Invariant"]],
+        body: typing.List[any],
+        *_args: any,
+        **kwargs: any,
+    ) -> None:
+        super().__init__(*_args, **kwargs)
+        self.name = name
+        self.args = args
+        self.docstring = docstring
+        self.header = header
+        self.body = body
+        self._fields = ["name", "args", "docstring", "header", "body"]
+
+class InitialMode(AST):
+
+    __match_args__ = (
+        "name",
+        "body",
+    )
+
+    def __init__(
+        self,
+        name: str,
+        body: typing.List[ast.stmt],
+        *args: any,
+        **kwargs: any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.name = name
+        self.body = body
+        self._fields = [
+            "name",
+            "body"
+        ]
+        self._attributes = [] # TODO should this be here?
+
+class InitialMode(AST):
+
+    __match_args__ = (
+        "name",
+        "body",
+    )
+
+    def __init__(
+        self,
+        name: str,
+        body: typing.List[ast.stmt],
+        *args: any,
+        **kwargs: any,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.name = name
+        self.body = body
+        self._fields = [
+            "name",
+            "body"
+        ]
+        self._attributes = [] # TODO should this be here?
+
+class JumpTo(AST):
+    __match_args__ = (
+        "mode"
+    )
+    def __init__(
+        self,
+        mode: ast.AST,
+        *args: any,
+        **kwargs: any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.mode = mode
+        self._fields = ["mode"]
 
 class MonitorDef(AST):
     __match_args__ = ("name", "args", "docstring", "body")
