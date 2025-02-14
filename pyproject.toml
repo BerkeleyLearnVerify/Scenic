@@ -1,6 +1,6 @@
 [project]
 name = "scenic"
-version = "3.0.0"
+version = "3.1.0a1"
 description = "The Scenic scenario description language."
 authors = [
 	{ name = "Daniel Fremont" },
