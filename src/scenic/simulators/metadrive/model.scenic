@@ -31,7 +31,6 @@ from scenic.simulators.metadrive.simulator import MetaDriveSimulator
 from scenic.simulators.metadrive.actions import *
 from scenic.simulators.metadrive.behaviors import *
 from scenic.simulators.metadrive.utils import scenicToMetaDriveHeading
-from metadrive.utils.math import norm
 
 
 if globalParameters.get("sumo_map") is None:

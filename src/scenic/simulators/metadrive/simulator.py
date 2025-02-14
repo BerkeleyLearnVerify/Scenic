@@ -97,11 +97,16 @@ class MetaDriveSimulation(DrivingSimulation):
         sumo_map_boundary,
         **kwargs,
     ):
-        # NOTE: MetaDrive requires at least one agent to be defined per simulation run
+        # NOTE: MetaDrive requires at least one agent to be defined per simulation run,
+        # and the first object must be a car (to serve as the ego vehicle).
         try:
             if len(scene.objects) == 0:
                 raise SimulationCreationError(
-                    "The Metadrive interface requires you to define at least one Scenic object."
+                    "Metadrive requires you to define at least one Scenic object."
+                )
+            if not scene.objects[0].isCar:
+                raise SimulationCreationError(
+                    "The first object must be a car to serve as the ego vehicle in Metadrive."
                 )
         except SimulationCreationError as e:
             print(e)

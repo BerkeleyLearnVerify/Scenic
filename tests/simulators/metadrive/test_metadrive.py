@@ -2,7 +2,13 @@ import os
 
 import pytest
 
-from scenic.simulators.metadrive import MetaDriveSimulator
+try:
+    import metadrive
+
+    from scenic.simulators.metadrive import MetaDriveSimulator
+except ModuleNotFoundError:
+    pytest.skip("MetaDrive package not installed", allow_module_level=True)
+
 from tests.utils import compileScenic, pickle_test, sampleScene, tryPickling
 
 
@@ -110,8 +116,8 @@ def test_pedestrian_movement(getMetadriveSimulator):
             do WalkForward() for 2 steps
             do StopWalking() for 2 steps
 
-        ego = new Car
-        pedestrian = new Pedestrian with behavior WalkThenStop
+        ego = new Car at (30, 2)
+        pedestrian = new Pedestrian at (50, 6), with behavior WalkThenStop
 
         record initial pedestrian.position as InitialPos
         record final pedestrian.position as FinalPos
