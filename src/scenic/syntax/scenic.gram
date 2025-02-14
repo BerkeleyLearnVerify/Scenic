@@ -945,6 +945,58 @@ scenic_invariant_stmt:
     | "invariant" ':' a=expression { s.Invariant(value=a, LOCATIONS) }
 
 
+# Modal Behavior
+# -------
+
+scenic_modal_behavior_def:
+    | "modal behavior" a=NAME '(' b=[params] ')' &&':' c=scenic_modal_behavior_def_block {
+        s.ModalBehaviorDef(
+            a.string,
+            args=b or self.make_arguments(None, [], None, [], None),
+            docstring=c[0],
+            header=c[1],
+            body=c[2],
+            LOCATIONS,
+        )
+     }
+
+scenic_modal_behavior_def_block:
+    # modal behavior definition must have at least one statement that is not a precondition/invariant definition
+    | NEWLINE INDENT a=[x=STRING NEWLINE { x.string }] b=[scenic_modal_behavior_header] c=scenic_modal_behavior_statements DEDENT { (a, b or [], c) }
+    | invalid_block
+
+scenic_modal_behavior_statements[list]: a=scenic_modal_behavior_statement+ { list(itertools.chain.from_iterable(a)) }
+
+# statements available inside behavior (normal statements + dynamic statements - precondition/invariant)
+scenic_modal_behavior_statement[list]:
+    | scenic_invalid_modal_behavior_statement
+    | a=statement { a }
+
+scenic_invalid_modal_behavior_statement:
+    | a="invariant" ':' a=expression {
+        self.raise_syntax_error_known_location("invariant can only be set at the beginning of behavior definitions", a) 
+     }
+    | a="precondition" ':' a=expression {
+        self.raise_syntax_error_known_location("precondition can only be set at the beginning of behavior definitions", a) 
+     }
+
+scenic_modal_behavior_header: a=(x=(scenic_precondition_stmt | scenic_invariant_stmt) NEWLINE { x })+ { a }
+
+# Initial Mode
+# -------
+
+# Mode
+# -------
+
+# Jump To
+# -------
+
+scenic_jump_to (memo):
+    | invalid_scenic_jump_to
+
+invalid_scenic_jump_to  (memo):
+
+
 # Monitor
 # -------
 
