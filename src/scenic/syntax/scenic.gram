@@ -1243,7 +1243,7 @@ scenic_contract_compose_stmt:
     | "compose" "over" name=scenic_subcomponent_name ':' NEWLINE INDENT a=(scenic_contract_compose_inner)+ DEDENT {s.ContractCompose(name, a, LOCATIONS)}
 
 scenic_contract_merge_stmt:
-    | "merge" "over" name=scenic_subcomponent_name ':' NEWLINE INDENT a=(scenic_contract_compose_inner)+ DEDENT {s.ContractMerge(name, a, LOCATIONS)}
+    | "conjunction" "over" name=scenic_subcomponent_name ':' NEWLINE INDENT a=(scenic_contract_compose_inner)+ DEDENT {s.ContractMerge(name, a, LOCATIONS)}
 
 scenic_contract_compose_inner:
     | scenic_contract_test_stmt

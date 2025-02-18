@@ -263,6 +263,8 @@ class LeanRefinementProof:
         )
 
     def checkProof(self, file, repl_loc, lib_loc):
+        # TODO: Run lake build first
+        # set_option debug.byAsSorry true useful?
         input_cmd = '{"path": "' + str(file) + '", "allTactics": false}'
         repl_loc_full = str(repl_loc) + "/.lake/build/bin/repl"
         result = subprocess.run(

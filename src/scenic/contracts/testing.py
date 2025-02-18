@@ -270,7 +270,7 @@ class SimulationTesting(Testing):
                     if av == rv_ltl.B4.FALSE
                 ]
 
-                if violated_assumptions and False:
+                if violated_assumptions:
                     return self._createTestData(
                         TestResult.A,
                         violated_assumptions,

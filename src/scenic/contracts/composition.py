@@ -392,7 +392,10 @@ class Merge(VerificationTechnique):
                 assert isinstance(spec.ast.slice.value, str)
                 param_name = spec.ast.slice.value
 
-                return param_name, self.environment.params[param_name]
+                val = self.environment.params[param_name]
+                # TODO: Assert constant val
+
+                return param_name, val
 
         if isinstance(spec, specs.Not):
             sub_call = self.getSpecProb(spec.sub)
@@ -400,13 +403,15 @@ class Merge(VerificationTechnique):
         elif isinstance(spec, specs.And):
             sub_calls = [self.getSpecProb(sub) for sub in spec.subs]
             deps = list(itertools.chain(*[sub[1] for sub in sub_calls]))
-            assert len(deps) == len(set(deps))
+            assert len(deps) == len(set(deps))  # No duplicate deps
             return prod(sub[0] for sub in sub_calls), set(deps)
         elif isinstance(spec, specs.Or):
+            # TODO FIX
             sub_calls = [self.getSpecProb(sub) for sub in spec.subs]
             deps = set(itertools.chain(*[sub[1] for sub in sub_calls]))
-            assert set(sub_calls[0][1]) == deps
-            return 1 - prod((1 - sub[0]) for sub in sub_calls), deps
+            assert len(deps) == 1
+            assert isinstance(self.environment.params[list(deps)[0]], Options)
+            return sum((sub[0]) for sub in sub_calls), deps
         elif isinstance(spec, specs.Equal) or isinstance(spec, specs.GE):
             if (extractConstant(spec.sub1) is not None) and (
                 extractDist(spec.sub2) is not None
