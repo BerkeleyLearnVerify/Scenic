@@ -108,7 +108,7 @@ add_module_names = False
 autosummary_generate = True
 autodoc_inherit_docstrings = False
 autodoc_member_order = "bysource"
-autodoc_mock_imports = ["carla", "lgsvl"]
+autodoc_mock_imports = ["carla", "lgsvl", "metadrive"]
 autodoc_typehints = "description"
 autodoc_type_aliases = {
     "Vectorlike": "`scenic.domains.driving.roads.Vectorlike`",
