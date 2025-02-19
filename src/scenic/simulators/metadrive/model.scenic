@@ -24,14 +24,31 @@ Global Parameters:
         to process each step.
 """
 import pathlib
+
 from scenic.domains.driving.model import *
+from scenic.domains.driving.actions import *
+from scenic.domains.driving.behaviors import *
+
 from scenic.core.errors import InvalidScenarioError
 
-from scenic.simulators.metadrive.simulator import MetaDriveSimulator
-from scenic.simulators.metadrive.actions import *
-from scenic.simulators.metadrive.behaviors import *
-from scenic.simulators.metadrive.utils import scenicToMetaDriveHeading
+try:
+    from scenic.simulators.metadrive.simulator import MetaDriveSimulator
+    from scenic.simulators.metadrive.utils import scenicToMetaDriveHeading
+except ModuleNotFoundError:
+    # for convenience when testing without the metadrive package
+    from scenic.core.simulators import SimulatorInterfaceWarning
+    import warnings
+    warnings.warn('The "metadrive" package is not installed; '
+                  'will not be able to run dynamic simulations',
+                  SimulatorInterfaceWarning)
 
+    def MetaDriveSimulator(*args, **kwargs):
+        """Dummy simulator to allow compilation without the 'metadrive' package.
+
+        :meta private:
+        """
+        raise RuntimeError('the "metadrive" package is required to run simulations '
+                           'from this scenario')
 
 if globalParameters.get("sumo_map") is None:
     sumo_map_path = str(pathlib.Path(globalParameters.map).with_suffix(".net.xml"))

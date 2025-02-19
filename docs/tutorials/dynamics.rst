@@ -397,7 +397,7 @@ scenarios. We have examples written for the CARLA and LGSVL driving simulators, 
 in :file:`examples/driving` in particular are designed to use Scenic's abstract
 :ref:`driving domain <driving_domain>` and so work in either of these simulators, as well
 as Scenic's built-in Newtonian physics simulator and MetaDrive simulator. While the Newtonian simulator is convenient
-for testing and simple experiments, we recommend using MetaDrive for more realistic driving scenarios.
+for testing simple experiments, we recommend using MetaDrive for more realistic driving scenarios.
 
 MetaDrive support is **optional**. If your system supports MetaDrive, you can install it separately using:
 
