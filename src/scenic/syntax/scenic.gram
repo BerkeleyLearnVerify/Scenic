@@ -993,8 +993,9 @@ scenic_modal_behavior_header: a=(x=(scenic_precondition_stmt | scenic_invariant_
 
 scenic_jump_to (memo):
     | invalid_scenic_jump_to
+    | "jump to" a=
 
-invalid_scenic_jump_to  (memo):
+invalid_scenic_jump_to (memo):
 
 
 # Monitor

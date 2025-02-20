@@ -200,7 +200,7 @@ class InitialMode(AST):
         ]
         self._attributes = [] # TODO should this be here?
 
-class InitialMode(AST):
+class Mode(AST):
 
     __match_args__ = (
         "name",
