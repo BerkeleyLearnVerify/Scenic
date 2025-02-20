@@ -951,7 +951,7 @@ scenic_invariant_stmt:
 # -------
 
 scenic_modal_behavior_def:
-    | "modal behavior" a=NAME '(' b=[params] ')' &&':' c=scenic_modal_behavior_def_block {
+    | "modal" "behavior" a=NAME '(' b=[params] ')' &&':' c=scenic_modal_behavior_def_block {
         s.ModalBehaviorDef(
             a.string,
             args=b or self.make_arguments(None, [], None, [], None),
