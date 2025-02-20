@@ -479,6 +479,177 @@ class TestBehaviorDef:
             case _:
                 assert False
 
+class TestModalBehaviorDef:
+    def test_basic(self):
+        mod = parse_string_helper(
+            """
+            modal behavior test():
+                pass
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ModalBehaviorDef(
+                "test",
+                arguments([], [], None, [], [], None, []),
+                None,
+                [],
+                [Pass()],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_no_parentheses(self):
+        with pytest.raises(ScenicSyntaxError):
+            parse_string_helper(
+                """
+                modal behavior test:
+                    pass
+                """
+            )
+
+    def test_parameter(self):
+        mod = parse_string_helper(
+            """
+            modal behavior test(x, y = "hello"):
+                pass
+        """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ModalBehaviorDef(
+                "test",
+                arguments(args=[arg("x"), arg("y")], defaults=[Constant("hello")]),
+                None,
+                [],
+                [Pass()],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_precondition(self):
+        mod = parse_string_helper(
+            """
+            modal behavior test():
+                precondition: True
+                pass
+        """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ModalBehaviorDef(
+                "test",
+                arguments(),
+                None,
+                [Precondition(Constant(True))],
+                [Pass()],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_invariant(self):
+        mod = parse_string_helper(
+            """
+            modal behavior test():
+                invariant: True
+                pass
+        """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ModalBehaviorDef(
+                "test",
+                arguments(),
+                None,
+                [Invariant(Constant(True))],
+                [Pass()],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_precondition_and_invariant(self):
+        mod = parse_string_helper(
+            """
+            modal behavior test():
+                precondition: True
+                invariant: True
+                precondition: True
+                pass
+        """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ModalBehaviorDef(
+                "test",
+                arguments(),
+                None,
+                [
+                    Precondition(Constant(True)),
+                    Invariant(Constant(True)),
+                    Precondition(Constant(True)),
+                ],
+                [Pass()],
+            ):
+                assert True
+            case _:
+                assert False
+
+    def test_invalid_precondition(self):
+        with pytest.raises(ScenicSyntaxError) as e:
+            parse_string_helper(
+                """
+                modal behavior test():
+                    hello()
+                    precondition: True
+                """
+            )
+
+    def test_invalid_invariant(self):
+        with pytest.raises(ScenicSyntaxError) as e:
+            parse_string_helper(
+                """
+                modal behavior test():
+                    hello()
+                    invariant: True
+                """
+            )
+
+    def test_empty_body(self):
+        with pytest.raises(ScenicSyntaxError):
+            mod = parse_string_helper(
+                """
+                modal behavior test():
+                    invariant: True
+                """
+            )
+
+    def test_docstring(self):
+        mod = parse_string_helper(
+            """
+            modal behavior test():
+                \"\"\"DOCSTRING\"\"\"
+                invariant: True
+                body()
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case ModalBehaviorDef(
+                "test",
+                arguments(),
+                '"""DOCSTRING"""',
+                [
+                    Invariant(Constant(True)),
+                ],
+                [Expr(Call(Name("body")))],
+            ):
+                assert True
+            case _:
+                assert False
 
 class TestMonitorDef:
     def test_basic(self):
