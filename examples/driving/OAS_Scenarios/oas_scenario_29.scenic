@@ -5,8 +5,8 @@ The other car, on a different leg of the intersection,
 has the right of the way and makes a left turn first because it is closer to the intersection.
 
 To run this file using the MetaDrive simulator:
-    scenic examples/driving/Carla_Challenge/carlaChallenge3.scenic --2d --model scenic.simulators.metadrive.model --simulate
-    
+    scenic examples/driving/OAS_Scenarios/oas_scenario_29.scenic --2d --model scenic.simulators.metadrive.model --simulate
+
 To run this file using the Carla simulator:
     scenic examples/driving/OAS_Scenarios/oas_scenario_29.scenic --2d --model scenic.simulators.carla.model --simulate
 """

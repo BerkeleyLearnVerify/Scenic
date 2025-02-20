@@ -1,7 +1,7 @@
 '''
 To run this file using the MetaDrive simulator:
-    scenic examples/driving/Carla_Challenge/carlaChallenge3.scenic --2d --model scenic.simulators.metadrive.model --simulate
-    
+    scenic examples/driving/pedestrianAcrossRoad.scenic --2d --model scenic.simulators.metadrive.model --simulate
+
 To run this file using the Carla simulator:
     scenic examples/driving/pedestrianAcrossRoad.scenic --2d --model scenic.simulators.carla.model --simulate
 '''

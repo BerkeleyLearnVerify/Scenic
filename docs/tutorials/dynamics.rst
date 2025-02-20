@@ -396,14 +396,14 @@ You can see all of the above syntax in action by running some of our examples of
 scenarios. We have examples written for the CARLA and LGSVL driving simulators, and those
 in :file:`examples/driving` in particular are designed to use Scenic's abstract
 :ref:`driving domain <driving_domain>` and so work in either of these simulators, as well
-as Scenic's built-in Newtonian physics simulator and MetaDrive simulator. While the Newtonian simulator is convenient
+as Scenic's built-in Newtonian physics simulator and the MetaDrive simulator. While the Newtonian simulator is convenient
 for testing simple experiments, we recommend using MetaDrive for more realistic driving scenarios.
 
 MetaDrive support is **optional**. If your system supports MetaDrive, you can install it separately using:
 
 .. code-block:: console
 
-    pip install scenic[metadrive]
+    python -m pip install scenic[metadrive]
 
 If MetaDrive is **not available**, we recommend using the Newtonian simulator instead.
 
@@ -423,7 +423,7 @@ usual schematic diagram of the generated scenes:
 To run dynamic simulations, add the :option:`--simulate` option (:option:`-S` for short).
 Since this scenario is not written for a particular simulator, you'll need to specify
 which one you want by using the :option:`--model` option (:option:`-m` for short) to
-select the corresponding Scenic :term:`world model`: for example, to use the Metadrive simulator we could add
+select the corresponding Scenic :term:`world model`: for example, to use the MetaDrive simulator we could add
 ``--model scenic.simulators.metadrive.model``.
 It's also a good idea to put a time bound on the simulations, which we can do using the :option:`--time` option.
 

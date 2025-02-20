@@ -9,7 +9,7 @@ try:
     from metadrive.obs.observation_base import DummyObservation
 except ImportError as e:
     raise ModuleNotFoundError(
-        'Metadrive scenarios require the "metadrive" package'
+        'Metadrive scenarios require the "metadrive-simulator" package'
     ) from e
 
 import math

@@ -5,7 +5,7 @@ ego-vehicle must react, performing an emergency brake or an avoidance maneuver.
 Note: The scenario may fail if the leadCar or the ego get past the intersection while following the roadDirection
 
 To run this file using the MetaDrive simulator:
-    scenic examples/driving/Carla_Challenge/carlaChallenge3.scenic --2d --model scenic.simulators.metadrive.model --simulate
+    scenic examples/driving/Carla_Challenge/carlaChallenge2.scenic --2d --model scenic.simulators.metadrive.model --simulate
 
 To run this file using the Carla simulator:
     scenic examples/driving/Carla_Challenge/carlaChallenge2.scenic --2d --model scenic.simulators.carla.model --simulate

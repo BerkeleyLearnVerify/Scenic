@@ -10,8 +10,8 @@ in scenarios using the ``param`` statement or on the command line using the
 
 Global Parameters:
     sumo_map (str or Path): Path to the SUMO map (``.net.xml`` file) to use in the simulation.
-        This map should correspond to the **map** file used in the scenario, which must be in the OpenDrive
-        format (``.xodr`` file).
+        This map should correspond to the **map** file used in the scenario. See the documentation in
+        :doc:`scenic.domains.driving.model` for details.
     timestep (float): The interval (in seconds) between each simulation step. This determines how often Scenic
         interrupts MetaDrive to run behaviors, check requirements, and update the simulation state.
         The default value is 0.1 seconds.
@@ -20,8 +20,7 @@ Global Parameters:
     render3D (bool): Whether to render the simulation in 3D. If True, it will render the simulation in 3D.
         If False (default), it will render in 2D.
     real_time (bool): If True (default), the simulation will run in real time, ensuring each step takes at least
-        as long as the specified timestep. If False, the simulation may run faster, based on the time it takes
-        to process each step.
+        as long as the specified timestep. If False, the simulation runs as fast as possible.
 """
 import pathlib
 
@@ -38,19 +37,19 @@ except ModuleNotFoundError:
     # for convenience when testing without the metadrive package
     from scenic.core.simulators import SimulatorInterfaceWarning
     import warnings
-    warnings.warn('The "metadrive" package is not installed; '
+    warnings.warn('The "metadrive-simulator" package is not installed; '
                   'will not be able to run dynamic simulations',
                   SimulatorInterfaceWarning)
 
     def MetaDriveSimulator(*args, **kwargs):
-        """Dummy simulator to allow compilation without the 'metadrive' package.
+        """Dummy simulator to allow compilation without the 'metadrive-simulator' package.
 
         :meta private:
         """
-        raise RuntimeError('the "metadrive" package is required to run simulations '
+        raise RuntimeError('the "metadrive-simulator" package is required to run simulations '
                            'from this scenario')
 
-if globalParameters.get("sumo_map") is None:
+if "sumo_map" not in globalParameters:
     sumo_map_path = str(pathlib.Path(globalParameters.map).with_suffix(".net.xml"))
 
     if not pathlib.Path(sumo_map_path).exists():

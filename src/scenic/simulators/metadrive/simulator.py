@@ -5,7 +5,7 @@ try:
     from metadrive.component.vehicle.vehicle_type import DefaultVehicle
 except ImportError as e:
     raise ModuleNotFoundError(
-        "Metadrive is required. Please install the 'metadrive' package (and sumolib) or use scenic[metadrive]."
+        "Metadrive is required. Please install the 'metadrive-simulator' package (and sumolib) or use scenic[metadrive]."
     ) from e
 
 import logging
