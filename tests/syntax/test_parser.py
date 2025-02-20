@@ -660,11 +660,16 @@ class TestInitialMode:
             """
         )
         stmt = mod.body[0]
+        match stmt:
+            case InitialMode("Mode1", [Pass()]):
+                assert True
+            case _: 
+                assert False
 
 class TestMode:
     pass
 
-class JumpTo:
+class TestJumpTo:
     pass
 
 class TestMonitorDef:
