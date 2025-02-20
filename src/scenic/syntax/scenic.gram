@@ -988,18 +988,18 @@ scenic_modal_behavior_header: a=(x=(scenic_precondition_stmt | scenic_invariant_
 # -------
 
 scenic_initial_mode_block: 
-    | "initial mode" a=NAME  &&':' b=block { s.InitialMode(name=a, body=b, LOCATIONS) }
+    | "initial" "mode" a=NAME  &&':' b=block { s.InitialMode(name=a, body=b, LOCATIONS) }
 
 # Mode
 # -------
 
 scenic_mode_block: 
-    | "initial mode" a=NAME  &&':' b=block { s.InitialMode(name=a, body=b, LOCATIONS) }
+    | "initial" "mode" a=NAME  &&':' b=block { s.InitialMode(name=a, body=b, LOCATIONS) }
 
 # Jump To
 # -------
 
-scenic_jump_to_stmt (memo): "jump to" e=(','.expression+) { s.JumpTo(mode=e, LOCATIONS) }
+scenic_jump_to_stmt (memo): "jump" "to" e=(','.expression+) { s.JumpTo(mode=e, LOCATIONS) }
 
 # Monitor
 # -------
