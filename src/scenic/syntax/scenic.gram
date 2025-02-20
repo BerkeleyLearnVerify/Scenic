@@ -653,6 +653,7 @@ scenic_compound_stmt:
     | scenic_assign_new_stmt
     | scenic_expr_new_stmt
     | scenic_behavior_def
+    | scenic_modal_behavior_def
     | scenic_monitor_def
     | scenic_scenario_def
     | scenic_try_interrupt_stmt
