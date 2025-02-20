@@ -994,7 +994,7 @@ scenic_initial_mode_block:
 # -------
 
 scenic_mode_block: 
-    | "initial" "mode" a=NAME  &&':' b=block { s.InitialMode(name=a, body=b, LOCATIONS) }
+    | "initial" "mode" a=NAME  &&':' b=block { s.Mode(name=a, body=b, LOCATIONS) }
 
 # Jump To
 # -------

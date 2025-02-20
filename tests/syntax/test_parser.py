@@ -651,6 +651,22 @@ class TestModalBehaviorDef:
             case _:
                 assert False
 
+class TestInitialMode:
+    def test_basic(self):
+        mod = parse_string_helper(
+            """
+            initial mode Mode1:
+                pass
+            """
+        )
+        stmt = mod.body[0]
+
+class TestMode:
+    pass
+
+class JumpTo:
+    pass
+
 class TestMonitorDef:
     def test_basic(self):
         mod = parse_string_helper(
