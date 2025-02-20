@@ -1,8 +1,11 @@
 """ Scenario Description
 Based on 2019 Carla Challenge Traffic Scenario 02.
-Leading vehicle decelerates suddently due to an obstacle and 
+Leading vehicle decelerates suddently due to an obstacle and
 ego-vehicle must react, performing an emergency brake or an avoidance maneuver.
 Note: The scenario may fail if the leadCar or the ego get past the intersection while following the roadDirection
+
+To run this file using the MetaDrive simulator:
+    scenic examples/driving/Carla_Challenge/carlaChallenge2.scenic --2d --model scenic.simulators.metadrive.model --simulate
 
 To run this file using the Carla simulator:
     scenic examples/driving/Carla_Challenge/carlaChallenge2.scenic --2d --model scenic.simulators.carla.model --simulate
@@ -54,5 +57,3 @@ leadCar = new Car following roadDirection from obstacle for LEADCAR_TO_OBSTACLE,
 
 ego = new Car following roadDirection from leadCar for EGO_TO_LEADCAR,
     with behavior EgoBehavior(EGO_SPEED)
-
-

@@ -12,6 +12,7 @@ as follows::
 Scenarios written for the driving domain should work without changes [#f1]_ in any of the
 following simulators:
 
+    * MetaDrive, using the model :doc:`scenic.simulators.metadrive.model`
     * CARLA, using the model :doc:`scenic.simulators.carla.model`
     * LGSVL, using the model :doc:`scenic.simulators.lgsvl.model`
     * the built-in Newtonian simulator, using the model
@@ -32,6 +33,14 @@ written for the driving domain and can be run in multiple simulators:
         .. code-block:: console
 
             $ scenic -S --model scenic.simulators.newtonian.driving_model \\
+                examples/driving/badlyParkedCarPullingIn.scenic
+
+    * MetaDrive, using the corresponding SUMO map (.net.xml) from the default map specified in
+      the scenario:
+
+        .. code-block:: console
+
+            $ scenic -S --2d --model scenic.simulators.metadrive.model \\
                 examples/driving/badlyParkedCarPullingIn.scenic
 
     * CARLA, using the default map specified in the scenario:

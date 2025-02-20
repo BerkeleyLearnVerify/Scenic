@@ -1,8 +1,11 @@
 """ Scenario Description
 Voyage OAS Scenario Unique ID: 3-2-NWS-I-L-CAR:S>W:01
-At 3 way intersection. The ego car turns left. 
+At 3 way intersection. The ego car turns left.
 The other car approaches from a different leg of the intersection to make a left turn, but
 ego has the right of the way because it is closer to the intersection.
+
+To run this file using the MetaDrive simulator:
+    scenic examples/driving/OAS_Scenarios/oas_scenario_30.scenic --2d --model scenic.simulators.metadrive.model --simulate
 
 To run this file using the Carla simulator:
     scenic examples/driving/OAS_Scenarios/oas_scenario_30.scenic --2d --model scenic.simulators.carla.model --simulate
@@ -58,4 +61,3 @@ ego = new Car following roadDirection from egoStart for EGO_OFFSET,
 other = new Car following roadDirection from actorStart for OTHERCAR_OFFSET,
         with behavior SafeBehavior(target_speed=SPEED, trajectory=actor_centerlines, \
             thresholdDistance = SAFE_DIST)
-

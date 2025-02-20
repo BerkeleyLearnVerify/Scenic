@@ -1,8 +1,11 @@
 """ Scenario Description
 Voyage OAS Scenario Unique ID: 3-2-ESW-I-STR-CAR:S>W:02
-At three-way intersection. The ego vehicle goes straight. 
-The other car, on the other leg of the intersection, takes a left turn first 
+At three-way intersection. The ego vehicle goes straight.
+The other car, on the other leg of the intersection, takes a left turn first
 because it is closer to the intersection.
+
+To run this file using the MetaDrive simulator:
+    scenic examples/driving/OAS_Scenarios/oas_scenario_28.scenic --2d --model scenic.simulators.metadrive.model --simulate
 
 To run this file using the Carla simulator:
     scenic examples/driving/OAS_Scenarios/oas_scenario_28.scenic --2d --model scenic.simulators.carla.model --simulate
