@@ -647,6 +647,7 @@ scenic_stmt:
     | scenic_do_stmt
     | scenic_abort_stmt
     | scenic_simulator_stmt
+    | scenic_jump_to_stmt
 
 scenic_compound_stmt:
     | scenic_tracked_assign_new_stmt
@@ -992,7 +993,7 @@ scenic_modal_behavior_header: a=(x=(scenic_precondition_stmt | scenic_invariant_
 # Jump To
 # -------
 
-scenic_jump_to (memo):
+scenic_jump_to_stmt (memo):
     | invalid_scenic_jump_to
     | "jump to" a=
 
