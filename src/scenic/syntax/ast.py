@@ -224,25 +224,22 @@ class Mode(AST):
         self._attributes = [] # TODO should this be here?
 
 
-class ModalBlocks(AST):
+class ModalStatements(AST):
     __match_args__ = (
-        "name",
         "initial_mode_block",
         "mode_block"
     )
     def __init__(
         self,
-        name: str,
         initial_mode_block: InitialMode, # FIXME this might allow for multiple initial blocks
         mode_block: typing.List[Mode],
         *_args: any,
         **kwargs: any,
     ) -> None:
         super().__init__(*_args, **kwargs)
-        self.name = name
         self.initial_mode_block = initial_mode_block
         self.mode_block = mode_block
-        self._fields = ["name", "initial_mode_block", "mode_block"]
+        self._fields = ["initial_mode_block", "mode_block"]
 
 class JumpTo(AST):
     __match_args__ = (
