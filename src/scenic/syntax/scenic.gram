@@ -984,29 +984,6 @@ scenic_invalid_modal_behavior_statement:
 
 scenic_modal_behavior_header: a=(x=(scenic_precondition_stmt | scenic_invariant_stmt) NEWLINE { x })+ { a }
 
-
-# Modal Statememts
-
-scenic_modal_stmt[s.ModalStatements]:
-    im=scenic_initial_mode_block+ m=scenic_mode_block+ {
-        s.ModalStatments(
-            initial_mode_block=im,
-            mode_block=m,
-            LOCATIONS,
-        )
-    }
-
-# scenic_try_interrupt_stmt[s.TryInterrupt]:
-    # | 'try' &&':' b=block iw=interrupt_when_block+ ex=except_block* el=[else_block] f=[finally_block] {
-        # s.TryInterrupt(
-            # body=b,
-            # interrupt_when_handlers=iw,
-            # except_handlers=ex,
-            # orelse=el or [],
-            # finalbody=f or [],
-            # LOCATIONS,
-        # )
-     # }
 # Initial Mode
 # -------
 
