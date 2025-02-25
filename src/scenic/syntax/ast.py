@@ -177,8 +177,8 @@ class ModalBehaviorDef(AST):
         self.body = body
         self._fields = ["name", "args", "docstring", "header", "body"]
 
-class ModalBlocks(AST):
-    __match_args__ = 
+# class ModalBlocks(AST):
+    # __match_args__ = 
 
 
 class InitialMode(AST):
