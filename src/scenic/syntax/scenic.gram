@@ -984,6 +984,11 @@ scenic_invalid_modal_behavior_statement:
 
 scenic_modal_behavior_header: a=(x=(scenic_precondition_stmt | scenic_invariant_stmt) NEWLINE { x })+ { a }
 
+
+# Modal Statememts
+
+scenic_modal_stmt:
+
 # Initial Mode
 # -------
 
