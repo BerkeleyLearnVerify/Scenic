@@ -987,7 +987,7 @@ scenic_modal_behavior_header: a=(x=(scenic_precondition_stmt | scenic_invariant_
 
 # Modal Statememts
 
-scenic_modal_stmt:
+# scenic_modal_stmt:
 
 # Initial Mode
 # -------
