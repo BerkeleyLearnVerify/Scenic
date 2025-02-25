@@ -667,7 +667,19 @@ class TestInitialMode:
                 assert False
 
 class TestMode:
-    pass
+    def test_basic(self):
+        mod = parse_string_helper(
+            """
+            mode Mode1:
+                pass
+            """
+        )
+        stmt = mod.body[0]
+        match stmt:
+            case Mode("Mode1", [Pass()]):
+                assert True
+            case _: 
+                assert False
 
 class TestJumpTo:
     pass
