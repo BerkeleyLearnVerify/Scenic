@@ -81,11 +81,13 @@ class TrackedAssign(AST):
 
 class Ego(AST):
     "`ego` tracked assign target"
+
     functionName = "ego"
 
 
 class Workspace(AST):
     ":term:`workspace` tracked assign target"
+
     functionName = "workspace"
 
 
@@ -247,6 +249,7 @@ class Param(AST):
 
 class parameter(AST):
     "represents a parameter that is defined with `param` statements"
+
     __match_args__ = ("identifier", "value")
 
     def __init__(
@@ -1043,6 +1046,7 @@ class PositionOfOp(AST):
 
 class Front(AST):
     "Represents position of :scenic:`front of` operator"
+
     functionName = "Front"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1051,6 +1055,7 @@ class Front(AST):
 
 class Back(AST):
     "Represents position of :scenic:`back of` operator"
+
     functionName = "Back"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1059,6 +1064,7 @@ class Back(AST):
 
 class Left(AST):
     "Represents position of :scenic:`left of` operator"
+
     functionName = "Left"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1067,6 +1073,7 @@ class Left(AST):
 
 class Right(AST):
     "Represents position of :scenic:`right of` operator"
+
     functionName = "Right"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1075,6 +1082,7 @@ class Right(AST):
 
 class Top(AST):
     "Represents position of :scenic:`top of` operator"
+
     functionName = "Top"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1083,6 +1091,7 @@ class Top(AST):
 
 class Bottom(AST):
     "Represents position of :scenic:`bottom of` operator"
+
     functionName = "Bottom"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1091,6 +1100,7 @@ class Bottom(AST):
 
 class FrontLeft(AST):
     "Represents position of :scenic:`front left of` operator"
+
     functionName = "FrontLeft"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1099,6 +1109,7 @@ class FrontLeft(AST):
 
 class FrontRight(AST):
     "Represents position of :scenic:`front right of` operator"
+
     functionName = "FrontRight"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1107,6 +1118,7 @@ class FrontRight(AST):
 
 class BackLeft(AST):
     "Represents position of :scenic:`back left of` operator"
+
     functionName = "BackLeft"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1115,6 +1127,7 @@ class BackLeft(AST):
 
 class BackRight(AST):
     "Represents position of :scenic:`back right of` operator"
+
     functionName = "BackRight"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1123,6 +1136,7 @@ class BackRight(AST):
 
 class TopFrontLeft(AST):
     "Represents position of :scenic:`top front left of` operator"
+
     functionName = "TopFrontLeft"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1131,6 +1145,7 @@ class TopFrontLeft(AST):
 
 class TopFrontRight(AST):
     "Represents position of :scenic:`top front right of` operator"
+
     functionName = "TopFrontRight"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1139,6 +1154,7 @@ class TopFrontRight(AST):
 
 class TopBackLeft(AST):
     "Represents position of :scenic:`top back left of` operator"
+
     functionName = "TopBackLeft"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1147,6 +1163,7 @@ class TopBackLeft(AST):
 
 class TopBackRight(AST):
     "Represents position of :scenic:`top back right of` operator"
+
     functionName = "TopBackRight"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1155,6 +1172,7 @@ class TopBackRight(AST):
 
 class BottomFrontLeft(AST):
     "Represents position of :scenic:`bottom front left of` operator"
+
     functionName = "BottomFrontLeft"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1163,6 +1181,7 @@ class BottomFrontLeft(AST):
 
 class BottomFrontRight(AST):
     "Represents position of :scenic:`bottom front right of` operator"
+
     functionName = "BottomFrontRight"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1171,6 +1190,7 @@ class BottomFrontRight(AST):
 
 class BottomBackLeft(AST):
     "Represents position of :scenic:`bottom back left of` operator"
+
     functionName = "BottomBackLeft"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
@@ -1179,6 +1199,7 @@ class BottomBackLeft(AST):
 
 class BottomBackRight(AST):
     "Represents position of :scenic:`bottom back right of` operator"
+
     functionName = "BottomBackRight"
 
     def __init__(self, *args: any, **kwargs: any) -> None:
