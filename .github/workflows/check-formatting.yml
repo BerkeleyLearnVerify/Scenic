@@ -16,6 +16,10 @@ jobs:
 
       - name: Run black to check formatting
         uses: psf/black@stable
+        with:
+          version: "25.1.0"
 
       - name: Run isort to check import order
         uses: isort/isort-action@v1
+        with:
+          isort-version: "5.12.0"

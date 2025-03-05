@@ -69,15 +69,15 @@ test-full = [  # like 'test' but adds dependencies for optional features
 	"exceptiongroup",
 	"inflect ~= 5.5",
 	"pygments ~= 2.11",
-	"sphinx >= 5.0.0, <6",
+	"sphinx >= 6.2.0, <7.2.0",
 	"sphinx_rtd_theme >= 0.5.2",
 	"sphinx-tabs ~= 3.4.1",
 	"verifai >= 2.1.0b1",
 ]
 dev = [
 	"scenic[test-full]",
-	"black ~= 24.0",
-	"isort ~= 5.11",
+	"black ~= 25.1.0",
+	"isort ~= 5.12.0",
 	"pre-commit ~= 3.0",
 	"pytest-cov >= 3.0.0",
 	"tox ~= 4.0",

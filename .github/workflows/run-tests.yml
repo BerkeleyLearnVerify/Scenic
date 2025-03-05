@@ -33,11 +33,11 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
         os: [ubuntu-latest, windows-latest, macos-13, macos-latest]
         include:
           # Only run slow tests on the latest version of Python
-          - python-version: "3.12"
+          - python-version: "3.13"
             slow: true
     runs-on: ${{ matrix.os }}
 
