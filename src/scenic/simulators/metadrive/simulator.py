@@ -137,8 +137,7 @@ class MetaDriveSimulation(DrivingSimulation):
 
             # Assign the MetaDrive actor to the ego
             metadrive_objects = self.client.engine.get_objects()
-            ego_metaDriveActor = list(metadrive_objects.values())[0]
-            obj.metaDriveActor = ego_metaDriveActor
+            obj.metaDriveActor = list(metadrive_objects.values())[0]
             self.defined_ego = True
             return
 
@@ -184,12 +183,11 @@ class MetaDriveSimulation(DrivingSimulation):
                     obj._walking_direction = utils.scenicToMetaDriveHeading(obj.heading)
                 if obj._walking_speed is None:
                     obj._walking_speed = obj.speed
-                direction = Vector(
-                    math.cos(obj._walking_direction), math.sin(obj._walking_direction)
-                )
-                obj.metaDriveActor.set_velocity(
-                    [direction.x, direction.y], obj._walking_speed
-                )
+                direction = [
+                    math.cos(obj._walking_direction),
+                    math.sin(obj._walking_direction),
+                ]
+                obj.metaDriveActor.set_velocity(direction, obj._walking_speed)
 
     def step(self):
         start_time = time.monotonic()
@@ -227,11 +225,11 @@ class MetaDriveSimulation(DrivingSimulation):
         position = utils.metadriveToScenicPosition(
             metaDriveActor.position, self.scenic_offset
         )
-        md_ang_vel = metaDriveActor.body.getAngularVelocity()
         velocity = Vector(*metaDriveActor.velocity, 0)
         speed = metaDriveActor.speed
-        angularSpeed = 0
-        angularVelocity = Vector(md_ang_vel[0], md_ang_vel[1], md_ang_vel[2])
+        md_ang_vel = metaDriveActor.body.getAngularVelocity()
+        angularVelocity = Vector(*md_ang_vel)
+        angularSpeed = math.hypot(*md_ang_vel)
         converted_heading = utils.metaDriveToScenicHeading(metaDriveActor.heading_theta)
         yaw, pitch, roll = obj.parentOrientation.globalToLocalAngles(
             converted_heading, 0, 0
