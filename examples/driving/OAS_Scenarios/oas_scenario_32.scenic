@@ -3,6 +3,9 @@ Voyage OAS Scenario Unique ID: 3-2-W-I-L-CAR:N>S
 At 3-way intersection, ego turns left and the other car on a different leg of the
 intersection goes straight. There is no requirement on which vehicle has the right of the way.
 
+To run this file using the MetaDrive simulator:
+    scenic examples/driving/OAS_Scenarios/oas_scenario_32.scenic --2d --model scenic.simulators.metadrive.model --simulate
+
 To run this file using the Carla simulator:
     scenic examples/driving/OAS_Scenarios/oas_scenario_32.scenic --2d --model scenic.simulators.carla.model --simulate
 """
@@ -53,4 +56,3 @@ ego = new Car on ego_L_startLane.centerline,
 
 other = new Car on startLane.centerline,
         with behavior FollowTrafficBehavior(target_speed=10, trajectory=centerlines)
-

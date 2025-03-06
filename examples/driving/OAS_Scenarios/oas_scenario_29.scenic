@@ -1,8 +1,11 @@
 """ Scenario Description
 Voyage OAS Scenario Unique ID: 3-2-NSW-I-L-CAR:S>W:02
-At 3 way intersection. The ego car turns left. 
-The other car, on a different leg of the intersection, 
+At 3 way intersection. The ego car turns left.
+The other car, on a different leg of the intersection,
 has the right of the way and makes a left turn first because it is closer to the intersection.
+
+To run this file using the MetaDrive simulator:
+    scenic examples/driving/OAS_Scenarios/oas_scenario_29.scenic --2d --model scenic.simulators.metadrive.model --simulate
 
 To run this file using the Carla simulator:
     scenic examples/driving/OAS_Scenarios/oas_scenario_29.scenic --2d --model scenic.simulators.carla.model --simulate
