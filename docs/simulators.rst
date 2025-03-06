@@ -34,7 +34,7 @@ Additionally, there is an issue where cars do not fully brake in certain scenari
 These issues are expected to be addressed in the next version of MetaDrive.
 
 Scenic uses OpenDRIVE maps, while MetaDrive relies on SUMO maps. Scenic provides corresponding SUMO maps for OpenDRIVE maps under the :file:`assets/maps/CARLA` directory.
-Additionally, you can convert your own OpenDRIVE maps to SUMO maps using the `netconvert <https://sumo.dlr.de/docs/Networks/Import/OpenDRIVE.html/>`_ tool.
+Additionally, you can convert your own OpenDRIVE maps to SUMO maps using the `netconvert <https://sumo.dlr.de/docs/Networks/Import/OpenDRIVE.html>`_ tool.
 To avoid setting the SUMO map manually, name it the same as your OpenDRIVE file and place it in the same directory.
 Otherwise, you can specify it explicitly using the ``sumo_map`` global parameter.
 
