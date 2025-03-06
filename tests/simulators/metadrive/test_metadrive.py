@@ -56,12 +56,12 @@ def test_throttle(getMetadriveSimulator):
     scenario = compileScenic(code, mode2D=True)
     scene = sampleScene(scenario)
     simulation = simulator.simulate(scene)
-    records = simulation.result.records["CarSpeed"]
-    assert records[len(records) // 2][1] < records[-1][1]
+    speeds = simulation.result.records["CarSpeed"]
+    assert speeds[len(speeds) // 2][1] < speeds[-1][1]
 
 
-@pytest.mark.skip(
-    reason="This test is skipped until MetaDrive uploads the next version on PyPI to fix the issue where cars aren't fully stopping."
+@pytest.mark.xfail(
+    reason="Expected failure until MetaDrive uploads the next version on PyPI to fix the issue where cars aren't fully stopping."
 )
 def test_brake(getMetadriveSimulator):
     simulator, openDrivePath, sumoPath = getMetadriveSimulator("Town01")
@@ -105,8 +105,7 @@ def test_pedestrian_movement(getMetadriveSimulator):
 
         behavior WalkForward():
             while True:
-                take SetWalkingDirectionAction(self.heading)
-                take SetWalkingSpeedAction(0.5)
+                take SetWalkingDirectionAction(self.heading), SetWalkingSpeedAction(0.5)
 
         behavior StopWalking():
             while True:

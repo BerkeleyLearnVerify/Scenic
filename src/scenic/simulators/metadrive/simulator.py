@@ -12,7 +12,7 @@ import logging
 import sys
 import time
 
-from scenic.core.simulators import SimulationCreationError
+from scenic.core.simulators import InvalidScenarioError, SimulationCreationError
 from scenic.domains.driving.actions import *
 from scenic.domains.driving.controllers import (
     PIDLateralController,
@@ -40,25 +40,13 @@ class MetaDriveSimulator(DrivingSimulator):
         self.timestep = timestep
         self.sumo_map = sumo_map
         self.real_time = real_time
-        (
-            self.center_x,
-            self.center_y,
-            self.offset_x,
-            self.offset_y,
-            self.sumo_map_boundary,
-        ) = self._get_map_parameters()
-
-    def _get_map_parameters(self):
-        """Helper method to extract map parameters."""
-        # Use utility function to get the map parameters
-        return utils.getMapParameters(self.sumo_map)
+        self.scenic_offset, self.sumo_map_boundary = utils.getMapParameters(self.sumo_map)
+        if self.render and not self.render3D:
+            self.film_size = utils.calculateFilmSize(self.sumo_map_boundary, scaling=5)
+        else:
+            self.film_size = None
 
     def createSimulation(self, scene, *, timestep, **kwargs):
-        if timestep is not None and timestep != self.timestep:
-            raise RuntimeError(
-                "cannot customize timestep for individual MetaDrive simulations; "
-                "set timestep when creating the MetaDriveSimulator instead"
-            )
         self.scenario_number += 1
         return MetaDriveSimulation(
             scene,
@@ -68,16 +56,11 @@ class MetaDriveSimulator(DrivingSimulator):
             timestep=self.timestep,
             sumo_map=self.sumo_map,
             real_time=self.real_time,
-            center_x=self.center_x,
-            center_y=self.center_y,
-            offset_x=self.offset_x,
-            offset_y=self.offset_y,
+            scenic_offset=self.scenic_offset,
             sumo_map_boundary=self.sumo_map_boundary,
+            film_size=self.film_size,
             **kwargs,
         )
-
-    def destroy(self):
-        super().destroy()
 
 
 class MetaDriveSimulation(DrivingSimulation):
@@ -90,27 +73,19 @@ class MetaDriveSimulation(DrivingSimulation):
         timestep,
         sumo_map,
         real_time,
-        center_x,
-        center_y,
-        offset_x,
-        offset_y,
+        scenic_offset,
         sumo_map_boundary,
+        film_size,
         **kwargs,
     ):
-        # NOTE: MetaDrive requires at least one agent to be defined per simulation run,
-        # and the first object must be a car (to serve as the ego vehicle).
-        try:
-            if len(scene.objects) == 0:
-                raise SimulationCreationError(
-                    "Metadrive requires you to define at least one Scenic object."
-                )
-            if not scene.objects[0].isCar:
-                raise SimulationCreationError(
-                    "The first object must be a car to serve as the ego vehicle in Metadrive."
-                )
-        except SimulationCreationError as e:
-            print(e)
-            sys.exit(1)
+        if len(scene.objects) == 0:
+            raise InvalidScenarioError(
+                "Metadrive requires you to define at least one Scenic object."
+            )
+        if not scene.objects[0].isCar:
+            raise InvalidScenarioError(
+                "The first object must be a car to serve as the ego vehicle in Metadrive."
+            )
 
         self.render = render
         self.render3D = render3D
@@ -120,15 +95,10 @@ class MetaDriveSimulation(DrivingSimulation):
         self.timestep = timestep
         self.sumo_map = sumo_map
         self.real_time = real_time
-        self.center_x = center_x
-        self.center_y = center_y
-        self.offset_x = offset_x
-        self.offset_y = offset_y
+        self.scenic_offset = scenic_offset
         self.sumo_map_boundary = sumo_map_boundary
+        self.film_size = film_size
         super().__init__(scene, timestep=timestep, **kwargs)
-
-    def setup(self):
-        super().setup()
 
     def createObjectInSimulator(self, obj):
         """
@@ -137,9 +107,8 @@ class MetaDriveSimulation(DrivingSimulation):
         If it's the first object, it initializes the client and sets it up for the ego car.
         For additional cars and pedestrians, it spawns objects using the provided position and heading.
         """
-
         converted_position = utils.scenicToMetaDrivePosition(
-            obj.position, self.center_x, self.center_y, self.offset_x, self.offset_y
+            obj.position, self.scenic_offset
         )
         converted_heading = utils.scenicToMetaDriveHeading(obj.heading)
 
@@ -152,7 +121,7 @@ class MetaDriveSimulation(DrivingSimulation):
                 dict(
                     decision_repeat=decision_repeat,
                     physics_world_step_size=physics_world_step_size,
-                    use_render=self.render if self.render3D else False,
+                    use_render=self.render3D,
                     vehicle_config={
                         "spawn_position_heading": [
                             converted_position,
@@ -168,18 +137,13 @@ class MetaDriveSimulation(DrivingSimulation):
 
             # Assign the MetaDrive actor to the ego
             metadrive_objects = self.client.engine.get_objects()
-            if metadrive_objects:
-                ego_metaDriveActor = list(metadrive_objects.values())[0]
-                obj.metaDriveActor = ego_metaDriveActor
-                self.defined_ego = True
-                return obj.metaDriveActor
-            else:
-                raise SimulationCreationError(
-                    f"Unable to initialize MetaDrive ego vehicle for object {obj}"
-                )
+            ego_metaDriveActor = list(metadrive_objects.values())[0]
+            obj.metaDriveActor = ego_metaDriveActor
+            self.defined_ego = True
+            return
 
         # For additional cars
-        if obj.isCar:
+        if obj.isVehicle:
             metaDriveActor = self.client.engine.agent_manager.spawn_object(
                 DefaultVehicle,
                 vehicle_config=dict(),
@@ -187,7 +151,7 @@ class MetaDriveSimulation(DrivingSimulation):
                 heading=converted_heading,
             )
             obj.metaDriveActor = metaDriveActor
-            return metaDriveActor
+            return
 
         # For pedestrians
         if obj.isPedestrian:
@@ -197,7 +161,7 @@ class MetaDriveSimulation(DrivingSimulation):
                 heading_theta=converted_heading,
             )
             obj.metaDriveActor = metaDriveActor
-            return metaDriveActor
+            return
 
         # If the object type is unsupported, raise an error
         raise SimulationCreationError(
@@ -208,28 +172,38 @@ class MetaDriveSimulation(DrivingSimulation):
         """Execute actions for all vehicles in the simulation."""
         super().executeActions(allActions)
 
-        # Apply control updates to vehicles
-        for idx, obj in enumerate(self.scene.objects):
-            if obj.isCar and idx != 0:  # Skip ego vehicle (it is handled separately)
-                action = obj.collectAction()
+        # Apply control updates to vehicles and pedestrians
+        for obj in self.scene.objects[1:]:  # Skip ego vehicle (it is handled separately)
+            if obj.isVehicle:
+                action = obj._collect_action()
                 obj.metaDriveActor.before_step(action)
-                obj.resetControl()
+                obj._reset_control()
+            else:
+                # For Pedestrians
+                if obj._walking_direction is None:
+                    obj._walking_direction = utils.scenicToMetaDriveHeading(obj.heading)
+                if obj._walking_speed is None:
+                    obj._walking_speed = obj.speed
+                direction = Vector(
+                    math.cos(obj._walking_direction), math.sin(obj._walking_direction)
+                )
+                obj.metaDriveActor.set_velocity(
+                    [direction.x, direction.y], obj._walking_speed
+                )
 
     def step(self):
         start_time = time.monotonic()
 
         # Special handling for the ego vehicle
         ego_obj = self.scene.objects[0]
-        if ego_obj.isCar:
-            action = ego_obj.collectAction()
-            o, r, tm, tc, info = self.client.step(action)  # Apply action in the simulator
-            ego_obj.resetControl()
+        action = ego_obj._collect_action()
+        self.client.step(action)  # Apply action in the simulator
+        ego_obj._reset_control()
 
         # Render the scene in 2D if needed
         if self.render and not self.render3D:
-            film_size = utils.calculateFilmSize(self.sumo_map_boundary, scaling=5)
             self.client.render(
-                mode="topdown", semantic_map=True, film_size=film_size, scaling=5
+                mode="topdown", semantic_map=True, film_size=self.film_size, scaling=5
             )
 
         # If real-time synchronization is enabled, sleep to maintain real-time pace
@@ -242,7 +216,8 @@ class MetaDriveSimulation(DrivingSimulation):
     def destroy(self):
         if self.client and self.client.engine:
             object_ids = list(self.client.engine._spawned_objects.keys())
-            self.client.engine.agent_manager.clear_objects(object_ids)
+            if object_ids:
+                self.client.engine.agent_manager.clear_objects(object_ids)
             self.client.close()
 
         super().destroy()
@@ -250,18 +225,13 @@ class MetaDriveSimulation(DrivingSimulation):
     def getProperties(self, obj, properties):
         metaDriveActor = obj.metaDriveActor
         position = utils.metadriveToScenicPosition(
-            metaDriveActor.position,
-            self.center_x,
-            self.center_y,
-            self.offset_x,
-            self.offset_y,
+            metaDriveActor.position, self.scenic_offset
         )
+        md_ang_vel = metaDriveActor.body.getAngularVelocity()
         velocity = Vector(*metaDriveActor.velocity, 0)
         speed = metaDriveActor.speed
         angularSpeed = 0
-        angularVelocity = utils.metadriveToScenicPosition(
-            (0, 0), self.center_x, self.center_y, self.offset_x, self.offset_y
-        )
+        angularVelocity = Vector(md_ang_vel[0], md_ang_vel[1], md_ang_vel[2])
         converted_heading = utils.metaDriveToScenicHeading(metaDriveActor.heading_theta)
         yaw, pitch, roll = obj.parentOrientation.globalToLocalAngles(
             converted_heading, 0, 0
@@ -287,8 +257,6 @@ class MetaDriveSimulation(DrivingSimulation):
         if agent.isCar:
             lon_controller = PIDLongitudinalController(K_P=0.5, K_D=0.1, K_I=0.7, dt=dt)
             lat_controller = PIDLateralController(K_P=0.13, K_D=0.3, K_I=0.05, dt=dt)
-            # Good for Town 07
-            # lat_controller = PIDLateralController(K_P=0.15, K_D=0.69, K_I=0.03, dt=dt)
         else:
             lon_controller = PIDLongitudinalController(
                 K_P=0.25, K_D=0.025, K_I=0.0, dt=dt

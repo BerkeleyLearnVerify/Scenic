@@ -89,41 +89,28 @@ class MetaDriveActor(DrivingObject):
     """
     metaDriveActor: None
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-
 class Vehicle(Vehicle, Steers, MetaDriveActor):
-    """Abstract class for steerable vehicles."""
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._control = {"steering": 0, "throttle": 0, "brake": 0}
 
-    @property
-    def control(self):
-        """Returns the current accumulated control inputs (throttle, brake, and steering)."""
-        return self._control
-
-    def resetControl(self):
-        """Reset the control inputs after they've been applied."""
+    def _reset_control(self):
         self._control = {"steering": 0, "throttle": 0, "brake": 0}
 
     def setThrottle(self, throttle):
-        self.control["throttle"] = throttle
+        self._control["throttle"] = throttle
 
     def setSteering(self, steering):
-        self.control["steering"] = steering
+        self._control["steering"] = steering
 
     def setBraking(self, braking):
-        self.control["brake"] = braking
+        self._control["brake"] = braking
 
-    def collectAction(self):
-        """For vehicles, accumulate the throttle, brake, and steering, and return the action."""
-        steering = -self.control["steering"]  # Invert the steering to match MetaDrive's convention
+    def _collect_action(self):
+        steering = -self._control["steering"]  # Invert the steering to match MetaDrive's convention
         action = [
             steering,
-            self.control["throttle"] - self.control["brake"],
+            self._control["throttle"] - self._control["brake"],
         ]
         return action
 
@@ -135,17 +122,15 @@ class Car(Vehicle):
 class Pedestrian(Pedestrian, MetaDriveActor, Walks):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._walking_direction = None
+        self._walking_speed = None
 
     @property
     def isPedestrian(self):
         return True
 
     def setWalkingDirection(self, heading):
-        converted_heading = scenicToMetaDriveHeading(self.heading)
-        direction = Vector(math.cos(converted_heading), math.sin(converted_heading))
-        self.metaDriveActor.set_velocity([direction.x, direction.y], self.speed)
+        self._walking_direction = scenicToMetaDriveHeading(heading)
 
     def setWalkingSpeed(self, speed):
-        current_heading = scenicToMetaDriveHeading(self.heading)
-        direction = Vector(math.cos(current_heading), math.sin(current_heading))
-        self.metaDriveActor.set_velocity([direction.x, direction.y], speed)
+        self._walking_speed = speed
