@@ -6,6 +6,8 @@ from functools import reduce
 import inspect
 import itertools
 
+import fcl
+import numpy
 import rv_ltl
 import trimesh
 
@@ -319,6 +321,8 @@ class SamplingRequirement(ABC):
 
 
 class IntersectionRequirement(SamplingRequirement):
+    """Requirement that a pair of objects do not intersect."""
+
     def __init__(self, objA, objB, optional=False):
         super().__init__(optional=optional)
         self.objA = objA
@@ -337,6 +341,16 @@ class IntersectionRequirement(SamplingRequirement):
 
 
 class BlanketCollisionRequirement(SamplingRequirement):
+    """Requirement that the surfaces of a given set of objects do not intersect.
+
+    We can check for such intersections more quickly than full objects using FCL,
+    but since FCL checks for surface intersections rather than volume intersections
+    (in general), this requirement being satisfied does not imply that the objects
+    do not intersect (one might still be contained in another). Therefore, this
+    requirement is intended to quickly check for intersections in the common case
+    rather than completely determine whether any objects collide.
+    """
+
     def __init__(self, objects, optional=True):
         super().__init__(optional=optional)
         self.objects = objects
@@ -344,23 +358,32 @@ class BlanketCollisionRequirement(SamplingRequirement):
 
     def falsifiedByInner(self, sample):
         objects = tuple(sample[obj] for obj in self.objects)
-        cm = trimesh.collision.CollisionManager()
+        manager = fcl.DynamicAABBTreeCollisionManager()
+        objForGeom = {}
         for i, obj in enumerate(objects):
-            if not obj.allowCollisions:
-                cm.add_object(str(i), obj.occupiedSpace.mesh)
-        collision, names = cm.in_collision_internal(return_names=True)
+            if obj.allowCollisions:
+                continue
+            geom, trans = obj.occupiedSpace._fclData
+            collisionObject = fcl.CollisionObject(geom, trans)
+            objForGeom[geom] = obj
+            manager.registerObject(collisionObject)
+
+        manager.setup()
+        cdata = fcl.CollisionData()
+        manager.collide(cdata, fcl.defaultCollisionCallback)
+        collision = cdata.result.is_collision
 
         if collision:
-            self._collidingObjects = tuple(sorted(names))
+            contact = cdata.result.contacts[0]
+            self._collidingObjects = (objForGeom[contact.o1], objForGeom[contact.o2])
 
         return collision
 
     @property
     def violationMsg(self):
         assert self._collidingObjects is not None
-        objA_index, objB_index = map(int, self._collidingObjects[0])
-        objA, objB = self.objects[objA_index], self.objects[objB_index]
-        return f"Intersection violation: {objA} intersects {objB}"
+        objA, objB = self._collidingObjects
+        return f"Blanket Intersection violation: {objA} intersects {objB}"
 
 
 class ContainmentRequirement(SamplingRequirement):
