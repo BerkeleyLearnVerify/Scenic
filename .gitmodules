@@ -1,0 +1,3 @@
+[submodule "src/scenic/simulators/crowd_sim/crowd_nav_fork"]
+	path = src/scenic/simulators/crowd_sim/crowd_nav_fork
+	url = https://github.com/Kai-X-Org/crowd_nav_fork/
