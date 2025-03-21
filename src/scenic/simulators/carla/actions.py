@@ -108,14 +108,22 @@ class SetTrafficLightAction(VehicleAction):
 
 
 class SetAutopilotAction(VehicleAction):
-    def __init__(self, enabled):
+    def __init__(self, enabled, speed=None):
+        ":param speed: speed of car in m/s"
         if not isinstance(enabled, bool):
             raise RuntimeError("Enabled must be a boolean.")
         self.enabled = enabled
+        self.speed = speed
 
     def applyTo(self, obj, sim):
         vehicle = obj.carlaActor
         vehicle.set_autopilot(self.enabled, sim.tm.get_port())
+        sim.tm.auto_lane_change(vehicle, False)
+        if self.speed:
+            sim.tm.set_desired_speed(vehicle, 3.6*self.speed)
+        sim.tm.update_vehicle_lights(vehicle, True)
+        sim.tm.random_left_lanechange_percentage(vehicle, 0)
+        sim.tm.random_right_lanechange_percentage(vehicle, 0)
 
 
 class SetVehicleLightStateAction(VehicleAction):
