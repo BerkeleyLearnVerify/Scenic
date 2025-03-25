@@ -108,22 +108,47 @@ class SetTrafficLightAction(VehicleAction):
 
 
 class SetAutopilotAction(VehicleAction):
-    def __init__(self, enabled, speed=None):
-        ":param speed: speed of car in m/s"
+    def __init__(self, enabled, **kwargs):
+        """
+        :param enabled: Enable or disable autopilot (bool)
+        :param kwargs: Additional autopilot options such as:
+            - speed: Speed of the car in m/s (default: None)
+            - path: Route for the vehicle to follow (default: None)
+            - ignore_signs_percentage: Percentage of ignored traffic signs (default: 0)
+            - ignore_lights_percentage: Percentage of ignored traffic lights (default: 0)
+            - ignore_walkers_percentage: Percentage of ignored pedestrians (default: 0)
+            - auto_lane_change: Whether to allow automatic lane changes (default: False)
+        """
         if not isinstance(enabled, bool):
             raise RuntimeError("Enabled must be a boolean.")
+        
         self.enabled = enabled
-        self.speed = speed
+
+        # Default values for optional parameters
+        self.speed = kwargs.get("speed", None)
+        self.path = kwargs.get("path", None)
+        self.ignore_signs_percentage = kwargs.get("ignore_signs_percentage", 0)
+        self.ignore_lights_percentage = kwargs.get("ignore_lights_percentage", 0)
+        self.ignore_walkers_percentage = kwargs.get("ignore_walkers_percentage", 0)
+        self.auto_lane_change = kwargs.get("auto_lane_change", False)  # Default: False
 
     def applyTo(self, obj, sim):
         vehicle = obj.carlaActor
         vehicle.set_autopilot(self.enabled, sim.tm.get_port())
-        sim.tm.auto_lane_change(vehicle, False)
+
+        # Apply auto lane change setting
+        sim.tm.auto_lane_change(vehicle, self.auto_lane_change)
+
+        if self.path:
+            sim.tm.set_route(vehicle, self.path)
         if self.speed:
-            sim.tm.set_desired_speed(vehicle, 3.6*self.speed)
+            sim.tm.set_desired_speed(vehicle, 3.6 * self.speed)
+
+        # Apply traffic management settings
         sim.tm.update_vehicle_lights(vehicle, True)
-        sim.tm.random_left_lanechange_percentage(vehicle, 0)
-        sim.tm.random_right_lanechange_percentage(vehicle, 0)
+        sim.tm.ignore_signs_percentage(vehicle, self.ignore_signs_percentage)
+        sim.tm.ignore_lights_percentage(vehicle, self.ignore_lights_percentage)
+        sim.tm.ignore_walkers_percentage(vehicle, self.ignore_walkers_percentage)
 
 
 class SetVehicleLightStateAction(VehicleAction):
