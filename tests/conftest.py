@@ -2,7 +2,6 @@ from contextlib import contextmanager
 import os.path
 from pathlib import Path
 import re
-import subprocess
 import sys
 
 import pytest
@@ -41,7 +40,7 @@ def runLocally(request):
     return manager
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def getAssetPath():
     base = Path(__file__).parent.parent / "assets"
 
@@ -50,6 +49,17 @@ def getAssetPath():
         return path
 
     return loader
+
+
+@pytest.fixture
+def launchWebots():
+    DISPLAY = os.environ.get("DISPLAY")
+    if not DISPLAY:
+        pytest.skip("DISPLAY env variable not set.")
+    WEBOTS_ROOT = os.environ.get("WEBOTS_ROOT")
+    if not WEBOTS_ROOT:
+        pytest.skip("WEBOTS_ROOT env variable not set.")
+    return WEBOTS_ROOT
 
 
 ## Command-line options

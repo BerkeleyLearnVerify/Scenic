@@ -842,26 +842,17 @@ class MeshRegion(Region):
         if centerMesh:
             self.mesh.vertices -= self.mesh.bounding_box.center_mass
 
-        # If dimensions are provided, scale mesh to those dimension
+        # Apply scaling, rotation, and translation, if any
         if self.dimensions is not None:
-            scale = self.mesh.extents / numpy.array(self.dimensions)
-
-            scale_matrix = numpy.eye(4)
-            scale_matrix[:3, :3] /= scale
-
-            self.mesh.apply_transform(scale_matrix)
-
-        # If rotation is provided, apply rotation
+            scale = numpy.array(self.dimensions) / self.mesh.extents
+        else:
+            scale = None
         if self.rotation is not None:
-            rotation_matrix = quaternion_matrix(
-                (self.rotation.w, self.rotation.x, self.rotation.y, self.rotation.z)
-            )
-            self.mesh.apply_transform(rotation_matrix)
-
-        # If position is provided, translate mesh.
-        if self.position is not None:
-            position_matrix = translation_matrix(self.position)
-            self.mesh.apply_transform(position_matrix)
+            angles = self.rotation._trimeshEulerAngles()
+        else:
+            angles = None
+        matrix = compose_matrix(scale=scale, angles=angles, translate=self.position)
+        self.mesh.apply_transform(matrix)
 
         self.orientation = orientation
 
@@ -1008,10 +999,14 @@ class MeshRegion(Region):
     @property
     def AABB(self):
         return (
-            tuple(self.mesh.bounds[:, 0]),
-            tuple(self.mesh.bounds[:, 1]),
-            tuple(self.mesh.bounds[:, 2]),
+            tuple(self.mesh.bounds[0]),
+            tuple(self.mesh.bounds[1]),
         )
+
+    @cached_property
+    def _boundingPolygonHull(self):
+        assert not isLazy(self)
+        return shapely.multipoints(self.mesh.vertices).convex_hull
 
     @cached_property
     def _boundingPolygon(self):
@@ -1019,7 +1014,7 @@ class MeshRegion(Region):
 
         # Relatively fast case for convex regions
         if self.isConvex:
-            return shapely.geometry.MultiPoint(self.mesh.vertices).convex_hull
+            return self._boundingPolygonHull
 
         # Generic case for arbitrary shapes
         if self.mesh.is_watertight:
@@ -1080,8 +1075,9 @@ class MeshVolumeRegion(MeshRegion):
         onDirection: The direction to use if an object being placed on this region doesn't specify one.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, _internal=False, _isConvex=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self._isConvex = _isConvex
 
         if isLazy(self):
             return
@@ -1093,7 +1089,7 @@ class MeshVolumeRegion(MeshRegion):
                     raise ValueError(f"{name} of MeshVolumeRegion must be positive")
 
         # Ensure the mesh is a well defined volume
-        if not self._mesh.is_volume:
+        if not _internal and not self._mesh.is_volume:
             raise ValueError(
                 "A MeshVolumeRegion cannot be defined with a mesh that does not have a well defined volume."
                 " Consider using scenic.core.utils.repairMesh."
@@ -1126,11 +1122,13 @@ class MeshVolumeRegion(MeshRegion):
             # Check if bounding boxes intersect. If not, volumes cannot intersect.
             # For bounding boxes to intersect there must be overlap of the bounds
             # in all 3 dimensions.
-            range_overlaps = [
-                (self.mesh.bounds[0, dim] <= other.mesh.bounds[1, dim])
-                and (other.mesh.bounds[0, dim] <= self.mesh.bounds[1, dim])
+            bounds = self._mesh.bounds
+            obounds = other._mesh.bounds
+            range_overlaps = (
+                (bounds[0, dim] <= obounds[1, dim])
+                and (obounds[0, dim] <= bounds[1, dim])
                 for dim in range(3)
-            ]
+            )
             bb_overlap = all(range_overlaps)
 
             if not bb_overlap:
@@ -1747,6 +1745,10 @@ class MeshVolumeRegion(MeshRegion):
         else:
             return region_distance
 
+    @cached_property
+    def isConvex(self):
+        return self.mesh.is_convex if self._isConvex is None else self._isConvex
+
     @property
     def dimensionality(self):
         return 3
@@ -2304,9 +2306,8 @@ class VoxelRegion(Region):
     @property
     def AABB(self):
         return (
-            tuple(self.voxelGrid.bounds[:, 0]),
-            tuple(self.voxelGrid.bounds[:, 1]),
-            tuple(self.voxelGrid.bounds[:, 2]),
+            tuple(self.voxelGrid.bounds[0]),
+            tuple(self.voxelGrid.bounds[1]),
         )
 
     @property
@@ -2365,8 +2366,8 @@ class PolygonalFootprintRegion(Region):
             return PolygonalRegion(polygon=self.polygons, z=other.z).intersect(other)
 
         if isinstance(other, PathRegion):
-            center_z = (other.AABB[2][1] + other.AABB[2][0]) / 2
-            height = other.AABB[2][1] - other.AABB[2][0] + 1
+            center_z = (other.AABB[0][2] + other.AABB[1][2]) / 2
+            height = other.AABB[1][2] - other.AABB[0][2] + 1
             return self.approxBoundFootprint(center_z, height).intersect(other)
 
         return super().intersect(other, triedReversed)
@@ -2424,7 +2425,18 @@ class PolygonalFootprintRegion(Region):
         Args:
             obj: An object to be checked for containment.
         """
-        # Check containment using the bounding polygon of the object.
+        # Fast path for convex objects, whose bounding polygons are relatively
+        # easy to compute.
+        if obj._isConvex:
+            return self.polygons.contains(obj._boundingPolygon)
+
+        # Quick check using the projected convex hull of the object, which
+        # overapproximates the actual bounding polygon.
+        hullPoly = obj.occupiedSpace._boundingPolygonHull
+        if self.polygons.contains(hullPoly):
+            return True
+
+        # Need to compute exact bounding polygon.
         return self.polygons.contains(obj._boundingPolygon)
 
     def containsRegionInner(self, reg, tolerance):
@@ -2686,8 +2698,9 @@ class PathRegion(Region):
 
     @cached_property
     def AABB(self):
-        return tuple(
-            zip(numpy.amin(self.vertices, axis=0), numpy.amax(self.vertices, axis=0))
+        return (
+            tuple(numpy.amin(self.vertices, axis=0)),
+            tuple(numpy.amax(self.vertices, axis=0)),
         )
 
     def uniformPointInner(self):
@@ -2734,7 +2747,7 @@ class PolygonalRegion(Region):
 
     def __init__(
         self,
-        points=None,
+        points=(),
         polygon=None,
         z=0,
         orientation=None,
@@ -2745,8 +2758,8 @@ class PolygonalRegion(Region):
             name, points, polygon, z, *additionalDeps, orientation=orientation
         )
 
-        # Store main parameter
-        self._points = points
+        # Normalize and store main parameters
+        self._points = () if points is None else tuple(points)
         self._polygon = polygon
         self.z = z
 
@@ -2760,7 +2773,6 @@ class PolygonalRegion(Region):
             points = tuple(pt[:2] for pt in points)
             if len(points) == 0:
                 raise ValueError("tried to create PolygonalRegion from empty point list!")
-            self.points = points
             polygon = shapely.geometry.Polygon(points)
 
         if isinstance(polygon, shapely.geometry.Polygon):
@@ -2776,13 +2788,6 @@ class PolygonalRegion(Region):
             raise ValueError(
                 "tried to create PolygonalRegion with " f"invalid polygon {self.polygons}"
             )
-
-        if (
-            points is None
-            and len(self.polygons.geoms) == 1
-            and len(self.polygons.geoms[0].interiors) == 0
-        ):
-            self.points = tuple(self.polygons.geoms[0].exterior.coords[:-1])
 
         if self.polygons.is_empty:
             raise ValueError("tried to create empty PolygonalRegion")
@@ -2960,6 +2965,16 @@ class PolygonalRegion(Region):
 
     @property
     @distributionFunction
+    def points(self):
+        warnings.warn(
+            "The `points` method is deprecated and will be removed in Scenic 3.3.0."
+            "Users should use the `boundary` method instead.",
+            DeprecationWarning,
+        )
+        return self.boundary.points
+
+    @property
+    @distributionFunction
     def boundary(self) -> "PolylineRegion":
         """Get the boundary of this region as a `PolylineRegion`."""
         return PolylineRegion(polyline=self.polygons.boundary)
@@ -2998,7 +3013,7 @@ class PolygonalRegion(Region):
     @property
     def AABB(self):
         xmin, ymin, xmax, ymax = self.polygons.bounds
-        return ((xmin, ymin), (xmax, ymax), (self.z, self.z))
+        return ((xmin, ymin, self.z), (xmax, ymax, self.z))
 
     @distributionFunction
     def buffer(self, amount):
@@ -3035,7 +3050,14 @@ class PolygonalRegion(Region):
 
     @cached
     def __hash__(self):
-        return hash((self.polygons, self.orientation, self.z))
+        return hash(
+            (
+                self._points,
+                self._polygon,
+                self.orientation,
+                self.z,
+            )
+        )
 
 
 class CircularRegion(PolygonalRegion):
@@ -3117,7 +3139,7 @@ class CircularRegion(PolygonalRegion):
     def AABB(self):
         x, y, _ = self.center
         r = self.radius
-        return ((x - r, y - r), (x + r, y + r), (self.z, self.z))
+        return ((x - r, y - r, self.z), (x + r, y + r, self.z))
 
     def __repr__(self):
         return f"CircularRegion({self.center!r}, {self.radius!r})"
@@ -3253,7 +3275,9 @@ class RectangularRegion(PolygonalRegion):
         self.circumcircle = (self.position, self.radius)
 
         super().__init__(
-            polygon=self._makePolygons(position, heading, width, length),
+            polygon=self._makePolygons(
+                self.position, self.heading, self.width, self.length
+            ),
             z=self.position.z,
             name=name,
             additionalDeps=deps,
@@ -3305,7 +3329,7 @@ class RectangularRegion(PolygonalRegion):
         x, y, z = zip(*self.corners)
         minx, maxx = findMinMax(x)
         miny, maxy = findMinMax(y)
-        return ((minx, miny), (maxx, maxy), (self.z, self.z))
+        return ((minx, miny, self.z), (maxx, maxy, self.z))
 
     def __repr__(self):
         return (
@@ -3616,7 +3640,7 @@ class PolylineRegion(Region):
     @property
     def AABB(self):
         xmin, ymin, xmax, ymax = self.lineString.bounds
-        return ((xmin, ymin), (xmax, ymax), (0, 0))
+        return ((xmin, ymin, 0), (xmax, ymax, 0))
 
     def show(self, plt, style="r-", **kwargs):
         plotPolygon(self.lineString, plt, style=style, **kwargs)
@@ -3720,6 +3744,10 @@ class PointSetRegion(Region):
         return any(other.containsPoint(pt) for pt in self.points)
 
     def intersect(self, other, triedReversed=False):
+        # Try other way first before falling back to IntersectionRegion with sampler.
+        if triedReversed is False:
+            return other.intersect(self)
+
         def sampler(intRegion):
             o = intRegion.regions[1]
             center, radius = o.circumcircle
@@ -3770,8 +3798,9 @@ class PointSetRegion(Region):
 
     @property
     def AABB(self):
-        return tuple(
-            zip(numpy.amin(self.points, axis=0), numpy.amax(self.points, axis=0))
+        return (
+            tuple(numpy.amin(self.points, axis=0)),
+            tuple(numpy.amax(self.points, axis=0)),
         )
 
     def __eq__(self, other):

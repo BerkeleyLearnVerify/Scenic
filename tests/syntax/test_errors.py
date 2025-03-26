@@ -25,6 +25,19 @@ def test_bad_extension(tmpdir):
 
 ### Parse errors
 
+
+## Reserved names
+def test_reserved_type_names():
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("float = 3")
+
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("int = 3")
+
+    with pytest.raises(ScenicSyntaxError):
+        compileScenic("str = 3")
+
+
 ## Constructor definitions
 
 
@@ -361,7 +374,10 @@ def checkException(e, lines, program, bug, path, output, topLevel=True):
     chained = bool(e.__cause__ or (e.__context__ and not e.__suppress_context__))
     assert bool(remainingLines) == chained
     if remainingLines:
-        mid = loc - 5 if topLevel else loc - 2
+        if topLevel:
+            mid = loc - 6 if sys.version_info >= (3, 13) else loc - 5
+        else:
+            mid = loc - 2
         assert len(output) >= -(mid - 1)
     if e.__cause__:
         assert (

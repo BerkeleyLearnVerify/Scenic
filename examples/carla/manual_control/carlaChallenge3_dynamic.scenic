@@ -3,12 +3,15 @@ Traffic Scenario 03 (dynamic).
 Obstacle avoidance without prior action.
 The ego-vehicle encounters an obstacle / unexpected entity on the road and must perform an
 emergency brake or an avoidance maneuver.
+
+To run this file using the Carla simulator:
+    scenic examples/carla/manual_control/carlaChallenge3_dynamic.scenic --2d --model scenic.simulators.carla.model --simulate
 """
 
 # SET MAP AND MODEL (i.e. definitions of all referenceable vehicle types, road library, etc)
 param map = localPath('../../../assets/maps/CARLA/Town05.xodr')  # or other CARLA map that definitely works
 param carla_map = 'Town05'
-param render = '0'
+param render = 0
 model scenic.simulators.carla.model
 
 # CONSTANTS

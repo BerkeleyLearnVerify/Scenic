@@ -159,7 +159,7 @@ class TestExportToBytes:
     def test_bytes(self):
         checkValueEncoding(b"", bytes)
         checkValueEncoding(b"\x00", bytes)
-        checkValueEncoding(b"\xFF", bytes)
+        checkValueEncoding(b"\xff", bytes)
         checkValueEncoding(b"\x00123456", bytes)
 
     def test_str(self):

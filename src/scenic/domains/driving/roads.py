@@ -34,7 +34,6 @@ from scenic.core.distributions import (
     distributionFunction,
     distributionMethod,
 )
-from scenic.core.errors import InvalidScenarioError
 import scenic.core.geometry as geometry
 from scenic.core.object_types import Point
 from scenic.core.regions import PolygonalRegion, PolylineRegion
@@ -56,16 +55,9 @@ def _toVector(thing: Vectorlike) -> Vector:
     return type_support.toVector(thing)
 
 
-def _rejectSample(message):
-    if veneer.isActive():
-        raise InvalidScenarioError(message)
-    else:
-        raise RejectionException(message)
-
-
 def _rejectIfNonexistent(element, name="network element"):
     if element is None:
-        _rejectSample(f"requested {name} does not exist")
+        raise RejectionException(f"requested {name} does not exist")
     return element
 
 
@@ -989,7 +981,7 @@ class Network:
 
         :meta private:
         """
-        return 32
+        return 33
 
     class DigestMismatchError(Exception):
         """Exception raised when loading a cached map not matching the original file."""
@@ -1219,7 +1211,7 @@ class Network:
                 message = reject
             else:
                 message = "requested element does not exist"
-            _rejectSample(message)
+            raise RejectionException(message)
         return None
 
     def _findPointInAll(self, point, things, key=lambda e: e):

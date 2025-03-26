@@ -195,7 +195,7 @@ class VerifaiSampler(ExternalSampler):
                 usingProbs = True
         space = verifai.features.FeatureSpace(
             {
-                f"param{index}": verifai.features.Feature(param.domain)
+                self.nameForParam(index): verifai.features.Feature(param.domain)
                 for index, param in enumerate(self.params)
             }
         )
@@ -206,10 +206,12 @@ class VerifaiSampler(ExternalSampler):
         if usingProbs and samplerType == "ce":
             if samplerParams is None:
                 samplerParams = DotMap()
+            else:
+                samplerParams = samplerParams.copy()  # avoid mutating original
             if "cont" in samplerParams or "disc" in samplerParams:
                 raise RuntimeError(
                     "CE distributions specified in both VerifaiParameters"
-                    "and verifaiSamplerParams"
+                    " and verifaiSamplerParams"
                 )
             cont_buckets = []
             cont_dists = []
@@ -260,7 +262,12 @@ class VerifaiSampler(ExternalSampler):
         return self.sampler.getSample()
 
     def valueFor(self, param):
-        return self.cachedSample[param.index]
+        return getattr(self.cachedSample, self.nameForParam(param.index))
+
+    @staticmethod
+    def nameForParam(i):
+        """Parameter name for a given index in the Feature Space."""
+        return f"param{i}"
 
 
 class ExternalParameter(Distribution):

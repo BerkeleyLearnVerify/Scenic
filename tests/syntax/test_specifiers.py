@@ -10,6 +10,7 @@ from tests.utils import (
     compileScenic,
     sampleEgo,
     sampleEgoFrom,
+    sampleParamPFrom,
     sampleScene,
     sampleSceneFrom,
 )
@@ -554,6 +555,11 @@ def test_visible_no_ego():
         compileScenic("ego = new Object visible")
 
 
+def test_visible_no_ego_2():
+    with pytest.raises(InvalidScenarioError):
+        compileScenic("new Object visible")
+
+
 def test_visible_from_point():
     scenario = compileScenic(
         "x = new Point at 300@200, with visibleDistance 2\n"
@@ -1069,6 +1075,20 @@ def test_facing_vf_3d():
     )
 
 
+def test_facing_equivalence():
+    p = sampleParamPFrom(
+        """
+        a = new OrientedPoint facing (Orientation.fromEuler(-135 deg, 45 deg, 0)
+            relative to Orientation.fromEuler(90 deg, 0, 0))
+
+        b = new OrientedPoint with parentOrientation (90 deg, 0, 0), with yaw -135 deg, with pitch 45 deg, with roll 0
+        param p = (a, b)
+        """
+    )
+    a, b = p
+    assert a.orientation.eulerAngles == pytest.approx(b.orientation.eulerAngles)
+
+
 # Facing Toward/Away From
 def test_facing_toward():
     ego = sampleEgoFrom(
@@ -1111,6 +1131,21 @@ def test_facing_directly_away_from():
     assert ego.roll == 0
 
 
+def test_facing_directly_toward_parent_orientation():
+    ego = sampleEgoFrom(
+        """
+        ego = new Object facing directly toward (1, 1, 2**0.5),
+            with parentOrientation (90 deg, 0, 0)
+    """
+    )
+    assert ego.yaw == pytest.approx(-math.radians(135))
+    assert ego.pitch == pytest.approx(math.radians(45))
+    assert ego.roll == pytest.approx(0)
+    assert ego.orientation.approxEq(
+        Orientation.fromEuler(math.radians(-45), math.radians(45), 0)
+    )
+
+
 # Apparently Facing
 def test_apparently_facing():
     ego = sampleEgoFrom(
@@ -1150,7 +1185,7 @@ def test_color():
         ego = new Object with color (0.5,0.5,0.5)
         """
     ego = sampleEgoFrom(program)
-    assert ego.color == (0.5, 0.5, 0.5, 1)
+    assert ego.color == (0.5, 0.5, 0.5)
 
     with pytest.raises(ValueError):
         program = """
@@ -1163,3 +1198,19 @@ def test_color():
             ego = new Object with color (1,1,1,1,1)
             """
         sampleEgoFrom(program)
+
+
+# alwaysProvidesOrientation
+def test_alwaysProvidesOrientation_exception():
+    with pytest.warns(UserWarning):
+        compileScenic(
+            """
+            from scenic.core.distributions import distributionFunction
+
+            @distributionFunction
+            def foo(bar):
+                assert False
+
+            new Object in foo(Range(0,1))
+            """
+        )

@@ -13,7 +13,13 @@ from scenic.core.errors import (
     setDebuggingOptions,
 )
 from scenic.core.object_types import Object
-from tests.utils import compileScenic, sampleEgo, sampleParamPFrom, sampleScene
+from tests.utils import (
+    compileScenic,
+    sampleEgo,
+    sampleEgoFrom,
+    sampleParamPFrom,
+    sampleScene,
+)
 
 
 def test_minimal():
@@ -111,7 +117,10 @@ def test_param_write():
 def test_mutate():
     scenario = compileScenic(
         """
-        ego = new Object at 3@1, facing 0
+        class Thing:
+            foo: self.heading
+
+        ego = new Thing at 3@1, facing 0
         mutate
         """
     )
@@ -119,6 +128,7 @@ def test_mutate():
     assert ego1.position.x != pytest.approx(3)
     assert ego1.position.y != pytest.approx(1)
     assert ego1.heading != pytest.approx(0)
+    assert ego1.foo == 0
 
 
 def test_mutate_object():
@@ -158,7 +168,7 @@ def test_mutate_nonobject():
             """
             ego = new Object
             mutate sin
-        """
+            """
         )
 
 
@@ -292,3 +302,31 @@ def test_mode2D_interference():
         scene, _ = scenario.generate()
 
         assert any(obj.position[2] != 0 for obj in scene.objects)
+
+
+def test_mode2D_heading_parentOrientation():
+    program = """
+            class Foo:
+                heading: 0.56
+
+            class Bar(Foo):
+                parentOrientation: 1.2
+
+            ego = new Bar
+        """
+
+    obj = sampleEgoFrom(program, mode2D=True)
+    assert obj.heading == obj.parentOrientation.yaw == 1.2
+
+    program = """
+            class Bar:
+                parentOrientation: 1.2
+
+            class Foo(Bar):
+                heading: 0.56
+
+            ego = new Foo
+        """
+
+    obj = sampleEgoFrom(program, mode2D=True)
+    assert obj.heading == obj.parentOrientation.yaw == 0.56

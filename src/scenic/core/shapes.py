@@ -1,4 +1,4 @@
-""" Module containing the Shape class and its subclasses, which represent shapes of Objects"""
+"""Module containing the Shape class and its subclasses, which represent shapes of Objects"""
 
 from abc import ABC, abstractmethod
 

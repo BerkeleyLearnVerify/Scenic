@@ -1,0 +1,220 @@
+name: run_simulators
+on:
+  # IMPORTANT: this workflow should only be triggered manually via the Actions
+  # portal of the repo!!! Do not modify this workflow's trigger!
+  workflow_dispatch:
+
+jobs:
+    start_ec2_instance:
+      name: start_ec2_instance
+      runs-on: ubuntu-latest
+      concurrency:
+        group: sim
+      outputs:
+        volume_id: ${{ steps.create_volume_step.outputs.volume_id }}
+      env:
+        INSTANCE_ID: ${{ secrets.AWS_EC2_INSTANCE_ID }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+      steps:
+        - name: Create Volume from Latest Snapshot and Attach to Instance
+          id: create_volume_step
+          run: |
+            #  Retrieve the latest snapshot ID
+            LATEST_SNAPSHOT_ID=$(aws ec2 describe-snapshots --owner-ids self --query 'Snapshots | sort_by(@, &StartTime) | [-1].SnapshotId' --output text)
+            echo "Checking availability for snapshot: $LATEST_SNAPSHOT_ID"
+
+            # Wait for the snapshot to complete
+            aws ec2 wait snapshot-completed --snapshot-ids $LATEST_SNAPSHOT_ID
+            echo "Snapshot is ready."
+
+            # Create a new volume from the latest snapshot
+            volume_id=$(aws ec2 create-volume --snapshot-id $LATEST_SNAPSHOT_ID --availability-zone us-west-1b --volume-type gp3 --size 400 --throughput 250 --query "VolumeId" --output text)
+            echo "Created volume with ID: $volume_id"
+
+            # Set volume_id as output
+            echo "volume_id=$volume_id" >> $GITHUB_OUTPUT
+            cat $GITHUB_OUTPUT
+
+            # Wait until the volume is available
+            aws ec2 wait volume-available --volume-ids $volume_id
+            echo "Volume is now available"
+
+            # Attach the volume to the instance
+            aws ec2 attach-volume --volume-id $volume_id --instance-id $INSTANCE_ID --device /dev/sda1
+            echo "Volume $volume_id attached to instance $INSTANCE_ID as /dev/sda1"
+
+        - name: Start EC2 Instance
+          run: |
+            # Get the instance state
+            instance_state=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID | jq -r '.Reservations[].Instances[].State.Name')
+
+            # If the machine is stopping wait for it to fully stop
+            while [ "$instance_state" == "stopping" ]; do
+                echo "Instance is stopping, waiting for it to fully stop..."
+                sleep 10
+                instance_state=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID | jq -r '.Reservations[].Instances[].State.Name')
+            done
+
+            # Check if instance state is "stopped"
+            if [[ "$instance_state" == "stopped" ]]; then
+                echo "Instance is stopped, starting it..."
+                aws ec2 start-instances --instance-ids $INSTANCE_ID
+            elif [[ "$instance_state" == "pending" ]]; then
+                echo "Instance startup is pending, continuing..."
+            elif [[ "$instance_state" == "running" ]]; then
+                echo "Instance is already running..."
+                exit 0
+            else
+                echo "Unknown instance state: $instance_state"
+                exit 1
+            fi
+
+            # Wait for instance status checks to pass
+            echo "Waiting for instance status checks to pass..."
+            aws ec2 wait instance-status-ok --instance-ids $INSTANCE_ID
+            echo "Instance is now ready for use."
+
+
+    check_simulator_version_updates:
+      name: check_simulator_version_updates
+      runs-on: ubuntu-latest
+      needs: start_ec2_instance
+      steps:
+        - name: Check for Simulator Version Updates
+          env:
+            PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+            HOSTNAME: ${{ secrets.SSH_HOST }}
+            USER_NAME: ${{ secrets.SSH_USERNAME }}
+            GH_ACCESS_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+            GH_REF: ${{ github.ref }}
+          run: |
+            echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+            ssh -o StrictHostKeyChecking=no -o SendEnv=GH_REF -i private_key ${USER_NAME}@${HOSTNAME} '
+              cd /home/ubuntu/actions/ &&
+              rm -rf Scenic &&
+              git clone --branch $(basename "$GH_REF") --single-branch https://$GH_ACCESS_TOKEN@github.com/BerkeleyLearnVerify/Scenic.git &&
+              cd Scenic &&
+              python3 -m venv venv &&
+              source venv/bin/activate &&
+              python3 -m pip install -e .[test-full] &&
+              python3 .github/check_latest_simulators.py
+            '
+
+    check_nvidia_smi:
+      name: check_nvidia_smi
+      runs-on: ubuntu-latest
+      needs: start_ec2_instance
+      continue-on-error: true
+      steps:
+        - name: Check NVIDIA SMI
+          env:
+            PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+            HOSTNAME: ${{ secrets.SSH_HOST}}
+            USER_NAME: ${{ secrets.SSH_USERNAME}}
+          run: |
+            echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+            ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
+              output=$(nvidia-smi)
+              echo "$output"
+              if [ -z "$output" ]; then
+                echo "NVIDIA Driver is not set"
+                exit 1
+              fi
+            '
+        - name: NVIDIA Driver is not set
+          if: ${{ failure() }}
+          run: |
+            echo "NVIDIA SMI is not working, please run the steps here on the instance:"
+            echo "https://scenic-lang.atlassian.net/wiki/spaces/KAN/pages/2785287/Setting+Up+AWS+VM?parentProduct=JSW&initialAllowedFeatures=byline-contributors.byline-extensions.page-comments.delete.page-reactions.inline-comments.non-licensed-share&themeState=dark%253Adark%2520light%253Alight%2520spacing%253Aspacing%2520colorMode%253Alight&locale=en-US#Install-NVIDIA-Drivers"
+
+    run_carla_simulators:
+      name: run_carla_simulators
+      runs-on: ubuntu-latest
+      needs: [check_simulator_version_updates, check_nvidia_smi]
+      steps:
+        - name: Run CARLA Tests
+          env:
+            PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+            HOSTNAME: ${{secrets.SSH_HOST}}
+            USER_NAME: ${{secrets.SSH_USERNAME}}
+          run: |
+            echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+            ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=60 -o ServerAliveCountMax=3 -i private_key ${USER_NAME}@${HOSTNAME} '
+              cd /home/ubuntu/actions/Scenic &&
+              source venv/bin/activate &&
+              carla_versions=($(find /software -maxdepth 1 -type d -name 'carla*')) &&
+              for version in "${carla_versions[@]}"; do
+                echo "============================= CARLA $version ============================="
+                export CARLA_ROOT="$version"
+                pytest tests/simulators/carla
+              done
+            '
+
+    run_webots_simulators:
+      name: run_webots_simulators
+      runs-on: ubuntu-latest
+      needs: [check_simulator_version_updates, check_nvidia_smi]
+      steps:
+        - name: Run Webots Tests
+          env:
+            PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+            HOSTNAME: ${{secrets.SSH_HOST}}
+            USER_NAME: ${{secrets.SSH_USERNAME}}
+          run: |
+            echo "$PRIVATE_KEY" > private_key && chmod 600 private_key
+            ssh -o StrictHostKeyChecking=no -i private_key ${USER_NAME}@${HOSTNAME} '
+              Xvfb :99 -screen 0 1024x768x16 &
+              cd /home/ubuntu/actions/Scenic &&
+              source venv/bin/activate &&
+              webots_versions=($(find /software -maxdepth 1 -type d -name 'webots*')) &&
+              export DISPLAY=:99 &&
+              for version in "${webots_versions[@]}"; do
+                echo "============================= Webots $version ============================="
+                export WEBOTS_ROOT="$version"
+                pytest tests/simulators/webots
+              done
+              kill %1
+            '
+
+    stop_ec2_instance:
+      name: stop_ec2_instance
+      runs-on: ubuntu-latest
+      needs: [start_ec2_instance, check_simulator_version_updates, check_nvidia_smi, run_carla_simulators, run_webots_simulators]
+      if: always()
+      env:
+        VOLUME_ID: ${{ needs.start_ec2_instance.outputs.volume_id }}
+        INSTANCE_ID: ${{ secrets.AWS_EC2_INSTANCE_ID }}
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+      steps:
+        - name: Stop EC2 Instance
+          run: |
+            # Get the instance state and stop it if running
+            instance_state=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID | jq -r '.Reservations[].Instances[].State.Name')
+            if [[ "$instance_state" == "running" ]]; then
+              echo "Instance is running, stopping it..."
+              aws ec2 stop-instances --instance-ids $INSTANCE_ID
+              aws ec2 wait instance-stopped --instance-ids $INSTANCE_ID
+              echo "Instance has stopped."
+            elif [[ "$instance_state" == "stopped" ]]; then
+              echo "Instance is already stopped."
+            else
+              echo "Unexpected instance state: $instance_state"
+              exit 1
+            fi
+
+        - name: Detach Volume
+          run: |
+            # Detach the volume
+            aws ec2 detach-volume --volume-id $VOLUME_ID
+            aws ec2 wait volume-available --volume-ids $VOLUME_ID
+            echo "Volume $VOLUME_ID detached."
+
+        - name: Delete Volume
+          run: |
+            # Delete the volume after snapshot is complete
+            aws ec2 delete-volume --volume-id $VOLUME_ID
+            echo "Volume $VOLUME_ID deleted."
