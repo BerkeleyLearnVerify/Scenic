@@ -35,7 +35,7 @@ For more information on orientations and heading please consult:
     * Reference on Heading: :ref:`Heading`
 
 .. note::
-    When manually composing rotations in Scenic, remember that if rotation **A** is applied first, followed by rotation **B**, the resulting orientation is computed as **A * B**. This multiplication order is reversed relative to the typical extrinsic rotation convention, reflecting Scenic’s use of intrinsic Euler angles.
+    When manually composing rotations in Scenic, remember that if rotation **A** is applied first, followed by rotation **B**, the resulting orientation is computed as **A * B**. This multiplication order is reversed relative to the typical extrinsic rotation convention, reflecting Scenic’s use of intrinsic Euler angles. For further details, see the `Conversion to extrinsic rotations <https://en.wikipedia.org/wiki/Davenport_chained_rotations#Conversion_to_extrinsic_rotations>`_ section of the Wikipedia article on Davenport chained rotations.
 
 Local Coordinate System
 -----------------------
