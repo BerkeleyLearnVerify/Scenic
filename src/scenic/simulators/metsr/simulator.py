@@ -8,9 +8,9 @@ from scenic.simulators.metsr.client import METSRClient
 
 
 class METSRSimulator(Simulator):
-    def __init__(self, host, port, map_name, timestep, sim_timestep):
+    def __init__(self, host, port, map_name, timestep, sim_timestep, verbose=False):
         super().__init__()
-        self.client = METSRClient(host=host, port=port)
+        self.client = METSRClient(host=host, port=port, verbose=verbose)
 
         self.map_name = map_name
         self.timestep = timestep
@@ -71,6 +71,13 @@ class METSRSimulation(Simulation):
         for _ in range(self.sim_ticks_per):
             self.client.tick()
 
+    def updateObjects(self):
+        obj_veh_ids = [self.getPrivateVehId(obj) for obj in self.objects]
+        raw_veh_data = self.client.query_vehicle(obj_veh_ids, True, True)
+        self.obj_data_cache = {obj: raw_veh_data[i] for i, obj in enumerate(self.objects)}
+        super().updateObjects()
+        self.obj_data_cache = None
+
     def getProperties(self, obj, properties):
         call_kwargs = {
             "vehID": self.getPrivateVehId(obj),
@@ -78,7 +85,7 @@ class METSRSimulation(Simulation):
             "transform_coords": True,
         }
 
-        raw_data = self.client.query_vehicle(**call_kwargs)
+        raw_data = self.obj_data_cache[obj]
 
         position = Vector(raw_data["x"], raw_data["y"], 0)
         speed = raw_data["speed"]

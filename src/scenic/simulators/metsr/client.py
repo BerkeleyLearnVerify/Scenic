@@ -93,29 +93,45 @@ class METSRClient:
 
         self.current_tick = res["TICK"]
 
-    def generate_trip(self, vehID, origin, destination):
-        msg = {
-            "TYPE": "CTRL_generateTrip",
-            "vehID": vehID,
-            "origin": origin,
-            "destination": destination,
-        }
+    def generate_trip(self, vehID, origin=-1, destination=-1):
+        msg = {"TYPE": "CTRL_generateTrip", "DATA": []}
+        if not isinstance(vehID, list):
+            vehID = [vehID]
+        if not isinstance(origin, list):
+            origin = [origin] * len(vehID)
+        if not isinstance(destination, list):
+            destination = [destination] * len(vehID)
+
+        assert (
+            len(vehID) == len(origin) == len(destination)
+        ), "Length of vehID, origin, and destination must be the same"
+        for vehID, origin, destination in zip(vehID, origin, destination):
+            msg["DATA"].append(
+                {"vehID": vehID, "vehType": True, "orig": origin, "dest": destination}
+            )
 
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
 
         assert res["TYPE"] == "CTRL_generateTrip", res["TYPE"]
         assert res["CODE"] == "OK", res["CODE"]
+        return res
 
-    def query_vehicle(self, vehID, private_veh=False, transform_coords=False):
-        msg = {
-            "TYPE": "QUERY_vehicle",
-            "ID": vehID,
-            "PRV": private_veh,
-            "TRAN": transform_coords,
-        }
+    def query_vehicle(self, id=None, private_veh=False, transform_coords=False):
+        msg = {"TYPE": "QUERY_vehicle"}
+        if id is not None:
+            msg["DATA"] = []
+            if not isinstance(id, list):
+                id = [id]
+            if not isinstance(private_veh, list):
+                private_veh = [private_veh] * len(id)
+            if not isinstance(transform_coords, list):
+                transform_coords = [transform_coords] * len(id)
+            for veh_id, prv, tran in zip(id, private_veh, transform_coords):
+                msg["DATA"].append(
+                    {"vehID": veh_id, "vehType": prv, "transformCoord": tran}
+                )
 
         res = self.send_receive_msg(msg, ignore_heartbeats=True)
-
         assert res["TYPE"] == "ANS_vehicle", res["TYPE"]
         return res
 

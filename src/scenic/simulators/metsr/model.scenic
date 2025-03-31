@@ -14,6 +14,7 @@ simulator METSRSimulator(
     map_name="Data.properties.CARLA",
     timestep=globalParameters.timestep,
     sim_timestep=globalParameters.simTimestep,
+    verbose=True
     )
 
 _DAY_MOD = 24*60*60
