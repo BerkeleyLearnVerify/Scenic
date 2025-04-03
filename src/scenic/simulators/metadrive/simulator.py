@@ -38,6 +38,10 @@ class MetaDriveSimulator(DrivingSimulator):
         self.render3D = render3D if render else False
         self.scenario_number = 0
         self.timestep = timestep
+        if sumo_map is None:
+            raise ValueError(
+                "Missing SUMO map: Please specify a valid 'sumo_map' path when instantiating MetaDriveSimulator."
+            )
         self.sumo_map = sumo_map
         self.real_time = real_time
         self.scenic_offset, self.sumo_map_boundary = utils.getMapParameters(self.sumo_map)
