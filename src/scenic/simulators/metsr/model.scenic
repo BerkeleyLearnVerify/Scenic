@@ -7,6 +7,7 @@ from scenic.simulators.metsr.traffic_flows import *
 param startTime = 6*60*60
 param timestep = 1
 param simTimestep = 0.1
+param verbose=False
 
 simulator METSRSimulator(
     host="localhost", 
@@ -14,7 +15,7 @@ simulator METSRSimulator(
     map_name="Data.properties.CARLA",
     timestep=globalParameters.timestep,
     sim_timestep=globalParameters.simTimestep,
-    verbose=True
+    verbose=globalParameters.verbose
     )
 
 _DAY_MOD = 24*60*60

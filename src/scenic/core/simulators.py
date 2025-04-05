@@ -672,29 +672,37 @@ class Simulation(abc.ABC):
             dynTypes = obj._simulatorProvidedProperties
             properties = set(dynTypes)
             values = self.getProperties(obj, properties)
-            assert properties == set(values), properties ^ set(values)
-            for prop, value in values.items():
-                # Check new value has the expected type
-                ty = dynTypes[prop]
-                if ty is float and isinstance(value, numbers.Real):
-                    # Special case for scalars so that we don't penalize simulator interfaces
-                    # for returning ints, NumPy scalar types, etc.
-                    value = float(value)
-                elif ty is type(None):
-                    # Special case for properties with initial value None: the simulator sets
-                    # their actual initial value, so we'll assume the type is correct here.
-                    ty = type(value)
-                    dynTypes[prop] = ty
-                if not isinstance(value, ty):
-                    actual = type(value).__name__
-                    expected = ty.__name__
-                    raise RuntimeError(
-                        f'simulator provided value for property "{prop}" '
-                        f"with type {actual} instead of expected {expected}"
-                    )
+            if values is not None:
+                assert properties == set(values), properties ^ set(values)
+                for prop, value in values.items():
+                    # Check new value has the expected type
+                    ty = dynTypes[prop]
+                    if ty is float and isinstance(value, numbers.Real):
+                        # Special case for scalars so that we don't penalize simulator interfaces
+                        # for returning ints, NumPy scalar types, etc.
+                        value = float(value)
+                    elif ty is type(None):
+                        # Special case for properties with initial value None: the simulator sets
+                        # their actual initial value, so we'll assume the type is correct here.
+                        ty = type(value)
+                        dynTypes[prop] = ty
+                    if not isinstance(value, ty):
+                        actual = type(value).__name__
+                        expected = ty.__name__
+                        raise RuntimeError(
+                            f'simulator provided value for property "{prop}" '
+                            f"with type {actual} instead of expected {expected}"
+                        )
 
-                # Assign the new value
-                setattr(obj, prop, value)
+                    # Assign the new value
+                    setattr(obj, prop, value)
+
+                # Recompute dynamic final properties
+                obj._recomputeDynamicFinals()
+
+                # Clear caches to ensure that cached properties like visibleRegion, etc.
+                # are recomputed
+                obj._clearCaches()
 
             # If saving a replay with divergence-checking support, save all the new values;
             # if running a replay with such support, check for divergence.
@@ -720,13 +728,6 @@ class Simulation(abc.ABC):
                             break
                         else:
                             raise DivergenceError(msg)
-
-            # Recompute dynamic final properties
-            obj._recomputeDynamicFinals()
-
-            # Clear caches to ensure that cached properties like visibleRegion, etc.
-            # are recomputed
-            obj._clearCaches()
 
     def valuesHaveDiverged(self, obj, prop, expected, actual):
         """Decide whether the value of a dynamic property has diverged from the replay.
