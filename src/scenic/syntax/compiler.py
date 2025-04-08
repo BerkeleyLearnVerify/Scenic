@@ -312,15 +312,42 @@ class NameMapTransformer(Transformer):
 
 
 class NameSwapTransformer(Transformer):
-    def __init__(self, name_map, filename="<unknown>"):
+    def __init__(self, name_map, swapAttributes=False, filename="<unknown>"):
         super().__init__(filename)
         self.name_map = name_map
+        self.swapAttributes = swapAttributes
 
     def visit_Name(self, node):
         if node.id in self.name_map:
             return ast.Name(self.name_map[node.id], node.ctx)
 
         return node
+
+    def visitAttribute(self, node):
+        new_attr = self.visit(node.attr) if self.swapAttributes else node.attr
+        return ast.Attribute(value=self.visit(node.value), attr=node.attr, ctx=node.ctx)
+
+
+class NameConstantTransformer(Transformer):
+    def __init__(self, name_map, filename="<unknown>"):
+        super().__init__(filename)
+        self.name_map = name_map
+
+    def visit_Name(self, node):
+        if node.id in self.name_map:
+            return ast.Constant(self.name_map[node.id])
+
+        return node
+
+
+class AtomicCheckTransformer(Transformer):
+    def visit_Call(self, node: ast.Call):
+        func = node.func
+        if isinstance(func, ast.Name) and func.id in TEMPORAL_PREFIX_OPS:
+            self.makeSyntaxError(
+                f'malformed use of the "{func.id}" temporal operator', node
+            )
+        return self.generic_visit(node)
 
 
 class PropositionTransformer(Transformer):
@@ -342,6 +369,7 @@ class PropositionTransformer(Transformer):
 
         self.atomic_transformer = atomic_transformer
         self.syntax_transformer = syntax_transformer
+        self.nextSyntaxId = 0
 
     def transform(self, node: ast.AST) -> Tuple[ast.AST, List[ast.AST], int]:
         """`transform` takes an AST node and apply transformations needed for temporal evaluation
@@ -357,6 +385,11 @@ class PropositionTransformer(Transformer):
             return wrapped
         newNode = self._create_atomic_proposition_factory(node)
         return newNode
+
+    def generic_visit(self, node):
+        acv = AtomicCheckTransformer(self.filename)
+        acv.visit(node)
+        return node
 
     def _register_syntax(self, syntax):
         """register requirement syntax for later use
@@ -470,14 +503,6 @@ class PropositionTransformer(Transformer):
             keywords=[],
         )
         return ast.copy_location(newNode, node)
-
-    def visit_Call(self, node: ast.Call):
-        func = node.func
-        if isinstance(func, ast.Name) and func.id in TEMPORAL_PREFIX_OPS:
-            self.makeSyntaxError(
-                f'malformed use of the "{func.id}" temporal operator', node
-            )
-        return self.generic_visit(node)
 
     def visit_Always(self, node: s.Always):
         value = self.visit(node.value)
@@ -1923,6 +1948,17 @@ class ScenicToPythonTransformer(Transformer):
         component_body = []
 
         ## Class Attributes ##
+        # Store body source info
+        def_id_offset = len(self.syntaxTrees)
+        component_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="def_id_offset", ctx=ast.Store())],
+                value=ast.Constant(value=def_id_offset),
+            )
+        )
+
+        self.syntaxTrees.append(body)
+
         # Store type info for inputs, outputs, sensors, and state
         component_body.append(
             ast.Assign(
@@ -2613,6 +2649,18 @@ class ScenicToPythonTransformer(Transformer):
                 )
             )
 
+        # Store definition syntax trees and log id_offset
+        def_id_offset = len(self.syntaxTrees)
+        contract_body.append(
+            ast.Assign(
+                targets=[ast.Name(id="def_id_offset", ctx=ast.Store())],
+                value=ast.Constant(value=def_id_offset),
+            )
+        )
+        self.syntaxTrees += [deepcopy(d) for _, d in node.definitions]
+        self.syntaxTrees += [deepcopy(a) for a in node.assumptions]
+        self.syntaxTrees += [deepcopy(g) for g in node.guarantees]
+
         ## `init` Function ##
 
         ## '__init__' Function ##
@@ -2685,7 +2733,7 @@ class ScenicToPythonTransformer(Transformer):
         lambda_arg_names += [name for name, _ in node.definitions]
 
         # Create transformer to unwrap definitions
-        def_unwrap_transformer = NameMapTransformer(dict(node.definitions))
+        # def_unwrap_transformer = NameMapTransformer(dict(node.definitions))
 
         # Create lambda factory function and add it to the component body
         prop_fac_args = ast.arguments(
@@ -2761,7 +2809,7 @@ class ScenicToPythonTransformer(Transformer):
                 self.syntaxTrees,
                 atomic_args=lambda_args,
                 atomic_transformer=atomic_transformer,
-                syntax_transformer=def_unwrap_transformer,
+                # syntax_transformer=def_unwrap_transformer,
             )
             assumption_prop = propTransformer.transform(a)
             max_lookahead = max(max_lookahead, atomic_transformer.max_lookahead)
@@ -2797,7 +2845,7 @@ class ScenicToPythonTransformer(Transformer):
                 self.syntaxTrees,
                 atomic_args=lambda_args,
                 atomic_transformer=atomic_transformer,
-                syntax_transformer=def_unwrap_transformer,
+                # syntax_transformer=def_unwrap_transformer,
             )
             guarantee_prop = propTransformer.transform(g)
 
@@ -2947,7 +2995,32 @@ class ScenicToPythonTransformer(Transformer):
             keywords=[],
         )
 
-    def visit_ContractAssume(self, node: s.ContractTest):
+    def visit_ContractProof(self, node: s.ContractProof):
+        # Create component keyword
+        obj_val = ast.Name(node.component[0], loadCtx)
+        component_val = obj_val
+
+        if len(node.component) > 1:
+            for sub_name in node.component[1:]:
+                component_val = ast.Subscript(
+                    ast.Attribute(component_val, "subcomponents", loadCtx),
+                    ast.Constant(sub_name),
+                    loadCtx,
+                )
+
+        # Map contract name
+        assert isinstance(node.contract, ast.Call)
+        assert isinstance(node.contract.func, ast.Name)
+        node.contract.func.id = self.toContractName(node.contract.func.id)
+
+        # Visit method
+        method = self.visit(node.method)
+        method.keywords.append(ast.keyword("contract", node.contract))
+        method.keywords.append(ast.keyword("component", component_val))
+
+        return method
+
+    def visit_ContractAssume(self, node: s.ContractAssume):
         # Create component keyword
         obj_val = ast.Name(node.component[0], loadCtx)
         component_val = obj_val
@@ -3016,9 +3089,58 @@ class ScenicToPythonTransformer(Transformer):
         keywords = []
         keywords.append(ast.keyword("component", component_val))
         keywords.append(ast.keyword("sub_stmts", sub_stmts))
+        keywords.append(ast.keyword("environment", ast.Name("ENVIRONMENT", ctx=loadCtx)))
 
         return ast.Call(
             func=ast.Name("Composition", loadCtx),
+            args=[],
+            keywords=keywords,
+        )
+
+    def visit_ContractMerge(self, node: s.ContractCompose):
+        # Create component keyword
+        obj_val = ast.Name(node.component[0], loadCtx)
+        component_val = obj_val
+
+        if len(node.component) > 1:
+            for sub_name in node.component[1:]:
+                component_val = ast.Subscript(
+                    ast.Attribute(component_val, "subcomponents", loadCtx),
+                    ast.Constant(sub_name),
+                    loadCtx,
+                )
+
+        # Compile sub statements
+        sub_stmts = ast.List(
+            elts=[self.visit(sub_stmt) for sub_stmt in node.sub_stmts], ctx=loadCtx
+        )
+
+        # Package keywords
+        keywords = []
+        keywords.append(ast.keyword("component", component_val))
+        keywords.append(ast.keyword("sub_stmts", sub_stmts))
+        keywords.append(ast.keyword("environment", ast.Name("ENVIRONMENT", ctx=loadCtx)))
+
+        return ast.Call(
+            func=ast.Name("Merge", loadCtx),
+            args=[],
+            keywords=keywords,
+        )
+
+    def visit_ContractRefine(self, node: s.ContractRefine):
+        # Map contract name
+        assert isinstance(node.contract, ast.Call)
+        assert isinstance(node.contract.func, ast.Name)
+        node.contract.func.id = self.toContractName(node.contract.func.id)
+
+        # Package keywords
+        keywords = []
+        keywords.append(ast.keyword("stmt", ast.Name(node.name, loadCtx)))
+        keywords.append(ast.keyword("contract", node.contract))
+        keywords.append(ast.keyword("method", node.method))
+
+        return ast.Call(
+            func=ast.Name("Refinement", loadCtx),
             args=[],
             keywords=keywords,
         )

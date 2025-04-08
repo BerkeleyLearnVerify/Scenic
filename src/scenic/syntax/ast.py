@@ -1384,6 +1384,21 @@ class ContractTestReqCond(AST):
         self.args = args
 
 
+class ContractProof(AST):
+    def __init__(
+        self,
+        contract,
+        component,
+        method,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.contract = contract
+        self.component = component
+        self.method = method
+
+
 class ContractAssume(AST):
     def __init__(
         self,
@@ -1412,6 +1427,19 @@ class ContractCompose(AST):
         self.sub_stmts = sub_stmts
 
 
+class ContractMerge(AST):
+    def __init__(
+        self,
+        component,
+        sub_stmts,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.component = component
+        self.sub_stmts = sub_stmts
+
+
 class ContractUse(AST):
     def __init__(
         self,
@@ -1423,6 +1451,21 @@ class ContractUse(AST):
         self.name = name
 
 
+class ContractRefine(AST):
+    def __init__(
+        self,
+        name,
+        contract,
+        method,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.name = name
+        self.contract = contract
+        self.method = method
+
+
 class ContractVerify(AST):
     def __init__(
         self,
@@ -1431,19 +1474,6 @@ class ContractVerify(AST):
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.target = target
-
-
-class ContractRefine(AST):
-    def __init__(
-        self,
-        name,
-        target,
-        *args,
-        **kwargs,
-    ) -> None:
-        super().__init__(*args, **kwargs)
-        self.name = name
         self.target = target
 
 
@@ -1458,3 +1488,16 @@ class ContractNext(AST):
         super().__init__(*args, **kwargs)
         self.target = target
         self.step = step
+        self._fields = ["target", "step"]
+
+    def __reduce__(self):
+        return (
+            type(self),
+            (self.target, self.step),
+            {
+                "lineno": self.lineno,
+                "end_lineno": self.end_lineno,
+                "col_offset": self.col_offset,
+                "end_col_offset": self.end_col_offset,
+            },
+        )

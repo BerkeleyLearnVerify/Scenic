@@ -294,7 +294,7 @@ component Car(target_dist, max_speed, min_dist, min_slowdown):
         connect cs.control_action to cc.control_action
 
 ## Contracts ##
-contract RadarManufacturerSpec(perception_distance, abs_dist_err=0.5):
+contract RadarManufacturerSpec(perception_distance, abs_dist_err=0.5, radar_fov=math.radians(25), guaranteed_dist=62):
     outputs:
         dist: float
 
@@ -305,7 +305,8 @@ contract RadarManufacturerSpec(perception_distance, abs_dist_err=0.5):
         lead_dist = lead_distances[lead_car]
         behind_car = lead_dist <= perception_distance
 
-        radar_manufacturer_cond = False # TODO
+        radar_cone = SectorRegion(center=self.position, radius=guaranteed_dist, heading=0, angle=radar_fov)
+        radar_manufacturer_cond = lead_car contained in radar_cone
 
     assumptions:
         # Assume we are in a lane

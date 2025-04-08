@@ -36,6 +36,7 @@ __all__ = (
     "hypot",
     "max",
     "min",
+    "ceil",
     "_toStrScenic",
     "_toFloatScenic",
     "_toIntScenic",
@@ -204,7 +205,7 @@ from scenic.core.external_params import (
     VerifaiParameter,
     VerifaiRange,
 )
-from scenic.core.geometry import cos, hypot, max, min, sin
+from scenic.core.geometry import ceil, cos, hypot, max, min, sin
 from scenic.core.object_types import Mutator, Object, OrientedPoint, Point
 from scenic.core.regions import (
     BoxRegion,
@@ -249,6 +250,7 @@ from pathlib import Path
 import sys
 import traceback
 import typing
+import warnings
 
 from scenic.contracts.components import ActionComponent, BaseComponent, ComposeComponent
 from scenic.contracts.contracts import Contract
@@ -1528,6 +1530,11 @@ def alwaysProvidesOrientation(region):
             sample = region.sample()
             return sample.orientation is not None or sample is nowhere
         except RejectionException:
+            return False
+        except Exception as e:
+            warnings.warn(
+                f"While sampling internally to determine if a random region provides an orientation, the following exception was raised: {repr(e)}"
+            )
             return False
 
 

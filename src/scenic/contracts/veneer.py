@@ -15,6 +15,10 @@ __all__ = (
     "registerVerifyStatement",
     "Assumption",
     "Composition",
+    "Merge",
+    "Refinement",
+    "LeanRefinementProof",
+    "LeanContractProof",
 )
 
 # various Python types and functions used in the language but defined elsewhere
@@ -25,8 +29,10 @@ from scenic.syntax.translator import scenarioFromFile
 # everything that should not be directly accessible from the language is imported here:
 from scenic.contracts.assumption import Assumption
 from scenic.contracts.components import ActionComponent, BaseComponent, ComposeComponent
-from scenic.contracts.composition import Composition
+from scenic.contracts.composition import Composition, Merge
 from scenic.contracts.contracts import Contract
+from scenic.contracts.proof import LeanContractProof
+from scenic.contracts.refinement import LeanRefinementProof, Refinement
 from scenic.contracts.testing import (
     CorrectnessRequirementCondition,
     CountTerminationCondition,

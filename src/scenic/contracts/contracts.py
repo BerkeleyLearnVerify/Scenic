@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from functools import cached_property
 
-from scenic.contracts.specifications import SpecNode
+from scenic.contracts.specifications import ASTSpecTransformer, SpecNode
+from scenic.syntax.compiler import NameConstantTransformer
 
 
 class Contract:
@@ -13,16 +15,40 @@ class Contract:
         self.definitions = props[0]
         self.assumptions_props = props[1]
         self.guarantees_props = props[2]
-        self.assumptions = [
-            SpecNode.propToSpec(a, contract_veneer._syntaxTrees)
-            for a in self.assumptions_props
+
+        offset = self.def_id_offset
+        def_names = list(self.definitions.keys())
+        self.def_syntaxTrees = {
+            def_names[i]: deepcopy(contract_veneer._syntaxTrees[offset + i])
+            for i in range(len(self.definitions))
+        }
+        offset += len(self.definitions)
+        self.assumption_syntaxTrees = [
+            deepcopy(contract_veneer._syntaxTrees[offset + i])
+            for i in range(len(self.assumptions_props))
         ]
-        self.guarantees = [
-            SpecNode.propToSpec(g, contract_veneer._syntaxTrees)
-            for g in self.guarantees_props
+        offset += len(self.assumptions_props)
+        self.guarantee_syntaxTrees = [
+            deepcopy(contract_veneer._syntaxTrees[offset + i])
+            for i in range(len(self.guarantees_props))
         ]
 
         self.kwargs = kwargs
+        constant_transformer = NameConstantTransformer(self.kwargs)
+        for tree in (
+            list(self.def_syntaxTrees.values())
+            + self.assumption_syntaxTrees
+            + self.guarantee_syntaxTrees
+        ):
+            constant_transformer.visit(tree)
+
+        spec_transformer = ASTSpecTransformer(self.def_syntaxTrees)
+        self.assumptions = [
+            spec_transformer.convert(a) for a in self.assumption_syntaxTrees
+        ]
+        self.guarantees = [
+            spec_transformer.convert(g) for g in self.guarantee_syntaxTrees
+        ]
 
         # TODO: Handle contracts w/ more than one object
         assert len(self.objects) <= 1
@@ -80,14 +106,14 @@ class ContractResult(ABC):
         pass
 
     @property
+    @abstractmethod
+    def evidenceSummary(self):
+        pass
+
+    @property
     def assumptionsSummary(self):
         return "".join(f"    {a}\n" for a in self.assumptions)
 
     @property
     def guaranteesSummary(self):
         return "".join(f"    {g}\n" for g in self.guarantees)
-
-    @property
-    @abstractmethod
-    def evidenceSummary(self):
-        pass

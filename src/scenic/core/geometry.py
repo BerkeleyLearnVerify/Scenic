@@ -43,6 +43,11 @@ def min(*args, **kwargs):
 
 
 @distributionFunction
+def ceil(*args, **kwargs):
+    return math.ceil(*args, **kwargs)
+
+
+@distributionFunction
 def normalizeAngle(angle) -> float:
     while angle > math.pi:
         angle -= math.tau

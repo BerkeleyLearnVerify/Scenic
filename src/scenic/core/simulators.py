@@ -440,7 +440,7 @@ class Simulation(abc.ABC):
             if self.terminationType:
                 return
 
-    def advance(self):
+    def advance(self, preActionHook=None):
         if self.terminationType or self._cleaned:
             raise TerminatedSimulationException()
 
@@ -529,6 +529,10 @@ class Simulation(abc.ABC):
 
             # Log lastActions
             agent.lastActions = actions
+
+        # Run the preActionHook if provided
+        if preActionHook is not None:
+            preActionHook()
 
         # Execute the actions
         if self.verbosity >= 3:
