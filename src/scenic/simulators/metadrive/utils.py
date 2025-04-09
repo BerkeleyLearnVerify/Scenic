@@ -79,26 +79,6 @@ def metaDriveToScenicHeading(metaDriveHeading):
     return (scenicHeading + math.pi) % (2 * math.pi) - math.pi
 
 
-def scenicToMetaDriveVelocity(scenic_velocity):
-    """Converts Scenic velocity to MetaDrive velocity by rotating the vector by π/2 (90 degrees)."""
-    speed = math.sqrt(scenic_velocity.x**2 + scenic_velocity.y**2)
-    scenic_heading = math.atan2(scenic_velocity.x, scenic_velocity.y)
-    md_heading = scenicToMetaDriveHeading(scenic_heading)
-    md_vx = speed * math.cos(md_heading)
-    md_vy = speed * math.sin(md_heading)
-    return (md_vx, md_vy)
-
-
-def metaDriveToScenicVelocity(md_velocity):
-    """Converts MetaDrive velocity to Scenic velocity by rotating the vector by -π/2 (i.e. subtracting π/2)."""
-    speed = math.sqrt(md_velocity[0] ** 2 + md_velocity[1] ** 2)
-    md_heading = math.atan2(md_velocity[1], md_velocity[0])
-    scenic_heading = metaDriveToScenicHeading(md_heading)
-    scenic_vx = speed * math.sin(scenic_heading)
-    scenic_vy = speed * math.cos(scenic_heading)
-    return Vector(scenic_vx, scenic_vy, 0)
-
-
 class DriveEnv(BaseEnv):
     def reward_function(self, agent):
         """Dummy reward function."""

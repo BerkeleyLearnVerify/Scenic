@@ -118,12 +118,7 @@ class MetaDriveSimulation(DrivingSimulation):
                 converted_position,
                 converted_heading,
             ]
-            if obj.velocity and (obj.velocity.x != 0 or obj.velocity.y != 0):
-                full_md_velocity = utils.scenicToMetaDriveVelocity(obj.velocity)
-                vehicle_config["spawn_velocity"] = utils.scenicToMetaDriveVelocity(
-                    obj.velocity
-                )
-                vehicle_config["spawn_velocity_car_frame"] = True
+            vehicle_config["spawn_velocity"] = [obj.velocity.x, obj.velocity.y]
 
         if not self.defined_ego:
             decision_repeat = math.ceil(self.timestep / 0.02)
@@ -231,7 +226,7 @@ class MetaDriveSimulation(DrivingSimulation):
         position = utils.metadriveToScenicPosition(
             metaDriveActor.position, self.scenic_offset
         )
-        velocity = utils.metaDriveToScenicVelocity(metaDriveActor.velocity)
+        velocity = Vector(*metaDriveActor.velocity, 0)
         speed = metaDriveActor.speed
         md_ang_vel = metaDriveActor.body.getAngularVelocity()
         angularVelocity = Vector(*md_ang_vel)
