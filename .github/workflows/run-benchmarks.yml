@@ -1,0 +1,126 @@
+name: Run Benchmarks
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  check-permission:
+    runs-on: ubuntu-latest
+    permissions:
+        contents: none
+    if: >
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '!benchmark')
+    steps:
+      - name: Check user's permission level
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        with:
+          script: |
+            const username = context.payload.comment.user.login;
+            const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username: username,
+            });
+            const userRole = data.role_name;
+            const allowedRoles = ["admin", "write", "maintain", "triage"];
+            console.log(`User ${username} has role: ${userRole}`);
+            // Fail the job if user doesn't have allowed role
+            if (!allowedRoles.includes(userRole)) {
+              throw new Error(`User does not have sufficient permissions to run the benchmarks.`);
+            }
+
+  run-benchmarks:
+    needs: check-permission
+    runs-on: ubuntu-latest
+    permissions:
+        pull-requests: write
+    steps:
+      - name: Benchmarks Started Comment
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        with:
+          script: |
+            const commentId = context.payload.comment.id;
+            const originalBody = context.payload.comment.body;
+            // Append a message to indicate benchmarks have started running
+            const newBody = `${originalBody}\n\n🚀 Benchmarks are running...`;
+            // Update the comment with the new body text
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: commentId,
+              body: newBody,
+            });
+
+      - name: Fetch PR Details
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        with:
+            script: |
+              const pr = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number
+              });
+              core.exportVariable('BASE_BRANCH', pr.data.base.ref);
+              core.exportVariable('COMPARE_BRANCH', pr.data.mergeable ?
+                `refs/pull/${context.issue.number}/merge` : pr.data.head.ref )
+
+      - name: Print PR Details
+        run: |
+          echo "COMPARE_BRANCH: $COMPARE_BRANCH"
+          echo "BASE_BRANCH: $BASE_BRANCH"
+
+      - name: Checkout base branch
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
+        with:
+          ref: ${{ env.BASE_BRANCH }}
+          path: base
+          persist-credentials: false
+
+      - name: Checkout compare branch
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
+        with:
+          ref: ${{ env.COMPARE_BRANCH }}
+          path: compare
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
+        with:
+          python-version: '3.x'
+
+      - name: Install pyperf
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyperf
+
+      - name: Run benchmark on base branch
+        working-directory: base
+        run: python tools/benchmarking/ci/benchmarks.py -o ../base.json
+
+      - name: Run benchmark on compare branch
+        working-directory: compare
+        run: python tools/benchmarking/ci/benchmarks.py -o ../head.json
+
+      - name: Compare benchmarks results
+        id: compare
+        run: |
+          python -m pyperf compare_to --table --table-format=md base.json head.json > comparison.txt
+          echo "Comparison results:"
+          cat comparison.txt
+
+      - name: Post benchmark results
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+        with:
+          script: |
+            const fs = require('fs');
+            const result = fs.readFileSync('comparison.txt', 'utf8');
+            const commentId = context.payload.comment.id;
+            const newBody = `🚀 Benchmarks completed.\n\n${result}`;
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: commentId,
+              body: newBody,
+            });
