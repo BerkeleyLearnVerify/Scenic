@@ -10,16 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871
         with:
           persist-credentials: false
 
       - name: Run black to check formatting
-        uses: psf/black@stable
+        uses: psf/black@8a737e727ac5ab2f1d4cf5876720ed276dc8dc4b
         with:
           version: "25.1.0"
 
       - name: Run isort to check import order
-        uses: isort/isort-action@v1
+        uses: isort/isort-action@24d8a7a51d33ca7f36c3f23598dafa33f7071326
         with:
           isort-version: "5.12.0"
