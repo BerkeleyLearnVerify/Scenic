@@ -27,10 +27,10 @@ class MetaDriveSimulator(DrivingSimulator):
 
     def __init__(
         self,
+        sumo_map,
         timestep=0.1,
         render=True,
         render3D=False,
-        sumo_map=None,
         real_time=True,
     ):
         super().__init__()
