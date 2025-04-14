@@ -1427,7 +1427,7 @@ class ContractCompose(AST):
         self.sub_stmts = sub_stmts
 
 
-class ContractMerge(AST):
+class ContractConjunction(AST):
     def __init__(
         self,
         component,

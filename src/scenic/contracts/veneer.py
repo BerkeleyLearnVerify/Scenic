@@ -15,7 +15,7 @@ __all__ = (
     "registerVerifyStatement",
     "Assumption",
     "Composition",
-    "Merge",
+    "Conjunction",
     "Refinement",
     "LeanRefinementProof",
     "LeanContractProof",
@@ -29,7 +29,7 @@ from scenic.syntax.translator import scenarioFromFile
 # everything that should not be directly accessible from the language is imported here:
 from scenic.contracts.assumption import Assumption
 from scenic.contracts.components import ActionComponent, BaseComponent, ComposeComponent
-from scenic.contracts.composition import Composition, Merge
+from scenic.contracts.composition import Composition, Conjunction
 from scenic.contracts.contracts import Contract
 from scenic.contracts.proof import LeanContractProof
 from scenic.contracts.refinement import LeanRefinementProof, Refinement

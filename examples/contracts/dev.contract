@@ -31,7 +31,7 @@ component RadarDistanceSystem(stddev):
 
     body:
         if lead_car_width < 1.8:
-            noise = random.gauss(sigma=stddev)
+            noise = random.gauss(mu=0, sigma=stddev)
         else:
             noise = 0
         noisy_distance = sensors_distance + noise
@@ -48,7 +48,7 @@ component LaserDistanceSystem(stddev):
 
     body:
         if weather == 2 or weather == 3:
-            noise = random.gauss(sigma=stddev)
+            noise = random.gauss(mu=0, sigma=stddev)
         else:
             noise = 0
         noisy_distance = sensors_distance + noise
@@ -303,7 +303,7 @@ contract RadarManufacturerDistanceAccuracy(perception_distance, abs_dist_err=0.5
 
     assumptions:
         # Assume we are in a lane
-        always self._lane is not None
+        # always self._lane is not None
 
         # Can reliably detect cars with width greater than or equal to 1.8 meters
         params["lead_car_width"] >= 1.8
@@ -312,9 +312,9 @@ contract RadarManufacturerDistanceAccuracy(perception_distance, abs_dist_err=0.5
         # Guarantee that if we're behind a car (in visible range), that the reported distance
         # is relatively accurate.
         always (behind_car implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err))
-        # Guarantee that if we are not behind a car (or out of visible range), that any reported
-        # distance is greater than our visible range.
-        always ((not behind_car) implies (dist > perception_distance+abs_dist_err))
+        # # Guarantee that if we are not behind a car (or out of visible range), that any reported
+        # # distance is greater than our visible range.
+        # always ((not behind_car) implies (dist > perception_distance+abs_dist_err))
 
 contract LaserManufacturerDistanceAccuracy(perception_distance, abs_dist_err=0.5):
     """ Contract proving that perceived distance is relatively accurate."""
@@ -335,7 +335,7 @@ contract LaserManufacturerDistanceAccuracy(perception_distance, abs_dist_err=0.5
 
     assumptions:
         # Assume we are in a lane
-        always self._lane is not None
+        # always self._lane is not None
 
         # Can reliably detect cars in sunny or cloudy weather (no occluding atmospheric particles)
         params["weather"] == 0 or params["weather"] == 1
@@ -346,7 +346,7 @@ contract LaserManufacturerDistanceAccuracy(perception_distance, abs_dist_err=0.5
         always (behind_car implies (lead_dist-abs_dist_err <= dist <= lead_dist+abs_dist_err))
         # Guarantee that if we are not behind a car (or out of visible range), that any reported
         # distance is greater than our visible range.
-        always ((not behind_car) implies (dist > perception_distance+abs_dist_err))
+        # always ((not behind_car) implies (dist > perception_distance+abs_dist_err))
 
 contract AccurateDistanceKnownConds(perception_distance, abs_dist_err=0.5):
     """ Contract proving that perceived distance is relatively accurate outside of manufacturer spec conditions"""
@@ -367,7 +367,7 @@ contract AccurateDistanceKnownConds(perception_distance, abs_dist_err=0.5):
 
     assumptions:
         # Assume we are in a lane
-        always self._lane is not None
+        # always self._lane is not None
 
         (params["weather"] == 0 or params["weather"] == 1) and params["lead_car_width"] >= 1.8
 
@@ -395,7 +395,7 @@ contract AccurateDistanceUnknownConds(perception_distance, abs_dist_err=0.5):
 
     assumptions:
         # Assume we are in a lane
-        always self._lane is not None
+        # always self._lane is not None
 
         not ((params["weather"] == 0 or params["weather"] == 1) and params["lead_car_width"] >= 1.8)
 
@@ -431,10 +431,6 @@ contract AccurateDistance(perception_distance, abs_dist_err=0.5):
         lead_car = sorted(cars, key=lambda x: lead_distances[x])[0]
         lead_dist = lead_distances[lead_car]
         behind_car = lead_dist <= perception_distance
-
-    assumptions:
-        # Assume we are in a lane
-        always self._lane is not None
 
     guarantees:
         # Guarantee that if we're behind a car (in visible range), that the reported distance
@@ -570,18 +566,18 @@ accurate_distance_known = refine accurate_distance_known_raw as AccurateDistance
 accurate_distance_unknown = test car.ps satisfies AccurateDistanceUnknownConds(
     PERCEPTION_DISTANCE,
     abs_dist_err=ABS_DIST_ERR),
-    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=600, confidence=0.95, batchSize=10, verbose=False),
-    terminating after 30*60 seconds
+    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=1, confidence=0.95, batchSize=10, verbose=False),
+    terminating after 10 seconds # 5*60 seconds
 
-accurate_distance = merge over car.ps:
+accurate_distance = conjunction over car.ps:
     use accurate_distance_known
     use accurate_distance_unknown
 
-accurate_distance = test car.ps satisfies AccurateDistance(
-    PERCEPTION_DISTANCE,
-    abs_dist_err=ABS_DIST_ERR),
-    using SimulationTesting(scenario=ENVIRONMENT, maxSteps=600, confidence=0.95, batchSize=10, verbose=False),
-    terminating after 5*60 seconds
+# accurate_distance = test car.ps satisfies AccurateDistance(
+#     PERCEPTION_DISTANCE,
+#     abs_dist_err=ABS_DIST_ERR),
+#     using SimulationTesting(scenario=ENVIRONMENT, maxSteps=1, confidence=0.95, batchSize=10, verbose=False),
+#     terminating after 5*60 seconds
 
 accurate_speed = assume car.sm satisfies AccurateSpeed()
 

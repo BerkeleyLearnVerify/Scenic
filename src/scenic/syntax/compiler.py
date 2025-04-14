@@ -3097,7 +3097,7 @@ class ScenicToPythonTransformer(Transformer):
             keywords=keywords,
         )
 
-    def visit_ContractMerge(self, node: s.ContractCompose):
+    def visit_ContractConjunction(self, node: s.ContractConjunction):
         # Create component keyword
         obj_val = ast.Name(node.component[0], loadCtx)
         component_val = obj_val
@@ -3122,7 +3122,7 @@ class ScenicToPythonTransformer(Transformer):
         keywords.append(ast.keyword("environment", ast.Name("ENVIRONMENT", ctx=loadCtx)))
 
         return ast.Call(
-            func=ast.Name("Merge", loadCtx),
+            func=ast.Name("Conjunction", loadCtx),
             args=[],
             keywords=keywords,
         )

@@ -663,7 +663,7 @@ scenic_compound_stmt:
     | scenic_assign_contract_test_stmt
     | scenic_assign_contract_prove_stmt
     | scenic_assign_contract_assume_stmt
-    | scenic_assign_contract_compose_stmt
+    | scenic_assign_contract_combination_stmt
     | scenic_assign_contract_refine_stmt
 
 # SIMPLE STATEMENTS
@@ -1231,21 +1231,21 @@ scenic_contract_assume_spec:
     | "with" "correctness" x=expression {("correctness", x)}
     | "with" "confidence" x=expression {("confidence", x)}
 
-# Contract Compose/Merge Statements
+# Contract Compose/Conjunction Statements
 # ---------------------------
 
-scenic_assign_contract_compose_stmt:
-    | a=(z=star_targets '=' { z })+ b=(scenic_contract_compose_stmt | scenic_contract_merge_stmt) {
+scenic_assign_contract_combination_stmt:
+    | a=(z=star_targets '=' { z })+ b=(scenic_contract_compose_stmt | scenic_contract_conjunction_stmt) {
          ast.Assign(targets=a, value=b, LOCATIONS)
      }
 
 scenic_contract_compose_stmt:
-    | "compose" "over" name=scenic_subcomponent_name ':' NEWLINE INDENT a=(scenic_contract_compose_inner)+ DEDENT {s.ContractCompose(name, a, LOCATIONS)}
+    | "compose" "over" name=scenic_subcomponent_name ':' NEWLINE INDENT a=(scenic_contract_combination_inner)+ DEDENT {s.ContractCompose(name, a, LOCATIONS)}
 
-scenic_contract_merge_stmt:
-    | "merge" "over" name=scenic_subcomponent_name ':' NEWLINE INDENT a=(scenic_contract_compose_inner)+ DEDENT {s.ContractMerge(name, a, LOCATIONS)}
+scenic_contract_conjunction_stmt:
+    | "conjunction" "over" name=scenic_subcomponent_name ':' NEWLINE INDENT a=(scenic_contract_combination_inner)+ DEDENT {s.ContractConjunction(name, a, LOCATIONS)}
 
-scenic_contract_compose_inner:
+scenic_contract_combination_inner:
     | scenic_contract_test_stmt
     | scenic_contract_prove_stmt
     | scenic_contract_assume_stmt

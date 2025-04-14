@@ -4,6 +4,7 @@ from functools import cached_property, reduce
 import itertools
 from math import prod
 
+import pacti
 from pacti.contracts import PropositionalIoContract
 
 from scenic.contracts.components import ActionComponent, BaseComponent, ComposeComponent
@@ -148,8 +149,8 @@ class Composition(VerificationTechnique):
             guarantee_decoding_map[self.encoding_map[((port, None))]] = port
         guarantee_decoding_transformer = NameSwapTransformer(guarantee_decoding_map)
 
-        # Initialize syntaxMappings
-        syntaxMappings = {}
+        # Initialize pactiAtomicsDict
+        pactiAtomicsDict = {}
 
         # Convert all sub_stmts to PACTI contracts and order/cluster according to sub-component
         stmt_groups = [[] for _ in range(len(self.sub_stmts))]
@@ -165,15 +166,20 @@ class Composition(VerificationTechnique):
             for spec in assumptions + guarantees:
                 spec.applyAtomicTransformer(encoding_transformer)
 
+            # TEMP: Separate non-global assumptions, to be added in at the end
+            # TODO: Remove this when PACTI adds support
+            non_g_assumptions = [a for a in assumptions if not isinstance(a, specs.Always)]
+            g_assumptions = [a for a in assumptions if isinstance(a, specs.Always)]
+
             # Convert all assumptions and guarantees to PACTI-compatible strings
-            pstring_assumptions = [a.toPACTIStr(syntaxMappings) for a in assumptions]
-            pstring_guarantees = [g.toPACTIStr(syntaxMappings) for g in guarantees]
+            pstring_assumptions = [a.toPACTIStr(pactiAtomicsDict) for a in g_assumptions]
+            pstring_guarantees = [g.toPACTIStr(pactiAtomicsDict) for g in guarantees]
 
             # Encode IO variables, create PACTI contract, and store it in the appropriate group
             encoded_input_vars = [
                 encoding_transformer.name_map[i]
                 for i in sub_stmt.component.inputs_types.keys()
-            ]
+            ] + ["GLOBALS"]
             encoded_output_vars = [
                 encoding_transformer.name_map[o]
                 for o in sub_stmt.component.outputs_types.keys()
@@ -189,13 +195,24 @@ class Composition(VerificationTechnique):
             stmt_groups[stmt_group_loc[sub_stmt]].append(pacti_contract)
 
         # Merge all groups, then compose in order.
-        merged_contracts = [
-            reduce(lambda x, y: x.merge(y), group) for group in stmt_groups
-        ]
-        composed_contract = reduce(lambda x, y: x.compose(y), merged_contracts)
+        # merged_contracts = [
+        #     reduce(lambda x, y: x.merge(y), group) for group in stmt_groups
+        # ]
+        assert [len(group) == 1 for group in stmt_groups]
+        stmt_groups = [g[0] for g in stmt_groups]
+        composed_contract = reduce(lambda x, y: x.compose(y), stmt_groups)
 
-        breakpoint()
-        pass
+        # Extract Scenic contracts from resulting Pacti contract
+        tl_assumptions = []
+        tl_guarantees = []
+
+        idSpecNodeDict = {v:k for k,v in pactiAtomicsDict.items()}
+
+        for term in composed_contract.a.terms:
+            tl_assumptions.append(specs.SpecNode.pactiTermToSpec(term, idSpecNodeDict))
+
+        for term in composed_contract.g.terms:
+            tl_guarantees.append(specs.SpecNode.pactiTermToSpec(term, idSpecNodeDict))
 
         """
         #### START TODO: REPLACE THIS BLOCK WITH PACTI
@@ -265,47 +282,12 @@ class Composition(VerificationTechnique):
         for spec in tl_guarantees:
             spec.applyAtomicTransformer(guarantee_decoding_transformer)
 
-        for spec in tl_assumptions:  # tl_assumptions + tl_guarantees
+        for spec in tl_assumptions + tl_guarantees:
             assert len(self.extractTempVars(spec.getAtomicNames())) == 0
-
-        # TODO: Replace this with assertion above when PACTI implemented
-        valid_guarantees = [
-            spec
-            for spec in tl_guarantees
-            if len(self.extractTempVars(spec.getAtomicNames())) == 0
-        ]
-
-        ## TODO: Deprecate below with PACTI integration
-        ## Try to salvage other guarantees
-        dropped_guarantees = [
-            spec
-            for spec in tl_guarantees
-            if len(self.extractTempVars(spec.getAtomicNames())) != 0
-        ]
-
-        while dropped_guarantees:
-            g1 = dropped_guarantees.pop(0)
-
-            if isinstance(g1, specs.Always) and isinstance(g1.sub, specs.Implies):
-                for g2 in filter(
-                    lambda x: isinstance(x, specs.Always)
-                    and isinstance(x.sub, specs.Implies),
-                    dropped_guarantees,
-                ):
-                    g1_a, g1_b = g1.sub.sub1, g1.sub.sub2
-                    g2_a, g2_b = g2.sub.sub1, g2.sub.sub2
-
-                    if g1_b == g2_a:
-                        new_g = specs.Always(specs.Implies(g1_a, g2_b))
-
-                        if len(self.extractTempVars(new_g.getAtomicNames())) == 0:
-                            valid_guarantees.append(new_g)
 
         ## Store assumptions and guarantees
         self._assumptions = tl_assumptions
-        self._guarantees = valid_guarantees
-
-        # TODO: Clear atomic source syntax strings?
+        self._guarantees = tl_guarantees
 
     @cached_property
     def assumptions(self):
@@ -355,7 +337,7 @@ class CompositionContractResult(ContractResult):
         return "\n".join(str(result) for result in self.sub_results)
 
 
-class Merge(VerificationTechnique):
+class Conjunction(VerificationTechnique):
     def __init__(self, sub_stmts, component, environment):
         ## Initialization ##
         # Store parameters

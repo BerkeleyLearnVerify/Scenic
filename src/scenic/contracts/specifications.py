@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import ast
 from copy import copy, deepcopy
 from itertools import chain, zip_longest
+import pyeda
 
 import scenic.core.propositions as propositions
 import scenic.syntax.ast as scenic_ast
@@ -145,7 +146,6 @@ class ASTSpecTransformer:
 
         return Atomic(node, self.defInfo)
 
-
 class SpecNode(ABC):
     @abstractmethod
     def applyAtomicTransformer(self, transformer):
@@ -159,24 +159,66 @@ class SpecNode(ABC):
     def getDefs(self):
         pass
 
-    @abstractmethod
-    def toPACTIStr(self, syntaxMappings):
-        pass
+    @staticmethod
+    def extractTempVars(var_iterable):
+        from scenic.contracts.composition import Composition
 
-    @abstractmethod
-    def toPACTITemp(self, syntaxMappings):
-        # TODO: Remove this temp function once PACTI supports nested functions/temporal ops.
-        pass
+        return {var for var in var_iterable if Composition.isTempVar(var)}
 
     def getContractVars(self):
         return self.extractTempVars(self.getAtomicNames())
 
     @staticmethod
-    def syntaxTreeToSyntaxVal(targetTree, syntaxMappings):
+    def toSpecNodeId(specNode, specNodeIdDict):
         # Check if there's a tree in the mappings that's equivalent to this one
-        for existingTree in syntaxMappings:
-            if SpecNode.equivalentAST(targetTree, existingTree):
-                return syntaxMappings[existingTree]
+        sn_id = specNodeIdDict.get(specNode, None)
+
+        if sn_id is None:
+            sn_id = len(specNodeIdDict)
+            specNodeIdDict[specNode] = sn_id
+
+        return sn_id
+
+    def toPactiProp(self, specNodeIdDict):
+        func_id = self.toSpecNodeId(self, specNodeIdDict)
+        func_vars = ", ".join({"GLOBALS"} | self.getContractVars())
+        return f"PROP_{func_id}({func_vars})"
+
+    def toPACTIStr(self, specNodeIdDict):
+        return self.toPactiProp(specNodeIdDict)
+
+    @staticmethod
+    def pactiTermToSpec(term, idSpecNodeDict):
+        return Always(SpecNode.pyedaExprToSpec(term.expression, idSpecNodeDict))
+
+    @staticmethod
+    def pyedaExprToSpec(expr, idSpecNodeDict):
+        ast = expr.to_ast()
+
+        if ast[0] == "const":
+            return ConstantSpecNode(value=bool(ast[1]))
+        elif ast[0] == "lit":
+            prop_id = int(expr.name.split("(")[0][5:])
+            return idSpecNodeDict[prop_id]
+        elif ast[0] == "not":
+            sub = SpecNode.pyedaExprToSpec(expr.inputs[0], idSpecNodeDict)
+            return Not(sub=sub)
+        elif ast[0] == "impl":
+            sub1 = SpecNode.pyedaExprToSpec(expr.inputs[0], idSpecNodeDict)
+            sub2 = SpecNode.pyedaExprToSpec(expr.inputs[1], idSpecNodeDict)
+            return Implies(sub1=sub1, sub2=sub2)
+        elif ast[0] in {"or", "and"}:
+            if ast[0] == "or":
+                op = Or
+            elif ast[0] == "and":
+                op = And
+            else:
+                assert False
+
+            subs = [SpecNode.pyedaExprToSpec(s, idSpecNodeDict) for s in expr.inputs]
+            return op(subs)
+        else:
+            breakpoint()        
 
     @abstractmethod
     def getAtomics(self):
@@ -241,12 +283,6 @@ class Atomic(SpecNode):
         else:
             return node1 == node2
 
-    @staticmethod
-    def extractTempVars(var_iterable):
-        from scenic.contracts.composition import Composition
-
-        return {var for var in var_iterable if Composition.isTempVar(var)}
-
     def toLean(self, ctx=bool):
         # TODO: Better name replacement
         str_map = {
@@ -281,6 +317,8 @@ class Atomic(SpecNode):
 
         return ast.unparse(self.ast)
 
+    def __hash__(self):
+        return hash(self.ast)
 
 class DefSpecNode(SpecNode):
     def __init__(self, name, defInfo):
@@ -316,6 +354,8 @@ class DefSpecNode(SpecNode):
     def __str__(self):
         return self.name
 
+    def __hash__(self):
+        return hash(self.name)
 
 class ConstantSpecNode(SpecNode):
     def __init__(self, value):
@@ -333,6 +373,14 @@ class ConstantSpecNode(SpecNode):
     def getAtomics(self, ctx=bool):
         return tuple()
 
+    def toPACTIStr(self, specNodeIdDict):
+        if self.value == False:
+            return "0"
+        elif self.value == True:
+            return "1"
+        else:
+            return super().toPACTIStr(specNodeIdDict)
+
     def toLean(self, ctx=bool):
         return str(self.value)
 
@@ -342,6 +390,8 @@ class ConstantSpecNode(SpecNode):
     def __str__(self):
         return str(self.value)
 
+    def __hash__(self):
+        return hash(self.value)
 
 class UnarySpecNode(SpecNode):
     def __init__(self, sub):
@@ -362,6 +412,9 @@ class UnarySpecNode(SpecNode):
 
     def __eq__(self, other):
         return type(self) is type(other) and self.sub == other.sub
+
+    def __hash__(self):
+        return hash((self.sub,))
 
 
 class BinarySpecNode(SpecNode):
@@ -389,6 +442,8 @@ class BinarySpecNode(SpecNode):
             and self.sub2 == other.sub2
         )
 
+    def __hash__(self):
+        return hash((self.sub1, self.sub2))
 
 class NarySpecNode(SpecNode):
     def __init__(self, subs):
@@ -412,49 +467,17 @@ class NarySpecNode(SpecNode):
     def __eq__(self, other):
         return type(self) is type(other) and self.subs == other.subs
 
-
-class Atomic(SpecNode):
-    def __init__(self, ast, source_str=None):
-        self.ast = ast
-        self.source_str = source_str
-
-    def applyAtomicTransformer(self, transformer):
-        self.ast = transformer.visit(self.ast)
-
-    def getAtomicNames(self):
-        nf = NameFinder()
-        nf.visit(self.ast)
-        return nf.names
-
-    def toPACTIStr(self, syntaxMappings):
-        func_name = self.syntaxTreeToSyntaxVal(self.ast, syntaxMappings)
-        func_vars = ", ".join(self.getContractVars())
-        return f"Atomic_{func_name}({func_vars})"
-
-    def toPACTITemp(self, syntaxMappings):
-        return f"Atomic_{self.syntaxTreeToSyntaxVal(self.ast, syntaxMappings)}"
-
-    def clearSourceStrings(self):
-        self.source_str = None
-
-    def __eq__(self, other):
-        return type(self) is type(other) and self.equivalentAST(self.ast, other.ast)
-
-    def __str__(self):
-        return self.source_str if self.source_str else ast.unparse(self.ast)
-
+    def __hash__(self):
+        return hash(tuple(self.subs))
 
 class Always(UnarySpecNode):
     ctx = bool
 
+    def toPACTIStr(self, pactiAtomicsDict):
+        return f"G({self.sub.toPACTIStr(pactiAtomicsDict)})"
+
     def toLean(self, ctx=bool):
         return f"G ({self.sub.toLean()})"
-
-    def toPACTIStr(self, syntaxMappings):
-        return f"{self.toPACTITemp(syntaxMappings)}({', '.join(self.getContractVars())})"
-
-    def toPACTITemp(self, syntaxMappings):
-        return f"ALW_{self.sub.toPACTITemp(syntaxMappings)}"
 
     def __str__(self):
         return f"always ({self.sub})"
@@ -465,12 +488,6 @@ class Eventually(UnarySpecNode):
 
     def toLean(self, ctx=bool):
         return f"F ({self.sub.toLean()})"
-
-    def toPACTIStr(self, syntaxMappings):
-        return f"{self.toPACTITemp(syntaxMappings)}({', '.join(self.getContractVars())})"
-
-    def toPACTITemp(self, syntaxMappings):
-        return f"EVN_{self.sub.toPACTITemp(syntaxMappings)}"
 
     def __str__(self):
         return f"eventually ({self.sub})"
@@ -486,12 +503,6 @@ class Next(UnarySpecNode):
     def getAtomics(self, ctx=bool):
         return self.sub.getAtomics(ctx)
 
-    def toPACTIStr(self, syntaxMappings):
-        return f"{self.toPACTITemp(syntaxMappings)}({', '.join(self.getContractVars())})"
-
-    def toPACTITemp(self, syntaxMappings):
-        return f"NXT_{self.sub.toPACTITemp(syntaxMappings)}"
-
     def __str__(self):
         return f"next ({self.sub})"
 
@@ -502,11 +513,8 @@ class Not(UnarySpecNode):
     def toLean(self, ctx=bool):
         return f"¬({self.sub.toLean()})"
 
-    def toPACTIStr(self, syntaxMappings):
-        return f"~({self.sub.toPACTIStr(syntaxMappings)})"
-
-    def toPACTITemp(self, syntaxMappings):
-        return f"NOT_{self.sub.toPACTITemp(syntaxMappings)}"
+    def toPACTIStr(self, specNodeIdDict):
+        return f"~({self.sub.toPACTIStr(specNodeIdDict)})"
 
     def __str__(self):
         return f"not ({self.sub})"
@@ -538,11 +546,8 @@ class Until(BinarySpecNode):
     def toLean(self, ctx=bool):
         return f"({self.sub1.toLean()}) U ({self.sub2.toLean()})"
 
-    def toPACTIStr(self, syntaxMappings):
-        return f"{self.toPACTITemp(syntaxMappings)}({', '.join(self.getContractVars())})"
-
-    def toPACTITemp(self, syntaxMappings):
-        return f"UNTIL_{self.sub1.toPACTITemp(syntaxMappings)}_{self.sub2.toPACTITemp(syntaxMappings)}"
+    def toPACTIStr(self, pactiAtomicsDict):
+        return f"{self.toPACTITemp(pactiAtomicsDict)}({', '.join(self.getContractVars())})"
 
     def __str__(self):
         return f"({self.sub1}) until ({self.sub2})"
@@ -554,11 +559,8 @@ class Implies(BinarySpecNode):
     def toLean(self, ctx=bool):
         return f"({self.sub1.toLean()}) → ({self.sub2.toLean()})"
 
-    def toPACTIStr(self, syntaxMappings):
-        return f"({self.sub1.toPACTIStr(syntaxMappings)}) => ({self.sub2.toPACTIStr(syntaxMappings)})"
-
-    def toPACTITemp(self, syntaxMappings):
-        return f"IMP_{self.sub1.toPACTITemp(syntaxMappings)}_{self.sub2.toPACTITemp(syntaxMappings)}"
+    def toPACTIStr(self, pactiAtomicsDict):
+        return f"({self.sub1.toPACTIStr(pactiAtomicsDict)}) => ({self.sub2.toPACTIStr(pactiAtomicsDict)})"
 
     def __str__(self):
         return f"({self.sub1}) implies ({self.sub2})"
@@ -680,15 +682,12 @@ class And(NarySpecNode):
     def toLean(self, ctx=bool):
         return " ∧ ".join(f"({sub.toLean()})" for sub in self.subs)
 
-    def toPACTIStr(self, syntaxMappings):
-        pacti_str = f"({self.sub1.toPACTIStr(syntaxMappings)}) & ({self.sub2.toPACTIStr(syntaxMappings)})"
+    def toPACTIStr(self, pactiAtomicsDict):
+        pacti_str = f"({self.subs[0].toPACTIStr(pactiAtomicsDict)}) & ({self.subs[1].toPACTIStr(pactiAtomicsDict)})"
         for sub in self.subs[2:]:
-            pacti_str = "(" + pacti_str + f" & {self.sub.toPACTIStr(syntaxMappings)})"
+            pacti_str = "(" + pacti_str + f" & {self.sub.toPACTIStr(pactiAtomicsDict)})"
 
         return pacti_str
-
-    def toPACTITemp(self, syntaxMappings):
-        return f"AND_{'_'.join(sub.toPACTITemp(syntaxMappings) for sub in self.subs)}"
 
     def __str__(self):
         return " and ".join(f"({str(sub)})" for sub in self.subs)
@@ -700,15 +699,12 @@ class Or(NarySpecNode):
     def toLean(self, ctx=bool):
         return " ∨ ".join(f"({sub.toLean()})" for sub in self.subs)
         
-    def toPACTIStr(self, syntaxMappings):
-        pacti_str = f"({self.sub1.toPACTIStr(syntaxMappings)}) | ({self.sub2.toPACTIStr(syntaxMappings)})"
+    def toPACTIStr(self, pactiAtomicsDict):
+        pacti_str = f"({self.subs[0].toPACTIStr(pactiAtomicsDict)}) | ({self.subs[1].toPACTIStr(pactiAtomicsDict)})"
         for sub in self.subs[2:]:
-            pacti_str = "(" + pacti_str + f" | {self.sub.toPACTIStr(syntaxMappings)})"
+            pacti_str = "(" + pacti_str + f" | {self.sub.toPACTIStr(pactiAtomicsDict)})"
 
         return pacti_str
-
-    def toPACTITemp(self, syntaxMappings):
-        return f"OR_{'_'.join(sub.toPACTITemp(syntaxMappings) for sub in self.subs)}"
 
     def __str__(self):
         return " or ".join(f"({str(sub)})" for sub in self.subs)
