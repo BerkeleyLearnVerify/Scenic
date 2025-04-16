@@ -121,7 +121,7 @@ class SetAutopilotAction(VehicleAction):
         """
         if not isinstance(enabled, bool):
             raise RuntimeError("Enabled must be a boolean.")
-        
+
         self.enabled = enabled
 
         # Default values for optional parameters
