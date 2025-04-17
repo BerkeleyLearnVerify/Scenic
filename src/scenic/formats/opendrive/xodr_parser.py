@@ -347,7 +347,8 @@ class Road:
         self.end_bounds_left = {}
         self.end_bounds_right = {}
         # Modified:
-        self.elevation_profile = [] # List to store elevation date
+        self.elevation_poly = [] # List of polygons for elevation data
+        self.lateral_poly = [] # List to polygons for lateral data
 
         self.remappedStartLanes = None  # hack for handling spurious initial lane sections
 
@@ -361,6 +362,27 @@ class Road:
         assert s >= s0
         return poly.eval_at(s - s0)
 
+    def get_elevation_at(self, s):
+        """Evaluate the elevation at a given s using the elevation profile."""
+        if not self.elevation_poly:
+            return 0
+        # Find the appropriate elevation segment for the given s
+        for i in range(len(self.elevation_poly) - 1):
+            s_start, _, _, _, _ = self.elevation_poly[i]
+            s_end, _, _, _, _ = self.elevation_poly[i + 1]
+            if s_start <= s < s_end:
+                break
+        else:
+            # Use the last segment if s is beyond the last defined range
+            i = len(self.elevation_poly) - 1
+
+        # Get the polynomial coefficients for the segment
+        s_start, a, b, c, d = self.elevation_poly[i]
+        ds = s - s_start
+        # Evaluate the cubic polynomial: z = a + b*ds + c*ds^2 + d*ds^3
+        z = a + b * ds + c * ds**2 + d * ds**3
+        return z
+
     def get_ref_points(self, num): # Need to modify this (Need to make piece_points have three dimensions + s instead of 2 + s)
         """Returns list of list of points for each piece of ref_line.
         List of list structure necessary because each piece needs to be
@@ -373,23 +395,12 @@ class Road:
             piece_points = piece.to_points(num, extra_points=transition_points)
             assert piece_points, "Failed to get piece points"
             if ref_points:
-                last_s = ref_points[-1][-1][2]
-                piece_points = [(p[0], p[1], p[2] + last_s) for p in piece_points]
+                last_s = ref_points[-1][-1][2] # Needs to be changed to [-1][-1][3] since we add z-coordinate before the s variable
+                piece_points = [(p[0], p[1], p[2] + last_s) for p in piece_points] # Need to add a way for z-coordinate to be added inbetween p[1] and p[2]
             ref_points.append(piece_points)
             transition_points = [s - last_s for s in transition_points if s > last_s]
         return ref_points
     
-    # Modified:
-    def parse_elevation_profile(self, elevation_profile_elem):
-        """Parse the elevation profile of the road."""
-        for elevation in elevation_profile_elem.iter("elevation"):
-            s = float(elevation.get("s"))
-            a = float(elevation.get("a"))
-            b = float(elevation.get("b"))
-            c = float(elevation.get("c"))
-            d = float(elevation.get("d"))
-            self.elevation_profile.append((s, a, b, c, d))
-
     def heading_at(self, point):
         # Convert point to shapely Point.
         point = Point(point.x, point.y)
@@ -1529,6 +1540,35 @@ class RoadMap:
                 refLine.append(lastCurve)
             assert refLine
             road.ref_line = refLine
+
+            # Parse elevation:
+            # Modified: (Might need to move this to somewhere else)
+            elevation_profile = r.find("elevationProfile")
+            for elevation in elevation_profile.iter("elevation"):
+                s = float(elevation.get("s"))
+                a = float(elevation.get("a"))
+                b = float(elevation.get("b"))
+                c = float(elevation.get("c"))
+                d = float(elevation.get("d"))
+                # Sort by order of s
+                if self.elevation_poly == []:
+                    self.elevation_poly.append((s, a, b, c, d))
+                else:
+                    for i in range(len(self.elevation_poly)):
+                        if s < self.elevation_poly[i][0]:
+                            self.elevation_poly.insert(i, (s, a, b, c, d))
+                            break
+                    else:
+                        self.elevation_poly.append((s, a, b, c, d))
+
+            lateral_profile = r.find("lateralProfile")
+            for super_elevation in lateral_profile.iter("superElevation"):
+                s = float(super_elevation.get("s"))
+                a = float(super_elevation.get("a"))
+                b = float(super_elevation.get("b"))
+                c = float(super_elevation.get("c"))
+                d = float(super_elevation.get("d"))
+                self.lateral_poly.append((s, a, b, c, d))
 
             # Parse lanes:
             lanes = r.find("lanes")
