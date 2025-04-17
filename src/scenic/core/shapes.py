@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 
 import numpy
+import shapely
 import trimesh
 from trimesh.transformations import (
     concatenate_matrices,
@@ -11,7 +12,7 @@ from trimesh.transformations import (
 )
 
 from scenic.core.type_support import toOrientation
-from scenic.core.utils import cached_property, unifyMesh
+from scenic.core.utils import cached_property, findMeshInteriorPoint, unifyMesh
 from scenic.core.vectors import Orientation
 
 ###################################################################################################
@@ -63,6 +64,18 @@ class Shape(ABC):
     @abstractmethod
     def isConvex(self):
         pass
+
+    @cached_property
+    def _circumradius(self):
+        return numpy.max(numpy.linalg.norm(self.mesh.vertices, axis=1))
+
+    @cached_property
+    def _interiorPoint(self):
+        return findMeshInteriorPoint(self.mesh)
+
+    @cached_property
+    def _multipoint(self):
+        return shapely.multipoints(self.mesh.vertices)
 
 
 ###################################################################################################

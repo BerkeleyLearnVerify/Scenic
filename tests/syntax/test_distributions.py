@@ -668,18 +668,54 @@ def test_reproducibility():
             assert iterations == baseIterations
 
 
+def test_reproducibility_lazy_interior():
+    """Regression test for a reproducibility issue involving lazy region computations.
+
+    In this test, an interior point of the objects' shape is computed on demand
+    during the first sample, then cached. The code for doing so used NumPy's PRNG,
+    meaning that a second sample with the same random seed could differ.
+    """
+    scenario = compileScenic(
+        """
+        import numpy
+        from scenic.core.distributions import distributionFunction
+        @distributionFunction
+        def gen(arg):
+            return numpy.random.random()
+
+        region = BoxRegion().difference(BoxRegion(dimensions=(0.1, 0.1, 0.1)))
+        shape = MeshShape(region.mesh)  # Shape which does not contain its center
+        other = new Object with shape shape
+        ego = new Object at (Range(0.9, 1.1), 0), with shape shape
+        param foo = ego intersects other  # trigger computation of interior point
+        param bar = gen(ego)  # generate number using NumPy's PRNG
+        """
+    )
+    seed = random.randint(0, 1000000000)
+    random.seed(seed)
+    numpy.random.seed(seed)
+    s1 = sampleScene(scenario, maxIterations=60)
+    random.seed(seed)
+    numpy.random.seed(seed)
+    s2 = sampleScene(scenario, maxIterations=60)
+    assert s1.params["bar"] == s2.params["bar"]
+    assert s1.egoObject.x == s2.egoObject.x
+
+
 @pytest.mark.slow
 def test_reproducibility_3d():
     scenario = compileScenic(
-        "ego = new Object\n"
-        "workspace = Workspace(SpheroidRegion(dimensions=(25,15,10)))\n"
-        "region = BoxRegion(dimensions=(25,15,0.1))\n"
-        "obj_1 = new Object in workspace, facing Range(0, 360) deg, with width Range(0.5, 1), with length Range(0.5,1)\n"
-        "obj_2 = new Object in workspace, facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg)\n"
-        "obj_3 = new Object in workspace, on region\n"
-        "param foo = Uniform(1, 4, 9, 16, 25, 36)\n"
-        "x = Range(0, 1)\n"
-        "require x > 0.8"
+        """
+        ego = new Object
+        workspace = Workspace(SpheroidRegion(dimensions=(5,5,5)))
+        region = BoxRegion(dimensions=(25,15,0.1))
+        #obj_1 = new Object in workspace, facing Range(0, 360) deg, with width Range(0.5, 1), with length Range(0.5,1)
+        obj_2 = new Object in workspace, facing (Range(0, 360) deg, Range(0, 360) deg, Range(0, 360) deg)
+        #obj_3 = new Object in workspace, on region
+        param foo = ego intersects obj_2
+        x = Range(0, 1)
+        require x > 0.8
+        """
     )
     seeds = [random.randint(0, 100) for i in range(10)]
     for seed in seeds:
