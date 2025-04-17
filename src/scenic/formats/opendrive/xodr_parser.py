@@ -366,20 +366,24 @@ class Road:
         """Evaluate the elevation at a given s using the elevation profile."""
         if not self.elevation_poly:
             return 0
+        # Find the appropriate elevation segment for the given s
         for i in range(len(self.elevation_poly) - 1):
             s_start, _, _, _, _ = self.elevation_poly[i]
             s_end, _, _, _, _ = self.elevation_poly[i + 1]
             if s_start <= s < s_end:
                 break
         else:
+            # Use the last segment if s is beyond the last defined range
             i = len(self.elevation_poly) - 1
 
+        # Get the polynomial coefficients for the segment
         s_start, a, b, c, d = self.elevation_poly[i]
         ds = s - s_start
+        # Evaluate the cubic polynomial: z = a + b*ds + c*ds^2 + d*ds^3
         z = a + b * ds + c * ds**2 + d * ds**3
         return z
 
-    def get_ref_points(self, num):
+    def get_ref_points(self, num): # Need to modify this (Need to make piece_points have three dimensions + s instead of 2 + s)
         """Returns list of list of points for each piece of ref_line.
         List of list structure necessary because each piece needs to be
         constructed into Polygon separately then unioned afterwards to avoid
@@ -391,8 +395,8 @@ class Road:
             piece_points = piece.to_points(num, extra_points=transition_points)
             assert piece_points, "Failed to get piece points"
             if ref_points:
-                last_s = ref_points[-1][-1][3]
-                piece_points = [(p[0], p[1], self.get_elevation_at(p[3] + last_s), p[3] + last_s) for p in piece_points]
+                last_s = ref_points[-1][-1][3] # Needs to be changed to [-1][-1][3] since we add z-coordinate before the s variable
+                piece_points = [(p[0], p[1], self.get_elevation_at(p[3] + last_s), p[3] + last_s) for p in piece_points] # Need to add a way for z-coordinate to be added inbetween p[1] and p[2]
             ref_points.append(piece_points)
             transition_points = [s - last_s for s in transition_points if s > last_s]
         return ref_points
@@ -468,7 +472,7 @@ class Road:
             while ref_points and not end_of_sec:
                 if not ref_points[0]:
                     ref_points.pop(0)
-                if not ref_points or (cur_p and cur_p[3] >= s_stop):
+                if not ref_points or (cur_p and cur_p[3] >= s_stop): # Need to change cur_p[2] to 3 since we add z-coordinate before the s variable
                     # Case 1: We have processed the entire reference line.
                     # Case 2: The s-coordinate has exceeded s_stop, so we should move
                     # onto the next LaneSection.
@@ -535,7 +539,7 @@ class Road:
                     tan_norm = math.hypot(tan_vec[0], tan_vec[1])
                     assert tan_norm > 1e-10
                     normal_vec = (-tan_vec[1] / tan_norm, tan_vec[0] / tan_norm)
-                    if cur_p[3] < s_stop:
+                    if cur_p[3] < s_stop: # Need to change cur_p[2] to 3 since we add z-coordinate before the s variable
                         # if at end of section, keep current point to be included in
                         # the next section as well; otherwise remove it
                         ref_points[0].pop(0)
@@ -554,11 +558,13 @@ class Road:
                                 cur_p[0] + normal_vec[0] * offsets[id_],
                                 cur_p[1] + normal_vec[1] * offsets[id_],
                                 cur_p[2] + normal_vec[2] * offsets[id_],
+                                # Add cur_p[2] to make it a 3D point
                             ]
                             right_bound = [
                                 cur_p[0] + normal_vec[0] * offsets[prev_id],
                                 cur_p[1] + normal_vec[1] * offsets[prev_id],
                                 cur_p[2] + normal_vec[2] * offsets[prev_id],
+                                # Add cur_p[2] to make it a 3D point
                             ]
                             if id_ < 0:
                                 left_bound, right_bound = right_bound, left_bound
@@ -567,6 +573,7 @@ class Road:
                                 cur_p[0] + normal_vec[0] * halfway,
                                 cur_p[1] + normal_vec[1] * halfway,
                                 cur_p[2] + normal_vec[2] * halfway,
+                                # Add cur_p[2] to make it a 3D point
                             ]
                             left_bounds[id_].append(left_bound)
                             right_bounds[id_].append(right_bound)
