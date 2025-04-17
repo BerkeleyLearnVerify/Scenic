@@ -346,6 +346,8 @@ class Road:
         self.start_bounds_right = {}
         self.end_bounds_left = {}
         self.end_bounds_right = {}
+        # Modified:
+        self.elevation_profile = [] # List to store elevation date
 
         self.remappedStartLanes = None  # hack for handling spurious initial lane sections
 
@@ -376,6 +378,17 @@ class Road:
             ref_points.append(piece_points)
             transition_points = [s - last_s for s in transition_points if s > last_s]
         return ref_points
+    
+    # Modified:
+    def parse_elevation_profile(self, elevation_profile_elem):
+        """Parse the elevation profile of the road."""
+        for elevation in elevation_profile_elem.iter("elevation"):
+            s = float(elevation.get("s"))
+            a = float(elevation.get("a"))
+            b = float(elevation.get("b"))
+            c = float(elevation.get("c"))
+            d = float(elevation.get("d"))
+            self.elevation_profile.append((s, a, b, c, d))
 
     def heading_at(self, point):
         # Convert point to shapely Point.
